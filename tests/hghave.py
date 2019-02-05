@@ -738,6 +738,13 @@ def has_setprocname():
         return False
 
 
+@check("gui", "whether a gui environment is available or not")
+def has_gui():
+    from mercurial.utils import procutil
+
+    return procutil.gui()
+
+
 @check("test-repo", "running tests from repository")
 def has_test_repo():
     t = os.environ["TESTDIR"]

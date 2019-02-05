@@ -158,9 +158,18 @@ Test --per-file option:
   diffing */extdiff.*/a.46c0e4daeb72/b a.81906f2b98ac/b (glob) (no-windows !)
   [1]
 
+#if no-gui
+Test gui tool error:
+
+  $ hg --config extdiff.gui.alabalaf=True alabalaf
+  abort: tool 'alabalaf' requires a GUI
+  (to override, use: --config diff-tools.alabalaf.gui=False)
+  [255]
+#endif
+
 Test --per-file option for gui tool:
 
-  $ hg --config extdiff.gui.alabalaf=True alabalaf -c 6 --per-file --debug
+  $ DISPLAY=fake hg --config extdiff.gui.alabalaf=True alabalaf -c 6 --per-file --debug
   diffing */extdiff.*/a.46c0e4daeb72/* a.81906f2b98ac/* (glob)
   diffing */extdiff.*/a.46c0e4daeb72/* a.81906f2b98ac/* (glob)
   making snapshot of 2 files from rev 46c0e4daeb72
@@ -176,7 +185,7 @@ Test --per-file option for gui tool:
 
 Test --per-file option for gui tool again:
 
-  $ hg --config merge-tools.alabalaf.gui=True alabalaf -c 6 --per-file --debug
+  $ DISPLAY=fake hg --config merge-tools.alabalaf.gui=True alabalaf -c 6 --per-file --debug
   diffing */extdiff.*/a.46c0e4daeb72/* a.81906f2b98ac/* (glob)
   diffing */extdiff.*/a.46c0e4daeb72/* a.81906f2b98ac/* (glob)
   making snapshot of 2 files from rev 46c0e4daeb72

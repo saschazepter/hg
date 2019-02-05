@@ -729,16 +729,24 @@ class savedcmd:
     to its parent.
     """
 
-    def __init__(self, path, cmdline, isgui):
+    def __init__(self, cmd, path, cmdline, isgui):
         # We can't pass non-ASCII through docstrings (and path is
         # in an unknown encoding anyway), but avoid double separators on
         # Windows
         docpath = stringutil.escapestr(path).replace(b'\\\\', b'\\')
         self.__doc__ %= {'path': pycompat.sysstr(stringutil.uirepr(docpath))}
+        self._name = cmd
         self._cmdline = cmdline
         self._isgui = isgui
 
     def __call__(self, ui, repo, *pats, **opts):
+        if self._isgui and not procutil.gui():
+            msg = _(b"tool '%s' requires a GUI") % self._name
+            hint = (
+                _(b"to override, use: --config diff-tools.%s.gui=False")
+                % self._name
+            )
+            raise error.Abort(msg, hint=hint)
         opts = pycompat.byteskwargs(opts)
         options = b' '.join(map(procutil.shellquote, opts[b'option']))
         if options:
@@ -798,9 +806,15 @@ def _gettooldetails(ui, cmd, path):
             args = ui.config(section, key)
             if args:
                 cmdline += b' ' + args
-                if isgui is None:
-                    isgui = ui.configbool(section, cmd + b'.gui') or False
                 break
+    if isgui is None:
+        key = cmd + b'.gui'
+        for section in (b'diff-tools', b'merge-tools'):
+            isgui = ui.configbool(section, key)
+            if isgui is not None:
+                break
+    if isgui is None:
+        isgui = False
     return cmd, path, cmdline, isgui
 
 
@@ -815,7 +829,7 @@ def uisetup(ui):
             _(b'hg %s [OPTION]... [FILE]...') % cmd,
             helpcategory=command.CATEGORY_FILE_CONTENTS,
             inferrepo=True,
-        )(savedcmd(path, cmdline, isgui))
+        )(savedcmd(cmd, path, cmdline, isgui))
 
 
 # tell hggettext to extract docstrings from these functions:
