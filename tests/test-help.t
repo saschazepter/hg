@@ -143,6 +143,11 @@ the extension is unknown.
    help          show help for a given topic or a help overview
    version       output version and copyright information
   
+  Miscellaneous commands:
+  
+   script::revs  given a revset, list its content or/amd check that it matches
+                 revisions
+  
   additional help topics:
   
   Mercurial identifiers:
@@ -277,6 +282,11 @@ the extension is unknown.
    config        show combined config settings from all hgrc files
    help          show help for a given topic or a help overview
    version       output version and copyright information
+  
+  Miscellaneous commands:
+  
+   script::revs  given a revset, list its content or/amd check that it matches
+                 revisions
   
   additional help topics:
   
@@ -2947,6 +2957,13 @@ Dish up an empty repo; serve it cold.
   </a>
   </td><td>
   print the root (top) of the current working directory
+  </td></tr>
+  <tr><td>
+  <a href="/help/script::revs">
+  script::revs
+  </a>
+  </td><td>
+  given a revset, list its content or/amd check that it matches revisions
   </td></tr>
   <tr><td>
   <a href="/help/shellalias">

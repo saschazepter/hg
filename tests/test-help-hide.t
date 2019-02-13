@@ -91,6 +91,11 @@ Test hiding some commands (which also happens to hide an entire category).
    help          show help for a given topic or a help overview
    version       output version and copyright information
   
+  Miscellaneous commands:
+  
+   script::revs  given a revset, list its content or/amd check that it matches
+                 revisions
+  
   additional help topics:
   
   Mercurial identifiers:
@@ -233,6 +238,11 @@ Test hiding some topics.
    config        show combined config settings from all hgrc files
    help          show help for a given topic or a help overview
    version       output version and copyright information
+  
+  Miscellaneous commands:
+  
+   script::revs  given a revset, list its content or/amd check that it matches
+                 revisions
   
   additional help topics:
   

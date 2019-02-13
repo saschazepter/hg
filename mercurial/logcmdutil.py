@@ -1321,7 +1321,7 @@ def displaygraphrevs(ui, repo, revs, displayer, getrenamed):
     displaygraph(ui, repo, revdag, displayer, graphmod.asciiedges, getrenamed)
 
 
-def displayrevs(ui, repo, revs, displayer, getcopies):
+def displayrevs(ui, repo, revs, displayer, getcopies=None):
     for rev in revs:
         ctx = repo[rev]
         copies = getcopies(ctx) if getcopies else None

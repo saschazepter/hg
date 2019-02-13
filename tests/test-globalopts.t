@@ -395,6 +395,11 @@ Testing -h/--help:
    help          show help for a given topic or a help overview
    version       output version and copyright information
   
+  Miscellaneous commands:
+  
+   script::revs  given a revset, list its content or/amd check that it matches
+                 revisions
+  
   additional help topics:
   
   Mercurial identifiers:
@@ -533,6 +538,11 @@ Testing -h/--help:
    config        show combined config settings from all hgrc files
    help          show help for a given topic or a help overview
    version       output version and copyright information
+  
+  Miscellaneous commands:
+  
+   script::revs  given a revset, list its content or/amd check that it matches
+                 revisions
   
   additional help topics:
   

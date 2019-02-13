@@ -2244,6 +2244,10 @@ help/ shows help topics
         "topic": "root"
       },
       {
+        "summary": "given a revset, list its content or/amd check that it matches revisions",
+        "topic": "script::revs"
+      },
+      {
         "summary": "save and set aside changes from the working directory",
         "topic": "shelve"
       },

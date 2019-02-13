@@ -183,6 +183,7 @@ Test the completion utility from mercurial
   revert
   rollback
   root
+  script::revs
   serve
   shelve
   status
@@ -397,7 +398,7 @@ Show the options for the "serve" command
 Show an error if we use --options with an ambiguous abbreviation
   $ hg debugcomplete --options s
   hg: command 's' is ambiguous:
-      serve shelve showconfig status summary
+      script::revs serve shelve showconfig status summary
   [10]
 
 Show all commands + options
@@ -536,6 +537,7 @@ Show all commands + options
   revert: all, date, rev, no-backup, interactive, include, exclude, dry-run
   rollback: dry-run, force
   root: share-source, template
+  script::revs: exists, style, template
   serve: accesslog, daemon, daemon-postexec, errorlog, port, address, prefix, name, web-conf, webdir-conf, pid-file, stdio, cmdserver, templates, style, ipv6, certificate, print-url, subrepos
   shelve: addremove, unknown, cleanup, date, delete, edit, keep, list, message, name, patch, interactive, stat, include, exclude
   status: all, modified, added, removed, deleted, clean, unknown, ignored, no-status, terse, copies, print0, rev, change, include, exclude, subrepos, template
