@@ -108,7 +108,14 @@ class _multifile:
 
 
 def makev1commandrequest(
-    ui, requestbuilder, caps, capablefn, repobaseurl, cmd, args
+    ui,
+    requestbuilder,
+    caps,
+    capablefn,
+    repobaseurl,
+    cmd,
+    args,
+    remotehidden=False,
 ):
     """Make an HTTP request to run a command for a version 1 client.
 
@@ -127,6 +134,8 @@ def makev1commandrequest(
 
     ui.debug(b"sending %s command\n" % cmd)
     q = [(b'cmd', cmd)]
+    if remotehidden:
+        q.append(('access-hidden', '1'))
     headersize = 0
     # Important: don't use self.capable() here or else you end up
     # with infinite recursion when trying to look up capabilities
@@ -385,18 +394,12 @@ class httppeer(wireprotov1peer.wirepeer):
         self, ui, path, url, opener, requestbuilder, caps, remotehidden=False
     ):
         super().__init__(ui, path=path, remotehidden=remotehidden)
-        if remotehidden:
-            msg = _(
-                b"ignoring `--remote-hidden` request\n"
-                b"(access to hidden changeset for http peers not "
-                b"supported yet)\n"
-            )
-            ui.warn(msg)
         self._url = url
         self._caps = caps
         self.limitedarguments = caps is not None and b'httppostargs' not in caps
         self._urlopener = opener
         self._requestbuilder = requestbuilder
+        self._remotehidden = remotehidden
 
     def __del__(self):
         for h in self._urlopener.handlers:
@@ -451,6 +454,7 @@ class httppeer(wireprotov1peer.wirepeer):
             self._url,
             cmd,
             args,
+            self._remotehidden,
         )
 
         resp = sendrequest(self.ui, self._urlopener, req)
