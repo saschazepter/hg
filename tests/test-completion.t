@@ -366,7 +366,7 @@ Show all commands + options
   parents: rev, style, template
   paths: template
   phase: public, draft, secret, force, rev
-  pull: update, force, confirm, rev, bookmark, branch, ssh, remotecmd, insecure
+  pull: update, force, confirm, rev, bookmark, branch, remote-hidden, ssh, remotecmd, insecure
   purge: abort-on-err, all, ignored, dirs, files, print, print0, confirm, include, exclude
   push: force, rev, bookmark, all-bookmarks, branch, new-branch, pushvars, publish, ssh, remotecmd, insecure
   recover: verify

@@ -15,10 +15,10 @@ def wrapcapable(orig, self, name, *args, **kwargs):
     if name in b'$CAP'.split(b' '):
         return False
     return orig(self, name, *args, **kwargs)
-def wrappeer(orig, self, path=None):
+def wrappeer(orig, self, *args, **kwargs):
     # Since we're disabling some newer features, we need to make sure local
     # repos add in the legacy features again.
-    return localrepo.locallegacypeer(self, path=path)
+    return localrepo.locallegacypeer(self, *args, **kwargs)
 EOF
 
 echo '[extensions]' >> $HGRCPATH

@@ -65,10 +65,10 @@ release = lock.release
 sharedbookmarks = b'bookmarks'
 
 
-def addbranchrevs(lrepo, other, branches, revs):
+def addbranchrevs(lrepo, other, branches, revs, remotehidden=False):
     if util.safehasattr(other, 'peer'):
         # a courtesy to callers using a localrepo for other
-        peer = other.peer()
+        peer = other.peer(remotehidden=remotehidden)
     else:
         peer = other
     hashbranch, branches = branches
@@ -242,7 +242,15 @@ def repository(
     return repo.filtered(b'visible')
 
 
-def peer(uiorrepo, opts, path, create=False, intents=None, createopts=None):
+def peer(
+    uiorrepo,
+    opts,
+    path,
+    create=False,
+    intents=None,
+    createopts=None,
+    remotehidden=False,
+):
     '''return a repository peer for the specified path'''
     ui = getattr(uiorrepo, 'ui', uiorrepo)
     rui = remoteui(uiorrepo, opts)
@@ -260,6 +268,7 @@ def peer(uiorrepo, opts, path, create=False, intents=None, createopts=None):
             create,
             intents=intents,
             createopts=createopts,
+            remotehidden=remotehidden,
         )
         _setup_repo_or_peer(rui, peer)
     else:
@@ -274,7 +283,7 @@ def peer(uiorrepo, opts, path, create=False, intents=None, createopts=None):
             intents=intents,
             createopts=createopts,
         )
-        peer = repo.peer(path=peer_path)
+        peer = repo.peer(path=peer_path, remotehidden=remotehidden)
     return peer
 
 
