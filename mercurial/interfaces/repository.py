@@ -388,7 +388,7 @@ class peer:
 
     limitedarguments = False
 
-    def __init__(self, ui, path=None):
+    def __init__(self, ui, path=None, remotehidden=False):
         self.ui = ui
         self.path = path
 

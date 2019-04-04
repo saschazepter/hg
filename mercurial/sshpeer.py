@@ -372,7 +372,16 @@ def _performhandshake(ui, stdin, stdout, stderr):
 
 class sshv1peer(wireprotov1peer.wirepeer):
     def __init__(
-        self, ui, path, proc, stdin, stdout, stderr, caps, autoreadstderr=True
+        self,
+        ui,
+        path,
+        proc,
+        stdin,
+        stdout,
+        stderr,
+        caps,
+        autoreadstderr=True,
+        remotehidden=False,
     ):
         """Create a peer from an existing SSH connection.
 
@@ -383,7 +392,14 @@ class sshv1peer(wireprotov1peer.wirepeer):
         ``autoreadstderr`` denotes whether to automatically read from
         stderr and to forward its output.
         """
-        super().__init__(ui, path=path)
+        super().__init__(ui, path=path, remotehidden=remotehidden)
+        if remotehidden:
+            msg = _(
+                b"ignoring `--remote-hidden` request\n"
+                b"(access to hidden changeset for ssh peers not supported "
+                b"yet)\n"
+            )
+            ui.warn(msg)
         # self._subprocess is unused. Keeping a handle on the process
         # holds a reference and prevents it from being garbage collected.
         self._subprocess = proc
@@ -568,7 +584,16 @@ class sshv1peer(wireprotov1peer.wirepeer):
             self._readerr()
 
 
-def _make_peer(ui, path, proc, stdin, stdout, stderr, autoreadstderr=True):
+def _make_peer(
+    ui,
+    path,
+    proc,
+    stdin,
+    stdout,
+    stderr,
+    autoreadstderr=True,
+    remotehidden=False,
+):
     """Make a peer instance from existing pipes.
 
     ``path`` and ``proc`` are stored on the eventual peer instance and may
@@ -598,6 +623,7 @@ def _make_peer(ui, path, proc, stdin, stdout, stderr, autoreadstderr=True):
             stderr,
             caps,
             autoreadstderr=autoreadstderr,
+            remotehidden=remotehidden,
         )
     else:
         _cleanuppipes(ui, stdout, stdin, stderr, warn=None)
@@ -606,7 +632,9 @@ def _make_peer(ui, path, proc, stdin, stdout, stderr, autoreadstderr=True):
         )
 
 
-def make_peer(ui, path, create, intents=None, createopts=None):
+def make_peer(
+    ui, path, create, intents=None, createopts=None, remotehidden=False
+):
     """Create an SSH peer.
 
     The returned object conforms to the ``wireprotov1peer.wirepeer`` interface.
@@ -658,7 +686,9 @@ def make_peer(ui, path, create, intents=None, createopts=None):
         ui, sshcmd, args, remotecmd, remotepath, sshenv
     )
 
-    peer = _make_peer(ui, path, proc, stdin, stdout, stderr)
+    peer = _make_peer(
+        ui, path, proc, stdin, stdout, stderr, remotehidden=remotehidden
+    )
 
     # Finally, if supported by the server, notify it about our own
     # capabilities.

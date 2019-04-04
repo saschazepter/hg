@@ -381,8 +381,17 @@ def parsev1commandresponse(ui, baseurl, requrl, qs, resp, compressible):
 
 
 class httppeer(wireprotov1peer.wirepeer):
-    def __init__(self, ui, path, url, opener, requestbuilder, caps):
-        super().__init__(ui, path=path)
+    def __init__(
+        self, ui, path, url, opener, requestbuilder, caps, remotehidden=False
+    ):
+        super().__init__(ui, path=path, remotehidden=remotehidden)
+        if remotehidden:
+            msg = _(
+                b"ignoring `--remote-hidden` request\n"
+                b"(access to hidden changeset for http peers not "
+                b"supported yet)\n"
+            )
+            ui.warn(msg)
         self._url = url
         self._caps = caps
         self.limitedarguments = caps is not None and b'httppostargs' not in caps
@@ -592,7 +601,9 @@ def performhandshake(ui, url, opener, requestbuilder):
     return respurl, info
 
 
-def _make_peer(ui, path, opener=None, requestbuilder=urlreq.request):
+def _make_peer(
+    ui, path, opener=None, requestbuilder=urlreq.request, remotehidden=False
+):
     """Construct an appropriate HTTP peer instance.
 
     ``opener`` is an ``url.opener`` that should be used to establish
@@ -615,11 +626,19 @@ def _make_peer(ui, path, opener=None, requestbuilder=urlreq.request):
     respurl, info = performhandshake(ui, url, opener, requestbuilder)
 
     return httppeer(
-        ui, path, respurl, opener, requestbuilder, info[b'v1capabilities']
+        ui,
+        path,
+        respurl,
+        opener,
+        requestbuilder,
+        info[b'v1capabilities'],
+        remotehidden=remotehidden,
     )
 
 
-def make_peer(ui, path, create, intents=None, createopts=None):
+def make_peer(
+    ui, path, create, intents=None, createopts=None, remotehidden=False
+):
     if create:
         raise error.Abort(_(b'cannot create new http repository'))
     try:
@@ -628,7 +647,7 @@ def make_peer(ui, path, create, intents=None, createopts=None):
                 _(b'Python support for SSL and HTTPS is not installed')
             )
 
-        inst = _make_peer(ui, path)
+        inst = _make_peer(ui, path, remotehidden=remotehidden)
 
         return inst
     except error.RepoError as httpexception:
