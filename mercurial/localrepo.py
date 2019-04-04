@@ -307,8 +307,18 @@ class localcommandexecutor:
 class localpeer(repository.peer):
     '''peer for a local repo; reflects only the most recent API'''
 
-    def __init__(self, repo, caps=None, path=None):
-        super(localpeer, self).__init__(repo.ui, path=path)
+    def __init__(self, repo, caps=None, path=None, remotehidden=False):
+        super(localpeer, self).__init__(
+            repo.ui, path=path, remotehidden=remotehidden
+        )
+
+        if remotehidden:
+            msg = _(
+                b"ignoring `--remote-hidden` request\n"
+                b"(access to hidden changeset for %r not "
+                b"supported yet)\n"
+            ) % type(self)
+            self.ui.warn(msg)
 
         if caps is None:
             caps = moderncaps.copy()
@@ -455,8 +465,10 @@ class locallegacypeer(localpeer):
     """peer extension which implements legacy methods too; used for tests with
     restricted capabilities"""
 
-    def __init__(self, repo, path=None):
-        super(locallegacypeer, self).__init__(repo, caps=legacycaps, path=path)
+    def __init__(self, repo, path=None, remotehidden=False):
+        super(locallegacypeer, self).__init__(
+            repo, caps=legacycaps, path=path, remotehidden=remotehidden
+        )
 
     # Begin of baselegacywirecommands interface.
 
@@ -1657,8 +1669,10 @@ class localrepository:
                 parts.pop()
         return False
 
-    def peer(self, path=None):
-        return localpeer(self, path=path)  # not cached to avoid reference cycle
+    def peer(self, path=None, remotehidden=False):
+        return localpeer(
+            self, path=path, remotehidden=remotehidden
+        )  # not cached to avoid reference cycle
 
     def unfiltered(self):
         """Return unfiltered version of the repository

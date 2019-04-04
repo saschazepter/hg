@@ -5405,6 +5405,12 @@ def postincoming(ui, repo, modheads, optupdate, checkout, brev):
             _(b'a specific branch you would like to pull'),
             _(b'BRANCH'),
         ),
+        (
+            b'',
+            b'remote-hidden',
+            False,
+            _(b"include changesets hidden on the remote (EXPERIMENTAL)"),
+        ),
     ]
     + remoteopts,
     _(b'[-u] [-f] [-r REV]... [-e CMD] [--remotecmd CMD] [SOURCE]...'),
@@ -5442,6 +5448,14 @@ def pull(ui, repo, *sources, **opts):
     Specifying bookmark as ``.`` is equivalent to specifying the active
     bookmark's name.
 
+    .. container:: verbose
+
+        One can use the `--remote-hidden` flag to pull changesets
+        hidden on the remote. This flag is "best effort", and will only
+        work if the server supports the feature and is configured to
+        allow the user to access hidden changesets. This option is
+        experimental and backwards compatibility is not garanteed.
+
     Returns 0 on success, 1 if an update had unresolved files.
     """
 
@@ -5456,12 +5470,16 @@ def pull(ui, repo, *sources, **opts):
     for path in urlutil.get_pull_paths(repo, ui, sources):
         ui.status(_(b'pulling from %s\n') % urlutil.hidepassword(path.loc))
         ui.flush()
-        other = hg.peer(repo, opts, path)
+        other = hg.peer(repo, opts, path, remotehidden=opts[b'remote_hidden'])
         update_conflict = None
         try:
             branches = (path.branch, opts.get(b'branch', []))
             revs, checkout = hg.addbranchrevs(
-                repo, other, branches, opts.get(b'rev')
+                repo,
+                other,
+                branches,
+                opts.get(b'rev'),
+                remotehidden=opts[b'remote_hidden'],
             )
 
             pullopargs = {}
