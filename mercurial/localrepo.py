@@ -312,18 +312,12 @@ class localpeer(repository.peer):
             repo.ui, path=path, remotehidden=remotehidden
         )
 
-        if remotehidden:
-            msg = _(
-                b"ignoring `--remote-hidden` request\n"
-                b"(access to hidden changeset for %r not "
-                b"supported yet)\n"
-            ) % type(self)
-            self.ui.warn(msg)
-
         if caps is None:
             caps = moderncaps.copy()
-        self._repo = repo.filtered(b'served')
-
+        if remotehidden:
+            self._repo = repo.filtered(b'served.hidden')
+        else:
+            self._repo = repo.filtered(b'served')
         if repo._wanted_sidedata:
             formatted = bundle2.format_remote_wanted_sidedata(repo)
             caps.add(b'exp-wanted-sidedata=' + formatted)
