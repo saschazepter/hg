@@ -21,6 +21,7 @@ from ..pycompat import (
 from .. import (
     encoding,
     pycompat,
+    scmutil,
     templater,
     util,
 )
@@ -39,15 +40,7 @@ HTTP_NOT_ACCEPTABLE = 406
 HTTP_UNSUPPORTED_MEDIA_TYPE = 415
 HTTP_SERVER_ERROR = 500
 
-
-def ismember(ui, username, userlist):
-    """Check if username is a member of userlist.
-
-    If userlist has a single '*' member, all users are considered members.
-    Can be overridden by extensions to provide more complex authorization
-    schemes.
-    """
-    return userlist == [b'*'] or username in userlist
+ismember = scmutil.ismember
 
 
 def hashiddenaccess(repo, req):
