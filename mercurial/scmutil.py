@@ -2313,3 +2313,13 @@ def format_bookmark_revspec(mark):
         mark,
         mark,
     )
+
+
+def ismember(ui, username, userlist):
+    """Check if username is a member of userlist.
+
+    If userlist has a single '*' member, all users are considered members.
+    Can be overridden by extensions to provide more complex authorization
+    schemes.
+    """
+    return userlist == [b'*'] or username in userlist
