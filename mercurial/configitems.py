@@ -1244,6 +1244,11 @@ coreconfigitem(
 )
 coreconfigitem(
     b'experimental',
+    b'server.allow-hidden-access',
+    default=list,
+)
+coreconfigitem(
+    b'experimental',
     b'server.filesdata.recommended-batch-size',
     default=50000,
 )
