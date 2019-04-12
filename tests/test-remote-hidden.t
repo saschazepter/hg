@@ -111,3 +111,47 @@ changesets in secret and higher phases are not visible through hgweb
   revision:    0
 
   $ killdaemons.py
+
+Test accessing hidden changeset through hgweb
+---------------------------------------------
+
+  $ hg -R repo-with-hidden serve -p $HGPORT -d --pid-file hg.pid --config "experimental.server.allow-hidden-access=*" -E error.log --accesslog access.log
+  $ cat hg.pid >> $DAEMON_PIDS
+
+Hidden changeset are hidden by default:
+
+  $ get-with-headers.py localhost:$HGPORT 'log?style=raw' | grep revision:
+  revision:    2
+  revision:    0
+
+Hidden changeset are visible when requested:
+
+  $ get-with-headers.py localhost:$HGPORT 'log?style=raw&access-hidden=1' | grep revision:
+  revision:    3
+  revision:    2
+  revision:    1
+  revision:    0
+
+Same check on a server that do not allow hidden access:
+```````````````````````````````````````````````````````
+
+  $ hg -R repo-with-hidden serve -p $HGPORT1 -d --pid-file hg2.pid --config "experimental.server.allow-hidden-access=" -E error.log --accesslog access.log
+  $ cat hg2.pid >> $DAEMON_PIDS
+
+Hidden changeset are hidden by default:
+
+  $ get-with-headers.py localhost:$HGPORT1 'log?style=raw' | grep revision:
+  revision:    2
+  revision:    0
+
+Hidden changeset are still hidden despite being the hidden access request:
+
+  $ get-with-headers.py localhost:$HGPORT1 'log?style=raw&access-hidden=1' | grep revision:
+  revision:    2
+  revision:    0
+
+=============
+Final cleanup
+=============
+
+  $ killdaemons.py
