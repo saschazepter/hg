@@ -13,6 +13,7 @@ import mimetypes
 import os
 import stat
 
+from ..i18n import _
 from ..pycompat import (
     getattr,
     open,
@@ -47,6 +48,32 @@ def ismember(ui, username, userlist):
     schemes.
     """
     return userlist == [b'*'] or username in userlist
+
+
+def hashiddenaccess(repo, req):
+    if bool(req.qsparams.get(b'access-hidden')):
+        # Disable this by default for now. Main risk is to get critical
+        # information exposed through this. This is expecially risky if
+        # someone decided to make a changeset secret for good reason, but
+        # its predecessors are still draft.
+        #
+        # The feature is currently experimental, so we can still decide to
+        # change the default.
+        ui = repo.ui
+        allow = ui.configlist(b'experimental', b'server.allow-hidden-access')
+        user = req.remoteuser
+        if allow and ismember(ui, user, allow):
+            return True
+        else:
+            msg = (
+                _(
+                    b'ignoring request to access hidden changeset by '
+                    b'unauthorized user: %r\n'
+                )
+                % user
+            )
+            ui.warn(msg)
+    return False
 
 
 def checkauthz(hgweb, req, op):
