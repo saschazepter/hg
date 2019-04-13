@@ -177,7 +177,9 @@ def _cleanuppipes(ui, pipei, pipeo, pipee, warn):
         ui.develwarn(b'missing close on SSH connection created at:\n%s' % warn)
 
 
-def _makeconnection(ui, sshcmd, args, remotecmd, path, sshenv=None):
+def _makeconnection(
+    ui, sshcmd, args, remotecmd, path, sshenv=None, remotehidden=False
+):
     """Create an SSH connection to a server.
 
     Returns a tuple of (process, stdin, stdout, stderr) for the
@@ -187,8 +189,12 @@ def _makeconnection(ui, sshcmd, args, remotecmd, path, sshenv=None):
         sshcmd,
         args,
         procutil.shellquote(
-            b'%s -R %s serve --stdio'
-            % (_serverquote(remotecmd), _serverquote(path))
+            b'%s -R %s serve --stdio%s'
+            % (
+                _serverquote(remotecmd),
+                _serverquote(path),
+                b' --hidden' if remotehidden else b'',
+            )
         ),
     )
 
@@ -393,13 +399,6 @@ class sshv1peer(wireprotov1peer.wirepeer):
         stderr and to forward its output.
         """
         super().__init__(ui, path=path, remotehidden=remotehidden)
-        if remotehidden:
-            msg = _(
-                b"ignoring `--remote-hidden` request\n"
-                b"(access to hidden changeset for ssh peers not supported "
-                b"yet)\n"
-            )
-            ui.warn(msg)
         # self._subprocess is unused. Keeping a handle on the process
         # holds a reference and prevents it from being garbage collected.
         self._subprocess = proc
@@ -416,6 +415,7 @@ class sshv1peer(wireprotov1peer.wirepeer):
         self._caps = caps
         self._autoreadstderr = autoreadstderr
         self._initstack = b''.join(util.getstackframes(1))
+        self._remotehidden = remotehidden
 
     # Commands that have a "framed" response where the first line of the
     # response contains the length of that response.
@@ -683,7 +683,13 @@ def make_peer(
             raise error.RepoError(_(b'could not create remote repo'))
 
     proc, stdin, stdout, stderr = _makeconnection(
-        ui, sshcmd, args, remotecmd, remotepath, sshenv
+        ui,
+        sshcmd,
+        args,
+        remotecmd,
+        remotepath,
+        sshenv,
+        remotehidden=remotehidden,
     )
 
     peer = _make_peer(
