@@ -23,6 +23,7 @@ from . import (
     exchange,
     pushkey as pushkeymod,
     pycompat,
+    repoview,
     requirements as requirementsmod,
     streamclone,
     util,
@@ -60,7 +61,7 @@ def clientcompressionsupport(proto):
 # wire protocol command can either return a string or one of these classes.
 
 
-def getdispatchrepo(repo, proto, command):
+def getdispatchrepo(repo, proto, command, accesshidden=False):
     """Obtain the repo used for processing wire protocol commands.
 
     The intent of this function is to serve as a monkeypatch point for
@@ -68,11 +69,21 @@ def getdispatchrepo(repo, proto, command):
     specialized circumstances.
     """
     viewconfig = repo.ui.config(b'server', b'view')
+
+    # Only works if the filter actually supports being upgraded to show hidden
+    # changesets.
+    if (
+        accesshidden
+        and viewconfig is not None
+        and viewconfig + b'.hidden' in repoview.filtertable
+    ):
+        viewconfig += b'.hidden'
+
     return repo.filtered(viewconfig)
 
 
-def dispatch(repo, proto, command):
-    repo = getdispatchrepo(repo, proto, command)
+def dispatch(repo, proto, command, accesshidden=False):
+    repo = getdispatchrepo(repo, proto, command, accesshidden=accesshidden)
 
     func, spec = commands[command]
     args = proto.getargs(spec)
