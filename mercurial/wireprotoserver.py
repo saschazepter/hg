@@ -317,7 +317,8 @@ def _callhttp(repo, req, res, proto, cmd):
 
     proto.checkperm(wireprotov1server.commands[cmd].permission)
 
-    rsp = wireprotov1server.dispatch(repo, proto, cmd)
+    accesshidden = hgwebcommon.hashiddenaccess(repo, req)
+    rsp = wireprotov1server.dispatch(repo, proto, cmd, accesshidden)
 
     if isinstance(rsp, bytes):
         setresponse(HTTP_OK, HGTYPE, bodybytes=rsp)
