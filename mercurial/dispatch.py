@@ -367,12 +367,18 @@ def _runcatch(req):
                 # shenanigans wherein a user does something like pass
                 # --debugger or --config=ui.debugger=1 as a repo
                 # name. This used to actually run the debugger.
+                nbargs = 4
+                hashiddenaccess = b'--hidden' in cmdargs
+                if hashiddenaccess:
+                    nbargs += 1
                 if (
-                    len(req.args) != 4
+                    len(req.args) != nbargs
                     or req.args[0] != b'-R'
                     or req.args[1].startswith(b'--')
                     or req.args[2] != b'serve'
                     or req.args[3] != b'--stdio'
+                    or hashiddenaccess
+                    and req.args[4] != b'--hidden'
                 ):
                     raise error.Abort(
                         _(b'potentially unsafe serve --stdio invocation: %s')
