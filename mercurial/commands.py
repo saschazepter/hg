@@ -69,6 +69,7 @@ from . import (
 )
 from .utils import (
     dateutil,
+    procutil,
     stringutil,
     urlutil,
 )
@@ -6672,7 +6673,25 @@ def serve(ui, repo, **opts):
             raise error.RepoError(
                 _(b"there is no Mercurial repository here (.hg not found)")
             )
-        s = wireprotoserver.sshserver(ui, repo)
+        accesshidden = False
+        if repo.filtername is None:
+            allow = ui.configlist(
+                b'experimental', b'server.allow-hidden-access'
+            )
+            user = procutil.getuser()
+            if allow and scmutil.ismember(ui, user, allow):
+                accesshidden = True
+            else:
+                msg = (
+                    _(
+                        b'ignoring request to access hidden changeset by '
+                        b'unauthorized user: %s\n'
+                    )
+                    % user
+                )
+                ui.warn(msg)
+
+        s = wireprotoserver.sshserver(ui, repo, accesshidden=accesshidden)
         s.serve_forever()
         return
 
