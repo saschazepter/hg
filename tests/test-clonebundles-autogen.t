@@ -11,6 +11,7 @@ initial setup
   > [clone-bundles]
   > auto-generate.formats = v2
   > upload-command = cp "\$HGCB_BUNDLE_PATH" "$TESTTMP"/final-upload/
+  > delete-command = rm -f "$TESTTMP/final-upload/\$HGCB_BASENAME"
   > url-template = file://$TESTTMP/final-upload/{basename}
   > 
   > [devel]
@@ -67,4 +68,29 @@ Newer bundles are generated with more pushes
   $ ls -1 ../final-upload
   full-v2-2_revs-aaff8d2ffbbf_tip-*_txn.hg (glob)
   full-v2-4_revs-6427147b985a_tip-*_txn.hg (glob)
+  $ ls -1 ../server/.hg/tmp-bundles
+
+Older bundles are cleaned up with more pushes
+---------------------------------------------
+
+  $ touch faz
+  $ hg -q commit -A -m 'add faz'
+  $ touch fuz
+  $ hg -q commit -A -m 'add fuz'
+  $ hg push
+  pushing to $TESTTMP/server
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  clone-bundles: deleting bundle full-v2-2_revs-aaff8d2ffbbf_tip-*_txn.hg (glob)
+  6 changesets found
+  added 2 changesets with 2 changes to 2 files
+  clone-bundles: starting bundle generation: v2
+
+  $ cat ../server/.hg/clonebundles.manifest
+  file:/*/$TESTTMP/final-upload/full-v2-6_revs-b1010e95ea00_tip-*_txn.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  $ ls -1 ../final-upload
+  full-v2-4_revs-6427147b985a_tip-*_txn.hg (glob)
+  full-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
