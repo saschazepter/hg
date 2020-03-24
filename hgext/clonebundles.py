@@ -209,7 +209,8 @@ It is possible to set Mercurial to automatically re-generate clone bundles when
 new content is available.
 
 Mercurial will take care of the process asynchronously. The defined list of
-bundle type will be generated, uploaded, and advertised.
+bundle-type will be generated, uploaded, and advertised. Older bundles will get
+decommissioned as newer ones replace them.
 
 Bundles Generation:
 ...................
@@ -235,11 +236,26 @@ basename in the "public" URL is accessible at::
   upload-command=sftp put $HGCB_BUNDLE_PATH \
       sftp://bundles.host/clone-bundles/$HGCB_BUNDLE_BASENAME
 
+If the file was already uploaded, the command must still succeed.
+
 After upload, the file should be available at an url defined by
 `clone-bundles.url-template`.
 
   [clone-bundles]
   url-template=https://bundles.host/cache/clone-bundles/{basename}
+
+Old bundles cleanup:
+....................
+
+When new bundles are generated, the older ones are no longer necessary and can
+be removed from storage. This is done through the `clone-bundles.delete-command`
+configuration. The command is given the url of the artifact to delete through
+the `$HGCB_BUNDLE_URL` environment variable.
+
+  [clone-bundles]
+  delete-command=sftp rm sftp://bundles.host/clone-bundles/$HGCB_BUNDLE_BASENAME
+
+If the file was already deleted, the command must still succeed.
 """
 
 
@@ -298,6 +314,8 @@ configitem(b'clone-bundles', b'auto-generate.formats', default=list)
 
 
 configitem(b'clone-bundles', b'upload-command', default=None)
+
+configitem(b'clone-bundles', b'delete-command', default=None)
 
 configitem(b'clone-bundles', b'url-template', default=None)
 
@@ -666,6 +684,34 @@ def finalize_one_bundle(repo, target):
     cleanup_tmp_bundle(repo, target)
 
 
+def find_outdated_bundles(repo, bundles):
+    """finds outdated bundles"""
+    olds = []
+    per_types = {}
+    for b in bundles:
+        if not b.valid_for(repo):
+            olds.append(b)
+            continue
+        l = per_types.setdefault(b.bundle_type, [])
+        l.append(b)
+    for key in sorted(per_types):
+        all = per_types[key]
+        if len(all) > 1:
+            all.sort(key=lambda b: b.revs, reverse=True)
+            olds.extend(all[1:])
+    return olds
+
+
+def collect_garbage(repo):
+    """finds outdated bundles and get them deleted"""
+    with repo.clonebundles_lock():
+        bundles = read_auto_gen(repo)
+        olds = find_outdated_bundles(repo, bundles)
+        for o in olds:
+            delete_bundle(repo, o)
+        update_bundle_list(repo, del_bundles=olds)
+
+
 def upload_bundle(repo, bundle):
     """upload the result of a GeneratingBundle and return a GeneratedBundle
 
@@ -691,12 +737,34 @@ def upload_bundle(repo, bundle):
     return bundle.uploaded(url, basename)
 
 
+def delete_bundle(repo, bundle):
+    """delete a bundle from storage"""
+    assert bundle.ready
+    msg = b'clone-bundles: deleting bundle %s\n'
+    msg %= bundle.basename
+    if repo.ui.configbool(b'devel', b'debug.clonebundles'):
+        repo.ui.write(msg)
+    else:
+        repo.ui.debug(msg)
+
+    cmd = repo.ui.config(b'clone-bundles', b'delete-command')
+    variables = {
+        b'HGCB_BUNDLE_URL': bundle.file_url,
+        b'HGCB_BASENAME': bundle.basename,
+    }
+    env = procutil.shellenviron(environ=variables)
+    ret = repo.ui.system(cmd, environ=env)
+    if ret:
+        raise error.Abort(b"command returned status %d: %s" % (ret, cmd))
+
+
 def auto_bundle_needed_actions(repo, bundles, op_id):
     """find the list of bundles that need action
 
     returns a list of RequestedBundle objects that need to be generated and
     uploaded."""
     create_bundles = []
+    delete_bundles = []
     repo = repo.filtered(b"immutable")
     targets = repo.ui.configlist(b'clone-bundles', b'auto-generate.formats')
     revs = len(repo.changelog)
@@ -712,7 +780,8 @@ def auto_bundle_needed_actions(repo, bundles, op_id):
         data['bundle_type'] = t
         b = RequestedBundle(**data)
         create_bundles.append(b)
-    return create_bundles
+    delete_bundles.extend(find_outdated_bundles(repo, bundles))
+    return create_bundles, delete_bundles
 
 
 def start_one_bundle(repo, bundle):
@@ -759,6 +828,8 @@ def debugmakeclonebundles(ui, repo):
     requested_bundle = util.pickle.load(procutil.stdin)
     procutil.stdin.close()
 
+    collect_garbage(repo)
+
     fname = requested_bundle.suggested_filename
     fpath = repo.vfs.makedirs(b'tmp-bundles')
     fpath = repo.vfs.join(b'tmp-bundles', fname)
@@ -778,7 +849,7 @@ def make_auto_bundler(source_repo):
         repo = reporef()
         assert repo is not None
         bundles = read_auto_gen(repo)
-        new = auto_bundle_needed_actions(repo, bundles, b"%d_txn" % id(tr))
+        new, __ = auto_bundle_needed_actions(repo, bundles, b"%d_txn" % id(tr))
         for data in new:
             start_one_bundle(repo, data)
         return None
