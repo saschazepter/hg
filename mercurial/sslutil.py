@@ -40,6 +40,7 @@ configprotocols = {
     b'tls1.0',
     b'tls1.1',
     b'tls1.2',
+    b'tls1.3',
 }
 
 hassni = getattr(ssl, 'HAS_SNI', False)
@@ -56,6 +57,8 @@ if getattr(ssl, 'HAS_TLSv1_1', hasattr(ssl, 'PROTOCOL_TLSv1_1')):
     supportedprotocols.add(b'tls1.1')
 if getattr(ssl, 'HAS_TLSv1_2', hasattr(ssl, 'PROTOCOL_TLSv1_2')):
     supportedprotocols.add(b'tls1.2')
+if getattr(ssl, 'HAS_TLSv1_3', False):
+    supportedprotocols.add(b'tls1.3')
 
 
 def _hostsettings(ui, hostname):
@@ -307,6 +310,8 @@ def wrapsocket(sock, keyfile, certfile, ui, serverhostname=None):
             sslcontext.minimum_version = ssl.TLSVersion.TLSv1_1
     elif minimumprotocol == b'tls1.2':
         sslcontext.minimum_version = ssl.TLSVersion.TLSv1_2
+    elif minimumprotocol == b'tls1.3':
+        sslcontext.minimum_version = ssl.TLSVersion.TLSv1_3
     else:
         raise error.Abort(_(b'this should not happen'))
     # Prevent CRIME.
@@ -545,6 +550,11 @@ def wrapserversocket(
             raise error.Abort(_(b'TLS 1.2 not supported by this Python'))
         sslcontext.minimum_version = ssl.TLSVersion.TLSv1_2
         sslcontext.maximum_version = ssl.TLSVersion.TLSv1_2
+    elif exactprotocol == b'tls1.3':
+        if b'tls1.3' not in supportedprotocols:
+            raise error.Abort(_(b'TLS 1.3 not supported by this Python'))
+        sslcontext.minimum_version = ssl.TLSVersion.TLSv1_3
+        sslcontext.maximum_version = ssl.TLSVersion.TLSv1_3
     elif exactprotocol:
         raise error.Abort(
             _(b'invalid value for server-insecure-exact-protocol: %s')
