@@ -352,6 +352,11 @@ Start servers running supported TLS versions
   $ hg serve -p $HGPORT2 -d --pid-file=../hg2.pid --certificate=$PRIV \
   > --config devel.server-insecure-exact-protocol=tls1.2
   $ cat ../hg2.pid >> $DAEMON_PIDS
+#if tls1.3
+  $ hg serve -p $HGPORT3 -d --pid-file=../hg3.pid --certificate=$PRIV \
+  > --config devel.server-insecure-exact-protocol=tls1.3
+  $ cat ../hg3.pid >> $DAEMON_PIDS
+#endif
   $ cd ..
 
 Clients talking same TLS versions work
@@ -362,6 +367,10 @@ Clients talking same TLS versions work
   5fed3813f7f5
   $ P="$CERTSDIR" hg --config hostsecurity.minimumprotocol=tls1.2 id https://localhost:$HGPORT2/
   5fed3813f7f5
+#if tls1.3
+  $ P="$CERTSDIR" hg --config hostsecurity.minimumprotocol=tls1.3 id https://localhost:$HGPORT3/
+  5fed3813f7f5
+#endif
 
 Clients requiring newer TLS version than what server supports fail
 
@@ -391,11 +400,39 @@ Clients requiring newer TLS version than what server supports fail
   abort: error: .*(unsupported protocol|wrong ssl version|alert protocol version).* (re)
   [100]
 
+#if tls1.3
+  $ P="$CERTSDIR" hg --config hostsecurity.minimumprotocol=tls1.3 id https://localhost:$HGPORT/
+  (could not negotiate a common security protocol (tls1.3+) with localhost; the likely cause is Mercurial is configured to be more secure than the server can support)
+  (consider contacting the operator of this server and ask them to support modern TLS protocol versions; or, set hostsecurity.localhost:minimumprotocol=tls1.0 to allow use of legacy, less secure protocols when communicating with this server)
+  (see https://mercurial-scm.org/wiki/SecureConnections for more info)
+  abort: error: .*(unsupported protocol|wrong ssl version|alert protocol version).* (re)
+  [100]
+  $ P="$CERTSDIR" hg --config hostsecurity.minimumprotocol=tls1.3 id https://localhost:$HGPORT1/
+  (could not negotiate a common security protocol (tls1.3+) with localhost; the likely cause is Mercurial is configured to be more secure than the server can support)
+  (consider contacting the operator of this server and ask them to support modern TLS protocol versions; or, set hostsecurity.localhost:minimumprotocol=tls1.0 to allow use of legacy, less secure protocols when communicating with this server)
+  (see https://mercurial-scm.org/wiki/SecureConnections for more info)
+  abort: error: .*(unsupported protocol|wrong ssl version|alert protocol version).* (re)
+  [100]
+  $ P="$CERTSDIR" hg --config hostsecurity.minimumprotocol=tls1.3 id https://localhost:$HGPORT2/
+  (could not negotiate a common security protocol (tls1.3+) with localhost; the likely cause is Mercurial is configured to be more secure than the server can support)
+  (consider contacting the operator of this server and ask them to support modern TLS protocol versions; or, set hostsecurity.localhost:minimumprotocol=tls1.0 to allow use of legacy, less secure protocols when communicating with this server)
+  (see https://mercurial-scm.org/wiki/SecureConnections for more info)
+  abort: error: .*(unsupported protocol|wrong ssl version|alert protocol version).* (re)
+  [100]
+#endif
+
+
 --insecure will allow TLS 1.0 connections and override configs
 
   $ hg --config hostsecurity.minimumprotocol=tls1.2 id --insecure https://localhost:$HGPORT1/
   warning: connection security to localhost is disabled per current settings; communication is susceptible to eavesdropping and tampering
   5fed3813f7f5
+
+#if tls1.3
+  $ hg --config hostsecurity.minimumprotocol=tls1.3 id --insecure https://localhost:$HGPORT2/
+  warning: connection security to localhost is disabled per current settings; communication is susceptible to eavesdropping and tampering
+  5fed3813f7f5
+#endif
 
 The per-host config option overrides the default
 
@@ -431,6 +468,9 @@ The per-host config option by itself works
   $ killdaemons.py hg0.pid
   $ killdaemons.py hg1.pid
   $ killdaemons.py hg2.pid
+#if tls1.3
+  $ killdaemons.py hg3.pid
+#endif
 #endif
 
 Prepare for connecting through proxy

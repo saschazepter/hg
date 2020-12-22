@@ -706,6 +706,13 @@ def has_tls1_2():
     return b'tls1.2' in sslutil.supportedprotocols
 
 
+@check("tls1.3", "TLS 1.3 protocol support")
+def has_tls1_3():
+    from mercurial import sslutil
+
+    return b'tls1.3' in sslutil.supportedprotocols
+
+
 @check("windows", "Windows")
 def has_windows():
     return os.name == 'nt'
