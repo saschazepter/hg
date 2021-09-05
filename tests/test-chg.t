@@ -198,7 +198,7 @@ in this test.
   > import sys
   > import time
   > sys.stdout.write('paged! %r\n' % sys.stdin.readline())
-  > time.sleep(1)  # new data will be written
+  > sys.stdout.flush()
   > EOF
 
   $ cat >> .hg/hgrc <<EOF
