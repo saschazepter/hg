@@ -145,8 +145,16 @@ def get_c_extension(
 
     include_dirs = set([os.path.join(actual_root, d) for d in ext_includes])
     if not system_zstd:
-        include_dirs.update(
-            [os.path.join(actual_root, d) for d in zstd_includes]
+        from distutils import sysconfig
+        from shlex import quote
+
+        includes = []
+        for incdir in [os.path.join(actual_root, d) for d in zstd_includes]:
+            includes.append('-I' + quote(incdir))
+            include_dirs.add(incdir)
+        config_vars = sysconfig.get_config_vars()
+        config_vars['CFLAGS'] = ' '.join(
+            includes + [config_vars.get('CFLAGS', '')]
         )
         if support_legacy:
             include_dirs.update(
