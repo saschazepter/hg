@@ -628,15 +628,23 @@ def _textfromdelta(
 @attr.s(slots=True, frozen=True)
 class _DeltaInfo:
     distance = attr.ib(type=int)
+    """The distance (in bytes) from the start to the end of the chain"""
     deltalen = attr.ib(type=int)
+    """size of the delta (after compression)"""
     data = attr.ib(type=tuple[bytes, bytes])
+    """The actual content of the delta, either (header, data) or "full\""""
     base = attr.ib(type=RevnumT)
+    """The revision against the delta is built (revnum)"""
     chainbase = attr.ib(type=RevnumT)
+    """The first revision in the delta chain (revnum)"""
     chainlen = attr.ib(type=int)
+    """size of the delta-chain"""
     compresseddeltalen = attr.ib(type=int)
+    """size of all delta in the chain combined (after compression)"""
     snapshotdepth = attr.ib(type=Optional[int])
+    """level of this snapshot (if this is snapshot)"""
     u_data = attr.ib(default=None, type=Optional[bytes])
-    """the uncompressed data"""
+    """the uncompressed data (when available)"""
 
 
 def drop_u_compression(delta: _DeltaInfo) -> _DeltaInfo:
