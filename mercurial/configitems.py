@@ -2841,3 +2841,17 @@ coreconfigitem(
     b'experimental.inmemory',
     default=False,
 )
+
+# This setting controls creation of a rebase_source extra field
+# during rebase. When False, no such field is created. This is
+# useful eg for incrementally converting changesets and then
+# rebasing them onto an existing repo.
+# WARNING: this is an advanced setting reserved for people who know
+# exactly what they are doing. Misuse of this setting can easily
+# result in obsmarker cycles and a vivid headache.
+coreconfigitem(
+    b'rebase',
+    b'store-source',
+    default=True,
+    experimental=True,
+)
