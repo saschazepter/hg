@@ -1277,6 +1277,8 @@ experimental = true
 #
 # * code for fast upgrade
 # * changegroup 04 support
+#   * enabled for repository using this (or ideally all repo)
+# * make sure that a full pull works fine with the `try-base` policy
 # * more flag around delta quality (maybe)
 # * rust support
 # * c support
