@@ -66,12 +66,7 @@
        5       7 09bb521d218d de68e904d169 000000000000
        6       8 1fde233dfb0f f54c32f13478 000000000000
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 9 changesets with 7 changes to 4 files
+  $ hg verify -q
 
   $ cd ..
 
@@ -80,7 +75,7 @@
   >   echo ---- hg clone -r "$i" test test-"$i"
   >   hg clone -r "$i" test test-"$i"
   >   cd test-"$i"
-  >   hg verify
+  >   hg verify -q
   >   cd ..
   > done
   
@@ -92,11 +87,6 @@
   new changesets f9ee2f85a263
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
   
   ---- hg clone -r 1 test test-1
   adding changesets
@@ -106,11 +96,6 @@
   new changesets f9ee2f85a263:34c2bf6b0626
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 1 files
   
   ---- hg clone -r 2 test test-2
   adding changesets
@@ -120,11 +105,6 @@
   new changesets f9ee2f85a263:e38ba6f5b7e0
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 1 files
   
   ---- hg clone -r 3 test test-3
   adding changesets
@@ -134,11 +114,6 @@
   new changesets f9ee2f85a263:eebf5a27f8ca
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 4 changesets with 4 changes to 1 files
   
   ---- hg clone -r 4 test test-4
   adding changesets
@@ -148,11 +123,6 @@
   new changesets f9ee2f85a263:095197eb4973
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 1 files
   
   ---- hg clone -r 5 test test-5
   adding changesets
@@ -162,11 +132,6 @@
   new changesets f9ee2f85a263:1bb50a9436a7
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 1 files
   
   ---- hg clone -r 6 test test-6
   adding changesets
@@ -176,11 +141,6 @@
   new changesets f9ee2f85a263:7373c1169842
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 4 changesets with 5 changes to 2 files
   
   ---- hg clone -r 7 test test-7
   adding changesets
@@ -190,11 +150,6 @@
   new changesets f9ee2f85a263:a6a34bfa0076
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5 changesets with 6 changes to 3 files
   
   ---- hg clone -r 8 test test-8
   adding changesets
@@ -204,11 +159,6 @@
   new changesets f9ee2f85a263:aa35859c02ea
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5 changesets with 5 changes to 2 files
 
   $ cd test-8
   $ hg pull ../test-7
@@ -220,12 +170,7 @@
   added 4 changesets with 2 changes to 3 files (+1 heads)
   new changesets 095197eb4973:a6a34bfa0076
   (run 'hg heads' to see heads, 'hg merge' to merge)
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 9 changesets with 7 changes to 4 files
+  $ hg verify -q
   $ cd ..
 
   $ hg clone test test-9

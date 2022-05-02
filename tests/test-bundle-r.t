@@ -17,7 +17,7 @@
   >    hg -R test bundle -r "$i" test-"$i".hg test-"$i"
   >    cd test-"$i"
   >    hg unbundle ../test-"$i".hg
-  >    hg verify
+  >    hg verify -q
   >    hg tip -q
   >    cd ..
   > done
@@ -29,11 +29,6 @@
   added 1 changesets with 1 changes to 1 files
   new changesets bfaf4b5cbf01 (1 drafts)
   (run 'hg update' to get a working copy)
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
   0:bfaf4b5cbf01
   searching for changes
   2 changesets found
@@ -43,11 +38,6 @@
   added 2 changesets with 2 changes to 1 files
   new changesets bfaf4b5cbf01:21f32785131f (2 drafts)
   (run 'hg update' to get a working copy)
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 1 files
   1:21f32785131f
   searching for changes
   3 changesets found
@@ -57,11 +47,6 @@
   added 3 changesets with 3 changes to 1 files
   new changesets bfaf4b5cbf01:4ce51a113780 (3 drafts)
   (run 'hg update' to get a working copy)
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 1 files
   2:4ce51a113780
   searching for changes
   4 changesets found
@@ -71,11 +56,6 @@
   added 4 changesets with 4 changes to 1 files
   new changesets bfaf4b5cbf01:93ee6ab32777 (4 drafts)
   (run 'hg update' to get a working copy)
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 4 changesets with 4 changes to 1 files
   3:93ee6ab32777
   searching for changes
   2 changesets found
@@ -85,11 +65,6 @@
   added 2 changesets with 2 changes to 1 files
   new changesets bfaf4b5cbf01:c70afb1ee985 (2 drafts)
   (run 'hg update' to get a working copy)
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 1 files
   1:c70afb1ee985
   searching for changes
   3 changesets found
@@ -99,11 +74,6 @@
   added 3 changesets with 3 changes to 1 files
   new changesets bfaf4b5cbf01:f03ae5a9b979 (3 drafts)
   (run 'hg update' to get a working copy)
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 1 files
   2:f03ae5a9b979
   searching for changes
   4 changesets found
@@ -113,11 +83,6 @@
   added 4 changesets with 5 changes to 2 files
   new changesets bfaf4b5cbf01:095cb14b1b4d (4 drafts)
   (run 'hg update' to get a working copy)
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 4 changesets with 5 changes to 2 files
   3:095cb14b1b4d
   searching for changes
   5 changesets found
@@ -127,11 +92,6 @@
   added 5 changesets with 6 changes to 3 files
   new changesets bfaf4b5cbf01:faa2e4234c7a (5 drafts)
   (run 'hg update' to get a working copy)
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5 changesets with 6 changes to 3 files
   4:faa2e4234c7a
   searching for changes
   5 changesets found
@@ -141,11 +101,6 @@
   added 5 changesets with 5 changes to 2 files
   new changesets bfaf4b5cbf01:916f1afdef90 (5 drafts)
   (run 'hg update' to get a working copy)
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5 changesets with 5 changes to 2 files
   4:916f1afdef90
   $ cd test-8
   $ hg pull ../test-7
@@ -158,12 +113,7 @@
   new changesets c70afb1ee985:faa2e4234c7a
   1 local changesets published
   (run 'hg heads' to see heads, 'hg merge' to merge)
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 9 changesets with 7 changes to 4 files
+  $ hg verify -q
   $ hg rollback
   repository tip rolled back to revision 4 (undo pull)
   $ cd ..
@@ -243,12 +193,7 @@ revision 8
 
   $ hg tip -q
   8:916f1afdef90
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 9 changesets with 7 changes to 4 files
+  $ hg verify -q
   $ hg rollback
   repository tip rolled back to revision 2 (undo unbundle)
 
@@ -268,12 +213,7 @@ revision 4
 
   $ hg tip -q
   4:916f1afdef90
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5 changesets with 5 changes to 2 files
+  $ hg verify -q
   $ hg rollback
   repository tip rolled back to revision 2 (undo unbundle)
   $ hg unbundle ../test-bundle-branch2.hg
@@ -288,12 +228,7 @@ revision 6
 
   $ hg tip -q
   6:faa2e4234c7a
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 7 changesets with 6 changes to 3 files
+  $ hg verify -q
   $ hg rollback
   repository tip rolled back to revision 2 (undo unbundle)
   $ hg unbundle ../test-bundle-cset-7.hg
@@ -308,12 +243,7 @@ revision 4
 
   $ hg tip -q
   4:916f1afdef90
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5 changesets with 5 changes to 2 files
+  $ hg verify -q
 
   $ cd ../test
   $ hg merge 7
@@ -342,11 +272,6 @@ revision 9
 
   $ hg tip -q
   9:03fc0b0e347c
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 10 changesets with 7 changes to 4 files
+  $ hg verify -q
 
   $ cd ..

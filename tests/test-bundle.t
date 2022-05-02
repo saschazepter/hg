@@ -28,12 +28,7 @@ Setting up test
   1 files updated, 0 files merged, 2 files removed, 0 files unresolved
   $ hg mv afile anotherfile
   $ hg commit -m "0.3m"
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 9 changesets with 7 changes to 4 files
+  $ hg verify -q
   $ cd ..
   $ hg init empty
 
@@ -70,12 +65,7 @@ Verify empty
 
   $ hg -R empty heads
   [1]
-  $ hg -R empty verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 0 changesets with 0 changes to 0 files
+  $ hg -R empty verify -q
 
 #if repobundlerepo
 
@@ -853,12 +843,7 @@ full history bundle, refuses to verify non-local repo
 
 but, regular verify must continue to work
 
-  $ hg -R orig verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 2 files
+  $ hg -R orig verify -q
 
 #if repobundlerepo
 diff against bundle
@@ -939,12 +924,7 @@ bundle single branch
 
   $ hg clone -q -r0 . part2
   $ hg -q -R part2 pull bundle.hg
-  $ hg -R part2 verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 5 changes to 4 files
+  $ hg -R part2 verify -q
 #endif
 
 == Test bundling no commits

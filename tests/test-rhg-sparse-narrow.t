@@ -96,12 +96,7 @@ Adding "orphaned" index files:
 
   $ (cd ..; cp repo-sparse/.hg/store/data/hide.i repo-narrow/.hg/store/data/hide.i)
   $ (cd ..; mkdir repo-narrow/.hg/store/data/dir2; cp repo-sparse/.hg/store/data/dir2/z.i repo-narrow/.hg/store/data/dir2/z.i)
-  $ "$real_hg" verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 2 changes to 2 files
+  $ "$real_hg" verify -q
 
   $ "$real_hg" files -r "$tip"
   dir1/x

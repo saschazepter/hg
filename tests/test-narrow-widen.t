@@ -280,13 +280,7 @@ make narrow clone with every third node.
   I path:d3
   I path:d6
   I path:d9
-  $ hg verify
-  checking changesets
-  checking manifests
-  checking directory manifests (tree !)
-  crosschecking files in changesets and manifests
-  checking files
-  checked 8 changesets with 4 changes to 4 files
+  $ hg verify -q
   $ hg l
   @  ...7: add d10/f
   |
@@ -340,13 +334,7 @@ make narrow clone with every third node.
 
 Verify shouldn't claim the repo is corrupt after a widen.
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  checking directory manifests (tree !)
-  crosschecking files in changesets and manifests
-  checking files
-  checked 9 changesets with 5 changes to 5 files
+  $ hg verify -q
 
 Widening preserves parent of local commit
 
