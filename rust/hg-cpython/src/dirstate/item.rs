@@ -151,6 +151,10 @@ py_class!(pub class DirstateItem |py| {
         Ok(self.entry(py).get().added())
     }
 
+    @property
+    def modified(&self) -> PyResult<bool> {
+        Ok(self.entry(py).get().modified())
+    }
 
     @property
     def p2_info(&self) -> PyResult<bool> {
