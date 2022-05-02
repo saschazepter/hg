@@ -838,12 +838,7 @@ Stat, verify and show custom expansion (firstline)
 
   $ hg status
   ? c
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 4 changes to 3 files
+  $ hg verify -q
   $ cat a b
   expand $Id: a bb948857c743 Thu, 01 Jan 1970 00:00:02 +0000 user $
   do not process $Id:

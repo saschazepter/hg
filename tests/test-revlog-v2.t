@@ -117,16 +117,6 @@ The two repository should be identical, this diff MUST be empty
 hg verify should be happy
 -------------------------
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
+  $ hg verify -q
 
-  $ hg verify -R ../cloned-repo
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
+  $ hg verify -R ../cloned-repo -q

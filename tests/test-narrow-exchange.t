@@ -164,12 +164,7 @@ Check that the resulting history is valid in the full repo
   remote: adding file changes
   remote: added 4 changesets with 4 changes to 2 files
   $ cd ../master
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 8 changesets with 10 changes to 3 files
+  $ hg verify -q
 
 Can not push to wider repo if change affects paths in wider repo that are
 not also in narrower repo

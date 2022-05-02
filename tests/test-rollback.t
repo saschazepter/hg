@@ -4,12 +4,7 @@ setup repo
   $ echo a > a
   $ hg commit -Am'add a'
   adding a
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
+  $ hg verify -q
   $ hg parents
   changeset:   0:1f0dee641bb7
   tag:         tip
@@ -23,12 +18,7 @@ rollback to null revision
   $ hg rollback
   repository tip rolled back to revision -1 (undo commit)
   working directory now based on revision -1
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 0 changesets with 0 changes to 0 files
+  $ hg verify -q
   $ hg parents
   $ hg status
   A a
@@ -191,14 +181,8 @@ same again, but emulate an old client that doesn't write undo.desc
 
 corrupt journal test
   $ echo "foo" > .hg/store/journal
-  $ hg recover --verify
-  rolling back interrupted transaction
+  $ hg recover --verify -q
   couldn't read journal entry 'foo\n'!
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 1 files
 
 rollback disabled by config
   $ cat >> $HGRCPATH <<EOF
@@ -433,12 +417,7 @@ An I/O error writing "rollback completed" is handled
   abort: pretxncommit hook exited with status 1
   [40]
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
+  $ hg verify -q
 
   $ cd ..
 
@@ -458,11 +437,6 @@ of a transaction.
 
   $ hg --config ui.ioerrors=pretxncommit,pretxnclose,txnclose,txnabort,msgabort,msgrollback commit -m 'multiple errors'
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 1 files
+  $ hg verify -q
 
   $ cd ..

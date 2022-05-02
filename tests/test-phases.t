@@ -800,12 +800,7 @@ test verify repo containing hidden changesets, which should not abort just
 because repo.cancopy() is False
 
   $ cd ../initialrepo
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 8 changesets with 7 changes to 7 files
+  $ hg verify -q
 
   $ cd ..
 
