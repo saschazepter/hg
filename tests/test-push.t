@@ -141,6 +141,7 @@ Expected to fail:
 
   $ hg verify -q
    beta@1: dddc47b3ba30 not in manifests
+  not checking dirstate because of previous errors
   1 integrity errors encountered!
   (first damaged changeset appears to be 1)
   [1]
@@ -171,6 +172,7 @@ Expected to fail:
 
   $ hg verify -q
    beta@1: manifest refers to unknown revision dddc47b3ba30
+  not checking dirstate because of previous errors
   1 integrity errors encountered!
   (first damaged changeset appears to be 1)
   [1]

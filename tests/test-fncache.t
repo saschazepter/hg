@@ -61,6 +61,7 @@ Testing verify:
    warning: revlog 'data/a.i' not in fncache!
    warning: revlog 'data/a.i.hg/c.i' not in fncache!
    warning: revlog 'data/a.i/b.i' not in fncache!
+  checking dirstate
   checked 3 changesets with 3 changes to 3 files
   3 warnings encountered!
   hint: run "hg debugrebuildfncache" to recover from corrupt fncache
@@ -349,6 +350,7 @@ Clean cached versions
   checking manifests
   crosschecking files in changesets and manifests
   checking files
+  checking dirstate
   checked 1 changesets with 1 changes to 1 files
   $ cat .hg/store/fncache
   data/y.i

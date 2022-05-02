@@ -1545,6 +1545,7 @@ revert some files to an older revision
   checking manifests
   crosschecking files in changesets and manifests
   checking files
+  checking dirstate
   checked 10 changesets with 28 changes to 10 files
   searching 1 changesets for largefiles
   verified existence of 3 revisions of 3 largefiles

@@ -619,6 +619,7 @@ Verify reports missing dirlog
    b/bar/orange/fly/housefly.txt@0: in changeset but not in manifest
    b/foo/apple/bees/flower.py@0: in changeset but not in manifest
   checking files
+  not checking dirstate because of previous errors
   checked 4 changesets with 18 changes to 8 files
   6 warnings encountered! (reporevlogstore !)
   9 integrity errors encountered!
@@ -644,6 +645,7 @@ Verify reports missing dirlog entry
    (expected None)
   crosschecking files in changesets and manifests
   checking files
+  not checking dirstate because of previous errors
   checked 4 changesets with 18 changes to 8 files
   2 warnings encountered!
   8 integrity errors encountered!

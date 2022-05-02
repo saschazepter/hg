@@ -87,6 +87,7 @@ from . import (
     upgrade,
     url as urlmod,
     util,
+    verify,
     vfs as vfsmod,
     wireprotoframing,
     wireprotoserver,
@@ -554,15 +555,9 @@ def debugchangedfiles(ui, repo, rev, **opts):
 @command(b'debugcheckstate', [], b'')
 def debugcheckstate(ui, repo):
     """validate the correctness of the current dirstate"""
-    parent1, parent2 = repo.dirstate.parents()
-    m1 = repo[parent1].manifest()
-    m2 = repo[parent2].manifest()
-    errors = 0
-    for err in repo.dirstate.verify(m1, m2):
-        ui.warn(err)
-        errors += 1
+    errors = verify.verifier(repo)._verify_dirstate()
     if errors:
-        errstr = _(b".hg/dirstate inconsistent with current parent's manifest")
+        errstr = _(b"dirstate inconsistent with current parent's manifest")
         raise error.Abort(errstr)
 
 
