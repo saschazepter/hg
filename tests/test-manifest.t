@@ -246,12 +246,7 @@ Pure removes should actually remove all dropped entries
 
   $ hg up -qC .
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 8 changes to 8 files
+  $ hg verify -q
 
   $ hg rollback -q --config ui.rollback=True
   $ hg rm b.txt d.txt
@@ -270,12 +265,7 @@ A mix of adds and removes should remove all dropped entries.
   ccc.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00 (esc)
   e.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00 (esc)
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 9 changes to 9 files
+  $ hg verify -q
   $ cd ..
 
 Test manifest cache interraction with shares

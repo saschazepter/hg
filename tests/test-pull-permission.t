@@ -23,11 +23,6 @@
   $ chmod +w a/.hg/store # let test clean up
 
   $ cd b
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
+  $ hg verify -q
 
   $ cd ..
