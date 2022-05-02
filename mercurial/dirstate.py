@@ -1540,7 +1540,7 @@ class dirstate:
         if data_backup is not None:
             o.unlink(data_backup[0])
 
-    def verify(self, m1, m2):
+    def verify(self, m1, m2, narrow_matcher=None):
         """check the dirstate content again the parent manifest and yield errors"""
         missing_from_p1 = b"%s in state %s, but not in manifest1\n"
         unexpected_in_p1 = b"%s in state %s, but also in manifest1\n"
@@ -1556,6 +1556,8 @@ class dirstate:
             if entry.added and f in m1:
                 yield (unexpected_in_p1, f, state)
         for f in m1:
+            if narrow_matcher is not None and not narrow_matcher(f):
+                continue
             entry = self.get_entry(f)
             if not entry.p1_tracked:
                 yield (missing_from_ds, f, entry.state)
