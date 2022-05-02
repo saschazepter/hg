@@ -177,7 +177,7 @@ static inline bool dirstate_item_c_removed(dirstateItemObject *self)
 	        (dirstate_flag_p1_tracked | dirstate_flag_p2_info));
 }
 
-static inline bool dirstate_item_c_merged(dirstateItemObject *self)
+static inline bool dirstate_item_c_modified(dirstateItemObject *self)
 {
 	return ((self->flags & dirstate_flag_wc_tracked) &&
 	        (self->flags & dirstate_flag_p1_tracked) &&
@@ -195,7 +195,7 @@ static inline char dirstate_item_c_v1_state(dirstateItemObject *self)
 {
 	if (dirstate_item_c_removed(self)) {
 		return 'r';
-	} else if (dirstate_item_c_merged(self)) {
+	} else if (dirstate_item_c_modified(self)) {
 		return 'm';
 	} else if (dirstate_item_c_added(self)) {
 		return 'a';
@@ -642,9 +642,9 @@ static PyObject *dirstate_item_get_p2_info(dirstateItemObject *self)
 	}
 };
 
-static PyObject *dirstate_item_get_merged(dirstateItemObject *self)
+static PyObject *dirstate_item_get_modified(dirstateItemObject *self)
 {
-	if (dirstate_item_c_merged(self)) {
+	if (dirstate_item_c_modified(self)) {
 		Py_RETURN_TRUE;
 	} else {
 		Py_RETURN_FALSE;
@@ -709,7 +709,7 @@ static PyGetSetDef dirstate_item_getset[] = {
      NULL},
     {"added", (getter)dirstate_item_get_added, NULL, "added", NULL},
     {"p2_info", (getter)dirstate_item_get_p2_info, NULL, "p2_info", NULL},
-    {"merged", (getter)dirstate_item_get_merged, NULL, "merged", NULL},
+    {"modified", (getter)dirstate_item_get_modified, NULL, "modified", NULL},
     {"from_p2", (getter)dirstate_item_get_from_p2, NULL, "from_p2", NULL},
     {"maybe_clean", (getter)dirstate_item_get_maybe_clean, NULL, "maybe_clean",
      NULL},
@@ -1187,7 +1187,7 @@ void dirs_module_init(PyObject *mod);
 void manifest_module_init(PyObject *mod);
 void revlog_module_init(PyObject *mod);
 
-static const int version = 20;
+static const int version = 21;
 
 static void module_init(PyObject *mod)
 {
