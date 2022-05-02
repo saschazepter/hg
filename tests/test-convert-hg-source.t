@@ -188,12 +188,7 @@ break it
   2 changebagain
   1 merge
   0 moveb
-  $ hg -R fixed verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5 changesets with 5 changes to 3 files
+  $ hg -R fixed verify -q
 
 manifest -r 0
 

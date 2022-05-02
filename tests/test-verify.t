@@ -275,12 +275,7 @@ test changelog without a manifest
   marked working directory as branch foo
   (branches are permanent and global, did you want a bookmark?)
   $ hg ci -m branchfoo
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 0 changes to 0 files
+  $ hg verify -q
 
 test revlog corruption
 
@@ -292,14 +287,9 @@ test revlog corruption
   $ dd if=.hg/store/data/a.i of=start bs=1 count=20 2>/dev/null
   $ cat start b > .hg/store/data/a.i
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
+  $ hg verify -q
    a@1: broken revlog! (index a is corrupted)
   warning: orphan data file 'data/a.i'
-  checked 2 changesets with 0 changes to 1 files
   1 warnings encountered!
   1 integrity errors encountered!
   (first damaged changeset appears to be 1)
@@ -330,12 +320,7 @@ test flag processor and skipflags
   > EOF
   $ echo '[BASE64]content' > base64
   $ hg commit -Aqm 'flag processor content' base64
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
+  $ hg verify -q
 
   $ cat >> $TESTTMP/break-base64.py <<EOF
   > import base64
@@ -345,20 +330,10 @@ test flag processor and skipflags
   > breakbase64=$TESTTMP/break-base64.py
   > EOF
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
+  $ hg verify -q
    base64@0: unpacking 794cee7777cb: integrity check failed on base64:0
-  checked 1 changesets with 1 changes to 1 files
   1 integrity errors encountered!
   (first damaged changeset appears to be 0)
   [1]
-  $ hg verify --config verify.skipflags=2147483647
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
+  $ hg verify --config verify.skipflags=2147483647 -q
 

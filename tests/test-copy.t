@@ -96,12 +96,7 @@ this should show the rename information in the metadata
   $ hg cat a > asum
   $ md5sum.py asum
   60b725f10c9c85c70d97880dfe8191b3  asum
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 2 files
+  $ hg verify -q
 
   $ cd ..
 

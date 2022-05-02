@@ -49,12 +49,7 @@ Testing a.i.hg/c:
 
 Testing verify:
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 3 files
+  $ hg verify -q
 
   $ rm .hg/store/fncache
 
@@ -78,12 +73,7 @@ Follow the hint to make sure it works
   adding data/a.i/b.i
   3 items added, 0 removed from fncache
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 3 files
+  $ hg verify -q
 
   $ cd ..
 

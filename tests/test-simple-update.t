@@ -5,12 +5,7 @@
   adding foo
   $ hg commit -m "1"
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
+  $ hg verify -q
 
   $ hg clone . ../branch
   updating to branch default
@@ -34,12 +29,7 @@
   1 local changesets published
   (run 'hg update' to get a working copy)
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 1 files
+  $ hg verify -q
 
   $ hg co
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved

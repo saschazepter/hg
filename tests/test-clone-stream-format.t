@@ -110,12 +110,7 @@ tests, and dot-encode need the store enabled.
   new changesets 96ee1d7354c4:06ddac466af5
   updating to branch default
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg verify -R server-no-store
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5004 changesets with 1088 changes to 1088 files
+  $ hg verify -R server-no-store -q
   $ hg -R server serve -p $HGPORT -d --pid-file=hg-1.pid --error errors-1.txt
   $ cat hg-1.pid > $DAEMON_PIDS
   $ hg -R server-no-store serve -p $HGPORT2 -d --pid-file=hg-2.pid --error errors-2.txt
@@ -129,12 +124,7 @@ store → no-store cloning
 
   $ hg clone --quiet --stream -U http://localhost:$HGPORT clone-remove-store --config format.usestore=no
   $ cat errors-1.txt
-  $ hg -R clone-remove-store verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5004 changesets with 1088 changes to 1088 files
+  $ hg -R clone-remove-store verify -q
   $ hg debugrequires -R clone-remove-store | grep store
   [1]
 
@@ -143,12 +133,7 @@ no-store → store cloning
 
   $ hg clone --quiet --stream -U http://localhost:$HGPORT2 clone-add-store --config format.usestore=yes
   $ cat errors-2.txt
-  $ hg -R clone-add-store verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5004 changesets with 1088 changes to 1088 files
+  $ hg -R clone-add-store verify -q
   $ hg debugrequires -R clone-add-store | grep store
   store
 
@@ -171,12 +156,7 @@ Test streaming from/to repository without a fncache
   new changesets 96ee1d7354c4:06ddac466af5
   updating to branch default
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg verify -R server-no-fncache
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5004 changesets with 1088 changes to 1088 files
+  $ hg verify -R server-no-fncache -q
   $ hg -R server serve -p $HGPORT -d --pid-file=hg-1.pid --error errors-1.txt
   $ cat hg-1.pid > $DAEMON_PIDS
   $ hg -R server-no-fncache serve -p $HGPORT2 -d --pid-file=hg-2.pid --error errors-2.txt
@@ -190,12 +170,7 @@ fncache → no-fncache cloning
 
   $ hg clone --quiet --stream -U http://localhost:$HGPORT clone-remove-fncache --config format.usefncache=no
   $ cat errors-1.txt
-  $ hg -R clone-remove-fncache verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5004 changesets with 1088 changes to 1088 files
+  $ hg -R clone-remove-fncache verify -q
   $ hg debugrequires -R clone-remove-fncache | grep fncache
   [1]
 
@@ -204,12 +179,7 @@ no-fncache → fncache cloning
 
   $ hg clone --quiet --stream -U http://localhost:$HGPORT2 clone-add-fncache --config format.usefncache=yes
   $ cat errors-2.txt
-  $ hg -R clone-add-fncache verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5004 changesets with 1088 changes to 1088 files
+  $ hg -R clone-add-fncache verify -q
   $ hg debugrequires -R clone-add-fncache | grep fncache
   fncache
 
@@ -231,12 +201,7 @@ Test streaming from/to repository without a dotencode
   new changesets 96ee1d7354c4:06ddac466af5
   updating to branch default
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg verify -R server-no-dotencode
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5004 changesets with 1088 changes to 1088 files
+  $ hg verify -R server-no-dotencode -q
   $ hg -R server serve -p $HGPORT -d --pid-file=hg-1.pid --error errors-1.txt
   $ cat hg-1.pid > $DAEMON_PIDS
   $ hg -R server-no-dotencode serve -p $HGPORT2 -d --pid-file=hg-2.pid --error errors-2.txt
@@ -250,12 +215,7 @@ dotencode → no-dotencode cloning
 
   $ hg clone --quiet --stream -U http://localhost:$HGPORT clone-remove-dotencode --config format.dotencode=no
   $ cat errors-1.txt
-  $ hg -R clone-remove-dotencode verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5004 changesets with 1088 changes to 1088 files
+  $ hg -R clone-remove-dotencode verify -q
   $ hg debugrequires -R clone-remove-dotencode | grep dotencode
   [1]
 
@@ -264,12 +224,7 @@ no-dotencode → dotencode cloning
 
   $ hg clone --quiet --stream -U http://localhost:$HGPORT2 clone-add-dotencode --config format.dotencode=yes
   $ cat errors-2.txt
-  $ hg -R clone-add-dotencode verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5004 changesets with 1088 changes to 1088 files
+  $ hg -R clone-add-dotencode verify -q
   $ hg debugrequires -R clone-add-dotencode | grep dotencode
   dotencode
 
@@ -289,12 +244,7 @@ The resulting clone should not use share.
   $ cat hg-1.pid > $DAEMON_PIDS
 
   $ hg clone --quiet --stream -U http://localhost:$HGPORT clone-from-share
-  $ hg -R clone-from-share verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5004 changesets with 1088 changes to 1088 files
+  $ hg -R clone-from-share verify -q
   $ hg debugrequires -R clone-from-share | egrep 'share$'
   [1]
 
@@ -313,12 +263,7 @@ Test streaming from/to repository without a share-safe
   new changesets 96ee1d7354c4:06ddac466af5
   updating to branch default
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg verify -R server-no-share-safe
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5004 changesets with 1088 changes to 1088 files
+  $ hg verify -R server-no-share-safe -q
   $ hg -R server serve -p $HGPORT -d --pid-file=hg-1.pid --error errors-1.txt
   $ cat hg-1.pid > $DAEMON_PIDS
   $ hg -R server-no-share-safe serve -p $HGPORT2 -d --pid-file=hg-2.pid --error errors-2.txt
@@ -332,12 +277,7 @@ share-safe → no-share-safe cloning
 
   $ hg clone --quiet --stream -U http://localhost:$HGPORT clone-remove-share-safe --config format.use-share-safe=no
   $ cat errors-1.txt
-  $ hg -R clone-remove-share-safe verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5004 changesets with 1088 changes to 1088 files
+  $ hg -R clone-remove-share-safe verify -q
   $ hg debugrequires -R clone-remove-share-safe | grep share-safe
   [1]
 
@@ -346,12 +286,7 @@ no-share-safe → share-safe cloning
 
   $ hg clone --quiet --stream -U http://localhost:$HGPORT2 clone-add-share-safe --config format.use-share-safe=yes
   $ cat errors-2.txt
-  $ hg -R clone-add-share-safe verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5004 changesets with 1088 changes to 1088 files
+  $ hg -R clone-add-share-safe verify -q
   $ hg debugrequires -R clone-add-share-safe | grep share-safe
   share-safe
 
@@ -374,12 +309,7 @@ persistent nodemap affects revlog, but they are easy to generate locally, so we 
   new changesets 96ee1d7354c4:06ddac466af5
   updating to branch default
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg verify -R server-no-persistent-nodemap
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5004 changesets with 1088 changes to 1088 files
+  $ hg verify -R server-no-persistent-nodemap -q
   $ hg -R server serve -p $HGPORT -d --pid-file=hg-1.pid --error errors-1.txt
   $ cat hg-1.pid > $DAEMON_PIDS
   $ hg -R server-no-persistent-nodemap serve -p $HGPORT2 -d --pid-file=hg-2.pid --error errors-2.txt
@@ -401,12 +331,7 @@ persistent-nodemap → no-persistent-nodemap cloning
 
   $ hg clone --quiet --stream -U http://localhost:$HGPORT clone-remove-persistent-nodemap --config format.use-persistent-nodemap=no
   $ cat errors-1.txt
-  $ hg -R clone-remove-persistent-nodemap verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5004 changesets with 1088 changes to 1088 files
+  $ hg -R clone-remove-persistent-nodemap verify -q
   $ hg debugrequires -R clone-remove-persistent-nodemap | grep persistent-nodemap
   [1]
 
@@ -421,12 +346,7 @@ no-persistent-nodemap → persistent-nodemap cloning
 
   $ hg clone --quiet --stream -U http://localhost:$HGPORT2 clone-add-persistent-nodemap --config format.use-persistent-nodemap=yes
   $ cat errors-2.txt
-  $ hg -R clone-add-persistent-nodemap verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5004 changesets with 1088 changes to 1088 files
+  $ hg -R clone-add-persistent-nodemap verify -q
   $ hg debugrequires -R clone-add-persistent-nodemap | grep persistent-nodemap
   persistent-nodemap
 

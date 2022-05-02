@@ -94,12 +94,7 @@ This is present here to reuse the testing around file with "special" names.
 
 Check that the clone went well
 
-  $ hg verify -R local-clone
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 1088 changes to 1088 files
+  $ hg verify -R local-clone -q
 
 Check uncompressed
 ==================
@@ -651,12 +646,7 @@ clone it
   updating to branch default
   1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
 #endif
-  $ hg verify -R with-bookmarks
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 1088 changes to 1088 files
+  $ hg verify -R with-bookmarks -q
   $ hg -R with-bookmarks bookmarks
      some-bookmark             2:5223b5e3265f
 
@@ -692,12 +682,7 @@ Clone as publishing
   updating to branch default
   1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
 #endif
-  $ hg verify -R phase-publish
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 1088 changes to 1088 files
+  $ hg verify -R phase-publish -q
   $ hg -R phase-publish phase -r 'all()'
   0: public
   1: public
@@ -747,12 +732,7 @@ stream v1 unsuitable for non-publishing repository.
   1: draft
   2: draft
 #endif
-  $ hg verify -R phase-no-publish
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 1088 changes to 1088 files
+  $ hg verify -R phase-no-publish -q
 
   $ killdaemons.py
 
@@ -801,12 +781,7 @@ Clone non-publishing with obsolescence
   0: draft
   $ hg debugobsolete -R with-obsolescence
   8c206a663911c1f97f2f9d7382e417ae55872cfa 0 {5223b5e3265f0df40bb743da62249413d74ac70f} (Thu Jan 01 00:00:00 1970 +0000) {'user': 'test'}
-  $ hg verify -R with-obsolescence
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 4 changesets with 1089 changes to 1088 files
+  $ hg verify -R with-obsolescence -q
 
   $ hg clone -U --stream --config experimental.evolution=0 http://localhost:$HGPORT with-obsolescence-no-evolution
   streaming all changes

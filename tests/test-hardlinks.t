@@ -151,12 +151,7 @@ Create a non-inlined filelog in r3:
 
 Push to repo r1 should break up most hardlinks in r2:
 
-  $ hg -R r2 verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 2 files
+  $ hg -R r2 verify -q
 
   $ cd r3
   $ hg push
@@ -182,13 +177,7 @@ Push to repo r1 should break up most hardlinks in r2:
   1 r2/.hg/store/fncache
 #endif
 
-  $ hg -R r2 verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 2 files
-
+  $ hg -R r2 verify -q
 
   $ cd r1
   $ hg up

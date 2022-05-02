@@ -161,13 +161,7 @@ We should also be able to unshare without breaking everything:
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd share-unshare
   $ hg unshare
-  $ hg verify
-  checking changesets
-  checking manifests
-  checking directory manifests (tree !)
-  crosschecking files in changesets and manifests
-  checking files
-  checked 11 changesets with 3 changes to 3 files
+  $ hg verify -q
   $ cd ..
 
 Dirstate should be left alone when upgrading from version of hg that didn't support narrow+share

@@ -135,11 +135,6 @@ Everything should be clean now:
 
   $ hg status
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 4 changesets with 10 changes to 4 files
+  $ hg verify -q
 
   $ cd ..

@@ -363,13 +363,7 @@ Testing whether unamend retains copies or not
   $ hg mv c wat
   $ hg unamend
 
-  $ hg verify -v
-  repository uses revlog format 1
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 28 changesets with 16 changes to 11 files
+  $ hg verify -q
 
 Retained copies in new prdecessor commit
 
