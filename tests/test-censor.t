@@ -175,6 +175,7 @@ Repo fails verification due to censorship
   checking files
    target@1: censored file data
    target@2: censored file data
+  not checking dirstate because of previous errors
   checked 5 changesets with 7 changes to 2 files
   2 integrity errors encountered!
   (first damaged changeset appears to be 1)

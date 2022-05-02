@@ -66,6 +66,7 @@
    (expected 1)
    b@?: 736c29771fba not in manifests
   warning: orphan data file 'data/c.i'
+  not checking dirstate because of previous errors
   checked 2 changesets with 3 changes to 2 files
   2 warnings encountered!
   2 integrity errors encountered!
@@ -79,6 +80,7 @@
   checking manifests
   crosschecking files in changesets and manifests
   checking files
+  checking dirstate
   checked 2 changesets with 2 changes to 2 files
   $ teststrip 0 2 r .hg/store/data/b.i
   % before update 0, strip 2
@@ -93,6 +95,7 @@
   checking manifests
   crosschecking files in changesets and manifests
   checking files
+  checking dirstate
   checked 4 changesets with 4 changes to 3 files
   % journal contents
   (no journal)
@@ -124,6 +127,7 @@
    b@?: rev 1 points to nonexistent changeset 2
    (expected 1)
    c@?: rev 0 points to nonexistent changeset 3
+  not checking dirstate because of previous errors
   checked 2 changesets with 4 changes to 3 files
   1 warnings encountered!
   7 integrity errors encountered!
@@ -138,6 +142,7 @@
   checking manifests
   crosschecking files in changesets and manifests
   checking files
+  checking dirstate
   checked 2 changesets with 2 changes to 2 files
 
   $ cd ..

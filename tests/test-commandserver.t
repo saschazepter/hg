@@ -541,6 +541,7 @@ changelog and manifest would have invalid node:
   checking manifests
   crosschecking files in changesets and manifests
   checking files
+  checking dirstate
   checked 2 changesets with 2 changes to 1 files
   $ hg revert --no-backup -aq
 
@@ -825,6 +826,7 @@ structured message channel:
   message: '\xa6Ditem@Cpos\xf6EtopicMcrosscheckingEtotal\xf6DtypeHprogressDunit@'
   message: '\xa2DdataOchecking files\nDtypeFstatus'
   message: '\xa6Ditem@Cpos\xf6EtopicHcheckingEtotal\xf6DtypeHprogressDunit@'
+  message: '\xa2DdataRchecking dirstate\nDtypeFstatus'
   message: '\xa2DdataX/checked 0 changesets with 0 changes to 0 files\nDtypeFstatus'
 
   >>> from hgclient import checkwith, readchannel, runcommand, stringio
