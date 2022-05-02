@@ -1548,13 +1548,14 @@ class dirstate:
         missing_from_ds = b"%s in manifest1, but listed as state %s\n"
         for f, entry in self.items():
             state = entry.state
-            if state in b"nr" and f not in m1:
-                yield (missing_from_p1, f, state)
-            if state in b"a" and f in m1:
+            if entry.p1_tracked:
+                if entry.modified and f not in m1 and f not in m2:
+                    yield (missing_from_ps, f, state)
+                elif f not in m1:
+                    yield (missing_from_p1, f, state)
+            if entry.added and f in m1:
                 yield (unexpected_in_p1, f, state)
-            if state in b"m" and f not in m1 and f not in m2:
-                yield (missing_from_ps, f, state)
         for f in m1:
-            state = self.get_entry(f).state
-            if state not in b"nrm":
-                yield (missing_from_ds, f, state)
+            entry = self.get_entry(f)
+            if not entry.p1_tracked:
+                yield (missing_from_ds, f, entry.state)
