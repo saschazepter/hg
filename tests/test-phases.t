@@ -407,7 +407,6 @@ test that phase are displayed in log at debug level
   manifest:    7:5e724ffacba267b2ab726c91fc8b650710deaaa8
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
-  files+:      C D E
   extra:       branch=default
   description:
   merge B' and E

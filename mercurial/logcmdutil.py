@@ -377,10 +377,9 @@ class changesetprinter(object):
         self._exthook(ctx)
 
         if self.ui.debugflag:
-            files = ctx.p1().status(ctx)
             for key, value in zip(
                 [b'files', b'files+', b'files-'],
-                [files.modified, files.added, files.removed],
+                [ctx.filesmodified(), ctx.filesadded(), ctx.filesremoved()],
             ):
                 if value:
                     self.ui.write(
@@ -512,11 +511,10 @@ class changesetformatter(changesetprinter):
             or b'added' in datahint
             or b'removed' in datahint
         ):
-            files = ctx.p1().status(ctx)
             fm.data(
-                modified=fm.formatlist(files.modified, name=b'file'),
-                added=fm.formatlist(files.added, name=b'file'),
-                removed=fm.formatlist(files.removed, name=b'file'),
+                modified=fm.formatlist(ctx.filesmodified(), name=b'file'),
+                added=fm.formatlist(ctx.filesadded(), name=b'file'),
+                removed=fm.formatlist(ctx.filesremoved(), name=b'file'),
             )
 
         verbose = not self.ui.debugflag and self.ui.verbose
