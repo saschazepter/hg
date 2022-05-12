@@ -25,11 +25,9 @@ https://bz.mercurial-scm.org/show_bug.cgi?id=6642
   
 
   $ hg log -r . --debug | grep files
-  files+:      b (known-bad-output !)
-  [1] (missing-correct-output !)
+  [1]
   $ hg log -r . --debug -T json | egrep '(added|removed|modified)'
-    "added": ["b"], (known-bad-output !)
-    "added": [], (missing-correct-output !)
+    "added": [],
     "modified": [],
     "removed": [],
   $ hg log -r . --debug -T xml | grep path
