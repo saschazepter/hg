@@ -517,10 +517,13 @@ fn unsure_is_modified(
     }
     let filelog = repo.filelog(hg_path)?;
     let fs_len = fs_metadata.len();
-    let filelog_entry =
-        filelog.entry_for_node(entry.node_id()?).map_err(|_| {
-            HgError::corrupted("filelog missing node from manifest")
-        })?;
+    let file_node = entry.node_id()?;
+    let filelog_entry = filelog.entry_for_node(file_node).map_err(|_| {
+        HgError::corrupted(format!(
+            "filelog missing node {:?} from manifest",
+            file_node
+        ))
+    })?;
     if filelog_entry.file_data_len_not_equal_to(fs_len) {
         // No need to read file contents:
         // it cannot be equal if it has a different length.

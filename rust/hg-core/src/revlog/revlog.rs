@@ -49,18 +49,20 @@ impl From<NodeMapError> for RevlogError {
     fn from(error: NodeMapError) -> Self {
         match error {
             NodeMapError::MultipleResults => RevlogError::AmbiguousPrefix,
-            NodeMapError::RevisionNotInIndex(_) => RevlogError::corrupted(),
+            NodeMapError::RevisionNotInIndex(rev) => RevlogError::corrupted(
+                format!("nodemap point to revision {} not in index", rev),
+            ),
         }
     }
 }
 
-fn corrupted() -> HgError {
-    HgError::corrupted("corrupted revlog")
+fn corrupted<S: AsRef<str>>(context: S) -> HgError {
+    HgError::corrupted(format!("corrupted revlog, {}", context.as_ref()))
 }
 
 impl RevlogError {
-    fn corrupted() -> Self {
-        RevlogError::Other(corrupted())
+    fn corrupted<S: AsRef<str>>(context: S) -> Self {
+        RevlogError::Other(corrupted(context))
     }
 }
 
@@ -329,7 +331,8 @@ impl Revlog {
         &self,
         rev: Revision,
     ) -> Result<RevlogEntry, HgError> {
-        return self.get_entry(rev).map_err(|_| corrupted());
+        self.get_entry(rev)
+            .map_err(|_| corrupted(format!("revision {} out of range", rev)))
     }
 }
 
@@ -449,7 +452,10 @@ impl<'a> RevlogEntry<'a> {
         ) {
             Ok(data)
         } else {
-            Err(corrupted())
+            Err(corrupted(format!(
+                "hash check failed for revision {}",
+                self.rev
+            )))
         }
     }
 
@@ -478,7 +484,10 @@ impl<'a> RevlogEntry<'a> {
             // zstd data.
             b'\x28' => Ok(Cow::Owned(self.uncompressed_zstd_data()?)),
             // A proper new format should have had a repo/store requirement.
-            _format_type => Err(corrupted()),
+            format_type => Err(corrupted(format!(
+                "unknown compression header '{}'",
+                format_type
+            ))),
         }
     }
 
@@ -486,12 +495,16 @@ impl<'a> RevlogEntry<'a> {
         let mut decoder = ZlibDecoder::new(self.bytes);
         if self.is_delta() {
             let mut buf = Vec::with_capacity(self.compressed_len as usize);
-            decoder.read_to_end(&mut buf).map_err(|_| corrupted())?;
+            decoder
+                .read_to_end(&mut buf)
+                .map_err(|e| corrupted(e.to_string()))?;
             Ok(buf)
         } else {
             let cap = self.uncompressed_len.max(0) as usize;
             let mut buf = vec![0; cap];
-            decoder.read_exact(&mut buf).map_err(|_| corrupted())?;
+            decoder
+                .read_exact(&mut buf)
+                .map_err(|e| corrupted(e.to_string()))?;
             Ok(buf)
         }
     }
@@ -500,15 +513,15 @@ impl<'a> RevlogEntry<'a> {
         if self.is_delta() {
             let mut buf = Vec::with_capacity(self.compressed_len as usize);
             zstd::stream::copy_decode(self.bytes, &mut buf)
-                .map_err(|_| corrupted())?;
+                .map_err(|e| corrupted(e.to_string()))?;
             Ok(buf)
         } else {
             let cap = self.uncompressed_len.max(0) as usize;
             let mut buf = vec![0; cap];
             let len = zstd::block::decompress_to_buffer(self.bytes, &mut buf)
-                .map_err(|_| corrupted())?;
+                .map_err(|e| corrupted(e.to_string()))?;
             if len != self.uncompressed_len as usize {
-                Err(corrupted())
+                Err(corrupted("uncompressed length does not match"))
             } else {
                 Ok(buf)
             }
