@@ -175,11 +175,21 @@ type OptPathSlice = PathSlice;
 ///
 /// This should only happen if Mercurial is buggy or a repository is corrupted.
 #[derive(Debug)]
-pub struct DirstateV2ParseError;
+pub struct DirstateV2ParseError {
+    message: String,
+}
+
+impl DirstateV2ParseError {
+    pub fn new<S: Into<String>>(message: S) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+}
 
 impl From<DirstateV2ParseError> for HgError {
-    fn from(_: DirstateV2ParseError) -> Self {
-        HgError::corrupted("dirstate-v2 parse error")
+    fn from(e: DirstateV2ParseError) -> Self {
+        HgError::corrupted(format!("dirstate-v2 parse error: {}", e.message))
     }
 }
 
@@ -262,13 +272,16 @@ impl<'on_disk> Docket<'on_disk> {
 pub fn read_docket(
     on_disk: &[u8],
 ) -> Result<Docket<'_>, DirstateV2ParseError> {
-    let (header, uuid) =
-        DocketHeader::from_bytes(on_disk).map_err(|_| DirstateV2ParseError)?;
+    let (header, uuid) = DocketHeader::from_bytes(on_disk).map_err(|e| {
+        DirstateV2ParseError::new(format!("when reading docket, {}", e))
+    })?;
     let uuid_size = header.uuid_size as usize;
     if header.marker == *V2_FORMAT_MARKER && uuid.len() == uuid_size {
         Ok(Docket { header, uuid })
     } else {
-        Err(DirstateV2ParseError)
+        Err(DirstateV2ParseError::new(
+            "invalid format marker or uuid size",
+        ))
     }
 }
 
@@ -281,14 +294,17 @@ pub(super) fn read<'on_disk>(
         map.dirstate_version = DirstateVersion::V2;
         return Ok(map);
     }
-    let (meta, _) = TreeMetadata::from_bytes(metadata)
-        .map_err(|_| DirstateV2ParseError)?;
+    let (meta, _) = TreeMetadata::from_bytes(metadata).map_err(|e| {
+        DirstateV2ParseError::new(format!("when parsing tree metadata, {}", e))
+    })?;
     let dirstate_map = DirstateMap {
         on_disk,
-        root: dirstate_map::ChildNodes::OnDisk(read_nodes(
-            on_disk,
-            meta.root_nodes,
-        )?),
+        root: dirstate_map::ChildNodes::OnDisk(
+            read_nodes(on_disk, meta.root_nodes).map_err(|mut e| {
+                e.message = format!("{}, when reading root notes", e.message);
+                e
+            })?,
+        ),
         nodes_with_entry_count: meta.nodes_with_entry_count.get(),
         nodes_with_copy_source_count: meta.nodes_with_copy_source_count.get(),
         ignore_patterns_hash: meta.ignore_patterns_hash,
@@ -317,7 +333,7 @@ impl Node {
                 .expect("dirstate-v2 base_name_start out of bounds");
             Ok(start)
         } else {
-            Err(DirstateV2ParseError)
+            Err(DirstateV2ParseError::new("not enough bytes for base name"))
         }
     }
 
@@ -571,11 +587,19 @@ where
     // `&[u8]` cannot occupy the entire addess space.
     let start = start.get().try_into().unwrap_or(std::usize::MAX);
     let len = len.try_into().unwrap_or(std::usize::MAX);
-    on_disk
-        .get(start..)
-        .and_then(|bytes| T::slice_from_bytes(bytes, len).ok())
+    let bytes = match on_disk.get(start..) {
+        Some(bytes) => bytes,
+        None => {
+            return Err(DirstateV2ParseError::new(
+                "not enough bytes from disk",
+            ))
+        }
+    };
+    T::slice_from_bytes(bytes, len)
+        .map_err(|e| {
+            DirstateV2ParseError::new(format!("when reading a slice, {}", e))
+        })
         .map(|(slice, _rest)| slice)
-        .ok_or_else(|| DirstateV2ParseError)
 }
 
 pub(crate) fn for_each_tracked_path<'on_disk>(
@@ -583,8 +607,9 @@ pub(crate) fn for_each_tracked_path<'on_disk>(
     metadata: &[u8],
     mut f: impl FnMut(&'on_disk HgPath),
 ) -> Result<(), DirstateV2ParseError> {
-    let (meta, _) = TreeMetadata::from_bytes(metadata)
-        .map_err(|_| DirstateV2ParseError)?;
+    let (meta, _) = TreeMetadata::from_bytes(metadata).map_err(|e| {
+        DirstateV2ParseError::new(format!("when parsing tree metadata, {}", e))
+    })?;
     fn recur<'on_disk>(
         on_disk: &'on_disk [u8],
         nodes: ChildNodes,
