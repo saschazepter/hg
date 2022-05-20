@@ -1775,7 +1775,17 @@ class revlog:
         if base == nullrev:
             return True
         p1 = entry[5]
+        while self.length(p1) == 0:
+            b = self.deltaparent(p1)
+            if b == p1:
+                break
+            p1 = b
         p2 = entry[6]
+        while self.length(p2) == 0:
+            b = self.deltaparent(p2)
+            if b == p2:
+                break
+            p2 = b
         if base == p1 or base == p2:
             return False
         return self.issnapshot(base)
