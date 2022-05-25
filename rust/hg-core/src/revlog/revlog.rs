@@ -5,7 +5,6 @@ use std::ops::Deref;
 use std::path::Path;
 
 use flate2::read::ZlibDecoder;
-use micro_timer::timed;
 use sha1::{Digest, Sha1};
 use zstd;
 
@@ -83,7 +82,6 @@ impl Revlog {
     ///
     /// It will also open the associated data file if index and data are not
     /// interleaved.
-    #[timed]
     pub fn open(
         store_vfs: &Vfs,
         index_path: impl AsRef<Path>,
@@ -157,7 +155,6 @@ impl Revlog {
 
     /// Return the revision number for the given node ID, if it exists in this
     /// revlog
-    #[timed]
     pub fn rev_from_node(
         &self,
         node: NodePrefix,
@@ -207,7 +204,6 @@ impl Revlog {
     /// All entries required to build the final data out of deltas will be
     /// retrieved as needed, and the deltas will be applied to the inital
     /// snapshot to rebuild the final data.
-    #[timed]
     pub fn get_rev_data(
         &self,
         rev: Revision,
@@ -242,7 +238,6 @@ impl Revlog {
 
     /// Build the full data of a revision out its snapshot
     /// and its deltas.
-    #[timed]
     fn build_data_from_deltas(
         snapshot: RevlogEntry,
         deltas: &[RevlogEntry],
