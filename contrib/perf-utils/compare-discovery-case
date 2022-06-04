@@ -118,14 +118,19 @@ def compare(
     local_case,
     remote_case,
     display_header=True,
+    display_case=True,
 ):
     case = (repo, local_case, remote_case)
     if display_header:
-        print(
-            "#",
-            "repo",
-            "local-subset",
-            "remote-subset",
+        pieces = ['#']
+        if display_case:
+            pieces += [
+                "repo",
+                "local-subset",
+                "remote-subset",
+            ]
+
+        pieces += [
             "discovery-variant",
             "roundtrips",
             "queries",
@@ -135,7 +140,8 @@ def compare(
             "undecided-initial",
             "undecided-common",
             "undecided-missing",
-        )
+        ]
+        print(*pieces)
     for variant in VARIANTS_KEYS:
         res = process(case, VARIANTS[variant])
         revs = res["nb-revs"]
@@ -143,36 +149,31 @@ def compare(
         common_heads = res["nb-common-heads"]
         roundtrips = res["total-roundtrips"]
         queries = res["total-queries"]
-        if 'tree-discovery' in variant:
-            print(
+        pieces = []
+        if display_case:
+            pieces += [
                 repo,
                 format_case(local_case),
                 format_case(remote_case),
-                variant,
-                roundtrips,
-                queries,
-                revs,
-                local_heads,
-                common_heads,
-            )
-        else:
+            ]
+        pieces += [
+            variant,
+            roundtrips,
+            queries,
+            revs,
+            local_heads,
+            common_heads,
+        ]
+        if 'tree-discovery' not in variant:
             undecided_common = res["nb-ini_und-common"]
             undecided_missing = res["nb-ini_und-missing"]
             undecided = undecided_common + undecided_missing
-            print(
-                repo,
-                format_case(local_case),
-                format_case(remote_case),
-                variant,
-                roundtrips,
-                queries,
-                revs,
-                local_heads,
-                common_heads,
+            pieces += [
                 undecided,
                 undecided_common,
                 undecided_missing,
-            )
+            ]
+        print(*pieces)
     return 0
 
 
@@ -200,6 +201,9 @@ if __name__ == '__main__':
     if '--no-header' in argv:
         kwargs['display_header'] = False
         argv = [a for a in argv if a != '--no-header']
+    if '--no-case' in argv:
+        kwargs['display_case'] = False
+        argv = [a for a in argv if a != '--no-case']
 
     if len(argv) != 4:
         usage = f'USAGE: {script_name} REPO LOCAL_CASE REMOTE_CASE'
