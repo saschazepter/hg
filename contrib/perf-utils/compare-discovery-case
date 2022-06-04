@@ -113,8 +113,29 @@ def to_revsets(case):
         assert False
 
 
-def compare(repo, local_case, remote_case):
+def compare(
+    repo,
+    local_case,
+    remote_case,
+    display_header=True,
+):
     case = (repo, local_case, remote_case)
+    if display_header:
+        print(
+            "#",
+            "repo",
+            "local-subset",
+            "remote-subset",
+            "discovery-variant",
+            "roundtrips",
+            "queries",
+            "revs",
+            "local-heads",
+            "common-heads",
+            "undecided-initial",
+            "undecided-common",
+            "undecided-missing",
+        )
     for variant in VARIANTS_KEYS:
         res = process(case, VARIANTS[variant])
         revs = res["nb-revs"]
@@ -175,6 +196,10 @@ if __name__ == '__main__':
     argv = sys.argv[:]
 
     kwargs = {}
+    # primitive arg parsing
+    if '--no-header' in argv:
+        kwargs['display_header'] = False
+        argv = [a for a in argv if a != '--no-header']
 
     if len(argv) != 4:
         usage = f'USAGE: {script_name} REPO LOCAL_CASE REMOTE_CASE'
