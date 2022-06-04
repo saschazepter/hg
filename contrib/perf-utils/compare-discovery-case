@@ -171,13 +171,18 @@ def process(case, variant):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 4:
+
+    argv = sys.argv[:]
+
+    kwargs = {}
+
+    if len(argv) != 4:
         usage = f'USAGE: {script_name} REPO LOCAL_CASE REMOTE_CASE'
         print(usage, file=sys.stderr)
         sys.exit(128)
-    repo = sys.argv[1]
-    local_case = sys.argv[2].split('-')
+    repo = argv[1]
+    local_case = argv[2].split('-')
     local_case = (local_case[0],) + tuple(int(x) for x in local_case[1:])
-    remote_case = sys.argv[3].split('-')
+    remote_case = argv[3].split('-')
     remote_case = (remote_case[0],) + tuple(int(x) for x in remote_case[1:])
-    sys.exit(compare(repo, local_case, remote_case))
+    sys.exit(compare(repo, local_case, remote_case, **kwargs))
