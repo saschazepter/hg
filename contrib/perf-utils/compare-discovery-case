@@ -97,6 +97,12 @@ VARIANTS_KEYS = [
 assert set(VARIANTS.keys()) == set(VARIANTS_KEYS)
 
 
+def parse_case(case):
+    case_type, case_args = case.split('-', 1)
+    case = (case_type,) + tuple(int(x) for x in case_args.split('-'))
+    return case
+
+
 def format_case(case):
     return '-'.join(str(s) for s in case)
 
@@ -210,8 +216,6 @@ if __name__ == '__main__':
         print(usage, file=sys.stderr)
         sys.exit(128)
     repo = argv[1]
-    local_case = argv[2].split('-')
-    local_case = (local_case[0],) + tuple(int(x) for x in local_case[1:])
-    remote_case = argv[3].split('-')
-    remote_case = (remote_case[0],) + tuple(int(x) for x in remote_case[1:])
+    local_case = parse_case(argv[2])
+    remote_case = parse_case(argv[3])
     sys.exit(compare(repo, local_case, remote_case, **kwargs))
