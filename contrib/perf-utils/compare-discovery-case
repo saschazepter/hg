@@ -99,7 +99,11 @@ assert set(VARIANTS.keys()) == set(VARIANTS_KEYS)
 
 def parse_case(case):
     case_type, case_args = case.split('-', 1)
-    case = (case_type,) + tuple(int(x) for x in case_args.split('-'))
+    if case_type == 'file':
+        case_args = (case_args,)
+    else:
+        case_args = tuple(int(x) for x in case_args.split('-'))
+    case = (case_type,) + case_args
     return case
 
 
@@ -115,6 +119,8 @@ def to_revsets(case):
         return '::randomantichain(all(), "%d")' % case[1]
     elif t == 'rev':
         return '::%d' % case[1]
+    elif t == 'file':
+        return '::nodefromfile("%s")' % case[1]
     else:
         assert False
 
