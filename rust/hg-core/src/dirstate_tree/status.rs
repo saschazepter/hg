@@ -4,6 +4,7 @@ use crate::dirstate::status::StatusPath;
 use crate::dirstate_tree::dirstate_map::BorrowedPath;
 use crate::dirstate_tree::dirstate_map::ChildNodesRef;
 use crate::dirstate_tree::dirstate_map::DirstateMap;
+use crate::dirstate_tree::dirstate_map::DirstateVersion;
 use crate::dirstate_tree::dirstate_map::NodeData;
 use crate::dirstate_tree::dirstate_map::NodeRef;
 use crate::dirstate_tree::on_disk::DirstateV2ParseError;
@@ -61,16 +62,29 @@ pub fn status<'dirstate>(
 
     let (ignore_fn, warnings, patterns_changed): (IgnoreFnType, _, _) =
         if options.list_ignored || options.list_unknown {
-            let mut hasher = Sha1::new();
-            let (ignore_fn, warnings) = get_ignore_function(
-                ignore_files,
-                &root_dir,
-                &mut |pattern_bytes| hasher.update(pattern_bytes),
-            )?;
-            let new_hash = *hasher.finalize().as_ref();
-            let changed = new_hash != dmap.ignore_patterns_hash;
-            dmap.ignore_patterns_hash = new_hash;
-            (ignore_fn, warnings, Some(changed))
+            let (ignore_fn, warnings, changed) = match dmap.dirstate_version {
+                DirstateVersion::V1 => {
+                    let (ignore_fn, warnings) = get_ignore_function(
+                        ignore_files,
+                        &root_dir,
+                        &mut |_pattern_bytes| {},
+                    )?;
+                    (ignore_fn, warnings, None)
+                }
+                DirstateVersion::V2 => {
+                    let mut hasher = Sha1::new();
+                    let (ignore_fn, warnings) = get_ignore_function(
+                        ignore_files,
+                        &root_dir,
+                        &mut |pattern_bytes| hasher.update(pattern_bytes),
+                    )?;
+                    let new_hash = *hasher.finalize().as_ref();
+                    let changed = new_hash != dmap.ignore_patterns_hash;
+                    dmap.ignore_patterns_hash = new_hash;
+                    (ignore_fn, warnings, Some(changed))
+                }
+            };
+            (ignore_fn, warnings, changed)
         } else {
             (Box::new(|&_| true), vec![], None)
         };
@@ -135,7 +149,8 @@ pub fn status<'dirstate>(
 
     outcome.dirty = common.ignore_patterns_have_changed == Some(true)
         || !outdated.is_empty()
-        || !new_cachable.is_empty();
+        || (!new_cachable.is_empty()
+            && dmap.dirstate_version == DirstateVersion::V2);
 
     // Remove outdated mtimes before adding new mtimes, in case a given
     // directory is both
