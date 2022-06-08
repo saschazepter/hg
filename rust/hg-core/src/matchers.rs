@@ -134,6 +134,31 @@ impl Matcher for AlwaysMatcher {
     }
 }
 
+/// Matches nothing.
+#[derive(Debug)]
+pub struct NeverMatcher;
+
+impl Matcher for NeverMatcher {
+    fn file_set(&self) -> Option<&HashSet<HgPathBuf>> {
+        None
+    }
+    fn exact_match(&self, _filename: &HgPath) -> bool {
+        false
+    }
+    fn matches(&self, _filename: &HgPath) -> bool {
+        false
+    }
+    fn visit_children_set(&self, _directory: &HgPath) -> VisitChildrenSet {
+        VisitChildrenSet::Empty
+    }
+    fn matches_everything(&self) -> bool {
+        false
+    }
+    fn is_exact(&self) -> bool {
+        true
+    }
+}
+
 /// Matches the input files exactly. They are interpreted as paths, not
 /// patterns.
 ///

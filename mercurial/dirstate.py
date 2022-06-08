@@ -1248,6 +1248,7 @@ class dirstate:
             matchmod.exactmatcher,
             matchmod.includematcher,
             matchmod.intersectionmatcher,
+            matchmod.nevermatcher,
             matchmod.unionmatcher,
         )
 
