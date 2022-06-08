@@ -3,6 +3,7 @@
 //! See `mercurial/helptext/internals/dirstate-v2.txt`
 
 use crate::dirstate::TruncatedTimestamp;
+use crate::dirstate_tree::dirstate_map::DirstateVersion;
 use crate::dirstate_tree::dirstate_map::{self, DirstateMap, NodeRef};
 use crate::dirstate_tree::path_with_basename::WithBasename;
 use crate::errors::HgError;
@@ -276,7 +277,9 @@ pub(super) fn read<'on_disk>(
     metadata: &[u8],
 ) -> Result<DirstateMap<'on_disk>, DirstateV2ParseError> {
     if on_disk.is_empty() {
-        return Ok(DirstateMap::empty(on_disk));
+        let mut map = DirstateMap::empty(on_disk);
+        map.dirstate_version = DirstateVersion::V2;
+        return Ok(map);
     }
     let (meta, _) = TreeMetadata::from_bytes(metadata)
         .map_err(|_| DirstateV2ParseError)?;
@@ -291,6 +294,7 @@ pub(super) fn read<'on_disk>(
         ignore_patterns_hash: meta.ignore_patterns_hash,
         unreachable_bytes: meta.unreachable_bytes.get(),
         old_data_size: on_disk.len(),
+        dirstate_version: DirstateVersion::V2,
     };
     Ok(dirstate_map)
 }
