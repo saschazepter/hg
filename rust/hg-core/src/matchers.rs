@@ -368,6 +368,87 @@ impl UnionMatcher {
     }
 }
 
+pub struct IntersectionMatcher {
+    m1: Box<dyn Matcher + Sync>,
+    m2: Box<dyn Matcher + Sync>,
+    files: Option<HashSet<HgPathBuf>>,
+}
+
+impl Matcher for IntersectionMatcher {
+    fn file_set(&self) -> Option<&HashSet<HgPathBuf>> {
+        self.files.as_ref()
+    }
+
+    fn exact_match(&self, filename: &HgPath) -> bool {
+        self.files.as_ref().map_or(false, |f| f.contains(filename))
+    }
+
+    fn matches(&self, filename: &HgPath) -> bool {
+        self.m1.matches(filename) && self.m2.matches(filename)
+    }
+
+    fn visit_children_set(&self, directory: &HgPath) -> VisitChildrenSet {
+        let m1_set = self.m1.visit_children_set(directory);
+        if m1_set == VisitChildrenSet::Empty {
+            return VisitChildrenSet::Empty;
+        }
+        let m2_set = self.m2.visit_children_set(directory);
+        if m2_set == VisitChildrenSet::Empty {
+            return VisitChildrenSet::Empty;
+        }
+
+        if m1_set == VisitChildrenSet::Recursive {
+            return m2_set;
+        } else if m2_set == VisitChildrenSet::Recursive {
+            return m1_set;
+        }
+
+        match (&m1_set, &m2_set) {
+            (VisitChildrenSet::Recursive, _) => m2_set,
+            (_, VisitChildrenSet::Recursive) => m1_set,
+            (VisitChildrenSet::This, _) | (_, VisitChildrenSet::This) => {
+                VisitChildrenSet::This
+            }
+            (VisitChildrenSet::Set(m1), VisitChildrenSet::Set(m2)) => {
+                let set: HashSet<_> = m1.intersection(&m2).cloned().collect();
+                if set.is_empty() {
+                    VisitChildrenSet::Empty
+                } else {
+                    VisitChildrenSet::Set(set)
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn matches_everything(&self) -> bool {
+        self.m1.matches_everything() && self.m2.matches_everything()
+    }
+
+    fn is_exact(&self) -> bool {
+        self.m1.is_exact() || self.m2.is_exact()
+    }
+}
+
+impl IntersectionMatcher {
+    pub fn new(
+        mut m1: Box<dyn Matcher + Sync>,
+        mut m2: Box<dyn Matcher + Sync>,
+    ) -> Self {
+        let files = if m1.is_exact() || m2.is_exact() {
+            if !m1.is_exact() {
+                std::mem::swap(&mut m1, &mut m2);
+            }
+            m1.file_set().map(|m1_files| {
+                m1_files.iter().cloned().filter(|f| m2.matches(f)).collect()
+            })
+        } else {
+            None
+        };
+        Self { m1, m2, files }
+    }
+}
+
 /// Returns a function that matches an `HgPath` against the given regex
 /// pattern.
 ///
@@ -1145,6 +1226,217 @@ mod tests {
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"dir/subdir/z")),
             VisitChildrenSet::This
+        );
+    }
+
+    #[test]
+    fn test_intersectionmatcher() {
+        // Include path + Include rootfiles
+        let m1 = Box::new(
+            IncludeMatcher::new(vec![IgnorePattern::new(
+                PatternSyntax::RelPath,
+                b"dir/subdir",
+                Path::new(""),
+            )])
+            .unwrap(),
+        );
+        let m2 = Box::new(
+            IncludeMatcher::new(vec![IgnorePattern::new(
+                PatternSyntax::RootFiles,
+                b"dir",
+                Path::new(""),
+            )])
+            .unwrap(),
+        );
+        let matcher = IntersectionMatcher::new(m1, m2);
+
+        let mut set = HashSet::new();
+        set.insert(HgPathBuf::from_bytes(b"dir"));
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::Set(set)
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir")),
+            VisitChildrenSet::This
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/subdir")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/foo")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"folder")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/subdir/z")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/subdir/x")),
+            VisitChildrenSet::Empty
+        );
+
+        // Non intersecting paths
+        let m1 = Box::new(
+            IncludeMatcher::new(vec![IgnorePattern::new(
+                PatternSyntax::RelPath,
+                b"dir/subdir",
+                Path::new(""),
+            )])
+            .unwrap(),
+        );
+        let m2 = Box::new(
+            IncludeMatcher::new(vec![IgnorePattern::new(
+                PatternSyntax::RelPath,
+                b"folder",
+                Path::new(""),
+            )])
+            .unwrap(),
+        );
+        let matcher = IntersectionMatcher::new(m1, m2);
+
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/subdir")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/foo")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"folder")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/subdir/z")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/subdir/x")),
+            VisitChildrenSet::Empty
+        );
+
+        // Nested paths
+        let m1 = Box::new(
+            IncludeMatcher::new(vec![IgnorePattern::new(
+                PatternSyntax::RelPath,
+                b"dir/subdir/x",
+                Path::new(""),
+            )])
+            .unwrap(),
+        );
+        let m2 = Box::new(
+            IncludeMatcher::new(vec![IgnorePattern::new(
+                PatternSyntax::RelPath,
+                b"dir/subdir",
+                Path::new(""),
+            )])
+            .unwrap(),
+        );
+        let matcher = IntersectionMatcher::new(m1, m2);
+
+        let mut set = HashSet::new();
+        set.insert(HgPathBuf::from_bytes(b"dir"));
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::Set(set)
+        );
+
+        let mut set = HashSet::new();
+        set.insert(HgPathBuf::from_bytes(b"subdir"));
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir")),
+            VisitChildrenSet::Set(set)
+        );
+        let mut set = HashSet::new();
+        set.insert(HgPathBuf::from_bytes(b"x"));
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/subdir")),
+            VisitChildrenSet::Set(set)
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/foo")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"folder")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/subdir/z")),
+            VisitChildrenSet::Empty
+        );
+        // OPT: this should probably be 'all' not 'this'.
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/subdir/x")),
+            VisitChildrenSet::This
+        );
+
+        // Diverging paths
+        let m1 = Box::new(
+            IncludeMatcher::new(vec![IgnorePattern::new(
+                PatternSyntax::RelPath,
+                b"dir/subdir/x",
+                Path::new(""),
+            )])
+            .unwrap(),
+        );
+        let m2 = Box::new(
+            IncludeMatcher::new(vec![IgnorePattern::new(
+                PatternSyntax::RelPath,
+                b"dir/subdir/z",
+                Path::new(""),
+            )])
+            .unwrap(),
+        );
+        let matcher = IntersectionMatcher::new(m1, m2);
+
+        // OPT: these next two could probably be Empty as well.
+        let mut set = HashSet::new();
+        set.insert(HgPathBuf::from_bytes(b"dir"));
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::Set(set)
+        );
+        // OPT: these next two could probably be Empty as well.
+        let mut set = HashSet::new();
+        set.insert(HgPathBuf::from_bytes(b"subdir"));
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir")),
+            VisitChildrenSet::Set(set)
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/subdir")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/foo")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"folder")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/subdir/z")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/subdir/x")),
+            VisitChildrenSet::Empty
         );
     }
 }
