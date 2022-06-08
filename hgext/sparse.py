@@ -397,6 +397,9 @@ def debugsparse(ui, repo, **opts):
     if count > 1:
         raise error.Abort(_(b"too many flags specified"))
 
+    # enable sparse on repo even if the requirements is missing.
+    repo._has_sparse = True
+
     if count == 0:
         if repo.vfs.exists(b'sparse'):
             ui.status(repo.vfs.read(b"sparse") + b"\n")
@@ -452,3 +455,5 @@ def debugsparse(ui, repo, **opts):
             )
         finally:
             wlock.release()
+
+    del repo._has_sparse

@@ -30,6 +30,16 @@ from .utils import hashutil
 enabled = False
 
 
+def use_sparse(repo):
+    if getattr(repo, "_has_sparse", False):
+        # When enabling sparse the first time we need it to be enabled before
+        # actually enabling it.  This hack could be avoided if the code was
+        # improved further, however this is an improvement over the previously
+        # existing global variable.
+        return True
+    return requirements.SPARSE_REQUIREMENT in repo.requirements
+
+
 def parseconfig(ui, raw, action):
     """Parse sparse config file content.
 
@@ -114,7 +124,7 @@ def patternsforrev(repo, rev):
     patterns.
     """
     # Feature isn't enabled. No-op.
-    if not enabled:
+    if not use_sparse(repo):
         return set(), set(), set()
 
     raw = repo.vfs.tryread(b'sparse')
@@ -260,7 +270,7 @@ def addtemporaryincludes(repo, additional):
 
 
 def prunetemporaryincludes(repo):
-    if not enabled or not repo.vfs.exists(b'tempsparse'):
+    if not use_sparse(repo) or not repo.vfs.exists(b'tempsparse'):
         return
 
     s = repo.status()
@@ -313,7 +323,7 @@ def matcher(repo, revs=None, includetemp=True):
     ``includetemp`` indicates whether to use the temporary sparse profile.
     """
     # If sparse isn't enabled, sparse matcher matches everything.
-    if not enabled:
+    if not use_sparse(repo):
         return matchmod.always()
 
     if not revs or revs == [None]:
@@ -367,7 +377,7 @@ def matcher(repo, revs=None, includetemp=True):
 
 def filterupdatesactions(repo, wctx, mctx, branchmerge, mresult):
     """Filter updates to only lay out files that match the sparse rules."""
-    if not enabled:
+    if not use_sparse(repo):
         return
 
     oldrevs = [pctx.rev() for pctx in wctx.parents()]
