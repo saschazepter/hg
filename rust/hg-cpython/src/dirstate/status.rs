@@ -15,7 +15,7 @@ use cpython::{
     PyResult, PyTuple, Python, PythonObject, ToPyObject,
 };
 use hg::dirstate::status::StatusPath;
-use hg::matchers::{Matcher, UnionMatcher, IntersectionMatcher};
+use hg::matchers::{IntersectionMatcher, Matcher, NeverMatcher, UnionMatcher};
 use hg::{
     matchers::{AlwaysMatcher, FileMatcher, IncludeMatcher},
     parse_pattern_syntax,
@@ -158,6 +158,7 @@ fn extract_matcher(
 ) -> PyResult<Box<dyn Matcher + Sync>> {
     match matcher.get_type(py).name(py).borrow() {
         "alwaysmatcher" => Ok(Box::new(AlwaysMatcher)),
+        "nevermatcher" => Ok(Box::new(NeverMatcher)),
         "exactmatcher" => {
             let files = matcher.call_method(
                 py,
