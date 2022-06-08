@@ -15,7 +15,7 @@ use cpython::{
     PyResult, PyTuple, Python, PythonObject, ToPyObject,
 };
 use hg::dirstate::status::StatusPath;
-use hg::matchers::Matcher;
+use hg::matchers::{Matcher, UnionMatcher};
 use hg::{
     matchers::{AlwaysMatcher, FileMatcher, IncludeMatcher},
     parse_pattern_syntax,
@@ -216,6 +216,15 @@ fn extract_matcher(
                 .map_err(|e| handle_fallback(py, e.into()))?;
 
             Ok(Box::new(matcher))
+        }
+        "unionmatcher" => {
+            let matchers: PyResult<Vec<_>> = matcher
+                .getattr(py, "_matchers")?
+                .iter(py)?
+                .map(|py_matcher| extract_matcher(py, py_matcher?))
+                .collect();
+
+            Ok(Box::new(UnionMatcher::new(matchers?)))
         }
         e => Err(PyErr::new::<FallbackError, _>(
             py,
