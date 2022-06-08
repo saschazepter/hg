@@ -15,6 +15,7 @@ use cpython::{
     PyResult, PyTuple, Python, PythonObject, ToPyObject,
 };
 use hg::dirstate::status::StatusPath;
+use hg::matchers::Matcher;
 use hg::{
     matchers::{AlwaysMatcher, FileMatcher, IncludeMatcher},
     parse_pattern_syntax,
@@ -133,24 +134,30 @@ pub fn status_wrapper(
         build_response(py, status_res, warnings)
     };
 
+    let matcher = extract_matcher(py, matcher)?;
+    dmap.with_status(
+        &*matcher,
+        root_dir.to_path_buf(),
+        ignore_files,
+        StatusOptions {
+            check_exec,
+            list_clean,
+            list_ignored,
+            list_unknown,
+            list_copies,
+            collect_traversed_dirs,
+        },
+        after_status,
+    )
+}
+
+/// Transform a Python matcher into a Rust matcher.
+fn extract_matcher(
+    py: Python,
+    matcher: PyObject,
+) -> PyResult<Box<dyn Matcher + Sync>> {
     match matcher.get_type(py).name(py).borrow() {
-        "alwaysmatcher" => {
-            let matcher = AlwaysMatcher;
-            dmap.with_status(
-                &matcher,
-                root_dir.to_path_buf(),
-                ignore_files,
-                StatusOptions {
-                    check_exec,
-                    list_clean,
-                    list_ignored,
-                    list_unknown,
-                    list_copies,
-                    collect_traversed_dirs,
-                },
-                after_status,
-            )
-        }
+        "alwaysmatcher" => Ok(Box::new(AlwaysMatcher)),
         "exactmatcher" => {
             let files = matcher.call_method(
                 py,
@@ -169,22 +176,9 @@ pub fn status_wrapper(
                 .collect();
 
             let files = files?;
-            let matcher = FileMatcher::new(files)
+            let file_matcher = FileMatcher::new(files)
                 .map_err(|e| PyErr::new::<ValueError, _>(py, e.to_string()))?;
-            dmap.with_status(
-                &matcher,
-                root_dir.to_path_buf(),
-                ignore_files,
-                StatusOptions {
-                    check_exec,
-                    list_clean,
-                    list_ignored,
-                    list_unknown,
-                    list_copies,
-                    collect_traversed_dirs,
-                },
-                after_status,
-            )
+            Ok(Box::new(file_matcher))
         }
         "includematcher" => {
             // Get the patterns from Python even though most of them are
@@ -221,20 +215,7 @@ pub fn status_wrapper(
             let matcher = IncludeMatcher::new(ignore_patterns)
                 .map_err(|e| handle_fallback(py, e.into()))?;
 
-            dmap.with_status(
-                &matcher,
-                root_dir.to_path_buf(),
-                ignore_files,
-                StatusOptions {
-                    check_exec,
-                    list_clean,
-                    list_ignored,
-                    list_unknown,
-                    list_copies,
-                    collect_traversed_dirs,
-                },
-                after_status,
-            )
+            Ok(Box::new(matcher))
         }
         e => Err(PyErr::new::<FallbackError, _>(
             py,
