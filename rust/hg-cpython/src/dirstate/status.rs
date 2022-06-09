@@ -236,7 +236,7 @@ pub fn status_wrapper(
                 after_status,
             )
         }
-        e => Err(PyErr::new::<ValueError, _>(
+        e => Err(PyErr::new::<FallbackError, _>(
             py,
             format!("Unsupported matcher {}", e),
         )),
