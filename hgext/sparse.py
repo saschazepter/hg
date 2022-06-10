@@ -81,7 +81,6 @@ from mercurial import (
     error,
     extensions,
     logcmdutil,
-    match as matchmod,
     merge as mergemod,
     pycompat,
     registrar,
@@ -212,18 +211,6 @@ def _setupdirstate(ui):
     """Modify the dirstate to prevent stat'ing excluded files,
     and to prevent modifications to files outside the checkout.
     """
-
-    def walk(orig, self, match, subrepos, unknown, ignored, full=True):
-        # hack to not exclude explicitly-specified paths so that they can
-        # be warned later on e.g. dirstate.add()
-        sparse_matcher = self._sparsematcher
-        if sparse_matcher is not None:
-            em = matchmod.exact(match.files())
-            sm = matchmod.unionmatcher([self._sparsematcher, em])
-            match = matchmod.intersectmatchers(match, sm)
-        return orig(self, match, subrepos, unknown, ignored, full)
-
-    extensions.wrapfunction(dirstate.dirstate, b'walk', walk)
 
     # dirstate.rebuild should not add non-matching files
     def _rebuild(orig, self, parent, allfiles, changedfiles=None):
