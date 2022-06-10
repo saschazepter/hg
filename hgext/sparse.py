@@ -215,7 +215,6 @@ def _setupdirstate(ui):
     # Prevent adding files that are outside the sparse checkout
     editfuncs = [
         b'set_tracked',
-        b'set_untracked',
         b'copy',
     ]
     hint = _(
