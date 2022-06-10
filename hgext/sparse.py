@@ -212,24 +212,6 @@ def _setupdirstate(ui):
     and to prevent modifications to files outside the checkout.
     """
 
-    # dirstate.rebuild should not add non-matching files
-    def _rebuild(orig, self, parent, allfiles, changedfiles=None):
-        matcher = self._sparsematcher
-        if matcher is not None and not matcher.always():
-            allfiles = [f for f in allfiles if matcher(f)]
-            if changedfiles:
-                changedfiles = [f for f in changedfiles if matcher(f)]
-
-            if changedfiles is not None:
-                # In _rebuild, these files will be deleted from the dirstate
-                # when they are not found to be in allfiles
-                dirstatefilestoremove = {f for f in self if not matcher(f)}
-                changedfiles = dirstatefilestoremove.union(changedfiles)
-
-        return orig(self, parent, allfiles, changedfiles)
-
-    extensions.wrapfunction(dirstate.dirstate, b'rebuild', _rebuild)
-
     # Prevent adding files that are outside the sparse checkout
     editfuncs = [
         b'set_tracked',
