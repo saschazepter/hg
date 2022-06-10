@@ -182,6 +182,10 @@ another
   merging a and amove to amove
   0 files updated, 1 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
+  $ hg status --copies
+  M amove
+    a
+  R a
 
   $ hg up -C 4
   cleaned up 1 temporarily added file(s) from the sparse checkout
