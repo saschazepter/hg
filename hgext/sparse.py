@@ -216,9 +216,11 @@ def _setupdirstate(ui):
     def walk(orig, self, match, subrepos, unknown, ignored, full=True):
         # hack to not exclude explicitly-specified paths so that they can
         # be warned later on e.g. dirstate.add()
-        em = matchmod.exact(match.files())
-        sm = matchmod.unionmatcher([self._sparsematcher, em])
-        match = matchmod.intersectmatchers(match, sm)
+        sparse_matcher = self._sparsematcher
+        if sparse_matcher is not None:
+            em = matchmod.exact(match.files())
+            sm = matchmod.unionmatcher([self._sparsematcher, em])
+            match = matchmod.intersectmatchers(match, sm)
         return orig(self, match, subrepos, unknown, ignored, full)
 
     extensions.wrapfunction(dirstate.dirstate, b'walk', walk)
@@ -226,7 +228,7 @@ def _setupdirstate(ui):
     # dirstate.rebuild should not add non-matching files
     def _rebuild(orig, self, parent, allfiles, changedfiles=None):
         matcher = self._sparsematcher
-        if not matcher.always():
+        if matcher is not None and not matcher.always():
             allfiles = [f for f in allfiles if matcher(f)]
             if changedfiles:
                 changedfiles = [f for f in changedfiles if matcher(f)]
@@ -255,7 +257,7 @@ def _setupdirstate(ui):
 
         def _wrapper(orig, self, *args, **kwargs):
             sparsematch = self._sparsematcher
-            if not sparsematch.always():
+            if sparsematch is not None and not sparsematch.always():
                 for f in args:
                     if f is not None and not sparsematch(f) and f not in self:
                         raise error.Abort(
