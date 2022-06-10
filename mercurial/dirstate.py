@@ -1178,6 +1178,10 @@ class dirstate:
         return results
 
     def _rust_status(self, matcher, list_clean, list_ignored, list_unknown):
+        if self._sparsematchfn is not None:
+            em = matchmod.exact(matcher.files())
+            sm = matchmod.unionmatcher([self._sparsematcher, em])
+            matcher = matchmod.intersectmatchers(matcher, sm)
         # Force Rayon (Rust parallelism library) to respect the number of
         # workers. This is a temporary workaround until Rust code knows
         # how to read the config file.
@@ -1295,8 +1299,6 @@ class dirstate:
             # Case-insensitive filesystems are not handled yet
             use_rust = False
         elif subrepos:
-            use_rust = False
-        elif self._sparsematchfn is not None:
             use_rust = False
         elif not isinstance(match, allowed_matchers):
             # Some matchers have yet to be implemented
