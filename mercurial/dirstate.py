@@ -27,7 +27,6 @@ from . import (
     policy,
     pycompat,
     scmutil,
-    sparse,
     util,
 )
 
@@ -113,6 +112,7 @@ class dirstate:
         self._opener = opener
         self._validate = validate
         self._root = root
+        # Either build a sparse-matcher or None if sparse is disabled
         self._sparsematchfn = sparsematchfn
         # ntpath.join(root, '') of Python 2.7.9 does not add sep if root is
         # UNC path pointing to root share (issue4557)
@@ -184,7 +184,11 @@ class dirstate:
         The working directory may not include every file from a manifest. The
         matcher obtained by this property will match a path if it is to be
         included in the working directory.
+
+        When sparse if disabled, return None.
         """
+        if self._sparsematchfn is None:
+            return None
         # TODO there is potential to cache this property. For now, the matcher
         # is resolved on every access. (But the called function does use a
         # cache to keep the lookup fast.)
@@ -1259,7 +1263,7 @@ class dirstate:
             use_rust = False
         elif subrepos:
             use_rust = False
-        elif sparse.enabled:
+        elif self._sparsematchfn is not None:
             use_rust = False
         elif not isinstance(match, allowed_matchers):
             # Some matchers have yet to be implemented
