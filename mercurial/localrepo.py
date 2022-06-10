@@ -1747,7 +1747,9 @@ class localrepository:
 
     def _makedirstate(self):
         """Extension point for wrapping the dirstate per-repo."""
-        sparsematchfn = lambda: sparse.matcher(self)
+        sparsematchfn = None
+        if sparse.use_sparse(self):
+            sparsematchfn = lambda: sparse.matcher(self)
         v2_req = requirementsmod.DIRSTATE_V2_REQUIREMENT
         th = requirementsmod.DIRSTATE_TRACKED_HINT_V1
         use_dirstate_v2 = v2_req in self.requirements
