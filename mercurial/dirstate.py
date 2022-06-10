@@ -670,6 +670,20 @@ class dirstate:
         self._dirty = True
 
     def rebuild(self, parent, allfiles, changedfiles=None):
+
+        matcher = self._sparsematcher
+        if matcher is not None and not matcher.always():
+            # should not add non-matching files
+            allfiles = [f for f in allfiles if matcher(f)]
+            if changedfiles:
+                changedfiles = [f for f in changedfiles if matcher(f)]
+
+            if changedfiles is not None:
+                # these files will be deleted from the dirstate when they are
+                # not found to be in allfiles
+                dirstatefilestoremove = {f for f in self if not matcher(f)}
+                changedfiles = dirstatefilestoremove.union(changedfiles)
+
         if changedfiles is None:
             # Rebuild entire dirstate
             to_lookup = allfiles
