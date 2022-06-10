@@ -77,7 +77,6 @@ from mercurial.pycompat import setattr
 from mercurial import (
     cmdutil,
     commands,
-    dirstate,
     error,
     extensions,
     logcmdutil,
@@ -104,7 +103,6 @@ def extsetup(ui):
     _setupclone(ui)
     _setuplog(ui)
     _setupadd(ui)
-    _setupdirstate(ui)
 
 
 def replacefilecache(cls, propname, replacement):
@@ -205,40 +203,6 @@ def _setupadd(ui):
         return orig(ui, repo, *pats, **opts)
 
     extensions.wrapcommand(commands.table, b'add', _add)
-
-
-def _setupdirstate(ui):
-    """Modify the dirstate to prevent stat'ing excluded files,
-    and to prevent modifications to files outside the checkout.
-    """
-
-    # Prevent adding files that are outside the sparse checkout
-    editfuncs = [
-        b'set_tracked',
-        b'copy',
-    ]
-    hint = _(
-        b'include file with `hg debugsparse --include <pattern>` or use '
-        + b'`hg add -s <file>` to include file directory while adding'
-    )
-    for func in editfuncs:
-
-        def _wrapper(orig, self, *args, **kwargs):
-            sparsematch = self._sparsematcher
-            if sparsematch is not None and not sparsematch.always():
-                for f in args:
-                    if f is not None and not sparsematch(f) and f not in self:
-                        raise error.Abort(
-                            _(
-                                b"cannot add '%s' - it is outside "
-                                b"the sparse checkout"
-                            )
-                            % f,
-                            hint=hint,
-                        )
-            return orig(self, *args, **kwargs)
-
-        extensions.wrapfunction(dirstate.dirstate, func, _wrapper)
 
 
 @command(
