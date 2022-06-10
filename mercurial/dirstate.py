@@ -984,6 +984,11 @@ class dirstate:
             ignore = util.always
             dirignore = util.always
 
+        if self._sparsematchfn is not None:
+            em = matchmod.exact(match.files())
+            sm = matchmod.unionmatcher([self._sparsematcher, em])
+            match = matchmod.intersectmatchers(match, sm)
+
         matchfn = match.matchfn
         matchalways = match.always()
         matchtdir = match.traversedir
