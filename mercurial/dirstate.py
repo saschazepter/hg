@@ -427,6 +427,7 @@ class dirstate:
             return
         self._dirty = True
         if source is not None:
+            self._check_sparse(source)
             self._map.copymap[dest] = source
         else:
             self._map.copymap.pop(dest, None)
@@ -588,6 +589,19 @@ class dirstate:
                 msg = _(b'file %r in dirstate clashes with %r')
                 msg %= (pycompat.bytestr(d), pycompat.bytestr(filename))
                 raise error.Abort(msg)
+        self._check_sparse(filename)
+
+    def _check_sparse(self, filename):
+        """Check that a filename is inside the sparse profile"""
+        sparsematch = self._sparsematcher
+        if sparsematch is not None and not sparsematch.always():
+            if not sparsematch(filename):
+                msg = _(b"cannot add '%s' - it is outside the sparse checkout")
+                hint = _(
+                    b'include file with `hg debugsparse --include <pattern>` or use '
+                    b'`hg add -s <file>` to include file directory while adding'
+                )
+                raise error.Abort(msg % filename, hint=hint)
 
     def _discoverpath(self, path, normed, ignoremissing, exists, storemap):
         if exists is None:
