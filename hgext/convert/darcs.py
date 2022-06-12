@@ -178,7 +178,7 @@ class darcs_source(common.converter_source, common.commandline):
         copies = {}
         changes = []
         man = None
-        for elt in self.changes[rev].find('summary').getchildren():
+        for elt in self.changes[rev].find('summary'):
             if elt.tag in ('add_directory', 'remove_directory'):
                 continue
             if elt.tag == 'move':
