@@ -101,6 +101,10 @@ def get_tracked_hint_action(repo):
         b'format',
         b'use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories',
     )
+    auto_upgrade_quiet = ui.configbool(
+        b'format',
+        b'use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories:quiet',
+    )
 
     action = None
 
@@ -115,7 +119,7 @@ def get_tracked_hint_action(repo):
             hint = b"(see `hg help config.format.use-dirstate-tracked-hint` for details)\n"
 
             def action():
-                if not ui.quiet:
+                if not (ui.quiet or auto_upgrade_quiet):
                     ui.write_err(msg)
                     ui.write_err(hint)
                 requirements.add(requirementsmod.DIRSTATE_TRACKED_HINT_V1)
@@ -130,7 +134,7 @@ def get_tracked_hint_action(repo):
             hint = b"(see `hg help config.format.use-dirstate-tracked-hint` for details)\n"
 
             def action():
-                if not ui.quiet:
+                if not (ui.quiet or auto_upgrade_quiet):
                     ui.write_err(msg)
                     ui.write_err(hint)
                 requirements.discard(requirementsmod.DIRSTATE_TRACKED_HINT_V1)
