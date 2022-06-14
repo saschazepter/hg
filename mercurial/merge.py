@@ -2442,6 +2442,7 @@ def purge(
         status = repo.status(match=matcher, ignored=ignored, unknown=unknown)
 
         if confirm:
+            msg = None
             nb_ignored = len(status.ignored)
             nb_unknown = len(status.unknown)
             if nb_unknown and nb_ignored:
@@ -2463,12 +2464,12 @@ def purge(
                         b"permanently delete at least %d empty directories?"
                     )
                     msg %= dir_count
-                else:
-                    # XXX we might be missing directory there
-                    return res
-            msg += b" (yN)$$ &Yes $$ &No"
-            if repo.ui.promptchoice(msg, default=1) == 1:
-                raise error.CanceledError(_(b'removal cancelled'))
+            if msg is None:
+                return res
+            else:
+                msg += b" (yN)$$ &Yes $$ &No"
+                if repo.ui.promptchoice(msg, default=1) == 1:
+                    raise error.CanceledError(_(b'removal cancelled'))
 
         if removefiles:
             for f in sorted(status.unknown + status.ignored):
