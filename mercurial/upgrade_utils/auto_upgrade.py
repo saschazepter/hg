@@ -153,6 +153,10 @@ def get_dirstate_v2_action(repo):
         b'format',
         b'use-dirstate-v2.automatic-upgrade-of-mismatching-repositories',
     )
+    auto_upgrade_dv2_quiet = ui.configbool(
+        b'format',
+        b'use-dirstate-v2.automatic-upgrade-of-mismatching-repositories:quiet',
+    )
 
     action = None
 
@@ -169,7 +173,7 @@ def get_dirstate_v2_action(repo):
             )
 
             def action():
-                if not ui.quiet:
+                if not (ui.quiet or auto_upgrade_dv2_quiet):
                     ui.write_err(msg)
                     ui.write_err(hint)
                 requirements.add(requirementsmod.DIRSTATE_V2_REQUIREMENT)
@@ -186,7 +190,7 @@ def get_dirstate_v2_action(repo):
             )
 
             def action():
-                if not ui.quiet:
+                if not (ui.quiet or auto_upgrade_dv2_quiet):
                     ui.write_err(msg)
                     ui.write_err(hint)
                 requirements.discard(requirementsmod.DIRSTATE_V2_REQUIREMENT)

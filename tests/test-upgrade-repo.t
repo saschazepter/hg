@@ -2071,14 +2071,13 @@ Quiet upgrade and downgrade
   share-safe:         yes
   $ hg status -R auto-upgrade \
   >     --config format.use-dirstate-v2.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config format.use-dirstate-v2.automatic-upgrade-of-mismatching-repositories:quiet=yes \
   >     --config format.use-dirstate-v2=no \
   >     --config format.use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories=yes \
   >     --config format.use-dirstate-tracked-hint=yes \
   >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories=yes \
   >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories:quiet=yes \
   >     --config format.use-share-safe=no
-  automatically downgrading repository from the `dirstate-v2` feature
-  (see `hg help config.format.use-dirstate-v2` for details)
   automatically upgrading repository to the `tracked-hint` feature
   (see `hg help config.format.use-dirstate-tracked-hint` for details)
 
@@ -2089,14 +2088,13 @@ Quiet upgrade and downgrade
 
   $ hg status -R auto-upgrade \
   >     --config format.use-dirstate-v2.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config format.use-dirstate-v2.automatic-upgrade-of-mismatching-repositories:quiet=yes \
   >     --config format.use-dirstate-v2=yes \
   >     --config format.use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories=yes \
   >     --config format.use-dirstate-tracked-hint=no\
   >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories=yes \
   >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories:quiet=yes \
   >     --config format.use-share-safe=yes
-  automatically upgrading repository to the `dirstate-v2` feature
-  (see `hg help config.format.use-dirstate-v2` for details)
   automatically downgrading repository from the `tracked-hint` feature
   (see `hg help config.format.use-dirstate-tracked-hint` for details)
   $ hg debugformat -R auto-upgrade | egrep '(dirstate-v2|tracked|share-safe)'

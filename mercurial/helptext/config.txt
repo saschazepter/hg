@@ -965,6 +965,9 @@ https://www.mercurial-scm.org/wiki/MissingRequirement
    `dirstate-v2` requirement if `format.use-dirstate-v2=no`. So we recommend
    setting both this value and `format.use-dirstate-v2` at the same time.
 
+``use-dirstate-v2.automatic-upgrade-of-mismatching-repositories:quiet``
+    Hide message when performing such automatic upgrade.
+
 ``use-dirstate-tracked-hint``
     Enable or disable the writing of "tracked key" file alongside the dirstate.
     (default to disabled)
