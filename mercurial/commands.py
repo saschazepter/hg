@@ -2087,10 +2087,17 @@ def _docommit(ui, repo, *pats, **opts):
         extra[b'close'] = b'1'
 
         if repo[b'.'].closesbranch():
-            raise error.InputError(
-                _(b'current revision is already a branch closing head')
-            )
-        elif not bheads:
+            # Not ideal, but let us do an extra status early to prevent early
+            # bail out.
+            matcher = scmutil.match(repo[None], pats, opts)
+            s = repo.status(match=matcher)
+            if s.modified or s.added or s.removed:
+                bheads = repo.branchheads(branch, closed=True)
+            else:
+                msg = _(b'current revision is already a branch closing head')
+                raise error.InputError(msg)
+
+        if not bheads:
             raise error.InputError(
                 _(b'branch "%s" has no heads to close') % branch
             )
