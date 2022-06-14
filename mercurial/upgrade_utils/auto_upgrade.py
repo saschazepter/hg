@@ -44,6 +44,10 @@ def get_share_safe_action(repo):
         b'format',
         b'use-share-safe.automatic-upgrade-of-mismatching-repositories',
     )
+    auto_upgrade_quiet = ui.configbool(
+        b'format',
+        b'use-share-safe.automatic-upgrade-of-mismatching-repositories:quiet',
+    )
 
     action = None
 
@@ -61,7 +65,7 @@ def get_share_safe_action(repo):
             hint = b"(see `hg help config.format.use-share-safe` for details)\n"
 
             def action():
-                if not ui.quiet:
+                if not (ui.quiet or auto_upgrade_quiet):
                     ui.write_err(msg)
                     ui.write_err(hint)
                 requirements.add(requirementsmod.SHARESAFE_REQUIREMENT)
@@ -75,7 +79,7 @@ def get_share_safe_action(repo):
             hint = b"(see `hg help config.format.use-share-safe` for details)\n"
 
             def action():
-                if not ui.quiet:
+                if not (ui.quiet or auto_upgrade_quiet):
                     ui.write_err(msg)
                     ui.write_err(hint)
                 requirements.discard(requirementsmod.SHARESAFE_REQUIREMENT)
