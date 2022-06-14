@@ -2170,6 +2170,16 @@ coreconfigitem(
     default=True,
 )
 coreconfigitem(
+    b'share',
+    b'safe-mismatch.source-not-safe:verbose-upgrade',
+    default=True,
+)
+coreconfigitem(
+    b'share',
+    b'safe-mismatch.source-safe:verbose-upgrade',
+    default=True,
+)
+coreconfigitem(
     b'shelve',
     b'maxbackups',
     default=10,

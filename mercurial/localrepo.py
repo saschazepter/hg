@@ -628,6 +628,9 @@ def makelocalrepository(baseui, path, intents=None):
             mismatch_config = ui.config(
                 b'share', b'safe-mismatch.source-not-safe'
             )
+            mismatch_verbose_upgrade = ui.configbool(
+                b'share', b'safe-mismatch.source-not-safe:verbose-upgrade'
+            )
             if mismatch_config in (
                 b'downgrade-allow',
                 b'allow',
@@ -643,6 +646,7 @@ def makelocalrepository(baseui, path, intents=None):
                     requirements,
                     mismatch_config,
                     mismatch_warn,
+                    mismatch_verbose_upgrade,
                 )
             elif mismatch_config == b'abort':
                 raise error.Abort(
@@ -668,6 +672,9 @@ def makelocalrepository(baseui, path, intents=None):
             mismatch_warn = ui.configbool(
                 b'share', b'safe-mismatch.source-safe.warn'
             )
+            mismatch_verbose_upgrade = ui.configbool(
+                b'share', b'safe-mismatch.source-safe:verbose-upgrade'
+            )
             if mismatch_config in (
                 b'upgrade-allow',
                 b'allow',
@@ -683,6 +690,7 @@ def makelocalrepository(baseui, path, intents=None):
                     requirements,
                     mismatch_config,
                     mismatch_warn,
+                    mismatch_verbose_upgrade,
                 )
             elif mismatch_config == b'abort':
                 raise error.Abort(
