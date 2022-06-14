@@ -350,4 +350,9 @@ remove both files and dirs
   .hg
   .hgignore
 
+Test some --confirm case that ended crashing
+
+  $ hg purge --confirm
+  $ hg purge --confirm --all --files
+
   $ cd ..
