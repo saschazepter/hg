@@ -305,6 +305,7 @@ def upgrade_share_to_safe(
     current_requirements,
     mismatch_config,
     mismatch_warn,
+    mismatch_verbose_upgrade,
 ):
     """Upgrades a share to use share-safe mechanism"""
     wlock = None
@@ -337,7 +338,8 @@ def upgrade_share_to_safe(
             diffrequires.add(requirementsmod.SHARESAFE_REQUIREMENT)
             current_requirements.add(requirementsmod.SHARESAFE_REQUIREMENT)
         scmutil.writerequires(hgvfs, diffrequires)
-        ui.warn(_(b'repository upgraded to use share-safe mode\n'))
+        if mismatch_verbose_upgrade:
+            ui.warn(_(b'repository upgraded to use share-safe mode\n'))
     except error.LockError as e:
         hint = _(
             b"see `hg help config.format.use-share-safe` for more information"
@@ -366,6 +368,7 @@ def downgrade_share_to_non_safe(
     current_requirements,
     mismatch_config,
     mismatch_warn,
+    mismatch_verbose_upgrade,
 ):
     """Downgrades a share which use share-safe to not use it"""
     wlock = None
@@ -394,7 +397,8 @@ def downgrade_share_to_non_safe(
             current_requirements |= source_requirements
             current_requirements -= set(requirementsmod.SHARESAFE_REQUIREMENT)
         scmutil.writerequires(hgvfs, current_requirements)
-        ui.warn(_(b'repository downgraded to not use share-safe mode\n'))
+        if mismatch_verbose_upgrade:
+            ui.warn(_(b'repository downgraded to not use share-safe mode\n'))
     except error.LockError as e:
         hint = _(
             b"see `hg help config.format.use-share-safe` for more information"
