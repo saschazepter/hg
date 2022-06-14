@@ -1098,6 +1098,9 @@ https://www.mercurial-scm.org/wiki/MissingRequirement
    `share-safe` requirement if `format.use-share-safe=no`. So we recommend
    setting both this value and `format.use-share-safe` at the same time.
 
+``use-share-safe.automatic-upgrade-of-mismatching-repositories:quiet``
+    Hide message when performing such automatic upgrade.
+
 ``usestore``
     Enable or disable the "store" repository format which improves
     compatibility with systems that fold case or otherwise mangle

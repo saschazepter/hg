@@ -1409,6 +1409,12 @@ coreconfigitem(
 )
 coreconfigitem(
     b'format',
+    b'use-share-safe.automatic-upgrade-of-mismatching-repositories:quiet',
+    default=False,
+    experimental=True,
+)
+coreconfigitem(
+    b'format',
     b'internal-phase',
     default=False,
     experimental=True,
