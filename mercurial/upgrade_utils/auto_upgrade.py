@@ -149,14 +149,14 @@ def get_dirstate_v2_action(repo):
     """
     ui = repo.ui
     requirements = set(repo.requirements)
-    auto_upgrade_tracked_hint = ui.configbool(
+    auto_upgrade_dv2 = ui.configbool(
         b'format',
         b'use-dirstate-v2.automatic-upgrade-of-mismatching-repositories',
     )
 
     action = None
 
-    if auto_upgrade_tracked_hint:
+    if auto_upgrade_dv2:
         d2_config = ui.configbool(b'format', b'use-dirstate-v2')
         d2_local = requirementsmod.DIRSTATE_V2_REQUIREMENT in requirements
         if d2_config and not d2_local:
