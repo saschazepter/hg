@@ -1024,6 +1024,10 @@ https://www.mercurial-scm.org/wiki/MissingRequirement
    value and `format.use-dirstate-tracked-hint` at the same time.
 
 
+``use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories:quiet``
+    Hide message when performing such automatic upgrade.
+
+
 ``use-persistent-nodemap``
     Enable or disable the "persistent-nodemap" feature which improves
     performance if the Rust extensions are available.
