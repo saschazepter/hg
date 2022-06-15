@@ -8,6 +8,10 @@
 import os
 import re
 import shutil
+from xml.etree.ElementTree import (
+    ElementTree,
+    XMLParser,
+)
 
 from mercurial.i18n import _
 from mercurial import (
@@ -19,26 +23,6 @@ from mercurial.utils import dateutil
 from . import common
 
 NoRepo = common.NoRepo
-
-# The naming drift of ElementTree is fun!
-
-try:
-    import xml.etree.cElementTree.ElementTree as ElementTree
-    import xml.etree.cElementTree.XMLParser as XMLParser
-except ImportError:
-    try:
-        import xml.etree.ElementTree.ElementTree as ElementTree
-        import xml.etree.ElementTree.XMLParser as XMLParser
-    except ImportError:
-        try:
-            import elementtree.cElementTree.ElementTree as ElementTree
-            import elementtree.cElementTree.XMLParser as XMLParser
-        except ImportError:
-            try:
-                import elementtree.ElementTree.ElementTree as ElementTree
-                import elementtree.ElementTree.XMLParser as XMLParser
-            except ImportError:
-                pass
 
 
 class darcs_source(common.converter_source, common.commandline):
