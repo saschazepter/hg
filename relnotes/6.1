@@ -1,5 +1,18 @@
 '''This is the last release to support Python 2. Mercurial is Python 3 only starting with 6.2'''
 
+= Mercurial 6.1.4 =
+
+ * url: raise error if CONNECT request to proxy was unsuccessful
+ * docker: avoid /tmp write access issues by fixing permissions
+ * logcmdutil: use the same data as {file*} template keywords (issue6642)
+ * commit: allow to close branch when committing change over a closed head
+ * rust-status: don't trigger dirstate v1 rewrite when only v2 data is changed
+ * purge: prevent a silly crash with --confirm --files
+ * rust: relax im-rc dependency to allow minor updates"
+ * Improve PyPy support
+ * Improve Py3 error handling
+ * Documentation fixes
+
 = Mercurial 6.1.3 =
 
 '''security: '''

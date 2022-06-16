@@ -31,6 +31,13 @@ use crate::StatusOptions;
 /// anymore) is less than this fraction of the total amount of existing data.
 const ACCEPTABLE_UNREACHABLE_BYTES_RATIO: f32 = 0.5;
 
+#[derive(Debug, PartialEq, Eq)]
+/// Version of the on-disk format
+pub enum DirstateVersion {
+    V1,
+    V2,
+}
+
 #[derive(Debug)]
 pub struct DirstateMap<'on_disk> {
     /// Contents of the `.hg/dirstate` file
@@ -54,6 +61,8 @@ pub struct DirstateMap<'on_disk> {
     /// Size of the data used to first load this `DirstateMap`. Used in case
     /// we need to write some new metadata, but no new data on disk.
     pub(super) old_data_size: usize,
+
+    pub(super) dirstate_version: DirstateVersion,
 }
 
 /// Using a plain `HgPathBuf` of the full path from the repository root as a
@@ -441,6 +450,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
             ignore_patterns_hash: [0; on_disk::IGNORE_PATTERNS_HASH_LEN],
             unreachable_bytes: 0,
             old_data_size: 0,
+            dirstate_version: DirstateVersion::V1,
         }
     }
 
