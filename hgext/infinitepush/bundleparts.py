@@ -3,7 +3,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 from mercurial.i18n import _
 from mercurial.node import hex
@@ -13,7 +12,6 @@ from mercurial import (
     changegroup,
     error,
     extensions,
-    pycompat,
     revsetlang,
     util,
 )
@@ -68,7 +66,7 @@ def getscratchbranchparts(repo, peer, outgoing, ui, bookmark):
     parts.append(
         bundle2.bundlepart(
             scratchbranchparttype.upper(),
-            advisoryparams=pycompat.iteritems(params),
+            advisoryparams=params.items(),
             data=cg,
         )
     )
@@ -103,7 +101,7 @@ def _handlelfs(repo, missing):
         return
 
 
-class copiedpart(object):
+class copiedpart:
     """a copy of unbundlepart content that can be consumed later"""
 
     def __init__(self, part):

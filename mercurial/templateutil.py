@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import abc
 import types
@@ -32,7 +31,7 @@ class TemplateNotFound(error.Abort):
     pass
 
 
-class wrapped(object):  # pytype: disable=ignored-metaclass
+class wrapped:  # pytype: disable=ignored-metaclass
     """Object requiring extra conversion prior to displaying or processing
     as value
 
@@ -109,7 +108,7 @@ class wrapped(object):  # pytype: disable=ignored-metaclass
         """
 
 
-class mappable(object):  # pytype: disable=ignored-metaclass
+class mappable:  # pytype: disable=ignored-metaclass
     """Object which can be converted to a single template mapping"""
 
     __metaclass__ = abc.ABCMeta
@@ -311,7 +310,7 @@ class hybrid(wrapped):
         if util.safehasattr(self._values, b'get'):
             values = {
                 k: v
-                for k, v in pycompat.iteritems(self._values)
+                for k, v in self._values.items()
                 if select(self._wrapvalue(k, v))
             }
         else:
@@ -343,10 +342,7 @@ class hybrid(wrapped):
         # TODO: make it non-recursive for trivial lists/dicts
         xs = self._values
         if util.safehasattr(xs, b'get'):
-            return {
-                k: unwrapvalue(context, mapping, v)
-                for k, v in pycompat.iteritems(xs)
-            }
+            return {k: unwrapvalue(context, mapping, v) for k, v in xs.items()}
         return [unwrapvalue(context, mapping, x) for x in xs]
 
 
@@ -538,7 +534,7 @@ class _mappingsequence(wrapped):
             items.append(
                 {
                     k: unwrapvalue(context, lm, v)
-                    for k, v in pycompat.iteritems(nm)
+                    for k, v in nm.items()
                     if k not in knownres
                 }
             )
@@ -716,7 +712,7 @@ def compatdict(
     This exists for backward compatibility with the old-style template. Use
     hybriddict() for new template keywords.
     """
-    c = [{key: k, value: v} for k, v in pycompat.iteritems(data)]
+    c = [{key: k, value: v} for k, v in data.items()]
     f = _showcompatlist(context, mapping, name, c, plural, separator)
     return hybriddict(data, key=key, value=value, fmt=fmt, gen=f)
 

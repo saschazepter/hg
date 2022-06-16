@@ -7,7 +7,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import errno
 
@@ -35,7 +34,7 @@ urlerr = util.urlerr
 urlreq = util.urlreq
 
 
-class httprangereader(object):
+class httprangereader:
     def __init__(self, url, opener):
         # we assume opener has HTTPRangeHandler
         self.url = url
@@ -182,9 +181,7 @@ class statichttprepository(
 
         try:
             requirements = set(self.vfs.read(b'requires').splitlines())
-        except IOError as inst:
-            if inst.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
             requirements = set()
 
             # check if it is a non-empty old-style repository
@@ -192,9 +189,7 @@ class statichttprepository(
                 fp = self.vfs(b"00changelog.i")
                 fp.read(1)
                 fp.close()
-            except IOError as inst:
-                if inst.errno != errno.ENOENT:
-                    raise
+            except FileNotFoundError:
                 # we do not care about empty old-style repositories here
                 msg = _(b"'%s' does not appear to be an hg repository") % path
                 raise error.RepoError(msg)

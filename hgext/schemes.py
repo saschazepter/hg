@@ -39,7 +39,6 @@ For convenience, the extension adds these schemes by default::
 You can override a predefined scheme by defining a new scheme with the
 same name.
 """
-from __future__ import absolute_import
 
 import os
 import re
@@ -68,7 +67,7 @@ testedwith = b'ships-with-hg-core'
 _partre = re.compile(br'{(\d+)\}')
 
 
-class ShortRepository(object):
+class ShortRepository:
     def __init__(self, url, scheme, templater):
         self.scheme = scheme
         self.templater = templater

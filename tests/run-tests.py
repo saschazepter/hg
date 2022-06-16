@@ -43,7 +43,6 @@
 # completes fairly quickly, includes both shell and Python scripts, and
 # includes some scripts that run daemon processes.)
 
-from __future__ import absolute_import, print_function
 
 import argparse
 import collections
@@ -51,12 +50,15 @@ import contextlib
 import difflib
 import distutils.version as version
 import errno
+import functools
 import json
 import multiprocessing
 import os
 import platform
+import queue
 import random
 import re
+import shlex
 import shutil
 import signal
 import socket
@@ -70,21 +72,15 @@ import unittest
 import uuid
 import xml.dom.minidom as minidom
 
+if sys.version_info < (3, 5, 0):
+    print(
+        '%s is only supported on Python 3.5+, not %s'
+        % (sys.argv[0], '.'.join(str(v) for v in sys.version_info[:3]))
+    )
+    sys.exit(70)  # EX_SOFTWARE from `man 3 sysexit`
+
 WINDOWS = os.name == r'nt'
-
-try:
-    import Queue as queue
-except ImportError:
-    import queue
-
-try:
-    import shlex
-
-    shellquote = shlex.quote
-except (ImportError, AttributeError):
-    import pipes
-
-    shellquote = pipes.quote
+shellquote = shlex.quote
 
 
 processlock = threading.Lock()
@@ -155,80 +151,59 @@ if pygmentspresent:
 origenviron = os.environ.copy()
 
 
-if sys.version_info > (3, 5, 0):
-    PYTHON3 = True
-    xrange = range  # we use xrange in one place, and we'd rather not use range
-
-    def _sys2bytes(p):
-        if p is None:
-            return p
-        return p.encode('utf-8')
-
-    def _bytes2sys(p):
-        if p is None:
-            return p
-        return p.decode('utf-8')
-
-    osenvironb = getattr(os, 'environb', None)
-    if osenvironb is None:
-        # Windows lacks os.environb, for instance.  A proxy over the real thing
-        # instead of a copy allows the environment to be updated via bytes on
-        # all platforms.
-        class environbytes(object):
-            def __init__(self, strenv):
-                self.__len__ = strenv.__len__
-                self.clear = strenv.clear
-                self._strenv = strenv
-
-            def __getitem__(self, k):
-                v = self._strenv.__getitem__(_bytes2sys(k))
-                return _sys2bytes(v)
-
-            def __setitem__(self, k, v):
-                self._strenv.__setitem__(_bytes2sys(k), _bytes2sys(v))
-
-            def __delitem__(self, k):
-                self._strenv.__delitem__(_bytes2sys(k))
-
-            def __contains__(self, k):
-                return self._strenv.__contains__(_bytes2sys(k))
-
-            def __iter__(self):
-                return iter([_sys2bytes(k) for k in iter(self._strenv)])
-
-            def get(self, k, default=None):
-                v = self._strenv.get(_bytes2sys(k), _bytes2sys(default))
-                return _sys2bytes(v)
-
-            def pop(self, k, default=None):
-                v = self._strenv.pop(_bytes2sys(k), _bytes2sys(default))
-                return _sys2bytes(v)
-
-        osenvironb = environbytes(os.environ)
-
-    getcwdb = getattr(os, 'getcwdb')
-    if not getcwdb or WINDOWS:
-        getcwdb = lambda: _sys2bytes(os.getcwd())
-
-elif sys.version_info >= (3, 0, 0):
-    print(
-        '%s is only supported on Python 3.5+ and 2.7, not %s'
-        % (sys.argv[0], '.'.join(str(v) for v in sys.version_info[:3]))
-    )
-    sys.exit(70)  # EX_SOFTWARE from `man 3 sysexit`
-else:
-    PYTHON3 = False
-
-    # In python 2.x, path operations are generally done using
-    # bytestrings by default, so we don't have to do any extra
-    # fiddling there. We define the wrapper functions anyway just to
-    # help keep code consistent between platforms.
-    def _sys2bytes(p):
+def _sys2bytes(p):
+    if p is None:
         return p
+    return p.encode('utf-8')
 
-    _bytes2sys = _sys2bytes
-    osenvironb = os.environ
-    getcwdb = os.getcwd
+
+def _bytes2sys(p):
+    if p is None:
+        return p
+    return p.decode('utf-8')
+
+
+osenvironb = getattr(os, 'environb', None)
+if osenvironb is None:
+    # Windows lacks os.environb, for instance.  A proxy over the real thing
+    # instead of a copy allows the environment to be updated via bytes on
+    # all platforms.
+    class environbytes:
+        def __init__(self, strenv):
+            self.__len__ = strenv.__len__
+            self.clear = strenv.clear
+            self._strenv = strenv
+
+        def __getitem__(self, k):
+            v = self._strenv.__getitem__(_bytes2sys(k))
+            return _sys2bytes(v)
+
+        def __setitem__(self, k, v):
+            self._strenv.__setitem__(_bytes2sys(k), _bytes2sys(v))
+
+        def __delitem__(self, k):
+            self._strenv.__delitem__(_bytes2sys(k))
+
+        def __contains__(self, k):
+            return self._strenv.__contains__(_bytes2sys(k))
+
+        def __iter__(self):
+            return iter([_sys2bytes(k) for k in iter(self._strenv)])
+
+        def get(self, k, default=None):
+            v = self._strenv.get(_bytes2sys(k), _bytes2sys(default))
+            return _sys2bytes(v)
+
+        def pop(self, k, default=None):
+            v = self._strenv.pop(_bytes2sys(k), _bytes2sys(default))
+            return _sys2bytes(v)
+
+    osenvironb = environbytes(os.environ)
+
+getcwdb = getattr(os, 'getcwdb')
+if not getcwdb or WINDOWS:
+    getcwdb = lambda: _sys2bytes(os.getcwd())
+
 
 if WINDOWS:
     _getcwdb = getcwdb
@@ -260,10 +235,14 @@ def checksocketfamily(name, port=20058):
         s.bind(('localhost', port))
         s.close()
         return True
-    except socket.error as exc:
+    except (socket.error, OSError) as exc:
         if exc.errno == errno.EADDRINUSE:
             return True
-        elif exc.errno in (errno.EADDRNOTAVAIL, errno.EPROTONOSUPPORT):
+        elif exc.errno in (
+            errno.EADDRNOTAVAIL,
+            errno.EPROTONOSUPPORT,
+            errno.EAFNOSUPPORT,
+        ):
             return False
         else:
             raise
@@ -288,12 +267,11 @@ def checkportisavailable(port):
     except socket.error as exc:
         if WINDOWS and exc.errno == errno.WSAEACCES:
             return False
-        elif PYTHON3:
-            # TODO: make a proper exception handler after dropping py2.  This
-            #       works because socket.error is an alias for OSError on py3,
-            #       which is also the baseclass of PermissionError.
-            if isinstance(exc, PermissionError):
-                return False
+        # TODO: make a proper exception handler after dropping py2.  This
+        #       works because socket.error is an alias for OSError on py3,
+        #       which is also the baseclass of PermissionError.
+        elif isinstance(exc, PermissionError):
+            return False
         if exc.errno not in (
             errno.EADDRINUSE,
             errno.EADDRNOTAVAIL,
@@ -372,18 +350,10 @@ def canonpath(path):
 
 
 def which(exe):
-    if PYTHON3:
-        # shutil.which only accept bytes from 3.8
-        cmd = _bytes2sys(exe)
-        real_exec = shutil.which(cmd)
-        return _sys2bytes(real_exec)
-    else:
-        # let us do the os work
-        for p in osenvironb[b'PATH'].split(os.pathsep):
-            f = os.path.join(p, exe)
-            if os.path.isfile(f):
-                return f
-        return None
+    # shutil.which only accept bytes from 3.8
+    cmd = _bytes2sys(exe)
+    real_exec = shutil.which(cmd)
+    return _sys2bytes(real_exec)
 
 
 def parselistfiles(files, listtype, warn=True):
@@ -392,9 +362,7 @@ def parselistfiles(files, listtype, warn=True):
         try:
             path = os.path.expanduser(os.path.expandvars(filename))
             f = open(path, "rb")
-        except IOError as err:
-            if err.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
             if warn:
                 print("warning: no such %s file: %s" % (listtype, filename))
             continue
@@ -420,9 +388,8 @@ def parsettestcases(path):
             for l in f:
                 if l.startswith(b'#testcases '):
                     cases.append(sorted(l[11:].split()))
-    except IOError as ex:
-        if ex.errno != errno.ENOENT:
-            raise
+    except FileNotFoundError:
+        pass
     return cases
 
 
@@ -898,11 +865,7 @@ def makecleanable(path):
                 pass
 
 
-_unified_diff = difflib.unified_diff
-if PYTHON3:
-    import functools
-
-    _unified_diff = functools.partial(difflib.diff_bytes, difflib.unified_diff)
+_unified_diff = functools.partial(difflib.diff_bytes, difflib.unified_diff)
 
 
 def getdiff(expected, output, ref, err):
@@ -1133,9 +1096,8 @@ class Test(unittest.TestCase):
 
         try:
             os.mkdir(self._threadtmp)
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise
+        except FileExistsError:
+            pass
 
         name = self._tmpname
         self._testtmp = os.path.join(self._threadtmp, name)
@@ -1145,12 +1107,11 @@ class Test(unittest.TestCase):
         if os.path.exists(self.errpath):
             try:
                 os.remove(self.errpath)
-            except OSError as e:
-                # We might have raced another test to clean up a .err
-                # file, so ignore ENOENT when removing a previous .err
+            except FileNotFoundError:
+                # We might have raced another test to clean up a .err file,
+                # so ignore FileNotFoundError when removing a previous .err
                 # file.
-                if e.errno != errno.ENOENT:
-                    raise
+                pass
 
         if self._usechg:
             self._chgsockdir = os.path.join(
@@ -1453,7 +1414,7 @@ class Test(unittest.TestCase):
         env['HGTEST_TIMEOUT_DEFAULT'] = formated_timeout
         env['HGTEST_TIMEOUT'] = _bytes2sys(b"%d" % self._timeout)
         # This number should match portneeded in _getport
-        for port in xrange(3):
+        for port in range(3):
             # This list should be parallel to _portmap in _getreplacements
             defineport(port)
         env["HGRCPATH"] = _bytes2sys(os.path.join(self._threadtmp, b'.hgrc'))
@@ -1494,7 +1455,7 @@ class Test(unittest.TestCase):
         # This has the same effect as Py_LegacyWindowsStdioFlag in exewrapper.c,
         # but this is needed for testing python instances like dummyssh,
         # dummysmtpd.py, and dumbhttp.py.
-        if PYTHON3 and WINDOWS:
+        if WINDOWS:
             env['PYTHONLEGACYWINDOWSSTDIO'] = '1'
 
         # Modified HOME in test environment can confuse Rust tools. So set
@@ -1685,9 +1646,7 @@ checkcodeglobpats = [
     re.compile(br'.*\$LOCALIP.*$'),
 ]
 
-bchr = chr
-if PYTHON3:
-    bchr = lambda x: bytes([x])
+bchr = lambda x: bytes([x])
 
 WARN_UNDEFINED = 1
 WARN_YES = 2
@@ -1826,9 +1785,7 @@ class TTest(Test):
                 script.append(b'echo %s %d $?\n' % (salt, line))
 
         activetrace = []
-        session = str(uuid.uuid4())
-        if PYTHON3:
-            session = session.encode('ascii')
+        session = str(uuid.uuid4()).encode('ascii')
         hgcatapult = os.getenv('HGTESTCATAPULTSERVERPIPE') or os.getenv(
             'HGCATAPULTSERVERPIPE'
         )
@@ -1882,11 +1839,8 @@ class TTest(Test):
             script.append(b'alias pwd="pwd -W"\n')
 
         if hgcatapult and hgcatapult != os.devnull:
-            if PYTHON3:
-                hgcatapult = hgcatapult.encode('utf8')
-                cataname = self.name.encode('utf8')
-            else:
-                cataname = self.name
+            hgcatapult = hgcatapult.encode('utf8')
+            cataname = self.name.encode('utf8')
 
             # Kludge: use a while loop to keep the pipe from getting
             # closed by our echo commands. The still-running file gets
@@ -2191,11 +2145,8 @@ class TTest(Test):
                     return "retry", False
 
         if el.endswith(b" (esc)\n"):
-            if PYTHON3:
-                el = el[:-7].decode('unicode_escape') + '\n'
-                el = el.encode('latin-1')
-            else:
-                el = el[:-7].decode('string-escape') + '\n'
+            el = el[:-7].decode('unicode_escape') + '\n'
+            el = el.encode('latin-1')
         if el == l or WINDOWS and el[:-1] + b'\r\n' == l:
             return True, True
         if el.endswith(b" (re)\n"):
@@ -2243,10 +2194,7 @@ iolock = threading.RLock()
 firstlock = threading.RLock()
 firsterror = False
 
-if PYTHON3:
-    base_class = unittest.TextTestResult
-else:
-    base_class = unittest._TextTestResult
+base_class = unittest.TextTestResult
 
 
 class TestResult(base_class):
@@ -2370,13 +2318,9 @@ class TestResult(base_class):
                 self.stream.write('\n')
                 for line in lines:
                     line = highlightdiff(line, self.color)
-                    if PYTHON3:
-                        self.stream.flush()
-                        self.stream.buffer.write(line)
-                        self.stream.buffer.flush()
-                    else:
-                        self.stream.write(line)
-                        self.stream.flush()
+                    self.stream.flush()
+                    self.stream.buffer.write(line)
+                    self.stream.buffer.flush()
 
                 if servefail:
                     raise test.failureException(
@@ -2551,7 +2495,7 @@ class TestSuite(unittest.TestSuite):
 
                     if ignored:
                         continue
-            for _ in xrange(self._runs_per_test):
+            for _ in range(self._runs_per_test):
                 tests.append(get())
 
         runtests = list(tests)
@@ -2600,7 +2544,7 @@ class TestSuite(unittest.TestSuite):
                 with iolock:
                     sys.stdout.write(d + '  ')
                     sys.stdout.flush()
-                for x in xrange(10):
+                for x in range(10):
                     if channels:
                         time.sleep(0.1)
                 count += 1
@@ -2674,9 +2618,8 @@ def loadtimes(outputdir):
                 times.append(
                     (m.group(1), [float(t) for t in m.group(2).split()])
                 )
-    except IOError as err:
-        if err.errno != errno.ENOENT:
-            raise
+    except FileNotFoundError:
+        pass
     return times
 
 
@@ -3031,9 +2974,7 @@ def sorttests(testdescs, previoustimes, shuffle=False):
             except KeyError:
                 try:
                     val = -os.stat(f).st_size
-                except OSError as e:
-                    if e.errno != errno.ENOENT:
-                        raise
+                except FileNotFoundError:
                     perf[f] = -1e9  # file does not exist, tell early
                     return -1e9
                 for kw, mul in slow.items():
@@ -3047,7 +2988,7 @@ def sorttests(testdescs, previoustimes, shuffle=False):
     testdescs.sort(key=sortkey)
 
 
-class TestRunner(object):
+class TestRunner:
     """Holds context for executing tests.
 
     Tests rely on a lot of state. This object holds it for them.
@@ -3276,10 +3217,7 @@ class TestRunner(object):
         osenvironb[b'RUNTESTDIR_FORWARD_SLASH'] = runtestdir.replace(
             os.sep.encode('ascii'), b'/'
         )
-        if PYTHON3:
-            sepb = _sys2bytes(os.pathsep)
-        else:
-            sepb = os.pathsep
+        sepb = _sys2bytes(os.pathsep)
         path = [self._bindir, runtestdir] + osenvironb[b"PATH"].split(sepb)
         if os.path.islink(__file__):
             # test helper will likely be at the end of the symlink
@@ -3331,9 +3269,8 @@ class TestRunner(object):
             exceptionsdir = os.path.join(self._outputdir, b'exceptions')
             try:
                 os.makedirs(exceptionsdir)
-            except OSError as e:
-                if e.errno != errno.EEXIST:
-                    raise
+            except FileExistsError:
+                pass
 
             # Remove all existing exception reports.
             for f in os.listdir(exceptionsdir):
@@ -3475,7 +3412,7 @@ class TestRunner(object):
 
             failed = False
             kws = self.options.keywords
-            if kws is not None and PYTHON3:
+            if kws is not None:
                 kws = kws.encode('utf-8')
 
             suite = TestSuite(
@@ -3553,10 +3490,10 @@ class TestRunner(object):
         if port is None:
             portneeded = 3
             # above 100 tries we just give up and let test reports failure
-            for tries in xrange(100):
+            for tries in range(100):
                 allfree = True
                 port = self.options.port + self._portoffset
-                for idx in xrange(portneeded):
+                for idx in range(portneeded):
                     if not checkportisavailable(port + idx):
                         allfree = False
                         break
@@ -3623,14 +3560,10 @@ class TestRunner(object):
     def _usecorrectpython(self):
         """Configure the environment to use the appropriate Python in tests."""
         # Tests must use the same interpreter as us or bad things will happen.
-        if WINDOWS and PYTHON3:
+        if WINDOWS:
             pyexe_names = [b'python', b'python3', b'python.exe']
-        elif WINDOWS:
-            pyexe_names = [b'python', b'python.exe']
-        elif PYTHON3:
-            pyexe_names = [b'python', b'python3']
         else:
-            pyexe_names = [b'python', b'python2']
+            pyexe_names = [b'python', b'python3']
 
         # os.symlink() is a thing with py3 on Windows, but it requires
         # Administrator rights.
@@ -3644,17 +3577,15 @@ class TestRunner(object):
                     if os.readlink(mypython) == sysexecutable:
                         continue
                     os.unlink(mypython)
-                except OSError as err:
-                    if err.errno != errno.ENOENT:
-                        raise
+                except FileNotFoundError:
+                    pass
                 if self._findprogram(pyexename) != sysexecutable:
                     try:
                         os.symlink(sysexecutable, mypython)
                         self._createdfiles.append(mypython)
-                    except OSError as err:
+                    except FileExistsError:
                         # child processes may race, which is harmless
-                        if err.errno != errno.EEXIST:
-                            raise
+                        pass
         elif WINDOWS and not os.getenv('MSYSTEM'):
             raise AssertionError('cannot run test on Windows without MSYSTEM')
         else:
@@ -3673,14 +3604,6 @@ class TestRunner(object):
                     f.write(b'%s "$@"\n' % esc_executable)
 
             if WINDOWS:
-                if not PYTHON3:
-                    # lets try to build a valid python3 executable for the
-                    # scrip that requires it.
-                    py3exe_name = os.path.join(self._custom_bin_dir, b'python3')
-                    with open(py3exe_name, 'wb') as f:
-                        f.write(b'#!/bin/sh\n')
-                        f.write(b'py -3 "$@"\n')
-
                 # adjust the path to make sur the main python finds it own dll
                 path = os.environ['PATH'].split(os.pathsep)
                 main_exec_dir = os.path.dirname(sysexecutable)
@@ -3693,8 +3616,6 @@ class TestRunner(object):
                 if appdata is not None:
                     python_dir = 'Python%d%d' % (vi[0], vi[1])
                     scripts_path = [appdata, 'Python', python_dir, 'Scripts']
-                    if not PYTHON3:
-                        scripts_path = [appdata, 'Python', 'Scripts']
                     scripts_dir = os.path.join(*scripts_path)
                     extra_paths.append(scripts_dir)
 
@@ -3738,12 +3659,9 @@ class TestRunner(object):
             setup_opts = b"--no-rust"
 
         # Run installer in hg root
-        script = os.path.realpath(sys.argv[0])
-        exe = sysexecutable
-        if PYTHON3:
-            compiler = _sys2bytes(compiler)
-            script = _sys2bytes(script)
-            exe = _sys2bytes(exe)
+        compiler = _sys2bytes(compiler)
+        script = _sys2bytes(os.path.realpath(sys.argv[0]))
+        exe = _sys2bytes(sysexecutable)
         hgroot = os.path.dirname(os.path.dirname(script))
         self._hgroot = hgroot
         os.chdir(hgroot)
@@ -3777,9 +3695,8 @@ class TestRunner(object):
         def makedirs(p):
             try:
                 os.makedirs(p)
-            except OSError as e:
-                if e.errno != errno.EEXIST:
-                    raise
+            except FileExistsError:
+                pass
 
         makedirs(self._pythondir)
         makedirs(self._bindir)
@@ -3789,16 +3706,12 @@ class TestRunner(object):
             if not self.options.verbose:
                 try:
                     os.remove(installerrs)
-                except OSError as e:
-                    if e.errno != errno.ENOENT:
-                        raise
+                except FileNotFoundError:
+                    pass
         else:
             with open(installerrs, 'rb') as f:
                 for line in f:
-                    if PYTHON3:
-                        sys.stdout.buffer.write(line)
-                    else:
-                        sys.stdout.write(line)
+                    sys.stdout.buffer.write(line)
             sys.exit(1)
         os.chdir(self._testdir)
 
@@ -3831,9 +3744,8 @@ class TestRunner(object):
             covdir = os.path.join(self._installdir, b'..', b'coverage')
             try:
                 os.mkdir(covdir)
-            except OSError as e:
-                if e.errno != errno.EEXIST:
-                    raise
+            except FileExistsError:
+                pass
 
             osenvironb[b'COVERAGE_DIR'] = covdir
 
@@ -3859,9 +3771,7 @@ class TestRunner(object):
             return self._hgpath
 
         cmd = b'"%s" -c "import mercurial; print (mercurial.__path__[0])"'
-        cmd = cmd % PYTHON
-        if PYTHON3:
-            cmd = _bytes2sys(cmd)
+        cmd = _bytes2sys(cmd % PYTHON)
 
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
         out, err = p.communicate()
@@ -3891,10 +3801,7 @@ class TestRunner(object):
         )
         out, _err = proc.communicate()
         if proc.returncode != 0:
-            if PYTHON3:
-                sys.stdout.buffer.write(out)
-            else:
-                sys.stdout.write(out)
+            sys.stdout.buffer.write(out)
             sys.exit(1)
 
     def _installrhg(self):
@@ -3918,10 +3825,7 @@ class TestRunner(object):
         )
         out, _err = proc.communicate()
         if proc.returncode != 0:
-            if PYTHON3:
-                sys.stdout.buffer.write(out)
-            else:
-                sys.stdout.write(out)
+            sys.stdout.buffer.write(out)
             sys.exit(1)
 
     def _build_pyoxidized(self):
@@ -3949,10 +3853,7 @@ class TestRunner(object):
         )
         out, _err = proc.communicate()
         if proc.returncode != 0:
-            if PYTHON3:
-                sys.stdout.buffer.write(out)
-            else:
-                sys.stdout.write(out)
+            sys.stdout.buffer.write(out)
             sys.exit(1)
 
     def _outputcoverage(self):

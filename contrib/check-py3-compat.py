@@ -7,7 +7,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import, print_function
 
 import ast
 import importlib
@@ -15,31 +14,6 @@ import os
 import sys
 import traceback
 import warnings
-
-
-def check_compat_py2(f):
-    """Check Python 3 compatibility for a file with Python 2"""
-    with open(f, 'rb') as fh:
-        content = fh.read()
-    root = ast.parse(content)
-
-    # Ignore empty files.
-    if not root.body:
-        return
-
-    futures = set()
-    haveprint = False
-    for node in ast.walk(root):
-        if isinstance(node, ast.ImportFrom):
-            if node.module == '__future__':
-                futures |= {n.name for n in node.names}
-        elif isinstance(node, ast.Print):
-            haveprint = True
-
-    if 'absolute_import' not in futures:
-        print('%s not using absolute_import' % f)
-    if haveprint and 'print_function' not in futures:
-        print('%s requires print_function' % f)
 
 
 def check_compat_py3(f):
@@ -94,23 +68,19 @@ def check_compat_py3(f):
 
 
 if __name__ == '__main__':
-    if sys.version_info[0] == 2:
-        fn = check_compat_py2
-    else:
-        # check_compat_py3 will import every filename we specify as long as it
-        # starts with one of a few prefixes. It does this by converting
-        # specified filenames like 'mercurial/foo.py' to 'mercurial.foo' and
-        # importing that. When running standalone (not as part of a test), this
-        # means we actually import the installed versions, not the files we just
-        # specified. When running as test-check-py3-compat.t, we technically
-        # would import the correct paths, but it's cleaner to have both cases
-        # use the same import logic.
-        sys.path.insert(0, os.getcwd())
-        fn = check_compat_py3
+    # check_compat_py3 will import every filename we specify as long as it
+    # starts with one of a few prefixes. It does this by converting
+    # specified filenames like 'mercurial/foo.py' to 'mercurial.foo' and
+    # importing that. When running standalone (not as part of a test), this
+    # means we actually import the installed versions, not the files we just
+    # specified. When running as test-check-py3-compat.t, we technically
+    # would import the correct paths, but it's cleaner to have both cases
+    # use the same import logic.
+    sys.path.insert(0, os.getcwd())
 
     for f in sys.argv[1:]:
         with warnings.catch_warnings(record=True) as warns:
-            fn(f)
+            check_compat_py3(f)
 
         for w in warns:
             print(

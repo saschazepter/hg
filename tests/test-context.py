@@ -1,4 +1,3 @@
-from __future__ import absolute_import, print_function
 import os
 import stat
 import sys
@@ -125,8 +124,6 @@ repo[None].forget([b'bar-r'])
 #   A bar-a
 #   R bar-r
 #   C foo
-
-from mercurial import scmutil
 
 print('== checking workingctx.status:')
 

@@ -41,7 +41,6 @@ pushed or pulled::
   # or pretxnchangegroup.cr = python:hgext.win32text.forbidcr
 '''
 
-from __future__ import absolute_import
 
 import re
 from mercurial.i18n import _
@@ -49,7 +48,6 @@ from mercurial.node import short
 from mercurial import (
     cmdutil,
     extensions,
-    pycompat,
     registrar,
 )
 from mercurial.utils import stringutil
@@ -157,9 +155,7 @@ def forbidnewline(ui, repo, hooktype, node, newline, **kwargs):
     # changegroup that contains an unacceptable commit followed later
     # by a commit that fixes the problem.
     tip = repo[b'tip']
-    for rev in pycompat.xrange(
-        repo.changelog.tiprev(), repo[node].rev() - 1, -1
-    ):
+    for rev in range(repo.changelog.tiprev(), repo[node].rev() - 1, -1):
         c = repo[rev]
         for f in c.files():
             if f in seen or f not in tip or f not in c:
@@ -213,7 +209,7 @@ def forbidcr(ui, repo, hooktype, node, **kwargs):
 def reposetup(ui, repo):
     if not repo.local():
         return
-    for name, fn in pycompat.iteritems(_filters):
+    for name, fn in _filters.items():
         repo.adddatafilter(name, fn)
 
 

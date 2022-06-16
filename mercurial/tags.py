@@ -10,9 +10,8 @@
 # Eventually, it could take care of updating (adding/removing/moving)
 # tags too.
 
-from __future__ import absolute_import
 
-import errno
+import binascii
 import io
 
 from .node import (
@@ -26,7 +25,6 @@ from . import (
     encoding,
     error,
     match as matchmod,
-    pycompat,
     scmutil,
     util,
 )
@@ -243,9 +241,7 @@ def readlocaltags(ui, repo, alltags, tagtypes):
     '''Read local tags in repo. Update alltags and tagtypes.'''
     try:
         data = repo.vfs.read(b"localtags")
-    except IOError as inst:
-        if inst.errno != errno.ENOENT:
-            raise
+    except FileNotFoundError:
         return
 
     # localtags is in the local encoding; re-encode to UTF-8 on
@@ -305,7 +301,7 @@ def _readtaghist(ui, repo, lines, fn, recode=None, calcnodelines=False):
             name = recode(name)
         try:
             nodebin = bin(nodehex)
-        except TypeError:
+        except binascii.Error:
             dbg(b"node '%s' is not well formed" % nodehex)
             continue
 
@@ -355,7 +351,7 @@ def _updatetags(filetags, alltags, tagtype=None, tagtypes=None):
     if tagtype is None:
         assert tagtypes is None
 
-    for name, nodehist in pycompat.iteritems(filetags):
+    for name, nodehist in filetags.items():
         if name not in alltags:
             alltags[name] = nodehist
             if tagtype is not None:
@@ -508,7 +504,7 @@ def _getfnodes(ui, repo, nodes):
 
     if unknown_entries:
         fixed_nodemap = fnodescache.refresh_invalid_nodes(unknown_entries)
-        for node, fnode in pycompat.iteritems(fixed_nodemap):
+        for node, fnode in fixed_nodemap.items():
             if fnode != repo.nullid:
                 cachefnode[node] = fnode
 
@@ -550,7 +546,7 @@ def _writetagcache(ui, repo, valid, cachetags):
     # we keep them in UTF-8 throughout this module.  If we converted
     # them local encoding on input, we would lose info writing them to
     # the cache.
-    for (name, (node, hist)) in sorted(pycompat.iteritems(cachetags)):
+    for (name, (node, hist)) in sorted(cachetags.items()):
         for n in hist:
             cachefile.write(b"%s %s\n" % (hex(n), name))
         cachefile.write(b"%s %s\n" % (hex(node), name))
@@ -653,9 +649,7 @@ def _tag(
 
     try:
         fp = repo.wvfs(b'.hgtags', b'rb+')
-    except IOError as e:
-        if e.errno != errno.ENOENT:
-            raise
+    except FileNotFoundError:
         fp = repo.wvfs(b'.hgtags', b'ab')
     else:
         prevtags = fp.read()
@@ -686,7 +680,7 @@ _fnodesrecsize = 4 + 20  # changeset fragment + filenode
 _fnodesmissingrec = b'\xff' * 24
 
 
-class hgtagsfnodescache(object):
+class hgtagsfnodescache:
     """Persistent cache mapping revisions to .hgtags filenodes.
 
     The cache is an array of records. Each item in the array corresponds to

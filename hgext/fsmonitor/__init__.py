@@ -107,7 +107,6 @@ created.
 # The issues related to nested repos and subrepos are probably not fundamental
 # ones. Patches to fix them are welcome.
 
-from __future__ import absolute_import
 
 import codecs
 import os
@@ -336,7 +335,7 @@ def overridewalk(orig, self, match, subrepos, unknown, ignored, full=True):
     nonnormalset = {
         f
         for f, e in self._map.items()
-        if e.v1_state() != b"n" or e.v1_mtime() == -1
+        if e._v1_state() != b"n" or e._v1_mtime() == -1
     }
 
     copymap = self._map.copymap
@@ -502,15 +501,11 @@ def overridewalk(orig, self, match, subrepos, unknown, ignored, full=True):
             visit.update(f for f in copymap if f not in results and matchfn(f))
     else:
         if matchalways:
-            visit.update(
-                f for f, st in pycompat.iteritems(dmap) if f not in results
-            )
+            visit.update(f for f, st in dmap.items() if f not in results)
             visit.update(f for f in copymap if f not in results)
         else:
             visit.update(
-                f
-                for f, st in pycompat.iteritems(dmap)
-                if f not in results and matchfn(f)
+                f for f, st in dmap.items() if f not in results and matchfn(f)
             )
             visit.update(f for f in copymap if f not in results and matchfn(f))
 
@@ -686,7 +681,7 @@ def overridestatus(
     )
 
 
-class poststatus(object):
+class poststatus:
     def __init__(self, startclock):
         self._startclock = pycompat.sysbytes(startclock)
 
@@ -761,7 +756,7 @@ def wrapsymlink(orig, source, link_name):
             pass
 
 
-class state_update(object):
+class state_update:
     """This context manager is responsible for dispatching the state-enter
     and state-leave signals to the watchman service. The enter and leave
     methods can be invoked manually (for scenarios where context manager

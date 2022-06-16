@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import contextlib
 import errno
@@ -109,7 +108,7 @@ class lfsuploadfile(httpconnectionmod.httpsendfile):
         return None  # progress is handled by the worker client
 
 
-class local(object):
+class local:
     """Local blobstore for large file contents.
 
     This blobstore is used both as a cache and as a staging area for large blobs
@@ -274,7 +273,7 @@ def _urlerrorreason(urlerror):
         except (AttributeError, IndexError):
             # it might be anything, for example a string
             reason = inst.reason
-        if isinstance(reason, pycompat.unicode):
+        if isinstance(reason, str):
             # SSLError of Python 2.7.9 contains a unicode
             reason = encoding.unitolocal(reason)
         return reason
@@ -307,7 +306,7 @@ class lfsauthhandler(util.urlreq.basehandler):
         return None
 
 
-class _gitlfsremote(object):
+class _gitlfsremote:
     def __init__(self, repo, url):
         ui = repo.ui
         self.ui = ui
@@ -407,7 +406,7 @@ class _gitlfsremote(object):
             )
 
         def encodestr(x):
-            if isinstance(x, pycompat.unicode):
+            if isinstance(x, str):
                 return x.encode('utf-8')
             return x
 
@@ -643,7 +642,7 @@ class _gitlfsremote(object):
                 getattr(h, "close_all", lambda: None)()
 
 
-class _dummyremote(object):
+class _dummyremote:
     """Dummy store storing blobs to temp directory."""
 
     def __init__(self, repo, url):
@@ -662,7 +661,7 @@ class _dummyremote(object):
                 tostore.download(p.oid(), fp, None)
 
 
-class _nullremote(object):
+class _nullremote:
     """Null store storing blobs to /dev/null."""
 
     def __init__(self, repo, url):
@@ -675,7 +674,7 @@ class _nullremote(object):
         pass
 
 
-class _promptremote(object):
+class _promptremote:
     """Prompt user to set lfs.url when accessed."""
 
     def __init__(self, repo, url):

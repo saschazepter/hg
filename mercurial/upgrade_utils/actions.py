@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 from ..i18n import _
 from .. import (
@@ -38,6 +37,7 @@ RECLONES_REQUIREMENTS = {
 def preservedrequirements(repo):
     preserved = {
         requirements.SHARED_REQUIREMENT,
+        requirements.NARROW_REQUIREMENT,
     }
     return preserved & repo.requirements
 
@@ -46,7 +46,7 @@ FORMAT_VARIANT = b'deficiency'
 OPTIMISATION = b'optimization'
 
 
-class improvement(object):
+class improvement:
     """Represents an improvement that can be made as part of an upgrade."""
 
     ### The following attributes should be defined for each subclass:
@@ -362,6 +362,9 @@ class copiessdc(requirementformatvariant):
         b'Allows to use more efficient algorithm to deal with ' b'copy tracing.'
     )
 
+    touches_filelogs = False
+    touches_manifests = False
+
 
 @registerformatvariant
 class revlogv2(requirementformatvariant):
@@ -379,6 +382,9 @@ class changelogv2(requirementformatvariant):
     default = False
     description = _(b'An iteration of the revlog focussed on changelog needs.')
     upgrademessage = _(b'quite experimental')
+
+    touches_filelogs = False
+    touches_manifests = False
 
 
 @registerformatvariant
@@ -685,7 +691,24 @@ def determine_upgrade_actions(
     return newactions
 
 
-class UpgradeOperation(object):
+class BaseOperation:
+    """base class that contains the minimum for an upgrade to work
+
+    (this might need to be extended as the usage for subclass alternative to
+    UpgradeOperation extends)
+    """
+
+    def __init__(
+        self,
+        new_requirements,
+        backup_store,
+    ):
+        self.new_requirements = new_requirements
+        # should this operation create a backup of the store
+        self.backup_store = backup_store
+
+
+class UpgradeOperation(BaseOperation):
     """represent the work to be done during an upgrade"""
 
     def __init__(
@@ -698,8 +721,11 @@ class UpgradeOperation(object):
         revlogs_to_process,
         backup_store,
     ):
+        super().__init__(
+            new_requirements,
+            backup_store,
+        )
         self.ui = ui
-        self.new_requirements = new_requirements
         self.current_requirements = current_requirements
         # list of upgrade actions the operation will perform
         self.upgrade_actions = upgrade_actions
@@ -740,9 +766,6 @@ class UpgradeOperation(object):
         self.force_re_delta_both_parents = (
             b're-delta-multibase' in upgrade_actions_names
         )
-
-        # should this operation create a backup of the store
-        self.backup_store = backup_store
 
     @property
     def upgrade_actions_names(self):
@@ -1005,7 +1028,7 @@ def supportremovedrequirements(repo):
 def supporteddestrequirements(repo):
     """Obtain requirements that upgrade supports in the destination.
 
-    If the result of the upgrade would create requirements not in this set,
+    If the result of the upgrade would have requirements not in this set,
     the upgrade is disallowed.
 
     Extensions should monkeypatch this to add their custom requirements.
@@ -1025,6 +1048,7 @@ def supporteddestrequirements(repo):
         requirements.SHARESAFE_REQUIREMENT,
         requirements.SPARSEREVLOG_REQUIREMENT,
         requirements.STORE_REQUIREMENT,
+        requirements.NARROW_REQUIREMENT,
     }
     for name in compression.compengines:
         engine = compression.compengines[name]

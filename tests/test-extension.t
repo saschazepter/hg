@@ -1,16 +1,4 @@
 Test basic extension support
-  $ cat > unflush.py <<EOF
-  > import sys
-  > from mercurial import pycompat
-  > if pycompat.ispy3:
-  >     # no changes required
-  >     sys.exit(0)
-  > with open(sys.argv[1], 'rb') as f:
-  >     data = f.read()
-  > with open(sys.argv[1], 'wb') as f:
-  >     f.write(data.replace(b', flush=True', b''))
-  > EOF
-
   $ cat > foobar.py <<EOF
   > import os
   > from mercurial import commands, exthelper, registrar
@@ -150,7 +138,6 @@ module/__init__.py-style
 Check that extensions are loaded in phases:
 
   $ cat > foo.py <<EOF
-  > from __future__ import print_function
   > import os
   > from mercurial import exthelper
   > from mercurial.utils import procutil
@@ -190,7 +177,6 @@ Check that extensions are loaded in phases:
   > def custompredicate(repo, subset, x):
   >     return smartset.baseset([r for r in subset if r in {0}])
   > EOF
-  $ "$PYTHON" $TESTTMP/unflush.py foo.py
 
   $ cp foo.py bar.py
   $ echo 'foo = foo.py' >> $HGRCPATH
@@ -295,7 +281,6 @@ limit mark, regardless of importing module or not.)
   $ echo "s = 'libroot/mod/ambig.py'" > $TESTTMP/libroot/mod/ambig.py
 
   $ cat > $TESTTMP/libroot/mod/ambigabs.py <<NO_CHECK_EOF
-  > from __future__ import absolute_import, print_function
   > import ambig # should load "libroot/ambig.py"
   > s = ambig.s
   > NO_CHECK_EOF
@@ -304,27 +289,9 @@ limit mark, regardless of importing module or not.)
   > def extsetup(ui):
   >     print('ambigabs.s=%s' % ambigabs.s, flush=True)
   > NO_CHECK_EOF
-  $ "$PYTHON" $TESTTMP/unflush.py loadabs.py
   $ (PYTHONPATH=${PYTHONPATH}${PATHSEP}${TESTTMP}/libroot; hg --config extensions.loadabs=loadabs.py root)
   ambigabs.s=libroot/ambig.py
   $TESTTMP/a
-
-#if no-py3
-  $ cat > $TESTTMP/libroot/mod/ambigrel.py <<NO_CHECK_EOF
-  > from __future__ import print_function
-  > import ambig # should load "libroot/mod/ambig.py"
-  > s = ambig.s
-  > NO_CHECK_EOF
-  $ cat > loadrel.py <<NO_CHECK_EOF
-  > import mod.ambigrel as ambigrel
-  > def extsetup(ui):
-  >     print('ambigrel.s=%s' % ambigrel.s, flush=True)
-  > NO_CHECK_EOF
-  $ "$PYTHON" $TESTTMP/unflush.py loadrel.py
-  $ (PYTHONPATH=${PYTHONPATH}${PATHSEP}${TESTTMP}/libroot; hg --config extensions.loadrel=loadrel.py root)
-  ambigrel.s=libroot/mod/ambig.py
-  $TESTTMP/a
-#endif
 
 Check absolute/relative import of extension specific modules
 
@@ -340,7 +307,6 @@ Check absolute/relative import of extension specific modules
   > s = b'this is extroot.sub1.baz'
   > NO_CHECK_EOF
   $ cat > $TESTTMP/extroot/__init__.py <<NO_CHECK_EOF
-  > from __future__ import absolute_import
   > s = b'this is extroot.__init__'
   > from . import foo
   > def extsetup(ui):
@@ -376,39 +342,6 @@ Check absolute/relative import of extension specific modules
   (extroot) from extroot.bar import s: this is extroot.bar
   (extroot) import extroot.bar in func(): this is extroot.bar
   $TESTTMP/a
-
-#if no-py3
-  $ rm "$TESTTMP"/extroot/foo.*
-  $ rm -Rf "$TESTTMP/extroot/__pycache__"
-  $ cat > $TESTTMP/extroot/foo.py <<NO_CHECK_EOF
-  > # test relative import
-  > buf = []
-  > def func():
-  >     # "not locals" case
-  >     import bar
-  >     buf.append('import bar in func(): %s' % bar.s)
-  >     return '\n(extroot) '.join(buf)
-  > # "fromlist == ('*',)" case
-  > from bar import *
-  > buf.append('from bar import *: %s' % s)
-  > # "not fromlist" and "if '.' in name" case
-  > import sub1.baz
-  > buf.append('import sub1.baz: %s' % sub1.baz.s)
-  > # "not fromlist" and NOT "if '.' in name" case
-  > import sub1
-  > buf.append('import sub1: %s' % sub1.s)
-  > # NOT "not fromlist" and NOT "level != -1" case
-  > from bar import s
-  > buf.append('from bar import s: %s' % s)
-  > NO_CHECK_EOF
-  $ hg --config extensions.extroot=$TESTTMP/extroot root
-  (extroot) from bar import *: this is extroot.bar
-  (extroot) import sub1.baz: this is extroot.sub1.baz
-  (extroot) import sub1: this is extroot.sub1.__init__
-  (extroot) from bar import s: this is extroot.bar
-  (extroot) import bar in func(): this is extroot.bar
-  $TESTTMP/a
-#endif
 
 #if demandimport
 
@@ -453,7 +386,6 @@ importing with "absolute_import" feature isn't tested, because "level
   > detail = b"this is extlibroot.recursedown.abs.used"
   > NO_CHECK_EOF
   $ cat > $TESTTMP/extlibroot/recursedown/abs/__init__.py <<NO_CHECK_EOF
-  > from __future__ import absolute_import
   > from extlibroot.recursedown.abs.used import detail
   > NO_CHECK_EOF
 
@@ -467,7 +399,6 @@ importing with "absolute_import" feature isn't tested, because "level
   > NO_CHECK_EOF
 
   $ cat > $TESTTMP/extlibroot/recursedown/__init__.py <<NO_CHECK_EOF
-  > from __future__ import absolute_import
   > from extlibroot.recursedown.abs import detail as absdetail
   > from .legacy import detail as legacydetail
   > NO_CHECK_EOF
@@ -481,11 +412,9 @@ the submodule 'used' should be somehow accessible. (issue5617)
   > detail = b"this is extlibroot.shadowing.used"
   > NO_CHECK_EOF
   $ cat > $TESTTMP/extlibroot/shadowing/proxied.py <<NO_CHECK_EOF
-  > from __future__ import absolute_import
   > from extlibroot.shadowing.used import detail
   > NO_CHECK_EOF
   $ cat > $TESTTMP/extlibroot/shadowing/__init__.py <<NO_CHECK_EOF
-  > from __future__ import absolute_import
   > from .used import detail as used
   > NO_CHECK_EOF
 
@@ -514,7 +443,6 @@ works as expected in "level > 1" case.
   > detail = b"this is absextroot.relimportee"
   > NO_CHECK_EOF
   $ cat > $TESTTMP/absextroot/xsub1/xsub2/relimporter.py <<NO_CHECK_EOF
-  > from __future__ import absolute_import
   > from mercurial import pycompat
   > from ... import relimportee
   > detail = b"this relimporter imports %r" % (
@@ -525,7 +453,6 @@ Setup modules, which actually import extension local modules at
 runtime.
 
   $ cat > $TESTTMP/absextroot/absolute.py << NO_CHECK_EOF
-  > from __future__ import absolute_import
   > 
   > # import extension local modules absolutely (level = 0)
   > from absextroot.xsub1.xsub2 import used, unused
@@ -539,7 +466,6 @@ runtime.
   > NO_CHECK_EOF
 
   $ cat > $TESTTMP/absextroot/relative.py << NO_CHECK_EOF
-  > from __future__ import absolute_import
   > 
   > # import extension local modules relatively (level == 1)
   > from .xsub1.xsub2 import used, unused
@@ -559,7 +485,6 @@ runtime.
 Setup main procedure of extension.
 
   $ cat > $TESTTMP/absextroot/__init__.py <<NO_CHECK_EOF
-  > from __future__ import absolute_import
   > from mercurial import registrar
   > cmdtable = {}
   > command = registrar.command(cmdtable)
@@ -1925,7 +1850,6 @@ Prohibit the use of unicode strings as the default value of options
   $ hg init $TESTTMP/opt-unicode-default
 
   $ cat > $TESTTMP/test_unicode_default_value.py << EOF
-  > from __future__ import print_function
   > from mercurial import registrar
   > cmdtable = {}
   > command = registrar.command(cmdtable)
@@ -1933,14 +1857,12 @@ Prohibit the use of unicode strings as the default value of options
   > def ext(*args, **opts):
   >     print(opts[b'opt'], flush=True)
   > EOF
-  $ "$PYTHON" $TESTTMP/unflush.py $TESTTMP/test_unicode_default_value.py
   $ cat > $TESTTMP/opt-unicode-default/.hg/hgrc << EOF
   > [extensions]
   > test_unicode_default_value = $TESTTMP/test_unicode_default_value.py
   > EOF
   $ hg -R $TESTTMP/opt-unicode-default dummy
   *** failed to import extension "test_unicode_default_value" from $TESTTMP/test_unicode_default_value.py: unicode 'value' found in cmdtable.dummy (py3 !)
-  *** failed to import extension "test_unicode_default_value" from $TESTTMP/test_unicode_default_value.py: unicode u'value' found in cmdtable.dummy (no-py3 !)
   *** (use b'' to make it byte string)
   hg: unknown command 'dummy'
   (did you mean summary?)

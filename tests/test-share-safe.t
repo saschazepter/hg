@@ -521,8 +521,17 @@ Testing automatic downgrade of shares when config is set
   [255]
   $ rm ../ss-share/.hg/wlock
 
+  $ cp -R ../ss-share ../ss-share-bck
   $ hg log -GT "{node}: {desc}\n" -R ../ss-share --config share.safe-mismatch.source-not-safe=downgrade-abort
   repository downgraded to not use share-safe mode
+  @  f63db81e6dde1d9c78814167f77fb1fb49283f4f: added bar
+  |
+  o  f3ba8b99bb6f897c87bbc1c07b75c6ddf43a4f77: added foo
+  
+  $ rm -rf ../ss-share
+  $ mv ../ss-share-bck ../ss-share
+
+  $ hg log -GT "{node}: {desc}\n" -R ../ss-share --config share.safe-mismatch.source-not-safe=downgrade-abort --config share.safe-mismatch.source-not-safe:verbose-upgrade=no
   @  f63db81e6dde1d9c78814167f77fb1fb49283f4f: added bar
   |
   o  f3ba8b99bb6f897c87bbc1c07b75c6ddf43a4f77: added foo
@@ -588,8 +597,16 @@ Check that if lock is taken, upgrade fails but read operation are successful
   [255]
 
   $ rm ../nss-share/.hg/wlock
+  $ cp -R ../nss-share ../nss-share-bck
   $ hg log -GT "{node}: {desc}\n" -R ../nss-share --config share.safe-mismatch.source-safe=upgrade-abort
   repository upgraded to use share-safe mode
+  @  f63db81e6dde1d9c78814167f77fb1fb49283f4f: added bar
+  |
+  o  f3ba8b99bb6f897c87bbc1c07b75c6ddf43a4f77: added foo
+  
+  $ rm -rf ../nss-share
+  $ mv ../nss-share-bck ../nss-share
+  $ hg log -GT "{node}: {desc}\n" -R ../nss-share --config share.safe-mismatch.source-safe=upgrade-abort --config share.safe-mismatch.source-safe:verbose-upgrade=no
   @  f63db81e6dde1d9c78814167f77fb1fb49283f4f: added bar
   |
   o  f3ba8b99bb6f897c87bbc1c07b75c6ddf43a4f77: added foo
@@ -603,3 +620,36 @@ Test that unshare works
   |
   o  f3ba8b99bb6f897c87bbc1c07b75c6ddf43a4f77: added foo
   
+
+Test automatique upgrade/downgrade of main-repository
+------------------------------------------------------
+
+create an initial repository
+
+  $ hg init auto-upgrade \
+  > --config format.use-share-safe=no
+  $ hg debugbuilddag -R auto-upgrade --new-file .+5
+  $ hg -R auto-upgrade update
+  6 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg debugformat -R auto-upgrade | grep share-safe
+  share-safe:          no
+
+upgrade it to share-safe automatically
+
+  $ hg status -R auto-upgrade \
+  >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config format.use-share-safe=yes
+  automatically upgrading repository to the `share-safe` feature
+  (see `hg help config.format.use-share-safe` for details)
+  $ hg debugformat -R auto-upgrade | grep share-safe
+  share-safe:         yes
+
+downgrade it from share-safe automatically
+
+  $ hg status -R auto-upgrade \
+  >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config format.use-share-safe=no
+  automatically downgrading repository from the `share-safe` feature
+  (see `hg help config.format.use-share-safe` for details)
+  $ hg debugformat -R auto-upgrade | grep share-safe
+  share-safe:          no

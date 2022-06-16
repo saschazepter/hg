@@ -6,7 +6,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import base64
 import errno
@@ -116,7 +115,7 @@ class ErrorResponse(Exception):
         self.message = message
 
 
-class continuereader(object):
+class continuereader:
     """File object wrapper to handle HTTP 100-continue.
 
     This is used by servers so they automatically handle Expect: 100-continue

@@ -7,9 +7,8 @@
 # GNU General Public License version 2 or any later version.
 
 '''High-level command function for lfconvert, plus the cmdtable.'''
-from __future__ import absolute_import
 
-import errno
+import binascii
 import os
 import shutil
 
@@ -385,7 +384,7 @@ def _converttags(ui, revmap, data):
             continue
         try:
             newid = bin(id)
-        except TypeError:
+        except binascii.Error:
             ui.warn(_(b'skipping incorrectly formatted id %s\n') % id)
             continue
         try:
@@ -474,10 +473,8 @@ def cachelfiles(ui, repo, node, filelist=None):
     for lfile in lfiles:
         try:
             expectedhash = lfutil.readasstandin(ctx[lfutil.standin(lfile)])
-        except IOError as err:
-            if err.errno == errno.ENOENT:
-                continue  # node must be None and standin wasn't found in wctx
-            raise
+        except FileNotFoundError:
+            continue  # node must be None and standin wasn't found in wctx
         if not lfutil.findfile(repo, expectedhash):
             toget.append((lfile, expectedhash))
 

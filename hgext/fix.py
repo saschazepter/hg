@@ -122,7 +122,6 @@ amended into the revision being fixed; fixer tools should always write fixed
 file content back to stdout as documented above.
 """
 
-from __future__ import absolute_import
 
 import collections
 import itertools
@@ -378,9 +377,7 @@ def cleanup(repo, replacements, wdirwritten):
     Useful as a hook point for extending "hg fix" with output summarizing the
     effects of the command, though we choose not to output anything here.
     """
-    replacements = {
-        prec: [succ] for prec, succ in pycompat.iteritems(replacements)
-    }
+    replacements = {prec: [succ] for prec, succ in replacements.items()}
     scmutil.cleanupnodes(repo, replacements, b'fix', fixphase=True)
 
 
@@ -693,7 +690,7 @@ def fixfile(ui, repo, opts, fixers, fixctx, path, basepaths, basectxs):
     """
     metadata = {}
     newdata = fixctx[path].data()
-    for fixername, fixer in pycompat.iteritems(fixers):
+    for fixername, fixer in fixers.items():
         if fixer.affects(opts, fixctx, path):
             ranges = lineranges(
                 opts, path, basepaths, basectxs, fixctx, newdata
@@ -771,7 +768,7 @@ def writeworkingdir(repo, ctx, filedata, replacements):
 
     Directly updates the dirstate for the affected files.
     """
-    for path, data in pycompat.iteritems(filedata):
+    for path, data in filedata.items():
         fctx = ctx[path]
         fctx.write(data, fctx.flags())
 
@@ -906,7 +903,7 @@ def fixernames(ui):
     return names
 
 
-class Fixer(object):
+class Fixer:
     """Wraps the raw config values for a fixer with methods"""
 
     def __init__(

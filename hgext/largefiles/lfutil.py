@@ -7,7 +7,6 @@
 # GNU General Public License version 2 or any later version.
 
 '''largefiles utility code: must not import other modules in this package.'''
-from __future__ import absolute_import
 
 import contextlib
 import copy
@@ -757,7 +756,7 @@ def updatestandinsbymatch(repo, match):
     return match
 
 
-class automatedcommithook(object):
+class automatedcommithook:
     """Stateful hook to update standins at the 1st commit of resuming
 
     For efficiency, updating standins in the working directory should

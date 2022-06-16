@@ -1,7 +1,7 @@
 # unit tests for mercuril.util utilities
-from __future__ import absolute_import
 
 import contextlib
+import io
 import itertools
 import unittest
 
@@ -55,7 +55,7 @@ _start_default = (util.timedcmstats.start.default, 'factory')
 
 @contextlib.contextmanager
 def capturestderr():
-    """Replace utils.procutil.stderr with a pycompat.bytesio instance
+    """Replace utils.procutil.stderr with an io.BytesIO instance
 
     The instance is made available as the return value of __enter__.
 
@@ -63,7 +63,7 @@ def capturestderr():
 
     """
     orig = utils.procutil.stderr
-    utils.procutil.stderr = pycompat.bytesio()
+    utils.procutil.stderr = io.BytesIO()
     try:
         yield utils.procutil.stderr
     finally:

@@ -1446,6 +1446,7 @@ Actual testing
   # unbundling: (run 'hg update' to get a working copy)
 
 Test that advisory obsolescence markers in bundles are ignored if unsupported
+-----------------------------------------------------------------------------
 
   $ hg init repo-with-obs
   $ cd repo-with-obs
@@ -1476,3 +1477,57 @@ Test that advisory obsolescence markers in bundles are ignored if unsupported
   added 1 changesets with 0 changes to 0 files
   new changesets 1ea73414a91b (1 drafts)
   (run 'hg update' to get a working copy)
+  $ cd ..
+
+Test bundlespec overwrite default
+---------------------------------
+
+# move back to the default
+
+  $ grep -v evolution.bundle-obsmarker $HGRCPATH > a
+  $ mv a $HGRCPATH
+
+  $ hg bundle -R repo-with-obs --type 'v2;obsolescence=yes' --all --hidden bundle-type-with-obs
+  1 changesets found
+  $ hg debugbundle --spec bundle-type-with-obs
+  bzip2-v2;obsolescence=yes
+  $ hg debugbundle bundle-type-with-obs --part-type obsmarkers
+  Stream params: {Compression: BZ}
+  obsmarkers -- {} (mandatory: True)
+      version: 1 (50 bytes)
+      1ea73414a91b0920940797d8fc6a11e447f8ea1e 0 (Thu Jan 01 00:00:00 1970 +0000) {'user': 'test'}
+
+  $ hg bundle -R repo-with-obs --type 'v2;obsolescence=yes;obsolescence-mandatory=no' --all --hidden bundle-type-with-obs-adv
+  1 changesets found
+  $ hg debugbundle --spec bundle-type-with-obs-adv
+  bzip2-v2;obsolescence=yes;obsolescence-mandatory=no
+  $ hg debugbundle bundle-type-with-obs-adv --part-type obsmarkers
+  Stream params: {Compression: BZ}
+  obsmarkers -- {} (mandatory: False)
+      version: 1 (50 bytes)
+      1ea73414a91b0920940797d8fc6a11e447f8ea1e 0 (Thu Jan 01 00:00:00 1970 +0000) {'user': 'test'}
+  $ hg bundle -R repo-with-obs --type 'v2;obsolescence=no' --all --hidden bundle-type-without-obs
+  1 changesets found
+  $ hg debugbundle --spec bundle-type-without-obs
+  bzip2-v2
+  $ hg debugbundle bundle-type-without-obs --part-type obsmarkers
+  Stream params: {Compression: BZ}
+
+Test bundlespec overwrite local config
+--------------------------------------
+
+  $ hg bundle -R repo-with-obs --config experimental.evolution.bundle-obsmarker=false --type 'v2;obsolescence=yes' --all --hidden bundle-type-with-obs2
+  1 changesets found
+  $ hg debugbundle --spec bundle-type-with-obs2
+  bzip2-v2;obsolescence=yes
+  $ hg debugbundle bundle-type-with-obs2 --part-type obsmarkers
+  Stream params: {Compression: BZ}
+  obsmarkers -- {} (mandatory: True)
+      version: 1 (50 bytes)
+      1ea73414a91b0920940797d8fc6a11e447f8ea1e 0 (Thu Jan 01 00:00:00 1970 +0000) {'user': 'test'}
+  $ hg bundle -R repo-with-obs --config experimental.evolution.bundle-obsmarker=true --type 'v2;obsolescence=no' --all --hidden bundle-type-without-obs2
+  1 changesets found
+  $ hg debugbundle --spec bundle-type-without-obs2
+  bzip2-v2
+  $ hg debugbundle bundle-type-without-obs2 --part-type obsmarkers
+  Stream params: {Compression: BZ}

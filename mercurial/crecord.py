@@ -8,7 +8,6 @@
 # This code is based on the Mark Edgington's crecord extension.
 # (Itself based on Bryan O'Sullivan's record extension.)
 
-from __future__ import absolute_import
 
 import os
 import re
@@ -83,7 +82,7 @@ def checkcurses(ui):
     return curses and ui.interface(b"chunkselector") == b"curses"
 
 
-class patchnode(object):
+class patchnode:
     """abstract class for patch graph nodes
     (i.e. patchroot, header, hunk, hunkline)
     """
@@ -506,7 +505,7 @@ class uihunk(patchnode):
             text = line.linetext
             if line.linetext == diffhelper.MISSING_NEWLINE_MARKER:
                 noeol = True
-                break
+                continue
             if line.applied:
                 if text.startswith(b'+'):
                     dels.append(text[1:])
@@ -602,7 +601,7 @@ def testchunkselector(testfn, ui, headerlist, operation=None):
     """
     chunkselector = curseschunkselector(headerlist, ui, operation)
 
-    class dummystdscr(object):
+    class dummystdscr:
         def clear(self):
             pass
 
@@ -629,7 +628,7 @@ _headermessages = {  # {operation: text}
 }
 
 
-class curseschunkselector(object):
+class curseschunkselector:
     def __init__(self, headerlist, ui, operation=None):
         # put the headers into a patch object
         self.headerlist = patch(headerlist)

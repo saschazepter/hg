@@ -17,22 +17,6 @@
 #include "charencode.h"
 #include "util.h"
 
-#ifdef IS_PY3K
-/* The mapping of Python types is meant to be temporary to get Python
- * 3 to compile. We should remove this once Python 3 support is fully
- * supported and proper types are used in the extensions themselves. */
-#define PyInt_Check PyLong_Check
-#define PyInt_FromLong PyLong_FromLong
-#define PyInt_FromSsize_t PyLong_FromSsize_t
-#define PyInt_AsLong PyLong_AsLong
-#else
-/* Windows on Python 2.7 doesn't define S_IFLNK. Python 3+ defines via
- * pyport.h. */
-#ifndef S_IFLNK
-#define S_IFLNK 0120000
-#endif
-#endif
-
 static const char *const versionerrortext = "Python minor version mismatch";
 
 static const int dirstate_v1_from_p2 = -2;
@@ -305,27 +289,6 @@ static PyObject *dirstate_item_v2_data(dirstateItemObject *self)
 	                     self->mtime_ns);
 };
 
-static PyObject *dirstate_item_v1_state(dirstateItemObject *self)
-{
-	char state = dirstate_item_c_v1_state(self);
-	return PyBytes_FromStringAndSize(&state, 1);
-};
-
-static PyObject *dirstate_item_v1_mode(dirstateItemObject *self)
-{
-	return PyInt_FromLong(dirstate_item_c_v1_mode(self));
-};
-
-static PyObject *dirstate_item_v1_size(dirstateItemObject *self)
-{
-	return PyInt_FromLong(dirstate_item_c_v1_size(self));
-};
-
-static PyObject *dirstate_item_v1_mtime(dirstateItemObject *self)
-{
-	return PyInt_FromLong(dirstate_item_c_v1_mtime(self));
-};
-
 static PyObject *dirstate_item_mtime_likely_equal_to(dirstateItemObject *self,
                                                      PyObject *other)
 {
@@ -411,27 +374,13 @@ dirstate_item_from_v1_data(char state, int mode, int size, int mtime)
 	} else {
 		PyErr_Format(PyExc_RuntimeError,
 		             "unknown state: `%c` (%d, %d, %d)", state, mode,
-		             size, mtime, NULL);
+		             size, mtime);
 		Py_DECREF(t);
 		return NULL;
 	}
 
 	return t;
 }
-
-/* This will never change since it's bound to V1, unlike `dirstate_item_new` */
-static PyObject *dirstate_item_from_v1_meth(PyTypeObject *subtype,
-                                            PyObject *args)
-{
-	/* We do all the initialization here and not a tp_init function because
-	 * dirstate_item is immutable. */
-	char state;
-	int size, mode, mtime;
-	if (!PyArg_ParseTuple(args, "ciii", &state, &mode, &size, &mtime)) {
-		return NULL;
-	}
-	return (PyObject *)dirstate_item_from_v1_data(state, mode, size, mtime);
-};
 
 static PyObject *dirstate_item_from_v2_meth(PyTypeObject *subtype,
                                             PyObject *args)
@@ -542,18 +491,8 @@ static PyObject *dirstate_item_drop_merge_data(dirstateItemObject *self)
 static PyMethodDef dirstate_item_methods[] = {
     {"v2_data", (PyCFunction)dirstate_item_v2_data, METH_NOARGS,
      "return data suitable for v2 serialization"},
-    {"v1_state", (PyCFunction)dirstate_item_v1_state, METH_NOARGS,
-     "return a \"state\" suitable for v1 serialization"},
-    {"v1_mode", (PyCFunction)dirstate_item_v1_mode, METH_NOARGS,
-     "return a \"mode\" suitable for v1 serialization"},
-    {"v1_size", (PyCFunction)dirstate_item_v1_size, METH_NOARGS,
-     "return a \"size\" suitable for v1 serialization"},
-    {"v1_mtime", (PyCFunction)dirstate_item_v1_mtime, METH_NOARGS,
-     "return a \"mtime\" suitable for v1 serialization"},
     {"mtime_likely_equal_to", (PyCFunction)dirstate_item_mtime_likely_equal_to,
      METH_O, "True if the stored mtime is likely equal to the given mtime"},
-    {"from_v1_data", (PyCFunction)dirstate_item_from_v1_meth,
-     METH_VARARGS | METH_CLASS, "build a new DirstateItem object from V1 data"},
     {"from_v2_data", (PyCFunction)dirstate_item_from_v2_meth,
      METH_VARARGS | METH_CLASS, "build a new DirstateItem object from V2 data"},
     {"set_possibly_dirty", (PyCFunction)dirstate_item_set_possibly_dirty,
@@ -571,17 +510,17 @@ static PyMethodDef dirstate_item_methods[] = {
 
 static PyObject *dirstate_item_get_mode(dirstateItemObject *self)
 {
-	return PyInt_FromLong(dirstate_item_c_v1_mode(self));
+	return PyLong_FromLong(dirstate_item_c_v1_mode(self));
 };
 
 static PyObject *dirstate_item_get_size(dirstateItemObject *self)
 {
-	return PyInt_FromLong(dirstate_item_c_v1_size(self));
+	return PyLong_FromLong(dirstate_item_c_v1_size(self));
 };
 
 static PyObject *dirstate_item_get_mtime(dirstateItemObject *self)
 {
-	return PyInt_FromLong(dirstate_item_c_v1_mtime(self));
+	return PyLong_FromLong(dirstate_item_c_v1_mtime(self));
 };
 
 static PyObject *dirstate_item_get_state(dirstateItemObject *self)
@@ -831,9 +770,8 @@ static PyObject *parse_dirstate(PyObject *self, PyObject *args)
 	Py_ssize_t len = 40;
 	Py_ssize_t readlen;
 
-	if (!PyArg_ParseTuple(
-	        args, PY23("O!O!s#:parse_dirstate", "O!O!y#:parse_dirstate"),
-	        &PyDict_Type, &dmap, &PyDict_Type, &cmap, &str, &readlen)) {
+	if (!PyArg_ParseTuple(args, "O!O!y#:parse_dirstate", &PyDict_Type,
+	                      &dmap, &PyDict_Type, &cmap, &str, &readlen)) {
 		goto quit;
 	}
 
@@ -846,8 +784,8 @@ static PyObject *parse_dirstate(PyObject *self, PyObject *args)
 		goto quit;
 	}
 
-	parents = Py_BuildValue(PY23("s#s#", "y#y#"), str, (Py_ssize_t)20,
-	                        str + 20, (Py_ssize_t)20);
+	parents = Py_BuildValue("y#y#", str, (Py_ssize_t)20, str + 20,
+	                        (Py_ssize_t)20);
 	if (!parents) {
 		goto quit;
 	}
@@ -1176,8 +1114,7 @@ static PyObject *fm1readmarkers(PyObject *self, PyObject *args)
 	Py_ssize_t datalen, offset, stop;
 	PyObject *markers = NULL;
 
-	if (!PyArg_ParseTuple(args, PY23("s#nn", "y#nn"), &data, &datalen,
-	                      &offset, &stop)) {
+	if (!PyArg_ParseTuple(args, "y#nn", &data, &datalen, &offset, &stop)) {
 		return NULL;
 	}
 	if (offset < 0) {
@@ -1289,7 +1226,7 @@ static int check_python_version(void)
 	if (!ver) {
 		return -1;
 	}
-	hexversion = PyInt_AsLong(ver);
+	hexversion = PyLong_AsLong(ver);
 	Py_DECREF(ver);
 	/* sys.hexversion is a 32-bit number by default, so the -1 case
 	 * should only occur in unusual circumstances (e.g. if sys.hexversion
@@ -1309,7 +1246,6 @@ static int check_python_version(void)
 	return 0;
 }
 
-#ifdef IS_PY3K
 static struct PyModuleDef parsers_module = {PyModuleDef_HEAD_INIT, "parsers",
                                             parsers_doc, -1, methods};
 
@@ -1323,15 +1259,3 @@ PyMODINIT_FUNC PyInit_parsers(void)
 	module_init(mod);
 	return mod;
 }
-#else
-PyMODINIT_FUNC initparsers(void)
-{
-	PyObject *mod;
-
-	if (check_python_version() == -1) {
-		return;
-	}
-	mod = Py_InitModule3("parsers", methods, parsers_doc);
-	module_init(mod);
-}
-#endif

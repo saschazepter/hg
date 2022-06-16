@@ -11,15 +11,11 @@
 # demand loading is per-package. Keeping demandimport in the mercurial package
 # would disable demand loading for any modules in mercurial.
 
-from __future__ import absolute_import
 
 import os
 import sys
 
-if sys.version_info[0] >= 3:
-    from . import demandimportpy3 as demandimport
-else:
-    from . import demandimportpy2 as demandimport
+from . import demandimportpy3 as demandimport
 
 # Full module names which can't be lazy imported.
 # Extensions can add to this set.

@@ -101,7 +101,6 @@ significantly off if other threads' work patterns are not similar to the
 main thread's work patterns.
 """
 # no-check-code
-from __future__ import absolute_import, division, print_function
 
 import collections
 import contextlib
@@ -155,7 +154,7 @@ def clock():
 ## Collection data structures
 
 
-class ProfileState(object):
+class ProfileState:
     def __init__(self, frequency=None):
         self.reset(frequency)
         self.track = b'cpu'
@@ -203,7 +202,7 @@ class ProfileState(object):
 state = ProfileState()
 
 
-class CodeSite(object):
+class CodeSite:
     cache = {}
 
     __slots__ = ('path', 'lineno', 'function', 'source')
@@ -261,7 +260,7 @@ class CodeSite(object):
         return '%s:%s' % (self.filename(), self.function)
 
 
-class Sample(object):
+class Sample:
     __slots__ = ('stack', 'time')
 
     def __init__(self, stack, time):
@@ -435,7 +434,7 @@ def profile():
 ## Reporting API
 
 
-class SiteStats(object):
+class SiteStats:
     def __init__(self, site):
         self.site = site
         self.selfcount = 0
@@ -475,7 +474,7 @@ class SiteStats(object):
                 if i == 0:
                     sitestat.addself()
 
-        return [s for s in pycompat.itervalues(stats)]
+        return [s for s in stats.values()]
 
 
 class DisplayFormats:
@@ -574,7 +573,7 @@ def display_by_method(data, fp):
 
     # compute sums for each function
     functiondata = []
-    for fname, sitestats in pycompat.iteritems(grouped):
+    for fname, sitestats in grouped.items():
         total_cum_sec = 0
         total_self_sec = 0
         total_percent = 0
@@ -608,9 +607,7 @@ def display_by_method(data, fp):
             # only show line numbers for significant locations (>1% time spent)
             if stat.selfpercent() > 1:
                 source = stat.site.getsource(25)
-                if sys.version_info.major >= 3 and not isinstance(
-                    source, bytes
-                ):
+                if not isinstance(source, bytes):
                     source = pycompat.bytestr(source)
 
                 stattuple = (
@@ -653,7 +650,7 @@ def display_about_method(data, fp, function=None, **kwargs):
                 else:
                     children[site] = 1
 
-    parents = [(parent, count) for parent, count in pycompat.iteritems(parents)]
+    parents = [(parent, count) for parent, count in parents.items()]
     parents.sort(reverse=True, key=lambda x: x[1])
     for parent, count in parents:
         fp.write(
@@ -697,7 +694,7 @@ def display_about_method(data, fp, function=None, **kwargs):
         )
     )
 
-    children = [(child, count) for child, count in pycompat.iteritems(children)]
+    children = [(child, count) for child, count in children.items()]
     children.sort(reverse=True, key=lambda x: x[1])
     for child, count in children:
         fp.write(
@@ -711,7 +708,7 @@ def display_about_method(data, fp, function=None, **kwargs):
 
 
 def display_hotpath(data, fp, limit=0.05, **kwargs):
-    class HotNode(object):
+    class HotNode:
         def __init__(self, site):
             self.site = site
             self.count = 0
@@ -746,9 +743,7 @@ def display_hotpath(data, fp, limit=0.05, **kwargs):
     def _write(node, depth, multiple_siblings):
         site = node.site
         visiblechildren = [
-            c
-            for c in pycompat.itervalues(node.children)
-            if c.count >= (limit * root.count)
+            c for c in node.children.values() if c.count >= (limit * root.count)
         ]
         if site:
             indent = depth * 2 - 1
@@ -784,9 +779,7 @@ def display_hotpath(data, fp, limit=0.05, **kwargs):
             )
 
             finalstring = liststring + codestring
-            childrensamples = sum(
-                [c.count for c in pycompat.itervalues(node.children)]
-            )
+            childrensamples = sum([c.count for c in node.children.values()])
             # Make frames that performed more than 10% of the operation red
             if node.count - childrensamples > (0.1 * root.count):
                 finalstring = b'\033[91m' + finalstring + b'\033[0m'
@@ -828,7 +821,7 @@ def write_to_flame(data, fp, scriptpath=None, outputfile=None, **kwargs):
     fd, path = pycompat.mkstemp()
 
     with open(path, b"w+") as file:
-        for line, count in pycompat.iteritems(lines):
+        for line, count in lines.items():
             file.write(b"%s %d\n" % (line, count))
 
     if outputfile is None:

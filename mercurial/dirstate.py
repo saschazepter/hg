@@ -5,11 +5,9 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import collections
 import contextlib
-import errno
 import os
 import stat
 import uuid
@@ -29,7 +27,6 @@ from . import (
     policy,
     pycompat,
     scmutil,
-    sparse,
     util,
 )
 
@@ -91,7 +88,7 @@ def requires_no_parents_change(func):
 
 
 @interfaceutil.implementer(intdirstate.idirstate)
-class dirstate(object):
+class dirstate:
     def __init__(
         self,
         opener,
@@ -115,6 +112,7 @@ class dirstate(object):
         self._opener = opener
         self._validate = validate
         self._root = root
+        # Either build a sparse-matcher or None if sparse is disabled
         self._sparsematchfn = sparsematchfn
         # ntpath.join(root, '') of Python 2.7.9 does not add sep if root is
         # UNC path pointing to root share (issue4557)
@@ -186,7 +184,11 @@ class dirstate(object):
         The working directory may not include every file from a manifest. The
         matcher obtained by this property will match a path if it is to be
         included in the working directory.
+
+        When sparse if disabled, return None.
         """
+        if self._sparsematchfn is None:
+            return None
         # TODO there is potential to cache this property. For now, the matcher
         # is resolved on every access. (But the called function does use a
         # cache to keep the lookup fast.)
@@ -196,9 +198,7 @@ class dirstate(object):
     def _branch(self):
         try:
             return self._opener.read(b"branch").strip() or b"default"
-        except IOError as inst:
-            if inst.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
             return b"default"
 
     @property
@@ -343,7 +343,7 @@ class dirstate(object):
         return iter(sorted(self._map))
 
     def items(self):
-        return pycompat.iteritems(self._map)
+        return self._map.items()
 
     iteritems = items
 
@@ -427,6 +427,7 @@ class dirstate(object):
             return
         self._dirty = True
         if source is not None:
+            self._check_sparse(source)
             self._map.copymap[dest] = source
         else:
             self._map.copymap.pop(dest, None)
@@ -588,6 +589,19 @@ class dirstate(object):
                 msg = _(b'file %r in dirstate clashes with %r')
                 msg %= (pycompat.bytestr(d), pycompat.bytestr(filename))
                 raise error.Abort(msg)
+        self._check_sparse(filename)
+
+    def _check_sparse(self, filename):
+        """Check that a filename is inside the sparse profile"""
+        sparsematch = self._sparsematcher
+        if sparsematch is not None and not sparsematch.always():
+            if not sparsematch(filename):
+                msg = _(b"cannot add '%s' - it is outside the sparse checkout")
+                hint = _(
+                    b'include file with `hg debugsparse --include <pattern>` or use '
+                    b'`hg add -s <file>` to include file directory while adding'
+                )
+                raise error.Abort(msg % filename, hint=hint)
 
     def _discoverpath(self, path, normed, ignoremissing, exists, storemap):
         if exists is None:
@@ -670,6 +684,20 @@ class dirstate(object):
         self._dirty = True
 
     def rebuild(self, parent, allfiles, changedfiles=None):
+
+        matcher = self._sparsematcher
+        if matcher is not None and not matcher.always():
+            # should not add non-matching files
+            allfiles = [f for f in allfiles if matcher(f)]
+            if changedfiles:
+                changedfiles = [f for f in changedfiles if matcher(f)]
+
+            if changedfiles is not None:
+                # these files will be deleted from the dirstate when they are
+                # not found to be in allfiles
+                dirstatefilestoremove = {f for f in self if not matcher(f)}
+                changedfiles = dirstatefilestoremove.union(changedfiles)
+
         if changedfiles is None:
             # Rebuild entire dirstate
             to_lookup = allfiles
@@ -771,9 +799,7 @@ class dirstate(object):
     def _writedirstate(self, tr, st):
         # notify callbacks about parents change
         if self._origpl is not None and self._origpl != self._pl:
-            for c, callback in sorted(
-                pycompat.iteritems(self._plchangecallbacks)
-            ):
+            for c, callback in sorted(self._plchangecallbacks.items()):
                 callback(self, self._origpl, self._pl)
             self._origpl = None
         self._map.write(tr, st)
@@ -936,7 +962,7 @@ class dirstate(object):
         if match.isexact() and self._checkcase:
             normed = {}
 
-            for f, st in pycompat.iteritems(results):
+            for f, st in results.items():
                 if st is None:
                     continue
 
@@ -949,7 +975,7 @@ class dirstate(object):
 
                 paths.add(f)
 
-            for norm, paths in pycompat.iteritems(normed):
+            for norm, paths in normed.items():
                 if len(paths) > 1:
                     for path in paths:
                         folded = self._discoverpath(
@@ -985,6 +1011,11 @@ class dirstate(object):
             # if not unknown and not ignored, drop dir recursion and step 2
             ignore = util.always
             dirignore = util.always
+
+        if self._sparsematchfn is not None:
+            em = matchmod.exact(match.files())
+            sm = matchmod.unionmatcher([self._sparsematcher, em])
+            match = matchmod.intersectmatchers(match, sm)
 
         matchfn = match.matchfn
         matchalways = match.always()
@@ -1040,13 +1071,11 @@ class dirstate(object):
                 try:
                     with tracing.log('dirstate.walk.traverse listdir %s', nd):
                         entries = listdir(join(nd), stat=True, skip=skip)
-                except OSError as inst:
-                    if inst.errno in (errno.EACCES, errno.ENOENT):
-                        match.bad(
-                            self.pathto(nd), encoding.strtolocal(inst.strerror)
-                        )
-                        continue
-                    raise
+                except (PermissionError, FileNotFoundError) as inst:
+                    match.bad(
+                        self.pathto(nd), encoding.strtolocal(inst.strerror)
+                    )
+                    continue
                 for f, kind, st in entries:
                     # Some matchers may return files in the visitentries set,
                     # instead of 'this', if the matcher explicitly mentions them
@@ -1149,6 +1178,10 @@ class dirstate(object):
         return results
 
     def _rust_status(self, matcher, list_clean, list_ignored, list_unknown):
+        if self._sparsematchfn is not None:
+            em = matchmod.exact(matcher.files())
+            sm = matchmod.unionmatcher([self._sparsematcher, em])
+            matcher = matchmod.intersectmatchers(matcher, sm)
         # Force Rayon (Rust parallelism library) to respect the number of
         # workers. This is a temporary workaround until Rust code knows
         # how to read the config file.
@@ -1255,6 +1288,9 @@ class dirstate(object):
             matchmod.alwaysmatcher,
             matchmod.exactmatcher,
             matchmod.includematcher,
+            matchmod.intersectionmatcher,
+            matchmod.nevermatcher,
+            matchmod.unionmatcher,
         )
 
         if rustmod is None:
@@ -1263,8 +1299,6 @@ class dirstate(object):
             # Case-insensitive filesystems are not handled yet
             use_rust = False
         elif subrepos:
-            use_rust = False
-        elif sparse.enabled:
             use_rust = False
         elif not isinstance(match, allowed_matchers):
             # Some matchers have yet to be implemented
@@ -1311,9 +1345,9 @@ class dirstate(object):
         # - match.traversedir does something, because match.traversedir should
         #   be called for every dir in the working dir
         full = listclean or match.traversedir is not None
-        for fn, st in pycompat.iteritems(
-            self.walk(match, subrepos, listunknown, listignored, full=full)
-        ):
+        for fn, st in self.walk(
+            match, subrepos, listunknown, listignored, full=full
+        ).items():
             if not dcontains(fn):
                 if (listignored or mexact(fn)) and dirignore(fn):
                     if listignored:

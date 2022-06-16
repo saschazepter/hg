@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import contextlib
 import errno
@@ -427,7 +426,7 @@ def consumev1(repo, fp, filecount, bytecount):
 
         with repo.transaction(b'clone'):
             with repo.svfs.backgroundclosing(repo.ui, expectedcount=filecount):
-                for i in pycompat.xrange(filecount):
+                for i in range(filecount):
                     # XXX doesn't support '\n' or '\r' in filenames
                     l = fp.readline()
                     try:
@@ -517,7 +516,7 @@ def applybundlev1(repo, fp):
     nodemap.post_stream_cleanup(repo)
 
 
-class streamcloneapplier(object):
+class streamcloneapplier:
     """Class to manage applying streaming clone bundles.
 
     We need to wrap ``applybundlev1()`` in a dedicated type to enable bundle
@@ -559,11 +558,15 @@ def _filterfull(entry, copy, vfsmap):
 @contextlib.contextmanager
 def maketempcopies():
     """return a function to temporary copy file"""
+
     files = []
+    dst_dir = pycompat.mkdtemp(prefix=b'hg-clone-')
     try:
 
         def copy(src):
-            fd, dst = pycompat.mkstemp()
+            fd, dst = pycompat.mkstemp(
+                prefix=os.path.basename(src), dir=dst_dir
+            )
             os.close(fd)
             files.append(dst)
             util.copyfiles(src, dst, hardlink=True)
@@ -573,6 +576,7 @@ def maketempcopies():
     finally:
         for tmp in files:
             util.tryunlink(tmp)
+        util.tryrmdir(dst_dir)
 
 
 def _makemap(repo):

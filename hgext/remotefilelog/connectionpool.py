@@ -5,11 +5,9 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 from mercurial import (
     hg,
-    pycompat,
     sshpeer,
     util,
 )
@@ -17,7 +15,7 @@ from mercurial import (
 _sshv1peer = sshpeer.sshv1peer
 
 
-class connectionpool(object):
+class connectionpool:
     def __init__(self, repo):
         self._repo = repo
         self._pool = dict()
@@ -61,13 +59,13 @@ class connectionpool(object):
         return conn
 
     def close(self):
-        for pathpool in pycompat.itervalues(self._pool):
+        for pathpool in self._pool.values():
             for conn in pathpool:
                 conn.close()
             del pathpool[:]
 
 
-class connection(object):
+class connection:
     def __init__(self, pool, peer):
         self._pool = pool
         self.peer = peer

@@ -4,7 +4,6 @@ This is currently super experimental. It probably will consume your
 firstborn a la Rumpelstiltskin, etc.
 """
 
-from __future__ import absolute_import
 
 import os
 
@@ -17,6 +16,7 @@ from mercurial import (
     localrepo,
     pycompat,
     registrar,
+    requirements as requirementsmod,
     scmutil,
     store,
     util,
@@ -48,7 +48,7 @@ getversion = gitutil.pygit2_version
 
 
 # TODO: extract an interface for this in core
-class gitstore(object):  # store.basicstore):
+class gitstore:  # store.basicstore):
     def __init__(self, path, vfstype):
         self.vfs = vfstype(path)
         self.opener = self.vfs
@@ -130,7 +130,7 @@ def _makestore(orig, requirements, storebasepath, vfstype):
     return orig(requirements, storebasepath, vfstype)
 
 
-class gitfilestorage(object):
+class gitfilestorage:
     def file(self, path):
         if path[0:1] == b'/':
             path = path[1:]
@@ -162,7 +162,7 @@ def _setupdothg(ui, path):
 _BMS_PREFIX = 'refs/heads/'
 
 
-class gitbmstore(object):
+class gitbmstore:
     def __init__(self, gitrepo):
         self.gitrepo = gitrepo
         self._aclean = True
@@ -301,9 +301,15 @@ def reposetup(ui, repo):
 
         class gitlocalrepo(orig):
             def _makedirstate(self):
+                v2_req = requirementsmod.DIRSTATE_V2_REQUIREMENT
+                use_dirstate_v2 = v2_req in self.requirements
+
                 # TODO narrow support here
                 return dirstate.gitdirstate(
-                    self.ui, self.vfs.base, self.store.git
+                    self.ui,
+                    self.vfs,
+                    self.store.git,
+                    use_dirstate_v2,
                 )
 
             def commit(self, *args, **kwargs):

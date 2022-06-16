@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import re
 import uuid
@@ -48,7 +47,7 @@ def _forwardoutput(ui, pipe, warn=False):
                 display(_(b"remote: "), l, b'\n')
 
 
-class doublepipe(object):
+class doublepipe:
     """Operate a side-channel pipe in addition of a main one
 
     The side-channel pipe contains server output to be forwarded to the user
@@ -473,10 +472,10 @@ class sshv1peer(wireprotov1peer.wirepeer):
             else:
                 wireargs[k] = args[k]
                 del args[k]
-        for k, v in sorted(pycompat.iteritems(wireargs)):
+        for k, v in sorted(wireargs.items()):
             self._pipeo.write(b"%s %d\n" % (k, len(v)))
             if isinstance(v, dict):
-                for dk, dv in pycompat.iteritems(v):
+                for dk, dv in v.items():
                     self._pipeo.write(b"%s %d\n" % (dk, len(dv)))
                     self._pipeo.write(dv)
             else:

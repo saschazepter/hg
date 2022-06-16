@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import ast
 import collections
@@ -74,7 +73,7 @@ def find(name):
     try:
         mod = _extensions[name]
     except KeyError:
-        for k, v in pycompat.iteritems(_extensions):
+        for k, v in _extensions.items():
             if k.endswith(b'.' + name) or k.endswith(b'/' + name):
                 mod = v
                 break
@@ -171,7 +170,7 @@ _cmdfuncattrs = (b'norepo', b'optionalrepo', b'inferrepo')
 
 def _validatecmdtable(ui, cmdtable):
     """Check if extension commands have required attributes"""
-    for c, e in pycompat.iteritems(cmdtable):
+    for c, e in cmdtable.items():
         f = e[0]
         missing = [a for a in _cmdfuncattrs if not util.safehasattr(f, a)]
         if not missing:
@@ -579,7 +578,7 @@ def wrapcommand(table, command, wrapper, synopsis=None, docstring=None):
     '''
     assert callable(wrapper)
     aliases, entry = cmdutil.findcmd(command, table)
-    for alias, e in pycompat.iteritems(table):
+    for alias, e in table.items():
         if e is entry:
             key = alias
             break
@@ -622,7 +621,7 @@ def wrapfilecache(cls, propname, wrapper):
         raise AttributeError("type '%s' has no property '%s'" % (cls, propname))
 
 
-class wrappedfunction(object):
+class wrappedfunction:
     '''context manager for temporarily wrapping a function'''
 
     def __init__(self, container, funcname, wrapper):
@@ -756,7 +755,7 @@ def _disabledpaths():
         if name in exts or name in _order or name == b'__init__':
             continue
         exts[name] = path
-    for name, path in pycompat.iteritems(_disabledextensions):
+    for name, path in _disabledextensions.items():
         # If no path was provided for a disabled extension (e.g. "color=!"),
         # don't replace the path we already found by the scan above.
         if path:
@@ -818,7 +817,7 @@ def disabled():
 
         return {
             name: gettext(desc)
-            for name, desc in pycompat.iteritems(__index__.docs)
+            for name, desc in __index__.docs.items()
             if name not in _order
         }
     except (ImportError, AttributeError):
@@ -829,10 +828,10 @@ def disabled():
         return {}
 
     exts = {}
-    for name, path in pycompat.iteritems(paths):
+    for name, path in paths.items():
         doc = _disabledhelp(path)
         if doc and name != b'__index__':
-            exts[name] = doc.splitlines()[0]
+            exts[name] = stringutil.firstline(doc)
 
     return exts
 
@@ -876,7 +875,7 @@ def _disabledcmdtable(path):
         a = node.args[0]
         if isinstance(a, ast.Str):
             name = pycompat.sysbytes(a.s)
-        elif pycompat.ispy3 and isinstance(a, ast.Bytes):
+        elif isinstance(a, ast.Bytes):
             name = a.s
         else:
             continue
@@ -918,7 +917,7 @@ def disabledcmd(ui, cmd, strict=False):
         ext = _finddisabledcmd(ui, cmd, cmd, path, strict=strict)
     if not ext:
         # otherwise, interrogate each extension until there's a match
-        for name, path in pycompat.iteritems(paths):
+        for name, path in paths.items():
             ext = _finddisabledcmd(ui, cmd, name, path, strict=strict)
             if ext:
                 break
@@ -936,16 +935,14 @@ def enabled(shortname=True):
         assert doc is not None  # help pytype
         if shortname:
             ename = ename.split(b'.')[-1]
-        exts[ename] = doc.splitlines()[0].strip()
+        exts[ename] = stringutil.firstline(doc).strip()
 
     return exts
 
 
 def notloaded():
     '''return short names of extensions that failed to load'''
-    return [
-        name for name, mod in pycompat.iteritems(_extensions) if mod is None
-    ]
+    return [name for name, mod in _extensions.items() if mod is None]
 
 
 def moduleversion(module):
