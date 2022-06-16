@@ -5,10 +5,8 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import collections
-import errno
 import struct
 
 from .i18n import _
@@ -67,7 +65,7 @@ def _checkunknownfile(repo, wctx, mctx, f, f2=None):
     )
 
 
-class _unknowndirschecker(object):
+class _unknowndirschecker:
     """
     Look for any unknown files or directories that may have a path conflict
     with a file.  If any path prefix of the file exists as a file or link,
@@ -538,7 +536,7 @@ def _filternarrowactions(narrowmatch, branchmerge, mresult):
             raise error.StateError(msg % f)
 
 
-class mergeresult(object):
+class mergeresult:
     """An object representing result of merging manifests.
 
     It has information about what actions need to be performed on dirstate
@@ -626,9 +624,7 @@ class mergeresult(object):
                     args, msg = self._actionmapping[a][f]
                     yield f, args, msg
             else:
-                for f, (args, msg) in pycompat.iteritems(
-                    self._actionmapping[a]
-                ):
+                for f, (args, msg) in self._actionmapping[a].items():
                     yield f, args, msg
 
     def len(self, actions=None):
@@ -644,10 +640,10 @@ class mergeresult(object):
 
     def filemap(self, sort=False):
         if sorted:
-            for key, val in sorted(pycompat.iteritems(self._filemapping)):
+            for key, val in sorted(self._filemapping.items()):
                 yield key, val
         else:
-            for key, val in pycompat.iteritems(self._filemapping):
+            for key, val in self._filemapping.items():
                 yield key, val
 
     def addcommitinfo(self, filename, key, value):
@@ -672,15 +668,15 @@ class mergeresult(object):
         """returns a dictionary of actions to be perfomed with action as key
         and a list of files and related arguments as values"""
         res = collections.defaultdict(list)
-        for a, d in pycompat.iteritems(self._actionmapping):
-            for f, (args, msg) in pycompat.iteritems(d):
+        for a, d in self._actionmapping.items():
+            for f, (args, msg) in d.items():
                 res[a].append((f, args, msg))
         return res
 
     def setactions(self, actions):
         self._filemapping = actions
         self._actionmapping = collections.defaultdict(dict)
-        for f, (act, data, msg) in pycompat.iteritems(self._filemapping):
+        for f, (act, data, msg) in self._filemapping.items():
             self._actionmapping[act][f] = data, msg
 
     def hasconflicts(self):
@@ -787,7 +783,7 @@ def manifestmerge(
         relevantfiles = set(ma.diff(m2).keys())
 
         # For copied and moved files, we need to add the source file too.
-        for copykey, copyvalue in pycompat.iteritems(branch_copies1.copy):
+        for copykey, copyvalue in branch_copies1.copy.items():
             if copyvalue in relevantfiles:
                 relevantfiles.add(copykey)
         for movedirkey in branch_copies1.movewithdir:
@@ -797,7 +793,7 @@ def manifestmerge(
 
     diff = m1.diff(m2, match=matcher)
 
-    for f, ((n1, fl1), (n2, fl2)) in pycompat.iteritems(diff):
+    for f, ((n1, fl1), (n2, fl2)) in diff.items():
         if n1 and n2:  # file exists on both local and remote side
             if f not in ma:
                 # TODO: what if they're renamed from different sources?
@@ -1309,10 +1305,8 @@ def calculateupdates(
 def _getcwd():
     try:
         return encoding.getcwd()
-    except OSError as err:
-        if err.errno == errno.ENOENT:
-            return None
-        raise
+    except FileNotFoundError:
+        return None
 
 
 def batchremove(repo, wctx, actions):
@@ -1470,7 +1464,7 @@ def _prefetchfiles(repo, ctx, mresult):
 
 
 @attr.s(frozen=True)
-class updateresult(object):
+class updateresult:
     updatedcount = attr.ib()
     mergedcount = attr.ib()
     removedcount = attr.ib()
@@ -1512,7 +1506,7 @@ def applyupdates(
     ms = wctx.mergestate(clean=True)
     ms.start(wctx.p1().node(), mctx.node(), labels)
 
-    for f, op in pycompat.iteritems(mresult.commitinfo):
+    for f, op in mresult.commitinfo.items():
         # the other side of filenode was choosen while merging, store this in
         # mergestate so that it can be reused on commit
         ms.addcommitinfo(f, op)
@@ -2073,7 +2067,7 @@ def _update(
                 _checkcollision(repo, wc.manifest(), mresult)
 
         # divergent renames
-        for f, fl in sorted(pycompat.iteritems(mresult.diverge)):
+        for f, fl in sorted(mresult.diverge.items()):
             repo.ui.warn(
                 _(
                     b"note: possible conflict - %s was renamed "
@@ -2085,7 +2079,7 @@ def _update(
                 repo.ui.warn(b" %s\n" % nf)
 
         # rename and delete
-        for f, fl in sorted(pycompat.iteritems(mresult.renamedelete)):
+        for f, fl in sorted(mresult.renamedelete.items()):
             repo.ui.warn(
                 _(
                     b"note: possible conflict - %s was deleted "
@@ -2125,7 +2119,7 @@ def _update(
 
         if updatedirstate:
             if extraactions:
-                for k, acts in pycompat.iteritems(extraactions):
+                for k, acts in extraactions.items():
                     for a in acts:
                         mresult.addfile(a[0], k, *a[1:])
                     if k == mergestatemod.ACTION_GET and wantfiledata:
@@ -2196,10 +2190,10 @@ def _update(
                         getfiledata = None
                     else:
                         now_sec = now[0]
-                        for f, m in pycompat.iteritems(getfiledata):
+                        for f, m in getfiledata.items():
                             if m is not None and m[2][0] >= now_sec:
                                 ambiguous_mtime[f] = (m[0], m[1], None)
-                        for f, m in pycompat.iteritems(ambiguous_mtime):
+                        for f, m in ambiguous_mtime.items():
                             getfiledata[f] = m
 
                 repo.setparents(fp1, fp2)

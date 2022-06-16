@@ -3,9 +3,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
-
-import errno
 
 from .i18n import _
 
@@ -13,7 +10,6 @@ from . import (
     error,
     pathutil,
     policy,
-    pycompat,
     txnutil,
     util,
 )
@@ -36,7 +32,7 @@ else:
 rangemask = 0x7FFFFFFF
 
 
-class _dirstatemapcommon(object):
+class _dirstatemapcommon:
     """
     Methods that are identical for both implementations of the dirstatemap
     class, with and without Rust extensions enabled.
@@ -81,134 +77,6 @@ class _dirstatemapcommon(object):
     def __getitem__(self, item):
         return self._map[item]
 
-    ### sub-class utility method
-    #
-    # Use to allow for generic implementation of some method while still coping
-    # with minor difference between implementation.
-
-    def _dirs_incr(self, filename, old_entry=None):
-        """incremente the dirstate counter if applicable
-
-        This might be a no-op for some subclass who deal with directory
-        tracking in a different way.
-        """
-
-    def _dirs_decr(self, filename, old_entry=None, remove_variant=False):
-        """decremente the dirstate counter if applicable
-
-        This might be a no-op for some subclass who deal with directory
-        tracking in a different way.
-        """
-
-    def _refresh_entry(self, f, entry):
-        """record updated state of an entry"""
-
-    def _insert_entry(self, f, entry):
-        """add a new dirstate entry (or replace an unrelated one)
-
-        The fact it is actually new is the responsability of the caller
-        """
-
-    def _drop_entry(self, f):
-        """remove any entry for file f
-
-        This should also drop associated copy information
-
-        The fact we actually need to drop it is the responsability of the caller"""
-
-    ### method to manipulate the entries
-
-    def set_possibly_dirty(self, filename):
-        """record that the current state of the file on disk is unknown"""
-        entry = self[filename]
-        entry.set_possibly_dirty()
-        self._refresh_entry(filename, entry)
-
-    def set_clean(self, filename, mode, size, mtime):
-        """mark a file as back to a clean state"""
-        entry = self[filename]
-        size = size & rangemask
-        entry.set_clean(mode, size, mtime)
-        self._refresh_entry(filename, entry)
-        self.copymap.pop(filename, None)
-
-    def set_tracked(self, filename):
-        new = False
-        entry = self.get(filename)
-        if entry is None:
-            self._dirs_incr(filename)
-            entry = DirstateItem(
-                wc_tracked=True,
-            )
-
-            self._insert_entry(filename, entry)
-            new = True
-        elif not entry.tracked:
-            self._dirs_incr(filename, entry)
-            entry.set_tracked()
-            self._refresh_entry(filename, entry)
-            new = True
-        else:
-            # XXX This is probably overkill for more case, but we need this to
-            # fully replace the `normallookup` call with `set_tracked` one.
-            # Consider smoothing this in the future.
-            entry.set_possibly_dirty()
-            self._refresh_entry(filename, entry)
-        return new
-
-    def set_untracked(self, f):
-        """Mark a file as no longer tracked in the dirstate map"""
-        entry = self.get(f)
-        if entry is None:
-            return False
-        else:
-            self._dirs_decr(f, old_entry=entry, remove_variant=not entry.added)
-            if not entry.p2_info:
-                self.copymap.pop(f, None)
-            entry.set_untracked()
-            self._refresh_entry(f, entry)
-            return True
-
-    def reset_state(
-        self,
-        filename,
-        wc_tracked=False,
-        p1_tracked=False,
-        p2_info=False,
-        has_meaningful_mtime=True,
-        has_meaningful_data=True,
-        parentfiledata=None,
-    ):
-        """Set a entry to a given state, diregarding all previous state
-
-        This is to be used by the part of the dirstate API dedicated to
-        adjusting the dirstate after a update/merge.
-
-        note: calling this might result to no entry existing at all if the
-        dirstate map does not see any point at having one for this file
-        anymore.
-        """
-        # copy information are now outdated
-        # (maybe new information should be in directly passed to this function)
-        self.copymap.pop(filename, None)
-
-        if not (p1_tracked or p2_info or wc_tracked):
-            old_entry = self._map.get(filename)
-            self._drop_entry(filename)
-            self._dirs_decr(filename, old_entry=old_entry)
-            return
-
-        old_entry = self._map.get(filename)
-        self._dirs_incr(filename, old_entry)
-        entry = DirstateItem(
-            wc_tracked=wc_tracked,
-            p1_tracked=p1_tracked,
-            p2_info=p2_info,
-            has_meaningful_mtime=has_meaningful_mtime,
-            parentfiledata=parentfiledata,
-        )
-        self._insert_entry(filename, entry)
-
     ### disk interaction
 
     def _opendirstatefile(self):
@@ -225,9 +93,7 @@ class _dirstatemapcommon(object):
         try:
             with self._opendirstatefile() as fp:
                 return fp.read(size)
-        except IOError as err:
-            if err.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
             # File doesn't exist, so the current state is empty
             return b''
 
@@ -355,7 +221,7 @@ class dirstatemap(_dirstatemapcommon):
         util.clearcachedproperty(self, b"dirfoldmap")
 
     def items(self):
-        return pycompat.iteritems(self._map)
+        return self._map.items()
 
     # forward for python2,3 compat
     iteritems = items
@@ -379,7 +245,7 @@ class dirstatemap(_dirstatemapcommon):
         self._dirtyparents = True
         copies = {}
         if fold_p2:
-            for f, s in pycompat.iteritems(self._map):
+            for f, s in self._map.items():
                 # Discard "merged" markers when moving away from a merge state
                 if s.p2_info:
                     source = self.copymap.pop(f, None)
@@ -465,7 +331,7 @@ class dirstatemap(_dirstatemapcommon):
     # (e.g. "has_dir")
 
     def _dirs_incr(self, filename, old_entry=None):
-        """incremente the dirstate counter if applicable"""
+        """increment the dirstate counter if applicable"""
         if (
             old_entry is None or old_entry.removed
         ) and "_dirs" in self.__dict__:
@@ -474,7 +340,7 @@ class dirstatemap(_dirstatemapcommon):
             self._alldirs.addpath(filename)
 
     def _dirs_decr(self, filename, old_entry=None, remove_variant=False):
-        """decremente the dirstate counter if applicable"""
+        """decrement the dirstate counter if applicable"""
         if old_entry is not None:
             if "_dirs" in self.__dict__ and not old_entry.removed:
                 self._dirs.delpath(filename)
@@ -502,7 +368,7 @@ class dirstatemap(_dirstatemapcommon):
 
         f = {}
         normcase = util.normcase
-        for name, s in pycompat.iteritems(self._map):
+        for name, s in self._map.items():
             if not s.removed:
                 f[normcase(name)] = name
         f[b'.'] = b'.'  # prevents useless util.fspath() invocation
@@ -540,14 +406,107 @@ class dirstatemap(_dirstatemapcommon):
 
     ### code related to manipulation of entries and copy-sources
 
+    def reset_state(
+        self,
+        filename,
+        wc_tracked=False,
+        p1_tracked=False,
+        p2_info=False,
+        has_meaningful_mtime=True,
+        parentfiledata=None,
+    ):
+        """Set a entry to a given state, diregarding all previous state
+
+        This is to be used by the part of the dirstate API dedicated to
+        adjusting the dirstate after a update/merge.
+
+        note: calling this might result to no entry existing at all if the
+        dirstate map does not see any point at having one for this file
+        anymore.
+        """
+        # copy information are now outdated
+        # (maybe new information should be in directly passed to this function)
+        self.copymap.pop(filename, None)
+
+        if not (p1_tracked or p2_info or wc_tracked):
+            old_entry = self._map.get(filename)
+            self._drop_entry(filename)
+            self._dirs_decr(filename, old_entry=old_entry)
+            return
+
+        old_entry = self._map.get(filename)
+        self._dirs_incr(filename, old_entry)
+        entry = DirstateItem(
+            wc_tracked=wc_tracked,
+            p1_tracked=p1_tracked,
+            p2_info=p2_info,
+            has_meaningful_mtime=has_meaningful_mtime,
+            parentfiledata=parentfiledata,
+        )
+        self._map[filename] = entry
+
+    def set_tracked(self, filename):
+        new = False
+        entry = self.get(filename)
+        if entry is None:
+            self._dirs_incr(filename)
+            entry = DirstateItem(
+                wc_tracked=True,
+            )
+
+            self._map[filename] = entry
+            new = True
+        elif not entry.tracked:
+            self._dirs_incr(filename, entry)
+            entry.set_tracked()
+            self._refresh_entry(filename, entry)
+            new = True
+        else:
+            # XXX This is probably overkill for more case, but we need this to
+            # fully replace the `normallookup` call with `set_tracked` one.
+            # Consider smoothing this in the future.
+            entry.set_possibly_dirty()
+            self._refresh_entry(filename, entry)
+        return new
+
+    def set_untracked(self, f):
+        """Mark a file as no longer tracked in the dirstate map"""
+        entry = self.get(f)
+        if entry is None:
+            return False
+        else:
+            self._dirs_decr(f, old_entry=entry, remove_variant=not entry.added)
+            if not entry.p2_info:
+                self.copymap.pop(f, None)
+            entry.set_untracked()
+            self._refresh_entry(f, entry)
+            return True
+
+    def set_clean(self, filename, mode, size, mtime):
+        """mark a file as back to a clean state"""
+        entry = self[filename]
+        size = size & rangemask
+        entry.set_clean(mode, size, mtime)
+        self._refresh_entry(filename, entry)
+        self.copymap.pop(filename, None)
+
+    def set_possibly_dirty(self, filename):
+        """record that the current state of the file on disk is unknown"""
+        entry = self[filename]
+        entry.set_possibly_dirty()
+        self._refresh_entry(filename, entry)
+
     def _refresh_entry(self, f, entry):
+        """record updated state of an entry"""
         if not entry.any_tracked:
             self._map.pop(f, None)
 
-    def _insert_entry(self, f, entry):
-        self._map[f] = entry
-
     def _drop_entry(self, f):
+        """remove any entry for file f
+
+        This should also drop associated copy information
+
+        The fact we actually need to drop it is the responsability of the caller"""
         self._map.pop(f, None)
         self.copymap.pop(f, None)
 
@@ -630,22 +589,7 @@ if rustmod is not None:
             self._dirtyparents = True
             copies = {}
             if fold_p2:
-                # Collect into an intermediate list to avoid a `RuntimeError`
-                # exception due to mutation during iteration.
-                # TODO: move this the whole loop to Rust where `iter_mut`
-                # enables in-place mutation of elements of a collection while
-                # iterating it, without mutating the collection itself.
-                files_with_p2_info = [
-                    f for f, s in self._map.items() if s.p2_info
-                ]
-                rust_map = self._map
-                for f in files_with_p2_info:
-                    e = rust_map.get(f)
-                    source = self.copymap.pop(f, None)
-                    if source:
-                        copies[f] = source
-                    e.drop_merge_data()
-                    rust_map.set_dirstate_item(f, e)
+                copies = self._map.setparents_fixup()
             return copies
 
         ### disk interaction
@@ -715,18 +659,32 @@ if rustmod is not None:
 
         ### code related to manipulation of entries and copy-sources
 
-        def _refresh_entry(self, f, entry):
-            if not entry.any_tracked:
-                self._map.drop_item_and_copy_source(f)
-            else:
-                self._map.addfile(f, entry)
+        def set_tracked(self, f):
+            return self._map.set_tracked(f)
 
-        def _insert_entry(self, f, entry):
-            self._map.addfile(f, entry)
+        def set_untracked(self, f):
+            return self._map.set_untracked(f)
 
-        def _drop_entry(self, f):
-            self._map.drop_item_and_copy_source(f)
+        def set_clean(self, filename, mode, size, mtime):
+            self._map.set_clean(filename, mode, size, mtime)
 
-        def __setitem__(self, key, value):
-            assert isinstance(value, DirstateItem)
-            self._map.set_dirstate_item(key, value)
+        def set_possibly_dirty(self, f):
+            self._map.set_possibly_dirty(f)
+
+        def reset_state(
+            self,
+            filename,
+            wc_tracked=False,
+            p1_tracked=False,
+            p2_info=False,
+            has_meaningful_mtime=True,
+            parentfiledata=None,
+        ):
+            return self._map.reset_state(
+                filename,
+                wc_tracked,
+                p1_tracked,
+                p2_info,
+                has_meaningful_mtime,
+                parentfiledata,
+            )

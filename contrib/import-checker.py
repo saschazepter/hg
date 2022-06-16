@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import absolute_import, print_function
 
 import ast
 import collections
@@ -20,10 +19,11 @@ if True:  # disable lexical sorting checks
 
 import testparseutil
 
-# Whitelist of modules that symbols can be directly imported from.
+# Allow list of modules that symbols can be directly imported from.
 allowsymbolimports = (
     '__future__',
     'breezy',
+    'concurrent',
     'hgclient',
     'mercurial',
     'mercurial.hgweb.common',
@@ -46,9 +46,10 @@ allowsymbolimports = (
     'mercurial.thirdparty.attr',
     'mercurial.thirdparty.zope',
     'mercurial.thirdparty.zope.interface',
+    'typing',
 )
 
-# Whitelist of symbols that can be directly imported.
+# Allow list of symbols that can be directly imported.
 directsymbols = ('demandimport',)
 
 # Modules that must be aliased because they are commonly confused with
@@ -56,21 +57,6 @@ directsymbols = ('demandimport',)
 requirealias = {
     'ui': 'uimod',
 }
-
-
-def usingabsolute(root):
-    """Whether absolute imports are being used."""
-    if sys.version_info[0] >= 3:
-        return True
-
-    for node in ast.walk(root):
-        if isinstance(node, ast.ImportFrom):
-            if node.module == '__future__':
-                for n in node.names:
-                    if n.name == 'absolute_import':
-                        return True
-
-    return False
 
 
 def walklocal(root):
@@ -402,21 +388,10 @@ def imported_modules(source, modulename, f, localmods, ignore_nested=False):
 
 
 def verify_import_convention(module, source, localmods):
-    """Verify imports match our established coding convention.
-
-    We have 2 conventions: legacy and modern. The modern convention is in
-    effect when using absolute imports.
-
-    The legacy convention only looks for mixed imports. The modern convention
-    is much more thorough.
-    """
+    """Verify imports match our established coding convention."""
     root = ast.parse(source)
-    absolute = usingabsolute(root)
 
-    if absolute:
-        return verify_modern_convention(module, root, localmods)
-    else:
-        return verify_stdlib_on_own_line(root)
+    return verify_modern_convention(module, root, localmods)
 
 
 def verify_modern_convention(module, root, localmods, root_col_offset=0):
@@ -617,33 +592,6 @@ def verify_modern_convention(module, root, localmods, root_col_offset=0):
                     )
 
 
-def verify_stdlib_on_own_line(root):
-    """Given some python source, verify that stdlib imports are done
-    in separate statements from relative local module imports.
-
-    >>> list(verify_stdlib_on_own_line(ast.parse('import sys, foo')))
-    [('mixed imports\\n   stdlib:    sys\\n   relative:  foo', 1)]
-    >>> list(verify_stdlib_on_own_line(ast.parse('import sys, os')))
-    []
-    >>> list(verify_stdlib_on_own_line(ast.parse('import foo, bar')))
-    []
-    """
-    for node in ast.walk(root):
-        if isinstance(node, ast.Import):
-            from_stdlib = {False: [], True: []}
-            for n in node.names:
-                from_stdlib[n.name in stdlib_modules].append(n.name)
-            if from_stdlib[True] and from_stdlib[False]:
-                yield (
-                    'mixed imports\n   stdlib:    %s\n   relative:  %s'
-                    % (
-                        ', '.join(sorted(from_stdlib[True])),
-                        ', '.join(sorted(from_stdlib[False])),
-                    ),
-                    node.lineno,
-                )
-
-
 class CircularImport(Exception):
     pass
 
@@ -679,7 +627,6 @@ def find_cycles(imports):
 
     All module names recorded in `imports` should be absolute one.
 
-    >>> from __future__ import print_function
     >>> imports = {'top.foo': ['top.bar', 'os.path', 'top.qux'],
     ...            'top.bar': ['top.baz', 'sys'],
     ...            'top.baz': ['top.foo'],

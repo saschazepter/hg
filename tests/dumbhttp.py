@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import absolute_import
 
 """
 Small and dumb HTTP server for use in tests.
@@ -38,7 +37,7 @@ class _httprequesthandler(httpserver.simplehttprequesthandler):
         sys.stderr.flush()
 
 
-class simplehttpservice(object):
+class simplehttpservice:
     def __init__(self, host, port):
         self.address = (host, port)
 

@@ -4,10 +4,8 @@
 #
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
-from __future__ import absolute_import
 
 import contextlib
-import errno
 import os
 import shutil
 import stat
@@ -47,7 +45,7 @@ def _avoidambig(path, oldstat):
         checkandavoid()
 
 
-class abstractvfs(object):
+class abstractvfs:
     """Abstract base class; cannot be instantiated"""
 
     # default directory separator for vfs
@@ -75,18 +73,16 @@ class abstractvfs(object):
         '''gracefully return an empty string for missing files'''
         try:
             return self.read(path)
-        except IOError as inst:
-            if inst.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
+            pass
         return b""
 
     def tryreadlines(self, path, mode=b'rb'):
         '''gracefully return an empty array for missing files'''
         try:
             return self.readlines(path, mode=mode)
-        except IOError as inst:
-            if inst.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
+            pass
         return []
 
     @util.propertycache
@@ -477,9 +473,7 @@ class vfs(abstractvfs):
                             nlink = util.nlinks(f)
                             if nlink < 1:
                                 nlink = 2  # force mktempcopy (issue1922)
-                except (OSError, IOError) as e:
-                    if e.errno != errno.ENOENT:
-                        raise
+                except FileNotFoundError:
                     nlink = 0
                     if makeparentdirs:
                         util.makedirs(dirname, self.createmode, notindexed)
@@ -607,7 +601,7 @@ class readonlyvfs(proxyvfs):
         return self.vfs.join(path, *insidef)
 
 
-class closewrapbase(object):
+class closewrapbase:
     """Base class of wrapper, which hooks closing
 
     Do not instantiate outside of the vfs layer.
@@ -653,7 +647,7 @@ class delayclosedfile(closewrapbase):
         self._closer.close(self._origfh)
 
 
-class backgroundfilecloser(object):
+class backgroundfilecloser:
     """Coordinates background closing of file handles on multiple threads."""
 
     def __init__(self, ui, expectedcount=-1):

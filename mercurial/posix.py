@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import errno
 import fcntl
@@ -60,21 +59,7 @@ expandglobs = False
 umask = os.umask(0)
 os.umask(umask)
 
-if not pycompat.ispy3:
-
-    def posixfile(name, mode='r', buffering=-1):
-        fp = open(name, mode=mode, buffering=buffering)
-        # The position when opening in append mode is implementation defined, so
-        # make it consistent by always seeking to the end.
-        if 'a' in mode:
-            fp.seek(0, os.SEEK_END)
-        return fp
-
-
-else:
-    # The underlying file object seeks as required in Python 3:
-    # https://github.com/python/cpython/blob/v3.7.3/Modules/_io/fileio.c#L474
-    posixfile = open
+posixfile = open
 
 
 def split(p):
@@ -190,9 +175,7 @@ def copymode(src, dst, mode=None, enforcewritable=False):
     using umask."""
     try:
         st_mode = os.lstat(src).st_mode & 0o777
-    except OSError as inst:
-        if inst.errno != errno.ENOENT:
-            raise
+    except FileNotFoundError:
         st_mode = mode
         if st_mode is None:
             st_mode = ~umask
@@ -241,19 +224,16 @@ def checkexec(path):
 
             try:
                 m = os.stat(checkisexec).st_mode
-            except OSError as e:
-                if e.errno != errno.ENOENT:
-                    raise
+            except FileNotFoundError:
                 # checkisexec does not exist - fall through ...
+                pass
             else:
                 # checkisexec exists, check if it actually is exec
                 if m & EXECFLAGS != 0:
                     # ensure checkisexec exists, check it isn't exec
                     try:
                         m = os.stat(checknoexec).st_mode
-                    except OSError as e:
-                        if e.errno != errno.ENOENT:
-                            raise
+                    except FileNotFoundError:
                         open(checknoexec, b'w').close()  # might fail
                         m = os.stat(checknoexec).st_mode
                     if m & EXECFLAGS == 0:
@@ -322,18 +302,13 @@ def checklink(path):
                 try:
                     fullpath = os.path.join(cachedir, target)
                     open(fullpath, b'w').close()
-                except IOError as inst:
-                    # pytype: disable=unsupported-operands
-                    if inst[0] == errno.EACCES:
-                        # pytype: enable=unsupported-operands
-
-                        # If we can't write to cachedir, just pretend
-                        # that the fs is readonly and by association
-                        # that the fs won't support symlinks. This
-                        # seems like the least dangerous way to avoid
-                        # data loss.
-                        return False
-                    raise
+                except PermissionError:
+                    # If we can't write to cachedir, just pretend
+                    # that the fs is readonly and by association
+                    # that the fs won't support symlinks. This
+                    # seems like the least dangerous way to avoid
+                    # data loss.
+                    return False
             try:
                 os.symlink(target, name)
                 if cachedir is None:
@@ -344,11 +319,9 @@ def checklink(path):
                     except OSError:
                         unlink(name)
                 return True
-            except OSError as inst:
+            except FileExistsError:
                 # link creation might race, try again
-                if inst.errno == errno.EEXIST:
-                    continue
-                raise
+                continue
             finally:
                 if fd is not None:
                     fd.close()
@@ -608,9 +581,7 @@ def statfiles(files):
             st = lstat(nf)
             if getkind(st.st_mode) not in _wantedkinds:
                 st = None
-        except OSError as err:
-            if err.errno not in (errno.ENOENT, errno.ENOTDIR):
-                raise
+        except (FileNotFoundError, NotADirectoryError):
             st = None
         yield st
 
@@ -679,7 +650,7 @@ def hidewindow():
     pass
 
 
-class cachestat(object):
+class cachestat:
     def __init__(self, path):
         self.stat = os.stat(path)
 
@@ -731,14 +702,7 @@ def poll(fds):
 
     In unsupported cases, it will raise a NotImplementedError"""
     try:
-        while True:
-            try:
-                res = select.select(fds, fds, fds)
-                break
-            except select.error as inst:
-                if inst.args[0] == errno.EINTR:
-                    continue
-                raise
+        res = select.select(fds, fds, fds)
     except ValueError:  # out of range file descriptor
         raise NotImplementedError()
     return sorted(list(set(sum(res, []))))

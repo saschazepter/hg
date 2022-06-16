@@ -44,7 +44,6 @@ You can specify the encoding by config option::
 
 It is useful for the users who want to commit with UTF-8 log message.
 '''
-from __future__ import absolute_import
 
 import os
 import sys
@@ -95,7 +94,7 @@ def decode(arg):
 
 
 def encode(arg):
-    if isinstance(arg, pycompat.unicode):
+    if isinstance(arg, str):
         return arg.encode(_encoding)
     elif isinstance(arg, tuple):
         return tuple(map(encode, arg))
@@ -136,7 +135,7 @@ def basewrapper(func, argtype, enc, dec, args, kwds):
 
 
 def wrapper(func, args, kwds):
-    return basewrapper(func, pycompat.unicode, encode, decode, args, kwds)
+    return basewrapper(func, str, encode, decode, args, kwds)
 
 
 def reversewrapper(func, args, kwds):

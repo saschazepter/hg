@@ -81,7 +81,6 @@ needed files, so running the external diff program will actually be
 pretty fast (at least faster than having to compare the entire tree).
 '''
 
-from __future__ import absolute_import
 
 import os
 import re
@@ -696,7 +695,7 @@ def extdiff(ui, repo, *pats, **opts):
     return dodiff(ui, repo, cmdline, pats, opts)
 
 
-class savedcmd(object):
+class savedcmd:
     """use external program to diff repository (or selected files)
 
     Show differences between revisions for the specified files, using

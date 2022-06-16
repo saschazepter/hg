@@ -11,9 +11,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
-
-import errno
 
 from .i18n import _
 from . import (
@@ -72,9 +69,8 @@ def _playback(
         else:
             try:
                 opener.unlink(f)
-            except (IOError, OSError) as inst:
-                if inst.errno != errno.ENOENT:
-                    raise
+            except FileNotFoundError:
+                pass
 
     backupfiles = []
     for l, f, b, c in backupentries:
@@ -96,9 +92,8 @@ def _playback(
                 target = f or b
                 try:
                     vfs.unlink(target)
-                except (IOError, OSError) as inst:
-                    if inst.errno != errno.ENOENT:
-                        raise
+                except FileNotFoundError:
+                    pass
         except (IOError, OSError, error.Abort):
             if not c:
                 raise
@@ -383,7 +378,7 @@ class transaction(util.transactional):
             skip_pre = group == GEN_GROUP_POST_FINALIZE
             skip_post = group == GEN_GROUP_PRE_FINALIZE
 
-        for id, entry in sorted(pycompat.iteritems(self._filegenerators)):
+        for id, entry in sorted(self._filegenerators.items()):
             any = True
             order, filenames, genfunc, location, post_finalize = entry
 

@@ -5,21 +5,14 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
-import errno
 import os
+import pickle
+import selectors
 import signal
 import sys
 import threading
 import time
-
-try:
-    import selectors
-
-    selectors.BaseSelector
-except ImportError:
-    from .thirdparty import selectors2 as selectors
 
 from .i18n import _
 from . import (
@@ -27,7 +20,6 @@ from . import (
     error,
     pycompat,
     scmutil,
-    util,
 )
 
 
@@ -65,66 +57,47 @@ def _numworkers(ui):
     return min(max(countcpus(), 4), 32)
 
 
-if pycompat.ispy3:
+def ismainthread():
+    return threading.current_thread() == threading.main_thread()
 
-    def ismainthread():
-        return threading.current_thread() == threading.main_thread()
 
-    class _blockingreader(object):
-        def __init__(self, wrapped):
-            self._wrapped = wrapped
+class _blockingreader:
+    """Wrap unbuffered stream such that pickle.load() works with it.
 
-        # Do NOT implement readinto() by making it delegate to
-        # _wrapped.readinto(), since that is unbuffered. The unpickler is fine
-        # with just read() and readline(), so we don't need to implement it.
+    pickle.load() expects that calls to read() and readinto() read as many
+    bytes as requested. On EOF, it is fine to read fewer bytes. In this case,
+    pickle.load() raises an EOFError.
+    """
 
-        if (3, 8, 0) <= sys.version_info[:3] < (3, 8, 2):
+    def __init__(self, wrapped):
+        self._wrapped = wrapped
 
-            # This is required for python 3.8, prior to 3.8.2.  See issue6444.
-            def readinto(self, b):
-                pos = 0
-                size = len(b)
+    def readline(self):
+        return self._wrapped.readline()
 
-                while pos < size:
-                    ret = self._wrapped.readinto(b[pos:])
-                    if not ret:
-                        break
-                    pos += ret
+    def readinto(self, buf):
+        pos = 0
+        size = len(buf)
 
-                return pos
-
-        def readline(self):
-            return self._wrapped.readline()
-
-        # issue multiple reads until size is fulfilled
-        def read(self, size=-1):
-            if size < 0:
-                return self._wrapped.readall()
-
-            buf = bytearray(size)
-            view = memoryview(buf)
-            pos = 0
-
+        with memoryview(buf) as view:
             while pos < size:
-                ret = self._wrapped.readinto(view[pos:])
+                with view[pos:] as subview:
+                    ret = self._wrapped.readinto(subview)
                 if not ret:
                     break
                 pos += ret
 
-            del view
-            del buf[pos:]
-            return bytes(buf)
+        return pos
 
+    # issue multiple reads until size is fulfilled (or EOF is encountered)
+    def read(self, size=-1):
+        if size < 0:
+            return self._wrapped.readall()
 
-else:
-
-    def ismainthread():
-        # pytype: disable=module-attr
-        return isinstance(threading.current_thread(), threading._MainThread)
-        # pytype: enable=module-attr
-
-    def _blockingreader(wrapped):
-        return wrapped
+        buf = bytearray(size)
+        n_read = self.readinto(buf)
+        del buf[n_read:]
+        return bytes(buf)
 
 
 if pycompat.isposix or pycompat.iswindows:
@@ -203,27 +176,18 @@ def _posixworker(ui, func, staticargs, args, hasretval):
         for p in pids:
             try:
                 os.kill(p, signal.SIGTERM)
-            except OSError as err:
-                if err.errno != errno.ESRCH:
-                    raise
+            except ProcessLookupError:
+                pass
 
     def waitforworkers(blocking=True):
         for pid in pids.copy():
             p = st = 0
-            while True:
-                try:
-                    p, st = os.waitpid(pid, (0 if blocking else os.WNOHANG))
-                    break
-                except OSError as e:
-                    if e.errno == errno.EINTR:
-                        continue
-                    elif e.errno == errno.ECHILD:
-                        # child would already be reaped, but pids yet been
-                        # updated (maybe interrupted just after waitpid)
-                        pids.discard(pid)
-                        break
-                    else:
-                        raise
+            try:
+                p, st = os.waitpid(pid, (0 if blocking else os.WNOHANG))
+            except ChildProcessError:
+                # child would already be reaped, but pids yet been
+                # updated (maybe interrupted just after waitpid)
+                pids.discard(pid)
             if not p:
                 # skip subsequent steps, because child process should
                 # be still running in this case
@@ -270,8 +234,10 @@ def _posixworker(ui, func, staticargs, args, hasretval):
                         os.close(r)
                         os.close(w)
                     os.close(rfd)
-                    for result in func(*(staticargs + (pargs,))):
-                        os.write(wfd, util.pickle.dumps(result))
+                    with os.fdopen(wfd, 'wb') as wf:
+                        for result in func(*(staticargs + (pargs,))):
+                            pickle.dump(result, wf)
+                            wf.flush()
                     return 0
 
                 ret = scmutil.callcatch(ui, workerfunc)
@@ -293,6 +259,10 @@ def _posixworker(ui, func, staticargs, args, hasretval):
     selector = selectors.DefaultSelector()
     for rfd, wfd in pipes:
         os.close(wfd)
+        # The stream has to be unbuffered. Otherwise, if all data is read from
+        # the raw file into the buffer, the selector thinks that the FD is not
+        # ready to read while pickle.load() could read from the buffer. This
+        # would delay the processing of readable items.
         selector.register(os.fdopen(rfd, 'rb', 0), selectors.EVENT_READ)
 
     def cleanup():
@@ -307,19 +277,21 @@ def _posixworker(ui, func, staticargs, args, hasretval):
         while openpipes > 0:
             for key, events in selector.select():
                 try:
-                    res = util.pickle.load(_blockingreader(key.fileobj))
+                    # The pytype error likely goes away on a modern version of
+                    # pytype having a modern typeshed snapshot.
+                    # pytype: disable=wrong-arg-types
+                    res = pickle.load(_blockingreader(key.fileobj))
+                    # pytype: enable=wrong-arg-types
                     if hasretval and res[0]:
                         retval.update(res[1])
                     else:
                         yield res
                 except EOFError:
                     selector.unregister(key.fileobj)
+                    # pytype: disable=attribute-error
                     key.fileobj.close()
+                    # pytype: enable=attribute-error
                     openpipes -= 1
-                except IOError as e:
-                    if e.errno == errno.EINTR:
-                        continue
-                    raise
     except:  # re-raises
         killworkers()
         cleanup()

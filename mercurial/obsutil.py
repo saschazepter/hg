@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import re
 
@@ -19,7 +18,6 @@ from . import (
     encoding,
     error,
     phases,
-    pycompat,
     util,
 )
 from .utils import dateutil
@@ -58,7 +56,7 @@ bumpedfix = 1
 usingsha256 = 2
 
 
-class marker(object):
+class marker:
     """Wrap obsolete marker raw data"""
 
     def __init__(self, repo, data):
@@ -998,7 +996,7 @@ def divergentsets(repo, ctx):
             base[tuple(nsuccset)] = n
     return [
         {b'divergentnodes': divset, b'commonpredecessor': b}
-        for divset, b in pycompat.iteritems(base)
+        for divset, b in base.items()
     ]
 
 

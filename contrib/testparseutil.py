@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import, print_function
 
 import abc
 import re
@@ -80,7 +79,7 @@ def writeerr(data):
 ####################
 
 
-class embeddedmatcher(object):  # pytype: disable=ignored-metaclass
+class embeddedmatcher:  # pytype: disable=ignored-metaclass
     """Base class to detect embedded code fragments in *.t test script"""
 
     __metaclass__ = abc.ABCMeta
@@ -157,7 +156,7 @@ def embedded(basefile, lines, errors, matchers):
     :ends: line number (1-origin), at which embedded code ends (exclusive)
     :code: extracted embedded code, which is single-stringified
 
-    >>> class ambigmatcher(object):
+    >>> class ambigmatcher:
     ...     # mock matcher class to examine implementation of
     ...     # "ambiguous matching" corner case
     ...     def __init__(self, desc, matchfunc):

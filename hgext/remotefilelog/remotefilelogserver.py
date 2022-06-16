@@ -4,9 +4,7 @@
 #
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
-from __future__ import absolute_import
 
-import errno
 import os
 import stat
 import time
@@ -22,7 +20,6 @@ from mercurial import (
     error,
     extensions,
     match,
-    pycompat,
     scmutil,
     store,
     streamclone,
@@ -95,7 +92,7 @@ def onetimesetup(ui):
         b'x_rfl_getfile', b'file node', permission=b'pull'
     )(getfile)
 
-    class streamstate(object):
+    class streamstate:
         match = None
         shallowremote = False
         noflatmf = False
@@ -257,9 +254,8 @@ def _loadfileblob(repo, cachepath, path, node):
             if not os.path.exists(dirname):
                 try:
                     os.makedirs(dirname)
-                except OSError as ex:
-                    if ex.errno != errno.EEXIST:
-                        raise
+                except FileExistsError:
+                    pass
 
             f = None
             try:
@@ -417,7 +413,7 @@ def gcserver(ui, repo):
     cachepath = repo.vfs.join(b"remotefilelogcache")
     for head in heads:
         mf = repo[head].manifest()
-        for filename, filenode in pycompat.iteritems(mf):
+        for filename, filenode in mf.items():
             filecachepath = os.path.join(cachepath, filename, hex(filenode))
             neededfiles.add(filecachepath)
 

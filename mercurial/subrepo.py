@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import copy
 import errno
@@ -221,7 +220,7 @@ def nullsubrepo(ctx, path, pctx):
 # subrepo classes need to implement the following abstract class:
 
 
-class abstractsubrepo(object):
+class abstractsubrepo:
     def __init__(self, ctx, path):
         """Initialize abstractsubrepo part
 
@@ -1771,7 +1770,7 @@ class gitsubrepo(abstractsubrepo):
             for b in rev2branch[self._state[1]]:
                 if b.startswith(b'refs/remotes/origin/'):
                     return True
-        for b, revision in pycompat.iteritems(branch2rev):
+        for b, revision in branch2rev.items():
             if b.startswith(b'refs/remotes/origin/'):
                 if self._gitisancestor(self._state[1], revision):
                     return True

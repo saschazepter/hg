@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import contextlib
 import errno
 import os
@@ -33,7 +31,7 @@ def _lowerclean(s):
     return encoding.hfsignoreclean(s.lower())
 
 
-class pathauditor(object):
+class pathauditor:
     """ensure that a filesystem path contains no banned components.
     the following properties of a path are checked:
 
@@ -316,7 +314,7 @@ def finddirs(path):
     yield b''
 
 
-class dirs(object):
+class dirs:
     '''a multiset of directory names from a set of file paths'''
 
     def __init__(self, map, only_tracked=False):
@@ -326,7 +324,7 @@ class dirs(object):
         self._dirs = {}
         addpath = self.addpath
         if isinstance(map, dict) and only_tracked:
-            for f, s in pycompat.iteritems(map):
+            for f, s in map.items():
                 if s.state != b'r':
                     addpath(f)
         elif only_tracked:

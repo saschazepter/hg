@@ -6,12 +6,10 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import, print_function
 
 import collections
 import contextlib
 import copy
-import errno
 import os
 import re
 import shutil
@@ -150,7 +148,7 @@ def split(stream):
     def remainder(cur):
         yield chunk(cur)
 
-    class fiter(object):
+    class fiter:
         def __init__(self, fp):
             self.fp = fp
 
@@ -343,7 +341,7 @@ def _extract(ui, fileobj, tmpname, tmpfp):
     return data
 
 
-class patchmeta(object):
+class patchmeta:
     """Patched file metadata
 
     'op' is the performed operation within ADD, DELETE, RENAME, MODIFY
@@ -436,7 +434,7 @@ def readgitpatch(lr):
     return gitpatches
 
 
-class linereader(object):
+class linereader:
     # simple class to allow pushing lines back into the input stream
     def __init__(self, fp):
         self.fp = fp
@@ -457,7 +455,7 @@ class linereader(object):
         return iter(self.readline, b'')
 
 
-class abstractbackend(object):
+class abstractbackend:
     def __init__(self, ui):
         self.ui = ui
 
@@ -504,14 +502,11 @@ class fsbackend(abstractbackend):
         isexec = False
         try:
             isexec = self.opener.lstat(fname).st_mode & 0o100 != 0
-        except OSError as e:
-            if e.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
+            pass
         try:
             return (self.opener.read(fname), (False, isexec))
-        except IOError as e:
-            if e.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
             return None, None
 
     def setfile(self, fname, data, mode, copysource):
@@ -593,7 +588,7 @@ class workingbackend(fsbackend):
         return sorted(self.changed)
 
 
-class filestore(object):
+class filestore:
     def __init__(self, maxsize=None):
         self.opener = None
         self.files = {}
@@ -682,7 +677,7 @@ contextdesc = re.compile(br'(?:---|\*\*\*) (\d+)(?:,(\d+))? (?:---|\*\*\*)')
 eolmodes = [b'strict', b'crlf', b'lf', b'auto']
 
 
-class patchfile(object):
+class patchfile:
     def __init__(self, ui, gp, backend, store, eolmode=b'strict'):
         self.fname = gp.path
         self.eolmode = eolmode
@@ -865,9 +860,7 @@ class patchfile(object):
         for x, s in enumerate(self.lines):
             self.hash.setdefault(s, []).append(x)
 
-        for fuzzlen in pycompat.xrange(
-            self.ui.configint(b"patch", b"fuzz") + 1
-        ):
+        for fuzzlen in range(self.ui.configint(b"patch", b"fuzz") + 1):
             for toponly in [True, False]:
                 old, oldstart, new, newstart = h.fuzzit(fuzzlen, toponly)
                 oldstart = oldstart + self.offset + self.skew
@@ -915,7 +908,7 @@ class patchfile(object):
         return len(self.rej)
 
 
-class header(object):
+class header:
     """patch header"""
 
     diffgit_re = re.compile(b'diff --git a/(.*) b/(.*)$')
@@ -995,7 +988,7 @@ class header(object):
         )
 
 
-class recordhunk(object):
+class recordhunk:
     """patch hunk
 
     XXX shouldn't we merge this with the other hunk class?
@@ -1260,7 +1253,7 @@ the hunk is left unchanged.
                     # Remove comment lines
                     patchfp = open(patchfn, 'rb')
                     ncpatchfp = stringio()
-                    for line in util.iterfile(patchfp):
+                    for line in patchfp:
                         line = util.fromnativeeol(line)
                         if not line.startswith(b'#'):
                             ncpatchfp.write(line)
@@ -1343,18 +1336,14 @@ the hunk is left unchanged.
                 fixoffset += chunk.removed - chunk.added
     return (
         sum(
-            [
-                h
-                for h in pycompat.itervalues(applied)
-                if h[0].special() or len(h) > 1
-            ],
+            [h for h in applied.values() if h[0].special() or len(h) > 1],
             [],
         ),
         {},
     )
 
 
-class hunk(object):
+class hunk:
     def __init__(self, desc, num, lr, context):
         self.number = num
         self.desc = desc
@@ -1436,7 +1425,7 @@ class hunk(object):
         self.lena = int(aend) - self.starta
         if self.starta:
             self.lena += 1
-        for x in pycompat.xrange(self.lena):
+        for x in range(self.lena):
             l = lr.readline()
             if l.startswith(b'---'):
                 # lines addition, old block is empty
@@ -1471,7 +1460,7 @@ class hunk(object):
         if self.startb:
             self.lenb += 1
         hunki = 1
-        for x in pycompat.xrange(self.lenb):
+        for x in range(self.lenb):
             l = lr.readline()
             if l.startswith(br'\ '):
                 # XXX: the only way to hit this is with an invalid line range.
@@ -1552,14 +1541,14 @@ class hunk(object):
             top = 0
             bot = 0
             hlen = len(self.hunk)
-            for x in pycompat.xrange(hlen - 1):
+            for x in range(hlen - 1):
                 # the hunk starts with the @@ line, so use x+1
                 if self.hunk[x + 1].startswith(b' '):
                     top += 1
                 else:
                     break
             if not toponly:
-                for x in pycompat.xrange(hlen - 1):
+                for x in range(hlen - 1):
                     if self.hunk[hlen - bot - 1].startswith(b' '):
                         bot += 1
                     else:
@@ -1582,7 +1571,7 @@ class hunk(object):
         return old, oldstart, new, newstart
 
 
-class binhunk(object):
+class binhunk:
     """A binary patch file."""
 
     def __init__(self, lr, fname):
@@ -1763,7 +1752,7 @@ def parsepatch(originalchunks, maxcontext=None):
     +9
     """
 
-    class parser(object):
+    class parser:
         """patch parsing state machine"""
 
         def __init__(self):
@@ -2348,7 +2337,7 @@ def _externalpatch(ui, repo, patcher, patchname, strip, files, similarity):
     ui.debug(b'Using external patch tool: %s\n' % cmd)
     fp = procutil.popen(cmd, b'rb')
     try:
-        for line in util.iterfile(fp):
+        for line in fp:
             line = line.rstrip()
             ui.note(line + b'\n')
             if line.startswith(b'patching file '):
@@ -2644,11 +2633,7 @@ def diffhunks(
     if copysourcematch:
         # filter out copies where source side isn't inside the matcher
         # (copies.pathcopies() already filtered out the destination)
-        copy = {
-            dst: src
-            for dst, src in pycompat.iteritems(copy)
-            if copysourcematch(src)
-        }
+        copy = {dst: src for dst, src in copy.items() if copysourcematch(src)}
 
     modifiedset = set(modified)
     addedset = set(added)

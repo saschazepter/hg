@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import string
 
@@ -76,7 +75,7 @@ _syminitletters = set(
         + pycompat.sysbytes(string.digits)
         + b'._@'
     )
-) | set(map(pycompat.bytechr, pycompat.xrange(128, 256)))
+) | set(map(pycompat.bytechr, range(128, 256)))
 
 # default set of valid characters for non-initial letters of symbols
 _symletters = _syminitletters | set(pycompat.iterbytestr(b'-/'))
@@ -613,7 +612,7 @@ def expandaliases(tree, aliases, warn=None):
     tree = _aliasrules.expand(aliases, tree)
     # warn about problematic (but not referred) aliases
     if warn is not None:
-        for name, alias in sorted(pycompat.iteritems(aliases)):
+        for name, alias in sorted(aliases.items()):
             if alias.error and not alias.warned:
                 warn(_(b'warning: %s\n') % (alias.error))
                 alias.warned = True

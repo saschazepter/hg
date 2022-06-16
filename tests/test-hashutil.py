@@ -1,6 +1,5 @@
 # Tests to ensure that sha1dc.sha1 is exactly a drop-in for
 # hashlib.sha1 for our needs.
-from __future__ import absolute_import
 
 import hashlib
 import unittest
@@ -13,7 +12,7 @@ except ImportError:
     sha1dc = None
 
 
-class hashertestsbase(object):
+class hashertestsbase:
     def test_basic_hash(self):
         h = self.hasher()
         h.update(b'foo')

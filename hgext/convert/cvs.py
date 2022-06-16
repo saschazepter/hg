@@ -4,7 +4,6 @@
 #
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
-from __future__ import absolute_import
 
 import errno
 import os
@@ -19,7 +18,6 @@ from mercurial.pycompat import (
 from mercurial import (
     encoding,
     error,
-    pycompat,
     util,
 )
 from mercurial.utils import (
@@ -317,7 +315,7 @@ class convert_cvs(converter_source):
         if full:
             raise error.Abort(_(b"convert from cvs does not support --full"))
         self._parse()
-        return sorted(pycompat.iteritems(self.files[rev])), {}, set()
+        return sorted(self.files[rev].items()), {}, set()
 
     def getcommit(self, rev):
         self._parse()

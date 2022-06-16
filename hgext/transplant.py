@@ -13,7 +13,6 @@ possibly in another repository. The transplant is done using 'diff' patches.
 Transplanted patches are recorded in .hg/transplant/transplants, as a
 map from a changeset hash to its hash in the source repository.
 '''
-from __future__ import absolute_import
 
 import os
 
@@ -76,13 +75,13 @@ configitem(
 )
 
 
-class transplantentry(object):
+class transplantentry:
     def __init__(self, lnode, rnode):
         self.lnode = lnode
         self.rnode = rnode
 
 
-class transplants(object):
+class transplants:
     def __init__(self, path=None, transplantfile=None, opener=None):
         self.path = path
         self.transplantfile = transplantfile
@@ -107,7 +106,7 @@ class transplants(object):
             if not os.path.isdir(self.path):
                 os.mkdir(self.path)
             fp = self.opener(self.transplantfile, b'w')
-            for list in pycompat.itervalues(self.transplants):
+            for list in self.transplants.values():
                 for t in list:
                     l, r = map(hex, (t.lnode, t.rnode))
                     fp.write(l + b':' + r + b'\n')
@@ -129,7 +128,7 @@ class transplants(object):
             self.dirty = True
 
 
-class transplanter(object):
+class transplanter:
     def __init__(self, ui, repo, opts):
         self.ui = ui
         self.repo = repo

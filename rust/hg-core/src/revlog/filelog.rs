@@ -20,7 +20,12 @@ impl Filelog {
     pub fn open(repo: &Repo, file_path: &HgPath) -> Result<Self, HgError> {
         let index_path = store_path(file_path, b".i");
         let data_path = store_path(file_path, b".d");
-        let revlog = Revlog::open(repo, index_path, Some(&data_path))?;
+        let revlog = Revlog::open(
+            &repo.store_vfs(),
+            index_path,
+            Some(&data_path),
+            false,
+        )?;
         Ok(Self { revlog })
     }
 
@@ -90,7 +95,7 @@ impl FilelogEntry<'_> {
         // Let’s call `file_data_len` what would be returned by
         // `self.data().file_data().len()`.
 
-        if self.0.is_cencored() {
+        if self.0.is_censored() {
             let file_data_len = 0;
             return other_len != file_data_len;
         }

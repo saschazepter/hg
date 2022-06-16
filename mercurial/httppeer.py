@@ -6,7 +6,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import errno
 import io
@@ -14,6 +13,7 @@ import os
 import socket
 import struct
 
+from concurrent import futures
 from .i18n import _
 from .pycompat import getattr
 from . import (
@@ -55,14 +55,14 @@ def encodevalueinheaders(value, header, limit):
     result = []
 
     n = 0
-    for i in pycompat.xrange(0, len(value), valuelen):
+    for i in range(0, len(value), valuelen):
         n += 1
         result.append((fmt % str(n), pycompat.strurl(value[i : i + valuelen])))
 
     return result
 
 
-class _multifile(object):
+class _multifile:
     def __init__(self, *fileobjs):
         for f in fileobjs:
             if not util.safehasattr(f, b'length'):
@@ -231,15 +231,6 @@ def makev1commandrequest(
     return req, cu, qs
 
 
-def _reqdata(req):
-    """Get request data, if any. If no data, returns None."""
-    if pycompat.ispy3:
-        return req.data
-    if not req.has_data():
-        return None
-    return req.get_data()
-
-
 def sendrequest(ui, opener, req):
     """Send a prepared HTTP request.
 
@@ -274,7 +265,7 @@ def sendrequest(ui, opener, req):
                 % b'  %d bytes of commands arguments in headers'
                 % hgargssize
             )
-        data = _reqdata(req)
+        data = req.data
         if data is not None:
             length = getattr(data, 'length', None)
             if length is None:
@@ -538,12 +529,12 @@ class httppeer(wireprotov1peer.wirepeer):
         raise exception
 
 
-class queuedcommandfuture(pycompat.futures.Future):
+class queuedcommandfuture(futures.Future):
     """Wraps result() on command futures to trigger submission on call."""
 
     def result(self, timeout=None):
         if self.done():
-            return pycompat.futures.Future.result(self, timeout)
+            return futures.Future.result(self, timeout)
 
         self._peerexecutor.sendcommands()
 

@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function
-
 """ Multicast DNS Service Discovery for Python, v0.12
     Copyright (C) 2003, Paul Scott-Murphy
 
@@ -233,7 +231,7 @@ class BadDomainNameCircular(BadDomainName):
 # implementation classes
 
 
-class DNSEntry(object):
+class DNSEntry:
     """A DNS entry"""
 
     def __init__(self, name, type, clazz):
@@ -294,7 +292,7 @@ class DNSQuestion(DNSEntry):
     """A DNS question entry"""
 
     def __init__(self, name, type, clazz):
-        if pycompat.ispy3 and isinstance(name, str):
+        if isinstance(name, str):
             name = name.encode('ascii')
         if not name.endswith(b".local."):
             raise NonLocalNameException(name)
@@ -508,7 +506,7 @@ class DNSService(DNSRecord):
         return self.toString(b"%s:%s" % (self.server, self.port))
 
 
-class DNSIncoming(object):
+class DNSIncoming:
     """Object representation of an incoming DNS packet"""
 
     def __init__(self, data):
@@ -704,7 +702,7 @@ class DNSIncoming(object):
         return result
 
 
-class DNSOutgoing(object):
+class DNSOutgoing:
     """Object representation of an outgoing packet"""
 
     def __init__(self, flags, multicast=1):
@@ -866,7 +864,7 @@ class DNSOutgoing(object):
         return b''.join(self.data)
 
 
-class DNSCache(object):
+class DNSCache:
     """A cache of DNS entries"""
 
     def __init__(self):
@@ -984,7 +982,7 @@ class Engine(threading.Thread):
         self.condition.release()
 
 
-class Listener(object):
+class Listener:
     """A Listener is used by this module to listen on the multicast
     group to which DNS messages are sent, allowing the implementation
     to cache information as it arrives.
@@ -1129,7 +1127,7 @@ class ServiceBrowser(threading.Thread):
                 event(self.zeroconf)
 
 
-class ServiceInfo(object):
+class ServiceInfo:
     """Service information"""
 
     def __init__(
@@ -1388,7 +1386,7 @@ class ServiceInfo(object):
         return result
 
 
-class Zeroconf(object):
+class Zeroconf:
     """Implementation of Zeroconf Multicast DNS Service Discovery
 
     Supports registration, unregistration, queries and browsing.
@@ -1461,7 +1459,7 @@ class Zeroconf(object):
     def notifyAll(self):
         """Notifies all waiting threads"""
         self.condition.acquire()
-        self.condition.notifyAll()
+        self.condition.notify_all()
         self.condition.release()
 
     def getServiceInfo(self, type, name, timeout=3000):

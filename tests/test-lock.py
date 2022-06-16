@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import copy
 import errno
 import tempfile
@@ -37,7 +35,7 @@ class lockwrapper(lock.lock):
         return super(lockwrapper, self)._getpid() + self._pidoffset
 
 
-class teststate(object):
+class teststate:
     def __init__(self, testcase, dir, pidoffset=0):
         self._testcase = testcase
         self._acquirecalled = False

@@ -71,18 +71,15 @@ certain files::
   tools/tests/**
 """
 
-from __future__ import absolute_import
 
 from mercurial.i18n import _
 from mercurial.pycompat import setattr
 from mercurial import (
     cmdutil,
     commands,
-    dirstate,
     error,
     extensions,
     logcmdutil,
-    match as matchmod,
     merge as mergemod,
     pycompat,
     registrar,
@@ -106,7 +103,6 @@ def extsetup(ui):
     _setupclone(ui)
     _setuplog(ui)
     _setupadd(ui)
-    _setupdirstate(ui)
 
 
 def replacefilecache(cls, propname, replacement):
@@ -207,69 +203,6 @@ def _setupadd(ui):
         return orig(ui, repo, *pats, **opts)
 
     extensions.wrapcommand(commands.table, b'add', _add)
-
-
-def _setupdirstate(ui):
-    """Modify the dirstate to prevent stat'ing excluded files,
-    and to prevent modifications to files outside the checkout.
-    """
-
-    def walk(orig, self, match, subrepos, unknown, ignored, full=True):
-        # hack to not exclude explicitly-specified paths so that they can
-        # be warned later on e.g. dirstate.add()
-        em = matchmod.exact(match.files())
-        sm = matchmod.unionmatcher([self._sparsematcher, em])
-        match = matchmod.intersectmatchers(match, sm)
-        return orig(self, match, subrepos, unknown, ignored, full)
-
-    extensions.wrapfunction(dirstate.dirstate, b'walk', walk)
-
-    # dirstate.rebuild should not add non-matching files
-    def _rebuild(orig, self, parent, allfiles, changedfiles=None):
-        matcher = self._sparsematcher
-        if not matcher.always():
-            allfiles = [f for f in allfiles if matcher(f)]
-            if changedfiles:
-                changedfiles = [f for f in changedfiles if matcher(f)]
-
-            if changedfiles is not None:
-                # In _rebuild, these files will be deleted from the dirstate
-                # when they are not found to be in allfiles
-                dirstatefilestoremove = {f for f in self if not matcher(f)}
-                changedfiles = dirstatefilestoremove.union(changedfiles)
-
-        return orig(self, parent, allfiles, changedfiles)
-
-    extensions.wrapfunction(dirstate.dirstate, b'rebuild', _rebuild)
-
-    # Prevent adding files that are outside the sparse checkout
-    editfuncs = [
-        b'set_tracked',
-        b'set_untracked',
-        b'copy',
-    ]
-    hint = _(
-        b'include file with `hg debugsparse --include <pattern>` or use '
-        + b'`hg add -s <file>` to include file directory while adding'
-    )
-    for func in editfuncs:
-
-        def _wrapper(orig, self, *args, **kwargs):
-            sparsematch = self._sparsematcher
-            if not sparsematch.always():
-                for f in args:
-                    if f is not None and not sparsematch(f) and f not in self:
-                        raise error.Abort(
-                            _(
-                                b"cannot add '%s' - it is outside "
-                                b"the sparse checkout"
-                            )
-                            % f,
-                            hint=hint,
-                        )
-            return orig(self, *args, **kwargs)
-
-        extensions.wrapfunction(dirstate.dirstate, func, _wrapper)
 
 
 @command(
@@ -398,6 +331,9 @@ def debugsparse(ui, repo, **opts):
     if count > 1:
         raise error.Abort(_(b"too many flags specified"))
 
+    # enable sparse on repo even if the requirements is missing.
+    repo._has_sparse = True
+
     if count == 0:
         if repo.vfs.exists(b'sparse'):
             ui.status(repo.vfs.read(b"sparse") + b"\n")
@@ -453,3 +389,5 @@ def debugsparse(ui, repo, **opts):
             )
         finally:
             wlock.release()
+
+    del repo._has_sparse

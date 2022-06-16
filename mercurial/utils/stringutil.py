@@ -7,7 +7,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import ast
 import codecs
@@ -497,7 +496,7 @@ def person(author):
 
 
 @attr.s(hash=True)
-class mailmapping(object):
+class mailmapping:
     """Represents a username/email key or value in
     a mailmap file"""
 
@@ -686,6 +685,18 @@ def isauthorwellformed(author):
     return _correctauthorformat.match(author) is not None
 
 
+def firstline(text):
+    """Return the first line of the input"""
+    # Try to avoid running splitlines() on the whole string
+    i = text.find(b'\n')
+    if i != -1:
+        text = text[:i]
+    try:
+        return text.splitlines()[0]
+    except IndexError:
+        return b''
+
+
 def ellipsis(text, maxlength=400):
     """Trim string to at most maxlength (default: 400) columns in display."""
     return encoding.trim(text, maxlength, ellipsis=b'...')
@@ -739,7 +750,7 @@ def _MBTextWrapper(**kwargs):
         def _cutdown(self, ucstr, space_left):
             l = 0
             colwidth = encoding.ucolwidth
-            for i in pycompat.xrange(len(ucstr)):
+            for i in range(len(ucstr)):
                 l += colwidth(ucstr[i])
                 if space_left < l:
                     return (ucstr[:i], ucstr[i:])
@@ -965,6 +976,4 @@ def parselist(value):
 def evalpythonliteral(s):
     """Evaluate a string containing a Python literal expression"""
     # We could backport our tokenizer hack to rewrite '' to u'' if we want
-    if pycompat.ispy3:
-        return ast.literal_eval(s.decode('latin1'))
-    return ast.literal_eval(s)
+    return ast.literal_eval(s.decode('latin1'))

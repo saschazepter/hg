@@ -1,7 +1,4 @@
-from __future__ import absolute_import
-
 import collections
-import errno
 import shutil
 import struct
 import weakref
@@ -15,7 +12,6 @@ from .node import (
 from . import (
     error,
     filemerge,
-    pycompat,
     util,
 )
 from .utils import hashutil
@@ -103,7 +99,7 @@ CHANGE_REMOVED = b'removed'
 CHANGE_MODIFIED = b'modified'
 
 
-class MergeAction(object):
+class MergeAction:
     """represent an "action" merge need to take for a given file
 
     Attributes:
@@ -197,7 +193,7 @@ CONVERT_MERGE_ACTIONS = (
 )
 
 
-class _mergestate_base(object):
+class _mergestate_base:
     """track 3-way merge state of individual files
 
     The merge state is stored on disk when needed. Two files are used: one with
@@ -365,7 +361,7 @@ class _mergestate_base(object):
     def unresolved(self):
         """Obtain the paths of unresolved files."""
 
-        for f, entry in pycompat.iteritems(self._state):
+        for f, entry in self._state.items():
             if entry[0] in (
                 MERGE_RECORD_UNRESOLVED,
                 MERGE_RECORD_UNRESOLVED_PATH,
@@ -469,7 +465,7 @@ class _mergestate_base(object):
         """return counts for updated, merged and removed files in this
         session"""
         updated, merged, removed = 0, 0, 0
-        for r, action in pycompat.itervalues(self._results):
+        for r, action in self._results.values():
             if r is None:
                 updated += 1
             elif r == 0:
@@ -492,7 +488,7 @@ class _mergestate_base(object):
             ACTION_ADD_MODIFIED: [],
             ACTION_GET: [],
         }
-        for f, (r, action) in pycompat.iteritems(self._results):
+        for f, (r, action) in self._results.items():
             if action is not None:
                 actions[action].append((f, None, b"merge result"))
         return actions
@@ -632,9 +628,8 @@ class mergestate(_mergestate_base):
                 else:
                     records.append((RECORD_MERGED, l[:-1]))
             f.close()
-        except IOError as err:
-            if err.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
+            pass
         return records
 
     def _readrecordsv2(self):
@@ -672,9 +667,8 @@ class mergestate(_mergestate_base):
                     rtype, record = record[0:1], record[1:]
                 records.append((rtype, record))
             f.close()
-        except IOError as err:
-            if err.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
+            pass
         return records
 
     def commit(self):
@@ -692,7 +686,7 @@ class mergestate(_mergestate_base):
         # the type of state that is stored, and capital-letter records are used
         # to prevent older versions of Mercurial that do not support the feature
         # from loading them.
-        for filename, v in pycompat.iteritems(self._state):
+        for filename, v in self._state.items():
             if v[0] in (
                 MERGE_RECORD_UNRESOLVED_PATH,
                 MERGE_RECORD_RESOLVED_PATH,
@@ -716,9 +710,9 @@ class mergestate(_mergestate_base):
             else:
                 # Normal files.  These are stored in 'F' records.
                 records.append((RECORD_MERGED, b'\0'.join([filename] + v)))
-        for filename, extras in sorted(pycompat.iteritems(self._stateextras)):
+        for filename, extras in sorted(self._stateextras.items()):
             rawextras = b'\0'.join(
-                b'%s\0%s' % (k, v) for k, v in pycompat.iteritems(extras)
+                b'%s\0%s' % (k, v) for k, v in extras.items()
             )
             records.append(
                 (RECORD_FILE_VALUES, b'%s\0%s' % (filename, rawextras))

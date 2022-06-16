@@ -2,7 +2,7 @@
 //!
 //! See `mercurial/helptext/internals/dirstate-v2.txt`
 
-use crate::dirstate::TruncatedTimestamp;
+use crate::dirstate::{DirstateV2Data, TruncatedTimestamp};
 use crate::dirstate_tree::dirstate_map::DirstateVersion;
 use crate::dirstate_tree::dirstate_map::{self, DirstateMap, NodeRef};
 use crate::dirstate_tree::path_with_basename::WithBasename;
@@ -85,7 +85,7 @@ pub struct TreeMetadata {
 
 /// Fields are documented in the *The data file format*
 /// section of `mercurial/helptext/internals/dirstate-v2.txt`
-#[derive(BytesCast)]
+#[derive(BytesCast, Debug)]
 #[repr(C)]
 pub(super) struct Node {
     full_path: PathSlice,
@@ -125,7 +125,7 @@ bitflags! {
 }
 
 /// Duration since the Unix epoch
-#[derive(BytesCast, Copy, Clone)]
+#[derive(BytesCast, Copy, Clone, Debug)]
 #[repr(C)]
 struct PackedTruncatedTimestamp {
     truncated_seconds: U32Be,
@@ -153,7 +153,7 @@ type PathSize = U16Be;
 /// Always sorted by ascending `full_path`, to allow binary search.
 /// Since nodes with the same parent nodes also have the same parent path,
 /// only the `base_name`s need to be compared during binary search.
-#[derive(BytesCast, Copy, Clone)]
+#[derive(BytesCast, Copy, Clone, Debug)]
 #[repr(C)]
 struct ChildNodes {
     start: Offset,
@@ -161,7 +161,7 @@ struct ChildNodes {
 }
 
 /// A `HgPath` of `len` bytes
-#[derive(BytesCast, Copy, Clone)]
+#[derive(BytesCast, Copy, Clone, Debug)]
 #[repr(C)]
 struct PathSlice {
     start: Offset,
@@ -417,7 +417,7 @@ impl Node {
 
     fn assume_entry(&self) -> Result<DirstateEntry, DirstateV2ParseError> {
         // TODO: convert through raw bits instead?
-        let wdir_tracked = self.flags().contains(Flags::WDIR_TRACKED);
+        let wc_tracked = self.flags().contains(Flags::WDIR_TRACKED);
         let p1_tracked = self.flags().contains(Flags::P1_TRACKED);
         let p2_info = self.flags().contains(Flags::P2_INFO);
         let mode_size = if self.flags().contains(Flags::HAS_MODE_AND_SIZE)
@@ -447,15 +447,15 @@ impl Node {
             } else {
                 None
             };
-        Ok(DirstateEntry::from_v2_data(
-            wdir_tracked,
+        Ok(DirstateEntry::from_v2_data(DirstateV2Data {
+            wc_tracked,
             p1_tracked,
             p2_info,
             mode_size,
             mtime,
             fallback_exec,
             fallback_symlink,
-        ))
+        }))
     }
 
     pub(super) fn entry(
@@ -495,18 +495,18 @@ impl Node {
     fn from_dirstate_entry(
         entry: &DirstateEntry,
     ) -> (Flags, U32Be, PackedTruncatedTimestamp) {
-        let (
-            wdir_tracked,
+        let DirstateV2Data {
+            wc_tracked,
             p1_tracked,
             p2_info,
-            mode_size_opt,
-            mtime_opt,
+            mode_size: mode_size_opt,
+            mtime: mtime_opt,
             fallback_exec,
             fallback_symlink,
-        ) = entry.v2_data();
-        // TODO: convert throug raw flag bits instead?
+        } = entry.v2_data();
+        // TODO: convert through raw flag bits instead?
         let mut flags = Flags::empty();
-        flags.set(Flags::WDIR_TRACKED, wdir_tracked);
+        flags.set(Flags::WDIR_TRACKED, wc_tracked);
         flags.set(Flags::P1_TRACKED, p1_tracked);
         flags.set(Flags::P2_INFO, p2_info);
         let size = if let Some((m, s)) = mode_size_opt {
@@ -592,7 +592,7 @@ pub(crate) fn for_each_tracked_path<'on_disk>(
     ) -> Result<(), DirstateV2ParseError> {
         for node in read_nodes(on_disk, nodes)? {
             if let Some(entry) = node.entry()? {
-                if entry.state().is_tracked() {
+                if entry.tracked() {
                     f(node.full_path(on_disk)?)
                 }
             }

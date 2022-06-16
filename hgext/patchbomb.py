@@ -71,13 +71,11 @@ specified by --flag option are exported as ``{flags}`` keyword::
 You can set patchbomb to always ask for confirmation by setting
 ``patchbomb.confirm`` to true.
 '''
-from __future__ import absolute_import
 
 import email.encoders as emailencoders
 import email.mime.base as emimebase
 import email.mime.multipart as emimemultipart
 import email.utils as eutil
-import errno
 import os
 import socket
 
@@ -985,9 +983,8 @@ def email(ui, repo, *revs, **opts):
             try:
                 generator.flatten(m, False)
                 ui.write(b'\n')
-            except IOError as inst:
-                if inst.errno != errno.EPIPE:
-                    raise
+            except BrokenPipeError:
+                pass
         else:
             if not sendmail:
                 sendmail = mail.connect(ui, mbox=mbox)

@@ -83,8 +83,6 @@ like CVS' $Log$, are not supported. A keyword template map "Log =
 '''
 
 
-from __future__ import absolute_import
-
 import os
 import re
 import weakref
@@ -237,7 +235,7 @@ def _preselect(wstatus, changed):
     return modified, added
 
 
-class kwtemplater(object):
+class kwtemplater:
     """
     Sets up keyword templates, corresponding keyword regex, and
     provides keyword substitution functions.
@@ -515,7 +513,7 @@ def demo(ui, repo, *args, **opts):
         kwmaps = _defaultkwmaps(ui)
         if uikwmaps:
             ui.status(_(b'\tdisabling current template maps\n'))
-            for k, v in pycompat.iteritems(kwmaps):
+            for k, v in kwmaps.items():
                 ui.setconfig(b'keywordmaps', k, v, b'keyword')
     else:
         ui.status(_(b'\n\tconfiguration using current keyword template maps\n'))
@@ -529,7 +527,7 @@ def demo(ui, repo, *args, **opts):
     ui.writenoi18n(b'[extensions]\nkeyword =\n')
     demoitems(b'keyword', ui.configitems(b'keyword'))
     demoitems(b'keywordset', ui.configitems(b'keywordset'))
-    demoitems(b'keywordmaps', pycompat.iteritems(kwmaps))
+    demoitems(b'keywordmaps', kwmaps.items())
     keywords = b'$' + b'$\n$'.join(sorted(kwmaps.keys())) + b'$\n'
     repo.wvfs.write(fn, keywords)
     repo[None].add([fn])

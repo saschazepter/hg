@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import copy as copymod
 import errno
@@ -562,9 +561,8 @@ def dorecord(
             backupdir = repo.vfs.join(b'record-backups')
             try:
                 os.mkdir(backupdir)
-            except OSError as err:
-                if err.errno != errno.EEXIST:
-                    raise
+            except FileExistsError:
+                pass
         try:
             # backup continues
             for f in tobackup:
@@ -627,7 +625,7 @@ def dorecord(
             # 5. finally restore backed-up files
             try:
                 dirstate = repo.dirstate
-                for realname, tmpname in pycompat.iteritems(backups):
+                for realname, tmpname in backups.items():
                     ui.debug(b'restoring %r to %r\n' % (tmpname, realname))
 
                     if dirstate.get_entry(realname).maybe_clean:
@@ -667,7 +665,7 @@ def dorecord(
     return commit(ui, repo, recordinwlock, pats, opts)
 
 
-class dirnode(object):
+class dirnode:
     """
     Represent a directory in user working copy with information required for
     the purpose of tersing its status.
@@ -833,7 +831,7 @@ def _commentlines(raw):
 
 
 @attr.s(frozen=True)
-class morestatus(object):
+class morestatus:
     reporoot = attr.ib()
     unfinishedop = attr.ib()
     unfinishedmsg = attr.ib()
@@ -1344,7 +1342,7 @@ def isstdiofilename(pat):
     return not pat or pat == b'-'
 
 
-class _unclosablefile(object):
+class _unclosablefile:
     def __init__(self, fp):
         self._fp = fp
 
@@ -2934,16 +2932,15 @@ def amend(ui, repo, old, extra, pats, opts):
 
             def filectxfn(repo, ctx_, path):
                 try:
-                    # Return None for removed files.
-                    if path in wctx.removed() and path in filestoamend:
-                        return None
-
                     # If the file being considered is not amongst the files
                     # to be amended, we should use the file context from the
                     # old changeset. This avoids issues when only some files in
                     # the working copy are being amended but there are also
                     # changes to other files from the old changeset.
                     if path in filestoamend:
+                        # Return None for removed files.
+                        if path in wctx.removed():
+                            return None
                         fctx = wctx[path]
                     else:
                         fctx = old.filectx(path)
@@ -3750,10 +3747,18 @@ def _performrevert(
 
     for f in actions[b'add'][0]:
         # Don't checkout modified files, they are already created by the diff
-        if f not in newlyaddedandmodifiedfiles:
-            prntstatusmsg(b'add', f)
-            checkout(f)
-            repo.dirstate.set_tracked(f)
+        if f in newlyaddedandmodifiedfiles:
+            continue
+
+        if interactive:
+            choice = repo.ui.promptchoice(
+                _(b"add new file %s (Yn)?$$ &Yes $$ &No") % uipathfn(f)
+            )
+            if choice != 0:
+                continue
+        prntstatusmsg(b'add', f)
+        checkout(f)
+        repo.dirstate.set_tracked(f)
 
     for f in actions[b'undelete'][0]:
         if interactive:

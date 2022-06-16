@@ -6,7 +6,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import gc
 import os
@@ -269,7 +268,7 @@ def indexentries(
     return templateutil.mappinggenerator(_indexentriesgen, args=args)
 
 
-class hgwebdir(object):
+class hgwebdir:
     """HTTP server for multiple repositories.
 
     Given a configuration, different repositories will be served depending
@@ -461,12 +460,9 @@ class hgwebdir(object):
                 if real:
                     # Re-parse the WSGI environment to take into account our
                     # repository path component.
-                    uenv = req.rawenv
-                    if pycompat.ispy3:
-                        uenv = {
-                            k.decode('latin1'): v
-                            for k, v in pycompat.iteritems(uenv)
-                        }
+                    uenv = {
+                        k.decode('latin1'): v for k, v in req.rawenv.items()
+                    }
                     req = requestmod.parserequestfromenv(
                         uenv,
                         reponame=virtualrepo,

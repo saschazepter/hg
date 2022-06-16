@@ -6,7 +6,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import os
 
@@ -37,7 +36,7 @@ def hgweb(config, name=None, baseui=None):
     - list of virtual:real tuples (multi-repo view)
     """
 
-    if isinstance(config, pycompat.unicode):
+    if isinstance(config, str):
         raise error.ProgrammingError(
             b'Mercurial only supports encoded strings: %r' % config
         )
@@ -55,7 +54,7 @@ def hgwebdir(config, baseui=None):
     return hgwebdir_mod.hgwebdir(config, baseui=baseui)
 
 
-class httpservice(object):
+class httpservice:
     def __init__(self, ui, app, opts):
         self.ui = ui
         self.app = app

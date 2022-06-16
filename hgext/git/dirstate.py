@@ -1,17 +1,18 @@
-from __future__ import absolute_import
-
 import contextlib
-import errno
 import os
 
 from mercurial.node import sha1nodeconstants
 from mercurial import (
+    dirstatemap,
     error,
     extensions,
     match as matchmod,
     pycompat,
     scmutil,
     util,
+)
+from mercurial.dirstateutils import (
+    timestamp,
 )
 from mercurial.interfaces import (
     dirstate as intdirstate,
@@ -20,6 +21,9 @@ from mercurial.interfaces import (
 
 from . import gitutil
 
+
+DirstateItem = dirstatemap.DirstateItem
+propertycache = util.propertycache
 pygit2 = gitutil.get_pygit2()
 
 
@@ -28,7 +32,7 @@ def readpatternfile(orig, filepath, warn, sourceinfo=False):
         return orig(filepath, warn, sourceinfo=False)
     result = []
     warnings = []
-    with open(filepath, b'rb') as fp:
+    with open(filepath, 'rb') as fp:
         for l in fp:
             l = l.strip()
             if not l or l.startswith(b'#'):
@@ -68,14 +72,29 @@ if pygit2:
 
 
 @interfaceutil.implementer(intdirstate.idirstate)
-class gitdirstate(object):
-    def __init__(self, ui, root, gitrepo):
+class gitdirstate:
+    def __init__(self, ui, vfs, gitrepo, use_dirstate_v2):
         self._ui = ui
-        self._root = os.path.dirname(root)
+        self._root = os.path.dirname(vfs.base)
+        self._opener = vfs
         self.git = gitrepo
         self._plchangecallbacks = {}
         # TODO: context.poststatusfixup is bad and uses this attribute
         self._dirty = False
+        self._mapcls = dirstatemap.dirstatemap
+        self._use_dirstate_v2 = use_dirstate_v2
+
+    @propertycache
+    def _map(self):
+        """Return the dirstate contents (see documentation for dirstatemap)."""
+        self._map = self._mapcls(
+            self._ui,
+            self._opener,
+            self._root,
+            sha1nodeconstants,
+            self._use_dirstate_v2,
+        )
+        return self._map
 
     def p1(self):
         try:
@@ -144,6 +163,13 @@ class gitdirstate(object):
             [],
             [],
         )
+
+        try:
+            mtime_boundary = timestamp.get_fs_now(self._opener)
+        except OSError:
+            # In largefiles or readonly context
+            mtime_boundary = None
+
         gstatus = self.git.status()
         for path, status in gstatus.items():
             path = pycompat.fsencode(path)
@@ -195,6 +221,7 @@ class gitdirstate(object):
             scmutil.status(
                 modified, added, removed, deleted, unknown, ignored, clean
             ),
+            mtime_boundary,
         )
 
     def flagfunc(self, buildfallback):
@@ -206,6 +233,13 @@ class gitdirstate(object):
         return os.path.dirname(
             os.path.dirname(pycompat.fsencode(self.git.path))
         )
+
+    def get_entry(self, path):
+        """return a DirstateItem for the associated path"""
+        entry = self._map.get(path)
+        if entry is None:
+            return DirstateItem()
+        return entry
 
     def normalize(self, path):
         normed = util.normcase(path)
@@ -283,9 +317,7 @@ class gitdirstate(object):
             # TODO construct the stat info from the status object?
             try:
                 s = os.stat(os.path.join(cwd, path))
-            except OSError as e:
-                if e.errno != errno.ENOENT:
-                    raise
+            except FileNotFoundError:
                 continue
             r[path] = s
         return r

@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import copy
 import mimetypes
@@ -47,7 +46,7 @@ __all__ = []
 commands = {}
 
 
-class webcommand(object):
+class webcommand:
     """Decorator used to register a web command handler.
 
     The decorator takes as its positional arguments the name/path the
@@ -229,7 +228,7 @@ def _search(web):
 
         def revgen():
             cl = web.repo.changelog
-            for i in pycompat.xrange(len(web.repo) - 1, 0, -100):
+            for i in range(len(web.repo) - 1, 0, -100):
                 l = []
                 for j in cl.revs(max(0, i - 99), i):
                     ctx = web.repo[j]
@@ -564,7 +563,7 @@ def manifest(web):
     l = len(path)
     abspath = b"/" + path
 
-    for full, n in pycompat.iteritems(mf):
+    for full, n in mf.items():
         # the virtual path (working copy path) used for the full
         # (repository) path
         f = decodepath(full)
@@ -1521,7 +1520,7 @@ def help(web):
 
         early, other = [], []
         primary = lambda s: s.partition(b'|')[0]
-        for c, e in pycompat.iteritems(commands.table):
+        for c, e in commands.table.items():
             doc = _getdoc(e)
             if b'DEPRECATED' in doc or c.startswith(b'debug'):
                 continue

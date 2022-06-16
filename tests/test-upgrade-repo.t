@@ -734,7 +734,6 @@ Upgrading a repository to generaldelta works
   $ touch FooBarDirectory.d/f1
   $ hg -q commit -A -m 'add f1'
   $ hg -q up -r 0
-  >>> from __future__ import absolute_import, print_function
   >>> import random
   >>> random.seed(0) # have a reproducible content
   >>> with open("f2", "wb") as f:
@@ -958,7 +957,6 @@ We can restrict optimization to some revlog:
 Check that the repo still works fine
 
   $ hg log -G --stat
-  @  changeset:   2:76d4395f5413 (no-py3 !)
   @  changeset:   2:fca376863211 (py3 !)
   |  tag:         tip
   |  parent:      0:ba592bf28da2
@@ -1455,10 +1453,10 @@ repository config is taken in account
   format.revlog-compression=$BUNDLE2_COMPRESSIONS$
   format.maxchainlen=9001
   $ hg debugdeltachain file
-      rev  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio   readsize largestblk rddensity srchunks
-        0       1        1       -1    base         77        182         77   0.42308        77         0    0.00000         77         77   1.00000        1
-        1       1        2        0      p1         21        191         98   0.51309        98         0    0.00000         98         98   1.00000        1
-        2       1        2        0   other         30        200        107   0.53500       128        21    0.19626        128        128   0.83594        1
+      rev      p1      p2  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio   readsize largestblk rddensity srchunks
+        0      -1      -1       1        1       -1    base         77        182         77   0.42308        77         0    0.00000         77         77   1.00000        1
+        1       0      -1       1        2        0      p1         21        191         98   0.51309        98         0    0.00000         98         98   1.00000        1
+        2       1      -1       1        2        0    snap         30        200        107   0.53500       128        21    0.19626        128        128   0.83594        1
 
   $ hg debugupgraderepo --run --optimize 're-delta-all'
   upgrade will perform the following actions:
@@ -1503,10 +1501,10 @@ repository config is taken in account
   copy of old repository backed up at $TESTTMP/localconfig/.hg/upgradebackup.* (glob)
   the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
   $ hg debugdeltachain file
-      rev  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio   readsize largestblk rddensity srchunks
-        0       1        1       -1    base         77        182         77   0.42308        77         0    0.00000         77         77   1.00000        1
-        1       1        2        0      p1         21        191         98   0.51309        98         0    0.00000         98         98   1.00000        1
-        2       1        3        1      p1         21        200        119   0.59500       119         0    0.00000        119        119   1.00000        1
+      rev      p1      p2  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio   readsize largestblk rddensity srchunks
+        0      -1      -1       1        1       -1    base         77        182         77   0.42308        77         0    0.00000         77         77   1.00000        1
+        1       0      -1       1        2        0      p1         21        191         98   0.51309        98         0    0.00000         98         98   1.00000        1
+        2       1      -1       1        3        1      p1         21        200        119   0.59500       119         0    0.00000        119        119   1.00000        1
   $ cd ..
 
   $ cat << EOF >> $HGRCPATH
@@ -1996,3 +1994,135 @@ downgrade
   dirstate-v2:         no
 
   $ cd ..
+
+Test automatic upgrade/downgrade
+================================
+
+
+For dirstate v2
+---------------
+
+create an initial repository
+
+  $ hg init auto-upgrade \
+  >     --config format.use-dirstate-v2=no \
+  >     --config format.use-dirstate-tracked-hint=yes \
+  >     --config format.use-share-safe=no
+  $ hg debugbuilddag -R auto-upgrade --new-file .+5
+  $ hg -R auto-upgrade update
+  6 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg debugformat -R auto-upgrade | grep dirstate-v2
+  dirstate-v2:         no
+
+upgrade it to dirstate-v2 automatically
+
+  $ hg status -R auto-upgrade \
+  >     --config format.use-dirstate-v2.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config format.use-dirstate-v2=yes
+  automatically upgrading repository to the `dirstate-v2` feature
+  (see `hg help config.format.use-dirstate-v2` for details)
+  $ hg debugformat -R auto-upgrade | grep dirstate-v2
+  dirstate-v2:        yes
+
+downgrade it from dirstate-v2 automatically
+
+  $ hg status -R auto-upgrade \
+  >     --config format.use-dirstate-v2.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config format.use-dirstate-v2=no
+  automatically downgrading repository from the `dirstate-v2` feature
+  (see `hg help config.format.use-dirstate-v2` for details)
+  $ hg debugformat -R auto-upgrade | grep dirstate-v2
+  dirstate-v2:         no
+
+
+For multiple change at the same time
+------------------------------------
+
+  $ hg debugformat -R auto-upgrade | egrep '(dirstate-v2|tracked|share-safe)'
+  dirstate-v2:         no
+  tracked-hint:       yes
+  share-safe:          no
+
+  $ hg status -R auto-upgrade \
+  >     --config format.use-dirstate-v2.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config format.use-dirstate-v2=yes \
+  >     --config format.use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config format.use-dirstate-tracked-hint=no\
+  >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config format.use-share-safe=yes
+  automatically upgrading repository to the `dirstate-v2` feature
+  (see `hg help config.format.use-dirstate-v2` for details)
+  automatically upgrading repository to the `share-safe` feature
+  (see `hg help config.format.use-share-safe` for details)
+  automatically downgrading repository from the `tracked-hint` feature
+  (see `hg help config.format.use-dirstate-tracked-hint` for details)
+  $ hg debugformat -R auto-upgrade | egrep '(dirstate-v2|tracked|share-safe)'
+  dirstate-v2:        yes
+  tracked-hint:        no
+  share-safe:         yes
+
+Quiet upgrade and downgrade
+---------------------------
+
+
+  $ hg debugformat -R auto-upgrade | egrep '(dirstate-v2|tracked|share-safe)'
+  dirstate-v2:        yes
+  tracked-hint:        no
+  share-safe:         yes
+  $ hg status -R auto-upgrade \
+  >     --config format.use-dirstate-v2.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config format.use-dirstate-v2.automatic-upgrade-of-mismatching-repositories:quiet=yes \
+  >     --config format.use-dirstate-v2=no \
+  >     --config format.use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config format.use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories:quiet=yes \
+  >     --config format.use-dirstate-tracked-hint=yes \
+  >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories:quiet=yes \
+  >     --config format.use-share-safe=no
+
+  $ hg debugformat -R auto-upgrade | egrep '(dirstate-v2|tracked|share-safe)'
+  dirstate-v2:         no
+  tracked-hint:       yes
+  share-safe:          no
+
+  $ hg status -R auto-upgrade \
+  >     --config format.use-dirstate-v2.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config format.use-dirstate-v2.automatic-upgrade-of-mismatching-repositories:quiet=yes \
+  >     --config format.use-dirstate-v2=yes \
+  >     --config format.use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config format.use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories:quiet=yes \
+  >     --config format.use-dirstate-tracked-hint=no\
+  >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories:quiet=yes \
+  >     --config format.use-share-safe=yes
+  $ hg debugformat -R auto-upgrade | egrep '(dirstate-v2|tracked|share-safe)'
+  dirstate-v2:        yes
+  tracked-hint:        no
+  share-safe:         yes
+
+Attempting Auto-upgrade on a read-only repository
+-------------------------------------------------
+
+  $ chmod -R a-w auto-upgrade
+
+  $ hg status -R auto-upgrade \
+  >     --config format.use-dirstate-v2.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config format.use-dirstate-v2=no
+  $ hg debugformat -R auto-upgrade | grep dirstate-v2
+  dirstate-v2:        yes
+
+  $ chmod -R u+w auto-upgrade
+
+Attempting Auto-upgrade on a locked repository
+----------------------------------------------
+
+  $ hg -R auto-upgrade debuglock --set-lock --quiet &
+  $ echo $! >> $DAEMON_PIDS
+  $ $RUNTESTDIR/testlib/wait-on-file 10 auto-upgrade/.hg/store/lock
+  $ hg status -R auto-upgrade \
+  >     --config format.use-dirstate-v2.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config format.use-dirstate-v2=no
+  $ hg debugformat -R auto-upgrade | grep dirstate-v2
+  dirstate-v2:        yes
+
+  $ killdaemons.py

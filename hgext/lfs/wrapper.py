@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import hashlib
 
@@ -25,7 +24,6 @@ from mercurial import (
     exchange,
     exthelper,
     localrepo,
-    pycompat,
     revlog,
     scmutil,
     util,
@@ -143,7 +141,7 @@ def writetostore(self, text):
 
     # translate hg filelog metadata to lfs metadata with "x-hg-" prefix
     if hgmeta is not None:
-        for k, v in pycompat.iteritems(hgmeta):
+        for k, v in hgmeta.items():
             metadata[b'x-hg-%s' % k] = v
 
     rawtext = metadata.serialize()

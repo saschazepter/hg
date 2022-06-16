@@ -5,9 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
-import errno
 import functools
 import os
 import re
@@ -145,13 +143,13 @@ def _buildencodefun():
         cmap[xchr(x)] = e + xchr(x).lower()
 
     dmap = {}
-    for k, v in pycompat.iteritems(cmap):
+    for k, v in cmap.items():
         dmap[v] = k
 
     def decode(s):
         i = 0
         while i < len(s):
-            for l in pycompat.xrange(1, 4):
+            for l in range(1, 4):
                 try:
                     yield dmap[s[i : i + l]]
                     i += l
@@ -162,9 +160,7 @@ def _buildencodefun():
                 raise KeyError
 
     return (
-        lambda s: b''.join(
-            [cmap[s[c : c + 1]] for c in pycompat.xrange(len(s))]
-        ),
+        lambda s: b''.join([cmap[s[c : c + 1]] for c in range(len(s))]),
         lambda s: b''.join(list(decode(s))),
     )
 
@@ -201,7 +197,7 @@ def _buildlowerencodefun():
     'the~07quick~adshot'
     """
     xchr = pycompat.bytechr
-    cmap = {xchr(x): xchr(x) for x in pycompat.xrange(127)}
+    cmap = {xchr(x): xchr(x) for x in range(127)}
     for x in _reserved():
         cmap[xchr(x)] = b"~%02x" % x
     for x in range(ord(b"A"), ord(b"Z") + 1):
@@ -456,7 +452,7 @@ FILETYPE_FILELOG_OTHER = FILEFLAGS_FILELOG | FILEFLAGS_REVLOG_OTHER
 FILETYPE_OTHER = FILEFLAGS_OTHER
 
 
-class basicstore(object):
+class basicstore:
     '''base class for local repository stores'''
 
     def __init__(self, path, vfstype):
@@ -602,7 +598,7 @@ class encodedstore(basicstore):
         return [b'requires', b'00changelog.i'] + [b'store/' + f for f in _data]
 
 
-class fncache(object):
+class fncache:
     # the filename used to be partially encoded
     # hence the encodedir/decodedir dance
     def __init__(self, vfs):
@@ -662,7 +658,7 @@ class fncache(object):
         """make sure there is no empty string in entries"""
         if b'' in self.entries:
             fp.seek(0)
-            for n, line in enumerate(util.iterfile(fp)):
+            for n, line in enumerate(fp):
                 if not line.rstrip(b'\n'):
                     t = _(b'invalid entry in fncache, line %d') % (n + 1)
                     if warn:
@@ -791,9 +787,8 @@ class fncachestore(basicstore):
                 assert t is not None, f
                 t |= FILEFLAGS_FILELOG
                 yield t, f, self.getsize(ef)
-            except OSError as err:
-                if err.errno != errno.ENOENT:
-                    raise
+            except FileNotFoundError:
+                pass
 
     def copylist(self):
         d = (
@@ -828,10 +823,7 @@ class fncachestore(basicstore):
         try:
             self.getsize(ef)
             return True
-        except OSError as err:
-            if err.errno != errno.ENOENT:
-                raise
-            # nonexistent entry
+        except FileNotFoundError:
             return False
 
     def __contains__(self, path):

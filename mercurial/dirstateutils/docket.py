@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import struct
 
@@ -29,7 +28,7 @@ HEADER = struct.Struct(
 )
 
 
-class DirstateDocket(object):
+class DirstateDocket:
     data_filename_pattern = b'dirstate.%s'
 
     def __init__(self, parents, data_size, tree_metadata, uuid):

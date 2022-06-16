@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import functools
 import re
@@ -30,7 +29,7 @@ def loadconfigtable(ui, extname, configtable):
         knownitems.update(items)
 
 
-class configitem(object):
+class configitem:
     """represent a known config item
 
     :section: the official config section where to find this item,
@@ -583,6 +582,11 @@ coreconfigitem(
     b'debug',
     b'revlog.verifyposition.changelog',
     default=b'',
+)
+coreconfigitem(
+    b'debug',
+    b'revlog.debug-delta',
+    default=False,
 )
 coreconfigitem(
     b'defaults',
@@ -1279,6 +1283,18 @@ coreconfigitem(
 )
 coreconfigitem(
     b'format',
+    b'use-dirstate-v2.automatic-upgrade-of-mismatching-repositories',
+    default=False,
+    experimental=True,
+)
+coreconfigitem(
+    b'format',
+    b'use-dirstate-v2.automatic-upgrade-of-mismatching-repositories:quiet',
+    default=False,
+    experimental=True,
+)
+coreconfigitem(
+    b'format',
     b'use-dirstate-tracked-hint',
     default=False,
     experimental=True,
@@ -1287,6 +1303,18 @@ coreconfigitem(
     b'format',
     b'use-dirstate-tracked-hint.version',
     default=1,
+    experimental=True,
+)
+coreconfigitem(
+    b'format',
+    b'use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories',
+    default=False,
+    experimental=True,
+)
+coreconfigitem(
+    b'format',
+    b'use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories:quiet',
+    default=False,
     experimental=True,
 )
 coreconfigitem(
@@ -1384,6 +1412,18 @@ coreconfigitem(
     b'format',
     b'use-share-safe',
     default=True,
+)
+coreconfigitem(
+    b'format',
+    b'use-share-safe.automatic-upgrade-of-mismatching-repositories',
+    default=False,
+    experimental=True,
+)
+coreconfigitem(
+    b'format',
+    b'use-share-safe.automatic-upgrade-of-mismatching-repositories:quiet',
+    default=False,
+    experimental=True,
 )
 coreconfigitem(
     b'format',
@@ -1571,6 +1611,59 @@ coreconfigitem(
     default=False,
 )
 coreconfigitem(
+    b'merge',
+    b'disable-partial-tools',
+    default=False,
+    experimental=True,
+)
+coreconfigitem(
+    b'partial-merge-tools',
+    b'.*',
+    default=None,
+    generic=True,
+    experimental=True,
+)
+coreconfigitem(
+    b'partial-merge-tools',
+    br'.*\.patterns',
+    default=dynamicdefault,
+    generic=True,
+    priority=-1,
+    experimental=True,
+)
+coreconfigitem(
+    b'partial-merge-tools',
+    br'.*\.executable$',
+    default=dynamicdefault,
+    generic=True,
+    priority=-1,
+    experimental=True,
+)
+coreconfigitem(
+    b'partial-merge-tools',
+    br'.*\.order',
+    default=0,
+    generic=True,
+    priority=-1,
+    experimental=True,
+)
+coreconfigitem(
+    b'partial-merge-tools',
+    br'.*\.args',
+    default=b"$local $base $other",
+    generic=True,
+    priority=-1,
+    experimental=True,
+)
+coreconfigitem(
+    b'partial-merge-tools',
+    br'.*\.disable',
+    default=False,
+    generic=True,
+    priority=-1,
+    experimental=True,
+)
+coreconfigitem(
     b'merge-tools',
     b'.*',
     default=None,
@@ -1699,6 +1792,30 @@ coreconfigitem(
 coreconfigitem(
     b'paths',
     b'.*',
+    default=None,
+    generic=True,
+)
+coreconfigitem(
+    b'paths',
+    b'.*:bookmarks.mode',
+    default='default',
+    generic=True,
+)
+coreconfigitem(
+    b'paths',
+    b'.*:multi-urls',
+    default=False,
+    generic=True,
+)
+coreconfigitem(
+    b'paths',
+    b'.*:pushrev',
+    default=None,
+    generic=True,
+)
+coreconfigitem(
+    b'paths',
+    b'.*:pushurl',
     default=None,
     generic=True,
 )
@@ -2050,6 +2167,16 @@ coreconfigitem(
 coreconfigitem(
     b'share',
     b'safe-mismatch.source-safe.warn',
+    default=True,
+)
+coreconfigitem(
+    b'share',
+    b'safe-mismatch.source-not-safe:verbose-upgrade',
+    default=True,
+)
+coreconfigitem(
+    b'share',
+    b'safe-mismatch.source-safe:verbose-upgrade',
     default=True,
 )
 coreconfigitem(

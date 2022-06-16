@@ -10,7 +10,6 @@
 #   $ HGREPOFEATURES="simplestore" ./run-tests.py \
 #       --extra-config-opt extensions.simplestore=`pwd`/simplestorerepo.py
 
-from __future__ import absolute_import
 
 import stat
 
@@ -71,7 +70,7 @@ class simplestoreerror(error.StorageError):
 
 @interfaceutil.implementer(repository.irevisiondelta)
 @attr.s(slots=True)
-class simplestorerevisiondelta(object):
+class simplestorerevisiondelta:
     node = attr.ib()
     p1node = attr.ib()
     p2node = attr.ib()
@@ -85,14 +84,14 @@ class simplestorerevisiondelta(object):
 
 @interfaceutil.implementer(repository.iverifyproblem)
 @attr.s(frozen=True)
-class simplefilestoreproblem(object):
+class simplefilestoreproblem:
     warning = attr.ib(default=None)
     error = attr.ib(default=None)
     node = attr.ib(default=None)
 
 
 @interfaceutil.implementer(repository.ifilestorage)
-class filestorage(object):
+class filestorage:
     """Implements storage for a tracked path.
 
     Data is stored in the VFS in a directory corresponding to the tracked

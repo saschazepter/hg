@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import collections
 import contextlib
@@ -76,7 +75,7 @@ def _decorate(fctx):
     linecount = text.count(b'\n')
     if text and not text.endswith(b'\n'):
         linecount += 1
-    return ([(fctx, i) for i in pycompat.xrange(linecount)], text)
+    return ([(fctx, i) for i in range(linecount)], text)
 
 
 # extracted from mercurial.context.basefilectx.annotate. slightly modified
@@ -160,7 +159,7 @@ def hashdiffopts(diffopts):
 _defaultdiffopthash = hashdiffopts(mdiff.defaultopts)
 
 
-class annotateopts(object):
+class annotateopts:
     """like mercurial.mdiff.diffopts, but is for annotate
 
     followrename: follow renames, like "hg annotate -f"
@@ -175,7 +174,7 @@ class annotateopts(object):
 
     def __init__(self, **opts):
         opts = pycompat.byteskwargs(opts)
-        for k, v in pycompat.iteritems(self.defaults):
+        for k, v in self.defaults.items():
             setattr(self, k, opts.get(k, v))
 
     @util.propertycache
@@ -197,7 +196,7 @@ class annotateopts(object):
 defaultopts = annotateopts()
 
 
-class _annotatecontext(object):
+class _annotatecontext:
     """do not use this class directly as it does not use lock to protect
     writes. use "with annotatecontext(...)" instead.
     """
@@ -578,13 +577,13 @@ class _annotatecontext(object):
         result = [None] * len(annotateresult)
         # {(rev, linenum): [lineindex]}
         key2idxs = collections.defaultdict(list)
-        for i in pycompat.xrange(len(result)):
+        for i in range(len(result)):
             key2idxs[(revs[i], annotateresult[i][1])].append(i)
         while key2idxs:
             # find an unresolved line and its linelog rev to annotate
             hsh = None
             try:
-                for (rev, _linenum), idxs in pycompat.iteritems(key2idxs):
+                for (rev, _linenum), idxs in key2idxs.items():
                     if revmap.rev2flag(rev) & revmapmod.sidebranchflag:
                         continue
                     hsh = annotateresult[idxs[0]][0]
@@ -595,7 +594,7 @@ class _annotatecontext(object):
                 # the remaining key2idxs are not in main branch, resolving them
                 # using the hard way...
                 revlines = {}
-                for (rev, linenum), idxs in pycompat.iteritems(key2idxs):
+                for (rev, linenum), idxs in key2idxs.items():
                     if rev not in revlines:
                         hsh = annotateresult[idxs[0]][0]
                         if self.ui.debugflag:
@@ -784,7 +783,7 @@ def _unlinkpaths(paths):
             pass
 
 
-class pathhelper(object):
+class pathhelper:
     """helper for getting paths for lockfile, linelog and revmap"""
 
     def __init__(self, repo, path, opts=defaultopts):

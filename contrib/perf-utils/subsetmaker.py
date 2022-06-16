@@ -15,6 +15,10 @@ from mercurial import (
     smartset,
 )
 
+import sortedcontainers
+
+SortedSet = sortedcontainers.SortedSet
+
 revsetpredicate = registrar.revsetpredicate()
 
 
@@ -78,7 +82,7 @@ def scratch(repo, subset, x):
     n = revsetlang.getinteger(n, _(b"scratch expects a number"))
 
     selected = set()
-    heads = set()
+    heads = SortedSet()
     children_count = collections.defaultdict(lambda: 0)
     parents = repo.changelog._uncheckedparentrevs
 
@@ -102,7 +106,7 @@ def scratch(repo, subset, x):
     for x in range(n):
         if not heads:
             break
-        pick = rand.choice(list(heads))
+        pick = rand.choice(heads)
         heads.remove(pick)
         assert pick not in selected
         selected.add(pick)
@@ -155,16 +159,44 @@ def antichain(repo, subset, x):
     else:
         assert False
 
-    selected = set()
+    cl = repo.changelog
 
-    baseset = revset.getset(repo, smartset.fullreposet(repo), x)
-    undecided = baseset
+    # We already have cheap access to the parent mapping.
+    # However, we need to build a mapping of the children mapping
+    parents = repo.changelog._uncheckedparentrevs
+    children_map = collections.defaultdict(list)
+    for r in cl:
+        p1, p2 = parents(r)
+        if p1 >= 0:
+            children_map[p1].append(r)
+        if p2 >= 0:
+            children_map[p2].append(r)
+    children = children_map.__getitem__
+
+    selected = set()
+    undecided = SortedSet(cl)
 
     while undecided:
-        pick = rand.choice(list(undecided))
+        # while there is "undecided content", we pick a random changeset X
+        # and we remove anything in `::X + X::` from undecided content
+        pick = rand.choice(undecided)
         selected.add(pick)
-        undecided = repo.revs(
-            '%ld and not (::%ld or %ld::head())', baseset, selected, selected
-        )
+        undecided.remove(pick)
+
+        ancestors = set(p for p in parents(pick) if p in undecided)
+        descendants = set(c for c in children(pick) if c in undecided)
+
+        while ancestors:
+            current = ancestors.pop()
+            undecided.remove(current)
+            for p in parents(current):
+                if p in undecided:
+                    ancestors.add(p)
+        while descendants:
+            current = descendants.pop()
+            undecided.remove(current)
+            for p in children(current):
+                if p in undecided:
+                    ancestors.add(p)
 
     return smartset.baseset(selected) & subset

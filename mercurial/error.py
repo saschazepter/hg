@@ -11,7 +11,6 @@ This allows us to catch exceptions at higher levels without forcing
 imports.
 """
 
-from __future__ import absolute_import
 
 import difflib
 
@@ -40,7 +39,7 @@ def _tobytes(exc):
     return b'(%s)' % b', '.join(b"'%s'" % pycompat.bytestr(a) for a in exc.args)
 
 
-class Hint(object):
+class Hint:
     """Mix-in to provide a hint of an error
 
     This should come first in the inheritance list to consume a hint and
@@ -69,14 +68,12 @@ class Error(Hint, Exception):
     def __bytes__(self):
         return self.message
 
-    if pycompat.ispy3:
-
-        def __str__(self):
-            # type: () -> str
-            # the output would be unreadable if the message was translated,
-            # but do not replace it with encoding.strfromlocal(), which
-            # may raise another exception.
-            return pycompat.sysstr(self.__bytes__())
+    def __str__(self):
+        # type: () -> str
+        # the output would be unreadable if the message was translated,
+        # but do not replace it with encoding.strfromlocal(), which
+        # may raise another exception.
+        return pycompat.sysstr(self.__bytes__())
 
     def format(self):
         # type: () -> bytes

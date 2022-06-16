@@ -5,11 +5,11 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import sys
 import weakref
 
+from concurrent import futures
 from .i18n import _
 from .node import bin
 from .pycompat import (
@@ -80,15 +80,14 @@ def encodebatchcmds(req):
         assert all(escapearg(k) == k for k in argsdict)
 
         args = b','.join(
-            b'%s=%s' % (escapearg(k), escapearg(v))
-            for k, v in pycompat.iteritems(argsdict)
+            b'%s=%s' % (escapearg(k), escapearg(v)) for k, v in argsdict.items()
         )
         cmds.append(b'%s %s' % (op, args))
 
     return b';'.join(cmds)
 
 
-class unsentfuture(pycompat.futures.Future):
+class unsentfuture(futures.Future):
     """A Future variation to represent an unsent command.
 
     Because we buffer commands and don't submit them immediately, calling
@@ -99,7 +98,7 @@ class unsentfuture(pycompat.futures.Future):
 
     def result(self, timeout=None):
         if self.done():
-            return pycompat.futures.Future.result(self, timeout)
+            return futures.Future.result(self, timeout)
 
         self._peerexecutor.sendcommands()
 
@@ -110,7 +109,7 @@ class unsentfuture(pycompat.futures.Future):
 
 
 @interfaceutil.implementer(repository.ipeercommandexecutor)
-class peerexecutor(object):
+class peerexecutor:
     def __init__(self, peer):
         self._peer = peer
         self._sent = False
@@ -154,7 +153,7 @@ class peerexecutor(object):
         # a batchable one and refuse to service it.
 
         def addcall():
-            f = pycompat.futures.Future()
+            f = futures.Future()
             self._futures.add(f)
             self._calls.append((command, args, fn, f))
             return f
@@ -194,7 +193,7 @@ class peerexecutor(object):
         # cycle between us and futures.
         for f in self._futures:
             if isinstance(f, unsentfuture):
-                f.__class__ = pycompat.futures.Future
+                f.__class__ = futures.Future
                 f._peerexecutor = None
 
         calls = self._calls
@@ -258,7 +257,7 @@ class peerexecutor(object):
         # hard and it is easy to encounter race conditions, deadlocks, etc.
         # concurrent.futures already solves these problems and its thread pool
         # executor has minimal overhead. So we use it.
-        self._responseexecutor = pycompat.futures.ThreadPoolExecutor(1)
+        self._responseexecutor = futures.ThreadPoolExecutor(1)
         self._responsef = self._responseexecutor.submit(
             self._readbatchresponse, states, wireresults
         )
@@ -438,7 +437,7 @@ class wirepeer(repository.peer):
         self.requirecap(b'getbundle', _(b'look up remote changes'))
         opts = {}
         bundlecaps = kwargs.get(b'bundlecaps') or set()
-        for key, value in pycompat.iteritems(kwargs):
+        for key, value in kwargs.items():
             if value is None:
                 continue
             keytype = wireprototypes.GETBUNDLE_ARGUMENTS.get(key)
@@ -520,7 +519,7 @@ class wirepeer(repository.peer):
     def between(self, pairs):
         batch = 8  # avoid giant requests
         r = []
-        for i in pycompat.xrange(0, len(pairs), batch):
+        for i in range(0, len(pairs), batch):
             n = b" ".join(
                 [
                     wireprototypes.encodelist(p, b'-')

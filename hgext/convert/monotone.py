@@ -5,7 +5,6 @@
 #
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
-from __future__ import absolute_import
 
 import os
 import re
@@ -103,7 +102,7 @@ class monotone_source(common.converter_source, common.commandline):
         # Prepare the command in automate stdio format
         kwargs = pycompat.byteskwargs(kwargs)
         command = []
-        for k, v in pycompat.iteritems(kwargs):
+        for k, v in kwargs.items():
             command.append(b"%d:%s" % (len(k), k))
             if v:
                 command.append(b"%d:%s" % (len(v), v))
@@ -151,7 +150,7 @@ class monotone_source(common.converter_source, common.commandline):
                 raise error.Abort(_(b'bad mtn packet - no end of packet size'))
             lengthstr += read
         try:
-            length = pycompat.long(lengthstr[:-1])
+            length = int(lengthstr[:-1])
         except TypeError:
             raise error.Abort(
                 _(b'bad mtn packet - bad packet size %s') % lengthstr

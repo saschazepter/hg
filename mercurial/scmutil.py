@@ -5,8 +5,8 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
+import binascii
 import errno
 import glob
 import os
@@ -63,7 +63,7 @@ termsize = scmplatform.termsize
 
 
 @attr.s(slots=True, repr=False)
-class status(object):
+class status:
     """Struct with a list of files per status.
 
     The 'deleted', 'unknown' and 'ignored' properties are only
@@ -109,7 +109,7 @@ def itersubrepos(ctx1, ctx2):
             del subpaths[subpath]
             missing.add(subpath)
 
-    for subpath, ctx in sorted(pycompat.iteritems(subpaths)):
+    for subpath, ctx in sorted(subpaths.items()):
         yield subpath, ctx.sub(subpath)
 
     # Yield an empty subrepo based on ctx1 for anything only in ctx2.  That way,
@@ -228,7 +228,7 @@ def callcatch(ui, func):
         except (AttributeError, IndexError):
             # it might be anything, for example a string
             reason = inst.reason
-        if isinstance(reason, pycompat.unicode):
+        if isinstance(reason, str):
             # SSLError of Python 2.7.9 contains a unicode
             reason = encoding.unitolocal(reason)
         ui.error(_(b"abort: error: %s\n") % stringutil.forcebytestr(reason))
@@ -324,7 +324,7 @@ def checkportabilityalert(ui):
     return abort, warn
 
 
-class casecollisionauditor(object):
+class casecollisionauditor:
     def __init__(self, ui, abort, dirstate):
         self._ui = ui
         self._abort = abort
@@ -640,7 +640,7 @@ def revsymbol(repo, symbol):
                 return repo[rev]
             except error.FilteredLookupError:
                 raise
-            except (TypeError, LookupError):
+            except (binascii.Error, LookupError):
                 pass
 
         # look up bookmarks through the name interface
@@ -800,7 +800,7 @@ def walkchangerevs(repo, revs, makefilematcher, prepare):
         stopiteration = False
         for windowsize in increasingwindows():
             nrevs = []
-            for i in pycompat.xrange(windowsize):
+            for i in range(windowsize):
                 rev = next(it, None)
                 if rev is None:
                     stopiteration = True
@@ -1020,7 +1020,7 @@ def backuppath(ui, repo, filepath):
     return origvfs.join(filepath)
 
 
-class _containsnode(object):
+class _containsnode:
     """proxy __contains__(node) to container.__contains__ which accepts revs"""
 
     def __init__(self, repo, revcontainer):
@@ -1337,7 +1337,7 @@ def _interestingfiles(repo, matcher):
         ignored=False,
         full=False,
     )
-    for abs, st in pycompat.iteritems(walkresults):
+    for abs, st in walkresults.items():
         entry = dirstate.get_entry(abs)
         if (not entry.any_tracked) and audit_path.check(abs):
             unknown.append(abs)
@@ -1384,7 +1384,7 @@ def _markchanges(repo, unknown, deleted, renames):
     with repo.wlock():
         wctx.forget(deleted)
         wctx.add(unknown)
-        for new, old in pycompat.iteritems(renames):
+        for new, old in renames.items():
             wctx.copy(old, new)
 
 
@@ -1510,12 +1510,9 @@ def movedirstate(repo, newctx, match=None):
     # Merge old parent and old working dir copies
     oldcopies = copiesmod.pathcopies(newctx, oldctx, match)
     oldcopies.update(copies)
-    copies = {
-        dst: oldcopies.get(src, src)
-        for dst, src in pycompat.iteritems(oldcopies)
-    }
+    copies = {dst: oldcopies.get(src, src) for dst, src in oldcopies.items()}
     # Adjust the dirstate copies
-    for dst, src in pycompat.iteritems(copies):
+    for dst, src in copies.items():
         if src not in newctx or dst in newctx or not ds.get_entry(dst).added:
             src = None
         ds.copy(src, dst)
@@ -1571,7 +1568,7 @@ def writerequires(opener, requirements):
             fp.write(b"%s\n" % r)
 
 
-class filecachesubentry(object):
+class filecachesubentry:
     def __init__(self, path, stat):
         self.path = path
         self.cachestat = None
@@ -1622,12 +1619,11 @@ class filecachesubentry(object):
     def stat(path):
         try:
             return util.cachestat(path)
-        except OSError as e:
-            if e.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
+            pass
 
 
-class filecacheentry(object):
+class filecacheentry:
     def __init__(self, paths, stat=True):
         self._entries = []
         for path in paths:
@@ -1645,7 +1641,7 @@ class filecacheentry(object):
             entry.refresh()
 
 
-class filecache(object):
+class filecache:
     """A property like decorator that tracks files under .hg/ for updates.
 
     On first access, the files defined as arguments are stat()ed and the
@@ -1802,7 +1798,7 @@ def extdatasource(repo, source):
     return data
 
 
-class progress(object):
+class progress:
     def __init__(self, ui, updatebar, topic, unit=b"", total=None):
         self.ui = ui
         self.pos = 0
@@ -1867,7 +1863,7 @@ def gddeltaconfig(ui):
     return ui.configbool(b'format', b'generaldelta')
 
 
-class simplekeyvaluefile(object):
+class simplekeyvaluefile:
     """A simple file with key=value lines
 
     Keys must be alphanumerics and start with a letter, values must not
