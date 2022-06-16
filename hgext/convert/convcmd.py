@@ -4,7 +4,6 @@
 #
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
-from __future__ import absolute_import
 
 import collections
 import os
@@ -87,7 +86,7 @@ def readauthormap(ui, authorfile, authors=None):
 
 
 def recode(s):
-    if isinstance(s, pycompat.unicode):
+    if isinstance(s, str):
         return s.encode(pycompat.sysstr(orig_encoding), 'replace')
     else:
         return s.decode('utf-8').encode(
@@ -177,7 +176,7 @@ def convertsink(ui, path, type):
     raise error.Abort(_(b'%s: unknown repository type') % path)
 
 
-class progresssource(object):
+class progresssource:
     def __init__(self, ui, source, filecount):
         self.ui = ui
         self.source = source
@@ -199,7 +198,7 @@ class progresssource(object):
         self.progress.complete()
 
 
-class converter(object):
+class converter:
     def __init__(self, ui, source, dest, revmapfile, opts):
 
         self.source = source
@@ -243,7 +242,7 @@ class converter(object):
         m = {}
         try:
             fp = open(path, b'rb')
-            for i, line in enumerate(util.iterfile(fp)):
+            for i, line in enumerate(fp):
                 line = line.splitlines()[0].rstrip()
                 if not line:
                     # Ignore blank lines
@@ -585,9 +584,7 @@ class converter(object):
                         # write another hash correspondence to override the
                         # previous one so we don't end up with extra tag heads
                         tagsparents = [
-                            e
-                            for e in pycompat.iteritems(self.map)
-                            if e[1] == tagsparent
+                            e for e in self.map.items() if e[1] == tagsparent
                         ]
                         if tagsparents:
                             self.map[tagsparents[0][0]] = nrev

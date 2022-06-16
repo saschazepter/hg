@@ -320,7 +320,6 @@ invalid arch type should give 404
   $ TIP=`hg id -v | cut -f1 -d' '`
   $ QTIP=`hg id -q`
   $ cat > getarchive.py <<EOF
-  > from __future__ import absolute_import
   > import os
   > import sys
   > from mercurial import (
@@ -455,7 +454,6 @@ The '-t' should override autodetection
   > done
 
   $ cat > md5comp.py <<EOF
-  > from __future__ import absolute_import, print_function
   > import hashlib
   > import sys
   > f1, f2 = sys.argv[1:3]
@@ -582,14 +580,9 @@ test xz support only available in Python 3.4
   Strms  Blocks   Compressed Uncompressed  Ratio  Check   Filename (xz !)
   $ rm -f ../archive.txz
 #endif
-#if py3 no-lzma
+#if no-lzma
   $ hg archive ../archive.txz
   abort: lzma module is not available
-  [255]
-#endif
-#if no-py3
-  $ hg archive ../archive.txz
-  abort: xz compression is only available in Python 3
   [255]
 #endif
 
@@ -617,7 +610,6 @@ configured as GMT.
   $ hg -R repo add repo/a
   $ hg -R repo commit -m '#0' -d '456789012 21600'
   $ cat > show_mtime.py <<EOF
-  > from __future__ import absolute_import, print_function
   > import os
   > import sys
   > print(int(os.stat(sys.argv[1]).st_mtime))

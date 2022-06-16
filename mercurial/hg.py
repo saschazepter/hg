@@ -6,9 +6,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
-import errno
 import os
 import posixpath
 import shutil
@@ -77,8 +75,7 @@ def _local(path):
         # invalid paths specially here.
         st = os.stat(path)
         isfile = stat.S_ISREG(st.st_mode)
-    # Python 2 raises TypeError, Python 3 ValueError.
-    except (TypeError, ValueError) as e:
+    except ValueError as e:
         raise error.Abort(
             _(b'invalid path %s: %s') % (path, stringutil.forcebytestr(e))
         )
@@ -530,9 +527,8 @@ def clonewithshare(
     # lock class requires the directory to exist.
     try:
         util.makedir(pooldir, False)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
+    except FileExistsError:
+        pass
 
     poolvfs = vfsmod.vfs(pooldir)
     basename = os.path.basename(sharepath)
@@ -895,13 +891,9 @@ def clone(
                     create=True,
                     createopts=createopts,
                 )
-            except OSError as inst:
-                if inst.errno == errno.EEXIST:
-                    cleandir = None
-                    raise error.Abort(
-                        _(b"destination '%s' already exists") % dest
-                    )
-                raise
+            except FileExistsError:
+                cleandir = None
+                raise error.Abort(_(b"destination '%s' already exists") % dest)
 
             if revs:
                 if not srcpeer.capable(b'lookup'):
@@ -1535,7 +1527,7 @@ foi = [
 ]
 
 
-class cachedlocalrepo(object):
+class cachedlocalrepo:
     """Holds a localrepository that can be cached and reused."""
 
     def __init__(self, repo):

@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import struct
 
@@ -126,7 +125,7 @@ def slice_with_len(data, start, len):
 
 
 @attr.s
-class Node(object):
+class Node:
     path = attr.ib()
     entry = attr.ib()
     parent = attr.ib(default=None)

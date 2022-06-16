@@ -8,7 +8,6 @@
 # This module is for handling Breezy imports or `brz`, but it's also compatible
 # with Bazaar or `bzr`, that was formerly known as Bazaar-NG;
 # it cannot access `bar` repositories, but they were never used very much.
-from __future__ import absolute_import
 
 import os
 
@@ -16,7 +15,6 @@ from mercurial.i18n import _
 from mercurial import (
     demandimport,
     error,
-    pycompat,
     util,
 )
 from . import common
@@ -210,7 +208,7 @@ class bzr_source(common.converter_source):
             if not branch.supports_tags():
                 return {}
             tagdict = branch.tags.get_tag_dict()
-            for name, rev in pycompat.iteritems(tagdict):
+            for name, rev in tagdict.items():
                 bytetags[self.recode(name)] = rev
         return bytetags
 

@@ -248,23 +248,41 @@ pub const SIZE_FROM_OTHER_PARENT: i32 = -2;
 /// dirstate v1 format.
 pub const SIZE_NON_NORMAL: i32 = -1;
 
+#[derive(Debug, Default, Copy, Clone)]
+pub struct DirstateV2Data {
+    pub wc_tracked: bool,
+    pub p1_tracked: bool,
+    pub p2_info: bool,
+    pub mode_size: Option<(u32, u32)>,
+    pub mtime: Option<TruncatedTimestamp>,
+    pub fallback_exec: Option<bool>,
+    pub fallback_symlink: Option<bool>,
+}
+
+#[derive(Debug, Default, Copy, Clone)]
+pub struct ParentFileData {
+    pub mode_size: Option<(u32, u32)>,
+    pub mtime: Option<TruncatedTimestamp>,
+}
+
 impl DirstateEntry {
-    pub fn from_v2_data(
-        wdir_tracked: bool,
-        p1_tracked: bool,
-        p2_info: bool,
-        mode_size: Option<(u32, u32)>,
-        mtime: Option<TruncatedTimestamp>,
-        fallback_exec: Option<bool>,
-        fallback_symlink: Option<bool>,
-    ) -> Self {
+    pub fn from_v2_data(v2_data: DirstateV2Data) -> Self {
+        let DirstateV2Data {
+            wc_tracked,
+            p1_tracked,
+            p2_info,
+            mode_size,
+            mtime,
+            fallback_exec,
+            fallback_symlink,
+        } = v2_data;
         if let Some((mode, size)) = mode_size {
             // TODO: return an error for out of range values?
             assert!(mode & !RANGE_MASK_31BIT == 0);
             assert!(size & !RANGE_MASK_31BIT == 0);
         }
         let mut flags = Flags::empty();
-        flags.set(Flags::WDIR_TRACKED, wdir_tracked);
+        flags.set(Flags::WDIR_TRACKED, wc_tracked);
         flags.set(Flags::P1_TRACKED, p1_tracked);
         flags.set(Flags::P2_INFO, p2_info);
         if let Some(exec) = fallback_exec {
@@ -367,6 +385,14 @@ impl DirstateEntry {
         Self::from_v1_data(EntryState::Removed, 0, size, 0)
     }
 
+    pub fn new_tracked() -> Self {
+        let data = DirstateV2Data {
+            wc_tracked: true,
+            ..Default::default()
+        };
+        Self::from_v2_data(data)
+    }
+
     pub fn tracked(&self) -> bool {
         self.flags.contains(Flags::WDIR_TRACKED)
     }
@@ -391,6 +417,11 @@ impl DirstateEntry {
         self.flags.contains(Flags::WDIR_TRACKED) && !self.in_either_parent()
     }
 
+    pub fn modified(&self) -> bool {
+        self.flags
+            .contains(Flags::WDIR_TRACKED | Flags::P1_TRACKED | Flags::P2_INFO)
+    }
+
     pub fn maybe_clean(&self) -> bool {
         if !self.flags.contains(Flags::WDIR_TRACKED) {
             false
@@ -409,36 +440,25 @@ impl DirstateEntry {
         )
     }
 
-    /// Returns `(wdir_tracked, p1_tracked, p2_info, mode_size, mtime)`
-    pub(crate) fn v2_data(
-        &self,
-    ) -> (
-        bool,
-        bool,
-        bool,
-        Option<(u32, u32)>,
-        Option<TruncatedTimestamp>,
-        Option<bool>,
-        Option<bool>,
-    ) {
+    pub(crate) fn v2_data(&self) -> DirstateV2Data {
         if !self.any_tracked() {
             // TODO: return an Option instead?
-            panic!("Accessing v1_state of an untracked DirstateEntry")
+            panic!("Accessing v2_data of an untracked DirstateEntry")
         }
-        let wdir_tracked = self.flags.contains(Flags::WDIR_TRACKED);
+        let wc_tracked = self.flags.contains(Flags::WDIR_TRACKED);
         let p1_tracked = self.flags.contains(Flags::P1_TRACKED);
         let p2_info = self.flags.contains(Flags::P2_INFO);
         let mode_size = self.mode_size;
         let mtime = self.mtime;
-        (
-            wdir_tracked,
+        DirstateV2Data {
+            wc_tracked,
             p1_tracked,
             p2_info,
             mode_size,
             mtime,
-            self.get_fallback_exec(),
-            self.get_fallback_symlink(),
-        )
+            fallback_exec: self.get_fallback_exec(),
+            fallback_symlink: self.get_fallback_symlink(),
+        }
     }
 
     fn v1_state(&self) -> EntryState {
@@ -448,10 +468,7 @@ impl DirstateEntry {
         }
         if self.removed() {
             EntryState::Removed
-        } else if self
-            .flags
-            .contains(Flags::WDIR_TRACKED | Flags::P1_TRACKED | Flags::P2_INFO)
-        {
+        } else if self.modified() {
             EntryState::Merged
         } else if self.added() {
             EntryState::Added
@@ -638,8 +655,7 @@ impl DirstateEntry {
     }
 
     pub(crate) fn is_from_other_parent(&self) -> bool {
-        self.state() == EntryState::Normal
-            && self.size() == SIZE_FROM_OTHER_PARENT
+        self.flags.contains(Flags::WDIR_TRACKED | Flags::P2_INFO)
     }
 
     // TODO: other platforms

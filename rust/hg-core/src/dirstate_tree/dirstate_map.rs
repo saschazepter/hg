@@ -11,18 +11,18 @@ use crate::dirstate::parsers::pack_entry;
 use crate::dirstate::parsers::packed_entry_size;
 use crate::dirstate::parsers::parse_dirstate_entries;
 use crate::dirstate::CopyMapIter;
+use crate::dirstate::DirstateV2Data;
+use crate::dirstate::ParentFileData;
 use crate::dirstate::StateMapIter;
 use crate::dirstate::TruncatedTimestamp;
-use crate::dirstate::SIZE_FROM_OTHER_PARENT;
-use crate::dirstate::SIZE_NON_NORMAL;
 use crate::matchers::Matcher;
 use crate::utils::hg_path::{HgPath, HgPathBuf};
 use crate::DirstateEntry;
 use crate::DirstateError;
+use crate::DirstateMapError;
 use crate::DirstateParents;
 use crate::DirstateStatus;
-use crate::EntryState;
-use crate::FastHashMap;
+use crate::FastHashbrownMap as FastHashMap;
 use crate::PatternFileWarning;
 use crate::StatusError;
 use crate::StatusOptions;
@@ -38,6 +38,7 @@ pub enum DirstateVersion {
     V2,
 }
 
+#[derive(Debug)]
 pub struct DirstateMap<'on_disk> {
     /// Contents of the `.hg/dirstate` file
     pub(super) on_disk: &'on_disk [u8],
@@ -73,21 +74,25 @@ pub(super) type NodeKey<'on_disk> = WithBasename<Cow<'on_disk, HgPath>>;
 
 /// Similar to `&'tree Cow<'on_disk, HgPath>`, but can also be returned
 /// for on-disk nodes that don’t actually have a `Cow` to borrow.
+#[derive(Debug)]
 pub(super) enum BorrowedPath<'tree, 'on_disk> {
     InMemory(&'tree HgPathBuf),
     OnDisk(&'on_disk HgPath),
 }
 
+#[derive(Debug)]
 pub(super) enum ChildNodes<'on_disk> {
     InMemory(FastHashMap<NodeKey<'on_disk>, Node<'on_disk>>),
     OnDisk(&'on_disk [on_disk::Node]),
 }
 
+#[derive(Debug)]
 pub(super) enum ChildNodesRef<'tree, 'on_disk> {
     InMemory(&'tree FastHashMap<NodeKey<'on_disk>, Node<'on_disk>>),
     OnDisk(&'on_disk [on_disk::Node]),
 }
 
+#[derive(Debug)]
 pub(super) enum NodeRef<'tree, 'on_disk> {
     InMemory(&'tree NodeKey<'on_disk>, &'tree Node<'on_disk>),
     OnDisk(&'on_disk on_disk::Node),
@@ -353,12 +358,6 @@ impl<'tree, 'on_disk> NodeRef<'tree, 'on_disk> {
         }
     }
 
-    pub(super) fn state(
-        &self,
-    ) -> Result<Option<EntryState>, DirstateV2ParseError> {
-        Ok(self.entry()?.map(|e| e.state()))
-    }
-
     pub(super) fn cached_directory_mtime(
         &self,
     ) -> Result<Option<TruncatedTimestamp>, DirstateV2ParseError> {
@@ -389,7 +388,7 @@ impl<'tree, 'on_disk> NodeRef<'tree, 'on_disk> {
 }
 
 /// Represents a file or a directory
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(super) struct Node<'on_disk> {
     pub(super) data: NodeData,
 
@@ -405,6 +404,7 @@ pub(super) struct Node<'on_disk> {
     pub(super) tracked_descendants_count: u32,
 }
 
+#[derive(Debug)]
 pub(super) enum NodeData {
     Entry(DirstateEntry),
     CachedDirectory { mtime: TruncatedTimestamp },
@@ -426,6 +426,13 @@ impl NodeData {
     }
 
     fn as_entry(&self) -> Option<&DirstateEntry> {
+        match self {
+            NodeData::Entry(entry) => Some(entry),
+            _ => None,
+        }
+    }
+
+    fn as_entry_mut(&mut self) -> Option<&mut DirstateEntry> {
         match self {
             NodeData::Entry(entry) => Some(entry),
             _ => None,
@@ -472,8 +479,8 @@ impl<'on_disk> DirstateMap<'on_disk> {
         let parents = parse_dirstate_entries(
             map.on_disk,
             |path, entry, copy_source| {
-                let tracked = entry.state().is_tracked();
-                let node = Self::get_or_insert_node(
+                let tracked = entry.tracked();
+                let node = Self::get_or_insert_node_inner(
                     map.on_disk,
                     &mut map.unreachable_bytes,
                     &mut map.root,
@@ -540,13 +547,37 @@ impl<'on_disk> DirstateMap<'on_disk> {
 
     /// Returns a mutable reference to the node at `path` if it exists
     ///
-    /// This takes `root` instead of `&mut self` so that callers can mutate
-    /// other fields while the returned borrow is still valid
+    /// `each_ancestor` is a callback that is called for each ancestor node
+    /// when descending the tree. It is used to keep the different counters
+    /// of the `DirstateMap` up-to-date.
     fn get_node_mut<'tree>(
+        &'tree mut self,
+        path: &HgPath,
+        each_ancestor: impl FnMut(&mut Node),
+    ) -> Result<Option<&'tree mut Node<'on_disk>>, DirstateV2ParseError> {
+        Self::get_node_mut_inner(
+            self.on_disk,
+            &mut self.unreachable_bytes,
+            &mut self.root,
+            path,
+            each_ancestor,
+        )
+    }
+
+    /// Lower-level version of `get_node_mut`.
+    ///
+    /// This takes `root` instead of `&mut self` so that callers can mutate
+    /// other fields while the returned borrow is still valid.
+    ///
+    /// `each_ancestor` is a callback that is called for each ancestor node
+    /// when descending the tree. It is used to keep the different counters
+    /// of the `DirstateMap` up-to-date.
+    fn get_node_mut_inner<'tree>(
         on_disk: &'on_disk [u8],
         unreachable_bytes: &mut u32,
         root: &'tree mut ChildNodes<'on_disk>,
         path: &HgPath,
+        mut each_ancestor: impl FnMut(&mut Node),
     ) -> Result<Option<&'tree mut Node<'on_disk>>, DirstateV2ParseError> {
         let mut children = root;
         let mut components = path.components();
@@ -558,6 +589,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
                 .get_mut(component)
             {
                 if let Some(next_component) = components.next() {
+                    each_ancestor(child);
                     component = next_component;
                     children = &mut child.children;
                 } else {
@@ -569,21 +601,30 @@ impl<'on_disk> DirstateMap<'on_disk> {
         }
     }
 
-    pub(super) fn get_or_insert<'tree, 'path>(
+    /// Get a mutable reference to the node at `path`, creating it if it does
+    /// not exist.
+    ///
+    /// `each_ancestor` is a callback that is called for each ancestor node
+    /// when descending the tree. It is used to keep the different counters
+    /// of the `DirstateMap` up-to-date.
+    fn get_or_insert_node<'tree, 'path>(
         &'tree mut self,
-        path: &HgPath,
+        path: &'path HgPath,
+        each_ancestor: impl FnMut(&mut Node),
     ) -> Result<&'tree mut Node<'on_disk>, DirstateV2ParseError> {
-        Self::get_or_insert_node(
+        Self::get_or_insert_node_inner(
             self.on_disk,
             &mut self.unreachable_bytes,
             &mut self.root,
             path,
             WithBasename::to_cow_owned,
-            |_| {},
+            each_ancestor,
         )
     }
 
-    fn get_or_insert_node<'tree, 'path>(
+    /// Lower-level version of `get_or_insert_node_inner`, which is used when
+    /// parsing disk data to remove allocations for new nodes.
+    fn get_or_insert_node_inner<'tree, 'path>(
         on_disk: &'on_disk [u8],
         unreachable_bytes: &mut u32,
         root: &'tree mut ChildNodes<'on_disk>,
@@ -600,13 +641,11 @@ impl<'on_disk> DirstateMap<'on_disk> {
             .next()
             .expect("expected at least one inclusive ancestor");
         loop {
-            // TODO: can we avoid allocating an owned key in cases where the
-            // map already contains that key, without introducing double
-            // lookup?
-            let child_node = child_nodes
+            let (_, child_node) = child_nodes
                 .make_mut(on_disk, unreachable_bytes)?
-                .entry(to_cow(ancestor_path))
-                .or_default();
+                .raw_entry_mut()
+                .from_key(ancestor_path.base_name())
+                .or_insert_with(|| (to_cow(ancestor_path), Node::default()));
             if let Some(next) = inclusive_ancestor_paths.next() {
                 each_ancestor(child_node);
                 ancestor_path = next;
@@ -617,46 +656,208 @@ impl<'on_disk> DirstateMap<'on_disk> {
         }
     }
 
-    fn add_or_remove_file(
+    fn reset_state(
+        &mut self,
+        filename: &HgPath,
+        old_entry_opt: Option<DirstateEntry>,
+        wc_tracked: bool,
+        p1_tracked: bool,
+        p2_info: bool,
+        has_meaningful_mtime: bool,
+        parent_file_data_opt: Option<ParentFileData>,
+    ) -> Result<(), DirstateError> {
+        let (had_entry, was_tracked) = match old_entry_opt {
+            Some(old_entry) => (true, old_entry.tracked()),
+            None => (false, false),
+        };
+        let node = self.get_or_insert_node(filename, |ancestor| {
+            if !had_entry {
+                ancestor.descendants_with_entry_count += 1;
+            }
+            if was_tracked {
+                if !wc_tracked {
+                    ancestor.tracked_descendants_count = ancestor
+                        .tracked_descendants_count
+                        .checked_sub(1)
+                        .expect("tracked count to be >= 0");
+                }
+            } else {
+                if wc_tracked {
+                    ancestor.tracked_descendants_count += 1;
+                }
+            }
+        })?;
+
+        let v2_data = if let Some(parent_file_data) = parent_file_data_opt {
+            DirstateV2Data {
+                wc_tracked,
+                p1_tracked,
+                p2_info,
+                mode_size: parent_file_data.mode_size,
+                mtime: if has_meaningful_mtime {
+                    parent_file_data.mtime
+                } else {
+                    None
+                },
+                ..Default::default()
+            }
+        } else {
+            DirstateV2Data {
+                wc_tracked,
+                p1_tracked,
+                p2_info,
+                ..Default::default()
+            }
+        };
+        node.data = NodeData::Entry(DirstateEntry::from_v2_data(v2_data));
+        if !had_entry {
+            self.nodes_with_entry_count += 1;
+        }
+        Ok(())
+    }
+
+    fn set_tracked(
+        &mut self,
+        filename: &HgPath,
+        old_entry_opt: Option<DirstateEntry>,
+    ) -> Result<bool, DirstateV2ParseError> {
+        let was_tracked = old_entry_opt.map_or(false, |e| e.tracked());
+        let had_entry = old_entry_opt.is_some();
+        let tracked_count_increment = if was_tracked { 0 } else { 1 };
+        let mut new = false;
+
+        let node = self.get_or_insert_node(filename, |ancestor| {
+            if !had_entry {
+                ancestor.descendants_with_entry_count += 1;
+            }
+
+            ancestor.tracked_descendants_count += tracked_count_increment;
+        })?;
+        if let Some(old_entry) = old_entry_opt {
+            let mut e = old_entry.clone();
+            if e.tracked() {
+                // XXX
+                // This is probably overkill for more case, but we need this to
+                // fully replace the `normallookup` call with `set_tracked`
+                // one. Consider smoothing this in the future.
+                e.set_possibly_dirty();
+            } else {
+                new = true;
+                e.set_tracked();
+            }
+            node.data = NodeData::Entry(e)
+        } else {
+            node.data = NodeData::Entry(DirstateEntry::new_tracked());
+            self.nodes_with_entry_count += 1;
+            new = true;
+        };
+        Ok(new)
+    }
+
+    /// Set a node as untracked in the dirstate.
+    ///
+    /// It is the responsibility of the caller to remove the copy source and/or
+    /// the entry itself if appropriate.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the node does not exist.
+    fn set_untracked(
+        &mut self,
+        filename: &HgPath,
+        old_entry: DirstateEntry,
+    ) -> Result<(), DirstateV2ParseError> {
+        let node = self
+            .get_node_mut(filename, |ancestor| {
+                ancestor.tracked_descendants_count = ancestor
+                    .tracked_descendants_count
+                    .checked_sub(1)
+                    .expect("tracked_descendants_count should be >= 0");
+            })?
+            .expect("node should exist");
+        let mut new_entry = old_entry.clone();
+        new_entry.set_untracked();
+        node.data = NodeData::Entry(new_entry);
+        Ok(())
+    }
+
+    /// Set a node as clean in the dirstate.
+    ///
+    /// It is the responsibility of the caller to remove the copy source.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the node does not exist.
+    fn set_clean(
+        &mut self,
+        filename: &HgPath,
+        old_entry: DirstateEntry,
+        mode: u32,
+        size: u32,
+        mtime: TruncatedTimestamp,
+    ) -> Result<(), DirstateError> {
+        let node = self
+            .get_node_mut(filename, |ancestor| {
+                if !old_entry.tracked() {
+                    ancestor.tracked_descendants_count += 1;
+                }
+            })?
+            .expect("node should exist");
+        let mut new_entry = old_entry.clone();
+        new_entry.set_clean(mode, size, mtime);
+        node.data = NodeData::Entry(new_entry);
+        Ok(())
+    }
+
+    /// Set a node as possibly dirty in the dirstate.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the node does not exist.
+    fn set_possibly_dirty(
+        &mut self,
+        filename: &HgPath,
+    ) -> Result<(), DirstateError> {
+        let node = self
+            .get_node_mut(filename, |_ancestor| {})?
+            .expect("node should exist");
+        let entry = node.data.as_entry_mut().expect("entry should exist");
+        entry.set_possibly_dirty();
+        node.data = NodeData::Entry(*entry);
+        Ok(())
+    }
+
+    /// Clears the cached mtime for the (potential) folder at `path`.
+    pub(super) fn clear_cached_mtime(
         &mut self,
         path: &HgPath,
-        old_state: Option<EntryState>,
-        new_entry: DirstateEntry,
     ) -> Result<(), DirstateV2ParseError> {
-        let had_entry = old_state.is_some();
-        let was_tracked = old_state.map_or(false, |s| s.is_tracked());
-        let tracked_count_increment =
-            match (was_tracked, new_entry.state().is_tracked()) {
-                (false, true) => 1,
-                (true, false) => -1,
-                _ => 0,
-            };
-
-        let node = Self::get_or_insert_node(
-            self.on_disk,
-            &mut self.unreachable_bytes,
-            &mut self.root,
-            path,
-            WithBasename::to_cow_owned,
-            |ancestor| {
-                if !had_entry {
-                    ancestor.descendants_with_entry_count += 1;
-                }
-
-                // We can’t use `+= increment` because the counter is unsigned,
-                // and we want debug builds to detect accidental underflow
-                // through zero
-                match tracked_count_increment {
-                    1 => ancestor.tracked_descendants_count += 1,
-                    -1 => ancestor.tracked_descendants_count -= 1,
-                    _ => {}
-                }
-            },
-        )?;
-        if !had_entry {
-            self.nodes_with_entry_count += 1
+        let node = match self.get_node_mut(path, |_ancestor| {})? {
+            Some(node) => node,
+            None => return Ok(()),
+        };
+        if let NodeData::CachedDirectory { .. } = &node.data {
+            node.data = NodeData::None
         }
-        node.data = NodeData::Entry(new_entry);
+        Ok(())
+    }
+
+    /// Sets the cached mtime for the (potential) folder at `path`.
+    pub(super) fn set_cached_mtime(
+        &mut self,
+        path: &HgPath,
+        mtime: TruncatedTimestamp,
+    ) -> Result<(), DirstateV2ParseError> {
+        let node = match self.get_node_mut(path, |_ancestor| {})? {
+            Some(node) => node,
+            None => return Ok(()),
+        };
+        match &node.data {
+            NodeData::Entry(_) => {} // Don’t overwrite an entry
+            NodeData::CachedDirectory { .. } | NodeData::None => {
+                node.data = NodeData::CachedDirectory { mtime }
+            }
+        }
         Ok(())
     }
 
@@ -747,59 +948,103 @@ impl OwningDirstateMap {
         });
     }
 
-    pub fn set_entry(
+    pub fn set_tracked(
         &mut self,
         filename: &HgPath,
-        entry: DirstateEntry,
-    ) -> Result<(), DirstateV2ParseError> {
-        self.with_dmap_mut(|map| {
-            map.get_or_insert(&filename)?.data = NodeData::Entry(entry);
-            Ok(())
-        })
-    }
-
-    pub fn add_file(
-        &mut self,
-        filename: &HgPath,
-        entry: DirstateEntry,
-    ) -> Result<(), DirstateError> {
-        let old_state = self.get(filename)?.map(|e| e.state());
-        self.with_dmap_mut(|map| {
-            Ok(map.add_or_remove_file(filename, old_state, entry)?)
-        })
-    }
-
-    pub fn remove_file(
-        &mut self,
-        filename: &HgPath,
-        in_merge: bool,
-    ) -> Result<(), DirstateError> {
+    ) -> Result<bool, DirstateV2ParseError> {
         let old_entry_opt = self.get(filename)?;
-        let old_state = old_entry_opt.map(|e| e.state());
-        let mut size = 0;
-        if in_merge {
-            // XXX we should not be able to have 'm' state and 'FROM_P2' if not
-            // during a merge. So I (marmoute) am not sure we need the
-            // conditionnal at all. Adding double checking this with assert
-            // would be nice.
-            if let Some(old_entry) = old_entry_opt {
-                // backup the previous state
-                if old_entry.state() == EntryState::Merged {
-                    size = SIZE_NON_NORMAL;
-                } else if old_entry.state() == EntryState::Normal
-                    && old_entry.size() == SIZE_FROM_OTHER_PARENT
-                {
-                    // other parent
-                    size = SIZE_FROM_OTHER_PARENT;
+        self.with_dmap_mut(|map| map.set_tracked(filename, old_entry_opt))
+    }
+
+    pub fn set_untracked(
+        &mut self,
+        filename: &HgPath,
+    ) -> Result<bool, DirstateError> {
+        let old_entry_opt = self.get(filename)?;
+        match old_entry_opt {
+            None => Ok(false),
+            Some(old_entry) => {
+                if !old_entry.tracked() {
+                    // `DirstateMap::set_untracked` is not a noop if
+                    // already not tracked as it will decrement the
+                    // tracked counters while going down.
+                    return Ok(true);
                 }
+                if old_entry.added() {
+                    // Untracking an "added" entry will just result in a
+                    // worthless entry (and other parts of the code will
+                    // complain about it), just drop it entirely.
+                    self.drop_entry_and_copy_source(filename)?;
+                    return Ok(true);
+                }
+                if !old_entry.p2_info() {
+                    self.copy_map_remove(filename)?;
+                }
+
+                self.with_dmap_mut(|map| {
+                    map.set_untracked(filename, old_entry)?;
+                    Ok(true)
+                })
             }
         }
-        if size == 0 {
-            self.copy_map_remove(filename)?;
-        }
+    }
+
+    pub fn set_clean(
+        &mut self,
+        filename: &HgPath,
+        mode: u32,
+        size: u32,
+        mtime: TruncatedTimestamp,
+    ) -> Result<(), DirstateError> {
+        let old_entry = match self.get(filename)? {
+            None => {
+                return Err(
+                    DirstateMapError::PathNotFound(filename.into()).into()
+                )
+            }
+            Some(e) => e,
+        };
+        self.copy_map_remove(filename)?;
         self.with_dmap_mut(|map| {
-            let entry = DirstateEntry::new_removed(size);
-            Ok(map.add_or_remove_file(filename, old_state, entry)?)
+            map.set_clean(filename, old_entry, mode, size, mtime)
+        })
+    }
+
+    pub fn set_possibly_dirty(
+        &mut self,
+        filename: &HgPath,
+    ) -> Result<(), DirstateError> {
+        if self.get(filename)?.is_none() {
+            return Err(DirstateMapError::PathNotFound(filename.into()).into());
+        }
+        self.with_dmap_mut(|map| map.set_possibly_dirty(filename))
+    }
+
+    pub fn reset_state(
+        &mut self,
+        filename: &HgPath,
+        wc_tracked: bool,
+        p1_tracked: bool,
+        p2_info: bool,
+        has_meaningful_mtime: bool,
+        parent_file_data_opt: Option<ParentFileData>,
+    ) -> Result<(), DirstateError> {
+        if !(p1_tracked || p2_info || wc_tracked) {
+            self.drop_entry_and_copy_source(filename)?;
+            return Ok(());
+        }
+        self.copy_map_remove(filename)?;
+        let old_entry_opt = self.get(filename)?;
+        self.with_dmap_mut(|map| {
+            map.reset_state(
+                filename,
+                old_entry_opt,
+                wc_tracked,
+                p1_tracked,
+                p2_info,
+                has_meaningful_mtime,
+                parent_file_data_opt,
+            )
         })
     }
 
@@ -807,9 +1052,7 @@ impl OwningDirstateMap {
         &mut self,
         filename: &HgPath,
     ) -> Result<(), DirstateError> {
-        let was_tracked = self
-            .get(filename)?
-            .map_or(false, |e| e.state().is_tracked());
+        let was_tracked = self.get(filename)?.map_or(false, |e| e.tracked());
         struct Dropped {
             was_tracked: bool,
             had_entry: bool,
@@ -941,8 +1184,8 @@ impl OwningDirstateMap {
             if let Some(node) = map.get_node(directory)? {
                 // A node without a `DirstateEntry` was created to hold child
                 // nodes, and is therefore a directory.
-                let state = node.state()?;
-                Ok(state.is_none() && node.tracked_descendants_count() > 0)
+                let is_dir = node.entry()?.is_none();
+                Ok(is_dir && node.tracked_descendants_count() > 0)
             } else {
                 Ok(false)
             }
@@ -957,8 +1200,8 @@ impl OwningDirstateMap {
             if let Some(node) = map.get_node(directory)? {
                 // A node without a `DirstateEntry` was created to hold child
                 // nodes, and is therefore a directory.
-                let state = node.state()?;
-                Ok(state.is_none() && node.descendants_with_entry_count() > 0)
+                let is_dir = node.entry()?.is_none();
+                Ok(is_dir && node.descendants_with_entry_count() > 0)
             } else {
                 Ok(false)
             }
@@ -1088,15 +1331,18 @@ impl OwningDirstateMap {
         self.with_dmap_mut(|map| {
             let count = &mut map.nodes_with_copy_source_count;
             let unreachable_bytes = &mut map.unreachable_bytes;
-            Ok(DirstateMap::get_node_mut(
+            Ok(DirstateMap::get_node_mut_inner(
                 map.on_disk,
                 unreachable_bytes,
                 &mut map.root,
                 key,
+                |_ancestor| {},
             )?
             .and_then(|node| {
                 if let Some(source) = &node.copy_source {
-                    *count -= 1;
+                    *count = count
+                        .checked_sub(1)
+                        .expect("nodes_with_copy_source_count should be >= 0");
                     DirstateMap::count_dropped_path(unreachable_bytes, source);
                 }
                 node.copy_source.take().map(Cow::into_owned)
@@ -1106,22 +1352,20 @@ impl OwningDirstateMap {
 
     pub fn copy_map_insert(
         &mut self,
-        key: HgPathBuf,
-        value: HgPathBuf,
+        key: &HgPath,
+        value: &HgPath,
     ) -> Result<Option<HgPathBuf>, DirstateV2ParseError> {
         self.with_dmap_mut(|map| {
-            let node = DirstateMap::get_or_insert_node(
-                map.on_disk,
-                &mut map.unreachable_bytes,
-                &mut map.root,
-                &key,
-                WithBasename::to_cow_owned,
-                |_ancestor| {},
-            )?;
-            if node.copy_source.is_none() {
+            let node = map.get_or_insert_node(&key, |_ancestor| {})?;
+            let had_copy_source = node.copy_source.is_none();
+            let old = node
+                .copy_source
+                .replace(value.to_owned().into())
+                .map(Cow::into_owned);
+            if had_copy_source {
                 map.nodes_with_copy_source_count += 1
             }
-            Ok(node.copy_source.replace(value.into()).map(Cow::into_owned))
+            Ok(old)
         })
     }
 
@@ -1184,6 +1428,41 @@ impl OwningDirstateMap {
         )))
     }
 
+    /// Only public because it needs to be exposed to the Python layer.
+    /// It is not the full `setparents` logic, only the parts that mutate the
+    /// entries.
+    pub fn setparents_fixup(
+        &mut self,
+    ) -> Result<Vec<(HgPathBuf, HgPathBuf)>, DirstateV2ParseError> {
+        // XXX
+        // All the copying and re-querying is quite inefficient, but this is
+        // still a lot better than doing it from Python.
+        //
+        // The better solution is to develop a mechanism for `iter_mut`,
+        // which will be a lot more involved: we're dealing with a lazy,
+        // append-mostly, tree-like data structure. This will do for now.
+        let mut copies = vec![];
+        let mut files_with_p2_info = vec![];
+        for res in self.iter() {
+            let (path, entry) = res?;
+            if entry.p2_info() {
+                files_with_p2_info.push(path.to_owned())
+            }
+        }
+        self.with_dmap_mut(|map| {
+            for path in files_with_p2_info.iter() {
+                let node = map.get_or_insert_node(path, |_| {})?;
+                let entry =
+                    node.data.as_entry_mut().expect("entry should exist");
+                entry.drop_merge_data();
+                if let Some(source) = node.copy_source.take().as_deref() {
+                    copies.push((path.to_owned(), source.to_owned()));
+                }
+            }
+            Ok(copies)
+        })
+    }
+
     pub fn debug_iter(
         &self,
         all: bool,
@@ -1209,5 +1488,420 @@ impl OwningDirstateMap {
             };
             Ok(Some((node.full_path(map.on_disk)?, debug_tuple)))
         }))
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Shortcut to return tracked descendants of a path.
+    /// Panics if the path does not exist.
+    fn tracked_descendants(map: &OwningDirstateMap, path: &[u8]) -> u32 {
+        let path = dbg!(HgPath::new(path));
+        let node = map.get_map().get_node(path);
+        node.unwrap().unwrap().tracked_descendants_count()
+    }
+
+    /// Shortcut to return descendants with an entry.
+    /// Panics if the path does not exist.
+    fn descendants_with_an_entry(map: &OwningDirstateMap, path: &[u8]) -> u32 {
+        let path = dbg!(HgPath::new(path));
+        let node = map.get_map().get_node(path);
+        node.unwrap().unwrap().descendants_with_entry_count()
+    }
+
+    fn assert_does_not_exist(map: &OwningDirstateMap, path: &[u8]) {
+        let path = dbg!(HgPath::new(path));
+        let node = map.get_map().get_node(path);
+        assert!(node.unwrap().is_none());
+    }
+
+    /// Shortcut for path creation in tests
+    fn p(b: &[u8]) -> &HgPath {
+        HgPath::new(b)
+    }
+
+    /// Test the very simple case a single tracked file
+    #[test]
+    fn test_tracked_descendants_simple() -> Result<(), DirstateError> {
+        let mut map = OwningDirstateMap::new_empty(vec![]);
+        assert_eq!(map.len(), 0);
+
+        map.set_tracked(p(b"some/nested/path"))?;
+
+        assert_eq!(map.len(), 1);
+        assert_eq!(tracked_descendants(&map, b"some"), 1);
+        assert_eq!(tracked_descendants(&map, b"some/nested"), 1);
+        assert_eq!(tracked_descendants(&map, b"some/nested/path"), 0);
+
+        map.set_untracked(p(b"some/nested/path"))?;
+        assert_eq!(map.len(), 0);
+        assert!(map.get_map().get_node(p(b"some"))?.is_none());
+
+        Ok(())
+    }
+
+    /// Test the simple case of all tracked, but multiple files
+    #[test]
+    fn test_tracked_descendants_multiple() -> Result<(), DirstateError> {
+        let mut map = OwningDirstateMap::new_empty(vec![]);
+
+        map.set_tracked(p(b"some/nested/path"))?;
+        map.set_tracked(p(b"some/nested/file"))?;
+        // one layer without any files to test deletion cascade
+        map.set_tracked(p(b"some/other/nested/path"))?;
+        map.set_tracked(p(b"root_file"))?;
+        map.set_tracked(p(b"some/file"))?;
+        map.set_tracked(p(b"some/file2"))?;
+        map.set_tracked(p(b"some/file3"))?;
+
+        assert_eq!(map.len(), 7);
+        assert_eq!(tracked_descendants(&map, b"some"), 6);
+        assert_eq!(tracked_descendants(&map, b"some/nested"), 2);
+        assert_eq!(tracked_descendants(&map, b"some/other"), 1);
+        assert_eq!(tracked_descendants(&map, b"some/other/nested"), 1);
+        assert_eq!(tracked_descendants(&map, b"some/nested/path"), 0);
+
+        map.set_untracked(p(b"some/nested/path"))?;
+        assert_eq!(map.len(), 6);
+        assert_eq!(tracked_descendants(&map, b"some"), 5);
+        assert_eq!(tracked_descendants(&map, b"some/nested"), 1);
+        assert_eq!(tracked_descendants(&map, b"some/other"), 1);
+        assert_eq!(tracked_descendants(&map, b"some/other/nested"), 1);
+
+        map.set_untracked(p(b"some/nested/file"))?;
+        assert_eq!(map.len(), 5);
+        assert_eq!(tracked_descendants(&map, b"some"), 4);
+        assert_eq!(tracked_descendants(&map, b"some/other"), 1);
+        assert_eq!(tracked_descendants(&map, b"some/other/nested"), 1);
+        assert_does_not_exist(&map, b"some_nested");
+
+        map.set_untracked(p(b"some/other/nested/path"))?;
+        assert_eq!(map.len(), 4);
+        assert_eq!(tracked_descendants(&map, b"some"), 3);
+        assert_does_not_exist(&map, b"some/other");
+
+        map.set_untracked(p(b"root_file"))?;
+        assert_eq!(map.len(), 3);
+        assert_eq!(tracked_descendants(&map, b"some"), 3);
+        assert_does_not_exist(&map, b"root_file");
+
+        map.set_untracked(p(b"some/file"))?;
+        assert_eq!(map.len(), 2);
+        assert_eq!(tracked_descendants(&map, b"some"), 2);
+        assert_does_not_exist(&map, b"some/file");
+
+        map.set_untracked(p(b"some/file2"))?;
+        assert_eq!(map.len(), 1);
+        assert_eq!(tracked_descendants(&map, b"some"), 1);
+        assert_does_not_exist(&map, b"some/file2");
+
+        map.set_untracked(p(b"some/file3"))?;
+        assert_eq!(map.len(), 0);
+        assert_does_not_exist(&map, b"some/file3");
+
+        Ok(())
+    }
+
+    /// Check with a mix of tracked and non-tracked items
+    #[test]
+    fn test_tracked_descendants_different() -> Result<(), DirstateError> {
+        let mut map = OwningDirstateMap::new_empty(vec![]);
+
+        // A file that was just added
+        map.set_tracked(p(b"some/nested/path"))?;
+        // This has no information, the dirstate should ignore it
+        map.reset_state(p(b"some/file"), false, false, false, false, None)?;
+        assert_does_not_exist(&map, b"some/file");
+
+        // A file that was removed
+        map.reset_state(
+            p(b"some/nested/file"),
+            false,
+            true,
+            false,
+            false,
+            None,
+        )?;
+        assert!(!map.get(p(b"some/nested/file"))?.unwrap().tracked());
+        // Only present in p2
+        map.reset_state(p(b"some/file3"), false, false, true, false, None)?;
+        assert!(!map.get(p(b"some/file3"))?.unwrap().tracked());
+        // A file that was merged
+        map.reset_state(p(b"root_file"), true, true, true, false, None)?;
+        assert!(map.get(p(b"root_file"))?.unwrap().tracked());
+        // A file that is added, with info from p2
+        // XXX is that actually possible?
+        map.reset_state(p(b"some/file2"), true, false, true, false, None)?;
+        assert!(map.get(p(b"some/file2"))?.unwrap().tracked());
+        // A clean file
+        // One layer without any files to test deletion cascade
+        map.reset_state(
+            p(b"some/other/nested/path"),
+            true,
+            true,
+            false,
+            false,
+            None,
+        )?;
+        assert!(map.get(p(b"some/other/nested/path"))?.unwrap().tracked());
+
+        assert_eq!(map.len(), 6);
+        assert_eq!(tracked_descendants(&map, b"some"), 3);
+        assert_eq!(descendants_with_an_entry(&map, b"some"), 5);
+        assert_eq!(tracked_descendants(&map, b"some/other/nested"), 1);
+        assert_eq!(descendants_with_an_entry(&map, b"some/other/nested"), 1);
+        assert_eq!(tracked_descendants(&map, b"some/other/nested/path"), 0);
+        assert_eq!(
+            descendants_with_an_entry(&map, b"some/other/nested/path"),
+            0
+        );
+        assert_eq!(tracked_descendants(&map, b"some/nested"), 1);
+        assert_eq!(descendants_with_an_entry(&map, b"some/nested"), 2);
+
+        // might as well check this
+        map.set_untracked(p(b"path/does/not/exist"))?;
+        assert_eq!(map.len(), 6);
+
+        map.set_untracked(p(b"some/other/nested/path"))?;
+        // It is set untracked but not deleted since it held other information
+        assert_eq!(map.len(), 6);
+        assert_eq!(tracked_descendants(&map, b"some"), 2);
+        assert_eq!(descendants_with_an_entry(&map, b"some"), 5);
+        assert_eq!(descendants_with_an_entry(&map, b"some/other"), 1);
+        assert_eq!(descendants_with_an_entry(&map, b"some/other/nested"), 1);
+        assert_eq!(tracked_descendants(&map, b"some/nested"), 1);
+        assert_eq!(descendants_with_an_entry(&map, b"some/nested"), 2);
+
+        map.set_untracked(p(b"some/nested/path"))?;
+        // It is set untracked *and* deleted since it was only added
+        assert_eq!(map.len(), 5);
+        assert_eq!(tracked_descendants(&map, b"some"), 1);
+        assert_eq!(descendants_with_an_entry(&map, b"some"), 4);
+        assert_eq!(tracked_descendants(&map, b"some/nested"), 0);
+        assert_eq!(descendants_with_an_entry(&map, b"some/nested"), 1);
+        assert_does_not_exist(&map, b"some/nested/path");
+
+        map.set_untracked(p(b"root_file"))?;
+        // Untracked but not deleted
+        assert_eq!(map.len(), 5);
+        assert!(map.get(p(b"root_file"))?.is_some());
+
+        map.set_untracked(p(b"some/file2"))?;
+        assert_eq!(map.len(), 5);
+        assert_eq!(tracked_descendants(&map, b"some"), 0);
+        assert!(map.get(p(b"some/file2"))?.is_some());
+
+        map.set_untracked(p(b"some/file3"))?;
+        assert_eq!(map.len(), 5);
+        assert_eq!(tracked_descendants(&map, b"some"), 0);
+        assert!(map.get(p(b"some/file3"))?.is_some());
+
+        Ok(())
+    }
+
+    /// Check that copies counter is correctly updated
+    #[test]
+    fn test_copy_source() -> Result<(), DirstateError> {
+        let mut map = OwningDirstateMap::new_empty(vec![]);
+
+        // Clean file
+        map.reset_state(p(b"files/clean"), true, true, false, false, None)?;
+        // Merged file
+        map.reset_state(p(b"files/from_p2"), true, true, true, false, None)?;
+        // Removed file
+        map.reset_state(p(b"removed"), false, true, false, false, None)?;
+        // Added file
+        map.reset_state(p(b"files/added"), true, false, false, false, None)?;
+        // Add copy
+        map.copy_map_insert(p(b"files/clean"), p(b"clean_copy_source"))?;
+        assert_eq!(map.copy_map_len(), 1);
+
+        // Copy override
+        map.copy_map_insert(p(b"files/clean"), p(b"other_clean_copy_source"))?;
+        assert_eq!(map.copy_map_len(), 1);
+
+        // Multiple copies
+        map.copy_map_insert(p(b"removed"), p(b"removed_copy_source"))?;
+        assert_eq!(map.copy_map_len(), 2);
+
+        map.copy_map_insert(p(b"files/added"), p(b"added_copy_source"))?;
+        assert_eq!(map.copy_map_len(), 3);
+
+        // Added, so the entry is completely removed
+        map.set_untracked(p(b"files/added"))?;
+        assert_does_not_exist(&map, b"files/added");
+        assert_eq!(map.copy_map_len(), 2);
+
+        // Removed, so the entry is kept around, so is its copy
+        map.set_untracked(p(b"removed"))?;
+        assert!(map.get(p(b"removed"))?.is_some());
+        assert_eq!(map.copy_map_len(), 2);
+
+        // Clean, so the entry is kept around, but not its copy
+        map.set_untracked(p(b"files/clean"))?;
+        assert!(map.get(p(b"files/clean"))?.is_some());
+        assert_eq!(map.copy_map_len(), 1);
+
+        map.copy_map_insert(p(b"files/from_p2"), p(b"from_p2_copy_source"))?;
+        assert_eq!(map.copy_map_len(), 2);
+
+        // Info from p2, so its copy source info is kept around
+        map.set_untracked(p(b"files/from_p2"))?;
+        assert!(map.get(p(b"files/from_p2"))?.is_some());
+        assert_eq!(map.copy_map_len(), 2);
+
+        Ok(())
+    }
+
+    /// Test with "on disk" data. For the sake of this test, the "on disk" data
+    /// does not actually come from the disk, but it's opaque to the code being
+    /// tested.
+    #[test]
+    fn test_on_disk() -> Result<(), DirstateError> {
+        // First let's create some data to put "on disk"
+        let mut map = OwningDirstateMap::new_empty(vec![]);
+
+        // A file that was just added
+        map.set_tracked(p(b"some/nested/added"))?;
+        map.copy_map_insert(p(b"some/nested/added"), p(b"added_copy_source"))?;
+
+        // A file that was removed
+        map.reset_state(
+            p(b"some/nested/removed"),
+            false,
+            true,
+            false,
+            false,
+            None,
+        )?;
+        // Only present in p2
+        map.reset_state(
+            p(b"other/p2_info_only"),
+            false,
+            false,
+            true,
+            false,
+            None,
+        )?;
+        map.copy_map_insert(
+            p(b"other/p2_info_only"),
+            p(b"other/p2_info_copy_source"),
+        )?;
+        // A file that was merged
+        map.reset_state(p(b"merged"), true, true, true, false, None)?;
+        // A file that is added, with info from p2
+        // XXX is that actually possible?
+        map.reset_state(
+            p(b"other/added_with_p2"),
+            true,
+            false,
+            true,
+            false,
+            None,
+        )?;
+        // One layer without any files to test deletion cascade
+        // A clean file
+        map.reset_state(
+            p(b"some/other/nested/clean"),
+            true,
+            true,
+            false,
+            false,
+            None,
+        )?;
+
+        let (packed, metadata, _should_append, _old_data_size) =
+            map.pack_v2(false)?;
+        let packed_len = packed.len();
+        assert!(packed_len > 0);
+
+        // Recreate "from disk"
+        let mut map = OwningDirstateMap::new_v2(
+            packed,
+            packed_len,
+            metadata.as_bytes(),
+        )?;
+
+        // Check that everything is accounted for
+        assert!(map.contains_key(p(b"some/nested/added"))?);
+        assert!(map.contains_key(p(b"some/nested/removed"))?);
+        assert!(map.contains_key(p(b"merged"))?);
+        assert!(map.contains_key(p(b"other/p2_info_only"))?);
+        assert!(map.contains_key(p(b"other/added_with_p2"))?);
+        assert!(map.contains_key(p(b"some/other/nested/clean"))?);
+        assert_eq!(
+            map.copy_map_get(p(b"some/nested/added"))?,
+            Some(p(b"added_copy_source"))
+        );
+        assert_eq!(
+            map.copy_map_get(p(b"other/p2_info_only"))?,
+            Some(p(b"other/p2_info_copy_source"))
+        );
+        assert_eq!(tracked_descendants(&map, b"some"), 2);
+        assert_eq!(descendants_with_an_entry(&map, b"some"), 3);
+        assert_eq!(tracked_descendants(&map, b"other"), 1);
+        assert_eq!(descendants_with_an_entry(&map, b"other"), 2);
+        assert_eq!(tracked_descendants(&map, b"some/other"), 1);
+        assert_eq!(descendants_with_an_entry(&map, b"some/other"), 1);
+        assert_eq!(tracked_descendants(&map, b"some/other/nested"), 1);
+        assert_eq!(descendants_with_an_entry(&map, b"some/other/nested"), 1);
+        assert_eq!(tracked_descendants(&map, b"some/nested"), 1);
+        assert_eq!(descendants_with_an_entry(&map, b"some/nested"), 2);
+        assert_eq!(map.len(), 6);
+        assert_eq!(map.get_map().unreachable_bytes, 0);
+        assert_eq!(map.copy_map_len(), 2);
+
+        // Shouldn't change anything since it's already not tracked
+        map.set_untracked(p(b"some/nested/removed"))?;
+        assert_eq!(map.get_map().unreachable_bytes, 0);
+
+        match map.get_map().root {
+            ChildNodes::InMemory(_) => {
+                panic!("root should not have been mutated")
+            }
+            _ => (),
+        }
+        // We haven't mutated enough (nothing, actually), we should still be in
+        // the append strategy
+        assert!(map.get_map().write_should_append());
+
+        // But this mutates the structure, so there should be unreachable_bytes
+        assert!(map.set_untracked(p(b"some/nested/added"))?);
+        let unreachable_bytes = map.get_map().unreachable_bytes;
+        assert!(unreachable_bytes > 0);
+
+        match map.get_map().root {
+            ChildNodes::OnDisk(_) => panic!("root should have been mutated"),
+            _ => (),
+        }
+
+        // This should not mutate the structure either, since `root` has
+        // already been mutated along with its direct children.
+        map.set_untracked(p(b"merged"))?;
+        assert_eq!(map.get_map().unreachable_bytes, unreachable_bytes);
+
+        match map.get_map().get_node(p(b"other/added_with_p2"))?.unwrap() {
+            NodeRef::InMemory(_, _) => {
+                panic!("'other/added_with_p2' should not have been mutated")
+            }
+            _ => (),
+        }
+        // But this should, since it's in a different path
+        // than `<root>some/nested/add`
+        map.set_untracked(p(b"other/added_with_p2"))?;
+        assert!(map.get_map().unreachable_bytes > unreachable_bytes);
+
+        match map.get_map().get_node(p(b"other/added_with_p2"))?.unwrap() {
+            NodeRef::OnDisk(_) => {
+                panic!("'other/added_with_p2' should have been mutated")
+            }
+            _ => (),
+        }
+
+        // We have rewritten most of the tree, we should create a new file
+        assert!(!map.get_map().write_should_append());
+
+        Ok(())
     }
 }

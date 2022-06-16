@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import ctypes
 import ctypes.wintypes as wintypes
@@ -733,14 +732,13 @@ def unlink(f):
     # callers to recreate f immediately while having other readers do their
     # implicit zombie filename blocking on a temporary name.
 
-    for tries in pycompat.xrange(10):
+    for tries in range(10):
         temp = b'%s-%08x' % (f, random.randint(0, 0xFFFFFFFF))
         try:
-            os.rename(f, temp)  # raises OSError EEXIST if temp exists
+            os.rename(f, temp)
             break
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise
+        except FileExistsError:
+            pass
     else:
         raise IOError(errno.EEXIST, "No usable temporary filename found")
 

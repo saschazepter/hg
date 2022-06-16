@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import os
 
@@ -55,7 +54,7 @@ WARN_NULLID_COPY_SOURCE = _(
 )
 
 
-class verifier(object):
+class verifier:
     def __init__(self, repo, level=None):
         self.repo = repo.unfiltered()
         self.ui = repo.ui
@@ -406,11 +405,11 @@ class verifier(object):
                 _(b'checking'), unit=_(b'manifests'), total=len(subdirs)
             )
 
-        for subdir, linkrevs in pycompat.iteritems(subdirnodes):
+        for subdir, linkrevs in subdirnodes.items():
             subdirfilenodes = self._verifymanifest(
                 linkrevs, subdir, storefiles, subdirprogress
             )
-            for f, onefilenodes in pycompat.iteritems(subdirfilenodes):
+            for f, onefilenodes in subdirfilenodes.items():
                 filenodes.setdefault(f, {}).update(onefilenodes)
 
         if not dir and subdirnodes:
@@ -575,7 +574,7 @@ class verifier(object):
 
             # cross-check
             if f in filenodes:
-                fns = [(v, k) for k, v in pycompat.iteritems(filenodes[f])]
+                fns = [(v, k) for k, v in filenodes[f].items()]
                 for lr, node in sorted(fns):
                     msg = _(b"manifest refers to unknown revision %s")
                     self._err(lr, msg % short(node), f)

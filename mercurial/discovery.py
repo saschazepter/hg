@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import functools
 
@@ -74,7 +73,7 @@ def findcommonincoming(repo, remote, heads=None, force=False, ancestorsof=None):
     return (list(common), anyinc, heads or list(srvheads))
 
 
-class outgoing(object):
+class outgoing:
     """Represents the result of a findcommonoutgoing() call.
 
     Members:
@@ -238,7 +237,7 @@ def _headssummary(pushop):
 
     knownnode = cl.hasnode  # do not use nodemap until it is filtered
     # A. register remote heads of branches which are in outgoing set
-    for branch, heads in pycompat.iteritems(remotemap):
+    for branch, heads in remotemap.items():
         # don't add head info about branches which we don't have locally
         if branch not in branches:
             continue
@@ -262,14 +261,14 @@ def _headssummary(pushop):
         repo,
         (
             (branch, heads[1])
-            for branch, heads in pycompat.iteritems(headssum)
+            for branch, heads in headssum.items()
             if heads[0] is not None
         ),
     )
     newmap.update(repo, (ctx.rev() for ctx in missingctx))
-    for branch, newheads in pycompat.iteritems(newmap):
+    for branch, newheads in newmap.items():
         headssum[branch][1][:] = newheads
-    for branch, items in pycompat.iteritems(headssum):
+    for branch, items in headssum.items():
         for l in items:
             if l is not None:
                 l.sort()
@@ -380,9 +379,7 @@ def checkheads(pushop):
         headssum = _oldheadssummary(repo, remoteheads, outgoing, inc)
     pushop.pushbranchmap = headssum
     newbranches = [
-        branch
-        for branch, heads in pycompat.iteritems(headssum)
-        if heads[0] is None
+        branch for branch, heads in headssum.items() if heads[0] is None
     ]
     # 1. Check for new branches on the remote.
     if newbranches and not newbranch:  # new branch requires --new-branch

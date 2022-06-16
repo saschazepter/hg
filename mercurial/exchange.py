@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import collections
 import weakref
@@ -81,6 +80,14 @@ def readbundle(ui, fh, fname, vfs=None):
         )
 
 
+def _format_params(params):
+    parts = []
+    for key, value in sorted(params.items()):
+        value = urlreq.quote(value)
+        parts.append(b"%s=%s" % (key, value))
+    return b';'.join(parts)
+
+
 def getbundlespec(ui, fh):
     """Infer the bundlespec from a bundle file handle.
 
@@ -93,6 +100,8 @@ def getbundlespec(ui, fh):
             return util.compengines.forbundletype(alg).bundletype()[0]
         except KeyError:
             return None
+
+    params = {}
 
     b = readbundle(ui, fh, None)
     if isinstance(b, changegroup.cg1unpacker):
@@ -116,9 +125,12 @@ def getbundlespec(ui, fh):
         version = None
         for part in b.iterparts():
             if part.type == b'changegroup':
-                version = part.params[b'version']
-                if version in (b'01', b'02'):
+                cgversion = part.params[b'version']
+                if cgversion in (b'01', b'02'):
                     version = b'v2'
+                elif cgversion in (b'03',):
+                    version = b'v2'
+                    params[b'cg.version'] = cgversion
                 else:
                     raise error.Abort(
                         _(
@@ -134,13 +146,21 @@ def getbundlespec(ui, fh):
                 splitted = requirements.split()
                 params = bundle2._formatrequirementsparams(splitted)
                 return b'none-v2;stream=v2;%s' % params
+            elif part.type == b'obsmarkers':
+                params[b'obsolescence'] = b'yes'
+                if not part.mandatory:
+                    params[b'obsolescence-mandatory'] = b'no'
 
         if not version:
             raise error.Abort(
                 _(b'could not identify changegroup version in bundle')
             )
+        spec = b'%s-%s' % (comp, version)
+        if params:
+            spec += b';'
+            spec += _format_params(params)
+        return spec
 
-        return b'%s-%s' % (comp, version)
     elif isinstance(b, streamclone.streamcloneapplier):
         requirements = streamclone.readbundle1header(fh)[2]
         formatted = bundle2._formatrequirementsparams(requirements)
@@ -223,7 +243,7 @@ def _forcebundle1(op):
     return forcebundle1 or not op.remote.capable(b'bundle2')
 
 
-class pushoperation(object):
+class pushoperation:
     """A object that represent a single push operation
 
     Its purpose is to carry push related state and very common operations.
@@ -806,7 +826,7 @@ def _pushb2ctxcheckheads(pushop, bundler):
             bundler.newpart(b'check:heads', data=iter(pushop.remoteheads))
         else:
             affected = set()
-            for branch, heads in pycompat.iteritems(pushop.pushbranchmap):
+            for branch, heads in pushop.pushbranchmap.items():
                 remoteheads, newheads, unsyncedheads, discardedheads = heads
                 if remoteheads is not None:
                     remote = set(remoteheads)
@@ -855,7 +875,7 @@ def _pushb2checkphases(pushop, bundler):
         checks = {p: [] for p in phases.allphases}
         checks[phases.public].extend(pushop.remotephases.publicheads)
         checks[phases.draft].extend(pushop.remotephases.draftroots)
-        if any(pycompat.itervalues(checks)):
+        if any(checks.values()):
             for phase in checks:
                 checks[phase].sort()
             checkdata = phases.binaryencode(checks)
@@ -1117,7 +1137,7 @@ def _getbundlesendvars(pushop, bundler):
 
         part = bundler.newpart(b'pushvars')
 
-        for key, value in pycompat.iteritems(shellvars):
+        for key, value in shellvars.items():
             part.addparam(key, value, mandatory=False)
 
 
@@ -1372,7 +1392,7 @@ def _pushbookmark(pushop):
                 pushop.bkresult = 1
 
 
-class pulloperation(object):
+class pulloperation:
     """A object that represent a single pull operation
 
     It purpose is to carry pull related state and very common operation.

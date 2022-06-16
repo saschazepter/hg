@@ -6,7 +6,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 from ..i18n import _
 from .. import error
@@ -389,7 +388,7 @@ class ipeerv2(ipeerconnection, ipeercapabilities, ipeerrequests):
 
 
 @interfaceutil.implementer(ipeerbase)
-class peer(object):
+class peer:
     """Base class for peer repositories."""
 
     limitedarguments = False

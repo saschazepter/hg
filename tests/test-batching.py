@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import, print_function
 
 import contextlib
 
@@ -21,7 +20,7 @@ def bprint(*bs):
 
 
 # equivalent of repo.repository
-class thing(object):
+class thing:
     def hello(self):
         return b"Ready."
 
@@ -108,7 +107,7 @@ def unescapearg(escaped):
 # server side
 
 # equivalent of wireproto's global functions
-class server(object):
+class server:
     def __init__(self, local):
         self.local = local
 

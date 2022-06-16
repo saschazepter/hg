@@ -91,7 +91,6 @@ See :hg:`help patterns` for more information about the glob patterns
 used.
 """
 
-from __future__ import absolute_import
 
 import os
 import re
@@ -186,7 +185,7 @@ filters = {
 }
 
 
-class eolfile(object):
+class eolfile:
     def __init__(self, ui, root, data):
         self._decode = {
             b'LF': b'to-lf',
@@ -310,7 +309,7 @@ def _checkhook(ui, repo, node, headsonly):
     ensureenabled(ui)
     files = set()
     revs = set()
-    for rev in pycompat.xrange(repo[node].rev(), len(repo)):
+    for rev in range(repo[node].rev(), len(repo)):
         revs.add(rev)
         if headsonly:
             ctx = repo[rev]
@@ -379,7 +378,7 @@ def reposetup(ui, repo):
 
     if not repo.local():
         return
-    for name, fn in pycompat.iteritems(filters):
+    for name, fn in filters.items():
         repo.adddatafilter(name, fn)
 
     ui.setconfig(b'patch', b'eol', b'auto', b'eol')

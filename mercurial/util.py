@@ -13,7 +13,6 @@ This contains helper routines that are independent of the SCM core and
 hide platform-specific details from the core.
 """
 
-from __future__ import absolute_import, print_function
 
 import abc
 import collections
@@ -21,11 +20,12 @@ import contextlib
 import errno
 import gc
 import hashlib
+import io
 import itertools
 import locale
 import mmap
 import os
-import platform as pyplatform
+import pickle  # provides util.pickle symbol
 import re as remod
 import shutil
 import stat
@@ -42,7 +42,6 @@ from .pycompat import (
     open,
     setattr,
 )
-from .node import hex
 from hgdemandimport import tracing
 from . import (
     encoding,
@@ -76,10 +75,9 @@ b85encode = base85.b85encode
 
 cookielib = pycompat.cookielib
 httplib = pycompat.httplib
-pickle = pycompat.pickle
 safehasattr = pycompat.safehasattr
 socketserver = pycompat.socketserver
-bytesio = pycompat.bytesio
+bytesio = io.BytesIO
 # TODO deprecate stringio name, as it is a lie on Python 3.
 stringio = bytesio
 xmlrpclib = pycompat.xmlrpclib
@@ -158,11 +156,6 @@ compengines = compression.compengines
 SERVERROLE = compression.SERVERROLE
 CLIENTROLE = compression.CLIENTROLE
 
-try:
-    recvfds = osutil.recvfds
-except AttributeError:
-    pass
-
 # Python compatibility
 
 _notset = object()
@@ -189,7 +182,7 @@ if _dowarn:
     warnings.filterwarnings('default', '', DeprecationWarning, 'mercurial')
     warnings.filterwarnings('default', '', DeprecationWarning, 'hgext')
     warnings.filterwarnings('default', '', DeprecationWarning, 'hgext3rd')
-if _dowarn and pycompat.ispy3:
+if _dowarn:
     # silence warning emitted by passing user string to re.sub()
     warnings.filterwarnings(
         'ignore', 'bad escape', DeprecationWarning, 'mercurial'
@@ -233,7 +226,7 @@ for k in DIGESTS_BY_STRENGTH:
     assert k in DIGESTS
 
 
-class digester(object):
+class digester:
     """helper to compute digests.
 
     This helper can be used to compute one or more digests given their name.
@@ -281,7 +274,7 @@ class digester(object):
         return None
 
 
-class digestchecker(object):
+class digestchecker:
     """file handle wrapper that additionally checks content against a given
     size and digests.
 
@@ -331,7 +324,7 @@ except NameError:
 _chunksize = 4096
 
 
-class bufferedinputpipe(object):
+class bufferedinputpipe:
     """a manually buffered input pipe
 
     Python will not let us use buffered IO and lazy reading with 'polling' at
@@ -459,7 +452,7 @@ def mmapread(fp, size=None):
         raise
 
 
-class fileobjectproxy(object):
+class fileobjectproxy:
     """A proxy around file objects that tells a watcher when events occur.
 
     This type is intended to only be used for testing purposes. Think hard
@@ -695,7 +688,7 @@ PROXIED_SOCKET_METHODS = {
 }
 
 
-class socketproxy(object):
+class socketproxy:
     """A proxy around a socket that tells a watcher when events occur.
 
     This is like ``fileobjectproxy`` except for sockets.
@@ -818,7 +811,7 @@ class socketproxy(object):
         )
 
 
-class baseproxyobserver(object):
+class baseproxyobserver:
     def __init__(self, fh, name, logdata, logdataapis):
         self.fh = fh
         self.name = name
@@ -1258,7 +1251,7 @@ def cachefunc(func):
     return f
 
 
-class cow(object):
+class cow:
     """helper class to make copy-on-write easier
 
     Call preparewrite before doing any writes.
@@ -1302,7 +1295,7 @@ class sortdict(collections.OrderedDict):
         # __setitem__() isn't called as of PyPy 5.8.0
         def update(self, src, **f):
             if isinstance(src, dict):
-                src = pycompat.iteritems(src)
+                src = src.items()
             for k, v in src:
                 self[k] = v
             for k in f:
@@ -1351,7 +1344,7 @@ class cowsortdict(cow, sortdict):
     """
 
 
-class transactional(object):  # pytype: disable=ignored-metaclass
+class transactional:  # pytype: disable=ignored-metaclass
     """Base class for making a transactional type into a context manager."""
 
     __metaclass__ = abc.ABCMeta
@@ -1402,7 +1395,7 @@ def nullcontextmanager(enter_result=None):
     yield enter_result
 
 
-class _lrucachenode(object):
+class _lrucachenode:
     """A node in a doubly linked list.
 
     Holds a reference to nodes on either side as well as a key-value
@@ -1426,7 +1419,7 @@ class _lrucachenode(object):
         self.cost = 0
 
 
-class lrucachedict(object):
+class lrucachedict:
     """Dict that caches most recent accesses and sets.
 
     The dict consists of an actual backing dict - indexed by original
@@ -1757,7 +1750,7 @@ def lrucachefunc(func):
     return f
 
 
-class propertycache(object):
+class propertycache:
     def __init__(self, func):
         self.func = func
         self.name = func.__name__
@@ -2216,7 +2209,7 @@ except ImportError:
     _re2 = False
 
 
-class _re(object):
+class _re:
     def _checkre2(self):
         global _re2
         global _re2_input
@@ -2418,7 +2411,7 @@ def mktempcopy(name, emptyok=False, createmode=None, enforcewritable=False):
     return temp
 
 
-class filestat(object):
+class filestat:
     """help to exactly detect change of a file
 
     'stat' attribute is result of 'os.stat()' if specified 'path'
@@ -2433,9 +2426,7 @@ class filestat(object):
     def frompath(cls, path):
         try:
             stat = os.stat(path)
-        except OSError as err:
-            if err.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
             stat = None
         return cls(stat)
 
@@ -2512,19 +2503,17 @@ class filestat(object):
         advanced = (old.stat[stat.ST_MTIME] + 1) & 0x7FFFFFFF
         try:
             os.utime(path, (advanced, advanced))
-        except OSError as inst:
-            if inst.errno == errno.EPERM:
-                # utime() on the file created by another user causes EPERM,
-                # if a process doesn't have appropriate privileges
-                return False
-            raise
+        except PermissionError:
+            # utime() on the file created by another user causes EPERM,
+            # if a process doesn't have appropriate privileges
+            return False
         return True
 
     def __ne__(self, other):
         return not self == other
 
 
-class atomictempfile(object):
+class atomictempfile:
     """writable file object that atomically updates a file
 
     All writes will go to a temporary copy of the original file. Call
@@ -2594,6 +2583,14 @@ class atomictempfile(object):
             self.close()
 
 
+def tryrmdir(f):
+    try:
+        removedirs(f)
+    except OSError as e:
+        if e.errno != errno.ENOENT and e.errno != errno.ENOTEMPTY:
+            raise
+
+
 def unlinkpath(f, ignoremissing=False, rmdir=True):
     # type: (bytes, bool, bool) -> None
     """unlink and remove the directory if it is empty"""
@@ -2611,12 +2608,11 @@ def unlinkpath(f, ignoremissing=False, rmdir=True):
 
 def tryunlink(f):
     # type: (bytes) -> None
-    """Attempt to remove a file, ignoring ENOENT errors."""
+    """Attempt to remove a file, ignoring FileNotFoundError."""
     try:
         unlink(f)
-    except OSError as e:
-        if e.errno != errno.ENOENT:
-            raise
+    except FileNotFoundError:
+        pass
 
 
 def makedirs(name, mode=None, notindexed=False):
@@ -2667,7 +2663,7 @@ def appendfile(path, text):
         fp.write(text)
 
 
-class chunkbuffer(object):
+class chunkbuffer:
     """Allow arbitrary sized chunks of data to be efficiently read from an
     iterator over chunks of arbitrary size."""
 
@@ -2772,7 +2768,7 @@ def filechunkiter(f, size=131072, limit=None):
         yield s
 
 
-class cappedreader(object):
+class cappedreader:
     """A file object proxy that allows reading up to N bytes.
 
     Given a source file object, instances of this type allow reading up to
@@ -2860,7 +2856,7 @@ bytecount = unitcountfn(
 )
 
 
-class transformingwriter(object):
+class transformingwriter:
     """Writable file wrapper to transform data by function"""
 
     def __init__(self, fp, encode):
@@ -2906,50 +2902,10 @@ else:
     fromnativeeol = pycompat.identity
     nativeeolwriter = pycompat.identity
 
-if pyplatform.python_implementation() == b'CPython' and sys.version_info < (
-    3,
-    0,
-):
-    # There is an issue in CPython that some IO methods do not handle EINTR
-    # correctly. The following table shows what CPython version (and functions)
-    # are affected (buggy: has the EINTR bug, okay: otherwise):
-    #
-    #                | < 2.7.4 | 2.7.4 to 2.7.12 | >= 3.0
-    #   --------------------------------------------------
-    #    fp.__iter__ | buggy   | buggy           | okay
-    #    fp.read*    | buggy   | okay [1]        | okay
-    #
-    # [1]: fixed by changeset 67dc99a989cd in the cpython hg repo.
-    #
-    # Here we workaround the EINTR issue for fileobj.__iter__. Other methods
-    # like "read*" work fine, as we do not support Python < 2.7.4.
-    #
-    # Although we can workaround the EINTR issue for fp.__iter__, it is slower:
-    # "for x in fp" is 4x faster than "for x in iter(fp.readline, '')" in
-    # CPython 2, because CPython 2 maintains an internal readahead buffer for
-    # fp.__iter__ but not other fp.read* methods.
-    #
-    # On modern systems like Linux, the "read" syscall cannot be interrupted
-    # when reading "fast" files like on-disk files. So the EINTR issue only
-    # affects things like pipes, sockets, ttys etc. We treat "normal" (S_ISREG)
-    # files approximately as "fast" files and use the fast (unsafe) code path,
-    # to minimize the performance impact.
 
-    def iterfile(fp):
-        fastpath = True
-        if type(fp) is file:
-            fastpath = stat.S_ISREG(os.fstat(fp.fileno()).st_mode)
-        if fastpath:
-            return fp
-        else:
-            # fp.readline deals with EINTR correctly, use it as a workaround.
-            return iter(fp.readline, b'')
-
-
-else:
-    # PyPy and CPython 3 do not have the EINTR issue thus no workaround needed.
-    def iterfile(fp):
-        return fp
+# TODO delete since workaround variant for Python 2 no longer needed.
+def iterfile(fp):
+    return fp
 
 
 def iterlines(iterator):
@@ -3008,7 +2964,7 @@ timecount = unitcountfn(
 
 
 @attr.s
-class timedcmstats(object):
+class timedcmstats:
     """Stats information produced by the timedcm context manager on entering."""
 
     # the starting value of the timer as a float (meaning and resulution is
@@ -3109,7 +3065,7 @@ def sizetoint(s):
         raise error.ParseError(_(b"couldn't parse size: %s") % s)
 
 
-class hooks(object):
+class hooks:
     """A collection of hook functions that can be used to extend a
     function's behavior. Hooks are called in lexicographic order,
     based on the names of their sources."""

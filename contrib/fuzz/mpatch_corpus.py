@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function
-
 import argparse
 import os
 import struct
@@ -22,7 +20,7 @@ args = ap.parse_args()
 
 if sys.version_info[0] < 3:
 
-    class py2reprhack(object):
+    class py2reprhack:
         def __repr__(self):
             """Py2 calls __repr__ for `bytes(foo)`, forward to __bytes__"""
             return self.__bytes__()
@@ -30,7 +28,7 @@ if sys.version_info[0] < 3:
 
 else:
 
-    class py2reprhack(object):
+    class py2reprhack:
         """Not needed on py3."""
 
 

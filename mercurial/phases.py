@@ -100,9 +100,7 @@ Note: old client behave as a publishing server with draft only content
 
 """
 
-from __future__ import absolute_import
 
-import errno
 import struct
 
 from .i18n import _
@@ -203,9 +201,7 @@ def _readroots(repo, phasedefaults=None):
                 roots[int(phase)].add(bin(nh))
         finally:
             f.close()
-    except IOError as inst:
-        if inst.errno != errno.ENOENT:
-            raise
+    except FileNotFoundError:
         if phasedefaults:
             for f in phasedefaults:
                 roots = f(repo, roots)
@@ -220,7 +216,7 @@ def binaryencode(phasemapping):
     The revision lists are encoded as (phase, root) pairs.
     """
     binarydata = []
-    for phase, nodes in pycompat.iteritems(phasemapping):
+    for phase, nodes in phasemapping.items():
         for head in nodes:
             binarydata.append(_fphasesentry.pack(phase, head))
     return b''.join(binarydata)
@@ -256,14 +252,14 @@ def _sortedrange_insert(data, idx, rev, t):
         merge_after = r2[0] == rev + 1 and t2 == t
 
     if merge_before and merge_after:
-        data[idx - 1] = (pycompat.xrange(r1[0], r2[-1] + 1), t)
+        data[idx - 1] = (range(r1[0], r2[-1] + 1), t)
         data.pop(idx)
     elif merge_before:
-        data[idx - 1] = (pycompat.xrange(r1[0], rev + 1), t)
+        data[idx - 1] = (range(r1[0], rev + 1), t)
     elif merge_after:
-        data[idx] = (pycompat.xrange(rev, r2[-1] + 1), t)
+        data[idx] = (range(rev, r2[-1] + 1), t)
     else:
-        data.insert(idx, (pycompat.xrange(rev, rev + 1), t))
+        data.insert(idx, (range(rev, rev + 1), t))
 
 
 def _sortedrange_split(data, idx, rev, t):
@@ -275,16 +271,16 @@ def _sortedrange_split(data, idx, rev, t):
         data.pop(idx)
         _sortedrange_insert(data, idx, rev, t)
     elif r1[0] == rev:
-        data[idx] = (pycompat.xrange(rev + 1, r1[-1] + 1), t1)
+        data[idx] = (range(rev + 1, r1[-1] + 1), t1)
         _sortedrange_insert(data, idx, rev, t)
     elif r1[-1] == rev:
-        data[idx] = (pycompat.xrange(r1[0], rev), t1)
+        data[idx] = (range(r1[0], rev), t1)
         _sortedrange_insert(data, idx + 1, rev, t)
     else:
         data[idx : idx + 1] = [
-            (pycompat.xrange(r1[0], rev), t1),
-            (pycompat.xrange(rev, rev + 1), t),
-            (pycompat.xrange(rev + 1, r1[-1] + 1), t1),
+            (range(r1[0], rev), t1),
+            (range(rev, rev + 1), t),
+            (range(rev + 1, r1[-1] + 1), t1),
         ]
 
 
@@ -298,7 +294,7 @@ def _trackphasechange(data, rev, old, new):
 
     # If data is empty, create a one-revision range and done
     if not data:
-        data.insert(0, (pycompat.xrange(rev, rev + 1), (old, new)))
+        data.insert(0, (range(rev, rev + 1), (old, new)))
         return
 
     low = 0
@@ -334,17 +330,17 @@ def _trackphasechange(data, rev, old, new):
             low = mid + 1
 
     if low == len(data):
-        data.append((pycompat.xrange(rev, rev + 1), t))
+        data.append((range(rev, rev + 1), t))
         return
 
     r1, t1 = data[low]
     if r1[0] > rev:
-        data.insert(low, (pycompat.xrange(rev, rev + 1), t))
+        data.insert(low, (range(rev, rev + 1), t))
     else:
-        data.insert(low + 1, (pycompat.xrange(rev, rev + 1), t))
+        data.insert(low + 1, (range(rev, rev + 1), t))
 
 
-class phasecache(object):
+class phasecache:
     def __init__(self, repo, phasedefaults, _load=True):
         # type: (localrepo.localrepository, Optional[Phasedefaults], bool) -> None
         if _load:
@@ -364,9 +360,7 @@ class phasecache(object):
             self.invalidate()
             self.loadphaserevs(repo)
         return any(
-            revs
-            for phase, revs in pycompat.iteritems(self.phaseroots)
-            if phase != public
+            revs for phase, revs in self.phaseroots.items() if phase != public
         )
 
     def nonpublicphaseroots(self, repo):
@@ -384,7 +378,7 @@ class phasecache(object):
         return set().union(
             *[
                 revs
-                for phase, revs in pycompat.iteritems(self.phaseroots)
+                for phase, revs in self.phaseroots.items()
                 if phase != public
             ]
         )
@@ -529,7 +523,7 @@ class phasecache(object):
             f.close()
 
     def _write(self, fp):
-        for phase, roots in pycompat.iteritems(self.phaseroots):
+        for phase, roots in self.phaseroots.items():
             for h in sorted(roots):
                 fp.write(b'%i %s\n' % (phase, hex(h)))
         self.dirty = False
@@ -613,7 +607,7 @@ class phasecache(object):
     def retractboundary(self, repo, tr, targetphase, nodes):
         oldroots = {
             phase: revs
-            for phase, revs in pycompat.iteritems(self.phaseroots)
+            for phase, revs in self.phaseroots.items()
             if phase <= targetphase
         }
         if tr is None:
@@ -632,7 +626,7 @@ class phasecache(object):
             affected = set(repo.revs(b'(%ln::) - (%ln::)', new, old))
 
             # find the phase of the affected revision
-            for phase in pycompat.xrange(targetphase, -1, -1):
+            for phase in range(targetphase, -1, -1):
                 if phase:
                     roots = oldroots.get(phase, [])
                     revs = set(repo.revs(b'%ln::%ld', roots, affected))
@@ -691,7 +685,7 @@ class phasecache(object):
         """
         filtered = False
         has_node = repo.changelog.index.has_node  # to filter unknown nodes
-        for phase, nodes in pycompat.iteritems(self.phaseroots):
+        for phase, nodes in self.phaseroots.items():
             missing = sorted(node for node in nodes if not has_node(node))
             if missing:
                 for mnode in missing:
@@ -855,7 +849,7 @@ def analyzeremotephases(repo, subset, roots):
     # build list from dictionary
     draftroots = []
     has_node = repo.changelog.index.has_node  # to filter unknown nodes
-    for nhex, phase in pycompat.iteritems(roots):
+    for nhex, phase in roots.items():
         if nhex == b'publishing':  # ignore data related to publish option
             continue
         node = bin(nhex)
@@ -882,7 +876,7 @@ def analyzeremotephases(repo, subset, roots):
     return publicheads, draftroots
 
 
-class remotephasessummary(object):
+class remotephasessummary:
     """summarize phase information on the remote side
 
     :publishing: True is the remote is publishing

@@ -4,7 +4,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import contextlib
 import struct
@@ -57,7 +56,7 @@ def decodevaluefromheaders(req, headerprefix):
 
 
 @interfaceutil.implementer(wireprototypes.baseprotocolhandler)
-class httpv1protocolhandler(object):
+class httpv1protocolhandler:
     def __init__(self, req, ui, checkperm):
         self._req = req
         self._ui = ui
@@ -375,7 +374,7 @@ def _sshv1respondooberror(fout, ferr, rsp):
 
 
 @interfaceutil.implementer(wireprototypes.baseprotocolhandler)
-class sshv1protocolhandler(object):
+class sshv1protocolhandler:
     """Handler for requests services via version 1 of SSH protocol."""
 
     def __init__(self, ui, fin, fout):
@@ -391,14 +390,14 @@ class sshv1protocolhandler(object):
     def getargs(self, args):
         data = {}
         keys = args.split()
-        for n in pycompat.xrange(len(keys)):
+        for n in range(len(keys)):
             argline = self._fin.readline()[:-1]
             arg, l = argline.split()
             if arg not in keys:
                 raise error.Abort(_(b"unexpected parameter %r") % arg)
             if arg == b'*':
                 star = {}
-                for k in pycompat.xrange(int(l)):
+                for k in range(int(l)):
                     argline = self._fin.readline()[:-1]
                     arg, l = argline.split()
                     val = self._fin.read(int(l))
@@ -521,7 +520,7 @@ def _runsshserver(ui, repo, fin, fout, ev):
             )
 
 
-class sshserver(object):
+class sshserver:
     def __init__(self, ui, repo, logfh=None):
         self._ui = ui
         self._repo = repo

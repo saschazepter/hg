@@ -19,7 +19,6 @@ when a rule triggers wrong, do one of the following (prefer one from top):
  * ONLY use no--check-code for skipping entire files from external sources
 """
 
-from __future__ import absolute_import, print_function
 import glob
 import keyword
 import optparse
@@ -344,16 +343,6 @@ commonpypats = [
             "linebreak after :",
         ),
         (
-            r'class\s[^( \n]+:',
-            "old-style class, use class foo(object)",
-            r'#.*old-style',
-        ),
-        (
-            r'class\s[^( \n]+\(\):',
-            "class foo() creates old style object, use class foo(object)",
-            r'#.*old-style',
-        ),
-        (
             r'\b(%s)\('
             % '|'.join(k for k in keyword.kwlist if k not in ('print', 'exec')),
             "Python keyword is not a function",
@@ -430,26 +419,6 @@ commonpypats = [
             r'^@(\w*\.)?cachefunc',
             "module-level @cachefunc is risky, please avoid",
         ),
-        (
-            r'^import Queue',
-            "don't use Queue, use pycompat.queue.Queue + "
-            "pycompat.queue.Empty",
-        ),
-        (
-            r'^import cStringIO',
-            "don't use cStringIO.StringIO, use util.stringio",
-        ),
-        (r'^import urllib', "don't use urllib, use util.urlreq/util.urlerr"),
-        (
-            r'^import SocketServer',
-            "don't use SockerServer, use util.socketserver",
-        ),
-        (r'^import urlparse', "don't use urlparse, use util.urlreq"),
-        (r'^import xmlrpclib', "don't use xmlrpclib, use util.xmlrpclib"),
-        (r'^import cPickle', "don't use cPickle, use util.pickle"),
-        (r'^import pickle', "don't use pickle, use util.pickle"),
-        (r'^import httplib', "don't use httplib, use util.httplib"),
-        (r'^import BaseHTTPServer', "use util.httpserver instead"),
         (
             r'^(from|import) mercurial\.(cext|pure|cffi)',
             "use mercurial.policy.importmod instead",
@@ -789,7 +758,7 @@ def _preparepats():
             preparefilters(filters)
 
 
-class norepeatlogger(object):
+class norepeatlogger:
     def __init__(self):
         self._lastseen = None
 

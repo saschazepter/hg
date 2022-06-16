@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import os
 import struct
@@ -106,7 +105,7 @@ def writechunks(ui, chunks, filename, vfs=None):
                 os.unlink(cleanup)
 
 
-class cg1unpacker(object):
+class cg1unpacker:
     """Unpacker for cg1 changegroup streams.
 
     A changegroup unpacker handles the framing of the revision data in
@@ -421,11 +420,11 @@ class cg1unpacker(object):
                 cl = repo.changelog
                 ml = repo.manifestlog
                 # validate incoming csets have their manifests
-                for cset in pycompat.xrange(clstart, clend):
+                for cset in range(clstart, clend):
                     mfnode = cl.changelogrevision(cset).manifest
                     mfest = ml[mfnode].readdelta()
                     # store file nodes we must see
-                    for f, n in pycompat.iteritems(mfest):
+                    for f, n in mfest.items():
                         needfiles.setdefault(f, set()).add(n)
 
             on_filelog_rev = None
@@ -510,7 +509,7 @@ class cg1unpacker(object):
                     **pycompat.strkwargs(hookargs)
                 )
 
-            added = pycompat.xrange(clstart, clend)
+            added = range(clstart, clend)
             phaseall = None
             if srctype in (b'push', b'serve'):
                 # Old servers can not push the boundary themselves.
@@ -692,7 +691,7 @@ class cg4unpacker(cg3unpacker):
         )
 
 
-class headerlessfixup(object):
+class headerlessfixup:
     def __init__(self, fh, h):
         self._h = h
         self._fh = fh
@@ -826,7 +825,7 @@ def _resolvenarrowrevisioninfo(
                 # somewhat unsurprised to find a case in the wild
                 # where this breaks down a bit. That said, I don't
                 # know if it would hurt anything.
-                for i in pycompat.xrange(rev, 0, -1):
+                for i in range(rev, 0, -1):
                     if store.linkrev(i) == clrev:
                         return i
                 # We failed to resolve a parent for this node, so
@@ -1004,7 +1003,7 @@ def deltagroup(
         progress.complete()
 
 
-class cgpacker(object):
+class cgpacker:
     def __init__(
         self,
         repo,
@@ -1957,7 +1956,7 @@ def _addchangegroupfiles(
         revisions += len(fl) - o
         if f in needfiles:
             needs = needfiles[f]
-            for new in pycompat.xrange(o, len(fl)):
+            for new in range(o, len(fl)):
                 n = fl.node(new)
                 if n in needs:
                     needs.remove(n)
@@ -1967,7 +1966,7 @@ def _addchangegroupfiles(
                 del needfiles[f]
     progress.complete()
 
-    for f, needs in pycompat.iteritems(needfiles):
+    for f, needs in needfiles.items():
         fl = repo.file(f)
         for n in needs:
             try:

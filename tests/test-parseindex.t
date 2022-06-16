@@ -26,7 +26,6 @@ We approximate that by reducing the read buffer to 1 byte.
   summary:     change foo
   
   $ cat >> test.py << EOF
-  > from __future__ import print_function
   > from mercurial import changelog, node, pycompat, vfs
   > 
   > class singlebyteread(object):
@@ -75,7 +74,6 @@ Test SEGV caused by bad revision passed to reachableroots() (issue4775):
   $ cd a
 
   $ "$PYTHON" <<EOF
-  > from __future__ import print_function
   > from mercurial import changelog, vfs
   > cl = changelog.changelog(vfs.vfs(b'.hg/store'))
   > print('good heads:')
@@ -113,7 +111,7 @@ Test SEGV caused by bad revision passed to reachableroots() (issue4775):
   10000: head out of range
   -2: head out of range
   -10000: head out of range
-  None: an integer is required( .got type NoneType.)? (re)
+  None: (an integer is required( .got type NoneType.)?|'NoneType' object cannot be interpreted as an integer) (re)
   good roots:
   0: [0]
   1: [1]
@@ -124,7 +122,7 @@ Test SEGV caused by bad revision passed to reachableroots() (issue4775):
   -2: []
   -10000: []
   bad roots:
-  None: an integer is required( .got type NoneType.)? (re)
+  None: (an integer is required( .got type NoneType.)?|'NoneType' object cannot be interpreted as an integer) (re)
 
   $ cd ..
 
@@ -157,9 +155,9 @@ Test corrupted p1/p2 fields that could cause SEGV at parsers.c:
        1 0000       65      1      0      2 26333235a41c
 
   $ hg -R limit debugdeltachain -c
-      rev  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio
-        0       1        1       -1    base         63         62         63   1.01613        63         0    0.00000
-        1       2        1       -1    base         66         65         66   1.01538        66         0    0.00000
+      rev      p1      p2  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio
+        0       2      -1       1        1       -1    base         63         62         63   1.01613        63         0    0.00000
+        1       0       2       2        1       -1    base         66         65         66   1.01538        66         0    0.00000
 
   $ hg -R neglimit debugrevlogindex -f1 -c
      rev flag     size   link     p1     p2       nodeid
@@ -172,12 +170,11 @@ Test corrupted p1/p2 fields that could cause SEGV at parsers.c:
        1 0000       65      1      0  65536 26333235a41c
 
   $ hg -R segv debugdeltachain -c
-      rev  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio
-        0       1        1       -1    base         63         62         63   1.01613        63         0    0.00000
-        1       2        1       -1    base         66         65         66   1.01538        66         0    0.00000
+      rev      p1      p2  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio
+        0   65536      -1       1        1       -1    base         63         62         63   1.01613        63         0    0.00000
+        1       0   65536       2        1       -1    base         66         65         66   1.01538        66         0    0.00000
 
   $ cat <<EOF > test.py
-  > from __future__ import print_function
   > import sys
   > from mercurial import changelog, pycompat, vfs
   > cl = changelog.changelog(vfs.vfs(pycompat.fsencode(sys.argv[1])))

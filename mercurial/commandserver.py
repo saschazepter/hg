@@ -5,23 +5,15 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
-import errno
 import gc
 import os
 import random
+import selectors
 import signal
 import socket
 import struct
 import traceback
-
-try:
-    import selectors
-
-    selectors.BaseSelector
-except ImportError:
-    from .thirdparty import selectors2 as selectors
 
 from .i18n import _
 from .pycompat import getattr
@@ -40,7 +32,7 @@ from .utils import (
 )
 
 
-class channeledoutput(object):
+class channeledoutput:
     """
     Write data to out in the following format:
 
@@ -69,7 +61,7 @@ class channeledoutput(object):
         return getattr(self.out, attr)
 
 
-class channeledmessage(object):
+class channeledmessage:
     """
     Write encoded message and metadata to out in the following format:
 
@@ -98,7 +90,7 @@ class channeledmessage(object):
         return getattr(self._cout, attr)
 
 
-class channeledinput(object):
+class channeledinput:
     """
     Read data from in_.
 
@@ -201,7 +193,7 @@ def _selectmessageencoder(ui):
     )
 
 
-class server(object):
+class server:
     """
     Listens for commands on fin, runs them and writes the output on a channel
     based stream to fout.
@@ -451,7 +443,7 @@ def setuplogging(ui, repo=None, fp=None):
         u.setlogger(b'cmdserver', logger)
 
 
-class pipeservice(object):
+class pipeservice:
     def __init__(self, ui, repo, opts):
         self.ui = ui
         self.repo = repo
@@ -501,9 +493,8 @@ def _serverequest(ui, repo, conn, createcmdserver, prereposetups):
         # known exceptions are caught by dispatch.
         except error.Abort as inst:
             ui.error(_(b'abort: %s\n') % inst.message)
-        except IOError as inst:
-            if inst.errno != errno.EPIPE:
-                raise
+        except BrokenPipeError:
+            pass
         except KeyboardInterrupt:
             pass
         finally:
@@ -521,12 +512,11 @@ def _serverequest(ui, repo, conn, createcmdserver, prereposetups):
         fin.close()
         try:
             fout.close()  # implicit flush() may cause another EPIPE
-        except IOError as inst:
-            if inst.errno != errno.EPIPE:
-                raise
+        except BrokenPipeError:
+            pass
 
 
-class unixservicehandler(object):
+class unixservicehandler:
     """Set of pluggable operations for unix-mode services
 
     Almost all methods except for createcmdserver() are called in the main
@@ -560,7 +550,7 @@ class unixservicehandler(object):
         return server(self.ui, repo, fin, fout, prereposetups)
 
 
-class unixforkingservice(object):
+class unixforkingservice:
     """
     Listens on unix domain socket and forks server per connection
     """
@@ -645,15 +635,7 @@ class unixforkingservice(object):
                 # waiting for recv() will receive ECONNRESET.
                 self._unlinksocket()
                 exiting = True
-            try:
-                events = selector.select(timeout=h.pollinterval)
-            except OSError as inst:
-                # selectors2 raises ETIMEDOUT if timeout exceeded while
-                # handling signal interrupt. That's probably wrong, but
-                # we can easily get around it.
-                if inst.errno != errno.ETIMEDOUT:
-                    raise
-                events = []
+            events = selector.select(timeout=h.pollinterval)
             if not events:
                 # only exit if we completed all queued requests
                 if exiting:
@@ -665,12 +647,7 @@ class unixforkingservice(object):
 
     def _acceptnewconnection(self, sock, selector):
         h = self._servicehandler
-        try:
-            conn, _addr = sock.accept()
-        except socket.error as inst:
-            if inst.args[0] == errno.EINTR:
-                return
-            raise
+        conn, _addr = sock.accept()
 
         # Future improvement: On Python 3.7, maybe gc.freeze() can be used
         # to prevent COW memory from being touched by GC.
@@ -703,12 +680,7 @@ class unixforkingservice(object):
 
     def _handlemainipc(self, sock, selector):
         """Process messages sent from a worker"""
-        try:
-            path = sock.recv(32768)  # large enough to receive path
-        except socket.error as inst:
-            if inst.args[0] == errno.EINTR:
-                return
-            raise
+        path = sock.recv(32768)  # large enough to receive path
         self._repoloader.load(path)
 
     def _sigchldhandler(self, signal, frame):
@@ -718,11 +690,7 @@ class unixforkingservice(object):
         while self._workerpids:
             try:
                 pid, _status = os.waitpid(-1, options)
-            except OSError as inst:
-                if inst.errno == errno.EINTR:
-                    continue
-                if inst.errno != errno.ECHILD:
-                    raise
+            except ChildProcessError:
                 # no child processes at all (reaped by other waitpid()?)
                 self._workerpids.clear()
                 return

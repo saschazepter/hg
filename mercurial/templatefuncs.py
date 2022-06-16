@@ -5,8 +5,8 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
+import binascii
 import re
 
 from .i18n import _
@@ -89,7 +89,7 @@ def dict_(context, mapping, args):
 
     data.update(
         (k, evalfuncarg(context, mapping, v))
-        for k, v in pycompat.iteritems(args[b'kwargs'])
+        for k, v in args[b'kwargs'].items()
     )
     return templateutil.hybriddict(data)
 
@@ -770,7 +770,7 @@ def shortest(context, mapping, args):
     elif len(hexnode) == hexnodelen:
         try:
             node = bin(hexnode)
-        except TypeError:
+        except binascii.Error:
             return hexnode
     else:
         try:
@@ -911,7 +911,7 @@ def word(context, mapping, args):
 
 def loadfunction(ui, extname, registrarobj):
     """Load template function from specified registrarobj"""
-    for name, func in pycompat.iteritems(registrarobj._table):
+    for name, func in registrarobj._table.items():
         funcs[name] = func
 
 

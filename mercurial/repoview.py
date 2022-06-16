@@ -6,7 +6,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import copy
 import weakref
@@ -169,7 +168,7 @@ def computeimpactable(repo, visibilityexceptions=None):
         firstmutable = min(firstmutable, min(cl.rev(r) for r in roots))
     # protect from nullrev root
     firstmutable = max(0, firstmutable)
-    return frozenset(pycompat.xrange(firstmutable, len(cl)))
+    return frozenset(range(firstmutable, len(cl)))
 
 
 # function to compute filtered set
@@ -262,10 +261,10 @@ def wrapchangelog(unfichangelog, filteredrevs):
     return cl
 
 
-class filteredchangelogmixin(object):
+class filteredchangelogmixin:
     def tiprev(self):
         """filtered version of revlog.tiprev"""
-        for i in pycompat.xrange(len(self) - 1, -2, -1):
+        for i in range(len(self) - 1, -2, -1):
             if i not in self.filteredrevs:
                 return i
 
@@ -277,7 +276,7 @@ class filteredchangelogmixin(object):
         """filtered version of revlog.__iter__"""
 
         def filterediter():
-            for i in pycompat.xrange(len(self)):
+            for i in range(len(self)):
                 if i not in self.filteredrevs:
                     yield i
 
@@ -362,7 +361,7 @@ class filteredchangelogmixin(object):
         return super(filteredchangelogmixin, self).flags(rev)
 
 
-class repoview(object):
+class repoview:
     """Provide a read/write view of a repo through a filtered changelog
 
     This object is used to access a filtered version of a repository without

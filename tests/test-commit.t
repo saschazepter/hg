@@ -627,7 +627,7 @@ commit copy
   $ hg debugrename foo
   foo renamed from bar:26d3ca0dfd18e44d796b564e38dd173c9668d3a9
   $ hg debugindex bar
-     rev linkrev nodeid       p1           p2
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
        0       0 26d3ca0dfd18 000000000000 000000000000
        1       1 d267bddd54f7 26d3ca0dfd18 000000000000
 
@@ -645,7 +645,6 @@ Test making empty commits
   
 verify pathauditor blocks evil filepaths
   $ cat > evil-commit.py <<EOF
-  > from __future__ import absolute_import
   > from mercurial import context, hg, ui as uimod
   > notrc = u".h\u200cg".encode('utf-8') + b'/hgrc'
   > u = uimod.ui.load()
@@ -671,7 +670,6 @@ verify pathauditor blocks evil filepaths
   $ hg rollback -f
   repository tip rolled back to revision 2 (undo commit)
   $ cat > evil-commit.py <<EOF
-  > from __future__ import absolute_import
   > from mercurial import context, hg, ui as uimod
   > notrc = b"HG~1/hgrc"
   > u = uimod.ui.load()
@@ -691,7 +689,6 @@ verify pathauditor blocks evil filepaths
   $ hg rollback -f
   repository tip rolled back to revision 2 (undo commit)
   $ cat > evil-commit.py <<EOF
-  > from __future__ import absolute_import
   > from mercurial import context, hg, ui as uimod
   > notrc = b"HG8B6C~2/hgrc"
   > u = uimod.ui.load()

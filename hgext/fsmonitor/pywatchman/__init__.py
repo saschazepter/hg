@@ -27,7 +27,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # no unicode literals
-from __future__ import absolute_import, division, print_function
 
 import inspect
 import math
@@ -302,7 +301,7 @@ class CommandError(WatchmanError):
         )
 
 
-class Transport(object):
+class Transport:
     """communication transport to the watchman server"""
 
     buf = None
@@ -347,7 +346,7 @@ class Transport(object):
             self.buf.append(b)
 
 
-class Codec(object):
+class Codec:
     """communication encoding for the watchman server"""
 
     transport = None
@@ -860,7 +859,7 @@ class JsonCodec(Codec):
         self.transport.write(cmd + b"\n")
 
 
-class client(object):
+class client:
     """Handles the communication with the watchman service"""
 
     sockpath = None

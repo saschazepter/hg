@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from mercurial.i18n import _
 
 from mercurial.node import (
@@ -31,7 +29,7 @@ from . import (
 pygit2 = gitutil.get_pygit2()
 
 
-class baselog(object):  # revlog.revlog):
+class baselog:  # revlog.revlog):
     """Common implementations between changelog and manifestlog."""
 
     def __init__(self, gr, db):
@@ -71,7 +69,7 @@ class baselog(object):  # revlog.revlog):
         return t is not None
 
 
-class baselogindex(object):
+class baselogindex:
     def __init__(self, log):
         self._log = log
 
@@ -114,7 +112,7 @@ class changelog(baselog):
             return False
 
     def __iter__(self):
-        return iter(pycompat.xrange(len(self)))
+        return iter(range(len(self)))
 
     @property
     def filteredrevs(self):
@@ -188,7 +186,7 @@ class changelog(baselog):
 
     def shortest(self, node, minlength=1):
         nodehex = hex(node)
-        for attempt in pycompat.xrange(minlength, len(nodehex) + 1):
+        for attempt in range(minlength, len(nodehex) + 1):
             candidate = nodehex[:attempt]
             matches = int(
                 self._db.execute(
@@ -536,8 +534,7 @@ WHERE filenode = ? AND filename = ?
                 ).fetchone()[0]
                 # This filelog is missing some data. Build the
                 # filelog, then recurse (which will always find data).
-                if pycompat.ispy3:
-                    commit = commit.decode('ascii')
+                commit = commit.decode('ascii')
                 index.fill_in_filelog(self.gitrepo, self._db, commit, gp, gn)
                 return self.parents(node)
             else:

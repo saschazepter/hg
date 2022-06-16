@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import collections
 import contextlib
@@ -170,7 +169,7 @@ def _maybebytesurl(maybestr):
     return pycompat.rapply(pycompat.bytesurl, maybestr)
 
 
-class httppasswordmgrdbproxy(object):
+class httppasswordmgrdbproxy:
     """Delays loading urllib2 until it's needed."""
 
     def __init__(self):
@@ -208,7 +207,7 @@ _unset = object()
 _reqexithandlers = []
 
 
-class ui(object):
+class ui:
     def __init__(self, src=None):
         """Create a fresh new ui object if no src given
 
@@ -1433,6 +1432,14 @@ class ui(object):
             # HGPLAINEXCEPT=pager, and the user didn't specify --debug.
             return
 
+        # py2exe doesn't appear to be able to use legacy I/O, and nothing is
+        # output to the pager for paged commands.  Piping to `more` in cmd.exe
+        # works, but is easy to forget.  Just disable pager for py2exe, but
+        # leave it working for pyoxidizer and exewrapper builds.
+        if pycompat.iswindows and getattr(sys, "frozen", None) == "console_exe":
+            self.debug(b"pager is unavailable with py2exe packaging\n")
+            return
+
         pagercmd = self.config(b'pager', b'pager', rcutil.fallbackpager)
         if not pagercmd:
             return
@@ -1510,8 +1517,8 @@ class ui(object):
                 stderr=procutil.stderr,
                 env=procutil.tonativeenv(procutil.shellenviron(env)),
             )
-        except OSError as e:
-            if e.errno == errno.ENOENT and not shell:
+        except FileNotFoundError:
+            if not shell:
                 self.warn(
                     _(b"missing pager command '%s', skipping pager\n") % command
                 )
@@ -1726,9 +1733,9 @@ class ui(object):
             if usereadline:
                 self.flush()
                 prompt = encoding.strfromlocal(prompt)
-                line = encoding.strtolocal(pycompat.rawinput(prompt))
+                line = encoding.strtolocal(input(prompt))
                 # When stdin is in binary mode on Windows, it can cause
-                # raw_input() to emit an extra trailing carriage return
+                # input() to emit an extra trailing carriage return
                 if pycompat.oslinesep == b'\r\n' and line.endswith(b'\r'):
                     line = line[:-1]
             else:
@@ -2118,9 +2125,7 @@ class ui(object):
         """
         if not self._loggers:
             return
-        activeloggers = [
-            l for l in pycompat.itervalues(self._loggers) if l.tracked(event)
-        ]
+        activeloggers = [l for l in self._loggers.values() if l.tracked(event)]
         if not activeloggers:
             return
         msg = msgfmt % msgargs
