@@ -283,6 +283,19 @@ verify update will accept invalid legacy branch names
   abort: current revision is already a branch closing head
   [10]
 
+  $ echo foo > b
+  $ hg commit -d '9 0' --close-branch -m 're-closing this branch'
+
+  $ echo bar > b
+  $ hg commit -d '9 0' --close-branch -m 're-closing this branch' bh1
+  abort: current revision is already a branch closing head
+  [10]
+  $ hg commit -d '9 0' --close-branch -m 're-closing this branch' b
+
+  $ hg debugstrip --rev 13: --no-backup
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg revert --all --no-backup
+
   $ hg log -r tip --debug
   changeset:   12:e3d49c0575d8fc2cb1cd6859c747c14f5f6d499f
   branch:      b
