@@ -6,9 +6,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
-import errno
 import functools
 import os
 import random
@@ -16,6 +14,7 @@ import sys
 import time
 import weakref
 
+from concurrent import futures
 from .i18n import _
 from .node import (
     bin,
@@ -251,7 +250,7 @@ legacycaps = moderncaps.union({b'changegroupsubset'})
 
 
 @interfaceutil.implementer(repository.ipeercommandexecutor)
-class localcommandexecutor(object):
+class localcommandexecutor:
     def __init__(self, peer):
         self._peer = peer
         self._sent = False
@@ -278,7 +277,7 @@ class localcommandexecutor(object):
         # method on the peer and return a resolved future.
         fn = getattr(self._peer, pycompat.sysstr(command))
 
-        f = pycompat.futures.Future()
+        f = futures.Future()
 
         try:
             result = fn(**pycompat.strkwargs(args))
@@ -517,19 +516,18 @@ def _readrequires(vfs, allowmissing):
     """reads the require file present at root of this vfs
     and return a set of requirements
 
-    If allowmissing is True, we suppress ENOENT if raised"""
+    If allowmissing is True, we suppress FileNotFoundError if raised"""
     # requires file contains a newline-delimited list of
     # features/capabilities the opener (us) must have in order to use
     # the repository. This file was introduced in Mercurial 0.9.2,
     # which means very old repositories may not have one. We assume
     # a missing file translates to no requirements.
     try:
-        requirements = set(vfs.read(b'requires').splitlines())
-    except IOError as e:
-        if not (allowmissing and e.errno == errno.ENOENT):
+        return set(vfs.read(b'requires').splitlines())
+    except FileNotFoundError:
+        if not allowmissing:
             raise
-        requirements = set()
-    return requirements
+        return set()
 
 
 def makelocalrepository(baseui, path, intents=None):
@@ -583,9 +581,8 @@ def makelocalrepository(baseui, path, intents=None):
     if not hgvfs.isdir():
         try:
             hgvfs.stat()
-        except OSError as e:
-            if e.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
+            pass
         except ValueError as e:
             # Can be raised on Python 3.8 when path is invalid.
             raise error.Abort(
@@ -631,6 +628,9 @@ def makelocalrepository(baseui, path, intents=None):
             mismatch_config = ui.config(
                 b'share', b'safe-mismatch.source-not-safe'
             )
+            mismatch_verbose_upgrade = ui.configbool(
+                b'share', b'safe-mismatch.source-not-safe:verbose-upgrade'
+            )
             if mismatch_config in (
                 b'downgrade-allow',
                 b'allow',
@@ -646,6 +646,7 @@ def makelocalrepository(baseui, path, intents=None):
                     requirements,
                     mismatch_config,
                     mismatch_warn,
+                    mismatch_verbose_upgrade,
                 )
             elif mismatch_config == b'abort':
                 raise error.Abort(
@@ -671,6 +672,9 @@ def makelocalrepository(baseui, path, intents=None):
             mismatch_warn = ui.configbool(
                 b'share', b'safe-mismatch.source-safe.warn'
             )
+            mismatch_verbose_upgrade = ui.configbool(
+                b'share', b'safe-mismatch.source-safe:verbose-upgrade'
+            )
             if mismatch_config in (
                 b'upgrade-allow',
                 b'allow',
@@ -686,6 +690,7 @@ def makelocalrepository(baseui, path, intents=None):
                     requirements,
                     mismatch_config,
                     mismatch_warn,
+                    mismatch_verbose_upgrade,
                 )
             elif mismatch_config == b'abort':
                 raise error.Abort(
@@ -1070,6 +1075,7 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
         b'storage', b'revlog.optimize-delta-parent-choice'
     )
     options[b'deltabothparents'] = deltabothparents
+    options[b'debug-delta'] = ui.configbool(b'debug', b'revlog.debug-delta')
 
     issue6528 = ui.configbool(b'storage', b'revlog.issue6528.fix-incoming')
     options[b'issue6528.fix-incoming'] = issue6528
@@ -1215,7 +1221,7 @@ def makemain(**kwargs):
 
 
 @interfaceutil.implementer(repository.ilocalrepositoryfilestorage)
-class revlogfilestorage(object):
+class revlogfilestorage:
     """File storage when using revlogs."""
 
     def file(self, path):
@@ -1226,7 +1232,7 @@ class revlogfilestorage(object):
 
 
 @interfaceutil.implementer(repository.ilocalrepositoryfilestorage)
-class revlognarrowfilestorage(object):
+class revlognarrowfilestorage:
     """File storage when using revlogs and narrow files."""
 
     def file(self, path):
@@ -1259,7 +1265,7 @@ REPO_INTERFACES = [
 
 
 @interfaceutil.implementer(repository.ilocalrepositorymain)
-class localrepository(object):
+class localrepository:
     """Main class for representing local repositories.
 
     All local repositories are instances of this class.
@@ -1741,7 +1747,9 @@ class localrepository(object):
 
     def _makedirstate(self):
         """Extension point for wrapping the dirstate per-repo."""
-        sparsematchfn = lambda: sparse.matcher(self)
+        sparsematchfn = None
+        if sparse.use_sparse(self):
+            sparsematchfn = lambda: sparse.matcher(self)
         v2_req = requirementsmod.DIRSTATE_V2_REQUIREMENT
         th = requirementsmod.DIRSTATE_TRACKED_HINT_V1
         use_dirstate_v2 = v2_req in self.requirements
@@ -1884,7 +1892,7 @@ class localrepository(object):
             # wdirrev isn't contiguous so the slice shouldn't include it
             return [
                 self[i]
-                for i in pycompat.xrange(*changeid.indices(len(self)))
+                for i in range(*changeid.indices(len(self)))
                 if i not in self.changelog.filteredrevs
             ]
 
@@ -2044,7 +2052,7 @@ class localrepository(object):
 
         # This simplifies its cache management by having one decorated
         # function (this one) and the rest simply fetch things from it.
-        class tagscache(object):
+        class tagscache:
             def __init__(self):
                 # These two define the set of tags for this repository. tags
                 # maps tag name to node; tagtypes maps tag name to 'global' or
@@ -2068,7 +2076,7 @@ class localrepository(object):
         else:
             tags = self._tagscache.tags
         rev = self.changelog.rev
-        for k, v in pycompat.iteritems(tags):
+        for k, v in tags.items():
             try:
                 # ignore tags to unknown nodes
                 rev(v)
@@ -2103,13 +2111,12 @@ class localrepository(object):
         # writing to the cache), but the rest of Mercurial wants them in
         # local encoding.
         tags = {}
-        for (name, (node, hist)) in pycompat.iteritems(alltags):
+        for (name, (node, hist)) in alltags.items():
             if node != self.nullid:
                 tags[encoding.tolocal(name)] = node
         tags[b'tip'] = self.changelog.tip()
         tagtypes = {
-            encoding.tolocal(name): value
-            for (name, value) in pycompat.iteritems(tagtypes)
+            encoding.tolocal(name): value for (name, value) in tagtypes.items()
         }
         return (tags, tagtypes)
 
@@ -2128,7 +2135,7 @@ class localrepository(object):
         '''return a list of tags ordered by revision'''
         if not self._tagscache.tagslist:
             l = []
-            for t, n in pycompat.iteritems(self.tags()):
+            for t, n in self.tags().items():
                 l.append((self.changelog.rev(n), t, n))
             self._tagscache.tagslist = [(t, n) for r, t, n in sorted(l)]
 
@@ -2138,9 +2145,9 @@ class localrepository(object):
         '''return the tags associated with a node'''
         if not self._tagscache.nodetagscache:
             nodetagscache = {}
-            for t, n in pycompat.iteritems(self._tagscache.tags):
+            for t, n in self._tagscache.tags.items():
                 nodetagscache.setdefault(n, []).append(t)
-            for tags in pycompat.itervalues(nodetagscache):
+            for tags in nodetagscache.values():
                 tags.sort()
             self._tagscache.nodetagscache = nodetagscache
         return self._tagscache.nodetagscache.get(node, [])
@@ -2256,7 +2263,7 @@ class localrepository(object):
                 mf = matchmod.match(self.root, b'', [pat])
                 fn = None
                 params = cmd
-                for name, filterfn in pycompat.iteritems(self._datafilters):
+                for name, filterfn in self._datafilters.items():
                     if cmd.startswith(name):
                         fn = filterfn
                         params = cmd[len(name) :].lstrip()
@@ -3503,9 +3510,8 @@ def aftertrans(files):
             vfs.tryunlink(dest)
             try:
                 vfs.rename(src, dest)
-            except OSError as exc:  # journal file does not yet exist
-                if exc.errno != errno.ENOENT:
-                    raise
+            except FileNotFoundError:  # journal file does not yet exist
+                pass
 
     return a
 
@@ -3517,11 +3523,20 @@ def undoname(fn):
 
 
 def instance(ui, path, create, intents=None, createopts=None):
+
+    # prevent cyclic import localrepo -> upgrade -> localrepo
+    from . import upgrade
+
     localpath = urlutil.urllocalpath(path)
     if create:
         createrepository(ui, localpath, createopts=createopts)
 
-    return makelocalrepository(ui, localpath, intents=intents)
+    def repo_maker():
+        return makelocalrepository(ui, localpath, intents=intents)
+
+    repo = repo_maker()
+    repo = upgrade.may_auto_upgrade(repo, repo_maker)
+    return repo
 
 
 def islocal(path):
@@ -3914,7 +3929,7 @@ def poisonrepository(repo):
     #
     # But we have to allow the close() method because some constructors
     # of repos call close() on repo references.
-    class poisonedrepository(object):
+    class poisonedrepository:
         def __getattribute__(self, item):
             if item == 'close':
                 return object.__getattribute__(self, item)

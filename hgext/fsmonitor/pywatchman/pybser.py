@@ -27,7 +27,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # no unicode literals
-from __future__ import absolute_import, division, print_function
 
 import binascii
 import collections
@@ -94,7 +93,7 @@ def _buf_pos(buf, pos):
     return ret
 
 
-class _bser_buffer(object):
+class _bser_buffer:
     def __init__(self, version):
         self.bser_version = version
         self.buf = ctypes.create_string_buffer(8192)
@@ -325,7 +324,7 @@ def dumps(obj, version=1, capabilities=0):
 # This is a quack-alike with the bserObjectType in bser.c
 # It provides by getattr accessors and getitem for both index
 # and name.
-class _BunserDict(object):
+class _BunserDict:
     __slots__ = ("_keys", "_values")
 
     def __init__(self, keys, values):
@@ -351,7 +350,7 @@ class _BunserDict(object):
         return len(self._keys)
 
 
-class Bunser(object):
+class Bunser:
     def __init__(self, mutable=True, value_encoding=None, value_errors=None):
         self.mutable = mutable
         self.value_encoding = value_encoding

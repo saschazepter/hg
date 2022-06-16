@@ -54,7 +54,6 @@ Configurations
 # - make perf command for recent feature work correctly with early
 #   Mercurial
 
-from __future__ import absolute_import
 import contextlib
 import functools
 import gc
@@ -370,7 +369,7 @@ def getlen(ui):
     return len
 
 
-class noop(object):
+class noop:
     """dummy context manager"""
 
     def __enter__(self):
@@ -414,7 +413,7 @@ def gettimer(ui, opts=None):
         # available since 2.2 (or ae5f92e154d3)
         from mercurial import node
 
-        class defaultformatter(object):
+        class defaultformatter:
             """Minimized composition of baseformatter and plainformatter"""
 
             def __init__(self, ui, topic, opts):
@@ -653,7 +652,7 @@ def safeattrsetter(obj, name, ignoremissing=False):
 
     origvalue = getattr(obj, _sysstr(name))
 
-    class attrutil(object):
+    class attrutil:
         def set(self, newvalue):
             setattr(obj, _sysstr(name), newvalue)
 
@@ -2943,7 +2942,7 @@ def perfrevlogwrite(ui, repo, file_=None, startrev=1000, stoprev=-1, **opts):
     fm.end()
 
 
-class _faketr(object):
+class _faketr:
     def add(s, x, y, z=None):
         return None
 

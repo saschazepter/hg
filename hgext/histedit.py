@@ -190,7 +190,6 @@ unexpectedly::
 
 """
 
-from __future__ import absolute_import
 
 # chistedit dependencies that are not available everywhere
 try:
@@ -200,8 +199,10 @@ except ImportError:
     fcntl = None
     termios = None
 
+import binascii
 import functools
 import os
+import pickle
 import struct
 
 from mercurial.i18n import _
@@ -245,7 +246,6 @@ from mercurial.utils import (
     urlutil,
 )
 
-pickle = util.pickle
 cmdtable = {}
 command = registrar.command(cmdtable)
 
@@ -352,7 +352,7 @@ Commands:
     return b''.join([b'# %s\n' % l if l else b'#\n' for l in lines])
 
 
-class histeditstate(object):
+class histeditstate:
     def __init__(self, repo):
         self.repo = repo
         self.actions = None
@@ -455,7 +455,7 @@ class histeditstate(object):
         rules = []
         rulelen = int(lines[index])
         index += 1
-        for i in pycompat.xrange(rulelen):
+        for i in range(rulelen):
             ruleaction = lines[index]
             index += 1
             rule = lines[index]
@@ -466,7 +466,7 @@ class histeditstate(object):
         replacements = []
         replacementlen = int(lines[index])
         index += 1
-        for i in pycompat.xrange(replacementlen):
+        for i in range(replacementlen):
             replacement = lines[index]
             original = bin(replacement[:40])
             succ = [
@@ -491,7 +491,7 @@ class histeditstate(object):
         return self.repo.vfs.exists(b'histedit-state')
 
 
-class histeditaction(object):
+class histeditaction:
     def __init__(self, state, node):
         self.state = state
         self.repo = state.repo
@@ -505,7 +505,7 @@ class histeditaction(object):
         # Check for validation of rule ids and get the rulehash
         try:
             rev = bin(ruleid)
-        except TypeError:
+        except binascii.Error:
             try:
                 _ctx = scmutil.revsingle(state.repo, ruleid)
                 rulehash = _ctx.hex()
@@ -553,9 +553,7 @@ class histeditaction(object):
             summary = cmdutil.rendertemplate(
                 ctx, ui.config(b'histedit', b'summary-template')
             )
-        # Handle the fact that `''.splitlines() => []`
-        summary = summary.splitlines()[0] if summary else b''
-        line = b'%s %s %s' % (self.verb, ctx, summary)
+        line = b'%s %s %s' % (self.verb, ctx, stringutil.firstline(summary))
         # trim to 75 columns by default so it's not stupidly wide in my editor
         # (the 5 more are left for verb)
         maxlen = self.repo.ui.configint(b'histedit', b'linelen')
@@ -1143,7 +1141,7 @@ def screen_size():
     return struct.unpack(b'hh', fcntl.ioctl(1, termios.TIOCGWINSZ, b'    '))
 
 
-class histeditrule(object):
+class histeditrule:
     def __init__(self, ui, ctx, pos, action=b'pick'):
         self.ui = ui
         self.ctx = ctx
@@ -1193,7 +1191,7 @@ class histeditrule(object):
         # This is split off from the prefix property so that we can
         # separately make the description for 'roll' red (since it
         # will get discarded).
-        return self.ctx.description().splitlines()[0].strip()
+        return stringutil.firstline(self.ctx.description())
 
     def checkconflicts(self, other):
         if other.pos > self.pos and other.origpos <= self.origpos:
@@ -1243,7 +1241,7 @@ def _trunc_tail(line, n):
     return line[: n - 2] + b' >'
 
 
-class _chistedit_state(object):
+class _chistedit_state:
     def __init__(
         self,
         repo,
@@ -1292,7 +1290,7 @@ class _chistedit_state(object):
         line = b"bookmark:  %s" % b' '.join(bms)
         win.addstr(3, 1, line[:length])
 
-        line = b"summary:   %s" % (ctx.description().splitlines()[0])
+        line = b"summary:   %s" % stringutil.firstline(ctx.description())
         win.addstr(4, 1, line[:length])
 
         line = b"files:     "
@@ -1576,7 +1574,7 @@ pgup/K: move patch up, pgdn/J: move patch down, c: commit, q: abort
 
         start = min(old_rule_pos, new_rule_pos)
         end = max(old_rule_pos, new_rule_pos)
-        for r in pycompat.xrange(start, end + 1):
+        for r in range(start, end + 1):
             rules[new_rule_pos].checkconflicts(rules[r])
             rules[old_rule_pos].checkconflicts(rules[r])
 
@@ -2102,7 +2100,7 @@ def _finishhistedit(ui, repo, state, fm):
 
     mapping, tmpnodes, created, ntm = processreplacement(state)
     if mapping:
-        for prec, succs in pycompat.iteritems(mapping):
+        for prec, succs in mapping.items():
             if not succs:
                 ui.debug(b'histedit: %s is dropped\n' % short(prec))
             else:
@@ -2140,7 +2138,7 @@ def _finishhistedit(ui, repo, state, fm):
     nodechanges = fd(
         {
             hf(oldn): fl([hf(n) for n in newn], name=b'node')
-            for oldn, newn in pycompat.iteritems(mapping)
+            for oldn, newn in mapping.items()
         },
         key=b"oldnode",
         value=b"newnodes",
@@ -2322,12 +2320,7 @@ def _newhistedit(ui, repo, state, revs, freeargs, opts):
 
 
 def _getsummary(ctx):
-    # a common pattern is to extract the summary but default to the empty
-    # string
-    summary = ctx.description() or b''
-    if summary:
-        summary = summary.splitlines()[0]
-    return summary
+    return stringutil.firstline(ctx.description())
 
 
 def bootstrapcontinue(ui, state, opts):
@@ -2388,7 +2381,7 @@ def ruleeditor(repo, ui, actions, editcomment=b""):
                     tsum = summary[len(fword) + 1 :].lstrip()
                     # safe but slow: reverse iterate over the actions so we
                     # don't clash on two commits having the same summary
-                    for na, l in reversed(list(pycompat.iteritems(newact))):
+                    for na, l in reversed(list(newact.items())):
                         actx = repo[na.node]
                         asum = _getsummary(actx)
                         if asum == tsum:
@@ -2401,7 +2394,7 @@ def ruleeditor(repo, ui, actions, editcomment=b""):
 
         # copy over and flatten the new list
         actions = []
-        for na, l in pycompat.iteritems(newact):
+        for na, l in newact.items():
             actions.append(na)
             actions += l
 

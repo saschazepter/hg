@@ -7,7 +7,6 @@
 # GNU General Public License version 2 or any later version.
 
 '''Overridden Mercurial commands and functions for the largefiles extension'''
-from __future__ import absolute_import
 
 import copy
 import os
@@ -493,7 +492,7 @@ def overridedebugstate(orig, ui, repo, *pats, **opts):
     large = opts.pop('large', False)
     if large:
 
-        class fakerepo(object):
+        class fakerepo:
             dirstate = lfutil.openlfdirstate(ui, repo)
 
         orig(ui, fakerepo, *pats, **opts)
@@ -714,7 +713,7 @@ def copiespathcopies(orig, ctx1, ctx2, match=None):
     copies = orig(ctx1, ctx2, match=match)
     updated = {}
 
-    for k, v in pycompat.iteritems(copies):
+    for k, v in copies.items():
         updated[lfutil.splitstandin(k) or k] = lfutil.splitstandin(v) or v
 
     return updated

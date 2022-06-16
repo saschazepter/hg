@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 from .i18n import _
 from .node import (
@@ -603,7 +602,7 @@ def shownamespaces(context, mapping):
         # 'name' for iterating over namespaces, templatename for local reference
         return lambda v: {b'name': v, ns.templatename: v}
 
-    for k, ns in pycompat.iteritems(repo.names):
+    for k, ns in repo.names.items():
         names = ns.names(repo, ctx.node())
         f = _showcompatlist(context, mapping, b'name', names)
         namespaces[k] = _hybrid(f, names, makensmapfn(ns), pycompat.identity)
@@ -686,12 +685,12 @@ def showpeerurls(context, mapping):
         d = {b'name': k}
         if len(ps) == 1:
             d[b'url'] = ps[0].rawloc
-            sub_opts = pycompat.iteritems(ps[0].suboptions)
+            sub_opts = ps[0].suboptions.items()
             sub_opts = util.sortdict(sorted(sub_opts))
             d.update(sub_opts)
         path_dict = util.sortdict()
         for p in ps:
-            sub_opts = util.sortdict(sorted(pycompat.iteritems(p.suboptions)))
+            sub_opts = util.sortdict(sorted(p.suboptions.items()))
             path_dict[b'url'] = p.rawloc
             path_dict.update(sub_opts)
             d[b'urls'] = [path_dict]
@@ -1024,7 +1023,7 @@ def showwhyunstable(context, mapping):
 
 def loadkeyword(ui, extname, registrarobj):
     """Load template keyword from specified registrarobj"""
-    for name, func in pycompat.iteritems(registrarobj._table):
+    for name, func in registrarobj._table.items():
         keywords[name] = func
 
 

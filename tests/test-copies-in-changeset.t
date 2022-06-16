@@ -121,13 +121,13 @@ even though there is no filelog entry.
 #if extra
 
   $ hg debugindex c
-     rev linkrev nodeid       p1           p2
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
        0       1 b789fdd96dc2 000000000000 000000000000
 
 #else
 
   $ hg debugindex c
-     rev linkrev nodeid       p1           p2
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
        0       1 37d9b5d994ea 000000000000 000000000000
 
 #endif
@@ -155,13 +155,13 @@ even though there is no filelog entry.
 #if extra
 
   $ hg debugindex c
-     rev linkrev nodeid       p1           p2
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
        0       1 b789fdd96dc2 000000000000 000000000000
 
 #else
 
   $ hg debugindex c
-     rev linkrev nodeid       p1           p2
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
        0       1 37d9b5d994ea 000000000000 000000000000
        1       3 029625640347 000000000000 000000000000
 
@@ -434,14 +434,21 @@ downgrading
   $ cat << EOF > .hg/hgrc
   > [format]
   > exp-use-copies-side-data-changeset = no
-  > [experimental]
-  > revlogv2 = enable-unstable-format-and-corrupt-my-data
   > EOF
-  $ hg debugupgraderepo --run --quiet --no-backup > /dev/null
+  $ hg debugupgraderepo --run --quiet --no-backup
+  upgrade will perform the following actions:
+  
+  requirements
+     preserved: * (glob)
+     removed: exp-changelog-v2, exp-copies-sidedata-changeset
+  
+  processed revlogs:
+    - changelog
+  
   $ hg debugformat -v | egrep 'format-variant|revlog-v2|copies-sdc|changelog-v2'
   format-variant     repo config default
   copies-sdc:          no     no      no
-  revlog-v2:          yes    yes      no
+  revlog-v2:           no     no      no
   changelog-v2:        no     no      no
   $ hg debugsidedata -c -- 0
   $ hg debugsidedata -c -- 1
@@ -453,7 +460,16 @@ upgrading
   > [format]
   > exp-use-copies-side-data-changeset = yes
   > EOF
-  $ hg debugupgraderepo --run --quiet --no-backup > /dev/null
+  $ hg debugupgraderepo --run --quiet --no-backup
+  upgrade will perform the following actions:
+  
+  requirements
+     preserved: * (glob)
+     added: exp-changelog-v2, exp-copies-sidedata-changeset
+  
+  processed revlogs:
+    - changelog
+  
   $ hg debugformat -v | egrep 'format-variant|revlog-v2|copies-sdc|changelog-v2'
   format-variant     repo config default
   copies-sdc:         yes    yes      no

@@ -7,11 +7,9 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import base64
 import socket
-import sys
 
 from .i18n import _
 from . import (
@@ -51,7 +49,7 @@ def escape(s, quote=None):
     return s
 
 
-class passwordmgr(object):
+class passwordmgr:
     def __init__(self, ui, passwddb):
         self.ui = ui
         self.passwddb = passwddb
@@ -231,19 +229,15 @@ def _generic_proxytunnel(self):
         if x.lower().startswith('proxy-')
     }
     self.send(b'CONNECT %s HTTP/1.0\r\n' % self.realhostport)
-    for header in pycompat.iteritems(proxyheaders):
+    for header in proxyheaders.items():
         self.send(b'%s: %s\r\n' % header)
     self.send(b'\r\n')
 
     # majority of the following code is duplicated from
     # httplib.HTTPConnection as there are no adequate places to
-    # override functions to provide the needed functionality
-    # strict was removed in Python 3.4.
-    kwargs = {}
-    if not pycompat.ispy3:
-        kwargs[b'strict'] = self.strict
+    # override functions to provide the needed functionality.
 
-    res = self.response_class(self.sock, method=self._method, **kwargs)
+    res = self.response_class(self.sock, method=self._method)
 
     while True:
         version, status, reason = res._read_status()
@@ -275,16 +269,6 @@ class logginghttpconnection(keepalive.HTTPConnection):
     def __init__(self, createconn, *args, **kwargs):
         keepalive.HTTPConnection.__init__(self, *args, **kwargs)
         self._create_connection = createconn
-
-    if sys.version_info < (2, 7, 7):
-        # copied from 2.7.14, since old implementations directly call
-        # socket.create_connection()
-        def connect(self):
-            self.sock = self._create_connection(
-                (self.host, self.port), self.timeout, self.source_address
-            )
-            if self._tunnel_host:
-                self._tunnel()
 
 
 class logginghttphandler(httphandler):

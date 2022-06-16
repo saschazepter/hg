@@ -644,7 +644,8 @@ Test command without options
       Note:
          'hg diff' may generate unexpected results for merges, as it will
          default to comparing against the working directory's first parent
-         changeset if no revisions are specified.
+         changeset if no revisions are specified.  To diff against the conflict
+         regions, you can use '--config diff.merge=yes'.
   
       By default, the working directory files are compared to its first parent.
       To see the differences from another revision, use --from. To see the
@@ -977,9 +978,13 @@ Test list of internal help commands
   $ hg help debug
   debug commands (internal and unsupported):
   
+   debug-delta-find
+                 display the computation to get to a valid delta for storing REV
    debug-repair-issue6528
                  find affected revisions and repair them. See issue6528 for more
                  details.
+   debug-revlog-index
+                 dump index data for a revlog
    debugancestor
                  find the ancestor revision of two revisions in a given index
    debugantivirusrunning
@@ -1013,6 +1018,8 @@ Test list of internal help commands
                  dump information about delta chains in a revlog
    debugdirstate
                  show the contents of the current dirstate
+   debugdirstateignorepatternshash
+                 show the hash of ignore patterns stored in dirstate if v2,
    debugdiscovery
                  runs the changeset discovery protocol in isolation
    debugdownload
@@ -1026,7 +1033,6 @@ Test list of internal help commands
                  retrieves a bundle from a repo
    debugignore   display the combined ignore pattern and information about
                  ignored files
-   debugindex    dump index data for a storage primitive
    debugindexdot
                  dump an index DAG as a graphviz dot file
    debugindexstats
@@ -1597,11 +1603,23 @@ Separate sections from subsections
   
       "use-dirstate-v2"
   
+      "use-dirstate-v2.automatic-upgrade-of-mismatching-repositories"
+  
+      "use-dirstate-v2.automatic-upgrade-of-mismatching-repositories:quiet"
+  
       "use-dirstate-tracked-hint"
+  
+      "use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories"
+  
+      "use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories:quiet"
   
       "use-persistent-nodemap"
   
       "use-share-safe"
+  
+      "use-share-safe.automatic-upgrade-of-mismatching-repositories"
+  
+      "use-share-safe.automatic-upgrade-of-mismatching-repositories:quiet"
   
       "usestore"
   
@@ -1790,7 +1808,6 @@ Test omit indicating for help
   > 
   > This paragraph is never omitted, too (for extension)
   > '''
-  > from __future__ import absolute_import
   > from mercurial import commands, help
   > testtopic = br"""This paragraph is never omitted (for topic).
   > 

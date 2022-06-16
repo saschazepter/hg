@@ -3,9 +3,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
-
-import errno
 
 from .i18n import _
 from .node import (
@@ -250,11 +247,6 @@ def _process_files(tr, ctx, ms, files, narrow_files=None, error=False):
                 m.setflag(f, fctx.flags())
         except OSError:
             repo.ui.warn(_(b"trouble committing %s!\n") % uipathfn(f))
-            raise
-        except IOError as inst:
-            errcode = getattr(inst, 'errno', errno.ENOENT)
-            if error or errcode and errcode != errno.ENOENT:
-                repo.ui.warn(_(b"trouble committing %s!\n") % uipathfn(f))
             raise
 
     # update manifest

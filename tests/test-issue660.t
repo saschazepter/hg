@@ -1,7 +1,19 @@
+#testcases dirstate-v1 dirstate-v2
+
+#if dirstate-v2
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-dirstate-v2=1
+  > [storage]
+  > dirstate-v2.slow-path=allow
+  > EOF
+#endif
+
 https://bz.mercurial-scm.org/660 and:
 https://bz.mercurial-scm.org/322
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ echo a > a
   $ mkdir b
   $ echo b > b/b

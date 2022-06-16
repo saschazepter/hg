@@ -145,7 +145,6 @@ future, dropping the stream may become an option for channel we do not care to
 preserve.
 """
 
-from __future__ import absolute_import, division
 
 import collections
 import errno
@@ -252,7 +251,7 @@ def parthandler(parttype, params=()):
     return _decorator
 
 
-class unbundlerecords(object):
+class unbundlerecords:
     """keep record of what happens during and unbundle
 
     New records are added using `records.add('cat', obj)`. Where 'cat' is a
@@ -300,7 +299,7 @@ class unbundlerecords(object):
     __bool__ = __nonzero__
 
 
-class bundleoperation(object):
+class bundleoperation:
     """an object that represents a single bundling process
 
     Its purpose is to carry unbundle-related objects and states.
@@ -380,7 +379,7 @@ def applybundle(repo, unbundler, tr, source, url=None, **kwargs):
         return op
 
 
-class partiterator(object):
+class partiterator:
     def __init__(self, repo, op, unbundler):
         self.repo = repo
         self.op = op
@@ -627,7 +626,7 @@ bundletypes = {
 bundlepriority = [b'HG10GZ', b'HG10BZ', b'HG10UN']
 
 
-class bundle20(object):
+class bundle20:
     """represent an outgoing bundle2 container
 
     Use the `addparam` method to add stream level parameter. and `newpart` to
@@ -751,7 +750,7 @@ class bundle20(object):
         return salvaged
 
 
-class unpackermixin(object):
+class unpackermixin:
     """A mixin to extract bytes and struct data from a stream"""
 
     def __init__(self, fp):
@@ -984,7 +983,7 @@ def processcompression(unbundler, param, value):
         unbundler._compressed = True
 
 
-class bundlepart(object):
+class bundlepart:
     """A bundle2 part contains application level payload
 
     The part `type` is used to route the part to the application level
@@ -1274,7 +1273,7 @@ class interrupthandler(unpackermixin):
         )
 
 
-class interruptoperation(object):
+class interruptoperation:
     """A limited operation to be use by part handler during interruption
 
     It only have access to an ui object.
@@ -1693,7 +1692,7 @@ def writenewbundle(
         raise error.ProgrammingError(b'unknown bundle type: %s' % bundletype)
 
     caps = {}
-    if b'obsolescence' in opts:
+    if opts.get(b'obsolescence', False):
         caps[b'obsmarkers'] = (b'V1',)
     bundle = bundle20(ui, caps)
     bundle.setcompression(compression, compopts)
@@ -2240,7 +2239,7 @@ def handlecheckphases(op, inpart):
         b'remote repository changed while pushing - please try again '
         b'(%s is %s expected %s)'
     )
-    for expectedphase, nodes in pycompat.iteritems(phasetonodes):
+    for expectedphase, nodes in phasetonodes.items():
         for n in nodes:
             actualphase = phasecache.phase(unfi, cl.rev(n))
             if actualphase != expectedphase:

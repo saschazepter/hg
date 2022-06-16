@@ -5,16 +5,16 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import errno
 import getpass
-import msvcrt
+import msvcrt  # pytype: disable=import-error
 import os
 import re
 import stat
 import string
 import sys
+import winreg  # pytype: disable=import-error
 
 from .i18n import _
 from .pycompat import getattr
@@ -26,13 +26,6 @@ from . import (
     win32,
 )
 
-try:
-    import _winreg as winreg  # pytype: disable=import-error
-
-    winreg.CloseKey
-except ImportError:
-    # py2 only
-    import winreg  # pytype: disable=import-error
 
 osutil = policy.importmod('osutil')
 
@@ -54,7 +47,7 @@ unlink = win32.unlink
 umask = 0o022
 
 
-class mixedfilemodewrapper(object):
+class mixedfilemodewrapper:
     """Wraps a file handle when it is opened in read/write mode.
 
     fopen() and fdopen() on Windows have a specific-to-Windows requirement
@@ -131,7 +124,7 @@ class mixedfilemodewrapper(object):
         return self._fp.readlines(*args, **kwargs)
 
 
-class fdproxy(object):
+class fdproxy:
     """Wraps osutil.posixfile() to override the name attribute to reflect the
     underlying file name.
     """
@@ -163,8 +156,7 @@ def posixfile(name, mode=b'r', buffering=-1):
 
         # PyFile_FromFd() ignores the name, and seems to report fp.name as the
         # underlying file descriptor.
-        if pycompat.ispy3:
-            fp = fdproxy(name, fp)
+        fp = fdproxy(name, fp)
 
         # The position when opening in append mode is implementation defined, so
         # make it consistent with other platforms, which position at EOF.
@@ -216,7 +208,7 @@ def get_password():
     return encoding.unitolocal(pw)
 
 
-class winstdout(object):
+class winstdout:
     """Some files on Windows misbehave.
 
     When writing to a broken pipe, EINVAL instead of EPIPE may be raised.
@@ -227,7 +219,6 @@ class winstdout(object):
 
     def __init__(self, fp):
         self.fp = fp
-        self.throttle = not pycompat.ispy3 and _isatty(fp)
 
     def __getattr__(self, key):
         return getattr(self.fp, key)
@@ -240,17 +231,7 @@ class winstdout(object):
 
     def write(self, s):
         try:
-            if not self.throttle:
-                return self.fp.write(s)
-            # This is workaround for "Not enough space" error on
-            # writing large size of data to console.
-            limit = 16000
-            l = len(s)
-            start = 0
-            while start < l:
-                end = start + limit
-                self.fp.write(s[start:end])
-                start = end
+            return self.fp.write(s)
         except IOError as inst:
             if inst.errno != 0 and not win32.lasterrorwaspipeerror(inst):
                 raise
@@ -589,11 +570,7 @@ def statfiles(files):
                     for n, k, s in listdir(dir, True)
                     if getkind(s.st_mode) in _wantedkinds
                 }
-            except OSError as err:
-                # Python >= 2.5 returns ENOENT and adds winerror field
-                # EINVAL is raised if dir is not a directory.
-                if err.errno not in (errno.ENOENT, errno.EINVAL, errno.ENOTDIR):
-                    raise
+            except (FileNotFoundError, NotADirectoryError):
                 dmap = {}
             cache = dircache.setdefault(dir, dmap)
         yield cache.get(base, None)
@@ -651,9 +628,7 @@ def rename(src, dst):
     '''atomically rename file src to dst, replacing dst if it exists'''
     try:
         os.rename(src, dst)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
+    except FileExistsError:
         unlink(dst)
         os.rename(src, dst)
 
@@ -671,7 +646,7 @@ def isexec(f):
     return False
 
 
-class cachestat(object):
+class cachestat:
     def __init__(self, path):
         pass
 
@@ -689,14 +664,23 @@ def lookupreg(key, valname=None, scope=None):
     LOCAL_MACHINE).
     """
     if scope is None:
+        # pytype: disable=module-attr
         scope = (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE)
+        # pytype: enable=module-attr
     elif not isinstance(scope, (list, tuple)):
         scope = (scope,)
     for s in scope:
         try:
+            # pytype: disable=module-attr
             with winreg.OpenKey(s, encoding.strfromlocal(key)) as hkey:
-                name = valname and encoding.strfromlocal(valname) or valname
+                # pytype: enable=module-attr
+                name = None
+                if valname is not None:
+                    name = encoding.strfromlocal(valname)
+                # pytype: disable=module-attr
                 val = winreg.QueryValueEx(hkey, name)[0]
+                # pytype: enable=module-attr
+
                 # never let a Unicode string escape into the wild
                 return encoding.unitolocal(val)
         except EnvironmentError:

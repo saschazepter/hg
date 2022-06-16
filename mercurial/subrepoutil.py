@@ -5,9 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
-import errno
 import os
 import posixpath
 import re
@@ -64,9 +62,7 @@ def state(ctx, ui):
         if f in ctx:
             try:
                 data = ctx[f].data()
-            except IOError as err:
-                if err.errno != errno.ENOENT:
-                    raise
+            except FileNotFoundError:
                 # handle missing subrepo spec files as removed
                 ui.warn(
                     _(b"warning: subrepo spec file \'%s\' not found\n")
@@ -103,9 +99,8 @@ def state(ctx, ui):
                         % (repo.pathto(b'.hgsubstate'), (i + 1))
                     )
                 rev[path] = revision
-        except IOError as err:
-            if err.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
+            pass
 
     def remap(src):
         # type: (bytes) -> bytes
@@ -191,7 +186,7 @@ def submerge(repo, wctx, mctx, actx, overwrite, labels=None):
         repo.ui.debug(b"  subrepo %s: %s %s\n" % (s, msg, r))
 
     promptssrc = filemerge.partextras(labels)
-    for s, l in sorted(pycompat.iteritems(s1)):
+    for s, l in sorted(s1.items()):
         a = sa.get(s, nullstate)
         ld = l  # local state with possible dirty flag for compares
         if wctx.sub(s).dirty():

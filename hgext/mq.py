@@ -62,9 +62,7 @@ This extension used to provide a strip command. This command now lives
 in the strip extension.
 '''
 
-from __future__ import absolute_import, print_function
 
-import errno
 import os
 import re
 import shutil
@@ -151,7 +149,7 @@ try:
 except KeyError:
     # note: load is lazy so we could avoid the try-except,
     # but I (marmoute) prefer this explicit code.
-    class dummyui(object):
+    class dummyui:
         def debug(self, msg):
             pass
 
@@ -184,7 +182,7 @@ def checksubstate(repo, baserev=None):
 normname = util.normpath
 
 
-class statusentry(object):
+class statusentry:
     def __init__(self, node, name):
         self.node, self.name = node, name
 
@@ -294,7 +292,7 @@ def insertplainheader(lines, header, value):
     return lines
 
 
-class patchheader(object):
+class patchheader:
     def __init__(self, pf, plainmode=False):
         def eatdiff(lines):
             while lines:
@@ -462,7 +460,7 @@ class patchheader(object):
         the field and a blank line."""
         if self.message:
             subj = b'subject: ' + self.message[0].lower()
-            for i in pycompat.xrange(len(self.comments)):
+            for i in range(len(self.comments)):
                 if subj == self.comments[i].lower():
                     del self.comments[i]
                     self.message = self.message[2:]
@@ -496,7 +494,7 @@ class AbortNoCleanup(error.Abort):
     pass
 
 
-class queue(object):
+class queue:
     def __init__(self, ui, baseui, path, patchdir=None):
         self.basepath = path
         try:
@@ -552,19 +550,15 @@ class queue(object):
         try:
             lines = self.opener.read(self.statuspath).splitlines()
             return list(parselines(lines))
-        except IOError as e:
-            if e.errno == errno.ENOENT:
-                return []
-            raise
+        except FileNotFoundError:
+            return []
 
     @util.propertycache
     def fullseries(self):
         try:
             return self.opener.read(self.seriespath).splitlines()
-        except IOError as e:
-            if e.errno == errno.ENOENT:
-                return []
-            raise
+        except FileNotFoundError:
+            return []
 
     @util.propertycache
     def series(self):
@@ -692,9 +686,7 @@ class queue(object):
             self.activeguards = []
             try:
                 guards = self.opener.read(self.guardspath).split()
-            except IOError as err:
-                if err.errno != errno.ENOENT:
-                    raise
+            except FileNotFoundError:
                 guards = []
             for i, guard in enumerate(guards):
                 bad = self.checkguard(guard)
@@ -1141,9 +1133,8 @@ class queue(object):
             for p in patches:
                 try:
                     os.unlink(self.join(p))
-                except OSError as inst:
-                    if inst.errno != errno.ENOENT:
-                        raise
+                except FileNotFoundError:
+                    pass
 
         qfinished = []
         if numrevs:
@@ -2025,7 +2016,7 @@ class queue(object):
                             # we can't copy a file created by the patch itself
                             if dst in copies:
                                 del copies[dst]
-                        for src, dsts in pycompat.iteritems(copies):
+                        for src, dsts in copies.items():
                             for dst in dsts:
                                 repo.dirstate.copy(src, dst)
                     else:
@@ -2041,7 +2032,7 @@ class queue(object):
                     # if the patch excludes a modified file, mark that
                     # file with mtime=0 so status can see it.
                     mm = []
-                    for i in pycompat.xrange(len(m) - 1, -1, -1):
+                    for i in range(len(m) - 1, -1, -1):
                         if not match1(m[i]):
                             mm.append(m[i])
                             del m[i]
@@ -2152,8 +2143,8 @@ class queue(object):
             raise error.Abort(_(b"patch queue directory already exists"))
         try:
             os.mkdir(self.path)
-        except OSError as inst:
-            if inst.errno != errno.EEXIST or not create:
+        except FileExistsError:
+            if not create:
                 raise
         if create:
             return self.qrepo(create=True)
@@ -2166,7 +2157,7 @@ class queue(object):
         else:
             start = self.series.index(patch) + 1
         unapplied = []
-        for i in pycompat.xrange(start, len(self.series)):
+        for i in range(start, len(self.series)):
             pushable, reason = self.pushable(i)
             if pushable:
                 unapplied.append((i, self.series[i]))
@@ -2211,7 +2202,7 @@ class queue(object):
         if not missing:
             if self.ui.verbose:
                 idxwidth = len(b"%d" % (start + length - 1))
-            for i in pycompat.xrange(start, start + length):
+            for i in range(start, start + length):
                 patch = self.series[i]
                 if patch in applied:
                     char, state = b'A', b'applied'
@@ -2372,7 +2363,7 @@ class queue(object):
         def nextpatch(start):
             if all_patches or start >= len(self.series):
                 return start
-            for i in pycompat.xrange(start, len(self.series)):
+            for i in range(start, len(self.series)):
                 p, reason = self.pushable(i)
                 if p:
                     return i
@@ -3390,7 +3381,7 @@ def guard(ui, repo, *args, **opts):
             raise error.Abort(
                 _(b'cannot mix -l/--list with options or arguments')
             )
-        for i in pycompat.xrange(len(q.series)):
+        for i in range(len(q.series)):
             status(i)
         return
     if not args or args[0][0:1] in b'-+':
@@ -3768,18 +3759,14 @@ def select(ui, repo, *args, **opts):
     pushable = lambda i: q.pushable(q.applied[i].name)[0]
     if args or opts.get(b'none'):
         old_unapplied = q.unapplied(repo)
-        old_guarded = [
-            i for i in pycompat.xrange(len(q.applied)) if not pushable(i)
-        ]
+        old_guarded = [i for i in range(len(q.applied)) if not pushable(i)]
         q.setactive(args)
         q.savedirty()
         if not args:
             ui.status(_(b'guards deactivated\n'))
         if not opts.get(b'pop') and not opts.get(b'reapply'):
             unapplied = q.unapplied(repo)
-            guarded = [
-                i for i in pycompat.xrange(len(q.applied)) if not pushable(i)
-            ]
+            guarded = [i for i in range(len(q.applied)) if not pushable(i)]
             if len(unapplied) != len(old_unapplied):
                 ui.status(
                     _(
@@ -3826,7 +3813,7 @@ def select(ui, repo, *args, **opts):
     reapply = opts.get(b'reapply') and q.applied and q.applied[-1].name
     popped = False
     if opts.get(b'pop') or opts.get(b'reapply'):
-        for i in pycompat.xrange(len(q.applied)):
+        for i in range(len(q.applied)):
             if not pushable(i):
                 ui.status(_(b'popping guarded patches\n'))
                 popped = True
@@ -4288,7 +4275,7 @@ def extsetup(ui):
     entry[1].extend(mqopt)
 
     def dotable(cmdtable):
-        for cmd, entry in pycompat.iteritems(cmdtable):
+        for cmd, entry in cmdtable.items():
             cmd = cmdutil.parsealiases(cmd)[0]
             func = entry[0]
             if func.norepo:

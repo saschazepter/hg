@@ -23,16 +23,6 @@
 #include "revlog.h"
 #include "util.h"
 
-#ifdef IS_PY3K
-/* The mapping of Python types is meant to be temporary to get Python
- * 3 to compile. We should remove this once Python 3 support is fully
- * supported and proper types are used in the extensions themselves. */
-#define PyInt_Check PyLong_Check
-#define PyInt_FromLong PyLong_FromLong
-#define PyInt_FromSsize_t PyLong_FromSsize_t
-#define PyInt_AsLong PyLong_AsLong
-#endif
-
 typedef struct indexObjectStruct indexObject;
 
 typedef struct {
@@ -43,6 +33,7 @@ typedef struct {
 	int abi_version;
 	Py_ssize_t (*index_length)(const indexObject *);
 	const char *(*index_node)(indexObject *, Py_ssize_t);
+	int (*fast_rank)(indexObject *, Py_ssize_t);
 	int (*index_parents)(PyObject *, int, int *);
 } Revlog_CAPI;
 
@@ -119,11 +110,9 @@ static Py_ssize_t inline_scan(indexObject *self, const char **offsets);
 static int index_find_node(indexObject *self, const char *node);
 
 #if LONG_MAX == 0x7fffffffL
-static const char *const tuple_format =
-    PY23("Kiiiiiis#KiBBi", "Kiiiiiiy#KiBBi");
+static const char *const tuple_format = "Kiiiiiiy#KiBBi";
 #else
-static const char *const tuple_format =
-    PY23("kiiiiiis#kiBBi", "kiiiiiiy#kiBBi");
+static const char *const tuple_format = "kiiiiiiy#kiBBi";
 #endif
 
 /* A RevlogNG v1 index entry is 64 bytes long. */
@@ -502,13 +491,13 @@ static PyObject *index_pack_header(indexObject *self, PyObject *args)
 {
 	int header;
 	char out[4];
-	if (!PyArg_ParseTuple(args, "I", &header)) {
+	if (!PyArg_ParseTuple(args, "i", &header)) {
 		return NULL;
 	}
 	if (self->format_version != format_v1) {
 		PyErr_Format(PyExc_RuntimeError,
 		             "version header should go in the docket, not the "
-		             "index: %lu",
+		             "index: %d",
 		             header);
 		return NULL;
 	}
@@ -573,6 +562,33 @@ static const char *index_node(indexObject *self, Py_ssize_t pos)
 	}
 
 	return data ? node_id : NULL;
+}
+
+/*
+ * Return the stored rank of a given revision if known, or rank_unknown
+ * otherwise.
+ *
+ * The rank of a revision is the size of the sub-graph it defines as a head.
+ * Equivalently, the rank of a revision `r` is the size of the set
+ * `ancestors(r)`, `r` included.
+ *
+ * This method returns the rank retrieved from the revlog in constant time. It
+ * makes no attempt at computing unknown values for versions of the revlog
+ * which do not persist the rank.
+ */
+static int index_fast_rank(indexObject *self, Py_ssize_t pos)
+{
+	Py_ssize_t length = index_length(self);
+
+	if (self->format_version != format_cl2 || pos >= length) {
+		return rank_unknown;
+	}
+
+	if (pos == nullrev) {
+		return 0; /* convention */
+	}
+
+	return getbe32(index_deref(self, pos) + entry_cl2_offset_rank);
 }
 
 /*
@@ -730,9 +746,9 @@ static PyObject *index_replace_sidedata_info(indexObject *self, PyObject *args)
 	char comp_mode;
 	char *data;
 #if LONG_MAX == 0x7fffffffL
-	const char *const sidedata_format = PY23("nKiKB", "nKiKB");
+	const char *const sidedata_format = "nKiKB";
 #else
-	const char *const sidedata_format = PY23("nkikB", "nkikB");
+	const char *const sidedata_format = "nkikB";
 #endif
 
 	if (self->entry_size == v1_entry_size || self->inlined) {
@@ -802,7 +818,7 @@ static PyObject *index_stats(indexObject *self)
 #define istat(__n, __d)                                                        \
 	do {                                                                   \
 		s = PyBytes_FromString(__d);                                   \
-		t = PyInt_FromSsize_t(self->__n);                              \
+		t = PyLong_FromSsize_t(self->__n);                             \
 		if (!s || !t)                                                  \
 			goto bail;                                             \
 		if (PyDict_SetItem(obj, s, t) == -1)                           \
@@ -953,7 +969,7 @@ static PyObject *reachableroots2(indexObject *self, PyObject *args)
 
 	l = PyList_GET_SIZE(roots);
 	for (i = 0; i < l; i++) {
-		revnum = PyInt_AsLong(PyList_GET_ITEM(roots, i));
+		revnum = PyLong_AsLong(PyList_GET_ITEM(roots, i));
 		if (revnum == -1 && PyErr_Occurred())
 			goto bail;
 		/* If root is out of range, e.g. wdir(), it must be unreachable
@@ -966,7 +982,7 @@ static PyObject *reachableroots2(indexObject *self, PyObject *args)
 	/* Populate tovisit with all the heads */
 	l = PyList_GET_SIZE(heads);
 	for (i = 0; i < l; i++) {
-		revnum = PyInt_AsLong(PyList_GET_ITEM(heads, i));
+		revnum = PyLong_AsLong(PyList_GET_ITEM(heads, i));
 		if (revnum == -1 && PyErr_Occurred())
 			goto bail;
 		if (revnum + 1 < 0 || revnum + 1 >= len + 1) {
@@ -986,7 +1002,7 @@ static PyObject *reachableroots2(indexObject *self, PyObject *args)
 		revnum = tovisit[k++];
 		if (revstates[revnum + 1] & RS_ROOT) {
 			revstates[revnum + 1] |= RS_REACHABLE;
-			val = PyInt_FromLong(revnum);
+			val = PyLong_FromLong(revnum);
 			if (val == NULL)
 				goto bail;
 			r = PyList_Append(reachable, val);
@@ -1031,7 +1047,7 @@ static PyObject *reachableroots2(indexObject *self, PyObject *args)
 			     RS_REACHABLE) &&
 			    !(revstates[i + 1] & RS_REACHABLE)) {
 				revstates[i + 1] |= RS_REACHABLE;
-				val = PyInt_FromSsize_t(i);
+				val = PyLong_FromSsize_t(i);
 				if (val == NULL)
 					goto bail;
 				r = PyList_Append(reachable, val);
@@ -1116,7 +1132,7 @@ static PyObject *compute_phases_map_sets(indexObject *self, PyObject *args)
 	}
 
 	for (i = 0; i < numphases; ++i) {
-		PyObject *pyphase = PyInt_FromLong(trackedphases[i]);
+		PyObject *pyphase = PyLong_FromLong(trackedphases[i]);
 		PyObject *phaseroots = NULL;
 		if (pyphase == NULL)
 			goto release;
@@ -1175,7 +1191,7 @@ static PyObject *compute_phases_map_sets(indexObject *self, PyObject *args)
 			                "bad phase number in internal list");
 			goto release;
 		}
-		pyrev = PyInt_FromLong(rev);
+		pyrev = PyLong_FromLong(rev);
 		if (pyrev == NULL)
 			goto release;
 		if (PySet_Add(pyphase, pyrev) == -1) {
@@ -1189,7 +1205,7 @@ static PyObject *compute_phases_map_sets(indexObject *self, PyObject *args)
 	if (phasesetsdict == NULL)
 		goto release;
 	for (i = 0; i < numphases; ++i) {
-		PyObject *pyphase = PyInt_FromLong(trackedphases[i]);
+		PyObject *pyphase = PyLong_FromLong(trackedphases[i]);
 		if (pyphase == NULL)
 			goto release;
 		if (PyDict_SetItem(phasesetsdict, pyphase, phasesets[i]) ==
@@ -1247,7 +1263,7 @@ static PyObject *index_headrevs(indexObject *self, PyObject *args)
 	if (heads == NULL)
 		goto bail;
 	if (len == 0) {
-		PyObject *nullid = PyInt_FromLong(-1);
+		PyObject *nullid = PyLong_FromLong(-1);
 		if (nullid == NULL || PyList_Append(heads, nullid) == -1) {
 			Py_XDECREF(nullid);
 			goto bail;
@@ -1296,7 +1312,7 @@ static PyObject *index_headrevs(indexObject *self, PyObject *args)
 
 		if (nothead[i])
 			continue;
-		head = PyInt_FromSsize_t(i);
+		head = PyLong_FromSsize_t(i);
 		if (head == NULL || PyList_Append(heads, head) == -1) {
 			Py_XDECREF(head);
 			goto bail;
@@ -1442,7 +1458,7 @@ static PyObject *index_findsnapshots(indexObject *self, PyObject *args)
 			assert(PyErr_Occurred());
 			goto bail;
 		}
-		key = PyInt_FromSsize_t(base);
+		key = PyLong_FromSsize_t(base);
 		allvalues = PyDict_GetItem(cache, key);
 		if (allvalues == NULL && PyErr_Occurred()) {
 			goto bail;
@@ -1459,7 +1475,7 @@ static PyObject *index_findsnapshots(indexObject *self, PyObject *args)
 				goto bail;
 			}
 		}
-		value = PyInt_FromSsize_t(rev);
+		value = PyLong_FromSsize_t(rev);
 		if (PyList_Append(allvalues, value)) {
 			goto bail;
 		}
@@ -1486,8 +1502,8 @@ static PyObject *index_deltachain(indexObject *self, PyObject *args)
 		return NULL;
 	}
 
-	if (PyInt_Check(stoparg)) {
-		stoprev = (int)PyInt_AsLong(stoparg);
+	if (PyLong_Check(stoparg)) {
+		stoprev = (int)PyLong_AsLong(stoparg);
 		if (stoprev == -1 && PyErr_Occurred()) {
 			return NULL;
 		}
@@ -1521,7 +1537,7 @@ static PyObject *index_deltachain(indexObject *self, PyObject *args)
 	iterrev = rev;
 
 	while (iterrev != baserev && iterrev != stoprev) {
-		PyObject *value = PyInt_FromLong(iterrev);
+		PyObject *value = PyLong_FromLong(iterrev);
 		if (value == NULL) {
 			goto bail;
 		}
@@ -1560,7 +1576,7 @@ static PyObject *index_deltachain(indexObject *self, PyObject *args)
 	if (iterrev == stoprev) {
 		stopped = 1;
 	} else {
-		PyObject *value = PyInt_FromLong(iterrev);
+		PyObject *value = PyLong_FromLong(iterrev);
 		if (value == NULL) {
 			goto bail;
 		}
@@ -1712,7 +1728,8 @@ static PyObject *index_slicechunktodensity(indexObject *self, PyObject *args)
 		goto bail;
 	}
 	for (i = 0; i < num_revs; i++) {
-		Py_ssize_t revnum = PyInt_AsLong(PyList_GET_ITEM(list_revs, i));
+		Py_ssize_t revnum =
+		    PyLong_AsLong(PyList_GET_ITEM(list_revs, i));
 		if (revnum == -1 && PyErr_Occurred()) {
 			goto bail;
 		}
@@ -2118,7 +2135,7 @@ static PyObject *ntobj_shortest(nodetreeObject *self, PyObject *args)
 		raise_revlog_error();
 		return NULL;
 	}
-	return PyInt_FromLong(length);
+	return PyLong_FromLong(length);
 }
 
 static void nt_dealloc(nodetree *self)
@@ -2266,7 +2283,7 @@ static PyObject *index_getitem(indexObject *self, PyObject *value)
 	char *node;
 	int rev;
 
-	if (PyInt_Check(value)) {
+	if (PyLong_Check(value)) {
 		long idx;
 		if (!pylong_to_long(value, &idx)) {
 			return NULL;
@@ -2278,7 +2295,7 @@ static PyObject *index_getitem(indexObject *self, PyObject *value)
 		return NULL;
 	rev = index_find_node(self, node);
 	if (rev >= -1)
-		return PyInt_FromLong(rev);
+		return PyLong_FromLong(rev);
 	if (rev == -2)
 		raise_revlog_error();
 	return NULL;
@@ -2310,7 +2327,7 @@ static PyObject *index_partialmatch(indexObject *self, PyObject *args)
 	char *node;
 	int rev, i;
 
-	if (!PyArg_ParseTuple(args, PY23("s#", "y#"), &node, &nodelen))
+	if (!PyArg_ParseTuple(args, "y#", &node, &nodelen))
 		return NULL;
 
 	if (nodelen < 1) {
@@ -2377,7 +2394,7 @@ static PyObject *index_shortest(indexObject *self, PyObject *args)
 		raise_revlog_error();
 		return NULL;
 	}
-	return PyInt_FromLong(length);
+	return PyLong_FromLong(length);
 }
 
 static PyObject *index_m_get(indexObject *self, PyObject *args)
@@ -2395,14 +2412,14 @@ static PyObject *index_m_get(indexObject *self, PyObject *args)
 		return NULL;
 	if (rev == -2)
 		Py_RETURN_NONE;
-	return PyInt_FromLong(rev);
+	return PyLong_FromLong(rev);
 }
 
 static int index_contains(indexObject *self, PyObject *value)
 {
 	char *node;
 
-	if (PyInt_Check(value)) {
+	if (PyLong_Check(value)) {
 		long rev;
 		if (!pylong_to_long(value, &rev)) {
 			return -1;
@@ -2440,7 +2457,7 @@ static PyObject *index_m_rev(indexObject *self, PyObject *val)
 		return NULL;
 	rev = index_find_node(self, node);
 	if (rev >= -1)
-		return PyInt_FromLong(rev);
+		return PyLong_FromLong(rev);
 	if (rev == -2)
 		raise_revlog_error();
 	return NULL;
@@ -2493,7 +2510,7 @@ static PyObject *find_gca_candidates(indexObject *self, const int *revs,
 		if (sv < poison) {
 			interesting -= 1;
 			if (sv == allseen) {
-				PyObject *obj = PyInt_FromLong(v);
+				PyObject *obj = PyLong_FromLong(v);
 				if (obj == NULL)
 					goto bail;
 				if (PyList_Append(gca, obj) == -1) {
@@ -2561,7 +2578,7 @@ static PyObject *find_deepest(indexObject *self, PyObject *revs)
 	}
 
 	for (i = 0; i < revcount; i++) {
-		int n = (int)PyInt_AsLong(PyList_GET_ITEM(revs, i));
+		int n = (int)PyLong_AsLong(PyList_GET_ITEM(revs, i));
 		if (n > maxrev)
 			maxrev = n;
 	}
@@ -2586,7 +2603,7 @@ static PyObject *find_deepest(indexObject *self, PyObject *revs)
 		goto bail;
 
 	for (i = 0; i < revcount; i++) {
-		int n = (int)PyInt_AsLong(PyList_GET_ITEM(revs, i));
+		int n = (int)PyLong_AsLong(PyList_GET_ITEM(revs, i));
 		long b = 1l << i;
 		depth[n] = 1;
 		seen[n] = b;
@@ -2716,13 +2733,13 @@ static PyObject *index_commonancestorsheads(indexObject *self, PyObject *args)
 		bitmask x;
 		long val;
 
-		if (!PyInt_Check(obj)) {
+		if (!PyLong_Check(obj)) {
 			PyErr_SetString(PyExc_TypeError,
 			                "arguments must all be ints");
 			Py_DECREF(obj);
 			goto bail;
 		}
-		val = PyInt_AsLong(obj);
+		val = PyLong_AsLong(obj);
 		Py_DECREF(obj);
 		if (val == -1) {
 			ret = PyList_New(0);
@@ -2763,7 +2780,7 @@ static PyObject *index_commonancestorsheads(indexObject *self, PyObject *args)
 		ret = PyList_New(1);
 		if (ret == NULL)
 			goto bail;
-		obj = PyInt_FromLong(revs[0]);
+		obj = PyLong_FromLong(revs[0]);
 		if (obj == NULL)
 			goto bail;
 		PyList_SET_ITEM(ret, 0, obj);
@@ -2834,14 +2851,8 @@ static int index_slice_del(indexObject *self, PyObject *item)
 	Py_ssize_t length = index_length(self) + 1;
 	int ret = 0;
 
-/* Argument changed from PySliceObject* to PyObject* in Python 3. */
-#ifdef IS_PY3K
 	if (PySlice_GetIndicesEx(item, length, &start, &stop, &step,
 	                         &slicelength) < 0)
-#else
-	if (PySlice_GetIndicesEx((PySliceObject *)item, length, &start, &stop,
-	                         &step, &slicelength) < 0)
-#endif
 		return -1;
 
 	if (slicelength <= 0)
@@ -2925,7 +2936,7 @@ static int index_assign_subscript(indexObject *self, PyObject *item,
 	if (value == NULL)
 		return self->ntinitialized ? nt_delete_node(&self->nt, node)
 		                           : 0;
-	rev = PyInt_AsLong(value);
+	rev = PyLong_AsLong(value);
 	if (rev > INT_MAX || rev < 0) {
 		if (!PyErr_Occurred())
 			PyErr_SetString(PyExc_ValueError, "rev out of range");
@@ -3027,10 +3038,9 @@ static int index_init(indexObject *self, PyObject *args, PyObject *kwargs)
 		self->entry_size = cl2_entry_size;
 	}
 
-	self->nullentry =
-	    Py_BuildValue(PY23("iiiiiiis#iiBBi", "iiiiiiiy#iiBBi"), 0, 0, 0, -1,
-	                  -1, -1, -1, nullid, self->nodelen, 0, 0,
-	                  comp_mode_inline, comp_mode_inline, rank_unknown);
+	self->nullentry = Py_BuildValue(
+	    "iiiiiiiy#iiBBi", 0, 0, 0, -1, -1, -1, -1, nullid, self->nodelen, 0,
+	    0, comp_mode_inline, comp_mode_inline, rank_unknown);
 
 	if (!self->nullentry)
 		return -1;
@@ -3266,10 +3276,7 @@ bail:
 static Revlog_CAPI CAPI = {
     /* increment the abi_version field upon each change in the Revlog_CAPI
        struct or in the ABI of the listed functions */
-    2,
-    index_length,
-    index_node,
-    HgRevlogIndex_GetParents,
+    3, index_length, index_node, index_fast_rank, HgRevlogIndex_GetParents,
 };
 
 void revlog_module_init(PyObject *mod)

@@ -1,16 +1,14 @@
   $ cat > $TESTTMP/filter.py <<EOF
-  > from __future__ import absolute_import, print_function
   > import io
   > import re
   > import sys
-  > if sys.version_info[0] >= 3:
-  >     sys.stdout = io.TextIOWrapper(
-  >         sys.stdout.buffer,
-  >         sys.stdout.encoding,
-  >         sys.stdout.errors,
-  >         newline="\n",
-  >         line_buffering=sys.stdout.line_buffering,
-  >     )
+  > sys.stdout = io.TextIOWrapper(
+  >     sys.stdout.buffer,
+  >     sys.stdout.encoding,
+  >     sys.stdout.errors,
+  >     newline="\n",
+  >     line_buffering=sys.stdout.line_buffering,
+  > )
   > print(re.sub("\n[ \t]", " ", sys.stdin.read()), end="")
   > EOF
 
@@ -469,7 +467,6 @@ non-ascii content and truncation of multi-byte subject
   Content-Transfer-Encoding: 8bit
   X-Test: foo
   Date: * (glob)
-  Subject: \xc3\xa0... (esc) (no-py3 !)
   Subject: =?utf-8?b?w6AuLi4=?= (py3 !)
   From: test@test.com
   X-Hg-Notification: changeset 0f25f9c22b4c

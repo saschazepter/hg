@@ -44,13 +44,11 @@ close-after-send-patterns
    request)
 """
 
-from __future__ import absolute_import
 
 import re
 import socket
 
 from mercurial import (
-    pycompat,
     registrar,
 )
 
@@ -91,7 +89,7 @@ configitem(
 )
 
 
-class ConditionTracker(object):
+class ConditionTracker:
     def __init__(
         self,
         close_after_recv_bytes,
@@ -257,7 +255,7 @@ class ConditionTracker(object):
 
 
 # We can't adjust __class__ on a socket instance. So we define a proxy type.
-class socketproxy(object):
+class socketproxy:
     __slots__ = ('_orig', '_logfp', '_cond')
 
     def __init__(self, obj, logfp, condition_tracked):
@@ -301,7 +299,7 @@ class socketproxy(object):
 
 
 # We can't adjust __class__ on socket._fileobject, so define a proxy.
-class fileobjectproxy(object):
+class fileobjectproxy:
     __slots__ = ('_orig', '_logfp', '_cond')
 
     def __init__(self, obj, logfp, condition_tracked):
@@ -336,17 +334,8 @@ class fileobjectproxy(object):
         object.__getattribute__(self, '_logfp').flush()
 
     def _close(self):
-        # Python 3 uses an io.BufferedIO instance. Python 2 uses some file
-        # object wrapper.
-        if pycompat.ispy3:
-            orig = object.__getattribute__(self, '_orig')
-
-            if hasattr(orig, 'raw'):
-                orig.raw._sock.shutdown(socket.SHUT_RDWR)
-            else:
-                self.close()
-        else:
-            self._sock.shutdown(socket.SHUT_RDWR)
+        # We wrap an io.BufferedIO instance.
+        self.raw._sock.shutdown(socket.SHUT_RDWR)
 
     def read(self, size=-1):
         cond = object.__getattribute__(self, '_cond')

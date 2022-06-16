@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 from . import (
     configitems,
@@ -22,7 +21,7 @@ from . import (
 configitem = configitems.getitemregister
 
 
-class _funcregistrarbase(object):
+class _funcregistrarbase:
     """Base of decorator to register a function for specific purpose
 
     This decorator stores decorated functions into own dict 'table'.

@@ -6,7 +6,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import errno
 
@@ -25,7 +24,6 @@ from . import (
     obsutil,
     pathutil,
     phases,
-    pycompat,
     requirements,
     scmutil,
     util,
@@ -92,7 +90,7 @@ def _collectfiles(repo, striprev):
     """find out the filelogs affected by the strip"""
     files = set()
 
-    for x in pycompat.xrange(striprev, len(repo)):
+    for x in range(striprev, len(repo)):
         files.update(repo[x].files())
 
     return sorted(files)
@@ -380,7 +378,7 @@ def safestriproots(ui, repo, nodes):
     return [c.node() for c in repo.set(b'roots(%ld)', tostrip)]
 
 
-class stripcallback(object):
+class stripcallback:
     """used as a transaction postclose callback"""
 
     def __init__(self, ui, repo, backup, topic):

@@ -65,7 +65,6 @@ mappedgenerator
     operation.
 """
 
-from __future__ import absolute_import, print_function
 
 import abc
 import os
@@ -531,8 +530,7 @@ def _buildfuncargs(exp, context, curmethods, funcname, argspec):
 
     def compiledict(xs):
         return util.sortdict(
-            (k, compileexp(x, context, curmethods))
-            for k, x in pycompat.iteritems(xs)
+            (k, compileexp(x, context, curmethods)) for k, x in xs.items()
         )
 
     def compilelist(xs):
@@ -628,7 +626,7 @@ def unquotestring(s):
     return s[1:-1]
 
 
-class resourcemapper(object):  # pytype: disable=ignored-metaclass
+class resourcemapper:  # pytype: disable=ignored-metaclass
     """Mapper of internal template resources"""
 
     __metaclass__ = abc.ABCMeta
@@ -665,7 +663,7 @@ class nullresourcemapper(resourcemapper):
         return {}
 
 
-class engine(object):
+class engine:
     """template expansion engine.
 
     template expansion works like this. a map file contains key=value
@@ -709,7 +707,7 @@ class engine(object):
         newres = self._resources.availablekeys(newmapping)
         mapping = {
             k: v
-            for k, v in pycompat.iteritems(origmapping)
+            for k, v in origmapping.items()
             if (
                 k in knownres  # not a symbol per self.symbol()
                 or newres.isdisjoint(self._defaultrequires(k))
@@ -921,7 +919,7 @@ def _readmapfile(fp, mapfile):
     return cache, tmap, aliases
 
 
-class loader(object):
+class loader:
     """Load template fragments optionally from a map file"""
 
     def __init__(self, cache, aliases):
@@ -996,7 +994,7 @@ class loader(object):
         return syms
 
 
-class templater(object):
+class templater:
     def __init__(
         self,
         filters=None,

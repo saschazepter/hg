@@ -14,9 +14,7 @@ For more information:
 https://mercurial-scm.org/wiki/RebaseExtension
 '''
 
-from __future__ import absolute_import
 
-import errno
 import os
 
 from mercurial.i18n import _
@@ -160,7 +158,7 @@ def _ctxdesc(ctx):
     )
 
 
-class rebaseruntime(object):
+class rebaseruntime:
     """This class is a container for rebase runtime state"""
 
     def __init__(self, repo, ui, inmemory=False, dryrun=False, opts=None):
@@ -244,7 +242,7 @@ class rebaseruntime(object):
         f.write(b'%d\n' % int(self.keepbranchesf))
         f.write(b'%s\n' % (self.activebookmark or b''))
         destmap = self.destmap
-        for d, v in pycompat.iteritems(self.state):
+        for d, v in self.state.items():
             oldrev = repo[d].hex()
             if v >= 0:
                 newrev = repo[v].hex()
@@ -506,7 +504,7 @@ class rebaseruntime(object):
             # commits.
             self.storestatus(tr)
 
-        cands = [k for k, v in pycompat.iteritems(self.state) if v == revtodo]
+        cands = [k for k, v in self.state.items() if v == revtodo]
         p = repo.ui.makeprogress(
             _(b"rebasing"), unit=_(b'changesets'), total=len(cands)
         )
@@ -1337,7 +1335,7 @@ def _definedestmap(ui, repo, inmemory, destf, srcf, basef, revf, destspace):
             # emulate the old behavior, showing "nothing to rebase" (a better
             # behavior may be abort with "cannot find branching point" error)
             bpbase.clear()
-        for bp, bs in pycompat.iteritems(bpbase):  # calculate roots
+        for bp, bs in bpbase.items():  # calculate roots
             roots += list(repo.revs(b'children(%d) & ancestors(%ld)', bp, bs))
 
         rebaseset = repo.revs(b'%ld::', roots)
@@ -1941,9 +1939,7 @@ def restorecollapsemsg(repo, isabort):
         f = repo.vfs(b"last-message.txt")
         collapsemsg = f.readline().strip()
         f.close()
-    except IOError as err:
-        if err.errno != errno.ENOENT:
-            raise
+    except FileNotFoundError:
         if isabort:
             # Oh well, just abort like normal
             collapsemsg = b''
@@ -2104,7 +2100,7 @@ def clearrebased(
         fl = fm.formatlist
         fd = fm.formatdict
         changes = {}
-        for oldns, newn in pycompat.iteritems(replacements):
+        for oldns, newn in replacements.items():
             for oldn in oldns:
                 changes[hf(oldn)] = fl([hf(n) for n in newn], name=b'node')
         nodechanges = fd(changes, key=b"oldnode", value=b"newnodes")
@@ -2258,7 +2254,7 @@ def summaryhook(ui, repo):
         msg = _(b'rebase: (use "hg rebase --abort" to clear broken state)\n')
         ui.write(msg)
         return
-    numrebased = len([i for i in pycompat.itervalues(state) if i >= 0])
+    numrebased = len([i for i in state.values() if i >= 0])
     # i18n: column positioning for "hg summary"
     ui.write(
         _(b'rebase: %s, %s (rebase --continue)\n')

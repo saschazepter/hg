@@ -1,5 +1,3 @@
-from __future__ import print_function, absolute_import
-
 """Fuzz testing for operations against a Mercurial repository
 
 This uses Hypothesis's stateful testing to generate random repository
@@ -38,7 +36,6 @@ except ImportError:
 
 import binascii
 from contextlib import contextmanager
-import errno
 import pipes
 import shutil
 import silenttestrunner
@@ -88,9 +85,8 @@ while True:
     try:
         os.close(os.open(savefile, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
         break
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
+    except FileExistsError:
+        pass
 assert os.path.exists(savefile)
 
 hgrc = os.path.join(".hg", "hgrc")

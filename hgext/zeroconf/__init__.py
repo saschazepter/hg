@@ -22,7 +22,6 @@ You can discover Zeroconf-enabled repositories by running
   $ hg paths
   zc-test = http://example.com:8000/test
 '''
-from __future__ import absolute_import
 
 import os
 import socket
@@ -159,7 +158,7 @@ def zc_create_server(create_server, ui, app):
 # listen
 
 
-class listener(object):
+class listener:
     def __init__(self):
         self.found = {}
 

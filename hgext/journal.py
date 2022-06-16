@@ -11,10 +11,8 @@ bookmarks were previously located.
 
 """
 
-from __future__ import absolute_import
 
 import collections
-import errno
 import os
 import weakref
 
@@ -129,7 +127,7 @@ def recordbookmarks(orig, store, fp):
     repo = store._repo
     if util.safehasattr(repo, 'journal'):
         oldmarks = bookmarks.bmstore(repo)
-        for mark, value in pycompat.iteritems(store):
+        for mark, value in store.items():
             oldvalue = oldmarks.get(mark, repo.nullid)
             if value != oldvalue:
                 repo.journal.record(bookmarktype, mark, oldvalue, value)
@@ -141,9 +139,7 @@ def _readsharedfeatures(repo):
     """A set of shared features for this repository"""
     try:
         return set(repo.vfs.read(b'shared').splitlines())
-    except IOError as inst:
-        if inst.errno != errno.ENOENT:
-            raise
+    except FileNotFoundError:
         return set()
 
 
@@ -167,7 +163,7 @@ def _mergeentriesiter(*iterables, **kwargs):
             pass
 
     while iterable_map:
-        value, key, it = order(pycompat.itervalues(iterable_map))
+        value, key, it = order(iterable_map.values())
         yield value
         try:
             iterable_map[key][0] = next(it)
@@ -283,7 +279,7 @@ class journalentry(
     __str__ = encoding.strmethod(__bytes__)
 
 
-class journalstorage(object):
+class journalstorage:
     """Storage for journal entries
 
     Entries are divided over two files; one with entries that pertain to the

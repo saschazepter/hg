@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 from .i18n import _
 from .node import nullrev
@@ -25,7 +24,7 @@ from .revlogutils import (
 
 
 @interfaceutil.implementer(repository.ifilestorage)
-class filelog(object):
+class filelog:
     def __init__(self, opener, path):
         self._revlog = revlog.revlog(
             opener,
@@ -33,6 +32,7 @@ class filelog(object):
             target=(revlog_constants.KIND_FILELOG, path),
             radix=b'/'.join((b'data', path)),
             censorable=True,
+            canonical_parent_order=False,  # see comment in revlog.py
         )
         # Full name of the user visible file, relative to the repository root.
         # Used by LFS.
@@ -208,6 +208,7 @@ class filelog(object):
             return len(self.read(node))
 
         # XXX if self.read(node).startswith("\1\n"), this returns (size+4)
+        # XXX See also basefilectx.cmp.
         return self._revlog.size(rev)
 
     def cmp(self, node, text):
@@ -239,7 +240,9 @@ class filelog(object):
     # Used by repo upgrade.
     def clone(self, tr, destrevlog, **kwargs):
         if not isinstance(destrevlog, filelog):
-            raise error.ProgrammingError(b'expected filelog to clone()')
+            msg = b'expected filelog to clone(), not %r'
+            msg %= destrevlog
+            raise error.ProgrammingError(msg)
 
         return self._revlog.clone(tr, destrevlog._revlog, **kwargs)
 

@@ -3,6 +3,8 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+import collections
+
 from .i18n import _
 
 from .thirdparty import attr
@@ -21,13 +23,33 @@ CB_MANIFEST_FILE = b'clonebundles.manifest'
 
 
 @attr.s
-class bundlespec(object):
+class bundlespec:
     compression = attr.ib()
     wirecompression = attr.ib()
     version = attr.ib()
     wireversion = attr.ib()
-    params = attr.ib()
-    contentopts = attr.ib()
+    # parameters explicitly overwritten by the config or the specification
+    _explicit_params = attr.ib()
+    # default parameter for the version
+    #
+    # Keeping it separated is useful to check what was actually overwritten.
+    _default_opts = attr.ib()
+
+    @property
+    def params(self):
+        return collections.ChainMap(self._explicit_params, self._default_opts)
+
+    @property
+    def contentopts(self):
+        # kept for Backward Compatibility concerns.
+        return self.params
+
+    def set_param(self, key, value, overwrite=True):
+        """Set a bundle parameter value.
+
+        Will only overwrite if overwrite is true"""
+        if overwrite or key not in self._explicit_params:
+            self._explicit_params[key] = value
 
 
 # Maps bundle version human names to changegroup versions.
@@ -56,21 +78,76 @@ _bundlespeccontentopts = {
         b'tagsfnodescache': True,
         b'revbranchcache': True,
     },
-    b'packed1': {b'cg.version': b's1'},
+    b'streamv2': {
+        b'changegroup': False,
+        b'cg.version': b'02',
+        b'obsolescence': False,
+        b'phases': False,
+        b"streamv2": True,
+        b'tagsfnodescache': False,
+        b'revbranchcache': False,
+    },
+    b'packed1': {
+        b'cg.version': b's1',
+    },
+    b'bundle2': {  # legacy
+        b'cg.version': b'02',
+    },
 }
 _bundlespeccontentopts[b'bundle2'] = _bundlespeccontentopts[b'v2']
 
-_bundlespecvariants = {
-    b"streamv2": {
-        b"changegroup": False,
-        b"streamv2": True,
-        b"tagsfnodescache": False,
-        b"revbranchcache": False,
-    }
-}
+_bundlespecvariants = {b"streamv2": {}}
 
 # Compression engines allowed in version 1. THIS SHOULD NEVER CHANGE.
 _bundlespecv1compengines = {b'gzip', b'bzip2', b'none'}
+
+
+def param_bool(key, value):
+    """make a boolean out of a parameter value"""
+    b = stringutil.parsebool(value)
+    if b is None:
+        msg = _(b"parameter %s should be a boolean ('%s')")
+        msg %= (key, value)
+        raise error.InvalidBundleSpecification(msg)
+    return b
+
+
+# mapping of known parameter name need their value processed
+bundle_spec_param_processing = {
+    b"obsolescence": param_bool,
+    b"obsolescence-mandatory": param_bool,
+    b"phases": param_bool,
+}
+
+
+def _parseparams(s):
+    """parse bundlespec parameter section
+
+    input: "comp-version;params" string
+
+    return: (spec; {param_key: param_value})
+    """
+    if b';' not in s:
+        return s, {}
+
+    params = {}
+    version, paramstr = s.split(b';', 1)
+
+    err = _(b'invalid bundle specification: missing "=" in parameter: %s')
+    for p in paramstr.split(b';'):
+        if b'=' not in p:
+            msg = err % p
+            raise error.InvalidBundleSpecification(msg)
+
+        key, value = p.split(b'=', 1)
+        key = urlreq.unquote(key)
+        value = urlreq.unquote(value)
+        process = bundle_spec_param_processing.get(key)
+        if process is not None:
+            value = process(key, value)
+        params[key] = value
+
+    return version, params
 
 
 def parsebundlespec(repo, spec, strict=True):
@@ -106,31 +183,6 @@ def parsebundlespec(repo, spec, strict=True):
     Note: this function will likely eventually return a more complex data
     structure, including bundle2 part information.
     """
-
-    def parseparams(s):
-        if b';' not in s:
-            return s, {}
-
-        params = {}
-        version, paramstr = s.split(b';', 1)
-
-        for p in paramstr.split(b';'):
-            if b'=' not in p:
-                raise error.InvalidBundleSpecification(
-                    _(
-                        b'invalid bundle specification: '
-                        b'missing "=" in parameter: %s'
-                    )
-                    % p
-                )
-
-            key, value = p.split(b'=', 1)
-            key = urlreq.unquote(key)
-            value = urlreq.unquote(value)
-            params[key] = value
-
-        return version, params
-
     if strict and b'-' not in spec:
         raise error.InvalidBundleSpecification(
             _(
@@ -140,7 +192,8 @@ def parsebundlespec(repo, spec, strict=True):
             % spec
         )
 
-    if b'-' in spec:
+    pre_args = spec.split(b';', 1)[0]
+    if b'-' in pre_args:
         compression, version = spec.split(b'-', 1)
 
         if compression not in util.compengines.supportedbundlenames:
@@ -148,9 +201,9 @@ def parsebundlespec(repo, spec, strict=True):
                 _(b'%s compression is not supported') % compression
             )
 
-        version, params = parseparams(version)
+        version, params = _parseparams(version)
 
-        if version not in _bundlespeccgversions:
+        if version not in _bundlespeccontentopts:
             raise error.UnsupportedBundleSpecification(
                 _(b'%s is not a recognized bundle version') % version
             )
@@ -159,7 +212,7 @@ def parsebundlespec(repo, spec, strict=True):
         # case some defaults are assumed (but only when not in strict mode).
         assert not strict
 
-        spec, params = parseparams(spec)
+        spec, params = _parseparams(spec)
 
         if spec in util.compengines.supportedbundlenames:
             compression = spec
@@ -172,7 +225,7 @@ def parsebundlespec(repo, spec, strict=True):
             # Modern compression engines require v2.
             if compression not in _bundlespecv1compengines:
                 version = b'v2'
-        elif spec in _bundlespeccgversions:
+        elif spec in _bundlespeccontentopts:
             if spec == b'packed1':
                 compression = b'none'
             else:
@@ -203,16 +256,25 @@ def parsebundlespec(repo, spec, strict=True):
             )
 
     # Compute contentopts based on the version
-    contentopts = _bundlespeccontentopts.get(version, {}).copy()
-
-    # Process the variants
     if b"stream" in params and params[b"stream"] == b"v2":
-        variant = _bundlespecvariants[b"streamv2"]
-        contentopts.update(variant)
+        # That case is fishy as this mostly derails the version selection
+        # mechanism. `stream` bundles are quite specific and used differently
+        # as "normal" bundles.
+        #
+        # So we are pinning this to "v2", as this will likely be
+        # compatible forever. (see the next conditional).
+        #
+        # (we should probably define a cleaner way to do this and raise a
+        # warning when the old way is encounter)
+        version = b"streamv2"
+    contentopts = _bundlespeccontentopts.get(version, {}).copy()
+    if version == b"streamv2":
+        # streamv2 have been reported as "v2" for a while.
+        version = b"v2"
 
     engine = util.compengines.forbundlename(compression)
     compression, wirecompression = engine.bundletype()
-    wireversion = _bundlespeccgversions[version]
+    wireversion = _bundlespeccontentopts[version][b'cg.version']
 
     return bundlespec(
         compression, wirecompression, version, wireversion, params, contentopts
@@ -343,7 +405,7 @@ def filterclonebundleentries(repo, entries, streamclonerequested=False):
     return newentries
 
 
-class clonebundleentry(object):
+class clonebundleentry:
     """Represents an item in a clone bundles manifest.
 
     This rich class is needed to support sorting since sorted() in Python 3

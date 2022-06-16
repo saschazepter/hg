@@ -65,7 +65,6 @@ def bootstrap_windows_dev(hga: HGAutomation, aws_region, base_image_name):
 def build_inno(
     hga: HGAutomation,
     aws_region,
-    python_version,
     arch,
     revision,
     version,
@@ -80,21 +79,18 @@ def build_inno(
 
         windows.synchronize_hg(SOURCE_ROOT, revision, instance)
 
-        for py_version in python_version:
-            for a in arch:
-                windows.build_inno_installer(
-                    instance.winrm_client,
-                    py_version,
-                    a,
-                    DIST_PATH,
-                    version=version,
-                )
+        for a in arch:
+            windows.build_inno_installer(
+                instance.winrm_client,
+                a,
+                DIST_PATH,
+                version=version,
+            )
 
 
 def build_wix(
     hga: HGAutomation,
     aws_region,
-    python_version,
     arch,
     revision,
     version,
@@ -109,15 +105,13 @@ def build_wix(
 
         windows.synchronize_hg(SOURCE_ROOT, revision, instance)
 
-        for py_version in python_version:
-            for a in arch:
-                windows.build_wix_installer(
-                    instance.winrm_client,
-                    py_version,
-                    a,
-                    DIST_PATH,
-                    version=version,
-                )
+        for a in arch:
+            windows.build_wix_installer(
+                instance.winrm_client,
+                a,
+                DIST_PATH,
+                version=version,
+            )
 
 
 def build_windows_wheel(
@@ -158,7 +152,7 @@ def build_all_windows_packages(
 
         windows.synchronize_hg(SOURCE_ROOT, revision, instance)
 
-        for py_version in ("2.7", "3.7", "3.8", "3.9", "3.10"):
+        for py_version in ("3.7", "3.8", "3.9", "3.10"):
             for arch in ("x86", "x64"):
                 windows.purge_hg(winrm_client)
                 windows.build_wheel(
@@ -168,15 +162,14 @@ def build_all_windows_packages(
                     dest_path=DIST_PATH,
                 )
 
-        for py_version in (2, 3):
-            for arch in ('x86', 'x64'):
-                windows.purge_hg(winrm_client)
-                windows.build_inno_installer(
-                    winrm_client, py_version, arch, DIST_PATH, version=version
-                )
-                windows.build_wix_installer(
-                    winrm_client, py_version, arch, DIST_PATH, version=version
-                )
+        for arch in ('x86', 'x64'):
+            windows.purge_hg(winrm_client)
+            windows.build_inno_installer(
+                winrm_client, arch, DIST_PATH, version=version
+            )
+            windows.build_wix_installer(
+                winrm_client, arch, DIST_PATH, version=version
+            )
 
 
 def terminate_ec2_instances(hga: HGAutomation, aws_region):
@@ -340,14 +333,6 @@ def get_parser():
         help='Build Inno Setup installer(s)',
     )
     sp.add_argument(
-        '--python-version',
-        help='Which version of Python to target',
-        choices={2, 3},
-        type=int,
-        nargs='*',
-        default=[3],
-    )
-    sp.add_argument(
         '--arch',
         help='Architecture to build for',
         choices={'x86', 'x64'},
@@ -377,7 +362,7 @@ def get_parser():
     sp.add_argument(
         '--python-version',
         help='Python version to build for',
-        choices={'2.7', '3.7', '3.8', '3.9', '3.10'},
+        choices={'3.7', '3.8', '3.9', '3.10'},
         nargs='*',
         default=['3.8'],
     )
@@ -401,14 +386,6 @@ def get_parser():
     sp.set_defaults(func=build_windows_wheel)
 
     sp = subparsers.add_parser('build-wix', help='Build WiX installer(s)')
-    sp.add_argument(
-        '--python-version',
-        help='Which version of Python to target',
-        choices={2, 3},
-        type=int,
-        nargs='*',
-        default=[3],
-    )
     sp.add_argument(
         '--arch',
         help='Architecture to build for',
@@ -469,9 +446,7 @@ def get_parser():
         '--python-version',
         help='Python version to use',
         choices={
-            'system2',
             'system3',
-            '2.7',
             '3.5',
             '3.6',
             '3.7',
@@ -480,7 +455,7 @@ def get_parser():
             'pypy3.5',
             'pypy3.6',
         },
-        default='system2',
+        default='system3',
     )
     sp.add_argument(
         'test_flags',
@@ -501,8 +476,8 @@ def get_parser():
     sp.add_argument(
         '--python-version',
         help='Python version to use',
-        choices={'2.7', '3.5', '3.6', '3.7', '3.8', '3.9', '3.10'},
-        default='2.7',
+        choices={'3.5', '3.6', '3.7', '3.8', '3.9', '3.10'},
+        default='3.9',
     )
     sp.add_argument(
         '--arch',

@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import contextlib
 import errno
@@ -39,9 +38,8 @@ def _getlockprefix():
     if pycompat.sysplatform.startswith(b'linux'):
         try:
             result += b'/%x' % os.stat(b'/proc/self/ns/pid').st_ino
-        except OSError as ex:
-            if ex.errno not in (errno.ENOENT, errno.EACCES, errno.ENOTDIR):
-                raise
+        except (FileNotFoundError, PermissionError, NotADirectoryError):
+            pass
     return result
 
 
@@ -174,7 +172,7 @@ def trylock(ui, vfs, lockname, timeout, warntimeout, *args, **kwargs):
     return l
 
 
-class lock(object):
+class lock:
     """An advisory lock held by one process to control access to a set
     of files.  Non-cooperating processes or incorrectly written scripts
     can ignore Mercurial's locking scheme and stomp all over the
@@ -312,10 +310,8 @@ class lock(object):
         """
         try:
             return self.vfs.readlock(self.f)
-        except (OSError, IOError) as why:
-            if why.errno == errno.ENOENT:
-                return None
-            raise
+        except FileNotFoundError:
+            return None
 
     def _lockshouldbebroken(self, locker):
         if locker is None:

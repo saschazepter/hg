@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function
-
 import contextlib
 
 from . import util as interfaceutil
@@ -62,6 +60,9 @@ class idirstate(interfaceutil.Interface):
         canonical paths back to file paths for display. It shouldn't be
         used to get real file paths. Use vfs functions instead.
         """
+
+    def get_entry(path):
+        """return a DirstateItem for the associated path"""
 
     def pathto(f, cwd=None):
         pass

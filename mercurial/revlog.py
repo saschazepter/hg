@@ -12,12 +12,10 @@ This provides efficient delta storage with O(1) retrieve and append
 and O(changes) merge between branches.
 """
 
-from __future__ import absolute_import
 
 import binascii
 import collections
 import contextlib
-import errno
 import io
 import os
 import struct
@@ -172,7 +170,7 @@ HAS_FAST_PERSISTENT_NODEMAP = rustrevlog is not None or util.safehasattr(
 
 @interfaceutil.implementer(repository.irevisiondelta)
 @attr.s(slots=True)
-class revlogrevisiondelta(object):
+class revlogrevisiondelta:
     node = attr.ib()
     p1node = attr.ib()
     p2node = attr.ib()
@@ -188,7 +186,7 @@ class revlogrevisiondelta(object):
 
 @interfaceutil.implementer(repository.iverifyproblem)
 @attr.s(frozen=True)
-class revlogproblem(object):
+class revlogproblem:
     warning = attr.ib(default=None)
     error = attr.ib(default=None)
     node = attr.ib(default=None)
@@ -238,7 +236,7 @@ FILE_TOO_SHORT_MSG = _(
 )
 
 
-class revlog(object):
+class revlog:
     """
     the underlying revision storage object
 
@@ -299,6 +297,7 @@ class revlog(object):
         persistentnodemap=False,
         concurrencychecker=None,
         trypending=False,
+        canonical_parent_order=True,
     ):
         """
         create a revlog object
@@ -346,6 +345,7 @@ class revlog(object):
         self._chunkcachesize = 65536
         self._maxchainlen = None
         self._deltabothparents = True
+        self._debug_delta = False
         self.index = None
         self._docket = None
         self._nodemap_docket = None
@@ -373,6 +373,13 @@ class revlog(object):
         self._loadindex()
 
         self._concurrencychecker = concurrencychecker
+
+        # parent order is supposed to be semantically irrelevant, so we
+        # normally resort parents to ensure that the first parent is non-null,
+        # if there is a non-null parent at all.
+        # filelog abuses the parent order as flag to mark some instances of
+        # meta-encoded files, so allow it to disable this behavior.
+        self.canonical_parent_order = canonical_parent_order
 
     def _init_opts(self):
         """process options (from above/config) to setup associated default revlog mode
@@ -416,6 +423,8 @@ class revlog(object):
         self._lazydeltabase = False
         if self._lazydelta:
             self._lazydeltabase = bool(opts.get(b'lazydeltabase', False))
+        if b'debug-delta' in opts:
+            self._debug_delta = opts[b'debug-delta']
         if b'compengine' in opts:
             self._compengine = opts[b'compengine']
         if b'zlib.level' in opts:
@@ -438,9 +447,7 @@ class revlog(object):
             self._flagprocessors[REVIDX_ELLIPSIS] = ellipsisprocessor
 
         # revlog v0 doesn't have flag processors
-        for flag, processor in pycompat.iteritems(
-            opts.get(b'flagprocessors', {})
-        ):
+        for flag, processor in opts.get(b'flagprocessors', {}).items():
             flagutil.insertflagprocessor(flag, processor, self._flagprocessors)
 
         if self._chunkcachesize <= 0:
@@ -478,9 +485,7 @@ class revlog(object):
                     return fp.read()
                 else:
                     return fp.read(size)
-        except IOError as inst:
-            if inst.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
             return b''
 
     def _loadindex(self, docket=None):
@@ -693,9 +698,7 @@ class revlog(object):
             else:
                 f.seek(self._docket.index_end, os.SEEK_SET)
             return f
-        except IOError as inst:
-            if inst.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
             return self.opener(
                 self._indexfile, mode=b"w+", checkambig=self._checkambig
             )
@@ -735,7 +738,7 @@ class revlog(object):
         return len(self.index)
 
     def __iter__(self):
-        return iter(pycompat.xrange(len(self)))
+        return iter(range(len(self)))
 
     def revs(self, start=0, stop=None):
         """iterate over all rev in this revlog (from start to stop)"""
@@ -869,8 +872,10 @@ class revlog(object):
         the revlog which do not persist the rank.
         """
         rank = self.index[rev][ENTRY_RANK]
-        if rank == RANK_UNKNOWN:
+        if self._format_version != CHANGELOGV2 or rank == RANK_UNKNOWN:
             return None
+        if rev == nullrev:
+            return 0  # convention
         return rank
 
     def chainbase(self, rev):
@@ -899,7 +904,10 @@ class revlog(object):
                 raise error.WdirUnsupported
             raise
 
-        return entry[5], entry[6]
+        if self.canonical_parent_order and entry[5] == nullrev:
+            return entry[6], entry[5]
+        else:
+            return entry[5], entry[6]
 
     # fast parentrevs(rev) where rev isn't filtered
     _uncheckedparentrevs = parentrevs
@@ -920,7 +928,11 @@ class revlog(object):
     def parents(self, node):
         i = self.index
         d = i[self.rev(node)]
-        return i[d[5]][7], i[d[6]][7]  # map revisions to nodes inline
+        # inline node() to avoid function call overhead
+        if self.canonical_parent_order and d[5] == self.nullid:
+            return i[d[6]][7], i[d[5]][7]
+        else:
+            return i[d[5]][7], i[d[6]][7]
 
     def chainlen(self, rev):
         return self._chaininfo(rev)[0]
@@ -1043,7 +1055,7 @@ class revlog(object):
         heads = [self.rev(n) for n in heads]
 
         # we want the ancestors, but inclusive
-        class lazyset(object):
+        class lazyset:
             def __init__(self, lazyvalues):
                 self.addedvalues = set()
                 self.lazyvalues = lazyvalues
@@ -1304,7 +1316,7 @@ class revlog(object):
                     # But, obviously its parents aren't.
                     for p in self.parents(n):
                         heads.pop(p, None)
-        heads = [head for head, flag in pycompat.iteritems(heads) if flag]
+        heads = [head for head, flag in heads.items() if flag]
         roots = list(roots)
         assert orderedout
         assert roots
@@ -1470,7 +1482,7 @@ class revlog(object):
                 node = bin(id)
                 self.rev(node)
                 return node
-            except (TypeError, error.LookupError):
+            except (binascii.Error, error.LookupError):
                 pass
 
     def _partialmatch(self, id):
@@ -1508,10 +1520,13 @@ class revlog(object):
             return self._pcache[id]
 
         if len(id) <= 40:
+            # hex(node)[:...]
+            l = len(id) // 2 * 2  # grab an even number of digits
             try:
-                # hex(node)[:...]
-                l = len(id) // 2  # grab an even number of digits
-                prefix = bin(id[: l * 2])
+                prefix = bin(id[:l])
+            except binascii.Error:
+                pass
+            else:
                 nl = [e[7] for e in self.index if e[7].startswith(prefix)]
                 nl = [
                     n for n in nl if hex(n).startswith(id) and self.hasnode(n)
@@ -1528,8 +1543,6 @@ class revlog(object):
                 if maybewdir:
                     raise error.WdirUnsupported
                 return None
-            except TypeError:
-                pass
 
     def lookup(self, id):
         """locate a node based on:
@@ -2098,9 +2111,7 @@ class revlog(object):
                             dfh.seek(0, os.SEEK_END)
                         else:
                             dfh.seek(self._docket.data_end, os.SEEK_SET)
-                    except IOError as inst:
-                        if inst.errno != errno.ENOENT:
-                            raise
+                    except FileNotFoundError:
                         dfh = self._datafp(b"w+")
                     transaction.add(self._datafile, dsize)
                 if self._sidedatafile is not None:
@@ -2109,9 +2120,7 @@ class revlog(object):
                     try:
                         sdfh = self.opener(self._sidedatafile, mode=b"r+")
                         dfh.seek(self._docket.sidedata_end, os.SEEK_SET)
-                    except IOError as inst:
-                        if inst.errno != errno.ENOENT:
-                            raise
+                    except FileNotFoundError:
                         sdfh = self.opener(self._sidedatafile, mode=b"w+")
                     transaction.add(
                         self._sidedatafile, self._docket.sidedata_end
@@ -2412,7 +2421,12 @@ class revlog(object):
             textlen = len(rawtext)
 
         if deltacomputer is None:
-            deltacomputer = deltautil.deltacomputer(self)
+            write_debug = None
+            if self._debug_delta:
+                write_debug = transaction._report
+            deltacomputer = deltautil.deltacomputer(
+                self, write_debug=write_debug
+            )
 
         revinfo = revlogutils.revisioninfo(
             node,
@@ -2469,9 +2483,12 @@ class revlog(object):
             elif p1r == nullrev and p2r != nullrev:
                 rank = 1 + self.fast_rank(p2r)
             else:  # merge node
-                pmin, pmax = sorted((p1r, p2r))
-                rank = 1 + self.fast_rank(pmax)
-                rank += sum(1 for _ in self.findmissingrevs([pmax], [pmin]))
+                if rustdagop is not None and self.index.rust_ext_compat:
+                    rank = rustdagop.rank(self.index, p1r, p2r)
+                else:
+                    pmin, pmax = sorted((p1r, p2r))
+                    rank = 1 + self.fast_rank(pmax)
+                    rank += sum(1 for _ in self.findmissingrevs([pmax], [pmin]))
 
         e = revlogutils.entry(
             flags=flags,
@@ -2622,7 +2639,13 @@ class revlog(object):
         empty = True
         try:
             with self._writing(transaction):
-                deltacomputer = deltautil.deltacomputer(self)
+                write_debug = None
+                if self._debug_delta:
+                    write_debug = transaction._report
+                deltacomputer = deltautil.deltacomputer(
+                    self,
+                    write_debug=write_debug,
+                )
                 # loop through our set of deltas
                 for data in deltas:
                     (
@@ -2800,9 +2823,7 @@ class revlog(object):
                 f.seek(0, io.SEEK_END)
                 actual = f.tell()
             dd = actual - expected
-        except IOError as inst:
-            if inst.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
             dd = 0
 
         try:
@@ -2819,9 +2840,7 @@ class revlog(object):
                     databytes += max(0, self.length(r))
                 dd = 0
                 di = actual - len(self) * s - databytes
-        except IOError as inst:
-            if inst.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
             di = 0
 
         return (dd, di)
@@ -2998,7 +3017,13 @@ class revlog(object):
         sidedata_helpers,
     ):
         """perform the core duty of `revlog.clone` after parameter processing"""
-        deltacomputer = deltautil.deltacomputer(destrevlog)
+        write_debug = None
+        if self._debug_delta:
+            write_debug = tr._report
+        deltacomputer = deltautil.deltacomputer(
+            destrevlog,
+            write_debug=write_debug,
+        )
         index = self.index
         for rev in self:
             entry = index[rev]

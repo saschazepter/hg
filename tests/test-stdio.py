@@ -2,11 +2,11 @@
 """
 Tests the buffering behavior of stdio streams in `mercurial.utils.procutil`.
 """
-from __future__ import absolute_import
 
 import contextlib
 import errno
 import os
+import pickle
 import signal
 import subprocess
 import sys
@@ -14,25 +14,6 @@ import tempfile
 import unittest
 
 from mercurial import pycompat, util
-
-
-if pycompat.ispy3:
-
-    def set_noninheritable(fd):
-        # On Python 3, file descriptors are non-inheritable by default.
-        pass
-
-
-else:
-    if pycompat.iswindows:
-        # unused
-        set_noninheritable = None
-    else:
-        import fcntl
-
-        def set_noninheritable(fd):
-            old = fcntl.fcntl(fd, fcntl.F_GETFD)
-            fcntl.fcntl(fd, fcntl.F_SETFD, old | fcntl.FD_CLOEXEC)
 
 
 TEST_BUFFERING_CHILD_SCRIPT = r'''
@@ -127,10 +108,6 @@ def _devnull():
 @contextlib.contextmanager
 def _pipes():
     rwpair = os.pipe()
-    # Pipes are already non-inheritable on Windows.
-    if not pycompat.iswindows:
-        set_noninheritable(rwpair[0])
-        set_noninheritable(rwpair[1])
     with _closing(rwpair):
         yield rwpair
 
@@ -143,8 +120,6 @@ def _ptys():
     import tty
 
     rwpair = pty.openpty()
-    set_noninheritable(rwpair[0])
-    set_noninheritable(rwpair[1])
     with _closing(rwpair):
         tty.setraw(rwpair[0])
         yield rwpair
@@ -236,22 +211,7 @@ class TestStdio(unittest.TestCase):
     def test_buffering_stdout_ptys_unbuffered(self):
         self._test_buffering('stdout', _ptys, UNBUFFERED, python_args=['-u'])
 
-    if not pycompat.ispy3 and not pycompat.iswindows:
-        # On Python 2 on non-Windows, we manually open stdout in line-buffered
-        # mode if connected to a TTY. We should check if Python was configured
-        # to use unbuffered stdout, but it's hard to do that.
-        test_buffering_stdout_ptys_unbuffered = unittest.expectedFailure(
-            test_buffering_stdout_ptys_unbuffered
-        )
-
     def _test_large_write(self, stream, rwpair_generator, python_args=[]):
-        if not pycompat.ispy3 and pycompat.isdarwin:
-            # Python 2 doesn't always retry on EINTR, but the libc might retry.
-            # So far, it was observed only on macOS that EINTR is raised at the
-            # Python level. As Python 2 support will be dropped soon-ish, we
-            # won't attempt to fix it.
-            raise unittest.SkipTest("raises EINTR on macOS")
-
         def check_output(stream_receiver, proc):
             if not pycompat.iswindows:
                 # On Unix, we can provoke a partial write() by interrupting it
@@ -268,16 +228,7 @@ class TestStdio(unittest.TestCase):
             )
 
         def post_child_check():
-            write_result_str = write_result_f.read()
-            if pycompat.ispy3:
-                # On Python 3, we test that the correct number of bytes is
-                # claimed to have been written.
-                expected_write_result_str = '1048576'
-            else:
-                # On Python 2, we only check that the large write does not
-                # crash.
-                expected_write_result_str = 'None'
-            self.assertEqual(write_result_str, expected_write_result_str)
+            self.assertEqual(write_result_f.read(), '1048576')
 
         with tempfile.NamedTemporaryFile('r') as write_result_f:
             self._test(
@@ -336,7 +287,7 @@ class TestStdio(unittest.TestCase):
             proc.stdin.close()
 
         def post_child_check():
-            err = util.pickle.load(err_f)
+            err = pickle.load(err_f)
             self.assertEqual(err.errno, errno.EPIPE)
             self.assertEqual(err.strerror, "Broken pipe")
 

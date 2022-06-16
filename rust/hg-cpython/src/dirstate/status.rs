@@ -15,6 +15,7 @@ use cpython::{
     PyResult, PyTuple, Python, PythonObject, ToPyObject,
 };
 use hg::dirstate::status::StatusPath;
+use hg::matchers::{IntersectionMatcher, Matcher, NeverMatcher, UnionMatcher};
 use hg::{
     matchers::{AlwaysMatcher, FileMatcher, IncludeMatcher},
     parse_pattern_syntax,
@@ -133,24 +134,31 @@ pub fn status_wrapper(
         build_response(py, status_res, warnings)
     };
 
+    let matcher = extract_matcher(py, matcher)?;
+    dmap.with_status(
+        &*matcher,
+        root_dir.to_path_buf(),
+        ignore_files,
+        StatusOptions {
+            check_exec,
+            list_clean,
+            list_ignored,
+            list_unknown,
+            list_copies,
+            collect_traversed_dirs,
+        },
+        after_status,
+    )
+}
+
+/// Transform a Python matcher into a Rust matcher.
+fn extract_matcher(
+    py: Python,
+    matcher: PyObject,
+) -> PyResult<Box<dyn Matcher + Sync>> {
     match matcher.get_type(py).name(py).borrow() {
-        "alwaysmatcher" => {
-            let matcher = AlwaysMatcher;
-            dmap.with_status(
-                &matcher,
-                root_dir.to_path_buf(),
-                ignore_files,
-                StatusOptions {
-                    check_exec,
-                    list_clean,
-                    list_ignored,
-                    list_unknown,
-                    list_copies,
-                    collect_traversed_dirs,
-                },
-                after_status,
-            )
-        }
+        "alwaysmatcher" => Ok(Box::new(AlwaysMatcher)),
+        "nevermatcher" => Ok(Box::new(NeverMatcher)),
         "exactmatcher" => {
             let files = matcher.call_method(
                 py,
@@ -169,22 +177,9 @@ pub fn status_wrapper(
                 .collect();
 
             let files = files?;
-            let matcher = FileMatcher::new(files.as_ref())
+            let file_matcher = FileMatcher::new(files)
                 .map_err(|e| PyErr::new::<ValueError, _>(py, e.to_string()))?;
-            dmap.with_status(
-                &matcher,
-                root_dir.to_path_buf(),
-                ignore_files,
-                StatusOptions {
-                    check_exec,
-                    list_clean,
-                    list_ignored,
-                    list_unknown,
-                    list_copies,
-                    collect_traversed_dirs,
-                },
-                after_status,
-            )
+            Ok(Box::new(file_matcher))
         }
         "includematcher" => {
             // Get the patterns from Python even though most of them are
@@ -221,22 +216,24 @@ pub fn status_wrapper(
             let matcher = IncludeMatcher::new(ignore_patterns)
                 .map_err(|e| handle_fallback(py, e.into()))?;
 
-            dmap.with_status(
-                &matcher,
-                root_dir.to_path_buf(),
-                ignore_files,
-                StatusOptions {
-                    check_exec,
-                    list_clean,
-                    list_ignored,
-                    list_unknown,
-                    list_copies,
-                    collect_traversed_dirs,
-                },
-                after_status,
-            )
+            Ok(Box::new(matcher))
         }
-        e => Err(PyErr::new::<ValueError, _>(
+        "unionmatcher" => {
+            let matchers: PyResult<Vec<_>> = matcher
+                .getattr(py, "_matchers")?
+                .iter(py)?
+                .map(|py_matcher| extract_matcher(py, py_matcher?))
+                .collect();
+
+            Ok(Box::new(UnionMatcher::new(matchers?)))
+        }
+        "intersectionmatcher" => {
+            let m1 = extract_matcher(py, matcher.getattr(py, "_m1")?)?;
+            let m2 = extract_matcher(py, matcher.getattr(py, "_m2")?)?;
+
+            Ok(Box::new(IntersectionMatcher::new(m1, m2)))
+        }
+        e => Err(PyErr::new::<FallbackError, _>(
             py,
             format!("Unsupported matcher {}", e),
         )),

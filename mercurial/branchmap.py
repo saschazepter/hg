@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import struct
 
@@ -63,7 +62,7 @@ pack_into = struct.pack_into
 unpack_from = struct.unpack_from
 
 
-class BranchMapCache(object):
+class BranchMapCache:
     """mapping of filtered views of repo with their branchcache"""
 
     def __init__(self):
@@ -120,7 +119,7 @@ class BranchMapCache(object):
         clbranchinfo = cl.branchinfo
         rbheads = []
         closed = set()
-        for bheads in pycompat.itervalues(remotebranchmap):
+        for bheads in remotebranchmap.values():
             rbheads += bheads
             for h in bheads:
                 r = clrev(h)
@@ -160,7 +159,7 @@ class BranchMapCache(object):
 
 def _unknownnode(node):
     """raises ValueError when branchcache found a node which does not exists"""
-    raise ValueError('node %s does not exist' % pycompat.sysstr(hex(node)))
+    raise ValueError('node %s does not exist' % node.hex())
 
 
 def _branchcachedesc(repo):
@@ -170,7 +169,7 @@ def _branchcachedesc(repo):
         return b'branch cache'
 
 
-class branchcache(object):
+class branchcache:
     """A dict like object that hold branches heads cache.
 
     This cache is used to avoid costly computations to determine all the
@@ -271,7 +270,7 @@ class branchcache(object):
         return key in self._entries
 
     def iteritems(self):
-        for k, v in pycompat.iteritems(self._entries):
+        for k, v in self._entries.items():
             self._verifybranch(k)
             yield k, v
 
@@ -401,13 +400,13 @@ class branchcache(object):
         return heads
 
     def iterbranches(self):
-        for bn, heads in pycompat.iteritems(self):
+        for bn, heads in self.items():
             yield (bn, heads) + self._branchtip(heads)
 
     def iterheads(self):
         """returns all the heads"""
         self._verifyall()
-        return pycompat.itervalues(self._entries)
+        return self._entries.values()
 
     def copy(self):
         """return an deep copy of the branchcache object"""
@@ -429,22 +428,22 @@ class branchcache(object):
             self._delayed = True
             return
         try:
-            f = repo.cachevfs(self._filename(repo), b"w", atomictemp=True)
-            cachekey = [hex(self.tipnode), b'%d' % self.tiprev]
-            if self.filteredhash is not None:
-                cachekey.append(hex(self.filteredhash))
-            f.write(b" ".join(cachekey) + b'\n')
-            nodecount = 0
-            for label, nodes in sorted(pycompat.iteritems(self._entries)):
-                label = encoding.fromlocal(label)
-                for node in nodes:
-                    nodecount += 1
-                    if node in self._closednodes:
-                        state = b'c'
-                    else:
-                        state = b'o'
-                    f.write(b"%s %s %s\n" % (hex(node), state, label))
-            f.close()
+            filename = self._filename(repo)
+            with repo.cachevfs(filename, b"w", atomictemp=True) as f:
+                cachekey = [hex(self.tipnode), b'%d' % self.tiprev]
+                if self.filteredhash is not None:
+                    cachekey.append(hex(self.filteredhash))
+                f.write(b" ".join(cachekey) + b'\n')
+                nodecount = 0
+                for label, nodes in sorted(self._entries.items()):
+                    label = encoding.fromlocal(label)
+                    for node in nodes:
+                        nodecount += 1
+                        if node in self._closednodes:
+                            state = b'c'
+                        else:
+                            state = b'o'
+                        f.write(b"%s %s %s\n" % (hex(node), state, label))
             repo.ui.log(
                 b'branchcache',
                 b'wrote %s with %d labels and %d nodes\n',
@@ -491,7 +490,7 @@ class branchcache(object):
         # Faster than using ctx.obsolete()
         obsrevs = obsolete.getrevs(repo, b'obsolete')
 
-        for branch, newheadrevs in pycompat.iteritems(newbranches):
+        for branch, newheadrevs in newbranches.items():
             # For every branch, compute the new branchheads.
             # A branchhead is a revision such that no descendant is on
             # the same branch.
@@ -632,7 +631,7 @@ _rbcbranchidxmask = 0x7FFFFFFF
 _rbccloseflag = 0x80000000
 
 
-class revbranchcache(object):
+class revbranchcache:
     """Persistent cache, mapping from revision number to branch name and close.
     This is a low level cache, independent of filtering.
 

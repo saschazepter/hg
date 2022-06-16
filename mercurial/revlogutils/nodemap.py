@@ -6,9 +6,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
-import errno
 import re
 import struct
 
@@ -84,11 +82,8 @@ def persisted_data(revlog):
                     data = b''
             else:
                 data = fd.read(data_length)
-    except (IOError, OSError) as e:
-        if e.errno == errno.ENOENT:
-            return None
-        else:
-            raise
+    except FileNotFoundError:
+        return None
     if len(data) < data_length:
         return None
     return docket, data
@@ -114,7 +109,7 @@ def setup_persistent_nodemap(tr, revlog):
     tr.addfinalize(callback_id, lambda tr: persist_nodemap(tr, revlog))
 
 
-class _NoTransaction(object):
+class _NoTransaction:
     """transaction like object to update the nodemap outside a transaction"""
 
     def __init__(self):
@@ -305,7 +300,7 @@ S_VERSION = struct.Struct(">B")
 S_HEADER = struct.Struct(">BQQQQ")
 
 
-class NodeMapDocket(object):
+class NodeMapDocket:
     """metadata associated with persistent nodemap data
 
     The persistent data may come from disk or be on their way to disk.

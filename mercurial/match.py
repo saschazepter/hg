@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import, print_function
 
 import bisect
 import copy
@@ -383,7 +382,7 @@ def _donormalize(patterns, default, root, cwd, auditor=None, warn=None):
     return kindpats
 
 
-class basematcher(object):
+class basematcher:
     def __init__(self, badfn=None):
         if badfn is not None:
             self.bad = badfn
@@ -584,10 +583,7 @@ def path_or_parents_in_set(path, prefix_set):
     if b'' in prefix_set:
         return True
 
-    if pycompat.ispy3:
-        sl = ord(b'/')
-    else:
-        sl = '/'
+    sl = ord(b'/')
 
     # We already checked that path isn't in prefix_set exactly, so
     # `path[len(pf)] should never raise IndexError.
@@ -663,7 +659,7 @@ class patternmatcher(basematcher):
 # This is basically a reimplementation of pathutil.dirs that stores the
 # children instead of just a count of them, plus a small optional optimization
 # to avoid some directories we don't need.
-class _dirchildren(object):
+class _dirchildren:
     def __init__(self, paths, onlyinclude=None):
         self._dirs = {}
         self._onlyinclude = onlyinclude or []
@@ -1615,7 +1611,7 @@ def readpatternfile(filepath, warn, sourceinfo=False):
     patterns = []
 
     fp = open(filepath, b'rb')
-    for lineno, line in enumerate(util.iterfile(fp), start=1):
+    for lineno, line in enumerate(fp, start=1):
         if b"#" in line:
             global _commentre
             if not _commentre:
@@ -1642,7 +1638,7 @@ def readpatternfile(filepath, warn, sourceinfo=False):
             continue
 
         linesyntax = syntax
-        for s, rels in pycompat.iteritems(syntaxes):
+        for s, rels in syntaxes.items():
             if line.startswith(rels):
                 linesyntax = rels
                 line = line[len(rels) :]

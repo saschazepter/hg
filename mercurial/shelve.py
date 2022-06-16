@@ -20,10 +20,8 @@ You can have more than one shelved change outstanding at a time; each
 shelved change has a distinct name. For details, see the help for "hg
 shelve".
 """
-from __future__ import absolute_import
 
 import collections
-import errno
 import itertools
 import stat
 
@@ -69,7 +67,7 @@ shelvefileextensions = [b'hg', b'patch', b'shelve']
 shelveuser = b'shelve@localhost'
 
 
-class ShelfDir(object):
+class ShelfDir:
     def __init__(self, repo, for_backups=False):
         if for_backups:
             self.vfs = vfsmod.vfs(repo.vfs.join(backupdir))
@@ -83,9 +81,7 @@ class ShelfDir(object):
         """return all shelves in repo as list of (time, name)"""
         try:
             names = self.vfs.listdir()
-        except OSError as err:
-            if err.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
             return []
         info = []
         seen = set()
@@ -102,7 +98,7 @@ class ShelfDir(object):
         return sorted(info, reverse=True)
 
 
-class Shelf(object):
+class Shelf:
     """Represents a shelf, including possibly multiple files storing it.
 
     Old shelves will have a .patch and a .hg file. Newer shelves will
@@ -214,7 +210,7 @@ class Shelf(object):
             self.vfs.tryunlink(self.name + b'.' + ext)
 
 
-class shelvedstate(object):
+class shelvedstate:
     """Handle persistence during unshelving operations.
 
     Handles saving and restoring a shelved state. Ensures that different
@@ -239,7 +235,7 @@ class shelvedstate(object):
             d[b'nodestoremove'] = [
                 bin(h) for h in d[b'nodestoremove'].split(b' ')
             ]
-        except (ValueError, TypeError, KeyError) as err:
+        except (ValueError, KeyError) as err:
             raise error.CorruptedState(stringutil.forcebytestr(err))
 
     @classmethod
@@ -725,9 +721,7 @@ def _loadshelvedstate(ui, repo, opts):
         state = shelvedstate.load(repo)
         if opts.get(b'keep') is None:
             opts[b'keep'] = state.keep
-    except IOError as err:
-        if err.errno != errno.ENOENT:
-            raise
+    except FileNotFoundError:
         cmdutil.wrongtooltocontinue(repo, _(b'unshelve'))
     except error.CorruptedState as err:
         ui.debug(pycompat.bytestr(err) + b'\n')
@@ -1011,8 +1005,7 @@ def _rebaserestoredcommit(
             tr.close()
 
             nodestoremove = [
-                repo.changelog.node(rev)
-                for rev in pycompat.xrange(oldtiprev, len(repo))
+                repo.changelog.node(rev) for rev in range(oldtiprev, len(repo))
             ]
             shelvedstate.save(
                 repo,

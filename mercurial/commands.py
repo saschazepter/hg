@@ -5,9 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
-import errno
 import os
 import re
 import sys
@@ -1572,7 +1570,7 @@ def bundle(ui, repo, fname, *dests, **opts):
             pycompat.bytestr(e),
             hint=_(b"see 'hg help bundlespec' for supported values for --type"),
         )
-    cgversion = bundlespec.contentopts[b"cg.version"]
+    cgversion = bundlespec.params[b"cg.version"]
 
     # Packed bundles are a pseudo bundle format for now.
     if cgversion == b's1':
@@ -1601,8 +1599,9 @@ def bundle(ui, repo, fname, *dests, **opts):
             raise error.InputError(
                 _(b"--base is incompatible with specifying destinations")
             )
-        common = [repo[rev].node() for rev in base]
-        heads = [repo[r].node() for r in revs] if revs else None
+        cl = repo.changelog
+        common = [cl.node(rev) for rev in base]
+        heads = [cl.node(r) for r in revs] if revs else None
         outgoing = discovery.outgoing(repo, common, heads)
         missing = outgoing.missing
         excluded = outgoing.excluded
@@ -1681,14 +1680,14 @@ def bundle(ui, repo, fname, *dests, **opts):
     # Bundling of obsmarker and phases is optional as not all clients
     # support the necessary features.
     cfg = ui.configbool
-    contentopts = {
-        b'obsolescence': cfg(b'experimental', b'evolution.bundle-obsmarker'),
-        b'obsolescence-mandatory': cfg(
-            b'experimental', b'evolution.bundle-obsmarker:mandatory'
-        ),
-        b'phases': cfg(b'experimental', b'bundle-phases'),
-    }
-    bundlespec.contentopts.update(contentopts)
+    obsolescence_cfg = cfg(b'experimental', b'evolution.bundle-obsmarker')
+    bundlespec.set_param(b'obsolescence', obsolescence_cfg, overwrite=False)
+    obs_mand_cfg = cfg(b'experimental', b'evolution.bundle-obsmarker:mandatory')
+    bundlespec.set_param(
+        b'obsolescence-mandatory', obs_mand_cfg, overwrite=False
+    )
+    phases_cfg = cfg(b'experimental', b'bundle-phases')
+    bundlespec.set_param(b'phases', phases_cfg, overwrite=False)
 
     bundle2.writenewbundle(
         ui,
@@ -1697,7 +1696,7 @@ def bundle(ui, repo, fname, *dests, **opts):
         fname,
         bversion,
         outgoing,
-        bundlespec.contentopts,
+        bundlespec.params,
         compression=bcompression,
         compopts=compopts,
     )
@@ -2477,7 +2476,7 @@ def copy(ui, repo, *pats, **opts):
 )
 def debugcommands(ui, cmd=b'', *args):
     """list all available commands and options"""
-    for cmd, vals in sorted(pycompat.iteritems(table)):
+    for cmd, vals in sorted(table.items()):
         cmd = cmd.split(b'|')[0]
         opts = b', '.join([i[1] for i in vals[1]])
         ui.write(b'%s: %s\n' % (cmd, opts))
@@ -2544,7 +2543,8 @@ def diff(ui, repo, *pats, **opts):
 
        :hg:`diff` may generate unexpected results for merges, as it will
        default to comparing against the working directory's first
-       parent changeset if no revisions are specified.
+       parent changeset if no revisions are specified.  To diff against the
+       conflict regions, you can use `--config diff.merge=yes`.
 
     By default, the working directory files are compared to its first parent. To
     see the differences from another revision, use --from. To see the difference
@@ -3918,9 +3918,7 @@ def identify(
                     hexremoterev = hex(remoterev)
                     bms = [
                         bm
-                        for bm, bmr in pycompat.iteritems(
-                            peer.listkeys(b'bookmarks')
-                        )
+                        for bm, bmr in peer.listkeys(b'bookmarks').items()
                         if bmr == hexremoterev
                     ]
 
@@ -6183,9 +6181,8 @@ def resolve(ui, repo, *pats, **opts):
                 a = repo.wjoin(f)
                 try:
                     util.copyfile(a, a + b".resolve")
-                except (IOError, OSError) as inst:
-                    if inst.errno != errno.ENOENT:
-                        raise
+                except FileNotFoundError:
+                    pass
 
                 try:
                     # preresolve file
@@ -6202,9 +6199,8 @@ def resolve(ui, repo, *pats, **opts):
                     util.rename(
                         a + b".resolve", scmutil.backuppath(ui, repo, f)
                     )
-                except OSError as inst:
-                    if inst.errno != errno.ENOENT:
-                        raise
+                except FileNotFoundError:
+                    pass
 
         if hasconflictmarkers:
             ui.warn(
@@ -7097,7 +7093,7 @@ def summary(ui, repo, **opts):
 
     c = repo.dirstate.copies()
     copied, renamed = [], []
-    for d, s in pycompat.iteritems(c):
+    for d, s in c.items():
         if s in status.removed:
             status.removed.remove(s)
             renamed.append(d)

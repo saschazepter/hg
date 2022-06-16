@@ -31,7 +31,6 @@ amend modified chunks into the corresponding non-public changesets.
 #  * Converge getdraftstack() with other code in core
 #  * move many attributes on fixupstate to be private
 
-from __future__ import absolute_import
 
 import collections
 
@@ -84,7 +83,7 @@ colortable = {
 defaultdict = collections.defaultdict
 
 
-class nullui(object):
+class nullui:
     """blank ui object doing nothing"""
 
     debugflag = False
@@ -98,7 +97,7 @@ class nullui(object):
         return nullfunc
 
 
-class emptyfilecontext(object):
+class emptyfilecontext:
     """minimal filecontext representing an empty file"""
 
     def __init__(self, repo):
@@ -278,7 +277,7 @@ def overlaycontext(memworkingcopy, ctx, parents=None, extra=None, desc=None):
     )
 
 
-class filefixupstate(object):
+class filefixupstate:
     """state needed to apply fixups to a single file
 
     internally, it keeps file contents of several revisions and a linelog.
@@ -425,7 +424,7 @@ class filefixupstate(object):
                 newfixups.append((fixuprev, a1, a2, b1, b2))
         elif a2 - a1 == b2 - b1 or b1 == b2:
             # 1:1 line mapping, or chunk was deleted
-            for i in pycompat.xrange(a1, a2):
+            for i in range(a1, a2):
                 rev, linenum = annotated[i]
                 if rev > 1:
                     if b1 == b2:  # deletion, simply remove that single line
@@ -452,7 +451,7 @@ class filefixupstate(object):
         """
         llog = linelog.linelog()
         a, alines = b'', []
-        for i in pycompat.xrange(len(self.contents)):
+        for i in range(len(self.contents)):
             b, blines = self.contents[i], self.contentlines[i]
             llrev = i * 2 + 1
             chunks = self._alldiffchunks(a, b, alines, blines)
@@ -464,7 +463,7 @@ class filefixupstate(object):
     def _checkoutlinelog(self):
         """() -> [str]. check out file contents from linelog"""
         contents = []
-        for i in pycompat.xrange(len(self.contents)):
+        for i in range(len(self.contents)):
             rev = (i + 1) * 2
             self.linelog.annotate(rev)
             content = b''.join(map(self._getline, self.linelog.annotateresult))
@@ -606,9 +605,9 @@ class filefixupstate(object):
         a1, a2, b1, b2 = chunk
         aidxs, bidxs = [0] * (a2 - a1), [0] * (b2 - b1)
         for idx, fa1, fa2, fb1, fb2 in fixups:
-            for i in pycompat.xrange(fa1, fa2):
+            for i in range(fa1, fa2):
                 aidxs[i - a1] = (max(idx, 1) - 1) // 2
-            for i in pycompat.xrange(fb1, fb2):
+            for i in range(fb1, fb2):
                 bidxs[i - b1] = (max(idx, 1) - 1) // 2
 
         fm.startitem()
@@ -638,7 +637,7 @@ class filefixupstate(object):
             )
             fm.data(path=self.path, linetype=linetype)
 
-        for i in pycompat.xrange(a1, a2):
+        for i in range(a1, a2):
             writeline(
                 aidxs[i - a1],
                 b'-',
@@ -646,7 +645,7 @@ class filefixupstate(object):
                 b'deleted',
                 b'diff.deleted',
             )
-        for i in pycompat.xrange(b1, b2):
+        for i in range(b1, b2):
             writeline(
                 bidxs[i - b1],
                 b'+',
@@ -656,7 +655,7 @@ class filefixupstate(object):
             )
 
 
-class fixupstate(object):
+class fixupstate:
     """state needed to run absorb
 
     internally, it keeps paths and filefixupstates.
@@ -734,7 +733,7 @@ class fixupstate(object):
 
     def apply(self):
         """apply fixups to individual filefixupstates"""
-        for path, state in pycompat.iteritems(self.fixupmap):
+        for path, state in self.fixupmap.items():
             if self.ui.debugflag:
                 self.ui.write(_(b'applying fixups to %s\n') % path)
             state.apply()
@@ -742,10 +741,7 @@ class fixupstate(object):
     @property
     def chunkstats(self):
         """-> {path: chunkstats}. collect chunkstats from filefixupstates"""
-        return {
-            path: state.chunkstats
-            for path, state in pycompat.iteritems(self.fixupmap)
-        }
+        return {path: state.chunkstats for path, state in self.fixupmap.items()}
 
     def commit(self):
         """commit changes. update self.finalnode, self.replacemap"""
@@ -763,7 +759,7 @@ class fixupstate(object):
         chunkstats = self.chunkstats
         if ui.verbose:
             # chunkstats for each file
-            for path, stat in pycompat.iteritems(chunkstats):
+            for path, stat in chunkstats.items():
                 if stat[0]:
                     ui.write(
                         _(b'%s: %d of %d chunk(s) applied\n')
@@ -846,7 +842,7 @@ class fixupstate(object):
         repo = self.repo
         needupdate = [
             (name, self.replacemap[hsh])
-            for name, hsh in pycompat.iteritems(repo._bookmarks)
+            for name, hsh in repo._bookmarks.items()
             if hsh in self.replacemap
         ]
         changes = []
@@ -909,7 +905,7 @@ class fixupstate(object):
         # ctx changes more files (not a subset of memworkingcopy)
         if not set(ctx.files()).issubset(set(memworkingcopy)):
             return False
-        for path, content in pycompat.iteritems(memworkingcopy):
+        for path, content in memworkingcopy.items():
             if path not in pctx or path not in ctx:
                 return False
             fctx = ctx[path]
@@ -952,7 +948,7 @@ class fixupstate(object):
     def _cleanupoldcommits(self):
         replacements = {
             k: ([v] if v is not None else [])
-            for k, v in pycompat.iteritems(self.replacemap)
+            for k, v in self.replacemap.items()
         }
         if replacements:
             scmutil.cleanupnodes(
@@ -1002,7 +998,7 @@ def overlaydiffcontext(ctx, chunks):
         if not path or not info:
             continue
         patchmap[path].append(info)
-    for path, patches in pycompat.iteritems(patchmap):
+    for path, patches in patchmap.items():
         if path not in ctx or not patches:
             continue
         patches.sort(reverse=True)
@@ -1049,6 +1045,10 @@ def absorb(ui, repo, stack=None, targetctx=None, pats=None, opts=None):
         origchunks = patch.parsepatch(diff)
         chunks = cmdutil.recordfilter(ui, origchunks, matcher)[0]
         targetctx = overlaydiffcontext(stack[-1], chunks)
+    if opts.get(b'edit_lines'):
+        # If we're going to open the editor, don't ask the user to confirm
+        # first
+        opts[b'apply_changes'] = True
     fm = None
     if opts.get(b'print_changes') or not opts.get(b'apply_changes'):
         fm = ui.formatter(b'absorb', opts)
@@ -1066,7 +1066,7 @@ def absorb(ui, repo, stack=None, targetctx=None, pats=None, opts=None):
             fm.context(ctx=ctx)
             fm.data(linetype=b'changeset')
             fm.write(b'node', b'%-7.7s ', ctx.hex(), label=b'absorb.node')
-            descfirstline = ctx.description().splitlines()[0]
+            descfirstline = stringutil.firstline(ctx.description())
             fm.write(
                 b'descfirstline',
                 b'%s\n',

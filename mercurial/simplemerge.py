@@ -16,13 +16,11 @@
 # mbp: "you know that thing where cvs gives you conflict markers?"
 # s: "i hate that."
 
-from __future__ import absolute_import
 
 from .i18n import _
 from . import (
     error,
     mdiff,
-    pycompat,
 )
 from .utils import stringutil
 
@@ -54,16 +52,14 @@ def compare_range(a, astart, aend, b, bstart, bend):
     """Compare a[astart:aend] == b[bstart:bend], without slicing."""
     if (aend - astart) != (bend - bstart):
         return False
-    for ia, ib in zip(
-        pycompat.xrange(astart, aend), pycompat.xrange(bstart, bend)
-    ):
+    for ia, ib in zip(range(astart, aend), range(bstart, bend)):
         if a[ia] != b[ib]:
             return False
     else:
         return True
 
 
-class Merge3Text(object):
+class Merge3Text:
     """3-way merge of texts.
 
     Given strings BASE, OTHER, THIS, tries to produce a combined text
@@ -469,7 +465,7 @@ def _resolve(m3, sides):
     return lines
 
 
-class MergeInput(object):
+class MergeInput:
     def __init__(self, fctx, label=None, label_detail=None):
         self.fctx = fctx
         self.label = label
@@ -490,6 +486,9 @@ class MergeInput(object):
             # repository usually sees) might be more useful.
             self._text = self.fctx.decodeddata()
         return self._text
+
+    def set_text(self, text):
+        self._text = text
 
 
 def simplemerge(

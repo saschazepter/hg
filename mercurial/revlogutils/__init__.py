@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 from ..thirdparty import attr
 from ..interfaces import repository
@@ -63,7 +62,7 @@ def entry(
 
 
 @attr.s(slots=True, frozen=True)
-class revisioninfo(object):
+class revisioninfo:
     """Information about a revision that allows building its fulltext
     node:       expected hash of the revision
     p1, p2:     parent revs of the revision

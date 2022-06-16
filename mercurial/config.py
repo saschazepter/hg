@@ -5,7 +5,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import errno
 import os
@@ -15,12 +14,11 @@ from .pycompat import getattr
 from . import (
     encoding,
     error,
-    pycompat,
     util,
 )
 
 
-class config(object):
+class config:
     def __init__(self, data=None):
         self._current_source_level = 0
         self._data = {}
@@ -111,20 +109,19 @@ class config(object):
         return sorted(self._data.keys())
 
     def items(self, section):
-        items = pycompat.iteritems(self._data.get(section, {}))
+        items = self._data.get(section, {}).items()
         return [(k, v[0]) for (k, v) in items]
 
     def set(self, section, item, value, source=b""):
-        if pycompat.ispy3:
-            assert not isinstance(
-                section, str
-            ), b'config section may not be unicode strings on Python 3'
-            assert not isinstance(
-                item, str
-            ), b'config item may not be unicode strings on Python 3'
-            assert not isinstance(
-                value, str
-            ), b'config values may not be unicode strings on Python 3'
+        assert not isinstance(
+            section, str
+        ), b'config section may not be unicode strings on Python 3'
+        assert not isinstance(
+            item, str
+        ), b'config item may not be unicode strings on Python 3'
+        assert not isinstance(
+            value, str
+        ), b'config values may not be unicode strings on Python 3'
         if section not in self:
             self._data[section] = util.cowsortdict()
         else:

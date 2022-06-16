@@ -5,9 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
-import errno
 import filecmp
 import os
 import stat
@@ -33,7 +31,6 @@ from . import (
     patch,
     pathutil,
     phases,
-    pycompat,
     repoview,
     scmutil,
     sparse,
@@ -52,7 +49,7 @@ from .dirstateutils import (
 propertycache = util.propertycache
 
 
-class basectx(object):
+class basectx:
     """A basectx object represents the common logic for its children:
     changectx: read-only context that is already present in the repo,
     workingctx: a context that represents the working directory and can
@@ -124,7 +121,7 @@ class basectx(object):
         deleted, unknown, ignored = s.deleted, s.unknown, s.ignored
         deletedset = set(deleted)
         d = mf1.diff(mf2, match=match, clean=listclean)
-        for fn, value in pycompat.iteritems(d):
+        for fn, value in d.items():
             if fn in deletedset:
                 continue
             if value is None:
@@ -797,7 +794,7 @@ class changectx(basectx):
         return self.walk(match)
 
 
-class basefilectx(object):
+class basefilectx:
     """A filecontext object represents the common logic for its children:
     filectx: read-only access to a filerevision that is already present
              in the repo,
@@ -993,6 +990,16 @@ class basefilectx(object):
             if self._repo._encodefilterpats:
                 # can't rely on size() because wdir content may be decoded
                 return self._filelog.cmp(self._filenode, fctx.data())
+            # filelog.size() has two special cases:
+            # - censored metadata
+            # - copy/rename tracking
+            # The first is detected by peaking into the delta,
+            # the second is detected by abusing parent order
+            # in the revlog index as flag bit. This leaves files using
+            # the dummy encoding and non-standard meta attributes.
+            # The following check is a special case for the empty
+            # metadata block used if the raw file content starts with '\1\n'.
+            # Cases of arbitrary metadata flags are currently mishandled.
             if self.size() - 4 == fctx.size():
                 # size() can match:
                 # if file data starts with '\1\n', empty metadata block is
@@ -1729,9 +1736,7 @@ class workingctx(committablectx):
     def copy(self, source, dest):
         try:
             st = self._repo.wvfs.lstat(dest)
-        except OSError as err:
-            if err.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
             self._repo.ui.warn(
                 _(b"%s does not exist!\n") % self._repo.dirstate.pathto(dest)
             )
@@ -2161,9 +2166,7 @@ class workingfilectx(committablefilectx):
         t, tz = self._changectx.date()
         try:
             return (self._repo.wvfs.lstat(self._path)[stat.ST_MTIME], tz)
-        except OSError as err:
-            if err.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
             return (t, tz)
 
     def exists(self):
@@ -2422,7 +2425,7 @@ class overlayworkingctx(committablectx):
         # Test that each new directory to be created to write this path from p2
         # is not a file in p1.
         components = path.split(b'/')
-        for i in pycompat.xrange(len(components)):
+        for i in range(len(components)):
             component = b"/".join(components[0:i])
             if component in self:
                 fail(path, component)
@@ -3105,7 +3108,7 @@ class metadataonlyctx(committablectx):
         return scmutil.status(modified, added, removed, [], [], [], [])
 
 
-class arbitraryfilectx(object):
+class arbitraryfilectx:
     """Allows you to use filectx-like functions on a file in an arbitrary
     location on disk, possibly not in the working directory.
     """

@@ -11,10 +11,8 @@ The :hg:`releasenotes` command provided by this extension makes the
 process simpler by automating it.
 """
 
-from __future__ import absolute_import
 
 import difflib
-import errno
 import re
 
 from mercurial.i18n import _
@@ -78,7 +76,7 @@ RE_ISSUE = br'\bissue ?[0-9]{4,6}(?![0-9])\b'
 BULLET_SECTION = _(b'Other Changes')
 
 
-class parsedreleasenotes(object):
+class parsedreleasenotes:
     def __init__(self):
         self.sections = {}
 
@@ -171,14 +169,14 @@ class parsedreleasenotes(object):
                 self.addnontitleditem(section, paragraphs)
 
 
-class releasenotessections(object):
+class releasenotessections:
     def __init__(self, ui, repo=None):
         if repo:
             sections = util.sortdict(DEFAULT_SECTIONS)
             custom_sections = getcustomadmonitions(repo)
             if custom_sections:
                 sections.update(custom_sections)
-            self._sections = list(pycompat.iteritems(sections))
+            self._sections = list(sections.items())
         else:
             self._sections = list(DEFAULT_SECTIONS)
 
@@ -689,10 +687,7 @@ def releasenotes(ui, repo, file_=None, **opts):
     try:
         with open(file_, b'rb') as fh:
             notes = parsereleasenotesfile(sections, fh.read())
-    except IOError as e:
-        if e.errno != errno.ENOENT:
-            raise
-
+    except FileNotFoundError:
         notes = parsedreleasenotes()
 
     notes.merge(ui, incoming)

@@ -6,7 +6,6 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from __future__ import absolute_import
 
 import contextlib
 import os
@@ -111,7 +110,7 @@ def makebreadcrumb(url, prefix=b''):
     return templateutil.mappinglist(reversed(breadcrumb))
 
 
-class requestcontext(object):
+class requestcontext:
     """Holds state/context for an individual request.
 
     Servers can be multi-threaded. Holding state on the WSGI application
@@ -236,7 +235,7 @@ class requestcontext(object):
         return self.res.sendresponse()
 
 
-class hgweb(object):
+class hgweb:
     """HTTP server for individual repositories.
 
     Instances of this class serve HTTP responses for a particular
@@ -413,7 +412,7 @@ class hgweb(object):
 
             if cmd == b'archive':
                 fn = req.qsparams[b'node']
-                for type_, spec in pycompat.iteritems(webutil.archivespecs):
+                for type_, spec in webutil.archivespecs.items():
                     ext = spec[2]
                     if fn.endswith(ext):
                         req.qsparams[b'node'] = fn[: -len(ext)]

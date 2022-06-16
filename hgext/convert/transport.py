@@ -16,7 +16,6 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
-from __future__ import absolute_import
 
 import svn.client
 import svn.core
@@ -71,7 +70,7 @@ class NotBranchError(SubversionException):
     pass
 
 
-class SvnRaTransport(object):
+class SvnRaTransport:
     """
     Open an ra connection to a Subversion repository.
     """
@@ -108,7 +107,7 @@ class SvnRaTransport(object):
             self.ra = ra
             svn.ra.reparent(self.ra, self.svn_url.encode('utf8'))
 
-    class Reporter(object):
+    class Reporter:
         def __init__(self, reporter_data):
             self._reporter, self._baton = reporter_data
 

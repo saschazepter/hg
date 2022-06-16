@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from __future__ import absolute_import, print_function
 
 import hashlib
 import os
@@ -36,7 +35,7 @@ from hgext.remotefilelog import (
 )
 
 
-class datapacktestsbase(object):
+class datapacktestsbase:
     def __init__(self, datapackreader, paramsavailable):
         self.datapackreader = datapackreader
         self.paramsavailable = paramsavailable
@@ -268,7 +267,7 @@ class datapacktestsbase(object):
         revisions = []
         blobs = {}
         total = basepack.SMALLFANOUTCUTOFF + 1
-        for i in pycompat.xrange(total):
+        for i in range(total):
             filename = b"filename-%d" % i
             content = filename
             node = self.getHash(content)
@@ -358,7 +357,7 @@ class datapacktestsbase(object):
         ]
         for packsize in packsizes:
             revisions = []
-            for i in pycompat.xrange(packsize):
+            for i in range(packsize):
                 filename = b"filename-%d" % i
                 content = b"content-%d" % i
                 node = self.getHash(content)
