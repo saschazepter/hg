@@ -119,6 +119,10 @@ Log works too:
 and bookmarks:
   $ hg bookmarks
    * master                    1:3d9be8deba43
+  $ hg up master
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg bookmarks
+   * master                    1:3d9be8deba43
 
 diff even works transparently in both systems:
   $ echo blah >> alpha

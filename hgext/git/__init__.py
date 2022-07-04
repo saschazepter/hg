@@ -204,7 +204,9 @@ class gitbmstore:
 
     @active.setter
     def active(self, mark):
-        githead = mark is not None and (_BMS_PREFIX + mark) or None
+        githead = None
+        if mark is not None:
+            githead = _BMS_PREFIX + pycompat.fsdecode(mark)
         if githead is not None and githead not in self.gitrepo.references:
             raise AssertionError(b'bookmark %s does not exist!' % mark)
 
@@ -254,7 +256,7 @@ class gitbmstore:
                 )
 
     def checkconflict(self, mark, force=False, target=None):
-        githead = _BMS_PREFIX + mark
+        githead = _BMS_PREFIX + pycompat.fsdecode(mark)
         cur = self.gitrepo.references['HEAD']
         if githead in self.gitrepo.references and not force:
             if target:
