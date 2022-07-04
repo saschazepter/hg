@@ -330,7 +330,8 @@ class gitdirstate:
         # TODO: figure out a strategy for saving index backups.
         pass
 
-    def set_tracked(self, f):
+    def set_tracked(self, f, reset_copy=False):
+        # TODO: support copies and reset_copy=True
         uf = pycompat.fsdecode(f)
         if uf in self.git.index:
             return False
