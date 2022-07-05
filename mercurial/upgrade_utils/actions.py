@@ -683,7 +683,11 @@ def determine_upgrade_actions(
 
         newactions.append(d)
 
-    newactions.extend(o for o in sorted(optimizations) if o not in newactions)
+    newactions.extend(
+        o
+        for o in sorted(optimizations, key=(lambda x: x.name))
+        if o not in newactions
+    )
 
     # FUTURE consider adding some optimizations here for certain transitions.
     # e.g. adding generaldelta could schedule parent redeltas.

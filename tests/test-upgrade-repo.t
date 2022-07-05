@@ -467,12 +467,27 @@ modern form of the option
   re-delta-fulladd
      every revision will be re-added as if it was new content. It will go through the full storage mechanism giving extensions a chance to process it (eg. lfs). This is similar to "re-delta-all" but even slower since more logic is involved.
   
+
   $ hg debugupgrade --optimize re-delta-parent --quiet
   requirements
      preserved: dotencode, fncache, generaldelta, revlogv1, share-safe, sparserevlog, store (no-rust !)
      preserved: dotencode, fncache, generaldelta, persistent-nodemap, revlogv1, share-safe, sparserevlog, store (rust !)
   
   optimisations: re-delta-parent
+  
+  processed revlogs:
+    - all-filelogs
+    - changelog
+    - manifest
+  
+
+passing multiple optimization:
+
+  $ hg debugupgrade --optimize re-delta-parent --optimize re-delta-multibase --quiet
+  requirements
+     preserved: * (glob)
+  
+  optimisations: re-delta-multibase, re-delta-parent
   
   processed revlogs:
     - all-filelogs
