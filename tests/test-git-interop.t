@@ -425,5 +425,8 @@ This covers changelog.headrevs() with a non-None arg
   7[tip][master]   1a0fee76bfc4   1970-01-01 00:00 +0000   test
     remove beta
   
-
-
+This covers revlog.findmissingrevs() (issue6472)
+  $ hg log -r 'last(only(master))' -Tcompact
+  7[tip][master]   1a0fee76bfc4   1970-01-01 00:00 +0000   test
+    remove beta
+  
