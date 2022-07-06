@@ -282,6 +282,30 @@ class changelog(baselog):
 
         return ancestor.incrementalmissingancestors(self.parentrevs, common)
 
+    def findmissingrevs(self, common=None, heads=None):
+        """Return the revision numbers of the ancestors of heads that
+        are not ancestors of common.
+
+        More specifically, return a list of revision numbers corresponding to
+        nodes N such that every N satisfies the following constraints:
+
+          1. N is an ancestor of some node in 'heads'
+          2. N is not an ancestor of any node in 'common'
+
+        The list is sorted by revision number, meaning it is
+        topologically sorted.
+
+        'heads' and 'common' are both lists of revision numbers.  If heads is
+        not supplied, uses all of the revlog's heads.  If common is not
+        supplied, uses nullid."""
+        if common is None:
+            common = [nullrev]
+        if heads is None:
+            heads = self.headrevs()
+
+        inc = self.incrementalmissingrevs(common=common)
+        return inc.missingancestors(heads)
+
     def findmissing(self, common=None, heads=None):
         """Return the ancestors of heads that are not ancestors of common.
 
