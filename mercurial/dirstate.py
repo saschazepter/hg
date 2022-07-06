@@ -1287,6 +1287,7 @@ class dirstate:
 
         allowed_matchers = (
             matchmod.alwaysmatcher,
+            matchmod.differencematcher,
             matchmod.exactmatcher,
             matchmod.includematcher,
             matchmod.intersectionmatcher,
