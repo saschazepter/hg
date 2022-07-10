@@ -80,12 +80,32 @@ io.BufferedIOBase.register(LineBufferedWrapper)
 
 
 def make_line_buffered(stream):
-    if not isinstance(stream, io.BufferedIOBase):
-        # On Python 3, buffered streams can be expected to subclass
-        # BufferedIOBase. This is definitively the case for the streams
-        # initialized by the interpreter. For unbuffered streams, we don't need
-        # to emulate line buffering.
+    # First, check if we need to wrap the stream.
+    check_stream = stream
+    while True:
+        if isinstance(check_stream, WriteAllWrapper):
+            check_stream = check_stream.orig
+        elif pycompat.iswindows and isinstance(
+            check_stream,
+            # pytype: disable=module-attr
+            platform.winstdout
+            # pytype: enable=module-attr
+        ):
+            check_stream = check_stream.fp
+        else:
+            break
+    if isinstance(check_stream, io.RawIOBase):
+        # The stream is unbuffered, we don't need to emulate line buffering.
         return stream
+    elif isinstance(check_stream, io.BufferedIOBase):
+        # The stream supports some kind of buffering. We can't assume that
+        # lines are flushed. Fall back to wrapping the stream.
+        pass
+    else:
+        raise NotImplementedError(
+            "can't determine whether stream is buffered or not"
+        )
+
     if isinstance(stream, LineBufferedWrapper):
         return stream
     return LineBufferedWrapper(stream)
