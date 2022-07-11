@@ -687,13 +687,18 @@ fn check_extensions(config: &Config) -> Result<(), CommandError> {
     }
 
     let enabled: HashSet<&[u8]> = config
-        .get_section_keys(b"extensions")
-        .into_iter()
-        .map(|extension| {
+        .iter_section(b"extensions")
+        .filter_map(|(extension, value)| {
+            if value == b"!" {
+                // Filter out disabled extensions
+                return None;
+            }
             // Ignore extension suboptions. Only `required` exists for now.
             // `rhg` either supports an extension or doesn't, so it doesn't
             // make sense to consider the loading of an extension.
-            extension.split_2(b':').unwrap_or((extension, b"")).0
+            let actual_extension =
+                extension.split_2(b':').unwrap_or((extension, b"")).0;
+            Some(actual_extension)
         })
         .collect();
 
