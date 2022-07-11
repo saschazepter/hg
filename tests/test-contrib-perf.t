@@ -96,6 +96,7 @@ perfstatus
    perf::branchmapupdate
                  benchmark branchmap update from for <base> revs to <target>
                  revs
+   perf::bundle  benchmark the creation of a bundle from a repository
    perf::bundleread
                  Benchmark reading of bundle files.
    perf::cca     (no help text available)
@@ -385,6 +386,7 @@ Test pre-run feature
   searching for changes
   searching for changes
   searching for changes
+  $ hg perf::bundle 'last(all(), 5)'
 
 test  profile-benchmark option
 ------------------------------
