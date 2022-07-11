@@ -984,6 +984,13 @@ def perfbookmarks(ui, repo, **opts):
             b'changesets to bundle',
             b'REV',
         ),
+        (
+            b't',
+            b'type',
+            b'none',
+            b'bundlespec to use (see `hg help bundlespec`)',
+            b'TYPE',
+        ),
     ]
     + formatteropts,
     b'REVS',
@@ -991,7 +998,7 @@ def perfbookmarks(ui, repo, **opts):
 def perfbundle(ui, repo, *revs, **opts):
     """benchmark the creation of a bundle from a repository
 
-    For now, this create a `none-v1` bundle.
+    For now, this only supports "none" compression.
     """
     from mercurial import bundlecaches
     from mercurial import discovery
@@ -1018,11 +1025,31 @@ def perfbundle(ui, repo, *revs, **opts):
     bases = [cl.node(r) for r in repo.revs(b"heads(::%ld - %ld)", revs, revs)]
     outgoing = discovery.outgoing(repo, bases, targets)
 
-    bundlespec = bundlecaches.parsebundlespec(
-        repo, b"none", strict=False
-    )
+    bundle_spec = opts.get(b'type')
 
-    bversion = b'HG10' + bundlespec.wirecompression
+    bundle_spec = bundlecaches.parsebundlespec(repo, bundle_spec, strict=False)
+
+    cgversion = bundle_spec.params[b"cg.version"]
+    if cgversion not in changegroup.supportedoutgoingversions(repo):
+        err = b"repository does not support bundle version %s"
+        raise error.Abort(err % cgversion)
+
+    if cgversion == b'01':  # bundle1
+        bversion = b'HG10' + bundle_spec.wirecompression
+        bcompression = None
+    elif cgversion in (b'02', b'03'):
+        bversion = b'HG20'
+        bcompression = bundle_spec.wirecompression
+    else:
+        err = b'perf::bundle: unexpected changegroup version %s'
+        raise error.ProgrammingError(err % cgversion)
+
+    if bcompression is None:
+        bcompression = b'UN'
+
+    if bcompression != b'UN':
+        err = b'perf::bundle: compression currently unsupported: %s'
+        raise error.ProgrammingError(err % bcompression)
 
     def do_bundle():
         bundle2.writenewbundle(
@@ -1032,7 +1059,7 @@ def perfbundle(ui, repo, *revs, **opts):
             os.devnull,
             bversion,
             outgoing,
-            {},
+            bundle_spec.params,
         )
 
     timer(do_bundle)
