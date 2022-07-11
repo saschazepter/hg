@@ -974,6 +974,56 @@ def perfbookmarks(ui, repo, **opts):
     fm.end()
 
 
+@command(b'perf::bundle', formatteropts, b'REVS')
+def perfbundle(ui, repo, *revs, **opts):
+    """benchmark the creation of a bundle from a repository
+
+    For now, this create a `none-v1` bundle.
+    """
+    from mercurial import bundlecaches
+    from mercurial import discovery
+    from mercurial import bundle2
+
+    opts = _byteskwargs(opts)
+    timer, fm = gettimer(ui, opts)
+
+    cl = repo.changelog
+    revs = scmutil.revrange(repo, revs)
+    if not revs:
+        raise error.Abort(b"not revision specified")
+    # make it a consistent set (ie: without topological gaps)
+    old_len = len(revs)
+    revs = list(repo.revs(b"%ld::%ld", revs, revs))
+    if old_len != len(revs):
+        new_count = len(revs) - old_len
+        msg = b"add %d new revisions to make it a consistent set\n"
+        ui.write_err(msg % new_count)
+
+    targets = [cl.node(r) for r in repo.revs(b"heads(::%ld)", revs)]
+    bases = [cl.node(r) for r in repo.revs(b"heads(::%ld - %ld)", revs, revs)]
+    outgoing = discovery.outgoing(repo, bases, targets)
+
+    bundlespec = bundlecaches.parsebundlespec(
+        repo, b"none", strict=False
+    )
+
+    bversion = b'HG10' + bundlespec.wirecompression
+
+    def do_bundle():
+        bundle2.writenewbundle(
+            ui,
+            repo,
+            b'perf::bundle',
+            os.devnull,
+            bversion,
+            outgoing,
+            {},
+        )
+
+    timer(do_bundle)
+    fm.end()
+
+
 @command(b'perf::bundleread|perfbundleread', formatteropts, b'BUNDLE')
 def perfbundleread(ui, repo, bundlepath, **opts):
     """Benchmark reading of bundle files.
