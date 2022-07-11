@@ -2590,6 +2590,51 @@ def perfbdiff(ui, repo, file_, rev=None, count=None, threads=0, **opts):
 
 
 @command(
+    b'perf::unbundle',
+    formatteropts,
+    b'BUNDLE_FILE',
+)
+def perf_unbundle(ui, repo, fname, **opts):
+    """benchmark application of a bundle in a repository.
+
+    This does not include the final transaction processing"""
+    from mercurial import exchange
+    from mercurial import bundle2
+
+    with repo.lock():
+        bundle = [None, None]
+        try:
+            with open(fname, mode="rb") as f:
+
+                def setup():
+                    gen, tr = bundle
+                    if tr is not None:
+                        tr.abort()
+                    bundle[:] = [None, None]
+                    f.seek(0)
+                    bundle[0] = exchange.readbundle(ui, f, fname)
+                    bundle[1] = repo.transaction(b'perf::unbundle')
+
+                def apply():
+                    gen, tr = bundle
+                    bundle2.applybundle(
+                        repo,
+                        gen,
+                        tr,
+                        source=b'perf::unbundle',
+                        url=fname,
+                    )
+
+                timer, fm = gettimer(ui, opts)
+                timer(apply, setup=setup)
+                fm.end()
+        finally:
+            gen, tr = bundle
+            if tr is not None:
+                tr.abort()
+
+
+@command(
     b'perf::unidiff|perfunidiff',
     revlogopts
     + formatteropts

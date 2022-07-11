@@ -188,6 +188,8 @@ perfstatus
    perf::tags    (no help text available)
    perf::templating
                  test the rendering time of a given template
+   perf::unbundle
+                 benchmark application of a bundle in a repository.
    perf::unidiff
                  benchmark a unified diff between revisions
    perf::volatilesets
@@ -387,6 +389,15 @@ Test pre-run feature
   searching for changes
   searching for changes
   $ hg perf::bundle 'last(all(), 5)'
+  $ hg bundle --exact --rev 'last(all(), 5)' last-5.hg
+  4 changesets found
+  $ hg perf::unbundle last-5.hg
+  adding changesets
+  adding manifests
+  adding file changes
+  transaction abort!
+  rollback completed
+
 
 test  profile-benchmark option
 ------------------------------
