@@ -47,6 +47,7 @@ allowsymbolimports = (
     'mercurial.thirdparty.zope',
     'mercurial.thirdparty.zope.interface',
     'typing',
+    'xml.etree.ElementTree',
 )
 
 # Allow list of symbols that can be directly imported.
