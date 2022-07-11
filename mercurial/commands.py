@@ -1484,7 +1484,6 @@ def branches(ui, repo, active=False, closed=False, **opts):
 @command(
     b'bundle',
     [
-
         (
             b'',
             b'exact',
