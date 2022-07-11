@@ -974,7 +974,20 @@ def perfbookmarks(ui, repo, **opts):
     fm.end()
 
 
-@command(b'perf::bundle', formatteropts, b'REVS')
+@command(
+    b'perf::bundle',
+    [
+        (
+            b'r',
+            b'rev',
+            [],
+            b'changesets to bundle',
+            b'REV',
+        ),
+    ]
+    + formatteropts,
+    b'REVS',
+)
 def perfbundle(ui, repo, *revs, **opts):
     """benchmark the creation of a bundle from a repository
 
@@ -988,6 +1001,8 @@ def perfbundle(ui, repo, *revs, **opts):
     timer, fm = gettimer(ui, opts)
 
     cl = repo.changelog
+    revs = list(revs)
+    revs.extend(opts.get(b'rev', ()))
     revs = scmutil.revrange(repo, revs)
     if not revs:
         raise error.Abort(b"not revision specified")
