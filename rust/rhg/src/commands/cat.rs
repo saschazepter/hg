@@ -67,10 +67,19 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             let message = "`..` or `.` path segment";
             return Err(CommandError::unsupported(message));
         }
+        let relative_path = working_directory
+            .strip_prefix(&cwd)
+            .unwrap_or(&working_directory);
         let stripped = normalized
             .strip_prefix(&working_directory)
-            // TODO: error message for path arguments outside of the repo
-            .map_err(|_| CommandError::abort(""))?;
+            .map_err(|_| {
+                CommandError::abort(format!(
+                    "abort: {} not under root '{}'\n(consider using '--cwd {}')",
+                    file,
+                    working_directory.display(),
+                    relative_path.display(),
+                ))
+            })?;
         let hg_file = HgPathBuf::try_from(stripped.to_path_buf())
             .map_err(|e| CommandError::abort(e.to_string()))?;
         files.push(hg_file);
