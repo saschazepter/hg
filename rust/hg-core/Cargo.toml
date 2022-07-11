@@ -29,10 +29,10 @@ sha-1 = "0.10.0"
 twox-hash = "1.6.2"
 same-file = "1.0.6"
 tempfile = "3.1.0"
-crossbeam-channel = "0.4"
-micro-timer = "0.3.0"
+crossbeam-channel = "0.5.0"
+micro-timer = "0.4.0"
 log = "0.4.8"
-memmap2 = {version = "0.4", features = ["stable_deref_trait"]}
+memmap2 = { version = "0.5.3", features = ["stable_deref_trait"] }
 zstd = "0.5.3"
 format-bytes = "0.3.0"
 
