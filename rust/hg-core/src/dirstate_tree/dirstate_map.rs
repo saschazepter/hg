@@ -463,7 +463,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
         if let Some(data) = on_disk.get(..data_size) {
             Ok(on_disk::read(data, metadata)?)
         } else {
-            Err(DirstateV2ParseError.into())
+            Err(DirstateV2ParseError::new("not enough bytes on disk").into())
         }
     }
 

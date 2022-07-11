@@ -83,7 +83,7 @@ impl TruncatedTimestamp {
                 second_ambiguous,
             })
         } else {
-            Err(DirstateV2ParseError)
+            Err(DirstateV2ParseError::new("when reading datetime"))
         }
     }
 

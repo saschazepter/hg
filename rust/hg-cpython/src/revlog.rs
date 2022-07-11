@@ -107,7 +107,10 @@ py_class!(pub class MixedIndex |py| {
             String::from_utf8_lossy(node.data(py)).to_string()
         };
 
-        let prefix = NodePrefix::from_hex(&node_as_string).map_err(|_| PyErr::new::<ValueError, _>(py, "Invalid node or prefix"))?;
+        let prefix = NodePrefix::from_hex(&node_as_string)
+            .map_err(|_| PyErr::new::<ValueError, _>(
+                py, format!("Invalid node or prefix '{}'", node_as_string))
+            )?;
 
         nt.find_bin(idx, prefix)
             // TODO make an inner API returning the node directly
