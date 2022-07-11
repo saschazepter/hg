@@ -46,7 +46,7 @@ pub enum VisitChildrenSet {
     Recursive,
 }
 
-pub trait Matcher {
+pub trait Matcher: core::fmt::Debug {
     /// Explicitly listed files
     fn file_set(&self) -> Option<&HashSet<HgPathBuf>>;
     /// Returns whether `filename` is in `file_set`
@@ -283,6 +283,18 @@ pub struct IncludeMatcher<'a> {
     parents: HashSet<HgPathBuf>,
 }
 
+impl core::fmt::Debug for IncludeMatcher<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IncludeMatcher")
+            .field("patterns", &String::from_utf8_lossy(&self.patterns))
+            .field("prefix", &self.prefix)
+            .field("roots", &self.roots)
+            .field("dirs", &self.dirs)
+            .field("parents", &self.parents)
+            .finish()
+    }
+}
+
 impl<'a> Matcher for IncludeMatcher<'a> {
     fn file_set(&self) -> Option<&HashSet<HgPathBuf>> {
         None
@@ -330,6 +342,7 @@ impl<'a> Matcher for IncludeMatcher<'a> {
 }
 
 /// The union of multiple matchers. Will match if any of the matchers match.
+#[derive(Debug)]
 pub struct UnionMatcher {
     matchers: Vec<Box<dyn Matcher + Sync>>,
 }
@@ -393,6 +406,7 @@ impl UnionMatcher {
     }
 }
 
+#[derive(Debug)]
 pub struct IntersectionMatcher {
     m1: Box<dyn Matcher + Sync>,
     m2: Box<dyn Matcher + Sync>,
@@ -474,6 +488,7 @@ impl IntersectionMatcher {
     }
 }
 
+#[derive(Debug)]
 pub struct DifferenceMatcher {
     base: Box<dyn Matcher + Sync>,
     excluded: Box<dyn Matcher + Sync>,
