@@ -1484,6 +1484,13 @@ def branches(ui, repo, active=False, closed=False, **opts):
 @command(
     b'bundle',
     [
+
+        (
+            b'',
+            b'exact',
+            None,
+            _(b'compute the base from the revision specified'),
+        ),
         (
             b'f',
             b'force',
@@ -1553,6 +1560,7 @@ def bundle(ui, repo, fname, *dests, **opts):
     Returns 0 on success, 1 if no changes found.
     """
     opts = pycompat.byteskwargs(opts)
+
     revs = None
     if b'rev' in opts:
         revstrings = opts[b'rev']
@@ -1586,7 +1594,19 @@ def bundle(ui, repo, fname, *dests, **opts):
             )
         if opts.get(b'base'):
             ui.warn(_(b"ignoring --base because --all was specified\n"))
+        if opts.get(b'exact'):
+            ui.warn(_(b"ignoring --exact because --all was specified\n"))
         base = [nullrev]
+    elif opts.get(b'exact'):
+        if dests:
+            raise error.InputError(
+                _(b"--exact is incompatible with specifying destinations")
+            )
+        if opts.get(b'base'):
+            ui.warn(_(b"ignoring --base because --exact was specified\n"))
+        base = repo.revs(b'parents(%ld) - %ld', revs, revs)
+        if not base:
+            base = [nullrev]
     else:
         base = logcmdutil.revrange(repo, opts.get(b'base'))
     if cgversion not in changegroup.supportedoutgoingversions(repo):
