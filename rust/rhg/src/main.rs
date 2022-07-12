@@ -677,8 +677,15 @@ impl OnUnsupported {
 /// The `*` extension is an edge-case for config sub-options that apply to all
 /// extensions. For now, only `:required` exists, but that may change in the
 /// future.
-const SUPPORTED_EXTENSIONS: &[&[u8]] =
-    &[b"blackbox", b"share", b"sparse", b"narrow", b"*"];
+const SUPPORTED_EXTENSIONS: &[&[u8]] = &[
+    b"blackbox",
+    b"share",
+    b"sparse",
+    b"narrow",
+    b"*",
+    b"strip",
+    b"rebase",
+];
 
 fn check_extensions(config: &Config) -> Result<(), CommandError> {
     if let Some(b"*") = config.get(b"rhg", b"ignored-extensions") {
