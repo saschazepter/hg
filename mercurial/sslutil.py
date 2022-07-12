@@ -312,7 +312,7 @@ def wrapsocket(sock, keyfile, certfile, ui, serverhostname=None):
     # is loaded and contains that removed CA, you've just undone the user's
     # choice.
 
-    if util.safehasattr(ssl, 'PROTOCOL_TLS_CLIENT'):
+    if util.safehasattr(ssl, 'TLSVersion'):
         # python 3.7+
         sslcontext = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         minimumprotocol = settings[b'minimumprotocol']
