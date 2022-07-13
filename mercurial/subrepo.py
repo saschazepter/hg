@@ -1150,7 +1150,7 @@ class svnsubrepo(abstractsubrepo):
         # commit revision so we can compare the subrepo state with
         # both. We used to store the working directory one.
         output, err = self._svncommand([b'info', b'--xml'])
-        doc = xml.dom.minidom.parseString(output)
+        doc = xml.dom.minidom.parseString(output)  # pytype: disable=pyi-error
         entries = doc.getElementsByTagName('entry')
         lastrev, rev = b'0', b'0'
         if entries:
@@ -1174,7 +1174,7 @@ class svnsubrepo(abstractsubrepo):
         """
         output, err = self._svncommand([b'status', b'--xml'])
         externals, changes, missing = [], [], []
-        doc = xml.dom.minidom.parseString(output)
+        doc = xml.dom.minidom.parseString(output)  # pytype: disable=pyi-error
         for e in doc.getElementsByTagName('entry'):
             s = e.getElementsByTagName('wc-status')
             if not s:
@@ -1319,7 +1319,7 @@ class svnsubrepo(abstractsubrepo):
     @annotatesubrepoerror
     def files(self):
         output = self._svncommand([b'list', b'--recursive', b'--xml'])[0]
-        doc = xml.dom.minidom.parseString(output)
+        doc = xml.dom.minidom.parseString(output)  # pytype: disable=pyi-error
         paths = []
         for e in doc.getElementsByTagName('entry'):
             kind = pycompat.bytestr(e.getAttribute('kind'))
