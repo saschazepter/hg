@@ -222,13 +222,16 @@ def _generic_start_transaction(handler, h, req):
     h.headers = None
 
 
-def _generic_proxytunnel(self):
+def _generic_proxytunnel(self: "httpsconnection"):
+    headers = self.headers  # pytype: disable=attribute-error
     proxyheaders = {
-        pycompat.bytestr(x): pycompat.bytestr(self.headers[x])
-        for x in self.headers
+        pycompat.bytestr(x): pycompat.bytestr(headers[x])
+        for x in headers
         if x.lower().startswith('proxy-')
     }
-    self.send(b'CONNECT %s HTTP/1.0\r\n' % self.realhostport)
+    realhostport = self.realhostport  # pytype: disable=attribute-error
+    self.send(b'CONNECT %s HTTP/1.0\r\n' % realhostport)
+
     for header in proxyheaders.items():
         self.send(b'%s: %s\r\n' % header)
     self.send(b'\r\n')
@@ -237,10 +240,14 @@ def _generic_proxytunnel(self):
     # httplib.HTTPConnection as there are no adequate places to
     # override functions to provide the needed functionality.
 
+    # pytype: disable=attribute-error
     res = self.response_class(self.sock, method=self._method)
+    # pytype: enable=attribute-error
 
     while True:
+        # pytype: disable=attribute-error
         version, status, reason = res._read_status()
+        # pytype: enable=attribute-error
         if status != httplib.CONTINUE:
             break
         # skip lines that are all whitespace
@@ -323,14 +330,15 @@ if has_https:
             self.sock = socket.create_connection((self.host, self.port))
 
             host = self.host
-            if self.realhostport:  # use CONNECT proxy
+            realhostport = self.realhostport  # pytype: disable=attribute-error
+            if realhostport:  # use CONNECT proxy
                 _generic_proxytunnel(self)
-                host = self.realhostport.rsplit(b':', 1)[0]
+                host = realhostport.rsplit(b':', 1)[0]
             self.sock = sslutil.wrapsocket(
                 self.sock,
                 self.key_file,
                 self.cert_file,
-                ui=self.ui,
+                ui=self.ui,  # pytype: disable=attribute-error
                 serverhostname=host,
             )
             sslutil.validatesocket(self.sock)
