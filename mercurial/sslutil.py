@@ -546,7 +546,7 @@ def wrapserversocket(
                 _(b'referenced certificate file (%s) does not exist') % f
             )
 
-    if util.safehasattr(ssl, 'PROTOCOL_TLS_SERVER'):
+    if util.safehasattr(ssl, 'TLSVersion'):
         # python 3.7+
         sslcontext = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         sslcontext.options |= getattr(ssl, 'OP_NO_COMPRESSION', 0)
