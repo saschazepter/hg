@@ -666,15 +666,6 @@ class buildhgextindex(Command):
 
 class buildhgexe(build_ext):
     description = 'compile hg.exe from mercurial/exewrapper.c'
-    user_options = build_ext.user_options + [
-        (
-            'long-paths-support',
-            None,
-            'enable support for long paths on '
-            'Windows (off by default and '
-            'experimental)',
-        ),
-    ]
 
     LONG_PATHS_MANIFEST = """
     <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -689,7 +680,6 @@ class buildhgexe(build_ext):
 
     def initialize_options(self):
         build_ext.initialize_options(self)
-        self.long_paths_support = False
 
     def build_extensions(self):
         if os.name != 'nt':
@@ -774,22 +764,11 @@ class buildhgexe(build_ext):
         self.compiler.link_executable(
             objects, self.hgtarget, libraries=[], output_dir=self.build_temp
         )
-        if self.long_paths_support:
-            self.addlongpathsmanifest()
+
+        self.addlongpathsmanifest()
 
     def addlongpathsmanifest(self):
-        r"""Add manifest pieces so that hg.exe understands long paths
-
-        This is an EXPERIMENTAL feature, use with care.
-        To enable long paths support, one needs to do two things:
-        - build Mercurial with --long-paths-support option
-        - change HKLM\SYSTEM\CurrentControlSet\Control\FileSystem\
-                 LongPathsEnabled to have value 1.
-
-        Please ignore 'warning 81010002: Unrecognized Element "longPathAware"';
-        it happens because Mercurial uses mt.exe circa 2008, which is not
-        yet aware of long paths support in the manifest (I think so at least).
-        This does not stop mt.exe from embedding/merging the XML properly.
+        """Add manifest pieces so that hg.exe understands long paths
 
         Why resource #1 should be used for .exe manifests? I don't know and
         wasn't able to find an explanation for mortals. But it seems to work.
@@ -807,7 +786,7 @@ class buildhgexe(build_ext):
         # it merge the embedded and supplied manifests in the -outputresource
         self.spawn(
             [
-                'mt.exe',
+                self.compiler.mt,
                 '-nologo',
                 '-manifest',
                 manfname,
