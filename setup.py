@@ -700,8 +700,8 @@ class buildhgexe(build_ext):
 
         pythonlib = None
 
-        dir = os.path.dirname(self.get_ext_fullpath('dummy'))
-        self.hgtarget = os.path.join(dir, 'hg')
+        dirname = os.path.dirname(self.get_ext_fullpath('dummy'))
+        self.hgtarget = os.path.join(dirname, 'hg')
 
         if getattr(sys, 'dllhandle', None):
             # Different Python installs can have different Python library
