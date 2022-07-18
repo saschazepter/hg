@@ -329,6 +329,7 @@ pub enum PatternFileWarning {
 pub fn parse_pattern_file_contents(
     lines: &[u8],
     file_path: &Path,
+    default_syntax_override: Option<&[u8]>,
     warn: bool,
 ) -> Result<(Vec<IgnorePattern>, Vec<PatternFileWarning>), PatternError> {
     let comment_regex = Regex::new(r"((?:^|[^\\])(?:\\\\)*)#.*").unwrap();
@@ -338,7 +339,8 @@ pub fn parse_pattern_file_contents(
     let mut inputs: Vec<IgnorePattern> = vec![];
     let mut warnings: Vec<PatternFileWarning> = vec![];
 
-    let mut current_syntax = b"relre:".as_ref();
+    let mut current_syntax =
+        default_syntax_override.unwrap_or(b"relre:".as_ref());
 
     for (line_number, mut line) in lines.split(|c| *c == b'\n').enumerate() {
         let line_number = line_number + 1;
@@ -413,7 +415,7 @@ pub fn read_pattern_file(
     match std::fs::read(file_path) {
         Ok(contents) => {
             inspect_pattern_bytes(&contents);
-            parse_pattern_file_contents(&contents, file_path, warn)
+            parse_pattern_file_contents(&contents, file_path, None, warn)
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok((
             vec![],
@@ -601,9 +603,14 @@ mod tests {
         let lines = b"syntax: glob\n*.elc";
 
         assert_eq!(
-            parse_pattern_file_contents(lines, Path::new("file_path"), false)
-                .unwrap()
-                .0,
+            parse_pattern_file_contents(
+                lines,
+                Path::new("file_path"),
+                None,
+                false
+            )
+            .unwrap()
+            .0,
             vec![IgnorePattern::new(
                 PatternSyntax::RelGlob,
                 b"*.elc",
@@ -614,16 +621,26 @@ mod tests {
         let lines = b"syntax: include\nsyntax: glob";
 
         assert_eq!(
-            parse_pattern_file_contents(lines, Path::new("file_path"), false)
-                .unwrap()
-                .0,
+            parse_pattern_file_contents(
+                lines,
+                Path::new("file_path"),
+                None,
+                false
+            )
+            .unwrap()
+            .0,
             vec![]
         );
         let lines = b"glob:**.o";
         assert_eq!(
-            parse_pattern_file_contents(lines, Path::new("file_path"), false)
-                .unwrap()
-                .0,
+            parse_pattern_file_contents(
+                lines,
+                Path::new("file_path"),
+                None,
+                false
+            )
+            .unwrap()
+            .0,
             vec![IgnorePattern::new(
                 PatternSyntax::RelGlob,
                 b"**.o",
