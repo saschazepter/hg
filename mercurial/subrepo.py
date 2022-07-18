@@ -1099,6 +1099,10 @@ class svnsubrepo(abstractsubrepo):
             # --non-interactive.
             if commands[0] in (b'update', b'checkout', b'commit'):
                 cmd.append(b'--non-interactive')
+        if util.safehasattr(subprocess, 'CREATE_NO_WINDOW'):
+            # On Windows, prevent command prompts windows from popping up when
+            # running in pythonw.
+            extrakw['creationflags'] = getattr(subprocess, 'CREATE_NO_WINDOW')
         cmd.extend(commands)
         if filename is not None:
             path = self.wvfs.reljoin(
@@ -1469,6 +1473,11 @@ class gitsubrepo(abstractsubrepo):
             # insert the argument in the front,
             # the end of git diff arguments is used for paths
             commands.insert(1, b'--color')
+        extrakw = {}
+        if util.safehasattr(subprocess, 'CREATE_NO_WINDOW'):
+            # On Windows, prevent command prompts windows from popping up when
+            # running in pythonw.
+            extrakw['creationflags'] = getattr(subprocess, 'CREATE_NO_WINDOW')
         p = subprocess.Popen(
             pycompat.rapply(
                 procutil.tonativestr, [self._gitexecutable] + commands
@@ -1479,6 +1488,7 @@ class gitsubrepo(abstractsubrepo):
             close_fds=procutil.closefds,
             stdout=subprocess.PIPE,
             stderr=errpipe,
+            **extrakw
         )
         if stream:
             return p.stdout, None
