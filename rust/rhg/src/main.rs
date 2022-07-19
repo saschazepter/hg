@@ -372,8 +372,7 @@ fn exit_code(
     match result {
         Ok(()) => exit_codes::OK,
         Err(CommandError::Abort {
-            message: _,
-            detailed_exit_code,
+            detailed_exit_code, ..
         }) => {
             if use_detailed_exit_code {
                 *detailed_exit_code
@@ -480,14 +479,14 @@ fn exit_no_fallback(
     match &result {
         Ok(_) => {}
         Err(CommandError::Unsuccessful) => {}
-        Err(CommandError::Abort {
-            message,
-            detailed_exit_code: _,
-        }) => {
+        Err(CommandError::Abort { message, hint, .. }) => {
+            // Ignore errors when writing to stderr, we’re already exiting
+            // with failure code so there’s not much more we can do.
             if !message.is_empty() {
-                // Ignore errors when writing to stderr, we’re already exiting
-                // with failure code so there’s not much more we can do.
                 let _ = ui.write_stderr(&format_bytes!(b"{}\n", message));
+            }
+            if let Some(hint) = hint {
+                let _ = ui.write_stderr(&format_bytes!(b"({})\n", hint));
             }
         }
         Err(CommandError::UnsupportedFeature { message }) => {
