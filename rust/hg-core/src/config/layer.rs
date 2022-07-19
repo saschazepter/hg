@@ -81,6 +81,7 @@ impl ConfigLayer {
                         String::from_utf8_lossy(arg),
                     ),
                     CONFIG_PARSE_ERROR_ABORT,
+                    None,
                 ))?
             }
         }
