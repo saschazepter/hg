@@ -18,8 +18,8 @@ use hg::dirstate::TruncatedTimestamp;
 use hg::errors::{HgError, IoResultExt};
 use hg::lock::LockError;
 use hg::manifest::Manifest;
-use hg::matchers::AlwaysMatcher;
 use hg::repo::Repo;
+use hg::sparse::{matcher, SparseWarning};
 use hg::utils::files::get_bytes_from_os_string;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::files::get_path_from_bytes;
@@ -251,9 +251,9 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         };
     }
 
-    if repo.has_sparse() || repo.has_narrow() {
+    if repo.has_narrow() {
         return Err(CommandError::unsupported(
-            "rhg status is not supported for sparse checkouts or narrow clones yet"
+            "rhg status is not supported for narrow clones yet",
         ));
     }
 
@@ -366,9 +366,36 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             filesystem_time_at_status_start,
         ))
     };
+    let (matcher, sparse_warnings) = matcher(repo)?;
+
+    for warning in sparse_warnings {
+        match &warning {
+            SparseWarning::RootWarning { context, line } => {
+                let msg = format_bytes!(
+                    b"warning: {} profile cannot use paths \"
+                    starting with /, ignoring {}\n",
+                    context,
+                    line
+                );
+                ui.write_stderr(&msg)?;
+            }
+            SparseWarning::ProfileNotFound { profile, rev } => {
+                let msg = format_bytes!(
+                    b"warning: sparse profile '{}' not found \"
+                    in rev {} - ignoring it\n",
+                    profile,
+                    rev
+                );
+                ui.write_stderr(&msg)?;
+            }
+            SparseWarning::Pattern(e) => {
+                ui.write_stderr(&print_pattern_file_warning(e, &repo))?;
+            }
+        }
+    }
     let (fixup, mut dirstate_write_needed, filesystem_time_at_status_start) =
         dmap.with_status(
-            &AlwaysMatcher,
+            matcher.as_ref(),
             repo.working_directory_path().to_owned(),
             ignore_files(repo, config),
             options,

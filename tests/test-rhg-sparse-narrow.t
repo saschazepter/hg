@@ -92,7 +92,7 @@ support it in rhg for narrow clones yet.
   $ touch dir2/q
   $ "$real_hg" status
   $ $NO_FALLBACK rhg --config rhg.status=true status
-  unsupported feature: rhg status is not supported for sparse checkouts or narrow clones yet
+  unsupported feature: rhg status is not supported for narrow clones yet
   [252]
 
 Adding "orphaned" index files:

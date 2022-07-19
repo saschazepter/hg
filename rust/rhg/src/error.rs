@@ -8,6 +8,7 @@ use hg::errors::HgError;
 use hg::exit_codes;
 use hg::repo::RepoError;
 use hg::revlog::revlog::RevlogError;
+use hg::sparse::SparseConfigError;
 use hg::utils::files::get_bytes_from_path;
 use hg::{DirstateError, DirstateMapError, StatusError};
 use std::convert::From;
@@ -49,6 +50,18 @@ impl CommandError {
             // https://www.mercurial-scm.org/wiki/EncodingStrategy#Mixing_output
             message: utf8_to_local(message.as_ref()).into(),
             detailed_exit_code: detailed_exit_code,
+        }
+    }
+
+    pub fn abort_with_exit_code_bytes(
+        message: impl AsRef<[u8]>,
+        detailed_exit_code: exit_codes::ExitCode,
+    ) -> Self {
+        // TODO: use this everywhere it makes sense instead of the string
+        // version.
+        CommandError::Abort {
+            message: message.as_ref().into(),
+            detailed_exit_code,
         }
     }
 
@@ -210,5 +223,35 @@ impl From<DirstateError> for CommandError {
 impl From<DirstateV2ParseError> for CommandError {
     fn from(error: DirstateV2ParseError) -> Self {
         HgError::from(error).into()
+    }
+}
+
+impl From<SparseConfigError> for CommandError {
+    fn from(e: SparseConfigError) -> Self {
+        match e {
+            SparseConfigError::IncludesAfterExcludes { context } => {
+                Self::abort_with_exit_code_bytes(
+                    format_bytes!(
+                        b"{} config cannot have includes after excludes",
+                        context
+                    ),
+                    exit_codes::CONFIG_PARSE_ERROR_ABORT,
+                )
+            }
+            SparseConfigError::EntryOutsideSection { context, line } => {
+                Self::abort_with_exit_code_bytes(
+                    format_bytes!(
+                        b"{} config entry outside of section: {}",
+                        context,
+                        &line,
+                    ),
+                    exit_codes::CONFIG_PARSE_ERROR_ABORT,
+                )
+            }
+            SparseConfigError::HgError(e) => Self::from(e),
+            SparseConfigError::PatternError(e) => {
+                Self::unsupported(format!("{}", e))
+            }
+        }
     }
 }
