@@ -272,13 +272,10 @@ def checkportisavailable(port):
         with contextlib.closing(socket.socket(family, socket.SOCK_STREAM)) as s:
             s.bind(('localhost', port))
         return True
+    except PermissionError:
+        return False
     except socket.error as exc:
         if WINDOWS and exc.errno == errno.WSAEACCES:
-            return False
-        # TODO: make a proper exception handler after dropping py2.  This
-        #       works because socket.error is an alias for OSError on py3,
-        #       which is also the baseclass of PermissionError.
-        elif isinstance(exc, PermissionError):
             return False
         if exc.errno not in (
             errno.EADDRINUSE,
