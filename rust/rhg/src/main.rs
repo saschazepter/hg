@@ -546,6 +546,7 @@ subcommands! {
     debugdata
     debugrequirements
     debugignorerhg
+    debugrhgsparse
     files
     root
     config
