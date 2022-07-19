@@ -80,7 +80,7 @@ docutils==0.16 \
     --hash=sha256:0c5b78adfbf7762415433f5515cd5c9e762339e23369dbe8000d84a4bf4ab3af \
     --hash=sha256:c2de3a60e9e7d07be26b7f2b00ca0309c207e06c100f9cc2a94931fc75a478fc
     # via -r contrib/packaging/requirements-windows.txt.in
-dulwich==0.20.6 ; python_version >= "3" \
+dulwich==0.20.6 \
     --hash=sha256:1ccd55e38fa9f169290f93e027ab4508202f5bdd6ef534facac4edd3f6903f0d \
     --hash=sha256:2452a0379cc7bbbd7ab893ec104d18039f1ea98b0d6be6bca5646e5cf29e0ae9 \
     --hash=sha256:2f4aebc54ed2d37dcee737024421452375570a422eb682232e676aa7ebc9cb4b \
@@ -113,9 +113,9 @@ iniconfig==1.1.1 \
     --hash=sha256:011e24c64b7f47f6ebd835bb12a743f2fbe9a26d4cecaa7f53bc4f35ee9da8b3 \
     --hash=sha256:bc3af051d7d14b2ee5ef9969666def0cd1a000e121eaea580d4a313df4b37f32
     # via pytest
-keyring==21.4.0 \
-    --hash=sha256:4e34ea2fdec90c1c43d6610b5a5fafa1b9097db1802948e90caf5763974b8f8d \
-    --hash=sha256:9aeadd006a852b78f4b4ef7c7556c2774d2432bbef8ee538a3e9089ac8b11466
+keyring==22.3.0 \
+    --hash=sha256:16927a444b2c73f983520a48dec79ddab49fe76429ea05b8d528d778c8339522 \
+    --hash=sha256:2bc8363ebdd63886126a012057a85c8cb6e143877afa02619ac7dbc9f38a207b
     # via -r contrib/packaging/requirements-windows.txt.in
 multidict==5.1.0 \
     --hash=sha256:018132dbd8688c7a69ad89c4a3f39ea2f9f33302ebe567a879da8f4ca73f0d0a \
@@ -172,7 +172,7 @@ pycparser==2.21 \
     --hash=sha256:8ee45429555515e1f6b185e78100aea234072576aa43ab53aefcae078162fca9 \
     --hash=sha256:e644fdec12f7872f86c58ff790da456218b10f863970249516d60a5eaca77206
     # via cffi
-pygit2==1.7.1 ; python_version >= "3" \
+pygit2==1.7.1 \
     --hash=sha256:2c9e95efb86c0b32cc07c26be3d179e851ca4a7899c47fef63c4203963144f5e \
     --hash=sha256:3ddacbf461652d3d4900382f821d9fbd5ae2dedecd7862b5245842419ad0ccba \
     --hash=sha256:4cb0414df6089d0072ebe93ff2f34730737172dd5f0e72289567d06a6caf09c0 \
