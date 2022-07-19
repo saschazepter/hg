@@ -20,6 +20,7 @@ pub enum CommandError {
     Abort {
         message: Vec<u8>,
         detailed_exit_code: exit_codes::ExitCode,
+        hint: Option<Vec<u8>>,
     },
 
     /// Exit with a failure exit code but no message.
@@ -50,6 +51,19 @@ impl CommandError {
             // https://www.mercurial-scm.org/wiki/EncodingStrategy#Mixing_output
             message: utf8_to_local(message.as_ref()).into(),
             detailed_exit_code: detailed_exit_code,
+            hint: None,
+        }
+    }
+
+    pub fn abort_with_exit_code_and_hint(
+        message: impl AsRef<str>,
+        detailed_exit_code: exit_codes::ExitCode,
+        hint: Option<impl AsRef<str>>,
+    ) -> Self {
+        CommandError::Abort {
+            message: utf8_to_local(message.as_ref()).into(),
+            detailed_exit_code,
+            hint: hint.map(|h| utf8_to_local(h.as_ref()).into()),
         }
     }
 
@@ -62,6 +76,7 @@ impl CommandError {
         CommandError::Abort {
             message: message.as_ref().into(),
             detailed_exit_code,
+            hint: None,
         }
     }
 
@@ -92,9 +107,12 @@ impl From<HgError> for CommandError {
             HgError::Abort {
                 message,
                 detailed_exit_code,
-            } => {
-                CommandError::abort_with_exit_code(message, detailed_exit_code)
-            }
+                hint,
+            } => CommandError::abort_with_exit_code_and_hint(
+                message,
+                detailed_exit_code,
+                hint,
+            ),
             _ => CommandError::abort(error.to_string()),
         }
     }
@@ -121,13 +139,15 @@ impl From<UiError> for CommandError {
 impl From<RepoError> for CommandError {
     fn from(error: RepoError) -> Self {
         match error {
-            RepoError::NotFound { at } => CommandError::Abort {
-                message: format_bytes!(
-                    b"abort: repository {} not found",
-                    get_bytes_from_path(at)
-                ),
-                detailed_exit_code: exit_codes::ABORT,
-            },
+            RepoError::NotFound { at } => {
+                CommandError::abort_with_exit_code_bytes(
+                    format_bytes!(
+                        b"abort: repository {} not found",
+                        get_bytes_from_path(at)
+                    ),
+                    exit_codes::ABORT,
+                )
+            }
             RepoError::ConfigParseError(error) => error.into(),
             RepoError::Other(error) => error.into(),
         }
@@ -137,13 +157,13 @@ impl From<RepoError> for CommandError {
 impl<'a> From<&'a NoRepoInCwdError> for CommandError {
     fn from(error: &'a NoRepoInCwdError) -> Self {
         let NoRepoInCwdError { cwd } = error;
-        CommandError::Abort {
-            message: format_bytes!(
+        CommandError::abort_with_exit_code_bytes(
+            format_bytes!(
                 b"abort: no repository found in '{}' (.hg not found)!",
                 get_bytes_from_path(cwd)
             ),
-            detailed_exit_code: exit_codes::ABORT,
-        }
+            exit_codes::ABORT,
+        )
     }
 }
 
@@ -168,15 +188,15 @@ impl From<ConfigParseError> for CommandError {
         } else {
             Vec::new()
         };
-        CommandError::Abort {
-            message: format_bytes!(
+        CommandError::abort_with_exit_code_bytes(
+            format_bytes!(
                 b"config error at {}{}: {}",
                 origin,
                 line_message,
                 message
             ),
-            detailed_exit_code: exit_codes::CONFIG_ERROR_ABORT,
-        }
+            exit_codes::CONFIG_ERROR_ABORT,
+        )
     }
 }
 
