@@ -159,7 +159,7 @@ ACTION_REMOVE = MergeAction(b'r', narrow_safe=True, changes=CHANGE_REMOVED)
 ACTION_ADD = MergeAction(b'a', narrow_safe=True, changes=CHANGE_ADDED)
 ACTION_GET = MergeAction(b'g', narrow_safe=True, changes=CHANGE_MODIFIED)
 ACTION_PATH_CONFLICT = MergeAction(b'p')
-ACTION_PATH_CONFLICT_RESOLVE = MergeAction('pr')
+ACTION_PATH_CONFLICT_RESOLVE = MergeAction(b'pr')
 ACTION_ADD_MODIFIED = MergeAction(
     b'am', narrow_safe=True, changes=CHANGE_ADDED
 )  # not 100% about the changes value here
