@@ -85,15 +85,12 @@ hidden by narrow, so we just fall back to hg.
   dir1/x
   dir1/y
 
-Hg status needs to do some filtering based on narrow spec, so we don't
-support it in rhg for narrow clones yet.
+Hg status needs to do some filtering based on narrow spec
 
   $ mkdir dir2
   $ touch dir2/q
   $ "$real_hg" status
   $ $NO_FALLBACK rhg --config rhg.status=true status
-  unsupported feature: rhg status is not supported for narrow clones yet
-  [252]
 
 Adding "orphaned" index files:
 
