@@ -10,7 +10,6 @@ use crate::ui::Ui;
 use crate::utils::path_utils::RelativizePaths;
 use clap::{Arg, SubCommand};
 use format_bytes::format_bytes;
-use hg;
 use hg::config::Config;
 use hg::dirstate::has_exec_bit;
 use hg::dirstate::status::StatusPath;
@@ -18,8 +17,8 @@ use hg::dirstate::TruncatedTimestamp;
 use hg::errors::{HgError, IoResultExt};
 use hg::lock::LockError;
 use hg::manifest::Manifest;
+use hg::matchers::{AlwaysMatcher, IntersectionMatcher};
 use hg::repo::Repo;
-use hg::sparse::{matcher, SparseWarning};
 use hg::utils::files::get_bytes_from_os_string;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::files::get_path_from_bytes;
@@ -28,6 +27,7 @@ use hg::DirstateStatus;
 use hg::PatternFileWarning;
 use hg::StatusError;
 use hg::StatusOptions;
+use hg::{self, narrow, sparse};
 use log::info;
 use std::io;
 use std::path::PathBuf;
@@ -251,12 +251,6 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         };
     }
 
-    if repo.has_narrow() {
-        return Err(CommandError::unsupported(
-            "rhg status is not supported for narrow clones yet",
-        ));
-    }
-
     let mut dmap = repo.dirstate_map_mut()?;
 
     let options = StatusOptions {
@@ -366,11 +360,20 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             filesystem_time_at_status_start,
         ))
     };
-    let (matcher, sparse_warnings) = matcher(repo)?;
+    let (narrow_matcher, narrow_warnings) = narrow::matcher(repo)?;
+    let (sparse_matcher, sparse_warnings) = sparse::matcher(repo)?;
+    let matcher = match (repo.has_narrow(), repo.has_sparse()) {
+        (true, true) => {
+            Box::new(IntersectionMatcher::new(narrow_matcher, sparse_matcher))
+        }
+        (true, false) => narrow_matcher,
+        (false, true) => sparse_matcher,
+        (false, false) => Box::new(AlwaysMatcher),
+    };
 
-    for warning in sparse_warnings {
+    for warning in narrow_warnings.into_iter().chain(sparse_warnings) {
         match &warning {
-            SparseWarning::RootWarning { context, line } => {
+            sparse::SparseWarning::RootWarning { context, line } => {
                 let msg = format_bytes!(
                     b"warning: {} profile cannot use paths \"
                     starting with /, ignoring {}\n",
@@ -379,7 +382,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                 );
                 ui.write_stderr(&msg)?;
             }
-            SparseWarning::ProfileNotFound { profile, rev } => {
+            sparse::SparseWarning::ProfileNotFound { profile, rev } => {
                 let msg = format_bytes!(
                     b"warning: sparse profile '{}' not found \"
                     in rev {} - ignoring it\n",
@@ -388,7 +391,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                 );
                 ui.write_stderr(&msg)?;
             }
-            SparseWarning::Pattern(e) => {
+            sparse::SparseWarning::Pattern(e) => {
                 ui.write_stderr(&print_pattern_file_warning(e, &repo))?;
             }
         }

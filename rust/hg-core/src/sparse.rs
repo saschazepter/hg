@@ -54,14 +54,14 @@ pub enum SparseWarning {
 #[derive(Debug, Default)]
 pub struct SparseConfig {
     // Line-separated
-    includes: Vec<u8>,
+    pub(crate) includes: Vec<u8>,
     // Line-separated
-    excludes: Vec<u8>,
-    profiles: HashSet<Vec<u8>>,
-    warnings: Vec<SparseWarning>,
+    pub(crate) excludes: Vec<u8>,
+    pub(crate) profiles: HashSet<Vec<u8>>,
+    pub(crate) warnings: Vec<SparseWarning>,
 }
 
-/// All possible errors when reading sparse config
+/// All possible errors when reading sparse/narrow config
 #[derive(Debug, derive_more::From)]
 pub enum SparseConfigError {
     IncludesAfterExcludes {
@@ -71,6 +71,11 @@ pub enum SparseConfigError {
         context: SparseConfigContext,
         line: Vec<u8>,
     },
+    /// Narrow config does not support '%include' directives
+    IncludesInNarrow,
+    /// An invalid pattern prefix was given to the narrow spec. Includes the
+    /// entire pattern for context.
+    InvalidNarrowPrefix(Vec<u8>),
     #[from]
     HgError(HgError),
     #[from]
@@ -78,7 +83,7 @@ pub enum SparseConfigError {
 }
 
 /// Parse sparse config file content.
-fn parse_config(
+pub(crate) fn parse_config(
     raw: &[u8],
     context: SparseConfigContext,
 ) -> Result<SparseConfig, SparseConfigError> {
