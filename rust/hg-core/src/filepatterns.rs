@@ -314,6 +314,8 @@ lazy_static! {
         m.insert(b"rootglob".as_ref(), b"rootglob:".as_ref());
         m.insert(b"include".as_ref(), b"include:".as_ref());
         m.insert(b"subinclude".as_ref(), b"subinclude:".as_ref());
+        m.insert(b"path".as_ref(), b"path:".as_ref());
+        m.insert(b"rootfilesin".as_ref(), b"rootfilesin:".as_ref());
         m
     };
 }

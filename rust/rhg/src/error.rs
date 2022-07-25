@@ -268,6 +268,19 @@ impl From<SparseConfigError> for CommandError {
                     exit_codes::CONFIG_PARSE_ERROR_ABORT,
                 )
             }
+            SparseConfigError::InvalidNarrowPrefix(prefix) => {
+                Self::abort_with_exit_code_bytes(
+                    format_bytes!(
+                        b"invalid prefix on narrow pattern: {}",
+                        &prefix
+                    ),
+                    exit_codes::ABORT,
+                )
+            }
+            SparseConfigError::IncludesInNarrow => Self::abort(
+                "including other spec files using '%include' \
+                    is not supported in narrowspec",
+            ),
             SparseConfigError::HgError(e) => Self::from(e),
             SparseConfigError::PatternError(e) => {
                 Self::unsupported(format!("{}", e))
