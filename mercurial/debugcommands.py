@@ -1302,7 +1302,12 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
                 revs = logcmdutil.revrange(repo, pushedrevs)
                 nodes = [repo[r].node() for r in revs]
             common, any, hds = setdiscovery.findcommonheads(
-                ui, repo, remote, ancestorsof=nodes, audit=data
+                ui,
+                repo,
+                remote,
+                ancestorsof=nodes,
+                audit=data,
+                abortwhenunrelated=False,
             )
             return common, hds
 
