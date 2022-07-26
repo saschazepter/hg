@@ -276,28 +276,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let after_status = |res: StatusResult| -> Result<_, CommandError> {
         let (mut ds_status, pattern_warnings) = res?;
         for warning in pattern_warnings {
-            match warning {
-                hg::PatternFileWarning::InvalidSyntax(path, syntax) => ui
-                    .write_stderr(&format_bytes!(
-                        b"{}: ignoring invalid syntax '{}'\n",
-                        get_bytes_from_path(path),
-                        &*syntax
-                    ))?,
-                hg::PatternFileWarning::NoSuchFile(path) => {
-                    let path = if let Ok(relative) =
-                        path.strip_prefix(repo.working_directory_path())
-                    {
-                        relative
-                    } else {
-                        &*path
-                    };
-                    ui.write_stderr(&format_bytes!(
-                        b"skipping unreadable pattern file '{}': \
-                          No such file or directory\n",
-                        get_bytes_from_path(path),
-                    ))?
-                }
-            }
+            ui.write_stderr(&print_pattern_file_warning(&warning, &repo))?;
         }
 
         for (path, error) in ds_status.bad {
@@ -581,4 +560,31 @@ fn unsure_is_modified(
         vfs.read(fs_path)?
     };
     Ok(p1_contents != &*fs_contents)
+}
+
+fn print_pattern_file_warning(
+    warning: &PatternFileWarning,
+    repo: &Repo,
+) -> Vec<u8> {
+    match warning {
+        PatternFileWarning::InvalidSyntax(path, syntax) => format_bytes!(
+            b"{}: ignoring invalid syntax '{}'\n",
+            get_bytes_from_path(path),
+            &*syntax
+        ),
+        PatternFileWarning::NoSuchFile(path) => {
+            let path = if let Ok(relative) =
+                path.strip_prefix(repo.working_directory_path())
+            {
+                relative
+            } else {
+                &*path
+            };
+            format_bytes!(
+                b"skipping unreadable pattern file '{}': \
+                    No such file or directory\n",
+                get_bytes_from_path(path),
+            )
+        }
+    }
 }
