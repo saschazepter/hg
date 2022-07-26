@@ -1378,6 +1378,19 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
     # display discovery summary
     fm.plain(b"elapsed time:  %(elapsed)f seconds\n" % data)
     fm.plain(b"round-trips:           %(total-roundtrips)9d\n" % data)
+    if b'total-round-trips-heads' in data:
+        fm.plain(
+            b"  round-trips-heads:    %(total-round-trips-heads)9d\n" % data
+        )
+    if b'total-round-trips-branches' in data:
+        fm.plain(
+            b"  round-trips-branches:    %(total-round-trips-branches)9d\n"
+            % data
+        )
+    if b'total-round-trips-between' in data:
+        fm.plain(
+            b"  round-trips-between:    %(total-round-trips-between)9d\n" % data
+        )
     fm.plain(b"queries:               %(total-queries)9d\n" % data)
     if b'total-queries-branches' in data:
         fm.plain(b"  queries-branches:    %(total-queries-branches)9d\n" % data)
