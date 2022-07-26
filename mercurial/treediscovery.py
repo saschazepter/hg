@@ -39,6 +39,8 @@ def findcommonincoming(repo, remote, heads=None, force=False, audit=None):
     if audit is not None:
         audit[b'total-roundtrips'] = 1
         audit[b'total-queries'] = 0
+        audit[b'total-queries-branches'] = 0
+        audit[b'total-queries-between'] = 0
 
     if repo.changelog.tip() == repo.nullid:
         base.add(repo.nullid)
@@ -71,6 +73,7 @@ def findcommonincoming(repo, remote, heads=None, force=False, audit=None):
     with remote.commandexecutor() as e:
         if audit is not None:
             audit[b'total-queries'] += len(unknown)
+            audit[b'total-queries-branches'] += len(unknown)
         branches = e.callcommand(b'branches', {b'nodes': unknown}).result()
 
     unknown = collections.deque(branches)
@@ -120,6 +123,7 @@ def findcommonincoming(repo, remote, heads=None, force=False, audit=None):
                     subset = r[p : p + 10]
                     if audit is not None:
                         audit[b'total-queries'] += len(subset)
+                        audit[b'total-queries-branches'] += len(subset)
                     branches = e.callcommand(
                         b'branches',
                         {
@@ -142,6 +146,7 @@ def findcommonincoming(repo, remote, heads=None, force=False, audit=None):
         with remote.commandexecutor() as e:
             if audit is not None:
                 audit[b'total-queries'] += len(search)
+                audit[b'total-queries-between'] += len(search)
             between = e.callcommand(b'between', {b'pairs': search}).result()
 
         for n, l in zip(search, between):
