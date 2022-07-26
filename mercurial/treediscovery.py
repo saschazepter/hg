@@ -38,6 +38,9 @@ def findcommonincoming(repo, remote, heads=None, force=False, audit=None):
 
     if audit is not None:
         audit[b'total-roundtrips'] = 1
+        audit[b'total-roundtrips-heads'] = 1
+        audit[b'total-roundtrips-branches'] = 0
+        audit[b'total-roundtrips-between'] = 0
         audit[b'total-queries'] = 0
         audit[b'total-queries-branches'] = 0
         audit[b'total-queries-between'] = 0
@@ -74,6 +77,8 @@ def findcommonincoming(repo, remote, heads=None, force=False, audit=None):
         if audit is not None:
             audit[b'total-queries'] += len(unknown)
             audit[b'total-queries-branches'] += len(unknown)
+            audit[b'total-roundtrips'] += 1
+            audit[b'total-roundtrips-branches'] += 1
         branches = e.callcommand(b'branches', {b'nodes': unknown}).result()
 
     unknown = collections.deque(branches)
@@ -124,6 +129,8 @@ def findcommonincoming(repo, remote, heads=None, force=False, audit=None):
                     if audit is not None:
                         audit[b'total-queries'] += len(subset)
                         audit[b'total-queries-branches'] += len(subset)
+                        audit[b'total-roundtrips'] += 1
+                        audit[b'total-roundtrips-branches'] += 1
                     branches = e.callcommand(
                         b'branches',
                         {
@@ -147,6 +154,8 @@ def findcommonincoming(repo, remote, heads=None, force=False, audit=None):
             if audit is not None:
                 audit[b'total-queries'] += len(search)
                 audit[b'total-queries-between'] += len(search)
+                audit[b'total-roundtrips'] += 1
+                audit[b'total-roundtrips-between'] += 1
             between = e.callcommand(b'between', {b'pairs': search}).result()
 
         for n, l in zip(search, between):
@@ -192,7 +201,5 @@ def findcommonincoming(repo, remote, heads=None, force=False, audit=None):
 
     progress.complete()
     repo.ui.debug(b"%d total queries\n" % reqcnt)
-    if audit is not None:
-        audit[b'total-roundtrips'] = reqcnt
 
     return base, list(fetch), heads

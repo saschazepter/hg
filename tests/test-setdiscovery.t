@@ -44,7 +44,7 @@ Small superset:
   searching for changes
   unpruned common: 01241442b3c2 66f7d451a68b b5714e113bc0
   elapsed time:  * seconds (glob)
-  round-trips:                   2
+  round-trips:                   4
   queries:                       6
     queries-branches:            2
     queries-between:             4
@@ -251,7 +251,7 @@ Many new:
   searching for changes
   unpruned common: bebd167eb94d
   elapsed time:  * seconds (glob)
-  round-trips:                   2
+  round-trips:                   4
   queries:                       3
     queries-branches:            1
     queries-between:             2
@@ -357,7 +357,7 @@ Many new:
   searching for changes
   unpruned common: 66f7d451a68b bebd167eb94d
   elapsed time:  * seconds (glob)
-  round-trips:                   4
+  round-trips:                   6
   queries:                       5
     queries-branches:            1
     queries-between:             4
@@ -469,7 +469,7 @@ Both sides many new with stub:
   searching for changes
   unpruned common: 2dc09a01254d
   elapsed time:  * seconds (glob)
-  round-trips:                   4
+  round-trips:                   6
   queries:                       5
     queries-branches:            1
     queries-between:             4
@@ -575,7 +575,7 @@ Both sides many new with stub:
   searching for changes
   unpruned common: 2dc09a01254d 66f7d451a68b
   elapsed time:  * seconds (glob)
-  round-trips:                   4
+  round-trips:                   6
   queries:                       5
     queries-branches:            1
     queries-between:             4
@@ -688,7 +688,7 @@ Both many new:
   searching for changes
   unpruned common: 66f7d451a68b
   elapsed time:  * seconds (glob)
-  round-trips:                   4
+  round-trips:                   6
   queries:                       5
     queries-branches:            1
     queries-between:             4
@@ -794,7 +794,7 @@ Both many new:
   searching for changes
   unpruned common: 66f7d451a68b
   elapsed time:  * seconds (glob)
-  round-trips:                   4
+  round-trips:                   6
   queries:                       5
     queries-branches:            1
     queries-between:             4
@@ -907,7 +907,7 @@ Both many new skewed:
   searching for changes
   unpruned common: 66f7d451a68b
   elapsed time:  * seconds (glob)
-  round-trips:                   4
+  round-trips:                   6
   queries:                       5
     queries-branches:            1
     queries-between:             4
@@ -1013,7 +1013,7 @@ Both many new skewed:
   searching for changes
   unpruned common: 66f7d451a68b
   elapsed time:  * seconds (glob)
-  round-trips:                   3
+  round-trips:                   5
   queries:                       4
     queries-branches:            1
     queries-between:             3
@@ -1126,7 +1126,7 @@ Both many new on top of long history:
   searching for changes
   unpruned common: 7ead0cba2838
   elapsed time:  * seconds (glob)
-  round-trips:                   4
+  round-trips:                   6
   queries:                       5
     queries-branches:            1
     queries-between:             4
@@ -1238,7 +1238,7 @@ Both many new on top of long history:
   searching for changes
   unpruned common: 7ead0cba2838
   elapsed time:  * seconds (glob)
-  round-trips:                   3
+  round-trips:                   5
   queries:                       4
     queries-branches:            1
     queries-between:             3
