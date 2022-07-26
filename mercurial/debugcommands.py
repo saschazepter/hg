@@ -1187,7 +1187,7 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
     The local peer can be "replaced" by a subset of the local repository by
     using the `--local-as-revs` flag. Int he same way, usual `remote` peer can
     be "replaced" by a subset of the local repository using the
-    `--local-as-revs` flag. This is useful to efficiently debug pathological
+    `--remote-as-revs` flag. This is useful to efficiently debug pathological
     discovery situation.
 
     The following developer oriented config are relevant for people playing with this command:
