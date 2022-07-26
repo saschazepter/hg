@@ -46,6 +46,8 @@ Small superset:
   elapsed time:  * seconds (glob)
   round-trips:                   2
   queries:                       6
+    queries-branches:            2
+    queries-between:             4
   heads summary:
     total common heads:          2
       also local heads:          2
@@ -144,6 +146,8 @@ Small superset:
   elapsed time:  * seconds (glob)
   round-trips:                   1
   queries:                       0
+    queries-branches:            0
+    queries-between:             0
   heads summary:
     total common heads:          2
       also local heads:          1
@@ -249,6 +253,8 @@ Many new:
   elapsed time:  * seconds (glob)
   round-trips:                   2
   queries:                       3
+    queries-branches:            1
+    queries-between:             2
   heads summary:
     total common heads:          1
       also local heads:          1
@@ -353,6 +359,8 @@ Many new:
   elapsed time:  * seconds (glob)
   round-trips:                   4
   queries:                       5
+    queries-branches:            1
+    queries-between:             4
   heads summary:
     total common heads:          1
       also local heads:          0
@@ -463,6 +471,8 @@ Both sides many new with stub:
   elapsed time:  * seconds (glob)
   round-trips:                   4
   queries:                       5
+    queries-branches:            1
+    queries-between:             4
   heads summary:
     total common heads:          1
       also local heads:          1
@@ -567,6 +577,8 @@ Both sides many new with stub:
   elapsed time:  * seconds (glob)
   round-trips:                   4
   queries:                       5
+    queries-branches:            1
+    queries-between:             4
   heads summary:
     total common heads:          1
       also local heads:          0
@@ -678,6 +690,8 @@ Both many new:
   elapsed time:  * seconds (glob)
   round-trips:                   4
   queries:                       5
+    queries-branches:            1
+    queries-between:             4
   heads summary:
     total common heads:          1
       also local heads:          0
@@ -782,6 +796,8 @@ Both many new:
   elapsed time:  * seconds (glob)
   round-trips:                   4
   queries:                       5
+    queries-branches:            1
+    queries-between:             4
   heads summary:
     total common heads:          1
       also local heads:          0
@@ -893,6 +909,8 @@ Both many new skewed:
   elapsed time:  * seconds (glob)
   round-trips:                   4
   queries:                       5
+    queries-branches:            1
+    queries-between:             4
   heads summary:
     total common heads:          1
       also local heads:          0
@@ -997,6 +1015,8 @@ Both many new skewed:
   elapsed time:  * seconds (glob)
   round-trips:                   3
   queries:                       4
+    queries-branches:            1
+    queries-between:             3
   heads summary:
     total common heads:          1
       also local heads:          0
@@ -1108,6 +1128,8 @@ Both many new on top of long history:
   elapsed time:  * seconds (glob)
   round-trips:                   4
   queries:                       5
+    queries-branches:            1
+    queries-between:             4
   heads summary:
     total common heads:          1
       also local heads:          0
@@ -1218,6 +1240,8 @@ Both many new on top of long history:
   elapsed time:  * seconds (glob)
   round-trips:                   3
   queries:                       4
+    queries-branches:            1
+    queries-between:             3
   heads summary:
     total common heads:          1
       also local heads:          0
