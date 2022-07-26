@@ -118,12 +118,13 @@ def findcommonincoming(repo, remote, heads=None, force=False, audit=None):
             seen.add(n[0])
 
         if r:
-            reqcnt += 1
-            progress.increment()
-            repo.ui.debug(
-                b"request %d: %s\n" % (reqcnt, b" ".join(map(short, r)))
-            )
             for p in range(0, len(r), 10):
+                reqcnt += 1
+                progress.increment()
+                if repo.ui.debugflag:
+                    msg = b"request %d: %s\n"
+                    msg %= (reqcnt, b" ".join(map(short, r)))
+                    repo.ui.debug(msg)
                 with remote.commandexecutor() as e:
                     subset = r[p : p + 10]
                     if audit is not None:
