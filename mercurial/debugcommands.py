@@ -1276,6 +1276,9 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
             if not util.safehasattr(remote, b'branches'):
                 # enable in-client legacy support
                 remote = localrepo.locallegacypeer(remote.local())
+                if remote_revs:
+                    r = remote._repo.filtered(b'debug-discovery-remote-filter')
+                    remote._repo = r
             common, _in, hds = treediscovery.findcommonincoming(
                 repo, remote, force=True, audit=data
             )
