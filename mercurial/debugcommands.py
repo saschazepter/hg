@@ -1330,6 +1330,8 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
             common, hds = doit(localrevs, remoterevs)
 
     # compute all statistics
+    if len(common) == 1 and repo.nullid in common:
+        common = set()
     heads_common = set(common)
     heads_remote = set(hds)
     heads_local = set(repo.heads())
