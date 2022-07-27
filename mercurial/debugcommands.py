@@ -1185,10 +1185,10 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
     """runs the changeset discovery protocol in isolation
 
     The local peer can be "replaced" by a subset of the local repository by
-    using the `--local-as-revs` flag. Int he same way, usual `remote` peer can
-    be "replaced" by a subset of the local repository using the
+    using the `--local-as-revs` flag. In the same way, the usual `remote` peer
+    can be "replaced" by a subset of the local repository using the
     `--remote-as-revs` flag. This is useful to efficiently debug pathological
-    discovery situation.
+    discovery situations.
 
     The following developer oriented config are relevant for people playing with this command:
 
