@@ -106,6 +106,9 @@ perfstatus
                  (no help text available)
    perf::ctxfiles
                  (no help text available)
+   perf::delta-find
+                 benchmark the process of finding a valid delta for a revlog
+                 revision
    perf::diffwd  Profile diff of working directory changes
    perf::dirfoldmap
                  benchmap a 'dirstate._map.dirfoldmap.get()' request

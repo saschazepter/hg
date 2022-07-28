@@ -925,6 +925,71 @@ def perfancestorset(ui, repo, revset, **opts):
     fm.end()
 
 
+@command(
+    b'perf::delta-find',
+    revlogopts + formatteropts,
+    b'-c|-m|FILE REV',
+)
+def perf_delta_find(ui, repo, arg_1, arg_2=None, **opts):
+    """benchmark the process of finding a valid delta for a revlog revision
+
+    When a revlog receives a new revision (e.g. from a commit, or from an
+    incoming bundle), it searches for a suitable delta-base to produce a delta.
+    This perf command measures how much time we spend in this process. It
+    operates on an already stored revision.
+
+    See `hg help debug-delta-find` for another related command.
+    """
+    from mercurial import revlogutils
+    import mercurial.revlogutils.deltas as deltautil
+
+    opts = _byteskwargs(opts)
+    if arg_2 is None:
+        file_ = None
+        rev = arg_1
+    else:
+        file_ = arg_1
+        rev = arg_2
+
+    repo = repo.unfiltered()
+
+    timer, fm = gettimer(ui, opts)
+
+    rev = int(rev)
+
+    revlog = cmdutil.openrevlog(repo, b'perf::delta-find', file_, opts)
+
+    deltacomputer = deltautil.deltacomputer(revlog)
+
+    node = revlog.node(rev)
+    p1r, p2r = revlog.parentrevs(rev)
+    p1 = revlog.node(p1r)
+    p2 = revlog.node(p2r)
+    full_text = revlog.revision(rev)
+    textlen = len(full_text)
+    cachedelta = None
+    flags = revlog.flags(rev)
+
+    revinfo = revlogutils.revisioninfo(
+        node,
+        p1,
+        p2,
+        [full_text],  # btext
+        textlen,
+        cachedelta,
+        flags,
+    )
+
+    # Note: we should probably purge the potential caches (like the full
+    # manifest cache) between runs.
+    def find_one():
+        with revlog._datafp() as fh:
+            deltacomputer.finddeltainfo(revinfo, fh, target_rev=rev)
+
+    timer(find_one)
+    fm.end()
+
+
 @command(b'perf::discovery|perfdiscovery', formatteropts, b'PATH')
 def perfdiscovery(ui, repo, path, **opts):
     """benchmark discovery between local repo and the peer at given path"""
