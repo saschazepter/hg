@@ -243,12 +243,12 @@ apply it and make sure our state is as expected
 (this also tests that same timestamp prevents backups from being
 removed, even though there are more than 'maxbackups' backups)
 
-  $ f -t .hg/shelve-backup/default.patch
-  .hg/shelve-backup/default.patch: file
-  $ touch -t 200001010000 .hg/shelve-backup/default.patch
-  $ f -t .hg/shelve-backup/default-1.patch
-  .hg/shelve-backup/default-1.patch: file
-  $ touch -t 200001010000 .hg/shelve-backup/default-1.patch
+  $ f -t .hg/shelve-backup/default.shelve
+  .hg/shelve-backup/default.shelve: file
+  $ touch -t 200001010000 .hg/shelve-backup/default.shelve
+  $ f -t .hg/shelve-backup/default-1.shelve
+  .hg/shelve-backup/default-1.shelve: file
+  $ touch -t 200001010000 .hg/shelve-backup/default-1.shelve
 
   $ hg unshelve
   unshelving change 'default-01'

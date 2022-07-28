@@ -112,12 +112,19 @@ class Shelf:
         self.name = name
 
     def exists(self):
-        return self.vfs.exists(self.name + b'.patch') and self.vfs.exists(
-            self.name + b'.hg'
-        )
+        return self._exists(b'.shelve') or self._exists(b'.patch', b'.hg')
+
+    def _exists(self, *exts):
+        return all(self.vfs.exists(self.name + ext) for ext in exts)
 
     def mtime(self):
-        return self.vfs.stat(self.name + b'.patch')[stat.ST_MTIME]
+        try:
+            return self._stat(b'.shelve')[stat.ST_MTIME]
+        except FileNotFoundError:
+            return self._stat(b'.patch')[stat.ST_MTIME]
+
+    def _stat(self, ext):
+        return self.vfs.stat(self.name + ext)
 
     def writeinfo(self, info):
         scmutil.simplekeyvaluefile(self.vfs, self.name + b'.shelve').write(info)
