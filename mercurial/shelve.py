@@ -22,6 +22,7 @@ shelve".
 """
 
 import collections
+import io
 import itertools
 import stat
 
@@ -182,6 +183,27 @@ class Shelf:
 
     def open_patch(self, mode=b'rb'):
         return self.vfs(self.name + b'.patch', mode)
+
+    def patch_from_node(self, repo, node):
+        repo = repo.unfiltered()
+        match = _optimized_match(repo, node)
+        fp = io.BytesIO()
+        cmdutil.exportfile(
+            repo,
+            [node],
+            fp,
+            opts=mdiff.diffopts(git=True),
+            match=match,
+        )
+        fp.seek(0)
+        return fp
+
+    def load_patch(self, repo):
+        try:
+            # prefer node-based shelf
+            return self.patch_from_node(repo, self.readinfo()[b'node'])
+        except (FileNotFoundError, error.RepoLookupError):
+            return self.open_patch()
 
     def _backupfilename(self, backupvfs, filename):
         def gennames(base):
@@ -674,7 +696,7 @@ def listcmd(ui, repo, pats, opts):
         ui.write(age, label=b'shelve.age')
         ui.write(b' ' * (12 - len(age)))
         used += 12
-        with shelf_dir.get(name).open_patch() as fp:
+        with shelf_dir.get(name).load_patch(repo) as fp:
             while True:
                 line = fp.readline()
                 if not line:
