@@ -1535,3 +1535,43 @@ produced by `hg shelve`.
   $ hg patch -p1 test_patch.patch
   applying test_patch.patch
 #endif
+
+-- if phasebased, shelve works without patch and bundle
+
+  $ hg update -q --clean .
+  $ hg strip -q -r 0
+  $ rm -r .hg/shelve*
+  $ echo import antigravity >> somefile.py
+  $ hg add somefile.py
+  $ hg shelve -q
+#if phasebased
+  $ rm .hg/shelved/default.hg
+  $ rm .hg/shelved/default.patch
+#endif
+
+shelve --list --patch should work even with no patch file.
+
+  $ hg shelve --list --patch
+  default         (*s ago) * (changes in empty repository) (glob)
+  
+  diff --git a/somefile.py b/somefile.py
+  new file mode 100644
+  --- /dev/null
+  +++ b/somefile.py
+  @@ -0,0 +1,1 @@
+  +import antigravity
+
+  $ hg unshelve
+  unshelving change 'default'
+
+#if phasebased
+  $ ls .hg/shelve-backup
+  default.shelve
+#endif
+
+#if stripbased
+  $ ls .hg/shelve-backup
+  default.hg
+  default.patch
+  default.shelve
+#endif
