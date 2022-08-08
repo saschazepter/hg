@@ -15,7 +15,8 @@ FEDORA_RELEASE := 31
 
 RHEL_RELEASES := \
   7 \
-  8
+  8 \
+  9
 
 # Build a Python for these RHEL (and derivatives) releases.
 RHEL_WITH_PYTHON_RELEASES :=
