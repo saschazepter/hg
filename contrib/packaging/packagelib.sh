@@ -9,7 +9,7 @@
 # node: the node|short hg was built from, or empty if built from a tag
 gethgversion() {
     if [ -z "${1+x}" ]; then
-        python="python"
+        python="python3"
     else
         python="$1"
     fi
