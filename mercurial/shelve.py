@@ -210,6 +210,15 @@ class Shelf:
             self.vfs.tryunlink(self.name + b'.' + ext)
 
 
+def _optimized_match(repo, node):
+    """
+    Create a matcher so that prefetch doesn't attempt to fetch
+    the entire repository pointlessly, and as an optimisation
+    for movedirstate, if needed.
+    """
+    return scmutil.matchfiles(repo, repo[node].files())
+
+
 class shelvedstate:
     """Handle persistence during unshelving operations.
 
@@ -579,10 +588,7 @@ def _docreatecmd(ui, repo, pats, opts):
             _nothingtoshelvemessaging(ui, repo, pats, opts)
             return 1
 
-        # Create a matcher so that prefetch doesn't attempt to fetch
-        # the entire repository pointlessly, and as an optimisation
-        # for movedirstate, if needed.
-        match = scmutil.matchfiles(repo, repo[node].files())
+        match = _optimized_match(repo, node)
         _shelvecreatedcommit(repo, node, name, match)
 
         ui.status(_(b'shelved as %s\n') % name)
@@ -957,7 +963,7 @@ def _createunshelvectx(ui, repo, shelvectx, basename, interactive, opts):
         user=shelvectx.user(),
     )
     if snode:
-        m = scmutil.matchfiles(repo, repo[snode].files())
+        m = _optimized_match(repo, snode)
         _shelvecreatedcommit(repo, snode, basename, m)
 
     return newnode, bool(snode)
