@@ -1575,3 +1575,23 @@ shelve --list --patch should work even with no patch file.
   default.patch
   default.shelve
 #endif
+
+
+-- allow for phase-based shelves to be disabled
+
+  $ hg update -q --clean .
+  $ hg strip -q --hidden -r 0
+  $ rm -r .hg/shelve*
+
+#if phasebased
+  $ cat <<EOF >> $HGRCPATH
+  > [shelve]
+  > store = strip
+  > EOF
+#endif
+
+  $ echo import this >> somefile.py
+  $ hg add somefile.py
+  $ hg shelve -q
+  $ hg log --hidden
+  $ hg unshelve -q
