@@ -99,6 +99,10 @@ class ShelfDir:
         return sorted(info, reverse=True)
 
 
+def _target_phase(repo):
+    return phases.internal if phases.supportinternal(repo) else phases.secret
+
+
 class Shelf:
     """Represents a shelf, including possibly multiple files storing it.
 
@@ -167,9 +171,7 @@ class Shelf:
         filename = self.name + b'.hg'
         fp = self.vfs(filename)
         try:
-            targetphase = phases.internal
-            if not phases.supportinternal(repo):
-                targetphase = phases.secret
+            targetphase = _target_phase(repo)
             gen = exchange.readbundle(repo.ui, fp, filename, self.vfs)
             pretip = repo[b'tip']
             bundle2.applybundle(
@@ -485,9 +487,7 @@ def getcommitfunc(extra, interactive, editor=False):
         if hasmq:
             saved, repo.mq.checkapplied = repo.mq.checkapplied, False
 
-        targetphase = phases.internal
-        if not phases.supportinternal(repo):
-            targetphase = phases.secret
+        targetphase = _target_phase(repo)
         overrides = {(b'phases', b'new-commit'): targetphase}
         try:
             editor_ = False
@@ -851,9 +851,7 @@ def unshelvecontinue(ui, repo, state, opts):
             repo.setparents(state.pendingctx.node(), repo.nullid)
             repo.dirstate.write(repo.currenttransaction())
 
-        targetphase = phases.internal
-        if not phases.supportinternal(repo):
-            targetphase = phases.secret
+        targetphase = _target_phase(repo)
         overrides = {(b'phases', b'new-commit'): targetphase}
         with repo.ui.configoverride(overrides, b'unshelve'):
             with repo.dirstate.parentchange():
