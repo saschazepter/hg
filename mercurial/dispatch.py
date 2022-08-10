@@ -952,14 +952,22 @@ def _getlocal(ui, rpath, wd=None):
 
     Takes paths in [cwd]/.hg/hgrc into account."
     """
+    try:
+        cwd = encoding.getcwd()
+    except OSError as e:
+        raise error.Abort(
+            _(b"error getting current working directory: %s")
+            % encoding.strtolocal(e.strerror)
+        )
+
+    # If using an alternate wd, temporarily switch to it so that relative
+    # paths are resolved correctly during config loading.
+    oldcwd = None
     if wd is None:
-        try:
-            wd = encoding.getcwd()
-        except OSError as e:
-            raise error.Abort(
-                _(b"error getting current working directory: %s")
-                % encoding.strtolocal(e.strerror)
-            )
+        wd = cwd
+    else:
+        oldcwd = cwd
+        os.chdir(wd)
 
     path = cmdutil.findrepo(wd) or b""
     if not path:
@@ -978,6 +986,9 @@ def _getlocal(ui, rpath, wd=None):
             _readsharedsourceconfig(lui, path)
             lui.readconfig(os.path.join(path, b".hg", b"hgrc"), path)
             lui.readconfig(os.path.join(path, b".hg", b"hgrc-not-shared"), path)
+
+    if oldcwd:
+        os.chdir(oldcwd)
 
     return path, lui
 
