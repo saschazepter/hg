@@ -1432,6 +1432,12 @@ coreconfigitem(
     experimental=True,
 )
 coreconfigitem(
+    b'shelve',
+    b'store',
+    default='internal',
+    experimental=True,
+)
+coreconfigitem(
     b'fsmonitor',
     b'warn_when_unused',
     default=True,

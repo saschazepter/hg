@@ -99,8 +99,15 @@ class ShelfDir:
         return sorted(info, reverse=True)
 
 
+def _use_internal_phase(repo):
+    return (
+        phases.supportinternal(repo)
+        and repo.ui.config(b'shelve', b'store') == 'internal'
+    )
+
+
 def _target_phase(repo):
-    return phases.internal if phases.supportinternal(repo) else phases.secret
+    return phases.internal if _use_internal_phase(repo) else phases.secret
 
 
 class Shelf:
@@ -548,7 +555,7 @@ def _includeunknownfiles(repo, pats, opts, extra):
 
 
 def _finishshelve(repo, tr):
-    if phases.supportinternal(repo):
+    if _use_internal_phase(repo):
         tr.close()
     else:
         _aborttransaction(repo, tr)
@@ -789,7 +796,7 @@ def unshelveabort(ui, repo, state):
             if state.activebookmark and state.activebookmark in repo._bookmarks:
                 bookmarks.activate(repo, state.activebookmark)
             mergefiles(ui, repo, state.wctx, state.pendingctx)
-            if not phases.supportinternal(repo):
+            if not _use_internal_phase(repo):
                 repair.strip(
                     ui, repo, state.nodestoremove, backup=False, topic=b'shelve'
                 )
@@ -876,7 +883,7 @@ def unshelvecontinue(ui, repo, state, opts):
         mergefiles(ui, repo, state.wctx, shelvectx)
         restorebranch(ui, repo, state.branchtorestore)
 
-        if not phases.supportinternal(repo):
+        if not _use_internal_phase(repo):
             repair.strip(
                 ui, repo, state.nodestoremove, backup=False, topic=b'shelve'
             )
