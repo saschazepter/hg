@@ -633,6 +633,10 @@ Test that statuses are reported properly before and after merge resolution.
   # 
   # To mark files as resolved:  hg resolve --mark FILE
   
+  $ hg status -T '{status} {path} - {relpath(path)}\n'
+  M foo - foo
+   a - a
+
   $ hg status -Tjson
   [
    {

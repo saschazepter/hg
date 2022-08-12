@@ -832,7 +832,7 @@ def _commentlines(raw):
 
 @attr.s(frozen=True)
 class morestatus:
-    reporoot = attr.ib()
+    repo = attr.ib()
     unfinishedop = attr.ib()
     unfinishedmsg = attr.ib()
     activemerge = attr.ib()
@@ -876,7 +876,7 @@ class morestatus:
             mergeliststr = b'\n'.join(
                 [
                     b'    %s'
-                    % util.pathto(self.reporoot, encoding.getcwd(), path)
+                    % util.pathto(self.repo.root, encoding.getcwd(), path)
                     for path in self.unresolvedpaths
                 ]
             )
@@ -898,6 +898,7 @@ To mark files as resolved:  hg resolve --mark FILE'''
                     # Already output.
                     continue
                 fm.startitem()
+                fm.context(repo=self.repo)
                 # We can't claim to know the status of the file - it may just
                 # have been in one of the states that were not requested for
                 # display, so it could be anything.
@@ -923,7 +924,7 @@ def readmorestatus(repo):
     if activemerge:
         unresolved = sorted(mergestate.unresolved())
     return morestatus(
-        repo.root, unfinishedop, unfinishedmsg, activemerge, unresolved
+        repo, unfinishedop, unfinishedmsg, activemerge, unresolved
     )
 
 
