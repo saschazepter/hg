@@ -235,6 +235,8 @@ FILE_TOO_SHORT_MSG = _(
     b'  expected %d bytes from offset %d, data size is %d'
 )
 
+hexdigits = b'0123456789abcdefABCDEF'
+
 
 class revlog:
     """
@@ -1509,7 +1511,7 @@ class revlog:
                 ambiguous = True
             # fall through to slow path that filters hidden revisions
         except (AttributeError, ValueError):
-            # we are pure python, or key was too short to search radix tree
+            # we are pure python, or key is not hex
             pass
         if ambiguous:
             raise error.AmbiguousPrefixLookupError(
@@ -1523,6 +1525,11 @@ class revlog:
             # hex(node)[:...]
             l = len(id) // 2 * 2  # grab an even number of digits
             try:
+                # we're dropping the last digit, so let's check that it's hex,
+                # to avoid the expensive computation below if it's not
+                if len(id) % 2 > 0:
+                    if not (id[-1] in hexdigits):
+                        return None
                 prefix = bin(id[:l])
             except binascii.Error:
                 pass
