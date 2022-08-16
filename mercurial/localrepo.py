@@ -1281,6 +1281,7 @@ class localrepository:
     """
 
     _basesupported = {
+        requirementsmod.ARCHIVED_PHASE_REQUIREMENT,
         requirementsmod.BOOKMARKS_IN_STORE_REQUIREMENT,
         requirementsmod.CHANGELOGV2_REQUIREMENT,
         requirementsmod.COPIESSDC_REQUIREMENT,
@@ -3663,6 +3664,10 @@ def newreporequirements(ui, createopts):
     # experimental config: format.internal-phase
     if ui.configbool(b'format', b'internal-phase'):
         requirements.add(requirementsmod.INTERNAL_PHASE_REQUIREMENT)
+
+    # experimental config: format.exp-archived-phase
+    if ui.configbool(b'format', b'exp-archived-phase'):
+        requirements.add(requirementsmod.ARCHIVED_PHASE_REQUIREMENT)
 
     if createopts.get(b'narrowfiles'):
         requirements.add(requirementsmod.NARROW_REQUIREMENT)
