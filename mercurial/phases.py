@@ -181,7 +181,7 @@ def supportinternal(repo):
 def supportarchived(repo):
     # type: (localrepo.localrepository) -> bool
     """True if the archived phase can be used on a repository"""
-    return requirements.INTERNAL_PHASE_REQUIREMENT in repo.requirements
+    return requirements.ARCHIVED_PHASE_REQUIREMENT in repo.requirements
 
 
 def _readroots(repo, phasedefaults=None):

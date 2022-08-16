@@ -1431,6 +1431,23 @@ coreconfigitem(
     default=False,
     experimental=True,
 )
+# The interaction between the archived phase and obsolescence markers needs to
+# be sorted out before wider usage of this are to be considered.
+#
+# At the time this message is written, behavior when archiving obsolete
+# changeset differ significantly from stripping. As part of stripping, we also
+# remove the obsolescence marker associated to the stripped changesets,
+# revealing the precedecessors changesets when applicable. When archiving, we
+# don't touch the obsolescence markers, keeping everything hidden. This can
+# result in quite confusing situation for people combining exchanging draft
+# with the archived phases. As some markers needed by others may be skipped
+# during exchange.
+coreconfigitem(
+    b'format',
+    b'exp-archived-phase',
+    default=False,
+    experimental=True,
+)
 coreconfigitem(
     b'shelve',
     b'store',
