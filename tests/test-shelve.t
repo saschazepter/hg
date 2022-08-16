@@ -14,7 +14,7 @@
 
   $ cat <<EOF >> $HGRCPATH
   > [format]
-  > internal-phase = yes
+  > use-internal-phase = yes
   > EOF
 
 #endif
