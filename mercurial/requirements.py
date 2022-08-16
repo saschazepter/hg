@@ -29,7 +29,7 @@ SPARSE_REQUIREMENT = b'exp-sparse'
 
 # Enables the internal phase which is used to hide changesets instead
 # of stripping them
-INTERNAL_PHASE_REQUIREMENT = b'internal-phase'
+INTERNAL_PHASE_REQUIREMENT = b'internal-phase-2'
 
 # Enables the internal phase which is used to hide changesets instead
 # of stripping them
