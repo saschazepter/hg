@@ -1425,9 +1425,12 @@ coreconfigitem(
     default=False,
     experimental=True,
 )
+
+# Moving this on by default means we are confident about the scaling of phases.
+# This is not garanteed to be the case at the time this message is written.
 coreconfigitem(
     b'format',
-    b'internal-phase',
+    b'use-internal-phase',
     default=False,
     experimental=True,
 )

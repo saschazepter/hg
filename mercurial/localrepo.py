@@ -3662,7 +3662,7 @@ def newreporequirements(ui, createopts):
         requirements.discard(requirementsmod.REVLOGV1_REQUIREMENT)
         requirements.add(requirementsmod.REVLOGV2_REQUIREMENT)
     # experimental config: format.internal-phase
-    if ui.configbool(b'format', b'internal-phase'):
+    if ui.configbool(b'format', b'use-internal-phase'):
         requirements.add(requirementsmod.INTERNAL_PHASE_REQUIREMENT)
 
     # experimental config: format.exp-archived-phase
