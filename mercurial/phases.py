@@ -178,6 +178,12 @@ def supportinternal(repo):
     return requirements.INTERNAL_PHASE_REQUIREMENT in repo.requirements
 
 
+def supportarchived(repo):
+    # type: (localrepo.localrepository) -> bool
+    """True if the archived phase can be used on a repository"""
+    return requirements.INTERNAL_PHASE_REQUIREMENT in repo.requirements
+
+
 def _readroots(repo, phasedefaults=None):
     # type: (localrepo.localrepository, Optional[Phasedefaults]) -> Tuple[Phaseroots, bool]
     """Read phase roots from disk
@@ -642,7 +648,12 @@ class phasecache:
         # phaseroots values, replace them.
         if revs is None:
             revs = []
-        if targetphase in (archived, internal) and not supportinternal(repo):
+        if (
+            targetphase == internal
+            and not supportinternal(repo)
+            or targetphase == archived
+            and not supportarchived(repo)
+        ):
             name = phasenames[targetphase]
             msg = b'this repository does not support the %s phase' % name
             raise error.ProgrammingError(msg)
