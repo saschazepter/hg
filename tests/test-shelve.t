@@ -1594,4 +1594,8 @@ shelve --list --patch should work even with no patch file.
   $ hg add somefile.py
   $ hg shelve -q
   $ hg log --hidden
+  $ ls .hg/shelved
+  default.hg
+  default.patch
+  default.shelve
   $ hg unshelve -q
