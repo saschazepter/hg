@@ -728,9 +728,9 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                         );
                     })
                 }
-            }
-            if self.options.collect_traversed_dirs {
-                self.outcome.lock().unwrap().traversed.push(hg_path.into())
+                if self.options.collect_traversed_dirs {
+                    self.outcome.lock().unwrap().traversed.push(hg_path.into())
+                }
             }
             is_ignored
         } else {
