@@ -70,6 +70,7 @@ comment associated with each format for details.
 
 import binascii
 import struct
+import weakref
 
 from .i18n import _
 from .pycompat import getattr
@@ -561,9 +562,17 @@ class obsstore:
         # caches for various obsolescence related cache
         self.caches = {}
         self.svfs = svfs
-        self.repo = repo
+        self._repo = weakref.ref(repo)
         self._defaultformat = defaultformat
         self._readonly = readonly
+
+    @property
+    def repo(self):
+        r = self._repo()
+        if r is None:
+            msg = "using the obsstore of a deallocated repo"
+            raise error.ProgrammingError(msg)
+        return r
 
     def __iter__(self):
         return iter(self._all)
