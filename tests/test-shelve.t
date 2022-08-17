@@ -1534,20 +1534,14 @@ produced by `hg shelve`.
   $ hg update -q --clean .
   $ hg patch -p1 test_patch.patch
   applying test_patch.patch
-#endif
 
+  $ hg strip -q -r .
+#endif
 
 Check the comment of the last commit for consistency
 
-#if no-windows
-  $ hg log -r . --template '{desc}\n'
-  changes to: add C to bars
-#endif
-
-#if windows
   $ hg log -r . --template '{desc}\n'
   add C to bars
-#endif
 
 -- if phasebased, shelve works without patch and bundle
 
