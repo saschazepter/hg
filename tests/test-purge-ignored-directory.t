@@ -5,9 +5,8 @@ skip ignored directories if -i or --all not specified
   $ echo 'ignored' > .hgignore
   $ hg ci -qA -m init -d'2 0'
   $ mkdir ignored
-
-The better behavior here is the non-rust behavior, which is to keep
-the directory and only delete it when -i or --all is given.
-
+  $ ls
+  ignored
   $ hg purge -v --no-confirm
-  removing directory ignored (known-bad-output rust !)
+  $ ls
+  ignored
