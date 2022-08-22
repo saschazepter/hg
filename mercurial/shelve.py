@@ -102,7 +102,7 @@ class ShelfDir:
 def _use_internal_phase(repo):
     return (
         phases.supportinternal(repo)
-        and repo.ui.config(b'shelve', b'store') == 'internal'
+        and repo.ui.config(b'shelve', b'store') == b'internal'
     )
 
 
