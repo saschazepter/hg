@@ -1605,3 +1605,16 @@ shelve --list --patch should work even with no patch file.
   default.patch
   default.shelve
   $ hg unshelve -q
+
+Override the disabling, re-enabling phase-based shelves
+
+  $ hg shelve --config shelve.store=internal -q
+
+#if phasebased
+  $ hg log --hidden --template '{user}\n'
+  shelve@localhost
+#endif
+
+#if stripbased
+  $ hg log --hidden --template '{user}\n'
+#endif

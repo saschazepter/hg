@@ -1454,7 +1454,7 @@ coreconfigitem(
 coreconfigitem(
     b'shelve',
     b'store',
-    default='internal',
+    default=b'internal',
     experimental=True,
 )
 coreconfigitem(
