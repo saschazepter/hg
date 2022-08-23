@@ -1035,7 +1035,14 @@ def bisect(
     state = hbisect.load_state(repo)
 
     if rev:
-        nodes = [repo.changelog.node(i) for i in logcmdutil.revrange(repo, rev)]
+        revs = logcmdutil.revrange(repo, rev)
+        goodnodes = state[b'good']
+        badnodes = state[b'bad']
+        if goodnodes and badnodes:
+            candidates = repo.revs(b'(%ln)::(%ln)', goodnodes, badnodes)
+            candidates += repo.revs(b'(%ln)::(%ln)', badnodes, goodnodes)
+            revs = candidates & revs
+        nodes = [repo.changelog.node(i) for i in revs]
     else:
         nodes = [repo.lookup(b'.')]
 
