@@ -1035,7 +1035,7 @@ def bisect(
     state = hbisect.load_state(repo)
 
     if rev:
-        nodes = [repo[i].node() for i in logcmdutil.revrange(repo, rev)]
+        nodes = [repo.changelog.node(i) for i in logcmdutil.revrange(repo, rev)]
     else:
         nodes = [repo.lookup(b'.')]
 
