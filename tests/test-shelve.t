@@ -1546,7 +1546,6 @@ Check the comment of the last commit for consistency
 -- if phasebased, shelve works without patch and bundle
 
   $ hg update -q --clean .
-  $ hg strip -q -r 0
   $ rm -r .hg/shelve*
   $ echo import antigravity >> somefile.py
   $ hg add somefile.py
@@ -1559,7 +1558,7 @@ Check the comment of the last commit for consistency
 shelve --list --patch should work even with no patch file.
 
   $ hg shelve --list --patch
-  default         (*s ago) * (changes in empty repository) (glob)
+  default         (*s ago) * changes to: add C to bars (glob)
   
   diff --git a/somefile.py b/somefile.py
   new file mode 100644
