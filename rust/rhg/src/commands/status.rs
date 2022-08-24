@@ -104,6 +104,12 @@ pub fn args() -> clap::App<'static, 'static> {
                 .short("-n")
                 .long("--no-status"),
         )
+        .arg(
+            Arg::with_name("verbose")
+                .help("enable additional output")
+                .short("-v")
+                .long("--verbose"),
+        )
 }
 
 /// Pure data type allowing the caller to specify file states to display
@@ -150,6 +156,33 @@ impl DisplayStates {
     }
 }
 
+fn has_unfinished_merge(repo: &Repo) -> Result<bool, CommandError> {
+    return Ok(repo.dirstate_parents()?.is_merge());
+}
+
+fn has_unfinished_state(repo: &Repo) -> Result<bool, CommandError> {
+    // These are all the known values for the [fname] argument of
+    // [addunfinished] function in [state.py]
+    let known_state_files: &[&str] = &[
+        "bisect.state",
+        "graftstate",
+        "histedit-state",
+        "rebasestate",
+        "shelvedstate",
+        "transplant/journal",
+        "updatestate",
+    ];
+    if has_unfinished_merge(repo)? {
+        return Ok(true);
+    };
+    for f in known_state_files {
+        if repo.hg_vfs().join(f).exists() {
+            return Ok(true);
+        }
+    }
+    return Ok(false);
+}
+
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     // TODO: lift these limitations
     if invocation.config.get_bool(b"ui", b"tweakdefaults")? {
@@ -178,13 +211,9 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let verbose = !ui.plain(None)
         && !args.is_present("print0")
-        && (config.get_bool(b"ui", b"verbose")?
+        && (args.is_present("verbose")
+            || config.get_bool(b"ui", b"verbose")?
             || config.get_bool(b"commands", b"status.verbose")?);
-    if verbose {
-        return Err(CommandError::unsupported(
-            "verbose status is not supported yet",
-        ));
-    }
 
     let all = args.is_present("all");
     let display_states = if all {
@@ -213,6 +242,14 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         || config.get_bool(b"ui", b"statuscopies")?;
 
     let repo = invocation.repo?;
+
+    if verbose {
+        if has_unfinished_state(repo)? {
+            return Err(CommandError::unsupported(
+                "verbose status output is not supported by rhg (and is needed because we're in an unfinished operation)",
+            ));
+        };
+    }
 
     if repo.has_sparse() || repo.has_narrow() {
         return Err(CommandError::unsupported(
