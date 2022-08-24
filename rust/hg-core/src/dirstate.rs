@@ -30,6 +30,10 @@ impl DirstateParents {
         p1: NULL_NODE,
         p2: NULL_NODE,
     };
+
+    pub fn is_merge(&self) -> bool {
+        return !(self.p2 == NULL_NODE);
+    }
 }
 
 pub type StateMapIter<'a> = Box<
