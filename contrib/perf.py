@@ -2666,6 +2666,8 @@ def perf_unbundle(ui, repo, fname, **opts):
     from mercurial import exchange
     from mercurial import bundle2
 
+    opts = _byteskwargs(opts)
+
     with repo.lock():
         bundle = [None, None]
         orig_quiet = repo.ui.quiet
