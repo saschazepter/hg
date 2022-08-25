@@ -1092,9 +1092,14 @@ def perfbundle(ui, repo, *revs, **opts):
 
     bundle_spec = opts.get(b'type')
 
-    bundle_spec = bundlecaches.parsebundlespec(repo, bundle_spec, strict=False)
+    bundle_spec = parsebundlespec(repo, bundle_spec, strict=False)
 
-    cgversion = bundle_spec.params[b"cg.version"]
+    cgversion = bundle_spec.params.get(b"cg.version")
+    if cgversion is None:
+        if bundle_spec.version == b'v1':
+            cgversion = b'01'
+        if bundle_spec.version == b'v2':
+            cgversion = b'02'
     if cgversion not in changegroup.supportedoutgoingversions(repo):
         err = b"repository does not support bundle version %s"
         raise error.Abort(err % cgversion)
