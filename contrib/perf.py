@@ -2668,8 +2668,12 @@ def perf_unbundle(ui, repo, fname, **opts):
 
     with repo.lock():
         bundle = [None, None]
+        orig_quiet = repo.ui.quiet
         try:
             with open(fname, mode="rb") as f:
+
+                def noop_report(*args, **kwargs):
+                    pass
 
                 def setup():
                     gen, tr = bundle
@@ -2679,6 +2683,7 @@ def perf_unbundle(ui, repo, fname, **opts):
                     f.seek(0)
                     bundle[0] = exchange.readbundle(ui, f, fname)
                     bundle[1] = repo.transaction(b'perf::unbundle')
+                    bundle[1]._report = noop_report  # silence the transaction
 
                 def apply():
                     gen, tr = bundle

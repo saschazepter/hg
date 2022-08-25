@@ -398,8 +398,6 @@ Test pre-run feature
   adding changesets
   adding manifests
   adding file changes
-  transaction abort!
-  rollback completed
 
 
 test  profile-benchmark option
