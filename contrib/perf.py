@@ -2670,6 +2670,7 @@ def perf_unbundle(ui, repo, fname, **opts):
         bundle = [None, None]
         orig_quiet = repo.ui.quiet
         try:
+            repo.ui.quiet = True
             with open(fname, mode="rb") as f:
 
                 def noop_report(*args, **kwargs):
@@ -2699,6 +2700,7 @@ def perf_unbundle(ui, repo, fname, **opts):
                 timer(apply, setup=setup)
                 fm.end()
         finally:
+            repo.ui.quiet == orig_quiet
             gen, tr = bundle
             if tr is not None:
                 tr.abort()
