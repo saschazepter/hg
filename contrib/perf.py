@@ -1065,7 +1065,15 @@ def perfbundle(ui, repo, *revs, **opts):
 
     For now, this only supports "none" compression.
     """
-    from mercurial import bundlecaches
+    try:
+        from mercurial import bundlecaches
+
+        parsebundlespec = bundlecaches.parsebundlespec
+    except ImportError:
+        from mercurial import exchange
+
+        parsebundlespec = exchange.parsebundlespec
+
     from mercurial import discovery
     from mercurial import bundle2
 
