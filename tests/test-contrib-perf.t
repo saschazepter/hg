@@ -395,9 +395,6 @@ Test pre-run feature
   $ hg bundle --exact --rev 'last(all(), 5)' last-5.hg
   4 changesets found
   $ hg perf::unbundle last-5.hg
-  adding changesets
-  adding manifests
-  adding file changes
 
 
 test  profile-benchmark option
