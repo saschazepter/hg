@@ -247,6 +247,14 @@ class Shelf:
         for ext in shelvefileextensions:
             self.vfs.tryunlink(self.name + b'.' + ext)
 
+    def changed_files(self, ui, repo):
+        try:
+            ctx = repo.unfiltered()[self.readinfo()[b'node']]
+            return ctx.files()
+        except (FileNotFoundError, error.RepoLookupError):
+            filename = self.vfs.join(self.name + b'.patch')
+            return patch.changedfiles(ui, repo, filename)
+
 
 def _optimized_match(repo, node):
     """
