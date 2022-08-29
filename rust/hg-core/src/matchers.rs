@@ -791,7 +791,7 @@ impl<'a> IncludeMatcher<'a> {
             dirs,
             parents,
         } = roots_dirs_and_parents(&ignore_patterns)?;
-        let prefix = ignore_patterns.iter().any(|k| match k.syntax {
+        let prefix = ignore_patterns.iter().all(|k| match k.syntax {
             PatternSyntax::Path | PatternSyntax::RelPath => true,
             _ => false,
         });
@@ -1092,6 +1092,31 @@ mod tests {
         );
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"dir/subdir/x")),
+            VisitChildrenSet::This
+        );
+
+        // Test multiple patterns
+        let matcher = IncludeMatcher::new(vec![
+            IgnorePattern::new(PatternSyntax::RelPath, b"foo", Path::new("")),
+            IgnorePattern::new(PatternSyntax::Glob, b"g*", Path::new("")),
+        ])
+        .unwrap();
+
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::This
+        );
+
+        // Test multiple patterns
+        let matcher = IncludeMatcher::new(vec![IgnorePattern::new(
+            PatternSyntax::Glob,
+            b"**/*.exe",
+            Path::new(""),
+        )])
+        .unwrap();
+
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"")),
             VisitChildrenSet::This
         );
     }
