@@ -30,6 +30,7 @@ New errors are not allowed. Warnings are strongly discouraged.
   Skipping contrib/packaging/hgpackaging/pyoxidizer.py it has no-che?k-code (glob)
   Skipping contrib/packaging/hgpackaging/util.py it has no-che?k-code (glob)
   Skipping contrib/packaging/hgpackaging/wix.py it has no-che?k-code (glob)
+  Skipping hgext/fsmonitor/__init__.py it has no-che?k-code (glob)
   Skipping i18n/polib.py it has no-che?k-code (glob)
   Skipping mercurial/statprof.py it has no-che?k-code (glob)
   Skipping tests/testlib/badserverext.py it has no-che?k-code (glob)
