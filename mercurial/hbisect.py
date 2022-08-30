@@ -115,11 +115,21 @@ def bisect(repo, state):
             poison.update(children.get(rev, []))
             continue
 
+        unvisited = []
         for c in children.get(rev, []):
             if ancestors[c]:
                 ancestors[c] = list(set(ancestors[c] + a))
             else:
+                unvisited.append(c)
+
+        # Reuse existing ancestor list for the first unvisited child to avoid
+        # excessive copying for linear portions of history.
+        if unvisited:
+            first = unvisited.pop(0)
+            for c in unvisited:
                 ancestors[c] = a + [c]
+            a.append(first)
+            ancestors[first] = a
 
     assert best_rev is not None
     best_node = changelog.node(best_rev)
