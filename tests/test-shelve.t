@@ -1600,6 +1600,7 @@ shelve --list --patch should work even with no patch file.
   $ rm -r .hg/shelve*
 
 #if phasebased
+  $ cp $HGRCPATH $TESTTMP/hgrc-saved
   $ cat <<EOF >> $HGRCPATH
   > [shelve]
   > store = strip
@@ -1628,3 +1629,32 @@ Override the disabling, re-enabling phase-based shelves
 #if stripbased
   $ hg log --hidden --template '{user}\n'
 #endif
+
+clean up
+
+#if phasebased
+  $ mv $TESTTMP/hgrc-saved $HGRCPATH
+#endif
+
+changed files should be reachable in all shelves
+
+create an extension that emits changed files
+
+  $ cat > shelve-changed-files.py << EOF
+  > """Command to emit changed files for a shelf"""
+  > 
+  > from mercurial import registrar, shelve
+  > 
+  > cmdtable = {}
+  > command = registrar.command(cmdtable)
+  > 
+  > 
+  > @command(b'shelve-changed-files')
+  > def shelve_changed_files(ui, repo, name):
+  >     shelf = shelve.ShelfDir(repo).get(name)
+  >     for file in shelf.changed_files(ui, repo):
+  >         ui.write(file + b'\n')
+  > EOF
+
+  $ hg --config extensions.shelve-changed-files=shelve-changed-files.py shelve-changed-files default
+  somefile.py
