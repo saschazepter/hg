@@ -213,3 +213,41 @@ Check that unused bytes counter is reset when creating a new docket
 
 #endif
 
+Transaction compatibility
+-------------------------
+
+The transaction preserves the dirstate.
+We should make sure all of it (docket + data) is preserved
+
+#if dirstate-v2
+  $ hg commit -m 'bli'
+#endif
+
+  $ hg update --quiet
+  $ hg revert --all --quiet
+  $ rm -f a
+  $ echo foo > foo
+  $ hg add foo
+  $ hg commit -m foo
+
+#if dirstate-v2
+  $ uid=$(find_dirstate_uuid)
+  $ touch bar
+  $ while [ uid = $(find_dirstate_uuid) ]; do
+  >    hg add bar;
+  >    hg remove bar;
+  > done;
+  $ rm bar
+#endif
+  $ hg rollback
+  repository tip rolled back to revision 1 (undo commit)
+  working directory now based on revision 1
+
+#if dirstate-v1
+  $ hg status
+  A foo
+#else
+  $ hg status
+  abort: $ENOENT$: '*/.hg/dirstate.*' (glob) (known-bad-output !)
+  [255]
+#endif
