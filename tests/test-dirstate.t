@@ -213,4 +213,3 @@ Check that unused bytes counter is reset when creating a new docket
 
 #endif
 
-  $ cd ..
