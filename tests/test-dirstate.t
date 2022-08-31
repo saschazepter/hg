@@ -243,11 +243,5 @@ We should make sure all of it (docket + data) is preserved
   repository tip rolled back to revision 1 (undo commit)
   working directory now based on revision 1
 
-#if dirstate-v1
   $ hg status
   A foo
-#else
-  $ hg status
-  abort: $ENOENT$: '*/.hg/dirstate.*' (glob) (known-bad-output !)
-  [255]
-#endif

@@ -31,6 +31,7 @@ from . import (
 )
 
 from .dirstateutils import (
+    docket as docketmod,
     timestamp,
 )
 
@@ -1433,6 +1434,27 @@ class dirstate:
         else:
             return self._filename
 
+    def data_backup_filename(self, backupname):
+        if not self._use_dirstate_v2:
+            return None
+        return backupname + b'.v2-data'
+
+    def _new_backup_data_filename(self, backupname):
+        """return a filename to backup a data-file or None"""
+        if not self._use_dirstate_v2:
+            return None
+        data_filename = self._map.docket.data_filename()
+        return data_filename, self.data_backup_filename(backupname)
+
+    def backup_data_file(self, backupname):
+        if not self._use_dirstate_v2:
+            return None
+        docket = docketmod.DirstateDocket.parse(
+            self._opener.read(backupname),
+            self._nodeconstants,
+        )
+        return self.data_backup_filename(backupname), docket.data_filename()
+
     def savebackup(self, tr, backupname):
         '''Save current dirstate into backup file'''
         filename = self._actualfilename(tr)
@@ -1472,6 +1494,19 @@ class dirstate:
             self._opener.join(backupname),
             hardlink=True,
         )
+        data_pair = self._new_backup_data_filename(backupname)
+        if data_pair is not None:
+            data_filename, bck_data_filename = data_pair
+            util.copyfile(
+                self._opener.join(data_filename),
+                self._opener.join(bck_data_filename),
+                hardlink=True,
+            )
+            if tr is not None:
+                # ensure that pending file written above is unlinked at
+                # failure, even if tr.writepending isn't invoked until the
+                # end of this transaction
+                tr.registertmp(bck_data_filename, location=b'plain')
 
     def restorebackup(self, tr, backupname):
         '''Restore dirstate by backup file'''
@@ -1480,14 +1515,29 @@ class dirstate:
         self.invalidate()
         filename = self._actualfilename(tr)
         o = self._opener
+        data_pair = self.backup_data_file(backupname)
         if util.samefile(o.join(backupname), o.join(filename)):
             o.unlink(backupname)
         else:
             o.rename(backupname, filename, checkambig=True)
 
+        if data_pair is not None:
+            data_backup, target = data_pair
+            if o.exists(target) and util.samefile(
+                o.join(data_backup), o.join(target)
+            ):
+                o.unlink(data_backup)
+            else:
+                o.rename(data_backup, target, checkambig=True)
+
     def clearbackup(self, tr, backupname):
         '''Clear backup file'''
-        self._opener.unlink(backupname)
+        o = self._opener
+        data_backup = self.backup_data_file(backupname)
+        o.unlink(backupname)
+
+        if data_backup is not None:
+            o.unlink(data_backup[0])
 
     def verify(self, m1, m2):
         """check the dirstate content again the parent manifest and yield errors"""
