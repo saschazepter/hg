@@ -2619,16 +2619,23 @@ class localrepository:
         return tr
 
     def _journalfiles(self):
-        return (
+        first = (
             (self.svfs, b'journal'),
             (self.svfs, b'journal.narrowspec'),
             (self.vfs, b'journal.narrowspec.dirstate'),
             (self.vfs, b'journal.dirstate'),
+        )
+        middle = []
+        dirstate_data = self.dirstate.data_backup_filename(b'journal.dirstate')
+        if dirstate_data is not None:
+            middle.append((self.vfs, dirstate_data))
+        end = (
             (self.vfs, b'journal.branch'),
             (self.vfs, b'journal.desc'),
             (bookmarks.bookmarksvfs(self), b'journal.bookmarks'),
             (self.svfs, b'journal.phaseroots'),
         )
+        return first + tuple(middle) + end
 
     def undofiles(self):
         return [(vfs, undoname(x)) for vfs, x in self._journalfiles()]
