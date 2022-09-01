@@ -27,8 +27,6 @@ Dummy extension simulating unsafe long running command
   >     with ui.uninterruptible():
   >         testing.write_file(sync_file, b'%d' % os.getpid())
   >         testing.wait_file(done_file)
-  >         # make sure we get rescheduled and the signal get a chance to be handled
-  >         time.sleep(0.1)
   >         ui.warn(b"end of unsafe operation\n")
   >     ui.warn(b"%d second(s) passed\n" % int(time.time() - start))
   > EOF
@@ -42,12 +40,24 @@ Dummy extension simulating unsafe long running command
   > fi
   > "$RUNTESTDIR/testlib/wait-on-file" 10 "$SYNC_FILE" || exit 2
   > kill -s \$SIG \`cat "$SYNC_FILE"\`
-  > sleep 1
-  > touch "$DONE_FILE"
   > EOF
 
 #if no-windows
   $ chmod +x send-signal.sh
+#endif
+
+  $ cat > wait-signal.sh << 'EOF'
+  > #!/bin/sh
+  > (hg wait-signal 2>&1; echo [$?]) | {
+  >     read line
+  >     touch "$DONE_FILE"
+  >     echo "$line"
+  >     cat
+  > }
+  > EOF
+
+#if no-windows
+  $ chmod +x wait-signal.sh
 #endif
 
 Kludge to emulate timeout(1) which is not generally available.
@@ -60,11 +70,10 @@ Set up repository
   > wait_ext = $TESTTMP/wait_ext.py
   > EOF
 
-
 Test ctrl-c
   $ rm -f $SYNC_FILE $DONE_FILE
   $ sh -c "../send-signal.sh INT" &
-  $ hg wait-signal
+  $ ../wait-signal.sh
   interrupted!
   [255]
 
@@ -75,7 +84,7 @@ Test ctrl-c
 
   $ rm -f $SYNC_FILE $DONE_FILE
   $ sh -c "../send-signal.sh INT" &
-  $ hg wait-signal
+  $ ../wait-signal.sh
   interrupted!
   [255]
 
@@ -86,7 +95,7 @@ Test ctrl-c
 
   $ rm -f $SYNC_FILE $DONE_FILE
   $ sh -c "../send-signal.sh INT" &
-  $ hg wait-signal
+  $ ../wait-signal.sh
   shutting down cleanly
   press ^C again to terminate immediately (dangerous)
   end of unsafe operation

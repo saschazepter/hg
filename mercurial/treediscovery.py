@@ -38,7 +38,12 @@ def findcommonincoming(repo, remote, heads=None, force=False, audit=None):
 
     if audit is not None:
         audit[b'total-roundtrips'] = 1
+        audit[b'total-roundtrips-heads'] = 1
+        audit[b'total-roundtrips-branches'] = 0
+        audit[b'total-roundtrips-between'] = 0
         audit[b'total-queries'] = 0
+        audit[b'total-queries-branches'] = 0
+        audit[b'total-queries-between'] = 0
 
     if repo.changelog.tip() == repo.nullid:
         base.add(repo.nullid)
@@ -71,6 +76,9 @@ def findcommonincoming(repo, remote, heads=None, force=False, audit=None):
     with remote.commandexecutor() as e:
         if audit is not None:
             audit[b'total-queries'] += len(unknown)
+            audit[b'total-queries-branches'] += len(unknown)
+            audit[b'total-roundtrips'] += 1
+            audit[b'total-roundtrips-branches'] += 1
         branches = e.callcommand(b'branches', {b'nodes': unknown}).result()
 
     unknown = collections.deque(branches)
@@ -110,16 +118,20 @@ def findcommonincoming(repo, remote, heads=None, force=False, audit=None):
             seen.add(n[0])
 
         if r:
-            reqcnt += 1
-            progress.increment()
-            repo.ui.debug(
-                b"request %d: %s\n" % (reqcnt, b" ".join(map(short, r)))
-            )
             for p in range(0, len(r), 10):
+                reqcnt += 1
+                progress.increment()
+                if repo.ui.debugflag:
+                    msg = b"request %d: %s\n"
+                    msg %= (reqcnt, b" ".join(map(short, r)))
+                    repo.ui.debug(msg)
                 with remote.commandexecutor() as e:
                     subset = r[p : p + 10]
                     if audit is not None:
                         audit[b'total-queries'] += len(subset)
+                        audit[b'total-queries-branches'] += len(subset)
+                        audit[b'total-roundtrips'] += 1
+                        audit[b'total-roundtrips-branches'] += 1
                     branches = e.callcommand(
                         b'branches',
                         {
@@ -142,6 +154,9 @@ def findcommonincoming(repo, remote, heads=None, force=False, audit=None):
         with remote.commandexecutor() as e:
             if audit is not None:
                 audit[b'total-queries'] += len(search)
+                audit[b'total-queries-between'] += len(search)
+                audit[b'total-roundtrips'] += 1
+                audit[b'total-roundtrips-between'] += 1
             between = e.callcommand(b'between', {b'pairs': search}).result()
 
         for n, l in zip(search, between):
@@ -187,7 +202,5 @@ def findcommonincoming(repo, remote, heads=None, force=False, audit=None):
 
     progress.complete()
     repo.ui.debug(b"%d total queries\n" % reqcnt)
-    if audit is not None:
-        audit[b'total-roundtrips'] = reqcnt
 
     return base, list(fetch), heads
