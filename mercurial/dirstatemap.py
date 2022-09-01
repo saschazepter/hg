@@ -115,8 +115,6 @@ class _dirstatemapcommon:
             self.parents(), len(packed), meta
         )
         data_filename = new_docket.data_filename()
-        if tr:
-            tr.add(data_filename, 0)
         self._opener.write(data_filename, packed)
         # Write the new docket after the new data file has been
         # written. Because `st` was opened with `atomictemp=True`,
