@@ -117,6 +117,7 @@ import weakref
 
 from mercurial.i18n import _
 from mercurial.node import hex
+
 from mercurial.pycompat import open
 from mercurial import (
     context,
@@ -131,6 +132,9 @@ from mercurial import (
     scmutil,
     util,
 )
+
+# no-check-code because we're accessing private information only public in pure
+from mercurial.pure import parsers
 from mercurial import match as matchmod
 from mercurial.utils import (
     hashutil,
@@ -332,10 +336,22 @@ def overridewalk(orig, self, match, subrepos, unknown, ignored, full=True):
         # for better performance, directly access the inner dirstate map if the
         # standard dirstate implementation is in use.
         dmap = dmap._map
+
+    has_mtime = parsers.DIRSTATE_V2_HAS_MTIME
+    mtime_is_ambiguous = parsers.DIRSTATE_V2_MTIME_SECOND_AMBIGUOUS
+    mask = has_mtime | mtime_is_ambiguous
+
+    # All entries that may not be clean
     nonnormalset = {
         f
         for f, e in self._map.items()
-        if e._v1_state() != b"n" or e._v1_mtime() == -1
+        if not e.maybe_clean
+        # same as "not has_time or has_ambiguous_time", but factored to only
+        # need a single access to flags for performance.
+        # `mask` removes all irrelevant bits, then we flip the `mtime` bit so
+        # its `true` value is NOT having a mtime, then check if either bit
+        # is set.
+        or bool((e.v2_data()[0] & mask) ^ has_mtime)
     }
 
     copymap = self._map.copymap

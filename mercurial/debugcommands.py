@@ -1185,10 +1185,10 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
     """runs the changeset discovery protocol in isolation
 
     The local peer can be "replaced" by a subset of the local repository by
-    using the `--local-as-revs` flag. Int he same way, usual `remote` peer can
-    be "replaced" by a subset of the local repository using the
-    `--local-as-revs` flag. This is useful to efficiently debug pathological
-    discovery situation.
+    using the `--local-as-revs` flag. In the same way, the usual `remote` peer
+    can be "replaced" by a subset of the local repository using the
+    `--remote-as-revs` flag. This is useful to efficiently debug pathological
+    discovery situations.
 
     The following developer oriented config are relevant for people playing with this command:
 
@@ -1276,6 +1276,9 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
             if not util.safehasattr(remote, b'branches'):
                 # enable in-client legacy support
                 remote = localrepo.locallegacypeer(remote.local())
+                if remote_revs:
+                    r = remote._repo.filtered(b'debug-discovery-remote-filter')
+                    remote._repo = r
             common, _in, hds = treediscovery.findcommonincoming(
                 repo, remote, force=True, audit=data
             )
@@ -1299,7 +1302,12 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
                 revs = logcmdutil.revrange(repo, pushedrevs)
                 nodes = [repo[r].node() for r in revs]
             common, any, hds = setdiscovery.findcommonheads(
-                ui, repo, remote, ancestorsof=nodes, audit=data
+                ui,
+                repo,
+                remote,
+                ancestorsof=nodes,
+                audit=data,
+                abortwhenunrelated=False,
             )
             return common, hds
 
@@ -1322,6 +1330,8 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
             common, hds = doit(localrevs, remoterevs)
 
     # compute all statistics
+    if len(common) == 1 and repo.nullid in common:
+        common = set()
     heads_common = set(common)
     heads_remote = set(hds)
     heads_local = set(repo.heads())
@@ -1375,7 +1385,24 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
     # display discovery summary
     fm.plain(b"elapsed time:  %(elapsed)f seconds\n" % data)
     fm.plain(b"round-trips:           %(total-roundtrips)9d\n" % data)
+    if b'total-round-trips-heads' in data:
+        fm.plain(
+            b"  round-trips-heads:    %(total-round-trips-heads)9d\n" % data
+        )
+    if b'total-round-trips-branches' in data:
+        fm.plain(
+            b"  round-trips-branches:    %(total-round-trips-branches)9d\n"
+            % data
+        )
+    if b'total-round-trips-between' in data:
+        fm.plain(
+            b"  round-trips-between:    %(total-round-trips-between)9d\n" % data
+        )
     fm.plain(b"queries:               %(total-queries)9d\n" % data)
+    if b'total-queries-branches' in data:
+        fm.plain(b"  queries-branches:    %(total-queries-branches)9d\n" % data)
+    if b'total-queries-between' in data:
+        fm.plain(b"  queries-between:     %(total-queries-between)9d\n" % data)
     fm.plain(b"heads summary:\n")
     fm.plain(b"  total common heads:  %(nb-common-heads)9d\n" % data)
     fm.plain(b"    also local heads:  %(nb-common-heads-local)9d\n" % data)

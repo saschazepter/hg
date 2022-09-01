@@ -222,22 +222,12 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-channel"
-version = "0.4.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b153fe7cbef478c567df0f972e02e6d736db11affe43dfc9c56a9374d1adfb87"
-dependencies = [
- "crossbeam-utils 0.7.2",
- "maybe-uninit",
-]
-
-[[package]]
-name = "crossbeam-channel"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e54ea8bc3fb1ee042f5aace6e3c6e025d3874866da222930f70ce62aceba0bfa"
 dependencies = [
  "cfg-if 1.0.0",
- "crossbeam-utils 0.8.1",
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -248,7 +238,7 @@ checksum = "94af6efb46fef72616855b036a624cf27ba656ffc9be1b9a3c931cfc7749a9a9"
 dependencies = [
  "cfg-if 1.0.0",
  "crossbeam-epoch",
- "crossbeam-utils 0.8.1",
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -259,21 +249,10 @@ checksum = "a1aaa739f95311c2c7887a76863f500026092fb1dce0161dab577e559ef3569d"
 dependencies = [
  "cfg-if 1.0.0",
  "const_fn",
- "crossbeam-utils 0.8.1",
+ "crossbeam-utils",
  "lazy_static",
  "memoffset",
  "scopeguard",
-]
-
-[[package]]
-name = "crossbeam-utils"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3c7c73a2d1e9fc0886a08b93e98eb643461230d5f1925e4036204d5f2e261a8"
-dependencies = [
- "autocfg",
- "cfg-if 0.1.10",
- "lazy_static",
 ]
 
 [[package]]
@@ -476,7 +455,7 @@ dependencies = [
  "byteorder",
  "bytes-cast",
  "clap",
- "crossbeam-channel 0.4.4",
+ "crossbeam-channel",
  "derive_more",
  "flate2",
  "format-bytes",
@@ -488,7 +467,7 @@ dependencies = [
  "libc",
  "log",
  "memmap2",
- "micro-timer 0.3.1",
+ "micro-timer",
  "ouroboros",
  "pretty_assertions",
  "rand 0.8.5",
@@ -508,7 +487,7 @@ name = "hg-cpython"
 version = "0.1.0"
 dependencies = [
  "cpython",
- "crossbeam-channel 0.5.2",
+ "crossbeam-channel",
  "env_logger",
  "hg-core",
  "libc",
@@ -621,12 +600,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "maybe-uninit"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
-
-[[package]]
 name = "memchr"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -634,9 +607,9 @@ checksum = "308cc39be01b73d0d18f82a0e7b2a3df85245f84af96fdddc5d202d27e47b86a"
 
 [[package]]
 name = "memmap2"
-version = "0.4.0"
+version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de5d3112c080d58ce560081baeaab7e1e864ca21795ddbf533d5b1842bb1ecf8"
+checksum = "95af15f345b17af2efc8ead6080fb8bc376f8cec1b35277b935637595fe77498"
 dependencies = [
  "libc",
  "stable_deref_trait",
@@ -653,34 +626,12 @@ dependencies = [
 
 [[package]]
 name = "micro-timer"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2620153e1d903d26b72b89f0e9c48d8c4756cba941c185461dddc234980c298c"
-dependencies = [
- "micro-timer-macros 0.3.1",
- "scopeguard",
-]
-
-[[package]]
-name = "micro-timer"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5de32cb59a062672560d6f0842c4aa7714727457b9fe2daf8987d995a176a405"
 dependencies = [
- "micro-timer-macros 0.4.0",
+ "micro-timer-macros",
  "scopeguard",
-]
-
-[[package]]
-name = "micro-timer-macros"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e28a3473e6abd6e9aab36aaeef32ad22ae0bd34e79f376643594c2b152ec1c5d"
-dependencies = [
- "proc-macro2",
- "quote",
- "scopeguard",
- "syn",
 ]
 
 [[package]]
@@ -973,9 +924,9 @@ version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d78120e2c850279833f1dd3582f730c4ab53ed95aeaaaa862a2a5c71b1656d8e"
 dependencies = [
- "crossbeam-channel 0.5.2",
+ "crossbeam-channel",
  "crossbeam-deque",
- "crossbeam-utils 0.8.1",
+ "crossbeam-utils",
  "lazy_static",
  "num_cpus",
 ]
@@ -1029,7 +980,7 @@ dependencies = [
  "home",
  "lazy_static",
  "log",
- "micro-timer 0.4.0",
+ "micro-timer",
  "regex",
  "users",
  "which",
