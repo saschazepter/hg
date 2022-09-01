@@ -59,7 +59,7 @@ DEBIAN_ACCOUNT_ID_2 = '136693071363'
 UBUNTU_ACCOUNT_ID = '099720109477'
 
 
-WINDOWS_BASE_IMAGE_NAME = 'Windows_Server-2019-English-Full-Base-*'
+WINDOWS_BASE_IMAGE_NAME = 'Windows_Server-2022-English-Full-Base-*'
 
 
 KEY_PAIRS = {
@@ -173,6 +173,23 @@ WINDOWS_USER_DATA = r'''
 # Set administrator password
 net user Administrator "%s"
 wmic useraccount where "name='Administrator'" set PasswordExpires=FALSE
+
+# And set it via EC2Launch so it persists across reboots.
+$config = & $env:ProgramFiles\Amazon\EC2Launch\EC2Launch.exe get-agent-config --format json | ConvertFrom-Json
+$config | ConvertTo-Json -Depth 6 | Out-File -encoding UTF8 $env:ProgramData/Amazon/EC2Launch/config/agent-config.yml
+$setAdminAccount = @"
+{
+  "task": "setAdminAccount",
+  "inputs": {
+    "password": {
+      "type": "static",
+      "data": "%s"
+    }
+  }
+}
+"@
+$config.config | %%{if($_.stage -eq 'preReady'){$_.tasks += (ConvertFrom-Json -InputObject $setAdminAccount)}}
+$config | ConvertTo-Json -Depth 6 | Out-File -encoding UTF8 $env:ProgramData/Amazon/EC2Launch/config/agent-config.yml
 
 # First, make sure WinRM can't be connected to
 netsh advfirewall firewall set rule name="Windows Remote Management (HTTP-In)" new enable=yes action=block
@@ -752,7 +769,7 @@ def create_temp_windows_ec2_instances(
     )
 
     if bootstrap:
-        config['UserData'] = WINDOWS_USER_DATA % password
+        config['UserData'] = WINDOWS_USER_DATA % (password, password)
 
     with temporary_ec2_instances(c.ec2resource, config) as instances:
         wait_for_ip_addresses(instances)
@@ -1173,27 +1190,15 @@ def ensure_windows_dev_ami(
     with INSTALL_WINDOWS_DEPENDENCIES.open('r', encoding='utf-8') as fh:
         commands.extend(l.rstrip() for l in fh)
 
-    # Schedule run of EC2Launch on next boot. This ensures that UserData
-    # is executed.
-    # We disable setComputerName because it forces a reboot.
-    # We set an explicit admin password because this causes UserData to run
-    # as Administrator instead of System.
-    commands.extend(
-        [
-            r'''Set-Content -Path C:\ProgramData\Amazon\EC2-Windows\Launch\Config\LaunchConfig.json '''
-            r'''-Value '{"setComputerName": false, "setWallpaper": true, "addDnsSuffixList": true, '''
-            r'''"extendBootVolumeSize": true, "handleUserData": true, '''
-            r'''"adminPasswordType": "Specify", "adminPassword": "%s"}' '''
-            % c.automation.default_password(),
-            r'C:\ProgramData\Amazon\EC2-Windows\Launch\Scripts\InitializeInstance.ps1 '
-            r'–Schedule',
-        ]
-    )
-
     # Disable Windows Defender when bootstrapping because it just slows
     # things down.
     commands.insert(0, 'Set-MpPreference -DisableRealtimeMonitoring $true')
     commands.append('Set-MpPreference -DisableRealtimeMonitoring $false')
+
+    # Trigger shutdown to prepare for imaging.
+    commands.append(
+        'Stop-Computer -ComputerName localhost',
+    )
 
     # Compute a deterministic fingerprint to determine whether image needs
     # to be regenerated.

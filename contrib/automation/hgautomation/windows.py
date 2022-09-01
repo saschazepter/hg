@@ -45,6 +45,7 @@ Write-Output "updated Mercurial working directory to {revision}"
 '''.lstrip()
 
 BUILD_INNO_PYTHON3 = r'''
+$Env:PATH = "C:\hgdev\venv-bootstrap\Scripts;$Env:PATH"
 $Env:RUSTUP_HOME = "C:\hgdev\rustup"
 $Env:CARGO_HOME = "C:\hgdev\cargo"
 Set-Location C:\hgdev\src
@@ -56,6 +57,7 @@ if ($LASTEXITCODE -ne 0) {{
 
 
 BUILD_WHEEL = r'''
+$Env:PATH = "C:\hgdev\venv-bootstrap\Scripts;$Env:PATH"
 Set-Location C:\hgdev\src
 C:\hgdev\python{python_version}-{arch}\python.exe -m pip wheel --wheel-dir dist .
 if ($LASTEXITCODE -ne 0) {{
@@ -64,6 +66,7 @@ if ($LASTEXITCODE -ne 0) {{
 '''
 
 BUILD_WIX_PYTHON3 = r'''
+$Env:PATH = "C:\hgdev\venv-bootstrap\Scripts;$Env:PATH"
 $Env:RUSTUP_HOME = "C:\hgdev\rustup"
 $Env:CARGO_HOME = "C:\hgdev\cargo"
 Set-Location C:\hgdev\src
