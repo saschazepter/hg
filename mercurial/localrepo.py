@@ -522,12 +522,8 @@ def _readrequires(vfs, allowmissing):
     # the repository. This file was introduced in Mercurial 0.9.2,
     # which means very old repositories may not have one. We assume
     # a missing file translates to no requirements.
-    try:
-        return set(vfs.read(b'requires').splitlines())
-    except FileNotFoundError:
-        if not allowmissing:
-            raise
-        return set()
+    read = vfs.tryread if allowmissing else vfs.read
+    return set(read(b'requires').splitlines())
 
 
 def makelocalrepository(baseui, path, intents=None):
