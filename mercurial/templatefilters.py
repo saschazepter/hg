@@ -390,6 +390,14 @@ def person(author):
     return stringutil.person(author)
 
 
+@templatefilter(b'reverse')
+def reverse(list_):
+    """List. Reverses the order of list items."""
+    if isinstance(list_, list):
+        return templateutil.hybridlist(list_[::-1], name=b'item')
+    raise error.ParseError(_(b'not reversible'))
+
+
 @templatefilter(b'revescape', intype=bytes)
 def revescape(text):
     """Any text. Escapes all "special" characters, except @.
