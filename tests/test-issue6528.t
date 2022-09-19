@@ -177,7 +177,7 @@ It's a tarball because unbundle might magically fix the issue later.
   $ cd ..
   $ mkdir repo-to-fix
   $ cd repo-to-fix
-  $ tar -x < $TESTDIR/bundles/issue6528.tar
+  $ tar -xf - < "$TESTDIR"/bundles/issue6528.tar
 
 Check that the issue is present
 (It is currently not present with rhg but will be when optimizations are added
@@ -278,7 +278,7 @@ Try the using the report options
   $ cd ..
   $ mkdir repo-to-fix-report
   $ cd repo-to-fix
-  $ tar -x < "$TESTDIR"/bundles/issue6528.tar
+  $ tar -xf - < "$TESTDIR"/bundles/issue6528.tar
 
   $ hg debug-repair-issue6528 --to-report $TESTTMP/report.txt
   found affected revision 1 for filelog 'data/D.txt.i'
@@ -365,7 +365,7 @@ Try it with a non-inline revlog
 
   $ mkdir repo-to-fix-not-inline
   $ cd repo-to-fix-not-inline
-  $ tar -x < "$TESTDIR"/bundles/issue6528.tar
+  $ tar -xf - < "$TESTDIR"/bundles/issue6528.tar
   $ echo b >> b.txt
   $ hg commit -qm "inline -> separate"
   $ find .hg -name *b.txt.d
