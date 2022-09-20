@@ -330,8 +330,26 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
 
     let mut config_cow = Cow::Borrowed(config);
     config_cow.to_mut().apply_plain(PlainInfo::from_env());
+    if !ui::plain(Some("tweakdefaults"))
+        && config_cow
+            .as_ref()
+            .get_bool(b"ui", b"tweakdefaults")
+            .unwrap_or_else(|error| {
+                exit(
+                    &argv,
+                    &initial_current_dir,
+                    &Ui::new_infallible(&config),
+                    OnUnsupported::from_config(&config),
+                    Err(error.into()),
+                    config
+                        .get_bool(b"ui", b"detailed-exit-code")
+                        .unwrap_or(false),
+                )
+            })
+    {
+        config_cow.to_mut().tweakdefaults()
+    };
     let config = config_cow.as_ref();
-
     let ui = Ui::new(&config).unwrap_or_else(|error| {
         exit(
             &argv,
