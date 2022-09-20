@@ -59,3 +59,20 @@ clients at the same time
   $ wait
   $ wc -l server/.hg/pull_log.jsonl
   \s*64 .* (re)
+
+
+Test log rotation when reaching some size threshold
+
+  $ cat >> $HGRCPATH << EOF
+  > [pull-logger]
+  > rotate-size = 1kb
+  > EOF
+
+  $ rm -f server/.hg/pull_log.jsonl
+  $ for i in $($TESTDIR/seq.py 10); do
+  >   hg -R client pull --rev 1
+  > done > /dev/null
+  $ wc -l server/.hg/pull_log.jsonl
+  \s*3 .* (re)
+  $ wc -l server/.hg/pull_log.jsonl.rotated
+  \s*7 .* (re)
