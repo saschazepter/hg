@@ -83,10 +83,9 @@ Confirm that logging blocked time catches stdio properly:
 
 Try to confirm that pager wait on logtoprocess:
 
-Add a script that wait on a file to appears for 5 seconds, if it sees it touch
-another file or die after 5 seconds. If the scripts is awaited by hg, the
-script will die after the timeout before we could touch the file and the
-resulting file will not exists. If not, we will touch the file and see it.
+Add a script that waits on a file to appear. If the script is awaited by hg,
+the script will die after the timeout before we could touch the file and the
+resulting file will not exist. If not, we will touch the file and see it.
 
   $ cat >> fakepager.py <<EOF
   > import sys
@@ -100,15 +99,9 @@ resulting file will not exists. If not, we will touch the file and see it.
 
   $ cat > $TESTTMP/wait-output.sh << EOF
   > #!/bin/sh
-  > for i in \`$TESTDIR/seq.py 50\`; do
-  >   if [ -f "$TESTTMP/wait-for-touched" ];
-  >   then
-  >     touch "$TESTTMP/touched";
-  >     break;
-  >   else
-  >     sleep 0.1;
-  >   fi
-  > done
+  > set -eu
+  > "$RUNTESTDIR/testlib/wait-on-file" 10 "$TESTTMP/wait-for-touched"
+  > touch "$TESTTMP/touched"
   > EOF
   $ chmod +x $TESTTMP/wait-output.sh
 
@@ -124,6 +117,6 @@ resulting file will not exists. If not, we will touch the file and see it.
   $ hg version -q --pager=always
   Mercurial Distributed SCM (version *) (glob)
   $ touch $TESTTMP/wait-for-touched
-  $ sleep 0.2
+  $ "$RUNTESTDIR/testlib/wait-on-file" 5 "$TESTTMP/touched"
   $ test -f $TESTTMP/touched && echo "SUCCESS Pager is not waiting on ltp" || echo "FAIL Pager is waiting on ltp"
   SUCCESS Pager is not waiting on ltp
