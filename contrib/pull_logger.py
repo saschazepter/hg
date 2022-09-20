@@ -22,6 +22,11 @@ The record is a JSON-line file located in the repository's VFS at
 Log write failures are not considered fatal: log writes may be skipped for any
 reason such as insufficient storage or a timeout.
 
+Some basic log file rotation can be enabled by setting 'rotate-size' to a value
+greater than 0. This causes the current log file to be moved to
+.hg/pull_log.jsonl.rotated when this threshold is met, discarding any
+previously rotated log file.
+
 The timeouts of the exclusive lock used when writing to the lock file can be
 configured through the 'timeout.lock' and 'timeout.warn' options of this
 plugin. Those are not expected to be held for a significant time in practice.::
@@ -29,8 +34,7 @@ plugin. Those are not expected to be held for a significant time in practice.::
   [pull-logger]
   timeout.lock = 300
   timeout.warn = 100
-
-Note: there is no automatic log rotation and the size of the log is not capped.
+  rotate-size = 1kb
 '''
 
 
@@ -51,12 +55,14 @@ EXT_NAME = b'pull-logger'
 EXT_VERSION_CODE = 0
 
 LOG_FILE = b'pull_log.jsonl'
+OLD_LOG_FILE = LOG_FILE + b'.rotated'
 LOCK_NAME = LOG_FILE + b'.lock'
 
 configtable = {}
 configitem = registrar.configitem(configtable)
 configitem(EXT_NAME, b'timeout.lock', default=600)
 configitem(EXT_NAME, b'timeout.warn', default=120)
+configitem(EXT_NAME, b'rotate-size', default=b'100MB')
 
 
 def wrap_getbundle(orig, repo, proto, others, *args, **kwargs):
@@ -92,6 +98,7 @@ def extract_pull_heads(bundle_args):
 def write_to_log(repo, entry):
     locktimeout = repo.ui.configint(EXT_NAME, b'timeout.lock')
     lockwarntimeout = repo.ui.configint(EXT_NAME, b'timeout.warn')
+    rotatesize = repo.ui.configbytes(EXT_NAME, b'rotate-size')
 
     with lock.trylock(
         ui=repo.ui,
@@ -100,6 +107,10 @@ def write_to_log(repo, entry):
         timeout=locktimeout,
         warntimeout=lockwarntimeout,
     ):
+        if rotatesize > 0 and repo.vfs.exists(LOG_FILE):
+            if repo.vfs.stat(LOG_FILE).st_size >= rotatesize:
+                repo.vfs.rename(LOG_FILE, OLD_LOG_FILE)
+
         with repo.vfs.open(LOG_FILE, b'a+') as logfile:
             serialised = json.dumps(entry, sort_keys=True)
             logfile.write(serialised.encode('utf-8'))
@@ -110,6 +121,7 @@ def write_to_log(repo, entry):
 def reposetup(ui, repo):
     if repo.local():
         repo._wlockfreeprefix.add(LOG_FILE)
+        repo._wlockfreeprefix.add(OLD_LOG_FILE)
 
 
 def uisetup(ui):
