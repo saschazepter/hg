@@ -185,11 +185,6 @@ fn has_unfinished_state(repo: &Repo) -> Result<bool, CommandError> {
 
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     // TODO: lift these limitations
-    if invocation.config.get_bool(b"ui", b"tweakdefaults")? {
-        return Err(CommandError::unsupported(
-            "ui.tweakdefaults is not yet supported with rhg status",
-        ));
-    }
     if invocation.config.get_bool(b"ui", b"statuscopies")? {
         return Err(CommandError::unsupported(
             "ui.statuscopies is not yet supported with rhg status",
