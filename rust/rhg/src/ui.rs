@@ -127,26 +127,22 @@ impl Ui {
         }
         stdout.flush()
     }
-
-    /// Return whether plain mode is active.
-    ///
-    /// Plain mode means that all configuration variables which affect
-    /// the behavior and output of Mercurial should be
-    /// ignored. Additionally, the output should be stable,
-    /// reproducible and suitable for use in scripts or applications.
-    ///
-    /// The only way to trigger plain mode is by setting either the
-    /// `HGPLAIN' or `HGPLAINEXCEPT' environment variables.
-    ///
-    /// The return value can either be
-    /// - False if HGPLAIN is not set, or feature is in HGPLAINEXCEPT
-    /// - False if feature is disabled by default and not included in HGPLAIN
-    /// - True otherwise
-    pub fn plain(&self, feature: Option<&str>) -> bool {
-        plain(feature)
-    }
 }
 
+/// Return whether plain mode is active.
+///
+/// Plain mode means that all configuration variables which affect
+/// the behavior and output of Mercurial should be
+/// ignored. Additionally, the output should be stable,
+/// reproducible and suitable for use in scripts or applications.
+///
+/// The only way to trigger plain mode is by setting either the
+/// `HGPLAIN' or `HGPLAINEXCEPT' environment variables.
+///
+/// The return value can either be
+/// - False if HGPLAIN is not set, or feature is in HGPLAINEXCEPT
+/// - False if feature is disabled by default and not included in HGPLAIN
+/// - True otherwise
 pub fn plain(opt_feature: Option<&str>) -> bool {
     if let Some(except) = env::var_os("HGPLAINEXCEPT") {
         opt_feature.map_or(true, |feature| {

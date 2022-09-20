@@ -6,11 +6,12 @@ use clap::AppSettings;
 use clap::Arg;
 use clap::ArgMatches;
 use format_bytes::{format_bytes, join};
-use hg::config::{Config, ConfigSource};
+use hg::config::{Config, ConfigSource, PlainInfo};
 use hg::repo::{Repo, RepoError};
 use hg::utils::files::{get_bytes_from_os_str, get_path_from_bytes};
 use hg::utils::SliceExt;
 use hg::{exit_codes, requirements};
+use std::borrow::Cow;
 use std::collections::HashSet;
 use std::ffi::OsString;
 use std::os::unix::prelude::CommandExt;
@@ -326,6 +327,18 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
     } else {
         &non_repo_config
     };
+
+    let mut config_cow = Cow::Borrowed(config);
+    if ui::plain(None) {
+        config_cow.to_mut().apply_plain(PlainInfo {
+            plain: true,
+            plainalias: ui::plain(Some("alias")),
+            plainrevsetalias: ui::plain(Some("revsetalias")),
+            plaintemplatealias: ui::plain(Some("templatealias")),
+        })
+    };
+    let config = config_cow.as_ref();
+
     let ui = Ui::new(&config).unwrap_or_else(|error| {
         exit(
             &argv,
