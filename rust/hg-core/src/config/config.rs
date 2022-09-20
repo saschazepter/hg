@@ -463,11 +463,21 @@ impl Config {
     ) -> Option<(&ConfigLayer, &ConfigValue)> {
         // Filter out the config items that are hidden by [PLAIN].
         // This differs from python hg where we delete them from the config.
-        if should_ignore(&self.plain, &section, &item) {
-            return None;
-        }
+        let should_ignore = should_ignore(&self.plain, &section, &item);
         for layer in self.layers.iter().rev() {
             if !layer.trusted {
+                continue;
+            }
+            //The [PLAIN] config should not affect the defaults.
+            //
+            // However, PLAIN should also affect the "tweaked" defaults (unless
+            // "tweakdefault" is part of "HGPLAINEXCEPT").
+            //
+            // In practice the tweak-default layer is only added when it is
+            // relevant, so we can safely always take it into
+            // account here.
+            if should_ignore && !(layer.origin == ConfigOrigin::Tweakdefaults)
+            {
                 continue;
             }
             if let Some(v) = layer.get(&section, &item) {
@@ -556,6 +566,38 @@ impl Config {
             }
         }
         res
+    }
+
+    // a config layer that's introduced by ui.tweakdefaults
+    fn tweakdefaults_layer() -> ConfigLayer {
+        let mut layer = ConfigLayer::new(ConfigOrigin::Tweakdefaults);
+
+        let mut add = |section: &[u8], item: &[u8], value: &[u8]| {
+            layer.add(
+                section[..].into(),
+                item[..].into(),
+                value[..].into(),
+                None,
+            );
+        };
+        // duplication of [tweakrc] from [ui.py]
+        add(b"ui", b"rollback", b"False");
+        add(b"ui", b"statuscopies", b"yes");
+        add(b"ui", b"interface", b"curses");
+        add(b"ui", b"relative-paths", b"yes");
+        add(b"commands", b"grep.all-files", b"True");
+        add(b"commands", b"update.check", b"noconflict");
+        add(b"commands", b"status.verbose", b"True");
+        add(b"commands", b"resolve.explicit-re-merge", b"True");
+        add(b"git", b"git", b"1");
+        add(b"git", b"showfunc", b"1");
+        add(b"git", b"word-diff", b"1");
+        return layer;
+    }
+
+    // introduce the tweaked defaults as implied by ui.tweakdefaults
+    pub fn tweakdefaults<'a>(&mut self) -> () {
+        self.layers.insert(0, Config::tweakdefaults_layer());
     }
 }
 

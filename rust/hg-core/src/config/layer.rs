@@ -300,6 +300,8 @@ pub struct ConfigValue {
 pub enum ConfigOrigin {
     /// From a configuration file
     File(PathBuf),
+    /// From [ui.tweakdefaults]
+    Tweakdefaults,
     /// From a `--config` CLI argument
     CommandLine,
     /// From a `--color` CLI argument
@@ -322,6 +324,9 @@ impl DisplayBytes for ConfigOrigin {
             ConfigOrigin::CommandLine => out.write_all(b"--config"),
             ConfigOrigin::CommandLineColor => out.write_all(b"--color"),
             ConfigOrigin::Environment(e) => write_bytes!(out, b"${}", e),
+            ConfigOrigin::Tweakdefaults => {
+                write_bytes!(out, b"ui.tweakdefaults")
+            }
         }
     }
 }
