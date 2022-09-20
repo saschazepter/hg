@@ -22,11 +22,20 @@ use std::str;
 
 use crate::errors::{HgResultExt, IoResultExt};
 
+#[derive(Clone)]
+pub struct PlainInfo {
+    pub plain: bool,
+    pub plainalias: bool,
+    pub plainrevsetalias: bool,
+    pub plaintemplatealias: bool,
+}
+
 /// Holds the config values for the current repository
 /// TODO update this docstring once we support more sources
 #[derive(Clone)]
 pub struct Config {
     layers: Vec<layer::ConfigLayer>,
+    plain: PlainInfo,
 }
 
 impl DisplayBytes for Config {
@@ -83,17 +92,65 @@ impl fmt::Display for ConfigValueParseError {
     }
 }
 
+fn should_ignore(plain: &PlainInfo, section: &[u8], item: &[u8]) -> bool {
+    // duplication with [_applyconfig] in [ui.py],
+    if !plain.plain {
+        return false;
+    }
+    if section == b"alias" {
+        return plain.plainalias;
+    }
+    if section == b"revsetalias" {
+        return plain.plainrevsetalias;
+    }
+    if section == b"templatealias" {
+        return plain.plaintemplatealias;
+    }
+
+    if section == b"ui" {
+        let to_delete: &[&[u8]] = &[
+            b"debug",
+            b"fallbackencoding",
+            b"quiet",
+            b"slash",
+            b"logtemplate",
+            b"message-output",
+            b"statuscopies",
+            b"style",
+            b"traceback",
+            b"verbose",
+        ];
+        return to_delete.contains(&item);
+    }
+    let sections_to_delete: &[&[u8]] =
+        &[b"defaults", b"commands", b"command-templates"];
+    return sections_to_delete.contains(&section);
+}
+
+impl PlainInfo {
+    pub fn empty() -> Self {
+        Self {
+            plain: false,
+            plainalias: false,
+            plainrevsetalias: false,
+            plaintemplatealias: false,
+        }
+    }
+}
 impl Config {
     /// The configuration to use when printing configuration-loading errors
     pub fn empty() -> Self {
-        Self { layers: Vec::new() }
+        Self {
+            layers: Vec::new(),
+            plain: PlainInfo::empty(),
+        }
     }
 
     /// Load system and user configuration from various files.
     ///
     /// This is also affected by some environment variables.
     pub fn load_non_repo() -> Result<Self, ConfigError> {
-        let mut config = Self { layers: Vec::new() };
+        let mut config = Self::empty();
         let opt_rc_path = env::var_os("HGRCPATH");
         // HGRCPATH replaces system config
         if opt_rc_path.is_none() {
@@ -266,7 +323,10 @@ impl Config {
             }
         }
 
-        Ok(Config { layers })
+        Ok(Config {
+            layers,
+            plain: PlainInfo::empty(),
+        })
     }
 
     /// Loads the per-repository config into a new `Config` which is combined
@@ -283,6 +343,7 @@ impl Config {
 
         let mut repo_config = Self {
             layers: other_layers,
+            plain: PlainInfo::empty(),
         };
         for path in repo_config_files {
             // TODO: check if this file should be trusted:
@@ -291,6 +352,10 @@ impl Config {
         }
         repo_config.layers.extend(cli_layers);
         Ok(repo_config)
+    }
+
+    pub fn apply_plain(&mut self, plain: PlainInfo) {
+        self.plain = plain;
     }
 
     fn get_parse<'config, T: 'config>(
@@ -413,6 +478,9 @@ impl Config {
         section: &[u8],
         item: &[u8],
     ) -> Option<(&ConfigLayer, &ConfigValue)> {
+        if should_ignore(&self.plain, &section, &item) {
+            return None;
+        }
         for layer in self.layers.iter().rev() {
             if !layer.trusted {
                 continue;
