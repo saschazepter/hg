@@ -3444,6 +3444,7 @@ class TestRunner:
             if self.options.list_tests:
                 result = runner.listtests(suite)
             else:
+                install_start_time = time.monotonic()
                 self._usecorrectpython()
                 if self._installdir:
                     self._installhg()
@@ -3457,6 +3458,11 @@ class TestRunner:
                 elif self.options.pyoxidized:
                     self._build_pyoxidized()
                 self._use_correct_mercurial()
+                install_end_time = time.monotonic()
+                if self._installdir:
+                    msg = 'installed Mercurial in %.2f seconds'
+                    msg %= install_end_time - install_start_time
+                    log(msg)
 
                 log(
                     'running %d tests using %d parallel processes'
