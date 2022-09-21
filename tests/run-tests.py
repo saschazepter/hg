@@ -447,6 +447,18 @@ def getparser():
         help="skip tests listed in the specified blacklist file",
     )
     selection.add_argument(
+        "--shard-total",
+        type=int,
+        default=None,
+        help="total number of shard to use (enable sharding)",
+    )
+    selection.add_argument(
+        "--shard-index",
+        type=int,
+        default=None,
+        help="index of this shard [1-N]",
+    )
+    selection.add_argument(
         "--changed",
         help="run tests that are changed in parent rev or working directory",
     )
@@ -884,6 +896,32 @@ def parseargs(args, parser):
 
     if options.showchannels:
         options.nodiff = True
+
+    if options.shard_total is not None:
+        if options.shard_index is None:
+            parser.error("--shard-total requires --shard-index to be set")
+
+    if options.shard_index is not None:
+        if options.shard_total is None:
+            parser.error("--shard-index requires --shard-total to be set")
+        elif options.shard_index <= 0:
+            msg = "--shard-index must be > 0 (%d)"
+            msg %= options.shard_index
+            parser.error(msg)
+        elif options.shard_index > options.shard_total:
+            msg = (
+                "--shard-index must be <= than --shard-total (%d not in [1,%d])"
+            )
+            msg %= (options.shard_index, options.shard_total)
+            parser.error(msg)
+
+    if options.shard_total is not None and options.order_by_runtime:
+        msg = "cannot use --order-by-runtime when sharding"
+        parser.error(msg)
+
+    if options.shard_total is not None and options.random:
+        msg = "cannot use --random when sharding"
+        parser.error(msg)
 
     return options
 
@@ -3157,7 +3195,11 @@ class TestRunner:
                 import statprof
 
                 statprof.start()
-            result = self._run(testdescs)
+            result = self._run(
+                testdescs,
+                shard_index=options.shard_index,
+                shard_total=options.shard_total,
+            )
             if options.profile_runner:
                 statprof.stop()
                 statprof.display()
@@ -3166,7 +3208,7 @@ class TestRunner:
         finally:
             os.umask(oldmask)
 
-    def _run(self, testdescs):
+    def _run(self, testdescs, shard_index=None, shard_total=None):
         testdir = getcwdb()
         # assume all tests in same folder for now
         if testdescs:
@@ -3453,6 +3495,14 @@ class TestRunner:
             _bytes2sys(osenvironb[IMPL_PATH]),
         )
         vlog("# Writing to directory", _bytes2sys(self._outputdir))
+
+        if shard_total is not None:
+            slot = shard_index - 1
+            testdescs = [
+                t
+                for (idx, t) in enumerate(testdescs)
+                if (idx % shard_total == slot)
+            ]
 
         try:
             return self._runtests(testdescs) or 0

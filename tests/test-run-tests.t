@@ -2087,3 +2087,111 @@ Test that a proper "python" has been set up
   3.* (glob)
   $ ./test-py.py
   3.* (glob)
+
+Test sharding
+=============
+
+  $ rt --shard-index 1
+  usage: run-tests.py [options] [tests]
+  run-tests.py: error: --shard-index requires --shard-total to be set
+  [2]
+  $ rt --shard-total 15
+  usage: run-tests.py [options] [tests]
+  run-tests.py: error: --shard-total requires --shard-index to be set
+  [2]
+  $ rt --shard-index -2 --shard-total 15
+  usage: run-tests.py [options] [tests]
+  run-tests.py: error: --shard-index must be > 0 (-2)
+  [2]
+  $ rt --shard-index 10 --shard-total 5
+  usage: run-tests.py [options] [tests]
+  run-tests.py: error: --shard-index must be <= than --shard-total (10 not in [1,5])
+  [2]
+  $ rt --shard-index 1 --shard-total 5
+  running 3 tests using 1 parallel processes 
+  s
+  --- $TESTTMP/anothertests/cases/test-conditional-matching.t
+  +++ $TESTTMP/anothertests/cases/test-conditional-matching.t#foo.err
+  @@ -3,11 +3,14 @@
+     richtig \(true !\) (re)
+     $ echo falsch
+     falsch \(false !\) (re)
+  +  falsch
+   #if foo
+     $ echo arthur
+     arthur \(bar !\) (re)
+  +  arthur
+   #endif
+     $ echo celeste
+     celeste \(foo !\) (re)
+     $ echo zephir
+     zephir \(bar !\) (re)
+  +  zephir
+  
+  ERROR: test-conditional-matching.t#foo output changed
+  !
+  --- $TESTTMP/anothertests/cases/test-cases-advanced-cases.t
+  +++ $TESTTMP/anothertests/cases/test-cases-advanced-cases.t#case-with-dashes.err
+  @@ -1,3 +1,3 @@
+   #testcases simple case-with-dashes casewith_-.chars
+     $ echo $TESTCASE
+  -  simple
+  +  case-with-dashes
+  
+  ERROR: test-cases-advanced-cases.t#case-with-dashes output changed
+  !
+  Skipped test-cases-abc.t: Doesn't exist
+  Failed test-cases-advanced-cases.t#case-with-dashes: output changed
+  Failed test-conditional-matching.t#foo: output changed
+  # Ran 2 tests, 1 skipped, 2 failed.
+  python hash seed: * (glob)
+  [1]
+  $ rt --shard-index 6 --shard-total 5
+  usage: run-tests.py [options] [tests]
+  run-tests.py: error: --shard-index must be <= than --shard-total (6 not in [1,5])
+  [2]
+  $ rt --shard-index 5 --shard-total 5
+  running 3 tests using 1 parallel processes 
+  
+  --- $TESTTMP/anothertests/cases/test-conditional-matching.t
+  +++ $TESTTMP/anothertests/cases/test-conditional-matching.t#bar.err
+  @@ -3,11 +3,13 @@
+     richtig \(true !\) (re)
+     $ echo falsch
+     falsch \(false !\) (re)
+  +  falsch
+   #if foo
+     $ echo arthur
+     arthur \(bar !\) (re)
+   #endif
+     $ echo celeste
+     celeste \(foo !\) (re)
+  +  celeste
+     $ echo zephir
+     zephir \(bar !\) (re)
+  
+  ERROR: test-conditional-matching.t#bar output changed
+  !
+  --- $TESTTMP/anothertests/cases/test-substitution.t
+  +++ $TESTTMP/anothertests/cases/test-substitution.t.err
+  @@ -7,3 +7,4 @@
+     $ echo lastbar
+     last$YYY$
+     $ echo foo-bar foo-baz
+  +  $XXX=bar foo-baz$
+  
+  ERROR: test-substitution.t output changed
+  !
+  --- $TESTTMP/anothertests/cases/test-py.py.out
+  +++ $TESTTMP/anothertests/cases/test-py.py.err
+  @@ -0,0 +1* @@ (glob)
+  +3.* (glob)
+  
+  ERROR: test-py.py output changed
+  !
+  Failed test-conditional-matching.t#bar: output changed
+  Failed test-py.py: output changed
+  Failed test-substitution.t: output changed
+  # Ran 3 tests, 0 skipped, 3 failed.
+  python hash seed: * (glob)
+  [1]
