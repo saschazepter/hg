@@ -6980,11 +6980,13 @@ def status(ui, repo, *pats, **opts):
     )
 
     copy = {}
-    if (
-        opts.get(b'all')
-        or opts.get(b'copies')
-        or ui.configbool(b'ui', b'statuscopies')
-    ) and not opts.get(b'no_status'):
+    show_copies = ui.configbool(b'ui', b'statuscopies')
+    if opts.get(b'copies') is not None:
+        show_copies = opts.get(b'copies')
+    show_copies = (show_copies or opts.get(b'all')) and not opts.get(
+        b'no_status'
+    )
+    if show_copies:
         copy = copies.pathcopies(ctx1, ctx2, m)
 
     morestatus = None
