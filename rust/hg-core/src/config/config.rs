@@ -12,6 +12,7 @@ use super::values;
 use crate::config::layer::{
     ConfigError, ConfigLayer, ConfigOrigin, ConfigValue,
 };
+use crate::config::plain_info::PlainInfo;
 use crate::utils::files::get_bytes_from_os_str;
 use format_bytes::{write_bytes, DisplayBytes};
 use std::collections::HashSet;
@@ -21,14 +22,6 @@ use std::path::{Path, PathBuf};
 use std::str;
 
 use crate::errors::{HgResultExt, IoResultExt};
-
-#[derive(Clone)]
-pub struct PlainInfo {
-    pub plain: bool,
-    pub plainalias: bool,
-    pub plainrevsetalias: bool,
-    pub plaintemplatealias: bool,
-}
 
 /// Holds the config values for the current repository
 /// TODO update this docstring once we support more sources
@@ -92,21 +85,21 @@ impl fmt::Display for ConfigValueParseError {
     }
 }
 
+/// Returns true if the config item is disabled by PLAIN or PLAINEXCEPT
 fn should_ignore(plain: &PlainInfo, section: &[u8], item: &[u8]) -> bool {
     // duplication with [_applyconfig] in [ui.py],
-    if !plain.plain {
+    if !plain.is_plain() {
         return false;
     }
     if section == b"alias" {
-        return plain.plainalias;
+        return plain.plainalias();
     }
     if section == b"revsetalias" {
-        return plain.plainrevsetalias;
+        return plain.plainrevsetalias();
     }
     if section == b"templatealias" {
-        return plain.plaintemplatealias;
+        return plain.plaintemplatealias();
     }
-
     if section == b"ui" {
         let to_delete: &[&[u8]] = &[
             b"debug",
@@ -127,16 +120,6 @@ fn should_ignore(plain: &PlainInfo, section: &[u8], item: &[u8]) -> bool {
     return sections_to_delete.contains(&section);
 }
 
-impl PlainInfo {
-    pub fn empty() -> Self {
-        Self {
-            plain: false,
-            plainalias: false,
-            plainrevsetalias: false,
-            plaintemplatealias: false,
-        }
-    }
-}
 impl Config {
     /// The configuration to use when printing configuration-loading errors
     pub fn empty() -> Self {
@@ -478,6 +461,8 @@ impl Config {
         section: &[u8],
         item: &[u8],
     ) -> Option<(&ConfigLayer, &ConfigValue)> {
+        // Filter out the config items that are hidden by [PLAIN].
+        // This differs from python hg where we delete them from the config.
         if should_ignore(&self.plain, &section, &item) {
             return None;
         }
