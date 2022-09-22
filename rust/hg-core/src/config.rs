@@ -11,6 +11,8 @@
 
 mod config;
 mod layer;
+mod plain_info;
 mod values;
-pub use config::{Config, ConfigSource, ConfigValueParseError, PlainInfo};
+pub use config::{Config, ConfigSource, ConfigValueParseError};
 pub use layer::{ConfigError, ConfigOrigin, ConfigParseError};
+pub use plain_info::PlainInfo;

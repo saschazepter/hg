@@ -329,14 +329,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
     };
 
     let mut config_cow = Cow::Borrowed(config);
-    if ui::plain(None) {
-        config_cow.to_mut().apply_plain(PlainInfo {
-            plain: true,
-            plainalias: ui::plain(Some("alias")),
-            plainrevsetalias: ui::plain(Some("revsetalias")),
-            plaintemplatealias: ui::plain(Some("templatealias")),
-        })
-    };
+    config_cow.to_mut().apply_plain(PlainInfo::from_env());
     let config = config_cow.as_ref();
 
     let ui = Ui::new(&config).unwrap_or_else(|error| {
