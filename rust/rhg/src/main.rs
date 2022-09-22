@@ -301,6 +301,24 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
         }
     };
 
+    let exit =
+        |ui: &Ui, config: &Config, result: Result<(), CommandError>| -> ! {
+            exit(
+                &argv,
+                &initial_current_dir,
+                ui,
+                OnUnsupported::from_config(config),
+                result,
+                // TODO: show a warning or combine with original error if
+                // `get_bool` returns an error
+                non_repo_config
+                    .get_bool(b"ui", b"detailed-exit-code")
+                    .unwrap_or(false),
+            )
+        };
+    let early_exit = |config: &Config, error: CommandError| -> ! {
+        exit(&Ui::new_infallible(config), &config, Err(error))
+    };
     let repo_result = match Repo::find(&non_repo_config, repo_path.to_owned())
     {
         Ok(repo) => Ok(repo),
@@ -308,18 +326,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
             // Not finding a repo is not fatal yet, if `-R` was not given
             Err(NoRepoInCwdError { cwd: at })
         }
-        Err(error) => exit(
-            &argv,
-            &initial_current_dir,
-            &Ui::new_infallible(&non_repo_config),
-            OnUnsupported::from_config(&non_repo_config),
-            Err(error.into()),
-            // TODO: show a warning or combine with original error if
-            // `get_bool` returns an error
-            non_repo_config
-                .get_bool(b"ui", b"detailed-exit-code")
-                .unwrap_or(false),
-        ),
+        Err(error) => early_exit(&non_repo_config, error.into()),
     };
 
     let config = if let Ok(repo) = &repo_result {
@@ -334,36 +341,13 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
         && config_cow
             .as_ref()
             .get_bool(b"ui", b"tweakdefaults")
-            .unwrap_or_else(|error| {
-                exit(
-                    &argv,
-                    &initial_current_dir,
-                    &Ui::new_infallible(&config),
-                    OnUnsupported::from_config(&config),
-                    Err(error.into()),
-                    config
-                        .get_bool(b"ui", b"detailed-exit-code")
-                        .unwrap_or(false),
-                )
-            })
+            .unwrap_or_else(|error| early_exit(&config, error.into()))
     {
         config_cow.to_mut().tweakdefaults()
     };
     let config = config_cow.as_ref();
-    let ui = Ui::new(&config).unwrap_or_else(|error| {
-        exit(
-            &argv,
-            &initial_current_dir,
-            &Ui::new_infallible(&config),
-            OnUnsupported::from_config(&config),
-            Err(error.into()),
-            config
-                .get_bool(b"ui", b"detailed-exit-code")
-                .unwrap_or(false),
-        )
-    });
-    let on_unsupported = OnUnsupported::from_config(config);
-
+    let ui = Ui::new(&config)
+        .unwrap_or_else(|error| early_exit(&config, error.into()));
     let result = main_with_result(
         argv.iter().map(|s| s.to_owned()).collect(),
         &process_start_time,
@@ -371,18 +355,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
         repo_result.as_ref(),
         config,
     );
-    exit(
-        &argv,
-        &initial_current_dir,
-        &ui,
-        on_unsupported,
-        result,
-        // TODO: show a warning or combine with original error if `get_bool`
-        // returns an error
-        config
-            .get_bool(b"ui", b"detailed-exit-code")
-            .unwrap_or(false),
-    )
+    exit(&ui, &config, result)
 }
 
 fn main() -> ! {
