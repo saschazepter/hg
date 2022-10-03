@@ -2342,9 +2342,14 @@ def roots(repo, subset, x):
     parents = repo.changelog.parentrevs
 
     def filter(r):
-        for p in parents(r):
-            if 0 <= p and p in s:
-                return False
+        try:
+            for p in parents(r):
+                if 0 <= p and p in s:
+                    return False
+        except error.WdirUnsupported:
+            for p in repo[None].parents():
+                if p.rev() in s:
+                    return False
         return True
 
     return subset & s.filter(filter, condrepr=b'<roots>')
