@@ -1481,6 +1481,13 @@ prepare repository that has "default" branches of multiple roots
   $ hg init namedbranch
   $ cd namedbranch
 
+  $ log 'roots(.)'
+  -1
+  $ log 'roots(. or wdir())'
+  -1
+  $ log 'roots(wdir())'
+  2147483647
+
   $ echo default0 >> a
   $ hg ci -Aqm0
   $ echo default1 >> a
@@ -1497,6 +1504,11 @@ prepare repository that has "default" branches of multiple roots
   $ hg ci -Aqm4
   $ echo default5 >> a
   $ hg ci -m5
+
+  $ log 'roots(. or wdir())'
+  5
+  $ log 'roots(wdir())'
+  2147483647
 
 "null" revision belongs to "default" branch (issue4683)
 
