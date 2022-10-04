@@ -1,3 +1,26 @@
+= Mercurial 6.2.2 =
+
+ * fsmonitor: restore functionality by moving to new dirstate APIs
+ * dirstate-v2: fix data file transaction handling (issue6730)
+ * rust: fix behavior when matching files with multiple includes 
+ * rust: widen range of compatible crates to help with packaging
+ * rust-status: ignored directories are now correctly only listed if opted into
+ * automation: improve Windows packaging tooling
+ * contrib: update Mercurial install in bootstrap environment
+ * Remove flakiness in some tests
+ * Improve portability of certain `tar` uses in tests
+
+= Mercurial 6.2.1 =
+
+ * Fix SSL support in Python 3.6
+ * git: make sure to fsdecode bookmark names everywhere (issue6723)
+ * git: add a missing reset_copy keyword argument to dirstate.set_tracked()
+ * git: copy findmissingrevs() from revlog.py to gitlog.py (issue6472)
+ * packaging: update keyring on Windows to avoid spurious stacktraces
+ * packaging: bump dulwich to 0.20.45
+ * Fix typos in documentation for debugdiscovery
+ * Miscellaneous improvements of debugdiscovery 
+
 = Mercurial 6.2rc0 =
 
 '''This is the first release to support Python 3.6+ ''only'''''
