@@ -73,7 +73,7 @@ This is what we did to produce the repo in test-revlog-diff-relative-to-nullrev.
 - hg commit -Am_
 - remove some cache files
 
-  $ tar -x < "$TESTDIR"/bundles/test-revlog-diff-relative-to-nullrev.tar
+  $ tar -xf - < "$TESTDIR"/bundles/test-revlog-diff-relative-to-nullrev.tar
   $ cd nullrev-diff
   $ hg debugdeltachain a
       rev      p1      p2  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio   readsize largestblk rddensity srchunks
