@@ -84,6 +84,7 @@ const SUPPORTED: &[&str] = &[
     RELATIVE_SHARED_REQUIREMENT,
     REVLOG_COMPRESSION_ZSTD,
     DIRSTATE_V2_REQUIREMENT,
+    DIRSTATE_TRACKED_HINT_V1,
     // As of this writing everything rhg does is read-only.
     // When it starts writing to the repository, it’ll need to either keep the
     // persistent nodemap up to date or remove this entry:
