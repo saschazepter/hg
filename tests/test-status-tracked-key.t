@@ -227,6 +227,11 @@ upgrade it to dirstate-tracked-hint automatically
   $ hg debugformat -R auto-upgrade | grep tracked
   tracked-hint:       yes
 
+rhg supports this feature
+
+  $ hg status -R auto-upgrade \
+  > --config format.use-dirstate-tracked-hint=yes --config rhg.on-unsupported=abort
+
 downgrade it from dirstate-tracked-hint automatically
 
   $ hg status -R auto-upgrade \

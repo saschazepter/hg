@@ -749,7 +749,7 @@ const AUTO_UPGRADES: &[((&str, &str), (&str, &str), &str)] = &[
         requirements::DIRSTATE_TRACKED_HINT_V1,
     ),
     (
-        ("use-dirstate-v2", "automatic-upgrade-of-mismatching-repositories"),
+        ("format", "use-dirstate-v2.automatic-upgrade-of-mismatching-repositories"),
         ("format", "use-dirstate-v2"),
         requirements::DIRSTATE_V2_REQUIREMENT,
     ),
