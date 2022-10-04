@@ -2474,10 +2474,20 @@ def sort(repo, subset, x, order):
         return revs
     elif keyflags[0][0] == b"topo":
         firstbranch = ()
+        parentrevs = repo.changelog.parentrevs
+        parentsfunc = parentrevs
+        if wdirrev in revs:
+
+            def parentsfunc(r):
+                try:
+                    return parentrevs(r)
+                except error.WdirUnsupported:
+                    return [p.rev() for p in repo[None].parents()]
+
         if b'topo.firstbranch' in opts:
             firstbranch = getset(repo, subset, opts[b'topo.firstbranch'])
         revs = baseset(
-            dagop.toposort(revs, repo.changelog.parentrevs, firstbranch),
+            dagop.toposort(revs, parentsfunc, firstbranch),
             istopo=True,
         )
         if keyflags[0][1]:
