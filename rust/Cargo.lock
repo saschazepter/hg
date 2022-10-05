@@ -981,6 +981,7 @@ dependencies = [
  "lazy_static",
  "log",
  "micro-timer",
+ "rayon",
  "regex",
  "users",
  "which",

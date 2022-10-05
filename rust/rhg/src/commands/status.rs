@@ -29,6 +29,7 @@ use hg::StatusError;
 use hg::StatusOptions;
 use hg::{self, narrow, sparse};
 use log::info;
+use rayon::prelude::*;
 use std::io;
 use std::path::PathBuf;
 
@@ -291,16 +292,31 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             let manifest = repo.manifest_for_node(p1).map_err(|e| {
                 CommandError::from((e, &*format!("{:x}", p1.short())))
             })?;
-            for to_check in ds_status.unsure {
-                if unsure_is_modified(repo, &manifest, &to_check.path)? {
+            let working_directory_vfs = repo.working_directory_vfs();
+            let store_vfs = repo.store_vfs();
+            let res: Vec<_> = ds_status
+                .unsure
+                .into_par_iter()
+                .map(|to_check| {
+                    unsure_is_modified(
+                        working_directory_vfs,
+                        store_vfs,
+                        &manifest,
+                        &to_check.path,
+                    )
+                    .map(|modified| (to_check, modified))
+                })
+                .collect::<Result<_, _>>()?;
+            for (status_path, is_modified) in res.into_iter() {
+                if is_modified {
                     if display_states.modified {
-                        ds_status.modified.push(to_check);
+                        ds_status.modified.push(status_path);
                     }
                 } else {
                     if display_states.clean {
-                        ds_status.clean.push(to_check.clone());
+                        ds_status.clean.push(status_path.clone());
                     }
-                    fixup.push(to_check.path.into_owned())
+                    fixup.push(status_path.path.into_owned())
                 }
             }
         }
@@ -525,11 +541,12 @@ impl DisplayStatusPaths<'_> {
 /// This meant to be used for those that the dirstate cannot resolve, due
 /// to time resolution limits.
 fn unsure_is_modified(
-    repo: &Repo,
+    working_directory_vfs: hg::vfs::Vfs,
+    store_vfs: hg::vfs::Vfs,
     manifest: &Manifest,
     hg_path: &HgPath,
 ) -> Result<bool, HgError> {
-    let vfs = repo.working_directory_vfs();
+    let vfs = working_directory_vfs;
     let fs_path = hg_path_to_path_buf(hg_path).expect("HgPath conversion");
     let fs_metadata = vfs.symlink_metadata(&fs_path)?;
     let is_symlink = fs_metadata.file_type().is_symlink();
@@ -549,7 +566,7 @@ fn unsure_is_modified(
     if entry.flags != fs_flags {
         return Ok(true);
     }
-    let filelog = repo.filelog(hg_path)?;
+    let filelog = hg::filelog::Filelog::open_vfs(&store_vfs, hg_path)?;
     let fs_len = fs_metadata.len();
     let file_node = entry.node_id()?;
     let filelog_entry = filelog.entry_for_node(file_node).map_err(|_| {
