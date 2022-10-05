@@ -97,7 +97,7 @@ pub(crate) fn parse_config(
         Includes,
         Excludes,
         None,
-    };
+    }
 
     let mut current = Current::None;
     let mut in_section = false;
