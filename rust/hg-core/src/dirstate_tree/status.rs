@@ -20,6 +20,7 @@ use crate::PatternFileWarning;
 use crate::StatusError;
 use crate::StatusOptions;
 use micro_timer::timed;
+use once_cell::sync::OnceCell;
 use rayon::prelude::*;
 use sha1::{Digest, Sha1};
 use std::borrow::Cow;
@@ -126,14 +127,14 @@ pub fn status<'dirstate>(
     };
     let is_at_repo_root = true;
     let hg_path = &BorrowedPath::OnDisk(HgPath::new(""));
-    let has_ignored_ancestor = false;
+    let has_ignored_ancestor = HasIgnoredAncestor::create(None, hg_path);
     let root_cached_mtime = None;
     let root_dir_metadata = None;
     // If the path we have for the repository root is a symlink, do follow it.
     // (As opposed to symlinks within the working directory which are not
     // followed, using `std::fs::symlink_metadata`.)
     common.traverse_fs_directory_and_dirstate(
-        has_ignored_ancestor,
+        &has_ignored_ancestor,
         dmap.root.as_ref(),
         hg_path,
         &root_dir,
@@ -194,6 +195,40 @@ enum Outcome {
     Ignored,
     Unknown,
     Unsure,
+}
+
+/// Lazy computation of whether a given path has a hgignored
+/// ancestor.
+struct HasIgnoredAncestor<'a> {
+    /// `path` and `parent` constitute the inputs to the computation,
+    /// `cache` stores the outcome.
+    path: &'a HgPath,
+    parent: Option<&'a HasIgnoredAncestor<'a>>,
+    cache: OnceCell<bool>,
+}
+
+impl<'a> HasIgnoredAncestor<'a> {
+    fn create(
+        parent: Option<&'a HasIgnoredAncestor<'a>>,
+        path: &'a HgPath,
+    ) -> HasIgnoredAncestor<'a> {
+        Self {
+            path,
+            parent,
+            cache: OnceCell::new(),
+        }
+    }
+
+    fn force<'b>(&self, ignore_fn: &IgnoreFnType<'b>) -> bool {
+        match self.parent {
+            None => false,
+            Some(parent) => {
+                *(parent.cache.get_or_init(|| {
+                    parent.force(ignore_fn) || ignore_fn(&self.path)
+                }))
+            }
+        }
+    }
 }
 
 impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
@@ -318,9 +353,9 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
 
     /// Returns whether all child entries of the filesystem directory have a
     /// corresponding dirstate node or are ignored.
-    fn traverse_fs_directory_and_dirstate(
+    fn traverse_fs_directory_and_dirstate<'ancestor>(
         &self,
-        has_ignored_ancestor: bool,
+        has_ignored_ancestor: &'ancestor HasIgnoredAncestor<'ancestor>,
         dirstate_nodes: ChildNodesRef<'tree, 'on_disk>,
         directory_hg_path: &BorrowedPath<'tree, 'on_disk>,
         directory_fs_path: &Path,
@@ -418,7 +453,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                 }
                 Right(fs_entry) => {
                     has_dirstate_node_or_is_ignored = self.traverse_fs_only(
-                        has_ignored_ancestor,
+                        has_ignored_ancestor.force(&self.ignore_fn),
                         directory_hg_path,
                         fs_entry,
                     )
@@ -429,12 +464,12 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         .try_reduce(|| true, |a, b| Ok(a && b))
     }
 
-    fn traverse_fs_and_dirstate(
+    fn traverse_fs_and_dirstate<'ancestor>(
         &self,
         fs_path: &Path,
         fs_metadata: &std::fs::Metadata,
         dirstate_node: NodeRef<'tree, 'on_disk>,
-        has_ignored_ancestor: bool,
+        has_ignored_ancestor: &'ancestor HasIgnoredAncestor<'ancestor>,
     ) -> Result<(), DirstateV2ParseError> {
         self.check_for_outdated_directory_cache(&dirstate_node)?;
         let hg_path = &dirstate_node.full_path_borrowed(self.dmap.on_disk)?;
@@ -454,11 +489,14 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                     .traversed
                     .push(hg_path.detach_from_tree())
             }
-            let is_ignored = has_ignored_ancestor || (self.ignore_fn)(hg_path);
+            let is_ignored = HasIgnoredAncestor::create(
+                Some(&has_ignored_ancestor),
+                hg_path,
+            );
             let is_at_repo_root = false;
             let children_all_have_dirstate_node_or_are_ignored = self
                 .traverse_fs_directory_and_dirstate(
-                    is_ignored,
+                    &is_ignored,
                     dirstate_node.children(self.dmap.on_disk)?,
                     hg_path,
                     fs_path,
@@ -472,14 +510,14 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                 dirstate_node,
             )?
         } else {
-            if file_or_symlink && self.matcher.matches(hg_path) {
+            if file_or_symlink && self.matcher.matches(&hg_path) {
                 if let Some(entry) = dirstate_node.entry()? {
                     if !entry.any_tracked() {
                         // Forward-compat if we start tracking unknown/ignored
                         // files for caching reasons
                         self.mark_unknown_or_ignored(
-                            has_ignored_ancestor,
-                            hg_path,
+                            has_ignored_ancestor.force(&self.ignore_fn),
+                            &hg_path,
                         );
                     }
                     if entry.added() {
@@ -495,7 +533,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                     // `node.entry.is_none()` indicates a "directory"
                     // node, but the filesystem has a file
                     self.mark_unknown_or_ignored(
-                        has_ignored_ancestor,
+                        has_ignored_ancestor.force(&self.ignore_fn),
                         hg_path,
                     );
                 }
