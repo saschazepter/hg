@@ -2676,12 +2676,34 @@ def perf_unbundle(ui, repo, fname, **opts):
     """benchmark application of a bundle in a repository.
 
     This does not include the final transaction processing"""
+
     from mercurial import exchange
     from mercurial import bundle2
+    from mercurial import transaction
 
     opts = _byteskwargs(opts)
 
-    if True:
+    ###  some compatibility hotfix
+    #
+    # the data attribute is dropped in 63edc384d3b7 a changeset introducing a
+    # critical regression that break transaction rollback for files that are
+    # de-inlined.
+    method = transaction.transaction._addentry
+    pre_63edc384d3b7 = "data" in getargspec(method).args
+    # the `detailed_exit_code` attribute is introduced in 33c0c25d0b0f
+    # a changeset that is a close descendant of 18415fc918a1, the changeset
+    # that conclude the fix run for the bug introduced in 63edc384d3b7.
+    args = getargspec(error.Abort.__init__).args
+    post_18415fc918a1 = "detailed_exit_code" in args
+
+    old_max_inline = None
+    try:
+        if not (pre_63edc384d3b7 or post_18415fc918a1):
+            # disable inlining
+            old_max_inline = mercurial.revlog._maxinline
+            # large enough to never happen
+            mercurial.revlog._maxinline = 2 ** 50
+
         with repo.lock():
             bundle = [None, None]
             orig_quiet = repo.ui.quiet
@@ -2721,6 +2743,9 @@ def perf_unbundle(ui, repo, fname, **opts):
                 gen, tr = bundle
                 if tr is not None:
                     tr.abort()
+    finally:
+        if old_max_inline is not None:
+            mercurial.revlog._maxinline = old_max_inline
 
 
 @command(
