@@ -1858,7 +1858,12 @@ def gdinitconfig(ui):
 
 
 def gddeltaconfig(ui):
-    """helper function to know if incoming delta should be optimised"""
+    """helper function to know if incoming deltas should be optimized
+
+    The `format.generaldelta` config is an old form of the config that also
+    implies that incoming delta-bases should be never be trusted. This function
+    exists for this purpose.
+    """
     # experimental config: format.generaldelta
     return ui.configbool(b'format', b'generaldelta')
 
