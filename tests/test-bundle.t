@@ -1081,3 +1081,47 @@ Test the debug output when applying delta
   new changesets 4fe08cd4693e:4652c276ac4f (3 drafts)
   (run 'hg update' to get a working copy)
 
+
+Test the debug statistic when applying a bundle
+-----------------------------------------------
+
+  $ hg init bar
+  $ hg -R bar unbundle ./default.hg  --config debug.unbundling-stats=yes
+  adding changesets
+  adding manifests
+  adding file changes
+  DEBUG-UNBUNDLING: revisions:                9
+  DEBUG-UNBUNDLING:   changelog:              3             ( 33%)
+  DEBUG-UNBUNDLING:   manifests:              3             ( 33%)
+  DEBUG-UNBUNDLING:   files:                  3             ( 33%)
+  DEBUG-UNBUNDLING: total-time:      ?????????????? seconds (glob)
+  DEBUG-UNBUNDLING:   changelog:     ?????????????? seconds (???%) (glob)
+  DEBUG-UNBUNDLING:   manifests:     ?????????????? seconds (???%) (glob)
+  DEBUG-UNBUNDLING:   files:         ?????????????? seconds (???%) (glob)
+  DEBUG-UNBUNDLING: type-count:
+  DEBUG-UNBUNDLING:   changelog:
+  DEBUG-UNBUNDLING:     full:                 3
+  DEBUG-UNBUNDLING:       cached:             0             (  0%)
+  DEBUG-UNBUNDLING:   manifests:
+  DEBUG-UNBUNDLING:     full:                 1
+  DEBUG-UNBUNDLING:       cached:             0             (  0%)
+  DEBUG-UNBUNDLING:     delta:                2
+  DEBUG-UNBUNDLING:       cached:             2             (100%)
+  DEBUG-UNBUNDLING:   files:
+  DEBUG-UNBUNDLING:     full:                 3
+  DEBUG-UNBUNDLING:       cached:             0             (  0%)
+  DEBUG-UNBUNDLING: type-time:
+  DEBUG-UNBUNDLING:   changelog:
+  DEBUG-UNBUNDLING:     full:        ?????????????? seconds (???% of total) (glob)
+  DEBUG-UNBUNDLING:       cached:    ?????????????? seconds (???% of total) (glob)
+  DEBUG-UNBUNDLING:   manifests:
+  DEBUG-UNBUNDLING:     full:        ?????????????? seconds (???% of total) (glob)
+  DEBUG-UNBUNDLING:       cached:    ?????????????? seconds (???% of total) (glob)
+  DEBUG-UNBUNDLING:     delta:       ?????????????? seconds (???% of total) (glob)
+  DEBUG-UNBUNDLING:       cached:    ?????????????? seconds (???% of total) (glob)
+  DEBUG-UNBUNDLING:   files:
+  DEBUG-UNBUNDLING:     full:        ?????????????? seconds (???% of total) (glob)
+  DEBUG-UNBUNDLING:       cached:    ?????????????? seconds (???% of total) (glob)
+  added 3 changesets with 3 changes to 3 files
+  new changesets 4fe08cd4693e:4652c276ac4f (3 drafts)
+  (run 'hg update' to get a working copy)
