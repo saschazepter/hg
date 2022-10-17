@@ -105,6 +105,164 @@ def writechunks(ui, chunks, filename, vfs=None):
                 os.unlink(cleanup)
 
 
+def _dbg_ubdl_line(
+    ui,
+    indent,
+    key,
+    base_value=None,
+    percentage_base=None,
+    percentage_key=None,
+):
+    """Print one line of debug_unbundle_debug_info"""
+    line = b"DEBUG-UNBUNDLING: "
+    line += b' ' * (2 * indent)
+    key += b":"
+    padding = b''
+    if base_value is not None:
+        assert len(key) + 1 + (2 * indent) <= _KEY_PART_WIDTH
+        line += key.ljust(_KEY_PART_WIDTH - (2 * indent))
+        if isinstance(base_value, float):
+            line += b"%14.3f seconds" % base_value
+        else:
+            line += b"%10d" % base_value
+            padding = b'            '
+    else:
+        line += key
+
+    if percentage_base is not None:
+        line += padding
+        padding = b''
+        assert base_value is not None
+        percentage = base_value * 100 // percentage_base
+        if percentage_key is not None:
+            line += b" (%3d%% of %s)" % (
+                percentage,
+                percentage_key,
+            )
+        else:
+            line += b" (%3d%%)" % percentage
+
+    line += b'\n'
+    ui.write_err(line)
+
+
+def _sumf(items):
+    # python < 3.8 does not support a `start=0.0` argument to sum
+    # So we have to cheat a bit until we drop support for those version
+    if not items:
+        return 0.0
+    return sum(items)
+
+
+def display_unbundle_debug_info(ui, debug_info):
+    """display an unbundling report from debug information"""
+    cl_info = []
+    mn_info = []
+    fl_info = []
+    _dispatch = [
+        (b'CHANGELOG:', cl_info),
+        (b'MANIFESTLOG:', mn_info),
+        (b'FILELOG:', fl_info),
+    ]
+    for e in debug_info:
+        for prefix, info in _dispatch:
+            if e["target-revlog"].startswith(prefix):
+                info.append(e)
+                break
+        else:
+            assert False, 'unreachable'
+    each_info = [
+        (b'changelog', cl_info),
+        (b'manifests', mn_info),
+        (b'files', fl_info),
+    ]
+
+    # General Revision Countss
+    _dbg_ubdl_line(ui, 0, b'revisions', len(debug_info))
+    for key, info in each_info:
+        if not info:
+            continue
+        _dbg_ubdl_line(ui, 1, key, len(info), len(debug_info))
+
+    # General Time spent
+    all_durations = [e['duration'] for e in debug_info]
+    all_durations.sort()
+    total_duration = _sumf(all_durations)
+    _dbg_ubdl_line(ui, 0, b'total-time', total_duration)
+
+    for key, info in each_info:
+        if not info:
+            continue
+        durations = [e['duration'] for e in info]
+        durations.sort()
+        _dbg_ubdl_line(ui, 1, key, _sumf(durations), total_duration)
+
+    # Count and cache reuse per delta types
+    each_types = {}
+    for key, info in each_info:
+        each_types[key] = types = {
+            b'full': 0,
+            b'full-cached': 0,
+            b'snapshot': 0,
+            b'snapshot-cached': 0,
+            b'delta': 0,
+            b'delta-cached': 0,
+            b'unknown': 0,
+            b'unknown-cached': 0,
+        }
+        for e in info:
+            types[e['type']] += 1
+            if e['using-cached-base']:
+                types[e['type'] + b'-cached'] += 1
+
+    EXPECTED_TYPES = (b'full', b'snapshot', b'delta', b'unknown')
+    if debug_info:
+        _dbg_ubdl_line(ui, 0, b'type-count')
+    for key, info in each_info:
+        if info:
+            _dbg_ubdl_line(ui, 1, key)
+        t = each_types[key]
+        for tn in EXPECTED_TYPES:
+            if t[tn]:
+                tc = tn + b'-cached'
+                _dbg_ubdl_line(ui, 2, tn, t[tn])
+                _dbg_ubdl_line(ui, 3, b'cached', t[tc], t[tn])
+
+    # time perf delta types and reuse
+    each_type_time = {}
+    for key, info in each_info:
+        each_type_time[key] = t = {
+            b'full': [],
+            b'full-cached': [],
+            b'snapshot': [],
+            b'snapshot-cached': [],
+            b'delta': [],
+            b'delta-cached': [],
+            b'unknown': [],
+            b'unknown-cached': [],
+        }
+        for e in info:
+            t[e['type']].append(e['duration'])
+            if e['using-cached-base']:
+                t[e['type'] + b'-cached'].append(e['duration'])
+        for t_key, value in list(t.items()):
+            value.sort()
+            t[t_key] = _sumf(value)
+
+    if debug_info:
+        _dbg_ubdl_line(ui, 0, b'type-time')
+    for key, info in each_info:
+        if info:
+            _dbg_ubdl_line(ui, 1, key)
+        t = each_type_time[key]
+        td = total_duration  # to same space on next lines
+        for tn in EXPECTED_TYPES:
+            if t[tn]:
+                tc = tn + b'-cached'
+                _dbg_ubdl_line(ui, 2, tn, t[tn], td, b"total")
+                _dbg_ubdl_line(ui, 3, b'cached', t[tc], td, b"total")
+
+
 class cg1unpacker:
     """Unpacker for cg1 changegroup streams.
 
@@ -254,7 +412,15 @@ class cg1unpacker:
                     pos = next
             yield closechunk()
 
-    def _unpackmanifests(self, repo, revmap, trp, prog, addrevisioncb=None):
+    def _unpackmanifests(
+        self,
+        repo,
+        revmap,
+        trp,
+        prog,
+        addrevisioncb=None,
+        debug_info=None,
+    ):
         self.callback = prog.increment
         # no need to check for empty manifest group here:
         # if the result of the merge of 1 and 2 is the same in 3 and 4,
@@ -263,7 +429,13 @@ class cg1unpacker:
         self.manifestheader()
         deltas = self.deltaiter()
         storage = repo.manifestlog.getstorage(b'')
-        storage.addgroup(deltas, revmap, trp, addrevisioncb=addrevisioncb)
+        storage.addgroup(
+            deltas,
+            revmap,
+            trp,
+            addrevisioncb=addrevisioncb,
+            debug_info=debug_info,
+        )
         prog.complete()
         self.callback = None
 
@@ -291,6 +463,10 @@ class cg1unpacker:
         categories.
         """
         repo = repo.unfiltered()
+
+        debug_info = None
+        if repo.ui.configbool(b'debug', b'unbundling-stats'):
+            debug_info = []
 
         # Only useful if we're adding sidedata categories. If both peers have
         # the same categories, then we simply don't do anything.
@@ -366,6 +542,7 @@ class cg1unpacker:
                 alwayscache=True,
                 addrevisioncb=onchangelog,
                 duplicaterevisioncb=ondupchangelog,
+                debug_info=debug_info,
             ):
                 repo.ui.develwarn(
                     b'applied empty changelog from changegroup',
@@ -413,6 +590,7 @@ class cg1unpacker:
                 trp,
                 progress,
                 addrevisioncb=on_manifest_rev,
+                debug_info=debug_info,
             )
 
             needfiles = {}
@@ -449,6 +627,7 @@ class cg1unpacker:
                 efiles,
                 needfiles,
                 addrevisioncb=on_filelog_rev,
+                debug_info=debug_info,
             )
 
             if sidedata_helpers:
@@ -567,6 +746,8 @@ class cg1unpacker:
                     b'changegroup-runhooks-%020i' % clstart,
                     lambda tr: repo._afterlock(runhooks),
                 )
+            if debug_info is not None:
+                display_unbundle_debug_info(repo.ui, debug_info)
         finally:
             repo.ui.flush()
         # never return 0 here:
@@ -626,9 +807,22 @@ class cg3unpacker(cg2unpacker):
         protocol_flags = 0
         return node, p1, p2, deltabase, cs, flags, protocol_flags
 
-    def _unpackmanifests(self, repo, revmap, trp, prog, addrevisioncb=None):
+    def _unpackmanifests(
+        self,
+        repo,
+        revmap,
+        trp,
+        prog,
+        addrevisioncb=None,
+        debug_info=None,
+    ):
         super(cg3unpacker, self)._unpackmanifests(
-            repo, revmap, trp, prog, addrevisioncb=addrevisioncb
+            repo,
+            revmap,
+            trp,
+            prog,
+            addrevisioncb=addrevisioncb,
+            debug_info=debug_info,
         )
         for chunkdata in iter(self.filelogheader, {}):
             # If we get here, there are directory manifests in the changegroup
@@ -636,7 +830,11 @@ class cg3unpacker(cg2unpacker):
             repo.ui.debug(b"adding %s revisions\n" % d)
             deltas = self.deltaiter()
             if not repo.manifestlog.getstorage(d).addgroup(
-                deltas, revmap, trp, addrevisioncb=addrevisioncb
+                deltas,
+                revmap,
+                trp,
+                addrevisioncb=addrevisioncb,
+                debug_info=debug_info,
             ):
                 raise error.Abort(_(b"received dir revlog group is empty"))
 
@@ -2173,6 +2371,7 @@ def _addchangegroupfiles(
     expectedfiles,
     needfiles,
     addrevisioncb=None,
+    debug_info=None,
 ):
     revisions = 0
     files = 0
@@ -2193,6 +2392,7 @@ def _addchangegroupfiles(
                 revmap,
                 trp,
                 addrevisioncb=addrevisioncb,
+                debug_info=debug_info,
             )
             if not added:
                 raise error.Abort(_(b"received file revlog group is empty"))

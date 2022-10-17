@@ -674,7 +674,12 @@ def _candidategroups(revlog, textlen, p1, p2, cachedelta):
     deltas_limit = textlen * LIMIT_DELTA2TEXT
 
     tested = {nullrev}
-    candidates = _refinedgroups(revlog, p1, p2, cachedelta)
+    candidates = _refinedgroups(
+        revlog,
+        p1,
+        p2,
+        cachedelta,
+    )
     while True:
         temptative = candidates.send(good)
         if temptative is None:
@@ -703,6 +708,7 @@ def _candidategroups(revlog, textlen, p1, p2, cachedelta):
             # no delta for rawtext-changing revs (see "candelta" for why)
             if revlog.flags(rev) & REVIDX_RAWTEXT_CHANGING_FLAGS:
                 continue
+
             # If we reach here, we are about to build and test a delta.
             # The delta building process will compute the chaininfo in all
             # case, since that computation is cached, it is fine to access it
@@ -768,15 +774,28 @@ def _refinedgroups(revlog, p1, p2, cachedelta):
     # This logic only applies to general delta repositories and can be disabled
     # through configuration. Disabling reuse source delta is useful when
     # we want to make sure we recomputed "optimal" deltas.
+    debug_info = None
     if cachedelta and revlog._generaldelta and revlog._lazydeltabase:
         # Assume what we received from the server is a good choice
         # build delta will reuse the cache
+        if debug_info is not None:
+            debug_info['cached-delta.tested'] += 1
         good = yield (cachedelta[0],)
         if good is not None:
+            if debug_info is not None:
+                debug_info['cached-delta.accepted'] += 1
             yield None
             return
+    # XXX cache me higher
     snapshots = collections.defaultdict(list)
-    for candidates in _rawgroups(revlog, p1, p2, cachedelta, snapshots):
+    groups = _rawgroups(
+        revlog,
+        p1,
+        p2,
+        cachedelta,
+        snapshots,
+    )
+    for candidates in groups:
         good = yield candidates
         if good is not None:
             break
@@ -805,7 +824,10 @@ def _refinedgroups(revlog, p1, p2, cachedelta):
             children = tuple(sorted(c for c in snapshots[good]))
             good = yield children
 
-    # we have found nothing
+    if debug_info is not None:
+        if good is None:
+            debug_info['no-solution'] += 1
+
     yield None
 
 
@@ -931,10 +953,17 @@ def _rawgroups(revlog, p1, p2, cachedelta, snapshots=None):
 
 
 class deltacomputer:
-    def __init__(self, revlog, write_debug=None, debug_search=False):
+    def __init__(
+        self,
+        revlog,
+        write_debug=None,
+        debug_search=False,
+        debug_info=None,
+    ):
         self.revlog = revlog
         self._write_debug = write_debug
         self._debug_search = debug_search
+        self._debug_info = debug_info
 
     def buildtext(self, revinfo, fh):
         """Builds a fulltext version of a revision
@@ -1103,10 +1132,13 @@ class deltacomputer:
         if revinfo.flags & REVIDX_RAWTEXT_CHANGING_FLAGS:
             return self._fullsnapshotinfo(fh, revinfo, target_rev)
 
-        if self._write_debug is not None:
-            start = util.timer()
-
+        gather_debug = (
+            self._write_debug is not None or self._debug_info is not None
+        )
         debug_search = self._write_debug is not None and self._debug_search
+
+        if gather_debug:
+            start = util.timer()
 
         # count the number of different delta we tried (for debug purpose)
         dbg_try_count = 0
@@ -1122,7 +1154,7 @@ class deltacomputer:
         deltainfo = None
         p1r, p2r = revlog.rev(p1), revlog.rev(p2)
 
-        if self._write_debug is not None:
+        if gather_debug:
             if p1r != nullrev:
                 p1_chain_len = revlog._chaininfo(p1r)[0]
             else:
@@ -1250,9 +1282,8 @@ class deltacomputer:
         else:
             dbg_type = b"delta"
 
-        if self._write_debug is not None:
+        if gather_debug:
             end = util.timer()
-            assert deltainfo is not None  # please pytype
             used_cached = (
                 cachedelta is not None
                 and dbg_try_rounds == 1
@@ -1262,7 +1293,7 @@ class deltacomputer:
             dbg = {
                 'duration': end - start,
                 'revision': target_rev,
-                'delta-base': deltainfo.base,
+                'delta-base': deltainfo.base,  # pytype: disable=attribute-error
                 'search_round_count': dbg_try_rounds,
                 'using-cached-base': used_cached,
                 'delta_try_count': dbg_try_count,
@@ -1294,35 +1325,39 @@ class deltacomputer:
                     target_revlog += b'%s:' % target_key
             dbg['target-revlog'] = target_revlog
 
-            msg = (
-                b"DBG-DELTAS:"
-                b" %-12s"
-                b" rev=%d:"
-                b" delta-base=%d"
-                b" is-cached=%d"
-                b" - search-rounds=%d"
-                b" try-count=%d"
-                b" - delta-type=%-6s"
-                b" snap-depth=%d"
-                b" - p1-chain-length=%d"
-                b" p2-chain-length=%d"
-                b" - duration=%f"
-                b"\n"
-            )
-            msg %= (
-                dbg["target-revlog"],
-                dbg["revision"],
-                dbg["delta-base"],
-                dbg["using-cached-base"],
-                dbg["search_round_count"],
-                dbg["delta_try_count"],
-                dbg["type"],
-                dbg["snapshot-depth"],
-                dbg["p1-chain-len"],
-                dbg["p2-chain-len"],
-                dbg["duration"],
-            )
-            self._write_debug(msg)
+            if self._debug_info is not None:
+                self._debug_info.append(dbg)
+
+            if self._write_debug is not None:
+                msg = (
+                    b"DBG-DELTAS:"
+                    b" %-12s"
+                    b" rev=%d:"
+                    b" delta-base=%d"
+                    b" is-cached=%d"
+                    b" - search-rounds=%d"
+                    b" try-count=%d"
+                    b" - delta-type=%-6s"
+                    b" snap-depth=%d"
+                    b" - p1-chain-length=%d"
+                    b" p2-chain-length=%d"
+                    b" - duration=%f"
+                    b"\n"
+                )
+                msg %= (
+                    dbg["target-revlog"],
+                    dbg["revision"],
+                    dbg["delta-base"],
+                    dbg["using-cached-base"],
+                    dbg["search_round_count"],
+                    dbg["delta_try_count"],
+                    dbg["type"],
+                    dbg["snapshot-depth"],
+                    dbg["p1-chain-len"],
+                    dbg["p2-chain-len"],
+                    dbg["duration"],
+                )
+                self._write_debug(msg)
         return deltainfo
 
 
