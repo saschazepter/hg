@@ -2640,6 +2640,7 @@ class revlog:
         alwayscache=False,
         addrevisioncb=None,
         duplicaterevisioncb=None,
+        debug_info=None,
     ):
         """
         add a delta group
@@ -2665,6 +2666,7 @@ class revlog:
                 deltacomputer = deltautil.deltacomputer(
                     self,
                     write_debug=write_debug,
+                    debug_info=debug_info,
                 )
                 # loop through our set of deltas
                 for data in deltas:

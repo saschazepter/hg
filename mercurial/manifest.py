@@ -1856,6 +1856,7 @@ class manifestrevlog:
         alwayscache=False,
         addrevisioncb=None,
         duplicaterevisioncb=None,
+        debug_info=None,
     ):
         return self._revlog.addgroup(
             deltas,
@@ -1864,6 +1865,7 @@ class manifestrevlog:
             alwayscache=alwayscache,
             addrevisioncb=addrevisioncb,
             duplicaterevisioncb=duplicaterevisioncb,
+            debug_info=debug_info,
         )
 
     def rawsize(self, rev):

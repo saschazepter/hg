@@ -594,6 +594,12 @@ coreconfigitem(
     b'bundling-stats',
     default=False,
 )
+# display extra information about the unbundling process
+coreconfigitem(
+    b'debug',
+    b'unbundling-stats',
+    default=False,
+)
 coreconfigitem(
     b'defaults',
     b'.*',
