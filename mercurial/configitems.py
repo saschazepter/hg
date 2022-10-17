@@ -2075,6 +2075,7 @@ coreconfigitem(
     b'revlog.reuse-external-delta',
     default=True,
 )
+# This option is True unless `format.generaldelta` is set.
 coreconfigitem(
     b'storage',
     b'revlog.reuse-external-delta-parent',
