@@ -2543,7 +2543,7 @@ coreconfigitem(
 coreconfigitem(
     b'verify',
     b'skipflags',
-    default=None,
+    default=0,
 )
 coreconfigitem(
     b'web',
