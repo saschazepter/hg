@@ -599,6 +599,19 @@ class _gitlfsremote:
 
         # Until https multiplexing gets sorted out
         if self.ui.configbool(b'experimental', b'lfs.worker-enable'):
+            # The POSIX workers are forks of this process, so before spinning
+            # them up, close all pooled connections.  Otherwise, there's no way
+            # to coordinate between them about who is using what, and the
+            # transfers will get corrupted.
+            #
+            # TODO: add a function to keepalive.ConnectionManager to mark all
+            #  ready connections as in use, and roll that back after the fork?
+            #  That would allow the existing pool of connections in this process
+            #  to be preserved.
+            if not pycompat.iswindows:
+                for h in self.urlopener.handlers:
+                    getattr(h, "close_all", lambda: None)()
+
             oids = worker.worker(
                 self.ui,
                 0.1,
