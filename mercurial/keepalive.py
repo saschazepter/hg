@@ -166,7 +166,9 @@ class ConnectionManager:
         if host:
             return list(self._hostmap[host])
         else:
-            return dict(self._hostmap)
+            return dict(
+                {h: list(conns) for (h, conns) in self._hostmap.items()}
+            )
 
 
 class KeepAliveHandler:
