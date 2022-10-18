@@ -702,6 +702,17 @@ class HTTPConnection(httplib.HTTPConnection):
         self.sentbytescount = 0
         self.receivedbytescount = 0
 
+    def __repr__(self):
+        base = super(HTTPConnection, self).__repr__()
+        local = "(unconnected)"
+        s = self.sock
+        if s:
+            try:
+                local = "%s:%d" % s.getsockname()
+            except OSError:
+                pass  # Likely not connected
+        return "<%s: %s <--> %s:%d>" % (base, local, self.host, self.port)
+
 
 #########################################################################
 #####   TEST FUNCTIONS
