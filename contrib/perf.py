@@ -2681,44 +2681,46 @@ def perf_unbundle(ui, repo, fname, **opts):
 
     opts = _byteskwargs(opts)
 
-    with repo.lock():
-        bundle = [None, None]
-        orig_quiet = repo.ui.quiet
-        try:
-            repo.ui.quiet = True
-            with open(fname, mode="rb") as f:
+    if True:
+        with repo.lock():
+            bundle = [None, None]
+            orig_quiet = repo.ui.quiet
+            try:
+                repo.ui.quiet = True
+                with open(fname, mode="rb") as f:
 
-                def noop_report(*args, **kwargs):
-                    pass
+                    def noop_report(*args, **kwargs):
+                        pass
 
-                def setup():
-                    gen, tr = bundle
-                    if tr is not None:
-                        tr.abort()
-                    bundle[:] = [None, None]
-                    f.seek(0)
-                    bundle[0] = exchange.readbundle(ui, f, fname)
-                    bundle[1] = repo.transaction(b'perf::unbundle')
-                    bundle[1]._report = noop_report  # silence the transaction
+                    def setup():
+                        gen, tr = bundle
+                        if tr is not None:
+                            tr.abort()
+                        bundle[:] = [None, None]
+                        f.seek(0)
+                        bundle[0] = exchange.readbundle(ui, f, fname)
+                        bundle[1] = repo.transaction(b'perf::unbundle')
+                        # silence the transaction
+                        bundle[1]._report = noop_report
 
-                def apply():
-                    gen, tr = bundle
-                    bundle2.applybundle(
-                        repo,
-                        gen,
-                        tr,
-                        source=b'perf::unbundle',
-                        url=fname,
-                    )
+                    def apply():
+                        gen, tr = bundle
+                        bundle2.applybundle(
+                            repo,
+                            gen,
+                            tr,
+                            source=b'perf::unbundle',
+                            url=fname,
+                        )
 
-                timer, fm = gettimer(ui, opts)
-                timer(apply, setup=setup)
-                fm.end()
-        finally:
-            repo.ui.quiet == orig_quiet
-            gen, tr = bundle
-            if tr is not None:
-                tr.abort()
+                    timer, fm = gettimer(ui, opts)
+                    timer(apply, setup=setup)
+                    fm.end()
+            finally:
+                repo.ui.quiet == orig_quiet
+                gen, tr = bundle
+                if tr is not None:
+                    tr.abort()
 
 
 @command(
