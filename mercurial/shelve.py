@@ -1184,9 +1184,7 @@ def _dounshelve(ui, repo, basename, opts):
         # to the original pctx.
 
         activebookmark = _backupactivebookmark(repo)
-        tmpwctx, addedbefore = _commitworkingcopychanges(
-            ui, repo, opts, pctx
-        )
+        tmpwctx, addedbefore = _commitworkingcopychanges(ui, repo, opts, pctx)
         repo, shelvectx = _unshelverestorecommit(ui, repo, tr, basename)
         _checkunshelveuntrackedproblems(ui, repo, shelvectx)
         branchtorestore = b''
