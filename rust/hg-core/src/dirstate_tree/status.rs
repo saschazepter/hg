@@ -14,7 +14,6 @@ use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::BadMatch;
 use crate::DirstateStatus;
-use crate::HgPathBuf;
 use crate::HgPathCow;
 use crate::PatternFileWarning;
 use crate::StatusError;
@@ -24,6 +23,8 @@ use once_cell::sync::OnceCell;
 use rayon::prelude::*;
 use sha1::{Digest, Sha1};
 use std::borrow::Cow;
+use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
@@ -129,7 +130,6 @@ pub fn status<'dirstate>(
     let hg_path = &BorrowedPath::OnDisk(HgPath::new(""));
     let has_ignored_ancestor = HasIgnoredAncestor::create(None, hg_path);
     let root_cached_mtime = None;
-    let root_dir_metadata = None;
     // If the path we have for the repository root is a symlink, do follow it.
     // (As opposed to symlinks within the working directory which are not
     // followed, using `std::fs::symlink_metadata`.)
@@ -137,8 +137,12 @@ pub fn status<'dirstate>(
         &has_ignored_ancestor,
         dmap.root.as_ref(),
         hg_path,
-        &root_dir,
-        root_dir_metadata,
+        &DirEntry {
+            hg_path: Cow::Borrowed(HgPath::new(b"")),
+            fs_path: Cow::Borrowed(&root_dir),
+            symlink_metadata: None,
+            file_type: FakeFileType::Directory,
+        },
         root_cached_mtime,
         is_at_repo_root,
     )?;
@@ -319,7 +323,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
     /// need to call `read_dir`.
     fn can_skip_fs_readdir(
         &self,
-        directory_metadata: Option<&std::fs::Metadata>,
+        directory_entry: &DirEntry,
         cached_directory_mtime: Option<TruncatedTimestamp>,
     ) -> bool {
         if !self.options.list_unknown && !self.options.list_ignored {
@@ -335,9 +339,9 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                 // The dirstate contains a cached mtime for this directory, set
                 // by a previous run of the `status` algorithm which found this
                 // directory eligible for `read_dir` caching.
-                if let Some(meta) = directory_metadata {
+                if let Ok(meta) = directory_entry.symlink_metadata() {
                     if cached_mtime
-                        .likely_equal_to_mtime_of(meta)
+                        .likely_equal_to_mtime_of(&meta)
                         .unwrap_or(false)
                     {
                         // The mtime of that directory has not changed
@@ -358,26 +362,40 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         has_ignored_ancestor: &'ancestor HasIgnoredAncestor<'ancestor>,
         dirstate_nodes: ChildNodesRef<'tree, 'on_disk>,
         directory_hg_path: &BorrowedPath<'tree, 'on_disk>,
-        directory_fs_path: &Path,
-        directory_metadata: Option<&std::fs::Metadata>,
+        directory_entry: &DirEntry,
         cached_directory_mtime: Option<TruncatedTimestamp>,
         is_at_repo_root: bool,
     ) -> Result<bool, DirstateV2ParseError> {
-        if self.can_skip_fs_readdir(directory_metadata, cached_directory_mtime)
-        {
+        if self.can_skip_fs_readdir(directory_entry, cached_directory_mtime) {
             dirstate_nodes
                 .par_iter()
                 .map(|dirstate_node| {
-                    let fs_path = directory_fs_path.join(get_path_from_bytes(
+                    let fs_path = &directory_entry.fs_path;
+                    let fs_path = fs_path.join(get_path_from_bytes(
                         dirstate_node.base_name(self.dmap.on_disk)?.as_bytes(),
                     ));
                     match std::fs::symlink_metadata(&fs_path) {
-                        Ok(fs_metadata) => self.traverse_fs_and_dirstate(
-                            &fs_path,
-                            &fs_metadata,
-                            dirstate_node,
-                            has_ignored_ancestor,
-                        ),
+                        Ok(fs_metadata) => {
+                            let file_type =
+                                match fs_metadata.file_type().try_into() {
+                                    Ok(file_type) => file_type,
+                                    Err(_) => return Ok(()),
+                                };
+                            let entry = DirEntry {
+                                hg_path: Cow::Borrowed(
+                                    dirstate_node
+                                        .full_path(&self.dmap.on_disk)?,
+                                ),
+                                fs_path: Cow::Borrowed(&fs_path),
+                                symlink_metadata: Some(fs_metadata),
+                                file_type,
+                            };
+                            self.traverse_fs_and_dirstate(
+                                &entry,
+                                dirstate_node,
+                                has_ignored_ancestor,
+                            )
+                        }
                         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                             self.traverse_dirstate_only(dirstate_node)
                         }
@@ -398,7 +416,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
 
         let mut fs_entries = if let Ok(entries) = self.read_dir(
             directory_hg_path,
-            directory_fs_path,
+            &directory_entry.fs_path,
             is_at_repo_root,
         ) {
             entries
@@ -440,8 +458,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
             match pair {
                 Both(dirstate_node, fs_entry) => {
                     self.traverse_fs_and_dirstate(
-                        &fs_entry.fs_path,
-                        &fs_entry.metadata,
+                        &fs_entry,
                         dirstate_node,
                         has_ignored_ancestor,
                     )?;
@@ -466,22 +483,20 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
 
     fn traverse_fs_and_dirstate<'ancestor>(
         &self,
-        fs_path: &Path,
-        fs_metadata: &std::fs::Metadata,
+        fs_entry: &DirEntry,
         dirstate_node: NodeRef<'tree, 'on_disk>,
         has_ignored_ancestor: &'ancestor HasIgnoredAncestor<'ancestor>,
     ) -> Result<(), DirstateV2ParseError> {
         self.check_for_outdated_directory_cache(&dirstate_node)?;
         let hg_path = &dirstate_node.full_path_borrowed(self.dmap.on_disk)?;
-        let file_type = fs_metadata.file_type();
-        let file_or_symlink = file_type.is_file() || file_type.is_symlink();
+        let file_or_symlink = fs_entry.is_file() || fs_entry.is_symlink();
         if !file_or_symlink {
             // If we previously had a file here, it was removed (with
             // `hg rm` or similar) or deleted before it could be
             // replaced by a directory or something else.
             self.mark_removed_or_deleted_if_file(&dirstate_node)?;
         }
-        if file_type.is_dir() {
+        if fs_entry.is_dir() {
             if self.options.collect_traversed_dirs {
                 self.outcome
                     .lock()
@@ -499,14 +514,13 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                     &is_ignored,
                     dirstate_node.children(self.dmap.on_disk)?,
                     hg_path,
-                    fs_path,
-                    Some(fs_metadata),
+                    fs_entry,
                     dirstate_node.cached_directory_mtime()?,
                     is_at_repo_root,
                 )?;
             self.maybe_save_directory_mtime(
                 children_all_have_dirstate_node_or_are_ignored,
-                fs_metadata,
+                fs_entry,
                 dirstate_node,
             )?
         } else {
@@ -527,7 +541,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                     } else if entry.modified() {
                         self.push_outcome(Outcome::Modified, &dirstate_node)?;
                     } else {
-                        self.handle_normal_file(&dirstate_node, fs_metadata)?;
+                        self.handle_normal_file(&dirstate_node, fs_entry)?;
                     }
                 } else {
                     // `node.entry.is_none()` indicates a "directory"
@@ -550,7 +564,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
     fn maybe_save_directory_mtime(
         &self,
         children_all_have_dirstate_node_or_are_ignored: bool,
-        directory_metadata: &std::fs::Metadata,
+        directory_entry: &DirEntry,
         dirstate_node: NodeRef<'tree, 'on_disk>,
     ) -> Result<(), DirstateV2ParseError> {
         if !children_all_have_dirstate_node_or_are_ignored {
@@ -576,11 +590,13 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         // resolution based on the filesystem (for example ext3
         // only stores integer seconds), kernel (see
         // https://stackoverflow.com/a/14393315/1162888), etc.
+        let metadata = match directory_entry.symlink_metadata() {
+            Ok(meta) => meta,
+            Err(_) => return Ok(()),
+        };
         let directory_mtime = if let Ok(option) =
-            TruncatedTimestamp::for_reliable_mtime_of(
-                directory_metadata,
-                status_start,
-            ) {
+            TruncatedTimestamp::for_reliable_mtime_of(&metadata, status_start)
+        {
             if let Some(directory_mtime) = option {
                 directory_mtime
             } else {
@@ -641,18 +657,23 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
     fn handle_normal_file(
         &self,
         dirstate_node: &NodeRef<'tree, 'on_disk>,
-        fs_metadata: &std::fs::Metadata,
+        fs_entry: &DirEntry,
     ) -> Result<(), DirstateV2ParseError> {
         // Keep the low 31 bits
         fn truncate_u64(value: u64) -> i32 {
             (value & 0x7FFF_FFFF) as i32
         }
 
+        let fs_metadata = match fs_entry.symlink_metadata() {
+            Ok(meta) => meta,
+            Err(_) => return Ok(()),
+        };
+
         let entry = dirstate_node
             .entry()?
             .expect("handle_normal_file called with entry-less node");
         let mode_changed =
-            || self.options.check_exec && entry.mode_changed(fs_metadata);
+            || self.options.check_exec && entry.mode_changed(&fs_metadata);
         let size = entry.size();
         let size_changed = size != truncate_u64(fs_metadata.len());
         if size >= 0 && size_changed && fs_metadata.file_type().is_symlink() {
@@ -667,7 +688,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         } else {
             let mtime_looks_clean;
             if let Some(dirstate_mtime) = entry.truncated_mtime() {
-                let fs_mtime = TruncatedTimestamp::for_mtime_of(fs_metadata)
+                let fs_mtime = TruncatedTimestamp::for_mtime_of(&fs_metadata)
                     .expect("OS/libc does not support mtime?");
                 // There might be a change in the future if for example the
                 // internal clock become off while process run, but this is a
@@ -738,9 +759,8 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         fs_entry: &DirEntry,
     ) -> bool {
         let hg_path = directory_hg_path.join(&fs_entry.hg_path);
-        let file_type = fs_entry.metadata.file_type();
-        let file_or_symlink = file_type.is_file() || file_type.is_symlink();
-        if file_type.is_dir() {
+        let file_or_symlink = fs_entry.is_file() || fs_entry.is_symlink();
+        if fs_entry.is_dir() {
             let is_ignored =
                 has_ignored_ancestor || (self.ignore_fn)(&hg_path);
             let traverse_children = if is_ignored {
@@ -753,11 +773,9 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
             };
             if traverse_children {
                 let is_at_repo_root = false;
-                if let Ok(children_fs_entries) = self.read_dir(
-                    &hg_path,
-                    &fs_entry.fs_path,
-                    is_at_repo_root,
-                ) {
+                if let Ok(children_fs_entries) =
+                    self.read_dir(&hg_path, &fs_entry.fs_path, is_at_repo_root)
+                {
                     children_fs_entries.par_iter().for_each(|child_fs_entry| {
                         self.traverse_fs_only(
                             is_ignored,
@@ -820,17 +838,46 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
     }
 }
 
-struct DirEntry {
-    /// Path as stored in the dirstate
-    hg_path: HgPathBuf,
-    /// Filesystem path
-    fs_path: PathBuf,
-    metadata: std::fs::Metadata,
+/// Since [`std::fs::FileType`] cannot be built directly, we emulate what we
+/// care about.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+enum FakeFileType {
+    File,
+    Directory,
+    Symlink,
 }
 
-impl DirEntry {
-    /// Returns **unsorted** entries in the given directory, with name and
-    /// metadata.
+impl TryFrom<std::fs::FileType> for FakeFileType {
+    type Error = ();
+
+    fn try_from(f: std::fs::FileType) -> Result<Self, Self::Error> {
+        if f.is_dir() {
+            Ok(Self::Directory)
+        } else if f.is_file() {
+            Ok(Self::File)
+        } else if f.is_symlink() {
+            Ok(Self::Symlink)
+        } else {
+            // Things like FIFO etc.
+            Err(())
+        }
+    }
+}
+
+struct DirEntry<'a> {
+    /// Path as stored in the dirstate, or just the filename for optimization.
+    hg_path: HgPathCow<'a>,
+    /// Filesystem path
+    fs_path: Cow<'a, Path>,
+    /// Lazily computed
+    symlink_metadata: Option<std::fs::Metadata>,
+    /// Already computed for ergonomics.
+    file_type: FakeFileType,
+}
+
+impl<'a> DirEntry<'a> {
+    /// Returns **unsorted** entries in the given directory, with name,
+    /// metadata and file type.
     ///
     /// If a `.hg` sub-directory is encountered:
     ///
@@ -844,7 +891,7 @@ impl DirEntry {
         let mut results = Vec::new();
         for entry in read_dir_path.read_dir()? {
             let entry = entry?;
-            let metadata = match entry.metadata() {
+            let file_type = match entry.file_type() {
                 Ok(v) => v,
                 Err(e) => {
                     // race with file deletion?
@@ -861,7 +908,7 @@ impl DirEntry {
                 if is_at_repo_root {
                     // Skip the repo’s own .hg (might be a symlink)
                     continue;
-                } else if metadata.is_dir() {
+                } else if file_type.is_dir() {
                     // A .hg sub-directory at another location means a subrepo,
                     // skip it entirely.
                     return Ok(Vec::new());
@@ -872,14 +919,39 @@ impl DirEntry {
             } else {
                 entry.path()
             };
-            let base_name = get_bytes_from_os_string(file_name).into();
+            let filename =
+                Cow::Owned(get_bytes_from_os_string(file_name).into());
+            let file_type = match FakeFileType::try_from(file_type) {
+                Ok(file_type) => file_type,
+                Err(_) => continue,
+            };
             results.push(DirEntry {
-                hg_path: base_name,
-                fs_path: full_path,
-                metadata,
+                hg_path: filename,
+                fs_path: Cow::Owned(full_path.to_path_buf()),
+                symlink_metadata: None,
+                file_type,
             })
         }
         Ok(results)
+    }
+
+    fn symlink_metadata(&self) -> Result<std::fs::Metadata, std::io::Error> {
+        match &self.symlink_metadata {
+            Some(meta) => Ok(meta.clone()),
+            None => std::fs::symlink_metadata(&self.fs_path),
+        }
+    }
+
+    fn is_dir(&self) -> bool {
+        self.file_type == FakeFileType::Directory
+    }
+
+    fn is_file(&self) -> bool {
+        self.file_type == FakeFileType::File
+    }
+
+    fn is_symlink(&self) -> bool {
+        self.file_type == FakeFileType::Symlink
     }
 }
 
