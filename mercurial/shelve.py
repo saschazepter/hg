@@ -1177,7 +1177,6 @@ def _dounshelve(ui, repo, basename, opts):
         oldtiprev = len(repo)
 
         pctx = repo[b'.']
-        tmpwctx = pctx
         # The goal is to have a commit structure like so:
         # ...-> pctx -> tmpwctx -> shelvectx
         # where tmpwctx is an optional commit with the user's pending changes
@@ -1186,7 +1185,7 @@ def _dounshelve(ui, repo, basename, opts):
 
         activebookmark = _backupactivebookmark(repo)
         tmpwctx, addedbefore = _commitworkingcopychanges(
-            ui, repo, opts, tmpwctx
+            ui, repo, opts, pctx
         )
         repo, shelvectx = _unshelverestorecommit(ui, repo, tr, basename)
         _checkunshelveuntrackedproblems(ui, repo, shelvectx)
