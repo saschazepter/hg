@@ -505,7 +505,6 @@ class revlog:
             self._docket = docket
             self._docket_file = entry_point
         else:
-            entry_data = b''
             self._initempty = True
             entry_data = self._get_data(entry_point, mmapindexthreshold)
             if len(entry_data) > 0:
