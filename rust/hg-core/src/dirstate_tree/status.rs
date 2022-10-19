@@ -414,7 +414,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         let dirstate_nodes = dirstate_nodes.sorted();
         // `sort_unstable_by_key` doesn’t allow keys borrowing from the value:
         // https://github.com/rust-lang/rust/issues/34162
-        fs_entries.sort_unstable_by(|e1, e2| e1.base_name.cmp(&e2.base_name));
+        fs_entries.sort_unstable_by(|e1, e2| e1.hg_path.cmp(&e2.hg_path));
 
         // Propagate here any error that would happen inside the comparison
         // callback below
@@ -430,7 +430,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                 dirstate_node
                     .base_name(self.dmap.on_disk)
                     .unwrap()
-                    .cmp(&fs_entry.base_name)
+                    .cmp(&fs_entry.hg_path)
             },
         )
         .par_bridge()
@@ -440,7 +440,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
             match pair {
                 Both(dirstate_node, fs_entry) => {
                     self.traverse_fs_and_dirstate(
-                        &fs_entry.full_path,
+                        &fs_entry.fs_path,
                         &fs_entry.metadata,
                         dirstate_node,
                         has_ignored_ancestor,
@@ -737,7 +737,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         directory_hg_path: &HgPath,
         fs_entry: &DirEntry,
     ) -> bool {
-        let hg_path = directory_hg_path.join(&fs_entry.base_name);
+        let hg_path = directory_hg_path.join(&fs_entry.hg_path);
         let file_type = fs_entry.metadata.file_type();
         let file_or_symlink = file_type.is_file() || file_type.is_symlink();
         if file_type.is_dir() {
@@ -755,7 +755,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                 let is_at_repo_root = false;
                 if let Ok(children_fs_entries) = self.read_dir(
                     &hg_path,
-                    &fs_entry.full_path,
+                    &fs_entry.fs_path,
                     is_at_repo_root,
                 ) {
                     children_fs_entries.par_iter().for_each(|child_fs_entry| {
@@ -821,8 +821,10 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
 }
 
 struct DirEntry {
-    base_name: HgPathBuf,
-    full_path: PathBuf,
+    /// Path as stored in the dirstate
+    hg_path: HgPathBuf,
+    /// Filesystem path
+    fs_path: PathBuf,
     metadata: std::fs::Metadata,
 }
 
@@ -872,8 +874,8 @@ impl DirEntry {
             };
             let base_name = get_bytes_from_os_string(file_name).into();
             results.push(DirEntry {
-                base_name,
-                full_path,
+                hg_path: base_name,
+                fs_path: full_path,
                 metadata,
             })
         }
