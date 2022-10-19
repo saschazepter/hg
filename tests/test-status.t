@@ -993,16 +993,8 @@ Changing the hgignore rules makes us recompute the status (and rewrite the dirst
   $ hg status
   ? another-subdir/something-else
 
-  $ hg debugdirstate --all --no-dates | grep '^ '
-      0         -1 unset               subdir (known-bad-output !)
-
-For some reason the first [status] is not enough to save the updated
-directory mtime into the cache. The second invocation does it.
-The first call only clears the directory cache by marking the directories
-as "outdated", which seems like a bug.
-
-  $ hg status
-  ? another-subdir/something-else
+One invocation of status is enough to populate the cache even if it's invalidated
+in the same run.
 
   $ hg debugdirstate --all --no-dates | grep '^ '
       0         -1 set                 subdir

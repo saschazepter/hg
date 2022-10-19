@@ -303,7 +303,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
     fn check_for_outdated_directory_cache(
         &self,
         dirstate_node: &NodeRef<'tree, 'on_disk>,
-    ) -> Result<(), DirstateV2ParseError> {
+    ) -> Result<bool, DirstateV2ParseError> {
         if self.ignore_patterns_have_changed == Some(true)
             && dirstate_node.cached_directory_mtime()?.is_some()
         {
@@ -311,9 +311,10 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                 dirstate_node
                     .full_path_borrowed(self.dmap.on_disk)?
                     .detach_from_tree(),
-            )
+            );
+            return Ok(true);
         }
-        Ok(())
+        Ok(false)
     }
 
     /// If this returns true, we can get accurate results by only using
@@ -473,7 +474,8 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         dirstate_node: NodeRef<'tree, 'on_disk>,
         has_ignored_ancestor: &'ancestor HasIgnoredAncestor<'ancestor>,
     ) -> Result<(), DirstateV2ParseError> {
-        self.check_for_outdated_directory_cache(&dirstate_node)?;
+        let outdated_dircache =
+            self.check_for_outdated_directory_cache(&dirstate_node)?;
         let hg_path = &dirstate_node.full_path_borrowed(self.dmap.on_disk)?;
         let file_type = fs_metadata.file_type();
         let file_or_symlink = file_type.is_file() || file_type.is_symlink();
@@ -510,6 +512,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                 children_all_have_dirstate_node_or_are_ignored,
                 fs_metadata,
                 dirstate_node,
+                outdated_dircache,
             )?
         } else {
             if file_or_symlink && self.matcher.matches(&hg_path) {
@@ -549,11 +552,17 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         Ok(())
     }
 
+    /// Save directory mtime if applicable.
+    ///
+    /// `outdated_directory_cache` is `true` if we've just invalidated the
+    /// cache for this directory in `check_for_outdated_directory_cache`,
+    /// which forces the update.
     fn maybe_save_directory_mtime(
         &self,
         children_all_have_dirstate_node_or_are_ignored: bool,
         directory_metadata: &std::fs::Metadata,
         dirstate_node: NodeRef<'tree, 'on_disk>,
+        outdated_directory_cache: bool,
     ) -> Result<(), DirstateV2ParseError> {
         if !children_all_have_dirstate_node_or_are_ignored {
             return Ok(());
@@ -621,12 +630,13 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         // We deem this scenario (unlike the previous one) to be
         // unlikely enough in practice.
 
-        let is_up_to_date =
-            if let Some(cached) = dirstate_node.cached_directory_mtime()? {
-                cached.likely_equal(directory_mtime)
-            } else {
-                false
-            };
+        let is_up_to_date = if let Some(cached) =
+            dirstate_node.cached_directory_mtime()?
+        {
+            !outdated_directory_cache && cached.likely_equal(directory_mtime)
+        } else {
+            false
+        };
         if !is_up_to_date {
             let hg_path = dirstate_node
                 .full_path_borrowed(self.dmap.on_disk)?
