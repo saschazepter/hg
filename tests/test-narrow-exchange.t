@@ -218,8 +218,8 @@ TODO: lfs shouldn't abort like this
   remote: adding manifests
   remote: adding file changes
   remote: added 1 changesets with 0 changes to 0 files (no-lfs-on !)
-  remote: error: pretxnchangegroup.lfs hook raised an exception: data/inside2/f@f59b4e0218355383d2789196f1092abcf2262b0c: no match found (lfs-on !)
+  remote: error: pretxnchangegroup.lfs hook raised an exception: inside2/f@f59b4e0218355383d2789196f1092abcf2262b0c: no match found (lfs-on !)
   remote: transaction abort! (lfs-on !)
   remote: rollback completed (lfs-on !)
-  remote: abort: data/inside2/f@f59b4e0218355383d2789196f1092abcf2262b0c: no match found (lfs-on !)
+  remote: abort: inside2/f@f59b4e0218355383d2789196f1092abcf2262b0c: no match found (lfs-on !)
   abort: stream ended unexpectedly (got 0 bytes, expected 4) (lfs-on !)
