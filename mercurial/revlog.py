@@ -44,6 +44,7 @@ from .revlogutils.constants import (
     FLAG_INLINE_DATA,
     INDEX_HEADER,
     KIND_CHANGELOG,
+    KIND_FILELOG,
     RANK_UNKNOWN,
     REVLOGV0,
     REVLOGV1,
@@ -652,9 +653,12 @@ class revlog:
     @util.propertycache
     def display_id(self):
         """The public facing "ID" of the revlog that we use in message"""
-        # Maybe we should build a user facing representation of
-        # revlog.target instead of using `self.radix`
-        return self.radix
+        if self.revlog_kind == KIND_FILELOG:
+            # Reference the file without the "data/" prefix, so it is familiar
+            # to the user.
+            return self.target[1]
+        else:
+            return self.radix
 
     def _get_decompressor(self, t):
         try:
