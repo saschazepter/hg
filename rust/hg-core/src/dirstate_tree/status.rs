@@ -121,8 +121,8 @@ pub fn status<'dirstate>(
         ignore_fn,
         outcome: Mutex::new(outcome),
         ignore_patterns_have_changed: patterns_changed,
-        new_cachable_directories: Default::default(),
-        outated_cached_directories: Default::default(),
+        new_cacheable_directories: Default::default(),
+        outdated_cached_directories: Default::default(),
         filesystem_time_at_status_start,
     };
     let is_at_repo_root = true;
@@ -143,12 +143,12 @@ pub fn status<'dirstate>(
         is_at_repo_root,
     )?;
     let mut outcome = common.outcome.into_inner().unwrap();
-    let new_cachable = common.new_cachable_directories.into_inner().unwrap();
-    let outdated = common.outated_cached_directories.into_inner().unwrap();
+    let new_cacheable = common.new_cacheable_directories.into_inner().unwrap();
+    let outdated = common.outdated_cached_directories.into_inner().unwrap();
 
     outcome.dirty = common.ignore_patterns_have_changed == Some(true)
         || !outdated.is_empty()
-        || (!new_cachable.is_empty()
+        || (!new_cacheable.is_empty()
             && dmap.dirstate_version == DirstateVersion::V2);
 
     // Remove outdated mtimes before adding new mtimes, in case a given
@@ -156,7 +156,7 @@ pub fn status<'dirstate>(
     for path in &outdated {
         dmap.clear_cached_mtime(path)?;
     }
-    for (path, mtime) in &new_cachable {
+    for (path, mtime) in &new_cacheable {
         dmap.set_cached_mtime(path, *mtime)?;
     }
 
@@ -171,9 +171,11 @@ struct StatusCommon<'a, 'tree, 'on_disk: 'tree> {
     matcher: &'a (dyn Matcher + Sync),
     ignore_fn: IgnoreFnType<'a>,
     outcome: Mutex<DirstateStatus<'on_disk>>,
-    new_cachable_directories:
+    /// New timestamps of directories to be used for caching their readdirs
+    new_cacheable_directories:
         Mutex<Vec<(Cow<'on_disk, HgPath>, TruncatedTimestamp)>>,
-    outated_cached_directories: Mutex<Vec<Cow<'on_disk, HgPath>>>,
+    /// Used to invalidate the readdir cache of directories
+    outdated_cached_directories: Mutex<Vec<Cow<'on_disk, HgPath>>>,
 
     /// Whether ignore files like `.hgignore` have changed since the previous
     /// time a `status()` call wrote their hash to the dirstate. `None` means
@@ -305,7 +307,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         if self.ignore_patterns_have_changed == Some(true)
             && dirstate_node.cached_directory_mtime()?.is_some()
         {
-            self.outated_cached_directories.lock().unwrap().push(
+            self.outdated_cached_directories.lock().unwrap().push(
                 dirstate_node
                     .full_path_borrowed(self.dmap.on_disk)?
                     .detach_from_tree(),
@@ -629,7 +631,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
             let hg_path = dirstate_node
                 .full_path_borrowed(self.dmap.on_disk)?
                 .detach_from_tree();
-            self.new_cachable_directories
+            self.new_cacheable_directories
                 .lock()
                 .unwrap()
                 .push((hg_path, directory_mtime))
