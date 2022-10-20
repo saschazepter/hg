@@ -168,12 +168,16 @@ class local:
             # producing the response (but the server has no way of telling us
             # that), and we really don't need to try to write the response to
             # the localstore, because it's not going to match the expected.
+            # The server also uses this method to store data uploaded by the
+            # client, so if this happens on the server side, it's possible
+            # that the client crashed or an antivirus interfered with the
+            # upload.
             if content_length is not None and int(content_length) != size:
                 msg = (
                     b"Response length (%d) does not match Content-Length "
-                    b"header (%d): likely server-side crash"
+                    b"header (%d) for %s"
                 )
-                raise LfsRemoteError(_(msg) % (size, int(content_length)))
+                raise LfsRemoteError(_(msg) % (size, int(content_length), oid))
 
             realoid = hex(sha256.digest())
             if realoid != oid:
