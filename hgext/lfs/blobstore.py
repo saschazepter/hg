@@ -170,7 +170,7 @@ class local:
             # the localstore, because it's not going to match the expected.
             if content_length is not None and int(content_length) != size:
                 msg = (
-                    b"Response length (%s) does not match Content-Length "
+                    b"Response length (%d) does not match Content-Length "
                     b"header (%d): likely server-side crash"
                 )
                 raise LfsRemoteError(_(msg) % (size, int(content_length)))
