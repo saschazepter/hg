@@ -89,7 +89,7 @@ check-pytype:
       - hg -R /tmp/mercurial-ci/ update `hg log --rev '.' --template '{node}'`
       - cd /tmp/mercurial-ci/
       - make local PYTHON=$PYTHON
-      - $PYTHON -m pip install --user -U pytype==2021.04.15
+      - $PYTHON -m pip install --user -U libcst==0.3.20 pytype==2022.03.29
     script:
       - echo "Entering script section"
       - sh contrib/check-pytype.sh

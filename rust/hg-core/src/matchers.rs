@@ -46,7 +46,7 @@ pub enum VisitChildrenSet {
     Recursive,
 }
 
-pub trait Matcher {
+pub trait Matcher: core::fmt::Debug {
     /// Explicitly listed files
     fn file_set(&self) -> Option<&HashSet<HgPathBuf>>;
     /// Returns whether `filename` is in `file_set`
@@ -283,6 +283,18 @@ pub struct IncludeMatcher<'a> {
     parents: HashSet<HgPathBuf>,
 }
 
+impl core::fmt::Debug for IncludeMatcher<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IncludeMatcher")
+            .field("patterns", &String::from_utf8_lossy(&self.patterns))
+            .field("prefix", &self.prefix)
+            .field("roots", &self.roots)
+            .field("dirs", &self.dirs)
+            .field("parents", &self.parents)
+            .finish()
+    }
+}
+
 impl<'a> Matcher for IncludeMatcher<'a> {
     fn file_set(&self) -> Option<&HashSet<HgPathBuf>> {
         None
@@ -330,6 +342,7 @@ impl<'a> Matcher for IncludeMatcher<'a> {
 }
 
 /// The union of multiple matchers. Will match if any of the matchers match.
+#[derive(Debug)]
 pub struct UnionMatcher {
     matchers: Vec<Box<dyn Matcher + Sync>>,
 }
@@ -393,6 +406,7 @@ impl UnionMatcher {
     }
 }
 
+#[derive(Debug)]
 pub struct IntersectionMatcher {
     m1: Box<dyn Matcher + Sync>,
     m2: Box<dyn Matcher + Sync>,
@@ -471,6 +485,91 @@ impl IntersectionMatcher {
             None
         };
         Self { m1, m2, files }
+    }
+}
+
+#[derive(Debug)]
+pub struct DifferenceMatcher {
+    base: Box<dyn Matcher + Sync>,
+    excluded: Box<dyn Matcher + Sync>,
+    files: Option<HashSet<HgPathBuf>>,
+}
+
+impl Matcher for DifferenceMatcher {
+    fn file_set(&self) -> Option<&HashSet<HgPathBuf>> {
+        self.files.as_ref()
+    }
+
+    fn exact_match(&self, filename: &HgPath) -> bool {
+        self.files.as_ref().map_or(false, |f| f.contains(filename))
+    }
+
+    fn matches(&self, filename: &HgPath) -> bool {
+        self.base.matches(filename) && !self.excluded.matches(filename)
+    }
+
+    fn visit_children_set(&self, directory: &HgPath) -> VisitChildrenSet {
+        let excluded_set = self.excluded.visit_children_set(directory);
+        if excluded_set == VisitChildrenSet::Recursive {
+            return VisitChildrenSet::Empty;
+        }
+        let base_set = self.base.visit_children_set(directory);
+        // Possible values for base: 'recursive', 'this', set(...), set()
+        // Possible values for excluded:          'this', set(...), set()
+        // If excluded has nothing under here that we care about, return base,
+        // even if it's 'recursive'.
+        if excluded_set == VisitChildrenSet::Empty {
+            return base_set;
+        }
+        match base_set {
+            VisitChildrenSet::This | VisitChildrenSet::Recursive => {
+                // Never return 'recursive' here if excluded_set is any kind of
+                // non-empty (either 'this' or set(foo)), since excluded might
+                // return set() for a subdirectory.
+                VisitChildrenSet::This
+            }
+            set => {
+                // Possible values for base:         set(...), set()
+                // Possible values for excluded: 'this', set(...)
+                // We ignore excluded set results. They're possibly incorrect:
+                //  base = path:dir/subdir
+                //  excluded=rootfilesin:dir,
+                //  visit_children_set(''):
+                //   base returns {'dir'}, excluded returns {'dir'}, if we
+                //   subtracted we'd return set(), which is *not* correct, we
+                //   still need to visit 'dir'!
+                set
+            }
+        }
+    }
+
+    fn matches_everything(&self) -> bool {
+        false
+    }
+
+    fn is_exact(&self) -> bool {
+        self.base.is_exact()
+    }
+}
+
+impl DifferenceMatcher {
+    pub fn new(
+        base: Box<dyn Matcher + Sync>,
+        excluded: Box<dyn Matcher + Sync>,
+    ) -> Self {
+        let base_is_exact = base.is_exact();
+        let base_files = base.file_set().map(ToOwned::to_owned);
+        let mut new = Self {
+            base,
+            excluded,
+            files: None,
+        };
+        if base_is_exact {
+            new.files = base_files.map(|files| {
+                files.iter().cloned().filter(|f| new.matches(f)).collect()
+            });
+        }
+        new
     }
 }
 
@@ -1487,6 +1586,103 @@ mod tests {
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"dir/subdir/x")),
             VisitChildrenSet::Empty
+        );
+    }
+
+    #[test]
+    fn test_differencematcher() {
+        // Two alwaysmatchers should function like a nevermatcher
+        let m1 = AlwaysMatcher;
+        let m2 = AlwaysMatcher;
+        let matcher = DifferenceMatcher::new(Box::new(m1), Box::new(m2));
+
+        for case in &[
+            &b""[..],
+            b"dir",
+            b"dir/subdir",
+            b"dir/subdir/z",
+            b"dir/foo",
+            b"dir/subdir/x",
+            b"folder",
+        ] {
+            assert_eq!(
+                matcher.visit_children_set(HgPath::new(case)),
+                VisitChildrenSet::Empty
+            );
+        }
+
+        // One always and one never should behave the same as an always
+        let m1 = AlwaysMatcher;
+        let m2 = NeverMatcher;
+        let matcher = DifferenceMatcher::new(Box::new(m1), Box::new(m2));
+
+        for case in &[
+            &b""[..],
+            b"dir",
+            b"dir/subdir",
+            b"dir/subdir/z",
+            b"dir/foo",
+            b"dir/subdir/x",
+            b"folder",
+        ] {
+            assert_eq!(
+                matcher.visit_children_set(HgPath::new(case)),
+                VisitChildrenSet::Recursive
+            );
+        }
+
+        // Two include matchers
+        let m1 = Box::new(
+            IncludeMatcher::new(vec![IgnorePattern::new(
+                PatternSyntax::RelPath,
+                b"dir/subdir",
+                Path::new("/repo"),
+            )])
+            .unwrap(),
+        );
+        let m2 = Box::new(
+            IncludeMatcher::new(vec![IgnorePattern::new(
+                PatternSyntax::RootFiles,
+                b"dir",
+                Path::new("/repo"),
+            )])
+            .unwrap(),
+        );
+
+        let matcher = DifferenceMatcher::new(m1, m2);
+
+        let mut set = HashSet::new();
+        set.insert(HgPathBuf::from_bytes(b"dir"));
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::Set(set)
+        );
+
+        let mut set = HashSet::new();
+        set.insert(HgPathBuf::from_bytes(b"subdir"));
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir")),
+            VisitChildrenSet::Set(set)
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/subdir")),
+            VisitChildrenSet::Recursive
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/foo")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"folder")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/subdir/z")),
+            VisitChildrenSet::This
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/subdir/x")),
+            VisitChildrenSet::This
         );
     }
 }

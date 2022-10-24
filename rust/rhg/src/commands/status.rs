@@ -10,7 +10,6 @@ use crate::ui::Ui;
 use crate::utils::path_utils::RelativizePaths;
 use clap::{Arg, SubCommand};
 use format_bytes::format_bytes;
-use hg;
 use hg::config::Config;
 use hg::dirstate::has_exec_bit;
 use hg::dirstate::status::StatusPath;
@@ -18,7 +17,7 @@ use hg::dirstate::TruncatedTimestamp;
 use hg::errors::{HgError, IoResultExt};
 use hg::lock::LockError;
 use hg::manifest::Manifest;
-use hg::matchers::AlwaysMatcher;
+use hg::matchers::{AlwaysMatcher, IntersectionMatcher};
 use hg::repo::Repo;
 use hg::utils::files::get_bytes_from_os_string;
 use hg::utils::files::get_bytes_from_path;
@@ -28,7 +27,9 @@ use hg::DirstateStatus;
 use hg::PatternFileWarning;
 use hg::StatusError;
 use hg::StatusOptions;
+use hg::{self, narrow, sparse};
 use log::info;
+use rayon::prelude::*;
 use std::io;
 use std::path::PathBuf;
 
@@ -104,6 +105,12 @@ pub fn args() -> clap::App<'static, 'static> {
                 .short("-n")
                 .long("--no-status"),
         )
+        .arg(
+            Arg::with_name("verbose")
+                .help("enable additional output")
+                .short("-v")
+                .long("--verbose"),
+        )
 }
 
 /// Pure data type allowing the caller to specify file states to display
@@ -150,18 +157,35 @@ impl DisplayStates {
     }
 }
 
+fn has_unfinished_merge(repo: &Repo) -> Result<bool, CommandError> {
+    return Ok(repo.dirstate_parents()?.is_merge());
+}
+
+fn has_unfinished_state(repo: &Repo) -> Result<bool, CommandError> {
+    // These are all the known values for the [fname] argument of
+    // [addunfinished] function in [state.py]
+    let known_state_files: &[&str] = &[
+        "bisect.state",
+        "graftstate",
+        "histedit-state",
+        "rebasestate",
+        "shelvedstate",
+        "transplant/journal",
+        "updatestate",
+    ];
+    if has_unfinished_merge(repo)? {
+        return Ok(true);
+    };
+    for f in known_state_files {
+        if repo.hg_vfs().join(f).exists() {
+            return Ok(true);
+        }
+    }
+    return Ok(false);
+}
+
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     // TODO: lift these limitations
-    if invocation.config.get_bool(b"ui", b"tweakdefaults")? {
-        return Err(CommandError::unsupported(
-            "ui.tweakdefaults is not yet supported with rhg status",
-        ));
-    }
-    if invocation.config.get_bool(b"ui", b"statuscopies")? {
-        return Err(CommandError::unsupported(
-            "ui.statuscopies is not yet supported with rhg status",
-        ));
-    }
     if invocation
         .config
         .get(b"commands", b"status.terse")
@@ -176,15 +200,10 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let config = invocation.config;
     let args = invocation.subcommand_args;
 
-    let verbose = !ui.plain(None)
-        && !args.is_present("print0")
-        && (config.get_bool(b"ui", b"verbose")?
+    let verbose = !args.is_present("print0")
+        && (args.is_present("verbose")
+            || config.get_bool(b"ui", b"verbose")?
             || config.get_bool(b"commands", b"status.verbose")?);
-    if verbose {
-        return Err(CommandError::unsupported(
-            "verbose status is not supported yet",
-        ));
-    }
 
     let all = args.is_present("all");
     let display_states = if all {
@@ -214,10 +233,12 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let repo = invocation.repo?;
 
-    if repo.has_sparse() || repo.has_narrow() {
-        return Err(CommandError::unsupported(
-            "rhg status is not supported for sparse checkouts or narrow clones yet"
-        ));
+    if verbose {
+        if has_unfinished_state(repo)? {
+            return Err(CommandError::unsupported(
+                "verbose status output is not supported by rhg (and is needed because we're in an unfinished operation)",
+            ));
+        };
     }
 
     let mut dmap = repo.dirstate_map_mut()?;
@@ -239,28 +260,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let after_status = |res: StatusResult| -> Result<_, CommandError> {
         let (mut ds_status, pattern_warnings) = res?;
         for warning in pattern_warnings {
-            match warning {
-                hg::PatternFileWarning::InvalidSyntax(path, syntax) => ui
-                    .write_stderr(&format_bytes!(
-                        b"{}: ignoring invalid syntax '{}'\n",
-                        get_bytes_from_path(path),
-                        &*syntax
-                    ))?,
-                hg::PatternFileWarning::NoSuchFile(path) => {
-                    let path = if let Ok(relative) =
-                        path.strip_prefix(repo.working_directory_path())
-                    {
-                        relative
-                    } else {
-                        &*path
-                    };
-                    ui.write_stderr(&format_bytes!(
-                        b"skipping unreadable pattern file '{}': \
-                          No such file or directory\n",
-                        get_bytes_from_path(path),
-                    ))?
-                }
-            }
+            ui.write_stderr(&print_pattern_file_warning(&warning, &repo))?;
         }
 
         for (path, error) in ds_status.bad {
@@ -292,23 +292,37 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             let manifest = repo.manifest_for_node(p1).map_err(|e| {
                 CommandError::from((e, &*format!("{:x}", p1.short())))
             })?;
-            for to_check in ds_status.unsure {
-                if unsure_is_modified(repo, &manifest, &to_check.path)? {
+            let working_directory_vfs = repo.working_directory_vfs();
+            let store_vfs = repo.store_vfs();
+            let res: Vec<_> = ds_status
+                .unsure
+                .into_par_iter()
+                .map(|to_check| {
+                    unsure_is_modified(
+                        working_directory_vfs,
+                        store_vfs,
+                        &manifest,
+                        &to_check.path,
+                    )
+                    .map(|modified| (to_check, modified))
+                })
+                .collect::<Result<_, _>>()?;
+            for (status_path, is_modified) in res.into_iter() {
+                if is_modified {
                     if display_states.modified {
-                        ds_status.modified.push(to_check);
+                        ds_status.modified.push(status_path);
                     }
                 } else {
                     if display_states.clean {
-                        ds_status.clean.push(to_check.clone());
+                        ds_status.clean.push(status_path.clone());
                     }
-                    fixup.push(to_check.path.into_owned())
+                    fixup.push(status_path.path.into_owned())
                 }
             }
         }
-        let relative_paths = (!ui.plain(None))
-            && config
-                .get_option(b"commands", b"status.relative")?
-                .unwrap_or(config.get_bool(b"ui", b"relative-paths")?);
+        let relative_paths = config
+            .get_option(b"commands", b"status.relative")?
+            .unwrap_or(config.get_bool(b"ui", b"relative-paths")?);
         let output = DisplayStatusPaths {
             ui,
             no_status,
@@ -350,9 +364,45 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             filesystem_time_at_status_start,
         ))
     };
+    let (narrow_matcher, narrow_warnings) = narrow::matcher(repo)?;
+    let (sparse_matcher, sparse_warnings) = sparse::matcher(repo)?;
+    let matcher = match (repo.has_narrow(), repo.has_sparse()) {
+        (true, true) => {
+            Box::new(IntersectionMatcher::new(narrow_matcher, sparse_matcher))
+        }
+        (true, false) => narrow_matcher,
+        (false, true) => sparse_matcher,
+        (false, false) => Box::new(AlwaysMatcher),
+    };
+
+    for warning in narrow_warnings.into_iter().chain(sparse_warnings) {
+        match &warning {
+            sparse::SparseWarning::RootWarning { context, line } => {
+                let msg = format_bytes!(
+                    b"warning: {} profile cannot use paths \"
+                    starting with /, ignoring {}\n",
+                    context,
+                    line
+                );
+                ui.write_stderr(&msg)?;
+            }
+            sparse::SparseWarning::ProfileNotFound { profile, rev } => {
+                let msg = format_bytes!(
+                    b"warning: sparse profile '{}' not found \"
+                    in rev {} - ignoring it\n",
+                    profile,
+                    rev
+                );
+                ui.write_stderr(&msg)?;
+            }
+            sparse::SparseWarning::Pattern(e) => {
+                ui.write_stderr(&print_pattern_file_warning(e, &repo))?;
+            }
+        }
+    }
     let (fixup, mut dirstate_write_needed, filesystem_time_at_status_start) =
         dmap.with_status(
-            &AlwaysMatcher,
+            matcher.as_ref(),
             repo.working_directory_path().to_owned(),
             ignore_files(repo, config),
             options,
@@ -491,11 +541,12 @@ impl DisplayStatusPaths<'_> {
 /// This meant to be used for those that the dirstate cannot resolve, due
 /// to time resolution limits.
 fn unsure_is_modified(
-    repo: &Repo,
+    working_directory_vfs: hg::vfs::Vfs,
+    store_vfs: hg::vfs::Vfs,
     manifest: &Manifest,
     hg_path: &HgPath,
 ) -> Result<bool, HgError> {
-    let vfs = repo.working_directory_vfs();
+    let vfs = working_directory_vfs;
     let fs_path = hg_path_to_path_buf(hg_path).expect("HgPath conversion");
     let fs_metadata = vfs.symlink_metadata(&fs_path)?;
     let is_symlink = fs_metadata.file_type().is_symlink();
@@ -515,7 +566,7 @@ fn unsure_is_modified(
     if entry.flags != fs_flags {
         return Ok(true);
     }
-    let filelog = repo.filelog(hg_path)?;
+    let filelog = hg::filelog::Filelog::open_vfs(&store_vfs, hg_path)?;
     let fs_len = fs_metadata.len();
     let file_node = entry.node_id()?;
     let filelog_entry = filelog.entry_for_node(file_node).map_err(|_| {
@@ -544,4 +595,31 @@ fn unsure_is_modified(
         vfs.read(fs_path)?
     };
     Ok(p1_contents != &*fs_contents)
+}
+
+fn print_pattern_file_warning(
+    warning: &PatternFileWarning,
+    repo: &Repo,
+) -> Vec<u8> {
+    match warning {
+        PatternFileWarning::InvalidSyntax(path, syntax) => format_bytes!(
+            b"{}: ignoring invalid syntax '{}'\n",
+            get_bytes_from_path(path),
+            &*syntax
+        ),
+        PatternFileWarning::NoSuchFile(path) => {
+            let path = if let Ok(relative) =
+                path.strip_prefix(repo.working_directory_path())
+            {
+                relative
+            } else {
+                &*path
+            };
+            format_bytes!(
+                b"skipping unreadable pattern file '{}': \
+                    No such file or directory\n",
+                get_bytes_from_path(path),
+            )
+        }
+    }
 }

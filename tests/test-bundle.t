@@ -718,7 +718,7 @@ Unbundle incremental bundles into fresh empty in one go
   $ hg init empty
   $ hg -R test bundle --base null -r 0 ../0.hg
   1 changesets found
-  $ hg -R test bundle --base 0    -r 1 ../1.hg
+  $ hg -R test bundle --exact -r 1 ../1.hg
   1 changesets found
   $ hg -R empty unbundle -u ../0.hg ../1.hg
   adding changesets

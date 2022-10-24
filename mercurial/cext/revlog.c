@@ -1382,6 +1382,7 @@ static inline int index_baserev(indexObject *self, int rev)
 static int index_issnapshotrev(indexObject *self, Py_ssize_t rev)
 {
 	int ps[2];
+	int b;
 	Py_ssize_t base;
 	while (rev >= 0) {
 		base = (Py_ssize_t)index_baserev(self, rev);
@@ -1399,6 +1400,20 @@ static int index_issnapshotrev(indexObject *self, Py_ssize_t rev)
 			assert(PyErr_Occurred());
 			return -1;
 		};
+		while ((index_get_length(self, ps[0]) == 0) && ps[0] >= 0) {
+			b = index_baserev(self, ps[0]);
+			if (b == ps[0]) {
+				break;
+			}
+			ps[0] = b;
+		}
+		while ((index_get_length(self, ps[1]) == 0) && ps[1] >= 0) {
+			b = index_baserev(self, ps[1]);
+			if (b == ps[1]) {
+				break;
+			}
+			ps[1] = b;
+		}
 		if (base == ps[0] || base == ps[1]) {
 			return 0;
 		}

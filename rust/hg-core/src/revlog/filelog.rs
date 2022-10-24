@@ -17,16 +17,19 @@ pub struct Filelog {
 }
 
 impl Filelog {
-    pub fn open(repo: &Repo, file_path: &HgPath) -> Result<Self, HgError> {
+    pub fn open_vfs(
+        store_vfs: &crate::vfs::Vfs<'_>,
+        file_path: &HgPath,
+    ) -> Result<Self, HgError> {
         let index_path = store_path(file_path, b".i");
         let data_path = store_path(file_path, b".d");
-        let revlog = Revlog::open(
-            &repo.store_vfs(),
-            index_path,
-            Some(&data_path),
-            false,
-        )?;
+        let revlog =
+            Revlog::open(store_vfs, index_path, Some(&data_path), false)?;
         Ok(Self { revlog })
+    }
+
+    pub fn open(repo: &Repo, file_path: &HgPath) -> Result<Self, HgError> {
+        Self::open_vfs(&repo.store_vfs(), file_path)
     }
 
     /// The given node ID is that of the file as found in a filelog, not of a

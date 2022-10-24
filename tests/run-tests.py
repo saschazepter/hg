@@ -48,7 +48,7 @@ import argparse
 import collections
 import contextlib
 import difflib
-import distutils.version as version
+
 import errno
 import functools
 import json
@@ -71,6 +71,13 @@ import time
 import unittest
 import uuid
 import xml.dom.minidom as minidom
+
+try:
+    # PEP 632 recommend the use of `packaging.version` to replace the
+    # deprecated `distutil.version`. So lets do it.
+    import packaging.version as version
+except ImportError:
+    import distutils.version as version
 
 if sys.version_info < (3, 5, 0):
     print(
@@ -3437,6 +3444,7 @@ class TestRunner:
             if self.options.list_tests:
                 result = runner.listtests(suite)
             else:
+                install_start_time = time.monotonic()
                 self._usecorrectpython()
                 if self._installdir:
                     self._installhg()
@@ -3450,6 +3458,11 @@ class TestRunner:
                 elif self.options.pyoxidized:
                     self._build_pyoxidized()
                 self._use_correct_mercurial()
+                install_end_time = time.monotonic()
+                if self._installdir:
+                    msg = 'installed Mercurial in %.2f seconds'
+                    msg %= install_end_time - install_start_time
+                    log(msg)
 
                 log(
                     'running %d tests using %d parallel processes'

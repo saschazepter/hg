@@ -3,10 +3,9 @@ use crate::color::Effect;
 use format_bytes::format_bytes;
 use format_bytes::write_bytes;
 use hg::config::Config;
+use hg::config::PlainInfo;
 use hg::errors::HgError;
-use hg::utils::files::get_bytes_from_os_string;
 use std::borrow::Cow;
-use std::env;
 use std::io;
 use std::io::{ErrorKind, Write};
 
@@ -127,35 +126,15 @@ impl Ui {
         }
         stdout.flush()
     }
-
-    /// Return whether plain mode is active.
-    ///
-    /// Plain mode means that all configuration variables which affect
-    /// the behavior and output of Mercurial should be
-    /// ignored. Additionally, the output should be stable,
-    /// reproducible and suitable for use in scripts or applications.
-    ///
-    /// The only way to trigger plain mode is by setting either the
-    /// `HGPLAIN' or `HGPLAINEXCEPT' environment variables.
-    ///
-    /// The return value can either be
-    /// - False if HGPLAIN is not set, or feature is in HGPLAINEXCEPT
-    /// - False if feature is disabled by default and not included in HGPLAIN
-    /// - True otherwise
-    pub fn plain(&self, feature: Option<&str>) -> bool {
-        plain(feature)
-    }
 }
 
+// TODO: pass the PlainInfo to call sites directly and
+// delete this function
 pub fn plain(opt_feature: Option<&str>) -> bool {
-    if let Some(except) = env::var_os("HGPLAINEXCEPT") {
-        opt_feature.map_or(true, |feature| {
-            get_bytes_from_os_string(except)
-                .split(|&byte| byte == b',')
-                .all(|exception| exception != feature.as_bytes())
-        })
-    } else {
-        env::var_os("HGPLAIN").is_some()
+    let plain_info = PlainInfo::from_env();
+    match opt_feature {
+        None => plain_info.is_plain(),
+        Some(feature) => plain_info.is_feature_plain(feature),
     }
 }
 

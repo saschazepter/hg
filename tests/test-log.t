@@ -2157,6 +2157,8 @@ test -u/-k for problematic encoding
   ... '''.encode('utf-8')) and None
   $ sh < setup.sh
 
+#if no-rhg
+
 test in problematic encoding
   >>> with open('test.sh', 'wb') as f:
   ...     f.write(u'''
@@ -2178,6 +2180,8 @@ test in problematic encoding
   ====
   3
   1
+
+#endif
 
   $ cd ..
 
