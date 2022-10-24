@@ -22,6 +22,7 @@ shelve".
 """
 
 import collections
+import io
 import itertools
 import stat
 
@@ -98,6 +99,17 @@ class ShelfDir:
         return sorted(info, reverse=True)
 
 
+def _use_internal_phase(repo):
+    return (
+        phases.supportinternal(repo)
+        and repo.ui.config(b'shelve', b'store') == b'internal'
+    )
+
+
+def _target_phase(repo):
+    return phases.internal if _use_internal_phase(repo) else phases.secret
+
+
 class Shelf:
     """Represents a shelf, including possibly multiple files storing it.
 
@@ -111,12 +123,19 @@ class Shelf:
         self.name = name
 
     def exists(self):
-        return self.vfs.exists(self.name + b'.patch') and self.vfs.exists(
-            self.name + b'.hg'
-        )
+        return self._exists(b'.shelve') or self._exists(b'.patch', b'.hg')
+
+    def _exists(self, *exts):
+        return all(self.vfs.exists(self.name + ext) for ext in exts)
 
     def mtime(self):
-        return self.vfs.stat(self.name + b'.patch')[stat.ST_MTIME]
+        try:
+            return self._stat(b'.shelve')[stat.ST_MTIME]
+        except FileNotFoundError:
+            return self._stat(b'.patch')[stat.ST_MTIME]
+
+    def _stat(self, ext):
+        return self.vfs.stat(self.name + ext)
 
     def writeinfo(self, info):
         scmutil.simplekeyvaluefile(self.vfs, self.name + b'.shelve').write(info)
@@ -159,9 +178,7 @@ class Shelf:
         filename = self.name + b'.hg'
         fp = self.vfs(filename)
         try:
-            targetphase = phases.internal
-            if not phases.supportinternal(repo):
-                targetphase = phases.secret
+            targetphase = _target_phase(repo)
             gen = exchange.readbundle(repo.ui, fp, filename, self.vfs)
             pretip = repo[b'tip']
             bundle2.applybundle(
@@ -182,6 +199,27 @@ class Shelf:
 
     def open_patch(self, mode=b'rb'):
         return self.vfs(self.name + b'.patch', mode)
+
+    def patch_from_node(self, repo, node):
+        repo = repo.unfiltered()
+        match = _optimized_match(repo, node)
+        fp = io.BytesIO()
+        cmdutil.exportfile(
+            repo,
+            [node],
+            fp,
+            opts=mdiff.diffopts(git=True),
+            match=match,
+        )
+        fp.seek(0)
+        return fp
+
+    def load_patch(self, repo):
+        try:
+            # prefer node-based shelf
+            return self.patch_from_node(repo, self.readinfo()[b'node'])
+        except (FileNotFoundError, error.RepoLookupError):
+            return self.open_patch()
 
     def _backupfilename(self, backupvfs, filename):
         def gennames(base):
@@ -208,6 +246,15 @@ class Shelf:
     def delete(self):
         for ext in shelvefileextensions:
             self.vfs.tryunlink(self.name + b'.' + ext)
+
+
+def _optimized_match(repo, node):
+    """
+    Create a matcher so that prefetch doesn't attempt to fetch
+    the entire repository pointlessly, and as an optimisation
+    for movedirstate, if needed.
+    """
+    return scmutil.matchfiles(repo, repo[node].files())
 
 
 class shelvedstate:
@@ -447,9 +494,7 @@ def getcommitfunc(extra, interactive, editor=False):
         if hasmq:
             saved, repo.mq.checkapplied = repo.mq.checkapplied, False
 
-        targetphase = phases.internal
-        if not phases.supportinternal(repo):
-            targetphase = phases.secret
+        targetphase = _target_phase(repo)
         overrides = {(b'phases', b'new-commit'): targetphase}
         try:
             editor_ = False
@@ -510,7 +555,7 @@ def _includeunknownfiles(repo, pats, opts, extra):
 
 
 def _finishshelve(repo, tr):
-    if phases.supportinternal(repo):
+    if _use_internal_phase(repo):
         tr.close()
     else:
         _aborttransaction(repo, tr)
@@ -579,10 +624,7 @@ def _docreatecmd(ui, repo, pats, opts):
             _nothingtoshelvemessaging(ui, repo, pats, opts)
             return 1
 
-        # Create a matcher so that prefetch doesn't attempt to fetch
-        # the entire repository pointlessly, and as an optimisation
-        # for movedirstate, if needed.
-        match = scmutil.matchfiles(repo, repo[node].files())
+        match = _optimized_match(repo, node)
         _shelvecreatedcommit(repo, node, name, match)
 
         ui.status(_(b'shelved as %s\n') % name)
@@ -668,7 +710,7 @@ def listcmd(ui, repo, pats, opts):
         ui.write(age, label=b'shelve.age')
         ui.write(b' ' * (12 - len(age)))
         used += 12
-        with shelf_dir.get(name).open_patch() as fp:
+        with shelf_dir.get(name).load_patch(repo) as fp:
             while True:
                 line = fp.readline()
                 if not line:
@@ -754,7 +796,7 @@ def unshelveabort(ui, repo, state):
             if state.activebookmark and state.activebookmark in repo._bookmarks:
                 bookmarks.activate(repo, state.activebookmark)
             mergefiles(ui, repo, state.wctx, state.pendingctx)
-            if not phases.supportinternal(repo):
+            if not _use_internal_phase(repo):
                 repair.strip(
                     ui, repo, state.nodestoremove, backup=False, topic=b'shelve'
                 )
@@ -816,9 +858,7 @@ def unshelvecontinue(ui, repo, state, opts):
             repo.setparents(state.pendingctx.node(), repo.nullid)
             repo.dirstate.write(repo.currenttransaction())
 
-        targetphase = phases.internal
-        if not phases.supportinternal(repo):
-            targetphase = phases.secret
+        targetphase = _target_phase(repo)
         overrides = {(b'phases', b'new-commit'): targetphase}
         with repo.ui.configoverride(overrides, b'unshelve'):
             with repo.dirstate.parentchange():
@@ -843,7 +883,7 @@ def unshelvecontinue(ui, repo, state, opts):
         mergefiles(ui, repo, state.wctx, shelvectx)
         restorebranch(ui, repo, state.branchtorestore)
 
-        if not phases.supportinternal(repo):
+        if not _use_internal_phase(repo):
             repair.strip(
                 ui, repo, state.nodestoremove, backup=False, topic=b'shelve'
             )
@@ -957,7 +997,7 @@ def _createunshelvectx(ui, repo, shelvectx, basename, interactive, opts):
         user=shelvectx.user(),
     )
     if snode:
-        m = scmutil.matchfiles(repo, repo[snode].files())
+        m = _optimized_match(repo, snode)
         _shelvecreatedcommit(repo, snode, basename, m)
 
     return newnode, bool(snode)
@@ -1137,7 +1177,6 @@ def _dounshelve(ui, repo, basename, opts):
         oldtiprev = len(repo)
 
         pctx = repo[b'.']
-        tmpwctx = pctx
         # The goal is to have a commit structure like so:
         # ...-> pctx -> tmpwctx -> shelvectx
         # where tmpwctx is an optional commit with the user's pending changes
@@ -1145,9 +1184,7 @@ def _dounshelve(ui, repo, basename, opts):
         # to the original pctx.
 
         activebookmark = _backupactivebookmark(repo)
-        tmpwctx, addedbefore = _commitworkingcopychanges(
-            ui, repo, opts, tmpwctx
-        )
+        tmpwctx, addedbefore = _commitworkingcopychanges(ui, repo, opts, pctx)
         repo, shelvectx = _unshelverestorecommit(ui, repo, tr, basename)
         _checkunshelveuntrackedproblems(ui, repo, shelvectx)
         branchtorestore = b''

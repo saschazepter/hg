@@ -67,6 +67,33 @@ The following bundle <compression> engines can be used:
 
 .. bundlecompressionmarker
 
+Available Options
+=================
+
+The following options exist:
+
+changegroup
+    Include the changegroup data in the bundle (default to True).
+
+cg.version
+    Select the version of the changegroup to use. Available options are : 01, 02
+    or 03. By default it will be automatically selected according to the current
+    repository format.
+
+obsolescence
+    Include obsolescence-markers relevant to the bundled changesets.
+
+phases
+    Include phase information relevant to the bundled changesets.
+
+revbranchcache
+    Include the "tags-fnodes" cache inside the bundle.
+
+
+tagsfnodescache
+    Include the "tags-fnodes" cache inside the bundle.
+
+
 Examples
 ========
 

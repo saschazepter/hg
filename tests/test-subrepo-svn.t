@@ -591,7 +591,7 @@ well.
   $ cd "$WCROOT"
   $ svn up > /dev/null
   $ mkdir trunk/subdir branches
-  $ echo a > trunk/subdir/a
+  $ echo foo > trunk/subdir/a
   $ svn add trunk/subdir branches
   A         trunk/subdir
   A         trunk/subdir/a

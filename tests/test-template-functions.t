@@ -1718,4 +1718,19 @@ read config options:
   $ hg log -T "{config('templateconfig', 'knob', if(true, 'foo', 'bar'))}\n"
   foo
 
+reverse filter:
+
+  $ hg log -T "{'abc\ndef\nghi'|splitlines|reverse}\n"
+  ghi def abc
+
+  $ hg log -T "{'abc'|reverse}\n"
+  hg: parse error: not reversible
+  (incompatible use of template filter 'reverse')
+  [10]
+
+  $ hg log -T "{date|reverse}\n"
+  hg: parse error: not reversible
+  (template filter 'reverse' is not compatible with keyword 'date')
+  [10]
+
   $ cd ..

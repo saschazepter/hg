@@ -38,7 +38,7 @@ qnew on repo w/svn subrepo
   A .hgsub
   $ hg qnew -m0 0.diff
   $ cd sub
-  $ echo a > a
+  $ echo foo > a
   $ svn add a
   A         a
   $ svn st

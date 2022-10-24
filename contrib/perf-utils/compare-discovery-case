@@ -97,6 +97,16 @@ VARIANTS_KEYS = [
 assert set(VARIANTS.keys()) == set(VARIANTS_KEYS)
 
 
+def parse_case(case):
+    case_type, case_args = case.split('-', 1)
+    if case_type == 'file':
+        case_args = (case_args,)
+    else:
+        case_args = tuple(int(x) for x in case_args.split('-'))
+    case = (case_type,) + case_args
+    return case
+
+
 def format_case(case):
     return '-'.join(str(s) for s in case)
 
@@ -109,12 +119,41 @@ def to_revsets(case):
         return '::randomantichain(all(), "%d")' % case[1]
     elif t == 'rev':
         return '::%d' % case[1]
+    elif t == 'file':
+        return '::nodefromfile("%s")' % case[1]
     else:
         assert False
 
 
-def compare(repo, local_case, remote_case):
+def compare(
+    repo,
+    local_case,
+    remote_case,
+    display_header=True,
+    display_case=True,
+):
     case = (repo, local_case, remote_case)
+    if display_header:
+        pieces = ['#']
+        if display_case:
+            pieces += [
+                "repo",
+                "local-subset",
+                "remote-subset",
+            ]
+
+        pieces += [
+            "discovery-variant",
+            "roundtrips",
+            "queries",
+            "revs",
+            "local-heads",
+            "common-heads",
+            "undecided-initial",
+            "undecided-common",
+            "undecided-missing",
+        ]
+        print(*pieces)
     for variant in VARIANTS_KEYS:
         res = process(case, VARIANTS[variant])
         revs = res["nb-revs"]
@@ -122,36 +161,31 @@ def compare(repo, local_case, remote_case):
         common_heads = res["nb-common-heads"]
         roundtrips = res["total-roundtrips"]
         queries = res["total-queries"]
-        if 'tree-discovery' in variant:
-            print(
+        pieces = []
+        if display_case:
+            pieces += [
                 repo,
                 format_case(local_case),
                 format_case(remote_case),
-                variant,
-                roundtrips,
-                queries,
-                revs,
-                local_heads,
-                common_heads,
-            )
-        else:
+            ]
+        pieces += [
+            variant,
+            roundtrips,
+            queries,
+            revs,
+            local_heads,
+            common_heads,
+        ]
+        if 'tree-discovery' not in variant:
             undecided_common = res["nb-ini_und-common"]
             undecided_missing = res["nb-ini_und-missing"]
             undecided = undecided_common + undecided_missing
-            print(
-                repo,
-                format_case(local_case),
-                format_case(remote_case),
-                variant,
-                roundtrips,
-                queries,
-                revs,
-                local_heads,
-                common_heads,
+            pieces += [
                 undecided,
                 undecided_common,
                 undecided_missing,
-            )
+            ]
+        print(*pieces)
     return 0
 
 
@@ -171,13 +205,23 @@ def process(case, variant):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 4:
+
+    argv = sys.argv[:]
+
+    kwargs = {}
+    # primitive arg parsing
+    if '--no-header' in argv:
+        kwargs['display_header'] = False
+        argv = [a for a in argv if a != '--no-header']
+    if '--no-case' in argv:
+        kwargs['display_case'] = False
+        argv = [a for a in argv if a != '--no-case']
+
+    if len(argv) != 4:
         usage = f'USAGE: {script_name} REPO LOCAL_CASE REMOTE_CASE'
         print(usage, file=sys.stderr)
         sys.exit(128)
-    repo = sys.argv[1]
-    local_case = sys.argv[2].split('-')
-    local_case = (local_case[0],) + tuple(int(x) for x in local_case[1:])
-    remote_case = sys.argv[3].split('-')
-    remote_case = (remote_case[0],) + tuple(int(x) for x in remote_case[1:])
-    sys.exit(compare(repo, local_case, remote_case))
+    repo = argv[1]
+    local_case = parse_case(argv[2])
+    remote_case = parse_case(argv[3])
+    sys.exit(compare(repo, local_case, remote_case, **kwargs))

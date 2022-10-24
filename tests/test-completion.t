@@ -261,7 +261,7 @@ Show all commands + options
   bookmarks: force, rev, delete, rename, inactive, list, template
   branch: force, clean, rev
   branches: active, closed, rev, template
-  bundle: force, rev, branch, base, all, type, ssh, remotecmd, insecure
+  bundle: exact, force, rev, branch, base, all, type, ssh, remotecmd, insecure
   cat: output, rev, decode, include, exclude, template
   clone: noupdate, updaterev, rev, branch, pull, uncompressed, stream, ssh, remotecmd, insecure
   commit: addremove, close-branch, amend, secret, edit, force-close-branch, interactive, include, exclude, message, logfile, date, user, subrepos

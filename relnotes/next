@@ -13,6 +13,12 @@ Mercurial XXX.
 
 == Backwards Compatibility Changes ==
 
+ * chg worker processes will now correctly load per-repository configuration 
+   when given a both a relative `--repository` path and an alternate working
+   directory via `--cwd`. A side-effect of this change is that these workers
+   will now return an error if hg cannot find the current working directory,
+   even when a different directory is specified via `--cwd`.
+
 == Internal API Changes ==
 
 == Miscellaneous ==

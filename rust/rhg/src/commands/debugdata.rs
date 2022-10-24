@@ -55,6 +55,11 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         };
 
     let repo = invocation.repo?;
+    if repo.has_narrow() {
+        return Err(CommandError::unsupported(
+            "support for ellipsis nodes is missing and repo has narrow enabled",
+        ));
+    }
     let data = debug_data(repo, rev, kind).map_err(|e| (e, rev))?;
 
     let mut stdout = invocation.ui.stdout_buffer();

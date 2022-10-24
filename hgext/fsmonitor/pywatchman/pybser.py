@@ -36,6 +36,7 @@ import sys
 
 from . import compat
 
+abc = collections.abc
 
 BSER_ARRAY = b"\x00"
 BSER_OBJECT = b"\x01"
@@ -207,9 +208,7 @@ class _bser_buffer:
             self.ensure_size(needed)
             struct.pack_into(b"=cd", self.buf, self.wpos, BSER_REAL, val)
             self.wpos += needed
-        elif isinstance(val, collections.Mapping) and isinstance(
-            val, collections.Sized
-        ):
+        elif isinstance(val, abc.Mapping) and isinstance(val, abc.Sized):
             val_len = len(val)
             size = _int_size(val_len)
             needed = 2 + size
@@ -260,9 +259,7 @@ class _bser_buffer:
             for k, v in iteritems:
                 self.append_string(k)
                 self.append_recursive(v)
-        elif isinstance(val, collections.Iterable) and isinstance(
-            val, collections.Sized
-        ):
+        elif isinstance(val, abc.Iterable) and isinstance(val, abc.Sized):
             val_len = len(val)
             size = _int_size(val_len)
             needed = 2 + size

@@ -546,7 +546,9 @@ class rebaseruntime:
         date = self.date
         if date is None:
             date = ctx.date()
-        extra = {b'rebase_source': ctx.hex()}
+        extra = {}
+        if repo.ui.configbool(b'rebase', b'store-source'):
+            extra = {b'rebase_source': ctx.hex()}
         for c in self.extrafns:
             c(ctx, extra)
         destphase = max(ctx.phase(), phases.draft)
