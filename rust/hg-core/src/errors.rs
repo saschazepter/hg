@@ -33,6 +33,7 @@ pub enum HgError {
     Abort {
         message: String,
         detailed_exit_code: exit_codes::ExitCode,
+        hint: Option<String>,
     },
 
     /// A configuration value is not in the expected syntax.
@@ -82,10 +83,12 @@ impl HgError {
     pub fn abort(
         explanation: impl Into<String>,
         exit_code: exit_codes::ExitCode,
+        hint: Option<String>,
     ) -> Self {
         HgError::Abort {
             message: explanation.into(),
             detailed_exit_code: exit_code,
+            hint,
         }
     }
 }

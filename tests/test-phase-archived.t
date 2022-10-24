@@ -4,7 +4,7 @@ Test features and behaviors related to the archived phase
 
   $ cat << EOF >> $HGRCPATH
   > [format]
-  > internal-phase=yes
+  > exp-archived-phase=yes
   > [extensions]
   > strip=
   > [experimental]

@@ -1021,7 +1021,7 @@ def debugdeltafind(ui, repo, arg_1, arg_2=None, **opts):
     deltacomputer = deltautil.deltacomputer(
         revlog,
         write_debug=ui.write,
-        debug_search=True,
+        debug_search=not ui.quiet,
     )
 
     node = revlog.node(rev)

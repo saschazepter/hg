@@ -659,7 +659,7 @@ Server sends partial bundle2 header magic
 
   $ hg clone http://localhost:$HGPORT/ clone
   requesting all changes
-  abort: HTTP request error (incomplete response) (py3 !)
+  abort: HTTP request error (incomplete response*) (glob)
   (this may be an intermittent network failure; if the error persists, consider contacting the network or server operator)
   [255]
 
@@ -703,7 +703,7 @@ Server sends incomplete bundle2 stream params length
 
   $ hg clone http://localhost:$HGPORT/ clone
   requesting all changes
-  abort: HTTP request error (incomplete response) (py3 !)
+  abort: HTTP request error (incomplete response*) (glob)
   (this may be an intermittent network failure; if the error persists, consider contacting the network or server operator)
   [255]
 
@@ -904,7 +904,7 @@ Server stops after bundle2 part payload chunk size
   adding changesets
   transaction abort!
   rollback completed
-  abort: HTTP request error (incomplete response) (py3 !)
+  abort: HTTP request error (incomplete response*) (glob)
   (this may be an intermittent network failure; if the error persists, consider contacting the network or server operator)
   [255]
 
@@ -1021,7 +1021,7 @@ Server stops sending after 0 length payload chunk size
   adding file changes
   transaction abort!
   rollback completed
-  abort: HTTP request error (incomplete response) (py3 !)
+  abort: HTTP request error (incomplete response*) (glob)
   (this may be an intermittent network failure; if the error persists, consider contacting the network or server operator)
   [255]
 

@@ -468,6 +468,7 @@ dependencies = [
  "log",
  "memmap2",
  "micro-timer",
+ "once_cell",
  "ouroboros",
  "pretty_assertions",
  "rand 0.8.5",
@@ -685,6 +686,12 @@ dependencies = [
  "hermit-abi",
  "libc",
 ]
+
+[[package]]
+name = "once_cell"
+version = "1.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f7254b99e31cad77da24b08ebf628882739a608578bb1bcdfc1f9c21260d7c0"
 
 [[package]]
 name = "opaque-debug"
@@ -981,6 +988,7 @@ dependencies = [
  "lazy_static",
  "log",
  "micro-timer",
+ "rayon",
  "regex",
  "users",
  "which",

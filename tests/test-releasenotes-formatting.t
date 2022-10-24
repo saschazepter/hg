@@ -387,6 +387,8 @@ Testing output for the --check (-c) flag
 
   $ touch a
   $ hg -q commit -A -l - << EOF
+  > commit 2
+  > 
   > .. asf::
   > 
   >    First paragraph under this admonition.
@@ -395,7 +397,7 @@ Testing output for the --check (-c) flag
 Suggest similar admonition in place of the invalid one.
 
   $ hg releasenotes -r . -c
-  Invalid admonition 'asf' present in changeset 4026fe9e1c20
+  Invalid admonition 'asf' present in changeset 99fa3c800c5e
 
   $ touch b
   $ hg -q commit -A -l - << EOF
@@ -405,7 +407,7 @@ Suggest similar admonition in place of the invalid one.
   > EOF
 
   $ hg releasenotes -r . -c
-  Invalid admonition 'fixes' present in changeset 0e7130d2705c
+  Invalid admonition 'fixes' present in changeset 4737b1b5afd1
   (did you mean fix?)
 
   $ cd ..

@@ -7,6 +7,8 @@
 mod ancestors;
 pub mod dagops;
 pub mod errors;
+pub mod narrow;
+pub mod sparse;
 pub use ancestors::{AncestorsIterator, MissingAncestors};
 pub mod dirstate;
 pub mod dirstate_tree;

@@ -522,12 +522,8 @@ def _readrequires(vfs, allowmissing):
     # the repository. This file was introduced in Mercurial 0.9.2,
     # which means very old repositories may not have one. We assume
     # a missing file translates to no requirements.
-    try:
-        return set(vfs.read(b'requires').splitlines())
-    except FileNotFoundError:
-        if not allowmissing:
-            raise
-        return set()
+    read = vfs.tryread if allowmissing else vfs.read
+    return set(read(b'requires').splitlines())
 
 
 def makelocalrepository(baseui, path, intents=None):
@@ -1281,6 +1277,7 @@ class localrepository:
     """
 
     _basesupported = {
+        requirementsmod.ARCHIVED_PHASE_REQUIREMENT,
         requirementsmod.BOOKMARKS_IN_STORE_REQUIREMENT,
         requirementsmod.CHANGELOGV2_REQUIREMENT,
         requirementsmod.COPIESSDC_REQUIREMENT,
@@ -3668,8 +3665,12 @@ def newreporequirements(ui, createopts):
         requirements.discard(requirementsmod.REVLOGV1_REQUIREMENT)
         requirements.add(requirementsmod.REVLOGV2_REQUIREMENT)
     # experimental config: format.internal-phase
-    if ui.configbool(b'format', b'internal-phase'):
+    if ui.configbool(b'format', b'use-internal-phase'):
         requirements.add(requirementsmod.INTERNAL_PHASE_REQUIREMENT)
+
+    # experimental config: format.exp-archived-phase
+    if ui.configbool(b'format', b'exp-archived-phase'):
+        requirements.add(requirementsmod.ARCHIVED_PHASE_REQUIREMENT)
 
     if createopts.get(b'narrowfiles'):
         requirements.add(requirementsmod.NARROW_REQUIREMENT)
