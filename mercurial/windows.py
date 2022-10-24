@@ -581,7 +581,13 @@ def username(uid=None):
 
     If uid is None, return the name of the current user."""
     if not uid:
-        return pycompat.fsencode(getpass.getuser())
+        try:
+            return pycompat.fsencode(getpass.getuser())
+        except ModuleNotFoundError:
+            # getpass.getuser() checks for a few environment variables first,
+            # but if those aren't set, imports pwd and calls getpwuid(), none of
+            # which exists on Windows.
+            pass
     return None
 
 
