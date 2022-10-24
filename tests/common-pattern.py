@@ -158,6 +158,7 @@ _errors = {
     br'$EADDRNOTAVAIL$': (
         # strerror()
         br'Cannot assign requested address',
+        br'Can\'t assign requested address',
         # FormatMessage(WSAEADDRNOTAVAIL)
     ),
 }
