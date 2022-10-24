@@ -666,30 +666,55 @@ class buildhgextindex(Command):
 
 class buildhgexe(build_ext):
     description = 'compile hg.exe from mercurial/exewrapper.c'
-    user_options = build_ext.user_options + [
-        (
-            'long-paths-support',
-            None,
-            'enable support for long paths on '
-            'Windows (off by default and '
-            'experimental)',
-        ),
-    ]
 
-    LONG_PATHS_MANIFEST = """
-    <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-    <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-        <application>
-            <windowsSettings
-            xmlns:ws2="http://schemas.microsoft.com/SMI/2016/WindowsSettings">
-                <ws2:longPathAware>true</ws2:longPathAware>
-            </windowsSettings>
-        </application>
-    </assembly>"""
+    LONG_PATHS_MANIFEST = """\
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+    <security>
+      <requestedPrivileges>
+        <requestedExecutionLevel
+          level="asInvoker"
+          uiAccess="false"
+        />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows Vista -->
+      <supportedOS Id="{e2011457-1546-43c5-a5fe-008deee3d3f0}"/>
+      <!-- Windows 7 -->
+      <supportedOS Id="{35138b9a-5d96-4fbd-8e2d-a2440225f93a}"/>
+      <!-- Windows 8 -->
+      <supportedOS Id="{4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38}"/>
+      <!-- Windows 8.1 -->
+      <supportedOS Id="{1f676c76-80e1-4239-95bb-83d0f6d0da78}"/>
+      <!-- Windows 10 and Windows 11 -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
+    </application>
+  </compatibility>
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings
+        xmlns:ws2="http://schemas.microsoft.com/SMI/2016/WindowsSettings">
+      <ws2:longPathAware>true</ws2:longPathAware>
+    </windowsSettings>
+  </application>
+  <dependency>
+    <dependentAssembly>
+      <assemblyIdentity type="win32"
+                        name="Microsoft.Windows.Common-Controls"
+                        version="6.0.0.0"
+                        processorArchitecture="*"
+                        publicKeyToken="6595b64144ccf1df"
+                        language="*" />
+    </dependentAssembly>
+  </dependency>
+</assembly>
+"""
 
     def initialize_options(self):
         build_ext.initialize_options(self)
-        self.long_paths_support = False
 
     def build_extensions(self):
         if os.name != 'nt':
@@ -700,8 +725,8 @@ class buildhgexe(build_ext):
 
         pythonlib = None
 
-        dir = os.path.dirname(self.get_ext_fullpath('dummy'))
-        self.hgtarget = os.path.join(dir, 'hg')
+        dirname = os.path.dirname(self.get_ext_fullpath('dummy'))
+        self.hgtarget = os.path.join(dirname, 'hg')
 
         if getattr(sys, 'dllhandle', None):
             # Different Python installs can have different Python library
@@ -774,22 +799,11 @@ class buildhgexe(build_ext):
         self.compiler.link_executable(
             objects, self.hgtarget, libraries=[], output_dir=self.build_temp
         )
-        if self.long_paths_support:
-            self.addlongpathsmanifest()
+
+        self.addlongpathsmanifest()
 
     def addlongpathsmanifest(self):
-        r"""Add manifest pieces so that hg.exe understands long paths
-
-        This is an EXPERIMENTAL feature, use with care.
-        To enable long paths support, one needs to do two things:
-        - build Mercurial with --long-paths-support option
-        - change HKLM\SYSTEM\CurrentControlSet\Control\FileSystem\
-                 LongPathsEnabled to have value 1.
-
-        Please ignore 'warning 81010002: Unrecognized Element "longPathAware"';
-        it happens because Mercurial uses mt.exe circa 2008, which is not
-        yet aware of long paths support in the manifest (I think so at least).
-        This does not stop mt.exe from embedding/merging the XML properly.
+        """Add manifest pieces so that hg.exe understands long paths
 
         Why resource #1 should be used for .exe manifests? I don't know and
         wasn't able to find an explanation for mortals. But it seems to work.
@@ -797,21 +811,18 @@ class buildhgexe(build_ext):
         exefname = self.compiler.executable_filename(self.hgtarget)
         fdauto, manfname = tempfile.mkstemp(suffix='.hg.exe.manifest')
         os.close(fdauto)
-        with open(manfname, 'w') as f:
+        with open(manfname, 'w', encoding="UTF-8") as f:
             f.write(self.LONG_PATHS_MANIFEST)
         log.info("long paths manifest is written to '%s'" % manfname)
-        inputresource = '-inputresource:%s;#1' % exefname
         outputresource = '-outputresource:%s;#1' % exefname
         log.info("running mt.exe to update hg.exe's manifest in-place")
-        # supplying both -manifest and -inputresource to mt.exe makes
-        # it merge the embedded and supplied manifests in the -outputresource
+
         self.spawn(
             [
-                'mt.exe',
+                self.compiler.mt,
                 '-nologo',
                 '-manifest',
                 manfname,
-                inputresource,
                 outputresource,
             ]
         )

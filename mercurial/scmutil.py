@@ -1191,7 +1191,7 @@ def cleanupnodes(
                 obsolete.createmarkers(
                     repo, rels, operation=operation, metadata=metadata
                 )
-        elif phases.supportinternal(repo) and mayusearchived:
+        elif phases.supportarchived(repo) and mayusearchived:
             # this assume we do not have "unstable" nodes above the cleaned ones
             allreplaced = set()
             for ns in replacements.keys():

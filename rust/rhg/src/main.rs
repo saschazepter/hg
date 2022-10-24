@@ -6,11 +6,12 @@ use clap::AppSettings;
 use clap::Arg;
 use clap::ArgMatches;
 use format_bytes::{format_bytes, join};
-use hg::config::{Config, ConfigSource};
+use hg::config::{Config, ConfigSource, PlainInfo};
 use hg::repo::{Repo, RepoError};
 use hg::utils::files::{get_bytes_from_os_str, get_path_from_bytes};
 use hg::utils::SliceExt;
 use hg::{exit_codes, requirements};
+use std::borrow::Cow;
 use std::collections::HashSet;
 use std::ffi::OsString;
 use std::os::unix::prelude::CommandExt;
@@ -300,6 +301,24 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
         }
     };
 
+    let exit =
+        |ui: &Ui, config: &Config, result: Result<(), CommandError>| -> ! {
+            exit(
+                &argv,
+                &initial_current_dir,
+                ui,
+                OnUnsupported::from_config(config),
+                result,
+                // TODO: show a warning or combine with original error if
+                // `get_bool` returns an error
+                non_repo_config
+                    .get_bool(b"ui", b"detailed-exit-code")
+                    .unwrap_or(false),
+            )
+        };
+    let early_exit = |config: &Config, error: CommandError| -> ! {
+        exit(&Ui::new_infallible(config), &config, Err(error))
+    };
     let repo_result = match Repo::find(&non_repo_config, repo_path.to_owned())
     {
         Ok(repo) => Ok(repo),
@@ -307,18 +326,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
             // Not finding a repo is not fatal yet, if `-R` was not given
             Err(NoRepoInCwdError { cwd: at })
         }
-        Err(error) => exit(
-            &argv,
-            &initial_current_dir,
-            &Ui::new_infallible(&non_repo_config),
-            OnUnsupported::from_config(&non_repo_config),
-            Err(error.into()),
-            // TODO: show a warning or combine with original error if
-            // `get_bool` returns an error
-            non_repo_config
-                .get_bool(b"ui", b"detailed-exit-code")
-                .unwrap_or(false),
-        ),
+        Err(error) => early_exit(&non_repo_config, error.into()),
     };
 
     let config = if let Ok(repo) = &repo_result {
@@ -326,20 +334,20 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
     } else {
         &non_repo_config
     };
-    let ui = Ui::new(&config).unwrap_or_else(|error| {
-        exit(
-            &argv,
-            &initial_current_dir,
-            &Ui::new_infallible(&config),
-            OnUnsupported::from_config(&config),
-            Err(error.into()),
-            config
-                .get_bool(b"ui", b"detailed-exit-code")
-                .unwrap_or(false),
-        )
-    });
-    let on_unsupported = OnUnsupported::from_config(config);
 
+    let mut config_cow = Cow::Borrowed(config);
+    config_cow.to_mut().apply_plain(PlainInfo::from_env());
+    if !ui::plain(Some("tweakdefaults"))
+        && config_cow
+            .as_ref()
+            .get_bool(b"ui", b"tweakdefaults")
+            .unwrap_or_else(|error| early_exit(&config, error.into()))
+    {
+        config_cow.to_mut().tweakdefaults()
+    };
+    let config = config_cow.as_ref();
+    let ui = Ui::new(&config)
+        .unwrap_or_else(|error| early_exit(&config, error.into()));
     let result = main_with_result(
         argv.iter().map(|s| s.to_owned()).collect(),
         &process_start_time,
@@ -347,18 +355,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
         repo_result.as_ref(),
         config,
     );
-    exit(
-        &argv,
-        &initial_current_dir,
-        &ui,
-        on_unsupported,
-        result,
-        // TODO: show a warning or combine with original error if `get_bool`
-        // returns an error
-        config
-            .get_bool(b"ui", b"detailed-exit-code")
-            .unwrap_or(false),
-    )
+    exit(&ui, &config, result)
 }
 
 fn main() -> ! {
@@ -372,8 +369,7 @@ fn exit_code(
     match result {
         Ok(()) => exit_codes::OK,
         Err(CommandError::Abort {
-            message: _,
-            detailed_exit_code,
+            detailed_exit_code, ..
         }) => {
             if use_detailed_exit_code {
                 *detailed_exit_code
@@ -480,14 +476,14 @@ fn exit_no_fallback(
     match &result {
         Ok(_) => {}
         Err(CommandError::Unsuccessful) => {}
-        Err(CommandError::Abort {
-            message,
-            detailed_exit_code: _,
-        }) => {
+        Err(CommandError::Abort { message, hint, .. }) => {
+            // Ignore errors when writing to stderr, we’re already exiting
+            // with failure code so there’s not much more we can do.
             if !message.is_empty() {
-                // Ignore errors when writing to stderr, we’re already exiting
-                // with failure code so there’s not much more we can do.
                 let _ = ui.write_stderr(&format_bytes!(b"{}\n", message));
+            }
+            if let Some(hint) = hint {
+                let _ = ui.write_stderr(&format_bytes!(b"({})\n", hint));
             }
         }
         Err(CommandError::UnsupportedFeature { message }) => {
@@ -546,6 +542,7 @@ subcommands! {
     debugdata
     debugrequirements
     debugignorerhg
+    debugrhgsparse
     files
     root
     config
@@ -677,8 +674,15 @@ impl OnUnsupported {
 /// The `*` extension is an edge-case for config sub-options that apply to all
 /// extensions. For now, only `:required` exists, but that may change in the
 /// future.
-const SUPPORTED_EXTENSIONS: &[&[u8]] =
-    &[b"blackbox", b"share", b"sparse", b"narrow", b"*"];
+const SUPPORTED_EXTENSIONS: &[&[u8]] = &[
+    b"blackbox",
+    b"share",
+    b"sparse",
+    b"narrow",
+    b"*",
+    b"strip",
+    b"rebase",
+];
 
 fn check_extensions(config: &Config) -> Result<(), CommandError> {
     if let Some(b"*") = config.get(b"rhg", b"ignored-extensions") {
@@ -687,13 +691,18 @@ fn check_extensions(config: &Config) -> Result<(), CommandError> {
     }
 
     let enabled: HashSet<&[u8]> = config
-        .get_section_keys(b"extensions")
-        .into_iter()
-        .map(|extension| {
+        .iter_section(b"extensions")
+        .filter_map(|(extension, value)| {
+            if value == b"!" {
+                // Filter out disabled extensions
+                return None;
+            }
             // Ignore extension suboptions. Only `required` exists for now.
             // `rhg` either supports an extension or doesn't, so it doesn't
             // make sense to consider the loading of an extension.
-            extension.split_2(b':').unwrap_or((extension, b"")).0
+            let actual_extension =
+                extension.split_2(b':').unwrap_or((extension, b"")).0;
+            Some(actual_extension)
         })
         .collect();
 

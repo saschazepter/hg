@@ -29,7 +29,11 @@ SPARSE_REQUIREMENT = b'exp-sparse'
 
 # Enables the internal phase which is used to hide changesets instead
 # of stripping them
-INTERNAL_PHASE_REQUIREMENT = b'internal-phase'
+INTERNAL_PHASE_REQUIREMENT = b'internal-phase-2'
+
+# Enables the internal phase which is used to hide changesets instead
+# of stripping them
+ARCHIVED_PHASE_REQUIREMENT = b'exp-archived-phase'
 
 # Stores manifest in Tree structure
 TREEMANIFEST_REQUIREMENT = b'treemanifest'
@@ -107,6 +111,7 @@ WORKING_DIR_REQUIREMENTS = {
 #
 # note: the list is currently inherited from previous code and miss some relevant requirement while containing some irrelevant ones.
 STREAM_FIXED_REQUIREMENTS = {
+    ARCHIVED_PHASE_REQUIREMENT,
     BOOKMARKS_IN_STORE_REQUIREMENT,
     CHANGELOGV2_REQUIREMENT,
     COPIESSDC_REQUIREMENT,

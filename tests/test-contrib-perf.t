@@ -96,6 +96,7 @@ perfstatus
    perf::branchmapupdate
                  benchmark branchmap update from for <base> revs to <target>
                  revs
+   perf::bundle  benchmark the creation of a bundle from a repository
    perf::bundleread
                  Benchmark reading of bundle files.
    perf::cca     (no help text available)
@@ -105,6 +106,9 @@ perfstatus
                  (no help text available)
    perf::ctxfiles
                  (no help text available)
+   perf::delta-find
+                 benchmark the process of finding a valid delta for a revlog
+                 revision
    perf::diffwd  Profile diff of working directory changes
    perf::dirfoldmap
                  benchmap a 'dirstate._map.dirfoldmap.get()' request
@@ -187,6 +191,8 @@ perfstatus
    perf::tags    (no help text available)
    perf::templating
                  test the rendering time of a given template
+   perf::unbundle
+                 benchmark application of a bundle in a repository.
    perf::unidiff
                  benchmark a unified diff between revisions
    perf::volatilesets
@@ -385,6 +391,11 @@ Test pre-run feature
   searching for changes
   searching for changes
   searching for changes
+  $ hg perf::bundle 'last(all(), 5)'
+  $ hg bundle --exact --rev 'last(all(), 5)' last-5.hg
+  4 changesets found
+  $ hg perf::unbundle last-5.hg
+
 
 test  profile-benchmark option
 ------------------------------

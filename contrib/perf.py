@@ -925,6 +925,71 @@ def perfancestorset(ui, repo, revset, **opts):
     fm.end()
 
 
+@command(
+    b'perf::delta-find',
+    revlogopts + formatteropts,
+    b'-c|-m|FILE REV',
+)
+def perf_delta_find(ui, repo, arg_1, arg_2=None, **opts):
+    """benchmark the process of finding a valid delta for a revlog revision
+
+    When a revlog receives a new revision (e.g. from a commit, or from an
+    incoming bundle), it searches for a suitable delta-base to produce a delta.
+    This perf command measures how much time we spend in this process. It
+    operates on an already stored revision.
+
+    See `hg help debug-delta-find` for another related command.
+    """
+    from mercurial import revlogutils
+    import mercurial.revlogutils.deltas as deltautil
+
+    opts = _byteskwargs(opts)
+    if arg_2 is None:
+        file_ = None
+        rev = arg_1
+    else:
+        file_ = arg_1
+        rev = arg_2
+
+    repo = repo.unfiltered()
+
+    timer, fm = gettimer(ui, opts)
+
+    rev = int(rev)
+
+    revlog = cmdutil.openrevlog(repo, b'perf::delta-find', file_, opts)
+
+    deltacomputer = deltautil.deltacomputer(revlog)
+
+    node = revlog.node(rev)
+    p1r, p2r = revlog.parentrevs(rev)
+    p1 = revlog.node(p1r)
+    p2 = revlog.node(p2r)
+    full_text = revlog.revision(rev)
+    textlen = len(full_text)
+    cachedelta = None
+    flags = revlog.flags(rev)
+
+    revinfo = revlogutils.revisioninfo(
+        node,
+        p1,
+        p2,
+        [full_text],  # btext
+        textlen,
+        cachedelta,
+        flags,
+    )
+
+    # Note: we should probably purge the potential caches (like the full
+    # manifest cache) between runs.
+    def find_one():
+        with revlog._datafp() as fh:
+            deltacomputer.finddeltainfo(revinfo, fh, target_rev=rev)
+
+    timer(find_one)
+    fm.end()
+
+
 @command(b'perf::discovery|perfdiscovery', formatteropts, b'PATH')
 def perfdiscovery(ui, repo, path, **opts):
     """benchmark discovery between local repo and the peer at given path"""
@@ -971,6 +1036,111 @@ def perfbookmarks(ui, repo, **opts):
         repo._bookmarks
 
     timer(d, setup=s)
+    fm.end()
+
+
+@command(
+    b'perf::bundle',
+    [
+        (
+            b'r',
+            b'rev',
+            [],
+            b'changesets to bundle',
+            b'REV',
+        ),
+        (
+            b't',
+            b'type',
+            b'none',
+            b'bundlespec to use (see `hg help bundlespec`)',
+            b'TYPE',
+        ),
+    ]
+    + formatteropts,
+    b'REVS',
+)
+def perfbundle(ui, repo, *revs, **opts):
+    """benchmark the creation of a bundle from a repository
+
+    For now, this only supports "none" compression.
+    """
+    try:
+        from mercurial import bundlecaches
+
+        parsebundlespec = bundlecaches.parsebundlespec
+    except ImportError:
+        from mercurial import exchange
+
+        parsebundlespec = exchange.parsebundlespec
+
+    from mercurial import discovery
+    from mercurial import bundle2
+
+    opts = _byteskwargs(opts)
+    timer, fm = gettimer(ui, opts)
+
+    cl = repo.changelog
+    revs = list(revs)
+    revs.extend(opts.get(b'rev', ()))
+    revs = scmutil.revrange(repo, revs)
+    if not revs:
+        raise error.Abort(b"not revision specified")
+    # make it a consistent set (ie: without topological gaps)
+    old_len = len(revs)
+    revs = list(repo.revs(b"%ld::%ld", revs, revs))
+    if old_len != len(revs):
+        new_count = len(revs) - old_len
+        msg = b"add %d new revisions to make it a consistent set\n"
+        ui.write_err(msg % new_count)
+
+    targets = [cl.node(r) for r in repo.revs(b"heads(::%ld)", revs)]
+    bases = [cl.node(r) for r in repo.revs(b"heads(::%ld - %ld)", revs, revs)]
+    outgoing = discovery.outgoing(repo, bases, targets)
+
+    bundle_spec = opts.get(b'type')
+
+    bundle_spec = parsebundlespec(repo, bundle_spec, strict=False)
+
+    cgversion = bundle_spec.params.get(b"cg.version")
+    if cgversion is None:
+        if bundle_spec.version == b'v1':
+            cgversion = b'01'
+        if bundle_spec.version == b'v2':
+            cgversion = b'02'
+    if cgversion not in changegroup.supportedoutgoingversions(repo):
+        err = b"repository does not support bundle version %s"
+        raise error.Abort(err % cgversion)
+
+    if cgversion == b'01':  # bundle1
+        bversion = b'HG10' + bundle_spec.wirecompression
+        bcompression = None
+    elif cgversion in (b'02', b'03'):
+        bversion = b'HG20'
+        bcompression = bundle_spec.wirecompression
+    else:
+        err = b'perf::bundle: unexpected changegroup version %s'
+        raise error.ProgrammingError(err % cgversion)
+
+    if bcompression is None:
+        bcompression = b'UN'
+
+    if bcompression != b'UN':
+        err = b'perf::bundle: compression currently unsupported: %s'
+        raise error.ProgrammingError(err % bcompression)
+
+    def do_bundle():
+        bundle2.writenewbundle(
+            ui,
+            repo,
+            b'perf::bundle',
+            os.devnull,
+            bversion,
+            outgoing,
+            bundle_spec.params,
+        )
+
+    timer(do_bundle)
     fm.end()
 
 
@@ -2495,6 +2665,60 @@ def perfbdiff(ui, repo, file_, rev=None, count=None, threads=0, **opts):
             q.put(None)
         with ready:
             ready.notify_all()
+
+
+@command(
+    b'perf::unbundle',
+    formatteropts,
+    b'BUNDLE_FILE',
+)
+def perf_unbundle(ui, repo, fname, **opts):
+    """benchmark application of a bundle in a repository.
+
+    This does not include the final transaction processing"""
+    from mercurial import exchange
+    from mercurial import bundle2
+
+    opts = _byteskwargs(opts)
+
+    with repo.lock():
+        bundle = [None, None]
+        orig_quiet = repo.ui.quiet
+        try:
+            repo.ui.quiet = True
+            with open(fname, mode="rb") as f:
+
+                def noop_report(*args, **kwargs):
+                    pass
+
+                def setup():
+                    gen, tr = bundle
+                    if tr is not None:
+                        tr.abort()
+                    bundle[:] = [None, None]
+                    f.seek(0)
+                    bundle[0] = exchange.readbundle(ui, f, fname)
+                    bundle[1] = repo.transaction(b'perf::unbundle')
+                    bundle[1]._report = noop_report  # silence the transaction
+
+                def apply():
+                    gen, tr = bundle
+                    bundle2.applybundle(
+                        repo,
+                        gen,
+                        tr,
+                        source=b'perf::unbundle',
+                        url=fname,
+                    )
+
+                timer, fm = gettimer(ui, opts)
+                timer(apply, setup=setup)
+                fm.end()
+        finally:
+            repo.ui.quiet == orig_quiet
+            gen, tr = bundle
+            if tr is not None:
+                tr.abort()
 
 
 @command(

@@ -15,7 +15,10 @@ use cpython::{
     PyResult, PyTuple, Python, PythonObject, ToPyObject,
 };
 use hg::dirstate::status::StatusPath;
-use hg::matchers::{IntersectionMatcher, Matcher, NeverMatcher, UnionMatcher};
+use hg::matchers::{
+    DifferenceMatcher, IntersectionMatcher, Matcher, NeverMatcher,
+    UnionMatcher,
+};
 use hg::{
     matchers::{AlwaysMatcher, FileMatcher, IncludeMatcher},
     parse_pattern_syntax,
@@ -232,6 +235,12 @@ fn extract_matcher(
             let m2 = extract_matcher(py, matcher.getattr(py, "_m2")?)?;
 
             Ok(Box::new(IntersectionMatcher::new(m1, m2)))
+        }
+        "differencematcher" => {
+            let m1 = extract_matcher(py, matcher.getattr(py, "_m1")?)?;
+            let m2 = extract_matcher(py, matcher.getattr(py, "_m2")?)?;
+
+            Ok(Box::new(DifferenceMatcher::new(m1, m2)))
         }
         e => Err(PyErr::new::<FallbackError, _>(
             py,

@@ -1035,7 +1035,14 @@ def bisect(
     state = hbisect.load_state(repo)
 
     if rev:
-        nodes = [repo[i].node() for i in logcmdutil.revrange(repo, rev)]
+        revs = logcmdutil.revrange(repo, rev)
+        goodnodes = state[b'good']
+        badnodes = state[b'bad']
+        if goodnodes and badnodes:
+            candidates = repo.revs(b'(%ln)::(%ln)', goodnodes, badnodes)
+            candidates += repo.revs(b'(%ln)::(%ln)', badnodes, goodnodes)
+            revs = candidates & revs
+        nodes = [repo.changelog.node(i) for i in revs]
     else:
         nodes = [repo.lookup(b'.')]
 
@@ -1485,6 +1492,12 @@ def branches(ui, repo, active=False, closed=False, **opts):
     b'bundle',
     [
         (
+            b'',
+            b'exact',
+            None,
+            _(b'compute the base from the revision specified'),
+        ),
+        (
             b'f',
             b'force',
             None,
@@ -1553,6 +1566,7 @@ def bundle(ui, repo, fname, *dests, **opts):
     Returns 0 on success, 1 if no changes found.
     """
     opts = pycompat.byteskwargs(opts)
+
     revs = None
     if b'rev' in opts:
         revstrings = opts[b'rev']
@@ -1586,7 +1600,19 @@ def bundle(ui, repo, fname, *dests, **opts):
             )
         if opts.get(b'base'):
             ui.warn(_(b"ignoring --base because --all was specified\n"))
+        if opts.get(b'exact'):
+            ui.warn(_(b"ignoring --exact because --all was specified\n"))
         base = [nullrev]
+    elif opts.get(b'exact'):
+        if dests:
+            raise error.InputError(
+                _(b"--exact is incompatible with specifying destinations")
+            )
+        if opts.get(b'base'):
+            ui.warn(_(b"ignoring --base because --exact was specified\n"))
+        base = repo.revs(b'parents(%ld) - %ld', revs, revs)
+        if not base:
+            base = [nullrev]
     else:
         base = logcmdutil.revrange(repo, opts.get(b'base'))
     if cgversion not in changegroup.supportedoutgoingversions(repo):
@@ -6954,11 +6980,13 @@ def status(ui, repo, *pats, **opts):
     )
 
     copy = {}
-    if (
-        opts.get(b'all')
-        or opts.get(b'copies')
-        or ui.configbool(b'ui', b'statuscopies')
-    ) and not opts.get(b'no_status'):
+    show_copies = ui.configbool(b'ui', b'statuscopies')
+    if opts.get(b'copies') is not None:
+        show_copies = opts.get(b'copies')
+    show_copies = (show_copies or opts.get(b'all')) and not opts.get(
+        b'no_status'
+    )
+    if show_copies:
         copy = copies.pathcopies(ctx1, ctx2, m)
 
     morestatus = None

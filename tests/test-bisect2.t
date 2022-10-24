@@ -784,7 +784,6 @@ user adds irrelevant but consistent information (here: -g 2) to bisect state
   $ hg log -q -r 'bisect(pruned)'
   0:33b1f9bc8bc5
   1:4ca5088da217
-  2:051e12f87bf1
   8:dab8161ac8fc
   11:82ca6f06eccd
   12:9f259202bbe7

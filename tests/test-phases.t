@@ -879,7 +879,7 @@ Test for the "internal" phase
 
 Check we deny its usage on older repository
 
-  $ hg init no-internal-phase --config format.internal-phase=no
+  $ hg init no-internal-phase --config format.use-internal-phase=no
   $ cd no-internal-phase
   $ hg debugrequires | grep internal-phase
   [1]
@@ -900,10 +900,10 @@ Check we deny its usage on older repository
 
 Check it works fine with repository that supports it.
 
-  $ hg init internal-phase --config format.internal-phase=yes
+  $ hg init internal-phase --config format.use-internal-phase=yes
   $ cd internal-phase
   $ hg debugrequires | grep internal-phase
-  internal-phase
+  internal-phase-2
   $ mkcommit A
   test-debug-phase: new rev 0:  x -> 1
   test-hook-close-phase: 4a2df7238c3b48766b5e22fafbb8a2f506ec8256:   -> draft
@@ -951,21 +951,28 @@ Test for archived phase
 
 Commit an archived changesets
 
+  $ cd ..
+  $ hg clone --quiet --pull internal-phase archived-phase \
+  > --config format.exp-archived-phase=yes \
+  > --config extensions.phasereport='!' \
+  > --config hooks.txnclose-phase.test=
+
+  $ cd archived-phase
+
   $ echo B > B
   $ hg add B
   $ hg status
   A B
   $ hg --config "phases.new-commit=archived" commit -m "my test archived commit"
-  test-debug-phase: new rev 2:  x -> 32
+  test-debug-phase: new rev 1:  x -> 32
   test-hook-close-phase: 8df5997c3361518f733d1ae67cd3adb9b0eaf125:   -> archived
 
 The changeset is a working parent descendant.
 Per the usual visibility rules, it is made visible.
 
   $ hg log -G -l 3
-  @  changeset:   2:8df5997c3361
+  @  changeset:   1:8df5997c3361
   |  tag:         tip
-  |  parent:      0:4a2df7238c3b
   |  user:        test
   |  date:        Thu Jan 01 00:00:00 1970 +0000
   |  summary:     my test archived commit

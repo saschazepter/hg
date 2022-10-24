@@ -432,6 +432,20 @@ check server log:
   YYYY/MM/DD HH:MM:SS (PID)> log -R cached
   YYYY/MM/DD HH:MM:SS (PID)> loaded repo into cache: $TESTTMP/cached (in  ...s)
 
+Test that -R is interpreted relative to --cwd.
+
+  $ hg init repo1
+  $ mkdir -p a/b
+  $ hg init a/b/repo2
+  $ printf "[alias]\ntest=repo1\n" >> repo1/.hg/hgrc
+  $ printf "[alias]\ntest=repo2\n" >> a/b/repo2/.hg/hgrc
+  $ cd a
+  $ chg --cwd .. -R repo1 show alias.test
+  repo1
+  $ chg --cwd . -R b/repo2 show alias.test
+  repo2
+  $ cd ..
+
 Test that chg works (sets to the user's actual LC_CTYPE) even when python
 "coerces" the locale (py3.7+)
 

@@ -637,8 +637,15 @@ using ui.statuscopies setting
   M a
     b
   R b
+  $ hg st --config ui.statuscopies=true --no-copies
+  M a
+  R b
   $ hg st --config ui.statuscopies=false
   M a
+  R b
+  $ hg st --config ui.statuscopies=false --copies
+  M a
+    b
   R b
   $ hg st --config ui.tweakdefaults=yes
   M a

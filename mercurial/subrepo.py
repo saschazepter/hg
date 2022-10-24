@@ -1099,6 +1099,10 @@ class svnsubrepo(abstractsubrepo):
             # --non-interactive.
             if commands[0] in (b'update', b'checkout', b'commit'):
                 cmd.append(b'--non-interactive')
+        if util.safehasattr(subprocess, 'CREATE_NO_WINDOW'):
+            # On Windows, prevent command prompts windows from popping up when
+            # running in pythonw.
+            extrakw['creationflags'] = getattr(subprocess, 'CREATE_NO_WINDOW')
         cmd.extend(commands)
         if filename is not None:
             path = self.wvfs.reljoin(
@@ -1150,7 +1154,7 @@ class svnsubrepo(abstractsubrepo):
         # commit revision so we can compare the subrepo state with
         # both. We used to store the working directory one.
         output, err = self._svncommand([b'info', b'--xml'])
-        doc = xml.dom.minidom.parseString(output)
+        doc = xml.dom.minidom.parseString(output)  # pytype: disable=pyi-error
         entries = doc.getElementsByTagName('entry')
         lastrev, rev = b'0', b'0'
         if entries:
@@ -1174,7 +1178,7 @@ class svnsubrepo(abstractsubrepo):
         """
         output, err = self._svncommand([b'status', b'--xml'])
         externals, changes, missing = [], [], []
-        doc = xml.dom.minidom.parseString(output)
+        doc = xml.dom.minidom.parseString(output)  # pytype: disable=pyi-error
         for e in doc.getElementsByTagName('entry'):
             s = e.getElementsByTagName('wc-status')
             if not s:
@@ -1319,7 +1323,7 @@ class svnsubrepo(abstractsubrepo):
     @annotatesubrepoerror
     def files(self):
         output = self._svncommand([b'list', b'--recursive', b'--xml'])[0]
-        doc = xml.dom.minidom.parseString(output)
+        doc = xml.dom.minidom.parseString(output)  # pytype: disable=pyi-error
         paths = []
         for e in doc.getElementsByTagName('entry'):
             kind = pycompat.bytestr(e.getAttribute('kind'))
@@ -1469,6 +1473,11 @@ class gitsubrepo(abstractsubrepo):
             # insert the argument in the front,
             # the end of git diff arguments is used for paths
             commands.insert(1, b'--color')
+        extrakw = {}
+        if util.safehasattr(subprocess, 'CREATE_NO_WINDOW'):
+            # On Windows, prevent command prompts windows from popping up when
+            # running in pythonw.
+            extrakw['creationflags'] = getattr(subprocess, 'CREATE_NO_WINDOW')
         p = subprocess.Popen(
             pycompat.rapply(
                 procutil.tonativestr, [self._gitexecutable] + commands
@@ -1479,6 +1488,7 @@ class gitsubrepo(abstractsubrepo):
             close_fds=procutil.closefds,
             stdout=subprocess.PIPE,
             stderr=errpipe,
+            **extrakw
         )
         if stream:
             return p.stdout, None

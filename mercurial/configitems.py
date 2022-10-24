@@ -1425,10 +1425,36 @@ coreconfigitem(
     default=False,
     experimental=True,
 )
+
+# Moving this on by default means we are confident about the scaling of phases.
+# This is not garanteed to be the case at the time this message is written.
 coreconfigitem(
     b'format',
-    b'internal-phase',
+    b'use-internal-phase',
     default=False,
+    experimental=True,
+)
+# The interaction between the archived phase and obsolescence markers needs to
+# be sorted out before wider usage of this are to be considered.
+#
+# At the time this message is written, behavior when archiving obsolete
+# changeset differ significantly from stripping. As part of stripping, we also
+# remove the obsolescence marker associated to the stripped changesets,
+# revealing the precedecessors changesets when applicable. When archiving, we
+# don't touch the obsolescence markers, keeping everything hidden. This can
+# result in quite confusing situation for people combining exchanging draft
+# with the archived phases. As some markers needed by others may be skipped
+# during exchange.
+coreconfigitem(
+    b'format',
+    b'exp-archived-phase',
+    default=False,
+    experimental=True,
+)
+coreconfigitem(
+    b'shelve',
+    b'store',
+    default=b'internal',
     experimental=True,
 )
 coreconfigitem(
@@ -2834,4 +2860,18 @@ coreconfigitem(
     b'rebase',
     b'experimental.inmemory',
     default=False,
+)
+
+# This setting controls creation of a rebase_source extra field
+# during rebase. When False, no such field is created. This is
+# useful eg for incrementally converting changesets and then
+# rebasing them onto an existing repo.
+# WARNING: this is an advanced setting reserved for people who know
+# exactly what they are doing. Misuse of this setting can easily
+# result in obsmarker cycles and a vivid headache.
+coreconfigitem(
+    b'rebase',
+    b'store-source',
+    default=True,
+    experimental=True,
 )

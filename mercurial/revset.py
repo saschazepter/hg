@@ -7,7 +7,10 @@
 
 
 import binascii
+import functools
+import random
 import re
+import sys
 
 from .i18n import _
 from .pycompat import getattr
@@ -2339,12 +2342,26 @@ def roots(repo, subset, x):
     parents = repo.changelog.parentrevs
 
     def filter(r):
-        for p in parents(r):
-            if 0 <= p and p in s:
-                return False
+        try:
+            for p in parents(r):
+                if 0 <= p and p in s:
+                    return False
+        except error.WdirUnsupported:
+            for p in repo[None].parents():
+                if p.rev() in s:
+                    return False
         return True
 
     return subset & s.filter(filter, condrepr=b'<roots>')
+
+
+MAXINT = sys.maxsize
+MININT = -MAXINT - 1
+
+
+def pick_random(c, gen=random):
+    # exists as its own function to make it possible to overwrite the seed
+    return gen.randint(MININT, MAXINT)
 
 
 _sortkeyfuncs = {
@@ -2355,12 +2372,17 @@ _sortkeyfuncs = {
     b'author': lambda c: c.user(),
     b'date': lambda c: c.date()[0],
     b'node': scmutil.binnode,
+    b'random': pick_random,
 }
 
 
 def _getsortargs(x):
     """Parse sort options into (set, [(key, reverse)], opts)"""
-    args = getargsdict(x, b'sort', b'set keys topo.firstbranch')
+    args = getargsdict(
+        x,
+        b'sort',
+        b'set keys topo.firstbranch random.seed',
+    )
     if b'set' not in args:
         # i18n: "sort" is a keyword
         raise error.ParseError(_(b'sort requires one or two arguments'))
@@ -2400,6 +2422,20 @@ def _getsortargs(x):
                 )
             )
 
+    if b'random.seed' in args:
+        if any(k == b'random' for k, reverse in keyflags):
+            s = args[b'random.seed']
+            seed = getstring(s, _(b"random.seed must be a string"))
+            opts[b'random.seed'] = seed
+        else:
+            # i18n: "random" and "random.seed" are keywords
+            raise error.ParseError(
+                _(
+                    b'random.seed can only be used '
+                    b'when using the random sort key'
+                )
+            )
+
     return args[b'set'], keyflags, opts
 
 
@@ -2419,11 +2455,14 @@ def sort(repo, subset, x, order):
     - ``date`` for the commit date
     - ``topo`` for a reverse topographical sort
     - ``node`` the nodeid of the revision
+    - ``random`` randomly shuffle revisions
 
     The ``topo`` sort order cannot be combined with other sort keys. This sort
     takes one optional argument, ``topo.firstbranch``, which takes a revset that
     specifies what topographical branches to prioritize in the sort.
 
+    The ``random`` sort takes one optional ``random.seed`` argument to control
+    the pseudo-randomness of the result.
     """
     s, keyflags, opts = _getsortargs(x)
     revs = getset(repo, subset, s, order)
@@ -2435,10 +2474,20 @@ def sort(repo, subset, x, order):
         return revs
     elif keyflags[0][0] == b"topo":
         firstbranch = ()
+        parentrevs = repo.changelog.parentrevs
+        parentsfunc = parentrevs
+        if wdirrev in revs:
+
+            def parentsfunc(r):
+                try:
+                    return parentrevs(r)
+                except error.WdirUnsupported:
+                    return [p.rev() for p in repo[None].parents()]
+
         if b'topo.firstbranch' in opts:
             firstbranch = getset(repo, subset, opts[b'topo.firstbranch'])
         revs = baseset(
-            dagop.toposort(revs, repo.changelog.parentrevs, firstbranch),
+            dagop.toposort(revs, parentsfunc, firstbranch),
             istopo=True,
         )
         if keyflags[0][1]:
@@ -2448,7 +2497,12 @@ def sort(repo, subset, x, order):
     # sort() is guaranteed to be stable
     ctxs = [repo[r] for r in revs]
     for k, reverse in reversed(keyflags):
-        ctxs.sort(key=_sortkeyfuncs[k], reverse=reverse)
+        func = _sortkeyfuncs[k]
+        if k == b'random' and b'random.seed' in opts:
+            seed = opts[b'random.seed']
+            r = random.Random(seed)
+            func = functools.partial(func, gen=r)
+        ctxs.sort(key=func, reverse=reverse)
     return baseset([c.rev() for c in ctxs])
 
 

@@ -12,6 +12,7 @@ use super::values;
 use crate::config::layer::{
     ConfigError, ConfigLayer, ConfigOrigin, ConfigValue,
 };
+use crate::config::plain_info::PlainInfo;
 use crate::utils::files::get_bytes_from_os_str;
 use format_bytes::{write_bytes, DisplayBytes};
 use std::collections::HashSet;
@@ -27,6 +28,7 @@ use crate::errors::{HgResultExt, IoResultExt};
 #[derive(Clone)]
 pub struct Config {
     layers: Vec<layer::ConfigLayer>,
+    plain: PlainInfo,
 }
 
 impl DisplayBytes for Config {
@@ -83,17 +85,55 @@ impl fmt::Display for ConfigValueParseError {
     }
 }
 
+/// Returns true if the config item is disabled by PLAIN or PLAINEXCEPT
+fn should_ignore(plain: &PlainInfo, section: &[u8], item: &[u8]) -> bool {
+    // duplication with [_applyconfig] in [ui.py],
+    if !plain.is_plain() {
+        return false;
+    }
+    if section == b"alias" {
+        return plain.plainalias();
+    }
+    if section == b"revsetalias" {
+        return plain.plainrevsetalias();
+    }
+    if section == b"templatealias" {
+        return plain.plaintemplatealias();
+    }
+    if section == b"ui" {
+        let to_delete: &[&[u8]] = &[
+            b"debug",
+            b"fallbackencoding",
+            b"quiet",
+            b"slash",
+            b"logtemplate",
+            b"message-output",
+            b"statuscopies",
+            b"style",
+            b"traceback",
+            b"verbose",
+        ];
+        return to_delete.contains(&item);
+    }
+    let sections_to_delete: &[&[u8]] =
+        &[b"defaults", b"commands", b"command-templates"];
+    return sections_to_delete.contains(&section);
+}
+
 impl Config {
     /// The configuration to use when printing configuration-loading errors
     pub fn empty() -> Self {
-        Self { layers: Vec::new() }
+        Self {
+            layers: Vec::new(),
+            plain: PlainInfo::empty(),
+        }
     }
 
     /// Load system and user configuration from various files.
     ///
     /// This is also affected by some environment variables.
     pub fn load_non_repo() -> Result<Self, ConfigError> {
-        let mut config = Self { layers: Vec::new() };
+        let mut config = Self::empty();
         let opt_rc_path = env::var_os("HGRCPATH");
         // HGRCPATH replaces system config
         if opt_rc_path.is_none() {
@@ -266,7 +306,10 @@ impl Config {
             }
         }
 
-        Ok(Config { layers })
+        Ok(Config {
+            layers,
+            plain: PlainInfo::empty(),
+        })
     }
 
     /// Loads the per-repository config into a new `Config` which is combined
@@ -283,6 +326,7 @@ impl Config {
 
         let mut repo_config = Self {
             layers: other_layers,
+            plain: PlainInfo::empty(),
         };
         for path in repo_config_files {
             // TODO: check if this file should be trusted:
@@ -291,6 +335,10 @@ impl Config {
         }
         repo_config.layers.extend(cli_layers);
         Ok(repo_config)
+    }
+
+    pub fn apply_plain(&mut self, plain: PlainInfo) {
+        self.plain = plain;
     }
 
     fn get_parse<'config, T: 'config>(
@@ -413,8 +461,23 @@ impl Config {
         section: &[u8],
         item: &[u8],
     ) -> Option<(&ConfigLayer, &ConfigValue)> {
+        // Filter out the config items that are hidden by [PLAIN].
+        // This differs from python hg where we delete them from the config.
+        let should_ignore = should_ignore(&self.plain, &section, &item);
         for layer in self.layers.iter().rev() {
             if !layer.trusted {
+                continue;
+            }
+            //The [PLAIN] config should not affect the defaults.
+            //
+            // However, PLAIN should also affect the "tweaked" defaults (unless
+            // "tweakdefault" is part of "HGPLAINEXCEPT").
+            //
+            // In practice the tweak-default layer is only added when it is
+            // relevant, so we can safely always take it into
+            // account here.
+            if should_ignore && !(layer.origin == ConfigOrigin::Tweakdefaults)
+            {
                 continue;
             }
             if let Some(v) = layer.get(&section, &item) {
@@ -503,6 +566,38 @@ impl Config {
             }
         }
         res
+    }
+
+    // a config layer that's introduced by ui.tweakdefaults
+    fn tweakdefaults_layer() -> ConfigLayer {
+        let mut layer = ConfigLayer::new(ConfigOrigin::Tweakdefaults);
+
+        let mut add = |section: &[u8], item: &[u8], value: &[u8]| {
+            layer.add(
+                section[..].into(),
+                item[..].into(),
+                value[..].into(),
+                None,
+            );
+        };
+        // duplication of [tweakrc] from [ui.py]
+        add(b"ui", b"rollback", b"False");
+        add(b"ui", b"statuscopies", b"yes");
+        add(b"ui", b"interface", b"curses");
+        add(b"ui", b"relative-paths", b"yes");
+        add(b"commands", b"grep.all-files", b"True");
+        add(b"commands", b"update.check", b"noconflict");
+        add(b"commands", b"status.verbose", b"True");
+        add(b"commands", b"resolve.explicit-re-merge", b"True");
+        add(b"git", b"git", b"1");
+        add(b"git", b"showfunc", b"1");
+        add(b"git", b"word-diff", b"1");
+        return layer;
+    }
+
+    // introduce the tweaked defaults as implied by ui.tweakdefaults
+    pub fn tweakdefaults<'a>(&mut self) -> () {
+        self.layers.insert(0, Config::tweakdefaults_layer());
     }
 }
 

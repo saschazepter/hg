@@ -40,6 +40,23 @@ impl Vfs<'_> {
         std::fs::read(&path).when_reading_file(&path)
     }
 
+    /// Returns `Ok(None)` if the file does not exist.
+    pub fn try_read(
+        &self,
+        relative_path: impl AsRef<Path>,
+    ) -> Result<Option<Vec<u8>>, HgError> {
+        match self.read(relative_path) {
+            Err(e) => match &e {
+                HgError::IoError { error, .. } => match error.kind() {
+                    ErrorKind::NotFound => return Ok(None),
+                    _ => Err(e),
+                },
+                _ => Err(e),
+            },
+            Ok(v) => Ok(Some(v)),
+        }
+    }
+
     fn mmap_open_gen(
         &self,
         relative_path: impl AsRef<Path>,
