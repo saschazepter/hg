@@ -245,3 +245,27 @@ We should make sure all of it (docket + data) is preserved
 
   $ hg status
   A foo
+  $ cd ..
+
+Check dirstate ordering
+(e.g. `src/dirstate/` and `src/dirstate.rs` shouldn't cause issues)
+
+  $ hg init repro
+  $ cd repro
+  $ mkdir src
+  $ mkdir src/dirstate
+  $ touch src/dirstate/file1 src/dirstate/file2 src/dirstate.rs
+  $ touch file1 file2
+  $ hg commit -Aqm1
+#if rhg no-rust dirstate-v2
+  $ hg st
+  ! src/dirstate/file1 (known-bad-output !)
+  ! src/dirstate/file2 (known-bad-output !)
+  ? src/dirstate/file1 (known-bad-output !)
+  ? src/dirstate/file2 (known-bad-output !)
+  expected a value, found none (known-bad-output !)
+  [255]
+#else
+  $ hg st
+#endif
+  $ cd ..
