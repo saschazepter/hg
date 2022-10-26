@@ -257,15 +257,5 @@ Check dirstate ordering
   $ touch src/dirstate/file1 src/dirstate/file2 src/dirstate.rs
   $ touch file1 file2
   $ hg commit -Aqm1
-#if rhg no-rust dirstate-v2
   $ hg st
-  ! src/dirstate/file1 (known-bad-output !)
-  ! src/dirstate/file2 (known-bad-output !)
-  ? src/dirstate/file1 (known-bad-output !)
-  ? src/dirstate/file2 (known-bad-output !)
-  expected a value, found none (known-bad-output !)
-  [255]
-#else
-  $ hg st
-#endif
   $ cd ..
