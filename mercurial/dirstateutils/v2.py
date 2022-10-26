@@ -272,7 +272,7 @@ def pack_dirstate(map, copy_map):
         )
         return data, tree_metadata
 
-    sorted_map = sorted(map.items(), key=lambda x: x[0])
+    sorted_map = sorted(map.items(), key=lambda x: x[0].split(b"/"))
 
     # Use a stack to have to only remember the nodes we currently need
     # instead of building the entire tree in memory
