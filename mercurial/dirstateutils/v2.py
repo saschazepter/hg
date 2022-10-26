@@ -176,7 +176,7 @@ class Node:
 def pack_dirstate(map, copy_map):
     """
     Pack `map` and `copy_map` into the dirstate v2 binary format and return
-    the bytearray.
+    the tuple of (data, metadata) bytearrays.
 
     The on-disk format expects a tree-like structure where the leaves are
     written first (and sorted per-directory), going up levels until the root
