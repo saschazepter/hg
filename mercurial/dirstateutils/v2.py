@@ -60,7 +60,7 @@ DIRSTATE_V2_DIRECTORY = 1 << 13
 
 
 def parse_dirstate(map, copy_map, data, tree_metadata):
-    """parse a full v2-dirstate from a binary data into dictionnaries:
+    """parse a full v2-dirstate from a binary data into dictionaries:
 
     - map: a {path: entry} mapping that will be filled
     - copy_map: a {path: copy-source} mapping that will be filled
@@ -191,7 +191,7 @@ def pack_dirstate(map, copy_map):
     # Algorithm explanation
 
     This explanation does not talk about the different counters for tracked
-    descendents and storing the copies, but that work is pretty simple once this
+    descendants and storing the copies, but that work is pretty simple once this
     algorithm is in place.
 
     ## Building a subtree
@@ -274,7 +274,7 @@ def pack_dirstate(map, copy_map):
 
     sorted_map = sorted(map.items(), key=lambda x: x[0])
 
-    # Use a stack to not have to only remember the nodes we currently need
+    # Use a stack to have to only remember the nodes we currently need
     # instead of building the entire tree in memory
     stack = []
     current_node = Node(b"", None)
