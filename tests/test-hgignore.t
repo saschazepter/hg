@@ -73,6 +73,24 @@ Should display baz only:
   [255]
 #endif
 
+  $ echo 're:^(?!a).*\.o$' > .hgignore
+#if no-rhg
+  $ hg status
+  A dir/b.o
+  ? .hgignore
+  ? a.c
+  ? a.o
+  ? syntax
+#endif
+#if rhg
+  $ hg status
+  Unsupported syntax regex parse error:
+      ^(?:^(?!a).*\.o$)
+           ^^^
+  error: look-around, including look-ahead and look-behind, is not supported
+  [255]
+#endif
+
 Ensure given files are relative to cwd
 
   $ echo "dir/.*\.o" > .hgignore
