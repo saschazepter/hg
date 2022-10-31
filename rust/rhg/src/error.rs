@@ -221,7 +221,12 @@ impl From<(RevlogError, &str)> for CommandError {
 
 impl From<StatusError> for CommandError {
     fn from(error: StatusError) -> Self {
-        CommandError::abort(format!("{}", error))
+        match error {
+            StatusError::Pattern(_) => {
+                CommandError::unsupported(format!("{}", error))
+            }
+            _ => CommandError::abort(format!("{}", error)),
+        }
     }
 }
 
