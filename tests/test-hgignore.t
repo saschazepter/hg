@@ -59,36 +59,24 @@ Should display baz only:
   ? syntax
 
   $ echo "*.o" > .hgignore
-#if no-rhg
   $ hg status
   abort: $TESTTMP/ignorerepo/.hgignore: invalid pattern (relre): *.o (glob)
   [255]
-#endif
-#if rhg
-  $ hg status
-  Unsupported syntax regex parse error:
-      ^(?:*.o)
-          ^
-  error: repetition operator missing expression
-  [255]
-#endif
 
   $ echo 're:^(?!a).*\.o$' > .hgignore
-#if no-rhg
   $ hg status
   A dir/b.o
   ? .hgignore
   ? a.c
   ? a.o
   ? syntax
-#endif
 #if rhg
-  $ hg status
-  Unsupported syntax regex parse error:
+  $ hg status --config rhg.on-unsupported=abort
+  unsupported feature: Unsupported syntax regex parse error:
       ^(?:^(?!a).*\.o$)
            ^^^
   error: look-around, including look-ahead and look-behind, is not supported
-  [255]
+  [252]
 #endif
 
 Ensure given files are relative to cwd
