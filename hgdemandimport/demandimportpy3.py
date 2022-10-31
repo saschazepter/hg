@@ -23,8 +23,6 @@ This also has some limitations compared to the Python 2 implementation:
   enabled.
 """
 
-# This line is unnecessary, but it satisfies test-check-py3-compat.t.
-
 import contextlib
 import importlib.util
 import sys
