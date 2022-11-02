@@ -1,3 +1,9 @@
+# Declare Windows-specific requirements for generating
+# the compiled (frozen) set of requirements in
+# ./requirements-windows-py3.txt.
+# If run on Windows, it may be necessary to run dos2unix
+# on the output file to replace any CRLF newlines with LF.
+
 docutils
 dulwich
 
