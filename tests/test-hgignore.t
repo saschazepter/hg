@@ -433,5 +433,33 @@ This is an optimization that is only relevant when using the Rust extensions
   sha1=dea19cc7119213f24b6b582a4bae7b0cb063e34e
   $ hg debugstate --docket | grep ignore
   ignore pattern hash: dea19cc7119213f24b6b582a4bae7b0cb063e34e
+  $ cd ..
+
+Check that the hash depends on the source of the hgignore patterns
+(otherwise the context is lost and things like subinclude are cached improperly)
+
+  $ hg init ignore-collision
+  $ cd ignore-collision
+  $ echo > .hg/testhgignorerel
+
+  $ mkdir dir1/ dir1/subdir
+  $ touch dir1/subdir/f dir1/subdir/ignored1
+  $ echo 'ignored1' > dir1/.hgignore
+
+  $ mkdir dir2 dir2/subdir
+  $ touch dir2/subdir/f dir2/subdir/ignored2
+  $ echo 'ignored2' > dir2/.hgignore
+  $ echo 'subinclude:dir2/.hgignore' >> .hgignore
+  $ echo 'subinclude:dir1/.hgignore' >> .hgignore
+
+  $ hg commit -Aqm_
+
+  $ > dir1/.hgignore
+  $ echo 'ignored' > dir2/.hgignore
+  $ echo 'ignored1' >> dir2/.hgignore
+  $ hg status
+  M dir1/.hgignore
+  M dir2/.hgignore
+  ? dir1/subdir/ignored1 (missing-correct-output !)
 
 #endif
