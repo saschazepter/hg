@@ -10,6 +10,7 @@ use crate::dirstate_tree::on_disk::DirstateV2ParseError;
 use crate::matchers::get_ignore_function;
 use crate::matchers::Matcher;
 use crate::utils::files::get_bytes_from_os_string;
+use crate::utils::files::get_bytes_from_path;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::BadMatch;
@@ -66,7 +67,7 @@ pub fn status<'dirstate>(
                     let (ignore_fn, warnings) = get_ignore_function(
                         ignore_files,
                         &root_dir,
-                        &mut |_pattern_bytes| {},
+                        &mut |_source, _pattern_bytes| {},
                     )?;
                     (ignore_fn, warnings, None)
                 }
@@ -75,7 +76,24 @@ pub fn status<'dirstate>(
                     let (ignore_fn, warnings) = get_ignore_function(
                         ignore_files,
                         &root_dir,
-                        &mut |pattern_bytes| hasher.update(pattern_bytes),
+                        &mut |source, pattern_bytes| {
+                            // If inside the repo, use the relative version to
+                            // make it deterministic inside tests.
+                            // The performance hit should be negligible.
+                            let source = source
+                                .strip_prefix(&root_dir)
+                                .unwrap_or(source);
+                            let source = get_bytes_from_path(source);
+
+                            let mut subhasher = Sha1::new();
+                            subhasher.update(pattern_bytes);
+                            let patterns_hash = subhasher.finalize();
+
+                            hasher.update(source);
+                            hasher.update(b" ");
+                            hasher.update(patterns_hash);
+                            hasher.update(b"\n");
+                        },
                     )?;
                     let new_hash = *hasher.finalize().as_ref();
                     let changed = new_hash != dmap.ignore_patterns_hash;

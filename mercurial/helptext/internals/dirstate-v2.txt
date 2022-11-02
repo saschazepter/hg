@@ -283,8 +283,16 @@ We define:
   in inclusion order. This definition is recursive, as included files can
   themselves include more files.
 
-This hash is defined as the SHA-1 of the concatenation (in sorted
-order) of the "expanded contents" of each "root" ignore file.
+* "filepath" as the bytes of the ignore file path
+  relative to the root of the repository if inside the repository,
+  or the untouched path as defined in the configuration.
+
+This hash is defined as the SHA-1 of the following line format:
+
+<filepath> <sha1 of the "expanded contents">\n
+
+for each "root" ignore file. (in sorted order)
+
 (Note that computing this does not require actually concatenating
 into a single contiguous byte sequence.
 Instead a SHA-1 hasher object can be created
