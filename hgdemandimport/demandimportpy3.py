@@ -41,6 +41,10 @@ class _lazyloaderex(importlib.util.LazyLoader):
         """Make the module load lazily."""
         with tracing.log('demandimport %s', module):
             if _deactivated or module.__name__ in ignores:
+                # Reset the loader on the module as super() does (issue6725)
+                module.__spec__.loader = self.loader
+                module.__loader__ = self.loader
+
                 self.loader.exec_module(module)
             else:
                 super().exec_module(module)
