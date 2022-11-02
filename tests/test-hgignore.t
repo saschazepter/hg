@@ -421,18 +421,24 @@ Windows paths are accepted on input
 Check the hash of ignore patterns written in the dirstate
 This is an optimization that is only relevant when using the Rust extensions
 
+  $ cat_filename_and_hash () {
+  >     for i in "$@"; do
+  >         printf "$i "
+  >         cat "$i" | "$TESTDIR"/f --raw-sha1 | sed 's/^raw-sha1=//'
+  >     done
+  > }
   $ hg status > /dev/null
-  $ cat .hg/testhgignore .hg/testhgignorerel .hgignore dir2/.hgignore dir1/.hgignore dir1/.hgignoretwo | $TESTDIR/f --sha1
-  sha1=6e315b60f15fb5dfa02be00f3e2c8f923051f5ff
+  $ cat_filename_and_hash .hg/testhgignore .hg/testhgignorerel .hgignore dir2/.hgignore dir1/.hgignore dir1/.hgignoretwo | $TESTDIR/f --sha1
+  sha1=c0beb296395d48ced8e14f39009c4ea6e409bfe6
   $ hg debugstate --docket | grep ignore
-  ignore pattern hash: 6e315b60f15fb5dfa02be00f3e2c8f923051f5ff
+  ignore pattern hash: c0beb296395d48ced8e14f39009c4ea6e409bfe6
 
   $ echo rel > .hg/testhgignorerel
   $ hg status > /dev/null
-  $ cat .hg/testhgignore .hg/testhgignorerel .hgignore dir2/.hgignore dir1/.hgignore dir1/.hgignoretwo | $TESTDIR/f --sha1
-  sha1=dea19cc7119213f24b6b582a4bae7b0cb063e34e
+  $ cat_filename_and_hash .hg/testhgignore .hg/testhgignorerel .hgignore dir2/.hgignore dir1/.hgignore dir1/.hgignoretwo | $TESTDIR/f --sha1
+  sha1=b8e63d3428ec38abc68baa27631516d5ec46b7fa
   $ hg debugstate --docket | grep ignore
-  ignore pattern hash: dea19cc7119213f24b6b582a4bae7b0cb063e34e
+  ignore pattern hash: b8e63d3428ec38abc68baa27631516d5ec46b7fa
   $ cd ..
 
 Check that the hash depends on the source of the hgignore patterns
@@ -460,6 +466,6 @@ Check that the hash depends on the source of the hgignore patterns
   $ hg status
   M dir1/.hgignore
   M dir2/.hgignore
-  ? dir1/subdir/ignored1 (missing-correct-output !)
+  ? dir1/subdir/ignored1
 
 #endif

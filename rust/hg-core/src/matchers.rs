@@ -838,7 +838,7 @@ fn build_match<'a, 'b>(
 pub fn get_ignore_matcher<'a>(
     mut all_pattern_files: Vec<PathBuf>,
     root_dir: &Path,
-    inspect_pattern_bytes: &mut impl FnMut(&[u8]),
+    inspect_pattern_bytes: &mut impl FnMut(&Path, &[u8]),
 ) -> PatternResult<(IncludeMatcher<'a>, Vec<PatternFileWarning>)> {
     let mut all_patterns = vec![];
     let mut all_warnings = vec![];
@@ -871,7 +871,7 @@ pub fn get_ignore_matcher<'a>(
 pub fn get_ignore_function<'a>(
     all_pattern_files: Vec<PathBuf>,
     root_dir: &Path,
-    inspect_pattern_bytes: &mut impl FnMut(&[u8]),
+    inspect_pattern_bytes: &mut impl FnMut(&Path, &[u8]),
 ) -> PatternResult<(IgnoreFnType<'a>, Vec<PatternFileWarning>)> {
     let res =
         get_ignore_matcher(all_pattern_files, root_dir, inspect_pattern_bytes);
