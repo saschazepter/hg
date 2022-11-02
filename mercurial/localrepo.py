@@ -15,6 +15,10 @@ import time
 import weakref
 
 from concurrent import futures
+from typing import (
+    Optional,
+)
+
 from .i18n import _
 from .node import (
     bin,
@@ -526,7 +530,7 @@ def _readrequires(vfs, allowmissing):
     return set(read(b'requires').splitlines())
 
 
-def makelocalrepository(baseui, path, intents=None):
+def makelocalrepository(baseui, path: bytes, intents=None):
     """Create a local repository object.
 
     Given arguments needed to construct a local repository, this function
@@ -845,7 +849,13 @@ def makelocalrepository(baseui, path, intents=None):
     )
 
 
-def loadhgrc(ui, wdirvfs, hgvfs, requirements, sharedvfs=None):
+def loadhgrc(
+    ui,
+    wdirvfs: vfsmod.vfs,
+    hgvfs: vfsmod.vfs,
+    requirements,
+    sharedvfs: Optional[vfsmod.vfs] = None,
+):
     """Load hgrc files/content into a ui instance.
 
     This is called during repository opening to load any additional
@@ -1323,15 +1333,15 @@ class localrepository:
         self,
         baseui,
         ui,
-        origroot,
-        wdirvfs,
-        hgvfs,
+        origroot: bytes,
+        wdirvfs: vfsmod.vfs,
+        hgvfs: vfsmod.vfs,
         requirements,
         supportedrequirements,
-        sharedpath,
+        sharedpath: bytes,
         store,
-        cachevfs,
-        wcachevfs,
+        cachevfs: vfsmod.vfs,
+        wcachevfs: vfsmod.vfs,
         features,
         intents=None,
     ):
@@ -1977,7 +1987,7 @@ class localrepository:
     def __iter__(self):
         return iter(self.changelog)
 
-    def revs(self, expr, *args):
+    def revs(self, expr: bytes, *args):
         """Find revisions matching a revset.
 
         The revset is specified as a string ``expr`` that may contain
@@ -1993,7 +2003,7 @@ class localrepository:
         tree = revsetlang.spectree(expr, *args)
         return revset.makematcher(tree)(self)
 
-    def set(self, expr, *args):
+    def set(self, expr: bytes, *args):
         """Find revisions matching a revset and emit changectx instances.
 
         This is a convenience wrapper around ``revs()`` that iterates the
@@ -2005,7 +2015,7 @@ class localrepository:
         for r in self.revs(expr, *args):
             yield self[r]
 
-    def anyrevs(self, specs, user=False, localalias=None):
+    def anyrevs(self, specs: bytes, user=False, localalias=None):
         """Find revisions matching one of the given revsets.
 
         Revset aliases from the configuration are not expanded by default. To
@@ -2030,7 +2040,7 @@ class localrepository:
             m = revset.matchany(None, specs, localalias=localalias)
         return m(self)
 
-    def url(self):
+    def url(self) -> bytes:
         return b'file:' + self.root
 
     def hook(self, name, throw=False, **args):
@@ -2229,7 +2239,7 @@ class localrepository:
             return b'store'
         return None
 
-    def wjoin(self, f, *insidef):
+    def wjoin(self, f: bytes, *insidef: bytes) -> bytes:
         return self.vfs.reljoin(self.root, f, *insidef)
 
     def setparents(self, p1, p2=None):
@@ -2238,17 +2248,17 @@ class localrepository:
         self[None].setparents(p1, p2)
         self._quick_access_changeid_invalidate()
 
-    def filectx(self, path, changeid=None, fileid=None, changectx=None):
+    def filectx(self, path: bytes, changeid=None, fileid=None, changectx=None):
         """changeid must be a changeset revision, if specified.
         fileid can be a file revision or node."""
         return context.filectx(
             self, path, changeid, fileid, changectx=changectx
         )
 
-    def getcwd(self):
+    def getcwd(self) -> bytes:
         return self.dirstate.getcwd()
 
-    def pathto(self, f, cwd=None):
+    def pathto(self, f: bytes, cwd: Optional[bytes] = None) -> bytes:
         return self.dirstate.pathto(f, cwd)
 
     def _loadfilter(self, filter):
@@ -2300,14 +2310,21 @@ class localrepository:
     def adddatafilter(self, name, filter):
         self._datafilters[name] = filter
 
-    def wread(self, filename):
+    def wread(self, filename: bytes) -> bytes:
         if self.wvfs.islink(filename):
             data = self.wvfs.readlink(filename)
         else:
             data = self.wvfs.read(filename)
         return self._filter(self._encodefilterpats, filename, data)
 
-    def wwrite(self, filename, data, flags, backgroundclose=False, **kwargs):
+    def wwrite(
+        self,
+        filename: bytes,
+        data: bytes,
+        flags: bytes,
+        backgroundclose=False,
+        **kwargs
+    ) -> int:
         """write ``data`` into ``filename`` in the working directory
 
         This returns length of written (maybe decoded) data.
@@ -2325,7 +2342,7 @@ class localrepository:
                 self.wvfs.setflags(filename, False, False)
         return len(data)
 
-    def wwritedata(self, filename, data):
+    def wwritedata(self, filename: bytes, data: bytes) -> bytes:
         return self._filter(self._decodefilterpats, filename, data)
 
     def currenttransaction(self):
@@ -3520,13 +3537,13 @@ def aftertrans(files):
     return a
 
 
-def undoname(fn):
+def undoname(fn: bytes) -> bytes:
     base, name = os.path.split(fn)
     assert name.startswith(b'journal')
     return os.path.join(base, name.replace(b'journal', b'undo', 1))
 
 
-def instance(ui, path, create, intents=None, createopts=None):
+def instance(ui, path: bytes, create, intents=None, createopts=None):
 
     # prevent cyclic import localrepo -> upgrade -> localrepo
     from . import upgrade
@@ -3543,7 +3560,7 @@ def instance(ui, path, create, intents=None, createopts=None):
     return repo
 
 
-def islocal(path):
+def islocal(path: bytes) -> bool:
     return True
 
 
@@ -3801,7 +3818,7 @@ def filterknowncreateopts(ui, createopts):
     return {k: v for k, v in createopts.items() if k not in known}
 
 
-def createrepository(ui, path, createopts=None, requirements=None):
+def createrepository(ui, path: bytes, createopts=None, requirements=None):
     """Create a new repository in a vfs.
 
     ``path`` path to the new repo's working directory.
