@@ -11,7 +11,7 @@
 
 from mercurial import demandimport
 
-demandimport.IGNORES.update([b'pkgutil', b'pkg_resources', b'__main__'])
+demandimport.IGNORES.update(['pkgutil', 'pkg_resources', '__main__'])
 
 from mercurial import (
     encoding,
