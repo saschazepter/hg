@@ -234,3 +234,11 @@ assert 'ftplib' not in sys.modules
 zipfileimp = __import__('ftplib', globals(), locals(), ['unknownattr'])
 assert f(zipfileimp) == "<module 'ftplib' from '?'>", f(zipfileimp)
 assert not util.safehasattr(zipfileimp, 'unknownattr')
+
+
+# test deactivation for issue6725
+del sys.modules['telnetlib']
+with demandimport.deactivated():
+    import telnetlib
+assert telnetlib.__loader__ == telnetlib.__spec__.loader
+assert telnetlib.__loader__.get_resource_reader
