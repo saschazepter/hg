@@ -3721,8 +3721,10 @@ def newreporequirements(ui, createopts):
 
     if ui.configbool(b'format', b'use-dirstate-tracked-hint'):
         version = ui.configint(b'format', b'use-dirstate-tracked-hint.version')
-        msg = _("ignoring unknown tracked key version: %d\n")
-        hint = _("see `hg help config.format.use-dirstate-tracked-hint-version")
+        msg = _(b"ignoring unknown tracked key version: %d\n")
+        hint = _(
+            b"see `hg help config.format.use-dirstate-tracked-hint-version"
+        )
         if version != 1:
             ui.warn(msg % version, hint=hint)
         else:
