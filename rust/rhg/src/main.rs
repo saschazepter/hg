@@ -301,7 +301,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
         }
     };
 
-    let exit =
+    let simple_exit =
         |ui: &Ui, config: &Config, result: Result<(), CommandError>| -> ! {
             exit(
                 &argv,
@@ -317,7 +317,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
             )
         };
     let early_exit = |config: &Config, error: CommandError| -> ! {
-        exit(&Ui::new_infallible(config), &config, Err(error))
+        simple_exit(&Ui::new_infallible(config), &config, Err(error))
     };
     let repo_result = match Repo::find(&non_repo_config, repo_path.to_owned())
     {
@@ -355,7 +355,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
         repo_result.as_ref(),
         config,
     );
-    exit(&ui, &config, result)
+    simple_exit(&ui, &config, result)
 }
 
 fn main() -> ! {
