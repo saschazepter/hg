@@ -19,35 +19,9 @@ The executable can then be found at `rust/target/release/rhg`.
 
 `rhg` reads Mercurial configuration from the usual sources:
 the user’s `~/.hgrc`, a repository’s `.hg/hgrc`, command line `--config`, etc.
-It has some specific configuration in the `[rhg]` section:
+It has some specific configuration in the `[rhg]` section.
 
-* `on-unsupported` governs the behavior of `rhg` when it encounters something
-  that it does not support but “full” `hg` possibly does.
-  This can be in configuration, on the command line, or in a repository.
-
-  - `abort`, the default value, makes `rhg` print a message to stderr
-    to explain what is not supported, then terminate with a 252 exit code.
-  - `abort-silent` makes it terminate with the same exit code,
-    but without printing anything.
-  - `fallback` makes it silently call a (presumably Python-based) `hg`
-    subprocess with the same command-line parameters.
-    The `rhg.fallback-executable` configuration must be set.
-
-* `fallback-executable`: path to the executable to run in a sub-process
-  when falling back to a Python implementation of Mercurial.
-
-* `allowed-extensions`: a list of extension names that `rhg` can ignore.
-
-  Mercurial extensions can modify the behavior of existing `hg` sub-commands,
-  including those that `rhg` otherwise supports.
-  Because it cannot load Python extensions, finding them
-  enabled in configuration is considered “unsupported” (see above).
-  A few exceptions are made for extensions that `rhg` does know about,
-  with the Rust implementation duplicating their behavior.
-
-  This configuration makes additional exceptions: `rhg` will proceed even if
-  those extensions are enabled.
-
+See `hg help config.rhg` for details.
 
 ## Installation and configuration example
 

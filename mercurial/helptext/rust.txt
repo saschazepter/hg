@@ -89,6 +89,8 @@ execution of certain commands while adding no discernable overhead for the rest.
 The only way of trying it out is by building it from source. Please refer to
 `rust/README.rst` in the Mercurial repository.
 
+See `hg help config.rhg` for configuration options.
+
 Contributing
 ============
 
