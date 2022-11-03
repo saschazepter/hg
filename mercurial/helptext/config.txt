@@ -2165,6 +2165,14 @@ The pure Rust fast-path for Mercurial. See `rust/README.rst` in the Mercurial re
     Path to the executable to run in a sub-process when falling back to
     another implementation of Mercurial.
 
+``fallback-immediately``
+    Fall back to ``fallback-executable`` as soon as possible, regardless of
+    the `rhg.on-unsupported` configuration. Useful for debugging, for example to
+    bypass `rhg` if the deault `hg` points to `rhg`.
+
+    Note that because this requires loading the configuration, it is possible
+    that `rhg` error out before being able to fall back.
+
 ``ignored-extensions``
     Controls which extensions should be ignored by `rhg`. By default, `rhg`
     triggers the `rhg.on-unsupported` behavior any unsupported extensions.
