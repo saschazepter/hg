@@ -2167,14 +2167,14 @@ Alias definitions for revsets. See :hg:`help revsets` for details.
     `upgrade-allow`.
 
     ``abort``
-    Disallows running any command and aborts
+        Disallows running any command and aborts
     ``allow``
-    Respects the feature presence in the share source
+        Respects the feature presence in the share source
     ``upgrade-abort``
-    tries to upgrade the share to use share-safe; if it fails, aborts
+        Tries to upgrade the share to use share-safe; if it fails, aborts
     ``upgrade-allow``
-    tries to upgrade the share; if it fails, continue by
-    respecting the share source setting
+        Tries to upgrade the share; if it fails, continue by
+        respecting the share source setting
 
     Check :hg:`help config.format.use-share-safe` for details about the
     share-safe feature.
@@ -2195,14 +2195,14 @@ Alias definitions for revsets. See :hg:`help revsets` for details.
     `downgrade-allow`.
 
     ``abort``
-    Disallows running any command and aborts
+        Disallows running any command and aborts
     ``allow``
-    Respects the feature presence in the share source
+        Respects the feature presence in the share source
     ``downgrade-abort``
-    tries to downgrade the share to not use share-safe; if it fails, aborts
+        Tries to downgrade the share to not use share-safe; if it fails, aborts
     ``downgrade-allow``
-    tries to downgrade the share to not use share-safe;
-    if it fails, continue by respecting the shared source setting
+        Tries to downgrade the share to not use share-safe;
+        if it fails, continue by respecting the shared source setting
 
     Check :hg:`help config.format.use-share-safe` for details about the
     share-safe feature.
