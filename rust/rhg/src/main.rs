@@ -348,6 +348,24 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
     let config = config_cow.as_ref();
     let ui = Ui::new(&config)
         .unwrap_or_else(|error| early_exit(&config, error.into()));
+
+    if let Ok(true) = config.get_bool(b"rhg", b"fallback-immediately") {
+        exit(
+            &argv,
+            &initial_current_dir,
+            &ui,
+            OnUnsupported::Fallback {
+                executable: config
+                    .get(b"rhg", b"fallback-executable")
+                    .map(ToOwned::to_owned),
+            },
+            Err(CommandError::unsupported(
+                "`rhg.fallback-immediately is true`",
+            )),
+            false,
+        )
+    }
+
     let result = main_with_result(
         argv.iter().map(|s| s.to_owned()).collect(),
         &process_start_time,
