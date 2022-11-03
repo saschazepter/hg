@@ -2156,6 +2156,43 @@ Alias definitions for revsets. See :hg:`help revsets` for details.
     Currently, only the rebase and absorb commands consider this configuration.
     (EXPERIMENTAL)
 
+``rhg``
+-------
+
+The pure Rust fast-path for Mercurial. See `rust/README.rst` in the Mercurial repository.
+
+``fallback-executable``
+    Path to the executable to run in a sub-process when falling back to
+    another implementation of Mercurial.
+
+``ignored-extensions``
+    Controls which extensions should be ignored by `rhg`. By default, `rhg`
+    triggers the `rhg.on-unsupported` behavior any unsupported extensions.
+    Users can disable that behavior when they know that a given extension
+    does not need support from `rhg`.
+
+    Expects a list of extension names, or ``*`` to ignore all extensions.
+
+    Note: ``*:<suboption>`` is also a valid extension name for this
+    configuration option.
+    As of this writing, the only valid "global" suboption is ``required``.
+
+``on-unsupported``
+    Controls the behavior of `rhg` when detecting unsupported features.
+
+    Possible values are `abort` (default), `abort-silent` and `fallback`.
+
+    ``abort``
+        Print an error message describing what feature is not supported,
+        and exit with code 252
+
+    ``abort-silent``
+        Silently exit with code 252
+
+    ``fallback``
+        Try running the fallback executable with the same parameters
+        (and trace the fallback reason, use `RUST_LOG=trace` to see).
+
 ``share``
 ---------
 
