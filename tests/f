@@ -63,7 +63,16 @@ def visit(opts, filenames, outfile):
         if isfile:
             if opts.type:
                 facts.append(b'file')
-            if any((opts.hexdump, opts.dump, opts.md5, opts.sha1, opts.sha256)):
+            needs_reading = (
+                opts.hexdump,
+                opts.dump,
+                opts.md5,
+                opts.sha1,
+                opts.raw_sha1,
+                opts.sha256,
+            )
+
+            if any(needs_reading):
                 with open(f, 'rb') as fobj:
                     content = fobj.read()
         elif islink:
@@ -101,6 +110,9 @@ def visit(opts, filenames, outfile):
         if opts.md5 and content is not None:
             h = hashlib.md5(content)
             facts.append(b'md5=%s' % binascii.hexlify(h.digest())[: opts.bytes])
+        if opts.raw_sha1 and content is not None:
+            h = hashlib.sha1(content)
+            facts.append(b'raw-sha1=%s' % h.digest()[: opts.bytes])
         if opts.sha1 and content is not None:
             h = hashlib.sha1(content)
             facts.append(
@@ -183,6 +195,12 @@ if __name__ == "__main__":
         "--sha1",
         action="store_true",
         help="show sha1 hash of the content",
+    )
+    parser.add_option(
+        "",
+        "--raw-sha1",
+        action="store_true",
+        help="show raw bytes of the sha1 hash of the content",
     )
     parser.add_option(
         "",
