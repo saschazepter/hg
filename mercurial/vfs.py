@@ -425,7 +425,7 @@ class vfs(abstractvfs):
     def __call__(
         self,
         path: bytes,
-        mode: bytes = b"r",
+        mode: bytes = b"rb",
         atomictemp=False,
         notindexed=False,
         backgroundclose=False,
@@ -612,7 +612,7 @@ class readonlyvfs(proxyvfs):
     def __init__(self, vfs: "vfs"):
         proxyvfs.__init__(self, vfs)
 
-    def __call__(self, path: bytes, mode: bytes = b'r', *args, **kw):
+    def __call__(self, path: bytes, mode: bytes = b'rb', *args, **kw):
         if mode not in (b'r', b'rb'):
             raise error.Abort(_(b'this vfs is read only'))
         return self.vfs(path, mode, *args, **kw)
