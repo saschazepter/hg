@@ -268,7 +268,7 @@ Show all commands + options
   config: untrusted, exp-all-known, edit, local, source, shared, non-shared, global, template
   continue: dry-run
   copy: forget, after, at-rev, force, include, exclude, dry-run
-  debug-delta-find: changelog, manifest, dir, template
+  debug-delta-find: changelog, manifest, dir, template, source
   debug-repair-issue6528: to-report, from-report, paranoid, dry-run
   debug-revlog-index: changelog, manifest, dir, template
   debugancestor: 
