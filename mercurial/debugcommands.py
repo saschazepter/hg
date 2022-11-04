@@ -59,6 +59,7 @@ from . import (
     localrepo,
     lock as lockmod,
     logcmdutil,
+    mdiff,
     mergestate as mergestatemod,
     metadata,
     obsolete,
@@ -990,16 +991,28 @@ def debugdeltachain(ui, repo, file_=None, **opts):
 
 @command(
     b'debug-delta-find',
-    cmdutil.debugrevlogopts + cmdutil.formatteropts,
+    cmdutil.debugrevlogopts
+    + cmdutil.formatteropts
+    + [
+        (
+            b'',
+            b'source',
+            b'full',
+            _(b'input data feed to the process (full, storage, p1, p2, prev)'),
+        ),
+    ],
     _(b'-c|-m|FILE REV'),
     optionalrepo=True,
 )
-def debugdeltafind(ui, repo, arg_1, arg_2=None, **opts):
+def debugdeltafind(ui, repo, arg_1, arg_2=None, source=b'full', **opts):
     """display the computation to get to a valid delta for storing REV
 
     This command will replay the process used to find the "best" delta to store
     a revision and display information about all the steps used to get to that
     result.
+
+    By default, the process is fed with a the full-text for the revision. This
+    can be controlled with the --source flag.
 
     The revision use the revision number of the target storage (not changelog
     revision number).
@@ -1028,10 +1041,30 @@ def debugdeltafind(ui, repo, arg_1, arg_2=None, **opts):
     p1r, p2r = revlog.parentrevs(rev)
     p1 = revlog.node(p1r)
     p2 = revlog.node(p2r)
-    btext = [revlog.revision(rev)]
+    full_text = revlog.revision(rev)
+    btext = [full_text]
     textlen = len(btext[0])
     cachedelta = None
     flags = revlog.flags(rev)
+
+    if source != b'full':
+        if source == b'storage':
+            base_rev = revlog.deltaparent(rev)
+        elif source == b'p1':
+            base_rev = p1r
+        elif source == b'p2':
+            base_rev = p2r
+        elif source == b'prev':
+            base_rev = rev - 1
+        else:
+            raise error.InputError(b"invalid --source value: %s" % source)
+
+        if base_rev != nullrev:
+            base_text = revlog.revision(base_rev)
+            delta = mdiff.textdiff(base_text, full_text)
+
+            cachedelta = (base_rev, delta)
+            btext = [None]
 
     revinfo = revlogutils.revisioninfo(
         node,
