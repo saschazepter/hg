@@ -2542,6 +2542,7 @@ class atomictempfile:
         # delegated methods
         self.read = self._fp.read
         self.write = self._fp.write
+        self.writelines = self._fp.writelines
         self.seek = self._fp.seek
         self.tell = self._fp.tell
         self.fileno = self._fp.fileno
