@@ -56,7 +56,7 @@ assert TREE_METADATA_SIZE == TREE_METADATA.size
 assert NODE_SIZE == NODE.size
 
 # match constant in mercurial/pure/parsers.py
-DIRSTATE_V2_DIRECTORY = 1 << 5
+DIRSTATE_V2_DIRECTORY = 1 << 13
 
 
 def parse_dirstate(map, copy_map, data, tree_metadata):
