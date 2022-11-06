@@ -799,18 +799,6 @@ def _candidategroups(
     yield None
 
 
-def _findsnapshots(revlog, cache, start_rev):
-    """find snapshot from start_rev to tip"""
-    if util.safehasattr(revlog.index, b'findsnapshots'):
-        revlog.index.findsnapshots(cache, start_rev)
-    else:
-        deltaparent = revlog.deltaparent
-        issnapshot = revlog.issnapshot
-        for rev in revlog.revs(start_rev):
-            if issnapshot(rev):
-                cache[deltaparent(rev)].append(rev)
-
-
 def _refinedgroups(revlog, p1, p2, cachedelta):
     good = None
     # First we try to reuse a the delta contained in the bundle.
@@ -832,13 +820,13 @@ def _refinedgroups(revlog, p1, p2, cachedelta):
             yield None
             return
     # XXX cache me higher
-    snapshots = collections.defaultdict(list)
+    snapshot_cache = SnapshotCache()
     groups = _rawgroups(
         revlog,
         p1,
         p2,
         cachedelta,
-        snapshots,
+        snapshot_cache,
     )
     for candidates in groups:
         good = yield candidates
@@ -861,12 +849,12 @@ def _refinedgroups(revlog, p1, p2, cachedelta):
                 break
             good = yield (base,)
         # refine snapshot up
-        if not snapshots:
-            _findsnapshots(revlog, snapshots, good + 1)
+        if not snapshot_cache.snapshots:
+            snapshot_cache.update(revlog, good + 1)
         previous = None
         while good != previous:
             previous = good
-            children = tuple(sorted(c for c in snapshots[good]))
+            children = tuple(sorted(c for c in snapshot_cache.snapshots[good]))
             good = yield children
 
     if debug_info is not None:
@@ -876,7 +864,7 @@ def _refinedgroups(revlog, p1, p2, cachedelta):
     yield None
 
 
-def _rawgroups(revlog, p1, p2, cachedelta, snapshots=None):
+def _rawgroups(revlog, p1, p2, cachedelta, snapshot_cache=None):
     """Provides group of revision to be tested as delta base
 
     This lower level function focus on emitting delta theorically interresting
@@ -907,9 +895,9 @@ def _rawgroups(revlog, p1, p2, cachedelta, snapshots=None):
             yield parents
 
     if sparse and parents:
-        if snapshots is None:
+        if snapshot_cache is None:
             # map: base-rev: [snapshot-revs]
-            snapshots = collections.defaultdict(list)
+            snapshot_cache = SnapshotCache()
         # See if we can use an existing snapshot in the parent chains to use as
         # a base for a new intermediate-snapshot
         #
@@ -923,7 +911,7 @@ def _rawgroups(revlog, p1, p2, cachedelta, snapshots=None):
                     break
                 parents_snaps[idx].add(s)
         snapfloor = min(parents_snaps[0]) + 1
-        _findsnapshots(revlog, snapshots, snapfloor)
+        snapshot_cache.update(revlog, snapfloor)
         # search for the highest "unrelated" revision
         #
         # Adding snapshots used by "unrelated" revision increase the odd we
@@ -961,7 +949,7 @@ def _rawgroups(revlog, p1, p2, cachedelta, snapshots=None):
         for idx, snaps in sorted(parents_snaps.items(), reverse=True):
             siblings = set()
             for s in snaps:
-                siblings.update(snapshots[s])
+                siblings.update(snapshot_cache.snapshots[s])
             # Before considering making a new intermediate snapshot, we check
             # if an existing snapshot, children of base we consider, would be
             # suitable.
@@ -989,12 +977,68 @@ def _rawgroups(revlog, p1, p2, cachedelta, snapshots=None):
         # revisions instead of starting our own. Without such re-use,
         # topological branches would keep reopening new full chains. Creating
         # more and more snapshot as the repository grow.
-        yield tuple(snapshots[nullrev])
+        yield tuple(snapshot_cache.snapshots[nullrev])
 
     if not sparse:
         # other approach failed try against prev to hopefully save us a
         # fulltext.
         yield (prev,)
+
+
+class SnapshotCache:
+    __slots__ = ('snapshots', '_start_rev', '_end_rev')
+
+    def __init__(self):
+        # XXX should probably be a set ?
+        self.snapshots = collections.defaultdict(list)
+        self._start_rev = None
+        self._end_rev = None
+
+    def update(self, revlog, start_rev=0):
+        """find snapshots from start_rev to tip"""
+        nb_revs = len(revlog)
+        end_rev = nb_revs - 1
+        if start_rev > end_rev:
+            return  # range is empty
+
+        if self._start_rev is None:
+            assert self._end_rev is None
+            self._update(revlog, start_rev, end_rev)
+        elif not (self._start_rev <= start_rev and end_rev <= self._end_rev):
+            if start_rev < self._start_rev:
+                self._update(revlog, start_rev, self._start_rev - 1)
+            if self._end_rev < end_rev:
+                self._update(revlog, self._end_rev + 1, end_rev)
+
+        if self._start_rev is None:
+            assert self._end_rev is None
+            self._end_rev = end_rev
+            self._start_rev = start_rev
+        else:
+            self._start_rev = min(self._start_rev, start_rev)
+            self._end_rev = max(self._end_rev, end_rev)
+        assert self._start_rev <= self._end_rev, (
+            self._start_rev,
+            self._end_rev,
+        )
+
+    def _update(self, revlog, start_rev, end_rev):
+        """internal method that actually do update content"""
+        assert self._start_rev is None or (
+            start_rev < self._start_rev or start_rev > self._end_rev
+        ), (self._start_rev, self._end_rev, start_rev, end_rev)
+        assert self._start_rev is None or (
+            end_rev < self._start_rev or end_rev > self._end_rev
+        ), (self._start_rev, self._end_rev, start_rev, end_rev)
+        cache = self.snapshots
+        if util.safehasattr(revlog.index, b'findsnapshots'):
+            revlog.index.findsnapshots(cache, start_rev, end_rev)
+        else:
+            deltaparent = revlog.deltaparent
+            issnapshot = revlog.issnapshot
+            for rev in revlog.revs(start_rev, end_rev):
+                if issnapshot(rev):
+                    cache[deltaparent(rev)].append(rev)
 
 
 class deltacomputer:
