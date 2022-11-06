@@ -2281,6 +2281,21 @@ category impact performance and repository size.
     To fix affected revisions that already exist within the repository, one can
     use :hg:`debug-repair-issue-6528`.
 
+.. container:: verbose
+
+    ``revlog.delta-parent-search.candidate-group-chunk-size``
+        Tune the number of delta bases the storage will consider in the
+        same "round" of search. In some very rare cases, using a smaller value
+        might result in faster processing at the possible expense of storage
+        space, while using larger values might result in slower processing at the
+        possible benefit of storage space. A value of "0" means no limitation.
+
+        default: no limitation
+
+        This is unlikely that you'll have to tune this configuration. If you think
+        you do, consider talking with the mercurial developer community about your
+        repositories.
+
 ``revlog.optimize-delta-parent-choice``
     When storing a merge revision, both parents will be equally considered as
     a possible delta base. This results in better delta selection and improved
