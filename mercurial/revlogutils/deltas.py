@@ -664,6 +664,7 @@ def _candidategroups(
     cachedelta,
     excluded_bases=None,
     target_rev=None,
+    snapshot_cache=None,
 ):
     """Provides group of revision to be tested as delta base
 
@@ -689,6 +690,7 @@ def _candidategroups(
         p1,
         p2,
         cachedelta,
+        snapshot_cache=snapshot_cache,
     )
     while True:
         temptative = candidates.send(good)
@@ -799,7 +801,7 @@ def _candidategroups(
     yield None
 
 
-def _refinedgroups(revlog, p1, p2, cachedelta):
+def _refinedgroups(revlog, p1, p2, cachedelta, snapshot_cache=None):
     good = None
     # First we try to reuse a the delta contained in the bundle.
     # (or from the source revlog)
@@ -819,8 +821,8 @@ def _refinedgroups(revlog, p1, p2, cachedelta):
                 debug_info['cached-delta.accepted'] += 1
             yield None
             return
-    # XXX cache me higher
-    snapshot_cache = SnapshotCache()
+    if snapshot_cache is None:
+        snapshot_cache = SnapshotCache()
     groups = _rawgroups(
         revlog,
         p1,
@@ -1053,6 +1055,7 @@ class deltacomputer:
         self._write_debug = write_debug
         self._debug_search = debug_search
         self._debug_info = debug_info
+        self._snapshot_cache = SnapshotCache()
 
     def buildtext(self, revinfo, fh):
         """Builds a fulltext version of a revision
@@ -1265,6 +1268,7 @@ class deltacomputer:
             cachedelta,
             excluded_bases,
             target_rev,
+            snapshot_cache=self._snapshot_cache,
         )
         candidaterevs = next(groups)
         while candidaterevs is not None:
