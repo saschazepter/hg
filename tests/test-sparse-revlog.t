@@ -159,7 +159,7 @@ Test `debug-delta-find`
      4971    4970      -1       3        5     4930    snap      19179     346472     427596   1.23414  15994877  15567281   36.40652     427596     179288   1.00000        5
   $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE 4971
   DBG-DELTAS-SEARCH: SEARCH rev=4971
-  DBG-DELTAS-SEARCH: ROUND #1 - 2 candidates - search-down
+  DBG-DELTAS-SEARCH: ROUND #1 - 1 candidates - search-down
   DBG-DELTAS-SEARCH:   CANDIDATE: rev=4962
   DBG-DELTAS-SEARCH:     type=snapshot-4
   DBG-DELTAS-SEARCH:     size=18296
@@ -167,11 +167,6 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=30377
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=16872 (BAD)
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4971
-  DBG-DELTAS-SEARCH:     type=snapshot-4
-  DBG-DELTAS-SEARCH:     size=19179
-  DBG-DELTAS-SEARCH:     base=4930
-  DBG-DELTAS-SEARCH:     TOO-HIGH
   DBG-DELTAS-SEARCH: ROUND #2 - 1 candidates - search-down
   DBG-DELTAS-SEARCH:   CANDIDATE: rev=4930
   DBG-DELTAS-SEARCH:     type=snapshot-3
