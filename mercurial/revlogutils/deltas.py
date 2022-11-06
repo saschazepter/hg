@@ -707,21 +707,25 @@ def _candidategroups(
             # filter out revision we tested already
             if rev in tested:
                 continue
-            tested.add(rev)
             # an higher authority deamed the base unworthy (e.g. censored)
             if excluded_bases is not None and rev in excluded_bases:
+                tested.add(rev)
                 continue
             # We are in some recomputation cases and that rev is too high in
             # the revlog
             if target_rev is not None and rev >= target_rev:
+                tested.add(rev)
                 continue
             # filter out delta base that will never produce good delta
             if deltas_limit < revlog.length(rev):
+                tested.add(rev)
                 continue
             if sparse and revlog.rawsize(rev) < (textlen // LIMIT_BASE2TEXT):
+                tested.add(rev)
                 continue
             # no delta for rawtext-changing revs (see "candelta" for why)
             if revlog.flags(rev) & REVIDX_RAWTEXT_CHANGING_FLAGS:
+                tested.add(rev)
                 continue
 
             # If we reach here, we are about to build and test a delta.
@@ -731,9 +735,11 @@ def _candidategroups(
             chainlen, chainsize = revlog._chaininfo(rev)
             # if chain will be too long, skip base
             if revlog._maxchainlen and chainlen >= revlog._maxchainlen:
+                tested.add(rev)
                 continue
             # if chain already have too much data, skip base
             if deltas_limit < chainsize:
+                tested.add(rev)
                 continue
             if sparse and revlog.upperboundcomp is not None:
                 maxcomp = revlog.upperboundcomp
@@ -752,12 +758,14 @@ def _candidategroups(
                     snapshotlimit = textlen >> snapshotdepth
                     if snapshotlimit < lowestrealisticdeltalen:
                         # delta lower bound is larger than accepted upper bound
+                        tested.add(rev)
                         continue
 
                     # check the relative constraint on the delta size
                     revlength = revlog.length(rev)
                     if revlength < lowestrealisticdeltalen:
                         # delta probable lower bound is larger than target base
+                        tested.add(rev)
                         continue
 
             group.append(rev)
@@ -765,6 +773,7 @@ def _candidategroups(
             # XXX: in the sparse revlog case, group can become large,
             #      impacting performances. Some bounding or slicing mecanism
             #      would help to reduce this impact.
+            tested.update(group)
             good = yield tuple(group)
     yield None
 
