@@ -1489,7 +1489,7 @@ static PyObject *index_findsnapshots(indexObject *self, PyObject *args)
 		}
 		if (allvalues == NULL) {
 			int r;
-			allvalues = PyList_New(0);
+			allvalues = PySet_New(0);
 			if (!allvalues) {
 				goto bail;
 			}
@@ -1500,7 +1500,7 @@ static PyObject *index_findsnapshots(indexObject *self, PyObject *args)
 			}
 		}
 		value = PyLong_FromSsize_t(rev);
-		if (PyList_Append(allvalues, value)) {
+		if (PySet_Add(allvalues, value)) {
 			goto bail;
 		}
 		Py_CLEAR(key);
