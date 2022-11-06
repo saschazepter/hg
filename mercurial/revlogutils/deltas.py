@@ -916,14 +916,14 @@ def _rawgroups(revlog, p1, p2, cachedelta, snapshots=None):
             # chain.
             max_depth = max(parents_snaps.keys())
             chain = deltachain(other)
-            for idx, s in enumerate(chain):
+            for depth, s in enumerate(chain):
                 if s < snapfloor:
                     continue
-                if max_depth < idx:
+                if max_depth < depth:
                     break
                 if not revlog.issnapshot(s):
                     break
-                parents_snaps[idx].add(s)
+                parents_snaps[depth].add(s)
         # Test them as possible intermediate snapshot base
         # We test them from highest to lowest level. High level one are more
         # likely to result in small delta
