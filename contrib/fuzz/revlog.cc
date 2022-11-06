@@ -20,7 +20,7 @@ for inline in (True, False):
         index, cache = parsers.parse_index2(data, inline)
         index.slicechunktodensity(list(range(len(index))), 0.5, 262144)
         index.stats()
-        index.findsnapshots({}, 0)
+        index.findsnapshots({}, 0, len(index) - 1)
         10 in index
         for rev in range(len(index)):
             index.reachableroots(0, [len(index)-1], [rev])
