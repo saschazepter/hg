@@ -661,6 +661,8 @@ def _candidategroups(
     p1,
     p2,
     cachedelta,
+    excluded_bases=None,
+    target_rev=None,
 ):
     """Provides group of revision to be tested as delta base
 
@@ -706,6 +708,13 @@ def _candidategroups(
             if rev in tested:
                 continue
             tested.add(rev)
+            # an higher authority deamed the base unworthy (e.g. censored)
+            if excluded_bases is not None and rev in excluded_bases:
+                continue
+            # We are in some recomputation cases and that rev is too high in
+            # the revlog
+            if target_rev is not None and rev >= target_rev:
+                continue
             # filter out delta base that will never produce good delta
             if deltas_limit < revlog.length(rev):
                 continue
@@ -1180,6 +1189,8 @@ class deltacomputer:
             p1r,
             p2r,
             cachedelta,
+            excluded_bases,
+            target_rev,
         )
         candidaterevs = next(groups)
         while candidaterevs is not None:
@@ -1243,16 +1254,7 @@ class deltacomputer:
                     msg = b"DBG-DELTAS-SEARCH:     base=%d\n"
                     msg %= self.revlog.deltaparent(candidaterev)
                     self._write_debug(msg)
-                if candidaterev in excluded_bases:
-                    if debug_search:
-                        msg = b"DBG-DELTAS-SEARCH:     EXCLUDED\n"
-                        self._write_debug(msg)
-                    continue
-                if candidaterev >= target_rev:
-                    if debug_search:
-                        msg = b"DBG-DELTAS-SEARCH:     TOO-HIGH\n"
-                        self._write_debug(msg)
-                    continue
+
                 dbg_try_count += 1
 
                 if debug_search:
