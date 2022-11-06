@@ -655,7 +655,13 @@ def isgooddeltainfo(revlog, deltainfo, revinfo):
 LIMIT_BASE2TEXT = 500
 
 
-def _candidategroups(revlog, textlen, p1, p2, cachedelta):
+def _candidategroups(
+    revlog,
+    textlen,
+    p1,
+    p2,
+    cachedelta,
+):
     """Provides group of revision to be tested as delta base
 
     This top level function focus on emitting groups with unique and worthwhile
@@ -1169,7 +1175,11 @@ class deltacomputer:
             self._write_debug(msg)
 
         groups = _candidategroups(
-            self.revlog, revinfo.textlen, p1r, p2r, cachedelta
+            self.revlog,
+            revinfo.textlen,
+            p1r,
+            p2r,
+            cachedelta,
         )
         candidaterevs = next(groups)
         while candidaterevs is not None:
