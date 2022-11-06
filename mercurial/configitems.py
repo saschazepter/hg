@@ -2042,6 +2042,11 @@ coreconfigitem(
 )
 coreconfigitem(
     b'storage',
+    b'revlog.delta-parent-search.candidate-group-chunk-size',
+    default=0,
+)
+coreconfigitem(
+    b'storage',
     b'revlog.issue6528.fix-incoming',
     default=True,
 )

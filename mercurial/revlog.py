@@ -348,6 +348,7 @@ class revlog:
         self._chunkcachesize = 65536
         self._maxchainlen = None
         self._deltabothparents = True
+        self._candidate_group_chunk_size = 0
         self._debug_delta = False
         self.index = None
         self._docket = None
@@ -422,6 +423,9 @@ class revlog:
             self._maxchainlen = opts[b'maxchainlen']
         if b'deltabothparents' in opts:
             self._deltabothparents = opts[b'deltabothparents']
+        dps_cgds = opts.get(b'delta-parent-search.candidate-group-chunk-size')
+        if dps_cgds:
+            self._candidate_group_chunk_size = dps_cgds
         self._lazydelta = bool(opts.get(b'lazydelta', True))
         self._lazydeltabase = False
         if self._lazydelta:
