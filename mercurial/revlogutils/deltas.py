@@ -989,8 +989,7 @@ class SnapshotCache:
     __slots__ = ('snapshots', '_start_rev', '_end_rev')
 
     def __init__(self):
-        # XXX should probably be a set ?
-        self.snapshots = collections.defaultdict(list)
+        self.snapshots = collections.defaultdict(set)
         self._start_rev = None
         self._end_rev = None
 
@@ -1038,7 +1037,7 @@ class SnapshotCache:
             issnapshot = revlog.issnapshot
             for rev in revlog.revs(start_rev, end_rev):
                 if issnapshot(rev):
-                    cache[deltaparent(rev)].append(rev)
+                    cache[deltaparent(rev)].add(rev)
 
 
 class deltacomputer:
