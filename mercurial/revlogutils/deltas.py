@@ -878,7 +878,7 @@ def _rawgroups(revlog, p1, p2, cachedelta, snapshots=None):
 
     if sparse and parents:
         if snapshots is None:
-            # map: base-rev: snapshot-rev
+            # map: base-rev: [snapshot-revs]
             snapshots = collections.defaultdict(list)
         # See if we can use an existing snapshot in the parent chains to use as
         # a base for a new intermediate-snapshot
