@@ -977,7 +977,8 @@ def _rawgroups(revlog, p1, p2, cachedelta, snapshot_cache=None):
         # revisions instead of starting our own. Without such re-use,
         # topological branches would keep reopening new full chains. Creating
         # more and more snapshot as the repository grow.
-        yield tuple(snapshot_cache.snapshots[nullrev])
+        full = [r for r in snapshot_cache.snapshots[nullrev] if snapfloor <= r]
+        yield tuple(sorted(full))
 
     if not sparse:
         # other approach failed try against prev to hopefully save us a
