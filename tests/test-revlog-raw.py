@@ -466,8 +466,8 @@ def issnapshottest(rlog):
         print('  got:      %s' % result)
 
 
-snapshotmapall = {0: [6, 8, 11, 17, 19, 25], 8: [21], -1: [0, 30]}
-snapshotmap15 = {0: [17, 19, 25], 8: [21], -1: [30]}
+snapshotmapall = {0: {6, 8, 11, 17, 19, 25}, 8: {21}, -1: {0, 30}}
+snapshotmap15 = {0: {17, 19, 25}, 8: {21}, -1: {30}}
 
 
 def findsnapshottest(rlog):
