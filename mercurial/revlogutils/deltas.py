@@ -680,6 +680,7 @@ def _candidategroups(
     good = None
 
     deltas_limit = textlen * LIMIT_DELTA2TEXT
+    group_chunk_size = revlog._candidate_group_chunk_size
 
     tested = {nullrev}
     candidates = _refinedgroups(
@@ -770,11 +771,30 @@ def _candidategroups(
 
             group.append(rev)
         if group:
-            # XXX: in the sparse revlog case, group can become large,
-            #      impacting performances. Some bounding or slicing mecanism
-            #      would help to reduce this impact.
-            tested.update(group)
-            good = yield tuple(group)
+            # When the size of the candidate group is big, it can result in a
+            # quite significant performance impact. To reduce this, we can send
+            # them in smaller batches until the new batch does not provide any
+            # improvements.
+            #
+            # This might reduce the overall efficiency of the compression in
+            # some corner cases, but that should also prevent very pathological
+            # cases from being an issue. (eg. 20 000 candidates).
+            #
+            # XXX note that the ordering of the group becomes important as it
+            # now impacts the final result. The current order is unprocessed
+            # and can be improved.
+            if group_chunk_size == 0:
+                tested.update(group)
+                good = yield tuple(group)
+            else:
+                prev_good = good
+                for start in range(0, len(group), group_chunk_size):
+                    sub_group = group[start : start + group_chunk_size]
+                    tested.update(sub_group)
+                    good = yield tuple(sub_group)
+                    if prev_good == good:
+                        break
+
     yield None
 
 
