@@ -302,13 +302,19 @@ def debug_revlog(ui, revlog):
     numsemi = 0
     # snapshot count per depth
     numsnapdepth = collections.defaultdict(lambda: 0)
+    # number of snapshots with a non-ancestor delta
+    numsnapdepth_nad = collections.defaultdict(lambda: 0)
     # delta against previous revision
     numprev = 0
+    # delta against prev, where prev is a non-ancestor
+    numprev_nad = 0
     # delta against first or second parent (not prev)
     nump1 = 0
     nump2 = 0
     # delta against neither prev nor parents
     numother = 0
+    # delta against other that is a non-ancestor
+    numother_nad = 0
     # delta against prev that are also first or second parent
     # (details of `numprev`)
     nump1prev = 0
@@ -358,6 +364,9 @@ def debug_revlog(ui, revlog):
                 addsize(size, fullsize)
                 addsize(size, snapsizedepth[0])
         else:
+            nad = (
+                delta != p1 and delta != p2 and not r.isancestorrev(delta, rev)
+            )
             chainlengths.append(chainlengths[delta] + 1)
             baseaddr = chainbases[delta]
             revaddr = r.start(rev)
@@ -371,6 +380,8 @@ def debug_revlog(ui, revlog):
                 numsemi += 1
                 depth = r.snapshotdepth(rev)
                 numsnapdepth[depth] += 1
+                if nad:
+                    numsnapdepth_nad[depth] += 1
                 addsize(size, snapsizedepth[depth])
             else:
                 addsize(size, deltasize)
@@ -380,12 +391,15 @@ def debug_revlog(ui, revlog):
                         nump1prev += 1
                     elif delta == p2:
                         nump2prev += 1
+                    elif nad:
+                        numprev_nad += 1
                 elif delta == p1:
                     nump1 += 1
                 elif delta == p2:
                     nump2 += 1
                 elif delta != nodemod.nullrev:
                     numother += 1
+                    numother_nad += 1
 
         # Obtain data on the raw chunks in the revlog.
         if util.safehasattr(r, '_getsegmentforrevs'):
@@ -410,7 +424,8 @@ def debug_revlog(ui, revlog):
             size[0] = 0
 
     numdeltas = numrevs - numfull - numempty - numsemi
-    numoprev = numprev - nump1prev - nump2prev
+    numoprev = numprev - nump1prev - nump2prev - numprev_nad
+    num_other_ancestors = numother - numother_nad
     totalrawsize = datasize[2]
     datasize[2] /= numrevs
     fulltotal = fullsize[2]
@@ -477,10 +492,17 @@ def debug_revlog(ui, revlog):
         b'    snapshot  : ' + fmt % pcfmt(numfull + numsemi, numrevs)
     )
     for depth in sorted(numsnapdepth):
-        ui.write(
-            (b'      lvl-%-3d :       ' % depth)
-            + fmt % pcfmt(numsnapdepth[depth], numrevs)
-        )
+        base = b'      lvl-%-3d :       ' % depth
+        count = fmt % pcfmt(numsnapdepth[depth], numrevs)
+        pieces = [base, count]
+        if numsnapdepth_nad[depth]:
+            pieces[-1] = count = count[:-1]  # drop the final '\n'
+            more = b'  non-ancestor-bases: '
+            anc_count = fmt
+            anc_count %= pcfmt(numsnapdepth_nad[depth], numsnapdepth[depth])
+            pieces.append(more)
+            pieces.append(anc_count)
+        ui.write(b''.join(pieces))
     ui.writenoi18n(b'    deltas    : ' + fmt % pcfmt(numdeltas, numrevs))
     ui.writenoi18n(b'revision size : ' + fmt2 % totalsize)
     ui.writenoi18n(
@@ -561,7 +583,10 @@ def debug_revlog(ui, revlog):
                 b'    where prev = p2  : ' + fmt2 % pcfmt(nump2prev, numprev)
             )
             ui.writenoi18n(
-                b'    other            : ' + fmt2 % pcfmt(numoprev, numprev)
+                b'    other-ancestor   : ' + fmt2 % pcfmt(numoprev, numprev)
+            )
+            ui.writenoi18n(
+                b'    unrelated        : ' + fmt2 % pcfmt(numoprev, numprev)
             )
         if gdelta:
             ui.writenoi18n(
@@ -571,5 +596,10 @@ def debug_revlog(ui, revlog):
                 b'deltas against p2    : ' + fmt % pcfmt(nump2, numdeltas)
             )
             ui.writenoi18n(
-                b'deltas against other : ' + fmt % pcfmt(numother, numdeltas)
+                b'deltas against ancs  : '
+                + fmt % pcfmt(num_other_ancestors, numdeltas)
+            )
+            ui.writenoi18n(
+                b'deltas against other : '
+                + fmt % pcfmt(numother_nad, numdeltas)
             )
