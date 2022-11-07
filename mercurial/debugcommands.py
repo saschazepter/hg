@@ -3240,51 +3240,7 @@ def debugrevlog(ui, repo, file_=None, **opts):
     r = cmdutil.openrevlog(repo, b'debugrevlog', file_, opts)
 
     if opts.get(b"dump"):
-        numrevs = len(r)
-        ui.write(
-            (
-                b"# rev p1rev p2rev start   end deltastart base   p1   p2"
-                b" rawsize totalsize compression heads chainlen\n"
-            )
-        )
-        ts = 0
-        heads = set()
-
-        for rev in range(numrevs):
-            dbase = r.deltaparent(rev)
-            if dbase == -1:
-                dbase = rev
-            cbase = r.chainbase(rev)
-            clen = r.chainlen(rev)
-            p1, p2 = r.parentrevs(rev)
-            rs = r.rawsize(rev)
-            ts = ts + rs
-            heads -= set(r.parentrevs(rev))
-            heads.add(rev)
-            try:
-                compression = ts / r.end(rev)
-            except ZeroDivisionError:
-                compression = 0
-            ui.write(
-                b"%5d %5d %5d %5d %5d %10d %4d %4d %4d %7d %9d "
-                b"%11d %5d %8d\n"
-                % (
-                    rev,
-                    p1,
-                    p2,
-                    r.start(rev),
-                    r.end(rev),
-                    r.start(dbase),
-                    r.start(cbase),
-                    r.start(p1),
-                    r.start(p2),
-                    rs,
-                    ts,
-                    compression,
-                    len(heads),
-                    clen,
-                )
-            )
+        revlog_debug.dump(ui, r)
         return 0
 
     format = r._format_version
