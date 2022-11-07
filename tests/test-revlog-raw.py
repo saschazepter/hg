@@ -54,10 +54,6 @@ tvfs.options = {
     b'sparse-revlog': True,
 }
 
-# The test wants to control whether to use delta explicitly, based on
-# "storedeltachains".
-revlog.revlog._isgooddeltainfo = lambda self, d, textlen: self._storedeltachains
-
 
 def abort(msg):
     print('abort: %s' % msg)
