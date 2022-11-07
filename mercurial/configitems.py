@@ -2123,7 +2123,7 @@ coreconfigitem(
 coreconfigitem(
     b'server',
     b'pullbundle',
-    default=False,
+    default=True,
 )
 coreconfigitem(
     b'server',

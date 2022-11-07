@@ -22,3 +22,7 @@ Mercurial XXX.
 == Internal API Changes ==
 
 == Miscellaneous ==
+
+ * pullbundle support no longer requires setting a server-side option,
+   providing a .hg/pullbundles.manifest according to the syntax specified in
+   'hg help -e clonebundles' is enough.

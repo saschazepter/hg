@@ -33,8 +33,6 @@ Test pullbundle functionality
 
   $ cd repo
   $ cat <<EOF > .hg/hgrc
-  > [server]
-  > pullbundle = True
   > [experimental]
   > evolution = True
   > [extensions]
