@@ -576,7 +576,7 @@ def drop_u_compression(delta):
     )
 
 
-def isgooddeltainfo(revlog, deltainfo, revinfo):
+def is_good_delta_info(revlog, deltainfo, revinfo):
     """Returns True if the given delta is good. Good means that it is within
     the disk span, disk size, and chain length bounds that we know to be
     performant."""
@@ -1295,7 +1295,7 @@ class deltacomputer:
                     msg %= delta_end - delta_start
                     self._write_debug(msg)
                 if candidatedelta is not None:
-                    if isgooddeltainfo(self.revlog, candidatedelta, revinfo):
+                    if is_good_delta_info(self.revlog, candidatedelta, revinfo):
                         if debug_search:
                             msg = b"DBG-DELTAS-SEARCH:     DELTA: length=%d (GOOD)\n"
                             msg %= candidatedelta.deltalen
