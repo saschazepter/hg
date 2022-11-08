@@ -29,7 +29,7 @@ def blocks(sa, sb):
         count = lib.bdiff_diff(a[0], an, b[0], bn, l)
         if count < 0:
             raise MemoryError
-        rl = [None] * count
+        rl = [(0, 0, 0, 0)] * count
         h = l.next
         i = 0
         while h:
