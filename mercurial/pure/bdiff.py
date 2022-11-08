@@ -10,8 +10,13 @@ import difflib
 import re
 import struct
 
+from typing import (
+    List,
+    Tuple,
+)
 
-def splitnewlines(text):
+
+def splitnewlines(text: bytes) -> List[bytes]:
     '''like str.splitlines, but only split on newlines.'''
     lines = [l + b'\n' for l in text.split(b'\n')]
     if lines:
@@ -22,7 +27,9 @@ def splitnewlines(text):
     return lines
 
 
-def _normalizeblocks(a, b, blocks):
+def _normalizeblocks(
+    a: List[bytes], b: List[bytes], blocks
+) -> List[Tuple[int, int, int]]:
     prev = None
     r = []
     for curr in blocks:
@@ -57,7 +64,7 @@ def _normalizeblocks(a, b, blocks):
     return r
 
 
-def bdiff(a, b):
+def bdiff(a: bytes, b: bytes) -> bytes:
     a = bytes(a).splitlines(True)
     b = bytes(b).splitlines(True)
 
@@ -84,7 +91,7 @@ def bdiff(a, b):
     return b"".join(bin)
 
 
-def blocks(a, b):
+def blocks(a: bytes, b: bytes) -> List[Tuple[int, int, int, int]]:
     an = splitnewlines(a)
     bn = splitnewlines(b)
     d = difflib.SequenceMatcher(None, an, bn).get_matching_blocks()
@@ -92,7 +99,7 @@ def blocks(a, b):
     return [(i, i + n, j, j + n) for (i, j, n) in d]
 
 
-def fixws(text, allws):
+def fixws(text: bytes, allws: bool) -> bytes:
     if allws:
         text = re.sub(b'[ \t\r]+', b'', text)
     else:
