@@ -8,6 +8,11 @@
 
 import struct
 
+from typing import (
+    List,
+    Tuple,
+)
+
 from ..pure.bdiff import *
 from . import _bdiff  # pytype: disable=import-error
 
@@ -15,7 +20,7 @@ ffi = _bdiff.ffi
 lib = _bdiff.lib
 
 
-def blocks(sa, sb):
+def blocks(sa: bytes, sb: bytes) -> List[Tuple[int, int, int, int]]:
     a = ffi.new(b"struct bdiff_line**")
     b = ffi.new(b"struct bdiff_line**")
     ac = ffi.new(b"char[]", str(sa))
@@ -43,7 +48,7 @@ def blocks(sa, sb):
     return rl
 
 
-def bdiff(sa, sb):
+def bdiff(sa: bytes, sb: bytes) -> bytes:
     a = ffi.new(b"struct bdiff_line**")
     b = ffi.new(b"struct bdiff_line**")
     ac = ffi.new(b"char[]", str(sa))
