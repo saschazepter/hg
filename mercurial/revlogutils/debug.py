@@ -646,7 +646,7 @@ def debug_delta_find(ui, revlog, rev, base_rev=nodemod.nullrev):
         base_text = revlog.revision(base_rev)
         delta = mdiff.textdiff(base_text, full_text)
 
-        cachedelta = (base_rev, delta)
+        cachedelta = (base_rev, delta, constants.DELTA_BASE_REUSE_TRY)
         btext = [None]
 
     revinfo = revlogutils.revisioninfo(
