@@ -2,6 +2,7 @@ from typing import (
     AnyStr,
     IO,
     List,
+    Optional,
     Sequence,
 )
 
@@ -15,7 +16,7 @@ class stat:
     st_mtime: int
     st_ctime: int
 
-def listdir(path: bytes, st: bool, skip: bool) -> List[stat]: ...
+def listdir(path: bytes, st: bool, skip: Optional[bool]) -> List[stat]: ...
 def posixfile(name: AnyStr, mode: bytes, buffering: int) -> IO: ...
 def statfiles(names: Sequence[bytes]) -> List[stat]: ...
 def setprocname(name: bytes) -> None: ...
