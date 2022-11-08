@@ -1071,7 +1071,7 @@ class deltacomputer:
                 snapshotdepth = len(revlog._deltachain(deltabase)[0])
         delta = None
         if revinfo.cachedelta:
-            cachebase, cachediff = revinfo.cachedelta
+            cachebase = revinfo.cachedelta[0]
             # check if the diff still apply
             currentbase = cachebase
             while (
