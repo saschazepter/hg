@@ -315,3 +315,4 @@ DELTA_BASE_REUSE_NO = 0
 # The delta base will be tested for validy first. So that the cached deltas get
 # used when possible.
 DELTA_BASE_REUSE_TRY = 1
+DELTA_BASE_REUSE_FORCE = 2

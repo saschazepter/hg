@@ -260,3 +260,57 @@ We requested to use the (bad) delta
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
   DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
+
+Case where we force a "bad" delta to be applied
+===============================================
+
+We build a very different file content to force a full snapshot
+
+  $ cp -ar peer-bad-delta peer-bad-delta-with-full
+  $ cp -ar local-pre-pull local-pre-pull-full
+  $ echo '[paths]' >> local-pre-pull-full/.hg/hgrc
+  $ echo 'default=../peer-bad-delta-with-full' >> local-pre-pull-full/.hg/hgrc
+
+  $ hg -R peer-bad-delta-with-full update 'desc("merge")' --quiet
+  $ ($TESTDIR/seq.py 2000 2100; $TESTDIR/seq.py 500 510; $TESTDIR/seq.py 3000 3050) \
+  > | $PYTHON $TESTTMP/sha256line.py > peer-bad-delta-with-full/my-file.txt
+  $ hg -R peer-bad-delta-with-full commit -m 'trigger-full'
+  DBG-DELTAS: FILELOG:my-file.txt: rev=4: delta-base=4 * (glob)
+  DBG-DELTAS: MANIFESTLOG: * (glob)
+  DBG-DELTAS: CHANGELOG: * (glob)
+
+Check that "try-base" behavior challenge the delta
+--------------------------------------------------
+
+The bundling process creates a delta against the previous revision, however this
+is an invalid chain for the client, so it is not considered and we do a full
+snapshot again.
+
+  $ cp -ar local-pre-pull-full local-try-base-full
+  $ hg -R local-try-base-full pull --quiet \
+  > --config 'paths.default:delta-reuse-policy=try-base'
+  DBG-DELTAS: CHANGELOG: * (glob)
+  DBG-DELTAS: CHANGELOG: * (glob)
+  DBG-DELTAS: MANIFESTLOG: * (glob)
+  DBG-DELTAS: MANIFESTLOG: * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=4: delta-base=4 * (glob)
+
+Check that "forced" behavior do not challenge the delta, even if it is bad.
+---------------------------------------------------------------------------
+
+The client does not challenge anything and applies the bizarre delta directly.
+
+Note: If the bundling process becomes smarter, this test might no longer work
+(as the server won't be sending "bad" deltas anymore) and might need something
+more subtle to test this behavior.
+
+  $ cp -ar local-pre-pull-full local-forced-full
+  $ hg -R local-forced-full pull --quiet \
+  > --config 'paths.default:delta-reuse-policy=forced'
+  DBG-DELTAS: CHANGELOG: * (glob)
+  DBG-DELTAS: CHANGELOG: * (glob)
+  DBG-DELTAS: MANIFESTLOG: * (glob)
+  DBG-DELTAS: MANIFESTLOG: * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=4: delta-base=3 * (glob)

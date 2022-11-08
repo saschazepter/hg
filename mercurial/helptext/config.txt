@@ -1948,6 +1948,13 @@ The following sub-options can be defined:
     unbundling process, but can result in sub-optimal storage space if the
     remote peer is sending poor quality deltas.
 
+  - ``forced``: the deltas from the peer will be reused in all cases, even if
+    the resulting delta-chain is "invalid". This setting will ensure the bundle
+    is applied at minimal CPU cost, but it can result in longer delta chains
+    being created on the client, making revisions potentially slower to access
+    in the future. If you think you need this option, you should make sure you
+    are also talking to the Mercurial developer community to get confirmation.
+
   See `hg help config.storage.revlog.reuse-external-delta-parent` for a similar
   global option. That option defines the behavior of `default`.
 

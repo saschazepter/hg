@@ -20,6 +20,7 @@ from .constants import (
     COMP_MODE_DEFAULT,
     COMP_MODE_INLINE,
     COMP_MODE_PLAIN,
+    DELTA_BASE_REUSE_FORCE,
     DELTA_BASE_REUSE_NO,
     KIND_CHANGELOG,
     KIND_FILELOG,
@@ -584,6 +585,13 @@ def is_good_delta_info(revlog, deltainfo, revinfo):
     if deltainfo is None:
         return False
 
+    if (
+        revinfo.cachedelta is not None
+        and deltainfo.base == revinfo.cachedelta[0]
+        and revinfo.cachedelta[2] == DELTA_BASE_REUSE_FORCE
+    ):
+        return True
+
     # - 'deltainfo.distance' is the distance from the base revision --
     #   bounding it limits the amount of I/O we need to do.
     # - 'deltainfo.compresseddeltalen' is the sum of the total size of
@@ -711,6 +719,16 @@ def _candidategroups(
             # filter out revision we tested already
             if rev in tested:
                 continue
+
+            if (
+                cachedelta is not None
+                and rev == cachedelta[0]
+                and cachedelta[2] == DELTA_BASE_REUSE_FORCE
+            ):
+                # instructions are to forcibly consider/use this delta base
+                group.append(rev)
+                continue
+
             # an higher authority deamed the base unworthy (e.g. censored)
             if excluded_bases is not None and rev in excluded_bases:
                 tested.add(rev)
