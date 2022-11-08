@@ -57,7 +57,7 @@ if pycompat.isdarwin:
                 ofs = cur.name_info.attr_dataoffset
                 str_lgt = cur.name_info.attr_length
                 base_ofs = ffi.offsetof(b'val_attrs_t', b'name_info')
-                name = str(
+                name = bytes(
                     ffi.buffer(
                         ffi.cast(b"char*", cur) + base_ofs + ofs, str_lgt - 1
                     )
