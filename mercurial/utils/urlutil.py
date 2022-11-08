@@ -775,6 +775,7 @@ DELTA_REUSE_POLICIES = {
     b'default': None,
     b'try-base': revlog_constants.DELTA_BASE_REUSE_TRY,
     b'no-reuse': revlog_constants.DELTA_BASE_REUSE_NO,
+    b'forced': revlog_constants.DELTA_BASE_REUSE_FORCE,
 }
 
 
