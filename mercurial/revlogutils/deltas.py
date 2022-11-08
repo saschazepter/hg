@@ -20,6 +20,7 @@ from .constants import (
     COMP_MODE_DEFAULT,
     COMP_MODE_INLINE,
     COMP_MODE_PLAIN,
+    DELTA_BASE_REUSE_NO,
     KIND_CHANGELOG,
     KIND_FILELOG,
     KIND_MANIFESTLOG,
@@ -819,7 +820,7 @@ def _refinedgroups(revlog, p1, p2, cachedelta):
     # through configuration. Disabling reuse source delta is useful when
     # we want to make sure we recomputed "optimal" deltas.
     debug_info = None
-    if cachedelta and revlog._generaldelta and revlog._lazydeltabase:
+    if cachedelta is not None and cachedelta[2] > DELTA_BASE_REUSE_NO:
         # Assume what we received from the server is a good choice
         # build delta will reuse the cache
         if debug_info is not None:

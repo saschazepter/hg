@@ -67,7 +67,7 @@ class revisioninfo:
     node:       expected hash of the revision
     p1, p2:     parent revs of the revision
     btext:      built text cache consisting of a one-element list
-    cachedelta: (baserev, uncompressed_delta) or None
+    cachedelta: (baserev, uncompressed_delta, usage_mode) or None
     flags:      flags associated to the revision storage
 
     One of btext[0] or cachedelta must be set.
