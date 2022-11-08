@@ -38,6 +38,8 @@ from .revlogutils.constants import (
     COMP_MODE_DEFAULT,
     COMP_MODE_INLINE,
     COMP_MODE_PLAIN,
+    DELTA_BASE_REUSE_NO,
+    DELTA_BASE_REUSE_TRY,
     ENTRY_RANK,
     FEATURES_BY_VERSION,
     FLAG_GENERALDELTA,
@@ -2457,6 +2459,16 @@ class revlog:
             deltacomputer = deltautil.deltacomputer(
                 self, write_debug=write_debug
             )
+
+        if cachedelta is not None and len(cachedelta) == 2:
+            # If the cached delta has no information about how it should be
+            # reused, add the default reuse instruction according to the
+            # revlog's configuration.
+            if self._generaldelta and self._lazydeltabase:
+                delta_base_reuse = DELTA_BASE_REUSE_TRY
+            else:
+                delta_base_reuse = DELTA_BASE_REUSE_NO
+            cachedelta = (cachedelta[0], cachedelta[1], delta_base_reuse)
 
         revinfo = revlogutils.revisioninfo(
             node,
