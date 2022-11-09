@@ -429,6 +429,25 @@ class sqlitefilestore:
         entry = self._revisions[self._revtonode[rev]]
         return entry.p1rev, entry.p2rev
 
+    def ancestors(self, revs, stoprev=0, inclusive=False):
+        """Generate the ancestors of 'revs' in reverse revision order.
+        Does not generate revs lower than stoprev.
+
+        See the documentation for ancestor.lazyancestors for more details."""
+
+        # first, make sure start revisions aren't filtered
+        revs = list(revs)
+        checkrev = self.node
+        for r in revs:
+            checkrev(r)
+
+        return ancestor.lazyancestors(
+            self.parentrevs,
+            revs,
+            stoprev=stoprev,
+            inclusive=inclusive,
+        )
+
     def rev(self, node):
         if node == sha1nodeconstants.nullid:
             return nullrev
