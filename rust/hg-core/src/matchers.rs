@@ -573,6 +573,39 @@ impl DifferenceMatcher {
     }
 }
 
+/// Wraps [`regex::bytes::Regex`] to improve performance in multithreaded
+/// contexts.
+///
+/// The `status` algorithm makes heavy use of threads, and calling `is_match`
+/// from many threads at once is prone to contention, probably within the
+/// scratch space needed as the regex DFA is built lazily.
+///
+/// We are in the process of raising the issue upstream, but for now
+/// the workaround used here is to store the `Regex` in a lazily populated
+/// thread-local variable, sharing the initial read-only compilation, but
+/// not the lazy dfa scratch space mentioned above.
+///
+/// This reduces the contention observed with 16+ threads, but does not
+/// completely remove it. Hopefully this can be addressed upstream.
+struct RegexMatcher {
+    /// Compiled at the start of the status algorithm, used as a base for
+    /// cloning in each thread-local `self.local`, thus sharing the expensive
+    /// first compilation.
+    base: regex::bytes::Regex,
+    /// Thread-local variable that holds the `Regex` that is actually queried
+    /// from each thread.
+    local: thread_local::ThreadLocal<regex::bytes::Regex>,
+}
+
+impl RegexMatcher {
+    /// Returns whether the path matches the stored `Regex`.
+    pub fn is_match(&self, path: &HgPath) -> bool {
+        self.local
+            .get_or(|| self.base.clone())
+            .is_match(path.as_bytes())
+    }
+}
+
 /// Returns a function that matches an `HgPath` against the given regex
 /// pattern.
 ///
@@ -580,9 +613,7 @@ impl DifferenceMatcher {
 /// underlying engine (the `regex` crate), for instance anything with
 /// back-references.
 #[timed]
-fn re_matcher(
-    pattern: &[u8],
-) -> PatternResult<impl Fn(&HgPath) -> bool + Sync> {
+fn re_matcher(pattern: &[u8]) -> PatternResult<RegexMatcher> {
     use std::io::Write;
 
     // The `regex` crate adds `.*` to the start and end of expressions if there
@@ -611,7 +642,10 @@ fn re_matcher(
         .build()
         .map_err(|e| PatternError::UnsupportedSyntax(e.to_string()))?;
 
-    Ok(move |path: &HgPath| re.is_match(path.as_bytes()))
+    Ok(RegexMatcher {
+        base: re,
+        local: Default::default(),
+    })
 }
 
 /// Returns the regex pattern and a function that matches an `HgPath` against
@@ -638,7 +672,7 @@ fn build_regex_match<'a, 'b>(
     let func = if !(regexps.is_empty()) {
         let matcher = re_matcher(&full_regex)?;
         let func = move |filename: &HgPath| {
-            exact_set.contains(filename) || matcher(filename)
+            exact_set.contains(filename) || matcher.is_match(filename)
         };
         Box::new(func) as IgnoreFnType
     } else {
