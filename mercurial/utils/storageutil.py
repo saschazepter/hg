@@ -374,6 +374,7 @@ def emitrevisions(
 
     fnode = store.node
     frev = store.rev
+    parents = store.parentrevs
 
     if nodesorder == b'nodes':
         revs = [frev(n) for n in nodes]
@@ -386,30 +387,28 @@ def emitrevisions(
     prevrev = None
 
     if deltamode == repository.CG_DELTAMODE_PREV or assumehaveparentrevisions:
-        prevrev = store.parentrevs(revs[0])[0]
+        prevrev = parents(revs[0])[0]
 
-    # Set of revs available to delta against.
+    # Sets of revs available to delta against.
+    emitted = set()
     available = set()
-    parents = []
+    if assumehaveparentrevisions:
+        common_heads = set(p for r in revs for p in parents(r))
+        common_heads.difference_update(revs)
+        available = store.ancestors(common_heads, inclusive=True)
 
     def is_usable_base(rev):
         """Is a delta against this revision usable over the wire"""
         if rev == nullrev:
             return False
-        # Base revision was already emitted in this group.
-        if rev in available:
-            return True
-        # Base revision is a parent that hasn't been emitted already.
-        if assumehaveparentrevisions and rev in parents:
-            return True
-        return False
+        return rev in emitted or rev in available
 
     for rev in revs:
         if rev == nullrev:
             continue
 
         node = fnode(rev)
-        parents[:] = p1rev, p2rev = store.parentrevs(rev)
+        p1rev, p2rev = parents(rev)
 
         if deltaparentfn:
             deltaparentrev = deltaparentfn(rev)
@@ -481,7 +480,7 @@ def emitrevisions(
                 baserev == nullrev and deltamode != repository.CG_DELTAMODE_PREV
             ):
                 revision = store.rawdata(node)
-                available.add(rev)
+                emitted.add(rev)
             else:
                 if revdifffn:
                     delta = revdifffn(baserev, rev)
@@ -490,7 +489,7 @@ def emitrevisions(
                         store.rawdata(baserev), store.rawdata(rev)
                     )
 
-                available.add(rev)
+                emitted.add(rev)
 
         serialized_sidedata = None
         sidedata_flags = (0, 0)
