@@ -491,11 +491,14 @@ def _getfnodes(ui, repo, nodes):
     cachefnode = {}
     validated_fnodes = set()
     unknown_entries = set()
+
+    flog = None
     for node in nodes:
         fnode = fnodescache.getfnode(node)
-        flog = repo.file(b'.hgtags')
         if fnode != repo.nullid:
             if fnode not in validated_fnodes:
+                if flog is None:
+                    flog = repo.file(b'.hgtags')
                 if flog.hasnode(fnode):
                     validated_fnodes.add(fnode)
                 else:
