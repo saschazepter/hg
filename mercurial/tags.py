@@ -761,8 +761,7 @@ class hgtagsfnodescache:
         if node == self._repo.nullid:
             return node
 
-        ctx = self._repo[node]
-        rev = ctx.rev()
+        rev = self._repo.changelog.rev(node)
 
         self.lookupcount += 1
 
