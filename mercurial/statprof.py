@@ -236,8 +236,8 @@ class CodeSite:
 
     def getsource(self, length):
         if self.source is None:
-            lineno = self.lineno - 1
             try:
+                lineno = self.lineno - 1  # lineno can be None
                 with open(self.path, b'rb') as fp:
                     for i, line in enumerate(fp):
                         if i == lineno:
@@ -773,7 +773,7 @@ def display_hotpath(data, fp, limit=0.05, **kwargs):
             codestring = codepattern % (
                 prefix,
                 b'line'.rjust(spacing_len),
-                site.lineno,
+                site.lineno if site.lineno is not None else -1,
                 b''.ljust(max(0, 4 - len(str(site.lineno)))),
                 site.getsource(30),
             )
