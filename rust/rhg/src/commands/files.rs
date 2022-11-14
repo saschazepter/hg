@@ -14,15 +14,14 @@ List tracked files.
 Returns 0 on success.
 ";
 
-pub fn args() -> clap::App<'static, 'static> {
-    clap::SubCommand::with_name("files")
+pub fn args() -> clap::Command {
+    clap::command!("files")
         .arg(
-            Arg::with_name("rev")
+            Arg::new("rev")
                 .help("search the repository as it is in REV")
-                .short("-r")
-                .long("--revision")
-                .value_name("REV")
-                .takes_value(true),
+                .short('r')
+                .long("revision")
+                .value_name("REV"),
         )
         .about(HELP_TEXT)
 }
@@ -35,7 +34,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         ));
     }
 
-    let rev = invocation.subcommand_args.value_of("rev");
+    let rev = invocation.subcommand_args.get_one::<String>("rev");
 
     let repo = invocation.repo?;
 
@@ -57,7 +56,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                 "rhg files -r <rev> is not supported in narrow clones",
             ));
         }
-        let files = list_rev_tracked_files(repo, rev).map_err(|e| (e, rev))?;
+        let files = list_rev_tracked_files(repo, rev)
+            .map_err(|e| (e, rev.as_ref()))?;
         display_files(invocation.ui, repo, files.iter())
     } else {
         // The dirstate always reflects the sparse narrowspec, so if

@@ -1,5 +1,4 @@
 use crate::error::CommandError;
-use clap::SubCommand;
 use hg;
 use hg::matchers::get_ignore_matcher;
 use hg::StatusError;
@@ -13,8 +12,8 @@ This is a pure Rust version of `hg debugignore`.
 Some options might be missing, check the list below.
 ";
 
-pub fn args() -> clap::App<'static, 'static> {
-    SubCommand::with_name("debugignorerhg").about(HELP_TEXT)
+pub fn args() -> clap::Command {
+    clap::command!("debugignorerhg").about(HELP_TEXT)
 }
 
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
