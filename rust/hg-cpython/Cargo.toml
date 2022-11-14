@@ -2,7 +2,7 @@
 name = "hg-cpython"
 version = "0.1.0"
 authors = ["Georges Racinet <gracinet@anybox.fr>"]
-edition = "2018"
+edition = "2021"
 
 [lib]
 name='rusthg'
