@@ -27,7 +27,6 @@ use crate::filepatterns::normalize_path_bytes;
 use std::borrow::ToOwned;
 use std::collections::HashSet;
 use std::fmt::{Display, Error, Formatter};
-use std::iter::FromIterator;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 

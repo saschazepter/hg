@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::convert::TryFrom;
 use std::io::Read;
 use std::ops::Deref;
 use std::path::Path;

@@ -357,7 +357,6 @@ mod tests {
 
     use super::*;
     use crate::testing::{SampleGraph, VecGraph};
-    use std::iter::FromIterator;
 
     fn list_ancestors<G: Graph>(
         graph: G,
