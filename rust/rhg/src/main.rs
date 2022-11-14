@@ -301,7 +301,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
         }
     };
 
-    let exit =
+    let simple_exit =
         |ui: &Ui, config: &Config, result: Result<(), CommandError>| -> ! {
             exit(
                 &argv,
@@ -317,7 +317,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
             )
         };
     let early_exit = |config: &Config, error: CommandError| -> ! {
-        exit(&Ui::new_infallible(config), &config, Err(error))
+        simple_exit(&Ui::new_infallible(config), &config, Err(error))
     };
     let repo_result = match Repo::find(&non_repo_config, repo_path.to_owned())
     {
@@ -348,6 +348,24 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
     let config = config_cow.as_ref();
     let ui = Ui::new(&config)
         .unwrap_or_else(|error| early_exit(&config, error.into()));
+
+    if let Ok(true) = config.get_bool(b"rhg", b"fallback-immediately") {
+        exit(
+            &argv,
+            &initial_current_dir,
+            &ui,
+            OnUnsupported::Fallback {
+                executable: config
+                    .get(b"rhg", b"fallback-executable")
+                    .map(ToOwned::to_owned),
+            },
+            Err(CommandError::unsupported(
+                "`rhg.fallback-immediately is true`",
+            )),
+            false,
+        )
+    }
+
     let result = main_with_result(
         argv.iter().map(|s| s.to_owned()).collect(),
         &process_start_time,
@@ -355,7 +373,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
         repo_result.as_ref(),
         config,
     );
-    exit(&ui, &config, result)
+    simple_exit(&ui, &config, result)
 }
 
 fn main() -> ! {

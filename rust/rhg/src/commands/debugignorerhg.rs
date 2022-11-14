@@ -25,7 +25,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let (ignore_matcher, warnings) = get_ignore_matcher(
         vec![ignore_file],
         &repo.working_directory_path().to_owned(),
-        &mut |_pattern_bytes| (),
+        &mut |_source, _pattern_bytes| (),
     )
     .map_err(|e| StatusError::from(e))?;
 
