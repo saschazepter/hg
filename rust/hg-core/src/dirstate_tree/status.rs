@@ -10,6 +10,7 @@ use crate::dirstate_tree::on_disk::DirstateV2ParseError;
 use crate::matchers::get_ignore_function;
 use crate::matchers::Matcher;
 use crate::utils::files::get_bytes_from_os_string;
+use crate::utils::files::get_bytes_from_path;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::BadMatch;
@@ -67,7 +68,7 @@ pub fn status<'dirstate>(
                     let (ignore_fn, warnings) = get_ignore_function(
                         ignore_files,
                         &root_dir,
-                        &mut |_pattern_bytes| {},
+                        &mut |_source, _pattern_bytes| {},
                     )?;
                     (ignore_fn, warnings, None)
                 }
@@ -76,7 +77,24 @@ pub fn status<'dirstate>(
                     let (ignore_fn, warnings) = get_ignore_function(
                         ignore_files,
                         &root_dir,
-                        &mut |pattern_bytes| hasher.update(pattern_bytes),
+                        &mut |source, pattern_bytes| {
+                            // If inside the repo, use the relative version to
+                            // make it deterministic inside tests.
+                            // The performance hit should be negligible.
+                            let source = source
+                                .strip_prefix(&root_dir)
+                                .unwrap_or(source);
+                            let source = get_bytes_from_path(source);
+
+                            let mut subhasher = Sha1::new();
+                            subhasher.update(pattern_bytes);
+                            let patterns_hash = subhasher.finalize();
+
+                            hasher.update(source);
+                            hasher.update(b" ");
+                            hasher.update(patterns_hash);
+                            hasher.update(b"\n");
+                        },
                     )?;
                     let new_hash = *hasher.finalize().as_ref();
                     let changed = new_hash != dmap.ignore_patterns_hash;
@@ -122,8 +140,8 @@ pub fn status<'dirstate>(
         ignore_fn,
         outcome: Mutex::new(outcome),
         ignore_patterns_have_changed: patterns_changed,
-        new_cachable_directories: Default::default(),
-        outated_cached_directories: Default::default(),
+        new_cacheable_directories: Default::default(),
+        outdated_cached_directories: Default::default(),
         filesystem_time_at_status_start,
     };
     let is_at_repo_root = true;
@@ -147,12 +165,12 @@ pub fn status<'dirstate>(
         is_at_repo_root,
     )?;
     let mut outcome = common.outcome.into_inner().unwrap();
-    let new_cachable = common.new_cachable_directories.into_inner().unwrap();
-    let outdated = common.outated_cached_directories.into_inner().unwrap();
+    let new_cacheable = common.new_cacheable_directories.into_inner().unwrap();
+    let outdated = common.outdated_cached_directories.into_inner().unwrap();
 
     outcome.dirty = common.ignore_patterns_have_changed == Some(true)
         || !outdated.is_empty()
-        || (!new_cachable.is_empty()
+        || (!new_cacheable.is_empty()
             && dmap.dirstate_version == DirstateVersion::V2);
 
     // Remove outdated mtimes before adding new mtimes, in case a given
@@ -160,7 +178,7 @@ pub fn status<'dirstate>(
     for path in &outdated {
         dmap.clear_cached_mtime(path)?;
     }
-    for (path, mtime) in &new_cachable {
+    for (path, mtime) in &new_cacheable {
         dmap.set_cached_mtime(path, *mtime)?;
     }
 
@@ -175,9 +193,11 @@ struct StatusCommon<'a, 'tree, 'on_disk: 'tree> {
     matcher: &'a (dyn Matcher + Sync),
     ignore_fn: IgnoreFnType<'a>,
     outcome: Mutex<DirstateStatus<'on_disk>>,
-    new_cachable_directories:
+    /// New timestamps of directories to be used for caching their readdirs
+    new_cacheable_directories:
         Mutex<Vec<(Cow<'on_disk, HgPath>, TruncatedTimestamp)>>,
-    outated_cached_directories: Mutex<Vec<Cow<'on_disk, HgPath>>>,
+    /// Used to invalidate the readdir cache of directories
+    outdated_cached_directories: Mutex<Vec<Cow<'on_disk, HgPath>>>,
 
     /// Whether ignore files like `.hgignore` have changed since the previous
     /// time a `status()` call wrote their hash to the dirstate. `None` means
@@ -305,17 +325,18 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
     fn check_for_outdated_directory_cache(
         &self,
         dirstate_node: &NodeRef<'tree, 'on_disk>,
-    ) -> Result<(), DirstateV2ParseError> {
+    ) -> Result<bool, DirstateV2ParseError> {
         if self.ignore_patterns_have_changed == Some(true)
             && dirstate_node.cached_directory_mtime()?.is_some()
         {
-            self.outated_cached_directories.lock().unwrap().push(
+            self.outdated_cached_directories.lock().unwrap().push(
                 dirstate_node
                     .full_path_borrowed(self.dmap.on_disk)?
                     .detach_from_tree(),
-            )
+            );
+            return Ok(true);
         }
-        Ok(())
+        Ok(false)
     }
 
     /// If this returns true, we can get accurate results by only using
@@ -487,7 +508,8 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         dirstate_node: NodeRef<'tree, 'on_disk>,
         has_ignored_ancestor: &'ancestor HasIgnoredAncestor<'ancestor>,
     ) -> Result<(), DirstateV2ParseError> {
-        self.check_for_outdated_directory_cache(&dirstate_node)?;
+        let outdated_dircache =
+            self.check_for_outdated_directory_cache(&dirstate_node)?;
         let hg_path = &dirstate_node.full_path_borrowed(self.dmap.on_disk)?;
         let file_or_symlink = fs_entry.is_file() || fs_entry.is_symlink();
         if !file_or_symlink {
@@ -522,6 +544,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                 children_all_have_dirstate_node_or_are_ignored,
                 fs_entry,
                 dirstate_node,
+                outdated_dircache,
             )?
         } else {
             if file_or_symlink && self.matcher.matches(&hg_path) {
@@ -561,11 +584,17 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         Ok(())
     }
 
+    /// Save directory mtime if applicable.
+    ///
+    /// `outdated_directory_cache` is `true` if we've just invalidated the
+    /// cache for this directory in `check_for_outdated_directory_cache`,
+    /// which forces the update.
     fn maybe_save_directory_mtime(
         &self,
         children_all_have_dirstate_node_or_are_ignored: bool,
         directory_entry: &DirEntry,
         dirstate_node: NodeRef<'tree, 'on_disk>,
+        outdated_directory_cache: bool,
     ) -> Result<(), DirstateV2ParseError> {
         if !children_all_have_dirstate_node_or_are_ignored {
             return Ok(());
@@ -635,17 +664,18 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         // We deem this scenario (unlike the previous one) to be
         // unlikely enough in practice.
 
-        let is_up_to_date =
-            if let Some(cached) = dirstate_node.cached_directory_mtime()? {
-                cached.likely_equal(directory_mtime)
-            } else {
-                false
-            };
+        let is_up_to_date = if let Some(cached) =
+            dirstate_node.cached_directory_mtime()?
+        {
+            !outdated_directory_cache && cached.likely_equal(directory_mtime)
+        } else {
+            false
+        };
         if !is_up_to_date {
             let hg_path = dirstate_node
                 .full_path_borrowed(self.dmap.on_disk)?
                 .detach_from_tree();
-            self.new_cachable_directories
+            self.new_cacheable_directories
                 .lock()
                 .unwrap()
                 .push((hg_path, directory_mtime))

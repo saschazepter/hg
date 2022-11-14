@@ -2676,49 +2676,76 @@ def perf_unbundle(ui, repo, fname, **opts):
     """benchmark application of a bundle in a repository.
 
     This does not include the final transaction processing"""
+
     from mercurial import exchange
     from mercurial import bundle2
+    from mercurial import transaction
 
     opts = _byteskwargs(opts)
 
-    with repo.lock():
-        bundle = [None, None]
-        orig_quiet = repo.ui.quiet
-        try:
-            repo.ui.quiet = True
-            with open(fname, mode="rb") as f:
+    ###  some compatibility hotfix
+    #
+    # the data attribute is dropped in 63edc384d3b7 a changeset introducing a
+    # critical regression that break transaction rollback for files that are
+    # de-inlined.
+    method = transaction.transaction._addentry
+    pre_63edc384d3b7 = "data" in getargspec(method).args
+    # the `detailed_exit_code` attribute is introduced in 33c0c25d0b0f
+    # a changeset that is a close descendant of 18415fc918a1, the changeset
+    # that conclude the fix run for the bug introduced in 63edc384d3b7.
+    args = getargspec(error.Abort.__init__).args
+    post_18415fc918a1 = "detailed_exit_code" in args
 
-                def noop_report(*args, **kwargs):
-                    pass
+    old_max_inline = None
+    try:
+        if not (pre_63edc384d3b7 or post_18415fc918a1):
+            # disable inlining
+            old_max_inline = mercurial.revlog._maxinline
+            # large enough to never happen
+            mercurial.revlog._maxinline = 2 ** 50
 
-                def setup():
-                    gen, tr = bundle
-                    if tr is not None:
-                        tr.abort()
-                    bundle[:] = [None, None]
-                    f.seek(0)
-                    bundle[0] = exchange.readbundle(ui, f, fname)
-                    bundle[1] = repo.transaction(b'perf::unbundle')
-                    bundle[1]._report = noop_report  # silence the transaction
+        with repo.lock():
+            bundle = [None, None]
+            orig_quiet = repo.ui.quiet
+            try:
+                repo.ui.quiet = True
+                with open(fname, mode="rb") as f:
 
-                def apply():
-                    gen, tr = bundle
-                    bundle2.applybundle(
-                        repo,
-                        gen,
-                        tr,
-                        source=b'perf::unbundle',
-                        url=fname,
-                    )
+                    def noop_report(*args, **kwargs):
+                        pass
 
-                timer, fm = gettimer(ui, opts)
-                timer(apply, setup=setup)
-                fm.end()
-        finally:
-            repo.ui.quiet == orig_quiet
-            gen, tr = bundle
-            if tr is not None:
-                tr.abort()
+                    def setup():
+                        gen, tr = bundle
+                        if tr is not None:
+                            tr.abort()
+                        bundle[:] = [None, None]
+                        f.seek(0)
+                        bundle[0] = exchange.readbundle(ui, f, fname)
+                        bundle[1] = repo.transaction(b'perf::unbundle')
+                        # silence the transaction
+                        bundle[1]._report = noop_report
+
+                    def apply():
+                        gen, tr = bundle
+                        bundle2.applybundle(
+                            repo,
+                            gen,
+                            tr,
+                            source=b'perf::unbundle',
+                            url=fname,
+                        )
+
+                    timer, fm = gettimer(ui, opts)
+                    timer(apply, setup=setup)
+                    fm.end()
+            finally:
+                repo.ui.quiet == orig_quiet
+                gen, tr = bundle
+                if tr is not None:
+                    tr.abort()
+    finally:
+        if old_max_inline is not None:
+            mercurial.revlog._maxinline = old_max_inline
 
 
 @command(

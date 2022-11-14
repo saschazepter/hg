@@ -412,11 +412,11 @@ pub fn parse_pattern_file_contents(
 pub fn read_pattern_file(
     file_path: &Path,
     warn: bool,
-    inspect_pattern_bytes: &mut impl FnMut(&[u8]),
+    inspect_pattern_bytes: &mut impl FnMut(&Path, &[u8]),
 ) -> Result<(Vec<IgnorePattern>, Vec<PatternFileWarning>), PatternError> {
     match std::fs::read(file_path) {
         Ok(contents) => {
-            inspect_pattern_bytes(&contents);
+            inspect_pattern_bytes(file_path, &contents);
             parse_pattern_file_contents(&contents, file_path, None, warn)
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok((
@@ -455,7 +455,7 @@ pub type PatternResult<T> = Result<T, PatternError>;
 pub fn get_patterns_from_file(
     pattern_file: &Path,
     root_dir: &Path,
-    inspect_pattern_bytes: &mut impl FnMut(&[u8]),
+    inspect_pattern_bytes: &mut impl FnMut(&Path, &[u8]),
 ) -> PatternResult<(Vec<IgnorePattern>, Vec<PatternFileWarning>)> {
     let (patterns, mut warnings) =
         read_pattern_file(pattern_file, true, inspect_pattern_bytes)?;

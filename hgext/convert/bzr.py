@@ -23,9 +23,9 @@ from . import common
 # these do not work with demandimport, blacklist
 demandimport.IGNORES.update(
     [
-        b'breezy.transactions',
-        b'breezy.urlutils',
-        b'ElementPath',
+        'breezy.transactions',
+        'breezy.urlutils',
+        'ElementPath',
     ]
 )
 

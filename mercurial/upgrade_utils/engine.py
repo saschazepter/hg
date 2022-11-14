@@ -233,18 +233,18 @@ def _clonerevlogs(
 
         # This is for the separate progress bars.
         if rl_type & store.FILEFLAGS_CHANGELOG:
-            changelogs[unencoded] = (rl_type, rl)
+            changelogs[unencoded] = rl_type
             crevcount += len(rl)
             csrcsize += datasize
             crawsize += rawsize
         elif rl_type & store.FILEFLAGS_MANIFESTLOG:
-            manifests[unencoded] = (rl_type, rl)
+            manifests[unencoded] = rl_type
             mcount += 1
             mrevcount += len(rl)
             msrcsize += datasize
             mrawsize += rawsize
         elif rl_type & store.FILEFLAGS_FILELOG:
-            filelogs[unencoded] = (rl_type, rl)
+            filelogs[unencoded] = rl_type
             fcount += 1
             frevcount += len(rl)
             fsrcsize += datasize
@@ -289,7 +289,9 @@ def _clonerevlogs(
         )
     )
     progress = srcrepo.ui.makeprogress(_(b'file revisions'), total=frevcount)
-    for unencoded, (rl_type, oldrl) in sorted(filelogs.items()):
+    for unencoded, rl_type in sorted(filelogs.items()):
+        oldrl = _revlogfrompath(srcrepo, rl_type, unencoded)
+
         newrl = _perform_clone(
             ui,
             dstrepo,
@@ -329,7 +331,8 @@ def _clonerevlogs(
     progress = srcrepo.ui.makeprogress(
         _(b'manifest revisions'), total=mrevcount
     )
-    for unencoded, (rl_type, oldrl) in sorted(manifests.items()):
+    for unencoded, rl_type in sorted(manifests.items()):
+        oldrl = _revlogfrompath(srcrepo, rl_type, unencoded)
         newrl = _perform_clone(
             ui,
             dstrepo,
@@ -368,7 +371,8 @@ def _clonerevlogs(
     progress = srcrepo.ui.makeprogress(
         _(b'changelog revisions'), total=crevcount
     )
-    for unencoded, (rl_type, oldrl) in sorted(changelogs.items()):
+    for unencoded, rl_type in sorted(changelogs.items()):
+        oldrl = _revlogfrompath(srcrepo, rl_type, unencoded)
         newrl = _perform_clone(
             ui,
             dstrepo,
