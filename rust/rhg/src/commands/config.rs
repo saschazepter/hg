@@ -8,14 +8,13 @@ pub const HELP_TEXT: &str = "
 With one argument of the form section.name, print just the value of that config item.
 ";
 
-pub fn args() -> clap::App<'static, 'static> {
-    clap::SubCommand::with_name("config")
+pub fn args() -> clap::Command {
+    clap::command!("config")
         .arg(
-            Arg::with_name("name")
+            Arg::new("name")
                 .help("the section.name to print")
                 .value_name("NAME")
-                .required(true)
-                .takes_value(true),
+                .required(true),
         )
         .about(HELP_TEXT)
 }
@@ -23,7 +22,7 @@ pub fn args() -> clap::App<'static, 'static> {
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let (section, name) = invocation
         .subcommand_args
-        .value_of("name")
+        .get_one::<String>("name")
         .expect("missing required CLI argument")
         .as_bytes()
         .split_2(b'.')

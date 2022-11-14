@@ -4,8 +4,8 @@ pub const HELP_TEXT: &str = "
 Print the current repo requirements.
 ";
 
-pub fn args() -> clap::App<'static, 'static> {
-    clap::SubCommand::with_name("debugrequirements").about(HELP_TEXT)
+pub fn args() -> clap::Command {
+    clap::command!("debugrequirements").about(HELP_TEXT)
 }
 
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
