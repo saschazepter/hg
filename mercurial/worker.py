@@ -125,7 +125,14 @@ def worthwhile(ui, costperop, nops, threadsafe=True):
 
 
 def worker(
-    ui, costperarg, func, staticargs, args, hasretval=False, threadsafe=True
+    ui,
+    costperarg,
+    func,
+    staticargs,
+    args,
+    hasretval=False,
+    threadsafe=True,
+    prefork=None,
 ):
     """run a function, possibly in parallel in multiple worker
     processes.
@@ -149,6 +156,10 @@ def worker(
     threadsafe - whether work items are thread safe and can be executed using
     a thread-based worker. Should be disabled for CPU heavy tasks that don't
     release the GIL.
+
+    prefork - a parameterless Callable that is invoked prior to forking the
+    process.  fork() is only used on non-Windows platforms, but is also not
+    called on POSIX platforms if the work amount doesn't warrant a worker.
     """
     enabled = ui.configbool(b'worker', b'enabled')
     if enabled and _platformworker is _posixworker and not ismainthread():
@@ -157,11 +168,13 @@ def worker(
         enabled = False
 
     if enabled and worthwhile(ui, costperarg, len(args), threadsafe=threadsafe):
-        return _platformworker(ui, func, staticargs, args, hasretval)
+        return _platformworker(
+            ui, func, staticargs, args, hasretval, prefork=prefork
+        )
     return func(*staticargs + (args,))
 
 
-def _posixworker(ui, func, staticargs, args, hasretval):
+def _posixworker(ui, func, staticargs, args, hasretval, prefork=None):
     workers = _numworkers(ui)
     oldhandler = signal.getsignal(signal.SIGINT)
     signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -207,6 +220,10 @@ def _posixworker(ui, func, staticargs, args, hasretval):
     parentpid = os.getpid()
     pipes = []
     retval = {}
+
+    if prefork:
+        prefork()
+
     for pargs in partition(args, min(workers, len(args))):
         # Every worker gets its own pipe to send results on, so we don't have to
         # implement atomic writes larger than PIPE_BUF. Each forked process has
@@ -316,7 +333,7 @@ def _posixexitstatus(code):
         return -(os.WTERMSIG(code))
 
 
-def _windowsworker(ui, func, staticargs, args, hasretval):
+def _windowsworker(ui, func, staticargs, args, hasretval, prefork=None):
     class Worker(threading.Thread):
         def __init__(
             self, taskqueue, resultqueue, func, staticargs, *args, **kwargs

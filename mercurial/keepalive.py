@@ -166,7 +166,9 @@ class ConnectionManager:
         if host:
             return list(self._hostmap[host])
         else:
-            return dict(self._hostmap)
+            return dict(
+                {h: list(conns) for (h, conns) in self._hostmap.items()}
+            )
 
 
 class KeepAliveHandler:
@@ -699,6 +701,17 @@ class HTTPConnection(httplib.HTTPConnection):
         httplib.HTTPConnection.__init__(self, *args, **kwargs)
         self.sentbytescount = 0
         self.receivedbytescount = 0
+
+    def __repr__(self):
+        base = super(HTTPConnection, self).__repr__()
+        local = "(unconnected)"
+        s = self.sock
+        if s:
+            try:
+                local = "%s:%d" % s.getsockname()
+            except OSError:
+                pass  # Likely not connected
+        return "<%s: %s <--> %s:%d>" % (base, local, self.host, self.port)
 
 
 #########################################################################

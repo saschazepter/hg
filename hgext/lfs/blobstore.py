@@ -601,14 +601,30 @@ class _gitlfsremote:
                             continue
                         raise
 
-        # Until https multiplexing gets sorted out
+        # Until https multiplexing gets sorted out.  It's not clear if
+        # ConnectionManager.set_ready() is externally synchronized for thread
+        # safety with Windows workers.
         if self.ui.configbool(b'experimental', b'lfs.worker-enable'):
+            # The POSIX workers are forks of this process, so before spinning
+            # them up, close all pooled connections.  Otherwise, there's no way
+            # to coordinate between them about who is using what, and the
+            # transfers will get corrupted.
+            #
+            # TODO: add a function to keepalive.ConnectionManager to mark all
+            #  ready connections as in use, and roll that back after the fork?
+            #  That would allow the existing pool of connections in this process
+            #  to be preserved.
+            def prefork():
+                for h in self.urlopener.handlers:
+                    getattr(h, "close_all", lambda: None)()
+
             oids = worker.worker(
                 self.ui,
                 0.1,
                 transfer,
                 (),
                 sorted(objects, key=lambda o: o.get(b'oid')),
+                prefork=prefork,
             )
         else:
             oids = transfer(sorted(objects, key=lambda o: o.get(b'oid')))

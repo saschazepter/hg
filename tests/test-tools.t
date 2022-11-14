@@ -13,6 +13,7 @@ Tests of the file helper tool
                           check if file is newer (or same)
     -r, --recurse         recurse into directories
     -S, --sha1            show sha1 hash of the content
+    --raw-sha1            show raw bytes of the sha1 hash of the content
     --sha256              show sha256 hash of the content
     -M, --md5             show md5 hash of the content
     -D, --dump            dump file content
