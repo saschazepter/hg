@@ -1,7 +1,11 @@
-= Mercurial 6.3rc0 =
+= Mercurial 6.3 =
 
 == New Features ==
 
+ * testlib: add `--raw-sha1` option to `f`
+ * rhg: add `config.rhg` helptext
+ * config: add alias from `hg help rhg` to `hg help rust`
+ * rhg: add a config option to fall back immediately
  * bundle: introduce a --exact option
  * perf-bundle: add a new command to benchmark bundle creation time
  * perf-bundle: accept --rev arguments
@@ -41,6 +45,22 @@ Mercurial 6.3.
  * tests: fix http-bad-server expected errors for python 3.10 (issue6643)
  * status: let `--no-copies` override `ui.statuscopies`
  * releasenotes: use re.MULTILINE mode when checking admonitions
+ * rhg: fallback to slow path on invalid patterns in hgignore
+ * Fix a bunch of leftover str/bytes issues from Python 3 migration
+ * keepalive: ensure `close_all()` actually closes all cached connections
+ * lfs: fix blob corruption when tranferring with workers on posix
+ * lfs: avoid closing connections when the worker doesn't fork
+ * dirstate-v2: update constant that wasn't kept in sync
+ * dirstate-v2: fix edge case where entries aren't sorted
+ * upgrade: no longer keep all revlogs in memory at any point
+ * rust-status: save new dircache even if just invalidated
+ * dirstate-v2: hash the source of the ignore patterns as well
+ * rhg: fallback when encountering ellipsis revisions
+ * shelve: handle empty parents and nodestoremove in shelvedstate (issue6748)
+ * profile: prevent a crash when line number is unknown
+ * tags-fnode-cache: do not repeatedly open the filelog in a loop
+ * tags-fnode-cache: skip building a changectx in getfnode
+ * rust: create wrapper struct to reduce `regex` contention issues
 
 == Backwards Compatibility Changes ==
 
@@ -72,6 +92,7 @@ Mercurial 6.3.
  * rhg: don't fallback if `strip` or `rebase` are activated
  * perf: make perf::bundle compatible before 61ba04693d65
  * perf: make perf::bundle compatible down to 5.2
+ * perf-unbundle: improve compatibility
  * run-tests: display the time it took to install Mercurial
  * mergetools: don't let meld open all changed files on startup
  * dirstate-v2: skip evaluation of hgignore regex on cached directories
