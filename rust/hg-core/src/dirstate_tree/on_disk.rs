@@ -17,7 +17,6 @@ use bytes_cast::BytesCast;
 use format_bytes::format_bytes;
 use rand::Rng;
 use std::borrow::Cow;
-use std::convert::{TryFrom, TryInto};
 use std::fmt::Write;
 
 /// Added at the start of `.hg/dirstate` when the "v2" format is used.

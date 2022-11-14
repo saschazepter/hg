@@ -4,7 +4,6 @@ use format_bytes::format_bytes;
 use hg::operations::cat;
 use hg::utils::hg_path::HgPathBuf;
 use micro_timer::timed;
-use std::convert::TryFrom;
 
 pub const HELP_TEXT: &str = "
 Output the current or given revision of files

@@ -9,7 +9,6 @@
 //! `hg-core` package.
 
 use std::cell::{RefCell, RefMut};
-use std::convert::TryInto;
 
 use cpython::{
     exc, PyBool, PyBytes, PyClone, PyDict, PyErr, PyList, PyNone, PyObject,

@@ -10,7 +10,6 @@
 
 use cpython::{ObjectProtocol, PyObject, PyResult, Python};
 use hg::Revision;
-use std::iter::FromIterator;
 
 /// Utility function to convert a Python iterable into various collections
 ///

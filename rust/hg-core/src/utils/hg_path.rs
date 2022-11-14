@@ -8,7 +8,6 @@
 use crate::utils::SliceExt;
 use std::borrow::Borrow;
 use std::borrow::Cow;
-use std::convert::TryFrom;
 use std::ffi::{OsStr, OsString};
 use std::fmt;
 use std::ops::Deref;
