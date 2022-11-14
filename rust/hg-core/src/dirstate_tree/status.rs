@@ -24,8 +24,6 @@ use once_cell::sync::OnceCell;
 use rayon::prelude::*;
 use sha1::{Digest, Sha1};
 use std::borrow::Cow;
-use std::convert::TryFrom;
-use std::convert::TryInto;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;

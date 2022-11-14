@@ -10,7 +10,6 @@
 
 use crate::errors::HgError;
 use bytes_cast::BytesCast;
-use std::convert::{TryFrom, TryInto};
 use std::fmt;
 
 /// The length in bytes of a `Node`
