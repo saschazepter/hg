@@ -144,16 +144,19 @@ Windows is not affected
 #if windows
   $ "$PYTHON" "$TESTTMP/pwd.py"
   $TESTTMP/hghistedit/somedir
+  $ ls -A $TESTTMP/hghistedit/somedir
+  foo
+  $ ls -A
+  foo
 #else
   $ echo ${PWD} # no-pwd-check
   $TESTTMP/hghistedit/somedir
   $ "$PYTHON" "$TESTTMP/pwd.py"
   <directory is no longer accessible>
-#endif
   $ ls -A $TESTTMP/hghistedit/somedir
   foo
   $ ls -A
-  foo (windows !)
+#endif
 
 Get out of the doomed directory
 
