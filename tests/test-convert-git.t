@@ -2,6 +2,7 @@
 
   $ git config -f $HOME/.gitconfig init.defaultBranch master
   $ git config -f $HOME/.gitconfig core.autocrlf false
+  $ git config -f $HOME/.gitconfig protocol.file.allow always
   $ echo "[extensions]" >> $HGRCPATH
   $ echo "convert=" >> $HGRCPATH
   $ cat >> $HGRCPATH <<EOF
