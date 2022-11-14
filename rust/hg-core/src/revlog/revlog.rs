@@ -517,7 +517,7 @@ impl<'a> RevlogEntry<'a> {
         } else {
             let cap = self.uncompressed_len.max(0) as usize;
             let mut buf = vec![0; cap];
-            let len = zstd::block::decompress_to_buffer(self.bytes, &mut buf)
+            let len = zstd::bulk::decompress_to_buffer(self.bytes, &mut buf)
                 .map_err(|e| corrupted(e.to_string()))?;
             if len != self.uncompressed_len as usize {
                 Err(corrupted("uncompressed length does not match"))
