@@ -1,7 +1,6 @@
 use crate::dirstate_tree::on_disk::DirstateV2ParseError;
 use crate::errors::HgError;
 use bitflags::bitflags;
-use std::convert::{TryFrom, TryInto};
 use std::fs;
 use std::io;
 use std::time::{SystemTime, UNIX_EPOCH};

@@ -9,7 +9,6 @@ use crate::{dirstate::EntryState, DirstateEntry, DirstateParents};
 use byteorder::{BigEndian, WriteBytesExt};
 use bytes_cast::{unaligned, BytesCast};
 use micro_timer::timed;
-use std::convert::TryFrom;
 
 /// Parents are stored in the dirstate as byte hashes.
 pub const PARENT_SIZE: usize = 20;
