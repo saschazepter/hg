@@ -196,15 +196,6 @@ impl<'a> Escaped for &'a HgPath {
     }
 }
 
-// TODO: use the str method when we require Rust 1.45
-pub(crate) fn strip_suffix<'a>(s: &'a str, suffix: &str) -> Option<&'a str> {
-    if s.ends_with(suffix) {
-        Some(&s[..s.len() - suffix.len()])
-    } else {
-        None
-    }
-}
-
 #[cfg(unix)]
 pub fn shell_quote(value: &[u8]) -> Vec<u8> {
     // TODO: Use the `matches!` macro when we require Rust 1.42+
