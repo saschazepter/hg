@@ -1,10 +1,7 @@
 extern crate log;
 use crate::error::CommandError;
 use crate::ui::{local_to_utf8, Ui};
-use clap::App;
-use clap::AppSettings;
-use clap::Arg;
-use clap::ArgMatches;
+use clap::{command, Arg, ArgMatches};
 use format_bytes::{format_bytes, join};
 use hg::config::{Config, ConfigSource, PlainInfo};
 use hg::repo::{Repo, RepoError};
@@ -35,55 +32,47 @@ fn main_with_result(
 ) -> Result<(), CommandError> {
     check_unsupported(config, repo)?;
 
-    let app = App::new("rhg")
-        .global_setting(AppSettings::AllowInvalidUtf8)
-        .global_setting(AppSettings::DisableVersion)
-        .setting(AppSettings::SubcommandRequired)
-        .setting(AppSettings::VersionlessSubcommands)
+    let app = command!()
+        .subcommand_required(true)
         .arg(
-            Arg::with_name("repository")
+            Arg::new("repository")
                 .help("repository root directory")
-                .short("-R")
-                .long("--repository")
+                .short('R')
                 .value_name("REPO")
-                .takes_value(true)
                 // Both ok: `hg -R ./foo log` or `hg log -R ./foo`
                 .global(true),
         )
         .arg(
-            Arg::with_name("config")
+            Arg::new("config")
                 .help("set/override config option (use 'section.name=value')")
-                .long("--config")
                 .value_name("CONFIG")
-                .takes_value(true)
                 .global(true)
+                .long("config")
                 // Ok: `--config section.key1=val --config section.key2=val2`
-                .multiple(true)
                 // Not ok: `--config section.key1=val section.key2=val2`
-                .number_of_values(1),
+                .action(clap::ArgAction::Append),
         )
         .arg(
-            Arg::with_name("cwd")
+            Arg::new("cwd")
                 .help("change working directory")
-                .long("--cwd")
                 .value_name("DIR")
-                .takes_value(true)
+                .long("cwd")
                 .global(true),
         )
         .arg(
-            Arg::with_name("color")
+            Arg::new("color")
                 .help("when to colorize (boolean, always, auto, never, or debug)")
-                .long("--color")
                 .value_name("TYPE")
-                .takes_value(true)
+                .long("color")
                 .global(true),
         )
         .version("0.0.1");
     let app = add_subcommand_args(app);
 
-    let matches = app.clone().get_matches_from_safe(argv.iter())?;
+    let matches = app.clone().try_get_matches_from(argv.iter())?;
 
-    let (subcommand_name, subcommand_matches) = matches.subcommand();
+    let (subcommand_name, subcommand_args) =
+        matches.subcommand().expect("subcommand required");
 
     // Mercurial allows users to define "defaults" for commands, fallback
     // if a default is detected for the current command
@@ -104,9 +93,7 @@ fn main_with_result(
         }
     }
     let run = subcommand_run_fn(subcommand_name)
-        .expect("unknown subcommand name from clap despite AppSettings::SubcommandRequired");
-    let subcommand_args = subcommand_matches
-        .expect("no subcommand arguments from clap despite AppSettings::SubcommandRequired");
+        .expect("unknown subcommand name from clap despite Command::subcommand_required");
 
     let invocation = CliInvocation {
         ui,
@@ -535,7 +522,7 @@ macro_rules! subcommands {
             )+
         }
 
-        fn add_subcommand_args<'a, 'b>(app: App<'a, 'b>) -> App<'a, 'b> {
+        fn add_subcommand_args(app: clap::Command) -> clap::Command {
             app
             $(
                 .subcommand(commands::$command::args())
@@ -569,7 +556,7 @@ subcommands! {
 
 pub struct CliInvocation<'a> {
     ui: &'a Ui,
-    subcommand_args: &'a ArgMatches<'a>,
+    subcommand_args: &'a ArgMatches,
     config: &'a Config,
     /// References inside `Result` is a bit peculiar but allow
     /// `invocation.repo?` to work out with `&CliInvocation` since this

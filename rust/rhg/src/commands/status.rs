@@ -8,7 +8,7 @@
 use crate::error::CommandError;
 use crate::ui::Ui;
 use crate::utils::path_utils::RelativizePaths;
-use clap::{Arg, SubCommand};
+use clap::Arg;
 use format_bytes::format_bytes;
 use hg::config::Config;
 use hg::dirstate::has_exec_bit;
@@ -41,75 +41,86 @@ This is a pure Rust version of `hg status`.
 Some options might be missing, check the list below.
 ";
 
-pub fn args() -> clap::App<'static, 'static> {
-    SubCommand::with_name("status")
+pub fn args() -> clap::Command {
+    clap::command!("status")
         .alias("st")
         .about(HELP_TEXT)
         .arg(
-            Arg::with_name("all")
+            Arg::new("all")
                 .help("show status of all files")
-                .short("-A")
-                .long("--all"),
+                .short('A')
+                .action(clap::ArgAction::SetTrue)
+                .long("all"),
         )
         .arg(
-            Arg::with_name("modified")
+            Arg::new("modified")
                 .help("show only modified files")
-                .short("-m")
-                .long("--modified"),
+                .short('m')
+                .action(clap::ArgAction::SetTrue)
+                .long("modified"),
         )
         .arg(
-            Arg::with_name("added")
+            Arg::new("added")
                 .help("show only added files")
-                .short("-a")
-                .long("--added"),
+                .short('a')
+                .action(clap::ArgAction::SetTrue)
+                .long("added"),
         )
         .arg(
-            Arg::with_name("removed")
+            Arg::new("removed")
                 .help("show only removed files")
-                .short("-r")
-                .long("--removed"),
+                .short('r')
+                .action(clap::ArgAction::SetTrue)
+                .long("removed"),
         )
         .arg(
-            Arg::with_name("clean")
+            Arg::new("clean")
                 .help("show only clean files")
-                .short("-c")
-                .long("--clean"),
+                .short('c')
+                .action(clap::ArgAction::SetTrue)
+                .long("clean"),
         )
         .arg(
-            Arg::with_name("deleted")
+            Arg::new("deleted")
                 .help("show only deleted files")
-                .short("-d")
-                .long("--deleted"),
+                .short('d')
+                .action(clap::ArgAction::SetTrue)
+                .long("deleted"),
         )
         .arg(
-            Arg::with_name("unknown")
+            Arg::new("unknown")
                 .help("show only unknown (not tracked) files")
-                .short("-u")
-                .long("--unknown"),
+                .short('u')
+                .action(clap::ArgAction::SetTrue)
+                .long("unknown"),
         )
         .arg(
-            Arg::with_name("ignored")
+            Arg::new("ignored")
                 .help("show only ignored files")
-                .short("-i")
-                .long("--ignored"),
+                .short('i')
+                .action(clap::ArgAction::SetTrue)
+                .long("ignored"),
         )
         .arg(
-            Arg::with_name("copies")
+            Arg::new("copies")
                 .help("show source of copied files (DEFAULT: ui.statuscopies)")
-                .short("-C")
-                .long("--copies"),
+                .short('C')
+                .action(clap::ArgAction::SetTrue)
+                .long("copies"),
         )
         .arg(
-            Arg::with_name("no-status")
+            Arg::new("no-status")
                 .help("hide status prefix")
-                .short("-n")
-                .long("--no-status"),
+                .short('n')
+                .action(clap::ArgAction::SetTrue)
+                .long("no-status"),
         )
         .arg(
-            Arg::with_name("verbose")
+            Arg::new("verbose")
                 .help("enable additional output")
-                .short("-v")
-                .long("--verbose"),
+                .short('v')
+                .action(clap::ArgAction::SetTrue)
+                .long("verbose"),
         )
 }
 
@@ -200,25 +211,25 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let config = invocation.config;
     let args = invocation.subcommand_args;
 
-    let verbose = !args.is_present("print0")
-        && (args.is_present("verbose")
-            || config.get_bool(b"ui", b"verbose")?
-            || config.get_bool(b"commands", b"status.verbose")?);
+    // TODO add `!args.get_flag("print0") &&` when we support `print0`
+    let verbose = args.get_flag("verbose")
+        || config.get_bool(b"ui", b"verbose")?
+        || config.get_bool(b"commands", b"status.verbose")?;
 
-    let all = args.is_present("all");
+    let all = args.get_flag("all");
     let display_states = if all {
         // TODO when implementing `--quiet`: it excludes clean files
         // from `--all`
         ALL_DISPLAY_STATES
     } else {
         let requested = DisplayStates {
-            modified: args.is_present("modified"),
-            added: args.is_present("added"),
-            removed: args.is_present("removed"),
-            clean: args.is_present("clean"),
-            deleted: args.is_present("deleted"),
-            unknown: args.is_present("unknown"),
-            ignored: args.is_present("ignored"),
+            modified: args.get_flag("modified"),
+            added: args.get_flag("added"),
+            removed: args.get_flag("removed"),
+            clean: args.get_flag("clean"),
+            deleted: args.get_flag("deleted"),
+            unknown: args.get_flag("unknown"),
+            ignored: args.get_flag("ignored"),
         };
         if requested.is_empty() {
             DEFAULT_DISPLAY_STATES
@@ -226,9 +237,9 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             requested
         }
     };
-    let no_status = args.is_present("no-status");
+    let no_status = args.get_flag("no-status");
     let list_copies = all
-        || args.is_present("copies")
+        || args.get_flag("copies")
         || config.get_bool(b"ui", b"statuscopies")?;
 
     let repo = invocation.repo?;
