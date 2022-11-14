@@ -198,17 +198,18 @@ impl<'a> Escaped for &'a HgPath {
 
 #[cfg(unix)]
 pub fn shell_quote(value: &[u8]) -> Vec<u8> {
-    // TODO: Use the `matches!` macro when we require Rust 1.42+
-    if value.iter().all(|&byte| match byte {
-        b'a'..=b'z'
-        | b'A'..=b'Z'
-        | b'0'..=b'9'
-        | b'.'
-        | b'_'
-        | b'/'
-        | b'+'
-        | b'-' => true,
-        _ => false,
+    if value.iter().all(|&byte| {
+        matches!(
+            byte,
+            b'a'..=b'z'
+            | b'A'..=b'Z'
+            | b'0'..=b'9'
+            | b'.'
+            | b'_'
+            | b'/'
+            | b'+'
+            | b'-'
+        )
     }) {
         value.to_owned()
     } else {
