@@ -2,7 +2,6 @@
 
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
-use crate::utils::StrExt;
 use crate::vfs::Vfs;
 use std::io;
 use std::io::ErrorKind;
@@ -107,7 +106,7 @@ fn unlock(hg_vfs: Vfs, lock_filename: &str) -> Result<(), HgError> {
 /// running anymore.
 fn lock_should_be_broken(data: &Option<String>) -> bool {
     (|| -> Option<bool> {
-        let (prefix, pid) = data.as_ref()?.split_2(':')?;
+        let (prefix, pid) = data.as_ref()?.split_once(':')?;
         if prefix != &*LOCK_PREFIX {
             return Some(false);
         }
