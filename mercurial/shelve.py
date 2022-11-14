@@ -278,9 +278,9 @@ class shelvedstate:
         try:
             d[b'originalwctx'] = bin(d[b'originalwctx'])
             d[b'pendingctx'] = bin(d[b'pendingctx'])
-            d[b'parents'] = [bin(h) for h in d[b'parents'].split(b' ')]
+            d[b'parents'] = [bin(h) for h in d[b'parents'].split(b' ') if h]
             d[b'nodestoremove'] = [
-                bin(h) for h in d[b'nodestoremove'].split(b' ')
+                bin(h) for h in d[b'nodestoremove'].split(b' ') if h
             ]
         except (ValueError, KeyError) as err:
             raise error.CorruptedState(stringutil.forcebytestr(err))

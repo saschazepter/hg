@@ -56,11 +56,11 @@ assert TREE_METADATA_SIZE == TREE_METADATA.size
 assert NODE_SIZE == NODE.size
 
 # match constant in mercurial/pure/parsers.py
-DIRSTATE_V2_DIRECTORY = 1 << 5
+DIRSTATE_V2_DIRECTORY = 1 << 13
 
 
 def parse_dirstate(map, copy_map, data, tree_metadata):
-    """parse a full v2-dirstate from a binary data into dictionnaries:
+    """parse a full v2-dirstate from a binary data into dictionaries:
 
     - map: a {path: entry} mapping that will be filled
     - copy_map: a {path: copy-source} mapping that will be filled
@@ -176,7 +176,7 @@ class Node:
 def pack_dirstate(map, copy_map):
     """
     Pack `map` and `copy_map` into the dirstate v2 binary format and return
-    the bytearray.
+    the tuple of (data, metadata) bytearrays.
 
     The on-disk format expects a tree-like structure where the leaves are
     written first (and sorted per-directory), going up levels until the root
@@ -191,7 +191,7 @@ def pack_dirstate(map, copy_map):
     # Algorithm explanation
 
     This explanation does not talk about the different counters for tracked
-    descendents and storing the copies, but that work is pretty simple once this
+    descendants and storing the copies, but that work is pretty simple once this
     algorithm is in place.
 
     ## Building a subtree
@@ -272,9 +272,9 @@ def pack_dirstate(map, copy_map):
         )
         return data, tree_metadata
 
-    sorted_map = sorted(map.items(), key=lambda x: x[0])
+    sorted_map = sorted(map.items(), key=lambda x: x[0].split(b"/"))
 
-    # Use a stack to not have to only remember the nodes we currently need
+    # Use a stack to have to only remember the nodes we currently need
     # instead of building the entire tree in memory
     stack = []
     current_node = Node(b"", None)

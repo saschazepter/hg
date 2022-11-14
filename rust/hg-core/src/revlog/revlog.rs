@@ -447,6 +447,11 @@ impl<'a> RevlogEntry<'a> {
         ) {
             Ok(data)
         } else {
+            if (self.flags & REVISION_FLAG_ELLIPSIS) != 0 {
+                return Err(HgError::unsupported(
+                    "ellipsis revisions are not supported by rhg",
+                ));
+            }
             Err(corrupted(format!(
                 "hash check failed for revision {}",
                 self.rev

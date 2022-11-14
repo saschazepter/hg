@@ -486,6 +486,7 @@ helptable = sorted(
             [
                 b'rust',
                 b'rustext',
+                b'rhg',
             ],
             _(b'Rust in Mercurial'),
             loaddoc(b'rust'),

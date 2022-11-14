@@ -852,7 +852,7 @@ class UpgradeOperation(BaseOperation):
 
         return False
 
-    def _write_labeled(self, l, label):
+    def _write_labeled(self, l, label: bytes):
         """
         Utility function to aid writing of a list under one label
         """
@@ -867,19 +867,19 @@ class UpgradeOperation(BaseOperation):
         self.ui.write(_(b'requirements\n'))
         self.ui.write(_(b'   preserved: '))
         self._write_labeled(
-            self._preserved_requirements, "upgrade-repo.requirement.preserved"
+            self._preserved_requirements, b"upgrade-repo.requirement.preserved"
         )
         self.ui.write((b'\n'))
         if self._removed_requirements:
             self.ui.write(_(b'   removed: '))
             self._write_labeled(
-                self._removed_requirements, "upgrade-repo.requirement.removed"
+                self._removed_requirements, b"upgrade-repo.requirement.removed"
             )
             self.ui.write((b'\n'))
         if self._added_requirements:
             self.ui.write(_(b'   added: '))
             self._write_labeled(
-                self._added_requirements, "upgrade-repo.requirement.added"
+                self._added_requirements, b"upgrade-repo.requirement.added"
             )
             self.ui.write((b'\n'))
         self.ui.write(b'\n')
@@ -893,7 +893,7 @@ class UpgradeOperation(BaseOperation):
             self.ui.write(_(b'optimisations: '))
             self._write_labeled(
                 [a.name for a in optimisations],
-                "upgrade-repo.optimisation.performed",
+                b"upgrade-repo.optimisation.performed",
             )
             self.ui.write(b'\n\n')
 

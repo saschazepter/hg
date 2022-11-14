@@ -168,6 +168,10 @@ Fallback to Python
   $ rhg cat original --exclude="*.rs"
   original content
 
+Check that `fallback-immediately` overrides `$NO_FALLBACK`
+  $ $NO_FALLBACK rhg cat original --exclude="*.rs" --config rhg.fallback-immediately=1
+  original content
+
   $ (unset RHG_FALLBACK_EXECUTABLE; rhg cat original --exclude="*.rs")
   abort: 'rhg.on-unsupported=fallback' without 'rhg.fallback-executable' set.
   [255]
