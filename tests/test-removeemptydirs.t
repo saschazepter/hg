@@ -155,7 +155,8 @@ Windows is not affected
   <directory is no longer accessible>
   $ ls -A $TESTTMP/hghistedit/somedir
   foo
-  $ ls -A
+  $ ls -A || true
+  ls: .: $ENOENT$ (?)
 #endif
 
 Get out of the doomed directory
