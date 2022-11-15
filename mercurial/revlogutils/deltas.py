@@ -1147,7 +1147,13 @@ class deltacomputer:
                 if deltainfo is not None:
                     prev = deltainfo.base
 
-                if p1 in candidaterevs or p2 in candidaterevs:
+                if (
+                    cachedelta is not None
+                    and len(candidaterevs) == 1
+                    and cachedelta[0] in candidaterevs
+                ):
+                    round_type = b"cached-delta"
+                elif p1 in candidaterevs or p2 in candidaterevs:
                     round_type = b"parents"
                 elif prev is not None and all(c < prev for c in candidaterevs):
                     round_type = b"refine-down"
@@ -1246,10 +1252,19 @@ class deltacomputer:
 
         if self._write_debug is not None:
             end = util.timer()
+            assert deltainfo is not None  # please pytype
+            used_cached = (
+                cachedelta is not None
+                and dbg_try_rounds == 1
+                and dbg_try_count == 1
+                and deltainfo.base == cachedelta[0]
+            )
             dbg = {
                 'duration': end - start,
                 'revision': target_rev,
+                'delta-base': deltainfo.base,
                 'search_round_count': dbg_try_rounds,
+                'using-cached-base': used_cached,
                 'delta_try_count': dbg_try_count,
                 'type': dbg_type,
                 'p1-chain-len': p1_chain_len,
@@ -1283,7 +1298,9 @@ class deltacomputer:
                 b"DBG-DELTAS:"
                 b" %-12s"
                 b" rev=%d:"
-                b" search-rounds=%d"
+                b" delta-base=%d"
+                b" is-cached=%d"
+                b" - search-rounds=%d"
                 b" try-count=%d"
                 b" - delta-type=%-6s"
                 b" snap-depth=%d"
@@ -1295,6 +1312,8 @@ class deltacomputer:
             msg %= (
                 dbg["target-revlog"],
                 dbg["revision"],
+                dbg["delta-base"],
+                dbg["using-cached-base"],
                 dbg["search_round_count"],
                 dbg["delta_try_count"],
                 dbg["type"],
