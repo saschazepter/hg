@@ -1039,6 +1039,24 @@ Test the option that create and no-delta's bundle
   $ hg bundle -a --config devel.bundle.delta=full ./full.hg
   3 changesets found
 
+
+Test the debug statistic when building a bundle
+-----------------------------------------------
+
+  $ hg bundle -a ./default.hg --config debug.bundling-stats=yes
+  3 changesets found
+  DEBUG-BUNDLING: revisions:                9
+  DEBUG-BUNDLING:   changelog:              3
+  DEBUG-BUNDLING:   manifest:               3
+  DEBUG-BUNDLING:   files:                  3 (for 3 revlogs)
+  DEBUG-BUNDLING: deltas:
+  DEBUG-BUNDLING:   from-storage:           2 (100% of available 2)
+  DEBUG-BUNDLING:   computed:               7
+  DEBUG-BUNDLING:     full:                 7 (100% of native 7)
+  DEBUG-BUNDLING:       changelog:          3 (100% of native 3)
+  DEBUG-BUNDLING:       manifests:          1 (100% of native 1)
+  DEBUG-BUNDLING:       files:              3 (100% of native 3)
+
 Test the debug output when applying delta
 -----------------------------------------
 

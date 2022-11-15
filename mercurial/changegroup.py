@@ -869,6 +869,7 @@ def deltagroup(
     fullclnodes=None,
     precomputedellipsis=None,
     sidedata_helpers=None,
+    debug_info=None,
 ):
     """Calculate deltas for a set of revisions.
 
@@ -978,6 +979,7 @@ def deltagroup(
         assumehaveparentrevisions=not ellipses,
         deltamode=deltamode,
         sidedata_helpers=sidedata_helpers,
+        debug_info=debug_info,
     )
 
     for i, revision in enumerate(revisions):
@@ -1001,6 +1003,187 @@ def deltagroup(
 
     if progress:
         progress.complete()
+
+
+def make_debug_info():
+    """ "build a "new" debug_info dictionnary
+
+    That dictionnary can be used to gather information about the bundle process
+    """
+    return {
+        'revision-total': 0,
+        'revision-changelog': 0,
+        'revision-manifest': 0,
+        'revision-files': 0,
+        'file-count': 0,
+        'merge-total': 0,
+        'available-delta': 0,
+        'available-full': 0,
+        'delta-against-prev': 0,
+        'delta-full': 0,
+        'delta-against-p1': 0,
+        'denied-delta-candeltafn': 0,
+        'denied-base-not-available': 0,
+        'reused-storage-delta': 0,
+        'computed-delta': 0,
+    }
+
+
+def merge_debug_info(base, other):
+    """merge the debug information from <other> into <base>
+
+    This function can be used to gather lower level information into higher level ones.
+    """
+    for key in (
+        'revision-total',
+        'revision-changelog',
+        'revision-manifest',
+        'revision-files',
+        'merge-total',
+        'available-delta',
+        'available-full',
+        'delta-against-prev',
+        'delta-full',
+        'delta-against-p1',
+        'denied-delta-candeltafn',
+        'denied-base-not-available',
+        'reused-storage-delta',
+        'computed-delta',
+    ):
+        base[key] += other[key]
+
+
+_KEY_PART_WIDTH = 17
+
+
+def _dbg_bdl_line(
+    ui,
+    indent,
+    key,
+    base_value=None,
+    percentage_base=None,
+    percentage_key=None,
+    percentage_ref=None,
+    extra=None,
+):
+    """Print one line of debug_bundle_debug_info"""
+    line = b"DEBUG-BUNDLING: "
+    line += b' ' * (2 * indent)
+    key += b":"
+    if base_value is not None:
+        assert len(key) + 1 + (2 * indent) <= _KEY_PART_WIDTH
+        line += key.ljust(_KEY_PART_WIDTH - (2 * indent))
+        line += b"%10d" % base_value
+    else:
+        line += key
+
+    if percentage_base is not None:
+        assert base_value is not None
+        percentage = base_value * 100 // percentage_base
+        if percentage_key is not None:
+            line += b" (%d%% of %s %d)" % (
+                percentage,
+                percentage_key,
+                percentage_ref,
+            )
+        else:
+            line += b" (%d%%)" % percentage
+
+    if extra:
+        line += b" "
+        line += extra
+
+    line += b'\n'
+    ui.write_err(line)
+
+
+def display_bundling_debug_info(
+    ui,
+    debug_info,
+    cl_debug_info,
+    mn_debug_info,
+    fl_debug_info,
+):
+    """display debug information gathered during a bundling through `ui`"""
+    d = debug_info
+    c = cl_debug_info
+    m = mn_debug_info
+    f = fl_debug_info
+    all_info = [
+        (b"changelog", b"cl", c),
+        (b"manifests", b"mn", m),
+        (b"files", b"fl", f),
+    ]
+    _dbg_bdl_line(ui, 0, b'revisions', d['revision-total'])
+    _dbg_bdl_line(ui, 1, b'changelog', d['revision-changelog'])
+    _dbg_bdl_line(ui, 1, b'manifest', d['revision-manifest'])
+    extra = b'(for %d revlogs)' % d['file-count']
+    _dbg_bdl_line(ui, 1, b'files', d['revision-files'], extra=extra)
+    if d['merge-total']:
+        _dbg_bdl_line(ui, 1, b'merge', d['merge-total'], d['revision-total'])
+    for k, __, v in all_info:
+        if v['merge-total']:
+            _dbg_bdl_line(ui, 2, k, v['merge-total'], v['revision-total'])
+
+    _dbg_bdl_line(ui, 0, b'deltas')
+    _dbg_bdl_line(
+        ui,
+        1,
+        b'from-storage',
+        d['reused-storage-delta'],
+        percentage_base=d['available-delta'],
+        percentage_key=b"available",
+        percentage_ref=d['available-delta'],
+    )
+
+    if d['denied-delta-candeltafn']:
+        _dbg_bdl_line(ui, 2, b'denied-fn', d['denied-delta-candeltafn'])
+    for __, k, v in all_info:
+        if v['denied-delta-candeltafn']:
+            _dbg_bdl_line(ui, 3, k, v['denied-delta-candeltafn'])
+
+    if d['denied-base-not-available']:
+        _dbg_bdl_line(ui, 2, b'denied-nb', d['denied-base-not-available'])
+    for k, __, v in all_info:
+        if v['denied-base-not-available']:
+            _dbg_bdl_line(ui, 3, k, v['denied-base-not-available'])
+
+    if d['computed-delta']:
+        _dbg_bdl_line(ui, 1, b'computed', d['computed-delta'])
+
+    if d['available-full']:
+        _dbg_bdl_line(
+            ui,
+            2,
+            b'full',
+            d['delta-full'],
+            percentage_base=d['available-full'],
+            percentage_key=b"native",
+            percentage_ref=d['available-full'],
+        )
+    for k, __, v in all_info:
+        if v['available-full']:
+            _dbg_bdl_line(
+                ui,
+                3,
+                k,
+                v['delta-full'],
+                percentage_base=v['available-full'],
+                percentage_key=b"native",
+                percentage_ref=v['available-full'],
+            )
+
+    if d['delta-against-prev']:
+        _dbg_bdl_line(ui, 2, b'previous', d['delta-against-prev'])
+    for k, __, v in all_info:
+        if v['delta-against-prev']:
+            _dbg_bdl_line(ui, 3, k, v['delta-against-prev'])
+
+    if d['delta-against-p1']:
+        _dbg_bdl_line(ui, 2, b'parent-1', d['delta-against-prev'])
+    for k, __, v in all_info:
+        if v['delta-against-p1']:
+            _dbg_bdl_line(ui, 3, k, v['delta-against-p1'])
 
 
 class cgpacker:
@@ -1086,13 +1269,21 @@ class cgpacker:
             self._verbosenote = lambda s: None
 
     def generate(
-        self, commonrevs, clnodes, fastpathlinkrev, source, changelog=True
+        self,
+        commonrevs,
+        clnodes,
+        fastpathlinkrev,
+        source,
+        changelog=True,
     ):
         """Yield a sequence of changegroup byte chunks.
         If changelog is False, changelog data won't be added to changegroup
         """
 
+        debug_info = None
         repo = self._repo
+        if repo.ui.configbool(b'debug', b'bundling-stats'):
+            debug_info = make_debug_info()
         cl = repo.changelog
 
         self._verbosenote(_(b'uncompressed size of bundle content:\n'))
@@ -1107,14 +1298,19 @@ class cgpacker:
                 # correctly advertise its sidedata categories directly.
                 remote_sidedata = repo._wanted_sidedata
             sidedata_helpers = sidedatamod.get_sidedata_helpers(
-                repo, remote_sidedata
+                repo,
+                remote_sidedata,
             )
 
+        cl_debug_info = None
+        if debug_info is not None:
+            cl_debug_info = make_debug_info()
         clstate, deltas = self._generatechangelog(
             cl,
             clnodes,
             generate=changelog,
             sidedata_helpers=sidedata_helpers,
+            debug_info=cl_debug_info,
         )
         for delta in deltas:
             for chunk in _revisiondeltatochunks(
@@ -1126,12 +1322,18 @@ class cgpacker:
         close = closechunk()
         size += len(close)
         yield closechunk()
+        if debug_info is not None:
+            merge_debug_info(debug_info, cl_debug_info)
+            debug_info['revision-changelog'] = cl_debug_info['revision-total']
 
         self._verbosenote(_(b'%8.i (changelog)\n') % size)
 
         clrevorder = clstate[b'clrevorder']
         manifests = clstate[b'manifests']
         changedfiles = clstate[b'changedfiles']
+
+        if debug_info is not None:
+            debug_info['file-count'] = len(changedfiles)
 
         # We need to make sure that the linkrev in the changegroup refers to
         # the first changeset that introduced the manifest or file revision.
@@ -1156,6 +1358,9 @@ class cgpacker:
         fnodes = {}  # needed file nodes
 
         size = 0
+        mn_debug_info = None
+        if debug_info is not None:
+            mn_debug_info = make_debug_info()
         it = self.generatemanifests(
             commonrevs,
             clrevorder,
@@ -1165,6 +1370,7 @@ class cgpacker:
             source,
             clstate[b'clrevtomanifestrev'],
             sidedata_helpers=sidedata_helpers,
+            debug_info=mn_debug_info,
         )
 
         for tree, deltas in it:
@@ -1185,6 +1391,9 @@ class cgpacker:
             close = closechunk()
             size += len(close)
             yield close
+        if debug_info is not None:
+            merge_debug_info(debug_info, mn_debug_info)
+            debug_info['revision-manifest'] = mn_debug_info['revision-total']
 
         self._verbosenote(_(b'%8.i (manifests)\n') % size)
         yield self._manifestsend
@@ -1199,6 +1408,9 @@ class cgpacker:
         manifests.clear()
         clrevs = {cl.rev(x) for x in clnodes}
 
+        fl_debug_info = None
+        if debug_info is not None:
+            fl_debug_info = make_debug_info()
         it = self.generatefiles(
             changedfiles,
             commonrevs,
@@ -1208,6 +1420,7 @@ class cgpacker:
             fnodes,
             clrevs,
             sidedata_helpers=sidedata_helpers,
+            debug_info=fl_debug_info,
         )
 
         for path, deltas in it:
@@ -1230,12 +1443,29 @@ class cgpacker:
             self._verbosenote(_(b'%8.i  %s\n') % (size, path))
 
         yield closechunk()
+        if debug_info is not None:
+            merge_debug_info(debug_info, fl_debug_info)
+            debug_info['revision-files'] = fl_debug_info['revision-total']
+
+        if debug_info is not None:
+            display_bundling_debug_info(
+                repo.ui,
+                debug_info,
+                cl_debug_info,
+                mn_debug_info,
+                fl_debug_info,
+            )
 
         if clnodes:
             repo.hook(b'outgoing', node=hex(clnodes[0]), source=source)
 
     def _generatechangelog(
-        self, cl, nodes, generate=True, sidedata_helpers=None
+        self,
+        cl,
+        nodes,
+        generate=True,
+        sidedata_helpers=None,
+        debug_info=None,
     ):
         """Generate data for changelog chunks.
 
@@ -1332,6 +1562,7 @@ class cgpacker:
             fullclnodes=self._fullclnodes,
             precomputedellipsis=self._precomputedellipsis,
             sidedata_helpers=sidedata_helpers,
+            debug_info=debug_info,
         )
 
         return state, gen
@@ -1346,6 +1577,7 @@ class cgpacker:
         source,
         clrevtolocalrev,
         sidedata_helpers=None,
+        debug_info=None,
     ):
         """Returns an iterator of changegroup chunks containing manifests.
 
@@ -1444,6 +1676,7 @@ class cgpacker:
                 fullclnodes=self._fullclnodes,
                 precomputedellipsis=self._precomputedellipsis,
                 sidedata_helpers=sidedata_helpers,
+                debug_info=debug_info,
             )
 
             if not self._oldmatcher.visitdir(store.tree[:-1]):
@@ -1483,6 +1716,7 @@ class cgpacker:
         fnodes,
         clrevs,
         sidedata_helpers=None,
+        debug_info=None,
     ):
         changedfiles = [
             f
@@ -1578,6 +1812,7 @@ class cgpacker:
                 fullclnodes=self._fullclnodes,
                 precomputedellipsis=self._precomputedellipsis,
                 sidedata_helpers=sidedata_helpers,
+                debug_info=debug_info,
             )
 
             yield fname, deltas
@@ -1867,7 +2102,12 @@ def _changegroupinfo(repo, nodes, source):
 
 
 def makechangegroup(
-    repo, outgoing, version, source, fastpath=False, bundlecaps=None
+    repo,
+    outgoing,
+    version,
+    source,
+    fastpath=False,
+    bundlecaps=None,
 ):
     cgstream = makestream(
         repo,
@@ -1917,7 +2157,12 @@ def makestream(
 
     repo.hook(b'preoutgoing', throw=True, source=source)
     _changegroupinfo(repo, csets, source)
-    return bundler.generate(commonrevs, csets, fastpathlinkrev, source)
+    return bundler.generate(
+        commonrevs,
+        csets,
+        fastpathlinkrev,
+        source,
+    )
 
 
 def _addchangegroupfiles(

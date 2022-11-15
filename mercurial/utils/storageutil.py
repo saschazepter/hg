@@ -305,6 +305,7 @@ def emitrevisions(
     revisiondata=False,
     assumehaveparentrevisions=False,
     sidedata_helpers=None,
+    debug_info=None,
 ):
     """Generic implementation of ifiledata.emitrevisions().
 
@@ -370,6 +371,10 @@ def emitrevisions(
     ``sidedata_helpers`` (optional)
         If not None, means that sidedata should be included.
         See `revlogutil.sidedata.get_sidedata_helpers`.
+
+    ``debug_info`
+        An optionnal dictionnary to gather information about the bundling
+        process (if present, see config: debug.bundling.stats.
     """
 
     fnode = store.node
@@ -395,23 +400,43 @@ def emitrevisions(
         if rev == nullrev:
             continue
 
+        debug_delta_source = None
+        if debug_info is not None:
+            debug_info['revision-total'] += 1
+
         node = fnode(rev)
         p1rev, p2rev = store.parentrevs(rev)
 
+        if debug_info is not None:
+            if p1rev != p2rev and p1rev != nullrev and p2rev != nullrev:
+                debug_info['merge-total'] += 1
+
         if deltaparentfn:
             deltaparentrev = deltaparentfn(rev)
+            if debug_info is not None:
+                if deltaparentrev == nullrev:
+                    debug_info['available-full'] += 1
+                else:
+                    debug_info['available-delta'] += 1
+
         else:
             deltaparentrev = nullrev
 
         # Forced delta against previous mode.
         if deltamode == repository.CG_DELTAMODE_PREV:
+            if debug_info is not None:
+                debug_delta_source = "prev"
             baserev = prevrev
 
         # We're instructed to send fulltext. Honor that.
         elif deltamode == repository.CG_DELTAMODE_FULL:
+            if debug_info is not None:
+                debug_delta_source = "full"
             baserev = nullrev
         # We're instructed to use p1. Honor that
         elif deltamode == repository.CG_DELTAMODE_P1:
+            if debug_info is not None:
+                debug_delta_source = "p1"
             baserev = p1rev
 
         # There is a delta in storage. We try to use that because it
@@ -421,20 +446,29 @@ def emitrevisions(
             # Base revision was already emitted in this group. We can
             # always safely use the delta.
             if deltaparentrev in available:
+                if debug_info is not None:
+                    debug_delta_source = "storage"
                 baserev = deltaparentrev
 
             # Base revision is a parent that hasn't been emitted already.
             # Use it if we can assume the receiver has the parent revision.
             elif assumehaveparentrevisions and deltaparentrev in (p1rev, p2rev):
+                if debug_info is not None:
+                    debug_delta_source = "storage"
                 baserev = deltaparentrev
-
             # No guarantee the receiver has the delta parent. Send delta
             # against last revision (if possible), which in the common case
             # should be similar enough to this revision that the delta is
             # reasonable.
             elif prevrev is not None:
+                if debug_info is not None:
+                    debug_info['denied-base-not-available'] += 1
+                    debug_delta_source = "prev"
                 baserev = prevrev
             else:
+                if debug_info is not None:
+                    debug_info['denied-base-not-available'] += 1
+                    debug_delta_source = "full"
                 baserev = nullrev
 
         # Storage has a fulltext revision.
@@ -442,13 +476,24 @@ def emitrevisions(
         # Let's use the previous revision, which is as good a guess as any.
         # There is definitely room to improve this logic.
         elif prevrev is not None:
+            if debug_info is not None:
+                debug_delta_source = "prev"
             baserev = prevrev
         else:
+            if debug_info is not None:
+                debug_delta_source = "full"
             baserev = nullrev
 
         # But we can't actually use our chosen delta base for whatever
         # reason. Reset to fulltext.
-        if baserev != nullrev and (candeltafn and not candeltafn(baserev, rev)):
+        if (
+            baserev != nullrev
+            and candeltafn is not None
+            and not candeltafn(baserev, rev)
+        ):
+            if debug_info is not None:
+                debug_delta_source = "full"
+                debug_info['denied-delta-candeltafn'] += 1
             baserev = nullrev
 
         revision = None
@@ -460,6 +505,9 @@ def emitrevisions(
                 try:
                     revision = store.rawdata(node)
                 except error.CensoredNodeError as e:
+                    if debug_info is not None:
+                        debug_delta_source = "full"
+                        debug_info['denied-delta-not-available'] += 1
                     revision = e.tombstone
 
                 if baserev != nullrev:
@@ -471,12 +519,46 @@ def emitrevisions(
             elif (
                 baserev == nullrev and deltamode != repository.CG_DELTAMODE_PREV
             ):
+                if debug_info is not None:
+                    debug_info['computed-delta'] += 1  # close enough
+                    debug_info['delta-full'] += 1
                 revision = store.rawdata(node)
                 available.add(rev)
             else:
                 if revdifffn:
+                    if debug_info is not None:
+                        if debug_delta_source == "full":
+                            debug_info['computed-delta'] += 1
+                            debug_info['delta-full'] += 1
+                        elif debug_delta_source == "prev":
+                            debug_info['computed-delta'] += 1
+                            debug_info['delta-against-prev'] += 1
+                        elif debug_delta_source == "p1":
+                            debug_info['computed-delta'] += 1
+                            debug_info['delta-against-p1'] += 1
+                        elif debug_delta_source == "storage":
+                            debug_info['reused-storage-delta'] += 1
+                        else:
+                            assert False, 'unreachable'
+
                     delta = revdifffn(baserev, rev)
                 else:
+                    if debug_info is not None:
+                        if debug_delta_source == "full":
+                            debug_info['computed-delta'] += 1
+                            debug_info['delta-full'] += 1
+                        elif debug_delta_source == "prev":
+                            debug_info['computed-delta'] += 1
+                            debug_info['delta-against-prev'] += 1
+                        elif debug_delta_source == "p1":
+                            debug_info['computed-delta'] += 1
+                            debug_info['delta-against-p1'] += 1
+                        elif debug_delta_source == "storage":
+                            # seem quite unlikelry to happens
+                            debug_info['computed-delta'] += 1
+                            debug_info['reused-storage-delta'] += 1
+                        else:
+                            assert False, 'unreachable'
                     delta = mdiff.textdiff(
                         store.rawdata(baserev), store.rawdata(rev)
                     )

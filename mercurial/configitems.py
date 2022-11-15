@@ -588,6 +588,12 @@ coreconfigitem(
     b'revlog.debug-delta',
     default=False,
 )
+# display extra information about the bundling process
+coreconfigitem(
+    b'debug',
+    b'bundling-stats',
+    default=False,
+)
 coreconfigitem(
     b'defaults',
     b'.*',
