@@ -111,6 +111,7 @@ class filelog:
         assumehaveparentrevisions=False,
         deltamode=repository.CG_DELTAMODE_STD,
         sidedata_helpers=None,
+        debug_info=None,
     ):
         return self._revlog.emitrevisions(
             nodes,
@@ -119,6 +120,7 @@ class filelog:
             assumehaveparentrevisions=assumehaveparentrevisions,
             deltamode=deltamode,
             sidedata_helpers=sidedata_helpers,
+            debug_info=debug_info,
         )
 
     def addrevision(
