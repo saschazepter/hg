@@ -205,7 +205,14 @@ fn _build_single_regex(entry: &IgnorePattern) -> Vec<u8> {
                         &b"(?"[..],
                         &pattern[s + 2..e - 1],
                         &b":"[..],
-                        &b".*"[..],
+                        if pattern[e] == b'^'
+                            || pattern[e] == b'*'
+                            || pattern[e..].starts_with(b".*")
+                        {
+                            &b""[..]
+                        } else {
+                            &b".*"[..]
+                        },
                         &pattern[e..],
                         &b")"[..],
                     ]
@@ -751,6 +758,15 @@ mod tests {
             ))
             .unwrap(),
             Some(b"(?ia:.*ba{2}r)".to_vec()),
+        );
+        assert_eq!(
+            build_single_regex(&IgnorePattern::new(
+                PatternSyntax::RelRegexp,
+                b"(?ia)^ba{2}r",
+                Path::new("")
+            ))
+            .unwrap(),
+            Some(b"(?ia:^ba{2}r)".to_vec()),
         );
     }
 }

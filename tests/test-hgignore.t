@@ -74,6 +74,8 @@ regexp with flag is the first one
   A dir/b.o
   ? a.c
   ? syntax
+  $ hg debugignore
+  <includematcher includes='(?i:.*\\.O$)|.*.hgignore'>
 
 regex with flag is not the first one
 
@@ -83,6 +85,8 @@ regex with flag is not the first one
   A dir/b.o
   ? a.c
   ? syntax
+  $ hg debugignore
+  <includematcher includes='.*.hgignore|(?i:.*\\.O$)'>
 
 flag in a pattern should affect that pattern only
 
@@ -93,6 +97,8 @@ flag in a pattern should affect that pattern only
   ? .hgignore
   ? a.c
   ? syntax
+  $ hg debugignore
+  <includematcher includes='(?i:.*\\.O$)|.*.HGIGNORE'>
 
   $ echo 're:.HGIGNORE' > .hgignore
   $ echo 're:(?i)\.O$' >> .hgignore
@@ -101,6 +107,32 @@ flag in a pattern should affect that pattern only
   ? .hgignore
   ? a.c
   ? syntax
+  $ hg debugignore
+  <includematcher includes='.*.HGIGNORE|(?i:.*\\.O$)'>
+
+Check that '^' after flag is properly detected.
+
+  $ echo 're:(?i)^[^a].*\.O$' > .hgignore
+  $ echo 're:.HGIGNORE' >> .hgignore
+  $ hg status
+  A dir/b.o
+  ? .hgignore
+  ? a.c
+  ? a.o
+  ? syntax
+  $ hg debugignore
+  <includematcher includes='(?i:^[^a].*\\.O$)|.*.HGIGNORE'>
+
+  $ echo 're:.HGIGNORE' > .hgignore
+  $ echo 're:(?i)^[^a].*\.O$' >> .hgignore
+  $ hg status
+  A dir/b.o
+  ? .hgignore
+  ? a.c
+  ? a.o
+  ? syntax
+  $ hg debugignore
+  <includematcher includes='.*.HGIGNORE|(?i:^[^a].*\\.O$)'>
 
 
 further testing
