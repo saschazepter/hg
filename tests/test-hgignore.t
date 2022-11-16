@@ -90,8 +90,7 @@ flag in a pattern should affect that pattern only
   $ echo 're:.HGIGNORE' >> .hgignore
   $ hg status
   A dir/b.o
-  ? .hgignore (no-rust !)
-  ? .hgignore (rust missing-correct-output !)
+  ? .hgignore
   ? a.c
   ? syntax
 

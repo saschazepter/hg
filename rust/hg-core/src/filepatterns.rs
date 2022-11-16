@@ -171,6 +171,10 @@ pub fn parse_pattern_syntax(
     }
 }
 
+lazy_static! {
+    static ref FLAG_RE: Regex = Regex::new(r"^\(\?[aiLmsux]+\)").unwrap();
+}
+
 /// Builds the regex that corresponds to the given pattern.
 /// If within a `syntax: regexp` context, returns the pattern,
 /// otherwise, returns the corresponding regex.
@@ -193,7 +197,22 @@ fn _build_single_regex(entry: &IgnorePattern) -> Vec<u8> {
             {
                 return pattern.to_owned();
             }
-            [&b".*"[..], pattern].concat()
+            match FLAG_RE.find(pattern) {
+                Some(mat) => {
+                    let s = mat.start();
+                    let e = mat.end();
+                    [
+                        &b"(?"[..],
+                        &pattern[s + 2..e - 1],
+                        &b":"[..],
+                        &b".*"[..],
+                        &pattern[e..],
+                        &b")"[..],
+                    ]
+                    .concat()
+                }
+                None => [&b".*"[..], pattern].concat(),
+            }
         }
         PatternSyntax::Path | PatternSyntax::RelPath => {
             if pattern == b"." {
@@ -701,6 +720,37 @@ mod tests {
             ))
             .unwrap(),
             Some(br"[^/]*\.o(?:/|$)".to_vec()),
+        );
+    }
+
+    #[test]
+    fn test_build_single_relregex() {
+        assert_eq!(
+            build_single_regex(&IgnorePattern::new(
+                PatternSyntax::RelRegexp,
+                b"^ba{2}r",
+                Path::new("")
+            ))
+            .unwrap(),
+            Some(b"^ba{2}r".to_vec()),
+        );
+        assert_eq!(
+            build_single_regex(&IgnorePattern::new(
+                PatternSyntax::RelRegexp,
+                b"ba{2}r",
+                Path::new("")
+            ))
+            .unwrap(),
+            Some(b".*ba{2}r".to_vec()),
+        );
+        assert_eq!(
+            build_single_regex(&IgnorePattern::new(
+                PatternSyntax::RelRegexp,
+                b"(?ia)ba{2}r",
+                Path::new("")
+            ))
+            .unwrap(),
+            Some(b"(?ia:.*ba{2}r)".to_vec()),
         );
     }
 }
