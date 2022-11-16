@@ -63,6 +63,50 @@ Should display baz only:
   abort: $TESTTMP/ignorerepo/.hgignore: invalid pattern (relre): *.o (glob)
   [255]
 
+Test relre with flags (issue6759)
+---------------------------------
+
+regexp with flag is the first one
+
+  $ echo 're:(?i)\.O$' > .hgignore
+  $ echo 're:.hgignore' >> .hgignore
+  $ hg status
+  A dir/b.o
+  ? a.c
+  ? syntax
+
+regex with flag is not the first one
+
+  $ echo 're:.hgignore' > .hgignore
+  $ echo 're:(?i)\.O$' >> .hgignore
+  $ hg status
+  A dir/b.o
+  ? a.c
+  ? syntax
+
+flag in a pattern should affect that pattern only
+
+  $ echo 're:(?i)\.O$' > .hgignore
+  $ echo 're:.HGIGNORE' >> .hgignore
+  $ hg status
+  A dir/b.o
+  ? .hgignore (no-rust !)
+  ? .hgignore (rust missing-correct-output !)
+  ? a.c
+  ? syntax
+
+  $ echo 're:.HGIGNORE' > .hgignore
+  $ echo 're:(?i)\.O$' >> .hgignore
+  $ hg status
+  A dir/b.o
+  ? .hgignore
+  ? a.c
+  ? syntax
+
+
+further testing
+---------------
+
   $ echo 're:^(?!a).*\.o$' > .hgignore
   $ hg status
   A dir/b.o
