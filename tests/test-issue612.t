@@ -1,6 +1,7 @@
 https://bz.mercurial-scm.org/612
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ mkdir src
   $ echo a > src/a.c
   $ hg ci -Ama

@@ -1,4 +1,5 @@
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ echo This is file a1 > a
   $ hg add a
   $ hg commit -m "commit #0"

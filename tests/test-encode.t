@@ -1,6 +1,7 @@
 Test encode/decode filters
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ cat > .hg/hgrc <<EOF
   > [encode]
   > not.gz = tr [:lower:] [:upper:]

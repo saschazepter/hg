@@ -1,4 +1,5 @@
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
   $ echo "added file1" > file1
   $ echo "another line of text" >> file1

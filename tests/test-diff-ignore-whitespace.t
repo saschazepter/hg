@@ -5,7 +5,8 @@ Prepare tests:
   $ echo '[alias]' >> $HGRCPATH
   $ echo 'ndiff = diff --nodates' >> $HGRCPATH
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ printf 'hello world\ngoodbye world\n' >foo
   $ hg ci -Amfoo -ufoo
   adding foo

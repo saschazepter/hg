@@ -1,6 +1,7 @@
 Test issue2761
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
   $ touch to-be-deleted
   $ hg add

@@ -3,7 +3,8 @@
   $ echo "[extensions]" >> $HGRCPATH
   $ echo "mq=" >> $HGRCPATH
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ hg qinit
   $ hg qnew base.patch
   $ echo aaa > a

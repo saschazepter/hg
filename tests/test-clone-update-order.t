@@ -1,4 +1,5 @@
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ echo foo > bar
   $ hg commit -Am default
   adding bar
