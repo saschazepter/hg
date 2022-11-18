@@ -1,4 +1,5 @@
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ cat << EOF > a
   > Small Mathematical Series.
   > One
