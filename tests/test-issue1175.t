@@ -1,6 +1,7 @@
 https://bz.mercurial-scm.org/1175
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ touch a
   $ hg ci -Am0
   adding a

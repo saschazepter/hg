@@ -3,7 +3,8 @@ Issue351: mq: qrefresh can create extra revlog entry
   $ echo "[extensions]" >> $HGRCPATH
   $ echo "mq=" >> $HGRCPATH
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ hg qinit
 
   $ echo b > b

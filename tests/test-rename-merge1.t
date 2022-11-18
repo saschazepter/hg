@@ -1,4 +1,5 @@
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
   $ echo "[merge]" >> .hg/hgrc
   $ echo "followcopies = 1" >> .hg/hgrc

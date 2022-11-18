@@ -6,7 +6,8 @@ https://bz.mercurial-scm.org/672
 #
 # rename in #1, content change in #4.
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
   $ touch 1
   $ touch 2

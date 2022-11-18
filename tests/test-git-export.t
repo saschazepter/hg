@@ -1,4 +1,5 @@
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ echo start > start
   $ hg ci -Amstart
   adding start
@@ -46,7 +47,7 @@ Copy:
 Cross and same-directory copies with a relative root:
 
   $ hg diff --git --root .. -r 1:tip
-  abort: .. not under root '$TESTTMP'
+  abort: .. not under root '$TESTTMP/repo'
   [255]
   $ hg diff --git --root doesnotexist -r 1:tip
   $ hg diff --git --root . -r 1:tip
@@ -121,7 +122,7 @@ Cross and same-directory copies with a relative root:
   +copy2
 
   $ hg diff --git --root ../.. -r 1:tip
-  abort: ../.. not under root '$TESTTMP'
+  abort: ../.. not under root '$TESTTMP/repo'
   [255]
   $ hg diff --git --root ../doesnotexist -r 1:tip
   $ hg diff --git --root .. -r 1:tip

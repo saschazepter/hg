@@ -1,5 +1,5 @@
-  $ hg init
-
+  $ hg init repo
+  $ cd repo
 
 committing changes
 
@@ -460,7 +460,7 @@ assuming that the shell returns 127 if command not found ...
 
 test bisecting command
 
-  $ cat > script.py <<EOF
+  $ cat > "$TESTTMP/script.py" <<EOF
   > #!$PYTHON
   > import sys
   > from mercurial import hg, ui as uimod
@@ -468,7 +468,7 @@ test bisecting command
   > if repo[b'.'].rev() < 6:
   >     sys.exit(1)
   > EOF
-  $ chmod +x script.py
+  $ chmod +x "$TESTTMP/script.py"
   $ hg bisect -r
   $ hg up -qr tip
   $ hg bisect --command "\"$PYTHON\" \"$TESTTMP/script.py\" and some parameters"
@@ -497,7 +497,7 @@ command
 
   $ hg update null
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
-  $ cat > script.sh <<'EOF'
+  $ cat > "$TESTTMP/script.sh" <<'EOF'
   > #!/bin/sh
   > test -n "$HG_NODE" || (echo HG_NODE missing; exit 127)
   > current="`hg log -r \"bisect(current)\" --template {node}`"
@@ -505,7 +505,7 @@ command
   > rev="`hg log -r $HG_NODE --template {rev}`"
   > test "$rev" -ge 6
   > EOF
-  $ chmod +x script.sh
+  $ chmod +x "$TESTTMP/script.sh"
   $ hg bisect -r
   $ hg bisect --good tip --noupdate
   $ hg bisect --bad 0 --noupdate
@@ -530,7 +530,7 @@ ensure that we still don't have a working dir
 
 test the same case, this time with updating
 
-  $ cat > script.sh <<'EOF'
+  $ cat > "$TESTTMP/script.sh" <<'EOF'
   > #!/bin/sh
   > test -n "$HG_NODE" || (echo HG_NODE missing; exit 127)
   > current="`hg log -r \"bisect(current)\" --template {node}`"
@@ -538,7 +538,7 @@ test the same case, this time with updating
   > rev="`hg log -r . --template {rev}`"
   > test "$rev" -ge 6
   > EOF
-  $ chmod +x script.sh
+  $ chmod +x "$TESTTMP/script.sh"
   $ hg bisect -r
   $ hg up -qr tip
   $ hg bisect --command "sh \"$TESTTMP/script.sh\" and some params"

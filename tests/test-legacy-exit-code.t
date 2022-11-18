@@ -6,7 +6,8 @@ enabled.
   > detailed-exit-code=no
   > EOF
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ echo a > a
 Expect exit code 0 on success
   $ hg ci -Aqm initial
