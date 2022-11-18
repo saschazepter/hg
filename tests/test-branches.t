@@ -293,23 +293,9 @@ verify update will accept invalid legacy branch names
   $ hg commit -d '9 0' --close-branch -m 're-closing this branch' b
 
   $ echo baz > b
-  $ hg log -r .
-  changeset:   14:acc63dd7207f
-  branch:      b
-  tag:         tip
-  user:        test
-  date:        Thu Jan 01 00:00:09 1970 +0000
-  summary:     re-closing this branch
-  
   $ hg commit -d '9 0' --close-branch -m 'empty re-closing this branch' -X b
-  $ hg log -r .
-  changeset:   15:3c41ebd8ea8b
-  branch:      b
-  tag:         tip
-  user:        test
-  date:        Thu Jan 01 00:00:09 1970 +0000
-  summary:     empty re-closing this branch
-  
+  abort: current revision is already a branch closing head
+  [10]
   $ hg revert b
 
   $ hg debugstrip --rev 13: --no-backup
