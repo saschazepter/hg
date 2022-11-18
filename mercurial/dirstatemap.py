@@ -114,6 +114,8 @@ class _dirstatemapcommon:
         new_docket = docketmod.DirstateDocket.with_new_uuid(
             self.parents(), len(packed), meta
         )
+        if old_docket.uuid == new_docket.uuid:
+            raise error.ProgrammingError(b'dirstate docket name collision')
         data_filename = new_docket.data_filename()
         self._opener.write(data_filename, packed)
         # Write the new docket after the new data file has been
