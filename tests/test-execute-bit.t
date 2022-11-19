@@ -1,6 +1,7 @@
 #require execbit
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ echo a > a
   $ hg ci -Am'not executable'
   adding a

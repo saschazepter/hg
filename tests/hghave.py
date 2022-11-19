@@ -1077,8 +1077,8 @@ def has_repofncache():
 @check('dirstate-v2', 'using the v2 format of .hg/dirstate')
 def has_dirstate_v2():
     # Keep this logic in sync with `newreporequirements()` in `mercurial/localrepo.py`
-    return has_rust() and matchoutput(
-        'hg config format.exp-rc-dirstate-v2', b'(?i)1|yes|true|on|always'
+    return matchoutput(
+        'hg config format.use-dirstate-v2', b'(?i)1|yes|true|on|always'
     )
 
 

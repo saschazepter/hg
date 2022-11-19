@@ -1,3 +1,15 @@
+= Mercurial 6.3.1 =
+
+ * memory-usage: fix `hg log --follow --rev R F` space complexity (dcb2581e33be)
+ * Improve portability and robustness of test harness
+ * hg-core: relax dependencies pinning
+ * matcher: fix issues regex flag contained in pattern (issue6759)
+ * matcher: do not prepend '.*' to pattern using ^ after flags
+ * packaging: refresh dependency hashes (issue6750)
+ * cffi: fix a bytes vs str issue on macOS when listing directories
+ * commit: properly consider file include and exclude options when closing branch
+ * dirstate-v2: do not put the dirstate data file in a transaction
+
 = Mercurial 6.3 =
 
 == New Features ==

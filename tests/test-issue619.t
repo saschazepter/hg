@@ -1,6 +1,7 @@
 https://bz.mercurial-scm.org/619
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ echo a > a
   $ hg ci -Ama
   adding a
