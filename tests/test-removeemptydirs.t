@@ -134,7 +134,8 @@ Windows is not affected
   $ hg $DO_RM --config extensions.histedit= histedit -q --commands ../histedit_commands
   current directory was removed (no-windows !)
   (consider changing to repo root: $TESTTMP/hghistedit) (no-windows !)
-  $ ls -1 $TESTTMP/hghistedit/
+  $ ls -A $TESTTMP/hghistedit/
+  .hg
   histedit_commands
   r0
   r1
@@ -143,16 +144,20 @@ Windows is not affected
 #if windows
   $ "$PYTHON" "$TESTTMP/pwd.py"
   $TESTTMP/hghistedit/somedir
+  $ ls -A $TESTTMP/hghistedit/somedir
+  foo
+  $ ls -A
+  foo
 #else
   $ echo ${PWD} # no-pwd-check
   $TESTTMP/hghistedit/somedir
   $ "$PYTHON" "$TESTTMP/pwd.py"
   <directory is no longer accessible>
-#endif
-  $ ls -1 $TESTTMP/hghistedit/somedir
+  $ ls -A $TESTTMP/hghistedit/somedir
   foo
-  $ ls -1
-  foo (windows !)
+  $ ls -A || true
+  ls: .: $ENOENT$ (?)
+#endif
 
 Get out of the doomed directory
 

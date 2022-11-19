@@ -1,4 +1,5 @@
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ echo foo > a
   $ hg add a
   $ hg commit -m "1"

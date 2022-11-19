@@ -8,7 +8,8 @@
   > EOF
 #endif
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
   $ cat > a.c <<'EOF'
   > /*

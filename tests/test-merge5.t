@@ -1,4 +1,5 @@
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ echo This is file a1 > a
   $ echo This is file b1 > b
   $ hg add a b

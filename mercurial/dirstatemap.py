@@ -612,8 +612,6 @@ if rustmod is not None:
             if append:
                 docket = self.docket
                 data_filename = docket.data_filename()
-                if tr:
-                    tr.add(data_filename, docket.data_size)
                 with self._opener(data_filename, b'r+b') as fp:
                     fp.seek(docket.data_size)
                     assert fp.tell() == docket.data_size

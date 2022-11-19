@@ -1323,6 +1323,9 @@ def _globre(pat):
     return res
 
 
+FLAG_RE = util.re.compile(b'^\(\?([aiLmsux]+)\)(.*)')
+
+
 def _regex(kind, pat, globsuffix):
     """Convert a (normalized) pattern of any kind into a
     regular expression.
@@ -1351,9 +1354,15 @@ def _regex(kind, pat, globsuffix):
             return b'.*' + globre[len(b'[^/]*') :] + globsuffix
         return b'(?:|.*/)' + globre + globsuffix
     if kind == b'relre':
-        if pat.startswith(b'^'):
-            return pat
-        return b'.*' + pat
+        flag = None
+        m = FLAG_RE.match(pat)
+        if m:
+            flag, pat = m.groups()
+        if not pat.startswith(b'^'):
+            pat = b'.*' + pat
+        if flag is not None:
+            pat = br'(?%s:%s)' % (flag, pat)
+        return pat
     if kind in (b'glob', b'rootglob'):
         return _globre(pat) + globsuffix
     raise error.ProgrammingError(b'not a regex pattern: %s:%s' % (kind, pat))

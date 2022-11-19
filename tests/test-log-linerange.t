@@ -3,7 +3,8 @@
   > git = true
   > EOF
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ cat > foo << EOF
   > 0
   > 1

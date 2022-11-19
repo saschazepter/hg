@@ -982,11 +982,11 @@ Changing the hgignore rules makes us recompute the status (and rewrite the dirst
   $ mkdir another-subdir
   $ touch another-subdir/something-else
 
-  $ cat > "$TESTDIR"/extra-hgignore <<EOF
+  $ cat > "$TESTTMP"/extra-hgignore <<EOF
   > something-else
   > EOF
 
-  $ hg status --config ui.ignore.global="$TESTDIR"/extra-hgignore
+  $ hg status --config ui.ignore.global="$TESTTMP"/extra-hgignore
   $ hg debugdirstate --all --no-dates | grep '^ '
       0         -1 set                 subdir
 

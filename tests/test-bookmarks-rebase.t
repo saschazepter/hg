@@ -3,7 +3,8 @@
 
 initialize repository
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
   $ echo 'a' > a
   $ hg ci -A -m "0"
@@ -38,7 +39,7 @@ rebase
 
   $ hg rebase -s two -d one
   rebasing 3:2ae46b1d99a7 two tip "3"
-  saved backup bundle to $TESTTMP/.hg/strip-backup/2ae46b1d99a7-e6b057bc-rebase.hg
+  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/2ae46b1d99a7-e6b057bc-rebase.hg
 
   $ hg log
   changeset:   3:42e5ed2cdcf4
