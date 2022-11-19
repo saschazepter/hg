@@ -63,6 +63,81 @@ Should display baz only:
   abort: $TESTTMP/ignorerepo/.hgignore: invalid pattern (relre): *.o (glob)
   [255]
 
+Test relre with flags (issue6759)
+---------------------------------
+
+regexp with flag is the first one
+
+  $ echo 're:(?i)\.O$' > .hgignore
+  $ echo 're:.hgignore' >> .hgignore
+  $ hg status
+  A dir/b.o
+  ? a.c
+  ? syntax
+  $ hg debugignore
+  <includematcher includes='(?i:.*\\.O$)|.*.hgignore'>
+
+regex with flag is not the first one
+
+  $ echo 're:.hgignore' > .hgignore
+  $ echo 're:(?i)\.O$' >> .hgignore
+  $ hg status
+  A dir/b.o
+  ? a.c
+  ? syntax
+  $ hg debugignore
+  <includematcher includes='.*.hgignore|(?i:.*\\.O$)'>
+
+flag in a pattern should affect that pattern only
+
+  $ echo 're:(?i)\.O$' > .hgignore
+  $ echo 're:.HGIGNORE' >> .hgignore
+  $ hg status
+  A dir/b.o
+  ? .hgignore
+  ? a.c
+  ? syntax
+  $ hg debugignore
+  <includematcher includes='(?i:.*\\.O$)|.*.HGIGNORE'>
+
+  $ echo 're:.HGIGNORE' > .hgignore
+  $ echo 're:(?i)\.O$' >> .hgignore
+  $ hg status
+  A dir/b.o
+  ? .hgignore
+  ? a.c
+  ? syntax
+  $ hg debugignore
+  <includematcher includes='.*.HGIGNORE|(?i:.*\\.O$)'>
+
+Check that '^' after flag is properly detected.
+
+  $ echo 're:(?i)^[^a].*\.O$' > .hgignore
+  $ echo 're:.HGIGNORE' >> .hgignore
+  $ hg status
+  A dir/b.o
+  ? .hgignore
+  ? a.c
+  ? a.o
+  ? syntax
+  $ hg debugignore
+  <includematcher includes='(?i:^[^a].*\\.O$)|.*.HGIGNORE'>
+
+  $ echo 're:.HGIGNORE' > .hgignore
+  $ echo 're:(?i)^[^a].*\.O$' >> .hgignore
+  $ hg status
+  A dir/b.o
+  ? .hgignore
+  ? a.c
+  ? a.o
+  ? syntax
+  $ hg debugignore
+  <includematcher includes='.*.HGIGNORE|(?i:^[^a].*\\.O$)'>
+
+
+further testing
+---------------
+
   $ echo 're:^(?!a).*\.o$' > .hgignore
   $ hg status
   A dir/b.o

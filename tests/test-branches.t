@@ -292,6 +292,12 @@ verify update will accept invalid legacy branch names
   [10]
   $ hg commit -d '9 0' --close-branch -m 're-closing this branch' b
 
+  $ echo baz > b
+  $ hg commit -d '9 0' --close-branch -m 'empty re-closing this branch' -X b
+  abort: current revision is already a branch closing head
+  [10]
+  $ hg revert b
+
   $ hg debugstrip --rev 13: --no-backup
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg revert --all --no-backup
