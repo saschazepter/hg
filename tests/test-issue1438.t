@@ -2,7 +2,8 @@
 
 https://bz.mercurial-scm.org/1438
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
   $ ln -s foo link
   $ hg add link

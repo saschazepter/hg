@@ -2114,7 +2114,9 @@ def _docommit(ui, repo, *pats, **opts):
         if repo[b'.'].closesbranch():
             # Not ideal, but let us do an extra status early to prevent early
             # bail out.
-            matcher = scmutil.match(repo[None], pats, opts)
+            matcher = scmutil.match(
+                repo[None], pats, pycompat.byteskwargs(opts)
+            )
             s = repo.status(match=matcher)
             if s.modified or s.added or s.removed:
                 bheads = repo.branchheads(branch, closed=True)

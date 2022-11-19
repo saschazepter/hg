@@ -1,7 +1,8 @@
   $ echo "[extensions]" >> $HGRCPATH
   $ echo "mq=" >> $HGRCPATH
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
   $ echo 'base' > base
   $ hg ci -Ambase

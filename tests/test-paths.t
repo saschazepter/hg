@@ -238,11 +238,6 @@ Testing path referencing other paths
 basic setup
 -----------
 
-  $ ls -1
-  a
-  b
-  gpath1
-  suboptions
   $ hg init chained_path
   $ cd chained_path
   $ cat << EOF > .hg/hgrc

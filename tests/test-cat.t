@@ -1,4 +1,5 @@
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ echo 0 > a
   $ echo 0 > b
   $ hg ci -A -m m

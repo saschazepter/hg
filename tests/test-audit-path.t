@@ -2,7 +2,8 @@ The simple store doesn't escape paths robustly and can't store paths
 with periods, etc. So much of this test fails with it.
 #require no-reposimplestore
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
 audit of .hg
 
