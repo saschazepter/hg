@@ -817,17 +817,26 @@ def _makematcher(repo, revs, wopts):
             # There may be the case that a path doesn't exist in some (but
             # not all) of the specified start revisions, but let's consider
             # the path is valid. Missing files will be warned by the matcher.
-            startctxs = [repo[r] for r in revs]
-            for f in match.files():
-                found = False
-                for c in startctxs:
-                    if f in c:
-                        found = True
-                    elif c.hasdir(f):
+            all_files = list(match.files())
+            missing_files = set(all_files)
+            files = all_files
+            for r in revs:
+                if not files:
+                    # We don't have any file to check anymore.
+                    break
+                ctx = repo[r]
+                for f in files:
+                    if f in ctx:
+                        missing_files.discard(f)
+                    elif ctx.hasdir(f):
                         # If a directory exists in any of the start revisions,
                         # take the slow path.
-                        found = slowpath = True
-                if not found:
+                        missing_files.discard(f)
+                        slowpath = True
+                        # we found on slow path, no need to search for more.
+                        files = missing_files
+            for f in all_files:
+                if f in missing_files:
                     raise error.StateError(
                         _(
                             b'cannot follow file not in any of the specified '
