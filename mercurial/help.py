@@ -864,7 +864,7 @@ def help_(
             if missing_order:
                 ui.develwarn(
                     b'help categories missing from CATEGORY_ORDER: %s'
-                    % missing_order
+                    % stringutil.forcebytestr(missing_order)
                 )
 
             # List per category.
@@ -897,7 +897,7 @@ def help_(
             if missing_order:
                 ui.develwarn(
                     b'help categories missing from TOPIC_CATEGORY_ORDER: %s'
-                    % missing_order
+                    % stringutil.forcebytestr(missing_order)
                 )
 
             # Output topics per category.
