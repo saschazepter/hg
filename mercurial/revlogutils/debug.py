@@ -288,6 +288,8 @@ def debug_revlog(ui, revlog):
     if not flags:
         flags = [b'(none)']
 
+    ### the total size of stored content if incompressed.
+    full_text_total_size = 0
     ### tracks merge vs single parent
     nummerges = 0
 
@@ -347,7 +349,9 @@ def debug_revlog(ui, revlog):
         p1, p2 = r.parentrevs(rev)
         delta = r.deltaparent(rev)
         if format > 0:
-            addsize(r.rawsize(rev), datasize)
+            s = r.rawsize(rev)
+            full_text_total_size += s
+            addsize(s, datasize)
         if p2 != nodemod.nullrev:
             nummerges += 1
         size = r.length(rev)
@@ -535,6 +539,18 @@ def debug_revlog(ui, revlog):
         ui.write(fmtchunktype(chunktype))
         ui.write(fmt % pcfmt(chunktypesizes[chunktype], totalsize))
 
+    ui.write(b'\n')
+    b_total = b"%d" % full_text_total_size
+    p_total = []
+    while len(b_total) > 3:
+        p_total.append(b_total[-3:])
+        b_total = b_total[:-3]
+    p_total.append(b_total)
+    p_total.reverse()
+    b_total = b' '.join(p_total)
+
+    ui.write(b'\n')
+    ui.writenoi18n(b'total-stored-content: %s bytes\n' % b_total)
     ui.write(b'\n')
     fmt = dfmtstr(max(avgchainlen, maxchainlen, maxchainspan, compratio))
     ui.writenoi18n(b'avg chain length  : ' + fmt % avgchainlen)
