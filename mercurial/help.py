@@ -10,6 +10,18 @@ import itertools
 import re
 import textwrap
 
+from typing import (
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    cast,
+)
+
 from .i18n import (
     _,
     gettext,
@@ -40,7 +52,16 @@ from .utils import (
     stringutil,
 )
 
-_exclkeywords = {
+_DocLoader = Callable[[uimod.ui], bytes]
+# Old extensions may not register with a category
+_HelpEntry = Union["_HelpEntryNoCategory", "_HelpEntryWithCategory"]
+_HelpEntryNoCategory = Tuple[List[bytes], bytes, _DocLoader]
+_HelpEntryWithCategory = Tuple[List[bytes], bytes, _DocLoader, bytes]
+_SelectFn = Callable[[object], bool]
+_SynonymTable = Dict[bytes, List[bytes]]
+_TopicHook = Callable[[uimod.ui, bytes, bytes], bytes]
+
+_exclkeywords: Set[bytes] = {
     b"(ADVANCED)",
     b"(DEPRECATED)",
     b"(EXPERIMENTAL)",
@@ -56,7 +77,7 @@ _exclkeywords = {
 # Extensions with custom categories should insert them into this list
 # after/before the appropriate item, rather than replacing the list or
 # assuming absolute positions.
-CATEGORY_ORDER = [
+CATEGORY_ORDER: List[bytes] = [
     registrar.command.CATEGORY_REPO_CREATION,
     registrar.command.CATEGORY_REMOTE_REPO_MANAGEMENT,
     registrar.command.CATEGORY_COMMITTING,
@@ -74,7 +95,7 @@ CATEGORY_ORDER = [
 
 # Human-readable category names. These are translated.
 # Extensions with custom categories should add their names here.
-CATEGORY_NAMES = {
+CATEGORY_NAMES: Dict[bytes, bytes] = {
     registrar.command.CATEGORY_REPO_CREATION: b'Repository creation',
     registrar.command.CATEGORY_REMOTE_REPO_MANAGEMENT: b'Remote repository management',
     registrar.command.CATEGORY_COMMITTING: b'Change creation',
@@ -102,7 +123,7 @@ TOPIC_CATEGORY_NONE = b'none'
 # Extensions with custom categories should insert them into this list
 # after/before the appropriate item, rather than replacing the list or
 # assuming absolute positions.
-TOPIC_CATEGORY_ORDER = [
+TOPIC_CATEGORY_ORDER: List[bytes] = [
     TOPIC_CATEGORY_IDS,
     TOPIC_CATEGORY_OUTPUT,
     TOPIC_CATEGORY_CONFIG,
@@ -112,7 +133,7 @@ TOPIC_CATEGORY_ORDER = [
 ]
 
 # Human-readable topic category names. These are translated.
-TOPIC_CATEGORY_NAMES = {
+TOPIC_CATEGORY_NAMES: Dict[bytes, bytes] = {
     TOPIC_CATEGORY_IDS: b'Mercurial identifiers',
     TOPIC_CATEGORY_OUTPUT: b'Mercurial output',
     TOPIC_CATEGORY_CONFIG: b'Mercurial configuration',
@@ -122,7 +143,12 @@ TOPIC_CATEGORY_NAMES = {
 }
 
 
-def listexts(header, exts, indent=1, showdeprecated=False):
+def listexts(
+    header: bytes,
+    exts: Dict[bytes, bytes],
+    indent: int = 1,
+    showdeprecated: bool = False,
+) -> List[bytes]:
     '''return a text listing of the given extensions'''
     rst = []
     if exts:
@@ -135,7 +161,7 @@ def listexts(header, exts, indent=1, showdeprecated=False):
     return rst
 
 
-def extshelp(ui):
+def extshelp(ui: uimod.ui) -> bytes:
     rst = loaddoc(b'extensions')(ui).splitlines(True)
     rst.extend(
         listexts(
@@ -153,7 +179,7 @@ def extshelp(ui):
     return doc
 
 
-def parsedefaultmarker(text):
+def parsedefaultmarker(text: bytes) -> Optional[Tuple[bytes, List[bytes]]]:
     """given a text 'abc (DEFAULT: def.ghi)',
     returns (b'abc', (b'def', b'ghi')). Otherwise return None"""
     if text[-1:] == b')':
@@ -164,7 +190,7 @@ def parsedefaultmarker(text):
             return text[:pos], item.split(b'.', 2)
 
 
-def optrst(header, options, verbose, ui):
+def optrst(header: bytes, options, verbose: bool, ui: uimod.ui) -> bytes:
     data = []
     multioccur = False
     for option in options:
@@ -220,13 +246,15 @@ def optrst(header, options, verbose, ui):
     return b''.join(rst)
 
 
-def indicateomitted(rst, omitted, notomitted=None):
+def indicateomitted(
+    rst: List[bytes], omitted: bytes, notomitted: Optional[bytes] = None
+) -> None:
     rst.append(b'\n\n.. container:: omitted\n\n    %s\n\n' % omitted)
     if notomitted:
         rst.append(b'\n\n.. container:: notomitted\n\n    %s\n\n' % notomitted)
 
 
-def filtercmd(ui, cmd, func, kw, doc):
+def filtercmd(ui: uimod.ui, cmd: bytes, func, kw: bytes, doc: bytes) -> bool:
     if not ui.debugflag and cmd.startswith(b"debug") and kw != b"debug":
         # Debug command, and user is not looking for those.
         return True
@@ -249,11 +277,13 @@ def filtercmd(ui, cmd, func, kw, doc):
     return False
 
 
-def filtertopic(ui, topic):
+def filtertopic(ui: uimod.ui, topic: bytes) -> bool:
     return ui.configbool(b'help', b'hidden-topic.%s' % topic, False)
 
 
-def topicmatch(ui, commands, kw):
+def topicmatch(
+    ui: uimod.ui, commands, kw: bytes
+) -> Dict[bytes, List[Tuple[bytes, bytes]]]:
     """Return help topics matching kw.
 
     Returns {'section': [(name, summary), ...], ...} where section is
@@ -326,10 +356,10 @@ def topicmatch(ui, commands, kw):
     return results
 
 
-def loaddoc(topic, subdir=None):
+def loaddoc(topic: bytes, subdir: Optional[bytes] = None) -> _DocLoader:
     """Return a delayed loader for help/topic.txt."""
 
-    def loader(ui):
+    def loader(ui: uimod.ui) -> bytes:
         package = b'mercurial.helptext'
         if subdir:
             package += b'.' + subdir
@@ -342,7 +372,7 @@ def loaddoc(topic, subdir=None):
     return loader
 
 
-internalstable = sorted(
+internalstable: List[_HelpEntryNoCategory] = sorted(
     [
         (
             [b'bid-merge'],
@@ -407,7 +437,7 @@ internalstable = sorted(
 )
 
 
-def internalshelp(ui):
+def internalshelp(ui: uimod.ui) -> bytes:
     """Generate the index for the "internals" topic."""
     lines = [
         b'To access a subtopic, use "hg help internals.{subtopic-name}"\n',
@@ -419,7 +449,7 @@ def internalshelp(ui):
     return b''.join(lines)
 
 
-helptable = sorted(
+helptable: List[_HelpEntryWithCategory] = sorted(
     [
         (
             [b'bundlespec'],
@@ -581,20 +611,27 @@ helptable = sorted(
 )
 
 # Maps topics with sub-topics to a list of their sub-topics.
-subtopics = {
+subtopics: Dict[bytes, List[_HelpEntryNoCategory]] = {
     b'internals': internalstable,
 }
 
 # Map topics to lists of callable taking the current topic help and
 # returning the updated version
-helphooks = {}
+helphooks: Dict[bytes, List[_TopicHook]] = {}
 
 
-def addtopichook(topic, rewriter):
+def addtopichook(topic: bytes, rewriter: _TopicHook) -> None:
     helphooks.setdefault(topic, []).append(rewriter)
 
 
-def makeitemsdoc(ui, topic, doc, marker, items, dedent=False):
+def makeitemsdoc(
+    ui: uimod.ui,
+    topic: bytes,
+    doc: bytes,
+    marker: bytes,
+    items: Dict[bytes, bytes],
+    dedent: bool = False,
+) -> bytes:
     """Extract docstring from the items key to function mapping, build a
     single documentation block and use it to overwrite the marker in doc.
     """
@@ -622,8 +659,10 @@ def makeitemsdoc(ui, topic, doc, marker, items, dedent=False):
     return doc.replace(marker, entries)
 
 
-def addtopicsymbols(topic, marker, symbols, dedent=False):
-    def add(ui, topic, doc):
+def addtopicsymbols(
+    topic: bytes, marker: bytes, symbols, dedent: bool = False
+) -> None:
+    def add(ui: uimod.ui, topic: bytes, doc: bytes):
         return makeitemsdoc(ui, topic, doc, marker, symbols, dedent=dedent)
 
     addtopichook(topic, add)
@@ -647,7 +686,7 @@ addtopicsymbols(
 )
 
 
-def inserttweakrc(ui, topic, doc):
+def inserttweakrc(ui: uimod.ui, topic: bytes, doc: bytes) -> bytes:
     marker = b'.. tweakdefaultsmarker'
     repl = uimod.tweakrc
 
@@ -658,7 +697,9 @@ def inserttweakrc(ui, topic, doc):
     return re.sub(br'( *)%s' % re.escape(marker), sub, doc)
 
 
-def _getcategorizedhelpcmds(ui, cmdtable, name, select=None):
+def _getcategorizedhelpcmds(
+    ui: uimod.ui, cmdtable, name: bytes, select: Optional[_SelectFn] = None
+) -> Tuple[Dict[bytes, List[bytes]], Dict[bytes, bytes], _SynonymTable]:
     # Category -> list of commands
     cats = {}
     # Command -> short description
@@ -687,16 +728,18 @@ def _getcategorizedhelpcmds(ui, cmdtable, name, select=None):
     return cats, h, syns
 
 
-def _getcategorizedhelptopics(ui, topictable):
+def _getcategorizedhelptopics(
+    ui: uimod.ui, topictable: List[_HelpEntry]
+) -> Tuple[Dict[bytes, List[Tuple[bytes, bytes]]], Dict[bytes, List[bytes]]]:
     # Group commands by category.
     topiccats = {}
     syns = {}
     for topic in topictable:
         names, header, doc = topic[0:3]
         if len(topic) > 3 and topic[3]:
-            category = topic[3]
+            category: bytes = cast(bytes, topic[3])  # help pytype
         else:
-            category = TOPIC_CATEGORY_NONE
+            category: bytes = TOPIC_CATEGORY_NONE
 
         topicname = names[0]
         syns[topicname] = list(names)
@@ -709,15 +752,15 @@ addtopichook(b'config', inserttweakrc)
 
 
 def help_(
-    ui,
+    ui: uimod.ui,
     commands,
-    name,
-    unknowncmd=False,
-    full=True,
-    subtopic=None,
-    fullname=None,
+    name: bytes,
+    unknowncmd: bool = False,
+    full: bool = True,
+    subtopic: Optional[bytes] = None,
+    fullname: Optional[bytes] = None,
     **opts
-):
+) -> bytes:
     """
     Generate the help for 'name' as unformatted restructured text. If
     'name' is None, describe the commands available.
@@ -725,7 +768,7 @@ def help_(
 
     opts = pycompat.byteskwargs(opts)
 
-    def helpcmd(name, subtopic=None):
+    def helpcmd(name: bytes, subtopic: Optional[bytes]) -> List[bytes]:
         try:
             aliases, entry = cmdutil.findcmd(
                 name, commands.table, strict=unknowncmd
@@ -826,7 +869,7 @@ def help_(
 
         return rst
 
-    def helplist(select=None, **opts):
+    def helplist(select: Optional[_SelectFn] = None, **opts) -> List[bytes]:
         cats, h, syns = _getcategorizedhelpcmds(
             ui, commands.table, name, select
         )
@@ -846,7 +889,7 @@ def help_(
             else:
                 rst.append(_(b'list of commands:\n'))
 
-        def appendcmds(cmds):
+        def appendcmds(cmds: Iterable[bytes]) -> None:
             cmds = sorted(cmds)
             for c in cmds:
                 display_cmd = c
@@ -955,7 +998,7 @@ def help_(
                 )
         return rst
 
-    def helptopic(name, subtopic=None):
+    def helptopic(name: bytes, subtopic: Optional[bytes] = None) -> List[bytes]:
         # Look for sub-topic entry first.
         header, doc = None, None
         if subtopic and name in subtopics:
@@ -998,7 +1041,7 @@ def help_(
             pass
         return rst
 
-    def helpext(name, subtopic=None):
+    def helpext(name: bytes, subtopic: Optional[bytes] = None) -> List[bytes]:
         try:
             mod = extensions.find(name)
             doc = gettext(pycompat.getdoc(mod)) or _(b'no help text available')
@@ -1040,7 +1083,9 @@ def help_(
             )
         return rst
 
-    def helpextcmd(name, subtopic=None):
+    def helpextcmd(
+        name: bytes, subtopic: Optional[bytes] = None
+    ) -> List[bytes]:
         cmd, ext, doc = extensions.disabledcmd(
             ui, name, ui.configbool(b'ui', b'strict')
         )
@@ -1127,8 +1172,14 @@ def help_(
 
 
 def formattedhelp(
-    ui, commands, fullname, keep=None, unknowncmd=False, full=True, **opts
-):
+    ui: uimod.ui,
+    commands,
+    fullname: Optional[bytes],
+    keep: Optional[Iterable[bytes]] = None,
+    unknowncmd: bool = False,
+    full: bool = True,
+    **opts
+) -> bytes:
     """get help for a given topic (as a dotted name) as rendered rst
 
     Either returns the rendered help text or raises an exception.
