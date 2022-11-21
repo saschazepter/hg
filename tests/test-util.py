@@ -50,7 +50,7 @@ def mocktimer(incr=0.1, *additional_targets):
 
 # attr.s default factory for util.timedstats.start binds the timer we
 # need to mock out.
-_start_default = (util.timedcmstats.start.default, 'factory')
+_start_default = (util.timedcmstats.__attrs_attrs__.start.default, 'factory')
 
 
 @contextlib.contextmanager
