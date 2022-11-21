@@ -126,6 +126,9 @@ repeatedly while some of it changes rarely.
   chunks size   : 58616973
       0x28      : 58616973 (100.00%)
   
+  
+  total-stored-content: 1 732 705 361 bytes
+  
   avg chain length  :        9
   max chain length  :       15
   max chain reach   : 27366701

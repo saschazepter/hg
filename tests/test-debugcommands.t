@@ -39,6 +39,9 @@
   chunks size   : 191
       0x75 (u)  : 191 (100.00%)
   
+  
+  total-stored-content: 188 bytes
+  
   avg chain length  :  0
   max chain length  :  0
   max chain reach   : 67
@@ -74,6 +77,9 @@
       empty     :  0 ( 0.00%)
       0x75 (u)  : 88 (100.00%)
   
+  
+  total-stored-content: 86 bytes
+  
   avg chain length  :  0
   max chain length  :  0
   max chain reach   : 44
@@ -106,6 +112,9 @@
       0x75 (u)  : 1 (100.00%)
   chunks size   : 3
       0x75 (u)  : 3 (100.00%)
+  
+  
+  total-stored-content: 2 bytes
   
   avg chain length  : 0
   max chain length  : 0
