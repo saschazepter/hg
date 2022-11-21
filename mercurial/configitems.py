@@ -1786,6 +1786,13 @@ coreconfigitem(
 )
 coreconfigitem(
     b'merge-tools',
+    br'.*\.regappend$',
+    default=b"",
+    generic=True,
+    priority=-1,
+)
+coreconfigitem(
+    b'merge-tools',
     br'.*\.symlink$',
     default=False,
     generic=True,
