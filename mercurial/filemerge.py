@@ -158,7 +158,7 @@ def findexternaltool(ui, tool):
             continue
         p = util.lookupreg(k, _toolstr(ui, tool, b"regname"))
         if p:
-            p = procutil.findexe(p + _toolstr(ui, tool, b"regappend", b""))
+            p = procutil.findexe(p + _toolstr(ui, tool, b"regappend"))
             if p:
                 return p
     exe = _toolstr(ui, tool, b"executable", tool)
