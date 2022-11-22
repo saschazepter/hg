@@ -923,6 +923,13 @@ coreconfigitem(
     b'changegroup4',
     default=False,
 )
+
+# might remove rank configuration once the computation has no impact
+coreconfigitem(
+    b'experimental',
+    b'changelog-v2.compute-rank',
+    default=True,
+)
 coreconfigitem(
     b'experimental',
     b'cleanup-as-archived',

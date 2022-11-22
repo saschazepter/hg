@@ -365,6 +365,11 @@ class revlog:
         self._srdensitythreshold = 0.50
         self._srmingapsize = 262144
 
+        # other optionnals features
+
+        # might remove rank configuration once the computation has no impact
+        self._compute_rank = False
+
         # Make copy of flag processors so each revlog instance can support
         # custom flags.
         self._flagprocessors = dict(flagutil.flagprocessors)
@@ -406,6 +411,7 @@ class revlog:
 
         if b'changelogv2' in opts and self.revlog_kind == KIND_CHANGELOG:
             new_header = CHANGELOGV2
+            self._compute_rank = opts.get(b'changelogv2.compute-rank', True)
         elif b'revlogv2' in opts:
             new_header = REVLOGV2
         elif b'revlogv1' in opts:
@@ -2499,7 +2505,7 @@ class revlog:
             sidedata_offset = 0
 
         rank = RANK_UNKNOWN
-        if self._format_version == CHANGELOGV2:
+        if self._compute_rank:
             if (p1r, p2r) == (nullrev, nullrev):
                 rank = 1
             elif p1r != nullrev and p2r == nullrev:
