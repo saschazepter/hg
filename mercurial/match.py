@@ -1323,7 +1323,7 @@ def _globre(pat):
     return res
 
 
-FLAG_RE = util.re.compile(b'^\(\?([aiLmsux]+)\)(.*)')
+FLAG_RE = util.re.compile(br'^\(\?([aiLmsux]+)\)(.*)')
 
 
 def _regex(kind, pat, globsuffix):
