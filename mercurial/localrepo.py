@@ -1068,6 +1068,8 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
         options[b'revlogv2'] = True
     if requirementsmod.CHANGELOGV2_REQUIREMENT in requirements:
         options[b'changelogv2'] = True
+        cmp_rank = ui.configbool(b'experimental', b'changelog-v2.compute-rank')
+        options[b'changelogv2.compute-rank'] = cmp_rank
 
     if requirementsmod.GENERALDELTA_REQUIREMENT in requirements:
         options[b'generaldelta'] = True
