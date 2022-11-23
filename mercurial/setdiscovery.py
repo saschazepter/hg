@@ -99,9 +99,9 @@ def _limitsample(sample, desiredlen, randomize=True):
     """
     if len(sample) <= desiredlen:
         return sample
+    sample = list(sample)
     if randomize:
         return set(random.sample(sample, desiredlen))
-    sample = list(sample)
     sample.sort()
     return set(sample[:desiredlen])
 
