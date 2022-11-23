@@ -2043,7 +2043,7 @@ coreconfigitem(
 coreconfigitem(
     b'storage',
     b'revlog.delta-parent-search.candidate-group-chunk-size',
-    default=0,
+    default=10,
 )
 coreconfigitem(
     b'storage',
