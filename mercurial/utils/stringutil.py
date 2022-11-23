@@ -723,11 +723,15 @@ def escapestr(s: bytes) -> bytes:
         s = bytes(s)
     # call underlying function of s.encode('string_escape') directly for
     # Python 3 compatibility
+    # pytype: disable=bad-return-type
     return codecs.escape_encode(s)[0]  # pytype: disable=module-attr
+    # pytype: enable=bad-return-type
 
 
 def unescapestr(s: bytes) -> bytes:
+    # pytype: disable=bad-return-type
     return codecs.escape_decode(s)[0]  # pytype: disable=module-attr
+    # pytype: enable=bad-return-type
 
 
 def forcebytestr(obj):

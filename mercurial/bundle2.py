@@ -1938,7 +1938,12 @@ def writebundle(
             raise error.Abort(
                 _(b'old bundle types only supports v1 changegroups')
             )
+
+        # HG20 is the case without 2 values to unpack, but is handled above.
+        # pytype: disable=bad-unpacking
         header, comp = bundletypes[bundletype]
+        # pytype: enable=bad-unpacking
+
         if comp not in util.compengines.supportedbundletypes:
             raise error.Abort(_(b'unknown stream compression type: %s') % comp)
         compengine = util.compengines.forbundletype(comp)
