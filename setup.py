@@ -1607,6 +1607,10 @@ packagedata = {
     'mercurial.helptext.internals': [
         '*.txt',
     ],
+    'mercurial.thirdparty.attr': [
+        '*.pyi',
+        'py.typed',
+    ],
 }
 
 
