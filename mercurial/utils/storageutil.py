@@ -436,10 +436,21 @@ def emitrevisions(
             # No guarantee the receiver has the delta parent, or Storage has a
             # fulltext revision.
             #
-            # Send delta against last revision (if possible), which in the
-            # common case should be similar enough to this revision that the
-            # delta is reasonable.
-            if prevrev is not None:
+            # We compute a delta on the fly to send over the wire.
+            #
+            # We start with a try against p1, which in the common case should
+            # be close to this revision content.
+            #
+            # note: we could optimize between p1 and p2 in merges cases.
+            if is_usable_base(p1rev):
+                baserev = p1rev
+            # if p1 was not an option, try p2
+            elif is_usable_base(p2rev):
+                baserev = p2rev
+            # Send delta against prev in despair
+            #
+            # using the closest available ancestors first might be better?
+            elif prevrev is not None:
                 baserev = prevrev
             else:
                 baserev = nullrev
