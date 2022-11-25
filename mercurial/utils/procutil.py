@@ -18,6 +18,10 @@ import sys
 import threading
 import time
 
+from typing import (
+    BinaryIO,
+)
+
 from ..i18n import _
 from ..pycompat import (
     getattr,
@@ -29,6 +33,7 @@ from .. import (
     error,
     policy,
     pycompat,
+    typelib,
 )
 
 # Import like this to keep import-checker happy
@@ -118,8 +123,8 @@ def unwrap_line_buffered(stream):
     return stream
 
 
-class WriteAllWrapper:
-    def __init__(self, orig):
+class WriteAllWrapper(typelib.BinaryIO_Proxy):
+    def __init__(self, orig: BinaryIO):
         self.orig = orig
 
     def __getattr__(self, attr):
