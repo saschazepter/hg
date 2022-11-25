@@ -31,7 +31,6 @@ cd `hg root`
 # mercurial/pure/parsers.py     # [attribute-error]
 # mercurial/repoview.py         # [attribute-error]
 # mercurial/testing/storage.py  # tons of [attribute-error]
-# mercurial/ui.py               # [attribute-error], [wrong-arg-types]
 # mercurial/unionrepo.py        # ui, svfs, unfiltered [attribute-error]
 # mercurial/win32.py            # [not-callable]
 # mercurial/wireprotoframing.py # [unsupported-operands], [attribute-error], [import-error]
@@ -64,7 +63,6 @@ pytype -V 3.7 --keep-going --jobs auto mercurial \
     -x mercurial/repoview.py \
     -x mercurial/testing/storage.py \
     -x mercurial/thirdparty \
-    -x mercurial/ui.py \
     -x mercurial/unionrepo.py \
     -x mercurial/win32.py \
     -x mercurial/wireprotoframing.py \

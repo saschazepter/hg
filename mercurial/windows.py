@@ -16,6 +16,10 @@ import string
 import sys
 import winreg  # pytype: disable=import-error
 
+from typing import (
+    BinaryIO,
+)
+
 from .i18n import _
 from .pycompat import getattr
 from . import (
@@ -23,6 +27,7 @@ from . import (
     error,
     policy,
     pycompat,
+    typelib,
     win32,
 )
 
@@ -208,7 +213,7 @@ def get_password():
     return encoding.unitolocal(pw)
 
 
-class winstdout:
+class winstdout(typelib.BinaryIO_Proxy):
     """Some files on Windows misbehave.
 
     When writing to a broken pipe, EINVAL instead of EPIPE may be raised.
@@ -217,7 +222,7 @@ class winstdout:
     error may happen. Python 3 already works around that.
     """
 
-    def __init__(self, fp):
+    def __init__(self, fp: BinaryIO):
         self.fp = fp
 
     def __getattr__(self, key):
