@@ -25,6 +25,7 @@ Testing hghave extensibility for third party tools
   > "$PYTHON" $TESTDIR/run-tests.py --with-hg=$HGTEST_REAL_HG -j 1 \
   >    $HGTEST_RUN_TESTS_PURE test-hghaveaddon.t \
   > )
+  installed Mercurial in * seconds (glob) (?)
   running 1 tests using 1 parallel processes 
   .
   # Ran 1 tests, 0 skipped, 0 failed.
