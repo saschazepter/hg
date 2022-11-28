@@ -391,6 +391,9 @@ def emitrevisions(
     # Set of revs available to delta against.
     available = set()
 
+    def is_usable_base(rev):
+        return rev != nullrev and rev in available
+
     for rev in revs:
         if rev == nullrev:
             continue
@@ -420,7 +423,7 @@ def emitrevisions(
         elif deltaparentrev != nullrev:
             # Base revision was already emitted in this group. We can
             # always safely use the delta.
-            if deltaparentrev in available:
+            if is_usable_base(deltaparentrev):
                 baserev = deltaparentrev
 
             # Base revision is a parent that hasn't been emitted already.
