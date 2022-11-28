@@ -390,16 +390,26 @@ def emitrevisions(
 
     # Set of revs available to delta against.
     available = set()
+    parents = []
 
     def is_usable_base(rev):
-        return rev != nullrev and rev in available
+        """Is a delta against this revision usable over the wire"""
+        if rev == nullrev:
+            return False
+        # Base revision was already emitted in this group.
+        if rev in available:
+            return True
+        # Base revision is a parent that hasn't been emitted already.
+        if assumehaveparentrevisions and rev in parents:
+            return True
+        return False
 
     for rev in revs:
         if rev == nullrev:
             continue
 
         node = fnode(rev)
-        p1rev, p2rev = store.parentrevs(rev)
+        parents[:] = p1rev, p2rev = store.parentrevs(rev)
 
         if deltaparentfn:
             deltaparentrev = deltaparentfn(rev)
@@ -421,16 +431,9 @@ def emitrevisions(
         # amounts to effectively copying data from storage and is
         # therefore the fastest.
         elif deltaparentrev != nullrev:
-            # Base revision was already emitted in this group. We can
-            # always safely use the delta.
+            # If the stored delta works, let us use it !
             if is_usable_base(deltaparentrev):
                 baserev = deltaparentrev
-
-            # Base revision is a parent that hasn't been emitted already.
-            # Use it if we can assume the receiver has the parent revision.
-            elif assumehaveparentrevisions and deltaparentrev in (p1rev, p2rev):
-                baserev = deltaparentrev
-
             # No guarantee the receiver has the delta parent. Send delta
             # against last revision (if possible), which in the common case
             # should be similar enough to this revision that the delta is
