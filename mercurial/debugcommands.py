@@ -58,7 +58,6 @@ from . import (
     localrepo,
     lock as lockmod,
     logcmdutil,
-    mdiff,
     mergestate as mergestatemod,
     metadata,
     obsolete,
@@ -73,7 +72,6 @@ from . import (
     repoview,
     requirements,
     revlog,
-    revlogutils,
     revset,
     revsetlang,
     scmutil,
@@ -1029,54 +1027,22 @@ def debugdeltafind(ui, repo, arg_1, arg_2=None, source=b'full', **opts):
     rev = int(rev)
 
     revlog = cmdutil.openrevlog(repo, b'debugdeltachain', file_, opts)
-
-    deltacomputer = deltautil.deltacomputer(
-        revlog,
-        write_debug=ui.write,
-        debug_search=not ui.quiet,
-    )
-
-    node = revlog.node(rev)
     p1r, p2r = revlog.parentrevs(rev)
-    p1 = revlog.node(p1r)
-    p2 = revlog.node(p2r)
-    full_text = revlog.revision(rev)
-    btext = [full_text]
-    textlen = len(btext[0])
-    cachedelta = None
-    flags = revlog.flags(rev)
 
-    if source != b'full':
-        if source == b'storage':
-            base_rev = revlog.deltaparent(rev)
-        elif source == b'p1':
-            base_rev = p1r
-        elif source == b'p2':
-            base_rev = p2r
-        elif source == b'prev':
-            base_rev = rev - 1
-        else:
-            raise error.InputError(b"invalid --source value: %s" % source)
+    if source == b'full':
+        base_rev = nullrev
+    elif source == b'storage':
+        base_rev = revlog.deltaparent(rev)
+    elif source == b'p1':
+        base_rev = p1r
+    elif source == b'p2':
+        base_rev = p2r
+    elif source == b'prev':
+        base_rev = rev - 1
+    else:
+        raise error.InputError(b"invalid --source value: %s" % source)
 
-        if base_rev != nullrev:
-            base_text = revlog.revision(base_rev)
-            delta = mdiff.textdiff(base_text, full_text)
-
-            cachedelta = (base_rev, delta)
-            btext = [None]
-
-    revinfo = revlogutils.revisioninfo(
-        node,
-        p1,
-        p2,
-        btext,
-        textlen,
-        cachedelta,
-        flags,
-    )
-
-    fh = revlog._datafp()
-    deltacomputer.finddeltainfo(revinfo, fh, target_rev=rev)
+    revlog_debug.debug_delta_find(ui, revlog, rev, base_rev=base_rev)
 
 
 @command(

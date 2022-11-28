@@ -10,12 +10,15 @@ import collections
 import string
 
 from .. import (
+    mdiff,
     node as nodemod,
+    revlogutils,
     util,
 )
 
 from . import (
     constants,
+    deltas as deltautil,
 )
 
 INDEX_ENTRY_DEBUG_COLUMN = []
@@ -619,3 +622,42 @@ def debug_revlog(ui, revlog):
                 b'deltas against other : '
                 + fmt % pcfmt(numother_nad, numdeltas)
             )
+
+
+def debug_delta_find(ui, revlog, rev, base_rev=nodemod.nullrev):
+    """display the search process for a delta"""
+    deltacomputer = deltautil.deltacomputer(
+        revlog,
+        write_debug=ui.write,
+        debug_search=not ui.quiet,
+    )
+
+    node = revlog.node(rev)
+    p1r, p2r = revlog.parentrevs(rev)
+    p1 = revlog.node(p1r)
+    p2 = revlog.node(p2r)
+    full_text = revlog.revision(rev)
+    btext = [full_text]
+    textlen = len(btext[0])
+    cachedelta = None
+    flags = revlog.flags(rev)
+
+    if base_rev != nodemod.nullrev:
+        base_text = revlog.revision(base_rev)
+        delta = mdiff.textdiff(base_text, full_text)
+
+        cachedelta = (base_rev, delta)
+        btext = [None]
+
+    revinfo = revlogutils.revisioninfo(
+        node,
+        p1,
+        p2,
+        btext,
+        textlen,
+        cachedelta,
+        flags,
+    )
+
+    fh = revlog._datafp()
+    deltacomputer.finddeltainfo(revinfo, fh, target_rev=rev)
