@@ -172,3 +172,24 @@ pub(crate) fn is_dir(path: impl AsRef<Path>) -> Result<bool, HgError> {
 pub(crate) fn is_file(path: impl AsRef<Path>) -> Result<bool, HgError> {
     Ok(fs_metadata(path)?.map_or(false, |meta| meta.is_file()))
 }
+
+/// Returns whether the given `path` is on a network file system.
+/// Taken from `cargo`'s codebase.
+#[cfg(target_os = "linux")]
+pub(crate) fn is_on_nfs_mount(path: impl AsRef<Path>) -> bool {
+    use std::ffi::CString;
+    use std::mem;
+    use std::os::unix::prelude::*;
+
+    let path = match CString::new(path.as_ref().as_os_str().as_bytes()) {
+        Ok(path) => path,
+        Err(_) => return false,
+    };
+
+    unsafe {
+        let mut buf: libc::statfs = mem::zeroed();
+        let r = libc::statfs(path.as_ptr(), &mut buf);
+
+        r == 0 && buf.f_type as u32 == libc::NFS_SUPER_MAGIC as u32
+    }
+}
