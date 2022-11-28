@@ -455,39 +455,27 @@ def emitrevisions(
         # There is a delta in storage. We try to use that because it
         # amounts to effectively copying data from storage and is
         # therefore the fastest.
-        elif deltaparentrev != nullrev:
-            # If the stored delta works, let us use it !
-            if is_usable_base(deltaparentrev):
-                if debug_info is not None:
-                    debug_delta_source = "storage"
-                baserev = deltaparentrev
-            # No guarantee the receiver has the delta parent. Send delta
-            # against last revision (if possible), which in the common case
-            # should be similar enough to this revision that the delta is
-            # reasonable.
+        elif is_usable_base(deltaparentrev):
+            if debug_info is not None:
+                debug_delta_source = "storage"
+            baserev = deltaparentrev
+        else:
+            # No guarantee the receiver has the delta parent, or Storage has a
+            # fulltext revision.
+            #
+            # Send delta against last revision (if possible), which in the
+            # common case should be similar enough to this revision that the
+            # delta is reasonable.
+            if deltaparentrev != nullrev and debug_info is not None:
+                debug_info['denied-base-not-available'] += 1
             elif prevrev is not None:
                 if debug_info is not None:
-                    debug_info['denied-base-not-available'] += 1
                     debug_delta_source = "prev"
                 baserev = prevrev
             else:
                 if debug_info is not None:
-                    debug_info['denied-base-not-available'] += 1
                     debug_delta_source = "full"
                 baserev = nullrev
-
-        # Storage has a fulltext revision.
-
-        # Let's use the previous revision, which is as good a guess as any.
-        # There is definitely room to improve this logic.
-        elif prevrev is not None:
-            if debug_info is not None:
-                debug_delta_source = "prev"
-            baserev = prevrev
-        else:
-            if debug_info is not None:
-                debug_delta_source = "full"
-            baserev = nullrev
 
         # But we can't actually use our chosen delta base for whatever
         # reason. Reset to fulltext.
