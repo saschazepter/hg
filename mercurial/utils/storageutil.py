@@ -430,27 +430,19 @@ def emitrevisions(
         # There is a delta in storage. We try to use that because it
         # amounts to effectively copying data from storage and is
         # therefore the fastest.
-        elif deltaparentrev != nullrev:
-            # If the stored delta works, let us use it !
-            if is_usable_base(deltaparentrev):
-                baserev = deltaparentrev
-            # No guarantee the receiver has the delta parent. Send delta
-            # against last revision (if possible), which in the common case
-            # should be similar enough to this revision that the delta is
-            # reasonable.
-            elif prevrev is not None:
+        elif is_usable_base(deltaparentrev):
+            baserev = deltaparentrev
+        else:
+            # No guarantee the receiver has the delta parent, or Storage has a
+            # fulltext revision.
+            #
+            # Send delta against last revision (if possible), which in the
+            # common case should be similar enough to this revision that the
+            # delta is reasonable.
+            if prevrev is not None:
                 baserev = prevrev
             else:
                 baserev = nullrev
-
-        # Storage has a fulltext revision.
-
-        # Let's use the previous revision, which is as good a guess as any.
-        # There is definitely room to improve this logic.
-        elif prevrev is not None:
-            baserev = prevrev
-        else:
-            baserev = nullrev
 
         # But we can't actually use our chosen delta base for whatever
         # reason. Reset to fulltext.
