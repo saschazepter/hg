@@ -320,7 +320,14 @@ impl Repo {
                 .set(Some(docket.uuid.to_owned()));
             let data_size = docket.data_size();
             let metadata = docket.tree_metadata();
-            if let Some(data_mmap) = self
+            if crate::vfs::is_on_nfs_mount(docket.data_filename()) {
+                // Don't mmap on NFS to prevent `SIGBUS` error on deletion
+                OwningDirstateMap::new_v2(
+                    self.hg_vfs().read(docket.data_filename())?,
+                    data_size,
+                    metadata,
+                )
+            } else if let Some(data_mmap) = self
                 .hg_vfs()
                 .mmap_open(docket.data_filename())
                 .io_not_found_as_none()?
