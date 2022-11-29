@@ -46,6 +46,7 @@ command = registrar.command(cmdtable)
             _(b'mark a branch as closed, hiding it from the branch list'),
         ),
         (b's', b'secret', None, _(b'use the secret phase for committing')),
+        (b'', b'draft', None, _(b'use the draft phase for committing')),
         (b'n', b'note', b'', _(b'store a note on the amend')),
     ]
     + cmdutil.walkopts
@@ -64,6 +65,7 @@ def amend(ui, repo, *pats, **opts):
 
     See :hg:`help commit` for more details.
     """
+    cmdutil.check_at_most_one_arg(opts, 'draft', 'secret')
     cmdutil.check_note_size(opts)
 
     with repo.wlock(), repo.lock():
