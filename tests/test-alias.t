@@ -119,6 +119,7 @@ help
       --close-branch        mark a branch head as closed
       --amend               amend the parent of the working directory
    -s --secret              use the secret phase for committing
+      --draft               use the draft phase for committing
    -e --edit                invoke editor on commit messages
    -i --interactive         use interactive mode
    -I --include PATTERN [+] include names matching the given patterns
