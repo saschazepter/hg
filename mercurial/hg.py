@@ -192,16 +192,6 @@ def openpath(ui, path, sendaccept=True):
 wirepeersetupfuncs = []
 
 
-def _peerorrepo(
-    ui, path, create=False, presetupfuncs=None, intents=None, createopts=None
-):
-    """return a repository object for the specified path"""
-    cls = _peerlookup(path)
-    obj = cls.instance(ui, path, create, intents=intents, createopts=createopts)
-    _setup_repo_or_peer(ui, obj, presetupfuncs)
-    return obj
-
-
 def _setup_repo_or_peer(ui, obj, presetupfuncs=None):
     ui = getattr(obj, "ui", ui)
     for f in presetupfuncs or []:
