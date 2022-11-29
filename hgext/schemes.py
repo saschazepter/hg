@@ -136,7 +136,11 @@ def extsetup(ui):
                 )
                 % (scheme, scheme.upper())
             )
-        hg.schemes[scheme] = ShortRepository(url, scheme, t)
+        url_scheme = urlutil.url(url).scheme
+        if url_scheme in hg.peer_schemes:
+            hg.peer_schemes[scheme] = ShortRepository(url, scheme, t)
+        else:
+            hg.repo_schemes[scheme] = ShortRepository(url, scheme, t)
 
     extensions.wrapfunction(urlutil, b'hasdriveletter', hasdriveletter)
 
@@ -144,7 +148,11 @@ def extsetup(ui):
 @command(b'debugexpandscheme', norepo=True)
 def expandscheme(ui, url, **opts):
     """given a repo path, provide the scheme-expanded path"""
-    repo = hg._peerlookup(url)
-    if isinstance(repo, ShortRepository):
-        url = repo.resolve(url)
+    scheme = urlutil.url(url).scheme
+    if scheme in hg.peer_schemes:
+        cls = hg.peer_schemes[scheme]
+    else:
+        cls = hg.repo_schemes.get(scheme)
+    if cls is not None and isinstance(cls, ShortRepository):
+        url = cls.resolve(url)
     ui.write(url + b'\n')
