@@ -2008,6 +2008,7 @@ def clone(ui, source, dest=None, **opts):
         (b'', b'close-branch', None, _(b'mark a branch head as closed')),
         (b'', b'amend', None, _(b'amend the parent of the working directory')),
         (b's', b'secret', None, _(b'use the secret phase for committing')),
+        (b'', b'draft', None, _(b'use the draft phase for committing')),
         (b'e', b'edit', None, _(b'invoke editor on commit messages')),
         (
             b'',
@@ -2082,6 +2083,7 @@ def commit(ui, repo, *pats, **opts):
 
           hg commit --amend --date now
     """
+    cmdutil.check_at_most_one_arg(opts, 'draft', 'secret')
     cmdutil.check_incompatible_arguments(opts, 'subrepos', ['amend'])
     with repo.wlock(), repo.lock():
         return _docommit(ui, repo, *pats, **opts)
@@ -2174,6 +2176,8 @@ def _docommit(ui, repo, *pats, **opts):
             overrides = {}
             if opts.get(b'secret'):
                 overrides[(b'phases', b'new-commit')] = b'secret'
+            elif opts.get(b'draft'):
+                overrides[(b'phases', b'new-commit')] = b'draft'
 
             baseui = repo.baseui
             with baseui.configoverride(overrides, b'commit'):
