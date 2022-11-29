@@ -231,19 +231,22 @@ def repository(
     createopts=None,
 ):
     """return a repository object for the specified path"""
-    peer = _peerorrepo(
+    scheme = urlutil.url(path).scheme
+    if scheme is None:
+        scheme = b'file'
+    cls = repo_schemes.get(scheme)
+    if cls is None:
+        if scheme in peer_schemes:
+            raise error.Abort(_(b"repository '%s' is not local") % path)
+        cls = LocalFactory
+    repo = cls.instance(
         ui,
         path,
         create,
-        presetupfuncs=presetupfuncs,
         intents=intents,
         createopts=createopts,
     )
-    repo = peer.local()
-    if not repo:
-        raise error.Abort(
-            _(b"repository '%s' is not local") % (path or peer.url())
-        )
+    _setup_repo_or_peer(ui, repo, presetupfuncs=presetupfuncs)
     return repo.filtered(b'visible')
 
 
