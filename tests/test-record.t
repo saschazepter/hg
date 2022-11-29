@@ -51,6 +51,7 @@ Record help
       --close-branch        mark a branch head as closed
       --amend               amend the parent of the working directory
    -s --secret              use the secret phase for committing
+      --draft               use the draft phase for committing
    -e --edit                invoke editor on commit messages
    -I --include PATTERN [+] include names matching the given patterns
    -X --exclude PATTERN [+] exclude names matching the given patterns

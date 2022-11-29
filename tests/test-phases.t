@@ -1117,3 +1117,30 @@ But what about obsoleted changesets?
   $ hg up tip
   2 files updated, 0 files merged, 1 files removed, 0 files unresolved
   $ cd ..
+
+Testing that command line flags override configuration
+
+  $ hg init commit-overrides
+  $ cd commit-overrides
+
+`hg commit --draft` overrides new-commit=secret
+
+  $ mkcommit A --config phases.new-commit='secret' --draft
+  test-debug-phase: new rev 0:  x -> 1
+  test-hook-close-phase: 4a2df7238c3b48766b5e22fafbb8a2f506ec8256:   -> draft
+  $ hglog
+  @  0 1 A
+  
+
+`hg commit --secret` overrides new-commit=draft
+
+  $ mkcommit B --config phases.new-commit='draft' --secret
+  test-debug-phase: new rev 1:  x -> 2
+  test-hook-close-phase: 27547f69f25460a52fff66ad004e58da7ad3fb56:   -> secret
+  $ hglog
+  @  1 2 B
+  |
+  o  0 1 A
+  
+
+  $ cd ..
