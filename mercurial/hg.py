@@ -143,22 +143,28 @@ class LocalFactory:
         return cls.instance(ui, path, *args, **kwargs)
 
 
-schemes = {
+repo_schemes = {
     b'bundle': bundlerepo,
     b'union': unionrepo,
     b'file': LocalFactory,
+    b'static-http': statichttprepo,
+}
+
+peer_schemes = {
     b'http': httppeer,
     b'https': httppeer,
     b'ssh': sshpeer,
-    b'static-http': statichttprepo,
 }
 
 
 def _peerlookup(path):
     u = urlutil.url(path)
     scheme = u.scheme or b'file'
-    thing = schemes.get(scheme) or schemes[b'file']
-    return thing
+    if scheme in peer_schemes:
+        return peer_schemes[scheme]
+    if scheme in repo_schemes:
+        return repo_schemes[scheme]
+    return LocalFactory
 
 
 def islocal(repo):
