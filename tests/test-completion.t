@@ -264,7 +264,7 @@ Show all commands + options
   bundle: exact, force, rev, branch, base, all, type, ssh, remotecmd, insecure
   cat: output, rev, decode, include, exclude, template
   clone: noupdate, updaterev, rev, branch, pull, uncompressed, stream, ssh, remotecmd, insecure
-  commit: addremove, close-branch, amend, secret, edit, force-close-branch, interactive, include, exclude, message, logfile, date, user, subrepos
+  commit: addremove, close-branch, amend, secret, draft, edit, force-close-branch, interactive, include, exclude, message, logfile, date, user, subrepos
   config: untrusted, exp-all-known, edit, local, source, shared, non-shared, global, template
   continue: dry-run
   copy: forget, after, at-rev, force, include, exclude, dry-run
