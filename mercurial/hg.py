@@ -181,9 +181,13 @@ def _peerorrepo(
     ui, path, create=False, presetupfuncs=None, intents=None, createopts=None
 ):
     """return a repository object for the specified path"""
-    obj = _peerlookup(path).instance(
-        ui, path, create, intents=intents, createopts=createopts
-    )
+    cls = _peerlookup(path)
+    obj = cls.instance(ui, path, create, intents=intents, createopts=createopts)
+    _setup_repo_or_peer(ui, obj, presetupfuncs)
+    return obj
+
+
+def _setup_repo_or_peer(ui, obj, presetupfuncs=None):
     ui = getattr(obj, "ui", ui)
     for f in presetupfuncs or []:
         f(ui, obj)
@@ -195,14 +199,12 @@ def _peerorrepo(
             if hook:
                 with util.timedcm('reposetup %r', name) as stats:
                     hook(ui, obj)
-                ui.log(
-                    b'extension', b'  > reposetup for %s took %s\n', name, stats
-                )
+                msg = b'  > reposetup for %s took %s\n'
+                ui.log(b'extension', msg, name, stats)
     ui.log(b'extension', b'> all reposetup took %s\n', allreposetupstats)
     if not obj.local():
         for f in wirepeersetupfuncs:
             f(ui, obj)
-    return obj
 
 
 def repository(
