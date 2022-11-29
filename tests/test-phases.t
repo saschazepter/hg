@@ -9,7 +9,7 @@
   > txnclose-phase.test = sh $TESTTMP/hook.sh
   > EOF
 
-  $ hglog() { hg log --template "{rev} {phaseidx} {desc}\n" $*; }
+  $ hglog() { hg log -G --template "{rev} {phaseidx} {desc}\n" $*; }
   $ mkcommit() {
   >    echo "$1" > "$1"
   >    hg add "$1"
@@ -36,7 +36,8 @@ Cannot change null revision phase
 New commit are draft by default
 
   $ hglog
-  0 1 A
+  @  0 1 A
+  
 
 Following commit are draft too
 
@@ -45,8 +46,10 @@ Following commit are draft too
   test-hook-close-phase: 27547f69f25460a52fff66ad004e58da7ad3fb56:   -> draft
 
   $ hglog
-  1 1 B
-  0 1 A
+  @  1 1 B
+  |
+  o  0 1 A
+  
 
 Working directory phase is secret when its parent is secret.
 
@@ -103,8 +106,10 @@ Draft commit are properly created over public one:
   $ hg phase
   1: public
   $ hglog
-  1 0 B
-  0 0 A
+  @  1 0 B
+  |
+  o  0 0 A
+  
 
   $ mkcommit C
   test-debug-phase: new rev 2:  x -> 1
@@ -114,10 +119,14 @@ Draft commit are properly created over public one:
   test-hook-close-phase: b3325c91a4d916bcc4cdc83ea3fe4ece46a42f6e:   -> draft
 
   $ hglog
-  3 1 D
-  2 1 C
-  1 0 B
-  0 0 A
+  @  3 1 D
+  |
+  o  2 1 C
+  |
+  o  1 0 B
+  |
+  o  0 0 A
+  
 
 Test creating changeset as secret
 
@@ -125,11 +134,16 @@ Test creating changeset as secret
   test-debug-phase: new rev 4:  x -> 2
   test-hook-close-phase: a603bfb5a83e312131cebcd05353c217d4d21dde:   -> secret
   $ hglog
-  4 2 E
-  3 1 D
-  2 1 C
-  1 0 B
-  0 0 A
+  @  4 2 E
+  |
+  o  3 1 D
+  |
+  o  2 1 C
+  |
+  o  1 0 B
+  |
+  o  0 0 A
+  
 
 Test the secret property is inherited
 
@@ -137,12 +151,18 @@ Test the secret property is inherited
   test-debug-phase: new rev 5:  x -> 2
   test-hook-close-phase: a030c6be5127abc010fcbff1851536552e6951a8:   -> secret
   $ hglog
-  5 2 H
-  4 2 E
-  3 1 D
-  2 1 C
-  1 0 B
-  0 0 A
+  @  5 2 H
+  |
+  o  4 2 E
+  |
+  o  3 1 D
+  |
+  o  2 1 C
+  |
+  o  1 0 B
+  |
+  o  0 0 A
+  
 
 Even on merge
 
@@ -152,13 +172,20 @@ Even on merge
   created new head
   test-hook-close-phase: cf9fe039dfd67e829edf6522a45de057b5c86519:   -> draft
   $ hglog
-  6 1 B'
-  5 2 H
-  4 2 E
-  3 1 D
-  2 1 C
-  1 0 B
-  0 0 A
+  @  6 1 B'
+  |
+  | o  5 2 H
+  | |
+  | o  4 2 E
+  | |
+  | o  3 1 D
+  | |
+  | o  2 1 C
+  |/
+  o  1 0 B
+  |
+  o  0 0 A
+  
   $ hg merge 4 # E
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
@@ -170,14 +197,22 @@ Even on merge
   test-hook-close-phase: 17a481b3bccb796c0521ae97903d81c52bfee4af:   -> secret
 
   $ hglog
-  7 2 merge B' and E
-  6 1 B'
-  5 2 H
-  4 2 E
-  3 1 D
-  2 1 C
-  1 0 B
-  0 0 A
+  @    7 2 merge B' and E
+  |\
+  | o  6 1 B'
+  | |
+  +---o  5 2 H
+  | |
+  o |  4 2 E
+  | |
+  o |  3 1 D
+  | |
+  o |  2 1 C
+  |/
+  o  1 0 B
+  |
+  o  0 0 A
+  
 
 Test secret changeset are not pushed
 
@@ -221,21 +256,34 @@ Test secret changeset are not pushed
   test-hook-close-phase: b3325c91a4d916bcc4cdc83ea3fe4ece46a42f6e:   -> draft
   test-hook-close-phase: cf9fe039dfd67e829edf6522a45de057b5c86519:   -> draft
   $ hglog
-  7 2 merge B' and E
-  6 1 B'
-  5 2 H
-  4 2 E
-  3 1 D
-  2 1 C
-  1 0 B
-  0 0 A
+  @    7 2 merge B' and E
+  |\
+  | o  6 1 B'
+  | |
+  +---o  5 2 H
+  | |
+  o |  4 2 E
+  | |
+  o |  3 1 D
+  | |
+  o |  2 1 C
+  |/
+  o  1 0 B
+  |
+  o  0 0 A
+  
   $ cd ../push-dest
   $ hglog
-  4 1 B'
-  3 1 D
-  2 1 C
-  1 0 B
-  0 0 A
+  o  4 1 B'
+  |
+  | o  3 1 D
+  | |
+  | o  2 1 C
+  |/
+  o  1 0 B
+  |
+  o  0 0 A
+  
 
 (Issue3303)
 Check that remote secret changeset are ignore when checking creation of remote heads
@@ -328,11 +376,16 @@ Test secret changeset are not pull
   test-hook-close-phase: cf9fe039dfd67e829edf6522a45de057b5c86519:   -> public
   (run 'hg heads' to see heads, 'hg merge' to merge)
   $ hglog
-  4 0 B'
-  3 0 D
-  2 0 C
-  1 0 B
-  0 0 A
+  o  4 0 B'
+  |
+  | o  3 0 D
+  | |
+  | o  2 0 C
+  |/
+  o  1 0 B
+  |
+  o  0 0 A
+  
   $ cd ..
 
 But secret can still be bundled explicitly
@@ -357,11 +410,16 @@ Test secret changeset are not cloned
   test-hook-close-phase: b3325c91a4d916bcc4cdc83ea3fe4ece46a42f6e:   -> public
   test-hook-close-phase: cf9fe039dfd67e829edf6522a45de057b5c86519:   -> public
   $ hglog -R clone-dest
-  4 0 B'
-  3 0 D
-  2 0 C
-  1 0 B
-  0 0 A
+  o  4 0 B'
+  |
+  | o  3 0 D
+  | |
+  | o  2 0 C
+  |/
+  o  1 0 B
+  |
+  o  0 0 A
+  
 
 Test summary
 
@@ -385,16 +443,28 @@ Test revset
 
   $ cd initialrepo
   $ hglog -r 'public()'
-  0 0 A
-  1 0 B
+  o  1 0 B
+  |
+  o  0 0 A
+  
   $ hglog -r 'draft()'
-  2 1 C
-  3 1 D
-  6 1 B'
+  o  6 1 B'
+  |
+  ~
+  o  3 1 D
+  |
+  o  2 1 C
+  |
+  ~
   $ hglog -r 'secret()'
-  4 2 E
-  5 2 H
-  7 2 merge B' and E
+  @    7 2 merge B' and E
+  |\
+  | ~
+  | o  5 2 H
+  |/
+  o  4 2 E
+  |
+  ~
 
 test that phase are displayed in log at debug level
 
