@@ -2082,6 +2082,7 @@ def commit(ui, repo, *pats, **opts):
 
           hg commit --amend --date now
     """
+    cmdutil.check_incompatible_arguments(opts, 'subrepos', ['amend'])
     with repo.wlock(), repo.lock():
         return _docommit(ui, repo, *pats, **opts)
 
@@ -2097,7 +2098,6 @@ def _docommit(ui, repo, *pats, **opts):
         return 1 if ret == 0 else ret
 
     if opts.get('subrepos'):
-        cmdutil.check_incompatible_arguments(opts, 'subrepos', ['amend'])
         # Let --subrepos on the command line override config setting.
         ui.setconfig(b'ui', b'commitsubrepos', True, b'commit')
 
