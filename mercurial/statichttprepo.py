@@ -262,4 +262,4 @@ class statichttprepository(
 def instance(ui, path, create, intents=None, createopts=None):
     if create:
         raise error.Abort(_(b'cannot create new static-http repository'))
-    return statichttprepository(ui, path[7:])
+    return statichttprepository(ui, path[7:]).peer()
