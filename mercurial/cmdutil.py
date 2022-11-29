@@ -3019,6 +3019,8 @@ def amend(ui, repo, old, extra, pats, opts):
         commitphase = None
         if opts.get(b'secret'):
             commitphase = phases.secret
+        elif opts.get(b'draft'):
+            commitphase = phases.draft
         newid = repo.commitctx(new)
         ms.reset()
 
