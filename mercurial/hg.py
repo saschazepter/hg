@@ -250,9 +250,28 @@ def repository(
 def peer(uiorrepo, opts, path, create=False, intents=None, createopts=None):
     '''return a repository peer for the specified path'''
     rui = remoteui(uiorrepo, opts)
-    return _peerorrepo(
-        rui, path, create, intents=intents, createopts=createopts
-    ).peer()
+    scheme = urlutil.url(path).scheme
+    if scheme in peer_schemes:
+        cls = peer_schemes[scheme]
+        peer = cls.instance(
+            rui,
+            path,
+            create,
+            intents=intents,
+            createopts=createopts,
+        )
+        _setup_repo_or_peer(rui, peer)
+    else:
+        # this is a repository
+        repo = repository(
+            rui,
+            path,
+            create,
+            intents=intents,
+            createopts=createopts,
+        )
+        peer = repo.peer()
+    return peer
 
 
 def defaultdest(source):
