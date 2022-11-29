@@ -65,26 +65,6 @@ release = lock.release
 sharedbookmarks = b'bookmarks'
 
 
-def _local(path):
-    path = util.expandpath(urlutil.urllocalpath(path))
-
-    try:
-        # we use os.stat() directly here instead of os.path.isfile()
-        # because the latter started returning `False` on invalid path
-        # exceptions starting in 3.8 and we care about handling
-        # invalid paths specially here.
-        st = os.stat(path)
-        isfile = stat.S_ISREG(st.st_mode)
-    except ValueError as e:
-        raise error.Abort(
-            _(b'invalid path %s: %s') % (path, stringutil.forcebytestr(e))
-        )
-    except OSError:
-        isfile = False
-
-    return isfile and bundlerepo or localrepo
-
-
 def addbranchrevs(lrepo, other, branches, revs):
     peer = other.peer()  # a courtesy to callers using a localrepo for other
     hashbranch, branches = branches
@@ -129,10 +109,44 @@ def addbranchrevs(lrepo, other, branches, revs):
     return revs, revs[0]
 
 
+def _isfile(path):
+    try:
+        # we use os.stat() directly here instead of os.path.isfile()
+        # because the latter started returning `False` on invalid path
+        # exceptions starting in 3.8 and we care about handling
+        # invalid paths specially here.
+        st = os.stat(path)
+    except ValueError as e:
+        msg = stringutil.forcebytestr(e)
+        raise error.Abort(_(b'invalid path %s: %s') % (path, msg))
+    except OSError:
+        return False
+    else:
+        return stat.S_ISREG(st.st_mode)
+
+
+class LocalFactory:
+    """thin wrapper to dispatch between localrepo and bundle repo"""
+
+    @staticmethod
+    def islocal(path: bytes) -> bool:
+        path = util.expandpath(urlutil.urllocalpath(path))
+        return not _isfile(path)
+
+    @staticmethod
+    def instance(ui, path, *args, **kwargs):
+        path = util.expandpath(urlutil.urllocalpath(path))
+        if _isfile(path):
+            cls = bundlerepo
+        else:
+            cls = localrepo
+        return cls.instance(ui, path, *args, **kwargs)
+
+
 schemes = {
     b'bundle': bundlerepo,
     b'union': unionrepo,
-    b'file': _local,
+    b'file': LocalFactory,
     b'http': httppeer,
     b'https': httppeer,
     b'ssh': sshpeer,
@@ -144,14 +158,7 @@ def _peerlookup(path):
     u = urlutil.url(path)
     scheme = u.scheme or b'file'
     thing = schemes.get(scheme) or schemes[b'file']
-    try:
-        return thing(path)
-    except TypeError:
-        # we can't test callable(thing) because 'thing' can be an unloaded
-        # module that implements __call__
-        if not util.safehasattr(thing, b'instance'):
-            raise
-        return thing
+    return thing
 
 
 def islocal(repo):
