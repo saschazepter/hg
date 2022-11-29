@@ -168,6 +168,7 @@ def islocal(repo):
             return _peerlookup(repo).islocal(repo)
         except AttributeError:
             return False
+    repo.ui.deprecwarn(b"use obj.local() instead of islocal(obj)", b"6.4")
     return repo.local()
 
 
