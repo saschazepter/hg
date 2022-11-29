@@ -147,13 +147,13 @@ repo_schemes = {
     b'bundle': bundlerepo,
     b'union': unionrepo,
     b'file': LocalFactory,
-    b'static-http': statichttprepo,
 }
 
 peer_schemes = {
     b'http': httppeer,
     b'https': httppeer,
     b'ssh': sshpeer,
+    b'static-http': statichttprepo,
 }
 
 
