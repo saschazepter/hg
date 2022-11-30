@@ -119,23 +119,24 @@ schemes = {
 }
 
 
+def _check_drive_letter(scheme):
+    """check if a scheme conflict with a Windows drive letter"""
+    if (
+        pycompat.iswindows
+        and len(scheme) == 1
+        and scheme.isalpha()
+        and os.path.exists(b'%s:\\' % scheme)
+    ):
+        msg = _(b'custom scheme %s:// conflicts with drive letter %s:\\\n')
+        msg %= (scheme, scheme.upper())
+        raise error.Abort(msg)
+
+
 def extsetup(ui):
     schemes.update(dict(ui.configitems(b'schemes')))
     t = templater.engine(templater.parse)
     for scheme, url in schemes.items():
-        if (
-            pycompat.iswindows
-            and len(scheme) == 1
-            and scheme.isalpha()
-            and os.path.exists(b'%s:\\' % scheme)
-        ):
-            raise error.Abort(
-                _(
-                    b'custom scheme %s:// conflicts with drive '
-                    b'letter %s:\\\n'
-                )
-                % (scheme, scheme.upper())
-            )
+        _check_drive_letter(schemes)
         url_scheme = urlutil.url(url).scheme
         if url_scheme in hg.peer_schemes:
             hg.peer_schemes[scheme] = ShortRepository(url, scheme, t)
