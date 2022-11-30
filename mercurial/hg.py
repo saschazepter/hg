@@ -243,7 +243,13 @@ def repository(
 def peer(uiorrepo, opts, path, create=False, intents=None, createopts=None):
     '''return a repository peer for the specified path'''
     rui = remoteui(uiorrepo, opts)
-    scheme = urlutil.url(path).scheme
+    if util.safehasattr(path, 'url'):
+        # this is a urlutil.path object
+        scheme = path.url.scheme  # pytype: disable=attribute-error
+        # XXX for now we don't do anything more than that
+        path = path.loc  # pytype: disable=attribute-error
+    else:
+        scheme = urlutil.url(path).scheme
     if scheme in peer_schemes:
         cls = peer_schemes[scheme]
         peer = cls.instance(
