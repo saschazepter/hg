@@ -299,8 +299,13 @@ def share(
 ):
     '''create a shared repository'''
 
-    if not islocal(source):
-        raise error.Abort(_(b'can only share local repositories'))
+    not_local_msg = _(b'can only share local repositories')
+    if util.safehasattr(source, 'local'):
+        if source.local() is None:
+            raise error.Abort(not_local_msg)
+    elif not islocal(source):
+        # XXX why are we getting bytes here ?
+        raise error.Abort(not_local_msg)
 
     if not dest:
         dest = defaultdest(source)
