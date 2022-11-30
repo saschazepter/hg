@@ -164,10 +164,11 @@ def _peerlookup(path):
 def islocal(repo):
     '''return true if repo (or path pointing to repo) is local'''
     if isinstance(repo, bytes):
-        try:
-            return _peerlookup(repo).islocal(repo)
-        except AttributeError:
-            return False
+        cls = _peerlookup(repo)
+        cls.instance  # make sure we load the module
+        if util.safehasattr(cls, 'islocal'):
+            return cls.islocal(repo)  # pytype: disable=module-attr
+        return False
     repo.ui.deprecwarn(b"use obj.local() instead of islocal(obj)", b"6.4")
     return repo.local()
 
