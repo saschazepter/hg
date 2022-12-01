@@ -1613,7 +1613,11 @@ def perfphasesremote(ui, repo, dest=None, **opts):
             b'default repository not configured!',
             hint=b"see 'hg help config.paths'",
         )
-    dest = path.pushloc or path.loc
+    if util.safehasattr(path, 'main_path'):
+        path = path.get_push_variant()
+        dest = path.loc
+    else:
+        dest = path.pushloc or path.loc
     ui.statusnoi18n(b'analysing phase of %s\n' % util.hidepassword(dest))
     other = hg.peer(repo, opts, dest)
 
