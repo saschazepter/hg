@@ -856,7 +856,7 @@ def _push(orig, ui, repo, *dests, **opts):
         result = orig(ui, repo, *dests, **pycompat.strkwargs(opts))
         if common.isremotebooksenabled(ui):
             if bookmark and scratchpush:
-                other = hg.peer(repo, opts, destpath)
+                other = hg.peer(repo, opts, path)
                 try:
                     fetchedbookmarks = other.listkeyspatterns(
                         b'bookmarks', patterns=[bookmark]
