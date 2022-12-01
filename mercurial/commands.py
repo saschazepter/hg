@@ -5766,7 +5766,7 @@ def push(ui, repo, *dests, **opts):
     some_pushed = False
     result = 0
     for path in urlutil.get_push_paths(repo, ui, dests):
-        dest = path.pushloc or path.loc
+        dest = path.loc
         branches = (path.branch, opts.get(b'branch') or [])
         ui.status(_(b'pushing to %s\n') % urlutil.hidepassword(dest))
         revs, checkout = hg.addbranchrevs(
