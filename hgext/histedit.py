@@ -1051,7 +1051,7 @@ def findoutgoing(ui, repo, remote=None, force=False, opts=None):
     if opts is None:
         opts = {}
     path = urlutil.get_unique_push_path(b'histedit', repo, ui, remote)
-    dest = path.pushloc or path.loc
+    dest = path.loc
 
     ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(dest))
 
