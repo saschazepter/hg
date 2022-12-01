@@ -4383,17 +4383,15 @@ def incoming(ui, repo, source=b"default", **opts):
     if opts.get(b'bookmarks'):
         srcs = urlutil.get_pull_paths(repo, ui, [source])
         for path in srcs:
-            source, branches = urlutil.parseurl(
-                path.rawloc, opts.get(b'branch')
-            )
-            other = hg.peer(repo, opts, source)
+            # XXX the "branches" options are not used. Should it be used?
+            other = hg.peer(repo, opts, path)
             try:
                 if b'bookmarks' not in other.listkeys(b'namespaces'):
                     ui.warn(_(b"remote doesn't support bookmarks\n"))
                     return 0
                 ui.pager(b'incoming')
                 ui.status(
-                    _(b'comparing with %s\n') % urlutil.hidepassword(source)
+                    _(b'comparing with %s\n') % urlutil.hidepassword(path.loc)
                 )
                 return bookmarks.incoming(
                     ui, repo, other, mode=path.bookmarks_mode
