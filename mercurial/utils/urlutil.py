@@ -545,7 +545,7 @@ def get_unique_push_path(action, repo, ui, dest=None):
 
 
 def get_unique_pull_path(action, repo, ui, source=None, default_branches=()):
-    """return a unique `(path, branch)` or abort if multiple are found
+    """return a unique `(url, branch)` or abort if multiple are found
 
     This is useful for command and action that does not support multiple
     destination (yet).
