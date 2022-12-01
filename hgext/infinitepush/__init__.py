@@ -849,7 +849,7 @@ def _push(orig, ui, repo, *dests, **opts):
             raise error.Abort(msg)
 
         path = paths[0]
-        destpath = path.pushloc or path.loc
+        destpath = path.loc
         # Remote scratch bookmarks will be deleted because remotenames doesn't
         # know about them. Let's save it before push and restore after
         remotescratchbookmarks = _readscratchremotebookmarks(ui, repo, destpath)
