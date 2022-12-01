@@ -736,7 +736,7 @@ def pathsuboption(option, attr):
     return register
 
 
-@pathsuboption(b'pushurl', b'pushloc')
+@pathsuboption(b'pushurl', b'_pushloc')
 def pushurlpathoption(ui, path, value):
     u = url(value)
     # Actually require a URL.
@@ -848,7 +848,8 @@ class path:
         ``ui`` is the ``ui`` instance the path is coming from.
         ``name`` is the symbolic name of the path.
         ``rawloc`` is the raw location, as defined in the config.
-        ``pushloc`` is the raw locations pushes should be made to.
+        ``_pushloc`` is the raw locations pushes should be made to.
+                     (see the `get_push_variant` method)
 
         If ``name`` is not defined, we require that the location be a) a local
         filesystem path with a .hg directory or b) a URL. If not,
@@ -924,9 +925,17 @@ class path:
             return self
         new = self.copy()
         new.main_path = self
-        if self.pushloc:
-            new._setup_url(self.pushloc)
+        if self._pushloc:
+            new._setup_url(self._pushloc)
         return new
+
+    def pushloc(self):
+        """compatibility layer for the deprecated attributes"""
+        from .. import util  # avoid a cycle
+
+        msg = "don't use path.pushloc, use path.get_push_variant()"
+        util.nouideprecwarn(msg, b"6.5")
+        return self._pushloc
 
     def _validate_path(self):
         # When given a raw location but not a symbolic name, validate the
