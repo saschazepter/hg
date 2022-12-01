@@ -7286,7 +7286,7 @@ def summary(ui, repo, **opts):
             d = b'default'
         if d is not None:
             path = urlutil.get_unique_push_path(b'summary', repo, ui, d)
-            dest = path.pushloc or path.loc
+            dest = path.loc
             dbranch = path.branch
         else:
             dest = b'default'
