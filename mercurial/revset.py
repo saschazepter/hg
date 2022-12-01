@@ -1869,13 +1869,12 @@ def outgoing(repo, subset, x):
         dests = []
     missing = set()
     for path in urlutil.get_push_paths(repo, repo.ui, dests):
-        dest = path.loc
         branches = path.branch, []
 
         revs, checkout = hg.addbranchrevs(repo, repo, branches, [])
         if revs:
             revs = [repo.lookup(rev) for rev in revs]
-        other = hg.peer(repo, {}, dest)
+        other = hg.peer(repo, {}, path)
         try:
             with repo.ui.silent():
                 outgoing = discovery.findcommonoutgoing(
