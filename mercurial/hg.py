@@ -1380,7 +1380,7 @@ def _outgoing(ui, repo, dests, opts, subpath=None):
     out = set()
     others = []
     for path in urlutil.get_push_paths(repo, ui, dests):
-        dest = path.pushloc or path.loc
+        dest = path.loc
         if subpath is not None:
             subpath = urlutil.url(subpath)
             if subpath.isabs():
