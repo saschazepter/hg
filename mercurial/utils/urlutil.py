@@ -550,8 +550,6 @@ def get_unique_pull_path(action, repo, ui, source=None, default_branches=()):
     This is useful for command and action that does not support multiple
     destination (yet).
 
-    Note that for now, we cannot get multiple destination so this function is "trivial".
-
     The `action` parameter will be used for the error message.
     """
     urls = []
