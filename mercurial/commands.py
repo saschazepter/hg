@@ -5431,12 +5431,12 @@ def pull(ui, repo, *sources, **opts):
         raise error.InputError(msg, hint=hint)
 
     for path in urlutil.get_pull_paths(repo, ui, sources):
-        source, branches = urlutil.parseurl(path.rawloc, opts.get(b'branch'))
-        ui.status(_(b'pulling from %s\n') % urlutil.hidepassword(source))
+        ui.status(_(b'pulling from %s\n') % urlutil.hidepassword(path.loc))
         ui.flush()
-        other = hg.peer(repo, opts, source)
+        other = hg.peer(repo, opts, path)
         update_conflict = None
         try:
+            branches = (path.branch, opts.get(b'branch', []))
             revs, checkout = hg.addbranchrevs(
                 repo, other, branches, opts.get(b'rev')
             )
@@ -5512,8 +5512,12 @@ def pull(ui, repo, *sources, **opts):
                     elif opts.get(b'branch'):
                         brev = opts[b'branch'][0]
                     else:
-                        brev = branches[0]
-                repo._subtoppath = source
+                        brev = path.branch
+
+                # XXX path: we are losing the `path` object here. Keeping it
+                # would be valuable. For example as a "variant" as we do
+                # for pushes.
+                repo._subtoppath = path.loc
                 try:
                     update_conflict = postincoming(
                         ui, repo, modheads, opts.get(b'update'), checkout, brev
