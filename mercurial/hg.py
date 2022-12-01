@@ -1311,23 +1311,28 @@ def _incoming(
         msg %= len(srcs)
         raise error.Abort(msg)
     path = srcs[0]
-    source, branches = urlutil.parseurl(path.rawloc, opts.get(b'branch'))
-    if subpath is not None:
+    if subpath is None:
+        peer_path = path
+        url = path.loc
+    else:
+        # XXX path: we are losing the `path` object here. Keeping it would be
+        # valuable. For example as a "variant" as we do for pushes.
         subpath = urlutil.url(subpath)
         if subpath.isabs():
-            source = bytes(subpath)
+            peer_path = url = bytes(subpath)
         else:
-            p = urlutil.url(source)
+            p = urlutil.url(path.loc)
             if p.islocal():
                 normpath = os.path.normpath
             else:
                 normpath = posixpath.normpath
             p.path = normpath(b'%s/%s' % (p.path, subpath))
-            source = bytes(p)
-    other = peer(repo, opts, source)
+            peer_path = url = bytes(p)
+    other = peer(repo, opts, peer_path)
     cleanupfn = other.close
     try:
-        ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(source))
+        ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(url))
+        branches = (path.branch, opts.get(b'branch', []))
         revs, checkout = addbranchrevs(repo, other, branches, opts.get(b'rev'))
 
         if revs:
