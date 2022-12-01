@@ -867,6 +867,7 @@ class path:
         self.name = name
 
         # set by path variant to point to their "non-push" version
+        self.main_path = None
         self._setup_url(rawloc)
 
         if validate_path:
@@ -905,6 +906,26 @@ class path:
             if new_copy is not None:
                 v = new_copy()
             new.__dict__[k] = v
+        return new
+
+    @property
+    def is_push_variant(self):
+        """is this a path variant to be used for pushing"""
+        return self.main_path is not None
+
+    def get_push_variant(self):
+        """get a "copy" of the path, but suitable for pushing
+
+        This means using the value of the `pushurl` option (if any) as the url.
+
+        The original path is available in the `main_path` attribute.
+        """
+        if self.main_path:
+            return self
+        new = self.copy()
+        new.main_path = self
+        if self.pushloc:
+            new._setup_url(self.pushloc)
         return new
 
     def _validate_path(self):
