@@ -1635,7 +1635,7 @@ def bundle(ui, repo, fname, *dests, **opts):
         missing = set()
         excluded = set()
         for path in urlutil.get_push_paths(repo, ui, dests):
-            other = hg.peer(repo, opts, path.rawloc)
+            other = hg.peer(repo, opts, path)
             if revs is not None:
                 hex_revs = [repo[r].hex() for r in revs]
             else:
