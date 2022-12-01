@@ -1869,7 +1869,7 @@ def outgoing(repo, subset, x):
         dests = []
     missing = set()
     for path in urlutil.get_push_paths(repo, repo.ui, dests):
-        dest = path.pushloc or path.loc
+        dest = path.loc
         branches = path.branch, []
 
         revs, checkout = hg.addbranchrevs(repo, repo, branches, [])
