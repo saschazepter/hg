@@ -864,21 +864,10 @@ class path:
         if not rawloc:
             raise ValueError(b'rawloc must be defined')
 
-        # Locations may define branches via syntax <base>#<branch>.
-        u = url(rawloc)
-        branch = None
-        if u.fragment:
-            branch = u.fragment
-            u.fragment = None
-
-        self.url = u
-        # the url from the config/command line before dealing with `path://`
-        self.raw_url = u.copy()
-        self.branch = branch
-
         self.name = name
-        self.rawloc = rawloc
-        self.loc = b'%s' % u
+
+        # set by path variant to point to their "non-push" version
+        self._setup_url(rawloc)
 
         if validate_path:
             self._validate_path()
@@ -891,6 +880,22 @@ class path:
         self._all_sub_opts = sub_opts.copy()
 
         self._apply_suboptions(ui, sub_opts)
+
+    def _setup_url(self, rawloc):
+        # Locations may define branches via syntax <base>#<branch>.
+        u = url(rawloc)
+        branch = None
+        if u.fragment:
+            branch = u.fragment
+            u.fragment = None
+
+        self.url = u
+        # the url from the config/command line before dealing with `path://`
+        self.raw_url = u.copy()
+        self.branch = branch
+
+        self.rawloc = rawloc
+        self.loc = b'%s' % u
 
     def copy(self):
         """make a copy of this path object"""
