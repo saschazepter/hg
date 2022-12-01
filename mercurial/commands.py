@@ -7283,6 +7283,7 @@ def summary(ui, repo, **opts):
             d = b'default-push'
         elif b'default' in ui.paths:
             d = b'default'
+        path = None
         if d is not None:
             path = urlutil.get_unique_push_path(b'summary', repo, ui, d)
             dest = path.loc
@@ -7293,7 +7294,7 @@ def summary(ui, repo, **opts):
         revs, checkout = hg.addbranchrevs(repo, repo, (dbranch, []), None)
         if source != dest:
             try:
-                dother = hg.peer(repo, {}, dest)
+                dother = hg.peer(repo, {}, path if path is not None else dest)
             except error.RepoError:
                 if opts.get(b'remote'):
                     raise
