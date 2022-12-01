@@ -5038,7 +5038,7 @@ def outgoing(ui, repo, *dests, **opts):
     opts = pycompat.byteskwargs(opts)
     if opts.get(b'bookmarks'):
         for path in urlutil.get_push_paths(repo, ui, dests):
-            dest = path.pushloc or path.loc
+            dest = path.loc
             other = hg.peer(repo, opts, dest)
             try:
                 if b'bookmarks' not in other.listkeys(b'namespaces'):
