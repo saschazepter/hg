@@ -21,9 +21,9 @@ Define a helper to avoid the install step
 error paths
 
 #if symlink
-  $ ln -s "/"bin"/"true hg
+  $ ln -s $TESTDIR/run-tests.py hg
   $ "$PYTHON" $TESTDIR/run-tests.py --with-hg=./hg
-  ^warning: --with-hg should specify an hg script, not: (true|coreutils)$ (re)
+  warning: --with-hg should specify an hg script, not: run-tests.py
   running 0 tests using 0 parallel processes 
   
   # Ran 0 tests, 0 skipped, 0 failed.
