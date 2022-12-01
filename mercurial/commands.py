@@ -5038,14 +5038,13 @@ def outgoing(ui, repo, *dests, **opts):
     opts = pycompat.byteskwargs(opts)
     if opts.get(b'bookmarks'):
         for path in urlutil.get_push_paths(repo, ui, dests):
-            dest = path.loc
-            other = hg.peer(repo, opts, dest)
+            other = hg.peer(repo, opts, path)
             try:
                 if b'bookmarks' not in other.listkeys(b'namespaces'):
                     ui.warn(_(b"remote doesn't support bookmarks\n"))
                     return 0
                 ui.status(
-                    _(b'comparing with %s\n') % urlutil.hidepassword(dest)
+                    _(b'comparing with %s\n') % urlutil.hidepassword(path.loc)
                 )
                 ui.pager(b'outgoing')
                 return bookmarks.outgoing(ui, repo, other)
