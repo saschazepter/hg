@@ -480,10 +480,10 @@ def get_push_paths(repo, ui, dests):
     if not dests:
         if b'default-push' in ui.paths:
             for p in ui.paths[b'default-push']:
-                yield p
+                yield p.get_push_variant()
         elif b'default' in ui.paths:
             for p in ui.paths[b'default']:
-                yield p
+                yield p.get_push_variant()
         else:
             raise error.ConfigError(
                 _(b'default repository not configured!'),
@@ -493,14 +493,14 @@ def get_push_paths(repo, ui, dests):
         for dest in dests:
             if dest in ui.paths:
                 for p in ui.paths[dest]:
-                    yield p
+                    yield p.get_push_variant()
             else:
                 path = try_path(ui, dest)
                 if path is None:
                     msg = _(b'repository %s does not exist')
                     msg %= dest
                     raise error.RepoError(msg)
-                yield path
+                yield path.get_push_variant()
 
 
 def get_pull_paths(repo, ui, sources):
