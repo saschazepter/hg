@@ -582,7 +582,7 @@ def get_unique_pull_path(action, repo, ui, source=None, default_branches=()):
 
 
 def get_clone_path(ui, source, default_branches=()):
-    """return the `(origsource, path, branch)` selected as clone source"""
+    """return the `(origsource, url, branch)` selected as clone source"""
     urls = []
     if source is None:
         if b'default' in ui.paths:
