@@ -383,8 +383,8 @@ class sshv1peer(wireprotov1peer.wirepeer):
         ``autoreadstderr`` denotes whether to automatically read from
         stderr and to forward its output.
         """
+        super().__init__(ui)
         self._url = url
-        self.ui = ui
         # self._subprocess is unused. Keeping a handle on the process
         # holds a reference and prevents it from being garbage collected.
         self._subprocess = proc
