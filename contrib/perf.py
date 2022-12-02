@@ -997,11 +997,16 @@ def perfdiscovery(ui, repo, path, **opts):
     timer, fm = gettimer(ui, opts)
 
     try:
-        from mercurial.utils.urlutil import get_unique_pull_path
+        from mercurial.utils.urlutil import get_unique_pull_path_obj
 
-        path = get_unique_pull_path(b'perfdiscovery', repo, ui, path)[0]
+        path = get_unique_pull_path_obj(b'perfdiscovery', ui, path)
     except ImportError:
-        path = ui.expandpath(path)
+        try:
+            from mercurial.utils.urlutil import get_unique_pull_path
+
+            path = get_unique_pull_path(b'perfdiscovery', repo, ui, path)[0]
+        except ImportError:
+            path = ui.expandpath(path)
 
     def s():
         repos[1] = hg.peer(ui, opts, path)
