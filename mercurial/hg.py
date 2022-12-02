@@ -256,7 +256,7 @@ def peer(uiorrepo, opts, path, create=False, intents=None, createopts=None):
         cls = peer_schemes[scheme]
         peer = cls.make_peer(
             rui,
-            peer_path.loc,
+            peer_path,
             create,
             intents=intents,
             createopts=createopts,
