@@ -624,6 +624,7 @@ def makepeer(ui, path, opener=None, requestbuilder=urlreq.request):
 def make_peer(ui, path, create, intents=None, createopts=None):
     if create:
         raise error.Abort(_(b'cannot create new http repository'))
+    path = path.loc
     try:
         if path.startswith(b'https:') and not urlmod.has_https:
             raise error.Abort(
