@@ -336,11 +336,12 @@ def share(
     if not dest:
         dest = defaultdest(source)
     else:
-        dest = urlutil.get_clone_path(ui, dest)[1]
+        dest = urlutil.get_clone_path_obj(ui, dest).loc
 
     if isinstance(source, bytes):
-        origsource, source, branches = urlutil.get_clone_path(ui, source)
-        srcrepo = repository(ui, source)
+        source_path = urlutil.get_clone_path_obj(ui, source)
+        srcrepo = repository(ui, source_path.loc)
+        branches = (source_path.branch, [])
         rev, checkout = addbranchrevs(srcrepo, srcrepo, branches, None)
     else:
         srcrepo = source.local()
