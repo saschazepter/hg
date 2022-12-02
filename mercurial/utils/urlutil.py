@@ -878,14 +878,20 @@ class path:
         self.rawloc = rawloc
         self.loc = b'%s' % u
 
-    def copy(self):
-        """make a copy of this path object"""
+    def copy(self, new_raw_location=None):
+        """make a copy of this path object
+
+        When `new_raw_location` is set, the new path will point to it.
+        This is used by the scheme extension so expand the scheme.
+        """
         new = self.__class__()
         for k, v in self.__dict__.items():
             new_copy = getattr(v, 'copy', None)
             if new_copy is not None:
                 v = new_copy()
             new.__dict__[k] = v
+        if new_raw_location is not None:
+            new._setup_url(new_raw_location)
         return new
 
     @property
