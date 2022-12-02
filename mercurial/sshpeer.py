@@ -612,6 +612,7 @@ def make_peer(ui, path, create, intents=None, createopts=None):
 
     The returned object conforms to the ``wireprotov1peer.wirepeer`` interface.
     """
+    path = path.loc
     u = urlutil.url(path, parsequery=False, parsefragment=False)
     if u.scheme != b'ssh' or not u.host or u.path is None:
         raise error.RepoError(_(b"couldn't parse location %s") % path)
