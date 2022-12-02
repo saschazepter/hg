@@ -82,7 +82,15 @@ class ShortRepository:
 
     def instance(self, ui, url, create, intents=None, createopts=None):
         url = self.resolve(url)
-        return hg._peerlookup(url).instance(
+        u = urlutil.url(url)
+        scheme = u.scheme or b'file'
+        if scheme in hg.peer_schemes:
+            cls = hg.peer_schemes[scheme]
+        elif scheme in hg.repo_schemes:
+            cls = hg.repo_schemes[scheme]
+        else:
+            cls = hg.LocalFactory
+        return cls.instance(
             ui, url, create, intents=intents, createopts=createopts
         )
 
