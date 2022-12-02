@@ -103,6 +103,7 @@ class ipeerconnection(interfaceutil.Interface):
     """
 
     ui = interfaceutil.Attribute("""ui.ui instance""")
+    path = interfaceutil.Attribute("""a urlutil.path instance or None""")
 
     def url():
         """Returns a URL string representing this peer.
@@ -387,11 +388,9 @@ class peer:
 
     limitedarguments = False
 
-    def __init__(
-        self,
-        ui,
-    ):
+    def __init__(self, ui, path=None):
         self.ui = ui
+        self.path = path
 
     def capable(self, name):
         caps = self.capabilities()
