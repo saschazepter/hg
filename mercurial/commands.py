@@ -7252,23 +7252,22 @@ def summary(ui, repo, **opts):
         # XXX We should actually skip this if no default is specified, instead
         # of passing "default" which will resolve as "./default/" if no default
         # path is defined.
-        source, branches = urlutil.get_unique_pull_path(
-            b'summary', repo, ui, b'default'
-        )
-        sbranch = branches[0]
+        path = urlutil.get_unique_pull_path_obj(b'summary', ui, b'default')
+        sbranch = path.branch
         try:
-            other = hg.peer(repo, {}, source)
+            other = hg.peer(repo, {}, path)
         except error.RepoError:
             if opts.get(b'remote'):
                 raise
-            return source, sbranch, None, None, None
+            return path.loc, sbranch, None, None, None
+        branches = (path.branch, [])
         revs, checkout = hg.addbranchrevs(repo, other, branches, None)
         if revs:
             revs = [other.lookup(rev) for rev in revs]
-        ui.debug(b'comparing with %s\n' % urlutil.hidepassword(source))
+        ui.debug(b'comparing with %s\n' % urlutil.hidepassword(path.loc))
         with repo.ui.silent():
             commoninc = discovery.findcommonincoming(repo, other, heads=revs)
-        return source, sbranch, other, commoninc, commoninc[1]
+        return path.loc, sbranch, other, commoninc, commoninc[1]
 
     if needsincoming:
         source, sbranch, sother, commoninc, incoming = getincoming()
