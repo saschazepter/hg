@@ -1234,12 +1234,12 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
     random.seed(int(opts[b'seed']))
 
     if not remote_revs:
-
-        remoteurl, branches = urlutil.get_unique_pull_path(
-            b'debugdiscovery', repo, ui, remoteurl
+        path = urlutil.get_unique_pull_path_obj(
+            b'debugdiscovery', ui, remoteurl
         )
-        remote = hg.peer(repo, opts, remoteurl)
-        ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(remoteurl))
+        branches = (path.branch, [])
+        remote = hg.peer(repo, opts, path)
+        ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(path.loc))
     else:
         branches = (None, [])
         remote_filtered_revs = logcmdutil.revrange(
