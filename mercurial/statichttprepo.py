@@ -259,7 +259,7 @@ class statichttprepository(
         pass  # statichttprepository are read only
 
 
-def instance(ui, path, create, intents=None, createopts=None):
+def make_peer(ui, path, create, intents=None, createopts=None):
     if create:
         raise error.Abort(_(b'cannot create new static-http repository'))
     return statichttprepository(ui, path[7:]).peer()
