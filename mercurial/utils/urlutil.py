@@ -581,39 +581,15 @@ def get_unique_pull_path(action, repo, ui, source=None, default_branches=()):
     return parseurl(path.rawloc, default_branches)
 
 
-def get_clone_path(ui, source, default_branches=()):
+def get_clone_path(ui, source, default_branches=None):
     """return the `(origsource, url, branch)` selected as clone source"""
-    urls = []
-    if source is None:
-        if b'default' in ui.paths:
-            urls.extend(p.rawloc for p in ui.paths[b'default'])
-        else:
-            # XXX this is the historical default behavior, but that is not
-            # great, consider breaking BC on this.
-            urls.append(b'default')
-    else:
-        if source in ui.paths:
-            urls.extend(p.rawloc for p in ui.paths[source])
-        else:
-            # Try to resolve as a local path or URI.
-            path = try_path(ui, source)
-            if path is not None:
-                urls.append(path.rawloc)
-            else:
-                urls.append(source)
-    if len(urls) != 1:
-        if source is None:
-            msg = _(
-                b"default path points to %d urls while only one is supported"
-            )
-            msg %= len(urls)
-        else:
-            msg = _(b"path points to %d urls while only one is supported: %s")
-            msg %= (len(urls), source)
-        raise error.Abort(msg)
-    url = urls[0]
-    clone_path, branch = parseurl(url, default_branches)
-    return url, clone_path, branch
+    if default_branches is None:
+        default_branches = []
+    if source == b'':
+        return (b'', b'', (None, default_branches))
+    path = get_unique_pull_path_obj(b'clone', ui, source=source)
+    branches = (path.branch, default_branches)
+    return path.rawloc, path.loc, branches
 
 
 def parseurl(path, branches=None):
