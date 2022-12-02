@@ -274,7 +274,7 @@ def peer(uiorrepo, opts, path, create=False, intents=None, createopts=None):
             intents=intents,
             createopts=createopts,
         )
-        peer = repo.peer()
+        peer = repo.peer(path=peer_path)
     return peer
 
 
