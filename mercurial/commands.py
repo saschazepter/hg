@@ -3911,12 +3911,11 @@ def identify(
     peer = None
     try:
         if source:
-            source, branches = urlutil.get_unique_pull_path(
-                b'identify', repo, ui, source
-            )
+            path = urlutil.get_unique_pull_path_obj(b'identify', ui, source)
             # only pass ui when no repo
-            peer = hg.peer(repo or ui, opts, source)
+            peer = hg.peer(repo or ui, opts, path)
             repo = peer.local()
+            branches = (path.branch, [])
             revs, checkout = hg.addbranchrevs(repo, peer, branches, None)
 
         fm = ui.formatter(b'identify', opts)
