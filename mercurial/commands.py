@@ -4423,7 +4423,7 @@ def init(ui, dest=b".", **opts):
     Returns 0 on success.
     """
     opts = pycompat.byteskwargs(opts)
-    path = urlutil.get_clone_path(ui, dest)[1]
+    path = urlutil.get_clone_path_obj(ui, dest)
     peer = hg.peer(ui, opts, path, create=True)
     peer.close()
 
