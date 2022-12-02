@@ -303,8 +303,8 @@ class localcommandexecutor:
 class localpeer(repository.peer):
     '''peer for a local repo; reflects only the most recent API'''
 
-    def __init__(self, repo, caps=None):
-        super(localpeer, self).__init__(repo.ui)
+    def __init__(self, repo, caps=None, path=None):
+        super(localpeer, self).__init__(repo.ui, path=path)
 
         if caps is None:
             caps = moderncaps.copy()
@@ -451,8 +451,8 @@ class locallegacypeer(localpeer):
     """peer extension which implements legacy methods too; used for tests with
     restricted capabilities"""
 
-    def __init__(self, repo):
-        super(locallegacypeer, self).__init__(repo, caps=legacycaps)
+    def __init__(self, repo, path=None):
+        super(locallegacypeer, self).__init__(repo, caps=legacycaps, path=path)
 
     # Begin of baselegacywirecommands interface.
 
@@ -1633,8 +1633,8 @@ class localrepository:
                 parts.pop()
         return False
 
-    def peer(self):
-        return localpeer(self)  # not cached to avoid reference cycle
+    def peer(self, path=None):
+        return localpeer(self, path=path)  # not cached to avoid reference cycle
 
     def unfiltered(self):
         """Return unfiltered version of the repository
