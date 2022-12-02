@@ -2854,16 +2854,17 @@ def clone(ui, source, dest=None, **opts):
     # main repo (destination and sources)
     if dest is None:
         dest = hg.defaultdest(source)
-    __, source_path, __ = urlutil.get_clone_path(ui, source)
+    source_path = urlutil.get_clone_path_obj(ui, source)
     sr = hg.peer(ui, opts, source_path)
 
     # patches repo (source only)
     if opts.get(b'patches'):
-        __, patchespath, __ = urlutil.get_clone_path(ui, opts.get(b'patches'))
+        patches_path = urlutil.get_clone_path_obj(ui, opts.get(b'patches'))
     else:
-        patchespath = patchdir(sr)
+        # XXX path: we should turn this into a path object
+        patches_path = patchdir(sr)
     try:
-        hg.peer(ui, opts, patchespath)
+        hg.peer(ui, opts, patches_path)
     except error.RepoError:
         raise error.Abort(
             _(b'versioned patch repository not found (see init --mq)')
