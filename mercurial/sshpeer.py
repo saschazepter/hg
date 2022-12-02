@@ -607,7 +607,7 @@ def makepeer(ui, path, proc, stdin, stdout, stderr, autoreadstderr=True):
         )
 
 
-def instance(ui, path, create, intents=None, createopts=None):
+def make_peer(ui, path, create, intents=None, createopts=None):
     """Create an SSH peer.
 
     The returned object conforms to the ``wireprotov1peer.wirepeer`` interface.
