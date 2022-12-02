@@ -304,12 +304,11 @@ class localpeer(repository.peer):
     '''peer for a local repo; reflects only the most recent API'''
 
     def __init__(self, repo, caps=None):
-        super(localpeer, self).__init__()
+        super(localpeer, self).__init__(repo.ui)
 
         if caps is None:
             caps = moderncaps.copy()
         self._repo = repo.filtered(b'served')
-        self.ui = repo.ui
 
         if repo._wanted_sidedata:
             formatted = bundle2.format_remote_wanted_sidedata(repo)
