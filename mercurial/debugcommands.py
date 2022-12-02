@@ -3707,20 +3707,19 @@ def debugbackupbundle(ui, repo, *pats, **opts):
     for backup in backups:
         # Much of this is copied from the hg incoming logic
         source = os.path.relpath(backup, encoding.getcwd())
-        source, branches = urlutil.get_unique_pull_path(
+        path = urlutil.get_unique_pull_path_obj(
             b'debugbackupbundle',
-            repo,
             ui,
             source,
-            default_branches=opts.get(b'branch'),
         )
         try:
-            other = hg.peer(repo, opts, source)
+            other = hg.peer(repo, opts, path)
         except error.LookupError as ex:
-            msg = _(b"\nwarning: unable to open bundle %s") % source
+            msg = _(b"\nwarning: unable to open bundle %s") % path.loc
             hint = _(b"\n(missing parent rev %s)\n") % short(ex.name)
             ui.warn(msg, hint=hint)
             continue
+        branches = (path.branch, opts.get(b'branch', []))
         revs, checkout = hg.addbranchrevs(
             repo, other, branches, opts.get(b"rev")
         )
@@ -3743,29 +3742,29 @@ def debugbackupbundle(ui, repo, *pats, **opts):
                 with repo.lock(), repo.transaction(b"unbundle") as tr:
                     if scmutil.isrevsymbol(other, recovernode):
                         ui.status(_(b"Unbundling %s\n") % (recovernode))
-                        f = hg.openpath(ui, source)
-                        gen = exchange.readbundle(ui, f, source)
+                        f = hg.openpath(ui, path.loc)
+                        gen = exchange.readbundle(ui, f, path.loc)
                         if isinstance(gen, bundle2.unbundle20):
                             bundle2.applybundle(
                                 repo,
                                 gen,
                                 tr,
                                 source=b"unbundle",
-                                url=b"bundle:" + source,
+                                url=b"bundle:" + path.loc,
                             )
                         else:
-                            gen.apply(repo, b"unbundle", b"bundle:" + source)
+                            gen.apply(repo, b"unbundle", b"bundle:" + path.loc)
                         break
             else:
                 backupdate = encoding.strtolocal(
                     time.strftime(
                         "%a %H:%M, %Y-%m-%d",
-                        time.localtime(os.path.getmtime(source)),
+                        time.localtime(os.path.getmtime(path.loc)),
                     )
                 )
                 ui.status(b"\n%s\n" % (backupdate.ljust(50)))
                 if ui.verbose:
-                    ui.status(b"%s%s\n" % (b"bundle:".ljust(13), source))
+                    ui.status(b"%s%s\n" % (b"bundle:".ljust(13), path.loc))
                 else:
                     opts[
                         b"template"
