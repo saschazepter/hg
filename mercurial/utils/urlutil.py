@@ -542,19 +542,22 @@ def get_unique_push_path(action, repo, ui, dest=None):
     return dests[0]
 
 
-def get_unique_pull_path(action, repo, ui, source=None, default_branches=()):
-    """return a unique `(url, branch)` or abort if multiple are found
+def get_unique_pull_path_obj(action, ui, source=None):
+    """return a unique `(path, branch)` or abort if multiple are found
 
     This is useful for command and action that does not support multiple
     destination (yet).
 
     The `action` parameter will be used for the error message.
+
+    note: Ideally, this function would be called `get_unique_pull_path` to
+    mirror the `get_unique_push_path`, but the name was already taken.
     """
     sources = []
     if source is not None:
         sources.append(source)
 
-    pull_paths = list(get_pull_paths(repo, ui, sources=sources))
+    pull_paths = list(get_pull_paths(None, ui, sources=sources))
     path_count = len(pull_paths)
     if path_count != 1:
         if source is None:
@@ -566,7 +569,16 @@ def get_unique_pull_path(action, repo, ui, source=None, default_branches=()):
             msg = _(b"path points to %d urls while %s only supports one: %s")
             msg %= (path_count, action, source)
         raise error.Abort(msg)
-    return parseurl(pull_paths[0].rawloc, default_branches)
+    return pull_paths[0]
+
+
+def get_unique_pull_path(action, repo, ui, source=None, default_branches=()):
+    """return a unique `(url, branch)` or abort if multiple are found
+
+    See `get_unique_pull_path_obj` for details.
+    """
+    path = get_unique_pull_path_obj(action, ui, source=source)
+    return parseurl(path.rawloc, default_branches)
 
 
 def get_clone_path(ui, source, default_branches=()):
