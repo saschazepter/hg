@@ -4500,7 +4500,8 @@ def debugwireproto(ui, repo, path=None, **opts):
                 _(b'--peer %s not supported with HTTP peers') % opts[b'peer']
             )
         else:
-            peer = httppeer.makepeer(ui, path, opener=opener)
+            peer_path = urlutil.try_path(ui, path)
+            peer = httppeer.makepeer(ui, peer_path, opener=opener)
 
         # We /could/ populate stdin/stdout with sock.makefile()...
     else:
