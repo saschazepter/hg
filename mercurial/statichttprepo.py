@@ -236,8 +236,8 @@ class statichttprepository(
     def local(self):
         return False
 
-    def peer(self):
-        return statichttppeer(self)
+    def peer(self, path=None):
+        return statichttppeer(self, path=path)
 
     def wlock(self, wait=True):
         raise error.LockUnavailable(

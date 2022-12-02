@@ -1612,7 +1612,7 @@ class ilocalrepositorymain(interfaceutil.Interface):
     def close():
         """Close the handle on this repository."""
 
-    def peer():
+    def peer(path=None):
         """Obtain an object conforming to the ``peer`` interface."""
 
     def unfiltered():
