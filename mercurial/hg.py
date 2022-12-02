@@ -702,10 +702,18 @@ def clone(
     """
 
     if isinstance(source, bytes):
-        src = urlutil.get_clone_path(ui, source, branch)
-        origsource, source, branches = src
-        srcpeer = peer(ui, peeropts, source)
+        src_path = urlutil.get_clone_path_obj(ui, source)
+        if src_path is None:
+            srcpeer = peer(ui, peeropts, b'')
+            origsource = source = b''
+            branches = (None, branch or [])
+        else:
+            srcpeer = peer(ui, peeropts, src_path)
+            origsource = src_path.rawloc
+            branches = (src_path.branch, branch or [])
+            source = src_path.loc
     else:
+        # XXX path: simply use the peer `path` object when this become available
         srcpeer = source.peer()  # in case we were called with a localrepo
         branches = (None, branch or [])
         origsource = source = srcpeer.url()
@@ -719,7 +727,11 @@ def clone(
             if dest:
                 ui.status(_(b"destination directory: %s\n") % dest)
         else:
-            dest = urlutil.get_clone_path(ui, dest)[0]
+            dest_path = urlutil.get_clone_path_obj(ui, dest)
+            if dest_path is not None:
+                dest = dest_path.rawloc
+            else:
+                dest = b''
 
         dest = urlutil.urllocalpath(dest)
         source = urlutil.urllocalpath(source)
