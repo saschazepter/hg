@@ -90,7 +90,7 @@ if stable_docket_file:
 # * 8 bytes: pending size of data
 # * 8 bytes: pending size of sidedata
 # * 1 bytes: default compression header
-S_HEADER = struct.Struct(constants.INDEX_HEADER_FMT + b'BBBBBBLLLLLLc')
+S_HEADER = struct.Struct(constants.INDEX_HEADER_FMT + b'BBBBBBQQQQQQc')
 # * 1 bytes: size of index uuid
 # * 8 bytes: size of file
 S_OLD_UID = struct.Struct('>BL')
