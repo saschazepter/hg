@@ -168,11 +168,12 @@ def islocal(repo):
         scheme = u.scheme or b'file'
         if scheme in peer_schemes:
             cls = peer_schemes[scheme]
+            cls.make_peer  # make sure we load the module
         elif scheme in repo_schemes:
             cls = repo_schemes[scheme]
+            cls.instance  # make sure we load the module
         else:
             cls = LocalFactory
-        cls.instance  # make sure we load the module
         if util.safehasattr(cls, 'islocal'):
             return cls.islocal(repo)  # pytype: disable=module-attr
         return False
@@ -253,7 +254,7 @@ def peer(uiorrepo, opts, path, create=False, intents=None, createopts=None):
         scheme = urlutil.url(path).scheme
     if scheme in peer_schemes:
         cls = peer_schemes[scheme]
-        peer = cls.instance(
+        peer = cls.make_peer(
             rui,
             path,
             create,

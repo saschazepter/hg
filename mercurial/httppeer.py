@@ -621,7 +621,7 @@ def makepeer(ui, path, opener=None, requestbuilder=urlreq.request):
     )
 
 
-def instance(ui, path, create, intents=None, createopts=None):
+def make_peer(ui, path, create, intents=None, createopts=None):
     if create:
         raise error.Abort(_(b'cannot create new http repository'))
     try:
@@ -635,7 +635,7 @@ def instance(ui, path, create, intents=None, createopts=None):
         return inst
     except error.RepoError as httpexception:
         try:
-            r = statichttprepo.instance(ui, b"static-" + path, create)
+            r = statichttprepo.make_peer(ui, b"static-" + path, create)
             ui.note(_(b'(falling back to static-http)\n'))
             return r
         except error.RepoError:

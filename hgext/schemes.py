@@ -80,6 +80,15 @@ class ShortRepository:
     def __repr__(self):
         return b'<ShortRepository: %s>' % self.scheme
 
+    def make_peer(self, ui, url, *args, **kwargs):
+        url = self.resolve(url)
+        u = urlutil.url(url)
+        scheme = u.scheme or b'file'
+        cls = hg.peer_schemes.get(scheme)
+        if cls is not None:
+            return cls.make_peer(ui, url, *args, **kwargs)
+        return None
+
     def instance(self, ui, url, create, intents=None, createopts=None):
         url = self.resolve(url)
         u = urlutil.url(url)
