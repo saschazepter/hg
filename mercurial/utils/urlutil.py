@@ -550,35 +550,23 @@ def get_unique_pull_path(action, repo, ui, source=None, default_branches=()):
 
     The `action` parameter will be used for the error message.
     """
-    urls = []
-    if source is None:
-        if b'default' in ui.paths:
-            urls.extend(p.rawloc for p in ui.paths[b'default'])
-        else:
-            # XXX this is the historical default behavior, but that is not
-            # great, consider breaking BC on this.
-            urls.append(b'default')
-    else:
-        if source in ui.paths:
-            urls.extend(p.rawloc for p in ui.paths[source])
-        else:
-            # Try to resolve as a local path or URI.
-            path = try_path(ui, source)
-            if path is not None:
-                urls.append(path.rawloc)
-            else:
-                urls.append(source)
-    if len(urls) != 1:
+    sources = []
+    if source is not None:
+        sources.append(source)
+
+    pull_paths = list(get_pull_paths(repo, ui, sources=sources))
+    path_count = len(pull_paths)
+    if path_count != 1:
         if source is None:
             msg = _(
                 b"default path points to %d urls while %s only supports one"
             )
-            msg %= (len(urls), action)
+            msg %= (path_count, action)
         else:
             msg = _(b"path points to %d urls while %s only supports one: %s")
-            msg %= (len(urls), action, source)
+            msg %= (path_count, action, source)
         raise error.Abort(msg)
-    return parseurl(urls[0], default_branches)
+    return parseurl(pull_paths[0].rawloc, default_branches)
 
 
 def get_clone_path(ui, source, default_branches=()):
