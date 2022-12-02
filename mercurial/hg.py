@@ -66,7 +66,11 @@ sharedbookmarks = b'bookmarks'
 
 
 def addbranchrevs(lrepo, other, branches, revs):
-    peer = other.peer()  # a courtesy to callers using a localrepo for other
+    if util.safehasattr(other, 'peer'):
+        # a courtesy to callers using a localrepo for other
+        peer = other.peer()
+    else:
+        peer = other
     hashbranch, branches = branches
     if not hashbranch and not branches:
         x = revs or None
