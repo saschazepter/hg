@@ -2130,11 +2130,9 @@ def remote(repo, subset, x):
         dest = getstring(l[1], _(b"remote requires a repository path"))
     if not dest:
         dest = b'default'
-    dest, branches = urlutil.get_unique_pull_path(
-        b'remote', repo, repo.ui, dest
-    )
+    path = urlutil.get_unique_pull_path_obj(b'remote', repo.ui, dest)
 
-    other = hg.peer(repo, {}, dest)
+    other = hg.peer(repo, {}, path)
     n = other.lookup(q)
     if n in repo:
         r = repo[n].rev()
