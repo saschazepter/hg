@@ -161,20 +161,17 @@ peer_schemes = {
 }
 
 
-def _peerlookup(path):
-    u = urlutil.url(path)
-    scheme = u.scheme or b'file'
-    if scheme in peer_schemes:
-        return peer_schemes[scheme]
-    if scheme in repo_schemes:
-        return repo_schemes[scheme]
-    return LocalFactory
-
-
 def islocal(repo):
     '''return true if repo (or path pointing to repo) is local'''
     if isinstance(repo, bytes):
-        cls = _peerlookup(repo)
+        u = urlutil.url(repo)
+        scheme = u.scheme or b'file'
+        if scheme in peer_schemes:
+            cls = peer_schemes[scheme]
+        elif scheme in repo_schemes:
+            cls = repo_schemes[scheme]
+        else:
+            cls = LocalFactory
         cls.instance  # make sure we load the module
         if util.safehasattr(cls, 'islocal'):
             return cls.islocal(repo)  # pytype: disable=module-attr
