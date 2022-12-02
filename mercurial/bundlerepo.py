@@ -458,8 +458,8 @@ class bundlerepository:
     def cancopy(self):
         return False
 
-    def peer(self):
-        return bundlepeer(self)
+    def peer(self, path=None):
+        return bundlepeer(self, path=path)
 
     def getcwd(self):
         return encoding.getcwd()  # always outside the repo
