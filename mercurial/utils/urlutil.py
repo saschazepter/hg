@@ -581,13 +581,20 @@ def get_unique_pull_path(action, repo, ui, source=None, default_branches=()):
     return parseurl(path.rawloc, default_branches)
 
 
+def get_clone_path_obj(ui, source):
+    """return the `(origsource, url, branch)` selected as clone source"""
+    if source == b'':
+        return None
+    return get_unique_pull_path_obj(b'clone', ui, source=source)
+
+
 def get_clone_path(ui, source, default_branches=None):
     """return the `(origsource, url, branch)` selected as clone source"""
+    path = get_clone_path_obj(ui, source)
+    if path is None:
+        return (b'', b'', (None, default_branches))
     if default_branches is None:
         default_branches = []
-    if source == b'':
-        return (b'', b'', (None, default_branches))
-    path = get_unique_pull_path_obj(b'clone', ui, source=source)
     branches = (path.branch, default_branches)
     return path.rawloc, path.loc, branches
 
