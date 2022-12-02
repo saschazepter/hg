@@ -387,6 +387,12 @@ class peer:
 
     limitedarguments = False
 
+    def __init__(
+        self,
+        ui,
+    ):
+        self.ui = ui
+
     def capable(self, name):
         caps = self.capabilities()
         if name in caps:

@@ -382,7 +382,7 @@ def parsev1commandresponse(ui, baseurl, requrl, qs, resp, compressible):
 
 class httppeer(wireprotov1peer.wirepeer):
     def __init__(self, ui, path, url, opener, requestbuilder, caps):
-        self.ui = ui
+        super().__init__(ui)
         self._path = path
         self._url = url
         self._caps = caps
