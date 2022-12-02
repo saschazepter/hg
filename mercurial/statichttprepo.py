@@ -262,4 +262,5 @@ class statichttprepository(
 def make_peer(ui, path, create, intents=None, createopts=None):
     if create:
         raise error.Abort(_(b'cannot create new static-http repository'))
+    path = path.loc
     return statichttprepository(ui, path[7:]).peer()
