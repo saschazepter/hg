@@ -420,6 +420,7 @@ class cg1unpacker:
         prog,
         addrevisioncb=None,
         debug_info=None,
+        delta_base_reuse_policy=None,
     ):
         self.callback = prog.increment
         # no need to check for empty manifest group here:
@@ -435,6 +436,7 @@ class cg1unpacker:
             trp,
             addrevisioncb=addrevisioncb,
             debug_info=debug_info,
+            delta_base_reuse_policy=delta_base_reuse_policy,
         )
         prog.complete()
         self.callback = None
@@ -448,6 +450,7 @@ class cg1unpacker:
         targetphase=phases.draft,
         expectedtotal=None,
         sidedata_categories=None,
+        delta_base_reuse_policy=None,
     ):
         """Add the changegroup returned by source.read() to this repo.
         srctype is a string like 'push', 'pull', or 'unbundle'.  url is
@@ -461,6 +464,12 @@ class cg1unpacker:
 
         `sidedata_categories` is an optional set of the remote's sidedata wanted
         categories.
+
+        `delta_base_reuse_policy` is an optional argument, when set to a value
+        it will control the way the delta contained into the bundle are reused
+        when applied in the revlog.
+
+        See `DELTA_BASE_REUSE_*` entry in mercurial.revlogutils.constants.
         """
         repo = repo.unfiltered()
 
@@ -543,6 +552,7 @@ class cg1unpacker:
                 addrevisioncb=onchangelog,
                 duplicaterevisioncb=ondupchangelog,
                 debug_info=debug_info,
+                delta_base_reuse_policy=delta_base_reuse_policy,
             ):
                 repo.ui.develwarn(
                     b'applied empty changelog from changegroup',
@@ -591,6 +601,7 @@ class cg1unpacker:
                 progress,
                 addrevisioncb=on_manifest_rev,
                 debug_info=debug_info,
+                delta_base_reuse_policy=delta_base_reuse_policy,
             )
 
             needfiles = {}
@@ -628,6 +639,7 @@ class cg1unpacker:
                 needfiles,
                 addrevisioncb=on_filelog_rev,
                 debug_info=debug_info,
+                delta_base_reuse_policy=delta_base_reuse_policy,
             )
 
             if sidedata_helpers:
@@ -815,6 +827,7 @@ class cg3unpacker(cg2unpacker):
         prog,
         addrevisioncb=None,
         debug_info=None,
+        delta_base_reuse_policy=None,
     ):
         super(cg3unpacker, self)._unpackmanifests(
             repo,
@@ -823,6 +836,7 @@ class cg3unpacker(cg2unpacker):
             prog,
             addrevisioncb=addrevisioncb,
             debug_info=debug_info,
+            delta_base_reuse_policy=delta_base_reuse_policy,
         )
         for chunkdata in iter(self.filelogheader, {}):
             # If we get here, there are directory manifests in the changegroup
@@ -835,6 +849,7 @@ class cg3unpacker(cg2unpacker):
                 trp,
                 addrevisioncb=addrevisioncb,
                 debug_info=debug_info,
+                delta_base_reuse_policy=delta_base_reuse_policy,
             ):
                 raise error.Abort(_(b"received dir revlog group is empty"))
 
@@ -2372,6 +2387,7 @@ def _addchangegroupfiles(
     needfiles,
     addrevisioncb=None,
     debug_info=None,
+    delta_base_reuse_policy=None,
 ):
     revisions = 0
     files = 0
@@ -2393,6 +2409,7 @@ def _addchangegroupfiles(
                 trp,
                 addrevisioncb=addrevisioncb,
                 debug_info=debug_info,
+                delta_base_reuse_policy=delta_base_reuse_policy,
             )
             if not added:
                 raise error.Abort(_(b"received file revlog group is empty"))

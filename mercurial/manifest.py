@@ -1857,6 +1857,7 @@ class manifestrevlog:
         addrevisioncb=None,
         duplicaterevisioncb=None,
         debug_info=None,
+        delta_base_reuse_policy=None,
     ):
         return self._revlog.addgroup(
             deltas,
@@ -1866,6 +1867,7 @@ class manifestrevlog:
             addrevisioncb=addrevisioncb,
             duplicaterevisioncb=duplicaterevisioncb,
             debug_info=debug_info,
+            delta_base_reuse_policy=delta_base_reuse_policy,
         )
 
     def rawsize(self, rev):
