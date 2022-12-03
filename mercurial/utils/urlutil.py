@@ -24,6 +24,10 @@ from . import (
     stringutil,
 )
 
+from ..revlogutils import (
+    constants as revlog_constants,
+)
+
 
 if pycompat.TYPE_CHECKING:
     from typing import (
@@ -765,6 +769,26 @@ def bookmarks_mode_option(ui, path, value):
     if value == b'default':
         value = None
     return value
+
+
+DELTA_REUSE_POLICIES = {
+    b'default': None,
+    b'try-base': revlog_constants.DELTA_BASE_REUSE_TRY,
+    b'no-reuse': revlog_constants.DELTA_BASE_REUSE_NO,
+}
+
+
+@pathsuboption(b'delta-reuse-policy', b'delta_reuse_policy')
+def delta_reuse_policy(ui, path, value):
+    if value not in DELTA_REUSE_POLICIES:
+        path_name = path.name
+        if path_name is None:
+            # this is an "anonymous" path, config comes from the global one
+            path_name = b'*'
+        msg = _(b'(paths.%s:delta-reuse-policy has unknown value: "%s")\n')
+        msg %= (path_name, value)
+        ui.warn(msg)
+    return DELTA_REUSE_POLICIES.get(value)
 
 
 @pathsuboption(b'multi-urls', b'multi_urls')
