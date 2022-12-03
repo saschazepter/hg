@@ -717,6 +717,11 @@ def clone(
             branches = (src_path.branch, branch or [])
             source = src_path.loc
     else:
+        if util.safehasattr(source, 'peer'):
+            srcpeer = source.peer()  # in case we were called with a localrepo
+        else:
+            srcpeer = source
+        branches = (None, branch or [])
         # XXX path: simply use the peer `path` object when this become available
         srcpeer = source.peer()  # in case we were called with a localrepo
         branches = (None, branch or [])
