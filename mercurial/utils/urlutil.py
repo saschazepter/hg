@@ -241,7 +241,7 @@ class url:
         u.user = self.user
         u.passwd = self.passwd
         u.host = self.host
-        u.path = self.path
+        u.port = self.port
         u.query = self.query
         u.fragment = self.fragment
         u._localpath = self._localpath
