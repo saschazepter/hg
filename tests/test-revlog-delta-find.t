@@ -191,3 +191,72 @@ against the "best" parent. (so not the same as the previous two)
   \s*1001 (re)
   $ hg -R bundle-reuse-disabled debugdata my-file.txt 1 | wc -l
   \s*1200 (re)
+
+
+Check the path.*:delta-reuse-policy option
+==========================================
+
+Get a repository with the bad parent picked and a clone ready to pull the merge
+
+  $ cp -ar bundle-reuse-enabled peer-bad-delta
+  $ hg clone peer-bad-delta local-pre-pull --rev `cat large.node` --rev `cat small.node` --quiet
+  DBG-DELTAS: CHANGELOG: * (glob)
+  DBG-DELTAS: CHANGELOG: * (glob)
+  DBG-DELTAS: CHANGELOG: * (glob)
+  DBG-DELTAS: MANIFESTLOG: * (glob)
+  DBG-DELTAS: MANIFESTLOG: * (glob)
+  DBG-DELTAS: MANIFESTLOG: * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=0: delta-base=0 * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=1: delta-base=0 * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=2: delta-base=0 * (glob)
+
+Check the parent order for the file
+
+  $ hg -R local-pre-pull debugdata my-file.txt 2 | wc -l
+  \s*1001 (re)
+  $ hg -R local-pre-pull debugdata my-file.txt 1 | wc -l
+  \s*1200 (re)
+
+Pull with no value (so the default)
+-----------------------------------
+
+default is to reuse the (bad) delta
+
+  $ cp -ar local-pre-pull local-no-value
+  $ hg -R local-no-value pull --quiet
+  DBG-DELTAS: CHANGELOG: * (glob)
+  DBG-DELTAS: MANIFESTLOG: * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
+
+Pull with explicitly the default
+--------------------------------
+
+default is to reuse the (bad) delta
+
+  $ cp -ar local-pre-pull local-default
+  $ hg -R local-default pull --quiet --config 'paths.default:delta-reuse-policy=default'
+  DBG-DELTAS: CHANGELOG: * (glob)
+  DBG-DELTAS: MANIFESTLOG: * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
+
+Pull with no-reuse
+------------------
+
+We don't reuse the base, so we get a better delta
+
+  $ cp -ar local-pre-pull local-no-reuse
+  $ hg -R local-no-reuse pull --quiet --config 'paths.default:delta-reuse-policy=no-reuse'
+  DBG-DELTAS: CHANGELOG: * (glob)
+  DBG-DELTAS: MANIFESTLOG: * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=1 * (glob)
+
+Pull with try-base
+------------------
+
+We requested to use the (bad) delta
+
+  $ cp -ar local-pre-pull local-try-base
+  $ hg -R local-try-base pull --quiet --config 'paths.default:delta-reuse-policy=try-base'
+  DBG-DELTAS: CHANGELOG: * (glob)
+  DBG-DELTAS: MANIFESTLOG: * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
