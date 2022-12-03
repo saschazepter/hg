@@ -2663,6 +2663,7 @@ class revlog:
         addrevisioncb=None,
         duplicaterevisioncb=None,
         debug_info=None,
+        delta_base_reuse_policy=None,
     ):
         """
         add a delta group
@@ -2677,6 +2678,14 @@ class revlog:
 
         if self._adding_group:
             raise error.ProgrammingError(b'cannot nest addgroup() calls')
+
+        # read the default delta-base reuse policy from revlog config if the
+        # group did not specify one.
+        if delta_base_reuse_policy is None:
+            if self._generaldelta and self._lazydeltabase:
+                delta_base_reuse_policy = DELTA_BASE_REUSE_TRY
+            else:
+                delta_base_reuse_policy = DELTA_BASE_REUSE_NO
 
         self._adding_group = True
         empty = True
@@ -2758,7 +2767,7 @@ class revlog:
                         p1,
                         p2,
                         flags,
-                        (baserev, delta),
+                        (baserev, delta, delta_base_reuse_policy),
                         alwayscache=alwayscache,
                         deltacomputer=deltacomputer,
                         sidedata=sidedata,

@@ -154,6 +154,7 @@ class filelog:
         duplicaterevisioncb=None,
         maybemissingparents=False,
         debug_info=None,
+        delta_base_reuse_policy=None,
     ):
         if maybemissingparents:
             raise error.Abort(
@@ -175,6 +176,7 @@ class filelog:
                 addrevisioncb=addrevisioncb,
                 duplicaterevisioncb=duplicaterevisioncb,
                 debug_info=debug_info,
+                delta_base_reuse_policy=delta_base_reuse_policy,
             )
 
     def getstrippoint(self, minlink):
