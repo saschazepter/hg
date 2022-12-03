@@ -403,9 +403,6 @@ class httppeer(wireprotov1peer.wirepeer):
     def local(self):
         return None
 
-    def peer(self):
-        return self
-
     def canpush(self):
         return True
 
