@@ -325,9 +325,6 @@ class localpeer(repository.peer):
     def local(self):
         return self._repo
 
-    def peer(self):
-        return self
-
     def canpush(self):
         return True
 

@@ -123,12 +123,6 @@ class ipeerconnection(interfaceutil.Interface):
         can be used to interface with it. Otherwise returns ``None``.
         """
 
-    def peer():
-        """Returns an object conforming to this interface.
-
-        Most implementations will ``return self``.
-        """
-
     def canpush():
         """Returns a boolean indicating if this peer can be pushed to."""
 
