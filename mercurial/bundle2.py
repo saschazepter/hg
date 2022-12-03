@@ -517,6 +517,10 @@ def processparts(repo, op, unbundler):
 
 
 def _processchangegroup(op, cg, tr, source, url, **kwargs):
+    if op.remote is not None and op.remote.path is not None:
+        remote_path = op.remote.path
+        kwargs = kwargs.copy()
+        kwargs['delta_base_reuse_policy'] = remote_path.delta_reuse_policy
     ret = cg.apply(op.repo, tr, source, url, **kwargs)
     op.records.add(
         b'changegroup',
