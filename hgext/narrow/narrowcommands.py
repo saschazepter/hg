@@ -416,7 +416,7 @@ def _widen(
                     repo, trmanager.transaction, source=b'widen'
                 )
                 # TODO: we should catch error.Abort here
-                bundle2.processbundle(repo, bundle, op=op)
+                bundle2.processbundle(repo, bundle, op=op, remote=remote)
 
         if ellipsesremote:
             with ds.parentchange():
