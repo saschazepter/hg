@@ -723,8 +723,6 @@ def clone(
             srcpeer = source
         branches = (None, branch or [])
         # XXX path: simply use the peer `path` object when this become available
-        srcpeer = source.peer()  # in case we were called with a localrepo
-        branches = (None, branch or [])
         origsource = source = srcpeer.url()
     srclock = destlock = destwlock = cleandir = None
     destpeer = None
