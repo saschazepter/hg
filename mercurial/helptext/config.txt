@@ -1922,6 +1922,35 @@ The following sub-options can be defined:
   - ``ignore``: ignore bookmarks during exchange.
     (This currently only affect pulling)
 
+.. container:: verbose
+
+  ``delta-reuse-policy``
+  Control the policy regarding deltas sent by the remote during pulls.
+
+  This is an advanced option that non-admin users should not need to understand
+  or set. This option can be used to speed up pulls from trusted central
+  servers, or to fix-up deltas from older servers.
+
+  It supports the following values:
+
+  - ``default``: use the policy defined by
+    `storage.revlog.reuse-external-delta-parent`,
+
+  - ``no-reuse``: start a new optimal delta search for each new revision we add
+    to the repository. The deltas from the server will be reused when the base
+    it applies to is tested (this can be frequent if that base is the one and
+    unique parent of that revision). This can significantly slowdown pulls but
+    will result in an optimized storage space if the remote peer is sending poor
+    quality deltas.
+
+  - ``try-base``: try to reuse the deltas from the remote peer as long as they
+    create a valid delta-chain in the local repository. This speeds up the
+    unbundling process, but can result in sub-optimal storage space if the
+    remote peer is sending poor quality deltas.
+
+  See `hg help config.storage.revlog.reuse-external-delta-parent` for a similar
+  global option. That option defines the behavior of `default`.
+
 The following special named paths exist:
 
 ``default``
