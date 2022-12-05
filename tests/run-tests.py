@@ -86,6 +86,7 @@ if sys.version_info < (3, 5, 0):
     )
     sys.exit(70)  # EX_SOFTWARE from `man 3 sysexit`
 
+MACOS = sys.platform == 'darwin'
 WINDOWS = os.name == r'nt'
 shellquote = shlex.quote
 
@@ -745,8 +746,8 @@ def parseargs(args, parser):
         parser.error('chg does not work on %s' % os.name)
     if (options.rhg or options.with_rhg) and WINDOWS:
         parser.error('rhg does not work on %s' % os.name)
-    if options.pyoxidized and not WINDOWS:
-        parser.error('--pyoxidized is currently Windows only')
+    if options.pyoxidized and not (MACOS or WINDOWS):
+        parser.error('--pyoxidized is currently macOS and Windows only')
     if options.with_chg:
         options.chg = False  # no installation to temporary location
         options.with_chg = canonpath(_sys2bytes(options.with_chg))
@@ -3205,9 +3206,18 @@ class TestRunner:
             testdir = os.path.dirname(_sys2bytes(canonpath(sys.argv[0])))
             reporootdir = os.path.dirname(testdir)
             # XXX we should ideally install stuff instead of using the local build
-            bin_path = (
-                b'build/pyoxidizer/x86_64-pc-windows-msvc/release/app/hg.exe'
-            )
+
+            exe = b'hg'
+            triple = b''
+
+            if WINDOWS:
+                triple = b'x86_64-pc-windows-msvc'
+                exe = b'hg.exe'
+            elif MACOS:
+                # TODO: support Apple silicon too
+                triple = b'x86_64-apple-darwin'
+
+            bin_path = b'build/pyoxidizer/%s/release/app/%s' % (triple, exe)
             full_path = os.path.join(reporootdir, bin_path)
             self._hgcommand = full_path
             # Affects hghave.py
@@ -3851,8 +3861,15 @@ class TestRunner:
         vlog('# build a pyoxidized version of Mercurial')
         assert os.path.dirname(self._bindir) == self._installdir
         assert self._hgroot, 'must be called after _installhg()'
-        cmd = b'"%(make)s" pyoxidizer-windows-tests' % {
+        target = b''
+        if WINDOWS:
+            target = b'windows'
+        elif MACOS:
+            target = b'macos'
+
+        cmd = b'"%(make)s" pyoxidizer-%(platform)s-tests' % {
             b'make': b'make',
+            b'platform': target,
         }
         cwd = self._hgroot
         vlog("# Running", cmd)
