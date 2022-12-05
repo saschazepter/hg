@@ -728,7 +728,7 @@ def clone(
             # data.
             createopts[b'lfs'] = True
 
-            if extensions.disabled_help(b'lfs'):
+            if b'lfs' in extensions.disabled():
                 ui.status(
                     _(
                         b'(remote is using large file support (lfs), but it is '
