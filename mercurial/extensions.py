@@ -841,6 +841,22 @@ def disabled_help(name):
     paths = _disabledpaths()
     if name in paths:
         return _disabledhelp(paths[name])
+    else:
+        try:
+            import hgext
+            from hgext import __index__  # pytype: disable=import-error
+
+            # The extensions are filesystem based, so either an error occurred
+            # or all are enabled.
+            if util.safehasattr(hgext, '__file__'):
+                return
+
+            if name in _order:  # enabled
+                return
+            else:
+                return gettext(__index__.docs.get(name))
+        except (ImportError, AttributeError):
+            pass
 
 
 def _walkcommand(node):
