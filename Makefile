@@ -260,10 +260,9 @@ pyoxidizer:
 	$(PYOXIDIZER) build --path ./rust/hgcli --release
 
 
-PYOX_DIR=build/pyoxidizer/x86_64-pc-windows-msvc/release/app
-
 # a temporary target to setup all we need for run-tests.py --pyoxidizer
 # (should go away as the run-tests implementation improves
+pyoxidizer-windows-tests: PYOX_DIR=build/pyoxidizer/x86_64-pc-windows-msvc/release/app
 pyoxidizer-windows-tests: pyoxidizer
 	rm -rf $(PYOX_DIR)/templates
 	cp -ar $(PYOX_DIR)/lib/mercurial/templates $(PYOX_DIR)/templates
@@ -277,9 +276,25 @@ pyoxidizer-windows-tests: pyoxidizer
 	cp -ar doc $(PYOX_DIR)/doc
 
 
+# a temporary target to setup all we need for run-tests.py --pyoxidizer
+# (should go away as the run-tests implementation improves
+pyoxidizer-macos-tests: PYOX_DIR=build/pyoxidizer/x86_64-apple-darwin/release/app
+pyoxidizer-macos-tests: pyoxidizer
+	rm -rf $(PYOX_DIR)/templates
+	cp -a mercurial/templates $(PYOX_DIR)/templates
+	rm -rf $(PYOX_DIR)/helptext
+	cp -a mercurial/helptext $(PYOX_DIR)/helptext
+	rm -rf $(PYOX_DIR)/defaultrc
+	cp -a mercurial/defaultrc $(PYOX_DIR)/defaultrc
+	rm -rf $(PYOX_DIR)/contrib
+	cp -a contrib $(PYOX_DIR)/contrib
+	rm -rf $(PYOX_DIR)/doc
+	cp -a doc $(PYOX_DIR)/doc
+
+
 .PHONY: help all local build doc cleanbutpackages clean install install-bin \
 	install-doc install-home install-home-bin install-home-doc \
 	dist dist-notests check tests rust-tests check-code format-c \
-	update-pot pyoxidizer pyoxidizer-windows-tests \
+	update-pot pyoxidizer pyoxidizer-windows-tests pyoxidizer-macos-tests \
 	$(packaging_targets) \
 	osx
