@@ -56,7 +56,7 @@ pub fn status<'dirstate>(
     // instantiated in `rhg` or some other caller.
     // TODO find the underlying cause and fix it, then remove this.
     rayon::ThreadPoolBuilder::new()
-        .num_threads(16)
+        .num_threads(16.min(rayon::current_num_threads()))
         .build_global()
         .ok();
 
