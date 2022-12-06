@@ -10,7 +10,6 @@ import binascii
 import functools
 import random
 import re
-import sys
 
 from .i18n import _
 from .pycompat import getattr
@@ -2355,7 +2354,7 @@ def roots(repo, subset, x):
     return subset & s.filter(filter, condrepr=b'<roots>')
 
 
-MAXINT = sys.maxsize
+MAXINT = (1 << 31) - 1
 MININT = -MAXINT - 1
 
 
