@@ -144,7 +144,7 @@ XXX-PYOXIDIZER Pyoxidizer build have trouble with zeroconf for unclear reason,
 we accept the bad output for now as this is the last thing in the way of
 testing the pyoxidizer build.
 
-#if no-pyoxidizer
+#if no-pyoxidizer-in-filesystem
   $ hg paths --config extensions.zeroconf=
   dupe = $TESTTMP/b#tip
   dupe:pushurl = https://example.com/dupe
