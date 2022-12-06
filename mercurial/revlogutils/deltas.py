@@ -684,6 +684,15 @@ def _candidategroups(
         yield None
         return
 
+    if (
+        cachedelta is not None
+        and nullrev == cachedelta[0]
+        and cachedelta[2] == DELTA_BASE_REUSE_FORCE
+    ):
+        # instruction are to forcibly do a full snapshot
+        yield None
+        return
+
     deltalength = revlog.length
     deltaparent = revlog.deltaparent
     sparse = revlog._sparserevlog
