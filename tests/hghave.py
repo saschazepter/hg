@@ -202,6 +202,22 @@ def has_pyoxidizer():
     return 'PYOXIDIZED_INSTALLED_AS_HG' in os.environ
 
 
+@check(
+    "pyoxidizer-in-memory",
+    "running with pyoxidizer build as 'hg' with embedded resources",
+)
+def has_pyoxidizer():
+    return 'PYOXIDIZED_IN_MEMORY_RSRC' in os.environ
+
+
+@check(
+    "pyoxidizer-in-filesystem",
+    "running with pyoxidizer build as 'hg' with external resources",
+)
+def has_pyoxidizer():
+    return 'PYOXIDIZED_FILESYSTEM_RSRC' in os.environ
+
+
 @check("cvs", "cvs client/server")
 def has_cvs():
     re = br'Concurrent Versions System.*?server'

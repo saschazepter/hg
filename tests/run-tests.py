@@ -3451,6 +3451,9 @@ class TestRunner:
                 verbosity = 2
             runner = TextTestRunner(self, verbosity=verbosity)
 
+            osenvironb.pop(b'PYOXIDIZED_IN_MEMORY_RSRC', None)
+            osenvironb.pop(b'PYOXIDIZED_FILESYSTEM_RSRC', None)
+
             if self.options.list_tests:
                 result = runner.listtests(suite)
             else:
@@ -3885,6 +3888,20 @@ class TestRunner:
         if proc.returncode != 0:
             sys.stdout.buffer.write(out)
             sys.exit(1)
+
+        cmd = _bytes2sys(b"%s debuginstall -Tjson" % self._hgcommand)
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
+        out, err = p.communicate()
+
+        props = json.loads(out)[0]
+
+        # Affects hghave.py
+        osenvironb.pop(b'PYOXIDIZED_IN_MEMORY_RSRC', None)
+        osenvironb.pop(b'PYOXIDIZED_FILESYSTEM_RSRC', None)
+        if props["hgmodules"] == props["pythonexe"]:
+            osenvironb[b'PYOXIDIZED_IN_MEMORY_RSRC'] = b'1'
+        else:
+            osenvironb[b'PYOXIDIZED_FILESYSTEM_RSRC'] = b'1'
 
     def _outputcoverage(self):
         """Produce code coverage output."""
