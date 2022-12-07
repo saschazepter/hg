@@ -46,8 +46,8 @@ multihead push works.
   remote:     bc22f9a30a82  multihead1
   remote:     ee4802bf6864  multihead2
   $ scratchnodes
-  bc22f9a30a821118244deacbd732e394ed0b686c ab1bc557aa090a9e4145512c734b6e8a828393a5
-  ee4802bf6864326a6b3dcfff5a03abc2a0a69b8f ab1bc557aa090a9e4145512c734b6e8a828393a5
+  bc22f9a30a821118244deacbd732e394ed0b686c de1b7d132ba98f0172cd974e3e69dfa80faa335c
+  ee4802bf6864326a6b3dcfff5a03abc2a0a69b8f de1b7d132ba98f0172cd974e3e69dfa80faa335c
 
 Create two new scratch bookmarks
   $ hg up 0

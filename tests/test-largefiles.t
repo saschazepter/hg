@@ -1122,7 +1122,7 @@ redo pull with --lfrev and check it pulls largefiles for the right revs
   6 changesets found
   uncompressed size of bundle content:
       1389 (changelog)
-      1599 (manifests)
+      1698 (manifests)
        254  .hglf/large1
        564  .hglf/large3
        572  .hglf/sub/large4
