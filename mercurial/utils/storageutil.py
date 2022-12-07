@@ -458,6 +458,10 @@ def emitrevisions(
             if debug_info is not None:
                 debug_delta_source = "storage"
             baserev = deltaparentrev
+        elif deltaparentrev == nullrev:
+            if debug_info is not None:
+                debug_delta_source = "storage"
+            baserev = deltaparentrev
         else:
             if deltaparentrev != nullrev and debug_info is not None:
                 debug_info['denied-base-not-available'] += 1
