@@ -296,6 +296,21 @@ snapshot again.
   DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
   DBG-DELTAS: FILELOG:my-file.txt: rev=4: delta-base=4 * (glob)
 
+Check that "forced" behavior do not challenge the delta, even if it is full.
+---------------------------------------------------------------------------
+
+A full bundle should be accepted as full bundle without recomputation
+
+  $ cp -ar local-pre-pull-full local-forced-full
+  $ hg -R local-forced-full pull --quiet \
+  > --config 'paths.default:delta-reuse-policy=forced'
+  DBG-DELTAS: CHANGELOG: * (glob)
+  DBG-DELTAS: CHANGELOG: * (glob)
+  DBG-DELTAS: MANIFESTLOG: * (glob)
+  DBG-DELTAS: MANIFESTLOG: * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=4: delta-base=4 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - * (glob)
+
 Check that "forced" behavior do not challenge the delta, even if it is bad.
 ---------------------------------------------------------------------------
 
@@ -305,9 +320,11 @@ Note: If the bundling process becomes smarter, this test might no longer work
 (as the server won't be sending "bad" deltas anymore) and might need something
 more subtle to test this behavior.
 
-  $ cp -ar local-pre-pull-full local-forced-full
-  $ hg -R local-forced-full pull --quiet \
-  > --config 'paths.default:delta-reuse-policy=forced'
+  $ hg bundle -R peer-bad-delta-with-full --all --config devel.bundle.delta=p1 all-p1.hg
+  5 changesets found
+  $ cp -ar local-pre-pull-full local-forced-full-p1
+  $ hg -R local-forced-full-p1 pull --quiet \
+  > --config 'paths.*:delta-reuse-policy=forced' all-p1.hg
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
