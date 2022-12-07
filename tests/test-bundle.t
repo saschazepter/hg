@@ -1066,17 +1066,17 @@ Test the debug output when applying delta
   > --config storage.revlog.reuse-external-delta=no \
   > --config storage.revlog.reuse-external-delta-parent=no
   adding changesets
-  DBG-DELTAS: CHANGELOG:   rev=0: delta-base=0 is-cached=0 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
-  DBG-DELTAS: CHANGELOG:   rev=1: delta-base=1 is-cached=0 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=0 p2-chain-length=-1 - duration=* (glob)
-  DBG-DELTAS: CHANGELOG:   rev=2: delta-base=2 is-cached=0 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=0 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: CHANGELOG:   rev=0: delta-base=0 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: CHANGELOG:   rev=1: delta-base=1 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=0 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: CHANGELOG:   rev=2: delta-base=2 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=0 p2-chain-length=-1 - duration=* (glob)
   adding manifests
-  DBG-DELTAS: MANIFESTLOG: rev=0: delta-base=0 is-cached=0 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: MANIFESTLOG: rev=0: delta-base=0 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
   DBG-DELTAS: MANIFESTLOG: rev=1: delta-base=0 is-cached=1 - search-rounds=1 try-count=1 - delta-type=delta  snap-depth=0 - p1-chain-length=0 p2-chain-length=-1 - duration=* (glob)
   DBG-DELTAS: MANIFESTLOG: rev=2: delta-base=1 is-cached=1 - search-rounds=1 try-count=1 - delta-type=delta  snap-depth=0 - p1-chain-length=1 p2-chain-length=-1 - duration=* (glob)
   adding file changes
-  DBG-DELTAS: FILELOG:a:   rev=0: delta-base=0 is-cached=0 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
-  DBG-DELTAS: FILELOG:b:   rev=0: delta-base=0 is-cached=0 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
-  DBG-DELTAS: FILELOG:c:   rev=0: delta-base=0 is-cached=0 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: FILELOG:a:   rev=0: delta-base=0 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: FILELOG:b:   rev=0: delta-base=0 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: FILELOG:c:   rev=0: delta-base=0 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
   added 3 changesets with 3 changes to 3 files
   new changesets 4fe08cd4693e:4652c276ac4f (3 drafts)
   (run 'hg update' to get a working copy)
@@ -1101,15 +1101,15 @@ Test the debug statistic when applying a bundle
   DEBUG-UNBUNDLING: type-count:
   DEBUG-UNBUNDLING:   changelog:
   DEBUG-UNBUNDLING:     full:                 3
-  DEBUG-UNBUNDLING:       cached:             0             (  0%)
+  DEBUG-UNBUNDLING:       cached:             3             (100%)
   DEBUG-UNBUNDLING:   manifests:
   DEBUG-UNBUNDLING:     full:                 1
-  DEBUG-UNBUNDLING:       cached:             0             (  0%)
+  DEBUG-UNBUNDLING:       cached:             1             (100%)
   DEBUG-UNBUNDLING:     delta:                2
   DEBUG-UNBUNDLING:       cached:             2             (100%)
   DEBUG-UNBUNDLING:   files:
   DEBUG-UNBUNDLING:     full:                 3
-  DEBUG-UNBUNDLING:       cached:             0             (  0%)
+  DEBUG-UNBUNDLING:       cached:             3             (100%)
   DEBUG-UNBUNDLING: type-time:
   DEBUG-UNBUNDLING:   changelog:
   DEBUG-UNBUNDLING:     full:        ?????????????? seconds (???% of total) (glob)
