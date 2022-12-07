@@ -1392,12 +1392,20 @@ class deltacomputer:
 
         if gather_debug:
             end = util.timer()
-            used_cached = (
-                cachedelta is not None
-                and dbg_try_rounds == 1
-                and dbg_try_count == 1
-                and deltainfo.base == cachedelta[0]
-            )
+            if dbg_type == b'full':
+                used_cached = (
+                    cachedelta is not None
+                    and dbg_try_rounds == 0
+                    and dbg_try_count == 0
+                    and cachedelta[0] == nullrev
+                )
+            else:
+                used_cached = (
+                    cachedelta is not None
+                    and dbg_try_rounds == 1
+                    and dbg_try_count == 1
+                    and deltainfo.base == cachedelta[0]
+                )
             dbg = {
                 'duration': end - start,
                 'revision': target_rev,
