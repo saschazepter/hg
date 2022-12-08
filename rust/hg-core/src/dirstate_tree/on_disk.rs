@@ -637,6 +637,11 @@ pub(super) fn write(
     can_append: bool,
 ) -> Result<(Vec<u8>, TreeMetadata, bool, usize), DirstateError> {
     let append = can_append && dirstate_map.write_should_append();
+    if append {
+        log::trace!("appending to the dirstate data file");
+    } else {
+        log::trace!("creating new dirstate data file");
+    }
 
     // This ignores the space for paths, and for nodes without an entry.
     // TODO: better estimate? Skip the `Vec` and write to a file directly?
