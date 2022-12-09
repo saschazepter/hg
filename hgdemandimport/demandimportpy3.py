@@ -85,7 +85,7 @@ class LazyFinder:
         return getattr(object.__getattribute__(self, "_finder"), name)
 
     def __delattr__(self, name):
-        return delattr(object.__getattribute__(self, "_finder"))
+        return delattr(object.__getattribute__(self, "_finder"), name)
 
     def __setattr__(self, name, value):
         return setattr(object.__getattribute__(self, "_finder"), name, value)
