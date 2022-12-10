@@ -20,7 +20,12 @@ import sys
 import traceback
 
 from typing import (
+    Dict,
+    List,
     Optional,
+    Tuple,
+    Union,
+    cast,
 )
 
 from .i18n import _
@@ -51,6 +56,12 @@ from .utils import (
     stringutil,
     urlutil,
 )
+
+# The **opts args of the various write() methods can be basically anything, but
+# there's no way to express it as "anything but str".  So type it to be the
+# handful of known types that are used.
+_MsgOpts = Union[bytes, bool, List["_PromptChoice"]]
+_PromptChoice = Tuple[bytes, bytes]
 
 urlreq = util.urlreq
 
@@ -1204,7 +1215,7 @@ class ui:
         # Windows color printing is special, see ``write``.
         return self._colormode != b'win32'
 
-    def write(self, *args, **opts):
+    def write(self, *args: bytes, **opts: _MsgOpts) -> None:
         """write args to output
 
         By default, this method simply writes to the buffer or stdout.
@@ -1262,10 +1273,10 @@ class ui:
                 util.timer() - starttime
             ) * 1000
 
-    def write_err(self, *args, **opts):
+    def write_err(self, *args: bytes, **opts: _MsgOpts) -> None:
         self._write(self._ferr, *args, **opts)
 
-    def _write(self, dest, *args, **opts):
+    def _write(self, dest, *args: bytes, **opts: _MsgOpts) -> None:
         # update write() as well if you touch this code
         if self._isbuffered(dest):
             label = opts.get('label', b'')
@@ -1276,7 +1287,7 @@ class ui:
         else:
             self._writenobuf(dest, *args, **opts)
 
-    def _writenobuf(self, dest, *args, **opts):
+    def _writenobuf(self, dest, *args: bytes, **opts: _MsgOpts) -> None:
         # update write() as well if you touch this code
         if not opts.get('keepprogressbar', False):
             self._progclear()
@@ -1318,7 +1329,7 @@ class ui:
                 util.timer() - starttime
             ) * 1000
 
-    def _writemsg(self, dest, *args, **opts):
+    def _writemsg(self, dest, *args: bytes, **opts: _MsgOpts) -> None:
         timestamp = self.showtimestamp and opts.get('type') in {
             b'debug',
             b'error',
@@ -1335,10 +1346,10 @@ class ui:
         if timestamp:
             dest.flush()
 
-    def _writemsgnobuf(self, dest, *args, **opts):
+    def _writemsgnobuf(self, dest, *args: bytes, **opts: _MsgOpts) -> None:
         _writemsgwith(self._writenobuf, dest, *args, **opts)
 
-    def flush(self):
+    def flush(self) -> None:
         # opencode timeblockedsection because this is a critical path
         starttime = util.timer()
         try:
@@ -1697,7 +1708,11 @@ class ui:
 
         return i
 
-    def _readline(self, prompt=b' ', promptopts=None):
+    def _readline(
+        self,
+        prompt: bytes = b' ',
+        promptopts: Optional[Dict[str, _MsgOpts]] = None,
+    ) -> bytes:
         # Replacing stdin/stdout temporarily is a hard problem on Python 3
         # because they have to be text streams with *no buffering*. Instead,
         # we use rawinput() only if call_readline() will be invoked by
@@ -1779,7 +1794,7 @@ class ui:
             raise error.ResponseExpected()
 
     @staticmethod
-    def extractchoices(prompt):
+    def extractchoices(prompt: bytes) -> Tuple[bytes, List[_PromptChoice]]:
         """Extract prompt message and list of choices from specified prompt.
 
         This returns tuple "(message, choices)", and "choices" is the
@@ -1811,7 +1826,7 @@ class ui:
 
         return (msg, [choicetuple(s) for s in choices])
 
-    def promptchoice(self, prompt, default=0):
+    def promptchoice(self, prompt: bytes, default: int = 0) -> int:
         """Prompt user with a message, read response, and ensure it matches
         one of the provided choices. The prompt is formatted as follows:
 
@@ -1831,7 +1846,9 @@ class ui:
             # TODO: shouldn't it be a warning?
             self._writemsg(self._fmsgout, _(b"unrecognized response\n"))
 
-    def getpass(self, prompt=None, default=None):
+    def getpass(
+        self, prompt: Optional[bytes] = None, default: Optional[bytes] = None
+    ) -> Optional[bytes]:
         if not self.interactive():
             return default
         try:
@@ -1854,7 +1871,7 @@ class ui:
         except EOFError:
             raise error.ResponseExpected()
 
-    def status(self, *msg, **opts):
+    def status(self, *msg: bytes, **opts: _MsgOpts) -> None:
         """write status message to output (if ui.quiet is False)
 
         This adds an output label of "ui.status".
@@ -1862,21 +1879,21 @@ class ui:
         if not self.quiet:
             self._writemsg(self._fmsgout, type=b'status', *msg, **opts)
 
-    def warn(self, *msg, **opts):
+    def warn(self, *msg: bytes, **opts: _MsgOpts) -> None:
         """write warning message to output (stderr)
 
         This adds an output label of "ui.warning".
         """
         self._writemsg(self._fmsgerr, type=b'warning', *msg, **opts)
 
-    def error(self, *msg, **opts):
+    def error(self, *msg: bytes, **opts: _MsgOpts) -> None:
         """write error message to output (stderr)
 
         This adds an output label of "ui.error".
         """
         self._writemsg(self._fmsgerr, type=b'error', *msg, **opts)
 
-    def note(self, *msg, **opts):
+    def note(self, *msg: bytes, **opts: _MsgOpts) -> None:
         """write note to output (if ui.verbose is True)
 
         This adds an output label of "ui.note".
@@ -1884,7 +1901,7 @@ class ui:
         if self.verbose:
             self._writemsg(self._fmsgout, type=b'note', *msg, **opts)
 
-    def debug(self, *msg, **opts):
+    def debug(self, *msg: bytes, **opts: _MsgOpts) -> None:
         """write debug message to output (if ui.debugflag is True)
 
         This adds an output label of "ui.debug".
@@ -2148,7 +2165,7 @@ class ui:
         finally:
             self._loggers = registeredloggers
 
-    def label(self, msg, label):
+    def label(self, msg: bytes, label: bytes) -> bytes:
         """style msg based on supplied label
 
         If some color mode is enabled, this will add the necessary control
@@ -2162,7 +2179,9 @@ class ui:
             return color.colorlabel(self, msg, label)
         return msg
 
-    def develwarn(self, msg, stacklevel=1, config=None):
+    def develwarn(
+        self, msg: bytes, stacklevel: int = 1, config: Optional[bytes] = None
+    ) -> None:
         """issue a developer warning message
 
         Use 'stacklevel' to report the offender some layers further up in the
@@ -2194,7 +2213,9 @@ class ui:
             del curframe
             del calframe
 
-    def deprecwarn(self, msg, version, stacklevel=2):
+    def deprecwarn(
+        self, msg: bytes, version: bytes, stacklevel: int = 2
+    ) -> None:
         """issue a deprecation warning
 
         - msg: message explaining what is deprecated and how to upgrade,
@@ -2287,7 +2308,7 @@ def _selectmsgdests(ui):
     raise error.Abort(b'invalid ui.message-output destination: %s' % name)
 
 
-def _writemsgwith(write, dest, *args, **opts):
+def _writemsgwith(write, dest, *args: bytes, **opts: _MsgOpts) -> None:
     """Write ui message with the given ui._write*() function
 
     The specified message type is translated to 'ui.<type>' label if the dest
