@@ -19,6 +19,10 @@ import subprocess
 import sys
 import traceback
 
+from typing import (
+    Optional,
+)
+
 from .i18n import _
 from .node import hex
 from .pycompat import (
@@ -2057,7 +2061,7 @@ class ui:
         )
 
     @util.propertycache
-    def _progbar(self):
+    def _progbar(self) -> Optional[progress.progbar]:
         """setup the progbar singleton to the ui object"""
         if (
             self.quiet
@@ -2068,14 +2072,16 @@ class ui:
             return None
         return getprogbar(self)
 
-    def _progclear(self):
+    def _progclear(self) -> None:
         """clear progress bar output if any. use it before any output"""
         if not haveprogbar():  # nothing loaded yet
             return
         if self._progbar is not None and self._progbar.printed:
             self._progbar.clear()
 
-    def makeprogress(self, topic, unit=b"", total=None):
+    def makeprogress(
+        self, topic: bytes, unit: bytes = b"", total: Optional[int] = None
+    ) -> scmutil.progress:
         """Create a progress helper for the specified topic"""
         if getattr(self._fmsgerr, 'structured', False):
             # channel for machine-readable output with metadata, just send
@@ -2249,10 +2255,10 @@ class ui:
 
 # we instantiate one globally shared progress bar to avoid
 # competing progress bars when multiple UI objects get created
-_progresssingleton = None
+_progresssingleton: Optional[progress.progbar] = None
 
 
-def getprogbar(ui):
+def getprogbar(ui: ui) -> progress.progbar:
     global _progresssingleton
     if _progresssingleton is None:
         # passing 'ui' object to the singleton is fishy,
@@ -2261,7 +2267,7 @@ def getprogbar(ui):
     return _progresssingleton
 
 
-def haveprogbar():
+def haveprogbar() -> bool:
     return _progresssingleton is not None
 
 
