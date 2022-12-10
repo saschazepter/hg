@@ -42,7 +42,7 @@ cd `hg root`
 
 # TODO: include hgext and hgext3rd
 
-pytype -V 3.7 --keep-going --jobs auto mercurial \
+pytype -V 3.7 --keep-going --jobs auto doc/check-seclevel.py mercurial \
     -x mercurial/bundlerepo.py \
     -x mercurial/context.py \
     -x mercurial/crecord.py \
