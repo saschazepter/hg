@@ -895,7 +895,7 @@ def has_python3exe():
     py = 'python3'
     if os.name == 'nt':
         py = 'py -3'
-    return matchoutput('%s -V' % py, br'^Python 3.(5|6|7|8|9)')
+    return matchoutput('%s -V' % py, br'^Python 3.(5|6|7|8|9|10|11)')
 
 
 @check("pure", "running with pure Python code")
