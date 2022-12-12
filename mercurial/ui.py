@@ -1786,8 +1786,8 @@ class ui:
         """
         return self._prompt(msg, default=default)
 
-    def _prompt(self, msg, **opts):
-        default = opts['default']
+    def _prompt(self, msg, default=b'y', **opts):
+        opts = {**opts, 'default': default}
         if not self.interactive():
             self._writemsg(self._fmsgout, msg, b' ', type=b'prompt', **opts)
             self._writemsg(
