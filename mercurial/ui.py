@@ -31,6 +31,7 @@ from typing import (
     TypeVar,
     Union,
     cast,
+    overload,
 )
 
 from .i18n import _
@@ -1780,11 +1781,35 @@ class ui:
 
         return line
 
+    if pycompat.TYPE_CHECKING:
+
+        @overload
+        def prompt(self, msg: bytes, default: bytes) -> bytes:
+            pass
+
+        @overload
+        def prompt(self, msg: bytes, default: None) -> Optional[bytes]:
+            pass
+
     def prompt(self, msg, default=b"y"):
         """Prompt user with msg, read response.
         If ui is not interactive, the default is returned.
         """
         return self._prompt(msg, default=default)
+
+    if pycompat.TYPE_CHECKING:
+
+        @overload
+        def _prompt(
+            self, msg: bytes, default: bytes, **opts: _MsgOpts
+        ) -> bytes:
+            pass
+
+        @overload
+        def _prompt(
+            self, msg: bytes, default: None, **opts: _MsgOpts
+        ) -> Optional[bytes]:
+            pass
 
     def _prompt(self, msg, default=b'y', **opts):
         opts = {**opts, 'default': default}
