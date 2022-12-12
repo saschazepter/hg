@@ -457,6 +457,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             // Not updating the dirstate is not ideal but not critical:
             // don’t keep our caller waiting until some other Mercurial
             // process releases the lock.
+            log::info!("not writing dirstate from `status`: lock is held")
         }
         Err(LockError::Other(HgError::IoError { error, .. }))
             if error.kind() == io::ErrorKind::PermissionDenied =>
