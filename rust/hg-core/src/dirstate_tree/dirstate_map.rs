@@ -66,8 +66,15 @@ pub struct DirstateMap<'on_disk> {
     pub(super) unreachable_bytes: u32,
 
     /// Size of the data used to first load this `DirstateMap`. Used in case
-    /// we need to write some new metadata, but no new data on disk.
+    /// we need to write some new metadata, but no new data on disk,
+    /// as well as to detect writes that have happened in another process
+    /// since first read.
     pub(super) old_data_size: usize,
+
+    /// UUID used when first loading this `DirstateMap`. Used to check if
+    /// the UUID has been changed by another process since first read.
+    /// Can be `None` if using dirstate v1 or if it's a brand new dirstate.
+    pub(super) old_uuid: Option<Vec<u8>>,
 
     pub(super) dirstate_version: DirstateVersion,
 
@@ -460,6 +467,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
             ignore_patterns_hash: [0; on_disk::IGNORE_PATTERNS_HASH_LEN],
             unreachable_bytes: 0,
             old_data_size: 0,
+            old_uuid: None,
             dirstate_version: DirstateVersion::V1,
             write_mode: DirstateMapWriteMode::Auto,
         }
@@ -470,9 +478,10 @@ impl<'on_disk> DirstateMap<'on_disk> {
         on_disk: &'on_disk [u8],
         data_size: usize,
         metadata: &[u8],
+        uuid: Vec<u8>,
     ) -> Result<Self, DirstateError> {
         if let Some(data) = on_disk.get(..data_size) {
-            Ok(on_disk::read(data, metadata)?)
+            Ok(on_disk::read(data, metadata, uuid)?)
         } else {
             Err(DirstateV2ParseError::new("not enough bytes on disk").into())
         }
@@ -1843,6 +1852,7 @@ mod tests {
             packed,
             packed_len,
             metadata.as_bytes(),
+            vec![],
         )?;
 
         // Check that everything is accounted for

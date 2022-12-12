@@ -383,6 +383,7 @@ impl Repo {
         self.dirstate_parents.set(docket.parents());
         self.dirstate_data_file_uuid
             .set(Some(docket.uuid.to_owned()));
+        let uuid = docket.uuid.to_owned();
         let data_size = docket.data_size();
 
         let context = "between reading dirstate docket and data file";
@@ -415,16 +416,16 @@ impl Repo {
                 }
                 Err(e) => return Err(e.into()),
             };
-            OwningDirstateMap::new_v2(contents, data_size, metadata)
+            OwningDirstateMap::new_v2(contents, data_size, metadata, uuid)
         } else {
             match self
                 .hg_vfs()
                 .mmap_open(docket.data_filename())
                 .io_not_found_as_none()
             {
-                Ok(Some(data_mmap)) => {
-                    OwningDirstateMap::new_v2(data_mmap, data_size, metadata)
-                }
+                Ok(Some(data_mmap)) => OwningDirstateMap::new_v2(
+                    data_mmap, data_size, metadata, uuid,
+                ),
                 Ok(None) => {
                     // Race where the data file was deleted right after we
                     // read the docket, try again
