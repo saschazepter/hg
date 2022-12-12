@@ -573,11 +573,15 @@ if rustmod is not None:
                 testing.wait_on_cfg(self._ui, b'dirstate.post-docket-read-file')
                 if not self.docket.uuid:
                     data = b''
+                    self._map = rustmod.DirstateMap.new_empty()
                 else:
                     data = self._read_v2_data()
-                self._map = rustmod.DirstateMap.new_v2(
-                    data, self.docket.data_size, self.docket.tree_metadata
-                )
+                    self._map = rustmod.DirstateMap.new_v2(
+                        data,
+                        self.docket.data_size,
+                        self.docket.tree_metadata,
+                        self.docket.uuid,
+                    )
                 parents = self.docket.parents
             else:
                 self._set_identity()

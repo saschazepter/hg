@@ -66,14 +66,24 @@ py_class!(pub class DirstateMap |py| {
         on_disk: PyBytes,
         data_size: usize,
         tree_metadata: PyBytes,
+        uuid: PyBytes,
     ) -> PyResult<PyObject> {
         let dirstate_error = |e: DirstateError| {
             PyErr::new::<exc::OSError, _>(py, format!("Dirstate error: {:?}", e))
         };
         let on_disk = PyBytesDeref::new(py, on_disk);
+        let uuid = uuid.data(py);
         let map = OwningDirstateMap::new_v2(
-            on_disk, data_size, tree_metadata.data(py),
+            on_disk, data_size, tree_metadata.data(py), uuid.to_owned(),
         ).map_err(dirstate_error)?;
+        let map = Self::create_instance(py, map)?;
+        Ok(map.into_object())
+    }
+
+    /// Returns an empty DirstateMap. Only used for a new dirstate.
+    @staticmethod
+    def new_empty() -> PyResult<PyObject> {
+        let map = OwningDirstateMap::new_empty(vec![]);
         let map = Self::create_instance(py, map)?;
         Ok(map.into_object())
     }
