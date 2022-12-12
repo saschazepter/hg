@@ -8,6 +8,7 @@ new check.
 
 Current checks:
 - W0102: no mutable default argument
+- C0321: only one statement on a single line
 
   $ touch $TESTTMP/fakerc
   $ pylint --rcfile=$TESTTMP/fakerc --disable=all \
