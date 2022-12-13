@@ -3073,6 +3073,8 @@ class localrepository:
 
         def unlock():
             if self.dirstate.pendingparentchange():
+                msg = b"wlock release in the middle of a changing parents"
+                self.ui.develwarn(msg)
                 self.dirstate.invalidate()
             else:
                 self.dirstate.write(None)
