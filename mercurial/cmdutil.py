@@ -3392,7 +3392,7 @@ def revert(ui, repo, ctx, *pats, **opts):
     names = {}
     uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
 
-    with repo.wlock():
+    with repo.wlock(), repo.dirstate.changing_files(repo):
         ## filling of the `names` mapping
         # walk dirstate to fill `names`
 
