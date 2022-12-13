@@ -331,10 +331,11 @@ def addremove(ui, repo, *pats, **opts):
     opts = pycompat.byteskwargs(opts)
     if not opts.get(b'similarity'):
         opts[b'similarity'] = b'100'
-    matcher = scmutil.match(repo[None], pats, opts)
-    relative = scmutil.anypats(pats, opts)
-    uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=relative)
-    return scmutil.addremove(repo, matcher, b"", uipathfn, opts)
+    with repo.wlock():
+        matcher = scmutil.match(repo[None], pats, opts)
+        relative = scmutil.anypats(pats, opts)
+        uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=relative)
+        return scmutil.addremove(repo, matcher, b"", uipathfn, opts)
 
 
 @command(
