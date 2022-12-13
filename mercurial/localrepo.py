@@ -1323,8 +1323,6 @@ class localrepository:
         # XXX cache is a complicatged business someone
         # should investigate this in depth at some point
         b'cache/',
-        # XXX shouldn't be dirstate covered by the wlock?
-        b'dirstate',
         # XXX bisect was still a bit too messy at the time
         # this changeset was introduced. Someone should fix
         # the remainig bit and drop this line
