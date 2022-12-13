@@ -2965,19 +2965,20 @@ def forget(ui, repo, *pats, **opts):
     if not pats:
         raise error.InputError(_(b'no files specified'))
 
-    m = scmutil.match(repo[None], pats, opts)
-    dryrun, interactive = opts.get(b'dry_run'), opts.get(b'interactive')
-    uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
-    rejected = cmdutil.forget(
-        ui,
-        repo,
-        m,
-        prefix=b"",
-        uipathfn=uipathfn,
-        explicitonly=False,
-        dryrun=dryrun,
-        interactive=interactive,
-    )[0]
+    with repo.wlock():
+        m = scmutil.match(repo[None], pats, opts)
+        dryrun, interactive = opts.get(b'dry_run'), opts.get(b'interactive')
+        uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
+        rejected = cmdutil.forget(
+            ui,
+            repo,
+            m,
+            prefix=b"",
+            uipathfn=uipathfn,
+            explicitonly=False,
+            dryrun=dryrun,
+            interactive=interactive,
+        )[0]
     return rejected and 1 or 0
 
 
