@@ -570,22 +570,23 @@ class workingbackend(fsbackend):
         self.changed.add(fname)
 
     def close(self):
-        wctx = self.repo[None]
-        changed = set(self.changed)
-        for src, dst in self.copied:
-            scmutil.dirstatecopy(self.ui, self.repo, wctx, src, dst)
-        if self.removed:
-            wctx.forget(sorted(self.removed))
-            for f in self.removed:
-                if f not in self.repo.dirstate:
-                    # File was deleted and no longer belongs to the
-                    # dirstate, it was probably marked added then
-                    # deleted, and should not be considered by
-                    # marktouched().
-                    changed.discard(f)
-        if changed:
-            scmutil.marktouched(self.repo, changed, self.similarity)
-        return sorted(self.changed)
+        with self.repo.dirstate.changing_files(self.repo):
+            wctx = self.repo[None]
+            changed = set(self.changed)
+            for src, dst in self.copied:
+                scmutil.dirstatecopy(self.ui, self.repo, wctx, src, dst)
+            if self.removed:
+                wctx.forget(sorted(self.removed))
+                for f in self.removed:
+                    if f not in self.repo.dirstate:
+                        # File was deleted and no longer belongs to the
+                        # dirstate, it was probably marked added then
+                        # deleted, and should not be considered by
+                        # marktouched().
+                        changed.discard(f)
+            if changed:
+                scmutil.marktouched(self.repo, changed, self.similarity)
+            return sorted(self.changed)
 
 
 class filestore:
