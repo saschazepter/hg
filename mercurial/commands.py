@@ -252,10 +252,11 @@ def add(ui, repo, *pats, **opts):
     Returns 0 if all files are successfully added.
     """
 
-    m = scmutil.match(repo[None], pats, pycompat.byteskwargs(opts))
-    uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
-    rejected = cmdutil.add(ui, repo, m, b"", uipathfn, False, **opts)
-    return rejected and 1 or 0
+    with repo.wlock():
+        m = scmutil.match(repo[None], pats, pycompat.byteskwargs(opts))
+        uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
+        rejected = cmdutil.add(ui, repo, m, b"", uipathfn, False, **opts)
+        return rejected and 1 or 0
 
 
 @command(
