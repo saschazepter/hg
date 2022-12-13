@@ -73,7 +73,13 @@ def mvcheck(orig, ui, repo, *pats, **opts):
 
     with repo.wlock():
         if renames is not None:
-            scmutil._markchanges(repo, (), (), renames)
+            with repo.dirstate.changing_files(repo):
+                # XXX this should be wider and integrated with the commit
+                # transaction. At the same time as we do the `addremove` logic
+                # for commit.  However we can't really do better with the
+                # current extension structure, and this is not worse than what
+                # happened before.
+                scmutil._markchanges(repo, (), (), renames)
         return orig(ui, repo, *pats, **pycompat.strkwargs(opts))
 
 
