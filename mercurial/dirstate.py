@@ -178,7 +178,18 @@ class dirstate:
                 # manager
                 if self._parentwriters <= 0:
                     assert self._parentwriters == 0
-                    self._invalidated_context = False
+                    if self._invalidated_context:
+                        self._invalidated_context = False
+                    else:
+                        # When an exception occured, `_invalidated_context`
+                        # would have been set to True by the `invalidate`
+                        # call earlier.
+                        #
+                        # We don't have more straightforward code, because the
+                        # Exception catching (and the associated `invalidate`
+                        # calling) might have been called by a nested context
+                        # instead of the top level one.
+                        self.write(repo.currenttransaction())
 
     # here to help migration to the new code
     def parentchange(self):
