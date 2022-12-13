@@ -331,7 +331,7 @@ def addremove(ui, repo, *pats, **opts):
     opts = pycompat.byteskwargs(opts)
     if not opts.get(b'similarity'):
         opts[b'similarity'] = b'100'
-    with repo.wlock():
+    with repo.wlock(), repo.dirstate.changing_files(repo):
         matcher = scmutil.match(repo[None], pats, opts)
         relative = scmutil.anypats(pats, opts)
         uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=relative)
