@@ -704,6 +704,16 @@ coreconfigitem(
 )
 coreconfigitem(
     b'devel',
+    b'sync.dirstate.post-docket-read-file',
+    default=None,
+)
+coreconfigitem(
+    b'devel',
+    b'sync.dirstate.post-docket-read-file-timeout',
+    default=2,
+)
+coreconfigitem(
+    b'devel',
     b'sync.dirstate.pre-read-file',
     default=None,
 )
