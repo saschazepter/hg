@@ -791,7 +791,10 @@ class queue:
         if self.added:
             qrepo = self.qrepo()
             if qrepo:
-                qrepo[None].add(f for f in self.added if f not in qrepo[None])
+                with qrepo.wlock(), qrepo.dirstate.changing_files(qrepo):
+                    qrepo[None].add(
+                        f for f in self.added if f not in qrepo[None]
+                    )
             self.added = []
 
     def removeundo(self, repo):
@@ -1129,7 +1132,8 @@ class queue:
         if not keep:
             r = self.qrepo()
             if r:
-                r[None].forget(patches)
+                with r.wlock(), r.dirstate.changing_files(r):
+                    r[None].forget(patches)
             for p in patches:
                 try:
                     os.unlink(self.join(p))
@@ -1464,7 +1468,8 @@ class queue:
                     p.close()
                     r = self.qrepo()
                     if r:
-                        r[None].add([patchfn])
+                        with r.wlock(), r.dirstate.changing_files(r):
+                            r[None].add([patchfn])
                 except:  # re-raises
                     repo.rollback()
                     raise
@@ -2760,18 +2765,19 @@ def qinit(ui, repo, create):
     r = q.init(repo, create)
     q.savedirty()
     if r:
-        if not os.path.exists(r.wjoin(b'.hgignore')):
-            fp = r.wvfs(b'.hgignore', b'w')
-            fp.write(b'^\\.hg\n')
-            fp.write(b'^\\.mq\n')
-            fp.write(b'syntax: glob\n')
-            fp.write(b'status\n')
-            fp.write(b'guards\n')
-            fp.close()
-        if not os.path.exists(r.wjoin(b'series')):
-            r.wvfs(b'series', b'w').close()
-        r[None].add([b'.hgignore', b'series'])
-        commands.add(ui, r)
+        with r.wlock(), r.dirstate.changing_files(r):
+            if not os.path.exists(r.wjoin(b'.hgignore')):
+                fp = r.wvfs(b'.hgignore', b'w')
+                fp.write(b'^\\.hg\n')
+                fp.write(b'^\\.mq\n')
+                fp.write(b'syntax: glob\n')
+                fp.write(b'status\n')
+                fp.write(b'guards\n')
+                fp.close()
+            if not os.path.exists(r.wjoin(b'series')):
+                r.wvfs(b'series', b'w').close()
+            r[None].add([b'.hgignore', b'series'])
+            commands.add(ui, r)
     return 0
 
 
@@ -3629,8 +3635,8 @@ def rename(ui, repo, patch, name=None, **opts):
     util.rename(q.join(patch), absdest)
     r = q.qrepo()
     if r and patch in r.dirstate:
-        wctx = r[None]
-        with r.wlock():
+        with r.wlock(), r.dirstate.changing_files(r):
+            wctx = r[None]
             if r.dirstate.get_entry(patch).added:
                 r.dirstate.set_untracked(patch)
                 r.dirstate.set_tracked(name)
