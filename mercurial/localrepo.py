@@ -3075,6 +3075,9 @@ class localrepository:
                 self.ui.develwarn(msg)
                 self.dirstate.invalidate()
             else:
+                if self.dirstate._dirty:
+                    msg = b"dirty dirstate on wlock release"
+                    self.ui.develwarn(msg)
                 self.dirstate.write(None)
 
             self._filecache[b'dirstate'].refresh()
