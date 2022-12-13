@@ -2985,12 +2985,13 @@ def amend(ui, repo, old, extra, pats, opts):
         matcher = scmutil.match(wctx, pats, opts)
         relative = scmutil.anypats(pats, opts)
         uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=relative)
-        if opts.get(b'addremove') and scmutil.addremove(
-            repo, matcher, b"", uipathfn, opts
-        ):
-            raise error.Abort(
-                _(b"failed to mark all new/missing files as added/removed")
-            )
+        if opts.get(b'addremove'):
+            with repo.dirstate.changing_files(repo):
+                if scmutil.addremove(repo, matcher, b"", uipathfn, opts) != 0:
+                    m = _(
+                        b"failed to mark all new/missing files as added/removed"
+                    )
+                    raise error.Abort(m)
 
         # Check subrepos. This depends on in-place wctx._status update in
         # subrepo.precommit(). To minimize the risk of this hack, we do
