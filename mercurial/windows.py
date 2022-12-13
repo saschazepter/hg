@@ -183,14 +183,6 @@ def posixfile(name, mode=b'r', buffering=-1):
 listdir = osutil.listdir
 
 
-# copied from .utils.procutil, remove after Python 2 support was dropped
-def _isatty(fp):
-    try:
-        return fp.isatty()
-    except AttributeError:
-        return False
-
-
 def get_password():
     """Prompt for password with echo off, using Windows getch().
 
