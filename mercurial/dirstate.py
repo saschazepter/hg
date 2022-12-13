@@ -72,6 +72,9 @@ def requires_parents_change(func):
             msg = 'calling `%s` outside of a parentchange context'
             msg %= func.__name__
             raise error.ProgrammingError(msg)
+        if self._invalidated_context:
+            msg = 'calling `%s` after the dirstate was invalidated'
+            raise error.ProgrammingError(msg)
         return func(self, *args, **kwargs)
 
     return wrap
@@ -124,7 +127,11 @@ class dirstate:
         self._dirty_tracked_set = False
         self._ui = ui
         self._filecache = {}
+        # nesting level of `parentchange` context
         self._parentwriters = 0
+        # True if the current dirstate changing operations have been
+        # invalidated (used to make sure all nested contexts have been exited)
+        self._invalidated_context = False
         self._filename = b'dirstate'
         self._filename_th = b'dirstate-tracked-hint'
         self._pendingfilename = b'%s.pending' % self._filename
@@ -151,14 +158,27 @@ class dirstate:
         the incoherent dirstate won't be written when wlock is
         released.
         """
+        if self._invalidated_context:
+            msg = "trying to use an invalidated dirstate before it has reset"
+            raise error.ProgrammingError(msg)
         self._parentwriters += 1
-        yield
-        # Typically we want the "undo" step of a context manager in a
-        # finally block so it happens even when an exception
-        # occurs. In this case, however, we only want to decrement
-        # parentwriters if the code in the with statement exits
-        # normally, so we don't have a try/finally here on purpose.
-        self._parentwriters -= 1
+        try:
+            yield
+        except Exception:
+            self.invalidate()
+            raise
+        finally:
+            if self._parentwriters > 0:
+                if self._invalidated_context:
+                    # make sure we invalidate anything an upper context might
+                    # have changed.
+                    self.invalidate()
+                self._parentwriters -= 1
+                # The invalidation is complete once we exit the final context
+                # manager
+                if self._parentwriters <= 0:
+                    assert self._parentwriters == 0
+                    self._invalidated_context = False
 
     def pendingparentchange(self):
         """Returns true if the dirstate is in the middle of a set of changes
@@ -419,7 +439,7 @@ class dirstate:
                 delattr(self, a)
         self._dirty = False
         self._dirty_tracked_set = False
-        self._parentwriters = 0
+        self._invalidated_context = self._parentwriters > 0
         self._origpl = None
 
     def copy(self, source, dest):
