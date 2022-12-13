@@ -5945,12 +5945,13 @@ def remove(ui, repo, *pats, **opts):
     if not pats and not after:
         raise error.InputError(_(b'no files specified'))
 
-    m = scmutil.match(repo[None], pats, opts)
-    subrepos = opts.get(b'subrepos')
-    uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
-    return cmdutil.remove(
-        ui, repo, m, b"", uipathfn, after, force, subrepos, dryrun=dryrun
-    )
+    with repo.wlock():
+        m = scmutil.match(repo[None], pats, opts)
+        subrepos = opts.get(b'subrepos')
+        uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
+        return cmdutil.remove(
+            ui, repo, m, b"", uipathfn, after, force, subrepos, dryrun=dryrun
+        )
 
 
 @command(
