@@ -158,6 +158,9 @@ class dirstate:
         the incoherent dirstate won't be written when wlock is
         released.
         """
+        if repo.currentwlock() is None:
+            msg = b"changing parents without holding the wlock"
+            raise error.ProgrammingError(msg)
         if self._invalidated_context:
             msg = "trying to use an invalidated dirstate before it has reset"
             raise error.ProgrammingError(msg)
