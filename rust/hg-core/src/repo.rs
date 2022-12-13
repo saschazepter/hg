@@ -339,6 +339,10 @@ impl Repo {
         let docket = crate::dirstate_tree::on_disk::read_docket(
             &dirstate_file_contents,
         )?;
+        debug_wait_for_file_or_print(
+            self.config(),
+            "dirstate.post-docket-read-file",
+        );
         self.dirstate_parents.set(docket.parents());
         self.dirstate_data_file_uuid
             .set(Some(docket.uuid.to_owned()));
