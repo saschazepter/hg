@@ -29,8 +29,12 @@ import tempfile
 import xmlrpc.client as xmlrpclib
 
 from typing import (
+    Iterable,
+    Iterator,
     List,
     Optional,
+    Type,
+    TypeVar,
 )
 
 ispy3 = sys.version_info[0] >= 3
@@ -41,6 +45,8 @@ if not globals():  # hide this from non-pytype users
     import typing
 
     TYPE_CHECKING = typing.TYPE_CHECKING
+
+_Tbytestr = TypeVar('_Tbytestr', bound='bytestr')
 
 
 def future_set_exception_info(f, exc_info):
@@ -212,10 +218,10 @@ class bytestr(bytes):
     # https://github.com/google/pytype/issues/500
     if TYPE_CHECKING:
 
-        def __init__(self, s=b''):
+        def __init__(self, s: object = b'') -> None:
             pass
 
-    def __new__(cls, s=b''):
+    def __new__(cls: Type[_Tbytestr], s: object = b'') -> _Tbytestr:
         if isinstance(s, bytestr):
             return s
         if not isinstance(
@@ -226,20 +232,20 @@ class bytestr(bytes):
             s = str(s).encode('ascii')
         return bytes.__new__(cls, s)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> bytes:
         s = bytes.__getitem__(self, key)
         if not isinstance(s, bytes):
             s = bytechr(s)
         return s
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[bytes]:
         return iterbytestr(bytes.__iter__(self))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return bytes.__repr__(self)[1:]  # drop b''
 
 
-def iterbytestr(s):
+def iterbytestr(s: Iterable[int]) -> Iterator[bytes]:
     """Iterate bytes as if it were a str object of Python 2"""
     return map(bytechr, s)
 
