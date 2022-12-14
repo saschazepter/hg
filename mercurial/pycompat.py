@@ -128,7 +128,7 @@ getargspec = inspect.getfullargspec
 
 long = int
 
-if getattr(sys, 'argv', None) is not None:
+if builtins.getattr(sys, 'argv', None) is not None:
     # On POSIX, the char** argv array is converted to Python str using
     # Py_DecodeLocale(). The inverse of this is Py_EncodeLocale(), which
     # isn't directly callable from Python code. In practice, os.fsencode()
@@ -220,7 +220,7 @@ class bytestr(bytes):
             return s
         if not isinstance(
             s, (bytes, bytearray)
-        ) and not hasattr(  # hasattr-py3-only
+        ) and not builtins.hasattr(  # hasattr-py3-only
             s, u'__bytes__'
         ):
             s = str(s).encode('ascii')
@@ -297,7 +297,7 @@ def raisewithtb(exc, tb):
 def getdoc(obj):
     """Get docstring as bytes; may be None so gettext() won't confuse it
     with _('')"""
-    doc = getattr(obj, '__doc__', None)
+    doc = builtins.getattr(obj, '__doc__', None)
     if doc is None:
         return doc
     return sysbytes(doc)
