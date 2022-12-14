@@ -28,6 +28,10 @@ import sys
 import tempfile
 import xmlrpc.client as xmlrpclib
 
+from typing import (
+    List,
+    Optional,
+)
 
 ispy3 = sys.version_info[0] >= 3
 ispypy = '__pypy__' in sys.builtin_module_names
@@ -94,21 +98,17 @@ if os.name == r'nt':
 
 fsencode = os.fsencode
 fsdecode = os.fsdecode
-oscurdir = os.curdir.encode('ascii')
-oslinesep = os.linesep.encode('ascii')
-osname = os.name.encode('ascii')
-ospathsep = os.pathsep.encode('ascii')
-ospardir = os.pardir.encode('ascii')
-ossep = os.sep.encode('ascii')
-osaltsep = os.altsep
-if osaltsep:
-    osaltsep = osaltsep.encode('ascii')
-osdevnull = os.devnull.encode('ascii')
+oscurdir: bytes = os.curdir.encode('ascii')
+oslinesep: bytes = os.linesep.encode('ascii')
+osname: bytes = os.name.encode('ascii')
+ospathsep: bytes = os.pathsep.encode('ascii')
+ospardir: bytes = os.pardir.encode('ascii')
+ossep: bytes = os.sep.encode('ascii')
+osaltsep: Optional[bytes] = os.altsep.encode('ascii') if os.altsep else None
+osdevnull: bytes = os.devnull.encode('ascii')
 
-sysplatform = sys.platform.encode('ascii')
-sysexecutable = sys.executable
-if sysexecutable:
-    sysexecutable = os.fsencode(sysexecutable)
+sysplatform: bytes = sys.platform.encode('ascii')
+sysexecutable: bytes = os.fsencode(sys.executable) if sys.executable else b''
 
 
 def maplist(*args):
@@ -143,6 +143,7 @@ if getattr(sys, 'argv', None) is not None:
     # (this is how Python 2 worked). To get that, we encode with the mbcs
     # encoding, which will pass CP_ACP to the underlying Windows API to
     # produce bytes.
+    sysargv: List[bytes] = []
     if os.name == r'nt':
         sysargv = [a.encode("mbcs", "ignore") for a in sys.argv]
     else:
@@ -377,12 +378,12 @@ itervalues = lambda x: x.values()
 
 json_loads = json.loads
 
-isjython = sysplatform.startswith(b'java')
+isjython: bool = sysplatform.startswith(b'java')
 
-isdarwin = sysplatform.startswith(b'darwin')
-islinux = sysplatform.startswith(b'linux')
-isposix = osname == b'posix'
-iswindows = osname == b'nt'
+isdarwin: bool = sysplatform.startswith(b'darwin')
+islinux: bool = sysplatform.startswith(b'linux')
+isposix: bool = osname == b'posix'
+iswindows: bool = osname == b'nt'
 
 
 def getoptb(args, shortlist, namelist):
