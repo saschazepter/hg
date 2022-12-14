@@ -177,10 +177,17 @@ def tokenize(program, start, end, term=None):
             quote = program[pos : pos + 2]
             s = pos = pos + 2
             while pos < end:  # find closing escaped quote
+                # pycompat.bytestr (and bytes) both have .startswith() that
+                # takes an optional start and an optional end, but pytype thinks
+                # it only takes 2 args.
+
+                # pytype: disable=wrong-arg-count
                 if program.startswith(b'\\\\\\', pos, end):
                     pos += 4  # skip over double escaped characters
                     continue
                 if program.startswith(quote, pos, end):
+                    # pytype: enable=wrong-arg-count
+
                     # interpret as if it were a part of an outer string
                     data = parser.unescapestr(program[s:pos])
                     if token == b'template':
@@ -300,7 +307,14 @@ def _scantemplate(tmpl, start, stop, quote=b'', raw=False):
                 return
 
             parseres, pos = p.parse(tokenize(tmpl, n + 1, stop, b'}'))
+
+            # pycompat.bytestr (and bytes) both have .startswith() that
+            # takes an optional start and an optional end, but pytype thinks
+            # it only takes 2 args.
+
+            # pytype: disable=wrong-arg-count
             if not tmpl.startswith(b'}', pos):
+                # pytype: enable=wrong-arg-count
                 raise error.ParseError(_(b"invalid token"), pos)
             yield (b'template', parseres, n)
             pos += 1
