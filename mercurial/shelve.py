@@ -607,7 +607,8 @@ def _docreatecmd(ui, repo, pats, opts):
         activebookmark = _backupactivebookmark(repo)
         extra = {b'internal': b'shelve'}
         if includeunknown:
-            _includeunknownfiles(repo, pats, opts, extra)
+            with repo.dirstate.changing_files(repo):
+                _includeunknownfiles(repo, pats, opts, extra)
 
         if _iswctxonnewbranch(repo) and not _isbareshelve(pats, opts):
             # In non-bare shelve we don't store newly created branch
