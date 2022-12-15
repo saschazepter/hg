@@ -1,4 +1,5 @@
 import os
+import winreg  # pytype: disable=import-error
 
 from typing import (
     List,
@@ -14,14 +15,6 @@ from . import (
 
 if pycompat.TYPE_CHECKING:
     from . import ui as uimod
-
-try:
-    import _winreg as winreg  # pytype: disable=import-error
-
-    winreg.CloseKey
-except ImportError:
-    # py2 only
-    import winreg  # pytype: disable=import-error
 
 # MS-DOS 'more' is the only pager available by default on Windows.
 fallbackpager = b'more'
