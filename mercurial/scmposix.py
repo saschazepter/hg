@@ -88,7 +88,7 @@ def termsize(ui):
         except ValueError:
             pass
         except IOError as e:
-            if e[0] == errno.EINVAL:  # pytype: disable=unsupported-operands
+            if e.errno == errno.EINVAL:
                 pass
             else:
                 raise
