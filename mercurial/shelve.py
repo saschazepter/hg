@@ -1218,7 +1218,8 @@ def _dounshelve(ui, repo, basename, opts):
         restorebranch(ui, repo, branchtorestore)
         shelvedstate.clear(repo)
         _finishunshelve(repo, oldtiprev, tr, activebookmark)
-        _forgetunknownfiles(repo, shelvectx, addedbefore)
+        with repo.dirstate.changing_files(repo):
+            _forgetunknownfiles(repo, shelvectx, addedbefore)
         if not ispartialunshelve:
             unshelvecleanup(ui, repo, basename, opts)
     finally:
