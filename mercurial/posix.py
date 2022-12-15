@@ -625,7 +625,7 @@ def groupmembers(name):
     return pycompat.rapply(pycompat.fsencode, list(grp.getgrnam(name).gr_mem))
 
 
-def spawndetached(args):
+def spawndetached(args) -> int:
     return os.spawnvp(os.P_NOWAIT | getattr(os, 'P_DETACH', 0), args[0], args)
 
 
