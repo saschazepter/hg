@@ -871,9 +871,9 @@ def unshelvecontinue(ui, repo, state, opts):
         with repo.ui.configoverride(overrides, b'unshelve'):
             with repo.dirstate.changing_parents(repo):
                 repo.setparents(state.parents[0], repo.nullid)
-                newnode, ispartialunshelve = _createunshelvectx(
-                    ui, repo, shelvectx, basename, interactive, opts
-                )
+            newnode, ispartialunshelve = _createunshelvectx(
+                ui, repo, shelvectx, basename, interactive, opts
+            )
 
         if newnode is None:
             shelvectx = state.pendingctx
@@ -1070,9 +1070,9 @@ def _rebaserestoredcommit(
 
         with repo.dirstate.changing_parents(repo):
             repo.setparents(tmpwctx.node(), repo.nullid)
-            newnode, ispartialunshelve = _createunshelvectx(
-                ui, repo, shelvectx, basename, interactive, opts
-            )
+        newnode, ispartialunshelve = _createunshelvectx(
+            ui, repo, shelvectx, basename, interactive, opts
+        )
 
         if newnode is None:
             shelvectx = tmpwctx
