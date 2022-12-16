@@ -642,12 +642,12 @@ class observedbufferedinputpipe(bufferedinputpipe):
     ``read()`` and ``readline()``.
     """
 
-    def _fillbuffer(self):
-        res = super(observedbufferedinputpipe, self)._fillbuffer()
+    def _fillbuffer(self, size=_chunksize):
+        res = super(observedbufferedinputpipe, self)._fillbuffer(size=size)
 
         fn = getattr(self._input._observer, 'osread', None)
         if fn:
-            fn(res, _chunksize)
+            fn(res, size)
 
         return res
 
