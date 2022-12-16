@@ -19,6 +19,12 @@ import sys
 import tempfile
 import unicodedata
 
+from typing import (
+    List,
+    NoReturn,
+    Optional,
+)
+
 from .i18n import _
 from .pycompat import (
     getattr,
@@ -44,7 +50,7 @@ except AttributeError:
     # vaguely unix-like but don't have hardlink support. For those
     # poor souls, just say we tried and that it failed so we fall back
     # to copies.
-    def oslink(src, dst):
+    def oslink(src: bytes, dst: bytes) -> NoReturn:
         raise OSError(
             errno.EINVAL, b'hardlinks not supported: %s to %s' % (src, dst)
         )
@@ -90,7 +96,7 @@ def openhardlinks():
     return True
 
 
-def nlinks(name):
+def nlinks(name: bytes) -> int:
     '''return number of hardlinks for the given file'''
     return os.lstat(name).st_nlink
 
@@ -348,7 +354,7 @@ def getfsmountpoint(dirpath):
     return getattr(osutil, 'getfsmountpoint', lambda x: None)(dirpath)
 
 
-def getfstype(dirpath):
+def getfstype(dirpath: bytes) -> Optional[bytes]:
     """Get the filesystem type name from a directory (best-effort)
 
     Returns None if we are unsure. Raises OSError on ENOENT, EPERM, etc.
@@ -372,13 +378,13 @@ def localpath(path):
     return path
 
 
-def samefile(fpath1, fpath2):
+def samefile(fpath1: bytes, fpath2: bytes) -> bool:
     """Returns whether path1 and path2 refer to the same file. This is only
     guaranteed to work for files, not directories."""
     return os.path.samefile(fpath1, fpath2)
 
 
-def samedevice(fpath1, fpath2):
+def samedevice(fpath1: bytes, fpath2: bytes) -> bool:
     """Returns whether fpath1 and fpath2 are on the same device. This is only
     guaranteed to work for files, not directories."""
     st1 = os.lstat(fpath1)
@@ -521,7 +527,7 @@ def shellsplit(s):
     return pycompat.shlexsplit(s, posix=True)
 
 
-def testpid(pid):
+def testpid(pid: int) -> bool:
     '''return False if pid dead, True if running or not sure'''
     if pycompat.sysplatform == b'OpenVMS':
         return True
@@ -564,7 +570,7 @@ def findexe(command):
     return None
 
 
-def setsignalhandler():
+def setsignalhandler() -> None:
     pass
 
 
@@ -586,7 +592,7 @@ def statfiles(files):
         yield st
 
 
-def getuser():
+def getuser() -> bytes:
     '''return name of current user'''
     return pycompat.fsencode(getpass.getuser())
 
@@ -625,7 +631,7 @@ def groupmembers(name):
     return pycompat.rapply(pycompat.fsencode, list(grp.getgrnam(name).gr_mem))
 
 
-def spawndetached(args) -> int:
+def spawndetached(args: List[bytes]) -> int:
     return os.spawnvp(os.P_NOWAIT | getattr(os, 'P_DETACH', 0), args[0], args)
 
 
@@ -633,7 +639,7 @@ def gethgcmd():
     return sys.argv[:1]
 
 
-def makedir(path, notindexed):
+def makedir(path: bytes, notindexed: bool) -> None:
     os.mkdir(path)
 
 
@@ -641,7 +647,7 @@ def lookupreg(key, name=None, scope=None):
     return None
 
 
-def hidewindow():
+def hidewindow() -> None:
     """Hide current shell window.
 
     Used to hide the window opened when starting asynchronous
