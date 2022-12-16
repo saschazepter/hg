@@ -18,6 +18,13 @@ import winreg  # pytype: disable=import-error
 
 from typing import (
     BinaryIO,
+    Iterable,
+    Iterator,
+    List,
+    NoReturn,
+    Optional,
+    Sequence,
+    Union,
 )
 
 from .i18n import _
@@ -183,7 +190,7 @@ def posixfile(name, mode=b'r', buffering=-1):
 listdir = osutil.listdir
 
 
-def get_password():
+def get_password() -> bytes:
     """Prompt for password with echo off, using Windows getch().
 
     This shouldn't be called directly- use ``ui.getpass()`` instead, which
@@ -244,11 +251,11 @@ class winstdout(typelib.BinaryIO_Proxy):
             raise IOError(errno.EPIPE, 'Broken pipe')
 
 
-def openhardlinks():
+def openhardlinks() -> bool:
     return True
 
 
-def parsepatchoutput(output_line):
+def parsepatchoutput(output_line: bytes) -> bytes:
     """parses the output produced by patch and returns the filename"""
     pf = output_line[14:]
     if pf[0] == b'`':
@@ -256,7 +263,9 @@ def parsepatchoutput(output_line):
     return pf
 
 
-def sshargs(sshcmd, host, user, port):
+def sshargs(
+    sshcmd: bytes, host: bytes, user: Optional[bytes], port: Optional[bytes]
+) -> bytes:
     '''Build argument list for ssh or Plink'''
     pflag = b'plink' in sshcmd.lower() and b'-P' or b'-p'
     args = user and (b"%s@%s" % (user, host)) or host
@@ -271,23 +280,28 @@ def sshargs(sshcmd, host, user, port):
     return args
 
 
-def setflags(f, l, x):
+def setflags(f: bytes, l: bool, x: bool) -> None:
     pass
 
 
-def copymode(src, dst, mode=None, enforcewritable=False):
+def copymode(
+    src: bytes,
+    dst: bytes,
+    mode: Optional[bytes] = None,
+    enforcewritable: bool = False,
+) -> None:
     pass
 
 
-def checkexec(path):
+def checkexec(path: bytes) -> bool:
     return False
 
 
-def checklink(path):
+def checklink(path: bytes) -> bool:
     return False
 
 
-def setbinary(fd):
+def setbinary(fd) -> None:
     # When run without console, pipes may expose invalid
     # fileno(), usually set to -1.
     fno = getattr(fd, 'fileno', None)
@@ -295,11 +309,11 @@ def setbinary(fd):
         msvcrt.setmode(fno(), os.O_BINARY)  # pytype: disable=module-attr
 
 
-def pconvert(path):
+def pconvert(path: bytes) -> bytes:
     return path.replace(pycompat.ossep, b'/')
 
 
-def localpath(path):
+def localpath(path: bytes) -> bytes:
     return path.replace(b'/', b'\\')
 
 
@@ -307,7 +321,7 @@ def normpath(path):
     return pconvert(os.path.normpath(path))
 
 
-def normcase(path):
+def normcase(path: bytes) -> bytes:
     return encoding.upper(path)  # NTFS compares via upper()
 
 
@@ -468,7 +482,7 @@ _quotere = None
 _needsshellquote = None
 
 
-def shellquote(s):
+def shellquote(s: bytes) -> bytes:
     r"""
     >>> shellquote(br'C:\Users\xyz')
     '"C:\\Users\\xyz"'
@@ -504,18 +518,18 @@ def _unquote(s):
     return s
 
 
-def shellsplit(s):
+def shellsplit(s: bytes) -> List[bytes]:
     """Parse a command string in cmd.exe way (best-effort)"""
     return pycompat.maplist(_unquote, pycompat.shlexsplit(s, posix=False))
 
 
 # if you change this stub into a real check, please try to implement the
 # username and groupname functions above, too.
-def isowner(st):
+def isowner(st: os.stat_result) -> bool:
     return True
 
 
-def findexe(command):
+def findexe(command: bytes) -> Optional[bytes]:
     """Find executable for command searching like cmd.exe does.
     If command is a basename then PATH is searched for command.
     PATH isn't searched if command is an absolute or relative path.
@@ -526,7 +540,7 @@ def findexe(command):
     if os.path.splitext(command)[1].lower() in pathexts:
         pathexts = [b'']
 
-    def findexisting(pathcommand):
+    def findexisting(pathcommand: bytes) -> Optional[bytes]:
         """Will append extension (if needed) and return existing file"""
         for ext in pathexts:
             executable = pathcommand + ext
@@ -547,7 +561,7 @@ def findexe(command):
 _wantedkinds = {stat.S_IFREG, stat.S_IFLNK}
 
 
-def statfiles(files):
+def statfiles(files: Sequence[bytes]) -> Iterator[Optional[os.stat_result]]:
     """Stat each file in files. Yield each stat, or None if a file
     does not exist or has a type we don't care about.
 
@@ -573,7 +587,7 @@ def statfiles(files):
         yield cache.get(base, None)
 
 
-def username(uid=None):
+def username(uid: Optional[int] = None) -> Optional[bytes]:
     """Return the name of the user with the given uid.
 
     If uid is None, return the name of the current user."""
@@ -588,7 +602,7 @@ def username(uid=None):
     return None
 
 
-def groupname(gid=None):
+def groupname(gid: Optional[int] = None) -> Optional[bytes]:
     """Return the name of the group with the given gid.
 
     If gid is None, return the name of the current group."""
@@ -640,12 +654,12 @@ def gethgcmd():
     return [encoding.strtolocal(arg) for arg in [sys.executable] + sys.argv[:1]]
 
 
-def groupmembers(name):
+def groupmembers(name: bytes) -> List[bytes]:
     # Don't support groups on Windows for now
     raise KeyError
 
 
-def isexec(f):
+def isexec(f: bytes) -> bool:
     return False
 
 
@@ -657,7 +671,11 @@ class cachestat:
         return False
 
 
-def lookupreg(key, valname=None, scope=None):
+def lookupreg(
+    key: bytes,
+    valname: Optional[bytes] = None,
+    scope: Optional[Union[int, Iterable[int]]] = None,
+) -> Optional[bytes]:
     """Look up a key/value name in the Windows registry.
 
     valname: value name. If unspecified, the default value for the key
@@ -693,12 +711,12 @@ def lookupreg(key, valname=None, scope=None):
 expandglobs = True
 
 
-def statislink(st):
+def statislink(st: Optional[os.stat_result]) -> bool:
     '''check whether a stat result is a symlink'''
     return False
 
 
-def statisexec(st):
+def statisexec(st: Optional[os.stat_result]) -> bool:
     '''check whether a stat result is an executable file'''
     return False
 
@@ -708,7 +726,7 @@ def poll(fds):
     raise NotImplementedError()
 
 
-def readpipe(pipe):
+def readpipe(pipe) -> bytes:
     """Read all available data from a pipe."""
     chunks = []
     while True:
@@ -724,5 +742,5 @@ def readpipe(pipe):
     return b''.join(chunks)
 
 
-def bindunixsocket(sock, path):
+def bindunixsocket(sock, path: bytes) -> NoReturn:
     raise NotImplementedError('unsupported platform')
