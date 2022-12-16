@@ -3213,10 +3213,7 @@ def uvarintdecodestream(fh):
 
     The passed argument is anything that has a ``.read(N)`` method.
 
-    >>> try:
-    ...     from StringIO import StringIO as BytesIO
-    ... except ImportError:
-    ...     from io import BytesIO
+    >>> from io import BytesIO
     >>> uvarintdecodestream(BytesIO(b'\\x00'))
     0
     >>> uvarintdecodestream(BytesIO(b'\\x01'))
