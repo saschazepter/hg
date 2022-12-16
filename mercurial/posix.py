@@ -24,9 +24,11 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Match,
     NoReturn,
     Optional,
     Sequence,
+    Tuple,
     Union,
 )
 
@@ -65,15 +67,15 @@ readlink = os.readlink
 unlink = os.unlink
 rename = os.rename
 removedirs = os.removedirs
-expandglobs = False
+expandglobs: bool = False
 
-umask = os.umask(0)
+umask: int = os.umask(0)
 os.umask(umask)
 
 posixfile = open
 
 
-def split(p):
+def split(p: bytes) -> Tuple[bytes, bytes]:
     """Same as posixpath.split, but faster
 
     >>> import posixpath
@@ -352,13 +354,13 @@ def checklink(path: bytes) -> bool:
             return False
 
 
-def checkosfilename(path):
+def checkosfilename(path: bytes) -> Optional[bytes]:
     """Check that the base-relative path is a valid filename on this platform.
     Returns None if the path is ok, or a UI string describing the problem."""
     return None  # on posix platforms, every path is ok
 
 
-def getfsmountpoint(dirpath):
+def getfsmountpoint(dirpath: bytes) -> Optional[bytes]:
     """Get the filesystem mount point from a directory (best-effort)
 
     Returns None if we are unsure. Raises OSError on ENOENT, EPERM, etc.
@@ -410,7 +412,7 @@ def normcase(path: bytes) -> bytes:
 
 
 # what normcase does to ASCII strings
-normcasespec = encoding.normcasespecs.lower
+normcasespec: int = encoding.normcasespecs.lower
 # fallback normcase function for non-ASCII strings
 normcasefallback = normcase
 
@@ -518,7 +520,7 @@ if pycompat.sysplatform == b'cygwin':
         return False
 
 
-_needsshellquote = None
+_needsshellquote: Optional[Match[bytes]] = None
 
 
 def shellquote(s: bytes) -> bytes:
@@ -647,7 +649,7 @@ def spawndetached(args: List[bytes]) -> int:
     return os.spawnvp(os.P_NOWAIT | getattr(os, 'P_DETACH', 0), args[0], args)
 
 
-def gethgcmd():
+def gethgcmd():  # TODO: convert to bytes, like on Windows?
     return sys.argv[:1]
 
 
