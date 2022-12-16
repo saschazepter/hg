@@ -20,6 +20,7 @@ import tempfile
 import unicodedata
 
 from typing import (
+    Any,
     Iterable,
     Iterator,
     List,
@@ -672,15 +673,15 @@ def hidewindow() -> None:
 
 
 class cachestat:
-    def __init__(self, path):
+    def __init__(self, path: bytes) -> None:
         self.stat = os.stat(path)
 
-    def cacheable(self):
+    def cacheable(self) -> bool:
         return bool(self.stat.st_ino)
 
     __hash__ = object.__hash__
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         try:
             # Only dev, ino, size, mtime and atime are likely to change. Out
             # of these, we shouldn't compare atime but should compare the
@@ -701,7 +702,7 @@ class cachestat:
         except AttributeError:
             return False
 
-    def __ne__(self, other):
+    def __ne__(self, other: Any) -> bool:
         return not self == other
 
 
