@@ -485,6 +485,7 @@ class wsgiresponse:
             self._bodybytes is None
             and self._bodygen is None
             and not self._bodywillwrite
+            and self._req.method != b'HEAD'
         ):
             raise error.ProgrammingError(b'response body not defined')
 
@@ -594,6 +595,8 @@ class wsgiresponse:
                 yield chunk
         elif self._bodywillwrite:
             self._bodywritefn = write
+        elif self._req.method == b'HEAD':
+            pass
         else:
             error.ProgrammingError(b'do not know how to send body')
 
