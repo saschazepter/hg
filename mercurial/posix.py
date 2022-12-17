@@ -17,10 +17,12 @@ import select
 import stat
 import sys
 import tempfile
+import typing
 import unicodedata
 
 from typing import (
     Any,
+    AnyStr,
     Iterable,
     Iterator,
     List,
@@ -67,6 +69,38 @@ readlink = os.readlink
 unlink = os.unlink
 rename = os.rename
 removedirs = os.removedirs
+
+if typing.TYPE_CHECKING:
+    # Replace the various overloads that come along with aliasing stdlib methods
+    # with the narrow definition that we care about in the type checking phase
+    # only.  This ensures that both Windows and POSIX see only the definition
+    # that is actually available.
+    #
+    # Note that if we check pycompat.TYPE_CHECKING here, it is always False, and
+    # the methods aren't replaced.
+
+    def normpath(path: bytes) -> bytes:
+        raise NotImplementedError
+
+    def abspath(path: AnyStr) -> AnyStr:
+        raise NotImplementedError
+
+    def oslink(src: bytes, dst: bytes) -> None:
+        raise NotImplementedError
+
+    def readlink(path: bytes) -> bytes:
+        raise NotImplementedError
+
+    def unlink(path: bytes) -> None:
+        raise NotImplementedError
+
+    def rename(src: bytes, dst: bytes) -> None:
+        raise NotImplementedError
+
+    def removedirs(name: bytes) -> None:
+        raise NotImplementedError
+
+
 expandglobs: bool = False
 
 umask: int = os.umask(0)
