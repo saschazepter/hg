@@ -17,12 +17,15 @@ import sys
 import winreg  # pytype: disable=import-error
 
 from typing import (
+    AnyStr,
     BinaryIO,
     Iterable,
     Iterator,
     List,
+    Mapping,
     NoReturn,
     Optional,
+    Pattern,
     Sequence,
     Union,
 )
@@ -56,7 +59,7 @@ split = os.path.split
 testpid = win32.testpid
 unlink = win32.unlink
 
-umask = 0o022
+umask: int = 0o022
 
 
 class mixedfilemodewrapper:
@@ -317,7 +320,7 @@ def localpath(path: bytes) -> bytes:
     return path.replace(b'/', b'\\')
 
 
-def normpath(path):
+def normpath(path: bytes) -> bytes:
     return pconvert(os.path.normpath(path))
 
 
@@ -325,11 +328,12 @@ def normcase(path: bytes) -> bytes:
     return encoding.upper(path)  # NTFS compares via upper()
 
 
-DRIVE_RE_B = re.compile(b'^[a-z]:')
-DRIVE_RE_S = re.compile('^[a-z]:')
+DRIVE_RE_B: Pattern[bytes] = re.compile(b'^[a-z]:')
+DRIVE_RE_S: Pattern[str] = re.compile('^[a-z]:')
 
 
-def abspath(path):
+# TODO: why is this accepting str?
+def abspath(path: AnyStr) -> AnyStr:
     abs_path = os.path.abspath(path)  # re-exports
     # Python on Windows is inconsistent regarding the capitalization of drive
     # letter and this cause issue with various path comparison along the way.
@@ -345,15 +349,15 @@ def abspath(path):
 
 
 # see posix.py for definitions
-normcasespec = encoding.normcasespecs.upper
+normcasespec: int = encoding.normcasespecs.upper
 normcasefallback = encoding.upperfallback
 
 
-def samestat(s1, s2):
+def samestat(s1: os.stat_result, s2: os.stat_result) -> bool:
     return False
 
 
-def shelltocmdexe(path, env):
+def shelltocmdexe(path: bytes, env: Mapping[bytes, bytes]) -> bytes:
     r"""Convert shell variables in the form $var and ${var} inside ``path``
     to %var% form.  Existing Windows style variables are left unchanged.
 
@@ -478,7 +482,7 @@ def shelltocmdexe(path, env):
 # the number of backslashes that precede double quotes and add another
 # backslash before every double quote (being careful with the double
 # quote we've appended to the end)
-_quotere = None
+_quotere: Optional[Pattern[bytes]] = None
 _needsshellquote = None
 
 
@@ -512,7 +516,7 @@ def shellquote(s: bytes) -> bytes:
     return b'"%s"' % _quotere.sub(br'\1\1\\\2', s)
 
 
-def _unquote(s):
+def _unquote(s: bytes) -> bytes:
     if s.startswith(b'"') and s.endswith(b'"'):
         return s[1:-1]
     return s
@@ -609,7 +613,7 @@ def groupname(gid: Optional[int] = None) -> Optional[bytes]:
     return None
 
 
-def readlink(pathname):
+def readlink(pathname: bytes) -> bytes:
     path = pycompat.fsdecode(pathname)
     try:
         link = os.readlink(path)
@@ -622,7 +626,7 @@ def readlink(pathname):
     return pycompat.fsencode(link)
 
 
-def removedirs(name):
+def removedirs(name: bytes) -> None:
     """special version of os.removedirs that does not remove symlinked
     directories or junction points if they actually contain files"""
     if listdir(name):
@@ -641,7 +645,7 @@ def removedirs(name):
         head, tail = os.path.split(head)
 
 
-def rename(src, dst):
+def rename(src: bytes, dst: bytes) -> None:
     '''atomically rename file src to dst, replacing dst if it exists'''
     try:
         os.rename(src, dst)
@@ -650,7 +654,7 @@ def rename(src, dst):
         os.rename(src, dst)
 
 
-def gethgcmd():
+def gethgcmd() -> List[bytes]:
     return [encoding.strtolocal(arg) for arg in [sys.executable] + sys.argv[:1]]
 
 
@@ -708,7 +712,7 @@ def lookupreg(
             pass
 
 
-expandglobs = True
+expandglobs: bool = True
 
 
 def statislink(st: Optional[os.stat_result]) -> bool:
@@ -721,7 +725,7 @@ def statisexec(st: Optional[os.stat_result]) -> bool:
     return False
 
 
-def poll(fds):
+def poll(fds) -> List:
     # see posix.py for description
     raise NotImplementedError()
 
