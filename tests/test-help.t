@@ -985,6 +985,8 @@ Test list of internal help commands
                  details.
    debug-revlog-index
                  dump index data for a revlog
+   debug-revlog-stats
+                 display statistics about revlogs in the store
    debugancestor
                  find the ancestor revision of two revisions in a given index
    debugantivirusrunning

@@ -3809,6 +3809,33 @@ def debugshell(ui, repo):
 
 
 @command(
+    b'debug-revlog-stats',
+    [
+        (b'c', b'changelog', None, _(b'Display changelog statistics')),
+        (b'm', b'manifest', None, _(b'Display manifest statistics')),
+        (b'f', b'filelogs', None, _(b'Display filelogs statistics')),
+    ]
+    + cmdutil.formatteropts,
+)
+def debug_revlog_stats(ui, repo, **opts):
+    """display statistics about revlogs in the store"""
+    opts = pycompat.byteskwargs(opts)
+    changelog = opts[b"changelog"]
+    manifest = opts[b"manifest"]
+    filelogs = opts[b"filelogs"]
+
+    if changelog is None and manifest is None and filelogs is None:
+        changelog = True
+        manifest = True
+        filelogs = True
+
+    repo = repo.unfiltered()
+    fm = ui.formatter(b'debug-revlog-stats', opts)
+    revlog_debug.debug_revlog_stats(repo, fm, changelog, manifest, filelogs)
+    fm.end()
+
+
+@command(
     b'debugsuccessorssets',
     [(b'', b'closest', False, _(b'return closest successors sets only'))],
     _(b'[REV]'),
