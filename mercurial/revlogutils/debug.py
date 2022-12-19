@@ -661,3 +661,61 @@ def debug_delta_find(ui, revlog, rev, base_rev=nodemod.nullrev):
 
     fh = revlog._datafp()
     deltacomputer.finddeltainfo(revinfo, fh, target_rev=rev)
+
+
+def _get_revlogs(repo, changelog: bool, manifest: bool, filelogs: bool):
+    """yield revlogs from this repository"""
+    if changelog:
+        yield repo.changelog
+
+    if manifest:
+        # XXX: Handle tree manifest
+        root_mf = repo.manifestlog.getstorage(b'')
+        assert not root_mf._treeondisk
+        yield root_mf._revlog
+
+    if filelogs:
+        files = set()
+        for rev in repo:
+            ctx = repo[rev]
+            files |= set(ctx.files())
+
+        for f in sorted(files):
+            yield repo.file(f)._revlog
+
+
+def debug_revlog_stats(
+    repo, fm, changelog: bool, manifest: bool, filelogs: bool
+):
+    """Format revlog statistics for debugging purposes
+
+    fm: the output formatter.
+    """
+    fm.plain(b'rev-count   data-size inl type      target \n')
+
+    for rlog in _get_revlogs(repo, changelog, manifest, filelogs):
+        fm.startitem()
+        nb_rev = len(rlog)
+        inline = rlog._inline
+        data_size = rlog._get_data_offset(nb_rev - 1)
+
+        target = rlog.target
+        revlog_type = b'unknown'
+        revlog_target = b''
+        if target[0] == constants.KIND_CHANGELOG:
+            revlog_type = b'changelog'
+        elif target[0] == constants.KIND_MANIFESTLOG:
+            revlog_type = b'manifest'
+            revlog_target = target[1]
+        elif target[0] == constants.KIND_FILELOG:
+            revlog_type = b'file'
+            revlog_target = target[1]
+
+        fm.write(b'revlog.rev-count', b'%9d', nb_rev)
+        fm.write(b'revlog.data-size', b'%12d', data_size)
+
+        fm.write(b'revlog.inline', b' %-3s', b'yes' if inline else b'no')
+        fm.write(b'revlog.type', b' %-9s', revlog_type)
+        fm.write(b'revlog.target', b' %s', revlog_target)
+
+        fm.plain(b'\n')

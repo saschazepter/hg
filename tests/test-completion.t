@@ -77,6 +77,7 @@ Show debug commands if there are no other candidates
   debug-delta-find
   debug-repair-issue6528
   debug-revlog-index
+  debug-revlog-stats
   debugancestor
   debugantivirusrunning
   debugapplystreamclonebundle
@@ -271,6 +272,7 @@ Show all commands + options
   debug-delta-find: changelog, manifest, dir, template, source
   debug-repair-issue6528: to-report, from-report, paranoid, dry-run
   debug-revlog-index: changelog, manifest, dir, template
+  debug-revlog-stats: changelog, manifest, filelogs, template
   debugancestor: 
   debugantivirusrunning: 
   debugapplystreamclonebundle: 
