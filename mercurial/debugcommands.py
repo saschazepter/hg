@@ -559,7 +559,7 @@ def debugcheckstate(ui, repo):
     m2 = repo[parent2].manifest()
     errors = 0
     for err in repo.dirstate.verify(m1, m2):
-        ui.warn(err[0] % err[1:])
+        ui.warn(err)
         errors += 1
     if errors:
         errstr = _(b".hg/dirstate inconsistent with current parent's manifest")
