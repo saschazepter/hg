@@ -126,7 +126,7 @@ Entire changelog and manifest log missing
   $ hg verify -q
   warning: orphan data file 'data/file.i'
   warning: ignoring unknown working parent c5ddb05ab828!
-  file marked as tracked in p1 but not in manifest1
+  file marked as tracked in p1 (000000000000) but not in manifest1
   1 warnings encountered!
   1 integrity errors encountered!
   dirstate inconsistent with current parent's manifest
