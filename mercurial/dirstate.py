@@ -1557,14 +1557,14 @@ class dirstate:
         for f, entry in self.items():
             if entry.p1_tracked:
                 if entry.modified and f not in m1 and f not in m2:
-                    yield (missing_from_ps, f)
+                    yield missing_from_ps % f
                 elif f not in m1:
-                    yield (missing_from_p1, f)
+                    yield missing_from_p1 % f
             if entry.added and f in m1:
-                yield (unexpected_in_p1, f)
+                yield unexpected_in_p1 % f
         for f in m1:
             if narrow_matcher is not None and not narrow_matcher(f):
                 continue
             entry = self.get_entry(f)
             if not entry.p1_tracked:
-                yield (missing_from_ds, f)
+                yield missing_from_ds % f
