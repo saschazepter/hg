@@ -128,7 +128,7 @@ rustrevlog = policy.importrust('revlog')
 # Aliased for performance.
 _zlibdecompress = zlib.decompress
 
-# max size of revlog with inline data
+# max size of inline data embedded into a revlog
 _maxinline = 131072
 
 # Flag processors for REVIDX_ELLIPSIS.
