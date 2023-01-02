@@ -7939,7 +7939,7 @@ def version_(ui, **opts):
     )
     license = _(
         b"(see https://mercurial-scm.org for more information)\n"
-        b"\nCopyright (C) 2005-2022 Olivia Mackall and others\n"
+        b"\nCopyright (C) 2005-2023 Olivia Mackall and others\n"
         b"This is free software; see the source for copying conditions. "
         b"There is NO\nwarranty; "
         b"not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"
