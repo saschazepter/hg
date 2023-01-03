@@ -1099,27 +1099,6 @@ class ui:
             user = stringutil.shortuser(user)
         return user
 
-    def expandpath(self, loc, default=None):
-        """Return repository location relative to cwd or from [paths]"""
-        msg = b'ui.expandpath is deprecated, use `get_*` functions from urlutil'
-        self.deprecwarn(msg, b'6.0')
-        try:
-            p = self.getpath(loc)
-            if p:
-                return p.rawloc
-        except error.RepoError:
-            pass
-
-        if default:
-            try:
-                p = self.getpath(default)
-                if p:
-                    return p.rawloc
-            except error.RepoError:
-                pass
-
-        return loc
-
     @util.propertycache
     def paths(self):
         return urlutil.paths(self)
