@@ -1103,15 +1103,6 @@ class ui:
     def paths(self):
         return urlutil.paths(self)
 
-    def getpath(self, *args, **kwargs):
-        """see paths.getpath for details
-
-        This method exist as `getpath` need a ui for potential warning message.
-        """
-        msg = b'ui.getpath is deprecated, use `get_*` functions from urlutil'
-        self.deprecwarn(msg, b'6.0')
-        return self.paths.getpath(self, *args, **kwargs)
-
     @property
     def fout(self):
         return self._fout
