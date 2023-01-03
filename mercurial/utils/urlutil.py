@@ -656,43 +656,6 @@ class paths(dict):
                 new_paths.extend(_chain_path(p, ui, self))
             self[name] = new_paths
 
-    def getpath(self, ui, name, default=None):
-        """Return a ``path`` from a string, falling back to default.
-
-        ``name`` can be a named path or locations. Locations are filesystem
-        paths or URIs.
-
-        Returns None if ``name`` is not a registered path, a URI, or a local
-        path to a repo.
-        """
-        msg = b'getpath is deprecated, use `get_*` functions from urlutil'
-        ui.deprecwarn(msg, b'6.0')
-        # Only fall back to default if no path was requested.
-        if name is None:
-            if not default:
-                default = ()
-            elif not isinstance(default, (tuple, list)):
-                default = (default,)
-            for k in default:
-                try:
-                    return self[k][0]
-                except KeyError:
-                    continue
-            return None
-
-        # Most likely empty string.
-        # This may need to raise in the future.
-        if not name:
-            return None
-        if name in self:
-            return self[name][0]
-        else:
-            # Try to resolve as a local path or URI.
-            path = try_path(ui, name)
-            if path is None:
-                raise error.RepoError(_(b'repository %s does not exist') % name)
-            return path.rawloc
-
 
 _pathsuboptions = {}
 
