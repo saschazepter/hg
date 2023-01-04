@@ -90,13 +90,14 @@ class pathauditor:
                 _(b"path contains illegal component: %s") % path
             )
         # Windows shortname aliases
-        for p in parts:
-            if b"~" in p:
-                first, last = p.split(b"~", 1)
-                if last.isdigit() and first.upper() in [b"HG", b"HG8B6C"]:
-                    raise error.InputError(
-                        _(b"path contains illegal component: %s") % path
-                    )
+        if b"~" in path:
+            for p in parts:
+                if b"~" in p:
+                    first, last = p.split(b"~", 1)
+                    if last.isdigit() and first.upper() in [b"HG", b"HG8B6C"]:
+                        raise error.InputError(
+                            _(b"path contains illegal component: %s") % path
+                        )
         if b'.hg' in _lowerclean(path):
             lparts = [_lowerclean(p) for p in parts]
             for p in b'.hg', b'.hg.':
