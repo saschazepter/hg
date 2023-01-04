@@ -56,7 +56,7 @@ class pathauditor:
 
     def __init__(self, root, callback=None, realfs=True, cached=False):
         self.audited = set()
-        self.auditeddir = set()
+        self.auditeddir = dict()
         self.root = root
         self._realfs = realfs
         self._cached = cached
@@ -118,10 +118,11 @@ class pathauditor:
             for i in range(len(parts)):
                 prefix = pycompat.ossep.join(parts[: i + 1])
                 if prefix in self.auditeddir:
-                    continue
-                res = self._checkfs_exists(prefix, path)
-                if self._cached:
-                    self.auditeddir.add(prefix)
+                    res = self.auditeddir[prefix]
+                else:
+                    res = self._checkfs_exists(prefix, path)
+                    if self._cached:
+                        self.auditeddir[prefix] = res
                 if not res:
                     break
 
