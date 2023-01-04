@@ -46,7 +46,7 @@ def _getcheckunknownconfig(repo, section, name):
     return config
 
 
-def _checkunknownfile(repo, dircache, wctx, mctx, f, f2=None):
+def _checkunknownfile(dirstate, wvfs, dircache, wctx, mctx, f, f2=None):
     if wctx.isinmemory():
         # Nothing to do in IMM because nothing in the "working copy" can be an
         # unknown file.
@@ -58,8 +58,8 @@ def _checkunknownfile(repo, dircache, wctx, mctx, f, f2=None):
     if f2 is None:
         f2 = f
     return (
-        repo.wvfs.isfileorlink_checkdir(dircache, f)
-        and repo.dirstate.normalize(f) not in repo.dirstate
+        wvfs.isfileorlink_checkdir(dircache, f)
+        and dirstate.normalize(f) not in dirstate
         and mctx[f2].cmp(wctx[f])
     )
 
@@ -136,6 +136,8 @@ def _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce):
         b'experimental', b'merge.checkpathconflicts'
     )
     dircache = dict()
+    dirstate = repo.dirstate
+    wvfs = repo.wvfs
     if not force:
 
         def collectconflicts(conflicts, config):
@@ -151,7 +153,7 @@ def _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce):
                 mergestatemod.ACTION_DELETED_CHANGED,
             )
         ):
-            if _checkunknownfile(repo, dircache, wctx, mctx, f):
+            if _checkunknownfile(dirstate, wvfs, dircache, wctx, mctx, f):
                 fileconflicts.add(f)
             elif pathconfig and f not in wctx:
                 path = checkunknowndirs(repo, wctx, f)
@@ -160,7 +162,9 @@ def _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce):
         for f, args, msg in mresult.getactions(
             [mergestatemod.ACTION_LOCAL_DIR_RENAME_GET]
         ):
-            if _checkunknownfile(repo, wctx, mctx, f, args[0]):
+            if _checkunknownfile(
+                dirstate, wvfs, dircache, wctx, mctx, f, args[0]
+            ):
                 fileconflicts.add(f)
 
         allconflicts = fileconflicts | pathconflicts
@@ -173,7 +177,9 @@ def _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce):
             mresult.getactions([mergestatemod.ACTION_CREATED_MERGE])
         ):
             fl2, anc = args
-            different = _checkunknownfile(repo, wctx, mctx, f)
+            different = _checkunknownfile(
+                dirstate, wvfs, dircache, wctx, mctx, f
+            )
             if repo.dirstate._ignore(f):
                 config = ignoredconfig
             else:
