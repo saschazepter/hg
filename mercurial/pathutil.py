@@ -119,20 +119,26 @@ class pathauditor:
             if prefix in self.auditeddir:
                 continue
             if self._realfs:
-                self._checkfs(prefix, path)
+                res = self._checkfs_exists(prefix, path)
             if self._cached:
                 self.auditeddir.add(prefix)
+            if not res:
+                break
 
         if self._cached:
             self.audited.add(path)
 
-    def _checkfs(self, prefix, path):
-        # type: (bytes, bytes) -> None
-        """raise exception if a file system backed check fails"""
+    def _checkfs_exists(self, prefix, path):
+        # type: (bytes, bytes) -> bool
+        """raise exception if a file system backed check fails.
+
+        Return a bool that indicates that the directory (or file) exists."""
         curpath = os.path.join(self.root, prefix)
         try:
             st = os.lstat(curpath)
         except OSError as err:
+            if err.errno == errno.ENOENT:
+                return False
             # EINVAL can be raised as invalid path syntax under win32.
             # They must be ignored for patterns can be checked too.
             if err.errno not in (errno.ENOENT, errno.ENOTDIR, errno.EINVAL):
@@ -150,6 +156,7 @@ class pathauditor:
                 if not self.callback or not self.callback(curpath):
                     msg = _(b"path '%s' is inside nested repo %r")
                     raise error.Abort(msg % (path, pycompat.bytestr(prefix)))
+        return True
 
     def check(self, path):
         # type: (bytes) -> bool
