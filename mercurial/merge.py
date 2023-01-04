@@ -145,18 +145,19 @@ def _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce):
                 warnconflicts.update(conflicts)
 
         checkunknowndirs = _unknowndirschecker()
-        for f in mresult.files(
-            (
-                mergestatemod.ACTION_CREATED,
-                mergestatemod.ACTION_DELETED_CHANGED,
-            )
-        ):
-            if _checkunknownfile(repo, wctx, mctx, f):
-                fileconflicts.add(f)
-            elif pathconfig and f not in wctx:
-                path = checkunknowndirs(repo, wctx, f)
-                if path is not None:
-                    pathconflicts.add(path)
+        with repo.wvfs.audit.cached():
+            for f in mresult.files(
+                (
+                    mergestatemod.ACTION_CREATED,
+                    mergestatemod.ACTION_DELETED_CHANGED,
+                )
+            ):
+                if _checkunknownfile(repo, wctx, mctx, f):
+                    fileconflicts.add(f)
+                elif pathconfig and f not in wctx:
+                    path = checkunknowndirs(repo, wctx, f)
+                    if path is not None:
+                        pathconflicts.add(path)
         for f, args, msg in mresult.getactions(
             [mergestatemod.ACTION_LOCAL_DIR_RENAME_GET]
         ):
