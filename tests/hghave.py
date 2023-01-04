@@ -202,6 +202,22 @@ def has_pyoxidizer():
     return 'PYOXIDIZED_INSTALLED_AS_HG' in os.environ
 
 
+@check(
+    "pyoxidizer-in-memory",
+    "running with pyoxidizer build as 'hg' with embedded resources",
+)
+def has_pyoxidizer():
+    return 'PYOXIDIZED_IN_MEMORY_RSRC' in os.environ
+
+
+@check(
+    "pyoxidizer-in-filesystem",
+    "running with pyoxidizer build as 'hg' with external resources",
+)
+def has_pyoxidizer():
+    return 'PYOXIDIZED_FILESYSTEM_RSRC' in os.environ
+
+
 @check("cvs", "cvs client/server")
 def has_cvs():
     re = br'Concurrent Versions System.*?server'
@@ -612,7 +628,7 @@ def has_pyflakes():
 
 @check("pylint", "Pylint python linter")
 def has_pylint():
-    return matchoutput("pylint --help", br"Usage:[ ]+pylint", True)
+    return matchoutput("pylint --help", br"[Uu]sage:[ ]+pylint", True)
 
 
 @check("clang-format", "clang-format C code formatter (>= 11)")
@@ -877,7 +893,7 @@ def has_demandimport():
 
 # Add "py27", "py35", ... as possible feature checks. Note that there's no
 # punctuation here.
-@checkvers("py", "Python >= %s", (2.7, 3.5, 3.6, 3.7, 3.8, 3.9))
+@checkvers("py", "Python >= %s", (2.7, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10, 3.11))
 def has_python_range(v):
     major, minor = v.split('.')[0:2]
     py_major, py_minor = sys.version_info.major, sys.version_info.minor
@@ -895,7 +911,7 @@ def has_python3exe():
     py = 'python3'
     if os.name == 'nt':
         py = 'py -3'
-    return matchoutput('%s -V' % py, br'^Python 3.(5|6|7|8|9)')
+    return matchoutput('%s -V' % py, br'^Python 3.(5|6|7|8|9|10|11)')
 
 
 @check("pure", "running with pure Python code")

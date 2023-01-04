@@ -165,8 +165,7 @@ update not affecting the tracked set
 Test upgrade and downgrade
 ==========================
 
-  $ ls .hg/dirstate-tracked-hint
-  .hg/dirstate-tracked-hint
+  $ test -f .hg/dirstate-tracked-hint
   $ hg debugrequires | grep 'tracked'
   dirstate-tracked-key-v1
 
@@ -181,9 +180,8 @@ downgrade
   
   no revlogs to process
   
-  $ ls -1 .hg/dirstate-tracked-hint
-  ls: *.hg/dirstate-tracked-hint*: $ENOENT$ (glob)
-  [2]
+  $ test -f .hg/dirstate-tracked-hint
+  [1]
   $ hg debugrequires | grep 'tracked'
   [1]
 
@@ -198,8 +196,7 @@ upgrade
   
   no revlogs to process
   
-  $ ls -1 .hg/dirstate-tracked-hint
-  .hg/dirstate-tracked-hint
+  $ test -f .hg/dirstate-tracked-hint
   $ hg debugrequires | grep 'tracked'
   dirstate-tracked-key-v1
   $ cd ..

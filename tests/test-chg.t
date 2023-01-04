@@ -1,5 +1,11 @@
 #require chg
 
+Scale the timeout for the chg-server to the test timeout scaling.
+This is done to reduce the flakiness of this test on heavy load.
+
+  $ CHGTIMEOUT=`expr $HGTEST_TIMEOUT / 6`
+  $ export CHGTIMEOUT
+
   $ mkdir log
   $ cp $HGRCPATH $HGRCPATH.unconfigured
   $ cat <<'EOF' >> $HGRCPATH
