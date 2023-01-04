@@ -196,6 +196,30 @@ only `tail` should run
   >>>>>>> merge rev:       8c217da987be - test: a b c d e f2
 
 
+Filesets can be used to select which files to run partial merge tools on.
+
+  $ hg up -C 4
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg merge 3 -t :merge3 --config partial-merge-tools.head.patterns=set:other
+  merging file
+  warning: conflicts while merging file! (edit, then use 'hg resolve --mark')
+  0 files updated, 0 files merged, 0 files removed, 1 files unresolved
+  use 'hg resolve' to retry unresolved file merges or 'hg merge --abort' to abandon
+  [1]
+  $ cat file
+  b
+  c
+  d
+  e
+  <<<<<<< working copy:    d57edaa6e21a - test: a b c d e f3
+  f3
+  ||||||| common ancestor: 8ae8bb9cc43a - test: a b c d e f
+  f
+  =======
+  f2
+  >>>>>>> merge rev:       8c217da987be - test: a b c d e f2
+
+
 If there are several matching tools, they are run in requested order. We move
 `head` after `tail` in order here so it has no effect (the conflict in "f" thus
 remains).

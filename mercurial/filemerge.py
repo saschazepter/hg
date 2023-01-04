@@ -1132,7 +1132,9 @@ def _run_partial_resolution_tools(repo, local, other, base):
         patterns = ui.configlist(section, b'%s.patterns' % name, [])
         is_match = True
         if patterns:
-            m = match.match(repo.root, b'', patterns)
+            m = match.match(
+                repo.root, b'', patterns, ctx=local.fctx.changectx()
+            )
             is_match = m(local.fctx.path())
         if is_match:
             if ui.configbool(section, b'%s.disable' % name):

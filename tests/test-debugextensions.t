@@ -43,16 +43,20 @@
     tested with: 3.0 3.1 3.2.1
     bug reporting: https://example.org/bts
   histedit
-    location: */hgext/histedit.py* (glob)
+    location: */hgext/histedit.py* (glob) (no-pyoxidizer-in-memory !)
+    location: */release/app/hg* (glob) (pyoxidizer-in-memory !)
     bundled: yes
   mq
-    location: */hgext/mq.py* (glob)
+    location: */hgext/mq.py* (glob) (no-pyoxidizer-in-memory !)
+    location: */release/app/hg* (glob) (pyoxidizer-in-memory !)
     bundled: yes
   patchbomb
-    location: */hgext/patchbomb.py* (glob)
+    location: */hgext/patchbomb.py* (glob) (no-pyoxidizer-in-memory !)
+    location: */release/app/hg* (glob) (pyoxidizer-in-memory !)
     bundled: yes
   rebase
-    location: */hgext/rebase.py* (glob)
+    location: */hgext/rebase.py* (glob) (no-pyoxidizer-in-memory !)
+    location: */release/app/hg* (glob) (pyoxidizer-in-memory !)
     bundled: yes
 
   $ hg debugextensions -Tjson | sed 's|\\\\|/|g'
@@ -75,28 +79,32 @@
     "buglink": "",
     "bundled": true,
     "name": "histedit",
-    "source": "*/hgext/histedit.py*", (glob)
+    "source": "*/hgext/histedit.py*", (glob) (no-pyoxidizer-in-memory !)
+    "source": */release/app/hg* (glob) (pyoxidizer-in-memory !)
     "testedwith": []
    },
    {
     "buglink": "",
     "bundled": true,
     "name": "mq",
-    "source": "*/hgext/mq.py*", (glob)
+    "source": "*/hgext/mq.py*", (glob) (no-pyoxidizer-in-memory !)
+    "source": */release/app/hg* (glob) (pyoxidizer-in-memory !)
     "testedwith": []
    },
    {
     "buglink": "",
     "bundled": true,
     "name": "patchbomb",
-    "source": "*/hgext/patchbomb.py*", (glob)
+    "source": "*/hgext/patchbomb.py*", (glob) (no-pyoxidizer-in-memory !)
+    "source": */release/app/hg* (glob) (pyoxidizer-in-memory !)
     "testedwith": []
    },
    {
     "buglink": "",
     "bundled": true,
     "name": "rebase",
-    "source": "*/hgext/rebase.py*", (glob)
+    "source": "*/hgext/rebase.py*", (glob) (no-pyoxidizer-in-memory !)
+    "source": */release/app/hg* (glob) (pyoxidizer-in-memory !)
     "testedwith": []
    }
   ]
