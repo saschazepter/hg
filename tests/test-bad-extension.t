@@ -63,13 +63,13 @@ show traceback
   Exception: bit bucket overflow
   *** failed to import extension "badext2": No module named 'badext2'
   Traceback (most recent call last):
-  ImportError: No module named 'hgext.badext2' (py3 no-py36 !)
+  ImportError: No module named 'hgext.badext2' (no-py36 !)
   ModuleNotFoundError: No module named 'hgext.badext2' (py36 !)
   Traceback (most recent call last):
-  ImportError: No module named 'hgext3rd.badext2' (py3 no-py36 !)
+  ImportError: No module named 'hgext3rd.badext2' (no-py36 !)
   ModuleNotFoundError: No module named 'hgext3rd.badext2' (py36 !)
   Traceback (most recent call last):
-  ImportError: No module named 'badext2' (py3 no-py36 !)
+  ImportError: No module named 'badext2' (no-py36 !)
   ModuleNotFoundError: No module named 'badext2' (py36 !)
 
 names of extensions failed to load can be accessed via extensions.notloaded()
@@ -111,25 +111,25 @@ show traceback for ImportError of hgext.name if devel.debug.extensions is set
   YYYY/MM/DD HH:MM:SS (PID)>   - loading extension: badext2
   YYYY/MM/DD HH:MM:SS (PID)>     - could not import hgext.badext2 (No module named *badext2*): trying hgext3rd.badext2 (glob)
   Traceback (most recent call last):
-  ImportError: No module named 'hgext.badext2' (py3 no-py36 !)
+  ImportError: No module named 'hgext.badext2' (no-py36 !)
   ModuleNotFoundError: No module named 'hgext.badext2' (py36 !)
   YYYY/MM/DD HH:MM:SS (PID)>     - could not import hgext3rd.badext2 (No module named *badext2*): trying badext2 (glob)
   Traceback (most recent call last):
-  ImportError: No module named 'hgext.badext2' (py3 no-py36 !)
+  ImportError: No module named 'hgext.badext2' (no-py36 !)
   ModuleNotFoundError: No module named 'hgext.badext2' (py36 !)
   Traceback (most recent call last):
-  ImportError: No module named 'hgext3rd.badext2' (py3 no-py36 !)
+  ImportError: No module named 'hgext3rd.badext2' (no-py36 !)
   ModuleNotFoundError: No module named 'hgext3rd.badext2' (py36 !)
   *** failed to import extension "badext2": No module named 'badext2'
   Traceback (most recent call last):
-  ImportError: No module named 'hgext.badext2' (py3 no-py36 !)
+  ImportError: No module named 'hgext.badext2' (no-py36 !)
   ModuleNotFoundError: No module named 'hgext.badext2' (py36 !)
   Traceback (most recent call last):
-  ImportError: No module named 'hgext3rd.badext2' (py3 no-py36 !)
+  ImportError: No module named 'hgext3rd.badext2' (no-py36 !)
   ModuleNotFoundError: No module named 'hgext3rd.badext2' (py36 !)
   Traceback (most recent call last):
   ModuleNotFoundError: No module named 'badext2' (py36 !)
-  ImportError: No module named 'badext2' (py3 no-py36 !)
+  ImportError: No module named 'badext2' (no-py36 !)
   YYYY/MM/DD HH:MM:SS (PID)> > loaded 2 extensions, total time * (glob)
   YYYY/MM/DD HH:MM:SS (PID)> - loading configtable attributes
   YYYY/MM/DD HH:MM:SS (PID)> - executing uisetup hooks
