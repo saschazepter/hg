@@ -511,10 +511,12 @@ def overridedebugstate(orig, ui, repo, *pats, **opts):
 # largefiles. This makes the merge proceed and we can then handle this
 # case further in the overridden calculateupdates function below.
 @eh.wrapfunction(merge, b'_checkunknownfile')
-def overridecheckunknownfile(origfn, repo, wctx, mctx, f, f2=None):
-    if lfutil.standin(repo.dirstate.normalize(f)) in wctx:
+def overridecheckunknownfile(
+    origfn, dirstate, wvfs, dircache, wctx, mctx, f, f2=None
+):
+    if lfutil.standin(dirstate.normalize(f)) in wctx:
         return False
-    return origfn(repo, wctx, mctx, f, f2)
+    return origfn(dirstate, wvfs, dircache, wctx, mctx, f, f2)
 
 
 # The manifest merge handles conflicts on the manifest level. We want
