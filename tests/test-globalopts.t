@@ -272,7 +272,7 @@ Testing --traceback:
 #if no-chg no-rhg
   $ hg --cwd c --config x --traceback id 2>&1 | grep -i 'traceback'
   Traceback (most recent call last):
-  Traceback (most recent call last): (py3 !)
+  Traceback (most recent call last):
 #else
 Traceback for '--config' errors not supported with chg.
   $ hg --cwd c --config x --traceback id 2>&1 | grep -i 'traceback'

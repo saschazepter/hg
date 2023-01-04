@@ -522,7 +522,7 @@ Server stops before it sends transfer encoding
   $LOCALIP - - [$ERRDATE$] Exception happened during processing request '/?cmd=getbundle': (glob)
   Traceback (most recent call last):
   Exception: connection closed after sending N bytes
-  write(293) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.2\r\nTransfer-Encoding: chunked\r\n\r\nHTTP/1.1 500 Internal Server Error\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nTransfer-Encoding: chunked\r\n\r\n (py3 !)
+  write(293) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.2\r\nTransfer-Encoding: chunked\r\n\r\nHTTP/1.1 500 Internal Server Error\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nTransfer-Encoding: chunked\r\n\r\n
   
 #endif
 
@@ -679,8 +679,8 @@ Server sends partial bundle2 header magic
 
 #else
   $ "$PYTHON" $TESTDIR/filtertraceback.py < error.log | tail -11
-  readline(~) -> (2) \r\n (py3 !)
-  write(167) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.2\r\nTransfer-Encoding: chunked\r\n\r\n (py3 !)
+  readline(~) -> (2) \r\n
+  write(167) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.2\r\nTransfer-Encoding: chunked\r\n\r\n
   write(6) -> 1\\r\\n\x04\\r\\n (esc)
   write(9) -> 4\r\nnone\r\n
   write(6 from 9) -> (0) 4\r\nHG2
@@ -724,8 +724,8 @@ Server sends incomplete bundle2 stream params length
 
 #else
   $ "$PYTHON" $TESTDIR/filtertraceback.py < error.log | tail -12
-  readline(~) -> (2) \r\n (py3 !)
-  write(167) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.2\r\nTransfer-Encoding: chunked\r\n\r\n (py3 !)
+  readline(~) -> (2) \r\n
+  write(167) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.2\r\nTransfer-Encoding: chunked\r\n\r\n
   write(41) -> Content-Type: application/mercurial-0.2\r\n
   write(6) -> 1\\r\\n\x04\\r\\n (esc)
   write(9) -> 4\r\nnone\r\n
@@ -771,8 +771,8 @@ Servers stops after bundle2 stream params header
 
 #else
   $ "$PYTHON" $TESTDIR/filtertraceback.py < error.log | tail -12
-  readline(~) -> (2) \r\n (py3 !)
-  write(167) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.2\r\nTransfer-Encoding: chunked\r\n\r\n (py3 !)
+  readline(~) -> (2) \r\n
+  write(167) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.2\r\nTransfer-Encoding: chunked\r\n\r\n
   write(41) -> Content-Type: application/mercurial-0.2\r\n
   write(6) -> 1\\r\\n\x04\\r\\n (esc)
   write(9) -> 4\r\nnone\r\n
@@ -820,8 +820,8 @@ Server stops sending after bundle2 part header length
 #else
 
   $ "$PYTHON" $TESTDIR/filtertraceback.py < error.log | tail -13
-  readline(~) -> (2) \r\n (py3 !)
-  write(167) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.2\r\nTransfer-Encoding: chunked\r\n\r\n (py3 !)
+  readline(~) -> (2) \r\n
+  write(167) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.2\r\nTransfer-Encoding: chunked\r\n\r\n
   write(41) -> Content-Type: application/mercurial-0.2\r\n
   write(6) -> 1\\r\\n\x04\\r\\n (esc)
   write(9) -> 4\r\nnone\r\n
@@ -873,8 +873,8 @@ Server stops sending after bundle2 part header
 
 #else
   $ "$PYTHON" $TESTDIR/filtertraceback.py < error.log | tail -14
-  readline(~) -> (2) \r\n (py3 !)
-  write(167) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.2\r\nTransfer-Encoding: chunked\r\n\r\n (py3 !)
+  readline(~) -> (2) \r\n
+  write(167) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.2\r\nTransfer-Encoding: chunked\r\n\r\n
   write(41) -> Content-Type: application/mercurial-0.2\r\n
   write(6) -> 1\\r\\n\x04\\r\\n (esc)
   write(9) -> 4\r\nnone\r\n
@@ -929,7 +929,7 @@ Server stops after bundle2 part payload chunk size
 
 #else
   $ "$PYTHON" $TESTDIR/filtertraceback.py < error.log | tail -15
-  write(167) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.2\r\nTransfer-Encoding: chunked\r\n\r\n (py3 !)
+  write(167) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.2\r\nTransfer-Encoding: chunked\r\n\r\n
   write(28) -> Transfer-Encoding: chunked\r\n
   write(6) -> 1\\r\\n\x04\\r\\n (esc)
   write(9) -> 4\r\nnone\r\n
@@ -986,8 +986,8 @@ Server stops sending in middle of bundle2 payload chunk
 
 #else
   $ "$PYTHON" $TESTDIR/filtertraceback.py < error.log | tail -16
-  readline(~) -> (2) \r\n (py3 !)
-  write(167) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.2\r\nTransfer-Encoding: chunked\r\n\r\n (py3 !)
+  readline(~) -> (2) \r\n
+  write(167) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.2\r\nTransfer-Encoding: chunked\r\n\r\n
   write(41) -> Content-Type: application/mercurial-0.2\r\n
   write(6) -> 1\\r\\n\x04\\r\\n (esc)
   write(9) -> 4\r\nnone\r\n

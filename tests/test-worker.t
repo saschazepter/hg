@@ -86,9 +86,9 @@ Known exception should be caught, but printed if --traceback is enabled
   $ hg --config "extensions.t=$abspath" --config 'worker.numcpus=8' \
   > test 100000.0 abort --traceback 2>&1 | egrep '(WorkerError|Abort)'
       raise error.Abort(b'known exception')
-  mercurial.error.Abort: known exception (py3 !)
+  mercurial.error.Abort: known exception
       raise error.WorkerError(status)
-  mercurial.error.WorkerError: 255 (py3 !)
+  mercurial.error.WorkerError: 255
 
 Traceback must be printed for unknown exceptions
 
