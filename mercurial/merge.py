@@ -245,8 +245,11 @@ def _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce):
     ):
         backup = (
             f in fileconflicts
-            or f in pathconflicts
-            or any(p in pathconflicts for p in pathutil.finddirs(f))
+            or pathconflicts
+            and (
+                f in pathconflicts
+                or any(p in pathconflicts for p in pathutil.finddirs(f))
+            )
         )
         (flags,) = args
         mresult.addfile(f, mergestatemod.ACTION_GET, (flags, backup), msg)
