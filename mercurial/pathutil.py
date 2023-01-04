@@ -108,22 +108,22 @@ class pathauditor:
                         % (path, pycompat.bytestr(base))
                     )
 
-        parts.pop()
-        # It's important that we check the path parts starting from the root.
-        # We don't want to add "foo/bar/baz" to auditeddir before checking if
-        # there's a "foo/.hg" directory. This also means we won't accidentally
-        # traverse a symlink into some other filesystem (which is potentially
-        # expensive to access).
-        for i in range(len(parts)):
-            prefix = pycompat.ossep.join(parts[: i + 1])
-            if prefix in self.auditeddir:
-                continue
-            if self._realfs:
+        if self._realfs:
+            parts.pop()
+            # It's important that we check the path parts starting from the root.
+            # We don't want to add "foo/bar/baz" to auditeddir before checking if
+            # there's a "foo/.hg" directory. This also means we won't accidentally
+            # traverse a symlink into some other filesystem (which is potentially
+            # expensive to access).
+            for i in range(len(parts)):
+                prefix = pycompat.ossep.join(parts[: i + 1])
+                if prefix in self.auditeddir:
+                    continue
                 res = self._checkfs_exists(prefix, path)
-            if self._cached:
-                self.auditeddir.add(prefix)
-            if not res:
-                break
+                if self._cached:
+                    self.auditeddir.add(prefix)
+                if not res:
+                    break
 
         if self._cached:
             self.audited.add(path)
