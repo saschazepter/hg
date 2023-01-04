@@ -729,6 +729,8 @@ def _disabledpaths():
     '''find paths of disabled extensions. returns a dict of {name: path}'''
     import hgext
 
+    exts = {}
+
     # The hgext might not have a __file__ attribute (e.g. in PyOxidizer) and
     # it might not be on a filesystem even if it does.
     if util.safehasattr(hgext, '__file__'):
@@ -738,23 +740,21 @@ def _disabledpaths():
         try:
             files = os.listdir(extpath)
         except OSError:
-            return {}
-    else:
-        return {}
-
-    exts = {}
-    for e in files:
-        if e.endswith(b'.py'):
-            name = e.rsplit(b'.', 1)[0]
-            path = os.path.join(extpath, e)
+            pass
         else:
-            name = e
-            path = os.path.join(extpath, e, b'__init__.py')
-            if not os.path.exists(path):
-                continue
-        if name in exts or name in _order or name == b'__init__':
-            continue
-        exts[name] = path
+            for e in files:
+                if e.endswith(b'.py'):
+                    name = e.rsplit(b'.', 1)[0]
+                    path = os.path.join(extpath, e)
+                else:
+                    name = e
+                    path = os.path.join(extpath, e, b'__init__.py')
+                    if not os.path.exists(path):
+                        continue
+                if name in exts or name in _order or name == b'__init__':
+                    continue
+                exts[name] = path
+
     for name, path in _disabledextensions.items():
         # If no path was provided for a disabled extension (e.g. "color=!"),
         # don't replace the path we already found by the scan above.
@@ -841,6 +841,22 @@ def disabled_help(name):
     paths = _disabledpaths()
     if name in paths:
         return _disabledhelp(paths[name])
+    else:
+        try:
+            import hgext
+            from hgext import __index__  # pytype: disable=import-error
+
+            # The extensions are filesystem based, so either an error occurred
+            # or all are enabled.
+            if util.safehasattr(hgext, '__file__'):
+                return
+
+            if name in _order:  # enabled
+                return
+            else:
+                return gettext(__index__.docs.get(name))
+        except (ImportError, AttributeError):
+            pass
 
 
 def _walkcommand(node):

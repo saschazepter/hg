@@ -33,6 +33,7 @@ SIGNING_SUBJECT_NAME = VARS.get("SIGNING_SUBJECT_NAME")
 TIME_STAMP_SERVER_URL = VARS.get("TIME_STAMP_SERVER_URL", "http://timestamp.digicert.com")
 
 IS_WINDOWS = "windows" in BUILD_TARGET_TRIPLE
+IS_MACOS = "apple" in BUILD_TARGET_TRIPLE
 
 # Use in-memory resources for all resources. If false, most of the Python
 # stdlib will be in memory, but other things such as Mercurial itself will not
@@ -147,6 +148,10 @@ def make_exe(dist):
     if IS_WINDOWS:
         exe.add_python_resources(
             exe.pip_install(["-r", ROOT + "/contrib/packaging/requirements-windows-py3.txt"]),
+        )
+    if IS_MACOS:
+        exe.add_python_resources(
+            exe.pip_install(["-r", ROOT + "/contrib/packaging/requirements-macos.txt"]),
         )
     extra_packages = VARS.get("extra_py_packages", "")
     if extra_packages:

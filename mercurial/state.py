@@ -366,6 +366,7 @@ addunfinished(
     fname=b'bisect.state',
     allowcommit=True,
     reportonly=True,
+    cmdhint=_(b"use 'hg bisect --reset'"),
     statushint=_(
         b'To mark the changeset good:    hg bisect --good\n'
         b'To mark the changeset bad:     hg bisect --bad\n'

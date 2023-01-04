@@ -794,3 +794,14 @@ user adds irrelevant but consistent information (here: -g 2) to bisect state
   17:228c06deef46
   18:d42e18c7bc9b
   $ hg log -q -r 'bisect(untested)'
+
+in-progress bisect interacts with hg merge (issue6527)
+
+  $ hg up -r 17 -q
+  $ hg merge 7
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg merge --abort
+  abort: cannot abort merge with bisect in progress
+  (use 'hg bisect --reset')
+  [20]
