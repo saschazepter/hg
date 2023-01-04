@@ -742,7 +742,7 @@ Check output capture control.
   remote: adding changesets
   remote: adding manifests
   remote: adding file changes
-  remote: Fail early! (py3 !)
+  remote: Fail early!
   remote: transaction abort!
   remote: Cleaning up the mess...
   remote: rollback completed
