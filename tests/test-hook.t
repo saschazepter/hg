@@ -978,12 +978,12 @@ test python hooks
   Traceback (most recent call last):
   SyntaxError: * (glob)
   Traceback (most recent call last):
-  ImportError: No module named 'hgext_syntaxerror' (py3 no-py36 !)
+  ImportError: No module named 'hgext_syntaxerror' (no-py36 !)
   ModuleNotFoundError: No module named 'hgext_syntaxerror' (py36 !)
   Traceback (most recent call last):
   SyntaxError: * (glob)
   Traceback (most recent call last):
-  ImportError: No module named 'hgext_syntaxerror' (py3 no-py36 !)
+  ImportError: No module named 'hgext_syntaxerror' (no-py36 !)
   ModuleNotFoundError: No module named 'hgext_syntaxerror' (py36 !)
   Traceback (most recent call last):
       raise error.HookLoadError( (py38 !)
@@ -1140,20 +1140,20 @@ make sure --traceback works on hook import failure
   $ hg --traceback commit -ma 2>&1 | egrep '^exception|ImportError|ModuleNotFoundError|Traceback|HookLoadError|abort'
   exception from first failed import attempt:
   Traceback (most recent call last):
-  ImportError: No module named 'somebogusmodule' (py3 no-py36 !)
+  ImportError: No module named 'somebogusmodule' (no-py36 !)
   ModuleNotFoundError: No module named 'somebogusmodule' (py36 !)
   exception from second failed import attempt:
   Traceback (most recent call last):
-  ImportError: No module named 'somebogusmodule' (py3 no-py36 !)
+  ImportError: No module named 'somebogusmodule' (no-py36 !)
   ModuleNotFoundError: No module named 'somebogusmodule' (py36 !)
   Traceback (most recent call last):
-  ImportError: No module named 'hgext_importfail' (py3 no-py36 !)
+  ImportError: No module named 'hgext_importfail' (no-py36 !)
   ModuleNotFoundError: No module named 'hgext_importfail' (py36 !)
   Traceback (most recent call last):
-  ImportError: No module named 'somebogusmodule' (py3 no-py36 !)
+  ImportError: No module named 'somebogusmodule' (no-py36 !)
   ModuleNotFoundError: No module named 'somebogusmodule' (py36 !)
   Traceback (most recent call last):
-  ImportError: No module named 'hgext_importfail' (py3 no-py36 !)
+  ImportError: No module named 'hgext_importfail' (no-py36 !)
   ModuleNotFoundError: No module named 'hgext_importfail' (py36 !)
   Traceback (most recent call last):
       raise error.HookLoadError( (py38 !)
