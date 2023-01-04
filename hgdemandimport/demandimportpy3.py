@@ -37,6 +37,8 @@ class _lazyloaderex(importlib.util.LazyLoader):
     the ignore list.
     """
 
+    _HAS_DYNAMIC_ATTRIBUTES = True  # help pytype not flag self.loader
+
     def exec_module(self, module):
         """Make the module load lazily."""
         with tracing.log('demandimport %s', module):
