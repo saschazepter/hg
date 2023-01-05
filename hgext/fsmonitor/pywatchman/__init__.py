@@ -689,9 +689,9 @@ class CLIProcessTransport(Transport):
         if self.closed:
             self.close()
             self.closed = False
-        self._connect()
-        res = self.proc.stdin.write(data)
-        self.proc.stdin.close()
+        proc = self._connect()
+        res = proc.stdin.write(data)
+        proc.stdin.close()
         self.closed = True
         return res
 
