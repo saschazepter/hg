@@ -39,7 +39,7 @@ command = registrar.command(cmdtable)
 try:
     # Silence a warning about python-Levenshtein.
     #
-    # We don't need the the performance that much and it get anoying in tests.
+    # We don't need the performance that much and it gets annoying in tests.
     import warnings
 
     with warnings.catch_warnings():
