@@ -1436,7 +1436,7 @@ def outgoinghook(ui, repo, other, opts, missing):
 
             def addfunc(fn, lfhash):
                 if fn not in toupload:
-                    toupload[fn] = []
+                    toupload[fn] = []  # pytype: disable=unsupported-operands
                 toupload[fn].append(lfhash)
                 lfhashes.add(lfhash)
 
