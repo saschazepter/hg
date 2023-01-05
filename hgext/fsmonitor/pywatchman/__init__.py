@@ -92,7 +92,9 @@ if os.name == "nt":
 
     LPDWORD = ctypes.POINTER(wintypes.DWORD)
 
-    CreateFile = ctypes.windll.kernel32.CreateFileA
+    _kernel32 = ctypes.windll.kernel32  # pytype: disable=module-attr
+
+    CreateFile = _kernel32.CreateFileA
     CreateFile.argtypes = [
         wintypes.LPSTR,
         wintypes.DWORD,
@@ -104,11 +106,11 @@ if os.name == "nt":
     ]
     CreateFile.restype = wintypes.HANDLE
 
-    CloseHandle = ctypes.windll.kernel32.CloseHandle
+    CloseHandle = _kernel32.CloseHandle
     CloseHandle.argtypes = [wintypes.HANDLE]
     CloseHandle.restype = wintypes.BOOL
 
-    ReadFile = ctypes.windll.kernel32.ReadFile
+    ReadFile = _kernel32.ReadFile
     ReadFile.argtypes = [
         wintypes.HANDLE,
         wintypes.LPVOID,
@@ -118,7 +120,7 @@ if os.name == "nt":
     ]
     ReadFile.restype = wintypes.BOOL
 
-    WriteFile = ctypes.windll.kernel32.WriteFile
+    WriteFile = _kernel32.WriteFile
     WriteFile.argtypes = [
         wintypes.HANDLE,
         wintypes.LPVOID,
@@ -128,15 +130,15 @@ if os.name == "nt":
     ]
     WriteFile.restype = wintypes.BOOL
 
-    GetLastError = ctypes.windll.kernel32.GetLastError
+    GetLastError = _kernel32.GetLastError
     GetLastError.argtypes = []
     GetLastError.restype = wintypes.DWORD
 
-    SetLastError = ctypes.windll.kernel32.SetLastError
+    SetLastError = _kernel32.SetLastError
     SetLastError.argtypes = [wintypes.DWORD]
     SetLastError.restype = None
 
-    FormatMessage = ctypes.windll.kernel32.FormatMessageA
+    FormatMessage = _kernel32.FormatMessageA
     FormatMessage.argtypes = [
         wintypes.DWORD,
         wintypes.LPVOID,
@@ -148,9 +150,9 @@ if os.name == "nt":
     ]
     FormatMessage.restype = wintypes.DWORD
 
-    LocalFree = ctypes.windll.kernel32.LocalFree
+    LocalFree = _kernel32.LocalFree
 
-    GetOverlappedResult = ctypes.windll.kernel32.GetOverlappedResult
+    GetOverlappedResult = _kernel32.GetOverlappedResult
     GetOverlappedResult.argtypes = [
         wintypes.HANDLE,
         ctypes.POINTER(OVERLAPPED),
@@ -159,9 +161,7 @@ if os.name == "nt":
     ]
     GetOverlappedResult.restype = wintypes.BOOL
 
-    GetOverlappedResultEx = getattr(
-        ctypes.windll.kernel32, "GetOverlappedResultEx", None
-    )
+    GetOverlappedResultEx = getattr(_kernel32, "GetOverlappedResultEx", None)
     if GetOverlappedResultEx is not None:
         GetOverlappedResultEx.argtypes = [
             wintypes.HANDLE,
@@ -172,7 +172,7 @@ if os.name == "nt":
         ]
         GetOverlappedResultEx.restype = wintypes.BOOL
 
-    WaitForSingleObjectEx = ctypes.windll.kernel32.WaitForSingleObjectEx
+    WaitForSingleObjectEx = _kernel32.WaitForSingleObjectEx
     WaitForSingleObjectEx.argtypes = [
         wintypes.HANDLE,
         wintypes.DWORD,
@@ -180,7 +180,7 @@ if os.name == "nt":
     ]
     WaitForSingleObjectEx.restype = wintypes.DWORD
 
-    CreateEvent = ctypes.windll.kernel32.CreateEventA
+    CreateEvent = _kernel32.CreateEventA
     CreateEvent.argtypes = [
         LPDWORD,
         wintypes.BOOL,
@@ -190,7 +190,7 @@ if os.name == "nt":
     CreateEvent.restype = wintypes.HANDLE
 
     # Windows Vista is the minimum supported client for CancelIoEx.
-    CancelIoEx = ctypes.windll.kernel32.CancelIoEx
+    CancelIoEx = _kernel32.CancelIoEx
     CancelIoEx.argtypes = [wintypes.HANDLE, ctypes.POINTER(OVERLAPPED)]
     CancelIoEx.restype = wintypes.BOOL
 
