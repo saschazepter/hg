@@ -51,7 +51,13 @@ class idirstate(interfaceutil.Interface):
         pass
 
     def flagfunc(buildfallback):
-        pass
+        """build a callable that returns flags associated with a filename
+
+        The information is extracted from three possible layers:
+        1. the file system if it supports the information
+        2. the "fallback" information stored in the dirstate if any
+        3. a more expensive mechanism inferring the flags from the parents.
+        """
 
     def getcwd():
         """Return the path from which a canonical path is calculated.
@@ -96,7 +102,7 @@ class idirstate(interfaceutil.Interface):
     def setparents(p1, p2=None):
         """Set dirstate parents to p1 and p2.
 
-        When moving from two parents to one, 'm' merged entries a
+        When moving from two parents to one, "merged" entries a
         adjusted to normal and previous copy records discarded and
         returned by the call.
 
@@ -147,7 +153,7 @@ class idirstate(interfaceutil.Interface):
         pass
 
     def identity():
-        """Return identity of dirstate it to detect changing in storage
+        """Return identity of dirstate itself to detect changing in storage
 
         If identity of previous dirstate is equal to this, writing
         changes based on the former dirstate out can keep consistency.
