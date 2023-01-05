@@ -996,7 +996,7 @@ class base(histeditaction):
 @action(
     [b'_multifold'],
     _(
-        """fold subclass used for when multiple folds happen in a row
+        b"""fold subclass used for when multiple folds happen in a row
 
     We only want to fire the editor for the folded message once when
     (say) four changes are folded down into a single change. This is
