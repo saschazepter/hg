@@ -67,11 +67,11 @@ class idirstate(interfaceutil.Interface):
         used to get real file paths. Use vfs functions instead.
         """
 
-    def get_entry(path):
-        """return a DirstateItem for the associated path"""
-
     def pathto(f, cwd=None):
         pass
+
+    def get_entry(path):
+        """return a DirstateItem for the associated path"""
 
     def __contains__(key):
         """Check if bytestring `key` is known to the dirstate."""
