@@ -30,6 +30,7 @@ pub mod matchers;
 pub mod repo;
 pub mod revlog;
 pub use revlog::*;
+pub mod checkexec;
 pub mod config;
 pub mod lock;
 pub mod logging;
