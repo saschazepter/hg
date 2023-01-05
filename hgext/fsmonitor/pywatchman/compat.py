@@ -32,37 +32,22 @@ import sys
 """Compatibility module across Python 2 and 3."""
 
 
-PYTHON2 = sys.version_info < (3, 0)
 PYTHON3 = sys.version_info >= (3, 0)
 
 # This is adapted from https://bitbucket.org/gutworth/six, and used under the
 # MIT license. See LICENSE for a full copyright notice.
-if PYTHON3:
-
-    def reraise(tp, value, tb=None):
-        try:
-            if value is None:
-                value = tp()
-            if value.__traceback__ is not tb:
-                raise value.with_traceback(tb)
-            raise value
-        finally:
-            value = None
-            tb = None
 
 
-else:
-    exec(
-        """
 def reraise(tp, value, tb=None):
     try:
-        raise tp, value, tb
+        if value is None:
+            value = tp()
+        if value.__traceback__ is not tb:
+            raise value.with_traceback(tb)
+        raise value
     finally:
+        value = None
         tb = None
-""".strip()
-    )
 
-if PYTHON3:
-    UNICODE = str
-else:
-    UNICODE = unicode  # noqa: F821 We handled versioning above
+
+UNICODE = str
