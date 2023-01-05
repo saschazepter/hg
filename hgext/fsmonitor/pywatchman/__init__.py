@@ -986,8 +986,12 @@ class client:
                 # if invoked via an application with graphical user interface,
                 # this call will cause a brief command window pop-up.
                 # Using the flag STARTF_USESHOWWINDOW to avoid this behavior.
+
+                # pytype: disable=module-attr
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                # pytype: enable=module-attr
+
                 args["startupinfo"] = startupinfo
 
             p = subprocess.Popen(cmd, **args)
@@ -1024,7 +1028,11 @@ class client:
         if self.transport == CLIProcessTransport:
             kwargs["binpath"] = self.binpath
 
+        # Only CLIProcessTransport has the binpath kwarg
+        # pytype: disable=wrong-keyword-args
         self.tport = self.transport(self.sockpath, self.timeout, **kwargs)
+        # pytype: enable=wrong-keyword-args
+
         self.sendConn = self.sendCodec(self.tport)
         self.recvConn = self.recvCodec(self.tport)
         self.pid = os.getpid()
