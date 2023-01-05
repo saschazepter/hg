@@ -567,8 +567,12 @@ def journal(ui, repo, *args, **opts):
         )
         fm.write(b'newnodes', b'%s', formatnodes(entry.newhashes))
         fm.condwrite(ui.verbose, b'user', b' %-8s', entry.user)
+
+        # ``name`` is bytes, or None only if 'all' was an option.
         fm.condwrite(
+            # pytype: disable=attribute-error
             opts.get(b'all') or name.startswith(b're:'),
+            # pytype: enable=attribute-error
             b'name',
             b'  %-8s',
             entry.name,
