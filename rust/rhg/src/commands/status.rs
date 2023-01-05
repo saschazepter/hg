@@ -254,10 +254,10 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let mut dmap = repo.dirstate_map_mut()?;
 
+    let check_exec = hg::checkexec::check_exec(repo.working_directory_path());
+
     let options = StatusOptions {
-        // we're currently supporting file systems with exec flags only
-        // anyway
-        check_exec: true,
+        check_exec,
         list_clean: display_states.clean,
         list_unknown: display_states.unknown,
         list_ignored: display_states.ignored,
@@ -312,6 +312,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                     unsure_is_modified(
                         working_directory_vfs,
                         store_vfs,
+                        check_exec,
                         &manifest,
                         &to_check.path,
                     )
@@ -554,6 +555,7 @@ impl DisplayStatusPaths<'_> {
 fn unsure_is_modified(
     working_directory_vfs: hg::vfs::Vfs,
     store_vfs: hg::vfs::Vfs,
+    check_exec: bool,
     manifest: &Manifest,
     hg_path: &HgPath,
 ) -> Result<bool, HgError> {
@@ -561,20 +563,32 @@ fn unsure_is_modified(
     let fs_path = hg_path_to_path_buf(hg_path).expect("HgPath conversion");
     let fs_metadata = vfs.symlink_metadata(&fs_path)?;
     let is_symlink = fs_metadata.file_type().is_symlink();
+
+    let entry = manifest
+        .find_by_path(hg_path)?
+        .expect("ambgious file not in p1");
+
     // TODO: Also account for `FALLBACK_SYMLINK` and `FALLBACK_EXEC` from the
     // dirstate
     let fs_flags = if is_symlink {
         Some(b'l')
-    } else if has_exec_bit(&fs_metadata) {
+    } else if check_exec && has_exec_bit(&fs_metadata) {
         Some(b'x')
     } else {
         None
     };
 
-    let entry = manifest
-        .find_by_path(hg_path)?
-        .expect("ambgious file not in p1");
-    if entry.flags != fs_flags {
+    let entry_flags = if check_exec {
+        entry.flags
+    } else {
+        if entry.flags == Some(b'x') {
+            None
+        } else {
+            entry.flags
+        }
+    };
+
+    if entry_flags != fs_flags {
         return Ok(true);
     }
     let filelog = hg::filelog::Filelog::open_vfs(&store_vfs, hg_path)?;
