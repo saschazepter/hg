@@ -2,7 +2,6 @@ use crate::error::CommandError;
 use clap::Arg;
 use clap::ArgGroup;
 use hg::operations::{debug_data, DebugDataKind};
-use micro_timer::timed;
 
 pub const HELP_TEXT: &str = "
 Dump the contents of a data file revision
@@ -36,7 +35,7 @@ pub fn args() -> clap::Command {
         .about(HELP_TEXT)
 }
 
-#[timed]
+#[logging_timer::time("trace")]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let args = invocation.subcommand_args;
     let rev = args

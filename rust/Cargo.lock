@@ -536,8 +536,8 @@ dependencies = [
  "lazy_static",
  "libc",
  "log",
+ "logging_timer",
  "memmap2",
- "micro-timer",
  "once_cell",
  "ouroboros",
  "pretty_assertions",
@@ -705,6 +705,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "logging_timer"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64e96f261d684b7089aa576bb74e823241dccd994b27d30fabf1dcb3af284fe9"
+dependencies = [
+ "log",
+ "logging_timer_proc_macros",
+]
+
+[[package]]
+name = "logging_timer_proc_macros"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10a9062912d7952c5588cc474795e0b9ee008e7e6781127945b85413d4b99d81"
+dependencies = [
+ "log",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "memchr"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -727,28 +749,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5aa361d4faea93603064a027415f07bd8e1d5c88c9fbf68bf56a285428fd79ce"
 dependencies = [
  "autocfg",
-]
-
-[[package]]
-name = "micro-timer"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5de32cb59a062672560d6f0842c4aa7714727457b9fe2daf8987d995a176a405"
-dependencies = [
- "micro-timer-macros",
- "scopeguard",
-]
-
-[[package]]
-name = "micro-timer-macros"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cee948b94700125b52dfb68dd17c19f6326696c1df57f92c05ee857463c93ba1"
-dependencies = [
- "proc-macro2",
- "quote",
- "scopeguard",
- "syn",
 ]
 
 [[package]]
@@ -1094,7 +1094,7 @@ dependencies = [
  "home",
  "lazy_static",
  "log",
- "micro-timer",
+ "logging_timer",
  "rayon",
  "regex",
  "users",

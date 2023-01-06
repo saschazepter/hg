@@ -3,7 +3,6 @@ use clap::Arg;
 use format_bytes::format_bytes;
 use hg::operations::cat;
 use hg::utils::hg_path::HgPathBuf;
-use micro_timer::timed;
 use std::ffi::OsString;
 use std::os::unix::prelude::OsStrExt;
 
@@ -31,7 +30,7 @@ pub fn args() -> clap::Command {
         .about(HELP_TEXT)
 }
 
-#[timed]
+#[logging_timer::time("trace")]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let cat_enabled_default = true;
     let cat_enabled = invocation.config.get_option(b"rhg", b"cat")?;
