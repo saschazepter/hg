@@ -143,7 +143,7 @@ class darcs_source(common.converter_source, common.commandline):
     def getcommit(self, rev):
         elt = self.changes[rev]
         dateformat = b'%a %b %d %H:%M:%S %Z %Y'
-        date = dateutil.strdate(elt.get('local_date'), dateformat)
+        date = dateutil.strdate(self.recode(elt.get('local_date')), dateformat)
         desc = elt.findtext('name') + '\n' + elt.findtext('comment', '')
         # etree can return unicode objects for name, comment, and author,
         # so recode() is used to ensure str objects are emitted.
