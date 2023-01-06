@@ -725,7 +725,13 @@ class svn_source(converter_source):
     def getchanges(self, rev, full):
         # reuse cache from getchangedfiles
         if self._changescache[0] == rev and not full:
+            # TODO: add type hints to avoid this warning, instead of
+            #  suppressing it:
+            #     No attribute '__iter__' on None [attribute-error]
+
+            # pytype: disable=attribute-error
             (files, copies) = self._changescache[1]
+            # pytype: enable=attribute-error
         else:
             (files, copies) = self._getchanges(rev, full)
             # caller caches the result, so free it here to release memory
