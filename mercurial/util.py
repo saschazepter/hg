@@ -60,6 +60,7 @@ from .utils import (
 
 if pycompat.TYPE_CHECKING:
     from typing import (
+        Iterable,
         Iterator,
         List,
         Optional,
@@ -2910,7 +2911,7 @@ def iterfile(fp):
 
 
 def iterlines(iterator):
-    # type: (Iterator[bytes]) -> Iterator[bytes]
+    # type: (Iterable[bytes]) -> Iterator[bytes]
     for chunk in iterator:
         for line in chunk.splitlines():
             yield line
