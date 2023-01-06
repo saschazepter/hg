@@ -46,7 +46,7 @@ def _getcheckunknownconfig(repo, section, name):
     return config
 
 
-def _checkunknownfile(repo, wctx, mctx, f, f2=None):
+def _checkunknownfile(repo, dircache, wctx, mctx, f, f2=None):
     if wctx.isinmemory():
         # Nothing to do in IMM because nothing in the "working copy" can be an
         # unknown file.
@@ -58,8 +58,7 @@ def _checkunknownfile(repo, wctx, mctx, f, f2=None):
     if f2 is None:
         f2 = f
     return (
-        repo.wvfs.audit.check(f)
-        and repo.wvfs.isfileorlink(f)
+        repo.wvfs.isfileorlink_checkdir(dircache, f)
         and repo.dirstate.normalize(f) not in repo.dirstate
         and mctx[f2].cmp(wctx[f])
     )
@@ -136,6 +135,7 @@ def _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce):
     pathconfig = repo.ui.configbool(
         b'experimental', b'merge.checkpathconflicts'
     )
+    dircache = dict()
     if not force:
 
         def collectconflicts(conflicts, config):
@@ -145,19 +145,18 @@ def _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce):
                 warnconflicts.update(conflicts)
 
         checkunknowndirs = _unknowndirschecker()
-        with repo.wvfs.audit.cached():
-            for f in mresult.files(
-                (
-                    mergestatemod.ACTION_CREATED,
-                    mergestatemod.ACTION_DELETED_CHANGED,
-                )
-            ):
-                if _checkunknownfile(repo, wctx, mctx, f):
-                    fileconflicts.add(f)
-                elif pathconfig and f not in wctx:
-                    path = checkunknowndirs(repo, wctx, f)
-                    if path is not None:
-                        pathconflicts.add(path)
+        for f in mresult.files(
+            (
+                mergestatemod.ACTION_CREATED,
+                mergestatemod.ACTION_DELETED_CHANGED,
+            )
+        ):
+            if _checkunknownfile(repo, dircache, wctx, mctx, f):
+                fileconflicts.add(f)
+            elif pathconfig and f not in wctx:
+                path = checkunknowndirs(repo, wctx, f)
+                if path is not None:
+                    pathconflicts.add(path)
         for f, args, msg in mresult.getactions(
             [mergestatemod.ACTION_LOCAL_DIR_RENAME_GET]
         ):
