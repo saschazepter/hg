@@ -314,6 +314,13 @@ def finddirs(path):
     yield b''
 
 
+def finddirs_rev_noroot(path: bytes) -> Iterator[bytes]:
+    pos = path.find(pycompat.ossep)
+    while pos != -1:
+        yield path[:pos]
+        pos = path.find(pycompat.ossep, pos + 1)
+
+
 class dirs:
     '''a multiset of directory names from a set of file paths'''
 
