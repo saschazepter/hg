@@ -107,14 +107,12 @@ class pathauditor:
                     )
 
         if self._realfs:
-            parts.pop()
             # It's important that we check the path parts starting from the root.
             # We don't want to add "foo/bar/baz" to auditeddir before checking if
             # there's a "foo/.hg" directory. This also means we won't accidentally
             # traverse a symlink into some other filesystem (which is potentially
             # expensive to access).
-            for i in range(len(parts)):
-                prefix = pycompat.ossep.join(parts[: i + 1])
+            for prefix in finddirs_rev_noroot(path):
                 if prefix in self.auditeddir:
                     res = self.auditeddir[prefix]
                 else:
