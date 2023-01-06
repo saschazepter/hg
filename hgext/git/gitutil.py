@@ -9,7 +9,7 @@ def get_pygit2():
     global pygit2_module
     if pygit2_module is None:
         try:
-            import pygit2 as pygit2_module
+            import pygit2 as pygit2_module  # pytype: disable=import-error
 
             pygit2_module.InvalidSpecError
         except (ImportError, AttributeError):

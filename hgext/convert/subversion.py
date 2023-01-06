@@ -47,11 +47,14 @@ NoRepo = common.NoRepo
 # these bindings.
 
 try:
+    # pytype: disable=import-error
     import svn
     import svn.client
     import svn.core
     import svn.ra
     import svn.delta
+
+    # pytype: enable=import-error
     from . import transport
     import warnings
 
