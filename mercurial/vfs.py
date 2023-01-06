@@ -422,6 +422,25 @@ class vfs(abstractvfs):
                 raise error.Abort(b"%s: %r" % (r, path))
             self.audit(path, mode=mode)
 
+    def isfileorlink_checkdir(
+        self, dircache, path: Optional[bytes] = None
+    ) -> bool:
+        """return True if the path is a regular file or a symlink and
+        the directories along the path are "normal", that is
+        not symlinks or nested hg repositories."""
+        try:
+            for prefix in pathutil.finddirs_rev_noroot(util.localpath(path)):
+                if prefix in dircache:
+                    res = dircache[prefix]
+                else:
+                    res = self.audit._checkfs_exists(prefix, path)
+                    dircache[prefix] = res
+                if not res:
+                    return False
+        except (OSError, error.Abort):
+            return False
+        return self.isfileorlink(path)
+
     def __call__(
         self,
         path: bytes,
