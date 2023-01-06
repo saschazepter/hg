@@ -50,7 +50,7 @@ try:
             module="fuzzywuzzy.fuzz",
         )
 
-        import fuzzywuzzy.fuzz as fuzz
+        import fuzzywuzzy.fuzz as fuzz  # pytype: disable=import-error
 
         fuzz.token_set_ratio
 except ImportError:

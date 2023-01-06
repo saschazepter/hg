@@ -80,7 +80,7 @@ from mercurial.utils import (
 )
 
 try:
-    from mercurial import zstd
+    from mercurial import zstd  # pytype: disable=import-error
 
     zstd.__version__
 except ImportError:
