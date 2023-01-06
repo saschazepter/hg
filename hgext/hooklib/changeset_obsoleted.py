@@ -32,7 +32,10 @@ from mercurial import (
     pycompat,
     registrar,
 )
-from mercurial.utils import dateutil
+from mercurial.utils import (
+    dateutil,
+    stringutil,
+)
 from .. import notify
 
 configtable = {}
@@ -98,7 +101,7 @@ def _report_commit(ui, repo, ctx):
     try:
         msg = mail.parsebytes(data)
     except emailerrors.MessageParseError as inst:
-        raise error.Abort(inst)
+        raise error.Abort(stringutil.forcebytestr(inst))
 
     msg['In-reply-to'] = notify.messageid(ctx, domain, messageidseed)
     msg['Message-Id'] = notify.messageid(
