@@ -72,8 +72,7 @@ class pathauditor:
         path may contain a pattern (e.g. foodir/**.txt)"""
 
         path = util.localpath(path)
-        normpath = self.normcase(path)
-        if normpath in self.audited:
+        if path in self.audited:
             return
         # AIX ignores "/" at end of path, others raise EISDIR.
         if util.endswithsep(path):
@@ -109,11 +108,7 @@ class pathauditor:
                         % (path, pycompat.bytestr(base))
                     )
 
-        normparts = util.splitpath(normpath)
-        assert len(parts) == len(normparts)
-
         parts.pop()
-        normparts.pop()
         # It's important that we check the path parts starting from the root.
         # We don't want to add "foo/bar/baz" to auditeddir before checking if
         # there's a "foo/.hg" directory. This also means we won't accidentally
@@ -121,16 +116,15 @@ class pathauditor:
         # expensive to access).
         for i in range(len(parts)):
             prefix = pycompat.ossep.join(parts[: i + 1])
-            normprefix = pycompat.ossep.join(normparts[: i + 1])
-            if normprefix in self.auditeddir:
+            if prefix in self.auditeddir:
                 continue
             if self._realfs:
                 self._checkfs(prefix, path)
             if self._cached:
-                self.auditeddir.add(normprefix)
+                self.auditeddir.add(prefix)
 
         if self._cached:
-            self.audited.add(normpath)
+            self.audited.add(path)
 
     def _checkfs(self, prefix, path):
         # type: (bytes, bytes) -> None
