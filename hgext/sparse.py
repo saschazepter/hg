@@ -374,7 +374,7 @@ def debugsparse(ui, repo, **opts):
     if refresh:
         try:
             wlock = repo.wlock()
-            fcounts = map(
+            fcounts = pycompat.maplist(
                 len,
                 sparse.refreshwdir(
                     repo, repo.status(), sparse.matcher(repo), force=force
