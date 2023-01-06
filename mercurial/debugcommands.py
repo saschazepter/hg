@@ -3800,6 +3800,21 @@ def debugshell(ui, repo):
         'repo': repo,
     }
 
+    # py2exe disables initialization of the site module, which is responsible
+    # for arranging for ``quit()`` to exit the interpreter.  Manually initialize
+    # the stuff that site normally does here, so that the interpreter can be
+    # quit in a consistent manner, whether run with pyoxidizer, exewrapper.c,
+    # py.exe, or py2exe.
+    if getattr(sys, "frozen", None) == 'console_exe':
+        try:
+            import site
+
+            site.setcopyright()
+            site.sethelper()
+            site.setquit()
+        except ImportError:
+            site = None  # Keep PyCharm happy
+
     code.interact(local=imported_objects)
 
 
