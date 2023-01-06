@@ -306,7 +306,7 @@ This covers gitlog._partialmatch()
   
   $ hg log -r dead
   abort: unknown revision 'dead'
-  [255]
+  [10]
 
 This coveres changelog.findmissing()
   $ hg merge --preview 3d9be8deba43
