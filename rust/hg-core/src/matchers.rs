@@ -30,8 +30,6 @@ use std::fmt::{Display, Error, Formatter};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
-use micro_timer::timed;
-
 #[derive(Debug, PartialEq)]
 pub enum VisitChildrenSet {
     /// Don't visit anything
@@ -611,7 +609,7 @@ impl RegexMatcher {
 /// This can fail when the pattern is invalid or not supported by the
 /// underlying engine (the `regex` crate), for instance anything with
 /// back-references.
-#[timed]
+#[logging_timer::time("trace")]
 fn re_matcher(pattern: &[u8]) -> PatternResult<RegexMatcher> {
     use std::io::Write;
 
