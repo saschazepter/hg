@@ -31,10 +31,13 @@ demandimport.IGNORES.update(
 
 try:
     # bazaar imports
+    # pytype: disable=import-error
     import breezy.bzr.bzrdir
     import breezy.errors
     import breezy.revision
     import breezy.revisionspec
+
+    # pytype: enable=import-error
 
     bzrdir = breezy.bzr.bzrdir
     errors = breezy.errors

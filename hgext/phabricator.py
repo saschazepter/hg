@@ -286,8 +286,11 @@ def vcrcommand(name, flags, spec, helpcategory=None, optionalrepo=False):
                 import hgdemandimport
 
                 with hgdemandimport.deactivated():
+                    # pytype: disable=import-error
                     import vcr as vcrmod
                     import vcr.stubs as stubs
+
+                    # pytype: enable=import-error
 
                     vcr = vcrmod.VCR(
                         serializer='json',
