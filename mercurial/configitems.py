@@ -746,6 +746,14 @@ coreconfigitem(
     b'discovery.exchange-heads',
     default=True,
 )
+# If devel.debug.abort-update is True, then any merge with the working copy,
+# e.g. [hg update], will be aborted after figuring out what needs to be done,
+# but before spawning the parallel worker
+coreconfigitem(
+    b'devel',
+    b'debug.abort-update',
+    default=False,
+)
 # If discovery.grow-sample is False, the sample size used in set discovery will
 # not be increased through the process
 coreconfigitem(

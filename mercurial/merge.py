@@ -1142,6 +1142,8 @@ def calculateupdates(
             followcopies,
         )
         _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce)
+        if repo.ui.configbool(b'devel', b'debug.abort-update'):
+            exit(1)
 
     else:  # only when merge.preferancestor=* - the default
         repo.ui.note(
