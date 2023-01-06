@@ -1,5 +1,4 @@
 use bytes_cast::BytesCast;
-use micro_timer::timed;
 use std::borrow::Cow;
 use std::path::PathBuf;
 
@@ -454,7 +453,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
         }
     }
 
-    #[timed]
+    #[logging_timer::time("trace")]
     pub fn new_v2(
         on_disk: &'on_disk [u8],
         data_size: usize,
@@ -467,7 +466,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
         }
     }
 
-    #[timed]
+    #[logging_timer::time("trace")]
     pub fn new_v1(
         on_disk: &'on_disk [u8],
     ) -> Result<(Self, Option<DirstateParents>), DirstateError> {
@@ -1208,7 +1207,7 @@ impl OwningDirstateMap {
         })
     }
 
-    #[timed]
+    #[logging_timer::time("trace")]
     pub fn pack_v1(
         &self,
         parents: DirstateParents,
@@ -1248,7 +1247,7 @@ impl OwningDirstateMap {
     /// appended to the existing data file whose content is at
     /// `map.on_disk` (true), instead of written to a new data file
     /// (false), and the previous size of data on disk.
-    #[timed]
+    #[logging_timer::time("trace")]
     pub fn pack_v2(
         &self,
         can_append: bool,

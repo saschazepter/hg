@@ -19,7 +19,6 @@ use crate::HgPathCow;
 use crate::PatternFileWarning;
 use crate::StatusError;
 use crate::StatusOptions;
-use micro_timer::timed;
 use once_cell::sync::OnceCell;
 use rayon::prelude::*;
 use sha1::{Digest, Sha1};
@@ -39,7 +38,7 @@ use std::time::SystemTime;
 /// and its use of `itertools::merge_join_by`. When reaching a path that only
 /// exists in one of the two trees, depending on information requested by
 /// `options` we may need to traverse the remaining subtree.
-#[timed]
+#[logging_timer::time("trace")]
 pub fn status<'dirstate>(
     dmap: &'dirstate mut DirstateMap,
     matcher: &(dyn Matcher + Sync),
