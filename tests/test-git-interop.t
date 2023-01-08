@@ -142,6 +142,12 @@ diff even works transparently in both systems:
    alpha
   +blah
 
+status --all shows all files, including clean:
+  $ hg status --all
+  M alpha
+  ? gamma
+  C beta
+
 Remove a file, it shows as such:
   $ rm alpha
   $ hg status
