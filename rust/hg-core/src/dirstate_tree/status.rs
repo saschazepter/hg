@@ -154,7 +154,7 @@ pub fn status<'dirstate>(
         hg_path,
         &DirEntry {
             hg_path: Cow::Borrowed(HgPath::new(b"")),
-            fs_path: Cow::Borrowed(&root_dir),
+            fs_path: Cow::Borrowed(root_dir),
             symlink_metadata: None,
             file_type: FakeFileType::Directory,
         },
@@ -245,7 +245,7 @@ impl<'a> HasIgnoredAncestor<'a> {
             None => false,
             Some(parent) => {
                 *(parent.cache.get_or_init(|| {
-                    parent.force(ignore_fn) || ignore_fn(&self.path)
+                    parent.force(ignore_fn) || ignore_fn(self.path)
                 }))
             }
         }
@@ -402,7 +402,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                             let entry = DirEntry {
                                 hg_path: Cow::Borrowed(
                                     dirstate_node
-                                        .full_path(&self.dmap.on_disk)?,
+                                        .full_path(self.dmap.on_disk)?,
                                 ),
                                 fs_path: Cow::Borrowed(&fs_path),
                                 symlink_metadata: Some(fs_metadata),
@@ -420,7 +420,8 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                         Err(error) => {
                             let hg_path =
                                 dirstate_node.full_path(self.dmap.on_disk)?;
-                            Ok(self.io_error(error, hg_path))
+                            self.io_error(error, hg_path);
+                            Ok(())
                         }
                     }
                 })
@@ -472,28 +473,25 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         .par_bridge()
         .map(|pair| {
             use itertools::EitherOrBoth::*;
-            let has_dirstate_node_or_is_ignored;
-            match pair {
+            let has_dirstate_node_or_is_ignored = match pair {
                 Both(dirstate_node, fs_entry) => {
                     self.traverse_fs_and_dirstate(
-                        &fs_entry,
+                        fs_entry,
                         dirstate_node,
                         has_ignored_ancestor,
                     )?;
-                    has_dirstate_node_or_is_ignored = true
+                    true
                 }
                 Left(dirstate_node) => {
                     self.traverse_dirstate_only(dirstate_node)?;
-                    has_dirstate_node_or_is_ignored = true;
+                    true
                 }
-                Right(fs_entry) => {
-                    has_dirstate_node_or_is_ignored = self.traverse_fs_only(
-                        has_ignored_ancestor.force(&self.ignore_fn),
-                        directory_hg_path,
-                        fs_entry,
-                    )
-                }
-            }
+                Right(fs_entry) => self.traverse_fs_only(
+                    has_ignored_ancestor.force(&self.ignore_fn),
+                    directory_hg_path,
+                    fs_entry,
+                ),
+            };
             Ok(has_dirstate_node_or_is_ignored)
         })
         .try_reduce(|| true, |a, b| Ok(a && b))
@@ -524,7 +522,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                     .push(hg_path.detach_from_tree())
             }
             let is_ignored = HasIgnoredAncestor::create(
-                Some(&has_ignored_ancestor),
+                Some(has_ignored_ancestor),
                 hg_path,
             );
             let is_at_repo_root = false;
@@ -544,14 +542,14 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                 outdated_dircache,
             )?
         } else {
-            if file_or_symlink && self.matcher.matches(&hg_path) {
+            if file_or_symlink && self.matcher.matches(hg_path) {
                 if let Some(entry) = dirstate_node.entry()? {
                     if !entry.any_tracked() {
                         // Forward-compat if we start tracking unknown/ignored
                         // files for caching reasons
                         self.mark_unknown_or_ignored(
                             has_ignored_ancestor.force(&self.ignore_fn),
-                            &hg_path,
+                            hg_path,
                         );
                     }
                     if entry.added() {
@@ -620,12 +618,13 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
             Ok(meta) => meta,
             Err(_) => return Ok(()),
         };
-        let directory_mtime = if let Ok(option) =
-            TruncatedTimestamp::for_reliable_mtime_of(&metadata, status_start)
-        {
-            if let Some(directory_mtime) = option {
-                directory_mtime
-            } else {
+
+        let directory_mtime = match TruncatedTimestamp::for_reliable_mtime_of(
+            &metadata,
+            status_start,
+        ) {
+            Ok(Some(directory_mtime)) => directory_mtime,
+            Ok(None) => {
                 // The directory was modified too recently,
                 // don’t cache its `read_dir` results.
                 //
@@ -643,9 +642,10 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                 // by the same script.
                 return Ok(());
             }
-        } else {
-            // OS/libc does not support mtime?
-            return Ok(());
+            Err(_) => {
+                // OS/libc does not support mtime?
+                return Ok(());
+            }
         };
         // We’ve observed (through `status_start`) that time has
         // “progressed” since `directory_mtime`, so any further
@@ -713,8 +713,9 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         {
             self.push_outcome(Outcome::Modified, dirstate_node)?
         } else {
-            let mtime_looks_clean;
-            if let Some(dirstate_mtime) = entry.truncated_mtime() {
+            let mtime_looks_clean = if let Some(dirstate_mtime) =
+                entry.truncated_mtime()
+            {
                 let fs_mtime = TruncatedTimestamp::for_mtime_of(&fs_metadata)
                     .expect("OS/libc does not support mtime?");
                 // There might be a change in the future if for example the
@@ -722,10 +723,10 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                 // case where the issues the user would face
                 // would be a lot worse and there is nothing we
                 // can really do.
-                mtime_looks_clean = fs_mtime.likely_equal(dirstate_mtime)
+                fs_mtime.likely_equal(dirstate_mtime)
             } else {
                 // No mtime in the dirstate entry
-                mtime_looks_clean = false
+                false
             };
             if !mtime_looks_clean {
                 self.push_outcome(Outcome::Unsure, dirstate_node)?
@@ -769,7 +770,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                 if entry.removed() {
                     self.push_outcome(Outcome::Removed, dirstate_node)?
                 } else {
-                    self.push_outcome(Outcome::Deleted, &dirstate_node)?
+                    self.push_outcome(Outcome::Deleted, dirstate_node)?
                 }
             }
         }
@@ -816,26 +817,24 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                 }
             }
             is_ignored
-        } else {
-            if file_or_symlink {
-                if self.matcher.matches(&hg_path) {
-                    self.mark_unknown_or_ignored(
-                        has_ignored_ancestor,
-                        &BorrowedPath::InMemory(&hg_path),
-                    )
-                } else {
-                    // We haven’t computed whether this path is ignored. It
-                    // might not be, and a future run of status might have a
-                    // different matcher that matches it. So treat it as not
-                    // ignored. That is, inhibit readdir caching of the parent
-                    // directory.
-                    false
-                }
+        } else if file_or_symlink {
+            if self.matcher.matches(&hg_path) {
+                self.mark_unknown_or_ignored(
+                    has_ignored_ancestor,
+                    &BorrowedPath::InMemory(&hg_path),
+                )
             } else {
-                // This is neither a directory, a plain file, or a symlink.
-                // Treat it like an ignored file.
-                true
+                // We haven’t computed whether this path is ignored. It
+                // might not be, and a future run of status might have a
+                // different matcher that matches it. So treat it as not
+                // ignored. That is, inhibit readdir caching of the parent
+                // directory.
+                false
             }
+        } else {
+            // This is neither a directory, a plain file, or a symlink.
+            // Treat it like an ignored file.
+            true
         }
     }
 
@@ -845,7 +844,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         has_ignored_ancestor: bool,
         hg_path: &BorrowedPath<'_, 'on_disk>,
     ) -> bool {
-        let is_ignored = has_ignored_ancestor || (self.ignore_fn)(&hg_path);
+        let is_ignored = has_ignored_ancestor || (self.ignore_fn)(hg_path);
         if is_ignored {
             if self.options.list_ignored {
                 self.push_outcome_without_copy_source(
@@ -853,13 +852,8 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                     hg_path,
                 )
             }
-        } else {
-            if self.options.list_unknown {
-                self.push_outcome_without_copy_source(
-                    Outcome::Unknown,
-                    hg_path,
-                )
-            }
+        } else if self.options.list_unknown {
+            self.push_outcome_without_copy_source(Outcome::Unknown, hg_path)
         }
         is_ignored
     }

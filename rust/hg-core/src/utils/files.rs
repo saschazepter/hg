@@ -230,7 +230,7 @@ pub fn canonical_path(
         // TODO hint to the user about using --cwd
         // Bubble up the responsibility to Python for now
         Err(HgPathError::NotUnderRoot {
-            path: original_name.to_owned(),
+            path: original_name,
             root: root.to_owned(),
         })
     }
@@ -424,7 +424,7 @@ mod tests {
         assert_eq!(
             canonical_path(&root, Path::new(""), &beneath_repo),
             Err(HgPathError::NotUnderRoot {
-                path: beneath_repo.to_owned(),
+                path: beneath_repo,
                 root: root.to_owned()
             })
         );

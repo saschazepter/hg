@@ -194,7 +194,7 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
         size: usize,
     ) -> Vec<Revision> {
         if !self.randomize {
-            sample.sort();
+            sample.sort_unstable();
             sample.truncate(size);
             return sample;
         }
@@ -513,14 +513,14 @@ mod tests {
     ) -> Vec<Revision> {
         let mut as_vec: Vec<Revision> =
             disco.undecided.as_ref().unwrap().iter().cloned().collect();
-        as_vec.sort();
+        as_vec.sort_unstable();
         as_vec
     }
 
     fn sorted_missing(disco: &PartialDiscovery<SampleGraph>) -> Vec<Revision> {
         let mut as_vec: Vec<Revision> =
             disco.missing.iter().cloned().collect();
-        as_vec.sort();
+        as_vec.sort_unstable();
         as_vec
     }
 
@@ -529,7 +529,7 @@ mod tests {
     ) -> Result<Vec<Revision>, GraphError> {
         let mut as_vec: Vec<Revision> =
             disco.common_heads()?.iter().cloned().collect();
-        as_vec.sort();
+        as_vec.sort_unstable();
         Ok(as_vec)
     }
 
@@ -621,7 +621,7 @@ mod tests {
         disco.undecided = Some((1..=13).collect());
 
         let mut sample_vec = disco.take_quick_sample(vec![], 4)?;
-        sample_vec.sort();
+        sample_vec.sort_unstable();
         assert_eq!(sample_vec, vec![10, 11, 12, 13]);
         Ok(())
     }
@@ -632,7 +632,7 @@ mod tests {
         disco.ensure_undecided()?;
 
         let mut sample_vec = disco.take_quick_sample(vec![12], 4)?;
-        sample_vec.sort();
+        sample_vec.sort_unstable();
         // r12's only parent is r9, whose unique grand-parent through the
         // diamond shape is r4. This ends there because the distance from r4
         // to the root is only 3.
@@ -650,11 +650,11 @@ mod tests {
         assert_eq!(cache.get(&10).cloned(), None);
 
         let mut children_4 = cache.get(&4).cloned().unwrap();
-        children_4.sort();
+        children_4.sort_unstable();
         assert_eq!(children_4, vec![5, 6, 7]);
 
         let mut children_7 = cache.get(&7).cloned().unwrap();
-        children_7.sort();
+        children_7.sort_unstable();
         assert_eq!(children_7, vec![9, 11]);
 
         Ok(())
@@ -684,7 +684,7 @@ mod tests {
         let (sample_set, size) = disco.bidirectional_sample(7)?;
         assert_eq!(size, 7);
         let mut sample: Vec<Revision> = sample_set.into_iter().collect();
-        sample.sort();
+        sample.sort_unstable();
         // our DAG is a bit too small for the results to be really interesting
         // at least it shows that
         // - we went both ways

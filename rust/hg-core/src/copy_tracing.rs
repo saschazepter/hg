@@ -59,7 +59,7 @@ impl CopySource {
         Self {
             rev,
             path: winner.path,
-            overwritten: overwritten,
+            overwritten,
         }
     }
 
@@ -489,7 +489,7 @@ fn chain_changes<'a>(
                         if cs1 == cs2 {
                             cs1.mark_delete(current_rev);
                         } else {
-                            cs1.mark_delete_with_pair(current_rev, &cs2);
+                            cs1.mark_delete_with_pair(current_rev, cs2);
                         }
                         e2.insert(cs1.clone());
                     }
@@ -513,15 +513,14 @@ fn add_one_copy(
 ) {
     let dest = path_map.tokenize(path_dest);
     let source = path_map.tokenize(path_source);
-    let entry;
-    if let Some(v) = base_copies.get(&source) {
-        entry = match &v.path {
+    let entry = if let Some(v) = base_copies.get(&source) {
+        match &v.path {
             Some(path) => Some((*(path)).to_owned()),
             None => Some(source.to_owned()),
         }
     } else {
-        entry = Some(source.to_owned());
-    }
+        Some(source.to_owned())
+    };
     // Each new entry is introduced by the children, we
     // record this information as we will need it to take
     // the right decision when merging conflicting copy
@@ -563,17 +562,15 @@ fn merge_copies_dict(
                 MergePick::Major | MergePick::Any => (src_major, src_minor),
                 MergePick::Minor => (src_minor, src_major),
             };
-            MergeResult::UseNewValue(CopySource::new_from_merge(
+            MergeResult::NewValue(CopySource::new_from_merge(
                 current_merge,
                 winner,
                 loser,
             ))
         } else {
             match pick {
-                MergePick::Any | MergePick::Major => {
-                    MergeResult::UseRightValue
-                }
-                MergePick::Minor => MergeResult::UseLeftValue,
+                MergePick::Any | MergePick::Major => MergeResult::RightValue,
+                MergePick::Minor => MergeResult::LeftValue,
             }
         }
     })

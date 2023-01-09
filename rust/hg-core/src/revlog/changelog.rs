@@ -165,7 +165,7 @@ impl<'changelog> ChangelogRevisionData<'changelog> {
     pub fn files(&self) -> impl Iterator<Item = &HgPath> {
         self.bytes[self.timestamp_end + 1..self.files_end]
             .split(|b| b == &b'\n')
-            .map(|path| HgPath::new(path))
+            .map(HgPath::new)
     }
 
     /// The change description.

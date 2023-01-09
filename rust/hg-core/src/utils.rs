@@ -137,11 +137,8 @@ impl SliceExt for [u8] {
     }
 
     fn split_2_by_slice(&self, separator: &[u8]) -> Option<(&[u8], &[u8])> {
-        if let Some(pos) = find_slice_in_slice(self, separator) {
-            Some((&self[..pos], &self[pos + separator.len()..]))
-        } else {
-            None
-        }
+        find_slice_in_slice(self, separator)
+            .map(|pos| (&self[..pos], &self[pos + separator.len()..]))
     }
 }
 
@@ -369,7 +366,7 @@ where
                 MergeResult::RightValue => {
                     left.insert(key, right_value);
                 }
-                MergeResult::UseNewValue(new_value) => {
+                MergeResult::NewValue(new_value) => {
                     left.insert(key, new_value);
                 }
             },

@@ -21,7 +21,7 @@ pub fn resolve_single(
     match input {
         "." => {
             let p1 = repo.dirstate_parents()?.p1;
-            return Ok(changelog.revlog.rev_from_node(p1.into())?);
+            return changelog.revlog.rev_from_node(p1.into());
         }
         "null" => return Ok(NULL_REVISION),
         _ => {}
@@ -33,7 +33,7 @@ pub fn resolve_single(
             let msg = format!("cannot parse revset '{}'", input);
             Err(HgError::unsupported(msg).into())
         }
-        result => return result,
+        result => result,
     }
 }
 

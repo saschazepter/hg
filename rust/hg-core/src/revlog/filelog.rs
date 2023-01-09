@@ -49,7 +49,7 @@ impl Filelog {
         file_rev: Revision,
     ) -> Result<FilelogRevisionData, RevlogError> {
         let data: Vec<u8> = self.revlog.get_rev_data(file_rev)?.into_owned();
-        Ok(FilelogRevisionData(data.into()))
+        Ok(FilelogRevisionData(data))
     }
 
     /// The given node ID is that of the file as found in a filelog, not of a
@@ -161,7 +161,7 @@ impl FilelogEntry<'_> {
         // this `FilelogEntry` does not have such metadata:
         let file_data_len = uncompressed_len;
 
-        return file_data_len != other_len;
+        file_data_len != other_len
     }
 
     pub fn data(&self) -> Result<FilelogRevisionData, HgError> {

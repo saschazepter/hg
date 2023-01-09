@@ -320,9 +320,7 @@ impl<'tree, 'on_disk> NodeRef<'tree, 'on_disk> {
         on_disk: &'on_disk [u8],
     ) -> Result<Option<&'tree HgPath>, DirstateV2ParseError> {
         match self {
-            NodeRef::InMemory(_path, node) => {
-                Ok(node.copy_source.as_ref().map(|s| &**s))
-            }
+            NodeRef::InMemory(_path, node) => Ok(node.copy_source.as_deref()),
             NodeRef::OnDisk(node) => node.copy_source(on_disk),
         }
     }
@@ -340,9 +338,9 @@ impl<'tree, 'on_disk> NodeRef<'tree, 'on_disk> {
                     Cow::Owned(in_memory) => BorrowedPath::InMemory(in_memory),
                 })
             }
-            NodeRef::OnDisk(node) => node
-                .copy_source(on_disk)?
-                .map(|source| BorrowedPath::OnDisk(source)),
+            NodeRef::OnDisk(node) => {
+                node.copy_source(on_disk)?.map(BorrowedPath::OnDisk)
+            }
         })
     }
 
@@ -418,10 +416,7 @@ impl Default for NodeData {
 
 impl NodeData {
     fn has_entry(&self) -> bool {
-        match self {
-            NodeData::Entry(_) => true,
-            _ => false,
-        }
+        matches!(self, NodeData::Entry(_))
     }
 
     fn as_entry(&self) -> Option<&DirstateEntry> {
@@ -509,7 +504,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
                 Ok(())
             },
         )?;
-        let parents = Some(parents.clone());
+        let parents = Some(*parents);
 
         Ok((map, parents))
     }
@@ -681,10 +676,8 @@ impl<'on_disk> DirstateMap<'on_disk> {
                         .checked_sub(1)
                         .expect("tracked count to be >= 0");
                 }
-            } else {
-                if wc_tracked {
-                    ancestor.tracked_descendants_count += 1;
-                }
+            } else if wc_tracked {
+                ancestor.tracked_descendants_count += 1;
             }
         })?;
 
@@ -734,7 +727,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
             ancestor.tracked_descendants_count += tracked_count_increment;
         })?;
         if let Some(old_entry) = old_entry_opt {
-            let mut e = old_entry.clone();
+            let mut e = old_entry;
             if e.tracked() {
                 // XXX
                 // This is probably overkill for more case, but we need this to
@@ -775,7 +768,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
                     .expect("tracked_descendants_count should be >= 0");
             })?
             .expect("node should exist");
-        let mut new_entry = old_entry.clone();
+        let mut new_entry = old_entry;
         new_entry.set_untracked();
         node.data = NodeData::Entry(new_entry);
         Ok(())
@@ -803,7 +796,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
                 }
             })?
             .expect("node should exist");
-        let mut new_entry = old_entry.clone();
+        let mut new_entry = old_entry;
         new_entry.set_clean(mode, size, mtime);
         node.data = NodeData::Entry(new_entry);
         Ok(())
@@ -1364,7 +1357,7 @@ impl OwningDirstateMap {
         value: &HgPath,
     ) -> Result<Option<HgPathBuf>, DirstateV2ParseError> {
         self.with_dmap_mut(|map| {
-            let node = map.get_or_insert_node(&key, |_ancestor| {})?;
+            let node = map.get_or_insert_node(key, |_ancestor| {})?;
             let had_copy_source = node.copy_source.is_none();
             let old = node
                 .copy_source
@@ -1864,11 +1857,8 @@ mod tests {
         map.set_untracked(p(b"some/nested/removed"))?;
         assert_eq!(map.get_map().unreachable_bytes, 0);
 
-        match map.get_map().root {
-            ChildNodes::InMemory(_) => {
-                panic!("root should not have been mutated")
-            }
-            _ => (),
+        if let ChildNodes::InMemory(_) = map.get_map().root {
+            panic!("root should not have been mutated")
         }
         // We haven't mutated enough (nothing, actually), we should still be in
         // the append strategy
@@ -1879,9 +1869,8 @@ mod tests {
         let unreachable_bytes = map.get_map().unreachable_bytes;
         assert!(unreachable_bytes > 0);
 
-        match map.get_map().root {
-            ChildNodes::OnDisk(_) => panic!("root should have been mutated"),
-            _ => (),
+        if let ChildNodes::OnDisk(_) = map.get_map().root {
+            panic!("root should have been mutated")
         }
 
         // This should not mutate the structure either, since `root` has
@@ -1889,22 +1878,20 @@ mod tests {
         map.set_untracked(p(b"merged"))?;
         assert_eq!(map.get_map().unreachable_bytes, unreachable_bytes);
 
-        match map.get_map().get_node(p(b"other/added_with_p2"))?.unwrap() {
-            NodeRef::InMemory(_, _) => {
-                panic!("'other/added_with_p2' should not have been mutated")
-            }
-            _ => (),
+        if let NodeRef::InMemory(_, _) =
+            map.get_map().get_node(p(b"other/added_with_p2"))?.unwrap()
+        {
+            panic!("'other/added_with_p2' should not have been mutated")
         }
         // But this should, since it's in a different path
         // than `<root>some/nested/add`
         map.set_untracked(p(b"other/added_with_p2"))?;
         assert!(map.get_map().unreachable_bytes > unreachable_bytes);
 
-        match map.get_map().get_node(p(b"other/added_with_p2"))?.unwrap() {
-            NodeRef::OnDisk(_) => {
-                panic!("'other/added_with_p2' should have been mutated")
-            }
-            _ => (),
+        if let NodeRef::OnDisk(_) =
+            map.get_map().get_node(p(b"other/added_with_p2"))?.unwrap()
+        {
+            panic!("'other/added_with_p2' should have been mutated")
         }
 
         // We have rewritten most of the tree, we should create a new file
