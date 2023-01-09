@@ -232,7 +232,7 @@ mod tests {
     #[test]
     fn test_delete_path_empty_path() {
         let mut map =
-            DirsMultiset::from_manifest(&vec![HgPathBuf::new()]).unwrap();
+            DirsMultiset::from_manifest(&[HgPathBuf::new()]).unwrap();
         let path = HgPath::new(b"");
         assert_eq!(Ok(()), map.delete_path(path));
         assert_eq!(

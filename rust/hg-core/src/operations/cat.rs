@@ -70,7 +70,7 @@ fn find_files_in_manifest<'query>(
             Some(item) => res.push((file, item)),
         }
     }
-    return Ok((res, missing));
+    Ok((res, missing))
 }
 
 /// Output the given revision of files
@@ -94,10 +94,8 @@ pub fn cat<'a>(
 
     files.sort_unstable();
 
-    let (found, missing) = find_files_in_manifest(
-        &manifest,
-        files.into_iter().map(|f| f.as_ref()),
-    )?;
+    let (found, missing) =
+        find_files_in_manifest(&manifest, files.into_iter())?;
 
     for (file_path, file_node) in found {
         found_any = true;

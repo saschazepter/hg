@@ -53,7 +53,7 @@ fn build_random_graph(
 /// Compute the ancestors set of all revisions of a VecGraph
 fn ancestors_sets(vg: &VecGraph) -> Vec<HashSet<Revision>> {
     let mut ancs: Vec<HashSet<Revision>> = Vec::new();
-    for i in 0..vg.len() {
+    (0..vg.len()).for_each(|i| {
         let mut ancs_i = HashSet::new();
         ancs_i.insert(i as Revision);
         for p in vg[i].iter().cloned() {
@@ -62,7 +62,7 @@ fn ancestors_sets(vg: &VecGraph) -> Vec<HashSet<Revision>> {
             }
         }
         ancs.push(ancs_i);
-    }
+    });
     ancs
 }
 
