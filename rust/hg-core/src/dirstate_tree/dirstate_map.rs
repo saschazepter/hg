@@ -655,6 +655,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn reset_state(
         &mut self,
         filename: &HgPath,
