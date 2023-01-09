@@ -148,7 +148,7 @@ valid.
   $ hg init append-mostly
   $ cd append-mostly
   $ mkdir dir dir2
-  $ touch dir/a dir/b dir/c dir/d dir/e dir2/f
+  $ touch -t 200001010000 dir/a dir/b dir/c dir/d dir/e dir2/f dir dir2
   $ hg commit -Aqm initial
   $ hg st
   $ dirstate_data_files | wc -l
@@ -163,12 +163,11 @@ Nothing changes here
   $ dirstate_uuid_has_not_changed
   not testing because using Python implementation (no-rust no-rhg !)
 
-Trigger an append with a small change
+Trigger an append with a small change to directory mtime
 
   $ current_data_size=$(find_dirstate_data_size)
-  $ rm dir2/f
+  $ touch -t 201001010000 dir2
   $ hg st
-  ! dir2/f
   $ dirstate_data_files | wc -l
    *1 (re)
   $ dirstate_uuid_has_not_changed
@@ -187,7 +186,6 @@ Unused bytes counter is non-0 when appending
 Trigger a rust/rhg run which updates the unused bytes value
   $ hg st
   A file
-  ! dir2/f
   $ dirstate_data_files | wc -l
    *1 (re)
   $ dirstate_uuid_has_not_changed
