@@ -111,9 +111,7 @@ impl Revlog {
                 Some(Box::new(data_mmap))
             };
 
-        let nodemap = if index.is_inline() {
-            None
-        } else if !use_nodemap {
+        let nodemap = if index.is_inline() || !use_nodemap {
             None
         } else {
             NodeMapDocket::read_from_file(store_vfs, index_path)?.map(
