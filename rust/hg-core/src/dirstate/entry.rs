@@ -423,6 +423,7 @@ impl DirstateEntry {
 
     pub fn maybe_clean(&self) -> bool {
         #[allow(clippy::if_same_then_else)]
+        #[allow(clippy::needless_bool)]
         if !self.flags.contains(Flags::WDIR_TRACKED) {
             false
         } else if !self.flags.contains(Flags::P1_TRACKED) {
