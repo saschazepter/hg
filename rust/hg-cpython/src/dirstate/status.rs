@@ -72,12 +72,11 @@ fn collect_bad_matches(
     for (path, bad_match) in collection.iter() {
         let message = match bad_match {
             BadMatch::OsError(code) => get_error_message(*code)?,
-            BadMatch::BadType(bad_type) => format!(
-                "unsupported file type (type is {})",
-                bad_type.to_string()
-            )
-            .to_py_object(py)
-            .into_object(),
+            BadMatch::BadType(bad_type) => {
+                format!("unsupported file type (type is {})", bad_type)
+                    .to_py_object(py)
+                    .into_object()
+            }
         };
         list.append(
             py,

@@ -50,7 +50,7 @@ impl CommandError {
             // of error messages to handle non-UTF-8 filenames etc:
             // https://www.mercurial-scm.org/wiki/EncodingStrategy#Mixing_output
             message: utf8_to_local(message.as_ref()).into(),
-            detailed_exit_code: detailed_exit_code,
+            detailed_exit_code,
             hint: None,
         }
     }
