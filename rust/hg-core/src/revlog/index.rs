@@ -326,6 +326,7 @@ mod tests {
 
     #[cfg(test)]
     impl IndexEntryBuilder {
+        #[allow(clippy::new_without_default)]
         pub fn new() -> Self {
             Self {
                 is_first: false,
