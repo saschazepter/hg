@@ -613,7 +613,7 @@ fn compare_value(
         // eventually.
         (MergePick::Minor, true)
     } else if src_major.path == src_minor.path {
-        debug_assert!(src_major.rev != src_major.rev);
+        debug_assert!(src_major.rev != src_minor.rev);
         // we have the same value, but from other source;
         if src_major.is_overwritten_by(src_minor) {
             (MergePick::Minor, false)
@@ -623,7 +623,7 @@ fn compare_value(
             (MergePick::Any, true)
         }
     } else {
-        debug_assert!(src_major.rev != src_major.rev);
+        debug_assert!(src_major.rev != src_minor.rev);
         let action = merge_case_for_dest();
         if src_minor.path.is_some()
             && src_major.path.is_none()
