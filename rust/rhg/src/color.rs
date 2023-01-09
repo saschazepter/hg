@@ -245,11 +245,8 @@ pub struct ColorConfig {
 impl ColorConfig {
     // Similar to _modesetup in mercurial/color.py
     pub fn new(config: &Config) -> Result<Option<Self>, HgError> {
-        Ok(match ColorMode::get(config)? {
-            None => None,
-            Some(ColorMode::Ansi) => Some(ColorConfig {
-                styles: effects_from_config(config),
-            }),
-        })
+        Ok(ColorMode::get(config)?.map(|ColorMode::Ansi| ColorConfig {
+            styles: effects_from_config(config),
+        }))
     }
 }

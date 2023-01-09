@@ -169,7 +169,7 @@ impl DisplayStates {
 }
 
 fn has_unfinished_merge(repo: &Repo) -> Result<bool, CommandError> {
-    return Ok(repo.dirstate_parents()?.is_merge());
+    Ok(repo.dirstate_parents()?.is_merge())
 }
 
 fn has_unfinished_state(repo: &Repo) -> Result<bool, CommandError> {
@@ -192,7 +192,7 @@ fn has_unfinished_state(repo: &Repo) -> Result<bool, CommandError> {
             return Ok(true);
         }
     }
-    return Ok(false);
+    Ok(false)
 }
 
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
@@ -244,12 +244,10 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let repo = invocation.repo?;
 
-    if verbose {
-        if has_unfinished_state(repo)? {
-            return Err(CommandError::unsupported(
-                "verbose status output is not supported by rhg (and is needed because we're in an unfinished operation)",
-            ));
-        };
+    if verbose && has_unfinished_state(repo)? {
+        return Err(CommandError::unsupported(
+            "verbose status output is not supported by rhg (and is needed because we're in an unfinished operation)",
+        ));
     }
 
     let mut dmap = repo.dirstate_map_mut()?;
@@ -271,7 +269,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let after_status = |res: StatusResult| -> Result<_, CommandError> {
         let (mut ds_status, pattern_warnings) = res?;
         for warning in pattern_warnings {
-            ui.write_stderr(&print_pattern_file_warning(&warning, &repo))?;
+            ui.write_stderr(&print_pattern_file_warning(&warning, repo))?;
         }
 
         for (path, error) in ds_status.bad {
@@ -408,7 +406,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                 ui.write_stderr(&msg)?;
             }
             sparse::SparseWarning::Pattern(e) => {
-                ui.write_stderr(&print_pattern_file_warning(e, &repo))?;
+                ui.write_stderr(&print_pattern_file_warning(e, repo))?;
             }
         }
     }
