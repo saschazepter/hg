@@ -581,14 +581,14 @@ impl SubInclude {
 /// phase.
 pub fn filter_subincludes(
     ignore_patterns: Vec<IgnorePattern>,
-) -> Result<(Vec<Box<SubInclude>>, Vec<IgnorePattern>), HgPathError> {
+) -> Result<(Vec<SubInclude>, Vec<IgnorePattern>), HgPathError> {
     let mut subincludes = vec![];
     let mut others = vec![];
 
     for pattern in ignore_patterns {
         if let PatternSyntax::ExpandedSubInclude(sub_include) = pattern.syntax
         {
-            subincludes.push(sub_include);
+            subincludes.push(*sub_include);
         } else {
             others.push(pattern)
         }
