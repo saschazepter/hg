@@ -28,6 +28,18 @@ Only path: and rootfilesin: pattern prefixes are allowed
   (narrow patterns must begin with one of the following: path:, rootfilesin:)
   [255]
 
+rootfilesin: patterns work
+
+  $ hg clone --narrow ssh://user@dummy/master rootfilesin --noupdate --include 'rootfilesin:dir'
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 0 changes to 0 files
+  new changesets 26ce255d5b5d
+  $ hg tracked -R rootfilesin
+  I rootfilesin:dir
+
 narrow clone a file, f10
 
   $ hg clone --narrow ssh://user@dummy/master narrow --noupdate --include "dir/src/f10"
