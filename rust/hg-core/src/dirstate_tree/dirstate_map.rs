@@ -1380,6 +1380,10 @@ impl OwningDirstateMap {
         map.nodes_with_entry_count as usize
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn contains_key(
         &self,
         key: &HgPath,
