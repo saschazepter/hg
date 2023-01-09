@@ -24,7 +24,7 @@ pub fn args() -> clap::Command {
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let repo = invocation.repo?;
 
-    let (matcher, _warnings) = hg::sparse::matcher(&repo).unwrap();
+    let (matcher, _warnings) = hg::sparse::matcher(repo).unwrap();
     let files = invocation.subcommand_args.get_many::<OsString>("files");
     if let Some(files) = files {
         let files: Vec<&OsStr> = files

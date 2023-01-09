@@ -55,12 +55,7 @@ fn bench(index: &Index, nm: &NodeTree, queries: usize) {
     let len = index.len() as u32;
     let mut rng = rand::thread_rng();
     let nodes: Vec<Node> = (0..queries)
-        .map(|_| {
-            index
-                .node((rng.gen::<u32>() % len) as Revision)
-                .unwrap()
-                .clone()
-        })
+        .map(|_| *index.node((rng.gen::<u32>() % len) as Revision).unwrap())
         .collect();
     if queries < 10 {
         let nodes_hex: Vec<String> =
@@ -125,7 +120,7 @@ fn main() {
                 nm_path.display(),
                 repo.display()
             );
-            create(&index, &Path::new(nm_path)).unwrap();
+            create(&index, Path::new(nm_path)).unwrap();
         }
         Command::Bench { queries } => {
             println!(

@@ -144,9 +144,9 @@ py_class!(pub class MixedIndex |py| {
         // __delitem__ is both for `del idx[r]` and `del idx[r1:r2]`
         self.cindex(py).borrow().inner().del_item(py, key)?;
         let mut opt = self.get_nodetree(py)?.borrow_mut();
-        let mut nt = opt.as_mut().unwrap();
+        let nt = opt.as_mut().unwrap();
         nt.invalidate_all();
-        self.fill_nodemap(py, &mut nt)?;
+        self.fill_nodemap(py, nt)?;
         Ok(())
     }
 

@@ -23,10 +23,10 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let (ignore_matcher, warnings) = get_ignore_matcher(
         vec![ignore_file],
-        &repo.working_directory_path().to_owned(),
+        repo.working_directory_path(),
         &mut |_source, _pattern_bytes| (),
     )
-    .map_err(|e| StatusError::from(e))?;
+    .map_err(StatusError::from)?;
 
     if !warnings.is_empty() {
         warn!("Pattern warnings: {:?}", &warnings);

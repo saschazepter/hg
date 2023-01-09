@@ -69,7 +69,7 @@ fn main_with_result(
         .version("0.0.1");
     let app = add_subcommand_args(app);
 
-    let matches = app.clone().try_get_matches_from(argv.iter())?;
+    let matches = app.try_get_matches_from(argv.iter())?;
 
     let (subcommand_name, subcommand_args) =
         matches.subcommand().expect("subcommand required");
@@ -203,7 +203,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
                 // Same as `_matchscheme` in `mercurial/util.py`
                 regex::bytes::Regex::new("^[a-zA-Z0-9+.\\-]+:").unwrap();
         }
-        if SCHEME_RE.is_match(&repo_path_bytes) {
+        if SCHEME_RE.is_match(repo_path_bytes) {
             exit(
                 &argv,
                 &initial_current_dir,
@@ -223,7 +223,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
             )
         }
     }
-    let repo_arg = early_args.repo.unwrap_or(Vec::new());
+    let repo_arg = early_args.repo.unwrap_or_default();
     let repo_path: Option<PathBuf> = {
         if repo_arg.is_empty() {
             None
@@ -254,7 +254,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
             let non_repo_config_val = {
                 let non_repo_val = non_repo_config.get(b"paths", &repo_arg);
                 match &non_repo_val {
-                    Some(val) if val.len() > 0 => home::home_dir()
+                    Some(val) if !val.is_empty() => home::home_dir()
                         .unwrap_or_else(|| PathBuf::from("~"))
                         .join(get_path_from_bytes(val))
                         .canonicalize()
@@ -270,7 +270,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
                 Some(val) => {
                     let local_config_val = val.get(b"paths", &repo_arg);
                     match &local_config_val {
-                        Some(val) if val.len() > 0 => {
+                        Some(val) if !val.is_empty() => {
                             // presence of a local_config assures that
                             // current_dir
                             // wont result in an Error
@@ -304,7 +304,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
             )
         };
     let early_exit = |config: &Config, error: CommandError| -> ! {
-        simple_exit(&Ui::new_infallible(config), &config, Err(error))
+        simple_exit(&Ui::new_infallible(config), config, Err(error))
     };
     let repo_result = match Repo::find(&non_repo_config, repo_path.to_owned())
     {
@@ -328,13 +328,13 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
         && config_cow
             .as_ref()
             .get_bool(b"ui", b"tweakdefaults")
-            .unwrap_or_else(|error| early_exit(&config, error.into()))
+            .unwrap_or_else(|error| early_exit(config, error.into()))
     {
         config_cow.to_mut().tweakdefaults()
     };
     let config = config_cow.as_ref();
-    let ui = Ui::new(&config)
-        .unwrap_or_else(|error| early_exit(&config, error.into()));
+    let ui = Ui::new(config)
+        .unwrap_or_else(|error| early_exit(config, error.into()));
 
     if let Ok(true) = config.get_bool(b"rhg", b"fallback-immediately") {
         exit(
@@ -360,7 +360,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
         repo_result.as_ref(),
         config,
     );
-    simple_exit(&ui, &config, result)
+    simple_exit(&ui, config, result)
 }
 
 fn main() -> ! {
@@ -422,7 +422,7 @@ fn exit<'a>(
             }
             Some(executable) => executable,
         };
-        let executable_path = get_path_from_bytes(&executable);
+        let executable_path = get_path_from_bytes(executable);
         let this_executable = args.next().expect("exepcted argv[0] to exist");
         if executable_path == &PathBuf::from(this_executable) {
             // Avoid spawning infinitely many processes until resource
