@@ -200,11 +200,7 @@ fn parse_list_without_trim_start(input: &[u8]) -> Vec<Vec<u8>> {
 
     // https://docs.python.org/3/library/stdtypes.html?#bytes.isspace
     fn is_space(byte: u8) -> bool {
-        if let b' ' | b'\t' | b'\n' | b'\r' | b'\x0b' | b'\x0c' = byte {
-            true
-        } else {
-            false
-        }
+        matches!(byte, b' ' | b'\t' | b'\n' | b'\r' | b'\x0b' | b'\x0c')
     }
 }
 

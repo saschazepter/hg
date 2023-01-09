@@ -2,6 +2,7 @@ use sha1::{Digest, Sha1};
 
 #[derive(PartialEq, Debug)]
 #[allow(non_camel_case_types)]
+#[allow(clippy::upper_case_acronyms)]
 enum path_state {
     START, /* first byte of a path component */
     A,     /* "AUX" */
@@ -27,6 +28,7 @@ enum path_state {
 
 /* state machine for dir-encoding */
 #[allow(non_camel_case_types)]
+#[allow(clippy::upper_case_acronyms)]
 enum dir_state {
     DDOT,
     DH,
@@ -61,7 +63,7 @@ fn rewrap_option<'a, 'b: 'a>(
     }
 }
 
-fn hexencode<'a>(mut dest: Option<&'a mut [u8]>, destlen: &mut usize, c: u8) {
+fn hexencode(mut dest: Option<&mut [u8]>, destlen: &mut usize, c: u8) {
     let hexdigit = b"0123456789abcdef";
     charcopy(
         rewrap_option(&mut dest),
@@ -534,10 +536,7 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
     let last_slash = src.iter().rposition(|b| *b == b'/');
     let last_dot: Option<usize> = {
         let s = last_slash.unwrap_or(0);
-        src[s..]
-            .iter()
-            .rposition(|b| *b == b'.')
-            .and_then(|i| Some(i + s))
+        src[s..].iter().rposition(|b| *b == b'.').map(|i| i + s)
     };
 
     let mut dest = vec![0; MAXSTOREPATHLEN];
@@ -545,8 +544,8 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
 
     {
         let mut first = true;
-        for slice in src[..last_slash.unwrap_or_else(|| src.len())]
-            .split(|b| *b == b'/')
+        for slice in
+            src[..last_slash.unwrap_or(src.len())].split(|b| *b == b'/')
         {
             let slice = &slice[..std::cmp::min(slice.len(), dirprefixlen)];
             if destlen + (slice.len() + if first { 0 } else { 1 })
@@ -641,6 +640,6 @@ pub fn path_encode(path: &[u8]) -> Vec<u8> {
             res
         }
     } else {
-        hash_encode(&path)
+        hash_encode(path)
     }
 }

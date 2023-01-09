@@ -117,7 +117,7 @@ fn should_ignore(plain: &PlainInfo, section: &[u8], item: &[u8]) -> bool {
     }
     let sections_to_delete: &[&[u8]] =
         &[b"defaults", b"commands", b"command-templates"];
-    return sections_to_delete.contains(&section);
+    sections_to_delete.contains(&section)
 }
 
 impl Config {
@@ -207,7 +207,7 @@ impl Config {
             file_paths.sort();
             for file_path in &file_paths {
                 if file_path.extension() == Some(std::ffi::OsStr::new("rc")) {
-                    self.add_trusted_file(&file_path)?
+                    self.add_trusted_file(file_path)?
                 }
             }
         }
@@ -259,7 +259,7 @@ impl Config {
         // `mercurial/helptext/config.txt` suggests it should be reversed
         if let Some(installation_prefix) = hg.parent().and_then(Path::parent) {
             if installation_prefix != root {
-                add_for_prefix(&installation_prefix)?
+                add_for_prefix(installation_prefix)?
             }
         }
         add_for_prefix(root)?;
@@ -348,7 +348,7 @@ impl Config {
         expected_type: &'static str,
         parse: impl Fn(&'config [u8]) -> Option<T>,
     ) -> Result<Option<T>, ConfigValueParseError> {
-        match self.get_inner(&section, &item) {
+        match self.get_inner(section, item) {
             Some((layer, v)) => match parse(&v.bytes) {
                 Some(b) => Ok(Some(b)),
                 None => Err(ConfigValueParseError {
@@ -463,7 +463,7 @@ impl Config {
     ) -> Option<(&ConfigLayer, &ConfigValue)> {
         // Filter out the config items that are hidden by [PLAIN].
         // This differs from python hg where we delete them from the config.
-        let should_ignore = should_ignore(&self.plain, &section, &item);
+        let should_ignore = should_ignore(&self.plain, section, item);
         for layer in self.layers.iter().rev() {
             if !layer.trusted {
                 continue;
@@ -480,8 +480,8 @@ impl Config {
             {
                 continue;
             }
-            if let Some(v) = layer.get(&section, &item) {
-                return Some((&layer, v));
+            if let Some(v) = layer.get(section, item) {
+                return Some((layer, v));
             }
         }
         None
@@ -561,7 +561,7 @@ impl Config {
     fn get_all(&self, section: &[u8], item: &[u8]) -> Vec<&[u8]> {
         let mut res = vec![];
         for layer in self.layers.iter().rev() {
-            if let Some(v) = layer.get(&section, &item) {
+            if let Some(v) = layer.get(section, item) {
                 res.push(v.bytes.as_ref());
             }
         }
@@ -592,11 +592,11 @@ impl Config {
         add(b"git", b"git", b"1");
         add(b"git", b"showfunc", b"1");
         add(b"git", b"word-diff", b"1");
-        return layer;
+        layer
     }
 
     // introduce the tweaked defaults as implied by ui.tweakdefaults
-    pub fn tweakdefaults<'a>(&mut self) -> () {
+    pub fn tweakdefaults(&mut self) {
         self.layers.insert(0, Config::tweakdefaults_layer());
     }
 }

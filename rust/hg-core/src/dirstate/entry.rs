@@ -180,11 +180,7 @@ impl TruncatedTimestamp {
         if self.truncated_seconds != other.truncated_seconds {
             false
         } else if self.nanoseconds == 0 || other.nanoseconds == 0 {
-            if self.second_ambiguous {
-                false
-            } else {
-                true
-            }
+            !self.second_ambiguous
         } else {
             self.nanoseconds == other.nanoseconds
         }
@@ -706,9 +702,9 @@ impl TryFrom<u8> for EntryState {
     }
 }
 
-impl Into<u8> for EntryState {
-    fn into(self) -> u8 {
-        match self {
+impl From<EntryState> for u8 {
+    fn from(val: EntryState) -> Self {
+        match val {
             EntryState::Normal => b'n',
             EntryState::Added => b'a',
             EntryState::Removed => b'r',
