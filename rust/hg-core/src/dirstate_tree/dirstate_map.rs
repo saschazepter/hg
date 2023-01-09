@@ -912,7 +912,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
         })
     }
 
-    fn count_dropped_path(unreachable_bytes: &mut u32, path: &Cow<HgPath>) {
+    fn count_dropped_path(unreachable_bytes: &mut u32, path: Cow<HgPath>) {
         if let Cow::Borrowed(path) = path {
             *unreachable_bytes += path.len() as u32
         }
@@ -1124,7 +1124,10 @@ impl OwningDirstateMap {
                 }
                 let mut had_copy_source = false;
                 if let Some(source) = &node.copy_source {
-                    DirstateMap::count_dropped_path(unreachable_bytes, source);
+                    DirstateMap::count_dropped_path(
+                        unreachable_bytes,
+                        Cow::Borrowed(source),
+                    );
                     had_copy_source = true;
                     node.copy_source = None
                 }
@@ -1144,7 +1147,7 @@ impl OwningDirstateMap {
                     nodes.remove_entry(first_path_component).unwrap();
                 DirstateMap::count_dropped_path(
                     unreachable_bytes,
-                    key.full_path(),
+                    Cow::Borrowed(key.full_path()),
                 )
             }
             Ok(Some((dropped, remove)))
@@ -1343,7 +1346,10 @@ impl OwningDirstateMap {
                     *count = count
                         .checked_sub(1)
                         .expect("nodes_with_copy_source_count should be >= 0");
-                    DirstateMap::count_dropped_path(unreachable_bytes, source);
+                    DirstateMap::count_dropped_path(
+                        unreachable_bytes,
+                        Cow::Borrowed(source),
+                    );
                 }
                 node.copy_source.take().map(Cow::into_owned)
             }))
