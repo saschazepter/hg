@@ -40,7 +40,7 @@ fn create(index: &Index, path: &Path) -> io::Result<()> {
         nm.insert(index, index.node(rev).unwrap(), rev).unwrap();
     }
     eprintln!("Nodemap constructed in RAM in {:?}", start.elapsed());
-    file.write(&nm.into_readonly_and_added_bytes().1)?;
+    file.write_all(&nm.into_readonly_and_added_bytes().1)?;
     eprintln!("Nodemap written to disk");
     Ok(())
 }
