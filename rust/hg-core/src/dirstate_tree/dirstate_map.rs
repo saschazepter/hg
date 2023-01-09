@@ -939,6 +939,8 @@ where
     })
 }
 
+type DebugDirstateTuple<'a> = (&'a HgPath, (u8, i32, i32, i32));
+
 impl OwningDirstateMap {
     pub fn clear(&mut self) {
         self.with_dmap_mut(|map| {
@@ -1477,12 +1479,8 @@ impl OwningDirstateMap {
         &self,
         all: bool,
     ) -> Box<
-        dyn Iterator<
-                Item = Result<
-                    (&HgPath, (u8, i32, i32, i32)),
-                    DirstateV2ParseError,
-                >,
-            > + Send
+        dyn Iterator<Item = Result<DebugDirstateTuple, DirstateV2ParseError>>
+            + Send
             + '_,
     > {
         let map = self.get_map();
