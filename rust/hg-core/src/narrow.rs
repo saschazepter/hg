@@ -100,12 +100,12 @@ fn validate_patterns(patterns: &[u8]) -> Result<(), SparseConfigError> {
         }
         for prefix in VALID_PREFIXES.iter() {
             if pattern.starts_with(prefix.as_bytes()) {
-                break;
+                return Ok(());
             }
-            return Err(SparseConfigError::InvalidNarrowPrefix(
-                pattern.to_owned(),
-            ));
         }
+        return Err(SparseConfigError::InvalidNarrowPrefix(
+            pattern.to_owned(),
+        ));
     }
     Ok(())
 }
