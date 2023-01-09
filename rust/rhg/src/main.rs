@@ -284,7 +284,8 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
                     }
                 }
             };
-            config_val.or(Some(get_path_from_bytes(&repo_arg).to_path_buf()))
+            config_val
+                .or_else(|| Some(get_path_from_bytes(&repo_arg).to_path_buf()))
         }
     };
 
@@ -424,7 +425,7 @@ fn exit<'a>(
         };
         let executable_path = get_path_from_bytes(executable);
         let this_executable = args.next().expect("exepcted argv[0] to exist");
-        if executable_path == &PathBuf::from(this_executable) {
+        if executable_path == *this_executable {
             // Avoid spawning infinitely many processes until resource
             // exhaustion.
             let _ = ui.write_stderr(&format_bytes!(
@@ -739,6 +740,7 @@ fn check_extensions(config: &Config) -> Result<(), CommandError> {
 }
 
 /// Array of tuples of (auto upgrade conf, feature conf, local requirement)
+#[allow(clippy::type_complexity)]
 const AUTO_UPGRADES: &[((&str, &str), (&str, &str), &str)] = &[
     (
         ("format", "use-share-safe.automatic-upgrade-of-mismatching-repositories"),
