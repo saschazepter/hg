@@ -205,16 +205,14 @@ impl ColorMode {
             return Err(HgError::unsupported("debug color mode"));
         }
         let auto = enabled == b"auto";
-        let always;
-        if !auto {
+        let always = if !auto {
             let enabled_bool = config.get_bool(b"ui", b"color")?;
             if !enabled_bool {
                 return Ok(None);
             }
-            always = enabled == b"always"
-                || *origin == ConfigOrigin::CommandLineColor
+            enabled == b"always" || *origin == ConfigOrigin::CommandLineColor
         } else {
-            always = false
+            false
         };
         let formatted = always
             || (std::env::var_os("TERM").unwrap_or_default() != "dumb"
