@@ -174,10 +174,11 @@ impl Revlog {
         // optimize these cases.
         let mut found_by_prefix = None;
         for rev in (0..self.len() as Revision).rev() {
-            let index_entry =
-                self.index.get_entry(rev).ok_or(HgError::corrupted(
+            let index_entry = self.index.get_entry(rev).ok_or_else(|| {
+                HgError::corrupted(
                     "revlog references a revision not in the index",
-                ))?;
+                )
+            })?;
             if node == *index_entry.hash() {
                 return Ok(rev);
             }
@@ -230,7 +231,7 @@ impl Revlog {
             None => &NULL_NODE,
         };
 
-        &hash(data, h1.as_bytes(), h2.as_bytes()) == expected
+        hash(data, h1.as_bytes(), h2.as_bytes()) == expected
     }
 
     /// Build the full data of a revision out its snapshot
@@ -253,8 +254,8 @@ impl Revlog {
 
     /// Return the revlog data.
     fn data(&self) -> &[u8] {
-        match self.data_bytes {
-            Some(ref data_bytes) => &data_bytes,
+        match &self.data_bytes {
+            Some(data_bytes) => data_bytes,
             None => panic!(
                 "forgot to load the data or trying to access inline data"
             ),
