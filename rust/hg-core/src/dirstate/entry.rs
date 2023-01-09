@@ -422,6 +422,7 @@ impl DirstateEntry {
     }
 
     pub fn maybe_clean(&self) -> bool {
+        #[allow(clippy::if_same_then_else)]
         if !self.flags.contains(Flags::WDIR_TRACKED) {
             false
         } else if !self.flags.contains(Flags::P1_TRACKED) {
@@ -511,6 +512,8 @@ impl DirstateEntry {
             // TODO: return an Option instead?
             panic!("Accessing v1_mtime of an untracked DirstateEntry")
         }
+
+        #[allow(clippy::if_same_then_else)]
         if self.removed() {
             0
         } else if self.flags.contains(Flags::P2_INFO) {
