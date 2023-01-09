@@ -314,7 +314,7 @@ impl From<Node> for NodePrefix {
 
 impl PartialEq<Node> for NodePrefix {
     fn eq(&self, other: &Node) -> bool {
-        Self::from(*other) == *self
+        self.data == other.data && self.nybbles_len() == other.nybbles_len()
     }
 }
 
