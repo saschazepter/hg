@@ -53,10 +53,13 @@ fn find_item<'a>(
     }
 }
 
+// Tuple of (missing, found) paths in the manifest
+type ManifestQueryResponse<'a> = (Vec<(&'a HgPath, Node)>, Vec<&'a HgPath>);
+
 fn find_files_in_manifest<'query>(
     manifest: &Manifest,
     query: impl Iterator<Item = &'query HgPath>,
-) -> Result<(Vec<(&'query HgPath, Node)>, Vec<&'query HgPath>), HgError> {
+) -> Result<ManifestQueryResponse<'query>, HgError> {
     let mut manifest = put_back(manifest.iter());
     let mut res = vec![];
     let mut missing = vec![];
