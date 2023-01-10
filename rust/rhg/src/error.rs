@@ -7,7 +7,7 @@ use hg::dirstate_tree::on_disk::DirstateV2ParseError;
 use hg::errors::HgError;
 use hg::exit_codes;
 use hg::repo::RepoError;
-use hg::revlog::revlog::RevlogError;
+use hg::revlog::RevlogError;
 use hg::sparse::SparseConfigError;
 use hg::utils::files::get_bytes_from_path;
 use hg::{DirstateError, DirstateMapError, StatusError};

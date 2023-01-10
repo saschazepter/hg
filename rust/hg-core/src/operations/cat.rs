@@ -6,8 +6,8 @@
 // GNU General Public License version 2 or any later version.
 
 use crate::repo::Repo;
-use crate::revlog::revlog::RevlogError;
 use crate::revlog::Node;
+use crate::revlog::RevlogError;
 
 use crate::utils::hg_path::HgPath;
 
