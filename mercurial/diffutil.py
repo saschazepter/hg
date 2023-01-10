@@ -120,7 +120,7 @@ def difffeatureopts(
         )
         buildopts[b'ignorewseol'] = get(b'ignore_space_at_eol', b'ignorewseol')
     if formatchanging:
-        buildopts[b'text'] = opts and opts.get(b'text')
+        buildopts[b'text'] = None if opts is None else opts.get(b'text')
         binary = None if opts is None else opts.get(b'binary')
         buildopts[b'nobinary'] = (
             not binary
