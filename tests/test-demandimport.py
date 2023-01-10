@@ -9,6 +9,7 @@ import types
 
 # Don't import pycompat because it has too many side-effects.
 ispy3 = sys.version_info[0] >= 3
+ispy311 = (sys.version_info.major, sys.version_info.minor) >= (3, 11)
 
 # Only run if demandimport is allowed
 if subprocess.call(
@@ -106,12 +107,18 @@ import os
 
 if ispy3:
     assert not isinstance(os, _LazyModule)
-    assert f(os) == "<module 'os' from '?'>", f(os)
+    if ispy311:
+        assert f(os) == "<module 'os' (frozen)>", f(os)
+    else:
+        assert f(os) == "<module 'os' from '?'>", f(os)
 else:
     assert f(os) == "<unloaded module 'os'>", f(os)
 
 assert f(os.system) == '<built-in function system>', f(os.system)
-assert f(os) == "<module 'os' from '?'>", f(os)
+if ispy311:
+    assert f(os) == "<module 'os' (frozen)>", f(os)
+else:
+    assert f(os) == "<module 'os' from '?'>", f(os)
 
 assert 'mercurial.utils.procutil' not in sys.modules
 from mercurial.utils import procutil
