@@ -152,7 +152,7 @@ testpy-%:
 	cd tests && $(HGPYTHONS)/$*/bin/python run-tests.py $(TESTFLAGS)
 
 rust-tests:
-	cd $(HGROOT)/rust/hg-cpython \
+	cd $(HGROOT)/rust \
 		&& $(CARGO) test --quiet --all --features "$(HG_RUST_FEATURES)"
 
 check-code:
