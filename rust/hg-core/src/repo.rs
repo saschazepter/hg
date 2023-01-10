@@ -8,7 +8,7 @@ use crate::errors::{HgError, IoResultExt};
 use crate::lock::{try_with_lock_no_wait, LockError};
 use crate::manifest::{Manifest, Manifestlog};
 use crate::revlog::filelog::Filelog;
-use crate::revlog::revlog::RevlogError;
+use crate::revlog::RevlogError;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
