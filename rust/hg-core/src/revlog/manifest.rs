@@ -1,7 +1,7 @@
 use crate::errors::HgError;
-use crate::revlog::revlog::{Revlog, RevlogError};
 use crate::revlog::Revision;
 use crate::revlog::{Node, NodePrefix};
+use crate::revlog::{Revlog, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
 use crate::vfs::Vfs;

@@ -4,9 +4,9 @@
 
 use crate::errors::HgError;
 use crate::repo::Repo;
-use crate::revlog::revlog::{Revlog, RevlogError};
 use crate::revlog::NodePrefix;
 use crate::revlog::{Revision, NULL_REVISION, WORKING_DIRECTORY_HEX};
+use crate::revlog::{Revlog, RevlogError};
 use crate::Node;
 
 /// Resolve a query string into a single revision.
