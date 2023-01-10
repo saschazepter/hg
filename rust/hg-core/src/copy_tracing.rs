@@ -562,15 +562,15 @@ fn merge_copies_dict(
                 MergePick::Major | MergePick::Any => (src_major, src_minor),
                 MergePick::Minor => (src_minor, src_major),
             };
-            MergeResult::NewValue(CopySource::new_from_merge(
+            MergeResult::New(CopySource::new_from_merge(
                 current_merge,
                 winner,
                 loser,
             ))
         } else {
             match pick {
-                MergePick::Any | MergePick::Major => MergeResult::RightValue,
-                MergePick::Minor => MergeResult::LeftValue,
+                MergePick::Any | MergePick::Major => MergeResult::Right,
+                MergePick::Minor => MergeResult::Left,
             }
         }
     })
