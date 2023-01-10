@@ -82,8 +82,7 @@ assert 'mercurial.error' not in sys.modules
 from mercurial import error as errorproxy
 
 if ispy3:
-    # unsure why this isn't lazy.
-    assert not isinstance(f, _LazyModule)
+    assert isinstance(errorproxy, _LazyModule)
     assert f(errorproxy) == "<module 'mercurial.error' from '?'>", f(errorproxy)
 else:
     assert f(errorproxy) == "<unloaded module 'error'>", f(errorproxy)
