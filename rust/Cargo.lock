@@ -113,18 +113,18 @@ checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
 name = "bytes-cast"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d434f9a4ecbe987e7ccfda7274b6f82ea52c9b63742565a65cb5e8ba0f2c452"
+checksum = "a20de93b91d7703ca0e39e12930e310acec5ff4d715f4166e0ab026babb352e8"
 dependencies = [
  "bytes-cast-derive",
 ]
 
 [[package]]
 name = "bytes-cast-derive"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b13e0e8ffc91021ba28dc98b2ea82099ba4ec07655279c21bfa3313ed96708fc"
+checksum = "7470a6fcce58cde3d62cce758bf71007978b75247e6becd9255c9b884bcb4f71"
 dependencies = [
  "proc-macro2",
  "quote",
