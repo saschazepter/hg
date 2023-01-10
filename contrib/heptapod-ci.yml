@@ -41,6 +41,7 @@ rust-cargo-test:
     script:
         - echo "python used, $PYTHON"
         - make rust-tests
+        - make cargo-clippy
     variables:
         PYTHON: python3
 
