@@ -10,7 +10,7 @@ use crate::dirstate_tree::on_disk::{for_each_tracked_path, read_docket};
 use crate::errors::HgError;
 use crate::repo::Repo;
 use crate::revlog::manifest::Manifest;
-use crate::revlog::revlog::RevlogError;
+use crate::revlog::RevlogError;
 use crate::utils::hg_path::HgPath;
 use crate::DirstateError;
 use rayon::prelude::*;

@@ -1,10 +1,10 @@
 use crate::errors::HgError;
 use crate::repo::Repo;
 use crate::revlog::path_encode::path_encode;
-use crate::revlog::revlog::RevlogEntry;
-use crate::revlog::revlog::{Revlog, RevlogError};
 use crate::revlog::NodePrefix;
 use crate::revlog::Revision;
+use crate::revlog::RevlogEntry;
+use crate::revlog::{Revlog, RevlogError};
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
