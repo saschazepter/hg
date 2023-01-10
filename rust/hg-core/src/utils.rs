@@ -291,9 +291,9 @@ fn test_expand_vars() {
 }
 
 pub(crate) enum MergeResult<V> {
-    LeftValue,
-    RightValue,
-    NewValue(V),
+    Left,
+    Right,
+    New(V),
 }
 
 /// Return the union of the two given maps,
@@ -334,10 +334,10 @@ where
         ordmap_union_with_merge_by_iter(right, left, |key, a, b| {
             // Also swapped in `merge` arguments:
             match merge(key, b, a) {
-                MergeResult::NewValue(v) => MergeResult::NewValue(v),
+                MergeResult::New(v) => MergeResult::New(v),
                 // … and swap back in `merge` result:
-                MergeResult::LeftValue => MergeResult::RightValue,
-                MergeResult::RightValue => MergeResult::LeftValue,
+                MergeResult::Left => MergeResult::Right,
+                MergeResult::Right => MergeResult::Left,
             }
         })
     } else {
@@ -362,11 +362,11 @@ where
                 left.insert(key, right_value);
             }
             Some(left_value) => match merge(&key, left_value, &right_value) {
-                MergeResult::LeftValue => {}
-                MergeResult::RightValue => {
+                MergeResult::Left => {}
+                MergeResult::Right => {
                     left.insert(key, right_value);
                 }
-                MergeResult::NewValue(new_value) => {
+                MergeResult::New(new_value) => {
                     left.insert(key, new_value);
                 }
             },
@@ -391,7 +391,7 @@ where
     // TODO: if/when https://github.com/bodil/im-rs/pull/168 is accepted,
     // change these from `Vec<(K, V)>` to `Vec<(&K, Cow<V>)>`
     // with `left_updates` only borrowing from `right` and `right_updates` from
-    // `left`, and with `Cow::Owned` used for `MergeResult::NewValue`.
+    // `left`, and with `Cow::Owned` used for `MergeResult::New`.
     //
     // This would allow moving all `.clone()` calls to after we’ve decided
     // which of `right_updates` or `left_updates` to use
@@ -412,13 +412,13 @@ where
                 old: (key, left_value),
                 new: (_, right_value),
             } => match merge(key, left_value, right_value) {
-                MergeResult::LeftValue => {
+                MergeResult::Left => {
                     right_updates.push((key.clone(), left_value.clone()))
                 }
-                MergeResult::RightValue => {
+                MergeResult::Right => {
                     left_updates.push((key.clone(), right_value.clone()))
                 }
-                MergeResult::NewValue(new_value) => {
+                MergeResult::New(new_value) => {
                     left_updates.push((key.clone(), new_value.clone()));
                     right_updates.push((key.clone(), new_value))
                 }
