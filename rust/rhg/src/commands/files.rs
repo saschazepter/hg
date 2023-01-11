@@ -1,7 +1,8 @@
 use crate::error::CommandError;
-use crate::ui::Ui;
+use crate::ui::{print_narrow_sparse_warnings, Ui};
 use crate::utils::path_utils::RelativizePaths;
 use clap::Arg;
+use hg::narrow;
 use hg::operations::list_rev_tracked_files;
 use hg::repo::Repo;
 use hg::utils::filter_map_results;
@@ -60,27 +61,33 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             .map_err(|e| (e, rev.as_ref()))?;
         display_files(invocation.ui, repo, files.iter())
     } else {
-        // The dirstate always reflects the sparse narrowspec, so if
-        // we only have sparse without narrow all is fine.
-        // If we have narrow, then [hg files] needs to check if
-        // the store narrowspec is in sync with the one of the dirstate,
-        // so we can't support that without explicit code.
-        if repo.has_narrow() {
-            return Err(CommandError::unsupported(
-                "rhg files is not supported in narrow clones",
-            ));
-        }
+        // The dirstate always reflects the sparse narrowspec.
+        let (narrow_matcher, narrow_warnings) = narrow::matcher(repo)?;
+        print_narrow_sparse_warnings(
+            &narrow_warnings,
+            &[],
+            invocation.ui,
+            repo,
+        )?;
         let dirstate = repo.dirstate_map()?;
         let files_res: Result<Vec<_>, _> =
             filter_map_results(dirstate.iter(), |(path, entry)| {
-                Ok(if entry.tracked() { Some(path) } else { None })
+                Ok(if entry.tracked() && narrow_matcher.matches(path) {
+                    Some(path)
+                } else {
+                    None
+                })
             })
             .collect();
 
         let mut files = files_res?;
         files.par_sort_unstable();
 
-        display_files(invocation.ui, repo, files.into_iter().map(Ok))
+        display_files(
+            invocation.ui,
+            repo,
+            files.into_iter().map::<Result<_, CommandError>, _>(Ok),
+        )
     }
 }
 

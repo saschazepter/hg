@@ -76,12 +76,21 @@ TODO: bad error message
   [1]
 
 A naive implementation of [rhg files] leaks the paths that are supposed to be
-hidden by narrow, so we just fall back to hg.
+hidden by narrow, so we just fall back to hg when accessing a revision.
 
   $ $NO_FALLBACK rhg files -r "$tip"
   unsupported feature: rhg files -r <rev> is not supported in narrow clones
   [252]
   $ "$real_hg" files -r "$tip"
+  dir1/x
+  dir1/y
+
+The working copy version works with narrow correctly
+
+  $ $NO_FALLBACK rhg files
+  dir1/x
+  dir1/y
+  $ "$real_hg" files
   dir1/x
   dir1/y
 
