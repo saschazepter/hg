@@ -6,7 +6,9 @@
 // GNU General Public License version 2 or any later version.
 
 use crate::error::CommandError;
-use crate::ui::Ui;
+use crate::ui::{
+    format_pattern_file_warning, print_narrow_sparse_warnings, Ui,
+};
 use crate::utils::path_utils::RelativizePaths;
 use clap::Arg;
 use format_bytes::format_bytes;
@@ -20,7 +22,6 @@ use hg::manifest::Manifest;
 use hg::matchers::{AlwaysMatcher, IntersectionMatcher};
 use hg::repo::Repo;
 use hg::utils::files::get_bytes_from_os_string;
-use hg::utils::files::get_bytes_from_path;
 use hg::utils::files::get_path_from_bytes;
 use hg::utils::hg_path::{hg_path_to_path_buf, HgPath};
 use hg::DirstateStatus;
@@ -269,7 +270,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let after_status = |res: StatusResult| -> Result<_, CommandError> {
         let (mut ds_status, pattern_warnings) = res?;
         for warning in pattern_warnings {
-            ui.write_stderr(&print_pattern_file_warning(&warning, repo))?;
+            ui.write_stderr(&format_pattern_file_warning(&warning, repo))?;
         }
 
         for (path, error) in ds_status.bad {
@@ -385,31 +386,12 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         (false, false) => Box::new(AlwaysMatcher),
     };
 
-    for warning in narrow_warnings.into_iter().chain(sparse_warnings) {
-        match &warning {
-            sparse::SparseWarning::RootWarning { context, line } => {
-                let msg = format_bytes!(
-                    b"warning: {} profile cannot use paths \"
-                    starting with /, ignoring {}\n",
-                    context,
-                    line
-                );
-                ui.write_stderr(&msg)?;
-            }
-            sparse::SparseWarning::ProfileNotFound { profile, rev } => {
-                let msg = format_bytes!(
-                    b"warning: sparse profile '{}' not found \"
-                    in rev {} - ignoring it\n",
-                    profile,
-                    rev
-                );
-                ui.write_stderr(&msg)?;
-            }
-            sparse::SparseWarning::Pattern(e) => {
-                ui.write_stderr(&print_pattern_file_warning(e, repo))?;
-            }
-        }
-    }
+    print_narrow_sparse_warnings(
+        &narrow_warnings,
+        &sparse_warnings,
+        ui,
+        repo,
+    )?;
     let (fixup, mut dirstate_write_needed, filesystem_time_at_status_start) =
         dmap.with_status(
             matcher.as_ref(),
@@ -616,31 +598,4 @@ fn unsure_is_modified(
         vfs.read(fs_path)?
     };
     Ok(p1_contents != &*fs_contents)
-}
-
-fn print_pattern_file_warning(
-    warning: &PatternFileWarning,
-    repo: &Repo,
-) -> Vec<u8> {
-    match warning {
-        PatternFileWarning::InvalidSyntax(path, syntax) => format_bytes!(
-            b"{}: ignoring invalid syntax '{}'\n",
-            get_bytes_from_path(path),
-            &*syntax
-        ),
-        PatternFileWarning::NoSuchFile(path) => {
-            let path = if let Ok(relative) =
-                path.strip_prefix(repo.working_directory_path())
-            {
-                relative
-            } else {
-                &*path
-            };
-            format_bytes!(
-                b"skipping unreadable pattern file '{}': \
-                    No such file or directory\n",
-                get_bytes_from_path(path),
-            )
-        }
-    }
 }
