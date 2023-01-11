@@ -3,8 +3,6 @@ use std::io;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::Path;
 
-// This is a rust rewrite of [checkexec] function from [posix.py]
-
 const EXECFLAGS: u32 = 0o111;
 
 fn is_executable(path: impl AsRef<Path>) -> Result<bool, io::Error> {
@@ -47,6 +45,9 @@ fn check_exec_impl(path: impl AsRef<Path>) -> Result<bool, io::Error> {
     let storedir = basedir.join("store");
 
     if !cachedir.exists() {
+        // we want to create the 'cache' directory, not the '.hg' one.
+        // Automatically creating '.hg' directory could silently spawn
+        // invalid Mercurial repositories. That seems like a bad idea.
         fs::create_dir(&cachedir)
             .and_then(|()| {
                 if storedir.exists() {
@@ -63,6 +64,9 @@ fn check_exec_impl(path: impl AsRef<Path>) -> Result<bool, io::Error> {
     let checkisexec = cachedir.join("checkisexec");
     let checknoexec = cachedir.join("checknoexec");
     if cachedir.is_dir() {
+        // Check if both files already exist in cache and have correct
+        // permissions. if so, we assume that permissions work.
+        // If not, we delete the files and try again.
         match is_executable(&checkisexec) {
             Err(e) if e.kind() == io::ErrorKind::NotFound => (),
             Err(e) => return Err(e),
@@ -88,6 +92,8 @@ fn check_exec_impl(path: impl AsRef<Path>) -> Result<bool, io::Error> {
         checkdir = &cachedir;
         leave_file = true;
     } else {
+        // no cache directory (probably because .hg doesn't exist):
+        // check directly in `path` and don't leave the temp file behind
         checkdir = path.as_ref();
         leave_file = false;
     };
@@ -106,6 +112,8 @@ fn check_exec_impl(path: impl AsRef<Path>) -> Result<bool, io::Error> {
     Ok(false)
 }
 
+/// This function is a rust rewrite of [checkexec] function from [posix.py]
+/// Returns true if the filesystem supports execute permissions.
 pub fn check_exec(path: impl AsRef<Path>) -> bool {
     check_exec_impl(path).unwrap_or(false)
 }
