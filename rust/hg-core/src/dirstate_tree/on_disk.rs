@@ -599,32 +599,6 @@ where
         .map(|(slice, _rest)| slice)
 }
 
-pub(crate) fn for_each_tracked_path<'on_disk>(
-    on_disk: &'on_disk [u8],
-    metadata: &[u8],
-    mut f: impl FnMut(&'on_disk HgPath),
-) -> Result<(), DirstateV2ParseError> {
-    let (meta, _) = TreeMetadata::from_bytes(metadata).map_err(|e| {
-        DirstateV2ParseError::new(format!("when parsing tree metadata, {}", e))
-    })?;
-    fn recur<'on_disk>(
-        on_disk: &'on_disk [u8],
-        nodes: ChildNodes,
-        f: &mut impl FnMut(&'on_disk HgPath),
-    ) -> Result<(), DirstateV2ParseError> {
-        for node in read_nodes(on_disk, nodes)? {
-            if let Some(entry) = node.entry()? {
-                if entry.tracked() {
-                    f(node.full_path(on_disk)?)
-                }
-            }
-            recur(on_disk, node.children, f)?
-        }
-        Ok(())
-    }
-    recur(on_disk, meta.root_nodes, &mut f)
-}
-
 /// Returns new data and metadata, together with whether that data should be
 /// appended to the existing data file whose content is at
 /// `dirstate_map.on_disk` (true), instead of written to a new data file
