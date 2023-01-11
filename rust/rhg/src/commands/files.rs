@@ -70,8 +70,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                 "rhg files is not supported in narrow clones",
             ));
         }
-        let distate = Dirstate::new(repo)?;
-        let files = distate.tracked_files()?;
+        let dirstate = Dirstate::new(repo)?;
+        let files = dirstate.tracked_files()?;
         display_files(invocation.ui, repo, files.into_iter().map(Ok))
     }
 }
