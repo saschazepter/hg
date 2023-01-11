@@ -477,3 +477,23 @@ where
         Ok(())
     }
 }
+
+/// Like `Iterator::filter_map`, but over a fallible iterator of `Result`s.
+///
+/// The callback is only called for incoming `Ok` values. Errors are passed
+/// through as-is. In order to let it use the `?` operator the callback is
+/// expected to return a `Result` of `Option`, instead of an `Option` of
+/// `Result`.
+pub fn filter_map_results<'a, I, F, A, B, E>(
+    iter: I,
+    f: F,
+) -> impl Iterator<Item = Result<B, E>> + 'a
+where
+    I: Iterator<Item = Result<A, E>> + 'a,
+    F: Fn(A) -> Result<Option<B>, E> + 'a,
+{
+    iter.filter_map(move |result| match result {
+        Ok(node) => f(node).transpose(),
+        Err(e) => Some(Err(e)),
+    })
+}
