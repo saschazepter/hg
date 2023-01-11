@@ -2,7 +2,6 @@ use crate::error::CommandError;
 use crate::ui::Ui;
 use crate::utils::path_utils::RelativizePaths;
 use clap::Arg;
-use hg::errors::HgError;
 use hg::operations::list_rev_tracked_files;
 use hg::repo::Repo;
 use hg::utils::filter_map_results;
@@ -85,11 +84,14 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     }
 }
 
-fn display_files<'a>(
+fn display_files<'a, E>(
     ui: &Ui,
     repo: &Repo,
-    files: impl IntoIterator<Item = Result<&'a HgPath, HgError>>,
-) -> Result<(), CommandError> {
+    files: impl IntoIterator<Item = Result<&'a HgPath, E>>,
+) -> Result<(), CommandError>
+where
+    CommandError: From<E>,
+{
     let mut stdout = ui.stdout_buffer();
     let mut any = false;
 
