@@ -75,12 +75,12 @@ TODO: bad error message
   $ "$real_hg" cat -r "$tip" hide
   [1]
 
-A naive implementation of [rhg files] leaks the paths that are supposed to be
-hidden by narrow, so we just fall back to hg when accessing a revision.
+A naive implementation of `rhg files` would leak the paths that are supposed
+to be hidden by narrow.
 
   $ $NO_FALLBACK rhg files -r "$tip"
-  unsupported feature: rhg files -r <rev> is not supported in narrow clones
-  [252]
+  dir1/x
+  dir1/y
   $ "$real_hg" files -r "$tip"
   dir1/x
   dir1/y

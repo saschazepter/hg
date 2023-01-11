@@ -51,24 +51,15 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         ));
     }
 
+    let (narrow_matcher, narrow_warnings) = narrow::matcher(repo)?;
+    print_narrow_sparse_warnings(&narrow_warnings, &[], invocation.ui, repo)?;
+
     if let Some(rev) = rev {
-        if repo.has_narrow() {
-            return Err(CommandError::unsupported(
-                "rhg files -r <rev> is not supported in narrow clones",
-            ));
-        }
-        let files = list_rev_tracked_files(repo, rev)
+        let files = list_rev_tracked_files(repo, rev, narrow_matcher)
             .map_err(|e| (e, rev.as_ref()))?;
         display_files(invocation.ui, repo, files.iter())
     } else {
         // The dirstate always reflects the sparse narrowspec.
-        let (narrow_matcher, narrow_warnings) = narrow::matcher(repo)?;
-        print_narrow_sparse_warnings(
-            &narrow_warnings,
-            &[],
-            invocation.ui,
-            repo,
-        )?;
         let dirstate = repo.dirstate_map()?;
         let files_res: Result<Vec<_>, _> =
             filter_map_results(dirstate.iter(), |(path, entry)| {
