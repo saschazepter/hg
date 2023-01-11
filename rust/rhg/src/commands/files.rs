@@ -4,9 +4,10 @@ use crate::utils::path_utils::RelativizePaths;
 use clap::Arg;
 use hg::errors::HgError;
 use hg::operations::list_rev_tracked_files;
-use hg::operations::Dirstate;
 use hg::repo::Repo;
+use hg::utils::filter_map_results;
 use hg::utils::hg_path::HgPath;
+use rayon::prelude::*;
 
 pub const HELP_TEXT: &str = "
 List tracked files.
@@ -70,8 +71,16 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                 "rhg files is not supported in narrow clones",
             ));
         }
-        let dirstate = Dirstate::new(repo)?;
-        let files = dirstate.tracked_files()?;
+        let dirstate = repo.dirstate_map()?;
+        let files_res: Result<Vec<_>, _> =
+            filter_map_results(dirstate.iter(), |(path, entry)| {
+                Ok(if entry.tracked() { Some(path) } else { None })
+            })
+            .collect();
+
+        let mut files = files_res?;
+        files.par_sort_unstable();
+
         display_files(invocation.ui, repo, files.into_iter().map(Ok))
     }
 }
