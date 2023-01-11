@@ -12,6 +12,7 @@ class idirstate(interfaceutil.Interface):
         sparsematchfn,
         nodeconstants,
         use_dirstate_v2,
+        use_tracked_hint=False,
     ):
         """Create a new dirstate object.
 
@@ -214,3 +215,8 @@ class idirstate(interfaceutil.Interface):
 
     def clearbackup(tr, backupname):
         '''Clear backup file'''
+
+    def verify(m1, m2, p1, narrow_matcher=None):
+        """
+        check the dirstate contents against the parent manifest and yield errors
+        """
