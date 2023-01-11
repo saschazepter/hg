@@ -129,8 +129,7 @@ class pathauditor:
         if self._cached:
             self.audited.add(path)
 
-    def _checkfs_exists(self, prefix, path):
-        # type: (bytes, bytes) -> bool
+    def _checkfs_exists(self, prefix: bytes, path: bytes) -> bool:
         """raise exception if a file system backed check fails.
 
         Return a bool that indicates that the directory (or file) exists."""
