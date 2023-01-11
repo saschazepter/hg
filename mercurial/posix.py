@@ -284,7 +284,7 @@ def checkexec(path: bytes) -> bool:
             else:
                 # checkisexec exists, check if it actually is exec
                 if m & EXECFLAGS != 0:
-                    # ensure checkisexec exists, check it isn't exec
+                    # ensure checknoexec exists, check it isn't exec
                     try:
                         m = os.stat(checknoexec).st_mode
                     except FileNotFoundError:
