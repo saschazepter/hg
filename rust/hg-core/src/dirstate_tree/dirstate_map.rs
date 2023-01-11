@@ -15,6 +15,7 @@ use crate::dirstate::ParentFileData;
 use crate::dirstate::StateMapIter;
 use crate::dirstate::TruncatedTimestamp;
 use crate::matchers::Matcher;
+use crate::utils::filter_map_results;
 use crate::utils::hg_path::{HgPath, HgPathBuf};
 use crate::DirstateEntry;
 use crate::DirstateError;
@@ -910,26 +911,6 @@ impl<'on_disk> DirstateMap<'on_disk> {
             *unreachable_bytes += path.len() as u32
         }
     }
-}
-
-/// Like `Iterator::filter_map`, but over a fallible iterator of `Result`s.
-///
-/// The callback is only called for incoming `Ok` values. Errors are passed
-/// through as-is. In order to let it use the `?` operator the callback is
-/// expected to return a `Result` of `Option`, instead of an `Option` of
-/// `Result`.
-fn filter_map_results<'a, I, F, A, B, E>(
-    iter: I,
-    f: F,
-) -> impl Iterator<Item = Result<B, E>> + 'a
-where
-    I: Iterator<Item = Result<A, E>> + 'a,
-    F: Fn(A) -> Result<Option<B>, E> + 'a,
-{
-    iter.filter_map(move |result| match result {
-        Ok(node) => f(node).transpose(),
-        Err(e) => Some(Err(e)),
-    })
 }
 
 type DebugDirstateTuple<'a> = (&'a HgPath, (u8, i32, i32, i32));
