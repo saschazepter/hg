@@ -44,7 +44,7 @@ pub fn matcher(
         .unwrap_or_default();
     if store_spec != working_copy_spec {
         return Err(HgError::abort(
-            "working copy's narrowspec is stale",
+            "abort: working copy's narrowspec is stale",
             exit_codes::STATE_ERROR,
             Some("run 'hg tracked --update-working-copy'".into()),
         )
