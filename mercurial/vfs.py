@@ -427,13 +427,19 @@ class vfs(abstractvfs):
     ) -> bool:
         """return True if the path is a regular file or a symlink and
         the directories along the path are "normal", that is
-        not symlinks or nested hg repositories."""
+        not symlinks or nested hg repositories.
+
+        Ignores the `_audit` setting, and checks the directories regardless.
+        `dircache` is used to cache the directory checks.
+        """
         try:
             for prefix in pathutil.finddirs_rev_noroot(util.localpath(path)):
                 if prefix in dircache:
                     res = dircache[prefix]
                 else:
-                    res = self.audit._checkfs_exists(prefix, path)
+                    res = pathutil.pathauditor._checkfs_exists(
+                        self.base, prefix, path
+                    )
                     dircache[prefix] = res
                 if not res:
                     return False
