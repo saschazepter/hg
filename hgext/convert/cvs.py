@@ -199,7 +199,7 @@ class convert_cvs(converter_source):
                 if sck.recv(128) != b"I LOVE YOU\n":
                     raise error.Abort(_(b"CVS pserver authentication failed"))
 
-                self.writep = self.readp = sck.makefile(b'r+')
+                self.writep = self.readp = sck.makefile('rwb')
 
         if not conntype and root.startswith(b":local:"):
             conntype = b"local"
