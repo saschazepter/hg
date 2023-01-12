@@ -246,9 +246,7 @@ def _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce):
         else:
             repo.ui.warn(_(b"%s: replacing untracked files in directory\n") % f)
 
-    for f, args, msg in list(
-        mresult.getactions([mergestatemod.ACTION_CREATED])
-    ):
+    def transformargs(f, args):
         backup = (
             f in fileconflicts
             or pathconflicts
@@ -258,7 +256,11 @@ def _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce):
             )
         )
         (flags,) = args
-        mresult.addfile(f, mergestatemod.ACTION_GET, (flags, backup), msg)
+        return (flags, backup)
+
+    mresult.mapaction(
+        mergestatemod.ACTION_CREATED, mergestatemod.ACTION_GET, transformargs
+    )
 
 
 def _forgetremoved(wctx, mctx, branchmerge, mresult):
@@ -589,6 +591,18 @@ class mergeresult:
 
         self._filemapping[filename] = (action, data, message)
         self._actionmapping[action][filename] = (data, message)
+
+    def mapaction(self, actionfrom, actionto, transform):
+        """changes all occurrences of action `actionfrom` into `actionto`,
+        transforming its args with the function `transform`.
+        """
+        orig = self._actionmapping[actionfrom]
+        del self._actionmapping[actionfrom]
+        dest = self._actionmapping[actionto]
+        for f, (data, msg) in orig.items():
+            data = transform(f, data)
+            self._filemapping[f] = (actionto, data, msg)
+            dest[f] = (data, msg)
 
     def getfile(self, filename, default_return=None):
         """returns (action, args, msg) about this file
