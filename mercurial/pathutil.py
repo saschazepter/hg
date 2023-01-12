@@ -116,7 +116,9 @@ class pathauditor:
                 if prefix in self.auditeddir:
                     res = self.auditeddir[prefix]
                 else:
-                    res = self._checkfs_exists(prefix, path)
+                    res = pathauditor._checkfs_exists(
+                        self.root, prefix, path, self.callback
+                    )
                     if self._cached:
                         self.auditeddir[prefix] = res
                 if not res:
@@ -125,11 +127,17 @@ class pathauditor:
         if self._cached:
             self.audited.add(path)
 
-    def _checkfs_exists(self, prefix: bytes, path: bytes) -> bool:
+    @staticmethod
+    def _checkfs_exists(
+        root,
+        prefix: bytes,
+        path: bytes,
+        callback: Optional[Callable[[bytes], bool]] = None,
+    ):
         """raise exception if a file system backed check fails.
 
         Return a bool that indicates that the directory (or file) exists."""
-        curpath = os.path.join(self.root, prefix)
+        curpath = os.path.join(root, prefix)
         try:
             st = os.lstat(curpath)
         except OSError as err:
@@ -149,7 +157,7 @@ class pathauditor:
             elif stat.S_ISDIR(st.st_mode) and os.path.isdir(
                 os.path.join(curpath, b'.hg')
             ):
-                if not self.callback or not self.callback(curpath):
+                if not callback or not callback(curpath):
                     msg = _(b"path '%s' is inside nested repo %r")
                     raise error.Abort(msg % (path, pycompat.bytestr(prefix)))
         return True
