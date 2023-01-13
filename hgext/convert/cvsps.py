@@ -686,7 +686,10 @@ def createchangeset(ui, log, fuzz=60, mergefrom=None, mergeto=None):
 
             files = set()
             if len(changesets) % 100 == 0:
-                t = b'%d %s' % (len(changesets), repr(e.comment)[1:-1])
+                t = b'%d %s' % (
+                    len(changesets),
+                    pycompat.byterepr(e.comment)[2:-1],
+                )
                 ui.status(stringutil.ellipsis(t, 80) + b'\n')
 
         c.entries.append(e)
