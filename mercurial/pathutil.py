@@ -4,6 +4,13 @@ import os
 import posixpath
 import stat
 
+from typing import (
+    Any,
+    Callable,
+    Iterator,
+    Optional,
+)
+
 from .i18n import _
 from . import (
     encoding,
@@ -12,15 +19,6 @@ from . import (
     pycompat,
     util,
 )
-
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        Any,
-        Callable,
-        Iterator,
-        Optional,
-    )
-
 
 rustdirs = policy.importrust('dirstate', 'Dirs')
 parsers = policy.importmod('parsers')
