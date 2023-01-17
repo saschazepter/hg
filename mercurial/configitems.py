@@ -22,7 +22,7 @@ def loadconfigtable(ui, extname, configtable):
         knownkeys = set(knownitems)
         newkeys = set(items)
         for key in sorted(knownkeys & newkeys):
-            msg = b"extension '%s' overwrite config item '%s.%s'"
+            msg = b"extension '%s' overwrites config item '%s.%s'"
             msg %= (extname, section, key)
             ui.develwarn(msg, config=b'warn-config')
 
