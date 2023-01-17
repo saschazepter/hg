@@ -455,10 +455,10 @@ Test warning on config option access and registration
   > EOF
 
   $ hg --config "extensions.buggyconfig=${TESTTMP}/buggyconfig.py" buggyconfig
-  devel-warn: extension 'buggyconfig' overwrite config item 'ui.interactive' at: */mercurial/extensions.py:* (_loadextra) (glob) (no-pyoxidizer !)
-  devel-warn: extension 'buggyconfig' overwrite config item 'ui.quiet' at: */mercurial/extensions.py:* (_loadextra) (glob) (no-pyoxidizer !)
-  devel-warn: extension 'buggyconfig' overwrite config item 'ui.interactive' at: mercurial.extensions:* (_loadextra) (glob) (pyoxidizer !)
-  devel-warn: extension 'buggyconfig' overwrite config item 'ui.quiet' at: mercurial.extensions:* (_loadextra) (glob) (pyoxidizer !)
+  devel-warn: extension 'buggyconfig' overwrites config item 'ui.interactive' at: */mercurial/extensions.py:* (_loadextra) (glob) (no-pyoxidizer !)
+  devel-warn: extension 'buggyconfig' overwrites config item 'ui.quiet' at: */mercurial/extensions.py:* (_loadextra) (glob) (no-pyoxidizer !)
+  devel-warn: extension 'buggyconfig' overwrites config item 'ui.interactive' at: mercurial.extensions:* (_loadextra) (glob) (pyoxidizer !)
+  devel-warn: extension 'buggyconfig' overwrites config item 'ui.quiet' at: mercurial.extensions:* (_loadextra) (glob) (pyoxidizer !)
   devel-warn: specifying a mismatched default value for a registered config item: 'ui.quiet' 'True' at: $TESTTMP/buggyconfig.py:* (cmdbuggyconfig) (glob)
   devel-warn: specifying a mismatched default value for a registered config item: 'ui.interactive' 'False' at: $TESTTMP/buggyconfig.py:* (cmdbuggyconfig) (glob)
   devel-warn: specifying a mismatched default value for a registered config item: 'test.some' 'bar' at: $TESTTMP/buggyconfig.py:* (cmdbuggyconfig) (glob)
