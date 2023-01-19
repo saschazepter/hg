@@ -724,3 +724,8 @@ Test debugpeer
   pushable: yes
 
 #endif
+
+Test debugshell
+
+  $ hg debugshell -c 'ui.write(b"%s\n" % ui.username())'
+  test
