@@ -328,7 +328,7 @@ Show all commands + options
   debugrevspec: optimize, show-revs, show-set, show-stage, no-optimized, verify-optimized
   debugserve: sshstdio, logiofd, logiofile
   debugsetparents: 
-  debugshell: 
+  debugshell: command
   debugsidedata: changelog, manifest, dir
   debugssl: 
   debugstrip: rev, force, no-backup, nobackup, , keep, bookmark, soft
