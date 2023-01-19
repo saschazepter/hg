@@ -3786,8 +3786,21 @@ def debugsub(ui, repo, rev=None):
         ui.writenoi18n(b' revision %s\n' % v[1])
 
 
-@command(b'debugshell', optionalrepo=True)
-def debugshell(ui, repo):
+@command(
+    b'debugshell',
+    [
+        (
+            b'c',
+            b'command',
+            b'',
+            _(b'program passed in as a string'),
+            _(b'COMMAND'),
+        )
+    ],
+    _(b'[-c COMMAND]'),
+    optionalrepo=True,
+)
+def debugshell(ui, repo, **opts):
     """run an interactive Python interpreter
 
     The local namespace is provided with a reference to the ui and
@@ -3814,6 +3827,12 @@ def debugshell(ui, repo):
             site.setquit()
         except ImportError:
             site = None  # Keep PyCharm happy
+
+    command = opts.get('command')
+    if command:
+        compiled = code.compile_command(encoding.strfromlocal(command))
+        code.InteractiveInterpreter(locals=imported_objects).runcode(compiled)
+        return
 
     code.interact(local=imported_objects)
 
