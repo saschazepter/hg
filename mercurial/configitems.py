@@ -1473,22 +1473,10 @@ coreconfigitem(
     b'usestore',
     default=True,
 )
-
-
-def _persistent_nodemap_default():
-    """compute `use-persistent-nodemap` default value
-
-    The feature is disabled unless a fast implementation is available.
-    """
-    from . import policy
-
-    return policy.importrust('revlog') is not None
-
-
 coreconfigitem(
     b'format',
     b'use-persistent-nodemap',
-    default=_persistent_nodemap_default,
+    default=dynamicdefault,
 )
 coreconfigitem(
     b'format',
