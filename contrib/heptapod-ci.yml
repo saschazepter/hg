@@ -34,6 +34,7 @@ checks:
     variables:
         RUNTEST_ARGS: "--time --test-list /tmp/check-tests.txt"
         PYTHON: python3
+        CI_CLEVER_CLOUD_FLAVOR: S
 
 rust-cargo-test:
     <<: *all
@@ -43,6 +44,7 @@ rust-cargo-test:
         - make rust-tests
     variables:
         PYTHON: python3
+        CI_CLEVER_CLOUD_FLAVOR: S
 
 test-c:
     <<: *runtests
