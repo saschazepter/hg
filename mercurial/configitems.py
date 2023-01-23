@@ -48,10 +48,12 @@ class configitem:
         generic=False,
         priority=0,
         experimental=False,
+        documentation="",
     ):
         self.section = section
         self.name = name
         self.default = default
+        self.documentation = documentation
         self.alias = list(alias)
         self.generic = generic
         self.priority = priority
