@@ -1644,6 +1644,7 @@ if os.name == 'nt':
 
 packagedata = {
     'mercurial': [
+        'configitems.toml',
         'locale/*/LC_MESSAGES/hg.mo',
         'dummycert.pem',
     ],
