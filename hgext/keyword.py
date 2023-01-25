@@ -532,7 +532,8 @@ def demo(ui, repo, *args, **opts):
     keywords = b'$' + b'$\n$'.join(sorted(kwmaps.keys())) + b'$\n'
     repo.wvfs.write(fn, keywords)
     with repo.wlock():
-        repo[None].add([fn])
+        with repo.dirstate.changing_files(repo):
+            repo[None].add([fn])
         ui.note(_(b'\nkeywords written to %s:\n') % fn)
         ui.note(keywords)
         repo.dirstate.setbranch(b'demobranch')
