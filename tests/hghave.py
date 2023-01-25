@@ -206,7 +206,7 @@ def has_pyoxidizer():
     "pyoxidizer-in-memory",
     "running with pyoxidizer build as 'hg' with embedded resources",
 )
-def has_pyoxidizer():
+def has_pyoxidizer_mem():
     return 'PYOXIDIZED_IN_MEMORY_RSRC' in os.environ
 
 
@@ -214,7 +214,7 @@ def has_pyoxidizer():
     "pyoxidizer-in-filesystem",
     "running with pyoxidizer build as 'hg' with external resources",
 )
-def has_pyoxidizer():
+def has_pyoxidizer_fs():
     return 'PYOXIDIZED_FILESYSTEM_RSRC' in os.environ
 
 
