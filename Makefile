@@ -158,7 +158,7 @@ rust-tests:
 
 cargo-clippy:
 	cd $(HGROOT)/rust \
-		&& $(CARGO) clippy --all --features "$(HG_RUST_FEATURES)"
+		&& $(CARGO) clippy --all --features "$(HG_RUST_FEATURES)" -- -D warnings
 
 check-code:
 	hg manifest | xargs python contrib/check-code.py
