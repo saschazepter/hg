@@ -163,7 +163,8 @@ hgweb filerevision, html
   <span id="l7"><span class="kn">import</span> <span class="nn">itertools</span></span><a href="#l7"></a>
   <span id="l8"></span><a href="#l8"></a>
   <span id="l9"><span class="kn">def</span> <span class="nf">primes</span><span class="p">():</span></span><a href="#l9"></a>
-  <span id="l10">    <span class="sd">&quot;&quot;&quot;Generate all primes.&quot;&quot;&quot;</span></span><a href="#l10"></a>
+  <span id="l10"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate all primes.&quot;&quot;&quot;</span></span><a href="#l10"></a> (pygments214 !)
+  <span id="l10">    <span class="sd">&quot;&quot;&quot;Generate all primes.&quot;&quot;&quot;</span></span><a href="#l10"></a> (no-pygments214 !)
   <span id="l11">    <span class="kn">def</span> <span class="nf">sieve</span><span class="p">(</span><span class="n">ns</span><span class="p">):</span></span><a href="#l11"></a>
   <span id="l12">        <span class="n">p</span> <span class="o">=</span> <span class="n">ns</span><span class="o">.</span><span class="n">next</span><span class="p">()</span></span><a href="#l12"></a>
   <span id="l13">        <span class="c"># It is important to yield *here* in order to stop the</span></span><a href="#l13"></a>
@@ -489,7 +490,8 @@ hgweb fileannotate, html
   <a href="/rev/687f2d169546">changeset</a>
   </div>
   </td>
-  <td class="source followlines-btn-parent"><a href="#l10">    10</a>     <span class="sd">&quot;&quot;&quot;Generate all primes.&quot;&quot;&quot;</span></td>
+  <td class="source followlines-btn-parent"><a href="#l10">    10</a> <span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate all primes.&quot;&quot;&quot;</span></td> (pygments214 !)
+  <td class="source followlines-btn-parent"><a href="#l10">    10</a>     <span class="sd">&quot;&quot;&quot;Generate all primes.&quot;&quot;&quot;</span></td> (no-pygments214 !)
   </tr>
   <tr id="l11" class="thisrev">
   <td class="annotate parity0">
