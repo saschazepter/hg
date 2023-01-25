@@ -384,7 +384,7 @@ class gitdirstate:
         pass
 
     @contextlib.contextmanager
-    def parentchange(self):
+    def parentchange(self, repo):
         # TODO: track this maybe?
         yield
 
