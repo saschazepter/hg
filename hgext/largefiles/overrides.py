@@ -660,7 +660,7 @@ def overridecalculateupdates(
 def mergerecordupdates(orig, repo, actions, branchmerge, getfiledata):
     if MERGE_ACTION_LARGEFILE_MARK_REMOVED in actions:
         lfdirstate = lfutil.openlfdirstate(repo.ui, repo)
-        with lfdirstate.parentchange():
+        with lfdirstate.parentchange(repo):
             for lfile, args, msg in actions[
                 MERGE_ACTION_LARGEFILE_MARK_REMOVED
             ]:
@@ -1800,7 +1800,7 @@ def mergeupdate(orig, repo, node, branchmerge, force, *args, **kwargs):
             raise error.ProgrammingError(
                 b'largefiles is not compatible with in-memory merge'
             )
-        with lfdirstate.parentchange():
+        with lfdirstate.parentchange(repo):
             result = orig(repo, node, branchmerge, force, *args, **kwargs)
 
             newstandins = lfutil.getstandinsstate(repo)

@@ -638,7 +638,7 @@ def dorecord(
                         # already called within a `pendingchange`, However we
                         # are taking a shortcut here in order to be able to
                         # quickly deprecated the older API.
-                        with dirstate.parentchange():
+                        with dirstate.parentchange(repo):
                             dirstate.update_file(
                                 realname,
                                 p1_tracked=True,
@@ -1532,7 +1532,7 @@ def copy(ui, repo, pats, opts, rename=False):
                 new_node = mem_ctx.commit()
 
                 if repo.dirstate.p1() == ctx.node():
-                    with repo.dirstate.parentchange():
+                    with repo.dirstate.parentchange(repo):
                         scmutil.movedirstate(repo, repo[new_node])
                 replacements = {ctx.node(): [new_node]}
                 scmutil.cleanupnodes(
@@ -1625,7 +1625,7 @@ def copy(ui, repo, pats, opts, rename=False):
             new_node = mem_ctx.commit()
 
             if repo.dirstate.p1() == ctx.node():
-                with repo.dirstate.parentchange():
+                with repo.dirstate.parentchange(repo):
                     scmutil.movedirstate(repo, repo[new_node])
             replacements = {ctx.node(): [new_node]}
             scmutil.cleanupnodes(repo, replacements, b'copy', fixphase=True)
@@ -3024,7 +3024,7 @@ def amend(ui, repo, old, extra, pats, opts):
         newid = repo.commitctx(new)
         ms.reset()
 
-        with repo.dirstate.parentchange():
+        with repo.dirstate.parentchange(repo):
             # Reroute the working copy parent to the new changeset
             repo.setparents(newid, repo.nullid)
 
