@@ -41,6 +41,12 @@ try:
     revision = breezy.revision
     revisionspec = breezy.revisionspec
     revisionspec.RevisionSpec
+
+    try:
+        # brz 3.3.0 (revno: 7614.2.2)
+        from breezy.transport import NoSuchFile
+    except ImportError:
+        from breezy.errors import NoSuchFile
 except ImportError:
     pass
 
@@ -150,7 +156,7 @@ class bzr_source(common.converter_source):
 
         try:
             kind = revtree.kind(name)
-        except breezy.errors.NoSuchFile:
+        except NoSuchFile:
             return None, None
         if kind not in supportedkinds:
             # the file is not available anymore - was deleted
