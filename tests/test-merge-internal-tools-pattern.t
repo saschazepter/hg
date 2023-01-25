@@ -140,3 +140,23 @@ Merge using internal:union tool:
   third line
   line 4b
   line 4a
+
+Merge using internal:union-other-first tool:
+
+  $ hg update -C 4
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+  $ echo "[merge-patterns]" > .hg/hgrc
+  $ echo "* = internal:union-other-first" >> .hg/hgrc
+
+  $ hg merge 3
+  merging f
+  0 files updated, 1 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+
+  $ cat f
+  line 1
+  line 2
+  third line
+  line 4a
+  line 4b

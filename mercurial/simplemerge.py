@@ -512,6 +512,8 @@ def simplemerge(
     conflicts = False
     if mode == b'union':
         lines = _resolve(m3, (1, 2))
+    elif mode == b'union-other-first':
+        lines = _resolve(m3, (2, 1))
     elif mode == b'local':
         lines = _resolve(m3, (1,))
     elif mode == b'other':
