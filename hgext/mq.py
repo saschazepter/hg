@@ -1082,7 +1082,7 @@ class queue:
 
             if merge and files:
                 # Mark as removed/merged and update dirstate parent info
-                with repo.dirstate.parentchange():
+                with repo.dirstate.parentchange(repo):
                     for f in files:
                         repo.dirstate.update_file_p1(f, p1_tracked=True)
                     p1 = repo.dirstate.p1()
@@ -1830,7 +1830,7 @@ class queue:
                 if keepchanges and tobackup:
                     raise error.Abort(_(b"local changes found, qrefresh first"))
                 self.backup(repo, tobackup)
-                with repo.dirstate.parentchange():
+                with repo.dirstate.parentchange(repo):
                     for f in a:
                         repo.wvfs.unlinkpath(f, ignoremissing=True)
                         repo.dirstate.update_file(
@@ -1988,7 +1988,7 @@ class queue:
 
             bmlist = repo[top].bookmarks()
 
-            with repo.dirstate.parentchange():
+            with repo.dirstate.parentchange(repo):
                 # XXX do we actually need the dirstateguard
                 dsguard = None
                 try:

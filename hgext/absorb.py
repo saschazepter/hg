@@ -881,7 +881,7 @@ class fixupstate:
 
             dirstate._fsmonitorstate.invalidate = noop
         try:
-            with dirstate.parentchange():
+            with dirstate.parentchange(self.repo):
                 dirstate.rebuild(ctx.node(), ctx.manifest(), self.paths)
         finally:
             restore()
