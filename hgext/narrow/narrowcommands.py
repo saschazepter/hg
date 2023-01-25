@@ -320,7 +320,7 @@ def _narrow(
                 repo.store.markremoved(f)
 
             ui.status(_(b'deleting unwanted files from working copy\n'))
-            with repo.dirstate.parentchange():
+            with repo.dirstate.parentchange(repo):
                 narrowspec.updateworkingcopy(repo, assumeclean=True)
                 narrowspec.copytoworkingcopy(repo)
 
@@ -380,7 +380,7 @@ def _widen(
         if ellipsesremote:
             ds = repo.dirstate
             p1, p2 = ds.p1(), ds.p2()
-            with ds.parentchange():
+            with ds.parentchange(repo):
                 ds.setparents(repo.nullid, repo.nullid)
         if isoldellipses:
             with wrappedextraprepare:
@@ -419,10 +419,10 @@ def _widen(
                 bundle2.processbundle(repo, bundle, op=op, remote=remote)
 
         if ellipsesremote:
-            with ds.parentchange():
+            with ds.parentchange(repo):
                 ds.setparents(p1, p2)
 
-        with repo.transaction(b'widening'), repo.dirstate.parentchange():
+        with repo.transaction(b'widening'), repo.dirstate.parentchange(repo):
             repo.setnewnarrowpats()
             narrowspec.updateworkingcopy(repo)
             narrowspec.copytoworkingcopy(repo)
@@ -591,7 +591,7 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
     if update_working_copy:
         with repo.wlock(), repo.lock(), repo.transaction(
             b'narrow-wc'
-        ), repo.dirstate.parentchange():
+        ), repo.dirstate.parentchange(repo):
             narrowspec.updateworkingcopy(repo)
             narrowspec.copytoworkingcopy(repo)
         return 0

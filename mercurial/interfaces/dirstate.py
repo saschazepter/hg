@@ -35,7 +35,7 @@ class idirstate(interfaceutil.Interface):
     _checkexec = interfaceutil.Attribute("""Callable for checking exec bits.""")
 
     @contextlib.contextmanager
-    def parentchange():
+    def parentchange(repo):
         """Context manager for handling dirstate parents.
 
         If an exception occurs in the scope of the context manager,

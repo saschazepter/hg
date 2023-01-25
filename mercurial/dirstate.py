@@ -151,7 +151,7 @@ class dirstate:
         self._pl
 
     @contextlib.contextmanager
-    def parentchange(self):
+    def parentchange(self, repo):
         """Context manager for handling dirstate parents.
 
         If an exception occurs in the scope of the context manager,
@@ -523,7 +523,7 @@ class dirstate:
         rewriting operation.
 
         It should not be called during a merge (p2 != nullid) and only within
-        a `with dirstate.parentchange():` context.
+        a `with dirstate.parentchange(repo):` context.
         """
         if self.in_merge:
             msg = b'update_file_reference should not be called when merging'
