@@ -2172,8 +2172,11 @@ Test dynamic list of merge tools only shows up once
   
       ":union"
         Uses the internal non-interactive simple merge algorithm for merging
-        files. It will use both left and right sides for conflict regions. No
-        markers are inserted.
+        files. It will use both local and other sides for conflict regions by
+        adding local on top of other. No markers are inserted.
+  
+      ":union-other-first"
+        Like :union, but add other on top of local.
   
       Internal tools are always available and do not require a GUI but will by
       default not handle symlinks or binary files. See next section for detail
