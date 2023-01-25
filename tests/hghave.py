@@ -693,6 +693,22 @@ def pygments211():
     return (major, minor) >= (2, 11)
 
 
+@check("pygments214", "Pygments version >= 2.14")
+def pygments214():
+    try:
+        import pygments
+
+        v = pygments.__version__
+    except ImportError:
+        return False
+
+    parts = v.split(".")
+    major = int(parts[0])
+    minor = int(parts[1])
+
+    return (major, minor) >= (2, 14)
+
+
 @check("outer-repo", "outer repo")
 def has_outer_repo():
     # failing for other reasons than 'no repo' imply that there is a repo
