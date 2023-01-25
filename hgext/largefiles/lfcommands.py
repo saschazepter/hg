@@ -517,7 +517,7 @@ def updatelfiles(
             filelist = set(filelist)
             lfiles = [f for f in lfiles if f in filelist]
 
-        with lfdirstate.parentchange(repo):
+        with lfdirstate.changing_parents(repo):
             update = {}
             dropped = set()
             updated, removed = 0, 0
@@ -580,7 +580,7 @@ def updatelfiles(
             statuswriter(_(b'getting changed largefiles\n'))
             cachelfiles(ui, repo, None, lfiles)
 
-        with lfdirstate.parentchange(repo):
+        with lfdirstate.changing_parents(repo):
             for lfile in lfiles:
                 update1 = 0
 

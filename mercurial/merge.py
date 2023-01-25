@@ -2155,7 +2155,7 @@ def _update(
             assert len(getfiledata) == (
                 mresult.len((mergestatemod.ACTION_GET,)) if wantfiledata else 0
             )
-            with repo.dirstate.parentchange(repo):
+            with repo.dirstate.changing_parents(repo):
                 ### Filter Filedata
                 #
                 # We gathered "cache" information for the clean file while
@@ -2377,7 +2377,7 @@ def graft(
         # fix up dirstate for copies and renames
         copies.graftcopies(wctx, ctx, base)
     else:
-        with repo.dirstate.parentchange(repo):
+        with repo.dirstate.changing_parents(repo):
             repo.setparents(pctx.node(), pother)
             repo.dirstate.write(repo.currenttransaction())
             # fix up dirstate for copies and renames

@@ -6264,7 +6264,7 @@ def resolve(ui, repo, *pats, **opts):
         #
         # All this should eventually happens, but in the mean time, we use this
         # context manager slightly out of the context it should be.
-        with repo.dirstate.parentchange(repo):
+        with repo.dirstate.changing_parents(repo):
             mergestatemod.recordupdates(repo, ms.actions(), branchmerge, None)
 
         if not didwork and pats:

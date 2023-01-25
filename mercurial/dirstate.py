@@ -69,7 +69,7 @@ class rootcache(filecache):
 def requires_parents_change(func):
     def wrap(self, *args, **kwargs):
         if not self.pendingparentchange():
-            msg = 'calling `%s` outside of a parentchange context'
+            msg = 'calling `%s` outside of a changing_parents context'
             msg %= func.__name__
             raise error.ProgrammingError(msg)
         if self._invalidated_context:
@@ -83,7 +83,7 @@ def requires_parents_change(func):
 def requires_no_parents_change(func):
     def wrap(self, *args, **kwargs):
         if self.pendingparentchange():
-            msg = 'calling `%s` inside of a parentchange context'
+            msg = 'calling `%s` inside of a changing_parents context'
             msg %= func.__name__
             raise error.ProgrammingError(msg)
         return func(self, *args, **kwargs)
@@ -127,7 +127,7 @@ class dirstate:
         self._dirty_tracked_set = False
         self._ui = ui
         self._filecache = {}
-        # nesting level of `parentchange` context
+        # nesting level of `changing_parents` context
         self._parentwriters = 0
         # True if the current dirstate changing operations have been
         # invalidated (used to make sure all nested contexts have been exited)
@@ -151,7 +151,7 @@ class dirstate:
         self._pl
 
     @contextlib.contextmanager
-    def parentchange(self, repo):
+    def changing_parents(self, repo):
         """Context manager for handling dirstate parents.
 
         If an exception occurs in the scope of the context manager,
@@ -179,6 +179,14 @@ class dirstate:
                 if self._parentwriters <= 0:
                     assert self._parentwriters == 0
                     self._invalidated_context = False
+
+    # here to help migration to the new code
+    def parentchange(self):
+        msg = (
+            "Mercurial 6.4 and later requires call to "
+            "`dirstate.changing_parents(repo)`"
+        )
+        raise error.ProgrammingError(msg)
 
     def pendingparentchange(self):
         """Returns true if the dirstate is in the middle of a set of changes
@@ -399,7 +407,7 @@ class dirstate:
         if self._parentwriters == 0:
             raise ValueError(
                 b"cannot set dirstate parent outside of "
-                b"dirstate.parentchange context manager"
+                b"dirstate.changing_parents context manager"
             )
 
         self._dirty = True
@@ -523,7 +531,7 @@ class dirstate:
         rewriting operation.
 
         It should not be called during a merge (p2 != nullid) and only within
-        a `with dirstate.parentchange(repo):` context.
+        a `with dirstate.changing_parents(repo):` context.
         """
         if self.in_merge:
             msg = b'update_file_reference should not be called when merging'
@@ -566,7 +574,7 @@ class dirstate:
         This is to be called when the direstates parent changes to keep track
         of what is the file situation in regards to the working copy and its parent.
 
-        This function must be called within a `dirstate.parentchange` context.
+        This function must be called within a `dirstate.changing_parents` context.
 
         note: the API is at an early stage and we might need to adjust it
         depending of what information ends up being relevant and useful to
