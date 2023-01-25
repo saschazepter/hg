@@ -216,24 +216,23 @@ def reposetup(ui, repo):
 def wrap_revert(orig, repo, ctx, names, uipathfn, actions, *args, **kwargs):
     # reset dirstate cache for file we touch
     ds = repo.dirstate
-    with ds.changing_parents(repo):
-        for filename in actions[b'revert'][0]:
-            entry = ds.get_entry(filename)
-            if entry is not None:
-                if entry.p1_tracked:
-                    # If we revert the file, it is possibly dirty. However,
-                    # this extension meddle with the file content and therefore
-                    # its size. As a result, we cannot simply call
-                    # `dirstate.set_possibly_dirty` as it will not affet the
-                    # expected size of the file.
-                    #
-                    # At least, now, the quirk is properly documented.
-                    ds.hacky_extension_update_file(
-                        filename,
-                        entry.tracked,
-                        p1_tracked=True,
-                        p2_info=entry.p2_info,
-                    )
+    for filename in actions[b'revert'][0]:
+        entry = ds.get_entry(filename)
+        if entry is not None:
+            if entry.p1_tracked:
+                # If we revert the file, it is possibly dirty. However,
+                # this extension meddle with the file content and therefore
+                # its size. As a result, we cannot simply call
+                # `dirstate.set_possibly_dirty` as it will not affet the
+                # expected size of the file.
+                #
+                # At least, now, the quirk is properly documented.
+                ds.hacky_extension_update_file(
+                    filename,
+                    entry.tracked,
+                    p1_tracked=True,
+                    p2_info=entry.p2_info,
+                )
     return orig(repo, ctx, names, uipathfn, actions, *args, **kwargs)
 
 
