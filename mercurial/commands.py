@@ -19,6 +19,7 @@ from .node import (
     wdirrev,
 )
 from . import (
+    admin_commands as admin_commands_mod,
     archival,
     bookmarks,
     bundle2,
@@ -75,6 +76,7 @@ from .utils import (
 
 table = {}
 table.update(debugcommandsmod.command._table)
+table.update(admin_commands_mod.command._table)
 
 command = registrar.command(table)
 INTENT_READONLY = registrar.INTENT_READONLY

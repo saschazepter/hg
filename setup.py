@@ -1309,6 +1309,7 @@ if py2exehacked:
 
 packages = [
     'mercurial',
+    'mercurial.admin',
     'mercurial.cext',
     'mercurial.cffi',
     'mercurial.defaultrc',
