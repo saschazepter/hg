@@ -231,7 +231,7 @@ def openlfdirstate(ui, repo, create=True):
         if len(standins) > 0:
             vfs.makedirs(lfstoredir)
 
-        with lfdirstate.parentchange(repo):
+        with lfdirstate.changing_parents(repo):
             for standin in standins:
                 lfile = splitstandin(standin)
                 lfdirstate.update_file(
@@ -581,7 +581,7 @@ def markcommitted(orig, ctx, node):
     repo = ctx.repo()
 
     lfdirstate = openlfdirstate(repo.ui, repo)
-    with lfdirstate.parentchange(repo):
+    with lfdirstate.changing_parents(repo):
         orig(node)
 
         # ATTENTION: "ctx.files()" may differ from "repo[node].files()"

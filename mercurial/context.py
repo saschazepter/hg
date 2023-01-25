@@ -1595,7 +1595,7 @@ class workingctx(committablectx):
         if p2node is None:
             p2node = self._repo.nodeconstants.nullid
         dirstate = self._repo.dirstate
-        with dirstate.parentchange(self._repo):
+        with dirstate.changing_parents(self._repo):
             copies = dirstate.setparents(p1node, p2node)
             pctx = self._repo[p1node]
             if copies:
@@ -2050,7 +2050,7 @@ class workingctx(committablectx):
         return sorted(f for f in ds.matches(match) if ds.get_entry(f).tracked)
 
     def markcommitted(self, node):
-        with self._repo.dirstate.parentchange(self._repo):
+        with self._repo.dirstate.changing_parents(self._repo):
             for f in self.modified() + self.added():
                 self._repo.dirstate.update_file(
                     f, p1_tracked=True, wc_tracked=True

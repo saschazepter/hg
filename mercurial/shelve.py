@@ -637,7 +637,7 @@ def _docreatecmd(ui, repo, pats, opts):
 
         ui.status(_(b'shelved as %s\n') % name)
         if opts[b'keep']:
-            with repo.dirstate.parentchange(repo):
+            with repo.dirstate.changing_parents(repo):
                 scmutil.movedirstate(repo, parent, match)
         else:
             hg.update(repo, parent.node())
@@ -862,14 +862,14 @@ def unshelvecontinue(ui, repo, state, opts):
         shelvectx = repo[state.parents[1]]
         pendingctx = state.pendingctx
 
-        with repo.dirstate.parentchange(repo):
+        with repo.dirstate.changing_parents(repo):
             repo.setparents(state.pendingctx.node(), repo.nullid)
             repo.dirstate.write(repo.currenttransaction())
 
         targetphase = _target_phase(repo)
         overrides = {(b'phases', b'new-commit'): targetphase}
         with repo.ui.configoverride(overrides, b'unshelve'):
-            with repo.dirstate.parentchange(repo):
+            with repo.dirstate.changing_parents(repo):
                 repo.setparents(state.parents[0], repo.nullid)
                 newnode, ispartialunshelve = _createunshelvectx(
                     ui, repo, shelvectx, basename, interactive, opts
@@ -1068,7 +1068,7 @@ def _rebaserestoredcommit(
             )
             raise error.ConflictResolutionRequired(b'unshelve')
 
-        with repo.dirstate.parentchange(repo):
+        with repo.dirstate.changing_parents(repo):
             repo.setparents(tmpwctx.node(), repo.nullid)
             newnode, ispartialunshelve = _createunshelvectx(
                 ui, repo, shelvectx, basename, interactive, opts

@@ -216,7 +216,7 @@ def reposetup(ui, repo):
 def wrap_revert(orig, repo, ctx, names, uipathfn, actions, *args, **kwargs):
     # reset dirstate cache for file we touch
     ds = repo.dirstate
-    with ds.parentchange(repo):
+    with ds.changing_parents(repo):
         for filename in actions[b'revert'][0]:
             entry = ds.get_entry(filename)
             if entry is not None:
