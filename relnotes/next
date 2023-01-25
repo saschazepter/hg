@@ -2,6 +2,9 @@
 
 == New Features ==
 
+ * There is a new internal merge tool called `internal:union-other-first`.
+   It works like `internal:union` but add other side on top of local.
+
 == Default Format Change ==
 
 These changes affect newly created repositories (or new clones) done with
