@@ -7961,6 +7961,9 @@ def verify(ui, repo, **opts):
     for more information about recovery from corruption of the
     repository.
 
+    For an alternative UI with a lot more control over the verification
+    process and better error reporting, try `hg help admin::verify`.
+
     Returns 0 on success, 1 if errors are encountered.
     """
     level = None

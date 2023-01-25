@@ -6,6 +6,7 @@
 # GNU General Public License version 2 or any later version.
 
 
+from typing import Any, List, Optional, Tuple
 from . import (
     configitems,
     error,
@@ -533,3 +534,30 @@ class internalmerge(_funcregistrarbase):
 
         # actual capabilities, which this internal merge tool has
         func.capabilities = {b"binary": binarycap, b"symlink": symlinkcap}
+
+
+class verify_check(_funcregistrarbase):
+    """Decorator to register a check for admin::verify
+
+    options is a list of (name, default value, help) to be passed to the check
+    """
+
+    def __init__(self, table=None, alias_table=None):
+        super().__init__(table)
+        if alias_table is None:
+            self._alias_table = {}
+        else:
+            self._alias_table = alias_table
+
+    def _extrasetup(
+        self,
+        name,
+        func,
+        alias: Optional[bytes] = None,
+        options: Optional[List[Tuple[bytes, Any, bytes]]] = None,
+    ):
+        func.alias = alias
+        func.options = options
+
+        if alias:
+            self._alias_table[alias] = name
