@@ -578,12 +578,10 @@ fn unsure_is_modified(
 
     let entry_flags = if check_exec {
         entry.flags
+    } else if entry.flags == Some(b'x') {
+        None
     } else {
-        if entry.flags == Some(b'x') {
-            None
-        } else {
-            entry.flags
-        }
+        entry.flags
     };
 
     if entry_flags != fs_flags {
