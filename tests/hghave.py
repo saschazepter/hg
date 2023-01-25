@@ -661,52 +661,22 @@ def has_pygments():
         return False
 
 
-@check("pygments25", "Pygments version >= 2.5")
-def pygments25():
+def getpygmentsversion():
     try:
         import pygments
 
         v = pygments.__version__
+
+        parts = v.split(".")
+        return (int(parts[0]), int(parts[1]))
     except ImportError:
-        return False
-
-    parts = v.split(".")
-    major = int(parts[0])
-    minor = int(parts[1])
-
-    return (major, minor) >= (2, 5)
+        return (0, 0)
 
 
-@check("pygments211", "Pygments version >= 2.11")
-def pygments211():
-    try:
-        import pygments
-
-        v = pygments.__version__
-    except ImportError:
-        return False
-
-    parts = v.split(".")
-    major = int(parts[0])
-    minor = int(parts[1])
-
-    return (major, minor) >= (2, 11)
-
-
-@check("pygments214", "Pygments version >= 2.14")
-def pygments214():
-    try:
-        import pygments
-
-        v = pygments.__version__
-    except ImportError:
-        return False
-
-    parts = v.split(".")
-    major = int(parts[0])
-    minor = int(parts[1])
-
-    return (major, minor) >= (2, 14)
+@checkvers("pygments", "Pygments version >= %s", (2.5, 2.11, 2.14))
+def has_pygments_range(v):
+    major, minor = v.split('.')[0:2]
+    return getpygmentsversion() >= (int(major), int(minor))
 
 
 @check("outer-repo", "outer repo")
