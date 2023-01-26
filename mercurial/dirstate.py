@@ -92,6 +92,7 @@ def requires_not_changing_parents(func):
 
 
 CHANGE_TYPE_PARENTS = "parents"
+CHANGE_TYPE_FILES = "files"
 
 
 @interfaceutil.implementer(intdirstate.idirstate)
@@ -215,6 +216,11 @@ class dirstate:
         with self._changing(repo, CHANGE_TYPE_PARENTS) as c:
             yield c
 
+    @contextlib.contextmanager
+    def changing_files(self, repo):
+        with self._changing(repo, CHANGE_TYPE_FILES) as c:
+            yield c
+
     # here to help migration to the new code
     def parentchange(self):
         msg = (
@@ -249,6 +255,15 @@ class dirstate:
         if self._changing_level <= 0:
             return False
         return self._change_type == CHANGE_TYPE_PARENTS
+
+    @property
+    def is_changing_files(self):
+        """Returns true if the dirstate is in the middle of a set of changes
+        that modify the files tracked or their sources.
+        """
+        if self._changing_level <= 0:
+            return False
+        return self._change_type == CHANGE_TYPE_FILES
 
     @propertycache
     def _map(self):
