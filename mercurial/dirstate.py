@@ -66,7 +66,7 @@ class rootcache(filecache):
         return obj._join(fname)
 
 
-def requires_parents_change(func):
+def requires_changing_parents(func):
     def wrap(self, *args, **kwargs):
         if not self.pendingparentchange():
             msg = 'calling `%s` outside of a changing_parents context'
@@ -530,7 +530,7 @@ class dirstate:
         self._dirty = True
         self._map.set_possibly_dirty(filename)
 
-    @requires_parents_change
+    @requires_changing_parents
     def update_file_p1(
         self,
         filename,
@@ -570,7 +570,7 @@ class dirstate:
             has_meaningful_mtime=False,
         )
 
-    @requires_parents_change
+    @requires_changing_parents
     def update_file(
         self,
         filename,
