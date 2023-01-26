@@ -91,6 +91,9 @@ def requires_not_changing_parents(func):
     return wrap
 
 
+CHANGE_TYPE_PARENTS = "parents"
+
+
 @interfaceutil.implementer(intdirstate.idirstate)
 class dirstate:
     def __init__(
@@ -129,6 +132,8 @@ class dirstate:
         self._filecache = {}
         # nesting level of `changing_parents` context
         self._changing_level = 0
+        # the change currently underway
+        self._change_type = None
         # True if the current dirstate changing operations have been
         # invalidated (used to make sure all nested contexts have been exited)
         self._invalidated_context = False
@@ -151,18 +156,24 @@ class dirstate:
         self._pl
 
     @contextlib.contextmanager
-    def changing_parents(self, repo):
-        """Context manager for handling dirstate parents.
-
-        If an exception occurs in the scope of the context manager,
-        the incoherent dirstate won't be written when wlock is
-        released.
-        """
+    def _changing(self, repo, change_type):
         if repo.currentwlock() is None:
-            msg = b"changing parents without holding the wlock"
+            msg = b"trying to change the dirstate without holding the wlock"
             raise error.ProgrammingError(msg)
         if self._invalidated_context:
             msg = "trying to use an invalidated dirstate before it has reset"
+            raise error.ProgrammingError(msg)
+
+        # different type of change are mutually exclusive
+        if self._change_type is None:
+            assert self._changing_level == 0
+            self._change_type = change_type
+        elif self._change_type != change_type:
+            msg = (
+                'trying to open "%s" dirstate-changing context while a "%s" is'
+                ' already open'
+            )
+            msg %= (change_type, self._change_type)
             raise error.ProgrammingError(msg)
         self._changing_level += 1
         try:
@@ -180,6 +191,7 @@ class dirstate:
                 # The invalidation is complete once we exit the final context
                 # manager
                 if self._changing_level <= 0:
+                    self._change_type = None
                     assert self._changing_level == 0
                     if self._invalidated_context:
                         self._invalidated_context = False
@@ -193,6 +205,11 @@ class dirstate:
                         # calling) might have been called by a nested context
                         # instead of the top level one.
                         self.write(repo.currenttransaction())
+
+    @contextlib.contextmanager
+    def changing_parents(self, repo):
+        with self._changing(repo, CHANGE_TYPE_PARENTS) as c:
+            yield c
 
     # here to help migration to the new code
     def parentchange(self):
@@ -211,6 +228,9 @@ class dirstate:
         return self._changing_level > 0
 
     def pendingparentchange(self):
+        return self.is_changing_parent()
+
+    def is_changing_parent(self):
         """Returns true if the dirstate is in the middle of a set of changes
         that modify the dirstate parent.
         """
@@ -222,7 +242,9 @@ class dirstate:
         """Returns true if the dirstate is in the middle of a set of changes
         that modify the dirstate parent.
         """
-        return self._changing_level > 0
+        if self._changing_level <= 0:
+            return False
+        return self._change_type == CHANGE_TYPE_PARENTS
 
     @propertycache
     def _map(self):
