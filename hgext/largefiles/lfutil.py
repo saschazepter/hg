@@ -223,20 +223,30 @@ def openlfdirstate(ui, repo, create=True):
     # it. This ensures that we create it on the first meaningful
     # largefiles operation in a new clone.
     if create and not vfs.exists(vfs.join(lfstoredir, b'dirstate')):
-        matcher = getstandinmatcher(repo)
-        standins = repo.dirstate.walk(
-            matcher, subrepos=[], unknown=False, ignored=False
-        )
-
-        if len(standins) > 0:
-            vfs.makedirs(lfstoredir)
-
-        with lfdirstate.changing_parents(repo):
-            for standin in standins:
-                lfile = splitstandin(standin)
-                lfdirstate.update_file(
-                    lfile, p1_tracked=True, wc_tracked=True, possibly_dirty=True
+        try:
+            with repo.wlock(wait=False):
+                matcher = getstandinmatcher(repo)
+                standins = repo.dirstate.walk(
+                    matcher, subrepos=[], unknown=False, ignored=False
                 )
+
+                if len(standins) > 0:
+                    vfs.makedirs(lfstoredir)
+
+                with lfdirstate.changing_parents(repo):
+                    for standin in standins:
+                        lfile = splitstandin(standin)
+                        lfdirstate.update_file(
+                            lfile,
+                            p1_tracked=True,
+                            wc_tracked=True,
+                            possibly_dirty=True,
+                        )
+        except error.LockError:
+            # Assume that whatever was holding the lock was important.
+            # If we were doing something important, we would already have
+            # either the lock or a largefile dirstate.
+            pass
     return lfdirstate
 
 
