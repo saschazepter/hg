@@ -128,7 +128,7 @@ class dirstate:
         self._ui = ui
         self._filecache = {}
         # nesting level of `changing_parents` context
-        self._parentwriters = 0
+        self._changing_level = 0
         # True if the current dirstate changing operations have been
         # invalidated (used to make sure all nested contexts have been exited)
         self._invalidated_context = False
@@ -164,23 +164,23 @@ class dirstate:
         if self._invalidated_context:
             msg = "trying to use an invalidated dirstate before it has reset"
             raise error.ProgrammingError(msg)
-        self._parentwriters += 1
+        self._changing_level += 1
         try:
             yield
         except Exception:
             self.invalidate()
             raise
         finally:
-            if self._parentwriters > 0:
+            if self._changing_level > 0:
                 if self._invalidated_context:
                     # make sure we invalidate anything an upper context might
                     # have changed.
                     self.invalidate()
-                self._parentwriters -= 1
+                self._changing_level -= 1
                 # The invalidation is complete once we exit the final context
                 # manager
-                if self._parentwriters <= 0:
-                    assert self._parentwriters == 0
+                if self._changing_level <= 0:
+                    assert self._changing_level == 0
                     if self._invalidated_context:
                         self._invalidated_context = False
                     else:
@@ -206,7 +206,7 @@ class dirstate:
         """Returns true if the dirstate is in the middle of a set of changes
         that modify the dirstate parent.
         """
-        return self._parentwriters > 0
+        return self._changing_level > 0
 
     @propertycache
     def _map(self):
@@ -418,7 +418,7 @@ class dirstate:
         """
         if p2 is None:
             p2 = self._nodeconstants.nullid
-        if self._parentwriters == 0:
+        if self._changing_level == 0:
             raise ValueError(
                 b"cannot set dirstate parent outside of "
                 b"dirstate.changing_parents context manager"
@@ -461,7 +461,7 @@ class dirstate:
                 delattr(self, a)
         self._dirty = False
         self._dirty_tracked_set = False
-        self._invalidated_context = self._parentwriters > 0
+        self._invalidated_context = self._changing_level > 0
         self._origpl = None
 
     def copy(self, source, dest):
@@ -769,7 +769,6 @@ class dirstate:
         self._dirty = True
 
     def rebuild(self, parent, allfiles, changedfiles=None):
-
         matcher = self._sparsematcher
         if matcher is not None and not matcher.always():
             # should not add non-matching files
@@ -808,7 +807,6 @@ class dirstate:
         self._map.setparents(parent, self._nodeconstants.nullid)
 
         for f in to_lookup:
-
             if self.in_merge:
                 self.set_tracked(f)
             else:
@@ -1020,7 +1018,8 @@ class dirstate:
                     badfn(ff, badtype(kind))
                     if nf in dmap:
                         results[nf] = None
-            except OSError as inst:  # nf not found on disk - it is dirstate only
+            except (OSError) as inst:
+                # nf not found on disk - it is dirstate only
                 if nf in dmap:  # does it exactly match a missing file?
                     results[nf] = None
                 else:  # does it match a missing directory?
@@ -1330,7 +1329,7 @@ class dirstate:
                         )
                     )
 
-        for (fn, message) in bad:
+        for fn, message in bad:
             matcher.bad(fn, encoding.strtolocal(message))
 
         status = scmutil.status(
