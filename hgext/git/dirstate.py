@@ -265,6 +265,11 @@ class gitdirstate:
         # correctly stage/revert index edits.
         return False
 
+    def is_changing_any(self):
+        # TODO: we need to implement the context manager bits and
+        # correctly stage/revert index edits.
+        return False
+
     def write(self, tr):
         # TODO: call parent change callbacks
 
