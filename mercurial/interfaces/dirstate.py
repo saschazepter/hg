@@ -30,6 +30,9 @@ class idirstate(interfaceutil.Interface):
     is_changing_parents = interfaceutil.Attribute(
         """True if parents changes in progress."""
     )
+    is_changing_files = interfaceutil.Attribute(
+        """True if file tracking changes in progress."""
+    )
 
     def _ignorefiles():
         """Return a list of files containing patterns to ignore."""
@@ -43,6 +46,15 @@ class idirstate(interfaceutil.Interface):
     @contextlib.contextmanager
     def changing_parents(repo):
         """Context manager for handling dirstate parents.
+
+        If an exception occurs in the scope of the context manager,
+        the incoherent dirstate won't be written when wlock is
+        released.
+        """
+
+    @contextlib.contextmanager
+    def changing_files(repo):
+        """Context manager for handling dirstate files.
 
         If an exception occurs in the scope of the context manager,
         the incoherent dirstate won't be written when wlock is
