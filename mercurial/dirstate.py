@@ -80,7 +80,7 @@ def requires_changing_parents(func):
     return wrap
 
 
-def requires_no_parents_change(func):
+def requires_not_changing_parents(func):
     def wrap(self, *args, **kwargs):
         if self.pendingparentchange():
             msg = 'calling `%s` inside of a changing_parents context'
@@ -478,7 +478,7 @@ class dirstate:
     def copies(self):
         return self._map.copymap
 
-    @requires_no_parents_change
+    @requires_not_changing_parents
     def set_tracked(self, filename, reset_copy=False):
         """a "public" method for generic code to mark a file as tracked
 
@@ -500,7 +500,7 @@ class dirstate:
             self._dirty_tracked_set = True
         return pre_tracked
 
-    @requires_no_parents_change
+    @requires_not_changing_parents
     def set_untracked(self, filename):
         """a "public" method for generic code to mark a file as untracked
 
@@ -515,7 +515,7 @@ class dirstate:
             self._dirty_tracked_set = True
         return ret
 
-    @requires_no_parents_change
+    @requires_not_changing_parents
     def set_clean(self, filename, parentfiledata):
         """record that the current state of the file on disk is known to be clean"""
         self._dirty = True
@@ -524,7 +524,7 @@ class dirstate:
         (mode, size, mtime) = parentfiledata
         self._map.set_clean(filename, mode, size, mtime)
 
-    @requires_no_parents_change
+    @requires_not_changing_parents
     def set_possibly_dirty(self, filename):
         """record that the current state of the file on disk is unknown"""
         self._dirty = True
