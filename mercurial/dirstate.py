@@ -80,6 +80,17 @@ def requires_changing_parents(func):
     return wrap
 
 
+def requires_changing_files(func):
+    def wrap(self, *args, **kwargs):
+        if not self.is_changing_files:
+            msg = 'calling `%s` outside of a `changing_files`'
+            msg %= func.__name__
+            raise error.ProgrammingError(msg)
+        return func(self, *args, **kwargs)
+
+    return wrap
+
+
 def requires_not_changing_parents(func):
     def wrap(self, *args, **kwargs):
         if self.is_changing_parents:
@@ -539,6 +550,7 @@ class dirstate:
         return self._map.copymap
 
     @requires_not_changing_parents
+    @requires_changing_files
     def set_tracked(self, filename, reset_copy=False):
         """a "public" method for generic code to mark a file as tracked
 
@@ -561,6 +573,7 @@ class dirstate:
         return pre_tracked
 
     @requires_not_changing_parents
+    @requires_changing_files
     def set_untracked(self, filename):
         """a "public" method for generic code to mark a file as untracked
 
