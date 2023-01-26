@@ -202,6 +202,14 @@ class dirstate:
         )
         raise error.ProgrammingError(msg)
 
+    @property
+    def is_changing_any(self):
+        """Returns true if the dirstate is in the middle of a set of changes.
+
+        This returns True for any kind of change.
+        """
+        return self._changing_level > 0
+
     def pendingparentchange(self):
         """Returns true if the dirstate is in the middle of a set of changes
         that modify the dirstate parent.

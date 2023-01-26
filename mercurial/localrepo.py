@@ -3070,7 +3070,7 @@ class localrepository:
                 self.ui.develwarn(b'"wlock" acquired after "lock"')
 
         def unlock():
-            if self.dirstate.is_changing_parents:
+            if self.dirstate.is_changing_any:
                 msg = b"wlock release in the middle of a changing parents"
                 self.ui.develwarn(msg)
                 self.dirstate.invalidate()

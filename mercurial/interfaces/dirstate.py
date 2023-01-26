@@ -24,6 +24,9 @@ class idirstate(interfaceutil.Interface):
     # TODO: all these private methods and attributes should be made
     # public or removed from the interface.
     _ignore = interfaceutil.Attribute("""Matcher for ignored files.""")
+    is_changing_any = interfaceutil.Attribute(
+        """True if any changes in progress."""
+    )
     is_changing_parents = interfaceutil.Attribute(
         """True if parents changes in progress."""
     )
