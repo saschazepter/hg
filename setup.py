@@ -1454,11 +1454,13 @@ class RustStandaloneExtension(RustExtension):
         target = [target_dir]
         target.extend(self.name.split('.'))
         target[-1] += DYLIB_SUFFIX
+        target = os.path.join(*target)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
         shutil.copy2(
             os.path.join(
                 self.rusttargetdir, self.dylibname + self.rustdylibsuffix()
             ),
-            os.path.join(*target),
+            target,
         )
 
 
