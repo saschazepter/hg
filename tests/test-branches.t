@@ -82,6 +82,11 @@ trailing or leading spaces should be stripped before testing duplicates
   (use 'hg update' to switch to it)
   [10]
 
+underscores in numeric branch names (issue6737)
+
+  $ hg branch 2700_210
+  marked working directory as branch 2700_210
+
 verify update will accept invalid legacy branch names
 
   $ hg init test-invalid-branch-name
