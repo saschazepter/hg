@@ -260,7 +260,7 @@ class gitdirstate:
     # # TODO what the heck is this
     _filecache = set()
 
-    def pendingparentchange(self):
+    def is_changing_parents(self):
         # TODO: we need to implement the context manager bits and
         # correctly stage/revert index edits.
         return False

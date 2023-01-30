@@ -68,7 +68,7 @@ class rootcache(filecache):
 
 def requires_changing_parents(func):
     def wrap(self, *args, **kwargs):
-        if not self.pendingparentchange():
+        if not self.is_changing_parents:
             msg = 'calling `%s` outside of a changing_parents context'
             msg %= func.__name__
             raise error.ProgrammingError(msg)
@@ -82,7 +82,7 @@ def requires_changing_parents(func):
 
 def requires_not_changing_parents(func):
     def wrap(self, *args, **kwargs):
-        if self.pendingparentchange():
+        if self.is_changing_parents:
             msg = 'calling `%s` inside of a changing_parents context'
             msg %= func.__name__
             raise error.ProgrammingError(msg)
@@ -203,6 +203,14 @@ class dirstate:
         raise error.ProgrammingError(msg)
 
     def pendingparentchange(self):
+        """Returns true if the dirstate is in the middle of a set of changes
+        that modify the dirstate parent.
+        """
+        self._ui.deprecwarn(b"dirstate.is_changing_parents", b"6.5")
+        return self.is_changing_parents
+
+    @property
+    def is_changing_parents(self):
         """Returns true if the dirstate is in the middle of a set of changes
         that modify the dirstate parent.
         """
