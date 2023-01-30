@@ -612,7 +612,6 @@ def makelocalrepository(baseui, path: bytes, intents=None):
     # to be reshared
     hint = _(b"see `hg help config.format.use-share-safe` for more information")
     if requirementsmod.SHARESAFE_REQUIREMENT in requirements:
-
         if (
             shared
             and requirementsmod.SHARESAFE_REQUIREMENT
@@ -2121,7 +2120,7 @@ class localrepository:
         # writing to the cache), but the rest of Mercurial wants them in
         # local encoding.
         tags = {}
-        for (name, (node, hist)) in alltags.items():
+        for name, (node, hist) in alltags.items():
             if node != self.nullid:
                 tags[encoding.tolocal(name)] = node
         tags[b'tip'] = self.changelog.tip()
@@ -2900,7 +2899,6 @@ class localrepository:
                 filtered.branchmap().write(filtered)
 
     def invalidatecaches(self):
-
         if '_tagscache' in vars(self):
             # can't use delattr on proxy
             del self.__dict__['_tagscache']
@@ -3072,7 +3070,7 @@ class localrepository:
                 self.ui.develwarn(b'"wlock" acquired after "lock"')
 
         def unlock():
-            if self.dirstate.pendingparentchange():
+            if self.dirstate.is_changing_parents:
                 msg = b"wlock release in the middle of a changing parents"
                 self.ui.develwarn(msg)
                 self.dirstate.invalidate()
@@ -3549,7 +3547,6 @@ def undoname(fn: bytes) -> bytes:
 
 
 def instance(ui, path: bytes, create, intents=None, createopts=None):
-
     # prevent cyclic import localrepo -> upgrade -> localrepo
     from . import upgrade
 

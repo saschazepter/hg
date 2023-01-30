@@ -1867,7 +1867,7 @@ class workingctx(committablectx):
                     dirstate = self._repo.dirstate
                     if dirstate.identity() == oldid:
                         if fixup:
-                            if dirstate.pendingparentchange():
+                            if dirstate.is_changing_parents:
                                 normal = lambda f, pfd: dirstate.update_file(
                                     f, p1_tracked=True, wc_tracked=True
                                 )
