@@ -533,6 +533,8 @@ def makebundlerepository(ui, repopath, bundlepath):
     try:
         repo = localrepo.instance(ui, repopath, create=False)
         tempparent = None
+    except error.RequirementError:
+        raise  # no fallback if the backing repo is unsupported
     except error.RepoError:
         tempparent = pycompat.mkdtemp()
         try:
