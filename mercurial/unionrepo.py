@@ -113,7 +113,7 @@ class unionrevlog(revlog.revlog):
             self.bundlerevs.add(n)
             n += 1
 
-    def _chunk(self, rev):
+    def _chunk(self, rev, df=None):
         if rev <= self.repotiprev:
             return revlog.revlog._chunk(self, rev)
         return self.revlog2._chunk(self.node(rev))
@@ -146,7 +146,19 @@ class unionrevlog(revlog.revlog):
             func = super(unionrevlog, self)._revisiondata
         return func(node, _df=_df, raw=raw)
 
-    def addrevision(self, text, transaction, link, p1=None, p2=None, d=None):
+    def addrevision(
+        self,
+        text,
+        transaction,
+        link,
+        p1,
+        p2,
+        cachedelta=None,
+        node=None,
+        flags=revlog.REVIDX_DEFAULT_FLAGS,
+        deltacomputer=None,
+        sidedata=None,
+    ):
         raise NotImplementedError
 
     def addgroup(
@@ -157,7 +169,8 @@ class unionrevlog(revlog.revlog):
         alwayscache=False,
         addrevisioncb=None,
         duplicaterevisioncb=None,
-        maybemissingparents=False,
+        debug_info=None,
+        delta_base_reuse_policy=None,
     ):
         raise NotImplementedError
 
