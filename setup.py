@@ -337,8 +337,12 @@ if os.path.isdir('.hg'):
     else:  # no tag found
         ltagcmd = ['parents', '--template', '{latesttag}']
         ltag = sysstr(hg.run(ltagcmd))
+        if not ltag:
+            ltag = 'null'
         changessincecmd = ['log', '-T', 'x\n', '-r', "only(.,'%s')" % ltag]
         changessince = len(hg.run(changessincecmd).splitlines())
+        if ltag == 'null':
+            ltag = '0.0'
         version = '%s+hg%s.%s' % (ltag, changessince, hgid)
     if version.endswith('+'):
         version = version[:-1] + 'local' + time.strftime('%Y%m%d')
