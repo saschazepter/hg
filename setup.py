@@ -221,9 +221,10 @@ class hgcommand:
         cmd = self.cmd + args
         returncode, out, err = runcmd(cmd, self.env)
         err = filterhgerr(err)
-        if err or returncode != 0:
+        if err:
             print("stderr from '%s':" % (' '.join(cmd)), file=sys.stderr)
             print(err, file=sys.stderr)
+        if returncode != 0:
             return b''
         return out
 
