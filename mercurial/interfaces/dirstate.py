@@ -24,6 +24,9 @@ class idirstate(interfaceutil.Interface):
     # TODO: all these private methods and attributes should be made
     # public or removed from the interface.
     _ignore = interfaceutil.Attribute("""Matcher for ignored files.""")
+    is_changing_parents = interfaceutil.Attribute(
+        """True if parents changes in progress."""
+    )
 
     def _ignorefiles():
         """Return a list of files containing patterns to ignore."""
@@ -41,11 +44,6 @@ class idirstate(interfaceutil.Interface):
         If an exception occurs in the scope of the context manager,
         the incoherent dirstate won't be written when wlock is
         released.
-        """
-
-    def pendingparentchange():
-        """Returns true if the dirstate is in the middle of a set of changes
-        that modify the dirstate parent.
         """
 
     def hasdir(d):
