@@ -88,7 +88,7 @@ class bundlerevlog(revlog.revlog):
                     )
 
             if not self.index.has_node(deltabase):
-                raise LookupError(
+                raise error.LookupError(
                     deltabase, self.display_id, _(b'unknown delta base')
                 )
 
