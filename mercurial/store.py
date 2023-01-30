@@ -524,7 +524,7 @@ class basicstore:
                 yield (FILETYPE_OTHER | t, u, s)
 
     def walk(self, matcher=None):
-        """return file related to data storage (ie: revlogs)
+        """return files related to data storage (ie: revlogs)
 
         yields (file_type, unencoded, size)
 
