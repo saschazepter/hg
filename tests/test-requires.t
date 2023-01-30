@@ -81,4 +81,14 @@ another repository of push/pull/clone on localhost:
   abort: required features are not supported in the destination: featuresetup-test
   [255]
 
+Bundlerepo also enforces the underlying repo requirements
+
+  $ hg --cwd supported bundle --all ../bundle.hg
+  1 changesets found
+  $ echo outdoor-pool > push-dst/.hg/requires
+  $ hg --cwd push-dst log -R ../bundle.hg -T phases
+  abort: repository requires features unknown to this Mercurial: outdoor-pool
+  (see https://mercurial-scm.org/wiki/MissingRequirement for more information)
+  [255]
+
   $ cd ..
