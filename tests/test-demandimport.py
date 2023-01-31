@@ -8,6 +8,7 @@ import sys
 import types
 
 # Don't import pycompat because it has too many side-effects.
+ispy311 = (sys.version_info.major, sys.version_info.minor) >= (3, 11)
 
 # Only run if demandimport is allowed
 if subprocess.call(
@@ -73,8 +74,7 @@ demandimport.enable()
 assert 'mercurial.error' not in sys.modules
 from mercurial import error as errorproxy
 
-# unsure why this isn't lazy.
-assert not isinstance(f, _LazyModule)
+assert isinstance(errorproxy, _LazyModule)
 assert f(errorproxy) == "<module 'mercurial.error' from '?'>", f(errorproxy)
 
 doc = ' '.join(errorproxy.__doc__.split()[:3])
@@ -92,10 +92,16 @@ assert f(errorproxy) == "<module 'mercurial.error' from '?'>", f(errorproxy)
 import os
 
 assert not isinstance(os, _LazyModule)
-assert f(os) == "<module 'os' from '?'>", f(os)
+if ispy311:
+    assert f(os) == "<module 'os' (frozen)>", f(os)
+else:
+    assert f(os) == "<module 'os' from '?'>", f(os)
 
 assert f(os.system) == '<built-in function system>', f(os.system)
-assert f(os) == "<module 'os' from '?'>", f(os)
+if ispy311:
+    assert f(os) == "<module 'os' (frozen)>", f(os)
+else:
+    assert f(os) == "<module 'os' from '?'>", f(os)
 
 assert 'mercurial.utils.procutil' not in sys.modules
 from mercurial.utils import procutil

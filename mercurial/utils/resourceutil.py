@@ -59,7 +59,10 @@ try:
     from importlib import resources  # pytype: disable=import-error
 
     # Force loading of the resources module
-    resources.open_binary  # pytype: disable=module-attr
+    if pycompat.safehasattr(resources, 'files'):
+        resources.files  # pytype: disable=module-attr
+    else:
+        resources.open_binary  # pytype: disable=module-attr
 
     # py2exe raises an AssertionError if uses importlib.resources
     if getattr(sys, "frozen", None) in ("console_exe", "windows_exe"):
@@ -92,9 +95,18 @@ else:
     from .. import encoding
 
     def open_resource(package, name):
-        return resources.open_binary(  # pytype: disable=module-attr
-            pycompat.sysstr(package), pycompat.sysstr(name)
-        )
+        if pycompat.safehasattr(resources, 'files'):
+            return (
+                resources.files(  # pytype: disable=module-attr
+                    pycompat.sysstr(package)
+                )
+                .joinpath(pycompat.sysstr(name))
+                .open('rb')
+            )
+        else:
+            return resources.open_binary(  # pytype: disable=module-attr
+                pycompat.sysstr(package), pycompat.sysstr(name)
+            )
 
     def is_resource(package, name):
         return resources.is_resource(  # pytype: disable=module-attr
