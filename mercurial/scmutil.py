@@ -278,6 +278,11 @@ def checknewlabel(repo, lbl, kind):
             )
     try:
         int(lbl)
+        if b'_' in lbl:
+            # If label contains underscores, Python might consider it an
+            # integer (with "_" as visual separators), but we do not.
+            # See PEP 515 - Underscores in Numeric Literals.
+            raise ValueError
         raise error.InputError(_(b"cannot use an integer as a name"))
     except ValueError:
         pass
