@@ -2981,16 +2981,16 @@ random sort
   $ hg log --rev 'sort(all(), "-random")' | wc -l
   \s*8 (re)
   $ hg log --rev 'sort(all(), "random", random.seed=celeste)'
-  6 b111 t2   tu   130 0
-  7 b111 t3   tu   130 0
-  4 b111 m112 u111 110 14400
-  3 b112 m111 u11  120 0
-  5 b111 t1   tu   130 0
   0 b12  m111 u112 111 10800
-  1 b11  m12  u111 112 7200
+  4 b111 m112 u111 110 14400
   2 b111 m11  u12  111 3600
-  $ hg log --rev 'first(sort(all(), "random", random.seed=celeste))'
   6 b111 t2   tu   130 0
+  1 b11  m12  u111 112 7200
+  7 b111 t3   tu   130 0
+  5 b111 t1   tu   130 0
+  3 b112 m111 u11  120 0
+  $ hg log --rev 'first(sort(all(), "random", random.seed=celeste))'
+  0 b12  m111 u112 111 10800
 
 
 topographical sorting can't be combined with other sort keys, and you can't
