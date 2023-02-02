@@ -520,7 +520,7 @@ def _callcatch(ui, func):
 def aliasargs(fn, givenargs):
     args = []
     # only care about alias 'args', ignore 'args' set by extensions.wrapfunction
-    if not util.safehasattr(fn, b'_origfunc'):
+    if not util.safehasattr(fn, '_origfunc'):
         args = getattr(fn, 'args', args)
     if args:
         cmd = b' '.join(map(procutil.shellquote, args))
