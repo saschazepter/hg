@@ -211,7 +211,7 @@ def _ctxsgen(context, ctxs):
             b'description': s.description(),
             b'branch': s.branch(),
         }
-        if util.safehasattr(s, b'path'):
+        if util.safehasattr(s, 'path'):
             d[b'file'] = s.path()
         yield d
 
