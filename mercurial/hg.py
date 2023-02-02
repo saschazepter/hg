@@ -1567,7 +1567,7 @@ def verify(repo, level=None):
 
 def remoteui(src, opts):
     """build a remote ui from ui or repo and opts"""
-    if util.safehasattr(src, b'baseui'):  # looks like a repository
+    if util.safehasattr(src, 'baseui'):  # looks like a repository
         dst = src.baseui.copy()  # drop repo-specific config
         src = src.ui  # copy target options from repo
     else:  # assume it's a global ui object
