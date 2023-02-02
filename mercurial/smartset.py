@@ -670,7 +670,7 @@ class addset(abstractsmartset):
         if self._ascending:
             attr = 'fastasc'
         else:
-            attr = b'fastdesc'
+            attr = 'fastdesc'
         it = getattr(self, attr)
         if it is not None:
             return it()
