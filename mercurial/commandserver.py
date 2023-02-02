@@ -559,7 +559,7 @@ class unixforkingservice:
         self.ui = ui
         self.repo = repo
         self.address = opts[b'address']
-        if not util.safehasattr(socket, b'AF_UNIX'):
+        if not util.safehasattr(socket, 'AF_UNIX'):
             raise error.Abort(_(b'unsupported platform'))
         if not self.address:
             raise error.Abort(_(b'no socket path specified with --address'))
