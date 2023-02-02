@@ -317,7 +317,7 @@ def sharedreposource(repo):
     if repo.sharedpath == repo.path:
         return None
 
-    if util.safehasattr(repo, b'srcrepo') and repo.srcrepo:
+    if util.safehasattr(repo, 'srcrepo') and repo.srcrepo:
         return repo.srcrepo
 
     # the sharedpath always ends in the .hg; we want the path to the repo
