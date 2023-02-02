@@ -400,7 +400,7 @@ def reporelpath(repo):
     # type: (localrepo.localrepository) -> bytes
     """return path to this (sub)repo as seen from outermost repo"""
     parent = repo
-    while util.safehasattr(parent, b'_subparent'):
+    while util.safehasattr(parent, '_subparent'):
         parent = parent._subparent
     return repo.root[len(pathutil.normasprefix(parent.root)) :]
 
