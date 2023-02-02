@@ -463,11 +463,11 @@ class phasecache:
     def replace(self, phcache):
         """replace all values in 'self' with content of phcache"""
         for a in (
-            b'phaseroots',
-            b'dirty',
-            b'opener',
-            b'_loadedrevslen',
-            b'_phasesets',
+            'phaseroots',
+            'dirty',
+            'opener',
+            '_loadedrevslen',
+            '_phasesets',
         ):
             setattr(self, a, getattr(phcache, a))
 
