@@ -708,7 +708,7 @@ class cmdalias:
         }
         if name not in adefaults:
             raise AttributeError(name)
-        if self.badalias or util.safehasattr(self, b'shell'):
+        if self.badalias or util.safehasattr(self, 'shell'):
             return adefaults[name]
         return getattr(self.fn, name)
 
