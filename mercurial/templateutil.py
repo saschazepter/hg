@@ -281,7 +281,7 @@ class hybrid(wrapped):
 
     def getmember(self, context, mapping, key):
         # TODO: maybe split hybrid list/dict types?
-        if not util.safehasattr(self._values, b'get'):
+        if not util.safehasattr(self._values, 'get'):
             raise error.ParseError(_(b'not a dictionary'))
         key = unwrapastype(context, mapping, key, self._keytype)
         return self._wrapvalue(key, self._values.get(key))
