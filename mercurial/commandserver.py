@@ -384,7 +384,7 @@ class server:
         if self.cmsg:
             hellomsg += b'message-encoding: %s\n' % self.cmsg.encoding
         hellomsg += b'pid: %d' % procutil.getpid()
-        if util.safehasattr(os, b'getpgid'):
+        if util.safehasattr(os, 'getpgid'):
             hellomsg += b'\n'
             hellomsg += b'pgid: %d' % os.getpgid(0)
 
