@@ -262,7 +262,7 @@ def _loadnewui(srcui, args, cdebug):
     newui = srcui.__class__.load()
     for a in [b'fin', b'fout', b'ferr', b'environ']:
         setattr(newui, a, getattr(srcui, a))
-    if util.safehasattr(srcui, b'_csystem'):
+    if util.safehasattr(srcui, '_csystem'):
         newui._csystem = srcui._csystem
 
     # command line args
