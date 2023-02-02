@@ -478,7 +478,7 @@ class hgweb:
 
         except (error.LookupError, error.RepoLookupError) as err:
             msg = pycompat.bytestr(err)
-            if util.safehasattr(err, b'name') and not isinstance(
+            if util.safehasattr(err, 'name') and not isinstance(
                 err, error.ManifestLookupError
             ):
                 msg = b'revision not found: %s' % err.name
