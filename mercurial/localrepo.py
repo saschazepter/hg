@@ -1567,7 +1567,7 @@ class localrepository:
         def checksvfs(path, mode=None):
             ret = origfunc(path, mode=mode)
             repo = rref()
-            if repo is None or not util.safehasattr(repo, b'_lockref'):
+            if repo is None or not util.safehasattr(repo, '_lockref'):
                 return
             if mode in (None, b'r', b'rb'):
                 return
