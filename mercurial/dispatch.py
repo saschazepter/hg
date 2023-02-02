@@ -107,7 +107,7 @@ class request:
 def _flushstdio(ui, err):
     status = None
     # In all cases we try to flush stdio streams.
-    if util.safehasattr(ui, b'fout'):
+    if util.safehasattr(ui, 'fout'):
         assert ui is not None  # help pytype
         assert ui.fout is not None  # help pytype
         try:
