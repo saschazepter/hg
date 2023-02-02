@@ -1518,8 +1518,8 @@ class localrepository:
             repo = rref()
             if (
                 repo is None
-                or not util.safehasattr(repo, b'_wlockref')
-                or not util.safehasattr(repo, b'_lockref')
+                or not util.safehasattr(repo, '_wlockref')
+                or not util.safehasattr(repo, '_lockref')
             ):
                 return
             if mode in (None, b'r', b'rb'):
