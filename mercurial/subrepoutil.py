@@ -415,7 +415,7 @@ def _abssource(repo, push=False, abort=True):
     # type: (localrepo.localrepository, bool, bool) -> Optional[bytes]
     """return pull/push path of repo - either based on parent repo .hgsub info
     or on the top repo config. Abort or return None if no source found."""
-    if util.safehasattr(repo, b'_subparent'):
+    if util.safehasattr(repo, '_subparent'):
         source = urlutil.url(repo._subsource)
         if source.isabs():
             return bytes(source)
