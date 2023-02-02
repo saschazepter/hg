@@ -419,7 +419,7 @@ def wrapsocket(sock, keyfile, certfile, ui, serverhostname=None):
             pass
 
         # Try to print more helpful error messages for known failures.
-        if util.safehasattr(e, b'reason'):
+        if util.safehasattr(e, 'reason'):
             # This error occurs when the client and server don't share a
             # common/supported SSL/TLS protocol. We've disabled SSLv2 and SSLv3
             # outright. Hopefully the reason for this error is that we require
