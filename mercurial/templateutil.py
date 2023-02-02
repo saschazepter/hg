@@ -341,7 +341,7 @@ class hybrid(wrapped):
     def tovalue(self, context, mapping):
         # TODO: make it non-recursive for trivial lists/dicts
         xs = self._values
-        if util.safehasattr(xs, b'get'):
+        if util.safehasattr(xs, 'get'):
             return {k: unwrapvalue(context, mapping, v) for k, v in xs.items()}
         return [unwrapvalue(context, mapping, x) for x in xs]
 
