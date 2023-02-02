@@ -858,7 +858,7 @@ def flatten(context, mapping, thing):
         )
     elif thing is None:
         pass
-    elif not util.safehasattr(thing, b'__iter__'):
+    elif not util.safehasattr(thing, '__iter__'):
         yield pycompat.bytestr(thing)
     else:
         for i in thing:
