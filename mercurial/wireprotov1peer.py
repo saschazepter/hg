@@ -483,7 +483,7 @@ class wirepeer(repository.peer):
         else:
             heads = wireprototypes.encodelist(heads)
 
-        if util.safehasattr(bundle, b'deltaheader'):
+        if util.safehasattr(bundle, 'deltaheader'):
             # this a bundle10, do the old style call sequence
             ret, output = self._callpush(b"unbundle", bundle, heads=heads)
             if ret == b"":
