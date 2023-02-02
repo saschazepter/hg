@@ -628,7 +628,7 @@ def wrapserversocket(
     # Otherwise, use the list of more secure ciphers if found in the ssl module.
     if exactprotocol:
         sslcontext.set_ciphers('DEFAULT:@SECLEVEL=0')
-    elif util.safehasattr(ssl, b'_RESTRICTED_SERVER_CIPHERS'):
+    elif util.safehasattr(ssl, '_RESTRICTED_SERVER_CIPHERS'):
         sslcontext.options |= getattr(ssl, 'OP_CIPHER_SERVER_PREFERENCE', 0)
         # pytype: disable=module-attr
         sslcontext.set_ciphers(ssl._RESTRICTED_SERVER_CIPHERS)
