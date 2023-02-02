@@ -332,7 +332,7 @@ class server:
             # any kind of interaction must use server channels, but chg may
             # replace channels by fully functional tty files. so nontty is
             # enforced only if cin is a channel.
-            if not util.safehasattr(self.cin, b'fileno'):
+            if not util.safehasattr(self.cin, 'fileno'):
                 ui.setconfig(b'ui', b'nontty', b'true', b'commandserver')
 
         req = dispatch.request(
