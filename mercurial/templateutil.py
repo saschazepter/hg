@@ -307,7 +307,7 @@ class hybrid(wrapped):
         return hybriditem(None, key, val, self._makemap)
 
     def filter(self, context, mapping, select):
-        if util.safehasattr(self._values, b'get'):
+        if util.safehasattr(self._values, 'get'):
             values = {
                 k: v
                 for k, v in self._values.items()
