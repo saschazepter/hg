@@ -214,7 +214,7 @@ class _httprequesthandler(httpservermod.basehttprequesthandler):
         env['wsgi.multithread'] = isinstance(
             self.server, socketserver.ThreadingMixIn
         )
-        if util.safehasattr(socketserver, b'ForkingMixIn'):
+        if util.safehasattr(socketserver, 'ForkingMixIn'):
             env['wsgi.multiprocess'] = isinstance(
                 self.server, socketserver.ForkingMixIn
             )
