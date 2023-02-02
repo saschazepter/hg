@@ -331,7 +331,7 @@ def _runcatch(req):
 
         ui = req.ui
         try:
-            for name in b'SIGBREAK', b'SIGHUP', b'SIGTERM':
+            for name in 'SIGBREAK', 'SIGHUP', 'SIGTERM':
                 num = getattr(signal, name, None)
                 if num:
                     signal.signal(num, catchterm)
