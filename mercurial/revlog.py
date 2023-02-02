@@ -1782,7 +1782,7 @@ class revlog:
         """tells whether rev is a snapshot"""
         if not self._sparserevlog:
             return self.deltaparent(rev) == nullrev
-        elif util.safehasattr(self.index, b'issnapshot'):
+        elif util.safehasattr(self.index, 'issnapshot'):
             # directly assign the method to cache the testing and access
             self.issnapshot = self.index.issnapshot
             return self.issnapshot(rev)
