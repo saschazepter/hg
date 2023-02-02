@@ -1278,7 +1278,7 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
     if opts.get(b'old'):
 
         def doit(pushedrevs, remoteheads, remote=remote):
-            if not util.safehasattr(remote, b'branches'):
+            if not util.safehasattr(remote, 'branches'):
                 # enable in-client legacy support
                 remote = localrepo.locallegacypeer(remote.local())
                 if remote_revs:
