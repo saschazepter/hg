@@ -734,7 +734,7 @@ class cmdalias:
             self.name,
             self.definition,
         )
-        if util.safehasattr(self, b'shell'):
+        if util.safehasattr(self, 'shell'):
             return self.fn(ui, *args, **opts)
         else:
             try:
