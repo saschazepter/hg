@@ -668,7 +668,7 @@ class addset(abstractsmartset):
         # try to use our own fast iterator if it exists
         self._trysetasclist()
         if self._ascending:
-            attr = b'fastasc'
+            attr = 'fastasc'
         else:
             attr = b'fastdesc'
         it = getattr(self, attr)
