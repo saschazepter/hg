@@ -236,7 +236,7 @@ def _newchgui(srcui, csystem, attachio):
             # will behave differently (i.e. write to stdout).
             if (
                 out is not self.fout
-                or not util.safehasattr(self.fout, b'fileno')
+                or not util.safehasattr(self.fout, 'fileno')
                 or self.fout.fileno() != procutil.stdout.fileno()
                 or self._finoutredirected
             ):
