@@ -346,7 +346,7 @@ def json(obj, paranoid=True):
             for k, v in sorted(obj.items())
         ]
         return b'{' + b', '.join(out) + b'}'
-    elif util.safehasattr(obj, b'__iter__'):
+    elif util.safehasattr(obj, '__iter__'):
         out = [json(i, paranoid) for i in obj]
         return b'[' + b', '.join(out) + b']'
     raise error.ProgrammingError(b'cannot encode %r' % obj)
