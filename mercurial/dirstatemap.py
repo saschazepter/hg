@@ -343,7 +343,7 @@ class dirstatemap(_dirstatemapcommon):
             return
 
         # TODO: adjust this estimate for dirstate-v2
-        if util.safehasattr(parsers, b'dict_new_presized'):
+        if util.safehasattr(parsers, 'dict_new_presized'):
             # Make an estimate of the number of files in the dirstate based on
             # its size. This trades wasting some memory for avoiding costly
             # resizes. Each entry have a prefix of 17 bytes followed by one or
