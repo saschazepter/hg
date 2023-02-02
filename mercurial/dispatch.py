@@ -116,7 +116,7 @@ def _flushstdio(ui, err):
             err = e
             status = -1
 
-    if util.safehasattr(ui, b'ferr'):
+    if util.safehasattr(ui, 'ferr'):
         assert ui is not None  # help pytype
         assert ui.ferr is not None  # help pytype
         try:
