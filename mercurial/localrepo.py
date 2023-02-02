@@ -415,7 +415,7 @@ class localpeer(repository.peer):
             try:
                 bundle = exchange.readbundle(self.ui, bundle, None)
                 ret = exchange.unbundle(self._repo, bundle, heads, b'push', url)
-                if util.safehasattr(ret, b'getchunks'):
+                if util.safehasattr(ret, 'getchunks'):
                     # This is a bundle20 object, turn it into an unbundler.
                     # This little dance should be dropped eventually when the
                     # API is finally improved.
