@@ -428,7 +428,7 @@ def _abssource(repo, push=False, abort=True):
             return bytes(parent)
     else:  # recursion reached top repo
         path = None
-        if util.safehasattr(repo, b'_subtoppath'):
+        if util.safehasattr(repo, '_subtoppath'):
             path = repo._subtoppath
         elif push and repo.ui.config(b'paths', b'default-push'):
             path = repo.ui.config(b'paths', b'default-push')
