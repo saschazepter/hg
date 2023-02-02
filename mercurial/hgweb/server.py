@@ -344,7 +344,7 @@ try:
     threading.active_count()  # silence pyflakes and bypass demandimport
     _mixin = socketserver.ThreadingMixIn
 except ImportError:
-    if util.safehasattr(os, b"fork"):
+    if util.safehasattr(os, "fork"):
         _mixin = socketserver.ForkingMixIn
     else:
 
