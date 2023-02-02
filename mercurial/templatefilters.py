@@ -339,7 +339,7 @@ def json(obj, paranoid=True):
         raise error.ProgrammingError(
             b'Mercurial only does output with bytes: %r' % obj
         )
-    elif util.safehasattr(obj, b'keys'):
+    elif util.safehasattr(obj, 'keys'):
         out = [
             b'"%s": %s'
             % (encoding.jsonescape(k, paranoid=paranoid), json(v, paranoid))
