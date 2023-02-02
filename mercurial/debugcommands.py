@@ -1943,7 +1943,7 @@ def debugindexstats(ui, repo):
     """show stats related to the changelog index"""
     repo.changelog.shortest(repo.nullid, 1)
     index = repo.changelog.index
-    if not util.safehasattr(index, b'stats'):
+    if not util.safehasattr(index, 'stats'):
         raise error.Abort(_(b'debugindexstats only works with native code'))
     for k, v in sorted(index.stats().items()):
         ui.write(b'%s: %d\n' % (k, v))
