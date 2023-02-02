@@ -1703,7 +1703,7 @@ def reversehunks(hunks):
 
     newhunks = []
     for c in hunks:
-        if util.safehasattr(c, b'reversehunk'):
+        if util.safehasattr(c, 'reversehunk'):
             c = c.reversehunk()
         newhunks.append(c)
     return newhunks
