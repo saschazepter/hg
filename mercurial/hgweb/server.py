@@ -100,7 +100,7 @@ class _httprequesthandler(httpservermod.basehttprequesthandler):
 
     def log_request(self, code='-', size='-'):
         xheaders = []
-        if util.safehasattr(self, b'headers'):
+        if util.safehasattr(self, 'headers'):
             xheaders = [
                 h for h in self.headers.items() if h[0].startswith('x-')
             ]
