@@ -1619,7 +1619,7 @@ class manifestrevlog:
 
     def _setupmanifestcachehooks(self, repo):
         """Persist the manifestfulltextcache on lock release"""
-        if not util.safehasattr(repo, b'_wlockref'):
+        if not util.safehasattr(repo, '_wlockref'):
             return
 
         self._fulltextcache._opener = repo.wcachevfs
