@@ -1450,7 +1450,7 @@ def openstorage(repo, cmd, file_, opts, returnrevlog=False):
         if returnrevlog:
             if isinstance(r, revlog.revlog):
                 pass
-            elif util.safehasattr(r, b'_revlog'):
+            elif util.safehasattr(r, '_revlog'):
                 r = r._revlog  # pytype: disable=attribute-error
             elif r is not None:
                 raise error.InputError(
