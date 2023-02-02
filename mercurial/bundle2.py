@@ -1234,7 +1234,7 @@ class bundlepart:
         # we only support fixed size data now.
         # This will be improved in the future.
         if util.safehasattr(self.data, 'next') or util.safehasattr(
-            self.data, b'__next__'
+            self.data, '__next__'
         ):
             buff = util.chunkbuffer(self.data)
             chunk = buff.read(preferedchunksize)
