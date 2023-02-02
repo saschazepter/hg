@@ -384,7 +384,7 @@ def repo_rel_or_abs_source(repo):
     Either absolute or relative the outermost repo"""
     parent = repo
     chunks = []
-    while util.safehasattr(parent, b'_subparent'):
+    while util.safehasattr(parent, '_subparent'):
         source = urlutil.url(parent._subsource)
         chunks.append(bytes(source))
         if source.isabs():
