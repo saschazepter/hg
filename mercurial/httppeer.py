@@ -180,7 +180,7 @@ def makev1commandrequest(
     qs = b'?%s' % urlreq.urlencode(q)
     cu = b"%s%s" % (repobaseurl, qs)
     size = 0
-    if util.safehasattr(data, b'length'):
+    if util.safehasattr(data, 'length'):
         size = data.length
     elif data is not None:
         size = len(data)
