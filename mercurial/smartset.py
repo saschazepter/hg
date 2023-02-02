@@ -137,7 +137,7 @@ class abstractsmartset:
 
         This is part of the mandatory API for smartset."""
         # builtin cannot be cached. but do not needs to
-        if cache and util.safehasattr(condition, b'__code__'):
+        if cache and util.safehasattr(condition, '__code__'):
             condition = util.cachefunc(condition)
         return filteredset(self, condition, condrepr)
 
