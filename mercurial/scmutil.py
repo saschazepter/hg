@@ -234,7 +234,7 @@ def callcatch(ui, func):
         ui.error(_(b"abort: error: %s\n") % stringutil.forcebytestr(reason))
     except (IOError, OSError) as inst:
         if (
-            util.safehasattr(inst, b"args")
+            util.safehasattr(inst, "args")
             and inst.args
             and inst.args[0] == errno.EPIPE
         ):
