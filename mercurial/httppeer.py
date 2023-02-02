@@ -65,7 +65,7 @@ def encodevalueinheaders(value, header, limit):
 class _multifile:
     def __init__(self, *fileobjs):
         for f in fileobjs:
-            if not util.safehasattr(f, b'length'):
+            if not util.safehasattr(f, 'length'):
                 raise ValueError(
                     b'_multifile only supports file objects that '
                     b'have a length but this one does not:',
