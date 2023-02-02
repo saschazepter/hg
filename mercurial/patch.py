@@ -168,7 +168,7 @@ def split(stream):
 
     mimeheaders = [b'content-type']
 
-    if not util.safehasattr(stream, b'next'):
+    if not util.safehasattr(stream, 'next'):
         # http responses, for example, have readline but not next
         stream = fiter(stream)
 
