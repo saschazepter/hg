@@ -588,7 +588,7 @@ class unixforkingservice:
         o = socket.socketpair(socket.AF_UNIX, socket.SOCK_DGRAM)
         self._mainipc, self._workeripc = o
         self._servicehandler.bindsocket(self._sock, self.address)
-        if util.safehasattr(procutil, b'unblocksignal'):
+        if util.safehasattr(procutil, 'unblocksignal'):
             procutil.unblocksignal(signal.SIGCHLD)
         o = signal.signal(signal.SIGCHLD, self._sigchldhandler)
         self._oldsigchldhandler = o
