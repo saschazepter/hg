@@ -76,11 +76,11 @@ def _delayedinterrupt():
         # save handlers first so they can be restored even if a setup is
         # interrupted between signal.signal() and orighandlers[] =.
         for name in [
-            b'CTRL_C_EVENT',
-            b'SIGINT',
-            b'SIGBREAK',
-            b'SIGHUP',
-            b'SIGTERM',
+            'CTRL_C_EVENT',
+            'SIGINT',
+            'SIGBREAK',
+            'SIGHUP',
+            'SIGTERM',
         ]:
             num = getattr(signal, name, None)
             if num and num not in orighandlers:
