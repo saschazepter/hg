@@ -301,7 +301,7 @@ class hybrid(wrapped):
     def _wrapvalue(self, key, val):
         if val is None:
             return
-        if util.safehasattr(val, b'_makemap'):
+        if util.safehasattr(val, '_makemap'):
             # a nested hybrid list/dict, which has its own way of map operation
             return val
         return hybriditem(None, key, val, self._makemap)
