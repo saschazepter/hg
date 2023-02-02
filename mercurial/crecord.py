@@ -573,7 +573,7 @@ def chunkselector(ui, headerlist, operation=None):
     ui.write(_(b'starting interactive selection\n'))
     chunkselector = curseschunkselector(headerlist, ui, operation)
     origsigtstp = sentinel = object()
-    if util.safehasattr(signal, b'SIGTSTP'):
+    if util.safehasattr(signal, 'SIGTSTP'):
         origsigtstp = signal.getsignal(signal.SIGTSTP)
     try:
         with util.with_lc_ctype():
