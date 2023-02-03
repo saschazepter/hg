@@ -193,7 +193,7 @@ def _uisetup(ui):
         if name == b'rebase':
             # TODO: teach exthelper to handle this
             extensions.wrapfunction(
-                module, b'rebase', overrides.overriderebasecmd
+                module, 'rebase', overrides.overriderebasecmd
             )
 
 

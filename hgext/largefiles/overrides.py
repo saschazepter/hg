@@ -485,10 +485,10 @@ def overridelog(orig, ui, repo, *pats, **opts):
         return lambda ctx: match
 
     wrappedmatchandpats = extensions.wrappedfunction(
-        scmutil, b'matchandpats', overridematchandpats
+        scmutil, 'matchandpats', overridematchandpats
     )
     wrappedmakefilematcher = extensions.wrappedfunction(
-        logcmdutil, b'_makenofollowfilematcher', overridemakefilematcher
+        logcmdutil, '_makenofollowfilematcher', overridemakefilematcher
     )
     with wrappedmatchandpats, wrappedmakefilematcher:
         return orig(ui, repo, *pats, **opts)
@@ -793,7 +793,7 @@ def overridecopy(orig, ui, repo, pats, opts, rename=False):
         match = orig(ctx, pats, opts, globbed, default, badfn=badfn)
         return composenormalfilematcher(match, manifest)
 
-    with extensions.wrappedfunction(scmutil, b'match', normalfilesmatchfn):
+    with extensions.wrappedfunction(scmutil, 'match', normalfilesmatchfn):
         try:
             result = orig(ui, repo, pats, opts, rename)
         except error.Abort as e:
@@ -887,8 +887,8 @@ def overridecopy(orig, ui, repo, pats, opts, rename=False):
             copiedfiles.append((src, dest))
             orig(src, dest, *args, **kwargs)
 
-        with extensions.wrappedfunction(util, b'copyfile', overridecopyfile):
-            with extensions.wrappedfunction(scmutil, b'match', overridematch):
+        with extensions.wrappedfunction(util, 'copyfile', overridecopyfile):
+            with extensions.wrappedfunction(scmutil, 'match', overridematch):
                 result += orig(ui, repo, listpats, opts, rename)
 
         lfdirstate = lfutil.openlfdirstate(ui, repo)
@@ -999,7 +999,7 @@ def overriderevert(orig, ui, repo, ctx, *pats, **opts):
             m.matchfn = matchfn
             return m
 
-        with extensions.wrappedfunction(scmutil, b'match', overridematch):
+        with extensions.wrappedfunction(scmutil, 'match', overridematch):
             orig(ui, repo, ctx, *pats, **opts)
 
         newstandins = lfutil.getstandinsstate(repo)
