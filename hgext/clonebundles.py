@@ -349,7 +349,7 @@ def capabilities(orig, repo, proto):
 
 
 def extsetup(ui):
-    extensions.wrapfunction(wireprotov1server, b'_capabilities', capabilities)
+    extensions.wrapfunction(wireprotov1server, '_capabilities', capabilities)
 
 
 # logic for bundle auto-generation
