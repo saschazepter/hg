@@ -66,13 +66,13 @@ sharednamespaces = {
 
 # Journal recording, register hooks and storage object
 def extsetup(ui):
-    extensions.wrapfunction(dispatch, b'runcommand', runcommand)
-    extensions.wrapfunction(bookmarks.bmstore, b'_write', recordbookmarks)
+    extensions.wrapfunction(dispatch, 'runcommand', runcommand)
+    extensions.wrapfunction(bookmarks.bmstore, '_write', recordbookmarks)
     extensions.wrapfilecache(
         localrepo.localrepository, b'dirstate', wrapdirstate
     )
-    extensions.wrapfunction(hg, b'postshare', wrappostshare)
-    extensions.wrapfunction(hg, b'copystore', unsharejournal)
+    extensions.wrapfunction(hg, 'postshare', wrappostshare)
+    extensions.wrapfunction(hg, 'copystore', unsharejournal)
 
 
 def reposetup(ui, repo):
