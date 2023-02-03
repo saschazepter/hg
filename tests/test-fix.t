@@ -1153,6 +1153,7 @@ useful for anyone trying to set up a new config.
   $ hg commit -Aqm "foo"
   $ printf "Foo\nbar\nBaz\n" > foo.changed
   $ hg --debug fix --working-dir
+  fixing: f65cf3136d41+ - uppercase-changed-lines - foo.changed
   subprocess: * $TESTTMP/uppercase.py 1-1 3-3 (glob)
 
   $ cd ..
