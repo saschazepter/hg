@@ -1381,7 +1381,7 @@ class unbundlepart(unpackermixin):
     def __init__(self, ui, header, fp):
         super(unbundlepart, self).__init__(fp)
         self._seekable = util.safehasattr(fp, 'seek') and util.safehasattr(
-            fp, b'tell'
+            fp, 'tell'
         )
         self.ui = ui
         # unbundle state attr
