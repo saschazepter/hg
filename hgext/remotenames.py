@@ -255,7 +255,7 @@ def wrapprintbookmarks(orig, ui, repo, fm, bmarks):
 
 
 def extsetup(ui):
-    extensions.wrapfunction(bookmarks, b'_printbookmarks', wrapprintbookmarks)
+    extensions.wrapfunction(bookmarks, '_printbookmarks', wrapprintbookmarks)
 
 
 def reposetup(ui, repo):
