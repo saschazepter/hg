@@ -1066,7 +1066,7 @@ def cleanupnodes(
         return
 
     # translate mapping's other forms
-    if not util.safehasattr(replacements, b'items'):
+    if not util.safehasattr(replacements, 'items'):
         replacements = {(n,): () for n in replacements}
     else:
         # upgrading non tuple "source" to tuple ones for BC
