@@ -53,7 +53,7 @@ from . import (
 eh = exthelper.exthelper()
 
 
-@eh.wrapfunction(localrepo, b'makefilestorage')
+@eh.wrapfunction(localrepo, 'makefilestorage')
 def localrepomakefilestorage(orig, requirements, features, **kwargs):
     if b'lfs' in requirements:
         features.add(repository.REPO_FEATURE_LFS)
@@ -61,14 +61,14 @@ def localrepomakefilestorage(orig, requirements, features, **kwargs):
     return orig(requirements=requirements, features=features, **kwargs)
 
 
-@eh.wrapfunction(changegroup, b'allsupportedversions')
+@eh.wrapfunction(changegroup, 'allsupportedversions')
 def allsupportedversions(orig, ui):
     versions = orig(ui)
     versions.add(b'03')
     return versions
 
 
-@eh.wrapfunction(wireprotov1server, b'_capabilities')
+@eh.wrapfunction(wireprotov1server, '_capabilities')
 def _capabilities(orig, repo, proto):
     '''Wrap server command to announce lfs server capability'''
     caps = orig(repo, proto)
@@ -227,7 +227,7 @@ def filelogsize(orig, self, rev):
     return orig(self, rev)
 
 
-@eh.wrapfunction(revlog, b'_verify_revision')
+@eh.wrapfunction(revlog, '_verify_revision')
 def _verify_revision(orig, rl, skipflags, state, node):
     if _islfs(rl, node=node):
         rawtext = rl.rawdata(node)
@@ -246,7 +246,7 @@ def _verify_revision(orig, rl, skipflags, state, node):
     orig(rl, skipflags, state, node)
 
 
-@eh.wrapfunction(context.basefilectx, b'cmp')
+@eh.wrapfunction(context.basefilectx, 'cmp')
 def filectxcmp(orig, self, fctx):
     """returns True if text is different than fctx"""
     # some fctx (ex. hg-git) is not based on basefilectx and do not have islfs
@@ -258,7 +258,7 @@ def filectxcmp(orig, self, fctx):
     return orig(self, fctx)
 
 
-@eh.wrapfunction(context.basefilectx, b'isbinary')
+@eh.wrapfunction(context.basefilectx, 'isbinary')
 def filectxisbinary(orig, self):
     if self.islfs():
         # fast path: use lfs metadata to answer isbinary
@@ -272,13 +272,13 @@ def filectxislfs(self):
     return _islfs(self.filelog()._revlog, self.filenode())
 
 
-@eh.wrapfunction(cmdutil, b'_updatecatformatter')
+@eh.wrapfunction(cmdutil, '_updatecatformatter')
 def _updatecatformatter(orig, fm, ctx, matcher, path, decode):
     orig(fm, ctx, matcher, path, decode)
     fm.data(rawdata=ctx[path].rawdata())
 
 
-@eh.wrapfunction(scmutil, b'wrapconvertsink')
+@eh.wrapfunction(scmutil, 'wrapconvertsink')
 def convertsink(orig, sink):
     sink = orig(sink)
     if sink.repotype == b'hg':
@@ -325,7 +325,7 @@ def convertsink(orig, sink):
 
 # bundlerepo uses "vfsmod.readonlyvfs(othervfs)", we need to make sure lfs
 # options and blob stores are passed from othervfs to the new readonlyvfs.
-@eh.wrapfunction(vfsmod.readonlyvfs, b'__init__')
+@eh.wrapfunction(vfsmod.readonlyvfs, '__init__')
 def vfsinit(orig, self, othervfs):
     orig(self, othervfs)
     # copy lfs related options
@@ -403,7 +403,7 @@ def prepush(pushop):
     return uploadblobsfromrevs(pushop.repo, pushop.outgoing.missing)
 
 
-@eh.wrapfunction(exchange, b'push')
+@eh.wrapfunction(exchange, 'push')
 def push(orig, repo, remote, *args, **kwargs):
     """bail on push if the extension isn't enabled on remote when needed, and
     update the remote store based on the destination path."""
@@ -433,7 +433,7 @@ def push(orig, repo, remote, *args, **kwargs):
 
 
 # when writing a bundle via "hg bundle" command, upload related LFS blobs
-@eh.wrapfunction(bundle2, b'writenewbundle')
+@eh.wrapfunction(bundle2, 'writenewbundle')
 def writenewbundle(
     orig, ui, repo, source, filename, bundletype, outgoing, *args, **kwargs
 ):
@@ -522,7 +522,7 @@ def uploadblobs(repo, pointers):
     remoteblob.writebatch(pointers, repo.svfs.lfslocalblobstore)
 
 
-@eh.wrapfunction(upgrade_engine, b'finishdatamigration')
+@eh.wrapfunction(upgrade_engine, 'finishdatamigration')
 def upgradefinishdatamigration(orig, ui, srcrepo, dstrepo, requirements):
     orig(ui, srcrepo, dstrepo, requirements)
 
@@ -539,8 +539,8 @@ def upgradefinishdatamigration(orig, ui, srcrepo, dstrepo, requirements):
                 lfutil.link(srclfsvfs.join(oid), dstlfsvfs.join(oid))
 
 
-@eh.wrapfunction(upgrade_actions, b'preservedrequirements')
-@eh.wrapfunction(upgrade_actions, b'supporteddestrequirements')
+@eh.wrapfunction(upgrade_actions, 'preservedrequirements')
+@eh.wrapfunction(upgrade_actions, 'supporteddestrequirements')
 def upgraderequirements(orig, repo):
     reqs = orig(repo)
     if b'lfs' in repo.requirements:

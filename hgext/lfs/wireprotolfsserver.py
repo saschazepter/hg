@@ -33,7 +33,7 @@ HTTP_UNSUPPORTED_MEDIA_TYPE = hgwebcommon.HTTP_UNSUPPORTED_MEDIA_TYPE
 eh = exthelper.exthelper()
 
 
-@eh.wrapfunction(wireprotoserver, b'handlewsgirequest')
+@eh.wrapfunction(wireprotoserver, 'handlewsgirequest')
 def handlewsgirequest(orig, rctx, req, res, checkperm):
     """Wrap wireprotoserver.handlewsgirequest() to possibly process an LFS
     request if it is left unprocessed by the wrapped method.

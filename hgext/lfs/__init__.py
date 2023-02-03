@@ -342,7 +342,7 @@ def wrapfilelog(filelog):
     wrapfunction(filelog, 'size', wrapper.filelogsize)
 
 
-@eh.wrapfunction(localrepo, b'resolverevlogstorevfsoptions')
+@eh.wrapfunction(localrepo, 'resolverevlogstorevfsoptions')
 def _resolverevlogstorevfsoptions(orig, ui, requirements, features):
     opts = orig(ui, requirements, features)
     for name, module in extensions.extensions(ui):
