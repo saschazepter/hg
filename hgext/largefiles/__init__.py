@@ -184,7 +184,7 @@ def _uisetup(ui):
     )
 
     extensions.wrapfunction(
-        wireprotov1server.commands[b'heads'], b'func', proto.heads
+        wireprotov1server.commands[b'heads'], 'func', proto.heads
     )
     # TODO also wrap wireproto.commandsv2 once heads is implemented there.
 
