@@ -1718,7 +1718,7 @@ def debugformat(ui, repo, **opts):
     if fm.isplain():
 
         def formatvalue(value):
-            if util.safehasattr(value, b'startswith'):
+            if util.safehasattr(value, 'startswith'):
                 return value
             if value:
                 return b'yes'
