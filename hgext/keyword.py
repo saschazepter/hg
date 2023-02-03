@@ -131,7 +131,7 @@ nokwcommands = (
 )
 
 # webcommands that do not act on keywords
-nokwwebcommands = b'annotate changeset rev filediff diff comparison'
+nokwwebcommands = 'annotate changeset rev filediff diff comparison'
 
 # hg commands that trigger expansion only when writing to working dir,
 # not when reading filelog, and unexpand when reading from working dir
@@ -806,14 +806,14 @@ def uisetup(ui):
         kwtools[b'hgcmd'] = cmd
         return cmd, func, args, options, cmdoptions
 
-    extensions.wrapfunction(dispatch, b'_parse', kwdispatch_parse)
+    extensions.wrapfunction(dispatch, '_parse', kwdispatch_parse)
 
-    extensions.wrapfunction(context.filectx, b'cmp', kwfilectx_cmp)
-    extensions.wrapfunction(patch.patchfile, b'__init__', kwpatchfile_init)
-    extensions.wrapfunction(patch, b'diff', kwdiff)
-    extensions.wrapfunction(cmdutil, b'amend', kw_amend)
-    extensions.wrapfunction(cmdutil, b'copy', kw_copy)
-    extensions.wrapfunction(cmdutil, b'dorecord', kw_dorecord)
+    extensions.wrapfunction(context.filectx, 'cmp', kwfilectx_cmp)
+    extensions.wrapfunction(patch.patchfile, '__init__', kwpatchfile_init)
+    extensions.wrapfunction(patch, 'diff', kwdiff)
+    extensions.wrapfunction(cmdutil, 'amend', kw_amend)
+    extensions.wrapfunction(cmdutil, 'copy', kw_copy)
+    extensions.wrapfunction(cmdutil, 'dorecord', kw_dorecord)
     for c in nokwwebcommands.split():
         extensions.wrapfunction(webcommands, c, kwweb_skip)
 
