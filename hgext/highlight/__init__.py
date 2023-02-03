@@ -101,8 +101,8 @@ def generate_css(web):
 def extsetup(ui):
     # monkeypatch in the new version
     extensions.wrapfunction(
-        webcommands, b'_filerevision', filerevision_highlight
+        webcommands, '_filerevision', filerevision_highlight
     )
-    extensions.wrapfunction(webcommands, b'annotate', annotate_highlight)
+    extensions.wrapfunction(webcommands, 'annotate', annotate_highlight)
     webcommands.highlightcss = generate_css
     webcommands.__all__.append(b'highlightcss')
