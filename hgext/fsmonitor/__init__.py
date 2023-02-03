@@ -755,9 +755,9 @@ def extsetup(ui):
     )
     if pycompat.isdarwin:
         # An assist for avoiding the dangling-symlink fsevents bug
-        extensions.wrapfunction(os, b'symlink', wrapsymlink)
+        extensions.wrapfunction(os, 'symlink', wrapsymlink)
 
-    extensions.wrapfunction(merge, b'_update', wrapupdate)
+    extensions.wrapfunction(merge, '_update', wrapupdate)
 
 
 def wrapsymlink(orig, source, link_name):
