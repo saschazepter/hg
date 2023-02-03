@@ -128,7 +128,7 @@ def clonenarrowcmd(orig, ui, repo, *args, **opts):
                 kwargs[b'depth'] = opts[b'depth']
 
         wrappedextraprepare = extensions.wrappedfunction(
-            exchange, b'_pullbundle2extraprepare', pullbundle2extraprepare_widen
+            exchange, '_pullbundle2extraprepare', pullbundle2extraprepare_widen
         )
 
     with wrappedextraprepare:
@@ -146,7 +146,7 @@ def pullnarrowcmd(orig, ui, repo, *args, **opts):
                 kwargs[b'depth'] = opts['depth']
 
         wrappedextraprepare = extensions.wrappedfunction(
-            exchange, b'_pullbundle2extraprepare', pullbundle2extraprepare_widen
+            exchange, '_pullbundle2extraprepare', pullbundle2extraprepare_widen
         )
 
     with wrappedextraprepare:
@@ -201,7 +201,7 @@ def pullbundle2extraprepare(orig, pullop, kwargs):
 
 
 extensions.wrapfunction(
-    exchange, b'_pullbundle2extraprepare', pullbundle2extraprepare
+    exchange, '_pullbundle2extraprepare', pullbundle2extraprepare
 )
 
 
@@ -366,7 +366,7 @@ def _widen(
         kwargs[b'excludepats'] = newexcludes
 
     wrappedextraprepare = extensions.wrappedfunction(
-        exchange, b'_pullbundle2extraprepare', pullbundle2extraprepare_widen
+        exchange, '_pullbundle2extraprepare', pullbundle2extraprepare_widen
     )
 
     # define a function that narrowbundle2 can call after creating the
