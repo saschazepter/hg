@@ -390,15 +390,15 @@ def serverextsetup(ui):
     bundle2.parthandlermapping[b'phase-heads'] = newphaseheadshandler
 
     extensions.wrapfunction(
-        localrepo.localrepository, b'listkeys', localrepolistkeys
+        localrepo.localrepository, 'listkeys', localrepolistkeys
     )
     wireprotov1server.commands[b'lookup'] = (
         _lookupwrap(wireprotov1server.commands[b'lookup'][0]),
         b'key',
     )
-    extensions.wrapfunction(exchange, b'getbundlechunks', getbundlechunks)
+    extensions.wrapfunction(exchange, 'getbundlechunks', getbundlechunks)
 
-    extensions.wrapfunction(bundle2, b'processparts', processparts)
+    extensions.wrapfunction(bundle2, 'processparts', processparts)
 
 
 def clientextsetup(ui):
@@ -415,7 +415,7 @@ def clientextsetup(ui):
 
     extensions.wrapcommand(commands.table, b'pull', _pull)
 
-    extensions.wrapfunction(discovery, b'checkheads', _checkheads)
+    extensions.wrapfunction(discovery, 'checkheads', _checkheads)
 
     wireprotov1peer.wirepeer.listkeyspatterns = listkeyspatterns
 
@@ -666,7 +666,7 @@ def getbundlechunks(orig, repo, source, heads=None, bundlecaps=None, **kwargs):
             return origvalues
 
         extensions.wrapfunction(
-            localrepo.localrepository, b'listkeys', _listkeys
+            localrepo.localrepository, 'listkeys', _listkeys
         )
         wrappedlistkeys = True
         heads = list((set(newheads) | set(heads)) - set(scratchheads))
@@ -678,7 +678,7 @@ def getbundlechunks(orig, repo, source, heads=None, bundlecaps=None, **kwargs):
             exchange.getbundle2partsmapping[b'changegroup'] = oldchangegrouppart
         if wrappedlistkeys:
             extensions.unwrapfunction(
-                localrepo.localrepository, b'listkeys', _listkeys
+                localrepo.localrepository, 'listkeys', _listkeys
             )
     return result
 
@@ -757,7 +757,7 @@ def _pull(orig, ui, repo, source=b"default", **opts):
     if scratchbookmarks or unknownnodes:
         # Set anyincoming to True
         extensions.wrapfunction(
-            discovery, b'findcommonincoming', _findcommonincoming
+            discovery, 'findcommonincoming', _findcommonincoming
         )
     try:
         # Remote scratch bookmarks will be deleted because remotenames doesn't
@@ -775,7 +775,7 @@ def _pull(orig, ui, repo, source=b"default", **opts):
         return result
     finally:
         if scratchbookmarks:
-            extensions.unwrapfunction(discovery, b'findcommonincoming')
+            extensions.unwrapfunction(discovery, 'findcommonincoming')
 
 
 def _readscratchremotebookmarks(ui, repo, other):
@@ -868,7 +868,7 @@ def _push(orig, ui, repo, *dests, **opts):
             opts[b'bookmark'] = []
             ui.setconfig(experimental, configscratchpush, True)
             oldphasemove = extensions.wrapfunction(
-                exchange, b'_localphasemove', _phasemove
+                exchange, '_localphasemove', _phasemove
             )
 
         paths = list(urlutil.get_push_paths(repo, ui, dests))
