@@ -3252,6 +3252,18 @@ class TestRunner:
         # adds an extension to HGRC. Also include run-test.py directory to
         # import modules like heredoctest.
         pypath = [self._pythondir, self._testdir, runtestdir]
+
+        # Setting PYTHONPATH with an activated venv causes the modules installed
+        # in it to be ignored.  Therefore, include the related paths in sys.path
+        # in PYTHONPATH.
+        virtual_env = osenvironb.get(b"VIRTUAL_ENV")
+        if virtual_env:
+            virtual_env = os.path.join(virtual_env, b'')
+            for p in sys.path:
+                p = _sys2bytes(p)
+                if p.startswith(virtual_env):
+                    pypath.append(p)
+
         # We have to augment PYTHONPATH, rather than simply replacing
         # it, in case external libraries are only available via current
         # PYTHONPATH.  (In particular, the Subversion bindings on OS X
