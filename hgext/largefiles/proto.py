@@ -200,7 +200,7 @@ def wirereposetup(ui, repo):
 
 
 # advertise the largefiles=serve capability
-@eh.wrapfunction(wireprotov1server, b'_capabilities')
+@eh.wrapfunction(wireprotov1server, '_capabilities')
 def _capabilities(orig, repo, proto):
     '''announce largefile server capability'''
     caps = orig(repo, proto)
