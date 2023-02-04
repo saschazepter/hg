@@ -230,7 +230,7 @@ def wrap_revert(orig, repo, ctx, names, uipathfn, actions, *args, **kwargs):
                 ds.hacky_extension_update_file(
                     filename,
                     entry.tracked,
-                    p1_tracked=True,
+                    p1_tracked=entry.p1_tracked,
                     p2_info=entry.p2_info,
                 )
     return orig(repo, ctx, names, uipathfn, actions, *args, **kwargs)
