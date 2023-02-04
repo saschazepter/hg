@@ -570,7 +570,13 @@ class hgsubrepo(abstractsubrepo):
     @annotatesubrepoerror
     def add(self, ui, match, prefix, uipathfn, explicitonly, **opts):
         return cmdutil.add(
-            ui, self._repo, match, prefix, uipathfn, explicitonly, **opts
+            ui,
+            self._repo,
+            match,
+            prefix,
+            uipathfn,
+            explicitonly,
+            **opts,
         )
 
     @annotatesubrepoerror
@@ -621,7 +627,7 @@ class hgsubrepo(abstractsubrepo):
                 match,
                 prefix=prefix,
                 listsubrepos=True,
-                **opts
+                **opts,
             )
         except error.RepoLookupError as inst:
             self.ui.warn(
@@ -1123,7 +1129,7 @@ class svnsubrepo(abstractsubrepo):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=procutil.tonativeenv(env),
-            **extrakw
+            **extrakw,
         )
         stdout, stderr = map(util.fromnativeeol, p.communicate())
         stderr = stderr.strip()
@@ -1488,7 +1494,7 @@ class gitsubrepo(abstractsubrepo):
             close_fds=procutil.closefds,
             stdout=subprocess.PIPE,
             stderr=errpipe,
-            **extrakw
+            **extrakw,
         )
         if stream:
             return p.stdout, None
