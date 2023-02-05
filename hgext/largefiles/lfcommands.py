@@ -543,10 +543,10 @@ def updatelfiles(
                             else:
                                 dropped.add(lfile)
 
-                        # use normallookup() to allocate an entry in largefiles
-                        # dirstate to prevent lfilesrepo.status() from reporting
-                        # missing files as removed.
-                        lfdirstate.update_file(
+                        # allocate an entry in largefiles dirstate to prevent
+                        # lfilesrepo.status() from reporting missing files as
+                        # removed.
+                        lfdirstate.hacky_extension_update_file(
                             lfile,
                             p1_tracked=True,
                             wc_tracked=True,
@@ -591,8 +591,10 @@ def updatelfiles(
                         continue
                     # Synchronize largefile dirstate to the last modified
                     # time of the file
-                    lfdirstate.update_file(
-                        lfile, p1_tracked=True, wc_tracked=True
+                    lfdirstate.hacky_extension_update_file(
+                        lfile,
+                        p1_tracked=True,
+                        wc_tracked=True,
                     )
                     update1 = 1
 
