@@ -235,6 +235,7 @@ revlogopts = getattr(
 
 cmdtable = {}
 
+
 # for "historical portability":
 # define parsealiases locally, because cmdutil.parsealiases has been
 # available since 1.5 (or 6252852b4332)
@@ -573,7 +574,6 @@ def _timer(
 
 
 def formatone(fm, timings, title=None, result=None, displayall=False):
-
     count = len(timings)
 
     fm.startitem()
@@ -1474,7 +1474,8 @@ def perfdirstatewrite(ui, repo, **opts):
     def d():
         ds.write(repo.currenttransaction())
 
-    timer(d, setup=setup)
+    with repo.wlock():
+        timer(d, setup=setup)
     fm.end()
 
 
