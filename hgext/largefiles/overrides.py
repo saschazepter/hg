@@ -1830,7 +1830,8 @@ def mergeupdate(orig, repo, node, branchmerge, force, *args, **kwargs):
             raise error.ProgrammingError(
                 b'largefiles is not compatible with in-memory merge'
             )
-        with lfdirstate.changing_parents(repo):
+        with repo.dirstate.changing_parents(repo):
+            lfdirstate = lfutil.openlfdirstate(repo.ui, repo)
             result = orig(repo, node, branchmerge, force, *args, **kwargs)
 
             newstandins = lfutil.getstandinsstate(repo)
@@ -1840,7 +1841,6 @@ def mergeupdate(orig, repo, node, branchmerge, force, *args, **kwargs):
             # all the ones that didn't change as clean
             for lfile in oldclean.difference(filelist):
                 lfdirstate.update_file(lfile, p1_tracked=True, wc_tracked=True)
-            lfdirstate.write(repo.currenttransaction())
 
             if branchmerge or force or partial:
                 filelist.extend(s.deleted + s.removed)
