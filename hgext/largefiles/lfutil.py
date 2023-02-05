@@ -601,8 +601,7 @@ def synclfdirstate(repo, lfdirstate, lfile, normallookup):
 def markcommitted(orig, ctx, node):
     repo = ctx.repo()
 
-    lfdirstate = openlfdirstate(repo.ui, repo)
-    with lfdirstate.changing_parents(repo):
+    with repo.dirstate.changing_parents(repo):
         orig(node)
 
         # ATTENTION: "ctx.files()" may differ from "repo[node].files()"
@@ -614,11 +613,11 @@ def markcommitted(orig, ctx, node):
         # - have to be marked as "n" after commit, but
         # - aren't listed in "repo[node].files()"
 
+        lfdirstate = openlfdirstate(repo.ui, repo)
         for f in ctx.files():
             lfile = splitstandin(f)
             if lfile is not None:
                 synclfdirstate(repo, lfdirstate, lfile, False)
-    lfdirstate.write(repo.currenttransaction())
 
     # As part of committing, copy all of the largefiles into the cache.
     #
