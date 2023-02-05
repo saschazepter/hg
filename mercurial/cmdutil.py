@@ -2794,8 +2794,6 @@ def commit(ui, repo, commitfunc, pats, opts):
     date = opts.get(b'date')
     if date:
         opts[b'date'] = dateutil.parsedate(date)
-    message = logmessage(ui, opts)
-    matcher = scmutil.match(repo[None], pats, opts)
 
     dsguard = None
     # extract addremove carefully -- this function can be called from a command
@@ -2803,15 +2801,29 @@ def commit(ui, repo, commitfunc, pats, opts):
     if opts.get(b'addremove'):
         dsguard = dirstateguard.dirstateguard(repo, b'commit')
     with dsguard or util.nullcontextmanager():
-        if dsguard:
-            relative = scmutil.anypats(pats, opts)
-            uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=relative)
-            if scmutil.addremove(repo, matcher, b"", uipathfn, opts) != 0:
-                raise error.Abort(
-                    _(b"failed to mark all new/missing files as added/removed")
+        message = logmessage(ui, opts)
+        matcher = scmutil.match(repo[None], pats, opts)
+        if True:
+            # extract addremove carefully -- this function can be called from a
+            # command that doesn't support addremove
+            if opts.get(b'addremove'):
+                relative = scmutil.anypats(pats, opts)
+                uipathfn = scmutil.getuipathfn(
+                    repo,
+                    legacyrelativevalue=relative,
                 )
+                r = scmutil.addremove(
+                    repo,
+                    matcher,
+                    b"",
+                    uipathfn,
+                    opts,
+                )
+                m = _(b"failed to mark all new/missing files as added/removed")
+                if r != 0:
+                    raise error.Abort(m)
 
-        return commitfunc(ui, repo, message, matcher, opts)
+            return commitfunc(ui, repo, message, matcher, opts)
 
 
 def samefile(f, ctx1, ctx2):
