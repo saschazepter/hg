@@ -233,15 +233,14 @@ def openlfdirstate(ui, repo, create=True):
                 if len(standins) > 0:
                     vfs.makedirs(lfstoredir)
 
-                with lfdirstate.changing_parents(repo):
-                    for standin in standins:
-                        lfile = splitstandin(standin)
-                        lfdirstate.hacky_extension_update_file(
-                            lfile,
-                            p1_tracked=True,
-                            wc_tracked=True,
-                            possibly_dirty=True,
-                        )
+                for standin in standins:
+                    lfile = splitstandin(standin)
+                    lfdirstate.hacky_extension_update_file(
+                        lfile,
+                        p1_tracked=True,
+                        wc_tracked=True,
+                        possibly_dirty=True,
+                    )
         except error.LockError:
             # Assume that whatever was holding the lock was important.
             # If we were doing something important, we would already have
