@@ -236,7 +236,7 @@ def openlfdirstate(ui, repo, create=True):
                 with lfdirstate.changing_parents(repo):
                     for standin in standins:
                         lfile = splitstandin(standin)
-                        lfdirstate.update_file(
+                        lfdirstate.hacky_extension_update_file(
                             lfile,
                             p1_tracked=True,
                             wc_tracked=True,
