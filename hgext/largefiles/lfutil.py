@@ -575,10 +575,14 @@ def getstandinsstate(repo):
 def synclfdirstate(repo, lfdirstate, lfile, normallookup):
     lfstandin = standin(lfile)
     if lfstandin not in repo.dirstate:
-        lfdirstate.update_file(lfile, p1_tracked=False, wc_tracked=False)
+        lfdirstate.hacky_extension_update_file(
+            lfile,
+            p1_tracked=False,
+            wc_tracked=False,
+        )
     else:
         entry = repo.dirstate.get_entry(lfstandin)
-        lfdirstate.update_file(
+        lfdirstate.hacky_extension_update_file(
             lfile,
             wc_tracked=entry.tracked,
             p1_tracked=entry.p1_tracked,
