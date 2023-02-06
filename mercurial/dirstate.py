@@ -1527,11 +1527,6 @@ class dirstate:
                 post_finalize=True,
             )
 
-            # ensure that pending file written above is unlinked at
-            # failure, even if tr.writepending isn't invoked until the
-            # end of this transaction
-            tr.registertmp(filename, location=b'plain')
-
         self._opener.tryunlink(backupname)
         if self._opener.exists(filename):
             # hardlink backup is okay because _writedirstate is always called
