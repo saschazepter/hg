@@ -1153,7 +1153,7 @@ class queue:
                 sortedseries.append((idx, p))
 
         sortedseries.sort(reverse=True)
-        for (i, p) in sortedseries:
+        for i, p in sortedseries:
             if i != -1:
                 del self.fullseries[i]
             else:
@@ -1177,7 +1177,6 @@ class queue:
         firstrev = repo[self.applied[0].node].rev()
         patches = []
         for i, rev in enumerate(revs):
-
             if rev < firstrev:
                 raise error.Abort(_(b'revision %d is not managed') % rev)
 
@@ -3225,45 +3224,46 @@ def fold(ui, repo, *files, **opts):
         raise error.Abort(_(b'qfold requires at least one patch name'))
     if not q.checktoppatch(repo)[0]:
         raise error.Abort(_(b'no patches applied'))
-    q.checklocalchanges(repo)
 
-    message = cmdutil.logmessage(ui, opts)
-
-    parent = q.lookup(b'qtip')
-    patches = []
-    messages = []
-    for f in files:
-        p = q.lookup(f)
-        if p in patches or p == parent:
-            ui.warn(_(b'skipping already folded patch %s\n') % p)
-        if q.isapplied(p):
-            raise error.Abort(
-                _(b'qfold cannot fold already applied patch %s') % p
-            )
-        patches.append(p)
-
-    for p in patches:
-        if not message:
-            ph = patchheader(q.join(p), q.plainmode)
-            if ph.message:
-                messages.append(ph.message)
-        pf = q.join(p)
-        (patchsuccess, files, fuzz) = q.patch(repo, pf)
-        if not patchsuccess:
-            raise error.Abort(_(b'error folding patch %s') % p)
-
-    if not message:
-        ph = patchheader(q.join(parent), q.plainmode)
-        message = ph.message
-        for msg in messages:
-            if msg:
-                if message:
-                    message.append(b'* * *')
-                message.extend(msg)
-        message = b'\n'.join(message)
-
-    diffopts = q.patchopts(q.diffopts(), *patches)
     with repo.wlock():
+        q.checklocalchanges(repo)
+
+        message = cmdutil.logmessage(ui, opts)
+
+        parent = q.lookup(b'qtip')
+        patches = []
+        messages = []
+        for f in files:
+            p = q.lookup(f)
+            if p in patches or p == parent:
+                ui.warn(_(b'skipping already folded patch %s\n') % p)
+            if q.isapplied(p):
+                raise error.Abort(
+                    _(b'qfold cannot fold already applied patch %s') % p
+                )
+            patches.append(p)
+
+        for p in patches:
+            if not message:
+                ph = patchheader(q.join(p), q.plainmode)
+                if ph.message:
+                    messages.append(ph.message)
+            pf = q.join(p)
+            (patchsuccess, files, fuzz) = q.patch(repo, pf)
+            if not patchsuccess:
+                raise error.Abort(_(b'error folding patch %s') % p)
+
+        if not message:
+            ph = patchheader(q.join(parent), q.plainmode)
+            message = ph.message
+            for msg in messages:
+                if msg:
+                    if message:
+                        message.append(b'* * *')
+                    message.extend(msg)
+            message = b'\n'.join(message)
+
+        diffopts = q.patchopts(q.diffopts(), *patches)
         q.refresh(
             repo,
             msg=message,
