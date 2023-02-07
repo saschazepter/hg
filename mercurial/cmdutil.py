@@ -469,6 +469,7 @@ def dorecord(
         In the end we'll record interesting changes, and everything else
         will be left in place, so the user can continue working.
         """
+        assert repo.currentwlock() is not None
         if not opts.get(b'interactive-unshelve'):
             checkunfinished(repo, commit=True)
         wctx = repo[None]
@@ -669,11 +670,7 @@ def dorecord(
             except OSError:
                 pass
 
-    def recordinwlock(ui, repo, message, match, opts):
-        with repo.wlock():
-            return recordfunc(ui, repo, message, match, opts)
-
-    return commit(ui, repo, recordinwlock, pats, opts)
+    return commit(ui, repo, recordfunc, pats, opts)
 
 
 class dirnode:
