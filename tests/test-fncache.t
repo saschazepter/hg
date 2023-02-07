@@ -304,6 +304,7 @@ Aborted transactions can be recovered later
 
   $ cat > ../exceptionext.py <<EOF
   > import os
+  > import signal
   > from mercurial import (
   >   commands,
   >   error,
@@ -315,19 +316,14 @@ Aborted transactions can be recovered later
   > def trwrapper(orig, self, *args, **kwargs):
   >     tr = orig(self, *args, **kwargs)
   >     def fail(tr):
-  >         raise error.Abort(b"forced transaction failure")
+  >         os.kill(os.getpid(), signal.SIGKILL)
   >     # zzz prefix to ensure it sorted after store.write
   >     tr.addfinalize(b'zzz-forcefails', fail)
   >     return tr
   > 
-  > def abortwrapper(orig, self, *args, **kwargs):
-  >     raise error.Abort(b"forced transaction failure")
-  > 
   > def uisetup(ui):
   >     extensions.wrapfunction(localrepo.localrepository, 'transaction',
   >                             trwrapper)
-  >     extensions.wrapfunction(transaction.transaction, '_abort',
-  >                             abortwrapper)
   > 
   > cmdtable = {}
   > 
@@ -339,8 +335,12 @@ Clean cached versions
 
   $ hg up -q 1
   $ touch z
-  $ hg ci -qAm z 2>/dev/null
-  [255]
+# Cannot rely on the return code value as chg use a different one.
+# So we use a `|| echo` trick
+# XXX-CHG fixing chg behavior would be nice here.
+  $ hg ci -qAm z || echo "He's Dead, Jim." 2>/dev/null
+  Killed (?)
+  He's Dead, Jim.
   $ cat .hg/store/fncache | sort
   data/y.i
   data/z.i
