@@ -28,7 +28,6 @@ from . import (
     copies,
     debugcommands as debugcommandsmod,
     destutil,
-    dirstateguard,
     discovery,
     encoding,
     error,
@@ -824,7 +823,7 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
     bheads = repo.branchheads(branch)
     rctx = scmutil.revsingle(repo, hex(parent))
     if not opts.get(b'merge') and op1 != node:
-        with dirstateguard.dirstateguard(repo, b'backout'):
+        with repo.transaction(b"backout"):
             overrides = {(b'ui', b'forcemerge'): opts.get(b'tool', b'')}
             with ui.configoverride(overrides, b'backout'):
                 stats = mergemod.back_out(ctx, parent=repo[parent])
