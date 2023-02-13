@@ -204,7 +204,11 @@ class dirstate:
                         # Exception catching (and the associated `invalidate`
                         # calling) might have been called by a nested context
                         # instead of the top level one.
-                        self.write(repo.currenttransaction())
+                        tr = repo.currenttransaction()
+                        if tr is not None:
+                            abort_cb = lambda tr: self.invalidate()
+                            tr.addabort(b'dirstate', abort_cb)
+                        self.write(tr)
 
     @contextlib.contextmanager
     def changing_parents(self, repo):
