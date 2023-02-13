@@ -442,6 +442,7 @@ def _kwfwrite(ui, repo, expand, *pats, **opts):
         if status.modified or status.added or status.removed or status.deleted:
             raise error.Abort(_(b'outstanding uncommitted changes'))
         kwt.overwrite(wctx, status.clean, True, expand)
+        repo.dirstate.write(repo.currenttransaction())
 
 
 @command(
