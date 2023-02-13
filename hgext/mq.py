@@ -2126,6 +2126,7 @@ class queue:
             except:  # re-raises
                 ctx = repo[cparents[0]]
                 repo.dirstate.rebuild(ctx.node(), ctx.manifest())
+                repo.dirstate.write(repo.currenttransaction())
                 self.savedirty()
                 self.ui.warn(
                     _(
