@@ -219,7 +219,8 @@ def lfconvert(ui, src, dest, *pats, **opts):
         success = True
     finally:
         if tolfile:
-            rdst.dirstate.clear()
+            with rdst.dirstate.changing_files(rdst):
+                rdst.dirstate.clear()
             release(dstlock, dstwlock)
         if not success:
             # we failed, remove the new directory
