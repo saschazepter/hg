@@ -575,8 +575,9 @@ test rollback
 
   $ echo foo > f1
   $ hg bookmark tmp-rollback
-  $ hg ci -Amr
+  $ hg add .
   adding f1
+  $ hg ci -mr
   $ hg bookmarks
      X2                        1:925d80f479bb
      Y                         2:db815d6d32e6
