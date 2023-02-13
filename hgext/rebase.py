@@ -1271,15 +1271,9 @@ def _origrebase(ui, repo, action, opts, rbsrt):
         # one transaction here. Otherwise, transactions are obtained when
         # committing each node, which is slower but allows partial success.
         with util.acceptintervention(tr):
-            # Same logic for the dirstate guard, except we don't create one when
-            # rebasing in-memory (it's not needed).
-            dsguard = None
-            if singletr and not rbsrt.inmemory:
-                dsguard = dirstateguard.dirstateguard(repo, b'rebase')
-            with util.acceptintervention(dsguard):
-                rbsrt._performrebase(tr)
-                if not rbsrt.dryrun:
-                    rbsrt._finishrebase()
+            rbsrt._performrebase(tr)
+            if not rbsrt.dryrun:
+                rbsrt._finishrebase()
 
 
 def _definedestmap(ui, repo, inmemory, destf, srcf, basef, revf, destspace):
