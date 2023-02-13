@@ -30,7 +30,6 @@ from mercurial import (
     commands,
     copies,
     destutil,
-    dirstateguard,
     error,
     extensions,
     logcmdutil,
@@ -1494,10 +1493,10 @@ def commitmemorynode(repo, wctx, editor, extra, user, date, commitmsg):
 def commitnode(repo, editor, extra, user, date, commitmsg):
     """Commit the wd changes with parents p1 and p2.
     Return node of committed revision."""
-    dsguard = util.nullcontextmanager()
+    tr = util.nullcontextmanager
     if not repo.ui.configbool(b'rebase', b'singletransaction'):
-        dsguard = dirstateguard.dirstateguard(repo, b'rebase')
-    with dsguard:
+        tr = lambda: repo.transaction(b'rebase')
+    with tr():
         # Commit might fail if unresolved files exist
         newnode = repo.commit(
             text=commitmsg, user=user, date=date, extra=extra, editor=editor
