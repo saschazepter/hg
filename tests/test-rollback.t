@@ -2,8 +2,8 @@ setup repo
   $ hg init t
   $ cd t
   $ echo a > a
-  $ hg commit -Am'add a'
-  adding a
+  $ hg add a
+  $ hg commit -m 'add a'
   $ hg verify -q
   $ hg parents
   changeset:   0:1f0dee641bb7
