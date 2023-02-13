@@ -82,7 +82,6 @@ from mercurial.pycompat import (
 from mercurial import (
     cmdutil,
     commands,
-    dirstateguard,
     encoding,
     error,
     extensions,
@@ -1993,72 +1992,65 @@ class queue:
             bmlist = repo[top].bookmarks()
 
             with repo.dirstate.changing_parents(repo):
-                # XXX do we actually need the dirstateguard
-                dsguard = None
-                try:
-                    dsguard = dirstateguard.dirstateguard(repo, b'mq.refresh')
-                    if diffopts.git or diffopts.upgrade:
-                        copies = {}
-                        for dst in a:
-                            src = repo.dirstate.copied(dst)
-                            # during qfold, the source file for copies may
-                            # be removed. Treat this as a simple add.
-                            if src is not None and src in repo.dirstate:
-                                copies.setdefault(src, []).append(dst)
-                            repo.dirstate.update_file(
-                                dst, p1_tracked=False, wc_tracked=True
+                if diffopts.git or diffopts.upgrade:
+                    copies = {}
+                    for dst in a:
+                        src = repo.dirstate.copied(dst)
+                        # during qfold, the source file for copies may
+                        # be removed. Treat this as a simple add.
+                        if src is not None and src in repo.dirstate:
+                            copies.setdefault(src, []).append(dst)
+                        repo.dirstate.update_file(
+                            dst, p1_tracked=False, wc_tracked=True
+                        )
+                    # remember the copies between patchparent and qtip
+                    for dst in aaa:
+                        src = ctx[dst].copysource()
+                        if src:
+                            copies.setdefault(src, []).extend(
+                                copies.get(dst, [])
                             )
-                        # remember the copies between patchparent and qtip
-                        for dst in aaa:
-                            src = ctx[dst].copysource()
-                            if src:
-                                copies.setdefault(src, []).extend(
-                                    copies.get(dst, [])
-                                )
-                                if dst in a:
-                                    copies[src].append(dst)
-                            # we can't copy a file created by the patch itself
-                            if dst in copies:
-                                del copies[dst]
-                        for src, dsts in copies.items():
-                            for dst in dsts:
-                                repo.dirstate.copy(src, dst)
-                    else:
-                        for dst in a:
-                            repo.dirstate.update_file(
-                                dst, p1_tracked=False, wc_tracked=True
-                            )
-                        # Drop useless copy information
-                        for f in list(repo.dirstate.copies()):
-                            repo.dirstate.copy(None, f)
-                    for f in r:
-                        repo.dirstate.update_file_p1(f, p1_tracked=True)
-                    # if the patch excludes a modified file, mark that
-                    # file with mtime=0 so status can see it.
-                    mm = []
-                    for i in range(len(m) - 1, -1, -1):
-                        if not match1(m[i]):
-                            mm.append(m[i])
-                            del m[i]
-                    for f in m:
-                        repo.dirstate.update_file_p1(f, p1_tracked=True)
-                    for f in mm:
-                        repo.dirstate.update_file_p1(f, p1_tracked=True)
-                    for f in forget:
-                        repo.dirstate.update_file_p1(f, p1_tracked=False)
+                            if dst in a:
+                                copies[src].append(dst)
+                        # we can't copy a file created by the patch itself
+                        if dst in copies:
+                            del copies[dst]
+                    for src, dsts in copies.items():
+                        for dst in dsts:
+                            repo.dirstate.copy(src, dst)
+                else:
+                    for dst in a:
+                        repo.dirstate.update_file(
+                            dst, p1_tracked=False, wc_tracked=True
+                        )
+                    # Drop useless copy information
+                    for f in list(repo.dirstate.copies()):
+                        repo.dirstate.copy(None, f)
+                for f in r:
+                    repo.dirstate.update_file_p1(f, p1_tracked=True)
+                # if the patch excludes a modified file, mark that
+                # file with mtime=0 so status can see it.
+                mm = []
+                for i in range(len(m) - 1, -1, -1):
+                    if not match1(m[i]):
+                        mm.append(m[i])
+                        del m[i]
+                for f in m:
+                    repo.dirstate.update_file_p1(f, p1_tracked=True)
+                for f in mm:
+                    repo.dirstate.update_file_p1(f, p1_tracked=True)
+                for f in forget:
+                    repo.dirstate.update_file_p1(f, p1_tracked=False)
 
-                    user = ph.user or ctx.user()
+                user = ph.user or ctx.user()
 
-                    oldphase = repo[top].phase()
+                oldphase = repo[top].phase()
 
-                    # assumes strip can roll itself back if interrupted
-                    repo.setparents(*cparents)
-                    self.applied.pop()
-                    self.applieddirty = True
-                    strip(self.ui, repo, [top], update=False, backup=False)
-                    dsguard.close()
-                finally:
-                    release(dsguard)
+                # assumes strip can roll itself back if interrupted
+                repo.setparents(*cparents)
+                self.applied.pop()
+                self.applieddirty = True
+                strip(self.ui, repo, [top], update=False, backup=False)
 
             try:
                 # might be nice to attempt to roll back strip after this
