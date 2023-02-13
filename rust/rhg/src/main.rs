@@ -86,7 +86,8 @@ fn main_with_result(
         // Mercurial allows users to define generic hooks for commands,
         // fallback if any are detected
         let item = format!("{}-{}", prefix, subcommand_name);
-        let hook_for_command = config.get_str(b"hooks", item.as_bytes())?;
+        let hook_for_command =
+            config.get_str_no_default(b"hooks", item.as_bytes())?;
         if hook_for_command.is_some() {
             let msg = format!("{}-{} hook defined", prefix, subcommand_name);
             return Err(CommandError::unsupported(msg));
