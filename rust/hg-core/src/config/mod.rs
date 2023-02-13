@@ -360,21 +360,21 @@ impl Config {
         self.plain = plain;
     }
 
-        /// Returns the default value for the given config item, if any.
-        pub fn get_default(
-            &self,
-            section: &[u8],
-            item: &[u8],
-        ) -> Result<Option<&DefaultConfigItem>, HgError> {
-            let default_config = DEFAULT_CONFIG.as_ref().map_err(|e| {
-                HgError::abort(
-                    e.to_string(),
-                    crate::exit_codes::ABORT,
-                    Some("`mercurial/configitems.toml` is not valid".into()),
-                )
-            })?;
-            Ok(default_config.get(section, item))
-        }
+    /// Returns the default value for the given config item, if any.
+    pub fn get_default(
+        &self,
+        section: &[u8],
+        item: &[u8],
+    ) -> Result<Option<&DefaultConfigItem>, HgError> {
+        let default_config = DEFAULT_CONFIG.as_ref().map_err(|e| {
+            HgError::abort(
+                e.to_string(),
+                crate::exit_codes::ABORT,
+                Some("`mercurial/configitems.toml` is not valid".into()),
+            )
+        })?;
+        Ok(default_config.get(section, item))
+    }
 
     fn get_parse<'config, T: 'config>(
         &'config self,
@@ -382,6 +382,7 @@ impl Config {
         item: &[u8],
         expected_type: &'static str,
         parse: impl Fn(&'config [u8]) -> Option<T>,
+        fallback_to_default: bool,
     ) -> Result<Option<T>, HgError>
     where
         Option<T>: TryFrom<&'config DefaultConfigItem, Error = HgError>,
@@ -399,12 +400,15 @@ impl Config {
                 })
                 .into()),
             },
-            None => match self.get_default(section, item)? {
-                Some(default) => Ok(default.try_into()?),
-                None => {
-                    Ok(None)
+            None => {
+                if !fallback_to_default {
+                    return Ok(None);
                 }
-            },
+                match self.get_default(section, item)? {
+                    Some(default) => Ok(default.try_into()?),
+                    None => Ok(None),
+                }
+            }
         }
     }
 
@@ -415,9 +419,29 @@ impl Config {
         section: &[u8],
         item: &[u8],
     ) -> Result<Option<&str>, HgError> {
-        self.get_parse(section, item, "ASCII or UTF-8 string", |value| {
-            str::from_utf8(value).ok()
-        })
+        self.get_parse(
+            section,
+            item,
+            "ASCII or UTF-8 string",
+            |value| str::from_utf8(value).ok(),
+            true,
+        )
+    }
+
+    /// Same as `get_str`, but doesn't fall back to the default `configitem`
+    /// if not defined in the user config.
+    pub fn get_str_no_default(
+        &self,
+        section: &[u8],
+        item: &[u8],
+    ) -> Result<Option<&str>, HgError> {
+        self.get_parse(
+            section,
+            item,
+            "ASCII or UTF-8 string",
+            |value| str::from_utf8(value).ok(),
+            false,
+        )
     }
 
     /// Returns an `Err` if the first value found is not a valid unsigned
@@ -427,9 +451,13 @@ impl Config {
         section: &[u8],
         item: &[u8],
     ) -> Result<Option<u32>, HgError> {
-        self.get_parse(section, item, "valid integer", |value| {
-            str::from_utf8(value).ok()?.parse().ok()
-        })
+        self.get_parse(
+            section,
+            item,
+            "valid integer",
+            |value| str::from_utf8(value).ok()?.parse().ok(),
+            true,
+        )
     }
 
     /// Returns an `Err` if the first value found is not a valid file size
@@ -440,7 +468,13 @@ impl Config {
         section: &[u8],
         item: &[u8],
     ) -> Result<Option<u64>, HgError> {
-        self.get_parse(section, item, "byte quantity", values::parse_byte_size)
+        self.get_parse(
+            section,
+            item,
+            "byte quantity",
+            values::parse_byte_size,
+            true,
+        )
     }
 
     /// Returns an `Err` if the first value found is not a valid boolean.
@@ -451,7 +485,17 @@ impl Config {
         section: &[u8],
         item: &[u8],
     ) -> Result<Option<bool>, HgError> {
-        self.get_parse(section, item, "boolean", values::parse_bool)
+        self.get_parse(section, item, "boolean", values::parse_bool, true)
+    }
+
+    /// Same as `get_option`, but doesn't fall back to the default `configitem`
+    /// if not defined in the user config.
+    pub fn get_option_no_default(
+        &self,
+        section: &[u8],
+        item: &[u8],
+    ) -> Result<Option<bool>, HgError> {
+        self.get_parse(section, item, "boolean", values::parse_bool, false)
     }
 
     /// Returns the corresponding boolean in the config. Returns `Ok(false)`
@@ -462,6 +506,16 @@ impl Config {
         item: &[u8],
     ) -> Result<bool, HgError> {
         Ok(self.get_option(section, item)?.unwrap_or(false))
+    }
+
+    /// Same as `get_bool`, but doesn't fall back to the default `configitem`
+    /// if not defined in the user config.
+    pub fn get_bool_no_default(
+        &self,
+        section: &[u8],
+        item: &[u8],
+    ) -> Result<bool, HgError> {
+        Ok(self.get_option_no_default(section, item)?.unwrap_or(false))
     }
 
     /// Returns `true` if the extension is enabled, `false` otherwise
