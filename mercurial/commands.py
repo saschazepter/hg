@@ -4247,12 +4247,10 @@ def import_(ui, repo, patch1=None, *patches, **opts):
         if not opts.get(b'no_commit'):
             lock = repo.lock
             tr = lambda: repo.transaction(b'import')
-            dsguard = util.nullcontextmanager
         else:
             lock = util.nullcontextmanager
             tr = util.nullcontextmanager
-            dsguard = lambda: dirstateguard.dirstateguard(repo, b'import')
-        with lock(), tr(), dsguard():
+        with lock(), tr():
             parents = repo[None].parents()
             for patchurl in patches:
                 if patchurl == b'-':
