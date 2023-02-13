@@ -445,6 +445,7 @@ def reposetup(ui, repo):
                     # Write the cache to update mtime and cache .hgeol
                     with self.vfs(b"eol.cache", b"w") as f:
                         f.write(hgeoldata)
+                    self.dirstate.write(self.currenttransaction())
                 except errormod.LockUnavailable:
                     # If we cannot lock the repository and clear the
                     # dirstate, then a commit might not see all files
