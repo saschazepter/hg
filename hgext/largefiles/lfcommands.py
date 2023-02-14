@@ -579,43 +579,42 @@ def updatelfiles(
             statuswriter(_(b'getting changed largefiles\n'))
             cachelfiles(ui, repo, None, lfiles)
 
-        with lfdirstate.changing_parents(repo):
-            for lfile in lfiles:
-                update1 = 0
+        for lfile in lfiles:
+            update1 = 0
 
-                expecthash = update.get(lfile)
-                if expecthash:
-                    if not lfutil.copyfromcache(repo, expecthash, lfile):
-                        # failed ... but already removed and set to normallookup
-                        continue
-                    # Synchronize largefile dirstate to the last modified
-                    # time of the file
-                    lfdirstate.hacky_extension_update_file(
-                        lfile,
-                        p1_tracked=True,
-                        wc_tracked=True,
-                    )
+            expecthash = update.get(lfile)
+            if expecthash:
+                if not lfutil.copyfromcache(repo, expecthash, lfile):
+                    # failed ... but already removed and set to normallookup
+                    continue
+                # Synchronize largefile dirstate to the last modified
+                # time of the file
+                lfdirstate.hacky_extension_update_file(
+                    lfile,
+                    p1_tracked=True,
+                    wc_tracked=True,
+                )
+                update1 = 1
+
+            # copy the exec mode of largefile standin from the repository's
+            # dirstate to its state in the lfdirstate.
+            standin = lfutil.standin(lfile)
+            if wvfs.exists(standin):
+                # exec is decided by the users permissions using mask 0o100
+                standinexec = wvfs.stat(standin).st_mode & 0o100
+                st = wvfs.stat(lfile)
+                mode = st.st_mode
+                if standinexec != mode & 0o100:
+                    # first remove all X bits, then shift all R bits to X
+                    mode &= ~0o111
+                    if standinexec:
+                        mode |= (mode >> 2) & 0o111 & ~util.umask
+                    wvfs.chmod(lfile, mode)
                     update1 = 1
 
-                # copy the exec mode of largefile standin from the repository's
-                # dirstate to its state in the lfdirstate.
-                standin = lfutil.standin(lfile)
-                if wvfs.exists(standin):
-                    # exec is decided by the users permissions using mask 0o100
-                    standinexec = wvfs.stat(standin).st_mode & 0o100
-                    st = wvfs.stat(lfile)
-                    mode = st.st_mode
-                    if standinexec != mode & 0o100:
-                        # first remove all X bits, then shift all R bits to X
-                        mode &= ~0o111
-                        if standinexec:
-                            mode |= (mode >> 2) & 0o111 & ~util.umask
-                        wvfs.chmod(lfile, mode)
-                        update1 = 1
+            updated += update1
 
-                updated += update1
-
-                lfutil.synclfdirstate(repo, lfdirstate, lfile, normallookup)
+            lfutil.synclfdirstate(repo, lfdirstate, lfile, normallookup)
 
         lfdirstate.write(repo.currenttransaction())
         if lfiles:
