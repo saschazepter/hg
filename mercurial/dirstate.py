@@ -1530,26 +1530,27 @@ class dirstate:
             tr.registertmp(filename, location=b'plain')
 
         self._opener.tryunlink(backupname)
-        # hardlink backup is okay because _writedirstate is always called
-        # with an "atomictemp=True" file.
-        util.copyfile(
-            self._opener.join(filename),
-            self._opener.join(backupname),
-            hardlink=True,
-        )
-        data_pair = self._new_backup_data_filename(backupname)
-        if data_pair is not None:
-            data_filename, bck_data_filename = data_pair
+        if True:
+            # hardlink backup is okay because _writedirstate is always called
+            # with an "atomictemp=True" file.
             util.copyfile(
-                self._opener.join(data_filename),
-                self._opener.join(bck_data_filename),
+                self._opener.join(filename),
+                self._opener.join(backupname),
                 hardlink=True,
             )
-            if tr is not None:
-                # ensure that pending file written above is unlinked at
-                # failure, even if tr.writepending isn't invoked until the
-                # end of this transaction
-                tr.registertmp(bck_data_filename, location=b'plain')
+            data_pair = self._new_backup_data_filename(backupname)
+            if data_pair is not None:
+                data_filename, bck_data_filename = data_pair
+                util.copyfile(
+                    self._opener.join(data_filename),
+                    self._opener.join(bck_data_filename),
+                    hardlink=True,
+                )
+                if tr is not None:
+                    # ensure that pending file written above is unlinked at
+                    # failure, even if tr.writepending isn't invoked until the
+                    # end of this transaction
+                    tr.registertmp(bck_data_filename, location=b'plain')
 
     def restorebackup(self, tr, backupname):
         '''Restore dirstate by backup file'''
