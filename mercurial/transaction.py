@@ -670,6 +670,12 @@ class transaction(util.transactional):
 
         quick = self._can_quick_abort(entries)
         try:
+            if not quick:
+                self._report(_(b"transaction abort!\n"))
+            for cat in sorted(self._abortcallback):
+                self._abortcallback[cat](self)
+            # Prevent double usage and help clear cycles.
+            self._abortcallback = None
             if quick:
                 self._do_quick_abort(entries)
             else:
@@ -699,12 +705,7 @@ class transaction(util.transactional):
 
     def _do_full_abort(self, entries):
         """(Noisily) rollback all the change introduced by the transaction"""
-        self._report(_(b"transaction abort!\n"))
         try:
-            for cat in sorted(self._abortcallback):
-                self._abortcallback[cat](self)
-            # Prevent double usage and help clear cycles.
-            self._abortcallback = None
             _playback(
                 self._journal,
                 self._report,
