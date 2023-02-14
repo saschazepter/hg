@@ -517,53 +517,52 @@ def updatelfiles(
             filelist = set(filelist)
             lfiles = [f for f in lfiles if f in filelist]
 
-        with lfdirstate.changing_parents(repo):
-            update = {}
-            dropped = set()
-            updated, removed = 0, 0
-            wvfs = repo.wvfs
-            wctx = repo[None]
-            for lfile in lfiles:
-                lfileorig = os.path.relpath(
-                    scmutil.backuppath(ui, repo, lfile), start=repo.root
-                )
-                standin = lfutil.standin(lfile)
-                standinorig = os.path.relpath(
-                    scmutil.backuppath(ui, repo, standin), start=repo.root
-                )
-                if wvfs.exists(standin):
-                    if wvfs.exists(standinorig) and wvfs.exists(lfile):
-                        shutil.copyfile(wvfs.join(lfile), wvfs.join(lfileorig))
-                        wvfs.unlinkpath(standinorig)
-                    expecthash = lfutil.readasstandin(wctx[standin])
-                    if expecthash != b'':
-                        if lfile not in wctx:  # not switched to normal file
-                            if repo.dirstate.get_entry(standin).any_tracked:
-                                wvfs.unlinkpath(lfile, ignoremissing=True)
-                            else:
-                                dropped.add(lfile)
+        update = {}
+        dropped = set()
+        updated, removed = 0, 0
+        wvfs = repo.wvfs
+        wctx = repo[None]
+        for lfile in lfiles:
+            lfileorig = os.path.relpath(
+                scmutil.backuppath(ui, repo, lfile), start=repo.root
+            )
+            standin = lfutil.standin(lfile)
+            standinorig = os.path.relpath(
+                scmutil.backuppath(ui, repo, standin), start=repo.root
+            )
+            if wvfs.exists(standin):
+                if wvfs.exists(standinorig) and wvfs.exists(lfile):
+                    shutil.copyfile(wvfs.join(lfile), wvfs.join(lfileorig))
+                    wvfs.unlinkpath(standinorig)
+                expecthash = lfutil.readasstandin(wctx[standin])
+                if expecthash != b'':
+                    if lfile not in wctx:  # not switched to normal file
+                        if repo.dirstate.get_entry(standin).any_tracked:
+                            wvfs.unlinkpath(lfile, ignoremissing=True)
+                        else:
+                            dropped.add(lfile)
 
-                        # allocate an entry in largefiles dirstate to prevent
-                        # lfilesrepo.status() from reporting missing files as
-                        # removed.
-                        lfdirstate.hacky_extension_update_file(
-                            lfile,
-                            p1_tracked=True,
-                            wc_tracked=True,
-                            possibly_dirty=True,
-                        )
-                        update[lfile] = expecthash
-                else:
-                    # Remove lfiles for which the standin is deleted, unless the
-                    # lfile is added to the repository again. This happens when a
-                    # largefile is converted back to a normal file: the standin
-                    # disappears, but a new (normal) file appears as the lfile.
-                    if (
-                        wvfs.exists(lfile)
-                        and repo.dirstate.normalize(lfile) not in wctx
-                    ):
-                        wvfs.unlinkpath(lfile)
-                        removed += 1
+                    # allocate an entry in largefiles dirstate to prevent
+                    # lfilesrepo.status() from reporting missing files as
+                    # removed.
+                    lfdirstate.hacky_extension_update_file(
+                        lfile,
+                        p1_tracked=True,
+                        wc_tracked=True,
+                        possibly_dirty=True,
+                    )
+                    update[lfile] = expecthash
+            else:
+                # Remove lfiles for which the standin is deleted, unless the
+                # lfile is added to the repository again. This happens when a
+                # largefile is converted back to a normal file: the standin
+                # disappears, but a new (normal) file appears as the lfile.
+                if (
+                    wvfs.exists(lfile)
+                    and repo.dirstate.normalize(lfile) not in wctx
+                ):
+                    wvfs.unlinkpath(lfile)
+                    removed += 1
 
         # largefile processing might be slow and be interrupted - be prepared
         lfdirstate.write(repo.currenttransaction())
