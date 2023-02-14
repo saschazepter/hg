@@ -156,8 +156,6 @@ was always recording three commits, one for each diff hunk, in reverse order
   record change 3/3 to 'a'?
   (enter ? for help) [Ynesfdaq?] y
   
-  transaction abort!
-  rollback completed
   abort: edit failed: false exited with status 1
   [250]
   $ hg status

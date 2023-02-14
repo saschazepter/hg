@@ -691,13 +691,22 @@ class transaction(util.transactional):
         True if nothing, except temporary files has been writen on disk."""
         if entries:
             return False
-        if self._backupentries:
-            return False
+        for e in self._backupentries:
+            if e[1]:
+                return False
         return True
 
     def _do_quick_abort(self, entries):
         """(Silently) do a quick cleanup (see _can_quick_abort)"""
         assert self._can_quick_abort(entries)
+        tmp_files = [e for e in self._backupentries if not e[1]]
+        for vfs_id, old_path, tmp_path, xxx in tmp_files:
+            assert not old_path
+            vfs = self._vfsmap[vfs_id]
+            try:
+                vfs.unlink(tmp_path)
+            except FileNotFoundError:
+                pass
         if self._backupjournal:
             self._opener.unlink(self._backupjournal)
         if self._journal:
