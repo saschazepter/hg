@@ -13,6 +13,7 @@ import sys
 from .i18n import _
 from .node import (
     hex,
+    nullid,
     nullrev,
     short,
     wdirrev,
@@ -7500,8 +7501,11 @@ def tag(ui, repo, name1, *names, **opts):
                 )
         node = logcmdutil.revsingle(repo, rev_).node()
 
+        # don't allow tagging the null rev or the working directory
         if node is None:
             raise error.InputError(_(b"cannot tag working directory"))
+        elif not opts.get(b'remove') and node == nullid:
+            raise error.InputError(_(b"cannot tag null revision"))
 
         if not message:
             # we don't translate commit messages
@@ -7521,13 +7525,6 @@ def tag(ui, repo, name1, *names, **opts):
         editor = cmdutil.getcommiteditor(
             editform=editform, **pycompat.strkwargs(opts)
         )
-
-        # don't allow tagging the null rev
-        if (
-            not opts.get(b'remove')
-            and logcmdutil.revsingle(repo, rev_).rev() == nullrev
-        ):
-            raise error.InputError(_(b"cannot tag null revision"))
 
         tagsmod.tag(
             repo,
