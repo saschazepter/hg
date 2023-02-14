@@ -1486,6 +1486,9 @@ class dirstate:
         """return a filename to backup a data-file or None"""
         if not self._use_dirstate_v2:
             return None
+        if self._map.docket.uuid is None:
+            # not created yet, nothing to backup
+            return None
         data_filename = self._map.docket.data_filename()
         return data_filename, self.data_backup_filename(backupname)
 
@@ -1506,7 +1509,7 @@ class dirstate:
         # use '_writedirstate' instead of 'write' to write changes certainly,
         # because the latter omits writing out if transaction is running.
         # output file will be used to create backup of dirstate at this point.
-        if self._dirty or not self._opener.exists(filename):
+        if self._dirty:
             self._writedirstate(
                 tr,
                 self._opener(filename, b"w", atomictemp=True, checkambig=True),
@@ -1530,7 +1533,7 @@ class dirstate:
             tr.registertmp(filename, location=b'plain')
 
         self._opener.tryunlink(backupname)
-        if True:
+        if self._opener.exists(filename):
             # hardlink backup is okay because _writedirstate is always called
             # with an "atomictemp=True" file.
             util.copyfile(
@@ -1557,10 +1560,23 @@ class dirstate:
         # this "invalidate()" prevents "wlock.release()" from writing
         # changes of dirstate out after restoring from backup file
         self.invalidate()
-        filename = self._actualfilename(tr)
         o = self._opener
+        if not o.exists(backupname):
+            # there was no file backup, delete existing files
+            filename = self._actualfilename(tr)
+            data_file = None
+            if self._use_dirstate_v2:
+                data_file = self._map.docket.data_filename()
+            if o.exists(filename):
+                o.unlink(filename)
+            if data_file is not None and o.exists(data_file):
+                o.unlink(data_file)
+            return
+        filename = self._actualfilename(tr)
         data_pair = self.backup_data_file(backupname)
-        if util.samefile(o.join(backupname), o.join(filename)):
+        if o.exists(filename) and util.samefile(
+            o.join(backupname), o.join(filename)
+        ):
             o.unlink(backupname)
         else:
             o.rename(backupname, filename, checkambig=True)
@@ -1577,11 +1593,11 @@ class dirstate:
     def clearbackup(self, tr, backupname):
         '''Clear backup file'''
         o = self._opener
-        data_backup = self.backup_data_file(backupname)
-        o.unlink(backupname)
-
-        if data_backup is not None:
-            o.unlink(data_backup[0])
+        if o.exists(backupname):
+            data_backup = self.backup_data_file(backupname)
+            o.unlink(backupname)
+            if data_backup is not None:
+                o.unlink(data_backup[0])
 
     def verify(self, m1, m2, p1, narrow_matcher=None):
         """
