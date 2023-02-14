@@ -644,6 +644,15 @@ test that prepushkey can prevent incoming keys
   HG_TXNNAME=push
   HG_URL=file:$TESTTMP/a
   
+  txnabort Python hook: bundle2,changes,source,txnid,txnname,url
+  txnabort hook: HG_BUNDLE2=1
+  HG_HOOKNAME=txnabort.1
+  HG_HOOKTYPE=txnabort
+  HG_SOURCE=push
+  HG_TXNID=TXN:$ID$
+  HG_TXNNAME=push
+  HG_URL=file:$TESTTMP/a
+  
   abort: prepushkey hook exited with status 1
   [40]
   $ cd ../a
