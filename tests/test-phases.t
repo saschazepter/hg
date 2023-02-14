@@ -818,8 +818,6 @@ repositories visible to an external hook.
   $ hg phase 6
   6: draft
   $ hg --config hooks.pretxnclose="sh $TESTTMP/savepending.sh" phase -f -s 6
-  transaction abort!
-  rollback completed
   abort: pretxnclose hook exited with status 1
   [40]
   $ cp .hg/store/phaseroots.pending.saved .hg/store/phaseroots.pending
@@ -841,8 +839,6 @@ repositories visible to an external hook.
   7: secret
   @push-dest
   6: draft
-  transaction abort!
-  rollback completed
   abort: pretxnclose hook exited with status 1
   [40]
 
@@ -915,13 +911,9 @@ Install a hook that prevent b3325c91a4d9 to become public
 Try various actions. only the draft move should succeed
 
   $ hg phase --public b3325c91a4d9
-  transaction abort!
-  rollback completed
   abort: pretxnclose-phase.nopublish_D hook exited with status 1
   [40]
   $ hg phase --public a603bfb5a83e
-  transaction abort!
-  rollback completed
   abort: pretxnclose-phase.nopublish_D hook exited with status 1
   [40]
   $ hg phase --draft 17a481b3bccb
@@ -932,8 +924,6 @@ Try various actions. only the draft move should succeed
   test-hook-close-phase: a603bfb5a83e312131cebcd05353c217d4d21dde:  secret -> draft
   test-hook-close-phase: 17a481b3bccb796c0521ae97903d81c52bfee4af:  secret -> draft
   $ hg phase --public 17a481b3bccb
-  transaction abort!
-  rollback completed
   abort: pretxnclose-phase.nopublish_D hook exited with status 1
   [40]
 
