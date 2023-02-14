@@ -668,41 +668,59 @@ class transaction(util.transactional):
         self._file.close()
         self._backupsfile.close()
 
+        quick = self._can_quick_abort(entries)
         try:
-            if not entries and not self._backupentries:
-                if self._backupjournal:
-                    self._opener.unlink(self._backupjournal)
-                if self._journal:
-                    self._opener.unlink(self._journal)
-                return
-
-            self._report(_(b"transaction abort!\n"))
-
-            try:
-                for cat in sorted(self._abortcallback):
-                    self._abortcallback[cat](self)
-                # Prevent double usage and help clear cycles.
-                self._abortcallback = None
-                _playback(
-                    self._journal,
-                    self._report,
-                    self._opener,
-                    self._vfsmap,
-                    entries,
-                    self._backupentries,
-                    False,
-                    checkambigfiles=self._checkambigfiles,
-                )
-                self._report(_(b"rollback completed\n"))
-            except BaseException as exc:
-                self._report(_(b"rollback failed - please run hg recover\n"))
-                self._report(
-                    _(b"(failure reason: %s)\n") % stringutil.forcebytestr(exc)
-                )
+            if quick:
+                self._do_quick_abort(entries)
+            else:
+                self._do_full_abort(entries)
         finally:
             self._journal = None
             self._releasefn(self, False)  # notify failure of transaction
             self._releasefn = None  # Help prevent cycles.
+
+    def _can_quick_abort(self, entries):
+        """False if any semantic content have been written on disk
+
+        True if nothing, except temporary files has been writen on disk."""
+        if entries:
+            return False
+        if self._backupentries:
+            return False
+        return True
+
+    def _do_quick_abort(self, entries):
+        """(Silently) do a quick cleanup (see _can_quick_abort)"""
+        assert self._can_quick_abort(entries)
+        if self._backupjournal:
+            self._opener.unlink(self._backupjournal)
+        if self._journal:
+            self._opener.unlink(self._journal)
+
+    def _do_full_abort(self, entries):
+        """(Noisily) rollback all the change introduced by the transaction"""
+        self._report(_(b"transaction abort!\n"))
+        try:
+            for cat in sorted(self._abortcallback):
+                self._abortcallback[cat](self)
+            # Prevent double usage and help clear cycles.
+            self._abortcallback = None
+            _playback(
+                self._journal,
+                self._report,
+                self._opener,
+                self._vfsmap,
+                entries,
+                self._backupentries,
+                False,
+                checkambigfiles=self._checkambigfiles,
+            )
+            self._report(_(b"rollback completed\n"))
+        except BaseException as exc:
+            self._report(_(b"rollback failed - please run hg recover\n"))
+            self._report(
+                _(b"(failure reason: %s)\n") % stringutil.forcebytestr(exc)
+            )
 
 
 BAD_VERSION_MSG = _(
