@@ -594,6 +594,48 @@ class dirstate:
         depending of what information ends up being relevant and useful to
         other processing.
         """
+        self._update_file(
+            filename=filename,
+            wc_tracked=wc_tracked,
+            p1_tracked=p1_tracked,
+            p2_info=p2_info,
+            possibly_dirty=possibly_dirty,
+            parentfiledata=parentfiledata,
+        )
+
+    def hacky_extension_update_file(self, *args, **kwargs):
+        """NEVER USE THIS, YOU DO NOT NEED IT
+
+        This function is a variant of "update_file" to be called by a small set
+        of extensions, it also adjust the internal state of file, but can be
+        called outside an `changing_parents` context.
+
+        A very small number of extension meddle with the working copy content
+        in a way that requires to adjust the dirstate accordingly. At the time
+        this command is written they are :
+        - keyword,
+        - largefile,
+        PLEASE DO NOT GROW THIS LIST ANY FURTHER.
+
+        This function could probably be replaced by more semantic one (like
+        "adjust expected size" or "always revalidate file content", etc)
+        however at the time where this is writen, this is too much of a detour
+        to be considered.
+        """
+        self._update_file(
+            *args,
+            **kwargs,
+        )
+
+    def _update_file(
+        self,
+        filename,
+        wc_tracked,
+        p1_tracked,
+        p2_info=False,
+        possibly_dirty=False,
+        parentfiledata=None,
+    ):
 
         # note: I do not think we need to double check name clash here since we
         # are in a update/merge case that should already have taken care of
