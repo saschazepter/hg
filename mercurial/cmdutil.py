@@ -11,6 +11,15 @@ import errno
 import os
 import re
 
+from typing import (
+    Any,
+    AnyStr,
+    Dict,
+    Iterable,
+    Optional,
+    cast,
+)
+
 from .i18n import _
 from .node import (
     hex,
@@ -64,13 +73,9 @@ from .revlogutils import (
 )
 
 if pycompat.TYPE_CHECKING:
-    from typing import (
-        Any,
-        Dict,
+    from . import (
+        ui as uimod,
     )
-
-    for t in (Any, Dict):
-        assert t
 
 stringio = util.stringio
 
@@ -268,13 +273,16 @@ debugrevlogopts = [
 _linebelow = b"^HG: ------------------------ >8 ------------------------$"
 
 
-def check_at_most_one_arg(opts, *args):
+def check_at_most_one_arg(
+    opts: Dict[AnyStr, Any],
+    *args: AnyStr,
+) -> Optional[AnyStr]:
     """abort if more than one of the arguments are in opts
 
     Returns the unique argument or None if none of them were specified.
     """
 
-    def to_display(name):
+    def to_display(name: AnyStr) -> bytes:
         return pycompat.sysbytes(name).replace(b'_', b'-')
 
     previous = None
@@ -289,7 +297,11 @@ def check_at_most_one_arg(opts, *args):
     return previous
 
 
-def check_incompatible_arguments(opts, first, others):
+def check_incompatible_arguments(
+    opts: Dict[AnyStr, Any],
+    first: AnyStr,
+    others: Iterable[AnyStr],
+) -> None:
     """abort if the first argument is given along with any of the others
 
     Unlike check_at_most_one_arg(), `others` are not mutually exclusive
@@ -299,7 +311,7 @@ def check_incompatible_arguments(opts, first, others):
         check_at_most_one_arg(opts, first, other)
 
 
-def resolve_commit_options(ui, opts):
+def resolve_commit_options(ui: "uimod.ui", opts: Dict[str, Any]) -> bool:
     """modify commit options dict to handle related options
 
     The return value indicates that ``rewrite.update-timestamp`` is the reason
@@ -326,7 +338,7 @@ def resolve_commit_options(ui, opts):
     return datemaydiffer
 
 
-def check_note_size(opts):
+def check_note_size(opts: Dict[str, Any]) -> None:
     """make sure note is of valid format"""
 
     note = opts.get('note')
@@ -1114,12 +1126,12 @@ def bailifchanged(repo, merge=True, hint=None):
         ctx.sub(s).bailifchanged(hint=hint)
 
 
-def logmessage(ui, opts):
+def logmessage(ui: "uimod.ui", opts: Dict[bytes, Any]) -> Optional[bytes]:
     """get the log message according to -m and -l option"""
 
     check_at_most_one_arg(opts, b'message', b'logfile')
 
-    message = opts.get(b'message')
+    message = cast(Optional[bytes], opts.get(b'message'))
     logfile = opts.get(b'logfile')
 
     if not message and logfile:
@@ -1464,7 +1476,7 @@ def openrevlog(repo, cmd, file_, opts):
     return openstorage(repo, cmd, file_, opts, returnrevlog=True)
 
 
-def copy(ui, repo, pats, opts, rename=False):
+def copy(ui, repo, pats, opts: Dict[bytes, Any], rename=False):
     check_incompatible_arguments(opts, b'forget', [b'dry_run'])
 
     # called with the repo lock held
@@ -2777,7 +2789,7 @@ def cat(ui, repo, ctx, matcher, basefm, fntemplate, prefix, **opts):
                 basefm,
                 fntemplate,
                 subprefix,
-                **pycompat.strkwargs(opts)
+                **pycompat.strkwargs(opts),
             ):
                 err = 0
         except error.RepoLookupError:
@@ -2931,7 +2943,7 @@ def samefile(f, ctx1, ctx2):
         return f not in ctx2.manifest()
 
 
-def amend(ui, repo, old, extra, pats, opts):
+def amend(ui, repo, old, extra, pats, opts: Dict[str, Any]):
     # avoid cycle context -> subrepo -> cmdutil
     from . import context
 
