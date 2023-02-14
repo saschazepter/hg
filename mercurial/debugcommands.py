@@ -3140,6 +3140,7 @@ def debugrebuilddirstate(ui, repo, rev, **opts):
             changedfiles = manifestonly | dsnotadded
 
         dirstate.rebuild(ctx.node(), ctx.manifest(), changedfiles)
+        dirstate.write(repo.currenttransaction())
 
 
 @command(
