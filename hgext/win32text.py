@@ -221,7 +221,14 @@ def wrap_revert(orig, repo, ctx, names, uipathfn, actions, *args, **kwargs):
             entry = ds.get_entry(filename)
             if entry is not None:
                 if entry.p1_tracked:
-                    ds.update_file(
+                    # If we revert the file, it is possibly dirty. However,
+                    # this extension meddle with the file content and therefore
+                    # its size. As a result, we cannot simply call
+                    # `dirstate.set_possibly_dirty` as it will not affet the
+                    # expected size of the file.
+                    #
+                    # At least, now, the quirk is properly documented.
+                    ds.hacky_extension_update_file(
                         filename,
                         entry.tracked,
                         p1_tracked=True,
