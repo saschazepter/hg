@@ -3128,6 +3128,9 @@ def debugrebuilddirstate(ui, repo, rev, **opts):
     """
     ctx = scmutil.revsingle(repo, rev)
     with repo.wlock():
+        if repo.currenttransaction() is not None:
+            msg = b'rebuild the dirstate outside of a transaction'
+            raise error.ProgrammingError(msg)
         dirstate = repo.dirstate
         changedfiles = None
         # See command doc for what minimal does.
