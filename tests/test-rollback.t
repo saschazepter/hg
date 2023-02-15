@@ -65,17 +65,32 @@ working dir unaffected by rollback: do not restore dirstate et. al.
   $ hg commit -m'modify a again'
   $ echo b > b
   $ hg bookmark bar -r default #making bar active, before the transaction
+  $ hg log -G --template '{rev}  [{branch}] ({bookmarks}) {desc|firstline}\n'
+  @  1  [test] (foo) modify a again
+  |
+  o  0  [default] (bar) add a again
+  
   $ hg commit -Am'add b'
   adding b
-  $ hg log --template '{rev}  {branch}  {desc|firstline}\n'
-  2  test  add b
-  1  test  modify a again
-  0  default  add a again
+  $ hg log -G --template '{rev}  [{branch}] ({bookmarks}) {desc|firstline}\n'
+  @  2  [test] (foo) add b
+  |
+  o  1  [test] () modify a again
+  |
+  o  0  [default] (bar) add a again
+  
   $ hg update bar
   1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   (activating bookmark bar)
   $ cat .hg/undo.branch ; echo
   test
+  $ hg log -G --template '{rev}  [{branch}] ({bookmarks}) {desc|firstline}\n'
+  o  2  [test] (foo) add b
+  |
+  o  1  [test] () modify a again
+  |
+  @  0  [default] (bar) add a again
+  
   $ hg rollback
   abort: rollback of last commit while not checked out may lose data
   (use -f to force)
@@ -84,6 +99,11 @@ working dir unaffected by rollback: do not restore dirstate et. al.
   repository tip rolled back to revision 1 (undo commit)
   $ hg id -n
   0
+  $ hg log -G --template '{rev}  [{branch}] ({bookmarks}) {desc|firstline}\n'
+  o  1  [test] (foo) modify a again
+  |
+  @  0  [default] (bar) add a again
+  
   $ hg branch
   default
   $ cat .hg/bookmarks.current ; echo
