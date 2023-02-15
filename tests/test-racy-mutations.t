@@ -106,10 +106,10 @@ happen for the changelog (the linkrev should always refer to itself).
 
 #if fail-if-detected
   $ cat .foo_commit_out
-  transaction abort!
-  rollback completed
   note: commit message saved in .hg/last-message.txt
   note: use 'hg commit --logfile .hg/last-message.txt --edit' to reuse it
+  transaction abort!
+  rollback completed
   abort: 00changelog.i: file cursor at position 249, expected 121
 And no corruption in the changelog.
   $ hg debugrevlogindex -c
