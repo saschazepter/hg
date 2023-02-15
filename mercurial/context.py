@@ -1897,6 +1897,8 @@ class workingctx(committablectx):
                         self._repo.ui.debug(
                             b'skip updating dirstate: identity mismatch\n'
                         )
+                        # throw away anything we have.
+                        dirstate.invalidate()
             except error.LockError:
                 pass
             finally:
