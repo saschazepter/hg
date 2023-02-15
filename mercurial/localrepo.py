@@ -2709,6 +2709,8 @@ class localrepository:
     @unfilteredmethod  # Until we get smarter cache management
     def _rollback(self, dryrun, force, dsguard):
         ui = self.ui
+
+        parents = self.dirstate.parents()
         try:
             args = self.vfs.read(b'undo.desc').splitlines()
             (oldlen, desc, detail) = (int(args[0]), args[1], None)
@@ -2725,9 +2727,11 @@ class localrepository:
                 msg = _(
                     b'repository tip rolled back to revision %d (undo %s)\n'
                 ) % (oldtip, desc)
+            parentgone = any(self[p].rev() > oldtip for p in parents)
         except IOError:
             msg = _(b'rolling back unknown transaction\n')
             desc = None
+            parentgone = True
 
         if not force and self[b'.'] != self[b'tip'] and desc == b'commit':
             raise error.Abort(
@@ -2742,7 +2746,6 @@ class localrepository:
         if dryrun:
             return 0
 
-        parents = self.dirstate.parents()
         self.destroying()
         vfsmap = {b'plain': self.vfs, b'': self.svfs}
         transaction.rollback(
@@ -2757,8 +2760,6 @@ class localrepository:
             self.svfs.rename(b'undo.phaseroots', b'phaseroots', checkambig=True)
         self.invalidate()
 
-        has_node = self.changelog.index.has_node
-        parentgone = any(not has_node(p) for p in parents)
         if parentgone:
             # prevent dirstateguard from overwriting already restored one
             dsguard.close()
