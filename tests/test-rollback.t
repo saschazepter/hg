@@ -200,6 +200,7 @@ same again, but emulate an old client that doesn't write undo.desc
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg rollback
   rolling back unknown transaction
+  working directory now based on revision 0
   $ cat a
   a
 
