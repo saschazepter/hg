@@ -2533,7 +2533,8 @@ class localrepository:
                 # out) in this transaction
                 narrowspec.restorebackup(self, b'journal.narrowspec')
                 narrowspec.restorewcbackup(self, b'journal.narrowspec.dirstate')
-                repo.dirstate.restorebackup(None, b'journal.dirstate')
+                if repo.currentwlock() is not None:
+                    repo.dirstate.restorebackup(None, b'journal.dirstate')
 
                 repo.invalidate(clearfilecache=True)
 
@@ -2657,7 +2658,8 @@ class localrepository:
 
     @unfilteredmethod
     def _writejournal(self, desc):
-        self.dirstate.savebackup(None, b'journal.dirstate')
+        if self.currentwlock() is not None:
+            self.dirstate.savebackup(None, b'journal.dirstate')
         narrowspec.savewcbackup(self, b'journal.narrowspec.dirstate')
         narrowspec.savebackup(self, b'journal.narrowspec')
         self.vfs.write(
