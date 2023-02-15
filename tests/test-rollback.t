@@ -76,6 +76,10 @@ working dir unaffected by rollback: do not restore dirstate et. al.
   (activating bookmark bar)
   $ cat .hg/undo.branch ; echo
   test
+  $ hg rollback
+  abort: rollback of last commit while not checked out may lose data
+  (use -f to force)
+  [255]
   $ hg rollback -f
   repository tip rolled back to revision 1 (undo commit)
   $ hg id -n
