@@ -70,8 +70,8 @@ working dir unaffected by rollback: do not restore dirstate et. al.
   |
   o  0  [default] (bar) add a again
   
-  $ hg commit -Am'add b'
-  adding b
+  $ hg add b
+  $ hg commit -m'add b'
   $ hg log -G --template '{rev}  [{branch}] ({bookmarks}) {desc|firstline}\n'
   @  2  [test] (foo) add b
   |
