@@ -42,7 +42,6 @@ from . import (
     commit,
     context,
     dirstate,
-    dirstateguard,
     discovery,
     encoding,
     error,
@@ -2695,22 +2694,20 @@ class localrepository:
                 return False
 
     def rollback(self, dryrun=False, force=False):
-        wlock = lock = dsguard = None
+        wlock = lock = None
         try:
             wlock = self.wlock()
             lock = self.lock()
             if self.svfs.exists(b"undo"):
-                dsguard = dirstateguard.dirstateguard(self, b'rollback')
-
-                return self._rollback(dryrun, force, dsguard)
+                return self._rollback(dryrun, force)
             else:
                 self.ui.warn(_(b"no rollback information available\n"))
                 return 1
         finally:
-            release(dsguard, lock, wlock)
+            release(lock, wlock)
 
     @unfilteredmethod  # Until we get smarter cache management
-    def _rollback(self, dryrun, force, dsguard):
+    def _rollback(self, dryrun, force):
         ui = self.ui
 
         parents = self.dirstate.parents()
@@ -2772,9 +2769,6 @@ class localrepository:
         self.invalidate()
 
         if parentgone:
-            # prevent dirstateguard from overwriting already restored one
-            dsguard.close()
-
             narrowspec.restorebackup(self, b'undo.narrowspec')
             narrowspec.restorewcbackup(self, b'undo.narrowspec.dirstate')
             self.dirstate.restorebackup(None, b'undo.dirstate')
