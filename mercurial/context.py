@@ -1875,12 +1875,16 @@ class workingctx(committablectx):
                                 normal = dirstate.set_clean
                             for f, pdf in fixup:
                                 normal(f, pdf)
-                            # write changes out explicitly, because nesting
-                            # wlock at runtime may prevent 'wlock.release()'
-                            # after this block from doing so for subsequent
-                            # changing files
-                            tr = self._repo.currenttransaction()
-                            self._repo.dirstate.write(tr)
+                        # write changes out explicitly, because nesting
+                        # wlock at runtime may prevent 'wlock.release()'
+                        # after this block from doing so for subsequent
+                        # changing files
+                        #
+                        # (This is outside of the (if fixup) block because the
+                        # status operation itself might have updated some cache
+                        # information before.)
+                        tr = self._repo.currenttransaction()
+                        self._repo.dirstate.write(tr)
 
                         if poststatus:
                             for ps in poststatus:
