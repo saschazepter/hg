@@ -159,6 +159,8 @@ def findfile(repo, hash):
 
 
 class largefilesdirstate(dirstate.dirstate):
+    _large_file_dirstate = True
+
     def __getitem__(self, key):
         return super(largefilesdirstate, self).__getitem__(unixpath(key))
 
@@ -204,7 +206,13 @@ def openlfdirstate(ui, repo, create=True):
     """
     Return a dirstate object that tracks largefiles: i.e. its root is
     the repo root, but it is saved in .hg/largefiles/dirstate.
+
+    If a dirstate object already exists and is being used for a 'changing_*'
+    context, it will be returned.
     """
+    sub_dirstate = getattr(repo.dirstate, '_sub_dirstate', None)
+    if sub_dirstate is not None:
+        return sub_dirstate
     vfs = repo.vfs
     lfstoredir = longname
     opener = vfsmod.vfs(vfs.join(lfstoredir))
