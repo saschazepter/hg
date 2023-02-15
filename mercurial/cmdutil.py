@@ -29,7 +29,6 @@ from . import (
     changelog,
     copies,
     crecord as crecordmod,
-    dirstateguard,
     encoding,
     error,
     formatter,
@@ -2789,21 +2788,114 @@ def cat(ui, repo, ctx, matcher, basefm, fntemplate, prefix, **opts):
     return err
 
 
+class _AddRemoveContext:
+    """a small (hacky) context to deal with lazy opening of context
+
+    This is to be used in the `commit` function right below. This deals with
+    lazily open a `changing_files` context inside a `transaction` that span the
+    full commit operation.
+
+    We need :
+    - a `changing_files` context to wrap the dirstate change within the
+      "addremove" operation,
+    - a transaction to make sure these change are not written right after the
+      addremove, but when the commit operation succeed.
+
+    However it get complicated because:
+    - opening a transaction "this early" shuffle hooks order, especially the
+      `precommit` one happening after the `pretxtopen` one which I am not too
+      enthusiastic about.
+    - the `mq` extensions + the `record` extension stacks many layers of call
+      to implement `qrefresh --interactive` and this result with `mq` calling a
+      `strip` in the middle of this function. Which prevent the existence of
+      transaction wrapping all of its function code. (however, `qrefresh` never
+      call the `addremove` bits.
+    - the largefile extensions (and maybe other extensions?) wraps `addremove`
+      so slicing `addremove` in smaller bits is a complex endeavour.
+
+    So I eventually took a this shortcut that open the transaction if we
+    actually needs it, not disturbing much of the rest of the code.
+
+    It will result in some hooks order change for `hg commit --addremove`,
+    however it seems a corner case enough to ignore that for now (hopefully).
+
+    Notes that None of the above problems seems insurmountable, however I have
+    been fighting with this specific piece of code for a couple of day already
+    and I need a solution to keep moving forward on the bigger work around
+    `changing_files` context that is being introduced at the same time as this
+    hack.
+
+    Each problem seems to have a solution:
+    - the hook order issue could be solved by refactoring the many-layer stack
+      that currently composes a commit and calling them earlier,
+    - the mq issue could be solved by refactoring `mq` so that the final strip
+      is done after transaction closure. Be warned that the mq code is quite
+      antic however.
+    - large-file could be reworked in parallel of the `addremove` to be
+      friendlier to this.
+
+    However each of these tasks are too much a diversion right now. In addition
+    they will be much easier to undertake when the `changing_files` dust has
+    settled."""
+
+    def __init__(self, repo):
+        self._repo = repo
+        self._transaction = None
+        self._dirstate_context = None
+        self._state = None
+
+    def __enter__(self):
+        assert self._state is None
+        self._state = True
+        return self
+
+    def open_transaction(self):
+        """open a `transaction` and `changing_files` context
+
+        Call this when you know that change to the dirstate will be needed and
+        we need to open the transaction early
+
+        This will also open the dirstate `changing_files` context, so you should
+        call `close_dirstate_context` when the distate changes are done.
+        """
+        assert self._state is not None
+        if self._transaction is None:
+            self._transaction = self._repo.transaction(b'commit')
+            self._transaction.__enter__()
+        if self._dirstate_context is None:
+            self._dirstate_context = self._repo.dirstate.changing_files(
+                self._repo
+            )
+            self._dirstate_context.__enter__()
+
+    def close_dirstate_context(self):
+        """close the change_files if any
+
+        Call this after the (potential) `open_transaction` call to close the
+        (potential) changing_files context.
+        """
+        if self._dirstate_context is not None:
+            self._dirstate_context.__exit__(None, None, None)
+            self._dirstate_context = None
+
+    def __exit__(self, *args):
+        if self._dirstate_context is not None:
+            self._dirstate_context.__exit__(*args)
+        if self._transaction is not None:
+            self._transaction.__exit__(*args)
+
+
 def commit(ui, repo, commitfunc, pats, opts):
     '''commit the specified files or all outstanding changes'''
     date = opts.get(b'date')
     if date:
         opts[b'date'] = dateutil.parsedate(date)
 
-    dsguard = None
-    # extract addremove carefully -- this function can be called from a command
-    # that doesn't support addremove
-    if opts.get(b'addremove'):
-        dsguard = dirstateguard.dirstateguard(repo, b'commit')
-    with dsguard or util.nullcontextmanager():
+    with repo.wlock(), repo.lock():
         message = logmessage(ui, opts)
         matcher = scmutil.match(repo[None], pats, opts)
-        if True:
+
+        with _AddRemoveContext(repo) as c:
             # extract addremove carefully -- this function can be called from a
             # command that doesn't support addremove
             if opts.get(b'addremove'):
@@ -2818,11 +2910,12 @@ def commit(ui, repo, commitfunc, pats, opts):
                     b"",
                     uipathfn,
                     opts,
+                    open_tr=c.open_transaction,
                 )
                 m = _(b"failed to mark all new/missing files as added/removed")
                 if r != 0:
                     raise error.Abort(m)
-
+            c.close_dirstate_context()
             return commitfunc(ui, repo, message, matcher, opts)
 
 
