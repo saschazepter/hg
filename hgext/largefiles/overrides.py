@@ -1545,11 +1545,19 @@ def overridesummary(orig, ui, repo, *pats, **opts):
 
 
 @eh.wrapfunction(scmutil, b'addremove')
-def scmutiladdremove(orig, repo, matcher, prefix, uipathfn, opts=None):
+def scmutiladdremove(
+    orig,
+    repo,
+    matcher,
+    prefix,
+    uipathfn,
+    opts=None,
+    open_tr=None,
+):
     if opts is None:
         opts = {}
     if not lfutil.islfilesrepo(repo):
-        return orig(repo, matcher, prefix, uipathfn, opts)
+        return orig(repo, matcher, prefix, uipathfn, opts, open_tr=open_tr)
     # Get the list of missing largefiles so we can remove them
     lfdirstate = lfutil.openlfdirstate(repo.ui, repo)
     unsure, s, mtime_boundary = lfdirstate.status(
@@ -1559,6 +1567,10 @@ def scmutiladdremove(orig, repo, matcher, prefix, uipathfn, opts=None):
         clean=False,
         unknown=False,
     )
+
+    # open the transaction and changing_files context
+    if open_tr is not None:
+        open_tr()
 
     # Call into the normal remove code, but the removing of the standin, we want
     # to have handled by original addremove.  Monkey patching here makes sure
@@ -1592,7 +1604,8 @@ def scmutiladdremove(orig, repo, matcher, prefix, uipathfn, opts=None):
     # function to take care of the rest.  Make sure it doesn't do anything with
     # largefiles by passing a matcher that will ignore them.
     matcher = composenormalfilematcher(matcher, repo[None].manifest(), added)
-    return orig(repo, matcher, prefix, uipathfn, opts)
+
+    return orig(repo, matcher, prefix, uipathfn, opts, open_tr=open_tr)
 
 
 # Calling purge with --all will cause the largefiles to be deleted.

@@ -1219,7 +1219,7 @@ def cleanupnodes(
                 )
 
 
-def addremove(repo, matcher, prefix, uipathfn, opts=None):
+def addremove(repo, matcher, prefix, uipathfn, opts=None, open_tr=None):
     if opts is None:
         opts = {}
     m = matcher
@@ -1279,7 +1279,9 @@ def addremove(repo, matcher, prefix, uipathfn, opts=None):
         repo, m, added + unknown, removed + deleted, similarity, uipathfn
     )
 
-    if not dry_run:
+    if not dry_run and (unknown or forgotten or deleted or renames):
+        if open_tr is not None:
+            open_tr()
         _markchanges(repo, unknown + forgotten, deleted, renames)
 
     for f in rejected:
