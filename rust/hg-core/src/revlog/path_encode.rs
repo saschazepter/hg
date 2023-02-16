@@ -77,29 +77,17 @@ impl<const N: usize> Sink for DestArr<N> {
     }
 }
 
-struct VecDest {
-    buf: Vec<u8>,
-}
-
 struct MeasureDest {
     pub len: usize,
 }
 
-impl VecDest {
-    pub fn create(capacity : usize) -> Self {
-        Self {
-            buf: Vec::with_capacity(capacity),
-        }
-    }
-}
-
-impl Sink for VecDest {
+impl Sink for Vec<u8> {
     fn write_byte(&mut self, c: u8) {
-        self.buf.push(c)
+        self.push(c)
     }
 
     fn write_bytes(&mut self, src: &[u8]) {
-        self.buf.extend_from_slice(src)
+        self.extend_from_slice(src)
     }
 }
 
@@ -544,13 +532,13 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
         src[s..].iter().rposition(|b| *b == b'.').map(|i| i + s)
     };
 
-    let mut dest : VecDest = VecDest::create(MAXSTOREPATHLEN);
+    let mut dest = Vec::with_capacity(MAXSTOREPATHLEN);
     dest.write_bytes(b"dh/");
 
     if let Some(last_slash) = last_slash {
         for slice in src[..last_slash].split(|b| *b == b'/') {
             let slice = &slice[..std::cmp::min(slice.len(), dirprefixlen)];
-            if dest.buf.len() + slice.len() > maxshortdirslen + 3 {
+            if dest.len() + slice.len() > maxshortdirslen + 3 {
                 break;
             } else {
                 dest.write_bytes(slice);
@@ -559,7 +547,7 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
         }
     }
 
-    let used = dest.buf.len() + 40 + {
+    let used = dest.len() + 40 + {
         if let Some(l) = last_dot {
             src.len() - l
         } else {
@@ -588,7 +576,7 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
     if let Some(l) = last_dot {
         dest.write_bytes(&src[l..]);
     }
-    dest.buf
+    dest
 }
 
 fn hash_encode(src: &[u8]) -> Vec<u8> {
@@ -618,10 +606,10 @@ pub fn path_encode(path: &[u8]) -> Vec<u8> {
         if newlen == path.len() {
             path.to_vec()
         } else {
-            let mut dest = VecDest::create(newlen);
+            let mut dest = Vec::with_capacity(newlen);
             basic_encode(&mut dest, path);
-            assert!(dest.buf.len() == newlen);
-            dest.buf
+            assert!(dest.len() == newlen);
+            dest
         }
     } else {
         hash_encode(path)
