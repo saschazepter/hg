@@ -217,9 +217,6 @@ class dirstate:
                         # calling) might have been called by a nested context
                         # instead of the top level one.
                         tr = repo.currenttransaction()
-                        if tr is not None:
-                            abort_cb = lambda tr: self.invalidate()
-                            tr.addabort(b'dirstate', abort_cb)
                         self.write(tr)
 
     @contextlib.contextmanager
@@ -917,6 +914,12 @@ class dirstate:
 
         write_key = self._use_tracked_hint and self._dirty_tracked_set
         if tr:
+            # make sure we invalidate the current change on abort
+            if tr is not None:
+                tr.addabort(
+                    b'dirstate-invalidate',
+                    lambda tr: self.invalidate(),
+                )
             # delay writing in-memory changes out
             tr.addfilegenerator(
                 b'dirstate-1-main',
