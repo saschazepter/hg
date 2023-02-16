@@ -220,15 +220,6 @@ class idirstate(interfaceutil.Interface):
         return files in the dirstate (in whatever state) filtered by match
         """
 
-    def savebackup(tr, backupname):
-        '''Save current dirstate into backup file'''
-
-    def restorebackup(tr, backupname):
-        '''Restore dirstate by backup file'''
-
-    def clearbackup(tr, backupname):
-        '''Clear backup file'''
-
     def verify(m1, m2, p1, narrow_matcher=None):
         """
         check the dirstate contents against the parent manifest and yield errors
