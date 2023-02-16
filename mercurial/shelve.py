@@ -432,10 +432,26 @@ def _restoreactivebookmark(repo, mark):
 
 def _aborttransaction(repo, tr):
     """Abort current transaction for shelve/unshelve, but keep dirstate"""
-    dirstatebackupname = b'dirstate.shelve'
-    repo.dirstate.savebackup(None, dirstatebackupname)
-    tr.abort()
-    repo.dirstate.restorebackup(None, dirstatebackupname)
+    # disable the transaction invalidation of the dirstate, to preserve the
+    # current change in memory.
+    ds = repo.dirstate
+    # The assert below check that nobody else did such wrapping.
+    #
+    # These is not such other wrapping currently, but if someone try to
+    # implement one in the future, this will explicitly break here instead of
+    # misbehaving in subtle ways.
+    assert 'invalidate' not in vars(ds)
+    try:
+        # note : we could simply disable the transaction abort callback, but
+        # other code also tries to rollback and invalidate this.
+        ds.invalidate = lambda: None
+        tr.abort()
+    finally:
+        del ds.invalidate
+    # manually write the change in memory since we can no longer rely on the
+    # transaction to do so.
+    assert repo.currenttransaction() is None
+    repo.dirstate.write(None)
 
 
 def getshelvename(repo, parent, opts):
