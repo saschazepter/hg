@@ -643,3 +643,22 @@ pub fn path_encode(path: &[u8]) -> Vec<u8> {
         hash_encode(path)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::hg_path::HgPathBuf;
+
+    // expected failure
+    #[test]
+    #[should_panic]
+    fn test_long_filename_at_root() {
+        let input = b"data/ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ.i";
+        let expected = b"dh/abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij.i708243a2237a7afae259ea3545a72a2ef11c247b.i";
+        let res = path_encode(input);
+        assert_eq!(
+            HgPathBuf::from_bytes(&res),
+            HgPathBuf::from_bytes(expected)
+        );
+    }
+}
