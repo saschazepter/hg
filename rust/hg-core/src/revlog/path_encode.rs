@@ -542,11 +542,9 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
     let mut dest = vec![0; MAXSTOREPATHLEN];
     memcopy(Some(&mut dest), &mut destlen, b"dh/");
 
-    {
+    if let Some(last_slash) = last_slash {
         let mut first = true;
-        for slice in
-            src[..last_slash.unwrap_or(src.len())].split(|b| *b == b'/')
-        {
+        for slice in src[..last_slash].split(|b| *b == b'/') {
             let slice = &slice[..std::cmp::min(slice.len(), dirprefixlen)];
             if destlen + (slice.len() + if first { 0 } else { 1 })
                 > maxshortdirslen + 3
@@ -649,9 +647,7 @@ mod tests {
     use super::*;
     use crate::utils::hg_path::HgPathBuf;
 
-    // expected failure
     #[test]
-    #[should_panic]
     fn test_long_filename_at_root() {
         let input = b"data/ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ.i";
         let expected = b"dh/abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij.i708243a2237a7afae259ea3545a72a2ef11c247b.i";
