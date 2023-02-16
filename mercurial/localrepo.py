@@ -2375,6 +2375,21 @@ class localrepository:
                 hint=_(b"run 'hg recover' to clean up transaction"),
             )
 
+        # At that point your dirstate should be clean:
+        #
+        # - If you don't have the wlock, why would you still have a dirty
+        #   dirstate ?
+        #
+        # - If you hold the wlock, you should not be opening a transaction in
+        #   the middle of a `distate.changing_*` block. The transaction needs to
+        #   be open before that and wrap the change-context.
+        #
+        # - If you are not within a `dirstate.changing_*` context, why is our
+        #   dirstate dirty?
+        if self.dirstate._dirty:
+            m = "cannot open a transaction with a dirty dirstate"
+            raise error.ProgrammingError(m)
+
         idbase = b"%.40f#%f" % (random.random(), time.time())
         ha = hex(hashutil.sha1(idbase).digest())
         txnid = b'TXN:' + ha
