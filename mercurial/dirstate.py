@@ -555,7 +555,6 @@ class dirstate:
     def copies(self):
         return self._map.copymap
 
-    @requires_not_changing_parents
     @requires_changing_files
     def set_tracked(self, filename, reset_copy=False):
         """a "public" method for generic code to mark a file as tracked
@@ -578,7 +577,6 @@ class dirstate:
             self._dirty_tracked_set = True
         return pre_tracked
 
-    @requires_not_changing_parents
     @requires_changing_files
     def set_untracked(self, filename):
         """a "public" method for generic code to mark a file as untracked
