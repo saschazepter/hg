@@ -475,6 +475,9 @@ class dirstate:
     def branch(self):
         return encoding.tolocal(self._branch)
 
+    # XXX since this make the dirstate dirty, we should enforce that it is done
+    # withing an appropriate change-context that scope the change and ensure it
+    # eventually get written on disk (or rolled back)
     def setparents(self, p1, p2=None):
         """Set dirstate parents to p1 and p2.
 
@@ -532,6 +535,9 @@ class dirstate:
         self._invalidated_context = self._changing_level > 0
         self._origpl = None
 
+    # XXX since this make the dirstate dirty, we should enforce that it is done
+    # withing an appropriate change-context that scope the change and ensure it
+    # eventually get written on disk (or rolled back)
     def copy(self, source, dest):
         """Mark dest as a copy of source. Unmark dest if source is None."""
         if source == dest:
@@ -673,6 +679,9 @@ class dirstate:
             parentfiledata=parentfiledata,
         )
 
+    # XXX since this make the dirstate dirty, we should enforce that it is done
+    # withing an appropriate change-context that scope the change and ensure it
+    # eventually get written on disk (or rolled back)
     def hacky_extension_update_file(self, *args, **kwargs):
         """NEVER USE THIS, YOU DO NOT NEED IT
 
@@ -834,10 +843,16 @@ class dirstate:
             return self._normalize(path, isknown, ignoremissing)
         return path
 
+    # XXX since this make the dirstate dirty, we should enforce that it is done
+    # withing an appropriate change-context that scope the change and ensure it
+    # eventually get written on disk (or rolled back)
     def clear(self):
         self._map.clear()
         self._dirty = True
 
+    # XXX since this make the dirstate dirty, we should enforce that it is done
+    # withing an appropriate change-context that scope the change and ensure it
+    # eventually get written on disk (or rolled back)
     def rebuild(self, parent, allfiles, changedfiles=None):
         matcher = self._sparsematcher
         if matcher is not None and not matcher.always():
@@ -1413,6 +1428,9 @@ class dirstate:
         )
         return (lookup, status)
 
+    # XXX since this can make the dirstate dirty (through rust), we should
+    # enforce that it is done withing an appropriate change-context that scope
+    # the change and ensure it eventually get written on disk (or rolled back)
     def status(self, match, subrepos, ignored, clean, unknown):
         """Determine the status of the working copy relative to the
         dirstate and return a pair of (unsure, status), where status is of type
