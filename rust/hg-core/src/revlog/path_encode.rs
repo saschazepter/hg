@@ -45,6 +45,38 @@ fn inset(bitset: &[u32; 8], c: u8) -> bool {
     bitset[(c as usize) >> 5] & (1 << (c & 31)) != 0
 }
 
+const MAXENCODE: usize = 4096 * 4;
+
+struct DestArr {
+    buf: [u8; MAXENCODE],
+    pub len: usize,
+}
+
+impl DestArr {
+    pub fn create() -> Self {
+        DestArr {
+            buf: [0; MAXENCODE],
+            len: 0,
+        }
+    }
+
+    pub fn contents(&self) -> &[u8] {
+        &self.buf[..self.len]
+    }
+}
+
+impl Sink for DestArr {
+    fn write_byte(&mut self, c: u8) {
+        self.buf[self.len] = c;
+        self.len += 1;
+    }
+
+    fn write_bytes(&mut self, src: &[u8]) {
+        self.buf[self.len..self.len + src.len()].copy_from_slice(src);
+        self.len += src.len();
+    }
+}
+
 struct Dest<'a> {
     dest: Option<&'a mut [u8]>,
     pub len: usize,
@@ -567,26 +599,19 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
     }
 }
 
-const MAXENCODE: usize = 4096 * 4;
 fn hash_encode(src: &[u8]) -> Vec<u8> {
-    let dired = &mut [0; MAXENCODE];
-    let mut dired_dest = Dest::create(dired);
-    let lowered = &mut [0; MAXENCODE];
-    let mut lowered_dest = Dest::create(lowered);
-    let auxed = &mut [0; MAXENCODE];
-    let mut auxed_dest = Dest::create(auxed);
+    let mut dired = DestArr::create();
+    let mut lowered = DestArr::create();
+    let mut auxed = DestArr::create();
     let baselen = (src.len() - 5) * 3;
     if baselen >= MAXENCODE {
         panic!("path_encode::hash_encore: string too long: {}", baselen)
     };
-    encode_dir(&mut dired_dest, src);
-    let dirlen = dired_dest.len;
-    let sha = Sha1::digest(&dired[..dirlen]);
-    lower_encode(&mut lowered_dest, &dired[..dirlen][5..]);
-    let lowerlen = lowered_dest.len;
-    aux_encode(&mut auxed_dest, &lowered[..lowerlen]);
-    let auxlen = auxed_dest.len;
-    hash_mangle(&auxed[..auxlen], &sha)
+    encode_dir(&mut dired, src);
+    let sha = Sha1::digest(dired.contents());
+    lower_encode(&mut lowered, &dired.contents()[5..]);
+    aux_encode(&mut auxed, lowered.contents());
+    hash_mangle(auxed.contents(), &sha)
 }
 
 pub fn path_encode(path: &[u8]) -> Vec<u8> {
