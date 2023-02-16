@@ -277,9 +277,9 @@ r4 has hardlinks in the working dir (not just inside .hg):
 
 Update back to revision 12 in r4 should break hardlink of file f1 and f3:
 #if hardlink-whitelisted
-  $ nlinksdir r4/.hg/undo.backup.dirstate r4/.hg/undo.dirstate
+  $ nlinksdir r4/.hg/undo.backup.dirstate r4/.hg/dirstate
+  2 r4/.hg/dirstate
   4 r4/.hg/undo.backup.dirstate
-  4 r4/.hg/undo.dirstate
 #endif
 
 
@@ -335,9 +335,9 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
   2 r4/f3 (no-execbit !)
 
 #if hardlink-whitelisted
-  $ nlinksdir r4/.hg/undo.backup.dirstate r4/.hg/undo.dirstate
+  $ nlinksdir r4/.hg/undo.backup.dirstate r4/.hg/dirstate
+  1 r4/.hg/dirstate
   4 r4/.hg/undo.backup.dirstate
-  4 r4/.hg/undo.dirstate
 #endif
 
 Test hardlinking outside hg:
