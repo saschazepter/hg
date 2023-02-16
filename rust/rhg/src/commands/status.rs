@@ -574,8 +574,8 @@ fn unsure_is_modified(
     let file_node = entry.node_id()?;
     let filelog_entry = filelog.entry_for_node(file_node).map_err(|_| {
         HgError::corrupted(format!(
-            "filelog missing node {:?} from manifest",
-            file_node
+            "filelog {:?} missing node {:?} from manifest",
+            hg_path, file_node
         ))
     })?;
     if filelog_entry.file_data_len_not_equal_to(fs_len) {
