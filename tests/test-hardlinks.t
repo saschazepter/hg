@@ -261,11 +261,10 @@ r4 has hardlinks in the working dir (not just inside .hg):
   2 r4/.hg/store/undo.backup.phaseroots
   2 r4/.hg/store/undo.backupfiles
   2 r4/.hg/store/undo.phaseroots
-  [24] r4/\.hg/undo\.backup\.dirstate (re)
+  2 r4/\.hg/undo\.backup\.dirstate (re)
   2 r4/.hg/undo.bookmarks
   2 r4/.hg/undo.branch
   2 r4/.hg/undo.desc
-  [24] r4/\.hg/undo\.dirstate (re)
   2 r4/.hg/wcache/checkisexec (execbit !)
   2 r4/.hg/wcache/checklink-target (symlink !)
   2 r4/.hg/wcache/checknoexec (execbit !)
@@ -279,7 +278,7 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
 #if hardlink-whitelisted
   $ nlinksdir r4/.hg/undo.backup.dirstate r4/.hg/dirstate
   2 r4/.hg/dirstate
-  4 r4/.hg/undo.backup.dirstate
+  2 r4/.hg/undo.backup.dirstate
 #endif
 
 
@@ -319,11 +318,10 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
   2 r4/.hg/store/undo.backup.phaseroots
   2 r4/.hg/store/undo.backupfiles
   2 r4/.hg/store/undo.phaseroots
-  [24] r4/\.hg/undo\.backup\.dirstate (re)
+  2 r4/\.hg/undo\.backup\.dirstate (re)
   2 r4/.hg/undo.bookmarks
   2 r4/.hg/undo.branch
   2 r4/.hg/undo.desc
-  [24] r4/\.hg/undo\.dirstate (re)
   2 r4/.hg/wcache/checkisexec (execbit !)
   2 r4/.hg/wcache/checklink-target (symlink !)
   2 r4/.hg/wcache/checknoexec (execbit !)
@@ -337,7 +335,7 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
 #if hardlink-whitelisted
   $ nlinksdir r4/.hg/undo.backup.dirstate r4/.hg/dirstate
   1 r4/.hg/dirstate
-  4 r4/.hg/undo.backup.dirstate
+  2 r4/.hg/undo.backup.dirstate
 #endif
 
 Test hardlinking outside hg:
