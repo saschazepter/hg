@@ -47,15 +47,15 @@ fn inset(bitset: &[u32; 8], c: u8) -> bool {
 
 const MAXENCODE: usize = 4096 * 4;
 
-struct DestArr {
-    buf: [u8; MAXENCODE],
+struct DestArr<const N: usize> {
+    buf: [u8; N],
     pub len: usize,
 }
 
-impl DestArr {
+impl<const N: usize> DestArr<N> {
     pub fn create() -> Self {
         DestArr {
-            buf: [0; MAXENCODE],
+            buf: [0; N],
             len: 0,
         }
     }
@@ -65,7 +65,7 @@ impl DestArr {
     }
 }
 
-impl Sink for DestArr {
+impl<const N: usize> Sink for DestArr<N> {
     fn write_byte(&mut self, c: u8) {
         self.buf[self.len] = c;
         self.len += 1;
@@ -600,9 +600,9 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
 }
 
 fn hash_encode(src: &[u8]) -> Vec<u8> {
-    let mut dired = DestArr::create();
-    let mut lowered = DestArr::create();
-    let mut auxed = DestArr::create();
+    let mut dired: DestArr<MAXENCODE> = DestArr::create();
+    let mut lowered: DestArr<MAXENCODE> = DestArr::create();
+    let mut auxed: DestArr<MAXENCODE> = DestArr::create();
     let baselen = (src.len() - 5) * 3;
     if baselen >= MAXENCODE {
         panic!("path_encode::hash_encore: string too long: {}", baselen)
