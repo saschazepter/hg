@@ -545,8 +545,7 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
         src[s..].iter().rposition(|b| *b == b'.').map(|i| i + s)
     };
 
-    let mut dest_vec = vec![0; MAXSTOREPATHLEN];
-    let mut dest = Dest::create(&mut dest_vec);
+    let mut dest : DestArr<MAXSTOREPATHLEN> = DestArr::create();
     dest.write_bytes(b"dh/");
 
     if let Some(last_slash) = last_slash {
@@ -590,13 +589,7 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
     if let Some(l) = last_dot {
         dest.write_bytes(&src[l..]);
     }
-    let destlen = dest.len;
-    if destlen == dest_vec.len() {
-        dest_vec
-    } else {
-        // sometimes the path are shorter than MAXSTOREPATHLEN
-        dest_vec[..destlen].to_vec()
-    }
+    dest.contents().to_vec()
 }
 
 fn hash_encode(src: &[u8]) -> Vec<u8> {
