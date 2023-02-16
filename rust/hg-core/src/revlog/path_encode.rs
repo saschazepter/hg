@@ -36,22 +36,31 @@ enum dir_state {
     DDEFAULT,
 }
 
+trait Sink {
+    fn write_byte(&mut self, c: u8);
+    fn write_bytes(&mut self, c: &[u8]);
+}
+
 fn inset(bitset: &[u32; 8], c: u8) -> bool {
     bitset[(c as usize) >> 5] & (1 << (c & 31)) != 0
 }
 
-fn charcopy(dest: Option<&mut [u8]>, destlen: &mut usize, c: u8) {
-    if let Some(slice) = dest {
-        slice[*destlen] = c
-    }
-    *destlen += 1
+struct Dest<'a> {
+    dest: Option<&'a mut [u8]>,
+    pub len: usize,
 }
 
-fn memcopy(dest: Option<&mut [u8]>, destlen: &mut usize, src: &[u8]) {
-    if let Some(slice) = dest {
-        slice[*destlen..*destlen + src.len()].copy_from_slice(src)
+impl<'a> Dest<'a> {
+    pub fn create(buf: &'a mut [u8]) -> Dest<'a> {
+        Dest {
+            dest: Some(buf),
+            len: 0,
+        }
     }
-    *destlen += src.len();
+
+    pub fn create_measure() -> Dest<'a> {
+        Dest { dest: None, len: 0 }
+    }
 }
 
 fn rewrap_option<'a, 'b: 'a>(
@@ -63,38 +72,49 @@ fn rewrap_option<'a, 'b: 'a>(
     }
 }
 
-fn hexencode(mut dest: Option<&mut [u8]>, destlen: &mut usize, c: u8) {
+impl<'a> Sink for Dest<'a> {
+    fn write_byte(&mut self, c: u8) {
+        if let Some(slice) = rewrap_option(&mut self.dest) {
+            slice[self.len] = c
+        }
+        self.len += 1
+    }
+
+    fn write_bytes(&mut self, src: &[u8]) {
+        if let Some(slice) = rewrap_option(&mut self.dest) {
+            slice[self.len..self.len + src.len()].copy_from_slice(src)
+        }
+        self.len += src.len();
+    }
+}
+
+fn hexencode(dest: &mut impl Sink, c: u8) {
     let hexdigit = b"0123456789abcdef";
-    charcopy(
-        rewrap_option(&mut dest),
-        destlen,
-        hexdigit[(c as usize) >> 4],
-    );
-    charcopy(dest, destlen, hexdigit[(c as usize) & 15]);
+    dest.write_byte(hexdigit[(c as usize) >> 4]);
+    dest.write_byte(hexdigit[(c as usize) & 15]);
 }
 
 /* 3-byte escape: tilde followed by two hex digits */
-fn escape3(mut dest: Option<&mut [u8]>, destlen: &mut usize, c: u8) {
-    charcopy(rewrap_option(&mut dest), destlen, b'~');
-    hexencode(dest, destlen, c);
+fn escape3(dest: &mut impl Sink, c: u8) {
+    dest.write_byte(b'~');
+    hexencode(dest, c);
 }
 
-fn encode_dir(mut dest: Option<&mut [u8]>, src: &[u8]) -> usize {
+fn encode_dir(dest: &mut impl Sink, src: &[u8]) {
     let mut state = dir_state::DDEFAULT;
     let mut i = 0;
-    let mut destlen = 0;
 
     while i < src.len() {
         match state {
             dir_state::DDOT => match src[i] {
                 b'd' | b'i' => {
                     state = dir_state::DHGDI;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 }
                 b'h' => {
                     state = dir_state::DH;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 }
                 _ => {
@@ -104,7 +124,7 @@ fn encode_dir(mut dest: Option<&mut [u8]>, src: &[u8]) -> usize {
             dir_state::DH => {
                 if src[i] == b'g' {
                     state = dir_state::DHGDI;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 } else {
                     state = dir_state::DDEFAULT;
@@ -112,8 +132,8 @@ fn encode_dir(mut dest: Option<&mut [u8]>, src: &[u8]) -> usize {
             }
             dir_state::DHGDI => {
                 if src[i] == b'/' {
-                    memcopy(rewrap_option(&mut dest), &mut destlen, b".hg");
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_bytes(b".hg");
+                    dest.write_byte(src[i]);
                     i += 1;
                 }
                 state = dir_state::DDEFAULT;
@@ -122,66 +142,64 @@ fn encode_dir(mut dest: Option<&mut [u8]>, src: &[u8]) -> usize {
                 if src[i] == b'.' {
                     state = dir_state::DDOT
                 }
-                charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                dest.write_byte(src[i]);
                 i += 1;
             }
         }
     }
-    destlen
 }
 
 fn _encode(
     twobytes: &[u32; 8],
     onebyte: &[u32; 8],
-    mut dest: Option<&mut [u8]>,
+    dest: &mut impl Sink,
     src: &[u8],
     encodedir: bool,
-) -> usize {
+) {
     let mut state = path_state::START;
     let mut i = 0;
-    let mut destlen = 0;
     let len = src.len();
 
     while i < len {
         match state {
             path_state::START => match src[i] {
                 b'/' => {
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 }
                 b'.' => {
                     state = path_state::LDOT;
-                    escape3(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    escape3(dest, src[i]);
                     i += 1;
                 }
                 b' ' => {
                     state = path_state::DEFAULT;
-                    escape3(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    escape3(dest, src[i]);
                     i += 1;
                 }
                 b'a' => {
                     state = path_state::A;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 }
                 b'c' => {
                     state = path_state::C;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 }
                 b'l' => {
                     state = path_state::L;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 }
                 b'n' => {
                     state = path_state::N;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 }
                 b'p' => {
                     state = path_state::P;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 }
                 _ => {
@@ -191,7 +209,7 @@ fn _encode(
             path_state::A => {
                 if src[i] == b'u' {
                     state = path_state::AU;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 } else {
                     state = path_state::DEFAULT;
@@ -208,18 +226,14 @@ fn _encode(
             path_state::THIRD => {
                 state = path_state::DEFAULT;
                 match src[i] {
-                    b'.' | b'/' | b'\0' => escape3(
-                        rewrap_option(&mut dest),
-                        &mut destlen,
-                        src[i - 1],
-                    ),
+                    b'.' | b'/' | b'\0' => escape3(dest, src[i - 1]),
                     _ => i -= 1,
                 }
             }
             path_state::C => {
                 if src[i] == b'o' {
                     state = path_state::CO;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 } else {
                     state = path_state::DEFAULT;
@@ -242,41 +256,25 @@ fn _encode(
                     i += 1;
                 } else {
                     state = path_state::DEFAULT;
-                    charcopy(
-                        rewrap_option(&mut dest),
-                        &mut destlen,
-                        src[i - 1],
-                    );
+                    dest.write_byte(src[i - 1]);
                 }
             }
             path_state::COMLPTn => {
                 state = path_state::DEFAULT;
                 match src[i] {
                     b'.' | b'/' | b'\0' => {
-                        escape3(
-                            rewrap_option(&mut dest),
-                            &mut destlen,
-                            src[i - 2],
-                        );
-                        charcopy(
-                            rewrap_option(&mut dest),
-                            &mut destlen,
-                            src[i - 1],
-                        );
+                        escape3(dest, src[i - 2]);
+                        dest.write_byte(src[i - 1]);
                     }
                     _ => {
-                        memcopy(
-                            rewrap_option(&mut dest),
-                            &mut destlen,
-                            &src[i - 2..i],
-                        );
+                        dest.write_bytes(&src[i - 2..i]);
                     }
                 }
             }
             path_state::L => {
                 if src[i] == b'p' {
                     state = path_state::LP;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 } else {
                     state = path_state::DEFAULT;
@@ -293,7 +291,7 @@ fn _encode(
             path_state::N => {
                 if src[i] == b'u' {
                     state = path_state::NU;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 } else {
                     state = path_state::DEFAULT;
@@ -310,7 +308,7 @@ fn _encode(
             path_state::P => {
                 if src[i] == b'r' {
                     state = path_state::PR;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 } else {
                     state = path_state::DEFAULT;
@@ -327,12 +325,12 @@ fn _encode(
             path_state::LDOT => match src[i] {
                 b'd' | b'i' => {
                     state = path_state::HGDI;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 }
                 b'h' => {
                     state = path_state::H;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 }
                 _ => {
@@ -342,30 +340,30 @@ fn _encode(
             path_state::DOT => match src[i] {
                 b'/' | b'\0' => {
                     state = path_state::START;
-                    memcopy(rewrap_option(&mut dest), &mut destlen, b"~2e");
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_bytes(b"~2e");
+                    dest.write_byte(src[i]);
                     i += 1;
                 }
                 b'd' | b'i' => {
                     state = path_state::HGDI;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, b'.');
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(b'.');
+                    dest.write_byte(src[i]);
                     i += 1;
                 }
                 b'h' => {
                     state = path_state::H;
-                    memcopy(rewrap_option(&mut dest), &mut destlen, b".h");
+                    dest.write_bytes(b".h");
                     i += 1;
                 }
                 _ => {
                     state = path_state::DEFAULT;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, b'.');
+                    dest.write_byte(b'.');
                 }
             },
             path_state::H => {
                 if src[i] == b'g' {
                     state = path_state::HGDI;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 } else {
                     state = path_state::DEFAULT;
@@ -375,13 +373,9 @@ fn _encode(
                 if src[i] == b'/' {
                     state = path_state::START;
                     if encodedir {
-                        memcopy(
-                            rewrap_option(&mut dest),
-                            &mut destlen,
-                            b".hg",
-                        );
+                        dest.write_bytes(b".hg");
                     }
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1
                 } else {
                     state = path_state::DEFAULT;
@@ -390,18 +384,18 @@ fn _encode(
             path_state::SPACE => match src[i] {
                 b'/' | b'\0' => {
                     state = path_state::START;
-                    memcopy(rewrap_option(&mut dest), &mut destlen, b"~20");
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_bytes(b"~20");
+                    dest.write_byte(src[i]);
                     i += 1;
                 }
                 _ => {
                     state = path_state::DEFAULT;
-                    charcopy(rewrap_option(&mut dest), &mut destlen, b' ');
+                    dest.write_byte(b' ');
                 }
             },
             path_state::DEFAULT => {
                 while i != len && inset(onebyte, src[i]) {
-                    charcopy(rewrap_option(&mut dest), &mut destlen, src[i]);
+                    dest.write_byte(src[i]);
                     i += 1;
                 }
                 if i == len {
@@ -418,17 +412,13 @@ fn _encode(
                     }
                     b'/' => {
                         state = path_state::START;
-                        charcopy(rewrap_option(&mut dest), &mut destlen, b'/');
+                        dest.write_byte(b'/');
                         i += 1;
                     }
                     _ => {
                         if inset(onebyte, src[i]) {
                             loop {
-                                charcopy(
-                                    rewrap_option(&mut dest),
-                                    &mut destlen,
-                                    src[i],
-                                );
+                                dest.write_byte(src[i]);
                                 i += 1;
                                 if !(i < len && inset(onebyte, src[i])) {
                                     break;
@@ -437,22 +427,14 @@ fn _encode(
                         } else if inset(twobytes, src[i]) {
                             let c = src[i];
                             i += 1;
-                            charcopy(
-                                rewrap_option(&mut dest),
-                                &mut destlen,
-                                b'_',
-                            );
-                            charcopy(
-                                rewrap_option(&mut dest),
-                                &mut destlen,
-                                if c == b'_' { b'_' } else { c + 32 },
-                            );
+                            dest.write_byte(b'_');
+                            dest.write_byte(if c == b'_' {
+                                b'_'
+                            } else {
+                                c + 32
+                            });
                         } else {
-                            escape3(
-                                rewrap_option(&mut dest),
-                                &mut destlen,
-                                src[i],
-                            );
+                            escape3(dest, src[i]);
                             i += 1;
                         }
                     }
@@ -464,17 +446,13 @@ fn _encode(
         path_state::START => (),
         path_state::A => (),
         path_state::AU => (),
-        path_state::THIRD => {
-            escape3(rewrap_option(&mut dest), &mut destlen, src[i - 1])
-        }
+        path_state::THIRD => escape3(dest, src[i - 1]),
         path_state::C => (),
         path_state::CO => (),
-        path_state::COMLPT => {
-            charcopy(rewrap_option(&mut dest), &mut destlen, src[i - 1])
-        }
+        path_state::COMLPT => dest.write_byte(src[i - 1]),
         path_state::COMLPTn => {
-            escape3(rewrap_option(&mut dest), &mut destlen, src[i - 2]);
-            charcopy(rewrap_option(&mut dest), &mut destlen, src[i - 1]);
+            escape3(dest, src[i - 2]);
+            dest.write_byte(src[i - 1]);
         }
         path_state::L => (),
         path_state::LP => (),
@@ -484,19 +462,18 @@ fn _encode(
         path_state::PR => (),
         path_state::LDOT => (),
         path_state::DOT => {
-            memcopy(rewrap_option(&mut dest), &mut destlen, b"~2e");
+            dest.write_bytes(b"~2e");
         }
         path_state::H => (),
         path_state::HGDI => (),
         path_state::SPACE => {
-            memcopy(rewrap_option(&mut dest), &mut destlen, b"~20");
+            dest.write_bytes(b"~20");
         }
         path_state::DEFAULT => (),
-    };
-    destlen
+    }
 }
 
-fn basic_encode(dest: Option<&mut [u8]>, src: &[u8]) -> usize {
+fn basic_encode(dest: &mut impl Sink, src: &[u8]) {
     let twobytes: [u32; 8] = [0, 0, 0x87ff_fffe, 0, 0, 0, 0, 0];
     let onebyte: [u32; 8] =
         [1, 0x2bff_3bfa, 0x6800_0001, 0x2fff_ffff, 0, 0, 0, 0];
@@ -505,24 +482,22 @@ fn basic_encode(dest: Option<&mut [u8]>, src: &[u8]) -> usize {
 
 const MAXSTOREPATHLEN: usize = 120;
 
-fn lower_encode(mut dest: Option<&mut [u8]>, src: &[u8]) -> usize {
+fn lower_encode(dest: &mut impl Sink, src: &[u8]) {
     let onebyte: [u32; 8] =
         [1, 0x2bff_fbfb, 0xe800_0001, 0x2fff_ffff, 0, 0, 0, 0];
     let lower: [u32; 8] = [0, 0, 0x07ff_fffe, 0, 0, 0, 0, 0];
-    let mut destlen = 0;
     for c in src {
         if inset(&onebyte, *c) {
-            charcopy(rewrap_option(&mut dest), &mut destlen, *c)
+            dest.write_byte(*c)
         } else if inset(&lower, *c) {
-            charcopy(rewrap_option(&mut dest), &mut destlen, *c + 32)
+            dest.write_byte(*c + 32)
         } else {
-            escape3(rewrap_option(&mut dest), &mut destlen, *c)
+            escape3(dest, *c)
         }
     }
-    destlen
 }
 
-fn aux_encode(dest: Option<&mut [u8]>, src: &[u8]) -> usize {
+fn aux_encode(dest: &mut impl Sink, src: &[u8]) {
     let twobytes = [0; 8];
     let onebyte: [u32; 8] = [!0, 0xffff_3ffe, !0, !0, !0, !0, !0, !0];
     _encode(&twobytes, &onebyte, dest, src, false)
@@ -531,7 +506,6 @@ fn aux_encode(dest: Option<&mut [u8]>, src: &[u8]) -> usize {
 fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
     let dirprefixlen = 8;
     let maxshortdirslen = 68;
-    let mut destlen = 0;
 
     let last_slash = src.iter().rposition(|b| *b == b'/');
     let last_dot: Option<usize> = {
@@ -539,25 +513,23 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
         src[s..].iter().rposition(|b| *b == b'.').map(|i| i + s)
     };
 
-    let mut dest = vec![0; MAXSTOREPATHLEN];
-    memcopy(Some(&mut dest), &mut destlen, b"dh/");
+    let mut dest_vec = vec![0; MAXSTOREPATHLEN];
+    let mut dest = Dest::create(&mut dest_vec);
+    dest.write_bytes(b"dh/");
 
     if let Some(last_slash) = last_slash {
         for slice in src[..last_slash].split(|b| *b == b'/') {
             let slice = &slice[..std::cmp::min(slice.len(), dirprefixlen)];
-            if destlen + slice.len() > maxshortdirslen + 3 {
+            if dest.len + slice.len() > maxshortdirslen + 3 {
                 break;
             } else {
-                memcopy(Some(&mut dest), &mut destlen, slice);
-                if dest[destlen - 1] == b'.' || dest[destlen - 1] == b' ' {
-                    dest[destlen - 1] = b'_'
-                }
+                dest.write_bytes(slice);
             }
-            charcopy(Some(&mut dest), &mut destlen, b'/');
+            dest.write_byte(b'/');
         }
     }
 
-    let used = destlen + 40 + {
+    let used = dest.len + 40 + {
         if let Some(l) = last_dot {
             src.len() - l
         } else {
@@ -577,46 +549,51 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
                 Some(l) => l + 1,
                 None => 0,
             };
-            memcopy(
-                Some(&mut dest),
-                &mut destlen,
-                &src[start..][..basenamelen],
-            )
+            dest.write_bytes(&src[start..][..basenamelen])
         }
     }
     for c in sha {
-        hexencode(Some(&mut dest), &mut destlen, *c);
+        hexencode(&mut dest, *c);
     }
     if let Some(l) = last_dot {
-        memcopy(Some(&mut dest), &mut destlen, &src[l..]);
+        dest.write_bytes(&src[l..]);
     }
-    if destlen == dest.len() {
-        dest
+    let destlen = dest.len;
+    if destlen == dest_vec.len() {
+        dest_vec
     } else {
         // sometimes the path are shorter than MAXSTOREPATHLEN
-        dest[..destlen].to_vec()
+        dest_vec[..destlen].to_vec()
     }
 }
 
 const MAXENCODE: usize = 4096 * 4;
 fn hash_encode(src: &[u8]) -> Vec<u8> {
     let dired = &mut [0; MAXENCODE];
+    let mut dired_dest = Dest::create(dired);
     let lowered = &mut [0; MAXENCODE];
+    let mut lowered_dest = Dest::create(lowered);
     let auxed = &mut [0; MAXENCODE];
+    let mut auxed_dest = Dest::create(auxed);
     let baselen = (src.len() - 5) * 3;
     if baselen >= MAXENCODE {
         panic!("path_encode::hash_encore: string too long: {}", baselen)
     };
-    let dirlen = encode_dir(Some(&mut dired[..]), src);
+    encode_dir(&mut dired_dest, src);
+    let dirlen = dired_dest.len;
     let sha = Sha1::digest(&dired[..dirlen]);
-    let lowerlen = lower_encode(Some(&mut lowered[..]), &dired[..dirlen][5..]);
-    let auxlen = aux_encode(Some(&mut auxed[..]), &lowered[..lowerlen]);
+    lower_encode(&mut lowered_dest, &dired[..dirlen][5..]);
+    let lowerlen = lowered_dest.len;
+    aux_encode(&mut auxed_dest, &lowered[..lowerlen]);
+    let auxlen = auxed_dest.len;
     hash_mangle(&auxed[..auxlen], &sha)
 }
 
 pub fn path_encode(path: &[u8]) -> Vec<u8> {
     let newlen = if path.len() <= MAXSTOREPATHLEN {
-        basic_encode(None, path)
+        let mut measure = Dest::create_measure();
+        basic_encode(&mut measure, path);
+        measure.len
     } else {
         MAXSTOREPATHLEN + 1
     };
@@ -625,7 +602,9 @@ pub fn path_encode(path: &[u8]) -> Vec<u8> {
             path.to_vec()
         } else {
             let mut res = vec![0; newlen];
-            basic_encode(Some(&mut res), path);
+            let mut dest = Dest::create(&mut res);
+            basic_encode(&mut dest, path);
+            assert!(dest.len == newlen);
             res
         }
     } else {
