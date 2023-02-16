@@ -2647,6 +2647,32 @@ class localrepository:
         tr.addpostclose(b'refresh-filecachestats', self._refreshfilecachestats)
         self._transref = weakref.ref(tr)
         scmutil.registersummarycallback(self, tr, desc)
+        # This only exist to deal with the need of rollback to have viable
+        # parents at the end of the operation. So backup viable parents at the
+        # time of this operation.
+        #
+        # We only do it when the `wlock` is taken, otherwise other might be
+        # altering the dirstate under us.
+        #
+        # This is really not a great way to do this (first, because we cannot
+        # always do it). There are more viable alternative that exists
+        #
+        # - backing only the working copy parent in a dedicated files and doing
+        #   a clean "keep-update" to them on `hg rollback`.
+        #
+        # - slightly changing the behavior an applying a logic similar to "hg
+        # strip" to pick a working copy destination on `hg rollback`
+        if self.currentwlock() is not None:
+            ds = self.dirstate
+
+            def backup_dirstate(tr):
+                for f in ds.all_file_names():
+                    # hardlink backup is okay because `dirstate` is always
+                    # atomically written and possible data file are append only
+                    # and resistant to trailing data.
+                    tr.addbackup(f, hardlink=True, location=b'plain')
+
+            tr.addvalidator(b'dirstate-backup', backup_dirstate)
         return tr
 
     def _journalfiles(self):
