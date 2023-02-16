@@ -327,14 +327,6 @@ class gitdirstate:
             r[path] = s
         return r
 
-    def savebackup(self, tr, backupname):
-        # TODO: figure out a strategy for saving index backups.
-        pass
-
-    def restorebackup(self, tr, backupname):
-        # TODO: figure out a strategy for saving index backups.
-        pass
-
     def set_tracked(self, f, reset_copy=False):
         # TODO: support copies and reset_copy=True
         uf = pycompat.fsdecode(f)
@@ -396,10 +388,6 @@ class gitdirstate:
     def addparentchangecallback(self, category, callback):
         # TODO: should this be added to the dirstate interface?
         self._plchangecallbacks[category] = callback
-
-    def clearbackup(self, tr, backupname):
-        # TODO
-        pass
 
     def setbranch(self, branch):
         raise error.Abort(
