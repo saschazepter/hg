@@ -10,6 +10,7 @@
 import functools
 import os
 import random
+import re
 import sys
 import time
 import weakref
@@ -99,6 +100,8 @@ from .revlogutils import (
 release = lockmod.release
 urlerr = util.urlerr
 urlreq = util.urlreq
+
+RE_SKIP_DIRSTATE_ROLLBACK = re.compile(b"^(dirstate|narrowspec.dirstate).*")
 
 # set of (path, vfs-location) tuples. vfs-location is:
 # - 'plain for vfs relative paths
@@ -2748,8 +2751,16 @@ class localrepository:
 
         self.destroying()
         vfsmap = {b'plain': self.vfs, b'': self.svfs}
+        skip_journal_pattern = None
+        if not parentgone:
+            skip_journal_pattern = RE_SKIP_DIRSTATE_ROLLBACK
         transaction.rollback(
-            self.svfs, vfsmap, b'undo', ui.warn, checkambigfiles=_cachedfiles
+            self.svfs,
+            vfsmap,
+            b'undo',
+            ui.warn,
+            checkambigfiles=_cachedfiles,
+            skip_journal_pattern=skip_journal_pattern,
         )
         bookmarksvfs = bookmarks.bookmarksvfs(self)
         if bookmarksvfs.exists(b'undo.bookmarks'):

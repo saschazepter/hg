@@ -738,7 +738,14 @@ BAD_VERSION_MSG = _(
 )
 
 
-def rollback(opener, vfsmap, file, report, checkambigfiles=None):
+def rollback(
+    opener,
+    vfsmap,
+    file,
+    report,
+    checkambigfiles=None,
+    skip_journal_pattern=None,
+):
     """Rolls back the transaction contained in the given file
 
     Reads the entries in the specified file, and the corresponding
@@ -783,6 +790,9 @@ def rollback(opener, vfsmap, file, report, checkambigfiles=None):
                         line = line[:-1]
                         l, f, b, c = line.split(b'\0')
                         backupentries.append((l, f, b, bool(c)))
+    if skip_journal_pattern is not None:
+        keep = lambda x: not skip_journal_pattern.match(x[1])
+        backupentries = [x for x in backupentries if keep(x)]
 
     _playback(
         file,
