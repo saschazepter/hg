@@ -543,25 +543,16 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
     memcopy(Some(&mut dest), &mut destlen, b"dh/");
 
     if let Some(last_slash) = last_slash {
-        let mut first = true;
         for slice in src[..last_slash].split(|b| *b == b'/') {
             let slice = &slice[..std::cmp::min(slice.len(), dirprefixlen)];
-            if destlen + (slice.len() + if first { 0 } else { 1 })
-                > maxshortdirslen + 3
-            {
+            if destlen + slice.len() > maxshortdirslen + 3 {
                 break;
             } else {
-                if !first {
-                    charcopy(Some(&mut dest), &mut destlen, b'/')
-                };
                 memcopy(Some(&mut dest), &mut destlen, slice);
                 if dest[destlen - 1] == b'.' || dest[destlen - 1] == b' ' {
                     dest[destlen - 1] = b'_'
                 }
             }
-            first = false;
-        }
-        if !first {
             charcopy(Some(&mut dest), &mut destlen, b'/');
         }
     }
