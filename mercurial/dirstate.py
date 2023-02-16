@@ -1671,7 +1671,7 @@ class dirstate:
             # there was no file backup, delete existing files
             filename = self._actualfilename(tr)
             data_file = None
-            if self._use_dirstate_v2:
+            if self._use_dirstate_v2 and self._map.docket.uuid is not None:
                 data_file = self._map.docket.data_filename()
             if o.exists(filename):
                 o.unlink(filename)
