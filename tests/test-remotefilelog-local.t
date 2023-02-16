@@ -77,6 +77,11 @@
   n 644          2 * z (glob)
   $ echo xxxx > x
   $ echo yyyy > y
+# run status early to avoid a flaky second fetch during commit.
+  $ hg st
+  M x
+  M y
+  \d+ files fetched over \d+ fetches .* (re) (?)
   $ hg commit -m x
   created new head
   2 files fetched over 1 fetches - (2 misses, 0.00% hit ratio) over *s (glob)
@@ -104,6 +109,9 @@
   new changesets fed61014d323
   (run 'hg heads' to see heads, 'hg merge' to merge)
 
+# run status early to avoid a flaky second fetch during commit
+  $ hg status
+  \d+ files fetched over \d+ fetches .* (re) (?)
   $ hg rebase -d tip
   rebasing 1:9abfe7bca547 "a"
   saved backup bundle to $TESTTMP/shallow/.hg/strip-backup/9abfe7bca547-8b11e5ff-rebase.hg (glob)
