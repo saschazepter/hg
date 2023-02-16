@@ -1615,6 +1615,22 @@ class dirstate:
         else:
             return self._filename
 
+    def all_file_names(self):
+        """list all filename currently used by this dirstate
+
+        This is only used to do `hg rollback` related backup in the transaction
+        """
+        if not self._opener.exists(self._filename):
+            # no data every written to disk yet
+            return ()
+        elif self._use_dirstate_v2:
+            return (
+                self._filename,
+                self._map.docket.data_filename(),
+            )
+        else:
+            return (self._filename,)
+
     def data_backup_filename(self, backupname):
         if not self._use_dirstate_v2:
             return None
