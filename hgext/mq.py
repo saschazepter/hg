@@ -2048,6 +2048,7 @@ class queue:
 
                 # assumes strip can roll itself back if interrupted
                 repo.setparents(*cparents)
+                repo.dirstate.write(repo.currenttransaction())
                 self.applied.pop()
                 self.applieddirty = True
                 strip(self.ui, repo, [top], update=False, backup=False)
