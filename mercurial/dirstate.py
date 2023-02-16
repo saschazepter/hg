@@ -176,6 +176,8 @@ class dirstate:
             msg = "trying to use an invalidated dirstate before it has reset"
             raise error.ProgrammingError(msg)
 
+        has_tr = repo.currenttransaction() is not None
+
         # different type of change are mutually exclusive
         if self._change_type is None:
             assert self._changing_level == 0
@@ -194,6 +196,7 @@ class dirstate:
             self.invalidate()
             raise
         finally:
+            tr = repo.currenttransaction()
             if self._changing_level > 0:
                 if self._invalidated_context:
                     # make sure we invalidate anything an upper context might
@@ -216,8 +219,13 @@ class dirstate:
                         # Exception catching (and the associated `invalidate`
                         # calling) might have been called by a nested context
                         # instead of the top level one.
-                        tr = repo.currenttransaction()
                         self.write(tr)
+            if has_tr != (tr is not None):
+                if has_tr:
+                    m = "transaction vanished while changing dirstate"
+                else:
+                    m = "transaction appeared while changing dirstate"
+                raise error.ProgrammingError(m)
 
     @contextlib.contextmanager
     def changing_parents(self, repo):
