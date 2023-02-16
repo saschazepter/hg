@@ -116,6 +116,9 @@ class _dirstatemapcommon:
         )
         data_filename = new_docket.data_filename()
         self._opener.write(data_filename, packed)
+        # tell the transaction that we are adding a new file
+        if tr is not None:
+            tr.addbackup(data_filename, location=b'plain')
         # Write the new docket after the new data file has been
         # written. Because `st` was opened with `atomictemp=True`,
         # the actual `.hg/dirstate` file is only affected on close.
@@ -125,6 +128,8 @@ class _dirstatemapcommon:
         # the new data file was written.
         if old_docket.uuid:
             data_filename = old_docket.data_filename()
+            if tr is not None:
+                tr.addbackup(data_filename, location=b'plain')
             unlink = lambda _tr=None: self._opener.unlink(data_filename)
             if tr:
                 category = b"dirstate-v2-clean-" + old_docket.uuid
@@ -612,6 +617,14 @@ if rustmod is not None:
             if append:
                 docket = self.docket
                 data_filename = docket.data_filename()
+                # We mark it for backup to make sure a future `hg rollback` (or
+                # `hg recover`?) call find the data it needs to restore a
+                # working repository.
+                #
+                # The backup can use a hardlink because the format is resistant
+                # to trailing "dead" data.
+                if tr is not None:
+                    tr.addbackup(data_filename, location=b'plain')
                 with self._opener(data_filename, b'r+b') as fp:
                     fp.seek(docket.data_size)
                     assert fp.tell() == docket.data_size
