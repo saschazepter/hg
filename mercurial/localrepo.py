@@ -2548,8 +2548,6 @@ class localrepository:
                 # out) in this transaction
                 narrowspec.restorebackup(self, b'journal.narrowspec')
                 narrowspec.restorewcbackup(self, b'journal.narrowspec.dirstate')
-                if repo.currentwlock() is not None:
-                    repo.dirstate.restorebackup(None, b'journal.dirstate')
 
                 repo.invalidate(clearfilecache=True)
 
@@ -2676,31 +2674,21 @@ class localrepository:
         return tr
 
     def _journalfiles(self):
-        first = (
+        return (
             (self.svfs, b'journal'),
             (self.svfs, b'journal.narrowspec'),
             (self.vfs, b'journal.narrowspec.dirstate'),
-            (self.vfs, b'journal.dirstate'),
-        )
-        middle = []
-        dirstate_data = self.dirstate.data_backup_filename(b'journal.dirstate')
-        if dirstate_data is not None:
-            middle.append((self.vfs, dirstate_data))
-        end = (
             (self.vfs, b'journal.branch'),
             (self.vfs, b'journal.desc'),
             (bookmarks.bookmarksvfs(self), b'journal.bookmarks'),
             (self.svfs, b'journal.phaseroots'),
         )
-        return first + tuple(middle) + end
 
     def undofiles(self):
         return [(vfs, undoname(x)) for vfs, x in self._journalfiles()]
 
     @unfilteredmethod
     def _writejournal(self, desc):
-        if self.currentwlock() is not None:
-            self.dirstate.savebackup(None, b'journal.dirstate')
         narrowspec.savewcbackup(self, b'journal.narrowspec.dirstate')
         narrowspec.savebackup(self, b'journal.narrowspec')
         self.vfs.write(
@@ -2808,11 +2796,20 @@ class localrepository:
         if self.svfs.exists(b'undo.phaseroots'):
             self.svfs.rename(b'undo.phaseroots', b'phaseroots', checkambig=True)
         self.invalidate()
+        self.dirstate.invalidate()
 
         if parentgone:
+            # replace this with some explicit parent update in the future.
+            has_node = self.changelog.index.has_node
+            if not all(has_node(p) for p in self.dirstate._pl):
+                # There was no dirstate to backup initially, we need to drop
+                # the existing one.
+                with self.dirstate.changing_parents(self):
+                    self.dirstate.setparents(self.nullid)
+                    self.dirstate.clear()
+
             narrowspec.restorebackup(self, b'undo.narrowspec')
             narrowspec.restorewcbackup(self, b'undo.narrowspec.dirstate')
-            self.dirstate.restorebackup(None, b'undo.dirstate')
             try:
                 branch = self.vfs.read(b'undo.branch')
                 self.dirstate.setbranch(encoding.tolocal(branch))
