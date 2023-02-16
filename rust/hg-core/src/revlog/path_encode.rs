@@ -77,45 +77,44 @@ impl<const N: usize> Sink for DestArr<N> {
     }
 }
 
-struct Dest<'a> {
-    dest: Option<&'a mut [u8]>,
+struct VecDest {
+    buf: Vec<u8>,
+}
+
+struct MeasureDest {
     pub len: usize,
 }
 
-impl<'a> Dest<'a> {
-    pub fn create(buf: &'a mut [u8]) -> Dest<'a> {
-        Dest {
-            dest: Some(buf),
-            len: 0,
+impl VecDest {
+    pub fn create(capacity : usize) -> Self {
+        Self {
+            buf: Vec::with_capacity(capacity),
         }
     }
-
-    pub fn create_measure() -> Dest<'a> {
-        Dest { dest: None, len: 0 }
-    }
 }
 
-fn rewrap_option<'a, 'b: 'a>(
-    x: &'a mut Option<&'b mut [u8]>,
-) -> Option<&'a mut [u8]> {
-    match x {
-        None => None,
-        Some(y) => Some(y),
-    }
-}
-
-impl<'a> Sink for Dest<'a> {
+impl Sink for VecDest {
     fn write_byte(&mut self, c: u8) {
-        if let Some(slice) = rewrap_option(&mut self.dest) {
-            slice[self.len] = c
-        }
-        self.len += 1
+        self.buf.push(c)
     }
 
     fn write_bytes(&mut self, src: &[u8]) {
-        if let Some(slice) = rewrap_option(&mut self.dest) {
-            slice[self.len..self.len + src.len()].copy_from_slice(src)
-        }
+        self.buf.extend_from_slice(src)
+    }
+}
+
+impl MeasureDest {
+    fn create() -> Self {
+        Self { len: 0 }
+    }
+}
+
+impl Sink for MeasureDest {
+    fn write_byte(&mut self, _c: u8) {
+        self.len += 1;
+    }
+
+    fn write_bytes(&mut self, src: &[u8]) {
         self.len += src.len();
     }
 }
@@ -545,13 +544,13 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
         src[s..].iter().rposition(|b| *b == b'.').map(|i| i + s)
     };
 
-    let mut dest : DestArr<MAXSTOREPATHLEN> = DestArr::create();
+    let mut dest : VecDest = VecDest::create(MAXSTOREPATHLEN);
     dest.write_bytes(b"dh/");
 
     if let Some(last_slash) = last_slash {
         for slice in src[..last_slash].split(|b| *b == b'/') {
             let slice = &slice[..std::cmp::min(slice.len(), dirprefixlen)];
-            if dest.len + slice.len() > maxshortdirslen + 3 {
+            if dest.buf.len() + slice.len() > maxshortdirslen + 3 {
                 break;
             } else {
                 dest.write_bytes(slice);
@@ -560,7 +559,7 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
         }
     }
 
-    let used = dest.len + 40 + {
+    let used = dest.buf.len() + 40 + {
         if let Some(l) = last_dot {
             src.len() - l
         } else {
@@ -589,7 +588,7 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
     if let Some(l) = last_dot {
         dest.write_bytes(&src[l..]);
     }
-    dest.contents().to_vec()
+    dest.buf
 }
 
 fn hash_encode(src: &[u8]) -> Vec<u8> {
@@ -609,7 +608,7 @@ fn hash_encode(src: &[u8]) -> Vec<u8> {
 
 pub fn path_encode(path: &[u8]) -> Vec<u8> {
     let newlen = if path.len() <= MAXSTOREPATHLEN {
-        let mut measure = Dest::create_measure();
+        let mut measure = MeasureDest::create();
         basic_encode(&mut measure, path);
         measure.len
     } else {
@@ -619,11 +618,10 @@ pub fn path_encode(path: &[u8]) -> Vec<u8> {
         if newlen == path.len() {
             path.to_vec()
         } else {
-            let mut res = vec![0; newlen];
-            let mut dest = Dest::create(&mut res);
+            let mut dest = VecDest::create(newlen);
             basic_encode(&mut dest, path);
-            assert!(dest.len == newlen);
-            res
+            assert!(dest.buf.len() == newlen);
+            dest.buf
         }
     } else {
         hash_encode(path)
