@@ -600,7 +600,7 @@ pub fn path_encode(path: &[u8]) -> Vec<u8> {
         basic_encode(&mut measure, path);
         measure.len
     } else {
-        MAXSTOREPATHLEN + 1
+        return hash_encode(path);
     };
     if newlen <= MAXSTOREPATHLEN {
         if newlen == path.len() {
