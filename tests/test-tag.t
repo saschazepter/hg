@@ -412,6 +412,10 @@ tagging on null rev
   abort: cannot tag null revision
   [10]
 
+  $ hg tag -R empty -r "wdir()" -f wdirtag
+  abort: cannot tag working directory
+  [10]
+
 issue5539: pruned tags do not appear in .hgtags
 
   $ cat >> $HGRCPATH << EOF
