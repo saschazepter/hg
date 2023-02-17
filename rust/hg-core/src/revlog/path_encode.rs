@@ -576,6 +576,7 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
     if let Some(l) = last_dot {
         dest.write_bytes(&src[l..]);
     }
+    dest.shrink_to_fit();
     dest
 }
 
