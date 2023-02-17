@@ -58,7 +58,7 @@ help:
 all: build doc
 
 local:
-	$(PYTHON) setup.py $(PURE) \
+	MERCURIAL_SETUP_MAKE_LOCAL=1 $(PYTHON) setup.py $(PURE) \
 	  build_py -c -d . \
 	  build_ext $(COMPILERFLAG) -i \
 	  build_hgexe $(COMPILERFLAG) -i \
