@@ -698,6 +698,9 @@ def fixfile(ui, repo, opts, fixers, fixctx, path, basepaths, basectxs):
             command = fixer.command(ui, path, ranges)
             if command is None:
                 continue
+            msg = b'fixing: %s - %s - %s\n'
+            msg %= (fixctx, fixername, path)
+            ui.debug(msg)
             ui.debug(b'subprocess: %s\n' % (command,))
             proc = subprocess.Popen(
                 procutil.tonativestr(command),

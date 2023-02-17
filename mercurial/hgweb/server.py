@@ -206,7 +206,7 @@ class _httprequesthandler(httpservermod.basehttprequesthandler):
         env['SERVER_PROTOCOL'] = self.request_version
         env['wsgi.version'] = (1, 0)
         env['wsgi.url_scheme'] = pycompat.sysstr(self.url_scheme)
-        if env.get('HTTP_EXPECT', b'').lower() == b'100-continue':
+        if env.get('HTTP_EXPECT', '').lower() == '100-continue':
             self.rfile = common.continuereader(self.rfile, self.wfile.write)
 
         env['wsgi.input'] = self.rfile

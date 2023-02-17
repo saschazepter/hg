@@ -7500,6 +7500,9 @@ def tag(ui, repo, name1, *names, **opts):
                 )
         node = logcmdutil.revsingle(repo, rev_).node()
 
+        if node is None:
+            raise error.InputError(_(b"cannot tag working directory"))
+
         if not message:
             # we don't translate commit messages
             message = b'Added tag %s for changeset %s' % (
