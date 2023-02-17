@@ -527,9 +527,14 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
     let maxshortdirslen = 68;
 
     let last_slash = src.iter().rposition(|b| *b == b'/');
-    let last_dot: Option<usize> = {
-        let s = last_slash.unwrap_or(0);
-        src[s..].iter().rposition(|b| *b == b'.').map(|i| i + s)
+    let basename_start = match last_slash {
+        Some(slash) => slash + 1,
+        None => 0,
+    };
+    let basename = &src[basename_start..];
+    let ext = match basename.iter().rposition(|b| *b == b'.') {
+        None => &[],
+        Some(dot) => &basename[dot..],
     };
 
     let mut dest = Vec::with_capacity(MAXSTOREPATHLEN);
@@ -547,35 +552,17 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
         }
     }
 
-    let used = dest.len() + 40 + {
-        if let Some(l) = last_dot {
-            src.len() - l
-        } else {
-            0
-        }
-    };
+    let used = dest.len() + 40 + ext.len();
 
     if MAXSTOREPATHLEN > used {
         let slop = MAXSTOREPATHLEN - used;
-        let basenamelen = match last_slash {
-            Some(l) => src.len() - l - 1,
-            None => src.len(),
-        };
-        let basenamelen = std::cmp::min(basenamelen, slop);
-        if basenamelen > 0 {
-            let start = match last_slash {
-                Some(l) => l + 1,
-                None => 0,
-            };
-            dest.write_bytes(&src[start..][..basenamelen])
-        }
+        let len = std::cmp::min(basename.len(), slop);
+        dest.write_bytes(&basename[..len])
     }
     for c in sha {
         hexencode(&mut dest, *c);
     }
-    if let Some(l) = last_dot {
-        dest.write_bytes(&src[l..]);
-    }
+    dest.write_bytes(ext);
     dest.shrink_to_fit();
     dest
 }
