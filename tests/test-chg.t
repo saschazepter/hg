@@ -352,11 +352,10 @@ remove foo
 repository cache
 ----------------
 
-  $ rm log/server.log*
   $ cp $HGRCPATH.unconfigured $HGRCPATH
   $ cat <<'EOF' >> $HGRCPATH
   > [cmdserver]
-  > log = $TESTTMP/log/server.log
+  > log = $TESTTMP/log/server-cached.log
   > max-repo-cache = 1
   > track-log = command, repocache
   > EOF
@@ -420,9 +419,7 @@ shut down servers and restore environment:
 
 check server log:
 
-  $ cat log/server.log | filterlog
-  YYYY/MM/DD HH:MM:SS (PID)> worker process exited (pid=...)
-  YYYY/MM/DD HH:MM:SS (PID)> worker process exited (pid=...) (?)
+  $ cat log/server-cached.log | filterlog
   YYYY/MM/DD HH:MM:SS (PID)> init cached
   YYYY/MM/DD HH:MM:SS (PID)> id -R cached
   YYYY/MM/DD HH:MM:SS (PID)> loaded repo into cache: $TESTTMP/cached (in  ...s)
