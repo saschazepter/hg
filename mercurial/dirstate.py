@@ -479,9 +479,7 @@ class dirstate:
     def branch(self):
         return encoding.tolocal(self._branch)
 
-    # XXX since this make the dirstate dirty, we should enforce that it is done
-    # withing an appropriate change-context that scope the change and ensure it
-    # eventually get written on disk (or rolled back)
+    @requires_changing_parents
     def setparents(self, p1, p2=None):
         """Set dirstate parents to p1 and p2.
 
