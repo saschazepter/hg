@@ -2121,9 +2121,9 @@ class queue:
                 finally:
                     lockmod.release(tr, lock)
             except:  # re-raises
-                ctx = repo[cparents[0]]
-                repo.dirstate.rebuild(ctx.node(), ctx.manifest())
-                repo.dirstate.write(repo.currenttransaction())
+                with repo.dirstate.changing_parents(repo):
+                    ctx = repo[cparents[0]]
+                    repo.dirstate.rebuild(ctx.node(), ctx.manifest())
                 self.savedirty()
                 self.ui.warn(
                     _(
