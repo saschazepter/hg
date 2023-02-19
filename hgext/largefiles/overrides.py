@@ -1819,7 +1819,14 @@ def mergeupdate(orig, repo, node, branchmerge, force, *args, **kwargs):
         # mark all clean largefiles as dirty, just in case the update gets
         # interrupted before largefiles and lfdirstate are synchronized
         for lfile in oldclean:
-            lfdirstate.set_possibly_dirty(lfile)
+            entry = lfdirstate.get_entry(lfile)
+            lfdirstate.hacky_extension_update_file(
+                lfile,
+                wc_tracked=entry.tracked,
+                p1_tracked=entry.p1_tracked,
+                p2_info=entry.p2_info,
+                possibly_dirty=True,
+            )
         lfdirstate.write(repo.currenttransaction())
 
         oldstandins = lfutil.getstandinsstate(repo)
