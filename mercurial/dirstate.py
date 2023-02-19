@@ -285,8 +285,8 @@ class dirstate:
 
         has_tr = repo.currenttransaction() is not None
         if not has_tr and self._changing_level == 0 and self._dirty:
-            msg = "entering a changing context, but dirstate is already dirty"
-            raise error.ProgrammingError(msg)
+            msg = b"entering a changing context, but dirstate is already dirty"
+            repo.ui.develwarn(msg)
 
         assert self._changing_level >= 0
         # different type of change are mutually exclusive
