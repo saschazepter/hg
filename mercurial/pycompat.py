@@ -244,13 +244,17 @@ class bytestr(bytes):
             s = str(s).encode('ascii')
         return bytes.__new__(cls, s)
 
-    def __getitem__(self, key) -> bytes:
+    # The base class uses `int` return in py3, but the point of this class is to
+    # behave like py2.
+    def __getitem__(self, key) -> bytes:  # pytype: disable=signature-mismatch
         s = bytes.__getitem__(self, key)
         if not isinstance(s, bytes):
             s = bytechr(s)
         return s
 
-    def __iter__(self) -> Iterator[bytes]:
+    # The base class expects `Iterator[int]` return in py3, but the point of
+    # this class is to behave like py2.
+    def __iter__(self) -> Iterator[bytes]:  # pytype: disable=signature-mismatch
         return iterbytestr(bytes.__iter__(self))
 
     def __repr__(self) -> str:
