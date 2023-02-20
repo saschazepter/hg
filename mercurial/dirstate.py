@@ -205,6 +205,16 @@ class dirstate:
 
     @contextlib.contextmanager
     @check_invalidated
+    def running_status(self, repo):
+        """Wrap a status operation
+
+        Currently does nothing, but exist to let other code adds it before we
+        start enforcing it.
+        """
+        yield
+
+    @contextlib.contextmanager
+    @check_invalidated
     def _changing(self, repo, change_type):
         if repo.currentwlock() is None:
             msg = b"trying to change the dirstate without holding the wlock"
