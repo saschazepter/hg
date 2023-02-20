@@ -219,7 +219,8 @@ def lfconvert(ui, src, dest, *pats, **opts):
         success = True
     finally:
         if tolfile:
-            with rdst.dirstate.changing_files(rdst):
+            # XXX is this the right context semantically ?
+            with rdst.dirstate.changing_parents(rdst):
                 rdst.dirstate.clear()
             release(dstlock, dstwlock)
         if not success:
