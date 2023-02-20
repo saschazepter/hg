@@ -815,7 +815,12 @@ def perfstatus(ui, repo, **opts):
             )
             sum(map(bool, s))
 
-        timer(status_dirstate)
+        if util.safehasattr(dirstate, 'running_status'):
+            with dirstate.running_status(repo):
+                timer(status_dirstate)
+                dirstate.invalidate()
+        else:
+            timer(status_dirstate)
     else:
         timer(lambda: sum(map(len, repo.status(unknown=opts[b'unknown']))))
     fm.end()
