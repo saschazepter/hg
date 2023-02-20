@@ -551,9 +551,7 @@ class dirstate:
         self._invalidated_context = self._changing_level > 0
         self._origpl = None
 
-    # XXX since this make the dirstate dirty, we should enforce that it is done
-    # withing an appropriate change-context that scope the change and ensure it
-    # eventually get written on disk (or rolled back)
+    @requires_changing_any
     def copy(self, source, dest):
         """Mark dest as a copy of source. Unmark dest if source is None."""
         if source == dest:
