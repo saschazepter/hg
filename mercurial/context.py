@@ -1899,25 +1899,26 @@ class workingctx(committablectx):
         subrepos = []
         if b'.hgsub' in self:
             subrepos = sorted(self.substate)
-        cmp, s, mtime_boundary = self._repo.dirstate.status(
-            match, subrepos, ignored=ignored, clean=clean, unknown=unknown
-        )
-
-        # check for any possibly clean files
-        fixup = []
-        if cmp:
-            modified2, deleted2, clean_set, fixup = self._checklookup(
-                cmp, mtime_boundary
+        if True:
+            cmp, s, mtime_boundary = self._repo.dirstate.status(
+                match, subrepos, ignored=ignored, clean=clean, unknown=unknown
             )
-            s.modified.extend(modified2)
-            s.deleted.extend(deleted2)
 
-            if clean_set and clean:
-                s.clean.extend(clean_set)
-            if fixup and clean:
-                s.clean.extend((f for f, _ in fixup))
+            # check for any possibly clean files
+            fixup = []
+            if cmp:
+                modified2, deleted2, clean_set, fixup = self._checklookup(
+                    cmp, mtime_boundary
+                )
+                s.modified.extend(modified2)
+                s.deleted.extend(deleted2)
 
-        self._poststatusfixup(s, fixup)
+                if clean_set and clean:
+                    s.clean.extend(clean_set)
+                if fixup and clean:
+                    s.clean.extend((f for f, _ in fixup))
+
+            self._poststatusfixup(s, fixup)
 
         if match.always():
             # cache for performance
