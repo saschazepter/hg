@@ -191,7 +191,7 @@ class dirstate:
         self._changing_level += 1
         try:
             yield
-        except Exception:
+        except:  # re-raises
             self.invalidate()
             raise
         finally:
