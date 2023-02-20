@@ -1899,8 +1899,9 @@ class workingctx(committablectx):
         subrepos = []
         if b'.hgsub' in self:
             subrepos = sorted(self.substate)
-        if True:
-            cmp, s, mtime_boundary = self._repo.dirstate.status(
+        dirstate = self._repo.dirstate
+        with dirstate.running_status(self._repo):
+            cmp, s, mtime_boundary = dirstate.status(
                 match, subrepos, ignored=ignored, clean=clean, unknown=unknown
             )
 
