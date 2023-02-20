@@ -235,6 +235,19 @@ class dirstate:
         E1: elif lock was acquired → write the changes
         E2: else → discard the changes
         """
+        is_changing = self.is_changing_any
+        has_tr = repo.currenttransaction is not None
+        nested = bool(self._running_status)
+
+        first_and_alone = not (is_changing or has_tr or nested)
+
+        # enforce no change happened outside of a proper context.
+        if first_and_alone and self._dirty:
+            has_tr = repo.currenttransaction() is not None
+            if not has_tr and self._changing_level == 0 and self._dirty:
+                msg = "entering a status context, but dirstate is already dirty"
+                raise error.ProgrammingError(msg)
+
         self._running_status += 1
         try:
             yield
