@@ -208,8 +208,30 @@ class dirstate:
     def running_status(self, repo):
         """Wrap a status operation
 
-        Currently does nothing, but exist to let other code adds it before we
-        start enforcing it.
+        This context is not mutally exclusive with the `changing_*` context. It
+        also do not warrant for the `wlock` to be taken.
+
+        If the wlock is taken, this context will (in the future) behave in a
+        simple way, and ensure the data are scheduled for write when leaving
+        the top level context.
+
+        If the lock is not taken, it will only warrant that the data are either
+        committed (written) and rolled back (invalidated) when exiting the top
+        level context. The write/invalidate action must be performed by the
+        wrapped code.
+
+
+        The expected  logic is:
+
+        A: read the dirstate
+        B: run status
+           This might make the dirstate dirty by updating cache,
+           especially in Rust.
+        C: do more "post status fixup if relevant
+        D: try to take the w-lock (this will invalidate the changes if they were raced)
+        E0: if dirstate changed on disk → discard change (done by dirstate internal)
+        E1: elif lock was acquired → write the changes
+        E2: else → discard the changes
         """
         yield
 
