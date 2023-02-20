@@ -137,7 +137,7 @@ CHANGE_TYPE_FILES = "files"
 @interfaceutil.implementer(intdirstate.idirstate)
 class dirstate:
 
-    # used by largefile to avoid overwritting transaction callbacK
+    # used by largefile to avoid overwritting transaction callback
     _tr_key_suffix = b''
 
     def __init__(
