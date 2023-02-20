@@ -334,6 +334,27 @@ def _changing(orig, self, repo, change_type):
         self._sub_dirstate = pre
 
 
+@eh.wrapfunction(dirstate.dirstate, b'running_status')
+@contextlib.contextmanager
+def running_status(orig, self, repo):
+    pre = sub_dirstate = getattr(self, '_sub_dirstate', None)
+    try:
+        lfd = getattr(self, '_large_file_dirstate', False)
+        if sub_dirstate is None and not lfd:
+            sub_dirstate = lfutil.openlfdirstate(repo.ui, repo)
+            self._sub_dirstate = sub_dirstate
+        if not lfd:
+            assert self._sub_dirstate is not None
+        with orig(self, repo):
+            if sub_dirstate is None:
+                yield
+            else:
+                with sub_dirstate.running_status(repo):
+                    yield
+    finally:
+        self._sub_dirstate = pre
+
+
 @eh.wrapfunction(subrepo.hgsubrepo, b'status')
 def overridestatusfn(orig, repo, rev2, **opts):
     with lfstatus(repo._repo):
