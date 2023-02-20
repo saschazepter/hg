@@ -90,6 +90,20 @@ def requires_changing_files(func):
     return wrap
 
 
+def requires_changing_any(func):
+    def wrap(self, *args, **kwargs):
+        if not self.is_changing_any:
+            msg = 'calling `%s` outside of a changing context'
+            msg %= func.__name__
+            raise error.ProgrammingError(msg)
+        if self._invalidated_context:
+            msg = 'calling `%s` after the dirstate was invalidated'
+            raise error.ProgrammingError(msg)
+        return func(self, *args, **kwargs)
+
+    return wrap
+
+
 def requires_not_changing_parents(func):
     def wrap(self, *args, **kwargs):
         if self.is_changing_parents:
