@@ -3142,8 +3142,8 @@ def debugrebuilddirstate(ui, repo, rev, **opts):
             dsnotadded = {f for f in dsonly if not dirstate.get_entry(f).added}
             changedfiles = manifestonly | dsnotadded
 
-        dirstate.rebuild(ctx.node(), ctx.manifest(), changedfiles)
-        dirstate.write(repo.currenttransaction())
+        with dirstate.changing_parents(repo):
+            dirstate.rebuild(ctx.node(), ctx.manifest(), changedfiles)
 
 
 @command(
