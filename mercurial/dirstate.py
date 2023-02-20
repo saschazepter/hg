@@ -174,6 +174,7 @@ class dirstate:
         # True if the current dirstate changing operations have been
         # invalidated (used to make sure all nested contexts have been exited)
         self._invalidated_context = False
+        self._attached_to_a_transaction = False
         self._filename = b'dirstate'
         self._filename_th = b'dirstate-tracked-hint'
         self._pendingfilename = b'%s.pending' % self._filename
@@ -556,7 +557,9 @@ class dirstate:
                 delattr(self, a)
         self._dirty = False
         self._dirty_tracked_set = False
-        self._invalidated_context = self._changing_level > 0
+        self._invalidated_context = (
+            self._changing_level > 0 or self._attached_to_a_transaction
+        )
         self._origpl = None
 
     @requires_changing_any
@@ -941,17 +944,26 @@ class dirstate:
 
         write_key = self._use_tracked_hint and self._dirty_tracked_set
         if tr:
+
+            def on_abort(tr):
+                self._attached_to_a_transaction = False
+                self.invalidate()
+
             # make sure we invalidate the current change on abort
             if tr is not None:
-                tr.addabort(
-                    b'dirstate-invalidate',
-                    lambda tr: self.invalidate(),
-                )
+                tr.addabort(b'dirstate-invalidate', on_abort)
+
+            self._attached_to_a_transaction = True
+
+            def on_success(f):
+                self._attached_to_a_transaction = False
+                self._writedirstate(tr, f),
+
             # delay writing in-memory changes out
             tr.addfilegenerator(
                 b'dirstate-1-main',
                 (self._filename,),
-                lambda f: self._writedirstate(tr, f),
+                on_success,
                 location=b'plain',
                 post_finalize=True,
             )
