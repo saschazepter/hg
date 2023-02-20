@@ -858,6 +858,9 @@ class dirstate:
     # XXX since this make the dirstate dirty, we should enforce that it is done
     # withing an appropriate change-context that scope the change and ensure it
     # eventually get written on disk (or rolled back)
+    # XXX this method is barely used, as a result:
+    # - its semantic is unclear
+    # - do we really needs it ?
     def clear(self):
         self._map.clear()
         self._dirty = True
