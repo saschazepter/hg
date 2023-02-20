@@ -160,6 +160,7 @@ def findfile(repo, hash):
 
 class largefilesdirstate(dirstate.dirstate):
     _large_file_dirstate = True
+    _tr_key_suffix = b'-large-files'
 
     def __getitem__(self, key):
         return super(largefilesdirstate, self).__getitem__(unixpath(key))
