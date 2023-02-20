@@ -193,12 +193,10 @@ class dirstate:
         self._pl
 
     @contextlib.contextmanager
+    @check_invalidated
     def _changing(self, repo, change_type):
         if repo.currentwlock() is None:
             msg = b"trying to change the dirstate without holding the wlock"
-            raise error.ProgrammingError(msg)
-        if self._invalidated_context:
-            msg = "trying to use an invalidated dirstate before it has reset"
             raise error.ProgrammingError(msg)
 
         has_tr = repo.currenttransaction() is not None
