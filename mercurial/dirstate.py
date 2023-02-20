@@ -267,6 +267,11 @@ class dirstate:
         if should_write:
             assert repo.currenttransaction() is tr
             self.write(tr)
+        elif not has_lock:
+            if self._dirty:
+                msg = b'dirstate dirty while exiting an isolated status context'
+                repo.ui.develwarn(msg)
+                self.invalidate()
 
     @contextlib.contextmanager
     @check_invalidated
