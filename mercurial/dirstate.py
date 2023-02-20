@@ -133,6 +133,10 @@ CHANGE_TYPE_FILES = "files"
 
 @interfaceutil.implementer(intdirstate.idirstate)
 class dirstate:
+
+    # used by largefile to avoid overwritting transaction callbacK
+    _tr_key_suffix = b''
+
     def __init__(
         self,
         opener,
@@ -951,7 +955,10 @@ class dirstate:
 
             # make sure we invalidate the current change on abort
             if tr is not None:
-                tr.addabort(b'dirstate-invalidate', on_abort)
+                tr.addabort(
+                    b'dirstate-invalidate%s' % self._tr_key_suffix,
+                    on_abort,
+                )
 
             self._attached_to_a_transaction = True
 
@@ -961,7 +968,7 @@ class dirstate:
 
             # delay writing in-memory changes out
             tr.addfilegenerator(
-                b'dirstate-1-main',
+                b'dirstate-1-main%s' % self._tr_key_suffix,
                 (self._filename,),
                 on_success,
                 location=b'plain',
@@ -969,7 +976,7 @@ class dirstate:
             )
             if write_key:
                 tr.addfilegenerator(
-                    b'dirstate-2-key-post',
+                    b'dirstate-2-key-post%s' % self._tr_key_suffix,
                     (self._filename_th,),
                     lambda f: self._write_tracked_hint(tr, f),
                     location=b'plain',
