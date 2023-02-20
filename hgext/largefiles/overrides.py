@@ -1769,7 +1769,7 @@ def mergeupdate(orig, repo, node, branchmerge, force, *args, **kwargs):
     matcher = kwargs.get('matcher', None)
     # note if this is a partial update
     partial = matcher and not matcher.always()
-    with repo.wlock():
+    with repo.wlock(), repo.dirstate.changing_parents(repo):
         # branch |       |         |
         #  merge | force | partial | action
         # -------+-------+---------+--------------
@@ -1837,24 +1837,22 @@ def mergeupdate(orig, repo, node, branchmerge, force, *args, **kwargs):
             raise error.ProgrammingError(
                 b'largefiles is not compatible with in-memory merge'
             )
-        with repo.dirstate.changing_parents(repo):
-            lfdirstate = lfutil.openlfdirstate(repo.ui, repo)
-            result = orig(repo, node, branchmerge, force, *args, **kwargs)
+        result = orig(repo, node, branchmerge, force, *args, **kwargs)
 
-            newstandins = lfutil.getstandinsstate(repo)
-            filelist = lfutil.getlfilestoupdate(oldstandins, newstandins)
+        newstandins = lfutil.getstandinsstate(repo)
+        filelist = lfutil.getlfilestoupdate(oldstandins, newstandins)
 
-            # to avoid leaving all largefiles as dirty and thus rehash them, mark
-            # all the ones that didn't change as clean
-            for lfile in oldclean.difference(filelist):
-                lfdirstate.update_file(lfile, p1_tracked=True, wc_tracked=True)
+        # to avoid leaving all largefiles as dirty and thus rehash them, mark
+        # all the ones that didn't change as clean
+        for lfile in oldclean.difference(filelist):
+            lfdirstate.update_file(lfile, p1_tracked=True, wc_tracked=True)
 
-            if branchmerge or force or partial:
-                filelist.extend(s.deleted + s.removed)
+        if branchmerge or force or partial:
+            filelist.extend(s.deleted + s.removed)
 
-            lfcommands.updatelfiles(
-                repo.ui, repo, filelist=filelist, normallookup=partial
-            )
+        lfcommands.updatelfiles(
+            repo.ui, repo, filelist=filelist, normallookup=partial
+        )
 
         return result
 
