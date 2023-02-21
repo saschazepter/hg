@@ -65,18 +65,33 @@ class rootcache(filecache):
         return obj._join(fname)
 
 
+def check_invalidated(func):
+    """check we func is called a non-invalidated dirstate
+
+    The dirstate is in an "invalidated state" after an error occured during its
+    modification and remains so until we exited the top level scope that framed
+    such change.
+    """
+
+    def wrap(self, *args, **kwargs):
+        if self._invalidated_context:
+            msg = 'calling `%s` after the dirstate was invalidated'
+            msg %= func.__name__
+            raise error.ProgrammingError(msg)
+        return func(self, *args, **kwargs)
+
+    return wrap
+
+
 def requires_changing_parents(func):
     def wrap(self, *args, **kwargs):
         if not self.is_changing_parents:
             msg = 'calling `%s` outside of a changing_parents context'
             msg %= func.__name__
             raise error.ProgrammingError(msg)
-        if self._invalidated_context:
-            msg = 'calling `%s` after the dirstate was invalidated'
-            raise error.ProgrammingError(msg)
         return func(self, *args, **kwargs)
 
-    return wrap
+    return check_invalidated(wrap)
 
 
 def requires_changing_files(func):
@@ -87,7 +102,7 @@ def requires_changing_files(func):
             raise error.ProgrammingError(msg)
         return func(self, *args, **kwargs)
 
-    return wrap
+    return check_invalidated(wrap)
 
 
 def requires_changing_any(func):
@@ -96,12 +111,9 @@ def requires_changing_any(func):
             msg = 'calling `%s` outside of a changing context'
             msg %= func.__name__
             raise error.ProgrammingError(msg)
-        if self._invalidated_context:
-            msg = 'calling `%s` after the dirstate was invalidated'
-            raise error.ProgrammingError(msg)
         return func(self, *args, **kwargs)
 
-    return wrap
+    return check_invalidated(wrap)
 
 
 def requires_not_changing_parents(func):
@@ -112,7 +124,7 @@ def requires_not_changing_parents(func):
             raise error.ProgrammingError(msg)
         return func(self, *args, **kwargs)
 
-    return wrap
+    return check_invalidated(wrap)
 
 
 CHANGE_TYPE_PARENTS = "parents"
