@@ -58,6 +58,15 @@ class _dirstatemapcommon:
         # for consistent view between _pl() and _read() invocations
         self._pendingmode = None
 
+    def _set_identity(self):
+        self.identity = self._get_current_identity()
+
+    def _get_current_identity(self):
+        try:
+            return util.cachestat(self._opener.join(self._filename))
+        except FileNotFoundError:
+            return None
+
     def preload(self):
         """Loads the underlying data, if it's not already loaded"""
         self._map
@@ -263,10 +272,7 @@ class dirstatemap(_dirstatemapcommon):
 
     def read(self):
         # ignore HG_PENDING because identity is used only for writing
-        try:
-            self.identity = util.cachestat(self._opener.join(self._filename))
-        except FileNotFoundError:
-            self.identity = None
+        self._set_identity()
 
         if self._use_dirstate_v2:
             if not self.docket.uuid:
@@ -529,12 +535,7 @@ if rustmod is not None:
             Fills the Dirstatemap when called.
             """
             # ignore HG_PENDING because identity is used only for writing
-            try:
-                self.identity = util.cachestat(
-                    self._opener.join(self._filename)
-                )
-            except FileNotFoundError:
-                self.identity = None
+            self._set_identity()
 
             if self._use_dirstate_v2:
                 if self.docket.uuid:
