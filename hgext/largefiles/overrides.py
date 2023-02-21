@@ -1552,6 +1552,11 @@ def scmutiladdremove(
         opts = {}
     if not lfutil.islfilesrepo(repo):
         return orig(repo, matcher, prefix, uipathfn, opts, open_tr=open_tr)
+
+    # open the transaction and changing_files context
+    if open_tr is not None:
+        open_tr()
+
     # Get the list of missing largefiles so we can remove them
     lfdirstate = lfutil.openlfdirstate(repo.ui, repo)
     unsure, s, mtime_boundary = lfdirstate.status(
@@ -1561,10 +1566,6 @@ def scmutiladdremove(
         clean=False,
         unknown=False,
     )
-
-    # open the transaction and changing_files context
-    if open_tr is not None:
-        open_tr()
 
     # Call into the normal remove code, but the removing of the standin, we want
     # to have handled by original addremove.  Monkey patching here makes sure
