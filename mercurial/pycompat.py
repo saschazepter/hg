@@ -149,7 +149,7 @@ def maplist(f, *args):
     return list(map(f, *args))
 
 
-def rangelist(*args):
+def rangelist(*args) -> List[int]:
     return list(range(*args))
 
 
