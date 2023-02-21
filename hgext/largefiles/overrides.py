@@ -1786,15 +1786,15 @@ def mergeupdate(orig, repo, node, branchmerge, force, *args, **kwargs):
         #
         # (*) don't care
         # (*1) deprecated, but used internally (e.g: "rebase --collapse")
-
-        lfdirstate = lfutil.openlfdirstate(repo.ui, repo)
-        unsure, s, mtime_boundary = lfdirstate.status(
-            matchmod.always(),
-            subrepos=[],
-            ignored=False,
-            clean=True,
-            unknown=False,
-        )
+        with repo.dirstate.running_status(repo):
+            lfdirstate = lfutil.openlfdirstate(repo.ui, repo)
+            unsure, s, mtime_boundary = lfdirstate.status(
+                matchmod.always(),
+                subrepos=[],
+                ignored=False,
+                clean=True,
+                unknown=False,
+            )
         oldclean = set(s.clean)
         pctx = repo[b'.']
         dctx = repo[node]
