@@ -66,7 +66,7 @@ class rootcache(filecache):
 
 
 def check_invalidated(func):
-    """check we func is called a non-invalidated dirstate
+    """check that the func is called with a non-invalidated dirstate
 
     The dirstate is in an "invalidated state" after an error occured during its
     modification and remains so until we exited the top level scope that framed
