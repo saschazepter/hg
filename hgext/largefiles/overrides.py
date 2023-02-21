@@ -920,7 +920,7 @@ def overriderevert(orig, ui, repo, ctx, *pats, **opts):
     # Because we put the standins in a bad state (by updating them)
     # and then return them to a correct state we need to lock to
     # prevent others from changing them in their incorrect state.
-    with repo.wlock():
+    with repo.wlock(), repo.dirstate.running_status(repo):
         lfdirstate = lfutil.openlfdirstate(ui, repo)
         s = lfutil.lfdirstatestatus(lfdirstate, repo)
         lfdirstate.write(repo.currenttransaction())
