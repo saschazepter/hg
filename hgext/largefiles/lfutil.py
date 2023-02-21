@@ -249,6 +249,8 @@ def openlfdirstate(ui, repo, create=True):
                         wc_tracked=True,
                         possibly_dirty=True,
                     )
+                # avoid getting dirty dirstate before other operations
+                lfdirstate.write(repo.currenttransaction())
         except error.LockError:
             # Assume that whatever was holding the lock was important.
             # If we were doing something important, we would already have
