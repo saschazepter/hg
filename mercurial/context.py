@@ -1854,51 +1854,40 @@ class workingctx(committablectx):
 
     def _poststatusfixup(self, status, fixup):
         """update dirstate for files that are actually clean"""
+        dirstate = self._repo.dirstate
         poststatus = self._repo.postdsstatus()
-        if fixup or poststatus or self._repo.dirstate._dirty:
+        if fixup:
+            if dirstate.is_changing_parents:
+                normal = lambda f, pfd: dirstate.update_file(
+                    f,
+                    p1_tracked=True,
+                    wc_tracked=True,
+                )
+            else:
+                normal = dirstate.set_clean
+            for f, pdf in fixup:
+                normal(f, pdf)
+        if poststatus or self._repo.dirstate._dirty:
             try:
-                oldid = self._repo.dirstate.identity()
-
                 # updating the dirstate is optional
                 # so we don't wait on the lock
                 # wlock can invalidate the dirstate, so cache normal _after_
                 # taking the lock
+                pre_dirty = dirstate._dirty
                 with self._repo.wlock(False):
-                    dirstate = self._repo.dirstate
-                    if dirstate.identity() == oldid:
-                        if fixup:
-                            if dirstate.is_changing_parents:
-                                normal = lambda f, pfd: dirstate.update_file(
-                                    f, p1_tracked=True, wc_tracked=True
-                                )
-                            else:
-                                normal = dirstate.set_clean
-                            for f, pdf in fixup:
-                                normal(f, pdf)
-                        # write changes out explicitly, because nesting
-                        # wlock at runtime may prevent 'wlock.release()'
-                        # after this block from doing so for subsequent
-                        # changing files
-                        #
-                        # (This is outside of the (if fixup) block because the
-                        # status operation itself might have updated some cache
-                        # information before.)
+                    assert self._repo.dirstate is dirstate
+                    post_dirty = dirstate._dirty
+                    if post_dirty:
                         tr = self._repo.currenttransaction()
-                        self._repo.dirstate.write(tr)
-
-                        if poststatus:
-                            for ps in poststatus:
-                                ps(self, status)
-                    else:
-                        # in this case, writing changes out breaks
-                        # consistency, because .hg/dirstate was
-                        # already changed simultaneously after last
-                        # caching (see also issue5584 for detail)
-                        self._repo.ui.debug(
-                            b'skip updating dirstate: identity mismatch\n'
-                        )
-                        # throw away anything we have.
-                        dirstate.invalidate()
+                        dirstate.write(tr)
+                    elif pre_dirty:
+                        # the wlock grabbing detected that dirtate changes
+                        # needed to be dropped
+                        m = b'skip updating dirstate: identity mismatch\n'
+                        self._repo.ui.debug(m)
+                    if poststatus:
+                        for ps in poststatus:
+                            ps(self, status)
             except error.LockError:
                 pass
             finally:
