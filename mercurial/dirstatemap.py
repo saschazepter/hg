@@ -76,6 +76,11 @@ class _dirstatemapcommon:
         # for consistent view between _pl() and _read() invocations
         self._pendingmode = None
 
+    def _set_identity(self):
+        # ignore HG_PENDING because identity is used only for writing
+        file_path = self._opener.join(self._filename)
+        self.identity = util.filestat.frompath(file_path)
+
     def preload(self):
         """Loads the underlying data, if it's not already loaded"""
         self._map
@@ -295,9 +300,7 @@ class dirstatemap(_dirstatemapcommon):
 
     def read(self):
         # ignore HG_PENDING because identity is used only for writing
-        self.identity = util.filestat.frompath(
-            self._opener.join(self._filename)
-        )
+        self._set_identity()
 
         testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
         if self._use_dirstate_v2:
@@ -563,9 +566,7 @@ if rustmod is not None:
             Fills the Dirstatemap when called.
             """
             # ignore HG_PENDING because identity is used only for writing
-            self.identity = util.filestat.frompath(
-                self._opener.join(self._filename)
-            )
+            self._set_identity()
 
             testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
             if self._use_dirstate_v2:
