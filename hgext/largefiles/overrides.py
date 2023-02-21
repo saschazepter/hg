@@ -1558,14 +1558,15 @@ def scmutiladdremove(
         open_tr()
 
     # Get the list of missing largefiles so we can remove them
-    lfdirstate = lfutil.openlfdirstate(repo.ui, repo)
-    unsure, s, mtime_boundary = lfdirstate.status(
-        matchmod.always(),
-        subrepos=[],
-        ignored=False,
-        clean=False,
-        unknown=False,
-    )
+    with repo.dirstate.running_status(repo):
+        lfdirstate = lfutil.openlfdirstate(repo.ui, repo)
+        unsure, s, mtime_boundary = lfdirstate.status(
+            matchmod.always(),
+            subrepos=[],
+            ignored=False,
+            clean=False,
+            unknown=False,
+        )
 
     # Call into the normal remove code, but the removing of the standin, we want
     # to have handled by original addremove.  Monkey patching here makes sure
