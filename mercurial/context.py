@@ -1889,7 +1889,7 @@ class workingctx(committablectx):
                         for ps in poststatus:
                             ps(self, status)
             except error.LockError:
-                pass
+                dirstate.invalidate()
             finally:
                 # Even if the wlock couldn't be grabbed, clear out the list.
                 self._repo.clearpostdsstatus()
