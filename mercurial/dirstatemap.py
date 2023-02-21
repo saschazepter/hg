@@ -263,9 +263,10 @@ class dirstatemap(_dirstatemapcommon):
 
     def read(self):
         # ignore HG_PENDING because identity is used only for writing
-        self.identity = util.filestat.frompath(
-            self._opener.join(self._filename)
-        )
+        try:
+            self.identity = util.cachestat(self._opener.join(self._filename))
+        except FileNotFoundError:
+            self.identity = None
 
         if self._use_dirstate_v2:
             if not self.docket.uuid:
@@ -528,9 +529,12 @@ if rustmod is not None:
             Fills the Dirstatemap when called.
             """
             # ignore HG_PENDING because identity is used only for writing
-            self.identity = util.filestat.frompath(
-                self._opener.join(self._filename)
-            )
+            try:
+                self.identity = util.cachestat(
+                    self._opener.join(self._filename)
+                )
+            except FileNotFoundError:
+                self.identity = None
 
             if self._use_dirstate_v2:
                 if self.docket.uuid:
