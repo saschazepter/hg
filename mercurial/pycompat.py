@@ -32,6 +32,7 @@ from typing import (
     Any,
     AnyStr,
     BinaryIO,
+    Callable,
     Dict,
     Iterable,
     Iterator,
@@ -58,6 +59,8 @@ if not globals():  # hide this from non-pytype users
 
 _GetOptResult = Tuple[List[Tuple[bytes, bytes]], List[bytes]]
 _T0 = TypeVar('_T0')
+_T1 = TypeVar('_T1')
+_S = TypeVar('_S')
 _Tbytestr = TypeVar('_Tbytestr', bound='bytestr')
 
 
@@ -129,8 +132,21 @@ sysplatform: bytes = sys.platform.encode('ascii')
 sysexecutable: bytes = os.fsencode(sys.executable) if sys.executable else b''
 
 
-def maplist(*args):
-    return list(map(*args))
+if TYPE_CHECKING:
+
+    @overload
+    def maplist(f: Callable[[_T0], _S], arg: Iterable[_T0]) -> List[_S]:
+        ...
+
+    @overload
+    def maplist(
+        f: Callable[[_T0, _T1], _S], arg1: Iterable[_T0], arg2: Iterable[_T1]
+    ) -> List[_S]:
+        ...
+
+
+def maplist(f, *args):
+    return list(map(f, *args))
 
 
 def rangelist(*args):
