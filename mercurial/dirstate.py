@@ -175,6 +175,8 @@ class dirstate:
         self._changing_level = 0
         # the change currently underway
         self._change_type = None
+        # number of open _running_status context
+        self._running_status = 0
         # True if the current dirstate changing operations have been
         # invalidated (used to make sure all nested contexts have been exited)
         self._invalidated_context = False
@@ -233,7 +235,16 @@ class dirstate:
         E1: elif lock was acquired → write the changes
         E2: else → discard the changes
         """
-        yield
+        self._running_status += 1
+        try:
+            yield
+        except Exception:
+            self.invalidate()
+            raise
+        finally:
+            self._running_status -= 1
+            if self._invalidated_context:
+                self.invalidate()
 
     @contextlib.contextmanager
     @check_invalidated
@@ -598,8 +609,10 @@ class dirstate:
                 delattr(self, a)
         self._dirty = False
         self._dirty_tracked_set = False
-        self._invalidated_context = (
-            self._changing_level > 0 or self._attached_to_a_transaction
+        self._invalidated_context = bool(
+            self._changing_level > 0
+            or self._attached_to_a_transaction
+            or self._running_status
         )
         self._origpl = None
 
