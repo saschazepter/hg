@@ -935,6 +935,9 @@ class dirstate:
     def write(self, tr):
         if not self._dirty:
             return
+        # make sure we don't request a write of invalidated content
+        # XXX move before the dirty check once `unlock` stop calling `write`
+        assert not self._invalidated_context
 
         write_key = self._use_tracked_hint and self._dirty_tracked_set
         if tr:
@@ -990,6 +993,8 @@ class dirstate:
         self._plchangecallbacks[category] = callback
 
     def _writedirstate(self, tr, st):
+        # make sure we don't write invalidated content
+        assert not self._invalidated_context
         # notify callbacks about parents change
         if self._origpl is not None and self._origpl != self._pl:
             for c, callback in sorted(self._plchangecallbacks.items()):
