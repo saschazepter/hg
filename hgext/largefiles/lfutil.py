@@ -691,11 +691,16 @@ def updatestandinsbymatch(repo, match):
         # It can cost a lot of time (several seconds)
         # otherwise to update all standins if the largefiles are
         # large.
-        lfdirstate = openlfdirstate(ui, repo)
         dirtymatch = matchmod.always()
-        unsure, s, mtime_boundary = lfdirstate.status(
-            dirtymatch, subrepos=[], ignored=False, clean=False, unknown=False
-        )
+        with repo.dirstate.running_status(repo):
+            lfdirstate = openlfdirstate(ui, repo)
+            unsure, s, mtime_boundary = lfdirstate.status(
+                dirtymatch,
+                subrepos=[],
+                ignored=False,
+                clean=False,
+                unknown=False,
+            )
         modifiedfiles = unsure + s.modified + s.added + s.removed
         lfiles = listlfiles(repo)
         # this only loops through largefiles that exist (not
