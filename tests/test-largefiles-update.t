@@ -778,7 +778,10 @@ hashes reveals it isn't clean.
 Start with clean dirstates:
   $ hg up --quiet --clean --rev "8^"
   $ sleep 1
+  $ cat large1
+  large1 in #3
   $ hg st
+
 Update standins without updating largefiles - large1 is modified and largeX is
 added:
   $ cat << EOF > ../crashupdatelfiles.py
@@ -790,12 +793,14 @@ added:
   $ hg up -Cr "8" --config extensions.crashupdatelfiles=../crashupdatelfiles.py
   [254]
 Check large1 content and status ... and that update will undo modifications:
+  $ hg id
+  f1bf30eb88cc
   $ cat large1
   large1 in #3
   $ hg st
   M large1
   ! largeX
-  $ hg up -Cr .
+  $ hg up -Cr 8
   getting changed largefiles
   2 largefiles updated, 0 removed
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
