@@ -1554,9 +1554,6 @@ class dirstate:
         )
         return (lookup, status)
 
-    # XXX since this can make the dirstate dirty (through rust), we should
-    # enforce that it is done withing an appropriate change-context that scope
-    # the change and ensure it eventually get written on disk (or rolled back)
     def status(self, match, subrepos, ignored, clean, unknown):
         """Determine the status of the working copy relative to the
         dirstate and return a pair of (unsure, status), where status is of type
@@ -1573,6 +1570,9 @@ class dirstate:
             files that have definitely not been modified since the
             dirstate was written
         """
+        if not self._running_status:
+            msg = "Calling `status` outside a `running_status` context"
+            raise error.ProgrammingError(msg)
         listignored, listclean, listunknown = ignored, clean, unknown
         lookup, modified, added, unknown, ignored = [], [], [], [], []
         removed, deleted, clean = [], [], []
