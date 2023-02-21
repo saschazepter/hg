@@ -59,19 +59,21 @@ def mvcheck(orig, ui, repo, *pats, **opts):
     opts = pycompat.byteskwargs(opts)
     renames = None
     disabled = opts.pop(b'no_automv', False)
-    if not disabled:
-        threshold = ui.configint(b'automv', b'similarity')
-        if not 0 <= threshold <= 100:
-            raise error.Abort(_(b'automv.similarity must be between 0 and 100'))
-        if threshold > 0:
-            match = scmutil.match(repo[None], pats, opts)
-            added, removed = _interestingfiles(repo, match)
-            uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
-            renames = _findrenames(
-                repo, uipathfn, added, removed, threshold / 100.0
-            )
-
     with repo.wlock():
+        if not disabled:
+            threshold = ui.configint(b'automv', b'similarity')
+            if not 0 <= threshold <= 100:
+                raise error.Abort(
+                    _(b'automv.similarity must be between 0 and 100')
+                )
+            if threshold > 0:
+                match = scmutil.match(repo[None], pats, opts)
+                added, removed = _interestingfiles(repo, match)
+                uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
+                renames = _findrenames(
+                    repo, uipathfn, added, removed, threshold / 100.0
+                )
+
         if renames is not None:
             with repo.dirstate.changing_files(repo):
                 # XXX this should be wider and integrated with the commit
