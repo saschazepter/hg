@@ -316,14 +316,13 @@ class dirstate:
     @propertycache
     def _map(self):
         """Return the dirstate contents (see documentation for dirstatemap)."""
-        self._map = self._mapcls(
+        return self._mapcls(
             self._ui,
             self._opener,
             self._root,
             self._nodeconstants,
             self._use_dirstate_v2,
         )
-        return self._map
 
     @property
     def _sparsematcher(self):
