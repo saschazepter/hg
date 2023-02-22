@@ -844,7 +844,6 @@ store directory has files we expect
   requires
   undo
   undo.backupfiles
-  undo.phaseroots
 
 manifest should be generaldelta
 
@@ -869,7 +868,6 @@ old store should be backed up
   undo
   undo.backup.fncache
   undo.backupfiles
-  undo.phaseroots
 
 unless --no-backup is passed
 
