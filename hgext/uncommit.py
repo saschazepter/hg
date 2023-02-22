@@ -236,7 +236,7 @@ def uncommit(ui, repo, *pats, **opts):
                 # Fully removed the old commit
                 mapping[old.node()] = ()
 
-            with repo.dirstate.parentchange():
+            with repo.dirstate.changing_parents(repo):
                 scmutil.movedirstate(repo, repo[newid], match)
 
             scmutil.cleanupnodes(repo, mapping, b'uncommit', fixphase=True)
@@ -317,7 +317,7 @@ def unamend(ui, repo, **opts):
         newpredctx = repo[newprednode]
         dirstate = repo.dirstate
 
-        with dirstate.parentchange():
+        with dirstate.changing_parents(repo):
             scmutil.movedirstate(repo, newpredctx)
 
         mapping = {curctx.node(): (newprednode,)}

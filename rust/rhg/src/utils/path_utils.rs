@@ -23,7 +23,7 @@ impl RelativizePaths {
         let repo_root = repo.working_directory_path();
         let repo_root = cwd.join(repo_root); // Make it absolute
         let repo_root_hgpath =
-            HgPathBuf::from(get_bytes_from_path(repo_root.to_owned()));
+            HgPathBuf::from(get_bytes_from_path(&repo_root));
 
         if let Ok(cwd_relative_to_repo) = cwd.strip_prefix(&repo_root) {
             // The current directory is inside the repo, so we can work with

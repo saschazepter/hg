@@ -164,7 +164,7 @@ pub(crate) fn parse_config(
 fn read_temporary_includes(
     repo: &Repo,
 ) -> Result<Vec<Vec<u8>>, SparseConfigError> {
-    let raw = repo.hg_vfs().try_read("tempsparse")?.unwrap_or(vec![]);
+    let raw = repo.hg_vfs().try_read("tempsparse")?.unwrap_or_default();
     if raw.is_empty() {
         return Ok(vec![]);
     }
@@ -179,7 +179,7 @@ fn patterns_for_rev(
     if !repo.has_sparse() {
         return Ok(None);
     }
-    let raw = repo.hg_vfs().try_read("sparse")?.unwrap_or(vec![]);
+    let raw = repo.hg_vfs().try_read("sparse")?.unwrap_or_default();
 
     if raw.is_empty() {
         return Ok(None);
@@ -200,9 +200,10 @@ fn patterns_for_rev(
             let output =
                 cat(repo, &rev.to_string(), vec![HgPath::new(&profile)])
                     .map_err(|_| {
-                        HgError::corrupted(format!(
+                        HgError::corrupted(
                             "dirstate points to non-existent parent node"
-                        ))
+                                .to_string(),
+                        )
                     })?;
             if output.results.is_empty() {
                 config.warnings.push(SparseWarning::ProfileNotFound {
@@ -252,9 +253,9 @@ pub fn matcher(
         repo.changelog()?
             .rev_from_node(parents.p1.into())
             .map_err(|_| {
-                HgError::corrupted(format!(
-                    "dirstate points to non-existent parent node"
-                ))
+                HgError::corrupted(
+                    "dirstate points to non-existent parent node".to_string(),
+                )
             })?;
     if p1_rev != NULL_REVISION {
         revs.push(p1_rev)
@@ -263,9 +264,9 @@ pub fn matcher(
         repo.changelog()?
             .rev_from_node(parents.p2.into())
             .map_err(|_| {
-                HgError::corrupted(format!(
-                    "dirstate points to non-existent parent node"
-                ))
+                HgError::corrupted(
+                    "dirstate points to non-existent parent node".to_string(),
+                )
             })?;
     if p2_rev != NULL_REVISION {
         revs.push(p2_rev)
@@ -325,7 +326,7 @@ fn force_include_matcher(
     }
     let forced_include_matcher = IncludeMatcher::new(
         temp_includes
-            .into_iter()
+            .iter()
             .map(|include| {
                 IgnorePattern::new(PatternSyntax::Path, include, Path::new(""))
             })

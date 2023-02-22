@@ -71,7 +71,7 @@ pub trait NodeMap {
     ///
     /// If several Revisions match the given prefix, a [`MultipleResults`]
     /// error is returned.
-    fn find_bin<'a>(
+    fn find_bin(
         &self,
         idx: &impl RevlogIndex,
         prefix: NodePrefix,
@@ -88,7 +88,7 @@ pub trait NodeMap {
     ///
     /// If several Revisions match the given prefix, a [`MultipleResults`]
     /// error is returned.
-    fn unique_prefix_len_bin<'a>(
+    fn unique_prefix_len_bin(
         &self,
         idx: &impl RevlogIndex,
         node_prefix: NodePrefix,
@@ -249,7 +249,7 @@ fn has_prefix_or_none(
     rev: Revision,
 ) -> Result<Option<Revision>, NodeMapError> {
     idx.node(rev)
-        .ok_or_else(|| NodeMapError::RevisionNotInIndex(rev))
+        .ok_or(NodeMapError::RevisionNotInIndex(rev))
         .map(|node| {
             if prefix.is_prefix_of(node) {
                 Some(rev)
@@ -468,7 +468,7 @@ impl NodeTree {
         if let Element::Rev(old_rev) = deepest.element {
             let old_node = index
                 .node(old_rev)
-                .ok_or_else(|| NodeMapError::RevisionNotInIndex(old_rev))?;
+                .ok_or(NodeMapError::RevisionNotInIndex(old_rev))?;
             if old_node == node {
                 return Ok(()); // avoid creating lots of useless blocks
             }
@@ -865,7 +865,7 @@ mod tests {
             hex: &str,
         ) -> Result<(), NodeMapError> {
             let node = pad_node(hex);
-            self.index.insert(rev, node.clone());
+            self.index.insert(rev, node);
             self.nt.insert(&self.index, &node, rev)?;
             Ok(())
         }
@@ -887,13 +887,13 @@ mod tests {
         /// Drain `added` and restart a new one
         fn commit(self) -> Self {
             let mut as_vec: Vec<Block> =
-                self.nt.readonly.iter().map(|block| block.clone()).collect();
+                self.nt.readonly.iter().copied().collect();
             as_vec.extend(self.nt.growable);
             as_vec.push(self.nt.root);
 
             Self {
                 index: self.index,
-                nt: NodeTree::from(as_vec).into(),
+                nt: NodeTree::from(as_vec),
             }
         }
     }
@@ -967,15 +967,15 @@ mod tests {
         let idx = &mut nt_idx.index;
 
         let node0_hex = hex_pad_right("444444");
-        let mut node1_hex = hex_pad_right("444444").clone();
+        let mut node1_hex = hex_pad_right("444444");
         node1_hex.pop();
         node1_hex.push('5');
         let node0 = Node::from_hex(&node0_hex).unwrap();
         let node1 = Node::from_hex(&node1_hex).unwrap();
 
-        idx.insert(0, node0.clone());
+        idx.insert(0, node0);
         nt.insert(idx, &node0, 0)?;
-        idx.insert(1, node1.clone());
+        idx.insert(1, node1);
         nt.insert(idx, &node1, 1)?;
 
         assert_eq!(nt.find_bin(idx, (&node0).into())?, Some(0));

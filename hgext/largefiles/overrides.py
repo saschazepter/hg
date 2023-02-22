@@ -8,6 +8,7 @@
 
 '''Overridden Mercurial commands and functions for the largefiles extension'''
 
+import contextlib
 import copy
 import os
 
@@ -21,6 +22,7 @@ from mercurial import (
     archival,
     cmdutil,
     copies as copiesmod,
+    dirstate,
     error,
     exchange,
     extensions,
@@ -311,6 +313,48 @@ def cmdutilremove(
     )
 
 
+@eh.wrapfunction(dirstate.dirstate, b'_changing')
+@contextlib.contextmanager
+def _changing(orig, self, repo, change_type):
+    pre = sub_dirstate = getattr(self, '_sub_dirstate', None)
+    try:
+        lfd = getattr(self, '_large_file_dirstate', False)
+        if sub_dirstate is None and not lfd:
+            sub_dirstate = lfutil.openlfdirstate(repo.ui, repo)
+            self._sub_dirstate = sub_dirstate
+        if not lfd:
+            assert self._sub_dirstate is not None
+        with orig(self, repo, change_type):
+            if sub_dirstate is None:
+                yield
+            else:
+                with sub_dirstate._changing(repo, change_type):
+                    yield
+    finally:
+        self._sub_dirstate = pre
+
+
+@eh.wrapfunction(dirstate.dirstate, b'running_status')
+@contextlib.contextmanager
+def running_status(orig, self, repo):
+    pre = sub_dirstate = getattr(self, '_sub_dirstate', None)
+    try:
+        lfd = getattr(self, '_large_file_dirstate', False)
+        if sub_dirstate is None and not lfd:
+            sub_dirstate = lfutil.openlfdirstate(repo.ui, repo)
+            self._sub_dirstate = sub_dirstate
+        if not lfd:
+            assert self._sub_dirstate is not None
+        with orig(self, repo):
+            if sub_dirstate is None:
+                yield
+            else:
+                with sub_dirstate.running_status(repo):
+                    yield
+    finally:
+        self._sub_dirstate = pre
+
+
 @eh.wrapfunction(subrepo.hgsubrepo, b'status')
 def overridestatusfn(orig, repo, rev2, **opts):
     with lfstatus(repo._repo):
@@ -511,10 +555,12 @@ def overridedebugstate(orig, ui, repo, *pats, **opts):
 # largefiles. This makes the merge proceed and we can then handle this
 # case further in the overridden calculateupdates function below.
 @eh.wrapfunction(merge, b'_checkunknownfile')
-def overridecheckunknownfile(origfn, repo, wctx, mctx, f, f2=None):
-    if lfutil.standin(repo.dirstate.normalize(f)) in wctx:
+def overridecheckunknownfile(
+    origfn, dirstate, wvfs, dircache, wctx, mctx, f, f2=None
+):
+    if lfutil.standin(dirstate.normalize(f)) in wctx:
         return False
-    return origfn(repo, wctx, mctx, f, f2)
+    return origfn(dirstate, wvfs, dircache, wctx, mctx, f, f2)
 
 
 # The manifest merge handles conflicts on the manifest level. We want
@@ -658,18 +704,12 @@ def overridecalculateupdates(
 def mergerecordupdates(orig, repo, actions, branchmerge, getfiledata):
     if MERGE_ACTION_LARGEFILE_MARK_REMOVED in actions:
         lfdirstate = lfutil.openlfdirstate(repo.ui, repo)
-        with lfdirstate.parentchange():
-            for lfile, args, msg in actions[
-                MERGE_ACTION_LARGEFILE_MARK_REMOVED
-            ]:
-                # this should be executed before 'orig', to execute 'remove'
-                # before all other actions
-                repo.dirstate.update_file(
-                    lfile, p1_tracked=True, wc_tracked=False
-                )
-                # make sure lfile doesn't get synclfdirstate'd as normal
-                lfdirstate.update_file(lfile, p1_tracked=False, wc_tracked=True)
-        lfdirstate.write(repo.currenttransaction())
+        for lfile, args, msg in actions[MERGE_ACTION_LARGEFILE_MARK_REMOVED]:
+            # this should be executed before 'orig', to execute 'remove'
+            # before all other actions
+            repo.dirstate.update_file(lfile, p1_tracked=True, wc_tracked=False)
+            # make sure lfile doesn't get synclfdirstate'd as normal
+            lfdirstate.update_file(lfile, p1_tracked=False, wc_tracked=True)
 
     return orig(repo, actions, branchmerge, getfiledata)
 
@@ -901,7 +941,7 @@ def overriderevert(orig, ui, repo, ctx, *pats, **opts):
     # Because we put the standins in a bad state (by updating them)
     # and then return them to a correct state we need to lock to
     # prevent others from changing them in their incorrect state.
-    with repo.wlock():
+    with repo.wlock(), repo.dirstate.running_status(repo):
         lfdirstate = lfutil.openlfdirstate(ui, repo)
         s = lfutil.lfdirstatestatus(lfdirstate, repo)
         lfdirstate.write(repo.currenttransaction())
@@ -1436,7 +1476,7 @@ def outgoinghook(ui, repo, other, opts, missing):
 
             def addfunc(fn, lfhash):
                 if fn not in toupload:
-                    toupload[fn] = []
+                    toupload[fn] = []  # pytype: disable=unsupported-operands
                 toupload[fn].append(lfhash)
                 lfhashes.add(lfhash)
 
@@ -1520,20 +1560,34 @@ def overridesummary(orig, ui, repo, *pats, **opts):
 
 
 @eh.wrapfunction(scmutil, b'addremove')
-def scmutiladdremove(orig, repo, matcher, prefix, uipathfn, opts=None):
+def scmutiladdremove(
+    orig,
+    repo,
+    matcher,
+    prefix,
+    uipathfn,
+    opts=None,
+    open_tr=None,
+):
     if opts is None:
         opts = {}
     if not lfutil.islfilesrepo(repo):
-        return orig(repo, matcher, prefix, uipathfn, opts)
+        return orig(repo, matcher, prefix, uipathfn, opts, open_tr=open_tr)
+
+    # open the transaction and changing_files context
+    if open_tr is not None:
+        open_tr()
+
     # Get the list of missing largefiles so we can remove them
-    lfdirstate = lfutil.openlfdirstate(repo.ui, repo)
-    unsure, s, mtime_boundary = lfdirstate.status(
-        matchmod.always(),
-        subrepos=[],
-        ignored=False,
-        clean=False,
-        unknown=False,
-    )
+    with repo.dirstate.running_status(repo):
+        lfdirstate = lfutil.openlfdirstate(repo.ui, repo)
+        unsure, s, mtime_boundary = lfdirstate.status(
+            matchmod.always(),
+            subrepos=[],
+            ignored=False,
+            clean=False,
+            unknown=False,
+        )
 
     # Call into the normal remove code, but the removing of the standin, we want
     # to have handled by original addremove.  Monkey patching here makes sure
@@ -1567,7 +1621,8 @@ def scmutiladdremove(orig, repo, matcher, prefix, uipathfn, opts=None):
     # function to take care of the rest.  Make sure it doesn't do anything with
     # largefiles by passing a matcher that will ignore them.
     matcher = composenormalfilematcher(matcher, repo[None].manifest(), added)
-    return orig(repo, matcher, prefix, uipathfn, opts)
+
+    return orig(repo, matcher, prefix, uipathfn, opts, open_tr=open_tr)
 
 
 # Calling purge with --all will cause the largefiles to be deleted.
@@ -1737,7 +1792,7 @@ def mergeupdate(orig, repo, node, branchmerge, force, *args, **kwargs):
     matcher = kwargs.get('matcher', None)
     # note if this is a partial update
     partial = matcher and not matcher.always()
-    with repo.wlock():
+    with repo.wlock(), repo.dirstate.changing_parents(repo):
         # branch |       |         |
         #  merge | force | partial | action
         # -------+-------+---------+--------------
@@ -1752,15 +1807,15 @@ def mergeupdate(orig, repo, node, branchmerge, force, *args, **kwargs):
         #
         # (*) don't care
         # (*1) deprecated, but used internally (e.g: "rebase --collapse")
-
-        lfdirstate = lfutil.openlfdirstate(repo.ui, repo)
-        unsure, s, mtime_boundary = lfdirstate.status(
-            matchmod.always(),
-            subrepos=[],
-            ignored=False,
-            clean=True,
-            unknown=False,
-        )
+        with repo.dirstate.running_status(repo):
+            lfdirstate = lfutil.openlfdirstate(repo.ui, repo)
+            unsure, s, mtime_boundary = lfdirstate.status(
+                matchmod.always(),
+                subrepos=[],
+                ignored=False,
+                clean=True,
+                unknown=False,
+            )
         oldclean = set(s.clean)
         pctx = repo[b'.']
         dctx = repo[node]
@@ -1787,7 +1842,14 @@ def mergeupdate(orig, repo, node, branchmerge, force, *args, **kwargs):
         # mark all clean largefiles as dirty, just in case the update gets
         # interrupted before largefiles and lfdirstate are synchronized
         for lfile in oldclean:
-            lfdirstate.set_possibly_dirty(lfile)
+            entry = lfdirstate.get_entry(lfile)
+            lfdirstate.hacky_extension_update_file(
+                lfile,
+                wc_tracked=entry.tracked,
+                p1_tracked=entry.p1_tracked,
+                p2_info=entry.p2_info,
+                possibly_dirty=True,
+            )
         lfdirstate.write(repo.currenttransaction())
 
         oldstandins = lfutil.getstandinsstate(repo)
@@ -1798,24 +1860,22 @@ def mergeupdate(orig, repo, node, branchmerge, force, *args, **kwargs):
             raise error.ProgrammingError(
                 b'largefiles is not compatible with in-memory merge'
             )
-        with lfdirstate.parentchange():
-            result = orig(repo, node, branchmerge, force, *args, **kwargs)
+        result = orig(repo, node, branchmerge, force, *args, **kwargs)
 
-            newstandins = lfutil.getstandinsstate(repo)
-            filelist = lfutil.getlfilestoupdate(oldstandins, newstandins)
+        newstandins = lfutil.getstandinsstate(repo)
+        filelist = lfutil.getlfilestoupdate(oldstandins, newstandins)
 
-            # to avoid leaving all largefiles as dirty and thus rehash them, mark
-            # all the ones that didn't change as clean
-            for lfile in oldclean.difference(filelist):
-                lfdirstate.update_file(lfile, p1_tracked=True, wc_tracked=True)
-            lfdirstate.write(repo.currenttransaction())
+        # to avoid leaving all largefiles as dirty and thus rehash them, mark
+        # all the ones that didn't change as clean
+        for lfile in oldclean.difference(filelist):
+            lfdirstate.update_file(lfile, p1_tracked=True, wc_tracked=True)
 
-            if branchmerge or force or partial:
-                filelist.extend(s.deleted + s.removed)
+        if branchmerge or force or partial:
+            filelist.extend(s.deleted + s.removed)
 
-            lfcommands.updatelfiles(
-                repo.ui, repo, filelist=filelist, normallookup=partial
-            )
+        lfcommands.updatelfiles(
+            repo.ui, repo, filelist=filelist, normallookup=partial
+        )
 
         return result
 

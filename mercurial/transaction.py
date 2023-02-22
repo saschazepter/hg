@@ -668,41 +668,69 @@ class transaction(util.transactional):
         self._file.close()
         self._backupsfile.close()
 
+        quick = self._can_quick_abort(entries)
         try:
-            if not entries and not self._backupentries:
-                if self._backupjournal:
-                    self._opener.unlink(self._backupjournal)
-                if self._journal:
-                    self._opener.unlink(self._journal)
-                return
-
-            self._report(_(b"transaction abort!\n"))
-
-            try:
-                for cat in sorted(self._abortcallback):
-                    self._abortcallback[cat](self)
-                # Prevent double usage and help clear cycles.
-                self._abortcallback = None
-                _playback(
-                    self._journal,
-                    self._report,
-                    self._opener,
-                    self._vfsmap,
-                    entries,
-                    self._backupentries,
-                    False,
-                    checkambigfiles=self._checkambigfiles,
-                )
-                self._report(_(b"rollback completed\n"))
-            except BaseException as exc:
-                self._report(_(b"rollback failed - please run hg recover\n"))
-                self._report(
-                    _(b"(failure reason: %s)\n") % stringutil.forcebytestr(exc)
-                )
+            if not quick:
+                self._report(_(b"transaction abort!\n"))
+            for cat in sorted(self._abortcallback):
+                self._abortcallback[cat](self)
+            # Prevent double usage and help clear cycles.
+            self._abortcallback = None
+            if quick:
+                self._do_quick_abort(entries)
+            else:
+                self._do_full_abort(entries)
         finally:
             self._journal = None
             self._releasefn(self, False)  # notify failure of transaction
             self._releasefn = None  # Help prevent cycles.
+
+    def _can_quick_abort(self, entries):
+        """False if any semantic content have been written on disk
+
+        True if nothing, except temporary files has been writen on disk."""
+        if entries:
+            return False
+        for e in self._backupentries:
+            if e[1]:
+                return False
+        return True
+
+    def _do_quick_abort(self, entries):
+        """(Silently) do a quick cleanup (see _can_quick_abort)"""
+        assert self._can_quick_abort(entries)
+        tmp_files = [e for e in self._backupentries if not e[1]]
+        for vfs_id, old_path, tmp_path, xxx in tmp_files:
+            assert not old_path
+            vfs = self._vfsmap[vfs_id]
+            try:
+                vfs.unlink(tmp_path)
+            except FileNotFoundError:
+                pass
+        if self._backupjournal:
+            self._opener.unlink(self._backupjournal)
+        if self._journal:
+            self._opener.unlink(self._journal)
+
+    def _do_full_abort(self, entries):
+        """(Noisily) rollback all the change introduced by the transaction"""
+        try:
+            _playback(
+                self._journal,
+                self._report,
+                self._opener,
+                self._vfsmap,
+                entries,
+                self._backupentries,
+                False,
+                checkambigfiles=self._checkambigfiles,
+            )
+            self._report(_(b"rollback completed\n"))
+        except BaseException as exc:
+            self._report(_(b"rollback failed - please run hg recover\n"))
+            self._report(
+                _(b"(failure reason: %s)\n") % stringutil.forcebytestr(exc)
+            )
 
 
 BAD_VERSION_MSG = _(
@@ -710,7 +738,14 @@ BAD_VERSION_MSG = _(
 )
 
 
-def rollback(opener, vfsmap, file, report, checkambigfiles=None):
+def rollback(
+    opener,
+    vfsmap,
+    file,
+    report,
+    checkambigfiles=None,
+    skip_journal_pattern=None,
+):
     """Rolls back the transaction contained in the given file
 
     Reads the entries in the specified file, and the corresponding
@@ -755,6 +790,9 @@ def rollback(opener, vfsmap, file, report, checkambigfiles=None):
                         line = line[:-1]
                         l, f, b, c = line.split(b'\0')
                         backupentries.append((l, f, b, bool(c)))
+    if skip_journal_pattern is not None:
+        keep = lambda x: not skip_journal_pattern.match(x[1])
+        backupentries = [x for x in backupentries if keep(x)]
 
     _playback(
         file,

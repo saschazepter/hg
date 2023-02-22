@@ -25,13 +25,7 @@ recover, explicit verify
   abort: abandoned transaction found
   (run 'hg recover' to clean up transaction)
   [255]
-  $ hg recover --verify
-  rolling back interrupted transaction
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
+  $ hg recover --verify  -q
 
 recover, no verify
 

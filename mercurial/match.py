@@ -368,7 +368,7 @@ def _donormalize(patterns, default, root, cwd, auditor=None, warn=None):
                     % (
                         pat,
                         inst.message,
-                    )  # pytype: disable=unsupported-operands
+                    )
                 )
             except IOError as inst:
                 if warn:

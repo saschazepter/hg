@@ -31,7 +31,6 @@ from . import (
 )
 
 from .dirstateutils import (
-    docket as docketmod,
     timestamp,
 )
 
@@ -66,10 +65,17 @@ class rootcache(filecache):
         return obj._join(fname)
 
 
-def requires_parents_change(func):
+def check_invalidated(func):
+    """check that the func is called with a non-invalidated dirstate
+
+    The dirstate is in an "invalidated state" after an error occured during its
+    modification and remains so until we exited the top level scope that framed
+    such change.
+    """
+
     def wrap(self, *args, **kwargs):
-        if not self.pendingparentchange():
-            msg = 'calling `%s` outside of a parentchange context'
+        if self._invalidated_context:
+            msg = 'calling `%s` after the dirstate was invalidated'
             msg %= func.__name__
             raise error.ProgrammingError(msg)
         return func(self, *args, **kwargs)
@@ -77,19 +83,63 @@ def requires_parents_change(func):
     return wrap
 
 
-def requires_no_parents_change(func):
+def requires_changing_parents(func):
     def wrap(self, *args, **kwargs):
-        if self.pendingparentchange():
-            msg = 'calling `%s` inside of a parentchange context'
+        if not self.is_changing_parents:
+            msg = 'calling `%s` outside of a changing_parents context'
             msg %= func.__name__
             raise error.ProgrammingError(msg)
         return func(self, *args, **kwargs)
 
-    return wrap
+    return check_invalidated(wrap)
+
+
+def requires_changing_files(func):
+    def wrap(self, *args, **kwargs):
+        if not self.is_changing_files:
+            msg = 'calling `%s` outside of a `changing_files`'
+            msg %= func.__name__
+            raise error.ProgrammingError(msg)
+        return func(self, *args, **kwargs)
+
+    return check_invalidated(wrap)
+
+
+def requires_changing_any(func):
+    def wrap(self, *args, **kwargs):
+        if not self.is_changing_any:
+            msg = 'calling `%s` outside of a changing context'
+            msg %= func.__name__
+            raise error.ProgrammingError(msg)
+        return func(self, *args, **kwargs)
+
+    return check_invalidated(wrap)
+
+
+def requires_changing_files_or_status(func):
+    def wrap(self, *args, **kwargs):
+        if not (self.is_changing_files or self._running_status > 0):
+            msg = (
+                'calling `%s` outside of a changing_files '
+                'or running_status context'
+            )
+            msg %= func.__name__
+            raise error.ProgrammingError(msg)
+        return func(self, *args, **kwargs)
+
+    return check_invalidated(wrap)
+
+
+CHANGE_TYPE_PARENTS = "parents"
+CHANGE_TYPE_FILES = "files"
 
 
 @interfaceutil.implementer(intdirstate.idirstate)
 class dirstate:
+
+    # used by largefile to avoid overwritting transaction callback
+    _tr_key_suffix = b''
+
     def __init__(
         self,
         opener,
@@ -124,7 +174,16 @@ class dirstate:
         self._dirty_tracked_set = False
         self._ui = ui
         self._filecache = {}
-        self._parentwriters = 0
+        # nesting level of `changing_parents` context
+        self._changing_level = 0
+        # the change currently underway
+        self._change_type = None
+        # number of open _running_status context
+        self._running_status = 0
+        # True if the current dirstate changing operations have been
+        # invalidated (used to make sure all nested contexts have been exited)
+        self._invalidated_context = False
+        self._attached_to_a_transaction = False
         self._filename = b'dirstate'
         self._filename_th = b'dirstate-tracked-hint'
         self._pendingfilename = b'%s.pending' % self._filename
@@ -136,6 +195,12 @@ class dirstate:
         # raises an exception).
         self._cwd
 
+    def refresh(self):
+        if '_branch' in vars(self):
+            del self._branch
+        if '_map' in vars(self) and self._map.may_need_refresh():
+            self.invalidate()
+
     def prefetch_parents(self):
         """make sure the parents are loaded
 
@@ -144,39 +209,193 @@ class dirstate:
         self._pl
 
     @contextlib.contextmanager
-    def parentchange(self):
-        """Context manager for handling dirstate parents.
+    @check_invalidated
+    def running_status(self, repo):
+        """Wrap a status operation
 
-        If an exception occurs in the scope of the context manager,
-        the incoherent dirstate won't be written when wlock is
-        released.
+        This context is not mutally exclusive with the `changing_*` context. It
+        also do not warrant for the `wlock` to be taken.
+
+        If the wlock is taken, this context will behave in a simple way, and
+        ensure the data are scheduled for write when leaving the top level
+        context.
+
+        If the lock is not taken, it will only warrant that the data are either
+        committed (written) and rolled back (invalidated) when exiting the top
+        level context. The write/invalidate action must be performed by the
+        wrapped code.
+
+
+        The expected  logic is:
+
+        A: read the dirstate
+        B: run status
+           This might make the dirstate dirty by updating cache,
+           especially in Rust.
+        C: do more "post status fixup if relevant
+        D: try to take the w-lock (this will invalidate the changes if they were raced)
+        E0: if dirstate changed on disk → discard change (done by dirstate internal)
+        E1: elif lock was acquired → write the changes
+        E2: else → discard the changes
         """
-        self._parentwriters += 1
-        yield
-        # Typically we want the "undo" step of a context manager in a
-        # finally block so it happens even when an exception
-        # occurs. In this case, however, we only want to decrement
-        # parentwriters if the code in the with statement exits
-        # normally, so we don't have a try/finally here on purpose.
-        self._parentwriters -= 1
+        has_lock = repo.currentwlock() is not None
+        is_changing = self.is_changing_any
+        tr = repo.currenttransaction()
+        has_tr = tr is not None
+        nested = bool(self._running_status)
+
+        first_and_alone = not (is_changing or has_tr or nested)
+
+        # enforce no change happened outside of a proper context.
+        if first_and_alone and self._dirty:
+            has_tr = repo.currenttransaction() is not None
+            if not has_tr and self._changing_level == 0 and self._dirty:
+                msg = "entering a status context, but dirstate is already dirty"
+                raise error.ProgrammingError(msg)
+
+        should_write = has_lock and not (nested or is_changing)
+
+        self._running_status += 1
+        try:
+            yield
+        except Exception:
+            self.invalidate()
+            raise
+        finally:
+            self._running_status -= 1
+            if self._invalidated_context:
+                should_write = False
+                self.invalidate()
+
+        if should_write:
+            assert repo.currenttransaction() is tr
+            self.write(tr)
+        elif not has_lock:
+            if self._dirty:
+                msg = b'dirstate dirty while exiting an isolated status context'
+                repo.ui.develwarn(msg)
+                self.invalidate()
+
+    @contextlib.contextmanager
+    @check_invalidated
+    def _changing(self, repo, change_type):
+        if repo.currentwlock() is None:
+            msg = b"trying to change the dirstate without holding the wlock"
+            raise error.ProgrammingError(msg)
+
+        has_tr = repo.currenttransaction() is not None
+        if not has_tr and self._changing_level == 0 and self._dirty:
+            msg = b"entering a changing context, but dirstate is already dirty"
+            repo.ui.develwarn(msg)
+
+        assert self._changing_level >= 0
+        # different type of change are mutually exclusive
+        if self._change_type is None:
+            assert self._changing_level == 0
+            self._change_type = change_type
+        elif self._change_type != change_type:
+            msg = (
+                'trying to open "%s" dirstate-changing context while a "%s" is'
+                ' already open'
+            )
+            msg %= (change_type, self._change_type)
+            raise error.ProgrammingError(msg)
+        should_write = False
+        self._changing_level += 1
+        try:
+            yield
+        except:  # re-raises
+            self.invalidate()  # this will set `_invalidated_context`
+            raise
+        finally:
+            assert self._changing_level > 0
+            self._changing_level -= 1
+            # If the dirstate is being invalidated, call invalidate again.
+            # This will throw away anything added by a upper context and
+            # reset the `_invalidated_context` flag when relevant
+            if self._changing_level <= 0:
+                self._change_type = None
+                assert self._changing_level == 0
+            if self._invalidated_context:
+                # make sure we invalidate anything an upper context might
+                # have changed.
+                self.invalidate()
+            else:
+                should_write = self._changing_level <= 0
+        tr = repo.currenttransaction()
+        if has_tr != (tr is not None):
+            if has_tr:
+                m = "transaction vanished while changing dirstate"
+            else:
+                m = "transaction appeared while changing dirstate"
+            raise error.ProgrammingError(m)
+        if should_write:
+            self.write(tr)
+
+    @contextlib.contextmanager
+    def changing_parents(self, repo):
+        with self._changing(repo, CHANGE_TYPE_PARENTS) as c:
+            yield c
+
+    @contextlib.contextmanager
+    def changing_files(self, repo):
+        with self._changing(repo, CHANGE_TYPE_FILES) as c:
+            yield c
+
+    # here to help migration to the new code
+    def parentchange(self):
+        msg = (
+            "Mercurial 6.4 and later requires call to "
+            "`dirstate.changing_parents(repo)`"
+        )
+        raise error.ProgrammingError(msg)
+
+    @property
+    def is_changing_any(self):
+        """Returns true if the dirstate is in the middle of a set of changes.
+
+        This returns True for any kind of change.
+        """
+        return self._changing_level > 0
 
     def pendingparentchange(self):
+        return self.is_changing_parent()
+
+    def is_changing_parent(self):
         """Returns true if the dirstate is in the middle of a set of changes
         that modify the dirstate parent.
         """
-        return self._parentwriters > 0
+        self._ui.deprecwarn(b"dirstate.is_changing_parents", b"6.5")
+        return self.is_changing_parents
+
+    @property
+    def is_changing_parents(self):
+        """Returns true if the dirstate is in the middle of a set of changes
+        that modify the dirstate parent.
+        """
+        if self._changing_level <= 0:
+            return False
+        return self._change_type == CHANGE_TYPE_PARENTS
+
+    @property
+    def is_changing_files(self):
+        """Returns true if the dirstate is in the middle of a set of changes
+        that modify the files tracked or their sources.
+        """
+        if self._changing_level <= 0:
+            return False
+        return self._change_type == CHANGE_TYPE_FILES
 
     @propertycache
     def _map(self):
         """Return the dirstate contents (see documentation for dirstatemap)."""
-        self._map = self._mapcls(
+        return self._mapcls(
             self._ui,
             self._opener,
             self._root,
             self._nodeconstants,
             self._use_dirstate_v2,
         )
-        return self._map
 
     @property
     def _sparsematcher(self):
@@ -365,6 +584,7 @@ class dirstate:
     def branch(self):
         return encoding.tolocal(self._branch)
 
+    @requires_changing_parents
     def setparents(self, p1, p2=None):
         """Set dirstate parents to p1 and p2.
 
@@ -376,10 +596,10 @@ class dirstate:
         """
         if p2 is None:
             p2 = self._nodeconstants.nullid
-        if self._parentwriters == 0:
+        if self._changing_level == 0:
             raise ValueError(
                 b"cannot set dirstate parent outside of "
-                b"dirstate.parentchange context manager"
+                b"dirstate.changing_parents context manager"
             )
 
         self._dirty = True
@@ -419,9 +639,14 @@ class dirstate:
                 delattr(self, a)
         self._dirty = False
         self._dirty_tracked_set = False
-        self._parentwriters = 0
+        self._invalidated_context = bool(
+            self._changing_level > 0
+            or self._attached_to_a_transaction
+            or self._running_status
+        )
         self._origpl = None
 
+    @requires_changing_any
     def copy(self, source, dest):
         """Mark dest as a copy of source. Unmark dest if source is None."""
         if source == dest:
@@ -439,7 +664,7 @@ class dirstate:
     def copies(self):
         return self._map.copymap
 
-    @requires_no_parents_change
+    @requires_changing_files
     def set_tracked(self, filename, reset_copy=False):
         """a "public" method for generic code to mark a file as tracked
 
@@ -461,7 +686,7 @@ class dirstate:
             self._dirty_tracked_set = True
         return pre_tracked
 
-    @requires_no_parents_change
+    @requires_changing_files
     def set_untracked(self, filename):
         """a "public" method for generic code to mark a file as untracked
 
@@ -476,7 +701,7 @@ class dirstate:
             self._dirty_tracked_set = True
         return ret
 
-    @requires_no_parents_change
+    @requires_changing_files_or_status
     def set_clean(self, filename, parentfiledata):
         """record that the current state of the file on disk is known to be clean"""
         self._dirty = True
@@ -485,13 +710,13 @@ class dirstate:
         (mode, size, mtime) = parentfiledata
         self._map.set_clean(filename, mode, size, mtime)
 
-    @requires_no_parents_change
+    @requires_changing_files_or_status
     def set_possibly_dirty(self, filename):
         """record that the current state of the file on disk is unknown"""
         self._dirty = True
         self._map.set_possibly_dirty(filename)
 
-    @requires_parents_change
+    @requires_changing_parents
     def update_file_p1(
         self,
         filename,
@@ -503,7 +728,7 @@ class dirstate:
         rewriting operation.
 
         It should not be called during a merge (p2 != nullid) and only within
-        a `with dirstate.parentchange():` context.
+        a `with dirstate.changing_parents(repo):` context.
         """
         if self.in_merge:
             msg = b'update_file_reference should not be called when merging'
@@ -531,7 +756,7 @@ class dirstate:
             has_meaningful_mtime=False,
         )
 
-    @requires_parents_change
+    @requires_changing_parents
     def update_file(
         self,
         filename,
@@ -546,12 +771,57 @@ class dirstate:
         This is to be called when the direstates parent changes to keep track
         of what is the file situation in regards to the working copy and its parent.
 
-        This function must be called within a `dirstate.parentchange` context.
+        This function must be called within a `dirstate.changing_parents` context.
 
         note: the API is at an early stage and we might need to adjust it
         depending of what information ends up being relevant and useful to
         other processing.
         """
+        self._update_file(
+            filename=filename,
+            wc_tracked=wc_tracked,
+            p1_tracked=p1_tracked,
+            p2_info=p2_info,
+            possibly_dirty=possibly_dirty,
+            parentfiledata=parentfiledata,
+        )
+
+    def hacky_extension_update_file(self, *args, **kwargs):
+        """NEVER USE THIS, YOU DO NOT NEED IT
+
+        This function is a variant of "update_file" to be called by a small set
+        of extensions, it also adjust the internal state of file, but can be
+        called outside an `changing_parents` context.
+
+        A very small number of extension meddle with the working copy content
+        in a way that requires to adjust the dirstate accordingly. At the time
+        this command is written they are :
+        - keyword,
+        - largefile,
+        PLEASE DO NOT GROW THIS LIST ANY FURTHER.
+
+        This function could probably be replaced by more semantic one (like
+        "adjust expected size" or "always revalidate file content", etc)
+        however at the time where this is writen, this is too much of a detour
+        to be considered.
+        """
+        if not (self._changing_level > 0 or self._running_status > 0):
+            msg = "requires a changes context"
+            raise error.ProgrammingError(msg)
+        self._update_file(
+            *args,
+            **kwargs,
+        )
+
+    def _update_file(
+        self,
+        filename,
+        wc_tracked,
+        p1_tracked,
+        p2_info=False,
+        possibly_dirty=False,
+        parentfiledata=None,
+    ):
 
         # note: I do not think we need to double check name clash here since we
         # are in a update/merge case that should already have taken care of
@@ -680,12 +950,16 @@ class dirstate:
             return self._normalize(path, isknown, ignoremissing)
         return path
 
+    # XXX this method is barely used, as a result:
+    # - its semantic is unclear
+    # - do we really needs it ?
+    @requires_changing_parents
     def clear(self):
         self._map.clear()
         self._dirty = True
 
+    @requires_changing_parents
     def rebuild(self, parent, allfiles, changedfiles=None):
-
         matcher = self._sparsematcher
         if matcher is not None and not matcher.always():
             # should not add non-matching files
@@ -724,7 +998,6 @@ class dirstate:
         self._map.setparents(parent, self._nodeconstants.nullid)
 
         for f in to_lookup:
-
             if self.in_merge:
                 self.set_tracked(f)
             else:
@@ -749,20 +1022,41 @@ class dirstate:
     def write(self, tr):
         if not self._dirty:
             return
+        # make sure we don't request a write of invalidated content
+        # XXX move before the dirty check once `unlock` stop calling `write`
+        assert not self._invalidated_context
 
         write_key = self._use_tracked_hint and self._dirty_tracked_set
         if tr:
+
+            def on_abort(tr):
+                self._attached_to_a_transaction = False
+                self.invalidate()
+
+            # make sure we invalidate the current change on abort
+            if tr is not None:
+                tr.addabort(
+                    b'dirstate-invalidate%s' % self._tr_key_suffix,
+                    on_abort,
+                )
+
+            self._attached_to_a_transaction = True
+
+            def on_success(f):
+                self._attached_to_a_transaction = False
+                self._writedirstate(tr, f),
+
             # delay writing in-memory changes out
             tr.addfilegenerator(
-                b'dirstate-1-main',
+                b'dirstate-1-main%s' % self._tr_key_suffix,
                 (self._filename,),
-                lambda f: self._writedirstate(tr, f),
+                on_success,
                 location=b'plain',
                 post_finalize=True,
             )
             if write_key:
                 tr.addfilegenerator(
-                    b'dirstate-2-key-post',
+                    b'dirstate-2-key-post%s' % self._tr_key_suffix,
                     (self._filename_th,),
                     lambda f: self._write_tracked_hint(tr, f),
                     location=b'plain',
@@ -798,6 +1092,8 @@ class dirstate:
         self._plchangecallbacks[category] = callback
 
     def _writedirstate(self, tr, st):
+        # make sure we don't write invalidated content
+        assert not self._invalidated_context
         # notify callbacks about parents change
         if self._origpl is not None and self._origpl != self._pl:
             for c, callback in sorted(self._plchangecallbacks.items()):
@@ -936,7 +1232,8 @@ class dirstate:
                     badfn(ff, badtype(kind))
                     if nf in dmap:
                         results[nf] = None
-            except OSError as inst:  # nf not found on disk - it is dirstate only
+            except (OSError) as inst:
+                # nf not found on disk - it is dirstate only
                 if nf in dmap:  # does it exactly match a missing file?
                     results[nf] = None
                 else:  # does it match a missing directory?
@@ -1246,7 +1543,7 @@ class dirstate:
                         )
                     )
 
-        for (fn, message) in bad:
+        for fn, message in bad:
             matcher.bad(fn, encoding.strtolocal(message))
 
         status = scmutil.status(
@@ -1276,6 +1573,9 @@ class dirstate:
             files that have definitely not been modified since the
             dirstate was written
         """
+        if not self._running_status:
+            msg = "Calling `status` outside a `running_status` context"
+            raise error.ProgrammingError(msg)
         listignored, listclean, listunknown = ignored, clean, unknown
         lookup, modified, added, unknown, ignored = [], [], [], [], []
         removed, deleted, clean = [], [], []
@@ -1435,142 +1735,47 @@ class dirstate:
         else:
             return self._filename
 
-    def data_backup_filename(self, backupname):
-        if not self._use_dirstate_v2:
-            return None
-        return backupname + b'.v2-data'
+    def all_file_names(self):
+        """list all filename currently used by this dirstate
 
-    def _new_backup_data_filename(self, backupname):
-        """return a filename to backup a data-file or None"""
-        if not self._use_dirstate_v2:
-            return None
-        if self._map.docket.uuid is None:
-            # not created yet, nothing to backup
-            return None
-        data_filename = self._map.docket.data_filename()
-        return data_filename, self.data_backup_filename(backupname)
-
-    def backup_data_file(self, backupname):
-        if not self._use_dirstate_v2:
-            return None
-        docket = docketmod.DirstateDocket.parse(
-            self._opener.read(backupname),
-            self._nodeconstants,
-        )
-        return self.data_backup_filename(backupname), docket.data_filename()
-
-    def savebackup(self, tr, backupname):
-        '''Save current dirstate into backup file'''
-        filename = self._actualfilename(tr)
-        assert backupname != filename
-
-        # use '_writedirstate' instead of 'write' to write changes certainly,
-        # because the latter omits writing out if transaction is running.
-        # output file will be used to create backup of dirstate at this point.
-        if self._dirty or not self._opener.exists(filename):
-            self._writedirstate(
-                tr,
-                self._opener(filename, b"w", atomictemp=True, checkambig=True),
+        This is only used to do `hg rollback` related backup in the transaction
+        """
+        if not self._opener.exists(self._filename):
+            # no data every written to disk yet
+            return ()
+        elif self._use_dirstate_v2:
+            return (
+                self._filename,
+                self._map.docket.data_filename(),
             )
-
-        if tr:
-            # ensure that subsequent tr.writepending returns True for
-            # changes written out above, even if dirstate is never
-            # changed after this
-            tr.addfilegenerator(
-                b'dirstate-1-main',
-                (self._filename,),
-                lambda f: self._writedirstate(tr, f),
-                location=b'plain',
-                post_finalize=True,
-            )
-
-            # ensure that pending file written above is unlinked at
-            # failure, even if tr.writepending isn't invoked until the
-            # end of this transaction
-            tr.registertmp(filename, location=b'plain')
-
-        self._opener.tryunlink(backupname)
-        # hardlink backup is okay because _writedirstate is always called
-        # with an "atomictemp=True" file.
-        util.copyfile(
-            self._opener.join(filename),
-            self._opener.join(backupname),
-            hardlink=True,
-        )
-        data_pair = self._new_backup_data_filename(backupname)
-        if data_pair is not None:
-            data_filename, bck_data_filename = data_pair
-            util.copyfile(
-                self._opener.join(data_filename),
-                self._opener.join(bck_data_filename),
-                hardlink=True,
-            )
-            if tr is not None:
-                # ensure that pending file written above is unlinked at
-                # failure, even if tr.writepending isn't invoked until the
-                # end of this transaction
-                tr.registertmp(bck_data_filename, location=b'plain')
-
-    def restorebackup(self, tr, backupname):
-        '''Restore dirstate by backup file'''
-        # this "invalidate()" prevents "wlock.release()" from writing
-        # changes of dirstate out after restoring from backup file
-        self.invalidate()
-        o = self._opener
-        if not o.exists(backupname):
-            # there was no file backup, delete existing files
-            filename = self._actualfilename(tr)
-            data_file = None
-            if self._use_dirstate_v2 and self._map.docket.uuid is not None:
-                data_file = self._map.docket.data_filename()
-            if o.exists(filename):
-                o.unlink(filename)
-            if data_file is not None and o.exists(data_file):
-                o.unlink(data_file)
-            return
-        filename = self._actualfilename(tr)
-        data_pair = self.backup_data_file(backupname)
-        if o.exists(filename) and util.samefile(
-            o.join(backupname), o.join(filename)
-        ):
-            o.unlink(backupname)
         else:
-            o.rename(backupname, filename, checkambig=True)
+            return (self._filename,)
 
-        if data_pair is not None:
-            data_backup, target = data_pair
-            if o.exists(target) and util.samefile(
-                o.join(data_backup), o.join(target)
-            ):
-                o.unlink(data_backup)
-            else:
-                o.rename(data_backup, target, checkambig=True)
-
-    def clearbackup(self, tr, backupname):
-        '''Clear backup file'''
-        o = self._opener
-        if o.exists(backupname):
-            data_backup = self.backup_data_file(backupname)
-            o.unlink(backupname)
-            if data_backup is not None:
-                o.unlink(data_backup[0])
-
-    def verify(self, m1, m2):
-        """check the dirstate content again the parent manifest and yield errors"""
-        missing_from_p1 = b"%s in state %s, but not in manifest1\n"
-        unexpected_in_p1 = b"%s in state %s, but also in manifest1\n"
-        missing_from_ps = b"%s in state %s, but not in either manifest\n"
-        missing_from_ds = b"%s in manifest1, but listed as state %s\n"
+    def verify(self, m1, m2, p1, narrow_matcher=None):
+        """
+        check the dirstate contents against the parent manifest and yield errors
+        """
+        missing_from_p1 = _(
+            b"%s marked as tracked in p1 (%s) but not in manifest1\n"
+        )
+        unexpected_in_p1 = _(b"%s marked as added, but also in manifest1\n")
+        missing_from_ps = _(
+            b"%s marked as modified, but not in either manifest\n"
+        )
+        missing_from_ds = _(
+            b"%s in manifest1, but not marked as tracked in p1 (%s)\n"
+        )
         for f, entry in self.items():
-            state = entry.state
-            if state in b"nr" and f not in m1:
-                yield (missing_from_p1, f, state)
-            if state in b"a" and f in m1:
-                yield (unexpected_in_p1, f, state)
-            if state in b"m" and f not in m1 and f not in m2:
-                yield (missing_from_ps, f, state)
+            if entry.p1_tracked:
+                if entry.modified and f not in m1 and f not in m2:
+                    yield missing_from_ps % f
+                elif f not in m1:
+                    yield missing_from_p1 % (f, node.short(p1))
+            if entry.added and f in m1:
+                yield unexpected_in_p1 % f
         for f in m1:
-            state = self.get_entry(f).state
-            if state not in b"nrm":
-                yield (missing_from_ds, f, state)
+            if narrow_matcher is not None and not narrow_matcher(f):
+                continue
+            entry = self.get_entry(f)
+            if not entry.p1_tracked:
+                yield missing_from_ds % (f, node.short(p1))

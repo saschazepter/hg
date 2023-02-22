@@ -247,6 +247,14 @@ class Shelf:
         for ext in shelvefileextensions:
             self.vfs.tryunlink(self.name + b'.' + ext)
 
+    def changed_files(self, ui, repo):
+        try:
+            ctx = repo.unfiltered()[self.readinfo()[b'node']]
+            return ctx.files()
+        except (FileNotFoundError, error.RepoLookupError):
+            filename = self.vfs.join(self.name + b'.patch')
+            return patch.changedfiles(ui, repo, filename)
+
 
 def _optimized_match(repo, node):
     """
@@ -424,10 +432,26 @@ def _restoreactivebookmark(repo, mark):
 
 def _aborttransaction(repo, tr):
     """Abort current transaction for shelve/unshelve, but keep dirstate"""
-    dirstatebackupname = b'dirstate.shelve'
-    repo.dirstate.savebackup(None, dirstatebackupname)
-    tr.abort()
-    repo.dirstate.restorebackup(None, dirstatebackupname)
+    # disable the transaction invalidation of the dirstate, to preserve the
+    # current change in memory.
+    ds = repo.dirstate
+    # The assert below check that nobody else did such wrapping.
+    #
+    # These is not such other wrapping currently, but if someone try to
+    # implement one in the future, this will explicitly break here instead of
+    # misbehaving in subtle ways.
+    assert 'invalidate' not in vars(ds)
+    try:
+        # note : we could simply disable the transaction abort callback, but
+        # other code also tries to rollback and invalidate this.
+        ds.invalidate = lambda: None
+        tr.abort()
+    finally:
+        del ds.invalidate
+    # manually write the change in memory since we can no longer rely on the
+    # transaction to do so.
+    assert repo.currenttransaction() is None
+    repo.dirstate.write(None)
 
 
 def getshelvename(repo, parent, opts):
@@ -599,7 +623,8 @@ def _docreatecmd(ui, repo, pats, opts):
         activebookmark = _backupactivebookmark(repo)
         extra = {b'internal': b'shelve'}
         if includeunknown:
-            _includeunknownfiles(repo, pats, opts, extra)
+            with repo.dirstate.changing_files(repo):
+                _includeunknownfiles(repo, pats, opts, extra)
 
         if _iswctxonnewbranch(repo) and not _isbareshelve(pats, opts):
             # In non-bare shelve we don't store newly created branch
@@ -629,7 +654,7 @@ def _docreatecmd(ui, repo, pats, opts):
 
         ui.status(_(b'shelved as %s\n') % name)
         if opts[b'keep']:
-            with repo.dirstate.parentchange():
+            with repo.dirstate.changing_parents(repo):
                 scmutil.movedirstate(repo, parent, match)
         else:
             hg.update(repo, parent.node())
@@ -854,18 +879,18 @@ def unshelvecontinue(ui, repo, state, opts):
         shelvectx = repo[state.parents[1]]
         pendingctx = state.pendingctx
 
-        with repo.dirstate.parentchange():
+        with repo.dirstate.changing_parents(repo):
             repo.setparents(state.pendingctx.node(), repo.nullid)
             repo.dirstate.write(repo.currenttransaction())
 
         targetphase = _target_phase(repo)
         overrides = {(b'phases', b'new-commit'): targetphase}
         with repo.ui.configoverride(overrides, b'unshelve'):
-            with repo.dirstate.parentchange():
+            with repo.dirstate.changing_parents(repo):
                 repo.setparents(state.parents[0], repo.nullid)
-                newnode, ispartialunshelve = _createunshelvectx(
-                    ui, repo, shelvectx, basename, interactive, opts
-                )
+            newnode, ispartialunshelve = _createunshelvectx(
+                ui, repo, shelvectx, basename, interactive, opts
+            )
 
         if newnode is None:
             shelvectx = state.pendingctx
@@ -1060,11 +1085,11 @@ def _rebaserestoredcommit(
             )
             raise error.ConflictResolutionRequired(b'unshelve')
 
-        with repo.dirstate.parentchange():
+        with repo.dirstate.changing_parents(repo):
             repo.setparents(tmpwctx.node(), repo.nullid)
-            newnode, ispartialunshelve = _createunshelvectx(
-                ui, repo, shelvectx, basename, interactive, opts
-            )
+        newnode, ispartialunshelve = _createunshelvectx(
+            ui, repo, shelvectx, basename, interactive, opts
+        )
 
         if newnode is None:
             shelvectx = tmpwctx
@@ -1210,7 +1235,8 @@ def _dounshelve(ui, repo, basename, opts):
         restorebranch(ui, repo, branchtorestore)
         shelvedstate.clear(repo)
         _finishunshelve(repo, oldtiprev, tr, activebookmark)
-        _forgetunknownfiles(repo, shelvectx, addedbefore)
+        with repo.dirstate.changing_files(repo):
+            _forgetunknownfiles(repo, shelvectx, addedbefore)
         if not ispartialunshelve:
             unshelvecleanup(ui, repo, basename, opts)
     finally:

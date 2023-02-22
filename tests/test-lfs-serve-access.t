@@ -357,7 +357,7 @@ Test a checksum failure during the processing of the GET request
   $LOCALIP - - [$ERRDATE$] HG error:      super(badstore, self).download(oid, src, contentlength)
   $LOCALIP - - [$ERRDATE$] HG error:      raise LfsCorruptionError( (glob) (py38 !)
   $LOCALIP - - [$ERRDATE$] HG error:      _(b'corrupt remote lfs object: %s') % oid (glob) (no-py38 !)
-  $LOCALIP - - [$ERRDATE$] HG error:  hgext.lfs.blobstore.LfsCorruptionError: corrupt remote lfs object: b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c (py3 !)
+  $LOCALIP - - [$ERRDATE$] HG error:  hgext.lfs.blobstore.LfsCorruptionError: corrupt remote lfs object: b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c (glob)
   $LOCALIP - - [$ERRDATE$] HG error:   (glob)
   $LOCALIP - - [$ERRDATE$] Exception happened during processing request '/.hg/lfs/objects/276f73cfd75f9fb519810df5f5d96d6594ca2521abd86cbcd92122f7d51a1f3d': (glob)
   Traceback (most recent call last):
@@ -388,7 +388,7 @@ Test a checksum failure during the processing of the GET request
   $LOCALIP - - [$ERRDATE$] HG error:      blobstore._verify(oid, b'dummy content') (glob)
   $LOCALIP - - [$ERRDATE$] HG error:      raise LfsCorruptionError( (glob) (py38 !)
   $LOCALIP - - [$ERRDATE$] HG error:      hint=_(b'run hg verify'), (glob) (no-py38 !)
-  $LOCALIP - - [$ERRDATE$] HG error:  hgext.lfs.blobstore.LfsCorruptionError: detected corrupt lfs object: 276f73cfd75f9fb519810df5f5d96d6594ca2521abd86cbcd92122f7d51a1f3d (py3 !)
+  $LOCALIP - - [$ERRDATE$] HG error:  hgext.lfs.blobstore.LfsCorruptionError: detected corrupt lfs object: 276f73cfd75f9fb519810df5f5d96d6594ca2521abd86cbcd92122f7d51a1f3d (glob)
   $LOCALIP - - [$ERRDATE$] HG error:   (glob)
 
 Basic Authorization headers are returned by the Batch API, and sent back with

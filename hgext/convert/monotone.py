@@ -243,6 +243,7 @@ class monotone_source(common.converter_source, common.commandline):
             m = self.cert_re.match(e)
             if m:
                 name, value = m.groups()
+                assert value is not None  # help pytype
                 value = value.replace(br'\"', b'"')
                 value = value.replace(br'\\', b'\\')
                 certs[name] = value

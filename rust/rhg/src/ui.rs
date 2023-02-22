@@ -1,10 +1,15 @@
 use crate::color::ColorConfig;
 use crate::color::Effect;
+use crate::error::CommandError;
 use format_bytes::format_bytes;
 use format_bytes::write_bytes;
 use hg::config::Config;
 use hg::config::PlainInfo;
 use hg::errors::HgError;
+use hg::repo::Repo;
+use hg::sparse;
+use hg::utils::files::get_bytes_from_path;
+use hg::PatternFileWarning;
 use std::borrow::Cow;
 use std::io;
 use std::io::{ErrorKind, Write};
@@ -222,4 +227,69 @@ fn isatty(config: &Config) -> Result<bool, HgError> {
     } else {
         atty::is(atty::Stream::Stdout)
     })
+}
+
+/// Return the formatted bytestring corresponding to a pattern file warning,
+/// as expected by the CLI.
+pub(crate) fn format_pattern_file_warning(
+    warning: &PatternFileWarning,
+    repo: &Repo,
+) -> Vec<u8> {
+    match warning {
+        PatternFileWarning::InvalidSyntax(path, syntax) => format_bytes!(
+            b"{}: ignoring invalid syntax '{}'\n",
+            get_bytes_from_path(path),
+            &*syntax
+        ),
+        PatternFileWarning::NoSuchFile(path) => {
+            let path = if let Ok(relative) =
+                path.strip_prefix(repo.working_directory_path())
+            {
+                relative
+            } else {
+                &*path
+            };
+            format_bytes!(
+                b"skipping unreadable pattern file '{}': \
+                    No such file or directory\n",
+                get_bytes_from_path(path),
+            )
+        }
+    }
+}
+
+/// Print with `Ui` the formatted bytestring corresponding to a
+/// sparse/narrow warning, as expected by the CLI.
+pub(crate) fn print_narrow_sparse_warnings(
+    narrow_warnings: &[sparse::SparseWarning],
+    sparse_warnings: &[sparse::SparseWarning],
+    ui: &Ui,
+    repo: &Repo,
+) -> Result<(), CommandError> {
+    for warning in narrow_warnings.iter().chain(sparse_warnings) {
+        match &warning {
+            sparse::SparseWarning::RootWarning { context, line } => {
+                let msg = format_bytes!(
+                    b"warning: {} profile cannot use paths \"
+                starting with /, ignoring {}\n",
+                    context,
+                    line
+                );
+                ui.write_stderr(&msg)?;
+            }
+            sparse::SparseWarning::ProfileNotFound { profile, rev } => {
+                let msg = format_bytes!(
+                    b"warning: sparse profile '{}' not found \"
+                in rev {} - ignoring it\n",
+                    profile,
+                    rev
+                );
+                ui.write_stderr(&msg)?;
+            }
+            sparse::SparseWarning::Pattern(e) => {
+                ui.write_stderr(&format_pattern_file_warning(e, repo))?;
+            }
+        }
+    }
+    Ok(())
 }

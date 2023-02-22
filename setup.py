@@ -131,11 +131,7 @@ from distutils.errors import (
     DistutilsError,
     DistutilsExecError,
 )
-from distutils.sysconfig import get_python_inc, get_config_var
-from distutils.version import StrictVersion
-
-# Explain to distutils.StrictVersion how our release candidates are versioned
-StrictVersion.version_re = re.compile(r'^(\d+)\.(\d+)(\.(\d+))?-?(rc(\d+))?$')
+from distutils.sysconfig import get_python_inc
 
 
 def write_if_changed(path, content):
@@ -1504,11 +1500,13 @@ class RustStandaloneExtension(RustExtension):
         target = [target_dir]
         target.extend(self.name.split('.'))
         target[-1] += DYLIB_SUFFIX
+        target = os.path.join(*target)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
         shutil.copy2(
             os.path.join(
                 self.rusttargetdir, self.dylibname + self.rustdylibsuffix()
             ),
-            os.path.join(*target),
+            target,
         )
 
 
@@ -1653,6 +1651,10 @@ packagedata = {
     'mercurial.helptext.internals': [
         '*.txt',
     ],
+    'mercurial.thirdparty.attr': [
+        '*.pyi',
+        'py.typed',
+    ],
 }
 
 
@@ -1737,39 +1739,6 @@ if os.name == 'nt':
     # Windows binary file versions for exe/dll files must have the
     # form W.X.Y.Z, where W,X,Y,Z are numbers in the range 0..65535
     setupversion = setupversion.split(r'+', 1)[0]
-
-if sys.platform == 'darwin' and os.path.exists('/usr/bin/xcodebuild'):
-    version = runcmd(['/usr/bin/xcodebuild', '-version'], {})[1].splitlines()
-    if version:
-        version = version[0].decode('utf-8')
-        xcode4 = version.startswith('Xcode') and StrictVersion(
-            version.split()[1]
-        ) >= StrictVersion('4.0')
-        xcode51 = re.match(r'^Xcode\s+5\.1', version) is not None
-    else:
-        # xcodebuild returns empty on OS X Lion with XCode 4.3 not
-        # installed, but instead with only command-line tools. Assume
-        # that only happens on >= Lion, thus no PPC support.
-        xcode4 = True
-        xcode51 = False
-
-    # XCode 4.0 dropped support for ppc architecture, which is hardcoded in
-    # distutils.sysconfig
-    if xcode4:
-        os.environ['ARCHFLAGS'] = ''
-
-    # XCode 5.1 changes clang such that it now fails to compile if the
-    # -mno-fused-madd flag is passed, but the version of Python shipped with
-    # OS X 10.9 Mavericks includes this flag. This causes problems in all
-    # C extension modules, and a bug has been filed upstream at
-    # http://bugs.python.org/issue21244. We also need to patch this here
-    # so Mercurial can continue to compile in the meantime.
-    if xcode51:
-        cflags = get_config_var('CFLAGS')
-        if cflags and re.search(r'-mno-fused-madd\b', cflags) is not None:
-            os.environ['CFLAGS'] = (
-                os.environ.get('CFLAGS', '') + ' -Qunused-arguments'
-            )
 
 setup(
     name='mercurial',

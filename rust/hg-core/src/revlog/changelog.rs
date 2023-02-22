@@ -1,7 +1,7 @@
 use crate::errors::HgError;
-use crate::revlog::revlog::{Revlog, RevlogEntry, RevlogError};
 use crate::revlog::Revision;
 use crate::revlog::{Node, NodePrefix};
+use crate::revlog::{Revlog, RevlogEntry, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::vfs::Vfs;
 use itertools::Itertools;
@@ -165,7 +165,7 @@ impl<'changelog> ChangelogRevisionData<'changelog> {
     pub fn files(&self) -> impl Iterator<Item = &HgPath> {
         self.bytes[self.timestamp_end + 1..self.files_end]
             .split(|b| b == &b'\n')
-            .map(|path| HgPath::new(path))
+            .map(HgPath::new)
     }
 
     /// The change description.
