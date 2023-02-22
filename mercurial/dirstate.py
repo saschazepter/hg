@@ -190,6 +190,12 @@ class dirstate:
         # raises an exception).
         self._cwd
 
+    def refresh(self):
+        if '_branch' in vars(self):
+            del self._branch
+        if '_map' in vars(self) and self._map.may_need_refresh():
+            self.invalidate()
+
     def prefetch_parents(self):
         """make sure the parents are loaded
 

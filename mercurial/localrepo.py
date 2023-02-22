@@ -1465,6 +1465,7 @@ class localrepository:
         # - bookmark changes
         self.filteredrevcache = {}
 
+        self._dirstate = None
         # post-dirstate-status hooks
         self._postdsstatus = []
 
@@ -1752,9 +1753,11 @@ class localrepository:
 
     @unfilteredpropertycache
     def dirstate(self):
-        # XXX This is known to be missing smarter caching. Check the next
-        # changesets
-        return self._makedirstate()
+        if self._dirstate is None:
+            self._dirstate = self._makedirstate()
+        else:
+            self._dirstate.refresh()
+        return self._dirstate
 
     def _makedirstate(self):
         """Extension point for wrapping the dirstate per-repo."""
