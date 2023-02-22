@@ -2688,7 +2688,6 @@ class localrepository:
             (self.vfs, b'journal.branch'),
             (self.vfs, b'journal.desc'),
             (bookmarks.bookmarksvfs(self), b'journal.bookmarks'),
-            (self.svfs, b'journal.phaseroots'),
         )
 
     def undofiles(self):
@@ -2704,7 +2703,6 @@ class localrepository:
         bookmarksvfs.write(
             b"journal.bookmarks", bookmarksvfs.tryread(b"bookmarks")
         )
-        self.svfs.write(b"journal.phaseroots", self.svfs.tryread(b"phaseroots"))
 
     def recover(self):
         with self.lock():
@@ -2798,8 +2796,6 @@ class localrepository:
             bookmarksvfs.rename(
                 b'undo.bookmarks', b'bookmarks', checkambig=True
             )
-        if self.svfs.exists(b'undo.phaseroots'):
-            self.svfs.rename(b'undo.phaseroots', b'phaseroots', checkambig=True)
         self.invalidate()
         self.dirstate.invalidate()
 
