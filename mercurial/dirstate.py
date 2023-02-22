@@ -786,9 +786,6 @@ class dirstate:
             parentfiledata=parentfiledata,
         )
 
-    # XXX since this make the dirstate dirty, we should enforce that it is done
-    # withing an appropriate change-context that scope the change and ensure it
-    # eventually get written on disk (or rolled back)
     def hacky_extension_update_file(self, *args, **kwargs):
         """NEVER USE THIS, YOU DO NOT NEED IT
 
@@ -808,6 +805,9 @@ class dirstate:
         however at the time where this is writen, this is too much of a detour
         to be considered.
         """
+        if not (self._changing_level > 0 or self._running_status > 0):
+            msg = "requires a changes context"
+            raise error.ProgrammingError(msg)
         self._update_file(
             *args,
             **kwargs,
