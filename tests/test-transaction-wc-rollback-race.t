@@ -155,3 +155,36 @@ Changing tracked file
   $ hg status
   R default_a (missing-correct-output !)
   $ hg revert --all --quiet
+
+Changing branch from default
+----------------------------
+
+  $ hg branch
+  default
+  $ hg phase --public --rev 0 2> ../log.err &
+  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/transaction-waiting
+  $ hg branch celeste
+  marked working directory as branch celeste
+  $ hg branch
+  celeste
+  $ touch $TESTTMP/transaction-continue
+  $ wait
+  $ hg branch
+  celeste
+
+Changing branch from another one
+--------------------------------
+
+  $ hg up babar --quiet
+  $ hg branch
+  babar
+  $ hg phase --public --rev 0 2> ../log.err &
+  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/transaction-waiting
+  $ hg branch celeste
+  marked working directory as branch celeste
+  $ hg branch
+  celeste
+  $ touch $TESTTMP/transaction-continue
+  $ wait
+  $ hg branch
+  celeste
