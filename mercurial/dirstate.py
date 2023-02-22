@@ -1011,14 +1011,6 @@ class dirstate:
 
         self._dirty = True
 
-    def identity(self):
-        """Return identity of dirstate itself to detect changing in storage
-
-        If identity of previous dirstate is equal to this, writing
-        changes based on the former dirstate out can keep consistency.
-        """
-        return self._map.identity
-
     def write(self, tr):
         if not self._dirty:
             return
