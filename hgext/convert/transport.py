@@ -17,9 +17,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
+# pytype: disable=import-error
 import svn.client
 import svn.core
 import svn.ra
+
+# pytype: enable=import-error
 
 Pool = svn.core.Pool
 SubversionException = svn.core.SubversionException
@@ -37,7 +40,7 @@ svn_config = None
 
 def _create_auth_baton(pool):
     """Create a Subversion authentication baton."""
-    import svn.client
+    import svn.client  # pytype: disable=import-error
 
     # Give the client context baton a suite of authentication
     # providers.h

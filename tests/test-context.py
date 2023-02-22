@@ -42,8 +42,10 @@ f.close()
 os.utime('foo', (1000, 1000))
 
 # add+commit 'foo'
-repo[None].add([b'foo'])
-repo.commit(text=b'commit1', date=b"0 0")
+with repo.wlock(), repo.lock(), repo.transaction(b'test-context'):
+    with repo.dirstate.changing_files(repo):
+        repo[None].add([b'foo'])
+    repo.commit(text=b'commit1', date=b"0 0")
 
 d = repo[None][b'foo'].date()
 if os.name == 'nt':
@@ -108,16 +110,20 @@ actx2 = repo[b'.']
 
 repo.wwrite(b'bar-m', b'bar-m\n', b'')
 repo.wwrite(b'bar-r', b'bar-r\n', b'')
-repo[None].add([b'bar-m', b'bar-r'])
-repo.commit(text=b'add bar-m, bar-r', date=b"0 0")
+with repo.wlock(), repo.lock(), repo.transaction(b'test-context'):
+    with repo.dirstate.changing_files(repo):
+        repo[None].add([b'bar-m', b'bar-r'])
+    repo.commit(text=b'add bar-m, bar-r', date=b"0 0")
 
 # ancestor "wcctx ~ 1"
 actx1 = repo[b'.']
 
 repo.wwrite(b'bar-m', b'bar-m bar-m\n', b'')
 repo.wwrite(b'bar-a', b'bar-a\n', b'')
-repo[None].add([b'bar-a'])
-repo[None].forget([b'bar-r'])
+with repo.wlock(), repo.lock(), repo.transaction(b'test-context'):
+    with repo.dirstate.changing_files(repo):
+        repo[None].add([b'bar-a'])
+        repo[None].forget([b'bar-r'])
 
 # status at this point:
 #   M bar-m
@@ -237,7 +243,8 @@ for i in [b'1', b'2', b'3']:
 with repo.wlock(), repo.lock(), repo.transaction(b'test'):
     with open(b'4', 'wb') as f:
         f.write(b'4')
-    repo.dirstate.set_tracked(b'4')
+    with repo.dirstate.changing_files(repo):
+        repo.dirstate.set_tracked(b'4')
     repo.commit(b'4')
     revsbefore = len(repo.changelog)
     repo.invalidate(clearfilecache=True)

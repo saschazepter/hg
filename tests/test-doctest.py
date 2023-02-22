@@ -7,8 +7,6 @@ import re
 import subprocess
 import sys
 
-ispy3 = sys.version_info[0] >= 3
-
 if 'TERM' in os.environ:
     del os.environ['TERM']
 
@@ -40,9 +38,7 @@ def testmod(name, optionflags=0, testtarget=None):
 
     # minimal copy of doctest.testmod()
     finder = doctest.DocTestFinder()
-    checker = None
-    if ispy3:
-        checker = py3docchecker()
+    checker = py3docchecker()
     runner = doctest.DocTestRunner(checker=checker, optionflags=optionflags)
     for test in finder.find(mod, name):
         runner.run(test)
@@ -91,8 +87,7 @@ for f in files:
         if not re.search(br'\n\s*>>>', fh.read()):
             continue
 
-    if ispy3:
-        f = f.decode()
+    f = f.decode()
 
     modname = f.replace('.py', '').replace('\\', '.').replace('/', '.')
 

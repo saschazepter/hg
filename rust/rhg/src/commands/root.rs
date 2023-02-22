@@ -9,8 +9,8 @@ Print the root directory of the current repository.
 Returns 0 on success.
 ";
 
-pub fn args() -> clap::App<'static, 'static> {
-    clap::SubCommand::with_name("root").about(HELP_TEXT)
+pub fn args() -> clap::Command {
+    clap::command!("root").about(HELP_TEXT)
 }
 
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {

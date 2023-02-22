@@ -22,12 +22,7 @@ url for proxy, stream
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd b
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
+  $ hg verify -q
   $ cd ..
 
 url for proxy, pull
@@ -42,12 +37,7 @@ url for proxy, pull
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd b-pull
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
+  $ hg verify -q
   $ cd ..
 
 host:port for proxy

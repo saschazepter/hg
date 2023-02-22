@@ -19,7 +19,7 @@ def getflogheads(ui, repo, path):
     Used for testing purpose
     """
 
-    dest = urlutil.get_unique_pull_path(b'getflogheads', repo, ui)[0]
+    dest = urlutil.get_unique_pull_path_obj(b'getflogheads', ui)
     peer = hg.peer(repo, {}, dest)
 
     try:

@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::ops::Deref;
 
 use byteorder::{BigEndian, ByteOrder};
@@ -22,11 +21,11 @@ pub struct IndexHeaderFlags {
 impl IndexHeaderFlags {
     /// Corresponds to FLAG_INLINE_DATA in python
     pub fn is_inline(self) -> bool {
-        return self.flags & 1 != 0;
+        self.flags & 1 != 0
     }
     /// Corresponds to FLAG_GENERALDELTA in python
     pub fn uses_generaldelta(self) -> bool {
-        return self.flags & 2 != 0;
+        self.flags & 2 != 0
     }
 }
 
@@ -36,9 +35,9 @@ impl IndexHeader {
     fn format_flags(&self) -> IndexHeaderFlags {
         // No "unknown flags" check here, unlike in python. Maybe there should
         // be.
-        return IndexHeaderFlags {
+        IndexHeaderFlags {
             flags: BigEndian::read_u16(&self.header_bytes[0..2]),
-        };
+        }
     }
 
     /// The only revlog version currently supported by rhg.
@@ -46,7 +45,7 @@ impl IndexHeader {
 
     /// Corresponds to `_format_version` in Python.
     fn format_version(&self) -> u16 {
-        return BigEndian::read_u16(&self.header_bytes[2..4]);
+        BigEndian::read_u16(&self.header_bytes[2..4])
     }
 
     const EMPTY_INDEX_HEADER: IndexHeader = IndexHeader {
@@ -60,7 +59,7 @@ impl IndexHeader {
     };
 
     fn parse(index_bytes: &[u8]) -> Result<IndexHeader, HgError> {
-        if index_bytes.len() == 0 {
+        if index_bytes.is_empty() {
             return Ok(IndexHeader::EMPTY_INDEX_HEADER);
         }
         if index_bytes.len() < 4 {
@@ -68,13 +67,13 @@ impl IndexHeader {
                 "corrupted revlog: can't read the index format header",
             ));
         }
-        return Ok(IndexHeader {
+        Ok(IndexHeader {
             header_bytes: {
                 let bytes: [u8; 4] =
                     index_bytes[0..4].try_into().expect("impossible");
                 bytes
             },
-        });
+        })
     }
 }
 
@@ -128,8 +127,7 @@ impl Index {
                     uses_generaldelta,
                 })
             } else {
-                Err(HgError::corrupted("unexpected inline revlog length")
-                    .into())
+                Err(HgError::corrupted("unexpected inline revlog length"))
             }
         } else {
             Ok(Self {
@@ -327,6 +325,7 @@ mod tests {
 
     #[cfg(test)]
     impl IndexEntryBuilder {
+        #[allow(clippy::new_without_default)]
         pub fn new() -> Self {
             Self {
                 is_first: false,
@@ -466,8 +465,8 @@ mod tests {
             .with_inline(false)
             .build();
 
-        assert_eq!(is_inline(&bytes), false);
-        assert_eq!(uses_generaldelta(&bytes), false);
+        assert!(!is_inline(&bytes));
+        assert!(!uses_generaldelta(&bytes));
     }
 
     #[test]
@@ -478,8 +477,8 @@ mod tests {
             .with_inline(true)
             .build();
 
-        assert_eq!(is_inline(&bytes), true);
-        assert_eq!(uses_generaldelta(&bytes), false);
+        assert!(is_inline(&bytes));
+        assert!(!uses_generaldelta(&bytes));
     }
 
     #[test]
@@ -490,8 +489,8 @@ mod tests {
             .with_inline(true)
             .build();
 
-        assert_eq!(is_inline(&bytes), true);
-        assert_eq!(uses_generaldelta(&bytes), true);
+        assert!(is_inline(&bytes));
+        assert!(uses_generaldelta(&bytes));
     }
 
     #[test]

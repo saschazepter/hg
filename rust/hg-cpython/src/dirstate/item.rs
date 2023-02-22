@@ -40,7 +40,7 @@ py_class!(pub class DirstateItem |py| {
             }
         }
         let entry = DirstateEntry::from_v2_data(DirstateV2Data {
-            wc_tracked: wc_tracked,
+            wc_tracked,
             p1_tracked,
             p2_info,
             mode_size: mode_size_opt,
@@ -151,6 +151,10 @@ py_class!(pub class DirstateItem |py| {
         Ok(self.entry(py).get().added())
     }
 
+    @property
+    def modified(&self) -> PyResult<bool> {
+        Ok(self.entry(py).get().modified())
+    }
 
     @property
     def p2_info(&self) -> PyResult<bool> {

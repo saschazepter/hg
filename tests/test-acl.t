@@ -116,11 +116,11 @@ Extension disabled for lack of a hook
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -131,9 +131,9 @@ Extension disabled for lack of a hook
   adding foo/Bar/file.txt revisions
   adding foo/file.txt revisions
   adding quux/file.py revisions
-  bundle2-input-part: total payload size 1553
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "phase-heads" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   updating the branch cache
   added 3 changesets with 3 changes to 3 files
@@ -182,11 +182,11 @@ Extension disabled for lack of acl.sources
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -200,9 +200,9 @@ Extension disabled for lack of acl.sources
   adding quux/file.py revisions
   calling hook pretxnchangegroup.acl: hgext.acl.hook
   acl: changes have source "push" - skipping
-  bundle2-input-part: total payload size 1553
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "phase-heads" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   truncating cache/rbc-revs-v1 to 8
   updating the branch cache
@@ -252,11 +252,11 @@ No [acl.allow]/[acl.deny]
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -280,9 +280,9 @@ No [acl.allow]/[acl.deny]
   acl: path access granted: "f9cafe1212c8"
   acl: branch access granted: "911600dab2ae" on branch "default"
   acl: path access granted: "911600dab2ae"
-  bundle2-input-part: total payload size 1553
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "phase-heads" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   truncating cache/rbc-revs-v1 to 8
   updating the branch cache
@@ -332,11 +332,11 @@ Empty [acl.allow]
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -356,8 +356,8 @@ Empty [acl.allow]
   acl: acl.deny not enabled
   acl: branch access granted: "ef1ea85a6374" on branch "default"
   error: pretxnchangegroup.acl hook failed: acl: user "fred" not allowed on "foo/file.txt" (changeset "ef1ea85a6374")
-  bundle2-input-part: total payload size 1553
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
@@ -403,11 +403,11 @@ fred is allowed inside foo/
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -431,8 +431,8 @@ fred is allowed inside foo/
   acl: path access granted: "f9cafe1212c8"
   acl: branch access granted: "911600dab2ae" on branch "default"
   error: pretxnchangegroup.acl hook failed: acl: user "fred" not allowed on "quux/file.py" (changeset "911600dab2ae")
-  bundle2-input-part: total payload size 1553
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
@@ -478,11 +478,11 @@ Empty [acl.deny]
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -502,8 +502,8 @@ Empty [acl.deny]
   acl: acl.deny enabled, 0 entries for user barney
   acl: branch access granted: "ef1ea85a6374" on branch "default"
   error: pretxnchangegroup.acl hook failed: acl: user "barney" not allowed on "foo/file.txt" (changeset "ef1ea85a6374")
-  bundle2-input-part: total payload size 1553
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
@@ -550,11 +550,11 @@ fred is allowed inside foo/, but not foo/bar/ (case matters)
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -578,8 +578,8 @@ fred is allowed inside foo/, but not foo/bar/ (case matters)
   acl: path access granted: "f9cafe1212c8"
   acl: branch access granted: "911600dab2ae" on branch "default"
   error: pretxnchangegroup.acl hook failed: acl: user "fred" not allowed on "quux/file.py" (changeset "911600dab2ae")
-  bundle2-input-part: total payload size 1553
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
@@ -627,11 +627,11 @@ fred is allowed inside foo/, but not foo/Bar/
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -653,8 +653,8 @@ fred is allowed inside foo/, but not foo/Bar/
   acl: path access granted: "ef1ea85a6374"
   acl: branch access granted: "f9cafe1212c8" on branch "default"
   error: pretxnchangegroup.acl hook failed: acl: user "fred" denied on "foo/Bar/file.txt" (changeset "f9cafe1212c8")
-  bundle2-input-part: total payload size 1553
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
@@ -701,11 +701,11 @@ fred is allowed inside foo/, but not foo/Bar/
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -725,8 +725,8 @@ fred is allowed inside foo/, but not foo/Bar/
   acl: acl.deny enabled, 0 entries for user barney
   acl: branch access granted: "ef1ea85a6374" on branch "default"
   error: pretxnchangegroup.acl hook failed: acl: user "barney" not allowed on "foo/file.txt" (changeset "ef1ea85a6374")
-  bundle2-input-part: total payload size 1553
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
@@ -776,13 +776,13 @@ fred is not blocked from moving bookmarks
   bundle2-output-part: "bookmarks" 37 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:bookmarks" supported
-  bundle2-input-part: total payload size 37
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -798,11 +798,11 @@ fred is not blocked from moving bookmarks
   acl: acl.deny enabled, 2 entries for user fred
   acl: branch access granted: "ef1ea85a6374" on branch "default"
   acl: path access granted: "ef1ea85a6374"
-  bundle2-input-part: total payload size 520
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "phase-heads" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "bookmarks" supported
-  bundle2-input-part: total payload size 37
+  bundle2-input-part: total payload size * (glob)
   calling hook prepushkey.acl: hgext.acl.hook
   acl: checking access for user "fred"
   acl: acl.allow.bookmarks not enabled
@@ -865,13 +865,13 @@ fred is not allowed to move bookmarks
   bundle2-output-part: "bookmarks" 37 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:bookmarks" supported
-  bundle2-input-part: total payload size 37
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -887,11 +887,11 @@ fred is not allowed to move bookmarks
   acl: acl.deny enabled, 2 entries for user fred
   acl: branch access granted: "ef1ea85a6374" on branch "default"
   acl: path access granted: "ef1ea85a6374"
-  bundle2-input-part: total payload size 520
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "phase-heads" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "bookmarks" supported
-  bundle2-input-part: total payload size 37
+  bundle2-input-part: total payload size * (glob)
   calling hook prepushkey.acl: hgext.acl.hook
   acl: checking access for user "fred"
   acl: acl.allow.bookmarks not enabled
@@ -954,11 +954,11 @@ barney is allowed everywhere
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -982,9 +982,9 @@ barney is allowed everywhere
   acl: path access granted: "f9cafe1212c8"
   acl: branch access granted: "911600dab2ae" on branch "default"
   acl: path access granted: "911600dab2ae"
-  bundle2-input-part: total payload size 1553
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "phase-heads" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   updating the branch cache
   added 3 changesets with 3 changes to 3 files
@@ -1040,11 +1040,11 @@ wilma can change files with a .txt extension
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -1068,8 +1068,8 @@ wilma can change files with a .txt extension
   acl: path access granted: "f9cafe1212c8"
   acl: branch access granted: "911600dab2ae" on branch "default"
   error: pretxnchangegroup.acl hook failed: acl: user "wilma" not allowed on "quux/file.py" (changeset "911600dab2ae")
-  bundle2-input-part: total payload size 1553
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
@@ -1124,11 +1124,11 @@ file specified by acl.config does not exist
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -1143,8 +1143,8 @@ file specified by acl.config does not exist
   calling hook pretxnchangegroup.acl: hgext.acl.hook
   acl: checking access for user "barney"
   error: pretxnchangegroup.acl hook raised an exception: [Errno *] * (glob)
-  bundle2-input-part: total payload size 1553
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
@@ -1202,11 +1202,11 @@ betty is allowed inside foo/ by a acl.config file
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -1230,8 +1230,8 @@ betty is allowed inside foo/ by a acl.config file
   acl: path access granted: "f9cafe1212c8"
   acl: branch access granted: "911600dab2ae" on branch "default"
   error: pretxnchangegroup.acl hook failed: acl: user "betty" not allowed on "quux/file.py" (changeset "911600dab2ae")
-  bundle2-input-part: total payload size 1553
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
@@ -1291,11 +1291,11 @@ acl.config can set only [acl.allow]/[acl.deny]
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -1319,9 +1319,9 @@ acl.config can set only [acl.allow]/[acl.deny]
   acl: path access granted: "f9cafe1212c8"
   acl: branch access granted: "911600dab2ae" on branch "default"
   acl: path access granted: "911600dab2ae"
-  bundle2-input-part: total payload size 1553
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "phase-heads" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   updating the branch cache
   added 3 changesets with 3 changes to 3 files
@@ -1381,11 +1381,11 @@ fred is always allowed
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -1409,9 +1409,9 @@ fred is always allowed
   acl: path access granted: "f9cafe1212c8"
   acl: branch access granted: "911600dab2ae" on branch "default"
   acl: path access granted: "911600dab2ae"
-  bundle2-input-part: total payload size 1553
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "phase-heads" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   truncating cache/rbc-revs-v1 to 8
   updating the branch cache
@@ -1468,11 +1468,11 @@ no one is allowed inside foo/Bar/
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -1494,8 +1494,8 @@ no one is allowed inside foo/Bar/
   acl: path access granted: "ef1ea85a6374"
   acl: branch access granted: "f9cafe1212c8" on branch "default"
   error: pretxnchangegroup.acl hook failed: acl: user "fred" denied on "foo/Bar/file.txt" (changeset "f9cafe1212c8")
-  bundle2-input-part: total payload size 1553
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
@@ -1551,11 +1551,11 @@ OS-level groups
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -1580,9 +1580,9 @@ OS-level groups
   acl: path access granted: "f9cafe1212c8"
   acl: branch access granted: "911600dab2ae" on branch "default"
   acl: path access granted: "911600dab2ae"
-  bundle2-input-part: total payload size 1553
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "phase-heads" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   updating the branch cache
   added 3 changesets with 3 changes to 3 files
@@ -1638,11 +1638,11 @@ OS-level groups
   bundle2-output-part: "phase-heads" 24 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 20
+  bundle2-input-part: total payload size * (glob)
   invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
@@ -1666,8 +1666,8 @@ OS-level groups
   acl: path access granted: "ef1ea85a6374"
   acl: branch access granted: "f9cafe1212c8" on branch "default"
   error: pretxnchangegroup.acl hook failed: acl: user "fred" denied on "foo/Bar/file.txt" (changeset "f9cafe1212c8")
-  bundle2-input-part: total payload size 1553
-  bundle2-input-part: total payload size 24
+  bundle2-input-part: total payload size * (glob)
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
@@ -1761,11 +1761,11 @@ No branch acls specified
   bundle2-output-part: "phase-heads" 48 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 40
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -1792,9 +1792,9 @@ No branch acls specified
   acl: path access granted: "911600dab2ae"
   acl: branch access granted: "e8fc755d4d82" on branch "foobar"
   acl: path access granted: "e8fc755d4d82"
-  bundle2-input-part: total payload size 2068
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "phase-heads" supported
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   updating the branch cache
   invalid branch cache (served.hidden): tip differs
@@ -1848,11 +1848,11 @@ Branch acl deny test
   bundle2-output-part: "phase-heads" 48 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 40
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -1878,8 +1878,8 @@ Branch acl deny test
   acl: branch access granted: "911600dab2ae" on branch "default"
   acl: path access granted: "911600dab2ae"
   error: pretxnchangegroup.acl hook failed: acl: user "astro" denied on branch "foobar" (changeset "e8fc755d4d82")
-  bundle2-input-part: total payload size 2068
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
@@ -1926,11 +1926,11 @@ Branch acl empty allow test
   bundle2-output-part: "phase-heads" 48 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 40
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -1950,8 +1950,8 @@ Branch acl empty allow test
   acl: acl.allow not enabled
   acl: acl.deny not enabled
   error: pretxnchangegroup.acl hook failed: acl: user "astro" not allowed on branch "default" (changeset "ef1ea85a6374")
-  bundle2-input-part: total payload size 2068
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
@@ -2000,11 +2000,11 @@ Branch acl allow other
   bundle2-output-part: "phase-heads" 48 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 40
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -2024,8 +2024,8 @@ Branch acl allow other
   acl: acl.allow not enabled
   acl: acl.deny not enabled
   error: pretxnchangegroup.acl hook failed: acl: user "astro" not allowed on branch "default" (changeset "ef1ea85a6374")
-  bundle2-input-part: total payload size 2068
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
@@ -2068,11 +2068,11 @@ Branch acl allow other
   bundle2-output-part: "phase-heads" 48 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 40
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -2099,9 +2099,9 @@ Branch acl allow other
   acl: path access granted: "911600dab2ae"
   acl: branch access granted: "e8fc755d4d82" on branch "foobar"
   acl: path access granted: "e8fc755d4d82"
-  bundle2-input-part: total payload size 2068
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "phase-heads" supported
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   updating the branch cache
   invalid branch cache (served.hidden): tip differs
@@ -2160,11 +2160,11 @@ push foobar into the remote
   bundle2-output-part: "phase-heads" 48 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 40
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -2191,9 +2191,9 @@ push foobar into the remote
   acl: path access granted: "911600dab2ae"
   acl: branch access granted: "e8fc755d4d82" on branch "foobar"
   acl: path access granted: "e8fc755d4d82"
-  bundle2-input-part: total payload size 2068
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "phase-heads" supported
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   updating the branch cache
   invalid branch cache (served.hidden): tip differs
@@ -2251,11 +2251,11 @@ Branch acl conflicting deny
   bundle2-output-part: "phase-heads" 48 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 40
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -2275,8 +2275,8 @@ Branch acl conflicting deny
   acl: acl.allow not enabled
   acl: acl.deny not enabled
   error: pretxnchangegroup.acl hook failed: acl: user "george" denied on branch "default" (changeset "ef1ea85a6374")
-  bundle2-input-part: total payload size 2068
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
@@ -2324,11 +2324,11 @@ User 'astro' must not be denied
   bundle2-output-part: "phase-heads" 48 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 40
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -2355,9 +2355,9 @@ User 'astro' must not be denied
   acl: path access granted: "911600dab2ae"
   acl: branch access granted: "e8fc755d4d82" on branch "foobar"
   acl: path access granted: "e8fc755d4d82"
-  bundle2-input-part: total payload size 2068
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "phase-heads" supported
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   updating the branch cache
   invalid branch cache (served.hidden): tip differs
@@ -2409,11 +2409,11 @@ Non-astro users must be denied
   bundle2-output-part: "phase-heads" 48 bytes payload
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "replycaps" supported
-  bundle2-input-part: total payload size 207
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:phases" supported
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
-  bundle2-input-part: total payload size 40
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -2433,8 +2433,8 @@ Non-astro users must be denied
   acl: acl.allow not enabled
   acl: acl.deny not enabled
   error: pretxnchangegroup.acl hook failed: acl: user "george" denied on branch "default" (changeset "ef1ea85a6374")
-  bundle2-input-part: total payload size 2068
-  bundle2-input-part: total payload size 48
+  bundle2-input-part: total payload size * (glob)
+  bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed

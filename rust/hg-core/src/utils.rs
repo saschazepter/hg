@@ -137,26 +137,8 @@ impl SliceExt for [u8] {
     }
 
     fn split_2_by_slice(&self, separator: &[u8]) -> Option<(&[u8], &[u8])> {
-        if let Some(pos) = find_slice_in_slice(self, separator) {
-            Some((&self[..pos], &self[pos + separator.len()..]))
-        } else {
-            None
-        }
-    }
-}
-
-pub trait StrExt {
-    // TODO: Use https://doc.rust-lang.org/nightly/std/primitive.str.html#method.split_once
-    // once we require Rust 1.52+
-    fn split_2(&self, separator: char) -> Option<(&str, &str)>;
-}
-
-impl StrExt for str {
-    fn split_2(&self, separator: char) -> Option<(&str, &str)> {
-        let mut iter = self.splitn(2, separator);
-        let a = iter.next()?;
-        let b = iter.next()?;
-        Some((a, b))
+        find_slice_in_slice(self, separator)
+            .map(|pos| (&self[..pos], &self[pos + separator.len()..]))
     }
 }
 
@@ -211,28 +193,20 @@ impl<'a> Escaped for &'a HgPath {
     }
 }
 
-// TODO: use the str method when we require Rust 1.45
-pub(crate) fn strip_suffix<'a>(s: &'a str, suffix: &str) -> Option<&'a str> {
-    if s.ends_with(suffix) {
-        Some(&s[..s.len() - suffix.len()])
-    } else {
-        None
-    }
-}
-
 #[cfg(unix)]
 pub fn shell_quote(value: &[u8]) -> Vec<u8> {
-    // TODO: Use the `matches!` macro when we require Rust 1.42+
-    if value.iter().all(|&byte| match byte {
-        b'a'..=b'z'
-        | b'A'..=b'Z'
-        | b'0'..=b'9'
-        | b'.'
-        | b'_'
-        | b'/'
-        | b'+'
-        | b'-' => true,
-        _ => false,
+    if value.iter().all(|&byte| {
+        matches!(
+            byte,
+            b'a'..=b'z'
+            | b'A'..=b'Z'
+            | b'0'..=b'9'
+            | b'.'
+            | b'_'
+            | b'/'
+            | b'+'
+            | b'-'
+        )
     }) {
         value.to_owned()
     } else {
@@ -317,9 +291,9 @@ fn test_expand_vars() {
 }
 
 pub(crate) enum MergeResult<V> {
-    UseLeftValue,
-    UseRightValue,
-    UseNewValue(V),
+    Left,
+    Right,
+    New(V),
 }
 
 /// Return the union of the two given maps,
@@ -360,10 +334,10 @@ where
         ordmap_union_with_merge_by_iter(right, left, |key, a, b| {
             // Also swapped in `merge` arguments:
             match merge(key, b, a) {
-                MergeResult::UseNewValue(v) => MergeResult::UseNewValue(v),
+                MergeResult::New(v) => MergeResult::New(v),
                 // … and swap back in `merge` result:
-                MergeResult::UseLeftValue => MergeResult::UseRightValue,
-                MergeResult::UseRightValue => MergeResult::UseLeftValue,
+                MergeResult::Left => MergeResult::Right,
+                MergeResult::Right => MergeResult::Left,
             }
         })
     } else {
@@ -388,11 +362,11 @@ where
                 left.insert(key, right_value);
             }
             Some(left_value) => match merge(&key, left_value, &right_value) {
-                MergeResult::UseLeftValue => {}
-                MergeResult::UseRightValue => {
+                MergeResult::Left => {}
+                MergeResult::Right => {
                     left.insert(key, right_value);
                 }
-                MergeResult::UseNewValue(new_value) => {
+                MergeResult::New(new_value) => {
                     left.insert(key, new_value);
                 }
             },
@@ -417,7 +391,7 @@ where
     // TODO: if/when https://github.com/bodil/im-rs/pull/168 is accepted,
     // change these from `Vec<(K, V)>` to `Vec<(&K, Cow<V>)>`
     // with `left_updates` only borrowing from `right` and `right_updates` from
-    // `left`, and with `Cow::Owned` used for `MergeResult::UseNewValue`.
+    // `left`, and with `Cow::Owned` used for `MergeResult::New`.
     //
     // This would allow moving all `.clone()` calls to after we’ve decided
     // which of `right_updates` or `left_updates` to use
@@ -438,13 +412,13 @@ where
                 old: (key, left_value),
                 new: (_, right_value),
             } => match merge(key, left_value, right_value) {
-                MergeResult::UseLeftValue => {
+                MergeResult::Left => {
                     right_updates.push((key.clone(), left_value.clone()))
                 }
-                MergeResult::UseRightValue => {
+                MergeResult::Right => {
                     left_updates.push((key.clone(), right_value.clone()))
                 }
-                MergeResult::UseNewValue(new_value) => {
+                MergeResult::New(new_value) => {
                     left_updates.push((key.clone(), new_value.clone()));
                     right_updates.push((key.clone(), new_value))
                 }
@@ -502,4 +476,24 @@ where
         }
         Ok(())
     }
+}
+
+/// Like `Iterator::filter_map`, but over a fallible iterator of `Result`s.
+///
+/// The callback is only called for incoming `Ok` values. Errors are passed
+/// through as-is. In order to let it use the `?` operator the callback is
+/// expected to return a `Result` of `Option`, instead of an `Option` of
+/// `Result`.
+pub fn filter_map_results<'a, I, F, A, B, E>(
+    iter: I,
+    f: F,
+) -> impl Iterator<Item = Result<B, E>> + 'a
+where
+    I: Iterator<Item = Result<A, E>> + 'a,
+    F: Fn(A) -> Result<Option<B>, E> + 'a,
+{
+    iter.filter_map(move |result| match result {
+        Ok(node) => f(node).transpose(),
+        Err(e) => Some(Err(e)),
+    })
 }

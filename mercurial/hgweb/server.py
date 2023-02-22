@@ -151,6 +151,9 @@ class _httprequesthandler(httpservermod.basehttprequesthandler):
     def do_GET(self):
         self.do_POST()
 
+    def do_HEAD(self):
+        self.do_POST()
+
     def do_hgweb(self):
         self.sent_headers = False
         path, query = _splitURI(self.path)
@@ -246,7 +249,11 @@ class _httprequesthandler(httpservermod.basehttprequesthandler):
             self.send_header(*h)
             if h[0].lower() == 'content-length':
                 self.length = int(h[1])
-        if self.length is None and saved_status[0] != common.HTTP_NOT_MODIFIED:
+        if (
+            self.length is None
+            and saved_status[0] != common.HTTP_NOT_MODIFIED
+            and self.command != 'HEAD'
+        ):
             self._chunked = (
                 not self.close_connection and self.request_version == 'HTTP/1.1'
             )

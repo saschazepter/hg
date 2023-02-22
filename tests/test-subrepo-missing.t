@@ -111,13 +111,7 @@ verify will warn if locked-in subrepo revisions are hidden or missing
 
   $ hg ci -m "amended subrepo (again)"
   $ hg --config extensions.strip= --hidden strip -R subrepo -qr 'tip' --config devel.strip-obsmarkers=no
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5 changesets with 5 changes to 2 files
-  checking subrepo links
+  $ hg verify -q
   subrepo 'subrepo' is hidden in revision a66de08943b6
   subrepo 'subrepo' is hidden in revision 674d05939c1e
   subrepo 'subrepo' not found in revision a7d05d9055a4
@@ -125,13 +119,7 @@ verify will warn if locked-in subrepo revisions are hidden or missing
 verifying shouldn't init a new subrepo if the reference doesn't exist
 
   $ mv subrepo b
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5 changesets with 5 changes to 2 files
-  checking subrepo links
+  $ hg verify -q
   0: repository $TESTTMP/repo/subrepo not found
   1: repository $TESTTMP/repo/subrepo not found
   3: repository $TESTTMP/repo/subrepo not found

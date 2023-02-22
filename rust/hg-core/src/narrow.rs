@@ -37,12 +37,14 @@ pub fn matcher(
     }
     // Treat "narrowspec does not exist" the same as "narrowspec file exists
     // and is empty".
-    let store_spec = repo.store_vfs().try_read(FILENAME)?.unwrap_or(vec![]);
-    let working_copy_spec =
-        repo.hg_vfs().try_read(DIRSTATE_FILENAME)?.unwrap_or(vec![]);
+    let store_spec = repo.store_vfs().try_read(FILENAME)?.unwrap_or_default();
+    let working_copy_spec = repo
+        .hg_vfs()
+        .try_read(DIRSTATE_FILENAME)?
+        .unwrap_or_default();
     if store_spec != working_copy_spec {
         return Err(HgError::abort(
-            "working copy's narrowspec is stale",
+            "abort: working copy's narrowspec is stale",
             exit_codes::STATE_ERROR,
             Some("run 'hg tracked --update-working-copy'".into()),
         )

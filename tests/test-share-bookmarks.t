@@ -99,8 +99,6 @@ Therefore, this test scenario ignores checking visibility of
      bm2                       2:c2e0ac586386 (svfs !)
    * bm3                       2:c2e0ac586386
      bmX                       2:c2e0ac586386 (vfs !)
-  transaction abort!
-  rollback completed
   abort: pretxnclose hook exited with status 1
   [40]
   $ hg book bm1
@@ -124,8 +122,6 @@ src), because (1) HG_PENDING refers only repo3 and (2)
      bm2                       2:c2e0ac586386 (svfs !)
      bm3                       2:c2e0ac586386
    * bmX                       2:c2e0ac586386
-  transaction abort!
-  rollback completed
   abort: pretxnclose hook exited with status 1
   [40]
   $ hg book bm3

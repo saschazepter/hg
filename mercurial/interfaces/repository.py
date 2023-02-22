@@ -103,6 +103,7 @@ class ipeerconnection(interfaceutil.Interface):
     """
 
     ui = interfaceutil.Attribute("""ui.ui instance""")
+    path = interfaceutil.Attribute("""a urlutil.path instance or None""")
 
     def url():
         """Returns a URL string representing this peer.
@@ -121,12 +122,6 @@ class ipeerconnection(interfaceutil.Interface):
 
         If the peer represents a local repository, returns an object that
         can be used to interface with it. Otherwise returns ``None``.
-        """
-
-    def peer():
-        """Returns an object conforming to this interface.
-
-        Most implementations will ``return self``.
         """
 
     def canpush():
@@ -392,6 +387,10 @@ class peer:
     """Base class for peer repositories."""
 
     limitedarguments = False
+
+    def __init__(self, ui, path=None):
+        self.ui = ui
+        self.path = path
 
     def capable(self, name):
         caps = self.capabilities()
@@ -1613,7 +1612,7 @@ class ilocalrepositorymain(interfaceutil.Interface):
     def close():
         """Close the handle on this repository."""
 
-    def peer():
+    def peer(path=None):
         """Obtain an object conforming to the ``peer`` interface."""
 
     def unfiltered():

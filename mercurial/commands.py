@@ -13,6 +13,7 @@ import sys
 from .i18n import _
 from .node import (
     hex,
+    nullid,
     nullrev,
     short,
     wdirrev,
@@ -28,7 +29,6 @@ from . import (
     copies,
     debugcommands as debugcommandsmod,
     destutil,
-    dirstateguard,
     discovery,
     encoding,
     error,
@@ -252,10 +252,11 @@ def add(ui, repo, *pats, **opts):
     Returns 0 if all files are successfully added.
     """
 
-    m = scmutil.match(repo[None], pats, pycompat.byteskwargs(opts))
-    uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
-    rejected = cmdutil.add(ui, repo, m, b"", uipathfn, False, **opts)
-    return rejected and 1 or 0
+    with repo.wlock(), repo.dirstate.changing_files(repo):
+        m = scmutil.match(repo[None], pats, pycompat.byteskwargs(opts))
+        uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
+        rejected = cmdutil.add(ui, repo, m, b"", uipathfn, False, **opts)
+        return rejected and 1 or 0
 
 
 @command(
@@ -330,10 +331,11 @@ def addremove(ui, repo, *pats, **opts):
     opts = pycompat.byteskwargs(opts)
     if not opts.get(b'similarity'):
         opts[b'similarity'] = b'100'
-    matcher = scmutil.match(repo[None], pats, opts)
-    relative = scmutil.anypats(pats, opts)
-    uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=relative)
-    return scmutil.addremove(repo, matcher, b"", uipathfn, opts)
+    with repo.wlock(), repo.dirstate.changing_files(repo):
+        matcher = scmutil.match(repo[None], pats, opts)
+        relative = scmutil.anypats(pats, opts)
+        uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=relative)
+        return scmutil.addremove(repo, matcher, b"", uipathfn, opts)
 
 
 @command(
@@ -822,7 +824,7 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
     bheads = repo.branchheads(branch)
     rctx = scmutil.revsingle(repo, hex(parent))
     if not opts.get(b'merge') and op1 != node:
-        with dirstateguard.dirstateguard(repo, b'backout'):
+        with repo.transaction(b"backout"):
             overrides = {(b'ui', b'forcemerge'): opts.get(b'tool', b'')}
             with ui.configoverride(overrides, b'backout'):
                 stats = mergemod.back_out(ctx, parent=repo[parent])
@@ -1635,7 +1637,7 @@ def bundle(ui, repo, fname, *dests, **opts):
         missing = set()
         excluded = set()
         for path in urlutil.get_push_paths(repo, ui, dests):
-            other = hg.peer(repo, opts, path.rawloc)
+            other = hg.peer(repo, opts, path)
             if revs is not None:
                 hex_revs = [repo[r].hex() for r in revs]
             else:
@@ -2008,6 +2010,7 @@ def clone(ui, source, dest=None, **opts):
         (b'', b'close-branch', None, _(b'mark a branch head as closed')),
         (b'', b'amend', None, _(b'amend the parent of the working directory')),
         (b's', b'secret', None, _(b'use the secret phase for committing')),
+        (b'', b'draft', None, _(b'use the draft phase for committing')),
         (b'e', b'edit', None, _(b'invoke editor on commit messages')),
         (
             b'',
@@ -2082,6 +2085,8 @@ def commit(ui, repo, *pats, **opts):
 
           hg commit --amend --date now
     """
+    cmdutil.check_at_most_one_arg(opts, 'draft', 'secret')
+    cmdutil.check_incompatible_arguments(opts, 'subrepos', ['amend'])
     with repo.wlock(), repo.lock():
         return _docommit(ui, repo, *pats, **opts)
 
@@ -2097,7 +2102,6 @@ def _docommit(ui, repo, *pats, **opts):
         return 1 if ret == 0 else ret
 
     if opts.get('subrepos'):
-        cmdutil.check_incompatible_arguments(opts, 'subrepos', ['amend'])
         # Let --subrepos on the command line override config setting.
         ui.setconfig(b'ui', b'commitsubrepos', True, b'commit')
 
@@ -2174,6 +2178,8 @@ def _docommit(ui, repo, *pats, **opts):
             overrides = {}
             if opts.get(b'secret'):
                 overrides[(b'phases', b'new-commit')] = b'secret'
+            elif opts.get(b'draft'):
+                overrides[(b'phases', b'new-commit')] = b'draft'
 
             baseui = repo.baseui
             with baseui.configoverride(overrides, b'commit'):
@@ -2491,7 +2497,19 @@ def copy(ui, repo, *pats, **opts):
     Returns 0 on success, 1 if errors are encountered.
     """
     opts = pycompat.byteskwargs(opts)
-    with repo.wlock():
+
+    context = repo.dirstate.changing_files
+    rev = opts.get(b'at_rev')
+    ctx = None
+    if rev:
+        ctx = logcmdutil.revsingle(repo, rev)
+        if ctx.rev() is not None:
+
+            def context(repo):
+                return util.nullcontextmanager()
+
+            opts[b'at_rev'] = ctx.rev()
+    with repo.wlock(), context(repo):
         return cmdutil.copy(ui, repo, pats, opts)
 
 
@@ -2960,19 +2978,20 @@ def forget(ui, repo, *pats, **opts):
     if not pats:
         raise error.InputError(_(b'no files specified'))
 
-    m = scmutil.match(repo[None], pats, opts)
-    dryrun, interactive = opts.get(b'dry_run'), opts.get(b'interactive')
-    uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
-    rejected = cmdutil.forget(
-        ui,
-        repo,
-        m,
-        prefix=b"",
-        uipathfn=uipathfn,
-        explicitonly=False,
-        dryrun=dryrun,
-        interactive=interactive,
-    )[0]
+    with repo.wlock(), repo.dirstate.changing_files(repo):
+        m = scmutil.match(repo[None], pats, opts)
+        dryrun, interactive = opts.get(b'dry_run'), opts.get(b'interactive')
+        uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
+        rejected = cmdutil.forget(
+            ui,
+            repo,
+            m,
+            prefix=b"",
+            uipathfn=uipathfn,
+            explicitonly=False,
+            dryrun=dryrun,
+            interactive=interactive,
+        )[0]
     return rejected and 1 or 0
 
 
@@ -3911,12 +3930,11 @@ def identify(
     peer = None
     try:
         if source:
-            source, branches = urlutil.get_unique_pull_path(
-                b'identify', repo, ui, source
-            )
+            path = urlutil.get_unique_pull_path_obj(b'identify', ui, source)
             # only pass ui when no repo
-            peer = hg.peer(repo or ui, opts, source)
+            peer = hg.peer(repo or ui, opts, path)
             repo = peer.local()
+            branches = (path.branch, [])
             revs, checkout = hg.addbranchrevs(repo, peer, branches, None)
 
         fm = ui.formatter(b'identify', opts)
@@ -4229,12 +4247,10 @@ def import_(ui, repo, patch1=None, *patches, **opts):
         if not opts.get(b'no_commit'):
             lock = repo.lock
             tr = lambda: repo.transaction(b'import')
-            dsguard = util.nullcontextmanager
         else:
             lock = util.nullcontextmanager
             tr = util.nullcontextmanager
-            dsguard = lambda: dirstateguard.dirstateguard(repo, b'import')
-        with lock(), tr(), dsguard():
+        with lock(), tr():
             parents = repo[None].parents()
             for patchurl in patches:
                 if patchurl == b'-':
@@ -4383,17 +4399,15 @@ def incoming(ui, repo, source=b"default", **opts):
     if opts.get(b'bookmarks'):
         srcs = urlutil.get_pull_paths(repo, ui, [source])
         for path in srcs:
-            source, branches = urlutil.parseurl(
-                path.rawloc, opts.get(b'branch')
-            )
-            other = hg.peer(repo, opts, source)
+            # XXX the "branches" options are not used. Should it be used?
+            other = hg.peer(repo, opts, path)
             try:
                 if b'bookmarks' not in other.listkeys(b'namespaces'):
                     ui.warn(_(b"remote doesn't support bookmarks\n"))
                     return 0
                 ui.pager(b'incoming')
                 ui.status(
-                    _(b'comparing with %s\n') % urlutil.hidepassword(source)
+                    _(b'comparing with %s\n') % urlutil.hidepassword(path.loc)
                 )
                 return bookmarks.incoming(
                     ui, repo, other, mode=path.bookmarks_mode
@@ -4426,7 +4440,7 @@ def init(ui, dest=b".", **opts):
     Returns 0 on success.
     """
     opts = pycompat.byteskwargs(opts)
-    path = urlutil.get_clone_path(ui, dest)[1]
+    path = urlutil.get_clone_path_obj(ui, dest)
     peer = hg.peer(ui, opts, path, create=True)
     peer.close()
 
@@ -5038,14 +5052,13 @@ def outgoing(ui, repo, *dests, **opts):
     opts = pycompat.byteskwargs(opts)
     if opts.get(b'bookmarks'):
         for path in urlutil.get_push_paths(repo, ui, dests):
-            dest = path.pushloc or path.loc
-            other = hg.peer(repo, opts, dest)
+            other = hg.peer(repo, opts, path)
             try:
                 if b'bookmarks' not in other.listkeys(b'namespaces'):
                     ui.warn(_(b"remote doesn't support bookmarks\n"))
                     return 0
                 ui.status(
-                    _(b'comparing with %s\n') % urlutil.hidepassword(dest)
+                    _(b'comparing with %s\n') % urlutil.hidepassword(path.loc)
                 )
                 ui.pager(b'outgoing')
                 return bookmarks.outgoing(ui, repo, other)
@@ -5434,12 +5447,12 @@ def pull(ui, repo, *sources, **opts):
         raise error.InputError(msg, hint=hint)
 
     for path in urlutil.get_pull_paths(repo, ui, sources):
-        source, branches = urlutil.parseurl(path.rawloc, opts.get(b'branch'))
-        ui.status(_(b'pulling from %s\n') % urlutil.hidepassword(source))
+        ui.status(_(b'pulling from %s\n') % urlutil.hidepassword(path.loc))
         ui.flush()
-        other = hg.peer(repo, opts, source)
+        other = hg.peer(repo, opts, path)
         update_conflict = None
         try:
+            branches = (path.branch, opts.get(b'branch', []))
             revs, checkout = hg.addbranchrevs(
                 repo, other, branches, opts.get(b'rev')
             )
@@ -5515,8 +5528,12 @@ def pull(ui, repo, *sources, **opts):
                     elif opts.get(b'branch'):
                         brev = opts[b'branch'][0]
                     else:
-                        brev = branches[0]
-                repo._subtoppath = source
+                        brev = path.branch
+
+                # XXX path: we are losing the `path` object here. Keeping it
+                # would be valuable. For example as a "variant" as we do
+                # for pushes.
+                repo._subtoppath = path.loc
                 try:
                     update_conflict = postincoming(
                         ui, repo, modheads, opts.get(b'update'), checkout, brev
@@ -5766,7 +5783,7 @@ def push(ui, repo, *dests, **opts):
     some_pushed = False
     result = 0
     for path in urlutil.get_push_paths(repo, ui, dests):
-        dest = path.pushloc or path.loc
+        dest = path.loc
         branches = (path.branch, opts.get(b'branch') or [])
         ui.status(_(b'pushing to %s\n') % urlutil.hidepassword(dest))
         revs, checkout = hg.addbranchrevs(
@@ -5940,12 +5957,13 @@ def remove(ui, repo, *pats, **opts):
     if not pats and not after:
         raise error.InputError(_(b'no files specified'))
 
-    m = scmutil.match(repo[None], pats, opts)
-    subrepos = opts.get(b'subrepos')
-    uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
-    return cmdutil.remove(
-        ui, repo, m, b"", uipathfn, after, force, subrepos, dryrun=dryrun
-    )
+    with repo.wlock(), repo.dirstate.changing_files(repo):
+        m = scmutil.match(repo[None], pats, opts)
+        subrepos = opts.get(b'subrepos')
+        uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
+        return cmdutil.remove(
+            ui, repo, m, b"", uipathfn, after, force, subrepos, dryrun=dryrun
+        )
 
 
 @command(
@@ -5994,7 +6012,18 @@ def rename(ui, repo, *pats, **opts):
     Returns 0 on success, 1 if errors are encountered.
     """
     opts = pycompat.byteskwargs(opts)
-    with repo.wlock():
+    context = repo.dirstate.changing_files
+    rev = opts.get(b'at_rev')
+    ctx = None
+    if rev:
+        ctx = logcmdutil.revsingle(repo, rev)
+        if ctx.rev() is not None:
+
+            def context(repo):
+                return util.nullcontextmanager()
+
+            opts[b'at_rev'] = ctx.rev()
+    with repo.wlock(), context(repo):
         return cmdutil.copy(ui, repo, pats, opts, rename=True)
 
 
@@ -6260,7 +6289,7 @@ def resolve(ui, repo, *pats, **opts):
         #
         # All this should eventually happens, but in the mean time, we use this
         # context manager slightly out of the context it should be.
-        with repo.dirstate.parentchange():
+        with repo.dirstate.changing_parents(repo):
             mergestatemod.recordupdates(repo, ms.actions(), branchmerge, None)
 
         if not didwork and pats:
@@ -7252,23 +7281,22 @@ def summary(ui, repo, **opts):
         # XXX We should actually skip this if no default is specified, instead
         # of passing "default" which will resolve as "./default/" if no default
         # path is defined.
-        source, branches = urlutil.get_unique_pull_path(
-            b'summary', repo, ui, b'default'
-        )
-        sbranch = branches[0]
+        path = urlutil.get_unique_pull_path_obj(b'summary', ui, b'default')
+        sbranch = path.branch
         try:
-            other = hg.peer(repo, {}, source)
+            other = hg.peer(repo, {}, path)
         except error.RepoError:
             if opts.get(b'remote'):
                 raise
-            return source, sbranch, None, None, None
+            return path.loc, sbranch, None, None, None
+        branches = (path.branch, [])
         revs, checkout = hg.addbranchrevs(repo, other, branches, None)
         if revs:
             revs = [other.lookup(rev) for rev in revs]
-        ui.debug(b'comparing with %s\n' % urlutil.hidepassword(source))
+        ui.debug(b'comparing with %s\n' % urlutil.hidepassword(path.loc))
         with repo.ui.silent():
             commoninc = discovery.findcommonincoming(repo, other, heads=revs)
-        return source, sbranch, other, commoninc, commoninc[1]
+        return path.loc, sbranch, other, commoninc, commoninc[1]
 
     if needsincoming:
         source, sbranch, sother, commoninc, incoming = getincoming()
@@ -7284,9 +7312,10 @@ def summary(ui, repo, **opts):
             d = b'default-push'
         elif b'default' in ui.paths:
             d = b'default'
+        path = None
         if d is not None:
             path = urlutil.get_unique_push_path(b'summary', repo, ui, d)
-            dest = path.pushloc or path.loc
+            dest = path.loc
             dbranch = path.branch
         else:
             dest = b'default'
@@ -7294,7 +7323,7 @@ def summary(ui, repo, **opts):
         revs, checkout = hg.addbranchrevs(repo, repo, (dbranch, []), None)
         if source != dest:
             try:
-                dother = hg.peer(repo, {}, dest)
+                dother = hg.peer(repo, {}, path if path is not None else dest)
             except error.RepoError:
                 if opts.get(b'remote'):
                     raise
@@ -7472,8 +7501,11 @@ def tag(ui, repo, name1, *names, **opts):
                 )
         node = logcmdutil.revsingle(repo, rev_).node()
 
+        # don't allow tagging the null rev or the working directory
         if node is None:
             raise error.InputError(_(b"cannot tag working directory"))
+        elif not opts.get(b'remove') and node == nullid:
+            raise error.InputError(_(b"cannot tag null revision"))
 
         if not message:
             # we don't translate commit messages
@@ -7493,13 +7525,6 @@ def tag(ui, repo, name1, *names, **opts):
         editor = cmdutil.getcommiteditor(
             editform=editform, **pycompat.strkwargs(opts)
         )
-
-        # don't allow tagging the null rev
-        if (
-            not opts.get(b'remove')
-            and logcmdutil.revsingle(repo, rev_).rev() == nullrev
-        ):
-            raise error.InputError(_(b"cannot tag null revision"))
 
         tagsmod.tag(
             repo,

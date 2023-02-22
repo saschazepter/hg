@@ -39,6 +39,9 @@
   chunks size   : 191
       0x75 (u)  : 191 (100.00%)
   
+  
+  total-stored-content: 188 bytes
+  
   avg chain length  :  0
   max chain length  :  0
   max chain reach   : 67
@@ -74,6 +77,9 @@
       empty     :  0 ( 0.00%)
       0x75 (u)  : 88 (100.00%)
   
+  
+  total-stored-content: 86 bytes
+  
   avg chain length  :  0
   max chain length  :  0
   max chain reach   : 44
@@ -106,6 +112,9 @@
       0x75 (u)  : 1 (100.00%)
   chunks size   : 3
       0x75 (u)  : 3 (100.00%)
+  
+  
+  total-stored-content: 2 bytes
   
   avg chain length  : 0
   max chain length  : 0
@@ -212,7 +221,7 @@ debugdelta chain basic output
    {
     "chainid": 1,
     "chainlen": 1,
-    "chainratio": 1.0232558139534884, (py3 !)
+    "chainratio": 1.0232558139534884,
     "chainsize": 44,
     "compsize": 44,
     "deltatype": "base",
@@ -252,7 +261,7 @@ debugdelta chain basic output
    {
     "chainid": 3,
     "chainlen": 1,
-    "chainratio": 1.0232558139534884, (py3 !)
+    "chainratio": 1.0232558139534884,
     "chainsize": 44,
     "compsize": 44,
     "deltatype": "base",
@@ -293,7 +302,7 @@ debugdelta chain with sparse read enabled
    {
     "chainid": 1,
     "chainlen": 1,
-    "chainratio": 1.0232558139534884, (py3 !)
+    "chainratio": 1.0232558139534884,
     "chainsize": 44,
     "compsize": 44,
     "deltatype": "base",
@@ -333,7 +342,7 @@ debugdelta chain with sparse read enabled
    {
     "chainid": 3,
     "chainlen": 1,
-    "chainratio": 1.0232558139534884, (py3 !)
+    "chainratio": 1.0232558139534884,
     "chainsize": 44,
     "compsize": 44,
     "deltatype": "base",
@@ -715,3 +724,8 @@ Test debugpeer
   pushable: yes
 
 #endif
+
+Test debugshell
+
+  $ hg debugshell -c 'ui.write(b"%s\n" % ui.username())'
+  test

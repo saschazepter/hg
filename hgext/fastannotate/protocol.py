@@ -151,8 +151,11 @@ def annotatepeer(repo):
     ui = repo.ui
 
     remotedest = ui.config(b'fastannotate', b'remotepath', b'default')
-    r = urlutil.get_unique_pull_path(b'fastannotate', repo, ui, remotedest)
-    remotepath = r[0]
+    remotepath = urlutil.get_unique_pull_path_obj(
+        b'fastannotate',
+        ui,
+        remotedest,
+    )
     peer = hg.peer(ui, {}, remotepath)
 
     try:

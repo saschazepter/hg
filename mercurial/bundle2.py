@@ -315,8 +315,17 @@ class bundleoperation:
     * a way to construct a bundle response when applicable.
     """
 
-    def __init__(self, repo, transactiongetter, captureoutput=True, source=b''):
+    def __init__(
+        self,
+        repo,
+        transactiongetter,
+        captureoutput=True,
+        source=b'',
+        remote=None,
+    ):
         self.repo = repo
+        # the peer object who produced this bundle if available
+        self.remote = remote
         self.ui = repo.ui
         self.records = unbundlerecords()
         self.reply = None
@@ -363,7 +372,7 @@ def _notransaction():
     raise TransactionUnavailable()
 
 
-def applybundle(repo, unbundler, tr, source, url=None, **kwargs):
+def applybundle(repo, unbundler, tr, source, url=None, remote=None, **kwargs):
     # transform me into unbundler.apply() as soon as the freeze is lifted
     if isinstance(unbundler, unbundle20):
         tr.hookargs[b'bundle2'] = b'1'
@@ -371,10 +380,12 @@ def applybundle(repo, unbundler, tr, source, url=None, **kwargs):
             tr.hookargs[b'source'] = source
         if url is not None and b'url' not in tr.hookargs:
             tr.hookargs[b'url'] = url
-        return processbundle(repo, unbundler, lambda: tr, source=source)
+        return processbundle(
+            repo, unbundler, lambda: tr, source=source, remote=remote
+        )
     else:
         # the transactiongetter won't be used, but we might as well set it
-        op = bundleoperation(repo, lambda: tr, source=source)
+        op = bundleoperation(repo, lambda: tr, source=source, remote=remote)
         _processchangegroup(op, unbundler, tr, source, url, **kwargs)
         return op
 
@@ -450,7 +461,14 @@ class partiterator:
         )
 
 
-def processbundle(repo, unbundler, transactiongetter=None, op=None, source=b''):
+def processbundle(
+    repo,
+    unbundler,
+    transactiongetter=None,
+    op=None,
+    source=b'',
+    remote=None,
+):
     """This function process a bundle, apply effect to/from a repo
 
     It iterates over each part then searches for and uses the proper handling
@@ -466,7 +484,12 @@ def processbundle(repo, unbundler, transactiongetter=None, op=None, source=b''):
     if op is None:
         if transactiongetter is None:
             transactiongetter = _notransaction
-        op = bundleoperation(repo, transactiongetter, source=source)
+        op = bundleoperation(
+            repo,
+            transactiongetter,
+            source=source,
+            remote=remote,
+        )
     # todo:
     # - replace this is a init function soon.
     # - exception catching
@@ -494,6 +517,10 @@ def processparts(repo, op, unbundler):
 
 
 def _processchangegroup(op, cg, tr, source, url, **kwargs):
+    if op.remote is not None and op.remote.path is not None:
+        remote_path = op.remote.path
+        kwargs = kwargs.copy()
+        kwargs['delta_base_reuse_policy'] = remote_path.delta_reuse_policy
     ret = cg.apply(op.repo, tr, source, url, **kwargs)
     op.records.add(
         b'changegroup',
@@ -1938,7 +1965,12 @@ def writebundle(
             raise error.Abort(
                 _(b'old bundle types only supports v1 changegroups')
             )
+
+        # HG20 is the case without 2 values to unpack, but is handled above.
+        # pytype: disable=bad-unpacking
         header, comp = bundletypes[bundletype]
+        # pytype: enable=bad-unpacking
+
         if comp not in util.compengines.supportedbundletypes:
             raise error.Abort(_(b'unknown stream compression type: %s') % comp)
         compengine = util.compengines.forbundletype(comp)

@@ -235,6 +235,7 @@ revlogopts = getattr(
 
 cmdtable = {}
 
+
 # for "historical portability":
 # define parsealiases locally, because cmdutil.parsealiases has been
 # available since 1.5 (or 6252852b4332)
@@ -573,7 +574,6 @@ def _timer(
 
 
 def formatone(fm, timings, title=None, result=None, displayall=False):
-
     count = len(timings)
 
     fm.startitem()
@@ -815,7 +815,12 @@ def perfstatus(ui, repo, **opts):
             )
             sum(map(bool, s))
 
-        timer(status_dirstate)
+        if util.safehasattr(dirstate, 'running_status'):
+            with dirstate.running_status(repo):
+                timer(status_dirstate)
+                dirstate.invalidate()
+        else:
+            timer(status_dirstate)
     else:
         timer(lambda: sum(map(len, repo.status(unknown=opts[b'unknown']))))
     fm.end()
@@ -997,11 +1002,16 @@ def perfdiscovery(ui, repo, path, **opts):
     timer, fm = gettimer(ui, opts)
 
     try:
-        from mercurial.utils.urlutil import get_unique_pull_path
+        from mercurial.utils.urlutil import get_unique_pull_path_obj
 
-        path = get_unique_pull_path(b'perfdiscovery', repo, ui, path)[0]
+        path = get_unique_pull_path_obj(b'perfdiscovery', ui, path)
     except ImportError:
-        path = ui.expandpath(path)
+        try:
+            from mercurial.utils.urlutil import get_unique_pull_path
+
+            path = get_unique_pull_path(b'perfdiscovery', repo, ui, path)[0]
+        except ImportError:
+            path = ui.expandpath(path)
 
     def s():
         repos[1] = hg.peer(ui, opts, path)
@@ -1469,7 +1479,8 @@ def perfdirstatewrite(ui, repo, **opts):
     def d():
         ds.write(repo.currenttransaction())
 
-    timer(d, setup=setup)
+    with repo.wlock():
+        timer(d, setup=setup)
     fm.end()
 
 
@@ -1613,7 +1624,11 @@ def perfphasesremote(ui, repo, dest=None, **opts):
             b'default repository not configured!',
             hint=b"see 'hg help config.paths'",
         )
-    dest = path.pushloc or path.loc
+    if util.safehasattr(path, 'main_path'):
+        path = path.get_push_variant()
+        dest = path.loc
+    else:
+        dest = path.pushloc or path.loc
     ui.statusnoi18n(b'analysing phase of %s\n' % util.hidepassword(dest))
     other = hg.peer(repo, opts, dest)
 

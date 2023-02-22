@@ -9,7 +9,7 @@
   > txnclose-phase.test = sh $TESTTMP/hook.sh
   > EOF
 
-  $ hglog() { hg log --template "{rev} {phaseidx} {desc}\n" $*; }
+  $ hglog() { hg log -G --template "{rev} {phaseidx} {desc}\n" $*; }
   $ mkcommit() {
   >    echo "$1" > "$1"
   >    hg add "$1"
@@ -36,7 +36,8 @@ Cannot change null revision phase
 New commit are draft by default
 
   $ hglog
-  0 1 A
+  @  0 1 A
+  
 
 Following commit are draft too
 
@@ -45,8 +46,10 @@ Following commit are draft too
   test-hook-close-phase: 27547f69f25460a52fff66ad004e58da7ad3fb56:   -> draft
 
   $ hglog
-  1 1 B
-  0 1 A
+  @  1 1 B
+  |
+  o  0 1 A
+  
 
 Working directory phase is secret when its parent is secret.
 
@@ -103,8 +106,10 @@ Draft commit are properly created over public one:
   $ hg phase
   1: public
   $ hglog
-  1 0 B
-  0 0 A
+  @  1 0 B
+  |
+  o  0 0 A
+  
 
   $ mkcommit C
   test-debug-phase: new rev 2:  x -> 1
@@ -114,10 +119,14 @@ Draft commit are properly created over public one:
   test-hook-close-phase: b3325c91a4d916bcc4cdc83ea3fe4ece46a42f6e:   -> draft
 
   $ hglog
-  3 1 D
-  2 1 C
-  1 0 B
-  0 0 A
+  @  3 1 D
+  |
+  o  2 1 C
+  |
+  o  1 0 B
+  |
+  o  0 0 A
+  
 
 Test creating changeset as secret
 
@@ -125,11 +134,16 @@ Test creating changeset as secret
   test-debug-phase: new rev 4:  x -> 2
   test-hook-close-phase: a603bfb5a83e312131cebcd05353c217d4d21dde:   -> secret
   $ hglog
-  4 2 E
-  3 1 D
-  2 1 C
-  1 0 B
-  0 0 A
+  @  4 2 E
+  |
+  o  3 1 D
+  |
+  o  2 1 C
+  |
+  o  1 0 B
+  |
+  o  0 0 A
+  
 
 Test the secret property is inherited
 
@@ -137,12 +151,18 @@ Test the secret property is inherited
   test-debug-phase: new rev 5:  x -> 2
   test-hook-close-phase: a030c6be5127abc010fcbff1851536552e6951a8:   -> secret
   $ hglog
-  5 2 H
-  4 2 E
-  3 1 D
-  2 1 C
-  1 0 B
-  0 0 A
+  @  5 2 H
+  |
+  o  4 2 E
+  |
+  o  3 1 D
+  |
+  o  2 1 C
+  |
+  o  1 0 B
+  |
+  o  0 0 A
+  
 
 Even on merge
 
@@ -152,13 +172,20 @@ Even on merge
   created new head
   test-hook-close-phase: cf9fe039dfd67e829edf6522a45de057b5c86519:   -> draft
   $ hglog
-  6 1 B'
-  5 2 H
-  4 2 E
-  3 1 D
-  2 1 C
-  1 0 B
-  0 0 A
+  @  6 1 B'
+  |
+  | o  5 2 H
+  | |
+  | o  4 2 E
+  | |
+  | o  3 1 D
+  | |
+  | o  2 1 C
+  |/
+  o  1 0 B
+  |
+  o  0 0 A
+  
   $ hg merge 4 # E
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
@@ -170,14 +197,22 @@ Even on merge
   test-hook-close-phase: 17a481b3bccb796c0521ae97903d81c52bfee4af:   -> secret
 
   $ hglog
-  7 2 merge B' and E
-  6 1 B'
-  5 2 H
-  4 2 E
-  3 1 D
-  2 1 C
-  1 0 B
-  0 0 A
+  @    7 2 merge B' and E
+  |\
+  | o  6 1 B'
+  | |
+  +---o  5 2 H
+  | |
+  o |  4 2 E
+  | |
+  o |  3 1 D
+  | |
+  o |  2 1 C
+  |/
+  o  1 0 B
+  |
+  o  0 0 A
+  
 
 Test secret changeset are not pushed
 
@@ -221,21 +256,34 @@ Test secret changeset are not pushed
   test-hook-close-phase: b3325c91a4d916bcc4cdc83ea3fe4ece46a42f6e:   -> draft
   test-hook-close-phase: cf9fe039dfd67e829edf6522a45de057b5c86519:   -> draft
   $ hglog
-  7 2 merge B' and E
-  6 1 B'
-  5 2 H
-  4 2 E
-  3 1 D
-  2 1 C
-  1 0 B
-  0 0 A
+  @    7 2 merge B' and E
+  |\
+  | o  6 1 B'
+  | |
+  +---o  5 2 H
+  | |
+  o |  4 2 E
+  | |
+  o |  3 1 D
+  | |
+  o |  2 1 C
+  |/
+  o  1 0 B
+  |
+  o  0 0 A
+  
   $ cd ../push-dest
   $ hglog
-  4 1 B'
-  3 1 D
-  2 1 C
-  1 0 B
-  0 0 A
+  o  4 1 B'
+  |
+  | o  3 1 D
+  | |
+  | o  2 1 C
+  |/
+  o  1 0 B
+  |
+  o  0 0 A
+  
 
 (Issue3303)
 Check that remote secret changeset are ignore when checking creation of remote heads
@@ -328,11 +376,16 @@ Test secret changeset are not pull
   test-hook-close-phase: cf9fe039dfd67e829edf6522a45de057b5c86519:   -> public
   (run 'hg heads' to see heads, 'hg merge' to merge)
   $ hglog
-  4 0 B'
-  3 0 D
-  2 0 C
-  1 0 B
-  0 0 A
+  o  4 0 B'
+  |
+  | o  3 0 D
+  | |
+  | o  2 0 C
+  |/
+  o  1 0 B
+  |
+  o  0 0 A
+  
   $ cd ..
 
 But secret can still be bundled explicitly
@@ -357,11 +410,16 @@ Test secret changeset are not cloned
   test-hook-close-phase: b3325c91a4d916bcc4cdc83ea3fe4ece46a42f6e:   -> public
   test-hook-close-phase: cf9fe039dfd67e829edf6522a45de057b5c86519:   -> public
   $ hglog -R clone-dest
-  4 0 B'
-  3 0 D
-  2 0 C
-  1 0 B
-  0 0 A
+  o  4 0 B'
+  |
+  | o  3 0 D
+  | |
+  | o  2 0 C
+  |/
+  o  1 0 B
+  |
+  o  0 0 A
+  
 
 Test summary
 
@@ -385,16 +443,28 @@ Test revset
 
   $ cd initialrepo
   $ hglog -r 'public()'
-  0 0 A
-  1 0 B
+  o  1 0 B
+  |
+  o  0 0 A
+  
   $ hglog -r 'draft()'
-  2 1 C
-  3 1 D
-  6 1 B'
+  o  6 1 B'
+  |
+  ~
+  o  3 1 D
+  |
+  o  2 1 C
+  |
+  ~
   $ hglog -r 'secret()'
-  4 2 E
-  5 2 H
-  7 2 merge B' and E
+  @    7 2 merge B' and E
+  |\
+  | ~
+  | o  5 2 H
+  |/
+  o  4 2 E
+  |
+  ~
 
 test that phase are displayed in log at debug level
 
@@ -730,12 +800,7 @@ test verify repo containing hidden changesets, which should not abort just
 because repo.cancopy() is False
 
   $ cd ../initialrepo
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 8 changesets with 7 changes to 7 files
+  $ hg verify -q
 
   $ cd ..
 
@@ -753,8 +818,6 @@ repositories visible to an external hook.
   $ hg phase 6
   6: draft
   $ hg --config hooks.pretxnclose="sh $TESTTMP/savepending.sh" phase -f -s 6
-  transaction abort!
-  rollback completed
   abort: pretxnclose hook exited with status 1
   [40]
   $ cp .hg/store/phaseroots.pending.saved .hg/store/phaseroots.pending
@@ -776,8 +839,6 @@ repositories visible to an external hook.
   7: secret
   @push-dest
   6: draft
-  transaction abort!
-  rollback completed
   abort: pretxnclose hook exited with status 1
   [40]
 
@@ -850,13 +911,9 @@ Install a hook that prevent b3325c91a4d9 to become public
 Try various actions. only the draft move should succeed
 
   $ hg phase --public b3325c91a4d9
-  transaction abort!
-  rollback completed
   abort: pretxnclose-phase.nopublish_D hook exited with status 1
   [40]
   $ hg phase --public a603bfb5a83e
-  transaction abort!
-  rollback completed
   abort: pretxnclose-phase.nopublish_D hook exited with status 1
   [40]
   $ hg phase --draft 17a481b3bccb
@@ -867,8 +924,6 @@ Try various actions. only the draft move should succeed
   test-hook-close-phase: a603bfb5a83e312131cebcd05353c217d4d21dde:  secret -> draft
   test-hook-close-phase: 17a481b3bccb796c0521ae97903d81c52bfee4af:  secret -> draft
   $ hg phase --public 17a481b3bccb
-  transaction abort!
-  rollback completed
   abort: pretxnclose-phase.nopublish_D hook exited with status 1
   [40]
 
@@ -1046,4 +1101,31 @@ But what about obsoleted changesets?
   
   $ hg up tip
   2 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ cd ..
+
+Testing that command line flags override configuration
+
+  $ hg init commit-overrides
+  $ cd commit-overrides
+
+`hg commit --draft` overrides new-commit=secret
+
+  $ mkcommit A --config phases.new-commit='secret' --draft
+  test-debug-phase: new rev 0:  x -> 1
+  test-hook-close-phase: 4a2df7238c3b48766b5e22fafbb8a2f506ec8256:   -> draft
+  $ hglog
+  @  0 1 A
+  
+
+`hg commit --secret` overrides new-commit=draft
+
+  $ mkcommit B --config phases.new-commit='draft' --secret
+  test-debug-phase: new rev 1:  x -> 2
+  test-hook-close-phase: 27547f69f25460a52fff66ad004e58da7ad3fb56:   -> secret
+  $ hglog
+  @  1 2 B
+  |
+  o  0 1 A
+  
+
   $ cd ..

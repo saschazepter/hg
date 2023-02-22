@@ -3,35 +3,34 @@ use clap::Arg;
 use format_bytes::format_bytes;
 use hg::operations::cat;
 use hg::utils::hg_path::HgPathBuf;
-use micro_timer::timed;
-use std::convert::TryFrom;
+use std::ffi::OsString;
+use std::os::unix::prelude::OsStrExt;
 
 pub const HELP_TEXT: &str = "
 Output the current or given revision of files
 ";
 
-pub fn args() -> clap::App<'static, 'static> {
-    clap::SubCommand::with_name("cat")
+pub fn args() -> clap::Command {
+    clap::command!("cat")
         .arg(
-            Arg::with_name("rev")
+            Arg::new("rev")
                 .help("search the repository as it is in REV")
-                .short("-r")
-                .long("--rev")
-                .value_name("REV")
-                .takes_value(true),
+                .short('r')
+                .long("rev")
+                .value_name("REV"),
         )
         .arg(
-            clap::Arg::with_name("files")
+            clap::Arg::new("files")
                 .required(true)
-                .multiple(true)
-                .empty_values(false)
+                .num_args(1..)
                 .value_name("FILE")
+                .value_parser(clap::value_parser!(std::ffi::OsString))
                 .help("Files to output"),
         )
         .about(HELP_TEXT)
 }
 
-#[timed]
+#[logging_timer::time("trace")]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let cat_enabled_default = true;
     let cat_enabled = invocation.config.get_option(b"rhg", b"cat")?;
@@ -42,11 +41,15 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         ));
     }
 
-    let rev = invocation.subcommand_args.value_of("rev");
-    let file_args = match invocation.subcommand_args.values_of("files") {
-        Some(files) => files.collect(),
-        None => vec![],
-    };
+    let rev = invocation.subcommand_args.get_one::<String>("rev");
+    let file_args =
+        match invocation.subcommand_args.get_many::<OsString>("files") {
+            Some(files) => files
+                .filter(|s| !s.is_empty())
+                .map(|s| s.as_os_str())
+                .collect(),
+            None => vec![],
+        };
 
     let repo = invocation.repo?;
     let cwd = hg::utils::current_dir()?;
@@ -54,8 +57,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let working_directory = cwd.join(working_directory); // Make it absolute
 
     let mut files = vec![];
-    for file in file_args.iter() {
-        if file.starts_with("set:") {
+    for file in file_args {
+        if file.as_bytes().starts_with(b"set:") {
             let message = "fileset";
             return Err(CommandError::unsupported(message));
         }
@@ -63,7 +66,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         let normalized = cwd.join(&file);
         // TODO: actually normalize `..` path segments etc?
         let dotted = normalized.components().any(|c| c.as_os_str() == "..");
-        if file == &"." || dotted {
+        if file.as_bytes() == b"." || dotted {
             let message = "`..` or `.` path segment";
             return Err(CommandError::unsupported(message));
         }
@@ -75,7 +78,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             .map_err(|_| {
                 CommandError::abort(format!(
                     "abort: {} not under root '{}'\n(consider using '--cwd {}')",
-                    file,
+                    String::from_utf8_lossy(file.as_bytes()),
                     working_directory.display(),
                     relative_path.display(),
                 ))
@@ -92,7 +95,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         None => format!("{:x}", repo.dirstate_parents()?.p1),
     };
 
-    let output = cat(&repo, &rev, files).map_err(|e| (e, rev.as_str()))?;
+    let output = cat(repo, &rev, files).map_err(|e| (e, rev.as_str()))?;
     for (_file, contents) in output.results {
         invocation.ui.write_stdout(&contents)?;
     }

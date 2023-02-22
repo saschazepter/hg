@@ -28,6 +28,24 @@ import sys
 import tempfile
 import xmlrpc.client as xmlrpclib
 
+from typing import (
+    Any,
+    AnyStr,
+    BinaryIO,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    NoReturn,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    TypeVar,
+    cast,
+    overload,
+)
 
 ispy3 = sys.version_info[0] >= 3
 ispypy = '__pypy__' in sys.builtin_module_names
@@ -38,6 +56,10 @@ if not globals():  # hide this from non-pytype users
 
     TYPE_CHECKING = typing.TYPE_CHECKING
 
+_GetOptResult = Tuple[List[Tuple[bytes, bytes]], List[bytes]]
+_T0 = TypeVar('_T0')
+_Tbytestr = TypeVar('_Tbytestr', bound='bytestr')
+
 
 def future_set_exception_info(f, exc_info):
     f.set_exception(exc_info[0])
@@ -46,7 +68,7 @@ def future_set_exception_info(f, exc_info):
 FileNotFoundError = builtins.FileNotFoundError
 
 
-def identity(a):
+def identity(a: _T0) -> _T0:
     return a
 
 
@@ -94,21 +116,17 @@ if os.name == r'nt':
 
 fsencode = os.fsencode
 fsdecode = os.fsdecode
-oscurdir = os.curdir.encode('ascii')
-oslinesep = os.linesep.encode('ascii')
-osname = os.name.encode('ascii')
-ospathsep = os.pathsep.encode('ascii')
-ospardir = os.pardir.encode('ascii')
-ossep = os.sep.encode('ascii')
-osaltsep = os.altsep
-if osaltsep:
-    osaltsep = osaltsep.encode('ascii')
-osdevnull = os.devnull.encode('ascii')
+oscurdir: bytes = os.curdir.encode('ascii')
+oslinesep: bytes = os.linesep.encode('ascii')
+osname: bytes = os.name.encode('ascii')
+ospathsep: bytes = os.pathsep.encode('ascii')
+ospardir: bytes = os.pardir.encode('ascii')
+ossep: bytes = os.sep.encode('ascii')
+osaltsep: Optional[bytes] = os.altsep.encode('ascii') if os.altsep else None
+osdevnull: bytes = os.devnull.encode('ascii')
 
-sysplatform = sys.platform.encode('ascii')
-sysexecutable = sys.executable
-if sysexecutable:
-    sysexecutable = os.fsencode(sysexecutable)
+sysplatform: bytes = sys.platform.encode('ascii')
+sysexecutable: bytes = os.fsencode(sys.executable) if sys.executable else b''
 
 
 def maplist(*args):
@@ -128,7 +146,7 @@ getargspec = inspect.getfullargspec
 
 long = int
 
-if getattr(sys, 'argv', None) is not None:
+if builtins.getattr(sys, 'argv', None) is not None:
     # On POSIX, the char** argv array is converted to Python str using
     # Py_DecodeLocale(). The inverse of this is Py_EncodeLocale(), which
     # isn't directly callable from Python code. In practice, os.fsencode()
@@ -143,6 +161,7 @@ if getattr(sys, 'argv', None) is not None:
     # (this is how Python 2 worked). To get that, we encode with the mbcs
     # encoding, which will pass CP_ACP to the underlying Windows API to
     # produce bytes.
+    sysargv: List[bytes] = []
     if os.name == r'nt':
         sysargv = [a.encode("mbcs", "ignore") for a in sys.argv]
     else:
@@ -211,36 +230,51 @@ class bytestr(bytes):
     # https://github.com/google/pytype/issues/500
     if TYPE_CHECKING:
 
-        def __init__(self, s=b''):
+        def __init__(self, s: object = b'') -> None:
             pass
 
-    def __new__(cls, s=b''):
+    def __new__(cls: Type[_Tbytestr], s: object = b'') -> _Tbytestr:
         if isinstance(s, bytestr):
             return s
         if not isinstance(
             s, (bytes, bytearray)
-        ) and not hasattr(  # hasattr-py3-only
+        ) and not builtins.hasattr(  # hasattr-py3-only
             s, u'__bytes__'
         ):
             s = str(s).encode('ascii')
         return bytes.__new__(cls, s)
 
-    def __getitem__(self, key):
+    # The base class uses `int` return in py3, but the point of this class is to
+    # behave like py2.
+    def __getitem__(self, key) -> bytes:  # pytype: disable=signature-mismatch
         s = bytes.__getitem__(self, key)
         if not isinstance(s, bytes):
             s = bytechr(s)
         return s
 
-    def __iter__(self):
+    # The base class expects `Iterator[int]` return in py3, but the point of
+    # this class is to behave like py2.
+    def __iter__(self) -> Iterator[bytes]:  # pytype: disable=signature-mismatch
         return iterbytestr(bytes.__iter__(self))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return bytes.__repr__(self)[1:]  # drop b''
 
 
-def iterbytestr(s):
+def iterbytestr(s: Iterable[int]) -> Iterator[bytes]:
     """Iterate bytes as if it were a str object of Python 2"""
     return map(bytechr, s)
+
+
+if TYPE_CHECKING:
+
+    @overload
+    def maybebytestr(s: bytes) -> bytestr:
+        ...
+
+    @overload
+    def maybebytestr(s: _T0) -> _T0:
+        ...
 
 
 def maybebytestr(s):
@@ -250,7 +284,7 @@ def maybebytestr(s):
     return s
 
 
-def sysbytes(s):
+def sysbytes(s: AnyStr) -> bytes:
     """Convert an internal str (e.g. keyword, __doc__) back to bytes
 
     This never raises UnicodeEncodeError, but only ASCII characters
@@ -261,7 +295,7 @@ def sysbytes(s):
     return s.encode('utf-8')
 
 
-def sysstr(s):
+def sysstr(s: AnyStr) -> str:
     """Return a keyword str to be passed to Python functions such as
     getattr() and str.encode()
 
@@ -274,29 +308,29 @@ def sysstr(s):
     return s.decode('latin-1')
 
 
-def strurl(url):
+def strurl(url: AnyStr) -> str:
     """Converts a bytes url back to str"""
     if isinstance(url, bytes):
         return url.decode('ascii')
     return url
 
 
-def bytesurl(url):
+def bytesurl(url: AnyStr) -> bytes:
     """Converts a str url to bytes by encoding in ascii"""
     if isinstance(url, str):
         return url.encode('ascii')
     return url
 
 
-def raisewithtb(exc, tb):
+def raisewithtb(exc: BaseException, tb) -> NoReturn:
     """Raise exception with the given traceback"""
     raise exc.with_traceback(tb)
 
 
-def getdoc(obj):
+def getdoc(obj: object) -> Optional[bytes]:
     """Get docstring as bytes; may be None so gettext() won't confuse it
     with _('')"""
-    doc = getattr(obj, '__doc__', None)
+    doc = builtins.getattr(obj, '__doc__', None)
     if doc is None:
         return doc
     return sysbytes(doc)
@@ -319,14 +353,22 @@ xrange = builtins.range
 unicode = str
 
 
-def open(name, mode=b'r', buffering=-1, encoding=None):
+def open(
+    name,
+    mode: AnyStr = b'r',
+    buffering: int = -1,
+    encoding: Optional[str] = None,
+) -> Any:
+    # TODO: assert binary mode, and cast result to BinaryIO?
     return builtins.open(name, sysstr(mode), buffering, encoding)
 
 
 safehasattr = _wrapattrfunc(builtins.hasattr)
 
 
-def _getoptbwrapper(orig, args, shortlist, namelist):
+def _getoptbwrapper(
+    orig, args: Sequence[bytes], shortlist: bytes, namelist: Sequence[bytes]
+) -> _GetOptResult:
     """
     Takes bytes arguments, converts them to unicode, pass them to
     getopt.getopt(), convert the returned values back to bytes and then
@@ -342,7 +384,7 @@ def _getoptbwrapper(orig, args, shortlist, namelist):
     return opts, args
 
 
-def strkwargs(dic):
+def strkwargs(dic: Mapping[bytes, _T0]) -> Dict[str, _T0]:
     """
     Converts the keys of a python dictonary to str i.e. unicodes so that
     they can be passed as keyword arguments as dictionaries with bytes keys
@@ -352,7 +394,7 @@ def strkwargs(dic):
     return dic
 
 
-def byteskwargs(dic):
+def byteskwargs(dic: Mapping[str, _T0]) -> Dict[bytes, _T0]:
     """
     Converts keys of python dictionaries to bytes as they were converted to
     str to pass that dictonary as a keyword argument on Python 3.
@@ -362,7 +404,9 @@ def byteskwargs(dic):
 
 
 # TODO: handle shlex.shlex().
-def shlexsplit(s, comments=False, posix=True):
+def shlexsplit(
+    s: bytes, comments: bool = False, posix: bool = True
+) -> List[bytes]:
     """
     Takes bytes argument, convert it to str i.e. unicodes, pass that into
     shlex.split(), convert the returned value to bytes and return that for
@@ -377,46 +421,59 @@ itervalues = lambda x: x.values()
 
 json_loads = json.loads
 
-isjython = sysplatform.startswith(b'java')
+isjython: bool = sysplatform.startswith(b'java')
 
-isdarwin = sysplatform.startswith(b'darwin')
-islinux = sysplatform.startswith(b'linux')
-isposix = osname == b'posix'
-iswindows = osname == b'nt'
+isdarwin: bool = sysplatform.startswith(b'darwin')
+islinux: bool = sysplatform.startswith(b'linux')
+isposix: bool = osname == b'posix'
+iswindows: bool = osname == b'nt'
 
 
-def getoptb(args, shortlist, namelist):
+def getoptb(
+    args: Sequence[bytes], shortlist: bytes, namelist: Sequence[bytes]
+) -> _GetOptResult:
     return _getoptbwrapper(getopt.getopt, args, shortlist, namelist)
 
 
-def gnugetoptb(args, shortlist, namelist):
+def gnugetoptb(
+    args: Sequence[bytes], shortlist: bytes, namelist: Sequence[bytes]
+) -> _GetOptResult:
     return _getoptbwrapper(getopt.gnu_getopt, args, shortlist, namelist)
 
 
-def mkdtemp(suffix=b'', prefix=b'tmp', dir=None):
+def mkdtemp(
+    suffix: bytes = b'', prefix: bytes = b'tmp', dir: Optional[bytes] = None
+) -> bytes:
     return tempfile.mkdtemp(suffix, prefix, dir)
 
 
 # text=True is not supported; use util.from/tonativeeol() instead
-def mkstemp(suffix=b'', prefix=b'tmp', dir=None):
+def mkstemp(
+    suffix: bytes = b'', prefix: bytes = b'tmp', dir: Optional[bytes] = None
+) -> Tuple[int, bytes]:
     return tempfile.mkstemp(suffix, prefix, dir)
 
 
 # TemporaryFile does not support an "encoding=" argument on python2.
 # This wrapper file are always open in byte mode.
-def unnamedtempfile(mode=None, *args, **kwargs):
+def unnamedtempfile(mode: Optional[bytes] = None, *args, **kwargs) -> BinaryIO:
     if mode is None:
         mode = 'w+b'
     else:
         mode = sysstr(mode)
     assert 'b' in mode
-    return tempfile.TemporaryFile(mode, *args, **kwargs)
+    return cast(BinaryIO, tempfile.TemporaryFile(mode, *args, **kwargs))
 
 
 # NamedTemporaryFile does not support an "encoding=" argument on python2.
 # This wrapper file are always open in byte mode.
 def namedtempfile(
-    mode=b'w+b', bufsize=-1, suffix=b'', prefix=b'tmp', dir=None, delete=True
+    mode: bytes = b'w+b',
+    bufsize: int = -1,
+    suffix: bytes = b'',
+    prefix: bytes = b'tmp',
+    dir: Optional[bytes] = None,
+    delete: bool = True,
 ):
     mode = sysstr(mode)
     assert 'b' in mode

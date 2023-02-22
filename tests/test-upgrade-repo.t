@@ -853,12 +853,7 @@ manifest should be generaldelta
 
 verify should be happy
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 3 files
+  $ hg verify -q
 
 old store should be backed up
 
@@ -972,7 +967,7 @@ We can restrict optimization to some revlog:
 Check that the repo still works fine
 
   $ hg log -G --stat
-  @  changeset:   2:fca376863211 (py3 !)
+  @  changeset:   2:fca376863211
   |  tag:         tip
   |  parent:      0:ba592bf28da2
   |  user:        test
@@ -995,12 +990,7 @@ Check that the repo still works fine
   
   
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 3 files
+  $ hg verify -q
 
 Check we can select negatively
 
@@ -1047,12 +1037,7 @@ Check we can select negatively
   store replacement complete; repository was inconsistent for *s (glob)
   finalizing requirements file and making repository readable again
   removing temporary repository $TESTTMP/upgradegd/.hg/upgrade.* (glob)
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 3 files
+  $ hg verify -q
 
 Check that we can select changelog only
 
@@ -1098,12 +1083,7 @@ Check that we can select changelog only
   store replacement complete; repository was inconsistent for *s (glob)
   finalizing requirements file and making repository readable again
   removing temporary repository $TESTTMP/upgradegd/.hg/upgrade.* (glob)
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 3 files
+  $ hg verify -q
 
 Check that we can select filelog only
 
@@ -1149,12 +1129,7 @@ Check that we can select filelog only
   store replacement complete; repository was inconsistent for *s (glob)
   finalizing requirements file and making repository readable again
   removing temporary repository $TESTTMP/upgradegd/.hg/upgrade.* (glob)
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 3 files
+  $ hg verify -q
 
 
 Check you can't skip revlog clone during important format downgrade
@@ -1224,12 +1199,7 @@ Check you can't skip revlog clone during important format downgrade
   store replacement complete; repository was inconsistent for *s (glob)
   finalizing requirements file and making repository readable again
   removing temporary repository $TESTTMP/upgradegd/.hg/upgrade.* (glob)
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 3 files
+  $ hg verify -q
 
 Check you can't skip revlog clone during important format upgrade
 
@@ -1285,12 +1255,7 @@ Check you can't skip revlog clone during important format upgrade
   store replacement complete; repository was inconsistent for *s (glob)
   finalizing requirements file and making repository readable again
   removing temporary repository $TESTTMP/upgradegd/.hg/upgrade.* (glob)
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 3 files
+  $ hg verify -q
 
   $ cd ..
 
@@ -1413,12 +1378,7 @@ Check upgrading a large file repository
   lfs
   $ find .hg/store/lfs -type f
   .hg/store/lfs/objects/d0/beab232adff5ba365880366ad30b1edb85c4c5372442b5d2fe27adc96d653f
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 2 files
+  $ hg verify -q
   $ hg debugdata lfs.bin 0
   version https://git-lfs.github.com/spec/v1
   oid sha256:d0beab232adff5ba365880366ad30b1edb85c4c5372442b5d2fe27adc96d653f

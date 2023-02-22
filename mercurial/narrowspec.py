@@ -322,10 +322,16 @@ def updateworkingcopy(repo, assumeclean=False):
     addedmatch = matchmod.differencematcher(newmatch, oldmatch)
     removedmatch = matchmod.differencematcher(oldmatch, newmatch)
 
+    assert repo.currentwlock() is not None
     ds = repo.dirstate
-    lookup, status, _mtime_boundary = ds.status(
-        removedmatch, subrepos=[], ignored=True, clean=True, unknown=True
-    )
+    with ds.running_status(repo):
+        lookup, status, _mtime_boundary = ds.status(
+            removedmatch,
+            subrepos=[],
+            ignored=True,
+            clean=True,
+            unknown=True,
+        )
     trackeddirty = status.modified + status.added
     clean = status.clean
     if assumeclean:
