@@ -579,31 +579,31 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
         fm.end()
         return 0
 
-    oldincludes, oldexcludes = repo.narrowpats
-
-    # filter the user passed additions and deletions into actual additions and
-    # deletions of excludes and includes
-    addedincludes -= oldincludes
-    removedincludes &= oldincludes
-    addedexcludes -= oldexcludes
-    removedexcludes &= oldexcludes
-
-    widening = addedincludes or removedexcludes
-    narrowing = removedincludes or addedexcludes
-
-    if update_working_copy:
-        with repo.wlock(), repo.lock(), repo.transaction(
-            b'narrow-wc'
-        ), repo.dirstate.changing_parents(repo):
-            narrowspec.updateworkingcopy(repo)
-            narrowspec.copytoworkingcopy(repo)
-        return 0
-
-    if not (widening or narrowing or autoremoveincludes):
-        ui.status(_(b"nothing to widen or narrow\n"))
-        return 0
-
     with repo.wlock(), repo.lock():
+        oldincludes, oldexcludes = repo.narrowpats
+
+        # filter the user passed additions and deletions into actual additions and
+        # deletions of excludes and includes
+        addedincludes -= oldincludes
+        removedincludes &= oldincludes
+        addedexcludes -= oldexcludes
+        removedexcludes &= oldexcludes
+
+        widening = addedincludes or removedexcludes
+        narrowing = removedincludes or addedexcludes
+
+        if update_working_copy:
+            with repo.transaction(b'narrow-wc'), repo.dirstate.changing_parents(
+                repo
+            ):
+                narrowspec.updateworkingcopy(repo)
+                narrowspec.copytoworkingcopy(repo)
+            return 0
+
+        if not (widening or narrowing or autoremoveincludes):
+            ui.status(_(b"nothing to widen or narrow\n"))
+            return 0
+
         cmdutil.bailifchanged(repo)
 
         # Find the revisions we have in common with the remote. These will
