@@ -188,3 +188,26 @@ Changing branch from another one
   $ wait
   $ hg branch
   celeste
+
+updating working copy
+---------------------
+
+  $ hg st
+  $ hg log --rev . -T '{desc}\n'
+  babar_m
+  $ hg phase --public --rev 0 2> ../log.err &
+  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/transaction-waiting
+  $ hg update "parents(.)" --quiet
+  $ hg log --rev . -T '{desc}\n'
+  babar_l
+  $ hg st
+  $ touch $TESTTMP/transaction-continue
+  $ wait
+  $ hg log --rev . -T '{desc}\n'
+  babar_l (missing-correct-output !)
+  babar_m (known-bad-output !)
+  $ hg st
+  ! babar_m (known-bad-output !)
+
+  $ hg purge --no-confirm
+  $ hg up --quiet babar
