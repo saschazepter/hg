@@ -233,7 +233,7 @@ def openlfdirstate(ui, repo, create=True):
     # largefiles operation in a new clone.
     if create and not vfs.exists(vfs.join(lfstoredir, b'dirstate')):
         try:
-            with repo.wlock(wait=False):
+            with repo.wlock(wait=False), lfdirstate.changing_files(repo):
                 matcher = getstandinmatcher(repo)
                 standins = repo.dirstate.walk(
                     matcher, subrepos=[], unknown=False, ignored=False
@@ -250,8 +250,6 @@ def openlfdirstate(ui, repo, create=True):
                         wc_tracked=True,
                         possibly_dirty=True,
                     )
-                # avoid getting dirty dirstate before other operations
-                lfdirstate.write(repo.currenttransaction())
         except error.LockError:
             # Assume that whatever was holding the lock was important.
             # If we were doing something important, we would already have
