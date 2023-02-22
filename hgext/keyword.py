@@ -437,12 +437,11 @@ def _kwfwrite(ui, repo, expand, *pats, **opts):
     if len(wctx.parents()) > 1:
         raise error.Abort(_(b'outstanding uncommitted merge'))
     kwt = getattr(repo, '_keywordkwt', None)
-    with repo.wlock():
+    with repo.wlock(), repo.dirstate.changing_files(repo):
         status = _status(ui, repo, wctx, kwt, *pats, **opts)
         if status.modified or status.added or status.removed or status.deleted:
             raise error.Abort(_(b'outstanding uncommitted changes'))
         kwt.overwrite(wctx, status.clean, True, expand)
-        repo.dirstate.write(repo.currenttransaction())
 
 
 @command(
