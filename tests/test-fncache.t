@@ -107,7 +107,6 @@ Non store repo:
   .hg/undo.bookmarks
   .hg/undo.branch
   .hg/undo.desc
-  .hg/undo.phaseroots
   .hg/wcache
   .hg/wcache/checkisexec (execbit !)
   .hg/wcache/checklink (symlink !)
@@ -144,7 +143,6 @@ Non fncache repo:
   .hg/store/requires
   .hg/store/undo
   .hg/store/undo.backupfiles
-  .hg/store/undo.phaseroots
   .hg/undo.bookmarks
   .hg/undo.branch
   .hg/undo.desc

@@ -462,13 +462,11 @@ more there after
   00manifest.i
   data
   fncache (repofncache !)
-  journal.phaseroots
   phaseroots
   requires
   undo
   undo.backup.fncache (repofncache !)
   undo.backupfiles
-  undo.phaseroots
 
 
 precommit hook can prevent commit
