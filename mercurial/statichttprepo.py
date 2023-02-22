@@ -225,6 +225,7 @@ class statichttprepository(
         self.encodepats = None
         self.decodepats = None
         self._transref = None
+        self._dirstate = None
 
     def _restrictcapabilities(self, caps):
         caps = super(statichttprepository, self)._restrictcapabilities(caps)

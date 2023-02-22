@@ -67,6 +67,25 @@ class _dirstatemapcommon:
         except FileNotFoundError:
             return None
 
+    def may_need_refresh(self):
+        if 'identity' not in vars(self):
+            # no existing identity, we need a refresh
+            return True
+        if self.identity is None:
+            return True
+        if not self.identity.cacheable():
+            # We cannot trust the entry
+            # XXX this is a problem on windows, NFS, or other inode less system
+            return True
+        current_identity = self._get_current_identity()
+        if current_identity is None:
+            return True
+        if not current_identity.cacheable():
+            # We cannot trust the entry
+            # XXX this is a problem on windows, NFS, or other inode less system
+            return True
+        return current_identity != self.identity
+
     def preload(self):
         """Loads the underlying data, if it's not already loaded"""
         self._map
