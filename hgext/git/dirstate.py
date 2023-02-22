@@ -260,7 +260,12 @@ class gitdirstate:
     # # TODO what the heck is this
     _filecache = set()
 
-    def pendingparentchange(self):
+    def is_changing_parents(self):
+        # TODO: we need to implement the context manager bits and
+        # correctly stage/revert index edits.
+        return False
+
+    def is_changing_any(self):
         # TODO: we need to implement the context manager bits and
         # correctly stage/revert index edits.
         return False
@@ -322,14 +327,6 @@ class gitdirstate:
             r[path] = s
         return r
 
-    def savebackup(self, tr, backupname):
-        # TODO: figure out a strategy for saving index backups.
-        pass
-
-    def restorebackup(self, tr, backupname):
-        # TODO: figure out a strategy for saving index backups.
-        pass
-
     def set_tracked(self, f, reset_copy=False):
         # TODO: support copies and reset_copy=True
         uf = pycompat.fsdecode(f)
@@ -384,17 +381,13 @@ class gitdirstate:
         pass
 
     @contextlib.contextmanager
-    def parentchange(self):
+    def changing_parents(self, repo):
         # TODO: track this maybe?
         yield
 
     def addparentchangecallback(self, category, callback):
         # TODO: should this be added to the dirstate interface?
         self._plchangecallbacks[category] = callback
-
-    def clearbackup(self, tr, backupname):
-        # TODO
-        pass
 
     def setbranch(self, branch):
         raise error.Abort(

@@ -1922,6 +1922,42 @@ The following sub-options can be defined:
   - ``ignore``: ignore bookmarks during exchange.
     (This currently only affect pulling)
 
+.. container:: verbose
+
+  ``delta-reuse-policy``
+  Control the policy regarding deltas sent by the remote during pulls.
+
+  This is an advanced option that non-admin users should not need to understand
+  or set. This option can be used to speed up pulls from trusted central
+  servers, or to fix-up deltas from older servers.
+
+  It supports the following values:
+
+  - ``default``: use the policy defined by
+    `storage.revlog.reuse-external-delta-parent`,
+
+  - ``no-reuse``: start a new optimal delta search for each new revision we add
+    to the repository. The deltas from the server will be reused when the base
+    it applies to is tested (this can be frequent if that base is the one and
+    unique parent of that revision). This can significantly slowdown pulls but
+    will result in an optimized storage space if the remote peer is sending poor
+    quality deltas.
+
+  - ``try-base``: try to reuse the deltas from the remote peer as long as they
+    create a valid delta-chain in the local repository. This speeds up the
+    unbundling process, but can result in sub-optimal storage space if the
+    remote peer is sending poor quality deltas.
+
+  - ``forced``: the deltas from the peer will be reused in all cases, even if
+    the resulting delta-chain is "invalid". This setting will ensure the bundle
+    is applied at minimal CPU cost, but it can result in longer delta chains
+    being created on the client, making revisions potentially slower to access
+    in the future. If you think you need this option, you should make sure you
+    are also talking to the Mercurial developer community to get confirmation.
+
+  See `hg help config.storage.revlog.reuse-external-delta-parent` for a similar
+  global option. That option defines the behavior of `default`.
+
 The following special named paths exist:
 
 ``default``
@@ -2280,6 +2316,21 @@ category impact performance and repository size.
 
     To fix affected revisions that already exist within the repository, one can
     use :hg:`debug-repair-issue-6528`.
+
+.. container:: verbose
+
+    ``revlog.delta-parent-search.candidate-group-chunk-size``
+        Tune the number of delta bases the storage will consider in the
+        same "round" of search. In some very rare cases, using a smaller value
+        might result in faster processing at the possible expense of storage
+        space, while using larger values might result in slower processing at the
+        possible benefit of storage space. A value of "0" means no limitation.
+
+        default: no limitation
+
+        This is unlikely that you'll have to tune this configuration. If you think
+        you do, consider talking with the mercurial developer community about your
+        repositories.
 
 ``revlog.optimize-delta-parent-choice``
     When storing a merge revision, both parents will be equally considered as

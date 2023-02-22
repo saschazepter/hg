@@ -1,5 +1,8 @@
 /assign_reviewer @mercurial.review
 
+
+<!--
+
 Welcome to the Mercurial Merge Request creation process:
 
 * Set a simple title for your MR,
@@ -11,3 +14,5 @@ More details here:
 
 * https://www.mercurial-scm.org/wiki/ContributingChanges
 * https://www.mercurial-scm.org/wiki/Heptapod
+
+-->

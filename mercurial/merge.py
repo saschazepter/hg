@@ -46,7 +46,7 @@ def _getcheckunknownconfig(repo, section, name):
     return config
 
 
-def _checkunknownfile(repo, wctx, mctx, f, f2=None):
+def _checkunknownfile(dirstate, wvfs, dircache, wctx, mctx, f, f2=None):
     if wctx.isinmemory():
         # Nothing to do in IMM because nothing in the "working copy" can be an
         # unknown file.
@@ -58,9 +58,8 @@ def _checkunknownfile(repo, wctx, mctx, f, f2=None):
     if f2 is None:
         f2 = f
     return (
-        repo.wvfs.audit.check(f)
-        and repo.wvfs.isfileorlink(f)
-        and repo.dirstate.normalize(f) not in repo.dirstate
+        wvfs.isfileorlink_checkdir(dircache, f)
+        and dirstate.normalize(f) not in dirstate
         and mctx[f2].cmp(wctx[f])
     )
 
@@ -136,6 +135,9 @@ def _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce):
     pathconfig = repo.ui.configbool(
         b'experimental', b'merge.checkpathconflicts'
     )
+    dircache = dict()
+    dirstate = repo.dirstate
+    wvfs = repo.wvfs
     if not force:
 
         def collectconflicts(conflicts, config):
@@ -151,7 +153,7 @@ def _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce):
                 mergestatemod.ACTION_DELETED_CHANGED,
             )
         ):
-            if _checkunknownfile(repo, wctx, mctx, f):
+            if _checkunknownfile(dirstate, wvfs, dircache, wctx, mctx, f):
                 fileconflicts.add(f)
             elif pathconfig and f not in wctx:
                 path = checkunknowndirs(repo, wctx, f)
@@ -160,7 +162,9 @@ def _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce):
         for f, args, msg in mresult.getactions(
             [mergestatemod.ACTION_LOCAL_DIR_RENAME_GET]
         ):
-            if _checkunknownfile(repo, wctx, mctx, f, args[0]):
+            if _checkunknownfile(
+                dirstate, wvfs, dircache, wctx, mctx, f, args[0]
+            ):
                 fileconflicts.add(f)
 
         allconflicts = fileconflicts | pathconflicts
@@ -173,7 +177,9 @@ def _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce):
             mresult.getactions([mergestatemod.ACTION_CREATED_MERGE])
         ):
             fl2, anc = args
-            different = _checkunknownfile(repo, wctx, mctx, f)
+            different = _checkunknownfile(
+                dirstate, wvfs, dircache, wctx, mctx, f
+            )
             if repo.dirstate._ignore(f):
                 config = ignoredconfig
             else:
@@ -240,16 +246,21 @@ def _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce):
         else:
             repo.ui.warn(_(b"%s: replacing untracked files in directory\n") % f)
 
-    for f, args, msg in list(
-        mresult.getactions([mergestatemod.ACTION_CREATED])
-    ):
+    def transformargs(f, args):
         backup = (
             f in fileconflicts
-            or f in pathconflicts
-            or any(p in pathconflicts for p in pathutil.finddirs(f))
+            or pathconflicts
+            and (
+                f in pathconflicts
+                or any(p in pathconflicts for p in pathutil.finddirs(f))
+            )
         )
         (flags,) = args
-        mresult.addfile(f, mergestatemod.ACTION_GET, (flags, backup), msg)
+        return (flags, backup)
+
+    mresult.mapaction(
+        mergestatemod.ACTION_CREATED, mergestatemod.ACTION_GET, transformargs
+    )
 
 
 def _forgetremoved(wctx, mctx, branchmerge, mresult):
@@ -580,6 +591,18 @@ class mergeresult:
 
         self._filemapping[filename] = (action, data, message)
         self._actionmapping[action][filename] = (data, message)
+
+    def mapaction(self, actionfrom, actionto, transform):
+        """changes all occurrences of action `actionfrom` into `actionto`,
+        transforming its args with the function `transform`.
+        """
+        orig = self._actionmapping[actionfrom]
+        del self._actionmapping[actionfrom]
+        dest = self._actionmapping[actionto]
+        for f, (data, msg) in orig.items():
+            data = transform(f, data)
+            self._filemapping[f] = (actionto, data, msg)
+            dest[f] = (data, msg)
 
     def getfile(self, filename, default_return=None):
         """returns (action, args, msg) about this file
@@ -1142,6 +1165,8 @@ def calculateupdates(
             followcopies,
         )
         _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce)
+        if repo.ui.configbool(b'devel', b'debug.abort-update'):
+            exit(1)
 
     else:  # only when merge.preferancestor=* - the default
         repo.ui.note(
@@ -2130,7 +2155,7 @@ def _update(
             assert len(getfiledata) == (
                 mresult.len((mergestatemod.ACTION_GET,)) if wantfiledata else 0
             )
-            with repo.dirstate.parentchange():
+            with repo.dirstate.changing_parents(repo):
                 ### Filter Filedata
                 #
                 # We gathered "cache" information for the clean file while
@@ -2352,7 +2377,7 @@ def graft(
         # fix up dirstate for copies and renames
         copies.graftcopies(wctx, ctx, base)
     else:
-        with repo.dirstate.parentchange():
+        with repo.dirstate.changing_parents(repo):
             repo.setparents(pctx.node(), pother)
             repo.dirstate.write(repo.currenttransaction())
             # fix up dirstate for copies and renames

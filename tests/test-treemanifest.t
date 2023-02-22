@@ -399,13 +399,7 @@ Pushing to an empty repo works
   added 11 changesets with 15 changes to 10 files (+3 heads)
   $ hg debugrequires -R clone | grep treemanifest
   treemanifest
-  $ hg -R clone verify
-  checking changesets
-  checking manifests
-  checking directory manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 11 changesets with 15 changes to 10 files
+  $ hg -R clone verify -q
 
 Create deeper repo with tree manifests.
 
@@ -567,13 +561,7 @@ Add some more changes to the deep repo
   $ hg ci -m troz
 
 Verify works
-  $ hg verify
-  checking changesets
-  checking manifests
-  checking directory manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 4 changesets with 18 changes to 8 files
+  $ hg verify -q
 
 #if repofncache
 Dirlogs are included in fncache
@@ -631,6 +619,7 @@ Verify reports missing dirlog
    b/bar/orange/fly/housefly.txt@0: in changeset but not in manifest
    b/foo/apple/bees/flower.py@0: in changeset but not in manifest
   checking files
+  not checking dirstate because of previous errors
   checked 4 changesets with 18 changes to 8 files
   6 warnings encountered! (reporevlogstore !)
   9 integrity errors encountered!
@@ -656,6 +645,7 @@ Verify reports missing dirlog entry
    (expected None)
   crosschecking files in changesets and manifests
   checking files
+  not checking dirstate because of previous errors
   checked 4 changesets with 18 changes to 8 files
   2 warnings encountered!
   8 integrity errors encountered!
@@ -707,13 +697,7 @@ Tree manifest revlogs exist.
   deepclone/.hg/store/meta/~2e_a/00manifest.i (reporevlogstore !)
 Verify passes.
   $ cd deepclone
-  $ hg verify
-  checking changesets
-  checking manifests
-  checking directory manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 4 changesets with 18 changes to 8 files
+  $ hg verify -q
   $ cd ..
 
 #if reporevlogstore
@@ -755,33 +739,15 @@ Create clones using old repo formats to use in later tests
 
 Local clone with basicstore
   $ hg clone -U deeprepo-basicstore local-clone-basicstore
-  $ hg -R local-clone-basicstore verify
-  checking changesets
-  checking manifests
-  checking directory manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 4 changesets with 18 changes to 8 files
+  $ hg -R local-clone-basicstore verify -q
 
 Local clone with encodedstore
   $ hg clone -U deeprepo-encodedstore local-clone-encodedstore
-  $ hg -R local-clone-encodedstore verify
-  checking changesets
-  checking manifests
-  checking directory manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 4 changesets with 18 changes to 8 files
+  $ hg -R local-clone-encodedstore verify -q
 
 Local clone with fncachestore
   $ hg clone -U deeprepo local-clone-fncachestore
-  $ hg -R local-clone-fncachestore verify
-  checking changesets
-  checking manifests
-  checking directory manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 4 changesets with 18 changes to 8 files
+  $ hg -R local-clone-fncachestore verify -q
 
 Stream clone with basicstore
   $ hg clone --config experimental.changegroup3=True --stream -U \
@@ -789,13 +755,7 @@ Stream clone with basicstore
   streaming all changes
   28 files to transfer, * of data (glob)
   transferred * in * seconds (*) (glob)
-  $ hg -R stream-clone-basicstore verify
-  checking changesets
-  checking manifests
-  checking directory manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 4 changesets with 18 changes to 8 files
+  $ hg -R stream-clone-basicstore verify -q
 
 Stream clone with encodedstore
   $ hg clone --config experimental.changegroup3=True --stream -U \
@@ -803,13 +763,7 @@ Stream clone with encodedstore
   streaming all changes
   28 files to transfer, * of data (glob)
   transferred * in * seconds (*) (glob)
-  $ hg -R stream-clone-encodedstore verify
-  checking changesets
-  checking manifests
-  checking directory manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 4 changesets with 18 changes to 8 files
+  $ hg -R stream-clone-encodedstore verify -q
 
 Stream clone with fncachestore
   $ hg clone --config experimental.changegroup3=True --stream -U \
@@ -817,13 +771,7 @@ Stream clone with fncachestore
   streaming all changes
   22 files to transfer, * of data (glob)
   transferred * in * seconds (*) (glob)
-  $ hg -R stream-clone-fncachestore verify
-  checking changesets
-  checking manifests
-  checking directory manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 4 changesets with 18 changes to 8 files
+  $ hg -R stream-clone-fncachestore verify -q
 
 Packed bundle
   $ hg -R deeprepo debugcreatestreamclonebundle repo-packed.hg

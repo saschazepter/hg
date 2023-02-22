@@ -74,7 +74,7 @@ have this method available in narrowhg proper at the moment.
   >   narrowspec.copytoworkingcopy(repo)
   >   newmatcher = narrowspec.match(repo.root, includes, excludes)
   >   added = matchmod.differencematcher(newmatcher, currentmatcher)
-  >   with repo.dirstate.parentchange():
+  >   with repo.dirstate.changing_parents(repo):
   >       for f in repo[b'.'].manifest().walk(added):
   >           repo.dirstate.update_file(
   >               f,

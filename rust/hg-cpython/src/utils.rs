@@ -1,7 +1,6 @@
 use cpython::exc::ValueError;
 use cpython::{PyBytes, PyDict, PyErr, PyObject, PyResult, PyTuple, Python};
 use hg::revlog::Node;
-use std::convert::TryFrom;
 
 #[allow(unused)]
 pub fn print_python_trace(py: Python) -> PyResult<PyObject> {

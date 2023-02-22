@@ -38,12 +38,15 @@ from .revlogutils.constants import (
     COMP_MODE_DEFAULT,
     COMP_MODE_INLINE,
     COMP_MODE_PLAIN,
+    DELTA_BASE_REUSE_NO,
+    DELTA_BASE_REUSE_TRY,
     ENTRY_RANK,
     FEATURES_BY_VERSION,
     FLAG_GENERALDELTA,
     FLAG_INLINE_DATA,
     INDEX_HEADER,
     KIND_CHANGELOG,
+    KIND_FILELOG,
     RANK_UNKNOWN,
     REVLOGV0,
     REVLOGV1,
@@ -125,7 +128,7 @@ rustrevlog = policy.importrust('revlog')
 # Aliased for performance.
 _zlibdecompress = zlib.decompress
 
-# max size of revlog with inline data
+# max size of inline data embedded into a revlog
 _maxinline = 131072
 
 # Flag processors for REVIDX_ELLIPSIS.
@@ -347,6 +350,7 @@ class revlog:
         self._chunkcachesize = 65536
         self._maxchainlen = None
         self._deltabothparents = True
+        self._candidate_group_chunk_size = 0
         self._debug_delta = False
         self.index = None
         self._docket = None
@@ -362,6 +366,11 @@ class revlog:
         self.hassidedata = False
         self._srdensitythreshold = 0.50
         self._srmingapsize = 262144
+
+        # other optionnals features
+
+        # might remove rank configuration once the computation has no impact
+        self._compute_rank = False
 
         # Make copy of flag processors so each revlog instance can support
         # custom flags.
@@ -404,6 +413,7 @@ class revlog:
 
         if b'changelogv2' in opts and self.revlog_kind == KIND_CHANGELOG:
             new_header = CHANGELOGV2
+            self._compute_rank = opts.get(b'changelogv2.compute-rank', True)
         elif b'revlogv2' in opts:
             new_header = REVLOGV2
         elif b'revlogv1' in opts:
@@ -421,6 +431,9 @@ class revlog:
             self._maxchainlen = opts[b'maxchainlen']
         if b'deltabothparents' in opts:
             self._deltabothparents = opts[b'deltabothparents']
+        dps_cgds = opts.get(b'delta-parent-search.candidate-group-chunk-size')
+        if dps_cgds:
+            self._candidate_group_chunk_size = dps_cgds
         self._lazydelta = bool(opts.get(b'lazydelta', True))
         self._lazydeltabase = False
         if self._lazydelta:
@@ -505,7 +518,6 @@ class revlog:
             self._docket = docket
             self._docket_file = entry_point
         else:
-            entry_data = b''
             self._initempty = True
             entry_data = self._get_data(entry_point, mmapindexthreshold)
             if len(entry_data) > 0:
@@ -653,9 +665,12 @@ class revlog:
     @util.propertycache
     def display_id(self):
         """The public facing "ID" of the revlog that we use in message"""
-        # Maybe we should build a user facing representation of
-        # revlog.target instead of using `self.radix`
-        return self.radix
+        if self.revlog_kind == KIND_FILELOG:
+            # Reference the file without the "data/" prefix, so it is familiar
+            # to the user.
+            return self.target[1]
+        else:
+            return self.radix
 
     def _get_decompressor(self, t):
         try:
@@ -2445,6 +2460,16 @@ class revlog:
                 self, write_debug=write_debug
             )
 
+        if cachedelta is not None and len(cachedelta) == 2:
+            # If the cached delta has no information about how it should be
+            # reused, add the default reuse instruction according to the
+            # revlog's configuration.
+            if self._generaldelta and self._lazydeltabase:
+                delta_base_reuse = DELTA_BASE_REUSE_TRY
+            else:
+                delta_base_reuse = DELTA_BASE_REUSE_NO
+            cachedelta = (cachedelta[0], cachedelta[1], delta_base_reuse)
+
         revinfo = revlogutils.revisioninfo(
             node,
             p1,
@@ -2492,7 +2517,7 @@ class revlog:
             sidedata_offset = 0
 
         rank = RANK_UNKNOWN
-        if self._format_version == CHANGELOGV2:
+        if self._compute_rank:
             if (p1r, p2r) == (nullrev, nullrev):
                 rank = 1
             elif p1r != nullrev and p2r == nullrev:
@@ -2637,6 +2662,8 @@ class revlog:
         alwayscache=False,
         addrevisioncb=None,
         duplicaterevisioncb=None,
+        debug_info=None,
+        delta_base_reuse_policy=None,
     ):
         """
         add a delta group
@@ -2652,6 +2679,14 @@ class revlog:
         if self._adding_group:
             raise error.ProgrammingError(b'cannot nest addgroup() calls')
 
+        # read the default delta-base reuse policy from revlog config if the
+        # group did not specify one.
+        if delta_base_reuse_policy is None:
+            if self._generaldelta and self._lazydeltabase:
+                delta_base_reuse_policy = DELTA_BASE_REUSE_TRY
+            else:
+                delta_base_reuse_policy = DELTA_BASE_REUSE_NO
+
         self._adding_group = True
         empty = True
         try:
@@ -2662,6 +2697,7 @@ class revlog:
                 deltacomputer = deltautil.deltacomputer(
                     self,
                     write_debug=write_debug,
+                    debug_info=debug_info,
                 )
                 # loop through our set of deltas
                 for data in deltas:
@@ -2731,7 +2767,7 @@ class revlog:
                         p1,
                         p2,
                         flags,
-                        (baserev, delta),
+                        (baserev, delta, delta_base_reuse_policy),
                         alwayscache=alwayscache,
                         deltacomputer=deltacomputer,
                         sidedata=sidedata,
@@ -2886,6 +2922,7 @@ class revlog:
         assumehaveparentrevisions=False,
         deltamode=repository.CG_DELTAMODE_STD,
         sidedata_helpers=None,
+        debug_info=None,
     ):
         if nodesorder not in (b'nodes', b'storage', b'linear', None):
             raise error.ProgrammingError(
@@ -2915,6 +2952,7 @@ class revlog:
             revisiondata=revisiondata,
             assumehaveparentrevisions=assumehaveparentrevisions,
             sidedata_helpers=sidedata_helpers,
+            debug_info=debug_info,
         )
 
     DELTAREUSEALWAYS = b'always'

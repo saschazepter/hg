@@ -151,12 +151,7 @@ Create a non-inlined filelog in r3:
 
 Push to repo r1 should break up most hardlinks in r2:
 
-  $ hg -R r2 verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 2 files
+  $ hg -R r2 verify -q
 
   $ cd r3
   $ hg push
@@ -182,13 +177,7 @@ Push to repo r1 should break up most hardlinks in r2:
   1 r2/.hg/store/fncache
 #endif
 
-  $ hg -R r2 verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 2 files
-
+  $ hg -R r2 verify -q
 
   $ cd r1
   $ hg up
@@ -272,11 +261,10 @@ r4 has hardlinks in the working dir (not just inside .hg):
   2 r4/.hg/store/undo.backup.phaseroots
   2 r4/.hg/store/undo.backupfiles
   2 r4/.hg/store/undo.phaseroots
-  [24] r4/\.hg/undo\.backup\.dirstate (re)
+  2 r4/\.hg/undo\.backup\.dirstate (re)
   2 r4/.hg/undo.bookmarks
   2 r4/.hg/undo.branch
   2 r4/.hg/undo.desc
-  [24] r4/\.hg/undo\.dirstate (re)
   2 r4/.hg/wcache/checkisexec (execbit !)
   2 r4/.hg/wcache/checklink-target (symlink !)
   2 r4/.hg/wcache/checknoexec (execbit !)
@@ -288,9 +276,9 @@ r4 has hardlinks in the working dir (not just inside .hg):
 
 Update back to revision 12 in r4 should break hardlink of file f1 and f3:
 #if hardlink-whitelisted
-  $ nlinksdir r4/.hg/undo.backup.dirstate r4/.hg/undo.dirstate
-  4 r4/.hg/undo.backup.dirstate
-  4 r4/.hg/undo.dirstate
+  $ nlinksdir r4/.hg/undo.backup.dirstate r4/.hg/dirstate
+  2 r4/.hg/dirstate
+  2 r4/.hg/undo.backup.dirstate
 #endif
 
 
@@ -330,11 +318,10 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
   2 r4/.hg/store/undo.backup.phaseroots
   2 r4/.hg/store/undo.backupfiles
   2 r4/.hg/store/undo.phaseroots
-  [24] r4/\.hg/undo\.backup\.dirstate (re)
+  2 r4/\.hg/undo\.backup\.dirstate (re)
   2 r4/.hg/undo.bookmarks
   2 r4/.hg/undo.branch
   2 r4/.hg/undo.desc
-  [24] r4/\.hg/undo\.dirstate (re)
   2 r4/.hg/wcache/checkisexec (execbit !)
   2 r4/.hg/wcache/checklink-target (symlink !)
   2 r4/.hg/wcache/checknoexec (execbit !)
@@ -346,9 +333,9 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
   2 r4/f3 (no-execbit !)
 
 #if hardlink-whitelisted
-  $ nlinksdir r4/.hg/undo.backup.dirstate r4/.hg/undo.dirstate
-  4 r4/.hg/undo.backup.dirstate
-  4 r4/.hg/undo.dirstate
+  $ nlinksdir r4/.hg/undo.backup.dirstate r4/.hg/dirstate
+  1 r4/.hg/dirstate
+  2 r4/.hg/undo.backup.dirstate
 #endif
 
 Test hardlinking outside hg:

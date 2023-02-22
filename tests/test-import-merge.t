@@ -159,9 +159,4 @@ Test that --exact on a bad header doesn't corrupt the repo (issue3616)
   rollback completed
   abort: patch is damaged or loses information
   [255]
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 1 files
+  $ hg verify -q

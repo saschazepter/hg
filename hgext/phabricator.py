@@ -286,8 +286,11 @@ def vcrcommand(name, flags, spec, helpcategory=None, optionalrepo=False):
                 import hgdemandimport
 
                 with hgdemandimport.deactivated():
+                    # pytype: disable=import-error
                     import vcr as vcrmod
                     import vcr.stubs as stubs
+
+                    # pytype: enable=import-error
 
                     vcr = vcrmod.VCR(
                         serializer='json',
@@ -350,11 +353,14 @@ def urlencodenested(params):
     """
     flatparams = util.sortdict()
 
-    def process(prefix, obj):
+    def process(prefix: bytes, obj):
         if isinstance(obj, bool):
             obj = {True: b'true', False: b'false'}[obj]  # Python -> PHP form
         lister = lambda l: [(b'%d' % k, v) for k, v in enumerate(l)]
+        # .items() will only be called for a dict type
+        # pytype: disable=attribute-error
         items = {list: lister, dict: lambda x: x.items()}.get(type(obj))
+        # pytype: enable=attribute-error
         if items is None:
             flatparams[prefix] = obj
         else:

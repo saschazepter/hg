@@ -17,7 +17,6 @@ use bytes_cast::BytesCast;
 use format_bytes::format_bytes;
 use rand::Rng;
 use std::borrow::Cow;
-use std::convert::{TryFrom, TryInto};
 use std::fmt::Write;
 
 /// Added at the start of `.hg/dirstate` when the "v2" format is used.
@@ -247,11 +246,9 @@ impl<'on_disk> Docket<'on_disk> {
     pub fn parents(&self) -> DirstateParents {
         use crate::Node;
         let p1 = Node::try_from(&self.header.parent_1[..USED_NODE_ID_BYTES])
-            .unwrap()
-            .clone();
+            .unwrap();
         let p2 = Node::try_from(&self.header.parent_2[..USED_NODE_ID_BYTES])
-            .unwrap()
-            .clone();
+            .unwrap();
         DirstateParents { p1, p2 }
     }
 
@@ -323,7 +320,7 @@ impl Node {
         read_hg_path(on_disk, self.full_path)
     }
 
-    pub(super) fn base_name_start<'on_disk>(
+    pub(super) fn base_name_start(
         &self,
     ) -> Result<usize, DirstateV2ParseError> {
         let start = self.base_name_start.get();
@@ -356,7 +353,7 @@ impl Node {
         ))
     }
 
-    pub(super) fn has_copy_source<'on_disk>(&self) -> bool {
+    pub(super) fn has_copy_source(&self) -> bool {
         self.copy_source.start.get() != 0
     }
 
@@ -415,12 +412,12 @@ impl Node {
         } else {
             libc::S_IFREG
         };
-        let permisions = if self.flags().contains(Flags::MODE_EXEC_PERM) {
+        let permissions = if self.flags().contains(Flags::MODE_EXEC_PERM) {
             0o755
         } else {
             0o644
         };
-        (file_type | permisions).into()
+        file_type | permissions
     }
 
     fn mtime(&self) -> Result<TruncatedTimestamp, DirstateV2ParseError> {
@@ -600,32 +597,6 @@ where
             DirstateV2ParseError::new(format!("when reading a slice, {}", e))
         })
         .map(|(slice, _rest)| slice)
-}
-
-pub(crate) fn for_each_tracked_path<'on_disk>(
-    on_disk: &'on_disk [u8],
-    metadata: &[u8],
-    mut f: impl FnMut(&'on_disk HgPath),
-) -> Result<(), DirstateV2ParseError> {
-    let (meta, _) = TreeMetadata::from_bytes(metadata).map_err(|e| {
-        DirstateV2ParseError::new(format!("when parsing tree metadata, {}", e))
-    })?;
-    fn recur<'on_disk>(
-        on_disk: &'on_disk [u8],
-        nodes: ChildNodes,
-        f: &mut impl FnMut(&'on_disk HgPath),
-    ) -> Result<(), DirstateV2ParseError> {
-        for node in read_nodes(on_disk, nodes)? {
-            if let Some(entry) = node.entry()? {
-                if entry.tracked() {
-                    f(node.full_path(on_disk)?)
-                }
-            }
-            recur(on_disk, node.children, f)?
-        }
-        Ok(())
-    }
-    recur(on_disk, meta.root_nodes, &mut f)
 }
 
 /// Returns new data and metadata, together with whether that data should be

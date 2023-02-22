@@ -980,7 +980,8 @@ def _getlocal(ui, rpath, wd=None):
             lui.readconfig(os.path.join(path, b".hg", b"hgrc-not-shared"), path)
 
     if rpath:
-        path = urlutil.get_clone_path(lui, rpath)[0]
+        path_obj = urlutil.get_clone_path_obj(lui, rpath)
+        path = path_obj.rawloc
         lui = ui.copy()
         if rcutil.use_repo_hgrc():
             _readsharedsourceconfig(lui, path)
