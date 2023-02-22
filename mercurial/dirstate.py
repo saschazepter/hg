@@ -116,10 +116,13 @@ def requires_changing_any(func):
     return check_invalidated(wrap)
 
 
-def requires_not_changing_parents(func):
+def requires_changing_files_or_status(func):
     def wrap(self, *args, **kwargs):
-        if self.is_changing_parents:
-            msg = 'calling `%s` inside of a changing_parents context'
+        if not (self.is_changing_files or self._running_status > 0):
+            msg = (
+                'calling `%s` outside of a changing_files '
+                'or running_status context'
+            )
             msg %= func.__name__
             raise error.ProgrammingError(msg)
         return func(self, *args, **kwargs)
@@ -698,7 +701,7 @@ class dirstate:
             self._dirty_tracked_set = True
         return ret
 
-    @requires_not_changing_parents
+    @requires_changing_files_or_status
     def set_clean(self, filename, parentfiledata):
         """record that the current state of the file on disk is known to be clean"""
         self._dirty = True
@@ -707,7 +710,7 @@ class dirstate:
         (mode, size, mtime) = parentfiledata
         self._map.set_clean(filename, mode, size, mtime)
 
-    @requires_not_changing_parents
+    @requires_changing_files_or_status
     def set_possibly_dirty(self, filename):
         """record that the current state of the file on disk is unknown"""
         self._dirty = True
