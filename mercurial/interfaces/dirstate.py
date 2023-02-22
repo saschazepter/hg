@@ -166,13 +166,6 @@ class idirstate(interfaceutil.Interface):
     def rebuild(parent, allfiles, changedfiles=None):
         pass
 
-    def identity():
-        """Return identity of dirstate itself to detect changing in storage
-
-        If identity of previous dirstate is equal to this, writing
-        changes based on the former dirstate out can keep consistency.
-        """
-
     def write(tr):
         pass
 
