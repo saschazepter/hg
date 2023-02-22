@@ -213,9 +213,9 @@ class dirstate:
         This context is not mutally exclusive with the `changing_*` context. It
         also do not warrant for the `wlock` to be taken.
 
-        If the wlock is taken, this context will (in the future) behave in a
-        simple way, and ensure the data are scheduled for write when leaving
-        the top level context.
+        If the wlock is taken, this context will behave in a simple way, and
+        ensure the data are scheduled for write when leaving the top level
+        context.
 
         If the lock is not taken, it will only warrant that the data are either
         committed (written) and rolled back (invalidated) when exiting the top
@@ -235,8 +235,10 @@ class dirstate:
         E1: elif lock was acquired → write the changes
         E2: else → discard the changes
         """
+        has_lock = repo.currentwlock() is not None
         is_changing = self.is_changing_any
-        has_tr = repo.currenttransaction is not None
+        tr = repo.currenttransaction()
+        has_tr = tr is not None
         nested = bool(self._running_status)
 
         first_and_alone = not (is_changing or has_tr or nested)
@@ -248,6 +250,8 @@ class dirstate:
                 msg = "entering a status context, but dirstate is already dirty"
                 raise error.ProgrammingError(msg)
 
+        should_write = has_lock and not (nested or is_changing)
+
         self._running_status += 1
         try:
             yield
@@ -257,7 +261,12 @@ class dirstate:
         finally:
             self._running_status -= 1
             if self._invalidated_context:
+                should_write = False
                 self.invalidate()
+
+        if should_write:
+            assert repo.currenttransaction() is tr
+            self.write(tr)
 
     @contextlib.contextmanager
     @check_invalidated
