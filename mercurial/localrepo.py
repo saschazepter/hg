@@ -1750,8 +1750,10 @@ class localrepository:
     def manifestlog(self):
         return self.store.manifestlog(self, self._storenarrowmatch)
 
-    @repofilecache(b'dirstate')
+    @unfilteredpropertycache
     def dirstate(self):
+        # XXX This is known to be missing smarter caching. Check the next
+        # changesets
         return self._makedirstate()
 
     def _makedirstate(self):
@@ -2965,13 +2967,9 @@ class localrepository:
         rereads the dirstate. Use dirstate.invalidate() if you want to
         explicitly read the dirstate again (i.e. restoring it to a previous
         known good state)."""
-        if hasunfilteredcache(self, 'dirstate'):
-            for k in self.dirstate._filecache:
-                try:
-                    delattr(self.dirstate, k)
-                except AttributeError:
-                    pass
-            delattr(self.unfiltered(), 'dirstate')
+        unfi = self.unfiltered()
+        if 'dirstate' in unfi.__dict__:
+            del unfi.__dict__['dirstate']
 
     def invalidate(self, clearfilecache=False):
         """Invalidates both store and non-store parts other than dirstate
@@ -2983,9 +2981,6 @@ class localrepository:
         """
         unfiltered = self.unfiltered()  # all file caches are stored unfiltered
         for k in list(self._filecache.keys()):
-            # dirstate is invalidated separately in invalidatedirstate()
-            if k == b'dirstate':
-                continue
             if (
                 k == b'changelog'
                 and self.currenttransaction()
@@ -3124,7 +3119,9 @@ class localrepository:
                     self.ui.develwarn(msg)
                 self.dirstate.write(None)
 
-            self._filecache[b'dirstate'].refresh()
+            unfi = self.unfiltered()
+            if 'dirstate' in unfi.__dict__:
+                del unfi.__dict__['dirstate']
 
         l = self._lock(
             self.vfs,
