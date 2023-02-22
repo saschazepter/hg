@@ -211,3 +211,57 @@ updating working copy
 
   $ hg purge --no-confirm
   $ hg up --quiet babar
+
+Activating a bookmark
+---------------------
+(without going through the bookmark command)
+
+Show the activation/desactivation pattern that exist without taking the store
+lock.
+
+  $ hg log -r . -T '= {activebookmark} =\n'
+  =  =
+  $ hg up bar
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (activating bookmark bar)
+  $ hg log -r . -T '= {activebookmark} =\n'
+  = bar =
+  $ hg up .
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (leaving bookmark bar)
+  $ hg log -r . -T '= {activebookmark} =\n'
+  =  =
+
+Activating the bookmark during a transaction
+
+  $ hg up . --quiet
+  $ hg log -r . -T '= {activebookmark} =\n'
+  =  =
+  $ hg phase --public --rev 0 2> ../log.err &
+  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/transaction-waiting
+  $ hg up bar
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (activating bookmark bar)
+  $ hg log -r . -T '= {activebookmark} =\n'
+  = bar =
+  $ touch $TESTTMP/transaction-continue
+  $ wait
+  $ hg log -r . -T '= {activebookmark} =\n'
+  = bar =
+
+Deactivating the bookmark
+
+  $ hg up bar --quiet
+  $ hg log -r . -T '= {activebookmark} =\n'
+  = bar =
+  $ hg phase --public --rev 0 2> ../log.err &
+  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/transaction-waiting
+  $ hg up .
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (leaving bookmark bar)
+  $ hg log -r . -T '= {activebookmark} =\n'
+  =  =
+  $ touch $TESTTMP/transaction-continue
+  $ wait
+  $ hg log -r . -T '= {activebookmark} =\n'
+  =  =
