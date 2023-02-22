@@ -137,3 +137,21 @@ not the `wlock`, then get aborted on a signal-file.
   transaction abort!
   rollback completed
   abort: pretxnclose.test hook exited with status 1
+
+Actual testing
+==============
+
+Changing tracked file
+---------------------
+
+  $ hg status
+  $ hg phase --public --rev 0 2> ../log.err &
+  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/transaction-waiting
+  $ hg forget default_a
+  $ hg status
+  R default_a
+  $ touch $TESTTMP/transaction-continue
+  $ wait
+  $ hg status
+  R default_a (missing-correct-output !)
+  $ hg revert --all --quiet
