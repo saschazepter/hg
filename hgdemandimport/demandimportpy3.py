@@ -23,8 +23,6 @@ This also has some limitations compared to the Python 2 implementation:
   enabled.
 """
 
-# This line is unnecessary, but it satisfies test-check-py3-compat.t.
-
 import contextlib
 import importlib.util
 import sys
@@ -39,10 +37,16 @@ class _lazyloaderex(importlib.util.LazyLoader):
     the ignore list.
     """
 
+    _HAS_DYNAMIC_ATTRIBUTES = True  # help pytype not flag self.loader
+
     def exec_module(self, module):
         """Make the module load lazily."""
         with tracing.log('demandimport %s', module):
             if _deactivated or module.__name__ in ignores:
+                # Reset the loader on the module as super() does (issue6725)
+                module.__spec__.loader = self.loader
+                module.__loader__ = self.loader
+
                 self.loader.exec_module(module)
             else:
                 super().exec_module(module)

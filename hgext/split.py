@@ -134,7 +134,7 @@ def dosplit(ui, repo, tr, ctx, opts):
     # Set working parent to ctx.p1(), and keep working copy as ctx's content
     if ctx.node() != repo.dirstate.p1():
         hg.clean(repo, ctx.node(), show_stats=False)
-    with repo.dirstate.parentchange():
+    with repo.dirstate.changing_parents(repo):
         scmutil.movedirstate(repo, ctx.p1())
 
     # Any modified, added, removed, deleted result means split is incomplete

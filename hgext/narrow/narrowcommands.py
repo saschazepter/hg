@@ -320,7 +320,7 @@ def _narrow(
                 repo.store.markremoved(f)
 
             ui.status(_(b'deleting unwanted files from working copy\n'))
-            with repo.dirstate.parentchange():
+            with repo.dirstate.changing_parents(repo):
                 narrowspec.updateworkingcopy(repo, assumeclean=True)
                 narrowspec.copytoworkingcopy(repo)
 
@@ -380,7 +380,7 @@ def _widen(
         if ellipsesremote:
             ds = repo.dirstate
             p1, p2 = ds.p1(), ds.p2()
-            with ds.parentchange():
+            with ds.changing_parents(repo):
                 ds.setparents(repo.nullid, repo.nullid)
         if isoldellipses:
             with wrappedextraprepare:
@@ -416,13 +416,15 @@ def _widen(
                     repo, trmanager.transaction, source=b'widen'
                 )
                 # TODO: we should catch error.Abort here
-                bundle2.processbundle(repo, bundle, op=op)
+                bundle2.processbundle(repo, bundle, op=op, remote=remote)
 
         if ellipsesremote:
-            with ds.parentchange():
+            with ds.changing_parents(repo):
                 ds.setparents(p1, p2)
 
-        with repo.transaction(b'widening'), repo.dirstate.parentchange():
+        with repo.transaction(b'widening'), repo.dirstate.changing_parents(
+            repo
+        ):
             repo.setnewnarrowpats()
             narrowspec.updateworkingcopy(repo)
             narrowspec.copytoworkingcopy(repo)
@@ -591,7 +593,7 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
     if update_working_copy:
         with repo.wlock(), repo.lock(), repo.transaction(
             b'narrow-wc'
-        ), repo.dirstate.parentchange():
+        ), repo.dirstate.changing_parents(repo):
             narrowspec.updateworkingcopy(repo)
             narrowspec.copytoworkingcopy(repo)
         return 0
@@ -606,10 +608,9 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
         # Find the revisions we have in common with the remote. These will
         # be used for finding local-only changes for narrowing. They will
         # also define the set of revisions to update for widening.
-        r = urlutil.get_unique_pull_path(b'tracked', repo, ui, remotepath)
-        url, branches = r
-        ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(url))
-        remote = hg.peer(repo, opts, url)
+        path = urlutil.get_unique_pull_path_obj(b'tracked', ui, remotepath)
+        ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(path.loc))
+        remote = hg.peer(repo, opts, path)
 
         try:
             # check narrow support before doing anything if widening needs to be

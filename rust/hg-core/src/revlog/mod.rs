@@ -1,5 +1,22 @@
+// Copyright 2018-2023 Georges Racinet <georges.racinet@octobus.net>
+//           and Mercurial contributors
+//
+// This software may be used and distributed according to the terms of the
+// GNU General Public License version 2 or any later version.
+//! Mercurial concepts for handling revision history
+
+pub mod node;
+pub mod nodemap;
+mod nodemap_docket;
+pub mod path_encode;
+pub use node::{FromHexError, Node, NodePrefix};
+pub mod changelog;
+pub mod filelog;
+pub mod index;
+pub mod manifest;
+pub mod patch;
+
 use std::borrow::Cow;
-use std::convert::TryFrom;
 use std::io::Read;
 use std::ops::Deref;
 use std::path::Path;
@@ -8,16 +25,66 @@ use flate2::read::ZlibDecoder;
 use sha1::{Digest, Sha1};
 use zstd;
 
+use self::node::{NODE_BYTES_LENGTH, NULL_NODE};
+use self::nodemap_docket::NodeMapDocket;
 use super::index::Index;
-use super::node::{NodePrefix, NODE_BYTES_LENGTH, NULL_NODE};
-use super::nodemap;
 use super::nodemap::{NodeMap, NodeMapError};
-use super::nodemap_docket::NodeMapDocket;
-use super::patch;
 use crate::errors::HgError;
-use crate::revlog::Revision;
 use crate::vfs::Vfs;
-use crate::{Node, NULL_REVISION};
+
+/// Mercurial revision numbers
+///
+/// As noted in revlog.c, revision numbers are actually encoded in
+/// 4 bytes, and are liberally converted to ints, whence the i32
+pub type Revision = i32;
+
+/// Marker expressing the absence of a parent
+///
+/// Independently of the actual representation, `NULL_REVISION` is guaranteed
+/// to be smaller than all existing revisions.
+pub const NULL_REVISION: Revision = -1;
+
+/// Same as `mercurial.node.wdirrev`
+///
+/// This is also equal to `i32::max_value()`, but it's better to spell
+/// it out explicitely, same as in `mercurial.node`
+#[allow(clippy::unreadable_literal)]
+pub const WORKING_DIRECTORY_REVISION: Revision = 0x7fffffff;
+
+pub const WORKING_DIRECTORY_HEX: &str =
+    "ffffffffffffffffffffffffffffffffffffffff";
+
+/// The simplest expression of what we need of Mercurial DAGs.
+pub trait Graph {
+    /// Return the two parents of the given `Revision`.
+    ///
+    /// Each of the parents can be independently `NULL_REVISION`
+    fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError>;
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum GraphError {
+    ParentOutOfRange(Revision),
+    WorkingDirectoryUnsupported,
+}
+
+/// The Mercurial Revlog Index
+///
+/// This is currently limited to the minimal interface that is needed for
+/// the [`nodemap`](nodemap/index.html) module
+pub trait RevlogIndex {
+    /// Total number of Revisions referenced in this index
+    fn len(&self) -> usize;
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Return a reference to the Node or `None` if rev is out of bounds
+    ///
+    /// `NULL_REVISION` is not considered to be out of bounds.
+    fn node(&self, rev: Revision) -> Option<&Node>;
+}
 
 const REVISION_FLAG_CENSORED: u16 = 1 << 15;
 const REVISION_FLAG_ELLIPSIS: u16 = 1 << 14;
@@ -112,9 +179,7 @@ impl Revlog {
                 Some(Box::new(data_mmap))
             };
 
-        let nodemap = if index.is_inline() {
-            None
-        } else if !use_nodemap {
+        let nodemap = if index.is_inline() || !use_nodemap {
             None
         } else {
             NodeMapDocket::read_from_file(store_vfs, index_path)?.map(
@@ -177,10 +242,11 @@ impl Revlog {
         // optimize these cases.
         let mut found_by_prefix = None;
         for rev in (0..self.len() as Revision).rev() {
-            let index_entry =
-                self.index.get_entry(rev).ok_or(HgError::corrupted(
+            let index_entry = self.index.get_entry(rev).ok_or_else(|| {
+                HgError::corrupted(
                     "revlog references a revision not in the index",
-                ))?;
+                )
+            })?;
             if node == *index_entry.hash() {
                 return Ok(rev);
             }
@@ -233,7 +299,7 @@ impl Revlog {
             None => &NULL_NODE,
         };
 
-        &hash(data, h1.as_bytes(), h2.as_bytes()) == expected
+        hash(data, h1.as_bytes(), h2.as_bytes()) == expected
     }
 
     /// Build the full data of a revision out its snapshot
@@ -256,8 +322,8 @@ impl Revlog {
 
     /// Return the revlog data.
     fn data(&self) -> &[u8] {
-        match self.data_bytes {
-            Some(ref data_bytes) => &data_bytes,
+        match &self.data_bytes {
+            Some(data_bytes) => data_bytes,
             None => panic!(
                 "forgot to load the data or trying to access inline data"
             ),
@@ -518,7 +584,7 @@ impl<'a> RevlogEntry<'a> {
         } else {
             let cap = self.uncompressed_len.max(0) as usize;
             let mut buf = vec![0; cap];
-            let len = zstd::block::decompress_to_buffer(self.bytes, &mut buf)
+            let len = zstd::bulk::decompress_to_buffer(self.bytes, &mut buf)
                 .map_err(|e| corrupted(e.to_string()))?;
             if len != self.uncompressed_len as usize {
                 Err(corrupted("uncompressed length does not match"))

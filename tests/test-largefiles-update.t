@@ -771,14 +771,26 @@ wdir(), but a matching revision is detected.
   $ hg log -qr 'file("set:exec()")'
   9:be1b433a65b1
 
-Test a fatal error interrupting an update. Verify that status report dirty
-files correctly after an interrupted update. Also verify that checking all
-hashes reveals it isn't clean.
+Test a fatal error interrupting an update
+-----------------------------------------
+
+In a previous version this test was tasked to:
+| verify that status report dirty files correctly after an interrupted
+| update. Also verify that checking all hashes reveals it isn't clean.
+
+In the mean time improvement to the update logic means it is much harder to get the dirstate file written too early. So the original intend seems "fine".
+
+However, it shows another error where the standin file for large1 seems to be
+silently updated, confusing the general logic. This seems to have been broken
+before our updates and the test is marked as such.
 
 Start with clean dirstates:
   $ hg up --quiet --clean --rev "8^"
   $ sleep 1
+  $ cat large1
+  large1 in #3
   $ hg st
+
 Update standins without updating largefiles - large1 is modified and largeX is
 added:
   $ cat << EOF > ../crashupdatelfiles.py
@@ -790,18 +802,25 @@ added:
   $ hg up -Cr "8" --config extensions.crashupdatelfiles=../crashupdatelfiles.py
   [254]
 Check large1 content and status ... and that update will undo modifications:
+  $ hg id
+  d65e59e952a9+ (known-bad-output !)
+  d65e59e952a9 (missing-correct-output !)
   $ cat large1
   large1 in #3
   $ hg st
-  M large1
-  ! largeX
-  $ hg up -Cr .
+  $ hg up -Cr 8
   getting changed largefiles
-  2 largefiles updated, 0 removed
+  1 largefiles updated, 0 removed (known-bad-output !)
+  2 largefiles updated, 0 removed (missing-correct-output !)
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cat large1
-  manually modified before 'hg transplant --continue'
+  large1 in #3 (known-bad-output !)
+  manually modified before 'hg transplant --continue' (missing-correct-output !)
   $ hg st
+  M large1 (known-bad-output !)
+
+  $ hg revert --all --no-backup
+  reverting .hglf/large1 (known-bad-output !)
 Force largefiles rehashing and check that all changes have been caught by
 status and update:
   $ rm .hg/largefiles/dirstate

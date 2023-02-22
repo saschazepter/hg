@@ -1,10 +1,10 @@
 use crate::errors::HgError;
 use crate::repo::Repo;
 use crate::revlog::path_encode::path_encode;
-use crate::revlog::revlog::RevlogEntry;
-use crate::revlog::revlog::{Revlog, RevlogError};
 use crate::revlog::NodePrefix;
 use crate::revlog::Revision;
+use crate::revlog::RevlogEntry;
+use crate::revlog::{Revlog, RevlogError};
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
@@ -49,7 +49,7 @@ impl Filelog {
         file_rev: Revision,
     ) -> Result<FilelogRevisionData, RevlogError> {
         let data: Vec<u8> = self.revlog.get_rev_data(file_rev)?.into_owned();
-        Ok(FilelogRevisionData(data.into()))
+        Ok(FilelogRevisionData(data))
     }
 
     /// The given node ID is that of the file as found in a filelog, not of a
@@ -161,7 +161,7 @@ impl FilelogEntry<'_> {
         // this `FilelogEntry` does not have such metadata:
         let file_data_len = uncompressed_len;
 
-        return file_data_len != other_len;
+        file_data_len != other_len
     }
 
     pub fn data(&self) -> Result<FilelogRevisionData, HgError> {

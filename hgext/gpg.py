@@ -352,7 +352,8 @@ def _dosign(ui, repo, *revs, **opts):
     sigsfile.close()
 
     if b'.hgsigs' not in repo.dirstate:
-        repo[None].add([b".hgsigs"])
+        with repo.dirstate.changing_files(repo):
+            repo[None].add([b".hgsigs"])
 
     if opts[b"no_commit"]:
         return

@@ -38,12 +38,7 @@ one pull
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd local
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 2 changes to 2 files
+  $ hg verify -q
   $ cat bar
   foo
   $ cd ../remote
@@ -134,13 +129,7 @@ test with "/" URI (issue747) and subrepo
   new changesets be090ea66256:322ea90975df
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd local2
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 3 changes to 3 files
-  checking subrepo links
+  $ hg verify -q
   $ cat a
   a
   $ hg paths
@@ -155,12 +144,7 @@ test with empty repo (issue965)
   updating to branch default
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd local3
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 0 changesets with 0 changes to 0 files
+  $ hg verify -q
   $ hg paths
   default = static-http://localhost:$HGPORT/remotempty
 

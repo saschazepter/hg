@@ -664,8 +664,9 @@ def _tag(
 
     repo.invalidatecaches()
 
-    if b'.hgtags' not in repo.dirstate:
-        repo[None].add([b'.hgtags'])
+    with repo.dirstate.changing_files(repo):
+        if b'.hgtags' not in repo.dirstate:
+            repo[None].add([b'.hgtags'])
 
     m = matchmod.exact([b'.hgtags'])
     tagnode = repo.commit(

@@ -48,7 +48,7 @@ impl Vfs<'_> {
         match self.read(relative_path) {
             Err(e) => match &e {
                 HgError::IoError { error, .. } => match error.kind() {
-                    ErrorKind::NotFound => return Ok(None),
+                    ErrorKind::NotFound => Ok(None),
                     _ => Err(e),
                 },
                 _ => Err(e),

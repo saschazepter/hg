@@ -52,7 +52,7 @@ Test largefile URL
   $ hg -R server debuglfput null.txt
   a57b57b39ee4dc3da1e03526596007f480ecdbe8
 
-  $ hg --traceback debugdownload "largefile://a57b57b39ee4dc3da1e03526596007f480ecdbe8" --config paths.default=http://localhost:$HGPORT/
+  $ hg debugdownload "largefile://a57b57b39ee4dc3da1e03526596007f480ecdbe8" --config paths.default=http://localhost:$HGPORT/
   1 0000000000000000000000000000000000000000
 
 from within a repository

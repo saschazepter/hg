@@ -19,8 +19,10 @@ def addcommit(name, time):
     f = open(name, 'wb')
     f.write(b'%s\n' % name)
     f.close()
-    repo[None].add([name])
-    commit(name, time)
+    with repo.wlock():
+        with repo.dirstate.changing_files(repo):
+            repo[None].add([name])
+        commit(name, time)
 
 
 def update(rev):

@@ -8,7 +8,7 @@ use crate::errors::{HgError, IoResultExt};
 use crate::lock::{try_with_lock_no_wait, LockError};
 use crate::manifest::{Manifest, Manifestlog};
 use crate::revlog::filelog::Filelog;
-use crate::revlog::revlog::RevlogError;
+use crate::revlog::RevlogError;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
@@ -68,9 +68,9 @@ impl Repo {
                 return Ok(ancestor.to_path_buf());
             }
         }
-        return Err(RepoError::NotFound {
+        Err(RepoError::NotFound {
             at: current_directory,
-        });
+        })
     }
 
     /// Find a repository, either at the given path (which must contain a `.hg`
@@ -87,13 +87,11 @@ impl Repo {
     ) -> Result<Self, RepoError> {
         if let Some(root) = explicit_path {
             if is_dir(root.join(".hg"))? {
-                Self::new_at_path(root.to_owned(), config)
+                Self::new_at_path(root, config)
             } else if is_file(&root)? {
                 Err(HgError::unsupported("bundle repository").into())
             } else {
-                Err(RepoError::NotFound {
-                    at: root.to_owned(),
-                })
+                Err(RepoError::NotFound { at: root })
             }
         } else {
             let root = Self::find_repo_root()?;
@@ -108,9 +106,8 @@ impl Repo {
     ) -> Result<Self, RepoError> {
         let dot_hg = working_directory.join(".hg");
 
-        let mut repo_config_files = Vec::new();
-        repo_config_files.push(dot_hg.join("hgrc"));
-        repo_config_files.push(dot_hg.join("hgrc-not-shared"));
+        let mut repo_config_files =
+            vec![dot_hg.join("hgrc"), dot_hg.join("hgrc-not-shared")];
 
         let hg_vfs = Vfs { base: &dot_hg };
         let mut reqs = requirements::load_if_exists(hg_vfs)?;
@@ -254,7 +251,7 @@ impl Repo {
             .hg_vfs()
             .read("dirstate")
             .io_not_found_as_none()?
-            .unwrap_or(Vec::new()))
+            .unwrap_or_default())
     }
 
     pub fn dirstate_parents(&self) -> Result<DirstateParents, HgError> {
@@ -277,8 +274,7 @@ impl Repo {
                 .set(Some(docket.uuid.to_owned()));
             docket.parents()
         } else {
-            crate::dirstate::parsers::parse_dirstate_parents(&dirstate)?
-                .clone()
+            *crate::dirstate::parsers::parse_dirstate_parents(&dirstate)?
         };
         self.dirstate_parents.set(parents);
         Ok(parents)

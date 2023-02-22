@@ -32,7 +32,7 @@ impl DirstateParents {
     };
 
     pub fn is_merge(&self) -> bool {
-        return !(self.p2 == NULL_NODE);
+        !(self.p2 == NULL_NODE)
     }
 }
 

@@ -101,4 +101,5 @@ Checking that repository has all the required data and not broken
   checking directory manifests (tree !)
   crosschecking files in changesets and manifests
   checking files
+  checking dirstate
   checked 40 changesets with 1 changes to 1 files

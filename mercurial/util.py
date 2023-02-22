@@ -60,6 +60,7 @@ from .utils import (
 
 if pycompat.TYPE_CHECKING:
     from typing import (
+        Iterable,
         Iterator,
         List,
         Optional,
@@ -642,12 +643,12 @@ class observedbufferedinputpipe(bufferedinputpipe):
     ``read()`` and ``readline()``.
     """
 
-    def _fillbuffer(self):
-        res = super(observedbufferedinputpipe, self)._fillbuffer()
+    def _fillbuffer(self, size=_chunksize):
+        res = super(observedbufferedinputpipe, self)._fillbuffer(size=size)
 
         fn = getattr(self._input._observer, 'osread', None)
         if fn:
-            fn(res, _chunksize)
+            fn(res, size)
 
         return res
 
@@ -2542,6 +2543,7 @@ class atomictempfile:
         # delegated methods
         self.read = self._fp.read
         self.write = self._fp.write
+        self.writelines = self._fp.writelines
         self.seek = self._fp.seek
         self.tell = self._fp.tell
         self.fileno = self._fp.fileno
@@ -2909,7 +2911,7 @@ def iterfile(fp):
 
 
 def iterlines(iterator):
-    # type: (Iterator[bytes]) -> Iterator[bytes]
+    # type: (Iterable[bytes]) -> Iterator[bytes]
     for chunk in iterator:
         for line in chunk.splitlines():
             yield line
@@ -3212,10 +3214,7 @@ def uvarintdecodestream(fh):
 
     The passed argument is anything that has a ``.read(N)`` method.
 
-    >>> try:
-    ...     from StringIO import StringIO as BytesIO
-    ... except ImportError:
-    ...     from io import BytesIO
+    >>> from io import BytesIO
     >>> uvarintdecodestream(BytesIO(b'\\x00'))
     0
     >>> uvarintdecodestream(BytesIO(b'\\x01'))

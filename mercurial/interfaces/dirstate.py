@@ -12,6 +12,7 @@ class idirstate(interfaceutil.Interface):
         sparsematchfn,
         nodeconstants,
         use_dirstate_v2,
+        use_tracked_hint=False,
     ):
         """Create a new dirstate object.
 
@@ -23,6 +24,15 @@ class idirstate(interfaceutil.Interface):
     # TODO: all these private methods and attributes should be made
     # public or removed from the interface.
     _ignore = interfaceutil.Attribute("""Matcher for ignored files.""")
+    is_changing_any = interfaceutil.Attribute(
+        """True if any changes in progress."""
+    )
+    is_changing_parents = interfaceutil.Attribute(
+        """True if parents changes in progress."""
+    )
+    is_changing_files = interfaceutil.Attribute(
+        """True if file tracking changes in progress."""
+    )
 
     def _ignorefiles():
         """Return a list of files containing patterns to ignore."""
@@ -34,7 +44,7 @@ class idirstate(interfaceutil.Interface):
     _checkexec = interfaceutil.Attribute("""Callable for checking exec bits.""")
 
     @contextlib.contextmanager
-    def parentchange():
+    def changing_parents(repo):
         """Context manager for handling dirstate parents.
 
         If an exception occurs in the scope of the context manager,
@@ -42,16 +52,26 @@ class idirstate(interfaceutil.Interface):
         released.
         """
 
-    def pendingparentchange():
-        """Returns true if the dirstate is in the middle of a set of changes
-        that modify the dirstate parent.
+    @contextlib.contextmanager
+    def changing_files(repo):
+        """Context manager for handling dirstate files.
+
+        If an exception occurs in the scope of the context manager,
+        the incoherent dirstate won't be written when wlock is
+        released.
         """
 
     def hasdir(d):
         pass
 
     def flagfunc(buildfallback):
-        pass
+        """build a callable that returns flags associated with a filename
+
+        The information is extracted from three possible layers:
+        1. the file system if it supports the information
+        2. the "fallback" information stored in the dirstate if any
+        3. a more expensive mechanism inferring the flags from the parents.
+        """
 
     def getcwd():
         """Return the path from which a canonical path is calculated.
@@ -61,11 +81,11 @@ class idirstate(interfaceutil.Interface):
         used to get real file paths. Use vfs functions instead.
         """
 
-    def get_entry(path):
-        """return a DirstateItem for the associated path"""
-
     def pathto(f, cwd=None):
         pass
+
+    def get_entry(path):
+        """return a DirstateItem for the associated path"""
 
     def __contains__(key):
         """Check if bytestring `key` is known to the dirstate."""
@@ -96,7 +116,7 @@ class idirstate(interfaceutil.Interface):
     def setparents(p1, p2=None):
         """Set dirstate parents to p1 and p2.
 
-        When moving from two parents to one, 'm' merged entries a
+        When moving from two parents to one, "merged" entries a
         adjusted to normal and previous copy records discarded and
         returned by the call.
 
@@ -147,7 +167,7 @@ class idirstate(interfaceutil.Interface):
         pass
 
     def identity():
-        """Return identity of dirstate it to detect changing in storage
+        """Return identity of dirstate itself to detect changing in storage
 
         If identity of previous dirstate is equal to this, writing
         changes based on the former dirstate out can keep consistency.
@@ -200,11 +220,7 @@ class idirstate(interfaceutil.Interface):
         return files in the dirstate (in whatever state) filtered by match
         """
 
-    def savebackup(tr, backupname):
-        '''Save current dirstate into backup file'''
-
-    def restorebackup(tr, backupname):
-        '''Restore dirstate by backup file'''
-
-    def clearbackup(tr, backupname):
-        '''Clear backup file'''
+    def verify(m1, m2, p1, narrow_matcher=None):
+        """
+        check the dirstate contents against the parent manifest and yield errors
+        """

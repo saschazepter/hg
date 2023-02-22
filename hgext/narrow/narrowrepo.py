@@ -19,8 +19,8 @@ def wraprepo(repo):
             dirstate = super(narrowrepository, self)._makedirstate()
             return narrowdirstate.wrapdirstate(self, dirstate)
 
-        def peer(self):
-            peer = super(narrowrepository, self).peer()
+        def peer(self, path=None):
+            peer = super(narrowrepository, self).peer(path=path)
             peer._caps.add(wireprototypes.NARROWCAP)
             peer._caps.add(wireprototypes.ELLIPSESCAP)
             return peer

@@ -182,18 +182,13 @@ break it
   sorting...
   converting...
   4 init
-  ignoring: data/b@1e88685f5ddec574a34c70af492f95b6debc8741: no match found (reporevlogstore !)
+  ignoring: b@1e88685f5ddec574a34c70af492f95b6debc8741: no match found (reporevlogstore !)
   ignoring: data/b/index@1e88685f5dde: no node (reposimplestore !)
   3 changeall
   2 changebagain
   1 merge
   0 moveb
-  $ hg -R fixed verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5 changesets with 5 changes to 3 files
+  $ hg -R fixed verify -q
 
 manifest -r 0
 

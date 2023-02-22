@@ -158,7 +158,7 @@ def findexternaltool(ui, tool):
             continue
         p = util.lookupreg(k, _toolstr(ui, tool, b"regname"))
         if p:
-            p = procutil.findexe(p + _toolstr(ui, tool, b"regappend", b""))
+            p = procutil.findexe(p + _toolstr(ui, tool, b"regappend"))
             if p:
                 return p
     exe = _toolstr(ui, tool, b"executable", tool)
@@ -478,8 +478,9 @@ def _merge(repo, local, other, base, mode):
     """
     Uses the internal non-interactive simple merge algorithm for merging
     files. It will fail if there are any conflicts and leave markers in
-    the partially merged file. Markers will have two sections, one for each side
-    of merge, unless mode equals 'union' which suppresses the markers."""
+    the partially merged file. Markers will have two sections, one for each
+    side of merge, unless mode equals 'union' or 'union-other-first' which
+    suppresses the markers."""
     ui = repo.ui
 
     try:
@@ -510,9 +511,25 @@ def _merge(repo, local, other, base, mode):
 def _iunion(repo, mynode, local, other, base, toolconf, backup):
     """
     Uses the internal non-interactive simple merge algorithm for merging
-    files. It will use both left and right sides for conflict regions.
+    files. It will use both local and other sides for conflict regions by
+    adding local on top of other.
     No markers are inserted."""
     return _merge(repo, local, other, base, b'union')
+
+
+@internaltool(
+    b'union-other-first',
+    fullmerge,
+    _(
+        b"warning: conflicts while merging %s! "
+        b"(edit, then use 'hg resolve --mark')\n"
+    ),
+    precheck=_mergecheck,
+)
+def _iunion_other_first(repo, mynode, local, other, base, toolconf, backup):
+    """
+    Like :union, but add other on top of local."""
+    return _merge(repo, local, other, base, b'union-other-first')
 
 
 @internaltool(

@@ -88,7 +88,7 @@ class bundlerevlog(revlog.revlog):
                     )
 
             if not self.index.has_node(deltabase):
-                raise LookupError(
+                raise error.LookupError(
                     deltabase, self.display_id, _(b'unknown delta base')
                 )
 
@@ -458,8 +458,8 @@ class bundlerepository:
     def cancopy(self):
         return False
 
-    def peer(self):
-        return bundlepeer(self)
+    def peer(self, path=None):
+        return bundlepeer(self, path=path)
 
     def getcwd(self):
         return encoding.getcwd()  # always outside the repo

@@ -307,7 +307,7 @@ error case are ignored
   malformatted run limit entry, missing "-": 500
   ! wall * comb * user * sys * (best of 5) (glob)
   $ hg perfparents --config perf.stub=no --config perf.run-limits='aaa-12, 0.000000001-5'
-  malformatted run limit entry, could not convert string to float: 'aaa': aaa-12 (py3 !)
+  malformatted run limit entry, could not convert string to float: 'aaa': aaa-12
   ! wall * comb * user * sys * (best of 5) (glob)
   $ hg perfparents --config perf.stub=no --config perf.run-limits='12-aaaaaa, 0.000000001-5'
   malformatted run limit entry, invalid literal for int() with base 10: 'aaaaaa': 12-aaaaaa

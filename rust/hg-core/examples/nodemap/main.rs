@@ -3,7 +3,6 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use clap::*;
 use hg::revlog::node::*;
 use hg::revlog::nodemap::*;
 use hg::revlog::*;
@@ -13,7 +12,6 @@ use std::fs::File;
 use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use std::time::Instant;
 
 mod index;
@@ -42,7 +40,7 @@ fn create(index: &Index, path: &Path) -> io::Result<()> {
         nm.insert(index, index.node(rev).unwrap(), rev).unwrap();
     }
     eprintln!("Nodemap constructed in RAM in {:?}", start.elapsed());
-    file.write(&nm.into_readonly_and_added_bytes().1)?;
+    file.write_all(&nm.into_readonly_and_added_bytes().1)?;
     eprintln!("Nodemap written to disk");
     Ok(())
 }
@@ -57,12 +55,7 @@ fn bench(index: &Index, nm: &NodeTree, queries: usize) {
     let len = index.len() as u32;
     let mut rng = rand::thread_rng();
     let nodes: Vec<Node> = (0..queries)
-        .map(|_| {
-            index
-                .node((rng.gen::<u32>() % len) as Revision)
-                .unwrap()
-                .clone()
-        })
+        .map(|_| *index.node((rng.gen::<u32>() % len) as Revision).unwrap())
         .collect();
     if queries < 10 {
         let nodes_hex: Vec<String> =
@@ -86,61 +79,66 @@ fn bench(index: &Index, nm: &NodeTree, queries: usize) {
 }
 
 fn main() {
-    let matches = App::new("Nodemap pure Rust example")
-        .arg(
-            Arg::with_name("REPOSITORY")
-                .help("Path to the repository, always necessary for its index")
-                .required(true),
-        )
-        .arg(
-            Arg::with_name("NODEMAP_FILE")
-                .help("Path to the nodemap file, independent of REPOSITORY")
-                .required(true),
-        )
-        .subcommand(
-            SubCommand::with_name("create")
-                .about("Create NODEMAP_FILE by scanning repository index"),
-        )
-        .subcommand(
-            SubCommand::with_name("query")
-                .about("Query NODEMAP_FILE for PREFIX")
-                .arg(Arg::with_name("PREFIX").required(true)),
-        )
-        .subcommand(
-            SubCommand::with_name("bench")
-                .about(
-                    "Perform #QUERIES random successful queries on NODEMAP_FILE")
-                .arg(Arg::with_name("QUERIES").required(true)),
-        )
-        .get_matches();
+    use clap::{Parser, Subcommand};
 
-    let repo = matches.value_of("REPOSITORY").unwrap();
-    let nm_path = matches.value_of("NODEMAP_FILE").unwrap();
-
-    let index = mmap_index(&Path::new(repo));
-
-    if let Some(_) = matches.subcommand_matches("create") {
-        println!("Creating nodemap file {} for repository {}", nm_path, repo);
-        create(&index, &Path::new(nm_path)).unwrap();
-        return;
+    #[derive(Parser)]
+    #[command()]
+    /// Nodemap pure Rust example
+    struct App {
+        // Path to the repository, always necessary for its index
+        #[arg(short, long)]
+        repository: PathBuf,
+        // Path to the nodemap file, independent of REPOSITORY
+        #[arg(short, long)]
+        nodemap_file: PathBuf,
+        #[command(subcommand)]
+        command: Command,
     }
 
-    let nm = mmap_nodemap(&Path::new(nm_path));
-    if let Some(matches) = matches.subcommand_matches("query") {
-        let prefix = matches.value_of("PREFIX").unwrap();
-        println!(
-            "Querying {} in nodemap file {} of repository {}",
-            prefix, nm_path, repo
-        );
-        query(&index, &nm, prefix);
+    #[derive(Subcommand)]
+    enum Command {
+        /// Create `NODEMAP_FILE` by scanning repository index
+        Create,
+        /// Query `NODEMAP_FILE` for `prefix`
+        Query { prefix: String },
+        /// Perform #`QUERIES` random successful queries on `NODEMAP_FILE`
+        Bench { queries: usize },
     }
-    if let Some(matches) = matches.subcommand_matches("bench") {
-        let queries =
-            usize::from_str(matches.value_of("QUERIES").unwrap()).unwrap();
-        println!(
-            "Doing {} random queries in nodemap file {} of repository {}",
-            queries, nm_path, repo
-        );
-        bench(&index, &nm, queries);
+
+    let app = App::parse();
+
+    let repo = &app.repository;
+    let nm_path = &app.nodemap_file;
+
+    let index = mmap_index(repo);
+    let nm = mmap_nodemap(nm_path);
+
+    match &app.command {
+        Command::Create => {
+            println!(
+                "Creating nodemap file {} for repository {}",
+                nm_path.display(),
+                repo.display()
+            );
+            create(&index, Path::new(nm_path)).unwrap();
+        }
+        Command::Bench { queries } => {
+            println!(
+                "Doing {} random queries in nodemap file {} of repository {}",
+                queries,
+                nm_path.display(),
+                repo.display()
+            );
+            bench(&index, &nm, *queries);
+        }
+        Command::Query { prefix } => {
+            println!(
+                "Querying {} in nodemap file {} of repository {}",
+                prefix,
+                nm_path.display(),
+                repo.display()
+            );
+            query(&index, &nm, prefix);
+        }
     }
 }

@@ -9,6 +9,11 @@
 import io
 import struct
 
+from typing import (
+    List,
+    Tuple,
+)
+
 
 stringio = io.BytesIO
 
@@ -28,7 +33,9 @@ class mpatchError(Exception):
 # temporary string buffers.
 
 
-def _pull(dst, src, l):  # pull l bytes from src
+def _pull(
+    dst: List[Tuple[int, int]], src: List[Tuple[int, int]], l: int
+) -> None:  # pull l bytes from src
     while l:
         f = src.pop()
         if f[0] > l:  # do we need to split?
@@ -39,7 +46,7 @@ def _pull(dst, src, l):  # pull l bytes from src
         l -= f[0]
 
 
-def _move(m, dest, src, count):
+def _move(m: stringio, dest: int, src: int, count: int) -> None:
     """move count bytes from src to dest
 
     The file pointer is left at the end of dest.
@@ -50,7 +57,9 @@ def _move(m, dest, src, count):
     m.write(buf)
 
 
-def _collect(m, buf, list):
+def _collect(
+    m: stringio, buf: int, list: List[Tuple[int, int]]
+) -> Tuple[int, int]:
     start = buf
     for l, p in reversed(list):
         _move(m, buf, p, l)
@@ -58,7 +67,7 @@ def _collect(m, buf, list):
     return (buf - start, start)
 
 
-def patches(a, bins):
+def patches(a: bytes, bins: List[bytes]) -> bytes:
     if not bins:
         return a
 
@@ -111,7 +120,7 @@ def patches(a, bins):
     return m.read(t[0])
 
 
-def patchedsize(orig, delta):
+def patchedsize(orig: int, delta: bytes) -> int:
     outlen, last, bin = 0, 0, 0
     binend = len(delta)
     data = 12

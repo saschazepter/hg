@@ -560,6 +560,12 @@ Close branch
   close=1
   phase=secret
 
+`hg amend --draft` sets phase to draft
+
+  $ hg amend --draft -m declassified
+  $ hg log --limit 1 -T 'phase={phase}\n'
+  phase=draft
+
   $ cd ..
 
 Corner case of amend from issue6157:

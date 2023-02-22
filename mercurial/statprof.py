@@ -1049,7 +1049,7 @@ def main(argv=None):
     # process options
     try:
         opts, args = pycompat.getoptb(
-            sys.argv[optstart:],
+            pycompat.sysargv[optstart:],
             b"hl:f:o:p:",
             [b"help", b"limit=", b"file=", b"output-file=", b"script-path="],
         )

@@ -7,13 +7,11 @@
 
 
 import abc
+import builtins
 import re
-import sys
 
 ####################
 # for Python3 compatibility (almost comes from mercurial/pycompat.py)
-
-ispy3 = sys.version_info[0] >= 3
 
 
 def identity(a):
@@ -38,27 +36,19 @@ def rapply(f, xs):
     return _rapply(f, xs)
 
 
-if ispy3:
-    import builtins
-
-    def bytestr(s):
-        # tiny version of pycompat.bytestr
-        return s.encode('latin1')
-
-    def sysstr(s):
-        if isinstance(s, builtins.str):
-            return s
-        return s.decode('latin-1')
-
-    def opentext(f):
-        return open(f, 'r')
+def bytestr(s):
+    # tiny version of pycompat.bytestr
+    return s.encode('latin1')
 
 
-else:
-    bytestr = str
-    sysstr = identity
+def sysstr(s):
+    if isinstance(s, builtins.str):
+        return s
+    return s.decode('latin-1')
 
-    opentext = open
+
+def opentext(f):
+    return open(f, 'r')
 
 
 def b2s(x):

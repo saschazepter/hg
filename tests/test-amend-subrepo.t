@@ -190,6 +190,7 @@ broken repositories will refuse to push
   checking manifests
   crosschecking files in changesets and manifests
   checking files
+  checking dirstate
   checked 5 changesets with 12 changes to 4 files
   checking subrepo links
   subrepo 't' not found in revision 04aa62396ec6
