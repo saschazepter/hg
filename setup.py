@@ -337,6 +337,8 @@ def _try_get_version():
     pieces = sysstr(hg.run(cmd)).split()
     numerictags = [t for t in pieces if t[0:1].isdigit()]
     hgid = sysstr(hg.run(['id', '-i'])).strip()
+    if hgid.count('+') == 2:
+        hgid = hgid.replace("+", ".", 1)
     if not hgid:
         eprint("/!\\")
         eprint(r"/!\ Unable to determine hg version from local repository")
@@ -347,7 +349,7 @@ def _try_get_version():
         if hgid.endswith('+'):  # propagate the dirty status to the tag
             version += '+'
     else:  # no tag found on the checked out revision
-        ltagcmd = ['parents', '--template', '{latesttag}']
+        ltagcmd = ['log', '--rev', 'wdir()', '--template', '{latesttag}']
         ltag = sysstr(hg.run(ltagcmd))
         if not ltag:
             eprint("/!\\")
@@ -356,7 +358,13 @@ def _try_get_version():
                 r"/!\ Failed to retrieve current revision distance to lated tag"
             )
             return ''
-        changessincecmd = ['log', '-T', 'x\n', '-r', "only(.,'%s')" % ltag]
+        changessincecmd = [
+            'log',
+            '-T',
+            'x\n',
+            '-r',
+            "only(parents(),'%s')" % ltag,
+        ]
         changessince = len(hg.run(changessincecmd).splitlines())
         version = '%s+hg%s.%s' % (ltag, changessince, hgid)
     if version.endswith('+'):
