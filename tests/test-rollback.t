@@ -42,21 +42,11 @@ Test issue 1635 (commit message saved)
   $ cat .hg/last-message.txt ; echo
   modify a
 
-Test rollback of hg before issue 902 was fixed
-
-  $ hg commit -m "test3"
-  $ hg branch test
-  marked working directory as branch test
-  (branches are permanent and global, did you want a bookmark?)
-  $ rm .hg/undo.branch
-  $ hg rollback
-  repository tip rolled back to revision 0 (undo commit)
-  named branch could not be reset: current branch is still 'test'
-  working directory now based on revision 0
-  $ hg branch
-  test
 
 working dir unaffected by rollback: do not restore dirstate et. al.
+  $ hg branch test --quiet
+  $ hg branch
+  test
   $ hg log --template '{rev}  {branch}  {desc|firstline}\n'
   0  default  add a again
   $ hg status
@@ -82,7 +72,7 @@ working dir unaffected by rollback: do not restore dirstate et. al.
   $ hg update bar
   1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   (activating bookmark bar)
-  $ cat .hg/undo.branch ; echo
+  $ cat .hg/undo.backup.branch
   test
   $ hg log -G --template '{rev}  [{branch}] ({bookmarks}) {desc|firstline}\n'
   o  2  [test] (foo) add b
