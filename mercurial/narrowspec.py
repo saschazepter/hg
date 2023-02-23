@@ -181,7 +181,7 @@ def save(repo, includepats, excludepats):
 
 
 def copytoworkingcopy(repo):
-    spec = repo.svfs.read(FILENAME)
+    spec = format(*repo.narrowpats)
     repo.vfs.write(DIRSTATE_FILENAME, spec)
 
 
@@ -296,8 +296,9 @@ def checkworkingcopynarrowspec(repo):
     # Avoid infinite recursion when updating the working copy
     if getattr(repo, '_updatingnarrowspec', False):
         return
-    storespec = repo.svfs.tryread(FILENAME)
+    storespec = repo.narrowpats
     wcspec = repo.vfs.tryread(DIRSTATE_FILENAME)
+    wcspec = parseconfig(repo.ui, wcspec)
     if wcspec != storespec:
         raise error.StateError(
             _(b"working copy's narrowspec is stale"),
@@ -312,11 +313,10 @@ def updateworkingcopy(repo, assumeclean=False):
     be deleted. It is then up to the caller to make sure they are clean.
     """
     oldspec = repo.vfs.tryread(DIRSTATE_FILENAME)
-    newspec = repo.svfs.tryread(FILENAME)
+    newincludes, newexcludes = repo.narrowpats
     repo._updatingnarrowspec = True
 
     oldincludes, oldexcludes = parseconfig(repo.ui, oldspec)
-    newincludes, newexcludes = parseconfig(repo.ui, newspec)
     oldmatch = match(repo.root, include=oldincludes, exclude=oldexcludes)
     newmatch = match(repo.root, include=newincludes, exclude=newexcludes)
     addedmatch = matchmod.differencematcher(newmatch, oldmatch)
