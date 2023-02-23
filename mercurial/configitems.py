@@ -1851,7 +1851,7 @@ coreconfigitem(
 )
 coreconfigitem(
     b'paths',
-    b'.*',
+    b'[^:]*',
     default=None,
     generic=True,
 )
