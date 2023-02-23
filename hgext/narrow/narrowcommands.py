@@ -563,20 +563,9 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
         or update_working_copy
     )
 
-    oldincludes, oldexcludes = repo.narrowpats
-
-    # filter the user passed additions and deletions into actual additions and
-    # deletions of excludes and includes
-    addedincludes -= oldincludes
-    removedincludes &= oldincludes
-    addedexcludes -= oldexcludes
-    removedexcludes &= oldexcludes
-
-    widening = addedincludes or removedexcludes
-    narrowing = removedincludes or addedexcludes
-
     # Only print the current narrowspec.
     if only_show:
+        oldincludes, oldexcludes = repo.narrowpats
         ui.pager(b'tracked')
         fm = ui.formatter(b'narrow', opts)
         for i in sorted(oldincludes):
@@ -589,6 +578,18 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
             fm.write(b'pat', b'%s\n', i, label=b'narrow.excluded')
         fm.end()
         return 0
+
+    oldincludes, oldexcludes = repo.narrowpats
+
+    # filter the user passed additions and deletions into actual additions and
+    # deletions of excludes and includes
+    addedincludes -= oldincludes
+    removedincludes &= oldincludes
+    addedexcludes -= oldexcludes
+    removedexcludes &= oldexcludes
+
+    widening = addedincludes or removedexcludes
+    narrowing = removedincludes or addedexcludes
 
     if update_working_copy:
         with repo.wlock(), repo.lock(), repo.transaction(
