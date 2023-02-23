@@ -100,7 +100,9 @@ release = lockmod.release
 urlerr = util.urlerr
 urlreq = util.urlreq
 
-RE_SKIP_DIRSTATE_ROLLBACK = re.compile(b"^(dirstate|narrowspec.dirstate).*")
+RE_SKIP_DIRSTATE_ROLLBACK = re.compile(
+    b"^((dirstate|narrowspec.dirstate).*|branch$)"
+)
 
 # set of (path, vfs-location) tuples. vfs-location is:
 # - 'plain for vfs relative paths
@@ -2671,6 +2673,13 @@ class localrepository:
         # strip" to pick a working copy destination on `hg rollback`
         if self.currentwlock() is not None:
             ds = self.dirstate
+            if ds.branch() == b'default':
+                # force a file to be written if None exist
+                ds.setbranch(b'default')
+            # we cannot simply add "branch" to `all_file_names` because branch
+            # is written outside of the transaction control. So we need to
+            # backup early.
+            tr.addbackup(b"branch", hardlink=True, location=b'plain')
 
             def backup_dirstate(tr):
                 for f in ds.all_file_names():
@@ -2685,7 +2694,6 @@ class localrepository:
     def _journalfiles(self):
         return (
             (self.svfs, b'journal'),
-            (self.vfs, b'journal.branch'),
             (self.vfs, b'journal.desc'),
         )
 
@@ -2694,9 +2702,6 @@ class localrepository:
 
     @unfilteredmethod
     def _writejournal(self, desc):
-        self.vfs.write(
-            b"journal.branch", encoding.fromlocal(self.dirstate.branch())
-        )
         self.vfs.write(b"journal.desc", b"%d\n%s\n" % (len(self), desc))
 
     def recover(self):
@@ -2798,18 +2803,6 @@ class localrepository:
                 with self.dirstate.changing_parents(self):
                     self.dirstate.setparents(self.nullid)
                     self.dirstate.clear()
-
-            try:
-                branch = self.vfs.read(b'undo.branch')
-                self.dirstate.setbranch(encoding.tolocal(branch))
-            except IOError:
-                ui.warn(
-                    _(
-                        b'named branch could not be reset: '
-                        b'current branch is still \'%s\'\n'
-                    )
-                    % self.dirstate.branch()
-                )
 
             parents = tuple([p.rev() for p in self[None].parents()])
             if len(parents) > 1:

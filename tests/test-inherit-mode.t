@@ -68,6 +68,7 @@ new directories are setgid
   $ "$PYTHON" ../printmodes.py .
   00700 ./.hg/
   00600 ./.hg/00changelog.i
+  00660 ./.hg/branch
   00770 ./.hg/cache/
   00660 ./.hg/cache/branch2-served
   00660 ./.hg/cache/rbc-names-v1
@@ -94,7 +95,7 @@ new directories are setgid
   00600 ./.hg/store/requires
   00660 ./.hg/store/undo
   00660 ./.hg/store/undo.backupfiles
-  00660 ./.hg/undo.branch
+  00660 ./.hg/undo.backup.branch
   00660 ./.hg/undo.desc
   00770 ./.hg/wcache/
   00711 ./.hg/wcache/checkisexec
@@ -129,6 +130,7 @@ group can still write everything
   $ "$PYTHON" ../printmodes.py ../push
   00770 ../push/.hg/
   00660 ../push/.hg/00changelog.i
+  00660 ../push/.hg/branch
   00770 ../push/.hg/cache/
   00660 ../push/.hg/cache/branch2-base
   00660 ../push/.hg/cache/rbc-names-v1
@@ -151,7 +153,7 @@ group can still write everything
   00660 ../push/.hg/store/requires
   00660 ../push/.hg/store/undo
   00660 ../push/.hg/store/undo.backupfiles
-  00660 ../push/.hg/undo.branch
+  00660 ../push/.hg/undo.backup.branch
   00660 ../push/.hg/undo.desc
   00770 ../push/.hg/wcache/
 

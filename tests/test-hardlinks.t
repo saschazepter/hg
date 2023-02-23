@@ -227,7 +227,7 @@ r4 has hardlinks in the working dir (not just inside .hg):
 
   $ nlinksdir r4
   2 r4/.hg/00changelog.i
-  2 r4/.hg/branch
+  [24] r4/.hg/branch (re)
   2 r4/.hg/cache/branch2-base
   2 r4/.hg/cache/branch2-immutable
   2 r4/.hg/cache/branch2-served
@@ -256,8 +256,8 @@ r4 has hardlinks in the working dir (not just inside .hg):
   2 r4/.hg/store/undo.backup.fncache (repofncache !)
   2 r4/.hg/store/undo.backup.phaseroots
   2 r4/.hg/store/undo.backupfiles
+  [24] r4/.hg/undo.backup.branch (re)
   2 r4/\.hg/undo\.backup\.dirstate (re)
-  2 r4/.hg/undo.branch
   2 r4/.hg/undo.desc
   2 r4/.hg/wcache/checkisexec (execbit !)
   2 r4/.hg/wcache/checklink-target (symlink !)
@@ -311,8 +311,8 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
   2 r4/.hg/store/undo.backup.fncache (repofncache !)
   2 r4/.hg/store/undo.backup.phaseroots
   2 r4/.hg/store/undo.backupfiles
+  [23] r4/.hg/undo.backup.branch (re)
   2 r4/\.hg/undo\.backup\.dirstate (re)
-  2 r4/.hg/undo.branch
   2 r4/.hg/undo.desc
   2 r4/.hg/wcache/checkisexec (execbit !)
   2 r4/.hg/wcache/checklink-target (symlink !)
