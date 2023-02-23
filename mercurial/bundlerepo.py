@@ -289,13 +289,16 @@ class bundlerepository:
 
         self.ui.setconfig(b'phases', b'publish', False, b'bundlerepo')
 
+        # dict with the mapping 'filename' -> position in the changegroup.
+        self._cgfilespos = {}
+        self._bundlefile = None
+        self._cgunpacker = None
         self.tempfile = None
         f = util.posixfile(bundlepath, b"rb")
         bundle = exchange.readbundle(self.ui, f, bundlepath)
 
         if isinstance(bundle, bundle2.unbundle20):
             self._bundlefile = bundle
-            self._cgunpacker = None
 
             cgpart = None
             for part in bundle.iterparts(seekable=True):
@@ -323,9 +326,6 @@ class bundlerepository:
             raise error.Abort(
                 _(b'bundle type %s cannot be read') % type(bundle)
             )
-
-        # dict with the mapping 'filename' -> position in the changegroup.
-        self._cgfilespos = {}
 
         self.firstnewrev = self.changelog.repotiprev + 1
         phases.retractboundary(
