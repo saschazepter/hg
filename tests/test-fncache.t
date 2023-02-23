@@ -90,6 +90,7 @@ Non store repo:
   .hg
   .hg/00changelog.i
   .hg/00manifest.i
+  .hg/branch
   .hg/cache
   .hg/cache/branch2-served
   .hg/cache/rbc-names-v1
@@ -103,8 +104,8 @@ Non store repo:
   .hg/phaseroots
   .hg/requires
   .hg/undo
+  .hg/undo.backup.branch
   .hg/undo.backupfiles
-  .hg/undo.branch
   .hg/undo.desc
   .hg/wcache
   .hg/wcache/checkisexec (execbit !)
@@ -124,6 +125,7 @@ Non fncache repo:
   $ find .hg | sort
   .hg
   .hg/00changelog.i
+  .hg/branch
   .hg/cache
   .hg/cache/branch2-served
   .hg/cache/rbc-names-v1
@@ -142,7 +144,7 @@ Non fncache repo:
   .hg/store/requires
   .hg/store/undo
   .hg/store/undo.backupfiles
-  .hg/undo.branch
+  .hg/undo.backup.branch
   .hg/undo.desc
   .hg/wcache
   .hg/wcache/checkisexec (execbit !)

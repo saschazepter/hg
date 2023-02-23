@@ -35,10 +35,12 @@ Poke at a clone:
   $ hg verify -q
   $ ls .hg
   00changelog.i
+  branch
   cache
   hgrc
   requires
   store
+  undo.backup.branch
   wcache
 
 Should be empty (except for the "basic" requires):

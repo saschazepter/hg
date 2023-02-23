@@ -440,6 +440,7 @@ def _aborttransaction(repo, tr):
     # These is not such other wrapping currently, but if someone try to
     # implement one in the future, this will explicitly break here instead of
     # misbehaving in subtle ways.
+    current_branch = ds.branch()
     assert 'invalidate' not in vars(ds)
     try:
         # note : we could simply disable the transaction abort callback, but
@@ -452,6 +453,7 @@ def _aborttransaction(repo, tr):
     # transaction to do so.
     assert repo.currenttransaction() is None
     repo.dirstate.write(None)
+    ds.setbranch(current_branch)
 
 
 def getshelvename(repo, parent, opts):
