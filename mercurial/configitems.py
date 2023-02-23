@@ -1881,7 +1881,7 @@ coreconfigitem(
 )
 coreconfigitem(
     b'paths',
-    b'.*:delta-reuse-policy',
+    b'.*:pulled-delta-reuse-policy',
     default=None,
     generic=True,
 )

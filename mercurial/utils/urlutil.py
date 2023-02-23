@@ -742,14 +742,16 @@ DELTA_REUSE_POLICIES = {
 }
 
 
-@pathsuboption(b'delta-reuse-policy', b'delta_reuse_policy')
+@pathsuboption(b'pulled-delta-reuse-policy', b'delta_reuse_policy')
 def delta_reuse_policy(ui, path, value):
     if value not in DELTA_REUSE_POLICIES:
         path_name = path.name
         if path_name is None:
             # this is an "anonymous" path, config comes from the global one
             path_name = b'*'
-        msg = _(b'(paths.%s:delta-reuse-policy has unknown value: "%s")\n')
+        msg = _(
+            b'(paths.%s:pulled-delta-reuse-policy has unknown value: "%s")\n'
+        )
         msg %= (path_name, value)
         ui.warn(msg)
     return DELTA_REUSE_POLICIES.get(value)
