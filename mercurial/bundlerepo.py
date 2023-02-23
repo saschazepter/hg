@@ -302,7 +302,9 @@ class bundlerepository:
 
             cgpart = None
             for part in bundle.iterparts(seekable=True):
-                if part.type == b'changegroup':
+                if part.type == b'phase-heads':
+                    self._handle_bundle2_phase_part(bundle, part)
+                elif part.type == b'changegroup':
                     if cgpart:
                         raise NotImplementedError(
                             b"can't process multiple changegroups"
@@ -346,6 +348,17 @@ class bundlerepository:
     def _handle_bundle2_cg_part(self, bundle, part):
         assert part.type == b'changegroup'
         cgstream = part
+        targetphase = part.params.get(b'targetphase')
+        try:
+            targetphase = int(targetphase)
+        except TypeError:
+            pass
+        if targetphase is None:
+            targetphase = phases.draft
+        if targetphase not in phases.allphases:
+            m = _(b'unsupported targetphase: %d')
+            m %= targetphase
+            raise error.Abort(m)
         version = part.params.get(b'version', b'01')
         legalcgvers = changegroup.supportedincomingversions(self)
         if version not in legalcgvers:
@@ -360,9 +373,16 @@ class bundlerepository:
         phases.retractboundary(
             self,
             None,
-            phases.draft,
+            targetphase,
             [ctx.node() for ctx in self[self.firstnewrev :]],
         )
+
+    def _handle_bundle2_phase_part(self, bundle, part):
+        assert part.type == b'phase-heads'
+
+        unfi = self.unfiltered()
+        headsbyphase = phases.binarydecode(part)
+        phases.updatephases(unfi, lambda: None, headsbyphase)
 
     def _writetempbundle(self, readfn, suffix, header=b''):
         """Write a temporary file to disk"""
