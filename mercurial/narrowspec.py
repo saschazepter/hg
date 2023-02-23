@@ -182,7 +182,8 @@ def save(repo, includepats, excludepats):
 
     tr = repo.currenttransaction()
     if tr is None:
-        repo.svfs.write(FILENAME, spec)
+        m = "changing narrow spec outside of a transaction"
+        raise error.ProgrammingError(m)
     else:
         # the roundtrip is sometime different
         # not taking any chance for now
@@ -215,7 +216,8 @@ def copytoworkingcopy(repo):
     tr = repo.currenttransaction()
     spec = format(*repo.narrowpats)
     if tr is None:
-        repo.vfs.write(DIRSTATE_FILENAME, spec)
+        m = "changing narrow spec outside of a transaction"
+        raise error.ProgrammingError(m)
     else:
 
         reporef = weakref.ref(repo)
