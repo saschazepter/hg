@@ -986,7 +986,9 @@ def clone(
             local = destpeer.local()
             if local:
                 if narrow:
-                    with local.wlock(), local.lock():
+                    with local.wlock(), local.lock(), local.transaction(
+                        b'narrow-clone'
+                    ):
                         local.setnarrowpats(storeincludepats, storeexcludepats)
                         narrowspec.copytoworkingcopy(local)
 
