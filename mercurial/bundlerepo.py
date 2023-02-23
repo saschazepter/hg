@@ -327,14 +327,6 @@ class bundlerepository:
                 _(b'bundle type %s cannot be read') % type(bundle)
             )
 
-        self.firstnewrev = self.changelog.repotiprev + 1
-        phases.retractboundary(
-            self,
-            None,
-            phases.draft,
-            [ctx.node() for ctx in self[self.firstnewrev :]],
-        )
-
     def _handle_bundle1(self, bundle, bundlepath):
         if bundle.compressed():
             f = self._writetempbundle(bundle.read, b'.hg10un', header=b'HG10UN')
@@ -342,6 +334,14 @@ class bundlerepository:
 
         self._bundlefile = bundle
         self._cgunpacker = bundle
+
+        self.firstnewrev = self.changelog.repotiprev + 1
+        phases.retractboundary(
+            self,
+            None,
+            phases.draft,
+            [ctx.node() for ctx in self[self.firstnewrev :]],
+        )
 
     def _handle_bundle2_cg_part(self, bundle, part):
         assert part.type == b'changegroup'
@@ -355,6 +355,14 @@ class bundlerepository:
             cgstream = self._writetempbundle(part.read, b'.cg%sun' % version)
 
         self._cgunpacker = changegroup.getunbundler(version, cgstream, b'UN')
+
+        self.firstnewrev = self.changelog.repotiprev + 1
+        phases.retractboundary(
+            self,
+            None,
+            phases.draft,
+            [ctx.node() for ctx in self[self.firstnewrev :]],
+        )
 
     def _writetempbundle(self, readfn, suffix, header=b''):
         """Write a temporary file to disk"""
