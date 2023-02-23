@@ -193,7 +193,7 @@ against the "best" parent. (so not the same as the previous two)
   \s*1200 (re)
 
 
-Check the path.*:delta-reuse-policy option
+Check the path.*:pulled-delta-reuse-policy option
 ==========================================
 
 Get a repository with the bad parent picked and a clone ready to pull the merge
@@ -234,7 +234,7 @@ Pull with explicitly the default
 default is to reuse the (bad) delta
 
   $ cp -ar local-pre-pull local-default
-  $ hg -R local-default pull --quiet --config 'paths.default:delta-reuse-policy=default'
+  $ hg -R local-default pull --quiet --config 'paths.default:pulled-delta-reuse-policy=default'
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
   DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
@@ -245,7 +245,7 @@ Pull with no-reuse
 We don't reuse the base, so we get a better delta
 
   $ cp -ar local-pre-pull local-no-reuse
-  $ hg -R local-no-reuse pull --quiet --config 'paths.default:delta-reuse-policy=no-reuse'
+  $ hg -R local-no-reuse pull --quiet --config 'paths.default:pulled-delta-reuse-policy=no-reuse'
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
   DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=1 * (glob)
@@ -256,7 +256,7 @@ Pull with try-base
 We requested to use the (bad) delta
 
   $ cp -ar local-pre-pull local-try-base
-  $ hg -R local-try-base pull --quiet --config 'paths.default:delta-reuse-policy=try-base'
+  $ hg -R local-try-base pull --quiet --config 'paths.default:pulled-delta-reuse-policy=try-base'
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
   DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
@@ -288,7 +288,7 @@ snapshot again.
 
   $ cp -ar local-pre-pull-full local-try-base-full
   $ hg -R local-try-base-full pull --quiet \
-  > --config 'paths.default:delta-reuse-policy=try-base'
+  > --config 'paths.default:pulled-delta-reuse-policy=try-base'
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
@@ -303,7 +303,7 @@ A full bundle should be accepted as full bundle without recomputation
 
   $ cp -ar local-pre-pull-full local-forced-full
   $ hg -R local-forced-full pull --quiet \
-  > --config 'paths.default:delta-reuse-policy=forced'
+  > --config 'paths.default:pulled-delta-reuse-policy=forced'
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
@@ -324,7 +324,7 @@ more subtle to test this behavior.
   5 changesets found
   $ cp -ar local-pre-pull-full local-forced-full-p1
   $ hg -R local-forced-full-p1 pull --quiet \
-  > --config 'paths.*:delta-reuse-policy=forced' all-p1.hg
+  > --config 'paths.*:pulled-delta-reuse-policy=forced' all-p1.hg
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
