@@ -1470,6 +1470,7 @@ class localrepository:
         self._postdsstatus = []
 
         self._pending_narrow_pats = None
+        self._pending_narrow_pats_dirstate = None
 
         # generic mapping between names and nodes
         self.names = namespaces.namespaces()
