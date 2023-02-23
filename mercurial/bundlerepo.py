@@ -305,8 +305,7 @@ class bundlerepository:
                             b"can't process multiple changegroups"
                         )
                     cgpart = part
-
-                self._handlebundle2part(bundle, part)
+                    self._handle_bundle2_cg_part(bundle, part)
 
             if not cgpart:
                 raise error.Abort(_(b"No changegroups found"))
@@ -343,10 +342,8 @@ class bundlerepository:
             [ctx.node() for ctx in self[self.firstnewrev :]],
         )
 
-    def _handlebundle2part(self, bundle, part):
-        if part.type != b'changegroup':
-            return
-
+    def _handle_bundle2_cg_part(self, bundle, part):
+        assert part.type == b'changegroup'
         cgstream = part
         version = part.params.get(b'version', b'01')
         legalcgvers = changegroup.supportedincomingversions(self)
