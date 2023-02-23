@@ -261,6 +261,7 @@ def _handlechangespec(op, inpart):
     # other servers may include a changespec part even when not widening (e.g.
     # because we're deepening a shallow repo).
     if util.safehasattr(repo, 'setnewnarrowpats'):
+        op.gettransaction()
         repo.setnewnarrowpats()
 
 
