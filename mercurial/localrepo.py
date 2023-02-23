@@ -2558,9 +2558,6 @@ class localrepository:
             else:
                 # discard all changes (including ones already written
                 # out) in this transaction
-                narrowspec.restorebackup(self, b'journal.narrowspec')
-                narrowspec.restorewcbackup(self, b'journal.narrowspec.dirstate')
-
                 repo.invalidate(clearfilecache=True)
 
         tr = transaction.transaction(
@@ -2688,8 +2685,6 @@ class localrepository:
     def _journalfiles(self):
         return (
             (self.svfs, b'journal'),
-            (self.svfs, b'journal.narrowspec'),
-            (self.vfs, b'journal.narrowspec.dirstate'),
             (self.vfs, b'journal.branch'),
             (self.vfs, b'journal.desc'),
             (bookmarks.bookmarksvfs(self), b'journal.bookmarks'),
@@ -2701,8 +2696,6 @@ class localrepository:
 
     @unfilteredmethod
     def _writejournal(self, desc):
-        narrowspec.savewcbackup(self, b'journal.narrowspec.dirstate')
-        narrowspec.savebackup(self, b'journal.narrowspec')
         self.vfs.write(
             b"journal.branch", encoding.fromlocal(self.dirstate.branch())
         )
@@ -2820,8 +2813,6 @@ class localrepository:
                     self.dirstate.setparents(self.nullid)
                     self.dirstate.clear()
 
-            narrowspec.restorebackup(self, b'undo.narrowspec')
-            narrowspec.restorewcbackup(self, b'undo.narrowspec.dirstate')
             try:
                 branch = self.vfs.read(b'undo.branch')
                 self.dirstate.setbranch(encoding.tolocal(branch))

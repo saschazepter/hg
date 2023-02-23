@@ -14,7 +14,6 @@ from . import (
     match as matchmod,
     merge,
     mergestate as mergestatemod,
-    requirements,
     scmutil,
     sparse,
     util,
@@ -240,46 +239,6 @@ def copytoworkingcopy(repo):
             write_spec,
             location=b'plain',
         )
-
-
-def savebackup(repo, backupname):
-    if requirements.NARROW_REQUIREMENT not in repo.requirements:
-        return
-    svfs = repo.svfs
-    svfs.tryunlink(backupname)
-    util.copyfile(svfs.join(FILENAME), svfs.join(backupname), hardlink=True)
-
-
-def restorebackup(repo, backupname):
-    if requirements.NARROW_REQUIREMENT not in repo.requirements:
-        return
-    util.rename(repo.svfs.join(backupname), repo.svfs.join(FILENAME))
-
-
-def savewcbackup(repo, backupname):
-    if requirements.NARROW_REQUIREMENT not in repo.requirements:
-        return
-    vfs = repo.vfs
-    vfs.tryunlink(backupname)
-    # It may not exist in old repos
-    if vfs.exists(DIRSTATE_FILENAME):
-        util.copyfile(
-            vfs.join(DIRSTATE_FILENAME), vfs.join(backupname), hardlink=True
-        )
-
-
-def restorewcbackup(repo, backupname):
-    if requirements.NARROW_REQUIREMENT not in repo.requirements:
-        return
-    # It may not exist in old repos
-    if repo.vfs.exists(backupname):
-        util.rename(repo.vfs.join(backupname), repo.vfs.join(DIRSTATE_FILENAME))
-
-
-def clearwcbackup(repo, backupname):
-    if requirements.NARROW_REQUIREMENT not in repo.requirements:
-        return
-    repo.vfs.tryunlink(backupname)
 
 
 def restrictpatterns(req_includes, req_excludes, repo_includes, repo_excludes):
