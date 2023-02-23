@@ -1880,6 +1880,12 @@ coreconfigitem(
     generic=True,
 )
 coreconfigitem(
+    b'paths',
+    b'.*:delta-reuse-policy',
+    default=None,
+    generic=True,
+)
+coreconfigitem(
     b'phases',
     b'checksubrepos',
     default=b'follow',
