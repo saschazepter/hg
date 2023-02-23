@@ -457,7 +457,9 @@ def postshare(sourcerepo, destrepo, defaultpath=None):
         template = b'[paths]\ndefault = %s\n'
         destrepo.vfs.write(b'hgrc', util.tonativeeol(template % default))
     if requirements.NARROW_REQUIREMENT in sourcerepo.requirements:
-        with destrepo.wlock():
+        with destrepo.wlock(), destrepo.lock(), destrepo.transaction(
+            b"narrow-share"
+        ):
             narrowspec.copytoworkingcopy(destrepo)
 
 
