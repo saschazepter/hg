@@ -2687,7 +2687,6 @@ class localrepository:
             (self.svfs, b'journal'),
             (self.vfs, b'journal.branch'),
             (self.vfs, b'journal.desc'),
-            (bookmarks.bookmarksvfs(self), b'journal.bookmarks'),
         )
 
     def undofiles(self):
@@ -2699,10 +2698,6 @@ class localrepository:
             b"journal.branch", encoding.fromlocal(self.dirstate.branch())
         )
         self.vfs.write(b"journal.desc", b"%d\n%s\n" % (len(self), desc))
-        bookmarksvfs = bookmarks.bookmarksvfs(self)
-        bookmarksvfs.write(
-            b"journal.bookmarks", bookmarksvfs.tryread(b"bookmarks")
-        )
 
     def recover(self):
         with self.lock():
@@ -2791,11 +2786,6 @@ class localrepository:
             checkambigfiles=_cachedfiles,
             skip_journal_pattern=skip_journal_pattern,
         )
-        bookmarksvfs = bookmarks.bookmarksvfs(self)
-        if bookmarksvfs.exists(b'undo.bookmarks'):
-            bookmarksvfs.rename(
-                b'undo.bookmarks', b'bookmarks', checkambig=True
-            )
         self.invalidate()
         self.dirstate.invalidate()
 
