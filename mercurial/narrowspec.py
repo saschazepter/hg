@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+import weakref
 
 from .i18n import _
 from .pycompat import getattr
@@ -174,10 +175,40 @@ def load(repo):
 
 
 def save(repo, includepats, excludepats):
+    repo = repo.unfiltered()
+
     validatepatterns(includepats)
     validatepatterns(excludepats)
     spec = format(includepats, excludepats)
-    repo.svfs.write(FILENAME, spec)
+
+    tr = repo.currenttransaction()
+    if tr is None:
+        repo.svfs.write(FILENAME, spec)
+    else:
+        # the roundtrip is sometime different
+        # not taking any chance for now
+        value = parseconfig(repo.ui, spec)
+        reporef = weakref.ref(repo)
+
+        def clean_pending(tr):
+            r = reporef()
+            if r is not None:
+                r._pending_narrow_pats = None
+
+        tr.addpostclose(b'narrow-spec', clean_pending)
+        tr.addabort(b'narrow-spec', clean_pending)
+        repo._pending_narrow_pats = value
+
+        def write_spec(f):
+            f.write(spec)
+
+        tr.addfilegenerator(
+            # XXX think about order at some point
+            b"narrow-spec",
+            (FILENAME,),
+            write_spec,
+            location=b'store',
+        )
 
 
 def copytoworkingcopy(repo):
