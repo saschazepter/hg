@@ -1924,7 +1924,7 @@ The following sub-options can be defined:
 
 .. container:: verbose
 
-  ``delta-reuse-policy``
+  ``pulled-delta-reuse-policy``
   Control the policy regarding deltas sent by the remote during pulls.
 
   This is an advanced option that non-admin users should not need to understand
