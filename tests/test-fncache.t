@@ -104,7 +104,6 @@ Non store repo:
   .hg/requires
   .hg/undo
   .hg/undo.backupfiles
-  .hg/undo.bookmarks
   .hg/undo.branch
   .hg/undo.desc
   .hg/wcache
@@ -143,7 +142,6 @@ Non fncache repo:
   .hg/store/requires
   .hg/store/undo
   .hg/store/undo.backupfiles
-  .hg/undo.bookmarks
   .hg/undo.branch
   .hg/undo.desc
   .hg/wcache
