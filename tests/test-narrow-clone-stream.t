@@ -90,7 +90,6 @@ Making sure store has the required files
   requires
   undo
   undo.backupfiles
-  undo.narrowspec
   undo.phaseroots
 
 Checking that repository has all the required data and not broken
