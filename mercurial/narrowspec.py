@@ -212,8 +212,34 @@ def save(repo, includepats, excludepats):
 
 
 def copytoworkingcopy(repo):
+    repo = repo.unfiltered()
+    tr = repo.currenttransaction()
     spec = format(*repo.narrowpats)
-    repo.vfs.write(DIRSTATE_FILENAME, spec)
+    if tr is None:
+        repo.vfs.write(DIRSTATE_FILENAME, spec)
+    else:
+
+        reporef = weakref.ref(repo)
+
+        def clean_pending(tr):
+            r = reporef()
+            if r is not None:
+                r._pending_narrow_pats_dirstate = None
+
+        tr.addpostclose(b'narrow-spec-dirstate', clean_pending)
+        tr.addabort(b'narrow-spec-dirstate', clean_pending)
+        repo._pending_narrow_pats_dirstate = repo.narrowpats
+
+        def write_spec(f):
+            f.write(spec)
+
+        tr.addfilegenerator(
+            # XXX think about order at some point
+            b"narrow-spec-dirstate",
+            (DIRSTATE_FILENAME,),
+            write_spec,
+            location=b'plain',
+        )
 
 
 def savebackup(repo, backupname):
@@ -328,8 +354,10 @@ def checkworkingcopynarrowspec(repo):
     if getattr(repo, '_updatingnarrowspec', False):
         return
     storespec = repo.narrowpats
-    wcspec = repo.vfs.tryread(DIRSTATE_FILENAME)
-    wcspec = parseconfig(repo.ui, wcspec)
+    wcspec = repo._pending_narrow_pats_dirstate
+    if wcspec is None:
+        oldspec = repo.vfs.tryread(DIRSTATE_FILENAME)
+        wcspec = parseconfig(repo.ui, oldspec)
     if wcspec != storespec:
         raise error.StateError(
             _(b"working copy's narrowspec is stale"),
@@ -343,11 +371,15 @@ def updateworkingcopy(repo, assumeclean=False):
     When assumeclean=True, files that are not known to be clean will also
     be deleted. It is then up to the caller to make sure they are clean.
     """
-    oldspec = repo.vfs.tryread(DIRSTATE_FILENAME)
+    old = repo._pending_narrow_pats_dirstate
+    if old is None:
+        oldspec = repo.vfs.tryread(DIRSTATE_FILENAME)
+        oldincludes, oldexcludes = parseconfig(repo.ui, oldspec)
+    else:
+        oldincludes, oldexcludes = old
     newincludes, newexcludes = repo.narrowpats
     repo._updatingnarrowspec = True
 
-    oldincludes, oldexcludes = parseconfig(repo.ui, oldspec)
     oldmatch = match(repo.root, include=oldincludes, exclude=oldexcludes)
     newmatch = match(repo.root, include=newincludes, exclude=newexcludes)
     addedmatch = matchmod.differencematcher(newmatch, oldmatch)
