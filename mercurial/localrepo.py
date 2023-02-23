@@ -1469,6 +1469,8 @@ class localrepository:
         # post-dirstate-status hooks
         self._postdsstatus = []
 
+        self._pending_narrow_pats = None
+
         # generic mapping between names and nodes
         self.names = namespaces.namespaces()
 
@@ -1799,7 +1801,11 @@ class localrepository:
 
         A tuple of (includes, excludes).
         """
-        return narrowspec.load(self)
+        # the narrow management should probably move into its own object
+        val = self._pending_narrow_pats
+        if val is None:
+            val = narrowspec.load(self)
+        return val
 
     @storecache(narrowspec.FILENAME)
     def _storenarrowmatch(self):
