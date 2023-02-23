@@ -318,14 +318,7 @@ class bundlerepository:
             cgpart.seek(0, os.SEEK_SET)
 
         elif isinstance(bundle, changegroup.cg1unpacker):
-            if bundle.compressed():
-                f = self._writetempbundle(
-                    bundle.read, b'.hg10un', header=b'HG10UN'
-                )
-                bundle = exchange.readbundle(self.ui, f, bundlepath, self.vfs)
-
-            self._bundlefile = bundle
-            self._cgunpacker = bundle
+            self._handle_bundle1(bundle, bundlepath)
         else:
             raise error.Abort(
                 _(b'bundle type %s cannot be read') % type(bundle)
@@ -341,6 +334,14 @@ class bundlerepository:
             phases.draft,
             [ctx.node() for ctx in self[self.firstnewrev :]],
         )
+
+    def _handle_bundle1(self, bundle, bundlepath):
+        if bundle.compressed():
+            f = self._writetempbundle(bundle.read, b'.hg10un', header=b'HG10UN')
+            bundle = exchange.readbundle(self.ui, f, bundlepath, self.vfs)
+
+        self._bundlefile = bundle
+        self._cgunpacker = bundle
 
     def _handle_bundle2_cg_part(self, bundle, part):
         assert part.type == b'changegroup'
