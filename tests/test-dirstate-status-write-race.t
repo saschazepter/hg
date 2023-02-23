@@ -238,3 +238,72 @@ final cleanup
 
   $ rm $TESTTMP/status-race-lock $TESTTMP/status-race-lock.waiting
   $ cd ..
+
+Race with a `hg commit`
+----------------------
+
+  $ cp -a reference-repo race-with-commit
+  $ cd race-with-commit
+
+spin a `hg status` with some caches to update
+
+  $ touch -t 200001020001 dir/j
+  $ hg st >$TESTTMP/status-race-lock.out 2>$TESTTMP/status-race-lock.log \
+  > --config rhg.on-unsupported=abort \
+  > --config devel.sync.status.pre-dirstate-write-file=$TESTTMP/status-race-lock \
+  > &
+  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/status-race-lock.waiting
+
+Add a file and force the data file rewrite
+
+  $ hg commit -m created-during-status dir/o
+  $ touch $TESTTMP/status-race-lock
+  $ wait
+
+The parent must change and the status should be clean
+
+# XXX rhg misbehaves here
+#if no-rhg
+  $ hg summary
+  parent: 2:2e3b442a2fd4 tip
+   created-during-status
+  branch: default
+  commit: 1 removed, 3 unknown
+  update: (current)
+  phases: 3 draft
+  $ hg status
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+#else
+  $ hg summary
+  parent: 1:c349430a1631 
+   more files to have two commits
+  branch: default
+  commit: 1 added, 1 removed, 3 unknown (new branch head)
+  update: 1 new changesets (update)
+  phases: 3 draft
+  $ hg status
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+#endif
+
+The status process should return a consistent result and not crash.
+
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
+
+final cleanup
+
+  $ rm $TESTTMP/status-race-lock $TESTTMP/status-race-lock.waiting
+  $ cd ..
+
