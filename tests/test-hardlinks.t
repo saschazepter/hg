@@ -257,7 +257,6 @@ r4 has hardlinks in the working dir (not just inside .hg):
   2 r4/.hg/store/undo.backup.phaseroots
   2 r4/.hg/store/undo.backupfiles
   2 r4/\.hg/undo\.backup\.dirstate (re)
-  2 r4/.hg/undo.bookmarks
   2 r4/.hg/undo.branch
   2 r4/.hg/undo.desc
   2 r4/.hg/wcache/checkisexec (execbit !)
@@ -313,7 +312,6 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
   2 r4/.hg/store/undo.backup.phaseroots
   2 r4/.hg/store/undo.backupfiles
   2 r4/\.hg/undo\.backup\.dirstate (re)
-  2 r4/.hg/undo.bookmarks
   2 r4/.hg/undo.branch
   2 r4/.hg/undo.desc
   2 r4/.hg/wcache/checkisexec (execbit !)
