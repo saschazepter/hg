@@ -4,7 +4,9 @@
 
 use crate::dirstate::{DirstateV2Data, TruncatedTimestamp};
 use crate::dirstate_tree::dirstate_map::DirstateVersion;
-use crate::dirstate_tree::dirstate_map::{self, DirstateMap, NodeRef};
+use crate::dirstate_tree::dirstate_map::{
+    self, DirstateMap, DirstateMapWriteMode, NodeRef,
+};
 use crate::dirstate_tree::path_with_basename::WithBasename;
 use crate::errors::HgError;
 use crate::utils::hg_path::HgPath;
@@ -634,9 +636,12 @@ pub(crate) fn for_each_tracked_path<'on_disk>(
 /// (false), and the previous size of data on disk.
 pub(super) fn write(
     dirstate_map: &DirstateMap,
-    can_append: bool,
+    write_mode: DirstateMapWriteMode,
 ) -> Result<(Vec<u8>, TreeMetadata, bool, usize), DirstateError> {
-    let append = can_append && dirstate_map.write_should_append();
+    let append = match write_mode {
+        DirstateMapWriteMode::Auto => dirstate_map.write_should_append(),
+        DirstateMapWriteMode::ForceNewDataFile => false,
+    };
     if append {
         log::trace!("appending to the dirstate data file");
     } else {
