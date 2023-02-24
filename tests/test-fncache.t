@@ -335,7 +335,7 @@ Clean cached versions
 # So we use a `|| echo` trick
 # XXX-CHG fixing chg behavior would be nice here.
   $ hg ci -qAm z || echo "He's Dead, Jim." 2>/dev/null
-  Killed (?)
+  *Killed* (glob) (?)
   He's Dead, Jim.
   $ cat .hg/store/fncache | sort
   data/y.i
