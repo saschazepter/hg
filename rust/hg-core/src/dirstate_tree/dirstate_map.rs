@@ -38,6 +38,12 @@ pub enum DirstateVersion {
     V2,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum DirstateMapWriteMode {
+    Auto,
+    ForceNewDataFile,
+}
+
 #[derive(Debug)]
 pub struct DirstateMap<'on_disk> {
     /// Contents of the `.hg/dirstate` file
@@ -1251,11 +1257,11 @@ impl OwningDirstateMap {
     #[timed]
     pub fn pack_v2(
         &self,
-        can_append: bool,
+        write_mode: DirstateMapWriteMode,
     ) -> Result<(Vec<u8>, on_disk::TreeMetadata, bool, usize), DirstateError>
     {
         let map = self.get_map();
-        on_disk::write(map, can_append)
+        on_disk::write(map, write_mode)
     }
 
     /// `callback` allows the caller to process and do something with the
@@ -1812,7 +1818,7 @@ mod tests {
         )?;
 
         let (packed, metadata, _should_append, _old_data_size) =
-            map.pack_v2(false)?;
+            map.pack_v2(DirstateMapWriteMode::ForceNewDataFile)?;
         let packed_len = packed.len();
         assert!(packed_len > 0);
 
