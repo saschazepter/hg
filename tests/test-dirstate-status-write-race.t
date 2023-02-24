@@ -359,3 +359,52 @@ final cleanup
 
   $ rm $TESTTMP/status-race-lock $TESTTMP/status-race-lock.waiting
   $ cd ..
+
+Race with another status
+------------------------
+
+  $ cp -a reference-repo race-with-status
+  $ cd race-with-status
+
+spin a `hg status` with some caches to update
+
+  $ touch -t 200001010030 dir/nested/h
+  $ hg st >$TESTTMP/status-race-lock.out 2>$TESTTMP/status-race-lock.log \
+  > --config rhg.on-unsupported=abort \
+  > --config devel.sync.status.pre-dirstate-write-file=$TESTTMP/status-race-lock \
+  > &
+  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/status-race-lock.waiting
+
+touch g
+
+  $ touch -t 200001010025 g
+  $ hg status
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+  $ touch $TESTTMP/status-race-lock
+  $ wait
+
+the first update should be on disk
+
+  $ hg debugstate --all | grep "g"
+  n 644          0 2000-01-01 00:25:00 g (no-rhg !)
+  n 644          0 2000-01-01 00:25:00 g (missing-correct-output rhg !)
+  n 644          0 2000-01-01 00:10:00 g (known-bad-output rhg !)
+
+The status process should return a consistent result and not crash.
+
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
+
+final cleanup
+
+  $ rm $TESTTMP/status-race-lock $TESTTMP/status-race-lock.waiting
+  $ cd ..
