@@ -188,3 +188,53 @@ final cleanup
 
   $ rm $TESTTMP/status-race-lock $TESTTMP/status-race-lock.waiting
   $ cd ..
+
+Actual Testing
+==============
+
+Race with a `hg add`
+-------------------
+
+  $ cp -a reference-repo race-with-add
+  $ cd race-with-add
+
+spin a `hg status` with some caches to update
+
+  $ touch -t 200001020001 f
+  $ hg st >$TESTTMP/status-race-lock.out 2>$TESTTMP/status-race-lock.log \
+  > --config rhg.on-unsupported=abort \
+  > --config devel.sync.status.pre-dirstate-write-file=$TESTTMP/status-race-lock \
+  > &
+  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/status-race-lock.waiting
+
+Add a file
+
+  $ hg add dir/n
+  $ touch $TESTTMP/status-race-lock
+  $ wait
+
+The file should in a "added" state
+
+  $ hg status
+  A dir/n (no-rhg !)
+  A dir/n (missing-correct-output rhg !)
+  A dir/o
+  R dir/nested/m
+  ? dir/n (known-bad-output rhg !)
+  ? p
+  ? q
+
+The status process should return a consistent result and not crash.
+
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
+
+final cleanup
+
+  $ rm $TESTTMP/status-race-lock $TESTTMP/status-race-lock.waiting
+  $ cd ..
