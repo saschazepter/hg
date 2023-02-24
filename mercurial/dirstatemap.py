@@ -31,6 +31,9 @@ else:
 
 rangemask = 0x7FFFFFFF
 
+WRITE_MODE_AUTO = 0
+WRITE_MODE_FORCE_NEW = 1
+
 
 class _dirstatemapcommon:
     """
@@ -609,8 +612,10 @@ if rustmod is not None:
                 return
 
             # We can only append to an existing data file if there is one
-            can_append = self.docket.uuid is not None
-            packed, meta, append = self._map.write_v2(can_append)
+            write_mode = WRITE_MODE_AUTO
+            if self.docket.uuid is None:
+                write_mode = WRITE_MODE_FORCE_NEW
+            packed, meta, append = self._map.write_v2(write_mode)
             if append:
                 docket = self.docket
                 data_filename = docket.data_filename()
