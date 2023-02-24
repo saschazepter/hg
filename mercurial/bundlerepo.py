@@ -326,7 +326,7 @@ class bundlerepository:
             self._handle_bundle1(bundle, bundlepath)
         else:
             raise error.Abort(
-                _(b'bundle type %s cannot be read') % type(bundle)
+                _(b'bundle type %r cannot be read') % type(bundle)
             )
 
     def _handle_bundle1(self, bundle, bundlepath):
