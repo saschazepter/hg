@@ -2,6 +2,8 @@
 Check potential race conditions between a status and other operations
 =====================================================================
 
+#testcases dirstate-v1 dirstate-v2
+
 The `hg status` command can run without the wlock, however it might end up
 having to update the on-disk dirstate files, for example to mark ambiguous
 files as clean, or to update directory caches information with dirstate-v2.
@@ -22,6 +24,23 @@ changes happen.
 
 Setup
 =====
+
+  $ cat >> $HGRCPATH << EOF
+  > [storage]
+  > dirstate-v2.slow-path=allow
+  > EOF
+
+#if dirstate-v2
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-dirstate-v2=yes
+  > EOF
+#else
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-dirstate-v2=no
+  > EOF
+#endif
 
   $ directories="dir dir/nested dir2"
   $ first_files="dir/nested/a dir/b dir/c dir/d dir2/e f"
@@ -217,10 +236,11 @@ The file should in a "added" state
 
   $ hg status
   A dir/n (no-rhg !)
-  A dir/n (missing-correct-output rhg !)
+  A dir/n (rhg no-dirstate-v1 !)
+  A dir/n (missing-correct-output rhg dirstate-v1 !)
   A dir/o
   R dir/nested/m
-  ? dir/n (known-bad-output rhg !)
+  ? dir/n (known-bad-output rhg dirstate-v1 !)
   ? p
   ? q
 
@@ -233,6 +253,7 @@ The status process should return a consistent result and not crash.
   ? p
   ? q
   $ cat $TESTTMP/status-race-lock.log
+  abort: when writing $TESTTMP/race-with-add/.hg/dirstate.*: $ENOENT$ (glob) (known-bad-output rhg dirstate-v2 !)
 
 final cleanup
 
@@ -301,6 +322,7 @@ The status process should return a consistent result and not crash.
   ? p
   ? q
   $ cat $TESTTMP/status-race-lock.log
+  abort: when removing $TESTTMP/race-with-commit/.hg/dirstate.*: $ENOENT$ (glob) (known-bad-output rhg dirstate-v2 !)
 
 final cleanup
 
@@ -403,6 +425,7 @@ The status process should return a consistent result and not crash.
   ? p
   ? q
   $ cat $TESTTMP/status-race-lock.log
+  abort: when removing $TESTTMP/race-with-status/.hg/dirstate.*: $ENOENT$ (glob) (known-bad-output rhg dirstate-v2 !)
 
 final cleanup
 
