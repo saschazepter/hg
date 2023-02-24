@@ -2,7 +2,7 @@
 Check potential race conditions between a status and other operations
 =====================================================================
 
-#testcases dirstate-v1 dirstate-v2
+#testcases dirstate-v1 dirstate-v2-append dirstate-v2-rewrite
 
 The `hg status` command can run without the wlock, however it might end up
 having to update the on-disk dirstate files, for example to mark ambiguous
@@ -30,7 +30,7 @@ Setup
   > dirstate-v2.slow-path=allow
   > EOF
 
-#if dirstate-v2
+#if no-dirstate-v1
   $ cat >> $HGRCPATH << EOF
   > [format]
   > use-dirstate-v2=yes
@@ -40,6 +40,13 @@ Setup
   > [format]
   > use-dirstate-v2=no
   > EOF
+#endif
+
+#if dirstate-v2-rewrite
+  $ d2args="--config devel.dirstate.v2.data_update_mode=force-new"
+#endif
+#if dirstate-v2-append
+  $ d2args="--config devel.dirstate.v2.data_update_mode=force-append"
 #endif
 
   $ directories="dir dir/nested dir2"
@@ -228,7 +235,7 @@ spin a `hg status` with some caches to update
 
 Add a file
 
-  $ hg add dir/n
+  $ hg $d2args add dir/n
   $ touch $TESTTMP/status-race-lock
   $ wait
 
@@ -236,11 +243,11 @@ The file should in a "added" state
 
   $ hg status
   A dir/n (no-rhg !)
-  A dir/n (rhg no-dirstate-v1 !)
+  A dir/n (rhg dirstate-v2-rewrite !)
   A dir/n (missing-correct-output rhg dirstate-v1 !)
   A dir/o
   R dir/nested/m
-  ? dir/n (known-bad-output rhg dirstate-v1 !)
+  ? dir/n (known-bad-output rhg no-dirstate-v2-rewrite !)
   ? p
   ? q
 
@@ -253,7 +260,7 @@ The status process should return a consistent result and not crash.
   ? p
   ? q
   $ cat $TESTTMP/status-race-lock.log
-  abort: when writing $TESTTMP/race-with-add/.hg/dirstate.*: $ENOENT$ (glob) (known-bad-output rhg dirstate-v2 !)
+  abort: when writing $TESTTMP/race-with-add/.hg/dirstate.*: $ENOENT$ (glob) (known-bad-output rhg dirstate-v2-rewrite !)
 
 final cleanup
 
@@ -277,7 +284,7 @@ spin a `hg status` with some caches to update
 
 Add a file and force the data file rewrite
 
-  $ hg commit -m created-during-status dir/o
+  $ hg $d2args commit -m created-during-status dir/o
   $ touch $TESTTMP/status-race-lock
   $ wait
 
@@ -322,7 +329,7 @@ The status process should return a consistent result and not crash.
   ? p
   ? q
   $ cat $TESTTMP/status-race-lock.log
-  abort: when removing $TESTTMP/race-with-commit/.hg/dirstate.*: $ENOENT$ (glob) (known-bad-output rhg dirstate-v2 !)
+  abort: when removing $TESTTMP/race-with-commit/.hg/dirstate.*: $ENOENT$ (glob) (known-bad-output rhg dirstate-v2-rewrite !)
 
 final cleanup
 
@@ -346,7 +353,7 @@ spin a `hg status` with some caches to update
 
 Add a file and force the data file rewrite
 
-  $ hg update ".~1"
+  $ hg $d2args update ".~1"
   0 files updated, 0 files merged, 6 files removed, 0 files unresolved
   $ touch $TESTTMP/status-race-lock
   $ wait
@@ -400,7 +407,7 @@ spin a `hg status` with some caches to update
 touch g
 
   $ touch -t 200001010025 g
-  $ hg status
+  $ hg $d2args status
   A dir/o
   R dir/nested/m
   ? dir/n
@@ -425,7 +432,7 @@ The status process should return a consistent result and not crash.
   ? p
   ? q
   $ cat $TESTTMP/status-race-lock.log
-  abort: when removing $TESTTMP/race-with-status/.hg/dirstate.*: $ENOENT$ (glob) (known-bad-output rhg dirstate-v2 !)
+  abort: when removing $TESTTMP/race-with-status/.hg/dirstate.*: $ENOENT$ (glob) (known-bad-output rhg dirstate-v2-rewrite !)
 
 final cleanup
 
