@@ -307,3 +307,55 @@ final cleanup
   $ rm $TESTTMP/status-race-lock $TESTTMP/status-race-lock.waiting
   $ cd ..
 
+Race with a `hg update`
+----------------------
+
+  $ cp -a reference-repo race-with-update
+  $ cd race-with-update
+
+spin a `hg status` with some caches to update
+
+  $ touch -t 200001020001 dir2/k
+  $ hg st >$TESTTMP/status-race-lock.out 2>$TESTTMP/status-race-lock.log \
+  > --config rhg.on-unsupported=abort \
+  > --config devel.sync.status.pre-dirstate-write-file=$TESTTMP/status-race-lock \
+  > &
+  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/status-race-lock.waiting
+
+Add a file and force the data file rewrite
+
+  $ hg update ".~1"
+  0 files updated, 0 files merged, 6 files removed, 0 files unresolved
+  $ touch $TESTTMP/status-race-lock
+  $ wait
+
+The parent must change and the status should be clean
+
+  $ hg summary
+  parent: 0:4f23db756b09 
+   recreate a bunch of files to facilitate dirstate-v2 append
+  branch: default
+  commit: 1 added, 3 unknown (new branch head)
+  update: 1 new changesets (update)
+  phases: 2 draft
+  $ hg status
+  A dir/o
+  ? dir/n
+  ? p
+  ? q
+
+The status process should return a consistent result and not crash.
+
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
+  abort: when reading $TESTTMP/race-with-update/dir2/k: $ENOENT$ (known-bad-output rhg !)
+
+final cleanup
+
+  $ rm $TESTTMP/status-race-lock $TESTTMP/status-race-lock.waiting
+  $ cd ..
