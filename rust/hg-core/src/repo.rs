@@ -1,6 +1,7 @@
 use crate::changelog::Changelog;
 use crate::config::{Config, ConfigError, ConfigParseError};
 use crate::dirstate::DirstateParents;
+use crate::dirstate_tree::dirstate_map::DirstateMapWriteMode;
 use crate::dirstate_tree::on_disk::Docket as DirstateDocket;
 use crate::dirstate_tree::owning::OwningDirstateMap;
 use crate::errors::HgResultExt;
@@ -436,9 +437,13 @@ impl Repo {
                 .dirstate_data_file_uuid
                 .get_or_init(|| self.read_dirstate_data_file_uuid())?;
             let uuid_opt = uuid_opt.as_ref();
-            let can_append = uuid_opt.is_some();
+            let write_mode = if uuid_opt.is_some() {
+                DirstateMapWriteMode::Auto
+            } else {
+                DirstateMapWriteMode::ForceNewDataFile
+            };
             let (data, tree_metadata, append, old_data_size) =
-                map.pack_v2(can_append)?;
+                map.pack_v2(write_mode)?;
 
             // Reuse the uuid, or generate a new one, keeping the old for
             // deletion.
