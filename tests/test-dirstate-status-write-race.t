@@ -438,3 +438,50 @@ final cleanup
 
   $ rm $TESTTMP/status-race-lock $TESTTMP/status-race-lock.waiting
   $ cd ..
+
+Race with the removal of an ambiguous file
+----------------------è-------------------
+
+  $ cp -a reference-repo race-with-remove
+  $ cd race-with-remove
+
+spin a `hg status` with some caches to update
+
+  $ touch -t 200001010035 dir2/l
+  $ hg st >$TESTTMP/status-race-lock.out 2>$TESTTMP/status-race-lock.log \
+  > --config rhg.on-unsupported=abort \
+  > --config devel.sync.status.pre-dirstate-write-file=$TESTTMP/status-race-lock \
+  > &
+  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/status-race-lock.waiting
+
+remove that same file
+
+  $ hg $d2args remove dir2/l
+  $ touch $TESTTMP/status-race-lock
+  $ wait
+
+file should be marked as removed
+
+  $ hg status
+  A dir/o
+  R dir/nested/m
+  R dir2/l
+  ? dir/n
+  ? p
+  ? q
+
+The status process should return a consistent result and not crash.
+
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
+  abort: when reading $TESTTMP/race-with-remove/dir2/l: $ENOENT$ (known-bad-output rhg !)
+
+final cleanup
+
+  $ rm $TESTTMP/status-race-lock $TESTTMP/status-race-lock.waiting
+  $ cd ..
