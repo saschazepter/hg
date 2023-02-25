@@ -10,6 +10,7 @@ use crate::lock::{try_with_lock_no_wait, LockError};
 use crate::manifest::{Manifest, Manifestlog};
 use crate::revlog::filelog::Filelog;
 use crate::revlog::revlog::RevlogError;
+use crate::utils::debug::debug_wait_for_file_or_print;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
@@ -308,6 +309,10 @@ impl Repo {
         if self.has_dirstate_v2() {
             self.read_docket_and_data_file()
         } else {
+            debug_wait_for_file_or_print(
+                self.config(),
+                "dirstate.pre-read-file",
+            );
             let dirstate_file_contents = self.dirstate_file_contents()?;
             if dirstate_file_contents.is_empty() {
                 self.dirstate_parents.set(DirstateParents::NULL);
@@ -324,6 +329,7 @@ impl Repo {
     fn read_docket_and_data_file(
         &self,
     ) -> Result<OwningDirstateMap, DirstateError> {
+        debug_wait_for_file_or_print(self.config(), "dirstate.pre-read-file");
         let dirstate_file_contents = self.dirstate_file_contents()?;
         if dirstate_file_contents.is_empty() {
             self.dirstate_parents.set(DirstateParents::NULL);
