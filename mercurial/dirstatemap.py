@@ -10,6 +10,7 @@ from . import (
     error,
     pathutil,
     policy,
+    testing,
     txnutil,
     util,
 )
@@ -276,7 +277,9 @@ class dirstatemap(_dirstatemapcommon):
             self._opener.join(self._filename)
         )
 
+        testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
         if self._use_dirstate_v2:
+
             if not self.docket.uuid:
                 return
             st = self._opener.read(self.docket.data_filename())
@@ -541,6 +544,7 @@ if rustmod is not None:
                 self._opener.join(self._filename)
             )
 
+            testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
             if self._use_dirstate_v2:
                 if self.docket.uuid:
                     # TODO: use mmap when possible
