@@ -141,3 +141,58 @@ final cleanup
 
   $ rm $TESTTMP/status-race-lock $TESTTMP/status-race-lock.waiting
   $ cd ..
+
+Race with a `hg commit`
+-----------------------
+
+  $ cp -a reference-repo race-with-commit
+  $ cd race-with-commit
+
+spin a `hg status with some cache to update
+
+  $ hg st >$TESTTMP/status-race-lock.out 2>$TESTTMP/status-race-lock.log \
+  > --config rhg.on-unsupported=abort \
+  > --config devel.sync.dirstate.pre-read-file=$TESTTMP/status-race-lock \
+  > &
+  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/status-race-lock.waiting
+
+Add a do a commit
+
+  $ hg status
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+  $ hg commit -m 'racing commit'
+  $ touch $TESTTMP/status-race-lock
+  $ wait
+
+commit was created, and status is now clean
+
+  $ hg log -GT '{node|short} {desc}\n'
+  @  02a67a77ee9b racing commit
+  |
+  o  9a86dcbfb938 more files to have two commit
+  |
+  o  4f23db756b09 recreate a bunch of files to facilitate dirstate-v2 append
+  
+  $ hg status
+  ? dir/n
+  ? p
+  ? q
+
+The status process should return a consistent result and not crash.
+
+  $ cat $TESTTMP/status-race-lock.out
+  M dir/o (known-bad-output no-rhg !)
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
+  warning: ignoring unknown working parent 02a67a77ee9b! (known-bad-output no-rhg !)
+
+final cleanup
+
+  $ rm $TESTTMP/status-race-lock $TESTTMP/status-race-lock.waiting
+  $ cd ..
