@@ -2,6 +2,8 @@
 Check potential race conditions between a dirstate's read and other operations
 ==============================================================================
 
+#testcases dirstate-v1 dirstate-v2-append dirstate-v2-rewrite
+
 Some commands, like `hg status`, do not need to take the wlock but need to
 access dirstate data.
 Other commands might update the dirstate data while this happens.
@@ -19,6 +21,30 @@ different type of race.
 
 Setup
 =====
+
+  $ cat >> $HGRCPATH << EOF
+  > [storage]
+  > dirstate-v2.slow-path=allow
+  > EOF
+
+#if no-dirstate-v1
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-dirstate-v2=yes
+  > EOF
+#else
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-dirstate-v2=no
+  > EOF
+#endif
+
+#if dirstate-v2-rewrite
+  $ d2args="--config devel.dirstate.v2.data_update_mode=force-new"
+#endif
+#if dirstate-v2-append
+  $ d2args="--config devel.dirstate.v2.data_update_mode=force-append"
+#endif
 
   $ directories="dir dir/nested dir2"
   $ first_files="dir/nested/a dir/b dir/c dir/d dir2/e f"
@@ -114,7 +140,7 @@ spin a `hg status` with some caches to update
 
 Add a file
 
-  $ hg add dir/n $d2args
+  $ hg $d2args add dir/n
   $ touch $TESTTMP/status-race-lock
   $ wait
 
@@ -129,6 +155,7 @@ The file should in a "added" state
 
 The status process should return a consistent result and not crash.
 
+#if dirstate-v1
   $ cat $TESTTMP/status-race-lock.out
   A dir/n
   A dir/o
@@ -136,6 +163,30 @@ The status process should return a consistent result and not crash.
   ? p
   ? q
   $ cat $TESTTMP/status-race-lock.log
+#else
+#if rhg
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/n
+  A dir/o
+  R dir/nested/m
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
+#else
+#if rust
+#if dirstate-v2-rewrite
+  $ cat $TESTTMP/status-race-lock.out
+  $ cat $TESTTMP/status-race-lock.log
+  abort: $ENOENT$: '$TESTTMP/race-with-add/.hg/dirstate.* (glob)
+#else
+#endif
+#else
+  $ cat $TESTTMP/status-race-lock.out
+  $ cat $TESTTMP/status-race-lock.log
+  abort: $ENOENT$: '$TESTTMP/race-with-add/.hg/dirstate.* (glob)
+#endif
+#endif
+#endif
 
 final cleanup
 
@@ -164,7 +215,7 @@ Add a do a commit
   ? dir/n
   ? p
   ? q
-  $ hg commit -m 'racing commit'
+  $ hg $d2args commit -m 'racing commit'
   $ touch $TESTTMP/status-race-lock
   $ wait
 
@@ -184,13 +235,36 @@ commit was created, and status is now clean
 
 The status process should return a consistent result and not crash.
 
+#if dirstate-v1
   $ cat $TESTTMP/status-race-lock.out
-  M dir/o (known-bad-output no-rhg !)
+  M dir/o (no-rhg !)
   ? dir/n
   ? p
   ? q
   $ cat $TESTTMP/status-race-lock.log
-  warning: ignoring unknown working parent 02a67a77ee9b! (known-bad-output no-rhg !)
+  warning: ignoring unknown working parent 02a67a77ee9b! (no-rhg !)
+#else
+#if rhg
+  $ cat $TESTTMP/status-race-lock.out
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
+#else
+#if rust
+#if dirstate-v2-rewrite
+  $ cat $TESTTMP/status-race-lock.out
+  $ cat $TESTTMP/status-race-lock.log
+  abort: $ENOENT$: '$TESTTMP/race-with-commit/.hg/dirstate.* (glob)
+#else
+#endif
+#else
+  $ cat $TESTTMP/status-race-lock.out
+  $ cat $TESTTMP/status-race-lock.log
+  abort: $ENOENT$: '$TESTTMP/race-with-commit/.hg/dirstate.* (glob)
+#endif
+#endif
+#endif
 
 final cleanup
 
@@ -223,7 +297,7 @@ do an update
   |
   o  4f23db756b09 recreate a bunch of files to facilitate dirstate-v2 append
   
-  $ hg update --merge .^
+  $ hg $d2args update --merge ".~1"
   0 files updated, 0 files merged, 6 files removed, 0 files unresolved
   $ touch $TESTTMP/status-race-lock
   $ wait
@@ -240,12 +314,36 @@ do an update
 
 The status process should return a consistent result and not crash.
 
+#if dirstate-v1
   $ cat $TESTTMP/status-race-lock.out
   A dir/o
   ? dir/n
   ? p
   ? q
   $ cat $TESTTMP/status-race-lock.log
+#else
+#if rhg
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
+#else
+#if rust
+#if dirstate-v2-rewrite
+  $ cat $TESTTMP/status-race-lock.out
+  $ cat $TESTTMP/status-race-lock.log
+  abort: $ENOENT$: '$TESTTMP/race-with-update/.hg/dirstate.* (glob)
+#else
+#endif
+#else
+  $ cat $TESTTMP/status-race-lock.out
+  $ cat $TESTTMP/status-race-lock.log
+  abort: $ENOENT$: '$TESTTMP/race-with-update/.hg/dirstate.* (glob)
+#endif
+#endif
+#endif
 
 final cleanup
 
@@ -270,7 +368,7 @@ spin a `hg status` with some caches to update
 do an update
 
   $ touch -t 200001020006 f
-  $ hg status
+  $ hg $d2args status
   A dir/o
   R dir/nested/m
   ? dir/n
@@ -281,6 +379,7 @@ do an update
 
 The status process should return a consistent result and not crash.
 
+#if dirstate-v1
   $ cat $TESTTMP/status-race-lock.out
   A dir/o
   R dir/nested/m
@@ -288,6 +387,30 @@ The status process should return a consistent result and not crash.
   ? p
   ? q
   $ cat $TESTTMP/status-race-lock.log
+#else
+#if rhg
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
+#else
+#if rust
+#if dirstate-v2-rewrite
+  $ cat $TESTTMP/status-race-lock.out
+  $ cat $TESTTMP/status-race-lock.log
+  abort: $ENOENT$: '$TESTTMP/race-with-status/.hg/dirstate.* (glob)
+#else
+#endif
+#else
+  $ cat $TESTTMP/status-race-lock.out
+  $ cat $TESTTMP/status-race-lock.log
+  abort: $ENOENT$: '$TESTTMP/race-with-status/.hg/dirstate.* (glob)
+#endif
+#endif
+#endif
 
 final cleanup
 
