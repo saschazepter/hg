@@ -196,3 +196,58 @@ final cleanup
 
   $ rm $TESTTMP/status-race-lock $TESTTMP/status-race-lock.waiting
   $ cd ..
+
+Race with a `hg update`
+-----------------------
+
+  $ cp -a reference-repo race-with-update
+  $ cd race-with-update
+
+spin a `hg status` with some caches to update
+
+  $ hg st >$TESTTMP/status-race-lock.out 2>$TESTTMP/status-race-lock.log \
+  > --config rhg.on-unsupported=abort \
+  > --config devel.sync.dirstate.pre-read-file=$TESTTMP/status-race-lock \
+  > &
+  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/status-race-lock.waiting
+do an update
+
+  $ hg status
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+  $ hg log -GT '{node|short} {desc}\n'
+  @  9a86dcbfb938 more files to have two commit
+  |
+  o  4f23db756b09 recreate a bunch of files to facilitate dirstate-v2 append
+  
+  $ hg update --merge .^
+  0 files updated, 0 files merged, 6 files removed, 0 files unresolved
+  $ touch $TESTTMP/status-race-lock
+  $ wait
+  $ hg log -GT '{node|short} {desc}\n'
+  o  9a86dcbfb938 more files to have two commit
+  |
+  @  4f23db756b09 recreate a bunch of files to facilitate dirstate-v2 append
+  
+  $ hg status
+  A dir/o
+  ? dir/n
+  ? p
+  ? q
+
+The status process should return a consistent result and not crash.
+
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
+
+final cleanup
+
+  $ rm $TESTTMP/status-race-lock $TESTTMP/status-race-lock.waiting
+  $ cd ..
