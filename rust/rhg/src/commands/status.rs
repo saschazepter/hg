@@ -436,9 +436,21 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                     // `unsure_is_clean` which was needed before reading
                     // contents. Here we access metadata again after reading
                     // content, in case it changed in the meantime.
-                    let fs_metadata = repo
+                    let metadata_res = repo
                         .working_directory_vfs()
-                        .symlink_metadata(&fs_path)?;
+                        .symlink_metadata(&fs_path);
+                    let fs_metadata = match metadata_res {
+                        Ok(meta) => meta,
+                        Err(err) => match err {
+                            HgError::IoError { .. } => {
+                                // The file has probably been deleted. In any
+                                // case, it was in the dirstate before, so
+                                // let's ignore the error.
+                                continue;
+                            }
+                            _ => return Err(err.into()),
+                        },
+                    };
                     if let Some(mtime) =
                         TruncatedTimestamp::for_reliable_mtime_of(
                             &fs_metadata,
