@@ -481,7 +481,10 @@ impl Repo {
             //   https://github.com/openzfs/zfs/issues/13370
             //
             if !append {
+                log::trace!("creating a new dirstate data file");
                 options.create_new(true);
+            } else {
+                log::trace!("appending to the dirstate data file");
             }
 
             let data_size = (|| {
