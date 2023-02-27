@@ -64,7 +64,7 @@ pub enum ConfigSource {
 }
 
 #[derive(Debug)]
-pub struct ConfigValueParseError {
+pub struct ConfigValueParseErrorDetails {
     pub origin: ConfigOrigin,
     pub line: Option<usize>,
     pub section: Vec<u8>,
@@ -72,6 +72,9 @@ pub struct ConfigValueParseError {
     pub value: Vec<u8>,
     pub expected_type: &'static str,
 }
+
+// boxed to avoid very large Result types
+pub type ConfigValueParseError = Box<ConfigValueParseErrorDetails>;
 
 impl fmt::Display for ConfigValueParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -354,14 +357,14 @@ impl Config {
         match self.get_inner(section, item) {
             Some((layer, v)) => match parse(&v.bytes) {
                 Some(b) => Ok(Some(b)),
-                None => Err(ConfigValueParseError {
+                None => Err(Box::new(ConfigValueParseErrorDetails {
                     origin: layer.origin.to_owned(),
                     line: v.line,
                     value: v.bytes.to_owned(),
                     section: section.to_owned(),
                     item: item.to_owned(),
                     expected_type,
-                }),
+                })),
             },
             None => Ok(None),
         }
