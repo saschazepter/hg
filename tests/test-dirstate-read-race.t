@@ -3,6 +3,7 @@ Check potential race conditions between a dirstate's read and other operations
 ==============================================================================
 
 #testcases dirstate-v1 dirstate-v2-append dirstate-v2-rewrite
+#testcases pre-all-read pre-some-read
 
 Some commands, like `hg status`, do not need to take the wlock but need to
 access dirstate data.
@@ -44,6 +45,17 @@ Setup
 #endif
 #if dirstate-v2-append
   $ d2args="--config devel.dirstate.v2.data_update_mode=force-append"
+#endif
+
+
+#if dirstate-v1
+  $ cfg="devel.sync.dirstate.pre-read-file"
+#else
+#if pre-all-read
+  $ cfg="devel.sync.dirstate.pre-read-file"
+#else
+  $ cfg="devel.sync.dirstate.post-docket-read-file"
+#endif
 #endif
 
   $ directories="dir dir/nested dir2"
@@ -134,7 +146,7 @@ spin a `hg status` with some caches to update
 
   $ hg st >$TESTTMP/status-race-lock.out 2>$TESTTMP/status-race-lock.log \
   > --config rhg.on-unsupported=abort \
-  > --config devel.sync.dirstate.pre-read-file=$TESTTMP/status-race-lock \
+  > --config ${cfg}=$TESTTMP/status-race-lock \
   > &
   $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/status-race-lock.waiting
 
@@ -165,6 +177,7 @@ The status process should return a consistent result and not crash.
   $ cat $TESTTMP/status-race-lock.log
 #else
 #if rhg
+#if pre-all-read
   $ cat $TESTTMP/status-race-lock.out
   A dir/n
   A dir/o
@@ -173,12 +186,34 @@ The status process should return a consistent result and not crash.
   ? q
   $ cat $TESTTMP/status-race-lock.log
 #else
+#if dirstate-v2-append
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
+#else
+  $ cat $TESTTMP/status-race-lock.out
+  $ cat $TESTTMP/status-race-lock.log
+  abort: dirstate-v2 parse error: not enough bytes on disk
+#endif
+#endif
+#else
 #if rust
 #if dirstate-v2-rewrite
   $ cat $TESTTMP/status-race-lock.out
   $ cat $TESTTMP/status-race-lock.log
   abort: $ENOENT$: '$TESTTMP/race-with-add/.hg/dirstate.* (glob)
 #else
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
 #endif
 #else
   $ cat $TESTTMP/status-race-lock.out
@@ -203,7 +238,7 @@ spin a `hg status with some cache to update
 
   $ hg st >$TESTTMP/status-race-lock.out 2>$TESTTMP/status-race-lock.log \
   > --config rhg.on-unsupported=abort \
-  > --config devel.sync.dirstate.pre-read-file=$TESTTMP/status-race-lock \
+  > --config ${cfg}=$TESTTMP/status-race-lock \
   > &
   $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/status-race-lock.waiting
 
@@ -245,11 +280,27 @@ The status process should return a consistent result and not crash.
   warning: ignoring unknown working parent 02a67a77ee9b! (no-rhg !)
 #else
 #if rhg
+#if pre-all-read
   $ cat $TESTTMP/status-race-lock.out
   ? dir/n
   ? p
   ? q
   $ cat $TESTTMP/status-race-lock.log
+#else
+#if dirstate-v2-append
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
+#else
+  $ cat $TESTTMP/status-race-lock.out
+  $ cat $TESTTMP/status-race-lock.log
+  abort: dirstate-v2 parse error: not enough bytes on disk
+#endif
+#endif
 #else
 #if rust
 #if dirstate-v2-rewrite
@@ -257,6 +308,13 @@ The status process should return a consistent result and not crash.
   $ cat $TESTTMP/status-race-lock.log
   abort: $ENOENT$: '$TESTTMP/race-with-commit/.hg/dirstate.* (glob)
 #else
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
 #endif
 #else
   $ cat $TESTTMP/status-race-lock.out
@@ -281,7 +339,7 @@ spin a `hg status` with some caches to update
 
   $ hg st >$TESTTMP/status-race-lock.out 2>$TESTTMP/status-race-lock.log \
   > --config rhg.on-unsupported=abort \
-  > --config devel.sync.dirstate.pre-read-file=$TESTTMP/status-race-lock \
+  > --config ${cfg}=$TESTTMP/status-race-lock \
   > &
   $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/status-race-lock.waiting
 do an update
@@ -301,6 +359,25 @@ do an update
   0 files updated, 0 files merged, 6 files removed, 0 files unresolved
   $ touch $TESTTMP/status-race-lock
   $ wait
+#if rhg dirstate-v2-append pre-some-read
+  $ hg log -GT '{node|short} {desc}\n'
+  @  9a86dcbfb938 more files to have two commit
+  |
+  o  4f23db756b09 recreate a bunch of files to facilitate dirstate-v2 append
+  
+  $ hg status
+  A dir/o
+  R dir/nested/m
+  ! dir/i
+  ! dir/j
+  ! dir/nested/h
+  ! dir2/k
+  ! dir2/l
+  ! g
+  ? dir/n
+  ? p
+  ? q
+#else
   $ hg log -GT '{node|short} {desc}\n'
   o  9a86dcbfb938 more files to have two commit
   |
@@ -311,6 +388,7 @@ do an update
   ? dir/n
   ? p
   ? q
+#endif
 
 The status process should return a consistent result and not crash.
 
@@ -323,6 +401,7 @@ The status process should return a consistent result and not crash.
   $ cat $TESTTMP/status-race-lock.log
 #else
 #if rhg
+#if pre-all-read
   $ cat $TESTTMP/status-race-lock.out
   A dir/o
   ? dir/n
@@ -330,12 +409,46 @@ The status process should return a consistent result and not crash.
   ? q
   $ cat $TESTTMP/status-race-lock.log
 #else
+#if dirstate-v2-append
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ! dir/i
+  ! dir/j
+  ! dir/nested/h
+  ! dir2/k
+  ! dir2/l
+  ! g
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
+#else
+  $ cat $TESTTMP/status-race-lock.out
+  $ cat $TESTTMP/status-race-lock.log
+  abort: dirstate-v2 parse error: not enough bytes on disk
+#endif
+#endif
+#else
 #if rust
 #if dirstate-v2-rewrite
   $ cat $TESTTMP/status-race-lock.out
   $ cat $TESTTMP/status-race-lock.log
   abort: $ENOENT$: '$TESTTMP/race-with-update/.hg/dirstate.* (glob)
 #else
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ! dir/i
+  ! dir/j
+  ! dir/nested/h
+  ! dir2/k
+  ! dir2/l
+  ! g
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
 #endif
 #else
   $ cat $TESTTMP/status-race-lock.out
@@ -362,7 +475,7 @@ spin a `hg status` with some caches to update
 
   $ hg st >$TESTTMP/status-race-lock.out 2>$TESTTMP/status-race-lock.log \
   > --config rhg.on-unsupported=abort \
-  > --config devel.sync.dirstate.pre-read-file=$TESTTMP/status-race-lock \
+  > --config ${cfg}=$TESTTMP/status-race-lock \
   > &
   $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/status-race-lock.waiting
 do an update
@@ -389,6 +502,7 @@ The status process should return a consistent result and not crash.
   $ cat $TESTTMP/status-race-lock.log
 #else
 #if rhg
+#if pre-all-read
   $ cat $TESTTMP/status-race-lock.out
   A dir/o
   R dir/nested/m
@@ -397,12 +511,34 @@ The status process should return a consistent result and not crash.
   ? q
   $ cat $TESTTMP/status-race-lock.log
 #else
+#if dirstate-v2-append
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
+#else
+  $ cat $TESTTMP/status-race-lock.out
+  $ cat $TESTTMP/status-race-lock.log
+  abort: dirstate-v2 parse error: not enough bytes on disk
+#endif
+#endif
+#else
 #if rust
 #if dirstate-v2-rewrite
   $ cat $TESTTMP/status-race-lock.out
   $ cat $TESTTMP/status-race-lock.log
   abort: $ENOENT$: '$TESTTMP/race-with-status/.hg/dirstate.* (glob)
 #else
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
 #endif
 #else
   $ cat $TESTTMP/status-race-lock.out
