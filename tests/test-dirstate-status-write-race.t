@@ -382,7 +382,6 @@ The status process should return a consistent result and not crash.
   ? p
   ? q
   $ cat $TESTTMP/status-race-lock.log
-  abort: when reading $TESTTMP/race-with-update/dir2/k: $ENOENT$ (known-bad-output rhg !)
 
 final cleanup
 
@@ -479,7 +478,6 @@ The status process should return a consistent result and not crash.
   ? p
   ? q
   $ cat $TESTTMP/status-race-lock.log
-  abort: when reading $TESTTMP/race-with-remove/dir2/l: $ENOENT$ (known-bad-output rhg !)
 
 final cleanup
 
