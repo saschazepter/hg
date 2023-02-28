@@ -312,25 +312,6 @@ do an update
   0 files updated, 0 files merged, 6 files removed, 0 files unresolved
   $ touch $TESTTMP/status-race-lock
   $ wait
-#if rhg dirstate-v2-append pre-some-read
-  $ hg log -GT '{node|short} {desc}\n'
-  @  9a86dcbfb938 more files to have two commit
-  |
-  o  4f23db756b09 recreate a bunch of files to facilitate dirstate-v2 append
-  
-  $ hg status
-  A dir/o
-  R dir/nested/m
-  ! dir/i
-  ! dir/j
-  ! dir/nested/h
-  ! dir2/k
-  ! dir2/l
-  ! g
-  ? dir/n
-  ? p
-  ? q
-#else
   $ hg log -GT '{node|short} {desc}\n'
   o  9a86dcbfb938 more files to have two commit
   |
@@ -341,7 +322,6 @@ do an update
   ? dir/n
   ? p
   ? q
-#endif
 
 The status process should return a consistent result and not crash.
 
