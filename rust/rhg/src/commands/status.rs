@@ -299,25 +299,45 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                 .unsure
                 .into_par_iter()
                 .map(|to_check| {
-                    unsure_is_modified(
+                    // The compiler seems to get a bit confused with complex
+                    // inference when using a parallel iterator + map
+                    // + map_err + collect, so let's just inline some of the
+                    // logic.
+                    match unsure_is_modified(
                         working_directory_vfs,
                         store_vfs,
                         &manifest,
                         &to_check.path,
-                    )
-                    .map(|modified| (to_check, modified))
+                    ) {
+                        Err(HgError::IoError { .. }) => {
+                            // IO errors most likely stem from the file being
+                            // deleted even though we know it's in the
+                            // dirstate.
+                            Ok((to_check, UnsureOutcome::Deleted))
+                        }
+                        Ok(outcome) => Ok((to_check, outcome)),
+                        Err(e) => Err(e),
+                    }
                 })
                 .collect::<Result<_, _>>()?;
-            for (status_path, is_modified) in res.into_iter() {
-                if is_modified {
-                    if display_states.modified {
-                        ds_status.modified.push(status_path);
+            for (status_path, outcome) in res.into_iter() {
+                match outcome {
+                    UnsureOutcome::Clean => {
+                        if display_states.clean {
+                            ds_status.clean.push(status_path.clone());
+                        }
+                        fixup.push(status_path.path.into_owned())
                     }
-                } else {
-                    if display_states.clean {
-                        ds_status.clean.push(status_path.clone());
+                    UnsureOutcome::Modified => {
+                        if display_states.modified {
+                            ds_status.modified.push(status_path);
+                        }
                     }
-                    fixup.push(status_path.path.into_owned())
+                    UnsureOutcome::Deleted => {
+                        if display_states.deleted {
+                            ds_status.deleted.push(status_path);
+                        }
+                    }
                 }
             }
         }
@@ -557,6 +577,16 @@ impl DisplayStatusPaths<'_> {
     }
 }
 
+/// Outcome of the additional check for an ambiguous tracked file
+enum UnsureOutcome {
+    /// The file is actually clean
+    Clean,
+    /// The file has been modified
+    Modified,
+    /// The file was deleted on disk (or became another type of fs entry)
+    Deleted,
+}
+
 /// Check if a file is modified by comparing actual repo store and file system.
 ///
 /// This meant to be used for those that the dirstate cannot resolve, due
@@ -566,7 +596,7 @@ fn unsure_is_modified(
     store_vfs: hg::vfs::Vfs,
     manifest: &Manifest,
     hg_path: &HgPath,
-) -> Result<bool, HgError> {
+) -> Result<UnsureOutcome, HgError> {
     let vfs = working_directory_vfs;
     let fs_path = hg_path_to_path_buf(hg_path).expect("HgPath conversion");
     let fs_metadata = vfs.symlink_metadata(&fs_path)?;
@@ -585,7 +615,7 @@ fn unsure_is_modified(
         .find_by_path(hg_path)?
         .expect("ambgious file not in p1");
     if entry.flags != fs_flags {
-        return Ok(true);
+        return Ok(UnsureOutcome::Modified);
     }
     let filelog = hg::filelog::Filelog::open_vfs(&store_vfs, hg_path)?;
     let fs_len = fs_metadata.len();
@@ -599,7 +629,7 @@ fn unsure_is_modified(
     if filelog_entry.file_data_len_not_equal_to(fs_len) {
         // No need to read file contents:
         // it cannot be equal if it has a different length.
-        return Ok(true);
+        return Ok(UnsureOutcome::Modified);
     }
 
     let p1_filelog_data = filelog_entry.data()?;
@@ -607,7 +637,7 @@ fn unsure_is_modified(
     if p1_contents.len() as u64 != fs_len {
         // No need to read file contents:
         // it cannot be equal if it has a different length.
-        return Ok(true);
+        return Ok(UnsureOutcome::Modified);
     }
 
     let fs_contents = if is_symlink {
@@ -615,7 +645,12 @@ fn unsure_is_modified(
     } else {
         vfs.read(fs_path)?
     };
-    Ok(p1_contents != &*fs_contents)
+
+    Ok(if p1_contents != &*fs_contents {
+        UnsureOutcome::Modified
+    } else {
+        UnsureOutcome::Clean
+    })
 }
 
 fn print_pattern_file_warning(
