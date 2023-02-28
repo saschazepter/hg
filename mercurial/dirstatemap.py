@@ -133,6 +133,7 @@ class _dirstatemapcommon:
         while attempts < V2_MAX_READ_ATTEMPTS:
             attempts += 1
             try:
+                # TODO: use mmap when possible
                 data = self._opener.read(self.docket.data_filename())
             except FileNotFoundError:
                 # read race detected between docket and data file
@@ -568,14 +569,12 @@ if rustmod is not None:
 
             testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
             if self._use_dirstate_v2:
-                if self.docket.uuid:
-                    testing.wait_on_cfg(
-                        self._ui, b'dirstate.post-docket-read-file'
-                    )
-                    # TODO: use mmap when possible
-                    data = self._opener.read(self.docket.data_filename())
-                else:
+                self.docket  # load the data if needed
+                testing.wait_on_cfg(self._ui, b'dirstate.post-docket-read-file')
+                if not self.docket.uuid:
                     data = b''
+                else:
+                    data = self._read_v2_data()
                 self._map = rustmod.DirstateMap.new_v2(
                     data, self.docket.data_size, self.docket.tree_metadata
                 )
