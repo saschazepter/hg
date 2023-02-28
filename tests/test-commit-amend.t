@@ -121,15 +121,15 @@ No changes, just a different message:
   committing changelog
   1 changesets found
   uncompressed size of bundle content:
-       254 (changelog)
-       163 (manifests)
-       133  a
+       256 (changelog)
+       165 (manifests)
+       135  a
   saved backup bundle to $TESTTMP/repo/.hg/strip-backup/47343646fa3d-c2758885-amend.hg
   1 changesets found
   uncompressed size of bundle content:
-       250 (changelog)
-       163 (manifests)
-       133  a
+       252 (changelog)
+       165 (manifests)
+       135  a
   adding branch
   adding changesets
   adding manifests
@@ -265,15 +265,15 @@ then, test editing custom commit message
   committing changelog
   1 changesets found
   uncompressed size of bundle content:
-       249 (changelog)
-       163 (manifests)
-       135  a
+       251 (changelog)
+       165 (manifests)
+       137  a
   saved backup bundle to $TESTTMP/repo/.hg/strip-backup/a9a13940fc03-7c2e8674-amend.hg
   1 changesets found
   uncompressed size of bundle content:
-       257 (changelog)
-       163 (manifests)
-       135  a
+       259 (changelog)
+       165 (manifests)
+       137  a
   adding branch
   adding changesets
   adding manifests
@@ -301,15 +301,15 @@ Same, but with changes in working dir (different code path):
   committing changelog
   1 changesets found
   uncompressed size of bundle content:
-       257 (changelog)
-       163 (manifests)
-       135  a
+       259 (changelog)
+       165 (manifests)
+       137  a
   saved backup bundle to $TESTTMP/repo/.hg/strip-backup/64a124ba1b44-10374b8f-amend.hg
   1 changesets found
   uncompressed size of bundle content:
-       257 (changelog)
-       163 (manifests)
-       137  a
+       259 (changelog)
+       165 (manifests)
+       139  a
   adding branch
   adding changesets
   adding manifests

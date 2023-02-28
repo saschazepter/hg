@@ -75,17 +75,17 @@ already has one local mq patch
   $TESTTMP/a/.hg/patches/p0.patch
   2 changesets found
   uncompressed size of bundle content:
-       348 (changelog)
-       324 (manifests)
-       129  p0
-       129  p1
+       352 (changelog)
+       328 (manifests)
+       131  p0
+       131  p1
   saved backup bundle to $TESTTMP/a/.hg/strip-backup/13a46ce44f60-5da6ecfb-rebase.hg
   2 changesets found
   uncompressed size of bundle content:
-       403 (changelog)
-       324 (manifests)
-       129  p0
-       129  p1
+       407 (changelog)
+       328 (manifests)
+       131  p0
+       131  p1
   adding branch
   adding changesets
   adding manifests

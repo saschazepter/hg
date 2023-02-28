@@ -308,9 +308,13 @@ TODO: fail more gracefully.
   $ hg -R $TESTTMP/client4_pull pull http://localhost:$HGPORT
   pulling from http://localhost:$HGPORT/
   requesting all changes
-  remote: abort: no common changegroup version
-  abort: pull failed on remote
-  [100]
+  adding changesets
+  adding manifests
+  adding file changes
+  transaction abort!
+  rollback completed
+  abort: missing processor for flag '0x2000'
+  [50]
   $ hg debugrequires -R $TESTTMP/client4_pull/ | grep 'lfs'
   [1]
   $ hg debugrequires -R $SERVER_PATH --config extensions.lfs= | grep 'lfs'
