@@ -321,22 +321,39 @@ impl Repo {
                 .set(Some(docket.uuid.to_owned()));
             let data_size = docket.data_size();
             let metadata = docket.tree_metadata();
-            if crate::vfs::is_on_nfs_mount(docket.data_filename()) {
-                // Don't mmap on NFS to prevent `SIGBUS` error on deletion
-                OwningDirstateMap::new_v2(
-                    self.hg_vfs().read(docket.data_filename())?,
-                    data_size,
-                    metadata,
-                )
-            } else if let Some(data_mmap) = self
-                .hg_vfs()
-                .mmap_open(docket.data_filename())
-                .io_not_found_as_none()?
-            {
-                OwningDirstateMap::new_v2(data_mmap, data_size, metadata)
-            } else {
-                OwningDirstateMap::new_v2(Vec::new(), data_size, metadata)
-            }
+            let mut map =
+                if crate::vfs::is_on_nfs_mount(docket.data_filename()) {
+                    // Don't mmap on NFS to prevent `SIGBUS` error on deletion
+                    OwningDirstateMap::new_v2(
+                        self.hg_vfs().read(docket.data_filename())?,
+                        data_size,
+                        metadata,
+                    )
+                } else if let Some(data_mmap) = self
+                    .hg_vfs()
+                    .mmap_open(docket.data_filename())
+                    .io_not_found_as_none()?
+                {
+                    OwningDirstateMap::new_v2(data_mmap, data_size, metadata)
+                } else {
+                    OwningDirstateMap::new_v2(Vec::new(), data_size, metadata)
+                }?;
+
+            let write_mode_config = self
+                .config()
+                .get_str(b"devel", b"dirstate.v2.data_update_mode")
+                .unwrap_or(Some("auto"))
+                .unwrap_or("auto"); // don't bother for devel options
+            let write_mode = match write_mode_config {
+                "auto" => DirstateMapWriteMode::Auto,
+                "force-new" => DirstateMapWriteMode::ForceNewDataFile,
+                "force-append" => DirstateMapWriteMode::ForceAppend,
+                _ => DirstateMapWriteMode::Auto,
+            };
+
+            map.with_dmap_mut(|m| m.set_write_mode(write_mode));
+
+            Ok(map)
         } else {
             let (map, parents) =
                 OwningDirstateMap::new_v1(dirstate_file_contents)?;
