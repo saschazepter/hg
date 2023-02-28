@@ -587,7 +587,7 @@ on a 32MB system.
   adding file changes
   adding bar revisions
   adding foo revisions
-  bundle2-input-part: total payload size 920
+  bundle2-input-part: total payload size 936
   bundle2-input-part: "listkeys" (params: 1 mandatory) supported
   bundle2-input-part: "phase-heads" supported
   bundle2-input-part: total payload size 24
