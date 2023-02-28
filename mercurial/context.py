@@ -36,6 +36,7 @@ from . import (
     sparse,
     subrepo,
     subrepoutil,
+    testing,
     util,
 )
 from .utils import (
@@ -1854,6 +1855,8 @@ class workingctx(committablectx):
 
     def _poststatusfixup(self, status, fixup):
         """update dirstate for files that are actually clean"""
+        ui = self._repo.ui
+        testing.wait_on_cfg(self._repo.ui, b'status.pre-dirstate-write-file')
         poststatus = self._repo.postdsstatus()
         if fixup or poststatus or self._repo.dirstate._dirty:
             try:
@@ -1890,9 +1893,7 @@ class workingctx(committablectx):
                         # consistency, because .hg/dirstate was
                         # already changed simultaneously after last
                         # caching (see also issue5584 for detail)
-                        self._repo.ui.debug(
-                            b'skip updating dirstate: identity mismatch\n'
-                        )
+                        ui.debug(b'skip updating dirstate: identity mismatch\n')
             except error.LockError:
                 pass
             finally:

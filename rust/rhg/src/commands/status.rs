@@ -19,6 +19,7 @@ use hg::lock::LockError;
 use hg::manifest::Manifest;
 use hg::matchers::{AlwaysMatcher, IntersectionMatcher};
 use hg::repo::Repo;
+use hg::utils::debug::debug_wait_for_file;
 use hg::utils::files::get_bytes_from_os_string;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::files::get_path_from_bytes;
@@ -408,6 +409,13 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             options,
             after_status,
         )?;
+
+    // Development config option to test write races
+    if let Err(e) =
+        debug_wait_for_file(&config, "status.pre-dirstate-write-file")
+    {
+        ui.write_stderr(e.as_bytes()).ok();
+    }
 
     if (fixup.is_empty() || filesystem_time_at_status_start.is_none())
         && !dirstate_write_needed
