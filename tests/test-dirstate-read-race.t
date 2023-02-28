@@ -174,55 +174,22 @@ The status process should return a consistent result and not crash.
   R dir/nested/m
   ? p
   ? q
-  $ cat $TESTTMP/status-race-lock.log
 #else
-#if rhg
-#if pre-all-read
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/n
-  A dir/o
-  R dir/nested/m
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#else
-#if dirstate-v2-append
+#if rhg pre-some-read dirstate-v2-append
   $ cat $TESTTMP/status-race-lock.out
   A dir/o
   R dir/nested/m
   ? dir/n
   ? p
   ? q
-  $ cat $TESTTMP/status-race-lock.log
 #else
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/n
-  A dir/o
-  R dir/nested/m
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#endif
-#endif
-#else
-#if rust
-#if dirstate-v2-rewrite
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/n
-  A dir/o
-  R dir/nested/m
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#else
+#if rust no-rhg dirstate-v2-append
   $ cat $TESTTMP/status-race-lock.out
   A dir/o
   R dir/nested/m
   ? dir/n
   ? p
   ? q
-  $ cat $TESTTMP/status-race-lock.log
-#endif
 #else
   $ cat $TESTTMP/status-race-lock.out
   A dir/n
@@ -230,10 +197,10 @@ The status process should return a consistent result and not crash.
   R dir/nested/m
   ? p
   ? q
+#endif
+#endif
+#endif
   $ cat $TESTTMP/status-race-lock.log
-#endif
-#endif
-#endif
 
 final cleanup
 
@@ -282,67 +249,31 @@ commit was created, and status is now clean
 
 The status process should return a consistent result and not crash.
 
-#if dirstate-v1
+#if rust no-rhg dirstate-v2-append
   $ cat $TESTTMP/status-race-lock.out
-  M dir/o (no-rhg !)
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
+#else
+#if rhg pre-some-read dirstate-v2-append
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+  $ cat $TESTTMP/status-race-lock.log
+#else
+  $ cat $TESTTMP/status-race-lock.out
+  M dir/o (no-rhg known-bad-output !)
   ? dir/n
   ? p
   ? q
   $ cat $TESTTMP/status-race-lock.log
   warning: ignoring unknown working parent 02a67a77ee9b! (no-rhg !)
-#else
-#if rhg
-#if pre-all-read
-  $ cat $TESTTMP/status-race-lock.out
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#else
-#if dirstate-v2-append
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  R dir/nested/m
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#else
-  $ cat $TESTTMP/status-race-lock.out
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#endif
-#endif
-#else
-#if rust
-#if dirstate-v2-rewrite
-  $ cat $TESTTMP/status-race-lock.out
-  M dir/o
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-  warning: ignoring unknown working parent 02a67a77ee9b!
-#else
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  R dir/nested/m
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#endif
-#else
-  $ cat $TESTTMP/status-race-lock.out
-  M dir/o
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-  warning: ignoring unknown working parent 02a67a77ee9b!
-#endif
 #endif
 #endif
 
@@ -414,24 +345,7 @@ do an update
 
 The status process should return a consistent result and not crash.
 
-#if dirstate-v1
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#else
-#if rhg
-#if pre-all-read
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#else
-#if dirstate-v2-append
+#if rhg dirstate-v2-append pre-some-read
   $ cat $TESTTMP/status-race-lock.out
   A dir/o
   R dir/nested/m
@@ -444,26 +358,8 @@ The status process should return a consistent result and not crash.
   ? dir/n
   ? p
   ? q
-  $ cat $TESTTMP/status-race-lock.log
 #else
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#endif
-#endif
-#else
-#if rust
-#if dirstate-v2-rewrite
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#else
+#if rust no-rhg dirstate-v2-append
   $ cat $TESTTMP/status-race-lock.out
   A dir/o
   R dir/nested/m
@@ -476,18 +372,15 @@ The status process should return a consistent result and not crash.
   ? dir/n
   ? p
   ? q
-  $ cat $TESTTMP/status-race-lock.log
-#endif
 #else
   $ cat $TESTTMP/status-race-lock.out
   A dir/o
   ? dir/n
   ? p
   ? q
+#endif
+#endif
   $ cat $TESTTMP/status-race-lock.log
-#endif
-#endif
-#endif
 
 final cleanup
 
@@ -523,7 +416,6 @@ do an update
 
 The status process should return a consistent result and not crash.
 
-#if dirstate-v1
   $ cat $TESTTMP/status-race-lock.out
   A dir/o
   R dir/nested/m
@@ -531,65 +423,6 @@ The status process should return a consistent result and not crash.
   ? p
   ? q
   $ cat $TESTTMP/status-race-lock.log
-#else
-#if rhg
-#if pre-all-read
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  R dir/nested/m
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#else
-#if dirstate-v2-append
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  R dir/nested/m
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#else
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  R dir/nested/m
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#endif
-#endif
-#else
-#if rust
-#if dirstate-v2-rewrite
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  R dir/nested/m
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#else
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  R dir/nested/m
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#endif
-#else
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  R dir/nested/m
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#endif
-#endif
-#endif
 
 final cleanup
 
