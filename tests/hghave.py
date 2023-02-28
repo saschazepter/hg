@@ -27,26 +27,17 @@ except ImportError:
 stdout = getattr(sys.stdout, 'buffer', sys.stdout)
 stderr = getattr(sys.stderr, 'buffer', sys.stderr)
 
-is_not_python2 = sys.version_info[0] >= 3
-if is_not_python2:
 
-    def _sys2bytes(p):
-        if p is None:
-            return p
-        return p.encode('utf-8')
-
-    def _bytes2sys(p):
-        if p is None:
-            return p
-        return p.decode('utf-8')
-
-
-else:
-
-    def _sys2bytes(p):
+def _sys2bytes(p):
+    if p is None:
         return p
+    return p.encode('utf-8')
 
-    _bytes2sys = _sys2bytes
+
+def _bytes2sys(p):
+    if p is None:
+        return p
+    return p.decode('utf-8')
 
 
 def check(name, desc):
@@ -168,8 +159,6 @@ def has_baz():
 
 @check("bzr", "Breezy library and executable version >= 3.1")
 def has_bzr():
-    if not is_not_python2:
-        return False
     try:
         # Test the Breezy python lib
         import breezy
@@ -877,9 +866,9 @@ def has_demandimport():
     return (not has_chg()) and os.environ.get('HGDEMANDIMPORT') != 'disable'
 
 
-# Add "py27", "py35", ... as possible feature checks. Note that there's no
+# Add "py36", "py37", ... as possible feature checks. Note that there's no
 # punctuation here.
-@checkvers("py", "Python >= %s", (2.7, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10, 3.11))
+@checkvers("py", "Python >= %s", (3.6, 3.7, 3.8, 3.9, 3.10, 3.11))
 def has_python_range(v):
     major, minor = v.split('.')[0:2]
     py_major, py_minor = sys.version_info.major, sys.version_info.minor
@@ -897,7 +886,7 @@ def has_python3exe():
     py = 'python3'
     if os.name == 'nt':
         py = 'py -3'
-    return matchoutput('%s -V' % py, br'^Python 3.(5|6|7|8|9|10|11)')
+    return matchoutput('%s -V' % py, br'^Python 3.(6|7|8|9|10|11)')
 
 
 @check("pure", "running with pure Python code")
