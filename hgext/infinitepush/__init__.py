@@ -330,6 +330,11 @@ def extsetup(ui):
         clientextsetup(ui)
 
 
+def uipopulate(ui):
+    if not ui.hasconfig(b"experimental", b"changegroup3"):
+        ui.setconfig(b"experimental", b"changegroup3", False, b"infinitepush")
+
+
 def commonsetup(ui):
     wireprotov1server.commands[b'listkeyspatterns'] = (
         wireprotolistkeyspatterns,
