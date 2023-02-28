@@ -42,6 +42,7 @@ pub enum DirstateVersion {
 pub enum DirstateMapWriteMode {
     Auto,
     ForceNewDataFile,
+    ForceAppend,
 }
 
 #[derive(Debug)]
@@ -69,6 +70,9 @@ pub struct DirstateMap<'on_disk> {
     pub(super) old_data_size: usize,
 
     pub(super) dirstate_version: DirstateVersion,
+
+    /// Controlled by config option `devel.dirstate.v2.data_update_mode`
+    pub(super) write_mode: DirstateMapWriteMode,
 }
 
 /// Using a plain `HgPathBuf` of the full path from the repository root as a
@@ -457,6 +461,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
             unreachable_bytes: 0,
             old_data_size: 0,
             dirstate_version: DirstateVersion::V1,
+            write_mode: DirstateMapWriteMode::Auto,
         }
     }
 
@@ -525,8 +530,15 @@ impl<'on_disk> DirstateMap<'on_disk> {
     /// append to the existing data file that contains `self.on_disk` (true),
     /// or create a new data file from scratch (false).
     pub(super) fn write_should_append(&self) -> bool {
-        let ratio = self.unreachable_bytes as f32 / self.on_disk.len() as f32;
-        ratio < ACCEPTABLE_UNREACHABLE_BYTES_RATIO
+        match self.write_mode {
+            DirstateMapWriteMode::ForceAppend => true,
+            DirstateMapWriteMode::ForceNewDataFile => false,
+            DirstateMapWriteMode::Auto => {
+                let ratio =
+                    self.unreachable_bytes as f32 / self.on_disk.len() as f32;
+                ratio < ACCEPTABLE_UNREACHABLE_BYTES_RATIO
+            }
+        }
     }
 
     fn get_node<'tree>(
@@ -922,6 +934,10 @@ impl<'on_disk> DirstateMap<'on_disk> {
         if let Cow::Borrowed(path) = path {
             *unreachable_bytes += path.len() as u32
         }
+    }
+
+    pub(crate) fn set_write_mode(&mut self, write_mode: DirstateMapWriteMode) {
+        self.write_mode = write_mode;
     }
 }
 

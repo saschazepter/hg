@@ -313,6 +313,7 @@ pub(super) fn read<'on_disk>(
         unreachable_bytes: meta.unreachable_bytes.get(),
         old_data_size: on_disk.len(),
         dirstate_version: DirstateVersion::V2,
+        write_mode: DirstateMapWriteMode::Auto,
     };
     Ok(dirstate_map)
 }
@@ -641,6 +642,7 @@ pub(super) fn write(
     let append = match write_mode {
         DirstateMapWriteMode::Auto => dirstate_map.write_should_append(),
         DirstateMapWriteMode::ForceNewDataFile => false,
+        DirstateMapWriteMode::ForceAppend => true,
     };
     if append {
         log::trace!("appending to the dirstate data file");

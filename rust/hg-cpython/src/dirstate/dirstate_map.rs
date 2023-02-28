@@ -254,6 +254,7 @@ py_class!(pub class DirstateMap |py| {
         let rust_write_mode = match write_mode {
             0 => DirstateMapWriteMode::Auto,
             1 => DirstateMapWriteMode::ForceNewDataFile,
+            2 => DirstateMapWriteMode::ForceAppend,
             _ => DirstateMapWriteMode::Auto, // XXX should we error out?
         };
         let result = inner.pack_v2(rust_write_mode);
