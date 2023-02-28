@@ -969,7 +969,7 @@ coreconfigitem(
 coreconfigitem(
     b'experimental',
     b'changegroup3',
-    default=False,
+    default=True,
 )
 coreconfigitem(
     b'experimental',

@@ -315,7 +315,7 @@ Check that the right ancestors is used while rebasing a merge (issue4041)
   adding manifests
   adding file changes
   adding f1.txt revisions
-  bundle2-input-part: total payload size 1739
+  bundle2-input-part: total payload size 1761
   bundle2-input-part: "cache:rev-branch-cache" (advisory) supported
   bundle2-input-part: total payload size 74
   bundle2-input-part: "phase-heads" supported
