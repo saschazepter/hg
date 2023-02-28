@@ -640,6 +640,15 @@ coreconfigitem(
     b'deprec-warn',
     default=False,
 )
+# possible values:
+# - auto (the default)
+# - force-append
+# - force-new
+coreconfigitem(
+    b'devel',
+    b'dirstate.v2.data_update_mode',
+    default="auto",
+)
 coreconfigitem(
     b'devel',
     b'disableloaddefaultcerts',

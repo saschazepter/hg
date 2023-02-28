@@ -93,7 +93,7 @@ Add some unknown files and refresh the dirstate
   $ hg add dir/o
   $ hg remove dir/nested/m
 
-  $ hg st
+  $ hg st --config devel.dirstate.v2.data_update_mode=force-new
   A dir/o
   R dir/nested/m
   ? dir/n

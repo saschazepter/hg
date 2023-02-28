@@ -33,6 +33,7 @@ rangemask = 0x7FFFFFFF
 
 WRITE_MODE_AUTO = 0
 WRITE_MODE_FORCE_NEW = 1
+WRITE_MODE_FORCE_APPEND = 2
 
 
 class _dirstatemapcommon:
@@ -57,6 +58,16 @@ class _dirstatemapcommon:
         self._parents = None
         self._dirtyparents = False
         self._docket = None
+        write_mode = ui.config(b"devel", b"dirstate.v2.data_update_mode")
+        if write_mode == b"auto":
+            self._write_mode = WRITE_MODE_AUTO
+        elif write_mode == b"force-append":
+            self._write_mode = WRITE_MODE_FORCE_APPEND
+        elif write_mode == b"force-new":
+            self._write_mode = WRITE_MODE_FORCE_NEW
+        else:
+            # unknown value, fallback to default
+            self._write_mode = WRITE_MODE_AUTO
 
         # for consistent view between _pl() and _read() invocations
         self._pendingmode = None
@@ -612,7 +623,7 @@ if rustmod is not None:
                 return
 
             # We can only append to an existing data file if there is one
-            write_mode = WRITE_MODE_AUTO
+            write_mode = self._write_mode
             if self.docket.uuid is None:
                 write_mode = WRITE_MODE_FORCE_NEW
             packed, meta, append = self._map.write_v2(write_mode)
