@@ -24,6 +24,8 @@ use std::io::SeekFrom;
 use std::io::Write as IoWrite;
 use std::path::{Path, PathBuf};
 
+const V2_MAX_READ_ATTEMPTS: usize = 5;
+
 /// A repository on disk
 pub struct Repo {
     working_directory: PathBuf,
@@ -307,14 +309,49 @@ impl Repo {
 
     fn new_dirstate_map(&self) -> Result<OwningDirstateMap, DirstateError> {
         if self.has_dirstate_v2() {
-            self.read_docket_and_data_file()
+            // The v2 dirstate is split into a docket and a data file.
+            // Since we don't always take the `wlock` to read it
+            // (like in `hg status`), it is susceptible to races.
+            // A simple retry method should be enough since full rewrites
+            // only happen when too much garbage data is present and
+            // this race is unlikely.
+            let mut tries = 0;
+
+            while tries < V2_MAX_READ_ATTEMPTS {
+                tries += 1;
+                match self.read_docket_and_data_file() {
+                    Ok(m) => {
+                        return Ok(m);
+                    }
+                    Err(e) => match e {
+                        DirstateError::Common(HgError::RaceDetected(
+                            context,
+                        )) => {
+                            log::info!(
+                                "dirstate read race detected {} (retry {}/{})",
+                                context,
+                                tries,
+                                V2_MAX_READ_ATTEMPTS,
+                            );
+                            continue;
+                        }
+                        _ => return Err(e.into()),
+                    },
+                }
+            }
+            let error = HgError::abort(
+                format!("dirstate read race happened {tries} times in a row"),
+                255,
+                None,
+            );
+            return Err(DirstateError::Common(error));
         } else {
             debug_wait_for_file_or_print(
                 self.config(),
                 "dirstate.pre-read-file",
             );
             let dirstate_file_contents = self.dirstate_file_contents()?;
-            if dirstate_file_contents.is_empty() {
+            return if dirstate_file_contents.is_empty() {
                 self.dirstate_parents.set(DirstateParents::NULL);
                 Ok(OwningDirstateMap::new_empty(Vec::new()))
             } else {
@@ -322,7 +359,7 @@ impl Repo {
                     OwningDirstateMap::new_v1(dirstate_file_contents)?;
                 self.dirstate_parents.set(parents);
                 Ok(map)
-            }
+            };
         }
     }
 
@@ -347,22 +384,54 @@ impl Repo {
         self.dirstate_data_file_uuid
             .set(Some(docket.uuid.to_owned()));
         let data_size = docket.data_size();
+
+        let context = "between reading dirstate docket and data file";
+        let race_error = HgError::RaceDetected(context.into());
         let metadata = docket.tree_metadata();
+
         let mut map = if crate::vfs::is_on_nfs_mount(docket.data_filename()) {
             // Don't mmap on NFS to prevent `SIGBUS` error on deletion
-            OwningDirstateMap::new_v2(
-                self.hg_vfs().read(docket.data_filename())?,
-                data_size,
-                metadata,
-            )
-        } else if let Some(data_mmap) = self
-            .hg_vfs()
-            .mmap_open(docket.data_filename())
-            .io_not_found_as_none()?
-        {
-            OwningDirstateMap::new_v2(data_mmap, data_size, metadata)
+            let contents = self.hg_vfs().read(docket.data_filename());
+            let contents = match contents {
+                Ok(c) => c,
+                Err(HgError::IoError { error, context }) => {
+                    match error.raw_os_error().expect("real os error") {
+                        // 2 = ENOENT, No such file or directory
+                        // 116 = ESTALE, Stale NFS file handle
+                        //
+                        // TODO match on `error.kind()` when
+                        // `ErrorKind::StaleNetworkFileHandle` is stable.
+                        2 | 116 => {
+                            // Race where the data file was deleted right after
+                            // we read the docket, try again
+                            return Err(race_error.into());
+                        }
+                        _ => {
+                            return Err(
+                                HgError::IoError { error, context }.into()
+                            )
+                        }
+                    }
+                }
+                Err(e) => return Err(e.into()),
+            };
+            OwningDirstateMap::new_v2(contents, data_size, metadata)
         } else {
-            OwningDirstateMap::new_v2(Vec::new(), data_size, metadata)
+            match self
+                .hg_vfs()
+                .mmap_open(docket.data_filename())
+                .io_not_found_as_none()
+            {
+                Ok(Some(data_mmap)) => {
+                    OwningDirstateMap::new_v2(data_mmap, data_size, metadata)
+                }
+                Ok(None) => {
+                    // Race where the data file was deleted right after we
+                    // read the docket, try again
+                    return Err(race_error.into());
+                }
+                Err(e) => return Err(e.into()),
+            }
         }?;
 
         let write_mode_config = self
