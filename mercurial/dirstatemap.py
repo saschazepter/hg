@@ -37,6 +37,9 @@ WRITE_MODE_FORCE_NEW = 1
 WRITE_MODE_FORCE_APPEND = 2
 
 
+V2_MAX_READ_ATTEMPTS = 5
+
+
 class _dirstatemapcommon:
     """
     Methods that are identical for both implementations of the dirstatemap
@@ -125,6 +128,21 @@ class _dirstatemapcommon:
         return self._docket
 
     def _read_v2_data(self):
+        data = None
+        attempts = 0
+        while attempts < V2_MAX_READ_ATTEMPTS:
+            attempts += 1
+            try:
+                data = self._opener.read(self.docket.data_filename())
+            except FileNotFoundError:
+                # read race detected between docket and data file
+                # reload the docket and retry
+                self._docket = None
+        if data is None:
+            assert attempts >= V2_MAX_READ_ATTEMPTS
+            msg = b"dirstate read race happened %d times in a row"
+            msg %= attempts
+            raise error.Abort(msg)
         return self._opener.read(self.docket.data_filename())
 
     def write_v2_no_append(self, tr, st, meta, packed):

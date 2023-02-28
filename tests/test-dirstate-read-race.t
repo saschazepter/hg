@@ -217,8 +217,12 @@ The status process should return a consistent result and not crash.
 #endif
 #else
   $ cat $TESTTMP/status-race-lock.out
+  A dir/n
+  A dir/o
+  R dir/nested/m
+  ? p
+  ? q
   $ cat $TESTTMP/status-race-lock.log
-  abort: $ENOENT$: '$TESTTMP/race-with-add/.hg/dirstate.* (glob)
 #endif
 #endif
 #endif
@@ -318,8 +322,12 @@ The status process should return a consistent result and not crash.
 #endif
 #else
   $ cat $TESTTMP/status-race-lock.out
+  M dir/o
+  ? dir/n
+  ? p
+  ? q
   $ cat $TESTTMP/status-race-lock.log
-  abort: $ENOENT$: '$TESTTMP/race-with-commit/.hg/dirstate.* (glob)
+  warning: ignoring unknown working parent 02a67a77ee9b!
 #endif
 #endif
 #endif
@@ -452,8 +460,11 @@ The status process should return a consistent result and not crash.
 #endif
 #else
   $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  ? dir/n
+  ? p
+  ? q
   $ cat $TESTTMP/status-race-lock.log
-  abort: $ENOENT$: '$TESTTMP/race-with-update/.hg/dirstate.* (glob)
 #endif
 #endif
 #endif
@@ -542,8 +553,12 @@ The status process should return a consistent result and not crash.
 #endif
 #else
   $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
   $ cat $TESTTMP/status-race-lock.log
-  abort: $ENOENT$: '$TESTTMP/race-with-status/.hg/dirstate.* (glob)
 #endif
 #endif
 #endif
