@@ -196,8 +196,12 @@ The status process should return a consistent result and not crash.
   $ cat $TESTTMP/status-race-lock.log
 #else
   $ cat $TESTTMP/status-race-lock.out
+  A dir/n
+  A dir/o
+  R dir/nested/m
+  ? p
+  ? q
   $ cat $TESTTMP/status-race-lock.log
-  abort: dirstate-v2 parse error: not enough bytes on disk
 #endif
 #endif
 #else
@@ -305,8 +309,10 @@ The status process should return a consistent result and not crash.
   $ cat $TESTTMP/status-race-lock.log
 #else
   $ cat $TESTTMP/status-race-lock.out
+  ? dir/n
+  ? p
+  ? q
   $ cat $TESTTMP/status-race-lock.log
-  abort: dirstate-v2 parse error: not enough bytes on disk
 #endif
 #endif
 #else
@@ -441,8 +447,11 @@ The status process should return a consistent result and not crash.
   $ cat $TESTTMP/status-race-lock.log
 #else
   $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  ? dir/n
+  ? p
+  ? q
   $ cat $TESTTMP/status-race-lock.log
-  abort: dirstate-v2 parse error: not enough bytes on disk
 #endif
 #endif
 #else
@@ -543,8 +552,12 @@ The status process should return a consistent result and not crash.
   $ cat $TESTTMP/status-race-lock.log
 #else
   $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
   $ cat $TESTTMP/status-race-lock.log
-  abort: dirstate-v2 parse error: not enough bytes on disk
 #endif
 #endif
 #else
