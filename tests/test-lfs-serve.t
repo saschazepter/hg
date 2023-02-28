@@ -314,6 +314,7 @@ TODO: fail more gracefully.
   transaction abort!
   rollback completed
   abort: missing processor for flag '0x2000'
+  (the lfs extension must be enabled)
   [50]
   $ hg debugrequires -R $TESTTMP/client4_pull/ | grep 'lfs'
   [1]
