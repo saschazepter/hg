@@ -333,7 +333,7 @@ def has_cacheable_fs():
     fd, path = tempfile.mkstemp(dir='.', prefix=tempprefix)
     os.close(fd)
     try:
-        return util.cachestat(path).cacheable()
+        return util.cachestat(_sys2bytes(path)).cacheable()
     finally:
         os.remove(path)
 
