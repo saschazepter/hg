@@ -46,6 +46,9 @@ pub enum HgError {
 
     /// Censored revision data.
     CensoredNodeError,
+    /// A race condition has been detected. This *must* be handled locally
+    /// and not directly surface to the user.
+    RaceDetected(String),
 }
 
 /// Details about where an I/O error happened
@@ -111,6 +114,9 @@ impl fmt::Display for HgError {
                 write!(f, "encountered a censored node")
             }
             HgError::ConfigValueParseError(error) => error.fmt(f),
+            HgError::RaceDetected(context) => {
+                write!(f, "encountered a race condition {context}")
+            }
         }
     }
 }
