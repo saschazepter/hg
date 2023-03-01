@@ -54,7 +54,7 @@ class STARTTLS(smtplib.SMTP):
         self._ui = ui
         self._host = host
 
-    def starttls(self, keyfile=None, certfile=None):
+    def starttls(self, keyfile=None, certfile=None, context=None):
         if not self.has_extn("starttls"):
             msg = b"STARTTLS extension not supported by server"
             raise smtplib.SMTPException(msg)
