@@ -127,6 +127,7 @@ class _dirstatemapcommon:
                 raise error.ProgrammingError(
                     b'dirstate only has a docket in v2 format'
                 )
+            self._set_identity()
             self._docket = docketmod.DirstateDocket.parse(
                 self._readdirstatefile(), self._nodeconstants
             )
@@ -299,9 +300,6 @@ class dirstatemap(_dirstatemapcommon):
     ### disk interaction
 
     def read(self):
-        # ignore HG_PENDING because identity is used only for writing
-        self._set_identity()
-
         testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
         if self._use_dirstate_v2:
 
@@ -310,6 +308,7 @@ class dirstatemap(_dirstatemapcommon):
             testing.wait_on_cfg(self._ui, b'dirstate.post-docket-read-file')
             st = self._read_v2_data()
         else:
+            self._set_identity()
             st = self._readdirstatefile()
 
         if not st:
@@ -581,6 +580,7 @@ if rustmod is not None:
                 )
                 parents = self.docket.parents
             else:
+                self._set_identity()
                 self._map, parents = rustmod.DirstateMap.new_v1(
                     self._readdirstatefile()
                 )
