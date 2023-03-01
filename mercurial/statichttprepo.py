@@ -119,7 +119,7 @@ class _HTTPRangeHandler(urlreq.basehandler):
 
     def http_error_416(self, req, fp, code, msg, hdrs):
         # HTTP's Range Not Satisfiable error
-        raise _RangeError(b'Requested Range Not Satisfiable')
+        raise _RangeError('Requested Range Not Satisfiable')
 
 
 def build_opener(ui, authinfo):
@@ -134,7 +134,7 @@ def build_opener(ui, authinfo):
 
         def __call__(self, path, mode=b'r', *args, **kw):
             if mode not in (b'r', b'rb'):
-                raise IOError(b'Permission denied')
+                raise IOError('Permission denied')
             f = b"/".join((self.base, urlreq.quote(path)))
             return httprangereader(f, urlopener)
 
