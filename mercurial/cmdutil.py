@@ -2754,7 +2754,6 @@ def _updatecatformatter(fm, ctx, matcher, path, decode):
 
 def cat(ui, repo, ctx, matcher, basefm, fntemplate, prefix, **opts):
     err = 1
-    opts = pycompat.byteskwargs(opts)
 
     def write(path):
         filename = None
@@ -2768,7 +2767,7 @@ def cat(ui, repo, ctx, matcher, basefm, fntemplate, prefix, **opts):
             except OSError:
                 pass
         with formatter.maybereopen(basefm, filename) as fm:
-            _updatecatformatter(fm, ctx, matcher, path, opts.get(b'decode'))
+            _updatecatformatter(fm, ctx, matcher, path, opts.get('decode'))
 
     # Automation often uses hg cat on single files, so special case it
     # for performance to avoid the cost of parsing the manifest.
@@ -2803,7 +2802,7 @@ def cat(ui, repo, ctx, matcher, basefm, fntemplate, prefix, **opts):
                 basefm,
                 fntemplate,
                 subprefix,
-                **pycompat.strkwargs(opts),
+                **opts,
             ):
                 err = 0
         except error.RepoLookupError:
