@@ -76,6 +76,14 @@ pub struct DirstateMap<'on_disk> {
     /// Can be `None` if using dirstate v1 or if it's a brand new dirstate.
     pub(super) old_uuid: Option<Vec<u8>>,
 
+    /// Identity of the dirstate file (for dirstate-v1) or the docket file
+    /// (v2). Used to detect if the file has changed from another process.
+    /// Since it's always written atomically, we can compare the inode to
+    /// check the file identity.
+    ///
+    /// TODO On non-Unix systems, something like hashing is a possibility?
+    pub(super) identity: Option<u64>,
+
     pub(super) dirstate_version: DirstateVersion,
 
     /// Controlled by config option `devel.dirstate.v2.data_update_mode`
@@ -468,6 +476,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
             unreachable_bytes: 0,
             old_data_size: 0,
             old_uuid: None,
+            identity: None,
             dirstate_version: DirstateVersion::V1,
             write_mode: DirstateMapWriteMode::Auto,
         }
@@ -479,9 +488,10 @@ impl<'on_disk> DirstateMap<'on_disk> {
         data_size: usize,
         metadata: &[u8],
         uuid: Vec<u8>,
+        identity: Option<u64>,
     ) -> Result<Self, DirstateError> {
         if let Some(data) = on_disk.get(..data_size) {
-            Ok(on_disk::read(data, metadata, uuid)?)
+            Ok(on_disk::read(data, metadata, uuid, identity)?)
         } else {
             Err(DirstateV2ParseError::new("not enough bytes on disk").into())
         }
@@ -490,6 +500,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
     #[timed]
     pub fn new_v1(
         on_disk: &'on_disk [u8],
+        identity: Option<u64>,
     ) -> Result<(Self, Option<DirstateParents>), DirstateError> {
         let mut map = Self::empty(on_disk);
         if map.on_disk.is_empty() {
@@ -531,6 +542,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
             },
         )?;
         let parents = Some(parents.clone());
+        map.identity = identity;
 
         Ok((map, parents))
     }
@@ -1853,6 +1865,7 @@ mod tests {
             packed_len,
             metadata.as_bytes(),
             vec![],
+            None,
         )?;
 
         // Check that everything is accounted for

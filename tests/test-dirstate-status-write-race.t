@@ -242,12 +242,9 @@ Add a file
 The file should in a "added" state
 
   $ hg status
-  A dir/n (no-rhg dirstate-v1 !)
-  A dir/n (no-dirstate-v1 !)
-  A dir/n (missing-correct-output rhg dirstate-v1 !)
+  A dir/n
   A dir/o
   R dir/nested/m
-  ? dir/n (known-bad-output rhg dirstate-v1 !)
   ? p
   ? q
 
@@ -289,22 +286,6 @@ Add a file and force the data file rewrite
 
 The parent must change and the status should be clean
 
-# XXX rhg misbehaves here
-#if rhg dirstate-v1
-  $ hg summary
-  parent: 1:c349430a1631 
-   more files to have two commits
-  branch: default
-  commit: 1 added, 1 removed, 3 unknown (new branch head)
-  update: 1 new changesets (update)
-  phases: 3 draft
-  $ hg status
-  A dir/o
-  R dir/nested/m
-  ? dir/n
-  ? p
-  ? q
-#else
   $ hg summary
   parent: 2:2e3b442a2fd4 tip
    created-during-status
@@ -317,7 +298,6 @@ The parent must change and the status should be clean
   ? dir/n
   ? p
   ? q
-#endif
 
 The status process should return a consistent result and not crash.
 
@@ -416,9 +396,7 @@ touch g
 the first update should be on disk
 
   $ hg debugstate --all | grep "g"
-  n 644          0 2000-01-01 00:10:00 g (known-bad-output rhg dirstate-v1 !)
-  n 644          0 2000-01-01 00:25:00 g (rhg no-dirstate-v1 !)
-  n 644          0 2000-01-01 00:25:00 g (no-rhg !)
+  n 644          0 2000-01-01 00:25:00 g
 
 The status process should return a consistent result and not crash.
 
