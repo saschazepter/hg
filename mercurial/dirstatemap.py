@@ -124,6 +124,9 @@ class _dirstatemapcommon:
             )
         return self._docket
 
+    def _read_v2_data(self):
+        return self._opener.read(self.docket.data_filename())
+
     def write_v2_no_append(self, tr, st, meta, packed):
         old_docket = self.docket
         new_docket = docketmod.DirstateDocket.with_new_uuid(
@@ -283,7 +286,7 @@ class dirstatemap(_dirstatemapcommon):
             if not self.docket.uuid:
                 return
             testing.wait_on_cfg(self._ui, b'dirstate.post-docket-read-file')
-            st = self._opener.read(self.docket.data_filename())
+            st = self._read_v2_data()
         else:
             st = self._readdirstatefile()
 
