@@ -49,9 +49,10 @@ py_class!(pub class DirstateMap |py| {
     @staticmethod
     def new_v1(
         on_disk: PyBytes,
+        identity: Option<u64>,
     ) -> PyResult<PyObject> {
         let on_disk = PyBytesDeref::new(py, on_disk);
-        let (map, parents) = OwningDirstateMap::new_v1(on_disk)
+        let (map, parents) = OwningDirstateMap::new_v1(on_disk, identity)
             .map_err(|e| dirstate_error(py, e))?;
         let map = Self::create_instance(py, map)?;
         let p1 = PyBytes::new(py, parents.p1.as_bytes());
@@ -67,6 +68,7 @@ py_class!(pub class DirstateMap |py| {
         data_size: usize,
         tree_metadata: PyBytes,
         uuid: PyBytes,
+        identity: Option<u64>,
     ) -> PyResult<PyObject> {
         let dirstate_error = |e: DirstateError| {
             PyErr::new::<exc::OSError, _>(py, format!("Dirstate error: {:?}", e))
@@ -74,7 +76,11 @@ py_class!(pub class DirstateMap |py| {
         let on_disk = PyBytesDeref::new(py, on_disk);
         let uuid = uuid.data(py);
         let map = OwningDirstateMap::new_v2(
-            on_disk, data_size, tree_metadata.data(py), uuid.to_owned(),
+            on_disk,
+            data_size,
+            tree_metadata.data(py),
+            uuid.to_owned(),
+            identity,
         ).map_err(dirstate_error)?;
         let map = Self::create_instance(py, map)?;
         Ok(map.into_object())
