@@ -1990,7 +1990,7 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
         )
         # newwin([height, width,] begin_y, begin_x)
         self.statuswin = curses.newwin(self.numstatuslines, 0, 0, 0)
-        self.statuswin.keypad(1)  # interpret arrow-key, etc. esc sequences
+        self.statuswin.keypad(True)  # interpret arrow-key, etc. esc sequences
 
         # figure out how much space to allocate for the chunk-pad which is
         # used for displaying the patch
