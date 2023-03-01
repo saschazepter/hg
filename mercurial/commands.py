@@ -3529,22 +3529,20 @@ def grep(ui, repo, pattern, *pats, **opts):
 
     """
     cmdutil.check_incompatible_arguments(opts, 'all_files', ['all', 'diff'])
-    opts = pycompat.byteskwargs(opts)
-    diff = opts.get(b'all') or opts.get(b'diff')
-    follow = opts.get(b'follow')
-    if opts.get(b'all_files') is None and not diff:
-        opts[b'all_files'] = True
+
+    diff = opts.get('all') or opts.get('diff')
+    follow = opts.get('follow')
+    if opts.get('all_files') is None and not diff:
+        opts['all_files'] = True
     plaingrep = (
-        opts.get(b'all_files')
-        and not opts.get(b'rev')
-        and not opts.get(b'follow')
+        opts.get('all_files') and not opts.get('rev') and not opts.get('follow')
     )
-    all_files = opts.get(b'all_files')
+    all_files = opts.get('all_files')
     if plaingrep:
-        opts[b'rev'] = [b'wdir()']
+        opts['rev'] = [b'wdir()']
 
     reflags = re.M
-    if opts.get(b'ignore_case'):
+    if opts.get('ignore_case'):
         reflags |= re.I
     try:
         regexp = util.re.compile(pattern, reflags)
@@ -3555,7 +3553,7 @@ def grep(ui, repo, pattern, *pats, **opts):
         )
         return 1
     sep, eol = b':', b'\n'
-    if opts.get(b'print0'):
+    if opts.get('print0'):
         sep = eol = b'\0'
 
     searcher = grepmod.grepsearcher(
@@ -3603,7 +3601,7 @@ def grep(ui, repo, pattern, *pats, **opts):
                     b'linenumber',
                     b'%d',
                     l.linenum,
-                    opts.get(b'line_number'),
+                    opts.get('line_number'),
                     b'',
                 ),
             ]
@@ -3625,14 +3623,14 @@ def grep(ui, repo, pattern, *pats, **opts):
                         b'user',
                         b'%s',
                         formatuser(ctx.user()),
-                        opts.get(b'user'),
+                        opts.get('user'),
                         b'',
                     ),
                     (
                         b'date',
                         b'%s',
                         fm.formatdate(ctx.date(), datefmt),
-                        opts.get(b'date'),
+                        opts.get('date'),
                         b'',
                     ),
                 ]
@@ -3643,15 +3641,15 @@ def grep(ui, repo, pattern, *pats, **opts):
                 field = fieldnamemap.get(name, name)
                 label = extra_label + (b'grep.%s' % name)
                 fm.condwrite(cond, field, fmt, data, label=label)
-            if not opts.get(b'files_with_matches'):
+            if not opts.get('files_with_matches'):
                 fm.plain(sep, label=b'grep.sep')
-                if not opts.get(b'text') and binary():
+                if not opts.get('text') and binary():
                     fm.plain(_(b" Binary file matches"))
                 else:
                     displaymatches(fm.nested(b'texts', tmpl=b'{text}'), l)
             fm.plain(eol)
             found = True
-            if opts.get(b'files_with_matches'):
+            if opts.get('files_with_matches'):
                 break
         return found
 
@@ -3677,9 +3675,9 @@ def grep(ui, repo, pattern, *pats, **opts):
     wopts = logcmdutil.walkopts(
         pats=pats,
         opts=opts,
-        revspec=opts[b'rev'],
-        include_pats=opts[b'include'],
-        exclude_pats=opts[b'exclude'],
+        revspec=opts['rev'],
+        include_pats=opts['include'],
+        exclude_pats=opts['exclude'],
         follow=follow,
         force_changelog_traversal=all_files,
         filter_revisions_by_pats=not all_files,
@@ -3687,7 +3685,7 @@ def grep(ui, repo, pattern, *pats, **opts):
     revs, makefilematcher = logcmdutil.makewalker(repo, wopts)
 
     ui.pager(b'grep')
-    fm = ui.formatter(b'grep', opts)
+    fm = ui.formatter(b'grep', pycompat.byteskwargs(opts))
     for fn, ctx, pstates, states in searcher.searchfiles(revs, makefilematcher):
         r = display(fm, fn, ctx, pstates, states)
         found = found or r
