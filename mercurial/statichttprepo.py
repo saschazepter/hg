@@ -138,9 +138,9 @@ def build_opener(ui, authinfo):
             f = b"/".join((self.base, urlreq.quote(path)))
             return httprangereader(f, urlopener)
 
-        def join(self, path):
+        def join(self, path, *insidef):
             if path:
-                return pathutil.join(self.base, path)
+                return pathutil.join(self.base, path, *insidef)
             else:
                 return self.base
 
