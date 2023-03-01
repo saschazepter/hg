@@ -259,6 +259,15 @@ impl Repo {
             .unwrap_or(Vec::new()))
     }
 
+    fn dirstate_identity(&self) -> Result<Option<u64>, HgError> {
+        use std::os::unix::fs::MetadataExt;
+        Ok(self
+            .hg_vfs()
+            .symlink_metadata("dirstate")
+            .io_not_found_as_none()?
+            .map(|meta| meta.ino()))
+    }
+
     pub fn dirstate_parents(&self) -> Result<DirstateParents, HgError> {
         Ok(*self
             .dirstate_parents
@@ -284,23 +293,27 @@ impl Repo {
     /// Returns the information read from the dirstate docket necessary to
     /// check if the data file has been updated/deleted by another process
     /// since we last read the dirstate.
-    /// Namely, the data file uuid and the data size.
+    /// Namely, the inode, data file uuid and the data size.
     fn get_dirstate_data_file_integrity(
         &self,
-    ) -> Result<(Option<Vec<u8>>, usize), HgError> {
+    ) -> Result<(Option<u64>, Option<Vec<u8>>, usize), HgError> {
         assert!(
             self.has_dirstate_v2(),
             "accessing dirstate data file ID without dirstate-v2"
         );
+        // Get the identity before the contents since we could have a race
+        // between the two. Having an identity that is too old is fine, but
+        // one that is younger than the content change is bad.
+        let identity = self.dirstate_identity()?;
         let dirstate = self.dirstate_file_contents()?;
         if dirstate.is_empty() {
             self.dirstate_parents.set(DirstateParents::NULL);
-            Ok((None, 0))
+            Ok((identity, None, 0))
         } else {
             let docket =
                 crate::dirstate_tree::on_disk::read_docket(&dirstate)?;
             self.dirstate_parents.set(docket.parents());
-            Ok((Some(docket.uuid.to_owned()), docket.data_size()))
+            Ok((identity, Some(docket.uuid.to_owned()), docket.data_size()))
         }
     }
 
@@ -347,13 +360,16 @@ impl Repo {
                 self.config(),
                 "dirstate.pre-read-file",
             );
+            let identity = self.dirstate_identity()?;
             let dirstate_file_contents = self.dirstate_file_contents()?;
             return if dirstate_file_contents.is_empty() {
                 self.dirstate_parents.set(DirstateParents::NULL);
                 Ok(OwningDirstateMap::new_empty(Vec::new()))
             } else {
-                let (map, parents) =
-                    OwningDirstateMap::new_v1(dirstate_file_contents)?;
+                let (map, parents) = OwningDirstateMap::new_v1(
+                    dirstate_file_contents,
+                    identity,
+                )?;
                 self.dirstate_parents.set(parents);
                 Ok(map)
             };
@@ -365,6 +381,7 @@ impl Repo {
     ) -> Result<OwningDirstateMap, DirstateError> {
         debug_wait_for_file_or_print(self.config(), "dirstate.pre-read-file");
         let dirstate_file_contents = self.dirstate_file_contents()?;
+        let identity = self.dirstate_identity()?;
         if dirstate_file_contents.is_empty() {
             self.dirstate_parents.set(DirstateParents::NULL);
             return Ok(OwningDirstateMap::new_empty(Vec::new()));
@@ -410,7 +427,9 @@ impl Repo {
                 }
                 Err(e) => return Err(e.into()),
             };
-            OwningDirstateMap::new_v2(contents, data_size, metadata, uuid)
+            OwningDirstateMap::new_v2(
+                contents, data_size, metadata, uuid, identity,
+            )
         } else {
             match self
                 .hg_vfs()
@@ -418,7 +437,7 @@ impl Repo {
                 .io_not_found_as_none()
             {
                 Ok(Some(data_mmap)) => OwningDirstateMap::new_v2(
-                    data_mmap, data_size, metadata, uuid,
+                    data_mmap, data_size, metadata, uuid, identity,
                 ),
                 Ok(None) => {
                     // Race where the data file was deleted right after we
@@ -534,12 +553,15 @@ impl Repo {
         // it’s unset
         let parents = self.dirstate_parents()?;
         let (packed_dirstate, old_uuid_to_remove) = if self.has_dirstate_v2() {
-            let (uuid, data_size) = self.get_dirstate_data_file_integrity()?;
+            let (identity, uuid, data_size) =
+                self.get_dirstate_data_file_integrity()?;
+            let identity_changed = identity != map.old_identity();
             let uuid_changed = uuid.as_deref() != map.old_uuid();
             let data_length_changed = data_size != map.old_data_size();
 
-            if uuid_changed || data_length_changed {
-                // If uuid or length changed since last disk read, don't write.
+            if identity_changed || uuid_changed || data_length_changed {
+                // If any of identity, uuid or length have changed since
+                // last disk read, don't write.
                 // This is fine because either we're in a command that doesn't
                 // write anything too important (like `hg status`), or we're in
                 // `hg add` and we're supposed to have taken the lock before
@@ -636,6 +658,22 @@ impl Repo {
 
             (packed_dirstate, old_uuid)
         } else {
+            let identity = self.dirstate_identity()?;
+            if identity != map.old_identity() {
+                // If identity changed since last disk read, don't write.
+                // This is fine because either we're in a command that doesn't
+                // write anything too important (like `hg status`), or we're in
+                // `hg add` and we're supposed to have taken the lock before
+                // reading anyway.
+                //
+                // TODO complain loudly if we've changed anything important
+                // without taking the lock.
+                // (see `hg help config.format.use-dirstate-tracked-hint`)
+                log::debug!(
+                    "dirstate has changed since last read, not updating."
+                );
+                return Ok(());
+            }
             (map.pack_v1(parents)?, None)
         };
 

@@ -291,6 +291,7 @@ pub(super) fn read<'on_disk>(
     on_disk: &'on_disk [u8],
     metadata: &[u8],
     uuid: Vec<u8>,
+    identity: Option<u64>,
 ) -> Result<DirstateMap<'on_disk>, DirstateV2ParseError> {
     if on_disk.is_empty() {
         let mut map = DirstateMap::empty(on_disk);
@@ -314,6 +315,7 @@ pub(super) fn read<'on_disk>(
         unreachable_bytes: meta.unreachable_bytes.get(),
         old_data_size: on_disk.len(),
         old_uuid: Some(uuid),
+        identity,
         dirstate_version: DirstateVersion::V2,
         write_mode: DirstateMapWriteMode::Auto,
     };

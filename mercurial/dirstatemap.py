@@ -570,6 +570,12 @@ if rustmod is not None:
             testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
             if self._use_dirstate_v2:
                 self.docket  # load the data if needed
+                inode = (
+                    self.identity.stat.st_ino
+                    if self.identity is not None
+                    and self.identity.stat is not None
+                    else None
+                )
                 testing.wait_on_cfg(self._ui, b'dirstate.post-docket-read-file')
                 if not self.docket.uuid:
                     data = b''
@@ -581,12 +587,19 @@ if rustmod is not None:
                         self.docket.data_size,
                         self.docket.tree_metadata,
                         self.docket.uuid,
+                        inode,
                     )
                 parents = self.docket.parents
             else:
                 self._set_identity()
+                inode = (
+                    self.identity.stat.st_ino
+                    if self.identity is not None
+                    and self.identity.stat is not None
+                    else None
+                )
                 self._map, parents = rustmod.DirstateMap.new_v1(
-                    self._readdirstatefile()
+                    self._readdirstatefile(), inode
                 )
 
             if parents and not self._dirtyparents:
