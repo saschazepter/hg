@@ -1009,6 +1009,20 @@ class dirstate:
 
         self._dirty = True
 
+    def _setup_tr_abort(self, tr):
+        """make sure we invalidate the current change on abort"""
+        if tr is None:
+            return
+
+        def on_abort(tr):
+            self._attached_to_a_transaction = False
+            self.invalidate()
+
+        tr.addabort(
+            b'dirstate-invalidate%s' % self._tr_key_suffix,
+            on_abort,
+        )
+
     def write(self, tr):
         if not self._dirty:
             return
@@ -1019,17 +1033,7 @@ class dirstate:
         write_key = self._use_tracked_hint and self._dirty_tracked_set
         if tr:
 
-            def on_abort(tr):
-                self._attached_to_a_transaction = False
-                self.invalidate()
-
-            # make sure we invalidate the current change on abort
-            if tr is not None:
-                tr.addabort(
-                    b'dirstate-invalidate%s' % self._tr_key_suffix,
-                    on_abort,
-                )
-
+            self._setup_tr_abort(tr)
             self._attached_to_a_transaction = True
 
             def on_success(f):
