@@ -2031,7 +2031,9 @@ def tryimportone(ui, repo, patchdata, parents, opts, msgs, updatefunc):
             repo.setparents(p1.node(), p2.node())
 
         if opts.get(b'exact') or importbranch:
-            repo.dirstate.setbranch(branch or b'default')
+            repo.dirstate.setbranch(
+                branch or b'default', repo.currenttransaction()
+            )
 
         partial = opts.get(b'partial', False)
         files = set()
