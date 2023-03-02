@@ -16,6 +16,7 @@ from . import (
     mergestate as mergestatemod,
     scmutil,
     sparse,
+    txnutil,
     util,
 )
 
@@ -169,7 +170,13 @@ def parseconfig(ui, spec):
 def load(repo):
     # Treat "narrowspec does not exist" the same as "narrowspec file exists
     # and is empty".
-    spec = repo.svfs.tryread(FILENAME)
+    spec = None
+    if txnutil.mayhavepending(repo.root):
+        pending_path = b"%s.pending" % FILENAME
+        if repo.svfs.exists(pending_path):
+            spec = repo.svfs.tryread(FILENAME)
+    if spec is None:
+        spec = repo.svfs.tryread(FILENAME)
     return parseconfig(repo.ui, spec)
 
 
