@@ -43,11 +43,6 @@ start a commit...
 see what happened
 
   $ wait
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 1 files
+  $ hg verify -q
 
   $ cd ..

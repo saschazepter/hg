@@ -217,6 +217,8 @@ def blackbox(ui, repo, *revs, **opts):
         return
 
     limit = opts.get('limit')
+    assert limit is not None  # help pytype
+
     fp = repo.vfs(b'blackbox.log', b'r')
     lines = fp.read().split(b'\n')
 

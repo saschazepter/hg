@@ -26,8 +26,6 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# no unicode literals
-
 import binascii
 import collections
 import ctypes
@@ -53,17 +51,15 @@ BSER_TEMPLATE = b"\x0b"
 BSER_SKIP = b"\x0c"
 BSER_UTF8STRING = b"\x0d"
 
-if compat.PYTHON3:
-    STRING_TYPES = (str, bytes)
-    unicode = str
+STRING_TYPES = (str, bytes)
+unicode = str
 
-    def tobytes(i):
-        return str(i).encode("ascii")
 
-    long = int
-else:
-    STRING_TYPES = (unicode, str)
-    tobytes = bytes
+def tobytes(i):
+    return str(i).encode("ascii")
+
+
+long = int
 
 # Leave room for the serialization header, which includes
 # our overall length.  To make things simpler, we'll use an
@@ -89,7 +85,7 @@ def _int_size(x):
 def _buf_pos(buf, pos):
     ret = buf[pos]
     # Normalize the return type to bytes
-    if compat.PYTHON3 and not isinstance(ret, bytes):
+    if not isinstance(ret, bytes):
         ret = bytes((ret,))
     return ret
 
@@ -252,10 +248,7 @@ class _bser_buffer:
             else:
                 raise RuntimeError("Cannot represent this mapping value")
             self.wpos += needed
-            if compat.PYTHON3:
-                iteritems = val.items()
-            else:
-                iteritems = val.iteritems()  # noqa: B301 Checked version above
+            iteritems = val.items()
             for k, v in iteritems:
                 self.append_string(k)
                 self.append_recursive(v)

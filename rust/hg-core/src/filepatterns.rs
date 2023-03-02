@@ -313,7 +313,7 @@ pub fn build_single_regex(
         PatternSyntax::RootGlob
         | PatternSyntax::Path
         | PatternSyntax::RelGlob
-        | PatternSyntax::RootFiles => normalize_path_bytes(&pattern),
+        | PatternSyntax::RootFiles => normalize_path_bytes(pattern),
         PatternSyntax::Include | PatternSyntax::SubInclude => {
             return Err(PatternError::NonRegexPattern(entry.clone()))
         }
@@ -368,7 +368,7 @@ pub fn parse_pattern_file_contents(
     let mut warnings: Vec<PatternFileWarning> = vec![];
 
     let mut current_syntax =
-        default_syntax_override.unwrap_or(b"relre:".as_ref());
+        default_syntax_override.unwrap_or_else(|| b"relre:".as_ref());
 
     for (line_number, mut line) in lines.split(|c| *c == b'\n').enumerate() {
         let line_number = line_number + 1;
@@ -402,7 +402,7 @@ pub fn parse_pattern_file_contents(
             continue;
         }
 
-        let mut line_syntax: &[u8] = &current_syntax;
+        let mut line_syntax: &[u8] = current_syntax;
 
         for (s, rels) in SYNTAXES.iter() {
             if let Some(rest) = line.drop_prefix(rels) {
@@ -418,7 +418,7 @@ pub fn parse_pattern_file_contents(
         }
 
         inputs.push(IgnorePattern::new(
-            parse_pattern_syntax(&line_syntax).map_err(|e| match e {
+            parse_pattern_syntax(line_syntax).map_err(|e| match e {
                 PatternError::UnsupportedSyntax(syntax) => {
                     PatternError::UnsupportedSyntaxInFile(
                         syntax,
@@ -428,7 +428,7 @@ pub fn parse_pattern_file_contents(
                 }
                 _ => e,
             })?,
-            &line,
+            line,
             file_path,
         ));
     }
@@ -502,7 +502,7 @@ pub fn get_patterns_from_file(
                 }
                 PatternSyntax::SubInclude => {
                     let mut sub_include = SubInclude::new(
-                        &root_dir,
+                        root_dir,
                         &entry.pattern,
                         &entry.source,
                     )?;
@@ -564,11 +564,11 @@ impl SubInclude {
         let prefix = canonical_path(root_dir, root_dir, new_root)?;
 
         Ok(Self {
-            prefix: path_to_hg_path_buf(prefix).and_then(|mut p| {
+            prefix: path_to_hg_path_buf(prefix).map(|mut p| {
                 if !p.is_empty() {
                     p.push_byte(b'/');
                 }
-                Ok(p)
+                p
             })?,
             path: path.to_owned(),
             root: new_root.to_owned(),
@@ -581,14 +581,14 @@ impl SubInclude {
 /// phase.
 pub fn filter_subincludes(
     ignore_patterns: Vec<IgnorePattern>,
-) -> Result<(Vec<Box<SubInclude>>, Vec<IgnorePattern>), HgPathError> {
+) -> Result<(Vec<SubInclude>, Vec<IgnorePattern>), HgPathError> {
     let mut subincludes = vec![];
     let mut others = vec![];
 
     for pattern in ignore_patterns {
         if let PatternSyntax::ExpandedSubInclude(sub_include) = pattern.syntax
         {
-            subincludes.push(sub_include);
+            subincludes.push(*sub_include);
         } else {
             others.push(pattern)
         }

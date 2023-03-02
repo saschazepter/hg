@@ -608,7 +608,10 @@ class mercurial_source(common.converter_source):
             files = copyfiles = ctx.manifest()
         if parents:
             if self._changescache[0] == rev:
-                ma, r = self._changescache[1]
+                # TODO: add type hints to avoid this warning, instead of
+                #  suppressing it:
+                #     No attribute '__iter__' on None [attribute-error]
+                ma, r = self._changescache[1]  # pytype: disable=attribute-error
             else:
                 ma, r = self._changedfiles(parents[0], ctx)
             if not full:

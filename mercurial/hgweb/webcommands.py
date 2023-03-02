@@ -1299,6 +1299,9 @@ def archive(web):
             b'sendresponse() should not emit data if writing later'
         )
 
+    if web.req.method == b'HEAD':
+        return []
+
     bodyfh = web.res.getbodyfile()
 
     archival.archive(

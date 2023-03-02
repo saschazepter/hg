@@ -81,7 +81,7 @@ pub fn debug_wait_for_file(
 }
 
 pub fn debug_wait_for_file_or_print(config: &Config, config_option: &str) {
-    if let Err(e) = debug_wait_for_file(&config, config_option) {
+    if let Err(e) = debug_wait_for_file(config, config_option) {
         eprintln!("{e}");
     };
 }

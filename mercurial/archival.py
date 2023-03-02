@@ -154,9 +154,14 @@ class tarit:
                 )
                 self.fileobj = gzfileobj
                 return (
+                    # taropen() wants Literal['a', 'r', 'w', 'x'] for the mode,
+                    # but Literal[] is only available in 3.8+ without the
+                    # typing_extensions backport.
+                    # pytype: disable=wrong-arg-types
                     tarfile.TarFile.taropen(  # pytype: disable=attribute-error
                         name, pycompat.sysstr(mode), gzfileobj
                     )
+                    # pytype: enable=wrong-arg-types
                 )
             else:
                 try:

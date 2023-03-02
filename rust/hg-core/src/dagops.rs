@@ -181,7 +181,7 @@ mod tests {
         let mut revs: HashSet<Revision> = revs.iter().cloned().collect();
         retain_heads(graph, &mut revs)?;
         let mut as_vec: Vec<Revision> = revs.iter().cloned().collect();
-        as_vec.sort();
+        as_vec.sort_unstable();
         Ok(as_vec)
     }
 
@@ -206,7 +206,7 @@ mod tests {
     ) -> Result<Vec<Revision>, GraphError> {
         let heads = heads(graph, revs.iter())?;
         let mut as_vec: Vec<Revision> = heads.iter().cloned().collect();
-        as_vec.sort();
+        as_vec.sort_unstable();
         Ok(as_vec)
     }
 
@@ -231,7 +231,7 @@ mod tests {
     ) -> Result<Vec<Revision>, GraphError> {
         let set: HashSet<_> = revs.iter().cloned().collect();
         let mut as_vec = roots(graph, &set)?;
-        as_vec.sort();
+        as_vec.sort_unstable();
         Ok(as_vec)
     }
 

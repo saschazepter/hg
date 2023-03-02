@@ -133,12 +133,7 @@ union repos can be cloned ... and clones works correctly
   $ hg -R repo3 paths
   default = union:repo1+repo2
 
-  $ hg -R repo3 verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 6 changesets with 11 changes to 6 files
+  $ hg -R repo3 verify -q
 
   $ hg -R repo3 heads --template '{rev}:{node|short}  {desc|firstline}\n'
   5:2f0d178c469c  repo2-3

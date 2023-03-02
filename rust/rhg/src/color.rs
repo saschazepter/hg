@@ -205,16 +205,14 @@ impl ColorMode {
             return Err(HgError::unsupported("debug color mode"));
         }
         let auto = enabled == b"auto";
-        let always;
-        if !auto {
+        let always = if !auto {
             let enabled_bool = config.get_bool(b"ui", b"color")?;
             if !enabled_bool {
                 return Ok(None);
             }
-            always = enabled == b"always"
-                || *origin == ConfigOrigin::CommandLineColor
+            enabled == b"always" || *origin == ConfigOrigin::CommandLineColor
         } else {
-            always = false
+            false
         };
         let formatted = always
             || (std::env::var_os("TERM").unwrap_or_default() != "dumb"
@@ -245,11 +243,8 @@ pub struct ColorConfig {
 impl ColorConfig {
     // Similar to _modesetup in mercurial/color.py
     pub fn new(config: &Config) -> Result<Option<Self>, HgError> {
-        Ok(match ColorMode::get(config)? {
-            None => None,
-            Some(ColorMode::Ansi) => Some(ColorConfig {
-                styles: effects_from_config(config),
-            }),
-        })
+        Ok(ColorMode::get(config)?.map(|ColorMode::Ansi| ColorConfig {
+            styles: effects_from_config(config),
+        }))
     }
 }

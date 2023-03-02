@@ -47,12 +47,7 @@ Push it. The bundle should not refer to the extinct changeset.
   adding manifests
   adding file changes
   added 2 changesets with 2 changes to 2 files
-  $ hg -R ../other verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 2 files
+  $ hg -R ../other verify -q
 
 Adding a changeset going extinct locally
 ------------------------------------------

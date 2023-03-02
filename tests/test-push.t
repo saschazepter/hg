@@ -18,7 +18,7 @@ Testing of the '--rev' flag
   >    echo
   >    hg init test-revflag-"$i"
   >    hg -R test-revflag push -r "$i" test-revflag-"$i"
-  >    hg -R test-revflag-"$i" verify
+  >    hg -R test-revflag-"$i" verify -q
   > done
   
   pushing to test-revflag-0
@@ -27,11 +27,6 @@ Testing of the '--rev' flag
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
   
   pushing to test-revflag-1
   searching for changes
@@ -39,11 +34,6 @@ Testing of the '--rev' flag
   adding manifests
   adding file changes
   added 2 changesets with 2 changes to 1 files
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 1 files
   
   pushing to test-revflag-2
   searching for changes
@@ -51,11 +41,6 @@ Testing of the '--rev' flag
   adding manifests
   adding file changes
   added 3 changesets with 3 changes to 1 files
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 1 files
   
   pushing to test-revflag-3
   searching for changes
@@ -63,11 +48,6 @@ Testing of the '--rev' flag
   adding manifests
   adding file changes
   added 4 changesets with 4 changes to 1 files
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 4 changesets with 4 changes to 1 files
   
   pushing to test-revflag-4
   searching for changes
@@ -75,11 +55,6 @@ Testing of the '--rev' flag
   adding manifests
   adding file changes
   added 2 changesets with 2 changes to 1 files
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 1 files
   
   pushing to test-revflag-5
   searching for changes
@@ -87,11 +62,6 @@ Testing of the '--rev' flag
   adding manifests
   adding file changes
   added 3 changesets with 3 changes to 1 files
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 1 files
   
   pushing to test-revflag-6
   searching for changes
@@ -99,11 +69,6 @@ Testing of the '--rev' flag
   adding manifests
   adding file changes
   added 4 changesets with 5 changes to 2 files
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 4 changesets with 5 changes to 2 files
   
   pushing to test-revflag-7
   searching for changes
@@ -111,11 +76,6 @@ Testing of the '--rev' flag
   adding manifests
   adding file changes
   added 5 changesets with 6 changes to 3 files
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5 changesets with 6 changes to 3 files
   
   pushing to test-revflag-8
   searching for changes
@@ -123,11 +83,6 @@ Testing of the '--rev' flag
   adding manifests
   adding file changes
   added 5 changesets with 5 changes to 2 files
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5 changesets with 5 changes to 2 files
 
   $ cd test-revflag-8
 
@@ -141,12 +96,7 @@ Testing of the '--rev' flag
   new changesets c70afb1ee985:faa2e4234c7a
   (run 'hg heads' to see heads, 'hg merge' to merge)
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 9 changesets with 7 changes to 4 files
+  $ hg verify -q
 
   $ cd ..
 
@@ -189,13 +139,9 @@ Test spurious filelog entries:
 
 Expected to fail:
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
+  $ hg verify -q
    beta@1: dddc47b3ba30 not in manifests
-  checked 2 changesets with 4 changes to 2 files
+  not checking dirstate because of previous errors
   1 integrity errors encountered!
   (first damaged changeset appears to be 1)
   [1]
@@ -224,13 +170,9 @@ Test missing filelog entries:
 
 Expected to fail:
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
+  $ hg verify -q
    beta@1: manifest refers to unknown revision dddc47b3ba30
-  checked 2 changesets with 2 changes to 2 files
+  not checking dirstate because of previous errors
   1 integrity errors encountered!
   (first damaged changeset appears to be 1)
   [1]

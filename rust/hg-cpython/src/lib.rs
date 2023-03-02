@@ -18,6 +18,11 @@
 //! >>> ancestor.__doc__
 //! 'Generic DAG ancestor algorithms - Rust implementation'
 //! ```
+#![allow(clippy::too_many_arguments)] // rust-cpython macros
+#![allow(clippy::zero_ptr)] // rust-cpython macros
+#![allow(clippy::needless_update)] // rust-cpython macros
+#![allow(clippy::manual_strip)] // rust-cpython macros
+#![allow(clippy::type_complexity)] // rust-cpython macros
 
 /// This crate uses nested private macros, `extern crate` is still needed in
 /// 2018 edition.

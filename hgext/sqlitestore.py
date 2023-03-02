@@ -80,7 +80,7 @@ from mercurial.utils import (
 )
 
 try:
-    from mercurial import zstd
+    from mercurial import zstd  # pytype: disable=import-error
 
     zstd.__version__
 except ImportError:
@@ -608,6 +608,7 @@ class sqlitefilestore:
         assumehaveparentrevisions=False,
         deltamode=repository.CG_DELTAMODE_STD,
         sidedata_helpers=None,
+        debug_info=None,
     ):
         if nodesorder not in (b'nodes', b'storage', b'linear', None):
             raise error.ProgrammingError(

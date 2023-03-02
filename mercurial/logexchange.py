@@ -113,7 +113,7 @@ def activepath(repo, remote):
     if local:
         rpath = util.pconvert(remote._repo.root)
     elif not isinstance(remote, bytes):
-        rpath = remote._url
+        rpath = remote.url()
 
     # represent the remotepath with user defined path name if exists
     for path, url in repo.ui.configitems(b'paths'):

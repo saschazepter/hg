@@ -301,3 +301,18 @@ FEATURES_BY_VERSION = {
 
 
 SPARSE_REVLOG_MAX_CHAIN_LENGTH = 1000
+
+### What should be done with a cached delta and its base ?
+
+# Ignore the cache when considering candidates.
+#
+# The cached delta might be used, but the delta base will not be scheduled for
+# usage earlier than in "normal" order.
+DELTA_BASE_REUSE_NO = 0
+
+# Prioritize trying the cached delta base
+#
+# The delta base will be tested for validy first. So that the cached deltas get
+# used when possible.
+DELTA_BASE_REUSE_TRY = 1
+DELTA_BASE_REUSE_FORCE = 2

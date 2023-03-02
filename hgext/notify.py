@@ -450,7 +450,7 @@ class notifier:
         try:
             msg = mail.parsebytes(data)
         except emailerrors.MessageParseError as inst:
-            raise error.Abort(inst)
+            raise error.Abort(stringutil.forcebytestr(inst))
 
         # store sender and subject
         sender = msg['From']

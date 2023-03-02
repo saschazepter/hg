@@ -2,14 +2,9 @@ setup repo
   $ hg init t
   $ cd t
   $ echo a > a
-  $ hg commit -Am'add a'
-  adding a
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
+  $ hg add a
+  $ hg commit -m 'add a'
+  $ hg verify -q
   $ hg parents
   changeset:   0:1f0dee641bb7
   tag:         tip
@@ -23,12 +18,7 @@ rollback to null revision
   $ hg rollback
   repository tip rolled back to revision -1 (undo commit)
   working directory now based on revision -1
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 0 changesets with 0 changes to 0 files
+  $ hg verify -q
   $ hg parents
   $ hg status
   A a
@@ -52,21 +42,11 @@ Test issue 1635 (commit message saved)
   $ cat .hg/last-message.txt ; echo
   modify a
 
-Test rollback of hg before issue 902 was fixed
-
-  $ hg commit -m "test3"
-  $ hg branch test
-  marked working directory as branch test
-  (branches are permanent and global, did you want a bookmark?)
-  $ rm .hg/undo.branch
-  $ hg rollback
-  repository tip rolled back to revision 0 (undo commit)
-  named branch could not be reset: current branch is still 'test'
-  working directory now based on revision 0
-  $ hg branch
-  test
 
 working dir unaffected by rollback: do not restore dirstate et. al.
+  $ hg branch test --quiet
+  $ hg branch
+  test
   $ hg log --template '{rev}  {branch}  {desc|firstline}\n'
   0  default  add a again
   $ hg status
@@ -75,21 +55,45 @@ working dir unaffected by rollback: do not restore dirstate et. al.
   $ hg commit -m'modify a again'
   $ echo b > b
   $ hg bookmark bar -r default #making bar active, before the transaction
-  $ hg commit -Am'add b'
-  adding b
-  $ hg log --template '{rev}  {branch}  {desc|firstline}\n'
-  2  test  add b
-  1  test  modify a again
-  0  default  add a again
+  $ hg log -G --template '{rev}  [{branch}] ({bookmarks}) {desc|firstline}\n'
+  @  1  [test] (foo) modify a again
+  |
+  o  0  [default] (bar) add a again
+  
+  $ hg add b
+  $ hg commit -m'add b'
+  $ hg log -G --template '{rev}  [{branch}] ({bookmarks}) {desc|firstline}\n'
+  @  2  [test] (foo) add b
+  |
+  o  1  [test] () modify a again
+  |
+  o  0  [default] (bar) add a again
+  
   $ hg update bar
   1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   (activating bookmark bar)
-  $ cat .hg/undo.branch ; echo
+  $ cat .hg/undo.backup.branch
   test
+  $ hg log -G --template '{rev}  [{branch}] ({bookmarks}) {desc|firstline}\n'
+  o  2  [test] (foo) add b
+  |
+  o  1  [test] () modify a again
+  |
+  @  0  [default] (bar) add a again
+  
+  $ hg rollback
+  abort: rollback of last commit while not checked out may lose data
+  (use -f to force)
+  [255]
   $ hg rollback -f
   repository tip rolled back to revision 1 (undo commit)
   $ hg id -n
   0
+  $ hg log -G --template '{rev}  [{branch}] ({bookmarks}) {desc|firstline}\n'
+  o  1  [test] (foo) modify a again
+  |
+  @  0  [default] (bar) add a again
+  
   $ hg branch
   default
   $ cat .hg/bookmarks.current ; echo
@@ -186,19 +190,14 @@ same again, but emulate an old client that doesn't write undo.desc
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg rollback
   rolling back unknown transaction
+  working directory now based on revision 0
   $ cat a
   a
 
 corrupt journal test
   $ echo "foo" > .hg/store/journal
-  $ hg recover --verify
-  rolling back interrupted transaction
+  $ hg recover --verify -q
   couldn't read journal entry 'foo\n'!
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 1 files
 
 rollback disabled by config
   $ cat >> $HGRCPATH <<EOF
@@ -433,12 +432,7 @@ An I/O error writing "rollback completed" is handled
   abort: pretxncommit hook exited with status 1
   [40]
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
+  $ hg verify -q
 
   $ cd ..
 
@@ -458,11 +452,6 @@ of a transaction.
 
   $ hg --config ui.ioerrors=pretxncommit,pretxnclose,txnclose,txnabort,msgabort,msgrollback commit -m 'multiple errors'
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 1 files
+  $ hg verify -q
 
   $ cd ..

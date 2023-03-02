@@ -3,7 +3,6 @@ use bytes_cast::{unaligned, BytesCast};
 use memmap2::Mmap;
 use std::path::{Path, PathBuf};
 
-use crate::utils::strip_suffix;
 use crate::vfs::Vfs;
 
 const ONDISK_VERSION: u8 = 1;
@@ -97,8 +96,9 @@ fn rawdata_path(docket_path: &Path, uid: &str) -> PathBuf {
         .expect("expected a base name")
         .to_str()
         .expect("expected an ASCII file name in the store");
-    let prefix = strip_suffix(docket_name, ".n.a")
-        .or_else(|| strip_suffix(docket_name, ".n"))
+    let prefix = docket_name
+        .strip_suffix(".n.a")
+        .or_else(|| docket_name.strip_suffix(".n"))
         .expect("expected docket path in .n or .n.a");
     let name = format!("{}-{}.nd", prefix, uid);
     docket_path

@@ -47,6 +47,7 @@ fn require_send<T: Send>() {}
 
 #[allow(unused)]
 fn static_assert_pybytes_is_send() {
+    #[allow(clippy::no_effect)]
     require_send::<PyBytes>;
 }
 

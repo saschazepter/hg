@@ -372,7 +372,7 @@ def _performhandshake(ui, stdin, stdout, stderr):
 
 class sshv1peer(wireprotov1peer.wirepeer):
     def __init__(
-        self, ui, url, proc, stdin, stdout, stderr, caps, autoreadstderr=True
+        self, ui, path, proc, stdin, stdout, stderr, caps, autoreadstderr=True
     ):
         """Create a peer from an existing SSH connection.
 
@@ -383,8 +383,7 @@ class sshv1peer(wireprotov1peer.wirepeer):
         ``autoreadstderr`` denotes whether to automatically read from
         stderr and to forward its output.
         """
-        self._url = url
-        self.ui = ui
+        super().__init__(ui, path=path)
         # self._subprocess is unused. Keeping a handle on the process
         # holds a reference and prevents it from being garbage collected.
         self._subprocess = proc
@@ -411,13 +410,10 @@ class sshv1peer(wireprotov1peer.wirepeer):
     # Begin of ipeerconnection interface.
 
     def url(self):
-        return self._url
+        return self.path.loc
 
     def local(self):
         return None
-
-    def peer(self):
-        return self
 
     def canpush(self):
         return True
@@ -610,16 +606,16 @@ def makepeer(ui, path, proc, stdin, stdout, stderr, autoreadstderr=True):
         )
 
 
-def instance(ui, path, create, intents=None, createopts=None):
+def make_peer(ui, path, create, intents=None, createopts=None):
     """Create an SSH peer.
 
     The returned object conforms to the ``wireprotov1peer.wirepeer`` interface.
     """
-    u = urlutil.url(path, parsequery=False, parsefragment=False)
+    u = urlutil.url(path.loc, parsequery=False, parsefragment=False)
     if u.scheme != b'ssh' or not u.host or u.path is None:
         raise error.RepoError(_(b"couldn't parse location %s") % path)
 
-    urlutil.checksafessh(path)
+    urlutil.checksafessh(path.loc)
 
     if u.passwd is not None:
         raise error.RepoError(_(b'password in URL not supported'))

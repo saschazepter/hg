@@ -94,6 +94,13 @@ class diffopts:
         opts.update(kwargs)
         return diffopts(**opts)
 
+    def __bytes__(self):
+        return b", ".join(
+            b"%s: %r" % (k, getattr(self, k)) for k in self.defaults
+        )
+
+    __str__ = encoding.strmethod(__bytes__)
+
 
 defaultopts = diffopts()
 

@@ -65,28 +65,12 @@ release = lock.release
 sharedbookmarks = b'bookmarks'
 
 
-def _local(path):
-    path = util.expandpath(urlutil.urllocalpath(path))
-
-    try:
-        # we use os.stat() directly here instead of os.path.isfile()
-        # because the latter started returning `False` on invalid path
-        # exceptions starting in 3.8 and we care about handling
-        # invalid paths specially here.
-        st = os.stat(path)
-        isfile = stat.S_ISREG(st.st_mode)
-    except ValueError as e:
-        raise error.Abort(
-            _(b'invalid path %s: %s') % (path, stringutil.forcebytestr(e))
-        )
-    except OSError:
-        isfile = False
-
-    return isfile and bundlerepo or localrepo
-
-
 def addbranchrevs(lrepo, other, branches, revs):
-    peer = other.peer()  # a courtesy to callers using a localrepo for other
+    if util.safehasattr(other, 'peer'):
+        # a courtesy to callers using a localrepo for other
+        peer = other.peer()
+    else:
+        peer = other
     hashbranch, branches = branches
     if not hashbranch and not branches:
         x = revs or None
@@ -129,10 +113,47 @@ def addbranchrevs(lrepo, other, branches, revs):
     return revs, revs[0]
 
 
-schemes = {
+def _isfile(path):
+    try:
+        # we use os.stat() directly here instead of os.path.isfile()
+        # because the latter started returning `False` on invalid path
+        # exceptions starting in 3.8 and we care about handling
+        # invalid paths specially here.
+        st = os.stat(path)
+    except ValueError as e:
+        msg = stringutil.forcebytestr(e)
+        raise error.Abort(_(b'invalid path %s: %s') % (path, msg))
+    except OSError:
+        return False
+    else:
+        return stat.S_ISREG(st.st_mode)
+
+
+class LocalFactory:
+    """thin wrapper to dispatch between localrepo and bundle repo"""
+
+    @staticmethod
+    def islocal(path: bytes) -> bool:
+        path = util.expandpath(urlutil.urllocalpath(path))
+        return not _isfile(path)
+
+    @staticmethod
+    def instance(ui, path, *args, **kwargs):
+        path = util.expandpath(urlutil.urllocalpath(path))
+        if _isfile(path):
+            cls = bundlerepo
+        else:
+            cls = localrepo
+        return cls.instance(ui, path, *args, **kwargs)
+
+
+repo_schemes = {
     b'bundle': bundlerepo,
     b'union': unionrepo,
-    b'file': _local,
+    b'file': LocalFactory,
+}
+
+peer_schemes = {
     b'http': httppeer,
     b'https': httppeer,
     b'ssh': sshpeer,
@@ -140,27 +161,23 @@ schemes = {
 }
 
 
-def _peerlookup(path):
-    u = urlutil.url(path)
-    scheme = u.scheme or b'file'
-    thing = schemes.get(scheme) or schemes[b'file']
-    try:
-        return thing(path)
-    except TypeError:
-        # we can't test callable(thing) because 'thing' can be an unloaded
-        # module that implements __call__
-        if not util.safehasattr(thing, b'instance'):
-            raise
-        return thing
-
-
 def islocal(repo):
     '''return true if repo (or path pointing to repo) is local'''
     if isinstance(repo, bytes):
-        try:
-            return _peerlookup(repo).islocal(repo)
-        except AttributeError:
-            return False
+        u = urlutil.url(repo)
+        scheme = u.scheme or b'file'
+        if scheme in peer_schemes:
+            cls = peer_schemes[scheme]
+            cls.make_peer  # make sure we load the module
+        elif scheme in repo_schemes:
+            cls = repo_schemes[scheme]
+            cls.instance  # make sure we load the module
+        else:
+            cls = LocalFactory
+        if util.safehasattr(cls, 'islocal'):
+            return cls.islocal(repo)  # pytype: disable=module-attr
+        return False
+    repo.ui.deprecwarn(b"use obj.local() instead of islocal(obj)", b"6.4")
     return repo.local()
 
 
@@ -177,13 +194,7 @@ def openpath(ui, path, sendaccept=True):
 wirepeersetupfuncs = []
 
 
-def _peerorrepo(
-    ui, path, create=False, presetupfuncs=None, intents=None, createopts=None
-):
-    """return a repository object for the specified path"""
-    obj = _peerlookup(path).instance(
-        ui, path, create, intents=intents, createopts=createopts
-    )
+def _setup_repo_or_peer(ui, obj, presetupfuncs=None):
     ui = getattr(obj, "ui", ui)
     for f in presetupfuncs or []:
         f(ui, obj)
@@ -195,14 +206,12 @@ def _peerorrepo(
             if hook:
                 with util.timedcm('reposetup %r', name) as stats:
                     hook(ui, obj)
-                ui.log(
-                    b'extension', b'  > reposetup for %s took %s\n', name, stats
-                )
+                msg = b'  > reposetup for %s took %s\n'
+                ui.log(b'extension', msg, name, stats)
     ui.log(b'extension', b'> all reposetup took %s\n', allreposetupstats)
     if not obj.local():
         for f in wirepeersetupfuncs:
             f(ui, obj)
-    return obj
 
 
 def repository(
@@ -214,28 +223,59 @@ def repository(
     createopts=None,
 ):
     """return a repository object for the specified path"""
-    peer = _peerorrepo(
+    scheme = urlutil.url(path).scheme
+    if scheme is None:
+        scheme = b'file'
+    cls = repo_schemes.get(scheme)
+    if cls is None:
+        if scheme in peer_schemes:
+            raise error.Abort(_(b"repository '%s' is not local") % path)
+        cls = LocalFactory
+    repo = cls.instance(
         ui,
         path,
         create,
-        presetupfuncs=presetupfuncs,
         intents=intents,
         createopts=createopts,
     )
-    repo = peer.local()
-    if not repo:
-        raise error.Abort(
-            _(b"repository '%s' is not local") % (path or peer.url())
-        )
+    _setup_repo_or_peer(ui, repo, presetupfuncs=presetupfuncs)
     return repo.filtered(b'visible')
 
 
 def peer(uiorrepo, opts, path, create=False, intents=None, createopts=None):
     '''return a repository peer for the specified path'''
+    ui = getattr(uiorrepo, 'ui', uiorrepo)
     rui = remoteui(uiorrepo, opts)
-    return _peerorrepo(
-        rui, path, create, intents=intents, createopts=createopts
-    ).peer()
+    if util.safehasattr(path, 'url'):
+        # this is already a urlutil.path object
+        peer_path = path
+    else:
+        peer_path = urlutil.path(ui, None, rawloc=path, validate_path=False)
+    scheme = peer_path.url.scheme  # pytype: disable=attribute-error
+    if scheme in peer_schemes:
+        cls = peer_schemes[scheme]
+        peer = cls.make_peer(
+            rui,
+            peer_path,
+            create,
+            intents=intents,
+            createopts=createopts,
+        )
+        _setup_repo_or_peer(rui, peer)
+    else:
+        # this is a repository
+        repo_path = peer_path.loc  # pytype: disable=attribute-error
+        if not repo_path:
+            repo_path = peer_path.rawloc  # pytype: disable=attribute-error
+        repo = repository(
+            rui,
+            repo_path,
+            create,
+            intents=intents,
+            createopts=createopts,
+        )
+        peer = repo.peer(path=peer_path)
+    return peer
 
 
 def defaultdest(source):
@@ -290,17 +330,23 @@ def share(
 ):
     '''create a shared repository'''
 
-    if not islocal(source):
-        raise error.Abort(_(b'can only share local repositories'))
+    not_local_msg = _(b'can only share local repositories')
+    if util.safehasattr(source, 'local'):
+        if source.local() is None:
+            raise error.Abort(not_local_msg)
+    elif not islocal(source):
+        # XXX why are we getting bytes here ?
+        raise error.Abort(not_local_msg)
 
     if not dest:
         dest = defaultdest(source)
     else:
-        dest = urlutil.get_clone_path(ui, dest)[1]
+        dest = urlutil.get_clone_path_obj(ui, dest).loc
 
     if isinstance(source, bytes):
-        origsource, source, branches = urlutil.get_clone_path(ui, source)
-        srcrepo = repository(ui, source)
+        source_path = urlutil.get_clone_path_obj(ui, source)
+        srcrepo = repository(ui, source_path.loc)
+        branches = (source_path.branch, [])
         rev, checkout = addbranchrevs(srcrepo, srcrepo, branches, None)
     else:
         srcrepo = source.local()
@@ -411,7 +457,9 @@ def postshare(sourcerepo, destrepo, defaultpath=None):
         template = b'[paths]\ndefault = %s\n'
         destrepo.vfs.write(b'hgrc', util.tonativeeol(template % default))
     if requirements.NARROW_REQUIREMENT in sourcerepo.requirements:
-        with destrepo.wlock():
+        with destrepo.wlock(), destrepo.lock(), destrepo.transaction(
+            b"narrow-share"
+        ):
             narrowspec.copytoworkingcopy(destrepo)
 
 
@@ -661,12 +709,23 @@ def clone(
     """
 
     if isinstance(source, bytes):
-        src = urlutil.get_clone_path(ui, source, branch)
-        origsource, source, branches = src
-        srcpeer = peer(ui, peeropts, source)
+        src_path = urlutil.get_clone_path_obj(ui, source)
+        if src_path is None:
+            srcpeer = peer(ui, peeropts, b'')
+            origsource = source = b''
+            branches = (None, branch or [])
+        else:
+            srcpeer = peer(ui, peeropts, src_path)
+            origsource = src_path.rawloc
+            branches = (src_path.branch, branch or [])
+            source = src_path.loc
     else:
-        srcpeer = source.peer()  # in case we were called with a localrepo
+        if util.safehasattr(source, 'peer'):
+            srcpeer = source.peer()  # in case we were called with a localrepo
+        else:
+            srcpeer = source
         branches = (None, branch or [])
+        # XXX path: simply use the peer `path` object when this become available
         origsource = source = srcpeer.url()
     srclock = destlock = destwlock = cleandir = None
     destpeer = None
@@ -678,7 +737,11 @@ def clone(
             if dest:
                 ui.status(_(b"destination directory: %s\n") % dest)
         else:
-            dest = urlutil.get_clone_path(ui, dest)[0]
+            dest_path = urlutil.get_clone_path_obj(ui, dest)
+            if dest_path is not None:
+                dest = dest_path.rawloc
+            else:
+                dest = b''
 
         dest = urlutil.urllocalpath(dest)
         source = urlutil.urllocalpath(source)
@@ -925,7 +988,9 @@ def clone(
             local = destpeer.local()
             if local:
                 if narrow:
-                    with local.wlock(), local.lock():
+                    with local.wlock(), local.lock(), local.transaction(
+                        b'narrow-clone'
+                    ):
                         local.setnarrowpats(storeincludepats, storeexcludepats)
                         narrowspec.copytoworkingcopy(local)
 
@@ -1271,23 +1336,28 @@ def _incoming(
         msg %= len(srcs)
         raise error.Abort(msg)
     path = srcs[0]
-    source, branches = urlutil.parseurl(path.rawloc, opts.get(b'branch'))
-    if subpath is not None:
+    if subpath is None:
+        peer_path = path
+        url = path.loc
+    else:
+        # XXX path: we are losing the `path` object here. Keeping it would be
+        # valuable. For example as a "variant" as we do for pushes.
         subpath = urlutil.url(subpath)
         if subpath.isabs():
-            source = bytes(subpath)
+            peer_path = url = bytes(subpath)
         else:
-            p = urlutil.url(source)
+            p = urlutil.url(path.loc)
             if p.islocal():
                 normpath = os.path.normpath
             else:
                 normpath = posixpath.normpath
             p.path = normpath(b'%s/%s' % (p.path, subpath))
-            source = bytes(p)
-    other = peer(repo, opts, source)
+            peer_path = url = bytes(p)
+    other = peer(repo, opts, peer_path)
     cleanupfn = other.close
     try:
-        ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(source))
+        ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(url))
+        branches = (path.branch, opts.get(b'branch', []))
         revs, checkout = addbranchrevs(repo, other, branches, opts.get(b'rev'))
 
         if revs:
@@ -1346,7 +1416,7 @@ def _outgoing(ui, repo, dests, opts, subpath=None):
     out = set()
     others = []
     for path in urlutil.get_push_paths(repo, ui, dests):
-        dest = path.pushloc or path.loc
+        dest = path.loc
         if subpath is not None:
             subpath = urlutil.url(subpath)
             if subpath.isabs():

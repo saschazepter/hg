@@ -1596,7 +1596,7 @@ class workingctx(committablectx):
         if p2node is None:
             p2node = self._repo.nodeconstants.nullid
         dirstate = self._repo.dirstate
-        with dirstate.parentchange():
+        with dirstate.changing_parents(self._repo):
             copies = dirstate.setparents(p1node, p2node)
             pctx = self._repo[p1node]
             if copies:
@@ -1855,47 +1855,43 @@ class workingctx(committablectx):
 
     def _poststatusfixup(self, status, fixup):
         """update dirstate for files that are actually clean"""
-        ui = self._repo.ui
         testing.wait_on_cfg(self._repo.ui, b'status.pre-dirstate-write-file')
+        dirstate = self._repo.dirstate
         poststatus = self._repo.postdsstatus()
-        if fixup or poststatus or self._repo.dirstate._dirty:
+        if fixup:
+            if dirstate.is_changing_parents:
+                normal = lambda f, pfd: dirstate.update_file(
+                    f,
+                    p1_tracked=True,
+                    wc_tracked=True,
+                )
+            else:
+                normal = dirstate.set_clean
+            for f, pdf in fixup:
+                normal(f, pdf)
+        if poststatus or self._repo.dirstate._dirty:
             try:
-                oldid = self._repo.dirstate.identity()
-
                 # updating the dirstate is optional
                 # so we don't wait on the lock
                 # wlock can invalidate the dirstate, so cache normal _after_
                 # taking the lock
+                pre_dirty = dirstate._dirty
                 with self._repo.wlock(False):
-                    dirstate = self._repo.dirstate
-                    if dirstate.identity() == oldid:
-                        if fixup:
-                            if dirstate.pendingparentchange():
-                                normal = lambda f, pfd: dirstate.update_file(
-                                    f, p1_tracked=True, wc_tracked=True
-                                )
-                            else:
-                                normal = dirstate.set_clean
-                            for f, pdf in fixup:
-                                normal(f, pdf)
-                            # write changes out explicitly, because nesting
-                            # wlock at runtime may prevent 'wlock.release()'
-                            # after this block from doing so for subsequent
-                            # changing files
-                            tr = self._repo.currenttransaction()
-                            self._repo.dirstate.write(tr)
-
-                        if poststatus:
-                            for ps in poststatus:
-                                ps(self, status)
-                    else:
-                        # in this case, writing changes out breaks
-                        # consistency, because .hg/dirstate was
-                        # already changed simultaneously after last
-                        # caching (see also issue5584 for detail)
-                        ui.debug(b'skip updating dirstate: identity mismatch\n')
+                    assert self._repo.dirstate is dirstate
+                    post_dirty = dirstate._dirty
+                    if post_dirty:
+                        tr = self._repo.currenttransaction()
+                        dirstate.write(tr)
+                    elif pre_dirty:
+                        # the wlock grabbing detected that dirtate changes
+                        # needed to be dropped
+                        m = b'skip updating dirstate: identity mismatch\n'
+                        self._repo.ui.debug(m)
+                    if poststatus:
+                        for ps in poststatus:
+                            ps(self, status)
             except error.LockError:
-                pass
+                dirstate.invalidate()
             finally:
                 # Even if the wlock couldn't be grabbed, clear out the list.
                 self._repo.clearpostdsstatus()
@@ -1905,25 +1901,27 @@ class workingctx(committablectx):
         subrepos = []
         if b'.hgsub' in self:
             subrepos = sorted(self.substate)
-        cmp, s, mtime_boundary = self._repo.dirstate.status(
-            match, subrepos, ignored=ignored, clean=clean, unknown=unknown
-        )
-
-        # check for any possibly clean files
-        fixup = []
-        if cmp:
-            modified2, deleted2, clean_set, fixup = self._checklookup(
-                cmp, mtime_boundary
+        dirstate = self._repo.dirstate
+        with dirstate.running_status(self._repo):
+            cmp, s, mtime_boundary = dirstate.status(
+                match, subrepos, ignored=ignored, clean=clean, unknown=unknown
             )
-            s.modified.extend(modified2)
-            s.deleted.extend(deleted2)
 
-            if clean_set and clean:
-                s.clean.extend(clean_set)
-            if fixup and clean:
-                s.clean.extend((f for f, _ in fixup))
+            # check for any possibly clean files
+            fixup = []
+            if cmp:
+                modified2, deleted2, clean_set, fixup = self._checklookup(
+                    cmp, mtime_boundary
+                )
+                s.modified.extend(modified2)
+                s.deleted.extend(deleted2)
 
-        self._poststatusfixup(s, fixup)
+                if clean_set and clean:
+                    s.clean.extend(clean_set)
+                if fixup and clean:
+                    s.clean.extend((f for f, _ in fixup))
+
+            self._poststatusfixup(s, fixup)
 
         if match.always():
             # cache for performance
@@ -2051,7 +2049,7 @@ class workingctx(committablectx):
         return sorted(f for f in ds.matches(match) if ds.get_entry(f).tracked)
 
     def markcommitted(self, node):
-        with self._repo.dirstate.parentchange():
+        with self._repo.dirstate.changing_parents(self._repo):
             for f in self.modified() + self.added():
                 self._repo.dirstate.update_file(
                     f, p1_tracked=True, wc_tracked=True

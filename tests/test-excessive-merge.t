@@ -93,9 +93,4 @@ revision 4
        0       0 2ed2a3912a0b 000000000000 000000000000
        1       1 79d7492df40a 2ed2a3912a0b 000000000000
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5 changesets with 4 changes to 2 files
+  $ hg verify -q

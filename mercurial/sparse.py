@@ -451,7 +451,7 @@ def filterupdatesactions(repo, wctx, mctx, branchmerge, mresult):
                     message,
                 )
 
-        with repo.dirstate.parentchange():
+        with repo.dirstate.changing_parents(repo):
             mergemod.applyupdates(
                 repo,
                 tmresult,
@@ -655,7 +655,7 @@ def clearrules(repo, force=False):
     The remaining sparse config only has profiles, if defined. The working
     directory is refreshed, as needed.
     """
-    with repo.wlock(), repo.dirstate.parentchange():
+    with repo.wlock(), repo.dirstate.changing_parents(repo):
         raw = repo.vfs.tryread(b'sparse')
         includes, excludes, profiles = parseconfig(repo.ui, raw, b'sparse')
 
@@ -671,7 +671,7 @@ def importfromfiles(repo, opts, paths, force=False):
     The updated sparse config is written out and the working directory
     is refreshed, as needed.
     """
-    with repo.wlock(), repo.dirstate.parentchange():
+    with repo.wlock(), repo.dirstate.changing_parents(repo):
         # read current configuration
         raw = repo.vfs.tryread(b'sparse')
         includes, excludes, profiles = parseconfig(repo.ui, raw, b'sparse')
@@ -730,7 +730,7 @@ def updateconfig(
 
     The new config is written out and a working directory refresh is performed.
     """
-    with repo.wlock(), repo.lock(), repo.dirstate.parentchange():
+    with repo.wlock(), repo.lock(), repo.dirstate.changing_parents(repo):
         raw = repo.vfs.tryread(b'sparse')
         oldinclude, oldexclude, oldprofiles = parseconfig(
             repo.ui, raw, b'sparse'

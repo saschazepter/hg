@@ -38,7 +38,7 @@ fn build_random_graph(
             // p2 is a random revision lower than i and different from p1
             let mut p2 = rng.gen_range(0..i - 1) as Revision;
             if p2 >= p1 {
-                p2 = p2 + 1;
+                p2 += 1;
             }
             vg.push([p1, p2]);
         } else if rng.gen_bool(prevprob) {
@@ -53,7 +53,7 @@ fn build_random_graph(
 /// Compute the ancestors set of all revisions of a VecGraph
 fn ancestors_sets(vg: &VecGraph) -> Vec<HashSet<Revision>> {
     let mut ancs: Vec<HashSet<Revision>> = Vec::new();
-    for i in 0..vg.len() {
+    (0..vg.len()).for_each(|i| {
         let mut ancs_i = HashSet::new();
         ancs_i.insert(i as Revision);
         for p in vg[i].iter().cloned() {
@@ -62,7 +62,7 @@ fn ancestors_sets(vg: &VecGraph) -> Vec<HashSet<Revision>> {
             }
         }
         ancs.push(ancs_i);
-    }
+    });
     ancs
 }
 
@@ -95,9 +95,9 @@ impl<'a> NaiveMissingAncestors<'a> {
         random_seed: &str,
     ) -> Self {
         Self {
-            ancestors_sets: ancestors_sets,
+            ancestors_sets,
             bases: bases.clone(),
-            graph: graph,
+            graph,
             history: vec![MissingAncestorsAction::InitialBases(bases.clone())],
             random_seed: random_seed.into(),
         }
@@ -116,7 +116,7 @@ impl<'a> NaiveMissingAncestors<'a> {
         for base in self.bases.iter().cloned() {
             if base != NULL_REVISION {
                 for rev in &self.ancestors_sets[base as usize] {
-                    revs.remove(&rev);
+                    revs.remove(rev);
                 }
             }
         }
@@ -140,12 +140,12 @@ impl<'a> NaiveMissingAncestors<'a> {
         for base in self.bases.iter().cloned() {
             if base != NULL_REVISION {
                 for rev in &self.ancestors_sets[base as usize] {
-                    missing.remove(&rev);
+                    missing.remove(rev);
                 }
             }
         }
         let mut res: Vec<Revision> = missing.iter().cloned().collect();
-        res.sort();
+        res.sort_unstable();
         res
     }
 
@@ -196,7 +196,7 @@ fn sample_revs<R: RngCore>(
     let nb = min(maxrev as usize, log_normal.sample(rng).floor() as usize);
 
     let dist = Uniform::from(NULL_REVISION..maxrev);
-    return rng.sample_iter(&dist).take(nb).collect();
+    rng.sample_iter(&dist).take(nb).collect()
 }
 
 /// Produces the hexadecimal representation of a slice of bytes

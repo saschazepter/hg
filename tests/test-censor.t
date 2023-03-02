@@ -175,6 +175,7 @@ Repo fails verification due to censorship
   checking files
    target@1: censored file data
    target@2: censored file data
+  not checking dirstate because of previous errors
   checked 5 changesets with 7 changes to 2 files
   2 integrity errors encountered!
   (first damaged changeset appears to be 1)
@@ -205,12 +206,7 @@ Set censor policy to ignore in trusted $HGRC so hg verify passes
 
 Repo passes verification with warnings with explicit config
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5 changesets with 7 changes to 2 files
+  $ hg verify -q
 
 May update to revision with censored data with explicit config
 
@@ -330,24 +326,14 @@ Repo with censored nodes can be cloned and cloned nodes are censored
   $ hg cat -r $C1 target | head -n 10
   $ hg cat -r 0 target | head -n 10
   Initially untainted file
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 12 changesets with 13 changes to 2 files
+  $ hg verify -q
 
 Repo cloned before tainted content introduced can pull censored nodes
 
   $ cd ../rpull
   $ hg cat -r tip target | head -n 10
   Initially untainted file
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 2 changes to 2 files
+  $ hg verify -q
   $ hg pull -r $H1 -r $H2
   pulling from $TESTTMP/r
   searching for changes
@@ -369,12 +355,7 @@ Repo cloned before tainted content introduced can pull censored nodes
   $ hg cat -r $C1 target | head -n 10
   $ hg cat -r 0 target | head -n 10
   Initially untainted file
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 12 changesets with 13 changes to 2 files
+  $ hg verify -q
 
 Censored nodes can be pushed if they censor previously unexchanged nodes
 
@@ -429,12 +410,7 @@ Censored nodes can be bundled up and unbundled in another repo
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cat target | head -n 10
   Re-sanitized; nothing to see here
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 14 changesets with 15 changes to 2 files
+  $ hg verify -q
 
 Grepping only warns, doesn't error out
 
@@ -488,12 +464,7 @@ Censored nodes can be imported on top of censored nodes, consecutively
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cat target | head -n 10
   Re-sanitized; nothing to see here
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 14 changesets with 15 changes to 2 files
+  $ hg verify -q
   $ cd ../r
 
 Can import bundle where first revision of a file is censored

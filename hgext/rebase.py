@@ -30,7 +30,6 @@ from mercurial import (
     commands,
     copies,
     destutil,
-    dirstateguard,
     error,
     extensions,
     logcmdutil,
@@ -1271,15 +1270,9 @@ def _origrebase(ui, repo, action, opts, rbsrt):
         # one transaction here. Otherwise, transactions are obtained when
         # committing each node, which is slower but allows partial success.
         with util.acceptintervention(tr):
-            # Same logic for the dirstate guard, except we don't create one when
-            # rebasing in-memory (it's not needed).
-            dsguard = None
-            if singletr and not rbsrt.inmemory:
-                dsguard = dirstateguard.dirstateguard(repo, b'rebase')
-            with util.acceptintervention(dsguard):
-                rbsrt._performrebase(tr)
-                if not rbsrt.dryrun:
-                    rbsrt._finishrebase()
+            rbsrt._performrebase(tr)
+            if not rbsrt.dryrun:
+                rbsrt._finishrebase()
 
 
 def _definedestmap(ui, repo, inmemory, destf, srcf, basef, revf, destspace):
@@ -1500,16 +1493,18 @@ def commitmemorynode(repo, wctx, editor, extra, user, date, commitmsg):
 def commitnode(repo, editor, extra, user, date, commitmsg):
     """Commit the wd changes with parents p1 and p2.
     Return node of committed revision."""
-    dsguard = util.nullcontextmanager()
+    tr = util.nullcontextmanager
     if not repo.ui.configbool(b'rebase', b'singletransaction'):
-        dsguard = dirstateguard.dirstateguard(repo, b'rebase')
-    with dsguard:
+        tr = lambda: repo.transaction(b'rebase')
+    with tr():
         # Commit might fail if unresolved files exist
         newnode = repo.commit(
             text=commitmsg, user=user, date=date, extra=extra, editor=editor
         )
 
-        repo.dirstate.setbranch(repo[newnode].branch())
+        repo.dirstate.setbranch(
+            repo[newnode].branch(), repo.currenttransaction()
+        )
         return newnode
 
 
@@ -1520,12 +1515,14 @@ def rebasenode(repo, rev, p1, p2, base, collapse, wctx):
     p1ctx = repo[p1]
     if wctx.isinmemory():
         wctx.setbase(p1ctx)
+        scope = util.nullcontextmanager
     else:
         if repo[b'.'].rev() != p1:
             repo.ui.debug(b" update to %d:%s\n" % (p1, p1ctx))
             mergemod.clean_update(p1ctx)
         else:
             repo.ui.debug(b" already in destination\n")
+        scope = lambda: repo.dirstate.changing_parents(repo)
         # This is, alas, necessary to invalidate workingctx's manifest cache,
         # as well as other data we litter on it in other places.
         wctx = repo[None]
@@ -1535,26 +1532,27 @@ def rebasenode(repo, rev, p1, p2, base, collapse, wctx):
     if base is not None:
         repo.ui.debug(b"   detach base %d:%s\n" % (base, repo[base]))
 
-    # See explanation in merge.graft()
-    mergeancestor = repo.changelog.isancestor(p1ctx.node(), ctx.node())
-    stats = mergemod._update(
-        repo,
-        rev,
-        branchmerge=True,
-        force=True,
-        ancestor=base,
-        mergeancestor=mergeancestor,
-        labels=[b'dest', b'source', b'parent of source'],
-        wc=wctx,
-    )
-    wctx.setparents(p1ctx.node(), repo[p2].node())
-    if collapse:
-        copies.graftcopies(wctx, ctx, p1ctx)
-    else:
-        # If we're not using --collapse, we need to
-        # duplicate copies between the revision we're
-        # rebasing and its first parent.
-        copies.graftcopies(wctx, ctx, ctx.p1())
+    with scope():
+        # See explanation in merge.graft()
+        mergeancestor = repo.changelog.isancestor(p1ctx.node(), ctx.node())
+        stats = mergemod._update(
+            repo,
+            rev,
+            branchmerge=True,
+            force=True,
+            ancestor=base,
+            mergeancestor=mergeancestor,
+            labels=[b'dest', b'source', b'parent of source'],
+            wc=wctx,
+        )
+        wctx.setparents(p1ctx.node(), repo[p2].node())
+        if collapse:
+            copies.graftcopies(wctx, ctx, p1ctx)
+        else:
+            # If we're not using --collapse, we need to
+            # duplicate copies between the revision we're
+            # rebasing and its first parent.
+            copies.graftcopies(wctx, ctx, ctx.p1())
 
     if stats.unresolvedcount > 0:
         if wctx.isinmemory():

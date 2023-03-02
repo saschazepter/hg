@@ -5,6 +5,10 @@
 
 import collections
 
+from typing import (
+    cast,
+)
+
 from .i18n import _
 
 from .thirdparty import attr
@@ -247,7 +251,7 @@ def parsebundlespec(repo, spec, strict=True):
     # required to apply it. If we see this metadata, compare against what the
     # repo supports and error if the bundle isn't compatible.
     if version == b'packed1' and b'requirements' in params:
-        requirements = set(params[b'requirements'].split(b','))
+        requirements = set(cast(bytes, params[b'requirements']).split(b','))
         missingreqs = requirements - requirementsmod.STREAM_FIXED_REQUIREMENTS
         if missingreqs:
             raise error.UnsupportedBundleSpecification(

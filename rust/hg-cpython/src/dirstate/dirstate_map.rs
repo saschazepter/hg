@@ -9,7 +9,6 @@
 //! `hg-core` package.
 
 use std::cell::{RefCell, RefMut};
-use std::convert::TryInto;
 
 use cpython::{
     exc, PyBool, PyBytes, PyClone, PyDict, PyErr, PyList, PyNone, PyObject,
@@ -122,9 +121,7 @@ py_class!(pub class DirstateMap |py| {
         let bytes = f.extract::<PyBytes>(py)?;
         let path = HgPath::new(bytes.data(py));
         let res = self.inner(py).borrow_mut().set_tracked(path);
-        let was_tracked = res.or_else(|_| {
-            Err(PyErr::new::<exc::OSError, _>(py, "Dirstate error".to_string()))
-        })?;
+        let was_tracked = res.map_err(|_| PyErr::new::<exc::OSError, _>(py, "Dirstate error".to_string()))?;
         Ok(was_tracked.to_py_object(py))
     }
 
@@ -132,9 +129,7 @@ py_class!(pub class DirstateMap |py| {
         let bytes = f.extract::<PyBytes>(py)?;
         let path = HgPath::new(bytes.data(py));
         let res = self.inner(py).borrow_mut().set_untracked(path);
-        let was_tracked = res.or_else(|_| {
-            Err(PyErr::new::<exc::OSError, _>(py, "Dirstate error".to_string()))
-        })?;
+        let was_tracked = res.map_err(|_| PyErr::new::<exc::OSError, _>(py, "Dirstate error".to_string()))?;
         Ok(was_tracked.to_py_object(py))
     }
 
@@ -154,9 +149,7 @@ py_class!(pub class DirstateMap |py| {
         let res = self.inner(py).borrow_mut().set_clean(
             path, mode, size, timestamp,
         );
-        res.or_else(|_| {
-            Err(PyErr::new::<exc::OSError, _>(py, "Dirstate error".to_string()))
-        })?;
+        res.map_err(|_| PyErr::new::<exc::OSError, _>(py, "Dirstate error".to_string()))?;
         Ok(PyNone)
     }
 
@@ -164,9 +157,7 @@ py_class!(pub class DirstateMap |py| {
         let bytes = f.extract::<PyBytes>(py)?;
         let path = HgPath::new(bytes.data(py));
         let res = self.inner(py).borrow_mut().set_possibly_dirty(path);
-        res.or_else(|_| {
-            Err(PyErr::new::<exc::OSError, _>(py, "Dirstate error".to_string()))
-        })?;
+        res.map_err(|_| PyErr::new::<exc::OSError, _>(py, "Dirstate error".to_string()))?;
         Ok(PyNone)
     }
 
@@ -213,9 +204,7 @@ py_class!(pub class DirstateMap |py| {
             has_meaningful_mtime,
             parent_file_data,
         );
-        res.or_else(|_| {
-            Err(PyErr::new::<exc::OSError, _>(py, "Dirstate error".to_string()))
-        })?;
+        res.map_err(|_| PyErr::new::<exc::OSError, _>(py, "Dirstate error".to_string()))?;
         Ok(PyNone)
     }
 

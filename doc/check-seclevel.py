@@ -46,7 +46,7 @@ def showavailables(ui, initlevel):
 
 
 def checkseclevel(ui, doc, name, initlevel):
-    ui.notenoi18n('checking "%s"\n' % name)
+    ui.notenoi18n(('checking "%s"\n' % name).encode('utf-8'))
     if not isinstance(doc, bytes):
         doc = doc.encode('utf-8')
     blocks, pruned = minirst.parse(doc, 0, ['verbose'])
@@ -70,14 +70,18 @@ def checkseclevel(ui, doc, name, initlevel):
         nextlevel = mark2level[mark]
         if curlevel < nextlevel and curlevel + 1 != nextlevel:
             ui.warnnoi18n(
-                'gap of section level at "%s" of %s\n' % (title, name)
+                ('gap of section level at "%s" of %s\n' % (title, name)).encode(
+                    'utf-8'
+                )
             )
             showavailables(ui, initlevel)
             errorcnt += 1
             continue
         ui.notenoi18n(
-            'appropriate section level for "%s %s"\n'
-            % (mark * (nextlevel * 2), title)
+            (
+                'appropriate section level for "%s %s"\n'
+                % (mark * (nextlevel * 2), title)
+            ).encode('utf-8')
         )
         curlevel = nextlevel
 
@@ -90,7 +94,9 @@ def checkcmdtable(ui, cmdtable, namefmt, initlevel):
         name = k.split(b"|")[0].lstrip(b"^")
         if not entry[0].__doc__:
             ui.notenoi18n(
-                'skip checking %s: no help document\n' % (namefmt % name)
+                (
+                    'skip checking %s: no help document\n' % (namefmt % name)
+                ).encode('utf-8')
             )
             continue
         errorcnt += checkseclevel(
@@ -117,7 +123,9 @@ def checkhghelps(ui):
         mod = extensions.load(ui, name, None)
         if not mod.__doc__:
             ui.notenoi18n(
-                'skip checking %s extension: no help document\n' % name
+                (
+                    'skip checking %s extension: no help document\n' % name
+                ).encode('utf-8')
             )
             continue
         errorcnt += checkseclevel(
@@ -144,7 +152,9 @@ def checkfile(ui, filename, initlevel):
             doc = fp.read()
 
     ui.notenoi18n(
-        'checking input from %s with initlevel %d\n' % (filename, initlevel)
+        (
+            'checking input from %s with initlevel %d\n' % (filename, initlevel)
+        ).encode('utf-8')
     )
     return checkseclevel(ui, doc, 'input from %s' % filename, initlevel)
 

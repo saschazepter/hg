@@ -33,7 +33,6 @@ Set up repo with linear history
   |
   o  A public
   
-Phases are restored when unbundling
   $ hg bundle --base B -r E bundle
   3 changesets found
   $ hg debugbundle bundle
@@ -46,6 +45,57 @@ Phases are restored when unbundling
   phase-heads -- {} (mandatory: True)
       26805aba1e600a82e93661149f2313866a221a7b draft
   $ hg strip --no-backup C
+
+Phases show on incoming, and are also restored when pulling.  Secret commits
+aren't incoming or pulled, following usual incoming/pull semantics.
+
+  $ hg log -R bundle -r 'bundle()^+bundle()' -G -T '{desc} {phase}\n'
+  o  E secret
+  |
+  o  D secret
+  |
+  o  C draft
+  |
+  o  B draft
+  |
+  ~
+
+  $ hg incoming bundle -G -T '{desc} {phase}\n'
+  comparing with bundle
+  searching for changes
+  o  C draft
+  
+  $ hg pull bundle
+  pulling from bundle
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+  new changesets 26805aba1e60 (1 drafts)
+  (run 'hg update' to get a working copy)
+  $ hg log -G -T '{desc} {phase}\n'
+  o  C draft
+  |
+  o  B draft
+  |
+  o  A public
+  
+  $ hg log -R bundle -r 'bundle()^+bundle()' -G -T '{desc} {phase}\n'
+  o  E secret
+  |
+  o  D secret
+  |
+  o  C draft
+  |
+  o  B draft
+  |
+  ~
+
+  $ hg rollback --config ui.rollback=1
+  repository tip rolled back to revision 1 (undo pull)
+
+Phases are restored when unbundling
   $ hg unbundle -q bundle
   $ rm bundle
   $ hg log -G -T '{desc} {phase}\n'
@@ -64,7 +114,6 @@ Root revision's phase is preserved
   5 changesets found
   $ hg strip --no-backup A
   $ hg unbundle -q bundle
-  $ rm bundle
   $ hg log -G -T '{desc} {phase}\n'
   o  E secret
   |
@@ -76,8 +125,95 @@ Root revision's phase is preserved
   |
   o  A public
   
-Completely public history can be restored
+  $ hg init empty
+  $ hg -R empty pull bundle
+  pulling from bundle
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 3 changesets with 3 changes to 3 files
+  new changesets 426bada5c675:26805aba1e60 (2 drafts)
+  (run 'hg update' to get a working copy)
+  $ hg log -G -T '{desc} {phase}\n'
+  o  E secret
+  |
+  o  D secret
+  |
+  o  C draft
+  |
+  o  B draft
+  |
+  o  A public
+  
+
+Public repo commits take precedence over phases in the bundle
   $ hg phase --public E
+  $ hg incoming bundle -G -T '{desc} {phase}\n'
+  comparing with bundle
+  searching for changes
+  no changes found
+  $ hg log -R bundle -r 'bundle()^+bundle()' -G -T '{desc} {phase}\n'
+  o  E public
+  |
+  o  D public
+  |
+  o  C public
+  |
+  o  B public
+  |
+  o  A public
+  
+  $ hg pull bundle
+  pulling from bundle
+  searching for changes
+  no changes found
+  $ hg log -G -T '{desc} {phase}\n'
+  o  E public
+  |
+  o  D public
+  |
+  o  C public
+  |
+  o  B public
+  |
+  o  A public
+  
+  $ rm bundle
+
+A bundle with public phases that are not public in the repo will show as public
+with `hg log`, but will remain not public in the plain repo.
+
+  $ hg bundle --base B -r E bundle
+  3 changesets found
+  $ hg phase --force --draft -r C
+
+  $ hg log -R bundle -G -T '{desc} {phase}\n'
+  o  E public
+  |
+  o  D public
+  |
+  o  C public
+  |
+  o  B public
+  |
+  o  A public
+  
+  $ hg log -G -T '{desc} {phase}\n'
+  o  E draft
+  |
+  o  D draft
+  |
+  o  C draft
+  |
+  o  B public
+  |
+  o  A public
+  
+  $ hg phase --public -r E
+  $ rm bundle
+
+Completely public history can be restored
   $ hg bundle -a bundle
   5 changesets found
   $ hg strip --no-backup A

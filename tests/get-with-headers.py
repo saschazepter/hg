@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-"""This does HTTP GET requests given a host:port and path and returns
-a subset of the headers plus the body of the result."""
+"""This does HTTP requests (GET by default) given a host:port and path and
+returns a subset of the headers plus the body of the result."""
 
 
 import argparse
@@ -39,6 +39,7 @@ parser.add_argument(
     'value is <header>=<value>',
 )
 parser.add_argument('--bodyfile', help='Write HTTP response body to a file')
+parser.add_argument('--method', default='GET', help='HTTP method to use')
 parser.add_argument('host')
 parser.add_argument('path')
 parser.add_argument('show', nargs='*')
@@ -54,7 +55,7 @@ requestheaders = args.requestheader
 tag = None
 
 
-def request(host, path, show):
+def request(method, host, path, show):
     assert not path.startswith('/'), path
     global tag
     headers = {}
@@ -68,7 +69,7 @@ def request(host, path, show):
         headers[key] = value
 
     conn = httplib.HTTPConnection(host)
-    conn.request("GET", '/' + path, None, headers)
+    conn.request(method, '/' + path, None, headers)
     response = conn.getresponse()
     stdout.write(
         b'%d %s\n' % (response.status, response.reason.encode('ascii'))
@@ -121,9 +122,9 @@ def request(host, path, show):
     return response.status
 
 
-status = request(args.host, args.path, args.show)
+status = request(args.method, args.host, args.path, args.show)
 if twice:
-    status = request(args.host, args.path, args.show)
+    status = request(args.method, args.host, args.path, args.show)
 
 if 200 <= status <= 305:
     sys.exit(0)

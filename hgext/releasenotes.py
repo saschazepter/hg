@@ -39,7 +39,7 @@ command = registrar.command(cmdtable)
 try:
     # Silence a warning about python-Levenshtein.
     #
-    # We don't need the the performance that much and it get anoying in tests.
+    # We don't need the performance that much and it gets annoying in tests.
     import warnings
 
     with warnings.catch_warnings():
@@ -50,7 +50,7 @@ try:
             module="fuzzywuzzy.fuzz",
         )
 
-        import fuzzywuzzy.fuzz as fuzz
+        import fuzzywuzzy.fuzz as fuzz  # pytype: disable=import-error
 
         fuzz.token_set_ratio
 except ImportError:

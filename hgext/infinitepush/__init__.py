@@ -683,12 +683,10 @@ def _lookupwrap(orig):
 def _pull(orig, ui, repo, source=b"default", **opts):
     opts = pycompat.byteskwargs(opts)
     # Copy paste from `pull` command
-    source, branches = urlutil.get_unique_pull_path(
+    path = urlutil.get_unique_pull_path_obj(
         b"infinite-push's pull",
-        repo,
         ui,
         source,
-        default_branches=opts.get(b'branch'),
     )
 
     scratchbookmarks = {}
@@ -709,7 +707,7 @@ def _pull(orig, ui, repo, source=b"default", **opts):
                 bookmarks.append(bookmark)
 
         if scratchbookmarks:
-            other = hg.peer(repo, opts, source)
+            other = hg.peer(repo, opts, path)
             try:
                 fetchedbookmarks = other.listkeyspatterns(
                     b'bookmarks', patterns=scratchbookmarks
@@ -734,14 +732,14 @@ def _pull(orig, ui, repo, source=b"default", **opts):
     try:
         # Remote scratch bookmarks will be deleted because remotenames doesn't
         # know about them. Let's save it before pull and restore after
-        remotescratchbookmarks = _readscratchremotebookmarks(ui, repo, source)
-        result = orig(ui, repo, source, **pycompat.strkwargs(opts))
+        remotescratchbookmarks = _readscratchremotebookmarks(ui, repo, path.loc)
+        result = orig(ui, repo, path.loc, **pycompat.strkwargs(opts))
         # TODO(stash): race condition is possible
         # if scratch bookmarks was updated right after orig.
         # But that's unlikely and shouldn't be harmful.
         if common.isremotebooksenabled(ui):
             remotescratchbookmarks.update(scratchbookmarks)
-            _saveremotebookmarks(repo, remotescratchbookmarks, source)
+            _saveremotebookmarks(repo, remotescratchbookmarks, path.loc)
         else:
             _savelocalbookmarks(repo, scratchbookmarks)
         return result
@@ -849,14 +847,14 @@ def _push(orig, ui, repo, *dests, **opts):
             raise error.Abort(msg)
 
         path = paths[0]
-        destpath = path.pushloc or path.loc
+        destpath = path.loc
         # Remote scratch bookmarks will be deleted because remotenames doesn't
         # know about them. Let's save it before push and restore after
         remotescratchbookmarks = _readscratchremotebookmarks(ui, repo, destpath)
         result = orig(ui, repo, *dests, **pycompat.strkwargs(opts))
         if common.isremotebooksenabled(ui):
             if bookmark and scratchpush:
-                other = hg.peer(repo, opts, destpath)
+                other = hg.peer(repo, opts, path)
                 try:
                     fetchedbookmarks = other.listkeyspatterns(
                         b'bookmarks', patterns=[bookmark]

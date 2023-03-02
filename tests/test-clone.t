@@ -59,12 +59,7 @@ Ensure branchcache got copied over:
 
   $ cat a
   a
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 11 changesets with 11 changes to 2 files
+  $ hg verify -q
 
 Invalid dest '' must abort:
 
@@ -122,12 +117,7 @@ Ensure branchcache got copied over:
 
   $ cat a 2>/dev/null || echo "a not present"
   a not present
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 11 changesets with 11 changes to 2 files
+  $ hg verify -q
 
 Default destination:
 
@@ -167,12 +157,7 @@ Use --pull:
   new changesets acb14030fe0a:a7949464abda
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg -R g verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 11 changesets with 11 changes to 2 files
+  $ hg -R g verify -q
 
 Invalid dest '' with --pull must abort (issue2528):
 

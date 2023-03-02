@@ -8,7 +8,6 @@ import sys
 import types
 
 # Don't import pycompat because it has too many side-effects.
-ispy3 = sys.version_info[0] >= 3
 ispy311 = (sys.version_info.major, sys.version_info.minor) >= (3, 11)
 
 # Only run if demandimport is allowed
@@ -25,14 +24,11 @@ if sys.flags.optimize:
 if sys.version_info[0:2] == (3, 5):
     sys.exit(80)
 
-if ispy3:
-    from importlib.util import _LazyModule
+from importlib.util import _LazyModule
 
-    try:
-        from importlib.util import _Module as moduletype
-    except ImportError:
-        moduletype = types.ModuleType
-else:
+try:
+    from importlib.util import _Module as moduletype
+except ImportError:
     moduletype = types.ModuleType
 
 if os.name != 'nt':
@@ -68,10 +64,7 @@ from mercurial import node
 
 # We use assert instead of a unittest test case because having imports inside
 # functions changes behavior of the demand importer.
-if ispy3:
-    assert not isinstance(node, _LazyModule)
-else:
-    assert f(node) == "<module 'mercurial.node' from '?'>", f(node)
+assert not isinstance(node, _LazyModule)
 
 # now enable it for real
 del os.environ['HGDEMANDIMPORT']
@@ -81,11 +74,8 @@ demandimport.enable()
 assert 'mercurial.error' not in sys.modules
 from mercurial import error as errorproxy
 
-if ispy3:
-    assert isinstance(errorproxy, _LazyModule)
-    assert f(errorproxy) == "<module 'mercurial.error' from '?'>", f(errorproxy)
-else:
-    assert f(errorproxy) == "<unloaded module 'error'>", f(errorproxy)
+assert isinstance(errorproxy, _LazyModule)
+assert f(errorproxy) == "<module 'mercurial.error' from '?'>", f(errorproxy)
 
 doc = ' '.join(errorproxy.__doc__.split()[:3])
 assert doc == 'Mercurial exceptions. This', doc
@@ -96,22 +86,16 @@ assert errorproxy.__name__ == 'mercurial.error', errorproxy.__name__
 name = errorproxy.__dict__['__name__']
 assert name == 'mercurial.error', name
 
-if ispy3:
-    assert not isinstance(errorproxy, _LazyModule)
-    assert f(errorproxy) == "<module 'mercurial.error' from '?'>", f(errorproxy)
-else:
-    assert f(errorproxy) == "<proxied module 'error'>", f(errorproxy)
+assert not isinstance(errorproxy, _LazyModule)
+assert f(errorproxy) == "<module 'mercurial.error' from '?'>", f(errorproxy)
 
 import os
 
-if ispy3:
-    assert not isinstance(os, _LazyModule)
-    if ispy311:
-        assert f(os) == "<module 'os' (frozen)>", f(os)
-    else:
-        assert f(os) == "<module 'os' from '?'>", f(os)
+assert not isinstance(os, _LazyModule)
+if ispy311:
+    assert f(os) == "<module 'os' (frozen)>", f(os)
 else:
-    assert f(os) == "<unloaded module 'os'>", f(os)
+    assert f(os) == "<module 'os' from '?'>", f(os)
 
 assert f(os.system) == '<built-in function system>', f(os.system)
 if ispy311:
@@ -122,13 +106,10 @@ else:
 assert 'mercurial.utils.procutil' not in sys.modules
 from mercurial.utils import procutil
 
-if ispy3:
-    assert isinstance(procutil, _LazyModule)
-    assert f(procutil) == "<module 'mercurial.utils.procutil' from '?'>", f(
-        procutil
-    )
-else:
-    assert f(procutil) == "<unloaded module 'procutil'>", f(procutil)
+assert isinstance(procutil, _LazyModule)
+assert f(procutil) == "<module 'mercurial.utils.procutil' from '?'>", f(
+    procutil
+)
 
 assert f(procutil.system) == '<function system at 0x?>', f(procutil.system)
 assert procutil.__class__ == moduletype, procutil.__class__
@@ -140,84 +121,51 @@ assert f(procutil.system) == '<function system at 0x?>', f(procutil.system)
 assert 'mercurial.hgweb' not in sys.modules
 from mercurial import hgweb
 
-if ispy3:
-    assert isinstance(hgweb, _LazyModule)
-    assert f(hgweb) == "<module 'mercurial.hgweb' from '?'>", f(hgweb)
-    assert isinstance(hgweb.hgweb_mod, _LazyModule)
-    assert (
-        f(hgweb.hgweb_mod) == "<module 'mercurial.hgweb.hgweb_mod' from '?'>"
-    ), f(hgweb.hgweb_mod)
-else:
-    assert f(hgweb) == "<unloaded module 'hgweb'>", f(hgweb)
-    assert f(hgweb.hgweb_mod) == "<unloaded module 'hgweb_mod'>", f(
-        hgweb.hgweb_mod
-    )
+assert isinstance(hgweb, _LazyModule)
+assert f(hgweb) == "<module 'mercurial.hgweb' from '?'>", f(hgweb)
+assert isinstance(hgweb.hgweb_mod, _LazyModule)
+assert f(hgweb.hgweb_mod) == "<module 'mercurial.hgweb.hgweb_mod' from '?'>", f(
+    hgweb.hgweb_mod
+)
 
 assert f(hgweb) == "<module 'mercurial.hgweb' from '?'>", f(hgweb)
 
 import re as fred
 
-if ispy3:
-    assert not isinstance(fred, _LazyModule)
-    assert f(fred) == "<module 're' from '?'>"
-else:
-    assert f(fred) == "<unloaded module 're'>", f(fred)
+assert not isinstance(fred, _LazyModule)
+assert f(fred) == "<module 're' from '?'>"
 
 import re as remod
 
-if ispy3:
-    assert not isinstance(remod, _LazyModule)
-    assert f(remod) == "<module 're' from '?'>"
-else:
-    assert f(remod) == "<unloaded module 're'>", f(remod)
+assert not isinstance(remod, _LazyModule)
+assert f(remod) == "<module 're' from '?'>"
 
 import sys as re
 
-if ispy3:
-    assert not isinstance(re, _LazyModule)
-    assert f(re) == "<module 'sys' (built-in)>"
-else:
-    assert f(re) == "<unloaded module 'sys'>", f(re)
+assert not isinstance(re, _LazyModule)
+assert f(re) == "<module 'sys' (built-in)>"
 
-if ispy3:
-    assert not isinstance(fred, _LazyModule)
-    assert f(fred) == "<module 're' from '?'>", f(fred)
-else:
-    assert f(fred) == "<unloaded module 're'>", f(fred)
+assert not isinstance(fred, _LazyModule)
+assert f(fred) == "<module 're' from '?'>", f(fred)
 
 assert f(fred.sub) == '<function sub at 0x?>', f(fred.sub)
 
-if ispy3:
-    assert not isinstance(fred, _LazyModule)
-    assert f(fred) == "<module 're' from '?'>", f(fred)
-else:
-    assert f(fred) == "<proxied module 're'>", f(fred)
+assert not isinstance(fred, _LazyModule)
+assert f(fred) == "<module 're' from '?'>", f(fred)
 
 remod.escape  # use remod
 assert f(remod) == "<module 're' from '?'>", f(remod)
 
-if ispy3:
-    assert not isinstance(re, _LazyModule)
-    assert f(re) == "<module 'sys' (built-in)>"
-    assert f(type(re.stderr)) == "<class '_io.TextIOWrapper'>", f(
-        type(re.stderr)
-    )
-    assert f(re) == "<module 'sys' (built-in)>"
-else:
-    assert f(re) == "<unloaded module 'sys'>", f(re)
-    assert f(re.stderr) == "<open file '<whatever>', mode 'w' at 0x?>", f(
-        re.stderr
-    )
-    assert f(re) == "<proxied module 'sys'>", f(re)
+assert not isinstance(re, _LazyModule)
+assert f(re) == "<module 'sys' (built-in)>"
+assert f(type(re.stderr)) == "<class '_io.TextIOWrapper'>", f(type(re.stderr))
+assert f(re) == "<module 'sys' (built-in)>"
 
 assert 'telnetlib' not in sys.modules
 import telnetlib
 
-if ispy3:
-    assert isinstance(telnetlib, _LazyModule)
-    assert f(telnetlib) == "<module 'telnetlib' from '?'>"
-else:
-    assert f(telnetlib) == "<unloaded module 'telnetlib'>", f(telnetlib)
+assert isinstance(telnetlib, _LazyModule)
+assert f(telnetlib) == "<module 'telnetlib' from '?'>"
 
 try:
     from telnetlib import unknownattr
@@ -240,3 +188,11 @@ assert 'ftplib' not in sys.modules
 zipfileimp = __import__('ftplib', globals(), locals(), ['unknownattr'])
 assert f(zipfileimp) == "<module 'ftplib' from '?'>", f(zipfileimp)
 assert not util.safehasattr(zipfileimp, 'unknownattr')
+
+
+# test deactivation for issue6725
+del sys.modules['telnetlib']
+with demandimport.deactivated():
+    import telnetlib
+assert telnetlib.__loader__ == telnetlib.__spec__.loader
+assert telnetlib.__loader__.get_resource_reader
