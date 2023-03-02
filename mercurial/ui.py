@@ -2222,7 +2222,10 @@ class ui:
             del calframe
 
     def deprecwarn(
-        self, msg: bytes, version: bytes, stacklevel: int = 2
+        self,
+        msg: bytes,
+        version: bytes,
+        stacklevel: int = 2,
     ) -> None:
         """issue a deprecation warning
 
