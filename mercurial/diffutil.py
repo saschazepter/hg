@@ -7,6 +7,13 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+import typing
+
+from typing import (
+    Any,
+    Dict,
+    Optional,
+)
 
 from .i18n import _
 
@@ -15,10 +22,20 @@ from . import (
     pycompat,
 )
 
+if typing.TYPE_CHECKING:
+    from . import ui as uimod
+
+# TODO: narrow the value after the config module is typed
+_Opts = Dict[bytes, Any]
+
 
 def diffallopts(
-    ui, opts=None, untrusted=False, section=b'diff', configprefix=b''
-):
+    ui: "uimod.ui",
+    opts: Optional[_Opts] = None,
+    untrusted: bool = False,
+    section: bytes = b'diff',
+    configprefix: bytes = b'',
+) -> mdiff.diffopts:
     '''return diffopts with all features supported and parsed'''
     return difffeatureopts(
         ui,
@@ -33,15 +50,15 @@ def diffallopts(
 
 
 def difffeatureopts(
-    ui,
-    opts=None,
-    untrusted=False,
-    section=b'diff',
-    git=False,
-    whitespace=False,
-    formatchanging=False,
-    configprefix=b'',
-):
+    ui: "uimod.ui",
+    opts: Optional[_Opts] = None,
+    untrusted: bool = False,
+    section: bytes = b'diff',
+    git: bool = False,
+    whitespace: bool = False,
+    formatchanging: bool = False,
+    configprefix: bytes = b'',
+) -> mdiff.diffopts:
     """return diffopts with only opted-in features parsed
 
     Features:
@@ -51,7 +68,12 @@ def difffeatureopts(
       with most diff parsers
     """
 
-    def get(key, name=None, getter=ui.configbool, forceplain=None):
+    def get(
+        key: bytes,
+        name: Optional[bytes] = None,
+        getter=ui.configbool,
+        forceplain: Optional[bool] = None,
+    ) -> Any:
         if opts:
             v = opts.get(key)
             # diffopts flags are either None-default (which is passed

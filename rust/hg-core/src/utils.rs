@@ -15,6 +15,7 @@ use std::cell::Cell;
 use std::fmt;
 use std::{io::Write, ops::Deref};
 
+pub mod debug;
 pub mod files;
 pub mod hg_path;
 pub mod path_auditor;

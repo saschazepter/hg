@@ -4,7 +4,9 @@
 
 use crate::dirstate::{DirstateV2Data, TruncatedTimestamp};
 use crate::dirstate_tree::dirstate_map::DirstateVersion;
-use crate::dirstate_tree::dirstate_map::{self, DirstateMap, NodeRef};
+use crate::dirstate_tree::dirstate_map::{
+    self, DirstateMap, DirstateMapWriteMode, NodeRef,
+};
 use crate::dirstate_tree::path_with_basename::WithBasename;
 use crate::errors::HgError;
 use crate::utils::hg_path::HgPath;
@@ -285,6 +287,8 @@ pub fn read_docket(
 pub(super) fn read<'on_disk>(
     on_disk: &'on_disk [u8],
     metadata: &[u8],
+    uuid: Vec<u8>,
+    identity: Option<u64>,
 ) -> Result<DirstateMap<'on_disk>, DirstateV2ParseError> {
     if on_disk.is_empty() {
         let mut map = DirstateMap::empty(on_disk);
@@ -307,7 +311,10 @@ pub(super) fn read<'on_disk>(
         ignore_patterns_hash: meta.ignore_patterns_hash,
         unreachable_bytes: meta.unreachable_bytes.get(),
         old_data_size: on_disk.len(),
+        old_uuid: Some(uuid),
+        identity,
         dirstate_version: DirstateVersion::V2,
+        write_mode: DirstateMapWriteMode::Auto,
     };
     Ok(dirstate_map)
 }
@@ -605,9 +612,18 @@ where
 /// (false), and the previous size of data on disk.
 pub(super) fn write(
     dirstate_map: &DirstateMap,
-    can_append: bool,
+    write_mode: DirstateMapWriteMode,
 ) -> Result<(Vec<u8>, TreeMetadata, bool, usize), DirstateError> {
-    let append = can_append && dirstate_map.write_should_append();
+    let append = match write_mode {
+        DirstateMapWriteMode::Auto => dirstate_map.write_should_append(),
+        DirstateMapWriteMode::ForceNewDataFile => false,
+        DirstateMapWriteMode::ForceAppend => true,
+    };
+    if append {
+        log::trace!("appending to the dirstate data file");
+    } else {
+        log::trace!("creating new dirstate data file");
+    }
 
     // This ignores the space for paths, and for nodes without an entry.
     // TODO: better estimate? Skip the `Vec` and write to a file directly?

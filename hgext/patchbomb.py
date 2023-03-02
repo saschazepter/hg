@@ -361,7 +361,12 @@ def _getpatches(repo, revs, **opts):
             ui.warn(_(b'warning: working directory has uncommitted changes\n'))
         output = stringio()
         cmdutil.exportfile(
-            repo, [r], output, opts=patch.difffeatureopts(ui, opts, git=True)
+            repo,
+            [r],
+            output,
+            opts=patch.difffeatureopts(
+                ui, pycompat.byteskwargs(opts), git=True
+            ),
         )
         yield output.getvalue().split(b'\n')
 
