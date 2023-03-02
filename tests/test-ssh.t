@@ -61,12 +61,7 @@ clone remote via stream
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd local-stream
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 2 changes to 2 files
+  $ hg verify -q
   $ hg branches
   default                        0:1160648e36ce
   $ cd $TESTTMP
@@ -103,12 +98,7 @@ clone remote via pull
 verify
 
   $ cd local
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 2 changes to 2 files
+  $ hg verify -q
   $ cat >> .hg/hgrc <<EOF
   > [hooks]
   > changegroup = sh -c "printenv.py changegroup-in-local 0 ../dummylog"
@@ -200,12 +190,7 @@ check remote tip
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     add
   
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 4 changesets with 3 changes to 2 files
+  $ hg verify -q
   $ hg cat -r tip foo
   bleah
   $ echo z > z
@@ -289,11 +274,9 @@ push should succeed even though it has an unexpected response
   remote: adding changesets
   remote: adding manifests
   remote: adding file changes
-  remote: added 1 changesets with 1 changes to 1 files (py3 !)
-  remote: added 1 changesets with 1 changes to 1 files (no-py3 no-chg !)
+  remote: added 1 changesets with 1 changes to 1 files
   remote: KABOOM
   remote: KABOOM IN PROCESS
-  remote: added 1 changesets with 1 changes to 1 files (no-py3 chg !)
   $ hg -R ../remote heads
   changeset:   5:1383141674ec
   tag:         tip
@@ -323,7 +306,7 @@ try again with remote chg, which should succeed as well
   remote: adding changesets
   remote: adding manifests
   remote: adding file changes
-  remote: added 1 changesets with 1 changes to 1 files (py3 !)
+  remote: added 1 changesets with 1 changes to 1 files
   remote: KABOOM
   remote: KABOOM IN PROCESS
 
@@ -514,11 +497,9 @@ stderr from remote commands should be printed before stdout from local code (iss
   remote: adding changesets
   remote: adding manifests
   remote: adding file changes
-  remote: added 1 changesets with 1 changes to 1 files (py3 !)
-  remote: added 1 changesets with 1 changes to 1 files (no-py3 no-chg !)
+  remote: added 1 changesets with 1 changes to 1 files
   remote: KABOOM
   remote: KABOOM IN PROCESS
-  remote: added 1 changesets with 1 changes to 1 files (no-py3 chg !)
   local stdout
 
 debug output

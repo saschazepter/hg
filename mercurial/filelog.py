@@ -111,6 +111,7 @@ class filelog:
         assumehaveparentrevisions=False,
         deltamode=repository.CG_DELTAMODE_STD,
         sidedata_helpers=None,
+        debug_info=None,
     ):
         return self._revlog.emitrevisions(
             nodes,
@@ -119,6 +120,7 @@ class filelog:
             assumehaveparentrevisions=assumehaveparentrevisions,
             deltamode=deltamode,
             sidedata_helpers=sidedata_helpers,
+            debug_info=debug_info,
         )
 
     def addrevision(
@@ -151,6 +153,8 @@ class filelog:
         addrevisioncb=None,
         duplicaterevisioncb=None,
         maybemissingparents=False,
+        debug_info=None,
+        delta_base_reuse_policy=None,
     ):
         if maybemissingparents:
             raise error.Abort(
@@ -171,6 +175,8 @@ class filelog:
                 transaction,
                 addrevisioncb=addrevisioncb,
                 duplicaterevisioncb=duplicaterevisioncb,
+                debug_info=debug_info,
+                delta_base_reuse_policy=delta_base_reuse_policy,
             )
 
     def getstrippoint(self, minlink):

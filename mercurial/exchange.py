@@ -1183,7 +1183,12 @@ def _pushbundle2(pushop):
             trgetter = None
             if pushback:
                 trgetter = pushop.trmanager.transaction
-            op = bundle2.processbundle(pushop.repo, reply, trgetter)
+            op = bundle2.processbundle(
+                pushop.repo,
+                reply,
+                trgetter,
+                remote=pushop.remote,
+            )
         except error.BundleValueError as exc:
             raise error.RemoteError(_(b'missing support for %s') % exc)
         except bundle2.AbortFromPart as exc:
@@ -1903,10 +1908,18 @@ def _pullbundle2(pullop):
 
         try:
             op = bundle2.bundleoperation(
-                pullop.repo, pullop.gettransaction, source=b'pull'
+                pullop.repo,
+                pullop.gettransaction,
+                source=b'pull',
+                remote=pullop.remote,
             )
             op.modes[b'bookmarks'] = b'records'
-            bundle2.processbundle(pullop.repo, bundle, op=op)
+            bundle2.processbundle(
+                pullop.repo,
+                bundle,
+                op=op,
+                remote=pullop.remote,
+            )
         except bundle2.AbortFromPart as exc:
             pullop.repo.ui.error(_(b'remote: abort: %s\n') % exc)
             raise error.RemoteError(_(b'pull failed on remote'), hint=exc.hint)
@@ -1995,7 +2008,12 @@ def _pullchangeset(pullop):
             ).result()
 
     bundleop = bundle2.applybundle(
-        pullop.repo, cg, tr, b'pull', pullop.remote.url()
+        pullop.repo,
+        cg,
+        tr,
+        b'pull',
+        pullop.remote.url(),
+        remote=pullop.remote,
     )
     pullop.cgresult = bundle2.combinechangegroupresults(bundleop)
 

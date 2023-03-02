@@ -107,6 +107,7 @@ command.
 
 from mercurial import (
     cmdutil,
+    configitems,
     extensions,
     exthelper,
     hg,
@@ -135,7 +136,7 @@ eh.merge(proto.eh)
 eh.configitem(
     b'largefiles',
     b'minsize',
-    default=eh.configitem.dynamicdefault,
+    default=configitems.dynamicdefault,
 )
 eh.configitem(
     b'largefiles',

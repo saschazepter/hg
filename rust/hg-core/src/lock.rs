@@ -2,7 +2,6 @@
 
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
-use crate::utils::StrExt;
 use crate::vfs::Vfs;
 use std::io;
 use std::io::ErrorKind;
@@ -107,8 +106,8 @@ fn unlock(hg_vfs: Vfs, lock_filename: &str) -> Result<(), HgError> {
 /// running anymore.
 fn lock_should_be_broken(data: &Option<String>) -> bool {
     (|| -> Option<bool> {
-        let (prefix, pid) = data.as_ref()?.split_2(':')?;
-        if prefix != &*LOCK_PREFIX {
+        let (prefix, pid) = data.as_ref()?.split_once(':')?;
+        if prefix != *LOCK_PREFIX {
             return Some(false);
         }
         let process_is_running;
@@ -145,6 +144,8 @@ lazy_static::lazy_static! {
 
         /// Same as https://github.com/python/cpython/blob/v3.10.0/Modules/socketmodule.c#L5414
         const BUFFER_SIZE: usize = 1024;
+        // This cast is *needed* for platforms with signed chars
+        #[allow(clippy::unnecessary_cast)]
         let mut buffer = [0 as libc::c_char; BUFFER_SIZE];
         let hostname_bytes = unsafe {
             let result = libc::gethostname(buffer.as_mut_ptr(), BUFFER_SIZE);

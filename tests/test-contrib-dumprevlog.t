@@ -14,12 +14,7 @@
 
   $ echo adding more to file a >> a
   $ hg commit -m third
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 1 files
+  $ hg verify -q
 
 Dumping revlog of file a to stdout:
   $ "$PYTHON" "$CONTRIBDIR/dumprevlog" .hg/store/data/a.i
@@ -79,12 +74,7 @@ Rebuild fncache with clone --pull:
 
 Verify:
 
-  $ hg -R repo-c verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 1 files
+  $ hg -R repo-c verify -q
 
 Compare repos:
 

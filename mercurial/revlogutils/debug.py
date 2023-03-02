@@ -6,12 +6,19 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+import collections
+import string
+
 from .. import (
+    mdiff,
     node as nodemod,
+    revlogutils,
+    util,
 )
 
 from . import (
     constants,
+    deltas as deltautil,
 )
 
 INDEX_ENTRY_DEBUG_COLUMN = []
@@ -216,3 +223,499 @@ def debug_index(
         fm.plain(b'\n')
 
     fm.end()
+
+
+def dump(ui, revlog):
+    """perform the work for `hg debugrevlog --dump"""
+    # XXX seems redundant with debug index ?
+    r = revlog
+    numrevs = len(r)
+    ui.write(
+        (
+            b"# rev p1rev p2rev start   end deltastart base   p1   p2"
+            b" rawsize totalsize compression heads chainlen\n"
+        )
+    )
+    ts = 0
+    heads = set()
+
+    for rev in range(numrevs):
+        dbase = r.deltaparent(rev)
+        if dbase == -1:
+            dbase = rev
+        cbase = r.chainbase(rev)
+        clen = r.chainlen(rev)
+        p1, p2 = r.parentrevs(rev)
+        rs = r.rawsize(rev)
+        ts = ts + rs
+        heads -= set(r.parentrevs(rev))
+        heads.add(rev)
+        try:
+            compression = ts / r.end(rev)
+        except ZeroDivisionError:
+            compression = 0
+        ui.write(
+            b"%5d %5d %5d %5d %5d %10d %4d %4d %4d %7d %9d "
+            b"%11d %5d %8d\n"
+            % (
+                rev,
+                p1,
+                p2,
+                r.start(rev),
+                r.end(rev),
+                r.start(dbase),
+                r.start(cbase),
+                r.start(p1),
+                r.start(p2),
+                rs,
+                ts,
+                compression,
+                len(heads),
+                clen,
+            )
+        )
+
+
+def debug_revlog(ui, revlog):
+    """code for `hg debugrevlog`"""
+    r = revlog
+    format = r._format_version
+    v = r._format_flags
+    flags = []
+    gdelta = False
+    if v & constants.FLAG_INLINE_DATA:
+        flags.append(b'inline')
+    if v & constants.FLAG_GENERALDELTA:
+        gdelta = True
+        flags.append(b'generaldelta')
+    if not flags:
+        flags = [b'(none)']
+
+    ### the total size of stored content if incompressed.
+    full_text_total_size = 0
+    ### tracks merge vs single parent
+    nummerges = 0
+
+    ### tracks ways the "delta" are build
+    # nodelta
+    numempty = 0
+    numemptytext = 0
+    numemptydelta = 0
+    # full file content
+    numfull = 0
+    # intermediate snapshot against a prior snapshot
+    numsemi = 0
+    # snapshot count per depth
+    numsnapdepth = collections.defaultdict(lambda: 0)
+    # number of snapshots with a non-ancestor delta
+    numsnapdepth_nad = collections.defaultdict(lambda: 0)
+    # delta against previous revision
+    numprev = 0
+    # delta against prev, where prev is a non-ancestor
+    numprev_nad = 0
+    # delta against first or second parent (not prev)
+    nump1 = 0
+    nump2 = 0
+    # delta against neither prev nor parents
+    numother = 0
+    # delta against other that is a non-ancestor
+    numother_nad = 0
+    # delta against prev that are also first or second parent
+    # (details of `numprev`)
+    nump1prev = 0
+    nump2prev = 0
+
+    # data about delta chain of each revs
+    chainlengths = []
+    chainbases = []
+    chainspans = []
+
+    # data about each revision
+    datasize = [None, 0, 0]
+    fullsize = [None, 0, 0]
+    semisize = [None, 0, 0]
+    # snapshot count per depth
+    snapsizedepth = collections.defaultdict(lambda: [None, 0, 0])
+    deltasize = [None, 0, 0]
+    chunktypecounts = {}
+    chunktypesizes = {}
+
+    def addsize(size, l):
+        if l[0] is None or size < l[0]:
+            l[0] = size
+        if size > l[1]:
+            l[1] = size
+        l[2] += size
+
+    numrevs = len(r)
+    for rev in range(numrevs):
+        p1, p2 = r.parentrevs(rev)
+        delta = r.deltaparent(rev)
+        if format > 0:
+            s = r.rawsize(rev)
+            full_text_total_size += s
+            addsize(s, datasize)
+        if p2 != nodemod.nullrev:
+            nummerges += 1
+        size = r.length(rev)
+        if delta == nodemod.nullrev:
+            chainlengths.append(0)
+            chainbases.append(r.start(rev))
+            chainspans.append(size)
+            if size == 0:
+                numempty += 1
+                numemptytext += 1
+            else:
+                numfull += 1
+                numsnapdepth[0] += 1
+                addsize(size, fullsize)
+                addsize(size, snapsizedepth[0])
+        else:
+            nad = (
+                delta != p1 and delta != p2 and not r.isancestorrev(delta, rev)
+            )
+            chainlengths.append(chainlengths[delta] + 1)
+            baseaddr = chainbases[delta]
+            revaddr = r.start(rev)
+            chainbases.append(baseaddr)
+            chainspans.append((revaddr - baseaddr) + size)
+            if size == 0:
+                numempty += 1
+                numemptydelta += 1
+            elif r.issnapshot(rev):
+                addsize(size, semisize)
+                numsemi += 1
+                depth = r.snapshotdepth(rev)
+                numsnapdepth[depth] += 1
+                if nad:
+                    numsnapdepth_nad[depth] += 1
+                addsize(size, snapsizedepth[depth])
+            else:
+                addsize(size, deltasize)
+                if delta == rev - 1:
+                    numprev += 1
+                    if delta == p1:
+                        nump1prev += 1
+                    elif delta == p2:
+                        nump2prev += 1
+                    elif nad:
+                        numprev_nad += 1
+                elif delta == p1:
+                    nump1 += 1
+                elif delta == p2:
+                    nump2 += 1
+                elif delta != nodemod.nullrev:
+                    numother += 1
+                    numother_nad += 1
+
+        # Obtain data on the raw chunks in the revlog.
+        if util.safehasattr(r, '_getsegmentforrevs'):
+            segment = r._getsegmentforrevs(rev, rev)[1]
+        else:
+            segment = r._revlog._getsegmentforrevs(rev, rev)[1]
+        if segment:
+            chunktype = bytes(segment[0:1])
+        else:
+            chunktype = b'empty'
+
+        if chunktype not in chunktypecounts:
+            chunktypecounts[chunktype] = 0
+            chunktypesizes[chunktype] = 0
+
+        chunktypecounts[chunktype] += 1
+        chunktypesizes[chunktype] += size
+
+    # Adjust size min value for empty cases
+    for size in (datasize, fullsize, semisize, deltasize):
+        if size[0] is None:
+            size[0] = 0
+
+    numdeltas = numrevs - numfull - numempty - numsemi
+    numoprev = numprev - nump1prev - nump2prev - numprev_nad
+    num_other_ancestors = numother - numother_nad
+    totalrawsize = datasize[2]
+    datasize[2] /= numrevs
+    fulltotal = fullsize[2]
+    if numfull == 0:
+        fullsize[2] = 0
+    else:
+        fullsize[2] /= numfull
+    semitotal = semisize[2]
+    snaptotal = {}
+    if numsemi > 0:
+        semisize[2] /= numsemi
+    for depth in snapsizedepth:
+        snaptotal[depth] = snapsizedepth[depth][2]
+        snapsizedepth[depth][2] /= numsnapdepth[depth]
+
+    deltatotal = deltasize[2]
+    if numdeltas > 0:
+        deltasize[2] /= numdeltas
+    totalsize = fulltotal + semitotal + deltatotal
+    avgchainlen = sum(chainlengths) / numrevs
+    maxchainlen = max(chainlengths)
+    maxchainspan = max(chainspans)
+    compratio = 1
+    if totalsize:
+        compratio = totalrawsize / totalsize
+
+    basedfmtstr = b'%%%dd\n'
+    basepcfmtstr = b'%%%dd %s(%%5.2f%%%%)\n'
+
+    def dfmtstr(max):
+        return basedfmtstr % len(str(max))
+
+    def pcfmtstr(max, padding=0):
+        return basepcfmtstr % (len(str(max)), b' ' * padding)
+
+    def pcfmt(value, total):
+        if total:
+            return (value, 100 * float(value) / total)
+        else:
+            return value, 100.0
+
+    ui.writenoi18n(b'format : %d\n' % format)
+    ui.writenoi18n(b'flags  : %s\n' % b', '.join(flags))
+
+    ui.write(b'\n')
+    fmt = pcfmtstr(totalsize)
+    fmt2 = dfmtstr(totalsize)
+    ui.writenoi18n(b'revisions     : ' + fmt2 % numrevs)
+    ui.writenoi18n(b'    merges    : ' + fmt % pcfmt(nummerges, numrevs))
+    ui.writenoi18n(
+        b'    normal    : ' + fmt % pcfmt(numrevs - nummerges, numrevs)
+    )
+    ui.writenoi18n(b'revisions     : ' + fmt2 % numrevs)
+    ui.writenoi18n(b'    empty     : ' + fmt % pcfmt(numempty, numrevs))
+    ui.writenoi18n(
+        b'                   text  : '
+        + fmt % pcfmt(numemptytext, numemptytext + numemptydelta)
+    )
+    ui.writenoi18n(
+        b'                   delta : '
+        + fmt % pcfmt(numemptydelta, numemptytext + numemptydelta)
+    )
+    ui.writenoi18n(
+        b'    snapshot  : ' + fmt % pcfmt(numfull + numsemi, numrevs)
+    )
+    for depth in sorted(numsnapdepth):
+        base = b'      lvl-%-3d :       ' % depth
+        count = fmt % pcfmt(numsnapdepth[depth], numrevs)
+        pieces = [base, count]
+        if numsnapdepth_nad[depth]:
+            pieces[-1] = count = count[:-1]  # drop the final '\n'
+            more = b'  non-ancestor-bases: '
+            anc_count = fmt
+            anc_count %= pcfmt(numsnapdepth_nad[depth], numsnapdepth[depth])
+            pieces.append(more)
+            pieces.append(anc_count)
+        ui.write(b''.join(pieces))
+    ui.writenoi18n(b'    deltas    : ' + fmt % pcfmt(numdeltas, numrevs))
+    ui.writenoi18n(b'revision size : ' + fmt2 % totalsize)
+    ui.writenoi18n(
+        b'    snapshot  : ' + fmt % pcfmt(fulltotal + semitotal, totalsize)
+    )
+    for depth in sorted(numsnapdepth):
+        ui.write(
+            (b'      lvl-%-3d :       ' % depth)
+            + fmt % pcfmt(snaptotal[depth], totalsize)
+        )
+    ui.writenoi18n(b'    deltas    : ' + fmt % pcfmt(deltatotal, totalsize))
+
+    letters = string.ascii_letters.encode('ascii')
+
+    def fmtchunktype(chunktype):
+        if chunktype == b'empty':
+            return b'    %s     : ' % chunktype
+        elif chunktype in letters:
+            return b'    0x%s (%s)  : ' % (nodemod.hex(chunktype), chunktype)
+        else:
+            return b'    0x%s      : ' % nodemod.hex(chunktype)
+
+    ui.write(b'\n')
+    ui.writenoi18n(b'chunks        : ' + fmt2 % numrevs)
+    for chunktype in sorted(chunktypecounts):
+        ui.write(fmtchunktype(chunktype))
+        ui.write(fmt % pcfmt(chunktypecounts[chunktype], numrevs))
+    ui.writenoi18n(b'chunks size   : ' + fmt2 % totalsize)
+    for chunktype in sorted(chunktypecounts):
+        ui.write(fmtchunktype(chunktype))
+        ui.write(fmt % pcfmt(chunktypesizes[chunktype], totalsize))
+
+    ui.write(b'\n')
+    b_total = b"%d" % full_text_total_size
+    p_total = []
+    while len(b_total) > 3:
+        p_total.append(b_total[-3:])
+        b_total = b_total[:-3]
+    p_total.append(b_total)
+    p_total.reverse()
+    b_total = b' '.join(p_total)
+
+    ui.write(b'\n')
+    ui.writenoi18n(b'total-stored-content: %s bytes\n' % b_total)
+    ui.write(b'\n')
+    fmt = dfmtstr(max(avgchainlen, maxchainlen, maxchainspan, compratio))
+    ui.writenoi18n(b'avg chain length  : ' + fmt % avgchainlen)
+    ui.writenoi18n(b'max chain length  : ' + fmt % maxchainlen)
+    ui.writenoi18n(b'max chain reach   : ' + fmt % maxchainspan)
+    ui.writenoi18n(b'compression ratio : ' + fmt % compratio)
+
+    if format > 0:
+        ui.write(b'\n')
+        ui.writenoi18n(
+            b'uncompressed data size (min/max/avg) : %d / %d / %d\n'
+            % tuple(datasize)
+        )
+    ui.writenoi18n(
+        b'full revision size (min/max/avg)     : %d / %d / %d\n'
+        % tuple(fullsize)
+    )
+    ui.writenoi18n(
+        b'inter-snapshot size (min/max/avg)    : %d / %d / %d\n'
+        % tuple(semisize)
+    )
+    for depth in sorted(snapsizedepth):
+        if depth == 0:
+            continue
+        ui.writenoi18n(
+            b'    level-%-3d (min/max/avg)          : %d / %d / %d\n'
+            % ((depth,) + tuple(snapsizedepth[depth]))
+        )
+    ui.writenoi18n(
+        b'delta size (min/max/avg)             : %d / %d / %d\n'
+        % tuple(deltasize)
+    )
+
+    if numdeltas > 0:
+        ui.write(b'\n')
+        fmt = pcfmtstr(numdeltas)
+        fmt2 = pcfmtstr(numdeltas, 4)
+        ui.writenoi18n(
+            b'deltas against prev  : ' + fmt % pcfmt(numprev, numdeltas)
+        )
+        if numprev > 0:
+            ui.writenoi18n(
+                b'    where prev = p1  : ' + fmt2 % pcfmt(nump1prev, numprev)
+            )
+            ui.writenoi18n(
+                b'    where prev = p2  : ' + fmt2 % pcfmt(nump2prev, numprev)
+            )
+            ui.writenoi18n(
+                b'    other-ancestor   : ' + fmt2 % pcfmt(numoprev, numprev)
+            )
+            ui.writenoi18n(
+                b'    unrelated        : ' + fmt2 % pcfmt(numoprev, numprev)
+            )
+        if gdelta:
+            ui.writenoi18n(
+                b'deltas against p1    : ' + fmt % pcfmt(nump1, numdeltas)
+            )
+            ui.writenoi18n(
+                b'deltas against p2    : ' + fmt % pcfmt(nump2, numdeltas)
+            )
+            ui.writenoi18n(
+                b'deltas against ancs  : '
+                + fmt % pcfmt(num_other_ancestors, numdeltas)
+            )
+            ui.writenoi18n(
+                b'deltas against other : '
+                + fmt % pcfmt(numother_nad, numdeltas)
+            )
+
+
+def debug_delta_find(ui, revlog, rev, base_rev=nodemod.nullrev):
+    """display the search process for a delta"""
+    deltacomputer = deltautil.deltacomputer(
+        revlog,
+        write_debug=ui.write,
+        debug_search=not ui.quiet,
+    )
+
+    node = revlog.node(rev)
+    p1r, p2r = revlog.parentrevs(rev)
+    p1 = revlog.node(p1r)
+    p2 = revlog.node(p2r)
+    full_text = revlog.revision(rev)
+    btext = [full_text]
+    textlen = len(btext[0])
+    cachedelta = None
+    flags = revlog.flags(rev)
+
+    if base_rev != nodemod.nullrev:
+        base_text = revlog.revision(base_rev)
+        delta = mdiff.textdiff(base_text, full_text)
+
+        cachedelta = (base_rev, delta, constants.DELTA_BASE_REUSE_TRY)
+        btext = [None]
+
+    revinfo = revlogutils.revisioninfo(
+        node,
+        p1,
+        p2,
+        btext,
+        textlen,
+        cachedelta,
+        flags,
+    )
+
+    fh = revlog._datafp()
+    deltacomputer.finddeltainfo(revinfo, fh, target_rev=rev)
+
+
+def _get_revlogs(repo, changelog: bool, manifest: bool, filelogs: bool):
+    """yield revlogs from this repository"""
+    if changelog:
+        yield repo.changelog
+
+    if manifest:
+        # XXX: Handle tree manifest
+        root_mf = repo.manifestlog.getstorage(b'')
+        assert not root_mf._treeondisk
+        yield root_mf._revlog
+
+    if filelogs:
+        files = set()
+        for rev in repo:
+            ctx = repo[rev]
+            files |= set(ctx.files())
+
+        for f in sorted(files):
+            yield repo.file(f)._revlog
+
+
+def debug_revlog_stats(
+    repo, fm, changelog: bool, manifest: bool, filelogs: bool
+):
+    """Format revlog statistics for debugging purposes
+
+    fm: the output formatter.
+    """
+    fm.plain(b'rev-count   data-size inl type      target \n')
+
+    for rlog in _get_revlogs(repo, changelog, manifest, filelogs):
+        fm.startitem()
+        nb_rev = len(rlog)
+        inline = rlog._inline
+        data_size = rlog._get_data_offset(nb_rev - 1)
+
+        target = rlog.target
+        revlog_type = b'unknown'
+        revlog_target = b''
+        if target[0] == constants.KIND_CHANGELOG:
+            revlog_type = b'changelog'
+        elif target[0] == constants.KIND_MANIFESTLOG:
+            revlog_type = b'manifest'
+            revlog_target = target[1]
+        elif target[0] == constants.KIND_FILELOG:
+            revlog_type = b'file'
+            revlog_target = target[1]
+
+        fm.write(b'revlog.rev-count', b'%9d', nb_rev)
+        fm.write(b'revlog.data-size', b'%12d', data_size)
+
+        fm.write(b'revlog.inline', b' %-3s', b'yes' if inline else b'no')
+        fm.write(b'revlog.type', b' %-9s', revlog_type)
+        fm.write(b'revlog.target', b' %s', revlog_target)
+
+        fm.plain(b'\n')

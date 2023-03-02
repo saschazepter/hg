@@ -30,10 +30,8 @@ pub(super) fn parse_byte_size(value: &[u8]) -> Option<u64> {
         ("b", 1 << 0), // Needs to be last
     ];
     for &(unit, multiplier) in UNITS {
-        // TODO: use `value.strip_suffix(unit)` when we require Rust 1.45+
-        if value.ends_with(unit) {
-            let value_before_unit = &value[..value.len() - unit.len()];
-            let float: f64 = value_before_unit.trim().parse().ok()?;
+        if let Some(value) = value.strip_suffix(unit) {
+            let float: f64 = value.trim().parse().ok()?;
             if float >= 0.0 {
                 return Some((float * multiplier as f64).round() as u64);
             } else {
@@ -202,11 +200,7 @@ fn parse_list_without_trim_start(input: &[u8]) -> Vec<Vec<u8>> {
 
     // https://docs.python.org/3/library/stdtypes.html?#bytes.isspace
     fn is_space(byte: u8) -> bool {
-        if let b' ' | b'\t' | b'\n' | b'\r' | b'\x0b' | b'\x0c' = byte {
-            true
-        } else {
-            false
-        }
+        matches!(byte, b' ' | b'\t' | b'\n' | b'\r' | b'\x0b' | b'\x0c')
     }
 }
 

@@ -2,33 +2,32 @@ use crate::error::CommandError;
 use clap::Arg;
 use clap::ArgGroup;
 use hg::operations::{debug_data, DebugDataKind};
-use micro_timer::timed;
 
 pub const HELP_TEXT: &str = "
 Dump the contents of a data file revision
 ";
 
-pub fn args() -> clap::App<'static, 'static> {
-    clap::SubCommand::with_name("debugdata")
+pub fn args() -> clap::Command {
+    clap::command!("debugdata")
         .arg(
-            Arg::with_name("changelog")
+            Arg::new("changelog")
                 .help("open changelog")
-                .short("-c")
-                .long("--changelog"),
+                .short('c')
+                .action(clap::ArgAction::SetTrue),
         )
         .arg(
-            Arg::with_name("manifest")
+            Arg::new("manifest")
                 .help("open manifest")
-                .short("-m")
-                .long("--manifest"),
+                .short('m')
+                .action(clap::ArgAction::SetTrue),
         )
         .group(
-            ArgGroup::with_name("")
+            ArgGroup::new("revlog")
                 .args(&["changelog", "manifest"])
                 .required(true),
         )
         .arg(
-            Arg::with_name("rev")
+            Arg::new("rev")
                 .help("revision")
                 .required(true)
                 .value_name("REV"),
@@ -36,23 +35,25 @@ pub fn args() -> clap::App<'static, 'static> {
         .about(HELP_TEXT)
 }
 
-#[timed]
+#[logging_timer::time("trace")]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let args = invocation.subcommand_args;
     let rev = args
-        .value_of("rev")
+        .get_one::<String>("rev")
         .expect("rev should be a required argument");
-    let kind =
-        match (args.is_present("changelog"), args.is_present("manifest")) {
-            (true, false) => DebugDataKind::Changelog,
-            (false, true) => DebugDataKind::Manifest,
-            (true, true) => {
-                unreachable!("Should not happen since options are exclusive")
-            }
-            (false, false) => {
-                unreachable!("Should not happen since options are required")
-            }
-        };
+    let kind = match (
+        args.get_one::<bool>("changelog").unwrap(),
+        args.get_one::<bool>("manifest").unwrap(),
+    ) {
+        (true, false) => DebugDataKind::Changelog,
+        (false, true) => DebugDataKind::Manifest,
+        (true, true) => {
+            unreachable!("Should not happen since options are exclusive")
+        }
+        (false, false) => {
+            unreachable!("Should not happen since options are required")
+        }
+    };
 
     let repo = invocation.repo?;
     if repo.has_narrow() {
@@ -60,7 +61,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             "support for ellipsis nodes is missing and repo has narrow enabled",
         ));
     }
-    let data = debug_data(repo, rev, kind).map_err(|e| (e, rev))?;
+    let data = debug_data(repo, rev, kind).map_err(|e| (e, rev.as_ref()))?;
 
     let mut stdout = invocation.ui.stdout_buffer();
     stdout.write_all(&data)?;

@@ -65,11 +65,6 @@ start a pull...
 see the result
 
   $ wait
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 11 changesets with 11 changes to 1 files
+  $ hg verify -q
 
   $ cd ..

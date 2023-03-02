@@ -88,7 +88,7 @@ class bundlerevlog(revlog.revlog):
                     )
 
             if not self.index.has_node(deltabase):
-                raise LookupError(
+                raise error.LookupError(
                     deltabase, self.display_id, _(b'unknown delta base')
                 )
 
@@ -289,24 +289,28 @@ class bundlerepository:
 
         self.ui.setconfig(b'phases', b'publish', False, b'bundlerepo')
 
+        # dict with the mapping 'filename' -> position in the changegroup.
+        self._cgfilespos = {}
+        self._bundlefile = None
+        self._cgunpacker = None
         self.tempfile = None
         f = util.posixfile(bundlepath, b"rb")
         bundle = exchange.readbundle(self.ui, f, bundlepath)
 
         if isinstance(bundle, bundle2.unbundle20):
             self._bundlefile = bundle
-            self._cgunpacker = None
 
             cgpart = None
             for part in bundle.iterparts(seekable=True):
-                if part.type == b'changegroup':
+                if part.type == b'phase-heads':
+                    self._handle_bundle2_phase_part(bundle, part)
+                elif part.type == b'changegroup':
                     if cgpart:
                         raise NotImplementedError(
                             b"can't process multiple changegroups"
                         )
                     cgpart = part
-
-                self._handlebundle2part(bundle, part)
+                    self._handle_bundle2_cg_part(bundle, part)
 
             if not cgpart:
                 raise error.Abort(_(b"No changegroups found"))
@@ -319,21 +323,19 @@ class bundlerepository:
             cgpart.seek(0, os.SEEK_SET)
 
         elif isinstance(bundle, changegroup.cg1unpacker):
-            if bundle.compressed():
-                f = self._writetempbundle(
-                    bundle.read, b'.hg10un', header=b'HG10UN'
-                )
-                bundle = exchange.readbundle(self.ui, f, bundlepath, self.vfs)
-
-            self._bundlefile = bundle
-            self._cgunpacker = bundle
+            self._handle_bundle1(bundle, bundlepath)
         else:
             raise error.Abort(
-                _(b'bundle type %s cannot be read') % type(bundle)
+                _(b'bundle type %r cannot be read') % type(bundle)
             )
 
-        # dict with the mapping 'filename' -> position in the changegroup.
-        self._cgfilespos = {}
+    def _handle_bundle1(self, bundle, bundlepath):
+        if bundle.compressed():
+            f = self._writetempbundle(bundle.read, b'.hg10un', header=b'HG10UN')
+            bundle = exchange.readbundle(self.ui, f, bundlepath, self.vfs)
+
+        self._bundlefile = bundle
+        self._cgunpacker = bundle
 
         self.firstnewrev = self.changelog.repotiprev + 1
         phases.retractboundary(
@@ -343,11 +345,20 @@ class bundlerepository:
             [ctx.node() for ctx in self[self.firstnewrev :]],
         )
 
-    def _handlebundle2part(self, bundle, part):
-        if part.type != b'changegroup':
-            return
-
+    def _handle_bundle2_cg_part(self, bundle, part):
+        assert part.type == b'changegroup'
         cgstream = part
+        targetphase = part.params.get(b'targetphase')
+        try:
+            targetphase = int(targetphase)
+        except TypeError:
+            pass
+        if targetphase is None:
+            targetphase = phases.draft
+        if targetphase not in phases.allphases:
+            m = _(b'unsupported targetphase: %d')
+            m %= targetphase
+            raise error.Abort(m)
         version = part.params.get(b'version', b'01')
         legalcgvers = changegroup.supportedincomingversions(self)
         if version not in legalcgvers:
@@ -357,6 +368,21 @@ class bundlerepository:
             cgstream = self._writetempbundle(part.read, b'.cg%sun' % version)
 
         self._cgunpacker = changegroup.getunbundler(version, cgstream, b'UN')
+
+        self.firstnewrev = self.changelog.repotiprev + 1
+        phases.retractboundary(
+            self,
+            None,
+            targetphase,
+            [ctx.node() for ctx in self[self.firstnewrev :]],
+        )
+
+    def _handle_bundle2_phase_part(self, bundle, part):
+        assert part.type == b'phase-heads'
+
+        unfi = self.unfiltered()
+        headsbyphase = phases.binarydecode(part)
+        phases.updatephases(unfi, lambda: None, headsbyphase)
 
     def _writetempbundle(self, readfn, suffix, header=b''):
         """Write a temporary file to disk"""
@@ -458,8 +484,8 @@ class bundlerepository:
     def cancopy(self):
         return False
 
-    def peer(self):
-        return bundlepeer(self)
+    def peer(self, path=None):
+        return bundlepeer(self, path=path)
 
     def getcwd(self):
         return encoding.getcwd()  # always outside the repo

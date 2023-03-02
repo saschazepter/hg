@@ -168,8 +168,6 @@ rebase can then be continued
   rebasing 1:112478962961 B "B"
   rebasing 3:26805aba1e60 C "C"
   rebasing 5:f585351a92f8 D tip "D"
-  transaction abort!
-  rollback completed
   abort: edit failed: false exited with status 1
   [250]
   $ hg tglog

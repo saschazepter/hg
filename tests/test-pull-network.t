@@ -8,12 +8,7 @@
   adding foo
   $ hg commit -m 1
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
+  $ hg verify -q
 
   $ hg serve -p $HGPORT -d --pid-file=hg.pid
   $ cat hg.pid >> $DAEMON_PIDS
@@ -30,12 +25,7 @@
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
   $ cd copy
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
+  $ hg verify -q
 
   $ hg co
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
