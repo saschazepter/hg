@@ -38,6 +38,13 @@ pub enum DirstateVersion {
     V2,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum DirstateMapWriteMode {
+    Auto,
+    ForceNewDataFile,
+    ForceAppend,
+}
+
 #[derive(Debug)]
 pub struct DirstateMap<'on_disk> {
     /// Contents of the `.hg/dirstate` file
@@ -59,10 +66,28 @@ pub struct DirstateMap<'on_disk> {
     pub(super) unreachable_bytes: u32,
 
     /// Size of the data used to first load this `DirstateMap`. Used in case
-    /// we need to write some new metadata, but no new data on disk.
+    /// we need to write some new metadata, but no new data on disk,
+    /// as well as to detect writes that have happened in another process
+    /// since first read.
     pub(super) old_data_size: usize,
 
+    /// UUID used when first loading this `DirstateMap`. Used to check if
+    /// the UUID has been changed by another process since first read.
+    /// Can be `None` if using dirstate v1 or if it's a brand new dirstate.
+    pub(super) old_uuid: Option<Vec<u8>>,
+
+    /// Identity of the dirstate file (for dirstate-v1) or the docket file
+    /// (v2). Used to detect if the file has changed from another process.
+    /// Since it's always written atomically, we can compare the inode to
+    /// check the file identity.
+    ///
+    /// TODO On non-Unix systems, something like hashing is a possibility?
+    pub(super) identity: Option<u64>,
+
     pub(super) dirstate_version: DirstateVersion,
+
+    /// Controlled by config option `devel.dirstate.v2.data_update_mode`
+    pub(super) write_mode: DirstateMapWriteMode,
 }
 
 /// Using a plain `HgPathBuf` of the full path from the repository root as a
@@ -445,7 +470,10 @@ impl<'on_disk> DirstateMap<'on_disk> {
             ignore_patterns_hash: [0; on_disk::IGNORE_PATTERNS_HASH_LEN],
             unreachable_bytes: 0,
             old_data_size: 0,
+            old_uuid: None,
+            identity: None,
             dirstate_version: DirstateVersion::V1,
+            write_mode: DirstateMapWriteMode::Auto,
         }
     }
 
@@ -454,9 +482,11 @@ impl<'on_disk> DirstateMap<'on_disk> {
         on_disk: &'on_disk [u8],
         data_size: usize,
         metadata: &[u8],
+        uuid: Vec<u8>,
+        identity: Option<u64>,
     ) -> Result<Self, DirstateError> {
         if let Some(data) = on_disk.get(..data_size) {
-            Ok(on_disk::read(data, metadata)?)
+            Ok(on_disk::read(data, metadata, uuid, identity)?)
         } else {
             Err(DirstateV2ParseError::new("not enough bytes on disk").into())
         }
@@ -465,6 +495,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
     #[logging_timer::time("trace")]
     pub fn new_v1(
         on_disk: &'on_disk [u8],
+        identity: Option<u64>,
     ) -> Result<(Self, Option<DirstateParents>), DirstateError> {
         let mut map = Self::empty(on_disk);
         if map.on_disk.is_empty() {
@@ -506,6 +537,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
             },
         )?;
         let parents = Some(*parents);
+        map.identity = identity;
 
         Ok((map, parents))
     }
@@ -514,8 +546,15 @@ impl<'on_disk> DirstateMap<'on_disk> {
     /// append to the existing data file that contains `self.on_disk` (true),
     /// or create a new data file from scratch (false).
     pub(super) fn write_should_append(&self) -> bool {
-        let ratio = self.unreachable_bytes as f32 / self.on_disk.len() as f32;
-        ratio < ACCEPTABLE_UNREACHABLE_BYTES_RATIO
+        match self.write_mode {
+            DirstateMapWriteMode::ForceAppend => true,
+            DirstateMapWriteMode::ForceNewDataFile => false,
+            DirstateMapWriteMode::Auto => {
+                let ratio =
+                    self.unreachable_bytes as f32 / self.on_disk.len() as f32;
+                ratio < ACCEPTABLE_UNREACHABLE_BYTES_RATIO
+            }
+        }
     }
 
     fn get_node<'tree>(
@@ -911,6 +950,10 @@ impl<'on_disk> DirstateMap<'on_disk> {
             *unreachable_bytes += path.len() as u32
         }
     }
+
+    pub(crate) fn set_write_mode(&mut self, write_mode: DirstateMapWriteMode) {
+        self.write_mode = write_mode;
+    }
 }
 
 type DebugDirstateTuple<'a> = (&'a HgPath, (u8, i32, i32, i32));
@@ -1230,11 +1273,11 @@ impl OwningDirstateMap {
     #[logging_timer::time("trace")]
     pub fn pack_v2(
         &self,
-        can_append: bool,
+        write_mode: DirstateMapWriteMode,
     ) -> Result<(Vec<u8>, on_disk::TreeMetadata, bool, usize), DirstateError>
     {
         let map = self.get_map();
-        on_disk::write(map, can_append)
+        on_disk::write(map, write_mode)
     }
 
     /// `callback` allows the caller to process and do something with the
@@ -1794,7 +1837,7 @@ mod tests {
         )?;
 
         let (packed, metadata, _should_append, _old_data_size) =
-            map.pack_v2(false)?;
+            map.pack_v2(DirstateMapWriteMode::ForceNewDataFile)?;
         let packed_len = packed.len();
         assert!(packed_len > 0);
 
@@ -1803,6 +1846,8 @@ mod tests {
             packed,
             packed_len,
             metadata.as_bytes(),
+            vec![],
+            None,
         )?;
 
         // Check that everything is accounted for
