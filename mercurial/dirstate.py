@@ -27,6 +27,7 @@ from . import (
     policy,
     pycompat,
     scmutil,
+    txnutil,
     util,
 )
 
@@ -416,10 +417,19 @@ class dirstate:
 
     @repocache(b'branch')
     def _branch(self):
+        f = None
+        data = b''
         try:
-            return self._opener.read(b"branch").strip() or b"default"
+            f, mode = txnutil.trypending(self._root, self._opener, b'branch')
+            data = f.read().strip()
         except FileNotFoundError:
+            pass
+        finally:
+            if f is not None:
+                f.close()
+        if not data:
             return b"default"
+        return data
 
     @property
     def _pl(self):
@@ -611,11 +621,22 @@ class dirstate:
         fold_p2 = oldp2 != nullid and p2 == nullid
         return self._map.setparents(p1, p2, fold_p2=fold_p2)
 
-    def setbranch(self, branch):
+    def setbranch(self, branch, transaction=None):
         self.__class__._branch.set(self, encoding.fromlocal(branch))
+        if transaction is not None:
+            self._setup_tr_abort(transaction)
+            transaction.addfilegenerator(
+                b'dirstate-3-branch%s' % self._tr_key_suffix,
+                (b'branch',),
+                self._write_branch,
+                location=b'plain',
+                post_finalize=True,
+            )
+            return
+
         vfs = self._opener
         with vfs(b'branch', b'w', atomictemp=True, checkambig=True) as f:
-            f.write(self._branch + b'\n')
+            self._write_branch(f)
             # make sure filecache has the correct stat info for _branch after
             # replacing the underlying file
             #
@@ -624,6 +645,9 @@ class dirstate:
             ce = self._filecache[b'_branch']
             if ce:
                 ce.refresh()
+
+    def _write_branch(self, file_obj):
+        file_obj.write(self._branch + b'\n')
 
     def invalidate(self):
         """Causes the next access to reread the dirstate.
