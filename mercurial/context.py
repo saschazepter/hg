@@ -36,6 +36,7 @@ from . import (
     sparse,
     subrepo,
     subrepoutil,
+    testing,
     util,
 )
 from .utils import (
@@ -1854,6 +1855,7 @@ class workingctx(committablectx):
 
     def _poststatusfixup(self, status, fixup):
         """update dirstate for files that are actually clean"""
+        testing.wait_on_cfg(self._repo.ui, b'status.pre-dirstate-write-file')
         dirstate = self._repo.dirstate
         poststatus = self._repo.postdsstatus()
         if fixup:

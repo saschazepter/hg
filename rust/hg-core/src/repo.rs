@@ -1,6 +1,7 @@
 use crate::changelog::Changelog;
 use crate::config::{Config, ConfigError, ConfigParseError};
 use crate::dirstate::DirstateParents;
+use crate::dirstate_tree::dirstate_map::DirstateMapWriteMode;
 use crate::dirstate_tree::on_disk::Docket as DirstateDocket;
 use crate::dirstate_tree::owning::OwningDirstateMap;
 use crate::errors::HgResultExt;
@@ -9,6 +10,7 @@ use crate::lock::{try_with_lock_no_wait, LockError};
 use crate::manifest::{Manifest, Manifestlog};
 use crate::revlog::filelog::Filelog;
 use crate::revlog::RevlogError;
+use crate::utils::debug::debug_wait_for_file_or_print;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
@@ -22,6 +24,10 @@ use std::io::SeekFrom;
 use std::io::Write as IoWrite;
 use std::path::{Path, PathBuf};
 
+const V2_MAX_READ_ATTEMPTS: usize = 5;
+
+type DirstateMapIdentity = (Option<u64>, Option<Vec<u8>>, usize);
+
 /// A repository on disk
 pub struct Repo {
     working_directory: PathBuf,
@@ -30,7 +36,6 @@ pub struct Repo {
     requirements: HashSet<String>,
     config: Config,
     dirstate_parents: LazyCell<DirstateParents>,
-    dirstate_data_file_uuid: LazyCell<Option<Vec<u8>>>,
     dirstate_map: LazyCell<OwningDirstateMap>,
     changelog: LazyCell<Changelog>,
     manifestlog: LazyCell<Manifestlog>,
@@ -180,7 +185,6 @@ impl Repo {
             dot_hg,
             config: repo_config,
             dirstate_parents: LazyCell::new(),
-            dirstate_data_file_uuid: LazyCell::new(),
             dirstate_map: LazyCell::new(),
             changelog: LazyCell::new(),
             manifestlog: LazyCell::new(),
@@ -254,6 +258,15 @@ impl Repo {
             .unwrap_or_default())
     }
 
+    fn dirstate_identity(&self) -> Result<Option<u64>, HgError> {
+        use std::os::unix::fs::MetadataExt;
+        Ok(self
+            .hg_vfs()
+            .symlink_metadata("dirstate")
+            .io_not_found_as_none()?
+            .map(|meta| meta.ino()))
+    }
+
     pub fn dirstate_parents(&self) -> Result<DirstateParents, HgError> {
         Ok(*self
             .dirstate_parents
@@ -263,15 +276,10 @@ impl Repo {
     fn read_dirstate_parents(&self) -> Result<DirstateParents, HgError> {
         let dirstate = self.dirstate_file_contents()?;
         let parents = if dirstate.is_empty() {
-            if self.has_dirstate_v2() {
-                self.dirstate_data_file_uuid.set(None);
-            }
             DirstateParents::NULL
         } else if self.has_dirstate_v2() {
             let docket =
                 crate::dirstate_tree::on_disk::read_docket(&dirstate)?;
-            self.dirstate_data_file_uuid
-                .set(Some(docket.uuid.to_owned()));
             docket.parents()
         } else {
             *crate::dirstate::parsers::parse_dirstate_parents(&dirstate)?
@@ -280,57 +288,179 @@ impl Repo {
         Ok(parents)
     }
 
-    fn read_dirstate_data_file_uuid(
+    /// Returns the information read from the dirstate docket necessary to
+    /// check if the data file has been updated/deleted by another process
+    /// since we last read the dirstate.
+    /// Namely, the inode, data file uuid and the data size.
+    fn get_dirstate_data_file_integrity(
         &self,
-    ) -> Result<Option<Vec<u8>>, HgError> {
+    ) -> Result<DirstateMapIdentity, HgError> {
         assert!(
             self.has_dirstate_v2(),
             "accessing dirstate data file ID without dirstate-v2"
         );
+        // Get the identity before the contents since we could have a race
+        // between the two. Having an identity that is too old is fine, but
+        // one that is younger than the content change is bad.
+        let identity = self.dirstate_identity()?;
         let dirstate = self.dirstate_file_contents()?;
         if dirstate.is_empty() {
             self.dirstate_parents.set(DirstateParents::NULL);
-            Ok(None)
+            Ok((identity, None, 0))
         } else {
             let docket =
                 crate::dirstate_tree::on_disk::read_docket(&dirstate)?;
             self.dirstate_parents.set(docket.parents());
-            Ok(Some(docket.uuid.to_owned()))
+            Ok((identity, Some(docket.uuid.to_owned()), docket.data_size()))
         }
     }
 
     fn new_dirstate_map(&self) -> Result<OwningDirstateMap, DirstateError> {
+        if self.has_dirstate_v2() {
+            // The v2 dirstate is split into a docket and a data file.
+            // Since we don't always take the `wlock` to read it
+            // (like in `hg status`), it is susceptible to races.
+            // A simple retry method should be enough since full rewrites
+            // only happen when too much garbage data is present and
+            // this race is unlikely.
+            let mut tries = 0;
+
+            while tries < V2_MAX_READ_ATTEMPTS {
+                tries += 1;
+                match self.read_docket_and_data_file() {
+                    Ok(m) => {
+                        return Ok(m);
+                    }
+                    Err(e) => match e {
+                        DirstateError::Common(HgError::RaceDetected(
+                            context,
+                        )) => {
+                            log::info!(
+                                "dirstate read race detected {} (retry {}/{})",
+                                context,
+                                tries,
+                                V2_MAX_READ_ATTEMPTS,
+                            );
+                            continue;
+                        }
+                        _ => return Err(e),
+                    },
+                }
+            }
+            let error = HgError::abort(
+                format!("dirstate read race happened {tries} times in a row"),
+                255,
+                None,
+            );
+            Err(DirstateError::Common(error))
+        } else {
+            debug_wait_for_file_or_print(
+                self.config(),
+                "dirstate.pre-read-file",
+            );
+            let identity = self.dirstate_identity()?;
+            let dirstate_file_contents = self.dirstate_file_contents()?;
+            if dirstate_file_contents.is_empty() {
+                self.dirstate_parents.set(DirstateParents::NULL);
+                Ok(OwningDirstateMap::new_empty(Vec::new()))
+            } else {
+                let (map, parents) = OwningDirstateMap::new_v1(
+                    dirstate_file_contents,
+                    identity,
+                )?;
+                self.dirstate_parents.set(parents);
+                Ok(map)
+            }
+        }
+    }
+
+    fn read_docket_and_data_file(
+        &self,
+    ) -> Result<OwningDirstateMap, DirstateError> {
+        debug_wait_for_file_or_print(self.config(), "dirstate.pre-read-file");
         let dirstate_file_contents = self.dirstate_file_contents()?;
+        let identity = self.dirstate_identity()?;
         if dirstate_file_contents.is_empty() {
             self.dirstate_parents.set(DirstateParents::NULL);
-            if self.has_dirstate_v2() {
-                self.dirstate_data_file_uuid.set(None);
-            }
-            Ok(OwningDirstateMap::new_empty(Vec::new()))
-        } else if self.has_dirstate_v2() {
-            let docket = crate::dirstate_tree::on_disk::read_docket(
-                &dirstate_file_contents,
-            )?;
-            self.dirstate_parents.set(docket.parents());
-            self.dirstate_data_file_uuid
-                .set(Some(docket.uuid.to_owned()));
-            let data_size = docket.data_size();
-            let metadata = docket.tree_metadata();
-            if let Some(data_mmap) = self
+            return Ok(OwningDirstateMap::new_empty(Vec::new()));
+        }
+        let docket = crate::dirstate_tree::on_disk::read_docket(
+            &dirstate_file_contents,
+        )?;
+        debug_wait_for_file_or_print(
+            self.config(),
+            "dirstate.post-docket-read-file",
+        );
+        self.dirstate_parents.set(docket.parents());
+        let uuid = docket.uuid.to_owned();
+        let data_size = docket.data_size();
+
+        let context = "between reading dirstate docket and data file";
+        let race_error = HgError::RaceDetected(context.into());
+        let metadata = docket.tree_metadata();
+
+        let mut map = if crate::vfs::is_on_nfs_mount(docket.data_filename()) {
+            // Don't mmap on NFS to prevent `SIGBUS` error on deletion
+            let contents = self.hg_vfs().read(docket.data_filename());
+            let contents = match contents {
+                Ok(c) => c,
+                Err(HgError::IoError { error, context }) => {
+                    match error.raw_os_error().expect("real os error") {
+                        // 2 = ENOENT, No such file or directory
+                        // 116 = ESTALE, Stale NFS file handle
+                        //
+                        // TODO match on `error.kind()` when
+                        // `ErrorKind::StaleNetworkFileHandle` is stable.
+                        2 | 116 => {
+                            // Race where the data file was deleted right after
+                            // we read the docket, try again
+                            return Err(race_error.into());
+                        }
+                        _ => {
+                            return Err(
+                                HgError::IoError { error, context }.into()
+                            )
+                        }
+                    }
+                }
+                Err(e) => return Err(e.into()),
+            };
+            OwningDirstateMap::new_v2(
+                contents, data_size, metadata, uuid, identity,
+            )
+        } else {
+            match self
                 .hg_vfs()
                 .mmap_open(docket.data_filename())
-                .io_not_found_as_none()?
+                .io_not_found_as_none()
             {
-                OwningDirstateMap::new_v2(data_mmap, data_size, metadata)
-            } else {
-                OwningDirstateMap::new_v2(Vec::new(), data_size, metadata)
+                Ok(Some(data_mmap)) => OwningDirstateMap::new_v2(
+                    data_mmap, data_size, metadata, uuid, identity,
+                ),
+                Ok(None) => {
+                    // Race where the data file was deleted right after we
+                    // read the docket, try again
+                    return Err(race_error.into());
+                }
+                Err(e) => return Err(e.into()),
             }
-        } else {
-            let (map, parents) =
-                OwningDirstateMap::new_v1(dirstate_file_contents)?;
-            self.dirstate_parents.set(parents);
-            Ok(map)
-        }
+        }?;
+
+        let write_mode_config = self
+            .config()
+            .get_str(b"devel", b"dirstate.v2.data_update_mode")
+            .unwrap_or(Some("auto"))
+            .unwrap_or("auto"); // don't bother for devel options
+        let write_mode = match write_mode_config {
+            "auto" => DirstateMapWriteMode::Auto,
+            "force-new" => DirstateMapWriteMode::ForceNewDataFile,
+            "force-append" => DirstateMapWriteMode::ForceAppend,
+            _ => DirstateMapWriteMode::Auto,
+        };
+
+        map.with_dmap_mut(|m| m.set_write_mode(write_mode));
+
+        Ok(map)
     }
 
     pub fn dirstate_map(
@@ -421,13 +551,37 @@ impl Repo {
         // it’s unset
         let parents = self.dirstate_parents()?;
         let (packed_dirstate, old_uuid_to_remove) = if self.has_dirstate_v2() {
-            let uuid_opt = self
-                .dirstate_data_file_uuid
-                .get_or_init(|| self.read_dirstate_data_file_uuid())?;
-            let uuid_opt = uuid_opt.as_ref();
-            let can_append = uuid_opt.is_some();
+            let (identity, uuid, data_size) =
+                self.get_dirstate_data_file_integrity()?;
+            let identity_changed = identity != map.old_identity();
+            let uuid_changed = uuid.as_deref() != map.old_uuid();
+            let data_length_changed = data_size != map.old_data_size();
+
+            if identity_changed || uuid_changed || data_length_changed {
+                // If any of identity, uuid or length have changed since
+                // last disk read, don't write.
+                // This is fine because either we're in a command that doesn't
+                // write anything too important (like `hg status`), or we're in
+                // `hg add` and we're supposed to have taken the lock before
+                // reading anyway.
+                //
+                // TODO complain loudly if we've changed anything important
+                // without taking the lock.
+                // (see `hg help config.format.use-dirstate-tracked-hint`)
+                log::debug!(
+                    "dirstate has changed since last read, not updating."
+                );
+                return Ok(());
+            }
+
+            let uuid_opt = map.old_uuid();
+            let write_mode = if uuid_opt.is_some() {
+                DirstateMapWriteMode::Auto
+            } else {
+                DirstateMapWriteMode::ForceNewDataFile
+            };
             let (data, tree_metadata, append, old_data_size) =
-                map.pack_v2(can_append)?;
+                map.pack_v2(write_mode)?;
 
             // Reuse the uuid, or generate a new one, keeping the old for
             // deletion.
@@ -470,7 +624,10 @@ impl Repo {
             //   https://github.com/openzfs/zfs/issues/13370
             //
             if !append {
+                log::trace!("creating a new dirstate data file");
                 options.create_new(true);
+            } else {
+                log::trace!("appending to the dirstate data file");
             }
 
             let data_size = (|| {
@@ -499,6 +656,22 @@ impl Repo {
 
             (packed_dirstate, old_uuid)
         } else {
+            let identity = self.dirstate_identity()?;
+            if identity != map.old_identity() {
+                // If identity changed since last disk read, don't write.
+                // This is fine because either we're in a command that doesn't
+                // write anything too important (like `hg status`), or we're in
+                // `hg add` and we're supposed to have taken the lock before
+                // reading anyway.
+                //
+                // TODO complain loudly if we've changed anything important
+                // without taking the lock.
+                // (see `hg help config.format.use-dirstate-tracked-hint`)
+                log::debug!(
+                    "dirstate has changed since last read, not updating."
+                );
+                return Ok(());
+            }
             (map.pack_v1(parents)?, None)
         };
 

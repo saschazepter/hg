@@ -31,6 +31,7 @@ impl OwningDirstateMap {
 
     pub fn new_v1<OnDisk>(
         on_disk: OnDisk,
+        identity: Option<u64>,
     ) -> Result<(Self, DirstateParents), DirstateError>
     where
         OnDisk: Deref<Target = [u8]> + Send + 'static,
@@ -42,7 +43,7 @@ impl OwningDirstateMap {
             OwningDirstateMapTryBuilder {
                 on_disk,
                 map_builder: |bytes| {
-                    DirstateMap::new_v1(bytes).map(|(dmap, p)| {
+                    DirstateMap::new_v1(bytes, identity).map(|(dmap, p)| {
                         parents = p.unwrap_or(DirstateParents::NULL);
                         dmap
                     })
@@ -57,6 +58,8 @@ impl OwningDirstateMap {
         on_disk: OnDisk,
         data_size: usize,
         metadata: &[u8],
+        uuid: Vec<u8>,
+        identity: Option<u64>,
     ) -> Result<Self, DirstateError>
     where
         OnDisk: Deref<Target = [u8]> + Send + 'static,
@@ -66,7 +69,7 @@ impl OwningDirstateMap {
         OwningDirstateMapTryBuilder {
             on_disk,
             map_builder: |bytes| {
-                DirstateMap::new_v2(bytes, data_size, metadata)
+                DirstateMap::new_v2(bytes, data_size, metadata, uuid, identity)
             },
         }
         .try_build()
@@ -85,5 +88,17 @@ impl OwningDirstateMap {
 
     pub fn on_disk(&self) -> &[u8] {
         self.borrow_on_disk()
+    }
+
+    pub fn old_uuid(&self) -> Option<&[u8]> {
+        self.get_map().old_uuid.as_deref()
+    }
+
+    pub fn old_identity(&self) -> Option<u64> {
+        self.get_map().identity
+    }
+
+    pub fn old_data_size(&self) -> usize {
+        self.get_map().old_data_size
     }
 }

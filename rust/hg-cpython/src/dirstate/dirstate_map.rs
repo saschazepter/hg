@@ -22,7 +22,8 @@ use crate::{
     pybytes_deref::PyBytesDeref,
 };
 use hg::{
-    dirstate::StateMapIter, dirstate_tree::on_disk::DirstateV2ParseError,
+    dirstate::StateMapIter, dirstate_tree::dirstate_map::DirstateMapWriteMode,
+    dirstate_tree::on_disk::DirstateV2ParseError,
     dirstate_tree::owning::OwningDirstateMap, revlog::Node,
     utils::files::normalize_case, utils::hg_path::HgPath, DirstateEntry,
     DirstateError, DirstateParents,
@@ -47,9 +48,10 @@ py_class!(pub class DirstateMap |py| {
     @staticmethod
     def new_v1(
         on_disk: PyBytes,
+        identity: Option<u64>,
     ) -> PyResult<PyObject> {
         let on_disk = PyBytesDeref::new(py, on_disk);
-        let (map, parents) = OwningDirstateMap::new_v1(on_disk)
+        let (map, parents) = OwningDirstateMap::new_v1(on_disk, identity)
             .map_err(|e| dirstate_error(py, e))?;
         let map = Self::create_instance(py, map)?;
         let p1 = PyBytes::new(py, parents.p1.as_bytes());
@@ -64,14 +66,29 @@ py_class!(pub class DirstateMap |py| {
         on_disk: PyBytes,
         data_size: usize,
         tree_metadata: PyBytes,
+        uuid: PyBytes,
+        identity: Option<u64>,
     ) -> PyResult<PyObject> {
         let dirstate_error = |e: DirstateError| {
             PyErr::new::<exc::OSError, _>(py, format!("Dirstate error: {:?}", e))
         };
         let on_disk = PyBytesDeref::new(py, on_disk);
+        let uuid = uuid.data(py);
         let map = OwningDirstateMap::new_v2(
-            on_disk, data_size, tree_metadata.data(py),
+            on_disk,
+            data_size,
+            tree_metadata.data(py),
+            uuid.to_owned(),
+            identity,
         ).map_err(dirstate_error)?;
+        let map = Self::create_instance(py, map)?;
+        Ok(map.into_object())
+    }
+
+    /// Returns an empty DirstateMap. Only used for a new dirstate.
+    @staticmethod
+    def new_empty() -> PyResult<PyObject> {
+        let map = OwningDirstateMap::new_empty(vec![]);
         let map = Self::create_instance(py, map)?;
         Ok(map.into_object())
     }
@@ -236,10 +253,16 @@ py_class!(pub class DirstateMap |py| {
     /// instead of written to a new data file (False).
     def write_v2(
         &self,
-        can_append: bool,
+        write_mode: usize,
     ) -> PyResult<PyObject> {
         let inner = self.inner(py).borrow();
-        let result = inner.pack_v2(can_append);
+        let rust_write_mode = match write_mode {
+            0 => DirstateMapWriteMode::Auto,
+            1 => DirstateMapWriteMode::ForceNewDataFile,
+            2 => DirstateMapWriteMode::ForceAppend,
+            _ => DirstateMapWriteMode::Auto, // XXX should we error out?
+        };
+        let result = inner.pack_v2(rust_write_mode);
         match result {
             Ok((packed, tree_metadata, append, _old_data_size)) => {
                 let packed = PyBytes::new(py, &packed);

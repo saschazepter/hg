@@ -9,6 +9,21 @@ import time
 environ = getattr(os, 'environ')
 
 
+def wait_on_cfg(ui, cfg, timeout=10):
+    """synchronize on the `cfg` config path
+
+    Use this to synchronize commands during race tests.
+    """
+    full_config = b'sync.' + cfg
+    wait_config = full_config + b'-timeout'
+    sync_path = ui.config(b'devel', full_config)
+    if sync_path is not None:
+        timeout = ui.config(b'devel', wait_config)
+        ready_path = sync_path + b'.waiting'
+        write_file(ready_path)
+        wait_file(sync_path, timeout=timeout)
+
+
 def _timeout_factor():
     """return the current modification to timeout"""
     default = int(environ.get('HGTEST_TIMEOUT_DEFAULT', 360))

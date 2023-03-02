@@ -148,7 +148,7 @@ valid.
   $ hg init append-mostly
   $ cd append-mostly
   $ mkdir dir dir2
-  $ touch dir/a dir/b dir/c dir/d dir/e dir2/f
+  $ touch -t 200001010000 dir/a dir/b dir/c dir/d dir/e dir2/f dir dir2
   $ hg commit -Aqm initial
   $ hg st
   $ dirstate_data_files | wc -l
@@ -163,12 +163,11 @@ Nothing changes here
   $ dirstate_uuid_has_not_changed
   not testing because using Python implementation (no-rust no-rhg !)
 
-Trigger an append with a small change
+Trigger an append with a small change to directory mtime
 
   $ current_data_size=$(find_dirstate_data_size)
-  $ rm dir2/f
+  $ touch -t 201001010000 dir2
   $ hg st
-  ! dir2/f
   $ dirstate_data_files | wc -l
    *1 (re)
   $ dirstate_uuid_has_not_changed
@@ -187,7 +186,6 @@ Unused bytes counter is non-0 when appending
 Trigger a rust/rhg run which updates the unused bytes value
   $ hg st
   A file
-  ! dir2/f
   $ dirstate_data_files | wc -l
    *1 (re)
   $ dirstate_uuid_has_not_changed
@@ -213,8 +211,223 @@ Check that unused bytes counter is reset when creating a new docket
 
 #endif
 
+(non-Rust always rewrites)
+
+Test the devel option to control write behavior
+==============================================
+
+Sometimes, debugging or testing the dirstate requires making sure that we have
+done a complete rewrite of the data file and have no unreachable data around,
+sometimes it requires we ensure we don't.
+
+We test the option to force this rewrite by creating the situation where an
+append would happen and check that it doesn't happen.
+
+  $ cd ..
+  $ hg init force-base
+  $ cd force-base
+  $ mkdir -p dir/nested dir2
+  $ touch -t 200001010000 f dir/nested/a dir/b dir/c dir/d dir2/e dir/nested dir dir2
+  $ hg commit -Aqm "recreate a bunch of files to facilitate append"
+  $ hg st --config devel.dirstate.v2.data_update_mode=force-new
+  $ cd ..
+
+#if dirstate-v2
+  $ hg -R force-base debugstate --docket | grep unused
+  number of unused bytes: 0
+
+Check with the option in "auto" mode
+------------------------------------
+  $ cp -a force-base append-mostly-no-force-rewrite
+  $ cd append-mostly-no-force-rewrite
+  $ current_uid=$(find_dirstate_uuid)
+
+Change mtime of dir on disk which will be recorded, causing a small enough change
+to warrant only an append
+
+  $ touch -t 202212010000 dir2
+  $ hg st \
+  > --config rhg.on-unsupported=abort \
+  > --config devel.dirstate.v2.data_update_mode=auto
+
+UUID hasn't changed and a non-zero number of unused bytes means we've appended
+
+  $ dirstate_uuid_has_not_changed
+  not testing because using Python implementation (no-rust no-rhg !)
+
+#if no-rust no-rhg
+The pure python implementation never appends at the time this is written.
+  $ hg debugstate --docket | grep unused
+  number of unused bytes: 0 (known-bad-output !)
+#else
+  $ hg debugstate --docket | grep unused
+  number of unused bytes: [1-9]\d* (re)
+#endif
+  $ cd ..
+
+Check the same scenario with the option set to "force-new"
+---------------------------------------------------------
+
+  $ cp -a force-base append-mostly-force-rewrite
+  $ cd append-mostly-force-rewrite
+  $ current_uid=$(find_dirstate_uuid)
+
+Change mtime of dir on disk which will be recorded, causing a small enough change
+to warrant only an append, but we force the rewrite
+
+  $ touch -t 202212010000 dir2
+  $ hg st \
+  > --config rhg.on-unsupported=abort \
+  > --config devel.dirstate.v2.data_update_mode=force-new
+
+UUID has changed and zero unused bytes means a full-rewrite happened
+
+
+#if no-rust no-rhg
+  $ dirstate_uuid_has_not_changed
+  not testing because using Python implementation
+#else
+  $ dirstate_uuid_has_not_changed
+  [1]
+#endif
+  $ hg debugstate --docket | grep unused
+  number of unused bytes: 0
+  $ cd ..
+
+
+Check the same scenario with the option set to "force-append"
+-------------------------------------------------------------
+
+(should behave the same as "auto" here)
+
+  $ cp -a force-base append-mostly-force-append
+  $ cd append-mostly-force-append
+  $ current_uid=$(find_dirstate_uuid)
+
+Change mtime of dir on disk which will be recorded, causing a small enough change
+to warrant only an append, which we are forcing here anyway.
+
+  $ touch -t 202212010000 dir2
+  $ hg st \
+  > --config rhg.on-unsupported=abort \
+  > --config devel.dirstate.v2.data_update_mode=force-append
+
+UUID has not changed and some unused bytes exist in the data file
+
+  $ dirstate_uuid_has_not_changed
+  not testing because using Python implementation (no-rust no-rhg !)
+
+#if no-rust no-rhg
+The pure python implementation never appends at the time this is written.
+  $ hg debugstate --docket | grep unused
+  number of unused bytes: 0 (known-bad-output !)
+#else
+  $ hg debugstate --docket | grep unused
+  number of unused bytes: [1-9]\d* (re)
+#endif
+  $ cd ..
+
+Check with the option in "auto" mode
+------------------------------------
+  $ cp -a force-base append-mostly-no-force-rewrite
+  $ cd append-mostly-no-force-rewrite
+  $ current_uid=$(find_dirstate_uuid)
+
+Change mtime of everything on disk causing a full rewrite
+
+  $ touch -t 202212010005 `hg files`
+  $ hg st \
+  > --config rhg.on-unsupported=abort \
+  > --config devel.dirstate.v2.data_update_mode=auto
+
+UUID has changed and zero unused bytes means we've rewritten.
+
+#if no-rust no-rhg
+  $ dirstate_uuid_has_not_changed
+  not testing because using Python implementation
+#else
+  $ dirstate_uuid_has_not_changed
+  [1]
+#endif
+
+  $ hg debugstate --docket | grep unused
+  number of unused bytes: 0 (known-bad-output !)
+  $ cd ..
+
+Check the same scenario with the option set to "force-new"
+---------------------------------------------------------
+
+(should be the same as auto)
+
+  $ cp -a force-base append-mostly-force-rewrite
+  $ cd append-mostly-force-rewrite
+  $ current_uid=$(find_dirstate_uuid)
+
+Change mtime of everything on disk causing a full rewrite
+
+  $ touch -t 202212010005 `hg files`
+  $ hg st \
+  > --config rhg.on-unsupported=abort \
+  > --config devel.dirstate.v2.data_update_mode=force-new
+
+UUID has changed and a zero number unused bytes means we've rewritten.
+
+
+#if no-rust no-rhg
+  $ dirstate_uuid_has_not_changed
+  not testing because using Python implementation
+#else
+  $ dirstate_uuid_has_not_changed
+  [1]
+#endif
+  $ hg debugstate --docket | grep unused
+  number of unused bytes: 0
+  $ cd ..
+
+
+Check the same scenario with the option set to "force-append"
+-------------------------------------------------------------
+
+Should append even if "auto" did not
+
+  $ cp -a force-base append-mostly-force-append
+  $ cd append-mostly-force-append
+  $ current_uid=$(find_dirstate_uuid)
+
+Change mtime of everything on disk causing a full rewrite
+
+  $ touch -t 202212010005 `hg files`
+  $ hg st \
+  > --config rhg.on-unsupported=abort \
+  > --config devel.dirstate.v2.data_update_mode=force-append
+
+UUID has not changed and some unused bytes exist in the data file
+
+  $ dirstate_uuid_has_not_changed
+  not testing because using Python implementation (no-rust no-rhg !)
+
+#if no-rust no-rhg
+The pure python implementation is never appending at the time this is written.
+  $ hg debugstate --docket | grep unused
+  number of unused bytes: 0 (known-bad-output !)
+#else
+  $ hg debugstate --docket | grep unused
+  number of unused bytes: [1-9]\d* (re)
+#endif
+  $ cd ..
+
+
+
+Get back into a state suitable for the test of the file.
+
+  $ cd ./append-mostly
+
+#else
+  $ cd ./u
+#endif
+
 Transaction compatibility
--------------------------
+=========================
 
 The transaction preserves the dirstate.
 We should make sure all of it (docket + data) is preserved

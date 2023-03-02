@@ -1831,8 +1831,44 @@ class TTest(Test):
 
         pos = prepos = -1
 
-        # True or False when in a true or false conditional section
-        skipping = None
+        # The current stack of conditionnal section.
+        # Each relevant conditionnal section can have the following value:
+        #  - True:  we should run this block
+        #  - False: we should skip this block
+        #  - None:  The parent block is skipped,
+        #           (no branch of this one will ever run)
+        condition_stack = []
+
+        def run_line():
+            """return True if the current line should be run"""
+            if not condition_stack:
+                return True
+            return bool(condition_stack[-1])
+
+        def push_conditional_block(should_run):
+            """Push a new conditional context, with its initial state
+
+            i.e. entry a #if block"""
+            if not run_line():
+                condition_stack.append(None)
+            else:
+                condition_stack.append(should_run)
+
+        def flip_conditional():
+            """reverse the current condition state
+
+            i.e. enter a #else
+            """
+            assert condition_stack
+            if condition_stack[-1] is not None:
+                condition_stack[-1] = not condition_stack[-1]
+
+        def pop_conditional():
+            """exit the current skipping context
+
+            i.e. reach the #endif"""
+            assert condition_stack
+            condition_stack.pop()
 
         # We keep track of whether or not we're in a Python block so we
         # can generate the surrounding doctest magic.
@@ -1888,7 +1924,7 @@ class TTest(Test):
                     after.setdefault(pos, []).append(
                         b'  !!! invalid #require\n'
                     )
-                if not skipping:
+                if run_line():
                     haveresult, message = self._hghave(lsplit[1:])
                     if not haveresult:
                         script = [b'echo "%s"\nexit 80\n' % message]
@@ -1898,21 +1934,19 @@ class TTest(Test):
                 lsplit = l.split()
                 if len(lsplit) < 2 or lsplit[0] != b'#if':
                     after.setdefault(pos, []).append(b'  !!! invalid #if\n')
-                if skipping is not None:
-                    after.setdefault(pos, []).append(b'  !!! nested #if\n')
-                skipping = not self._iftest(lsplit[1:])
+                push_conditional_block(self._iftest(lsplit[1:]))
                 after.setdefault(pos, []).append(l)
             elif l.startswith(b'#else'):
-                if skipping is None:
+                if not condition_stack:
                     after.setdefault(pos, []).append(b'  !!! missing #if\n')
-                skipping = not skipping
+                flip_conditional()
                 after.setdefault(pos, []).append(l)
             elif l.startswith(b'#endif'):
-                if skipping is None:
+                if not condition_stack:
                     after.setdefault(pos, []).append(b'  !!! missing #if\n')
-                skipping = None
+                pop_conditional()
                 after.setdefault(pos, []).append(l)
-            elif skipping:
+            elif not run_line():
                 after.setdefault(pos, []).append(l)
             elif l.startswith(b'  >>> '):  # python inlines
                 after.setdefault(pos, []).append(l)
@@ -1957,7 +1991,7 @@ class TTest(Test):
 
         if inpython:
             script.append(b'EOF\n')
-        if skipping is not None:
+        if condition_stack:
             after.setdefault(pos, []).append(b'  !!! missing #endif\n')
         addsalt(n + 1, False)
         # Need to end any current per-command trace
