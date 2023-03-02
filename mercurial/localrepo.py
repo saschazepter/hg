@@ -2675,7 +2675,7 @@ class localrepository:
             ds = self.dirstate
             if ds.branch() == b'default':
                 # force a file to be written if None exist
-                ds.setbranch(b'default')
+                ds.setbranch(b'default', None)
             # we cannot simply add "branch" to `all_file_names` because branch
             # is written outside of the transaction control. So we need to
             # backup early.
