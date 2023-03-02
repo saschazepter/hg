@@ -837,7 +837,7 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
             return 1
     else:
         hg.clean(repo, node, show_stats=False)
-        repo.dirstate.setbranch(branch)
+        repo.dirstate.setbranch(branch, repo.currenttransaction())
         cmdutil.revert(ui, repo, rctx)
 
     if opts.get(b'no_commit'):
