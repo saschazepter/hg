@@ -2673,13 +2673,9 @@ class localrepository:
         # strip" to pick a working copy destination on `hg rollback`
         if self.currentwlock() is not None:
             ds = self.dirstate
-            if ds.branch() == b'default':
+            if not self.vfs.exists(b'branch'):
                 # force a file to be written if None exist
                 ds.setbranch(b'default', None)
-            # we cannot simply add "branch" to `all_file_names` because branch
-            # is written outside of the transaction control. So we need to
-            # backup early.
-            tr.addbackup(b"branch", hardlink=True, location=b'plain')
 
             def backup_dirstate(tr):
                 for f in ds.all_file_names():
