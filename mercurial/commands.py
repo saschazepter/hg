@@ -1355,7 +1355,7 @@ def branch(ui, repo, label=None, **opts):
     with repo.wlock():
         if opts.get(b'clean'):
             label = repo[b'.'].branch()
-            repo.dirstate.setbranch(label)
+            repo.dirstate.setbranch(label, repo.currenttransaction())
             ui.status(_(b'reset working directory to branch %s\n') % label)
         elif label:
 
@@ -1371,7 +1371,7 @@ def branch(ui, repo, label=None, **opts):
                         hint=_(b"use 'hg update' to switch to it"),
                     )
 
-            repo.dirstate.setbranch(label)
+            repo.dirstate.setbranch(label, repo.currenttransaction())
             ui.status(_(b'marked working directory as branch %s\n') % label)
 
             # find any open named branches aside from default
