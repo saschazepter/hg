@@ -613,19 +613,17 @@ class dirstate:
 
     def setbranch(self, branch):
         self.__class__._branch.set(self, encoding.fromlocal(branch))
-        f = self._opener(b'branch', b'w', atomictemp=True, checkambig=True)
-        try:
+        vfs = self._opener
+        with vfs(b'branch', b'w', atomictemp=True, checkambig=True) as f:
             f.write(self._branch + b'\n')
-            f.close()
-
             # make sure filecache has the correct stat info for _branch after
             # replacing the underlying file
+            #
+            # XXX do we actually need this,
+            # refreshing the attribute is quite cheap
             ce = self._filecache[b'_branch']
             if ce:
                 ce.refresh()
-        except:  # re-raises
-            f.discard()
-            raise
 
     def invalidate(self):
         """Causes the next access to reread the dirstate.
