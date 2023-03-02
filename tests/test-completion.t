@@ -77,6 +77,7 @@ Show debug commands if there are no other candidates
   debug-delta-find
   debug-repair-issue6528
   debug-revlog-index
+  debug-revlog-stats
   debugancestor
   debugantivirusrunning
   debugapplystreamclonebundle
@@ -264,13 +265,14 @@ Show all commands + options
   bundle: exact, force, rev, branch, base, all, type, ssh, remotecmd, insecure
   cat: output, rev, decode, include, exclude, template
   clone: noupdate, updaterev, rev, branch, pull, uncompressed, stream, ssh, remotecmd, insecure
-  commit: addremove, close-branch, amend, secret, edit, force-close-branch, interactive, include, exclude, message, logfile, date, user, subrepos
+  commit: addremove, close-branch, amend, secret, draft, edit, force-close-branch, interactive, include, exclude, message, logfile, date, user, subrepos
   config: untrusted, exp-all-known, edit, local, source, shared, non-shared, global, template
   continue: dry-run
   copy: forget, after, at-rev, force, include, exclude, dry-run
-  debug-delta-find: changelog, manifest, dir, template
+  debug-delta-find: changelog, manifest, dir, template, source
   debug-repair-issue6528: to-report, from-report, paranoid, dry-run
   debug-revlog-index: changelog, manifest, dir, template
+  debug-revlog-stats: changelog, manifest, filelogs, template
   debugancestor: 
   debugantivirusrunning: 
   debugapplystreamclonebundle: 
@@ -326,7 +328,7 @@ Show all commands + options
   debugrevspec: optimize, show-revs, show-set, show-stage, no-optimized, verify-optimized
   debugserve: sshstdio, logiofd, logiofile
   debugsetparents: 
-  debugshell: 
+  debugshell: command
   debugsidedata: changelog, manifest, dir
   debugssl: 
   debugstrip: rev, force, no-backup, nobackup, , keep, bookmark, soft

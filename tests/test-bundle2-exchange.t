@@ -739,12 +739,10 @@ Check output capture control.
   $ hg -R main push ssh://user@dummy/other -r e7ec4e813ba6
   pushing to ssh://user@dummy/other
   searching for changes
-  remote: Fail early! (no-py3 chg !)
   remote: adding changesets
   remote: adding manifests
   remote: adding file changes
-  remote: Fail early! (py3 !)
-  remote: Fail early! (no-py3 no-chg !)
+  remote: Fail early!
   remote: transaction abort!
   remote: Cleaning up the mess...
   remote: rollback completed

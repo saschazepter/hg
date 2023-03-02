@@ -10,7 +10,6 @@
 
 use crate::errors::HgError;
 use bytes_cast::BytesCast;
-use std::convert::{TryFrom, TryInto};
 use std::fmt;
 
 /// The length in bytes of a `Node`
@@ -315,7 +314,7 @@ impl From<Node> for NodePrefix {
 
 impl PartialEq<Node> for NodePrefix {
     fn eq(&self, other: &Node) -> bool {
-        Self::from(*other) == *self
+        self.data == other.data && self.nybbles_len() == other.nybbles_len()
     }
 }
 

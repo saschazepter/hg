@@ -175,7 +175,7 @@ impl<G: Graph> MissingAncestors<G> {
     ///
     /// This is useful in unit tests, but also setdiscovery.py does
     /// read the bases attribute of a ancestor.missingancestors instance.
-    pub fn get_bases<'a>(&'a self) -> &'a HashSet<Revision> {
+    pub fn get_bases(&self) -> &HashSet<Revision> {
         &self.bases
     }
 
@@ -288,7 +288,7 @@ impl<G: Graph> MissingAncestors<G> {
             .collect();
         let revs_visit = &mut revs;
         let mut both_visit: HashSet<Revision> =
-            revs_visit.intersection(&bases_visit).cloned().collect();
+            revs_visit.intersection(bases_visit).cloned().collect();
         if revs_visit.is_empty() {
             return Ok(Vec::new());
         }
@@ -357,7 +357,6 @@ mod tests {
 
     use super::*;
     use crate::testing::{SampleGraph, VecGraph};
-    use std::iter::FromIterator;
 
     fn list_ancestors<G: Graph>(
         graph: G,
@@ -504,18 +503,18 @@ mod tests {
             MissingAncestors::new(SampleGraph, [5, 3, 1, 3].iter().cloned());
         let mut as_vec: Vec<Revision> =
             missing_ancestors.get_bases().iter().cloned().collect();
-        as_vec.sort();
+        as_vec.sort_unstable();
         assert_eq!(as_vec, [1, 3, 5]);
         assert_eq!(missing_ancestors.max_base, 5);
 
         missing_ancestors.add_bases([3, 7, 8].iter().cloned());
         as_vec = missing_ancestors.get_bases().iter().cloned().collect();
-        as_vec.sort();
+        as_vec.sort_unstable();
         assert_eq!(as_vec, [1, 3, 5, 7, 8]);
         assert_eq!(missing_ancestors.max_base, 8);
 
         as_vec = missing_ancestors.bases_heads()?.iter().cloned().collect();
-        as_vec.sort();
+        as_vec.sort_unstable();
         assert_eq!(as_vec, [3, 5, 7, 8]);
         Ok(())
     }
@@ -532,7 +531,7 @@ mod tests {
             .remove_ancestors_from(&mut revset)
             .unwrap();
         let mut as_vec: Vec<Revision> = revset.into_iter().collect();
-        as_vec.sort();
+        as_vec.sort_unstable();
         assert_eq!(as_vec.as_slice(), expected);
     }
 
@@ -573,6 +572,7 @@ mod tests {
     /// the one in test-ancestor.py. An early version of Rust MissingAncestors
     /// failed this, yet none of the integration tests of the whole suite
     /// catched it.
+    #[allow(clippy::unnecessary_cast)]
     #[test]
     fn test_remove_ancestors_from_case1() {
         let graph: VecGraph = vec![

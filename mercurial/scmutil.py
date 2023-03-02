@@ -1219,7 +1219,7 @@ def cleanupnodes(
                 )
 
 
-def addremove(repo, matcher, prefix, uipathfn, opts=None):
+def addremove(repo, matcher, prefix, uipathfn, opts=None, open_tr=None):
     if opts is None:
         opts = {}
     m = matcher
@@ -1279,7 +1279,9 @@ def addremove(repo, matcher, prefix, uipathfn, opts=None):
         repo, m, added + unknown, removed + deleted, similarity, uipathfn
     )
 
-    if not dry_run:
+    if not dry_run and (unknown or forgotten or deleted or renames):
+        if open_tr is not None:
+            open_tr()
         _markchanges(repo, unknown + forgotten, deleted, renames)
 
     for f in rejected:
@@ -1863,7 +1865,12 @@ def gdinitconfig(ui):
 
 
 def gddeltaconfig(ui):
-    """helper function to know if incoming delta should be optimised"""
+    """helper function to know if incoming deltas should be optimized
+
+    The `format.generaldelta` config is an old form of the config that also
+    implies that incoming delta-bases should be never be trusted. This function
+    exists for this purpose.
+    """
     # experimental config: format.generaldelta
     return ui.configbool(b'format', b'generaldelta')
 

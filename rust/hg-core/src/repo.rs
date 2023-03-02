@@ -9,7 +9,7 @@ use crate::errors::{HgError, IoResultExt};
 use crate::lock::{try_with_lock_no_wait, LockError};
 use crate::manifest::{Manifest, Manifestlog};
 use crate::revlog::filelog::Filelog;
-use crate::revlog::revlog::RevlogError;
+use crate::revlog::RevlogError;
 use crate::utils::debug::debug_wait_for_file_or_print;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
@@ -25,6 +25,8 @@ use std::io::Write as IoWrite;
 use std::path::{Path, PathBuf};
 
 const V2_MAX_READ_ATTEMPTS: usize = 5;
+
+type DirstateMapIdentity = (Option<u64>, Option<Vec<u8>>, usize);
 
 /// A repository on disk
 pub struct Repo {
@@ -71,9 +73,9 @@ impl Repo {
                 return Ok(ancestor.to_path_buf());
             }
         }
-        return Err(RepoError::NotFound {
+        Err(RepoError::NotFound {
             at: current_directory,
-        });
+        })
     }
 
     /// Find a repository, either at the given path (which must contain a `.hg`
@@ -90,13 +92,11 @@ impl Repo {
     ) -> Result<Self, RepoError> {
         if let Some(root) = explicit_path {
             if is_dir(root.join(".hg"))? {
-                Self::new_at_path(root.to_owned(), config)
+                Self::new_at_path(root, config)
             } else if is_file(&root)? {
                 Err(HgError::unsupported("bundle repository").into())
             } else {
-                Err(RepoError::NotFound {
-                    at: root.to_owned(),
-                })
+                Err(RepoError::NotFound { at: root })
             }
         } else {
             let root = Self::find_repo_root()?;
@@ -111,9 +111,8 @@ impl Repo {
     ) -> Result<Self, RepoError> {
         let dot_hg = working_directory.join(".hg");
 
-        let mut repo_config_files = Vec::new();
-        repo_config_files.push(dot_hg.join("hgrc"));
-        repo_config_files.push(dot_hg.join("hgrc-not-shared"));
+        let mut repo_config_files =
+            vec![dot_hg.join("hgrc"), dot_hg.join("hgrc-not-shared")];
 
         let hg_vfs = Vfs { base: &dot_hg };
         let mut reqs = requirements::load_if_exists(hg_vfs)?;
@@ -256,7 +255,7 @@ impl Repo {
             .hg_vfs()
             .read("dirstate")
             .io_not_found_as_none()?
-            .unwrap_or(Vec::new()))
+            .unwrap_or_default())
     }
 
     fn dirstate_identity(&self) -> Result<Option<u64>, HgError> {
@@ -283,8 +282,7 @@ impl Repo {
                 crate::dirstate_tree::on_disk::read_docket(&dirstate)?;
             docket.parents()
         } else {
-            crate::dirstate::parsers::parse_dirstate_parents(&dirstate)?
-                .clone()
+            *crate::dirstate::parsers::parse_dirstate_parents(&dirstate)?
         };
         self.dirstate_parents.set(parents);
         Ok(parents)
@@ -296,7 +294,7 @@ impl Repo {
     /// Namely, the inode, data file uuid and the data size.
     fn get_dirstate_data_file_integrity(
         &self,
-    ) -> Result<(Option<u64>, Option<Vec<u8>>, usize), HgError> {
+    ) -> Result<DirstateMapIdentity, HgError> {
         assert!(
             self.has_dirstate_v2(),
             "accessing dirstate data file ID without dirstate-v2"
@@ -345,7 +343,7 @@ impl Repo {
                             );
                             continue;
                         }
-                        _ => return Err(e.into()),
+                        _ => return Err(e),
                     },
                 }
             }
@@ -354,7 +352,7 @@ impl Repo {
                 255,
                 None,
             );
-            return Err(DirstateError::Common(error));
+            Err(DirstateError::Common(error))
         } else {
             debug_wait_for_file_or_print(
                 self.config(),
@@ -362,7 +360,7 @@ impl Repo {
             );
             let identity = self.dirstate_identity()?;
             let dirstate_file_contents = self.dirstate_file_contents()?;
-            return if dirstate_file_contents.is_empty() {
+            if dirstate_file_contents.is_empty() {
                 self.dirstate_parents.set(DirstateParents::NULL);
                 Ok(OwningDirstateMap::new_empty(Vec::new()))
             } else {
@@ -372,7 +370,7 @@ impl Repo {
                 )?;
                 self.dirstate_parents.set(parents);
                 Ok(map)
-            };
+            }
         }
     }
 

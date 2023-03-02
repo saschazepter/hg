@@ -8,8 +8,6 @@ use crate::utils::hg_path::HgPath;
 use crate::{dirstate::EntryState, DirstateEntry, DirstateParents};
 use byteorder::{BigEndian, WriteBytesExt};
 use bytes_cast::{unaligned, BytesCast};
-use micro_timer::timed;
-use std::convert::TryFrom;
 
 /// Parents are stored in the dirstate as byte hashes.
 pub const PARENT_SIZE: usize = 20;
@@ -30,7 +28,7 @@ pub fn parse_dirstate_parents(
     Ok(parents)
 }
 
-#[timed]
+#[logging_timer::time("trace")]
 pub fn parse_dirstate(contents: &[u8]) -> Result<ParseResult, HgError> {
     let mut copies = Vec::new();
     let mut entries = Vec::new();

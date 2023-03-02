@@ -142,6 +142,12 @@ diff even works transparently in both systems:
    alpha
   +blah
 
+status --all shows all files, including clean:
+  $ hg status --all
+  M alpha
+  ? gamma
+  C beta
+
 Remove a file, it shows as such:
   $ rm alpha
   $ hg status
@@ -306,7 +312,7 @@ This covers gitlog._partialmatch()
   
   $ hg log -r dead
   abort: unknown revision 'dead'
-  [255]
+  [10]
 
 This coveres changelog.findmissing()
   $ hg merge --preview 3d9be8deba43

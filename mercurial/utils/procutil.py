@@ -18,6 +18,10 @@ import sys
 import threading
 import time
 
+from typing import (
+    BinaryIO,
+)
+
 from ..i18n import _
 from ..pycompat import (
     getattr,
@@ -29,6 +33,7 @@ from .. import (
     error,
     policy,
     pycompat,
+    typelib,
 )
 
 # Import like this to keep import-checker happy
@@ -118,8 +123,8 @@ def unwrap_line_buffered(stream):
     return stream
 
 
-class WriteAllWrapper:
-    def __init__(self, orig):
+class WriteAllWrapper(typelib.BinaryIO_Proxy):
+    def __init__(self, orig: BinaryIO):
         self.orig = orig
 
     def __getattr__(self, attr):
@@ -580,7 +585,7 @@ def hgcmd():
     return _gethgcmd()
 
 
-def rundetached(args, condfn):
+def rundetached(args, condfn) -> int:
     """Execute the argument list in a detached process.
 
     condfn is a callable which is called repeatedly and should return
@@ -615,6 +620,12 @@ def rundetached(args, condfn):
     finally:
         if prevhandler is not None:
             signal.signal(signal.SIGCHLD, prevhandler)
+
+        # pytype seems to get confused by not having a return in the finally
+        # block, and thinks the return value should be Optional[int] here.  It
+        # appears to be https://github.com/google/pytype/issues/938, without
+        # the `with` clause.
+        pass  # pytype: disable=bad-return-type
 
 
 @contextlib.contextmanager

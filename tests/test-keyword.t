@@ -492,7 +492,8 @@ rollback and revert expansion
   $ echo '$Id$' > y
   $ echo '$Id$' > z
   $ hg add y
-  $ hg commit -Am "rollback only" z
+  $ hg add z
+  $ hg commit -m "rollback only" z
   $ cat z
   $Id: z,v 45a5d3adce53 1970/01/01 00:00:00 test $
   $ hg --verbose rollback
@@ -838,12 +839,7 @@ Stat, verify and show custom expansion (firstline)
 
   $ hg status
   ? c
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 4 changes to 3 files
+  $ hg verify -q
   $ cat a b
   expand $Id: a bb948857c743 Thu, 01 Jan 1970 00:00:02 +0000 user $
   do not process $Id:

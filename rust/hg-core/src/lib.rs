@@ -30,6 +30,7 @@ pub mod matchers;
 pub mod repo;
 pub mod revlog;
 pub use revlog::*;
+pub mod checkexec;
 pub mod config;
 pub mod lock;
 pub mod logging;
@@ -46,10 +47,6 @@ pub use filepatterns::{
 use std::collections::HashMap;
 use std::fmt;
 use twox_hash::RandomXxHashBuilder64;
-
-/// This is a contract between the `micro-timer` crate and us, to expose
-/// the `log` crate as `crate::log`.
-use log;
 
 pub type LineNumber = usize;
 

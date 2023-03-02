@@ -27,11 +27,8 @@ use crate::filepatterns::normalize_path_bytes;
 use std::borrow::ToOwned;
 use std::collections::HashSet;
 use std::fmt::{Display, Error, Formatter};
-use std::iter::FromIterator;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-
-use micro_timer::timed;
 
 #[derive(Debug, PartialEq)]
 pub enum VisitChildrenSet {
@@ -305,11 +302,11 @@ impl<'a> Matcher for IncludeMatcher<'a> {
     }
 
     fn matches(&self, filename: &HgPath) -> bool {
-        (self.match_fn)(filename.as_ref())
+        (self.match_fn)(filename)
     }
 
     fn visit_children_set(&self, directory: &HgPath) -> VisitChildrenSet {
-        let dir = directory.as_ref();
+        let dir = directory;
         if self.prefix && self.roots.contains(dir) {
             return VisitChildrenSet::Recursive;
         }
@@ -321,11 +318,11 @@ impl<'a> Matcher for IncludeMatcher<'a> {
             return VisitChildrenSet::This;
         }
 
-        if self.parents.contains(directory.as_ref()) {
+        if self.parents.contains(dir.as_ref()) {
             let multiset = self.get_all_parents_children();
             if let Some(children) = multiset.get(dir) {
                 return VisitChildrenSet::Set(
-                    children.into_iter().map(HgPathBuf::from).collect(),
+                    children.iter().map(HgPathBuf::from).collect(),
                 );
             }
         }
@@ -449,7 +446,7 @@ impl Matcher for IntersectionMatcher {
                 VisitChildrenSet::This
             }
             (VisitChildrenSet::Set(m1), VisitChildrenSet::Set(m2)) => {
-                let set: HashSet<_> = m1.intersection(&m2).cloned().collect();
+                let set: HashSet<_> = m1.intersection(m2).cloned().collect();
                 if set.is_empty() {
                     VisitChildrenSet::Empty
                 } else {
@@ -612,7 +609,7 @@ impl RegexMatcher {
 /// This can fail when the pattern is invalid or not supported by the
 /// underlying engine (the `regex` crate), for instance anything with
 /// back-references.
-#[timed]
+#[logging_timer::time("trace")]
 fn re_matcher(pattern: &[u8]) -> PatternResult<RegexMatcher> {
     use std::io::Write;
 
@@ -702,10 +699,9 @@ fn roots_and_dirs(
             PatternSyntax::RootGlob | PatternSyntax::Glob => {
                 let mut root = HgPathBuf::new();
                 for p in pattern.split(|c| *c == b'/') {
-                    if p.iter().any(|c| match *c {
-                        b'[' | b'{' | b'*' | b'?' => true,
-                        _ => false,
-                    }) {
+                    if p.iter()
+                        .any(|c| matches!(*c, b'[' | b'{' | b'*' | b'?'))
+                    {
                         break;
                     }
                     root.push(HgPathBuf::from_bytes(p).as_ref());
@@ -783,10 +779,10 @@ fn roots_dirs_and_parents(
 
 /// Returns a function that checks whether a given file (in the general sense)
 /// should be matched.
-fn build_match<'a, 'b>(
+fn build_match<'a>(
     ignore_patterns: Vec<IgnorePattern>,
-) -> PatternResult<(Vec<u8>, IgnoreFnType<'b>)> {
-    let mut match_funcs: Vec<IgnoreFnType<'b>> = vec![];
+) -> PatternResult<(Vec<u8>, IgnoreFnType<'a>)> {
+    let mut match_funcs: Vec<IgnoreFnType<'a>> = vec![];
     // For debugging and printing
     let mut patterns = vec![];
 
@@ -924,9 +920,8 @@ impl<'a> IncludeMatcher<'a> {
             dirs,
             parents,
         } = roots_dirs_and_parents(&ignore_patterns)?;
-        let prefix = ignore_patterns.iter().all(|k| match k.syntax {
-            PatternSyntax::Path | PatternSyntax::RelPath => true,
-            _ => false,
+        let prefix = ignore_patterns.iter().all(|k| {
+            matches!(k.syntax, PatternSyntax::Path | PatternSyntax::RelPath)
         });
         let (patterns, match_fn) = build_match(ignore_patterns)?;
 

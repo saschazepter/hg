@@ -382,8 +382,7 @@ def parsev1commandresponse(ui, baseurl, requrl, qs, resp, compressible):
 
 class httppeer(wireprotov1peer.wirepeer):
     def __init__(self, ui, path, url, opener, requestbuilder, caps):
-        self.ui = ui
-        self._path = path
+        super().__init__(ui, path=path)
         self._url = url
         self._caps = caps
         self.limitedarguments = caps is not None and b'httppostargs' not in caps
@@ -398,13 +397,10 @@ class httppeer(wireprotov1peer.wirepeer):
     # Begin of ipeerconnection interface.
 
     def url(self):
-        return self._path
+        return self.path.loc
 
     def local(self):
         return None
-
-    def peer(self):
-        return self
 
     def canpush(self):
         return True
@@ -605,14 +601,13 @@ def makepeer(ui, path, opener=None, requestbuilder=urlreq.request):
     ``requestbuilder`` is the type used for constructing HTTP requests.
     It exists as an argument so extensions can override the default.
     """
-    u = urlutil.url(path)
-    if u.query or u.fragment:
-        raise error.Abort(
-            _(b'unsupported URL component: "%s"') % (u.query or u.fragment)
-        )
+    if path.url.query or path.url.fragment:
+        msg = _(b'unsupported URL component: "%s"')
+        msg %= path.url.query or path.url.fragment
+        raise error.Abort(msg)
 
     # urllib cannot handle URLs with embedded user or passwd.
-    url, authinfo = u.authinfo()
+    url, authinfo = path.url.authinfo()
     ui.debug(b'using %s\n' % url)
 
     opener = opener or urlmod.opener(ui, authinfo)
@@ -624,11 +619,11 @@ def makepeer(ui, path, opener=None, requestbuilder=urlreq.request):
     )
 
 
-def instance(ui, path, create, intents=None, createopts=None):
+def make_peer(ui, path, create, intents=None, createopts=None):
     if create:
         raise error.Abort(_(b'cannot create new http repository'))
     try:
-        if path.startswith(b'https:') and not urlmod.has_https:
+        if path.url.scheme == b'https' and not urlmod.has_https:
             raise error.Abort(
                 _(b'Python support for SSL and HTTPS is not installed')
             )
@@ -638,7 +633,7 @@ def instance(ui, path, create, intents=None, createopts=None):
         return inst
     except error.RepoError as httpexception:
         try:
-            r = statichttprepo.instance(ui, b"static-" + path, create)
+            r = statichttprepo.make_peer(ui, b"static-" + path.loc, create)
             ui.note(_(b'(falling back to static-http)\n'))
             return r
         except error.RepoError:

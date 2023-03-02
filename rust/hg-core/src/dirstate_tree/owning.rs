@@ -24,7 +24,7 @@ impl OwningDirstateMap {
 
         OwningDirstateMapBuilder {
             on_disk,
-            map_builder: |bytes| DirstateMap::empty(&bytes),
+            map_builder: |bytes| DirstateMap::empty(bytes),
         }
         .build()
     }
@@ -43,7 +43,7 @@ impl OwningDirstateMap {
             OwningDirstateMapTryBuilder {
                 on_disk,
                 map_builder: |bytes| {
-                    DirstateMap::new_v1(&bytes, identity).map(|(dmap, p)| {
+                    DirstateMap::new_v1(bytes, identity).map(|(dmap, p)| {
                         parents = p.unwrap_or(DirstateParents::NULL);
                         dmap
                     })
@@ -69,9 +69,7 @@ impl OwningDirstateMap {
         OwningDirstateMapTryBuilder {
             on_disk,
             map_builder: |bytes| {
-                DirstateMap::new_v2(
-                    &bytes, data_size, metadata, uuid, identity,
-                )
+                DirstateMap::new_v2(bytes, data_size, metadata, uuid, identity)
             },
         }
         .try_build()

@@ -77,8 +77,8 @@ Example usage:
 Developing Rust
 ===============
 
-The current version of Rust in use is ``1.48.0``, because it's what Debian
-stable has. You can use ``rustup override set 1.48.0`` at the root of the repo
+The current version of Rust in use is ``1.61.0``, because it's what Debian
+testing has. You can use ``rustup override set 1.61.0`` at the root of the repo
 to make it easier on you.
 
 Go to the ``hg-cpython`` folder::

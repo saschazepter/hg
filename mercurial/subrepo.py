@@ -569,9 +569,20 @@ class hgsubrepo(abstractsubrepo):
 
     @annotatesubrepoerror
     def add(self, ui, match, prefix, uipathfn, explicitonly, **opts):
-        return cmdutil.add(
-            ui, self._repo, match, prefix, uipathfn, explicitonly, **opts
-        )
+        # XXX Ideally, we could let the caller take the `changing_files`
+        # context.  However this is not an abstraction that make sense for
+        # other repository types, and leaking that details purely related to
+        # dirstate seems unfortunate. So for now the context will be used here.
+        with self._repo.wlock(), self._repo.dirstate.changing_files(self._repo):
+            return cmdutil.add(
+                ui,
+                self._repo,
+                match,
+                prefix,
+                uipathfn,
+                explicitonly,
+                **opts,
+            )
 
     @annotatesubrepoerror
     def addremove(self, m, prefix, uipathfn, opts):
@@ -580,7 +591,18 @@ class hgsubrepo(abstractsubrepo):
         # be used to process sibling subrepos however.
         opts = copy.copy(opts)
         opts[b'subrepos'] = True
-        return scmutil.addremove(self._repo, m, prefix, uipathfn, opts)
+        # XXX Ideally, we could let the caller take the `changing_files`
+        # context.  However this is not an abstraction that make sense for
+        # other repository types, and leaking that details purely related to
+        # dirstate seems unfortunate. So for now the context will be used here.
+        with self._repo.wlock(), self._repo.dirstate.changing_files(self._repo):
+            return scmutil.addremove(
+                self._repo,
+                m,
+                prefix,
+                uipathfn,
+                opts,
+            )
 
     @annotatesubrepoerror
     def cat(self, match, fm, fntemplate, prefix, **opts):
@@ -621,7 +643,7 @@ class hgsubrepo(abstractsubrepo):
                 match,
                 prefix=prefix,
                 listsubrepos=True,
-                **opts
+                **opts,
             )
         except error.RepoLookupError as inst:
             self.ui.warn(
@@ -946,16 +968,21 @@ class hgsubrepo(abstractsubrepo):
 
     @annotatesubrepoerror
     def forget(self, match, prefix, uipathfn, dryrun, interactive):
-        return cmdutil.forget(
-            self.ui,
-            self._repo,
-            match,
-            prefix,
-            uipathfn,
-            True,
-            dryrun=dryrun,
-            interactive=interactive,
-        )
+        # XXX Ideally, we could let the caller take the `changing_files`
+        # context.  However this is not an abstraction that make sense for
+        # other repository types, and leaking that details purely related to
+        # dirstate seems unfortunate. So for now the context will be used here.
+        with self._repo.wlock(), self._repo.dirstate.changing_files(self._repo):
+            return cmdutil.forget(
+                self.ui,
+                self._repo,
+                match,
+                prefix,
+                uipathfn,
+                True,
+                dryrun=dryrun,
+                interactive=interactive,
+            )
 
     @annotatesubrepoerror
     def removefiles(
@@ -969,17 +996,22 @@ class hgsubrepo(abstractsubrepo):
         dryrun,
         warnings,
     ):
-        return cmdutil.remove(
-            self.ui,
-            self._repo,
-            matcher,
-            prefix,
-            uipathfn,
-            after,
-            force,
-            subrepos,
-            dryrun,
-        )
+        # XXX Ideally, we could let the caller take the `changing_files`
+        # context.  However this is not an abstraction that make sense for
+        # other repository types, and leaking that details purely related to
+        # dirstate seems unfortunate. So for now the context will be used here.
+        with self._repo.wlock(), self._repo.dirstate.changing_files(self._repo):
+            return cmdutil.remove(
+                self.ui,
+                self._repo,
+                matcher,
+                prefix,
+                uipathfn,
+                after,
+                force,
+                subrepos,
+                dryrun,
+            )
 
     @annotatesubrepoerror
     def revert(self, substate, *pats, **opts):
@@ -1009,7 +1041,12 @@ class hgsubrepo(abstractsubrepo):
             pats = [b'set:modified()']
         else:
             pats = []
-        cmdutil.revert(self.ui, self._repo, ctx, *pats, **opts)
+        # XXX Ideally, we could let the caller take the `changing_files`
+        # context.  However this is not an abstraction that make sense for
+        # other repository types, and leaking that details purely related to
+        # dirstate seems unfortunate. So for now the context will be used here.
+        with self._repo.wlock(), self._repo.dirstate.changing_files(self._repo):
+            cmdutil.revert(self.ui, self._repo, ctx, *pats, **opts)
 
     def shortid(self, revid):
         return revid[:12]
@@ -1123,7 +1160,7 @@ class svnsubrepo(abstractsubrepo):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=procutil.tonativeenv(env),
-            **extrakw
+            **extrakw,
         )
         stdout, stderr = map(util.fromnativeeol, p.communicate())
         stderr = stderr.strip()
@@ -1488,7 +1525,7 @@ class gitsubrepo(abstractsubrepo):
             close_fds=procutil.closefds,
             stdout=subprocess.PIPE,
             stderr=errpipe,
-            **extrakw
+            **extrakw,
         )
         if stream:
             return p.stdout, None

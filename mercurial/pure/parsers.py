@@ -435,6 +435,11 @@ class DirstateItem:
         return self._wc_tracked and not (self._p1_tracked or self._p2_info)
 
     @property
+    def modified(self):
+        """True if the file has been modified"""
+        return self._wc_tracked and self._p1_tracked and self._p2_info
+
+    @property
     def maybe_clean(self):
         """True if the file has a chance to be in the "clean" state"""
         if not self._wc_tracked:

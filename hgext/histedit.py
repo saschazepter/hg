@@ -581,7 +581,7 @@ class histeditaction:
         with repo.ui.silent():
             hg.update(repo, self.state.parentctxnode, quietempty=True)
         stats = applychanges(repo.ui, repo, rulectx, {})
-        repo.dirstate.setbranch(rulectx.branch())
+        repo.dirstate.setbranch(rulectx.branch(), repo.currenttransaction())
         if stats.unresolvedcount:
             raise error.InterventionRequired(
                 _(b'Fix up the change (%s %s)') % (self.verb, short(self.node)),
@@ -1051,12 +1051,11 @@ def findoutgoing(ui, repo, remote=None, force=False, opts=None):
     if opts is None:
         opts = {}
     path = urlutil.get_unique_push_path(b'histedit', repo, ui, remote)
-    dest = path.pushloc or path.loc
 
-    ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(dest))
+    ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(path.loc))
 
     revs, checkout = hg.addbranchrevs(repo, repo, (path.branch, []), None)
-    other = hg.peer(repo, opts, dest)
+    other = hg.peer(repo, opts, path)
 
     if revs:
         revs = [repo.lookup(rev) for rev in revs]

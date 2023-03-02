@@ -17,7 +17,7 @@
   >   try:
   >     for file in pats:
   >       if opts.get('normal_lookup'):
-  >         with repo.dirstate.parentchange():
+  >         with repo.dirstate.changing_parents(repo):
   >             repo.dirstate.update_file(
   >                 file,
   >                 p1_tracked=True,

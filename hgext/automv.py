@@ -59,21 +59,29 @@ def mvcheck(orig, ui, repo, *pats, **opts):
     opts = pycompat.byteskwargs(opts)
     renames = None
     disabled = opts.pop(b'no_automv', False)
-    if not disabled:
-        threshold = ui.configint(b'automv', b'similarity')
-        if not 0 <= threshold <= 100:
-            raise error.Abort(_(b'automv.similarity must be between 0 and 100'))
-        if threshold > 0:
-            match = scmutil.match(repo[None], pats, opts)
-            added, removed = _interestingfiles(repo, match)
-            uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
-            renames = _findrenames(
-                repo, uipathfn, added, removed, threshold / 100.0
-            )
-
     with repo.wlock():
+        if not disabled:
+            threshold = ui.configint(b'automv', b'similarity')
+            if not 0 <= threshold <= 100:
+                raise error.Abort(
+                    _(b'automv.similarity must be between 0 and 100')
+                )
+            if threshold > 0:
+                match = scmutil.match(repo[None], pats, opts)
+                added, removed = _interestingfiles(repo, match)
+                uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
+                renames = _findrenames(
+                    repo, uipathfn, added, removed, threshold / 100.0
+                )
+
         if renames is not None:
-            scmutil._markchanges(repo, (), (), renames)
+            with repo.dirstate.changing_files(repo):
+                # XXX this should be wider and integrated with the commit
+                # transaction. At the same time as we do the `addremove` logic
+                # for commit.  However we can't really do better with the
+                # current extension structure, and this is not worse than what
+                # happened before.
+                scmutil._markchanges(repo, (), (), renames)
         return orig(ui, repo, *pats, **pycompat.strkwargs(opts))
 
 

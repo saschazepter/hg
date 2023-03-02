@@ -139,7 +139,7 @@ def reposetup(ui, repo):
             except error.LockError:
                 wlock = util.nullcontextmanager()
                 gotlock = False
-            with wlock:
+            with wlock, self.dirstate.running_status(self):
 
                 # First check if paths or patterns were specified on the
                 # command line.  If there were, and they don't match any
@@ -321,6 +321,8 @@ def reposetup(ui, repo):
 
                 if gotlock:
                     lfdirstate.write(self.currenttransaction())
+                else:
+                    lfdirstate.invalidate()
 
             self.lfstatus = True
             return scmutil.status(*result)

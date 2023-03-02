@@ -15,6 +15,7 @@ from .utils import stringutil
 from . import (
     error,
     pycompat,
+    requirements,
     revlog,
     util,
 )
@@ -210,6 +211,12 @@ class verifier:
         self._crosscheckfiles(filelinkrevs, filenodes)
         totalfiles, filerevisions = self._verifyfiles(filenodes, filelinkrevs)
 
+        if self.errors:
+            ui.warn(_(b"not checking dirstate because of previous errors\n"))
+            dirstate_errors = 0
+        else:
+            dirstate_errors = self._verify_dirstate()
+
         # final report
         ui.status(
             _(b"checked %d changesets with %d changes to %d files\n")
@@ -225,6 +232,11 @@ class verifier:
                 msg = _(b"(first damaged changeset appears to be %d)\n")
                 msg %= min(self.badrevs)
                 ui.warn(msg)
+            if dirstate_errors:
+                ui.warn(
+                    _(b"dirstate inconsistent with current parent's manifest\n")
+                )
+                ui.warn(_(b"%d dirstate errors\n") % dirstate_errors)
             return 1
         return 0
 
@@ -585,3 +597,25 @@ class verifier:
                 self._warn(_(b"warning: orphan data file '%s'") % f)
 
         return len(files), revisions
+
+    def _verify_dirstate(self):
+        """Check that the dirstate is consistent with the parent's manifest"""
+        repo = self.repo
+        ui = self.ui
+        ui.status(_(b"checking dirstate\n"))
+
+        parent1, parent2 = repo.dirstate.parents()
+        m1 = repo[parent1].manifest()
+        m2 = repo[parent2].manifest()
+        dirstate_errors = 0
+
+        is_narrow = requirements.NARROW_REQUIREMENT in repo.requirements
+        narrow_matcher = repo.narrowmatch() if is_narrow else None
+
+        for err in repo.dirstate.verify(m1, m2, parent1, narrow_matcher):
+            ui.error(err)
+            dirstate_errors += 1
+
+        if dirstate_errors:
+            self.errors += dirstate_errors
+        return dirstate_errors

@@ -6,8 +6,8 @@
 // GNU General Public License version 2 or any later version.
 
 use crate::repo::Repo;
-use crate::revlog::revlog::RevlogError;
 use crate::revlog::Node;
+use crate::revlog::RevlogError;
 
 use crate::utils::hg_path::HgPath;
 
@@ -53,10 +53,13 @@ fn find_item<'a>(
     }
 }
 
+// Tuple of (missing, found) paths in the manifest
+type ManifestQueryResponse<'a> = (Vec<(&'a HgPath, Node)>, Vec<&'a HgPath>);
+
 fn find_files_in_manifest<'query>(
     manifest: &Manifest,
     query: impl Iterator<Item = &'query HgPath>,
-) -> Result<(Vec<(&'query HgPath, Node)>, Vec<&'query HgPath>), HgError> {
+) -> Result<ManifestQueryResponse<'query>, HgError> {
     let mut manifest = put_back(manifest.iter());
     let mut res = vec![];
     let mut missing = vec![];
@@ -67,7 +70,7 @@ fn find_files_in_manifest<'query>(
             Some(item) => res.push((file, item)),
         }
     }
-    return Ok((res, missing));
+    Ok((res, missing))
 }
 
 /// Output the given revision of files
@@ -91,10 +94,8 @@ pub fn cat<'a>(
 
     files.sort_unstable();
 
-    let (found, missing) = find_files_in_manifest(
-        &manifest,
-        files.into_iter().map(|f| f.as_ref()),
-    )?;
+    let (found, missing) =
+        find_files_in_manifest(&manifest, files.into_iter())?;
 
     for (file_path, file_node) in found {
         found_any = true;

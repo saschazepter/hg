@@ -1868,13 +1868,12 @@ def outgoing(repo, subset, x):
         dests = []
     missing = set()
     for path in urlutil.get_push_paths(repo, repo.ui, dests):
-        dest = path.pushloc or path.loc
         branches = path.branch, []
 
         revs, checkout = hg.addbranchrevs(repo, repo, branches, [])
         if revs:
             revs = [repo.lookup(rev) for rev in revs]
-        other = hg.peer(repo, {}, dest)
+        other = hg.peer(repo, {}, path)
         try:
             with repo.ui.silent():
                 outgoing = discovery.findcommonoutgoing(
@@ -2130,11 +2129,9 @@ def remote(repo, subset, x):
         dest = getstring(l[1], _(b"remote requires a repository path"))
     if not dest:
         dest = b'default'
-    dest, branches = urlutil.get_unique_pull_path(
-        b'remote', repo, repo.ui, dest
-    )
+    path = urlutil.get_unique_pull_path_obj(b'remote', repo.ui, dest)
 
-    other = hg.peer(repo, {}, dest)
+    other = hg.peer(repo, {}, path)
     n = other.lookup(q)
     if n in repo:
         r = repo[n].rev()

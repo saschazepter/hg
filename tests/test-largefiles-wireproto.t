@@ -151,14 +151,7 @@ largefiles clients refuse to push largefiles repos to vanilla servers
   $ hg commit -m "m2"
   Invoking status precommit hook
   A f2
-  $ hg verify --large
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 2 files
-  searching 1 changesets for largefiles
-  verified existence of 1 revisions of 1 largefiles
+  $ hg verify --large -q
   $ hg serve --config extensions.largefiles=! -R ../r6 -d -p $HGPORT --pid-file ../hg.pid
   $ cat ../hg.pid >> $DAEMON_PIDS
   $ hg push http://localhost:$HGPORT
@@ -249,6 +242,7 @@ test 'verify' with remotestore:
   checking manifests
   crosschecking files in changesets and manifests
   checking files
+  checking dirstate
   checked 1 changesets with 1 changes to 1 files
   searching 1 changesets for largefiles
   changeset 0:cf03e5bb9936: f1 missing
@@ -280,14 +274,7 @@ largefiles pulled on update - a largefile corrupted on the server:
   $ [ ! -f http-clone/.hg/largefiles/02a439e5c31c526465ab1a0ca1f431f76b827b90 ]
   $ [ ! -f http-clone/f1 ]
   $ [ ! -f http-clone-usercache ]
-  $ hg -R http-clone verify --large --lfc
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 1 changes to 1 files
-  searching 1 changesets for largefiles
-  verified contents of 1 revisions of 1 largefiles
+  $ hg -R http-clone verify --large --lfc -q
   $ hg -R http-clone up -Cqr null
 
 largefiles pulled on update - no server side problems:
@@ -343,14 +330,7 @@ largefiles should batch verify remote calls
   adding file changes
   added 2 changesets with 2 changes to 2 files
   new changesets 567253b0f523:04d19c27a332 (2 drafts)
-  $ hg -R batchverifyclone verify --large --lfa
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 2 files
-  searching 2 changesets for largefiles
-  verified existence of 2 revisions of 2 largefiles
+  $ hg -R batchverifyclone verify --large --lfa -q
   $ tail -1 access.log
   $LOCALIP - - [$LOGDATE$] "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=statlfile+sha%3D972a1a11f19934401291cc99117ec614933374ce%3Bstatlfile+sha%3Dc801c9cfe94400963fcb683246217d5db77f9a9a x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
   $ hg -R batchverifyclone update
@@ -381,14 +361,7 @@ available locally.
   added 1 changesets with 1 changes to 1 files
   new changesets 6bba8cb6935d (1 drafts)
   (run 'hg update' to get a working copy)
-  $ hg -R batchverifyclone verify --lfa
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 3 changes to 3 files
-  searching 3 changesets for largefiles
-  verified existence of 3 revisions of 3 largefiles
+  $ hg -R batchverifyclone verify --lfa -q
   $ tail -1 access.log
   $LOCALIP - - [$LOGDATE$] "GET /?cmd=statlfile HTTP/1.1" 200 - x-hgarg-1:sha=c8559c3c9cfb42131794b7d8009230403b9b454c x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
 

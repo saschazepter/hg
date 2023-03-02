@@ -779,7 +779,7 @@ def writeworkingdir(repo, ctx, filedata, replacements):
     newp1 = replacements.get(oldp1, oldp1)
     if newp1 != oldp1:
         assert repo.dirstate.p2() == nullid
-        with repo.dirstate.parentchange():
+        with repo.dirstate.changing_parents(repo):
             scmutil.movedirstate(repo, repo[newp1])
 
 
