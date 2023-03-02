@@ -1765,16 +1765,12 @@ class dirstate:
 
         This is only used to do `hg rollback` related backup in the transaction
         """
-        if not self._opener.exists(self._filename):
-            # no data every written to disk yet
-            return ()
-        elif self._use_dirstate_v2:
-            return (
-                self._filename,
-                self._map.docket.data_filename(),
-            )
-        else:
-            return (self._filename,)
+        files = [b'branch']
+        if self._opener.exists(self._filename):
+            files.append(self._filename)
+            if self._use_dirstate_v2:
+                files.append(self._map.docket.data_filename())
+        return tuple(files)
 
     def verify(self, m1, m2, p1, narrow_matcher=None):
         """
