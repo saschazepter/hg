@@ -1502,7 +1502,9 @@ def commitnode(repo, editor, extra, user, date, commitmsg):
             text=commitmsg, user=user, date=date, extra=extra, editor=editor
         )
 
-        repo.dirstate.setbranch(repo[newnode].branch())
+        repo.dirstate.setbranch(
+            repo[newnode].branch(), repo.currenttransaction()
+        )
         return newnode
 
 
