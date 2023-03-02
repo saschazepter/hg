@@ -581,7 +581,7 @@ class histeditaction:
         with repo.ui.silent():
             hg.update(repo, self.state.parentctxnode, quietempty=True)
         stats = applychanges(repo.ui, repo, rulectx, {})
-        repo.dirstate.setbranch(rulectx.branch())
+        repo.dirstate.setbranch(rulectx.branch(), repo.currenttransaction())
         if stats.unresolvedcount:
             raise error.InterventionRequired(
                 _(b'Fix up the change (%s %s)') % (self.verb, short(self.node)),
