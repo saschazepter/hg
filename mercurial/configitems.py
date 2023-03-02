@@ -652,6 +652,15 @@ coreconfigitem(
     b'deprec-warn',
     default=False,
 )
+# possible values:
+# - auto (the default)
+# - force-append
+# - force-new
+coreconfigitem(
+    b'devel',
+    b'dirstate.v2.data_update_mode',
+    default="auto",
+)
 coreconfigitem(
     b'devel',
     b'disableloaddefaultcerts',
@@ -688,6 +697,42 @@ coreconfigitem(
     b'devel',
     b'serverrequirecert',
     default=False,
+)
+# Makes the status algorithm wait for the existence of this file
+# (or until a timeout of `devel.sync.status.pre-dirstate-write-file-timeout`
+# seconds) before taking the lock and writing the dirstate.
+# Status signals that it's ready to wait by creating a file
+# with the same name + `.waiting`.
+# Useful when testing race conditions.
+coreconfigitem(
+    b'devel',
+    b'sync.status.pre-dirstate-write-file',
+    default=None,
+)
+coreconfigitem(
+    b'devel',
+    b'sync.status.pre-dirstate-write-file-timeout',
+    default=2,
+)
+coreconfigitem(
+    b'devel',
+    b'sync.dirstate.post-docket-read-file',
+    default=None,
+)
+coreconfigitem(
+    b'devel',
+    b'sync.dirstate.post-docket-read-file-timeout',
+    default=2,
+)
+coreconfigitem(
+    b'devel',
+    b'sync.dirstate.pre-read-file',
+    default=None,
+)
+coreconfigitem(
+    b'devel',
+    b'sync.dirstate.pre-read-file-timeout',
+    default=2,
 )
 coreconfigitem(
     b'devel',
