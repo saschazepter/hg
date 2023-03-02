@@ -7,7 +7,7 @@
 
 use crate::repo::Repo;
 use crate::requirements;
-use crate::revlog::revlog::{Revlog, RevlogError};
+use crate::revlog::{Revlog, RevlogError};
 
 /// Kind of data to debug
 #[derive(Debug, Copy, Clone)]

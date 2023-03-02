@@ -7,12 +7,7 @@
   >     hg commit -A -m $i
   > done
   adding foo
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 9 changesets with 9 changes to 1 files
+  $ hg verify -q
   $ hg serve -p $HGPORT -d --pid-file=hg.pid
   $ cat hg.pid >> $DAEMON_PIDS
   $ cd ..
@@ -365,12 +360,7 @@ test outgoing
   >     echo $i >> foo
   >     hg commit -A -m $i
   > done
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 14 changesets with 14 changes to 1 files
+  $ hg verify -q
   $ cd ..
   $ hg -R test-dev outgoing test
   comparing with test

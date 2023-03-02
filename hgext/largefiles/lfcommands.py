@@ -219,7 +219,9 @@ def lfconvert(ui, src, dest, *pats, **opts):
         success = True
     finally:
         if tolfile:
-            rdst.dirstate.clear()
+            # XXX is this the right context semantically ?
+            with rdst.dirstate.changing_parents(rdst):
+                rdst.dirstate.clear()
             release(dstlock, dstwlock)
         if not success:
             # we failed, remove the new directory
@@ -517,53 +519,52 @@ def updatelfiles(
             filelist = set(filelist)
             lfiles = [f for f in lfiles if f in filelist]
 
-        with lfdirstate.parentchange():
-            update = {}
-            dropped = set()
-            updated, removed = 0, 0
-            wvfs = repo.wvfs
-            wctx = repo[None]
-            for lfile in lfiles:
-                lfileorig = os.path.relpath(
-                    scmutil.backuppath(ui, repo, lfile), start=repo.root
-                )
-                standin = lfutil.standin(lfile)
-                standinorig = os.path.relpath(
-                    scmutil.backuppath(ui, repo, standin), start=repo.root
-                )
-                if wvfs.exists(standin):
-                    if wvfs.exists(standinorig) and wvfs.exists(lfile):
-                        shutil.copyfile(wvfs.join(lfile), wvfs.join(lfileorig))
-                        wvfs.unlinkpath(standinorig)
-                    expecthash = lfutil.readasstandin(wctx[standin])
-                    if expecthash != b'':
-                        if lfile not in wctx:  # not switched to normal file
-                            if repo.dirstate.get_entry(standin).any_tracked:
-                                wvfs.unlinkpath(lfile, ignoremissing=True)
-                            else:
-                                dropped.add(lfile)
+        update = {}
+        dropped = set()
+        updated, removed = 0, 0
+        wvfs = repo.wvfs
+        wctx = repo[None]
+        for lfile in lfiles:
+            lfileorig = os.path.relpath(
+                scmutil.backuppath(ui, repo, lfile), start=repo.root
+            )
+            standin = lfutil.standin(lfile)
+            standinorig = os.path.relpath(
+                scmutil.backuppath(ui, repo, standin), start=repo.root
+            )
+            if wvfs.exists(standin):
+                if wvfs.exists(standinorig) and wvfs.exists(lfile):
+                    shutil.copyfile(wvfs.join(lfile), wvfs.join(lfileorig))
+                    wvfs.unlinkpath(standinorig)
+                expecthash = lfutil.readasstandin(wctx[standin])
+                if expecthash != b'':
+                    if lfile not in wctx:  # not switched to normal file
+                        if repo.dirstate.get_entry(standin).any_tracked:
+                            wvfs.unlinkpath(lfile, ignoremissing=True)
+                        else:
+                            dropped.add(lfile)
 
-                        # use normallookup() to allocate an entry in largefiles
-                        # dirstate to prevent lfilesrepo.status() from reporting
-                        # missing files as removed.
-                        lfdirstate.update_file(
-                            lfile,
-                            p1_tracked=True,
-                            wc_tracked=True,
-                            possibly_dirty=True,
-                        )
-                        update[lfile] = expecthash
-                else:
-                    # Remove lfiles for which the standin is deleted, unless the
-                    # lfile is added to the repository again. This happens when a
-                    # largefile is converted back to a normal file: the standin
-                    # disappears, but a new (normal) file appears as the lfile.
-                    if (
-                        wvfs.exists(lfile)
-                        and repo.dirstate.normalize(lfile) not in wctx
-                    ):
-                        wvfs.unlinkpath(lfile)
-                        removed += 1
+                    # allocate an entry in largefiles dirstate to prevent
+                    # lfilesrepo.status() from reporting missing files as
+                    # removed.
+                    lfdirstate.hacky_extension_update_file(
+                        lfile,
+                        p1_tracked=True,
+                        wc_tracked=True,
+                        possibly_dirty=True,
+                    )
+                    update[lfile] = expecthash
+            else:
+                # Remove lfiles for which the standin is deleted, unless the
+                # lfile is added to the repository again. This happens when a
+                # largefile is converted back to a normal file: the standin
+                # disappears, but a new (normal) file appears as the lfile.
+                if (
+                    wvfs.exists(lfile)
+                    and repo.dirstate.normalize(lfile) not in wctx
+                ):
+                    wvfs.unlinkpath(lfile)
+                    removed += 1
 
         # largefile processing might be slow and be interrupted - be prepared
         lfdirstate.write(repo.currenttransaction())
@@ -580,41 +581,42 @@ def updatelfiles(
             statuswriter(_(b'getting changed largefiles\n'))
             cachelfiles(ui, repo, None, lfiles)
 
-        with lfdirstate.parentchange():
-            for lfile in lfiles:
-                update1 = 0
+        for lfile in lfiles:
+            update1 = 0
 
-                expecthash = update.get(lfile)
-                if expecthash:
-                    if not lfutil.copyfromcache(repo, expecthash, lfile):
-                        # failed ... but already removed and set to normallookup
-                        continue
-                    # Synchronize largefile dirstate to the last modified
-                    # time of the file
-                    lfdirstate.update_file(
-                        lfile, p1_tracked=True, wc_tracked=True
-                    )
+            expecthash = update.get(lfile)
+            if expecthash:
+                if not lfutil.copyfromcache(repo, expecthash, lfile):
+                    # failed ... but already removed and set to normallookup
+                    continue
+                # Synchronize largefile dirstate to the last modified
+                # time of the file
+                lfdirstate.hacky_extension_update_file(
+                    lfile,
+                    p1_tracked=True,
+                    wc_tracked=True,
+                )
+                update1 = 1
+
+            # copy the exec mode of largefile standin from the repository's
+            # dirstate to its state in the lfdirstate.
+            standin = lfutil.standin(lfile)
+            if wvfs.exists(standin):
+                # exec is decided by the users permissions using mask 0o100
+                standinexec = wvfs.stat(standin).st_mode & 0o100
+                st = wvfs.stat(lfile)
+                mode = st.st_mode
+                if standinexec != mode & 0o100:
+                    # first remove all X bits, then shift all R bits to X
+                    mode &= ~0o111
+                    if standinexec:
+                        mode |= (mode >> 2) & 0o111 & ~util.umask
+                    wvfs.chmod(lfile, mode)
                     update1 = 1
 
-                # copy the exec mode of largefile standin from the repository's
-                # dirstate to its state in the lfdirstate.
-                standin = lfutil.standin(lfile)
-                if wvfs.exists(standin):
-                    # exec is decided by the users permissions using mask 0o100
-                    standinexec = wvfs.stat(standin).st_mode & 0o100
-                    st = wvfs.stat(lfile)
-                    mode = st.st_mode
-                    if standinexec != mode & 0o100:
-                        # first remove all X bits, then shift all R bits to X
-                        mode &= ~0o111
-                        if standinexec:
-                            mode |= (mode >> 2) & 0o111 & ~util.umask
-                        wvfs.chmod(lfile, mode)
-                        update1 = 1
+            updated += update1
 
-                updated += update1
-
-                lfutil.synclfdirstate(repo, lfdirstate, lfile, normallookup)
+            lfutil.synclfdirstate(repo, lfdirstate, lfile, normallookup)
 
         lfdirstate.write(repo.currenttransaction())
         if lfiles:

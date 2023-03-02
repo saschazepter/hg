@@ -588,6 +588,18 @@ coreconfigitem(
     b'revlog.debug-delta',
     default=False,
 )
+# display extra information about the bundling process
+coreconfigitem(
+    b'debug',
+    b'bundling-stats',
+    default=False,
+)
+# display extra information about the unbundling process
+coreconfigitem(
+    b'debug',
+    b'unbundling-stats',
+    default=False,
+)
 coreconfigitem(
     b'defaults',
     b'.*',
@@ -779,6 +791,14 @@ coreconfigitem(
     b'discovery.exchange-heads',
     default=True,
 )
+# If devel.debug.abort-update is True, then any merge with the working copy,
+# e.g. [hg update], will be aborted after figuring out what needs to be done,
+# but before spawning the parallel worker
+coreconfigitem(
+    b'devel',
+    b'debug.abort-update',
+    default=False,
+)
 # If discovery.grow-sample is False, the sample size used in set discovery will
 # not be increased through the process
 coreconfigitem(
@@ -955,6 +975,13 @@ coreconfigitem(
     b'experimental',
     b'changegroup4',
     default=False,
+)
+
+# might remove rank configuration once the computation has no impact
+coreconfigitem(
+    b'experimental',
+    b'changelog-v2.compute-rank',
+    default=True,
 )
 coreconfigitem(
     b'experimental',
@@ -1819,6 +1846,13 @@ coreconfigitem(
 )
 coreconfigitem(
     b'merge-tools',
+    br'.*\.regappend$',
+    default=b"",
+    generic=True,
+    priority=-1,
+)
+coreconfigitem(
+    b'merge-tools',
     br'.*\.symlink$',
     default=False,
     generic=True,
@@ -1862,7 +1896,7 @@ coreconfigitem(
 )
 coreconfigitem(
     b'paths',
-    b'.*',
+    b'[^:]*',
     default=None,
     generic=True,
 )
@@ -1887,6 +1921,12 @@ coreconfigitem(
 coreconfigitem(
     b'paths',
     b'.*:pushurl',
+    default=None,
+    generic=True,
+)
+coreconfigitem(
+    b'paths',
+    b'.*:pulled-delta-reuse-policy',
     default=None,
     generic=True,
 )
@@ -2068,6 +2108,11 @@ coreconfigitem(
 )
 coreconfigitem(
     b'storage',
+    b'revlog.delta-parent-search.candidate-group-chunk-size',
+    default=20,
+)
+coreconfigitem(
+    b'storage',
     b'revlog.issue6528.fix-incoming',
     default=True,
 )
@@ -2089,6 +2134,7 @@ coreconfigitem(
     b'revlog.reuse-external-delta',
     default=True,
 )
+# This option is True unless `format.generaldelta` is set.
 coreconfigitem(
     b'storage',
     b'revlog.reuse-external-delta-parent',
@@ -2168,7 +2214,7 @@ coreconfigitem(
 coreconfigitem(
     b'server',
     b'pullbundle',
-    default=False,
+    default=True,
 )
 coreconfigitem(
     b'server',

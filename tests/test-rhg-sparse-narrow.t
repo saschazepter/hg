@@ -75,13 +75,22 @@ TODO: bad error message
   $ "$real_hg" cat -r "$tip" hide
   [1]
 
-A naive implementation of [rhg files] leaks the paths that are supposed to be
-hidden by narrow, so we just fall back to hg.
+A naive implementation of `rhg files` would leak the paths that are supposed
+to be hidden by narrow.
 
   $ $NO_FALLBACK rhg files -r "$tip"
-  unsupported feature: rhg files -r <rev> is not supported in narrow clones
-  [252]
+  dir1/x
+  dir1/y
   $ "$real_hg" files -r "$tip"
+  dir1/x
+  dir1/y
+
+The working copy version works with narrow correctly
+
+  $ $NO_FALLBACK rhg files
+  dir1/x
+  dir1/y
+  $ "$real_hg" files
   dir1/x
   dir1/y
 
@@ -96,12 +105,7 @@ Adding "orphaned" index files:
 
   $ (cd ..; cp repo-sparse/.hg/store/data/hide.i repo-narrow/.hg/store/data/hide.i)
   $ (cd ..; mkdir repo-narrow/.hg/store/data/dir2; cp repo-sparse/.hg/store/data/dir2/z.i repo-narrow/.hg/store/data/dir2/z.i)
-  $ "$real_hg" verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 1 changesets with 2 changes to 2 files
+  $ "$real_hg" verify -q
 
   $ "$real_hg" files -r "$tip"
   dir1/x

@@ -292,12 +292,12 @@ ensure that the filemap contains duplicated slashes (issue3612)
   $ rm -rf source/.hg/store/data/dir/file4
 #endif
   $ hg -q convert --filemap renames.fmap --datesort source dummydest
-  abort: data/dir/file3@e96dce0bc6a217656a3a410e5e6bec2c4f42bf7c: no match found (reporevlogstore !)
+  abort: dir/file3@e96dce0bc6a217656a3a410e5e6bec2c4f42bf7c: no match found (reporevlogstore !)
   abort: data/dir/file3/index@e96dce0bc6a2: no node (reposimplestore !)
   [50]
   $ hg -q convert --filemap renames.fmap --datesort --config convert.hg.ignoreerrors=1 source renames.repo
-  ignoring: data/dir/file3@e96dce0bc6a217656a3a410e5e6bec2c4f42bf7c: no match found (reporevlogstore !)
-  ignoring: data/dir/file4@6edd55f559cdce67132b12ca09e09cee08b60442: no match found (reporevlogstore !)
+  ignoring: dir/file3@e96dce0bc6a217656a3a410e5e6bec2c4f42bf7c: no match found (reporevlogstore !)
+  ignoring: dir/file4@6edd55f559cdce67132b12ca09e09cee08b60442: no match found (reporevlogstore !)
   ignoring: data/dir/file3/index@e96dce0bc6a2: no node (reposimplestore !)
   ignoring: data/dir/file4/index@6edd55f559cd: no node (reposimplestore !)
   $ hg up -q -R renames.repo
@@ -312,12 +312,7 @@ ensure that the filemap contains duplicated slashes (issue3612)
   |
   o  0 "0: add foo baz dir/" files: dir2/dir3/file dir2/dir3/subdir/file3 foo2
   
-  $ hg -R renames.repo verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 5 changesets with 7 changes to 4 files
+  $ hg -R renames.repo verify -q
 
   $ hg -R renames.repo manifest --debug
   d43feacba7a4f1f2080dde4a4b985bd8a0236d46 644   copied2

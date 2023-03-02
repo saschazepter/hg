@@ -77,9 +77,32 @@ class _dirstatemapcommon:
         self._pendingmode = None
 
     def _set_identity(self):
-        # ignore HG_PENDING because identity is used only for writing
-        file_path = self._opener.join(self._filename)
-        self.identity = util.filestat.frompath(file_path)
+        self.identity = self._get_current_identity()
+
+    def _get_current_identity(self):
+        try:
+            return util.cachestat(self._opener.join(self._filename))
+        except FileNotFoundError:
+            return None
+
+    def may_need_refresh(self):
+        if 'identity' not in vars(self):
+            # no existing identity, we need a refresh
+            return True
+        if self.identity is None:
+            return True
+        if not self.identity.cacheable():
+            # We cannot trust the entry
+            # XXX this is a problem on windows, NFS, or other inode less system
+            return True
+        current_identity = self._get_current_identity()
+        if current_identity is None:
+            return True
+        if not current_identity.cacheable():
+            # We cannot trust the entry
+            # XXX this is a problem on windows, NFS, or other inode less system
+            return True
+        return current_identity != self.identity
 
     def preload(self):
         """Loads the underlying data, if it's not already loaded"""
@@ -161,6 +184,9 @@ class _dirstatemapcommon:
             raise error.ProgrammingError(b'dirstate docket name collision')
         data_filename = new_docket.data_filename()
         self._opener.write(data_filename, packed)
+        # tell the transaction that we are adding a new file
+        if tr is not None:
+            tr.addbackup(data_filename, location=b'plain')
         # Write the new docket after the new data file has been
         # written. Because `st` was opened with `atomictemp=True`,
         # the actual `.hg/dirstate` file is only affected on close.
@@ -170,6 +196,8 @@ class _dirstatemapcommon:
         # the new data file was written.
         if old_docket.uuid:
             data_filename = old_docket.data_filename()
+            if tr is not None:
+                tr.addbackup(data_filename, location=b'plain')
             unlink = lambda _tr=None: self._opener.unlink(data_filename)
             if tr:
                 category = b"dirstate-v2-clean-" + old_docket.uuid
@@ -676,6 +704,14 @@ if rustmod is not None:
             if append:
                 docket = self.docket
                 data_filename = docket.data_filename()
+                # We mark it for backup to make sure a future `hg rollback` (or
+                # `hg recover`?) call find the data it needs to restore a
+                # working repository.
+                #
+                # The backup can use a hardlink because the format is resistant
+                # to trailing "dead" data.
+                if tr is not None:
+                    tr.addbackup(data_filename, location=b'plain')
                 with self._opener(data_filename, b'r+b') as fp:
                     fp.seek(docket.data_size)
                     assert fp.tell() == docket.data_size

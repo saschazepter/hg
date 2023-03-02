@@ -372,10 +372,6 @@ commonpypats = [
         ),
         (r'[^^+=*/!<>&| %-](\s=|=\s)[^= ]', "wrong whitespace around ="),
         (
-            r'\([^()]*( =[^=]|[^<>!=]= )',
-            "no whitespace around = for named parameters",
-        ),
-        (
             r'raise [^,(]+, (\([^\)]+\)|[^,\(\)]+)$',
             "don't use old-style two-argument raise, use Exception(message)",
         ),

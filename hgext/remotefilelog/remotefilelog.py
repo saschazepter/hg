@@ -299,6 +299,7 @@ class remotefilelog:
         deltaprevious=False,
         deltamode=None,
         sidedata_helpers=None,
+        debug_info=None,
     ):
         # we don't use any of these parameters here
         del nodesorder, revisiondata, assumehaveparentrevisions, deltaprevious

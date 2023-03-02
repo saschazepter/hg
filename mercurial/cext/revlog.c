@@ -1446,16 +1446,25 @@ static PyObject *index_issnapshot(indexObject *self, PyObject *value)
 static PyObject *index_findsnapshots(indexObject *self, PyObject *args)
 {
 	Py_ssize_t start_rev;
+	Py_ssize_t end_rev;
 	PyObject *cache;
 	Py_ssize_t base;
 	Py_ssize_t rev;
 	PyObject *key = NULL;
 	PyObject *value = NULL;
 	const Py_ssize_t length = index_length(self);
-	if (!PyArg_ParseTuple(args, "O!n", &PyDict_Type, &cache, &start_rev)) {
+	if (!PyArg_ParseTuple(args, "O!nn", &PyDict_Type, &cache, &start_rev,
+	                      &end_rev)) {
 		return NULL;
 	}
-	for (rev = start_rev; rev < length; rev++) {
+	end_rev += 1;
+	if (end_rev > length) {
+		end_rev = length;
+	}
+	if (start_rev < 0) {
+		start_rev = 0;
+	}
+	for (rev = start_rev; rev < end_rev; rev++) {
 		int issnap;
 		PyObject *allvalues = NULL;
 		issnap = index_issnapshotrev(self, rev);
@@ -1480,7 +1489,7 @@ static PyObject *index_findsnapshots(indexObject *self, PyObject *args)
 		}
 		if (allvalues == NULL) {
 			int r;
-			allvalues = PyList_New(0);
+			allvalues = PySet_New(0);
 			if (!allvalues) {
 				goto bail;
 			}
@@ -1491,7 +1500,7 @@ static PyObject *index_findsnapshots(indexObject *self, PyObject *args)
 			}
 		}
 		value = PyLong_FromSsize_t(rev);
-		if (PyList_Append(allvalues, value)) {
+		if (PySet_Add(allvalues, value)) {
 			goto bail;
 		}
 		Py_CLEAR(key);

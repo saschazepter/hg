@@ -138,6 +138,7 @@ tests:
         # Run Rust tests if cargo is installed
 	if command -v $(CARGO) >/dev/null 2>&1; then \
 		$(MAKE) rust-tests; \
+		$(MAKE) cargo-clippy; \
 	fi
 	cd tests && $(PYTHON) run-tests.py $(TESTFLAGS)
 
@@ -152,8 +153,12 @@ testpy-%:
 	cd tests && $(HGPYTHONS)/$*/bin/python run-tests.py $(TESTFLAGS)
 
 rust-tests:
-	cd $(HGROOT)/rust/hg-cpython \
+	cd $(HGROOT)/rust \
 		&& $(CARGO) test --quiet --all --features "$(HG_RUST_FEATURES)"
+
+cargo-clippy:
+	cd $(HGROOT)/rust \
+		&& $(CARGO) clippy --all --features "$(HG_RUST_FEATURES)" -- -D warnings
 
 check-code:
 	hg manifest | xargs python contrib/check-code.py

@@ -28,12 +28,7 @@ Setting up test
   1 files updated, 0 files merged, 2 files removed, 0 files unresolved
   $ hg mv afile anotherfile
   $ hg commit -m "0.3m"
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 9 changesets with 7 changes to 4 files
+  $ hg verify -q
   $ cd ..
   $ hg init empty
 
@@ -70,12 +65,7 @@ Verify empty
 
   $ hg -R empty heads
   [1]
-  $ hg -R empty verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 0 changesets with 0 changes to 0 files
+  $ hg -R empty verify -q
 
 #if repobundlerepo
 
@@ -853,12 +843,7 @@ full history bundle, refuses to verify non-local repo
 
 but, regular verify must continue to work
 
-  $ hg -R orig verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 2 changesets with 2 changes to 2 files
+  $ hg -R orig verify -q
 
 #if repobundlerepo
 diff against bundle
@@ -939,12 +924,7 @@ bundle single branch
 
   $ hg clone -q -r0 . part2
   $ hg -q -R part2 pull bundle.hg
-  $ hg -R part2 verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 3 changesets with 5 changes to 4 files
+  $ hg -R part2 verify -q
 #endif
 
 == Test bundling no commits
@@ -1039,6 +1019,24 @@ Test the option that create and no-delta's bundle
   $ hg bundle -a --config devel.bundle.delta=full ./full.hg
   3 changesets found
 
+
+Test the debug statistic when building a bundle
+-----------------------------------------------
+
+  $ hg bundle -a ./default.hg --config debug.bundling-stats=yes
+  3 changesets found
+  DEBUG-BUNDLING: revisions:                9
+  DEBUG-BUNDLING:   changelog:              3
+  DEBUG-BUNDLING:   manifest:               3
+  DEBUG-BUNDLING:   files:                  3 (for 3 revlogs)
+  DEBUG-BUNDLING: deltas:
+  DEBUG-BUNDLING:   from-storage:           2 (100% of available 2)
+  DEBUG-BUNDLING:   computed:               7
+  DEBUG-BUNDLING:     full:                 7 (100% of native 7)
+  DEBUG-BUNDLING:       changelog:          3 (100% of native 3)
+  DEBUG-BUNDLING:       manifests:          1 (100% of native 1)
+  DEBUG-BUNDLING:       files:              3 (100% of native 3)
+
 Test the debug output when applying delta
 -----------------------------------------
 
@@ -1048,18 +1046,62 @@ Test the debug output when applying delta
   > --config storage.revlog.reuse-external-delta=no \
   > --config storage.revlog.reuse-external-delta-parent=no
   adding changesets
-  DBG-DELTAS: CHANGELOG:   rev=0: search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
-  DBG-DELTAS: CHANGELOG:   rev=1: search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=0 p2-chain-length=-1 - duration=* (glob)
-  DBG-DELTAS: CHANGELOG:   rev=2: search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=0 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: CHANGELOG:   rev=0: delta-base=0 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: CHANGELOG:   rev=1: delta-base=1 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=0 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: CHANGELOG:   rev=2: delta-base=2 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=0 p2-chain-length=-1 - duration=* (glob)
   adding manifests
-  DBG-DELTAS: MANIFESTLOG: rev=0: search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
-  DBG-DELTAS: MANIFESTLOG: rev=1: search-rounds=1 try-count=1 - delta-type=delta  snap-depth=0 - p1-chain-length=0 p2-chain-length=-1 - duration=* (glob)
-  DBG-DELTAS: MANIFESTLOG: rev=2: search-rounds=1 try-count=1 - delta-type=delta  snap-depth=0 - p1-chain-length=1 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: MANIFESTLOG: rev=0: delta-base=0 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: MANIFESTLOG: rev=1: delta-base=0 is-cached=1 - search-rounds=1 try-count=1 - delta-type=delta  snap-depth=0 - p1-chain-length=0 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: MANIFESTLOG: rev=2: delta-base=1 is-cached=1 - search-rounds=1 try-count=1 - delta-type=delta  snap-depth=0 - p1-chain-length=1 p2-chain-length=-1 - duration=* (glob)
   adding file changes
-  DBG-DELTAS: FILELOG:a:   rev=0: search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
-  DBG-DELTAS: FILELOG:b:   rev=0: search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
-  DBG-DELTAS: FILELOG:c:   rev=0: search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: FILELOG:a:   rev=0: delta-base=0 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: FILELOG:b:   rev=0: delta-base=0 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: FILELOG:c:   rev=0: delta-base=0 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
   added 3 changesets with 3 changes to 3 files
   new changesets 4fe08cd4693e:4652c276ac4f (3 drafts)
   (run 'hg update' to get a working copy)
 
+
+Test the debug statistic when applying a bundle
+-----------------------------------------------
+
+  $ hg init bar
+  $ hg -R bar unbundle ./default.hg  --config debug.unbundling-stats=yes
+  adding changesets
+  adding manifests
+  adding file changes
+  DEBUG-UNBUNDLING: revisions:                9
+  DEBUG-UNBUNDLING:   changelog:              3             ( 33%)
+  DEBUG-UNBUNDLING:   manifests:              3             ( 33%)
+  DEBUG-UNBUNDLING:   files:                  3             ( 33%)
+  DEBUG-UNBUNDLING: total-time:      ?????????????? seconds (glob)
+  DEBUG-UNBUNDLING:   changelog:     ?????????????? seconds (???%) (glob)
+  DEBUG-UNBUNDLING:   manifests:     ?????????????? seconds (???%) (glob)
+  DEBUG-UNBUNDLING:   files:         ?????????????? seconds (???%) (glob)
+  DEBUG-UNBUNDLING: type-count:
+  DEBUG-UNBUNDLING:   changelog:
+  DEBUG-UNBUNDLING:     full:                 3
+  DEBUG-UNBUNDLING:       cached:             3             (100%)
+  DEBUG-UNBUNDLING:   manifests:
+  DEBUG-UNBUNDLING:     full:                 1
+  DEBUG-UNBUNDLING:       cached:             1             (100%)
+  DEBUG-UNBUNDLING:     delta:                2
+  DEBUG-UNBUNDLING:       cached:             2             (100%)
+  DEBUG-UNBUNDLING:   files:
+  DEBUG-UNBUNDLING:     full:                 3
+  DEBUG-UNBUNDLING:       cached:             3             (100%)
+  DEBUG-UNBUNDLING: type-time:
+  DEBUG-UNBUNDLING:   changelog:
+  DEBUG-UNBUNDLING:     full:        ?????????????? seconds (???% of total) (glob)
+  DEBUG-UNBUNDLING:       cached:    ?????????????? seconds (???% of total) (glob)
+  DEBUG-UNBUNDLING:   manifests:
+  DEBUG-UNBUNDLING:     full:        ?????????????? seconds (???% of total) (glob)
+  DEBUG-UNBUNDLING:       cached:    ?????????????? seconds (???% of total) (glob)
+  DEBUG-UNBUNDLING:     delta:       ?????????????? seconds (???% of total) (glob)
+  DEBUG-UNBUNDLING:       cached:    ?????????????? seconds (???% of total) (glob)
+  DEBUG-UNBUNDLING:   files:
+  DEBUG-UNBUNDLING:     full:        ?????????????? seconds (???% of total) (glob)
+  DEBUG-UNBUNDLING:       cached:    ?????????????? seconds (???% of total) (glob)
+  added 3 changesets with 3 changes to 3 files
+  new changesets 4fe08cd4693e:4652c276ac4f (3 drafts)
+  (run 'hg update' to get a working copy)

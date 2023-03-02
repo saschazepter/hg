@@ -225,6 +225,7 @@ class statichttprepository(
         self.encodepats = None
         self.decodepats = None
         self._transref = None
+        self._dirstate = None
 
     def _restrictcapabilities(self, caps):
         caps = super(statichttprepository, self)._restrictcapabilities(caps)
@@ -236,8 +237,8 @@ class statichttprepository(
     def local(self):
         return False
 
-    def peer(self):
-        return statichttppeer(self)
+    def peer(self, path=None):
+        return statichttppeer(self, path=path)
 
     def wlock(self, wait=True):
         raise error.LockUnavailable(
@@ -259,7 +260,8 @@ class statichttprepository(
         pass  # statichttprepository are read only
 
 
-def instance(ui, path, create, intents=None, createopts=None):
+def make_peer(ui, path, create, intents=None, createopts=None):
     if create:
         raise error.Abort(_(b'cannot create new static-http repository'))
-    return statichttprepository(ui, path[7:])
+    url = path.loc[7:]
+    return statichttprepository(ui, url).peer(path=path)

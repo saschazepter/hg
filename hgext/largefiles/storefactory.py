@@ -36,22 +36,23 @@ def openstore(repo=None, remote=None, put=False, ui=None):
                 b'lfpullsource', repo, ui, lfpullsource
             )
         else:
-            path, _branches = urlutil.get_unique_pull_path(
-                b'lfpullsource', repo, ui, lfpullsource
+            path = urlutil.get_unique_pull_path_obj(
+                b'lfpullsource', ui, lfpullsource
             )
 
         # XXX we should not explicitly pass b'default', as this will result in
         # b'default' being returned if no `paths.default` was defined. We
         # should explicitely handle the lack of value instead.
         if repo is None:
-            path, _branches = urlutil.get_unique_pull_path(
-                b'lfs', repo, ui, b'default'
+            path = urlutil.get_unique_pull_path_obj(
+                b'lfs',
+                ui,
+                b'default',
             )
             remote = hg.peer(repo or ui, {}, path)
-        elif path == b'default-push' or path == b'default':
+        elif path.loc == b'default-push' or path.loc == b'default':
             remote = repo
         else:
-            path, _branches = urlutil.parseurl(path)
             remote = hg.peer(repo or ui, {}, path)
 
     # The path could be a scheme so use Mercurial's normal functionality

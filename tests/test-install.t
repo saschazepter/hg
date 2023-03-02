@@ -3,7 +3,7 @@ hg debuginstall
   checking encoding (ascii)...
   checking Python executable (*) (glob)
   checking Python implementation (*) (glob)
-  checking Python version (3.*) (glob) (py3 !)
+  checking Python version (3.*) (glob)
   checking Python lib (.*[Ll]ib.*)... (re) (no-pyoxidizer !)
   checking Python lib (.*pyoxidizer.*)... (re) (pyoxidizer !)
   checking Python security support (*) (glob)
@@ -68,7 +68,7 @@ hg debuginstall with no username
   checking encoding (ascii)...
   checking Python executable (*) (glob)
   checking Python implementation (*) (glob)
-  checking Python version (3.*) (glob) (py3 !)
+  checking Python version (3.*) (glob)
   checking Python lib (.*[Ll]ib.*)... (re) (no-pyoxidizer !)
   checking Python lib (.*pyoxidizer.*)... (re) (pyoxidizer !)
   checking Python security support (*) (glob)
@@ -118,7 +118,7 @@ path variables are expanded (~ is the same as $TESTTMP)
   checking encoding (ascii)...
   checking Python executable (*) (glob)
   checking Python implementation (*) (glob)
-  checking Python version (3.*) (glob) (py3 !)
+  checking Python version (3.*) (glob)
   checking Python lib (.*[Ll]ib.*)... (re) (no-pyoxidizer !)
   checking Python lib (.*pyoxidizer.*)... (re) (pyoxidizer !)
   checking Python security support (*) (glob)
@@ -148,7 +148,7 @@ not found (this is intentionally using backslashes to mimic a windows usecase).
   checking encoding (ascii)...
   checking Python executable (*) (glob)
   checking Python implementation (*) (glob)
-  checking Python version (3.*) (glob) (py3 !)
+  checking Python version (3.*) (glob)
   checking Python lib (.*[Ll]ib.*)... (re) (no-pyoxidizer !)
   checking Python lib (.*pyoxidizer.*)... (re) (pyoxidizer !)
   checking Python security support (*) (glob)
@@ -223,45 +223,6 @@ since it's bin on most platforms but Scripts on Windows.
   checking Python version (3.*) (glob)
   checking Python lib (*)... (glob)
   checking Python security support (*) (glob)
-  checking Rust extensions \((installed|missing)\) (re)
-  checking Mercurial version (*) (glob)
-  checking Mercurial custom build (*) (glob)
-  checking module policy (*) (glob)
-  checking installed modules (*/mercurial)... (glob)
-  checking registered compression engines (*) (glob)
-  checking available compression engines (*) (glob)
-  checking available compression engines for wire protocol (*) (glob)
-  checking "re2" regexp engine \((available|missing)\) (re)
-  checking templates ($TESTTMP/installenv/*/site-packages/mercurial/templates)... (glob)
-  checking default template ($TESTTMP/installenv/*/site-packages/mercurial/templates/map-cmdline.default) (glob)
-  checking commit editor... (*) (glob)
-  checking username (test)
-  no problems detected
-#endif
-
-#if virtualenv no-py3 network-io no-pyoxidizer
-
-Note: --no-site-packages is the default for all versions enabled by hghave
-
-  $ "$PYTHON" -m virtualenv installenv >> pip.log
-  DEPRECATION: Python 2.7 will reach the end of its life on January 1st, 2020. Please upgrade your Python as Python 2.7 won't be maintained after that date. A future version of pip will drop support for Python 2.7. (?)
-  DEPRECATION: Python 2.7 will reach the end of its life on January 1st, 2020. Please upgrade your Python as Python 2.7 won't be maintained after that date. A future version of pip will drop support for Python 2.7. More details about Python 2 support in pip, can be found at https://pip.pypa.io/en/latest/development/release-process/#python-2-support (?)
-
-Note: we use this weird path to run pip and hg to avoid platform differences,
-since it's bin on most platforms but Scripts on Windows.
-  $ ./installenv/*/pip install $TESTDIR/.. >> pip.log
-  DEPRECATION: Python 2.7 will reach the end of its life on January 1st, 2020. Please upgrade your Python as Python 2.7 won't be maintained after that date. A future version of pip will drop support for Python 2.7. (?)
-  DEPRECATION: Python 2.7 will reach the end of its life on January 1st, 2020. Please upgrade your Python as Python 2.7 won't be maintained after that date. A future version of pip will drop support for Python 2.7. More details about Python 2 support in pip, can be found at https://pip.pypa.io/en/latest/development/release-process/#python-2-support (?)
-  DEPRECATION: Python 2.7 reached the end of its life on January 1st, 2020. Please upgrade your Python as Python 2.7 is no longer maintained. pip 21.0 will drop support for Python 2.7 in January 2021. More details about Python 2 support in pip can be found at https://pip.pypa.io/en/latest/development/release-process/#python-2-support pip 21.0 will remove support for this functionality. (?)
-  $ ./installenv/*/hg debuginstall || cat pip.log
-  checking encoding (ascii)...
-  checking Python executable (*) (glob)
-  checking Python implementation (*) (glob)
-  checking Python version (2.*) (glob)
-  checking Python lib (*)... (glob)
-  checking Python security support (*) (glob)
-    TLS 1.2 not supported by Python install; network connections lack modern security (?)
-    SNI not supported by Python install; may have connectivity issues with some servers (?)
   checking Rust extensions \((installed|missing)\) (re)
   checking Mercurial version (*) (glob)
   checking Mercurial custom build (*) (glob)

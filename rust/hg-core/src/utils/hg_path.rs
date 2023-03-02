@@ -8,7 +8,6 @@
 use crate::utils::SliceExt;
 use std::borrow::Borrow;
 use std::borrow::Cow;
-use std::convert::TryFrom;
 use std::ffi::{OsStr, OsString};
 use std::fmt;
 use std::ops::Deref;
@@ -206,7 +205,7 @@ impl HgPath {
     /// ```
     pub fn split_filename(&self) -> (&Self, &Self) {
         match &self.inner.iter().rposition(|c| *c == b'/') {
-            None => (HgPath::new(""), &self),
+            None => (HgPath::new(""), self),
             Some(size) => (
                 HgPath::new(&self.inner[..*size]),
                 HgPath::new(&self.inner[*size + 1..]),
@@ -327,7 +326,7 @@ impl HgPath {
     #[cfg(unix)]
     /// Split a pathname into drive and path. On Posix, drive is always empty.
     pub fn split_drive(&self) -> (&HgPath, &HgPath) {
-        (HgPath::new(b""), &self)
+        (HgPath::new(b""), self)
     }
 
     /// Checks for errors in the path, short-circuiting at the first one.
@@ -397,7 +396,7 @@ impl HgPathBuf {
         Default::default()
     }
 
-    pub fn push<T: ?Sized + AsRef<HgPath>>(&mut self, other: &T) -> () {
+    pub fn push<T: ?Sized + AsRef<HgPath>>(&mut self, other: &T) {
         if !self.inner.is_empty() && self.inner.last() != Some(&b'/') {
             self.inner.push(b'/');
         }
@@ -432,7 +431,7 @@ impl Deref for HgPathBuf {
 
     #[inline]
     fn deref(&self) -> &HgPath {
-        &HgPath::new(&self.inner)
+        HgPath::new(&self.inner)
     }
 }
 
@@ -442,15 +441,15 @@ impl<T: ?Sized + AsRef<HgPath>> From<&T> for HgPathBuf {
     }
 }
 
-impl Into<Vec<u8>> for HgPathBuf {
-    fn into(self) -> Vec<u8> {
-        self.inner
+impl From<HgPathBuf> for Vec<u8> {
+    fn from(val: HgPathBuf) -> Self {
+        val.inner
     }
 }
 
 impl Borrow<HgPath> for HgPathBuf {
     fn borrow(&self) -> &HgPath {
-        &HgPath::new(self.as_bytes())
+        HgPath::new(self.as_bytes())
     }
 }
 
@@ -492,7 +491,7 @@ pub fn hg_path_to_os_string<P: AsRef<HgPath>>(
     #[cfg(unix)]
     {
         use std::os::unix::ffi::OsStrExt;
-        os_str = std::ffi::OsStr::from_bytes(&hg_path.as_ref().as_bytes());
+        os_str = std::ffi::OsStr::from_bytes(hg_path.as_ref().as_bytes());
     }
     // TODO Handle other platforms
     // TODO: convert from WTF8 to Windows MBCS (ANSI encoding).
@@ -512,7 +511,7 @@ pub fn os_string_to_hg_path_buf<S: AsRef<OsStr>>(
     #[cfg(unix)]
     {
         use std::os::unix::ffi::OsStrExt;
-        buf = HgPathBuf::from_bytes(&os_string.as_ref().as_bytes());
+        buf = HgPathBuf::from_bytes(os_string.as_ref().as_bytes());
     }
     // TODO Handle other platforms
     // TODO: convert from WTF8 to Windows MBCS (ANSI encoding).
@@ -529,7 +528,7 @@ pub fn path_to_hg_path_buf<P: AsRef<Path>>(
     #[cfg(unix)]
     {
         use std::os::unix::ffi::OsStrExt;
-        buf = HgPathBuf::from_bytes(&os_str.as_bytes());
+        buf = HgPathBuf::from_bytes(os_str.as_bytes());
     }
     // TODO Handle other platforms
     // TODO: convert from WTF8 to Windows MBCS (ANSI encoding).

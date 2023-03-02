@@ -10,7 +10,7 @@ Test how largefiles abort in case the disk runs full
   > _origcopyfileobj = shutil.copyfileobj
   > def copyfileobj(fsrc, fdst, length=16 * 1024):
   >     # allow journal files (used by transaction) to be written
-  >     if b'journal.' in fdst.name:
+  >     if b'journal.' in fdst.name or b'backup.' in fdst.name:
   >         return _origcopyfileobj(fsrc, fdst, length)
   >     fdst.write(fsrc.read(4))
   >     raise IOError(errno.ENOSPC, os.strerror(errno.ENOSPC))

@@ -437,7 +437,7 @@ def _kwfwrite(ui, repo, expand, *pats, **opts):
     if len(wctx.parents()) > 1:
         raise error.Abort(_(b'outstanding uncommitted merge'))
     kwt = getattr(repo, '_keywordkwt', None)
-    with repo.wlock():
+    with repo.wlock(), repo.dirstate.changing_files(repo):
         status = _status(ui, repo, wctx, kwt, *pats, **opts)
         if status.modified or status.added or status.removed or status.deleted:
             raise error.Abort(_(b'outstanding uncommitted changes'))
@@ -530,17 +530,18 @@ def demo(ui, repo, *args, **opts):
     demoitems(b'keywordmaps', kwmaps.items())
     keywords = b'$' + b'$\n$'.join(sorted(kwmaps.keys())) + b'$\n'
     repo.wvfs.write(fn, keywords)
-    repo[None].add([fn])
-    ui.note(_(b'\nkeywords written to %s:\n') % fn)
-    ui.note(keywords)
     with repo.wlock():
-        repo.dirstate.setbranch(b'demobranch')
-    for name, cmd in ui.configitems(b'hooks'):
-        if name.split(b'.', 1)[0].find(b'commit') > -1:
-            repo.ui.setconfig(b'hooks', name, b'', b'keyword')
-    msg = _(b'hg keyword configuration and expansion example')
-    ui.note((b"hg ci -m '%s'\n" % msg))
-    repo.commit(text=msg)
+        with repo.dirstate.changing_files(repo):
+            repo[None].add([fn])
+        ui.note(_(b'\nkeywords written to %s:\n') % fn)
+        ui.note(keywords)
+        repo.dirstate.setbranch(b'demobranch', repo.currenttransaction())
+        for name, cmd in ui.configitems(b'hooks'):
+            if name.split(b'.', 1)[0].find(b'commit') > -1:
+                repo.ui.setconfig(b'hooks', name, b'', b'keyword')
+        msg = _(b'hg keyword configuration and expansion example')
+        ui.note((b"hg ci -m '%s'\n" % msg))
+        repo.commit(text=msg)
     ui.status(_(b'\n\tkeywords expanded\n'))
     ui.write(repo.wread(fn))
     repo.wvfs.rmtree(repo.root)
@@ -696,7 +697,7 @@ def kw_amend(orig, ui, repo, old, extra, pats, opts):
     kwt = getattr(repo, '_keywordkwt', None)
     if kwt is None:
         return orig(ui, repo, old, extra, pats, opts)
-    with repo.wlock(), repo.dirstate.parentchange():
+    with repo.wlock(), repo.dirstate.changing_parents(repo):
         kwt.postcommit = True
         newid = orig(ui, repo, old, extra, pats, opts)
         if newid != old.node():
@@ -762,7 +763,7 @@ def kw_dorecord(orig, ui, repo, commitfunc, *pats, **opts):
         if ctx != recctx:
             modified, added = _preselect(wstatus, recctx.files())
             kwt.restrict = False
-            with repo.dirstate.parentchange():
+            with repo.dirstate.changing_parents(repo):
                 kwt.overwrite(recctx, modified, False, True)
                 kwt.overwrite(recctx, added, False, True, True)
             kwt.restrict = True

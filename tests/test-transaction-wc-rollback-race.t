@@ -134,8 +134,6 @@ not the `wlock`, then get aborted on a signal-file.
   $ hg phase --rev 0
   0: draft
   $ cat ../log.err
-  transaction abort!
-  rollback completed
   abort: pretxnclose.test hook exited with status 1
 
 Actual testing
@@ -153,7 +151,7 @@ Changing tracked file
   $ touch $TESTTMP/transaction-continue
   $ wait
   $ hg status
-  R default_a (missing-correct-output !)
+  R default_a
   $ hg revert --all --quiet
 
 Changing branch from default
@@ -204,10 +202,8 @@ updating working copy
   $ touch $TESTTMP/transaction-continue
   $ wait
   $ hg log --rev . -T '{desc}\n'
-  babar_l (missing-correct-output !)
-  babar_m (known-bad-output !)
+  babar_l
   $ hg st
-  ! babar_m (known-bad-output !)
 
   $ hg purge --no-confirm
   $ hg up --quiet babar

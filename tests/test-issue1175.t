@@ -37,12 +37,7 @@ https://bz.mercurial-scm.org/1175
   updating the branch cache
   committed changeset 5:83a687e8a97c80992ba385bbfd766be181bfb1d1
 
-  $ hg verify
-  checking changesets
-  checking manifests
-  crosschecking files in changesets and manifests
-  checking files
-  checked 6 changesets with 4 changes to 4 files
+  $ hg verify -q
 
   $ hg export --git tip
   # HG changeset patch
