@@ -1754,12 +1754,6 @@ class dirstate:
             return list(files)
         return [f for f in dmap if match(f)]
 
-    def _actualfilename(self, tr):
-        if tr:
-            return self._pendingfilename
-        else:
-            return self._filename
-
     def all_file_names(self):
         """list all filename currently used by this dirstate
 
