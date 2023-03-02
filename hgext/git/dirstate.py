@@ -389,7 +389,7 @@ class gitdirstate:
         # TODO: should this be added to the dirstate interface?
         self._plchangecallbacks[category] = callback
 
-    def setbranch(self, branch):
+    def setbranch(self, branch, transaction=None):
         raise error.Abort(
             b'git repos do not support branches. try using bookmarks'
         )
