@@ -692,10 +692,6 @@ class transaction(util.transactional):
         if entries:
             return False
         for e in self._backupentries:
-            if e[0] == b'plain' and e[1] == b'branch':
-                # XXX integrate branch to the transaction and get rid of this
-                # aberration
-                continue
             if e[1]:
                 return False
         return True
@@ -705,9 +701,6 @@ class transaction(util.transactional):
         assert self._can_quick_abort(entries)
         tmp_files = [e for e in self._backupentries if not e[1]]
         for vfs_id, old_path, tmp_path, xxx in tmp_files:
-            # XXX integrate branch to the transaction and get rid of this
-            # aberration
-            assert not old_path or old_path == b'branch'
             vfs = self._vfsmap[vfs_id]
             try:
                 vfs.unlink(tmp_path)
