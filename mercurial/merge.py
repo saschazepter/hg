@@ -2229,7 +2229,9 @@ def _update(
                 util.unlink(repo.vfs.join(b'updatestate'))
 
                 if not branchmerge:
-                    repo.dirstate.setbranch(p2.branch())
+                    repo.dirstate.setbranch(
+                        p2.branch(), repo.currenttransaction()
+                    )
 
                 # If we're updating to a location, clean up any stale temporary includes
                 # (ex: this happens during hg rebase --abort).
