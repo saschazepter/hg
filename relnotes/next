@@ -2,9 +2,6 @@
 
 == New Features ==
 
- * There is a new internal merge tool called `internal:union-other-first`.
-   It works like `internal:union` but add other side on top of local.
-
 == Default Format Change ==
 
 These changes affect newly created repositories (or new clones) done with
@@ -19,7 +16,3 @@ Mercurial XXX.
 == Internal API Changes ==
 
 == Miscellaneous ==
-
- * pullbundle support no longer requires setting a server-side option,
-   providing a .hg/pullbundles.manifest according to the syntax specified in
-   'hg help -e clonebundles' is enough.
