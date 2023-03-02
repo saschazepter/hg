@@ -453,7 +453,7 @@ def _aborttransaction(repo, tr):
     # transaction to do so.
     assert repo.currenttransaction() is None
     repo.dirstate.write(None)
-    ds.setbranch(current_branch)
+    ds.setbranch(current_branch, None)
 
 
 def getshelvename(repo, parent, opts):
@@ -631,7 +631,9 @@ def _docreatecmd(ui, repo, pats, opts):
         if _iswctxonnewbranch(repo) and not _isbareshelve(pats, opts):
             # In non-bare shelve we don't store newly created branch
             # at bundled commit
-            repo.dirstate.setbranch(repo[b'.'].branch())
+            repo.dirstate.setbranch(
+                repo[b'.'].branch(), repo.currenttransaction()
+            )
 
         commitfunc = getcommitfunc(extra, interactive, editor=True)
         if not interactive:
@@ -665,7 +667,7 @@ def _docreatecmd(ui, repo, pats, opts):
                 ms.reset()
 
         if origbranch != repo[b'.'].branch() and not _isbareshelve(pats, opts):
-            repo.dirstate.setbranch(origbranch)
+            repo.dirstate.setbranch(origbranch, repo.currenttransaction())
 
         _finishshelve(repo, tr)
     finally:
@@ -849,7 +851,7 @@ def mergefiles(ui, repo, wctx, shelvectx):
 
 def restorebranch(ui, repo, branchtorestore):
     if branchtorestore and branchtorestore != repo.dirstate.branch():
-        repo.dirstate.setbranch(branchtorestore)
+        repo.dirstate.setbranch(branchtorestore, repo.currenttransaction())
         ui.status(
             _(b'marked working directory as branch %s\n') % branchtorestore
         )
