@@ -535,7 +535,7 @@ def demo(ui, repo, *args, **opts):
             repo[None].add([fn])
         ui.note(_(b'\nkeywords written to %s:\n') % fn)
         ui.note(keywords)
-        repo.dirstate.setbranch(b'demobranch')
+        repo.dirstate.setbranch(b'demobranch', repo.currenttransaction())
         for name, cmd in ui.configitems(b'hooks'):
             if name.split(b'.', 1)[0].find(b'commit') > -1:
                 repo.ui.setconfig(b'hooks', name, b'', b'keyword')
