@@ -657,7 +657,7 @@ def toutf8b(s):
             pass
 
     s = pycompat.bytestr(s)
-    r = b""
+    r = bytearray()
     pos = 0
     l = len(s)
     while pos < l:
@@ -673,7 +673,7 @@ def toutf8b(s):
             c = unichr(0xDC00 + ord(s[pos])).encode('utf-8', _utf8strict)
             pos += 1
         r += c
-    return r
+    return bytes(r)
 
 
 def fromutf8b(s):
@@ -712,7 +712,7 @@ def fromutf8b(s):
     # helper again to walk the string without "decoding" it.
 
     s = pycompat.bytestr(s)
-    r = b""
+    r = bytearray()
     pos = 0
     l = len(s)
     while pos < l:
@@ -722,4 +722,4 @@ def fromutf8b(s):
         if b"\xed\xb0\x80" <= c <= b"\xed\xb3\xbf":
             c = pycompat.bytechr(ord(c.decode("utf-8", _utf8strict)) & 0xFF)
         r += c
-    return r
+    return bytes(r)
