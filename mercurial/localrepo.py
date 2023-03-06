@@ -2583,6 +2583,8 @@ class localrepository:
             checkambigfiles=_cachedfiles,
             name=desc,
         )
+        for vfs_id, path in self._journalfiles():
+            tr.add_journal(vfs_id, path)
         tr.changes[b'origrepolen'] = len(self)
         tr.changes[b'obsmarkers'] = set()
         tr.changes[b'phases'] = []

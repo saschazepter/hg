@@ -153,6 +153,7 @@ class transaction(util.transactional):
         self._offsetmap = {}
         self._newfiles = set()
         self._journal = journalname
+        self._journal_files = []
         self._undoname = undoname
         self._queue = []
         # A callback to do something just after releasing transaction.
@@ -633,6 +634,10 @@ class transaction(util.transactional):
         scope)"""
         self._abort()
 
+    @active
+    def add_journal(self, vfs_id, path):
+        self._journal_files.append((vfs_id, path))
+
     def _writeundo(self):
         """write transaction data for possible future undo call"""
         if self._undoname is None:
@@ -664,6 +669,16 @@ class transaction(util.transactional):
                 util.copyfile(vfs.join(b), vfs.join(u), hardlink=True)
             undobackupfile.write(b"%s\0%s\0%s\0%d\n" % (l, f, u, c))
         undobackupfile.close()
+        for vfs, src in self._journal_files:
+            dest = undoname(src)
+            # if src and dest refer to a same file, vfs.rename is a no-op,
+            # leaving both src and dest on disk. delete dest to make sure
+            # the rename couldn't be such a no-op.
+            vfs.tryunlink(dest)
+            try:
+                vfs.rename(src, dest)
+            except FileNotFoundError:  # journal file does not yet exist
+                pass
 
     def _abort(self):
         entries = self.readjournal()
