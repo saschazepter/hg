@@ -1565,6 +1565,14 @@ class localrepository:
 
         return checksvfs
 
+    @property
+    def vfs_map(self):
+        return {
+            b'': self.svfs,
+            b'plain': self.vfs,
+            b'store': self.svfs,
+        }
+
     def close(self):
         self._writecaches()
 
@@ -2415,7 +2423,7 @@ class localrepository:
             rp = report
         else:
             rp = self.ui.warn
-        vfsmap = {b'plain': self.vfs, b'store': self.svfs}  # root of .hg/
+        vfsmap = self.vfs_map
         # we must avoid cyclic reference between repo and transaction.
         reporef = weakref.ref(self)
         # Code to track tag movement
@@ -2704,10 +2712,7 @@ class localrepository:
         with self.lock():
             if self.svfs.exists(b"journal"):
                 self.ui.status(_(b"rolling back interrupted transaction\n"))
-                vfsmap = {
-                    b'': self.svfs,
-                    b'plain': self.vfs,
-                }
+                vfsmap = self.vfs_map
                 transaction.rollback(
                     self.svfs,
                     vfsmap,
@@ -2775,7 +2780,7 @@ class localrepository:
             return 0
 
         self.destroying()
-        vfsmap = {b'plain': self.vfs, b'': self.svfs}
+        vfsmap = self.vfs_map
         skip_journal_pattern = None
         if not parentgone:
             skip_journal_pattern = RE_SKIP_DIRSTATE_ROLLBACK
