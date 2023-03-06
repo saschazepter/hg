@@ -42,6 +42,13 @@ def active(func):
 
 UNDO_BACKUP = b'undo.backupfiles'
 
+UNDO_FILES_MAY_NEED_CLEANUP = [
+    (b'plain', b'undo.desc'),
+    # Always delete undo last to make sure we detect that a clean up is needed if
+    # the process is interrupted.
+    (b'store', b'undo'),
+]
+
 
 def cleanup_undo_files(repo):
     """remove "undo" files used by the rollback logic
@@ -66,7 +73,8 @@ def cleanup_undo_files(repo):
             undo_files.append((vfsmap[location], backup_path))
 
     undo_files.append((repo.svfs, UNDO_BACKUP))
-    undo_files.extend(repo.undofiles())
+    for location, undo_path in UNDO_FILES_MAY_NEED_CLEANUP:
+        undo_files.append((vfsmap[location], undo_path))
     for undovfs, undofile in undo_files:
         try:
             undovfs.unlink(undofile)
