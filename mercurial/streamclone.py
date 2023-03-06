@@ -7,7 +7,6 @@
 
 
 import contextlib
-import errno
 import os
 import struct
 
@@ -21,6 +20,7 @@ from . import (
     narrowspec,
     phases,
     pycompat,
+    repair,
     requirements as requirementsmod,
     scmutil,
     store,
@@ -28,9 +28,6 @@ from . import (
 )
 from .revlogutils import (
     nodemap,
-)
-from .utils import (
-    stringutil,
 )
 
 
@@ -935,15 +932,4 @@ def local_copy(src_repo, dest_repo):
             dest_repo.store.write(tr)
 
         # clean up transaction file as they do not make sense
-        undo_files = [(dest_repo.svfs, b'undo.backupfiles')]
-        undo_files.extend(dest_repo.undofiles())
-        for undovfs, undofile in undo_files:
-            try:
-                undovfs.unlink(undofile)
-            except OSError as e:
-                if e.errno != errno.ENOENT:
-                    msg = _(b'error removing %s: %s\n')
-                    path = undovfs.join(undofile)
-                    e_msg = stringutil.forcebytestr(e)
-                    msg %= (path, e_msg)
-                    dest_repo.ui.warn(msg)
+        repair.cleanup_undo_files(dest_repo)
