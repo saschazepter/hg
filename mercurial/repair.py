@@ -26,6 +26,7 @@ from . import (
     phases,
     requirements,
     scmutil,
+    transaction,
     util,
 )
 from .utils import (
@@ -113,14 +114,32 @@ def _collectbrokencsets(repo, files, striprev):
     return s
 
 
+UNDO_BACKUP = b'undo.backupfiles'
+
+
 def cleanup_undo_files(repo):
     """remove "undo" files used by the rollback logic
 
     This is useful to prevent rollback running in situation were it does not
     make sense. For example after a strip.
     """
-    # XXX need to remove the backups themselve too
-    undo_files = [(repo.svfs, b'undo.backupfiles')]
+    backup_entries = []
+    undo_files = []
+    vfsmap = repo.vfs_map
+    try:
+        with repo.svfs(UNDO_BACKUP) as f:
+            backup_entries = transaction.read_backup_files(repo.ui.warn, f)
+    except OSError as e:
+        if e.errno != errno.ENOENT:
+            msg = _(b'could not read %s: %s\n')
+            msg %= (repo.svfs.join(UNDO_BACKUP), stringutil.forcebytestr(e))
+            repo.ui.warn(msg)
+
+    for location, f, backup_path, c in backup_entries:
+        if location in vfsmap and backup_path:
+            undo_files.append((vfsmap[location], backup_path))
+
+    undo_files.append((repo.svfs, UNDO_BACKUP))
     undo_files.extend(repo.undofiles())
     for undovfs, undofile in undo_files:
         try:
