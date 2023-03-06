@@ -11,6 +11,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+import os
 
 from .i18n import _
 from . import (
@@ -637,6 +638,12 @@ class transaction(util.transactional):
         if self._undoname is None:
             return
 
+        def undoname(fn: bytes) -> bytes:
+            base, name = os.path.split(fn)
+            assert name.startswith(self._journal)
+            new_name = name.replace(self._journal, self._undoname, 1)
+            return os.path.join(base, new_name)
+
         undo_backup_path = b"%s.backupfiles" % self._undoname
         undobackupfile = self._opener.open(undo_backup_path, b'w')
         undobackupfile.write(b'%d\n' % version)
@@ -653,10 +660,7 @@ class transaction(util.transactional):
                     )
                     continue
                 vfs = self._vfsmap[l]
-                base, name = vfs.split(b)
-                assert name.startswith(self._journal), name
-                uname = name.replace(self._journal, self._undoname, 1)
-                u = vfs.reljoin(base, uname)
+                u = undoname(b)
                 util.copyfile(vfs.join(b), vfs.join(u), hardlink=True)
             undobackupfile.write(b"%s\0%s\0%s\0%d\n" % (l, f, u, c))
         undobackupfile.close()
