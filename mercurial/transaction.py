@@ -690,6 +690,11 @@ class transaction(util.transactional):
         """write transaction data for possible future undo call"""
         if self._undoname is None:
             return
+        cleanup_undo_files(
+            self._report,
+            self._vfsmap,
+            undo_prefix=self._undoname,
+        )
 
         def undoname(fn: bytes) -> bytes:
             base, name = os.path.split(fn)
