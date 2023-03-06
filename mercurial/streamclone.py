@@ -20,10 +20,10 @@ from . import (
     narrowspec,
     phases,
     pycompat,
-    repair,
     requirements as requirementsmod,
     scmutil,
     store,
+    transaction,
     util,
 )
 from .revlogutils import (
@@ -932,4 +932,4 @@ def local_copy(src_repo, dest_repo):
             dest_repo.store.write(tr)
 
         # clean up transaction file as they do not make sense
-        repair.cleanup_undo_files(dest_repo)
+        transaction.cleanup_undo_files(dest_repo)

@@ -19,6 +19,7 @@ from mercurial import (
     repair,
     requirements,
     scmutil,
+    transaction,
     util,
     wireprototypes,
 )
@@ -293,7 +294,7 @@ def handlechangegroup_widen(op, inpart):
     finally:
         f.close()
 
-    repair.cleanup_undo_files(repo)
+    transaction.cleanup_undo_files(repo)
 
     # Remove partial backup only if there were no exceptions
     op._widen_uninterr.__exit__(None, None, None)
