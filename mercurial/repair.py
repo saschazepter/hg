@@ -119,7 +119,10 @@ def cleanup_undo_files(repo):
     This is useful to prevent rollback running in situation were it does not
     make sense. For example after a strip.
     """
-    for undovfs, undofile in repo.undofiles():
+    # XXX need to remove the backups themselve too
+    undo_files = [(repo.svfs, b'undo.backupfiles')]
+    undo_files.extend(repo.undofiles())
+    for undovfs, undofile in undo_files:
         try:
             undovfs.unlink(undofile)
         except OSError as e:
