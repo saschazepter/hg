@@ -1524,6 +1524,10 @@ class ilocalrepositorymain(interfaceutil.Interface):
         """Name of the repoview that is active on this repo."""
     )
 
+    vfs_map = interfaceutil.Attribute(
+        """a bytes-key → vfs mapping used by transaction and others"""
+    )
+
     wvfs = interfaceutil.Attribute(
         """VFS used to access the working directory."""
     )
