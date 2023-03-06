@@ -2418,7 +2418,6 @@ class localrepository:
         self.hook(b'pretxnopen', throw=True, txnname=desc, txnid=txnid)
 
         self._writejournal(desc)
-        renames = [(vfs, x, undoname(x)) for vfs, x in self._journalfiles()]
         if report:
             rp = report
         else:
@@ -2576,7 +2575,7 @@ class localrepository:
             vfsmap,
             b"journal",
             b"undo",
-            aftertrans(renames),
+            lambda: None,
             self.store.createmode,
             validator=validate,
             releasefn=releasefn,
@@ -3547,24 +3546,6 @@ class localrepository:
             raise error.ProgrammingError(msg % category)
         self._sidedata_computers.setdefault(kind, {})
         self._sidedata_computers[kind][category] = (keys, computer, flags)
-
-
-# used to avoid circular references so destructors work
-def aftertrans(files):
-    renamefiles = [tuple(t) for t in files]
-
-    def a():
-        for vfs, src, dest in renamefiles:
-            # if src and dest refer to a same file, vfs.rename is a no-op,
-            # leaving both src and dest on disk. delete dest to make sure
-            # the rename couldn't be such a no-op.
-            vfs.tryunlink(dest)
-            try:
-                vfs.rename(src, dest)
-            except FileNotFoundError:  # journal file does not yet exist
-                pass
-
-    return a
 
 
 def undoname(fn: bytes) -> bytes:
