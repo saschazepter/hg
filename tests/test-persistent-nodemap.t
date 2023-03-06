@@ -811,8 +811,7 @@ downgrading
     - manifest
   
   $ ls -1 .hg/store/ | egrep '00(changelog|manifest)(\.n|-.*\.nd)'
-  undo.backup.00changelog.n
-  undo.backup.00manifest.n
+  [1]
   $ hg debugnodemap --metadata
 
 
@@ -858,8 +857,6 @@ upgrading
   00changelog.n
   00manifest-*.nd (glob)
   00manifest.n
-  undo.backup.00changelog.n
-  undo.backup.00manifest.n
 
   $ hg debugnodemap --metadata
   uid: * (glob)
