@@ -737,6 +737,32 @@ BAD_VERSION_MSG = _(
 )
 
 
+def read_backup_files(report, fp):
+    """parse an (already open) backup file an return contained backup entries
+
+    entries are in the form: (location, file, backupfile, xxx)
+
+    :location:   the vfs identifier (vfsmap's key)
+    :file:       original file path (in the vfs)
+    :backupfile: path of the backup (in the vfs)
+    :cache:      a boolean currently always set to False
+    """
+    lines = fp.readlines()
+    backupentries = []
+    if lines:
+        ver = lines[0][:-1]
+        if ver != (b'%d' % version):
+            report(BAD_VERSION_MSG)
+        else:
+            for line in lines[1:]:
+                if line:
+                    # Shave off the trailing newline
+                    line = line[:-1]
+                    l, f, b, c = line.split(b'\0')
+                    backupentries.append((l, f, b, bool(c)))
+    return backupentries
+
+
 def rollback(
     opener,
     vfsmap,
@@ -776,19 +802,8 @@ def rollback(
 
     backupjournal = b"%s.backupfiles" % file
     if opener.exists(backupjournal):
-        fp = opener.open(backupjournal)
-        lines = fp.readlines()
-        if lines:
-            ver = lines[0][:-1]
-            if ver != (b'%d' % version):
-                report(BAD_VERSION_MSG)
-            else:
-                for line in lines[1:]:
-                    if line:
-                        # Shave off the trailing newline
-                        line = line[:-1]
-                        l, f, b, c = line.split(b'\0')
-                        backupentries.append((l, f, b, bool(c)))
+        with opener.open(backupjournal) as fp:
+            backupentries = read_backup_files(report, fp)
     if skip_journal_pattern is not None:
         keep = lambda x: not skip_journal_pattern.match(x[1])
         backupentries = [x for x in backupentries if keep(x)]
