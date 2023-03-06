@@ -294,7 +294,7 @@ def handlechangegroup_widen(op, inpart):
     finally:
         f.close()
 
-    transaction.cleanup_undo_files(repo)
+    transaction.cleanup_undo_files(repo.ui.warn, repo.vfs_map)
 
     # Remove partial backup only if there were no exceptions
     op._widen_uninterr.__exit__(None, None, None)
