@@ -50,7 +50,7 @@ UNDO_FILES_MAY_NEED_CLEANUP = [
 ]
 
 
-def cleanup_undo_files(repo):
+def cleanup_undo_files(report, vfsmap):
     """remove "undo" files used by the rollback logic
 
     This is useful to prevent rollback running in situation were it does not
@@ -58,21 +58,21 @@ def cleanup_undo_files(repo):
     """
     backup_entries = []
     undo_files = []
-    vfsmap = repo.vfs_map
+    svfs = vfsmap[b'store']
     try:
-        with repo.svfs(UNDO_BACKUP) as f:
-            backup_entries = read_backup_files(repo.ui.warn, f)
+        with svfs(UNDO_BACKUP) as f:
+            backup_entries = read_backup_files(report, f)
     except OSError as e:
         if e.errno != errno.ENOENT:
             msg = _(b'could not read %s: %s\n')
-            msg %= (repo.svfs.join(UNDO_BACKUP), stringutil.forcebytestr(e))
-            repo.ui.warn(msg)
+            msg %= (svfs.join(UNDO_BACKUP), stringutil.forcebytestr(e))
+            report(msg)
 
     for location, f, backup_path, c in backup_entries:
         if location in vfsmap and backup_path:
             undo_files.append((vfsmap[location], backup_path))
 
-    undo_files.append((repo.svfs, UNDO_BACKUP))
+    undo_files.append((svfs, UNDO_BACKUP))
     for location, undo_path in UNDO_FILES_MAY_NEED_CLEANUP:
         undo_files.append((vfsmap[location], undo_path))
     for undovfs, undofile in undo_files:
@@ -82,7 +82,7 @@ def cleanup_undo_files(repo):
             if e.errno != errno.ENOENT:
                 msg = _(b'error removing %s: %s\n')
                 msg %= (undovfs.join(undofile), stringutil.forcebytestr(e))
-                repo.ui.warn(msg)
+                report(msg)
 
 
 def _playback(

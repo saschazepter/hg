@@ -259,7 +259,7 @@ def strip(ui, repo, nodelist, backup=True, topic=b'backup'):
                 bmchanges = [(m, repo[newbmtarget].node()) for m in updatebm]
                 repo._bookmarks.applychanges(repo, tr, bmchanges)
 
-            transaction.cleanup_undo_files(repo)
+            transaction.cleanup_undo_files(repo.ui.warn, repo.vfs_map)
 
         except:  # re-raises
             if backupfile:
