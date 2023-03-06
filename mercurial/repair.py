@@ -113,6 +113,22 @@ def _collectbrokencsets(repo, files, striprev):
     return s
 
 
+def cleanup_undo_files(repo):
+    """remove "undo" files used by the rollback logic
+
+    This is useful to prevent rollback running in situation were it does not
+    make sense. For example after a strip.
+    """
+    for undovfs, undofile in repo.undofiles():
+        try:
+            undovfs.unlink(undofile)
+        except OSError as e:
+            if e.errno != errno.ENOENT:
+                msg = _(b'error removing %s: %s\n')
+                msg %= (undovfs.join(undofile), stringutil.forcebytestr(e))
+                repo.ui.warn(msg)
+
+
 def strip(ui, repo, nodelist, backup=True, topic=b'backup'):
     # This function requires the caller to lock the repo, but it operates
     # within a transaction of its own, and thus requires there to be no current
@@ -261,19 +277,7 @@ def strip(ui, repo, nodelist, backup=True, topic=b'backup'):
                 bmchanges = [(m, repo[newbmtarget].node()) for m in updatebm]
                 repo._bookmarks.applychanges(repo, tr, bmchanges)
 
-            # remove undo files
-            for undovfs, undofile in repo.undofiles():
-                try:
-                    undovfs.unlink(undofile)
-                except OSError as e:
-                    if e.errno != errno.ENOENT:
-                        ui.warn(
-                            _(b'error removing %s: %s\n')
-                            % (
-                                undovfs.join(undofile),
-                                stringutil.forcebytestr(e),
-                            )
-                        )
+            cleanup_undo_files(repo)
 
         except:  # re-raises
             if backupfile:
