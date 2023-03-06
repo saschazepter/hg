@@ -11,6 +11,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+import errno
 import os
 
 from .i18n import _
@@ -37,6 +38,43 @@ def active(func):
         return func(self, *args, **kwds)
 
     return _active
+
+
+UNDO_BACKUP = b'undo.backupfiles'
+
+
+def cleanup_undo_files(repo):
+    """remove "undo" files used by the rollback logic
+
+    This is useful to prevent rollback running in situation were it does not
+    make sense. For example after a strip.
+    """
+    backup_entries = []
+    undo_files = []
+    vfsmap = repo.vfs_map
+    try:
+        with repo.svfs(UNDO_BACKUP) as f:
+            backup_entries = read_backup_files(repo.ui.warn, f)
+    except OSError as e:
+        if e.errno != errno.ENOENT:
+            msg = _(b'could not read %s: %s\n')
+            msg %= (repo.svfs.join(UNDO_BACKUP), stringutil.forcebytestr(e))
+            repo.ui.warn(msg)
+
+    for location, f, backup_path, c in backup_entries:
+        if location in vfsmap and backup_path:
+            undo_files.append((vfsmap[location], backup_path))
+
+    undo_files.append((repo.svfs, UNDO_BACKUP))
+    undo_files.extend(repo.undofiles())
+    for undovfs, undofile in undo_files:
+        try:
+            undovfs.unlink(undofile)
+        except OSError as e:
+            if e.errno != errno.ENOENT:
+                msg = _(b'error removing %s: %s\n')
+                msg %= (undovfs.join(undofile), stringutil.forcebytestr(e))
+                repo.ui.warn(msg)
 
 
 def _playback(
