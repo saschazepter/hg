@@ -13,7 +13,11 @@
 
 #include "util.h"
 
+#if PY_VERSION_HEX >= 0x030C00A5
+#define PYLONG_VALUE(o) ((PyLongObject *)o)->long_value.ob_digit[0]
+#else
 #define PYLONG_VALUE(o) ((PyLongObject *)o)->ob_digit[0]
+#endif
 
 /*
  * This is a multiset of directory names, built from the files that
