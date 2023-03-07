@@ -415,9 +415,9 @@ impl Node {
 
     fn synthesize_unix_mode(&self) -> u32 {
         let file_type = if self.flags().contains(Flags::MODE_IS_SYMLINK) {
-            libc::S_IFLNK
+            libc::S_IFLNK as u32
         } else {
-            libc::S_IFREG
+            libc::S_IFREG as u32
         };
         let permissions = if self.flags().contains(Flags::MODE_EXEC_PERM) {
             0o755
