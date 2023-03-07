@@ -43,6 +43,14 @@ def active(func):
 UNDO_BACKUP = b'%s.backupfiles'
 
 UNDO_FILES_MAY_NEED_CLEANUP = [
+    # legacy entries that might exists on disk from previous version:
+    (b'store', b'%s.narrowspec'),
+    (b'plain', b'%s.narrowspec.dirstate'),
+    (b'plain', b'%s.branch'),
+    (b'plain', b'%s.bookmarks'),
+    (b'store', b'%s.phaseroots'),
+    (b'plain', b'%s.dirstate'),
+    # files actually in uses today:
     (b'plain', b'%s.desc'),
     # Always delete undo last to make sure we detect that a clean up is needed if
     # the process is interrupted.
