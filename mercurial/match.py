@@ -196,14 +196,14 @@ def match(
     ...     return match(util.localpath(root), *args, **kwargs)
 
     Usually a patternmatcher is returned:
-    >>> _match(b'/foo', b'.', [b're:.*\.c$', b'path:foo/a', b'*.py'])
+    >>> _match(b'/foo', b'.', [br're:.*\.c$', b'path:foo/a', b'*.py'])
     <patternmatcher patterns='.*\\.c$|foo/a(?:/|$)|[^/]*\\.py$'>
 
     Combining 'patterns' with 'include' (resp. 'exclude') gives an
     intersectionmatcher (resp. a differencematcher):
-    >>> type(_match(b'/foo', b'.', [b're:.*\.c$'], include=[b'path:lib']))
+    >>> type(_match(b'/foo', b'.', [br're:.*\.c$'], include=[b'path:lib']))
     <class 'mercurial.match.intersectionmatcher'>
-    >>> type(_match(b'/foo', b'.', [b're:.*\.c$'], exclude=[b'path:build']))
+    >>> type(_match(b'/foo', b'.', [br're:.*\.c$'], exclude=[b'path:build']))
     <class 'mercurial.match.differencematcher'>
 
     Notice that, if 'patterns' is empty, an alwaysmatcher is returned:
@@ -212,7 +212,7 @@ def match(
 
     The 'default' argument determines which kind of pattern is assumed if a
     pattern has no prefix:
-    >>> _match(b'/foo', b'.', [b'.*\.c$'], default=b're')
+    >>> _match(b'/foo', b'.', [br'.*\.c$'], default=b're')
     <patternmatcher patterns='.*\\.c$'>
     >>> _match(b'/foo', b'.', [b'main.py'], default=b'relpath')
     <patternmatcher patterns='main\\.py(?:/|$)'>
@@ -223,7 +223,7 @@ def match(
     name) matches againset one of the patterns given at initialization. There
     are two ways of doing this check.
 
-    >>> m = _match(b'/foo', b'', [b're:.*\.c$', b'relpath:a'])
+    >>> m = _match(b'/foo', b'', [br're:.*\.c$', b'relpath:a'])
 
     1. Calling the matcher with a file name returns True if any pattern
     matches that file name:
