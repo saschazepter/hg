@@ -1,4 +1,4 @@
-"""Create the race condition for issue6554
+r"""Create the race condition for issue6554
 
 The persistent nodemap issues had an issue where a second writer could
 overwrite the data that a previous write just wrote. The would break the append
