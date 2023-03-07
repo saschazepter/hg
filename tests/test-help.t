@@ -1988,7 +1988,7 @@ such str.lower().
 
   $ "$PYTHON" <<EOF
   > def escape(s):
-  >     return b''.join(b'\\u%x' % ord(uc) for uc in s.decode('cp932'))
+  >     return b''.join(br'\\u%x' % ord(uc) for uc in s.decode('cp932'))
   > # translation of "record" in ja_JP.cp932
   > upper = b"\x8bL\x98^"
   > # str.lower()-ed section name should be treated as different one
