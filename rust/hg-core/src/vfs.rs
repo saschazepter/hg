@@ -193,3 +193,13 @@ pub(crate) fn is_on_nfs_mount(path: impl AsRef<Path>) -> bool {
         r == 0 && buf.f_type as u32 == libc::NFS_SUPER_MAGIC as u32
     }
 }
+
+/// Similar to what Cargo does; although detecting NFS (or non-local
+/// file systems) _should_ be possible on other operating systems,
+/// we'll just assume that mmap() works there, for now; after all,
+/// _some_ functionality is better than a compile error, i.e. none at
+/// all
+#[cfg(not(target_os = "linux"))]
+pub(crate) fn is_on_nfs_mount(_path: impl AsRef<Path>) -> bool {
+    false
+}
