@@ -50,6 +50,10 @@ A set of extension and shell functions ensures this scheduling.
   >         limit = 100
   >         test_default_timeout = os.environ.get('HGTEST_TIMEOUT_DEFAULT')
   >         test_timeout = os.environ.get('HGTEST_TIMEOUT')
+  >         if test_default_timeout is not None:
+  >            test_default_timeout = int(test_default_timeout)
+  >         if test_timeout is not None:
+  >            test_timeout = int(test_timeout)
   >         if (
   >             test_default_timeout is not None
   >             and test_timeout is not None
