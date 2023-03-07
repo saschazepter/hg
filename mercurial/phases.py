@@ -154,6 +154,7 @@ archived = 32  # non-continuous for compatibility
 internal = 96  # non-continuous for compatibility
 allphases = (public, draft, secret, archived, internal)
 trackedphases = (draft, secret, archived, internal)
+not_public_phases = trackedphases
 # record phase names
 cmdphasenames = [b'public', b'draft', b'secret']  # known to `hg phase` command
 phasenames = dict(enumerate(cmdphasenames))
