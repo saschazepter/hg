@@ -40,41 +40,43 @@ def active(func):
     return _active
 
 
-UNDO_BACKUP = b'undo.backupfiles'
+UNDO_BACKUP = b'%s.backupfiles'
 
 UNDO_FILES_MAY_NEED_CLEANUP = [
-    (b'plain', b'undo.desc'),
+    (b'plain', b'%s.desc'),
     # Always delete undo last to make sure we detect that a clean up is needed if
     # the process is interrupted.
-    (b'store', b'undo'),
+    (b'store', b'%s'),
 ]
 
 
-def cleanup_undo_files(report, vfsmap):
+def cleanup_undo_files(report, vfsmap, undo_prefix=b'undo'):
     """remove "undo" files used by the rollback logic
 
     This is useful to prevent rollback running in situation were it does not
     make sense. For example after a strip.
     """
+    backup_listing = UNDO_BACKUP % undo_prefix
+
     backup_entries = []
     undo_files = []
     svfs = vfsmap[b'store']
     try:
-        with svfs(UNDO_BACKUP) as f:
+        with svfs(backup_listing) as f:
             backup_entries = read_backup_files(report, f)
     except OSError as e:
         if e.errno != errno.ENOENT:
             msg = _(b'could not read %s: %s\n')
-            msg %= (svfs.join(UNDO_BACKUP), stringutil.forcebytestr(e))
+            msg %= (svfs.join(backup_listing), stringutil.forcebytestr(e))
             report(msg)
 
     for location, f, backup_path, c in backup_entries:
         if location in vfsmap and backup_path:
             undo_files.append((vfsmap[location], backup_path))
 
-    undo_files.append((svfs, UNDO_BACKUP))
+    undo_files.append((svfs, backup_listing))
     for location, undo_path in UNDO_FILES_MAY_NEED_CLEANUP:
-        undo_files.append((vfsmap[location], undo_path))
+        undo_files.append((vfsmap[location], undo_path % undo_prefix))
     for undovfs, undofile in undo_files:
         try:
             undovfs.unlink(undofile)
