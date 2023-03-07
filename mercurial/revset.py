@@ -2061,7 +2061,7 @@ def present(repo, subset, x, order):
 @predicate(b'_notpublic', safe=True)
 def _notpublic(repo, subset, x):
     getargs(x, 0, 0, b"_notpublic takes no arguments")
-    return _phase(repo, subset, phases.draft, phases.secret)
+    return _phase(repo, subset, *phases.not_public_phases)
 
 
 # for internal use
