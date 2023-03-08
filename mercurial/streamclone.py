@@ -428,7 +428,16 @@ def consumev1(repo, fp, filecount, bytecount):
             with repo.svfs.backgroundclosing(repo.ui, expectedcount=filecount):
                 for i in range(filecount):
                     # XXX doesn't support '\n' or '\r' in filenames
-                    l = fp.readline()
+                    if util.safehasattr(fp, 'readline'):
+                        l = fp.readline()
+                    else:
+                        # inline clonebundles use a chunkbuffer, so no readline
+                        # --> this should be small anyway, the first line
+                        # only contains the size of the bundle
+                        l_buf = []
+                        while not (l_buf and l_buf[-1] == b'\n'):
+                            l_buf.append(fp.read(1))
+                        l = b''.join(l_buf)
                     try:
                         name, size = l.split(b'\0', 1)
                         size = int(size)

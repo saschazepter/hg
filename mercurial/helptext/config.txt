@@ -1318,6 +1318,12 @@ be ``$HG_HOOKTYPE=incoming`` and ``$HG_HOOKNAME=incoming.email``.
   changeset to tag is in ``$HG_NODE``. The name of tag is in ``$HG_TAG``. The
   tag is local if ``$HG_LOCAL=1``, or in the repository if ``$HG_LOCAL=0``.
 
+``pretransmit-inline-clone-bundle``
+  Run before transferring an inline clonebundle to the peer.
+  If the exit status is 0, the inline clonebundle will be allowed to be
+  transferred. A non-zero status will cause the transfer to fail.
+  The path of the inline clonebundle is in ``$HG_CLONEBUNDLEPATH``.
+
 ``pretxnopen``
   Run before any new repository transaction is open. The reason for the
   transaction will be in ``$HG_TXNNAME``, and a unique identifier for the

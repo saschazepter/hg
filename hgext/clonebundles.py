@@ -202,6 +202,18 @@ instructions when a failure occurs, thus driving more load to the original
 Mercurial server when the bundle hosting service fails.
 
 
+inline clonebundles
+-------------------
+
+It is possible to transmit clonebundles inline in case repositories are
+accessed over SSH. This avoids having to setup an external HTTPS server
+and results in the same access control as already present for the SSH setup.
+
+Inline clonebundles should be placed into the `.hg/bundle-cache` directory.
+A clonebundle at `.hg/bundle-cache/mybundle.bundle` is referred to
+in the `clonebundles.manifest` file as `peer-bundle-cache://mybundle.bundle`.
+
+
 auto-generation of clone bundles
 --------------------------------
 

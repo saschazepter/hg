@@ -219,6 +219,59 @@ Feature works over SSH
   no changes found
   2 local changesets published
 
+Feature works over SSH with inline bundle
+  $ mkdir server/.hg/bundle-cache/
+  $ cp full.hg server/.hg/bundle-cache/
+  $ echo "peer-bundle-cache://full.hg" > server/.hg/clonebundles.manifest
+  $ hg clone -U ssh://user@dummy/server ssh-inline-clone
+  applying clone bundle from peer-bundle-cache://full.hg
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files
+  finished applying clone bundle
+  searching for changes
+  no changes found
+  2 local changesets published
+
+Hooks work with inline bundle
+  $ cp server/.hg/hgrc server/.hg/hgrc-beforeinlinehooks
+  $ echo "[hooks]" >> server/.hg/hgrc
+  $ echo "pretransmit-inline-clone-bundle=echo foo" >> server/.hg/hgrc
+  $ hg clone -U ssh://user@dummy/server ssh-inline-clone-hook
+  applying clone bundle from peer-bundle-cache://full.hg
+  remote: foo
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files
+  finished applying clone bundle
+  searching for changes
+  no changes found
+  2 local changesets published
+
+Hooks can make an inline bundle fail
+  $ cp server/.hg/hgrc-beforeinlinehooks server/.hg/hgrc
+  $ echo "[hooks]" >> server/.hg/hgrc
+  $ echo "pretransmit-inline-clone-bundle=echo bar && false" >> server/.hg/hgrc
+  $ hg clone -U ssh://user@dummy/server ssh-inline-clone-hook-fail
+  applying clone bundle from peer-bundle-cache://full.hg
+  remote: bar
+  remote: abort: pretransmit-inline-clone-bundle hook exited with status 1
+  abort: stream ended unexpectedly (got 0 bytes, expected 1)
+  [255]
+  $ cp server/.hg/hgrc-beforeinlinehooks server/.hg/hgrc
+
+Feature does not use inline bundle over HTTP(S) because there is no protocaps support
+(so no way for the client to announce that it supports inline clonebundles)
+  $ hg clone -U http://localhost:$HGPORT http-inline-clone
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files
+  new changesets 53245c60e682:aaff8d2ffbbf
+
 Entry with unknown BUNDLESPEC is filtered and not used
 
   $ cat > server/.hg/clonebundles.manifest << EOF

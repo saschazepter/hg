@@ -341,6 +341,19 @@ class wirepeer(repository.peer):
         self.requirecap(b'clonebundles', _(b'clone bundles'))
         return self._call(b'clonebundles')
 
+    def _finish_inline_clone_bundle(self, stream):
+        pass  # allow override for httppeer
+
+    def get_inline_clone_bundle(self, path):
+        stream = self._callstream(b"get_inline_clone_bundle", path=path)
+        length = util.uvarintdecodestream(stream)
+
+        # SSH streams will block if reading more than length
+        for chunk in util.filechunkiter(stream, limit=length):
+            yield chunk
+
+        self._finish_inline_clone_bundle(stream)
+
     @batchable
     def lookup(self, key):
         self.requirecap(b'lookup', _(b'look up remote revision'))
