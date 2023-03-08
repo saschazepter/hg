@@ -1703,6 +1703,7 @@ def writenewbundle(
     vfs=None,
     compression=None,
     compopts=None,
+    allow_internal=False,
 ):
     if bundletype.startswith(b'HG10'):
         cg = changegroup.makechangegroup(repo, outgoing, b'01', source)
@@ -1717,6 +1718,14 @@ def writenewbundle(
         )
     elif not bundletype.startswith(b'HG20'):
         raise error.ProgrammingError(b'unknown bundle type: %s' % bundletype)
+
+    # enforce that no internal phase are to be bundled
+    bundled_internal = repo.revs(b"%ln and _internal()", outgoing.ancestorsof)
+    if bundled_internal and not allow_internal:
+        count = len(repo.revs(b'%ln and _internal()', outgoing.missing))
+        msg = "backup bundle would contains %d internal changesets"
+        msg %= count
+        raise error.ProgrammingError(msg)
 
     caps = {}
     if opts.get(b'obsolescence', False):
