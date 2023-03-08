@@ -60,6 +60,7 @@ class bundlespec:
 _bundlespeccgversions = {
     b'v1': b'01',
     b'v2': b'02',
+    b'v3': b'03',
     b'packed1': b's1',
     b'bundle2': b'02',  # legacy
 }
@@ -79,6 +80,14 @@ _bundlespeccontentopts = {
         b'cg.version': b'02',
         b'obsolescence': False,
         b'phases': False,
+        b'tagsfnodescache': True,
+        b'revbranchcache': True,
+    },
+    b'v3': {
+        b'changegroup': True,
+        b'cg.version': b'03',
+        b'obsolescence': False,
+        b'phases': True,
         b'tagsfnodescache': True,
         b'revbranchcache': True,
     },
