@@ -172,6 +172,10 @@ mutablephases = (draft, secret, archived, internal)
 remotehiddenphases = (secret, archived, internal)
 localhiddenphases = (internal, archived)
 
+all_internal_phases = tuple(p for p in allphases if p & internal)
+# We do not want any internal content to exit the repository, ever.
+no_bundle_phases = all_internal_phases
+
 
 def supportinternal(repo):
     # type: (localrepo.localrepository) -> bool
