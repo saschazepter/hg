@@ -20,33 +20,39 @@ bundle w/o type option
   $ echo alklqo > file.txt
   $ hg ci -m commit_5
   $ echo peakfeo > file.txt
-  $ hg ci -m commit_6
+  $ hg ci -m commit_6 --secret
+  $ hg phase --public --rev 'desc(commit_3)'
   $ hg log -GT '[{phase}] {desc|firstline}\n'
-  @  [draft] commit_6
+  @  [secret] commit_6
   |
   o  [draft] commit_5
   |
   o  [draft] commit_4
   |
-  o  [draft] commit_3
+  o  [public] commit_3
   |
   | o  [draft] commit_2
   | |
   | o  [draft] commit_1
   |/
-  o  [draft] commit_root
+  o  [public] commit_root
   
+
+XXX the bundle generation is defined by a discovery round here. So the secret
+changeset should be excluded.
 
   $ hg bundle ../b1.hg ../t2
   searching for changes
-  7 changesets found
+  7 changesets found (known-bad-output !)
+  6 changesets found (missing-correct-output !)
   $ cd ..
 
   $ hg -R t2 unbundle ./b1.hg
   adding changesets
   adding manifests
   adding file changes
-  added 7 changesets with 7 changes to 1 files (+1 heads)
+  added 7 changesets with 7 changes to 1 files (+1 heads) (known-bad-output !)
+  added 6 changesets with 6 changes to 1 files (+1 heads) (missing-correct-output !)
   new changesets ac39af4a9f7d:b9f5f740a8cd (7 drafts)
   (run 'hg heads' to see heads, 'hg merge' to merge)
   $ hg -R t2 up
@@ -54,8 +60,8 @@ bundle w/o type option
   updated to "b9f5f740a8cd: commit_6"
   1 other heads for branch "default"
   $ hg -R t2 log -GT '[{phase}] {desc|firstline}\n'
-  @  [draft] commit_6
-  |
+  @  [draft] commit_6 (known-bad-output !)
+  | (known-bad-output !)
   o  [draft] commit_5
   |
   o  [draft] commit_4
@@ -84,13 +90,22 @@ Unknown compression type is rejected
   [10]
 
 test bundle types
+=================
+
+since we use --all, it is okay to include the secret changeset here. It is
+unfortunate that the phase information for the secret one is lost.
 
   $ testbundle() {
   >   echo % test bundle type $1
+  >   echo '==================================='
   >   hg -R t1 bundle --all --type $1 ./b-$1.hg
   >   f -q -B6 -D ./b-$1.hg; echo
   >   hg debugbundle ./b-$1.hg
   >   hg debugbundle --spec ./b-$1.hg
+  >   echo
+  >   hg init repo-from-type-$1
+  >   hg unbundle -R repo-from-type-$1 ./b-$1.hg
+  >   hg -R repo-from-type-$1 log -GT '[{phase}] {desc|firstline}\n'
   >   echo
   > }
 
@@ -98,6 +113,7 @@ test bundle types
   >   testbundle $t
   > done
   % test bundle type None
+  ===================================
   7 changesets found
   HG20\x00\x00 (esc)
   Stream params: {}
@@ -112,7 +128,29 @@ test bundle types
   cache:rev-branch-cache -- {} (mandatory: False)
   none-v2
   
+  adding changesets
+  adding manifests
+  adding file changes
+  added 7 changesets with 7 changes to 1 files (+1 heads)
+  new changesets ac39af4a9f7d:b9f5f740a8cd (7 drafts)
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+  o  [draft] commit_6
+  |
+  o  [draft] commit_5
+  |
+  o  [draft] commit_4
+  |
+  o  [draft] commit_3
+  |
+  | o  [draft] commit_2
+  | |
+  | o  [draft] commit_1
+  |/
+  o  [draft] commit_root
+  
+  
   % test bundle type bzip2
+  ===================================
   7 changesets found
   HG20\x00\x00 (esc)
   Stream params: {Compression: BZ}
@@ -127,7 +165,29 @@ test bundle types
   cache:rev-branch-cache -- {} (mandatory: False)
   bzip2-v2
   
+  adding changesets
+  adding manifests
+  adding file changes
+  added 7 changesets with 7 changes to 1 files (+1 heads)
+  new changesets ac39af4a9f7d:b9f5f740a8cd (7 drafts)
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+  o  [draft] commit_6
+  |
+  o  [draft] commit_5
+  |
+  o  [draft] commit_4
+  |
+  o  [draft] commit_3
+  |
+  | o  [draft] commit_2
+  | |
+  | o  [draft] commit_1
+  |/
+  o  [draft] commit_root
+  
+  
   % test bundle type gzip
+  ===================================
   7 changesets found
   HG20\x00\x00 (esc)
   Stream params: {Compression: GZ}
@@ -142,7 +202,29 @@ test bundle types
   cache:rev-branch-cache -- {} (mandatory: False)
   gzip-v2
   
+  adding changesets
+  adding manifests
+  adding file changes
+  added 7 changesets with 7 changes to 1 files (+1 heads)
+  new changesets ac39af4a9f7d:b9f5f740a8cd (7 drafts)
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+  o  [draft] commit_6
+  |
+  o  [draft] commit_5
+  |
+  o  [draft] commit_4
+  |
+  o  [draft] commit_3
+  |
+  | o  [draft] commit_2
+  | |
+  | o  [draft] commit_1
+  |/
+  o  [draft] commit_root
+  
+  
   % test bundle type none-v2
+  ===================================
   7 changesets found
   HG20\x00\x00 (esc)
   Stream params: {}
@@ -157,7 +239,29 @@ test bundle types
   cache:rev-branch-cache -- {} (mandatory: False)
   none-v2
   
+  adding changesets
+  adding manifests
+  adding file changes
+  added 7 changesets with 7 changes to 1 files (+1 heads)
+  new changesets ac39af4a9f7d:b9f5f740a8cd (7 drafts)
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+  o  [draft] commit_6
+  |
+  o  [draft] commit_5
+  |
+  o  [draft] commit_4
+  |
+  o  [draft] commit_3
+  |
+  | o  [draft] commit_2
+  | |
+  | o  [draft] commit_1
+  |/
+  o  [draft] commit_root
+  
+  
   % test bundle type v2
+  ===================================
   7 changesets found
   HG20\x00\x00 (esc)
   Stream params: {Compression: BZ}
@@ -172,7 +276,29 @@ test bundle types
   cache:rev-branch-cache -- {} (mandatory: False)
   bzip2-v2
   
+  adding changesets
+  adding manifests
+  adding file changes
+  added 7 changesets with 7 changes to 1 files (+1 heads)
+  new changesets ac39af4a9f7d:b9f5f740a8cd (7 drafts)
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+  o  [draft] commit_6
+  |
+  o  [draft] commit_5
+  |
+  o  [draft] commit_4
+  |
+  o  [draft] commit_3
+  |
+  | o  [draft] commit_2
+  | |
+  | o  [draft] commit_1
+  |/
+  o  [draft] commit_root
+  
+  
   % test bundle type v1
+  ===================================
   7 changesets found
   HG10BZ
   ac39af4a9f7d2aaa7d244720e57838be9bf63b03
@@ -184,7 +310,29 @@ test bundle types
   b9f5f740a8cd76700020e3903ee55ecff78bd3e5
   bzip2-v1
   
+  adding changesets
+  adding manifests
+  adding file changes
+  added 7 changesets with 7 changes to 1 files (+1 heads)
+  new changesets ac39af4a9f7d:b9f5f740a8cd (7 drafts)
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+  o  [draft] commit_6
+  |
+  o  [draft] commit_5
+  |
+  o  [draft] commit_4
+  |
+  o  [draft] commit_3
+  |
+  | o  [draft] commit_2
+  | |
+  | o  [draft] commit_1
+  |/
+  o  [draft] commit_root
+  
+  
   % test bundle type gzip-v1
+  ===================================
   7 changesets found
   HG10GZ
   ac39af4a9f7d2aaa7d244720e57838be9bf63b03
@@ -195,6 +343,27 @@ test bundle types
   2ea90778052ba7558fab36e3fd5d149512ff986b
   b9f5f740a8cd76700020e3903ee55ecff78bd3e5
   gzip-v1
+  
+  adding changesets
+  adding manifests
+  adding file changes
+  added 7 changesets with 7 changes to 1 files (+1 heads)
+  new changesets ac39af4a9f7d:b9f5f740a8cd (7 drafts)
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+  o  [draft] commit_6
+  |
+  o  [draft] commit_5
+  |
+  o  [draft] commit_4
+  |
+  o  [draft] commit_3
+  |
+  | o  [draft] commit_2
+  | |
+  | o  [draft] commit_1
+  |/
+  o  [draft] commit_root
+  
   
 
 Compression level can be adjusted for bundle2 bundles
@@ -238,6 +407,7 @@ Compression level can be adjusted for bundle2 bundles
   >   testbundle $t
   > done
   % test bundle type zstd
+  ===================================
   7 changesets found
   HG20\x00\x00 (esc)
   Stream params: {Compression: ZS}
@@ -252,7 +422,29 @@ Compression level can be adjusted for bundle2 bundles
   cache:rev-branch-cache -- {} (mandatory: False)
   zstd-v2
   
+  adding changesets
+  adding manifests
+  adding file changes
+  added 7 changesets with 7 changes to 1 files (+1 heads)
+  new changesets ac39af4a9f7d:b9f5f740a8cd (7 drafts)
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+  o  [draft] commit_6
+  |
+  o  [draft] commit_5
+  |
+  o  [draft] commit_4
+  |
+  o  [draft] commit_3
+  |
+  | o  [draft] commit_2
+  | |
+  | o  [draft] commit_1
+  |/
+  o  [draft] commit_root
+  
+  
   % test bundle type zstd-v2
+  ===================================
   7 changesets found
   HG20\x00\x00 (esc)
   Stream params: {Compression: ZS}
@@ -266,6 +458,27 @@ Compression level can be adjusted for bundle2 bundles
       b9f5f740a8cd76700020e3903ee55ecff78bd3e5
   cache:rev-branch-cache -- {} (mandatory: False)
   zstd-v2
+  
+  adding changesets
+  adding manifests
+  adding file changes
+  added 7 changesets with 7 changes to 1 files (+1 heads)
+  new changesets ac39af4a9f7d:b9f5f740a8cd (7 drafts)
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+  o  [draft] commit_6
+  |
+  o  [draft] commit_5
+  |
+  o  [draft] commit_4
+  |
+  o  [draft] commit_3
+  |
+  | o  [draft] commit_2
+  | |
+  | o  [draft] commit_1
+  |/
+  o  [draft] commit_root
+  
   
 
 Explicit request for zstd on non-generaldelta repos
@@ -273,7 +486,7 @@ Explicit request for zstd on non-generaldelta repos
   $ hg --config format.usegeneraldelta=false init nogd
   $ hg -q -R nogd pull t1
   $ hg -R nogd bundle -a -t zstd nogd-zstd
-  7 changesets found
+  6 changesets found
 
 zstd-v1 always fails
 
