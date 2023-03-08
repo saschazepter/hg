@@ -232,6 +232,7 @@ def list_stdlib_modules():
     yield 'importlib.abc'  # python3 only
     yield 'importlib.machinery'  # python3 only
     yield 'importlib.util'  # python3 only
+    yield 'packaging.version'
     for m in 'fcntl', 'grp', 'pwd', 'termios':  # Unix only
         yield m
     for m in 'cPickle', 'datetime':  # in Python (not C) on PyPy
