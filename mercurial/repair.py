@@ -36,7 +36,14 @@ from .utils import (
 
 
 def backupbundle(
-    repo, bases, heads, node, suffix, compress=True, obsolescence=True
+    repo,
+    bases,
+    heads,
+    node,
+    suffix,
+    compress=True,
+    obsolescence=True,
+    tmp_backup=False,
 ):
     """create a bundle with the specified revisions as a backup"""
 
@@ -83,6 +90,7 @@ def backupbundle(
         contentopts,
         vfs,
         compression=comp,
+        allow_internal=tmp_backup,
     )
 
 
@@ -199,6 +207,7 @@ def strip(ui, repo, nodelist, backup=True, topic=b'backup'):
             b'temp',
             compress=False,
             obsolescence=False,
+            tmp_backup=True,
         )
 
     with ui.uninterruptible():
