@@ -2834,7 +2834,7 @@ def _maybeapplyclonebundle(pullop):
 
     url = entries[0][b'URL']
     repo.ui.status(_(b'applying clone bundle from %s\n') % url)
-    if trypullbundlefromurl(repo.ui, repo, url):
+    if trypullbundlefromurl(repo.ui, repo, url, remote):
         repo.ui.status(_(b'finished applying clone bundle\n'))
     # Bundle failed.
     #
@@ -2855,11 +2855,22 @@ def _maybeapplyclonebundle(pullop):
         )
 
 
-def trypullbundlefromurl(ui, repo, url):
+def inline_clone_bundle_open(ui, url, peer):
+    if not peer:
+        raise error.Abort(_(b'no remote repository supplied for %s' % url))
+    clonebundleid = url[len(bundlecaches.CLONEBUNDLESCHEME) :]
+    peerclonebundle = peer.get_inline_clone_bundle(clonebundleid)
+    return util.chunkbuffer(peerclonebundle)
+
+
+def trypullbundlefromurl(ui, repo, url, peer):
     """Attempt to apply a bundle from a URL."""
     with repo.lock(), repo.transaction(b'bundleurl') as tr:
         try:
-            fh = urlmod.open(ui, url)
+            if url.startswith(bundlecaches.CLONEBUNDLESCHEME):
+                fh = inline_clone_bundle_open(ui, url, peer)
+            else:
+                fh = urlmod.open(ui, url)
             cg = readbundle(ui, fh, b'stream')
 
             if isinstance(cg, streamclone.streamcloneapplier):

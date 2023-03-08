@@ -21,6 +21,7 @@ from . import (
     encoding,
     error,
     exchange,
+    hook,
     pushkey as pushkeymod,
     pycompat,
     repoview,
@@ -264,6 +265,40 @@ def branches(repo, proto, nodes):
     return wireprototypes.bytesresponse(b''.join(r))
 
 
+@wireprotocommand(b'get_inline_clone_bundle', b'path', permission=b'pull')
+def get_inline_clone_bundle(repo, proto, path):
+    """
+    Server command to send a clonebundle to the client
+    """
+    if hook.hashook(repo.ui, b'pretransmit-inline-clone-bundle'):
+        hook.hook(
+            repo.ui,
+            repo,
+            b'pretransmit-inline-clone-bundle',
+            throw=True,
+            clonebundlepath=path,
+        )
+
+    bundle_dir = repo.vfs.join(bundlecaches.BUNDLE_CACHE_DIR)
+    clonebundlepath = repo.vfs.join(bundle_dir, path)
+    if not repo.vfs.exists(clonebundlepath):
+        raise error.Abort(b'clonebundle %s does not exist' % path)
+
+    clonebundles_dir = os.path.realpath(bundle_dir)
+    if not os.path.realpath(clonebundlepath).startswith(clonebundles_dir):
+        raise error.Abort(b'clonebundle %s is using an illegal path' % path)
+
+    def generator(vfs, bundle_path):
+        with vfs(bundle_path) as f:
+            length = os.fstat(f.fileno())[6]
+            yield util.uvarintencode(length)
+            for chunk in util.filechunkiter(f):
+                yield chunk
+
+    stream = generator(repo.vfs, clonebundlepath)
+    return wireprototypes.streamres(gen=stream, prefer_uncompressed=True)
+
+
 @wireprotocommand(b'clonebundles', b'', permission=b'pull')
 def clonebundles(repo, proto):
     """Server command for returning info for available bundles to seed clones.
@@ -273,9 +308,21 @@ def clonebundles(repo, proto):
     Extensions may wrap this command to filter or dynamically emit data
     depending on the request. e.g. you could advertise URLs for the closest
     data center given the client's IP address.
+
+    The only filter on the server side is filtering out inline clonebundles
+    in case a client does not support them.
+    Otherwise, older clients would retrieve and error out on those.
     """
-    manifest = bundlecaches.get_manifest(repo)
-    return wireprototypes.bytesresponse(manifest)
+    manifest_contents = bundlecaches.get_manifest(repo)
+    clientcapabilities = proto.getprotocaps()
+    if b'inlineclonebundles' in clientcapabilities:
+        return wireprototypes.bytesresponse(manifest_contents)
+    modified_manifest = []
+    for line in manifest_contents.splitlines():
+        if line.startswith(bundlecaches.CLONEBUNDLESCHEME):
+            continue
+        modified_manifest.append(line)
+    return wireprototypes.bytesresponse(b'\n'.join(modified_manifest))
 
 
 wireprotocaps = [
