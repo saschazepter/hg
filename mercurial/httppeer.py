@@ -441,6 +441,13 @@ class httppeer(wireprotov1peer.wirepeer):
     def capabilities(self):
         return self._caps
 
+    def _finish_inline_clone_bundle(self, stream):
+        # HTTP streams must hit the end to process the last empty
+        # chunk of Chunked-Encoding so the connection can be reused.
+        chunk = stream.read(1)
+        if chunk:
+            self._abort(error.ResponseError(_(b"unexpected response:"), chunk))
+
     # End of ipeercommands interface.
 
     def _callstream(self, cmd, _compressible=False, **args):
