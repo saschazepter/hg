@@ -141,3 +141,61 @@ Test that history rewriting command can use the archived phase when allowed to
      date:        Thu Jan 01 00:00:00 1970 +0000
      summary:     root
   
+
+Test that a strip will preserve unrelated changeset archived
+------------------------------------------------------------
+
+prepare a suitable tree
+
+  $ echo foo > bar
+  $ hg add bar
+  $ hg commit -m 'some more commit'
+  $ hg log -G --hidden -T '{rev} {node|short} [{phase}] {desc|firstline}\n'
+  @  3 f90bf4e57854 [draft] some more commit
+  |
+  o  2 d1e73e428f29 [draft] unbundletesting
+  |
+  | o  1 883aadbbf309 [draft] unbundletesting
+  |/
+  o  0 c1863a3840c6 [draft] root
+  
+  $ hg strip --soft --rev '.'
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/f90bf4e57854-56b37ff2-backup.hg
+  $ hg log -G --hidden -T '{rev} {node|short} [{phase}] {desc|firstline}\n'
+  o  3 f90bf4e57854 [archived] some more commit
+  |
+  @  2 d1e73e428f29 [draft] unbundletesting
+  |
+  | o  1 883aadbbf309 [draft] unbundletesting
+  |/
+  o  0 c1863a3840c6 [draft] root
+  
+
+
+Strips the other (lower rev-num) head
+
+  $ hg strip --rev 'min(head() and not .)'
+  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/883aadbbf309-efc55adc-backup.hg
+
+The archived changeset should still be hidden
+
+  $ hg log -G -T '{rev} {node|short} [{phase}] {desc|firstline}\n'
+  o  2 f90bf4e57854 [draft] some more commit (known-bad-output !)
+  | (known-bad-output !)
+  @  1 d1e73e428f29 [draft] unbundletesting
+  |
+  o  0 c1863a3840c6 [draft] root
+  
+
+It may still be around:
+
+  $ hg log --hidden -G -T '{rev} {node|short} [{phase}] {desc|firstline}\n'
+  o  2 f90bf4e57854 [draft] some more commit (known-bad-output !)
+  o  2 f90bf4e57854 [archived] some more commit (missing-correct-output !)
+  |
+  @  1 d1e73e428f29 [draft] unbundletesting
+  |
+  o  0 c1863a3840c6 [draft] root
+  
+
