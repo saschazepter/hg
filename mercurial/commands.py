@@ -1714,8 +1714,9 @@ def bundle(ui, repo, fname, *dests, **opts):
     bundlespec.set_param(
         b'obsolescence-mandatory', obs_mand_cfg, overwrite=False
     )
-    phases_cfg = cfg(b'experimental', b'bundle-phases')
-    bundlespec.set_param(b'phases', phases_cfg, overwrite=False)
+    if not bundlespec.params.get(b'phases', False):
+        phases_cfg = cfg(b'experimental', b'bundle-phases')
+        bundlespec.set_param(b'phases', phases_cfg, overwrite=False)
 
     bundle2.writenewbundle(
         ui,
