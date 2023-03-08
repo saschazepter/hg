@@ -54,6 +54,7 @@ import functools
 import json
 import multiprocessing
 import os
+import packaging.version as version
 import platform
 import queue
 import random
@@ -72,12 +73,6 @@ import unittest
 import uuid
 import xml.dom.minidom as minidom
 
-try:
-    # PEP 632 recommend the use of `packaging.version` to replace the
-    # deprecated `distutil.version`. So lets do it.
-    import packaging.version as version
-except ImportError:
-    import distutils.version as version
 
 if sys.version_info < (3, 5, 0):
     print(
@@ -799,8 +794,8 @@ def parseargs(args, parser):
         try:
             import coverage
 
-            covver = version.StrictVersion(coverage.__version__).version
-            if covver < (3, 3):
+            covver = version.Version(coverage.__version__)
+            if covver < version.Version("3.3"):
                 parser.error('coverage options require coverage 3.3 or later')
         except ImportError:
             parser.error('coverage options now require the coverage package')
