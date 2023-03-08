@@ -109,7 +109,7 @@ unfortunate that the phase information for the secret one is lost.
   >   echo
   > }
 
-  $ for t in "None" "bzip2" "gzip" "none-v2" "v2" "v1" "gzip-v1"; do
+  $ for t in "None" "bzip2" "gzip" "none-v2" "v2" "v1" "gzip-v1" "v3"; do
   >   testbundle $t
   > done
   % test bundle type None
@@ -363,6 +363,47 @@ unfortunate that the phase information for the secret one is lost.
   | o  [draft] commit_1
   |/
   o  [draft] commit_root
+  
+  
+  % test bundle type v3
+  ===================================
+  7 changesets found
+  HG20\x00\x00 (esc)
+  Stream params: {Compression: BZ}
+  changegroup -- {nbchanges: 7, targetphase: 2, version: 03} (mandatory: True)
+      ac39af4a9f7d2aaa7d244720e57838be9bf63b03
+      901e97fadc587978ec52f2fa76af4aefc2d191e8
+      a8c3a1ed30eb71f03f476c5fa7ead831ef991a55
+      66e2c4b43e0cf8f0bdff0733a0b97ce57874e35d
+      624e609639853fe22c88d42a8fd1f53a0e9b7ebe
+      2ea90778052ba7558fab36e3fd5d149512ff986b
+      b9f5f740a8cd76700020e3903ee55ecff78bd3e5
+  cache:rev-branch-cache -- {} (mandatory: False)
+  phase-heads -- {} (mandatory: True)
+      66e2c4b43e0cf8f0bdff0733a0b97ce57874e35d public
+      a8c3a1ed30eb71f03f476c5fa7ead831ef991a55 draft
+      2ea90778052ba7558fab36e3fd5d149512ff986b draft
+  bzip2-v2;cg.version=03
+  
+  adding changesets
+  adding manifests
+  adding file changes
+  added 7 changesets with 7 changes to 1 files (+1 heads)
+  new changesets ac39af4a9f7d:b9f5f740a8cd (4 drafts, 1 secrets)
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+  o  [secret] commit_6
+  |
+  o  [draft] commit_5
+  |
+  o  [draft] commit_4
+  |
+  o  [public] commit_3
+  |
+  | o  [draft] commit_2
+  | |
+  | o  [draft] commit_1
+  |/
+  o  [public] commit_root
   
   
 
