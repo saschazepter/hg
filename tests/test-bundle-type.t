@@ -383,6 +383,7 @@ unfortunate that the phase information for the secret one is lost.
       66e2c4b43e0cf8f0bdff0733a0b97ce57874e35d public
       a8c3a1ed30eb71f03f476c5fa7ead831ef991a55 draft
       2ea90778052ba7558fab36e3fd5d149512ff986b draft
+      b9f5f740a8cd76700020e3903ee55ecff78bd3e5 secret
   bzip2-v2;cg.version=03
   
   adding changesets
