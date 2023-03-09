@@ -827,10 +827,8 @@ def subsetphaseheads(repo, subset):
     cl = repo.changelog
 
     headsbyphase = {i: [] for i in allphases}
-    # No need to keep track of secret phase; any heads in the subset that
-    # are not mentioned are implicitly secret.
-    for phase in allphases[:secret]:
-        revset = b"heads(%%ln & %s())" % phasenames[phase]
+    for phase in allphases:
+        revset = b"heads(%%ln & _phase(%d))" % phase
         headsbyphase[phase] = [cl.node(r) for r in repo.revs(revset, subset)]
     return headsbyphase
 
