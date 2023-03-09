@@ -181,8 +181,6 @@ Strips the other (lower rev-num) head
 The archived changeset should still be hidden
 
   $ hg log -G -T '{rev} {node|short} [{phase}] {desc|firstline}\n'
-  o  2 f90bf4e57854 [draft] some more commit (known-bad-output !)
-  | (known-bad-output !)
   @  1 d1e73e428f29 [draft] unbundletesting
   |
   o  0 c1863a3840c6 [draft] root
@@ -191,8 +189,7 @@ The archived changeset should still be hidden
 It may still be around:
 
   $ hg log --hidden -G -T '{rev} {node|short} [{phase}] {desc|firstline}\n'
-  o  2 f90bf4e57854 [draft] some more commit (known-bad-output !)
-  o  2 f90bf4e57854 [archived] some more commit (missing-correct-output !)
+  o  2 f90bf4e57854 [archived] some more commit
   |
   @  1 d1e73e428f29 [draft] unbundletesting
   |

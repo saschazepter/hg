@@ -1750,12 +1750,16 @@ def _addpartsfromopts(ui, repo, bundler, source, outgoing, opts):
             part.addparam(
                 b'nbchanges', b'%d' % cg.extras[b'clcount'], mandatory=False
             )
-        if opts.get(b'phases') and repo.revs(
-            b'%ln and secret()', outgoing.ancestorsof
-        ):
-            part.addparam(
-                b'targetphase', b'%d' % phases.secret, mandatory=False
-            )
+        if opts.get(b'phases'):
+            target_phase = phases.draft
+            for head in outgoing.ancestorsof:
+                target_phase = max(target_phase, repo[head].phase())
+            if target_phase > phases.draft:
+                part.addparam(
+                    b'targetphase',
+                    b'%d' % target_phase,
+                    mandatory=False,
+                )
     if repository.REPO_FEATURE_SIDE_DATA in repo.features:
         part.addparam(b'exp-sidedata', b'1')
 
