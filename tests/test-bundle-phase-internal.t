@@ -234,3 +234,53 @@ Shelve should still work
   A a_file.txt
 
   $ cd ..
+
+Explicitly bundling the internal change
+=======================================
+
+  $ cd reference-repo
+
+try to bundle it alone explicitly
+---------------------------------
+
+We should not allow it
+
+  $ hg bundle --type v3 --exact --rev $shelved_node --hidden ../internal-01.hg
+  abort: cannot bundle internal changesets
+  (1 internal changesets selected)
+  [255]
+  $ hg debugbundle ../internal-01.hg
+  abort: $ENOENT$: '../internal-01.hg'
+  [255]
+
+try to bundle it with other, somewhat explicitly
+------------------------------------------------
+
+We should not allow it
+
+  $ hg bundle --type v3 --exact --rev 'desc(b)':: --hidden ../internal-02.hg
+  abort: cannot bundle internal changesets
+  (1 internal changesets selected)
+  [255]
+  $ hg debugbundle ../internal-02.hg
+  abort: $ENOENT$: '../internal-02.hg'
+  [255]
+
+bundle visible ancestors
+------------------------
+
+This should succeed as the standard filtering is skipping the internal change naturally
+
+  $ hg bundle --type v3 --exact --rev 'desc(b)':: ../internal-03.hg
+  2 changesets found
+  $ hg debugbundle ../internal-03.hg
+  Stream params: {Compression: BZ}
+  changegroup -- {nbchanges: 2, version: 03} (mandatory: True)
+      d2ae7f538514cd87c17547b0de4cea71fe1af9fb
+      07f0cc02c06869c81ebf33867edef30554020c0d
+  cache:rev-branch-cache -- {} (mandatory: False)
+  phase-heads -- {} (mandatory: True)
+      07f0cc02c06869c81ebf33867edef30554020c0d draft
+
+  $ cd ..
+
