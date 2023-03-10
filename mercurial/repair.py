@@ -360,13 +360,8 @@ def _createstripbackup(repo, stripbases, node, topic):
     def to_nodes(revs):
         return [to_node(r) for r in revs]
 
-    simpler_bases = to_nodes(
-        unfi.revs("roots(%ln::%ln)", stripbases, stripbases)
-    )
     bases = to_nodes(unfi.revs("roots(%ld)", all_backup))
     heads = to_nodes(unfi.revs("heads(%ld)", all_backup))
-    assert bases == simpler_bases
-    assert set(heads).issubset(set(repo.changelog.heads()))
     backupfile = backupbundle(repo, bases, heads, node, topic)
     repo.ui.status(_(b"saved backup bundle to %s\n") % vfs.join(backupfile))
     repo.ui.log(
