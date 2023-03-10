@@ -849,7 +849,7 @@ entirely:
 
   $ chmod 0 subdir
   $ hg status --include subdir
-  subdir: Permission denied
+  subdir: $EACCES$
   R subdir/removed
   ! subdir/clean
   ! subdir/deleted
