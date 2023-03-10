@@ -136,6 +136,11 @@ _errors = {
         # FormatMessage(ERROR_FILE_NOT_FOUND)
         br'The system cannot find the file specified',
     ),
+    br'$EACCES$': (
+        br'Permission denied \(os error 13\)',
+        # strerror
+        br'Permission denied',
+    ),
     br'$ENOTDIR$': (
         # strerror()
         br'Not a directory',
