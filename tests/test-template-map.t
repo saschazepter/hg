@@ -1260,7 +1260,7 @@ Error if style not readable:
   $ touch q
   $ chmod 0 q
   $ hg log --style ./q
-  abort: Permission denied: './q'
+  abort: $EACCES$: './q'
   [255]
 #endif
 
@@ -1309,7 +1309,7 @@ Error if include fails:
   $ echo 'changeset = q' >> t
 #if unix-permissions no-root
   $ hg log --style ./t
-  abort: template file ./q: Permission denied
+  abort: template file ./q: $EACCES$
   [255]
   $ rm -f q
 #endif

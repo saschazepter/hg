@@ -322,8 +322,8 @@ Skip rotation if the .hg is read-only
 #if unix-permissions
   $ chmod -w .hg
   $ hg log -r. -T '{rev}\n' --config blackbox.maxsize=1 --debug
-  warning: cannot rename '$TESTTMP/blackboxtest3/.hg/blackbox.log.1' to '$TESTTMP/blackboxtest3/.hg/blackbox.log': Permission denied
-  warning: cannot write to blackbox.log: Permission denied
+  warning: cannot rename '$TESTTMP/blackboxtest3/.hg/blackbox.log.1' to '$TESTTMP/blackboxtest3/.hg/blackbox.log': $EACCES$
+  warning: cannot write to blackbox.log: $EACCES$
   1
   $ chmod +w .hg
 #endif
