@@ -1665,6 +1665,14 @@ def bundle(ui, repo, fname, *dests, **opts):
         scmutil.nochangesfound(ui, repo, not base and excluded)
         return 1
 
+    # internal changeset are internal implementation details that should not
+    # leave the repository. Bundling with `hg bundle` create such risk.
+    bundled_internal = repo.revs(b"%ln and _internal()", missing)
+    if bundled_internal:
+        msg = _(b"cannot bundle internal changesets")
+        hint = _(b"%d internal changesets selected") % len(bundled_internal)
+        raise error.Abort(msg, hint=hint)
+
     if heads:
         outgoing = discovery.outgoing(
             repo, missingroots=missing, ancestorsof=heads
