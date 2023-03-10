@@ -351,8 +351,14 @@ def _createstripbackup(repo, stripbases, node, topic):
     vfs = repo.vfs
     unfi = repo.unfiltered()
     to_node = unfi.changelog.node
+    # internal changeset are internal implementation details that should not
+    # leave the repository and not be exposed to the users. In addition feature
+    # using them requires to be resistant to strip. See test case for more
+    # details.
     all_backup = unfi.revs(
-        b"(%ln)::(%ld)", stripbases, unfi.changelog.headrevs()
+        b"(%ln)::(%ld) and not _internal()",
+        stripbases,
+        unfi.changelog.headrevs(),
     )
     if not all_backup:
         return None
