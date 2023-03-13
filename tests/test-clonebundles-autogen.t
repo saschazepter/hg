@@ -9,6 +9,7 @@ initial setup
   > clonebundles =
   > 
   > [clone-bundles]
+  > auto-generate.on-change = yes
   > auto-generate.formats = v2
   > upload-command = cp "\$HGCB_BUNDLE_PATH" "$TESTTMP"/final-upload/
   > delete-command = rm -f "$TESTTMP/final-upload/\$HGCB_BASENAME"
