@@ -224,9 +224,14 @@ different variant will be defined by the "bundle-spec" they use::
 See `hg help bundlespec` for details about available options.
 
 Bundles are not generated on each push. By default new bundles are generated
-when 5% of the repository content is not contained in the cached bundles. This
-option can be controled by the `clone-bundles.trigger.below-bundled-ratio`
-option (default to 0.95).
+when 5% of the repository content or at least 1000 revisions are not contained
+in the cached bundles. This option can be controled by the
+`clone-bundles.trigger.below-bundled-ratio` option (default to 0.95) and the
+`clone-bundles.trigger.revs` options (default 1000)::
+
+    [clone-bundles]
+    trigger.below-bundled-ratio=0.95
+    trigger.revs=1000
 
 Bundles Upload and Serving:
 ...........................
@@ -317,6 +322,7 @@ command = registrar.command(cmdtable)
 
 configitem(b'clone-bundles', b'auto-generate.formats', default=list)
 configitem(b'clone-bundles', b'trigger.below-bundled-ratio', default=0.95)
+configitem(b'clone-bundles', b'trigger.revs', default=1000)
 
 configitem(b'clone-bundles', b'upload-command', default=None)
 
@@ -775,6 +781,7 @@ def auto_bundle_needed_actions(repo, bundles, op_id):
     ratio = float(
         repo.ui.config(b'clone-bundles', b'trigger.below-bundled-ratio')
     )
+    abs_revs = repo.ui.configint(b'clone-bundles', b'trigger.revs')
     revs = len(repo.changelog)
     generic_data = {
         'revs': revs,
@@ -784,7 +791,7 @@ def auto_bundle_needed_actions(repo, bundles, op_id):
         'op_id': op_id,
     }
     for t in targets:
-        if new_bundle_needed(repo, bundles, ratio, t, revs):
+        if new_bundle_needed(repo, bundles, ratio, abs_revs, t, revs):
             data = generic_data.copy()
             data['bundle_type'] = t
             b = RequestedBundle(**data)
@@ -793,9 +800,9 @@ def auto_bundle_needed_actions(repo, bundles, op_id):
     return create_bundles, delete_bundles
 
 
-def new_bundle_needed(repo, bundles, ratio, bundle_type, revs):
+def new_bundle_needed(repo, bundles, ratio, abs_revs, bundle_type, revs):
     """consider the current cached content and trigger new bundles if needed"""
-    threshold = revs * ratio
+    threshold = max((revs * ratio), (revs - abs_revs))
     for b in bundles:
         if not b.valid_for(repo) or b.bundle_type != bundle_type:
             continue
