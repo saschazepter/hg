@@ -163,3 +163,96 @@ Check absolute number of revisions
   full-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
   full-v2-8_revs-8353e8af1306_tip-*_txn.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
+
+Test generation through the dedicated command
+=============================================
+
+  $ cat >> ../server/.hg/hgrc << EOF
+  > [clone-bundles]
+  > auto-generate.on-change = no
+  > EOF
+
+Check the command can generate content when needed
+--------------------------------------------------
+
+Do a push that makes the condition fulfilled,
+Yet it should not automatically generate a bundle with
+"auto-generate.on-change" not set.
+
+  $ touch quoi
+  $ hg -q commit -A -m 'add quoi'
+
+  $ pre_push_manifest=`cat ../server/.hg/clonebundles.manifest|f --sha256 | sed 's/.*=//' | cat`
+  $ pre_push_upload=`ls -1 ../final-upload|f --sha256 | sed 's/.*=//' | cat`
+  $ ls -1 ../server/.hg/tmp-bundles
+
+  $ hg push
+  pushing to $TESTTMP/server
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+
+  $ post_push_manifest=`cat ../server/.hg/clonebundles.manifest|f --sha256 | sed 's/.*=//' | cat`
+  $ post_push_upload=`ls -1 ../final-upload|f --sha256 | sed 's/.*=//' | cat`
+  $ ls -1 ../server/.hg/tmp-bundles
+  $ test "$pre_push_manifest" = "$post_push_manifest"
+  $ test "$pre_push_upload" = "$post_push_upload"
+
+Running the command should detect the stale bundles, and do the full automatic
+generation logic.
+
+  $ hg -R ../server/ admin::clone-bundles-refresh
+  clone-bundles: deleting bundle full-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
+  clone-bundles: starting bundle generation: v2
+  10 changesets found
+  $ cat ../server/.hg/clonebundles.manifest
+  file:/*/$TESTTMP/final-upload/full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  $ ls -1 ../final-upload
+  full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
+  full-v2-8_revs-8353e8af1306_tip-*_txn.hg (glob)
+  $ ls -1 ../server/.hg/tmp-bundles
+
+Check the command cleans up older bundles when possible
+-------------------------------------------------------
+
+  $ hg -R ../server/ admin::clone-bundles-refresh
+  clone-bundles: deleting bundle full-v2-8_revs-8353e8af1306_tip-*_txn.hg (glob)
+  $ cat ../server/.hg/clonebundles.manifest
+  file:/*/$TESTTMP/final-upload/full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  $ ls -1 ../final-upload
+  full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
+  $ ls -1 ../server/.hg/tmp-bundles
+
+Nothing is generated when the bundles are sufficiently up to date
+-----------------------------------------------------------------
+
+  $ touch feur
+  $ hg -q commit -A -m 'add feur'
+
+  $ pre_push_manifest=`cat ../server/.hg/clonebundles.manifest|f --sha256 | sed 's/.*=//' | cat`
+  $ pre_push_upload=`ls -1 ../final-upload|f --sha256 | sed 's/.*=//' | cat`
+  $ ls -1 ../server/.hg/tmp-bundles
+
+  $ hg push
+  pushing to $TESTTMP/server
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+
+  $ post_push_manifest=`cat ../server/.hg/clonebundles.manifest|f --sha256 | sed 's/.*=//' | cat`
+  $ post_push_upload=`ls -1 ../final-upload|f --sha256 | sed 's/.*=//' | cat`
+  $ ls -1 ../server/.hg/tmp-bundles
+  $ test "$pre_push_manifest" = "$post_push_manifest"
+  $ test "$pre_push_upload" = "$post_push_upload"
+
+  $ hg -R ../server/ admin::clone-bundles-refresh
+
+  $ post_refresh_manifest=`cat ../server/.hg/clonebundles.manifest|f --sha256 | sed 's/.*=//' | cat`
+  $ post_refresh_upload=`ls -1 ../final-upload|f --sha256 | sed 's/.*=//' | cat`
+  $ ls -1 ../server/.hg/tmp-bundles
+  $ test "$pre_push_manifest" = "$post_refresh_manifest"
+  $ test "$pre_push_upload" = "$post_refresh_upload"
