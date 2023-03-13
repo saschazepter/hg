@@ -223,15 +223,21 @@ different variant will be defined by the "bundle-spec" they use::
 
 See `hg help bundlespec` for details about available options.
 
-Bundles are not generated on each push. By default new bundles are generated
-when 5% of the repository content or at least 1000 revisions are not contained
-in the cached bundles. This option can be controled by the
-`clone-bundles.trigger.below-bundled-ratio` option (default to 0.95) and the
-`clone-bundles.trigger.revs` options (default 1000)::
+By default, new bundles are generated when 5% of the repository contents or at
+least 1000 revisions are not contained in the cached bundles. This option can
+be controlled by the `clone-bundles.trigger.below-bundled-ratio` option
+(default 0.95) and the `clone-bundles.trigger.revs` option (default 1000)::
 
     [clone-bundles]
     trigger.below-bundled-ratio=0.95
     trigger.revs=1000
+
+This logic can be automatically triggered on each repository changes if
+`clone-bundles.auto-generate.on-change` is set to `yes`.
+
+    [clone-bundles]
+    auto-generate.on-change=yes
+    auto-generate.formats= zstd-v2, gzip-v2
 
 Bundles Upload and Serving:
 ...........................
@@ -320,6 +326,7 @@ configitem = registrar.configitem(configtable)
 cmdtable = {}
 command = registrar.command(cmdtable)
 
+configitem(b'clone-bundles', b'auto-generate.on-change', default=False)
 configitem(b'clone-bundles', b'auto-generate.formats', default=list)
 configitem(b'clone-bundles', b'trigger.below-bundled-ratio', default=0.95)
 configitem(b'clone-bundles', b'trigger.revs', default=1000)
@@ -897,10 +904,14 @@ def reposetup(ui, repo):
     class autobundlesrepo(repo.__class__):
         def transaction(self, *args, **kwargs):
             tr = super(autobundlesrepo, self).transaction(*args, **kwargs)
+            enabled = repo.ui.configbool(
+                b'clone-bundles',
+                b'auto-generate.on-change',
+            )
             targets = repo.ui.configlist(
                 b'clone-bundles', b'auto-generate.formats'
             )
-            if targets:
+            if enabled and targets:
                 tr.addpostclose(CAT_POSTCLOSE, make_auto_bundler(self))
             return tr
 
