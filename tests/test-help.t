@@ -1782,7 +1782,9 @@ Test keyword search help
   
   Extension Commands:
   
-   qclone clone main and patch repository at same time
+   admin::clone-bundles-refresh generate clone bundles according to the
+                                configuration
+   qclone                       clone main and patch repository at same time
 
 Test unfound topic
 

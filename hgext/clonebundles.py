@@ -232,7 +232,8 @@ be controlled by the `clone-bundles.trigger.below-bundled-ratio` option
     trigger.below-bundled-ratio=0.95
     trigger.revs=1000
 
-This logic can be automatically triggered on each repository changes if
+This logic can be manually triggered using the `admin::clone-bundles-refresh`
+command, or automatically on each repository change if
 `clone-bundles.auto-generate.on-change` is set to `yes`.
 
     [clone-bundles]
@@ -939,3 +940,40 @@ def reposetup(ui, repo):
     repo._wlockfreeprefix.add(AUTO_GEN_FILE)
     repo._wlockfreeprefix.add(bundlecaches.CB_MANIFEST_FILE)
     repo.__class__ = autobundlesrepo
+
+
+@command(b'admin::clone-bundles-refresh', [], b'')
+def cmd_admin_clone_bundles_refresh(ui, repo: localrepo.localrepository):
+    """generate clone bundles according to the configuration
+
+    This runs the logic for automatic generation, removing outdated bundles and
+    generating new ones if necessary. See :hg:`help -e clone-bundles` for
+    details about how to configure this feature.
+    """
+    debug = repo.ui.configbool(b'devel', b'debug.clonebundles')
+    bundles = read_auto_gen(repo)
+    op_id = b"%d_acbr" % os.getpid()
+    create, delete = auto_bundle_needed_actions(repo, bundles, op_id)
+
+    # we clean up outdated bundle before generating new one to keep the last
+    # two version of the bundle around for a while and avoid having to deal
+    # client that just got served a manifest.
+    for o in delete:
+        delete_bundle(repo, o)
+    update_bundle_list(repo, del_bundles=delete)
+
+    if create:
+        fpath = repo.vfs.makedirs(b'tmp-bundles')
+    for requested_bundle in create:
+        if debug:
+            msg = b'clone-bundles: starting bundle generation: %s\n'
+            repo.ui.write(msg % requested_bundle.bundle_type)
+        fname = requested_bundle.suggested_filename
+        fpath = repo.vfs.join(b'tmp-bundles', fname)
+        generating_bundle = requested_bundle.generating(fpath)
+        update_bundle_list(repo, new_bundles=[generating_bundle])
+        requested_bundle.generate_bundle(repo, fpath)
+        result = upload_bundle(repo, generating_bundle)
+        update_bundle_list(repo, new_bundles=[result])
+        update_ondisk_manifest(repo)
+        cleanup_tmp_bundle(repo, generating_bundle)
