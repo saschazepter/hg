@@ -206,7 +206,7 @@ auto-generation of clone bundles
 --------------------------------
 
 It is possible to set Mercurial to automatically re-generate clone bundles when
-new content is available.
+enough new content is available.
 
 Mercurial will take care of the process asynchronously. The defined list of
 bundle-type will be generated, uploaded, and advertised. Older bundles will get
@@ -222,6 +222,11 @@ different variant will be defined by the "bundle-spec" they use::
     auto-generate.formats= zstd-v2, gzip-v2
 
 See `hg help bundlespec` for details about available options.
+
+Bundles are not generated on each push. By default new bundles are generated
+when 5% of the repository content is not contained in the cached bundles. This
+option can be controled by the `clone-bundles.trigger.below-bundled-ratio`
+option (default to 0.95).
 
 Bundles Upload and Serving:
 ...........................
@@ -311,7 +316,7 @@ cmdtable = {}
 command = registrar.command(cmdtable)
 
 configitem(b'clone-bundles', b'auto-generate.formats', default=list)
-
+configitem(b'clone-bundles', b'trigger.below-bundled-ratio', default=0.95)
 
 configitem(b'clone-bundles', b'upload-command', default=None)
 
@@ -767,6 +772,9 @@ def auto_bundle_needed_actions(repo, bundles, op_id):
     delete_bundles = []
     repo = repo.filtered(b"immutable")
     targets = repo.ui.configlist(b'clone-bundles', b'auto-generate.formats')
+    ratio = float(
+        repo.ui.config(b'clone-bundles', b'trigger.below-bundled-ratio')
+    )
     revs = len(repo.changelog)
     generic_data = {
         'revs': revs,
@@ -776,12 +784,24 @@ def auto_bundle_needed_actions(repo, bundles, op_id):
         'op_id': op_id,
     }
     for t in targets:
-        data = generic_data.copy()
-        data['bundle_type'] = t
-        b = RequestedBundle(**data)
-        create_bundles.append(b)
+        if new_bundle_needed(repo, bundles, ratio, t, revs):
+            data = generic_data.copy()
+            data['bundle_type'] = t
+            b = RequestedBundle(**data)
+            create_bundles.append(b)
     delete_bundles.extend(find_outdated_bundles(repo, bundles))
     return create_bundles, delete_bundles
+
+
+def new_bundle_needed(repo, bundles, ratio, bundle_type, revs):
+    """consider the current cached content and trigger new bundles if needed"""
+    threshold = revs * ratio
+    for b in bundles:
+        if not b.valid_for(repo) or b.bundle_type != bundle_type:
+            continue
+        if b.revs > threshold:
+            return False
+    return True
 
 
 def start_one_bundle(repo, bundle):
