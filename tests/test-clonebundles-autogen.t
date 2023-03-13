@@ -94,3 +94,29 @@ Older bundles are cleaned up with more pushes
   full-v2-4_revs-6427147b985a_tip-*_txn.hg (glob)
   full-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
+
+Test conditions to get them generated
+=====================================
+
+Check ratio
+
+  $ cat >> ../server/.hg/hgrc << EOF
+  > [clone-bundles]
+  > trigger.below-bundled-ratio = 0.5
+  > EOF
+  $ touch far
+  $ hg -q commit -A -m 'add far'
+  $ hg push
+  pushing to $TESTTMP/server
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+  $ cat ../server/.hg/clonebundles.manifest
+  file:/*/$TESTTMP/final-upload/full-v2-6_revs-b1010e95ea00_tip-*_txn.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  $ ls -1 ../final-upload
+  full-v2-4_revs-6427147b985a_tip-*_txn.hg (glob)
+  full-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
+  $ ls -1 ../server/.hg/tmp-bundles
+
