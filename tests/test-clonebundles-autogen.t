@@ -120,3 +120,45 @@ Check ratio
   full-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
 
+Check absolute number of revisions
+
+  $ cat >> ../server/.hg/hgrc << EOF
+  > [clone-bundles]
+  > trigger.revs = 2
+  > EOF
+  $ touch bur
+  $ hg -q commit -A -m 'add bur'
+  $ hg push
+  pushing to $TESTTMP/server
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  clone-bundles: deleting bundle full-v2-4_revs-6427147b985a_tip-*_txn.hg (glob)
+  8 changesets found
+  added 1 changesets with 1 changes to 1 files
+  clone-bundles: starting bundle generation: v2
+  $ cat ../server/.hg/clonebundles.manifest
+  file:/*/$TESTTMP/final-upload/full-v2-8_revs-8353e8af1306_tip-*_txn.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  $ ls -1 ../final-upload
+  full-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
+  full-v2-8_revs-8353e8af1306_tip-*_txn.hg (glob)
+  $ ls -1 ../server/.hg/tmp-bundles
+
+(that one would not generate new bundles)
+
+  $ touch tur
+  $ hg -q commit -A -m 'add tur'
+  $ hg push
+  pushing to $TESTTMP/server
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+  $ cat ../server/.hg/clonebundles.manifest
+  file:/*/$TESTTMP/final-upload/full-v2-8_revs-8353e8af1306_tip-*_txn.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  $ ls -1 ../final-upload
+  full-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
+  full-v2-8_revs-8353e8af1306_tip-*_txn.hg (glob)
+  $ ls -1 ../server/.hg/tmp-bundles
