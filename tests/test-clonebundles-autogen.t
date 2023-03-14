@@ -318,3 +318,20 @@ the "outdated' bundle should be refreshed
   full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
   full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
+
+Test more command options
+=========================
+
+bundle clearing
+---------------
+
+  $ hg -R ../server/ admin::clone-bundles-clear
+  clone-bundles: deleting bundle full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  clone-bundles: deleting bundle full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
+  clone-bundles: deleting bundle full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+
+Nothing should remain
+
+  $ cat ../server/.hg/clonebundles.manifest
+  $ ls -1 ../final-upload
+  $ ls -1 ../server/.hg/tmp-bundles

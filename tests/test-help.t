@@ -1782,6 +1782,7 @@ Test keyword search help
   
   Extension Commands:
   
+   admin::clone-bundles-clear   remove existing clone bundle caches
    admin::clone-bundles-refresh generate clone bundles according to the
                                 configuration
    qclone                       clone main and patch repository at same time
