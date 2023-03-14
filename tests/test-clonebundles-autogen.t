@@ -256,3 +256,65 @@ Nothing is generated when the bundles are sufficiently up to date
   $ ls -1 ../server/.hg/tmp-bundles
   $ test "$pre_push_manifest" = "$post_refresh_manifest"
   $ test "$pre_push_upload" = "$post_refresh_upload"
+
+Test modification of configuration
+==================================
+
+Testing that later runs adapt to configuration changes even if the repository is
+unchanged.
+
+adding more formats
+-------------------
+
+bundle for added formats should be generated
+
+change configuration
+
+  $ cat >> ../server/.hg/hgrc << EOF
+  > [clone-bundles]
+  > auto-generate.formats = v1, v2
+  > EOF
+
+refresh the bundles
+
+  $ hg -R ../server/ admin::clone-bundles-refresh
+  clone-bundles: starting bundle generation: v1
+  11 changesets found
+
+the bundle for the "new" format should have been added
+
+  $ cat ../server/.hg/clonebundles.manifest
+  file:/*/$TESTTMP/final-upload/full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v1 REQUIRESNI=true (glob)
+  file:/*/$TESTTMP/final-upload/full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  $ ls -1 ../final-upload
+  full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
+  $ ls -1 ../server/.hg/tmp-bundles
+
+Changing the ratio
+------------------
+
+Changing the ratio to something that would have triggered a bundle during the last push.
+
+  $ cat >> ../server/.hg/hgrc << EOF
+  > [clone-bundles]
+  > trigger.below-bundled-ratio = 0.95
+  > EOF
+
+refresh the bundles
+
+  $ hg -R ../server/ admin::clone-bundles-refresh
+  clone-bundles: starting bundle generation: v2
+  11 changesets found
+
+
+the "outdated' bundle should be refreshed
+
+  $ cat ../server/.hg/clonebundles.manifest
+  file:/*/$TESTTMP/final-upload/full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v1 REQUIRESNI=true (glob)
+  file:/*/$TESTTMP/final-upload/full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  $ ls -1 ../final-upload
+  full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
+  full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  $ ls -1 ../server/.hg/tmp-bundles
