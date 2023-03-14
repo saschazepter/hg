@@ -335,3 +335,26 @@ Nothing should remain
   $ cat ../server/.hg/clonebundles.manifest
   $ ls -1 ../final-upload
   $ ls -1 ../server/.hg/tmp-bundles
+
+background generation
+---------------------
+
+generate bundle using background subprocess
+(since we are in devel mode, the command will still wait for the background
+process to end)
+
+  $ hg -R ../server/ admin::clone-bundles-refresh --background
+  11 changesets found
+  11 changesets found
+  clone-bundles: starting bundle generation: v1
+  clone-bundles: starting bundle generation: v2
+
+bundles should have been generated
+
+  $ cat ../server/.hg/clonebundles.manifest
+  file:/*/$TESTTMP/final-upload/full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v1 REQUIRESNI=true (glob)
+  file:/*/$TESTTMP/final-upload/full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  $ ls -1 ../final-upload
+  full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  $ ls -1 ../server/.hg/tmp-bundles

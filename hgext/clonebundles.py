@@ -942,8 +942,23 @@ def reposetup(ui, repo):
     repo.__class__ = autobundlesrepo
 
 
-@command(b'admin::clone-bundles-refresh', [], b'')
-def cmd_admin_clone_bundles_refresh(ui, repo: localrepo.localrepository):
+@command(
+    b'admin::clone-bundles-refresh',
+    [
+        (
+            b'',
+            b'background',
+            False,
+            _(b'start bundle generation in the background'),
+        ),
+    ],
+    b'',
+)
+def cmd_admin_clone_bundles_refresh(
+    ui,
+    repo: localrepo.localrepository,
+    background=False,
+):
     """generate clone bundles according to the configuration
 
     This runs the logic for automatic generation, removing outdated bundles and
@@ -955,28 +970,39 @@ def cmd_admin_clone_bundles_refresh(ui, repo: localrepo.localrepository):
     op_id = b"%d_acbr" % os.getpid()
     create, delete = auto_bundle_needed_actions(repo, bundles, op_id)
 
-    # we clean up outdated bundle before generating new one to keep the last
-    # two version of the bundle around for a while and avoid having to deal
-    # client that just got served a manifest.
-    for o in delete:
-        delete_bundle(repo, o)
-    update_bundle_list(repo, del_bundles=delete)
+    # if some bundles are scheduled for creation in the background, they will
+    # deal with garbage collection too, so no need to synchroniously do it.
+    #
+    # However if no bundles are scheduled for creation, we need to explicitly do
+    # it here.
+    if not (background and create):
+        # we clean up outdated bundles before generating new ones to keep the
+        # last two versions of the bundle around for a while and avoid having to
+        # deal with clients that just got served a manifest.
+        for o in delete:
+            delete_bundle(repo, o)
+        update_bundle_list(repo, del_bundles=delete)
 
     if create:
         fpath = repo.vfs.makedirs(b'tmp-bundles')
-    for requested_bundle in create:
-        if debug:
-            msg = b'clone-bundles: starting bundle generation: %s\n'
-            repo.ui.write(msg % requested_bundle.bundle_type)
-        fname = requested_bundle.suggested_filename
-        fpath = repo.vfs.join(b'tmp-bundles', fname)
-        generating_bundle = requested_bundle.generating(fpath)
-        update_bundle_list(repo, new_bundles=[generating_bundle])
-        requested_bundle.generate_bundle(repo, fpath)
-        result = upload_bundle(repo, generating_bundle)
-        update_bundle_list(repo, new_bundles=[result])
-        update_ondisk_manifest(repo)
-        cleanup_tmp_bundle(repo, generating_bundle)
+
+    if background:
+        for requested_bundle in create:
+            start_one_bundle(repo, requested_bundle)
+    else:
+        for requested_bundle in create:
+            if debug:
+                msg = b'clone-bundles: starting bundle generation: %s\n'
+                repo.ui.write(msg % requested_bundle.bundle_type)
+            fname = requested_bundle.suggested_filename
+            fpath = repo.vfs.join(b'tmp-bundles', fname)
+            generating_bundle = requested_bundle.generating(fpath)
+            update_bundle_list(repo, new_bundles=[generating_bundle])
+            requested_bundle.generate_bundle(repo, fpath)
+            result = upload_bundle(repo, generating_bundle)
+            update_bundle_list(repo, new_bundles=[result])
+            update_ondisk_manifest(repo)
+            cleanup_tmp_bundle(repo, generating_bundle)
 
 
 @command(b'admin::clone-bundles-clear', [], b'')
