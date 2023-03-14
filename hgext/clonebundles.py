@@ -977,3 +977,20 @@ def cmd_admin_clone_bundles_refresh(ui, repo: localrepo.localrepository):
         update_bundle_list(repo, new_bundles=[result])
         update_ondisk_manifest(repo)
         cleanup_tmp_bundle(repo, generating_bundle)
+
+
+@command(b'admin::clone-bundles-clear', [], b'')
+def cmd_admin_clone_bundles_clear(ui, repo: localrepo.localrepository):
+    """remove existing clone bundle caches
+
+    See `hg help admin::clone-bundles-refresh` for details on how to regenerate
+    them.
+
+    This command will only affect bundles currently available, it will not
+    affect bundles being asynchronously generated.
+    """
+    bundles = read_auto_gen(repo)
+    delete = [b for b in bundles if b.ready]
+    for o in delete:
+        delete_bundle(repo, o)
+    update_bundle_list(repo, del_bundles=delete)
