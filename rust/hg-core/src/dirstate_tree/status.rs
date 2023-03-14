@@ -244,7 +244,7 @@ impl<'a> HasIgnoredAncestor<'a> {
         match self.parent {
             None => false,
             Some(parent) => {
-                *(parent.cache.get_or_init(|| {
+                *(self.cache.get_or_init(|| {
                     parent.force(ignore_fn) || ignore_fn(self.path)
                 }))
             }
