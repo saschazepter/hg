@@ -30,6 +30,4 @@ Untracked files in d2 are still shown, but ones in d1 are ignored:
   $ touch d1/g
   $ touch d2/g
   $ RAYON_NUM_THREADS=1 hg status
-  ? d2/g (no-rust no-rhg !)
-
-^ BUG: d2/g does not show up with rust status
+  ? d2/g
