@@ -105,6 +105,19 @@ def _playback(
     unlink=True,
     checkambigfiles=None,
 ):
+    backupfiles = []
+
+    def restore_one_backup(vfs, f, b, checkambig):
+        filepath = vfs.join(f)
+        backuppath = vfs.join(b)
+        try:
+            util.copyfile(backuppath, filepath, checkambig=checkambig)
+            backupfiles.append((vfs, b))
+        except IOError as exc:
+            e_msg = stringutil.forcebytestr(exc)
+            report(_(b"failed to recover %s (%s)\n") % (f, e_msg))
+            raise
+
     for f, o in sorted(dict(entries).items()):
         if o or not unlink:
             checkambig = checkambigfiles and (f, b'') in checkambigfiles
@@ -129,23 +142,14 @@ def _playback(
             except FileNotFoundError:
                 pass
 
-    backupfiles = []
     for l, f, b, c in backupentries:
         if l not in vfsmap and c:
             report(b"couldn't handle %s: unknown cache location %s\n" % (b, l))
         vfs = vfsmap[l]
         try:
+            checkambig = checkambigfiles and (f, l) in checkambigfiles
             if f and b:
-                filepath = vfs.join(f)
-                backuppath = vfs.join(b)
-                checkambig = checkambigfiles and (f, l) in checkambigfiles
-                try:
-                    util.copyfile(backuppath, filepath, checkambig=checkambig)
-                    backupfiles.append((vfs, b))
-                except IOError as exc:
-                    e_msg = stringutil.forcebytestr(exc)
-                    report(_(b"failed to recover %s (%s)\n") % (f, e_msg))
-                    raise
+                restore_one_backup(vfs, f, b, checkambig)
             else:
                 target = f or b
                 try:
