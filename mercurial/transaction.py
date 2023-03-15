@@ -150,6 +150,16 @@ def _playback(
                 try:
                     vfs.unlink(target)
                 except FileNotFoundError:
+                    # This is fine because
+                    #
+                    # either we are trying to delete the main file, and it is
+                    # already deleted.
+                    #
+                    # or we are trying to delete a temporary file and it is
+                    # already deleted.
+                    #
+                    # in both case, our target result (delete the file) is
+                    # already achieved.
                     pass
         except (IOError, OSError, error.Abort):
             if not c:
