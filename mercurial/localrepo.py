@@ -2951,6 +2951,7 @@ class localrepository:
         known good state)."""
         unfi = self.unfiltered()
         if 'dirstate' in unfi.__dict__:
+            assert not self.dirstate.is_changing_any
             del unfi.__dict__['dirstate']
 
     def invalidate(self, clearfilecache=False):
