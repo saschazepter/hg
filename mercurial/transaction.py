@@ -145,6 +145,7 @@ def _playback(
                 except IOError as exc:
                     e_msg = stringutil.forcebytestr(exc)
                     report(_(b"failed to recover %s (%s)\n") % (f, e_msg))
+                    raise
             else:
                 target = f or b
                 try:
