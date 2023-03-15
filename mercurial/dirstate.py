@@ -200,6 +200,12 @@ class dirstate:
         self._cwd
 
     def refresh(self):
+        # XXX if this happens, you likely did not enter the `changing_xxx`
+        # using `repo.dirstate`, so a later `repo.dirstate` accesss might call
+        # `refresh`.
+        if self.is_changing_any:
+            msg = "refreshing the dirstate in the middle of a change"
+            raise error.ProgrammingError(msg)
         if '_branch' in vars(self):
             del self._branch
         if '_map' in vars(self) and self._map.may_need_refresh():
