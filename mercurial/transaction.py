@@ -141,7 +141,7 @@ def _playback(
                 checkambig = checkambigfiles and (f, l) in checkambigfiles
                 try:
                     util.copyfile(backuppath, filepath, checkambig=checkambig)
-                    backupfiles.append(b)
+                    backupfiles.append((vfs, b))
                 except IOError as exc:
                     e_msg = stringutil.forcebytestr(exc)
                     report(_(b"failed to recover %s (%s)\n") % (f, e_msg))
@@ -160,9 +160,9 @@ def _playback(
         opener.unlink(backuppath)
     opener.unlink(journal)
     try:
-        for f in backupfiles:
-            if opener.exists(f):
-                opener.unlink(f)
+        for vfs, f in backupfiles:
+            if vfs.exists(f):
+                vfs.unlink(f)
     except (IOError, OSError, error.Abort):
         # only pure backup file remains, it is sage to ignore any error
         pass
