@@ -40,6 +40,24 @@ Helper extension to intercept renames and kill process
   >     os.kill(os.getpid(), signal.SIGKILL)
   > EOF
 
+  $ cat > $TESTTMP/reader_wait_split.py << EOF
+  > import os
+  > import signal
+  > from mercurial import extensions, revlog, testing
+  > def _wait_post_load(orig, self, *args, **kwargs):
+  >     wait = b'data/file' in self.radix
+  >     if wait:
+  >         testing.wait_file(b"$TESTTMP/writer-revlog-split")
+  >     r = orig(self, *args, **kwargs)
+  >     if wait:
+  >         testing.write_file(b"$TESTTMP/reader-index-read")
+  >         testing.wait_file(b"$TESTTMP/writer-revlog-unsplit")
+  >     return r
+  > 
+  > def extsetup(ui):
+  >     extensions.wrapfunction(revlog.revlog, '_loadindex', _wait_post_load)
+  > EOF
+
 setup a repository for tests
 ----------------------------
 
@@ -333,3 +351,44 @@ File are still split on disk, with the expected size.
   hint: run "hg debugrebuildfncache" to recover from corrupt fncache
   $ cd ..
 
+Read race
+=========
+
+We check that a client that started reading a revlog (its index) after the
+split and end reading (the data) after the rollback should be fine
+
+  $ hg clone --quiet --rev 1 troffset-computation troffset-computation-race
+  $ cd troffset-computation-race
+  $ cat > .hg/hgrc <<EOF
+  > [hooks]
+  > pretxnchangegroup=$RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/reader-index-read $TESTTMP/writer-revlog-split
+  > pretxnclose = false
+  > EOF
+
+start a reader
+
+  $ hg cat --rev 0 file \
+  > --config "extensions.wait_read=$TESTTMP/reader_wait_split.py" \
+  > 2> $TESTTMP/reader.stderr \
+  > > $TESTTMP/reader.stdout &
+
+Do a failed pull in //
+
+  $ hg pull ../troffset-computation
+  pulling from ../troffset-computation
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  transaction abort!
+  rollback completed
+  abort: pretxnclose hook exited with status 1
+  [40]
+  $ touch $TESTTMP/writer-revlog-unsplit
+  $ wait
+
+The reader should be fine
+  $ cat $TESTTMP/reader.stderr
+  $ cat $TESTTMP/reader.stdout
+                     1 (no-eol)
+  $ cd ..
