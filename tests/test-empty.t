@@ -40,7 +40,6 @@ Poke at a clone:
   hgrc
   requires
   store
-  undo.backup.branch
   wcache
 
 Should be empty (except for the "basic" requires):

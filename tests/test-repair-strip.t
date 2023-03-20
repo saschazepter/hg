@@ -53,9 +53,9 @@
   transaction abort!
   failed to truncate data/b.i
   rollback failed - please run hg recover
-  (failure reason: [Errno *] Permission denied .hg/store/data/b.i') (glob)
+  (failure reason: [Errno *] $EACCES$ .hg/store/data/b.i') (glob)
   strip failed, backup bundle
-  abort: Permission denied .hg/store/data/b.i'
+  abort: $EACCES$ .hg/store/data/b.i'
   % after update 0, strip 2
   abandoned transaction found - run hg recover
   checking changesets
@@ -89,7 +89,7 @@
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     a
   
-  abort: Permission denied .hg/store/data/b.i'
+  abort: $EACCES$ .hg/store/data/b.i'
   % after update 0, strip 2
   checking changesets
   checking manifests
@@ -110,9 +110,9 @@
   transaction abort!
   failed to truncate 00manifest.i
   rollback failed - please run hg recover
-  (failure reason: [Errno *] Permission denied .hg/store/00manifest.i') (glob)
+  (failure reason: [Errno *] $EACCES$ .hg/store/00manifest.i') (glob)
   strip failed, backup bundle
-  abort: Permission denied .hg/store/00manifest.i'
+  abort: $EACCES$ .hg/store/00manifest.i'
   % after update 0, strip 2
   abandoned transaction found - run hg recover
   checking changesets

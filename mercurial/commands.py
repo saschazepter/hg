@@ -2507,7 +2507,7 @@ def copy(ui, repo, *pats, **opts):
     """
     opts = pycompat.byteskwargs(opts)
 
-    context = repo.dirstate.changing_files
+    context = lambda repo: repo.dirstate.changing_files(repo)
     rev = opts.get(b'at_rev')
     ctx = None
     if rev:
@@ -6019,7 +6019,7 @@ def rename(ui, repo, *pats, **opts):
     Returns 0 on success, 1 if errors are encountered.
     """
     opts = pycompat.byteskwargs(opts)
-    context = repo.dirstate.changing_files
+    context = lambda repo: repo.dirstate.changing_files(repo)
     rev = opts.get(b'at_rev')
     ctx = None
     if rev:

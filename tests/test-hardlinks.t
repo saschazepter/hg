@@ -141,8 +141,6 @@ Create a non-inlined filelog in r3:
   1 r3/.hg/store/phaseroots
   1 r3/.hg/store/requires
   1 r3/.hg/store/undo
-  1 r3/.hg/store/undo.backup.fncache (repofncache !)
-  1 r3/.hg/store/undo.backup.phaseroots
   1 r3/.hg/store/undo.backupfiles
 
 Push to repo r1 should break up most hardlinks in r2:
@@ -253,8 +251,6 @@ r4 has hardlinks in the working dir (not just inside .hg):
   2 r4/.hg/store/phaseroots
   2 r4/.hg/store/requires
   2 r4/.hg/store/undo
-  2 r4/.hg/store/undo.backup.fncache (repofncache !)
-  2 r4/.hg/store/undo.backup.phaseroots
   2 r4/.hg/store/undo.backupfiles
   [24] r4/.hg/undo.backup.branch (re)
   2 r4/\.hg/undo\.backup\.dirstate (re)
@@ -308,8 +304,6 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
   2 r4/.hg/store/phaseroots
   2 r4/.hg/store/requires
   2 r4/.hg/store/undo
-  2 r4/.hg/store/undo.backup.fncache (repofncache !)
-  2 r4/.hg/store/undo.backup.phaseroots
   2 r4/.hg/store/undo.backupfiles
   [23] r4/.hg/undo.backup.branch (re)
   2 r4/\.hg/undo\.backup\.dirstate (re)
