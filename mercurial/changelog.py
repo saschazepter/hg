@@ -481,7 +481,7 @@ class changelog(revlog.revlog):
             self._delaybuf = None
         self._divert = False
         # split when we're done
-        self._enforceinlinesize(tr)
+        self._enforceinlinesize(tr, side_write=False)
 
     def _writepending(self, tr):
         """create a file containing the unfinalized state for
@@ -512,9 +512,9 @@ class changelog(revlog.revlog):
 
         return False
 
-    def _enforceinlinesize(self, tr):
+    def _enforceinlinesize(self, tr, side_write=True):
         if not self._delayed:
-            revlog.revlog._enforceinlinesize(self, tr)
+            revlog.revlog._enforceinlinesize(self, tr, side_write=side_write)
 
     def read(self, nodeorrev):
         """Obtain data from a parsed changelog revision.

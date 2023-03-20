@@ -1240,7 +1240,12 @@ class revlogfilestorage:
         if path.startswith(b'/'):
             path = path[1:]
 
-        return filelog.filelog(self.svfs, path)
+        try_split = (
+            self.currenttransaction() is not None
+            or txnutil.mayhavepending(self.root)
+        )
+
+        return filelog.filelog(self.svfs, path, try_split=try_split)
 
 
 @interfaceutil.implementer(repository.ilocalrepositoryfilestorage)
@@ -1251,7 +1256,13 @@ class revlognarrowfilestorage:
         if path.startswith(b'/'):
             path = path[1:]
 
-        return filelog.narrowfilelog(self.svfs, path, self._storenarrowmatch)
+        try_split = (
+            self.currenttransaction() is not None
+            or txnutil.mayhavepending(self.root)
+        )
+        return filelog.narrowfilelog(
+            self.svfs, path, self._storenarrowmatch, try_split=try_split
+        )
 
 
 def makefilestorage(requirements, features, **kwargs):
