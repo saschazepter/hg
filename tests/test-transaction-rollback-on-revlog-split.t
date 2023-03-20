@@ -9,12 +9,12 @@ Helper extension to intercept renames and kill process
   > from mercurial import extensions, util
   > 
   > def extsetup(ui):
-  >     def close(orig, *args, **kwargs):
-  >         path = util.normpath(args[0]._atomictempfile__name)
-  >         if path.endswith(b'/.hg/store/data/file.i'):
+  >     def rename(orig, src, dest, *args, **kwargs):
+  >         path = util.normpath(dest)
+  >         if path.endswith(b'data/file.i'):
   >             os.kill(os.getpid(), signal.SIGKILL)
-  >         return orig(*args, **kwargs)
-  >     extensions.wrapfunction(util.atomictempfile, 'close', close)
+  >         return orig(src, dest, *args, **kwargs)
+  >     extensions.wrapfunction(util, 'rename', rename)
   > EOF
 
   $ cat > $TESTTMP/intercept_after_rename.py << EOF
@@ -30,6 +30,14 @@ Helper extension to intercept renames and kill process
   >             os.kill(os.getpid(), signal.SIGKILL)
   >         return r
   >     extensions.wrapfunction(util.atomictempfile, 'close', close)
+  > def extsetup(ui):
+  >     def rename(orig, src, dest, *args, **kwargs):
+  >         path = util.normpath(dest)
+  >         r = orig(src, dest, *args, **kwargs)
+  >         if path.endswith(b'data/file.i'):
+  >             os.kill(os.getpid(), signal.SIGKILL)
+  >         return r
+  >     extensions.wrapfunction(util, 'rename', rename)
   > EOF
 
   $ cat > $TESTTMP/killme.py << EOF
@@ -75,7 +83,7 @@ setup a repository for tests
   $ printf '%20d' '1' > file
   $ hg commit -Aqmc
   $ dd if=/dev/zero of=file bs=1k count=128 > /dev/null 2>&1
-  $ hg commit -AqmD
+  $ hg commit -AqmD --traceback
 
 Reference size:
   $ f -s file
@@ -127,32 +135,33 @@ Reference size:
 #endif
 
 
-The revlog have been split on disk
+The inline revlog still exist, but a split version exist next to it
 
   $ f -s .hg/store/data/file*
   .hg/store/data/file.d: size=132139
-  .hg/store/data/file.i: size=256
+  .hg/store/data/file.i: size=132395
+  .hg/store/data/file.i.s: size=256
 
-  $ cat .hg/store/journal | tr -s '\000' ' ' | grep data/file | tail -1
-  data/file.i 128
 
 The first file.i entry should match the "Reference size" above.
 The first file.d entry is the temporary record during the split,
 
-The second entry after the split happened. The sum of the second file.d
-and the second file.i entry should match the first file.i entry.
+A "temporary file" entry exist for the split index.
 
   $ cat .hg/store/journal | tr -s '\000' ' ' | grep data/file
   data/file.i 1174
   data/file.d 0
-  data/file.d 1046
-  data/file.i 128
+  $ cat .hg/store/journal.backupfiles | tr -s '\000' ' ' | tr -s '\00' ' '| grep data/file
+   data/file.i data/journal.backup.file.i 0
+   data/file.i.s 0
+
+recover is rolling the split back, the fncache is still valid
+
   $ hg recover
   rolling back interrupted transaction
   (verify step skipped, run `hg verify` to check your repository content)
   $ f -s .hg/store/data/file*
-  .hg/store/data/file.d: size=1046
-  .hg/store/data/file.i: size=128
+  .hg/store/data/file.i: size=1174
   $ hg tip
   changeset:   1:cfa8d6e60429
   tag:         tip
@@ -161,12 +170,8 @@ and the second file.i entry should match the first file.i entry.
   summary:     b
   
   $ hg verify -q
-   warning: revlog 'data/file.d' not in fncache!
-  1 warnings encountered!
-  hint: run "hg debugrebuildfncache" to recover from corrupt fncache
   $ hg debugrebuildfncache --only-data
-  adding data/file.d
-  1 items added, 0 removed from fncache
+  fncache already up to date
   $ hg verify -q
   $ cd ..
 
@@ -189,36 +194,43 @@ Reference size:
   $ cat > .hg/hgrc <<EOF
   > [extensions]
   > intercept_rename = $TESTTMP/intercept_before_rename.py
-  > [hooks]
-  > pretxnchangegroup = python:$TESTTMP/killme.py:killme
   > EOF
 #if chg
   $ hg pull ../troffset-computation
   pulling from ../troffset-computation
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
   [255]
 #else
   $ hg pull ../troffset-computation
   pulling from ../troffset-computation
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
   Killed
   [137]
 #endif
 
-The data file is created, but the revlog is still inline
+The inline revlog still exist, but a split version exist next to it
 
   $ f -s .hg/store/data/file*
   .hg/store/data/file.d: size=132139
   .hg/store/data/file.i: size=132395
+  .hg/store/data/file.i.s: size=256
 
   $ cat .hg/store/journal | tr -s '\000' ' ' | grep data/file
   data/file.i 1174
   data/file.d 0
-  data/file.d 1046
+
+recover is rolling the split back, the fncache is still valid
 
   $ hg recover
   rolling back interrupted transaction
   (verify step skipped, run `hg verify` to check your repository content)
   $ f -s .hg/store/data/file*
-  .hg/store/data/file.d: size=1046
   .hg/store/data/file.i: size=1174
   $ hg tip
   changeset:   1:cfa8d6e60429
@@ -235,8 +247,6 @@ Test a hard crash right after the index is move into place
 
 Now retry the procedure but intercept the rename of the index.
 
-Things get corrupted /o\
-
   $ hg clone --quiet --rev 1 troffset-computation troffset-computation-crash-after-rename
   $ cd troffset-computation-crash-after-rename
 
@@ -249,21 +259,27 @@ Reference size:
   $ cat > .hg/hgrc <<EOF
   > [extensions]
   > intercept_rename = $TESTTMP/intercept_after_rename.py
-  > [hooks]
-  > pretxnchangegroup = python:$TESTTMP/killme.py:killme
   > EOF
 #if chg
   $ hg pull ../troffset-computation
   pulling from ../troffset-computation
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
   [255]
 #else
   $ hg pull ../troffset-computation
   pulling from ../troffset-computation
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
   Killed
   [137]
 #endif
 
-the revlog has been split on disk
+The inline revlog was over written on disk
 
   $ f -s .hg/store/data/file*
   .hg/store/data/file.d: size=132139
@@ -272,16 +288,14 @@ the revlog has been split on disk
   $ cat .hg/store/journal | tr -s '\000' ' ' | grep data/file
   data/file.i 1174
   data/file.d 0
-  data/file.d 1046
+
+recover is rolling the split back, the fncache is still valid
 
   $ hg recover
   rolling back interrupted transaction
-  abort: attempted to truncate data/file.i to 1174 bytes, but it was already 256 bytes
-  
-  [255]
+  (verify step skipped, run `hg verify` to check your repository content)
   $ f -s .hg/store/data/file*
-  .hg/store/data/file.d: size=1046
-  .hg/store/data/file.i: size=256
+  .hg/store/data/file.i: size=1174
   $ hg tip
   changeset:   1:cfa8d6e60429
   tag:         tip
@@ -290,23 +304,6 @@ the revlog has been split on disk
   summary:     b
   
   $ hg verify -q
-  abandoned transaction found - run hg recover
-   warning: revlog 'data/file.d' not in fncache!
-   file@0: data length off by -131093 bytes
-   file@2: unpacking fa1120531cc1: partial read of revlog data/file.d; expected 21 bytes from offset 1046, got 0
-   file@3: unpacking a631378adaa3: partial read of revlog data/file.d; expected 131072 bytes from offset 1067, got -21
-   file@?: rev 2 points to nonexistent changeset 2
-   (expected )
-   file@?: fa1120531cc1 not in manifests
-   file@?: rev 3 points to nonexistent changeset 3
-   (expected )
-   file@?: a631378adaa3 not in manifests
-  not checking dirstate because of previous errors
-  3 warnings encountered!
-  hint: run "hg debugrebuildfncache" to recover from corrupt fncache
-  7 integrity errors encountered!
-  (first damaged changeset appears to be 0)
-  [1]
   $ cd ..
 
 Have the transaction rollback itself without any hard crash
@@ -332,11 +329,12 @@ Repeat the original test but let hg rollback the transaction.
   abort: pretxnchangegroup hook exited with status 1
   [40]
 
-File are still split on disk, with the expected size.
+The split was rollback
 
   $ f -s .hg/store/data/file*
-  .hg/store/data/file.d: size=1046
-  .hg/store/data/file.i: size=128
+  .hg/store/data/file.d: size=0
+  .hg/store/data/file.i: size=1174
+
 
   $ hg tip
   changeset:   1:cfa8d6e60429
@@ -346,9 +344,6 @@ File are still split on disk, with the expected size.
   summary:     b
   
   $ hg verify -q
-   warning: revlog 'data/file.d' not in fncache!
-  1 warnings encountered!
-  hint: run "hg debugrebuildfncache" to recover from corrupt fncache
   $ cd ..
 
 Read race
