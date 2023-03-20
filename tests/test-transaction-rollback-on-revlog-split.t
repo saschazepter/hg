@@ -392,3 +392,42 @@ The reader should be fine
   $ cat $TESTTMP/reader.stdout
                      1 (no-eol)
   $ cd ..
+
+pending hooks
+=============
+
+We checks that hooks properly see the inside of the transaction, while other process don't.
+
+  $ hg clone --quiet --rev 1 troffset-computation troffset-computation-hooks
+  $ cd troffset-computation-hooks
+  $ cat > .hg/hgrc <<EOF
+  > [hooks]
+  > pretxnclose.01-echo = hg cat -r 'max(all())' file | f --size
+  > pretxnclose.02-echo = $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/hook-done $TESTTMP/hook-tr-ready
+  > pretxnclose.03-abort = false
+  > EOF
+
+  $ (
+  >   $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/hook-tr-ready;\
+  >   hg cat -r 'max(all())' file | f --size;\
+  >   touch $TESTTMP/hook-done
+  > ) >stdout 2>stderr &
+
+  $ hg pull ../troffset-computation
+  pulling from ../troffset-computation
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  size=131072
+  transaction abort!
+  rollback completed
+  abort: pretxnclose.03-abort hook exited with status 1
+  [40]
+
+  $ cat stdout
+  size=1024
+  $ cat stderr
+
+
+  $ cd ..
