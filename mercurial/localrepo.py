@@ -1565,6 +1565,14 @@ class localrepository:
 
         return checksvfs
 
+    @property
+    def vfs_map(self):
+        return {
+            b'': self.svfs,
+            b'plain': self.vfs,
+            b'store': self.svfs,
+        }
+
     def close(self):
         self._writecaches()
 
@@ -2410,12 +2418,11 @@ class localrepository:
         self.hook(b'pretxnopen', throw=True, txnname=desc, txnid=txnid)
 
         self._writejournal(desc)
-        renames = [(vfs, x, undoname(x)) for vfs, x in self._journalfiles()]
         if report:
             rp = report
         else:
             rp = self.ui.warn
-        vfsmap = {b'plain': self.vfs, b'store': self.svfs}  # root of .hg/
+        vfsmap = self.vfs_map
         # we must avoid cyclic reference between repo and transaction.
         reporef = weakref.ref(self)
         # Code to track tag movement
@@ -2568,13 +2575,15 @@ class localrepository:
             vfsmap,
             b"journal",
             b"undo",
-            aftertrans(renames),
+            lambda: None,
             self.store.createmode,
             validator=validate,
             releasefn=releasefn,
             checkambigfiles=_cachedfiles,
             name=desc,
         )
+        for vfs_id, path in self._journalfiles():
+            tr.add_journal(vfs_id, path)
         tr.changes[b'origrepolen'] = len(self)
         tr.changes[b'obsmarkers'] = set()
         tr.changes[b'phases'] = []
@@ -2704,10 +2713,7 @@ class localrepository:
         with self.lock():
             if self.svfs.exists(b"journal"):
                 self.ui.status(_(b"rolling back interrupted transaction\n"))
-                vfsmap = {
-                    b'': self.svfs,
-                    b'plain': self.vfs,
-                }
+                vfsmap = self.vfs_map
                 transaction.rollback(
                     self.svfs,
                     vfsmap,
@@ -2775,7 +2781,7 @@ class localrepository:
             return 0
 
         self.destroying()
-        vfsmap = {b'plain': self.vfs, b'': self.svfs}
+        vfsmap = self.vfs_map
         skip_journal_pattern = None
         if not parentgone:
             skip_journal_pattern = RE_SKIP_DIRSTATE_ROLLBACK
@@ -2945,6 +2951,7 @@ class localrepository:
         known good state)."""
         unfi = self.unfiltered()
         if 'dirstate' in unfi.__dict__:
+            assert not self.dirstate.is_changing_any
             del unfi.__dict__['dirstate']
 
     def invalidate(self, clearfilecache=False):
@@ -3540,24 +3547,6 @@ class localrepository:
             raise error.ProgrammingError(msg % category)
         self._sidedata_computers.setdefault(kind, {})
         self._sidedata_computers[kind][category] = (keys, computer, flags)
-
-
-# used to avoid circular references so destructors work
-def aftertrans(files):
-    renamefiles = [tuple(t) for t in files]
-
-    def a():
-        for vfs, src, dest in renamefiles:
-            # if src and dest refer to a same file, vfs.rename is a no-op,
-            # leaving both src and dest on disk. delete dest to make sure
-            # the rename couldn't be such a no-op.
-            vfs.tryunlink(dest)
-            try:
-                vfs.rename(src, dest)
-            except FileNotFoundError:  # journal file does not yet exist
-                pass
-
-    return a
 
 
 def undoname(fn: bytes) -> bytes:

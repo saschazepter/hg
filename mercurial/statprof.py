@@ -540,7 +540,11 @@ def display_by_line(data, fp):
 
     for stat in stats:
         site = stat.site
-        sitelabel = b'%s:%d:%s' % (site.filename(), site.lineno, site.function)
+        sitelabel = b'%s:%d:%s' % (
+            site.filename(),
+            site.lineno or -1,
+            site.function,
+        )
         fp.write(
             b'%6.2f %9.2f %9.2f  %s\n'
             % (
@@ -613,7 +617,7 @@ def display_by_method(data, fp):
                 stattuple = (
                     stat.selfpercent(),
                     stat.selfseconds(),
-                    stat.site.lineno,
+                    stat.site.lineno or -1,
                     source,
                 )
 
