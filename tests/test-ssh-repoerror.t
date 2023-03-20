@@ -13,7 +13,7 @@ repository itself is non-readable
   $ chmod a-rx no-read
 
   $ hg id ssh://user@dummy/no-read
-  remote: abort: Permission denied: *$TESTTMP/no-read/.hg* (glob)
+  remote: abort: $EACCES$: *$TESTTMP/no-read/.hg* (glob)
   abort: no suitable response from remote hg
   [255]
 
@@ -31,7 +31,7 @@ seems an unexpected case in real life, but we test it anyway.
   > done
 
   $ hg id ssh://user@dummy/other
-  remote: abort: Permission denied: '$TESTTMP/other/.hg/requires'
+  remote: abort: $EACCES$: '$TESTTMP/other/.hg/requires'
   abort: no suitable response from remote hg
   [255]
 
@@ -47,7 +47,7 @@ directory toward the repository is read only
   $ chmod a-rx deep
 
   $ hg id ssh://user@dummy/deep/nested
-  remote: abort: Permission denied: *$TESTTMP/deep/nested/.hg* (glob)
+  remote: abort: $EACCES$: *$TESTTMP/deep/nested/.hg* (glob)
   abort: no suitable response from remote hg
   [255]
 

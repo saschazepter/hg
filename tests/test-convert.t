@@ -468,7 +468,7 @@ conversion to dir without permissions should fail
   $ chmod 000 bogusdir
 
   $ hg convert a bogusdir
-  abort: Permission denied: *bogusdir* (glob)
+  abort: $EACCES$: *bogusdir* (glob)
   [255]
 
 user permissions should succeed

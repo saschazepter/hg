@@ -403,9 +403,9 @@ Test hg-ssh in read-only mode:
   $ hg push --ssh "sh ../ssh.sh"
   pushing to ssh://user@dummy/*/remote (glob)
   searching for changes
-  remote: Permission denied
+  remote: $EACCES$
   remote: abort: pretxnopen.hg-ssh hook failed
-  remote: Permission denied
+  remote: $EACCES$
   remote: pushkey-abort: prepushkey.hg-ssh hook failed
   updating 6c0482d977a3 to public failed!
   [1]

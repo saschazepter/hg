@@ -47,7 +47,7 @@ Check that zero-size journals are correctly aborted:
 
   $ hg -R foo unbundle repo.hg
   adding changesets
-  abort: Permission denied: '$TESTTMP/repo/foo/.hg/store/.00changelog.i-*' (glob)
+  abort: $EACCES$: '$TESTTMP/repo/foo/.hg/store/.00changelog.i-*' (glob)
   [255]
 
   $ if test -f foo/.hg/store/journal; then echo 'journal exists :-('; fi

@@ -1427,11 +1427,11 @@ pgup/K: move patch up, pgdn/J: move patch down, c: commit, q: abort
         for y in range(0, length):
             line = output[y]
             if diffcolors:
-                if line and line[0] == b'+':
+                if line.startswith(b'+'):
                     win.addstr(
                         y, 0, line, curses.color_pair(COLOR_DIFF_ADD_LINE)
                     )
-                elif line and line[0] == b'-':
+                elif line.startswith(b'-'):
                     win.addstr(
                         y, 0, line, curses.color_pair(COLOR_DIFF_DEL_LINE)
                     )

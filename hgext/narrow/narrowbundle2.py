@@ -6,7 +6,6 @@
 # GNU General Public License version 2 or any later version.
 
 
-import errno
 import struct
 
 from mercurial.i18n import _
@@ -20,10 +19,10 @@ from mercurial import (
     repair,
     requirements,
     scmutil,
+    transaction,
     util,
     wireprototypes,
 )
-from mercurial.utils import stringutil
 
 _NARROWACL_SECTION = b'narrowacl'
 _CHANGESPECPART = b'narrow:changespec'
@@ -295,16 +294,7 @@ def handlechangegroup_widen(op, inpart):
     finally:
         f.close()
 
-    # remove undo files
-    for undovfs, undofile in repo.undofiles():
-        try:
-            undovfs.unlink(undofile)
-        except OSError as e:
-            if e.errno != errno.ENOENT:
-                ui.warn(
-                    _(b'error removing %s: %s\n')
-                    % (undovfs.join(undofile), stringutil.forcebytestr(e))
-                )
+    transaction.cleanup_undo_files(repo.ui.warn, repo.vfs_map)
 
     # Remove partial backup only if there were no exceptions
     op._widen_uninterr.__exit__(None, None, None)
