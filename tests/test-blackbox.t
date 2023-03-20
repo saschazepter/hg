@@ -322,8 +322,8 @@ Skip rotation if the .hg is read-only
 #if unix-permissions
   $ chmod -w .hg
   $ hg log -r. -T '{rev}\n' --config blackbox.maxsize=1 --debug
-  warning: cannot rename '$TESTTMP/blackboxtest3/.hg/blackbox.log.1' to '$TESTTMP/blackboxtest3/.hg/blackbox.log': Permission denied
-  warning: cannot write to blackbox.log: Permission denied
+  warning: cannot rename '$TESTTMP/blackboxtest3/.hg/blackbox.log.1' to '$TESTTMP/blackboxtest3/.hg/blackbox.log': $EACCES$
+  warning: cannot write to blackbox.log: $EACCES$
   1
   $ chmod +w .hg
 #endif
@@ -470,15 +470,16 @@ blackbox should work if repo.ui.log is not called (issue5518)
   >     raise RuntimeError('raise')
   > EOF
 
-  $ cat >> $HGRCPATH << EOF
+
+  $ hg init $TESTTMP/blackbox-exception-only --config blackbox.track=commandexception
+  $ cat >> $TESTTMP/blackbox-exception-only/.hg/hgrc << EOF
   > [blackbox]
   > track = commandexception
   > [extensions]
   > raise=$TESTTMP/raise.py
   > EOF
-
-  $ hg init $TESTTMP/blackbox-exception-only
   $ cd $TESTTMP/blackbox-exception-only
+
 
 #if chg
  (chg exits 255 because it fails to receive an exit code)
@@ -495,3 +496,25 @@ blackbox should work if repo.ui.log is not called (issue5518)
   $ tail -2 .hg/blackbox.log
   RuntimeError: raise
   
+  $ cd ..
+
+Check we did not broke `hg mv`
+------------------------------
+(we did in 6.4rc)
+
+basic setup
+
+  $ hg init blackbox-file-move
+  $ cd blackbox-file-move
+  $ echo foo > foo
+  $ hg add foo
+  $ hg commit -m 'foo'
+
+copy a file
+
+  $ hg copy foo bar
+
+move a file
+
+  $ hg mv foo goo
+

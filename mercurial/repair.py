@@ -7,8 +7,6 @@
 # GNU General Public License version 2 or any later version.
 
 
-import errno
-
 from .i18n import _
 from .node import (
     hex,
@@ -26,11 +24,11 @@ from . import (
     phases,
     requirements,
     scmutil,
+    transaction,
     util,
 )
 from .utils import (
     hashutil,
-    stringutil,
     urlutil,
 )
 
@@ -270,19 +268,7 @@ def strip(ui, repo, nodelist, backup=True, topic=b'backup'):
                 bmchanges = [(m, repo[newbmtarget].node()) for m in updatebm]
                 repo._bookmarks.applychanges(repo, tr, bmchanges)
 
-            # remove undo files
-            for undovfs, undofile in repo.undofiles():
-                try:
-                    undovfs.unlink(undofile)
-                except OSError as e:
-                    if e.errno != errno.ENOENT:
-                        ui.warn(
-                            _(b'error removing %s: %s\n')
-                            % (
-                                undovfs.join(undofile),
-                                stringutil.forcebytestr(e),
-                            )
-                        )
+            transaction.cleanup_undo_files(repo.ui.warn, repo.vfs_map)
 
         except:  # re-raises
             if backupfile:

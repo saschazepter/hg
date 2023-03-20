@@ -244,7 +244,7 @@ impl<'a> HasIgnoredAncestor<'a> {
         match self.parent {
             None => false,
             Some(parent) => {
-                *(parent.cache.get_or_init(|| {
+                *(self.cache.get_or_init(|| {
                     parent.force(ignore_fn) || ignore_fn(self.path)
                 }))
             }
@@ -433,16 +433,21 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
             return Ok(children_all_have_dirstate_node_or_are_ignored);
         }
 
+        let readdir_succeeded;
         let mut fs_entries = if let Ok(entries) = self.read_dir(
             directory_hg_path,
             &directory_entry.fs_path,
             is_at_repo_root,
         ) {
+            readdir_succeeded = true;
             entries
         } else {
             // Treat an unreadable directory (typically because of insufficient
             // permissions) like an empty directory. `self.read_dir` has
             // already called `self.io_error` so a warning will be emitted.
+            // We still need to remember that there was an error so that we
+            // know not to cache this result.
+            readdir_succeeded = false;
             Vec::new()
         };
 
@@ -495,6 +500,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
             Ok(has_dirstate_node_or_is_ignored)
         })
         .try_reduce(|| true, |a, b| Ok(a && b))
+        .map(|res| res && readdir_succeeded)
     }
 
     fn traverse_fs_and_dirstate<'ancestor>(

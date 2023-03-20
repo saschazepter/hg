@@ -11,6 +11,8 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+import errno
+import os
 
 from .i18n import _
 from . import (
@@ -36,6 +38,61 @@ def active(func):
         return func(self, *args, **kwds)
 
     return _active
+
+
+UNDO_BACKUP = b'%s.backupfiles'
+
+UNDO_FILES_MAY_NEED_CLEANUP = [
+    # legacy entries that might exists on disk from previous version:
+    (b'store', b'%s.narrowspec'),
+    (b'plain', b'%s.narrowspec.dirstate'),
+    (b'plain', b'%s.branch'),
+    (b'plain', b'%s.bookmarks'),
+    (b'store', b'%s.phaseroots'),
+    (b'plain', b'%s.dirstate'),
+    # files actually in uses today:
+    (b'plain', b'%s.desc'),
+    # Always delete undo last to make sure we detect that a clean up is needed if
+    # the process is interrupted.
+    (b'store', b'%s'),
+]
+
+
+def cleanup_undo_files(report, vfsmap, undo_prefix=b'undo'):
+    """remove "undo" files used by the rollback logic
+
+    This is useful to prevent rollback running in situation were it does not
+    make sense. For example after a strip.
+    """
+    backup_listing = UNDO_BACKUP % undo_prefix
+
+    backup_entries = []
+    undo_files = []
+    svfs = vfsmap[b'store']
+    try:
+        with svfs(backup_listing) as f:
+            backup_entries = read_backup_files(report, f)
+    except OSError as e:
+        if e.errno != errno.ENOENT:
+            msg = _(b'could not read %s: %s\n')
+            msg %= (svfs.join(backup_listing), stringutil.forcebytestr(e))
+            report(msg)
+
+    for location, f, backup_path, c in backup_entries:
+        if location in vfsmap and backup_path:
+            undo_files.append((vfsmap[location], backup_path))
+
+    undo_files.append((svfs, backup_listing))
+    for location, undo_path in UNDO_FILES_MAY_NEED_CLEANUP:
+        undo_files.append((vfsmap[location], undo_path % undo_prefix))
+    for undovfs, undofile in undo_files:
+        try:
+            undovfs.unlink(undofile)
+        except OSError as e:
+            if e.errno != errno.ENOENT:
+                msg = _(b'error removing %s: %s\n')
+                msg %= (undovfs.join(undofile), stringutil.forcebytestr(e))
+                report(msg)
 
 
 def _playback(
@@ -152,6 +209,7 @@ class transaction(util.transactional):
         self._offsetmap = {}
         self._newfiles = set()
         self._journal = journalname
+        self._journal_files = []
         self._undoname = undoname
         self._queue = []
         # A callback to do something just after releasing transaction.
@@ -632,10 +690,25 @@ class transaction(util.transactional):
         scope)"""
         self._abort()
 
+    @active
+    def add_journal(self, vfs_id, path):
+        self._journal_files.append((vfs_id, path))
+
     def _writeundo(self):
         """write transaction data for possible future undo call"""
         if self._undoname is None:
             return
+        cleanup_undo_files(
+            self._report,
+            self._vfsmap,
+            undo_prefix=self._undoname,
+        )
+
+        def undoname(fn: bytes) -> bytes:
+            base, name = os.path.split(fn)
+            assert name.startswith(self._journal)
+            new_name = name.replace(self._journal, self._undoname, 1)
+            return os.path.join(base, new_name)
 
         undo_backup_path = b"%s.backupfiles" % self._undoname
         undobackupfile = self._opener.open(undo_backup_path, b'w')
@@ -653,13 +726,20 @@ class transaction(util.transactional):
                     )
                     continue
                 vfs = self._vfsmap[l]
-                base, name = vfs.split(b)
-                assert name.startswith(self._journal), name
-                uname = name.replace(self._journal, self._undoname, 1)
-                u = vfs.reljoin(base, uname)
+                u = undoname(b)
                 util.copyfile(vfs.join(b), vfs.join(u), hardlink=True)
             undobackupfile.write(b"%s\0%s\0%s\0%d\n" % (l, f, u, c))
         undobackupfile.close()
+        for vfs, src in self._journal_files:
+            dest = undoname(src)
+            # if src and dest refer to a same file, vfs.rename is a no-op,
+            # leaving both src and dest on disk. delete dest to make sure
+            # the rename couldn't be such a no-op.
+            vfs.tryunlink(dest)
+            try:
+                vfs.rename(src, dest)
+            except FileNotFoundError:  # journal file does not yet exist
+                pass
 
     def _abort(self):
         entries = self.readjournal()
@@ -737,6 +817,32 @@ BAD_VERSION_MSG = _(
 )
 
 
+def read_backup_files(report, fp):
+    """parse an (already open) backup file an return contained backup entries
+
+    entries are in the form: (location, file, backupfile, xxx)
+
+    :location:   the vfs identifier (vfsmap's key)
+    :file:       original file path (in the vfs)
+    :backupfile: path of the backup (in the vfs)
+    :cache:      a boolean currently always set to False
+    """
+    lines = fp.readlines()
+    backupentries = []
+    if lines:
+        ver = lines[0][:-1]
+        if ver != (b'%d' % version):
+            report(BAD_VERSION_MSG)
+        else:
+            for line in lines[1:]:
+                if line:
+                    # Shave off the trailing newline
+                    line = line[:-1]
+                    l, f, b, c = line.split(b'\0')
+                    backupentries.append((l, f, b, bool(c)))
+    return backupentries
+
+
 def rollback(
     opener,
     vfsmap,
@@ -776,19 +882,8 @@ def rollback(
 
     backupjournal = b"%s.backupfiles" % file
     if opener.exists(backupjournal):
-        fp = opener.open(backupjournal)
-        lines = fp.readlines()
-        if lines:
-            ver = lines[0][:-1]
-            if ver != (b'%d' % version):
-                report(BAD_VERSION_MSG)
-            else:
-                for line in lines[1:]:
-                    if line:
-                        # Shave off the trailing newline
-                        line = line[:-1]
-                        l, f, b, c = line.split(b'\0')
-                        backupentries.append((l, f, b, bool(c)))
+        with opener.open(backupjournal) as fp:
+            backupentries = read_backup_files(report, fp)
     if skip_journal_pattern is not None:
         keep = lambda x: not skip_journal_pattern.match(x[1])
         backupentries = [x for x in backupentries if keep(x)]

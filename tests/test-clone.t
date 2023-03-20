@@ -633,7 +633,7 @@ Inaccessible source
   $ mkdir a
   $ chmod 000 a
   $ hg clone a b
-  abort: Permission denied: *$TESTTMP/fail/a/.hg* (glob)
+  abort: $EACCES$: *$TESTTMP/fail/a/.hg* (glob)
   [255]
 
 Inaccessible destination
@@ -641,7 +641,7 @@ Inaccessible destination
   $ hg init b
   $ cd b
   $ hg clone . ../a
-  abort: Permission denied: *../a* (glob)
+  abort: $EACCES$: *../a* (glob)
   [255]
   $ cd ..
   $ chmod 700 a
