@@ -603,6 +603,7 @@ class fncache:
     # hence the encodedir/decodedir dance
     def __init__(self, vfs):
         self.vfs = vfs
+        self._ignores = set()
         self.entries = None
         self._dirty = False
         # set of new additions to fncache
@@ -687,7 +688,12 @@ class fncache:
             self.entries = None
             self.addls = set()
 
+    def addignore(self, fn):
+        self._ignores.add(fn)
+
     def add(self, fn):
+        if fn in self._ignores:
+            return
         if self.entries is None:
             self._load()
         if fn not in self.entries:
