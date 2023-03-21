@@ -84,13 +84,19 @@ def _nothingtorebase():
     return 1
 
 
+graft_extras = b'source', b'intermediate-source'
+
+
+def _project(orig, names):
+    """Project a subset of names from orig."""
+    values = (orig.get(name, None) for name in names)
+    return {
+        name: value for name, value in zip(names, values) if value is not None
+    }
+
+
 def _savegraft(ctx, extra):
-    s = ctx.extra().get(b'source', None)
-    if s is not None:
-        extra[b'source'] = s
-    s = ctx.extra().get(b'intermediate-source', None)
-    if s is not None:
-        extra[b'intermediate-source'] = s
+    extra.update(_project(ctx.extra(), graft_extras))
 
 
 def _savebranch(ctx, extra):
