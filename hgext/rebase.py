@@ -84,19 +84,28 @@ def _nothingtorebase():
     return 1
 
 
-graft_extras = b'source', b'intermediate-source'
+def retained_extras():
+    """
+    Yield the names of the extras to be retained.
+    """
+    # graft
+    yield b'source'
+    yield b'intermediate-source'
 
 
 def _project(orig, names):
     """Project a subset of names from orig."""
-    values = (orig.get(name, None) for name in names)
+    names_saved = tuple(names)
+    values = (orig.get(name, None) for name in names_saved)
     return {
-        name: value for name, value in zip(names, values) if value is not None
+        name: value
+        for name, value in zip(names_saved, values)
+        if value is not None
     }
 
 
-def _savegraft(ctx, extra):
-    extra.update(_project(ctx.extra(), graft_extras))
+def _save_extras(ctx, extra):
+    extra.update(_project(ctx.extra(), retained_extras()))
 
 
 def _savebranch(ctx, extra):
@@ -199,7 +208,7 @@ class rebaseruntime:
         self.date = opts.get('date', None)
 
         e = opts.get('extrafn')  # internal, used by e.g. hgsubversion
-        self.extrafns = [_savegraft]
+        self.extrafns = [_save_extras]
         if e:
             self.extrafns = [e]
 
