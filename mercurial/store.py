@@ -403,7 +403,7 @@ REVLOG_FILES_VOLATILE_EXT = (b'.n', b'.nd')
 # some exception to the above matching
 #
 # XXX This is currently not in use because of issue6542
-EXCLUDED = re.compile(b'.*undo\.[^/]+\.(nd?|i)$')
+EXCLUDED = re.compile(br'.*undo\.[^/]+\.(nd?|i)$')
 
 
 def is_revlog(f, kind, st):
