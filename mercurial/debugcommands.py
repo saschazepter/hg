@@ -803,11 +803,12 @@ def debugdeltachain(ui, repo, file_=None, **opts):
     # security to avoid crash on corrupted revlogs
     total_revs = len(index)
 
+    chain_size_cache = {}
+
     def revinfo(rev):
         e = index[rev]
         compsize = e[revlog_constants.ENTRY_DATA_COMPRESSED_LENGTH]
         uncompsize = e[revlog_constants.ENTRY_DATA_UNCOMPRESSED_LENGTH]
-        chainsize = 0
 
         base = e[revlog_constants.ENTRY_DELTA_BASE]
         p1 = e[revlog_constants.ENTRY_PARENT_1]
@@ -870,11 +871,17 @@ def debugdeltachain(ui, repo, file_=None, **opts):
                 deltatype = b'prev'
 
         chain = r._deltachain(rev)[0]
-        for iterrev in chain:
-            e = index[iterrev]
-            chainsize += e[revlog_constants.ENTRY_DATA_COMPRESSED_LENGTH]
+        chain_size = 0
+        for iter_rev in reversed(chain):
+            cached = chain_size_cache.get(iter_rev)
+            if cached is not None:
+                chain_size += cached
+                break
+            e = index[iter_rev]
+            chain_size += e[revlog_constants.ENTRY_DATA_COMPRESSED_LENGTH]
+        chain_size_cache[rev] = chain_size
 
-        return p1, p2, compsize, uncompsize, deltatype, chain, chainsize
+        return p1, p2, compsize, uncompsize, deltatype, chain, chain_size
 
     fm = ui.formatter(b'debugdeltachain', opts)
 
