@@ -1107,10 +1107,16 @@ class ui:
     def fout(self):
         return self._fout
 
+    @util.propertycache
+    def _fout_is_a_tty(self):
+        self._isatty(self._fout)
+
     @fout.setter
     def fout(self, f):
         self._fout = f
         self._fmsgout, self._fmsgerr = _selectmsgdests(self)
+        if '_fout_is_a_tty' in vars(self):
+            del self._fout_is_a_tty
 
     @property
     def ferr(self):
@@ -1234,7 +1240,7 @@ class ui:
             return
 
         # inlined _writenobuf() for speed
-        if not opts.get('keepprogressbar', False):
+        if not opts.get('keepprogressbar', self._fout_is_a_tty):
             self._progclear()
         msg = b''.join(args)
 
@@ -1273,7 +1279,7 @@ class ui:
 
     def _writenobuf(self, dest, *args: bytes, **opts: _MsgOpts) -> None:
         # update write() as well if you touch this code
-        if not opts.get('keepprogressbar', False):
+        if not opts.get('keepprogressbar', self._fout_is_a_tty):
             self._progclear()
         msg = b''.join(args)
 
