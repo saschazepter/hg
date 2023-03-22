@@ -1622,7 +1622,7 @@ proxy.
     in ``http_proxy.no``. (default: False)
 
 ``http``
-----------
+--------
 
 Used to configure access to Mercurial repositories via HTTP.
 
