@@ -24,6 +24,7 @@ from mercurial.node import (
     wdirrev,
 )
 from mercurial.pycompat import open
+from mercurial.thirdparty.jaraco.collections import Projection
 from mercurial import (
     bookmarks,
     cmdutil,
@@ -51,6 +52,7 @@ from mercurial import (
     state as statemod,
     util,
 )
+
 
 # The following constants are used throughout the rebase module. The ordering of
 # their values must be maintained.
@@ -93,19 +95,8 @@ def retained_extras():
     yield b'intermediate-source'
 
 
-def _project(orig, names):
-    """Project a subset of names from orig."""
-    names_saved = tuple(names)
-    values = (orig.get(name, None) for name in names_saved)
-    return {
-        name: value
-        for name, value in zip(names_saved, values)
-        if value is not None
-    }
-
-
 def _save_extras(ctx, extra):
-    extra.update(_project(ctx.extra(), retained_extras()))
+    extra.update(Projection(retained_extras(), ctx.extra()))
 
 
 def _savebranch(ctx, extra):
