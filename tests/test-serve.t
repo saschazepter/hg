@@ -55,7 +55,7 @@ With -v and -p daytime
 #if no-windows
   $ KILLQUIETLY=Y
   $ hgserve -p daytime
-  abort: cannot start server at 'localhost:13': Permission denied (?)
+  abort: cannot start server at 'localhost:13': $EACCES$ (?)
   abort: child process failed to start (?)
   abort: no port number associated with service 'daytime' (?)
   listening at http://localhost/ (bound to $LOCALIP:13) (?)
