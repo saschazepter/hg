@@ -3141,6 +3141,10 @@ class localrepository:
         """Returns the wlock if it's held, or None if it's not."""
         return self._currentlock(self._wlockref)
 
+    def currentlock(self):
+        """Returns the lock if it's held, or None if it's not."""
+        return self._currentlock(self._lockref)
+
     def checkcommitpatterns(self, wctx, match, status, fail):
         """check for commit arguments that aren't committable"""
         if match.isexact() or match.prefix():
