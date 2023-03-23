@@ -7,7 +7,6 @@ Set up SMTP server:
 
   $ "$PYTHON" "$TESTDIR/dummysmtpd.py" -p $HGPORT --pid-file a.pid --logfile log -d \
   > --tls smtps --certificate `pwd`/server.pem
-  listening at localhost:$HGPORT (?)
   $ cat a.pid >> $DAEMON_PIDS
 
 Set up repository:
@@ -47,6 +46,11 @@ we are able to load CA certs:
   (an attempt was made to load CA certificates but none were loaded; see https://mercurial-scm.org/wiki/SecureConnections for how to configure Mercurial to avoid this error)
   (?i)abort: .*?certificate.verify.failed.* (re)
   [255]
+
+  $ cat ../log
+  * ssl error: * (glob)
+  $ : > ../log
+
 #endif
 
 #if defaultcacertsloaded
@@ -57,6 +61,10 @@ we are able to load CA certs:
   (the full certificate chain may not be available locally; see "hg help debugssl") (windows !)
   (?i)abort: .*?certificate.verify.failed.* (re)
   [255]
+
+  $ cat ../log
+  * ssl error: * (glob)
+  $ : > ../log
 
 #endif
 
@@ -76,7 +84,8 @@ Without certificates:
   [150]
 
   $ cat ../log
-  * ssl error: * (glob)
+  connection from * (glob)
+  no hello: b''
   $ : > ../log
 
 With global certificates:
@@ -91,6 +100,7 @@ With global certificates:
   sending [PATCH] a ...
 
   $ cat ../log
+  connection from * (glob)
   * from=quux to=foo, bar (glob)
   MIME-Version: 1.0
   Content-Type: text/plain; charset="us-ascii"
