@@ -191,6 +191,11 @@ def _exthook(ui, repo, htype, name, cmd, args, throw):
         cwd = encoding.getcwd()
     r = ui.system(cmd, environ=env, cwd=cwd, blockedtag=b'exthook-%s' % (name,))
 
+    if repo is not None and repo.currentwlock() is None:
+        repo.invalidatedirstate()
+    if repo is not None and repo.currentlock() is None:
+        repo.invalidate()
+
     duration = util.timer() - starttime
     ui.log(
         b'exthook',
