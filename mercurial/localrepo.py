@@ -1805,10 +1805,29 @@ class localrepository:
         )
 
     def _dirstatevalidate(self, node):
+        okay = True
         try:
             self.changelog.rev(node)
-            return node
         except error.LookupError:
+            # If the parent are unknown it might just be because the changelog
+            # in memory is lagging behind the dirstate in memory. So try to
+            # refresh the changelog first.
+            #
+            # We only do so if we don't hold the lock, if we do hold the lock
+            # the invalidation at that time should have taken care of this and
+            # something is very fishy.
+            if self.currentlock() is None:
+                self.invalidate()
+                try:
+                    self.changelog.rev(node)
+                except error.LookupError:
+                    okay = False
+            else:
+                # XXX we should consider raising an error here.
+                okay = False
+        if okay:
+            return node
+        else:
             if not self._dirstatevalidatewarned:
                 self._dirstatevalidatewarned = True
                 self.ui.warn(

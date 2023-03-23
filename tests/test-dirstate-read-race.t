@@ -249,7 +249,7 @@ commit was created, and status is now clean
 
 The status process should return a consistent result and not crash.
 
-#if rust no-rhg dirstate-v2-append
+#if no-rhg
   $ cat $TESTTMP/status-race-lock.out
   A dir/o
   R dir/nested/m
@@ -258,7 +258,7 @@ The status process should return a consistent result and not crash.
   ? q
   $ cat $TESTTMP/status-race-lock.log
 #else
-#if rhg pre-some-read dirstate-v2-append
+#if pre-some-read dirstate-v2-append
   $ cat $TESTTMP/status-race-lock.out
   A dir/o
   R dir/nested/m
@@ -268,12 +268,10 @@ The status process should return a consistent result and not crash.
   $ cat $TESTTMP/status-race-lock.log
 #else
   $ cat $TESTTMP/status-race-lock.out
-  M dir/o (no-rhg known-bad-output !)
   ? dir/n
   ? p
   ? q
   $ cat $TESTTMP/status-race-lock.log
-  warning: ignoring unknown working parent 02a67a77ee9b! (no-rhg !)
 #endif
 #endif
 
