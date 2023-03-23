@@ -93,6 +93,7 @@ def main():
     op.add_option('--pid-file', metavar='FILE')
     op.add_option('--tls', choices=['none', 'smtps'], default='none')
     op.add_option('--certificate', metavar='FILE')
+    op.add_option('--logfile', metavar='FILE')
 
     opts, args = op.parse_args()
     if opts.tls == 'smtps' and not opts.certificate:
@@ -113,6 +114,7 @@ def main():
         runfn=run,
         runargs=[pycompat.sysexecutable, pycompat.fsencode(__file__)]
         + pycompat.sysargv[1:],
+        logfile=opts.logfile,
     )
 
 
