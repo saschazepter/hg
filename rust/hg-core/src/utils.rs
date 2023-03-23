@@ -498,3 +498,35 @@ where
         Err(e) => Some(Err(e)),
     })
 }
+
+/// Force the global rayon threadpool to not exceed 16 concurrent threads
+/// unless the user has specified a value.
+/// This is a stop-gap measure until we figure out why using more than 16
+/// threads makes `status` slower for each additional thread.
+///
+/// TODO find the underlying cause and fix it, then remove this.
+///
+/// # Errors
+///
+/// Returns an error if the global threadpool has already been initialized if
+/// we try to initialize it.
+pub fn cap_default_rayon_threads() -> Result<(), rayon::ThreadPoolBuildError> {
+    const THREAD_CAP: usize = 16;
+
+    if std::env::var("RAYON_NUM_THREADS").is_err() {
+        let available_parallelism = std::thread::available_parallelism()
+            .map(usize::from)
+            .unwrap_or(1);
+        let new_thread_count = THREAD_CAP.min(available_parallelism);
+        let res = rayon::ThreadPoolBuilder::new()
+            .num_threads(new_thread_count)
+            .build_global();
+        if res.is_ok() {
+            log::trace!(
+                "Capped the rayon threadpool to {new_thread_count} threads",
+            );
+        }
+        return res;
+    }
+    Ok(())
+}
