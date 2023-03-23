@@ -1810,6 +1810,9 @@ class ilocalrepositorymain(interfaceutil.Interface):
     def lock(wait=True):
         """Lock the repository store and return a lock instance."""
 
+    def currentlock():
+        """Return the lock if it's held or None."""
+
     def wlock(wait=True):
         """Lock the non-store parts of the repository."""
 
