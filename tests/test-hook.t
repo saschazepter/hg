@@ -1466,6 +1466,5 @@ desync.
   $ hg merge 1
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
-  warning: ignoring unknown working parent 449f60fb3fe2! (known-bad-output !)
 
   $ cd ..
