@@ -5,7 +5,7 @@ Set up SMTP server:
   $ CERTSDIR="$TESTDIR/sslcerts"
   $ cat "$CERTSDIR/priv.pem" "$CERTSDIR/pub.pem" >> server.pem
 
-  $ "$PYTHON" "$TESTDIR/dummysmtpd.py" -p $HGPORT --pid-file a.pid -d \
+  $ "$PYTHON" "$TESTDIR/dummysmtpd.py" -p $HGPORT --pid-file a.pid --logfile log -d \
   > --tls smtps --certificate `pwd`/server.pem
   listening at localhost:$HGPORT (?)
   $ cat a.pid >> $DAEMON_PIDS
@@ -75,6 +75,10 @@ Without certificates:
   (see https://mercurial-scm.org/wiki/SecureConnections for how to configure Mercurial to avoid this error or set hostsecurity.localhost:fingerprints=sha256:20:de:b3:ad:b4:cd:a5:42:f0:74:41:1c:a2:70:1e:da:6e:c0:5c:16:9e:e7:22:0f:f1:b7:e5:6e:e4:92:af:7e to trust this server)
   [150]
 
+  $ cat ../log
+  * ssl error (glob)
+  $ : > ../log
+
 With global certificates:
 
   $ try --debug --config web.cacerts="$CERTSDIR/pub.pem"
@@ -86,6 +90,10 @@ With global certificates:
   (verifying remote certificate)
   sending [PATCH] a ...
 
+  $ cat ../log
+  * from=quux to=foo, bar (glob)
+  $ : > ../log
+
 With invalid certificates:
 
   $ try --config web.cacerts="$CERTSDIR/pub-other.pem"
@@ -95,5 +103,9 @@ With invalid certificates:
   (the full certificate chain may not be available locally; see "hg help debugssl") (windows !)
   (?i)abort: .*?certificate.verify.failed.* (re)
   [255]
+
+  $ cat ../log
+  * ssl error (glob)
+  $ : > ../log
 
   $ cd ..
