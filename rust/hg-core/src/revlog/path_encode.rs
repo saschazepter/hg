@@ -546,7 +546,13 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
             if dest.len() + slice.len() > maxshortdirslen + 3 {
                 break;
             } else {
-                dest.write_bytes(slice);
+                let last_char = slice[slice.len() - 1];
+                if last_char == b'.' || last_char == b' ' {
+                    dest.write_bytes(&slice[0..slice.len() - 1]);
+                    dest.write_byte(b'_');
+                } else {
+                    dest.write_bytes(slice);
+                }
             }
             dest.write_byte(b'/');
         }
@@ -612,8 +618,7 @@ mod tests {
     #[test]
     fn test_dirname_ends_with_underscore() {
         let input = b"data/dir1234.foo/ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ.i";
-        // TODO: BUG: trailing dot should become an underscore
-        let expected = b"dh/dir1234./abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij.if2e9ce59e095eff5f8f334dc809e65606a0aa50b.i";
+        let expected = b"dh/dir1234_/abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij.if2e9ce59e095eff5f8f334dc809e65606a0aa50b.i";
         let res = path_encode(input);
         assert_eq!(
             HgPathBuf::from_bytes(&res),
