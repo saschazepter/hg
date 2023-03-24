@@ -545,15 +545,15 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
             let slice = &slice[..std::cmp::min(slice.len(), dirprefixlen)];
             if dest.len() + slice.len() > maxshortdirslen + 3 {
                 break;
-            } else {
-                let last_char = slice[slice.len() - 1];
-                if last_char == b'.' || last_char == b' ' {
+            }
+            if let Some(last_char) = slice.last() {
+                if *last_char == b'.' || *last_char == b' ' {
                     dest.write_bytes(&slice[0..slice.len() - 1]);
                     dest.write_byte(b'_');
                 } else {
                     dest.write_bytes(slice);
                 }
-            }
+            };
             dest.write_byte(b'/');
         }
     }
