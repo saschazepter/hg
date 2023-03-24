@@ -1,4 +1,4 @@
-= Mercurial 6.4rc0 =
+= Mercurial 6.4 =
 
 == New Features ==
 
@@ -90,6 +90,31 @@ Aside from the following (unordered) commits which made it through a manual filt
  * bundlerepo: apply phase data stored in the bundle instead of assuming `draft`
  * config-item: declare undeclared path suboption
  * narrow: read pending file when applicable
+ * rust: fix building on macOS (issue6801)
+ * run-tests: fix a crash when using the coverage options
+ * undo-files: also remove the undo.backupfiles
+ * undo-files: cleanup backup when cleaning undos
+ * undo-files: clean existing files up before writing new one
+ * undo-files: cleanup legacy files when applicable
+ * dirstate-v2: fix an incorrect handling of readdir errors
+ * rust: update zstd dependency
+ * rust: upgrade `rayon` dependency
+ * dirstate: fix the bug in [status] dealing with committed&ignored directories
+ * dirstate: fix a potential traceback when in `copy` and `rename`
+ * histedit: fix diff colors
+ * cext: fix for PyLong refactoring in CPython 3.12
+ * py3: fix for Python 3.12 emitting SyntaxWarning on invalid escape sequences
+ * statprof: with Python 3.12, lineno is (more) often None
+ * transaction: properly clean up backup file outside of .hg/store/
+ * transaction: raise on backup restoration error
+ * revlog: improve the robustness of the splitting process
+ * debugdeltachain: stop summing the same chain over and over
+ * url: don't ignore timeout for https connections
+ * py3: fix for Python 3.12 emitting SyntaxWarning on invalid escape sequences
+ * tests: accept a test output change in [tests/test-serve.t]
+ * rust: fix thread cap (for real this time)
+ * dirstate: try refreshing the changelog when parent are unknown
+ * hooks: invalidate the repo after the hooks
 
 == Backwards Compatibility Changes ==
  * rust: upgrade supported Rust toolchain version

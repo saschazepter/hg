@@ -140,6 +140,13 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
 
     env_logger::init();
 
+    // Make sure nothing in a future version of `rhg` sets the global
+    // threadpool before we can cap default threads. (This is also called
+    // in core because Python uses the same code path, we're adding a
+    // redundant check.)
+    hg::utils::cap_default_rayon_threads()
+        .expect("Rayon threadpool already initialized");
+
     let early_args = EarlyArgs::parse(&argv);
 
     let initial_current_dir = early_args.cwd.map(|cwd| {

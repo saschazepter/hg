@@ -302,6 +302,7 @@ class revlog:
         persistentnodemap=False,
         concurrencychecker=None,
         trypending=False,
+        try_split=False,
         canonical_parent_order=True,
     ):
         """
@@ -328,6 +329,7 @@ class revlog:
         self._nodemap_file = None
         self.postfix = postfix
         self._trypending = trypending
+        self._try_split = try_split
         self.opener = opener
         if persistentnodemap:
             self._nodemap_file = nodemaputil.get_nodemap_file(self)
@@ -511,6 +513,8 @@ class revlog:
             entry_point = b'%s.i.%s' % (self.radix, self.postfix)
         elif self._trypending and self.opener.exists(b'%s.i.a' % self.radix):
             entry_point = b'%s.i.a' % self.radix
+        elif self._try_split and self.opener.exists(b'%s.i.s' % self.radix):
+            entry_point = b'%s.i.s' % self.radix
         else:
             entry_point = b'%s.i' % self.radix
 
@@ -2015,7 +2019,7 @@ class revlog:
                 raise error.CensoredNodeError(self.display_id, node, text)
             raise
 
-    def _enforceinlinesize(self, tr):
+    def _enforceinlinesize(self, tr, side_write=True):
         """Check if the revlog is too big for inline and convert if so.
 
         This should be called after revisions are added to the revlog. If the
@@ -2032,7 +2036,8 @@ class revlog:
             raise error.RevlogError(
                 _(b"%s not found in the transaction") % self._indexfile
             )
-        trindex = None
+        if troffset:
+            tr.addbackup(self._indexfile, for_offset=True)
         tr.add(self._datafile, 0)
 
         existing_handles = False
@@ -2048,6 +2053,29 @@ class revlog:
             # No need to deal with sidedata writing handle as it is only
             # relevant with revlog-v2 which is never inline, not reaching
             # this code
+        if side_write:
+            old_index_file_path = self._indexfile
+            new_index_file_path = self._indexfile + b'.s'
+            opener = self.opener
+
+            fncache = getattr(opener, 'fncache', None)
+            if fncache is not None:
+                fncache.addignore(new_index_file_path)
+
+            # the "split" index replace the real index when the transaction is finalized
+            def finalize_callback(tr):
+                opener.rename(
+                    new_index_file_path,
+                    old_index_file_path,
+                    checkambig=True,
+                )
+
+            tr.registertmp(new_index_file_path)
+            if self.target[1] is not None:
+                finalize_id = b'000-revlog-split-%d-%s' % self.target
+            else:
+                finalize_id = b'000-revlog-split-%d' % self.target[0]
+            tr.addfinalize(finalize_id, finalize_callback)
 
         new_dfh = self._datafp(b'w+')
         new_dfh.truncate(0)  # drop any potentially existing data
@@ -2055,17 +2083,10 @@ class revlog:
             with self._indexfp() as read_ifh:
                 for r in self:
                     new_dfh.write(self._getsegmentforrevs(r, r, df=read_ifh)[1])
-                    if (
-                        trindex is None
-                        and troffset
-                        <= self.start(r) + r * self.index.entry_size
-                    ):
-                        trindex = r
                 new_dfh.flush()
 
-            if trindex is None:
-                trindex = 0
-
+            if side_write:
+                self._indexfile = new_index_file_path
             with self.__index_new_fp() as fp:
                 self._format_flags &= ~FLAG_INLINE_DATA
                 self._inline = False
@@ -2079,16 +2100,9 @@ class revlog:
                 if self._docket is not None:
                     self._docket.index_end = fp.tell()
 
-                # There is a small transactional race here. If the rename of
-                # the index fails, we should remove the datafile. It is more
-                # important to ensure that the data file is not truncated
-                # when the index is replaced as otherwise data is lost.
-                tr.replace(self._datafile, self.start(trindex))
+                # If we don't use side-write, the temp file replace the real
+                # index when we exit the context manager
 
-                # the temp file replace the real index when we exit the context
-                # manager
-
-            tr.replace(self._indexfile, trindex * self.index.entry_size)
             nodemaputil.setup_persistent_nodemap(tr, self)
             self._segmentfile = randomaccessfile.randomaccessfile(
                 self.opener,

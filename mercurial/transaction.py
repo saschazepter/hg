@@ -105,7 +105,48 @@ def _playback(
     unlink=True,
     checkambigfiles=None,
 ):
+    """rollback a transaction :
+    - truncate files that have been appended to
+    - restore file backups
+    - delete temporary files
+    """
+    backupfiles = []
+
+    def restore_one_backup(vfs, f, b, checkambig):
+        filepath = vfs.join(f)
+        backuppath = vfs.join(b)
+        try:
+            util.copyfile(backuppath, filepath, checkambig=checkambig)
+            backupfiles.append((vfs, b))
+        except IOError as exc:
+            e_msg = stringutil.forcebytestr(exc)
+            report(_(b"failed to recover %s (%s)\n") % (f, e_msg))
+            raise
+
+    # gather all backup files that impact the store
+    # (we need this to detect files that are both backed up and truncated)
+    store_backup = {}
+    for entry in backupentries:
+        location, file_path, backup_path, cache = entry
+        vfs = vfsmap[location]
+        is_store = vfs.join(b'') == opener.join(b'')
+        if is_store and file_path and backup_path:
+            store_backup[file_path] = entry
+    copy_done = set()
+
+    # truncate all file `f` to offset `o`
     for f, o in sorted(dict(entries).items()):
+        # if we have a backup for `f`, we should restore it first and truncate
+        # the restored file
+        bck_entry = store_backup.get(f)
+        if bck_entry is not None:
+            location, file_path, backup_path, cache = bck_entry
+            checkambig = False
+            if checkambigfiles:
+                checkambig = (file_path, location) in checkambigfiles
+            restore_one_backup(opener, file_path, backup_path, checkambig)
+            copy_done.add(bck_entry)
+        # truncate the file to its pre-transaction size
         if o or not unlink:
             checkambig = checkambigfiles and (f, b'') in checkambigfiles
             try:
@@ -124,45 +165,52 @@ def _playback(
                 report(_(b"failed to truncate %s\n") % f)
                 raise
         else:
+            # delete empty file
             try:
                 opener.unlink(f)
             except FileNotFoundError:
                 pass
-
-    backupfiles = []
-    for l, f, b, c in backupentries:
+    # restore backed up files and clean up temporary files
+    for entry in backupentries:
+        if entry in copy_done:
+            continue
+        l, f, b, c = entry
         if l not in vfsmap and c:
             report(b"couldn't handle %s: unknown cache location %s\n" % (b, l))
         vfs = vfsmap[l]
         try:
+            checkambig = checkambigfiles and (f, l) in checkambigfiles
             if f and b:
-                filepath = vfs.join(f)
-                backuppath = vfs.join(b)
-                checkambig = checkambigfiles and (f, l) in checkambigfiles
-                try:
-                    util.copyfile(backuppath, filepath, checkambig=checkambig)
-                    backupfiles.append(b)
-                except IOError as exc:
-                    e_msg = stringutil.forcebytestr(exc)
-                    report(_(b"failed to recover %s (%s)\n") % (f, e_msg))
+                restore_one_backup(vfs, f, b, checkambig)
             else:
                 target = f or b
                 try:
                     vfs.unlink(target)
                 except FileNotFoundError:
+                    # This is fine because
+                    #
+                    # either we are trying to delete the main file, and it is
+                    # already deleted.
+                    #
+                    # or we are trying to delete a temporary file and it is
+                    # already deleted.
+                    #
+                    # in both case, our target result (delete the file) is
+                    # already achieved.
                     pass
         except (IOError, OSError, error.Abort):
             if not c:
                 raise
 
+    # cleanup transaction state file and the backups file
     backuppath = b"%s.backupfiles" % journal
     if opener.exists(backuppath):
         opener.unlink(backuppath)
     opener.unlink(journal)
     try:
-        for f in backupfiles:
-            if opener.exists(f):
-                opener.unlink(f)
+        for vfs, f in backupfiles:
+            if vfs.exists(f):
+                vfs.unlink(f)
     except (IOError, OSError, error.Abort):
         # only pure backup file remains, it is sage to ignore any error
         pass
@@ -331,7 +379,7 @@ class transaction(util.transactional):
         self._file.flush()
 
     @active
-    def addbackup(self, file, hardlink=True, location=b''):
+    def addbackup(self, file, hardlink=True, location=b'', for_offset=False):
         """Adds a backup of the file to the transaction
 
         Calling addbackup() creates a hardlink backup of the specified file
@@ -340,17 +388,25 @@ class transaction(util.transactional):
 
         * `file`: the file path, relative to .hg/store
         * `hardlink`: use a hardlink to quickly create the backup
+
+        If `for_offset` is set, we expect a offset for this file to have been previously recorded
         """
         if self._queue:
             msg = b'cannot use transaction.addbackup inside "group"'
             raise error.ProgrammingError(msg)
 
-        if (
-            file in self._newfiles
-            or file in self._offsetmap
-            or file in self._backupmap
-        ):
+        if file in self._newfiles or file in self._backupmap:
             return
+        elif file in self._offsetmap and not for_offset:
+            return
+        elif for_offset and file not in self._offsetmap:
+            msg = (
+                'calling `addbackup` with `for_offmap=True`, '
+                'but no offset recorded: [%r] %r'
+            )
+            msg %= (location, file)
+            raise error.ProgrammingError(msg)
+
         vfs = self._vfsmap[location]
         dirname, filename = vfs.split(file)
         backupfilename = b"%s.backup.%s" % (self._journal, filename)

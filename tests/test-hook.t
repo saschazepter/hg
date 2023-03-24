@@ -1423,3 +1423,41 @@ HGPLAIN setting in hooks
   ### no ######## plain: <unset>
   ### auto ###### plain: 1
   Mercurial Distributed SCM (*) (glob)
+
+Test hook that change the underlying repo
+=========================================
+
+blackbox access the dirstate afterward and can see a changelog / dirstate
+desync.
+
+
+  $ cd $TESTTMP
+  $ cat <<EOF >> $HGRCPATH
+  > [extensions]
+  > blackbox=
+  > [hooks]
+  > post-merge = hg commit -m "auto merge"
+  > EOF
+
+  $ hg init t
+  $ cd t
+  $ touch ".hgignore"
+  $ hg commit -Am "initial" -d'0 0'
+  adding .hgignore
+
+  $ echo This is file a1 > a
+  $ hg commit -Am "commit #1" -d'0 0'
+  adding a
+
+  $ hg update 0
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ echo This is file b1 > b
+  $ hg commit -Am "commit #2" -d'0 0'
+  adding b
+  created new head
+
+  $ hg merge 1
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+
+  $ cd ..
