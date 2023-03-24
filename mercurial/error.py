@@ -155,7 +155,7 @@ class CommandError(Exception):
     """Exception raised on errors in parsing the command line."""
 
     def __init__(self, command, message):
-        # type: (bytes, bytes) -> None
+        # type: (Optional[bytes], bytes) -> None
         self.command = command
         self.message = message
         super(CommandError, self).__init__()
