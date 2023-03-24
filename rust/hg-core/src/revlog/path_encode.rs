@@ -610,6 +610,18 @@ mod tests {
     use crate::utils::hg_path::HgPathBuf;
 
     #[test]
+    fn test_dirname_ends_with_underscore() {
+        let input = b"data/dir1234.foo/ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ.i";
+        // TODO: BUG: trailing dot should become an underscore
+        let expected = b"dh/dir1234./abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij.if2e9ce59e095eff5f8f334dc809e65606a0aa50b.i";
+        let res = path_encode(input);
+        assert_eq!(
+            HgPathBuf::from_bytes(&res),
+            HgPathBuf::from_bytes(expected)
+        );
+    }
+
+    #[test]
     fn test_long_filename_at_root() {
         let input = b"data/ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ.i";
         let expected = b"dh/abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij.i708243a2237a7afae259ea3545a72a2ef11c247b.i";
