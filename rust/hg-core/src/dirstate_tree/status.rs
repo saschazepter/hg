@@ -47,16 +47,10 @@ pub fn status<'dirstate>(
     options: StatusOptions,
 ) -> Result<(DirstateStatus<'dirstate>, Vec<PatternFileWarning>), StatusError>
 {
-    // Force the global rayon threadpool to not exceed 16 concurrent threads.
-    // This is a stop-gap measure until we figure out why using more than 16
-    // threads makes `status` slower for each additional thread.
-    // We use `ok()` in case the global threadpool has already been
-    // instantiated in `rhg` or some other caller.
-    // TODO find the underlying cause and fix it, then remove this.
-    rayon::ThreadPoolBuilder::new()
-        .num_threads(16.min(rayon::current_num_threads()))
-        .build_global()
-        .ok();
+    // Also cap for a Python caller of this function, but don't complain if
+    // the global threadpool has already been set since this code path is also
+    // being used by `rhg`, which calls this early.
+    let _ = crate::utils::cap_default_rayon_threads();
 
     let (ignore_fn, warnings, patterns_changed): (IgnoreFnType, _, _) =
         if options.list_ignored || options.list_unknown {

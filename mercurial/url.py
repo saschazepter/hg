@@ -327,7 +327,9 @@ if has_https:
             self.cert_file = cert_file
 
         def connect(self):
-            self.sock = socket.create_connection((self.host, self.port))
+            self.sock = socket.create_connection(
+                (self.host, self.port), self.timeout
+            )
 
             host = self.host
             realhostport = self.realhostport  # pytype: disable=attribute-error
