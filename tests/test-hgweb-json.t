@@ -777,6 +777,7 @@ changeset/ renders the tip changeset
   {
     "bookmarks": [],
     "branch": "default",
+    "children": [],
     "date": [
       0.0,
       0
@@ -809,6 +810,9 @@ changeset/{revision} shows tags
   {
     "bookmarks": [],
     "branch": "default",
+    "children": [
+      "93a8ce14f89156426b7fa981af8042da53f03aa0"
+    ],
     "date": [
       0.0,
       0
@@ -897,6 +901,9 @@ changeset/{revision} shows bookmarks
       "bookmark1"
     ],
     "branch": "default",
+    "children": [
+      "78896eb0e102174ce9278438a95e12543e4367a7"
+    ],
     "date": [
       0.0,
       0
@@ -957,6 +964,9 @@ changeset/{revision} shows branches
   {
     "bookmarks": [],
     "branch": "test-branch",
+    "children": [
+      "ed66c30e87eb65337c05a4229efaa5f1d5285a90"
+    ],
     "date": [
       0.0,
       0
