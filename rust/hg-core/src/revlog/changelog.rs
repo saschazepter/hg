@@ -9,7 +9,7 @@ use std::ascii::escape_default;
 use std::borrow::Cow;
 use std::fmt::{Debug, Formatter};
 
-/// A specialized `Revlog` to work with `changelog` data format.
+/// A specialized `Revlog` to work with changelog data format.
 pub struct Changelog {
     /// The generic `revlog` format.
     pub(crate) revlog: Revlog,
@@ -23,7 +23,7 @@ impl Changelog {
         Ok(Self { revlog })
     }
 
-    /// Return the `ChangelogEntry` for the given node ID.
+    /// Return the `ChangelogRevisionData` for the given node ID.
     pub fn data_for_node(
         &self,
         node: NodePrefix,
@@ -32,7 +32,7 @@ impl Changelog {
         self.data_for_rev(rev)
     }
 
-    /// Return the `RevlogEntry` of the given revision number.
+    /// Return the `RevlogEntry` for the given revision number.
     pub fn entry_for_rev(
         &self,
         rev: Revision,
@@ -40,7 +40,7 @@ impl Changelog {
         self.revlog.get_entry(rev)
     }
 
-    /// Return the `ChangelogEntry` of the given revision number.
+    /// Return the [`ChangelogRevisionData`] for the given revision number.
     pub fn data_for_rev(
         &self,
         rev: Revision,
