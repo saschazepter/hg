@@ -215,6 +215,8 @@ fn debug_bytes(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::vfs::Vfs;
+    use crate::NULL_REVISION;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -267,5 +269,21 @@ message",
             vec![HgPath::new("file1"), HgPath::new("file2")]
         );
         assert_eq!(data.description(), b"some\ncommit\nmessage");
+    }
+
+    #[test]
+    fn test_data_from_rev_null() -> Result<(), RevlogError> {
+        // an empty revlog will be enough for this case
+        let temp = tempfile::tempdir().unwrap();
+        let vfs = Vfs { base: temp.path() };
+        std::fs::write(temp.path().join("foo.i"), b"").unwrap();
+        let revlog = Revlog::open(&vfs, "foo.i", None, false).unwrap();
+
+        let changelog = Changelog { revlog };
+        assert_eq!(
+            changelog.data_for_rev(NULL_REVISION)?,
+            ChangelogRevisionData::null()
+        );
+        Ok(())
     }
 }
