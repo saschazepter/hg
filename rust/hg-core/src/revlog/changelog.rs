@@ -1,6 +1,6 @@
 use crate::errors::HgError;
-use crate::revlog::Revision;
 use crate::revlog::{Node, NodePrefix};
+use crate::revlog::{Revision, NULL_REVISION};
 use crate::revlog::{Revlog, RevlogEntry, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::vfs::Vfs;
@@ -32,30 +32,29 @@ impl Changelog {
         self.data_for_rev(rev)
     }
 
-    /// Return the `RevlogEntry` for the given revision number.
+    /// Return the [`ChangelogEntry`] for the given revision number.
     pub fn entry_for_rev(
         &self,
         rev: Revision,
-    ) -> Result<RevlogEntry, RevlogError> {
-        self.revlog.get_entry(rev)
+    ) -> Result<ChangelogEntry, RevlogError> {
+        let revlog_entry = self.revlog.get_entry(rev)?;
+        Ok(ChangelogEntry { revlog_entry })
     }
 
     /// Return the [`ChangelogRevisionData`] for the given revision number.
+    ///
+    /// This is a useful shortcut in case the caller does not need the
+    /// generic revlog information (parents, hashes etc). Otherwise
+    /// consider taking a [`ChangelogEntry`] with
+    /// [entry_for_rev](`Self::entry_for_rev`) and doing everything from there.
     pub fn data_for_rev(
         &self,
         rev: Revision,
     ) -> Result<ChangelogRevisionData, RevlogError> {
-        let bytes = self.revlog.get_rev_data(rev)?;
-        if bytes.is_empty() {
-            Ok(ChangelogRevisionData::null())
-        } else {
-            Ok(ChangelogRevisionData::new(bytes).map_err(|err| {
-                RevlogError::Other(HgError::CorruptedRepository(format!(
-                    "Invalid changelog data for revision {}: {:?}",
-                    rev, err
-                )))
-            })?)
+        if rev == NULL_REVISION {
+            return Ok(ChangelogRevisionData::null());
         }
+        self.entry_for_rev(rev)?.data()
     }
 
     pub fn node_from_rev(&self, rev: Revision) -> Option<&Node> {
@@ -67,6 +66,45 @@ impl Changelog {
         node: NodePrefix,
     ) -> Result<Revision, RevlogError> {
         self.revlog.rev_from_node(node)
+    }
+}
+
+/// A specialized `RevlogEntry` for `changelog` data format
+///
+/// This is a `RevlogEntry` with the added semantics that the associated
+/// data should meet the requirements for `changelog`, materialized by
+/// the fact that `data()` constructs a `ChangelogRevisionData`.
+/// In case that promise would be broken, the `data` method returns an error.
+#[derive(Clone)]
+pub struct ChangelogEntry<'changelog> {
+    /// Same data, as a generic `RevlogEntry`.
+    pub(crate) revlog_entry: RevlogEntry<'changelog>,
+}
+
+impl<'changelog> ChangelogEntry<'changelog> {
+    pub fn data<'a>(
+        &'a self,
+    ) -> Result<ChangelogRevisionData<'changelog>, RevlogError> {
+        let bytes = self.revlog_entry.data()?;
+        if bytes.is_empty() {
+            Ok(ChangelogRevisionData::null())
+        } else {
+            Ok(ChangelogRevisionData::new(bytes).map_err(|err| {
+                RevlogError::Other(HgError::CorruptedRepository(format!(
+                    "Invalid changelog data for revision {}: {:?}",
+                    self.revlog_entry.revision(),
+                    err
+                )))
+            })?)
+        }
+    }
+
+    /// Obtain a reference to the underlying `RevlogEntry`.
+    ///
+    /// This allows the caller to access the information that is common
+    /// to all revlog entries: revision number, node id, parent revisions etc.
+    pub fn as_revlog_entry(&self) -> &RevlogEntry {
+        &self.revlog_entry
     }
 }
 
