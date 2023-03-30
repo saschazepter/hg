@@ -93,6 +93,7 @@ from . import (
     wireprotoserver,
 )
 from .interfaces import repository
+from .stabletailgraph import stabletailsort
 from .utils import (
     cborutil,
     compression,
@@ -3641,6 +3642,30 @@ def debugssl(ui, repo, source=None, **opts):
             ui.status(_(b'full certificate chain is available\n'))
     finally:
         s.close()
+
+
+@command(
+    b'debug::stable-tail-sort',
+    [
+        (
+            b'T',
+            b'template',
+            b'{rev}\n',
+            _(b'display with template'),
+            _(b'TEMPLATE'),
+        ),
+    ],
+    b'REV',
+)
+def debug_stable_tail_sort(ui, repo, revspec, template, **opts):
+    """display the stable-tail sort of the ancestors of a given node"""
+    rev = logcmdutil.revsingle(repo, revspec).rev()
+    cl = repo.changelog
+
+    displayer = logcmdutil.maketemplater(ui, repo, template)
+    sorted_revs = stabletailsort._stable_tail_sort(cl, rev)
+    for ancestor_rev in sorted_revs:
+        displayer.show(repo[ancestor_rev])
 
 
 @command(
