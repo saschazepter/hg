@@ -1299,6 +1299,7 @@ packages = [
     'mercurial.hgweb',
     'mercurial.interfaces',
     'mercurial.pure',
+    'mercurial.stabletailgraph',
     'mercurial.templates',
     'mercurial.thirdparty',
     'mercurial.thirdparty.attr',
