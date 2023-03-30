@@ -400,10 +400,10 @@ impl Revlog {
 /// The revlog entry's bytes and the necessary informations to extract
 /// the entry's data.
 #[derive(Clone)]
-pub struct RevlogEntry<'a> {
-    revlog: &'a Revlog,
+pub struct RevlogEntry<'revlog> {
+    revlog: &'revlog Revlog,
     rev: Revision,
-    bytes: &'a [u8],
+    bytes: &'revlog [u8],
     compressed_len: u32,
     uncompressed_len: i32,
     base_rev_or_base_of_delta_chain: Option<Revision>,
@@ -413,7 +413,7 @@ pub struct RevlogEntry<'a> {
     hash: Node,
 }
 
-impl<'a> RevlogEntry<'a> {
+impl<'revlog> RevlogEntry<'revlog> {
     pub fn revision(&self) -> Revision {
         self.rev
     }
@@ -473,7 +473,7 @@ impl<'a> RevlogEntry<'a> {
     }
 
     /// The data for this entry, after resolving deltas if any.
-    pub fn rawdata(&self) -> Result<Cow<'a, [u8]>, HgError> {
+    pub fn rawdata(&self) -> Result<Cow<'revlog, [u8]>, HgError> {
         let mut entry = self.clone();
         let mut delta_chain = vec![];
 
@@ -503,8 +503,8 @@ impl<'a> RevlogEntry<'a> {
 
     fn check_data(
         &self,
-        data: Cow<'a, [u8]>,
-    ) -> Result<Cow<'a, [u8]>, HgError> {
+        data: Cow<'revlog, [u8]>,
+    ) -> Result<Cow<'revlog, [u8]>, HgError> {
         if self.revlog.check_hash(
             self.p1,
             self.p2,
@@ -525,7 +525,7 @@ impl<'a> RevlogEntry<'a> {
         }
     }
 
-    pub fn data(&self) -> Result<Cow<'a, [u8]>, HgError> {
+    pub fn data(&self) -> Result<Cow<'revlog, [u8]>, HgError> {
         let data = self.rawdata()?;
         if self.is_censored() {
             return Err(HgError::CensoredNodeError);
@@ -535,7 +535,7 @@ impl<'a> RevlogEntry<'a> {
 
     /// Extract the data contained in the entry.
     /// This may be a delta. (See `is_delta`.)
-    fn data_chunk(&self) -> Result<Cow<'a, [u8]>, HgError> {
+    fn data_chunk(&self) -> Result<Cow<'revlog, [u8]>, HgError> {
         if self.bytes.is_empty() {
             return Ok(Cow::Borrowed(&[]));
         }
