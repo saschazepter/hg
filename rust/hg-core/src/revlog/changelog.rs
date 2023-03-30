@@ -106,6 +106,20 @@ impl<'changelog> ChangelogEntry<'changelog> {
     pub fn as_revlog_entry(&self) -> &RevlogEntry {
         &self.revlog_entry
     }
+
+    pub fn p1_entry(&self) -> Result<Option<ChangelogEntry>, RevlogError> {
+        Ok(self
+            .revlog_entry
+            .p1_entry()?
+            .map(|revlog_entry| Self { revlog_entry }))
+    }
+
+    pub fn p2_entry(&self) -> Result<Option<ChangelogEntry>, RevlogError> {
+        Ok(self
+            .revlog_entry
+            .p2_entry()?
+            .map(|revlog_entry| Self { revlog_entry }))
+    }
 }
 
 /// `Changelog` entry which knows how to interpret the `changelog` data bytes.
