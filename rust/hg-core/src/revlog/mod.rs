@@ -225,16 +225,23 @@ impl Revlog {
         &self,
         node: NodePrefix,
     ) -> Result<Revision, RevlogError> {
-        if node.is_prefix_of(&NULL_NODE) {
-            return Ok(NULL_REVISION);
-        }
-
-        if let Some(nodemap) = &self.nodemap {
-            return nodemap
+        let looked_up = if let Some(nodemap) = &self.nodemap {
+            nodemap
                 .find_bin(&self.index, node)?
-                .ok_or(RevlogError::InvalidRevision);
-        }
-        self.rev_from_node_no_persistent_nodemap(node)
+                .ok_or(RevlogError::InvalidRevision)
+        } else {
+            self.rev_from_node_no_persistent_nodemap(node)
+        };
+
+        if node.is_prefix_of(&NULL_NODE) {
+            return match looked_up {
+                Ok(_) => Err(RevlogError::AmbiguousPrefix),
+                Err(RevlogError::InvalidRevision) => Ok(NULL_REVISION),
+                res => res,
+            };
+        };
+
+        looked_up
     }
 
     /// Same as `rev_from_node`, without using a persistent nodemap
@@ -677,6 +684,7 @@ mod tests {
         assert_eq!(revlog.len(), 0);
         assert!(revlog.get_entry(0).is_err());
         assert!(!revlog.has_rev(0));
+        assert_eq!(revlog.rev_from_node(NULL_NODE.into()).unwrap(), -1);
     }
 
     #[test]
@@ -747,5 +755,66 @@ mod tests {
         let p2_entry = entry2.p2_entry().unwrap();
         assert!(p2_entry.is_some());
         assert_eq!(p2_entry.unwrap().revision(), 1);
+    }
+
+    #[test]
+    fn test_nodemap() {
+        let temp = tempfile::tempdir().unwrap();
+        let vfs = Vfs { base: temp.path() };
+
+        // building a revlog with a forced Node starting with zeros
+        // This is a corruption, but it does not preclude using the nodemap
+        // if we don't try and access the data
+        let node0 = Node::from_hex("00d2a3912a0b24502043eae84ee4b279c18b90dd")
+            .unwrap();
+        let node1 = Node::from_hex("b004912a8510032a0350a74daa2803dadfb00e12")
+            .unwrap();
+        let entry0_bytes = IndexEntryBuilder::new()
+            .is_first(true)
+            .with_version(1)
+            .with_inline(true)
+            .with_offset(INDEX_ENTRY_SIZE)
+            .with_node(node0)
+            .build();
+        let entry1_bytes = IndexEntryBuilder::new()
+            .with_offset(INDEX_ENTRY_SIZE)
+            .with_node(node1)
+            .build();
+        let contents = vec![entry0_bytes, entry1_bytes]
+            .into_iter()
+            .flatten()
+            .collect_vec();
+        std::fs::write(temp.path().join("foo.i"), contents).unwrap();
+        let revlog = Revlog::open(&vfs, "foo.i", None, false).unwrap();
+
+        // accessing the data shows the corruption
+        revlog.get_entry(0).unwrap().data().unwrap_err();
+
+        assert_eq!(revlog.rev_from_node(NULL_NODE.into()).unwrap(), -1);
+        assert_eq!(revlog.rev_from_node(node0.into()).unwrap(), 0);
+        assert_eq!(revlog.rev_from_node(node1.into()).unwrap(), 1);
+        assert_eq!(
+            revlog
+                .rev_from_node(NodePrefix::from_hex("000").unwrap())
+                .unwrap(),
+            -1
+        );
+        assert_eq!(
+            revlog
+                .rev_from_node(NodePrefix::from_hex("b00").unwrap())
+                .unwrap(),
+            1
+        );
+        // RevlogError does not implement PartialEq
+        // (ultimately because io::Error does not)
+        match revlog
+            .rev_from_node(NodePrefix::from_hex("00").unwrap())
+            .expect_err("Expected to give AmbiguousPrefix error")
+        {
+            RevlogError::AmbiguousPrefix => (),
+            e => {
+                panic!("Got another error than AmbiguousPrefix: {:?}", e);
+            }
+        };
     }
 }
