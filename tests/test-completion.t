@@ -78,6 +78,7 @@ Show debug commands if there are no other candidates
   debug-repair-issue6528
   debug-revlog-index
   debug-revlog-stats
+  debug::stable-tail-sort
   debugancestor
   debugantivirusrunning
   debugapplystreamclonebundle
@@ -273,6 +274,7 @@ Show all commands + options
   debug-repair-issue6528: to-report, from-report, paranoid, dry-run
   debug-revlog-index: changelog, manifest, dir, template
   debug-revlog-stats: changelog, manifest, filelogs, template
+  debug::stable-tail-sort: template
   debugancestor: 
   debugantivirusrunning: 
   debugapplystreamclonebundle: 

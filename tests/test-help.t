@@ -987,6 +987,8 @@ Test list of internal help commands
                  dump index data for a revlog
    debug-revlog-stats
                  display statistics about revlogs in the store
+   debug::stable-tail-sort
+                 display the stable-tail sort of the ancestors of a given node
    debugancestor
                  find the ancestor revision of two revisions in a given index
    debugantivirusrunning
