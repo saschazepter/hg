@@ -234,11 +234,19 @@ impl Revlog {
                 .find_bin(&self.index, node)?
                 .ok_or(RevlogError::InvalidRevision);
         }
+        self.rev_from_node_no_persistent_nodemap(node)
+    }
 
-        // Fallback to linear scan when a persistent nodemap is not present.
-        // This happens when the persistent-nodemap experimental feature is not
-        // enabled, or for small revlogs.
-        //
+    /// Same as `rev_from_node`, without using a persistent nodemap
+    ///
+    /// This is used as fallback when a persistent nodemap is not present.
+    /// This happens when the persistent-nodemap experimental feature is not
+    /// enabled, or for small revlogs.
+    fn rev_from_node_no_persistent_nodemap(
+        &self,
+        node: NodePrefix,
+    ) -> Result<Revision, RevlogError> {
+        // Linear scan of the revlog
         // TODO: consider building a non-persistent nodemap in memory to
         // optimize these cases.
         let mut found_by_prefix = None;
