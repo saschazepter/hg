@@ -430,7 +430,9 @@ impl<'revlog> RevlogEntry<'revlog> {
         self.p1 != NULL_REVISION
     }
 
-    pub fn p1_entry(&self) -> Result<Option<RevlogEntry>, RevlogError> {
+    pub fn p1_entry(
+        &self,
+    ) -> Result<Option<RevlogEntry<'revlog>>, RevlogError> {
         if self.p1 == NULL_REVISION {
             Ok(None)
         } else {
@@ -438,7 +440,9 @@ impl<'revlog> RevlogEntry<'revlog> {
         }
     }
 
-    pub fn p2_entry(&self) -> Result<Option<RevlogEntry>, RevlogError> {
+    pub fn p2_entry(
+        &self,
+    ) -> Result<Option<RevlogEntry<'revlog>>, RevlogError> {
         if self.p2 == NULL_REVISION {
             Ok(None)
         } else {
