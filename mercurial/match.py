@@ -629,7 +629,12 @@ class patternmatcher(basematcher):
 
         self._files = _explicitfiles(kindpats)
         self._prefix = _prefix(kindpats)
-        self._pats, self.matchfn = _buildmatch(kindpats, b'$', root)
+        self._pats, self._matchfn = _buildmatch(kindpats, b'$', root)
+
+    def matchfn(self, fn):
+        if fn in self._fileset:
+            return True
+        return self._matchfn(fn)
 
     @propertycache
     def _dirs(self):
