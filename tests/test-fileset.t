@@ -53,7 +53,7 @@ Test operators and basic patterns
       (symbol 'glob')
       (symbol 'b?')))
   * matcher:
-  <patternmatcher patterns='a1(?:/|$)|b.$'>
+  <patternmatcher patterns='b.$|a1(?:/|$)'>
   a1
   b1
   b2
