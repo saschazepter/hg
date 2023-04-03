@@ -26,6 +26,8 @@ use std::ops::Index;
 #[derive(Debug, PartialEq)]
 pub enum NodeMapError {
     /// A `NodePrefix` matches several [`Revision`]s.
+    ///
+    /// This can be returned by methods meant for (at most) one match.
     MultipleResults,
     /// A `Revision` stored in the nodemap could not be found in the index
     RevisionNotInIndex(Revision),
@@ -36,8 +38,8 @@ pub enum NodeMapError {
 /// ## `RevlogIndex` and `NodeMap`
 ///
 /// One way to think about their relationship is that
-/// the `NodeMap` is a prefix-oriented reverse index of the `Node` information
-/// carried by a [`RevlogIndex`].
+/// the `NodeMap` is a prefix-oriented reverse index of the [`Node`]
+/// information carried by a [`RevlogIndex`].
 ///
 /// Many of the methods in this trait take a `RevlogIndex` argument
 /// which is used for validation of their results. This index must naturally
@@ -46,14 +48,10 @@ pub enum NodeMapError {
 /// Notably, the `NodeMap` must not store
 /// information about more `Revision` values than there are in the index.
 /// In these methods, an encountered `Revision` is not in the index, a
-/// [`RevisionNotInIndex`] error is returned.
+/// [RevisionNotInIndex](NodeMapError) error is returned.
 ///
 /// In insert operations, the rule is thus that the `NodeMap` must always
-/// be updated after the `RevlogIndex`
-/// be updated first, and the `NodeMap` second.
-///
-/// [`RevisionNotInIndex`]: enum.NodeMapError.html#variant.RevisionNotInIndex
-/// [`RevlogIndex`]: ../trait.RevlogIndex.html
+/// be updated after the `RevlogIndex` it is about.
 pub trait NodeMap {
     /// Find the unique `Revision` having the given `Node`
     ///
@@ -95,7 +93,8 @@ pub trait NodeMap {
         node_prefix: NodePrefix,
     ) -> Result<Option<usize>, NodeMapError>;
 
-    /// Same as `unique_prefix_len_bin`, with a full `Node` as input
+    /// Same as [unique_prefix_len_bin](Self::unique_prefix_len_bin), with
+    /// a full [`Node`] as input
     fn unique_prefix_len_node(
         &self,
         idx: &impl RevlogIndex,
@@ -157,7 +156,9 @@ impl From<Element> for RawElement {
     }
 }
 
-/// A logical block of the `NodeTree`, packed with a fixed size.
+const ELEMENTS_PER_BLOCK: usize = 16; // number of different values in a nybble
+
+/// A logical block of the [`NodeTree`], packed with a fixed size.
 ///
 /// These are always used in container types implementing `Index<Block>`,
 /// such as `&Block`
@@ -180,9 +181,6 @@ impl From<Element> for RawElement {
 /// Another related difference is that `NULL_REVISION` (-1) is not
 /// represented at all, because we want an immutable empty nodetree
 /// to be valid.
-
-const ELEMENTS_PER_BLOCK: usize = 16; // number of different values in a nybble
-
 #[derive(Copy, Clone, BytesCast, PartialEq)]
 #[repr(transparent)]
 pub struct Block([RawElement; ELEMENTS_PER_BLOCK]);
@@ -219,7 +217,7 @@ impl fmt::Debug for Block {
 /// Because of the append only nature of our node trees, we need to
 /// keep the original untouched and store new blocks separately.
 ///
-/// The mutable root `Block` is kept apart so that we don't have to rebump
+/// The mutable root [`Block`] is kept apart so that we don't have to rebump
 /// it on each insertion.
 pub struct NodeTree {
     readonly: Box<dyn Deref<Target = [Block]> + Send>,
@@ -243,7 +241,7 @@ impl Index<usize> for NodeTree {
     }
 }
 
-/// Return `None` unless the `Node` for `rev` has given prefix in `index`.
+/// Return `None` unless the [`Node`] for `rev` has given prefix in `idx`.
 fn has_prefix_or_none(
     idx: &impl RevlogIndex,
     prefix: NodePrefix,
@@ -261,7 +259,7 @@ fn has_prefix_or_none(
 }
 
 /// validate that the candidate's node starts indeed with given prefix,
-/// and treat ambiguities related to `NULL_REVISION`.
+/// and treat ambiguities related to [`NULL_REVISION`].
 ///
 /// From the data in the NodeTree, one can only conclude that some
 /// revision is the only one for a *subprefix* of the one being looked up.
@@ -305,12 +303,10 @@ impl NodeTree {
 
     /// Create from an opaque bunch of bytes
     ///
-    /// The created `NodeTreeBytes` from `buffer`,
+    /// The created [`NodeTreeBytes`] from `bytes`,
     /// of which exactly `amount` bytes are used.
     ///
     /// - `buffer` could be derived from `PyBuffer` and `Mmap` objects.
-    /// - `offset` allows for the final file format to include fixed data
-    ///   (generation number, behavioural flags)
     /// - `amount` is expressed in bytes, and is not automatically derived from
     ///   `bytes`, so that a caller that manages them atomically can perform
     ///   temporary disk serializations and still rollback easily if needed.
