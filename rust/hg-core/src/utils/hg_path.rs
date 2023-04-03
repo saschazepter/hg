@@ -479,7 +479,7 @@ impl Extend<u8> for HgPathBuf {
     }
 }
 
-/// TODO: Once https://www.mercurial-scm.org/wiki/WindowsUTF8Plan is
+/// TODO: Once <https://www.mercurial-scm.org/wiki/WindowsUTF8Plan> is
 /// implemented, these conversion utils will have to work differently depending
 /// on the repository encoding: either `UTF-8` or `MBCS`.
 

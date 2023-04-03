@@ -112,7 +112,7 @@ fn check_exec_impl(path: impl AsRef<Path>) -> Result<bool, io::Error> {
     Ok(false)
 }
 
-/// This function is a rust rewrite of [checkexec] function from [posix.py]
+/// This function is a rust rewrite of `checkexec` function from `posix.py`
 /// Returns true if the filesystem supports execute permissions.
 pub fn check_exec(path: impl AsRef<Path>) -> bool {
     check_exec_impl(path).unwrap_or(false)
