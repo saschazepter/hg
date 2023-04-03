@@ -479,10 +479,11 @@ impl Extend<u8> for HgPathBuf {
     }
 }
 
+/// Create a new [`OsString`] from types referenceable as [`HgPath`].
+///
 /// TODO: Once <https://www.mercurial-scm.org/wiki/WindowsUTF8Plan> is
 /// implemented, these conversion utils will have to work differently depending
 /// on the repository encoding: either `UTF-8` or `MBCS`.
-
 pub fn hg_path_to_os_string<P: AsRef<HgPath>>(
     hg_path: P,
 ) -> Result<OsString, HgPathError> {
@@ -498,12 +499,14 @@ pub fn hg_path_to_os_string<P: AsRef<HgPath>>(
     Ok(os_str.to_os_string())
 }
 
+/// Create a new [`PathBuf`] from types referenceable as [`HgPath`].
 pub fn hg_path_to_path_buf<P: AsRef<HgPath>>(
     hg_path: P,
 ) -> Result<PathBuf, HgPathError> {
     Ok(Path::new(&hg_path_to_os_string(hg_path)?).to_path_buf())
 }
 
+/// Create a new [`HgPathBuf`] from types referenceable as [`OsStr`].
 pub fn os_string_to_hg_path_buf<S: AsRef<OsStr>>(
     os_string: S,
 ) -> Result<HgPathBuf, HgPathError> {
@@ -520,6 +523,7 @@ pub fn os_string_to_hg_path_buf<S: AsRef<OsStr>>(
     Ok(buf)
 }
 
+/// Create a new [`HgPathBuf`] from types referenceable as [`Path`].
 pub fn path_to_hg_path_buf<P: AsRef<Path>>(
     path: P,
 ) -> Result<HgPathBuf, HgPathError> {
