@@ -69,8 +69,8 @@ pub trait NodeMap {
     ///
     /// If no Revision matches the given prefix, `Ok(None)` is returned.
     ///
-    /// If several Revisions match the given prefix, a [`MultipleResults`]
-    /// error is returned.
+    /// If several Revisions match the given prefix, a
+    /// [MultipleResults](NodeMapError)  error is returned.
     fn find_bin(
         &self,
         idx: &impl RevlogIndex,
@@ -86,8 +86,8 @@ pub trait NodeMap {
     ///
     /// Returns `None` if no `Revision` could be found for the prefix.
     ///
-    /// If several Revisions match the given prefix, a [`MultipleResults`]
-    /// error is returned.
+    /// If several Revisions match the given prefix, a
+    /// [MultipleResults](NodeMapError)  error is returned.
     fn unique_prefix_len_bin(
         &self,
         idx: &impl RevlogIndex,
@@ -113,7 +113,7 @@ pub trait MutableNodeMap: NodeMap {
     ) -> Result<(), NodeMapError>;
 }
 
-/// Low level NodeTree [`Blocks`] elements
+/// Low level NodeTree [`Block`] elements
 ///
 /// These are exactly as for instance on persistent storage.
 type RawElement = unaligned::I32Be;
