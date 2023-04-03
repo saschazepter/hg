@@ -25,6 +25,7 @@ use std::ops::Index;
 
 #[derive(Debug, PartialEq)]
 pub enum NodeMapError {
+    /// A `NodePrefix` matches several [`Revision`]s.
     MultipleResults,
     /// A `Revision` stored in the nodemap could not be found in the index
     RevisionNotInIndex(Revision),
@@ -84,7 +85,7 @@ pub trait NodeMap {
     /// returns the number of hexadecimal digits that would had sufficed
     /// to find the revision uniquely.
     ///
-    /// Returns `None` if no `Revision` could be found for the prefix.
+    /// Returns `None` if no [`Revision`] could be found for the prefix.
     ///
     /// If several Revisions match the given prefix, a
     /// [MultipleResults](NodeMapError)  error is returned.
@@ -167,14 +168,14 @@ impl From<Element> for RawElement {
 ///
 /// - absent (value -1)
 /// - another `Block` in the same indexable container (value ≥ 0)
-///  - a `Revision` leaf (value ≤ -2)
+///  - a [`Revision`] leaf (value ≤ -2)
 ///
 /// Endianness has to be fixed for consistency on shared storage across
 /// different architectures.
 ///
 /// A key difference with the C `nodetree` is that we need to be
 /// able to represent the [`Block`] at index 0, hence -1 is the empty marker
-/// rather than 0 and the `Revision` range upper limit of -2 instead of -1.
+/// rather than 0 and the [`Revision`] range upper limit of -2 instead of -1.
 ///
 /// Another related difference is that `NULL_REVISION` (-1) is not
 /// represented at all, because we want an immutable empty nodetree
@@ -323,7 +324,7 @@ impl NodeTree {
         NodeTree::new(Box::new(NodeTreeBytes::new(bytes, amount)))
     }
 
-    /// Retrieve added `Block` and the original immutable data
+    /// Retrieve added [`Block`]s and the original immutable data
     pub fn into_readonly_and_added(
         self,
     ) -> (Box<dyn Deref<Target = [Block]> + Send>, Vec<Block>) {
@@ -335,7 +336,7 @@ impl NodeTree {
         (readonly, vec)
     }
 
-    /// Retrieve added `Blocks` as bytes, ready to be written to persistent
+    /// Retrieve added [`Block]s as bytes, ready to be written to persistent
     /// storage
     pub fn into_readonly_and_added_bytes(
         self,
@@ -381,16 +382,17 @@ impl NodeTree {
     ///
     /// The first returned value is the result of analysing `NodeTree` data
     /// *alone*: whereas `None` guarantees that the given prefix is absent
-    /// from the `NodeTree` data (but still could match `NULL_NODE`), with
-    /// `Some(rev)`, it is to be understood that `rev` is the unique `Revision`
-    /// that could match the prefix. Actually, all that can be inferred from
+    /// from the [`NodeTree`] data (but still could match [`NULL_NODE`]), with
+    /// `Some(rev)`, it is to be understood that `rev` is the unique
+    /// [`Revision`] that could match the prefix. Actually, all that can
+    /// be inferred from
     /// the `NodeTree` data is that `rev` is the revision with the longest
     /// common node prefix with the given prefix.
     ///
     /// The second returned value is the size of the smallest subprefix
     /// of `prefix` that would give the same result, i.e. not the
-    /// `MultipleResults` error variant (again, using only the data of the
-    /// `NodeTree`).
+    /// [MultipleResults](NodeMapError) error variant (again, using only the
+    /// data of the [`NodeTree`]).
     fn lookup(
         &self,
         prefix: NodePrefix,
