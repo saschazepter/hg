@@ -119,7 +119,9 @@ We use ``rustfmt`` to keep the code formatted at all times. For now, we are
 using the nightly version because it has been stable enough and provides
 comment folding.
 
-To format the entire Rust workspace::
+Our CI enforces that the code does not need reformatting. Before
+submitting your changes, please format the entire Rust workspace by running::
+
 
   $ cargo +nightly fmt
 
