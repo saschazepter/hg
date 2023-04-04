@@ -7,17 +7,19 @@ Rust is not required to use (or build) Mercurial, but using it
 improves performance in some areas.
 
 There are currently four independent Rust projects:
+
 - chg. An implementation of chg, in Rust instead of C.
 - hgcli. A project that provides a (mostly) self-contained "hg" binary,
   for ease of deployment and a bit of speed, using PyOxidizer. See
-  hgcli/README.md.
+  ``hgcli/README.md``.
 - hg-core (and hg-cpython): implementation of some
   functionality of mercurial in Rust, e.g. ancestry computations in
   revision graphs, status or pull discovery. The top-level ``Cargo.toml`` file
   defines a workspace containing these crates.
 - rhg: a pure Rust implementation of Mercurial, with a fallback mechanism for
-  unsupported invocations. It reuses the logic `hg-core` but completely forgoes
-  interaction with Python. See `rust/rhg/README.md` for more details.
+  unsupported invocations. It reuses the logic ``hg-core`` but
+  completely forgoes interaction with Python. See
+  ``rust/rhg/README.md`` for more details.
 
 Using Rust code
 ===============
@@ -41,10 +43,10 @@ Special features
 ================
 
 In the future, compile-time opt-ins may be added
-to the `features` section in ``hg-cpython/Cargo.toml``.
+to the ``features`` section in ``hg-cpython/Cargo.toml``.
 
-To use features from the Makefile, use the `HG_RUST_FEATURES` environment
-variable: for instance `HG_RUST_FEATURES="some-feature other-feature"`
+To use features from the Makefile, use the ``HG_RUST_FEATURES`` environment
+variable: for instance ``HG_RUST_FEATURES="some-feature other-feature"``.
 
 Profiling
 =========
@@ -57,7 +59,7 @@ hgignore).
 Creating a ``.cargo/config`` file with the following content enables
 debug information in optimized builds. This make profiles more informative
 with source file name and line number for Rust stack frames and
-(in some cases) stack frames for Rust functions that have been inlined.
+(in some cases) stack frames for Rust functions that have been inlined::
 
   [profile.release]
   debug = true
@@ -69,7 +71,7 @@ to some unlucky python code running shortly after the rust code, and
 as opposed to tools for native code like ``perf``, which attribute
 time to the python interpreter instead of python functions).
 
-Example usage:
+Example usage::
 
   $ make PURE=--rust local # Don't forget to recompile after a code change
   $ py-spy record --native --output /tmp/profile.svg -- ./hg ...
