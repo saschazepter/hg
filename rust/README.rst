@@ -124,3 +124,21 @@ To format the entire Rust workspace::
   $ cargo +nightly fmt
 
 This requires you to have the nightly toolchain installed.
+
+Linting: code sanity
+--------------------
+
+We're using `Clippy`_, the standard code diagnosis tool of the Rust
+community.
+
+Our CI enforces that the code is free of Clippy warnings, so you might
+want to run it on your side before submitting your changes. Simply do::
+
+  % cargo clippy
+
+from the top of the Rust workspace. Clippy is part of the default
+``rustup`` install, so it should work right away. In case it would
+not, you can install it with ``rustup component add``.
+
+
+.. _Clippy: https://doc.rust-lang.org/stable/clippy/
