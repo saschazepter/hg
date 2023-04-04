@@ -79,9 +79,25 @@ Example usage::
 Developing Rust
 ===============
 
-The current version of Rust in use is ``1.61.0``, because it's what Debian
-testing has. You can use ``rustup override set 1.61.0`` at the root of the repo
-to make it easier on you.
+Minimum Supported Rust Version
+------------------------------
+
+The minimum supported rust version (MSRV) is specified in the `Clippy`_
+configuration file at ``rust/clippy.toml``. It is set to be ``1.61.0`` as of
+this writing, but keep in mind that the authoritative value is the one
+from the configuration file.
+
+We bump it from time to time, with the general rule being that our
+MSRV should not be greater that the version of the Rust toolchain
+shipping with Debian testing, so that the Rust enhanced Mercurial can
+be eventually packaged in Debian.
+
+To ensure that you are not depending on features introduced in later
+versions, you can issue ``rustup override set x.y.z`` at the root of
+the repository.
+
+Build and development
+---------------------
 
 Go to the ``hg-cpython`` folder::
 
