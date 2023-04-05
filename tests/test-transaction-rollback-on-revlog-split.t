@@ -130,7 +130,7 @@ Reference size:
 #else
   $ hg pull ../troffset-computation
   pulling from ../troffset-computation
-  Killed
+  *Killed* (glob)
   [137]
 #endif
 
@@ -210,7 +210,7 @@ Reference size:
   adding changesets
   adding manifests
   adding file changes
-  Killed
+  *Killed* (glob)
   [137]
 #endif
 
@@ -275,7 +275,7 @@ Reference size:
   adding changesets
   adding manifests
   adding file changes
-  Killed
+  *Killed* (glob)
   [137]
 #endif
 
