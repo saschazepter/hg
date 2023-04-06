@@ -111,6 +111,13 @@ pub fn args() -> clap::Command {
                 .long("copies"),
         )
         .arg(
+            Arg::new("print0")
+                .help("end filenames with NUL, for use with xargs")
+                .short('0')
+                .action(clap::ArgAction::SetTrue)
+                .long("print0"),
+        )
+        .arg(
             Arg::new("no-status")
                 .help("hide status prefix")
                 .short('n')
@@ -213,10 +220,11 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let config = invocation.config;
     let args = invocation.subcommand_args;
 
-    // TODO add `!args.get_flag("print0") &&` when we support `print0`
+    let print0 = args.get_flag("print0");
     let verbose = args.get_flag("verbose")
         || config.get_bool(b"ui", b"verbose")?
         || config.get_bool(b"commands", b"status.verbose")?;
+    let verbose = verbose && !print0;
 
     let all = args.get_flag("all");
     let display_states = if all {
@@ -363,6 +371,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             } else {
                 None
             },
+            print0,
         };
         if display_states.modified {
             output.display(b"M ", "status.modified", ds_status.modified)?;
@@ -527,6 +536,7 @@ struct DisplayStatusPaths<'a> {
     ui: &'a Ui,
     no_status: bool,
     relativize: Option<RelativizePaths>,
+    print0: bool,
 }
 
 impl DisplayStatusPaths<'_> {
@@ -555,12 +565,15 @@ impl DisplayStatusPaths<'_> {
             if !self.no_status {
                 self.ui.write_stdout_labelled(status_prefix, label)?
             }
-            self.ui
-                .write_stdout_labelled(&format_bytes!(b"{}\n", path), label)?;
+            let linebreak = if self.print0 { b"\x00" } else { b"\n" };
+            self.ui.write_stdout_labelled(
+                &format_bytes!(b"{}{}", path, linebreak),
+                label,
+            )?;
             if let Some(source) = copy_source {
                 let label = "status.copied";
                 self.ui.write_stdout_labelled(
-                    &format_bytes!(b"  {}\n", source.as_bytes()),
+                    &format_bytes!(b"  {}{}", source.as_bytes(), linebreak),
                     label,
                 )?
             }
