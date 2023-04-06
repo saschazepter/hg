@@ -246,6 +246,11 @@ hg status -C:
   ! deleted
   ? unknown
 
+hg status -0:
+
+  $ hg status -0 --config rhg.on-unsupported=abort
+  A added\x00A copied\x00R removed\x00! deleted\x00? unknown\x00 (no-eol) (esc)
+
 hg status -A:
 
   $ hg status -A
