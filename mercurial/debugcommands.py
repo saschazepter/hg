@@ -4512,7 +4512,7 @@ def debugwireproto(ui, repo, path=None, **opts):
             peer = None
         else:
             ui.write(_(b'creating ssh peer from handshake results\n'))
-            peer = sshpeer.makepeer(
+            peer = sshpeer._make_peer(
                 ui,
                 url,
                 proc,
@@ -4568,7 +4568,7 @@ def debugwireproto(ui, repo, path=None, **opts):
             )
         else:
             peer_path = urlutil.try_path(ui, path)
-            peer = httppeer.makepeer(ui, peer_path, opener=opener)
+            peer = httppeer._make_peer(ui, peer_path, opener=opener)
 
         # We /could/ populate stdin/stdout with sock.makefile()...
     else:
