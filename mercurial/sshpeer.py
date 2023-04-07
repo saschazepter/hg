@@ -568,7 +568,7 @@ class sshv1peer(wireprotov1peer.wirepeer):
             self._readerr()
 
 
-def makepeer(ui, path, proc, stdin, stdout, stderr, autoreadstderr=True):
+def _make_peer(ui, path, proc, stdin, stdout, stderr, autoreadstderr=True):
     """Make a peer instance from existing pipes.
 
     ``path`` and ``proc`` are stored on the eventual peer instance and may
@@ -658,7 +658,7 @@ def make_peer(ui, path, create, intents=None, createopts=None):
         ui, sshcmd, args, remotecmd, remotepath, sshenv
     )
 
-    peer = makepeer(ui, path, proc, stdin, stdout, stderr)
+    peer = _make_peer(ui, path, proc, stdin, stdout, stderr)
 
     # Finally, if supported by the server, notify it about our own
     # capabilities.
