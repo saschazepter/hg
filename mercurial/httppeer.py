@@ -592,7 +592,7 @@ def performhandshake(ui, url, opener, requestbuilder):
     return respurl, info
 
 
-def makepeer(ui, path, opener=None, requestbuilder=urlreq.request):
+def _make_peer(ui, path, opener=None, requestbuilder=urlreq.request):
     """Construct an appropriate HTTP peer instance.
 
     ``opener`` is an ``url.opener`` that should be used to establish
@@ -628,7 +628,7 @@ def make_peer(ui, path, create, intents=None, createopts=None):
                 _(b'Python support for SSL and HTTPS is not installed')
             )
 
-        inst = makepeer(ui, path)
+        inst = _make_peer(ui, path)
 
         return inst
     except error.RepoError as httpexception:
