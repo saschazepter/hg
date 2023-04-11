@@ -298,9 +298,15 @@ def findhg():
         if attempt(hgcmd + check_cmd, hgenv):
             return hgcommand(hgcmd, hgenv)
 
-    # Fall back to trying the local hg installation.
+    # Fall back to trying the local hg installation (pure python)
+    repo_hg = os.path.join(os.path.dirname(__file__), 'hg')
     hgenv = localhgenv()
-    hgcmd = [sys.executable, 'hg']
+    hgcmd = [sys.executable, repo_hg]
+    if attempt(hgcmd + check_cmd, hgenv):
+        return hgcommand(hgcmd, hgenv)
+    # Fall back to trying the local hg installation (whatever we can)
+    hgenv = localhgenv(pure_python=False)
+    hgcmd = [sys.executable, repo_hg]
     if attempt(hgcmd + check_cmd, hgenv):
         return hgcommand(hgcmd, hgenv)
 
@@ -322,17 +328,18 @@ def findhg():
     return None
 
 
-def localhgenv():
+def localhgenv(pure_python=True):
     """Get an environment dictionary to use for invoking or importing
     mercurial from the local repository."""
     # Execute hg out of this directory with a custom environment which takes
     # care to not use any hgrc files and do no localization.
     env = {
-        'HGMODULEPOLICY': 'py',
         'HGRCPATH': '',
         'LANGUAGE': 'C',
         'PATH': '',
     }  # make pypi modules that use os.environ['PATH'] happy
+    if pure_python:
+        env['HGMODULEPOLICY'] = 'py'
     if 'LD_LIBRARY_PATH' in os.environ:
         env['LD_LIBRARY_PATH'] = os.environ['LD_LIBRARY_PATH']
     if 'SystemRoot' in os.environ:
