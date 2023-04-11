@@ -122,6 +122,11 @@ substitutions = [
             % (m.group(1), m.group(2))
         ),
     ),
+    # `discovery debug output
+    (
+        br'\b(\d+) total queries in \d.\d\d\d\ds\b',
+        lambda m: (br'%s total queries in *.????s (glob)' % m.group(1)),
+    ),
 ]
 
 # Various platform error strings, keyed on a common replacement string
