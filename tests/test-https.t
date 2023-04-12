@@ -356,9 +356,9 @@ Start servers running supported TLS versions
 
 Clients talking same TLS versions work
 
-  $ P="$CERTSDIR" hg --config hostsecurity.minimumprotocol=tls1.0 --config hostsecurity.ciphers=DEFAULT id https://localhost:$HGPORT/
+  $ P="$CERTSDIR" hg --config hostsecurity.minimumprotocol=tls1.0 --config hostsecurity.ciphers="DEFAULT:@SECLEVEL=0" id https://localhost:$HGPORT/
   5fed3813f7f5
-  $ P="$CERTSDIR" hg --config hostsecurity.minimumprotocol=tls1.1 --config hostsecurity.ciphers=DEFAULT id https://localhost:$HGPORT1/
+  $ P="$CERTSDIR" hg --config hostsecurity.minimumprotocol=tls1.1 --config hostsecurity.ciphers="DEFAULT:@SECLEVEL=0" id https://localhost:$HGPORT1/
   5fed3813f7f5
   $ P="$CERTSDIR" hg --config hostsecurity.minimumprotocol=tls1.2 id https://localhost:$HGPORT2/
   5fed3813f7f5
@@ -400,7 +400,7 @@ Clients requiring newer TLS version than what server supports fail
 The per-host config option overrides the default
 
   $ P="$CERTSDIR" hg id https://localhost:$HGPORT/ \
-  > --config hostsecurity.ciphers=DEFAULT \
+  > --config hostsecurity.ciphers="DEFAULT:@SECLEVEL=0" \
   > --config hostsecurity.minimumprotocol=tls1.2 \
   > --config hostsecurity.localhost:minimumprotocol=tls1.0
   5fed3813f7f5
