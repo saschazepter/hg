@@ -83,17 +83,15 @@ f03 is modified
   committing changelog
   rebase merging completed
   dry-run rebase completed successfully; run without -n/--dry-run to perform this rebase
-  resolving manifests (known-bad-output !)
-  getting f03.txt (known-bad-output !)
 
 f03 changes are lost
 
   $ hg st
-  M f03.txt (missing-correct-output !)
+  M f03.txt
   $ hg diff
-  diff -r ab62441498e5 f03.txt (missing-correct-output !)
-  --- a/f03.txt	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
-  +++ b/f03.txt	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
-  @@ -1,1 +1,2 @@ (missing-correct-output !)
-   three (missing-correct-output !)
-  +add-to-three (missing-correct-output !)
+  diff -r ab62441498e5 f03.txt
+  --- a/f03.txt	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/f03.txt	Thu Jan 01 00:00:00 1970 +0000
+  @@ -1,1 +1,2 @@
+   three
+  +add-to-three
