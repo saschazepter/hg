@@ -688,9 +688,11 @@ coreconfigitem(
     b'servercafile',
     default=b'',
 )
+# This config option is intended for use in tests only. It is a giant
+# footgun to kill security. Don't define it.
 coreconfigitem(
     b'devel',
-    b'serverexactprotocol',
+    b'server-insecure-exact-protocol',
     default=b'',
 )
 coreconfigitem(

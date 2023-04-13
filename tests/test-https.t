@@ -344,13 +344,13 @@ Start servers running supported TLS versions
 
   $ cd test
   $ hg serve -p $HGPORT -d --pid-file=../hg0.pid --certificate=$PRIV \
-  > --config devel.serverexactprotocol=tls1.0
+  > --config devel.server-insecure-exact-protocol=tls1.0
   $ cat ../hg0.pid >> $DAEMON_PIDS
   $ hg serve -p $HGPORT1 -d --pid-file=../hg1.pid --certificate=$PRIV \
-  > --config devel.serverexactprotocol=tls1.1
+  > --config devel.server-insecure-exact-protocol=tls1.1
   $ cat ../hg1.pid >> $DAEMON_PIDS
   $ hg serve -p $HGPORT2 -d --pid-file=../hg2.pid --certificate=$PRIV \
-  > --config devel.serverexactprotocol=tls1.2
+  > --config devel.server-insecure-exact-protocol=tls1.2
   $ cat ../hg2.pid >> $DAEMON_PIDS
   $ cd ..
 
