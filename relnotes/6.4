@@ -1,3 +1,16 @@
+= Mercurial 6.4.1 =
+
+ * rhg: fix a bug in path encoding
+ * rhg: don't crash on empty directory names in path_encode, just in case
+ * commands: correct documentation of hg serve’s --ipv6 options
+ * run-tests: remove obsolete coverage check and packaging import (issue6805)
+ * chg: populate CHGHG if not set
+ * match: sort patterns before compiling them into a regex
+ * match: match explicit file using a set
+ * rebase: do not cleanup the working copy when --dry-run is used (issue6802)
+ * sslutil: set context security level for legacy tls testing (issue6760)
+
+
 = Mercurial 6.4 =
 
 == New Features ==
