@@ -122,7 +122,7 @@ def _hostsettings(ui, hostname):
     if ui.insecureconnections:
         minimumprotocol = b'tls1.0'
         if not ciphers:
-            ciphers = b'DEFAULT'
+            ciphers = b'DEFAULT:@SECLEVEL=0'
 
     s[b'minimumprotocol'] = minimumprotocol
     s[b'ciphers'] = ciphers
@@ -553,7 +553,7 @@ def wrapserversocket(
 
         # This config option is intended for use in tests only. It is a giant
         # footgun to kill security. Don't define it.
-        exactprotocol = ui.config(b'devel', b'serverexactprotocol')
+        exactprotocol = ui.config(b'devel', b'server-insecure-exact-protocol')
         if exactprotocol == b'tls1.0':
             if b'tls1.0' not in supportedprotocols:
                 raise error.Abort(_(b'TLS 1.0 not supported by this Python'))
@@ -583,7 +583,8 @@ def wrapserversocket(
             sslcontext.maximum_version = ssl.TLSVersion.TLSv1_2
         elif exactprotocol:
             raise error.Abort(
-                _(b'invalid value for serverexactprotocol: %s') % exactprotocol
+                _(b'invalid value for server-insecure-exact-protocol: %s')
+                % exactprotocol
             )
     else:
         # Despite its name, PROTOCOL_SSLv23 selects the highest protocol that both
@@ -594,7 +595,7 @@ def wrapserversocket(
 
         # This config option is intended for use in tests only. It is a giant
         # footgun to kill security. Don't define it.
-        exactprotocol = ui.config(b'devel', b'serverexactprotocol')
+        exactprotocol = ui.config(b'devel', b'server-insecure-exact-protocol')
         if exactprotocol == b'tls1.0':
             if b'tls1.0' not in supportedprotocols:
                 raise error.Abort(_(b'TLS 1.0 not supported by this Python'))
@@ -609,7 +610,8 @@ def wrapserversocket(
             protocol = ssl.PROTOCOL_TLSv1_2
         elif exactprotocol:
             raise error.Abort(
-                _(b'invalid value for serverexactprotocol: %s') % exactprotocol
+                _(b'invalid value for server-insecure-exact-protocol: %s')
+                % exactprotocol
             )
 
         # We /could/ use create_default_context() here since it doesn't load
@@ -625,7 +627,7 @@ def wrapserversocket(
     # In tests, allow insecure ciphers
     # Otherwise, use the list of more secure ciphers if found in the ssl module.
     if exactprotocol:
-        sslcontext.set_ciphers('DEFAULT')
+        sslcontext.set_ciphers('DEFAULT:@SECLEVEL=0')
     elif util.safehasattr(ssl, b'_RESTRICTED_SERVER_CIPHERS'):
         sslcontext.options |= getattr(ssl, 'OP_CIPHER_SERVER_PREFERENCE', 0)
         # pytype: disable=module-attr

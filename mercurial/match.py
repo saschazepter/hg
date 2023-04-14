@@ -197,7 +197,7 @@ def match(
 
     Usually a patternmatcher is returned:
     >>> _match(b'/foo', b'.', [br're:.*\.c$', b'path:foo/a', b'*.py'])
-    <patternmatcher patterns='.*\\.c$|foo/a(?:/|$)|[^/]*\\.py$'>
+    <patternmatcher patterns='[^/]*\\.py$|foo/a(?:/|$)|.*\\.c$'>
 
     Combining 'patterns' with 'include' (resp. 'exclude') gives an
     intersectionmatcher (resp. a differencematcher):
@@ -614,7 +614,7 @@ class patternmatcher(basematcher):
     True
 
     >>> m.files()
-    ['', 'foo/a', 'b', '']
+    [b'', b'foo/a', b'', b'b']
     >>> m.exact(b'foo/a')
     True
     >>> m.exact(b'b')
@@ -625,10 +625,16 @@ class patternmatcher(basematcher):
 
     def __init__(self, root, kindpats, badfn=None):
         super(patternmatcher, self).__init__(badfn)
+        kindpats.sort()
 
         self._files = _explicitfiles(kindpats)
         self._prefix = _prefix(kindpats)
-        self._pats, self.matchfn = _buildmatch(kindpats, b'$', root)
+        self._pats, self._matchfn = _buildmatch(kindpats, b'$', root)
+
+    def matchfn(self, fn):
+        if fn in self._fileset:
+            return True
+        return self._matchfn(fn)
 
     @propertycache
     def _dirs(self):
