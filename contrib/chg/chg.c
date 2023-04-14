@@ -232,12 +232,17 @@ static const char *gethgcmd(void)
 			hgcmd = "hg";
 #endif
 	}
+	/* Set $CHGHG to the path to the seleted hg executable if it wasn't
+	 * already set. This has the effect of ensuring that a new command
+	 * server will be spawned if the existing command server is running from
+	 * an executable at a different path. */
+	if (setenv("CHGHG", hgcmd, 1) != 0)
+		abortmsgerrno("failed to setenv");
 	return hgcmd;
 }
 
-static void execcmdserver(const struct cmdserveropts *opts)
+static void execcmdserver(const char *hgcmd, const struct cmdserveropts *opts)
 {
-	const char *hgcmd = gethgcmd();
 
 	const char *baseargv[] = {
 	    hgcmd,     "serve",     "--no-profile",     "--cmdserver",
@@ -375,11 +380,16 @@ static hgclient_t *connectcmdserver(struct cmdserveropts *opts)
 
 	debugmsg("start cmdserver at %s", opts->initsockname);
 
+	/* Get the path to the hg executable before we fork because this
+	 * function might update the environment, and we want this to be
+	 * reflected in both the parent and child processes. */
+	const char *hgcmd = gethgcmd();
+
 	pid_t pid = fork();
 	if (pid < 0)
 		abortmsg("failed to fork cmdserver process");
 	if (pid == 0) {
-		execcmdserver(opts);
+		execcmdserver(hgcmd, opts);
 	} else {
 		hgc = retryconnectcmdserver(opts, pid);
 	}
@@ -484,7 +494,7 @@ static void execoriginalhg(const char *argv[])
 		abortmsgerrno("failed to exec original hg");
 }
 
-int main(int argc, const char *argv[], const char *envp[])
+int main(int argc, const char *argv[])
 {
 	if (getenv("CHGDEBUG"))
 		enabledebugmsg();
@@ -519,7 +529,10 @@ int main(int argc, const char *argv[], const char *envp[])
 		hgc = connectcmdserver(&opts);
 		if (!hgc)
 			abortmsg("cannot open hg client");
-		hgc_setenv(hgc, envp);
+		/* Use `environ(7)` instead of the optional `envp` argument to
+		 * `main` because `envp` does not update when the environment
+		 * changes, but `environ` does. */
+		hgc_setenv(hgc, (const char *const *)environ);
 		const char **insts = hgc_validate(hgc, argv + 1, argc - 1);
 		int needreconnect = runinstructions(&opts, insts);
 		free(insts);
