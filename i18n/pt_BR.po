@@ -38342,8 +38342,8 @@ msgid "TLS 1.2 not supported by this Python"
 msgstr "TLS 1.2 não é suportado por esta versão do Python"
 
 #, python-format
-msgid "invalid value for serverexactprotocol: %s"
-msgstr "valor inválido para serverexactprotocol: %s"
+msgid "invalid value for server-insecure-exact-protocol: %s"
+msgstr "valor inválido para server-insecure-exact-protocol: %s"
 
 #, python-format
 msgid "too many wildcards in certificate DNS name: %s"

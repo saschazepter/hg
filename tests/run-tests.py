@@ -54,7 +54,6 @@ import functools
 import json
 import multiprocessing
 import os
-import packaging.version as version
 import platform
 import queue
 import random
@@ -794,9 +793,7 @@ def parseargs(args, parser):
         try:
             import coverage
 
-            covver = version.Version(coverage.__version__)
-            if covver < version.Version("3.3"):
-                parser.error('coverage options require coverage 3.3 or later')
+            coverage.__version__  # silence unused import warning
         except ImportError:
             parser.error('coverage options now require the coverage package')
 

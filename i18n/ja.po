@@ -37064,8 +37064,8 @@ msgid "TLS 1.2 not supported by this Python"
 msgstr "利用中の Python では TLS 1.2 が未サポートです"
 
 #, python-format
-msgid "invalid value for serverexactprotocol: %s"
-msgstr "不正な serverexactprotocol 指定値: %s"
+msgid "invalid value for server-insecure-exact-protocol: %s"
+msgstr "不正な server-insecure-exact-protocol 指定値: %s"
 
 #, python-format
 msgid "too many wildcards in certificate DNS name: %s"

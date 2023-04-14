@@ -545,9 +545,15 @@ fn hash_mangle(src: &[u8], sha: &[u8]) -> Vec<u8> {
             let slice = &slice[..std::cmp::min(slice.len(), dirprefixlen)];
             if dest.len() + slice.len() > maxshortdirslen + 3 {
                 break;
-            } else {
-                dest.write_bytes(slice);
             }
+            if let Some(last_char) = slice.last() {
+                if *last_char == b'.' || *last_char == b' ' {
+                    dest.write_bytes(&slice[0..slice.len() - 1]);
+                    dest.write_byte(b'_');
+                } else {
+                    dest.write_bytes(slice);
+                }
+            };
             dest.write_byte(b'/');
         }
     }
@@ -608,6 +614,17 @@ pub fn path_encode(path: &[u8]) -> Vec<u8> {
 mod tests {
     use super::*;
     use crate::utils::hg_path::HgPathBuf;
+
+    #[test]
+    fn test_dirname_ends_with_underscore() {
+        let input = b"data/dir1234.foo/ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ.i";
+        let expected = b"dh/dir1234_/abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij.if2e9ce59e095eff5f8f334dc809e65606a0aa50b.i";
+        let res = path_encode(input);
+        assert_eq!(
+            HgPathBuf::from_bytes(&res),
+            HgPathBuf::from_bytes(expected)
+        );
+    }
 
     #[test]
     fn test_long_filename_at_root() {

@@ -536,7 +536,7 @@ Test patterns:
   f  mammals/Procyonidae/raccoon     mammals/Procyonidae/raccoon
   $ hg debugwalk -v beans 'glob:beans/*'
   * matcher:
-  <patternmatcher patterns='beans(?:/|$)|beans/[^/]*$'>
+  <patternmatcher patterns='beans/[^/]*$|beans(?:/|$)'>
   f  beans/black     beans/black
   f  beans/borlotti  beans/borlotti
   f  beans/kidney    beans/kidney
