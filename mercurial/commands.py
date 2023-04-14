@@ -6609,7 +6609,7 @@ def root(ui, repo, **opts):
         ),
         (b't', b'templates', b'', _(b'web templates to use'), _(b'TEMPLATE')),
         (b'', b'style', b'', _(b'template style to use'), _(b'STYLE')),
-        (b'6', b'ipv6', None, _(b'use IPv6 in addition to IPv4')),
+        (b'6', b'ipv6', None, _(b'use IPv6 instead of IPv4')),
         (b'', b'certificate', b'', _(b'SSL certificate file'), _(b'FILE')),
         (b'', b'print-url', None, _(b'start and print only the URL')),
     ]

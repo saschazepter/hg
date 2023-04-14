@@ -844,6 +844,7 @@ class rebaseruntime:
                 cleanup = False
 
             if cleanup:
+
                 if rebased:
                     strippoints = [
                         c.node() for c in repo.set(b'roots(%ld)', rebased)
@@ -852,13 +853,17 @@ class rebaseruntime:
                 updateifonnodes = set(rebased)
                 updateifonnodes.update(self.destmap.values())
 
-                if not dryrun and not confirm:
+                if not confirm:
+                    # note: when dry run is set the `rebased` and `destmap`
+                    # variables seem to contain "bad" contents, so do not
+                    # rely on them. As dryrun does not need this part of
+                    # the cleanup, this is "fine"
                     updateifonnodes.add(self.originalwd)
 
                 shouldupdate = repo[b'.'].rev() in updateifonnodes
 
                 # Update away from the rebase if necessary
-                if shouldupdate:
+                if not dryrun and shouldupdate:
                     mergemod.clean_update(repo[self.originalwd])
 
                 # Strip from the first rebased revision
