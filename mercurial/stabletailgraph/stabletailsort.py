@@ -34,7 +34,8 @@ def _sorted_parents(cl, p1, p2):
 
     "px" is chosen as the parent with the lowest rank with the goal of
     minimising the size of the exclusive part and maximise the size of the
-    tail part, hopefully reducing the overall complexity of the stable sort.
+    tail part, hopefully reducing the overall complexity of the stable-tail
+    sort.
 
     In case of equal ranks, the stable node ID is used as a tie-breaker.
     """
