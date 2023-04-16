@@ -294,7 +294,7 @@ Display the sort of "d" for reference:
   $ hg test-sts d
   d,c,b,*,a, (no-eol) (glob)
 
-Chack that sort "f" leaps from "d" to "b":
+Check that sort "f" leaps from "d" to "b":
 
   $ hg test-sts f
   f,d,b,*,e,*,c,a, (no-eol) (glob)
