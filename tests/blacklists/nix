@@ -1,0 +1,8 @@
+# Tests to be disabled when building and testing in the Nix sandbox.
+
+# tests enforcing "/usr/bin/env" shebangs, which are patched for nix
+test-run-tests.t
+test-check-shbang.t
+
+# doesn't like the extra setlocale warnings emitted by the nix bash wrappers
+test-locale.t
