@@ -638,3 +638,120 @@ on a 32MB system.
   updating the branch cache
   (sent 4 HTTP requests and * bytes; received * bytes in responses) (glob)
   $ killdaemons.py
+
+Testing a clone bundles that involves revlog splitting (issue6811)
+==================================================================
+
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > revlog-compression=none
+  > use-persistent-nodemap=no
+  > EOF
+
+  $ hg init server-revlog-split/
+  $ cd server-revlog-split
+  $ cat >> .hg/hgrc << EOF
+  > [extensions]
+  > clonebundles =
+  > EOF
+  $ echo foo > A
+  $ hg add A
+  $ hg commit -m 'initial commit'
+IMPORTANT: the revlogs must not be split
+  $ ls -1 .hg/store/00manifest.*
+  .hg/store/00manifest.i
+  $ ls -1 .hg/store/data/_a.*
+  .hg/store/data/_a.i
+
+do big enough update to split the revlogs
+
+  $ $TESTDIR/seq.py 100000 > A
+  $ mkdir foo
+  $ cd foo
+  $ touch `$TESTDIR/seq.py 10000`
+  $ cd ..
+  $ hg add -q foo
+  $ hg commit -m 'split the manifest and one filelog'
+
+IMPORTANT: now the revlogs must be split
+  $ ls -1 .hg/store/00manifest.*
+  .hg/store/00manifest.d
+  .hg/store/00manifest.i
+  $ ls -1 .hg/store/data/_a.*
+  .hg/store/data/_a.d
+  .hg/store/data/_a.i
+
+Add an extra commit on top of that
+
+  $ echo foo >> A
+  $ hg commit -m 'one extra commit'
+
+  $ cd ..
+
+Do a bundle that contains the split, but not the update
+
+  $ hg bundle --exact --rev '::(default~1)' -R server-revlog-split/ --type gzip-v2 split-test.hg
+  2 changesets found
+
+  $ cat > server-revlog-split/.hg/clonebundles.manifest << EOF
+  > http://localhost:$HGPORT1/split-test.hg BUNDLESPEC=gzip-v2
+  > EOF
+
+start the necessary server
+
+  $ "$PYTHON" $TESTDIR/dumbhttp.py -p $HGPORT1 --pid http.pid
+  $ cat http.pid >> $DAEMON_PIDS
+  $ hg -R server-revlog-split serve -d -p $HGPORT --pid-file hg.pid --accesslog access.log
+  $ cat hg.pid >> $DAEMON_PIDS
+
+Check that clone works fine
+===========================
+
+Here, the initial clone will trigger a revlog split (which is a bit clowny it
+itself, but whatever). The split revlogs will see additionnal data added to
+them in the subsequent pull. This should not be a problem
+
+  $ hg clone http://localhost:$HGPORT revlog-split-in-the-bundle
+  applying clone bundle from http://localhost:$HGPORT1/split-test.hg
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 10002 changes to 10001 files
+  finished applying clone bundle
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+  new changesets e3879eaa1db7
+  2 local changesets published
+  updating to branch default
+  10001 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+check the results
+
+  $ cd revlog-split-in-the-bundle
+  $ f --size .hg/store/00manifest.*
+  .hg/store/00manifest.d: size=499037
+  .hg/store/00manifest.i: size=192 (missing-correct-output !)
+  .hg/store/00manifest.i: size=128 (known-bad-output !)
+  .hg/store/00manifest.i.s: size=64 (known-bad-output !)
+  $ f --size .hg/store/data/_a.*
+  .hg/store/data/_a.d: size=588917
+  .hg/store/data/_a.i: size=192
+
+manifest should work
+
+  $ hg  files -r tip | wc -l
+  \s*10001 (re) (missing-correct-output !)
+  abort: 00manifest@4941afd6b8e298d932227572c5c303cbc14301bd: no node (known-bad-output !)
+  0 (known-bad-output !)
+
+file content should work
+
+  $ hg  cat -r tip A | wc -l
+  \s*100001 (re) (missing-correct-output !)
+  abort: 00manifest@4941afd6b8e298d932227572c5c303cbc14301bd: no node (known-bad-output !)
+  0 (known-bad-output !)
+
+
