@@ -733,9 +733,7 @@ check the results
   $ cd revlog-split-in-the-bundle
   $ f --size .hg/store/00manifest.*
   .hg/store/00manifest.d: size=499037
-  .hg/store/00manifest.i: size=192 (missing-correct-output !)
-  .hg/store/00manifest.i: size=128 (known-bad-output !)
-  .hg/store/00manifest.i.s: size=64 (known-bad-output !)
+  .hg/store/00manifest.i: size=192
   $ f --size .hg/store/data/_a.*
   .hg/store/data/_a.d: size=588917
   .hg/store/data/_a.i: size=192
@@ -743,15 +741,11 @@ check the results
 manifest should work
 
   $ hg  files -r tip | wc -l
-  \s*10001 (re) (missing-correct-output !)
-  abort: 00manifest@4941afd6b8e298d932227572c5c303cbc14301bd: no node (known-bad-output !)
-  0 (known-bad-output !)
+  \s*10001 (re)
 
 file content should work
 
   $ hg  cat -r tip A | wc -l
-  \s*100001 (re) (missing-correct-output !)
-  abort: 00manifest@4941afd6b8e298d932227572c5c303cbc14301bd: no node (known-bad-output !)
-  0 (known-bad-output !)
+  \s*100001 (re)
 
 
