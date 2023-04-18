@@ -616,6 +616,10 @@ coreconfigitem(
     b'bundle2.debug',
     default=False,
 )
+# which kind of delta to put in the bundled changegroup. Possible value
+# - '': use default behavior
+# - p1: force to always use delta against p1
+# - full: force to always use full content
 coreconfigitem(
     b'devel',
     b'bundle.delta',
