@@ -455,3 +455,103 @@ pullop.cgresult
   |
   o  0:4a2df7238c3b public test  A
   
+
+Test that "split" from inline content works fine (cf issue6811)
+===============================================================
+
+setup
+-----
+
+(create a compression free version where the split is easier to trigger)
+
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > revlog-compression=none
+  > use-persistent-nodemap=no
+  > EOF
+
+  $ cd ..
+  $ hg clone --pull repo repo-test-split --quiet
+  pullop.cgresult is 2
+  $ cat > repo-test-split/.hg/hgrc << EOF
+  > [extensions]
+  > bundle2=$TESTTMP/bundle2.py
+  > EOF
+  $ hg clone --pull repo-test-split clone-test-split --quiet
+  pullop.cgresult is 2
+  $ cd repo-test-split
+  $ cat > .hg/hgrc << EOF
+  > [extensions]
+  > bundle2=$TESTTMP/bundle2.py
+  > EOF
+
+
+IMPORTANT: must be a non-split revlog with only a .i
+  $ ls -1 .hg/store/00manifest.*
+  .hg/store/00manifest.i
+  $ ls -1 .hg/store/data/_a.*
+  .hg/store/data/_a.i
+
+  $ $TESTDIR/seq.py 100000 > A
+  $ mkdir foo
+  $ cd foo
+  $ touch `$TESTDIR/seq.py 10000`
+  $ cd ..
+  $ hg add -q foo
+  $ hg commit -m 'split the manifest and one filelog'
+
+
+IMPORTANT: now the revlogs must be split
+  $ ls -1 .hg/store/00manifest.*
+  .hg/store/00manifest.d
+  .hg/store/00manifest.i
+  $ ls -1 .hg/store/data/_a.*
+  .hg/store/data/_a.d
+  .hg/store/data/_a.i
+
+Add an extra commit on top of that
+
+  $ echo foo >> A
+  $ hg commit -m 'one extra commit'
+
+
+Actual testing
+--------------
+
+  $ cd ../clone-test-split
+
+We now pull this in the clone the split should be in one changegroup, the update in another one
+
+  $ hg  pull
+  pulling from $TESTTMP/repo-test-split
+  searching for changes
+  remote: changegroup1
+  adding changesets
+  adding manifests
+  adding file changes
+  remote: changegroup2
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 10002 changes to 10002 files
+  new changesets 5e5bf9c91085:900b170f70d0
+  pullop.cgresult is 1
+  (run 'hg update' to get a working copy)
+
+IMPORTANT: now the revlogs must be split
+  $ ls -1 .hg/store/00manifest.*
+  .hg/store/00manifest.d
+  .hg/store/00manifest.i
+  $ ls -1 .hg/store/data/_a.*
+  .hg/store/data/_a.d
+  .hg/store/data/_a.i
+
+manifest should work
+
+  $ hg  files -r tip | wc -l
+  \s*10007 (re)
+
+file content should work
+
+  $ hg  cat -r tip A | wc -l
+  \s*100001 (re)

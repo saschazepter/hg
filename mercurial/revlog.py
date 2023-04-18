@@ -19,6 +19,7 @@ import contextlib
 import io
 import os
 import struct
+import weakref
 import zlib
 
 # import stuff from node for others to import from revlog
@@ -2057,6 +2058,7 @@ class revlog:
             old_index_file_path = self._indexfile
             new_index_file_path = self._indexfile + b'.s'
             opener = self.opener
+            weak_self = weakref.ref(self)
 
             fncache = getattr(opener, 'fncache', None)
             if fncache is not None:
@@ -2069,13 +2071,22 @@ class revlog:
                     old_index_file_path,
                     checkambig=True,
                 )
+                maybe_self = weak_self()
+                if maybe_self is not None:
+                    maybe_self._indexfile = old_index_file_path
+
+            def abort_callback(tr):
+                maybe_self = weak_self()
+                if maybe_self is not None:
+                    maybe_self._indexfile = old_index_file_path
 
             tr.registertmp(new_index_file_path)
             if self.target[1] is not None:
-                finalize_id = b'000-revlog-split-%d-%s' % self.target
+                callback_id = b'000-revlog-split-%d-%s' % self.target
             else:
-                finalize_id = b'000-revlog-split-%d' % self.target[0]
-            tr.addfinalize(finalize_id, finalize_callback)
+                callback_id = b'000-revlog-split-%d' % self.target[0]
+            tr.addfinalize(callback_id, finalize_callback)
+            tr.addabort(callback_id, abort_callback)
 
         new_dfh = self._datafp(b'w+')
         new_dfh.truncate(0)  # drop any potentially existing data
