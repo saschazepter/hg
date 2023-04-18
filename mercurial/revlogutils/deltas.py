@@ -1135,7 +1135,7 @@ class deltacomputer:
 
         return delta
 
-    def _builddeltainfo(self, revinfo, base, fh):
+    def _builddeltainfo(self, revinfo, base, fh, target_rev=None):
         # can we use the cached delta?
         revlog = self.revlog
         debug_search = self._write_debug is not None and self._debug_search
@@ -1143,6 +1143,13 @@ class deltacomputer:
         if revlog._generaldelta:
             deltabase = base
         else:
+            if target_rev is not None and base != target_rev - 1:
+                msg = (
+                    b'general delta cannot use delta for something else '
+                    b'than `prev`: %d<-%d'
+                )
+                msg %= (base, target_rev)
+                raise error.ProgrammingError(msg)
             deltabase = chainbase
         snapshotdepth = None
         if revlog._sparserevlog and deltabase == nullrev:
@@ -1373,7 +1380,12 @@ class deltacomputer:
 
                 if debug_search:
                     delta_start = util.timer()
-                candidatedelta = self._builddeltainfo(revinfo, candidaterev, fh)
+                candidatedelta = self._builddeltainfo(
+                    revinfo,
+                    candidaterev,
+                    fh,
+                    target_rev=target_rev,
+                )
                 if debug_search:
                     delta_end = util.timer()
                     msg = b"DBG-DELTAS-SEARCH:     delta-search-time=%f\n"
