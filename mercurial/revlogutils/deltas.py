@@ -687,6 +687,12 @@ def _candidategroups(
     if target_rev is None:
         target_rev = len(revlog)
 
+    if not revlog._generaldelta:
+        # before general delta, there is only one possible delta base
+        yield (target_rev - 1,)
+        yield None
+        return
+
     if (
         cachedelta is not None
         and nullrev == cachedelta[0]
