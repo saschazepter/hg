@@ -684,6 +684,9 @@ def _candidategroups(
         yield None
         return
 
+    if target_rev is None:
+        target_rev = len(revlog)
+
     if (
         cachedelta is not None
         and nullrev == cachedelta[0]
