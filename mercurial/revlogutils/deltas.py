@@ -725,9 +725,7 @@ def _candidategroups(
         group = []
         for rev in temptative:
             # skip over empty delta (no need to include them in a chain)
-            while revlog._generaldelta and not (
-                rev == nullrev or rev in tested or deltalength(rev)
-            ):
+            while not (rev == nullrev or rev in tested or deltalength(rev)):
                 tested.add(rev)
                 rev = deltaparent(rev)
             # no need to try a delta against nullrev, this will be done as a
@@ -910,27 +908,27 @@ def _rawgroups(revlog, p1, p2, cachedelta, snapshot_cache=None):
 
     The group order aims at providing fast or small candidates first.
     """
-    gdelta = revlog._generaldelta
-    # gate sparse behind general-delta because of issue6056
-    sparse = gdelta and revlog._sparserevlog
+    # Why search for delta base if we cannot use a delta base ?
+    assert revlog._generaldelta
+    # also see issue6056
+    sparse = revlog._sparserevlog
     curr = len(revlog)
     prev = curr - 1
     deltachain = lambda rev: revlog._deltachain(rev)[0]
 
-    if gdelta:
-        # exclude already lazy tested base if any
-        parents = [p for p in (p1, p2) if p != nullrev]
+    # exclude already lazy tested base if any
+    parents = [p for p in (p1, p2) if p != nullrev]
 
-        if not revlog._deltabothparents and len(parents) == 2:
-            parents.sort()
-            # To minimize the chance of having to build a fulltext,
-            # pick first whichever parent is closest to us (max rev)
-            yield (parents[1],)
-            # then the other one (min rev) if the first did not fit
-            yield (parents[0],)
-        elif len(parents) > 0:
-            # Test all parents (1 or 2), and keep the best candidate
-            yield parents
+    if not revlog._deltabothparents and len(parents) == 2:
+        parents.sort()
+        # To minimize the chance of having to build a fulltext,
+        # pick first whichever parent is closest to us (max rev)
+        yield (parents[1],)
+        # then the other one (min rev) if the first did not fit
+        yield (parents[0],)
+    elif len(parents) > 0:
+        # Test all parents (1 or 2), and keep the best candidate
+        yield parents
 
     if sparse and parents:
         if snapshot_cache is None:
