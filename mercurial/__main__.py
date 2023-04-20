@@ -1,4 +1,12 @@
-if __name__ == '__main__':
-    from . import dispatch
+def run():
+    from . import demandimport
 
-    dispatch.run()
+    with demandimport.tracing.log('hg script'):
+        demandimport.enable()
+        from . import dispatch
+
+        dispatch.run()
+
+
+if __name__ == '__main__':
+    run()
