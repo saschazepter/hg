@@ -59,6 +59,15 @@ Manifest file with invalid URL aborts
   (if this error persists, consider contacting the server operator or disable clone bundles via "--config ui.clonebundles=false")
   [255]
 
+Manifest file with URL with unknown scheme skips the URL
+  $ echo 'weirdscheme://does.not.exist/bundle.hg' > server/.hg/clonebundles.manifest
+  $ hg clone http://localhost:$HGPORT unknown-scheme
+  applying clone bundle from weirdscheme://does.not.exist/bundle.hg (known-bad-output !)
+  error fetching bundle: unknown url type: weirdscheme (known-bad-output !)
+  abort: error applying bundle (known-bad-output !)
+  (if this error persists, consider contacting the server operator or disable clone bundles via "--config ui.clonebundles=false") (known-bad-output !)
+  [255]
+
 Server is not running aborts
 
   $ echo "http://localhost:$HGPORT1/bundle.hg" > server/.hg/clonebundles.manifest
