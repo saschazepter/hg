@@ -234,18 +234,12 @@ static const char *gethgcmd(void)
 			hgcmd = "hg";
 #endif
 	}
-	/* Set $CHGHG to the path to the seleted hg executable if it wasn't
-	 * already set. This has the effect of ensuring that a new command
-	 * server will be spawned if the existing command server is running from
-	 * an executable at a different path. */
-	if (setenv("CHGHG", hgcmd, 1) != 0)
-		abortmsgerrno("failed to setenv");
 	return hgcmd;
 }
 
-static void execcmdserver(const char *hgcmd, const struct cmdserveropts *opts)
+static void execcmdserver(const struct cmdserveropts *opts)
 {
-
+	const char *hgcmd = gethgcmd();
 	const char *baseargv[] = {
 	    hgcmd,     "serve",     "--no-profile",     "--cmdserver",
 	    "chgunix", "--address", opts->initsockname, "--daemon-postexec",
@@ -382,16 +376,11 @@ static hgclient_t *connectcmdserver(struct cmdserveropts *opts)
 
 	debugmsg("start cmdserver at %s", opts->initsockname);
 
-	/* Get the path to the hg executable before we fork because this
-	 * function might update the environment, and we want this to be
-	 * reflected in both the parent and child processes. */
-	const char *hgcmd = gethgcmd();
-
 	pid_t pid = fork();
 	if (pid < 0)
 		abortmsg("failed to fork cmdserver process");
 	if (pid == 0) {
-		execcmdserver(hgcmd, opts);
+		execcmdserver(opts);
 	} else {
 		hgc = retryconnectcmdserver(opts, pid);
 	}
@@ -524,6 +513,16 @@ int main(int argc, const char *argv[])
 			return 0;
 		}
 	}
+
+	/* Set $CHGHG to the path of the hg executable we intend to use. This
+	 * is a no-op if $CHGHG was expliclty specified, but otherwise this
+	 * ensures that we will spawn a new command server if we connect to an
+	 * existing one running from a different executable. This should only
+	 * only be needed when chg is built with HGPATHREL since otherwise the
+	 * hg executable used when CHGHG is absent should be deterministic.
+	 * */
+	if (setenv("CHGHG", gethgcmd(), 1) != 0)
+		abortmsgerrno("failed to setenv");
 
 	hgclient_t *hgc;
 	size_t retry = 0;

@@ -553,3 +553,20 @@ FIXME: Run 4 should not be >3x Run 1's number of samples.
   $ filteredchg log -r . --no-profile
   $ filteredchg log -r .
   Sample count: * (glob)
+
+chg setting CHGHG itself
+------------------------
+
+If CHGHG is not set, chg will set it before spawning the command server.
+  $ hg --kill-chg-daemon
+  $ HG=$CHGHG CHGHG= CHGDEBUG= hg debugshell -c \
+  >   'ui.write(b"CHGHG=%s\n" % ui.environ.get(b"CHGHG"))' 2>&1 \
+  >   | egrep 'CHGHG|start'
+  chg: debug: * start cmdserver at * (glob)
+  CHGHG=/*/install/bin/hg (glob)
+
+Running the same command a second time shouldn't spawn a new command server.
+  $ HG=$CHGHG CHGHG= CHGDEBUG= hg debugshell -c \
+  >   'ui.write(b"CHGHG=%s\n" % ui.environ.get(b"CHGHG"))' 2>&1 \
+  >   | egrep 'CHGHG|start'
+  CHGHG=/*/install/bin/hg (glob)
