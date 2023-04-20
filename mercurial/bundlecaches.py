@@ -24,6 +24,11 @@ from .utils import stringutil
 urlreq = util.urlreq
 
 CB_MANIFEST_FILE = b'clonebundles.manifest'
+SUPPORTED_CLONEBUNDLE_SCHEMES = [
+    b"http://",
+    b"https://",
+    b"largefile://",
+]
 
 
 @attr.s
@@ -337,7 +342,9 @@ def isstreamclonespec(bundlespec):
     return False
 
 
-def filterclonebundleentries(repo, entries, streamclonerequested=False):
+def filterclonebundleentries(
+    repo, entries, streamclonerequested=False, pullbundles=False
+):
     """Remove incompatible clone bundle manifest entries.
 
     Accepts a list of entries parsed with ``parseclonebundlesmanifest``
@@ -349,6 +356,16 @@ def filterclonebundleentries(repo, entries, streamclonerequested=False):
     """
     newentries = []
     for entry in entries:
+        url = entry.get(b'URL')
+        if not pullbundles and not any(
+            [url.startswith(scheme) for scheme in SUPPORTED_CLONEBUNDLE_SCHEMES]
+        ):
+            repo.ui.debug(
+                b'filtering %s because not a supported clonebundle scheme\n'
+                % url
+            )
+            continue
+
         spec = entry.get(b'BUNDLESPEC')
         if spec:
             try:
@@ -358,8 +375,7 @@ def filterclonebundleentries(repo, entries, streamclonerequested=False):
                 # entries.
                 if streamclonerequested and not isstreamclonespec(bundlespec):
                     repo.ui.debug(
-                        b'filtering %s because not a stream clone\n'
-                        % entry[b'URL']
+                        b'filtering %s because not a stream clone\n' % url
                     )
                     continue
 
@@ -369,7 +385,7 @@ def filterclonebundleentries(repo, entries, streamclonerequested=False):
             except error.UnsupportedBundleSpecification as e:
                 repo.ui.debug(
                     b'filtering %s because unsupported bundle '
-                    b'spec: %s\n' % (entry[b'URL'], stringutil.forcebytestr(e))
+                    b'spec: %s\n' % (url, stringutil.forcebytestr(e))
                 )
                 continue
         # If we don't have a spec and requested a stream clone, we don't know
@@ -377,14 +393,12 @@ def filterclonebundleentries(repo, entries, streamclonerequested=False):
         elif streamclonerequested:
             repo.ui.debug(
                 b'filtering %s because cannot determine if a stream '
-                b'clone bundle\n' % entry[b'URL']
+                b'clone bundle\n' % url
             )
             continue
 
         if b'REQUIRESNI' in entry and not sslutil.hassni:
-            repo.ui.debug(
-                b'filtering %s because SNI not supported\n' % entry[b'URL']
-            )
+            repo.ui.debug(b'filtering %s because SNI not supported\n' % url)
             continue
 
         if b'REQUIREDRAM' in entry:
@@ -392,15 +406,14 @@ def filterclonebundleentries(repo, entries, streamclonerequested=False):
                 requiredram = util.sizetoint(entry[b'REQUIREDRAM'])
             except error.ParseError:
                 repo.ui.debug(
-                    b'filtering %s due to a bad REQUIREDRAM attribute\n'
-                    % entry[b'URL']
+                    b'filtering %s due to a bad REQUIREDRAM attribute\n' % url
                 )
                 continue
             actualram = repo.ui.estimatememory()
             if actualram is not None and actualram * 0.66 < requiredram:
                 repo.ui.debug(
                     b'filtering %s as it needs more than 2/3 of system memory\n'
-                    % entry[b'URL']
+                    % url
                 )
                 continue
 
