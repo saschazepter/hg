@@ -74,6 +74,14 @@ def _nonoedipal_parent_revs(cl, rev):
         return p1, p2
 
 
+def _parents(cl, rev):
+    p1, p2 = _nonoedipal_parent_revs(cl, rev)
+    if p2 == nullrev:
+        return p1, p2
+
+    return _sorted_parents(cl, p1, p2)
+
+
 def _stable_tail_sort_naive(cl, head_rev):
     """
     Naive topological iterator of the ancestors given by the stable-tail sort.
@@ -91,14 +99,10 @@ def _stable_tail_sort_naive(cl, head_rev):
     while cursor_rev != nullrev:
         yield cursor_rev
 
-        p1, p2 = _nonoedipal_parent_revs(cl, cursor_rev)
-        if p1 == nullrev:
-            cursor_rev = p2
-        elif p2 == nullrev:
-            cursor_rev = p1
+        px, pt = _parents(cl, cursor_rev)
+        if pt == nullrev:
+            cursor_rev = px
         else:
-            px, pt = _sorted_parents(cl, p1, p2)
-
             tail_ancestors = ancestor.lazyancestors(
                 cl.parentrevs, (pt,), inclusive=True
             )
