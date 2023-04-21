@@ -3677,6 +3677,36 @@ def debug_stable_tail_sort(ui, repo, revspec, template, **opts):
 
 
 @command(
+    b'debug::stable-tail-sort-leaps',
+    [
+        (
+            b'T',
+            b'template',
+            b'{rev}',
+            _(b'display with template'),
+            _(b'TEMPLATE'),
+        ),
+        (b's', b'specific', False, _(b'restrict to specific leaps')),
+    ],
+    b'REV',
+)
+def debug_stable_tail_sort_leaps(ui, repo, rspec, template, specific, **opts):
+    """display the leaps in the stable-tail sort of a node, one per line"""
+    rev = logcmdutil.revsingle(repo, rspec).rev()
+
+    if specific:
+        get_leaps = stabletailsort._find_specific_leaps_naive
+    else:
+        get_leaps = stabletailsort._find_all_leaps_naive
+
+    displayer = logcmdutil.maketemplater(ui, repo, template)
+    for source, target in get_leaps(repo.changelog, rev):
+        displayer.show(repo[source])
+        displayer.show(repo[target])
+        ui.write(b'\n')
+
+
+@command(
     b"debugbackupbundle",
     [
         (

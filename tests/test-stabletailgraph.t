@@ -8,7 +8,9 @@ sort functions are tested.
 
 Each case consists of the creation of the interesting graph structure, followed
 by a check, for each noteworthy node, of:
-- the stable-tail sort output (with the linear parts globbed).
+- the stable-tail sort output (with the linear parts globbed),
+- the leap set,
+- the specific leap set.
 
 In the ASCII art of the diagrams, the side of the exclusive part which is
 followed in priority is denoted with "<" or ">" if it is on the left or right
@@ -29,6 +31,7 @@ Enable the rank computation to test sorting based on the rank.
   > 
   > [alias]
   > test-sts = debug::stable-tail-sort -T '{tags},'
+  > test-leaps = debug::stable-tail-sort-leaps -T '{tags}'
   > test-log = log --graph -T '{tags} rank={_fast_rank}' --rev 'tagged()'
   > EOF
 
@@ -86,6 +89,27 @@ Check that the linear descendant of the merge inherits its sort properly.
 
   $ hg test-sts f
   f,e,c,d,*,b,a, (no-eol) (glob)
+
+Check the leaps of "e": arriving at "c", the sort continues at "d", which
+which breaks the child-parent chain and results in a leap.
+
+  $ hg test-leaps e
+  cd
+
+Check that this leap is indeed specific to "e", i.e. that it appears in its
+stable-tail sort, but not in any stable-tail sort of its ancestors.
+
+  $ hg test-leaps --specific e
+
+Check that this leap is inherited by its direct ancestor "f".
+
+  $ hg test-leaps f
+  cd
+
+Check that this leap is not classified as specific to "f", since it is specific
+to "e".
+
+  $ hg test-leaps --specific f
 
   $ cd ..
 
@@ -146,6 +170,23 @@ and that a part of the sort of "e" appears as an infix.
   $ hg test-sts g
   g,e,c,d,*,b,f,*,a, (no-eol) (glob)
 
+Check the leaps of "e".
+
+  $ hg test-leaps e
+  cd
+
+  $ hg test-leaps --specific e
+
+Check that "g" inherits a leap from "e" in addition of its own.
+
+  $ hg test-leaps g
+  cd
+  bf
+
+Check that only the additional leap of "g" is classified as specific.
+
+  $ hg test-leaps --specific g
+
   $ cd ..
 
 
@@ -205,6 +246,21 @@ and that "c" is then emitted after "e" (its descendant).
   $ hg test-sts f
   f,d,b,e,*,c,*,a, (no-eol) (glob)
 
+Check the leaps of "d".
+
+  $ hg test-leaps d
+  bc
+
+  $ hg test-leaps --specific d
+
+Check thet leaps of "f", which, despite being a descendant of "f", has a
+different stable-tail sort which does not reuse any leap of "d".
+
+  $ hg test-leaps f
+  be
+
+  $ hg test-leaps --specific f
+
   $ cd ..
 
 
@@ -262,6 +318,22 @@ Check that sort "f" leaps from "d" to "b":
 
   $ hg test-sts f
   f,d,b,*,e,*,c,a, (no-eol) (glob)
+
+Check the leaps of "d".
+
+  $ hg test-leaps d
+  cb
+
+  $ hg test-leaps --specific d
+
+Check the leaps of "f".
+
+  $ hg test-leaps f
+  db
+  e* (glob)
+
+  $ hg test-leaps --specific f
+  db
 
   $ cd ..
 
@@ -322,6 +394,21 @@ Check that sort "f" leaps from "g" to "b":
   $ hg test-sts f
   f,d,g,b,*,e,*,c,a, (no-eol) (glob)
 
+Check the leaps of "d".
+
+  $ hg test-leaps d
+  cb
+  $ hg test-leaps --specific d
+
+Check the leaps of "f".
+
+  $ hg test-leaps f
+  gb
+  e* (glob)
+
+  $ hg test-leaps --specific f
+  gb
+
   $ cd ..
 
 
@@ -380,6 +467,21 @@ exclusive part of "g":
 
   $ hg test-sts g
   g,d,f,e,b,c,*,a, (no-eol) (glob)
+
+Check the leaps of "f".
+
+  $ hg test-leaps f
+  bc
+
+  $ hg test-leaps --specific f
+
+Check the leaps of "g".
+
+  $ hg test-leaps g
+  df
+  bc
+
+  $ hg test-leaps --specific g
 
   $ cd ..
 
@@ -461,6 +563,30 @@ Check that the common part of excl(j) and excl(k) is iterated over after "k":
   $ hg test-sts l
   l,j,e,g,*,f,k,h,*,d,c,b,i,*,a, (no-eol) (glob)
 
+Check the leaps of "j".
+
+  $ hg test-leaps j
+  cg
+
+  $ hg test-leaps --specific j
+
+Check the leaps of "k".
+
+  $ hg test-leaps k
+  bi
+
+  $ hg test-leaps --specific k
+
+Check the leaps of "l".
+
+  $ hg test-leaps l
+  eg
+  fk
+  bi
+
+  $ hg test-leaps --specific l
+  eg
+
   $ cd ..
 
 
@@ -534,6 +660,29 @@ Check that the common part of inherited(g) and excl(k) is iterated over after
 
   $ hg test-sts j
   j,g,c,f,i,e,d,b,h,*,a, (no-eol) (glob)
+
+Check the leaps of "g".
+
+  $ hg test-leaps g
+  cf
+  $ hg test-leaps g
+  cf
+
+Check the leaps of "i".
+
+  $ hg test-leaps i
+  bh
+
+  $ hg test-leaps --specific i
+
+Check the leaps of "j".
+
+  $ hg test-leaps j
+  cf
+  fi
+  bh
+
+  $ hg test-leaps --specific j
 
   $ cd ..
 
@@ -612,5 +761,29 @@ is postponed to inherited(j) in sort(k):
 
   $ hg test-sts k
   k,i,c,f,e,j,g,*,b,h,*,d,a, (no-eol) (glob)
+
+Check the leaps of "i".
+
+  $ hg test-leaps i
+  bf
+
+  $ hg test-leaps --specific i
+
+Check the leaps of "j".
+
+  $ hg test-leaps j
+  bh
+
+  $ hg test-leaps --specific j
+
+Check the leaps of "k".
+
+  $ hg test-leaps k
+  cf
+  ej
+  bh
+
+  $ hg test-leaps --specific k
+  cf
 
   $ cd ..
