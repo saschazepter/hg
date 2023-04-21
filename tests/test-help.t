@@ -989,6 +989,9 @@ Test list of internal help commands
                  display statistics about revlogs in the store
    debug::stable-tail-sort
                  display the stable-tail sort of the ancestors of a given node
+   debug::stable-tail-sort-leaps
+                 display the leaps in the stable-tail sort of a node, one per
+                 line
    debugancestor
                  find the ancestor revision of two revisions in a given index
    debugantivirusrunning

@@ -118,3 +118,55 @@ def _stable_tail_sort_naive(cl, head_rev):
             excl_part_size = cl.fast_rank(cursor_rev) - cl.fast_rank(pt) - 1
             yield from itertools.islice(exclusive_ancestors, excl_part_size)
             cursor_rev = pt
+
+
+def _find_all_leaps_naive(cl, head_rev):
+    """
+    Yields the leaps in the stable-tail sort of the given revision.
+
+    A leap is a pair of revisions (source, target) consecutive in the
+    stable-tail sort of a head, for which target != px(source).
+
+    Leaps are yielded in the same order as encountered in the stable-tail sort,
+    from head to root.
+    """
+    sts = _stable_tail_sort_naive(cl, head_rev)
+    prev = next(sts)
+    for current in sts:
+        if current != _parents(cl, prev)[0]:
+            yield (prev, current)
+
+        prev = current
+
+
+def _find_specific_leaps_naive(cl, head_rev):
+    """
+    Returns the specific leaps in the stable-tail sort of the given revision.
+
+    Specific leaps are leaps appear in the stable-tail sort of a given
+    revision, but not in the stable-tail sort of any of its ancestors.
+
+    The final leaps (leading to the pt of the considered merge) are omitted.
+
+    Only merge nodes can have associated specific leaps.
+
+    This implementations uses the whole leap sets of the given revision and
+    of its parents.
+    """
+    px, pt = _parents(cl, head_rev)
+    if px == nullrev or pt == nullrev:
+        return  # linear nodes cannot have specific leaps
+
+    parents_leaps = set(_find_all_leaps_naive(cl, px))
+
+    sts = _stable_tail_sort_naive(cl, head_rev)
+    prev = next(sts)
+    for current in sts:
+        if current == pt:
+            break
+        if current != _parents(cl, prev)[0]:
+            leap = (prev, current)
+            if leap not in parents_leaps:
+                yield leap
+
+        prev = current
