@@ -74,7 +74,7 @@ def _nonoedipal_parent_revs(cl, rev):
         return p1, p2
 
 
-def _stable_tail_sort(cl, head_rev):
+def _stable_tail_sort_naive(cl, head_rev):
     """
     Naive topological iterator of the ancestors given by the stable-tail sort.
 
@@ -103,7 +103,9 @@ def _stable_tail_sort(cl, head_rev):
                 cl.parentrevs, (pt,), inclusive=True
             )
             exclusive_ancestors = (
-                a for a in _stable_tail_sort(cl, px) if a not in tail_ancestors
+                a
+                for a in _stable_tail_sort_naive(cl, px)
+                if a not in tail_ancestors
             )
 
             excl_part_size = cl.fast_rank(cursor_rev) - cl.fast_rank(pt) - 1
