@@ -3671,7 +3671,7 @@ def debug_stable_tail_sort(ui, repo, revspec, template, **opts):
     cl = repo.changelog
 
     displayer = logcmdutil.maketemplater(ui, repo, template)
-    sorted_revs = stabletailsort._stable_tail_sort(cl, rev)
+    sorted_revs = stabletailsort._stable_tail_sort_naive(cl, rev)
     for ancestor_rev in sorted_revs:
         displayer.show(repo[ancestor_rev])
 
