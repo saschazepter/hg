@@ -79,6 +79,7 @@ Show debug commands if there are no other candidates
   debug-revlog-index
   debug-revlog-stats
   debug::stable-tail-sort
+  debug::stable-tail-sort-leaps
   debugancestor
   debugantivirusrunning
   debugapplystreamclonebundle
@@ -275,6 +276,7 @@ Show all commands + options
   debug-revlog-index: changelog, manifest, dir, template
   debug-revlog-stats: changelog, manifest, filelogs, template
   debug::stable-tail-sort: template
+  debug::stable-tail-sort-leaps: template, specific
   debugancestor: 
   debugantivirusrunning: 
   debugapplystreamclonebundle: 
