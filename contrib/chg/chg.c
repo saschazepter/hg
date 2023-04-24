@@ -31,6 +31,8 @@
 #define PATH_MAX 4096
 #endif
 
+extern char **environ;
+
 struct cmdserveropts {
 	char sockname[PATH_MAX];
 	char initsockname[PATH_MAX];
