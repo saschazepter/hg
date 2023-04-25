@@ -84,10 +84,11 @@ Help text for fix.
   
   rewrite file content in changesets or working directory
   
-      Runs any configured tools to fix the content of files. Only affects files
-      with changes, unless file arguments are provided. Only affects changed
-      lines of files, unless the --whole flag is used. Some tools may always
-      affect the whole file regardless of --whole.
+      Runs any configured tools to fix the content of files. (See 'hg help -e
+      fix' for details about configuring tools.) Only affects files with
+      changes, unless file arguments are provided. Only affects changed lines of
+      files, unless the --whole flag is used. Some tools may always affect the
+      whole file regardless of --whole.
   
       If --working-dir is used, files with uncommitted changes in the working
       copy will be fixed. Note that no backup are made.
@@ -124,6 +125,13 @@ Help text for fix.
   
   Provides a command that runs configured tools on the contents of modified
   files, writing back any fixes to the working copy or replacing changesets.
+  
+  Fixer tools are run in the repository's root directory. This allows them to
+  read configuration files from the working copy, or even write to the working
+  copy. The working copy is not updated to match the revision being fixed. In
+  fact, several revisions may be fixed in parallel. Writes to the working copy
+  are not amended into the revision being fixed; fixer tools MUST always read
+  content to be fixed from stdin, and write fixed file content back to stdout.
   
   Here is an example configuration that causes 'hg fix' to apply automatic
   formatting fixes to modified lines in C++ code:
@@ -230,13 +238,6 @@ Help text for fix.
       mapping fixer tool names to lists of metadata values returned from
       executions that modified a file. This aggregates the same metadata
       previously passed to the "postfixfile" hook.
-  
-  Fixer tools are run in the repository's root directory. This allows them to
-  read configuration files from the working copy, or even write to the working
-  copy. The working copy is not updated to match the revision being fixed. In
-  fact, several revisions may be fixed in parallel. Writes to the working copy
-  are not amended into the revision being fixed; fixer tools should always write
-  fixed file content back to stdout as documented above.
   
   list of commands:
   
