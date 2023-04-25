@@ -79,8 +79,10 @@ for most needs.
 Bundle files can be generated with the :hg:`bundle` command. Typically
 :hg:`bundle --all` is used to produce a bundle of the entire repository.
 
-:hg:`debugcreatestreamclonebundle` can be used to produce a special
-*streaming clonebundle*. These are bundle files that are extremely efficient
+The bundlespec option `stream` (see :hg:`help bundlespec`)
+can be used to produce a special *streaming clonebundle*, typically using
+:hg:`bundle --all --type="none-streamv2"`.
+These are bundle files that are extremely efficient
 to produce and consume (read: fast). However, they are larger than
 traditional bundle formats and require that clients support the exact set
 of repository data store formats in use by the repository that created them.
