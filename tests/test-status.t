@@ -1000,3 +1000,27 @@ in the same run.
       0         -1 set                 subdir
 
 #endif
+
+
+Test copy source formatting.
+  $ cd ..
+  $ hg init copy-source-repo
+  $ cd copy-source-repo
+  $ mkdir -p foo/bar
+  $ cd foo/bar
+  $ touch file
+  $ hg addremove
+  adding foo/bar/file
+  $ hg commit -m 'add file'
+  $ hg mv file copy
+
+Copy source respects relative path setting.
+  $ hg st --config ui.statuscopies=true --config commands.status.relative=true
+  A copy
+    file
+  R file
+
+Copy source is not shown when --no-status is passed.
+  $ hg st --config ui.statuscopies=true --no-status
+  foo/bar/copy
+  foo/bar/file
