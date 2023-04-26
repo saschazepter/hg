@@ -557,7 +557,7 @@ impl DisplayStatusPaths<'_> {
             }
             self.ui
                 .write_stdout_labelled(&format_bytes!(b"{}\n", path), label)?;
-            if let Some(source) = copy_source {
+            if let Some(source) = copy_source.filter(|_| !self.no_status) {
                 let label = "status.copied";
                 self.ui.write_stdout_labelled(
                     &format_bytes!(b"  {}\n", source.as_bytes()),
