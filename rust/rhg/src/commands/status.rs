@@ -542,12 +542,17 @@ impl DisplayStatusPaths<'_> {
         // TODO: get the stdout lock once for the whole loop
         // instead of in each write
         for StatusPath { path, copy_source } in paths {
-            let relative;
-            let path = if let Some(relativize) = &self.relativize {
-                relative = relativize.relativize(&path);
-                &*relative
+            let relative_path;
+            let relative_source;
+            let (path, copy_source) = if let Some(relativize) =
+                &self.relativize
+            {
+                relative_path = relativize.relativize(&path);
+                relative_source =
+                    copy_source.as_ref().map(|s| relativize.relativize(s));
+                (&*relative_path, relative_source.as_deref())
             } else {
-                path.as_bytes()
+                (path.as_bytes(), copy_source.as_ref().map(|s| s.as_bytes()))
             };
             // TODO: Add a way to use `write_bytes!` instead of `format_bytes!`
             // in order to stream to stdout instead of allocating an
@@ -560,7 +565,7 @@ impl DisplayStatusPaths<'_> {
             if let Some(source) = copy_source.filter(|_| !self.no_status) {
                 let label = "status.copied";
                 self.ui.write_stdout_labelled(
-                    &format_bytes!(b"  {}\n", source.as_bytes()),
+                    &format_bytes!(b"  {}\n", source),
                     label,
                 )?
             }
