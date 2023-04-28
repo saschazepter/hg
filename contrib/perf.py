@@ -1900,6 +1900,57 @@ def perfstartup(ui, repo, **opts):
     fm.end()
 
 
+@command(
+    b'perf::stream-locked-section',
+    [
+        (
+            b'',
+            b'stream-version',
+            b'latest',
+            b'stream version to us ("v1", "v2" or "latest", (the default))',
+        ),
+    ]
+    + formatteropts,
+)
+def perf_stream_clone_scan(ui, repo, stream_version, **opts):
+    """benchmark the initial, repo-locked, section of a stream-clone"""
+    import mercurial.streamclone
+
+    generatev1 = mercurial.streamclone.generatev1
+    generatev2 = mercurial.streamclone.generatev2
+
+    opts = _byteskwargs(opts)
+    timer, fm = gettimer(ui, opts)
+
+    # deletion of the generator may trigger some cleanup that we do not want to
+    # measure
+    result_holder = [None]
+
+    def setupone():
+        result_holder[0] = None
+
+    def runone_v1():
+        # the lock is held for the duration the initialisation
+        result_holder[0] = generatev1(repo)
+
+    def runone_v2():
+        # the lock is held for the duration the initialisation
+        result_holder[0] = generatev2(repo, None, None, True)
+
+    if stream_version == b'latest':
+        runone = runone_v2
+    elif stream_version == b'v2':
+        runone = runone_v2
+    elif stream_version == b'v1':
+        runone = runone_v1
+    else:
+        msg = b'unknown stream version: "%s"' % stream_version
+        raise error.Abort(msg)
+
+    timer(runone, setup=setupone, title=b"load")
+    fm.end()
+
+
 @command(b'perf::parents|perfparents', formatteropts)
 def perfparents(ui, repo, **opts):
     """benchmark the time necessary to fetch one changeset's parents.
