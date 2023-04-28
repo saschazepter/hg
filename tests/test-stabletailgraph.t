@@ -29,7 +29,7 @@ Enable the rank computation to test sorting based on the rank.
   > 
   > [alias]
   > test-sts = debug::stable-tail-sort -T '{tags},'
-  > test-log = log --graph -T '{tags} rank={_fast_rank}'
+  > test-log = log --graph -T '{tags} rank={_fast_rank}' --rev 'tagged()'
   > EOF
 
 
@@ -59,18 +59,14 @@ appears first in stable-tail sort of "e" and "f".
   $ cd example-1
   $ hg debugbuilddag '.:a*a:b*b:c<b+2:d*c/d:e*e:f.'
   $ hg test-log
-  o  tip rank=8
-  |
   o  f rank=7
   |
   o    e rank=6
   |\
   | o  d rank=4
-  | |
-  | o   rank=3
-  | |
-  o |  c rank=3
-  |/
+  | :
+  o :  c rank=3
+  :/
   o  b rank=2
   |
   o  a rank=1
@@ -125,32 +121,18 @@ This is an expected property of the sort.
   $ cd example-2
   $ hg debugbuilddag '.:a*a:b*b:c<b+2:d*c/d:e<a+6:f*e/f:g.'
   $ hg test-log
-  o  tip rank=14
-  |
   o    g rank=13
   |\
   | o  f rank=7
-  | |
-  | o   rank=6
-  | |
-  | o   rank=5
-  | |
-  | o   rank=4
-  | |
-  | o   rank=3
-  | |
-  | o   rank=2
-  | |
-  o |    e rank=6
+  | :
+  o :    e rank=6
   |\ \
-  | o |  d rank=4
-  | | |
-  | o |   rank=3
-  | | |
-  o | |  c rank=3
-  |/ /
+  | o :  d rank=4
+  | : :
+  o : :  c rank=3
+  :/ /
   o /  b rank=2
-  |/
+  :/
   o  a rank=1
   
 Display the sort of "e" for reference
@@ -199,24 +181,16 @@ ordering.
   $ cd example-3
   $ hg debugbuilddag '.:a*a:b<a+2:c*b/c:d<c+3:e*d/e:f.'
   $ hg test-log
-  o  tip rank=10
-  |
   o    f rank=9
   |\
   | o  e rank=6
-  | |
-  | o   rank=5
-  | |
-  | o   rank=4
-  | |
-  o |  d rank=5
-  |\|
+  | :
+  o :  d rank=5
+  |\:
   | o  c rank=3
-  | |
-  | o   rank=2
-  | |
-  o |  b rank=2
-  |/
+  | :
+  o :  b rank=2
+  :/
   o  a rank=1
   
 
@@ -266,25 +240,15 @@ The sort of "d" is partially reused for the ordering of the exclusive part of
   $ cd example-4
   $ hg debugbuilddag '.:a*a+1:b<a+1:c*b/c:d<c+4:e*d/e:f.'
   $ hg test-log
-  o  tip rank=11
-  |
   o    f rank=10
   |\
   | o  e rank=6
-  | |
-  | o   rank=5
-  | |
-  | o   rank=4
-  | |
-  | o   rank=3
-  | |
-  o |  d rank=5
-  |\|
+  | :
+  o :  d rank=5
+  |\:
   | o  c rank=2
   | |
   o |  b rank=3
-  | |
-  o |   rank=2
   |/
   o  a rank=1
   
@@ -333,33 +297,17 @@ So, we need to leap in the middle of the exclusive part of "d".
   $ cd example-5
   $ hg debugbuilddag '.:a*a+2:b<a+1:c+1:g*b/g:d<c+6:e*d/e:f.'
   $ hg test-log
-  o  tip rank=15
-  |
   o    f rank=14
   |\
   | o  e rank=8
-  | |
-  | o   rank=7
-  | |
-  | o   rank=6
-  | |
-  | o   rank=5
-  | |
-  | o   rank=4
-  | |
-  | o   rank=3
-  | |
-  o |    d rank=7
+  | :
+  o :    d rank=7
   |\ \
-  | o |  g rank=3
-  | |/
+  | o :  g rank=3
+  | :/
   | o  c rank=2
   | |
   o |  b rank=4
-  | |
-  o |   rank=3
-  | |
-  o |   rank=2
   |/
   o  a rank=1
   
@@ -407,8 +355,6 @@ We check that the stable-tail sort delegates properly after the exclusive part.
   $ cd example-6
   $ hg debugbuilddag '.:a*a:b<a+3:c*b:d*b:e*e/c:f*d/f:g.'
   $ hg test-log
-  o  tip rank=10
-  |
   o    g rank=9
   |\
   | o    f rank=7
@@ -418,13 +364,9 @@ We check that the stable-tail sort delegates properly after the exclusive part.
   o---+  d rank=3
    / /
   o |  c rank=4
-  | |
-  o |   rank=3
-  | |
-  o |   rank=2
-  | |
-  | o  b rank=2
-  |/
+  : |
+  : o  b rank=2
+  :/
   o  a rank=1
   
 
@@ -479,8 +421,6 @@ happen when iterating over excl(j) and has to be postponed to excl(k).
   $ hg debugbuilddag \
   > '.:a*a:b*b:c*c:d*d:e*b:f<f+3:g<d+2:h<a+6:i*e/g:j*h/i:k*j/k:l.'
   $ hg test-log
-  o  tip rank=21
-  |
   o    l rank=20
   |\
   | o    k rank=13
@@ -488,37 +428,21 @@ happen when iterating over excl(j) and has to be postponed to excl(k).
   o \ \    j rank=10
   |\ \ \
   | | | o  i rank=7
-  | | | |
-  | | | o   rank=6
-  | | | |
-  | | | o   rank=5
-  | | | |
-  | | | o   rank=4
-  | | | |
-  | | | o   rank=3
-  | | | |
-  | | | o   rank=2
-  | | | |
-  | | o |  h rank=6
-  | | | |
-  | | o |   rank=5
-  | | | |
-  | o | |  g rank=6
-  | | | |
-  | o | |   rank=5
-  | | | |
-  | o | |   rank=4
-  | | | |
-  | o | |  f rank=3
-  | | | |
-  o---+ |  e rank=5
+  | | | :
+  | | o :  h rank=6
+  | | : :
+  | o : :  g rank=6
+  | : : :
+  | o : :  f rank=3
+  | | : :
+  o---+ :  e rank=5
    / / /
-  | o |  d rank=4
-  | | |
-  | o |  c rank=3
+  | o :  d rank=4
+  | | :
+  | o :  c rank=3
   |/ /
   o /  b rank=2
-  |/
+  :/
   o  a rank=1
   
 
@@ -574,34 +498,24 @@ happen when iterating over inherited(g) and has to be postponed to excl(i).
   $ cd example-8
   $ hg debugbuilddag '.:a*a:b*b:c*b:d*d:e*e:f*c/f:g<a+5:h*e/h:i*g/i:j.'
   $ hg test-log
-  o  tip rank=15
-  |
   o    j rank=14
   |\
   | o    i rank=10
   | |\
   | | o  h rank=6
-  | | |
-  | | o   rank=5
-  | | |
-  | | o   rank=4
-  | | |
-  | | o   rank=3
-  | | |
-  | | o   rank=2
-  | | |
-  o | |    g rank=7
+  | | :
+  o | :    g rank=7
   |\ \ \
-  | o | |  f rank=5
+  | o | :  f rank=5
   | |/ /
-  | o |  e rank=4
-  | | |
-  | o |  d rank=3
-  | | |
-  o | |  c rank=3
+  | o :  e rank=4
+  | | :
+  | o :  d rank=3
+  | | :
+  o | :  c rank=3
   |/ /
   o /  b rank=2
-  |/
+  :/
   o  a rank=1
   
 
@@ -660,8 +574,6 @@ postponed when considering sort(k).
   $ cd example-9
   $ hg debugbuilddag '.:a*a:b*b:c*a:d*d:e*e:f<b+2:g<d+3:h*c/f:i*g/h:j*i/j:k.'
   $ hg test-log
-  o  tip rank=15
-  |
   o    k rank=14
   |\
   | o    j rank=9
@@ -669,23 +581,17 @@ postponed when considering sort(k).
   o \ \    i rank=7
   |\ \ \
   | | | o  h rank=5
-  | | | |
-  | | | o   rank=4
-  | | | |
-  | | | o   rank=3
-  | | | |
-  | | o |  g rank=4
-  | | | |
-  | | o |   rank=3
-  | | | |
-  | o | |  f rank=4
-  | | | |
+  | | | :
+  | | o :  g rank=4
+  | | : :
+  | o : :  f rank=4
+  | | : :
   | o---+  e rank=3
   |  / /
-  | | o  d rank=2
-  | | |
-  o | |  c rank=3
-  |/ /
+  | : o  d rank=2
+  | : |
+  o : |  c rank=3
+  :/ /
   o /  b rank=2
   |/
   o  a rank=1
