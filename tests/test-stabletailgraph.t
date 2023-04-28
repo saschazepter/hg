@@ -8,7 +8,7 @@ sort functions are tested.
 
 Each case consists of the creation of the interesting graph structure, followed
 by a check, for each noteworthy node, of:
-- the stable-tail sort output.
+- the stable-tail sort output (with the linear parts globbed).
 
 In the ASCII art of the diagrams, the side of the exclusive part which is
 followed in priority is denoted with "<" or ">" if it is on the left or right
