@@ -76,13 +76,29 @@ setup a repository for tests
 
   $ hg init troffset-computation
   $ cd troffset-computation
-  $ printf '%20d' '1' > file
+  $ files="
+  > file
+  > Directory_With,Special%Char/Complex_File.babar
+  > foo/bar/babar_celeste/foo
+  > "
+  $ for f in $files; do
+  >     mkdir -p `dirname $f`
+  > done
+  $ for f in $files; do
+  >     printf '%20d' '1' > $f
+  > done
   $ hg commit -Aqma
-  $ printf '%1024d' '1' > file
+  $ for f in $files; do
+  >     printf '%1024d' '1' > $f
+  > done
   $ hg commit -Aqmb
-  $ printf '%20d' '1' > file
+  $ for f in $files; do
+  >     printf '%20d' '1' > $f
+  > done
   $ hg commit -Aqmc
-  $ dd if=/dev/zero of=file bs=1k count=128 > /dev/null 2>&1
+  $ for f in $files; do
+  >     dd if=/dev/zero of=$f bs=1k count=128 > /dev/null 2>&1
+  > done
   $ hg commit -AqmD --traceback
 
 Reference size:
@@ -163,7 +179,7 @@ recover is rolling the split back, the fncache is still valid
   $ f -s .hg/store/data/file*
   .hg/store/data/file.i: size=1174
   $ hg tip
-  changeset:   1:cfa8d6e60429
+  changeset:   1:272bd31be9b8
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -233,7 +249,7 @@ recover is rolling the split back, the fncache is still valid
   $ f -s .hg/store/data/file*
   .hg/store/data/file.i: size=1174
   $ hg tip
-  changeset:   1:cfa8d6e60429
+  changeset:   1:272bd31be9b8
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -297,7 +313,7 @@ recover is rolling the split back, the fncache is still valid
   $ f -s .hg/store/data/file*
   .hg/store/data/file.i: size=1174
   $ hg tip
-  changeset:   1:cfa8d6e60429
+  changeset:   1:272bd31be9b8
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -337,7 +353,7 @@ The split was rollback
 
 
   $ hg tip
-  changeset:   1:cfa8d6e60429
+  changeset:   1:272bd31be9b8
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
