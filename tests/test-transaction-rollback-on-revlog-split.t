@@ -1,6 +1,9 @@
 Test correctness of revlog inline -> non-inline transition
 ----------------------------------------------------------
 
+We test various file length and naming pattern as this created issue in the
+past.
+
 Helper extension to intercept renames and kill process
 
   $ cat > $TESTTMP/intercept_before_rename.py << EOF
@@ -80,6 +83,7 @@ setup a repository for tests
   > file
   > Directory_With,Special%Char/Complex_File.babar
   > foo/bar/babar_celeste/foo
+  > 1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/f
   > "
   $ for f in $files; do
   >     mkdir -p `dirname $f`
@@ -179,7 +183,7 @@ recover is rolling the split back, the fncache is still valid
   $ f -s .hg/store/data/file*
   .hg/store/data/file.i: size=1174
   $ hg tip
-  changeset:   1:272bd31be9b8
+  changeset:   1:cc8dfb126534
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -249,7 +253,7 @@ recover is rolling the split back, the fncache is still valid
   $ f -s .hg/store/data/file*
   .hg/store/data/file.i: size=1174
   $ hg tip
-  changeset:   1:272bd31be9b8
+  changeset:   1:cc8dfb126534
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -313,7 +317,7 @@ recover is rolling the split back, the fncache is still valid
   $ f -s .hg/store/data/file*
   .hg/store/data/file.i: size=1174
   $ hg tip
-  changeset:   1:272bd31be9b8
+  changeset:   1:cc8dfb126534
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -353,7 +357,7 @@ The split was rollback
 
 
   $ hg tip
-  changeset:   1:272bd31be9b8
+  changeset:   1:cc8dfb126534
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
