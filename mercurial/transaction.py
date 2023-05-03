@@ -314,7 +314,7 @@ class transaction(util.transactional):
         self._abortcallback = {}
 
     def __repr__(self):
-        name = '/'.join(self._names)
+        name = b'/'.join(self._names)
         return '<transaction name=%s, count=%d, usages=%d>' % (
             name,
             self._count,
