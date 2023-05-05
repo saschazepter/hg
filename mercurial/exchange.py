@@ -1278,18 +1278,18 @@ def _pushchangeset(pushop):
     ):
         # push everything,
         # use the fast path, no race possible on push
-        cg = changegroup.makechangegroup(
-            pushop.repo,
-            outgoing,
-            b'01',
-            b'push',
-            fastpath=True,
-            bundlecaps=bundlecaps,
-        )
+        fastpath = True
     else:
-        cg = changegroup.makechangegroup(
-            pushop.repo, outgoing, b'01', b'push', bundlecaps=bundlecaps
-        )
+        fastpath = False
+
+    cg = changegroup.makechangegroup(
+        pushop.repo,
+        outgoing,
+        b'01',
+        b'push',
+        fastpath=fastpath,
+        bundlecaps=bundlecaps,
+    )
 
     # apply changegroup to remote
     # local repo finds heads on server, finds out what
