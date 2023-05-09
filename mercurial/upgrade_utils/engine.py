@@ -655,9 +655,14 @@ def upgrade_dirstate(ui, srcrepo, upgrade_op, old, new):
             pass
 
     assert srcrepo.dirstate._use_dirstate_v2 == (old == b'v2')
+    use_v2 = new == b'v2'
+    if use_v2:
+        # Write the requirements *before* upgrading
+        scmutil.writereporequirements(srcrepo, upgrade_op.new_requirements)
+
     srcrepo.dirstate._map.preload()
-    srcrepo.dirstate._use_dirstate_v2 = new == b'v2'
-    srcrepo.dirstate._map._use_dirstate_v2 = srcrepo.dirstate._use_dirstate_v2
+    srcrepo.dirstate._use_dirstate_v2 = use_v2
+    srcrepo.dirstate._map._use_dirstate_v2 = use_v2
     srcrepo.dirstate._dirty = True
     try:
         srcrepo.vfs.unlink(b'dirstate')
@@ -667,8 +672,9 @@ def upgrade_dirstate(ui, srcrepo, upgrade_op, old, new):
         pass
 
     srcrepo.dirstate.write(None)
-
-    scmutil.writereporequirements(srcrepo, upgrade_op.new_requirements)
+    if not use_v2:
+        # Remove the v2 requirement *after* downgrading
+        scmutil.writereporequirements(srcrepo, upgrade_op.new_requirements)
 
 
 def upgrade_tracked_hint(ui, srcrepo, upgrade_op, add):

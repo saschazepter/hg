@@ -414,6 +414,11 @@ class transaction(util.transactional):
         if vfs.exists(file):
             filepath = vfs.join(file)
             backuppath = vfs.join(backupfile)
+            # store encoding may result in different directory here.
+            # so we have to ensure the destination directory exist
+            final_dir_name = os.path.dirname(backuppath)
+            util.makedirs(final_dir_name, mode=vfs.createmode, notindexed=True)
+            # then we can copy the backup
             util.copyfile(filepath, backuppath, hardlink=hardlink)
         else:
             backupfile = b''
