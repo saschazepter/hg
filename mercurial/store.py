@@ -453,7 +453,7 @@ FILETYPE_FILELOG_OTHER = FILEFLAGS_FILELOG | FILEFLAGS_REVLOG_OTHER
 FILETYPE_OTHER = FILEFLAGS_OTHER
 
 
-@attr.s(slots=True)
+@attr.s(slots=True, init=False)
 class BaseStoreEntry:
     """An entry in the store
 
@@ -462,6 +462,16 @@ class BaseStoreEntry:
     unencoded_path = attr.ib()
     is_volatile = attr.ib(default=False)
     file_size = attr.ib(default=None)
+
+    def __init__(
+        self,
+        unencoded_path,
+        is_volatile=False,
+        file_size=None,
+    ):
+        self.unencoded_path = unencoded_path
+        self.is_volatile = is_volatile
+        self.file_size = file_size
 
     def files(self):
         return [
@@ -473,20 +483,36 @@ class BaseStoreEntry:
         ]
 
 
-@attr.s(slots=True)
+@attr.s(slots=True, init=False)
 class SimpleStoreEntry(BaseStoreEntry):
     """A generic entry in the store"""
 
     is_revlog = False
 
 
-@attr.s(slots=True)
+@attr.s(slots=True, init=False)
 class RevlogStoreEntry(BaseStoreEntry):
     """A revlog entry in the store"""
 
     is_revlog = True
     revlog_type = attr.ib(default=None)
     is_revlog_main = attr.ib(default=None)
+
+    def __init__(
+        self,
+        unencoded_path,
+        revlog_type,
+        is_revlog_main=False,
+        is_volatile=False,
+        file_size=None,
+    ):
+        super().__init__(
+            unencoded_path=unencoded_path,
+            is_volatile=is_volatile,
+            file_size=file_size,
+        )
+        self.revlog_type = revlog_type
+        self.is_revlog_main = is_revlog_main
 
 
 @attr.s(slots=True)
