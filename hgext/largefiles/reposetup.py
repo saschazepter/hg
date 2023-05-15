@@ -458,7 +458,8 @@ def reposetup(ui, repo):
     def checkrequireslfiles(ui, repo, **kwargs):
         with repo.lock():
             if b'largefiles' not in repo.requirements and any(
-                lfutil.shortname + b'/' in f[1] for f in repo.store.datafiles()
+                lfutil.shortname + b'/' in entry.unencoded_path
+                for entry in repo.store.datafiles()
             ):
                 repo.requirements.add(b'largefiles')
                 scmutil.writereporequirements(repo)
