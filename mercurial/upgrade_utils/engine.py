@@ -105,18 +105,18 @@ UPGRADE_ALL_REVLOGS = frozenset(
 )
 
 
-def matchrevlog(revlogfilter, rl_type):
+def matchrevlog(revlogfilter, entry):
     """check if a revlog is selected for cloning.
 
     In other words, are there any updates which need to be done on revlog
     or it can be blindly copied.
 
     The store entry is checked against the passed filter"""
-    if rl_type & store.FILEFLAGS_CHANGELOG:
+    if entry.is_changelog:
         return UPGRADE_CHANGELOG in revlogfilter
-    elif rl_type & store.FILEFLAGS_MANIFESTLOG:
+    elif entry.is_manifestlog:
         return UPGRADE_MANIFEST in revlogfilter
-    assert rl_type & store.FILEFLAGS_FILELOG
+    assert entry.is_filelog
     return UPGRADE_FILELOGS in revlogfilter
 
 
@@ -133,7 +133,7 @@ def _perform_clone(
     """returns the new revlog object created"""
     newrl = None
     revlog_path = entry.main_file_path()
-    if matchrevlog(upgrade_op.revlogs_to_process, entry.revlog_type):
+    if matchrevlog(upgrade_op.revlogs_to_process, entry):
         ui.note(
             _(b'cloning %d revisions from %s\n')
             % (len(old_revlog), revlog_path)
