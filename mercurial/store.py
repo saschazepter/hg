@@ -466,6 +466,24 @@ class StoreEntry:
     is_volatile = attr.ib(default=False)
     file_size = attr.ib(default=None)
 
+    def files(self):
+        return [
+            StoreFile(
+                unencoded_path=self.unencoded_path,
+                file_size=self.file_size,
+                is_volatile=self.is_volatile,
+            )
+        ]
+
+
+@attr.s(slots=True)
+class StoreFile:
+    """a file matching an entry"""
+
+    unencoded_path = attr.ib()
+    file_size = attr.ib()
+    is_volatile = attr.ib(default=False)
+
 
 class basicstore:
     '''base class for local repository stores'''
