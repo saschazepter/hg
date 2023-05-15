@@ -602,7 +602,7 @@ class basicstore:
     def join(self, f):
         return self.path + b'/' + encodedir(f)
 
-    def _walk(self, relpath, recurse):
+    def _walk(self, relpath, recurse, undecodable=None):
         '''yields (revlog_type, unencoded, size)'''
         path = self.path
         if relpath:
@@ -651,7 +651,7 @@ class basicstore:
             (b'meta', FILEFLAGS_MANIFESTLOG),
         ]
         for base_dir, rl_type in dirs:
-            files = self._walk(base_dir, True)
+            files = self._walk(base_dir, True, undecodable=undecodable)
             files = (f for f in files if f[1][0] is not None)
             for revlog, details in _gather_revlog(files):
                 for ext, (t, s) in sorted(details.items()):
@@ -755,17 +755,11 @@ class encodedstore(basicstore):
         self.vfs = vfsmod.filtervfs(vfs, encodefilename)
         self.opener = self.vfs
 
-    # note: topfiles would also need a decode phase. It is just that in
-    # practice we do not have any file outside of `data/` that needs encoding.
-    # However that might change so we should probably add a test and encoding
-    # decoding for it too. see issue6548
-
-    def datafiles(
-        self, matcher=None, undecodable=None
-    ) -> Generator[BaseStoreEntry, None, None]:
-        for entry in super(encodedstore, self).datafiles():
+    def _walk(self, relpath, recurse, undecodable=None):
+        old = super()._walk(relpath, recurse)
+        new = []
+        for f1, value in old:
             try:
-                f1 = entry.unencoded_path
                 f2 = decodefilename(f1)
             except KeyError:
                 if undecodable is None:
@@ -774,10 +768,16 @@ class encodedstore(basicstore):
                 else:
                     undecodable.append(f1)
                     continue
-            if not _matchtrackedpath(f2, matcher):
-                continue
-            entry.unencoded_path = f2
-            yield entry
+            new.append((f2, value))
+        return new
+
+    def datafiles(
+        self, matcher=None, undecodable=None
+    ) -> Generator[BaseStoreEntry, None, None]:
+        entries = super(encodedstore, self).datafiles(undecodable=undecodable)
+        for entry in entries:
+            if _matchtrackedpath(entry.unencoded_path, matcher):
+                yield entry
 
     def join(self, f):
         return self.path + b'/' + encodefilename(f)
