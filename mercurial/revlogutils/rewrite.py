@@ -808,8 +808,6 @@ def filter_delta_issue6528(revlog, deltas_iter):
 def repair_issue6528(
     ui, repo, dry_run=False, to_report=None, from_report=None, paranoid=False
 ):
-    from .. import store  # avoid cycle
-
     @contextlib.contextmanager
     def context():
         if dry_run or to_report:  # No need for locking
@@ -827,9 +825,7 @@ def repair_issue6528(
         files = list(
             entry
             for entry in repo.store.datafiles()
-            if (
-                entry.is_revlog and entry.revlog_type == store.FILEFLAGS_FILELOG
-            )
+            if entry.is_revlog and entry.is_filelog
         )
 
         progress = ui.makeprogress(
