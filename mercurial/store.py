@@ -464,6 +464,13 @@ class BaseStoreEntry:
 
     This is returned by `store.walk` and represent some data in the store."""
 
+
+@attr.s(slots=True, init=False)
+class SimpleStoreEntry(BaseStoreEntry):
+    """A generic entry in the store"""
+
+    is_revlog = False
+
     _entry_path = attr.ib()
     _is_volatile = attr.ib(default=False)
     _file_size = attr.ib(default=None)
@@ -474,6 +481,7 @@ class BaseStoreEntry:
         is_volatile=False,
         file_size=None,
     ):
+        super().__init__()
         self._entry_path = entry_path
         self._is_volatile = is_volatile
         self._file_size = file_size
@@ -489,42 +497,41 @@ class BaseStoreEntry:
 
 
 @attr.s(slots=True, init=False)
-class SimpleStoreEntry(BaseStoreEntry):
-    """A generic entry in the store"""
-
-    is_revlog = False
-
-
-@attr.s(slots=True, init=False)
 class RevlogStoreEntry(BaseStoreEntry):
     """A revlog entry in the store"""
 
     is_revlog = True
+
     revlog_type = attr.ib(default=None)
     target_id = attr.ib(default=None)
-    is_revlog_main = attr.ib(default=None)
+    _path_prefix = attr.ib(default=None)
+    _details = attr.ib(default=None)
 
     def __init__(
         self,
-        entry_path,
         revlog_type,
+        path_prefix,
         target_id,
-        is_revlog_main=False,
-        is_volatile=False,
-        file_size=None,
+        details,
     ):
-        super().__init__(
-            entry_path=entry_path,
-            is_volatile=is_volatile,
-            file_size=file_size,
-        )
+        super().__init__()
         self.revlog_type = revlog_type
         self.target_id = target_id
-        self.is_revlog_main = is_revlog_main
+        self._path_prefix = path_prefix
+        assert b'.i' in details, (path_prefix, details)
+        self._details = details
 
     def main_file_path(self):
         """unencoded path of the main revlog file"""
-        return self._entry_path
+        return self._path_prefix + b'.i'
+
+    def files(self):
+        files = []
+        for ext in sorted(self._details, key=_ext_key):
+            path = self._path_prefix + ext
+            data = self._details[ext]
+            files.append(StoreFile(unencoded_path=path, **data))
+        return files
 
 
 @attr.s(slots=True)
@@ -532,7 +539,7 @@ class StoreFile:
     """a file matching an entry"""
 
     unencoded_path = attr.ib()
-    _file_size = attr.ib(default=False)
+    _file_size = attr.ib(default=None)
     is_volatile = attr.ib(default=False)
 
     def file_size(self, vfs):
@@ -652,17 +659,19 @@ class basicstore:
             files = self._walk(base_dir, True, undecodable=undecodable)
             files = (f for f in files if f[1][0] is not None)
             for revlog, details in _gather_revlog(files):
+                file_details = {}
+                revlog_target_id = revlog.split(b'/', 1)[1]
                 for ext, (t, s) in sorted(details.items()):
-                    u = revlog + ext
-                    revlog_target_id = revlog.split(b'/', 1)[1]
-                    yield RevlogStoreEntry(
-                        entry_path=u,
-                        revlog_type=rl_type,
-                        target_id=revlog_target_id,
-                        is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
-                        is_volatile=bool(t & FILEFLAGS_VOLATILE),
-                        file_size=s,
-                    )
+                    file_details[ext] = {
+                        'is_volatile': bool(t & FILEFLAGS_VOLATILE),
+                        'file_size': s,
+                    }
+                yield RevlogStoreEntry(
+                    path_prefix=revlog,
+                    revlog_type=rl_type,
+                    target_id=revlog_target_id,
+                    details=file_details,
+                )
 
     def topfiles(self) -> Generator[BaseStoreEntry, None, None]:
         files = reversed(self._walk(b'', False))
@@ -692,18 +701,18 @@ class basicstore:
         assert len(changelogs) <= 1
         for data, revlog_type in top_rl:
             for revlog, details in sorted(data.items()):
-                # (keeping ordering so we get 00changelog.i last)
-                key = lambda x: _ext_key(x[0])
-                for ext, (t, s) in sorted(details.items(), key=key):
-                    u = revlog + ext
-                    yield RevlogStoreEntry(
-                        entry_path=u,
-                        revlog_type=revlog_type,
-                        target_id=b'',
-                        is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
-                        is_volatile=bool(t & FILEFLAGS_VOLATILE),
-                        file_size=s,
-                    )
+                file_details = {}
+                for ext, (t, s) in details.items():
+                    file_details[ext] = {
+                        'is_volatile': bool(t & FILEFLAGS_VOLATILE),
+                        'file_size': s,
+                    }
+                yield RevlogStoreEntry(
+                    path_prefix=revlog,
+                    revlog_type=revlog_type,
+                    target_id=b'',
+                    details=file_details,
+                )
 
     def walk(self, matcher=None) -> Generator[BaseStoreEntry, None, None]:
         """return files related to data storage (ie: revlogs)
@@ -981,6 +990,7 @@ class fncachestore(basicstore):
         files = (f for f in files if f[1] is not None)
         by_revlog = _gather_revlog(files)
         for revlog, details in by_revlog:
+            file_details = {}
             if revlog.startswith(b'data/'):
                 rl_type = FILEFLAGS_FILELOG
                 revlog_target_id = revlog.split(b'/', 1)[1]
@@ -992,17 +1002,18 @@ class fncachestore(basicstore):
             else:
                 # unreachable
                 assert False, revlog
-            for ext, t in sorted(details.items()):
-                f = revlog + ext
-                entry = RevlogStoreEntry(
-                    entry_path=f,
-                    revlog_type=rl_type,
-                    target_id=revlog_target_id,
-                    is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
-                    is_volatile=bool(t & FILEFLAGS_VOLATILE),
-                )
-                if _match_tracked_entry(entry, matcher):
-                    yield entry
+            for ext, t in details.items():
+                file_details[ext] = {
+                    'is_volatile': bool(t & FILEFLAGS_VOLATILE),
+                }
+            entry = RevlogStoreEntry(
+                path_prefix=revlog,
+                revlog_type=rl_type,
+                target_id=revlog_target_id,
+                details=file_details,
+            )
+            if _match_tracked_entry(entry, matcher):
+                yield entry
 
     def copylist(self):
         d = (

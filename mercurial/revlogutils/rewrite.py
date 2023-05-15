@@ -828,9 +828,7 @@ def repair_issue6528(
             entry
             for entry in repo.store.datafiles()
             if (
-                entry.is_revlog
-                and entry.is_revlog_main
-                and entry.revlog_type == store.FILEFLAGS_FILELOG
+                entry.is_revlog and entry.revlog_type == store.FILEFLAGS_FILELOG
             )
         )
 
