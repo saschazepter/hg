@@ -31,7 +31,6 @@ from mercurial import (
     repoview,
     requirements,
     sparse,
-    store,
     util,
     wireprototypes,
 )
@@ -292,11 +291,11 @@ def _narrow(
         for entry in repo.store.datafiles():
             if not entry.is_revlog:
                 continue
-            if entry.revlog_type == store.FILEFLAGS_FILELOG:
+            if entry.is_filelog:
                 if not newmatch(entry.target_id):
                     for file_ in entry.files():
                         todelete.append(file_.unencoded_path)
-            elif entry.revlog_type == store.FILEFLAGS_MANIFESTLOG:
+            elif entry.is_manifestlog:
                 dir = entry.target_id
                 dirs = sorted(pathutil.dirs({dir})) + [dir]
                 include = True
