@@ -5,7 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-
+import collections
 import functools
 import os
 import re
@@ -395,6 +395,13 @@ REVLOG_FILES_OTHER_EXT = (
     b'.nd',
     b'.sda',
 )
+# file extension that also use a `-SOMELONGIDHASH.ext` form
+REVLOG_FILES_LONG_EXT = (
+    b'.nd',
+    b'.idx',
+    b'.dat',
+    b'.sda',
+)
 # files that are "volatile" and might change between listing and streaming
 #
 # note: the ".nd" file are nodemap data and won't "change" but they might be
@@ -532,6 +539,30 @@ class StoreFile:
             return 0
 
 
+def _gather_revlog(files_data):
+    """group files per revlog prefix
+
+    The returns a two level nested dict. The top level key is the revlog prefix
+    without extension, the second level is all the file "suffix" that were
+    seen for this revlog and arbitrary file data as value.
+    """
+    revlogs = collections.defaultdict(dict)
+    for u, value in files_data:
+        name, ext = _split_revlog_ext(u)
+        revlogs[name][ext] = value
+    return sorted(revlogs.items())
+
+
+def _split_revlog_ext(filename):
+    """split the revlog file prefix from the variable extension"""
+    if filename.endswith(REVLOG_FILES_LONG_EXT):
+        char = b'-'
+    else:
+        char = b'.'
+    idx = filename.rfind(char)
+    return filename[:idx], filename[idx:]
+
+
 class basicstore:
     '''base class for local repository stores'''
 
@@ -592,8 +623,10 @@ class basicstore:
         be a list and the filenames that can't be decoded are added
         to it instead. This is very rarely needed."""
         files = self._walk(b'data', True) + self._walk(b'meta', True)
-        for u, (t, s) in files:
-            if t is not None:
+        files = (f for f in files if f[1][0] is not None)
+        for revlog, details in _gather_revlog(files):
+            for ext, (t, s) in sorted(details.items()):
+                u = revlog + ext
                 yield RevlogStoreEntry(
                     unencoded_path=u,
                     revlog_type=FILEFLAGS_FILELOG,
