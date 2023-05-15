@@ -461,7 +461,7 @@ class BaseStoreEntry:
 
     unencoded_path = attr.ib()
     is_volatile = attr.ib(default=False)
-    file_size = attr.ib(default=None)
+    _file_size = attr.ib(default=None)
 
     def __init__(
         self,
@@ -471,13 +471,13 @@ class BaseStoreEntry:
     ):
         self.unencoded_path = unencoded_path
         self.is_volatile = is_volatile
-        self.file_size = file_size
+        self._file_size = file_size
 
     def files(self):
         return [
             StoreFile(
                 unencoded_path=self.unencoded_path,
-                file_size=self.file_size,
+                file_size=self._file_size,
                 is_volatile=self.is_volatile,
             )
         ]
