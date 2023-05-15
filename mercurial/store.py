@@ -384,7 +384,7 @@ _data = [
     b'requires',
 ]
 
-REVLOG_FILES_MAIN_EXT = (b'.i', b'i.tmpcensored')
+REVLOG_FILES_MAIN_EXT = (b'.i',)
 REVLOG_FILES_OTHER_EXT = (
     b'.idx',
     b'.d',
@@ -392,7 +392,6 @@ REVLOG_FILES_OTHER_EXT = (
     b'.n',
     b'.nd',
     b'.sda',
-    b'd.tmpcensored',
 )
 # files that are "volatile" and might change between listing and streaming
 #
