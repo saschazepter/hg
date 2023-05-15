@@ -838,11 +838,6 @@ def repair_issue6528(
         found_nothing = True
 
         for file_type, path in files:
-            if (
-                not path.endswith(b'.i')
-                or not file_type & store.FILEFLAGS_FILELOG
-            ):
-                continue
             progress.increment()
             filename = _get_filename_from_filelog_index(path)
             fl = _filelog_from_filename(repo, filename)
