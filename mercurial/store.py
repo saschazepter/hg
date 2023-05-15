@@ -41,9 +41,9 @@ def _match_tracked_entry(entry, matcher):
 
     if matcher is None:
         return True
-    if entry.revlog_type == FILEFLAGS_FILELOG:
+    if entry.is_filelog:
         return matcher(entry.target_id)
-    elif entry.revlog_type == FILEFLAGS_MANIFESTLOG:
+    elif entry.is_manifestlog:
         return matcher.visitdir(entry.target_id.rstrip(b'/'))
     raise error.ProgrammingError(b"cannot process entry %r" % entry)
 
