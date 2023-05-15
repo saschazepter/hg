@@ -934,23 +934,23 @@ class fncachestore(basicstore):
     def datafiles(
         self, matcher=None, undecodable=None
     ) -> Generator[BaseStoreEntry, None, None]:
-        for f in sorted(self.fncache):
-            if not _matchtrackedpath(f, matcher):
-                continue
-            ef = self.encode(f)
-            t = revlog_type(f)
-            if t is None:
-                # Note: this should not be in the fncache then…
-                #
-                # However the fncache might contains such file added by
-                # previous version of Mercurial.
-                continue
-            yield RevlogStoreEntry(
-                unencoded_path=f,
-                revlog_type=FILEFLAGS_FILELOG,
-                is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
-                is_volatile=bool(t & FILEFLAGS_VOLATILE),
-            )
+        files = ((f, revlog_type(f)) for f in self.fncache)
+        # Note: all files in fncache should be revlog related, However the
+        # fncache might contains such file added by previous version of
+        # Mercurial.
+        files = (f for f in files if f[1] is not None)
+        by_revlog = _gather_revlog(files)
+        for revlog, details in by_revlog:
+            for ext, t in sorted(details.items()):
+                f = revlog + ext
+                if not _matchtrackedpath(f, matcher):
+                    continue
+                yield RevlogStoreEntry(
+                    unencoded_path=f,
+                    revlog_type=FILEFLAGS_FILELOG,
+                    is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
+                    is_volatile=bool(t & FILEFLAGS_VOLATILE),
+                )
 
     def copylist(self):
         d = (
