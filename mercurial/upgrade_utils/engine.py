@@ -90,7 +90,7 @@ def _copyrevlog(tr, destrepo, oldrl, entry):
         util.copyfile(olddata, newdata)
 
     if entry.revlog_type & store.FILEFLAGS_FILELOG:
-        unencodedname = entry.unencoded_path
+        unencodedname = entry.main_file_path()
         destrepo.svfs.fncache.add(unencodedname)
         if copydata:
             destrepo.svfs.fncache.add(unencodedname[:-2] + b'.d')
@@ -132,7 +132,7 @@ def _perform_clone(
 ):
     """returns the new revlog object created"""
     newrl = None
-    revlog_path = entry.unencoded_path
+    revlog_path = entry.main_file_path()
     if matchrevlog(upgrade_op.revlogs_to_process, entry.revlog_type):
         ui.note(
             _(b'cloning %d revisions from %s\n')
