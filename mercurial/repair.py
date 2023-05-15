@@ -24,6 +24,7 @@ from . import (
     phases,
     requirements,
     scmutil,
+    store,
     transaction,
     util,
 )
@@ -445,13 +446,12 @@ def manifestrevlogs(repo):
         # This logic is safe if treemanifest isn't enabled, but also
         # pointless, so we skip it if treemanifest isn't enabled.
         for entry in repo.store.datafiles():
-            unencoded = entry.unencoded_path
-            # XXX use the entry.revlog_type instead
-            if unencoded.startswith(b'meta/') and unencoded.endswith(
-                b'00manifest.i'
-            ):
-                dir = unencoded[5:-12]
-                yield repo.manifestlog.getstorage(dir)
+            if not entry.is_revlog:
+                continue
+            if not entry.revlog_type == store.FILEFLAGS_MANIFESTLOG:
+                continue
+            if entry.is_revlog_main:
+                yield repo.manifestlog.getstorage(entry.target_id)
 
 
 def rebuildfncache(ui, repo, only_data=False):
