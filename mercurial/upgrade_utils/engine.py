@@ -194,7 +194,7 @@ def _clonerevlogs(
     # Perform a pass to collect metadata. This validates we can open all
     # source files and allows a unified progress bar to be displayed.
     for entry in alldatafiles:
-        if not (entry.is_revlog and entry.is_revlog_main):
+        if not entry.is_revlog:
             continue
 
         rl = _revlog_from_store_entry(srcrepo, entry)

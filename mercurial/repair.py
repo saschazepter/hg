@@ -448,9 +448,7 @@ def manifestrevlogs(repo):
         for entry in repo.store.datafiles():
             if not entry.is_revlog:
                 continue
-            if not entry.revlog_type == store.FILEFLAGS_MANIFESTLOG:
-                continue
-            if entry.is_revlog_main:
+            if entry.revlog_type == store.FILEFLAGS_MANIFESTLOG:
                 yield repo.manifestlog.getstorage(entry.target_id)
 
 
