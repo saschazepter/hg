@@ -639,18 +639,23 @@ class basicstore:
         decoded cause an exception. When it is provided, it should
         be a list and the filenames that can't be decoded are added
         to it instead. This is very rarely needed."""
-        files = self._walk(b'data', True) + self._walk(b'meta', True)
-        files = (f for f in files if f[1][0] is not None)
-        for revlog, details in _gather_revlog(files):
-            for ext, (t, s) in sorted(details.items()):
-                u = revlog + ext
-                yield RevlogStoreEntry(
-                    unencoded_path=u,
-                    revlog_type=FILEFLAGS_FILELOG,
-                    is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
-                    is_volatile=bool(t & FILEFLAGS_VOLATILE),
-                    file_size=s,
-                )
+        dirs = [
+            (b'data', FILEFLAGS_FILELOG),
+            (b'meta', FILEFLAGS_MANIFESTLOG),
+        ]
+        for base_dir, rl_type in dirs:
+            files = self._walk(base_dir, True)
+            files = (f for f in files if f[1][0] is not None)
+            for revlog, details in _gather_revlog(files):
+                for ext, (t, s) in sorted(details.items()):
+                    u = revlog + ext
+                    yield RevlogStoreEntry(
+                        unencoded_path=u,
+                        revlog_type=rl_type,
+                        is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
+                        is_volatile=bool(t & FILEFLAGS_VOLATILE),
+                        file_size=s,
+                    )
 
     def topfiles(self) -> Generator[BaseStoreEntry, None, None]:
         files = reversed(self._walk(b'', False))
@@ -968,13 +973,20 @@ class fncachestore(basicstore):
         files = (f for f in files if f[1] is not None)
         by_revlog = _gather_revlog(files)
         for revlog, details in by_revlog:
+            if revlog.startswith(b'data/'):
+                rl_type = FILEFLAGS_FILELOG
+            elif revlog.startswith(b'meta/'):
+                rl_type = FILEFLAGS_MANIFESTLOG
+            else:
+                # unreachable
+                assert False, revlog
             for ext, t in sorted(details.items()):
                 f = revlog + ext
                 if not _matchtrackedpath(f, matcher):
                     continue
                 yield RevlogStoreEntry(
                     unencoded_path=f,
-                    revlog_type=FILEFLAGS_FILELOG,
+                    revlog_type=rl_type,
                     is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
                     is_volatile=bool(t & FILEFLAGS_VOLATILE),
                 )
