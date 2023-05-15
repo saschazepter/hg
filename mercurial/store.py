@@ -520,8 +520,16 @@ class StoreFile:
     """a file matching an entry"""
 
     unencoded_path = attr.ib()
-    file_size = attr.ib()
+    _file_size = attr.ib(default=False)
     is_volatile = attr.ib(default=False)
+
+    def file_size(self, vfs):
+        if self._file_size is not None:
+            return self._file_size
+        try:
+            return vfs.stat(self.unencoded_path).st_size
+        except FileNotFoundError:
+            return 0
 
 
 class basicstore:
@@ -900,16 +908,12 @@ class fncachestore(basicstore):
                 # However the fncache might contains such file added by
                 # previous version of Mercurial.
                 continue
-            try:
-                yield RevlogStoreEntry(
-                    unencoded_path=f,
-                    revlog_type=FILEFLAGS_FILELOG,
-                    is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
-                    is_volatile=bool(t & FILEFLAGS_VOLATILE),
-                    file_size=self.getsize(ef),
-                )
-            except FileNotFoundError:
-                pass
+            yield RevlogStoreEntry(
+                unencoded_path=f,
+                revlog_type=FILEFLAGS_FILELOG,
+                is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
+                is_volatile=bool(t & FILEFLAGS_VOLATILE),
+            )
 
     def copylist(self):
         d = (
