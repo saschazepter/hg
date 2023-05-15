@@ -1018,14 +1018,14 @@ No race condition
   $ hg clone -U --stream ssh://user@dummy/test-repo stream-clone --debug | egrep '00(changelog|manifest)'
   adding [s] 00manifest.n (62 bytes)
   adding [s] 00manifest-*.nd (118 KB) (glob)
+  adding [s] 00manifest.d (491 KB) (zstd no-bigendian !)
+  adding [s] 00manifest.d (452 KB) (no-zstd !)
+  adding [s] 00manifest.d (492 KB) (zstd bigendian !)
+  adding [s] 00manifest.i (313 KB)
   adding [s] 00changelog.n (62 bytes)
   adding [s] 00changelog-*.nd (118 KB) (glob)
-  adding [s] 00manifest.d (452 KB) (no-zstd !)
-  adding [s] 00manifest.d (491 KB) (zstd no-bigendian !)
-  adding [s] 00manifest.d (492 KB) (zstd bigendian !)
   adding [s] 00changelog.d (360 KB) (no-zstd !)
   adding [s] 00changelog.d (368 KB) (zstd !)
-  adding [s] 00manifest.i (313 KB)
   adding [s] 00changelog.i (313 KB)
   $ ls -1 stream-clone/.hg/store/ | egrep '00(changelog|manifest)(\.n|-.*\.nd)'
   00changelog-*.nd (glob)
@@ -1090,14 +1090,14 @@ Do a mix of clone and commit at the same time so that the file listed on disk di
   $ cat clone-output
   adding [s] 00manifest.n (62 bytes)
   adding [s] 00manifest-*.nd (118 KB) (glob)
+  adding [s] 00manifest.d (491 KB) (zstd no-bigendian !)
+  adding [s] 00manifest.d (452 KB) (no-zstd !)
+  adding [s] 00manifest.d (492 KB) (zstd bigendian !)
+  adding [s] 00manifest.i (313 KB)
   adding [s] 00changelog.n (62 bytes)
   adding [s] 00changelog-*.nd (118 KB) (glob)
-  adding [s] 00manifest.d (452 KB) (no-zstd !)
-  adding [s] 00manifest.d (491 KB) (zstd no-bigendian !)
-  adding [s] 00manifest.d (492 KB) (zstd bigendian !)
-  adding [s] 00changelog.d (360 KB) (no-zstd !)
   adding [s] 00changelog.d (368 KB) (zstd !)
-  adding [s] 00manifest.i (313 KB)
+  adding [s] 00changelog.d (360 KB) (no-zstd !)
   adding [s] 00changelog.i (313 KB)
 
 Check the result state
@@ -1195,13 +1195,13 @@ Performe the mix of clone and full refresh of the nodemap, so that the files
   $ cat clone-output-2
   adding [s] 00manifest.n (62 bytes)
   adding [s] 00manifest-*.nd (118 KB) (glob)
-  adding [s] 00changelog.n (62 bytes)
-  adding [s] 00changelog-*.nd (118 KB) (glob)
   adding [s] 00manifest.d (492 KB) (zstd !)
   adding [s] 00manifest.d (452 KB) (no-zstd !)
+  adding [s] 00manifest.i (313 KB)
+  adding [s] 00changelog.n (62 bytes)
+  adding [s] 00changelog-*.nd (118 KB) (glob)
   adding [s] 00changelog.d (360 KB) (no-zstd !)
   adding [s] 00changelog.d (368 KB) (zstd !)
-  adding [s] 00manifest.i (313 KB)
   adding [s] 00changelog.i (313 KB)
 
 Check the result.
