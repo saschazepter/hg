@@ -163,7 +163,7 @@ def onetimesetup(ui):
                                 n = util.pconvert(fp[striplen:])
                                 d = store.decodedir(n)
                                 yield store.SimpleStoreEntry(
-                                    unencoded_path=d,
+                                    entry_path=d,
                                     is_volatile=False,
                                     file_size=st.st_size,
                                 )
