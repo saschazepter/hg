@@ -173,19 +173,18 @@ def onetimesetup(ui):
 
             if scmutil.istreemanifest(repo):
                 for entry in repo.store.datafiles():
-                    u = entry.unencoded_path
-                    if u.startswith(b'meta/') and (
-                        u.endswith(b'.i') or u.endswith(b'.d')
-                    ):
+                    if not entry.is_revlog:
+                        continue
+                    if entry.revlog_type == store.FILEFLAGS_MANIFESTLOG:
                         yield entry
 
             # Return .d and .i files that do not match the shallow pattern
             match = state.match
             if match and not match.always():
                 for entry in repo.store.datafiles():
-                    u = entry.unencoded_path
-                    f = u[5:-2]  # trim data/...  and .i/.d
-                    if not state.match(f):
+                    if not entry.is_revlog:
+                        continue
+                    if not state.match(entry.target_id):
                         yield entry
 
             for x in repo.store.topfiles():
