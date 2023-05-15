@@ -52,7 +52,7 @@ Prepare repo r1:
   1 r1/.hg/store/phaseroots
   1 r1/.hg/store/requires
   1 r1/.hg/store/undo
-  1 r1/.hg/store/undo.backup.fncache (repofncache !)
+  1 r1/.hg/store/undo.backup.fncache.bck (repofncache !)
   1 r1/.hg/store/undo.backupfiles
 
 
@@ -93,7 +93,7 @@ Repos r1 and r2 should now contain hardlinked files:
   1 r1/.hg/store/phaseroots
   1 r1/.hg/store/requires
   1 r1/.hg/store/undo
-  1 r1/.hg/store/undo.backup.fncache (repofncache !)
+  1 r1/.hg/store/undo.backup.fncache.bck (repofncache !)
   1 r1/.hg/store/undo.backupfiles
 
   $ nlinksdir r2/.hg/store
@@ -252,8 +252,8 @@ r4 has hardlinks in the working dir (not just inside .hg):
   2 r4/.hg/store/requires
   2 r4/.hg/store/undo
   2 r4/.hg/store/undo.backupfiles
-  [24] r4/.hg/undo.backup.branch (re)
-  2 r4/\.hg/undo\.backup\.dirstate (re)
+  [24] r4/.hg/undo.backup.branch.bck (re)
+  2 r4/\.hg/undo\.backup\.dirstate.bck (re)
   2 r4/.hg/undo.desc
   2 r4/.hg/wcache/checkisexec (execbit !)
   2 r4/.hg/wcache/checklink-target (symlink !)
@@ -266,9 +266,9 @@ r4 has hardlinks in the working dir (not just inside .hg):
 
 Update back to revision 12 in r4 should break hardlink of file f1 and f3:
 #if hardlink-whitelisted
-  $ nlinksdir r4/.hg/undo.backup.dirstate r4/.hg/dirstate
+  $ nlinksdir r4/.hg/undo.backup.dirstate.bck r4/.hg/dirstate
   2 r4/.hg/dirstate
-  2 r4/.hg/undo.backup.dirstate
+  2 r4/.hg/undo.backup.dirstate.bck
 #endif
 
 
@@ -305,8 +305,8 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
   2 r4/.hg/store/requires
   2 r4/.hg/store/undo
   2 r4/.hg/store/undo.backupfiles
-  [23] r4/.hg/undo.backup.branch (re)
-  2 r4/\.hg/undo\.backup\.dirstate (re)
+  [23] r4/.hg/undo.backup.branch.bck (re)
+  2 r4/\.hg/undo\.backup\.dirstate.bck (re)
   2 r4/.hg/undo.desc
   2 r4/.hg/wcache/checkisexec (execbit !)
   2 r4/.hg/wcache/checklink-target (symlink !)
@@ -319,9 +319,9 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
   2 r4/f3 (no-execbit !)
 
 #if hardlink-whitelisted
-  $ nlinksdir r4/.hg/undo.backup.dirstate r4/.hg/dirstate
+  $ nlinksdir r4/.hg/undo.backup.dirstate.bck r4/.hg/dirstate
   1 r4/.hg/dirstate
-  2 r4/.hg/undo.backup.dirstate
+  2 r4/.hg/undo.backup.dirstate.bck
 #endif
 
 Test hardlinking outside hg:

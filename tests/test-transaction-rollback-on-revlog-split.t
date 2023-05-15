@@ -172,7 +172,7 @@ A "temporary file" entry exist for the split index.
   data/file.i 1174
   data/file.d 0
   $ cat .hg/store/journal.backupfiles | tr -s '\000' ' ' | tr -s '\00' ' '| grep data/file
-   data/file.i data/journal.backup.file.i 0
+   data/file.i data/journal.backup.file.i.bck 0
    data/file.i.s 0
 
 recover is rolling the split back, the fncache is still valid
