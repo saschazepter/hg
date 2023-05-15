@@ -2060,10 +2060,6 @@ class revlog:
             opener = self.opener
             weak_self = weakref.ref(self)
 
-            fncache = getattr(opener, 'fncache', None)
-            if fncache is not None:
-                fncache.addignore(new_index_file_path)
-
             # the "split" index replace the real index when the transaction is finalized
             def finalize_callback(tr):
                 opener.rename(
