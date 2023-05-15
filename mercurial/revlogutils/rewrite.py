@@ -825,9 +825,13 @@ def repair_issue6528(
 
     with context():
         files = list(
-            (file_type, path)
-            for (file_type, path, _s) in repo.store.datafiles()
-            if path.endswith(b'.i') and file_type & store.FILEFLAGS_FILELOG
+            entry
+            for entry in repo.store.datafiles()
+            if (
+                entry.unencoded_path.endswith(b'.i')
+                and entry.is_revlog
+                and entry.revlog_type == store.FILEFLAGS_FILELOG
+            )
         )
 
         progress = ui.makeprogress(
@@ -837,7 +841,8 @@ def repair_issue6528(
         )
         found_nothing = True
 
-        for file_type, path in files:
+        for entry in files:
+            path = entry.unencoded_path
             progress.increment()
             filename = _get_filename_from_filelog_index(path)
             fl = _filelog_from_filename(repo, filename)
