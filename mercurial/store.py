@@ -732,8 +732,10 @@ class _fncachevfs(vfsmod.proxyvfs):
 
     def __call__(self, path, mode=b'r', *args, **kw):
         encoded = self.encode(path)
-        if mode not in (b'r', b'rb') and (
-            path.startswith(b'data/') or path.startswith(b'meta/')
+        if (
+            mode not in (b'r', b'rb')
+            and (path.startswith(b'data/') or path.startswith(b'meta/'))
+            and revlog_type(path) is not None
         ):
             # do not trigger a fncache load when adding a file that already is
             # known to exist.
