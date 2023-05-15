@@ -47,11 +47,13 @@ def get_sidedata_helpers(srcrepo, dstrepo):
     return sidedatamod.get_sidedata_helpers(srcrepo, dstrepo._wanted_sidedata)
 
 
-def _revlogfrompath(repo, rl_type, path):
-    """Obtain a revlog from a repo path.
+def _revlog_from_store_entry(repo, entry):
+    """Obtain a revlog from a repo store entry.
 
     An instance of the appropriate class is returned.
     """
+    rl_type = entry.revlog_type
+    path = entry.unencoded_path
     if rl_type & store.FILEFLAGS_CHANGELOG:
         return changelog.changelog(repo.svfs)
     elif rl_type & store.FILEFLAGS_MANIFESTLOG:
@@ -72,7 +74,7 @@ def _revlogfrompath(repo, rl_type, path):
         return filelog.filelog(repo.svfs, path)
 
 
-def _copyrevlog(tr, destrepo, oldrl, rl_type, unencodedname):
+def _copyrevlog(tr, destrepo, oldrl, entry):
     """copy all relevant files for `oldrl` into `destrepo` store
 
     Files are copied "as is" without any transformation. The copy is performed
@@ -80,7 +82,7 @@ def _copyrevlog(tr, destrepo, oldrl, rl_type, unencodedname):
     content is compatible with format of the destination repository.
     """
     oldrl = getattr(oldrl, '_revlog', oldrl)
-    newrl = _revlogfrompath(destrepo, rl_type, unencodedname)
+    newrl = _revlog_from_store_entry(destrepo, entry)
     newrl = getattr(newrl, '_revlog', newrl)
 
     oldvfs = oldrl.opener
@@ -98,7 +100,8 @@ def _copyrevlog(tr, destrepo, oldrl, rl_type, unencodedname):
     if copydata:
         util.copyfile(olddata, newdata)
 
-    if rl_type & store.FILEFLAGS_FILELOG:
+    if entry.revlog_type & store.FILEFLAGS_FILELOG:
+        unencodedname = entry.unencoded_path
         destrepo.svfs.fncache.add(unencodedname)
         if copydata:
             destrepo.svfs.fncache.add(unencodedname[:-2] + b'.d')
@@ -133,19 +136,20 @@ def _perform_clone(
     dstrepo,
     tr,
     old_revlog,
-    rl_type,
-    unencoded,
+    entry,
     upgrade_op,
     sidedata_helpers,
     oncopiedrevision,
 ):
     """returns the new revlog object created"""
     newrl = None
-    if matchrevlog(upgrade_op.revlogs_to_process, rl_type):
+    revlog_path = entry.unencoded_path
+    if matchrevlog(upgrade_op.revlogs_to_process, entry.revlog_type):
         ui.note(
-            _(b'cloning %d revisions from %s\n') % (len(old_revlog), unencoded)
+            _(b'cloning %d revisions from %s\n')
+            % (len(old_revlog), revlog_path)
         )
-        newrl = _revlogfrompath(dstrepo, rl_type, unencoded)
+        newrl = _revlog_from_store_entry(dstrepo, entry)
         old_revlog.clone(
             tr,
             newrl,
@@ -156,10 +160,10 @@ def _perform_clone(
         )
     else:
         msg = _(b'blindly copying %s containing %i revisions\n')
-        ui.note(msg % (unencoded, len(old_revlog)))
-        _copyrevlog(tr, dstrepo, old_revlog, rl_type, unencoded)
+        ui.note(msg % (revlog_path, len(old_revlog)))
+        _copyrevlog(tr, dstrepo, old_revlog, entry)
 
-        newrl = _revlogfrompath(dstrepo, rl_type, unencoded)
+        newrl = _revlog_from_store_entry(dstrepo, entry)
     return newrl
 
 
@@ -203,9 +207,8 @@ def _clonerevlogs(
     for entry in alldatafiles:
         if not (entry.is_revlog and entry.is_revlog_main):
             continue
-        unencoded = entry.unencoded_path
 
-        rl = _revlogfrompath(srcrepo, entry.revlog_type, unencoded)
+        rl = _revlog_from_store_entry(srcrepo, entry)
 
         info = rl.storageinfo(
             exclusivefiles=True,
@@ -223,18 +226,18 @@ def _clonerevlogs(
 
         # This is for the separate progress bars.
         if entry.revlog_type & store.FILEFLAGS_CHANGELOG:
-            changelogs[unencoded] = entry.revlog_type
+            changelogs[entry.target_id] = entry
             crevcount += len(rl)
             csrcsize += datasize
             crawsize += rawsize
         elif entry.revlog_type & store.FILEFLAGS_MANIFESTLOG:
-            manifests[unencoded] = entry.revlog_type
+            manifests[entry.target_id] = entry
             mcount += 1
             mrevcount += len(rl)
             msrcsize += datasize
             mrawsize += rawsize
         elif entry.revlog_type & store.FILEFLAGS_FILELOG:
-            filelogs[unencoded] = entry.revlog_type
+            filelogs[entry.target_id] = entry
             fcount += 1
             frevcount += len(rl)
             fsrcsize += datasize
@@ -279,16 +282,15 @@ def _clonerevlogs(
         )
     )
     progress = srcrepo.ui.makeprogress(_(b'file revisions'), total=frevcount)
-    for unencoded, rl_type in sorted(filelogs.items()):
-        oldrl = _revlogfrompath(srcrepo, rl_type, unencoded)
+    for target_id, entry in sorted(filelogs.items()):
+        oldrl = _revlog_from_store_entry(srcrepo, entry)
 
         newrl = _perform_clone(
             ui,
             dstrepo,
             tr,
             oldrl,
-            rl_type,
-            unencoded,
+            entry,
             upgrade_op,
             sidedata_helpers,
             oncopiedrevision,
@@ -321,15 +323,14 @@ def _clonerevlogs(
     progress = srcrepo.ui.makeprogress(
         _(b'manifest revisions'), total=mrevcount
     )
-    for unencoded, rl_type in sorted(manifests.items()):
-        oldrl = _revlogfrompath(srcrepo, rl_type, unencoded)
+    for target_id, entry in sorted(manifests.items()):
+        oldrl = _revlog_from_store_entry(srcrepo, entry)
         newrl = _perform_clone(
             ui,
             dstrepo,
             tr,
             oldrl,
-            rl_type,
-            unencoded,
+            entry,
             upgrade_op,
             sidedata_helpers,
             oncopiedrevision,
@@ -361,15 +362,14 @@ def _clonerevlogs(
     progress = srcrepo.ui.makeprogress(
         _(b'changelog revisions'), total=crevcount
     )
-    for unencoded, rl_type in sorted(changelogs.items()):
-        oldrl = _revlogfrompath(srcrepo, rl_type, unencoded)
+    for target_id, entry in sorted(changelogs.items()):
+        oldrl = _revlog_from_store_entry(srcrepo, entry)
         newrl = _perform_clone(
             ui,
             dstrepo,
             tr,
             oldrl,
-            rl_type,
-            unencoded,
+            entry,
             upgrade_op,
             sidedata_helpers,
             oncopiedrevision,
