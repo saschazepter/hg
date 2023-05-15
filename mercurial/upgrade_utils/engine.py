@@ -200,9 +200,10 @@ def _clonerevlogs(
 
     # Perform a pass to collect metadata. This validates we can open all
     # source files and allows a unified progress bar to be displayed.
-    for rl_type, unencoded, size in alldatafiles:
-        if not rl_type & store.FILEFLAGS_REVLOG_MAIN:
+    for entry in alldatafiles:
+        if not (entry.is_revlog and entry.is_revlog_main):
             continue
+        unencoded = entry.unencoded_path
 
         # the store.walk function will wrongly pickup transaction backup and
         # get confused. As a quick fix for 5.9 release, we ignore those.
@@ -215,7 +216,7 @@ def _clonerevlogs(
         if unencoded in skip_undo:
             continue
 
-        rl = _revlogfrompath(srcrepo, rl_type, unencoded)
+        rl = _revlogfrompath(srcrepo, entry.revlog_type, unencoded)
 
         info = rl.storageinfo(
             exclusivefiles=True,
@@ -232,19 +233,19 @@ def _clonerevlogs(
         srcrawsize += rawsize
 
         # This is for the separate progress bars.
-        if rl_type & store.FILEFLAGS_CHANGELOG:
-            changelogs[unencoded] = rl_type
+        if entry.revlog_type & store.FILEFLAGS_CHANGELOG:
+            changelogs[unencoded] = entry.revlog_type
             crevcount += len(rl)
             csrcsize += datasize
             crawsize += rawsize
-        elif rl_type & store.FILEFLAGS_MANIFESTLOG:
-            manifests[unencoded] = rl_type
+        elif entry.revlog_type & store.FILEFLAGS_MANIFESTLOG:
+            manifests[unencoded] = entry.revlog_type
             mcount += 1
             mrevcount += len(rl)
             msrcsize += datasize
             mrawsize += rawsize
-        elif rl_type & store.FILEFLAGS_FILELOG:
-            filelogs[unencoded] = rl_type
+        elif entry.revlog_type & store.FILEFLAGS_FILELOG:
+            filelogs[unencoded] = entry.revlog_type
             fcount += 1
             frevcount += len(rl)
             fsrcsize += datasize
