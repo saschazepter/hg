@@ -510,7 +510,8 @@ class basicstore:
         to it instead. This is very rarely needed."""
         files = self._walk(b'data', True) + self._walk(b'meta', True)
         for (t, u, s) in files:
-            yield (FILEFLAGS_FILELOG | t, u, s)
+            if t is not None:
+                yield (FILEFLAGS_FILELOG | t, u, s)
 
     def topfiles(self):
         # yield manifest before changelog
@@ -790,10 +791,15 @@ class fncachestore(basicstore):
             if not _matchtrackedpath(f, matcher):
                 continue
             ef = self.encode(f)
+            t = revlog_type(f)
+            if t is None:
+                # Note: this should not be in the fncache then…
+                #
+                # However the fncache might contains such file added by
+                # previous version of Mercurial.
+                continue
+            t |= FILEFLAGS_FILELOG
             try:
-                t = revlog_type(f)
-                assert t is not None, f
-                t |= FILEFLAGS_FILELOG
                 yield t, f, self.getsize(ef)
             except FileNotFoundError:
                 pass
