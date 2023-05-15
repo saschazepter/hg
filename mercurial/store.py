@@ -454,15 +454,12 @@ FILETYPE_OTHER = FILEFLAGS_OTHER
 
 
 @attr.s(slots=True)
-class StoreEntry:
+class BaseStoreEntry:
     """An entry in the store
 
     This is returned by `store.walk` and represent some data in the store."""
 
     unencoded_path = attr.ib()
-    is_revlog = attr.ib(default=False)
-    revlog_type = attr.ib(default=None)
-    is_revlog_main = attr.ib(default=None)
     is_volatile = attr.ib(default=False)
     file_size = attr.ib(default=None)
 
@@ -474,6 +471,22 @@ class StoreEntry:
                 is_volatile=self.is_volatile,
             )
         ]
+
+
+@attr.s(slots=True)
+class SimpleStoreEntry(BaseStoreEntry):
+    """A generic entry in the store"""
+
+    is_revlog = False
+
+
+@attr.s(slots=True)
+class RevlogStoreEntry(BaseStoreEntry):
+    """A revlog entry in the store"""
+
+    is_revlog = True
+    revlog_type = attr.ib(default=None)
+    is_revlog_main = attr.ib(default=None)
 
 
 @attr.s(slots=True)
@@ -536,7 +549,7 @@ class basicstore:
 
     def datafiles(
         self, matcher=None, undecodable=None
-    ) -> Generator[StoreEntry, None, None]:
+    ) -> Generator[BaseStoreEntry, None, None]:
         """Like walk, but excluding the changelog and root manifest.
 
         When [undecodable] is None, revlogs names that can't be
@@ -546,35 +559,42 @@ class basicstore:
         files = self._walk(b'data', True) + self._walk(b'meta', True)
         for (t, u, s) in files:
             if t is not None:
-                yield StoreEntry(
+                yield RevlogStoreEntry(
                     unencoded_path=u,
-                    is_revlog=True,
                     revlog_type=FILEFLAGS_FILELOG,
                     is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
                     is_volatile=bool(t & FILEFLAGS_VOLATILE),
                     file_size=s,
                 )
 
-    def topfiles(self) -> Generator[StoreEntry, None, None]:
+    def topfiles(self) -> Generator[BaseStoreEntry, None, None]:
         # yield manifest before changelog
         files = reversed(self._walk(b'', False))
         for (t, u, s) in files:
             if u.startswith(b'00changelog'):
-                revlog_type = FILEFLAGS_CHANGELOG
+                yield RevlogStoreEntry(
+                    unencoded_path=u,
+                    revlog_type=FILEFLAGS_CHANGELOG,
+                    is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
+                    is_volatile=bool(t & FILEFLAGS_VOLATILE),
+                    file_size=s,
+                )
             elif u.startswith(b'00manifest'):
-                revlog_type = FILEFLAGS_MANIFESTLOG
+                yield RevlogStoreEntry(
+                    unencoded_path=u,
+                    revlog_type=FILEFLAGS_MANIFESTLOG,
+                    is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
+                    is_volatile=bool(t & FILEFLAGS_VOLATILE),
+                    file_size=s,
+                )
             else:
-                revlog_type = None
-            yield StoreEntry(
-                unencoded_path=u,
-                is_revlog=revlog_type is not None,
-                revlog_type=revlog_type,
-                is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
-                is_volatile=bool(t & FILEFLAGS_VOLATILE),
-                file_size=s,
-            )
+                yield SimpleStoreEntry(
+                    unencoded_path=u,
+                    is_volatile=bool(t & FILEFLAGS_VOLATILE),
+                    file_size=s,
+                )
 
-    def walk(self, matcher=None) -> Generator[StoreEntry, None, None]:
+    def walk(self, matcher=None) -> Generator[BaseStoreEntry, None, None]:
         """return files related to data storage (ie: revlogs)
 
         yields (file_type, unencoded, size)
@@ -629,7 +649,7 @@ class encodedstore(basicstore):
 
     def datafiles(
         self, matcher=None, undecodable=None
-    ) -> Generator[StoreEntry, None, None]:
+    ) -> Generator[BaseStoreEntry, None, None]:
         for entry in super(encodedstore, self).datafiles():
             try:
                 f1 = entry.unencoded_path
@@ -842,7 +862,7 @@ class fncachestore(basicstore):
 
     def datafiles(
         self, matcher=None, undecodable=None
-    ) -> Generator[StoreEntry, None, None]:
+    ) -> Generator[BaseStoreEntry, None, None]:
         for f in sorted(self.fncache):
             if not _matchtrackedpath(f, matcher):
                 continue
@@ -854,11 +874,9 @@ class fncachestore(basicstore):
                 # However the fncache might contains such file added by
                 # previous version of Mercurial.
                 continue
-            t |= FILEFLAGS_FILELOG
             try:
-                yield StoreEntry(
+                yield RevlogStoreEntry(
                     unencoded_path=f,
-                    is_revlog=True,
                     revlog_type=FILEFLAGS_FILELOG,
                     is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
                     is_volatile=bool(t & FILEFLAGS_VOLATILE),
