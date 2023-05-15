@@ -205,17 +205,6 @@ def _clonerevlogs(
             continue
         unencoded = entry.unencoded_path
 
-        # the store.walk function will wrongly pickup transaction backup and
-        # get confused. As a quick fix for 5.9 release, we ignore those.
-        # (this is not a module constants because it seems better to keep the
-        # hack together)
-        skip_undo = (
-            b'undo.backup.00changelog.i',
-            b'undo.backup.00manifest.i',
-        )
-        if unencoded in skip_undo:
-            continue
-
         rl = _revlogfrompath(srcrepo, entry.revlog_type, unencoded)
 
         info = rl.storageinfo(
