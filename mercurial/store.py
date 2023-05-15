@@ -524,6 +524,10 @@ class RevlogStoreEntry(BaseStoreEntry):
         self.target_id = target_id
         self.is_revlog_main = is_revlog_main
 
+    def main_file_path(self):
+        """unencoded path of the main revlog file"""
+        return self.unencoded_path
+
 
 @attr.s(slots=True)
 class StoreFile:
