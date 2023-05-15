@@ -33,7 +33,7 @@ parsers = policy.importmod('parsers')
 fncache_chunksize = 10 ** 6
 
 
-def _matchtrackedpath(path, matcher):
+def _match_tracked_entry(entry, matcher):
     """parses a fncache entry and returns whether the entry is tracking a path
     matched by matcher or not.
 
@@ -41,13 +41,11 @@ def _matchtrackedpath(path, matcher):
 
     if matcher is None:
         return True
-    path = decodedir(path)
-    if path.startswith(b'data/'):
-        return matcher(path[len(b'data/') : -len(b'.i')])
-    elif path.startswith(b'meta/'):
-        return matcher.visitdir(path[len(b'meta/') : -len(b'/00manifest.i')])
-
-    raise error.ProgrammingError(b"cannot decode path %s" % path)
+    if entry.revlog_type == FILEFLAGS_FILELOG:
+        return matcher(entry.target_id)
+    elif entry.revlog_type == FILEFLAGS_MANIFESTLOG:
+        return matcher.visitdir(entry.target_id.rstrip(b'/'))
+    raise error.ProgrammingError(b"cannot process entry %r" % entry)
 
 
 # This avoids a collision between a file named foo and a dir named
@@ -776,7 +774,7 @@ class encodedstore(basicstore):
     ) -> Generator[BaseStoreEntry, None, None]:
         entries = super(encodedstore, self).datafiles(undecodable=undecodable)
         for entry in entries:
-            if _matchtrackedpath(entry.unencoded_path, matcher):
+            if _match_tracked_entry(entry, matcher):
                 yield entry
 
     def join(self, f):
@@ -996,15 +994,15 @@ class fncachestore(basicstore):
                 assert False, revlog
             for ext, t in sorted(details.items()):
                 f = revlog + ext
-                if not _matchtrackedpath(f, matcher):
-                    continue
-                yield RevlogStoreEntry(
+                entry = RevlogStoreEntry(
                     unencoded_path=f,
                     revlog_type=rl_type,
                     target_id=revlog_target_id,
                     is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
                     is_volatile=bool(t & FILEFLAGS_VOLATILE),
                 )
+                if _match_tracked_entry(entry, matcher):
+                    yield entry
 
     def copylist(self):
         d = (
