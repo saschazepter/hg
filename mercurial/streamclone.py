@@ -270,9 +270,10 @@ def generatev1(repo):
     with repo.lock():
         repo.ui.debug(b'scanning\n')
         for entry in _walkstreamfiles(repo):
-            if entry.file_size:
-                entries.append((entry.unencoded_path, entry.file_size))
-                total_bytes += entry.file_size
+            for f in entry.files():
+                if f.file_size:
+                    entries.append((f.unencoded_path, f.file_size))
+                    total_bytes += f.file_size
         _test_sync_point_walk_1(repo)
     _test_sync_point_walk_2(repo)
 
@@ -678,14 +679,13 @@ def _v2_walk(repo, includes, excludes, includeobsmarkers):
         matcher = narrowspec.match(repo.root, includes, excludes)
 
     for entry in _walkstreamfiles(repo, matcher):
-        if entry.file_size:
-            ft = _fileappend
-            if entry.is_volatile:
-                ft = _filefull
-            entries.append(
-                (_srcstore, entry.unencoded_path, ft, entry.file_size)
-            )
-            totalfilesize += entry.file_size
+        for f in entry.files():
+            if f.file_size:
+                ft = _fileappend
+                if f.is_volatile:
+                    ft = _filefull
+                entries.append((_srcstore, f.unencoded_path, ft, f.file_size))
+                totalfilesize += f.file_size
     for name in _walkstreamfullstorefiles(repo):
         if repo.svfs.exists(name):
             totalfilesize += repo.svfs.lstat(name).st_size
