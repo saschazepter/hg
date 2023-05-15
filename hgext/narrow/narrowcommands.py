@@ -293,7 +293,8 @@ def _narrow(
             if f.startswith(b'data/'):
                 file = f[5:-2]
                 if not newmatch(file):
-                    todelete.append(f)
+                    for file_ in entry.files():
+                        todelete.append(file_.unencoded_path)
             elif f.startswith(b'meta/'):
                 dir = f[5:-13]
                 dirs = sorted(pathutil.dirs({dir})) + [dir]
@@ -306,7 +307,8 @@ def _narrow(
                     if visit == b'all':
                         break
                 if not include:
-                    todelete.append(f)
+                    for file_ in entry.files():
+                        todelete.append(file_.unencoded_path)
 
         repo.destroying()
 
