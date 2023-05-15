@@ -521,6 +521,18 @@ class RevlogStoreEntry(BaseStoreEntry):
         assert b'.i' in details, (path_prefix, details)
         self._details = details
 
+    @property
+    def is_changelog(self):
+        return self.revlog_type & FILEFLAGS_CHANGELOG
+
+    @property
+    def is_manifestlog(self):
+        return self.revlog_type & FILEFLAGS_MANIFESTLOG
+
+    @property
+    def is_filelog(self):
+        return self.revlog_type & FILEFLAGS_FILELOG
+
     def main_file_path(self):
         """unencoded path of the main revlog file"""
         return self._path_prefix + b'.i'
