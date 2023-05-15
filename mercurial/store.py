@@ -460,7 +460,7 @@ class BaseStoreEntry:
     This is returned by `store.walk` and represent some data in the store."""
 
     unencoded_path = attr.ib()
-    is_volatile = attr.ib(default=False)
+    _is_volatile = attr.ib(default=False)
     _file_size = attr.ib(default=None)
 
     def __init__(
@@ -470,7 +470,7 @@ class BaseStoreEntry:
         file_size=None,
     ):
         self.unencoded_path = unencoded_path
-        self.is_volatile = is_volatile
+        self._is_volatile = is_volatile
         self._file_size = file_size
 
     def files(self):
@@ -478,7 +478,7 @@ class BaseStoreEntry:
             StoreFile(
                 unencoded_path=self.unencoded_path,
                 file_size=self._file_size,
-                is_volatile=self.is_volatile,
+                is_volatile=self._is_volatile,
             )
         ]
 
