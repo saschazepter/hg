@@ -175,7 +175,7 @@ def onetimesetup(ui):
                 for entry in repo.store.datafiles():
                     if not entry.is_revlog:
                         continue
-                    if entry.revlog_type == store.FILEFLAGS_MANIFESTLOG:
+                    if entry.is_manifestlog:
                         yield entry
 
             # Return .d and .i files that do not match the shallow pattern
