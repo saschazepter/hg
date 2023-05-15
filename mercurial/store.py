@@ -503,12 +503,14 @@ class RevlogStoreEntry(BaseStoreEntry):
 
     is_revlog = True
     revlog_type = attr.ib(default=None)
+    target_id = attr.ib(default=None)
     is_revlog_main = attr.ib(default=None)
 
     def __init__(
         self,
         unencoded_path,
         revlog_type,
+        target_id,
         is_revlog_main=False,
         is_volatile=False,
         file_size=None,
@@ -519,6 +521,7 @@ class RevlogStoreEntry(BaseStoreEntry):
             file_size=file_size,
         )
         self.revlog_type = revlog_type
+        self.target_id = target_id
         self.is_revlog_main = is_revlog_main
 
 
@@ -649,9 +652,11 @@ class basicstore:
             for revlog, details in _gather_revlog(files):
                 for ext, (t, s) in sorted(details.items()):
                     u = revlog + ext
+                    revlog_target_id = revlog.split(b'/', 1)[1]
                     yield RevlogStoreEntry(
                         unencoded_path=u,
                         revlog_type=rl_type,
+                        target_id=revlog_target_id,
                         is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
                         is_volatile=bool(t & FILEFLAGS_VOLATILE),
                         file_size=s,
@@ -692,6 +697,7 @@ class basicstore:
                     yield RevlogStoreEntry(
                         unencoded_path=u,
                         revlog_type=revlog_type,
+                        target_id=b'',
                         is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
                         is_volatile=bool(t & FILEFLAGS_VOLATILE),
                         file_size=s,
@@ -975,8 +981,12 @@ class fncachestore(basicstore):
         for revlog, details in by_revlog:
             if revlog.startswith(b'data/'):
                 rl_type = FILEFLAGS_FILELOG
+                revlog_target_id = revlog.split(b'/', 1)[1]
             elif revlog.startswith(b'meta/'):
                 rl_type = FILEFLAGS_MANIFESTLOG
+                # drop the initial directory and the `00manifest` file part
+                tmp = revlog.split(b'/', 1)[1]
+                revlog_target_id = tmp.rsplit(b'/', 1)[0] + b'/'
             else:
                 # unreachable
                 assert False, revlog
@@ -987,6 +997,7 @@ class fncachestore(basicstore):
                 yield RevlogStoreEntry(
                     unencoded_path=f,
                     revlog_type=rl_type,
+                    target_id=revlog_target_id,
                     is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
                     is_volatile=bool(t & FILEFLAGS_VOLATILE),
                 )
