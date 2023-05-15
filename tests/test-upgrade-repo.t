@@ -866,7 +866,7 @@ old store should be backed up
   phaseroots
   requires
   undo
-  undo.backup.fncache
+  undo.backup.fncache.bck
   undo.backupfiles
 
 unless --no-backup is passed

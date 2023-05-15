@@ -72,7 +72,7 @@ working dir unaffected by rollback: do not restore dirstate et. al.
   $ hg update bar
   1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   (activating bookmark bar)
-  $ cat .hg/undo.backup.branch
+  $ cat .hg/undo.backup.branch.bck
   test
   $ hg log -G --template '{rev}  [{branch}] ({bookmarks}) {desc|firstline}\n'
   o  2  [test] (foo) add b
