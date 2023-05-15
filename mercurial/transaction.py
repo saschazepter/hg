@@ -409,7 +409,7 @@ class transaction(util.transactional):
 
         vfs = self._vfsmap[location]
         dirname, filename = vfs.split(file)
-        backupfilename = b"%s.backup.%s" % (self._journal, filename)
+        backupfilename = b"%s.backup.%s.bck" % (self._journal, filename)
         backupfile = vfs.reljoin(dirname, backupfilename)
         if vfs.exists(file):
             filepath = vfs.join(file)

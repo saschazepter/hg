@@ -1193,8 +1193,6 @@ Performe the mix of clone and full refresh of the nodemap, so that the files
 (note: the stream clone code wronly pick the `undo.` files)
 
   $ cat clone-output-2
-  adding [s] undo.backup.00manifest.n (62 bytes) (known-bad-output !)
-  adding [s] undo.backup.00changelog.n (62 bytes) (known-bad-output !)
   adding [s] 00manifest.n (62 bytes)
   adding [s] 00manifest-*.nd (118 KB) (glob)
   adding [s] 00changelog.n (62 bytes)

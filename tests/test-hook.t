@@ -465,7 +465,7 @@ more there after
   phaseroots
   requires
   undo
-  undo.backup.fncache (repofncache !)
+  undo.backup.fncache.bck (repofncache !)
   undo.backupfiles
 
 
