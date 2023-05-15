@@ -563,6 +563,23 @@ def _split_revlog_ext(filename):
     return filename[:idx], filename[idx:]
 
 
+def _ext_key(ext):
+    """a key to order revlog suffix
+
+    important to issue .i after other entry."""
+    # the only important part of this order is to keep the `.i` last.
+    if ext.endswith(b'.n'):
+        return (0, ext)
+    elif ext.endswith(b'.nd'):
+        return (10, ext)
+    elif ext.endswith(b'.d'):
+        return (20, ext)
+    elif ext.endswith(b'.i'):
+        return (50, ext)
+    else:
+        return (40, ext)
+
+
 class basicstore:
     '''base class for local repository stores'''
 
@@ -636,34 +653,44 @@ class basicstore:
                 )
 
     def topfiles(self) -> Generator[BaseStoreEntry, None, None]:
-        # yield manifest before changelog
-        files = self._walk(b'', False)
-        # key is (type, path) (keeping ordering so we get 00changelog.i last)
-        type_key = lambda x: (x[1][0], x[0])
-        files = sorted(files, reverse=True, key=type_key)
+        files = reversed(self._walk(b'', False))
+
+        changelogs = collections.defaultdict(dict)
+        manifestlogs = collections.defaultdict(dict)
+
         for u, (t, s) in files:
             if u.startswith(b'00changelog'):
-                yield RevlogStoreEntry(
-                    unencoded_path=u,
-                    revlog_type=FILEFLAGS_CHANGELOG,
-                    is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
-                    is_volatile=bool(t & FILEFLAGS_VOLATILE),
-                    file_size=s,
-                )
+                name, ext = _split_revlog_ext(u)
+                changelogs[name][ext] = (t, s)
             elif u.startswith(b'00manifest'):
-                yield RevlogStoreEntry(
-                    unencoded_path=u,
-                    revlog_type=FILEFLAGS_MANIFESTLOG,
-                    is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
-                    is_volatile=bool(t & FILEFLAGS_VOLATILE),
-                    file_size=s,
-                )
+                name, ext = _split_revlog_ext(u)
+                manifestlogs[name][ext] = (t, s)
             else:
                 yield SimpleStoreEntry(
                     unencoded_path=u,
                     is_volatile=bool(t & FILEFLAGS_VOLATILE),
                     file_size=s,
                 )
+        # yield manifest before changelog
+        top_rl = [
+            (manifestlogs, FILEFLAGS_MANIFESTLOG),
+            (changelogs, FILEFLAGS_CHANGELOG),
+        ]
+        assert len(manifestlogs) <= 1
+        assert len(changelogs) <= 1
+        for data, revlog_type in top_rl:
+            for revlog, details in sorted(data.items()):
+                # (keeping ordering so we get 00changelog.i last)
+                key = lambda x: _ext_key(x[0])
+                for ext, (t, s) in sorted(details.items(), key=key):
+                    u = revlog + ext
+                    yield RevlogStoreEntry(
+                        unencoded_path=u,
+                        revlog_type=revlog_type,
+                        is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
+                        is_volatile=bool(t & FILEFLAGS_VOLATILE),
+                        file_size=s,
+                    )
 
     def walk(self, matcher=None) -> Generator[BaseStoreEntry, None, None]:
         """return files related to data storage (ie: revlogs)
