@@ -52,26 +52,15 @@ def _revlog_from_store_entry(repo, entry):
 
     An instance of the appropriate class is returned.
     """
-    rl_type = entry.revlog_type
-    path = entry.unencoded_path
-    if rl_type & store.FILEFLAGS_CHANGELOG:
+    if entry.revlog_type == store.FILEFLAGS_CHANGELOG:
         return changelog.changelog(repo.svfs)
-    elif rl_type & store.FILEFLAGS_MANIFESTLOG:
-        mandir = b''
-        if b'/' in path:
-            mandir = path.rsplit(b'/', 1)[0]
+    elif entry.revlog_type == store.FILEFLAGS_MANIFESTLOG:
+        mandir = entry.target_id.rstrip(b'/')
         return manifest.manifestrevlog(
             repo.nodeconstants, repo.svfs, tree=mandir
         )
     else:
-        # drop the extension and the `data/` prefix
-        path_part = path.rsplit(b'.', 1)[0].split(b'/', 1)
-        if len(path_part) < 2:
-            msg = _(b'cannot recognize revlog from filename: %s')
-            msg %= path
-            raise error.Abort(msg)
-        path = path_part[1]
-        return filelog.filelog(repo.svfs, path)
+        return filelog.filelog(repo.svfs, entry.target_id)
 
 
 def _copyrevlog(tr, destrepo, oldrl, entry):
