@@ -52,9 +52,9 @@ def _revlog_from_store_entry(repo, entry):
 
     An instance of the appropriate class is returned.
     """
-    if entry.revlog_type == store.FILEFLAGS_CHANGELOG:
+    if entry.is_changelog:
         return changelog.changelog(repo.svfs)
-    elif entry.revlog_type == store.FILEFLAGS_MANIFESTLOG:
+    elif entry.is_manifestlog:
         mandir = entry.target_id.rstrip(b'/')
         return manifest.manifestrevlog(
             repo.nodeconstants, repo.svfs, tree=mandir
@@ -89,7 +89,7 @@ def _copyrevlog(tr, destrepo, oldrl, entry):
     if copydata:
         util.copyfile(olddata, newdata)
 
-    if entry.revlog_type & store.FILEFLAGS_FILELOG:
+    if entry.is_filelog:
         unencodedname = entry.main_file_path()
         destrepo.svfs.fncache.add(unencodedname)
         if copydata:
@@ -214,18 +214,18 @@ def _clonerevlogs(
         srcrawsize += rawsize
 
         # This is for the separate progress bars.
-        if entry.revlog_type & store.FILEFLAGS_CHANGELOG:
+        if entry.is_changelog:
             changelogs[entry.target_id] = entry
             crevcount += len(rl)
             csrcsize += datasize
             crawsize += rawsize
-        elif entry.revlog_type & store.FILEFLAGS_MANIFESTLOG:
+        elif entry.is_manifestlog:
             manifests[entry.target_id] = entry
             mcount += 1
             mrevcount += len(rl)
             msrcsize += datasize
             mrawsize += rawsize
-        elif entry.revlog_type & store.FILEFLAGS_FILELOG:
+        elif entry.is_filelog:
             filelogs[entry.target_id] = entry
             fcount += 1
             frevcount += len(rl)
