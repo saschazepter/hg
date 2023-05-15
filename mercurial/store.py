@@ -564,9 +564,10 @@ class basicstore:
                     rl_type = is_revlog(f, kind, st)
                     if rl_type is not None:
                         n = util.pconvert(fp[striplen:])
-                        l.append((rl_type, decodedir(n), st.st_size))
+                        l.append((decodedir(n), (rl_type, st.st_size)))
                     elif kind == stat.S_IFDIR and recurse:
                         visit.append(fp)
+
         l.sort()
         return l
 
@@ -591,7 +592,7 @@ class basicstore:
         be a list and the filenames that can't be decoded are added
         to it instead. This is very rarely needed."""
         files = self._walk(b'data', True) + self._walk(b'meta', True)
-        for (t, u, s) in files:
+        for u, (t, s) in files:
             if t is not None:
                 yield RevlogStoreEntry(
                     unencoded_path=u,
@@ -603,8 +604,11 @@ class basicstore:
 
     def topfiles(self) -> Generator[BaseStoreEntry, None, None]:
         # yield manifest before changelog
-        files = reversed(self._walk(b'', False))
-        for (t, u, s) in files:
+        files = self._walk(b'', False)
+        # key is (type, path) (keeping ordering so we get 00changelog.i last)
+        type_key = lambda x: (x[1][0], x[0])
+        files = sorted(files, reverse=True, key=type_key)
+        for u, (t, s) in files:
             if u.startswith(b'00changelog'):
                 yield RevlogStoreEntry(
                     unencoded_path=u,
