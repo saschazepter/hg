@@ -201,9 +201,9 @@ deltas where possible.)
 
 Dry-run the fix
   $ hg debug-repair-issue6528 --dry-run
-  found affected revision 1 for filelog 'data/D.txt.i'
-  found affected revision 1 for filelog 'data/b.txt.i'
-  found affected revision 3 for filelog 'data/b.txt.i'
+  found affected revision 1 for file 'D.txt'
+  found affected revision 1 for file 'b.txt'
+  found affected revision 3 for file 'b.txt'
   $ hg st
   M D.txt
   M b.txt
@@ -220,9 +220,9 @@ Dry-run the fix
 
 Test the --paranoid option
   $ hg debug-repair-issue6528 --dry-run --paranoid
-  found affected revision 1 for filelog 'data/D.txt.i'
-  found affected revision 1 for filelog 'data/b.txt.i'
-  found affected revision 3 for filelog 'data/b.txt.i'
+  found affected revision 1 for file 'D.txt'
+  found affected revision 1 for file 'b.txt'
+  found affected revision 3 for file 'b.txt'
   $ hg st
   M D.txt
   M b.txt
@@ -239,10 +239,10 @@ Test the --paranoid option
 
 Run the fix
   $ hg debug-repair-issue6528
-  found affected revision 1 for filelog 'data/D.txt.i'
+  found affected revision 1 for file 'D.txt'
   repaired revision 1 of 'filelog data/D.txt.i'
-  found affected revision 1 for filelog 'data/b.txt.i'
-  found affected revision 3 for filelog 'data/b.txt.i'
+  found affected revision 1 for file 'b.txt'
+  found affected revision 3 for file 'b.txt'
   repaired revision 1 of 'filelog data/b.txt.i'
   repaired revision 3 of 'filelog data/b.txt.i'
 
@@ -281,9 +281,9 @@ Try the using the report options
   $ tar -xf - < "$TESTDIR"/bundles/issue6528.tar
 
   $ hg debug-repair-issue6528 --to-report $TESTTMP/report.txt
-  found affected revision 1 for filelog 'data/D.txt.i'
-  found affected revision 1 for filelog 'data/b.txt.i'
-  found affected revision 3 for filelog 'data/b.txt.i'
+  found affected revision 1 for file 'D.txt'
+  found affected revision 1 for file 'b.txt'
+  found affected revision 3 for file 'b.txt'
   $ cat $TESTTMP/report.txt
   2a80419dfc31d7dfb308ac40f3f138282de7d73b D.txt
   a58b36ad6b6545195952793099613c2116f3563b,ea4f2f2463cca5b29ddf3461012b8ce5c6dac175 b.txt
@@ -392,10 +392,10 @@ Status is correct, but the problem is still there, in the earlier revision
 
 Run the fix on the non-inline revlog
   $ hg debug-repair-issue6528
-  found affected revision 1 for filelog 'data/D.txt.i'
+  found affected revision 1 for file 'D.txt'
   repaired revision 1 of 'filelog data/D.txt.i'
-  found affected revision 1 for filelog 'data/b.txt.i'
-  found affected revision 3 for filelog 'data/b.txt.i'
+  found affected revision 1 for file 'b.txt'
+  found affected revision 3 for file 'b.txt'
   repaired revision 1 of 'filelog data/b.txt.i'
   repaired revision 3 of 'filelog data/b.txt.i'
 
@@ -556,9 +556,9 @@ That we do see the symptoms of the bug
 And that the repair command find issue to fix.
 
   $ hg debug-repair-issue6528 --dry-run
-  found affected revision 1 for filelog 'data/D.txt.i'
-  found affected revision 1 for filelog 'data/b.txt.i'
-  found affected revision 3 for filelog 'data/b.txt.i'
+  found affected revision 1 for file 'D.txt'
+  found affected revision 1 for file 'b.txt'
+  found affected revision 3 for file 'b.txt'
 
   $ cd ..
 
@@ -604,8 +604,8 @@ That we do see the symptoms of the bug
 And that the repair command find issue to fix.
 
   $ hg debug-repair-issue6528 --dry-run
-  found affected revision 1 for filelog 'data/D.txt.i'
-  found affected revision 1 for filelog 'data/b.txt.i'
-  found affected revision 3 for filelog 'data/b.txt.i'
+  found affected revision 1 for file 'D.txt'
+  found affected revision 1 for file 'b.txt'
+  found affected revision 3 for file 'b.txt'
 
   $ cd ..

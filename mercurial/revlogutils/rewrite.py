@@ -828,8 +828,8 @@ def repair_issue6528(
             entry
             for entry in repo.store.datafiles()
             if (
-                entry.unencoded_path.endswith(b'.i')
-                and entry.is_revlog
+                entry.is_revlog
+                and entry.is_revlog_main
                 and entry.revlog_type == store.FILEFLAGS_FILELOG
             )
         )
@@ -842,10 +842,9 @@ def repair_issue6528(
         found_nothing = True
 
         for entry in files:
-            path = entry.unencoded_path
             progress.increment()
-            filename = _get_filename_from_filelog_index(path)
-            fl = _filelog_from_filename(repo, filename)
+            filename = entry.target_id
+            fl = _filelog_from_filename(repo, entry.target_id)
 
             # Set of filerevs (or hex filenodes if `to_report`) that need fixing
             to_fix = set()
@@ -861,8 +860,8 @@ def repair_issue6528(
                         node = binascii.hexlify(fl.node(filerev))
                         raise error.Abort(msg % (filename, node))
                 if affected:
-                    msg = b"found affected revision %d for filelog '%s'\n"
-                    ui.warn(msg % (filerev, path))
+                    msg = b"found affected revision %d for file '%s'\n"
+                    ui.warn(msg % (filerev, filename))
                     found_nothing = False
                     if not dry_run:
                         if to_report:
