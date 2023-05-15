@@ -464,24 +464,24 @@ class BaseStoreEntry:
 
     This is returned by `store.walk` and represent some data in the store."""
 
-    unencoded_path = attr.ib()
+    _entry_path = attr.ib()
     _is_volatile = attr.ib(default=False)
     _file_size = attr.ib(default=None)
 
     def __init__(
         self,
-        unencoded_path,
+        entry_path,
         is_volatile=False,
         file_size=None,
     ):
-        self.unencoded_path = unencoded_path
+        self._entry_path = entry_path
         self._is_volatile = is_volatile
         self._file_size = file_size
 
     def files(self):
         return [
             StoreFile(
-                unencoded_path=self.unencoded_path,
+                unencoded_path=self._entry_path,
                 file_size=self._file_size,
                 is_volatile=self._is_volatile,
             )
@@ -506,7 +506,7 @@ class RevlogStoreEntry(BaseStoreEntry):
 
     def __init__(
         self,
-        unencoded_path,
+        entry_path,
         revlog_type,
         target_id,
         is_revlog_main=False,
@@ -514,7 +514,7 @@ class RevlogStoreEntry(BaseStoreEntry):
         file_size=None,
     ):
         super().__init__(
-            unencoded_path=unencoded_path,
+            entry_path=entry_path,
             is_volatile=is_volatile,
             file_size=file_size,
         )
@@ -524,7 +524,7 @@ class RevlogStoreEntry(BaseStoreEntry):
 
     def main_file_path(self):
         """unencoded path of the main revlog file"""
-        return self.unencoded_path
+        return self._entry_path
 
 
 @attr.s(slots=True)
@@ -656,7 +656,7 @@ class basicstore:
                     u = revlog + ext
                     revlog_target_id = revlog.split(b'/', 1)[1]
                     yield RevlogStoreEntry(
-                        unencoded_path=u,
+                        entry_path=u,
                         revlog_type=rl_type,
                         target_id=revlog_target_id,
                         is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
@@ -679,7 +679,7 @@ class basicstore:
                 manifestlogs[name][ext] = (t, s)
             else:
                 yield SimpleStoreEntry(
-                    unencoded_path=u,
+                    entry_path=u,
                     is_volatile=bool(t & FILEFLAGS_VOLATILE),
                     file_size=s,
                 )
@@ -697,7 +697,7 @@ class basicstore:
                 for ext, (t, s) in sorted(details.items(), key=key):
                     u = revlog + ext
                     yield RevlogStoreEntry(
-                        unencoded_path=u,
+                        entry_path=u,
                         revlog_type=revlog_type,
                         target_id=b'',
                         is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
@@ -995,7 +995,7 @@ class fncachestore(basicstore):
             for ext, t in sorted(details.items()):
                 f = revlog + ext
                 entry = RevlogStoreEntry(
-                    unencoded_path=f,
+                    entry_path=f,
                     revlog_type=rl_type,
                     target_id=revlog_target_id,
                     is_revlog_main=bool(t & FILEFLAGS_REVLOG_MAIN),
