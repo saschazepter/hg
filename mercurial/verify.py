@@ -407,7 +407,7 @@ class verifier:
             subdirs = set()
             revlogv1 = self.revlogv1
             undecodable = []
-            for entry in repo.store.datafiles(undecodable=undecodable):
+            for entry in repo.store.data_entries(undecodable=undecodable):
                 for file_ in entry.files():
                     f = file_.unencoded_path
                     size = file_.file_size(repo.store.vfs)
@@ -475,7 +475,7 @@ class verifier:
 
         storefiles = set()
         undecodable = []
-        for entry in repo.store.datafiles(undecodable=undecodable):
+        for entry in repo.store.data_entries(undecodable=undecodable):
             for file_ in entry.files():
                 size = file_.file_size(repo.store.vfs)
                 f = file_.unencoded_path

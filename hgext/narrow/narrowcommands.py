@@ -288,7 +288,7 @@ def _narrow(
                 repair.strip(ui, unfi, tostrip, topic=b'narrow', backup=backup)
 
         todelete = []
-        for entry in repo.store.datafiles():
+        for entry in repo.store.data_entries():
             if not entry.is_revlog:
                 continue
             if entry.is_filelog:
