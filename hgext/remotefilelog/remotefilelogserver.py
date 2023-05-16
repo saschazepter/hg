@@ -172,7 +172,7 @@ def onetimesetup(ui):
                             visit.append(fp)
 
             if scmutil.istreemanifest(repo):
-                for entry in repo.store.datafiles():
+                for entry in repo.store.data_entries():
                     if not entry.is_revlog:
                         continue
                     if entry.is_manifestlog:
@@ -181,7 +181,7 @@ def onetimesetup(ui):
             # Return .d and .i files that do not match the shallow pattern
             match = state.match
             if match and not match.always():
-                for entry in repo.store.datafiles():
+                for entry in repo.store.data_entries():
                     if not entry.is_revlog:
                         continue
                     if not state.match(entry.target_id):
