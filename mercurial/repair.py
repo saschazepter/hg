@@ -445,7 +445,7 @@ def manifestrevlogs(repo):
     if scmutil.istreemanifest(repo):
         # This logic is safe if treemanifest isn't enabled, but also
         # pointless, so we skip it if treemanifest isn't enabled.
-        for entry in repo.store.datafiles():
+        for entry in repo.store.data_entries():
             if not entry.is_revlog:
                 continue
             if entry.revlog_type == store.FILEFLAGS_MANIFESTLOG:

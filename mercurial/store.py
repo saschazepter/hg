@@ -654,7 +654,7 @@ class basicstore:
         rootstore = manifest.manifestrevlog(repo.nodeconstants, self.vfs)
         return manifest.manifestlog(self.vfs, repo, rootstore, storenarrowmatch)
 
-    def datafiles(
+    def data_entries(
         self, matcher=None, undecodable=None
     ) -> Generator[BaseStoreEntry, None, None]:
         """Like walk, but excluding the changelog and root manifest.
@@ -735,7 +735,7 @@ class basicstore:
         are passed with matches the matcher
         """
         # yield data files first
-        for x in self.datafiles(matcher):
+        for x in self.data_entries(matcher):
             yield x
         for x in self.topfiles():
             yield x
@@ -790,10 +790,12 @@ class encodedstore(basicstore):
             new.append((f2, value))
         return new
 
-    def datafiles(
+    def data_entries(
         self, matcher=None, undecodable=None
     ) -> Generator[BaseStoreEntry, None, None]:
-        entries = super(encodedstore, self).datafiles(undecodable=undecodable)
+        entries = super(encodedstore, self).data_entries(
+            undecodable=undecodable
+        )
         for entry in entries:
             if _match_tracked_entry(entry, matcher):
                 yield entry
@@ -992,7 +994,7 @@ class fncachestore(basicstore):
     def getsize(self, path):
         return self.rawvfs.stat(path).st_size
 
-    def datafiles(
+    def data_entries(
         self, matcher=None, undecodable=None
     ) -> Generator[BaseStoreEntry, None, None]:
         files = ((f, revlog_type(f)) for f in self.fncache)
