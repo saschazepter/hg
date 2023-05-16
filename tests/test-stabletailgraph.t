@@ -787,3 +787,360 @@ Check the leaps of "k".
   cf
 
   $ cd ..
+
+
+Example 10: adjusting other leaps
+=================================
+
+This test checks the adjustment of leaps attached to other open merges in the
+stack.
+
+#            o
+#            |
+#      ------>------
+#      |           |
+#      n           l
+#      |           |
+#      |       ----<----
+#      |       |       |
+#      |       i       k
+#      m       |       |
+#      |    ---<---    |
+#      |    |     |    |
+#      |    d     h    |
+#      |    |     |    j
+#      |    |     g    |
+#      |    c     |    |
+#      |    |     +-----
+#      -----+     |
+#           |     f
+#           b     |
+#           |     e         <- Done with excl(o) by element count, without
+#           |     |            having emitted "b". Implicitly unstack open
+#           ---+---            merges to leap e->n.
+#              |
+#              a
+
+  $ hg init example-10
+  $ cd example-10
+  $ hg debugbuilddag '
+  >   .:a
+  >    *a:b.:c.:d
+  >    *a:e.:f.:g.:h
+  >             *d/h:i
+  >         *f:j+6:k
+  >                 *i/k:l
+  >      *b:m+15:n
+  >                   *n/l:o.
+  > '
+  $ hg test-log
+  o    o rank=34
+  |\
+  | o  n rank=18
+  | :
+  | o  m rank=3
+  | |
+  o |    l rank=17
+  |\ \
+  | o |  k rank=10
+  | : |
+  | o |  j rank=4
+  | | |
+  o | |    i rank=9
+  |\ \ \
+  | o | |  h rank=5
+  | | | |
+  | o | |  g rank=4
+  | |/ /
+  | o |  f rank=3
+  | | |
+  | o |  e rank=2
+  | | |
+  o | |  d rank=4
+  | | |
+  o---+  c rank=3
+   / /
+  | o  b rank=2
+  |/
+  o  a rank=1
+  
+
+Check the stable-tail sort of "o":
+
+  $ hg test-sts o
+  o,l,i,d,c,h,g,k,*,j,f,e,n,*,m,b,a, (no-eol) (glob)
+
+Stale-tail sort of "l" for reference:
+
+  $ hg test-sts l
+  l,i,d,c,b,h,g,k,*,j,f,e,a, (no-eol) (glob)
+
+Check the corresponding leaps:
+
+  $ hg test-leaps o
+  ch
+  gk
+  en
+
+  $ hg test-leaps --specific o
+  ch
+
+  $ hg test-leaps l
+  bh
+  gk
+
+  $ hg test-leaps --specific l
+
+  $ cd ..
+
+
+Example 11: adjusting other leaps with the same destination
+===========================================================
+
+This is a variant of the previous test, checking the adjustment of leaps having
+the same destination in particular.
+
+#            r
+#            |
+#      ------>------
+#      |           |
+#      |           o
+#      q           |
+#      |     ------>------
+#      |     |           |
+#      |     n           l
+#      |     |           |
+#      |     |       ----<----
+#      p     |       |       |
+#      |     |       i       k
+#      |     m       |       |
+#      |     |    ---<---    |
+#      |     |    |     |    |
+#      |     |    d     h    |
+#      |     |    |     |    j
+#      -----]|[---+     |    |   <- in sts(r): leap d->h
+#            |    |     g    |
+#            |    c     |    |
+#            |    |     +-----
+#            -----+     |        <- the leap c->h of sts(o)
+#                 |     f           is shadowed in sts(r)
+#                 b     |
+#                 |     e
+#                 |     |
+#                 ---+---
+#                    |
+#                    a
+
+  $ hg init example-11
+  $ cd example-11
+  $ hg debugbuilddag '
+  >   .:a
+  >    *a:b.:c.:d
+  >    *a:e.:f.:g.:h
+  >             *d/h:i
+  >         *f:j+6:k
+  >                 *i/k:l
+  >      *b:m+15:n
+  >                   *n/l:o
+  >          *c:p+31:q
+  >                       *o/q:r.
+  > '
+  $ hg test-log
+  o    r rank=67
+  |\
+  | o  q rank=35
+  | :
+  | o  p rank=4
+  | |
+  o |    o rank=34
+  |\ \
+  | o |  n rank=18
+  | : |
+  | o |  m rank=3
+  | | |
+  o | |    l rank=17
+  |\ \ \
+  | o | |  k rank=10
+  | : | |
+  | o | |  j rank=4
+  | | | |
+  o | | |    i rank=9
+  |\ \ \ \
+  | o | | |  h rank=5
+  | | | | |
+  | o | | |  g rank=4
+  | |/ / /
+  | o | |  f rank=3
+  | | | |
+  | o | |  e rank=2
+  | | | |
+  o-----+  d rank=4
+   / / /
+  | | o  c rank=3
+  | |/
+  | o  b rank=2
+  |/
+  o  a rank=1
+  
+
+Check the stable-tail sort of "r":
+
+  $ hg test-sts r
+  r,o,l,i,d,h,g,k,*,j,f,e,n,*,m,q,*,p,c,b,a, (no-eol) (glob)
+
+Stable-tail sort of "o" for reference:
+
+  $ hg test-sts o
+  o,l,i,d,c,h,g,k,*,j,f,e,n,*,m,b,a, (no-eol) (glob)
+
+Check the associated leaps:
+
+  $ hg test-leaps r
+  dh
+  gk
+  en
+  mq
+
+  $ hg test-leaps --specific r
+  dh
+
+  $ hg test-leaps o
+  ch
+  gk
+  en
+
+  $ hg test-leaps --specific o
+  ch
+
+  $ cd ..
+
+
+Example 12
+==========
+
+This is a variant of the previous test, checking the adjustments of leaps
+in the open merge stack having a lower destination (which should appear only
+later in the stable-tail sort of the head).
+
+#            t
+#            |
+#      ------>------
+#      |           |
+#      |           o
+#      s           |
+#      |     ------>------
+#      |     |           |
+#      |     n           l
+#      r     |           |
+#      |     |       ----<----
+#      |     |       |       |
+#    --<--   |       i       k
+#    |   |   m       |       |
+#    p   q   |    ---<---    |
+#    |   |   |    |     |    |
+#    |   ---]|[--]|[----+    |
+#    |       |    |     |    |
+#    |       |    d     h    |
+#    |       |    |     |    j
+#    -------]|[---+     |    |   <- d->k is sts(t)
+#            |    |     g    |
+#            |    c     |    |
+#            |    |     +-----
+#            -----+     |        <- c->h in sts(o), not applying in sts(t)
+#                 |     f
+#                 b     |
+#                 |     e
+#                 |     |
+#                 ---+---
+#                    |
+#                    a
+
+  $ hg init example-12
+  $ cd example-12
+  $ hg debugbuilddag '
+  >   .:a
+  >    *a:b.:c.:d
+  >    *a:e.:f.:g.:h
+  >             *d/h:i
+  >         *f:j+6:k
+  >                 *i/k:l
+  >      *b:m+15:n
+  >                   *n/l:o
+  >          *c:p
+  >               *h:q
+  >               *p/q:r+25:s
+  >                       *o/s:t.
+  > '
+  $ hg test-log
+  o    t rank=63
+  |\
+  | o  s rank=35
+  | :
+  | o    r rank=10
+  | |\
+  | | o  q rank=6
+  | | |
+  | o |  p rank=4
+  | | |
+  o | |    o rank=34
+  |\ \ \
+  | o | |  n rank=18
+  | : | |
+  | o | |  m rank=3
+  | | | |
+  o | | |    l rank=17
+  |\ \ \ \
+  | o | | |  k rank=10
+  | : | | |
+  | o | | |  j rank=4
+  | | | | |
+  o-------+  i rank=9
+  | | | | |
+  | | | | o  h rank=5
+  | | | | |
+  | +-----o  g rank=4
+  | | | |
+  | o | |  f rank=3
+  | | | |
+  | o | |  e rank=2
+  | | | |
+  o-----+  d rank=4
+   / / /
+  | | o  c rank=3
+  | |/
+  | o  b rank=2
+  |/
+  o  a rank=1
+  
+
+Check the stable-tail sort of "t":
+
+  $ hg test-sts t
+  t,o,l,i,d,k,*,j,n,*,m,s,*,r,p,c,b,q,h,g,f,e,a, (no-eol) (glob)
+
+Stable-tail sort of "o" for reference:
+
+  $ hg test-sts o
+  o,l,i,d,c,h,g,k,*,j,f,e,n,*,m,b,a, (no-eol) (glob)
+
+Check the associated leaps:
+
+  $ hg test-leaps t
+  dk
+  jn
+  ms
+  bq
+
+  $ hg test-leaps --specific t
+  dk
+  jn
+
+  $ hg test-leaps o
+  ch
+  gk
+  en
+
+  $ hg test-leaps --specific o
+  ch
+
+  $ cd ..
