@@ -685,7 +685,7 @@ class basicstore:
                     details=file_details,
                 )
 
-    def topfiles(self) -> Generator[BaseStoreEntry, None, None]:
+    def top_entries(self) -> Generator[BaseStoreEntry, None, None]:
         files = reversed(self._walk(b'', False))
 
         changelogs = collections.defaultdict(dict)
@@ -737,7 +737,7 @@ class basicstore:
         # yield data files first
         for x in self.data_entries(matcher):
             yield x
-        for x in self.topfiles():
+        for x in self.top_entries():
             yield x
 
     def copylist(self):
