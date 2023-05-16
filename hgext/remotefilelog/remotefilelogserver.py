@@ -187,7 +187,7 @@ def onetimesetup(ui):
                     if not state.match(entry.target_id):
                         yield entry
 
-            for x in repo.store.topfiles():
+            for x in repo.store.top_entries():
                 if state.noflatmf and x[1][:11] == b'00manifest.':
                     continue
                 yield x
