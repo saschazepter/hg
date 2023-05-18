@@ -596,13 +596,26 @@ impl<'revlog> RevlogEntry<'revlog> {
     }
 
     fn uncompressed_zstd_data(&self) -> Result<Vec<u8>, HgError> {
+        let cap = self.uncompressed_len.max(0) as usize;
         if self.is_delta() {
-            let mut buf = Vec::with_capacity(self.compressed_len as usize);
-            zstd::stream::copy_decode(self.bytes, &mut buf)
-                .map_err(|e| corrupted(e.to_string()))?;
+            // [cap] is usually an over-estimate of the space needed because
+            // it's the length of delta-decoded data, but we're interested
+            // in the size of the delta.
+            // This means we have to [shrink_to_fit] to avoid holding on
+            // to a large chunk of memory, but it also means we must have a
+            // fallback branch, for the case when the delta is longer than
+            // the original data (surprisingly, this does happen in practice)
+            let mut buf = Vec::with_capacity(cap);
+            match zstd_decompress_to_buffer(self.bytes, &mut buf) {
+                Ok(_) => buf.shrink_to_fit(),
+                Err(_) => {
+                    buf.clear();
+                    zstd::stream::copy_decode(self.bytes, &mut buf)
+                        .map_err(|e| corrupted(e.to_string()))?;
+                }
+            };
             Ok(buf)
         } else {
-            let cap = self.uncompressed_len.max(0) as usize;
             let mut buf = Vec::with_capacity(cap);
             let len = zstd_decompress_to_buffer(self.bytes, &mut buf)
                 .map_err(|e| corrupted(e.to_string()))?;
