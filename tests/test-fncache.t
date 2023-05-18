@@ -514,6 +514,7 @@ Unbundling should follow the same rules; existing files should not cause a load:
   $ hg clone -q . tobundle
   fncache load triggered!
   fncache load triggered!
+  fncache load triggered!
 
   $ echo 'new line' > tobundle/bar
   $ hg -R tobundle ci -qm bar
