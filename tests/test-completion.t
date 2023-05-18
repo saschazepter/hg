@@ -311,7 +311,7 @@ Show all commands + options
   debugmanifestfulltextcache: clear, add
   debugmergestate: style, template
   debugnamecomplete: 
-  debugnodemap: dump-new, dump-disk, check, metadata
+  debugnodemap: changelog, manifest, dir, dump-new, dump-disk, check, metadata
   debugobsolete: flags, record-parents, rev, exclusive, index, delete, date, user, template
   debugp1copies: rev
   debugp2copies: rev
