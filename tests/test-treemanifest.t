@@ -897,3 +897,8 @@ Testing repository upgrade
   .hg/store/meta/dir/00manifest.i: size=721
   $ hg files --rev tip | wc -l
   \s*20 (re)
+
+testing cache update warming persistent nodemaps
+------------------------------------------------
+
+  $ hg debugupdatecache
