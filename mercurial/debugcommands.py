@@ -50,6 +50,7 @@ from . import (
     error,
     exchange,
     extensions,
+    filelog,
     filemerge,
     filesetlang,
     formatter,
@@ -58,6 +59,7 @@ from . import (
     localrepo,
     lock as lockmod,
     logcmdutil,
+    manifest,
     mergestate as mergestatemod,
     metadata,
     obsolete,
@@ -2600,56 +2602,62 @@ def debugnamecomplete(ui, repo, *args):
 
 @command(
     b'debugnodemap',
-    [
-        (
-            b'',
-            b'dump-new',
-            False,
-            _(b'write a (new) persistent binary nodemap on stdout'),
-        ),
-        (b'', b'dump-disk', False, _(b'dump on-disk data on stdout')),
-        (
-            b'',
-            b'check',
-            False,
-            _(b'check that the data on disk data are correct.'),
-        ),
-        (
-            b'',
-            b'metadata',
-            False,
-            _(b'display the on disk meta data for the nodemap'),
-        ),
-    ],
+    (
+        cmdutil.debugrevlogopts
+        + [
+            (
+                b'',
+                b'dump-new',
+                False,
+                _(b'write a (new) persistent binary nodemap on stdout'),
+            ),
+            (b'', b'dump-disk', False, _(b'dump on-disk data on stdout')),
+            (
+                b'',
+                b'check',
+                False,
+                _(b'check that the data on disk data are correct.'),
+            ),
+            (
+                b'',
+                b'metadata',
+                False,
+                _(b'display the on disk meta data for the nodemap'),
+            ),
+        ]
+    ),
+    _(b'-c|-m|FILE REV'),
 )
-def debugnodemap(ui, repo, **opts):
+def debugnodemap(ui, repo, file_=None, **opts):
     """write and inspect on disk nodemap"""
+    if opts.get('changelog') or opts.get('manifest') or opts.get('dir'):
+        if file_ is not None:
+            raise error.CommandError(b'debugnodemap', _(b'invalid arguments'))
+    elif file_ is None:
+        opts['changelog'] = True
+    r = cmdutil.openstorage(
+        repo.unfiltered(), b'debugnodemap', file_, pycompat.byteskwargs(opts)
+    )
+    if isinstance(r, manifest.manifestrevlog) or isinstance(r, filelog.filelog):
+        r = r._revlog
     if opts['dump_new']:
-        unfi = repo.unfiltered()
-        cl = unfi.changelog
-        if util.safehasattr(cl.index, "nodemap_data_all"):
-            data = cl.index.nodemap_data_all()
+        if util.safehasattr(r.index, "nodemap_data_all"):
+            data = r.index.nodemap_data_all()
         else:
-            data = nodemap.persistent_data(cl.index)
+            data = nodemap.persistent_data(r.index)
         ui.write(data)
     elif opts['dump_disk']:
-        unfi = repo.unfiltered()
-        cl = unfi.changelog
-        nm_data = nodemap.persisted_data(cl)
+        nm_data = nodemap.persisted_data(r)
         if nm_data is not None:
             docket, data = nm_data
             ui.write(data[:])
     elif opts['check']:
-        unfi = repo.unfiltered()
-        cl = unfi.changelog
-        nm_data = nodemap.persisted_data(cl)
+        nm_data = nodemap.persisted_data(r)
         if nm_data is not None:
             docket, data = nm_data
-            return nodemap.check_data(ui, cl.index, data)
+            return nodemap.check_data(ui, r.index, data)
     elif opts['metadata']:
-        unfi = repo.unfiltered()
-        cl = unfi.changelog
-        nm_data = nodemap.persisted_data(cl)
+        nm_data = nodemap.persisted_data(r)
         if nm_data is not None:
             docket, data = nm_data
             ui.write((b"uid: %s\n") % docket.uid)
