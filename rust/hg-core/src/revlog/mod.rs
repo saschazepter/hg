@@ -23,6 +23,7 @@ use std::path::Path;
 
 use flate2::read::ZlibDecoder;
 use sha1::{Digest, Sha1};
+use std::cell::RefCell;
 use zstd;
 
 use self::node::{NODE_BYTES_LENGTH, NULL_NODE};
@@ -413,6 +414,21 @@ pub struct RevlogEntry<'revlog> {
     hash: Node,
 }
 
+thread_local! {
+  // seems fine to [unwrap] here: this can only fail due to memory allocation
+  // failing, and it's normal for that to cause panic.
+  static ZSTD_DECODER : RefCell<zstd::bulk::Decompressor<'static>> =
+      RefCell::new(zstd::bulk::Decompressor::new().ok().unwrap());
+}
+
+fn zstd_decompress_to_buffer(
+    bytes: &[u8],
+    buf: &mut Vec<u8>,
+) -> Result<usize, std::io::Error> {
+    ZSTD_DECODER
+        .with(|decoder| decoder.borrow_mut().decompress_to_buffer(bytes, buf))
+}
+
 impl<'revlog> RevlogEntry<'revlog> {
     pub fn revision(&self) -> Revision {
         self.rev
@@ -588,7 +604,7 @@ impl<'revlog> RevlogEntry<'revlog> {
         } else {
             let cap = self.uncompressed_len.max(0) as usize;
             let mut buf = vec![0; cap];
-            let len = zstd::bulk::decompress_to_buffer(self.bytes, &mut buf)
+            let len = zstd_decompress_to_buffer(self.bytes, &mut buf)
                 .map_err(|e| corrupted(e.to_string()))?;
             if len != self.uncompressed_len as usize {
                 Err(corrupted("uncompressed length does not match"))
