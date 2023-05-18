@@ -603,7 +603,7 @@ impl<'revlog> RevlogEntry<'revlog> {
             Ok(buf)
         } else {
             let cap = self.uncompressed_len.max(0) as usize;
-            let mut buf = vec![0; cap];
+            let mut buf = Vec::with_capacity(cap);
             let len = zstd_decompress_to_buffer(self.bytes, &mut buf)
                 .map_err(|e| corrupted(e.to_string()))?;
             if len != self.uncompressed_len as usize {
