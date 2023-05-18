@@ -154,8 +154,8 @@ Simple lookup works
 #endif
 
   $ hg debugnodemap --check
-  revision in index:   5001
-  revision in nodemap: 5001
+  revisions in index:   5001
+  revisions in nodemap: 5001
 
 add a new commit
 
@@ -241,8 +241,8 @@ Check slow-path config value handling
 #endif
 
   $ hg debugnodemap --check
-  revision in index:   5002
-  revision in nodemap: 5002
+  revisions in index:   5002
+  revisions in nodemap: 5002
 
 Test code path without mmap
 ---------------------------
@@ -252,11 +252,11 @@ Test code path without mmap
   $ hg ci -m 'bar' --config storage.revlog.persistent-nodemap.mmap=no
 
   $ hg debugnodemap --check --config storage.revlog.persistent-nodemap.mmap=yes
-  revision in index:   5003
-  revision in nodemap: 5003
+  revisions in index:   5003
+  revisions in nodemap: 5003
   $ hg debugnodemap --check --config storage.revlog.persistent-nodemap.mmap=no
-  revision in index:   5003
-  revision in nodemap: 5003
+  revisions in index:   5003
+  revisions in nodemap: 5003
 
 
 #if pure
