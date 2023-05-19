@@ -73,6 +73,10 @@ def canperformstreamclone(pullop, bundle2=False):
     if len(repo):
         return False, None
 
+    # Streaming clone only works if all data is being requested.
+    if pullop.heads:
+        return False, None
+
     bundle2supported = False
     if pullop.canusebundle2:
         if b'v2' in pullop.remotebundle2caps.get(b'stream', []):
@@ -86,10 +90,6 @@ def canperformstreamclone(pullop, bundle2=False):
         return False, None
     # Ensures bundle2 doesn't try to do a stream clone if it isn't supported.
     elif bundle2 and not bundle2supported:
-        return False, None
-
-    # Streaming clone only works if all data is being requested.
-    if pullop.heads:
         return False, None
 
     streamrequested = pullop.streamclonerequested
