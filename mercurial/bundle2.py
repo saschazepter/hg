@@ -1671,6 +1671,10 @@ def getrepocaps(repo, allowpushback=False, role=None):
     # Else always advertise support on client, because payload support
     # should always be advertised.
 
+    if repo.ui.configbool(b'experimental', b'stream-v3'):
+        if b'stream' in caps:
+            caps[b'stream'] += (b'v3-exp',)
+
     # b'rev-branch-cache is no longer advertised, but still supported
     # for legacy clients.
 
@@ -1892,8 +1896,16 @@ def addpartbundlestream2(bundler, repo, **kwargs):
         )
         hint = _(b'the client seems buggy')
         raise error.Abort(msg, hint=hint)
-    if not (b'v2' in bundler.capabilities[b'stream']):
-        raise error.Abort(_(b'the client does not support streamclone v2'))
+    client_supported = set(bundler.capabilities[b'stream'])
+    server_supported = set(getrepocaps(repo, role=b'client').get(b'stream', []))
+    common_supported = client_supported & server_supported
+    if not common_supported:
+        msg = _(b'no common supported version with the client: %s; %s')
+        str_server = b','.join(sorted(server_supported))
+        str_client = b','.join(sorted(client_supported))
+        msg %= (str_server, str_client)
+        raise error.Abort(msg)
+    version = max(common_supported)
 
     # Stream clones don't compress well. And compression undermines a
     # goal of stream clones, which is to be fast. Communicate the desire
@@ -1924,15 +1936,26 @@ def addpartbundlestream2(bundler, repo, **kwargs):
         elif repo.obsstore._version in remoteversions:
             includeobsmarkers = True
 
-    filecount, bytecount, it = streamclone.generatev2(
-        repo, includepats, excludepats, includeobsmarkers
-    )
-    requirements = streamclone.streamed_requirements(repo)
-    requirements = _formatrequirementsspec(requirements)
-    part = bundler.newpart(b'stream2', data=it)
-    part.addparam(b'bytecount', b'%d' % bytecount, mandatory=True)
-    part.addparam(b'filecount', b'%d' % filecount, mandatory=True)
-    part.addparam(b'requirements', requirements, mandatory=True)
+    if version == b"v2":
+        filecount, bytecount, it = streamclone.generatev2(
+            repo, includepats, excludepats, includeobsmarkers
+        )
+        requirements = streamclone.streamed_requirements(repo)
+        requirements = _formatrequirementsspec(requirements)
+        part = bundler.newpart(b'stream2', data=it)
+        part.addparam(b'bytecount', b'%d' % bytecount, mandatory=True)
+        part.addparam(b'filecount', b'%d' % filecount, mandatory=True)
+        part.addparam(b'requirements', requirements, mandatory=True)
+    elif version == b"v3-exp":
+        filecount, bytecount, it = streamclone.generatev2(
+            repo, includepats, excludepats, includeobsmarkers
+        )
+        requirements = streamclone.streamed_requirements(repo)
+        requirements = _formatrequirementsspec(requirements)
+        part = bundler.newpart(b'stream3', data=it)
+        part.addparam(b'bytecount', b'%d' % bytecount, mandatory=True)
+        part.addparam(b'filecount', b'%d' % filecount, mandatory=True)
+        part.addparam(b'requirements', requirements, mandatory=True)
 
 
 def buildobsmarkerspart(bundler, markers, mandatory=True):
@@ -2586,6 +2609,11 @@ def handlestreamv2bundle(op, part):
 
     repo.ui.debug(b'applying stream bundle\n')
     streamclone.applybundlev2(repo, part, filecount, bytecount, requirements)
+
+
+@parthandler(b'stream3', (b'requirements', b'filecount', b'bytecount'))
+def handlestreamv3bundle(op, part):
+    return handlestreamv2bundle(op, part)
 
 
 def widen_bundle(
