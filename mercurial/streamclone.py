@@ -69,6 +69,16 @@ def canperformstreamclone(pullop, bundle2=False):
     repo = pullop.repo
     remote = pullop.remote
 
+    # should we consider streaming clone at all ?
+    streamrequested = pullop.streamclonerequested
+    # If we don't have a preference, let the server decide for us. This
+    # likely only comes into play in LANs.
+    if streamrequested is None:
+        # The server can advertise whether to prefer streaming clone.
+        streamrequested = remote.capable(b'stream-preferred')
+    if not streamrequested:
+        return False, None
+
     # Streaming clone only works on an empty destination repository
     if len(repo):
         return False, None
@@ -90,17 +100,6 @@ def canperformstreamclone(pullop, bundle2=False):
         return False, None
     # Ensures bundle2 doesn't try to do a stream clone if it isn't supported.
     elif bundle2 and not bundle2supported:
-        return False, None
-
-    streamrequested = pullop.streamclonerequested
-
-    # If we don't have a preference, let the server decide for us. This
-    # likely only comes into play in LANs.
-    if streamrequested is None:
-        # The server can advertise whether to prefer streaming clone.
-        streamrequested = remote.capable(b'stream-preferred')
-
-    if not streamrequested:
         return False, None
 
     # In order for stream clone to work, the client has to support all the
