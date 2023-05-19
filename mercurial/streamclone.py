@@ -15,6 +15,7 @@ from .pycompat import open
 from .interfaces import repository
 from . import (
     bookmarks,
+    bundle2 as bundle2mod,
     cacheutil,
     error,
     narrowspec,
@@ -89,8 +90,10 @@ def canperformstreamclone(pullop, bundle2=False):
 
     bundle2supported = False
     if pullop.canusebundle2:
-        if b'v2' in pullop.remotebundle2caps.get(b'stream', []):
-            bundle2supported = True
+        local_caps = bundle2mod.getrepocaps(repo, role=b'client')
+        local_supported = set(local_caps.get(b'stream', []))
+        remote_supported = set(pullop.remotebundle2caps.get(b'stream', []))
+        bundle2supported = bool(local_supported & remote_supported)
         # else
         # Server doesn't support bundle2 stream clone or doesn't support
         # the versions we support. Fall back and possibly allow legacy.
