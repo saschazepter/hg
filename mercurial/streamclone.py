@@ -758,6 +758,10 @@ def generatev2(repo, includes, excludes, includeobsmarkers):
     return len(entries), totalfilesize, chunks
 
 
+def generatev3(repo, includes, excludes, includeobsmarkers):
+    return generatev2(repo, includes, excludes, includeobsmarkers)
+
+
 @contextlib.contextmanager
 def nested(*ctxs):
     this = ctxs[0]

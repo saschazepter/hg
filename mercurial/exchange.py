@@ -2421,7 +2421,7 @@ def getbundlechunks(
     return info, bundler.getchunks()
 
 
-@getbundle2partsgenerator(b'stream2')
+@getbundle2partsgenerator(b'stream')
 def _getbundlestream2(bundler, repo, *args, **kwargs):
     return bundle2.addpartbundlestream2(bundler, repo, **kwargs)
 
