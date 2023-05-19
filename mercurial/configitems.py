@@ -1298,6 +1298,11 @@ coreconfigitem(
 )
 coreconfigitem(
     b'experimental',
+    b'stream-v3',
+    default=False,
+)
+coreconfigitem(
+    b'experimental',
     b'treemanifest',
     default=False,
 )
