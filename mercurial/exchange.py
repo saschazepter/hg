@@ -1637,7 +1637,7 @@ def pull(
 
     # We allow the narrow patterns to be passed in explicitly to provide more
     # flexibility for API consumers.
-    if includepats or excludepats:
+    if includepats is not None or excludepats is not None:
         includepats = includepats or set()
         excludepats = excludepats or set()
     else:
