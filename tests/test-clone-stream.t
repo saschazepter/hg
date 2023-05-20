@@ -164,10 +164,10 @@ Cannot stream clone when server.uncompressed is set
   
 
   $ f --size body --hexdump --bytes 100
-  body: size=232
+  body: size=140
   0000: 04 6e 6f 6e 65 48 47 32 30 00 00 00 00 00 00 00 |.noneHG20.......|
-  0010: cf 0b 45 52 52 4f 52 3a 41 42 4f 52 54 00 00 00 |..ERROR:ABORT...|
-  0020: 00 01 01 07 3c 04 72 6d 65 73 73 61 67 65 73 74 |....<.rmessagest|
+  0010: 73 0b 45 52 52 4f 52 3a 41 42 4f 52 54 00 00 00 |s.ERROR:ABORT...|
+  0020: 00 01 01 07 3c 04 16 6d 65 73 73 61 67 65 73 74 |....<..messagest|
   0030: 72 65 61 6d 20 64 61 74 61 20 72 65 71 75 65 73 |ream data reques|
   0040: 74 65 64 20 62 75 74 20 73 65 72 76 65 72 20 64 |ted but server d|
   0050: 6f 65 73 20 6e 6f 74 20 61 6c 6c 6f 77 20 74 68 |oes not allow th|
@@ -232,10 +232,10 @@ Cannot stream clone when server.uncompressed is set
   
 
   $ f --size body --hexdump --bytes 100
-  body: size=232
+  body: size=140
   0000: 04 6e 6f 6e 65 48 47 32 30 00 00 00 00 00 00 00 |.noneHG20.......|
-  0010: cf 0b 45 52 52 4f 52 3a 41 42 4f 52 54 00 00 00 |..ERROR:ABORT...|
-  0020: 00 01 01 07 3c 04 72 6d 65 73 73 61 67 65 73 74 |....<.rmessagest|
+  0010: 73 0b 45 52 52 4f 52 3a 41 42 4f 52 54 00 00 00 |s.ERROR:ABORT...|
+  0020: 00 01 01 07 3c 04 16 6d 65 73 73 61 67 65 73 74 |....<..messagest|
   0030: 72 65 61 6d 20 64 61 74 61 20 72 65 71 75 65 73 |ream data reques|
   0040: 74 65 64 20 62 75 74 20 73 65 72 76 65 72 20 64 |ted but server d|
   0050: 6f 65 73 20 6e 6f 74 20 61 6c 6c 6f 77 20 74 68 |oes not allow th|
