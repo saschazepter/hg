@@ -1881,17 +1881,9 @@ def addpartbundlestream2(bundler, repo, **kwargs):
         return
 
     if not streamclone.allowservergeneration(repo):
-        raise error.Abort(
-            _(
-                b'stream data requested but server does not allow '
-                b'this feature'
-            ),
-            hint=_(
-                b'well-behaved clients should not be '
-                b'requesting stream data from servers not '
-                b'advertising it; the client may be buggy'
-            ),
-        )
+        msg = _(b'stream data requested but server does not allow this feature')
+        hint = _(b'the client seems buggy')
+        raise error.Abort(msg, hint=hint)
 
     # Stream clones don't compress well. And compression undermines a
     # goal of stream clones, which is to be fast. Communicate the desire
