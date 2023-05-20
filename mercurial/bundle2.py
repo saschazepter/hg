@@ -1886,6 +1886,14 @@ def addpartbundlestream2(bundler, repo, **kwargs):
         msg = _(b'stream data requested but server does not allow this feature')
         hint = _(b'the client seems buggy')
         raise error.Abort(msg, hint=hint)
+    if not (b'stream' in bundler.capabilities):
+        msg = _(
+            b'stream data requested but supported streaming clone versions were not specified'
+        )
+        hint = _(b'the client seems buggy')
+        raise error.Abort(msg, hint=hint)
+    if not (b'v2' in bundler.capabilities[b'stream']):
+        raise error.Abort(_(b'the client does not support streamclone v2'))
 
     # Stream clones don't compress well. And compression undermines a
     # goal of stream clones, which is to be fast. Communicate the desire
