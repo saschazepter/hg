@@ -1730,6 +1730,8 @@ def writenewbundle(
     caps = {}
     if opts.get(b'obsolescence', False):
         caps[b'obsmarkers'] = (b'V1',)
+    if opts.get(b'streamv2'):
+        caps[b'stream'] = [b'v2']
     bundle = bundle20(ui, caps)
     bundle.setcompression(compression, compopts)
     _addpartsfromopts(ui, repo, bundle, source, outgoing, opts)
