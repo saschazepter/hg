@@ -269,17 +269,15 @@ def parsebundlespec(repo, spec, strict=True):
             )
 
     # Compute contentopts based on the version
-    if b"stream" in params and params[b"stream"] == b"v2":
-        # That case is fishy as this mostly derails the version selection
+    if b"stream" in params:
+        # This case is fishy as this mostly derails the version selection
         # mechanism. `stream` bundles are quite specific and used differently
         # as "normal" bundles.
         #
-        # So we are pinning this to "v2", as this will likely be
-        # compatible forever. (see the next conditional).
-        #
         # (we should probably define a cleaner way to do this and raise a
-        # warning when the old way is encounter)
-        version = b"streamv2"
+        # warning when the old way is encountered)
+        if params[b"stream"] == b"v2":
+            version = b"streamv2"
     contentopts = _bundlespeccontentopts.get(version, {}).copy()
     if version == b"streamv2":
         # streamv2 have been reported as "v2" for a while.
