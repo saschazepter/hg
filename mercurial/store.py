@@ -686,6 +686,12 @@ class basicstore:
                 )
 
     def top_entries(self, phase=False) -> Generator[BaseStoreEntry, None, None]:
+        if phase and self.vfs.exists(b'phaseroots'):
+            yield SimpleStoreEntry(
+                entry_path=b'phaseroots',
+                is_volatile=True,
+            )
+
         files = reversed(self._walk(b'', False))
 
         changelogs = collections.defaultdict(dict)
@@ -725,11 +731,6 @@ class basicstore:
                     target_id=b'',
                     details=file_details,
                 )
-        if phase and self.vfs.exists(b'phaseroots'):
-            yield SimpleStoreEntry(
-                entry_path=b'phaseroots',
-                is_volatile=True,
-            )
 
     def walk(
         self, matcher=None, phase=False
