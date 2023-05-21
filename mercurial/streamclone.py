@@ -659,6 +659,30 @@ def _test_sync_point_walk_2(repo):
     """a function for synchronisation during tests"""
 
 
+def _entries_walk(repo, includes, excludes, includeobsmarkers):
+    """emit a seris of files information useful to clone a repo
+
+    return (vfs-key, entry) iterator
+
+    Where `entry` is StoreEntry. (used even for cache entries)
+    """
+    assert repo._currentlock(repo._lockref) is not None
+
+    matcher = None
+    if includes or excludes:
+        matcher = narrowspec.match(repo.root, includes, excludes)
+
+    phase = not repo.publishing()
+    entries = _walkstreamfiles(
+        repo,
+        matcher,
+        phase=phase,
+        obsolescence=includeobsmarkers,
+    )
+    for entry in entries:
+        yield (_srcstore, entry)
+
+
 def _v2_walk(repo, includes, excludes, includeobsmarkers):
     """emit a seris of files information useful to clone a repo
 
@@ -675,22 +699,17 @@ def _v2_walk(repo, includes, excludes, includeobsmarkers):
     files = []
     totalfilesize = 0
 
-    matcher = None
-    if includes or excludes:
-        matcher = narrowspec.match(repo.root, includes, excludes)
-
-    phase = not repo.publishing()
-    entries = _walkstreamfiles(
-        repo, matcher, phase=phase, obsolescence=includeobsmarkers
-    )
-    for entry in entries:
+    vfsmap = _makemap(repo)
+    entries = _entries_walk(repo, includes, excludes, includeobsmarkers)
+    for vfs_key, entry in entries:
+        vfs = vfsmap[vfs_key]
         for f in entry.files():
-            file_size = f.file_size(repo.store.vfs)
+            file_size = f.file_size(vfs)
             if file_size:
                 ft = _fileappend
                 if f.is_volatile:
                     ft = _filefull
-                files.append((_srcstore, f.unencoded_path, ft, file_size))
+                files.append((vfs_key, f.unencoded_path, ft, file_size))
                 totalfilesize += file_size
     for name in cacheutil.cachetocopy(repo):
         if repo.cachevfs.exists(name):
