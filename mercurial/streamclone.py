@@ -241,8 +241,8 @@ def allowservergeneration(repo):
 
 
 # This is it's own function so extensions can override it.
-def _walkstreamfiles(repo, matcher=None, phase=False):
-    return repo.store.walk(matcher, phase=phase)
+def _walkstreamfiles(repo, matcher=None, phase=False, obsolescence=False):
+    return repo.store.walk(matcher, phase=phase, obsolescence=obsolescence)
 
 
 def generatev1(repo):
@@ -672,7 +672,7 @@ def _v2_walk(repo, includes, excludes, includeobsmarkers):
     - `size`: the size of the file (or None)
     """
     assert repo._currentlock(repo._lockref) is not None
-    entries = []
+    files = []
     totalfilesize = 0
 
     matcher = None
@@ -680,23 +680,23 @@ def _v2_walk(repo, includes, excludes, includeobsmarkers):
         matcher = narrowspec.match(repo.root, includes, excludes)
 
     phase = not repo.publishing()
-    for entry in _walkstreamfiles(repo, matcher, phase=phase):
+    entries = _walkstreamfiles(
+        repo, matcher, phase=phase, obsolescence=includeobsmarkers
+    )
+    for entry in entries:
         for f in entry.files():
             file_size = f.file_size(repo.store.vfs)
             if file_size:
                 ft = _fileappend
                 if f.is_volatile:
                     ft = _filefull
-                entries.append((_srcstore, f.unencoded_path, ft, file_size))
+                files.append((_srcstore, f.unencoded_path, ft, file_size))
                 totalfilesize += file_size
-    if includeobsmarkers and repo.svfs.exists(b'obsstore'):
-        totalfilesize += repo.svfs.lstat(b'obsstore').st_size
-        entries.append((_srcstore, b'obsstore', _filefull, None))
     for name in cacheutil.cachetocopy(repo):
         if repo.cachevfs.exists(name):
             totalfilesize += repo.cachevfs.lstat(name).st_size
-            entries.append((_srccache, name, _filefull, None))
-    return entries, totalfilesize
+            files.append((_srccache, name, _filefull, None))
+    return files, totalfilesize
 
 
 def generatev2(repo, includes, excludes, includeobsmarkers):
