@@ -145,7 +145,7 @@ def onetimesetup(ui):
     )
 
     # don't clone filelogs to shallow clients
-    def _walkstreamfiles(orig, repo, matcher=None):
+    def _walkstreamfiles(orig, repo, matcher=None, phase=False):
         if state.shallowremote:
             # if we are shallow ourselves, stream our local commits
             if shallowutil.isenabled(repo):
@@ -200,7 +200,7 @@ def onetimesetup(ui):
                 _(b"Cannot clone from a shallow repo to a full repo.")
             )
         else:
-            for x in orig(repo, matcher):
+            for x in orig(repo, matcher, phase=phase):
                 yield x
 
     extensions.wrapfunction(streamclone, b'_walkstreamfiles', _walkstreamfiles)

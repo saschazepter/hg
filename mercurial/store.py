@@ -685,7 +685,7 @@ class basicstore:
                     details=file_details,
                 )
 
-    def top_entries(self) -> Generator[BaseStoreEntry, None, None]:
+    def top_entries(self, phase=False) -> Generator[BaseStoreEntry, None, None]:
         files = reversed(self._walk(b'', False))
 
         changelogs = collections.defaultdict(dict)
@@ -725,11 +725,18 @@ class basicstore:
                     target_id=b'',
                     details=file_details,
                 )
+        if phase and self.vfs.exists(b'phaseroots'):
+            yield SimpleStoreEntry(
+                entry_path=b'phaseroots',
+                is_volatile=True,
+            )
 
-    def walk(self, matcher=None) -> Generator[BaseStoreEntry, None, None]:
+    def walk(
+        self, matcher=None, phase=False
+    ) -> Generator[BaseStoreEntry, None, None]:
         """return files related to data storage (ie: revlogs)
 
-        yields (file_type, unencoded, size)
+        yields instance from BaseStoreEntry subclasses
 
         if a matcher is passed, storage files of only those tracked paths
         are passed with matches the matcher
@@ -737,7 +744,7 @@ class basicstore:
         # yield data files first
         for x in self.data_entries(matcher):
             yield x
-        for x in self.top_entries():
+        for x in self.top_entries(phase=phase):
             yield x
 
     def copylist(self):
