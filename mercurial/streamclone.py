@@ -241,8 +241,8 @@ def allowservergeneration(repo):
 
 
 # This is it's own function so extensions can override it.
-def _walkstreamfiles(repo, matcher=None):
-    return repo.store.walk(matcher)
+def _walkstreamfiles(repo, matcher=None, phase=False):
+    return repo.store.walk(matcher, phase=phase)
 
 
 def generatev1(repo):
@@ -679,7 +679,8 @@ def _v2_walk(repo, includes, excludes, includeobsmarkers):
     if includes or excludes:
         matcher = narrowspec.match(repo.root, includes, excludes)
 
-    for entry in _walkstreamfiles(repo, matcher):
+    phase = not repo.publishing()
+    for entry in _walkstreamfiles(repo, matcher, phase=phase):
         for f in entry.files():
             file_size = f.file_size(repo.store.vfs)
             if file_size:
@@ -688,10 +689,6 @@ def _v2_walk(repo, includes, excludes, includeobsmarkers):
                     ft = _filefull
                 entries.append((_srcstore, f.unencoded_path, ft, file_size))
                 totalfilesize += file_size
-    for name in _walkstreamfullstorefiles(repo):
-        if repo.svfs.exists(name):
-            totalfilesize += repo.svfs.lstat(name).st_size
-            entries.append((_srcstore, name, _filefull, None))
     if includeobsmarkers and repo.svfs.exists(b'obsstore'):
         totalfilesize += repo.svfs.lstat(b'obsstore').st_size
         entries.append((_srcstore, b'obsstore', _filefull, None))
