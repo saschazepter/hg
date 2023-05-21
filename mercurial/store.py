@@ -685,10 +685,19 @@ class basicstore:
                     details=file_details,
                 )
 
-    def top_entries(self, phase=False) -> Generator[BaseStoreEntry, None, None]:
+    def top_entries(
+        self, phase=False, obsolescence=False
+    ) -> Generator[BaseStoreEntry, None, None]:
         if phase and self.vfs.exists(b'phaseroots'):
             yield SimpleStoreEntry(
                 entry_path=b'phaseroots',
+                is_volatile=True,
+            )
+
+        if obsolescence and self.vfs.exists(b'obsstore'):
+            # XXX if we had the file size it could be non-volatile
+            yield SimpleStoreEntry(
+                entry_path=b'obsstore',
                 is_volatile=True,
             )
 
@@ -733,7 +742,7 @@ class basicstore:
                 )
 
     def walk(
-        self, matcher=None, phase=False
+        self, matcher=None, phase=False, obsolescence=False
     ) -> Generator[BaseStoreEntry, None, None]:
         """return files related to data storage (ie: revlogs)
 
@@ -745,7 +754,7 @@ class basicstore:
         # yield data files first
         for x in self.data_entries(matcher):
             yield x
-        for x in self.top_entries(phase=phase):
+        for x in self.top_entries(phase=phase, obsolescence=obsolescence):
             yield x
 
     def copylist(self):
