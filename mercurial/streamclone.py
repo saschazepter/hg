@@ -682,6 +682,15 @@ def _entries_walk(repo, includes, excludes, includeobsmarkers):
     for entry in entries:
         yield (_srcstore, entry)
 
+    for name in cacheutil.cachetocopy(repo):
+        if repo.cachevfs.exists(name):
+            # not really a StoreEntry, but close enough
+            entry = store.SimpleStoreEntry(
+                entry_path=name,
+                is_volatile=True,
+            )
+            yield (_srccache, entry)
+
 
 def _v2_walk(repo, includes, excludes, includeobsmarkers):
     """emit a seris of files information useful to clone a repo
@@ -711,10 +720,6 @@ def _v2_walk(repo, includes, excludes, includeobsmarkers):
                     ft = _filefull
                 files.append((vfs_key, f.unencoded_path, ft, file_size))
                 totalfilesize += file_size
-    for name in cacheutil.cachetocopy(repo):
-        if repo.cachevfs.exists(name):
-            totalfilesize += repo.cachevfs.lstat(name).st_size
-            files.append((_srccache, name, _filefull, None))
     return files, totalfilesize
 
 
