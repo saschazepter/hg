@@ -1952,7 +1952,7 @@ def addpartbundlestream2(bundler, repo, **kwargs):
         )
         requirements = streamclone.streamed_requirements(repo)
         requirements = _formatrequirementsspec(requirements)
-        part = bundler.newpart(b'stream3', data=it)
+        part = bundler.newpart(b'stream3-exp', data=it)
         part.addparam(b'bytecount', b'%d' % bytecount, mandatory=True)
         part.addparam(b'filecount', b'%d' % filecount, mandatory=True)
         part.addparam(b'requirements', requirements, mandatory=True)
@@ -2611,7 +2611,7 @@ def handlestreamv2bundle(op, part):
     streamclone.applybundlev2(repo, part, filecount, bytecount, requirements)
 
 
-@parthandler(b'stream3', (b'requirements', b'filecount', b'bytecount'))
+@parthandler(b'stream3-exp', (b'requirements', b'filecount', b'bytecount'))
 def handlestreamv3bundle(op, part):
     return handlestreamv2bundle(op, part)
 
