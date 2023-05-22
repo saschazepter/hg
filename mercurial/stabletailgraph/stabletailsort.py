@@ -108,6 +108,9 @@ def _stable_tail_sort_naive(cl, head_rev):
                 if a not in tail_ancestors
             )
 
+            # Notice that excl(cur) is disjoint from ancestors(pt),
+            # so there is no double-counting:
+            # rank(cur) = len([cur]) + len(excl(cur)) + rank(pt)
             excl_part_size = cl.fast_rank(cursor_rev) - cl.fast_rank(pt) - 1
             yield from itertools.islice(exclusive_ancestors, excl_part_size)
             cursor_rev = pt
