@@ -564,7 +564,7 @@ Clone with background file closing enabled
   streaming all changes
   sending getbundle command
   bundle2-input-bundle: with-transaction
-  bundle2-input-part: "stream3" (params: 3 mandatory) supported
+  bundle2-input-part: "stream3-exp" (params: 3 mandatory) supported
   applying stream bundle
   1093 files to transfer, 102 KB of data (no-zstd !)
   1093 files to transfer, 98.9 KB of data (zstd !)
