@@ -1,6 +1,21 @@
 #require no-reposimplestore
 
-Test creating a consuming stream bundle v2
+#testcases stream-v2 stream-v3
+
+#if stream-v2
+  $ bundle_format="streamv2"
+  $ stream_version="v2"
+#endif
+#if stream-v3
+  $ bundle_format="streamv3-exp"
+  $ stream_version="v3-exp"
+  $ cat << EOF >> $HGRCPATH
+  > [experimental]
+  > stream-v3=yes
+  > EOF
+#endif
+
+Test creating a consuming stream bundle v2 and v3
 
   $ getmainid() {
   >    hg -R main log --template '{node}\n' --rev "$1"
@@ -42,16 +57,22 @@ The extension requires a repo (currently unused)
   > A
   > EOF
 
-  $ hg bundle -a --type="none-v2;stream=v2" bundle.hg
+  $ hg bundle -a --type="none-v2;stream=$stream_version" bundle.hg
   $ hg debugbundle bundle.hg
   Stream params: {}
-  stream2 -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlogv1%2Csparserevlog} (mandatory: True) (no-zstd !)
-  stream2 -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (zstd no-rust !)
-  stream2 -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (rust !)
+  stream2 -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 no-zstd !)
+  stream2 -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 zstd no-rust !)
+  stream2 -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 rust !)
+  stream3-exp -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 no-zstd !)
+  stream3-exp -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 zstd no-rust !)
+  stream3-exp -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 rust !)
   $ hg debugbundle --spec bundle.hg
-  none-v2;stream=v2;requirements%3Dgeneraldelta%2Crevlogv1%2Csparserevlog (no-zstd !)
-  none-v2;stream=v2;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog (zstd no-rust !)
-  none-v2;stream=v2;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog (rust !)
+  none-v2;stream=v2;requirements%3Dgeneraldelta%2Crevlogv1%2Csparserevlog (stream-v2 no-zstd !)
+  none-v2;stream=v2;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog (stream-v2 zstd no-rust !)
+  none-v2;stream=v2;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog (stream-v2 rust !)
+  none-v2;stream=v3-exp;requirements%3Dgeneraldelta%2Crevlogv1%2Csparserevlog (stream-v3 no-zstd !)
+  none-v2;stream=v3-exp;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog (stream-v3 zstd no-rust !)
+  none-v2;stream=v3-exp;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog (stream-v3 rust !)
 
 Test that we can apply the bundle as a stream clone bundle
 
@@ -66,13 +87,14 @@ Test that we can apply the bundle as a stream clone bundle
   $ cat http.pid >> $DAEMON_PIDS
 
   $ cd ..
-  $ hg clone http://localhost:$HGPORT streamv2-clone-implicit --debug
+  $ hg clone http://localhost:$HGPORT stream-clone-implicit --debug
   using http://localhost:$HGPORT/
   sending capabilities command
   sending clonebundles command
   applying clone bundle from http://localhost:$HGPORT1/bundle.hg
   bundle2-input-bundle: with-transaction
-  bundle2-input-part: "stream2" (params: 3 mandatory) supported
+  bundle2-input-part: "stream2" (params: 3 mandatory) supported (stream-v2 !)
+  bundle2-input-part: "stream3-exp" (params: 3 mandatory) supported (stream-v3 !)
   applying stream bundle
   11 files to transfer, 1.65 KB of data
   starting 4 threads for background file closing (?)
@@ -123,13 +145,14 @@ Test that we can apply the bundle as a stream clone bundle
   updating the branch cache
   (sent 4 HTTP requests and * bytes; received * bytes in responses) (glob)
 
-  $ hg clone --stream http://localhost:$HGPORT streamv2-clone-explicit --debug
+  $ hg clone --stream http://localhost:$HGPORT stream-clone-explicit --debug
   using http://localhost:$HGPORT/
   sending capabilities command
   sending clonebundles command
   applying clone bundle from http://localhost:$HGPORT1/bundle.hg
   bundle2-input-bundle: with-transaction
-  bundle2-input-part: "stream2" (params: 3 mandatory) supported
+  bundle2-input-part: "stream2" (params: 3 mandatory) supported (stream-v2 !)
+  bundle2-input-part: "stream3-exp" (params: 3 mandatory) supported (stream-v3 !)
   applying stream bundle
   11 files to transfer, 1.65 KB of data
   starting 4 threads for background file closing (?)
