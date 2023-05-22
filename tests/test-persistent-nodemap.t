@@ -90,6 +90,14 @@ As a result, -1 passed from Rust for the null revision became 4294967295 in C.
   $ f --size .hg/store/00changelog.n
   .hg/store/00changelog.n: size=62
 
+  $ hg debugnodemap --metadata --manifest
+  uid: ???????? (glob)
+  tip-rev: 5000
+  tip-node: 513d42790a19f0f60c6ebea54b9543bc9537b959
+  data-length: 120960
+  data-unused: 0
+  data-unused: 0.000%
+
 Simple lookup works
 
   $ ANYNODE=`hg log --template '{node|short}\n' --rev tip`
