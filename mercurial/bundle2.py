@@ -1736,6 +1736,8 @@ def writenewbundle(
         caps[b'obsmarkers'] = (b'V1',)
     if opts.get(b'streamv2'):
         caps[b'stream'] = [b'v2']
+    elif opts.get(b'streamv3-exp'):
+        caps[b'stream'] = [b'v3-exp']
     bundle = bundle20(ui, caps)
     bundle.setcompression(compression, compopts)
     _addpartsfromopts(ui, repo, bundle, source, outgoing, opts)
@@ -1779,6 +1781,9 @@ def _addpartsfromopts(ui, repo, bundler, source, outgoing, opts):
         part.addparam(b'exp-sidedata', b'1')
 
     if opts.get(b'streamv2', False):
+        addpartbundlestream2(bundler, repo, stream=True)
+
+    if opts.get(b'streamv3-exp', False):
         addpartbundlestream2(bundler, repo, stream=True)
 
     if opts.get(b'tagsfnodescache', True):
