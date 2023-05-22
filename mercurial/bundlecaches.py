@@ -100,6 +100,15 @@ _bundlespeccontentopts = {
         b'tagsfnodescache': False,
         b'revbranchcache': False,
     },
+    b'streamv3-exp': {
+        b'changegroup': False,
+        b'cg.version': b'03',
+        b'obsolescence': False,
+        b'phases': False,
+        b"streamv3-exp": True,
+        b'tagsfnodescache': False,
+        b'revbranchcache': False,
+    },
     b'packed1': {
         b'cg.version': b's1',
     },
@@ -278,8 +287,10 @@ def parsebundlespec(repo, spec, strict=True):
         # warning when the old way is encountered)
         if params[b"stream"] == b"v2":
             version = b"streamv2"
+        if params[b"stream"] == b"v3-exp":
+            version = b"streamv3-exp"
     contentopts = _bundlespeccontentopts.get(version, {}).copy()
-    if version == b"streamv2":
+    if version == b"streamv2" or version == b"streamv3-exp":
         # streamv2 have been reported as "v2" for a while.
         version = b"v2"
 
@@ -337,7 +348,10 @@ def isstreamclonespec(bundlespec):
     if (
         bundlespec.wirecompression == b'UN'
         and bundlespec.wireversion == b'02'
-        and bundlespec.contentopts.get(b'streamv2')
+        and (
+            bundlespec.contentopts.get(b'streamv2')
+            or bundlespec.contentopts.get(b'streamv3-exp')
+        )
     ):
         return True
 

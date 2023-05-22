@@ -146,6 +146,12 @@ def getbundlespec(ui, fh):
                 splitted = requirements.split()
                 params = bundle2._formatrequirementsparams(splitted)
                 return b'none-v2;stream=v2;%s' % params
+            elif part.type == b'stream3-exp' and version is None:
+                # A stream3 part requires to be part of a v2 bundle
+                requirements = urlreq.unquote(part.params[b'requirements'])
+                splitted = requirements.split()
+                params = bundle2._formatrequirementsparams(splitted)
+                return b'none-v2;stream=v3-exp;%s' % params
             elif part.type == b'obsmarkers':
                 params[b'obsolescence'] = b'yes'
                 if not part.mandatory:
