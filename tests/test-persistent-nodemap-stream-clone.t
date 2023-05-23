@@ -2,6 +2,15 @@
 Test the persistent on-disk nodemap during stream-clone
 =======================================================
 
+#testcases stream-v2 stream-v3
+
+#if stream-v3
+  $ cat << EOF >> $HGRCPATH
+  > [experimental]
+  > stream-v3=yes
+  > EOF
+#endif
+
 Setup
 =====
 
