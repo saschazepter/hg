@@ -1303,7 +1303,6 @@ packages = [
     'mercurial.templates',
     'mercurial.thirdparty',
     'mercurial.thirdparty.attr',
-    'mercurial.thirdparty.jaraco',
     'mercurial.thirdparty.zope',
     'mercurial.thirdparty.zope.interface',
     'mercurial.upgrade_utils',

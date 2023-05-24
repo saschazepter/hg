@@ -27,6 +27,21 @@ from . import (
 
 NODE_RE = re.compile(br'\b[0-9a-f]{6,64}\b')
 
+# set of extra entry that should survive a rebase-like operation, extensible by extensions
+retained_extras_on_rebase = {
+    b'source',
+    b'intermediate-source',
+}
+
+
+def preserve_extras_on_rebase(old_ctx, new_extra):
+    """preserve the relevant `extra` entry from old_ctx on rebase-like operation"""
+    new_extra.update(
+        (key, value)
+        for key, value in old_ctx.extra().items()
+        if key in retained_extras_on_rebase
+    )
+
 
 def _formatrevs(repo, revs, maxrevs=4):
     """returns a string summarizing revisions in a decent size
