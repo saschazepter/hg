@@ -24,7 +24,6 @@ from mercurial.node import (
     wdirrev,
 )
 from mercurial.pycompat import open
-from mercurial.thirdparty.jaraco.collections import Projection
 from mercurial import (
     bookmarks,
     cmdutil,
@@ -84,19 +83,6 @@ testedwith = b'ships-with-hg-core'
 
 def _nothingtorebase():
     return 1
-
-
-def retained_extras():
-    """
-    Yield the names of the extras to be retained.
-    """
-    # graft
-    yield b'source'
-    yield b'intermediate-source'
-
-
-def _save_extras(ctx, extra):
-    extra.update(Projection(retained_extras(), ctx.extra()))
 
 
 def _savebranch(ctx, extra):
@@ -199,7 +185,7 @@ class rebaseruntime:
         self.date = opts.get('date', None)
 
         e = opts.get('extrafn')  # internal, used by e.g. hgsubversion
-        self.extrafns = [_save_extras]
+        self.extrafns = [rewriteutil.preserve_extras_on_rebase]
         if e:
             self.extrafns = [e]
 
