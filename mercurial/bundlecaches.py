@@ -25,6 +25,9 @@ urlreq = util.urlreq
 
 CB_MANIFEST_FILE = b'clonebundles.manifest'
 
+def get_manifest(repo):
+    return repo.vfs.tryread(CB_MANIFEST_FILE)
+
 
 @attr.s
 class bundlespec:
