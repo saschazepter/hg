@@ -349,7 +349,7 @@ class localpeer(repository.peer):
         return self._caps
 
     def clonebundles(self):
-        return self._repo.tryread(bundlecaches.CB_MANIFEST_FILE)
+        return bundlecaches.get_manifest(self._repo)
 
     def debugwireargs(self, one, two, three=None, four=None, five=None):
         """Used to test argument passing over the wire"""
