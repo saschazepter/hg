@@ -274,9 +274,8 @@ def clonebundles(repo, proto):
     depending on the request. e.g. you could advertise URLs for the closest
     data center given the client's IP address.
     """
-    return wireprototypes.bytesresponse(
-        repo.vfs.tryread(bundlecaches.CB_MANIFEST_FILE)
-    )
+    manifest = bundlecaches.get_manifest(repo)
+    return wireprototypes.bytesresponse(manifest)
 
 
 wireprotocaps = [
