@@ -11,10 +11,7 @@ import stat
 from ..i18n import _
 from ..pycompat import getattr
 from .. import (
-    changelog,
     error,
-    filelog,
-    manifest,
     metadata,
     pycompat,
     requirements,
@@ -47,22 +44,6 @@ def get_sidedata_helpers(srcrepo, dstrepo):
     return sidedatamod.get_sidedata_helpers(srcrepo, dstrepo._wanted_sidedata)
 
 
-def _revlog_from_store_entry(repo, entry):
-    """Obtain a revlog from a repo store entry.
-
-    An instance of the appropriate class is returned.
-    """
-    if entry.is_changelog:
-        return changelog.changelog(repo.svfs)
-    elif entry.is_manifestlog:
-        mandir = entry.target_id.rstrip(b'/')
-        return manifest.manifestrevlog(
-            repo.nodeconstants, repo.svfs, tree=mandir
-        )
-    else:
-        return filelog.filelog(repo.svfs, entry.target_id)
-
-
 def _copyrevlog(tr, destrepo, oldrl, entry):
     """copy all relevant files for `oldrl` into `destrepo` store
 
@@ -71,7 +52,7 @@ def _copyrevlog(tr, destrepo, oldrl, entry):
     content is compatible with format of the destination repository.
     """
     oldrl = getattr(oldrl, '_revlog', oldrl)
-    newrl = _revlog_from_store_entry(destrepo, entry)
+    newrl = entry.get_revlog_instance(destrepo)
     newrl = getattr(newrl, '_revlog', newrl)
 
     oldvfs = oldrl.opener
@@ -138,7 +119,7 @@ def _perform_clone(
             _(b'cloning %d revisions from %s\n')
             % (len(old_revlog), revlog_path)
         )
-        newrl = _revlog_from_store_entry(dstrepo, entry)
+        newrl = entry.get_revlog_instance(dstrepo)
         old_revlog.clone(
             tr,
             newrl,
@@ -152,7 +133,7 @@ def _perform_clone(
         ui.note(msg % (revlog_path, len(old_revlog)))
         _copyrevlog(tr, dstrepo, old_revlog, entry)
 
-        newrl = _revlog_from_store_entry(dstrepo, entry)
+        newrl = entry.get_revlog_instance(dstrepo)
     return newrl
 
 
@@ -197,7 +178,7 @@ def _clonerevlogs(
         if not entry.is_revlog:
             continue
 
-        rl = _revlog_from_store_entry(srcrepo, entry)
+        rl = entry.get_revlog_instance(srcrepo)
 
         info = rl.storageinfo(
             exclusivefiles=True,
@@ -272,7 +253,7 @@ def _clonerevlogs(
     )
     progress = srcrepo.ui.makeprogress(_(b'file revisions'), total=frevcount)
     for target_id, entry in sorted(filelogs.items()):
-        oldrl = _revlog_from_store_entry(srcrepo, entry)
+        oldrl = entry.get_revlog_instance(srcrepo)
 
         newrl = _perform_clone(
             ui,
@@ -313,7 +294,7 @@ def _clonerevlogs(
         _(b'manifest revisions'), total=mrevcount
     )
     for target_id, entry in sorted(manifests.items()):
-        oldrl = _revlog_from_store_entry(srcrepo, entry)
+        oldrl = entry.get_revlog_instance(srcrepo)
         newrl = _perform_clone(
             ui,
             dstrepo,
@@ -352,7 +333,7 @@ def _clonerevlogs(
         _(b'changelog revisions'), total=crevcount
     )
     for target_id, entry in sorted(changelogs.items()):
-        oldrl = _revlog_from_store_entry(srcrepo, entry)
+        oldrl = entry.get_revlog_instance(srcrepo)
         newrl = _perform_clone(
             ui,
             dstrepo,
