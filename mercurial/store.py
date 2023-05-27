@@ -19,6 +19,7 @@ from .node import hex
 from . import (
     changelog,
     error,
+    filelog,
     manifest,
     policy,
     pycompat,
@@ -544,6 +545,21 @@ class RevlogStoreEntry(BaseStoreEntry):
             data = self._details[ext]
             files.append(StoreFile(unencoded_path=path, **data))
         return files
+
+    def get_revlog_instance(self, repo):
+        """Obtain a revlog instance from this store entry
+
+        An instance of the appropriate class is returned.
+        """
+        if self.is_changelog:
+            return changelog.changelog(repo.svfs)
+        elif self.is_manifestlog:
+            mandir = self.target_id.rstrip(b'/')
+            return manifest.manifestrevlog(
+                repo.nodeconstants, repo.svfs, tree=mandir
+            )
+        else:
+            return filelog.filelog(repo.svfs, self.target_id)
 
 
 @attr.s(slots=True)
