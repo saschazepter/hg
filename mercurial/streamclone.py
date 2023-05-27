@@ -556,28 +556,55 @@ def _filterfull(entry, copy, vfsmap):
     return (src, name, ftype, copy(vfsmap[src].join(name)))
 
 
-@contextlib.contextmanager
-def maketempcopies():
-    """return a function to temporary copy file"""
+class TempCopyManager:
+    """Manage temporary backup of volatile file during stream clone
 
-    files = []
-    dst_dir = pycompat.mkdtemp(prefix=b'hg-clone-')
-    try:
+    This should be used as a Python context, the copies will be discarded when
+    exiting the context.
 
-        def copy(src):
-            fd, dst = pycompat.mkstemp(
-                prefix=os.path.basename(src), dir=dst_dir
-            )
-            os.close(fd)
-            files.append(dst)
-            util.copyfiles(src, dst, hardlink=True)
-            return dst
+    A copy can be done by calling the object on the real path (encoded full
+    path)
 
-        yield copy
-    finally:
-        for tmp in files:
+    The backup path can be retrieved using the __getitem__ protocol, obj[path].
+    On file without backup, it will return the unmodified path. (equivalent to
+    `dict.get(x, x)`)
+    """
+
+    def __init__(self):
+        self._copies = None
+        self._dst_dir = None
+
+    def __enter__(self):
+        if self._copies is not None:
+            msg = "Copies context already open"
+            raise error.ProgrammingError(msg)
+        self._copies = {}
+        self._dst_dir = pycompat.mkdtemp(prefix=b'hg-clone-')
+        return self
+
+    def __call__(self, src):
+        """create a backup of the file at src"""
+        prefix = os.path.basename(src)
+        fd, dst = pycompat.mkstemp(prefix=prefix, dir=self._dst_dir)
+        os.close(fd)
+        self._copies[src] = dst
+        util.copyfiles(src, dst, hardlink=True)
+        return dst
+
+    def __getitem__(self, src):
+        """return the path to a valid version of `src`
+
+        If the file has no backup, the path of the file is returned
+        unmodified."""
+        return self._copies.get(src, src)
+
+    def __exit__(self, *args, **kwars):
+        """discard all backups"""
+        for tmp in self._copies.values():
             util.tryunlink(tmp)
-        util.tryrmdir(dst_dir)
+        util.tryrmdir(self._dst_dir)
+        self._copies = None
+        self._dst_dir = None
 
 
 def _makemap(repo):
@@ -610,7 +637,7 @@ def _emit2(repo, entries, totalfilesize):
         _(b'bundle'), total=totalfilesize, unit=_(b'bytes')
     )
     progress.update(0)
-    with maketempcopies() as copy, progress:
+    with TempCopyManager() as copy, progress:
         # copy is delayed until we are in the try
         entries = [_filterfull(e, copy, vfsmap) for e in entries]
         yield None  # this release the lock on the repository
