@@ -1,3 +1,18 @@
+# A utility extension that help taking a break during streamclone operation
+#
+# This extension is used through two environment variable
+#
+# HG_TEST_STREAM_WALKED_FILE_1
+#
+#   path of a file created by the process generating the streaming clone when
+#   it is done gathering data and is ready to unlock the repository and move
+#   to the streaming of content.
+#
+# HG_TEST_STREAM_WALKED_FILE_2
+#
+#   path of a file to be manually created to let the process generating the
+#   streaming clone proceed to streaming file content.
+
 from mercurial import (
     encoding,
     extensions,
