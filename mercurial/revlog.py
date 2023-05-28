@@ -663,6 +663,10 @@ class revlog:
         # revlog header -> revlog compressor
         self._decompressors = {}
 
+    def get_revlog(self):
+        """simple function to mirror API of other not-really-revlog API"""
+        return self
+
     @util.propertycache
     def revlog_kind(self):
         return self.target[0]
