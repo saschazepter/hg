@@ -11,7 +11,6 @@ import os
 import struct
 
 from .i18n import _
-from .pycompat import open
 from .interfaces import repository
 from . import (
     bookmarks,
@@ -658,36 +657,25 @@ def _emit2(repo, entries):
         totalbytecount = 0
 
         for src, vfs, e in entries:
-            for f in e.files():
+            for name, stream, size in e.get_streams(vfs, copies=copy):
                 yield src
-                name = f.unencoded_path
                 yield util.uvarintencode(len(name))
-                actual_path = copy[vfs.join(name)]
-                fp = open(actual_path, b'rb')
-                size = f.file_size(vfs)
+                yield util.uvarintencode(size)
+                yield name
                 bytecount = 0
-                try:
-                    yield util.uvarintencode(size)
-                    yield name
-                    if size <= 65536:
-                        chunks = (fp.read(size),)
-                    else:
-                        chunks = util.filechunkiter(fp, limit=size)
-                    for chunk in chunks:
-                        bytecount += len(chunk)
-                        totalbytecount += len(chunk)
-                        progress.update(totalbytecount)
-                        yield chunk
-                    if bytecount != size:
-                        # Would most likely be caused by a race due to `hg
-                        # strip` or a revlog split
-                        msg = _(
-                            b'clone could only read %d bytes from %s, but '
-                            b'expected %d bytes'
-                        )
-                        raise error.Abort(msg % (bytecount, name, size))
-                finally:
-                    fp.close()
+                for chunk in stream:
+                    bytecount += len(chunk)
+                    totalbytecount += len(chunk)
+                    progress.update(totalbytecount)
+                    yield chunk
+                if bytecount != size:
+                    # Would most likely be caused by a race due to `hg
+                    # strip` or a revlog split
+                    msg = _(
+                        b'clone could only read %d bytes from %s, but '
+                        b'expected %d bytes'
+                    )
+                    raise error.Abort(msg % (bytecount, name, size))
 
 
 def _test_sync_point_walk_1(repo):
