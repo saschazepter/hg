@@ -469,11 +469,35 @@ class StoreFile:
 
     def file_size(self, vfs):
         if self._file_size is None:
+            if vfs is None:
+                msg = b"calling vfs-less file_size without prior call: %s"
+                msg %= self.unencoded_path
+                raise error.ProgrammingError(msg)
             try:
                 self._file_size = vfs.stat(self.unencoded_path).st_size
             except FileNotFoundError:
                 self._file_size = 0
         return self._file_size
+
+    def get_stream(self, vfs, copies):
+        """return data "stream" information for this file
+
+        (unencoded_file_path, content_iterator, content_size)
+        """
+        size = self.file_size(None)
+
+        def get_stream():
+            actual_path = copies[vfs.join(self.unencoded_path)]
+            with open(actual_path, 'rb') as fp:
+                yield None  # ready to stream
+                if size <= 65536:
+                    yield fp.read(size)
+                else:
+                    yield from util.filechunkiter(fp, limit=size)
+
+        s = get_stream()
+        next(s)
+        return (self.unencoded_path, s, size)
 
 
 @attr.s(slots=True, init=False)
@@ -484,6 +508,14 @@ class BaseStoreEntry:
 
     def files(self) -> List[StoreFile]:
         raise NotImplementedError
+
+    def get_streams(self, vfs, copies=None):
+        """return a list of data stream associated to files for this entry
+
+        return [(unencoded_file_path, content_iterator, content_size), …]
+        """
+        assert vfs is not None
+        return [f.get_stream(vfs, copies) for f in self.files()]
 
 
 @attr.s(slots=True, init=False)
