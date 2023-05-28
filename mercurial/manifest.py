@@ -1617,6 +1617,15 @@ class manifestrevlog:
         self.index = self._revlog.index
         self._generaldelta = self._revlog._generaldelta
 
+    def get_revlog(self):
+        """return an actual revlog instance if any
+
+        This exist because a lot of code leverage the fact the underlying
+        storage is a revlog for optimization, so giving simple way to access
+        the revlog instance helps such code.
+        """
+        return self._revlog
+
     def _setupmanifestcachehooks(self, repo):
         """Persist the manifestfulltextcache on lock release"""
         if not util.safehasattr(repo, '_wlockref'):

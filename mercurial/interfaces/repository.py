@@ -1404,6 +1404,14 @@ class imanifeststorage(interfaceutil.Interface):
         This one behaves the same way, except for manifest data.
         """
 
+    def get_revlog():
+        """return an actual revlog instance if any
+
+        This exist because a lot of code leverage the fact the underlying
+        storage is a revlog for optimization, so giving simple way to access
+        the revlog instance helps such code.
+        """
+
 
 class imanifestlog(interfaceutil.Interface):
     """Interface representing a collection of manifest snapshots.
