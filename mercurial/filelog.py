@@ -42,6 +42,15 @@ class filelog:
         opts = opener.options
         self._fix_issue6528 = opts.get(b'issue6528.fix-incoming', True)
 
+    def get_revlog(self):
+        """return an actual revlog instance if any
+
+        This exist because a lot of code leverage the fact the underlying
+        storage is a revlog for optimization, so giving simple way to access
+        the revlog instance helps such code.
+        """
+        return self._revlog
+
     def __len__(self):
         return len(self._revlog)
 
