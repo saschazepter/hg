@@ -475,6 +475,7 @@ class SimpleStoreEntry(BaseStoreEntry):
     _entry_path = attr.ib()
     _is_volatile = attr.ib(default=False)
     _file_size = attr.ib(default=None)
+    _files = attr.ib(default=None)
 
     def __init__(
         self,
@@ -486,15 +487,18 @@ class SimpleStoreEntry(BaseStoreEntry):
         self._entry_path = entry_path
         self._is_volatile = is_volatile
         self._file_size = file_size
+        self._files = None
 
     def files(self):
-        return [
-            StoreFile(
-                unencoded_path=self._entry_path,
-                file_size=self._file_size,
-                is_volatile=self._is_volatile,
-            )
-        ]
+        if self._files is None:
+            self._files = [
+                StoreFile(
+                    unencoded_path=self._entry_path,
+                    file_size=self._file_size,
+                    is_volatile=self._is_volatile,
+                )
+            ]
+        return self._files
 
 
 @attr.s(slots=True, init=False)
@@ -507,6 +511,7 @@ class RevlogStoreEntry(BaseStoreEntry):
     target_id = attr.ib(default=None)
     _path_prefix = attr.ib(default=None)
     _details = attr.ib(default=None)
+    _files = attr.ib(default=None)
 
     def __init__(
         self,
@@ -521,6 +526,7 @@ class RevlogStoreEntry(BaseStoreEntry):
         self._path_prefix = path_prefix
         assert b'.i' in details, (path_prefix, details)
         self._details = details
+        self._files = None
 
     @property
     def is_changelog(self):
@@ -539,12 +545,13 @@ class RevlogStoreEntry(BaseStoreEntry):
         return self._path_prefix + b'.i'
 
     def files(self):
-        files = []
-        for ext in sorted(self._details, key=_ext_key):
-            path = self._path_prefix + ext
-            data = self._details[ext]
-            files.append(StoreFile(unencoded_path=path, **data))
-        return files
+        if self._files is None:
+            self._files = []
+            for ext in sorted(self._details, key=_ext_key):
+                path = self._path_prefix + ext
+                data = self._details[ext]
+                self._files.append(StoreFile(unencoded_path=path, **data))
+        return self._files
 
     def get_revlog_instance(self, repo):
         """Obtain a revlog instance from this store entry
