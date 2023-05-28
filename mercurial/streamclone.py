@@ -900,7 +900,7 @@ def _copy_files(src_vfs_map, dst_vfs_map, entries, progress):
         hardlink[0] = False
         progress.topic = _(b'copying')
 
-    for k, path, size in entries:
+    for k, path in entries:
         src_vfs = src_vfs_map[k]
         dst_vfs = dst_vfs_map[k]
         src_path = src_vfs.join(path)
@@ -951,17 +951,19 @@ def local_copy(src_repo, dest_repo):
             if os.path.exists(srcbookmarks):
                 bm_count = 1
 
-            entries, totalfilesize = _v2_walk(
+            entries = _entries_walk(
                 src_repo,
                 includes=None,
                 excludes=None,
                 includeobsmarkers=True,
             )
+            entries = list(entries)
             src_vfs_map = _makemap(src_repo)
             dest_vfs_map = _makemap(dest_repo)
+            total_files = sum(len(e[1].files()) for e in entries) + bm_count
             progress = src_repo.ui.makeprogress(
                 topic=_(b'linking'),
-                total=len(entries) + bm_count,
+                total=total_files,
                 unit=_(b'files'),
             )
             # copy  files
@@ -971,7 +973,11 @@ def local_copy(src_repo, dest_repo):
             # this would also requires checks that nobody is appending any data
             # to the files while we do the clone, so this is not done yet. We
             # could do this blindly when copying files.
-            files = ((k, path, size) for k, path, ftype, size in entries)
+            files = [
+                (vfs_key, f.unencoded_path)
+                for vfs_key, e in entries
+                for f in e.files()
+            ]
             hardlink = _copy_files(src_vfs_map, dest_vfs_map, files, progress)
 
             # copy bookmarks over
@@ -984,7 +990,7 @@ def local_copy(src_repo, dest_repo):
             msg = b'linked %d files\n'
         else:
             msg = b'copied %d files\n'
-        src_repo.ui.debug(msg % (len(entries) + bm_count))
+        src_repo.ui.debug(msg % total_files)
 
         with dest_repo.transaction(b"localclone") as tr:
             dest_repo.store.write(tr)
