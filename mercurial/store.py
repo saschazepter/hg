@@ -10,7 +10,7 @@ import functools
 import os
 import re
 import stat
-from typing import Generator
+from typing import Generator, List
 
 from .i18n import _
 from .pycompat import getattr
@@ -459,11 +459,31 @@ FILETYPE_FILELOG_OTHER = FILEFLAGS_FILELOG | FILEFLAGS_REVLOG_OTHER
 FILETYPE_OTHER = FILEFLAGS_OTHER
 
 
+@attr.s(slots=True)
+class StoreFile:
+    """a file matching a store entry"""
+
+    unencoded_path = attr.ib()
+    _file_size = attr.ib(default=None)
+    is_volatile = attr.ib(default=False)
+
+    def file_size(self, vfs):
+        if self._file_size is None:
+            try:
+                self._file_size = vfs.stat(self.unencoded_path).st_size
+            except FileNotFoundError:
+                self._file_size = 0
+        return self._file_size
+
+
 @attr.s(slots=True, init=False)
 class BaseStoreEntry:
     """An entry in the store
 
     This is returned by `store.walk` and represent some data in the store."""
+
+    def files(self) -> List[StoreFile]:
+        raise NotImplementedError
 
 
 @attr.s(slots=True, init=False)
@@ -489,7 +509,7 @@ class SimpleStoreEntry(BaseStoreEntry):
         self._file_size = file_size
         self._files = None
 
-    def files(self):
+    def files(self) -> List[StoreFile]:
         if self._files is None:
             self._files = [
                 StoreFile(
@@ -544,7 +564,7 @@ class RevlogStoreEntry(BaseStoreEntry):
         """unencoded path of the main revlog file"""
         return self._path_prefix + b'.i'
 
-    def files(self):
+    def files(self) -> List[StoreFile]:
         if self._files is None:
             self._files = []
             for ext in sorted(self._details, key=_ext_key):
@@ -567,23 +587,6 @@ class RevlogStoreEntry(BaseStoreEntry):
             )
         else:
             return filelog.filelog(repo.svfs, self.target_id)
-
-
-@attr.s(slots=True)
-class StoreFile:
-    """a file matching an entry"""
-
-    unencoded_path = attr.ib()
-    _file_size = attr.ib(default=None)
-    is_volatile = attr.ib(default=False)
-
-    def file_size(self, vfs):
-        if self._file_size is None:
-            try:
-                self._file_size = vfs.stat(self.unencoded_path).st_size
-            except FileNotFoundError:
-                self._file_size = 0
-        return self._file_size
 
 
 def _gather_revlog(files_data):
