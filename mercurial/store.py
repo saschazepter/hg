@@ -554,7 +554,7 @@ class RevlogStoreEntry(BaseStoreEntry):
         if self.is_changelog:
             return changelog.changelog(repo.svfs)
         elif self.is_manifestlog:
-            mandir = self.target_id.rstrip(b'/')
+            mandir = self.target_id
             return manifest.manifestrevlog(
                 repo.nodeconstants, repo.svfs, tree=mandir
             )
