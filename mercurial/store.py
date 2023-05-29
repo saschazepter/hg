@@ -509,7 +509,13 @@ class BaseStoreEntry:
     def files(self) -> List[StoreFile]:
         raise NotImplementedError
 
-    def get_streams(self, vfs, copies=None):
+    def get_streams(
+        self,
+        repo=None,
+        vfs=None,
+        copies=None,
+        max_changeset=None,
+    ):
         """return a list of data stream associated to files for this entry
 
         return [(unencoded_file_path, content_iterator, content_size), …]
@@ -604,6 +610,57 @@ class RevlogStoreEntry(BaseStoreEntry):
                 data = self._details[ext]
                 self._files.append(StoreFile(unencoded_path=path, **data))
         return self._files
+
+    def get_streams(
+        self,
+        repo=None,
+        vfs=None,
+        copies=None,
+        max_changeset=None,
+    ):
+        if repo is None or max_changeset is None:
+            return super().get_streams(
+                repo=repo,
+                vfs=vfs,
+                copies=copies,
+                max_changeset=max_changeset,
+            )
+        if any(k.endswith(b'.idx') for k in self._details.keys()):
+            # This use revlog-v2, ignore for now
+            return super().get_streams(
+                repo=repo,
+                vfs=vfs,
+                copies=copies,
+                max_changeset=max_changeset,
+            )
+        name_to_ext = {}
+        for ext in self._details.keys():
+            name_to_ext[self._path_prefix + ext] = ext
+        name_to_size = {}
+        for f in self.files():
+            name_to_size[f.unencoded_path] = f.file_size(None)
+        stream = [
+            f.get_stream(vfs, copies)
+            for f in self.files()
+            if name_to_ext[f.unencoded_path] not in (b'.d', b'.i')
+        ]
+
+        rl = self.get_revlog_instance(repo).get_revlog()
+        rl_stream = rl.get_streams(max_changeset)
+        for name, s, size in rl_stream:
+            if name_to_size.get(name, 0) != size:
+                msg = _(b"expected %d bytes but %d provided for %s")
+                msg %= name_to_size.get(name, 0), size, name
+                raise error.Abort(msg)
+        stream.extend(rl_stream)
+        files = self.files()
+        assert len(stream) == len(files), (
+            stream,
+            files,
+            self._path_prefix,
+            self.target_id,
+        )
+        return stream
 
     def get_revlog_instance(self, repo):
         """Obtain a revlog instance from this store entry
