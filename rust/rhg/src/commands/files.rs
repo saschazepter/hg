@@ -1,5 +1,5 @@
 use crate::error::CommandError;
-use crate::ui::{print_narrow_sparse_warnings, Ui};
+use crate::ui::{print_narrow_sparse_warnings, Ui, RelativePaths, relative_paths};
 use crate::utils::path_utils::RelativizePaths;
 use clap::Arg;
 use hg::narrow;
@@ -28,11 +28,13 @@ pub fn args() -> clap::Command {
 }
 
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
-    let relative = invocation.config.get(b"ui", b"relative-paths");
-    if relative.is_some() {
+    match relative_paths(invocation.config)? {
+      RelativePaths::Legacy | RelativePaths::Bool(true) => (),
+      RelativePaths::Bool(false) => {
         return Err(CommandError::unsupported(
             "non-default ui.relative-paths",
         ));
+      }
     }
 
     let rev = invocation.subcommand_args.get_one::<String>("rev");
