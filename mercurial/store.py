@@ -578,12 +578,12 @@ class StoreFile:
     is_volatile = attr.ib(default=False)
 
     def file_size(self, vfs):
-        if self._file_size is not None:
-            return self._file_size
-        try:
-            return vfs.stat(self.unencoded_path).st_size
-        except FileNotFoundError:
-            return 0
+        if self._file_size is None:
+            try:
+                self._file_size = vfs.stat(self.unencoded_path).st_size
+            except FileNotFoundError:
+                self._file_size = 0
+        return self._file_size
 
 
 def _gather_revlog(files_data):
