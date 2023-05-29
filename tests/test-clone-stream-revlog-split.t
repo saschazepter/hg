@@ -86,10 +86,10 @@ wait for the client to be done cloning.
 Check everything is fine
 
   $ cat client.log
-  remote: abort: unexpected error: clone could only read 256 bytes from data/some-file.i, but expected 1259 bytes (known-bad-output !)
+  remote: abort: unexpected error: expected 0 bytes but 1067 provided for data/some-file.d (known-bad-output !)
   abort: pull failed on remote (known-bad-output !)
   $ tail -2 errors.log
-  mercurial.error.Abort: clone could only read 256 bytes from data/some-file.i, but expected 1259 bytes (known-bad-output !)
+  mercurial.error.Abort: expected 0 bytes but 1067 provided for data/some-file.d (known-bad-output !)
    (known-bad-output !)
   $ hg -R clone-while-split verify
   checking changesets (missing-correct-output !)

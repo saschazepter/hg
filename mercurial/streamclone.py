@@ -635,6 +635,7 @@ def _emit2(repo, entries):
     # translate the vfs one
     entries = [(vfs_key, vfsmap[vfs_key], e) for (vfs_key, e) in entries]
 
+    max_linkrev = len(repo)
     file_count = totalfilesize = 0
     # record the expected size of every file
     for k, vfs, e in entries:
@@ -657,7 +658,10 @@ def _emit2(repo, entries):
         totalbytecount = 0
 
         for src, vfs, e in entries:
-            for name, stream, size in e.get_streams(vfs, copies=copy):
+            entry_streams = e.get_streams(
+                repo=repo, vfs=vfs, copies=copy, max_changeset=max_linkrev
+            )
+            for name, stream, size in entry_streams:
                 yield src
                 yield util.uvarintencode(len(name))
                 yield util.uvarintencode(size)
