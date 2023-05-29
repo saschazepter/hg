@@ -620,7 +620,7 @@ def _makemap(repo):
     return vfsmap
 
 
-def _emit2(repo, entries, totalfilesize):
+def _emit2(repo, entries):
     """actually emit the stream bundle"""
     vfsmap = _makemap(repo)
     # we keep repo.vfs out of the on purpose, ther are too many danger there
@@ -633,27 +633,38 @@ def _emit2(repo, entries, totalfilesize):
             b'repo.vfs must not be added to vfsmap for security reasons'
         )
 
+    # translate the vfs one
+    entries = [(vfs_key, vfsmap[vfs_key], e) for (vfs_key, e) in entries]
+
+    file_count = totalfilesize = 0
+    # record the expected size of every file
+    for k, vfs, e in entries:
+        for f in e.files():
+            file_count += 1
+            totalfilesize += f.file_size(vfs)
+
     progress = repo.ui.makeprogress(
         _(b'bundle'), total=totalfilesize, unit=_(b'bytes')
     )
     progress.update(0)
     with TempCopyManager() as copy, progress:
-        # copy is delayed until we are in the try
-        entries = [_filterfull(e, copy, vfsmap) for e in entries]
-        yield None  # this release the lock on the repository
+        # create a copy of volatile files
+        for k, vfs, e in entries:
+            for f in e.files():
+                if f.is_volatile:
+                    copy(vfs.join(f.unencoded_path))
+        # the first yield release the lock on the repository
+        yield file_count, totalfilesize
         totalbytecount = 0
 
-        for src, name, ftype, data in entries:
-            if True:
-                vfs = vfsmap[src]
+        for src, vfs, e in entries:
+            for f in e.files():
                 yield src
+                name = f.unencoded_path
                 yield util.uvarintencode(len(name))
-                if ftype == _fileappend:
-                    fp = vfs(name)
-                    size = data
-                elif ftype == _filefull:
-                    fp = open(data, b'rb')
-                    size = util.fstat(fp).st_size
+                actual_path = copy[vfs.join(name)]
+                fp = open(actual_path, b'rb')
+                size = f.file_size(vfs)
                 bytecount = 0
                 try:
                     yield util.uvarintencode(size)
@@ -768,20 +779,20 @@ def generatev2(repo, includes, excludes, includeobsmarkers):
 
         repo.ui.debug(b'scanning\n')
 
-        entries, totalfilesize = _v2_walk(
+        entries = _entries_walk(
             repo,
             includes=includes,
             excludes=excludes,
             includeobsmarkers=includeobsmarkers,
         )
 
-        chunks = _emit2(repo, entries, totalfilesize)
+        chunks = _emit2(repo, entries)
         first = next(chunks)
-        assert first is None
+        file_count, total_file_size = first
         _test_sync_point_walk_1(repo)
     _test_sync_point_walk_2(repo)
 
-    return len(entries), totalfilesize, chunks
+    return file_count, total_file_size, chunks
 
 
 def generatev3(repo, includes, excludes, includeobsmarkers):
