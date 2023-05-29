@@ -221,6 +221,18 @@ pub fn formatted(config: &Config) -> Result<bool, HgError> {
     }
 }
 
+pub enum RelativePaths {
+    Legacy,
+    Bool(bool),
+}
+
+pub fn relative_paths(config: &Config) -> Result<RelativePaths, HgError> {
+    Ok(match config.get(b"ui", b"relative-paths") {
+        None | Some(b"legacy") => RelativePaths::Legacy,
+        _ => RelativePaths::Bool(config.get_bool(b"ui", b"relative-paths")?),
+    })
+}
+
 fn isatty(config: &Config) -> Result<bool, HgError> {
     Ok(if config.get_bool(b"ui", b"nontty")? {
         false
