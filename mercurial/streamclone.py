@@ -644,40 +644,39 @@ def _emit2(repo, entries, totalfilesize):
         totalbytecount = 0
 
         for src, name, ftype, data in entries:
-            vfs = vfsmap[src]
-            yield src
-            yield util.uvarintencode(len(name))
-            if ftype == _fileappend:
-                fp = vfs(name)
-                size = data
-            elif ftype == _filefull:
-                fp = open(data, b'rb')
-                size = util.fstat(fp).st_size
-            bytecount = 0
-            try:
-                yield util.uvarintencode(size)
-                yield name
-                if size <= 65536:
-                    chunks = (fp.read(size),)
-                else:
-                    chunks = util.filechunkiter(fp, limit=size)
-                for chunk in chunks:
-                    bytecount += len(chunk)
-                    totalbytecount += len(chunk)
-                    progress.update(totalbytecount)
-                    yield chunk
-                if bytecount != size:
-                    # Would most likely be caused by a race due to `hg strip` or
-                    # a revlog split
-                    raise error.Abort(
-                        _(
+            if True:
+                vfs = vfsmap[src]
+                yield src
+                yield util.uvarintencode(len(name))
+                if ftype == _fileappend:
+                    fp = vfs(name)
+                    size = data
+                elif ftype == _filefull:
+                    fp = open(data, b'rb')
+                    size = util.fstat(fp).st_size
+                bytecount = 0
+                try:
+                    yield util.uvarintencode(size)
+                    yield name
+                    if size <= 65536:
+                        chunks = (fp.read(size),)
+                    else:
+                        chunks = util.filechunkiter(fp, limit=size)
+                    for chunk in chunks:
+                        bytecount += len(chunk)
+                        totalbytecount += len(chunk)
+                        progress.update(totalbytecount)
+                        yield chunk
+                    if bytecount != size:
+                        # Would most likely be caused by a race due to `hg
+                        # strip` or a revlog split
+                        msg = _(
                             b'clone could only read %d bytes from %s, but '
                             b'expected %d bytes'
                         )
-                        % (bytecount, name, size)
-                    )
-            finally:
-                fp.close()
+                        raise error.Abort(msg % (bytecount, name, size))
+                finally:
+                    fp.close()
 
 
 def _test_sync_point_walk_1(repo):
