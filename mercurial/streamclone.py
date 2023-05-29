@@ -731,37 +731,6 @@ def _entries_walk(repo, includes, excludes, includeobsmarkers):
             yield (_srccache, entry)
 
 
-def _v2_walk(repo, includes, excludes, includeobsmarkers):
-    """emit a seris of files information useful to clone a repo
-
-    return (entries, totalfilesize)
-
-    entries is a list of tuple (vfs-key, file-path, file-type, size)
-
-    - `vfs-key`: is a key to the right vfs to write the file (see _makemap)
-    - `name`: file path of the file to copy (to be feed to the vfss)
-    - `file-type`: do this file need to be copied with the source lock ?
-    - `size`: the size of the file (or None)
-    """
-    assert repo._currentlock(repo._lockref) is not None
-    files = []
-    totalfilesize = 0
-
-    vfsmap = _makemap(repo)
-    entries = _entries_walk(repo, includes, excludes, includeobsmarkers)
-    for vfs_key, entry in entries:
-        vfs = vfsmap[vfs_key]
-        for f in entry.files():
-            file_size = f.file_size(vfs)
-            if file_size:
-                ft = _fileappend
-                if f.is_volatile:
-                    ft = _filefull
-                files.append((vfs_key, f.unencoded_path, ft, file_size))
-                totalfilesize += file_size
-    return files, totalfilesize
-
-
 def generatev2(repo, includes, excludes, includeobsmarkers):
     """Emit content for version 2 of a streaming clone.
 
