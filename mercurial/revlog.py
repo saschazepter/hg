@@ -506,7 +506,7 @@ class revlog:
         except FileNotFoundError:
             return b''
 
-    def get_streams(self, max_linkrev):
+    def get_streams(self, max_linkrev, force_inline=False):
         n = len(self)
         index = self.index
         while n > 0:
@@ -541,6 +541,29 @@ class revlog:
                         yield fp.read(size)
                     else:
                         yield from util.filechunkiter(fp, limit=size)
+
+            inline_stream = get_stream()
+            next(inline_stream)
+            return [
+                (self._indexfile, inline_stream, index_size + data_size),
+            ]
+        elif force_inline:
+
+            def get_stream():
+                with self._datafp() as fp_d:
+                    yield None
+
+                    for rev in range(n):
+                        idx = self.index.entry_binary(rev)
+                        if rev == 0 and self._docket is None:
+                            # re-inject the inline flag
+                            header = self._format_flags
+                            header |= self._format_version
+                            header |= FLAG_INLINE_DATA
+                            header = self.index.pack_header(header)
+                            idx = header + idx
+                        yield idx
+                        yield self._getsegmentforrevs(rev, rev, df=fp_d)[1]
 
             inline_stream = get_stream()
             next(inline_stream)
