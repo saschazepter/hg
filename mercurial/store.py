@@ -645,8 +645,11 @@ class RevlogStoreEntry(BaseStoreEntry):
             if name_to_ext[f.unencoded_path] not in (b'.d', b'.i')
         ]
 
+        is_inline = b'.d' not in self._details
+
         rl = self.get_revlog_instance(repo).get_revlog()
-        rl_stream = rl.get_streams(max_changeset)
+        rl_stream = rl.get_streams(max_changeset, force_inline=is_inline)
+
         for name, s, size in rl_stream:
             if name_to_size.get(name, 0) != size:
                 msg = _(b"expected %d bytes but %d provided for %s")
