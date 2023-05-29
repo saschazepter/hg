@@ -17,6 +17,8 @@ setup a repository for tests
   > [format]
   > # skip compression to make it easy to trigger a split
   > revlog-compression=none
+  > [phases]
+  > publish=no
   > EOF
 
   $ hg init server
@@ -64,7 +66,11 @@ Start the server
 
 Start a client doing a streaming clone
 
-  $ (hg clone -q --stream -U http://localhost:$HGPORT1 clone-while-split > client.log 2>&1; touch "$HG_TEST_STREAM_WALKED_FILE_3") &
+  $ ( \
+  >    hg clone --debug --stream -U http://localhost:$HGPORT1 \
+  >    clone-while-split > client.log 2>&1; \
+  >    touch "$HG_TEST_STREAM_WALKED_FILE_3" \
+  > ) &
 
 Wait for the server to be done collecting data
 
@@ -86,65 +92,84 @@ wait for the client to be done cloning.
 Check everything is fine
 
   $ cat client.log
-  remote: abort: unexpected error: expected 0 bytes but 1067 provided for data/some-file.d (known-bad-output !)
-  abort: pull failed on remote (known-bad-output !)
+  using http://localhost:$HGPORT1/
+  sending capabilities command
+  query 1; heads
+  sending batch command
+  streaming all changes
+  sending getbundle command
+  bundle2-input-bundle: with-transaction
+  bundle2-input-part: "stream2" (params: 3 mandatory) supported (stream-bundle2-v2 !)
+  bundle2-input-part: "stream3-exp" (params: 3 mandatory) supported (stream-bundle2-v3 !)
+  applying stream bundle
+  7 files to transfer, 2.11 KB of data
+  adding [s] data/some-file.i (1.23 KB)
+  adding [s] phaseroots (43 bytes)
+  adding [s] 00manifest.i (348 bytes)
+  adding [s] 00changelog.i (381 bytes)
+  adding [c] branch2-served (94 bytes)
+  adding [c] rbc-names-v1 (7 bytes)
+  adding [c] rbc-revs-v1 (24 bytes)
+  updating the branch cache
+  transferred 2.11 KB in * seconds (* */sec) (glob)
+  bundle2-input-part: total payload size 2268
+  bundle2-input-part: "listkeys" (params: 1 mandatory) supported
+  bundle2-input-bundle: 2 parts total
+  checking for updated bookmarks
+  updating the branch cache
+  (sent 3 HTTP requests and * bytes; received * bytes in responses) (glob)
   $ tail -2 errors.log
-  mercurial.error.Abort: expected 0 bytes but 1067 provided for data/some-file.d (known-bad-output !)
-   (known-bad-output !)
   $ hg -R clone-while-split verify
-  checking changesets (missing-correct-output !)
-  checking manifests (missing-correct-output !)
-  crosschecking files in changesets and manifests (missing-correct-output !)
-  checking files (missing-correct-output !)
-  checking dirstate (missing-correct-output !)
-  checked 3 changesets with 3 changes to 1 files (missing-correct-output !)
-  abort: repository clone-while-split not found (known-bad-output !)
-  [255]
+  checking changesets
+  checking manifests
+  crosschecking files in changesets and manifests
+  checking files
+  checking dirstate
+  checked 3 changesets with 3 changes to 1 files
   $ hg -R clone-while-split tip
-  changeset:   2:dbd9854c38a6 (missing-correct-output !)
-  tag:         tip (missing-correct-output !)
-  user:        test (missing-correct-output !)
-  date:        Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
-  summary:     c (missing-correct-output !)
-   (missing-correct-output !)
-  abort: repository clone-while-split not found (known-bad-output !)
-  [255]
+  changeset:   2:dbd9854c38a6
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     c
+  
   $ hg -R clone-while-split debug-revlog-index some-file
-     rev linkrev       nodeid    p1-nodeid    p2-nodeid (missing-correct-output !)
-       0       0 ed70cecbc103 000000000000 000000000000 (missing-correct-output !)
-       1       1 7241018db64c ed70cecbc103 000000000000 (missing-correct-output !)
-       2       2 fa1120531cc1 7241018db64c 000000000000 (missing-correct-output !)
-  abort: repository clone-while-split not found (known-bad-output !)
-  [255]
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
+       0       0 ed70cecbc103 000000000000 000000000000
+       1       1 7241018db64c ed70cecbc103 000000000000
+       2       2 fa1120531cc1 7241018db64c 000000000000
+  $ hg -R server phase --rev 'all()'
+  0: draft
+  1: draft
+  2: draft
+  3: draft
+  $ hg -R clone-while-split phase --rev 'all()'
+  0: draft
+  1: draft
+  2: draft
 
 subsequent pull work
 
   $ hg -R clone-while-split pull
-  pulling from http://localhost:$HGPORT1/ (missing-correct-output !)
-  searching for changes (missing-correct-output !)
-  adding changesets (missing-correct-output !)
-  adding manifests (missing-correct-output !)
-  adding file changes (missing-correct-output !)
-  added 1 changesets with 1 changes to 1 files (missing-correct-output !)
-  new changesets df05c6cb1406 (missing-correct-output !)
-  (run 'hg update' to get a working copy) (missing-correct-output !)
-  abort: repository clone-while-split not found (known-bad-output !)
-  [255]
+  pulling from http://localhost:$HGPORT1/
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+  new changesets df05c6cb1406 (1 drafts)
+  (run 'hg update' to get a working copy)
 
   $ hg -R clone-while-split debug-revlog-index some-file
-     rev linkrev       nodeid    p1-nodeid    p2-nodeid (missing-correct-output !)
-       0       0 ed70cecbc103 000000000000 000000000000 (missing-correct-output !)
-       1       1 7241018db64c ed70cecbc103 000000000000 (missing-correct-output !)
-       2       2 fa1120531cc1 7241018db64c 000000000000 (missing-correct-output !)
-       3       3 a631378adaa3 fa1120531cc1 000000000000 (missing-correct-output !)
-  abort: repository clone-while-split not found (known-bad-output !)
-  [255]
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
+       0       0 ed70cecbc103 000000000000 000000000000
+       1       1 7241018db64c ed70cecbc103 000000000000
+       2       2 fa1120531cc1 7241018db64c 000000000000
+       3       3 a631378adaa3 fa1120531cc1 000000000000
   $ hg -R clone-while-split verify
-  checking changesets (missing-correct-output !)
-  checking manifests (missing-correct-output !)
-  crosschecking files in changesets and manifests (missing-correct-output !)
-  checking files (missing-correct-output !)
-  checking dirstate (missing-correct-output !)
-  checked 4 changesets with 4 changes to 1 files (missing-correct-output !)
-  abort: repository clone-while-split not found (known-bad-output !)
-  [255]
+  checking changesets
+  checking manifests
+  crosschecking files in changesets and manifests
+  checking files
+  checking dirstate
+  checked 4 changesets with 4 changes to 1 files
