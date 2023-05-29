@@ -71,6 +71,18 @@ Listing tracked files from subdirectory
   ../../../file2
   ../../../file3
 
+  $ $NO_FALLBACK rhg files --config ui.relative-paths=legacy
+  unsupported feature: non-default ui.relative-paths
+  [252]
+
+  $ $NO_FALLBACK rhg files --config ui.relative-paths=false
+  unsupported feature: non-default ui.relative-paths
+  [252]
+
+  $ $NO_FALLBACK rhg files --config ui.relative-paths=true
+  unsupported feature: non-default ui.relative-paths
+  [252]
+
 Listing tracked files through broken pipe
   $ $NO_FALLBACK rhg files | head -n 1
   ../../../file1
