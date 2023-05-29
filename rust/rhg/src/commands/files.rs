@@ -1,5 +1,7 @@
 use crate::error::CommandError;
-use crate::ui::{print_narrow_sparse_warnings, Ui, RelativePaths, relative_paths};
+use crate::ui::{
+    print_narrow_sparse_warnings, relative_paths, RelativePaths, Ui,
+};
 use crate::utils::path_utils::RelativizePaths;
 use clap::Arg;
 use hg::narrow;
@@ -28,14 +30,10 @@ pub fn args() -> clap::Command {
 }
 
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
-    match relative_paths(invocation.config)? {
-      RelativePaths::Legacy | RelativePaths::Bool(true) => (),
-      RelativePaths::Bool(false) => {
-        return Err(CommandError::unsupported(
-            "non-default ui.relative-paths",
-        ));
-      }
-    }
+    let relative_paths = match relative_paths(invocation.config)? {
+        RelativePaths::Legacy => true,
+        RelativePaths::Bool(v) => v,
+    };
 
     let rev = invocation.subcommand_args.get_one::<String>("rev");
 
@@ -59,7 +57,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     if let Some(rev) = rev {
         let files = list_rev_tracked_files(repo, rev, narrow_matcher)
             .map_err(|e| (e, rev.as_ref()))?;
-        display_files(invocation.ui, repo, files.iter())
+        display_files(invocation.ui, repo, relative_paths, files.iter())
     } else {
         // The dirstate always reflects the sparse narrowspec.
         let dirstate = repo.dirstate_map()?;
@@ -79,6 +77,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         display_files(
             invocation.ui,
             repo,
+            relative_paths,
             files.into_iter().map::<Result<_, CommandError>, _>(Ok),
         )
     }
@@ -87,6 +86,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 fn display_files<'a, E>(
     ui: &Ui,
     repo: &Repo,
+    relative_paths: bool,
     files: impl IntoIterator<Item = Result<&'a HgPath, E>>,
 ) -> Result<(), CommandError>
 where
@@ -98,7 +98,11 @@ where
     let relativize = RelativizePaths::new(repo)?;
     for result in files {
         let path = result?;
-        stdout.write_all(&relativize.relativize(path))?;
+        if relative_paths {
+            stdout.write_all(&relativize.relativize(path))?;
+        } else {
+            stdout.write_all(path.as_bytes())?;
+        }
         stdout.write_all(b"\n")?;
         any = true;
     }
