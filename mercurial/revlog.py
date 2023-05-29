@@ -506,6 +506,74 @@ class revlog:
         except FileNotFoundError:
             return b''
 
+    def get_streams(self, max_linkrev):
+        n = len(self)
+        index = self.index
+        while n > 0:
+            linkrev = index[n - 1][4]
+            if linkrev < max_linkrev:
+                break
+            # note: this loop will rarely go through multiple iterations, since
+            # it only traverses commits created during the current streaming
+            # pull operation.
+            #
+            # If this become a problem, using a binary search should cap the
+            # runtime of this.
+            n = n - 1
+        if n == 0:
+            # no data to send
+            return []
+        index_size = n * index.entry_size
+        data_size = self.end(n - 1)
+
+        # XXX we might have been split (or stripped) since the object
+        # initialization, We need to close this race too, but having a way to
+        # pre-open the file we feed to the revlog and never closing them before
+        # we are done streaming.
+
+        if self._inline:
+
+            def get_stream():
+                with self._indexfp() as fp:
+                    yield None
+                    size = index_size + data_size
+                    if size <= 65536:
+                        yield fp.read(size)
+                    else:
+                        yield from util.filechunkiter(fp, limit=size)
+
+            inline_stream = get_stream()
+            next(inline_stream)
+            return [
+                (self._indexfile, inline_stream, index_size + data_size),
+            ]
+        else:
+
+            def get_index_stream():
+                with self._indexfp() as fp:
+                    yield None
+                    if index_size <= 65536:
+                        yield fp.read(index_size)
+                    else:
+                        yield from util.filechunkiter(fp, limit=index_size)
+
+            def get_data_stream():
+                with self._datafp() as fp:
+                    yield None
+                    if data_size <= 65536:
+                        yield fp.read(data_size)
+                    else:
+                        yield from util.filechunkiter(fp, limit=data_size)
+
+            index_stream = get_index_stream()
+            next(index_stream)
+            data_stream = get_data_stream()
+            next(data_stream)
+            return [
+                (self._datafile, data_stream, data_size),
+                (self._indexfile, index_stream, index_size),
+            ]
+
     def _loadindex(self, docket=None):
 
         new_header, mmapindexthreshold, force_nodemap = self._init_opts()
