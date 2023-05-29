@@ -680,15 +680,18 @@ class basicstore:
         be a list and the filenames that can't be decoded are added
         to it instead. This is very rarely needed."""
         dirs = [
-            (b'data', FILEFLAGS_FILELOG),
-            (b'meta', FILEFLAGS_MANIFESTLOG),
+            (b'data', FILEFLAGS_FILELOG, False),
+            (b'meta', FILEFLAGS_MANIFESTLOG, True),
         ]
-        for base_dir, rl_type in dirs:
+        for base_dir, rl_type, strip_filename in dirs:
             files = self._walk(base_dir, True, undecodable=undecodable)
             files = (f for f in files if f[1][0] is not None)
             for revlog, details in _gather_revlog(files):
                 file_details = {}
                 revlog_target_id = revlog.split(b'/', 1)[1]
+                if strip_filename and b'/' in revlog:
+                    revlog_target_id = revlog_target_id.rsplit(b'/', 1)[0]
+                    revlog_target_id += b'/'
                 for ext, (t, s) in sorted(details.items()):
                     file_details[ext] = {
                         'is_volatile': bool(t & FILEFLAGS_VOLATILE),
