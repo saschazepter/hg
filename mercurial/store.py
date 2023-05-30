@@ -614,7 +614,8 @@ class RevlogStoreEntry(BaseStoreEntry):
                 # note: the ".nd" file are nodemap data and won't "change"
                 # but they might be deleted.
                 volatile = ext.endswith(REVLOG_FILES_VOLATILE_EXT)
-                f = StoreFile(unencoded_path=path, is_volatile=volatile, **data)
+                file_size = data.get('file_size')
+                f = StoreFile(path, file_size, volatile)
                 self._files.append(f)
         return self._files
 
