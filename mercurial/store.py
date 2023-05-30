@@ -607,14 +607,13 @@ class RevlogStoreEntry(BaseStoreEntry):
             self._files = []
             for ext in sorted(self._details, key=_ext_key):
                 path = self._path_prefix + ext
-                data = self._details[ext]
+                file_size = self._details[ext]
                 # files that are "volatile" and might change between
                 # listing and streaming
                 #
                 # note: the ".nd" file are nodemap data and won't "change"
                 # but they might be deleted.
                 volatile = ext.endswith(REVLOG_FILES_VOLATILE_EXT)
-                file_size = data.get('file_size')
                 f = StoreFile(path, file_size, volatile)
                 self._files.append(f)
         return self._files
@@ -802,10 +801,8 @@ class basicstore:
                 if strip_filename and b'/' in revlog:
                     revlog_target_id = revlog_target_id.rsplit(b'/', 1)[0]
                     revlog_target_id += b'/'
-                for ext, (t, s) in sorted(details.items()):
-                    file_details[ext] = {
-                        'file_size': s,
-                    }
+                for ext, (t, size) in sorted(details.items()):
+                    file_details[ext] = size
                 yield RevlogStoreEntry(
                     path_prefix=revlog,
                     revlog_type=rl_type,
@@ -857,10 +854,8 @@ class basicstore:
         for data, revlog_type in top_rl:
             for revlog, details in sorted(data.items()):
                 file_details = {}
-                for ext, (t, s) in details.items():
-                    file_details[ext] = {
-                        'file_size': s,
-                    }
+                for ext, (t, size) in details.items():
+                    file_details[ext] = size
                 yield RevlogStoreEntry(
                     path_prefix=revlog,
                     revlog_type=revlog_type,
@@ -1160,8 +1155,8 @@ class fncachestore(basicstore):
             else:
                 # unreachable
                 assert False, revlog
-            for ext, t in details.items():
-                file_details[ext] = {}
+            for ext in details:
+                file_details[ext] = None
             entry = RevlogStoreEntry(
                 path_prefix=revlog,
                 revlog_type=rl_type,
