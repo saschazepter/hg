@@ -370,7 +370,7 @@ def _files_to_copy_post_revlog_clone(srcrepo):
     are cloned"""
     for path, kind, st in sorted(srcrepo.store.vfs.readdir(b'', stat=True)):
         # don't copy revlogs as they are already cloned
-        if store.revlog_type(path) is not None:
+        if store.is_revlog_file(path):
             continue
         # Skip transaction related files.
         if path.startswith(b'undo'):
