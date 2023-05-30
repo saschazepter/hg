@@ -385,8 +385,8 @@ _data = [
     b'requires',
 ]
 
-REVLOG_FILES_MAIN_EXT = (b'.i',)
-REVLOG_FILES_OTHER_EXT = (
+REVLOG_FILES_EXT = (
+    b'.i',
     b'.idx',
     b'.d',
     b'.dat',
@@ -415,22 +415,16 @@ EXCLUDED = re.compile(br'.*undo\.[^/]+\.(nd?|i)$')
 
 def is_revlog(f, kind, st):
     if kind != stat.S_IFREG:
-        return None
-    return revlog_type(f)
+        return False
+    if f.endswith(REVLOG_FILES_EXT):
+        return True
+    return False
 
 
-def revlog_type(f):
-    # XXX we need to filter `undo.` created by the transaction here, however
-    # being naive about it also filter revlog for `undo.*` files, leading to
-    # issue6542. So we no longer use EXCLUDED.
-    if f.endswith(REVLOG_FILES_MAIN_EXT):
-        return FILEFLAGS_REVLOG_MAIN
-    elif f.endswith(REVLOG_FILES_OTHER_EXT):
-        t = FILETYPE_FILELOG_OTHER
-        if f.endswith(REVLOG_FILES_VOLATILE_EXT):
-            t |= FILEFLAGS_VOLATILE
-        return t
-    return None
+def is_revlog_file(f):
+    if f.endswith(REVLOG_FILES_EXT):
+        return True
+    return False
 
 
 # the file is part of changelog data
@@ -758,10 +752,9 @@ class basicstore:
                 p = visit.pop()
                 for f, kind, st in readdir(p, stat=True):
                     fp = p + b'/' + f
-                    rl_type = is_revlog(f, kind, st)
-                    if rl_type is not None:
+                    if is_revlog(f, kind, st):
                         n = util.pconvert(fp[striplen:])
-                        l.append((decodedir(n), (rl_type, st.st_size)))
+                        l.append((decodedir(n), st.st_size))
                     elif kind == stat.S_IFDIR and recurse:
                         visit.append(fp)
 
@@ -794,20 +787,16 @@ class basicstore:
         ]
         for base_dir, rl_type, strip_filename in dirs:
             files = self._walk(base_dir, True, undecodable=undecodable)
-            files = (f for f in files if f[1][0] is not None)
             for revlog, details in _gather_revlog(files):
-                file_details = {}
                 revlog_target_id = revlog.split(b'/', 1)[1]
                 if strip_filename and b'/' in revlog:
                     revlog_target_id = revlog_target_id.rsplit(b'/', 1)[0]
                     revlog_target_id += b'/'
-                for ext, (t, size) in sorted(details.items()):
-                    file_details[ext] = size
                 yield RevlogStoreEntry(
                     path_prefix=revlog,
                     revlog_type=rl_type,
                     target_id=revlog_target_id,
-                    details=file_details,
+                    details=details,
                 )
 
     def top_entries(
@@ -831,17 +820,17 @@ class basicstore:
         changelogs = collections.defaultdict(dict)
         manifestlogs = collections.defaultdict(dict)
 
-        for u, (t, s) in files:
+        for u, s in files:
             if u.startswith(b'00changelog'):
                 name, ext = _split_revlog_ext(u)
-                changelogs[name][ext] = (t, s)
+                changelogs[name][ext] = s
             elif u.startswith(b'00manifest'):
                 name, ext = _split_revlog_ext(u)
-                manifestlogs[name][ext] = (t, s)
+                manifestlogs[name][ext] = s
             else:
                 yield SimpleStoreEntry(
                     entry_path=u,
-                    is_volatile=bool(t & FILEFLAGS_VOLATILE),
+                    is_volatile=False,
                     file_size=s,
                 )
         # yield manifest before changelog
@@ -853,14 +842,11 @@ class basicstore:
         assert len(changelogs) <= 1
         for data, revlog_type in top_rl:
             for revlog, details in sorted(data.items()):
-                file_details = {}
-                for ext, (t, size) in details.items():
-                    file_details[ext] = size
                 yield RevlogStoreEntry(
                     path_prefix=revlog,
                     revlog_type=revlog_type,
                     target_id=b'',
-                    details=file_details,
+                    details=details,
                 )
 
     def walk(
@@ -1083,7 +1069,7 @@ class _fncachevfs(vfsmod.proxyvfs):
         if (
             mode not in (b'r', b'rb')
             and (path.startswith(b'data/') or path.startswith(b'meta/'))
-            and revlog_type(path) is not None
+            and is_revlog_file(path)
         ):
             # do not trigger a fncache load when adding a file that already is
             # known to exist.
@@ -1136,14 +1122,12 @@ class fncachestore(basicstore):
     def data_entries(
         self, matcher=None, undecodable=None
     ) -> Generator[BaseStoreEntry, None, None]:
-        files = ((f, revlog_type(f)) for f in self.fncache)
         # Note: all files in fncache should be revlog related, However the
         # fncache might contains such file added by previous version of
         # Mercurial.
-        files = (f for f in files if f[1] is not None)
+        files = ((f, None) for f in self.fncache if is_revlog_file(f))
         by_revlog = _gather_revlog(files)
         for revlog, details in by_revlog:
-            file_details = {}
             if revlog.startswith(b'data/'):
                 rl_type = FILEFLAGS_FILELOG
                 revlog_target_id = revlog.split(b'/', 1)[1]
@@ -1155,13 +1139,11 @@ class fncachestore(basicstore):
             else:
                 # unreachable
                 assert False, revlog
-            for ext in details:
-                file_details[ext] = None
             entry = RevlogStoreEntry(
                 path_prefix=revlog,
                 revlog_type=rl_type,
                 target_id=revlog_target_id,
-                details=file_details,
+                details=details,
             )
             if _match_tracked_entry(entry, matcher):
                 yield entry
