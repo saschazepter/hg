@@ -608,7 +608,14 @@ class RevlogStoreEntry(BaseStoreEntry):
             for ext in sorted(self._details, key=_ext_key):
                 path = self._path_prefix + ext
                 data = self._details[ext]
-                self._files.append(StoreFile(unencoded_path=path, **data))
+                # files that are "volatile" and might change between
+                # listing and streaming
+                #
+                # note: the ".nd" file are nodemap data and won't "change"
+                # but they might be deleted.
+                volatile = ext.endswith(REVLOG_FILES_VOLATILE_EXT)
+                f = StoreFile(unencoded_path=path, is_volatile=volatile, **data)
+                self._files.append(f)
         return self._files
 
     def get_streams(
@@ -796,7 +803,6 @@ class basicstore:
                     revlog_target_id += b'/'
                 for ext, (t, s) in sorted(details.items()):
                     file_details[ext] = {
-                        'is_volatile': bool(t & FILEFLAGS_VOLATILE),
                         'file_size': s,
                     }
                 yield RevlogStoreEntry(
@@ -852,7 +858,6 @@ class basicstore:
                 file_details = {}
                 for ext, (t, s) in details.items():
                     file_details[ext] = {
-                        'is_volatile': bool(t & FILEFLAGS_VOLATILE),
                         'file_size': s,
                     }
                 yield RevlogStoreEntry(
@@ -1155,9 +1160,7 @@ class fncachestore(basicstore):
                 # unreachable
                 assert False, revlog
             for ext, t in details.items():
-                file_details[ext] = {
-                    'is_volatile': bool(t & FILEFLAGS_VOLATILE),
-                }
+                file_details[ext] = {}
             entry = RevlogStoreEntry(
                 path_prefix=revlog,
                 revlog_type=rl_type,
