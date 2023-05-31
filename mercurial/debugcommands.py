@@ -617,6 +617,10 @@ def debugcreatestreamclonebundle(ui, repo, fname):
 
     Stream bundles are special bundles that are essentially archives of
     revlog files. They are commonly used for cloning very quickly.
+
+    This command creates a "version 1" stream clone, which is deprecated in
+    favor of newer versions of the stream protocol. Bundles using such newer
+     versions can be generated using the `hg bundle` command.
     """
     # TODO we may want to turn this into an abort when this functionality
     # is moved into `hg bundle`.
