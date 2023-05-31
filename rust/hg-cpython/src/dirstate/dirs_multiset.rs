@@ -17,7 +17,7 @@ use cpython::{
 
 use hg::{
     utils::hg_path::{HgPath, HgPathBuf},
-    DirsMultiset, DirsMultisetIter, DirstateMapError,
+    DirsMultiset, DirsMultisetIter,
 };
 
 py_class!(pub class Dirs |py| {
@@ -56,9 +56,6 @@ py_class!(pub class Dirs |py| {
             HgPath::new(path.extract::<PyBytes>(py)?.data(py)),
         ).and(Ok(py.None())).or_else(|e| {
             match e {
-                DirstateMapError::EmptyPath => {
-                    Ok(py.None())
-                },
                 e => {
                     Err(PyErr::new::<exc::ValueError, _>(
                         py,
@@ -76,9 +73,6 @@ py_class!(pub class Dirs |py| {
             .and(Ok(py.None()))
             .or_else(|e| {
                 match e {
-                    DirstateMapError::EmptyPath => {
-                        Ok(py.None())
-                    },
                     e => {
                         Err(PyErr::new::<exc::ValueError, _>(
                             py,
