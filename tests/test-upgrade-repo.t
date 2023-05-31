@@ -192,11 +192,11 @@ Unless the action is compatible with share
   summary:     r7
   
 
-Do not yet support upgrading treemanifest repos
+Do not yet support downgrading treemanifest repos
 
   $ hg --config experimental.treemanifest=true init treemanifest
   $ hg -R treemanifest debugupgraderepo
-  abort: cannot upgrade repository; unsupported source requirement: treemanifest
+  abort: cannot upgrade repository; requirement would be removed: treemanifest
   [255]
 
 Cannot add treemanifest requirement during upgrade
