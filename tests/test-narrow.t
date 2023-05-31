@@ -73,14 +73,8 @@ Names with '.' in them are OK.
 
 The "narrow" repo requirement is ignored by [debugupgraderepo]
 
-#if tree
-  $ (cd should-work; hg debugupgraderepo)
-  abort: cannot upgrade repository; unsupported source requirement: treemanifest
-  [255]
-#else
   $ (cd should-work; hg debugupgraderepo | grep 'no format upgrades found in existing repository')
   (no format upgrades found in existing repository)
-#endif
 
 Test repo with local changes
   $ hg clone --narrow ssh://user@dummy/master narrow-local-changes --include d0 --include d3 --include d6
