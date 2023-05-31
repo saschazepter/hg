@@ -950,9 +950,6 @@ def blocksourcerequirements(repo):
     requirements in the returned set.
     """
     return {
-        # The upgrade code does not yet support these experimental features.
-        # This is an artificial limitation.
-        requirements.TREEMANIFEST_REQUIREMENT,
         # This was a precursor to generaldelta and was never enabled by default.
         # It should (hopefully) not exist in the wild.
         b'parentdelta',
@@ -1052,6 +1049,7 @@ def supporteddestrequirements(repo):
         requirements.SHARESAFE_REQUIREMENT,
         requirements.SPARSEREVLOG_REQUIREMENT,
         requirements.STORE_REQUIREMENT,
+        requirements.TREEMANIFEST_REQUIREMENT,
         requirements.NARROW_REQUIREMENT,
     }
     for name in compression.compengines:

@@ -853,3 +853,47 @@ Committing a empty commit does not duplicate root treemanifest
   1:678d3574b88c
   1:678d3574b88c
   $ hg --config extensions.strip= strip -r . -q
+
+Testing repository upgrade
+--------------------------
+
+  $ for x in 1 2 3 4 5 6 7 8 9; do
+  >    echo $x > file-$x # make sure we have interresting compression
+  >    echo $x > dir/foo-$x # make sure we have interresting compression
+  >    hg add file-$x
+  >    hg add dir/foo-$x
+  > done
+  $ hg ci -m 'have some content'
+  $ f -s .hg/store/00manifest.*
+  .hg/store/00manifest.i: size=798 (no-pure !)
+  .hg/store/00manifest.i: size=784 (pure !)
+  $ f -s .hg/store/meta/dir/00manifest*
+  .hg/store/meta/dir/00manifest.i: size=556 (no-pure !)
+  .hg/store/meta/dir/00manifest.i: size=544 (pure !)
+  $ hg debugupgraderepo --config format.revlog-compression=none --config experimental.treemanifest=yes --run --quiet --no-backup
+  upgrade will perform the following actions:
+  
+  requirements
+     preserved: * (glob)
+     removed: revlog-compression-zstd (no-pure !)
+     added: exp-compression-none
+  
+  processed revlogs:
+    - all-filelogs
+    - changelog
+    - manifest
+  
+  $ hg verify
+  checking changesets
+  checking manifests
+  checking directory manifests
+  crosschecking files in changesets and manifests
+  checking files
+  checking dirstate
+  checked 4 changesets with 22 changes to 20 files
+  $ f -s .hg/store/00manifest.*
+  .hg/store/00manifest.i: size=1002
+  $ f -s .hg/store/meta/dir/00manifest*
+  .hg/store/meta/dir/00manifest.i: size=721
+  $ hg files --rev tip | wc -l
+  \s*20 (re)
