@@ -711,10 +711,10 @@ def debugdata(ui, repo, file_, rev=None, **opts):
     opts = pycompat.byteskwargs(opts)
     if opts.get(b'changelog') or opts.get(b'manifest') or opts.get(b'dir'):
         if rev is not None:
-            raise error.CommandError(b'debugdata', _(b'invalid arguments'))
+            raise error.InputError(_(b'invalid arguments'))
         file_, rev = None, file_
     elif rev is None:
-        raise error.CommandError(b'debugdata', _(b'invalid arguments'))
+        raise error.InputError(_(b'invalid arguments'))
     r = cmdutil.openstorage(repo, b'debugdata', file_, opts)
     try:
         ui.write(r.rawdata(r.lookup(rev)))
@@ -2632,7 +2632,7 @@ def debugnodemap(ui, repo, file_=None, **opts):
     """write and inspect on disk nodemap"""
     if opts.get('changelog') or opts.get('manifest') or opts.get('dir'):
         if file_ is not None:
-            raise error.CommandError(b'debugnodemap', _(b'invalid arguments'))
+            raise error.InputError(_(b'invalid arguments'))
     elif file_ is None:
         opts['changelog'] = True
     r = cmdutil.openstorage(
@@ -3561,10 +3561,10 @@ def debugsidedata(ui, repo, file_, rev=None, **opts):
     opts = pycompat.byteskwargs(opts)
     if opts.get(b'changelog') or opts.get(b'manifest') or opts.get(b'dir'):
         if rev is not None:
-            raise error.CommandError(b'debugdata', _(b'invalid arguments'))
+            raise error.InputError(_(b'invalid arguments'))
         file_, rev = None, file_
     elif rev is None:
-        raise error.CommandError(b'debugdata', _(b'invalid arguments'))
+        raise error.InputError(_(b'invalid arguments'))
     r = cmdutil.openstorage(repo, b'debugdata', file_, opts)
     r = getattr(r, '_revlog', r)
     try:
