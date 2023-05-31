@@ -290,6 +290,16 @@ class revlog:
 
     _flagserrorclass = error.RevlogError
 
+    @staticmethod
+    def is_inline_index(header_bytes):
+        header = INDEX_HEADER.unpack(header_bytes)[0]
+
+        _format_flags = header & ~0xFFFF
+        _format_version = header & 0xFFFF
+
+        features = FEATURES_BY_VERSION[_format_version]
+        return features[b'inline'](_format_flags)
+
     def __init__(
         self,
         opener,

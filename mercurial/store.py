@@ -16,6 +16,9 @@ from .i18n import _
 from .pycompat import getattr
 from .thirdparty import attr
 from .node import hex
+from .revlogutils.constants import (
+    INDEX_HEADER,
+)
 from . import (
     changelog,
     error,
@@ -23,6 +26,7 @@ from . import (
     manifest,
     policy,
     pycompat,
+    revlog as revlogmod,
     util,
     vfs as vfsmod,
 )
@@ -619,44 +623,70 @@ class RevlogStoreEntry(BaseStoreEntry):
         copies=None,
         max_changeset=None,
     ):
-        if repo is None or max_changeset is None:
-            return super().get_streams(
-                repo=repo,
-                vfs=vfs,
-                copies=copies,
-                max_changeset=max_changeset,
-            )
-        if any(k.endswith(b'.idx') for k in self._details.keys()):
+        if (
+            repo is None
+            or max_changeset is None
             # This use revlog-v2, ignore for now
+            or any(k.endswith(b'.idx') for k in self._details.keys())
+            # This is not inline, no race expected
+            or b'.d' in self._details
+        ):
             return super().get_streams(
                 repo=repo,
                 vfs=vfs,
                 copies=copies,
                 max_changeset=max_changeset,
             )
-        name_to_ext = {}
-        for ext in self._details.keys():
-            name_to_ext[self._path_prefix + ext] = ext
+
         name_to_size = {}
         for f in self.files():
             name_to_size[f.unencoded_path] = f.file_size(None)
+
         stream = [
             f.get_stream(vfs, copies)
             for f in self.files()
-            if name_to_ext[f.unencoded_path] not in (b'.d', b'.i')
+            if not f.unencoded_path.endswith(b'.i')
         ]
 
-        is_inline = b'.d' not in self._details
+        index_path = self._path_prefix + b'.i'
 
-        rl = self.get_revlog_instance(repo).get_revlog()
-        rl_stream = rl.get_streams(max_changeset, force_inline=is_inline)
+        index_file = None
+        try:
+            index_file = vfs(index_path)
+            header = index_file.read(INDEX_HEADER.size)
+            if revlogmod.revlog.is_inline_index(header):
+                size = name_to_size[index_path]
 
-        for name, s, size in rl_stream:
-            if name_to_size.get(name, 0) != size:
-                msg = _(b"expected %d bytes but %d provided for %s")
-                msg %= name_to_size.get(name, 0), size, name
-                raise error.Abort(msg)
-        stream.extend(rl_stream)
+                # no split underneath, just return the stream
+                def get_stream():
+                    fp = index_file
+                    try:
+                        fp.seek(0)
+                        yield None
+                        if size <= 65536:
+                            yield fp.read(size)
+                        else:
+                            yield from util.filechunkiter(fp, limit=size)
+                    finally:
+                        fp.close()
+
+                s = get_stream()
+                next(s)
+                index_file = None
+                stream.append((index_path, s, size))
+            else:
+                rl = self.get_revlog_instance(repo).get_revlog()
+                rl_stream = rl.get_streams(max_changeset, force_inline=True)
+                for name, s, size in rl_stream:
+                    if name_to_size.get(name, 0) != size:
+                        msg = _(b"expected %d bytes but %d provided for %s")
+                        msg %= name_to_size.get(name, 0), size, name
+                        raise error.Abort(msg)
+                stream.extend(rl_stream)
+        finally:
+            if index_file is not None:
+                index_file.close()
+
         files = self.files()
         assert len(stream) == len(files), (
             stream,
