@@ -1845,7 +1845,7 @@ def debuggetbundle(ui, repopath, bundlepath, head=None, common=None, **opts):
     bundle2.writebundle(ui, bundle, bundlepath, bundletype)
 
 
-@command(b'debugignore', [], b'[FILE]')
+@command(b'debugignore', [], b'[FILE]...')
 def debugignore(ui, repo, *files, **opts):
     """display the combined ignore pattern and information about ignored files
 
@@ -2628,7 +2628,7 @@ def debugnamecomplete(ui, repo, *args):
             ),
         ]
     ),
-    _(b'-c|-m|FILE REV'),
+    _(b'-c|-m|FILE'),
 )
 def debugnodemap(ui, repo, file_=None, **opts):
     """write and inspect on disk nodemap"""
