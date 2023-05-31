@@ -2642,7 +2642,7 @@ def debugnodemap(ui, repo, file_=None, **opts):
     r = cmdutil.openstorage(
         repo.unfiltered(), b'debugnodemap', file_, pycompat.byteskwargs(opts)
     )
-    if isinstance(r, manifest.manifestrevlog) or isinstance(r, filelog.filelog):
+    if isinstance(r, (manifest.manifestrevlog, filelog.filelog)):
         r = r._revlog
     if opts['dump_new']:
         if util.safehasattr(r.index, "nodemap_data_all"):
