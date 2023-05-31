@@ -50,8 +50,8 @@ templatefunc = registrar.templatefunc(funcs)
 
 @templatefunc(b'date(date[, fmt])')
 def date(context, mapping, args):
-    """Format a date. See :hg:`help dates` for formatting
-    strings. The default is a Unix date format, including the timezone:
+    """Format a date. The format string uses the Python strftime format.
+    The default is a Unix date format, including the timezone:
     "Mon Sep 04 15:13:13 2006 0700"."""
     if not (1 <= len(args) <= 2):
         # i18n: "date" is a keyword
