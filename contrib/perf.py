@@ -1964,7 +1964,7 @@ def _find_stream_generator(version):
             b'',
             b'stream-version',
             b'latest',
-            b'stream version to us ("v1", "v2" or "latest", (the default))',
+            b'stream version to use ("v1", "v2", "v3" or "latest", (the default))',
         ),
     ]
     + formatteropts,
