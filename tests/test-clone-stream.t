@@ -360,9 +360,8 @@ Basic clone
 #if stream-bundle2-v3
   $ hg clone --stream -U http://localhost:$HGPORT clone1
   streaming all changes
-  1093 files to transfer, 102 KB of data (no-zstd !)
+  1093 entries to transfer
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1093 files to transfer, 98.9 KB of data (zstd !)
   transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
 
   $ ls -1 clone1/.hg/cache
@@ -492,9 +491,8 @@ getbundle requests with stream=1 are uncompressed
 #if stream-bundle2-v3
   $ hg clone --uncompressed -U http://localhost:$HGPORT clone1-uncompressed
   streaming all changes
-  1093 files to transfer, 102 KB of data (no-zstd !)
+  1093 entries to transfer
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1093 files to transfer, 98.9 KB of data (zstd !)
   transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
 #endif
 
@@ -564,18 +562,17 @@ Clone with background file closing enabled
   streaming all changes
   sending getbundle command
   bundle2-input-bundle: with-transaction
-  bundle2-input-part: "stream3-exp" (params: 3 mandatory) supported
+  bundle2-input-part: "stream3-exp" (params: 1 mandatory) supported
   applying stream bundle
-  1093 files to transfer, 102 KB of data (no-zstd !)
-  1093 files to transfer, 98.9 KB of data (zstd !)
+  1093 entries to transfer
   starting 4 threads for background file closing
   starting 4 threads for background file closing
   updating the branch cache
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  bundle2-input-part: total payload size 118984 (no-zstd !)
+  bundle2-input-part: total payload size 120079 (no-zstd !)
   transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
-  bundle2-input-part: total payload size 116145 (zstd no-bigendian !)
-  bundle2-input-part: total payload size 116140 (zstd bigendian !)
+  bundle2-input-part: total payload size 117240 (zstd no-bigendian !)
+  bundle2-input-part: total payload size 116138 (zstd bigendian !)
   bundle2-input-part: "listkeys" (params: 1 mandatory) supported
   bundle2-input-bundle: 2 parts total
   checking for updated bookmarks
@@ -625,9 +622,8 @@ Streaming of secrets can be overridden by server config
 #if stream-bundle2-v3
   $ hg clone --stream -U http://localhost:$HGPORT secret-allowed
   streaming all changes
-  1093 files to transfer, 102 KB of data (no-zstd !)
+  1093 entries to transfer
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1093 files to transfer, 98.9 KB of data (zstd !)
   transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
 #endif
 
@@ -755,9 +751,8 @@ clone it
 #if stream-bundle2-v3
   $ hg clone --stream http://localhost:$HGPORT with-bookmarks
   streaming all changes
-  1096 files to transfer, 102 KB of data (no-zstd !)
+  1096 entries to transfer
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1096 files to transfer, 99.1 KB of data (zstd !)
   transferred 99.1 KB in * seconds (* */sec) (glob) (zstd !)
   updating to branch default
   1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -801,9 +796,8 @@ Clone as publishing
 #if stream-bundle2-v3
   $ hg clone --stream http://localhost:$HGPORT phase-publish
   streaming all changes
-  1096 files to transfer, 102 KB of data (no-zstd !)
+  1096 entries to transfer
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1096 files to transfer, 99.1 KB of data (zstd !)
   transferred 99.1 KB in * seconds (* */sec) (glob) (zstd !)
   updating to branch default
   1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -861,9 +855,8 @@ stream v1 unsuitable for non-publishing repository.
 #if stream-bundle2-v3
   $ hg clone --stream http://localhost:$HGPORT phase-no-publish
   streaming all changes
-  1097 files to transfer, 102 KB of data (no-zstd !)
+  1097 entries to transfer
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1097 files to transfer, 99.1 KB of data (zstd !)
   transferred 99.1 KB in * seconds (* */sec) (glob) (zstd !)
   updating to branch default
   1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -961,9 +954,8 @@ Clone non-publishing with obsolescence
 
   $ hg clone -U --stream http://localhost:$HGPORT with-obsolescence
   streaming all changes
-  1098 files to transfer, 102 KB of data (no-zstd !)
+  1098 entries to transfer
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1098 files to transfer, 99.5 KB of data (zstd !)
   transferred 99.5 KB in * seconds (* */sec) (glob) (zstd !)
   $ hg -R with-obsolescence log -T '{rev}: {phase}\n'
   2: draft
