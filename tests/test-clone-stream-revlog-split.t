@@ -100,10 +100,13 @@ Check everything is fine
   sending getbundle command
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "stream2" (params: 3 mandatory) supported (stream-bundle2-v2 !)
-  bundle2-input-part: "stream3-exp" (params: 3 mandatory) supported (stream-bundle2-v3 !)
+  bundle2-input-part: "stream3-exp" (params: 1 mandatory) supported (stream-bundle2-v3 !)
   applying stream bundle
-  7 files to transfer, 2.11 KB of data
-  adding [s] data/some-file.i (1.23 KB)
+  7 files to transfer, 2.11 KB of data (stream-bundle2-v2 !)
+  adding [s] data/some-file.i (1.23 KB) (stream-bundle2-v2 !)
+  7 entries to transfer (stream-bundle2-v3 !)
+  adding [s] data/some-file.d (1.04 KB) (stream-bundle2-v3 !)
+  adding [s] data/some-file.i (192 bytes) (stream-bundle2-v3 !)
   adding [s] phaseroots (43 bytes)
   adding [s] 00manifest.i (348 bytes)
   adding [s] 00changelog.i (381 bytes)
@@ -112,7 +115,8 @@ Check everything is fine
   adding [c] rbc-revs-v1 (24 bytes)
   updating the branch cache
   transferred 2.11 KB in * seconds (* */sec) (glob)
-  bundle2-input-part: total payload size 2268
+  bundle2-input-part: total payload size 2268 (stream-bundle2-v2 !)
+  bundle2-input-part: total payload size 2296 (stream-bundle2-v3 !)
   bundle2-input-part: "listkeys" (params: 1 mandatory) supported
   bundle2-input-bundle: 2 parts total
   checking for updated bookmarks
