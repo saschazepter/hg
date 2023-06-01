@@ -1952,14 +1952,12 @@ def addpartbundlestream2(bundler, repo, **kwargs):
         part.addparam(b'filecount', b'%d' % filecount, mandatory=True)
         part.addparam(b'requirements', requirements, mandatory=True)
     elif version == b"v3-exp":
-        filecount, bytecount, it = streamclone.generatev2(
+        it = streamclone.generatev3(
             repo, includepats, excludepats, includeobsmarkers
         )
         requirements = streamclone.streamed_requirements(repo)
         requirements = _formatrequirementsspec(requirements)
         part = bundler.newpart(b'stream3-exp', data=it)
-        part.addparam(b'bytecount', b'%d' % bytecount, mandatory=True)
-        part.addparam(b'filecount', b'%d' % filecount, mandatory=True)
         part.addparam(b'requirements', requirements, mandatory=True)
 
 
@@ -2616,9 +2614,18 @@ def handlestreamv2bundle(op, part):
     streamclone.applybundlev2(repo, part, filecount, bytecount, requirements)
 
 
-@parthandler(b'stream3-exp', (b'requirements', b'filecount', b'bytecount'))
+@parthandler(b'stream3-exp', (b'requirements',))
 def handlestreamv3bundle(op, part):
-    return handlestreamv2bundle(op, part)
+    requirements = urlreq.unquote(part.params[b'requirements'])
+    requirements = requirements.split(b',') if requirements else []
+
+    repo = op.repo
+    if len(repo):
+        msg = _(b'cannot apply stream clone to non empty repository')
+        raise error.Abort(msg)
+
+    repo.ui.debug(b'applying stream bundle\n')
+    streamclone.applybundlev3(repo, part, requirements)
 
 
 def widen_bundle(
