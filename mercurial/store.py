@@ -490,6 +490,7 @@ class BaseStoreEntry:
         vfs=None,
         copies=None,
         max_changeset=None,
+        preserve_file_count=False,
     ):
         """return a list of data stream associated to files for this entry
 
@@ -599,6 +600,7 @@ class RevlogStoreEntry(BaseStoreEntry):
         vfs=None,
         copies=None,
         max_changeset=None,
+        preserve_file_count=False,
     ):
         if (
             repo is None
@@ -613,7 +615,18 @@ class RevlogStoreEntry(BaseStoreEntry):
                 vfs=vfs,
                 copies=copies,
                 max_changeset=max_changeset,
+                preserve_file_count=preserve_file_count,
             )
+        elif not preserve_file_count:
+            stream = [
+                f.get_stream(vfs, copies)
+                for f in self.files()
+                if not f.unencoded_path.endswith((b'.i', b'.d'))
+            ]
+            rl = self.get_revlog_instance(repo).get_revlog()
+            rl_stream = rl.get_streams(max_changeset)
+            stream.extend(rl_stream)
+            return stream
 
         name_to_size = {}
         for f in self.files():

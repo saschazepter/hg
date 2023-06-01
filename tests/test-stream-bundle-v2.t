@@ -63,9 +63,9 @@ The extension requires a repo (currently unused)
   stream2 -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 no-zstd !)
   stream2 -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 zstd no-rust !)
   stream2 -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 rust !)
-  stream3-exp -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 no-zstd !)
-  stream3-exp -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 zstd no-rust !)
-  stream3-exp -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 rust !)
+  stream3-exp -- {requirements: generaldelta%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 no-zstd !)
+  stream3-exp -- {requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 zstd no-rust !)
+  stream3-exp -- {requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 rust !)
   $ hg debugbundle --spec bundle.hg
   none-v2;stream=v2;requirements%3Dgeneraldelta%2Crevlogv1%2Csparserevlog (stream-v2 no-zstd !)
   none-v2;stream=v2;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog (stream-v2 zstd no-rust !)
@@ -94,9 +94,10 @@ Test that we can apply the bundle as a stream clone bundle
   applying clone bundle from http://localhost:$HGPORT1/bundle.hg
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "stream2" (params: 3 mandatory) supported (stream-v2 !)
-  bundle2-input-part: "stream3-exp" (params: 3 mandatory) supported (stream-v3 !)
+  bundle2-input-part: "stream3-exp" (params: 1 mandatory) supported (stream-v3 !)
   applying stream bundle
-  11 files to transfer, 1.65 KB of data
+  11 files to transfer, 1.65 KB of data (stream-v2 !)
+  11 entries to transfer (stream-v3 !)
   starting 4 threads for background file closing (?)
   starting 4 threads for background file closing (?)
   adding [s] data/A.i (66 bytes)
@@ -111,7 +112,8 @@ Test that we can apply the bundle as a stream clone bundle
   adding [c] rbc-names-v1 (7 bytes)
   adding [c] rbc-revs-v1 (40 bytes)
   transferred 1.65 KB in * seconds (* */sec) (glob)
-  bundle2-input-part: total payload size 1840
+  bundle2-input-part: total payload size 1840 (stream-v2 !)
+  bundle2-input-part: total payload size 1852 (stream-v3 !)
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle
@@ -152,9 +154,10 @@ Test that we can apply the bundle as a stream clone bundle
   applying clone bundle from http://localhost:$HGPORT1/bundle.hg
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "stream2" (params: 3 mandatory) supported (stream-v2 !)
-  bundle2-input-part: "stream3-exp" (params: 3 mandatory) supported (stream-v3 !)
+  bundle2-input-part: "stream3-exp" (params: 1 mandatory) supported (stream-v3 !)
   applying stream bundle
-  11 files to transfer, 1.65 KB of data
+  11 files to transfer, 1.65 KB of data (stream-v2 !)
+  11 entries to transfer (stream-v3 !)
   starting 4 threads for background file closing (?)
   starting 4 threads for background file closing (?)
   adding [s] data/A.i (66 bytes)
@@ -169,7 +172,8 @@ Test that we can apply the bundle as a stream clone bundle
   adding [c] rbc-names-v1 (7 bytes)
   adding [c] rbc-revs-v1 (40 bytes)
   transferred 1.65 KB in * seconds (* */sec) (glob)
-  bundle2-input-part: total payload size 1840
+  bundle2-input-part: total payload size 1840 (stream-v2 !)
+  bundle2-input-part: total payload size 1852 (stream-v3 !)
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle
