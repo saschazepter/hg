@@ -1,4 +1,4 @@
-# store.py - repository store handling for Mercurial
+# store.py - repository store handling for Mercurial)
 #
 # Copyright 2008 Olivia Mackall <olivia@selenic.com>
 #
@@ -18,6 +18,9 @@ from .thirdparty import attr
 from .node import hex
 from .revlogutils.constants import (
     INDEX_HEADER,
+    KIND_CHANGELOG,
+    KIND_FILELOG,
+    KIND_MANIFESTLOG,
 )
 from . import (
     changelog,
@@ -431,32 +434,6 @@ def is_revlog_file(f):
     return False
 
 
-# the file is part of changelog data
-FILEFLAGS_CHANGELOG = 1 << 13
-# the file is part of manifest data
-FILEFLAGS_MANIFESTLOG = 1 << 12
-# the file is part of filelog data
-FILEFLAGS_FILELOG = 1 << 11
-# file that are not directly part of a revlog
-FILEFLAGS_OTHER = 1 << 10
-
-# the main entry point for a revlog
-FILEFLAGS_REVLOG_MAIN = 1 << 1
-# a secondary file for a revlog
-FILEFLAGS_REVLOG_OTHER = 1 << 0
-
-# files that are "volatile" and might change between listing and streaming
-FILEFLAGS_VOLATILE = 1 << 20
-
-FILETYPE_CHANGELOG_MAIN = FILEFLAGS_CHANGELOG | FILEFLAGS_REVLOG_MAIN
-FILETYPE_CHANGELOG_OTHER = FILEFLAGS_CHANGELOG | FILEFLAGS_REVLOG_OTHER
-FILETYPE_MANIFESTLOG_MAIN = FILEFLAGS_MANIFESTLOG | FILEFLAGS_REVLOG_MAIN
-FILETYPE_MANIFESTLOG_OTHER = FILEFLAGS_MANIFESTLOG | FILEFLAGS_REVLOG_OTHER
-FILETYPE_FILELOG_MAIN = FILEFLAGS_FILELOG | FILEFLAGS_REVLOG_MAIN
-FILETYPE_FILELOG_OTHER = FILEFLAGS_FILELOG | FILEFLAGS_REVLOG_OTHER
-FILETYPE_OTHER = FILEFLAGS_OTHER
-
-
 @attr.s(slots=True)
 class StoreFile:
     """a file matching a store entry"""
@@ -586,15 +563,15 @@ class RevlogStoreEntry(BaseStoreEntry):
 
     @property
     def is_changelog(self):
-        return self.revlog_type & FILEFLAGS_CHANGELOG
+        return self.revlog_type == KIND_CHANGELOG
 
     @property
     def is_manifestlog(self):
-        return self.revlog_type & FILEFLAGS_MANIFESTLOG
+        return self.revlog_type == KIND_MANIFESTLOG
 
     @property
     def is_filelog(self):
-        return self.revlog_type & FILEFLAGS_FILELOG
+        return self.revlog_type == KIND_FILELOG
 
     def main_file_path(self):
         """unencoded path of the main revlog file"""
@@ -812,8 +789,8 @@ class basicstore:
         be a list and the filenames that can't be decoded are added
         to it instead. This is very rarely needed."""
         dirs = [
-            (b'data', FILEFLAGS_FILELOG, False),
-            (b'meta', FILEFLAGS_MANIFESTLOG, True),
+            (b'data', KIND_FILELOG, False),
+            (b'meta', KIND_MANIFESTLOG, True),
         ]
         for base_dir, rl_type, strip_filename in dirs:
             files = self._walk(base_dir, True, undecodable=undecodable)
@@ -865,8 +842,8 @@ class basicstore:
                 )
         # yield manifest before changelog
         top_rl = [
-            (manifestlogs, FILEFLAGS_MANIFESTLOG),
-            (changelogs, FILEFLAGS_CHANGELOG),
+            (manifestlogs, KIND_MANIFESTLOG),
+            (changelogs, KIND_CHANGELOG),
         ]
         assert len(manifestlogs) <= 1
         assert len(changelogs) <= 1
@@ -1159,10 +1136,10 @@ class fncachestore(basicstore):
         by_revlog = _gather_revlog(files)
         for revlog, details in by_revlog:
             if revlog.startswith(b'data/'):
-                rl_type = FILEFLAGS_FILELOG
+                rl_type = KIND_FILELOG
                 revlog_target_id = revlog.split(b'/', 1)[1]
             elif revlog.startswith(b'meta/'):
-                rl_type = FILEFLAGS_MANIFESTLOG
+                rl_type = KIND_MANIFESTLOG
                 # drop the initial directory and the `00manifest` file part
                 tmp = revlog.split(b'/', 1)[1]
                 revlog_target_id = tmp.rsplit(b'/', 1)[0] + b'/'
