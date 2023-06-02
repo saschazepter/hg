@@ -663,27 +663,6 @@ def debug_delta_find(ui, revlog, rev, base_rev=nodemod.nullrev):
     deltacomputer.finddeltainfo(revinfo, fh, target_rev=rev)
 
 
-def _get_revlogs(repo, changelog: bool, manifest: bool, filelogs: bool):
-    """yield revlogs from this repository"""
-    if changelog:
-        yield repo.changelog
-
-    if manifest:
-        # XXX: Handle tree manifest
-        root_mf = repo.manifestlog.getstorage(b'')
-        assert not root_mf._treeondisk
-        yield root_mf._revlog
-
-    if filelogs:
-        files = set()
-        for rev in repo:
-            ctx = repo[rev]
-            files |= set(ctx.files())
-
-        for f in sorted(files):
-            yield repo.file(f)._revlog
-
-
 def debug_revlog_stats(
     repo, fm, changelog: bool, manifest: bool, filelogs: bool
 ):
@@ -693,7 +672,17 @@ def debug_revlog_stats(
     """
     fm.plain(b'rev-count   data-size inl type      target \n')
 
-    for rlog in _get_revlogs(repo, changelog, manifest, filelogs):
+    revlog_entries = [e for e in repo.store.walk() if e.is_revlog]
+    revlog_entries.sort(key=lambda e: (e.revlog_type, e.target_id))
+
+    for entry in revlog_entries:
+        if not changelog and entry.is_changelog:
+            continue
+        elif not manifest and entry.is_manifestlog:
+            continue
+        elif not filelogs and entry.is_filelog:
+            continue
+        rlog = entry.get_revlog_instance(repo).get_revlog()
         fm.startitem()
         nb_rev = len(rlog)
         inline = rlog._inline
