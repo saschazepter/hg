@@ -18,8 +18,6 @@ Try on an empty repository
 
   $ hg debug-revlog-stats
   rev-count   data-size inl type      target 
-          0           0 yes changelog 
-          0           0 yes manifest  
 
   $ mkdir folder
   $ touch a b folder/c folder/d
