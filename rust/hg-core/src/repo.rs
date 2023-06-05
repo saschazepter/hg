@@ -232,7 +232,16 @@ impl Repo {
         try_with_lock_no_wait(self.hg_vfs(), "wlock", f)
     }
 
-    pub fn has_dirstate_v2(&self) -> bool {
+    /// Whether this repo should use dirstate-v2.
+    /// The presence of `dirstate-v2` in the requirements does not mean that
+    /// the on-disk dirstate is necessarily in version 2. In most cases,
+    /// a dirstate-v2 file will indeed be found, but in rare cases (like the
+    /// upgrade mechanism being cut short), the on-disk version will be a
+    /// v1 file.
+    /// Semantically, having a requirement only means that a client should be
+    /// able to understand the repo *if* it uses the requirement, but not that
+    /// the requirement is actually used.
+    pub fn use_dirstate_v2(&self) -> bool {
         self.requirements
             .contains(requirements::DIRSTATE_V2_REQUIREMENT)
     }
@@ -277,7 +286,7 @@ impl Repo {
         let dirstate = self.dirstate_file_contents()?;
         let parents = if dirstate.is_empty() {
             DirstateParents::NULL
-        } else if self.has_dirstate_v2() {
+        } else if self.use_dirstate_v2() {
             let docket =
                 crate::dirstate_tree::on_disk::read_docket(&dirstate)?;
             docket.parents()
@@ -296,7 +305,7 @@ impl Repo {
         &self,
     ) -> Result<DirstateMapIdentity, HgError> {
         assert!(
-            self.has_dirstate_v2(),
+            self.use_dirstate_v2(),
             "accessing dirstate data file ID without dirstate-v2"
         );
         // Get the identity before the contents since we could have a race
@@ -316,7 +325,7 @@ impl Repo {
     }
 
     fn new_dirstate_map(&self) -> Result<OwningDirstateMap, DirstateError> {
-        if self.has_dirstate_v2() {
+        if self.use_dirstate_v2() {
             // The v2 dirstate is split into a docket and a data file.
             // Since we don't always take the `wlock` to read it
             // (like in `hg status`), it is susceptible to races.
@@ -550,7 +559,7 @@ impl Repo {
         // TODO: Maintain a `DirstateMap::dirty` flag, and return early here if
         // it’s unset
         let parents = self.dirstate_parents()?;
-        let (packed_dirstate, old_uuid_to_remove) = if self.has_dirstate_v2() {
+        let (packed_dirstate, old_uuid_to_remove) = if self.use_dirstate_v2() {
             let (identity, uuid, data_size) =
                 self.get_dirstate_data_file_integrity()?;
             let identity_changed = identity != map.old_identity();
