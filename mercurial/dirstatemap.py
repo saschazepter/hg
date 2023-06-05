@@ -4,6 +4,7 @@
 # GNU General Public License version 2 or any later version.
 
 
+import struct
 from .i18n import _
 
 from . import (
@@ -151,9 +152,15 @@ class _dirstatemapcommon:
                     b'dirstate only has a docket in v2 format'
                 )
             self._set_identity()
-            self._docket = docketmod.DirstateDocket.parse(
-                self._readdirstatefile(), self._nodeconstants
-            )
+            try:
+                self._docket = docketmod.DirstateDocket.parse(
+                    self._readdirstatefile(), self._nodeconstants
+                )
+            except struct.error:
+                self._ui.debug(b"failed to read dirstate-v2 data")
+                raise error.CorruptedDirstate(
+                    b"failed to read dirstate-v2 data"
+                )
         return self._docket
 
     def _read_v2_data(self):
@@ -176,11 +183,23 @@ class _dirstatemapcommon:
         return self._opener.read(self.docket.data_filename())
 
     def write_v2_no_append(self, tr, st, meta, packed):
-        old_docket = self.docket
+        try:
+            old_docket = self.docket
+        except error.CorruptedDirstate:
+            # This means we've identified a dirstate-v1 file on-disk when we
+            # were expecting a dirstate-v2 docket. We've managed to recover
+            # from that unexpected situation, and now we want to write back a
+            # dirstate-v2 file to make the on-disk situation right again.
+            #
+            # This shouldn't be triggered since `self.docket` is cached and
+            # we would have called parents() or read() first, but it's here
+            # just in case.
+            old_docket = None
+
         new_docket = docketmod.DirstateDocket.with_new_uuid(
             self.parents(), len(packed), meta
         )
-        if old_docket.uuid == new_docket.uuid:
+        if old_docket is not None and old_docket.uuid == new_docket.uuid:
             raise error.ProgrammingError(b'dirstate docket name collision')
         data_filename = new_docket.data_filename()
         self._opener.write(data_filename, packed)
@@ -194,7 +213,7 @@ class _dirstatemapcommon:
         st.close()
         # Remove the old data file after the new docket pointing to
         # the new data file was written.
-        if old_docket.uuid:
+        if old_docket is not None and old_docket.uuid:
             data_filename = old_docket.data_filename()
             if tr is not None:
                 tr.addbackup(data_filename, location=b'plain')
@@ -211,27 +230,39 @@ class _dirstatemapcommon:
     def parents(self):
         if not self._parents:
             if self._use_dirstate_v2:
-                self._parents = self.docket.parents
-            else:
-                read_len = self._nodelen * 2
-                st = self._readdirstatefile(read_len)
-                l = len(st)
-                if l == read_len:
-                    self._parents = (
-                        st[: self._nodelen],
-                        st[self._nodelen : 2 * self._nodelen],
-                    )
-                elif l == 0:
-                    self._parents = (
-                        self._nodeconstants.nullid,
-                        self._nodeconstants.nullid,
-                    )
+                try:
+                    self.docket
+                except error.CorruptedDirstate as e:
+                    # fall back to dirstate-v1 if we fail to read v2
+                    self._v1_parents(e)
                 else:
-                    raise error.Abort(
-                        _(b'working directory state appears damaged!')
-                    )
+                    self._parents = self.docket.parents
+            else:
+                self._v1_parents()
 
         return self._parents
+
+    def _v1_parents(self, from_v2_exception=None):
+        read_len = self._nodelen * 2
+        st = self._readdirstatefile(read_len)
+        l = len(st)
+        if l == read_len:
+            self._parents = (
+                st[: self._nodelen],
+                st[self._nodelen : 2 * self._nodelen],
+            )
+        elif l == 0:
+            self._parents = (
+                self._nodeconstants.nullid,
+                self._nodeconstants.nullid,
+            )
+        else:
+            hint = None
+            if from_v2_exception is not None:
+                hint = _(b"falling back to dirstate-v1 from v2 also failed")
+            raise error.Abort(
+                _(b'working directory state appears damaged!'), hint
+            )
 
 
 class dirstatemap(_dirstatemapcommon):
@@ -330,11 +361,17 @@ class dirstatemap(_dirstatemapcommon):
     def read(self):
         testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
         if self._use_dirstate_v2:
-
-            if not self.docket.uuid:
-                return
-            testing.wait_on_cfg(self._ui, b'dirstate.post-docket-read-file')
-            st = self._read_v2_data()
+            try:
+                self.docket
+            except error.CorruptedDirstate:
+                # fall back to dirstate-v1 if we fail to read v2
+                self._set_identity()
+                st = self._readdirstatefile()
+            else:
+                if not self.docket.uuid:
+                    return
+                testing.wait_on_cfg(self._ui, b'dirstate.post-docket-read-file')
+                st = self._read_v2_data()
         else:
             self._set_identity()
             st = self._readdirstatefile()
@@ -365,10 +402,17 @@ class dirstatemap(_dirstatemapcommon):
         #
         # (we cannot decorate the function directly since it is in a C module)
         if self._use_dirstate_v2:
-            p = self.docket.parents
-            meta = self.docket.tree_metadata
-            parse_dirstate = util.nogc(v2.parse_dirstate)
-            parse_dirstate(self._map, self.copymap, st, meta)
+            try:
+                self.docket
+            except error.CorruptedDirstate:
+                # fall back to dirstate-v1 if we fail to parse v2
+                parse_dirstate = util.nogc(parsers.parse_dirstate)
+                p = parse_dirstate(self._map, self.copymap, st)
+            else:
+                p = self.docket.parents
+                meta = self.docket.tree_metadata
+                parse_dirstate = util.nogc(v2.parse_dirstate)
+                parse_dirstate(self._map, self.copymap, st, meta)
         else:
             parse_dirstate = util.nogc(parsers.parse_dirstate)
             p = parse_dirstate(self._map, self.copymap, st)
@@ -597,38 +641,37 @@ if rustmod is not None:
 
             testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
             if self._use_dirstate_v2:
-                self.docket  # load the data if needed
-                inode = (
-                    self.identity.stat.st_ino
-                    if self.identity is not None
-                    and self.identity.stat is not None
-                    else None
-                )
-                testing.wait_on_cfg(self._ui, b'dirstate.post-docket-read-file')
-                if not self.docket.uuid:
-                    data = b''
-                    self._map = rustmod.DirstateMap.new_empty()
+                try:
+                    self.docket
+                except error.CorruptedDirstate as e:
+                    # fall back to dirstate-v1 if we fail to read v2
+                    parents = self._v1_map(e)
                 else:
-                    data = self._read_v2_data()
-                    self._map = rustmod.DirstateMap.new_v2(
-                        data,
-                        self.docket.data_size,
-                        self.docket.tree_metadata,
-                        self.docket.uuid,
-                        inode,
+                    parents = self.docket.parents
+                    inode = (
+                        self.identity.stat.st_ino
+                        if self.identity is not None
+                        and self.identity.stat is not None
+                        else None
                     )
-                parents = self.docket.parents
+                    testing.wait_on_cfg(
+                        self._ui, b'dirstate.post-docket-read-file'
+                    )
+                    if not self.docket.uuid:
+                        data = b''
+                        self._map = rustmod.DirstateMap.new_empty()
+                    else:
+                        data = self._read_v2_data()
+                        self._map = rustmod.DirstateMap.new_v2(
+                            data,
+                            self.docket.data_size,
+                            self.docket.tree_metadata,
+                            self.docket.uuid,
+                            inode,
+                        )
+                    parents = self.docket.parents
             else:
-                self._set_identity()
-                inode = (
-                    self.identity.stat.st_ino
-                    if self.identity is not None
-                    and self.identity.stat is not None
-                    else None
-                )
-                self._map, parents = rustmod.DirstateMap.new_v1(
-                    self._readdirstatefile(), inode
-                )
+                parents = self._v1_map()
 
             if parents and not self._dirtyparents:
                 self.setparents(*parents)
@@ -637,6 +680,23 @@ if rustmod is not None:
             self.__getitem__ = self._map.__getitem__
             self.get = self._map.get
             return self._map
+
+        def _v1_map(self, from_v2_exception=None):
+            self._set_identity()
+            inode = (
+                self.identity.stat.st_ino
+                if self.identity is not None and self.identity.stat is not None
+                else None
+            )
+            try:
+                self._map, parents = rustmod.DirstateMap.new_v1(
+                    self._readdirstatefile(), inode
+                )
+            except OSError as e:
+                if from_v2_exception is not None:
+                    raise e from from_v2_exception
+                raise
+            return parents
 
         @property
         def copymap(self):
@@ -696,9 +756,15 @@ if rustmod is not None:
                 self._dirtyparents = False
                 return
 
-            # We can only append to an existing data file if there is one
             write_mode = self._write_mode
-            if self.docket.uuid is None:
+            try:
+                docket = self.docket
+            except error.CorruptedDirstate:
+                # fall back to dirstate-v1 if we fail to parse v2
+                docket = None
+
+            # We can only append to an existing data file if there is one
+            if docket is None or docket.uuid is None:
                 write_mode = WRITE_MODE_FORCE_NEW
             packed, meta, append = self._map.write_v2(write_mode)
             if append:
