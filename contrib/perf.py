@@ -1924,9 +1924,20 @@ def _find_stream_generator(version):
             return data
 
         available[b'v2'] = generate
+    # try to fetch a v3 generator
+    generatev3 = getattr(mercurial.streamclone, "generatev3", None)
+    if generatev3 is not None:
+
+        def generate(repo):
+            entries, bytes, data = generatev3(repo, None, None, True)
+            return data
+
+        available[b'v3-exp'] = generate
+
     # resolve the request
     if version == b"latest":
-        latest_key = max(available)
+        # latest is the highest non experimental version
+        latest_key = max(v for v in available if b'-exp' not in v)
         return available[latest_key]
     elif version in available:
         return available[version]
