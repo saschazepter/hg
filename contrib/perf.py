@@ -1900,6 +1900,44 @@ def perfstartup(ui, repo, **opts):
     fm.end()
 
 
+def _find_stream_generator(version):
+    """find the proper generator function for this stream version"""
+    import mercurial.streamclone
+
+    available = {}
+
+    # try to fetch a v1 generator
+    generatev1 = getattr(mercurial.streamclone, "generatev1", None)
+    if generatev1 is not None:
+
+        def generate(repo):
+            entries, bytes, data = generatev2(repo, None, None, True)
+            return data
+
+        available[b'v1'] = generatev1
+    # try to fetch a v2 generator
+    generatev2 = getattr(mercurial.streamclone, "generatev2", None)
+    if generatev2 is not None:
+
+        def generate(repo):
+            entries, bytes, data = generatev2(repo, None, None, True)
+            return data
+
+        available[b'v2'] = generate
+    # resolve the request
+    if version == b"latest":
+        latest_key = max(available)
+        return available[latest_key]
+    elif version in available:
+        return available[version]
+    else:
+        msg = b"unkown or unavailable version: %s"
+        msg %= version
+        hint = b"available versions: %s"
+        hint %= b', '.join(sorted(available))
+        raise error.Abort(msg, hint=hint)
+
+
 @command(
     b'perf::stream-locked-section',
     [
@@ -1914,10 +1952,6 @@ def perfstartup(ui, repo, **opts):
 )
 def perf_stream_clone_scan(ui, repo, stream_version, **opts):
     """benchmark the initial, repo-locked, section of a stream-clone"""
-    import mercurial.streamclone
-
-    generatev1 = mercurial.streamclone.generatev1
-    generatev2 = mercurial.streamclone.generatev2
 
     opts = _byteskwargs(opts)
     timer, fm = gettimer(ui, opts)
@@ -1929,23 +1963,11 @@ def perf_stream_clone_scan(ui, repo, stream_version, **opts):
     def setupone():
         result_holder[0] = None
 
-    def runone_v1():
-        # the lock is held for the duration the initialisation
-        result_holder[0] = generatev1(repo)
+    generate = _find_stream_generator(stream_version)
 
-    def runone_v2():
+    def runone():
         # the lock is held for the duration the initialisation
-        result_holder[0] = generatev2(repo, None, None, True)
-
-    if stream_version == b'latest':
-        runone = runone_v2
-    elif stream_version == b'v2':
-        runone = runone_v2
-    elif stream_version == b'v1':
-        runone = runone_v1
-    else:
-        msg = b'unknown stream version: "%s"' % stream_version
-        raise error.Abort(msg)
+        result_holder[0] = generate(repo)
 
     timer(runone, setup=setupone, title=b"load")
     fm.end()
