@@ -650,6 +650,13 @@ class CorruptedState(Exception):
     __bytes__ = _tobytes
 
 
+class CorruptedDirstate(Exception):
+    """error raised the dirstate appears corrupted on-disk. It may be due to
+    a dirstate version mismatch (i.e. expecting v2 and finding v1 on disk)."""
+
+    __bytes__ = _tobytes
+
+
 class PeerTransportError(Abort):
     """Transport-level I/O error when communicating with a peer repo."""
 
