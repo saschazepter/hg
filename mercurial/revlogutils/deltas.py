@@ -1262,8 +1262,10 @@ class deltacomputer:
         gather_debug = self._gather_debug
         cachedelta = revinfo.cachedelta
         revlog = self.revlog
-
         p1r = p2r = None
+
+        if excluded_bases is None:
+            excluded_bases = set()
 
         if gather_debug:
             start = util.timer()
@@ -1310,15 +1312,80 @@ class deltacomputer:
                     'delta-base'
                 ] = deltainfo.base  # pytype: disable=attribute-error
                 dbg['search_round_count'] = 0
-                dbg['using-cached-base'] = True
+                dbg['using-cached-base'] = False
                 dbg['delta_try_count'] = 0
                 dbg['type'] = b"full"
                 dbg['snapshot-depth'] = 0
                 self._dbg_process_data(dbg)
             return deltainfo
 
-        if excluded_bases is None:
-            excluded_bases = set()
+        deltainfo = None
+
+        # If this source delta are to be forcibly reuse, let us comply early.
+        if (
+            revlog._generaldelta
+            and revinfo.cachedelta is not None
+            and revinfo.cachedelta[2] == DELTA_BASE_REUSE_FORCE
+        ):
+            base = revinfo.cachedelta[0]
+            if base == nullrev:
+                dbg_type = b"full"
+                deltainfo = self._fullsnapshotinfo(fh, revinfo, target_rev)
+                if gather_debug:
+                    snapshotdepth = 0
+            elif base not in excluded_bases:
+                delta = revinfo.cachedelta[1]
+                header, data = revlog.compress(delta)
+                deltalen = len(header) + len(data)
+                if gather_debug:
+                    offset = revlog.end(len(revlog) - 1)
+                    chainbase = revlog.chainbase(base)
+                    distance = deltalen + offset - revlog.start(chainbase)
+                    chainlen, compresseddeltalen = revlog._chaininfo(base)
+                    chainlen += 1
+                    compresseddeltalen += deltalen
+                    if base == p1r or base == p2r:
+                        dbg_type = b"delta"
+                        snapshotdepth = None
+                    elif not revlog.issnapshot(base):
+                        snapshotdepth = None
+                    else:
+                        dbg_type = b"snapshot"
+                        snapshotdepth = revlog.snapshotdepth(base) + 1
+                else:
+                    distance = None
+                    chainbase = None
+                    chainlen = None
+                    compresseddeltalen = None
+                    snapshotdepth = None
+                deltainfo = _deltainfo(
+                    distance=distance,
+                    deltalen=deltalen,
+                    data=(header, data),
+                    base=base,
+                    chainbase=chainbase,
+                    chainlen=chainlen,
+                    compresseddeltalen=compresseddeltalen,
+                    snapshotdepth=snapshotdepth,
+                )
+
+            if deltainfo is not None:
+                if gather_debug:
+                    end = util.timer()
+                    dbg['duration'] = end - start
+                    dbg[
+                        'delta-base'
+                    ] = deltainfo.base  # pytype: disable=attribute-error
+                    dbg['search_round_count'] = 0
+                    dbg['using-cached-base'] = True
+                    dbg['delta_try_count'] = 0
+                    dbg['type'] = b"full"
+                    if snapshotdepth is None:
+                        dbg['snapshot-depth'] = 0
+                    else:
+                        dbg['snapshot-depth'] = snapshotdepth
+                    self._dbg_process_data(dbg)
+                return deltainfo
 
         # count the number of different delta we tried (for debug purpose)
         dbg_try_count = 0
@@ -1326,7 +1393,6 @@ class deltacomputer:
         dbg_try_rounds = 0
         dbg_type = b'unknown'
 
-        deltainfo = None
         if p1r is None:
             p1r = revlog.rev(revinfo.p1)
             p2r = revlog.rev(revinfo.p2)
