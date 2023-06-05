@@ -104,13 +104,17 @@ setup a repository for tests
   >     dd if=/dev/zero of=$f bs=1k count=128 > /dev/null 2>&1
   > done
   $ hg commit -AqmD --traceback
+  $ for f in $files; do
+  >     dd if=/dev/zero of=$f bs=1k count=132 > /dev/null 2>&1
+  > done
+  $ hg commit -AqmD --traceback
 
 Reference size:
   $ f -s file
-  file: size=131072
+  file: size=135168
   $ f -s .hg/store/data/file*
-  .hg/store/data/file.d: size=132139
-  .hg/store/data/file.i: size=256
+  .hg/store/data/file.d: size=267307
+  .hg/store/data/file.i: size=320
 
   $ cd ..
 
@@ -157,10 +161,12 @@ Reference size:
 
 The inline revlog still exist, but a split version exist next to it
 
+  $ cat .hg/store/journal | tr '\0' ' ' | grep '\.s'
+  [1]
   $ f -s .hg/store/data/file*
-  .hg/store/data/file.d: size=132139
+  .hg/store/data/file.d: size=267307
   .hg/store/data/file.i: size=132395
-  .hg/store/data/file.i.s: size=256
+  .hg/store/data/file.i.s: size=320
 
 
 The first file.i entry should match the "Reference size" above.
@@ -237,9 +243,9 @@ Reference size:
 The inline revlog still exist, but a split version exist next to it
 
   $ f -s .hg/store/data/file*
-  .hg/store/data/file.d: size=132139
+  .hg/store/data/file.d: size=267307
   .hg/store/data/file.i: size=132395
-  .hg/store/data/file.i.s: size=256
+  .hg/store/data/file.i.s: size=320
 
   $ cat .hg/store/journal | tr -s '\000' ' ' | grep data/file
   data/file.i 1174
@@ -302,8 +308,8 @@ Reference size:
 The inline revlog was over written on disk
 
   $ f -s .hg/store/data/file*
-  .hg/store/data/file.d: size=132139
-  .hg/store/data/file.i: size=256
+  .hg/store/data/file.d: size=267307
+  .hg/store/data/file.i: size=320
 
   $ cat .hg/store/journal | tr -s '\000' ' ' | grep data/file
   data/file.i 1174
@@ -434,7 +440,7 @@ We checks that hooks properly see the inside of the transaction, while other pro
   adding changesets
   adding manifests
   adding file changes
-  size=131072
+  size=135168
   transaction abort!
   rollback completed
   abort: pretxnclose.03-abort hook exited with status 1
