@@ -1992,6 +1992,38 @@ def perf_stream_clone_scan(ui, repo, stream_version, **opts):
     fm.end()
 
 
+@command(
+    b'perf::stream-generate',
+    [
+        (
+            b'',
+            b'stream-version',
+            b'latest',
+            b'stream version to us ("v1", "v2" or "latest", (the default))',
+        ),
+    ]
+    + formatteropts,
+)
+def perf_stream_clone_generate(ui, repo, stream_version, **opts):
+    """benchmark the full generation of a stream clone"""
+
+    opts = _byteskwargs(opts)
+    timer, fm = gettimer(ui, opts)
+
+    # deletion of the generator may trigger some cleanup that we do not want to
+    # measure
+
+    generate = _find_stream_generator(stream_version)
+
+    def runone():
+        # the lock is held for the duration the initialisation
+        for chunk in generate(repo):
+            pass
+
+    timer(runone, title=b"generate")
+    fm.end()
+
+
 @command(b'perf::parents|perfparents', formatteropts)
 def perfparents(ui, repo, **opts):
     """benchmark the time necessary to fetch one changeset's parents.
