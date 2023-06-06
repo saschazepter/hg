@@ -188,6 +188,8 @@ perfstatus
    perf::startup
                  (no help text available)
    perf::status  benchmark the performance of a single status call
+   perf::stream-consume
+                 benchmark the full application of a stream clone
    perf::stream-generate
                  benchmark the full generation of a stream clone
    perf::stream-locked-section
