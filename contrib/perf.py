@@ -2024,6 +2024,85 @@ def perf_stream_clone_generate(ui, repo, stream_version, **opts):
     fm.end()
 
 
+@command(
+    b'perf::stream-consume',
+    formatteropts,
+)
+def perf_stream_clone_consume(ui, repo, filename, **opts):
+    """benchmark the full application of a stream clone
+
+    This include the creation of the repository
+    """
+    # try except to appease check code
+    msg = b"mercurial too old, missing necessary module: %s"
+    try:
+        from mercurial import bundle2
+    except ImportError as exc:
+        msg %= _bytestr(exc)
+        raise error.Abort(msg)
+    try:
+        from mercurial import exchange
+    except ImportError as exc:
+        msg %= _bytestr(exc)
+        raise error.Abort(msg)
+    try:
+        from mercurial import hg
+    except ImportError as exc:
+        msg %= _bytestr(exc)
+        raise error.Abort(msg)
+    try:
+        from mercurial import localrepo
+    except ImportError as exc:
+        msg %= _bytestr(exc)
+        raise error.Abort(msg)
+
+    opts = _byteskwargs(opts)
+    timer, fm = gettimer(ui, opts)
+
+    # deletion of the generator may trigger some cleanup that we do not want to
+    # measure
+    if not (os.path.isfile(filename) and os.access(filename, os.R_OK)):
+        raise error.Abort("not a readable file: %s" % filename)
+
+    run_variables = [None, None]
+
+    @contextlib.contextmanager
+    def context():
+        with open(filename, mode='rb') as bundle:
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                tmp_dir = fsencode(tmp_dir)
+                run_variables[0] = bundle
+                run_variables[1] = tmp_dir
+                yield
+                run_variables[0] = None
+                run_variables[1] = None
+
+    def runone():
+        bundle = run_variables[0]
+        tmp_dir = run_variables[1]
+        # only pass ui when no srcrepo
+        localrepo.createrepository(
+            repo.ui, tmp_dir, requirements=repo.requirements
+        )
+        target = hg.repository(repo.ui, tmp_dir)
+        gen = exchange.readbundle(target.ui, bundle, bundle.name)
+        # stream v1
+        if util.safehasattr(gen, 'apply'):
+            gen.apply(target)
+        else:
+            with target.transaction(b"perf::stream-consume") as tr:
+                bundle2.applybundle(
+                    target,
+                    gen,
+                    tr,
+                    source=b'unbundle',
+                    url=filename,
+                )
+
+    timer(runone, context=context, title=b"consume")
+    fm.end()
+
+
 @command(b'perf::parents|perfparents', formatteropts)
 def perfparents(ui, repo, **opts):
     """benchmark the time necessary to fetch one changeset's parents.
