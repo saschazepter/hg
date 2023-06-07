@@ -1471,41 +1471,43 @@ class deltacomputer:
                 if target_key:
                     target_revlog += b'%s:' % target_key
             dbg['target-revlog'] = target_revlog
-
-            if self._debug_info is not None:
-                self._debug_info.append(dbg)
-
-            if self._write_debug is not None:
-                msg = (
-                    b"DBG-DELTAS:"
-                    b" %-12s"
-                    b" rev=%d:"
-                    b" delta-base=%d"
-                    b" is-cached=%d"
-                    b" - search-rounds=%d"
-                    b" try-count=%d"
-                    b" - delta-type=%-6s"
-                    b" snap-depth=%d"
-                    b" - p1-chain-length=%d"
-                    b" p2-chain-length=%d"
-                    b" - duration=%f"
-                    b"\n"
-                )
-                msg %= (
-                    dbg["target-revlog"],
-                    dbg["revision"],
-                    dbg["delta-base"],
-                    dbg["using-cached-base"],
-                    dbg["search_round_count"],
-                    dbg["delta_try_count"],
-                    dbg["type"],
-                    dbg["snapshot-depth"],
-                    dbg["p1-chain-len"],
-                    dbg["p2-chain-len"],
-                    dbg["duration"],
-                )
-                self._write_debug(msg)
+            self._dbg_process_data(dbg)
         return deltainfo
+
+    def _dbg_process_data(self, dbg):
+        if self._debug_info is not None:
+            self._debug_info.append(dbg)
+
+        if self._write_debug is not None:
+            msg = (
+                b"DBG-DELTAS:"
+                b" %-12s"
+                b" rev=%d:"
+                b" delta-base=%d"
+                b" is-cached=%d"
+                b" - search-rounds=%d"
+                b" try-count=%d"
+                b" - delta-type=%-6s"
+                b" snap-depth=%d"
+                b" - p1-chain-length=%d"
+                b" p2-chain-length=%d"
+                b" - duration=%f"
+                b"\n"
+            )
+            msg %= (
+                dbg["target-revlog"],
+                dbg["revision"],
+                dbg["delta-base"],
+                dbg["using-cached-base"],
+                dbg["search_round_count"],
+                dbg["delta_try_count"],
+                dbg["type"],
+                dbg["snapshot-depth"],
+                dbg["p1-chain-len"],
+                dbg["p2-chain-len"],
+                dbg["duration"],
+            )
+            self._write_debug(msg)
 
 
 def delta_compression(default_compression_header, deltainfo):
