@@ -1087,7 +1087,10 @@ class deltacomputer:
     ):
         self.revlog = revlog
         self._write_debug = write_debug
-        self._debug_search = debug_search
+        if write_debug is None:
+            self._debug_search = False
+        else:
+            self._debug_search = debug_search
         self._debug_info = debug_info
         self._snapshot_cache = SnapshotCache()
 
@@ -1140,7 +1143,6 @@ class deltacomputer:
     def _builddeltainfo(self, revinfo, base, fh, target_rev=None):
         # can we use the cached delta?
         revlog = self.revlog
-        debug_search = self._write_debug is not None and self._debug_search
         chainbase = revlog.chainbase(base)
         if revlog._generaldelta:
             deltabase = base
@@ -1177,7 +1179,7 @@ class deltacomputer:
                 delta = revinfo.cachedelta[1]
         if delta is None:
             delta = self._builddeltadiff(base, revinfo, fh)
-        if debug_search:
+        if self._debug_search:
             msg = b"DBG-DELTAS-SEARCH:     uncompressed-delta-size=%d\n"
             msg %= len(delta)
             self._write_debug(msg)
@@ -1185,17 +1187,17 @@ class deltacomputer:
         if revlog.upperboundcomp is not None and snapshotdepth:
             lowestrealisticdeltalen = len(delta) // revlog.upperboundcomp
             snapshotlimit = revinfo.textlen >> snapshotdepth
-            if debug_search:
+            if self._debug_search:
                 msg = b"DBG-DELTAS-SEARCH:     projected-lower-size=%d\n"
                 msg %= lowestrealisticdeltalen
                 self._write_debug(msg)
             if snapshotlimit < lowestrealisticdeltalen:
-                if debug_search:
+                if self._debug_search:
                     msg = b"DBG-DELTAS-SEARCH:     DISCARDED (snapshot limit)\n"
                     self._write_debug(msg)
                 return None
             if revlog.length(base) < lowestrealisticdeltalen:
-                if debug_search:
+                if self._debug_search:
                     msg = b"DBG-DELTAS-SEARCH:     DISCARDED (prev size)\n"
                     self._write_debug(msg)
                 return None
@@ -1269,7 +1271,6 @@ class deltacomputer:
         if revinfo.flags & REVIDX_RAWTEXT_CHANGING_FLAGS:
             return self._fullsnapshotinfo(fh, revinfo, target_rev)
 
-        debug_search = self._write_debug is not None and self._debug_search
         gather_debug = self._gather_debug
 
         if gather_debug:
@@ -1298,7 +1299,7 @@ class deltacomputer:
                 p2_chain_len = revlog._chaininfo(p2r)[0]
             else:
                 p2_chain_len = -1
-        if debug_search:
+        if self._debug_search:
             msg = b"DBG-DELTAS-SEARCH: SEARCH rev=%d\n"
             msg %= target_rev
             self._write_debug(msg)
@@ -1316,7 +1317,7 @@ class deltacomputer:
         candidaterevs = next(groups)
         while candidaterevs is not None:
             dbg_try_rounds += 1
-            if debug_search:
+            if self._debug_search:
                 prev = None
                 if deltainfo is not None:
                     prev = deltainfo.base
@@ -1340,7 +1341,7 @@ class deltacomputer:
                 self._write_debug(msg)
             nominateddeltas = []
             if deltainfo is not None:
-                if debug_search:
+                if self._debug_search:
                     msg = (
                         b"DBG-DELTAS-SEARCH:   CONTENDER: rev=%d - length=%d\n"
                     )
@@ -1350,7 +1351,7 @@ class deltacomputer:
                 # challenge it against refined candidates
                 nominateddeltas.append(deltainfo)
             for candidaterev in candidaterevs:
-                if debug_search:
+                if self._debug_search:
                     msg = b"DBG-DELTAS-SEARCH:   CANDIDATE: rev=%d\n"
                     msg %= candidaterev
                     self._write_debug(msg)
@@ -1378,7 +1379,7 @@ class deltacomputer:
 
                 dbg_try_count += 1
 
-                if debug_search:
+                if self._debug_search:
                     delta_start = util.timer()
                 candidatedelta = self._builddeltainfo(
                     revinfo,
@@ -1386,23 +1387,23 @@ class deltacomputer:
                     fh,
                     target_rev=target_rev,
                 )
-                if debug_search:
+                if self._debug_search:
                     delta_end = util.timer()
                     msg = b"DBG-DELTAS-SEARCH:     delta-search-time=%f\n"
                     msg %= delta_end - delta_start
                     self._write_debug(msg)
                 if candidatedelta is not None:
                     if is_good_delta_info(self.revlog, candidatedelta, revinfo):
-                        if debug_search:
+                        if self._debug_search:
                             msg = b"DBG-DELTAS-SEARCH:     DELTA: length=%d (GOOD)\n"
                             msg %= candidatedelta.deltalen
                             self._write_debug(msg)
                         nominateddeltas.append(candidatedelta)
-                    elif debug_search:
+                    elif self._debug_search:
                         msg = b"DBG-DELTAS-SEARCH:     DELTA: length=%d (BAD)\n"
                         msg %= candidatedelta.deltalen
                         self._write_debug(msg)
-                elif debug_search:
+                elif self._debug_search:
                     msg = b"DBG-DELTAS-SEARCH:     NO-DELTA\n"
                     self._write_debug(msg)
             if nominateddeltas:
