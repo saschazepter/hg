@@ -1091,6 +1091,10 @@ class deltacomputer:
         self._debug_info = debug_info
         self._snapshot_cache = SnapshotCache()
 
+    @property
+    def _gather_debug(self):
+        return self._write_debug is not None or self._debug_info is not None
+
     def buildtext(self, revinfo, fh):
         """Builds a fulltext version of a revision
 
@@ -1265,10 +1269,8 @@ class deltacomputer:
         if revinfo.flags & REVIDX_RAWTEXT_CHANGING_FLAGS:
             return self._fullsnapshotinfo(fh, revinfo, target_rev)
 
-        gather_debug = (
-            self._write_debug is not None or self._debug_info is not None
-        )
         debug_search = self._write_debug is not None and self._debug_search
+        gather_debug = self._gather_debug
 
         if gather_debug:
             start = util.timer()
