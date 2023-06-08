@@ -1,3 +1,14 @@
+= Mercurial 6.4.4 =
+
+ * clonebundles: filter out invalid schemes instead of failing on them
+ * doc: format argument for date uses strftime format string (issue6818)
+ * test: make test-contrib-perf.t more robust
+ * revlog: fix a bug in revlog splitting
+ * bundles: clarify streaming v2 bundle usage
+ * delta-find: fix pulled-delta-reuse-policy=forced behavior
+ * dirstate: fall back to v1 if reading v2 failed
+ * revlog: avoid possible collision between directory and temporary index
+
 = Mercurial 6.4.3 =
 
  * chg: declare environ (issue6812)
