@@ -1302,7 +1302,20 @@ class deltacomputer:
         # not calling candelta since only one revision needs test, also to
         # avoid overhead fetching flags again.
         if not revinfo.textlen or revinfo.flags & REVIDX_RAWTEXT_CHANGING_FLAGS:
-            return self._fullsnapshotinfo(fh, revinfo, target_rev)
+            deltainfo = self._fullsnapshotinfo(fh, revinfo, target_rev)
+            if gather_debug:
+                end = util.timer()
+                dbg['duration'] = end - start
+                dbg[
+                    'delta-base'
+                ] = deltainfo.base  # pytype: disable=attribute-error
+                dbg['search_round_count'] = 0
+                dbg['using-cached-base'] = True
+                dbg['delta_try_count'] = 0
+                dbg['type'] = b"full"
+                dbg['snapshot-depth'] = 0
+                self._dbg_process_data(dbg)
+            return deltainfo
 
         if excluded_bases is None:
             excluded_bases = set()
