@@ -2026,7 +2026,15 @@ class revlog:
 
         The file will only exist if a splitting operation is in progress, but
         it is always expected at the same location."""
-        return self.radix + b'.i.s'
+        parts = os.path.split(self.radix)
+        if len(parts) > 1:
+            # adds a '-s' prefix to the ``data/` or `meta/` base
+            head = parts[0] + b'-s'
+            return os.path.join(head, *parts[1:])
+        else:
+            # the revlog is stored at the root of the store (changelog or
+            # manifest), no risk of collision.
+            return self.radix + b'.i.s'
 
     def _enforceinlinesize(self, tr, side_write=True):
         """Check if the revlog is too big for inline and convert if so.

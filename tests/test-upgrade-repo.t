@@ -839,6 +839,7 @@ store directory has files we expect
   00changelog.i
   00manifest.i
   data
+  data-s
   fncache
   phaseroots
   requires
@@ -862,6 +863,7 @@ old store should be backed up
   00changelog.i
   00manifest.i
   data
+  data-s
   fncache
   phaseroots
   requires
