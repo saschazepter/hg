@@ -1328,7 +1328,7 @@ class deltacomputer:
                     and cachedelta[0] in candidaterevs
                 ):
                     round_type = b"cached-delta"
-                elif p1 in candidaterevs or p2 in candidaterevs:
+                elif p1r in candidaterevs or p2r in candidaterevs:
                     round_type = b"parents"
                 elif prev is not None and all(c < prev for c in candidaterevs):
                     round_type = b"refine-down"
@@ -1356,9 +1356,9 @@ class deltacomputer:
                     msg %= candidaterev
                     self._write_debug(msg)
                     candidate_type = None
-                    if candidaterev == p1:
+                    if candidaterev == p1r:
                         candidate_type = b"p1"
-                    elif candidaterev == p2:
+                    elif candidaterev == p2r:
                         candidate_type = b"p2"
                     elif self.revlog.issnapshot(candidaterev):
                         candidate_type = b"snapshot-%d"
