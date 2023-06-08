@@ -514,8 +514,8 @@ class revlog:
             entry_point = b'%s.i.%s' % (self.radix, self.postfix)
         elif self._trypending and self.opener.exists(b'%s.i.a' % self.radix):
             entry_point = b'%s.i.a' % self.radix
-        elif self._try_split and self.opener.exists(b'%s.i.s' % self.radix):
-            entry_point = b'%s.i.s' % self.radix
+        elif self._try_split and self.opener.exists(self._split_index_file):
+            entry_point = self._split_index_file
         else:
             entry_point = b'%s.i' % self.radix
 
@@ -2020,6 +2020,14 @@ class revlog:
                 raise error.CensoredNodeError(self.display_id, node, text)
             raise
 
+    @property
+    def _split_index_file(self):
+        """the path where to expect the index of an ongoing splitting operation
+
+        The file will only exist if a splitting operation is in progress, but
+        it is always expected at the same location."""
+        return self.radix + b'.i.s'
+
     def _enforceinlinesize(self, tr, side_write=True):
         """Check if the revlog is too big for inline and convert if so.
 
@@ -2056,7 +2064,7 @@ class revlog:
             # this code
         if side_write:
             old_index_file_path = self._indexfile
-            new_index_file_path = self._indexfile + b'.s'
+            new_index_file_path = self._split_index_file
             opener = self.opener
             weak_self = weakref.ref(self)
 
