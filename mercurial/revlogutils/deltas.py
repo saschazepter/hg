@@ -1296,17 +1296,16 @@ class deltacomputer:
             dbg['p1-chain-len'] = p1_chain_len
             dbg['p2-chain-len'] = p2_chain_len
 
-        if not revinfo.textlen:
+        # 1) if the revision is empty, no amount of delta can beat it
+        #
+        # 2) no delta for flag processor revision (see "candelta" for why)
+        # not calling candelta since only one revision needs test, also to
+        # avoid overhead fetching flags again.
+        if not revinfo.textlen or revinfo.flags & REVIDX_RAWTEXT_CHANGING_FLAGS:
             return self._fullsnapshotinfo(fh, revinfo, target_rev)
 
         if excluded_bases is None:
             excluded_bases = set()
-
-        # no delta for flag processor revision (see "candelta" for why)
-        # not calling candelta since only one revision needs test, also to
-        # avoid overhead fetching flags again.
-        if revinfo.flags & REVIDX_RAWTEXT_CHANGING_FLAGS:
-            return self._fullsnapshotinfo(fh, revinfo, target_rev)
 
         # count the number of different delta we tried (for debug purpose)
         dbg_try_count = 0
