@@ -329,8 +329,8 @@ more subtle to test this behavior.
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
-  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
-  DBG-DELTAS: FILELOG:my-file.txt: rev=4: delta-base=3 * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 is-cached=1 *search-rounds=1 try-count=1* (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=4: delta-base=3 is-cached=1 *search-rounds=1 try-count=1* (glob)
 
 Check that running "forced" on a non-general delta repository does not corrupt it
 ---------------------------------------------------------------------------------
