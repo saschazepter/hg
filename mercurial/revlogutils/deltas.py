@@ -1437,17 +1437,18 @@ class deltacomputer:
                     and dbg_try_count == 1
                     and deltainfo.base == cachedelta[0]
                 )
-            dbg = {
-                'duration': end - start,
-                'revision': target_rev,
-                'delta-base': deltainfo.base,  # pytype: disable=attribute-error
-                'search_round_count': dbg_try_rounds,
-                'using-cached-base': used_cached,
-                'delta_try_count': dbg_try_count,
-                'type': dbg_type,
-                'p1-chain-len': p1_chain_len,
-                'p2-chain-len': p2_chain_len,
-            }
+            dbg = self._one_dbg_data()
+            dbg['duration'] = end - start
+            dbg['revision'] = target_rev
+            dbg[
+                'delta-base'
+            ] = deltainfo.base  # pytype: disable=attribute-error
+            dbg['search_round_count'] = dbg_try_rounds
+            dbg['using-cached-base'] = used_cached
+            dbg['delta_try_count'] = dbg_try_count
+            dbg['type'] = dbg_type
+            dbg['p1-chain-len'] = p1_chain_len
+            dbg['p2-chain-len'] = p2_chain_len
             if (
                 deltainfo.snapshotdepth  # pytype: disable=attribute-error
                 is not None
@@ -1473,6 +1474,21 @@ class deltacomputer:
             dbg['target-revlog'] = target_revlog
             self._dbg_process_data(dbg)
         return deltainfo
+
+    def _one_dbg_data(self):
+        return {
+            'duration': None,
+            'revision': None,
+            'delta-base': None,
+            'search_round_count': None,
+            'using-cached-base': None,
+            'delta_try_count': None,
+            'type': None,
+            'p1-chain-len': None,
+            'p2-chain-len': None,
+            'snapshot-depth': None,
+            'target-revlog': None,
+        }
 
     def _dbg_process_data(self, dbg):
         if self._debug_info is not None:
