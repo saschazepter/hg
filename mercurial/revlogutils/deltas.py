@@ -1259,6 +1259,43 @@ class deltacomputer:
         if target_rev is None:
             target_rev = len(self.revlog)
 
+        gather_debug = self._gather_debug
+        cachedelta = revinfo.cachedelta
+        revlog = self.revlog
+
+        p1r = p2r = None
+
+        if gather_debug:
+            start = util.timer()
+            dbg = self._one_dbg_data()
+            dbg['revision'] = target_rev
+            target_revlog = b"UNKNOWN"
+            target_type = self.revlog.target[0]
+            target_key = self.revlog.target[1]
+            if target_type == KIND_CHANGELOG:
+                target_revlog = b'CHANGELOG:'
+            elif target_type == KIND_MANIFESTLOG:
+                target_revlog = b'MANIFESTLOG:'
+                if target_key:
+                    target_revlog += b'%s:' % target_key
+            elif target_type == KIND_FILELOG:
+                target_revlog = b'FILELOG:'
+                if target_key:
+                    target_revlog += b'%s:' % target_key
+            dbg['target-revlog'] = target_revlog
+            p1r = revlog.rev(revinfo.p1)
+            p2r = revlog.rev(revinfo.p2)
+            if p1r != nullrev:
+                p1_chain_len = revlog._chaininfo(p1r)[0]
+            else:
+                p1_chain_len = -1
+            if p2r != nullrev:
+                p2_chain_len = revlog._chaininfo(p2r)[0]
+            else:
+                p2_chain_len = -1
+            dbg['p1-chain-len'] = p1_chain_len
+            dbg['p2-chain-len'] = p2_chain_len
+
         if not revinfo.textlen:
             return self._fullsnapshotinfo(fh, revinfo, target_rev)
 
@@ -1271,34 +1308,17 @@ class deltacomputer:
         if revinfo.flags & REVIDX_RAWTEXT_CHANGING_FLAGS:
             return self._fullsnapshotinfo(fh, revinfo, target_rev)
 
-        gather_debug = self._gather_debug
-
-        if gather_debug:
-            start = util.timer()
-
         # count the number of different delta we tried (for debug purpose)
         dbg_try_count = 0
         # count the number of "search round" we did. (for debug purpose)
         dbg_try_rounds = 0
         dbg_type = b'unknown'
 
-        cachedelta = revinfo.cachedelta
-        p1 = revinfo.p1
-        p2 = revinfo.p2
-        revlog = self.revlog
-
         deltainfo = None
-        p1r, p2r = revlog.rev(p1), revlog.rev(p2)
+        if p1r is None:
+            p1r = revlog.rev(revinfo.p1)
+            p2r = revlog.rev(revinfo.p2)
 
-        if gather_debug:
-            if p1r != nullrev:
-                p1_chain_len = revlog._chaininfo(p1r)[0]
-            else:
-                p1_chain_len = -1
-            if p2r != nullrev:
-                p2_chain_len = revlog._chaininfo(p2r)[0]
-            else:
-                p2_chain_len = -1
         if self._debug_search:
             msg = b"DBG-DELTAS-SEARCH: SEARCH rev=%d\n"
             msg %= target_rev
@@ -1437,9 +1457,7 @@ class deltacomputer:
                     and dbg_try_count == 1
                     and deltainfo.base == cachedelta[0]
                 )
-            dbg = self._one_dbg_data()
             dbg['duration'] = end - start
-            dbg['revision'] = target_rev
             dbg[
                 'delta-base'
             ] = deltainfo.base  # pytype: disable=attribute-error
@@ -1447,8 +1465,6 @@ class deltacomputer:
             dbg['using-cached-base'] = used_cached
             dbg['delta_try_count'] = dbg_try_count
             dbg['type'] = dbg_type
-            dbg['p1-chain-len'] = p1_chain_len
-            dbg['p2-chain-len'] = p2_chain_len
             if (
                 deltainfo.snapshotdepth  # pytype: disable=attribute-error
                 is not None
@@ -1458,20 +1474,6 @@ class deltacomputer:
                 ] = deltainfo.snapshotdepth  # pytype: disable=attribute-error
             else:
                 dbg['snapshot-depth'] = 0
-            target_revlog = b"UNKNOWN"
-            target_type = self.revlog.target[0]
-            target_key = self.revlog.target[1]
-            if target_type == KIND_CHANGELOG:
-                target_revlog = b'CHANGELOG:'
-            elif target_type == KIND_MANIFESTLOG:
-                target_revlog = b'MANIFESTLOG:'
-                if target_key:
-                    target_revlog += b'%s:' % target_key
-            elif target_type == KIND_FILELOG:
-                target_revlog = b'FILELOG:'
-                if target_key:
-                    target_revlog += b'%s:' % target_key
-            dbg['target-revlog'] = target_revlog
             self._dbg_process_data(dbg)
         return deltainfo
 
