@@ -5219,7 +5219,7 @@ def paths(ui, repo, search=None, **opts):
                     value = b'yes'
                 else:
                     value = b'no'
-            fm.condwrite(showsubopts, subopt, b'%s\n', value)
+            fm.condwrite(showsubopts, subopt, b'%s\n', pycompat.bytestr(value))
 
     fm.end()
 

@@ -178,15 +178,9 @@ pull with "forced" policy
 -------------------------
 
   $ cp -R client client-forced
-  $ hg -R client-forced paths --config paths.default:pulled-delta-reuse-policy=forced 2>&1 | "$PYTHON" $TESTDIR/filtertraceback.py
+  $ hg -R client-forced paths --config paths.default:pulled-delta-reuse-policy=forced
   default = $TESTTMP/server
-  default:pulled-delta-reuse-policy = ** unknown exception encountered, please report by visiting
-  ** https://mercurial-scm.org/wiki/BugTracker
-  ** Python * (glob)
-  ** Mercurial Distributed SCM (*) (glob)
-  ** Extensions loaded: 
-  Traceback (most recent call last):
-  TypeError: %b requires a bytes-like object, or an object that implements __bytes__, not 'int'
+  default:pulled-delta-reuse-policy = 2
   $ hg -R client-forced pull --config paths.default:pulled-delta-reuse-policy=forced
   pulling from $TESTTMP/server
   requesting all changes
