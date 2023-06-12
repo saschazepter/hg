@@ -24,7 +24,6 @@ from . import (
     phases,
     requirements,
     scmutil,
-    store,
     transaction,
     util,
 )
@@ -446,9 +445,7 @@ def manifestrevlogs(repo):
         # This logic is safe if treemanifest isn't enabled, but also
         # pointless, so we skip it if treemanifest isn't enabled.
         for entry in repo.store.data_entries():
-            if not entry.is_revlog:
-                continue
-            if entry.revlog_type == store.FILEFLAGS_MANIFESTLOG:
+            if entry.is_revlog and entry.is_manifestlog:
                 yield repo.manifestlog.getstorage(entry.target_id)
 
 
