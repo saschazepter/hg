@@ -1,6 +1,8 @@
   $ cat >> $HGRCPATH << EOF
   > [storage]
   > dirstate-v2.slow-path=allow
+  > [format]
+  > use-dirstate-v2=no
   > EOF
 
 Set up a v1 repo
