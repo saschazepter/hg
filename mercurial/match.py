@@ -30,6 +30,7 @@ allpatternkinds = (
     b're',
     b'glob',
     b'path',
+    b'filepath',
     b'relglob',
     b'relpath',
     b'relre',
@@ -181,6 +182,8 @@ def match(
     're:<regexp>' - a regular expression
     'path:<path>' - a path relative to repository root, which is matched
                     recursively
+    'filepath:<path>' - an exact path to a single file, relative to the
+                        repository root
     'rootfilesin:<path>' - a path relative to repository root, which is
                     matched non-recursively (will not match subdirectories)
     'relglob:<glob>' - an unrooted glob (*.c matches C files in all dirs)
@@ -334,10 +337,18 @@ def _donormalize(patterns, default, root, cwd, auditor=None, warn=None):
     """Convert 'kind:pat' from the patterns list to tuples with kind and
     normalized and rooted patterns and with listfiles expanded."""
     kindpats = []
+    kinds_to_normalize = (
+        b'relglob',
+        b'path',
+        b'filepath',
+        b'rootfilesin',
+        b'rootglob',
+    )
+
     for kind, pat in [_patsplit(p, default) for p in patterns]:
         if kind in cwdrelativepatternkinds:
             pat = pathutil.canonpath(root, cwd, pat, auditor=auditor)
-        elif kind in (b'relglob', b'path', b'rootfilesin', b'rootglob'):
+        elif kind in kinds_to_normalize:
             pat = util.normpath(pat)
         elif kind in (b'listfile', b'listfile0'):
             try:
@@ -1340,6 +1351,10 @@ def _regex(kind, pat, globsuffix):
         return b''
     if kind == b're':
         return pat
+    if kind == b'filepath':
+        raise error.ProgrammingError(
+            "'filepath:' patterns should not be converted to a regex"
+        )
     if kind in (b'path', b'relpath'):
         if pat == b'.':
             return b''
@@ -1444,7 +1459,14 @@ def _buildregexmatch(kindpats, globsuffix):
     """
     try:
         allgroups = []
-        regexps = [_regex(k, p, globsuffix) for (k, p, s) in kindpats]
+        regexps = []
+        exact = set()
+        for (kind, pattern, _source) in kindpats:
+            if kind == b'filepath':
+                exact.add(pattern)
+                continue
+            regexps.append(_regex(kind, pattern, globsuffix))
+
         fullregexp = _joinregexes(regexps)
 
         startidx = 0
@@ -1469,9 +1491,20 @@ def _buildregexmatch(kindpats, globsuffix):
             allgroups.append(_joinregexes(group))
             allmatchers = [_rematcher(g) for g in allgroups]
             func = lambda s: any(m(s) for m in allmatchers)
-        return fullregexp, func
+
+        actualfunc = func
+        if exact:
+            # An empty regex will always match, so only call the regex if
+            # there were any actual patterns to match.
+            if not regexps:
+                actualfunc = lambda s: s in exact
+            else:
+                actualfunc = lambda s: s in exact or func(s)
+        return fullregexp, actualfunc
     except re.error:
         for k, p, s in kindpats:
+            if k == b'filepath':
+                continue
             try:
                 _rematcher(_regex(k, p, globsuffix))
             except re.error:
@@ -1502,7 +1535,7 @@ def _patternrootsanddirs(kindpats):
                     break
                 root.append(p)
             r.append(b'/'.join(root))
-        elif kind in (b'relpath', b'path'):
+        elif kind in (b'relpath', b'path', b'filepath'):
             if pat == b'.':
                 pat = b''
             r.append(pat)
