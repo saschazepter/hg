@@ -1,19 +1,18 @@
 use crate::{DirstateError, DirstateParents};
 
 use super::dirstate_map::DirstateMap;
+use self_cell::self_cell;
 use std::ops::Deref;
 
-use ouroboros::self_referencing;
-
-/// Keep a `DirstateMap<'on_disk>` next to the `on_disk` buffer that it
-/// borrows.
-#[self_referencing]
-pub struct OwningDirstateMap {
-    on_disk: Box<dyn Deref<Target = [u8]> + Send>,
-    #[borrows(on_disk)]
-    #[covariant]
-    map: DirstateMap<'this>,
-}
+self_cell!(
+    /// Keep a `DirstateMap<'owner>` next to the `owner` buffer that it
+    /// borrows.
+    pub struct OwningDirstateMap {
+        owner: Box<dyn Deref<Target = [u8]> + Send>,
+        #[covariant]
+        dependent: DirstateMap,
+    }
+);
 
 impl OwningDirstateMap {
     pub fn new_empty<OnDisk>(on_disk: OnDisk) -> Self
@@ -22,11 +21,7 @@ impl OwningDirstateMap {
     {
         let on_disk = Box::new(on_disk);
 
-        OwningDirstateMapBuilder {
-            on_disk,
-            map_builder: |bytes| DirstateMap::empty(bytes),
-        }
-        .build()
+        OwningDirstateMap::new(on_disk, |bytes| DirstateMap::empty(bytes))
     }
 
     pub fn new_v1<OnDisk>(
@@ -40,16 +35,12 @@ impl OwningDirstateMap {
         let mut parents = DirstateParents::NULL;
 
         Ok((
-            OwningDirstateMapTryBuilder {
-                on_disk,
-                map_builder: |bytes| {
-                    DirstateMap::new_v1(bytes, identity).map(|(dmap, p)| {
-                        parents = p.unwrap_or(DirstateParents::NULL);
-                        dmap
-                    })
-                },
-            }
-            .try_build()?,
+            OwningDirstateMap::try_new(on_disk, |bytes| {
+                DirstateMap::new_v1(bytes, identity).map(|(dmap, p)| {
+                    parents = p.unwrap_or(DirstateParents::NULL);
+                    dmap
+                })
+            })?,
             parents,
         ))
     }
@@ -66,28 +57,24 @@ impl OwningDirstateMap {
     {
         let on_disk = Box::new(on_disk);
 
-        OwningDirstateMapTryBuilder {
-            on_disk,
-            map_builder: |bytes| {
-                DirstateMap::new_v2(bytes, data_size, metadata, uuid, identity)
-            },
-        }
-        .try_build()
+        OwningDirstateMap::try_new(on_disk, |bytes| {
+            DirstateMap::new_v2(bytes, data_size, metadata, uuid, identity)
+        })
     }
 
     pub fn with_dmap_mut<R>(
         &mut self,
         f: impl FnOnce(&mut DirstateMap) -> R,
     ) -> R {
-        self.with_map_mut(f)
+        self.with_dependent_mut(|_owner, dmap| f(dmap))
     }
 
     pub fn get_map(&self) -> &DirstateMap {
-        self.borrow_map()
+        self.borrow_dependent()
     }
 
     pub fn on_disk(&self) -> &[u8] {
-        self.borrow_on_disk()
+        self.borrow_owner()
     }
 
     pub fn old_uuid(&self) -> Option<&[u8]> {
