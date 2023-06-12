@@ -532,10 +532,16 @@ DEFAULTLIMITS = (
 )
 
 
+@contextlib.contextmanager
+def noop_context():
+    yield
+
+
 def _timer(
     fm,
     func,
     setup=None,
+    context=noop_context,
     title=None,
     displayall=False,
     limits=DEFAULTLIMITS,
@@ -551,14 +557,16 @@ def _timer(
     for i in range(prerun):
         if setup is not None:
             setup()
-        func()
+        with context():
+            func()
     keepgoing = True
     while keepgoing:
         if setup is not None:
             setup()
-        with profiler:
-            with timeone() as item:
-                r = func()
+        with context():
+            with profiler:
+                with timeone() as item:
+                    r = func()
         profiler = NOOPCTX
         count += 1
         results.append(item[0])
