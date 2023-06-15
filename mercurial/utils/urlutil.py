@@ -746,9 +746,14 @@ DELTA_REUSE_POLICIES = {
     b'no-reuse': revlog_constants.DELTA_BASE_REUSE_NO,
     b'forced': revlog_constants.DELTA_BASE_REUSE_FORCE,
 }
+DELTA_REUSE_POLICIES_NAME = dict(i[::-1] for i in DELTA_REUSE_POLICIES.items())
 
 
-@pathsuboption(b'pulled-delta-reuse-policy', b'delta_reuse_policy')
+@pathsuboption(
+    b'pulled-delta-reuse-policy',
+    b'delta_reuse_policy',
+    display=DELTA_REUSE_POLICIES_NAME.get,
+)
 def delta_reuse_policy(ui, path, value):
     if value not in DELTA_REUSE_POLICIES:
         path_name = path.name
