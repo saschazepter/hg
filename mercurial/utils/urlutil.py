@@ -658,9 +658,11 @@ class paths(dict):
 
 
 _pathsuboptions = {}
+# a dictionnary of methods that can be used to format a sub-option value
+path_suboptions_display = {}
 
 
-def pathsuboption(option, attr):
+def pathsuboption(option, attr, display=pycompat.bytestr):
     """Decorator used to declare a path sub-option.
 
     Arguments are the sub-option name and the attribute it should set on
@@ -671,12 +673,16 @@ def pathsuboption(option, attr):
     The function should return the value that will be set on the ``path``
     instance.
 
+    The optional `display` argument is a function that can be used to format
+    the value when displayed to the user (like in `hg paths` for example).
+
     This decorator can be used to perform additional verification of
     sub-options and to change the type of sub-options.
     """
 
     def register(func):
         _pathsuboptions[option] = (attr, func)
+        path_suboptions_display[option] = display
         return func
 
     return register
