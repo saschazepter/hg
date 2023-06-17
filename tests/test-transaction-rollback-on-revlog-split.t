@@ -84,6 +84,8 @@ setup a repository for tests
   > Directory_With,Special%Char/Complex_File.babar
   > foo/bar/babar_celeste/foo
   > 1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/f
+  > some_dir/sub_dir/foo_bar
+  > some_dir/sub_dir/foo_bar.i.s/tutu
   > "
   $ for f in $files; do
   >     mkdir -p `dirname $f`
@@ -104,13 +106,17 @@ setup a repository for tests
   >     dd if=/dev/zero of=$f bs=1k count=128 > /dev/null 2>&1
   > done
   $ hg commit -AqmD --traceback
+  $ for f in $files; do
+  >     dd if=/dev/zero of=$f bs=1k count=132 > /dev/null 2>&1
+  > done
+  $ hg commit -AqmD --traceback
 
 Reference size:
   $ f -s file
-  file: size=131072
-  $ f -s .hg/store/data/file*
-  .hg/store/data/file.d: size=132139
-  .hg/store/data/file.i: size=256
+  file: size=135168
+  $ f -s .hg/store/data*/file*
+  .hg/store/data/file.d: size=267307
+  .hg/store/data/file.i: size=320
 
   $ cd ..
 
@@ -134,16 +140,16 @@ Reference size:
   adding changesets
   adding manifests
   adding file changes
-  added 2 changesets with 8 changes to 4 files
-  new changesets 16a630ece54e:8437c461d70a
+  added 3 changesets with 18 changes to 6 files
+  new changesets c99a94cae9b1:64874a3b0160
   (run 'hg update' to get a working copy)
 
 
 The inline revlog has been replaced
 
   $ f -s .hg/store/data/file*
-  .hg/store/data/file.d: size=132139
-  .hg/store/data/file.i: size=256
+  .hg/store/data/file.d: size=267307
+  .hg/store/data/file.i: size=320
 
 
   $ hg verify -q
@@ -171,7 +177,7 @@ but truncate the index and the data to remove both c and D.
 Reference size:
   $ f -s file
   file: size=1024
-  $ f -s .hg/store/data/file*
+  $ f -s .hg/store/data*/file*
   .hg/store/data/file.i: size=1174
 
   $ cat > .hg/hgrc <<EOF
@@ -192,10 +198,13 @@ Reference size:
 
 The inline revlog still exist, but a split version exist next to it
 
-  $ f -s .hg/store/data/file*
-  .hg/store/data/file.d: size=132139
+  $ cat .hg/store/journal | tr '\0' ' ' | grep '\.s'
+  data/some_dir/sub_dir/foo_bar.i.s/tutu.i 1174
+  data/some_dir/sub_dir/foo_bar.i.s/tutu.d 0
+  $ f -s .hg/store/data*/file*
+  .hg/store/data-s/file: size=320
+  .hg/store/data/file.d: size=267307
   .hg/store/data/file.i: size=132395
-  .hg/store/data/file.i.s: size=256
 
 
 The first file.i entry should match the "Reference size" above.
@@ -206,19 +215,19 @@ A "temporary file" entry exist for the split index.
   $ cat .hg/store/journal | tr -s '\000' ' ' | grep data/file
   data/file.i 1174
   data/file.d 0
-  $ cat .hg/store/journal.backupfiles | tr -s '\000' ' ' | tr -s '\00' ' '| grep data/file
+  $ cat .hg/store/journal.backupfiles | tr -s '\000' ' ' | tr -s '\00' ' '| grep 'data.*/file'
    data/file.i data/journal.backup.file.i.bck 0
-   data/file.i.s 0
+   data-s/file 0
 
 recover is rolling the split back, the fncache is still valid
 
   $ hg recover
   rolling back interrupted transaction
   (verify step skipped, run `hg verify` to check your repository content)
-  $ f -s .hg/store/data/file*
+  $ f -s .hg/store/data*/file*
   .hg/store/data/file.i: size=1174
   $ hg tip
-  changeset:   1:cc8dfb126534
+  changeset:   1:64b04c8dc267
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -243,7 +252,7 @@ where the data file is left as garbage.
 Reference size:
   $ f -s file
   file: size=1024
-  $ f -s .hg/store/data/file*
+  $ f -s .hg/store/data*/file*
   .hg/store/data/file.i: size=1174
 
   $ cat > .hg/hgrc <<EOF
@@ -271,12 +280,12 @@ Reference size:
 
 The inline revlog still exist, but a split version exist next to it
 
-  $ f -s .hg/store/data/file*
-  .hg/store/data/file.d: size=132139
+  $ f -s .hg/store/data*/file*
+  .hg/store/data-s/file: size=320
+  .hg/store/data/file.d: size=267307
   .hg/store/data/file.i: size=132395
-  .hg/store/data/file.i.s: size=256
 
-  $ cat .hg/store/journal | tr -s '\000' ' ' | grep data/file
+  $ cat .hg/store/journal | tr -s '\000' ' ' | grep 'data.*/file'
   data/file.i 1174
   data/file.d 0
 
@@ -285,10 +294,10 @@ recover is rolling the split back, the fncache is still valid
   $ hg recover
   rolling back interrupted transaction
   (verify step skipped, run `hg verify` to check your repository content)
-  $ f -s .hg/store/data/file*
+  $ f -s .hg/store/data*/file*
   .hg/store/data/file.i: size=1174
   $ hg tip
-  changeset:   1:cc8dfb126534
+  changeset:   1:64b04c8dc267
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -308,7 +317,7 @@ Now retry the procedure but intercept the rename of the index.
 Reference size:
   $ f -s file
   file: size=1024
-  $ f -s .hg/store/data/file*
+  $ f -s .hg/store/data*/file*
   .hg/store/data/file.i: size=1174
 
   $ cat > .hg/hgrc <<EOF
@@ -336,11 +345,11 @@ Reference size:
 
 The inline revlog was over written on disk
 
-  $ f -s .hg/store/data/file*
-  .hg/store/data/file.d: size=132139
-  .hg/store/data/file.i: size=256
+  $ f -s .hg/store/data*/file*
+  .hg/store/data/file.d: size=267307
+  .hg/store/data/file.i: size=320
 
-  $ cat .hg/store/journal | tr -s '\000' ' ' | grep data/file
+  $ cat .hg/store/journal | tr -s '\000' ' ' | grep 'data.*/file'
   data/file.i 1174
   data/file.d 0
 
@@ -349,10 +358,10 @@ recover is rolling the split back, the fncache is still valid
   $ hg recover
   rolling back interrupted transaction
   (verify step skipped, run `hg verify` to check your repository content)
-  $ f -s .hg/store/data/file*
+  $ f -s .hg/store/data*/file*
   .hg/store/data/file.i: size=1174
   $ hg tip
-  changeset:   1:cc8dfb126534
+  changeset:   1:64b04c8dc267
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -386,13 +395,13 @@ Repeat the original test but let hg rollback the transaction.
 
 The split was rollback
 
-  $ f -s .hg/store/data/file*
+  $ f -s .hg/store/data*/file*
   .hg/store/data/file.d: size=0
   .hg/store/data/file.i: size=1174
 
 
   $ hg tip
-  changeset:   1:cc8dfb126534
+  changeset:   1:64b04c8dc267
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -472,7 +481,7 @@ We checks that hooks properly see the inside of the transaction, while other pro
   adding changesets
   adding manifests
   adding file changes
-  size=131072
+  size=135168
   transaction abort!
   rollback completed
   abort: pretxnclose.03-abort hook exited with status 1

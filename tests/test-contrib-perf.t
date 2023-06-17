@@ -304,20 +304,20 @@ Simple single entry
 
 Multiple entries
 
-  $ hg perfparents --config perf.stub=no --config perf.run-limits='500000-1, 0.000000001-5'
-  ! wall * comb * user * sys * (best of 5) (glob)
+  $ hg perfparents --config perf.stub=no --config perf.run-limits='500000-1, 0.000000001-50'
+  ! wall * comb * user * sys * (best of 50) (glob)
 
 error case are ignored
 
-  $ hg perfparents --config perf.stub=no --config perf.run-limits='500, 0.000000001-5'
+  $ hg perfparents --config perf.stub=no --config perf.run-limits='500, 0.000000001-50'
   malformatted run limit entry, missing "-": 500
-  ! wall * comb * user * sys * (best of 5) (glob)
-  $ hg perfparents --config perf.stub=no --config perf.run-limits='aaa-12, 0.000000001-5'
-  malformatted run limit entry, could not convert string to float: 'aaa': aaa-12
-  ! wall * comb * user * sys * (best of 5) (glob)
-  $ hg perfparents --config perf.stub=no --config perf.run-limits='12-aaaaaa, 0.000000001-5'
-  malformatted run limit entry, invalid literal for int() with base 10: 'aaaaaa': 12-aaaaaa
-  ! wall * comb * user * sys * (best of 5) (glob)
+  ! wall * comb * user * sys * (best of 50) (glob)
+  $ hg perfparents --config perf.stub=no --config perf.run-limits='aaa-120, 0.000000001-50'
+  malformatted run limit entry, could not convert string to float: 'aaa': aaa-120
+  ! wall * comb * user * sys * (best of 50) (glob)
+  $ hg perfparents --config perf.stub=no --config perf.run-limits='120-aaaaaa, 0.000000001-50'
+  malformatted run limit entry, invalid literal for int() with base 10: 'aaaaaa': 120-aaaaaa
+  ! wall * comb * user * sys * (best of 50) (glob)
 
 test actual output
 ------------------
