@@ -688,6 +688,11 @@ def pathsuboption(option, attr, display=pycompat.bytestr):
     return register
 
 
+def display_bool(value):
+    """display a boolean suboption back to the user"""
+    return b'yes' if value else b'no'
+
+
 @pathsuboption(b'pushurl', b'_pushloc')
 def pushurlpathoption(ui, path, value):
     u = url(value)
@@ -768,7 +773,7 @@ def delta_reuse_policy(ui, path, value):
     return DELTA_REUSE_POLICIES.get(value)
 
 
-@pathsuboption(b'multi-urls', b'multi_urls')
+@pathsuboption(b'multi-urls', b'multi_urls', display=display_bool)
 def multiurls_pathoption(ui, path, value):
     res = stringutil.parsebool(value)
     if res is None:
