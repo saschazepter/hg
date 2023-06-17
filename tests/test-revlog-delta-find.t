@@ -329,5 +329,34 @@ more subtle to test this behavior.
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
-  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
-  DBG-DELTAS: FILELOG:my-file.txt: rev=4: delta-base=3 * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 is-cached=1 *search-rounds=0 try-count=0* (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=4: delta-base=3 is-cached=1 *search-rounds=0 try-count=0* (glob)
+
+Check that running "forced" on a non-general delta repository does not corrupt it
+---------------------------------------------------------------------------------
+
+Even if requested to be used, some of the delta in the revlog cannot be stored on a non-general delta repository. We check that the bundle application was correct.
+
+  $ hg init \
+  >    --config format.usegeneraldelta=no \
+  >    --config format.sparse-revlog=no \
+  >    local-forced-full-p1-no-gd
+  $ hg debugformat -R local-forced-full-p1-no-gd | grep generaldelta
+  generaldelta:        no
+  $ hg -R local-forced-full-p1-no-gd pull --quiet local-pre-pull-full \
+  >    --config debug.revlog.debug-delta=no
+  $ hg -R local-forced-full-p1-no-gd pull --quiet \
+  > --config 'paths.*:pulled-delta-reuse-policy=forced' all-p1.hg
+  DBG-DELTAS: CHANGELOG: * (glob)
+  DBG-DELTAS: CHANGELOG: * (glob)
+  DBG-DELTAS: MANIFESTLOG: * (glob)
+  DBG-DELTAS: MANIFESTLOG: * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=0 * - search-rounds=1 try-count=1 * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=4: delta-base=4 * - search-rounds=1 try-count=1 * (glob)
+  $ hg -R local-forced-full-p1-no-gd verify
+  checking changesets
+  checking manifests
+  crosschecking files in changesets and manifests
+  checking files
+  checking dirstate
+  checked 5 changesets with 5 changes to 1 files

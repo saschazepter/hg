@@ -290,6 +290,8 @@ class transaction(util.transactional):
         self._backupjournal = b"%s.backupfiles" % self._journal
         self._backupsfile = opener.open(self._backupjournal, b'w')
         self._backupsfile.write(b'%d\n' % version)
+        # the set of temporary files
+        self._tmp_files = set()
 
         if createmode is not None:
             opener.chmod(self._journal, createmode & 0o666)
@@ -354,6 +356,7 @@ class transaction(util.transactional):
             file in self._newfiles
             or file in self._offsetmap
             or file in self._backupmap
+            or file in self._tmp_files
         ):
             return
         if self._queue:
@@ -368,6 +371,7 @@ class transaction(util.transactional):
             file in self._newfiles
             or file in self._offsetmap
             or file in self._backupmap
+            or file in self._tmp_files
         ):
             return
         if offset:
@@ -439,6 +443,7 @@ class transaction(util.transactional):
         Such files will be deleted when the transaction exits (on both
         failure and success).
         """
+        self._tmp_files.add(tmpfile)
         self._addbackupentry((location, b'', tmpfile, False))
 
     @active
