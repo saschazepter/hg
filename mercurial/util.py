@@ -2214,6 +2214,9 @@ class _re:
     def _checkre2(self):
         global _re2
         global _re2_input
+        if _re2 is not None:
+            # we already have the answer
+            return
 
         check_pattern = br'\[([^\[]+)\]'
         check_input = b'[ui]'
