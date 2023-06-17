@@ -232,7 +232,17 @@ impl Repo {
         try_with_lock_no_wait(self.hg_vfs(), "wlock", f)
     }
 
-    pub fn has_dirstate_v2(&self) -> bool {
+    /// Whether this repo should use dirstate-v2.
+    /// The presence of `dirstate-v2` in the requirements does not mean that
+    /// the on-disk dirstate is necessarily in version 2. In most cases,
+    /// a dirstate-v2 file will indeed be found, but in rare cases (like the
+    /// upgrade mechanism being cut short), the on-disk version will be a
+    /// v1 file.
+    /// Semantically, having a requirement only means that a client cannot
+    /// properly understand or properly update the repo if it lacks the support
+    /// for the required feature, but not that that feature is actually used
+    /// in all occasions.
+    pub fn use_dirstate_v2(&self) -> bool {
         self.requirements
             .contains(requirements::DIRSTATE_V2_REQUIREMENT)
     }
@@ -277,10 +287,21 @@ impl Repo {
         let dirstate = self.dirstate_file_contents()?;
         let parents = if dirstate.is_empty() {
             DirstateParents::NULL
-        } else if self.has_dirstate_v2() {
-            let docket =
-                crate::dirstate_tree::on_disk::read_docket(&dirstate)?;
-            docket.parents()
+        } else if self.use_dirstate_v2() {
+            let docket_res =
+                crate::dirstate_tree::on_disk::read_docket(&dirstate);
+            match docket_res {
+                Ok(docket) => docket.parents(),
+                Err(_) => {
+                    log::info!(
+                        "Parsing dirstate docket failed, \
+                        falling back to dirstate-v1"
+                    );
+                    *crate::dirstate::parsers::parse_dirstate_parents(
+                        &dirstate,
+                    )?
+                }
+            }
         } else {
             *crate::dirstate::parsers::parse_dirstate_parents(&dirstate)?
         };
@@ -296,7 +317,7 @@ impl Repo {
         &self,
     ) -> Result<DirstateMapIdentity, HgError> {
         assert!(
-            self.has_dirstate_v2(),
+            self.use_dirstate_v2(),
             "accessing dirstate data file ID without dirstate-v2"
         );
         // Get the identity before the contents since we could have a race
@@ -308,15 +329,35 @@ impl Repo {
             self.dirstate_parents.set(DirstateParents::NULL);
             Ok((identity, None, 0))
         } else {
-            let docket =
-                crate::dirstate_tree::on_disk::read_docket(&dirstate)?;
-            self.dirstate_parents.set(docket.parents());
-            Ok((identity, Some(docket.uuid.to_owned()), docket.data_size()))
+            let docket_res =
+                crate::dirstate_tree::on_disk::read_docket(&dirstate);
+            match docket_res {
+                Ok(docket) => {
+                    self.dirstate_parents.set(docket.parents());
+                    Ok((
+                        identity,
+                        Some(docket.uuid.to_owned()),
+                        docket.data_size(),
+                    ))
+                }
+                Err(_) => {
+                    log::info!(
+                        "Parsing dirstate docket failed, \
+                        falling back to dirstate-v1"
+                    );
+                    let parents =
+                        *crate::dirstate::parsers::parse_dirstate_parents(
+                            &dirstate,
+                        )?;
+                    self.dirstate_parents.set(parents);
+                    Ok((identity, None, 0))
+                }
+            }
         }
     }
 
     fn new_dirstate_map(&self) -> Result<OwningDirstateMap, DirstateError> {
-        if self.has_dirstate_v2() {
+        if self.use_dirstate_v2() {
             // The v2 dirstate is split into a docket and a data file.
             // Since we don't always take the `wlock` to read it
             // (like in `hg status`), it is susceptible to races.
@@ -343,7 +384,13 @@ impl Repo {
                             );
                             continue;
                         }
-                        _ => return Err(e),
+                        _ => {
+                            log::info!(
+                                "Reading dirstate v2 failed, \
+                                falling back to v1"
+                            );
+                            return self.new_dirstate_map_v1();
+                        }
                     },
                 }
             }
@@ -354,23 +401,22 @@ impl Repo {
             );
             Err(DirstateError::Common(error))
         } else {
-            debug_wait_for_file_or_print(
-                self.config(),
-                "dirstate.pre-read-file",
-            );
-            let identity = self.dirstate_identity()?;
-            let dirstate_file_contents = self.dirstate_file_contents()?;
-            if dirstate_file_contents.is_empty() {
-                self.dirstate_parents.set(DirstateParents::NULL);
-                Ok(OwningDirstateMap::new_empty(Vec::new()))
-            } else {
-                let (map, parents) = OwningDirstateMap::new_v1(
-                    dirstate_file_contents,
-                    identity,
-                )?;
-                self.dirstate_parents.set(parents);
-                Ok(map)
-            }
+            self.new_dirstate_map_v1()
+        }
+    }
+
+    fn new_dirstate_map_v1(&self) -> Result<OwningDirstateMap, DirstateError> {
+        debug_wait_for_file_or_print(self.config(), "dirstate.pre-read-file");
+        let identity = self.dirstate_identity()?;
+        let dirstate_file_contents = self.dirstate_file_contents()?;
+        if dirstate_file_contents.is_empty() {
+            self.dirstate_parents.set(DirstateParents::NULL);
+            Ok(OwningDirstateMap::new_empty(Vec::new()))
+        } else {
+            let (map, parents) =
+                OwningDirstateMap::new_v1(dirstate_file_contents, identity)?;
+            self.dirstate_parents.set(parents);
+            Ok(map)
         }
     }
 
@@ -550,7 +596,7 @@ impl Repo {
         // TODO: Maintain a `DirstateMap::dirty` flag, and return early here if
         // it’s unset
         let parents = self.dirstate_parents()?;
-        let (packed_dirstate, old_uuid_to_remove) = if self.has_dirstate_v2() {
+        let (packed_dirstate, old_uuid_to_remove) = if self.use_dirstate_v2() {
             let (identity, uuid, data_size) =
                 self.get_dirstate_data_file_integrity()?;
             let identity_changed = identity != map.old_identity();
