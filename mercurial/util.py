@@ -2211,7 +2211,8 @@ except ImportError:
 
 
 class _re:
-    def _checkre2(self):
+    @staticmethod
+    def _checkre2():
         global _re2
         global _re2_input
         if _re2 is not None:
