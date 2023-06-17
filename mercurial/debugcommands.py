@@ -2137,7 +2137,7 @@ def debuginstall(ui, **opts):
         ),
     )
     re2 = b'missing'
-    if util._re2:
+    if util.has_re2():
         re2 = b'available'
     fm.plain(_(b'checking "re2" regexp engine (%s)\n') % re2)
     fm.data(re2=bool(util._re2))
