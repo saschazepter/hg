@@ -437,7 +437,7 @@ def find_pullbundle(repo, proto, opts, clheads, heads, common):
     if not manifest:
         return None
     res = bundlecaches.parseclonebundlesmanifest(repo, manifest)
-    res = bundlecaches.filterclonebundleentries(repo, res)
+    res = bundlecaches.filterclonebundleentries(repo, res, pullbundles=True)
     if not res:
         return None
     cl = repo.unfiltered().changelog

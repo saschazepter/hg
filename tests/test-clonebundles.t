@@ -59,6 +59,20 @@ Manifest file with invalid URL aborts
   (if this error persists, consider contacting the server operator or disable clone bundles via "--config ui.clonebundles=false")
   [255]
 
+Manifest file with URL with unknown scheme skips the URL
+  $ echo 'weirdscheme://does.not.exist/bundle.hg' > server/.hg/clonebundles.manifest
+  $ hg clone http://localhost:$HGPORT unknown-scheme
+  no compatible clone bundles available on server; falling back to regular clone
+  (you may want to report this to the server operator)
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files
+  new changesets 53245c60e682:aaff8d2ffbbf
+  updating to branch default
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
 Server is not running aborts
 
   $ echo "http://localhost:$HGPORT1/bundle.hg" > server/.hg/clonebundles.manifest
