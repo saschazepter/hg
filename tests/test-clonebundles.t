@@ -258,17 +258,16 @@ Feature works over SSH with inline bundle
 HTTP Supports
 -------------
 
-Or lack of it actually
-
-Feature does not use inline bundle over HTTP(S) because there is no protocaps support
-(so no way for the client to announce that it supports inline clonebundles)
   $ hg clone -U http://localhost:$HGPORT http-inline-clone
-  requesting all changes
+  applying clone bundle from peer-bundle-cache://full.hg
   adding changesets
   adding manifests
   adding file changes
   added 2 changesets with 2 changes to 2 files
-  new changesets 53245c60e682:aaff8d2ffbbf
+  finished applying clone bundle
+  searching for changes
+  no changes found
+  2 local changesets published
 
 Pre-transmit Hook
 -----------------
@@ -657,7 +656,7 @@ on a 32MB system.
   $ hg clone -U --debug --config ui.available-memory=16MB http://localhost:$HGPORT gzip-too-large
   using http://localhost:$HGPORT/
   sending capabilities command
-  sending clonebundles command
+  sending clonebundles_manifest command
   filtering http://localhost:$HGPORT1/gz-a.hg as it needs more than 2/3 of system memory
   no compatible clone bundles available on server; falling back to regular clone
   (you may want to report this to the server operator)
@@ -690,7 +689,7 @@ on a 32MB system.
   $ hg clone -U --debug --config ui.available-memory=32MB http://localhost:$HGPORT gzip-too-large2
   using http://localhost:$HGPORT/
   sending capabilities command
-  sending clonebundles command
+  sending clonebundles_manifest command
   applying clone bundle from http://localhost:$HGPORT1/gz-a.hg
   bundle2-input-bundle: 1 params with-transaction
   bundle2-input-part: "changegroup" (params: 1 mandatory 1 advisory) supported
