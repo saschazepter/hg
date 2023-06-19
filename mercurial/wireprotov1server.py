@@ -301,6 +301,23 @@ def get_cached_bundle_inline(repo, proto, path):
 
 @wireprotocommand(b'clonebundles', b'', permission=b'pull')
 def clonebundles(repo, proto):
+    """A legacy version of clonebundles_manifest
+
+    This version filtered out new url scheme (like peer-bundle-cache://) to
+    avoid confusion in older clients.
+    """
+    manifest_contents = bundlecaches.get_manifest(repo)
+    # Filter out peer-bundle-cache:// entries
+    modified_manifest = []
+    for line in manifest_contents.splitlines():
+        if line.startswith(bundlecaches.CLONEBUNDLESCHEME):
+            continue
+        modified_manifest.append(line)
+    return wireprototypes.bytesresponse(b'\n'.join(modified_manifest))
+
+
+@wireprotocommand(b'clonebundles_manifest', b'*', permission=b'pull')
+def clonebundles_2(repo, proto, args):
     """Server command for returning info for available bundles to seed clones.
 
     Clients will parse this response and determine what bundle to fetch.
@@ -314,15 +331,7 @@ def clonebundles(repo, proto):
     Otherwise, older clients would retrieve and error out on those.
     """
     manifest_contents = bundlecaches.get_manifest(repo)
-    clientcapabilities = proto.getprotocaps()
-    if b'inlineclonebundles' in clientcapabilities:
-        return wireprototypes.bytesresponse(manifest_contents)
-    modified_manifest = []
-    for line in manifest_contents.splitlines():
-        if line.startswith(bundlecaches.CLONEBUNDLESCHEME):
-            continue
-        modified_manifest.append(line)
-    return wireprototypes.bytesresponse(b'\n'.join(modified_manifest))
+    return wireprototypes.bytesresponse(manifest_contents)
 
 
 wireprotocaps = [

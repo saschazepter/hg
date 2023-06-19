@@ -90,7 +90,7 @@ Test that we can apply the bundle as a stream clone bundle
   $ hg clone http://localhost:$HGPORT stream-clone-implicit --debug
   using http://localhost:$HGPORT/
   sending capabilities command
-  sending clonebundles command
+  sending clonebundles_manifest command
   applying clone bundle from http://localhost:$HGPORT1/bundle.hg
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "stream2" (params: 3 mandatory) supported (stream-v2 !)
@@ -148,7 +148,7 @@ Test that we can apply the bundle as a stream clone bundle
   $ hg clone --stream http://localhost:$HGPORT stream-clone-explicit --debug
   using http://localhost:$HGPORT/
   sending capabilities command
-  sending clonebundles command
+  sending clonebundles_manifest command
   applying clone bundle from http://localhost:$HGPORT1/bundle.hg
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "stream2" (params: 3 mandatory) supported (stream-v2 !)
