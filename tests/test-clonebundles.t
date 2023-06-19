@@ -233,7 +233,14 @@ Feature works over SSH
   no changes found
   2 local changesets published
 
+Inline bundle
+=============
+
+Checking bundle retrieved over the wireprotocol
+
 Feature works over SSH with inline bundle
+-----------------------------------------
+
   $ mkdir server/.hg/bundle-cache/
   $ cp full.hg server/.hg/bundle-cache/
   $ echo "peer-bundle-cache://full.hg" > server/.hg/clonebundles.manifest
@@ -248,7 +255,26 @@ Feature works over SSH with inline bundle
   no changes found
   2 local changesets published
 
+HTTP Supports
+-------------
+
+Or lack of it actually
+
+Feature does not use inline bundle over HTTP(S) because there is no protocaps support
+(so no way for the client to announce that it supports inline clonebundles)
+  $ hg clone -U http://localhost:$HGPORT http-inline-clone
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files
+  new changesets 53245c60e682:aaff8d2ffbbf
+
+Pre-transmit Hook
+-----------------
+
 Hooks work with inline bundle
+
   $ cp server/.hg/hgrc server/.hg/hgrc-beforeinlinehooks
   $ echo "[hooks]" >> server/.hg/hgrc
   $ echo "pretransmit-inline-clone-bundle=echo foo" >> server/.hg/hgrc
@@ -265,6 +291,7 @@ Hooks work with inline bundle
   2 local changesets published
 
 Hooks can make an inline bundle fail
+
   $ cp server/.hg/hgrc-beforeinlinehooks server/.hg/hgrc
   $ echo "[hooks]" >> server/.hg/hgrc
   $ echo "pretransmit-inline-clone-bundle=echo bar && false" >> server/.hg/hgrc
@@ -276,15 +303,8 @@ Hooks can make an inline bundle fail
   [255]
   $ cp server/.hg/hgrc-beforeinlinehooks server/.hg/hgrc
 
-Feature does not use inline bundle over HTTP(S) because there is no protocaps support
-(so no way for the client to announce that it supports inline clonebundles)
-  $ hg clone -U http://localhost:$HGPORT http-inline-clone
-  requesting all changes
-  adding changesets
-  adding manifests
-  adding file changes
-  added 2 changesets with 2 changes to 2 files
-  new changesets 53245c60e682:aaff8d2ffbbf
+Other tests
+===========
 
 Entry with unknown BUNDLESPEC is filtered and not used
 
