@@ -213,7 +213,7 @@ def _clientcapabilities():
 
     Returns a list of capabilities that are supported by this client.
     """
-    protoparams = {b'partial-pull', b'inlineclonebundles'}
+    protoparams = {b'partial-pull'}
     comps = [
         e.wireprotosupport().name
         for e in util.compengines.supportedwireengines(util.CLIENTROLE)
