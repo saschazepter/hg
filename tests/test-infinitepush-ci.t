@@ -19,14 +19,36 @@ Setup
   $ echo "pushtobundlestore = True" >> .hg/hgrc
   $ echo "[extensions]" >> .hg/hgrc
   $ echo "infinitepush=" >> .hg/hgrc
+  $ echo "[infinitepush]" >> .hg/hgrc
+  $ echo "deprecation-abort=no" >> .hg/hgrc
   $ echo initialcommit > initialcommit
   $ hg ci -Aqm "initialcommit"
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   $ hg phase --public .
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
 
   $ cd ..
   $ hg clone repo client -q
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   $ hg clone repo client2 -q
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   $ hg clone ssh://user@dummy/repo client3 -q
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
   $ cd client
 
 Pushing a new commit from the client to the server
@@ -42,8 +64,16 @@ Pushing a new commit from the client to the server
 
   $ hg push
   pushing to $TESTTMP/repo
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
   storing changesets on the bundlestore
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   pushing 1 commit:
       6cb0989601f1  added a
 
@@ -74,6 +104,10 @@ Checking that the commit was not applied to revlog on the server
 ------------------------------------------------------------------
 
   $ hg glog
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   @  0:67145f466344 initialcommit
      public
 
@@ -81,6 +115,10 @@ Applying the changeset from the bundlestore
 --------------------------------------------
 
   $ hg unbundle .hg/scratchbranches/filebundlestore/3b/41/3b414252ff8acab801318445d88ff48faf4a28c3
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   adding changesets
   adding manifests
   adding file changes
@@ -89,6 +127,10 @@ Applying the changeset from the bundlestore
   (run 'hg update' to get a working copy)
 
   $ hg glog
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   o  1:6cb0989601f1 added a
   |  public
   @  0:67145f466344 initialcommit
@@ -114,8 +156,16 @@ Pushing more changesets from the local repo
 
   $ hg push
   pushing to $TESTTMP/repo
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
   storing changesets on the bundlestore
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   pushing 2 commits:
       eaba929e866c  added b
       bf8a6e3011b3  added c
@@ -124,6 +174,10 @@ Checking that changesets are not applied on the server
 ------------------------------------------------------
 
   $ hg glog -R ../repo
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   o  1:6cb0989601f1 added a
   |  public
   @  0:67145f466344 initialcommit
@@ -146,8 +200,16 @@ Pushing more changesets to the server
 XXX: we should have pushed only the parts which are not in bundlestore
   $ hg push
   pushing to $TESTTMP/repo
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
   storing changesets on the bundlestore
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   pushing 4 commits:
       eaba929e866c  added b
       bf8a6e3011b3  added c
@@ -166,6 +228,10 @@ Checking if `hg pull` pulls something or `hg incoming` shows something
 -----------------------------------------------------------------------
 
   $ hg incoming
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   comparing with $TESTTMP/repo
   searching for changes
   no changes found
@@ -173,6 +239,10 @@ Checking if `hg pull` pulls something or `hg incoming` shows something
 
   $ hg pull
   pulling from $TESTTMP/repo
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
   no changes found
 
@@ -184,6 +254,10 @@ Pulling the revision which is applied
   $ cd ../client2
   $ hg pull -r 6cb0989601f1
   pulling from $TESTTMP/repo
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
   adding changesets
   adding manifests
@@ -203,6 +277,10 @@ client side wrapping
 
   $ hg pull -r b4e4bce660512ad3e71189e14588a70ac8e31fef
   pulling from $TESTTMP/repo
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   abort: unknown revision 'b4e4bce660512ad3e71189e14588a70ac8e31fef'
   [10]
   $ hg glog
@@ -221,6 +299,10 @@ Pulling the revision which is applied
   $ cd ../client3
   $ hg pull -r 6cb0989601f1
   pulling from ssh://user@dummy/repo
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
   searching for changes
   adding changesets
   adding manifests
@@ -240,13 +322,25 @@ Trying to specify short hash
 XXX: we should support this
   $ hg pull -r b4e4bce660512
   pulling from ssh://user@dummy/repo
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
   abort: unknown revision 'b4e4bce660512'
   [255]
 
 XXX: we should show better message when the pull is happening from bundlestore
   $ hg pull -r b4e4bce660512ad3e71189e14588a70ac8e31fef
   pulling from ssh://user@dummy/repo
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
   searching for changes
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
   adding changesets
   adding manifests
   adding file changes
@@ -288,8 +382,16 @@ creating a draft commit
 
   $ hg push
   pushing to $TESTTMP/repo
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
   storing changesets on the bundlestore
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   pushing 5 commits:
       eaba929e866c  added b
       bf8a6e3011b3  added c
@@ -315,6 +417,10 @@ applying the bundle on the server to check preservation of phase-information
   eaba929e866c59bc9a6aada5a9dd2f6990db83c0 280a46a259a268f0e740c81c5a7751bdbfaec85f
 
   $ hg unbundle .hg/scratchbranches/filebundlestore/28/0a/280a46a259a268f0e740c81c5a7751bdbfaec85f
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   adding changesets
   adding manifests
   adding file changes
@@ -323,6 +429,10 @@ applying the bundle on the server to check preservation of phase-information
   (run 'hg update' to get a working copy)
 
   $ hg glog
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   o  6:9b42578d4447 added f
   |  draft
   o  5:b4e4bce66051 added e
@@ -374,8 +484,16 @@ enabling obsmarkers and rebase extension
 
   $ hg push -f
   pushing to $TESTTMP/repo
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
   storing changesets on the bundlestore
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   pushing 1 commit:
       99949238d9ac  added f
 
@@ -399,6 +517,10 @@ Unbundling on server to see obsmarkers being applied
   eaba929e866c59bc9a6aada5a9dd2f6990db83c0 280a46a259a268f0e740c81c5a7751bdbfaec85f
 
   $ hg glog
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   o  6:9b42578d4447 added f
   |  draft
   o  5:b4e4bce66051 added e
@@ -415,6 +537,10 @@ Unbundling on server to see obsmarkers being applied
      public
 
   $ hg unbundle .hg/scratchbranches/filebundlestore/09/0a/090a24fe63f31d3b4bee714447f835c8c362ff57
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   adding changesets
   adding manifests
   adding file changes
@@ -425,6 +551,10 @@ Unbundling on server to see obsmarkers being applied
   (run 'hg heads' to see heads, 'hg merge' to merge)
 
   $ hg glog
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   o  7:99949238d9ac added f
   |  draft
   | o  5:b4e4bce66051 added e
