@@ -42,7 +42,7 @@ Test bundles are generated on push
   added 2 changesets with 2 changes to 2 files
   clone-bundles: starting bundle generation: v2
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v2-2_revs-aaff8d2ffbbf_tip-*_txn.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  file:/*/$TESTTMP/final-upload/full-v2-2_revs-aaff8d2ffbbf_tip-*_txn.hg BUNDLESPEC=v2 (glob)
   $ ls -1 ../final-upload
   full-v2-2_revs-aaff8d2ffbbf_tip-*_txn.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
@@ -65,7 +65,7 @@ Newer bundles are generated with more pushes
   clone-bundles: starting bundle generation: v2
 
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v2-4_revs-6427147b985a_tip-*_txn.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  file:/*/$TESTTMP/final-upload/full-v2-4_revs-6427147b985a_tip-*_txn.hg BUNDLESPEC=v2 (glob)
   $ ls -1 ../final-upload
   full-v2-2_revs-aaff8d2ffbbf_tip-*_txn.hg (glob)
   full-v2-4_revs-6427147b985a_tip-*_txn.hg (glob)
@@ -90,7 +90,7 @@ Older bundles are cleaned up with more pushes
   clone-bundles: starting bundle generation: v2
 
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v2-6_revs-b1010e95ea00_tip-*_txn.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  file:/*/$TESTTMP/final-upload/full-v2-6_revs-b1010e95ea00_tip-*_txn.hg BUNDLESPEC=v2 (glob)
   $ ls -1 ../final-upload
   full-v2-4_revs-6427147b985a_tip-*_txn.hg (glob)
   full-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
@@ -115,7 +115,7 @@ Check ratio
   adding file changes
   added 1 changesets with 1 changes to 1 files
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v2-6_revs-b1010e95ea00_tip-*_txn.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  file:/*/$TESTTMP/final-upload/full-v2-6_revs-b1010e95ea00_tip-*_txn.hg BUNDLESPEC=v2 (glob)
   $ ls -1 ../final-upload
   full-v2-4_revs-6427147b985a_tip-*_txn.hg (glob)
   full-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
@@ -140,7 +140,7 @@ Check absolute number of revisions
   added 1 changesets with 1 changes to 1 files
   clone-bundles: starting bundle generation: v2
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v2-8_revs-8353e8af1306_tip-*_txn.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  file:/*/$TESTTMP/final-upload/full-v2-8_revs-8353e8af1306_tip-*_txn.hg BUNDLESPEC=v2 (glob)
   $ ls -1 ../final-upload
   full-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
   full-v2-8_revs-8353e8af1306_tip-*_txn.hg (glob)
@@ -158,7 +158,7 @@ Check absolute number of revisions
   adding file changes
   added 1 changesets with 1 changes to 1 files
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v2-8_revs-8353e8af1306_tip-*_txn.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  file:/*/$TESTTMP/final-upload/full-v2-8_revs-8353e8af1306_tip-*_txn.hg BUNDLESPEC=v2 (glob)
   $ ls -1 ../final-upload
   full-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
   full-v2-8_revs-8353e8af1306_tip-*_txn.hg (glob)
@@ -208,7 +208,7 @@ generation logic.
   clone-bundles: starting bundle generation: v2
   10 changesets found
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  file:/*/$TESTTMP/final-upload/full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg BUNDLESPEC=v2 (glob)
   $ ls -1 ../final-upload
   full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
   full-v2-8_revs-8353e8af1306_tip-*_txn.hg (glob)
@@ -220,7 +220,7 @@ Check the command cleans up older bundles when possible
   $ hg -R ../server/ admin::clone-bundles-refresh
   clone-bundles: deleting bundle full-v2-8_revs-8353e8af1306_tip-*_txn.hg (glob)
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  file:/*/$TESTTMP/final-upload/full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg BUNDLESPEC=v2 (glob)
   $ ls -1 ../final-upload
   full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
@@ -284,8 +284,8 @@ refresh the bundles
 the bundle for the "new" format should have been added
 
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v1 REQUIRESNI=true (glob)
-  file:/*/$TESTTMP/final-upload/full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  file:/*/$TESTTMP/final-upload/full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v1 (glob)
+  file:/*/$TESTTMP/final-upload/full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg BUNDLESPEC=v2 (glob)
   $ ls -1 ../final-upload
   full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
   full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
@@ -311,8 +311,8 @@ refresh the bundles
 the "outdated' bundle should be refreshed
 
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v1 REQUIRESNI=true (glob)
-  file:/*/$TESTTMP/final-upload/full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  file:/*/$TESTTMP/final-upload/full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v1 (glob)
+  file:/*/$TESTTMP/final-upload/full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v2 (glob)
   $ ls -1 ../final-upload
   full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
   full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
@@ -352,9 +352,33 @@ process to end)
 bundles should have been generated
 
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v1 REQUIRESNI=true (glob)
-  file:/*/$TESTTMP/final-upload/full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  file:/*/$TESTTMP/final-upload/full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v1 (glob)
+  file:/*/$TESTTMP/final-upload/full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v2 (glob)
   $ ls -1 ../final-upload
   full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
   full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
+
+Test HTTP URL
+=========================
+
+  $ hg -R ../server/ admin::clone-bundles-clear
+  clone-bundles: deleting bundle full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  clone-bundles: deleting bundle full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+
+  $ cat >> ../server/.hg/hgrc << EOF
+  > [clone-bundles]
+  > url-template = https://example.com/final-upload/{basename}
+  > EOF
+  $ hg -R ../server/ admin::clone-bundles-refresh
+  clone-bundles: starting bundle generation: v1
+  11 changesets found
+  clone-bundles: starting bundle generation: v2
+  11 changesets found
+
+
+bundles should have been generated with the SNIREQUIRED option
+
+  $ cat ../server/.hg/clonebundles.manifest
+  https://example.com/final-upload/full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v1 REQUIRESNI=true (glob)
+  https://example.com/final-upload/full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)

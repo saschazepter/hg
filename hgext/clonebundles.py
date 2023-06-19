@@ -607,7 +607,9 @@ class GeneratedBundle(BundleBase):
 
     def manifest_line(self):
         """serialize the object to include as a line in pullbundles.manifest"""
-        templ = b"%s BUNDLESPEC=%s REQUIRESNI=true"
+        templ = b"%s BUNDLESPEC=%s"
+        if self.file_url.startswith(b'http'):
+            templ += b" REQUIRESNI=true"
         return templ % (self.file_url, self.bundle_type)
 
     def __eq__(self, other):
