@@ -269,6 +269,21 @@ HTTP Supports
   no changes found
   2 local changesets published
 
+
+Check local behavior
+--------------------
+
+We don't use the clone bundle, but we do not crash either.
+
+  $ hg clone -U ./server local-inline-clone-default
+  $ hg clone -U ./server local-inline-clone-pull --pull
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files
+  new changesets 53245c60e682:aaff8d2ffbbf
+
 Pre-transmit Hook
 -----------------
 
