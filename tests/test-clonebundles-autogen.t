@@ -382,3 +382,95 @@ bundles should have been generated with the SNIREQUIRED option
   $ cat ../server/.hg/clonebundles.manifest
   https://example.com/final-upload/full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v1 REQUIRESNI=true (glob)
   https://example.com/final-upload/full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+
+Test serving them through inline-clone bundle
+=============================================
+
+  $ cat >> ../server/.hg/hgrc << EOF
+  > [clone-bundles]
+  > auto-generate.serve-inline=yes
+  > EOF
+  $ hg -R ../server/ admin::clone-bundles-clear
+  clone-bundles: deleting bundle full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  clone-bundles: deleting bundle full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+
+initial generation
+------------------
+
+
+  $ hg -R ../server/ admin::clone-bundles-refresh
+  clone-bundles: starting bundle generation: v1
+  11 changesets found
+  clone-bundles: starting bundle generation: v2
+  11 changesets found
+  $ cat ../server/.hg/clonebundles.manifest
+  peer-bundle-cache://full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v1 (glob)
+  peer-bundle-cache://full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v2 (glob)
+  $ ls -1 ../server/.hg/bundle-cache
+  full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  $ ls -1 ../final-upload
+
+Regeneration eventually cleanup the old ones
+--------------------------------------------
+
+create more content
+  $ touch voit
+  $ hg -q commit -A -m 'add voit'
+  $ touch ar
+  $ hg -q commit -A -m 'add ar'
+  $ hg push
+  pushing to $TESTTMP/server
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files
+
+check first regeneration
+
+  $ hg -R ../server/ admin::clone-bundles-refresh
+  clone-bundles: starting bundle generation: v1
+  13 changesets found
+  clone-bundles: starting bundle generation: v2
+  13 changesets found
+  $ cat ../server/.hg/clonebundles.manifest
+  peer-bundle-cache://full-v1-13_revs-8a81f9be54ea_tip-*_acbr.hg BUNDLESPEC=v1 (glob)
+  peer-bundle-cache://full-v2-13_revs-8a81f9be54ea_tip-*_acbr.hg BUNDLESPEC=v2 (glob)
+  $ ls -1 ../server/.hg/bundle-cache
+  full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  full-v1-13_revs-8a81f9be54ea_tip-*_acbr.hg (glob)
+  full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  full-v2-13_revs-8a81f9be54ea_tip-*_acbr.hg (glob)
+  $ ls -1 ../final-upload
+
+check first regeneration (should cleanup the one before that last)
+
+  $ touch "investi"
+  $ hg -q commit -A -m 'add investi'
+  $ touch "lesgisla"
+  $ hg -q commit -A -m 'add lesgisla'
+  $ hg push
+  pushing to $TESTTMP/server
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files
+
+  $ hg -R ../server/ admin::clone-bundles-refresh
+  clone-bundles: deleting inline bundle full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  clone-bundles: deleting inline bundle full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  clone-bundles: starting bundle generation: v1
+  15 changesets found
+  clone-bundles: starting bundle generation: v2
+  15 changesets found
+  $ cat ../server/.hg/clonebundles.manifest
+  peer-bundle-cache://full-v1-15_revs-17615b3984c2_tip-*_acbr.hg BUNDLESPEC=v1 (glob)
+  peer-bundle-cache://full-v2-15_revs-17615b3984c2_tip-*_acbr.hg BUNDLESPEC=v2 (glob)
+  $ ls -1 ../server/.hg/bundle-cache
+  full-v1-13_revs-8a81f9be54ea_tip-*_acbr.hg (glob)
+  full-v1-15_revs-17615b3984c2_tip-*_acbr.hg (glob)
+  full-v2-13_revs-8a81f9be54ea_tip-*_acbr.hg (glob)
+  full-v2-15_revs-17615b3984c2_tip-*_acbr.hg (glob)
+  $ ls -1 ../final-upload
