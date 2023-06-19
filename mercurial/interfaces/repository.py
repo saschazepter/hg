@@ -176,8 +176,8 @@ class ipeercommands(interfaceutil.Interface):
         Returns a set of string capabilities.
         """
 
-    def get_inline_clone_bundle(path):
-        """Retrieve clonebundle across the wire.
+    def get_cached_bundle_inline(path):
+        """Retrieve a clonebundle across the wire.
 
         Returns a chunkbuffer
         """
