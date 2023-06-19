@@ -348,7 +348,7 @@ class localpeer(repository.peer):
     def capabilities(self):
         return self._caps
 
-    def get_inline_clone_bundle(self, path):
+    def get_cached_bundle_inline(self, path):
         # not needed with local peer
         raise NotImplementedError
 

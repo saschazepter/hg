@@ -2859,7 +2859,7 @@ def inline_clone_bundle_open(ui, url, peer):
     if not peer:
         raise error.Abort(_(b'no remote repository supplied for %s' % url))
     clonebundleid = url[len(bundlecaches.CLONEBUNDLESCHEME) :]
-    peerclonebundle = peer.get_inline_clone_bundle(clonebundleid)
+    peerclonebundle = peer.get_cached_bundle_inline(clonebundleid)
     return util.chunkbuffer(peerclonebundle)
 
 

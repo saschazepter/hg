@@ -265,8 +265,8 @@ def branches(repo, proto, nodes):
     return wireprototypes.bytesresponse(b''.join(r))
 
 
-@wireprotocommand(b'get_inline_clone_bundle', b'path', permission=b'pull')
-def get_inline_clone_bundle(repo, proto, path):
+@wireprotocommand(b'get_cached_bundle_inline', b'path', permission=b'pull')
+def get_cached_bundle_inline(repo, proto, path):
     """
     Server command to send a clonebundle to the client
     """
