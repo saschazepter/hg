@@ -254,8 +254,27 @@ command, or automatically on each repository change if
     auto-generate.on-change=yes
     auto-generate.formats= zstd-v2, gzip-v2
 
+Automatic Inline serving
+........................
+
+The simplest way to serve the generated bundle is through the Mercurial
+protocol. However it is not the most efficient as request will still be served
+by that main server. It is useful in case where authentication is complexe or
+when an efficient mirror system is already in use anyway. See the `inline
+clonebundles` section above for details about inline clonebundles
+
+To automatically serve generated bundle through inline clonebundle, simply set
+the following option::
+
+    auto-generate.serve-inline=yes
+
+Enabling this option disable the managed upload and serving explained below.
+
 Bundles Upload and Serving:
 ...........................
+
+This is the most efficient way to serve automatically generated clone bundles,
+but requires some setup.
 
 The generated bundles need to be made available to users through a "public" URL.
 This should be donne through `clone-bundles.upload-command` configuration. The
@@ -344,6 +363,7 @@ command = registrar.command(cmdtable)
 
 configitem(b'clone-bundles', b'auto-generate.on-change', default=False)
 configitem(b'clone-bundles', b'auto-generate.formats', default=list)
+configitem(b'clone-bundles', b'auto-generate.serve-inline', default=False)
 configitem(b'clone-bundles', b'trigger.below-bundled-ratio', default=0.95)
 configitem(b'clone-bundles', b'trigger.revs', default=1000)
 
@@ -753,45 +773,67 @@ def upload_bundle(repo, bundle):
 
     The upload is done using the `clone-bundles.upload-command`
     """
-    cmd = repo.ui.config(b'clone-bundles', b'upload-command')
-    url = repo.ui.config(b'clone-bundles', b'url-template')
+    inline = repo.ui.config(b'clone-bundles', b'auto-generate.serve-inline')
     basename = repo.vfs.basename(bundle.filepath)
-    filepath = procutil.shellquote(bundle.filepath)
-    variables = {
-        b'HGCB_BUNDLE_PATH': filepath,
-        b'HGCB_BUNDLE_BASENAME': basename,
-    }
-    env = procutil.shellenviron(environ=variables)
-    ret = repo.ui.system(cmd, environ=env)
-    if ret:
-        raise error.Abort(b"command returned status %d: %s" % (ret, cmd))
-    url = (
-        url.decode('utf8')
-        .format(basename=basename.decode('utf8'))
-        .encode('utf8')
-    )
-    return bundle.uploaded(url, basename)
+    if inline:
+        dest_dir = repo.vfs.join(bundlecaches.BUNDLE_CACHE_DIR)
+        repo.vfs.makedirs(dest_dir)
+        dest = repo.vfs.join(dest_dir, basename)
+        util.copyfiles(bundle.filepath, dest, hardlink=True)
+        url = bundlecaches.CLONEBUNDLESCHEME + basename
+        return bundle.uploaded(url, basename)
+    else:
+        cmd = repo.ui.config(b'clone-bundles', b'upload-command')
+        url = repo.ui.config(b'clone-bundles', b'url-template')
+        filepath = procutil.shellquote(bundle.filepath)
+        variables = {
+            b'HGCB_BUNDLE_PATH': filepath,
+            b'HGCB_BUNDLE_BASENAME': basename,
+        }
+        env = procutil.shellenviron(environ=variables)
+        ret = repo.ui.system(cmd, environ=env)
+        if ret:
+            raise error.Abort(b"command returned status %d: %s" % (ret, cmd))
+        url = (
+            url.decode('utf8')
+            .format(basename=basename.decode('utf8'))
+            .encode('utf8')
+        )
+        return bundle.uploaded(url, basename)
 
 
 def delete_bundle(repo, bundle):
     """delete a bundle from storage"""
     assert bundle.ready
-    msg = b'clone-bundles: deleting bundle %s\n'
+
+    inline = bundle.file_url.startswith(bundlecaches.CLONEBUNDLESCHEME)
+
+    if inline:
+        msg = b'clone-bundles: deleting inline bundle %s\n'
+    else:
+        msg = b'clone-bundles: deleting bundle %s\n'
     msg %= bundle.basename
     if repo.ui.configbool(b'devel', b'debug.clonebundles'):
         repo.ui.write(msg)
     else:
         repo.ui.debug(msg)
 
-    cmd = repo.ui.config(b'clone-bundles', b'delete-command')
-    variables = {
-        b'HGCB_BUNDLE_URL': bundle.file_url,
-        b'HGCB_BASENAME': bundle.basename,
-    }
-    env = procutil.shellenviron(environ=variables)
-    ret = repo.ui.system(cmd, environ=env)
-    if ret:
-        raise error.Abort(b"command returned status %d: %s" % (ret, cmd))
+    if inline:
+        inline_path = repo.vfs.join(
+            bundlecaches.BUNDLE_CACHE_DIR,
+            bundle.basename,
+        )
+        util.tryunlink(inline_path)
+    else:
+        cmd = repo.ui.config(b'clone-bundles', b'delete-command')
+        variables = {
+            b'HGCB_BUNDLE_URL': bundle.file_url,
+            b'HGCB_BASENAME': bundle.basename,
+        }
+        env = procutil.shellenviron(environ=variables)
+        ret = repo.ui.system(cmd, environ=env)
+        if ret:
+            raise error.Abort(b"command returned status %d: %s" % (ret, cmd))
 
 
 def auto_bundle_needed_actions(repo, bundles, op_id):
