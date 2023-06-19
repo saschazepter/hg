@@ -338,8 +338,11 @@ class wirepeer(repository.peer):
     # Begin of ipeercommands interface.
 
     def clonebundles(self):
-        self.requirecap(b'clonebundles', _(b'clone bundles'))
-        return self._call(b'clonebundles')
+        if self.capable(b'clonebundles_manifest'):
+            return self._call(b'clonebundles_manifest')
+        else:
+            self.requirecap(b'clonebundles', _(b'clone bundles'))
+            return self._call(b'clonebundles')
 
     def _finish_inline_clone_bundle(self, stream):
         pass  # allow override for httppeer
