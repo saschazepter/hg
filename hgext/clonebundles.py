@@ -324,6 +324,7 @@ def capabilities(orig, repo, proto):
     # missing file.
     if repo.vfs.exists(bundlecaches.CB_MANIFEST_FILE):
         caps.append(b'clonebundles')
+        caps.append(b'clonebundles_manifest')
 
     return caps
 
