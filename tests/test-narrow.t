@@ -486,14 +486,14 @@ Test --auto-remove-includes
   looking for unused includes to remove
   path:d0
   path:d2
-  remove these unused includes (yn)? n
+  remove these unused includes (Yn)? n
   $ hg tracked --auto-remove-includes
   comparing with ssh://user@dummy/master
   searching for changes
   looking for unused includes to remove
   path:d0
   path:d2
-  remove these unused includes (yn)? y
+  remove these unused includes (Yn)? y
   looking for local changes to affected paths
   moving unwanted changesets to backup
   saved backup bundle to $TESTTMP/narrow-auto-remove/.hg/strip-backup/*-narrow.hg (glob)
@@ -521,7 +521,7 @@ Test --no-backup
   looking for unused includes to remove
   path:d0
   path:d2
-  remove these unused includes (yn)? y
+  remove these unused includes (Yn)? y
   looking for local changes to affected paths
   deleting unwanted changesets
   deleting data/d0/f.i
