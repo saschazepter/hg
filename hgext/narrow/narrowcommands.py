@@ -647,7 +647,7 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
                     if (
                         ui.promptchoice(
                             _(
-                                b'remove these unused includes (yn)?'
+                                b'remove these unused includes (Yn)?'
                                 b'$$ &Yes $$ &No'
                             )
                         )
