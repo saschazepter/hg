@@ -89,6 +89,12 @@ class bundlespec:
         if overwrite or key not in self._explicit_params:
             self._explicit_params[key] = value
 
+    def as_spec(self):
+        parts = [b"%s-%s" % (self.compression, self.version)]
+        for param in sorted(self._explicit_params.items()):
+            parts.append(b'%s=%s' % param)
+        return b';'.join(parts)
+
 
 # Maps bundle version human names to changegroup versions.
 _bundlespeccgversions = {
