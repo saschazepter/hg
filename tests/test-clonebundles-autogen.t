@@ -40,11 +40,11 @@ Test bundles are generated on push
   adding file changes
   2 changesets found
   added 2 changesets with 2 changes to 2 files
-  clone-bundles: starting bundle generation: v2
+  clone-bundles: starting bundle generation: bzip2-v2
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v2-2_revs-aaff8d2ffbbf_tip-*_txn.hg BUNDLESPEC=v2 (glob)
+  file:/*/$TESTTMP/final-upload/full-bzip2-v2-2_revs-aaff8d2ffbbf_tip-*_txn.hg BUNDLESPEC=bzip2-v2 (glob)
   $ ls -1 ../final-upload
-  full-v2-2_revs-aaff8d2ffbbf_tip-*_txn.hg (glob)
+  full-bzip2-v2-2_revs-aaff8d2ffbbf_tip-*_txn.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
 
 Newer bundles are generated with more pushes
@@ -62,13 +62,13 @@ Newer bundles are generated with more pushes
   adding file changes
   4 changesets found
   added 2 changesets with 2 changes to 2 files
-  clone-bundles: starting bundle generation: v2
+  clone-bundles: starting bundle generation: bzip2-v2
 
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v2-4_revs-6427147b985a_tip-*_txn.hg BUNDLESPEC=v2 (glob)
+  file:/*/$TESTTMP/final-upload/full-bzip2-v2-4_revs-6427147b985a_tip-*_txn.hg BUNDLESPEC=bzip2-v2 (glob)
   $ ls -1 ../final-upload
-  full-v2-2_revs-aaff8d2ffbbf_tip-*_txn.hg (glob)
-  full-v2-4_revs-6427147b985a_tip-*_txn.hg (glob)
+  full-bzip2-v2-2_revs-aaff8d2ffbbf_tip-*_txn.hg (glob)
+  full-bzip2-v2-4_revs-6427147b985a_tip-*_txn.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
 
 Older bundles are cleaned up with more pushes
@@ -84,16 +84,16 @@ Older bundles are cleaned up with more pushes
   adding changesets
   adding manifests
   adding file changes
-  clone-bundles: deleting bundle full-v2-2_revs-aaff8d2ffbbf_tip-*_txn.hg (glob)
+  clone-bundles: deleting bundle full-bzip2-v2-2_revs-aaff8d2ffbbf_tip-*_txn.hg (glob)
   6 changesets found
   added 2 changesets with 2 changes to 2 files
-  clone-bundles: starting bundle generation: v2
+  clone-bundles: starting bundle generation: bzip2-v2
 
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v2-6_revs-b1010e95ea00_tip-*_txn.hg BUNDLESPEC=v2 (glob)
+  file:/*/$TESTTMP/final-upload/full-bzip2-v2-6_revs-b1010e95ea00_tip-*_txn.hg BUNDLESPEC=bzip2-v2 (glob)
   $ ls -1 ../final-upload
-  full-v2-4_revs-6427147b985a_tip-*_txn.hg (glob)
-  full-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
+  full-bzip2-v2-4_revs-6427147b985a_tip-*_txn.hg (glob)
+  full-bzip2-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
 
 Test conditions to get them generated
@@ -115,10 +115,10 @@ Check ratio
   adding file changes
   added 1 changesets with 1 changes to 1 files
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v2-6_revs-b1010e95ea00_tip-*_txn.hg BUNDLESPEC=v2 (glob)
+  file:/*/$TESTTMP/final-upload/full-bzip2-v2-6_revs-b1010e95ea00_tip-*_txn.hg BUNDLESPEC=bzip2-v2 (glob)
   $ ls -1 ../final-upload
-  full-v2-4_revs-6427147b985a_tip-*_txn.hg (glob)
-  full-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
+  full-bzip2-v2-4_revs-6427147b985a_tip-*_txn.hg (glob)
+  full-bzip2-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
 
 Check absolute number of revisions
@@ -135,15 +135,15 @@ Check absolute number of revisions
   adding changesets
   adding manifests
   adding file changes
-  clone-bundles: deleting bundle full-v2-4_revs-6427147b985a_tip-*_txn.hg (glob)
+  clone-bundles: deleting bundle full-bzip2-v2-4_revs-6427147b985a_tip-*_txn.hg (glob)
   8 changesets found
   added 1 changesets with 1 changes to 1 files
-  clone-bundles: starting bundle generation: v2
+  clone-bundles: starting bundle generation: bzip2-v2
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v2-8_revs-8353e8af1306_tip-*_txn.hg BUNDLESPEC=v2 (glob)
+  file:/*/$TESTTMP/final-upload/full-bzip2-v2-8_revs-8353e8af1306_tip-*_txn.hg BUNDLESPEC=bzip2-v2 (glob)
   $ ls -1 ../final-upload
-  full-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
-  full-v2-8_revs-8353e8af1306_tip-*_txn.hg (glob)
+  full-bzip2-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
+  full-bzip2-v2-8_revs-8353e8af1306_tip-*_txn.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
 
 (that one would not generate new bundles)
@@ -158,10 +158,10 @@ Check absolute number of revisions
   adding file changes
   added 1 changesets with 1 changes to 1 files
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v2-8_revs-8353e8af1306_tip-*_txn.hg BUNDLESPEC=v2 (glob)
+  file:/*/$TESTTMP/final-upload/full-bzip2-v2-8_revs-8353e8af1306_tip-*_txn.hg BUNDLESPEC=bzip2-v2 (glob)
   $ ls -1 ../final-upload
-  full-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
-  full-v2-8_revs-8353e8af1306_tip-*_txn.hg (glob)
+  full-bzip2-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
+  full-bzip2-v2-8_revs-8353e8af1306_tip-*_txn.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
 
 Test generation through the dedicated command
@@ -204,25 +204,25 @@ Running the command should detect the stale bundles, and do the full automatic
 generation logic.
 
   $ hg -R ../server/ admin::clone-bundles-refresh
-  clone-bundles: deleting bundle full-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
-  clone-bundles: starting bundle generation: v2
+  clone-bundles: deleting bundle full-bzip2-v2-6_revs-b1010e95ea00_tip-*_txn.hg (glob)
+  clone-bundles: starting bundle generation: bzip2-v2
   10 changesets found
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg BUNDLESPEC=v2 (glob)
+  file:/*/$TESTTMP/final-upload/full-bzip2-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg BUNDLESPEC=bzip2-v2 (glob)
   $ ls -1 ../final-upload
-  full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
-  full-v2-8_revs-8353e8af1306_tip-*_txn.hg (glob)
+  full-bzip2-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
+  full-bzip2-v2-8_revs-8353e8af1306_tip-*_txn.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
 
 Check the command cleans up older bundles when possible
 -------------------------------------------------------
 
   $ hg -R ../server/ admin::clone-bundles-refresh
-  clone-bundles: deleting bundle full-v2-8_revs-8353e8af1306_tip-*_txn.hg (glob)
+  clone-bundles: deleting bundle full-bzip2-v2-8_revs-8353e8af1306_tip-*_txn.hg (glob)
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg BUNDLESPEC=v2 (glob)
+  file:/*/$TESTTMP/final-upload/full-bzip2-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg BUNDLESPEC=bzip2-v2 (glob)
   $ ls -1 ../final-upload
-  full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
+  full-bzip2-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
 
 Nothing is generated when the bundles are sufficiently up to date
@@ -278,17 +278,17 @@ change configuration
 refresh the bundles
 
   $ hg -R ../server/ admin::clone-bundles-refresh
-  clone-bundles: starting bundle generation: v1
+  clone-bundles: starting bundle generation: bzip2-v1
   11 changesets found
 
 the bundle for the "new" format should have been added
 
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v1 (glob)
-  file:/*/$TESTTMP/final-upload/full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg BUNDLESPEC=v2 (glob)
+  file:/*/$TESTTMP/final-upload/full-bzip2-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=bzip2-v1 (glob)
+  file:/*/$TESTTMP/final-upload/full-bzip2-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg BUNDLESPEC=bzip2-v2 (glob)
   $ ls -1 ../final-upload
-  full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
-  full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
+  full-bzip2-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  full-bzip2-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
 
 Changing the ratio
@@ -304,19 +304,19 @@ Changing the ratio to something that would have triggered a bundle during the la
 refresh the bundles
 
   $ hg -R ../server/ admin::clone-bundles-refresh
-  clone-bundles: starting bundle generation: v2
+  clone-bundles: starting bundle generation: bzip2-v2
   11 changesets found
 
 
 the "outdated' bundle should be refreshed
 
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v1 (glob)
-  file:/*/$TESTTMP/final-upload/full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v2 (glob)
+  file:/*/$TESTTMP/final-upload/full-bzip2-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=bzip2-v1 (glob)
+  file:/*/$TESTTMP/final-upload/full-bzip2-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=bzip2-v2 (glob)
   $ ls -1 ../final-upload
-  full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
-  full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
-  full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  full-bzip2-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  full-bzip2-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
+  full-bzip2-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
 
 Test more command options
@@ -326,9 +326,9 @@ bundle clearing
 ---------------
 
   $ hg -R ../server/ admin::clone-bundles-clear
-  clone-bundles: deleting bundle full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
-  clone-bundles: deleting bundle full-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
-  clone-bundles: deleting bundle full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  clone-bundles: deleting bundle full-bzip2-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  clone-bundles: deleting bundle full-bzip2-v2-10_revs-3b6f57f17d70_tip-*_acbr.hg (glob)
+  clone-bundles: deleting bundle full-bzip2-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
 
 Nothing should remain
 
@@ -346,42 +346,42 @@ process to end)
   $ hg -R ../server/ admin::clone-bundles-refresh --background
   11 changesets found
   11 changesets found
-  clone-bundles: starting bundle generation: v1
-  clone-bundles: starting bundle generation: v2
+  clone-bundles: starting bundle generation: bzip2-v1
+  clone-bundles: starting bundle generation: bzip2-v2
 
 bundles should have been generated
 
   $ cat ../server/.hg/clonebundles.manifest
-  file:/*/$TESTTMP/final-upload/full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v1 (glob)
-  file:/*/$TESTTMP/final-upload/full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v2 (glob)
+  file:/*/$TESTTMP/final-upload/full-bzip2-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=bzip2-v1 (glob)
+  file:/*/$TESTTMP/final-upload/full-bzip2-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=bzip2-v2 (glob)
   $ ls -1 ../final-upload
-  full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
-  full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  full-bzip2-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  full-bzip2-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
 
 Test HTTP URL
 =========================
 
   $ hg -R ../server/ admin::clone-bundles-clear
-  clone-bundles: deleting bundle full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
-  clone-bundles: deleting bundle full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  clone-bundles: deleting bundle full-bzip2-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  clone-bundles: deleting bundle full-bzip2-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
 
   $ cat >> ../server/.hg/hgrc << EOF
   > [clone-bundles]
   > url-template = https://example.com/final-upload/{basename}
   > EOF
   $ hg -R ../server/ admin::clone-bundles-refresh
-  clone-bundles: starting bundle generation: v1
+  clone-bundles: starting bundle generation: bzip2-v1
   11 changesets found
-  clone-bundles: starting bundle generation: v2
+  clone-bundles: starting bundle generation: bzip2-v2
   11 changesets found
 
 
 bundles should have been generated with the SNIREQUIRED option
 
   $ cat ../server/.hg/clonebundles.manifest
-  https://example.com/final-upload/full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v1 REQUIRESNI=true (glob)
-  https://example.com/final-upload/full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v2 REQUIRESNI=true (glob)
+  https://example.com/final-upload/full-bzip2-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=bzip2-v1 REQUIRESNI=true (glob)
+  https://example.com/final-upload/full-bzip2-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=bzip2-v2 REQUIRESNI=true (glob)
 
 Test serving them through inline-clone bundle
 =============================================
@@ -391,24 +391,24 @@ Test serving them through inline-clone bundle
   > auto-generate.serve-inline=yes
   > EOF
   $ hg -R ../server/ admin::clone-bundles-clear
-  clone-bundles: deleting bundle full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
-  clone-bundles: deleting bundle full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  clone-bundles: deleting bundle full-bzip2-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  clone-bundles: deleting bundle full-bzip2-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
 
 initial generation
 ------------------
 
 
   $ hg -R ../server/ admin::clone-bundles-refresh
-  clone-bundles: starting bundle generation: v1
+  clone-bundles: starting bundle generation: bzip2-v1
   11 changesets found
-  clone-bundles: starting bundle generation: v2
+  clone-bundles: starting bundle generation: bzip2-v2
   11 changesets found
   $ cat ../server/.hg/clonebundles.manifest
-  peer-bundle-cache://full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v1 (glob)
-  peer-bundle-cache://full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=v2 (glob)
+  peer-bundle-cache://full-bzip2-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=bzip2-v1 (glob)
+  peer-bundle-cache://full-bzip2-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg BUNDLESPEC=bzip2-v2 (glob)
   $ ls -1 ../server/.hg/bundle-cache
-  full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
-  full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  full-bzip2-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  full-bzip2-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
   $ ls -1 ../final-upload
 
 Regeneration eventually cleanup the old ones
@@ -430,18 +430,18 @@ create more content
 check first regeneration
 
   $ hg -R ../server/ admin::clone-bundles-refresh
-  clone-bundles: starting bundle generation: v1
+  clone-bundles: starting bundle generation: bzip2-v1
   13 changesets found
-  clone-bundles: starting bundle generation: v2
+  clone-bundles: starting bundle generation: bzip2-v2
   13 changesets found
   $ cat ../server/.hg/clonebundles.manifest
-  peer-bundle-cache://full-v1-13_revs-8a81f9be54ea_tip-*_acbr.hg BUNDLESPEC=v1 (glob)
-  peer-bundle-cache://full-v2-13_revs-8a81f9be54ea_tip-*_acbr.hg BUNDLESPEC=v2 (glob)
+  peer-bundle-cache://full-bzip2-v1-13_revs-8a81f9be54ea_tip-*_acbr.hg BUNDLESPEC=bzip2-v1 (glob)
+  peer-bundle-cache://full-bzip2-v2-13_revs-8a81f9be54ea_tip-*_acbr.hg BUNDLESPEC=bzip2-v2 (glob)
   $ ls -1 ../server/.hg/bundle-cache
-  full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
-  full-v1-13_revs-8a81f9be54ea_tip-*_acbr.hg (glob)
-  full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
-  full-v2-13_revs-8a81f9be54ea_tip-*_acbr.hg (glob)
+  full-bzip2-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  full-bzip2-v1-13_revs-8a81f9be54ea_tip-*_acbr.hg (glob)
+  full-bzip2-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  full-bzip2-v2-13_revs-8a81f9be54ea_tip-*_acbr.hg (glob)
   $ ls -1 ../final-upload
 
 check first regeneration (should cleanup the one before that last)
@@ -459,18 +459,32 @@ check first regeneration (should cleanup the one before that last)
   added 2 changesets with 2 changes to 2 files
 
   $ hg -R ../server/ admin::clone-bundles-refresh
-  clone-bundles: deleting inline bundle full-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
-  clone-bundles: deleting inline bundle full-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
-  clone-bundles: starting bundle generation: v1
+  clone-bundles: deleting inline bundle full-bzip2-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  clone-bundles: deleting inline bundle full-bzip2-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+  clone-bundles: starting bundle generation: bzip2-v1
   15 changesets found
-  clone-bundles: starting bundle generation: v2
+  clone-bundles: starting bundle generation: bzip2-v2
   15 changesets found
   $ cat ../server/.hg/clonebundles.manifest
-  peer-bundle-cache://full-v1-15_revs-17615b3984c2_tip-*_acbr.hg BUNDLESPEC=v1 (glob)
-  peer-bundle-cache://full-v2-15_revs-17615b3984c2_tip-*_acbr.hg BUNDLESPEC=v2 (glob)
+  peer-bundle-cache://full-bzip2-v1-15_revs-17615b3984c2_tip-*_acbr.hg BUNDLESPEC=bzip2-v1 (glob)
+  peer-bundle-cache://full-bzip2-v2-15_revs-17615b3984c2_tip-*_acbr.hg BUNDLESPEC=bzip2-v2 (glob)
   $ ls -1 ../server/.hg/bundle-cache
-  full-v1-13_revs-8a81f9be54ea_tip-*_acbr.hg (glob)
-  full-v1-15_revs-17615b3984c2_tip-*_acbr.hg (glob)
-  full-v2-13_revs-8a81f9be54ea_tip-*_acbr.hg (glob)
-  full-v2-15_revs-17615b3984c2_tip-*_acbr.hg (glob)
+  full-bzip2-v1-13_revs-8a81f9be54ea_tip-*_acbr.hg (glob)
+  full-bzip2-v1-15_revs-17615b3984c2_tip-*_acbr.hg (glob)
+  full-bzip2-v2-13_revs-8a81f9be54ea_tip-*_acbr.hg (glob)
+  full-bzip2-v2-15_revs-17615b3984c2_tip-*_acbr.hg (glob)
   $ ls -1 ../final-upload
+
+Check the url is correct
+------------------------
+
+  $ hg clone -U ssh://user@dummy/server ssh-inline-clone
+  applying clone bundle from peer-bundle-cache://full-bzip2-v1-15_revs-17615b3984c2_tip-*_acbr.hg (glob)
+  adding changesets
+  adding manifests
+  adding file changes
+  added 15 changesets with 15 changes to 15 files
+  finished applying clone bundle
+  searching for changes
+  no changes found
+  15 local changesets published

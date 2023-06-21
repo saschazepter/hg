@@ -858,6 +858,7 @@ def auto_bundle_needed_actions(repo, bundles, op_id):
         'op_id': op_id,
     }
     for t in targets:
+        t = bundlecaches.parsebundlespec(repo, t, strict=False).as_spec()
         if new_bundle_needed(repo, bundles, ratio, abs_revs, t, revs):
             data = generic_data.copy()
             data['bundle_type'] = t
