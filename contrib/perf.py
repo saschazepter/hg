@@ -882,23 +882,72 @@ def perfheads(ui, repo, **opts):
     fm.end()
 
 
+def _default_clear_on_disk_tags_cache(repo):
+    from mercurial import tags
+
+    repo.cachevfs.tryunlink(tags._filename(repo))
+
+
+def _default_clear_on_disk_tags_fnodes_cache(repo):
+    from mercurial import tags
+
+    repo.cachevfs.tryunlink(tags._fnodescachefile)
+
+
 @command(
     b'perf::tags|perftags',
     formatteropts
     + [
         (b'', b'clear-revlogs', False, b'refresh changelog and manifest'),
+        (
+            b'',
+            b'clear-on-disk-cache',
+            False,
+            b'clear on disk tags cache (DESTRUCTIVE)',
+        ),
+        (
+            b'',
+            b'clear-fnode-cache',
+            False,
+            b'clear on disk file node cache (DESTRUCTIVE),',
+        ),
     ],
 )
 def perftags(ui, repo, **opts):
+    """Benchmark tags retrieval in various situation
+
+    The option marked as (DESTRUCTIVE) will alter the on-disk cache, possibly
+    altering performance after the command was run. However, it does not
+    destroy any stored data.
+    """
+    from mercurial import tags
+
     opts = _byteskwargs(opts)
     timer, fm = gettimer(ui, opts)
     repocleartagscache = repocleartagscachefunc(repo)
     clearrevlogs = opts[b'clear_revlogs']
+    clear_disk = opts[b'clear_on_disk_cache']
+    clear_fnode = opts[b'clear_fnode_cache']
+
+    clear_disk_fn = getattr(
+        tags,
+        "clear_cache_on_disk",
+        _default_clear_on_disk_tags_cache,
+    )
+    clear_fnodes_fn = getattr(
+        tags,
+        "clear_cache_fnodes",
+        _default_clear_on_disk_tags_fnodes_cache,
+    )
 
     def s():
         if clearrevlogs:
             clearchangelog(repo)
             clearfilecache(repo.unfiltered(), 'manifest')
+        if clear_disk:
+            clear_disk_fn(repo)
+        if clear_fnode:
+            clear_fnodes_fn(repo)
         repocleartagscache()
 
     def t():
