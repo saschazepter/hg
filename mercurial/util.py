@@ -2210,10 +2210,21 @@ except ImportError:
     _re2 = False
 
 
+def has_re2():
+    """return True is re2 is available, False otherwise"""
+    if _re2 is None:
+        _re._checkre2()
+    return _re2
+
+
 class _re:
-    def _checkre2(self):
+    @staticmethod
+    def _checkre2():
         global _re2
         global _re2_input
+        if _re2 is not None:
+            # we already have the answer
+            return
 
         check_pattern = br'\[([^\[]+)\]'
         check_input = b'[ui]'
