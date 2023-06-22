@@ -194,7 +194,7 @@ perfstatus
                  benchmark the full generation of a stream clone
    perf::stream-locked-section
                  benchmark the initial, repo-locked, section of a stream-clone
-   perf::tags    (no help text available)
+   perf::tags    Benchmark tags retrieval in various situation
    perf::templating
                  test the rendering time of a given template
    perf::unbundle
