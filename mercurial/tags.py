@@ -920,3 +920,14 @@ def clear_cache_on_disk(repo):
 def clear_cache_fnodes(repo):
     """function used by the perf extension to clear "file node cache"""
     repo.cachevfs.tryunlink(_filename(repo))
+
+
+def forget_fnodes(repo, revs):
+    """function used by the perf extension to prune some entries from the fnodes
+    cache"""
+    missing_1 = b'\xff' * 4
+    missing_2 = b'\xff' * 20
+    cache = hgtagsfnodescache(repo.unfiltered())
+    for r in revs:
+        cache._writeentry(r * _fnodesrecsize, missing_1, missing_2)
+    cache.write()
