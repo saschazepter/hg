@@ -69,6 +69,7 @@ from . import (
 )
 from .utils import (
     dateutil,
+    procutil,
     stringutil,
     urlutil,
 )
@@ -1665,6 +1666,14 @@ def bundle(ui, repo, fname, *dests, **opts):
         scmutil.nochangesfound(ui, repo, not base and excluded)
         return 1
 
+    # internal changeset are internal implementation details that should not
+    # leave the repository. Bundling with `hg bundle` create such risk.
+    bundled_internal = repo.revs(b"%ln and _internal()", missing)
+    if bundled_internal:
+        msg = _(b"cannot bundle internal changesets")
+        hint = _(b"%d internal changesets selected") % len(bundled_internal)
+        raise error.Abort(msg, hint=hint)
+
     if heads:
         outgoing = discovery.outgoing(
             repo, missingroots=missing, ancestorsof=heads
@@ -1714,8 +1723,9 @@ def bundle(ui, repo, fname, *dests, **opts):
     bundlespec.set_param(
         b'obsolescence-mandatory', obs_mand_cfg, overwrite=False
     )
-    phases_cfg = cfg(b'experimental', b'bundle-phases')
-    bundlespec.set_param(b'phases', phases_cfg, overwrite=False)
+    if not bundlespec.params.get(b'phases', False):
+        phases_cfg = cfg(b'experimental', b'bundle-phases')
+        bundlespec.set_param(b'phases', phases_cfg, overwrite=False)
 
     bundle2.writenewbundle(
         ui,
@@ -3529,22 +3539,20 @@ def grep(ui, repo, pattern, *pats, **opts):
 
     """
     cmdutil.check_incompatible_arguments(opts, 'all_files', ['all', 'diff'])
-    opts = pycompat.byteskwargs(opts)
-    diff = opts.get(b'all') or opts.get(b'diff')
-    follow = opts.get(b'follow')
-    if opts.get(b'all_files') is None and not diff:
-        opts[b'all_files'] = True
+
+    diff = opts.get('all') or opts.get('diff')
+    follow = opts.get('follow')
+    if opts.get('all_files') is None and not diff:
+        opts['all_files'] = True
     plaingrep = (
-        opts.get(b'all_files')
-        and not opts.get(b'rev')
-        and not opts.get(b'follow')
+        opts.get('all_files') and not opts.get('rev') and not opts.get('follow')
     )
-    all_files = opts.get(b'all_files')
+    all_files = opts.get('all_files')
     if plaingrep:
-        opts[b'rev'] = [b'wdir()']
+        opts['rev'] = [b'wdir()']
 
     reflags = re.M
-    if opts.get(b'ignore_case'):
+    if opts.get('ignore_case'):
         reflags |= re.I
     try:
         regexp = util.re.compile(pattern, reflags)
@@ -3555,7 +3563,7 @@ def grep(ui, repo, pattern, *pats, **opts):
         )
         return 1
     sep, eol = b':', b'\n'
-    if opts.get(b'print0'):
+    if opts.get('print0'):
         sep = eol = b'\0'
 
     searcher = grepmod.grepsearcher(
@@ -3603,7 +3611,7 @@ def grep(ui, repo, pattern, *pats, **opts):
                     b'linenumber',
                     b'%d',
                     l.linenum,
-                    opts.get(b'line_number'),
+                    opts.get('line_number'),
                     b'',
                 ),
             ]
@@ -3625,14 +3633,14 @@ def grep(ui, repo, pattern, *pats, **opts):
                         b'user',
                         b'%s',
                         formatuser(ctx.user()),
-                        opts.get(b'user'),
+                        opts.get('user'),
                         b'',
                     ),
                     (
                         b'date',
                         b'%s',
                         fm.formatdate(ctx.date(), datefmt),
-                        opts.get(b'date'),
+                        opts.get('date'),
                         b'',
                     ),
                 ]
@@ -3643,15 +3651,15 @@ def grep(ui, repo, pattern, *pats, **opts):
                 field = fieldnamemap.get(name, name)
                 label = extra_label + (b'grep.%s' % name)
                 fm.condwrite(cond, field, fmt, data, label=label)
-            if not opts.get(b'files_with_matches'):
+            if not opts.get('files_with_matches'):
                 fm.plain(sep, label=b'grep.sep')
-                if not opts.get(b'text') and binary():
+                if not opts.get('text') and binary():
                     fm.plain(_(b" Binary file matches"))
                 else:
                     displaymatches(fm.nested(b'texts', tmpl=b'{text}'), l)
             fm.plain(eol)
             found = True
-            if opts.get(b'files_with_matches'):
+            if opts.get('files_with_matches'):
                 break
         return found
 
@@ -3677,9 +3685,9 @@ def grep(ui, repo, pattern, *pats, **opts):
     wopts = logcmdutil.walkopts(
         pats=pats,
         opts=opts,
-        revspec=opts[b'rev'],
-        include_pats=opts[b'include'],
-        exclude_pats=opts[b'exclude'],
+        revspec=opts['rev'],
+        include_pats=opts['include'],
+        exclude_pats=opts['exclude'],
         follow=follow,
         force_changelog_traversal=all_files,
         filter_revisions_by_pats=not all_files,
@@ -3687,7 +3695,7 @@ def grep(ui, repo, pattern, *pats, **opts):
     revs, makefilematcher = logcmdutil.makewalker(repo, wopts)
 
     ui.pager(b'grep')
-    fm = ui.formatter(b'grep', opts)
+    fm = ui.formatter(b'grep', pycompat.byteskwargs(opts))
     for fn, ctx, pstates, states in searcher.searchfiles(revs, makefilematcher):
         r = display(fm, fn, ctx, pstates, states)
         found = found or r
@@ -5395,6 +5403,12 @@ def postincoming(ui, repo, modheads, optupdate, checkout, brev):
             _(b'a specific branch you would like to pull'),
             _(b'BRANCH'),
         ),
+        (
+            b'',
+            b'remote-hidden',
+            False,
+            _(b"include changesets hidden on the remote (EXPERIMENTAL)"),
+        ),
     ]
     + remoteopts,
     _(b'[-u] [-f] [-r REV]... [-e CMD] [--remotecmd CMD] [SOURCE]...'),
@@ -5432,6 +5446,14 @@ def pull(ui, repo, *sources, **opts):
     Specifying bookmark as ``.`` is equivalent to specifying the active
     bookmark's name.
 
+    .. container:: verbose
+
+        One can use the `--remote-hidden` flag to pull changesets
+        hidden on the remote. This flag is "best effort", and will only
+        work if the server supports the feature and is configured to
+        allow the user to access hidden changesets. This option is
+        experimental and backwards compatibility is not garanteed.
+
     Returns 0 on success, 1 if an update had unresolved files.
     """
 
@@ -5446,12 +5468,16 @@ def pull(ui, repo, *sources, **opts):
     for path in urlutil.get_pull_paths(repo, ui, sources):
         ui.status(_(b'pulling from %s\n') % urlutil.hidepassword(path.loc))
         ui.flush()
-        other = hg.peer(repo, opts, path)
+        other = hg.peer(repo, opts, path, remotehidden=opts[b'remote_hidden'])
         update_conflict = None
         try:
             branches = (path.branch, opts.get(b'branch', []))
             revs, checkout = hg.addbranchrevs(
-                repo, other, branches, opts.get(b'rev')
+                repo,
+                other,
+                branches,
+                opts.get(b'rev'),
+                remotehidden=opts[b'remote_hidden'],
             )
 
             pullopargs = {}
@@ -6644,7 +6670,25 @@ def serve(ui, repo, **opts):
             raise error.RepoError(
                 _(b"there is no Mercurial repository here (.hg not found)")
             )
-        s = wireprotoserver.sshserver(ui, repo)
+        accesshidden = False
+        if repo.filtername is None:
+            allow = ui.configlist(
+                b'experimental', b'server.allow-hidden-access'
+            )
+            user = procutil.getuser()
+            if allow and scmutil.ismember(ui, user, allow):
+                accesshidden = True
+            else:
+                msg = (
+                    _(
+                        b'ignoring request to access hidden changeset by '
+                        b'unauthorized user: %s\n'
+                    )
+                    % user
+                )
+                ui.warn(msg)
+
+        s = wireprotoserver.sshserver(ui, repo, accesshidden=accesshidden)
         s.serve_forever()
         return
 

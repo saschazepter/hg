@@ -50,6 +50,7 @@ from . import (
     error,
     exchange,
     extensions,
+    filelog,
     filemerge,
     filesetlang,
     formatter,
@@ -58,6 +59,7 @@ from . import (
     localrepo,
     lock as lockmod,
     logcmdutil,
+    manifest,
     mergestate as mergestatemod,
     metadata,
     obsolete,
@@ -93,6 +95,7 @@ from . import (
     wireprotoserver,
 )
 from .interfaces import repository
+from .stabletailgraph import stabletailsort
 from .utils import (
     cborutil,
     compression,
@@ -614,6 +617,10 @@ def debugcreatestreamclonebundle(ui, repo, fname):
 
     Stream bundles are special bundles that are essentially archives of
     revlog files. They are commonly used for cloning very quickly.
+
+    This command creates a "version 1" stream clone, which is deprecated in
+    favor of newer versions of the stream protocol. Bundles using such newer
+     versions can be generated using the `hg bundle` command.
     """
     # TODO we may want to turn this into an abort when this functionality
     # is moved into `hg bundle`.
@@ -708,10 +715,12 @@ def debugdata(ui, repo, file_, rev=None, **opts):
     opts = pycompat.byteskwargs(opts)
     if opts.get(b'changelog') or opts.get(b'manifest') or opts.get(b'dir'):
         if rev is not None:
-            raise error.CommandError(b'debugdata', _(b'invalid arguments'))
+            raise error.InputError(
+                _(b'cannot specify a revision with other arguments')
+            )
         file_, rev = None, file_
     elif rev is None:
-        raise error.CommandError(b'debugdata', _(b'invalid arguments'))
+        raise error.InputError(_(b'please specify a revision'))
     r = cmdutil.openstorage(repo, b'debugdata', file_, opts)
     try:
         ui.write(r.rawdata(r.lookup(rev)))
@@ -1273,7 +1282,7 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
     if opts.get(b'old'):
 
         def doit(pushedrevs, remoteheads, remote=remote):
-            if not util.safehasattr(remote, b'branches'):
+            if not util.safehasattr(remote, 'branches'):
                 # enable in-client legacy support
                 remote = localrepo.locallegacypeer(remote.local())
                 if remote_revs:
@@ -1713,7 +1722,7 @@ def debugformat(ui, repo, **opts):
     if fm.isplain():
 
         def formatvalue(value):
-            if util.safehasattr(value, b'startswith'):
+            if util.safehasattr(value, 'startswith'):
                 return value
             if value:
                 return b'yes'
@@ -1840,7 +1849,7 @@ def debuggetbundle(ui, repopath, bundlepath, head=None, common=None, **opts):
     bundle2.writebundle(ui, bundle, bundlepath, bundletype)
 
 
-@command(b'debugignore', [], b'[FILE]')
+@command(b'debugignore', [], b'[FILE]...')
 def debugignore(ui, repo, *files, **opts):
     """display the combined ignore pattern and information about ignored files
 
@@ -1902,7 +1911,7 @@ def debugindex(ui, repo, file_=None, **opts):
 
     fm = ui.formatter(b'debugindex', opts)
 
-    revlog = getattr(store, b'_revlog', store)
+    revlog = getattr(store, '_revlog', store)
 
     return revlog_debug.debug_index(
         ui,
@@ -1938,7 +1947,7 @@ def debugindexstats(ui, repo):
     """show stats related to the changelog index"""
     repo.changelog.shortest(repo.nullid, 1)
     index = repo.changelog.index
-    if not util.safehasattr(index, b'stats'):
+    if not util.safehasattr(index, 'stats'):
         raise error.Abort(_(b'debugindexstats only works with native code'))
     for k, v in sorted(index.stats().items()):
         ui.write(b'%s: %d\n' % (k, v))
@@ -2599,56 +2608,64 @@ def debugnamecomplete(ui, repo, *args):
 
 @command(
     b'debugnodemap',
-    [
-        (
-            b'',
-            b'dump-new',
-            False,
-            _(b'write a (new) persistent binary nodemap on stdout'),
-        ),
-        (b'', b'dump-disk', False, _(b'dump on-disk data on stdout')),
-        (
-            b'',
-            b'check',
-            False,
-            _(b'check that the data on disk data are correct.'),
-        ),
-        (
-            b'',
-            b'metadata',
-            False,
-            _(b'display the on disk meta data for the nodemap'),
-        ),
-    ],
+    (
+        cmdutil.debugrevlogopts
+        + [
+            (
+                b'',
+                b'dump-new',
+                False,
+                _(b'write a (new) persistent binary nodemap on stdout'),
+            ),
+            (b'', b'dump-disk', False, _(b'dump on-disk data on stdout')),
+            (
+                b'',
+                b'check',
+                False,
+                _(b'check that the data on disk data are correct.'),
+            ),
+            (
+                b'',
+                b'metadata',
+                False,
+                _(b'display the on disk meta data for the nodemap'),
+            ),
+        ]
+    ),
+    _(b'-c|-m|FILE'),
 )
-def debugnodemap(ui, repo, **opts):
+def debugnodemap(ui, repo, file_=None, **opts):
     """write and inspect on disk nodemap"""
+    if opts.get('changelog') or opts.get('manifest') or opts.get('dir'):
+        if file_ is not None:
+            raise error.InputError(
+                _(b'cannot specify a file with other arguments')
+            )
+    elif file_ is None:
+        opts['changelog'] = True
+    r = cmdutil.openstorage(
+        repo.unfiltered(), b'debugnodemap', file_, pycompat.byteskwargs(opts)
+    )
+    if isinstance(r, (manifest.manifestrevlog, filelog.filelog)):
+        r = r._revlog
     if opts['dump_new']:
-        unfi = repo.unfiltered()
-        cl = unfi.changelog
-        if util.safehasattr(cl.index, "nodemap_data_all"):
-            data = cl.index.nodemap_data_all()
+        if util.safehasattr(r.index, "nodemap_data_all"):
+            data = r.index.nodemap_data_all()
         else:
-            data = nodemap.persistent_data(cl.index)
+            data = nodemap.persistent_data(r.index)
         ui.write(data)
     elif opts['dump_disk']:
-        unfi = repo.unfiltered()
-        cl = unfi.changelog
-        nm_data = nodemap.persisted_data(cl)
+        nm_data = nodemap.persisted_data(r)
         if nm_data is not None:
             docket, data = nm_data
             ui.write(data[:])
     elif opts['check']:
-        unfi = repo.unfiltered()
-        cl = unfi.changelog
-        nm_data = nodemap.persisted_data(cl)
+        nm_data = nodemap.persisted_data(r)
         if nm_data is not None:
             docket, data = nm_data
-            return nodemap.check_data(ui, cl.index, data)
+            return nodemap.check_data(ui, r.index, data)
     elif opts['metadata']:
-        unfi = repo.unfiltered()
-        cl = unfi.changelog
-        nm_data = nodemap.persisted_data(cl)
+        nm_data = nodemap.persisted_data(r)
         if nm_data is not None:
             docket, data = nm_data
             ui.write((b"uid: %s\n") % docket.uid)
@@ -3552,10 +3569,12 @@ def debugsidedata(ui, repo, file_, rev=None, **opts):
     opts = pycompat.byteskwargs(opts)
     if opts.get(b'changelog') or opts.get(b'manifest') or opts.get(b'dir'):
         if rev is not None:
-            raise error.CommandError(b'debugdata', _(b'invalid arguments'))
+            raise error.InputError(
+                _(b'cannot specify a revision with other arguments')
+            )
         file_, rev = None, file_
     elif rev is None:
-        raise error.CommandError(b'debugdata', _(b'invalid arguments'))
+        raise error.InputError(_(b'please specify a revision'))
     r = cmdutil.openstorage(repo, b'debugdata', file_, opts)
     r = getattr(r, '_revlog', r)
     try:
@@ -3641,6 +3660,60 @@ def debugssl(ui, repo, source=None, **opts):
             ui.status(_(b'full certificate chain is available\n'))
     finally:
         s.close()
+
+
+@command(
+    b'debug::stable-tail-sort',
+    [
+        (
+            b'T',
+            b'template',
+            b'{rev}\n',
+            _(b'display with template'),
+            _(b'TEMPLATE'),
+        ),
+    ],
+    b'REV',
+)
+def debug_stable_tail_sort(ui, repo, revspec, template, **opts):
+    """display the stable-tail sort of the ancestors of a given node"""
+    rev = logcmdutil.revsingle(repo, revspec).rev()
+    cl = repo.changelog
+
+    displayer = logcmdutil.maketemplater(ui, repo, template)
+    sorted_revs = stabletailsort._stable_tail_sort_naive(cl, rev)
+    for ancestor_rev in sorted_revs:
+        displayer.show(repo[ancestor_rev])
+
+
+@command(
+    b'debug::stable-tail-sort-leaps',
+    [
+        (
+            b'T',
+            b'template',
+            b'{rev}',
+            _(b'display with template'),
+            _(b'TEMPLATE'),
+        ),
+        (b's', b'specific', False, _(b'restrict to specific leaps')),
+    ],
+    b'REV',
+)
+def debug_stable_tail_sort_leaps(ui, repo, rspec, template, specific, **opts):
+    """display the leaps in the stable-tail sort of a node, one per line"""
+    rev = logcmdutil.revsingle(repo, rspec).rev()
+
+    if specific:
+        get_leaps = stabletailsort._find_specific_leaps_naive
+    else:
+        get_leaps = stabletailsort._find_all_leaps_naive
+
+    displayer = logcmdutil.maketemplater(ui, repo, template)
+    for source, target in get_leaps(repo.changelog, rev):
+        displayer.show(repo[source])
+        displayer.show(repo[target])
+        ui.write(b'\n')
 
 
 @command(
@@ -4512,7 +4585,7 @@ def debugwireproto(ui, repo, path=None, **opts):
             peer = None
         else:
             ui.write(_(b'creating ssh peer from handshake results\n'))
-            peer = sshpeer.makepeer(
+            peer = sshpeer._make_peer(
                 ui,
                 url,
                 proc,
@@ -4568,7 +4641,7 @@ def debugwireproto(ui, repo, path=None, **opts):
             )
         else:
             peer_path = urlutil.try_path(ui, path)
-            peer = httppeer.makepeer(ui, peer_path, opener=opener)
+            peer = httppeer._make_peer(ui, peer_path, opener=opener)
 
         # We /could/ populate stdin/stdout with sock.makefile()...
     else:

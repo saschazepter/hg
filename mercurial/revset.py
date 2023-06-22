@@ -1967,6 +1967,12 @@ def _phase(repo, subset, *targets):
     return repo._phasecache.getrevset(repo, targets, subset)
 
 
+@predicate(b'_internal()', safe=True)
+def _internal(repo, subset, x):
+    getargs(x, 0, 0, _(b"_internal takes no arguments"))
+    return _phase(repo, subset, *phases.all_internal_phases)
+
+
 @predicate(b'_phase(idx)', safe=True)
 def phase(repo, subset, x):
     l = getargs(x, 1, 1, b"_phase requires one argument")
@@ -2061,7 +2067,7 @@ def present(repo, subset, x, order):
 @predicate(b'_notpublic', safe=True)
 def _notpublic(repo, subset, x):
     getargs(x, 0, 0, b"_notpublic takes no arguments")
-    return _phase(repo, subset, phases.draft, phases.secret)
+    return _phase(repo, subset, *phases.not_public_phases)
 
 
 # for internal use

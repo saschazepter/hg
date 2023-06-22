@@ -26,6 +26,7 @@ variables:
       - clang-format --version
     script:
         - echo "python used, $PYTHON"
+        - $PYTHON --version
         - echo "$RUNTEST_ARGS"
         - HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" HGMODULEPOLICY="$TEST_HGMODULEPOLICY" "$PYTHON" tests/run-tests.py --color=always $RUNTEST_ARGS
 

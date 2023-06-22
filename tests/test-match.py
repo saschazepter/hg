@@ -140,6 +140,28 @@ class PatternMatcherTests(unittest.TestCase):
         self.assertEqual(m.visitchildrenset(b'dir/subdir'), b'this')
         self.assertEqual(m.visitchildrenset(b'dir/subdir/x'), b'this')
 
+    def testVisitdirFilepath(self):
+        m = matchmod.match(
+            util.localpath(b'/repo'), b'', patterns=[b'filepath:dir/z']
+        )
+        assert isinstance(m, matchmod.patternmatcher)
+        self.assertTrue(m.visitdir(b''))
+        self.assertTrue(m.visitdir(b'dir'))
+        self.assertFalse(m.visitdir(b'folder'))
+        self.assertFalse(m.visitdir(b'dir/subdir'))
+        self.assertFalse(m.visitdir(b'dir/subdir/x'))
+
+    def testVisitchildrensetFilepath(self):
+        m = matchmod.match(
+            util.localpath(b'/repo'), b'', patterns=[b'filepath:dir/z']
+        )
+        assert isinstance(m, matchmod.patternmatcher)
+        self.assertEqual(m.visitchildrenset(b''), b'this')
+        self.assertEqual(m.visitchildrenset(b'folder'), set())
+        self.assertEqual(m.visitchildrenset(b'dir'), b'this')
+        self.assertEqual(m.visitchildrenset(b'dir/subdir'), set())
+        self.assertEqual(m.visitchildrenset(b'dir/subdir/x'), set())
+
 
 class IncludeMatcherTests(unittest.TestCase):
     def testVisitdirPrefix(self):
@@ -211,6 +233,28 @@ class IncludeMatcherTests(unittest.TestCase):
         # OPT: these should probably be set().
         self.assertEqual(m.visitchildrenset(b'dir/subdir'), b'this')
         self.assertEqual(m.visitchildrenset(b'dir/subdir/x'), b'this')
+
+    def testVisitdirFilepath(self):
+        m = matchmod.match(
+            util.localpath(b'/repo'), b'', include=[b'filepath:dir/z']
+        )
+        assert isinstance(m, matchmod.includematcher)
+        self.assertTrue(m.visitdir(b''))
+        self.assertTrue(m.visitdir(b'dir'))
+        self.assertFalse(m.visitdir(b'folder'))
+        self.assertFalse(m.visitdir(b'dir/subdir'))
+        self.assertFalse(m.visitdir(b'dir/subdir/x'))
+
+    def testVisitchildrensetFilepath(self):
+        m = matchmod.match(
+            util.localpath(b'/repo'), b'', include=[b'filepath:dir/z']
+        )
+        assert isinstance(m, matchmod.includematcher)
+        self.assertEqual(m.visitchildrenset(b''), {b'dir'})
+        self.assertEqual(m.visitchildrenset(b'folder'), set())
+        self.assertEqual(m.visitchildrenset(b'dir'), {b'z'})
+        self.assertEqual(m.visitchildrenset(b'dir/subdir'), set())
+        self.assertEqual(m.visitchildrenset(b'dir/subdir/x'), set())
 
 
 class ExactMatcherTests(unittest.TestCase):

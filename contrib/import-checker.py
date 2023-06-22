@@ -44,6 +44,7 @@ allowsymbolimports = (
     # third-party imports should be directly imported
     'mercurial.thirdparty',
     'mercurial.thirdparty.attr',
+    'mercurial.thirdparty.jaraco.collections',
     'mercurial.thirdparty.zope',
     'mercurial.thirdparty.zope.interface',
     'typing',

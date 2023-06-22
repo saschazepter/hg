@@ -145,7 +145,9 @@ def onetimesetup(ui):
     )
 
     # don't clone filelogs to shallow clients
-    def _walkstreamfiles(orig, repo, matcher=None):
+    def _walkstreamfiles(
+        orig, repo, matcher=None, phase=False, obsolescence=False
+    ):
         if state.shallowremote:
             # if we are shallow ourselves, stream our local commits
             if shallowutil.isenabled(repo):
@@ -162,27 +164,32 @@ def onetimesetup(ui):
                             ):
                                 n = util.pconvert(fp[striplen:])
                                 d = store.decodedir(n)
-                                t = store.FILETYPE_OTHER
-                                yield (t, d, st.st_size)
+                                yield store.SimpleStoreEntry(
+                                    entry_path=d,
+                                    is_volatile=False,
+                                    file_size=st.st_size,
+                                )
+
                         if kind == stat.S_IFDIR:
                             visit.append(fp)
 
             if scmutil.istreemanifest(repo):
-                for (t, u, s) in repo.store.datafiles():
-                    if u.startswith(b'meta/') and (
-                        u.endswith(b'.i') or u.endswith(b'.d')
-                    ):
-                        yield (t, u, s)
+                for entry in repo.store.data_entries():
+                    if not entry.is_revlog:
+                        continue
+                    if entry.is_manifestlog:
+                        yield entry
 
             # Return .d and .i files that do not match the shallow pattern
             match = state.match
             if match and not match.always():
-                for (t, u, s) in repo.store.datafiles():
-                    f = u[5:-2]  # trim data/...  and .i/.d
-                    if not state.match(f):
-                        yield (t, u, s)
+                for entry in repo.store.data_entries():
+                    if not entry.is_revlog:
+                        continue
+                    if not state.match(entry.target_id):
+                        yield entry
 
-            for x in repo.store.topfiles():
+            for x in repo.store.top_entries():
                 if state.noflatmf and x[1][:11] == b'00manifest.':
                     continue
                 yield x
@@ -195,7 +202,9 @@ def onetimesetup(ui):
                 _(b"Cannot clone from a shallow repo to a full repo.")
             )
         else:
-            for x in orig(repo, matcher):
+            for x in orig(
+                repo, matcher, phase=phase, obsolescence=obsolescence
+            ):
                 yield x
 
     extensions.wrapfunction(streamclone, b'_walkstreamfiles', _walkstreamfiles)

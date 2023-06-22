@@ -16,6 +16,9 @@ setupcommon() {
 infinitepush=
 [infinitepush]
 branchpattern=re:scratch/.*
+deprecation-abort=no
+deprecation-message=yes
+
 EOF
 }
 

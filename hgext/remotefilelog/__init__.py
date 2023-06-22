@@ -408,9 +408,7 @@ def cloneshallow(orig, ui, repo, *args, **opts):
             # bundle2 flavor of streamclones, so force us to use
             # v1 instead.
             if b'v2' in pullop.remotebundle2caps.get(b'stream', []):
-                pullop.remotebundle2caps[b'stream'] = [
-                    c for c in pullop.remotebundle2caps[b'stream'] if c != b'v2'
-                ]
+                pullop.remotebundle2caps[b'stream'] = []
             if bundle2:
                 return False, None
             supported, requirements = orig(pullop, bundle2=bundle2)

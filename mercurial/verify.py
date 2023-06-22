@@ -407,10 +407,13 @@ class verifier:
             subdirs = set()
             revlogv1 = self.revlogv1
             undecodable = []
-            for t, f, size in repo.store.datafiles(undecodable=undecodable):
-                if (size > 0 or not revlogv1) and f.startswith(b'meta/'):
-                    storefiles.add(_normpath(f))
-                    subdirs.add(os.path.dirname(f))
+            for entry in repo.store.data_entries(undecodable=undecodable):
+                for file_ in entry.files():
+                    f = file_.unencoded_path
+                    size = file_.file_size(repo.store.vfs)
+                    if (size > 0 or not revlogv1) and f.startswith(b'meta/'):
+                        storefiles.add(_normpath(f))
+                        subdirs.add(os.path.dirname(f))
             for f in undecodable:
                 self._err(None, _(b"cannot decode filename '%s'") % f)
             subdirprogress = ui.makeprogress(
@@ -472,9 +475,12 @@ class verifier:
 
         storefiles = set()
         undecodable = []
-        for t, f, size in repo.store.datafiles(undecodable=undecodable):
-            if (size > 0 or not revlogv1) and f.startswith(b'data/'):
-                storefiles.add(_normpath(f))
+        for entry in repo.store.data_entries(undecodable=undecodable):
+            for file_ in entry.files():
+                size = file_.file_size(repo.store.vfs)
+                f = file_.unencoded_path
+                if (size > 0 or not revlogv1) and f.startswith(b'data/'):
+                    storefiles.add(_normpath(f))
         for f in undecodable:
             self._err(None, _(b"cannot decode filename '%s'") % f)
 

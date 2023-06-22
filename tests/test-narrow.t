@@ -73,14 +73,8 @@ Names with '.' in them are OK.
 
 The "narrow" repo requirement is ignored by [debugupgraderepo]
 
-#if tree
-  $ (cd should-work; hg debugupgraderepo)
-  abort: cannot upgrade repository; unsupported source requirement: treemanifest
-  [255]
-#else
   $ (cd should-work; hg debugupgraderepo | grep 'no format upgrades found in existing repository')
   (no format upgrades found in existing repository)
-#endif
 
 Test repo with local changes
   $ hg clone --narrow ssh://user@dummy/master narrow-local-changes --include d0 --include d3 --include d6
@@ -492,14 +486,14 @@ Test --auto-remove-includes
   looking for unused includes to remove
   path:d0
   path:d2
-  remove these unused includes (yn)? n
+  remove these unused includes (Yn)? n
   $ hg tracked --auto-remove-includes
   comparing with ssh://user@dummy/master
   searching for changes
   looking for unused includes to remove
   path:d0
   path:d2
-  remove these unused includes (yn)? y
+  remove these unused includes (Yn)? y
   looking for local changes to affected paths
   moving unwanted changesets to backup
   saved backup bundle to $TESTTMP/narrow-auto-remove/.hg/strip-backup/*-narrow.hg (glob)
@@ -527,7 +521,7 @@ Test --no-backup
   looking for unused includes to remove
   path:d0
   path:d2
-  remove these unused includes (yn)? y
+  remove these unused includes (Yn)? y
   looking for local changes to affected paths
   deleting unwanted changesets
   deleting data/d0/f.i

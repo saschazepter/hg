@@ -17,6 +17,10 @@ Create an ondisk bundlestore in .hg/scratchbranches
   >    hg ci -m "$1"
   > }
   $ hg init repo
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   $ cd repo
 
 Check that we can send a scratch on the server and it does not show there in
@@ -24,22 +28,82 @@ the history but is stored on disk
   $ setupserver
   $ cd ..
   $ hg clone ssh://user@dummy/repo client -q
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   $ cd client
   $ mkcommit initialcommit
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   $ hg push -r .
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   pushing to ssh://user@dummy/repo
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
   remote: adding changesets
   remote: adding manifests
   remote: adding file changes
   remote: added 1 changesets with 1 changes to 1 files
   $ mkcommit scratchcommit
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   $ hg push -r . -B scratch/mybranch
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   pushing to ssh://user@dummy/repo
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
   remote: pushing 1 commit:
   remote:     20759b6926ce  scratchcommit
   $ hg log -G
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   @  changeset:   1:20759b6926ce
   |  bookmark:    scratch/mybranch
   |  tag:         tip
@@ -53,6 +117,10 @@ the history but is stored on disk
      summary:     initialcommit
   
   $ hg log -G -R ../repo
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   o  changeset:   0:67145f466344
      tag:         tip
      user:        test
@@ -76,10 +144,46 @@ From another client we can get the scratchbranch if we ask for it explicitely
 
   $ cd ..
   $ hg clone ssh://user@dummy/repo client2 -q
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   $ cd client2
   $ hg pull -B scratch/mybranch --traceback
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   pulling from ssh://user@dummy/repo
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
   adding changesets
   adding manifests
   adding file changes
@@ -87,6 +191,10 @@ From another client we can get the scratchbranch if we ask for it explicitely
   new changesets 20759b6926ce (1 drafts)
   (run 'hg update' to get a working copy)
   $ hg log -G
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   o  changeset:   1:20759b6926ce
   |  bookmark:    scratch/mybranch
   |  tag:         tip
@@ -105,17 +213,45 @@ Push to non-scratch bookmark
 
   $ cd client
   $ hg up 0
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
   $ mkcommit newcommit
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   created new head
   $ hg push -r .
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   pushing to ssh://user@dummy/repo
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
   remote: adding changesets
   remote: adding manifests
   remote: adding file changes
   remote: added 1 changesets with 1 changes to 1 files
   $ hg log -G -T '{desc} {phase} {bookmarks}'
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   @  newcommit public
   |
   | o  scratchcommit draft scratch/mybranch
@@ -126,14 +262,46 @@ Push to non-scratch bookmark
 Push to scratch branch
   $ cd ../client2
   $ hg up -q scratch/mybranch
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   $ mkcommit 'new scratch commit'
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   $ hg push -r . -B scratch/mybranch
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   pushing to ssh://user@dummy/repo
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
   remote: pushing 2 commits:
   remote:     20759b6926ce  scratchcommit
   remote:     1de1d7d92f89  new scratch commit
   $ hg log -G -T '{desc} {phase} {bookmarks}'
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   @  new scratch commit draft scratch/mybranch
   |
   o  scratchcommit draft
@@ -149,12 +317,32 @@ Push to scratch branch
 
 Push scratch bookmark with no new revs
   $ hg push -r . -B scratch/anotherbranch
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   pushing to ssh://user@dummy/repo
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
   remote: pushing 2 commits:
   remote:     20759b6926ce  scratchcommit
   remote:     1de1d7d92f89  new scratch commit
   $ hg log -G -T '{desc} {phase} {bookmarks}'
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   @  new scratch commit draft scratch/anotherbranch scratch/mybranch
   |
   o  scratchcommit draft
@@ -168,10 +356,38 @@ Push scratch bookmark with no new revs
 Pull scratch and non-scratch bookmark at the same time
 
   $ hg -R ../repo book newbook
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   $ cd ../client
   $ hg pull -B newbook -B scratch/mybranch --traceback
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   pulling from ssh://user@dummy/repo
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
   adding changesets
   adding manifests
   adding file changes
@@ -180,6 +396,10 @@ Pull scratch and non-scratch bookmark at the same time
   new changesets 1de1d7d92f89 (1 drafts)
   (run 'hg update' to get a working copy)
   $ hg log -G -T '{desc} {phase} {bookmarks}'
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   o  new scratch commit draft scratch/mybranch
   |
   | @  newcommit public
@@ -192,8 +412,24 @@ Pull scratch and non-scratch bookmark at the same time
 Push scratch revision without bookmark with --bundle-store
 
   $ hg up -q tip
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   $ mkcommit scratchcommitnobook
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   $ hg log -G -T '{desc} {phase} {bookmarks}'
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   @  scratchcommitnobook draft
   |
   o  new scratch commit draft scratch/mybranch
@@ -205,13 +441,33 @@ Push scratch revision without bookmark with --bundle-store
   o  initialcommit public
   
   $ hg push -r . --bundle-store
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   pushing to ssh://user@dummy/repo
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
   remote: pushing 3 commits:
   remote:     20759b6926ce  scratchcommit
   remote:     1de1d7d92f89  new scratch commit
   remote:     2b5d271c7e0d  scratchcommitnobook
   $ hg -R ../repo log -G -T '{desc} {phase}'
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   o  newcommit public
   |
   o  initialcommit public
@@ -224,15 +480,43 @@ Push scratch revision without bookmark with --bundle-store
 
 Test with pushrebase
   $ mkcommit scratchcommitwithpushrebase
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   $ hg push -r . -B scratch/mybranch
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   pushing to ssh://user@dummy/repo
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
   remote: pushing 4 commits:
   remote:     20759b6926ce  scratchcommit
   remote:     1de1d7d92f89  new scratch commit
   remote:     2b5d271c7e0d  scratchcommitnobook
   remote:     d8c4f54ab678  scratchcommitwithpushrebase
   $ hg -R ../repo log -G -T '{desc} {phase}'
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   o  newcommit public
   |
   o  initialcommit public
@@ -245,9 +529,33 @@ Test with pushrebase
 
 Change the order of pushrebase and infinitepush
   $ mkcommit scratchcommitwithpushrebase2
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   $ hg push -r . -B scratch/mybranch
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   pushing to ssh://user@dummy/repo
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
   remote: pushing 5 commits:
   remote:     20759b6926ce  scratchcommit
   remote:     1de1d7d92f89  new scratch commit
@@ -255,6 +563,10 @@ Change the order of pushrebase and infinitepush
   remote:     d8c4f54ab678  scratchcommitwithpushrebase
   remote:     6c10d49fe927  scratchcommitwithpushrebase2
   $ hg -R ../repo log -G -T '{desc} {phase}'
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   o  newcommit public
   |
   o  initialcommit public
@@ -269,6 +581,10 @@ Change the order of pushrebase and infinitepush
 Non-fastforward scratch bookmark push
 
   $ hg log -GT "{rev}:{node} {desc}\n"
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   @  6:6c10d49fe92751666c40263f96721b918170d3da scratchcommitwithpushrebase2
   |
   o  5:d8c4f54ab678fd67cb90bb3f272a2dc6513a59a7 scratchcommitwithpushrebase
@@ -284,12 +600,28 @@ Non-fastforward scratch bookmark push
   o  0:67145f4663446a9580364f70034fea6e21293b6f initialcommit
   
   $ hg up 6c10d49fe927
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ echo 1 > amend
   $ hg add amend
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   $ hg ci --amend -m 'scratch amended commit'
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   saved backup bundle to $TESTTMP/client/.hg/strip-backup/6c10d49fe927-c99ffec5-amend.hg
   $ hg log -G -T '{desc} {phase} {bookmarks}'
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   @  scratch amended commit draft scratch/mybranch
   |
   o  scratchcommitwithpushrebase draft
@@ -309,8 +641,24 @@ Non-fastforward scratch bookmark push
   scratch/anotherbranch 1de1d7d92f8965260391d0513fe8a8d5973d3042
   scratch/mybranch 6c10d49fe92751666c40263f96721b918170d3da
   $ hg push -r . -B scratch/mybranch
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   pushing to ssh://user@dummy/repo
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
   remote: pushing 5 commits:
   remote:     20759b6926ce  scratchcommit
   remote:     1de1d7d92f89  new scratch commit
@@ -321,6 +669,10 @@ Non-fastforward scratch bookmark push
   scratch/anotherbranch 1de1d7d92f8965260391d0513fe8a8d5973d3042
   scratch/mybranch 8872775dd97a750e1533dc1fbbca665644b32547
   $ hg log -G -T '{desc} {phase} {bookmarks}'
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   @  scratch amended commit draft scratch/mybranch
   |
   o  scratchcommitwithpushrebase draft
@@ -343,22 +695,54 @@ Check that push path is not ignored. Add new path to the hgrc
 
 Checkout last non-scrath commit
   $ hg up 91894e11e8255
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   1 files updated, 0 files merged, 6 files removed, 0 files unresolved
   $ mkcommit peercommit
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
 Use --force because this push creates new head
   $ hg push peer -r . -f
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   pushing to ssh://user@dummy/client2
+  remote: IMPORTANT: if you use this extension, please contact
+  remote: mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  remote: unused and barring learning of users of this functionality, we drop this
+  remote: extension in Mercurial 6.6.
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   searching for changes
   remote: adding changesets
   remote: adding manifests
   remote: adding file changes
   remote: added 2 changesets with 2 changes to 2 files (+1 heads)
   $ hg -R ../repo log -G -T '{desc} {phase} {bookmarks}'
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   o  newcommit public
   |
   o  initialcommit public
   
   $ hg -R ../client2 log -G -T '{desc} {phase} {bookmarks}'
+  IMPORTANT: if you use this extension, please contact
+  mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+  unused and barring learning of users of this functionality, we drop this
+  extension in Mercurial 6.6.
   o  peercommit public
   |
   o  newcommit public

@@ -119,7 +119,7 @@ class _HTTPRangeHandler(urlreq.basehandler):
 
     def http_error_416(self, req, fp, code, msg, hdrs):
         # HTTP's Range Not Satisfiable error
-        raise _RangeError(b'Requested Range Not Satisfiable')
+        raise _RangeError('Requested Range Not Satisfiable')
 
 
 def build_opener(ui, authinfo):
@@ -134,13 +134,13 @@ def build_opener(ui, authinfo):
 
         def __call__(self, path, mode=b'r', *args, **kw):
             if mode not in (b'r', b'rb'):
-                raise IOError(b'Permission denied')
+                raise IOError('Permission denied')
             f = b"/".join((self.base, urlreq.quote(path)))
             return httprangereader(f, urlopener)
 
-        def join(self, path):
+        def join(self, path, *insidef):
             if path:
-                return pathutil.join(self.base, path)
+                return pathutil.join(self.base, path, *insidef)
             else:
                 return self.base
 
@@ -237,8 +237,8 @@ class statichttprepository(
     def local(self):
         return False
 
-    def peer(self, path=None):
-        return statichttppeer(self, path=path)
+    def peer(self, path=None, remotehidden=False):
+        return statichttppeer(self, path=path, remotehidden=remotehidden)
 
     def wlock(self, wait=True):
         raise error.LockUnavailable(
@@ -260,8 +260,12 @@ class statichttprepository(
         pass  # statichttprepository are read only
 
 
-def make_peer(ui, path, create, intents=None, createopts=None):
+def make_peer(
+    ui, path, create, intents=None, createopts=None, remotehidden=False
+):
     if create:
         raise error.Abort(_(b'cannot create new static-http repository'))
     url = path.loc[7:]
-    return statichttprepository(ui, url).peer(path=path)
+    return statichttprepository(ui, url).peer(
+        path=path, remotehidden=remotehidden
+    )

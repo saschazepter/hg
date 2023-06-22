@@ -317,7 +317,8 @@ def _callhttp(repo, req, res, proto, cmd):
 
     proto.checkperm(wireprotov1server.commands[cmd].permission)
 
-    rsp = wireprotov1server.dispatch(repo, proto, cmd)
+    accesshidden = hgwebcommon.hashiddenaccess(repo, req)
+    rsp = wireprotov1server.dispatch(repo, proto, cmd, accesshidden)
 
     if isinstance(rsp, bytes):
         setresponse(HTTP_OK, HGTYPE, bodybytes=rsp)
@@ -445,7 +446,7 @@ class sshv1protocolhandler:
         pass
 
 
-def _runsshserver(ui, repo, fin, fout, ev):
+def _runsshserver(ui, repo, fin, fout, ev, accesshidden=False):
     # This function operates like a state machine of sorts. The following
     # states are defined:
     #
@@ -486,7 +487,9 @@ def _runsshserver(ui, repo, fin, fout, ev):
                 _sshv1respondbytes(fout, b'')
                 continue
 
-            rsp = wireprotov1server.dispatch(repo, proto, request)
+            rsp = wireprotov1server.dispatch(
+                repo, proto, request, accesshidden=accesshidden
+            )
             repo.ui.fout.flush()
             repo.ui.ferr.flush()
 
@@ -521,10 +524,11 @@ def _runsshserver(ui, repo, fin, fout, ev):
 
 
 class sshserver:
-    def __init__(self, ui, repo, logfh=None):
+    def __init__(self, ui, repo, logfh=None, accesshidden=False):
         self._ui = ui
         self._repo = repo
         self._fin, self._fout = ui.protectfinout()
+        self._accesshidden = accesshidden
 
         # Log write I/O to stdout and stderr if configured.
         if logfh:
@@ -541,4 +545,6 @@ class sshserver:
 
     def serveuntil(self, ev):
         """Serve until a threading.Event is set."""
-        _runsshserver(self._ui, self._repo, self._fin, self._fout, ev)
+        _runsshserver(
+            self._ui, self._repo, self._fin, self._fout, ev, self._accesshidden
+        )

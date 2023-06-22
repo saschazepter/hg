@@ -65,10 +65,10 @@ release = lock.release
 sharedbookmarks = b'bookmarks'
 
 
-def addbranchrevs(lrepo, other, branches, revs):
+def addbranchrevs(lrepo, other, branches, revs, remotehidden=False):
     if util.safehasattr(other, 'peer'):
         # a courtesy to callers using a localrepo for other
-        peer = other.peer()
+        peer = other.peer(remotehidden=remotehidden)
     else:
         peer = other
     hashbranch, branches = branches
@@ -242,7 +242,15 @@ def repository(
     return repo.filtered(b'visible')
 
 
-def peer(uiorrepo, opts, path, create=False, intents=None, createopts=None):
+def peer(
+    uiorrepo,
+    opts,
+    path,
+    create=False,
+    intents=None,
+    createopts=None,
+    remotehidden=False,
+):
     '''return a repository peer for the specified path'''
     ui = getattr(uiorrepo, 'ui', uiorrepo)
     rui = remoteui(uiorrepo, opts)
@@ -260,6 +268,7 @@ def peer(uiorrepo, opts, path, create=False, intents=None, createopts=None):
             create,
             intents=intents,
             createopts=createopts,
+            remotehidden=remotehidden,
         )
         _setup_repo_or_peer(rui, peer)
     else:
@@ -274,7 +283,7 @@ def peer(uiorrepo, opts, path, create=False, intents=None, createopts=None):
             intents=intents,
             createopts=createopts,
         )
-        peer = repo.peer(path=peer_path)
+        peer = repo.peer(path=peer_path, remotehidden=remotehidden)
     return peer
 
 
@@ -308,7 +317,7 @@ def sharedreposource(repo):
     if repo.sharedpath == repo.path:
         return None
 
-    if util.safehasattr(repo, b'srcrepo') and repo.srcrepo:
+    if util.safehasattr(repo, 'srcrepo') and repo.srcrepo:
         return repo.srcrepo
 
     # the sharedpath always ends in the .hg; we want the path to the repo
@@ -1558,7 +1567,7 @@ def verify(repo, level=None):
 
 def remoteui(src, opts):
     """build a remote ui from ui or repo and opts"""
-    if util.safehasattr(src, b'baseui'):  # looks like a repository
+    if util.safehasattr(src, 'baseui'):  # looks like a repository
         dst = src.baseui.copy()  # drop repo-specific config
         src = src.ui  # copy target options from repo
     else:  # assume it's a global ui object

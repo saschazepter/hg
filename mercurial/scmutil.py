@@ -234,7 +234,7 @@ def callcatch(ui, func):
         ui.error(_(b"abort: error: %s\n") % stringutil.forcebytestr(reason))
     except (IOError, OSError) as inst:
         if (
-            util.safehasattr(inst, b"args")
+            util.safehasattr(inst, "args")
             and inst.args
             and inst.args[0] == errno.EPIPE
         ):
@@ -1066,7 +1066,7 @@ def cleanupnodes(
         return
 
     # translate mapping's other forms
-    if not util.safehasattr(replacements, b'items'):
+    if not util.safehasattr(replacements, 'items'):
         replacements = {(n,): () for n in replacements}
     else:
         # upgrading non tuple "source" to tuple ones for BC
@@ -2313,3 +2313,13 @@ def format_bookmark_revspec(mark):
         mark,
         mark,
     )
+
+
+def ismember(ui, username, userlist):
+    """Check if username is a member of userlist.
+
+    If userlist has a single '*' member, all users are considered members.
+    Can be overridden by extensions to provide more complex authorization
+    schemes.
+    """
+    return userlist == [b'*'] or username in userlist

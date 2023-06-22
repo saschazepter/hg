@@ -1600,7 +1600,7 @@ Test ability to pull changeset with locally applying obsolescence markers
   
   $ hg debugbundle .hg/strip-backup/e008cf283490-*-backup.hg
   Stream params: {Compression: BZ}
-  changegroup -- {nbchanges: 1, version: 02} (mandatory: True)
+  changegroup -- {nbchanges: 1, version: 03} (mandatory: True)
       e008cf2834908e5d6b0f792a9d4b0e2272260fb8
   cache:rev-branch-cache -- {} (mandatory: False)
   phase-heads -- {} (mandatory: True)
@@ -1643,7 +1643,7 @@ Testing that strip remove markers:
   
   $ hg debugbundle .hg/strip-backup/e016b03fd86f-*-backup.hg
   Stream params: {Compression: BZ}
-  changegroup -- {nbchanges: 2, version: 02} (mandatory: True)
+  changegroup -- {nbchanges: 2, version: 03} (mandatory: True)
       e016b03fd86fcccc54817d120b90b751aaf367d6
       b0551702f918510f01ae838ab03a463054c67b46
   cache:rev-branch-cache -- {} (mandatory: False)

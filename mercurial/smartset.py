@@ -137,7 +137,7 @@ class abstractsmartset:
 
         This is part of the mandatory API for smartset."""
         # builtin cannot be cached. but do not needs to
-        if cache and util.safehasattr(condition, b'__code__'):
+        if cache and util.safehasattr(condition, '__code__'):
             condition = util.cachefunc(condition)
         return filteredset(self, condition, condrepr)
 
@@ -668,9 +668,9 @@ class addset(abstractsmartset):
         # try to use our own fast iterator if it exists
         self._trysetasclist()
         if self._ascending:
-            attr = b'fastasc'
+            attr = 'fastasc'
         else:
-            attr = b'fastdesc'
+            attr = 'fastdesc'
         it = getattr(self, attr)
         if it is not None:
             return it()
@@ -1127,7 +1127,7 @@ class fullreposet(_spanset):
         This boldly assumes the other contains valid revs only.
         """
         # other not a smartset, make is so
-        if not util.safehasattr(other, b'isascending'):
+        if not util.safehasattr(other, 'isascending'):
             # filter out hidden revision
             # (this boldly assumes all smartset are pure)
             #

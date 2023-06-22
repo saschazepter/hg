@@ -338,8 +338,24 @@ class wirepeer(repository.peer):
     # Begin of ipeercommands interface.
 
     def clonebundles(self):
-        self.requirecap(b'clonebundles', _(b'clone bundles'))
-        return self._call(b'clonebundles')
+        if self.capable(b'clonebundles_manifest'):
+            return self._call(b'clonebundles_manifest')
+        else:
+            self.requirecap(b'clonebundles', _(b'clone bundles'))
+            return self._call(b'clonebundles')
+
+    def _finish_inline_clone_bundle(self, stream):
+        pass  # allow override for httppeer
+
+    def get_cached_bundle_inline(self, path):
+        stream = self._callstream(b"get_cached_bundle_inline", path=path)
+        length = util.uvarintdecodestream(stream)
+
+        # SSH streams will block if reading more than length
+        for chunk in util.filechunkiter(stream, limit=length):
+            yield chunk
+
+        self._finish_inline_clone_bundle(stream)
 
     @batchable
     def lookup(self, key):
@@ -483,7 +499,7 @@ class wirepeer(repository.peer):
         else:
             heads = wireprototypes.encodelist(heads)
 
-        if util.safehasattr(bundle, b'deltaheader'):
+        if util.safehasattr(bundle, 'deltaheader'):
             # this a bundle10, do the old style call sequence
             ret, output = self._callpush(b"unbundle", bundle, heads=heads)
             if ret == b"":

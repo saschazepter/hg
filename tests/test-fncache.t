@@ -104,7 +104,7 @@ Non store repo:
   .hg/phaseroots
   .hg/requires
   .hg/undo
-  .hg/undo.backup.branch
+  .hg/undo.backup.branch.bck
   .hg/undo.backupfiles
   .hg/undo.desc
   .hg/wcache
@@ -144,7 +144,7 @@ Non fncache repo:
   .hg/store/requires
   .hg/store/undo
   .hg/store/undo.backupfiles
-  .hg/undo.backup.branch
+  .hg/undo.backup.branch.bck
   .hg/undo.desc
   .hg/wcache
   .hg/wcache/checkisexec (execbit !)
@@ -512,6 +512,7 @@ Unbundling should follow the same rules; existing files should not cause a load:
 
 (loading during the clone is expected)
   $ hg clone -q . tobundle
+  fncache load triggered!
   fncache load triggered!
   fncache load triggered!
 

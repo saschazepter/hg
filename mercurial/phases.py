@@ -154,6 +154,7 @@ archived = 32  # non-continuous for compatibility
 internal = 96  # non-continuous for compatibility
 allphases = (public, draft, secret, archived, internal)
 trackedphases = (draft, secret, archived, internal)
+not_public_phases = trackedphases
 # record phase names
 cmdphasenames = [b'public', b'draft', b'secret']  # known to `hg phase` command
 phasenames = dict(enumerate(cmdphasenames))
@@ -170,6 +171,10 @@ phasenumber2.update({b'%i' % phase: phase for phase in phasenames})
 mutablephases = (draft, secret, archived, internal)
 remotehiddenphases = (secret, archived, internal)
 localhiddenphases = (internal, archived)
+
+all_internal_phases = tuple(p for p in allphases if p & internal)
+# We do not want any internal content to exit the repository, ever.
+no_bundle_phases = all_internal_phases
 
 
 def supportinternal(repo):
@@ -458,11 +463,11 @@ class phasecache:
     def replace(self, phcache):
         """replace all values in 'self' with content of phcache"""
         for a in (
-            b'phaseroots',
-            b'dirty',
-            b'opener',
-            b'_loadedrevslen',
-            b'_phasesets',
+            'phaseroots',
+            'dirty',
+            'opener',
+            '_loadedrevslen',
+            '_phasesets',
         ):
             setattr(self, a, getattr(phcache, a))
 
@@ -826,10 +831,8 @@ def subsetphaseheads(repo, subset):
     cl = repo.changelog
 
     headsbyphase = {i: [] for i in allphases}
-    # No need to keep track of secret phase; any heads in the subset that
-    # are not mentioned are implicitly secret.
-    for phase in allphases[:secret]:
-        revset = b"heads(%%ln & %s())" % phasenames[phase]
+    for phase in allphases:
+        revset = b"heads(%%ln & _phase(%d))" % phase
         headsbyphase[phase] = [cl.node(r) for r in repo.revs(revset, subset)]
     return headsbyphase
 

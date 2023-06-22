@@ -281,7 +281,7 @@ class hybrid(wrapped):
 
     def getmember(self, context, mapping, key):
         # TODO: maybe split hybrid list/dict types?
-        if not util.safehasattr(self._values, b'get'):
+        if not util.safehasattr(self._values, 'get'):
             raise error.ParseError(_(b'not a dictionary'))
         key = unwrapastype(context, mapping, key, self._keytype)
         return self._wrapvalue(key, self._values.get(key))
@@ -301,13 +301,13 @@ class hybrid(wrapped):
     def _wrapvalue(self, key, val):
         if val is None:
             return
-        if util.safehasattr(val, b'_makemap'):
+        if util.safehasattr(val, '_makemap'):
             # a nested hybrid list/dict, which has its own way of map operation
             return val
         return hybriditem(None, key, val, self._makemap)
 
     def filter(self, context, mapping, select):
-        if util.safehasattr(self._values, b'get'):
+        if util.safehasattr(self._values, 'get'):
             values = {
                 k: v
                 for k, v in self._values.items()
@@ -341,7 +341,7 @@ class hybrid(wrapped):
     def tovalue(self, context, mapping):
         # TODO: make it non-recursive for trivial lists/dicts
         xs = self._values
-        if util.safehasattr(xs, b'get'):
+        if util.safehasattr(xs, 'get'):
             return {k: unwrapvalue(context, mapping, v) for k, v in xs.items()}
         return [unwrapvalue(context, mapping, x) for x in xs]
 
@@ -858,7 +858,7 @@ def flatten(context, mapping, thing):
         )
     elif thing is None:
         pass
-    elif not util.safehasattr(thing, b'__iter__'):
+    elif not util.safehasattr(thing, '__iter__'):
         yield pycompat.bytestr(thing)
     else:
         for i in thing:
@@ -868,7 +868,7 @@ def flatten(context, mapping, thing):
                 yield i
             elif i is None:
                 pass
-            elif not util.safehasattr(i, b'__iter__'):
+            elif not util.safehasattr(i, '__iter__'):
                 yield pycompat.bytestr(i)
             else:
                 for j in flatten(context, mapping, i):

@@ -107,7 +107,7 @@ class request:
 def _flushstdio(ui, err):
     status = None
     # In all cases we try to flush stdio streams.
-    if util.safehasattr(ui, b'fout'):
+    if util.safehasattr(ui, 'fout'):
         assert ui is not None  # help pytype
         assert ui.fout is not None  # help pytype
         try:
@@ -116,7 +116,7 @@ def _flushstdio(ui, err):
             err = e
             status = -1
 
-    if util.safehasattr(ui, b'ferr'):
+    if util.safehasattr(ui, 'ferr'):
         assert ui is not None  # help pytype
         assert ui.ferr is not None  # help pytype
         try:
@@ -331,7 +331,7 @@ def _runcatch(req):
 
         ui = req.ui
         try:
-            for name in b'SIGBREAK', b'SIGHUP', b'SIGTERM':
+            for name in 'SIGBREAK', 'SIGHUP', 'SIGTERM':
                 num = getattr(signal, name, None)
                 if num:
                     signal.signal(num, catchterm)
@@ -367,12 +367,18 @@ def _runcatch(req):
                 # shenanigans wherein a user does something like pass
                 # --debugger or --config=ui.debugger=1 as a repo
                 # name. This used to actually run the debugger.
+                nbargs = 4
+                hashiddenaccess = b'--hidden' in cmdargs
+                if hashiddenaccess:
+                    nbargs += 1
                 if (
-                    len(req.args) != 4
+                    len(req.args) != nbargs
                     or req.args[0] != b'-R'
                     or req.args[1].startswith(b'--')
                     or req.args[2] != b'serve'
                     or req.args[3] != b'--stdio'
+                    or hashiddenaccess
+                    and req.args[4] != b'--hidden'
                 ):
                     raise error.Abort(
                         _(b'potentially unsafe serve --stdio invocation: %s')
@@ -514,7 +520,7 @@ def _callcatch(ui, func):
 def aliasargs(fn, givenargs):
     args = []
     # only care about alias 'args', ignore 'args' set by extensions.wrapfunction
-    if not util.safehasattr(fn, b'_origfunc'):
+    if not util.safehasattr(fn, '_origfunc'):
         args = getattr(fn, 'args', args)
     if args:
         cmd = b' '.join(map(procutil.shellquote, args))
@@ -702,7 +708,7 @@ class cmdalias:
         }
         if name not in adefaults:
             raise AttributeError(name)
-        if self.badalias or util.safehasattr(self, b'shell'):
+        if self.badalias or util.safehasattr(self, 'shell'):
             return adefaults[name]
         return getattr(self.fn, name)
 
@@ -728,7 +734,7 @@ class cmdalias:
             self.name,
             self.definition,
         )
-        if util.safehasattr(self, b'shell'):
+        if util.safehasattr(self, 'shell'):
             return self.fn(ui, *args, **opts)
         else:
             try:
@@ -1018,7 +1024,7 @@ def _checkshellalias(lui, ui, args):
     cmd = aliases[0]
     fn = entry[0]
 
-    if cmd and util.safehasattr(fn, b'shell'):
+    if cmd and util.safehasattr(fn, 'shell'):
         # shell alias shouldn't receive early options which are consumed by hg
         _earlyopts, args = _earlysplitopts(args)
         d = lambda: fn(ui, *args[1:])

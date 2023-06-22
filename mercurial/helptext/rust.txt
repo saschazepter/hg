@@ -76,8 +76,9 @@ instructions on how to install from source.
 MSRV
 ====
 
-The minimum supported Rust version is currently 1.61.0. The project's policy is
-to follow the version from Debian testing, to make the distributions' job easier.
+The minimum supported Rust version is defined in `rust/clippy.toml`.
+The project's policy is to keep it at or below the version from Debian testing,
+to make the distributions' job easier.
 
 rhg
 ===

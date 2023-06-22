@@ -146,6 +146,12 @@ def getbundlespec(ui, fh):
                 splitted = requirements.split()
                 params = bundle2._formatrequirementsparams(splitted)
                 return b'none-v2;stream=v2;%s' % params
+            elif part.type == b'stream3-exp' and version is None:
+                # A stream3 part requires to be part of a v2 bundle
+                requirements = urlreq.unquote(part.params[b'requirements'])
+                splitted = requirements.split()
+                params = bundle2._formatrequirementsparams(splitted)
+                return b'none-v2;stream=v3-exp;%s' % params
             elif part.type == b'obsmarkers':
                 params[b'obsolescence'] = b'yes'
                 if not part.mandatory:
@@ -1637,7 +1643,7 @@ def pull(
 
     # We allow the narrow patterns to be passed in explicitly to provide more
     # flexibility for API consumers.
-    if includepats or excludepats:
+    if includepats is not None or excludepats is not None:
         includepats = includepats or set()
         excludepats = excludepats or set()
     else:
@@ -2421,7 +2427,7 @@ def getbundlechunks(
     return info, bundler.getchunks()
 
 
-@getbundle2partsgenerator(b'stream2')
+@getbundle2partsgenerator(b'stream')
 def _getbundlestream2(bundler, repo, *args, **kwargs):
     return bundle2.addpartbundlestream2(bundler, repo, **kwargs)
 
@@ -2828,7 +2834,7 @@ def _maybeapplyclonebundle(pullop):
 
     url = entries[0][b'URL']
     repo.ui.status(_(b'applying clone bundle from %s\n') % url)
-    if trypullbundlefromurl(repo.ui, repo, url):
+    if trypullbundlefromurl(repo.ui, repo, url, remote):
         repo.ui.status(_(b'finished applying clone bundle\n'))
     # Bundle failed.
     #
@@ -2849,11 +2855,22 @@ def _maybeapplyclonebundle(pullop):
         )
 
 
-def trypullbundlefromurl(ui, repo, url):
+def inline_clone_bundle_open(ui, url, peer):
+    if not peer:
+        raise error.Abort(_(b'no remote repository supplied for %s' % url))
+    clonebundleid = url[len(bundlecaches.CLONEBUNDLESCHEME) :]
+    peerclonebundle = peer.get_cached_bundle_inline(clonebundleid)
+    return util.chunkbuffer(peerclonebundle)
+
+
+def trypullbundlefromurl(ui, repo, url, peer):
     """Attempt to apply a bundle from a URL."""
     with repo.lock(), repo.transaction(b'bundleurl') as tr:
         try:
-            fh = urlmod.open(ui, url)
+            if url.startswith(bundlecaches.CLONEBUNDLESCHEME):
+                fh = inline_clone_bundle_open(ui, url, peer)
+            else:
+                fh = urlmod.open(ui, url)
             cg = readbundle(ui, fh, b'stream')
 
             if isinstance(cg, streamclone.streamcloneapplier):

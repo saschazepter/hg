@@ -6,6 +6,8 @@ Test the ability to access a hidden revision on a server
 
   $ . $TESTDIR/testlib/obsmarker-common.sh
   $ cat >> $HGRCPATH << EOF
+  > [ui]
+  > ssh = "$PYTHON" "$RUNTESTDIR/dummyssh"
   > [phases]
   > # public changeset are not obsolete
   > publish=false
@@ -109,5 +111,296 @@ changesets in secret and higher phases are not visible through hgweb
   revision:    2
   revision:    1
   revision:    0
+
+  $ killdaemons.py
+
+Test --remote-hidden for local peer
+-----------------------------------
+
+  $ hg clone --pull repo-with-hidden client
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 1 files
+  2 new obsolescence markers
+  new changesets 5f354f46e585:c33affeb3f6b (1 drafts)
+  updating to branch default
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg -R client log -G --hidden -v
+  @  1:c33affeb3f6b c_Amend_New [draft]
+  |
+  o  0:5f354f46e585 c_Public [public]
+  
+
+pulling an hidden changeset should fail:
+
+  $ hg -R client pull -r be215fbb8c50
+  pulling from $TESTTMP/repo-with-hidden
+  abort: filtered revision 'be215fbb8c50' (not in 'served' subset)
+  [10]
+
+pulling an hidden changeset with --remote-hidden should succeed:
+
+  $ hg -R client pull --remote-hidden --traceback -r be215fbb8c50
+  pulling from $TESTTMP/repo-with-hidden
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files (+1 heads)
+  (1 other changesets obsolete on arrival)
+  (run 'hg heads' to see heads)
+  $ hg -R client log -G --hidden -v
+  x  2:be215fbb8c50 c_Amend_Old [draft]
+  |
+  | @  1:c33affeb3f6b c_Amend_New [draft]
+  |/
+  o  0:5f354f46e585 c_Public [public]
+  
+
+Pulling a secret changeset is still forbidden:
+
+secret visible:
+
+  $ hg -R client pull --remote-hidden -r 8d28cbe335f3
+  pulling from $TESTTMP/repo-with-hidden
+  abort: filtered revision '8d28cbe335f3' (not in 'served.hidden' subset)
+  [10]
+
+secret hidden:
+
+  $ hg -R client pull --remote-hidden -r 1c6afd79eb66
+  pulling from $TESTTMP/repo-with-hidden
+  abort: filtered revision '1c6afd79eb66' (not in 'served.hidden' subset)
+  [10]
+
+Test accessing hidden changeset through hgweb
+---------------------------------------------
+
+  $ hg -R repo-with-hidden serve -p $HGPORT -d --pid-file hg.pid --config "experimental.server.allow-hidden-access=*" -E error.log --accesslog access.log
+  $ cat hg.pid >> $DAEMON_PIDS
+
+Hidden changeset are hidden by default:
+
+  $ get-with-headers.py localhost:$HGPORT 'log?style=raw' | grep revision:
+  revision:    2
+  revision:    0
+
+Hidden changeset are visible when requested:
+
+  $ get-with-headers.py localhost:$HGPORT 'log?style=raw&access-hidden=1' | grep revision:
+  revision:    3
+  revision:    2
+  revision:    1
+  revision:    0
+
+Same check on a server that do not allow hidden access:
+```````````````````````````````````````````````````````
+
+  $ hg -R repo-with-hidden serve -p $HGPORT1 -d --pid-file hg2.pid --config "experimental.server.allow-hidden-access=" -E error.log --accesslog access.log
+  $ cat hg2.pid >> $DAEMON_PIDS
+
+Hidden changeset are hidden by default:
+
+  $ get-with-headers.py localhost:$HGPORT1 'log?style=raw' | grep revision:
+  revision:    2
+  revision:    0
+
+Hidden changeset are still hidden despite being the hidden access request:
+
+  $ get-with-headers.py localhost:$HGPORT1 'log?style=raw&access-hidden=1' | grep revision:
+  revision:    2
+  revision:    0
+
+Test --remote-hidden for http peer
+----------------------------------
+
+  $ hg clone --pull http://localhost:$HGPORT client-http
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 1 files
+  2 new obsolescence markers
+  new changesets 5f354f46e585:c33affeb3f6b (1 drafts)
+  updating to branch default
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg -R client-http log -G --hidden -v
+  @  1:c33affeb3f6b c_Amend_New [draft]
+  |
+  o  0:5f354f46e585 c_Public [public]
+  
+
+pulling an hidden changeset should fail:
+
+  $ hg -R client-http pull -r be215fbb8c50
+  pulling from http://localhost:$HGPORT/
+  abort: filtered revision 'be215fbb8c50' (not in 'served' subset)
+  [255]
+
+pulling an hidden changeset with --remote-hidden should succeed:
+
+  $ hg -R client-http pull --remote-hidden -r be215fbb8c50
+  pulling from http://localhost:$HGPORT/
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files (+1 heads)
+  (1 other changesets obsolete on arrival)
+  (run 'hg heads' to see heads)
+  $ hg -R client-http log -G --hidden -v
+  x  2:be215fbb8c50 c_Amend_Old [draft]
+  |
+  | @  1:c33affeb3f6b c_Amend_New [draft]
+  |/
+  o  0:5f354f46e585 c_Public [public]
+  
+
+Pulling a secret changeset is still forbidden:
+
+secret visible:
+
+  $ hg -R client-http pull --remote-hidden -r 8d28cbe335f3
+  pulling from http://localhost:$HGPORT/
+  abort: filtered revision '8d28cbe335f3' (not in 'served.hidden' subset)
+  [255]
+
+secret hidden:
+
+  $ hg -R client-http pull --remote-hidden -r 1c6afd79eb66
+  pulling from http://localhost:$HGPORT/
+  abort: filtered revision '1c6afd79eb66' (not in 'served.hidden' subset)
+  [255]
+
+Same check on a server that do not allow hidden access:
+```````````````````````````````````````````````````````
+
+  $ hg clone --pull http://localhost:$HGPORT1 client-http2
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 1 files
+  2 new obsolescence markers
+  new changesets 5f354f46e585:c33affeb3f6b (1 drafts)
+  updating to branch default
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg -R client-http2 log -G --hidden -v
+  @  1:c33affeb3f6b c_Amend_New [draft]
+  |
+  o  0:5f354f46e585 c_Public [public]
+  
+
+pulling an hidden changeset should fail:
+
+  $ hg -R client-http2 pull -r be215fbb8c50
+  pulling from http://localhost:$HGPORT1/
+  abort: filtered revision 'be215fbb8c50' (not in 'served' subset)
+  [255]
+
+pulling an hidden changeset with --remote-hidden should fail too:
+
+  $ hg -R client-http2 pull --remote-hidden -r be215fbb8c50
+  pulling from http://localhost:$HGPORT1/
+  abort: filtered revision 'be215fbb8c50' (not in 'served' subset)
+  [255]
+
+Test --remote-hidden for ssh peer
+----------------------------------
+
+  $ hg clone --pull ssh://user@dummy/repo-with-hidden client-ssh
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 1 files
+  2 new obsolescence markers
+  new changesets 5f354f46e585:c33affeb3f6b (1 drafts)
+  updating to branch default
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg -R client-ssh log -G --hidden -v
+  @  1:c33affeb3f6b c_Amend_New [draft]
+  |
+  o  0:5f354f46e585 c_Public [public]
+  
+
+Check on a server that do not allow hidden access:
+``````````````````````````````````````````````````
+
+pulling an hidden changeset should fail:
+
+  $ hg -R client-ssh pull -r be215fbb8c50
+  pulling from ssh://user@dummy/repo-with-hidden
+  abort: filtered revision 'be215fbb8c50' (not in 'served' subset)
+  [255]
+
+pulling an hidden changeset with --remote-hidden should succeed:
+
+  $ hg -R client-ssh pull --remote-hidden -r be215fbb8c50
+  pulling from ssh://user@dummy/repo-with-hidden
+  remote: ignoring request to access hidden changeset by unauthorized user: * (glob)
+  abort: filtered revision 'be215fbb8c50' (not in 'served' subset)
+  [255]
+  $ hg -R client-ssh log -G --hidden -v
+  @  1:c33affeb3f6b c_Amend_New [draft]
+  |
+  o  0:5f354f46e585 c_Public [public]
+  
+
+Check on a server that do allow hidden access:
+``````````````````````````````````````````````
+
+  $ cat << EOF >> repo-with-hidden/.hg/hgrc
+  > [experimental]
+  > server.allow-hidden-access=*
+  > EOF
+
+pulling an hidden changeset should fail:
+
+  $ hg -R client-ssh pull -r be215fbb8c50
+  pulling from ssh://user@dummy/repo-with-hidden
+  abort: filtered revision 'be215fbb8c50' (not in 'served' subset)
+  [255]
+
+pulling an hidden changeset with --remote-hidden should succeed:
+
+  $ hg -R client-ssh pull --remote-hidden -r be215fbb8c50
+  pulling from ssh://user@dummy/repo-with-hidden
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files (+1 heads)
+  (1 other changesets obsolete on arrival)
+  (run 'hg heads' to see heads)
+  $ hg -R client-ssh log -G --hidden -v
+  x  2:be215fbb8c50 c_Amend_Old [draft]
+  |
+  | @  1:c33affeb3f6b c_Amend_New [draft]
+  |/
+  o  0:5f354f46e585 c_Public [public]
+  
+
+Pulling a secret changeset is still forbidden:
+
+secret visible:
+
+  $ hg -R client-ssh pull --remote-hidden -r 8d28cbe335f3
+  pulling from ssh://user@dummy/repo-with-hidden
+  abort: filtered revision '8d28cbe335f3' (not in 'served.hidden' subset)
+  [255]
+
+secret hidden:
+
+  $ hg -R client-ssh pull --remote-hidden -r 1c6afd79eb66
+  pulling from ssh://user@dummy/repo-with-hidden
+  abort: filtered revision '1c6afd79eb66' (not in 'served.hidden' subset)
+  [255]
+
+=============
+Final cleanup
+=============
 
   $ killdaemons.py

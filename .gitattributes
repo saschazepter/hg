@@ -1,0 +1,2 @@
+# So GitLab doesn't think we're using tons of Perl
+*.t -linguist-detectable

@@ -419,7 +419,7 @@ def wrapsocket(sock, keyfile, certfile, ui, serverhostname=None):
             pass
 
         # Try to print more helpful error messages for known failures.
-        if util.safehasattr(e, b'reason'):
+        if util.safehasattr(e, 'reason'):
             # This error occurs when the client and server don't share a
             # common/supported SSL/TLS protocol. We've disabled SSLv2 and SSLv3
             # outright. Hopefully the reason for this error is that we require
@@ -628,7 +628,7 @@ def wrapserversocket(
     # Otherwise, use the list of more secure ciphers if found in the ssl module.
     if exactprotocol:
         sslcontext.set_ciphers('DEFAULT:@SECLEVEL=0')
-    elif util.safehasattr(ssl, b'_RESTRICTED_SERVER_CIPHERS'):
+    elif util.safehasattr(ssl, '_RESTRICTED_SERVER_CIPHERS'):
         sslcontext.options |= getattr(ssl, 'OP_CIPHER_SERVER_PREFERENCE', 0)
         # pytype: disable=module-attr
         sslcontext.set_ciphers(ssl._RESTRICTED_SERVER_CIPHERS)
