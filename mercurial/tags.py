@@ -910,3 +910,13 @@ class hgtagsfnodescache:
             )
         finally:
             lock.release()
+
+
+def clear_cache_on_disk(repo):
+    """function used by the perf extension to "tags" cache"""
+    repo.cachevfs.tryunlink(_filename(repo))
+
+
+def clear_cache_fnodes(repo):
+    """function used by the perf extension to clear "file node cache"""
+    repo.cachevfs.tryunlink(_filename(repo))
