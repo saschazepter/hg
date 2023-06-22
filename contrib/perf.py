@@ -894,6 +894,19 @@ def _default_clear_on_disk_tags_fnodes_cache(repo):
     repo.cachevfs.tryunlink(tags._fnodescachefile)
 
 
+def _default_forget_fnodes(repo, revs):
+    """function used by the perf extension to prune some entries from the
+    fnodes cache"""
+    from mercurial import tags
+
+    missing_1 = b'\xff' * 4
+    missing_2 = b'\xff' * 20
+    cache = tags.hgtagsfnodescache(repo.unfiltered())
+    for r in revs:
+        cache._writeentry(r * tags._fnodesrecsize, missing_1, missing_2)
+    cache.write()
+
+
 @command(
     b'perf::tags|perftags',
     formatteropts
@@ -907,9 +920,16 @@ def _default_clear_on_disk_tags_fnodes_cache(repo):
         ),
         (
             b'',
-            b'clear-fnode-cache',
+            b'clear-fnode-cache-all',
             False,
             b'clear on disk file node cache (DESTRUCTIVE),',
+        ),
+        (
+            b'',
+            b'clear-fnode-cache-rev',
+            [],
+            b'clear on disk file node cache (DESTRUCTIVE),',
+            b'REVS',
         ),
     ],
 )
@@ -927,7 +947,9 @@ def perftags(ui, repo, **opts):
     repocleartagscache = repocleartagscachefunc(repo)
     clearrevlogs = opts[b'clear_revlogs']
     clear_disk = opts[b'clear_on_disk_cache']
-    clear_fnode = opts[b'clear_fnode_cache']
+    clear_fnode = opts[b'clear_fnode_cache_all']
+
+    clear_fnode_revs = opts[b'clear_fnode_cache_rev']
 
     clear_disk_fn = getattr(
         tags,
@@ -939,6 +961,15 @@ def perftags(ui, repo, **opts):
         "clear_cache_fnodes",
         _default_clear_on_disk_tags_fnodes_cache,
     )
+    clear_fnodes_rev_fn = getattr(
+        tags,
+        "forget_fnodes",
+        _default_forget_fnodes,
+    )
+
+    clear_revs = None
+    if clear_fnode_revs:
+        clear_revs = scmutil.revrange(repo, clear_fnode_revs)
 
     def s():
         if clearrevlogs:
@@ -948,6 +979,8 @@ def perftags(ui, repo, **opts):
             clear_disk_fn(repo)
         if clear_fnode:
             clear_fnodes_fn(repo)
+        elif clear_revs is not None:
+            clear_fnodes_rev_fn(repo, clear_revs)
         repocleartagscache()
 
     def t():
