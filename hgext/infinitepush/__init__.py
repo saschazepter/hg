@@ -154,6 +154,18 @@ configitem = registrar.configitem(configtable)
 
 configitem(
     b'infinitepush',
+    b'deprecation-message',
+    default=True,
+)
+
+configitem(
+    b'infinitepush',
+    b'deprecation-abort',
+    default=True,
+)
+
+configitem(
+    b'infinitepush',
     b'server',
     default=False,
 )
@@ -317,7 +329,20 @@ def _isserver(ui):
     return ui.configbool(b'infinitepush', b'server')
 
 
+WARNING_MSG = b"""IMPORTANT: if you use this extension, please contact
+mercurial-devel@mercurial-scm.org IMMEDIATELY. This extension is believed to be
+unused and barring learning of users of this functionality, we drop this
+extension in Mercurial 6.6.
+"""
+
+
 def reposetup(ui, repo):
+    if ui.configbool(b'infinitepush', b'deprecation-message'):
+        ui.write_err(WARNING_MSG)
+    if ui.configbool(b'infinitepush', b'deprecation-abort'):
+        msg = b"USING EXTENSION INFINITE PUSH DESPITE PENDING DROP"
+        hint = b"contact mercurial-devel@mercurial-scm.org"
+        raise error.Abort(msg, hint=hint)
     if _isserver(ui) and repo.local():
         repo.bundlestore = bundlestore(repo)
 
@@ -328,6 +353,11 @@ def extsetup(ui):
         serverextsetup(ui)
     else:
         clientextsetup(ui)
+
+
+def uipopulate(ui):
+    if not ui.hasconfig(b"experimental", b"changegroup3"):
+        ui.setconfig(b"experimental", b"changegroup3", False, b"infinitepush")
 
 
 def commonsetup(ui):

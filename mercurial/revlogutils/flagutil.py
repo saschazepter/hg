@@ -176,8 +176,12 @@ def _processflagsfunc(revlog, text, flags, operation):
             vhash = True
 
             if flag not in revlog._flagprocessors:
+                hint = None
+                if flag == REVIDX_EXTSTORED:
+                    hint = _(b"the lfs extension must be enabled")
+
                 message = _(b"missing processor for flag '%#x'") % flag
-                raise revlog._flagserrorclass(message)
+                raise revlog._flagserrorclass(message, hint=hint)
 
             processor = revlog._flagprocessors[flag]
             if processor is not None:

@@ -57,6 +57,7 @@ Prevent adding new files in the root directory accidentally.
   .arcconfig
   .clang-format
   .editorconfig
+  .gitattributes
   .hgignore
   .hgsigs
   .hgtags

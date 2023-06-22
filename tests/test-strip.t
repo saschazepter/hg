@@ -251,7 +251,7 @@
   
   $ hg debugbundle .hg/strip-backup/*
   Stream params: {Compression: BZ}
-  changegroup -- {nbchanges: 1, version: 02} (mandatory: True)
+  changegroup -- {nbchanges: 1, version: 03} (mandatory: True)
       264128213d290d868c54642d13aeaa3675551a78
   cache:rev-branch-cache -- {} (mandatory: False)
   phase-heads -- {} (mandatory: True)

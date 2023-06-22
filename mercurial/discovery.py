@@ -104,14 +104,14 @@ class outgoing:
         if ancestorsof is None:
             ancestorsof = cl.heads()
         if missingroots:
-            discbases = []
-            for n in missingroots:
-                discbases.extend([p for p in cl.parents(n) if p != repo.nullid])
             # TODO remove call to nodesbetween.
             # TODO populate attributes on outgoing instance instead of setting
             # discbases.
             csets, roots, heads = cl.nodesbetween(missingroots, ancestorsof)
             included = set(csets)
+            discbases = []
+            for n in csets:
+                discbases.extend([p for p in cl.parents(n) if p != repo.nullid])
             ancestorsof = heads
             commonheads = [n for n in discbases if n not in included]
         elif not commonheads:

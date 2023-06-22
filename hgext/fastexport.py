@@ -69,10 +69,10 @@ def convert_to_git_ref(branch):
     return b"refs/heads/" + branch
 
 
-def write_data(buf, data, skip_newline):
+def write_data(buf, data, add_newline=False):
     buf.append(b"data %d\n" % len(data))
     buf.append(data)
-    if not skip_newline or data[-1:] != b"\n":
+    if add_newline or data[-1:] != b"\n":
         buf.append(b"\n")
 
 
@@ -103,7 +103,7 @@ def export_commit(ui, repo, rev, marks, authormap):
             marks[filerev] = mark
             data = filectx.data()
             buf = [b"blob\n", b"mark :%d\n" % mark]
-            write_data(buf, data, False)
+            write_data(buf, data, True)
             ui.write(*buf, keepprogressbar=True)
             del buf
 
@@ -122,7 +122,7 @@ def export_commit(ui, repo, rev, marks, authormap):
             convert_to_git_date(ctx.date()),
         ),
     ]
-    write_data(buf, ctx.description(), True)
+    write_data(buf, ctx.description())
     if parents:
         buf.append(b"from :%d\n" % marks[parents[0].hex()])
     if len(parents) == 2:

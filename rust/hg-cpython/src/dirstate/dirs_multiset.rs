@@ -17,7 +17,7 @@ use cpython::{
 
 use hg::{
     utils::hg_path::{HgPath, HgPathBuf},
-    DirsMultiset, DirsMultisetIter, DirstateMapError,
+    DirsMultiset, DirsMultisetIter,
 };
 
 py_class!(pub class Dirs |py| {
@@ -54,19 +54,11 @@ py_class!(pub class Dirs |py| {
     def addpath(&self, path: PyObject) -> PyResult<PyObject> {
         self.inner(py).borrow_mut().add_path(
             HgPath::new(path.extract::<PyBytes>(py)?.data(py)),
-        ).and(Ok(py.None())).or_else(|e| {
-            match e {
-                DirstateMapError::EmptyPath => {
-                    Ok(py.None())
-                },
-                e => {
-                    Err(PyErr::new::<exc::ValueError, _>(
+        ).and(Ok(py.None())).map_err(|e| PyErr::new::<exc::ValueError, _>(
                         py,
                         e.to_string(),
-                    ))
-                }
-            }
-        })
+                    )
+        )
     }
 
     def delpath(&self, path: PyObject) -> PyResult<PyObject> {
@@ -74,19 +66,12 @@ py_class!(pub class Dirs |py| {
             HgPath::new(path.extract::<PyBytes>(py)?.data(py)),
         )
             .and(Ok(py.None()))
-            .or_else(|e| {
-                match e {
-                    DirstateMapError::EmptyPath => {
-                        Ok(py.None())
-                    },
-                    e => {
-                        Err(PyErr::new::<exc::ValueError, _>(
+            .map_err(|e|
+                        PyErr::new::<exc::ValueError, _>(
                             py,
                             e.to_string(),
-                        ))
-                    }
-                }
-            })
+                        )
+            )
     }
     def __iter__(&self) -> PyResult<DirsMultisetKeysIterator> {
         let leaked_ref = self.inner(py).leak_immutable();

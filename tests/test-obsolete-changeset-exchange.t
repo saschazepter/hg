@@ -164,7 +164,7 @@ client only pulls down 1 changeset
   adding manifests
   adding file changes
   adding foo revisions
-  bundle2-input-part: total payload size 476
+  bundle2-input-part: total payload size 486
   bundle2-input-part: "listkeys" (params: 1 mandatory) supported
   bundle2-input-part: "phase-heads" supported
   bundle2-input-part: total payload size 24

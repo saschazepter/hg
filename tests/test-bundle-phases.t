@@ -44,6 +44,7 @@ Set up repo with linear history
   cache:rev-branch-cache -- {} (mandatory: False)
   phase-heads -- {} (mandatory: True)
       26805aba1e600a82e93661149f2313866a221a7b draft
+      9bc730a19041f9ec7cb33c626e811aa233efb18c secret
   $ hg strip --no-backup C
 
 Phases show on incoming, and are also restored when pulling.  Secret commits
@@ -374,6 +375,7 @@ Restore bundle of entire repo
   phase-heads -- {} (mandatory: True)
       dc0947a82db884575bb76ea10ac97b08536bfa03 public
       03ca77807e919db8807c3749086dc36fb478cac0 draft
+      4e4f9194f9f181c57f62e823e8bdfa46ab9e4ff4 secret
   $ hg strip --no-backup A
   $ hg unbundle -q bundle
   $ rm bundle
@@ -398,6 +400,7 @@ Restore bundle of entire repo
       4e4f9194f9f181c57f62e823e8bdfa46ab9e4ff4
   cache:rev-branch-cache -- {} (mandatory: False)
   phase-heads -- {} (mandatory: True)
+      4e4f9194f9f181c57f62e823e8bdfa46ab9e4ff4 secret
   $ rm bundle
 
   $ hg bundle --base A -r D bundle
@@ -411,6 +414,7 @@ Restore bundle of entire repo
   cache:rev-branch-cache -- {} (mandatory: False)
   phase-heads -- {} (mandatory: True)
       dc0947a82db884575bb76ea10ac97b08536bfa03 public
+      4e4f9194f9f181c57f62e823e8bdfa46ab9e4ff4 secret
   $ rm bundle
 
   $ hg bundle --base 'B + C' -r 'D + E' bundle
@@ -423,4 +427,5 @@ Restore bundle of entire repo
   cache:rev-branch-cache -- {} (mandatory: False)
   phase-heads -- {} (mandatory: True)
       03ca77807e919db8807c3749086dc36fb478cac0 draft
+      4e4f9194f9f181c57f62e823e8bdfa46ab9e4ff4 secret
   $ rm bundle

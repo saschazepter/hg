@@ -177,7 +177,9 @@ def _cleanuppipes(ui, pipei, pipeo, pipee, warn):
         ui.develwarn(b'missing close on SSH connection created at:\n%s' % warn)
 
 
-def _makeconnection(ui, sshcmd, args, remotecmd, path, sshenv=None):
+def _makeconnection(
+    ui, sshcmd, args, remotecmd, path, sshenv=None, remotehidden=False
+):
     """Create an SSH connection to a server.
 
     Returns a tuple of (process, stdin, stdout, stderr) for the
@@ -187,8 +189,12 @@ def _makeconnection(ui, sshcmd, args, remotecmd, path, sshenv=None):
         sshcmd,
         args,
         procutil.shellquote(
-            b'%s -R %s serve --stdio'
-            % (_serverquote(remotecmd), _serverquote(path))
+            b'%s -R %s serve --stdio%s'
+            % (
+                _serverquote(remotecmd),
+                _serverquote(path),
+                b' --hidden' if remotehidden else b'',
+            )
         ),
     )
 
@@ -372,7 +378,16 @@ def _performhandshake(ui, stdin, stdout, stderr):
 
 class sshv1peer(wireprotov1peer.wirepeer):
     def __init__(
-        self, ui, path, proc, stdin, stdout, stderr, caps, autoreadstderr=True
+        self,
+        ui,
+        path,
+        proc,
+        stdin,
+        stdout,
+        stderr,
+        caps,
+        autoreadstderr=True,
+        remotehidden=False,
     ):
         """Create a peer from an existing SSH connection.
 
@@ -383,7 +398,7 @@ class sshv1peer(wireprotov1peer.wirepeer):
         ``autoreadstderr`` denotes whether to automatically read from
         stderr and to forward its output.
         """
-        super().__init__(ui, path=path)
+        super().__init__(ui, path=path, remotehidden=remotehidden)
         # self._subprocess is unused. Keeping a handle on the process
         # holds a reference and prevents it from being garbage collected.
         self._subprocess = proc
@@ -400,6 +415,7 @@ class sshv1peer(wireprotov1peer.wirepeer):
         self._caps = caps
         self._autoreadstderr = autoreadstderr
         self._initstack = b''.join(util.getstackframes(1))
+        self._remotehidden = remotehidden
 
     # Commands that have a "framed" response where the first line of the
     # response contains the length of that response.
@@ -568,7 +584,16 @@ class sshv1peer(wireprotov1peer.wirepeer):
             self._readerr()
 
 
-def makepeer(ui, path, proc, stdin, stdout, stderr, autoreadstderr=True):
+def _make_peer(
+    ui,
+    path,
+    proc,
+    stdin,
+    stdout,
+    stderr,
+    autoreadstderr=True,
+    remotehidden=False,
+):
     """Make a peer instance from existing pipes.
 
     ``path`` and ``proc`` are stored on the eventual peer instance and may
@@ -598,6 +623,7 @@ def makepeer(ui, path, proc, stdin, stdout, stderr, autoreadstderr=True):
             stderr,
             caps,
             autoreadstderr=autoreadstderr,
+            remotehidden=remotehidden,
         )
     else:
         _cleanuppipes(ui, stdout, stdin, stderr, warn=None)
@@ -606,7 +632,9 @@ def makepeer(ui, path, proc, stdin, stdout, stderr, autoreadstderr=True):
         )
 
 
-def make_peer(ui, path, create, intents=None, createopts=None):
+def make_peer(
+    ui, path, create, intents=None, createopts=None, remotehidden=False
+):
     """Create an SSH peer.
 
     The returned object conforms to the ``wireprotov1peer.wirepeer`` interface.
@@ -655,10 +683,18 @@ def make_peer(ui, path, create, intents=None, createopts=None):
             raise error.RepoError(_(b'could not create remote repo'))
 
     proc, stdin, stdout, stderr = _makeconnection(
-        ui, sshcmd, args, remotecmd, remotepath, sshenv
+        ui,
+        sshcmd,
+        args,
+        remotecmd,
+        remotepath,
+        sshenv,
+        remotehidden=remotehidden,
     )
 
-    peer = makepeer(ui, path, proc, stdin, stdout, stderr)
+    peer = _make_peer(
+        ui, path, proc, stdin, stdout, stderr, remotehidden=remotehidden
+    )
 
     # Finally, if supported by the server, notify it about our own
     # capabilities.

@@ -23,11 +23,40 @@ from .utils import stringutil
 
 urlreq = util.urlreq
 
+BUNDLE_CACHE_DIR = b'bundle-cache'
 CB_MANIFEST_FILE = b'clonebundles.manifest'
+CLONEBUNDLESCHEME = b"peer-bundle-cache://"
+
+
+def get_manifest(repo):
+    """get the bundle manifest to be served to a client from a server"""
+    raw_text = repo.vfs.tryread(CB_MANIFEST_FILE)
+    entries = [e.split(b' ', 1) for e in raw_text.splitlines()]
+
+    new_lines = []
+    for e in entries:
+        url = alter_bundle_url(repo, e[0])
+        if len(e) == 1:
+            line = url + b'\n'
+        else:
+            line = b"%s %s\n" % (url, e[1])
+        new_lines.append(line)
+    return b''.join(new_lines)
+
+
+def alter_bundle_url(repo, url):
+    """a function that exist to help extension and hosting to alter the url
+
+    This will typically be used to inject authentication information in the url
+    of cached bundles."""
+    return url
+
+
 SUPPORTED_CLONEBUNDLE_SCHEMES = [
     b"http://",
     b"https://",
     b"largefile://",
+    CLONEBUNDLESCHEME,
 ]
 
 
@@ -60,11 +89,18 @@ class bundlespec:
         if overwrite or key not in self._explicit_params:
             self._explicit_params[key] = value
 
+    def as_spec(self):
+        parts = [b"%s-%s" % (self.compression, self.version)]
+        for param in sorted(self._explicit_params.items()):
+            parts.append(b'%s=%s' % param)
+        return b';'.join(parts)
+
 
 # Maps bundle version human names to changegroup versions.
 _bundlespeccgversions = {
     b'v1': b'01',
     b'v2': b'02',
+    b'v3': b'03',
     b'packed1': b's1',
     b'bundle2': b'02',  # legacy
 }
@@ -87,12 +123,29 @@ _bundlespeccontentopts = {
         b'tagsfnodescache': True,
         b'revbranchcache': True,
     },
+    b'v3': {
+        b'changegroup': True,
+        b'cg.version': b'03',
+        b'obsolescence': False,
+        b'phases': True,
+        b'tagsfnodescache': True,
+        b'revbranchcache': True,
+    },
     b'streamv2': {
         b'changegroup': False,
         b'cg.version': b'02',
         b'obsolescence': False,
         b'phases': False,
         b"streamv2": True,
+        b'tagsfnodescache': False,
+        b'revbranchcache': False,
+    },
+    b'streamv3-exp': {
+        b'changegroup': False,
+        b'cg.version': b'03',
+        b'obsolescence': False,
+        b'phases': False,
+        b"streamv3-exp": True,
         b'tagsfnodescache': False,
         b'revbranchcache': False,
     },
@@ -265,19 +318,19 @@ def parsebundlespec(repo, spec, strict=True):
             )
 
     # Compute contentopts based on the version
-    if b"stream" in params and params[b"stream"] == b"v2":
-        # That case is fishy as this mostly derails the version selection
+    if b"stream" in params:
+        # This case is fishy as this mostly derails the version selection
         # mechanism. `stream` bundles are quite specific and used differently
         # as "normal" bundles.
         #
-        # So we are pinning this to "v2", as this will likely be
-        # compatible forever. (see the next conditional).
-        #
         # (we should probably define a cleaner way to do this and raise a
-        # warning when the old way is encounter)
-        version = b"streamv2"
+        # warning when the old way is encountered)
+        if params[b"stream"] == b"v2":
+            version = b"streamv2"
+        if params[b"stream"] == b"v3-exp":
+            version = b"streamv3-exp"
     contentopts = _bundlespeccontentopts.get(version, {}).copy()
-    if version == b"streamv2":
+    if version == b"streamv2" or version == b"streamv3-exp":
         # streamv2 have been reported as "v2" for a while.
         version = b"v2"
 
@@ -335,7 +388,10 @@ def isstreamclonespec(bundlespec):
     if (
         bundlespec.wirecompression == b'UN'
         and bundlespec.wireversion == b'02'
-        and bundlespec.contentopts.get(b'streamv2')
+        and (
+            bundlespec.contentopts.get(b'streamv2')
+            or bundlespec.contentopts.get(b'streamv3-exp')
+        )
     ):
         return True
 

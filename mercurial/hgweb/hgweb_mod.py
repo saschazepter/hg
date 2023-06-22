@@ -39,6 +39,7 @@ from .. import (
 )
 
 from . import (
+    common,
     request as requestmod,
     webcommands,
     webutil,
@@ -123,6 +124,16 @@ class requestcontext:
         self.reponame = app.reponame
         self.req = req
         self.res = res
+
+        # Only works if the filter actually support being upgraded to show
+        # visible changesets
+        current_filter = repo.filtername
+        if (
+            common.hashiddenaccess(repo, req)
+            and current_filter is not None
+            and current_filter + b'.hidden' in repoview.filtertable
+        ):
+            self.repo = self.repo.filtered(repo.filtername + b'.hidden')
 
         self.maxchanges = self.configint(b'web', b'maxchanges')
         self.stripecount = self.configint(b'web', b'stripes')
@@ -467,7 +478,7 @@ class hgweb:
 
         except (error.LookupError, error.RepoLookupError) as err:
             msg = pycompat.bytestr(err)
-            if util.safehasattr(err, b'name') and not isinstance(
+            if util.safehasattr(err, 'name') and not isinstance(
                 err, error.ManifestLookupError
             ):
                 msg = b'revision not found: %s' % err.name

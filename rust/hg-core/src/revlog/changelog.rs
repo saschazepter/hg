@@ -1,6 +1,6 @@
 use crate::errors::HgError;
-use crate::revlog::Revision;
 use crate::revlog::{Node, NodePrefix};
+use crate::revlog::{Revision, NULL_REVISION};
 use crate::revlog::{Revlog, RevlogEntry, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::vfs::Vfs;
@@ -9,7 +9,7 @@ use std::ascii::escape_default;
 use std::borrow::Cow;
 use std::fmt::{Debug, Formatter};
 
-/// A specialized `Revlog` to work with `changelog` data format.
+/// A specialized `Revlog` to work with changelog data format.
 pub struct Changelog {
     /// The generic `revlog` format.
     pub(crate) revlog: Revlog,
@@ -23,7 +23,7 @@ impl Changelog {
         Ok(Self { revlog })
     }
 
-    /// Return the `ChangelogEntry` for the given node ID.
+    /// Return the `ChangelogRevisionData` for the given node ID.
     pub fn data_for_node(
         &self,
         node: NodePrefix,
@@ -32,30 +32,29 @@ impl Changelog {
         self.data_for_rev(rev)
     }
 
-    /// Return the `RevlogEntry` of the given revision number.
+    /// Return the [`ChangelogEntry`] for the given revision number.
     pub fn entry_for_rev(
         &self,
         rev: Revision,
-    ) -> Result<RevlogEntry, RevlogError> {
-        self.revlog.get_entry(rev)
+    ) -> Result<ChangelogEntry, RevlogError> {
+        let revlog_entry = self.revlog.get_entry(rev)?;
+        Ok(ChangelogEntry { revlog_entry })
     }
 
-    /// Return the `ChangelogEntry` of the given revision number.
+    /// Return the [`ChangelogRevisionData`] for the given revision number.
+    ///
+    /// This is a useful shortcut in case the caller does not need the
+    /// generic revlog information (parents, hashes etc). Otherwise
+    /// consider taking a [`ChangelogEntry`] with
+    /// [entry_for_rev](`Self::entry_for_rev`) and doing everything from there.
     pub fn data_for_rev(
         &self,
         rev: Revision,
     ) -> Result<ChangelogRevisionData, RevlogError> {
-        let bytes = self.revlog.get_rev_data(rev)?;
-        if bytes.is_empty() {
-            Ok(ChangelogRevisionData::null())
-        } else {
-            Ok(ChangelogRevisionData::new(bytes).map_err(|err| {
-                RevlogError::Other(HgError::CorruptedRepository(format!(
-                    "Invalid changelog data for revision {}: {:?}",
-                    rev, err
-                )))
-            })?)
+        if rev == NULL_REVISION {
+            return Ok(ChangelogRevisionData::null());
         }
+        self.entry_for_rev(rev)?.data()
     }
 
     pub fn node_from_rev(&self, rev: Revision) -> Option<&Node> {
@@ -67,6 +66,59 @@ impl Changelog {
         node: NodePrefix,
     ) -> Result<Revision, RevlogError> {
         self.revlog.rev_from_node(node)
+    }
+}
+
+/// A specialized `RevlogEntry` for `changelog` data format
+///
+/// This is a `RevlogEntry` with the added semantics that the associated
+/// data should meet the requirements for `changelog`, materialized by
+/// the fact that `data()` constructs a `ChangelogRevisionData`.
+/// In case that promise would be broken, the `data` method returns an error.
+#[derive(Clone)]
+pub struct ChangelogEntry<'changelog> {
+    /// Same data, as a generic `RevlogEntry`.
+    pub(crate) revlog_entry: RevlogEntry<'changelog>,
+}
+
+impl<'changelog> ChangelogEntry<'changelog> {
+    pub fn data<'a>(
+        &'a self,
+    ) -> Result<ChangelogRevisionData<'changelog>, RevlogError> {
+        let bytes = self.revlog_entry.data()?;
+        if bytes.is_empty() {
+            Ok(ChangelogRevisionData::null())
+        } else {
+            Ok(ChangelogRevisionData::new(bytes).map_err(|err| {
+                RevlogError::Other(HgError::CorruptedRepository(format!(
+                    "Invalid changelog data for revision {}: {:?}",
+                    self.revlog_entry.revision(),
+                    err
+                )))
+            })?)
+        }
+    }
+
+    /// Obtain a reference to the underlying `RevlogEntry`.
+    ///
+    /// This allows the caller to access the information that is common
+    /// to all revlog entries: revision number, node id, parent revisions etc.
+    pub fn as_revlog_entry(&self) -> &RevlogEntry {
+        &self.revlog_entry
+    }
+
+    pub fn p1_entry(&self) -> Result<Option<ChangelogEntry>, RevlogError> {
+        Ok(self
+            .revlog_entry
+            .p1_entry()?
+            .map(|revlog_entry| Self { revlog_entry }))
+    }
+
+    pub fn p2_entry(&self) -> Result<Option<ChangelogEntry>, RevlogError> {
+        Ok(self
+            .revlog_entry
+            .p2_entry()?
+            .map(|revlog_entry| Self { revlog_entry }))
     }
 }
 
@@ -215,6 +267,8 @@ fn debug_bytes(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::vfs::Vfs;
+    use crate::NULL_REVISION;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -267,5 +321,21 @@ message",
             vec![HgPath::new("file1"), HgPath::new("file2")]
         );
         assert_eq!(data.description(), b"some\ncommit\nmessage");
+    }
+
+    #[test]
+    fn test_data_from_rev_null() -> Result<(), RevlogError> {
+        // an empty revlog will be enough for this case
+        let temp = tempfile::tempdir().unwrap();
+        let vfs = Vfs { base: temp.path() };
+        std::fs::write(temp.path().join("foo.i"), b"").unwrap();
+        let revlog = Revlog::open(&vfs, "foo.i", None, false).unwrap();
+
+        let changelog = Changelog { revlog };
+        assert_eq!(
+            changelog.data_for_rev(NULL_REVISION)?,
+            ChangelogRevisionData::null()
+        );
+        Ok(())
     }
 }

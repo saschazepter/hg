@@ -23,6 +23,7 @@ use std::path::Path;
 
 use flate2::read::ZlibDecoder;
 use sha1::{Digest, Sha1};
+use std::cell::RefCell;
 use zstd;
 
 use self::node::{NODE_BYTES_LENGTH, NULL_NODE};
@@ -400,10 +401,10 @@ impl Revlog {
 /// The revlog entry's bytes and the necessary informations to extract
 /// the entry's data.
 #[derive(Clone)]
-pub struct RevlogEntry<'a> {
-    revlog: &'a Revlog,
+pub struct RevlogEntry<'revlog> {
+    revlog: &'revlog Revlog,
     rev: Revision,
-    bytes: &'a [u8],
+    bytes: &'revlog [u8],
     compressed_len: u32,
     uncompressed_len: i32,
     base_rev_or_base_of_delta_chain: Option<Revision>,
@@ -413,7 +414,22 @@ pub struct RevlogEntry<'a> {
     hash: Node,
 }
 
-impl<'a> RevlogEntry<'a> {
+thread_local! {
+  // seems fine to [unwrap] here: this can only fail due to memory allocation
+  // failing, and it's normal for that to cause panic.
+  static ZSTD_DECODER : RefCell<zstd::bulk::Decompressor<'static>> =
+      RefCell::new(zstd::bulk::Decompressor::new().ok().unwrap());
+}
+
+fn zstd_decompress_to_buffer(
+    bytes: &[u8],
+    buf: &mut Vec<u8>,
+) -> Result<usize, std::io::Error> {
+    ZSTD_DECODER
+        .with(|decoder| decoder.borrow_mut().decompress_to_buffer(bytes, buf))
+}
+
+impl<'revlog> RevlogEntry<'revlog> {
     pub fn revision(&self) -> Revision {
         self.rev
     }
@@ -430,7 +446,9 @@ impl<'a> RevlogEntry<'a> {
         self.p1 != NULL_REVISION
     }
 
-    pub fn p1_entry(&self) -> Result<Option<RevlogEntry>, RevlogError> {
+    pub fn p1_entry(
+        &self,
+    ) -> Result<Option<RevlogEntry<'revlog>>, RevlogError> {
         if self.p1 == NULL_REVISION {
             Ok(None)
         } else {
@@ -438,7 +456,9 @@ impl<'a> RevlogEntry<'a> {
         }
     }
 
-    pub fn p2_entry(&self) -> Result<Option<RevlogEntry>, RevlogError> {
+    pub fn p2_entry(
+        &self,
+    ) -> Result<Option<RevlogEntry<'revlog>>, RevlogError> {
         if self.p2 == NULL_REVISION {
             Ok(None)
         } else {
@@ -473,7 +493,7 @@ impl<'a> RevlogEntry<'a> {
     }
 
     /// The data for this entry, after resolving deltas if any.
-    pub fn rawdata(&self) -> Result<Cow<'a, [u8]>, HgError> {
+    pub fn rawdata(&self) -> Result<Cow<'revlog, [u8]>, HgError> {
         let mut entry = self.clone();
         let mut delta_chain = vec![];
 
@@ -503,8 +523,8 @@ impl<'a> RevlogEntry<'a> {
 
     fn check_data(
         &self,
-        data: Cow<'a, [u8]>,
-    ) -> Result<Cow<'a, [u8]>, HgError> {
+        data: Cow<'revlog, [u8]>,
+    ) -> Result<Cow<'revlog, [u8]>, HgError> {
         if self.revlog.check_hash(
             self.p1,
             self.p2,
@@ -525,7 +545,7 @@ impl<'a> RevlogEntry<'a> {
         }
     }
 
-    pub fn data(&self) -> Result<Cow<'a, [u8]>, HgError> {
+    pub fn data(&self) -> Result<Cow<'revlog, [u8]>, HgError> {
         let data = self.rawdata()?;
         if self.is_censored() {
             return Err(HgError::CensoredNodeError);
@@ -535,7 +555,7 @@ impl<'a> RevlogEntry<'a> {
 
     /// Extract the data contained in the entry.
     /// This may be a delta. (See `is_delta`.)
-    fn data_chunk(&self) -> Result<Cow<'a, [u8]>, HgError> {
+    fn data_chunk(&self) -> Result<Cow<'revlog, [u8]>, HgError> {
         if self.bytes.is_empty() {
             return Ok(Cow::Borrowed(&[]));
         }
@@ -576,15 +596,28 @@ impl<'a> RevlogEntry<'a> {
     }
 
     fn uncompressed_zstd_data(&self) -> Result<Vec<u8>, HgError> {
+        let cap = self.uncompressed_len.max(0) as usize;
         if self.is_delta() {
-            let mut buf = Vec::with_capacity(self.compressed_len as usize);
-            zstd::stream::copy_decode(self.bytes, &mut buf)
-                .map_err(|e| corrupted(e.to_string()))?;
+            // [cap] is usually an over-estimate of the space needed because
+            // it's the length of delta-decoded data, but we're interested
+            // in the size of the delta.
+            // This means we have to [shrink_to_fit] to avoid holding on
+            // to a large chunk of memory, but it also means we must have a
+            // fallback branch, for the case when the delta is longer than
+            // the original data (surprisingly, this does happen in practice)
+            let mut buf = Vec::with_capacity(cap);
+            match zstd_decompress_to_buffer(self.bytes, &mut buf) {
+                Ok(_) => buf.shrink_to_fit(),
+                Err(_) => {
+                    buf.clear();
+                    zstd::stream::copy_decode(self.bytes, &mut buf)
+                        .map_err(|e| corrupted(e.to_string()))?;
+                }
+            };
             Ok(buf)
         } else {
-            let cap = self.uncompressed_len.max(0) as usize;
-            let mut buf = vec![0; cap];
-            let len = zstd::bulk::decompress_to_buffer(self.bytes, &mut buf)
+            let mut buf = Vec::with_capacity(cap);
+            let len = zstd_decompress_to_buffer(self.bytes, &mut buf)
                 .map_err(|e| corrupted(e.to_string()))?;
             if len != self.uncompressed_len as usize {
                 Err(corrupted("uncompressed length does not match"))

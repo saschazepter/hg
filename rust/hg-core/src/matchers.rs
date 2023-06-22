@@ -708,7 +708,9 @@ fn roots_and_dirs(
                 }
                 roots.push(root);
             }
-            PatternSyntax::Path | PatternSyntax::RelPath => {
+            PatternSyntax::Path
+            | PatternSyntax::RelPath
+            | PatternSyntax::FilePath => {
                 let pat = HgPath::new(if pattern == b"." {
                     &[] as &[u8]
                 } else {
@@ -1221,6 +1223,40 @@ mod tests {
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"dir/subdir/x")),
             VisitChildrenSet::This
+        );
+
+        // VisitchildrensetFilePath
+        let matcher = IncludeMatcher::new(vec![IgnorePattern::new(
+            PatternSyntax::FilePath,
+            b"dir/z",
+            Path::new(""),
+        )])
+        .unwrap();
+
+        let mut set = HashSet::new();
+        set.insert(HgPathBuf::from_bytes(b"dir"));
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::Set(set)
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"folder")),
+            VisitChildrenSet::Empty
+        );
+        let mut set = HashSet::new();
+        set.insert(HgPathBuf::from_bytes(b"z"));
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir")),
+            VisitChildrenSet::Set(set)
+        );
+        // OPT: these should probably be set().
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/subdir")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"dir/subdir/x")),
+            VisitChildrenSet::Empty
         );
 
         // Test multiple patterns

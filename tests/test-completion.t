@@ -78,6 +78,8 @@ Show debug commands if there are no other candidates
   debug-repair-issue6528
   debug-revlog-index
   debug-revlog-stats
+  debug::stable-tail-sort
+  debug::stable-tail-sort-leaps
   debugancestor
   debugantivirusrunning
   debugapplystreamclonebundle
@@ -273,6 +275,8 @@ Show all commands + options
   debug-repair-issue6528: to-report, from-report, paranoid, dry-run
   debug-revlog-index: changelog, manifest, dir, template
   debug-revlog-stats: changelog, manifest, filelogs, template
+  debug::stable-tail-sort: template
+  debug::stable-tail-sort-leaps: template, specific
   debugancestor: 
   debugantivirusrunning: 
   debugapplystreamclonebundle: 
@@ -309,7 +313,7 @@ Show all commands + options
   debugmanifestfulltextcache: clear, add
   debugmergestate: style, template
   debugnamecomplete: 
-  debugnodemap: dump-new, dump-disk, check, metadata
+  debugnodemap: changelog, manifest, dir, dump-new, dump-disk, check, metadata
   debugobsolete: flags, record-parents, rev, exclusive, index, delete, date, user, template
   debugp1copies: rev
   debugp2copies: rev
@@ -364,7 +368,7 @@ Show all commands + options
   parents: rev, style, template
   paths: template
   phase: public, draft, secret, force, rev
-  pull: update, force, confirm, rev, bookmark, branch, ssh, remotecmd, insecure
+  pull: update, force, confirm, rev, bookmark, branch, remote-hidden, ssh, remotecmd, insecure
   purge: abort-on-err, all, ignored, dirs, files, print, print0, confirm, include, exclude
   push: force, rev, bookmark, all-bookmarks, branch, new-branch, pushvars, publish, ssh, remotecmd, insecure
   recover: verify

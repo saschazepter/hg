@@ -95,7 +95,7 @@ new directories are setgid
   00600 ./.hg/store/requires
   00660 ./.hg/store/undo
   00660 ./.hg/store/undo.backupfiles
-  00660 ./.hg/undo.backup.branch
+  00660 ./.hg/undo.backup.branch.bck
   00660 ./.hg/undo.desc
   00770 ./.hg/wcache/
   00711 ./.hg/wcache/checkisexec
@@ -153,7 +153,7 @@ group can still write everything
   00660 ../push/.hg/store/requires
   00660 ../push/.hg/store/undo
   00660 ../push/.hg/store/undo.backupfiles
-  00660 ../push/.hg/undo.backup.branch
+  00660 ../push/.hg/undo.backup.branch.bck
   00660 ../push/.hg/undo.desc
   00770 ../push/.hg/wcache/
 

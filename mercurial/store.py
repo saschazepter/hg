@@ -1,25 +1,35 @@
-# store.py - repository store handling for Mercurial
+# store.py - repository store handling for Mercurial)
 #
 # Copyright 2008 Olivia Mackall <olivia@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-
+import collections
 import functools
 import os
 import re
 import stat
+from typing import Generator, List
 
 from .i18n import _
 from .pycompat import getattr
+from .thirdparty import attr
 from .node import hex
+from .revlogutils.constants import (
+    INDEX_HEADER,
+    KIND_CHANGELOG,
+    KIND_FILELOG,
+    KIND_MANIFESTLOG,
+)
 from . import (
     changelog,
     error,
+    filelog,
     manifest,
     policy,
     pycompat,
+    revlog as revlogmod,
     util,
     vfs as vfsmod,
 )
@@ -31,7 +41,7 @@ parsers = policy.importmod('parsers')
 fncache_chunksize = 10 ** 6
 
 
-def _matchtrackedpath(path, matcher):
+def _match_tracked_entry(entry, matcher):
     """parses a fncache entry and returns whether the entry is tracking a path
     matched by matcher or not.
 
@@ -39,13 +49,11 @@ def _matchtrackedpath(path, matcher):
 
     if matcher is None:
         return True
-    path = decodedir(path)
-    if path.startswith(b'data/'):
-        return matcher(path[len(b'data/') : -len(b'.i')])
-    elif path.startswith(b'meta/'):
-        return matcher.visitdir(path[len(b'meta/') : -len(b'/00manifest.i')])
-
-    raise error.ProgrammingError(b"cannot decode path %s" % path)
+    if entry.is_filelog:
+        return matcher(entry.target_id)
+    elif entry.is_manifestlog:
+        return matcher.visitdir(entry.target_id.rstrip(b'/'))
+    raise error.ProgrammingError(b"cannot process entry %r" % entry)
 
 
 # This avoids a collision between a file named foo and a dir named
@@ -384,15 +392,21 @@ _data = [
     b'requires',
 ]
 
-REVLOG_FILES_MAIN_EXT = (b'.i', b'i.tmpcensored')
-REVLOG_FILES_OTHER_EXT = (
+REVLOG_FILES_EXT = (
+    b'.i',
     b'.idx',
     b'.d',
     b'.dat',
     b'.n',
     b'.nd',
     b'.sda',
-    b'd.tmpcensored',
+)
+# file extension that also use a `-SOMELONGIDHASH.ext` form
+REVLOG_FILES_LONG_EXT = (
+    b'.nd',
+    b'.idx',
+    b'.dat',
+    b'.sda',
 )
 # files that are "volatile" and might change between listing and streaming
 #
@@ -408,48 +422,325 @@ EXCLUDED = re.compile(br'.*undo\.[^/]+\.(nd?|i)$')
 
 def is_revlog(f, kind, st):
     if kind != stat.S_IFREG:
-        return None
-    return revlog_type(f)
+        return False
+    if f.endswith(REVLOG_FILES_EXT):
+        return True
+    return False
 
 
-def revlog_type(f):
-    # XXX we need to filter `undo.` created by the transaction here, however
-    # being naive about it also filter revlog for `undo.*` files, leading to
-    # issue6542. So we no longer use EXCLUDED.
-    if f.endswith(REVLOG_FILES_MAIN_EXT):
-        return FILEFLAGS_REVLOG_MAIN
-    elif f.endswith(REVLOG_FILES_OTHER_EXT):
-        t = FILETYPE_FILELOG_OTHER
-        if f.endswith(REVLOG_FILES_VOLATILE_EXT):
-            t |= FILEFLAGS_VOLATILE
-        return t
-    return None
+def is_revlog_file(f):
+    if f.endswith(REVLOG_FILES_EXT):
+        return True
+    return False
 
 
-# the file is part of changelog data
-FILEFLAGS_CHANGELOG = 1 << 13
-# the file is part of manifest data
-FILEFLAGS_MANIFESTLOG = 1 << 12
-# the file is part of filelog data
-FILEFLAGS_FILELOG = 1 << 11
-# file that are not directly part of a revlog
-FILEFLAGS_OTHER = 1 << 10
+@attr.s(slots=True)
+class StoreFile:
+    """a file matching a store entry"""
 
-# the main entry point for a revlog
-FILEFLAGS_REVLOG_MAIN = 1 << 1
-# a secondary file for a revlog
-FILEFLAGS_REVLOG_OTHER = 1 << 0
+    unencoded_path = attr.ib()
+    _file_size = attr.ib(default=None)
+    is_volatile = attr.ib(default=False)
 
-# files that are "volatile" and might change between listing and streaming
-FILEFLAGS_VOLATILE = 1 << 20
+    def file_size(self, vfs):
+        if self._file_size is None:
+            if vfs is None:
+                msg = b"calling vfs-less file_size without prior call: %s"
+                msg %= self.unencoded_path
+                raise error.ProgrammingError(msg)
+            try:
+                self._file_size = vfs.stat(self.unencoded_path).st_size
+            except FileNotFoundError:
+                self._file_size = 0
+        return self._file_size
 
-FILETYPE_CHANGELOG_MAIN = FILEFLAGS_CHANGELOG | FILEFLAGS_REVLOG_MAIN
-FILETYPE_CHANGELOG_OTHER = FILEFLAGS_CHANGELOG | FILEFLAGS_REVLOG_OTHER
-FILETYPE_MANIFESTLOG_MAIN = FILEFLAGS_MANIFESTLOG | FILEFLAGS_REVLOG_MAIN
-FILETYPE_MANIFESTLOG_OTHER = FILEFLAGS_MANIFESTLOG | FILEFLAGS_REVLOG_OTHER
-FILETYPE_FILELOG_MAIN = FILEFLAGS_FILELOG | FILEFLAGS_REVLOG_MAIN
-FILETYPE_FILELOG_OTHER = FILEFLAGS_FILELOG | FILEFLAGS_REVLOG_OTHER
-FILETYPE_OTHER = FILEFLAGS_OTHER
+    def get_stream(self, vfs, copies):
+        """return data "stream" information for this file
+
+        (unencoded_file_path, content_iterator, content_size)
+        """
+        size = self.file_size(None)
+
+        def get_stream():
+            actual_path = copies[vfs.join(self.unencoded_path)]
+            with open(actual_path, 'rb') as fp:
+                yield None  # ready to stream
+                if size <= 65536:
+                    yield fp.read(size)
+                else:
+                    yield from util.filechunkiter(fp, limit=size)
+
+        s = get_stream()
+        next(s)
+        return (self.unencoded_path, s, size)
+
+
+@attr.s(slots=True, init=False)
+class BaseStoreEntry:
+    """An entry in the store
+
+    This is returned by `store.walk` and represent some data in the store."""
+
+    def files(self) -> List[StoreFile]:
+        raise NotImplementedError
+
+    def get_streams(
+        self,
+        repo=None,
+        vfs=None,
+        copies=None,
+        max_changeset=None,
+        preserve_file_count=False,
+    ):
+        """return a list of data stream associated to files for this entry
+
+        return [(unencoded_file_path, content_iterator, content_size), …]
+        """
+        assert vfs is not None
+        return [f.get_stream(vfs, copies) for f in self.files()]
+
+
+@attr.s(slots=True, init=False)
+class SimpleStoreEntry(BaseStoreEntry):
+    """A generic entry in the store"""
+
+    is_revlog = False
+
+    _entry_path = attr.ib()
+    _is_volatile = attr.ib(default=False)
+    _file_size = attr.ib(default=None)
+    _files = attr.ib(default=None)
+
+    def __init__(
+        self,
+        entry_path,
+        is_volatile=False,
+        file_size=None,
+    ):
+        super().__init__()
+        self._entry_path = entry_path
+        self._is_volatile = is_volatile
+        self._file_size = file_size
+        self._files = None
+
+    def files(self) -> List[StoreFile]:
+        if self._files is None:
+            self._files = [
+                StoreFile(
+                    unencoded_path=self._entry_path,
+                    file_size=self._file_size,
+                    is_volatile=self._is_volatile,
+                )
+            ]
+        return self._files
+
+
+@attr.s(slots=True, init=False)
+class RevlogStoreEntry(BaseStoreEntry):
+    """A revlog entry in the store"""
+
+    is_revlog = True
+
+    revlog_type = attr.ib(default=None)
+    target_id = attr.ib(default=None)
+    _path_prefix = attr.ib(default=None)
+    _details = attr.ib(default=None)
+    _files = attr.ib(default=None)
+
+    def __init__(
+        self,
+        revlog_type,
+        path_prefix,
+        target_id,
+        details,
+    ):
+        super().__init__()
+        self.revlog_type = revlog_type
+        self.target_id = target_id
+        self._path_prefix = path_prefix
+        assert b'.i' in details, (path_prefix, details)
+        self._details = details
+        self._files = None
+
+    @property
+    def is_changelog(self):
+        return self.revlog_type == KIND_CHANGELOG
+
+    @property
+    def is_manifestlog(self):
+        return self.revlog_type == KIND_MANIFESTLOG
+
+    @property
+    def is_filelog(self):
+        return self.revlog_type == KIND_FILELOG
+
+    def main_file_path(self):
+        """unencoded path of the main revlog file"""
+        return self._path_prefix + b'.i'
+
+    def files(self) -> List[StoreFile]:
+        if self._files is None:
+            self._files = []
+            for ext in sorted(self._details, key=_ext_key):
+                path = self._path_prefix + ext
+                file_size = self._details[ext]
+                # files that are "volatile" and might change between
+                # listing and streaming
+                #
+                # note: the ".nd" file are nodemap data and won't "change"
+                # but they might be deleted.
+                volatile = ext.endswith(REVLOG_FILES_VOLATILE_EXT)
+                f = StoreFile(path, file_size, volatile)
+                self._files.append(f)
+        return self._files
+
+    def get_streams(
+        self,
+        repo=None,
+        vfs=None,
+        copies=None,
+        max_changeset=None,
+        preserve_file_count=False,
+    ):
+        if (
+            repo is None
+            or max_changeset is None
+            # This use revlog-v2, ignore for now
+            or any(k.endswith(b'.idx') for k in self._details.keys())
+            # This is not inline, no race expected
+            or b'.d' in self._details
+        ):
+            return super().get_streams(
+                repo=repo,
+                vfs=vfs,
+                copies=copies,
+                max_changeset=max_changeset,
+                preserve_file_count=preserve_file_count,
+            )
+        elif not preserve_file_count:
+            stream = [
+                f.get_stream(vfs, copies)
+                for f in self.files()
+                if not f.unencoded_path.endswith((b'.i', b'.d'))
+            ]
+            rl = self.get_revlog_instance(repo).get_revlog()
+            rl_stream = rl.get_streams(max_changeset)
+            stream.extend(rl_stream)
+            return stream
+
+        name_to_size = {}
+        for f in self.files():
+            name_to_size[f.unencoded_path] = f.file_size(None)
+
+        stream = [
+            f.get_stream(vfs, copies)
+            for f in self.files()
+            if not f.unencoded_path.endswith(b'.i')
+        ]
+
+        index_path = self._path_prefix + b'.i'
+
+        index_file = None
+        try:
+            index_file = vfs(index_path)
+            header = index_file.read(INDEX_HEADER.size)
+            if revlogmod.revlog.is_inline_index(header):
+                size = name_to_size[index_path]
+
+                # no split underneath, just return the stream
+                def get_stream():
+                    fp = index_file
+                    try:
+                        fp.seek(0)
+                        yield None
+                        if size <= 65536:
+                            yield fp.read(size)
+                        else:
+                            yield from util.filechunkiter(fp, limit=size)
+                    finally:
+                        fp.close()
+
+                s = get_stream()
+                next(s)
+                index_file = None
+                stream.append((index_path, s, size))
+            else:
+                rl = self.get_revlog_instance(repo).get_revlog()
+                rl_stream = rl.get_streams(max_changeset, force_inline=True)
+                for name, s, size in rl_stream:
+                    if name_to_size.get(name, 0) != size:
+                        msg = _(b"expected %d bytes but %d provided for %s")
+                        msg %= name_to_size.get(name, 0), size, name
+                        raise error.Abort(msg)
+                stream.extend(rl_stream)
+        finally:
+            if index_file is not None:
+                index_file.close()
+
+        files = self.files()
+        assert len(stream) == len(files), (
+            stream,
+            files,
+            self._path_prefix,
+            self.target_id,
+        )
+        return stream
+
+    def get_revlog_instance(self, repo):
+        """Obtain a revlog instance from this store entry
+
+        An instance of the appropriate class is returned.
+        """
+        if self.is_changelog:
+            return changelog.changelog(repo.svfs)
+        elif self.is_manifestlog:
+            mandir = self.target_id
+            return manifest.manifestrevlog(
+                repo.nodeconstants, repo.svfs, tree=mandir
+            )
+        else:
+            return filelog.filelog(repo.svfs, self.target_id)
+
+
+def _gather_revlog(files_data):
+    """group files per revlog prefix
+
+    The returns a two level nested dict. The top level key is the revlog prefix
+    without extension, the second level is all the file "suffix" that were
+    seen for this revlog and arbitrary file data as value.
+    """
+    revlogs = collections.defaultdict(dict)
+    for u, value in files_data:
+        name, ext = _split_revlog_ext(u)
+        revlogs[name][ext] = value
+    return sorted(revlogs.items())
+
+
+def _split_revlog_ext(filename):
+    """split the revlog file prefix from the variable extension"""
+    if filename.endswith(REVLOG_FILES_LONG_EXT):
+        char = b'-'
+    else:
+        char = b'.'
+    idx = filename.rfind(char)
+    return filename[:idx], filename[idx:]
+
+
+def _ext_key(ext):
+    """a key to order revlog suffix
+
+    important to issue .i after other entry."""
+    # the only important part of this order is to keep the `.i` last.
+    if ext.endswith(b'.n'):
+        return (0, ext)
+    elif ext.endswith(b'.nd'):
+        return (10, ext)
+    elif ext.endswith(b'.d'):
+        return (20, ext)
+    elif ext.endswith(b'.i'):
+        return (50, ext)
+    else:
+        return (40, ext)
 
 
 class basicstore:
@@ -467,7 +758,7 @@ class basicstore:
     def join(self, f):
         return self.path + b'/' + encodedir(f)
 
-    def _walk(self, relpath, recurse):
+    def _walk(self, relpath, recurse, undecodable=None):
         '''yields (revlog_type, unencoded, size)'''
         path = self.path
         if relpath:
@@ -481,12 +772,12 @@ class basicstore:
                 p = visit.pop()
                 for f, kind, st in readdir(p, stat=True):
                     fp = p + b'/' + f
-                    rl_type = is_revlog(f, kind, st)
-                    if rl_type is not None:
+                    if is_revlog(f, kind, st):
                         n = util.pconvert(fp[striplen:])
-                        l.append((rl_type, decodedir(n), st.st_size))
+                        l.append((decodedir(n), st.st_size))
                     elif kind == stat.S_IFDIR and recurse:
                         visit.append(fp)
+
         l.sort()
         return l
 
@@ -501,40 +792,97 @@ class basicstore:
         rootstore = manifest.manifestrevlog(repo.nodeconstants, self.vfs)
         return manifest.manifestlog(self.vfs, repo, rootstore, storenarrowmatch)
 
-    def datafiles(self, matcher=None, undecodable=None):
+    def data_entries(
+        self, matcher=None, undecodable=None
+    ) -> Generator[BaseStoreEntry, None, None]:
         """Like walk, but excluding the changelog and root manifest.
 
         When [undecodable] is None, revlogs names that can't be
         decoded cause an exception. When it is provided, it should
         be a list and the filenames that can't be decoded are added
         to it instead. This is very rarely needed."""
-        files = self._walk(b'data', True) + self._walk(b'meta', True)
-        for (t, u, s) in files:
-            yield (FILEFLAGS_FILELOG | t, u, s)
+        dirs = [
+            (b'data', KIND_FILELOG, False),
+            (b'meta', KIND_MANIFESTLOG, True),
+        ]
+        for base_dir, rl_type, strip_filename in dirs:
+            files = self._walk(base_dir, True, undecodable=undecodable)
+            for revlog, details in _gather_revlog(files):
+                revlog_target_id = revlog.split(b'/', 1)[1]
+                if strip_filename and b'/' in revlog:
+                    revlog_target_id = revlog_target_id.rsplit(b'/', 1)[0]
+                    revlog_target_id += b'/'
+                yield RevlogStoreEntry(
+                    path_prefix=revlog,
+                    revlog_type=rl_type,
+                    target_id=revlog_target_id,
+                    details=details,
+                )
 
-    def topfiles(self):
-        # yield manifest before changelog
+    def top_entries(
+        self, phase=False, obsolescence=False
+    ) -> Generator[BaseStoreEntry, None, None]:
+        if phase and self.vfs.exists(b'phaseroots'):
+            yield SimpleStoreEntry(
+                entry_path=b'phaseroots',
+                is_volatile=True,
+            )
+
+        if obsolescence and self.vfs.exists(b'obsstore'):
+            # XXX if we had the file size it could be non-volatile
+            yield SimpleStoreEntry(
+                entry_path=b'obsstore',
+                is_volatile=True,
+            )
+
         files = reversed(self._walk(b'', False))
-        for (t, u, s) in files:
+
+        changelogs = collections.defaultdict(dict)
+        manifestlogs = collections.defaultdict(dict)
+
+        for u, s in files:
             if u.startswith(b'00changelog'):
-                yield (FILEFLAGS_CHANGELOG | t, u, s)
+                name, ext = _split_revlog_ext(u)
+                changelogs[name][ext] = s
             elif u.startswith(b'00manifest'):
-                yield (FILEFLAGS_MANIFESTLOG | t, u, s)
+                name, ext = _split_revlog_ext(u)
+                manifestlogs[name][ext] = s
             else:
-                yield (FILETYPE_OTHER | t, u, s)
+                yield SimpleStoreEntry(
+                    entry_path=u,
+                    is_volatile=False,
+                    file_size=s,
+                )
+        # yield manifest before changelog
+        top_rl = [
+            (manifestlogs, KIND_MANIFESTLOG),
+            (changelogs, KIND_CHANGELOG),
+        ]
+        assert len(manifestlogs) <= 1
+        assert len(changelogs) <= 1
+        for data, revlog_type in top_rl:
+            for revlog, details in sorted(data.items()):
+                yield RevlogStoreEntry(
+                    path_prefix=revlog,
+                    revlog_type=revlog_type,
+                    target_id=b'',
+                    details=details,
+                )
 
-    def walk(self, matcher=None):
-        """return file related to data storage (ie: revlogs)
+    def walk(
+        self, matcher=None, phase=False, obsolescence=False
+    ) -> Generator[BaseStoreEntry, None, None]:
+        """return files related to data storage (ie: revlogs)
 
-        yields (file_type, unencoded, size)
+        yields instance from BaseStoreEntry subclasses
 
         if a matcher is passed, storage files of only those tracked paths
         are passed with matches the matcher
         """
         # yield data files first
-        for x in self.datafiles(matcher):
+        for x in self.data_entries(matcher):
             yield x
-        for x in self.topfiles():
+        for x in self.top_entries(phase=phase, obsolescence=obsolescence):
             yield x
 
     def copylist(self):
@@ -571,13 +919,10 @@ class encodedstore(basicstore):
         self.vfs = vfsmod.filtervfs(vfs, encodefilename)
         self.opener = self.vfs
 
-    # note: topfiles would also need a decode phase. It is just that in
-    # practice we do not have any file outside of `data/` that needs encoding.
-    # However that might change so we should probably add a test and encoding
-    # decoding for it too. see issue6548
-
-    def datafiles(self, matcher=None, undecodable=None):
-        for t, f1, size in super(encodedstore, self).datafiles():
+    def _walk(self, relpath, recurse, undecodable=None):
+        old = super()._walk(relpath, recurse)
+        new = []
+        for f1, value in old:
             try:
                 f2 = decodefilename(f1)
             except KeyError:
@@ -587,9 +932,18 @@ class encodedstore(basicstore):
                 else:
                     undecodable.append(f1)
                     continue
-            if not _matchtrackedpath(f2, matcher):
-                continue
-            yield t, f2, size
+            new.append((f2, value))
+        return new
+
+    def data_entries(
+        self, matcher=None, undecodable=None
+    ) -> Generator[BaseStoreEntry, None, None]:
+        entries = super(encodedstore, self).data_entries(
+            undecodable=undecodable
+        )
+        for entry in entries:
+            if _match_tracked_entry(entry, matcher):
+                yield entry
 
     def join(self, f):
         return self.path + b'/' + encodefilename(f)
@@ -732,8 +1086,10 @@ class _fncachevfs(vfsmod.proxyvfs):
 
     def __call__(self, path, mode=b'r', *args, **kw):
         encoded = self.encode(path)
-        if mode not in (b'r', b'rb') and (
-            path.startswith(b'data/') or path.startswith(b'meta/')
+        if (
+            mode not in (b'r', b'rb')
+            and (path.startswith(b'data/') or path.startswith(b'meta/'))
+            and is_revlog_file(path)
         ):
             # do not trigger a fncache load when adding a file that already is
             # known to exist.
@@ -783,18 +1139,34 @@ class fncachestore(basicstore):
     def getsize(self, path):
         return self.rawvfs.stat(path).st_size
 
-    def datafiles(self, matcher=None, undecodable=None):
-        for f in sorted(self.fncache):
-            if not _matchtrackedpath(f, matcher):
-                continue
-            ef = self.encode(f)
-            try:
-                t = revlog_type(f)
-                assert t is not None, f
-                t |= FILEFLAGS_FILELOG
-                yield t, f, self.getsize(ef)
-            except FileNotFoundError:
-                pass
+    def data_entries(
+        self, matcher=None, undecodable=None
+    ) -> Generator[BaseStoreEntry, None, None]:
+        # Note: all files in fncache should be revlog related, However the
+        # fncache might contains such file added by previous version of
+        # Mercurial.
+        files = ((f, None) for f in self.fncache if is_revlog_file(f))
+        by_revlog = _gather_revlog(files)
+        for revlog, details in by_revlog:
+            if revlog.startswith(b'data/'):
+                rl_type = KIND_FILELOG
+                revlog_target_id = revlog.split(b'/', 1)[1]
+            elif revlog.startswith(b'meta/'):
+                rl_type = KIND_MANIFESTLOG
+                # drop the initial directory and the `00manifest` file part
+                tmp = revlog.split(b'/', 1)[1]
+                revlog_target_id = tmp.rsplit(b'/', 1)[0] + b'/'
+            else:
+                # unreachable
+                assert False, revlog
+            entry = RevlogStoreEntry(
+                path_prefix=revlog,
+                revlog_type=rl_type,
+                target_id=revlog_target_id,
+                details=details,
+            )
+            if _match_tracked_entry(entry, matcher):
+                yield entry
 
     def copylist(self):
         d = (

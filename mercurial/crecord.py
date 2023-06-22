@@ -573,7 +573,7 @@ def chunkselector(ui, headerlist, operation=None):
     ui.write(_(b'starting interactive selection\n'))
     chunkselector = curseschunkselector(headerlist, ui, operation)
     origsigtstp = sentinel = object()
-    if util.safehasattr(signal, b'SIGTSTP'):
+    if util.safehasattr(signal, 'SIGTSTP'):
         origsigtstp = signal.getsignal(signal.SIGTSTP)
     try:
         with util.with_lc_ctype():
@@ -1944,7 +1944,7 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
         """
 
         origsigwinch = sentinel = object()
-        if util.safehasattr(signal, b'SIGWINCH'):
+        if util.safehasattr(signal, 'SIGWINCH'):
             origsigwinch = signal.signal(signal.SIGWINCH, self.sigwinchhandler)
         try:
             return self._main(stdscr)
@@ -1990,7 +1990,7 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
         )
         # newwin([height, width,] begin_y, begin_x)
         self.statuswin = curses.newwin(self.numstatuslines, 0, 0, 0)
-        self.statuswin.keypad(1)  # interpret arrow-key, etc. esc sequences
+        self.statuswin.keypad(True)  # interpret arrow-key, etc. esc sequences
 
         # figure out how much space to allocate for the chunk-pad which is
         # used for displaying the patch

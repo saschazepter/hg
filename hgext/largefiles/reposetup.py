@@ -457,11 +457,16 @@ def reposetup(ui, repo):
 
     def checkrequireslfiles(ui, repo, **kwargs):
         with repo.lock():
-            if b'largefiles' not in repo.requirements and any(
-                lfutil.shortname + b'/' in f[1] for f in repo.store.datafiles()
-            ):
-                repo.requirements.add(b'largefiles')
-                scmutil.writereporequirements(repo)
+            if b'largefiles' in repo.requirements:
+                return
+            marker = lfutil.shortnameslash
+            for entry in repo.store.data_entries():
+                # XXX note that this match is not rooted and can wrongly match
+                # directory ending with ".hglf"
+                if entry.is_revlog and marker in entry.target_id:
+                    repo.requirements.add(b'largefiles')
+                    scmutil.writereporequirements(repo)
+                    break
 
     ui.setconfig(
         b'hooks', b'changegroup.lfiles', checkrequireslfiles, b'largefiles'

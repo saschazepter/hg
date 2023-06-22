@@ -301,7 +301,7 @@ pub(crate) enum MergeResult<V> {
 /// calling `merge(key, left_value, right_value)` to resolve keys that exist in
 /// both.
 ///
-/// CC https://github.com/bodil/im-rs/issues/166
+/// CC <https://github.com/bodil/im-rs/issues/166>
 pub(crate) fn ordmap_union_with_merge<K, V>(
     left: OrdMap<K, V>,
     right: OrdMap<K, V>,

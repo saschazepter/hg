@@ -529,7 +529,7 @@ debug output
   no changes found
   devel-peer-request: getbundle
   devel-peer-request:   bookmarks: 1 bytes
-  devel-peer-request:   bundlecaps: 270 bytes
+  devel-peer-request:   bundlecaps: 275 bytes
   devel-peer-request:   cg: 1 bytes
   devel-peer-request:   common: 122 bytes
   devel-peer-request:   heads: 122 bytes

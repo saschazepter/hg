@@ -65,7 +65,7 @@ def encodevalueinheaders(value, header, limit):
 class _multifile:
     def __init__(self, *fileobjs):
         for f in fileobjs:
-            if not util.safehasattr(f, b'length'):
+            if not util.safehasattr(f, 'length'):
                 raise ValueError(
                     b'_multifile only supports file objects that '
                     b'have a length but this one does not:',
@@ -108,7 +108,14 @@ class _multifile:
 
 
 def makev1commandrequest(
-    ui, requestbuilder, caps, capablefn, repobaseurl, cmd, args
+    ui,
+    requestbuilder,
+    caps,
+    capablefn,
+    repobaseurl,
+    cmd,
+    args,
+    remotehidden=False,
 ):
     """Make an HTTP request to run a command for a version 1 client.
 
@@ -127,6 +134,8 @@ def makev1commandrequest(
 
     ui.debug(b"sending %s command\n" % cmd)
     q = [(b'cmd', cmd)]
+    if remotehidden:
+        q.append(('access-hidden', '1'))
     headersize = 0
     # Important: don't use self.capable() here or else you end up
     # with infinite recursion when trying to look up capabilities
@@ -171,7 +180,7 @@ def makev1commandrequest(
     qs = b'?%s' % urlreq.urlencode(q)
     cu = b"%s%s" % (repobaseurl, qs)
     size = 0
-    if util.safehasattr(data, b'length'):
+    if util.safehasattr(data, 'length'):
         size = data.length
     elif data is not None:
         size = len(data)
@@ -381,13 +390,16 @@ def parsev1commandresponse(ui, baseurl, requrl, qs, resp, compressible):
 
 
 class httppeer(wireprotov1peer.wirepeer):
-    def __init__(self, ui, path, url, opener, requestbuilder, caps):
-        super().__init__(ui, path=path)
+    def __init__(
+        self, ui, path, url, opener, requestbuilder, caps, remotehidden=False
+    ):
+        super().__init__(ui, path=path, remotehidden=remotehidden)
         self._url = url
         self._caps = caps
         self.limitedarguments = caps is not None and b'httppostargs' not in caps
         self._urlopener = opener
         self._requestbuilder = requestbuilder
+        self._remotehidden = remotehidden
 
     def __del__(self):
         for h in self._urlopener.handlers:
@@ -429,6 +441,13 @@ class httppeer(wireprotov1peer.wirepeer):
     def capabilities(self):
         return self._caps
 
+    def _finish_inline_clone_bundle(self, stream):
+        # HTTP streams must hit the end to process the last empty
+        # chunk of Chunked-Encoding so the connection can be reused.
+        chunk = stream.read(1)
+        if chunk:
+            self._abort(error.ResponseError(_(b"unexpected response:"), chunk))
+
     # End of ipeercommands interface.
 
     def _callstream(self, cmd, _compressible=False, **args):
@@ -442,6 +461,7 @@ class httppeer(wireprotov1peer.wirepeer):
             self._url,
             cmd,
             args,
+            self._remotehidden,
         )
 
         resp = sendrequest(self.ui, self._urlopener, req)
@@ -592,7 +612,9 @@ def performhandshake(ui, url, opener, requestbuilder):
     return respurl, info
 
 
-def makepeer(ui, path, opener=None, requestbuilder=urlreq.request):
+def _make_peer(
+    ui, path, opener=None, requestbuilder=urlreq.request, remotehidden=False
+):
     """Construct an appropriate HTTP peer instance.
 
     ``opener`` is an ``url.opener`` that should be used to establish
@@ -615,11 +637,19 @@ def makepeer(ui, path, opener=None, requestbuilder=urlreq.request):
     respurl, info = performhandshake(ui, url, opener, requestbuilder)
 
     return httppeer(
-        ui, path, respurl, opener, requestbuilder, info[b'v1capabilities']
+        ui,
+        path,
+        respurl,
+        opener,
+        requestbuilder,
+        info[b'v1capabilities'],
+        remotehidden=remotehidden,
     )
 
 
-def make_peer(ui, path, create, intents=None, createopts=None):
+def make_peer(
+    ui, path, create, intents=None, createopts=None, remotehidden=False
+):
     if create:
         raise error.Abort(_(b'cannot create new http repository'))
     try:
@@ -628,7 +658,7 @@ def make_peer(ui, path, create, intents=None, createopts=None):
                 _(b'Python support for SSL and HTTPS is not installed')
             )
 
-        inst = makepeer(ui, path)
+        inst = _make_peer(ui, path, remotehidden=remotehidden)
 
         return inst
     except error.RepoError as httpexception:

@@ -50,6 +50,8 @@ pub enum PatternSyntax {
     Glob,
     /// a path relative to repository root, which is matched recursively
     Path,
+    /// a single exact path relative to repository root
+    FilePath,
     /// A path relative to cwd
     RelPath,
     /// an unrooted glob (*.rs matches Rust files in all dirs)
@@ -157,6 +159,7 @@ pub fn parse_pattern_syntax(
     match kind {
         b"re:" => Ok(PatternSyntax::Regexp),
         b"path:" => Ok(PatternSyntax::Path),
+        b"filepath:" => Ok(PatternSyntax::FilePath),
         b"relpath:" => Ok(PatternSyntax::RelPath),
         b"rootfilesin:" => Ok(PatternSyntax::RootFiles),
         b"relglob:" => Ok(PatternSyntax::RelGlob),
@@ -252,7 +255,8 @@ fn _build_single_regex(entry: &IgnorePattern) -> Vec<u8> {
         }
         PatternSyntax::Include
         | PatternSyntax::SubInclude
-        | PatternSyntax::ExpandedSubInclude(_) => unreachable!(),
+        | PatternSyntax::ExpandedSubInclude(_)
+        | PatternSyntax::FilePath => unreachable!(),
     }
 }
 
@@ -319,9 +323,9 @@ pub fn build_single_regex(
         }
         _ => pattern.to_owned(),
     };
-    if *syntax == PatternSyntax::RootGlob
-        && !pattern.iter().any(|b| GLOB_SPECIAL_CHARACTERS.contains(b))
-    {
+    let is_simple_rootglob = *syntax == PatternSyntax::RootGlob
+        && !pattern.iter().any(|b| GLOB_SPECIAL_CHARACTERS.contains(b));
+    if is_simple_rootglob || syntax == &PatternSyntax::FilePath {
         Ok(None)
     } else {
         let mut entry = entry.clone();

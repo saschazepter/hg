@@ -339,14 +339,14 @@ def json(obj, paranoid=True):
         raise error.ProgrammingError(
             b'Mercurial only does output with bytes: %r' % obj
         )
-    elif util.safehasattr(obj, b'keys'):
+    elif util.safehasattr(obj, 'keys'):
         out = [
             b'"%s": %s'
             % (encoding.jsonescape(k, paranoid=paranoid), json(v, paranoid))
             for k, v in sorted(obj.items())
         ]
         return b'{' + b', '.join(out) + b'}'
-    elif util.safehasattr(obj, b'__iter__'):
+    elif util.safehasattr(obj, '__iter__'):
         out = [json(i, paranoid) for i in obj]
         return b'[' + b', '.join(out) + b']'
     raise error.ProgrammingError(b'cannot encode %r' % obj)

@@ -176,6 +176,12 @@ class ipeercommands(interfaceutil.Interface):
         Returns a set of string capabilities.
         """
 
+    def get_cached_bundle_inline(path):
+        """Retrieve a clonebundle across the wire.
+
+        Returns a chunkbuffer
+        """
+
     def clonebundles():
         """Obtains the clone bundles manifest for the repo.
 
@@ -388,7 +394,7 @@ class peer:
 
     limitedarguments = False
 
-    def __init__(self, ui, path=None):
+    def __init__(self, ui, path=None, remotehidden=False):
         self.ui = ui
         self.path = path
 
@@ -1402,6 +1408,14 @@ class imanifeststorage(interfaceutil.Interface):
 
         See ``ifilestorage.storageinfo()`` for a description of this method.
         This one behaves the same way, except for manifest data.
+        """
+
+    def get_revlog():
+        """return an actual revlog instance if any
+
+        This exist because a lot of code leverage the fact the underlying
+        storage is a revlog for optimization, so giving simple way to access
+        the revlog instance helps such code.
         """
 
 

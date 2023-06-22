@@ -307,13 +307,17 @@ class localcommandexecutor:
 class localpeer(repository.peer):
     '''peer for a local repo; reflects only the most recent API'''
 
-    def __init__(self, repo, caps=None, path=None):
-        super(localpeer, self).__init__(repo.ui, path=path)
+    def __init__(self, repo, caps=None, path=None, remotehidden=False):
+        super(localpeer, self).__init__(
+            repo.ui, path=path, remotehidden=remotehidden
+        )
 
         if caps is None:
             caps = moderncaps.copy()
-        self._repo = repo.filtered(b'served')
-
+        if remotehidden:
+            self._repo = repo.filtered(b'served.hidden')
+        else:
+            self._repo = repo.filtered(b'served')
         if repo._wanted_sidedata:
             formatted = bundle2.format_remote_wanted_sidedata(repo)
             caps.add(b'exp-wanted-sidedata=' + formatted)
@@ -344,8 +348,12 @@ class localpeer(repository.peer):
     def capabilities(self):
         return self._caps
 
+    def get_cached_bundle_inline(self, path):
+        # not needed with local peer
+        raise NotImplementedError
+
     def clonebundles(self):
-        return self._repo.tryread(bundlecaches.CB_MANIFEST_FILE)
+        return bundlecaches.get_manifest(self._repo)
 
     def debugwireargs(self, one, two, three=None, four=None, five=None):
         """Used to test argument passing over the wire"""
@@ -411,7 +419,7 @@ class localpeer(repository.peer):
             try:
                 bundle = exchange.readbundle(self.ui, bundle, None)
                 ret = exchange.unbundle(self._repo, bundle, heads, b'push', url)
-                if util.safehasattr(ret, b'getchunks'):
+                if util.safehasattr(ret, 'getchunks'):
                     # This is a bundle20 object, turn it into an unbundler.
                     # This little dance should be dropped eventually when the
                     # API is finally improved.
@@ -455,8 +463,10 @@ class locallegacypeer(localpeer):
     """peer extension which implements legacy methods too; used for tests with
     restricted capabilities"""
 
-    def __init__(self, repo, path=None):
-        super(locallegacypeer, self).__init__(repo, caps=legacycaps, path=path)
+    def __init__(self, repo, path=None, remotehidden=False):
+        super(locallegacypeer, self).__init__(
+            repo, caps=legacycaps, path=path, remotehidden=remotehidden
+        )
 
     # Begin of baselegacywirecommands interface.
 
@@ -1450,7 +1460,7 @@ class localrepository:
         if self.ui.configbool(b'devel', b'all-warnings') or self.ui.configbool(
             b'devel', b'check-locks'
         ):
-            if util.safehasattr(self.svfs, b'vfs'):  # this is filtervfs
+            if util.safehasattr(self.svfs, 'vfs'):  # this is filtervfs
                 self.svfs.vfs.audit = self._getsvfsward(self.svfs.vfs.audit)
             else:  # standard vfs
                 self.svfs.audit = self._getsvfsward(self.svfs.audit)
@@ -1512,8 +1522,8 @@ class localrepository:
             repo = rref()
             if (
                 repo is None
-                or not util.safehasattr(repo, b'_wlockref')
-                or not util.safehasattr(repo, b'_lockref')
+                or not util.safehasattr(repo, '_wlockref')
+                or not util.safehasattr(repo, '_lockref')
             ):
                 return
             if mode in (None, b'r', b'rb'):
@@ -1561,7 +1571,7 @@ class localrepository:
         def checksvfs(path, mode=None):
             ret = origfunc(path, mode=mode)
             repo = rref()
-            if repo is None or not util.safehasattr(repo, b'_lockref'):
+            if repo is None or not util.safehasattr(repo, '_lockref'):
                 return
             if mode in (None, b'r', b'rb'):
                 return
@@ -1657,8 +1667,10 @@ class localrepository:
                 parts.pop()
         return False
 
-    def peer(self, path=None):
-        return localpeer(self, path=path)  # not cached to avoid reference cycle
+    def peer(self, path=None, remotehidden=False):
+        return localpeer(
+            self, path=path, remotehidden=remotehidden
+        )  # not cached to avoid reference cycle
 
     def unfiltered(self):
         """Return unfiltered version of the repository
@@ -2924,6 +2936,14 @@ class localrepository:
 
         if repository.CACHE_MANIFESTLOG_CACHE in caches:
             self.manifestlog.update_caches(transaction=tr)
+            for entry in self.store.walk():
+                if not entry.is_revlog:
+                    continue
+                if not entry.is_manifestlog:
+                    continue
+                manifestrevlog = entry.get_revlog_instance(self).get_revlog()
+                if manifestrevlog is not None:
+                    manifestrevlog.update_caches(transaction=tr)
 
         if repository.CACHE_REV_BRANCH in caches:
             rbc = unfi.revbranchcache()

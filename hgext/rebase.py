@@ -52,6 +52,7 @@ from mercurial import (
     util,
 )
 
+
 # The following constants are used throughout the rebase module. The ordering of
 # their values must be maintained.
 
@@ -82,15 +83,6 @@ testedwith = b'ships-with-hg-core'
 
 def _nothingtorebase():
     return 1
-
-
-def _savegraft(ctx, extra):
-    s = ctx.extra().get(b'source', None)
-    if s is not None:
-        extra[b'source'] = s
-    s = ctx.extra().get(b'intermediate-source', None)
-    if s is not None:
-        extra[b'intermediate-source'] = s
 
 
 def _savebranch(ctx, extra):
@@ -193,7 +185,7 @@ class rebaseruntime:
         self.date = opts.get('date', None)
 
         e = opts.get('extrafn')  # internal, used by e.g. hgsubversion
-        self.extrafns = [_savegraft]
+        self.extrafns = [rewriteutil.preserve_extras_on_rebase]
         if e:
             self.extrafns = [e]
 
