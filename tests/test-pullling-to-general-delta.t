@@ -178,6 +178,9 @@ pull with "forced" policy
 -------------------------
 
   $ cp -R client client-forced
+  $ hg -R client-forced paths --config paths.default:pulled-delta-reuse-policy=forced
+  default = $TESTTMP/server
+  default:pulled-delta-reuse-policy = forced
   $ hg -R client-forced pull --config paths.default:pulled-delta-reuse-policy=forced
   pulling from $TESTTMP/server
   requesting all changes

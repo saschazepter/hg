@@ -5222,11 +5222,8 @@ def paths(ui, repo, search=None, **opts):
             assert subopt not in (b'name', b'url')
             if showsubopts:
                 fm.plain(b'%s:%s = ' % (name, subopt))
-            if isinstance(value, bool):
-                if value:
-                    value = b'yes'
-                else:
-                    value = b'no'
+            display = urlutil.path_suboptions_display[subopt]
+            value = display(value)
             fm.condwrite(showsubopts, subopt, b'%s\n', value)
 
     fm.end()

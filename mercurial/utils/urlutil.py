@@ -658,9 +658,11 @@ class paths(dict):
 
 
 _pathsuboptions = {}
+# a dictionnary of methods that can be used to format a sub-option value
+path_suboptions_display = {}
 
 
-def pathsuboption(option, attr):
+def pathsuboption(option, attr, display=pycompat.bytestr):
     """Decorator used to declare a path sub-option.
 
     Arguments are the sub-option name and the attribute it should set on
@@ -671,15 +673,24 @@ def pathsuboption(option, attr):
     The function should return the value that will be set on the ``path``
     instance.
 
+    The optional `display` argument is a function that can be used to format
+    the value when displayed to the user (like in `hg paths` for example).
+
     This decorator can be used to perform additional verification of
     sub-options and to change the type of sub-options.
     """
 
     def register(func):
         _pathsuboptions[option] = (attr, func)
+        path_suboptions_display[option] = display
         return func
 
     return register
+
+
+def display_bool(value):
+    """display a boolean suboption back to the user"""
+    return b'yes' if value else b'no'
 
 
 @pathsuboption(b'pushurl', b'_pushloc')
@@ -740,9 +751,14 @@ DELTA_REUSE_POLICIES = {
     b'no-reuse': revlog_constants.DELTA_BASE_REUSE_NO,
     b'forced': revlog_constants.DELTA_BASE_REUSE_FORCE,
 }
+DELTA_REUSE_POLICIES_NAME = dict(i[::-1] for i in DELTA_REUSE_POLICIES.items())
 
 
-@pathsuboption(b'pulled-delta-reuse-policy', b'delta_reuse_policy')
+@pathsuboption(
+    b'pulled-delta-reuse-policy',
+    b'delta_reuse_policy',
+    display=DELTA_REUSE_POLICIES_NAME.get,
+)
 def delta_reuse_policy(ui, path, value):
     if value not in DELTA_REUSE_POLICIES:
         path_name = path.name
@@ -757,7 +773,7 @@ def delta_reuse_policy(ui, path, value):
     return DELTA_REUSE_POLICIES.get(value)
 
 
-@pathsuboption(b'multi-urls', b'multi_urls')
+@pathsuboption(b'multi-urls', b'multi_urls', display=display_bool)
 def multiurls_pathoption(ui, path, value):
     res = stringutil.parsebool(value)
     if res is None:
