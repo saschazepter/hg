@@ -288,13 +288,15 @@ def _narrow(
                 repair.strip(ui, unfi, tostrip, topic=b'narrow', backup=backup)
 
         todelete = []
-        for t, f, size in repo.store.datafiles():
-            if f.startswith(b'data/'):
-                file = f[5:-2]
-                if not newmatch(file):
-                    todelete.append(f)
-            elif f.startswith(b'meta/'):
-                dir = f[5:-13]
+        for entry in repo.store.data_entries():
+            if not entry.is_revlog:
+                continue
+            if entry.is_filelog:
+                if not newmatch(entry.target_id):
+                    for file_ in entry.files():
+                        todelete.append(file_.unencoded_path)
+            elif entry.is_manifestlog:
+                dir = entry.target_id
                 dirs = sorted(pathutil.dirs({dir})) + [dir]
                 include = True
                 for d in dirs:
@@ -305,7 +307,8 @@ def _narrow(
                     if visit == b'all':
                         break
                 if not include:
-                    todelete.append(f)
+                    for file_ in entry.files():
+                        todelete.append(file_.unencoded_path)
 
         repo.destroying()
 
@@ -644,7 +647,7 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
                     if (
                         ui.promptchoice(
                             _(
-                                b'remove these unused includes (yn)?'
+                                b'remove these unused includes (Yn)?'
                                 b'$$ &Yes $$ &No'
                             )
                         )

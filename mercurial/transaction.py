@@ -316,7 +316,7 @@ class transaction(util.transactional):
         self._abortcallback = {}
 
     def __repr__(self):
-        name = '/'.join(self._names)
+        name = b'/'.join(self._names)
         return '<transaction name=%s, count=%d, usages=%d>' % (
             name,
             self._count,
@@ -413,7 +413,7 @@ class transaction(util.transactional):
 
         vfs = self._vfsmap[location]
         dirname, filename = vfs.split(file)
-        backupfilename = b"%s.backup.%s" % (self._journal, filename)
+        backupfilename = b"%s.backup.%s.bck" % (self._journal, filename)
         backupfile = vfs.reljoin(dirname, backupfilename)
         if vfs.exists(file):
             filepath = vfs.join(file)

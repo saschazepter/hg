@@ -808,8 +808,6 @@ def filter_delta_issue6528(revlog, deltas_iter):
 def repair_issue6528(
     ui, repo, dry_run=False, to_report=None, from_report=None, paranoid=False
 ):
-    from .. import store  # avoid cycle
-
     @contextlib.contextmanager
     def context():
         if dry_run or to_report:  # No need for locking
@@ -825,9 +823,9 @@ def repair_issue6528(
 
     with context():
         files = list(
-            (file_type, path)
-            for (file_type, path, _s) in repo.store.datafiles()
-            if path.endswith(b'.i') and file_type & store.FILEFLAGS_FILELOG
+            entry
+            for entry in repo.store.data_entries()
+            if entry.is_revlog and entry.is_filelog
         )
 
         progress = ui.makeprogress(
@@ -837,15 +835,10 @@ def repair_issue6528(
         )
         found_nothing = True
 
-        for file_type, path in files:
-            if (
-                not path.endswith(b'.i')
-                or not file_type & store.FILEFLAGS_FILELOG
-            ):
-                continue
+        for entry in files:
             progress.increment()
-            filename = _get_filename_from_filelog_index(path)
-            fl = _filelog_from_filename(repo, filename)
+            filename = entry.target_id
+            fl = _filelog_from_filename(repo, entry.target_id)
 
             # Set of filerevs (or hex filenodes if `to_report`) that need fixing
             to_fix = set()
@@ -861,8 +854,8 @@ def repair_issue6528(
                         node = binascii.hexlify(fl.node(filerev))
                         raise error.Abort(msg % (filename, node))
                 if affected:
-                    msg = b"found affected revision %d for filelog '%s'\n"
-                    ui.warn(msg % (filerev, path))
+                    msg = b"found affected revision %d for file '%s'\n"
+                    ui.warn(msg % (filerev, filename))
                     found_nothing = False
                     if not dry_run:
                         if to_report:

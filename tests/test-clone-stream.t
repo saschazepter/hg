@@ -1,11 +1,17 @@
 #require serve no-reposimplestore no-chg
 
-#testcases stream-legacy stream-bundle2
+#testcases stream-legacy stream-bundle2-v2 stream-bundle2-v3
 
 #if stream-legacy
   $ cat << EOF >> $HGRCPATH
   > [server]
   > bundle2.stream = no
+  > EOF
+#endif
+#if stream-bundle2-v3
+  $ cat << EOF >> $HGRCPATH
+  > [experimental]
+  > stream-v3 = yes
   > EOF
 #endif
 
@@ -128,6 +134,7 @@ Cannot stream clone when server.uncompressed is set
     changegroup
       01
       02
+      03
     checkheads
       related
     digests
@@ -157,23 +164,23 @@ Cannot stream clone when server.uncompressed is set
   added 3 changesets with 1088 changes to 1088 files
   new changesets 96ee1d7354c4:5223b5e3265f
 
-  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=getbundle' content-type --bodyfile body --hgproto 0.2 --requestheader "x-hgarg-1=bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Aphases%253Dheads%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps&cg=0&common=0000000000000000000000000000000000000000&heads=c17445101a72edac06facd130d14808dfbd5c7c2&stream=1"
+  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=getbundle' content-type --bodyfile body --hgproto 0.2 --requestheader "x-hgarg-1=bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%252C03%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Aphases%253Dheads%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps&cg=0&common=0000000000000000000000000000000000000000&heads=c17445101a72edac06facd130d14808dfbd5c7c2&stream=1"
   200 Script output follows
   content-type: application/mercurial-0.2
   
 
   $ f --size body --hexdump --bytes 100
-  body: size=232
+  body: size=140
   0000: 04 6e 6f 6e 65 48 47 32 30 00 00 00 00 00 00 00 |.noneHG20.......|
-  0010: cf 0b 45 52 52 4f 52 3a 41 42 4f 52 54 00 00 00 |..ERROR:ABORT...|
-  0020: 00 01 01 07 3c 04 72 6d 65 73 73 61 67 65 73 74 |....<.rmessagest|
+  0010: 73 0b 45 52 52 4f 52 3a 41 42 4f 52 54 00 00 00 |s.ERROR:ABORT...|
+  0020: 00 01 01 07 3c 04 16 6d 65 73 73 61 67 65 73 74 |....<..messagest|
   0030: 72 65 61 6d 20 64 61 74 61 20 72 65 71 75 65 73 |ream data reques|
   0040: 74 65 64 20 62 75 74 20 73 65 72 76 65 72 20 64 |ted but server d|
   0050: 6f 65 73 20 6e 6f 74 20 61 6c 6c 6f 77 20 74 68 |oes not allow th|
   0060: 69 73 20 66                                     |is f|
 
 #endif
-#if stream-bundle2
+#if stream-bundle2-v2
   $ hg debugcapabilities http://localhost:$HGPORT
   Main capabilities:
     batch
@@ -195,6 +202,7 @@ Cannot stream clone when server.uncompressed is set
     changegroup
       01
       02
+      03
     checkheads
       related
     digests
@@ -224,16 +232,84 @@ Cannot stream clone when server.uncompressed is set
   added 3 changesets with 1088 changes to 1088 files
   new changesets 96ee1d7354c4:5223b5e3265f
 
-  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=getbundle' content-type --bodyfile body --hgproto 0.2 --requestheader "x-hgarg-1=bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Aphases%253Dheads%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps&cg=0&common=0000000000000000000000000000000000000000&heads=c17445101a72edac06facd130d14808dfbd5c7c2&stream=1"
+  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=getbundle' content-type --bodyfile body --hgproto 0.2 --requestheader "x-hgarg-1=bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%252C03%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Aphases%253Dheads%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps&cg=0&common=0000000000000000000000000000000000000000&heads=c17445101a72edac06facd130d14808dfbd5c7c2&stream=1"
   200 Script output follows
   content-type: application/mercurial-0.2
   
 
   $ f --size body --hexdump --bytes 100
-  body: size=232
+  body: size=140
   0000: 04 6e 6f 6e 65 48 47 32 30 00 00 00 00 00 00 00 |.noneHG20.......|
-  0010: cf 0b 45 52 52 4f 52 3a 41 42 4f 52 54 00 00 00 |..ERROR:ABORT...|
-  0020: 00 01 01 07 3c 04 72 6d 65 73 73 61 67 65 73 74 |....<.rmessagest|
+  0010: 73 0b 45 52 52 4f 52 3a 41 42 4f 52 54 00 00 00 |s.ERROR:ABORT...|
+  0020: 00 01 01 07 3c 04 16 6d 65 73 73 61 67 65 73 74 |....<..messagest|
+  0030: 72 65 61 6d 20 64 61 74 61 20 72 65 71 75 65 73 |ream data reques|
+  0040: 74 65 64 20 62 75 74 20 73 65 72 76 65 72 20 64 |ted but server d|
+  0050: 6f 65 73 20 6e 6f 74 20 61 6c 6c 6f 77 20 74 68 |oes not allow th|
+  0060: 69 73 20 66                                     |is f|
+
+#endif
+#if stream-bundle2-v3
+  $ hg debugcapabilities http://localhost:$HGPORT
+  Main capabilities:
+    batch
+    branchmap
+    $USUAL_BUNDLE2_CAPS_SERVER$
+    changegroupsubset
+    compression=$BUNDLE2_COMPRESSIONS$
+    getbundle
+    httpheader=1024
+    httpmediatype=0.1rx,0.1tx,0.2tx
+    known
+    lookup
+    pushkey
+    unbundle=HG10GZ,HG10BZ,HG10UN
+    unbundlehash
+  Bundle2 capabilities:
+    HG20
+    bookmarks
+    changegroup
+      01
+      02
+      03
+    checkheads
+      related
+    digests
+      md5
+      sha1
+      sha512
+    error
+      abort
+      unsupportedcontent
+      pushraced
+      pushkey
+    hgtagsfnodes
+    listkeys
+    phases
+      heads
+    pushkey
+    remote-changegroup
+      http
+      https
+
+  $ hg clone --stream -U http://localhost:$HGPORT server-disabled
+  warning: stream clone requested but server has them disabled
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 3 changesets with 1088 changes to 1088 files
+  new changesets 96ee1d7354c4:5223b5e3265f
+
+  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=getbundle' content-type --bodyfile body --hgproto 0.2 --requestheader "x-hgarg-1=bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%252C03%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Aphases%253Dheads%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps&cg=0&common=0000000000000000000000000000000000000000&heads=c17445101a72edac06facd130d14808dfbd5c7c2&stream=1"
+  200 Script output follows
+  content-type: application/mercurial-0.2
+  
+
+  $ f --size body --hexdump --bytes 100
+  body: size=140
+  0000: 04 6e 6f 6e 65 48 47 32 30 00 00 00 00 00 00 00 |.noneHG20.......|
+  0010: 73 0b 45 52 52 4f 52 3a 41 42 4f 52 54 00 00 00 |s.ERROR:ABORT...|
+  0020: 00 01 01 07 3c 04 16 6d 65 73 73 61 67 65 73 74 |....<..messagest|
   0030: 72 65 61 6d 20 64 61 74 61 20 72 65 71 75 65 73 |ream data reques|
   0040: 74 65 64 20 62 75 74 20 73 65 72 76 65 72 20 64 |ted but server d|
   0050: 6f 65 73 20 6e 6f 74 20 61 6c 6c 6f 77 20 74 68 |oes not allow th|
@@ -260,7 +336,7 @@ Basic clone
   no changes found
   $ cat server/errors.txt
 #endif
-#if stream-bundle2
+#if stream-bundle2-v2
   $ hg clone --stream -U http://localhost:$HGPORT clone1
   streaming all changes
   1093 files to transfer, 102 KB of data (no-zstd !)
@@ -281,10 +357,30 @@ Basic clone
   tags2-served
   $ cat server/errors.txt
 #endif
+#if stream-bundle2-v3
+  $ hg clone --stream -U http://localhost:$HGPORT clone1
+  streaming all changes
+  1093 entries to transfer
+  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
+  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
+
+  $ ls -1 clone1/.hg/cache
+  branch2-base
+  branch2-immutable
+  branch2-served
+  branch2-served.hidden
+  branch2-visible
+  branch2-visible-hidden
+  rbc-names-v1
+  rbc-revs-v1
+  tags2
+  tags2-served
+  $ cat server/errors.txt
+#endif
 
 getbundle requests with stream=1 are uncompressed
 
-  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=getbundle' content-type --bodyfile body --hgproto '0.1 0.2 comp=zlib,none' --requestheader "x-hgarg-1=bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Aphases%253Dheads%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps&cg=0&common=0000000000000000000000000000000000000000&heads=c17445101a72edac06facd130d14808dfbd5c7c2&stream=1"
+  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=getbundle' content-type --bodyfile body --hgproto '0.1 0.2 comp=zlib,none' --requestheader "x-hgarg-1=bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%252C03%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Aphases%253Dheads%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps%250Astream%253Dv2&cg=0&common=0000000000000000000000000000000000000000&heads=c17445101a72edac06facd130d14808dfbd5c7c2&stream=1"
   200 Script output follows
   content-type: application/mercurial-0.2
   
@@ -384,12 +480,19 @@ getbundle requests with stream=1 are uncompressed
   searching for changes
   no changes found
 #endif
-#if stream-bundle2
+#if stream-bundle2-v2
   $ hg clone --uncompressed -U http://localhost:$HGPORT clone1-uncompressed
   streaming all changes
   1093 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
   1093 files to transfer, 98.9 KB of data (zstd !)
+  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
+#endif
+#if stream-bundle2-v3
+  $ hg clone --uncompressed -U http://localhost:$HGPORT clone1-uncompressed
+  streaming all changes
+  1093 entries to transfer
+  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
   transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
 #endif
 
@@ -423,7 +526,7 @@ Clone with background file closing enabled
   updating the branch cache
   (sent 5 HTTP requests and * bytes; received * bytes in responses) (glob)
 #endif
-#if stream-bundle2
+#if stream-bundle2-v2
   $ hg --debug --config worker.backgroundclose=true --config worker.backgroundcloseminfilecount=1 clone --stream -U http://localhost:$HGPORT clone-background | grep -v adding
   using http://localhost:$HGPORT/
   sending capabilities command
@@ -444,6 +547,32 @@ Clone with background file closing enabled
   transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
   bundle2-input-part: total payload size 116145 (zstd no-bigendian !)
   bundle2-input-part: total payload size 116140 (zstd bigendian !)
+  bundle2-input-part: "listkeys" (params: 1 mandatory) supported
+  bundle2-input-bundle: 2 parts total
+  checking for updated bookmarks
+  updating the branch cache
+  (sent 3 HTTP requests and * bytes; received * bytes in responses) (glob)
+#endif
+#if stream-bundle2-v3
+  $ hg --debug --config worker.backgroundclose=true --config worker.backgroundcloseminfilecount=1 clone --stream -U http://localhost:$HGPORT clone-background | grep -v adding
+  using http://localhost:$HGPORT/
+  sending capabilities command
+  query 1; heads
+  sending batch command
+  streaming all changes
+  sending getbundle command
+  bundle2-input-bundle: with-transaction
+  bundle2-input-part: "stream3-exp" (params: 1 mandatory) supported
+  applying stream bundle
+  1093 entries to transfer
+  starting 4 threads for background file closing
+  starting 4 threads for background file closing
+  updating the branch cache
+  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
+  bundle2-input-part: total payload size 120079 (no-zstd !)
+  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
+  bundle2-input-part: total payload size 117240 (zstd no-bigendian !)
+  bundle2-input-part: total payload size 116138 (zstd bigendian !)
   bundle2-input-part: "listkeys" (params: 1 mandatory) supported
   bundle2-input-bundle: 2 parts total
   checking for updated bookmarks
@@ -482,12 +611,19 @@ Streaming of secrets can be overridden by server config
   searching for changes
   no changes found
 #endif
-#if stream-bundle2
+#if stream-bundle2-v2
   $ hg clone --stream -U http://localhost:$HGPORT secret-allowed
   streaming all changes
   1093 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
   1093 files to transfer, 98.9 KB of data (zstd !)
+  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
+#endif
+#if stream-bundle2-v3
+  $ hg clone --stream -U http://localhost:$HGPORT secret-allowed
+  streaming all changes
+  1093 entries to transfer
+  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
   transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
 #endif
 
@@ -542,40 +678,6 @@ Stream clone while repo is changing:
 
   $ mkdir changing
   $ cd changing
-
-extension for delaying the server process so we reliably can modify the repo
-while cloning
-
-  $ cat > stream_steps.py <<EOF
-  > import os
-  > import sys
-  > from mercurial import (
-  >     encoding,
-  >     extensions,
-  >     streamclone,
-  >     testing,
-  > )
-  > WALKED_FILE_1 = encoding.environ[b'HG_TEST_STREAM_WALKED_FILE_1']
-  > WALKED_FILE_2 = encoding.environ[b'HG_TEST_STREAM_WALKED_FILE_2']
-  > 
-  > def _test_sync_point_walk_1(orig, repo):
-  >     testing.write_file(WALKED_FILE_1)
-  > 
-  > def _test_sync_point_walk_2(orig, repo):
-  >     assert repo._currentlock(repo._lockref) is None
-  >     testing.wait_file(WALKED_FILE_2)
-  > 
-  > extensions.wrapfunction(
-  >     streamclone,
-  >     '_test_sync_point_walk_1',
-  >     _test_sync_point_walk_1
-  > )
-  > extensions.wrapfunction(
-  >     streamclone,
-  >     '_test_sync_point_walk_2',
-  >     _test_sync_point_walk_2
-  > )
-  > EOF
 
 prepare repo with small and big file to cover both code paths in emitrevlogdata
 
@@ -636,12 +738,21 @@ clone it
   updating to branch default
   1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
 #endif
-#if stream-bundle2
+#if stream-bundle2-v2
   $ hg clone --stream http://localhost:$HGPORT with-bookmarks
   streaming all changes
   1096 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
   1096 files to transfer, 99.1 KB of data (zstd !)
+  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd !)
+  updating to branch default
+  1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
+#endif
+#if stream-bundle2-v3
+  $ hg clone --stream http://localhost:$HGPORT with-bookmarks
+  streaming all changes
+  1096 entries to transfer
+  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
   transferred 99.1 KB in * seconds (* */sec) (glob) (zstd !)
   updating to branch default
   1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -672,12 +783,21 @@ Clone as publishing
   updating to branch default
   1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
 #endif
-#if stream-bundle2
+#if stream-bundle2-v2
   $ hg clone --stream http://localhost:$HGPORT phase-publish
   streaming all changes
   1096 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
   1096 files to transfer, 99.1 KB of data (zstd !)
+  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd !)
+  updating to branch default
+  1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
+#endif
+#if stream-bundle2-v3
+  $ hg clone --stream http://localhost:$HGPORT phase-publish
+  streaming all changes
+  1096 entries to transfer
+  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
   transferred 99.1 KB in * seconds (* */sec) (glob) (zstd !)
   updating to branch default
   1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -718,12 +838,25 @@ stream v1 unsuitable for non-publishing repository.
   1: public
   2: public
 #endif
-#if stream-bundle2
+#if stream-bundle2-v2
   $ hg clone --stream http://localhost:$HGPORT phase-no-publish
   streaming all changes
   1097 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
   1097 files to transfer, 99.1 KB of data (zstd !)
+  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd !)
+  updating to branch default
+  1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg -R phase-no-publish phase -r 'all()'
+  0: draft
+  1: draft
+  2: draft
+#endif
+#if stream-bundle2-v3
+  $ hg clone --stream http://localhost:$HGPORT phase-no-publish
+  streaming all changes
+  1097 entries to transfer
+  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
   transferred 99.1 KB in * seconds (* */sec) (glob) (zstd !)
   updating to branch default
   1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -742,7 +875,7 @@ With v1 of the stream protocol, changeset are always cloned as public. There's
 no obsolescence markers exchange in stream v1.
 
 #endif
-#if stream-bundle2
+#if stream-bundle2-v2
 
 Stream repository with obsolescence
 -----------------------------------
@@ -774,6 +907,55 @@ Clone non-publishing with obsolescence
   1098 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
   1098 files to transfer, 99.5 KB of data (zstd !)
+  transferred 99.5 KB in * seconds (* */sec) (glob) (zstd !)
+  $ hg -R with-obsolescence log -T '{rev}: {phase}\n'
+  2: draft
+  1: draft
+  0: draft
+  $ hg debugobsolete -R with-obsolescence
+  8c206a663911c1f97f2f9d7382e417ae55872cfa 0 {5223b5e3265f0df40bb743da62249413d74ac70f} (Thu Jan 01 00:00:00 1970 +0000) {'user': 'test'}
+  $ hg verify -R with-obsolescence -q
+
+  $ hg clone -U --stream --config experimental.evolution=0 http://localhost:$HGPORT with-obsolescence-no-evolution
+  streaming all changes
+  remote: abort: server has obsolescence markers, but client cannot receive them via stream clone
+  abort: pull failed on remote
+  [100]
+
+  $ killdaemons.py
+
+#endif
+#if stream-bundle2-v3
+
+Stream repository with obsolescence
+-----------------------------------
+
+Clone non-publishing with obsolescence
+
+  $ cat >> $HGRCPATH << EOF
+  > [experimental]
+  > evolution=all
+  > EOF
+
+  $ cd server
+  $ echo foo > foo
+  $ hg -q commit -m 'about to be pruned'
+  $ hg debugobsolete `hg log -r . -T '{node}'` -d '0 0' -u test --record-parents
+  1 new obsolescence markers
+  obsoleted 1 changesets
+  $ hg up null -q
+  $ hg log -T '{rev}: {phase}\n'
+  2: draft
+  1: draft
+  0: draft
+  $ hg serve -p $HGPORT -d --pid-file=hg.pid
+  $ cat hg.pid > $DAEMON_PIDS
+  $ cd ..
+
+  $ hg clone -U --stream http://localhost:$HGPORT with-obsolescence
+  streaming all changes
+  1098 entries to transfer
+  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
   transferred 99.5 KB in * seconds (* */sec) (glob) (zstd !)
   $ hg -R with-obsolescence log -T '{rev}: {phase}\n'
   2: draft

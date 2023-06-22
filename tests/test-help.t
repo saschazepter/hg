@@ -987,6 +987,11 @@ Test list of internal help commands
                  dump index data for a revlog
    debug-revlog-stats
                  display statistics about revlogs in the store
+   debug::stable-tail-sort
+                 display the stable-tail sort of the ancestors of a given node
+   debug::stable-tail-sort-leaps
+                 display the leaps in the stable-tail sort of a node, one per
+                 line
    debugancestor
                  find the ancestor revision of two revisions in a given index
    debugantivirusrunning
@@ -1780,7 +1785,10 @@ Test keyword search help
   
   Extension Commands:
   
-   qclone clone main and patch repository at same time
+   admin::clone-bundles-clear   remove existing clone bundle caches
+   admin::clone-bundles-refresh generate clone bundles according to the
+                                configuration
+   qclone                       clone main and patch repository at same time
 
 Test unfound topic
 

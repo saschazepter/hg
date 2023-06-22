@@ -61,12 +61,21 @@ pub fn parse_dirstate_entries<'a>(
         Option<&'a HgPath>,
     ) -> Result<(), HgError>,
 ) -> Result<&'a DirstateParents, HgError> {
-    let (parents, rest) = DirstateParents::from_bytes(contents)
-        .map_err(|_| HgError::corrupted("Too little data for dirstate."))?;
+    let mut entry_idx = 0;
+    let original_len = contents.len();
+    let (parents, rest) =
+        DirstateParents::from_bytes(contents).map_err(|_| {
+            HgError::corrupted(format!(
+                "Too little data for dirstate: {} bytes.",
+                original_len
+            ))
+        })?;
     contents = rest;
     while !contents.is_empty() {
         let (raw_entry, rest) = RawEntry::from_bytes(contents)
-            .map_err(|_| HgError::corrupted("Overflow in dirstate."))?;
+            .map_err(|_| HgError::corrupted(format!(
+            "dirstate corrupted: ran out of bytes at entry header {}, offset {}.",
+            entry_idx, original_len-contents.len())))?;
 
         let entry = DirstateEntry::from_v1_data(
             EntryState::try_from(raw_entry.state)?,
@@ -74,9 +83,14 @@ pub fn parse_dirstate_entries<'a>(
             raw_entry.size.get(),
             raw_entry.mtime.get(),
         );
+        let filename_len = raw_entry.length.get() as usize;
         let (paths, rest) =
-            u8::slice_from_bytes(rest, raw_entry.length.get() as usize)
-                .map_err(|_| HgError::corrupted("Overflow in dirstate."))?;
+            u8::slice_from_bytes(rest, filename_len)
+                .map_err(|_|
+                HgError::corrupted(format!(
+         "dirstate corrupted: ran out of bytes at entry {}, offset {} (expected {} bytes).",
+              entry_idx, original_len-contents.len(), filename_len))
+                )?;
 
         // `paths` is either a single path, or two paths separated by a NULL
         // byte
@@ -87,6 +101,7 @@ pub fn parse_dirstate_entries<'a>(
         let copy_source = iter.next().map(HgPath::new);
         each_entry(path, &entry, copy_source)?;
 
+        entry_idx += 1;
         contents = rest;
     }
     Ok(parents)

@@ -975,7 +975,7 @@ coreconfigitem(
 coreconfigitem(
     b'experimental',
     b'changegroup3',
-    default=False,
+    default=True,
 )
 coreconfigitem(
     b'experimental',
@@ -1248,6 +1248,11 @@ coreconfigitem(
 )
 coreconfigitem(
     b'experimental',
+    b'server.allow-hidden-access',
+    default=list,
+)
+coreconfigitem(
+    b'experimental',
     b'server.filesdata.recommended-batch-size',
     default=50000,
 )
@@ -1290,6 +1295,11 @@ coreconfigitem(
     b'experimental',
     b'sparse-read.min-gap-size',
     default=b'65K',
+)
+coreconfigitem(
+    b'experimental',
+    b'stream-v3',
+    default=False,
 )
 coreconfigitem(
     b'experimental',

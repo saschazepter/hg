@@ -233,6 +233,93 @@ Feature works over SSH
   no changes found
   2 local changesets published
 
+Inline bundle
+=============
+
+Checking bundle retrieved over the wireprotocol
+
+Feature works over SSH with inline bundle
+-----------------------------------------
+
+  $ mkdir server/.hg/bundle-cache/
+  $ cp full.hg server/.hg/bundle-cache/
+  $ echo "peer-bundle-cache://full.hg" > server/.hg/clonebundles.manifest
+  $ hg clone -U ssh://user@dummy/server ssh-inline-clone
+  applying clone bundle from peer-bundle-cache://full.hg
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files
+  finished applying clone bundle
+  searching for changes
+  no changes found
+  2 local changesets published
+
+HTTP Supports
+-------------
+
+  $ hg clone -U http://localhost:$HGPORT http-inline-clone
+  applying clone bundle from peer-bundle-cache://full.hg
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files
+  finished applying clone bundle
+  searching for changes
+  no changes found
+  2 local changesets published
+
+
+Check local behavior
+--------------------
+
+We don't use the clone bundle, but we do not crash either.
+
+  $ hg clone -U ./server local-inline-clone-default
+  $ hg clone -U ./server local-inline-clone-pull --pull
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files
+  new changesets 53245c60e682:aaff8d2ffbbf
+
+Pre-transmit Hook
+-----------------
+
+Hooks work with inline bundle
+
+  $ cp server/.hg/hgrc server/.hg/hgrc-beforeinlinehooks
+  $ echo "[hooks]" >> server/.hg/hgrc
+  $ echo "pretransmit-inline-clone-bundle=echo foo" >> server/.hg/hgrc
+  $ hg clone -U ssh://user@dummy/server ssh-inline-clone-hook
+  applying clone bundle from peer-bundle-cache://full.hg
+  remote: foo
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files
+  finished applying clone bundle
+  searching for changes
+  no changes found
+  2 local changesets published
+
+Hooks can make an inline bundle fail
+
+  $ cp server/.hg/hgrc-beforeinlinehooks server/.hg/hgrc
+  $ echo "[hooks]" >> server/.hg/hgrc
+  $ echo "pretransmit-inline-clone-bundle=echo bar && false" >> server/.hg/hgrc
+  $ hg clone -U ssh://user@dummy/server ssh-inline-clone-hook-fail
+  applying clone bundle from peer-bundle-cache://full.hg
+  remote: bar
+  remote: abort: pretransmit-inline-clone-bundle hook exited with status 1
+  abort: stream ended unexpectedly (got 0 bytes, expected 1)
+  [255]
+  $ cp server/.hg/hgrc-beforeinlinehooks server/.hg/hgrc
+
+Other tests
+===========
+
 Entry with unknown BUNDLESPEC is filtered and not used
 
   $ cat > server/.hg/clonebundles.manifest << EOF
@@ -584,7 +671,7 @@ on a 32MB system.
   $ hg clone -U --debug --config ui.available-memory=16MB http://localhost:$HGPORT gzip-too-large
   using http://localhost:$HGPORT/
   sending capabilities command
-  sending clonebundles command
+  sending clonebundles_manifest command
   filtering http://localhost:$HGPORT1/gz-a.hg as it needs more than 2/3 of system memory
   no compatible clone bundles available on server; falling back to regular clone
   (you may want to report this to the server operator)
@@ -601,7 +688,7 @@ on a 32MB system.
   adding file changes
   adding bar revisions
   adding foo revisions
-  bundle2-input-part: total payload size 920
+  bundle2-input-part: total payload size 936
   bundle2-input-part: "listkeys" (params: 1 mandatory) supported
   bundle2-input-part: "phase-heads" supported
   bundle2-input-part: total payload size 24
@@ -617,7 +704,7 @@ on a 32MB system.
   $ hg clone -U --debug --config ui.available-memory=32MB http://localhost:$HGPORT gzip-too-large2
   using http://localhost:$HGPORT/
   sending capabilities command
-  sending clonebundles command
+  sending clonebundles_manifest command
   applying clone bundle from http://localhost:$HGPORT1/gz-a.hg
   bundle2-input-bundle: 1 params with-transaction
   bundle2-input-part: "changegroup" (params: 1 mandatory 1 advisory) supported

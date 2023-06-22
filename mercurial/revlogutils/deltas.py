@@ -585,12 +585,14 @@ def is_good_delta_info(revlog, deltainfo, revinfo):
     if deltainfo is None:
         return False
 
-    if (
-        revinfo.cachedelta is not None
-        and deltainfo.base == revinfo.cachedelta[0]
-        and revinfo.cachedelta[2] == DELTA_BASE_REUSE_FORCE
-    ):
-        return True
+    # the DELTA_BASE_REUSE_FORCE case should have been taken care of sooner so
+    # we should never end up asking such question. Adding the assert as a
+    # safe-guard to detect anything that would be fishy in this regard.
+    assert (
+        revinfo.cachedelta is None
+        or revinfo.cachedelta[2] != DELTA_BASE_REUSE_FORCE
+        or not revlog._generaldelta
+    )
 
     # - 'deltainfo.distance' is the distance from the base revision --
     #   bounding it limits the amount of I/O we need to do.
@@ -693,14 +695,14 @@ def _candidategroups(
         yield None
         return
 
-    if (
-        cachedelta is not None
-        and nullrev == cachedelta[0]
-        and cachedelta[2] == DELTA_BASE_REUSE_FORCE
-    ):
-        # instruction are to forcibly do a full snapshot
-        yield None
-        return
+    # the DELTA_BASE_REUSE_FORCE case should have been taken care of sooner so
+    # we should never end up asking such question. Adding the assert as a
+    # safe-guard to detect anything that would be fishy in this regard.
+    assert (
+        cachedelta is None
+        or cachedelta[2] != DELTA_BASE_REUSE_FORCE
+        or not revlog._generaldelta
+    )
 
     deltalength = revlog.length
     deltaparent = revlog.deltaparent
@@ -734,15 +736,6 @@ def _candidategroups(
                 continue
             # filter out revision we tested already
             if rev in tested:
-                continue
-
-            if (
-                cachedelta is not None
-                and rev == cachedelta[0]
-                and cachedelta[2] == DELTA_BASE_REUSE_FORCE
-            ):
-                # instructions are to forcibly consider/use this delta base
-                group.append(rev)
                 continue
 
             # an higher authority deamed the base unworthy (e.g. censored)
@@ -1067,7 +1060,7 @@ class SnapshotCache:
             end_rev < self._start_rev or end_rev > self._end_rev
         ), (self._start_rev, self._end_rev, start_rev, end_rev)
         cache = self.snapshots
-        if util.safehasattr(revlog.index, b'findsnapshots'):
+        if util.safehasattr(revlog.index, 'findsnapshots'):
             revlog.index.findsnapshots(cache, start_rev, end_rev)
         else:
             deltaparent = revlog.deltaparent

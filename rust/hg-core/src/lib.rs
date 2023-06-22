@@ -63,7 +63,6 @@ pub type FastHashbrownMap<K, V> =
 #[derive(Debug, PartialEq)]
 pub enum DirstateMapError {
     PathNotFound(HgPathBuf),
-    EmptyPath,
     InvalidPath(HgPathError),
 }
 
@@ -72,9 +71,6 @@ impl fmt::Display for DirstateMapError {
         match self {
             DirstateMapError::PathNotFound(_) => {
                 f.write_str("expected a value, found none")
-            }
-            DirstateMapError::EmptyPath => {
-                f.write_str("Overflow in dirstate.")
             }
             DirstateMapError::InvalidPath(path_error) => path_error.fmt(f),
         }

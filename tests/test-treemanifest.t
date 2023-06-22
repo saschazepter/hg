@@ -211,12 +211,14 @@ Create a few commits with flat manifest
   (branch merge, don't forget to commit)
   $ hg ci -m 'merge of flat manifests to new flat manifest'
 
-  $ hg serve -p $HGPORT -d --pid-file=hg.pid --errorlog=errors.log
-  $ cat hg.pid >> $DAEMON_PIDS
+  $ cd ..
+  $ hg -R repo-flat serve -p $HGPORT -d \
+  >   --pid-file=port-0-hg.pid \
+  >   --errorlog=port-0-errors.log
+  $ cat port-0-hg.pid >> $DAEMON_PIDS
 
 Create clone with tree manifests enabled
 
-  $ cd ..
   $ hg clone --config experimental.treemanifest=1 \
   >   http://localhost:$HGPORT repo-mixed -r 1
   adding changesets
@@ -226,6 +228,7 @@ Create clone with tree manifests enabled
   new changesets 5b02a3e8db7e:581ef6037d8b
   updating to branch default
   11 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ cat port-0-errors.log
   $ cd repo-mixed
   $ test -d .hg/store/meta
   [1]
@@ -654,9 +657,12 @@ Verify reports missing dirlog entry
   $ cp -R .hg/store-newcopy/. .hg/store
 
 Test cloning a treemanifest repo over http.
-  $ hg serve -p $HGPORT -d --pid-file=hg.pid --errorlog=errors.log
-  $ cat hg.pid >> $DAEMON_PIDS
   $ cd ..
+  $ hg -R deeprepo serve -p $HGPORT -d \
+  >   --pid-file=port-0-hg.pid \
+  >   --errorlog=port-0-errors.log
+  $ cat port-0-hg.pid >> $DAEMON_PIDS
+
 We can clone even with the knob turned off and we'll get a treemanifest repo.
   $ hg clone --config experimental.treemanifest=False \
   >   --config experimental.changegroup3=True \
@@ -670,7 +676,8 @@ We can clone even with the knob turned off and we'll get a treemanifest repo.
   updating to branch default
   8 files updated, 0 files merged, 0 files removed, 0 files unresolved
 No server errors.
-  $ cat deeprepo/errors.log
+  $ cat port-0-errors.log
+
 requires got updated to include treemanifest
   $ hg debugrequires -R deepclone | grep treemanifest
   treemanifest
@@ -713,12 +720,13 @@ Create clones using old repo formats to use in later tests
   new changesets 775704be6f52:523e5c631710
   updating to branch default
   8 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ cd deeprepo-basicstore
-  $ hg debugrequires | grep store
+  $ hg -R deeprepo-basicstore debugrequires | grep store
   [1]
-  $ hg serve -p $HGPORT1 -d --pid-file=hg.pid --errorlog=errors.log
-  $ cat hg.pid >> $DAEMON_PIDS
-  $ cd ..
+  $ hg -R deeprepo-basicstore serve -p $HGPORT1 -d \
+  >   --pid-file=port-1-hg.pid \
+  >   --errorlog=port-1-errors.log
+  $ cat port-1-hg.pid >> $DAEMON_PIDS
+
   $ hg clone --config format.usefncache=False \
   >   --config experimental.changegroup3=True \
   >   http://localhost:$HGPORT deeprepo-encodedstore
@@ -730,12 +738,12 @@ Create clones using old repo formats to use in later tests
   new changesets 775704be6f52:523e5c631710
   updating to branch default
   8 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ cd deeprepo-encodedstore
-  $ hg debugrequires | grep fncache
+  $ hg -R deeprepo-encodedstore debugrequires | grep fncache
   [1]
-  $ hg serve -p $HGPORT2 -d --pid-file=hg.pid --errorlog=errors.log
-  $ cat hg.pid >> $DAEMON_PIDS
-  $ cd ..
+  $ hg -R deeprepo-encodedstore serve -p $HGPORT2 -d \
+  >   --pid-file=port-2-hg.pid \
+  >   --errorlog=port-2-errors.log
+  $ cat port-2-hg.pid >> $DAEMON_PIDS
 
 Local clone with basicstore
   $ hg clone -U deeprepo-basicstore local-clone-basicstore
@@ -756,6 +764,7 @@ Stream clone with basicstore
   28 files to transfer, * of data (glob)
   transferred * in * seconds (*) (glob)
   $ hg -R stream-clone-basicstore verify -q
+  $ cat port-1-errors.log
 
 Stream clone with encodedstore
   $ hg clone --config experimental.changegroup3=True --stream -U \
@@ -764,6 +773,7 @@ Stream clone with encodedstore
   28 files to transfer, * of data (glob)
   transferred * in * seconds (*) (glob)
   $ hg -R stream-clone-encodedstore verify -q
+  $ cat port-2-errors.log
 
 Stream clone with fncachestore
   $ hg clone --config experimental.changegroup3=True --stream -U \
@@ -772,6 +782,7 @@ Stream clone with fncachestore
   22 files to transfer, * of data (glob)
   transferred * in * seconds (*) (glob)
   $ hg -R stream-clone-fncachestore verify -q
+  $ cat port-0-errors.log
 
 Packed bundle
   $ hg -R deeprepo debugcreatestreamclonebundle repo-packed.hg
@@ -842,3 +853,52 @@ Committing a empty commit does not duplicate root treemanifest
   1:678d3574b88c
   1:678d3574b88c
   $ hg --config extensions.strip= strip -r . -q
+
+Testing repository upgrade
+--------------------------
+
+  $ for x in 1 2 3 4 5 6 7 8 9; do
+  >    echo $x > file-$x # make sure we have interresting compression
+  >    echo $x > dir/foo-$x # make sure we have interresting compression
+  >    hg add file-$x
+  >    hg add dir/foo-$x
+  > done
+  $ hg ci -m 'have some content'
+  $ f -s .hg/store/00manifest.*
+  .hg/store/00manifest.i: size=798 (no-pure !)
+  .hg/store/00manifest.i: size=784 (pure !)
+  $ f -s .hg/store/meta/dir/00manifest*
+  .hg/store/meta/dir/00manifest.i: size=556 (no-pure !)
+  .hg/store/meta/dir/00manifest.i: size=544 (pure !)
+  $ hg debugupgraderepo --config format.revlog-compression=none --config experimental.treemanifest=yes --run --quiet --no-backup
+  upgrade will perform the following actions:
+  
+  requirements
+     preserved: * (glob)
+     removed: revlog-compression-zstd (no-pure !)
+     added: exp-compression-none
+  
+  processed revlogs:
+    - all-filelogs
+    - changelog
+    - manifest
+  
+  $ hg verify
+  checking changesets
+  checking manifests
+  checking directory manifests
+  crosschecking files in changesets and manifests
+  checking files
+  checking dirstate
+  checked 4 changesets with 22 changes to 20 files
+  $ f -s .hg/store/00manifest.*
+  .hg/store/00manifest.i: size=1002
+  $ f -s .hg/store/meta/dir/00manifest*
+  .hg/store/meta/dir/00manifest.i: size=721
+  $ hg files --rev tip | wc -l
+  \s*20 (re)
+
+testing cache update warming persistent nodemaps
+------------------------------------------------
+
+  $ hg debugupdatecache

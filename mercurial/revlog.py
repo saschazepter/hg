@@ -290,6 +290,16 @@ class revlog:
 
     _flagserrorclass = error.RevlogError
 
+    @staticmethod
+    def is_inline_index(header_bytes):
+        header = INDEX_HEADER.unpack(header_bytes)[0]
+
+        _format_flags = header & ~0xFFFF
+        _format_version = header & 0xFFFF
+
+        features = FEATURES_BY_VERSION[_format_version]
+        return features[b'inline'](_format_flags)
+
     def __init__(
         self,
         opener,
@@ -506,6 +516,97 @@ class revlog:
         except FileNotFoundError:
             return b''
 
+    def get_streams(self, max_linkrev, force_inline=False):
+        n = len(self)
+        index = self.index
+        while n > 0:
+            linkrev = index[n - 1][4]
+            if linkrev < max_linkrev:
+                break
+            # note: this loop will rarely go through multiple iterations, since
+            # it only traverses commits created during the current streaming
+            # pull operation.
+            #
+            # If this become a problem, using a binary search should cap the
+            # runtime of this.
+            n = n - 1
+        if n == 0:
+            # no data to send
+            return []
+        index_size = n * index.entry_size
+        data_size = self.end(n - 1)
+
+        # XXX we might have been split (or stripped) since the object
+        # initialization, We need to close this race too, but having a way to
+        # pre-open the file we feed to the revlog and never closing them before
+        # we are done streaming.
+
+        if self._inline:
+
+            def get_stream():
+                with self._indexfp() as fp:
+                    yield None
+                    size = index_size + data_size
+                    if size <= 65536:
+                        yield fp.read(size)
+                    else:
+                        yield from util.filechunkiter(fp, limit=size)
+
+            inline_stream = get_stream()
+            next(inline_stream)
+            return [
+                (self._indexfile, inline_stream, index_size + data_size),
+            ]
+        elif force_inline:
+
+            def get_stream():
+                with self._datafp() as fp_d:
+                    yield None
+
+                    for rev in range(n):
+                        idx = self.index.entry_binary(rev)
+                        if rev == 0 and self._docket is None:
+                            # re-inject the inline flag
+                            header = self._format_flags
+                            header |= self._format_version
+                            header |= FLAG_INLINE_DATA
+                            header = self.index.pack_header(header)
+                            idx = header + idx
+                        yield idx
+                        yield self._getsegmentforrevs(rev, rev, df=fp_d)[1]
+
+            inline_stream = get_stream()
+            next(inline_stream)
+            return [
+                (self._indexfile, inline_stream, index_size + data_size),
+            ]
+        else:
+
+            def get_index_stream():
+                with self._indexfp() as fp:
+                    yield None
+                    if index_size <= 65536:
+                        yield fp.read(index_size)
+                    else:
+                        yield from util.filechunkiter(fp, limit=index_size)
+
+            def get_data_stream():
+                with self._datafp() as fp:
+                    yield None
+                    if data_size <= 65536:
+                        yield fp.read(data_size)
+                    else:
+                        yield from util.filechunkiter(fp, limit=data_size)
+
+            index_stream = get_index_stream()
+            next(index_stream)
+            data_stream = get_data_stream()
+            next(data_stream)
+            return [
+                (self._datafile, data_stream, data_size),
+                (self._indexfile, index_stream, index_size),
+            ]
+
     def _loadindex(self, docket=None):
 
         new_header, mmapindexthreshold, force_nodemap = self._init_opts()
@@ -662,6 +763,10 @@ class revlog:
         self._chaininfocache = util.lrucachedict(500)
         # revlog header -> revlog compressor
         self._decompressors = {}
+
+    def get_revlog(self):
+        """simple function to mirror API of other not-really-revlog API"""
+        return self
 
     @util.propertycache
     def revlog_kind(self):
@@ -1782,7 +1887,7 @@ class revlog:
         """tells whether rev is a snapshot"""
         if not self._sparserevlog:
             return self.deltaparent(rev) == nullrev
-        elif util.safehasattr(self.index, b'issnapshot'):
+        elif util.safehasattr(self.index, 'issnapshot'):
             # directly assign the method to cache the testing and access
             self.issnapshot = self.index.issnapshot
             return self.issnapshot(rev)
@@ -2075,10 +2180,6 @@ class revlog:
             new_index_file_path = self._split_index_file
             opener = self.opener
             weak_self = weakref.ref(self)
-
-            fncache = getattr(opener, 'fncache', None)
-            if fncache is not None:
-                fncache.addignore(new_index_file_path)
 
             # the "split" index replace the real index when the transaction is finalized
             def finalize_callback(tr):

@@ -34,7 +34,14 @@ from .utils import (
 
 
 def backupbundle(
-    repo, bases, heads, node, suffix, compress=True, obsolescence=True
+    repo,
+    bases,
+    heads,
+    node,
+    suffix,
+    compress=True,
+    obsolescence=True,
+    tmp_backup=False,
 ):
     """create a bundle with the specified revisions as a backup"""
 
@@ -81,6 +88,7 @@ def backupbundle(
         contentopts,
         vfs,
         compression=comp,
+        allow_internal=tmp_backup,
     )
 
 
@@ -197,6 +205,7 @@ def strip(ui, repo, nodelist, backup=True, topic=b'backup'):
             b'temp',
             compress=False,
             obsolescence=False,
+            tmp_backup=True,
         )
 
     with ui.uninterruptible():
@@ -335,8 +344,26 @@ def _bookmarkmovements(repo, tostrip):
 def _createstripbackup(repo, stripbases, node, topic):
     # backup the changeset we are about to strip
     vfs = repo.vfs
-    cl = repo.changelog
-    backupfile = backupbundle(repo, stripbases, cl.heads(), node, topic)
+    unfi = repo.unfiltered()
+    to_node = unfi.changelog.node
+    # internal changeset are internal implementation details that should not
+    # leave the repository and not be exposed to the users. In addition feature
+    # using them requires to be resistant to strip. See test case for more
+    # details.
+    all_backup = unfi.revs(
+        b"(%ln)::(%ld) and not _internal()",
+        stripbases,
+        unfi.changelog.headrevs(),
+    )
+    if not all_backup:
+        return None
+
+    def to_nodes(revs):
+        return [to_node(r) for r in revs]
+
+    bases = to_nodes(unfi.revs("roots(%ld)", all_backup))
+    heads = to_nodes(unfi.revs("heads(%ld)", all_backup))
+    backupfile = backupbundle(repo, bases, heads, node, topic)
     repo.ui.status(_(b"saved backup bundle to %s\n") % vfs.join(backupfile))
     repo.ui.log(
         b"backupbundle", b"saved backup bundle to %s\n", vfs.join(backupfile)
@@ -417,12 +444,9 @@ def manifestrevlogs(repo):
     if scmutil.istreemanifest(repo):
         # This logic is safe if treemanifest isn't enabled, but also
         # pointless, so we skip it if treemanifest isn't enabled.
-        for t, unencoded, size in repo.store.datafiles():
-            if unencoded.startswith(b'meta/') and unencoded.endswith(
-                b'00manifest.i'
-            ):
-                dir = unencoded[5:-12]
-                yield repo.manifestlog.getstorage(dir)
+        for entry in repo.store.data_entries():
+            if entry.is_revlog and entry.is_manifestlog:
+                yield repo.manifestlog.getstorage(entry.target_id)
 
 
 def rebuildfncache(ui, repo, only_data=False):

@@ -852,9 +852,9 @@ Bare push with next changeset and common changeset needing sync (issue3575)
   searching for changes
   1 changesets found
   uncompressed size of bundle content:
-       178 (changelog)
-       165 (manifests)
-       131  a-H
+       180 (changelog)
+       167 (manifests)
+       133  a-H
   adding changesets
   adding manifests
   adding file changes

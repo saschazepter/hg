@@ -163,7 +163,7 @@ Test that strip bundle use bundle2
   saved backup bundle to $TESTTMP/aggressive/.hg/strip-backup/1c5d4dc9a8b8-6c68e60c-backup.hg
   $ hg debugbundle .hg/strip-backup/*
   Stream params: {Compression: BZ}
-  changegroup -- {nbchanges: 1, version: 02} (mandatory: True)
+  changegroup -- {nbchanges: 1, version: 03} (mandatory: True)
       1c5d4dc9a8b8d6e1750966d343e94db665e7a1e9
   cache:rev-branch-cache -- {} (mandatory: False)
   phase-heads -- {} (mandatory: True)
