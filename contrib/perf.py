@@ -902,7 +902,7 @@ def perftags(ui, repo, **opts):
         repocleartagscache()
 
     def t():
-        return len(repo.tags())
+        len(repo.tags())
 
     timer(t, setup=s)
     fm.end()
