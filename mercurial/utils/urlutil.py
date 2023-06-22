@@ -233,7 +233,7 @@ class url:
         self.path = path
 
         # leave the query string escaped
-        for a in (b'user', b'passwd', b'host', b'port', b'path', b'fragment'):
+        for a in ('user', 'passwd', 'host', 'port', 'path', 'fragment'):
             v = getattr(self, a)
             if v is not None:
                 setattr(self, a, urlreq.unquote(v))

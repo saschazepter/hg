@@ -332,7 +332,7 @@ class server:
             # any kind of interaction must use server channels, but chg may
             # replace channels by fully functional tty files. so nontty is
             # enforced only if cin is a channel.
-            if not util.safehasattr(self.cin, b'fileno'):
+            if not util.safehasattr(self.cin, 'fileno'):
                 ui.setconfig(b'ui', b'nontty', b'true', b'commandserver')
 
         req = dispatch.request(
@@ -384,7 +384,7 @@ class server:
         if self.cmsg:
             hellomsg += b'message-encoding: %s\n' % self.cmsg.encoding
         hellomsg += b'pid: %d' % procutil.getpid()
-        if util.safehasattr(os, b'getpgid'):
+        if util.safehasattr(os, 'getpgid'):
             hellomsg += b'\n'
             hellomsg += b'pgid: %d' % os.getpgid(0)
 
@@ -559,7 +559,7 @@ class unixforkingservice:
         self.ui = ui
         self.repo = repo
         self.address = opts[b'address']
-        if not util.safehasattr(socket, b'AF_UNIX'):
+        if not util.safehasattr(socket, 'AF_UNIX'):
             raise error.Abort(_(b'unsupported platform'))
         if not self.address:
             raise error.Abort(_(b'no socket path specified with --address'))
@@ -588,7 +588,7 @@ class unixforkingservice:
         o = socket.socketpair(socket.AF_UNIX, socket.SOCK_DGRAM)
         self._mainipc, self._workeripc = o
         self._servicehandler.bindsocket(self._sock, self.address)
-        if util.safehasattr(procutil, b'unblocksignal'):
+        if util.safehasattr(procutil, 'unblocksignal'):
             procutil.unblocksignal(signal.SIGCHLD)
         o = signal.signal(signal.SIGCHLD, self._sigchldhandler)
         self._oldsigchldhandler = o

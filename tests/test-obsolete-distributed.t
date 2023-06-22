@@ -163,7 +163,7 @@ client side: pull from the server
   adding manifests
   adding file changes
   adding c_B1 revisions
-  bundle2-input-part: total payload size 485
+  bundle2-input-part: total payload size 495
   bundle2-input-part: "listkeys" (params: 1 mandatory) supported
   bundle2-input-part: "obsmarkers" supported
   bundle2-input-part: total payload size 143

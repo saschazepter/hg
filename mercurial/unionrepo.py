@@ -270,8 +270,8 @@ class unionrepository:
     def cancopy(self):
         return False
 
-    def peer(self, path=None):
-        return unionpeer(self, path=None)
+    def peer(self, path=None, remotehidden=False):
+        return unionpeer(self, path=None, remotehidden=remotehidden)
 
     def getcwd(self):
         return encoding.getcwd()  # always outside the repo

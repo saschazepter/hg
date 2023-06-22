@@ -532,10 +532,16 @@ DEFAULTLIMITS = (
 )
 
 
+@contextlib.contextmanager
+def noop_context():
+    yield
+
+
 def _timer(
     fm,
     func,
     setup=None,
+    context=noop_context,
     title=None,
     displayall=False,
     limits=DEFAULTLIMITS,
@@ -551,14 +557,16 @@ def _timer(
     for i in range(prerun):
         if setup is not None:
             setup()
-        func()
+        with context():
+            func()
     keepgoing = True
     while keepgoing:
         if setup is not None:
             setup()
-        with profiler:
-            with timeone() as item:
-                r = func()
+        with context():
+            with profiler:
+                with timeone() as item:
+                    r = func()
         profiler = NOOPCTX
         count += 1
         results.append(item[0])
@@ -1897,6 +1905,201 @@ def perfstartup(ui, repo, **opts):
             os.system("%s version -q > NUL" % sys.argv[0])
 
     timer(d)
+    fm.end()
+
+
+def _find_stream_generator(version):
+    """find the proper generator function for this stream version"""
+    import mercurial.streamclone
+
+    available = {}
+
+    # try to fetch a v1 generator
+    generatev1 = getattr(mercurial.streamclone, "generatev1", None)
+    if generatev1 is not None:
+
+        def generate(repo):
+            entries, bytes, data = generatev2(repo, None, None, True)
+            return data
+
+        available[b'v1'] = generatev1
+    # try to fetch a v2 generator
+    generatev2 = getattr(mercurial.streamclone, "generatev2", None)
+    if generatev2 is not None:
+
+        def generate(repo):
+            entries, bytes, data = generatev2(repo, None, None, True)
+            return data
+
+        available[b'v2'] = generate
+    # try to fetch a v3 generator
+    generatev3 = getattr(mercurial.streamclone, "generatev3", None)
+    if generatev3 is not None:
+
+        def generate(repo):
+            entries, bytes, data = generatev3(repo, None, None, True)
+            return data
+
+        available[b'v3-exp'] = generate
+
+    # resolve the request
+    if version == b"latest":
+        # latest is the highest non experimental version
+        latest_key = max(v for v in available if b'-exp' not in v)
+        return available[latest_key]
+    elif version in available:
+        return available[version]
+    else:
+        msg = b"unkown or unavailable version: %s"
+        msg %= version
+        hint = b"available versions: %s"
+        hint %= b', '.join(sorted(available))
+        raise error.Abort(msg, hint=hint)
+
+
+@command(
+    b'perf::stream-locked-section',
+    [
+        (
+            b'',
+            b'stream-version',
+            b'latest',
+            b'stream version to use ("v1", "v2", "v3" or "latest", (the default))',
+        ),
+    ]
+    + formatteropts,
+)
+def perf_stream_clone_scan(ui, repo, stream_version, **opts):
+    """benchmark the initial, repo-locked, section of a stream-clone"""
+
+    opts = _byteskwargs(opts)
+    timer, fm = gettimer(ui, opts)
+
+    # deletion of the generator may trigger some cleanup that we do not want to
+    # measure
+    result_holder = [None]
+
+    def setupone():
+        result_holder[0] = None
+
+    generate = _find_stream_generator(stream_version)
+
+    def runone():
+        # the lock is held for the duration the initialisation
+        result_holder[0] = generate(repo)
+
+    timer(runone, setup=setupone, title=b"load")
+    fm.end()
+
+
+@command(
+    b'perf::stream-generate',
+    [
+        (
+            b'',
+            b'stream-version',
+            b'latest',
+            b'stream version to us ("v1", "v2" or "latest", (the default))',
+        ),
+    ]
+    + formatteropts,
+)
+def perf_stream_clone_generate(ui, repo, stream_version, **opts):
+    """benchmark the full generation of a stream clone"""
+
+    opts = _byteskwargs(opts)
+    timer, fm = gettimer(ui, opts)
+
+    # deletion of the generator may trigger some cleanup that we do not want to
+    # measure
+
+    generate = _find_stream_generator(stream_version)
+
+    def runone():
+        # the lock is held for the duration the initialisation
+        for chunk in generate(repo):
+            pass
+
+    timer(runone, title=b"generate")
+    fm.end()
+
+
+@command(
+    b'perf::stream-consume',
+    formatteropts,
+)
+def perf_stream_clone_consume(ui, repo, filename, **opts):
+    """benchmark the full application of a stream clone
+
+    This include the creation of the repository
+    """
+    # try except to appease check code
+    msg = b"mercurial too old, missing necessary module: %s"
+    try:
+        from mercurial import bundle2
+    except ImportError as exc:
+        msg %= _bytestr(exc)
+        raise error.Abort(msg)
+    try:
+        from mercurial import exchange
+    except ImportError as exc:
+        msg %= _bytestr(exc)
+        raise error.Abort(msg)
+    try:
+        from mercurial import hg
+    except ImportError as exc:
+        msg %= _bytestr(exc)
+        raise error.Abort(msg)
+    try:
+        from mercurial import localrepo
+    except ImportError as exc:
+        msg %= _bytestr(exc)
+        raise error.Abort(msg)
+
+    opts = _byteskwargs(opts)
+    timer, fm = gettimer(ui, opts)
+
+    # deletion of the generator may trigger some cleanup that we do not want to
+    # measure
+    if not (os.path.isfile(filename) and os.access(filename, os.R_OK)):
+        raise error.Abort("not a readable file: %s" % filename)
+
+    run_variables = [None, None]
+
+    @contextlib.contextmanager
+    def context():
+        with open(filename, mode='rb') as bundle:
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                tmp_dir = fsencode(tmp_dir)
+                run_variables[0] = bundle
+                run_variables[1] = tmp_dir
+                yield
+                run_variables[0] = None
+                run_variables[1] = None
+
+    def runone():
+        bundle = run_variables[0]
+        tmp_dir = run_variables[1]
+        # only pass ui when no srcrepo
+        localrepo.createrepository(
+            repo.ui, tmp_dir, requirements=repo.requirements
+        )
+        target = hg.repository(repo.ui, tmp_dir)
+        gen = exchange.readbundle(target.ui, bundle, bundle.name)
+        # stream v1
+        if util.safehasattr(gen, 'apply'):
+            gen.apply(target)
+        else:
+            with target.transaction(b"perf::stream-consume") as tr:
+                bundle2.applybundle(
+                    target,
+                    gen,
+                    tr,
+                    source=b'unbundle',
+                    url=filename,
+                )
+
+    timer(runone, context=context, title=b"consume")
     fm.end()
 
 

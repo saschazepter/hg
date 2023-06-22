@@ -1234,7 +1234,7 @@ class bundlepart:
         # we only support fixed size data now.
         # This will be improved in the future.
         if util.safehasattr(self.data, 'next') or util.safehasattr(
-            self.data, b'__next__'
+            self.data, '__next__'
         ):
             buff = util.chunkbuffer(self.data)
             chunk = buff.read(preferedchunksize)
@@ -1381,7 +1381,7 @@ class unbundlepart(unpackermixin):
     def __init__(self, ui, header, fp):
         super(unbundlepart, self).__init__(fp)
         self._seekable = util.safehasattr(fp, 'seek') and util.safehasattr(
-            fp, b'tell'
+            fp, 'tell'
         )
         self.ui = ui
         # unbundle state attr
@@ -1671,6 +1671,10 @@ def getrepocaps(repo, allowpushback=False, role=None):
     # Else always advertise support on client, because payload support
     # should always be advertised.
 
+    if repo.ui.configbool(b'experimental', b'stream-v3'):
+        if b'stream' in caps:
+            caps[b'stream'] += (b'v3-exp',)
+
     # b'rev-branch-cache is no longer advertised, but still supported
     # for legacy clients.
 
@@ -1703,6 +1707,7 @@ def writenewbundle(
     vfs=None,
     compression=None,
     compopts=None,
+    allow_internal=False,
 ):
     if bundletype.startswith(b'HG10'):
         cg = changegroup.makechangegroup(repo, outgoing, b'01', source)
@@ -1718,9 +1723,21 @@ def writenewbundle(
     elif not bundletype.startswith(b'HG20'):
         raise error.ProgrammingError(b'unknown bundle type: %s' % bundletype)
 
+    # enforce that no internal phase are to be bundled
+    bundled_internal = repo.revs(b"%ln and _internal()", outgoing.ancestorsof)
+    if bundled_internal and not allow_internal:
+        count = len(repo.revs(b'%ln and _internal()', outgoing.missing))
+        msg = "backup bundle would contains %d internal changesets"
+        msg %= count
+        raise error.ProgrammingError(msg)
+
     caps = {}
     if opts.get(b'obsolescence', False):
         caps[b'obsmarkers'] = (b'V1',)
+    if opts.get(b'streamv2'):
+        caps[b'stream'] = [b'v2']
+    elif opts.get(b'streamv3-exp'):
+        caps[b'stream'] = [b'v3-exp']
     bundle = bundle20(ui, caps)
     bundle.setcompression(compression, compopts)
     _addpartsfromopts(ui, repo, bundle, source, outgoing, opts)
@@ -1750,16 +1767,23 @@ def _addpartsfromopts(ui, repo, bundler, source, outgoing, opts):
             part.addparam(
                 b'nbchanges', b'%d' % cg.extras[b'clcount'], mandatory=False
             )
-        if opts.get(b'phases') and repo.revs(
-            b'%ln and secret()', outgoing.ancestorsof
-        ):
-            part.addparam(
-                b'targetphase', b'%d' % phases.secret, mandatory=False
-            )
+        if opts.get(b'phases'):
+            target_phase = phases.draft
+            for head in outgoing.ancestorsof:
+                target_phase = max(target_phase, repo[head].phase())
+            if target_phase > phases.draft:
+                part.addparam(
+                    b'targetphase',
+                    b'%d' % target_phase,
+                    mandatory=False,
+                )
     if repository.REPO_FEATURE_SIDE_DATA in repo.features:
         part.addparam(b'exp-sidedata', b'1')
 
     if opts.get(b'streamv2', False):
+        addpartbundlestream2(bundler, repo, stream=True)
+
+    if opts.get(b'streamv3-exp', False):
         addpartbundlestream2(bundler, repo, stream=True)
 
     if opts.get(b'tagsfnodescache', True):
@@ -1868,17 +1892,25 @@ def addpartbundlestream2(bundler, repo, **kwargs):
         return
 
     if not streamclone.allowservergeneration(repo):
-        raise error.Abort(
-            _(
-                b'stream data requested but server does not allow '
-                b'this feature'
-            ),
-            hint=_(
-                b'well-behaved clients should not be '
-                b'requesting stream data from servers not '
-                b'advertising it; the client may be buggy'
-            ),
+        msg = _(b'stream data requested but server does not allow this feature')
+        hint = _(b'the client seems buggy')
+        raise error.Abort(msg, hint=hint)
+    if not (b'stream' in bundler.capabilities):
+        msg = _(
+            b'stream data requested but supported streaming clone versions were not specified'
         )
+        hint = _(b'the client seems buggy')
+        raise error.Abort(msg, hint=hint)
+    client_supported = set(bundler.capabilities[b'stream'])
+    server_supported = set(getrepocaps(repo, role=b'client').get(b'stream', []))
+    common_supported = client_supported & server_supported
+    if not common_supported:
+        msg = _(b'no common supported version with the client: %s; %s')
+        str_server = b','.join(sorted(server_supported))
+        str_client = b','.join(sorted(client_supported))
+        msg %= (str_server, str_client)
+        raise error.Abort(msg)
+    version = max(common_supported)
 
     # Stream clones don't compress well. And compression undermines a
     # goal of stream clones, which is to be fast. Communicate the desire
@@ -1909,15 +1941,24 @@ def addpartbundlestream2(bundler, repo, **kwargs):
         elif repo.obsstore._version in remoteversions:
             includeobsmarkers = True
 
-    filecount, bytecount, it = streamclone.generatev2(
-        repo, includepats, excludepats, includeobsmarkers
-    )
-    requirements = streamclone.streamed_requirements(repo)
-    requirements = _formatrequirementsspec(requirements)
-    part = bundler.newpart(b'stream2', data=it)
-    part.addparam(b'bytecount', b'%d' % bytecount, mandatory=True)
-    part.addparam(b'filecount', b'%d' % filecount, mandatory=True)
-    part.addparam(b'requirements', requirements, mandatory=True)
+    if version == b"v2":
+        filecount, bytecount, it = streamclone.generatev2(
+            repo, includepats, excludepats, includeobsmarkers
+        )
+        requirements = streamclone.streamed_requirements(repo)
+        requirements = _formatrequirementsspec(requirements)
+        part = bundler.newpart(b'stream2', data=it)
+        part.addparam(b'bytecount', b'%d' % bytecount, mandatory=True)
+        part.addparam(b'filecount', b'%d' % filecount, mandatory=True)
+        part.addparam(b'requirements', requirements, mandatory=True)
+    elif version == b"v3-exp":
+        it = streamclone.generatev3(
+            repo, includepats, excludepats, includeobsmarkers
+        )
+        requirements = streamclone.streamed_requirements(repo)
+        requirements = _formatrequirementsspec(requirements)
+        part = bundler.newpart(b'stream3-exp', data=it)
+        part.addparam(b'requirements', requirements, mandatory=True)
 
 
 def buildobsmarkerspart(bundler, markers, mandatory=True):
@@ -2571,6 +2612,20 @@ def handlestreamv2bundle(op, part):
 
     repo.ui.debug(b'applying stream bundle\n')
     streamclone.applybundlev2(repo, part, filecount, bytecount, requirements)
+
+
+@parthandler(b'stream3-exp', (b'requirements',))
+def handlestreamv3bundle(op, part):
+    requirements = urlreq.unquote(part.params[b'requirements'])
+    requirements = requirements.split(b',') if requirements else []
+
+    repo = op.repo
+    if len(repo):
+        msg = _(b'cannot apply stream clone to non empty repository')
+        raise error.Abort(msg)
+
+    repo.ui.debug(b'applying stream bundle\n')
+    streamclone.applybundlev3(repo, part, requirements)
 
 
 def widen_bundle(

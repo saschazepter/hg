@@ -100,7 +100,7 @@ class _httprequesthandler(httpservermod.basehttprequesthandler):
 
     def log_request(self, code='-', size='-'):
         xheaders = []
-        if util.safehasattr(self, b'headers'):
+        if util.safehasattr(self, 'headers'):
             xheaders = [
                 h for h in self.headers.items() if h[0].startswith('x-')
             ]
@@ -214,7 +214,7 @@ class _httprequesthandler(httpservermod.basehttprequesthandler):
         env['wsgi.multithread'] = isinstance(
             self.server, socketserver.ThreadingMixIn
         )
-        if util.safehasattr(socketserver, b'ForkingMixIn'):
+        if util.safehasattr(socketserver, 'ForkingMixIn'):
             env['wsgi.multiprocess'] = isinstance(
                 self.server, socketserver.ForkingMixIn
             )
@@ -344,7 +344,7 @@ try:
     threading.active_count()  # silence pyflakes and bypass demandimport
     _mixin = socketserver.ThreadingMixIn
 except ImportError:
-    if util.safehasattr(os, b"fork"):
+    if util.safehasattr(os, "fork"):
         _mixin = socketserver.ForkingMixIn
     else:
 
