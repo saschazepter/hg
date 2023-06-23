@@ -456,7 +456,7 @@ def gettimer(ui, opts=None):
         return functools.partial(stub_timer, fm), fm
 
     # experimental config: perf.all-timing
-    displayall = ui.configbool(b"perf", b"all-timing", False)
+    displayall = ui.configbool(b"perf", b"all-timing", True)
 
     # experimental config: perf.run-limits
     limitspec = ui.configlist(b"perf", b"run-limits", [])
@@ -3359,7 +3359,7 @@ def perfrevlogwrite(ui, repo, file_=None, startrev=1000, stoprev=-1, **opts):
 
     # get a formatter
     fm = ui.formatter(b'perf', opts)
-    displayall = ui.configbool(b"perf", b"all-timing", False)
+    displayall = ui.configbool(b"perf", b"all-timing", True)
 
     # print individual details if requested
     if opts['details']:
