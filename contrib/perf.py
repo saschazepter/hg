@@ -931,6 +931,13 @@ def _default_forget_fnodes(repo, revs):
             b'clear on disk file node cache (DESTRUCTIVE),',
             b'REVS',
         ),
+        (
+            b'',
+            b'update-last',
+            b'',
+            b'simulate an update over the last N revisions (DESTRUCTIVE),',
+            b'N',
+        ),
     ],
 )
 def perftags(ui, repo, **opts):
@@ -950,6 +957,16 @@ def perftags(ui, repo, **opts):
     clear_fnode = opts[b'clear_fnode_cache_all']
 
     clear_fnode_revs = opts[b'clear_fnode_cache_rev']
+    update_last_str = opts[b'update_last']
+    update_last = None
+    if update_last_str:
+        try:
+            update_last = int(update_last_str)
+        except ValueError:
+            msg = b'could not parse value for update-last: "%s"'
+            msg %= update_last_str
+            hint = b'value should be an integer'
+            raise error.Abort(msg, hint=hint)
 
     clear_disk_fn = getattr(
         tags,
@@ -967,11 +984,32 @@ def perftags(ui, repo, **opts):
         _default_forget_fnodes,
     )
 
-    clear_revs = None
+    clear_revs = []
     if clear_fnode_revs:
-        clear_revs = scmutil.revrange(repo, clear_fnode_revs)
+        clear_revs.extends(scmutil.revrange(repo, clear_fnode_revs))
+
+    if update_last:
+        revset = b'last(all(), %d)' % update_last
+        last_revs = repo.unfiltered().revs(revset)
+        clear_revs.extend(last_revs)
+
+        from mercurial import repoview
+
+        rev_filter = {(b'experimental', b'extra-filter-revs'): revset}
+        with repo.ui.configoverride(rev_filter, source=b"perf"):
+            filter_id = repoview.extrafilter(repo.ui)
+
+        filter_name = b'%s%%%s' % (repo.filtername, filter_id)
+        pre_repo = repo.filtered(filter_name)
+        pre_repo.tags()  # warm the cache
+        old_tags_path = repo.cachevfs.join(tags._filename(pre_repo))
+        new_tags_path = repo.cachevfs.join(tags._filename(repo))
+
+    clear_revs = sorted(set(clear_revs))
 
     def s():
+        if update_last:
+            util.copyfile(old_tags_path, new_tags_path)
         if clearrevlogs:
             clearchangelog(repo)
             clearfilecache(repo.unfiltered(), 'manifest')
@@ -979,7 +1017,7 @@ def perftags(ui, repo, **opts):
             clear_disk_fn(repo)
         if clear_fnode:
             clear_fnodes_fn(repo)
-        elif clear_revs is not None:
+        elif clear_revs:
             clear_fnodes_rev_fn(repo, clear_revs)
         repocleartagscache()
 
