@@ -436,7 +436,7 @@ Test archiving to zip file (unzip output is unstable):
 
 (unzip date formating is unstable, we do not care about it and glob it out)
 
-  $ unzip -l ../archive.zip | grep -v -- ----- | egrep -v files$
+  $ unzip -l ../archive.zip | grep -v -- ----- | grep -E -v files$
   Archive:  ../archive.zip
     Length [ ]* Date [ ]* Time [ ]* Name (re)
         172  [0-9:\- ]*  .hg_archival.txt (re)

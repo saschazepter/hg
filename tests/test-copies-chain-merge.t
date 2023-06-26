@@ -1649,7 +1649,7 @@ We upgrade a repository that is not using sidedata (the filelog case) and
   > [format]
   > exp-use-copies-side-data-changeset = yes
   > EOF
-  $ hg debugformat -v | egrep 'changelog-v2|revlog-v2|copies-sdc'
+  $ hg debugformat -v | grep -E 'changelog-v2|revlog-v2|copies-sdc'
   copies-sdc:          no    yes      no
   revlog-v2:           no     no      no
   changelog-v2:        no    yes      no
@@ -1675,7 +1675,7 @@ We upgrade a repository that is not using sidedata (the filelog case) and
   > enabled=yes
   > numcpus=8
   > EOF
-  $ hg debugformat -v  | egrep 'changelog-v2|revlog-v2|copies-sdc'
+  $ hg debugformat -v  | grep -E 'changelog-v2|revlog-v2|copies-sdc'
   copies-sdc:          no    yes      no
   revlog-v2:           no     no      no
   changelog-v2:        no    yes      no
@@ -2919,14 +2919,14 @@ In this case, the file hash from "f-2" is lower, so it will be `p1` of the resul
 
 Details on this hash ordering pick:
 
-  $ hg manifest --debug 'desc("g-1")' | egrep 'd$'
+  $ hg manifest --debug 'desc("g-1")' | grep -E 'd$'
   17ec97e605773eb44a117d1136b3849bcdc1924f 644   d (no-changeset !)
   5cce88bf349f7c742bb440f2c53f81db9c294279 644   d (changeset !)
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("g-1")' d
   A d
     a (no-changeset no-compatibility !)
 
-  $ hg manifest --debug 'desc("f-2")' | egrep 'd$'
+  $ hg manifest --debug 'desc("f-2")' | grep -E 'd$'
   7b79e2fe0c8924e0e598a82f048a7b024afa4d96 644   d (no-changeset !)
   ae258f702dfeca05bf9b6a22a97a4b5645570f11 644   d (changeset !)
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("f-2")' d

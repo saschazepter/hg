@@ -408,7 +408,7 @@ test  profile-benchmark option
 
 Function to check that statprof ran
   $ statprofran () {
-  >   egrep 'Sample count:|No samples recorded' > /dev/null
+  >   grep -E 'Sample count:|No samples recorded' > /dev/null
   > }
   $ hg perfdiscovery . --config perf.stub=no --config perf.run-limits='0.000000001-1' --config perf.profile-benchmark=yes 2>&1 | statprofran
 

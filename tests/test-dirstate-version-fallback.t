@@ -22,7 +22,7 @@ Copy v1 dirstate
 
 Upgrade it to v2
 
-  $ hg debugupgraderepo -q --config format.use-dirstate-v2=1 --run | egrep 'added:|removed:'
+  $ hg debugupgraderepo -q --config format.use-dirstate-v2=1 --run | grep -E 'added:|removed:'
      added: dirstate-v2
   $ hg debugrequires | grep dirstate
   dirstate-v2

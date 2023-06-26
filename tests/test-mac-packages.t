@@ -41,7 +41,7 @@ Spot-check some randomly selected files:
   ./usr/local/share/zsh/site-functions/_hg	100644	0/0
   $ grep bash-completion/completions/hg boms.txt | cut -d '	' -f 1,2,3
   ./usr/local/share/bash-completion-completions/hg	100644	0/0
-  $ egrep 'man[15]' boms.txt | cut -d '	' -f 1,2,3
+  $ grep -E 'man[15]' boms.txt | cut -d '	' -f 1,2,3
   ./usr/local/share/man/man1	40755	0/0
   ./usr/local/share/man/man1/chg.1	100644	0/0
   ./usr/local/share/man/man1/hg.1	100644	0/0
@@ -57,7 +57,7 @@ Spot-check some randomly selected files:
   ./Library/Python/2.7/site-packages/mercurial/localrepo.py	100644	0/0
   ./Library/Python/2.7/site-packages/mercurial/localrepo.pyc	100644	0/0
   ./Library/Python/2.7/site-packages/mercurial/localrepo.pyo	100644	0/0
-  $ egrep 'bin/' boms.txt | cut -d '	' -f 1,2,3
+  $ grep -E 'bin/' boms.txt | cut -d '	' -f 1,2,3
   ./usr/local/bin/chg	100755	0/0
   ./usr/local/bin/hg	100755	0/0
 

@@ -26,7 +26,7 @@ https://bz.mercurial-scm.org/show_bug.cgi?id=6642
 
   $ hg log -r . --debug | grep files
   [1]
-  $ hg log -r . --debug -T json | egrep '(added|removed|modified)'
+  $ hg log -r . --debug -T json | grep -E '(added|removed|modified)'
     "added": [],
     "modified": [],
     "removed": [],

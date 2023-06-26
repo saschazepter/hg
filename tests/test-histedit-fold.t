@@ -236,7 +236,7 @@ tip before edit
 
   $ hg --config progress.debug=1 --debug \
   > histedit 1ddb6c90f2ee --commands - 2>&1 <<EOF | \
-  > egrep 'editing|unresolved'
+  > grep -E 'editing|unresolved'
   > pick 1ddb6c90f2ee e
   > fold 10c36dd37515 f
   > EOF
