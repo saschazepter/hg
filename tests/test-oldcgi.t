@@ -8,8 +8,7 @@ This tests if CGI files from before d0db3462d568 still work.
   > #
   > # An example CGI script to use hgweb, edit as necessary
   > 
-  > import cgitb, os, sys
-  > cgitb.enable()
+  > import os, sys
   > 
   > # sys.path.insert(0, "/path/to/python/lib") # if not a system-wide install
   > from mercurial import hgweb
@@ -30,8 +29,7 @@ This tests if CGI files from before d0db3462d568 still work.
   > #
   > # An example CGI script to export multiple hgweb repos, edit as necessary
   > 
-  > import cgitb, sys
-  > cgitb.enable()
+  > import sys
   > 
   > # sys.path.insert(0, "/path/to/python/lib") # if not a system-wide install
   > from mercurial import hgweb

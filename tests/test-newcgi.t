@@ -9,9 +9,6 @@ before d74fc8dec2b4 still work.
   > #
   > # An example CGI script to use hgweb, edit as necessary
   > 
-  > import cgitb
-  > cgitb.enable()
-  > 
   > from mercurial import demandimport; demandimport.enable()
   > from mercurial.hgweb import hgweb
   > from mercurial.hgweb import wsgicgi
@@ -34,9 +31,6 @@ before d74fc8dec2b4 still work.
   > #!$PYTHON
   > #
   > # An example CGI script to export multiple hgweb repos, edit as necessary
-  > 
-  > import cgitb
-  > cgitb.enable()
   > 
   > from mercurial import demandimport; demandimport.enable()
   > from mercurial.hgweb import hgwebdir
