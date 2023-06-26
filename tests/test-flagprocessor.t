@@ -215,7 +215,7 @@ Ensure the data got to the server OK
       raise error.Abort(msg)
   mercurial.error.Abort: cannot register multiple processors on flag '0x8'.
   *** failed to set up extension duplicate: cannot register multiple processors on flag '0x8'.
-  $ hg st 2>&1 | egrep 'cannot register multiple processors|flagprocessorext'
+  $ hg st 2>&1 | grep -E 'cannot register multiple processors|flagprocessorext'
     File "*/tests/flagprocessorext.py", line *, in extsetup (glob)
   mercurial.error.Abort: cannot register multiple processors on flag '0x8'.
   *** failed to set up extension duplicate: cannot register multiple processors on flag '0x8'.

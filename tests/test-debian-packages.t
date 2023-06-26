@@ -15,16 +15,16 @@ Ensure debuild doesn't run the testsuite, as that could get silly.
   $ ls *.deb | grep -v 'dbg'
   mercurial_*.deb (glob)
 should have .so and .py
-  $ dpkg --contents mercurial_*.deb | egrep '(localrepo|parsers)'
+  $ dpkg --contents mercurial_*.deb | grep -E '(localrepo|parsers)'
   * ./usr/lib/python3/dist-packages/mercurial/cext/parsers*.so (glob)
   * ./usr/lib/python3/dist-packages/mercurial/localrepo.py (glob)
   * ./usr/lib/python3/dist-packages/mercurial/pure/parsers.py (glob)
 should have zsh completions
-  $ dpkg --contents mercurial_*.deb | egrep 'zsh.*[^/]$'
+  $ dpkg --contents mercurial_*.deb | grep -E 'zsh.*[^/]$'
   * ./usr/share/zsh/vendor-completions/_hg (glob)
 should have chg
-  $ dpkg --contents mercurial_*.deb | egrep 'chg$'
+  $ dpkg --contents mercurial_*.deb | grep -E 'chg$'
   * ./usr/bin/chg (glob)
 chg should come with a man page
-  $ dpkg --contents mercurial_*.deb | egrep 'man.*chg'
+  $ dpkg --contents mercurial_*.deb | grep -E 'man.*chg'
   * ./usr/share/man/man1/chg.1.gz (glob)

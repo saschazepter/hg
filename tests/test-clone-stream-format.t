@@ -245,7 +245,7 @@ The resulting clone should not use share.
 
   $ hg clone --quiet --stream -U http://localhost:$HGPORT clone-from-share
   $ hg -R clone-from-share verify -q
-  $ hg debugrequires -R clone-from-share | egrep 'share$'
+  $ hg debugrequires -R clone-from-share | grep -E 'share$'
   [1]
 
   $ killdaemons.py

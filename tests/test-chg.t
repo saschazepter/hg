@@ -70,7 +70,7 @@ by default, system() should be redirected to the client:
 
   $ touch foo
   $ CHGDEBUG= HGEDITOR=cat chg ci -Am channeled --edit 2>&1 \
-  > | egrep "HG:|run 'cat"
+  > | grep -E "HG:|run 'cat"
   chg: debug: * run 'cat "*"' at '$TESTTMP/editor' (glob)
   HG: Enter commit message.  Lines beginning with 'HG:' are removed.
   HG: Leave message empty to abort commit.
@@ -84,7 +84,7 @@ but no redirection should be made if output is captured:
   $ touch bar
   $ CHGDEBUG= HGEDITOR=cat chg ci -Am bufferred --edit \
   > --config extensions.pushbuffer="$TESTTMP/pushbuffer.py" 2>&1 \
-  > | egrep "HG:|run 'cat"
+  > | grep -E "HG:|run 'cat"
   [1]
 
 check that commit commands succeeded:
@@ -237,14 +237,14 @@ isolate socket directory for stable result:
 
 warm up server:
 
-  $ CHGDEBUG= chg log 2>&1 | egrep 'instruction|start'
+  $ CHGDEBUG= chg log 2>&1 | grep -E 'instruction|start'
   chg: debug: * start cmdserver at $TESTTMP/extreload/chgsock/server.* (glob)
 
 new server should be started if extension modified:
 
   $ sleep 1
   $ touch dummyext.py
-  $ CHGDEBUG= chg log 2>&1 | egrep 'instruction|start'
+  $ CHGDEBUG= chg log 2>&1 | grep -E 'instruction|start'
   chg: debug: * instruction: unlink $TESTTMP/extreload/chgsock/server-* (glob)
   chg: debug: * instruction: reconnect (glob)
   chg: debug: * start cmdserver at $TESTTMP/extreload/chgsock/server.* (glob)
@@ -252,7 +252,7 @@ new server should be started if extension modified:
 old server will shut down, while new server should still be reachable:
 
   $ sleep 2
-  $ CHGDEBUG= chg log 2>&1 | (egrep 'instruction|start' || true)
+  $ CHGDEBUG= chg log 2>&1 | (grep -E 'instruction|start' || true)
 
 socket file should never be unlinked by old server:
 (simulates unowned socket by updating mtime, which makes sure server exits
@@ -268,7 +268,7 @@ at polling cycle)
 since no server is reachable from socket file, new server should be started:
 (this test makes sure that old server shut down automatically)
 
-  $ CHGDEBUG= chg log 2>&1 | egrep 'instruction|start'
+  $ CHGDEBUG= chg log 2>&1 | grep -E 'instruction|start'
   chg: debug: * start cmdserver at $TESTTMP/extreload/chgsock/server.* (glob)
 
 shut down servers and restore environment:
@@ -495,7 +495,7 @@ share the same server
   > }
   $ newchg() {
   >   chg --kill-chg-daemon
-  >   filteredchg "$@" | egrep -v 'start cmdserver' || true
+  >   filteredchg "$@" | grep -E -v 'start cmdserver' || true
   > }
 (--profile isn't permanently on just because it was specified when chg was
 started)
@@ -561,12 +561,12 @@ If CHGHG is not set, chg will set it before spawning the command server.
   $ hg --kill-chg-daemon
   $ HG=$CHGHG CHGHG= CHGDEBUG= hg debugshell -c \
   >   'ui.write(b"CHGHG=%s\n" % ui.environ.get(b"CHGHG"))' 2>&1 \
-  >   | egrep 'CHGHG|start'
+  >   | grep -E 'CHGHG|start'
   chg: debug: * start cmdserver at * (glob)
   CHGHG=/*/install/bin/hg (glob)
 
 Running the same command a second time shouldn't spawn a new command server.
   $ HG=$CHGHG CHGHG= CHGDEBUG= hg debugshell -c \
   >   'ui.write(b"CHGHG=%s\n" % ui.environ.get(b"CHGHG"))' 2>&1 \
-  >   | egrep 'CHGHG|start'
+  >   | grep -E 'CHGHG|start'
   CHGHG=/*/install/bin/hg (glob)

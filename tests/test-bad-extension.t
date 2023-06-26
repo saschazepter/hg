@@ -57,7 +57,7 @@ another bad extension
 
 show traceback
 
-  $ hg -q help help --traceback 2>&1 | egrep ' extension|^Exception|Traceback|ImportError|ModuleNotFound'
+  $ hg -q help help --traceback 2>&1 | grep -E ' extension|^Exception|Traceback|ImportError|ModuleNotFound'
   *** failed to import extension "badext" from $TESTTMP/badext.py: bit bucket overflow
   Traceback (most recent call last):
   Exception: bit bucket overflow
@@ -88,7 +88,7 @@ show traceback for ImportError of hgext.name if devel.debug.extensions is set
   $ (hg help help --traceback --debug --config devel.debug.extensions=yes 2>&1) \
   > | grep -v '^ ' \
   > | filterlog \
-  > | egrep 'extension..[^p]|^Exception|Traceback|ImportError|^YYYY|not import|ModuleNotFound'
+  > | grep -E 'extension..[^p]|^Exception|Traceback|ImportError|^YYYY|not import|ModuleNotFound'
   YYYY/MM/DD HH:MM:SS (PID)> loading extensions
   YYYY/MM/DD HH:MM:SS (PID)> - processing 5 entries
   YYYY/MM/DD HH:MM:SS (PID)>   - loading extension: gpg

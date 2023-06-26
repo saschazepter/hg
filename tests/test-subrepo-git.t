@@ -263,7 +263,7 @@ make upstream git changes
 make and push changes to hg without updating the subrepo
 
   $ cd ../t
-  $ hg clone . ../td 2>&1 | egrep -v '^Cloning into|^done\.'
+  $ hg clone . ../td 2>&1 | grep -E -v '^Cloning into|^done\.'
   updating to branch default
   cloning subrepo s from $TESTTMP/gitroot
   checking out detached HEAD in subrepository "s"

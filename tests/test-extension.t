@@ -1375,7 +1375,7 @@ accessed.
     throw  external  1.0.0
 
 No declared supported version, extension complains:
-  $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
+  $ hg --config extensions.throw=throw.py throw 2>&1 | grep -E '^\*\*'
   ** Unknown exception encountered with possibly-broken third-party extension "throw" 1.0.0
   ** which supports versions unknown of Mercurial.
   ** Please disable "throw" and try your action again.
@@ -1387,7 +1387,7 @@ No declared supported version, extension complains:
 empty declaration of supported version, extension complains (but doesn't choke if
 the value is improperly a str instead of bytes):
   $ echo "testedwith = ''" >> throw.py
-  $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
+  $ hg --config extensions.throw=throw.py throw 2>&1 | grep -E '^\*\*'
   ** Unknown exception encountered with possibly-broken third-party extension "throw" 1.0.0
   ** which supports versions unknown of Mercurial.
   ** Please disable "throw" and try your action again.
@@ -1401,7 +1401,7 @@ improperly a str instead of bytes):
   $ echo 'buglink = "http://example.com/bts"' >> throw.py
   $ rm -f throw.pyc throw.pyo
   $ rm -Rf __pycache__
-  $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
+  $ hg --config extensions.throw=throw.py throw 2>&1 | grep -E '^\*\*'
   ** Unknown exception encountered with possibly-broken third-party extension "throw" 1.0.0
   ** which supports versions unknown of Mercurial.
   ** Please disable "throw" and try your action again.
@@ -1418,7 +1418,7 @@ If the extensions declare outdated versions, accuse the older extension first:
   $ rm -f throw.pyc throw.pyo
   $ rm -Rf __pycache__
   $ hg --config extensions.throw=throw.py --config extensions.older=older.py \
-  >   throw 2>&1 | egrep '^\*\*'
+  >   throw 2>&1 | grep -E '^\*\*'
   ** Unknown exception encountered with possibly-broken third-party extension "older" (version N/A)
   ** which supports versions 1.9 of Mercurial.
   ** Please disable "older" and try your action again.
@@ -1432,7 +1432,7 @@ One extension only tested with older, one only with newer versions:
   $ rm -f older.pyc older.pyo
   $ rm -Rf __pycache__
   $ hg --config extensions.throw=throw.py --config extensions.older=older.py \
-  >   throw 2>&1 | egrep '^\*\*'
+  >   throw 2>&1 | grep -E '^\*\*'
   ** Unknown exception encountered with possibly-broken third-party extension "older" (version N/A)
   ** which supports versions 1.9 of Mercurial.
   ** Please disable "older" and try your action again.
@@ -1446,7 +1446,7 @@ Older extension is tested with current version, the other only with newer:
   $ rm -f older.pyc older.pyo
   $ rm -Rf __pycache__
   $ hg --config extensions.throw=throw.py --config extensions.older=older.py \
-  >   throw 2>&1 | egrep '^\*\*'
+  >   throw 2>&1 | grep -E '^\*\*'
   ** Unknown exception encountered with possibly-broken third-party extension "throw" 1.0.0
   ** which supports versions 2.1 of Mercurial.
   ** Please disable "throw" and try your action again.
@@ -1457,7 +1457,7 @@ Older extension is tested with current version, the other only with newer:
 
 Ability to point to a different point
   $ hg --config extensions.throw=throw.py --config extensions.older=older.py \
-  >   --config ui.supportcontact='Your Local Goat Lenders' throw 2>&1 | egrep '^\*\*'
+  >   --config ui.supportcontact='Your Local Goat Lenders' throw 2>&1 | grep -E '^\*\*'
   ** unknown exception encountered, please report by visiting
   ** Your Local Goat Lenders
   ** Python * (glob)
@@ -1472,7 +1472,7 @@ Declare the version as supporting this hg version, show regular bts link:
   > fi
   $ rm -f throw.pyc throw.pyo
   $ rm -Rf __pycache__
-  $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
+  $ hg --config extensions.throw=throw.py throw 2>&1 | grep -E '^\*\*'
   ** unknown exception encountered, please report by visiting
   ** https://mercurial-scm.org/wiki/BugTracker
   ** Python * (glob)
@@ -1484,7 +1484,7 @@ Patch version is ignored during compatibility check
   $ echo "util.version = lambda:b'3.2.2'" >> throw.py
   $ rm -f throw.pyc throw.pyo
   $ rm -Rf __pycache__
-  $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
+  $ hg --config extensions.throw=throw.py throw 2>&1 | grep -E '^\*\*'
   ** unknown exception encountered, please report by visiting
   ** https://mercurial-scm.org/wiki/BugTracker
   ** Python * (glob)
@@ -1595,7 +1595,7 @@ Refuse to load extensions with minimum version requirements
   > util.version = lambda: b'3.6'
   > minimumhgversion = b'3.7'
   > EOF
-  $ hg --config extensions.minversion=minversion2.py version 2>&1 | egrep '\(third'
+  $ hg --config extensions.minversion=minversion2.py version 2>&1 | grep -E '\(third'
   (third party extension minversion requires version 3.7 or newer of Mercurial (current: 3.6); disabling)
 
 Can load version that is only off by point release
@@ -1605,7 +1605,7 @@ Can load version that is only off by point release
   > util.version = lambda: b'3.6.1'
   > minimumhgversion = b'3.6'
   > EOF
-  $ hg --config extensions.minversion=minversion3.py version 2>&1 | egrep '\(third'
+  $ hg --config extensions.minversion=minversion3.py version 2>&1 | grep -E '\(third'
   [1]
 
 Can load minimum version identical to current
@@ -1615,7 +1615,7 @@ Can load minimum version identical to current
   > util.version = lambda: b'3.5'
   > minimumhgversion = b'3.5'
   > EOF
-  $ hg --config extensions.minversion=minversion3.py version 2>&1 | egrep '\(third'
+  $ hg --config extensions.minversion=minversion3.py version 2>&1 | grep -E '\(third'
   [1]
 
 Don't explode on py3 with a bad version number (both str vs bytes, and not enough

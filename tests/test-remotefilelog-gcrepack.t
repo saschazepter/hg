@@ -41,7 +41,7 @@
   2 files fetched over 1 fetches - (2 misses, 0.00% hit ratio) over *s (glob)
   $ hg repack
 
-  $ find $CACHEDIR | sort | egrep ".datapack|.histpack"
+  $ find $CACHEDIR | sort | grep -E ".datapack|.histpack"
   $TESTTMP/hgcache/master/packs/7bcd2d90b99395ca43172a0dd24e18860b2902f9.histpack
   $TESTTMP/hgcache/master/packs/dc8f8fdc76690ce27791ce9f53a18da379e50d37.datapack
 
@@ -72,7 +72,7 @@
 
   $ hg repack
 
-  $ find $CACHEDIR | sort | egrep ".datapack|.histpack"
+  $ find $CACHEDIR | sort | grep -E ".datapack|.histpack"
   $TESTTMP/hgcache/master/packs/7bcd2d90b99395ca43172a0dd24e18860b2902f9.histpack
   $TESTTMP/hgcache/master/packs/a4e1d094ec2aee8a08a4d6d95a13c634cc7d7394.datapack
 
@@ -98,7 +98,7 @@
   2 files fetched over 1 fetches - (2 misses, 0.00% hit ratio) over *s (glob)
   $ hg repack
 
-  $ find $CACHEDIR | sort | egrep ".datapack|.histpack"
+  $ find $CACHEDIR | sort | grep -E ".datapack|.histpack"
   $TESTTMP/hgcache/master/packs/7bcd2d90b99395ca43172a0dd24e18860b2902f9.histpack
   $TESTTMP/hgcache/master/packs/dc8f8fdc76690ce27791ce9f53a18da379e50d37.datapack
 
@@ -130,7 +130,7 @@
 
   $ hg repack
 
-  $ find $CACHEDIR | sort | egrep ".datapack|.histpack"
+  $ find $CACHEDIR | sort | grep -E ".datapack|.histpack"
   $TESTTMP/hgcache/master/packs/7bcd2d90b99395ca43172a0dd24e18860b2902f9.histpack
   $TESTTMP/hgcache/master/packs/dc8f8fdc76690ce27791ce9f53a18da379e50d37.datapack
 
