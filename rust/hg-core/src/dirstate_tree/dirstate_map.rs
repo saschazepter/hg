@@ -964,6 +964,7 @@ impl OwningDirstateMap {
             map.root = Default::default();
             map.nodes_with_entry_count = 0;
             map.nodes_with_copy_source_count = 0;
+            map.unreachable_bytes = map.on_disk.len() as u32;
         });
     }
 
