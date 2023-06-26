@@ -28,7 +28,10 @@ class dummysmtpserver(smtpd.SMTPServer):
         smtpd.SMTPServer.__init__(self, localaddr, remoteaddr=None)
 
     def process_message(self, peer, mailfrom, rcpttos, data, **kwargs):
-        log('%s from=%s to=%s\n' % (peer[0], mailfrom, ', '.join(rcpttos)))
+        log(
+            '%s from=%s to=%s\n%s\n'
+            % (peer[0], mailfrom, ', '.join(rcpttos), data.decode())
+        )
 
     def handle_error(self):
         # On Windows, a bad SSL connection sometimes generates a WSAECONNRESET.
@@ -54,8 +57,8 @@ class dummysmtpsecureserver(dummysmtpserver):
         try:
             # wrap_socket() would block, but we don't care
             conn = sslutil.wrapserversocket(conn, ui, certfile=self._certfile)
-        except ssl.SSLError:
-            log('%s ssl error\n' % addr[0])
+        except ssl.SSLError as e:
+            log('%s ssl error: %s\n' % (addr[0], e))
             conn.close()
             return
         smtpd.SMTPChannel(self, conn, addr)
