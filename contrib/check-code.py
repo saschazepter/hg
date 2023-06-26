@@ -147,6 +147,7 @@ testpats = [
             '[ foo == bar ] is a bashism, use [ foo = bar ] instead',
         ),
         (r'(^|\|\s*)egrep', "use grep -E for extended grep syntax"),
+        (r'(^|\|\s*)fgrep', "use grep -F for fixed string grepping"),
         (r'(^|\|\s*)e?grep .*\\S', "don't use \\S in regular expression"),
         (r'(?<!!)/bin/', "don't use explicit paths for tools"),
         (r'#!.*/bash', "don't use bash in shebang, use sh"),
