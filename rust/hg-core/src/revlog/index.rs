@@ -79,9 +79,50 @@ impl IndexHeader {
     }
 }
 
+/// Abstracts the access to the index bytes since they can be spread between
+/// the immutable (bytes) part and the mutable (added) part if any appends
+/// happened. This makes it transparent for the callers.
+struct IndexData {
+    /// Immutable bytes, most likely taken from disk
+    bytes: Box<dyn Deref<Target = [u8]> + Send>,
+    /// Bytes that were added after reading the index
+    added: Vec<u8>,
+}
+
+impl IndexData {
+    pub fn new(bytes: Box<dyn Deref<Target = [u8]> + Send>) -> Self {
+        Self {
+            bytes,
+            added: vec![],
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.bytes.len() + self.added.len()
+    }
+}
+
+impl std::ops::Index<std::ops::Range<usize>> for IndexData {
+    type Output = [u8];
+
+    fn index(&self, index: std::ops::Range<usize>) -> &Self::Output {
+        let start = index.start;
+        let end = index.end;
+        let immutable_len = self.bytes.len();
+        if start < immutable_len {
+            if end > immutable_len {
+                panic!("index data cannot span existing and added ranges");
+            }
+            &self.bytes[index]
+        } else {
+            &self.added[start - immutable_len..end - immutable_len]
+        }
+    }
+}
+
 /// A Revlog index
 pub struct Index {
-    bytes: Box<dyn Deref<Target = [u8]> + Send>,
+    bytes: IndexData,
     /// Offsets of starts of index blocks.
     /// Only needed when the index is interleaved with data.
     offsets: Option<Vec<usize>>,
@@ -150,7 +191,7 @@ impl Index {
 
             if offset == bytes.len() {
                 Ok(Self {
-                    bytes,
+                    bytes: IndexData::new(bytes),
                     offsets: Some(offsets),
                     uses_generaldelta,
                 })
@@ -159,7 +200,7 @@ impl Index {
             }
         } else {
             Ok(Self {
-                bytes,
+                bytes: IndexData::new(bytes),
                 offsets: None,
                 uses_generaldelta,
             })
