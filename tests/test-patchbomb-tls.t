@@ -76,7 +76,7 @@ Without certificates:
   [150]
 
   $ cat ../log
-  * ssl error (glob)
+  * ssl error: * (glob)
   $ : > ../log
 
 With global certificates:
@@ -92,6 +92,35 @@ With global certificates:
 
   $ cat ../log
   * from=quux to=foo, bar (glob)
+  MIME-Version: 1.0
+  Content-Type: text/plain; charset="us-ascii"
+  Content-Transfer-Encoding: 7bit
+  Subject: [PATCH] a
+  X-Mercurial-Node: 8580ff50825a50c8f716709acdf8de0deddcd6ab
+  X-Mercurial-Series-Index: 1
+  X-Mercurial-Series-Total: 1
+  Message-Id: <*@test-hostname> (glob)
+  X-Mercurial-Series-Id: <*@test-hostname> (glob)
+  User-Agent: Mercurial-patchbomb* (glob)
+  Date: * (glob)
+  From: quux
+  To: foo
+  Cc: bar
+  
+  # HG changeset patch
+  # User test
+  # Date 1 0
+  #      Thu Jan 01 00:00:01 1970 +0000
+  # Node ID 8580ff50825a50c8f716709acdf8de0deddcd6ab
+  # Parent  0000000000000000000000000000000000000000
+  a
+  
+  diff -r 0000000000000000000000000000000000000000 -r 8580ff50825a50c8f716709acdf8de0deddcd6ab a
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/a	Thu Jan 01 00:00:01 1970 +0000
+  @@ -0,0 +1,1 @@
+  +a
+  
   $ : > ../log
 
 With invalid certificates:
@@ -105,7 +134,7 @@ With invalid certificates:
   [255]
 
   $ cat ../log
-  * ssl error (glob)
+  * ssl error: * (glob)
   $ : > ../log
 
   $ cd ..
