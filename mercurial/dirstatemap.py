@@ -4,7 +4,6 @@
 # GNU General Public License version 2 or any later version.
 
 
-import struct
 from .i18n import _
 
 from . import (
@@ -152,15 +151,13 @@ class _dirstatemapcommon:
                     b'dirstate only has a docket in v2 format'
                 )
             self._set_identity()
-            try:
+            data = self._readdirstatefile()
+            if data == b'' or data.startswith(docketmod.V2_FORMAT_MARKER):
                 self._docket = docketmod.DirstateDocket.parse(
-                    self._readdirstatefile(), self._nodeconstants
+                    data, self._nodeconstants
                 )
-            except struct.error:
-                self._ui.debug(b"failed to read dirstate-v2 data")
-                raise error.CorruptedDirstate(
-                    b"failed to read dirstate-v2 data"
-                )
+            else:
+                raise error.CorruptedDirstate(b"dirstate is not in v2 format")
         return self._docket
 
     def _read_v2_data(self):
