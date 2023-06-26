@@ -99,8 +99,8 @@ def main():
     op.add_option('--logfile', metavar='FILE')
 
     opts, args = op.parse_args()
-    if opts.tls == 'smtps' and not opts.certificate:
-        op.error('--certificate must be specified')
+    if (opts.tls == 'smtps') != bool(opts.certificate):
+        op.error('--certificate must be specified with --tls=smtps')
 
     addr = (opts.address, opts.port)
 
