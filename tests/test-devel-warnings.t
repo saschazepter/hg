@@ -191,7 +191,7 @@ Stripping from a transaction
   $ echo a > a
   $ hg add a
   $ hg commit -m a
-  $ hg stripintr 2>&1 | egrep -v '^(\*\*|  )'
+  $ hg stripintr 2>&1 | grep -E -v '^(\*\*|  )'
   Traceback (most recent call last):
   *ProgrammingError: cannot strip from inside a transaction (glob)
 
@@ -384,7 +384,7 @@ Stripping from a transaction
 
 Test programming error failure:
 
-  $ hg buggytransaction 2>&1 | egrep -v '^  '
+  $ hg buggytransaction 2>&1 | grep -E -v '^  '
   ** Unknown exception encountered with possibly-broken third-party extension "buggylocking" (version N/A)
   ** which supports versions unknown of Mercurial.
   ** Please disable "buggylocking" and try your action again.
@@ -396,7 +396,7 @@ Test programming error failure:
   Traceback (most recent call last):
   *ProgrammingError: transaction requires locking (glob)
 
-  $ hg programmingerror 2>&1 | egrep -v '^  '
+  $ hg programmingerror 2>&1 | grep -E -v '^  '
   ** Unknown exception encountered with possibly-broken third-party extension "buggylocking" (version N/A)
   ** which supports versions unknown of Mercurial.
   ** Please disable "buggylocking" and try your action again.

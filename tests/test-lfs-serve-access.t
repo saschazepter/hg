@@ -411,7 +411,7 @@ the GET/PUT request.
   >    -A $TESTTMP/access.log -E $TESTTMP/errors.log
   $ mv hg.pid $DAEMON_PIDS
 
-  $ hg clone --debug http://localhost:$HGPORT1 auth_clone | egrep '^[{}]|  '
+  $ hg clone --debug http://localhost:$HGPORT1 auth_clone | grep -E '^[{}]|  '
   {
     "objects": [
       {
@@ -460,7 +460,7 @@ Test that Digest Auth fails gracefully before testing the successful Basic Auth
   (api=http://localhost:$HGPORT1/.git/info/lfs/objects/batch, action=upload)
   [50]
 
-  $ hg -R auth_clone --debug push | egrep '^[{}]|  '
+  $ hg -R auth_clone --debug push | grep -E '^[{}]|  '
   {
     "objects": [
       {

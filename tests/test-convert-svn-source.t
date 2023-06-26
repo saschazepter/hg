@@ -1,7 +1,7 @@
 #require svn svn-bindings
 
   $ filter_svn_output () {
-  >     egrep -v 'Committing|Updating|(^$)' | sed -e 's/done$//' || true
+  >     grep -E -v 'Committing|Updating|(^$)' | sed -e 's/done$//' || true
   > }
 
   $ cat >> $HGRCPATH <<EOF

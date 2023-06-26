@@ -71,7 +71,7 @@ Can merge in when no files outside narrow spec are involved
 Can merge conflicting changes inside narrow spec
 
   $ hg update -q 'desc("modify inside/f1")'
-  $ hg merge 'desc("conflicting inside/f1")' 2>&1 | egrep -v '(warning:|incomplete!)'
+  $ hg merge 'desc("conflicting inside/f1")' 2>&1 | grep -E -v '(warning:|incomplete!)'
   merging inside/f1
   0 files updated, 0 files merged, 0 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges or 'hg merge --abort' to abandon

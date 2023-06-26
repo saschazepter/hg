@@ -116,7 +116,7 @@ lfs requirement
 
   $ hg debugrequires -R $TESTTMP/server/ | grep lfs
   [1]
-  $ hg push -v | egrep -v '^(uncompressed| )'
+  $ hg push -v | grep -E -v '^(uncompressed| )'
   pushing to $TESTTMP/server
   searching for changes
   lfs: found f11e77c257047a398492d8d6cb9f6acf3aa7c4384bb23080b43546053e183e4b in the local lfs store

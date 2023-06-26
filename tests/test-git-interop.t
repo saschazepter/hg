@@ -358,7 +358,7 @@ Status should be consistent for both systems
   $ hg status
   heads mismatch, rebuilding dagcache
   M beta
-  $ git status | egrep -v '^$|^  \(use '
+  $ git status | grep -E -v '^$|^  \(use '
   On branch master
   Changes not staged for commit:
   	modified:   beta
