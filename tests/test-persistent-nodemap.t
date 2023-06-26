@@ -615,10 +615,10 @@ read/write patterns.
   $ hg share race-repo ./other-wc --config format.use-share-safe=yes
   updating working directory
   5001 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg debugformat -R ./race-repo | egrep 'share-safe|persistent-nodemap'
+  $ hg debugformat -R ./race-repo | grep -E 'share-safe|persistent-nodemap'
   share-safe:         yes
   persistent-nodemap: yes
-  $ hg debugformat -R ./other-wc/ | egrep 'share-safe|persistent-nodemap'
+  $ hg debugformat -R ./other-wc/ | grep -E 'share-safe|persistent-nodemap'
   share-safe:         yes
   persistent-nodemap: yes
   $ hg -R ./other-wc update 'min(head())'
@@ -818,7 +818,7 @@ downgrading
     - changelog
     - manifest
   
-  $ ls -1 .hg/store/ | egrep '00(changelog|manifest)(\.n|-.*\.nd)'
+  $ ls -1 .hg/store/ | grep -E '00(changelog|manifest)(\.n|-.*\.nd)'
   [1]
   $ hg debugnodemap --metadata
 
@@ -860,7 +860,7 @@ upgrading
     - changelog
     - manifest
   
-  $ ls -1 .hg/store/ | egrep '00(changelog|manifest)(\.n|-.*\.nd)'
+  $ ls -1 .hg/store/ | grep -E '00(changelog|manifest)(\.n|-.*\.nd)'
   00changelog-*.nd (glob)
   00changelog.n
   00manifest-*.nd (glob)
@@ -891,7 +891,7 @@ Running unrelated upgrade
     - changelog
     - manifest
   
-  $ ls -1 .hg/store/ | egrep '00(changelog|manifest)(\.n|-.*\.nd)'
+  $ ls -1 .hg/store/ | grep -E '00(changelog|manifest)(\.n|-.*\.nd)'
   00changelog-*.nd (glob)
   00changelog.n
   00manifest-*.nd (glob)
@@ -916,7 +916,7 @@ standard clone
 The persistent nodemap should exist after a streaming clone
 
   $ hg clone --pull --quiet -U test-repo standard-clone
-  $ ls -1 standard-clone/.hg/store/ | egrep '00(changelog|manifest)(\.n|-.*\.nd)'
+  $ ls -1 standard-clone/.hg/store/ | grep -E '00(changelog|manifest)(\.n|-.*\.nd)'
   00changelog-*.nd (glob)
   00changelog.n
   00manifest-*.nd (glob)
@@ -936,7 +936,7 @@ local clone
 The persistent nodemap should exist after a streaming clone
 
   $ hg clone -U test-repo local-clone
-  $ ls -1 local-clone/.hg/store/ | egrep '00(changelog|manifest)(\.n|-.*\.nd)'
+  $ ls -1 local-clone/.hg/store/ | grep -E '00(changelog|manifest)(\.n|-.*\.nd)'
   00changelog-*.nd (glob)
   00changelog.n
   00manifest-*.nd (glob)

@@ -371,7 +371,7 @@ plain diff in email, no subject, no message body, should fail
   new changesets 80971e65b431
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ egrep -v '^(Subject|email)' msg.patch | hg --cwd b import -
+  $ grep -E -v '^(Subject|email)' msg.patch | hg --cwd b import -
   applying patch from stdin
   abort: empty commit message
   [10]

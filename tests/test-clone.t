@@ -714,7 +714,7 @@ Test clone from the repository in (emulated) revlog format 0 (issue4203):
   $ hg -R src commit -m '#0'
   $ hg -R src log -q
   0:e1bab28bca43
-  $ hg -R src debugrevlog -c | egrep 'format|flags'
+  $ hg -R src debugrevlog -c | grep -E 'format|flags'
   format : 0
   flags  : (none)
   $ hg root -R src -T json | sed 's|\\\\|\\|g'
