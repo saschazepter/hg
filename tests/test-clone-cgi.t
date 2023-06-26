@@ -12,8 +12,6 @@ initialize repository
   $ cat >hgweb.cgi <<HGWEB
   > #
   > # An example CGI script to use hgweb, edit as necessary
-  > import cgitb
-  > cgitb.enable()
   > from mercurial import demandimport; demandimport.enable()
   > from mercurial.hgweb import hgweb
   > from mercurial.hgweb import wsgicgi

@@ -9,9 +9,6 @@ config = b"/path/to/repo/or/config"
 # (consult "installed modules" path from 'hg debuginstall'):
 # import sys; sys.path.insert(0, "/path/to/python/lib")
 
-# Uncomment to send python tracebacks to the browser if an error occurs:
-# import cgitb; cgitb.enable()
-
 from mercurial import demandimport
 
 demandimport.enable()

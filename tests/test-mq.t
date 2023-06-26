@@ -1581,8 +1581,6 @@ Test that secret mq patch does not break hgweb
   > from mercurial import demandimport; demandimport.enable()
   > from mercurial.hgweb import hgweb
   > from mercurial.hgweb import wsgicgi
-  > import cgitb
-  > cgitb.enable()
   > app = hgweb(b'.', b'test')
   > wsgicgi.launch(app)
   > HGWEB
