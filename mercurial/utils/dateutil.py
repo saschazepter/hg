@@ -83,10 +83,14 @@ def makedate(timestamp=None):
         raise error.InputError(
             _(b"negative timestamp: %d") % timestamp, hint=hint
         )
-    delta = datetime.datetime.utcfromtimestamp(
+    tz = round(
         timestamp
-    ) - datetime.datetime.fromtimestamp(timestamp)
-    tz = delta.days * 86400 + delta.seconds
+        - datetime.datetime.fromtimestamp(
+            timestamp,
+        )
+        .replace(tzinfo=datetime.timezone.utc)
+        .timestamp()
+    )
     return timestamp, tz
 
 
