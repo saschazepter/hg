@@ -112,7 +112,10 @@ issetuptools = os.name == 'nt' or 'FORCE_SETUPTOOLS' in os.environ
 if issetuptools:
     from setuptools import setup
 else:
-    from distutils.core import setup
+    try:
+        from distutils.core import setup
+    except ModuleNotFoundError:
+        from setuptools import setup
 from distutils.ccompiler import new_compiler
 from distutils.core import Command, Extension
 from distutils.dist import Distribution
