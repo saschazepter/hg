@@ -18,6 +18,7 @@ use cpython::{
 };
 use hg::{
     index::IndexHeader,
+    index::{RevisionDataParams, COMPRESSION_MODE_INLINE},
     nodemap::{Block, NodeMapError, NodeTree},
     revlog::{nodemap::NodeMap, NodePrefix, RevlogIndex},
     BaseRevision, Revision, UncheckedRevision,
@@ -145,8 +146,11 @@ py_class!(pub class MixedIndex |py| {
 
         // This is ok since we will just add the revision to the index
         let rev = Revision(idx.len() as BaseRevision);
-        idx.append(py, tup)?;
-
+        idx.append(py, tup.clone_ref(py))?;
+        self.index(py)
+            .borrow_mut()
+            .append(py_tuple_to_revision_data_params(py, tup)?)
+            .unwrap();
         self.get_nodetree(py)?.borrow_mut().as_mut().unwrap()
             .insert(&*idx, &node, rev)
             .map_err(|e| nodemap_error(py, e))?;
@@ -359,6 +363,44 @@ unsafe fn mmap_keeparound(
     };
 
     Ok((buf, Box::new(bytes)))
+}
+
+fn py_tuple_to_revision_data_params(
+    py: Python,
+    tuple: PyTuple,
+) -> PyResult<RevisionDataParams> {
+    if tuple.len(py) < 8 {
+        // this is better than the panic promised by tup.get_item()
+        return Err(PyErr::new::<IndexError, _>(
+            py,
+            "tuple index out of range",
+        ));
+    }
+    let offset_or_flags: u64 = tuple.get_item(py, 0).extract(py)?;
+    let node_id = tuple
+        .get_item(py, 7)
+        .extract::<PyBytes>(py)?
+        .data(py)
+        .try_into()
+        .unwrap();
+    let flags = (offset_or_flags & 0xFFFF) as u16;
+    let data_offset = offset_or_flags >> 16;
+    Ok(RevisionDataParams {
+        flags,
+        data_offset,
+        data_compressed_length: tuple.get_item(py, 1).extract(py)?,
+        data_uncompressed_length: tuple.get_item(py, 2).extract(py)?,
+        data_delta_base: tuple.get_item(py, 3).extract(py)?,
+        link_rev: tuple.get_item(py, 4).extract(py)?,
+        parent_rev_1: tuple.get_item(py, 5).extract(py)?,
+        parent_rev_2: tuple.get_item(py, 6).extract(py)?,
+        node_id,
+        _sidedata_offset: 0,
+        _sidedata_compressed_length: 0,
+        data_compression_mode: COMPRESSION_MODE_INLINE,
+        _sidedata_compression_mode: COMPRESSION_MODE_INLINE,
+        _rank: -1,
+    })
 }
 
 impl MixedIndex {
