@@ -22,24 +22,24 @@ from mercurial.testing import revlog as revlogtesting
 class RustRevlogIndexTest(revlogtesting.RevlogBasedTestBase):
     def test_heads(self):
         idx = self.parseindex()
-        rustidx = revlog.MixedIndex(idx)
+        rustidx = revlog.MixedIndex(idx, revlogtesting.data_non_inlined)
         self.assertEqual(rustidx.headrevs(), idx.headrevs())
 
     def test_get_cindex(self):
         # drop me once we no longer need the method for shortest node
         idx = self.parseindex()
-        rustidx = revlog.MixedIndex(idx)
+        rustidx = revlog.MixedIndex(idx, revlogtesting.data_non_inlined)
         cidx = rustidx.get_cindex()
         self.assertTrue(idx is cidx)
 
     def test_len(self):
         idx = self.parseindex()
-        rustidx = revlog.MixedIndex(idx)
+        rustidx = revlog.MixedIndex(idx, revlogtesting.data_non_inlined)
         self.assertEqual(len(rustidx), len(idx))
 
     def test_ancestors(self):
         idx = self.parseindex()
-        rustidx = revlog.MixedIndex(idx)
+        rustidx = revlog.MixedIndex(idx, revlogtesting.data_non_inlined)
         lazy = LazyAncestors(rustidx, [3], 0, True)
         # we have two more references to the index:
         # - in its inner iterator for __contains__ and __bool__

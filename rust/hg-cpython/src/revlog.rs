@@ -36,13 +36,20 @@ pub(crate) fn pyindex_to_graph(
 
 py_class!(pub class MixedIndex |py| {
     data cindex: RefCell<cindex::Index>;
+    data index: RefCell<hg::index::Index>;
     data nt: RefCell<Option<NodeTree>>;
     data docket: RefCell<Option<PyObject>>;
     // Holds a reference to the mmap'ed persistent nodemap data
     data nodemap_mmap: RefCell<Option<PyBuffer>>;
+    // Holds a reference to the mmap'ed persistent index data
+    data index_mmap: RefCell<Option<PyBuffer>>;
 
-    def __new__(_cls, cindex: PyObject) -> PyResult<MixedIndex> {
-        Self::new(py, cindex)
+    def __new__(
+        _cls,
+        cindex: PyObject,
+        data: PyObject
+    ) -> PyResult<MixedIndex> {
+        Self::new(py, cindex, data)
     }
 
     /// Compatibility layer used for Python consumers needing access to the C index
@@ -353,13 +360,22 @@ unsafe fn mmap_keeparound(
 }
 
 impl MixedIndex {
-    fn new(py: Python, cindex: PyObject) -> PyResult<MixedIndex> {
+    fn new(
+        py: Python,
+        cindex: PyObject,
+        data: PyObject,
+    ) -> PyResult<MixedIndex> {
+        // Safety: we keep the buffer around inside the class as `index_mmap`
+        let (buf, bytes) = unsafe { mmap_keeparound(py, data)? };
+
         Self::create_instance(
             py,
             RefCell::new(cindex::Index::new(py, cindex)?),
+            RefCell::new(hg::index::Index::new(bytes).unwrap()),
             RefCell::new(None),
             RefCell::new(None),
             RefCell::new(None),
+            RefCell::new(Some(buf)),
         )
     }
 
