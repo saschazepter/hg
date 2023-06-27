@@ -8,7 +8,6 @@
 # GNU General Public License version 2 or any later version.
 
 
-import _imp
 import os
 import sys
 import typing
@@ -32,7 +31,12 @@ def mainfrozen():
     return (
         hasattr(sys, "frozen")  # new py2exe
         or hasattr(sys, "importers")  # old py2exe
-        or _imp.is_frozen("__main__")  # tools/freeze
+        or getattr(
+            getattr(sys.modules.get('__main__'), '__spec__', None),
+            'origin',
+            None,
+        )
+        == 'frozen'  # tools/freeze
     )
 
 
