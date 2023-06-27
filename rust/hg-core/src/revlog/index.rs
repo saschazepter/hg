@@ -115,20 +115,20 @@ impl std::ops::Index<std::ops::Range<usize>> for IndexData {
 }
 
 pub struct RevisionDataParams {
-    flags: u16,
-    data_offset: u64,
-    data_compressed_length: i32,
-    data_uncompressed_length: i32,
-    data_delta_base: i32,
-    link_rev: i32,
-    parent_rev_1: i32,
-    parent_rev_2: i32,
-    node_id: [u8; NODE_BYTES_LENGTH],
-    _sidedata_offset: u64,
-    _sidedata_compressed_length: i32,
-    data_compression_mode: u8,
-    _sidedata_compression_mode: u8,
-    _rank: i32,
+    pub flags: u16,
+    pub data_offset: u64,
+    pub data_compressed_length: i32,
+    pub data_uncompressed_length: i32,
+    pub data_delta_base: i32,
+    pub link_rev: i32,
+    pub parent_rev_1: i32,
+    pub parent_rev_2: i32,
+    pub node_id: [u8; NODE_BYTES_LENGTH],
+    pub _sidedata_offset: u64,
+    pub _sidedata_compressed_length: i32,
+    pub data_compression_mode: u8,
+    pub _sidedata_compression_mode: u8,
+    pub _rank: i32,
 }
 
 #[derive(BytesCast)]
