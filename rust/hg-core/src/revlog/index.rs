@@ -2,13 +2,17 @@ use std::fmt::Debug;
 use std::ops::Deref;
 
 use byteorder::{BigEndian, ByteOrder};
+use bytes_cast::{unaligned, BytesCast};
 
+use super::REVIDX_KNOWN_FLAGS;
 use crate::errors::HgError;
+use crate::node::{NODE_BYTES_LENGTH, STORED_NODE_ID_BYTES};
 use crate::revlog::node::Node;
 use crate::revlog::{Revision, NULL_REVISION};
-use crate::{Graph, GraphError, RevlogIndex, UncheckedRevision};
+use crate::{Graph, GraphError, RevlogError, RevlogIndex, UncheckedRevision};
 
 pub const INDEX_ENTRY_SIZE: usize = 64;
+pub const COMPRESSION_MODE_INLINE: u8 = 2;
 
 pub struct IndexHeader {
     header_bytes: [u8; 4],
@@ -116,6 +120,81 @@ impl std::ops::Index<std::ops::Range<usize>> for IndexData {
             &self.bytes[index]
         } else {
             &self.added[start - immutable_len..end - immutable_len]
+        }
+    }
+}
+
+pub struct RevisionDataParams {
+    flags: u16,
+    data_offset: u64,
+    data_compressed_length: i32,
+    data_uncompressed_length: i32,
+    data_delta_base: i32,
+    link_rev: i32,
+    parent_rev_1: i32,
+    parent_rev_2: i32,
+    node_id: [u8; NODE_BYTES_LENGTH],
+    _sidedata_offset: u64,
+    _sidedata_compressed_length: i32,
+    data_compression_mode: u8,
+    _sidedata_compression_mode: u8,
+    _rank: i32,
+}
+
+#[derive(BytesCast)]
+#[repr(C)]
+pub struct RevisionDataV1 {
+    data_offset_or_flags: unaligned::U64Be,
+    data_compressed_length: unaligned::I32Be,
+    data_uncompressed_length: unaligned::I32Be,
+    data_delta_base: unaligned::I32Be,
+    link_rev: unaligned::I32Be,
+    parent_rev_1: unaligned::I32Be,
+    parent_rev_2: unaligned::I32Be,
+    node_id: [u8; STORED_NODE_ID_BYTES],
+}
+
+fn _static_assert_size_of_revision_data_v1() {
+    let _ = std::mem::transmute::<RevisionDataV1, [u8; 64]>;
+}
+
+impl RevisionDataParams {
+    pub fn validate(&self) -> Result<(), RevlogError> {
+        if self.flags & !REVIDX_KNOWN_FLAGS != 0 {
+            return Err(RevlogError::corrupted(format!(
+                "unknown revlog index flags: {}",
+                self.flags
+            )));
+        }
+        if self.data_compression_mode != COMPRESSION_MODE_INLINE {
+            return Err(RevlogError::corrupted(format!(
+                "invalid data compression mode: {}",
+                self.data_compression_mode
+            )));
+        }
+        // FIXME isn't this only for v2 or changelog v2?
+        if self._sidedata_compression_mode != COMPRESSION_MODE_INLINE {
+            return Err(RevlogError::corrupted(format!(
+                "invalid sidedata compression mode: {}",
+                self._sidedata_compression_mode
+            )));
+        }
+        Ok(())
+    }
+
+    pub fn into_v1(self) -> RevisionDataV1 {
+        let data_offset_or_flags = self.data_offset << 16 | self.flags as u64;
+        let mut node_id = [0; STORED_NODE_ID_BYTES];
+        node_id[..NODE_BYTES_LENGTH].copy_from_slice(&self.node_id);
+        RevisionDataV1 {
+            data_offset_or_flags: data_offset_or_flags.into(),
+            data_compressed_length: self.data_compressed_length.into(),
+            data_uncompressed_length: self.data_uncompressed_length.into(),
+            data_delta_base: self.data_delta_base.into(),
+            link_rev: self.link_rev.into(),
+            parent_rev_1: self.parent_rev_1.into(),
+            parent_rev_2: self.parent_rev_2.into(),
+            node_id,
         }
     }
 }
@@ -282,6 +361,20 @@ impl Index {
             bytes,
             offset_override,
         }
+    }
+
+    /// TODO move this to the trait probably, along with other things
+    pub fn append(
+        &mut self,
+        revision_data: RevisionDataParams,
+    ) -> Result<(), RevlogError> {
+        revision_data.validate()?;
+        let new_offset = self.bytes.len();
+        if let Some(offsets) = self.offsets.as_mut() {
+            offsets.push(new_offset)
+        }
+        self.bytes.added.extend(revision_data.into_v1().as_bytes());
+        Ok(())
     }
 }
 
