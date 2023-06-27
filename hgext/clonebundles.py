@@ -248,7 +248,7 @@ be controlled by the `clone-bundles.trigger.below-bundled-ratio` option
 
 This logic can be manually triggered using the `admin::clone-bundles-refresh`
 command, or automatically on each repository change if
-`clone-bundles.auto-generate.on-change` is set to `yes`.
+`clone-bundles.auto-generate.on-change` is set to `yes`::
 
     [clone-bundles]
     auto-generate.on-change=yes
