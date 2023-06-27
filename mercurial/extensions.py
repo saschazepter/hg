@@ -885,16 +885,31 @@ def _disabledcmdtable(path):
     with open(path, b'rb') as src:
         root = ast.parse(src.read(), path)
     cmdtable = {}
+
+    # Python 3.12 started removing Bytes and Str and deprecate harder
+    use_constant = 'Bytes' not in vars(ast)
+
     for node in _walkcommand(root):
         if not node.args:
             continue
         a = node.args[0]
-        if isinstance(a, ast.Str):
-            name = pycompat.sysbytes(a.s)
-        elif isinstance(a, ast.Bytes):
-            name = a.s
-        else:
-            continue
+        if use_constant:  # Valid since Python 3.8
+            if isinstance(a, ast.Constant):
+                if isinstance(a.value, str):
+                    name = pycompat.sysbytes(a.value)
+                elif isinstance(a.value, bytes):
+                    name = a.value
+                else:
+                    continue
+            else:
+                continue
+        else:  # Valid until 3.11
+            if isinstance(a, ast.Str):
+                name = pycompat.sysbytes(a.s)
+            elif isinstance(a, ast.Bytes):
+                name = a.s
+            else:
+                continue
         cmdtable[name] = (None, [], b'')
     return cmdtable
 
