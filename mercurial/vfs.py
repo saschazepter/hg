@@ -274,7 +274,7 @@ class abstractvfs:
         """
         if forcibly:
 
-            def onerror(function, path, excinfo):
+            def onexc(function, path, excinfo):
                 if function is not os.remove:
                     raise
                 # read-only files cannot be unlinked under Windows
@@ -285,10 +285,17 @@ class abstractvfs:
                 os.remove(path)
 
         else:
-            onerror = None
-        return shutil.rmtree(
-            self.join(path), ignore_errors=ignore_errors, onerror=onerror
-        )
+            onexc = None
+        try:
+            # pytype: disable=wrong-keyword-args
+            return shutil.rmtree(
+                self.join(path), ignore_errors=ignore_errors, onexc=onexc
+            )
+            # pytype: enable=wrong-keyword-args
+        except TypeError:  # onexc was introduced in Python 3.12
+            return shutil.rmtree(
+                self.join(path), ignore_errors=ignore_errors, onerror=onexc
+            )
 
     def setflags(self, path: bytes, l: bool, x: bool):
         return util.setflags(self.join(path), l, x)
