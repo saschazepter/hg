@@ -79,6 +79,10 @@ impl IndexHeader {
 struct IndexData {
     /// Immutable bytes, most likely taken from disk
     bytes: Box<dyn Deref<Target = [u8]> + Send>,
+    /// Used when stripping index contents, keeps track of the start of the
+    /// first stripped revision, which is used to give a slice of the
+    /// `bytes` field.
+    truncation: Option<usize>,
     /// Bytes that were added after reading the index
     added: Vec<u8>,
 }
@@ -87,12 +91,36 @@ impl IndexData {
     pub fn new(bytes: Box<dyn Deref<Target = [u8]> + Send>) -> Self {
         Self {
             bytes,
+            truncation: None,
             added: vec![],
         }
     }
 
     pub fn len(&self) -> usize {
-        self.bytes.len() + self.added.len()
+        match self.truncation {
+            Some(truncation) => truncation + self.added.len(),
+            None => self.bytes.len() + self.added.len(),
+        }
+    }
+
+    fn remove(
+        &mut self,
+        rev: Revision,
+        offsets: Option<&[usize]>,
+    ) -> Result<(), RevlogError> {
+        let rev = rev.0 as usize;
+        let truncation = if let Some(offsets) = offsets {
+            offsets[rev]
+        } else {
+            rev * INDEX_ENTRY_SIZE
+        };
+        if truncation < self.bytes.len() {
+            self.truncation = Some(truncation);
+            self.added.clear();
+        } else {
+            self.added.truncate(truncation - self.bytes.len());
+        }
+        Ok(())
     }
 }
 
@@ -102,7 +130,10 @@ impl std::ops::Index<std::ops::Range<usize>> for IndexData {
     fn index(&self, index: std::ops::Range<usize>) -> &Self::Output {
         let start = index.start;
         let end = index.end;
-        let immutable_len = self.bytes.len();
+        let immutable_len = match self.truncation {
+            Some(truncation) => truncation,
+            None => self.bytes.len(),
+        };
         if start < immutable_len {
             if end > immutable_len {
                 panic!("index data cannot span existing and added ranges");
@@ -366,6 +397,14 @@ impl Index {
             offsets.push(new_offset)
         }
         self.bytes.added.extend(revision_data.into_v1().as_bytes());
+        Ok(())
+    }
+
+    pub fn remove(&mut self, rev: Revision) -> Result<(), RevlogError> {
+        self.bytes.remove(rev, self.offsets.as_deref())?;
+        if let Some(offsets) = self.offsets.as_mut() {
+            offsets.truncate(rev.0 as usize)
+        }
         Ok(())
     }
 }

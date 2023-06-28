@@ -160,7 +160,16 @@ py_class!(pub class MixedIndex |py| {
 
     def __delitem__(&self, key: PyObject) -> PyResult<()> {
         // __delitem__ is both for `del idx[r]` and `del idx[r1:r2]`
-        self.cindex(py).borrow().inner().del_item(py, key)?;
+        self.cindex(py).borrow().inner().del_item(py, &key)?;
+        let start = key.getattr(py, "start")?;
+        let start = UncheckedRevision(start.extract(py)?);
+        let start = self.index(py)
+            .borrow()
+            .check_revision(start)
+            .ok_or_else(|| {
+                nodemap_error(py, NodeMapError::RevisionNotInIndex(start))
+            })?;
+        self.index(py).borrow_mut().remove(start).unwrap();
         let mut opt = self.get_nodetree(py)?.borrow_mut();
         let nt = opt.as_mut().unwrap();
         nt.invalidate_all();
