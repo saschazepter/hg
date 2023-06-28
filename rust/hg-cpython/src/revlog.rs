@@ -142,10 +142,11 @@ py_class!(pub class MixedIndex |py| {
         let node_bytes = tup.get_item(py, 7).extract(py)?;
         let node = node_from_py_object(py, &node_bytes)?;
 
+        let rev = self.len(py)? as BaseRevision;
         let mut idx = self.cindex(py).borrow_mut();
 
         // This is ok since we will just add the revision to the index
-        let rev = Revision(idx.len() as BaseRevision);
+        let rev = Revision(rev);
         idx.append(py, tup.clone_ref(py))?;
         self.index(py)
             .borrow_mut()
@@ -259,7 +260,7 @@ py_class!(pub class MixedIndex |py| {
     // and index_getitem.
 
     def __len__(&self) -> PyResult<usize> {
-        self.cindex(py).borrow().inner().len(py)
+        self.len(py)
     }
 
     def __getitem__(&self, key: PyObject) -> PyResult<PyObject> {
@@ -287,7 +288,7 @@ py_class!(pub class MixedIndex |py| {
         let cindex = self.cindex(py).borrow();
         match item.extract::<i32>(py) {
             Ok(rev) => {
-                Ok(rev >= -1 && rev < cindex.inner().len(py)? as BaseRevision)
+                Ok(rev >= -1 && rev < self.len(py)? as BaseRevision)
             }
             Err(_) => {
                 cindex.inner().call_method(
@@ -432,6 +433,13 @@ impl MixedIndex {
         )
     }
 
+    fn len(&self, py: Python) -> PyResult<usize> {
+        let rust_index_len = self.index(py).borrow().len();
+        let cindex_len = self.cindex(py).borrow().inner().len(py)?;
+        assert_eq!(rust_index_len, cindex_len);
+        Ok(cindex_len)
+    }
+
     /// This is scaffolding at this point, but it could also become
     /// a way to start a persistent nodemap or perform a
     /// vacuum / repack operation
@@ -441,7 +449,7 @@ impl MixedIndex {
         nt: &mut NodeTree,
     ) -> PyResult<PyObject> {
         let index = self.cindex(py).borrow();
-        for r in 0..index.len() {
+        for r in 0..self.len(py)? {
             let rev = Revision(r as BaseRevision);
             // in this case node() won't ever return None
             nt.insert(&*index, index.node(rev).unwrap(), rev)
