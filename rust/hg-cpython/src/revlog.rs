@@ -277,10 +277,6 @@ py_class!(pub class MixedIndex |py| {
         self.cindex(py).borrow().inner().get_item(py, key)
     }
 
-    def __setitem__(&self, key: PyObject, value: PyObject) -> PyResult<()> {
-        self.cindex(py).borrow().inner().set_item(py, key, value)
-    }
-
     def __contains__(&self, item: PyObject) -> PyResult<bool> {
         // ObjectProtocol does not seem to provide contains(), so
         // this is an equivalent implementation of the index_contains()
