@@ -83,7 +83,37 @@ extendeddateformats = defaultdateformats + (
 
 def makedate(timestamp: Optional[float] = None) -> hgdate:
     """Return a unix timestamp (or the current time) as a (unixtime,
-    offset) tuple based off the local timezone."""
+    offset) tuple based off the local timezone.
+
+    >>> import os, time
+    >>> os.environ['TZ'] = 'Asia/Novokuznetsk'
+    >>> time.tzset()
+
+    >>> def dtu(*a):
+    ...    return datetime.datetime(*a, tzinfo=datetime.timezone.utc)
+
+    # Old winter timezone, +7
+    >>> makedate(dtu(2010,  1,  1,  5,  0,  0).timestamp())
+    (1262322000.0, -25200)
+
+    # Same timezone in summer, +7, so no DST
+    >>> makedate(dtu(2010,  7,  1,  5,  0,  0).timestamp())
+    (1277960400.0, -25200)
+
+    # Changing to new winter timezone, from +7 to +6 (ae04af1ce78d testcase)
+    >>> makedate(dtu(2010, 10, 30, 20,  0,  0).timestamp() - 1)
+    (1288468799.0, -25200)
+    >>> makedate(dtu(2010, 10, 30, 20,  0,  0).timestamp())
+    (1288468800.0, -21600)
+    >>> makedate(dtu(2011,  1,  1,  5,  0,  0).timestamp())
+    (1293858000.0, -21600)
+
+    # Introducing DST, changing +6 to +7
+    >>> makedate(dtu(2011,  3, 26, 20,  0,  0).timestamp() - 1)
+    (1301169599.0, -21600)
+    >>> makedate(dtu(2011,  3, 26, 20,  0,  0).timestamp())
+    (1301169600.0, -25200)
+    """
     if timestamp is None:
         timestamp = time.time()
     if timestamp < 0:
