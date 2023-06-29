@@ -74,9 +74,15 @@ py_class!(pub class MixedIndex |py| {
         let opt = self.get_nodetree(py)?.borrow();
         let nt = opt.as_ref().unwrap();
         let idx = &*self.cindex(py).borrow();
+        let ridx = &*self.index(py).borrow();
         let node = node_from_py_bytes(py, &node)?;
-        let res = nt.find_bin(idx, node.into());
-        Ok(res.map_err(|e| nodemap_error(py, e))?.map(Into::into))
+        let rust_rev =
+            nt.find_bin(ridx, node.into()).map_err(|e| nodemap_error(py, e))?;
+        let c_rev =
+            nt.find_bin(idx, node.into()).map_err(|e| nodemap_error(py, e))?;
+        assert_eq!(rust_rev, c_rev);
+        Ok(rust_rev.map(Into::into))
+
     }
 
     /// same as `get_rev()` but raises a bare `error.RevlogError` if node
