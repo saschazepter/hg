@@ -314,6 +314,44 @@ py_class!(pub class MixedIndex |py| {
 
 });
 
+/// Take a (potentially) mmap'ed buffer, and return the underlying Python
+/// buffer along with the Rust slice into said buffer. We need to keep the
+/// Python buffer around, otherwise we'd get a dangling pointer once the buffer
+/// is freed from Python's side.
+///
+/// # Safety
+///
+/// The caller must make sure that the buffer is kept around for at least as
+/// long as the slice.
+#[deny(unsafe_op_in_unsafe_fn)]
+unsafe fn mmap_keeparound(
+    py: Python,
+    data: PyObject,
+) -> PyResult<(
+    PyBuffer,
+    Box<dyn std::ops::Deref<Target = [u8]> + Send + 'static>,
+)> {
+    let buf = PyBuffer::get(py, &data)?;
+    let len = buf.item_count();
+
+    // Build a slice from the mmap'ed buffer data
+    let cbuf = buf.buf_ptr();
+    let bytes = if std::mem::size_of::<u8>() == buf.item_size()
+        && buf.is_c_contiguous()
+        && u8::is_compatible_format(buf.format())
+    {
+        unsafe { std::slice::from_raw_parts(cbuf as *const u8, len) }
+    } else {
+        return Err(PyErr::new::<ValueError, _>(
+            py,
+            "Nodemap data buffer has an invalid memory representation"
+                .to_string(),
+        ));
+    };
+
+    Ok((buf, Box::new(bytes)))
+}
+
 impl MixedIndex {
     fn new(py: Python, cindex: PyObject) -> PyResult<MixedIndex> {
         Self::create_instance(
@@ -427,29 +465,12 @@ impl MixedIndex {
         docket: PyObject,
         nm_data: PyObject,
     ) -> PyResult<PyObject> {
-        let buf = PyBuffer::get(py, &nm_data)?;
+        // Safety: we keep the buffer around inside the class as `nodemap_mmap`
+        let (buf, bytes) = unsafe { mmap_keeparound(py, nm_data)? };
         let len = buf.item_count();
-
-        // Build a slice from the mmap'ed buffer data
-        let cbuf = buf.buf_ptr();
-        let bytes = if std::mem::size_of::<u8>() == buf.item_size()
-            && buf.is_c_contiguous()
-            && u8::is_compatible_format(buf.format())
-        {
-            unsafe { std::slice::from_raw_parts(cbuf as *const u8, len) }
-        } else {
-            return Err(PyErr::new::<ValueError, _>(
-                py,
-                "Nodemap data buffer has an invalid memory representation"
-                    .to_string(),
-            ));
-        };
-
-        // Keep a reference to the mmap'ed buffer, otherwise we get a dangling
-        // pointer.
         self.nodemap_mmap(py).borrow_mut().replace(buf);
 
-        let mut nt = NodeTree::load_bytes(Box::new(bytes), len);
+        let mut nt = NodeTree::load_bytes(bytes, len);
 
         let data_tip = docket
             .getattr(py, "tip_rev")?
