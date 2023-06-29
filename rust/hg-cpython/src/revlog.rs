@@ -39,7 +39,7 @@ py_class!(pub class MixedIndex |py| {
     data nt: RefCell<Option<NodeTree>>;
     data docket: RefCell<Option<PyObject>>;
     // Holds a reference to the mmap'ed persistent nodemap data
-    data mmap: RefCell<Option<PyBuffer>>;
+    data nodemap_mmap: RefCell<Option<PyBuffer>>;
 
     def __new__(_cls, cindex: PyObject) -> PyResult<MixedIndex> {
         Self::new(py, cindex)
@@ -175,7 +175,7 @@ py_class!(pub class MixedIndex |py| {
     def clearcaches(&self, *args, **kw) -> PyResult<PyObject> {
         self.nt(py).borrow_mut().take();
         self.docket(py).borrow_mut().take();
-        self.mmap(py).borrow_mut().take();
+        self.nodemap_mmap(py).borrow_mut().take();
         self.call_cindex(py, "clearcaches", args, kw)
     }
 
@@ -447,7 +447,7 @@ impl MixedIndex {
 
         // Keep a reference to the mmap'ed buffer, otherwise we get a dangling
         // pointer.
-        self.mmap(py).borrow_mut().replace(buf);
+        self.nodemap_mmap(py).borrow_mut().replace(buf);
 
         let mut nt = NodeTree::load_bytes(Box::new(bytes), len);
 
