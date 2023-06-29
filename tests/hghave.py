@@ -1,4 +1,3 @@
-import distutils.version
 import os
 import re
 import socket
@@ -6,6 +5,11 @@ import stat
 import subprocess
 import sys
 import tempfile
+
+try:
+    from setuptools.extern.packaging.version import Version
+except ImportError:
+    from distutils.version import StrictVersion as Version
 
 tempprefix = 'hg-hghave-'
 
@@ -1118,16 +1122,18 @@ def has_black():
     blackcmd = 'black --version'
     version_regex = b'black, (?:version )?([0-9a-b.]+)'
     version = matchoutput(blackcmd, version_regex)
-    sv = distutils.version.StrictVersion
-    return version and sv(_bytes2sys(version.group(1))) >= sv('20.8b1')
+    if not version:
+        return False
+    return Version(_bytes2sys(version.group(1))) >= Version('20.8b1')
 
 
 @check('pytype', 'the pytype type checker')
 def has_pytype():
     pytypecmd = 'pytype --version'
     version = matchoutput(pytypecmd, b'[0-9a-b.]+')
-    sv = distutils.version.StrictVersion
-    return version and sv(_bytes2sys(version.group(0))) >= sv('2019.10.17')
+    if not version:
+        return False
+    return Version(_bytes2sys(version.group(0))) >= Version('2019.10.17')
 
 
 @check("rustfmt", "rustfmt tool at version nightly-2021-11-02")
