@@ -59,6 +59,7 @@ class configitem:
         priority=0,
         experimental=False,
         documentation="",
+        in_core_extension=None,
     ):
         self.section = section
         self.name = name
@@ -69,6 +70,7 @@ class configitem:
         self.priority = priority
         self.experimental = experimental
         self._re = None
+        self.in_core_extension = in_core_extension
         if generic:
             self._re = re.compile(self.name)
 

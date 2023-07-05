@@ -23,6 +23,7 @@
 # - alias: list of 2-tuples of strings
 # - experimental: boolean
 # - documentation: string
+# - in_core_extension: string
 #
 # ## Template
 #
@@ -2695,6 +2696,8 @@ default = true
 section = "worker"
 name = "numcpus"
 
+# Templates and template applications
+
 [[template-applications]]
 template = "diff-options"
 section = "annotate"
@@ -2757,3 +2760,48 @@ default = false
 suffix = "word-diff"
 default = false
 
+# In-core extensions
+
+[[items]]
+section = "blackbox"
+name = "dirty"
+default = false
+in_core_extension = "blackbox"
+
+[[items]]
+section = "blackbox"
+name = "maxsize"
+default = "1 MB"
+in_core_extension = "blackbox"
+
+[[items]]
+section = "blackbox"
+name = "logsource"
+default = false
+in_core_extension = "blackbox"
+
+[[items]]
+section = "blackbox"
+name = "maxfiles"
+default = 7
+in_core_extension = "blackbox"
+
+[[items]]
+section = "blackbox"
+name = "track"
+default-type = "lambda"
+default = ["*"]
+in_core_extension = "blackbox"
+
+[[items]]
+section = "blackbox"
+name = "ignore"
+default-type = "lambda"
+default = ["chgserver", "cmdserver", "extension"]
+in_core_extension = "blackbox"
+
+[[items]]
+section = "blackbox"
+name = "date-format"
+default = ""
+in_core_extension = "blackbox"
