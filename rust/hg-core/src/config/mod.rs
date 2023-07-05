@@ -373,7 +373,17 @@ impl Config {
                 Some("`mercurial/configitems.toml` is not valid".into()),
             )
         })?;
-        Ok(default_config.get(section, item))
+        let default_opt = default_config.get(section, item);
+        Ok(default_opt.filter(|default| {
+            default
+                .in_core_extension()
+                .map(|extension| {
+                    // Only return the default for an in-core extension item
+                    // if said extension is enabled
+                    self.is_extension_enabled(extension.as_bytes())
+                })
+                .unwrap_or(true)
+        }))
     }
 
     fn get_parse<'config, T: 'config>(

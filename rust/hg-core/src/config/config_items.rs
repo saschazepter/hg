@@ -40,6 +40,11 @@ pub struct DefaultConfigItem {
     /// The (possibly empty) docstring for the item
     #[serde(default)]
     documentation: String,
+    /// Whether the item is part of an in-core extension. This allows us to
+    /// hide them if the extension is not enabled, to preserve legacy
+    /// behavior.
+    #[serde(default)]
+    in_core_extension: Option<String>,
 }
 
 /// Corresponds to the raw (i.e. on disk) structure of config items. Used as
@@ -61,6 +66,8 @@ struct RawDefaultConfigItem {
     experimental: bool,
     #[serde(default)]
     documentation: String,
+    #[serde(default)]
+    in_core_extension: Option<String>,
 }
 
 impl TryFrom<RawDefaultConfigItem> for DefaultConfigItem {
@@ -82,6 +89,7 @@ impl TryFrom<RawDefaultConfigItem> for DefaultConfigItem {
             alias: value.alias,
             experimental: value.experimental,
             documentation: value.documentation,
+            in_core_extension: value.in_core_extension,
         })
     }
 }
@@ -89,6 +97,14 @@ impl TryFrom<RawDefaultConfigItem> for DefaultConfigItem {
 impl DefaultConfigItem {
     fn is_generic(&self) -> bool {
         self.priority.is_some()
+    }
+
+    pub fn in_core_extension(&self) -> Option<&str> {
+        self.in_core_extension.as_deref()
+    }
+
+    pub fn section(&self) -> &str {
+        self.section.as_ref()
     }
 }
 
@@ -302,6 +318,7 @@ impl TemplateItem {
             alias: self.alias,
             experimental: self.experimental,
             documentation: self.documentation,
+            in_core_extension: None,
         }
     }
 }
@@ -596,6 +613,7 @@ suffix = "unified"
             alias: vec![],
             experimental: true,
             documentation: "".into(),
+            in_core_extension: None,
         };
         assert_eq!(config.get(b"censor", b"policy"), Some(&expected));
 
@@ -609,6 +627,7 @@ suffix = "unified"
             alias: vec![],
             experimental: false,
             documentation: "".into(),
+            in_core_extension: None,
         };
         assert_eq!(config.get(b"alias", b"abcdsomething"), Some(&expected));
 
@@ -621,6 +640,7 @@ suffix = "unified"
             alias: vec![],
             experimental: false,
             documentation: "".into(),
+            in_core_extension: None,
         };
         assert_eq!(config.get(b"alias", b"something"), Some(&expected));
 
@@ -632,6 +652,7 @@ suffix = "unified"
             alias: vec![],
             experimental: false,
             documentation: "".into(),
+            in_core_extension: None,
         };
         assert_eq!(config.get(b"chgserver", b"idletimeout"), Some(&expected));
 
@@ -647,6 +668,7 @@ suffix = "unified"
             alias: vec![],
             experimental: false,
             documentation: "".into(),
+            in_core_extension: None,
         };
         assert_eq!(config.get(b"cmdserver", b"track-log"), Some(&expected));
 
@@ -660,6 +682,7 @@ suffix = "unified"
             documentation:
                 "This is a docstring.\nThis is another line but this is not."
                     .into(),
+            in_core_extension: None,
         };
         assert_eq!(
             config.get(b"command-templates", b"graphnode"),

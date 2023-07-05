@@ -7,12 +7,6 @@ use hg::repo::Repo;
 use hg::utils::{files::get_bytes_from_os_str, shell_quote};
 use std::ffi::OsString;
 
-const ONE_MEBIBYTE: u64 = 1 << 20;
-
-// TODO: somehow keep defaults in sync with `configitem` in `hgext/blackbox.py`
-const DEFAULT_MAX_SIZE: u64 = ONE_MEBIBYTE;
-const DEFAULT_MAX_FILES: u32 = 7;
-
 // Python does not support %.3f, only %f
 const DEFAULT_DATE_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.3f";
 
@@ -62,15 +56,28 @@ impl<'a> Blackbox<'a> {
                     max_size: invocation
                         .config
                         .get_byte_size(b"blackbox", b"maxsize")?
-                        .unwrap_or(DEFAULT_MAX_SIZE),
+                        .expect(
+                            "blackbox.maxsize should have a default value",
+                        ),
                     max_files: invocation
                         .config
                         .get_u32(b"blackbox", b"maxfiles")?
-                        .unwrap_or(DEFAULT_MAX_FILES),
+                        .expect(
+                            "blackbox.maxfiles should have a default value",
+                        ),
                     date_format: invocation
                         .config
                         .get_str(b"blackbox", b"date-format")?
-                        .unwrap_or(DEFAULT_DATE_FORMAT),
+                        .map(|f| {
+                            if f.is_empty() {
+                                DEFAULT_DATE_FORMAT
+                            } else {
+                                f
+                            }
+                        })
+                        .expect(
+                            "blackbox.date-format should have a default value",
+                        ),
                 })
             }
         } else {
