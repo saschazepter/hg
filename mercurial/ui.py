@@ -47,6 +47,7 @@ from . import (
     configitems,
     encoding,
     error,
+    extensions,
     formatter,
     loggingutil,
     progress,
@@ -658,6 +659,12 @@ class ui:
         value = itemdefault = default
         item = self._knownconfig.get(section, {}).get(name)
         alternates = [(section, name)]
+
+        if item is not None and item.in_core_extension is not None:
+            # Only return the default for an in-core extension item if said
+            # extension is enabled
+            if item.in_core_extension in extensions.extensions(self):
+                item = None
 
         if item is not None:
             alternates.extend(item.alias)
