@@ -55,6 +55,9 @@ IGNORES = {
     'builtins',
     'urwid.command_map',  # for pudb
     'lzma',
+    # setuptools uses this hack to inject it's own distutils at import time
+    'setuptools',
+    '_distutils_hack.override',
 }
 
 _pypy = '__pypy__' in sys.builtin_module_names

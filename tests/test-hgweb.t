@@ -783,19 +783,19 @@ phase changes are refreshed (issue4061)
 
 access bookmarks
 
-  $ get-with-headers.py localhost:$HGPORT 'rev/@?style=paper' | egrep '^200|changeset 0:'
+  $ get-with-headers.py localhost:$HGPORT 'rev/@?style=paper' | grep -E '^200|changeset 0:'
   200 Script output follows
    changeset 0:<a href="/rev/2ef0ac749a14?style=paper">2ef0ac749a14</a>
 
-  $ get-with-headers.py localhost:$HGPORT 'rev/%40?style=paper' | egrep '^200|changeset 0:'
+  $ get-with-headers.py localhost:$HGPORT 'rev/%40?style=paper' | grep -E '^200|changeset 0:'
   200 Script output follows
    changeset 0:<a href="/rev/2ef0ac749a14?style=paper">2ef0ac749a14</a>
 
-  $ get-with-headers.py localhost:$HGPORT 'rev/a%20b%20c?style=paper' | egrep '^200|changeset 0:'
+  $ get-with-headers.py localhost:$HGPORT 'rev/a%20b%20c?style=paper' | grep -E '^200|changeset 0:'
   200 Script output follows
    changeset 0:<a href="/rev/2ef0ac749a14?style=paper">2ef0ac749a14</a>
 
-  $ get-with-headers.py localhost:$HGPORT 'rev/d%252Fe%252Ff?style=paper' | egrep '^200|changeset 0:'
+  $ get-with-headers.py localhost:$HGPORT 'rev/d%252Fe%252Ff?style=paper' | grep -E '^200|changeset 0:'
   200 Script output follows
    changeset 0:<a href="/rev/2ef0ac749a14?style=paper">2ef0ac749a14</a>
 

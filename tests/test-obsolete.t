@@ -1233,23 +1233,23 @@ check changeset with instabilities
 
 check explanation for an orphan, phase-divergent and content-divergent changeset
 
-  $ get-with-headers.py localhost:$HGPORT 'rev/50c51b361e60?style=paper' | egrep '(orphan|phase-divergent|content-divergent):'
+  $ get-with-headers.py localhost:$HGPORT 'rev/50c51b361e60?style=paper' | grep -E '(orphan|phase-divergent|content-divergent):'
    <td>orphan:  obsolete parent <a href="/rev/3de5eca88c00?style=paper">3de5eca88c00</a><br>
   phase-divergent:  immutable predecessor <a href="/rev/245bde4270cd?style=paper">245bde4270cd</a><br>
   content-divergent: <a href="/rev/6f9641995072?style=paper">6f9641995072</a> (draft) predecessor <a href="/rev/245bde4270cd?style=paper">245bde4270cd</a></td>
-  $ get-with-headers.py localhost:$HGPORT 'rev/50c51b361e60?style=coal' | egrep '(orphan|phase-divergent|content-divergent):'
+  $ get-with-headers.py localhost:$HGPORT 'rev/50c51b361e60?style=coal' | grep -E '(orphan|phase-divergent|content-divergent):'
    <td>orphan:  obsolete parent <a href="/rev/3de5eca88c00?style=coal">3de5eca88c00</a><br>
   phase-divergent:  immutable predecessor <a href="/rev/245bde4270cd?style=coal">245bde4270cd</a><br>
   content-divergent: <a href="/rev/6f9641995072?style=coal">6f9641995072</a> (draft) predecessor <a href="/rev/245bde4270cd?style=coal">245bde4270cd</a></td>
-  $ get-with-headers.py localhost:$HGPORT 'rev/50c51b361e60?style=gitweb' | egrep '(orphan|phase-divergent|content-divergent):'
+  $ get-with-headers.py localhost:$HGPORT 'rev/50c51b361e60?style=gitweb' | grep -E '(orphan|phase-divergent|content-divergent):'
   <td>orphan:  obsolete parent <a class="list" href="/rev/3de5eca88c00?style=gitweb">3de5eca88c00</a></td>
   <td>phase-divergent:  immutable predecessor <a class="list" href="/rev/245bde4270cd?style=gitweb">245bde4270cd</a></td>
   <td>content-divergent: <a class="list" href="/rev/6f9641995072?style=gitweb">6f9641995072</a> (draft) predecessor <a class="list" href="/rev/245bde4270cd?style=gitweb">245bde4270cd</a></td>
-  $ get-with-headers.py localhost:$HGPORT 'rev/50c51b361e60?style=monoblue' | egrep '(orphan|phase-divergent|content-divergent):'
+  $ get-with-headers.py localhost:$HGPORT 'rev/50c51b361e60?style=monoblue' | grep -E '(orphan|phase-divergent|content-divergent):'
   <dd>orphan:  obsolete parent <a href="/rev/3de5eca88c00?style=monoblue">3de5eca88c00</a></dd>
   <dd>phase-divergent:  immutable predecessor <a href="/rev/245bde4270cd?style=monoblue">245bde4270cd</a></dd>
   <dd>content-divergent: <a href="/rev/6f9641995072?style=monoblue">6f9641995072</a> (draft) predecessor <a href="/rev/245bde4270cd?style=monoblue">245bde4270cd</a></dd>
-  $ get-with-headers.py localhost:$HGPORT 'rev/50c51b361e60?style=spartan' | egrep '(orphan|phase-divergent|content-divergent):'
+  $ get-with-headers.py localhost:$HGPORT 'rev/50c51b361e60?style=spartan' | grep -E '(orphan|phase-divergent|content-divergent):'
   <td class="unstable">orphan:  obsolete parent <a href="/rev/3de5eca88c00?style=spartan">3de5eca88c00</a></td>
   <td class="unstable">phase-divergent:  immutable predecessor <a href="/rev/245bde4270cd?style=spartan">245bde4270cd</a></td>
   <td class="unstable">content-divergent: <a href="/rev/6f9641995072?style=spartan">6f9641995072</a> (draft) predecessor <a href="/rev/245bde4270cd?style=spartan">245bde4270cd</a></td>

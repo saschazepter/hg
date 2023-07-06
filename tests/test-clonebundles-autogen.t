@@ -10,7 +10,6 @@ initial setup
   > 
   > [clone-bundles]
   > auto-generate.on-change = yes
-  > auto-generate.formats = v2
   > upload-command = cp "\$HGCB_BUNDLE_PATH" "$TESTTMP"/final-upload/
   > delete-command = rm -f "$TESTTMP/final-upload/\$HGCB_BASENAME"
   > url-template = file://$TESTTMP/final-upload/{basename}
@@ -25,9 +24,36 @@ initial setup
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd client
 
+Test bundles are not generated if formats are not given
+=======================================================
+
+  $ touch noformats
+  $ hg -q commit -A -m 'add noformats'
+  $ hg push
+  pushing to $TESTTMP/server
+  searching for changes
+  clone-bundle auto-generate enabled, but no formats specified: disabling generation
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+  $ test -f ../server/.hg/clonebundles.manifest
+  [1]
+  $ hg debugstrip -r tip
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  saved backup bundle to $TESTTMP/client/.hg/strip-backup/4823cdad4f38-4b2c3b65-backup.hg
+  $ hg --cwd ../server debugstrip -r tip
+  saved backup bundle to $TESTTMP/server/.hg/strip-backup/4823cdad4f38-4b2c3b65-backup.hg
+  clone-bundle auto-generate enabled, but no formats specified: disabling generation
+  clone-bundle auto-generate enabled, but no formats specified: disabling generation
+
 Test bundles are generated on push
 ==================================
 
+  $ cat >> ../server/.hg/hgrc << EOF
+  > [clone-bundles]
+  > auto-generate.formats = v2
+  > EOF
   $ touch foo
   $ hg -q commit -A -m 'add foo'
   $ touch bar

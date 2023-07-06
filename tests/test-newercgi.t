@@ -9,9 +9,6 @@ This is a rudimentary test of the CGI files as of d74fc8dec2b4.
   > #
   > # An example CGI script to use hgweb, edit as necessary
   > 
-  > import cgitb
-  > cgitb.enable()
-  > 
   > from mercurial import demandimport; demandimport.enable()
   > from mercurial.hgweb import hgweb
   > from mercurial.hgweb import wsgicgi
@@ -31,9 +28,6 @@ This is a rudimentary test of the CGI files as of d74fc8dec2b4.
   > #!$PYTHON
   > #
   > # An example CGI script to export multiple hgweb repos, edit as necessary
-  > 
-  > import cgitb
-  > cgitb.enable()
   > 
   > from mercurial import demandimport; demandimport.enable()
   > from mercurial.hgweb import hgwebdir

@@ -230,17 +230,17 @@ test shelving
 make the bookmark move by updating it on a, and then pulling with a local change
 # add a commit to a
   $ cd ../a
-  $ hg up -C X |fgrep  "activating bookmark X"
+  $ hg up -C X |grep -F  "activating bookmark X"
   (activating bookmark X)
 # go back to b, and check out X
   $ cd ../b
-  $ hg up -C X |fgrep  "activating bookmark X"
+  $ hg up -C X |grep -F  "activating bookmark X"
   (activating bookmark X)
 # update and push from a
   $ make_changes ../a
   created new head
   $ echo "more" >> test
-  $ hg pull -u 2>&1 | fgrep -v TESTTMP| fgrep -v "searching for changes" | fgrep -v adding
+  $ hg pull -u 2>&1 | grep -F -v TESTTMP| grep -F -v "searching for changes" | grep -F -v adding
   pulling from $TESTTMP/a
   updating bookmark X
   added 1 changesets with 0 changes to 0 files (+1 heads)

@@ -55,7 +55,7 @@ create full repo
 
   $ hg update -r 'desc("outside 4a")'
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg merge -r 'desc("outside 4b")' 2>&1 | egrep -v '(warning:|incomplete!)'
+  $ hg merge -r 'desc("outside 4b")' 2>&1 | grep -E -v '(warning:|incomplete!)'
   merging outside/f
   0 files updated, 0 files merged, 0 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges or 'hg merge --abort' to abandon
@@ -67,7 +67,7 @@ create full repo
   $ echo 6 > outside/f
   $ hg commit -Aqm 'outside 6'
 
-  $ hg merge -r 'desc("outside 4c")' 2>&1 | egrep -v '(warning:|incomplete!)'
+  $ hg merge -r 'desc("outside 4c")' 2>&1 | grep -E -v '(warning:|incomplete!)'
   merging outside/f
   0 files updated, 0 files merged, 0 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges or 'hg merge --abort' to abandon
@@ -79,7 +79,7 @@ create full repo
   $ echo 8 > outside/f
   $ hg commit -Aqm 'outside 8'
 
-  $ hg merge -r 'desc("outside 4d")' 2>&1 | egrep -v '(warning:|incomplete!)'
+  $ hg merge -r 'desc("outside 4d")' 2>&1 | grep -E -v '(warning:|incomplete!)'
   merging outside/f
   0 files updated, 0 files merged, 0 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges or 'hg merge --abort' to abandon
@@ -279,7 +279,7 @@ Incremental test case: show a pull can pull in a conflicted merge even if elided
   $ cd ../pullmaster
   $ hg update -r 'desc("outside 4a")'
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg merge -r 'desc("outside 4b")' 2>&1 | egrep -v '(warning:|incomplete!)'
+  $ hg merge -r 'desc("outside 4b")' 2>&1 | grep -E -v '(warning:|incomplete!)'
   merging inside/f
   merging outside/f
   0 files updated, 0 files merged, 0 files removed, 2 files unresolved
@@ -293,7 +293,7 @@ Incremental test case: show a pull can pull in a conflicted merge even if elided
 
   $ hg update -r 'desc("outside 4c")'
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg merge -r 'desc("outside 4d")' 2>&1 | egrep -v '(warning:|incomplete!)'
+  $ hg merge -r 'desc("outside 4d")' 2>&1 | grep -E -v '(warning:|incomplete!)'
   merging inside/f
   merging outside/f
   0 files updated, 0 files merged, 0 files removed, 2 files unresolved

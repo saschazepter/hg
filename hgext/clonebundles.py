@@ -248,7 +248,7 @@ be controlled by the `clone-bundles.trigger.below-bundled-ratio` option
 
 This logic can be manually triggered using the `admin::clone-bundles-refresh`
 command, or automatically on each repository change if
-`clone-bundles.auto-generate.on-change` is set to `yes`.
+`clone-bundles.auto-generate.on-change` is set to `yes`::
 
     [clone-bundles]
     auto-generate.on-change=yes
@@ -972,8 +972,16 @@ def reposetup(ui, repo):
             targets = repo.ui.configlist(
                 b'clone-bundles', b'auto-generate.formats'
             )
-            if enabled and targets:
-                tr.addpostclose(CAT_POSTCLOSE, make_auto_bundler(self))
+            if enabled:
+                if not targets:
+                    repo.ui.warn(
+                        _(
+                            b'clone-bundle auto-generate enabled, '
+                            b'but no formats specified: disabling generation\n'
+                        )
+                    )
+                else:
+                    tr.addpostclose(CAT_POSTCLOSE, make_auto_bundler(self))
             return tr
 
         @localrepo.unfilteredmethod

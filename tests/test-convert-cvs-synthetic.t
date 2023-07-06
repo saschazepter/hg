@@ -108,7 +108,7 @@ merge file6 from trunk to v1_2
 
 cvs rlog output
 
-  $ cvscall -q rlog proj | egrep '^(RCS file|revision)'
+  $ cvscall -q rlog proj | grep -E '^(RCS file|revision)'
   RCS file: $TESTTMP/cvsrepo/proj/file1,v
   revision 1.1
   RCS file: $TESTTMP/cvsrepo/proj/Attic/file2,v

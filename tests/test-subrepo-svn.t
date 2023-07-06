@@ -4,7 +4,7 @@
   $ SVNREPOURL="`"$PYTHON" $TESTDIR/svnurlof.py \"$SVNREPOPATH\"`"
 
   $ filter_svn_output () {
-  >     egrep -v 'Committing|Transmitting|Updating|(^$)' || true
+  >     grep -E -v 'Committing|Transmitting|Updating|(^$)' || true
   > }
 
 create subversion repo
