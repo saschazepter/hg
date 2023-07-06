@@ -1888,6 +1888,38 @@ name = "update-timestamp"
 default = false
 
 [[items]]
+section = "rhg"
+name = "cat"
+default = true
+experimental = true
+documentation = """rhg cat has some quirks that need to be ironed out. \
+In particular, the `-r` argument accepts a partial hash, but does not \
+correctly resolve `abcdef` as a potential bookmark, tag or branch name."""
+
+[[items]]
+section = "rhg"
+name = "fallback-exectutable"
+experimental = true
+
+[[items]]
+section = "rhg"
+name = "fallback-immediately"
+default = false
+experimental = true
+
+[[items]]
+section = "rhg"
+name = "ignored-extensions"
+default-type = "list_type"
+experimental = true
+
+[[items]]
+section = "rhg"
+name = "on-unsupported"
+default = "abort"
+experimental = true
+
+[[items]]
 section = "server"
 name = "bookmarks-pushkey-compat"
 default = true
