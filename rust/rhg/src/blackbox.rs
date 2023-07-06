@@ -47,8 +47,7 @@ impl<'a> Blackbox<'a> {
         process_start_time: &'a ProcessStartTime,
     ) -> Result<Self, HgError> {
         let configured = if let Ok(repo) = invocation.repo {
-            if invocation.config.get(b"extensions", b"blackbox").is_none() {
-                // The extension is not enabled
+            if !invocation.config.is_extension_enabled(b"blackbox") {
                 None
             } else {
                 Some(ConfiguredBlackbox {
