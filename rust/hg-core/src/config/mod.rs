@@ -9,14 +9,19 @@
 
 //! Mercurial config parsing and interfaces.
 
+pub mod config_items;
 mod layer;
 mod plain_info;
 mod values;
 pub use layer::{ConfigError, ConfigOrigin, ConfigParseError};
+use lazy_static::lazy_static;
 pub use plain_info::PlainInfo;
 
+use self::config_items::DefaultConfig;
+use self::config_items::DefaultConfigItem;
 use self::layer::ConfigLayer;
 use self::layer::ConfigValue;
+use crate::errors::HgError;
 use crate::errors::{HgResultExt, IoResultExt};
 use crate::utils::files::get_bytes_from_os_str;
 use format_bytes::{write_bytes, DisplayBytes};
@@ -25,6 +30,14 @@ use std::env;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::str;
+
+lazy_static! {
+    static ref DEFAULT_CONFIG: Result<DefaultConfig, HgError> = {
+        DefaultConfig::from_contents(include_str!(
+            "../../../../mercurial/configitems.toml"
+        ))
+    };
+}
 
 /// Holds the config values for the current repository
 /// TODO update this docstring once we support more sources
@@ -347,13 +360,32 @@ impl Config {
         self.plain = plain;
     }
 
+        /// Returns the default value for the given config item, if any.
+        pub fn get_default(
+            &self,
+            section: &[u8],
+            item: &[u8],
+        ) -> Result<Option<&DefaultConfigItem>, HgError> {
+            let default_config = DEFAULT_CONFIG.as_ref().map_err(|e| {
+                HgError::abort(
+                    e.to_string(),
+                    crate::exit_codes::ABORT,
+                    Some("`mercurial/configitems.toml` is not valid".into()),
+                )
+            })?;
+            Ok(default_config.get(section, item))
+        }
+
     fn get_parse<'config, T: 'config>(
         &'config self,
         section: &[u8],
         item: &[u8],
         expected_type: &'static str,
         parse: impl Fn(&'config [u8]) -> Option<T>,
-    ) -> Result<Option<T>, ConfigValueParseError> {
+    ) -> Result<Option<T>, HgError>
+    where
+        Option<T>: TryFrom<&'config DefaultConfigItem, Error = HgError>,
+    {
         match self.get_inner(section, item) {
             Some((layer, v)) => match parse(&v.bytes) {
                 Some(b) => Ok(Some(b)),
@@ -364,9 +396,15 @@ impl Config {
                     section: section.to_owned(),
                     item: item.to_owned(),
                     expected_type,
-                })),
+                })
+                .into()),
             },
-            None => Ok(None),
+            None => match self.get_default(section, item)? {
+                Some(default) => Ok(default.try_into()?),
+                None => {
+                    Ok(None)
+                }
+            },
         }
     }
 
@@ -376,7 +414,7 @@ impl Config {
         &self,
         section: &[u8],
         item: &[u8],
-    ) -> Result<Option<&str>, ConfigValueParseError> {
+    ) -> Result<Option<&str>, HgError> {
         self.get_parse(section, item, "ASCII or UTF-8 string", |value| {
             str::from_utf8(value).ok()
         })
@@ -388,7 +426,7 @@ impl Config {
         &self,
         section: &[u8],
         item: &[u8],
-    ) -> Result<Option<u32>, ConfigValueParseError> {
+    ) -> Result<Option<u32>, HgError> {
         self.get_parse(section, item, "valid integer", |value| {
             str::from_utf8(value).ok()?.parse().ok()
         })
@@ -401,7 +439,7 @@ impl Config {
         &self,
         section: &[u8],
         item: &[u8],
-    ) -> Result<Option<u64>, ConfigValueParseError> {
+    ) -> Result<Option<u64>, HgError> {
         self.get_parse(section, item, "byte quantity", values::parse_byte_size)
     }
 
@@ -412,7 +450,7 @@ impl Config {
         &self,
         section: &[u8],
         item: &[u8],
-    ) -> Result<Option<bool>, ConfigValueParseError> {
+    ) -> Result<Option<bool>, HgError> {
         self.get_parse(section, item, "boolean", values::parse_bool)
     }
 
@@ -422,7 +460,7 @@ impl Config {
         &self,
         section: &[u8],
         item: &[u8],
-    ) -> Result<bool, ConfigValueParseError> {
+    ) -> Result<bool, HgError> {
         Ok(self.get_option(section, item)?.unwrap_or(false))
     }
 
