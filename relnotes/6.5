@@ -1,9 +1,10 @@
-= Mercurial 6.5rc0 =
+= Mercurial 6.5 =
 
 As usual, a lot of patches don't make it to this list since they're more internal.
 
 == New Features ==
 
+ * Improved Python 3.12 compatiblity
  * configitems: enable changegroup3 by default (unless using infinitepush)
  * extras: expose 'retained_extras' for extensions to extend
  * stabletailgraph: implement stable-tail sort
@@ -62,6 +63,12 @@ As usual, a lot of patches don't make it to this list since they're more interna
  * treemanifest: make `updatecaches` update the nodemaps for all directories
  * rust-hg-core: move from `ouroboros` to `self_cell`
  * rust-dependencies: switch from `users` to `whoami`
+ * dirstate-v2: actually fix the dirstate-v2 upgrade race
+ * dirstate: avoid leaking disk space in `hg debugrebuilddirstate`
+ * clonebundles: add warning if auto-generate is enabled without formats
+ * win32mbcs: unbyteify some strings for py3 support
+ * rust-revlog: fix incorrect results with NULL_NODE prefixes
+ * rust-revlog: fix RevlogEntry.data() for NULL_REVISION
 
 == Backwards Compatibility Changes ==
 
