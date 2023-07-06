@@ -304,8 +304,9 @@ pub enum ConfigOrigin {
     CommandLineColor,
     /// From environment variables like `$PAGER` or `$EDITOR`
     Environment(Vec<u8>),
-    /* TODO defaults (configitems.py)
-     * TODO extensions
+    /// From configitems.toml
+    Defaults,
+    /* TODO extensions
      * TODO Python resources?
      * Others? */
 }
@@ -322,6 +323,9 @@ impl DisplayBytes for ConfigOrigin {
             ConfigOrigin::Environment(e) => write_bytes!(out, b"${}", e),
             ConfigOrigin::Tweakdefaults => {
                 write_bytes!(out, b"ui.tweakdefaults")
+            }
+            ConfigOrigin::Defaults => {
+                write_bytes!(out, b"configitems.toml")
             }
         }
     }

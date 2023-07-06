@@ -7,7 +7,8 @@
 
 use crate::error::CommandError;
 use crate::ui::{
-    format_pattern_file_warning, print_narrow_sparse_warnings, Ui,
+    format_pattern_file_warning, print_narrow_sparse_warnings, relative_paths,
+    RelativePaths, Ui,
 };
 use crate::utils::path_utils::RelativizePaths;
 use clap::Arg;
@@ -360,13 +361,26 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                 }
             }
         }
-        let relative_paths = config
+
+        let relative_status = config
             .get_option(b"commands", b"status.relative")?
-            .unwrap_or(config.get_bool(b"ui", b"relative-paths")?);
+            .expect("commands.status.relative should have a default value");
+
+        let relativize_paths = relative_status || {
+            // TODO should be dependent on whether patterns are passed once
+            // we support those.
+            // See in Python code with `getuipathfn` usage in `commands.py`.
+            let legacy_relative_behavior = false;
+            match relative_paths(invocation.config)? {
+                RelativePaths::Legacy => legacy_relative_behavior,
+                RelativePaths::Bool(v) => v,
+            }
+        };
+
         let output = DisplayStatusPaths {
             ui,
             no_status,
-            relativize: if relative_paths {
+            relativize: if relativize_paths {
                 Some(RelativizePaths::new(repo)?)
             } else {
                 None
