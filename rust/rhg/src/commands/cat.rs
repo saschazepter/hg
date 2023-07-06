@@ -32,9 +32,8 @@ pub fn args() -> clap::Command {
 
 #[logging_timer::time("trace")]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
-    let cat_enabled_default = true;
-    let cat_enabled = invocation.config.get_option(b"rhg", b"cat")?;
-    if !cat_enabled.unwrap_or(cat_enabled_default) {
+    let cat_enabled = invocation.config.get_bool(b"rhg", b"cat")?;
+    if !cat_enabled {
         return Err(CommandError::unsupported(
             "cat is disabled in rhg (enable it with 'rhg.cat = true' \
             or enable fallback with 'rhg.on-unsupported = fallback')",
