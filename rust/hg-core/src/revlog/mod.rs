@@ -684,7 +684,10 @@ mod tests {
         assert_eq!(revlog.len(), 0);
         assert!(revlog.get_entry(0).is_err());
         assert!(!revlog.has_rev(0));
-        assert_eq!(revlog.rev_from_node(NULL_NODE.into()).unwrap(), -1);
+        assert_eq!(
+            revlog.rev_from_node(NULL_NODE.into()).unwrap(),
+            NULL_REVISION
+        );
     }
 
     #[test]
