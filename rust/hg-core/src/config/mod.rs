@@ -416,10 +416,41 @@ impl Config {
                 }
                 match self.get_default(section, item)? {
                     Some(default) => Ok(default.try_into()?),
-                    None => Ok(None),
+                    None => {
+                        self.print_devel_warning(section, item)?;
+                        Ok(None)
+                    }
                 }
             }
         }
+    }
+
+    fn print_devel_warning(
+        &self,
+        section: &[u8],
+        item: &[u8],
+    ) -> Result<(), HgError> {
+        let warn_all = self.get_bool(b"devel", b"all-warnings")?;
+        let warn_specific = self.get_bool(b"devel", b"warn-config-unknown")?;
+        if !warn_all || !warn_specific {
+            // We technically shouldn't print anything here since it's not
+            // the concern of `hg-core`.
+            //
+            // We're printing directly to stderr since development warnings
+            // are not on by default and surfacing this to consumer crates
+            // (like `rhg`) would be more difficult, probably requiring
+            // something à la `log` crate.
+            //
+            // TODO maybe figure out a way of exposing a "warnings" channel
+            // that consumer crates can hook into. It would be useful for
+            // all other warnings that `hg-core` could expose.
+            eprintln!(
+                "devel-warn: accessing unregistered config item: '{}.{}'",
+                String::from_utf8_lossy(section),
+                String::from_utf8_lossy(item),
+            );
+        }
+        Ok(())
     }
 
     /// Returns an `Err` if the first value found is not a valid UTF-8 string.
