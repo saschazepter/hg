@@ -1,3 +1,24 @@
+# Don't run pipelines on branch "merge", since we're fast-forward only.
+# Gitlab sees a new branch (since e.g. `topic/stable/my-topic` becomes
+# `branch/stable`), but the hash hasn't changed. There is no reason to
+# re-run the CI in our case, since we haven't built up any specific automation.
+# Right now it's just wasted CI and developer time.
+# One can still run the pipeline manually via the web interface,
+# like in the case of releases, to make *extra* sure that the actual branch
+# has succeeded.
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^branch\/.*/ && $CI_PIPELINE_SOURCE != "web"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: always
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+      when: always
+
 stages:
   - tests
 
