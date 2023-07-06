@@ -336,6 +336,11 @@ message",
             changelog.data_for_rev(NULL_REVISION)?,
             ChangelogRevisionData::null()
         );
+        // same with the intermediate entry object
+        assert_eq!(
+            changelog.entry_for_rev(NULL_REVISION)?.data()?,
+            ChangelogRevisionData::null()
+        );
         Ok(())
     }
 }
