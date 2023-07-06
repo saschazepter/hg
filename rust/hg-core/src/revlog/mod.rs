@@ -562,6 +562,9 @@ impl<'revlog> RevlogEntry<'revlog> {
 
     pub fn data(&self) -> Result<Cow<'revlog, [u8]>, HgError> {
         let data = self.rawdata()?;
+        if self.rev == NULL_REVISION {
+            return Ok(data);
+        }
         if self.is_censored() {
             return Err(HgError::CensoredNodeError);
         }
@@ -688,6 +691,9 @@ mod tests {
             revlog.rev_from_node(NULL_NODE.into()).unwrap(),
             NULL_REVISION
         );
+        let null_entry = revlog.get_entry(NULL_REVISION).ok().unwrap();
+        assert_eq!(null_entry.revision(), NULL_REVISION);
+        assert!(null_entry.data().unwrap().is_empty());
     }
 
     #[test]
