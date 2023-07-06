@@ -676,7 +676,7 @@ Test split patterns on overflow
   > EOF
   $ "$PYTHON" printnum.py >> overflow.list
   $ echo fenugreek >> overflow.list
-  $ hg debugwalk 'listfile:overflow.list' 2>&1 | egrep -v '^xxx'
+  $ hg debugwalk 'listfile:overflow.list' 2>&1 | grep -E -v '^xxx'
   f  fennel     fennel     exact
   f  fenugreek  fenugreek  exact
   $ cd ..

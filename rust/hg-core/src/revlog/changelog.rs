@@ -1,6 +1,6 @@
 use crate::errors::HgError;
+use crate::revlog::Revision;
 use crate::revlog::{Node, NodePrefix};
-use crate::revlog::{Revision, NULL_REVISION};
 use crate::revlog::{Revlog, RevlogEntry, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::vfs::Vfs;
@@ -51,9 +51,6 @@ impl Changelog {
         &self,
         rev: Revision,
     ) -> Result<ChangelogRevisionData, RevlogError> {
-        if rev == NULL_REVISION {
-            return Ok(ChangelogRevisionData::null());
-        }
         self.entry_for_rev(rev)?.data()
     }
 
@@ -334,6 +331,11 @@ message",
         let changelog = Changelog { revlog };
         assert_eq!(
             changelog.data_for_rev(NULL_REVISION)?,
+            ChangelogRevisionData::null()
+        );
+        // same with the intermediate entry object
+        assert_eq!(
+            changelog.entry_for_rev(NULL_REVISION)?.data()?,
             ChangelogRevisionData::null()
         );
         Ok(())
