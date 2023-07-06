@@ -16,8 +16,6 @@ initialize repository
 create hgweb invocation script
 
   $ cat >hgweb.cgi <<HGWEB
-  > import cgitb
-  > cgitb.enable()
   > from mercurial import demandimport; demandimport.enable()
   > from mercurial.hgweb import hgweb
   > from mercurial.hgweb import wsgicgi

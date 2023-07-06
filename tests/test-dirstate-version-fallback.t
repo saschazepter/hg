@@ -10,8 +10,8 @@ Set up a v1 repo
   $ hg init repo
   $ cd repo
   $ echo a > a
-  $ hg add a
-  $ hg commit -m a
+  $ touch file-with-somewhat-long-name-to-make-dirstate-v1-bigger-than-v2
+  $ hg commit -Aqm a
   $ hg debugrequires | grep dirstate
   [1]
   $ ls -1 .hg/dirstate*
@@ -22,7 +22,7 @@ Copy v1 dirstate
 
 Upgrade it to v2
 
-  $ hg debugupgraderepo -q --config format.use-dirstate-v2=1 --run | egrep 'added:|removed:'
+  $ hg debugupgraderepo -q --config format.use-dirstate-v2=1 --run | grep -E 'added:|removed:'
      added: dirstate-v2
   $ hg debugrequires | grep dirstate
   dirstate-v2

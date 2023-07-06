@@ -2013,7 +2013,7 @@ downgrade it from dirstate-v2 automatically
 For multiple change at the same time
 ------------------------------------
 
-  $ hg debugformat -R auto-upgrade | egrep '(dirstate-v2|tracked|share-safe)'
+  $ hg debugformat -R auto-upgrade | grep -E '(dirstate-v2|tracked|share-safe)'
   dirstate-v2:         no
   tracked-hint:       yes
   share-safe:          no
@@ -2031,7 +2031,7 @@ For multiple change at the same time
   (see `hg help config.format.use-share-safe` for details)
   automatically downgrading repository from the `tracked-hint` feature
   (see `hg help config.format.use-dirstate-tracked-hint` for details)
-  $ hg debugformat -R auto-upgrade | egrep '(dirstate-v2|tracked|share-safe)'
+  $ hg debugformat -R auto-upgrade | grep -E '(dirstate-v2|tracked|share-safe)'
   dirstate-v2:        yes
   tracked-hint:        no
   share-safe:         yes
@@ -2040,7 +2040,7 @@ Quiet upgrade and downgrade
 ---------------------------
 
 
-  $ hg debugformat -R auto-upgrade | egrep '(dirstate-v2|tracked|share-safe)'
+  $ hg debugformat -R auto-upgrade | grep -E '(dirstate-v2|tracked|share-safe)'
   dirstate-v2:        yes
   tracked-hint:        no
   share-safe:         yes
@@ -2055,7 +2055,7 @@ Quiet upgrade and downgrade
   >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories:quiet=yes \
   >     --config format.use-share-safe=no
 
-  $ hg debugformat -R auto-upgrade | egrep '(dirstate-v2|tracked|share-safe)'
+  $ hg debugformat -R auto-upgrade | grep -E '(dirstate-v2|tracked|share-safe)'
   dirstate-v2:         no
   tracked-hint:       yes
   share-safe:          no
@@ -2070,7 +2070,7 @@ Quiet upgrade and downgrade
   >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories=yes \
   >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories:quiet=yes \
   >     --config format.use-share-safe=yes
-  $ hg debugformat -R auto-upgrade | egrep '(dirstate-v2|tracked|share-safe)'
+  $ hg debugformat -R auto-upgrade | grep -E '(dirstate-v2|tracked|share-safe)'
   dirstate-v2:        yes
   tracked-hint:        no
   share-safe:         yes

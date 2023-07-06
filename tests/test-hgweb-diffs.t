@@ -318,7 +318,7 @@ set up hgweb with git diffs + noprefix
 patch header and diffstat
 
   $ get-with-headers.py localhost:$HGPORT 'rev/0' \
-  > | egrep 'files changed|---|\+\+\+'
+  > | grep -E 'files changed|---|\+\+\+'
        2 files changed, 2 insertions(+), 0 deletions(-)
   <span id="l1.2" class="minusline">--- /dev/null</span><a href="#l1.2"></a>
   <span id="l1.3" class="plusline">+++ a</span><a href="#l1.3"></a>

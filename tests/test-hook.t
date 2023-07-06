@@ -975,7 +975,7 @@ test python hooks
   (run with --traceback for stack trace)
   [255]
 
-  $ hg pull ../a --traceback 2>&1 | egrep 'pulling|searching|^exception|Traceback|SyntaxError|ImportError|ModuleNotFoundError|HookLoadError|abort'
+  $ hg pull ../a --traceback 2>&1 | grep -E 'pulling|searching|^exception|Traceback|SyntaxError|ImportError|ModuleNotFoundError|HookLoadError|abort'
   pulling from ../a
   searching for changes
   exception from first failed import attempt:
@@ -1142,7 +1142,7 @@ make sure --traceback works on hook import failure
   $ echo 'precommit.importfail = python:importfail.whatever' >> .hg/hgrc
 
   $ echo a >> a
-  $ hg --traceback commit -ma 2>&1 | egrep '^exception|ImportError|ModuleNotFoundError|Traceback|HookLoadError|abort'
+  $ hg --traceback commit -ma 2>&1 | grep -E '^exception|ImportError|ModuleNotFoundError|Traceback|HookLoadError|abort'
   exception from first failed import attempt:
   Traceback (most recent call last):
   ModuleNotFoundError: No module named 'somebogusmodule'

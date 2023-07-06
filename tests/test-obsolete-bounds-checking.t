@@ -17,7 +17,7 @@ Create a repo, set the username to something more than 255 bytes, then run hg am
   adding a
   $ hg commit -m "Initial commit"
   $ echo a >> a
-  $ hg amend 2>&1 | egrep -v '^(\*\*|  )'
+  $ hg amend 2>&1 | grep -E -v '^(\*\*|  )'
   transaction abort!
   rollback completed
   Traceback (most recent call last):

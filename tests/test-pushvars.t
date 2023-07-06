@@ -5,7 +5,7 @@ Setup
 
   $ cat > $TESTTMP/pretxnchangegroup.sh << EOF
   > #!/bin/sh
-  > env | egrep "^HG_USERVAR_(DEBUG|BYPASS_REVIEW)" | sort
+  > env | grep -E "^HG_USERVAR_(DEBUG|BYPASS_REVIEW)" | sort
   > exit 0
   > EOF
   $ cat >> $HGRCPATH << EOF
