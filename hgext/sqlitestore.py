@@ -1330,7 +1330,7 @@ def verifierinit(orig, self, *args, **kwargs):
 def extsetup(ui):
     localrepo.featuresetupfuncs.add(featuresetup)
     extensions.wrapfunction(
-        localrepo, b'newreporequirements', newreporequirements
+        localrepo, 'newreporequirements', newreporequirements
     )
     extensions.wrapfunction(localrepo, 'makefilestorage', makefilestorage)
     extensions.wrapfunction(localrepo, 'makemain', makemain)
