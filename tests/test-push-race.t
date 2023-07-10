@@ -76,7 +76,7 @@ A set of extension and shell functions ensures this scheduling.
   >     return orig(pushop)
   > 
   > def uisetup(ui):
-  >     extensions.wrapfunction(exchange, b'_pushbundle2', delaypush)
+  >     extensions.wrapfunction(exchange, '_pushbundle2', delaypush)
   > EOF
 
   $ waiton () {

@@ -829,7 +829,7 @@ blob, and the output shows that it isn't fetched.
   > eh = exthelper.exthelper()
   > uisetup = eh.finaluisetup
   > 
-  > @eh.wrapfunction(wrapper, b'filelogrenamed')
+  > @eh.wrapfunction(wrapper, 'filelogrenamed')
   > def filelogrenamed(orig, orig1, self, node):
   >     ret = orig(orig1, self, node)
   >     if wrapper._islfs(self._revlog, node) and ret:
