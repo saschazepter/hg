@@ -4421,7 +4421,8 @@ def uisetup(ui):
                 )
             return orig(repo, cmd, file_, opts)
 
-        extensions.wrapfunction(cmdutil, b'openrevlog', openrevlog)
+        name = _sysstr(b'openrevlog')
+        extensions.wrapfunction(cmdutil, name, openrevlog)
 
 
 @command(
