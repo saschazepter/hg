@@ -923,7 +923,7 @@ unix domain socket:
   >         raise Exception('crash')
   >     return orig(ui, repo, conn, createcmdserver, prereposetups)
   > def extsetup(ui):
-  >     extensions.wrapfunction(commandserver, b'_serverequest', _serverequest)
+  >     extensions.wrapfunction(commandserver, '_serverequest', _serverequest)
   > EOF
   $ cat <<EOF >> .hg/hgrc
   > [extensions]

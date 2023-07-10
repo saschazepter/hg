@@ -970,7 +970,7 @@ Check that the phase cache is properly invalidated after a strip with bookmark.
   >          transaction.addpostclose(b"phase invalidation test", test)
   >     return transaction
   > def extsetup(ui):
-  >     extensions.wrapfunction(localrepo.localrepository, b"transaction",
+  >     extensions.wrapfunction(localrepo.localrepository, "transaction",
   >                             transactioncallback)
   > EOF
   $ hg up -C 2
