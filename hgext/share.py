@@ -162,10 +162,10 @@ def clone(orig, ui, source, *args, **opts):
 
 
 def extsetup(ui):
-    extensions.wrapcommand(commands.table, b'clone', clone)
     extensions.wrapfunction(bookmarks, '_getbkfile', getbkfile)
     extensions.wrapfunction(bookmarks.bmstore, '_recordchange', recordchange)
     extensions.wrapfunction(bookmarks.bmstore, '_writerepo', writerepo)
+    extensions.wrapcommand(commands.table, b'clone', clone)
 
 
 def _hassharedbookmarks(repo):
