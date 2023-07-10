@@ -101,7 +101,7 @@ def _registerwireprotocommand():
 
 def serveruisetup(ui):
     _registerwireprotocommand()
-    extensions.wrapfunction(wireprotov1server, b'_capabilities', _capabilities)
+    extensions.wrapfunction(wireprotov1server, '_capabilities', _capabilities)
 
 
 # client-side

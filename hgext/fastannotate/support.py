@@ -129,8 +129,8 @@ def _remotefctxannotate(orig, self, follow=False, skiprevs=None, diffopts=None):
 
 
 def replacehgwebannotate():
-    extensions.wrapfunction(hgweb.webutil, b'annotate', _hgwebannotate)
+    extensions.wrapfunction(hgweb.webutil, 'annotate', _hgwebannotate)
 
 
 def replacefctxannotate():
-    extensions.wrapfunction(hgcontext.basefilectx, b'annotate', _fctxannotate)
+    extensions.wrapfunction(hgcontext.basefilectx, 'annotate', _fctxannotate)
