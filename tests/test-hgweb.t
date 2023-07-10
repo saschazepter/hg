@@ -876,7 +876,7 @@ Test signal-safe-lock in web and non-web processes
   >     except ValueError:
   >         raise error.Abort(b'signal.signal() called in thread?')
   > def uisetup(ui):
-  >    extensions.wrapfunction(signal, b'signal', disabledsig)
+  >    extensions.wrapfunction(signal, 'signal', disabledsig)
   > EOF
 
  by default, signal interrupt should be disabled while making a lock file
