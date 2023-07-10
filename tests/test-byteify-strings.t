@@ -110,19 +110,6 @@ Test attr*() as methods
   > def f():
   >     pass
   > EOF
-  $ byteify_strings testfile.py --allow-attr-methods
-  setattr(o, 'a', 1)
-  util.setattr(o, 'ae', 1)
-  util.getattr(o, 'alksjdf', b'default')
-  util.addattr(o, 'asdf')
-  util.hasattr(o, 'lksjdf', b'default')
-  util.safehasattr(o, 'lksjdf', b'default')
-  @eh.wrapfunction(func, 'lksjdf')
-  def f():
-      pass
-  @eh.wrapclass(klass, 'lksjdf')
-  def f():
-      pass
 
 Test without attr*() as methods
 
@@ -142,15 +129,15 @@ Test without attr*() as methods
   > EOF
   $ byteify_strings testfile.py
   setattr(o, 'a', 1)
-  util.setattr(o, b'ae', 1)
-  util.getattr(o, b'alksjdf', b'default')
-  util.addattr(o, b'asdf')
-  util.hasattr(o, b'lksjdf', b'default')
-  util.safehasattr(o, b'lksjdf', b'default')
-  @eh.wrapfunction(func, b'lksjdf')
+  util.setattr(o, 'ae', 1)
+  util.getattr(o, 'alksjdf', b'default')
+  util.addattr(o, 'asdf')
+  util.hasattr(o, 'lksjdf', b'default')
+  util.safehasattr(o, 'lksjdf', b'default')
+  @eh.wrapfunction(func, 'lksjdf')
   def f():
       pass
-  @eh.wrapclass(klass, b'lksjdf')
+  @eh.wrapclass(klass, 'lksjdf')
   def f():
       pass
 
