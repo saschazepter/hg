@@ -108,11 +108,11 @@ add more content and complexity to the repository too
   r3
   r4
   r5
-  r6 (missing-correct-output !)
-  r7 (missing-correct-output !)
-  r8 (missing-correct-output !)
-  r11 (missing-correct-output !)
-  r12 (missing-correct-output !)
+  r6
+  r7
+  r8
+  r11
+  r12
 
 cleanups
 
