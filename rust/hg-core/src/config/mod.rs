@@ -386,6 +386,13 @@ impl Config {
         }))
     }
 
+    /// Return the config item that corresponds to a section + item, a function
+    /// to parse from the raw bytes to the expected type (which is passed as
+    /// a string only to make debugging easier).
+    /// Used by higher-level methods like `get_bool`.
+    ///
+    /// `fallback_to_default` controls whether the default value (if any) is
+    /// returned if nothing is found.
     fn get_parse<'config, T: 'config>(
         &'config self,
         section: &[u8],
