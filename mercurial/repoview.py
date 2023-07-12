@@ -209,16 +209,18 @@ def extrafilter(ui):
     subsettable = repoviewutil.subsettable
 
     if combine(b'base') not in filtertable:
-        for name in _basefiltername:
+        for base_name in _basefiltername:
 
-            def extrafilteredrevs(repo, *args, **kwargs):
+            def extrafilteredrevs(repo, *args, name=base_name, **kwargs):
                 baserevs = filtertable[name](repo, *args, **kwargs)
                 extrarevs = frozenset(repo.revs(frevs))
                 return baserevs | extrarevs
 
-            filtertable[combine(name)] = extrafilteredrevs
-            if name in subsettable:
-                subsettable[combine(name)] = combine(subsettable[name])
+            filtertable[combine(base_name)] = extrafilteredrevs
+            if base_name in subsettable:
+                subsettable[combine(base_name)] = combine(
+                    subsettable[base_name]
+                )
     return fid
 
 
