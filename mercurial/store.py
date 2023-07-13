@@ -1093,12 +1093,13 @@ class _fncachevfs(vfsmod.proxyvfs):
         ):
             # do not trigger a fncache load when adding a file that already is
             # known to exist.
-            notload = self.fncache.entries is None and self.vfs.exists(encoded)
-            if notload and b'r+' in mode and not self.vfs.stat(encoded).st_size:
-                # when appending to an existing file, if the file has size zero,
-                # it should be considered as missing. Such zero-size files are
-                # the result of truncation when a transaction is aborted.
-                notload = False
+            notload = self.fncache.entries is None and (
+                # if the file has size zero, it should be considered as missing.
+                # Such zero-size files are the result of truncation when a
+                # transaction is aborted.
+                self.vfs.exists(encoded)
+                and self.vfs.stat(encoded).st_size
+            )
             if not notload:
                 self.fncache.add(path)
         return self.vfs(encoded, mode, *args, **kw)
