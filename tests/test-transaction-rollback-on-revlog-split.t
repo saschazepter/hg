@@ -399,7 +399,6 @@ The split was rollback
   .hg/store/data/file.d: size=0
   .hg/store/data/file.i: size=1174
 
-
   $ hg tip
   changeset:   1:64b04c8dc267
   tag:         tip
@@ -408,6 +407,33 @@ The split was rollback
   summary:     b
   
   $ hg verify -q
+
+  $ cat > .hg/hgrc <<EOF
+  > [hooks]
+  > EOF
+  $ hg pull ../troffset-computation
+  pulling from ../troffset-computation
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 3 changesets with 18 changes to 6 files
+  new changesets c99a94cae9b1:64874a3b0160
+  (run 'hg update' to get a working copy)
+
+  $ f -s .hg/store/data*/file*
+  .hg/store/data/file.d: size=267307
+  .hg/store/data/file.i: size=320
+  $ hg verify -q
+   warning: revlog 'data/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/f.d' not in fncache!
+   warning: revlog 'data/Directory_With,Special%Char/Complex_File.babar.d' not in fncache!
+   warning: revlog 'data/file.d' not in fncache!
+   warning: revlog 'data/foo/bar/babar_celeste/foo.d' not in fncache!
+   warning: revlog 'data/some_dir/sub_dir/foo_bar.d' not in fncache!
+   warning: revlog 'data/some_dir/sub_dir/foo_bar.i.s/tutu.d' not in fncache!
+  6 warnings encountered!
+  hint: run "hg debugrebuildfncache" to recover from corrupt fncache
+
   $ cd ..
 
 Read race
