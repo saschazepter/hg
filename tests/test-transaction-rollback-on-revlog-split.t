@@ -425,14 +425,6 @@ The split was rollback
   .hg/store/data/file.d: size=267307
   .hg/store/data/file.i: size=320
   $ hg verify -q
-   warning: revlog 'data/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/f.d' not in fncache!
-   warning: revlog 'data/Directory_With,Special%Char/Complex_File.babar.d' not in fncache!
-   warning: revlog 'data/file.d' not in fncache!
-   warning: revlog 'data/foo/bar/babar_celeste/foo.d' not in fncache!
-   warning: revlog 'data/some_dir/sub_dir/foo_bar.d' not in fncache!
-   warning: revlog 'data/some_dir/sub_dir/foo_bar.i.s/tutu.d' not in fncache!
-  6 warnings encountered!
-  hint: run "hg debugrebuildfncache" to recover from corrupt fncache
 
   $ cd ..
 
