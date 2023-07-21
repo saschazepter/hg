@@ -127,7 +127,10 @@ def recordbookmarks(orig, store, fp):
     repo = store._repo
     if util.safehasattr(repo, 'journal'):
         oldmarks = bookmarks.bmstore(repo)
-        for mark, value in store.items():
+        all_marks = set(b for b, n in oldmarks.items())
+        all_marks.update(b for b, n in store.items())
+        for mark in sorted(all_marks):
+            value = store.get(mark, repo.nullid)
             oldvalue = oldmarks.get(mark, repo.nullid)
             if value != oldvalue:
                 repo.journal.record(bookmarktype, mark, oldvalue, value)
