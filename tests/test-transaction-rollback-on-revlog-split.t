@@ -205,6 +205,10 @@ The inline revlog still exist, but a split version exist next to it
   .hg/store/data-s/file: size=320
   .hg/store/data/file.d: size=267307
   .hg/store/data/file.i: size=132395
+  $ f -s .hg/store/data*/foo*/bar*/babar__celeste*/foo*
+  .hg/store/data/foo/bar/babar__celeste-s/foo: size=320
+  .hg/store/data/foo/bar/babar__celeste/foo.d: size=267307
+  .hg/store/data/foo/bar/babar__celeste/foo.i: size=132395
 
 
 The first file.i entry should match the "Reference size" above.
