@@ -383,10 +383,7 @@ def candownload(repo):
 
 
 def uploadblobsfromrevs(repo, revs):
-    """upload lfs blobs introduced by revs
-
-    Note: also used by other extensions e. g. infinitepush. avoid renaming.
-    """
+    """upload lfs blobs introduced by revs"""
     if _canskipupload(repo):
         return
     pointers = extractpointers(repo, revs)
