@@ -5940,12 +5940,6 @@ msgid " store some pushes in a remote blob store on the server (EXPERIMENTAL)"
 msgstr ""
 
 msgid ""
-"    [infinitepush]\n"
-"    # Server-side and client-side option. Pattern of the infinitepush bookmark\n"
-"    branchpattern = PATTERN"
-msgstr ""
-
-msgid ""
 "    # Server or client\n"
 "    server = False"
 msgstr ""
@@ -6034,12 +6028,6 @@ msgid ""
 msgstr ""
 
 msgid ""
-"    # Instructs infinitepush to forward all received bundle2 parts to the\n"
-"    # bundle for storage. Defaults to False.\n"
-"    storeallparts = True"
-msgstr ""
-
-msgid ""
 "    # routes each incoming push to the bundlestore. defaults to False\n"
 "    pushtobundlestore = True"
 msgstr ""
@@ -6052,22 +6040,8 @@ msgid ""
 "    bookmarks = True\n"
 msgstr ""
 
-msgid "please set infinitepush.sqlhost"
-msgstr ""
-
-msgid "please set infinitepush.reponame"
-msgstr ""
-
 #, python-format
 msgid "invalid log level %s"
-msgstr ""
-
-#, python-format
-msgid "unknown infinitepush store type specified %s"
-msgstr ""
-
-#, python-format
-msgid "unknown infinitepush index type specified %s"
 msgstr ""
 
 msgid "force push to go to bundle store (EXPERIMENTAL)"
@@ -6078,9 +6052,6 @@ msgstr "o caminho default do repositório não foi configurado!"
 
 msgid "see 'hg help config.paths'"
 msgstr "veja 'hg help config.paths'"
-
-msgid "infinitepush bookmark '{}' does not exist in path '{}'"
-msgstr ""
 
 msgid "no changes found\n"
 msgstr "nenhuma alteração encontrada\n"

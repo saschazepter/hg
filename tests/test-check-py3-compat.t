@@ -10,7 +10,6 @@
   > | sed 's|\\|/|g' | xargs "$PYTHON" contrib/check-py3-compat.py \
   > | sed 's/[0-9][0-9]*)$/*)/'
   hgext/convert/transport.py: error importing: <*Error> No module named 'svn.client' (error at transport.py:*) (glob) (?)
-  hgext/infinitepush/sqlindexapi.py: error importing: <*Error> No module named 'mysql' (error at sqlindexapi.py:*) (glob) (?)
   mercurial/scmwindows.py: error importing: <ValueError> _type_ 'v' not supported (error at win32.py:*) (no-windows !)
   mercurial/win32.py: error importing: <ValueError> _type_ 'v' not supported (error at win32.py:*) (no-windows !)
   mercurial/windows.py: error importing: <*Error> No module named 'msvcrt' (error at windows.py:*) (glob) (no-windows !)

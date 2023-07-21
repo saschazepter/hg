@@ -1321,7 +1321,6 @@ packages = [
     'hgext.git',
     'hgext.highlight',
     'hgext.hooklib',
-    'hgext.infinitepush',
     'hgext.largefiles',
     'hgext.lfs',
     'hgext.narrow',
