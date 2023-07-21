@@ -202,11 +202,11 @@ The inline revlog still exist, but a split version exist next to it
   data/some_dir/sub_dir/foo_bar.i.s/tutu.i 1174
   data/some_dir/sub_dir/foo_bar.i.s/tutu.d 0
   $ f -s .hg/store/data*/file*
-  .hg/store/data-s/file: size=320
+  .hg/store/data-s/file.i: size=320
   .hg/store/data/file.d: size=267307
   .hg/store/data/file.i: size=132395
   $ f -s .hg/store/data*/foo*/bar*/babar__celeste*/foo*
-  .hg/store/data/foo/bar/babar__celeste-s/foo: size=320
+  .hg/store/data-s/foo/bar/babar__celeste/foo.i: size=320
   .hg/store/data/foo/bar/babar__celeste/foo.d: size=267307
   .hg/store/data/foo/bar/babar__celeste/foo.i: size=132395
 
@@ -221,7 +221,7 @@ A "temporary file" entry exist for the split index.
   data/file.d 0
   $ cat .hg/store/journal.backupfiles | tr -s '\000' ' ' | tr -s '\00' ' '| grep 'data.*/file'
    data/file.i data/journal.backup.file.i.bck 0
-   data-s/file 0
+   data-s/file.i 0
 
 recover is rolling the split back, the fncache is still valid
 
@@ -285,7 +285,7 @@ Reference size:
 The inline revlog still exist, but a split version exist next to it
 
   $ f -s .hg/store/data*/file*
-  .hg/store/data-s/file: size=320
+  .hg/store/data-s/file.i: size=320
   .hg/store/data/file.d: size=267307
   .hg/store/data/file.i: size=132395
 
