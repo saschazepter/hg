@@ -867,7 +867,7 @@ class transaction(util.transactional):
                 self._vfsmap,
                 entries,
                 self._backupentries,
-                False,
+                unlink=True,
                 checkambigfiles=self._checkambigfiles,
             )
             self._report(_(b"rollback completed\n"))
