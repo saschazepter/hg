@@ -396,7 +396,6 @@ Repeat the original test but let hg rollback the transaction.
 The split was rollback
 
   $ f -s .hg/store/data*/file*
-  .hg/store/data/file.d: size=0
   .hg/store/data/file.i: size=1174
 
 
