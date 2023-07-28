@@ -350,11 +350,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
             &argv,
             &initial_current_dir,
             &ui,
-            OnUnsupported::Fallback {
-                executable: config
-                    .get(b"rhg", b"fallback-executable")
-                    .map(ToOwned::to_owned),
-            },
+            OnUnsupported::fallback(config),
             Err(CommandError::unsupported(
                 "`rhg.fallback-immediately is true`",
             )),
@@ -663,6 +659,18 @@ enum OnUnsupported {
 impl OnUnsupported {
     const DEFAULT: Self = OnUnsupported::Abort;
 
+    fn fallback_executable(config: &Config) -> Option<Vec<u8>> {
+        config
+            .get(b"rhg", b"fallback-executable")
+            .map(|x| x.to_owned())
+    }
+
+    fn fallback(config: &Config) -> Self {
+        OnUnsupported::Fallback {
+            executable: Self::fallback_executable(config),
+        }
+    }
+
     fn from_config(config: &Config) -> Self {
         match config
             .get(b"rhg", b"on-unsupported")
@@ -671,11 +679,7 @@ impl OnUnsupported {
         {
             Some(b"abort") => OnUnsupported::Abort,
             Some(b"abort-silent") => OnUnsupported::AbortSilent,
-            Some(b"fallback") => OnUnsupported::Fallback {
-                executable: config
-                    .get(b"rhg", b"fallback-executable")
-                    .map(|x| x.to_owned()),
-            },
+            Some(b"fallback") => Self::fallback(config),
             None => Self::DEFAULT,
             Some(_) => {
                 // TODO: warn about unknown config value
