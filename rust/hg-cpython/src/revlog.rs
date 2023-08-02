@@ -105,7 +105,7 @@ py_class!(pub class MixedIndex |py| {
     def shortest(&self, node: PyBytes) -> PyResult<usize> {
         let opt = self.get_nodetree(py)?.borrow();
         let nt = opt.as_ref().unwrap();
-        let idx = &*self.cindex(py).borrow();
+        let idx = &*self.index(py).borrow();
         match nt.unique_prefix_len_node(idx, &node_from_py_bytes(py, &node)?)
         {
             Ok(Some(l)) => Ok(l),
