@@ -24,7 +24,7 @@ use std::vec::Vec;
 lazy_static! {
     static ref RE_ESCAPE: Vec<Vec<u8>> = {
         let mut v: Vec<Vec<u8>> = (0..=255).map(|byte| vec![byte]).collect();
-        let to_escape = b"()[]{}?*+-|^$\\.&~# \t\n\r\x0b\x0c";
+        let to_escape = b"()[]{}?*+-|^$\\.&~#\t\n\r\x0b\x0c";
         for byte in to_escape {
             v[*byte as usize].insert(0, b'\\');
         }
@@ -641,8 +641,8 @@ mod tests {
         assert_eq!(escape_pattern(untouched), untouched.to_vec());
         // All escape codes
         assert_eq!(
-            escape_pattern(br#"()[]{}?*+-|^$\\.&~# \t\n\r\v\f"#),
-            br#"\(\)\[\]\{\}\?\*\+\-\|\^\$\\\\\.\&\~\#\ \\t\\n\\r\\v\\f"#
+            escape_pattern(br#"()[]{}?*+-|^$\\.&~#\t\n\r\v\f"#),
+            br#"\(\)\[\]\{\}\?\*\+\-\|\^\$\\\\\.\&\~\#\\t\\n\\r\\v\\f"#
                 .to_vec()
         );
     }
