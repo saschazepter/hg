@@ -117,7 +117,7 @@ py_class!(pub class MixedIndex |py| {
     def partialmatch(&self, node: PyObject) -> PyResult<Option<PyBytes>> {
         let opt = self.get_nodetree(py)?.borrow();
         let nt = opt.as_ref().unwrap();
-        let idx = &*self.cindex(py).borrow();
+        let idx = &*self.index(py).borrow();
 
         let node_as_string = if cfg!(feature = "python3-sys") {
             node.cast_as::<PyString>(py)?.to_string(py)?.to_string()
