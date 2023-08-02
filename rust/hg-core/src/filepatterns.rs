@@ -366,6 +366,7 @@ pub fn parse_one_pattern(
     pattern: &[u8],
     source: &Path,
     default: PatternSyntax,
+    normalize: bool,
 ) -> IgnorePattern {
     let mut pattern_bytes: &[u8] = pattern;
     let mut syntax = default;
@@ -378,7 +379,19 @@ pub fn parse_one_pattern(
         }
     }
 
-    let pattern = pattern_bytes.to_vec();
+    let pattern = match syntax {
+        PatternSyntax::RootGlob
+        | PatternSyntax::Path
+        | PatternSyntax::Glob
+        | PatternSyntax::RelGlob
+        | PatternSyntax::RelPath
+        | PatternSyntax::RootFiles
+            if normalize =>
+        {
+            normalize_path_bytes(pattern_bytes)
+        }
+        _ => pattern_bytes.to_vec(),
+    };
 
     IgnorePattern {
         syntax,
@@ -438,6 +451,7 @@ pub fn parse_pattern_file_contents(
                 line,
                 file_path,
                 current_syntax.clone(),
+                false,
             );
             inputs.push(if relativize {
                 pattern.to_relative()
@@ -447,6 +461,35 @@ pub fn parse_pattern_file_contents(
         }
     }
     Ok((inputs, warnings))
+}
+
+pub fn parse_pattern_args(
+    patterns: Vec<Vec<u8>>,
+    cwd: &Path,
+    root: &Path,
+) -> Result<Vec<IgnorePattern>, HgPathError> {
+    let mut ignore_patterns: Vec<IgnorePattern> = Vec::new();
+    for pattern in patterns {
+        let pattern = parse_one_pattern(
+            &pattern,
+            Path::new("<args>"),
+            PatternSyntax::RelPath,
+            true,
+        );
+        match pattern.syntax {
+            PatternSyntax::RelGlob | PatternSyntax::RelPath => {
+                let name = get_path_from_bytes(&pattern.pattern);
+                let canon = canonical_path(root, cwd, name)?;
+                ignore_patterns.push(IgnorePattern {
+                    syntax: pattern.syntax,
+                    pattern: get_bytes_from_path(canon),
+                    source: pattern.source,
+                })
+            }
+            _ => ignore_patterns.push(pattern.to_owned()),
+        };
+    }
+    Ok(ignore_patterns)
 }
 
 pub fn read_pattern_file(
