@@ -579,6 +579,14 @@ impl<'on_disk> DirstateMap<'on_disk> {
         }
     }
 
+    pub fn has_node(
+        &self,
+        path: &HgPath,
+    ) -> Result<bool, DirstateV2ParseError> {
+        let node = self.get_node(path)?;
+        Ok(node.is_some())
+    }
+
     /// Returns a mutable reference to the node at `path` if it exists
     ///
     /// `each_ancestor` is a callback that is called for each ancestor node
