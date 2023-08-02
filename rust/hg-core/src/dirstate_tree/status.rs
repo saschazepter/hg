@@ -8,7 +8,7 @@ use crate::dirstate_tree::dirstate_map::DirstateVersion;
 use crate::dirstate_tree::dirstate_map::NodeRef;
 use crate::dirstate_tree::on_disk::DirstateV2ParseError;
 use crate::matchers::get_ignore_function;
-use crate::matchers::Matcher;
+use crate::matchers::{Matcher, VisitChildrenSet};
 use crate::utils::files::get_bytes_from_os_string;
 use crate::utils::files::get_bytes_from_path;
 use crate::utils::files::get_path_from_bytes;
@@ -382,6 +382,16 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         false
     }
 
+    fn should_visit(set: &VisitChildrenSet, basename: &HgPath) -> bool {
+        match set {
+            VisitChildrenSet::This | VisitChildrenSet::Recursive => true,
+            VisitChildrenSet::Empty => false,
+            VisitChildrenSet::Set(children_to_visit) => {
+                children_to_visit.contains(basename)
+            }
+        }
+    }
+
     /// Returns whether all child entries of the filesystem directory have a
     /// corresponding dirstate node or are ignored.
     fn traverse_fs_directory_and_dirstate<'ancestor>(
@@ -393,14 +403,24 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         cached_directory_mtime: Option<TruncatedTimestamp>,
         is_at_repo_root: bool,
     ) -> Result<bool, DirstateV2ParseError> {
+        let children_set = self.matcher.visit_children_set(directory_hg_path);
+        if let VisitChildrenSet::Empty = children_set {
+            return Ok(false);
+        }
         if self.can_skip_fs_readdir(directory_entry, cached_directory_mtime) {
             dirstate_nodes
                 .par_iter()
                 .map(|dirstate_node| {
                     let fs_path = &directory_entry.fs_path;
-                    let fs_path = fs_path.join(get_path_from_bytes(
-                        dirstate_node.base_name(self.dmap.on_disk)?.as_bytes(),
-                    ));
+                    let basename =
+                        dirstate_node.base_name(self.dmap.on_disk)?.as_bytes();
+                    let fs_path = fs_path.join(get_path_from_bytes(basename));
+                    if !Self::should_visit(
+                        &children_set,
+                        HgPath::new(basename),
+                    ) {
+                        return Ok(());
+                    }
                     match std::fs::symlink_metadata(&fs_path) {
                         Ok(fs_metadata) => {
                             let file_type = fs_metadata.file_type().into();
@@ -483,6 +503,15 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         .par_bridge()
         .map(|pair| {
             use itertools::EitherOrBoth::*;
+            let basename = match &pair {
+                Left(dirstate_node) | Both(dirstate_node, _) => HgPath::new(
+                    dirstate_node.base_name(self.dmap.on_disk)?.as_bytes(),
+                ),
+                Right(fs_entry) => &fs_entry.hg_path,
+            };
+            if !Self::should_visit(&children_set, basename) {
+                return Ok(false);
+            }
             let has_dirstate_node_or_is_ignored = match pair {
                 Both(dirstate_node, fs_entry) => {
                     self.traverse_fs_and_dirstate(
