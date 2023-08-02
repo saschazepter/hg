@@ -18,13 +18,15 @@ use hg::dirstate::has_exec_bit;
 use hg::dirstate::status::StatusPath;
 use hg::dirstate::TruncatedTimestamp;
 use hg::errors::{HgError, IoResultExt};
+use hg::filepatterns::parse_pattern_args;
 use hg::lock::LockError;
 use hg::manifest::Manifest;
 use hg::matchers::{AlwaysMatcher, IntersectionMatcher};
 use hg::repo::Repo;
 use hg::utils::debug::debug_wait_for_file;
-use hg::utils::files::get_bytes_from_os_string;
-use hg::utils::files::get_path_from_bytes;
+use hg::utils::files::{
+    get_bytes_from_os_str, get_bytes_from_os_string, get_path_from_bytes,
+};
 use hg::utils::hg_path::{hg_path_to_path_buf, HgPath};
 use hg::DirstateStatus;
 use hg::PatternFileWarning;
@@ -48,6 +50,12 @@ pub fn args() -> clap::Command {
     clap::command!("status")
         .alias("st")
         .about(HELP_TEXT)
+        .arg(
+            Arg::new("file")
+                .value_parser(clap::value_parser!(std::ffi::OsString))
+                .help("show only these files")
+                .action(clap::ArgAction::Append),
+        )
         .arg(
             Arg::new("all")
                 .help("show status of all files")
@@ -367,10 +375,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             .expect("commands.status.relative should have a default value");
 
         let relativize_paths = relative_status || {
-            // TODO should be dependent on whether patterns are passed once
-            // we support those.
             // See in Python code with `getuipathfn` usage in `commands.py`.
-            let legacy_relative_behavior = false;
+            let legacy_relative_behavior = args.contains_id("file");
             match relative_paths(invocation.config)? {
                 RelativePaths::Legacy => legacy_relative_behavior,
                 RelativePaths::Bool(v) => v,
@@ -428,6 +434,29 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         (true, false) => narrow_matcher,
         (false, true) => sparse_matcher,
         (false, false) => Box::new(AlwaysMatcher),
+    };
+    let matcher = match args.get_many::<std::ffi::OsString>("file") {
+        None => matcher,
+        Some(files) => {
+            let patterns: Vec<Vec<u8>> = files
+                .filter(|s| !s.is_empty())
+                .map(get_bytes_from_os_str)
+                .collect();
+            for file in &patterns {
+                if file.starts_with(b"set:") {
+                    return Err(CommandError::unsupported("fileset"));
+                }
+            }
+            let cwd = hg::utils::current_dir()?;
+            let root = repo.working_directory_path();
+            let ignore_patterns = parse_pattern_args(patterns, &cwd, root)?;
+            let files_matcher =
+                hg::matchers::PatternMatcher::new(ignore_patterns)?;
+            Box::new(IntersectionMatcher::new(
+                Box::new(files_matcher),
+                matcher,
+            ))
+        }
     };
 
     print_narrow_sparse_warnings(
