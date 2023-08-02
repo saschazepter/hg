@@ -25,7 +25,7 @@ pub use dirstate::{
     DirstateEntry, DirstateParents, EntryState,
 };
 pub mod copy_tracing;
-mod filepatterns;
+pub mod filepatterns;
 pub mod matchers;
 pub mod repo;
 pub mod revlog;

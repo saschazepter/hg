@@ -10,7 +10,8 @@ use hg::repo::RepoError;
 use hg::revlog::RevlogError;
 use hg::sparse::SparseConfigError;
 use hg::utils::files::get_bytes_from_path;
-use hg::{DirstateError, DirstateMapError, StatusError};
+use hg::utils::hg_path::HgPathError;
+use hg::{DirstateError, DirstateMapError, PatternError, StatusError};
 use std::convert::From;
 
 /// The kind of command error
@@ -227,6 +228,18 @@ impl From<StatusError> for CommandError {
             }
             _ => CommandError::abort(format!("{}", error)),
         }
+    }
+}
+
+impl From<HgPathError> for CommandError {
+    fn from(error: HgPathError) -> Self {
+        CommandError::unsupported(format!("{}", error))
+    }
+}
+
+impl From<PatternError> for CommandError {
+    fn from(error: PatternError) -> Self {
+        CommandError::unsupported(format!("{}", error))
     }
 }
 
