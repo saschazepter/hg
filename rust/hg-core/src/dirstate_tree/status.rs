@@ -14,6 +14,7 @@ use crate::utils::files::get_bytes_from_path;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::BadMatch;
+use crate::BadType;
 use crate::DirstateStatus;
 use crate::HgPathCow;
 use crate::PatternFileWarning;
@@ -24,6 +25,7 @@ use rayon::prelude::*;
 use sha1::{Digest, Sha1};
 use std::borrow::Cow;
 use std::io;
+use std::os::unix::prelude::FileTypeExt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -388,11 +390,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                     ));
                     match std::fs::symlink_metadata(&fs_path) {
                         Ok(fs_metadata) => {
-                            let file_type =
-                                match fs_metadata.file_type().try_into() {
-                                    Ok(file_type) => file_type,
-                                    Err(_) => return Ok(()),
-                                };
+                            let file_type = fs_metadata.file_type().into();
                             let entry = DirEntry {
                                 hg_path: Cow::Borrowed(
                                     dirstate_node
@@ -512,6 +510,15 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
             // `hg rm` or similar) or deleted before it could be
             // replaced by a directory or something else.
             self.mark_removed_or_deleted_if_file(&dirstate_node)?;
+        }
+        if let Some(bad_type) = fs_entry.is_bad() {
+            if self.matcher.exact_match(hg_path) {
+                let path = dirstate_node.full_path(self.dmap.on_disk)?;
+                self.outcome.lock().unwrap().bad.push((
+                    path.to_owned().into(),
+                    BadMatch::BadType(bad_type),
+                ))
+            }
         }
         if fs_entry.is_dir() {
             if self.options.collect_traversed_dirs {
@@ -866,21 +873,27 @@ enum FakeFileType {
     File,
     Directory,
     Symlink,
+    BadType(BadType),
 }
 
-impl TryFrom<std::fs::FileType> for FakeFileType {
-    type Error = ();
-
-    fn try_from(f: std::fs::FileType) -> Result<Self, Self::Error> {
+impl From<std::fs::FileType> for FakeFileType {
+    fn from(f: std::fs::FileType) -> Self {
         if f.is_dir() {
-            Ok(Self::Directory)
+            Self::Directory
         } else if f.is_file() {
-            Ok(Self::File)
+            Self::File
         } else if f.is_symlink() {
-            Ok(Self::Symlink)
+            Self::Symlink
+        } else if f.is_fifo() {
+            Self::BadType(BadType::FIFO)
+        } else if f.is_block_device() {
+            Self::BadType(BadType::BlockDevice)
+        } else if f.is_char_device() {
+            Self::BadType(BadType::CharacterDevice)
+        } else if f.is_socket() {
+            Self::BadType(BadType::Socket)
         } else {
-            // Things like FIFO etc.
-            Err(())
+            Self::BadType(BadType::Unknown)
         }
     }
 }
@@ -942,10 +955,7 @@ impl<'a> DirEntry<'a> {
             };
             let filename =
                 Cow::Owned(get_bytes_from_os_string(file_name).into());
-            let file_type = match FakeFileType::try_from(file_type) {
-                Ok(file_type) => file_type,
-                Err(_) => continue,
-            };
+            let file_type = FakeFileType::from(file_type);
             results.push(DirEntry {
                 hg_path: filename,
                 fs_path: Cow::Owned(full_path.to_path_buf()),
@@ -973,6 +983,13 @@ impl<'a> DirEntry<'a> {
 
     fn is_symlink(&self) -> bool {
         self.file_type == FakeFileType::Symlink
+    }
+
+    fn is_bad(&self) -> Option<BadType> {
+        match self.file_type {
+            FakeFileType::BadType(ty) => Some(ty),
+            _ => None,
+        }
     }
 }
 
