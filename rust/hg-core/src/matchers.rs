@@ -479,7 +479,13 @@ impl IntersectionMatcher {
                 m1_files.iter().cloned().filter(|f| m2.matches(f)).collect()
             })
         } else {
-            None
+            // without exact input file sets, we can't do an exact
+            // intersection, so we must over-approximate by
+            // unioning instead
+            m1.file_set().map(|m1_files| match m2.file_set() {
+                Some(m2_files) => m1_files.union(m2_files).cloned().collect(),
+                None => m1_files.iter().cloned().collect(),
+            })
         };
         Self { m1, m2, files }
     }
