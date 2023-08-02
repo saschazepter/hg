@@ -12,6 +12,7 @@ use crate::matchers::Matcher;
 use crate::utils::files::get_bytes_from_os_string;
 use crate::utils::files::get_bytes_from_path;
 use crate::utils::files::get_path_from_bytes;
+use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::hg_path::HgPath;
 use crate::BadMatch;
 use crate::BadType;
@@ -157,6 +158,18 @@ pub fn status<'dirstate>(
         root_cached_mtime,
         is_at_repo_root,
     )?;
+    if let Some(file_set) = common.matcher.file_set() {
+        for file in file_set {
+            if !file.is_empty() && !dmap.has_node(file)? {
+                let path = hg_path_to_path_buf(file)?;
+                if let io::Result::Err(error) =
+                    root_dir.join(path).symlink_metadata()
+                {
+                    common.io_error(error, file)
+                }
+            }
+        }
+    }
     let mut outcome = common.outcome.into_inner().unwrap();
     let new_cacheable = common.new_cacheable_directories.into_inner().unwrap();
     let outdated = common.outdated_cached_directories.into_inner().unwrap();
