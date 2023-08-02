@@ -317,6 +317,7 @@ pub fn build_single_regex(
         PatternSyntax::RootGlob
         | PatternSyntax::Path
         | PatternSyntax::RelGlob
+        | PatternSyntax::RelPath
         | PatternSyntax::RootFiles => normalize_path_bytes(pattern),
         PatternSyntax::Include | PatternSyntax::SubInclude => {
             return Err(PatternError::NonRegexPattern(entry.clone()))
