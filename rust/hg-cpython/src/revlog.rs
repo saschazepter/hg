@@ -324,12 +324,18 @@ py_class!(pub class MixedIndex |py| {
                 Ok(rev >= -1 && rev < self.len(py)? as BaseRevision)
             }
             Err(_) => {
-                cindex.inner().call_method(
+                let item_bytes: PyBytes = item.extract(py)?;
+                let rust_res = self.has_node(py, item_bytes)?;
+
+                let c_res = cindex.inner().call_method(
                     py,
                     "has_node",
-                    PyTuple::new(py, &[item]),
+                    PyTuple::new(py, &[item.clone_ref(py)]),
                     None)?
-                .extract(py)
+                .extract(py)?;
+
+                assert_eq!(rust_res, c_res);
+                Ok(rust_res)
             }
         }
     }
