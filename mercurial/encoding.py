@@ -79,6 +79,20 @@ def hfsignoreclean(s):
 _nativeenviron = os.supports_bytes_environ
 if _nativeenviron:
     environ = os.environb  # re-exports
+    if pycompat.sysplatform == b'OpenVMS':
+        # workaround for a bug in VSI 3.10 port
+        # os.environb is only populated with a few Predefined symbols
+        def newget(self, key, default=None):
+            # pytype on linux does not understand OpenVMS special modules
+            import _decc  # pytype: disable=import-error
+
+            v = _decc.getenv(key, None)
+            if isinstance(key, bytes):
+                return default if v is None else v.encode('latin-1')
+            else:
+                return default if v is None else v
+
+        environ.__class__.get = newget
 else:
     # preferred encoding isn't known yet; use utf-8 to avoid unicode error
     # and recreate it once encoding is settled
