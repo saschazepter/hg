@@ -310,7 +310,40 @@ py_class!(pub class MixedIndex |py| {
 
     /// determine revisions with deltas to reconstruct fulltext
     def deltachain(&self, *args, **kw) -> PyResult<PyObject> {
-        self.call_cindex(py, "deltachain", args, kw)
+        let index = self.index(py).borrow();
+        let rev = args.get_item(py, 0).extract::<BaseRevision>(py)?.into();
+        let stop_rev =
+            args.get_item(py, 1).extract::<Option<BaseRevision>>(py)?;
+        let rev = index.check_revision(rev).ok_or_else(|| {
+            nodemap_error(py, NodeMapError::RevisionNotInIndex(rev))
+        })?;
+        let stop_rev = if let Some(stop_rev) = stop_rev {
+            let stop_rev = UncheckedRevision(stop_rev);
+            Some(index.check_revision(stop_rev).ok_or_else(|| {
+                nodemap_error(py, NodeMapError::RevisionNotInIndex(stop_rev))
+            })?)
+        } else {None};
+        let (chain, stopped) = index.delta_chain(rev, stop_rev).map_err(|e| {
+            PyErr::new::<cpython::exc::ValueError, _>(py, e.to_string())
+        })?;
+
+        let cresult = self.call_cindex(py, "deltachain", args, kw)?;
+        let cchain: Vec<BaseRevision> =
+            cresult.get_item(py, 0)?.extract::<Vec<BaseRevision>>(py)?;
+        let chain: Vec<_> = chain.into_iter().map(|r| r.0).collect();
+        assert_eq!(chain, cchain);
+        assert_eq!(stopped, cresult.get_item(py, 1)?.extract(py)?);
+
+        Ok(
+            PyTuple::new(
+                py,
+                &[
+                    chain.into_py_object(py).into_object(),
+                    stopped.into_py_object(py).into_object()
+                ]
+            ).into_object()
+        )
+
     }
 
     /// slice planned chunk read to reach a density threshold
