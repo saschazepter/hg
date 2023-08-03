@@ -512,8 +512,73 @@ impl Index {
         // clear caches. This implies re-populating the offsets on-demand.
         self.offsets = RwLock::new(None);
     }
-}
 
+    /// Unchecked version of `is_snapshot`.
+    /// Assumes the caller checked that `rev` is within a valid revision range.
+    pub fn is_snapshot_unchecked(
+        &self,
+        mut rev: Revision,
+    ) -> Result<bool, RevlogError> {
+        while rev.0 >= 0 {
+            let entry = self.get_entry(rev).unwrap();
+            let mut base = entry.base_revision_or_base_of_delta_chain().0;
+            if base == rev.0 {
+                base = NULL_REVISION.0;
+            }
+            if base == NULL_REVISION.0 {
+                return Ok(true);
+            }
+            let [mut p1, mut p2] = self
+                .parents(rev)
+                .map_err(|_| RevlogError::InvalidRevision)?;
+            while let Some(p1_entry) = self.get_entry(p1) {
+                if p1_entry.compressed_len() != 0 || p1.0 == 0 {
+                    break;
+                }
+                let parent_base =
+                    p1_entry.base_revision_or_base_of_delta_chain();
+                if parent_base.0 == p1.0 {
+                    break;
+                }
+                p1 = self
+                    .check_revision(parent_base)
+                    .ok_or(RevlogError::InvalidRevision)?;
+            }
+            while let Some(p2_entry) = self.get_entry(p2) {
+                if p2_entry.compressed_len() != 0 || p2.0 == 0 {
+                    break;
+                }
+                let parent_base =
+                    p2_entry.base_revision_or_base_of_delta_chain();
+                if parent_base.0 == p2.0 {
+                    break;
+                }
+                p2 = self
+                    .check_revision(parent_base)
+                    .ok_or(RevlogError::InvalidRevision)?;
+            }
+            if base == p1.0 || base == p2.0 {
+                return Ok(false);
+            }
+            rev = self
+                .check_revision(base.into())
+                .ok_or(RevlogError::InvalidRevision)?;
+        }
+        Ok(rev == NULL_REVISION)
+    }
+
+    /// Return whether the given revision is a snapshot. Returns an error if
+    /// `rev` is not within a valid revision range.
+    pub fn is_snapshot(
+        &self,
+        rev: UncheckedRevision,
+    ) -> Result<bool, RevlogError> {
+        let rev = self
+            .check_revision(rev)
+            .ok_or_else(|| RevlogError::corrupted("test"))?;
+        self.is_snapshot_unchecked(rev)
+    }
+}
 fn inline_scan(bytes: &[u8]) -> (usize, Vec<usize>) {
     let mut offset: usize = 0;
     let mut offsets = Vec::new();
