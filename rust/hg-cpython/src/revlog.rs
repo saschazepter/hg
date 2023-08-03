@@ -257,8 +257,16 @@ py_class!(pub class MixedIndex |py| {
     }
 
     /// True if the object is a snapshot
-    def issnapshot(&self, *args, **kw) -> PyResult<PyObject> {
-        self.call_cindex(py, "issnapshot", args, kw)
+    def issnapshot(&self, *args, **kw) -> PyResult<bool> {
+        let index = self.index(py).borrow();
+        let result = index
+            .is_snapshot(UncheckedRevision(args.get_item(py, 0).extract(py)?))
+            .map_err(|e| {
+                PyErr::new::<cpython::exc::ValueError, _>(py, e.to_string())
+            })?;
+        let cresult = self.call_cindex(py, "issnapshot", args, kw)?;
+        assert_eq!(result, cresult.extract(py)?);
+        Ok(result)
     }
 
     /// Gather snapshot data in a cache dict
