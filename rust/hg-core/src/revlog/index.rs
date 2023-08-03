@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -10,7 +11,10 @@ use crate::errors::HgError;
 use crate::node::{NODE_BYTES_LENGTH, NULL_NODE, STORED_NODE_ID_BYTES};
 use crate::revlog::node::Node;
 use crate::revlog::{Revision, NULL_REVISION};
-use crate::{Graph, GraphError, RevlogError, RevlogIndex, UncheckedRevision};
+use crate::{
+    BaseRevision, FastHashMap, Graph, GraphError, RevlogError, RevlogIndex,
+    UncheckedRevision,
+};
 
 pub const INDEX_ENTRY_SIZE: usize = 64;
 pub const COMPRESSION_MODE_INLINE: u8 = 2;
@@ -283,6 +287,35 @@ impl Graph for Index {
     }
 }
 
+/// A cache suitable for find_snapshots
+///
+/// Logically equivalent to a mapping whose keys are [`BaseRevision`] and
+/// values sets of [`BaseRevision`]
+///
+/// TODO the dubious part is insisting that errors must be RevlogError
+/// we would probably need to sprinkle some magic here, such as an associated
+/// type that would be Into<RevlogError> but even that would not be
+/// satisfactory, as errors potentially have nothing to do with the revlog.
+pub trait SnapshotsCache {
+    fn insert_for(
+        &mut self,
+        rev: BaseRevision,
+        value: BaseRevision,
+    ) -> Result<(), RevlogError>;
+}
+
+impl SnapshotsCache for FastHashMap<BaseRevision, HashSet<BaseRevision>> {
+    fn insert_for(
+        &mut self,
+        rev: BaseRevision,
+        value: BaseRevision,
+    ) -> Result<(), RevlogError> {
+        let all_values = self.entry(rev).or_insert_with(HashSet::new);
+        all_values.insert(value);
+        Ok(())
+    }
+}
+
 impl Index {
     /// Create an index from bytes.
     /// Calculate the start of each entry when is_inline is true.
@@ -477,6 +510,38 @@ impl Index {
             bytes,
             offset_override,
         }
+    }
+
+    pub fn find_snapshots(
+        &self,
+        start_rev: UncheckedRevision,
+        end_rev: UncheckedRevision,
+        cache: &mut impl SnapshotsCache,
+    ) -> Result<(), RevlogError> {
+        let mut start_rev = start_rev.0;
+        let mut end_rev = end_rev.0;
+        end_rev += 1;
+        let len = self.len().try_into().unwrap();
+        if end_rev > len {
+            end_rev = len;
+        }
+        if start_rev < 0 {
+            start_rev = 0;
+        }
+        for rev in start_rev..end_rev {
+            if !self.is_snapshot_unchecked(Revision(rev))? {
+                continue;
+            }
+            let mut base = self
+                .get_entry(Revision(rev))
+                .unwrap()
+                .base_revision_or_base_of_delta_chain();
+            if base.0 == rev {
+                base = NULL_REVISION.into();
+            }
+            cache.insert_for(base.0, rev)?;
+        }
+        Ok(())
     }
 
     /// TODO move this to the trait probably, along with other things
