@@ -61,7 +61,9 @@ def ismainthread():
     return threading.current_thread() == threading.main_thread()
 
 
-if pycompat.isposix or pycompat.iswindows:
+if (
+    pycompat.isposix and pycompat.sysplatform != b'OpenVMS'
+) or pycompat.iswindows:
     _STARTUP_COST = 0.01
     # The Windows worker is thread based. If tasks are CPU bound, threads
     # in the presence of the GIL result in excessive context switching and
