@@ -1537,8 +1537,9 @@ class ui:
             raise
 
         # back up original file descriptors
-        stdoutfd = os.dup(procutil.stdout.fileno())
-        stderrfd = os.dup(procutil.stderr.fileno())
+        if pycompat.sysplatform != b'OpenVMS':
+            stdoutfd = os.dup(procutil.stdout.fileno())
+            stderrfd = os.dup(procutil.stderr.fileno())
 
         os.dup2(pager.stdin.fileno(), procutil.stdout.fileno())
         if self._isatty(procutil.stderr):
@@ -1549,6 +1550,8 @@ class ui:
             if hasattr(signal, "SIGINT"):
                 signal.signal(signal.SIGINT, signal.SIG_IGN)
             # restore original fds, closing pager.stdin copies in the process
+            if pycompat.sysplatform == b'OpenVMS':
+                pager.kill()
             os.dup2(stdoutfd, procutil.stdout.fileno())
             os.dup2(stderrfd, procutil.stderr.fileno())
             pager.stdin.close()
