@@ -7,7 +7,7 @@ use bytes_cast::{unaligned, BytesCast};
 
 use super::REVIDX_KNOWN_FLAGS;
 use crate::errors::HgError;
-use crate::node::{NODE_BYTES_LENGTH, STORED_NODE_ID_BYTES};
+use crate::node::{NODE_BYTES_LENGTH, NULL_NODE, STORED_NODE_ID_BYTES};
 use crate::revlog::node::Node;
 use crate::revlog::{Revision, NULL_REVISION};
 use crate::{Graph, GraphError, RevlogError, RevlogIndex, UncheckedRevision};
@@ -537,6 +537,9 @@ impl super::RevlogIndex for Index {
     }
 
     fn node(&self, rev: Revision) -> Option<&Node> {
+        if rev == NULL_REVISION {
+            return Some(&NULL_NODE);
+        }
         self.get_entry(rev).map(|entry| entry.hash())
     }
 }
