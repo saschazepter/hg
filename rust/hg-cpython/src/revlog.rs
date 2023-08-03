@@ -14,12 +14,14 @@ use cpython::{
     buffer::{Element, PyBuffer},
     exc::{IndexError, ValueError},
     ObjectProtocol, PyBool, PyBytes, PyClone, PyDict, PyErr, PyInt, PyModule,
-    PyObject, PyResult, PyString, PyTuple, Python, PythonObject, ToPyObject,
+    PyObject, PyResult, PySet, PyString, PyTuple, Python, PythonObject,
+    ToPyObject,
 };
 use hg::{
-    index::{IndexHeader, RevisionDataParams},
+    errors::HgError,
+    index::{IndexHeader, RevisionDataParams, SnapshotsCache},
     nodemap::{Block, NodeMapError, NodeTree},
-    revlog::{nodemap::NodeMap, NodePrefix, RevlogIndex},
+    revlog::{nodemap::NodeMap, NodePrefix, RevlogError, RevlogIndex},
     BaseRevision, Revision, UncheckedRevision, NULL_REVISION,
 };
 use std::cell::RefCell;
@@ -271,7 +273,39 @@ py_class!(pub class MixedIndex |py| {
 
     /// Gather snapshot data in a cache dict
     def findsnapshots(&self, *args, **kw) -> PyResult<PyObject> {
-        self.call_cindex(py, "findsnapshots", args, kw)
+        let index = self.index(py).borrow();
+        let cache: PyDict = args.get_item(py, 0).extract(py)?;
+        // this methods operates by setting new values in the cache,
+        // hence we will compare results by letting the C implementation
+        // operate over a deepcopy of the cache, and finally compare both
+        // caches.
+        let c_cache = PyDict::new(py);
+        for (k, v) in cache.items(py) {
+            c_cache.set_item(py, k, PySet::new(py, v)?)?;
+        }
+
+        let start_rev = UncheckedRevision(args.get_item(py, 1).extract(py)?);
+        let end_rev = UncheckedRevision(args.get_item(py, 2).extract(py)?);
+        let mut cache_wrapper = PySnapshotsCache{ py, dict: cache };
+        index.find_snapshots(
+            start_rev,
+            end_rev,
+            &mut cache_wrapper,
+        ).map_err(|_| revlog_error(py))?;
+
+        let c_args = PyTuple::new(
+            py,
+            &[
+                c_cache.clone_ref(py).into_object(),
+                args.get_item(py, 1),
+                args.get_item(py, 2)
+            ]
+        );
+        self.call_cindex(py, "findsnapshots", &c_args, kw)?;
+        assert_py_eq(py, "findsnapshots cache",
+                     &cache_wrapper.into_object(),
+                     &c_cache.into_object())?;
+        Ok(py.None())
     }
 
     /// determine revisions with deltas to reconstruct fulltext
@@ -485,6 +519,39 @@ fn revision_data_params_to_py_tuple(
             params._rank.into_py_object(py).into_object(),
         ],
     )
+}
+
+struct PySnapshotsCache<'p> {
+    py: Python<'p>,
+    dict: PyDict,
+}
+
+impl<'p> PySnapshotsCache<'p> {
+    fn into_object(self) -> PyObject {
+        self.dict.into_object()
+    }
+}
+
+impl<'p> SnapshotsCache for PySnapshotsCache<'p> {
+    fn insert_for(
+        &mut self,
+        rev: BaseRevision,
+        value: BaseRevision,
+    ) -> Result<(), RevlogError> {
+        let pyvalue = value.into_py_object(self.py).into_object();
+        match self.dict.get_item(self.py, rev) {
+            Some(obj) => obj
+                .extract::<PySet>(self.py)
+                .and_then(|set| set.add(self.py, pyvalue)),
+            None => PySet::new(self.py, vec![pyvalue])
+                .and_then(|set| self.dict.set_item(self.py, rev, set)),
+        }
+        .map_err(|_| {
+            RevlogError::Other(HgError::unsupported(
+                "Error in Python caches handling",
+            ))
+        })
+    }
 }
 
 impl MixedIndex {
