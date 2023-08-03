@@ -426,6 +426,10 @@ impl Index {
         Ok(())
     }
 
+    pub fn pack_header(&self, header: i32) -> [u8; 4] {
+        header.to_be_bytes()
+    }
+
     pub fn remove(&mut self, rev: Revision) -> Result<(), RevlogError> {
         let offsets = self.get_offsets().clone();
         self.bytes.remove(rev, offsets.as_deref())?;
