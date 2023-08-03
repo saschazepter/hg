@@ -512,6 +512,50 @@ impl Index {
         }
     }
 
+    /// Obtain the delta chain for a revision.
+    ///
+    /// `stop_rev` specifies a revision to stop at. If not specified, we
+    /// stop at the base of the chain.
+    ///
+    /// Returns a 2-tuple of (chain, stopped) where `chain` is a vec of
+    /// revs in ascending order and `stopped` is a bool indicating whether
+    /// `stoprev` was hit.
+    pub fn delta_chain(
+        &self,
+        rev: Revision,
+        stop_rev: Option<Revision>,
+    ) -> Result<(Vec<Revision>, bool), HgError> {
+        let mut current_rev = rev;
+        let mut entry = self.get_entry(rev).unwrap();
+        let mut chain = vec![];
+        while current_rev.0 != entry.base_revision_or_base_of_delta_chain().0
+            && stop_rev.map(|r| r != current_rev).unwrap_or(true)
+        {
+            chain.push(current_rev);
+            let new_rev = if self.uses_generaldelta() {
+                entry.base_revision_or_base_of_delta_chain()
+            } else {
+                UncheckedRevision(current_rev.0 - 1)
+            };
+            if new_rev.0 == NULL_REVISION.0 {
+                break;
+            }
+            current_rev = self.check_revision(new_rev).ok_or_else(|| {
+                HgError::corrupted(format!("Revision {new_rev} out of range"))
+            })?;
+            entry = self.get_entry(current_rev).unwrap()
+        }
+
+        let stopped = if stop_rev.map(|r| current_rev == r).unwrap_or(false) {
+            true
+        } else {
+            chain.push(current_rev);
+            false
+        };
+        chain.reverse();
+        Ok((chain, stopped))
+    }
+
     pub fn find_snapshots(
         &self,
         start_rev: UncheckedRevision,
