@@ -39,6 +39,16 @@ use crate::vfs::Vfs;
 /// 4 bytes, and are liberally converted to ints, whence the i32
 pub type Revision = i32;
 
+/// Unchecked Mercurial revision numbers.
+///
+/// Values of this type have no guarantee of being a valid revision number
+/// in any context. Use method `check_revision` to get a valid revision within
+/// the appropriate index object.
+///
+/// As noted in revlog.c, revision numbers are actually encoded in
+/// 4 bytes, and are liberally converted to ints, whence the i32
+pub type UncheckedRevision = i32;
+
 /// Marker expressing the absence of a parent
 ///
 /// Independently of the actual representation, `NULL_REVISION` is guaranteed
@@ -85,6 +95,16 @@ pub trait RevlogIndex {
     ///
     /// `NULL_REVISION` is not considered to be out of bounds.
     fn node(&self, rev: Revision) -> Option<&Node>;
+
+    /// Return a [`Revision`] if `rev` is a valid revision number for this
+    /// index
+    fn check_revision(&self, rev: UncheckedRevision) -> Option<Revision> {
+        if rev == NULL_REVISION || (rev >= 0 && (rev as usize) < self.len()) {
+            Some(rev)
+        } else {
+            None
+        }
+    }
 }
 
 const REVISION_FLAG_CENSORED: u16 = 1 << 15;
