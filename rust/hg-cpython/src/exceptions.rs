@@ -26,15 +26,6 @@ impl GraphError {
             hg::GraphError::ParentOutOfRange(r) => {
                 GraphError::new(py, ("ParentOutOfRange", r))
             }
-            hg::GraphError::WorkingDirectoryUnsupported => {
-                match py
-                    .import("mercurial.error")
-                    .and_then(|m| m.get(py, "WdirUnsupported"))
-                {
-                    Err(e) => e,
-                    Ok(cls) => PyErr::from_instance(py, cls),
-                }
-            }
         }
     }
 
