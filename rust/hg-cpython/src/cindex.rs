@@ -15,7 +15,7 @@ use cpython::{
     PyObject, PyResult, PyTuple, Python, PythonObject,
 };
 use hg::revlog::{Node, RevlogIndex};
-use hg::{Graph, GraphError, Revision, WORKING_DIRECTORY_REVISION};
+use hg::{Graph, GraphError, Revision};
 use libc::{c_int, ssize_t};
 
 const REVLOG_CABI_VERSION: c_int = 3;
@@ -141,9 +141,6 @@ impl PyClone for Index {
 impl Graph for Index {
     /// wrap a call to the C extern parents function
     fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
-        if rev == WORKING_DIRECTORY_REVISION {
-            return Err(GraphError::WorkingDirectoryUnsupported);
-        }
         let mut res: [c_int; 2] = [0; 2];
         let code = unsafe {
             (self.capi.index_parents)(
@@ -170,9 +167,6 @@ impl vcsgraph::graph::Graph for Index {
             Err(GraphError::ParentOutOfRange(rev)) => {
                 Err(vcsgraph::graph::GraphReadError::KeyedInvalidKey(rev))
             }
-            Err(GraphError::WorkingDirectoryUnsupported) => Err(
-                vcsgraph::graph::GraphReadError::WorkingDirectoryUnsupported,
-            ),
         }
     }
 }
