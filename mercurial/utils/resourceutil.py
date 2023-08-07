@@ -8,7 +8,7 @@
 # GNU General Public License version 2 or any later version.
 
 
-import imp
+import _imp
 import os
 import sys
 
@@ -24,7 +24,7 @@ def mainfrozen():
     return (
         pycompat.safehasattr(sys, "frozen")  # new py2exe
         or pycompat.safehasattr(sys, "importers")  # old py2exe
-        or imp.is_frozen("__main__")  # tools/freeze
+        or _imp.is_frozen("__main__")  # tools/freeze
     )
 
 
