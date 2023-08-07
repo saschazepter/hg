@@ -567,8 +567,10 @@ class mapfile(dict):
 
 def makedatetimestamp(t):
     """Like dateutil.makedate() but for time t instead of current time"""
-    delta = datetime.datetime.utcfromtimestamp(
+    tz = round(
         t
-    ) - datetime.datetime.fromtimestamp(t)
-    tz = delta.days * 86400 + delta.seconds
+        - datetime.datetime.fromtimestamp(t)
+        .replace(tzinfo=datetime.timezone.utc)
+        .timestamp()
+    )
     return t, tz
