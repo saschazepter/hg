@@ -9,9 +9,10 @@
 import ast
 import collections
 import functools
-import imp
+import importlib
 import inspect
 import os
+import sys
 
 from .i18n import (
     _,
@@ -89,20 +90,18 @@ def loadpath(path, module_name):
     path = pycompat.fsdecode(path)
     if os.path.isdir(path):
         # module/__init__.py style
-        d, f = os.path.split(path)
-        fd, fpath, desc = imp.find_module(f, [d])
-        # When https://github.com/python/typeshed/issues/3466 is fixed
-        # and in a pytype release we can drop this disable.
-        return imp.load_module(
-            module_name, fd, fpath, desc  # pytype: disable=wrong-arg-types
-        )
-    else:
-        try:
-            return imp.load_source(module_name, path)
-        except IOError as exc:
-            if not exc.filename:
-                exc.filename = path  # python does not fill this
-            raise
+        init_py_path = os.path.join(path, '__init__.py')
+        if not os.path.exists(init_py_path):
+            raise ImportError("No module named '%s'" % os.path.basename(path))
+        path = init_py_path
+
+    loader = importlib.machinery.SourceFileLoader(module_name, path)
+    spec = importlib.util.spec_from_file_location(module_name, loader=loader)
+    assert spec is not None  # help Pytype
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def _importh(name):
@@ -894,16 +893,31 @@ def _disabledcmdtable(path):
     with open(path, b'rb') as src:
         root = ast.parse(src.read(), path)
     cmdtable = {}
+
+    # Python 3.12 started removing Bytes and Str and deprecate harder
+    use_constant = 'Bytes' not in vars(ast)
+
     for node in _walkcommand(root):
         if not node.args:
             continue
         a = node.args[0]
-        if isinstance(a, ast.Str):
-            name = pycompat.sysbytes(a.s)
-        elif isinstance(a, ast.Bytes):
-            name = a.s
-        else:
-            continue
+        if use_constant:  # Valid since Python 3.8
+            if isinstance(a, ast.Constant):
+                if isinstance(a.value, str):
+                    name = pycompat.sysbytes(a.value)
+                elif isinstance(a.value, bytes):
+                    name = a.value
+                else:
+                    continue
+            else:
+                continue
+        else:  # Valid until 3.11
+            if isinstance(a, ast.Str):
+                name = pycompat.sysbytes(a.s)
+            elif isinstance(a, ast.Bytes):
+                name = a.s
+            else:
+                continue
         cmdtable[name] = (None, [], b'')
     return cmdtable
 

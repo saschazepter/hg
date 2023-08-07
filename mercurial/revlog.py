@@ -2131,11 +2131,14 @@ class revlog:
 
         The file will only exist if a splitting operation is in progress, but
         it is always expected at the same location."""
-        parts = os.path.split(self.radix)
+        parts = self.radix.split(b'/')
         if len(parts) > 1:
             # adds a '-s' prefix to the ``data/` or `meta/` base
             head = parts[0] + b'-s'
-            return os.path.join(head, *parts[1:])
+            mids = parts[1:-1]
+            tail = parts[-1] + b'.i'
+            pieces = [head] + mids + [tail]
+            return b'/'.join(pieces)
         else:
             # the revlog is stored at the root of the store (changelog or
             # manifest), no risk of collision.

@@ -1277,14 +1277,14 @@ class sortdict(collections.OrderedDict):
 
     >>> d1 = sortdict([(b'a', 0), (b'b', 1)])
     >>> d2 = d1.copy()
-    >>> d2
-    sortdict([('a', 0), ('b', 1)])
+    >>> list(d2.items())
+    [('a', 0), ('b', 1)]
     >>> d2.update([(b'a', 2)])
     >>> list(d2.keys()) # should still be in last-set order
     ['b', 'a']
     >>> d1.insert(1, b'a.5', 0.5)
-    >>> d1
-    sortdict([('a', 0), ('a.5', 0.5), ('b', 1)])
+    >>> list(d1.items())
+    [('a', 0), ('a.5', 0.5), ('b', 1)]
     """
 
     def __setitem__(self, key, value):
