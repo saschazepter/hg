@@ -62,7 +62,7 @@ impl DirsMultiset {
     /// Initializes the multiset from a manifest.
     pub fn from_manifest(
         manifest: &[impl AsRef<HgPath>],
-    ) -> Result<Self, DirstateMapError> {
+    ) -> Result<Self, HgPathError> {
         let mut multiset = DirsMultiset {
             inner: FastHashMap::default(),
         };
@@ -80,19 +80,17 @@ impl DirsMultiset {
     pub fn add_path(
         &mut self,
         path: impl AsRef<HgPath>,
-    ) -> Result<(), DirstateMapError> {
+    ) -> Result<(), HgPathError> {
         for subpath in files::find_dirs(path.as_ref()) {
             if subpath.as_bytes().last() == Some(&b'/') {
                 // TODO Remove this once PathAuditor is certified
                 // as the only entrypoint for path data
                 let second_slash_index = subpath.len() - 1;
 
-                return Err(DirstateMapError::InvalidPath(
-                    HgPathError::ConsecutiveSlashes {
-                        bytes: path.as_ref().as_bytes().to_owned(),
-                        second_slash_index,
-                    },
-                ));
+                return Err(HgPathError::ConsecutiveSlashes {
+                    bytes: path.as_ref().as_bytes().to_owned(),
+                    second_slash_index,
+                });
             }
             if let Some(val) = self.inner.get_mut(subpath) {
                 *val += 1;

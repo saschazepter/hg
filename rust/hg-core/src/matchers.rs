@@ -15,11 +15,10 @@ use crate::{
     },
     utils::{
         files::find_dirs,
-        hg_path::{HgPath, HgPathBuf},
+        hg_path::{HgPath, HgPathBuf, HgPathError},
         Escaped,
     },
-    DirsMultiset, DirstateMapError, FastHashMap, IgnorePattern, PatternError,
-    PatternSyntax,
+    DirsMultiset, FastHashMap, IgnorePattern, PatternError, PatternSyntax,
 };
 
 use crate::dirstate::status::IgnoreFnType;
@@ -177,7 +176,7 @@ pub struct FileMatcher {
 }
 
 impl FileMatcher {
-    pub fn new(files: Vec<HgPathBuf>) -> Result<Self, DirstateMapError> {
+    pub fn new(files: Vec<HgPathBuf>) -> Result<Self, HgPathError> {
         let dirs = DirsMultiset::from_manifest(&files)?;
         Ok(Self {
             files: HashSet::from_iter(files.into_iter()),
@@ -760,20 +759,12 @@ fn roots_dirs_and_parents(
     let mut parents = HashSet::new();
 
     parents.extend(
-        DirsMultiset::from_manifest(&dirs)
-            .map_err(|e| match e {
-                DirstateMapError::InvalidPath(e) => e,
-                _ => unreachable!(),
-            })?
+        DirsMultiset::from_manifest(&dirs)?
             .iter()
             .map(ToOwned::to_owned),
     );
     parents.extend(
-        DirsMultiset::from_manifest(&roots)
-            .map_err(|e| match e {
-                DirstateMapError::InvalidPath(e) => e,
-                _ => unreachable!(),
-            })?
+        DirsMultiset::from_manifest(&roots)?
             .iter()
             .map(ToOwned::to_owned),
     );
