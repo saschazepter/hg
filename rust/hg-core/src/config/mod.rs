@@ -773,4 +773,13 @@ mod tests {
         assert!(config.get_u32(b"section2", b"not-count").is_err());
         assert!(config.get_byte_size(b"section2", b"not-size").is_err());
     }
+
+    #[test]
+    fn test_default_parse() {
+        let config = Config::load_from_explicit_sources(vec![])
+            .expect("expected valid config");
+        let ret = config.get_byte_size(b"cmdserver", b"max-log-size");
+        // FIXME should be `is_ok`
+        assert!(ret.is_err(), "{:?}", ret);
+    }
 }
