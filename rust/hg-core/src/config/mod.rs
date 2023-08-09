@@ -422,7 +422,30 @@ impl Config {
                     return Ok(None);
                 }
                 match self.get_default(section, item)? {
-                    Some(default) => Ok(default.try_into()?),
+                    Some(default) => {
+                        // Defaults are TOML values, so they're not in the same
+                        // shape as in the config files.
+                        // First try to convert directly to the expected type
+                        let as_t = default.try_into();
+                        match as_t {
+                            Ok(t) => Ok(t),
+                            Err(e) => {
+                                // If it fails, it means that...
+                                let as_bytes: Result<Option<&[u8]>, _> =
+                                    default.try_into();
+                                match as_bytes {
+                                    Ok(bytes_opt) => {
+                                        if let Some(bytes) = bytes_opt {
+                                            // ...we should be able to parse it
+                                            return Ok(parse(bytes));
+                                        }
+                                        Err(e)
+                                    }
+                                    Err(_) => Err(e),
+                                }
+                            }
+                        }
+                    }
                     None => {
                         self.print_devel_warning(section, item)?;
                         Ok(None)
@@ -779,7 +802,6 @@ mod tests {
         let config = Config::load_from_explicit_sources(vec![])
             .expect("expected valid config");
         let ret = config.get_byte_size(b"cmdserver", b"max-log-size");
-        // FIXME should be `is_ok`
-        assert!(ret.is_err(), "{:?}", ret);
+        assert!(ret.is_ok(), "{:?}", ret);
     }
 }
