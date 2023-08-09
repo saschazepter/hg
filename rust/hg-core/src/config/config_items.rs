@@ -140,6 +140,39 @@ impl<'a> TryFrom<&'a DefaultConfigItem> for Option<&'a str> {
     }
 }
 
+impl<'a> TryFrom<&'a DefaultConfigItem> for Option<&'a [u8]> {
+    type Error = HgError;
+
+    fn try_from(
+        value: &'a DefaultConfigItem,
+    ) -> Result<Option<&'a [u8]>, Self::Error> {
+        match &value.default {
+            Some(default) => {
+                let err = HgError::abort(
+                    format!(
+                        "programming error: wrong query on config item '{}.{}'",
+                        value.section,
+                        value.name
+                    ),
+                    exit_codes::ABORT,
+                    Some(format!(
+                        "asked for bytes, type of default is '{}', \
+                        which cannot be interpreted as bytes",
+                        default.type_str()
+                    )),
+                );
+                match default {
+                    DefaultConfigItemType::Primitive(p) => {
+                        Ok(p.as_str().map(str::as_bytes))
+                    }
+                    _ => Err(err),
+                }
+            }
+            None => Ok(None),
+        }
+    }
+}
+
 impl TryFrom<&DefaultConfigItem> for Option<bool> {
     type Error = HgError;
 
