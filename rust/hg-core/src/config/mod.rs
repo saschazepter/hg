@@ -803,5 +803,9 @@ mod tests {
             .expect("expected valid config");
         let ret = config.get_byte_size(b"cmdserver", b"max-log-size");
         assert!(ret.is_ok(), "{:?}", ret);
+
+        let ret = config.get_byte_size(b"ui", b"formatted");
+        // FIXME should be `is_none()`
+        assert!(ret.unwrap().is_some());
     }
 }
