@@ -198,7 +198,7 @@ impl TryFrom<&DefaultConfigItem> for Option<bool> {
                     _ => Err(err),
                 }
             }
-            None => Ok(Some(false)),
+            None => Ok(None),
         }
     }
 }

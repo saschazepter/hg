@@ -805,7 +805,6 @@ mod tests {
         assert!(ret.is_ok(), "{:?}", ret);
 
         let ret = config.get_byte_size(b"ui", b"formatted");
-        // FIXME should be `is_none()`
-        assert!(ret.unwrap().is_some());
+        assert!(ret.unwrap().is_none());
     }
 }
