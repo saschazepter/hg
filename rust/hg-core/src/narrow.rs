@@ -74,6 +74,7 @@ pub fn matcher(
         Path::new(""),
         None,
         false,
+        true,
     )?;
     warnings.extend(subwarnings.into_iter().map(From::from));
 
@@ -85,6 +86,7 @@ pub fn matcher(
         Path::new(""),
         None,
         false,
+        true,
     )?;
     if !patterns.is_empty() {
         warnings.extend(subwarnings.into_iter().map(From::from));
