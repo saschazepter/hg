@@ -335,17 +335,22 @@ pub fn build_single_regex(
 }
 
 lazy_static! {
-    static ref SYNTAXES: FastHashMap<&'static [u8], &'static [u8]> = {
+    static ref SYNTAXES: FastHashMap<&'static [u8], PatternSyntax> = {
         let mut m = FastHashMap::default();
 
-        m.insert(b"re".as_ref(), b"relre:".as_ref());
-        m.insert(b"regexp".as_ref(), b"relre:".as_ref());
-        m.insert(b"glob".as_ref(), b"relglob:".as_ref());
-        m.insert(b"rootglob".as_ref(), b"rootglob:".as_ref());
-        m.insert(b"include".as_ref(), b"include:".as_ref());
-        m.insert(b"subinclude".as_ref(), b"subinclude:".as_ref());
-        m.insert(b"path".as_ref(), b"path:".as_ref());
-        m.insert(b"rootfilesin".as_ref(), b"rootfilesin:".as_ref());
+        m.insert(b"re:".as_ref(), PatternSyntax::Regexp);
+        m.insert(b"regexp:".as_ref(), PatternSyntax::Regexp);
+        m.insert(b"path:".as_ref(), PatternSyntax::Path);
+        m.insert(b"filepath:".as_ref(), PatternSyntax::FilePath);
+        m.insert(b"relpath:".as_ref(), PatternSyntax::RelPath);
+        m.insert(b"rootfilesin:".as_ref(), PatternSyntax::RootFiles);
+        m.insert(b"relglob:".as_ref(), PatternSyntax::RelGlob);
+        m.insert(b"relre:".as_ref(), PatternSyntax::RelRegexp);
+        m.insert(b"glob:".as_ref(), PatternSyntax::Glob);
+        m.insert(b"rootglob:".as_ref(), PatternSyntax::RootGlob);
+        m.insert(b"include:".as_ref(), PatternSyntax::Include);
+        m.insert(b"subinclude:".as_ref(), PatternSyntax::SubInclude);
+
         m
     };
 }
@@ -358,11 +363,37 @@ pub enum PatternFileWarning {
     NoSuchFile(PathBuf),
 }
 
+pub fn parse_one_pattern(
+    pattern: &[u8],
+    source: &Path,
+    default: PatternSyntax,
+) -> IgnorePattern {
+    let mut pattern_bytes: &[u8] = pattern;
+    let mut syntax = default;
+
+    for (s, val) in SYNTAXES.iter() {
+        if let Some(rest) = pattern_bytes.drop_prefix(s) {
+            syntax = val.clone();
+            pattern_bytes = rest;
+            break;
+        }
+    }
+
+    let pattern = pattern_bytes.to_vec();
+
+    IgnorePattern {
+        syntax,
+        pattern,
+        source: source.to_owned(),
+    }
+}
+
 pub fn parse_pattern_file_contents(
     lines: &[u8],
     file_path: &Path,
-    default_syntax_override: Option<&[u8]>,
+    default_syntax_override: Option<PatternSyntax>,
     warn: bool,
+    relativize: bool,
 ) -> Result<(Vec<IgnorePattern>, Vec<PatternFileWarning>), PatternError> {
     let comment_regex = Regex::new(r"((?:^|[^\\])(?:\\\\)*)#.*").unwrap();
 
@@ -372,11 +403,9 @@ pub fn parse_pattern_file_contents(
     let mut warnings: Vec<PatternFileWarning> = vec![];
 
     let mut current_syntax =
-        default_syntax_override.unwrap_or_else(|| b"relre:".as_ref());
+        default_syntax_override.unwrap_or(PatternSyntax::RelRegexp);
 
-    for (line_number, mut line) in lines.split(|c| *c == b'\n').enumerate() {
-        let line_number = line_number + 1;
-
+    for mut line in lines.split(|c| *c == b'\n') {
         let line_buf;
         if line.contains(&b'#') {
             if let Some(cap) = comment_regex.captures(line) {
@@ -386,7 +415,7 @@ pub fn parse_pattern_file_contents(
             line = &line_buf;
         }
 
-        let mut line = line.trim_end();
+        let line = line.trim_end();
 
         if line.is_empty() {
             continue;
@@ -395,46 +424,28 @@ pub fn parse_pattern_file_contents(
         if let Some(syntax) = line.drop_prefix(b"syntax:") {
             let syntax = syntax.trim();
 
-            if let Some(rel_syntax) = SYNTAXES.get(syntax) {
-                current_syntax = rel_syntax;
+            if let Some(parsed) =
+                SYNTAXES.get([syntax, &b":"[..]].concat().as_slice())
+            {
+                current_syntax = parsed.clone();
             } else if warn {
                 warnings.push(PatternFileWarning::InvalidSyntax(
                     file_path.to_owned(),
                     syntax.to_owned(),
                 ));
             }
-            continue;
+        } else {
+            let pattern = parse_one_pattern(
+                line,
+                file_path,
+                current_syntax.clone(),
+            );
+            inputs.push(if relativize {
+                pattern.to_relative()
+            } else {
+                pattern
+            })
         }
-
-        let mut line_syntax: &[u8] = current_syntax;
-
-        for (s, rels) in SYNTAXES.iter() {
-            if let Some(rest) = line.drop_prefix(rels) {
-                line_syntax = rels;
-                line = rest;
-                break;
-            }
-            if let Some(rest) = line.drop_prefix(&[s, &b":"[..]].concat()) {
-                line_syntax = rels;
-                line = rest;
-                break;
-            }
-        }
-
-        inputs.push(IgnorePattern::new(
-            parse_pattern_syntax(line_syntax).map_err(|e| match e {
-                PatternError::UnsupportedSyntax(syntax) => {
-                    PatternError::UnsupportedSyntaxInFile(
-                        syntax,
-                        file_path.to_string_lossy().into(),
-                        line_number,
-                    )
-                }
-                _ => e,
-            })?,
-            line,
-            file_path,
-        ));
     }
     Ok((inputs, warnings))
 }
@@ -447,7 +458,7 @@ pub fn read_pattern_file(
     match std::fs::read(file_path) {
         Ok(contents) => {
             inspect_pattern_bytes(file_path, &contents);
-            parse_pattern_file_contents(&contents, file_path, None, warn)
+            parse_pattern_file_contents(&contents, file_path, None, warn, true)
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok((
             vec![],
@@ -471,6 +482,23 @@ impl IgnorePattern {
             syntax,
             pattern: pattern.to_owned(),
             source: source.to_owned(),
+        }
+    }
+
+    pub fn to_relative(self) -> Self {
+        let Self {
+            syntax,
+            pattern,
+            source,
+        } = self;
+        Self {
+            syntax: match syntax {
+                PatternSyntax::Regexp => PatternSyntax::RelRegexp,
+                PatternSyntax::Glob => PatternSyntax::RelGlob,
+                x => x,
+            },
+            pattern,
+            source,
         }
     }
 }
@@ -639,7 +667,8 @@ mod tests {
                 lines,
                 Path::new("file_path"),
                 None,
-                false
+                false,
+                true,
             )
             .unwrap()
             .0,
@@ -657,7 +686,8 @@ mod tests {
                 lines,
                 Path::new("file_path"),
                 None,
-                false
+                false,
+                true,
             )
             .unwrap()
             .0,
@@ -669,7 +699,8 @@ mod tests {
                 lines,
                 Path::new("file_path"),
                 None,
-                false
+                false,
+                true,
             )
             .unwrap()
             .0,
