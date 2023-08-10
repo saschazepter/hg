@@ -84,10 +84,10 @@ pub fn cat<'a>(
     mut files: Vec<&'a HgPath>,
 ) -> Result<CatOutput<'a>, RevlogError> {
     let rev = crate::revset::resolve_single(revset, repo)?;
-    let manifest = repo.manifest_for_rev(rev)?;
+    let manifest = repo.manifest_for_rev(rev.into())?;
     let node = *repo
         .changelog()?
-        .node_from_rev(rev)
+        .node_from_rev(rev.into())
         .expect("should succeed when repo.manifest did");
     let mut results: Vec<(&'a HgPath, Vec<u8>)> = vec![];
     let mut found_any = false;
