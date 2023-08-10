@@ -182,6 +182,12 @@ pub struct Revlog {
     nodemap: Option<nodemap::NodeTree>,
 }
 
+impl Graph for Revlog {
+    fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
+        self.index.parents(rev)
+    }
+}
+
 impl Revlog {
     /// Open a revlog index file.
     ///

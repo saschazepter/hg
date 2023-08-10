@@ -4,7 +4,7 @@ use crate::revlog::{Node, NodePrefix};
 use crate::revlog::{Revlog, RevlogEntry, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::vfs::Vfs;
-use crate::UncheckedRevision;
+use crate::{Graph, GraphError, UncheckedRevision};
 use itertools::Itertools;
 use std::ascii::escape_default;
 use std::borrow::Cow;
@@ -73,6 +73,12 @@ impl Changelog {
         node: NodePrefix,
     ) -> Result<Revision, RevlogError> {
         self.revlog.rev_from_node(node)
+    }
+}
+
+impl Graph for Changelog {
+    fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
+        self.revlog.parents(rev)
     }
 }
 

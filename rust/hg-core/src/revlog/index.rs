@@ -6,7 +6,7 @@ use byteorder::{BigEndian, ByteOrder};
 use crate::errors::HgError;
 use crate::revlog::node::Node;
 use crate::revlog::{Revision, NULL_REVISION};
-use crate::UncheckedRevision;
+use crate::{Graph, GraphError, RevlogIndex, UncheckedRevision};
 
 pub const INDEX_ENTRY_SIZE: usize = 64;
 
@@ -94,6 +94,23 @@ impl Debug for Index {
             .field("offsets", &self.offsets)
             .field("uses_generaldelta", &self.uses_generaldelta)
             .finish()
+    }
+}
+
+impl Graph for Index {
+    fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
+        let err = || GraphError::ParentOutOfRange(rev);
+        match self.get_entry(rev) {
+            Some(entry) => {
+                // The C implementation checks that the parents are valid
+                // before returning
+                Ok([
+                    self.check_revision(entry.p1()).ok_or_else(err)?,
+                    self.check_revision(entry.p2()).ok_or_else(err)?,
+                ])
+            }
+            None => Ok([NULL_REVISION, NULL_REVISION]),
+        }
     }
 }
 

@@ -9,6 +9,8 @@ use crate::revlog::{Revlog, RevlogError};
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
+use crate::Graph;
+use crate::GraphError;
 use crate::UncheckedRevision;
 use std::path::PathBuf;
 
@@ -16,6 +18,12 @@ use std::path::PathBuf;
 pub struct Filelog {
     /// The generic `revlog` format.
     revlog: Revlog,
+}
+
+impl Graph for Filelog {
+    fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
+        self.revlog.parents(rev)
+    }
 }
 
 impl Filelog {

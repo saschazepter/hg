@@ -4,12 +4,18 @@ use crate::revlog::{Revlog, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
 use crate::vfs::Vfs;
-use crate::{Revision, UncheckedRevision};
+use crate::{Graph, GraphError, Revision, UncheckedRevision};
 
 /// A specialized `Revlog` to work with `manifest` data format.
 pub struct Manifestlog {
     /// The generic `revlog` format.
     revlog: Revlog,
+}
+
+impl Graph for Manifestlog {
+    fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
+        self.revlog.parents(rev)
+    }
 }
 
 impl Manifestlog {
