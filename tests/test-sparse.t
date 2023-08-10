@@ -21,6 +21,29 @@ test sparse
 Verify basic --include
 
   $ hg up -q 0
+
+Test that sparse pattern by default is interpreted as "glob:", and is interpreted relative to the root.
+
+  $ hg debugsparse --reset
+  $ hg debugsparse -X 'foo*bar'
+  $ cat .hg/sparse
+  [exclude]
+  foo*bar
+
+  $ mk() { mkdir -p "$1"; touch "$1"/"$2"; }
+  $ mk 'foo' bar
+  $ mk 'foo-bar' x
+  $ mk 'unanchoredfoo-bar' x
+  $ mk 'foo*bar' x
+  $ mk 'dir/foo-bar' x
+  $ hg status --config rhg.on-unsupported=abort
+  ? dir/foo-bar/x
+  ? foo/bar
+  ? unanchoredfoo-bar/x
+  $ hg clean -a --no-confirm
+  $ rm -r foo*bar
+  $ hg debugsparse --reset
+
   $ hg debugsparse --include 'hide'
   $ ls -A
   .hg
