@@ -18,7 +18,7 @@ use cpython::{
 use hg::{
     nodemap::{Block, NodeMapError, NodeTree},
     revlog::{nodemap::NodeMap, NodePrefix, RevlogIndex},
-    Revision,
+    Revision, UncheckedRevision,
 };
 use std::cell::RefCell;
 
@@ -252,7 +252,7 @@ py_class!(pub class MixedIndex |py| {
         // Note that we don't seem to have a direct way to call
         // PySequence_GetItem (does the job), which would possibly be better
         // for performance
-        let key = match key.extract::<Revision>(py) {
+        let key = match key.extract::<i32>(py) {
             Ok(rev) => rev.to_py_object(py).into_object(),
             Err(_) => key,
         };
@@ -268,7 +268,7 @@ py_class!(pub class MixedIndex |py| {
         // this is an equivalent implementation of the index_contains()
         // defined in revlog.c
         let cindex = self.cindex(py).borrow();
-        match item.extract::<Revision>(py) {
+        match item.extract::<i32>(py) {
             Ok(rev) => {
                 Ok(rev >= -1 && rev < cindex.inner().len(py)? as Revision)
             }
@@ -448,9 +448,12 @@ impl MixedIndex {
         let mut nt = NodeTree::load_bytes(Box::new(bytes), len);
 
         let data_tip =
-            docket.getattr(py, "tip_rev")?.extract::<Revision>(py)?;
+            docket.getattr(py, "tip_rev")?.extract::<i32>(py)?.into();
         self.docket(py).borrow_mut().replace(docket.clone_ref(py));
         let idx = self.cindex(py).borrow();
+        let data_tip = idx.check_revision(data_tip).ok_or_else(|| {
+            nodemap_error(py, NodeMapError::RevisionNotInIndex(data_tip))
+        })?;
         let current_tip = idx.len();
 
         for r in (data_tip + 1)..current_tip as Revision {
@@ -479,7 +482,7 @@ fn revlog_error(py: Python) -> PyErr {
     }
 }
 
-fn rev_not_in_index(py: Python, rev: Revision) -> PyErr {
+fn rev_not_in_index(py: Python, rev: UncheckedRevision) -> PyErr {
     PyErr::new::<ValueError, _>(
         py,
         format!(

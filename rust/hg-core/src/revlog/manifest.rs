@@ -1,10 +1,10 @@
 use crate::errors::HgError;
-use crate::revlog::Revision;
 use crate::revlog::{Node, NodePrefix};
 use crate::revlog::{Revlog, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
 use crate::vfs::Vfs;
+use crate::{Revision, UncheckedRevision};
 
 /// A specialized `Revlog` to work with `manifest` data format.
 pub struct Manifestlog {
@@ -32,7 +32,7 @@ impl Manifestlog {
         node: NodePrefix,
     ) -> Result<Manifest, RevlogError> {
         let rev = self.revlog.rev_from_node(node)?;
-        self.data_for_rev(rev)
+        self.data_for_checked_rev(rev)
     }
 
     /// Return the `Manifest` of a given revision number.
@@ -43,9 +43,18 @@ impl Manifestlog {
     /// See also `Repo::manifest_for_rev`
     pub fn data_for_rev(
         &self,
-        rev: Revision,
+        rev: UncheckedRevision,
     ) -> Result<Manifest, RevlogError> {
         let bytes = self.revlog.get_rev_data(rev)?.into_owned();
+        Ok(Manifest { bytes })
+    }
+
+    pub fn data_for_checked_rev(
+        &self,
+        rev: Revision,
+    ) -> Result<Manifest, RevlogError> {
+        let bytes =
+            self.revlog.get_rev_data_for_checked_rev(rev)?.into_owned();
         Ok(Manifest { bytes })
     }
 }

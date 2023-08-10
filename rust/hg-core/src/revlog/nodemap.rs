@@ -12,6 +12,8 @@
 //! Following existing implicit conventions, the "nodemap" terminology
 //! is used in a more abstract context.
 
+use crate::UncheckedRevision;
+
 use super::{
     node::NULL_NODE, Node, NodePrefix, Revision, RevlogIndex, NULL_REVISION,
 };
@@ -30,7 +32,7 @@ pub enum NodeMapError {
     /// This can be returned by methods meant for (at most) one match.
     MultipleResults,
     /// A `Revision` stored in the nodemap could not be found in the index
-    RevisionNotInIndex(Revision),
+    RevisionNotInIndex(UncheckedRevision),
 }
 
 /// Mapping system from Mercurial nodes to revision numbers.
@@ -125,7 +127,9 @@ type RawElement = unaligned::I32Be;
 /// use.
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum Element {
-    Rev(Revision),
+    // This is not a Mercurial revision. It's a `i32` because this is the
+    // right type for this structure.
+    Rev(i32),
     Block(usize),
     None,
 }
@@ -245,17 +249,21 @@ impl Index<usize> for NodeTree {
 fn has_prefix_or_none(
     idx: &impl RevlogIndex,
     prefix: NodePrefix,
-    rev: Revision,
+    rev: UncheckedRevision,
 ) -> Result<Option<Revision>, NodeMapError> {
-    idx.node(rev)
-        .ok_or(NodeMapError::RevisionNotInIndex(rev))
-        .map(|node| {
-            if prefix.is_prefix_of(node) {
-                Some(rev)
-            } else {
-                None
-            }
-        })
+    match idx.check_revision(rev) {
+        Some(checked) => idx
+            .node(checked)
+            .ok_or(NodeMapError::RevisionNotInIndex(rev))
+            .map(|node| {
+                if prefix.is_prefix_of(node) {
+                    Some(checked)
+                } else {
+                    None
+                }
+            }),
+        None => Err(NodeMapError::RevisionNotInIndex(rev)),
+    }
 }
 
 /// validate that the candidate's node starts indeed with given prefix,
@@ -266,7 +274,7 @@ fn has_prefix_or_none(
 fn validate_candidate(
     idx: &impl RevlogIndex,
     prefix: NodePrefix,
-    candidate: (Option<Revision>, usize),
+    candidate: (Option<UncheckedRevision>, usize),
 ) -> Result<(Option<Revision>, usize), NodeMapError> {
     let (rev, steps) = candidate;
     if let Some(nz_nybble) = prefix.first_different_nybble(&NULL_NODE) {
@@ -384,6 +392,8 @@ impl NodeTree {
     /// be inferred from
     /// the `NodeTree` data is that `rev` is the revision with the longest
     /// common node prefix with the given prefix.
+    /// We return an [`UncheckedRevision`] because we have no guarantee that
+    /// the revision we found is valid for the index.
     ///
     /// The second returned value is the size of the smallest subprefix
     /// of `prefix` that would give the same result, i.e. not the
@@ -392,7 +402,7 @@ impl NodeTree {
     fn lookup(
         &self,
         prefix: NodePrefix,
-    ) -> Result<(Option<Revision>, usize), NodeMapError> {
+    ) -> Result<(Option<UncheckedRevision>, usize), NodeMapError> {
         for (i, visit_item) in self.visit(prefix).enumerate() {
             if let Some(opt) = visit_item.final_revision() {
                 return Ok((opt, i + 1));
@@ -464,9 +474,9 @@ impl NodeTree {
             self.mutable_block(deepest.block_idx);
 
         if let Element::Rev(old_rev) = deepest.element {
-            let old_node = index
-                .node(old_rev)
-                .ok_or(NodeMapError::RevisionNotInIndex(old_rev))?;
+            let old_node = index.node(old_rev).ok_or_else(|| {
+                NodeMapError::RevisionNotInIndex(old_rev.into())
+            })?;
             if old_node == node {
                 return Ok(()); // avoid creating lots of useless blocks
             }
@@ -623,13 +633,13 @@ impl<'n> Iterator for NodeTreeVisitor<'n> {
 
 impl NodeTreeVisitItem {
     // Return `Some(opt)` if this item is final, with `opt` being the
-    // `Revision` that it may represent.
+    // `UncheckedRevision` that it may represent.
     //
     // If the item is not terminal, return `None`
-    fn final_revision(&self) -> Option<Option<Revision>> {
+    fn final_revision(&self) -> Option<Option<UncheckedRevision>> {
         match self.element {
             Element::Block(_) => None,
-            Element::Rev(r) => Some(Some(r)),
+            Element::Rev(r) => Some(Some(r.into())),
             Element::None => Some(None),
         }
     }
@@ -733,15 +743,19 @@ mod tests {
         assert_eq!(block.get(4), Element::Rev(1));
     }
 
-    type TestIndex = HashMap<Revision, Node>;
+    type TestIndex = HashMap<UncheckedRevision, Node>;
 
     impl RevlogIndex for TestIndex {
         fn node(&self, rev: Revision) -> Option<&Node> {
-            self.get(&rev)
+            self.get(&rev.into())
         }
 
         fn len(&self) -> usize {
             self.len()
+        }
+
+        fn check_revision(&self, rev: UncheckedRevision) -> Option<Revision> {
+            self.get(&rev).map(|_| rev.0)
         }
     }
 
@@ -756,7 +770,7 @@ mod tests {
 
     /// Pad hexadecimal Node prefix with zeros on the right, then insert
     fn pad_insert(idx: &mut TestIndex, rev: Revision, hex: &str) {
-        idx.insert(rev, pad_node(hex));
+        idx.insert(rev.into(), pad_node(hex));
     }
 
     fn sample_nodetree() -> NodeTree {
@@ -796,7 +810,7 @@ mod tests {
         assert_eq!(nt.find_bin(&idx, hex("ab"))?, None);
 
         // and with full binary Nodes
-        assert_eq!(nt.find_node(&idx, idx.get(&1).unwrap())?, Some(1));
+        assert_eq!(nt.find_node(&idx, idx.get(&1.into()).unwrap())?, Some(1));
         let unknown = Node::from_hex(&hex_pad_right("3d")).unwrap();
         assert_eq!(nt.find_node(&idx, &unknown)?, None);
         Ok(())
@@ -857,14 +871,15 @@ mod tests {
             }
         }
 
-        fn insert(
-            &mut self,
-            rev: Revision,
-            hex: &str,
-        ) -> Result<(), NodeMapError> {
+        fn insert(&mut self, rev: i32, hex: &str) -> Result<(), NodeMapError> {
             let node = pad_node(hex);
+            let rev: UncheckedRevision = rev.into();
             self.index.insert(rev, node);
-            self.nt.insert(&self.index, &node, rev)?;
+            self.nt.insert(
+                &self.index,
+                &node,
+                self.index.check_revision(rev).unwrap(),
+            )?;
             Ok(())
         }
 
@@ -971,9 +986,9 @@ mod tests {
         let node0 = Node::from_hex(&node0_hex).unwrap();
         let node1 = Node::from_hex(&node1_hex).unwrap();
 
-        idx.insert(0, node0);
+        idx.insert(0.into(), node0);
         nt.insert(idx, &node0, 0)?;
-        idx.insert(1, node1);
+        idx.insert(1.into(), node1);
         nt.insert(idx, &node1, 1)?;
 
         assert_eq!(nt.find_bin(idx, (&node0).into())?, Some(0));
