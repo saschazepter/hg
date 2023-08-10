@@ -21,7 +21,7 @@ pub fn list_rev_tracked_files(
 ) -> Result<FilesForRev, RevlogError> {
     let rev = crate::revset::resolve_single(revset, repo)?;
     Ok(FilesForRev {
-        manifest: repo.manifest_for_rev(rev)?,
+        manifest: repo.manifest_for_rev(rev.into())?,
         narrow_matcher,
     })
 }

@@ -47,7 +47,24 @@ pub type Revision = i32;
 ///
 /// As noted in revlog.c, revision numbers are actually encoded in
 /// 4 bytes, and are liberally converted to ints, whence the i32
-pub type UncheckedRevision = i32;
+#[derive(
+    Debug,
+    derive_more::Display,
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+)]
+pub struct UncheckedRevision(i32);
+
+impl From<Revision> for UncheckedRevision {
+    fn from(value: Revision) -> Self {
+        Self(value)
+    }
+}
 
 /// Marker expressing the absence of a parent
 ///
@@ -60,7 +77,8 @@ pub const NULL_REVISION: Revision = -1;
 /// This is also equal to `i32::max_value()`, but it's better to spell
 /// it out explicitely, same as in `mercurial.node`
 #[allow(clippy::unreadable_literal)]
-pub const WORKING_DIRECTORY_REVISION: Revision = 0x7fffffff;
+pub const WORKING_DIRECTORY_REVISION: UncheckedRevision =
+    UncheckedRevision(0x7fffffff);
 
 pub const WORKING_DIRECTORY_HEX: &str =
     "ffffffffffffffffffffffffffffffffffffffff";
@@ -90,14 +108,14 @@ pub trait RevlogIndex {
         self.len() == 0
     }
 
-    /// Return a reference to the Node or `None` if rev is out of bounds
-    ///
-    /// `NULL_REVISION` is not considered to be out of bounds.
+    /// Return a reference to the Node or `None` for `NULL_REVISION`
     fn node(&self, rev: Revision) -> Option<&Node>;
 
     /// Return a [`Revision`] if `rev` is a valid revision number for this
     /// index
     fn check_revision(&self, rev: UncheckedRevision) -> Option<Revision> {
+        let rev = rev.0;
+
         if rev == NULL_REVISION || (rev >= 0 && (rev as usize) < self.len()) {
             Some(rev)
         } else {
@@ -120,7 +138,7 @@ const REVIDX_KNOWN_FLAGS: u16 = REVISION_FLAG_CENSORED
 
 const NULL_REVLOG_ENTRY_FLAGS: u16 = 0;
 
-#[derive(Debug, derive_more::From)]
+#[derive(Debug, derive_more::From, derive_more::Display)]
 pub enum RevlogError {
     InvalidRevision,
     /// Working directory is not supported
@@ -231,10 +249,11 @@ impl Revlog {
 
     /// Returns the node ID for the given revision number, if it exists in this
     /// revlog
-    pub fn node_from_rev(&self, rev: Revision) -> Option<&Node> {
-        if rev == NULL_REVISION {
+    pub fn node_from_rev(&self, rev: UncheckedRevision) -> Option<&Node> {
+        if rev == NULL_REVISION.into() {
             return Some(&NULL_NODE);
         }
+        let rev = self.index.check_revision(rev)?;
         Some(self.index.get_entry(rev)?.hash())
     }
 
@@ -296,8 +315,8 @@ impl Revlog {
     }
 
     /// Returns whether the given revision exists in this revlog.
-    pub fn has_rev(&self, rev: Revision) -> bool {
-        self.index.get_entry(rev).is_some()
+    pub fn has_rev(&self, rev: UncheckedRevision) -> bool {
+        self.index.check_revision(rev).is_some()
     }
 
     /// Return the full data associated to a revision.
@@ -307,12 +326,23 @@ impl Revlog {
     /// snapshot to rebuild the final data.
     pub fn get_rev_data(
         &self,
+        rev: UncheckedRevision,
+    ) -> Result<Cow<[u8]>, RevlogError> {
+        if rev == NULL_REVISION.into() {
+            return Ok(Cow::Borrowed(&[]));
+        };
+        self.get_entry(rev)?.data()
+    }
+
+    /// [`Self::get_rev_data`] for checked revisions.
+    pub fn get_rev_data_for_checked_rev(
+        &self,
         rev: Revision,
     ) -> Result<Cow<[u8]>, RevlogError> {
         if rev == NULL_REVISION {
             return Ok(Cow::Borrowed(&[]));
         };
-        Ok(self.get_entry(rev)?.data()?)
+        self.get_entry_for_checked_rev(rev)?.data()
     }
 
     /// Check the hash of some given data against the recorded hash.
@@ -380,8 +410,7 @@ impl Revlog {
         }
     }
 
-    /// Get an entry of the revlog.
-    pub fn get_entry(
+    fn get_entry_for_checked_rev(
         &self,
         rev: Revision,
     ) -> Result<RevlogEntry, RevlogError> {
@@ -399,36 +428,60 @@ impl Revlog {
         } else {
             &self.data()[start..end]
         };
+        let base_rev = self
+            .index
+            .check_revision(index_entry.base_revision_or_base_of_delta_chain())
+            .ok_or_else(|| {
+                RevlogError::corrupted(format!(
+                    "base revision for rev {} is invalid",
+                    rev
+                ))
+            })?;
+        let p1 =
+            self.index.check_revision(index_entry.p1()).ok_or_else(|| {
+                RevlogError::corrupted(format!(
+                    "p1 for rev {} is invalid",
+                    rev
+                ))
+            })?;
+        let p2 =
+            self.index.check_revision(index_entry.p2()).ok_or_else(|| {
+                RevlogError::corrupted(format!(
+                    "p2 for rev {} is invalid",
+                    rev
+                ))
+            })?;
         let entry = RevlogEntry {
             revlog: self,
             rev,
             bytes: data,
             compressed_len: index_entry.compressed_len(),
             uncompressed_len: index_entry.uncompressed_len(),
-            base_rev_or_base_of_delta_chain: if index_entry
-                .base_revision_or_base_of_delta_chain()
-                == rev
-            {
+            base_rev_or_base_of_delta_chain: if base_rev == rev {
                 None
             } else {
-                Some(index_entry.base_revision_or_base_of_delta_chain())
+                Some(base_rev)
             },
-            p1: index_entry.p1(),
-            p2: index_entry.p2(),
+            p1,
+            p2,
             flags: index_entry.flags(),
             hash: *index_entry.hash(),
         };
         Ok(entry)
     }
 
-    /// when resolving internal references within revlog, any errors
-    /// should be reported as corruption, instead of e.g. "invalid revision"
-    fn get_entry_internal(
+    /// Get an entry of the revlog.
+    pub fn get_entry(
         &self,
-        rev: Revision,
-    ) -> Result<RevlogEntry, HgError> {
-        self.get_entry(rev)
-            .map_err(|_| corrupted(format!("revision {} out of range", rev)))
+        rev: UncheckedRevision,
+    ) -> Result<RevlogEntry, RevlogError> {
+        if rev == NULL_REVISION.into() {
+            return Ok(self.make_null_entry());
+        }
+        let rev = self.index.check_revision(rev).ok_or_else(|| {
+            RevlogError::corrupted(format!("rev {} is invalid", rev))
+        })?;
+        self.get_entry_for_checked_rev(rev)
     }
 }
 
@@ -486,7 +539,7 @@ impl<'revlog> RevlogEntry<'revlog> {
         if self.p1 == NULL_REVISION {
             Ok(None)
         } else {
-            Ok(Some(self.revlog.get_entry(self.p1)?))
+            Ok(Some(self.revlog.get_entry_for_checked_rev(self.p1)?))
         }
     }
 
@@ -496,7 +549,7 @@ impl<'revlog> RevlogEntry<'revlog> {
         if self.p2 == NULL_REVISION {
             Ok(None)
         } else {
-            Ok(Some(self.revlog.get_entry(self.p2)?))
+            Ok(Some(self.revlog.get_entry_for_checked_rev(self.p2)?))
         }
     }
 
@@ -527,7 +580,7 @@ impl<'revlog> RevlogEntry<'revlog> {
     }
 
     /// The data for this entry, after resolving deltas if any.
-    pub fn rawdata(&self) -> Result<Cow<'revlog, [u8]>, HgError> {
+    pub fn rawdata(&self) -> Result<Cow<'revlog, [u8]>, RevlogError> {
         let mut entry = self.clone();
         let mut delta_chain = vec![];
 
@@ -539,11 +592,11 @@ impl<'revlog> RevlogEntry<'revlog> {
         while let Some(base_rev) = entry.base_rev_or_base_of_delta_chain {
             entry = if uses_generaldelta {
                 delta_chain.push(entry);
-                self.revlog.get_entry_internal(base_rev)?
+                self.revlog.get_entry_for_checked_rev(base_rev)?
             } else {
-                let base_rev = entry.rev - 1;
+                let base_rev = UncheckedRevision(entry.rev - 1);
                 delta_chain.push(entry);
-                self.revlog.get_entry_internal(base_rev)?
+                self.revlog.get_entry(base_rev)?
             };
         }
 
@@ -559,7 +612,7 @@ impl<'revlog> RevlogEntry<'revlog> {
     fn check_data(
         &self,
         data: Cow<'revlog, [u8]>,
-    ) -> Result<Cow<'revlog, [u8]>, HgError> {
+    ) -> Result<Cow<'revlog, [u8]>, RevlogError> {
         if self.revlog.check_hash(
             self.p1,
             self.p2,
@@ -571,22 +624,24 @@ impl<'revlog> RevlogEntry<'revlog> {
             if (self.flags & REVISION_FLAG_ELLIPSIS) != 0 {
                 return Err(HgError::unsupported(
                     "ellipsis revisions are not supported by rhg",
-                ));
+                )
+                .into());
             }
             Err(corrupted(format!(
                 "hash check failed for revision {}",
                 self.rev
-            )))
+            ))
+            .into())
         }
     }
 
-    pub fn data(&self) -> Result<Cow<'revlog, [u8]>, HgError> {
+    pub fn data(&self) -> Result<Cow<'revlog, [u8]>, RevlogError> {
         let data = self.rawdata()?;
         if self.rev == NULL_REVISION {
             return Ok(data);
         }
         if self.is_censored() {
-            return Err(HgError::CensoredNodeError);
+            return Err(HgError::CensoredNodeError.into());
         }
         self.check_data(data)
     }
@@ -705,13 +760,13 @@ mod tests {
         let revlog = Revlog::open(&vfs, "foo.i", None, false).unwrap();
         assert!(revlog.is_empty());
         assert_eq!(revlog.len(), 0);
-        assert!(revlog.get_entry(0).is_err());
-        assert!(!revlog.has_rev(0));
+        assert!(revlog.get_entry(0.into()).is_err());
+        assert!(!revlog.has_rev(0.into()));
         assert_eq!(
             revlog.rev_from_node(NULL_NODE.into()).unwrap(),
             NULL_REVISION
         );
-        let null_entry = revlog.get_entry(NULL_REVISION).ok().unwrap();
+        let null_entry = revlog.get_entry(NULL_REVISION.into()).ok().unwrap();
         assert_eq!(null_entry.revision(), NULL_REVISION);
         assert!(null_entry.data().unwrap().is_empty());
     }
@@ -750,7 +805,7 @@ mod tests {
         std::fs::write(temp.path().join("foo.i"), contents).unwrap();
         let revlog = Revlog::open(&vfs, "foo.i", None, false).unwrap();
 
-        let entry0 = revlog.get_entry(0).ok().unwrap();
+        let entry0 = revlog.get_entry(0.into()).ok().unwrap();
         assert_eq!(entry0.revision(), 0);
         assert_eq!(*entry0.node(), node0);
         assert!(!entry0.has_p1());
@@ -761,7 +816,7 @@ mod tests {
         let p2_entry = entry0.p2_entry().unwrap();
         assert!(p2_entry.is_none());
 
-        let entry1 = revlog.get_entry(1).ok().unwrap();
+        let entry1 = revlog.get_entry(1.into()).ok().unwrap();
         assert_eq!(entry1.revision(), 1);
         assert_eq!(*entry1.node(), node1);
         assert!(!entry1.has_p1());
@@ -772,7 +827,7 @@ mod tests {
         let p2_entry = entry1.p2_entry().unwrap();
         assert!(p2_entry.is_none());
 
-        let entry2 = revlog.get_entry(2).ok().unwrap();
+        let entry2 = revlog.get_entry(2.into()).ok().unwrap();
         assert_eq!(entry2.revision(), 2);
         assert_eq!(*entry2.node(), node2);
         assert!(entry2.has_p1());
@@ -817,7 +872,7 @@ mod tests {
         let revlog = Revlog::open(&vfs, "foo.i", None, false).unwrap();
 
         // accessing the data shows the corruption
-        revlog.get_entry(0).unwrap().data().unwrap_err();
+        revlog.get_entry(0.into()).unwrap().data().unwrap_err();
 
         assert_eq!(revlog.rev_from_node(NULL_NODE.into()).unwrap(), -1);
         assert_eq!(revlog.rev_from_node(node0.into()).unwrap(), 0);
