@@ -654,12 +654,13 @@ fn re_matcher(pattern: &[u8]) -> PatternResult<RegexMatcher> {
 /// said regex formed by the given ignore patterns.
 fn build_regex_match<'a, 'b>(
     ignore_patterns: &'a [IgnorePattern],
+    glob_suffix: &[u8],
 ) -> PatternResult<(Vec<u8>, IgnoreFnType<'b>)> {
     let mut regexps = vec![];
     let mut exact_set = HashSet::new();
 
     for pattern in ignore_patterns {
-        if let Some(re) = build_single_regex(pattern)? {
+        if let Some(re) = build_single_regex(pattern, glob_suffix)? {
             regexps.push(re);
         } else {
             let exact = normalize_path_bytes(&pattern.pattern);
@@ -780,6 +781,7 @@ fn roots_dirs_and_parents(
 /// should be matched.
 fn build_match<'a>(
     ignore_patterns: Vec<IgnorePattern>,
+    glob_suffix: &[u8],
 ) -> PatternResult<(Vec<u8>, IgnoreFnType<'a>)> {
     let mut match_funcs: Vec<IgnoreFnType<'a>> = vec![];
     // For debugging and printing
@@ -843,7 +845,8 @@ fn build_match<'a>(
             dirs_vec.sort();
             patterns.extend(dirs_vec.escaped_bytes());
         } else {
-            let (new_re, match_func) = build_regex_match(&ignore_patterns)?;
+            let (new_re, match_func) =
+                build_regex_match(&ignore_patterns, glob_suffix)?;
             patterns = new_re;
             match_funcs.push(match_func)
         }
@@ -922,7 +925,7 @@ impl<'a> IncludeMatcher<'a> {
         let prefix = ignore_patterns.iter().all(|k| {
             matches!(k.syntax, PatternSyntax::Path | PatternSyntax::RelPath)
         });
-        let (patterns, match_fn) = build_match(ignore_patterns)?;
+        let (patterns, match_fn) = build_match(ignore_patterns, b"(?:/|$)")?;
 
         Ok(Self {
             patterns,

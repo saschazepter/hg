@@ -36,9 +36,6 @@ lazy_static! {
 const GLOB_REPLACEMENTS: &[(&[u8], &[u8])] =
     &[(b"*/", b"(?:.*/)?"), (b"*", b".*"), (b"", b"[^/]*")];
 
-/// Appended to the regexp of globs
-const GLOB_SUFFIX: &[u8; 7] = b"(?:/|$)";
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PatternSyntax {
     /// A regular expression
@@ -181,7 +178,7 @@ lazy_static! {
 /// Builds the regex that corresponds to the given pattern.
 /// If within a `syntax: regexp` context, returns the pattern,
 /// otherwise, returns the corresponding regex.
-fn _build_single_regex(entry: &IgnorePattern) -> Vec<u8> {
+fn _build_single_regex(entry: &IgnorePattern, glob_suffix: &[u8]) -> Vec<u8> {
     let IgnorePattern {
         syntax, pattern, ..
     } = entry;
@@ -245,13 +242,13 @@ fn _build_single_regex(entry: &IgnorePattern) -> Vec<u8> {
         PatternSyntax::RelGlob => {
             let glob_re = glob_to_re(pattern);
             if let Some(rest) = glob_re.drop_prefix(b"[^/]*") {
-                [b".*", rest, GLOB_SUFFIX].concat()
+                [b".*", rest, glob_suffix].concat()
             } else {
-                [b"(?:.*/)?", glob_re.as_slice(), GLOB_SUFFIX].concat()
+                [b"(?:.*/)?", glob_re.as_slice(), glob_suffix].concat()
             }
         }
         PatternSyntax::Glob | PatternSyntax::RootGlob => {
-            [glob_to_re(pattern).as_slice(), GLOB_SUFFIX].concat()
+            [glob_to_re(pattern).as_slice(), glob_suffix].concat()
         }
         PatternSyntax::Include
         | PatternSyntax::SubInclude
@@ -309,6 +306,7 @@ pub fn normalize_path_bytes(bytes: &[u8]) -> Vec<u8> {
 /// that don't need to be transformed into a regex.
 pub fn build_single_regex(
     entry: &IgnorePattern,
+    glob_suffix: &[u8],
 ) -> Result<Option<Vec<u8>>, PatternError> {
     let IgnorePattern {
         pattern, syntax, ..
@@ -331,7 +329,7 @@ pub fn build_single_regex(
     } else {
         let mut entry = entry.clone();
         entry.pattern = pattern;
-        Ok(Some(_build_single_regex(&entry)))
+        Ok(Some(_build_single_regex(&entry, glob_suffix)))
     }
 }
 
@@ -716,20 +714,26 @@ mod tests {
     #[test]
     fn test_build_single_regex() {
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::RelGlob,
-                b"rust/target/",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::RelGlob,
+                    b"rust/target/",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             Some(br"(?:.*/)?rust/target(?:/|$)".to_vec()),
         );
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::Regexp,
-                br"rust/target/\d+",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::Regexp,
+                    br"rust/target/\d+",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             Some(br"rust/target/\d+".to_vec()),
         );
@@ -738,29 +742,38 @@ mod tests {
     #[test]
     fn test_build_single_regex_shortcut() {
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::RootGlob,
-                b"",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::RootGlob,
+                    b"",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             None,
         );
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::RootGlob,
-                b"whatever",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::RootGlob,
+                    b"whatever",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             None,
         );
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::RootGlob,
-                b"*.o",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::RootGlob,
+                    b"*.o",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             Some(br"[^/]*\.o(?:/|$)".to_vec()),
         );
@@ -769,38 +782,50 @@ mod tests {
     #[test]
     fn test_build_single_relregex() {
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::RelRegexp,
-                b"^ba{2}r",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::RelRegexp,
+                    b"^ba{2}r",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             Some(b"^ba{2}r".to_vec()),
         );
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::RelRegexp,
-                b"ba{2}r",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::RelRegexp,
+                    b"ba{2}r",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             Some(b".*ba{2}r".to_vec()),
         );
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::RelRegexp,
-                b"(?ia)ba{2}r",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::RelRegexp,
+                    b"(?ia)ba{2}r",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             Some(b"(?ia:.*ba{2}r)".to_vec()),
         );
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::RelRegexp,
-                b"(?ia)^ba{2}r",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::RelRegexp,
+                    b"(?ia)^ba{2}r",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             Some(b"(?ia:^ba{2}r)".to_vec()),
         );
