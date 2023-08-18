@@ -14,6 +14,7 @@ use hg::copy_tracing::CombineChangesetCopies;
 use hg::Revision;
 
 use crate::pybytes_deref::PyBytesDeref;
+use crate::PyRevision;
 
 /// Combines copies information contained into revision `revs` to build a copy
 /// map.
@@ -23,14 +24,17 @@ pub fn combine_changeset_copies_wrapper(
     py: Python,
     revs: PyList,
     children_count: PyDict,
-    target_rev: Revision,
+    target_rev: PyRevision,
     rev_info: PyObject,
     multi_thread: bool,
 ) -> PyResult<PyDict> {
+    let target_rev = Revision(target_rev.0);
     let children_count = children_count
         .items(py)
         .iter()
-        .map(|(k, v)| Ok((k.extract(py)?, v.extract(py)?)))
+        .map(|(k, v)| {
+            Ok((Revision(k.extract::<PyRevision>(py)?.0), v.extract(py)?))
+        })
         .collect::<PyResult<_>>()?;
 
     /// (Revision number, parent 1, parent 2, copy data for this revision)
@@ -38,11 +42,13 @@ pub fn combine_changeset_copies_wrapper(
 
     let revs_info =
         revs.iter(py).map(|rev_py| -> PyResult<RevInfo<PyBytes>> {
-            let rev = rev_py.extract(py)?;
+            let rev = Revision(rev_py.extract::<PyRevision>(py)?.0);
             let tuple: PyTuple =
                 rev_info.call(py, (rev_py,), None)?.cast_into(py)?;
-            let p1 = tuple.get_item(py, 0).extract(py)?;
-            let p2 = tuple.get_item(py, 1).extract(py)?;
+            let p1 =
+                Revision(tuple.get_item(py, 0).extract::<PyRevision>(py)?.0);
+            let p2 =
+                Revision(tuple.get_item(py, 1).extract::<PyRevision>(py)?.0);
             let opt_bytes = tuple.get_item(py, 2).extract(py)?;
             Ok((rev, p1, p2, opt_bytes))
         });
@@ -179,7 +185,7 @@ pub fn init_module(py: Python, package: &str) -> PyResult<PyModule> {
             combine_changeset_copies_wrapper(
                 revs: PyList,
                 children: PyDict,
-                target_rev: Revision,
+                target_rev: PyRevision,
                 rev_info: PyObject,
                 multi_thread: bool
             )

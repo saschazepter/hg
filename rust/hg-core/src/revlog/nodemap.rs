@@ -474,9 +474,12 @@ impl NodeTree {
             self.mutable_block(deepest.block_idx);
 
         if let Element::Rev(old_rev) = deepest.element {
-            let old_node = index.node(old_rev).ok_or_else(|| {
-                NodeMapError::RevisionNotInIndex(old_rev.into())
-            })?;
+            let old_node = index
+                .check_revision(old_rev.into())
+                .and_then(|rev| index.node(rev))
+                .ok_or_else(|| {
+                    NodeMapError::RevisionNotInIndex(old_rev.into())
+                })?;
             if old_node == node {
                 return Ok(()); // avoid creating lots of useless blocks
             }
@@ -500,14 +503,14 @@ impl NodeTree {
                 } else {
                     let mut new_block = Block::new();
                     new_block.set(old_nybble, Element::Rev(old_rev));
-                    new_block.set(new_nybble, Element::Rev(rev));
+                    new_block.set(new_nybble, Element::Rev(rev.0));
                     self.growable.push(new_block);
                     break;
                 }
             }
         } else {
             // Free slot in the deepest block: no splitting has to be done
-            block.set(deepest.nybble, Element::Rev(rev));
+            block.set(deepest.nybble, Element::Rev(rev.0));
         }
 
         // Backtrack over visit steps to update references
@@ -707,6 +710,13 @@ mod tests {
         )
     }
 
+    /// Shorthand to reduce boilerplate when creating [`Revision`] for testing
+    macro_rules! R {
+        ($revision:literal) => {
+            Revision($revision)
+        };
+    }
+
     #[test]
     fn test_block_debug() {
         let mut block = Block::new();
@@ -755,7 +765,7 @@ mod tests {
         }
 
         fn check_revision(&self, rev: UncheckedRevision) -> Option<Revision> {
-            self.get(&rev).map(|_| rev.0)
+            self.get(&rev).map(|_| Revision(rev.0))
         }
     }
 
@@ -800,17 +810,20 @@ mod tests {
     #[test]
     fn test_immutable_find_simplest() -> Result<(), NodeMapError> {
         let mut idx: TestIndex = HashMap::new();
-        pad_insert(&mut idx, 1, "1234deadcafe");
+        pad_insert(&mut idx, R!(1), "1234deadcafe");
 
         let nt = NodeTree::from(vec![block! {1: Rev(1)}]);
-        assert_eq!(nt.find_bin(&idx, hex("1"))?, Some(1));
-        assert_eq!(nt.find_bin(&idx, hex("12"))?, Some(1));
-        assert_eq!(nt.find_bin(&idx, hex("1234de"))?, Some(1));
+        assert_eq!(nt.find_bin(&idx, hex("1"))?, Some(R!(1)));
+        assert_eq!(nt.find_bin(&idx, hex("12"))?, Some(R!(1)));
+        assert_eq!(nt.find_bin(&idx, hex("1234de"))?, Some(R!(1)));
         assert_eq!(nt.find_bin(&idx, hex("1a"))?, None);
         assert_eq!(nt.find_bin(&idx, hex("ab"))?, None);
 
         // and with full binary Nodes
-        assert_eq!(nt.find_node(&idx, idx.get(&1.into()).unwrap())?, Some(1));
+        assert_eq!(
+            nt.find_node(&idx, idx.get(&1.into()).unwrap())?,
+            Some(R!(1))
+        );
         let unknown = Node::from_hex(&hex_pad_right("3d")).unwrap();
         assert_eq!(nt.find_node(&idx, &unknown)?, None);
         Ok(())
@@ -819,15 +832,15 @@ mod tests {
     #[test]
     fn test_immutable_find_one_jump() {
         let mut idx = TestIndex::new();
-        pad_insert(&mut idx, 9, "012");
-        pad_insert(&mut idx, 0, "00a");
+        pad_insert(&mut idx, R!(9), "012");
+        pad_insert(&mut idx, R!(0), "00a");
 
         let nt = sample_nodetree();
 
         assert_eq!(nt.find_bin(&idx, hex("0")), Err(MultipleResults));
-        assert_eq!(nt.find_bin(&idx, hex("01")), Ok(Some(9)));
+        assert_eq!(nt.find_bin(&idx, hex("01")), Ok(Some(R!(9))));
         assert_eq!(nt.find_bin(&idx, hex("00")), Err(MultipleResults));
-        assert_eq!(nt.find_bin(&idx, hex("00a")), Ok(Some(0)));
+        assert_eq!(nt.find_bin(&idx, hex("00a")), Ok(Some(R!(0))));
         assert_eq!(nt.unique_prefix_len_bin(&idx, hex("00a")), Ok(Some(3)));
         assert_eq!(nt.find_bin(&idx, hex("000")), Ok(Some(NULL_REVISION)));
     }
@@ -835,11 +848,11 @@ mod tests {
     #[test]
     fn test_mutated_find() -> Result<(), NodeMapError> {
         let mut idx = TestIndex::new();
-        pad_insert(&mut idx, 9, "012");
-        pad_insert(&mut idx, 0, "00a");
-        pad_insert(&mut idx, 2, "cafe");
-        pad_insert(&mut idx, 3, "15");
-        pad_insert(&mut idx, 1, "10");
+        pad_insert(&mut idx, R!(9), "012");
+        pad_insert(&mut idx, R!(0), "00a");
+        pad_insert(&mut idx, R!(2), "cafe");
+        pad_insert(&mut idx, R!(3), "15");
+        pad_insert(&mut idx, R!(1), "10");
 
         let nt = NodeTree {
             readonly: sample_nodetree().readonly,
@@ -847,13 +860,13 @@ mod tests {
             root: block![0: Block(1), 1:Block(3), 12: Rev(2)],
             masked_inner_blocks: 1,
         };
-        assert_eq!(nt.find_bin(&idx, hex("10"))?, Some(1));
-        assert_eq!(nt.find_bin(&idx, hex("c"))?, Some(2));
+        assert_eq!(nt.find_bin(&idx, hex("10"))?, Some(R!(1)));
+        assert_eq!(nt.find_bin(&idx, hex("c"))?, Some(R!(2)));
         assert_eq!(nt.unique_prefix_len_bin(&idx, hex("c"))?, Some(1));
         assert_eq!(nt.find_bin(&idx, hex("00")), Err(MultipleResults));
         assert_eq!(nt.find_bin(&idx, hex("000"))?, Some(NULL_REVISION));
         assert_eq!(nt.unique_prefix_len_bin(&idx, hex("000"))?, Some(3));
-        assert_eq!(nt.find_bin(&idx, hex("01"))?, Some(9));
+        assert_eq!(nt.find_bin(&idx, hex("01"))?, Some(R!(9)));
         assert_eq!(nt.masked_readonly_blocks(), 2);
         Ok(())
     }
@@ -915,34 +928,34 @@ mod tests {
     fn test_insert_full_mutable() -> Result<(), NodeMapError> {
         let mut idx = TestNtIndex::new();
         idx.insert(0, "1234")?;
-        assert_eq!(idx.find_hex("1")?, Some(0));
-        assert_eq!(idx.find_hex("12")?, Some(0));
+        assert_eq!(idx.find_hex("1")?, Some(R!(0)));
+        assert_eq!(idx.find_hex("12")?, Some(R!(0)));
 
         // let's trigger a simple split
         idx.insert(1, "1a34")?;
         assert_eq!(idx.nt.growable.len(), 1);
-        assert_eq!(idx.find_hex("12")?, Some(0));
-        assert_eq!(idx.find_hex("1a")?, Some(1));
+        assert_eq!(idx.find_hex("12")?, Some(R!(0)));
+        assert_eq!(idx.find_hex("1a")?, Some(R!(1)));
 
         // reinserting is a no_op
         idx.insert(1, "1a34")?;
         assert_eq!(idx.nt.growable.len(), 1);
-        assert_eq!(idx.find_hex("12")?, Some(0));
-        assert_eq!(idx.find_hex("1a")?, Some(1));
+        assert_eq!(idx.find_hex("12")?, Some(R!(0)));
+        assert_eq!(idx.find_hex("1a")?, Some(R!(1)));
 
         idx.insert(2, "1a01")?;
         assert_eq!(idx.nt.growable.len(), 2);
         assert_eq!(idx.find_hex("1a"), Err(NodeMapError::MultipleResults));
-        assert_eq!(idx.find_hex("12")?, Some(0));
-        assert_eq!(idx.find_hex("1a3")?, Some(1));
-        assert_eq!(idx.find_hex("1a0")?, Some(2));
+        assert_eq!(idx.find_hex("12")?, Some(R!(0)));
+        assert_eq!(idx.find_hex("1a3")?, Some(R!(1)));
+        assert_eq!(idx.find_hex("1a0")?, Some(R!(2)));
         assert_eq!(idx.find_hex("1a12")?, None);
 
         // now let's make it split and create more than one additional block
         idx.insert(3, "1a345")?;
         assert_eq!(idx.nt.growable.len(), 4);
-        assert_eq!(idx.find_hex("1a340")?, Some(1));
-        assert_eq!(idx.find_hex("1a345")?, Some(3));
+        assert_eq!(idx.find_hex("1a340")?, Some(R!(1)));
+        assert_eq!(idx.find_hex("1a345")?, Some(R!(3)));
         assert_eq!(idx.find_hex("1a341")?, None);
 
         // there's no readonly block to mask
@@ -987,12 +1000,12 @@ mod tests {
         let node1 = Node::from_hex(&node1_hex).unwrap();
 
         idx.insert(0.into(), node0);
-        nt.insert(idx, &node0, 0)?;
+        nt.insert(idx, &node0, R!(0))?;
         idx.insert(1.into(), node1);
-        nt.insert(idx, &node1, 1)?;
+        nt.insert(idx, &node1, R!(1))?;
 
-        assert_eq!(nt.find_bin(idx, (&node0).into())?, Some(0));
-        assert_eq!(nt.find_bin(idx, (&node1).into())?, Some(1));
+        assert_eq!(nt.find_bin(idx, (&node0).into())?, Some(R!(0)));
+        assert_eq!(nt.find_bin(idx, (&node1).into())?, Some(R!(1)));
         Ok(())
     }
 
@@ -1004,28 +1017,28 @@ mod tests {
         idx.insert(2, "131")?;
         idx.insert(3, "cafe")?;
         let mut idx = idx.commit();
-        assert_eq!(idx.find_hex("1234")?, Some(0));
-        assert_eq!(idx.find_hex("1235")?, Some(1));
-        assert_eq!(idx.find_hex("131")?, Some(2));
-        assert_eq!(idx.find_hex("cafe")?, Some(3));
+        assert_eq!(idx.find_hex("1234")?, Some(R!(0)));
+        assert_eq!(idx.find_hex("1235")?, Some(R!(1)));
+        assert_eq!(idx.find_hex("131")?, Some(R!(2)));
+        assert_eq!(idx.find_hex("cafe")?, Some(R!(3)));
         // we did not add anything since init from readonly
         assert_eq!(idx.nt.masked_readonly_blocks(), 0);
 
         idx.insert(4, "123A")?;
-        assert_eq!(idx.find_hex("1234")?, Some(0));
-        assert_eq!(idx.find_hex("1235")?, Some(1));
-        assert_eq!(idx.find_hex("131")?, Some(2));
-        assert_eq!(idx.find_hex("cafe")?, Some(3));
-        assert_eq!(idx.find_hex("123A")?, Some(4));
+        assert_eq!(idx.find_hex("1234")?, Some(R!(0)));
+        assert_eq!(idx.find_hex("1235")?, Some(R!(1)));
+        assert_eq!(idx.find_hex("131")?, Some(R!(2)));
+        assert_eq!(idx.find_hex("cafe")?, Some(R!(3)));
+        assert_eq!(idx.find_hex("123A")?, Some(R!(4)));
         // we masked blocks for all prefixes of "123", including the root
         assert_eq!(idx.nt.masked_readonly_blocks(), 4);
 
         eprintln!("{:?}", idx.nt);
         idx.insert(5, "c0")?;
-        assert_eq!(idx.find_hex("cafe")?, Some(3));
-        assert_eq!(idx.find_hex("c0")?, Some(5));
+        assert_eq!(idx.find_hex("cafe")?, Some(R!(3)));
+        assert_eq!(idx.find_hex("c0")?, Some(R!(5)));
         assert_eq!(idx.find_hex("c1")?, None);
-        assert_eq!(idx.find_hex("1234")?, Some(0));
+        assert_eq!(idx.find_hex("1234")?, Some(R!(0)));
         // inserting "c0" is just splitting the 'c' slot of the mutable root,
         // it doesn't mask anything
         assert_eq!(idx.nt.masked_readonly_blocks(), 4);
