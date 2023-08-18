@@ -215,7 +215,7 @@ impl Index {
         rev: Revision,
         offsets: &[usize],
     ) -> IndexEntry {
-        let start = offsets[rev as usize];
+        let start = offsets[rev.0 as usize];
         let end = start + INDEX_ENTRY_SIZE;
         let bytes = &self.bytes[start..end];
 
@@ -229,13 +229,13 @@ impl Index {
     }
 
     fn get_entry_separated(&self, rev: Revision) -> IndexEntry {
-        let start = rev as usize * INDEX_ENTRY_SIZE;
+        let start = rev.0 as usize * INDEX_ENTRY_SIZE;
         let end = start + INDEX_ENTRY_SIZE;
         let bytes = &self.bytes[start..end];
 
         // Override the offset of the first revision as its bytes are used
         // for the index's metadata (saving space because it is always 0)
-        let offset_override = if rev == 0 { Some(0) } else { None };
+        let offset_override = if rev == Revision(0) { Some(0) } else { None };
 
         IndexEntry {
             bytes,
@@ -359,8 +359,8 @@ mod tests {
                 offset: 0,
                 compressed_len: 0,
                 uncompressed_len: 0,
-                base_revision_or_base_of_delta_chain: 0,
-                link_revision: 0,
+                base_revision_or_base_of_delta_chain: Revision(0),
+                link_revision: Revision(0),
                 p1: NULL_REVISION,
                 p2: NULL_REVISION,
                 node: NULL_NODE,
@@ -450,11 +450,11 @@ mod tests {
             bytes.extend(&(self.compressed_len as u32).to_be_bytes());
             bytes.extend(&(self.uncompressed_len as u32).to_be_bytes());
             bytes.extend(
-                &self.base_revision_or_base_of_delta_chain.to_be_bytes(),
+                &self.base_revision_or_base_of_delta_chain.0.to_be_bytes(),
             );
-            bytes.extend(&self.link_revision.to_be_bytes());
-            bytes.extend(&self.p1.to_be_bytes());
-            bytes.extend(&self.p2.to_be_bytes());
+            bytes.extend(&self.link_revision.0.to_be_bytes());
+            bytes.extend(&self.p1.0.to_be_bytes());
+            bytes.extend(&self.p2.0.to_be_bytes());
             bytes.extend(self.node.as_bytes());
             bytes.extend(vec![0u8; 12]);
             bytes
@@ -564,7 +564,7 @@ mod tests {
     #[test]
     fn test_base_revision_or_base_of_delta_chain() {
         let bytes = IndexEntryBuilder::new()
-            .with_base_revision_or_base_of_delta_chain(1)
+            .with_base_revision_or_base_of_delta_chain(Revision(1))
             .build();
         let entry = IndexEntry {
             bytes: &bytes,
@@ -576,7 +576,9 @@ mod tests {
 
     #[test]
     fn link_revision_test() {
-        let bytes = IndexEntryBuilder::new().with_link_revision(123).build();
+        let bytes = IndexEntryBuilder::new()
+            .with_link_revision(Revision(123))
+            .build();
 
         let entry = IndexEntry {
             bytes: &bytes,
@@ -588,7 +590,7 @@ mod tests {
 
     #[test]
     fn p1_test() {
-        let bytes = IndexEntryBuilder::new().with_p1(123).build();
+        let bytes = IndexEntryBuilder::new().with_p1(Revision(123)).build();
 
         let entry = IndexEntry {
             bytes: &bytes,
@@ -600,7 +602,7 @@ mod tests {
 
     #[test]
     fn p2_test() {
-        let bytes = IndexEntryBuilder::new().with_p2(123).build();
+        let bytes = IndexEntryBuilder::new().with_p2(Revision(123)).build();
 
         let entry = IndexEntry {
             bytes: &bytes,

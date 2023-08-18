@@ -247,7 +247,9 @@ impl<G: Graph> MissingAncestors<G> {
                 revs.remove(&curr);
                 self.add_parents(curr)?;
             }
-            curr -= 1;
+            // We know this revision is safe because we've checked the bounds
+            // before.
+            curr = Revision(curr.0 - 1);
         }
         Ok(())
     }
@@ -297,14 +299,14 @@ impl<G: Graph> MissingAncestors<G> {
 
         // TODO heuristics for with_capacity()?
         let mut missing: Vec<Revision> = Vec::new();
-        for curr in (0..=start).rev() {
+        for curr in (0..=start.0).rev() {
             if revs_visit.is_empty() {
                 break;
             }
-            if both_visit.remove(&curr) {
+            if both_visit.remove(&Revision(curr)) {
                 // curr's parents might have made it into revs_visit through
                 // another path
-                for p in self.graph.parents(curr)?.iter().cloned() {
+                for p in self.graph.parents(Revision(curr))?.iter().cloned() {
                     if p == NULL_REVISION {
                         continue;
                     }
@@ -312,9 +314,9 @@ impl<G: Graph> MissingAncestors<G> {
                     bases_visit.insert(p);
                     both_visit.insert(p);
                 }
-            } else if revs_visit.remove(&curr) {
-                missing.push(curr);
-                for p in self.graph.parents(curr)?.iter().cloned() {
+            } else if revs_visit.remove(&Revision(curr)) {
+                missing.push(Revision(curr));
+                for p in self.graph.parents(Revision(curr))?.iter().cloned() {
                     if p == NULL_REVISION {
                         continue;
                     }
@@ -331,8 +333,8 @@ impl<G: Graph> MissingAncestors<G> {
                         revs_visit.insert(p);
                     }
                 }
-            } else if bases_visit.contains(&curr) {
-                for p in self.graph.parents(curr)?.iter().cloned() {
+            } else if bases_visit.contains(&Revision(curr)) {
+                for p in self.graph.parents(Revision(curr))?.iter().cloned() {
                     if p == NULL_REVISION {
                         continue;
                     }
@@ -356,7 +358,41 @@ impl<G: Graph> MissingAncestors<G> {
 mod tests {
 
     use super::*;
-    use crate::testing::{SampleGraph, VecGraph};
+    use crate::{
+        testing::{SampleGraph, VecGraph},
+        BaseRevision,
+    };
+
+    impl From<BaseRevision> for Revision {
+        fn from(value: BaseRevision) -> Self {
+            if !cfg!(test) {
+                panic!("should only be used in tests")
+            }
+            Revision(value)
+        }
+    }
+
+    impl PartialEq<BaseRevision> for Revision {
+        fn eq(&self, other: &BaseRevision) -> bool {
+            if !cfg!(test) {
+                panic!("should only be used in tests")
+            }
+            self.0.eq(other)
+        }
+    }
+
+    impl PartialEq<u32> for Revision {
+        fn eq(&self, other: &u32) -> bool {
+            if !cfg!(test) {
+                panic!("should only be used in tests")
+            }
+            let check: Result<u32, _> = self.0.try_into();
+            match check {
+                Ok(value) => value.eq(other),
+                Err(_) => false,
+            }
+        }
+    }
 
     fn list_ancestors<G: Graph>(
         graph: G,
@@ -374,37 +410,80 @@ mod tests {
     /// Same tests as test-ancestor.py, without membership
     /// (see also test-ancestor.py.out)
     fn test_list_ancestor() {
-        assert_eq!(list_ancestors(SampleGraph, vec![], 0, false), vec![]);
         assert_eq!(
-            list_ancestors(SampleGraph, vec![11, 13], 0, false),
+            list_ancestors(SampleGraph, vec![], 0.into(), false),
+            Vec::<Revision>::new()
+        );
+        assert_eq!(
+            list_ancestors(
+                SampleGraph,
+                vec![11.into(), 13.into()],
+                0.into(),
+                false
+            ),
             vec![8, 7, 4, 3, 2, 1, 0]
         );
         assert_eq!(
-            list_ancestors(SampleGraph, vec![1, 3], 0, false),
+            list_ancestors(
+                SampleGraph,
+                vec![1.into(), 3.into()],
+                0.into(),
+                false
+            ),
             vec![1, 0]
         );
         assert_eq!(
-            list_ancestors(SampleGraph, vec![11, 13], 0, true),
+            list_ancestors(
+                SampleGraph,
+                vec![11.into(), 13.into()],
+                0.into(),
+                true
+            ),
             vec![13, 11, 8, 7, 4, 3, 2, 1, 0]
         );
         assert_eq!(
-            list_ancestors(SampleGraph, vec![11, 13], 6, false),
+            list_ancestors(
+                SampleGraph,
+                vec![11.into(), 13.into()],
+                6.into(),
+                false
+            ),
             vec![8, 7]
         );
         assert_eq!(
-            list_ancestors(SampleGraph, vec![11, 13], 6, true),
+            list_ancestors(
+                SampleGraph,
+                vec![11.into(), 13.into()],
+                6.into(),
+                true
+            ),
             vec![13, 11, 8, 7]
         );
         assert_eq!(
-            list_ancestors(SampleGraph, vec![11, 13], 11, true),
+            list_ancestors(
+                SampleGraph,
+                vec![11.into(), 13.into()],
+                11.into(),
+                true
+            ),
             vec![13, 11]
         );
         assert_eq!(
-            list_ancestors(SampleGraph, vec![11, 13], 12, true),
+            list_ancestors(
+                SampleGraph,
+                vec![11.into(), 13.into()],
+                12.into(),
+                true
+            ),
             vec![13]
         );
         assert_eq!(
-            list_ancestors(SampleGraph, vec![10, 1], 0, true),
+            list_ancestors(
+                SampleGraph,
+                vec![10.into(), 1.into()],
+                0.into(),
+                true
+            ),
             vec![10, 5, 4, 2, 1, 0]
         );
     }
@@ -415,33 +494,53 @@ mod tests {
     /// suite.
     /// For instance, run tests/test-obsolete-checkheads.t
     fn test_nullrev_input() {
-        let mut iter =
-            AncestorsIterator::new(SampleGraph, vec![-1], 0, false).unwrap();
+        let mut iter = AncestorsIterator::new(
+            SampleGraph,
+            vec![Revision(-1)],
+            0.into(),
+            false,
+        )
+        .unwrap();
         assert_eq!(iter.next(), None)
     }
 
     #[test]
     fn test_contains() {
-        let mut lazy =
-            AncestorsIterator::new(SampleGraph, vec![10, 1], 0, true).unwrap();
-        assert!(lazy.contains(1).unwrap());
-        assert!(!lazy.contains(3).unwrap());
+        let mut lazy = AncestorsIterator::new(
+            SampleGraph,
+            vec![10.into(), 1.into()],
+            0.into(),
+            true,
+        )
+        .unwrap();
+        assert!(lazy.contains(1.into()).unwrap());
+        assert!(!lazy.contains(3.into()).unwrap());
 
-        let mut lazy =
-            AncestorsIterator::new(SampleGraph, vec![0], 0, false).unwrap();
+        let mut lazy = AncestorsIterator::new(
+            SampleGraph,
+            vec![0.into()],
+            0.into(),
+            false,
+        )
+        .unwrap();
         assert!(!lazy.contains(NULL_REVISION).unwrap());
     }
 
     #[test]
     fn test_peek() {
-        let mut iter =
-            AncestorsIterator::new(SampleGraph, vec![10], 0, true).unwrap();
+        let mut iter = AncestorsIterator::new(
+            SampleGraph,
+            vec![10.into()],
+            0.into(),
+            true,
+        )
+        .unwrap();
         // peek() gives us the next value
-        assert_eq!(iter.peek(), Some(10));
+        assert_eq!(iter.peek(), Some(10.into()));
         // but it's not been consumed
-        assert_eq!(iter.next(), Some(Ok(10)));
+        assert_eq!(iter.next(), Some(Ok(10.into())));
         // and iteration resumes normally
-        assert_eq!(iter.next(), Some(Ok(5)));
+        assert_eq!(iter.next(), Some(Ok(5.into())));
 
         // let's drain the iterator to test peek() at the end
         while iter.next().is_some() {}
@@ -450,19 +549,29 @@ mod tests {
 
     #[test]
     fn test_empty() {
-        let mut iter =
-            AncestorsIterator::new(SampleGraph, vec![10], 0, true).unwrap();
+        let mut iter = AncestorsIterator::new(
+            SampleGraph,
+            vec![10.into()],
+            0.into(),
+            true,
+        )
+        .unwrap();
         assert!(!iter.is_empty());
         while iter.next().is_some() {}
         assert!(!iter.is_empty());
 
-        let iter =
-            AncestorsIterator::new(SampleGraph, vec![], 0, true).unwrap();
+        let iter = AncestorsIterator::new(SampleGraph, vec![], 0.into(), true)
+            .unwrap();
         assert!(iter.is_empty());
 
         // case where iter.seen == {NULL_REVISION}
-        let iter =
-            AncestorsIterator::new(SampleGraph, vec![0], 0, false).unwrap();
+        let iter = AncestorsIterator::new(
+            SampleGraph,
+            vec![0.into()],
+            0.into(),
+            false,
+        )
+        .unwrap();
         assert!(iter.is_empty());
     }
 
@@ -471,9 +580,11 @@ mod tests {
     struct Corrupted;
 
     impl Graph for Corrupted {
+        // FIXME what to do about this? Are we just not supposed to get them
+        // anymore?
         fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
             match rev {
-                1 => Ok([0, -1]),
+                Revision(1) => Ok([0.into(), (-1).into()]),
                 r => Err(GraphError::ParentOutOfRange(r)),
             }
         }
@@ -482,9 +593,14 @@ mod tests {
     #[test]
     fn test_initrev_out_of_range() {
         // inclusive=false looks up initrev's parents right away
-        match AncestorsIterator::new(SampleGraph, vec![25], 0, false) {
+        match AncestorsIterator::new(
+            SampleGraph,
+            vec![25.into()],
+            0.into(),
+            false,
+        ) {
             Ok(_) => panic!("Should have been ParentOutOfRange"),
-            Err(e) => assert_eq!(e, GraphError::ParentOutOfRange(25)),
+            Err(e) => assert_eq!(e, GraphError::ParentOutOfRange(25.into())),
         }
     }
 
@@ -492,22 +608,29 @@ mod tests {
     fn test_next_out_of_range() {
         // inclusive=false looks up initrev's parents right away
         let mut iter =
-            AncestorsIterator::new(Corrupted, vec![1], 0, false).unwrap();
-        assert_eq!(iter.next(), Some(Err(GraphError::ParentOutOfRange(0))));
+            AncestorsIterator::new(Corrupted, vec![1.into()], 0.into(), false)
+                .unwrap();
+        assert_eq!(
+            iter.next(),
+            Some(Err(GraphError::ParentOutOfRange(0.into())))
+        );
     }
 
     #[test]
     /// Test constructor, add/get bases and heads
     fn test_missing_bases() -> Result<(), GraphError> {
-        let mut missing_ancestors =
-            MissingAncestors::new(SampleGraph, [5, 3, 1, 3].iter().cloned());
+        let mut missing_ancestors = MissingAncestors::new(
+            SampleGraph,
+            [5.into(), 3.into(), 1.into(), 3.into()].iter().cloned(),
+        );
         let mut as_vec: Vec<Revision> =
             missing_ancestors.get_bases().iter().cloned().collect();
         as_vec.sort_unstable();
         assert_eq!(as_vec, [1, 3, 5]);
         assert_eq!(missing_ancestors.max_base, 5);
 
-        missing_ancestors.add_bases([3, 7, 8].iter().cloned());
+        missing_ancestors
+            .add_bases([3.into(), 7.into(), 8.into()].iter().cloned());
         as_vec = missing_ancestors.get_bases().iter().cloned().collect();
         as_vec.sort_unstable();
         assert_eq!(as_vec, [1, 3, 5, 7, 8]);
@@ -520,13 +643,16 @@ mod tests {
     }
 
     fn assert_missing_remove(
-        bases: &[Revision],
-        revs: &[Revision],
-        expected: &[Revision],
+        bases: &[BaseRevision],
+        revs: &[BaseRevision],
+        expected: &[BaseRevision],
     ) {
-        let mut missing_ancestors =
-            MissingAncestors::new(SampleGraph, bases.iter().cloned());
-        let mut revset: HashSet<Revision> = revs.iter().cloned().collect();
+        let mut missing_ancestors = MissingAncestors::new(
+            SampleGraph,
+            bases.iter().map(|r| Revision(*r)),
+        );
+        let mut revset: HashSet<Revision> =
+            revs.iter().map(|r| Revision(*r)).collect();
         missing_ancestors
             .remove_ancestors_from(&mut revset)
             .unwrap();
@@ -547,14 +673,16 @@ mod tests {
     }
 
     fn assert_missing_ancestors(
-        bases: &[Revision],
-        revs: &[Revision],
-        expected: &[Revision],
+        bases: &[BaseRevision],
+        revs: &[BaseRevision],
+        expected: &[BaseRevision],
     ) {
-        let mut missing_ancestors =
-            MissingAncestors::new(SampleGraph, bases.iter().cloned());
+        let mut missing_ancestors = MissingAncestors::new(
+            SampleGraph,
+            bases.iter().map(|r| Revision(*r)),
+        );
         let missing = missing_ancestors
-            .missing_ancestors(revs.iter().cloned())
+            .missing_ancestors(revs.iter().map(|r| Revision(*r)))
             .unwrap();
         assert_eq!(missing.as_slice(), expected);
     }
@@ -575,110 +703,115 @@ mod tests {
     #[allow(clippy::unnecessary_cast)]
     #[test]
     fn test_remove_ancestors_from_case1() {
+        const FAKE_NULL_REVISION: BaseRevision = -1;
+        assert_eq!(FAKE_NULL_REVISION, NULL_REVISION.0);
         let graph: VecGraph = vec![
-            [NULL_REVISION, NULL_REVISION],
-            [0, NULL_REVISION],
+            [FAKE_NULL_REVISION, FAKE_NULL_REVISION],
+            [0, FAKE_NULL_REVISION],
             [1, 0],
             [2, 1],
-            [3, NULL_REVISION],
-            [4, NULL_REVISION],
+            [3, FAKE_NULL_REVISION],
+            [4, FAKE_NULL_REVISION],
             [5, 1],
-            [2, NULL_REVISION],
-            [7, NULL_REVISION],
-            [8, NULL_REVISION],
-            [9, NULL_REVISION],
+            [2, FAKE_NULL_REVISION],
+            [7, FAKE_NULL_REVISION],
+            [8, FAKE_NULL_REVISION],
+            [9, FAKE_NULL_REVISION],
             [10, 1],
-            [3, NULL_REVISION],
-            [12, NULL_REVISION],
-            [13, NULL_REVISION],
-            [14, NULL_REVISION],
-            [4, NULL_REVISION],
-            [16, NULL_REVISION],
-            [17, NULL_REVISION],
-            [18, NULL_REVISION],
+            [3, FAKE_NULL_REVISION],
+            [12, FAKE_NULL_REVISION],
+            [13, FAKE_NULL_REVISION],
+            [14, FAKE_NULL_REVISION],
+            [4, FAKE_NULL_REVISION],
+            [16, FAKE_NULL_REVISION],
+            [17, FAKE_NULL_REVISION],
+            [18, FAKE_NULL_REVISION],
             [19, 11],
-            [20, NULL_REVISION],
-            [21, NULL_REVISION],
-            [22, NULL_REVISION],
-            [23, NULL_REVISION],
-            [2, NULL_REVISION],
-            [3, NULL_REVISION],
+            [20, FAKE_NULL_REVISION],
+            [21, FAKE_NULL_REVISION],
+            [22, FAKE_NULL_REVISION],
+            [23, FAKE_NULL_REVISION],
+            [2, FAKE_NULL_REVISION],
+            [3, FAKE_NULL_REVISION],
             [26, 24],
-            [27, NULL_REVISION],
-            [28, NULL_REVISION],
-            [12, NULL_REVISION],
-            [1, NULL_REVISION],
+            [27, FAKE_NULL_REVISION],
+            [28, FAKE_NULL_REVISION],
+            [12, FAKE_NULL_REVISION],
+            [1, FAKE_NULL_REVISION],
             [1, 9],
-            [32, NULL_REVISION],
-            [33, NULL_REVISION],
+            [32, FAKE_NULL_REVISION],
+            [33, FAKE_NULL_REVISION],
             [34, 31],
-            [35, NULL_REVISION],
+            [35, FAKE_NULL_REVISION],
             [36, 26],
-            [37, NULL_REVISION],
-            [38, NULL_REVISION],
-            [39, NULL_REVISION],
-            [40, NULL_REVISION],
-            [41, NULL_REVISION],
+            [37, FAKE_NULL_REVISION],
+            [38, FAKE_NULL_REVISION],
+            [39, FAKE_NULL_REVISION],
+            [40, FAKE_NULL_REVISION],
+            [41, FAKE_NULL_REVISION],
             [42, 26],
-            [0, NULL_REVISION],
-            [44, NULL_REVISION],
+            [0, FAKE_NULL_REVISION],
+            [44, FAKE_NULL_REVISION],
             [45, 4],
-            [40, NULL_REVISION],
-            [47, NULL_REVISION],
+            [40, FAKE_NULL_REVISION],
+            [47, FAKE_NULL_REVISION],
             [36, 0],
-            [49, NULL_REVISION],
-            [NULL_REVISION, NULL_REVISION],
-            [51, NULL_REVISION],
-            [52, NULL_REVISION],
-            [53, NULL_REVISION],
-            [14, NULL_REVISION],
-            [55, NULL_REVISION],
-            [15, NULL_REVISION],
-            [23, NULL_REVISION],
-            [58, NULL_REVISION],
-            [59, NULL_REVISION],
-            [2, NULL_REVISION],
+            [49, FAKE_NULL_REVISION],
+            [FAKE_NULL_REVISION, FAKE_NULL_REVISION],
+            [51, FAKE_NULL_REVISION],
+            [52, FAKE_NULL_REVISION],
+            [53, FAKE_NULL_REVISION],
+            [14, FAKE_NULL_REVISION],
+            [55, FAKE_NULL_REVISION],
+            [15, FAKE_NULL_REVISION],
+            [23, FAKE_NULL_REVISION],
+            [58, FAKE_NULL_REVISION],
+            [59, FAKE_NULL_REVISION],
+            [2, FAKE_NULL_REVISION],
             [61, 59],
-            [62, NULL_REVISION],
-            [63, NULL_REVISION],
-            [NULL_REVISION, NULL_REVISION],
-            [65, NULL_REVISION],
-            [66, NULL_REVISION],
-            [67, NULL_REVISION],
-            [68, NULL_REVISION],
+            [62, FAKE_NULL_REVISION],
+            [63, FAKE_NULL_REVISION],
+            [FAKE_NULL_REVISION, FAKE_NULL_REVISION],
+            [65, FAKE_NULL_REVISION],
+            [66, FAKE_NULL_REVISION],
+            [67, FAKE_NULL_REVISION],
+            [68, FAKE_NULL_REVISION],
             [37, 28],
             [69, 25],
-            [71, NULL_REVISION],
-            [72, NULL_REVISION],
+            [71, FAKE_NULL_REVISION],
+            [72, FAKE_NULL_REVISION],
             [50, 2],
-            [74, NULL_REVISION],
-            [12, NULL_REVISION],
-            [18, NULL_REVISION],
-            [77, NULL_REVISION],
-            [78, NULL_REVISION],
-            [79, NULL_REVISION],
+            [74, FAKE_NULL_REVISION],
+            [12, FAKE_NULL_REVISION],
+            [18, FAKE_NULL_REVISION],
+            [77, FAKE_NULL_REVISION],
+            [78, FAKE_NULL_REVISION],
+            [79, FAKE_NULL_REVISION],
             [43, 33],
-            [81, NULL_REVISION],
-            [82, NULL_REVISION],
-            [83, NULL_REVISION],
+            [81, FAKE_NULL_REVISION],
+            [82, FAKE_NULL_REVISION],
+            [83, FAKE_NULL_REVISION],
             [84, 45],
-            [85, NULL_REVISION],
-            [86, NULL_REVISION],
-            [NULL_REVISION, NULL_REVISION],
-            [88, NULL_REVISION],
-            [NULL_REVISION, NULL_REVISION],
+            [85, FAKE_NULL_REVISION],
+            [86, FAKE_NULL_REVISION],
+            [FAKE_NULL_REVISION, FAKE_NULL_REVISION],
+            [88, FAKE_NULL_REVISION],
+            [FAKE_NULL_REVISION, FAKE_NULL_REVISION],
             [76, 83],
-            [44, NULL_REVISION],
-            [92, NULL_REVISION],
-            [93, NULL_REVISION],
-            [9, NULL_REVISION],
+            [44, FAKE_NULL_REVISION],
+            [92, FAKE_NULL_REVISION],
+            [93, FAKE_NULL_REVISION],
+            [9, FAKE_NULL_REVISION],
             [95, 67],
-            [96, NULL_REVISION],
-            [97, NULL_REVISION],
-            [NULL_REVISION, NULL_REVISION],
-        ];
-        let problem_rev = 28 as Revision;
-        let problem_base = 70 as Revision;
+            [96, FAKE_NULL_REVISION],
+            [97, FAKE_NULL_REVISION],
+            [FAKE_NULL_REVISION, FAKE_NULL_REVISION],
+        ]
+        .into_iter()
+        .map(|[a, b]| [Revision(a), Revision(b)])
+        .collect();
+        let problem_rev = 28.into();
+        let problem_base = 70.into();
         // making the problem obvious: problem_rev is a parent of problem_base
         assert_eq!(graph.parents(problem_base).unwrap()[1], problem_rev);
 
@@ -687,14 +820,14 @@ mod tests {
                 graph,
                 [60, 26, 70, 3, 96, 19, 98, 49, 97, 47, 1, 6]
                     .iter()
-                    .cloned(),
+                    .map(|r| Revision(*r)),
             );
         assert!(missing_ancestors.bases.contains(&problem_base));
 
         let mut revs: HashSet<Revision> =
             [4, 12, 41, 28, 68, 38, 1, 30, 56, 44]
                 .iter()
-                .cloned()
+                .map(|r| Revision(*r))
                 .collect();
         missing_ancestors.remove_ancestors_from(&mut revs).unwrap();
         assert!(!revs.contains(&problem_rev));

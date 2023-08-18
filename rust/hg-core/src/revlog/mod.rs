@@ -33,20 +33,14 @@ use super::nodemap::{NodeMap, NodeMapError};
 use crate::errors::HgError;
 use crate::vfs::Vfs;
 
-/// Mercurial revision numbers
-///
 /// As noted in revlog.c, revision numbers are actually encoded in
 /// 4 bytes, and are liberally converted to ints, whence the i32
-pub type Revision = i32;
+pub type BaseRevision = i32;
 
-/// Unchecked Mercurial revision numbers.
-///
-/// Values of this type have no guarantee of being a valid revision number
-/// in any context. Use method `check_revision` to get a valid revision within
-/// the appropriate index object.
-///
-/// As noted in revlog.c, revision numbers are actually encoded in
-/// 4 bytes, and are liberally converted to ints, whence the i32
+/// Mercurial revision numbers
+/// In contrast to the more general [`UncheckedRevision`], these are "checked"
+/// in the sense that they should only be used for revisions that are
+/// valid for a given index (i.e. in bounds).
 #[derive(
     Debug,
     derive_more::Display,
@@ -58,10 +52,52 @@ pub type Revision = i32;
     PartialOrd,
     Ord,
 )]
-pub struct UncheckedRevision(i32);
+pub struct Revision(pub BaseRevision);
+
+impl format_bytes::DisplayBytes for Revision {
+    fn display_bytes(
+        &self,
+        output: &mut dyn std::io::Write,
+    ) -> std::io::Result<()> {
+        self.0.display_bytes(output)
+    }
+}
+
+/// Unchecked Mercurial revision numbers.
+///
+/// Values of this type have no guarantee of being a valid revision number
+/// in any context. Use method `check_revision` to get a valid revision within
+/// the appropriate index object.
+#[derive(
+    Debug,
+    derive_more::Display,
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+)]
+pub struct UncheckedRevision(pub BaseRevision);
+
+impl format_bytes::DisplayBytes for UncheckedRevision {
+    fn display_bytes(
+        &self,
+        output: &mut dyn std::io::Write,
+    ) -> std::io::Result<()> {
+        self.0.display_bytes(output)
+    }
+}
 
 impl From<Revision> for UncheckedRevision {
     fn from(value: Revision) -> Self {
+        Self(value.0)
+    }
+}
+
+impl From<BaseRevision> for UncheckedRevision {
+    fn from(value: BaseRevision) -> Self {
         Self(value)
     }
 }
@@ -70,7 +106,7 @@ impl From<Revision> for UncheckedRevision {
 ///
 /// Independently of the actual representation, `NULL_REVISION` is guaranteed
 /// to be smaller than all existing revisions.
-pub const NULL_REVISION: Revision = -1;
+pub const NULL_REVISION: Revision = Revision(-1);
 
 /// Same as `mercurial.node.wdirrev`
 ///
@@ -116,8 +152,9 @@ pub trait RevlogIndex {
     fn check_revision(&self, rev: UncheckedRevision) -> Option<Revision> {
         let rev = rev.0;
 
-        if rev == NULL_REVISION || (rev >= 0 && (rev as usize) < self.len()) {
-            Some(rev)
+        if rev == NULL_REVISION.0 || (rev >= 0 && (rev as usize) < self.len())
+        {
+            Some(Revision(rev))
         } else {
             None
         }
@@ -301,7 +338,8 @@ impl Revlog {
         // TODO: consider building a non-persistent nodemap in memory to
         // optimize these cases.
         let mut found_by_prefix = None;
-        for rev in (0..self.len() as Revision).rev() {
+        for rev in (0..self.len()).rev() {
+            let rev = Revision(rev as BaseRevision);
             let index_entry = self.index.get_entry(rev).ok_or_else(|| {
                 HgError::corrupted(
                     "revlog references a revision not in the index",
@@ -600,7 +638,7 @@ impl<'revlog> RevlogEntry<'revlog> {
                 delta_chain.push(entry);
                 self.revlog.get_entry_for_checked_rev(base_rev)?
             } else {
-                let base_rev = UncheckedRevision(entry.rev - 1);
+                let base_rev = UncheckedRevision(entry.rev.0 - 1);
                 delta_chain.push(entry);
                 self.revlog.get_entry(base_rev)?
             };
@@ -800,8 +838,8 @@ mod tests {
             .build();
         let entry2_bytes = IndexEntryBuilder::new()
             .with_offset(INDEX_ENTRY_SIZE)
-            .with_p1(0)
-            .with_p2(1)
+            .with_p1(Revision(0))
+            .with_p2(Revision(1))
             .with_node(node2)
             .build();
         let contents = vec![entry0_bytes, entry1_bytes, entry2_bytes]
@@ -812,7 +850,7 @@ mod tests {
         let revlog = Revlog::open(&vfs, "foo.i", None, false).unwrap();
 
         let entry0 = revlog.get_entry(0.into()).ok().unwrap();
-        assert_eq!(entry0.revision(), 0);
+        assert_eq!(entry0.revision(), Revision(0));
         assert_eq!(*entry0.node(), node0);
         assert!(!entry0.has_p1());
         assert_eq!(entry0.p1(), None);
@@ -823,7 +861,7 @@ mod tests {
         assert!(p2_entry.is_none());
 
         let entry1 = revlog.get_entry(1.into()).ok().unwrap();
-        assert_eq!(entry1.revision(), 1);
+        assert_eq!(entry1.revision(), Revision(1));
         assert_eq!(*entry1.node(), node1);
         assert!(!entry1.has_p1());
         assert_eq!(entry1.p1(), None);
@@ -834,17 +872,17 @@ mod tests {
         assert!(p2_entry.is_none());
 
         let entry2 = revlog.get_entry(2.into()).ok().unwrap();
-        assert_eq!(entry2.revision(), 2);
+        assert_eq!(entry2.revision(), Revision(2));
         assert_eq!(*entry2.node(), node2);
         assert!(entry2.has_p1());
-        assert_eq!(entry2.p1(), Some(0));
-        assert_eq!(entry2.p2(), Some(1));
+        assert_eq!(entry2.p1(), Some(Revision(0)));
+        assert_eq!(entry2.p2(), Some(Revision(1)));
         let p1_entry = entry2.p1_entry().unwrap();
         assert!(p1_entry.is_some());
-        assert_eq!(p1_entry.unwrap().revision(), 0);
+        assert_eq!(p1_entry.unwrap().revision(), Revision(0));
         let p2_entry = entry2.p2_entry().unwrap();
         assert!(p2_entry.is_some());
-        assert_eq!(p2_entry.unwrap().revision(), 1);
+        assert_eq!(p2_entry.unwrap().revision(), Revision(1));
     }
 
     #[test]
@@ -880,20 +918,23 @@ mod tests {
         // accessing the data shows the corruption
         revlog.get_entry(0.into()).unwrap().data().unwrap_err();
 
-        assert_eq!(revlog.rev_from_node(NULL_NODE.into()).unwrap(), -1);
-        assert_eq!(revlog.rev_from_node(node0.into()).unwrap(), 0);
-        assert_eq!(revlog.rev_from_node(node1.into()).unwrap(), 1);
+        assert_eq!(
+            revlog.rev_from_node(NULL_NODE.into()).unwrap(),
+            Revision(-1)
+        );
+        assert_eq!(revlog.rev_from_node(node0.into()).unwrap(), Revision(0));
+        assert_eq!(revlog.rev_from_node(node1.into()).unwrap(), Revision(1));
         assert_eq!(
             revlog
                 .rev_from_node(NodePrefix::from_hex("000").unwrap())
                 .unwrap(),
-            -1
+            Revision(-1)
         );
         assert_eq!(
             revlog
                 .rev_from_node(NodePrefix::from_hex("b00").unwrap())
                 .unwrap(),
-            1
+            Revision(1)
         );
         // RevlogError does not implement PartialEq
         // (ultimately because io::Error does not)
