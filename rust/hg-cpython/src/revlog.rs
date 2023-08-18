@@ -8,6 +8,7 @@
 use crate::{
     cindex,
     utils::{node_from_py_bytes, node_from_py_object},
+    PyRevision,
 };
 use cpython::{
     buffer::{Element, PyBuffer},
@@ -18,7 +19,7 @@ use cpython::{
 use hg::{
     nodemap::{Block, NodeMapError, NodeTree},
     revlog::{nodemap::NodeMap, NodePrefix, RevlogIndex},
-    Revision, UncheckedRevision,
+    BaseRevision, Revision, UncheckedRevision,
 };
 use std::cell::RefCell;
 
@@ -59,12 +60,13 @@ py_class!(pub class MixedIndex |py| {
 
     /// Return Revision if found, raises a bare `error.RevlogError`
     /// in case of ambiguity, same as C version does
-    def get_rev(&self, node: PyBytes) -> PyResult<Option<Revision>> {
+    def get_rev(&self, node: PyBytes) -> PyResult<Option<PyRevision>> {
         let opt = self.get_nodetree(py)?.borrow();
         let nt = opt.as_ref().unwrap();
         let idx = &*self.cindex(py).borrow();
         let node = node_from_py_bytes(py, &node)?;
-        nt.find_bin(idx, node.into()).map_err(|e| nodemap_error(py, e))
+        let res = nt.find_bin(idx, node.into());
+        Ok(res.map_err(|e| nodemap_error(py, e))?.map(Into::into))
     }
 
     /// same as `get_rev()` but raises a bare `error.RevlogError` if node
@@ -72,7 +74,7 @@ py_class!(pub class MixedIndex |py| {
     ///
     /// No need to repeat `node` in the exception, `mercurial/revlog.py`
     /// will catch and rewrap with it
-    def rev(&self, node: PyBytes) -> PyResult<Revision> {
+    def rev(&self, node: PyBytes) -> PyResult<PyRevision> {
         self.get_rev(py, node)?.ok_or_else(|| revlog_error(py))
     }
 
@@ -131,9 +133,11 @@ py_class!(pub class MixedIndex |py| {
         let node = node_from_py_object(py, &node_bytes)?;
 
         let mut idx = self.cindex(py).borrow_mut();
-        let rev = idx.len() as Revision;
 
+        // This is ok since we will just add the revision to the index
+        let rev = Revision(idx.len() as BaseRevision);
         idx.append(py, tup)?;
+
         self.get_nodetree(py)?.borrow_mut().as_mut().unwrap()
             .insert(&*idx, &node, rev)
             .map_err(|e| nodemap_error(py, e))?;
@@ -270,7 +274,7 @@ py_class!(pub class MixedIndex |py| {
         let cindex = self.cindex(py).borrow();
         match item.extract::<i32>(py) {
             Ok(rev) => {
-                Ok(rev >= -1 && rev < cindex.inner().len(py)? as Revision)
+                Ok(rev >= -1 && rev < cindex.inner().len(py)? as BaseRevision)
             }
             Err(_) => {
                 cindex.inner().call_method(
@@ -331,7 +335,7 @@ impl MixedIndex {
     ) -> PyResult<PyObject> {
         let index = self.cindex(py).borrow();
         for r in 0..index.len() {
-            let rev = r as Revision;
+            let rev = Revision(r as BaseRevision);
             // in this case node() won't ever return None
             nt.insert(&*index, index.node(rev).unwrap(), rev)
                 .map_err(|e| nodemap_error(py, e))?
@@ -447,8 +451,10 @@ impl MixedIndex {
 
         let mut nt = NodeTree::load_bytes(Box::new(bytes), len);
 
-        let data_tip =
-            docket.getattr(py, "tip_rev")?.extract::<i32>(py)?.into();
+        let data_tip = docket
+            .getattr(py, "tip_rev")?
+            .extract::<BaseRevision>(py)?
+            .into();
         self.docket(py).borrow_mut().replace(docket.clone_ref(py));
         let idx = self.cindex(py).borrow();
         let data_tip = idx.check_revision(data_tip).ok_or_else(|| {
@@ -456,8 +462,8 @@ impl MixedIndex {
         })?;
         let current_tip = idx.len();
 
-        for r in (data_tip + 1)..current_tip as Revision {
-            let rev = r as Revision;
+        for r in (data_tip.0 + 1)..current_tip as BaseRevision {
+            let rev = Revision(r);
             // in this case node() won't ever return None
             nt.insert(&*idx, idx.node(rev).unwrap(), rev)
                 .map_err(|e| nodemap_error(py, e))?

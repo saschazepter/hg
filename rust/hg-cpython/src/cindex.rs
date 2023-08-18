@@ -15,7 +15,7 @@ use cpython::{
     PyObject, PyResult, PyTuple, Python, PythonObject,
 };
 use hg::revlog::{Node, RevlogIndex};
-use hg::{Graph, GraphError, Revision};
+use hg::{BaseRevision, Graph, GraphError, Revision};
 use libc::{c_int, ssize_t};
 
 const REVLOG_CABI_VERSION: c_int = 3;
@@ -145,12 +145,12 @@ impl Graph for Index {
         let code = unsafe {
             (self.capi.index_parents)(
                 self.index.as_ptr(),
-                rev as c_int,
+                rev.0 as c_int,
                 &mut res as *mut [c_int; 2],
             )
         };
         match code {
-            0 => Ok(res),
+            0 => Ok([Revision(res[0]), Revision(res[1])]),
             _ => Err(GraphError::ParentOutOfRange(rev)),
         }
     }
@@ -159,13 +159,17 @@ impl Graph for Index {
 impl vcsgraph::graph::Graph for Index {
     fn parents(
         &self,
-        rev: Revision,
+        rev: BaseRevision,
     ) -> Result<vcsgraph::graph::Parents, vcsgraph::graph::GraphReadError>
     {
-        match Graph::parents(self, rev) {
-            Ok(parents) => Ok(vcsgraph::graph::Parents(parents)),
+        // FIXME This trait should be reworked to decide between Revision
+        // and UncheckedRevision, get better errors names, etc.
+        match Graph::parents(self, Revision(rev)) {
+            Ok(parents) => {
+                Ok(vcsgraph::graph::Parents([parents[0].0, parents[1].0]))
+            }
             Err(GraphError::ParentOutOfRange(rev)) => {
-                Err(vcsgraph::graph::GraphReadError::KeyedInvalidKey(rev))
+                Err(vcsgraph::graph::GraphReadError::KeyedInvalidKey(rev.0))
             }
         }
     }
@@ -174,7 +178,7 @@ impl vcsgraph::graph::Graph for Index {
 impl vcsgraph::graph::RankedGraph for Index {
     fn rank(
         &self,
-        rev: Revision,
+        rev: BaseRevision,
     ) -> Result<vcsgraph::graph::Rank, vcsgraph::graph::GraphReadError> {
         match unsafe {
             (self.capi.fast_rank)(self.index.as_ptr(), rev as ssize_t)
@@ -194,7 +198,7 @@ impl RevlogIndex for Index {
 
     fn node(&self, rev: Revision) -> Option<&Node> {
         let raw = unsafe {
-            (self.capi.index_node)(self.index.as_ptr(), rev as ssize_t)
+            (self.capi.index_node)(self.index.as_ptr(), rev.0 as ssize_t)
         };
         if raw.is_null() {
             None

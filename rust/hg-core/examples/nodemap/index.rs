@@ -29,7 +29,7 @@ pub const INDEX_ENTRY_SIZE: usize = 64;
 
 impl IndexEntry {
     fn parents(&self) -> [Revision; 2] {
-        [Revision::from_be(self.p1), Revision::from_be(self.p1)]
+        [self.p1, self.p2]
     }
 }
 
@@ -42,23 +42,18 @@ impl RevlogIndex for Index {
         if rev == NULL_REVISION {
             return None;
         }
-        let i = rev as usize;
-        if i >= self.len() {
-            None
-        } else {
-            Some(&self.data[i].node)
-        }
+        Some(&self.data[rev.0 as usize].node)
     }
 }
 
 impl Graph for &Index {
     fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
-        let [p1, p2] = (*self).data[rev as usize].parents();
+        let [p1, p2] = self.data[rev.0 as usize].parents();
         let len = (*self).len();
         if p1 < NULL_REVISION
             || p2 < NULL_REVISION
-            || p1 as usize >= len
-            || p2 as usize >= len
+            || p1.0 as usize >= len
+            || p2.0 as usize >= len
         {
             return Err(GraphError::ParentOutOfRange(rev));
         }

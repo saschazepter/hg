@@ -35,6 +35,7 @@
 //! [`MissingAncestors`]: struct.MissingAncestors.html
 //! [`AncestorsIterator`]: struct.AncestorsIterator.html
 use crate::revlog::pyindex_to_graph;
+use crate::PyRevision;
 use crate::{
     cindex::Index, conversion::rev_pyiter_collect, exceptions::GraphError,
 };
@@ -54,16 +55,16 @@ use vcsgraph::lazy_ancestors::{
 py_class!(pub class AncestorsIterator |py| {
     data inner: RefCell<Box<VCGAncestorsIterator<Index>>>;
 
-    def __next__(&self) -> PyResult<Option<Revision>> {
+    def __next__(&self) -> PyResult<Option<PyRevision>> {
         match self.inner(py).borrow_mut().next() {
             Some(Err(e)) => Err(GraphError::pynew_from_vcsgraph(py, e)),
             None => Ok(None),
-            Some(Ok(r)) => Ok(Some(r)),
+            Some(Ok(r)) => Ok(Some(PyRevision(r))),
         }
     }
 
-    def __contains__(&self, rev: Revision) -> PyResult<bool> {
-        self.inner(py).borrow_mut().contains(rev)
+    def __contains__(&self, rev: PyRevision) -> PyResult<bool> {
+        self.inner(py).borrow_mut().contains(rev.0)
             .map_err(|e| GraphError::pynew_from_vcsgraph(py, e))
     }
 
@@ -71,13 +72,19 @@ py_class!(pub class AncestorsIterator |py| {
         Ok(self.clone_ref(py))
     }
 
-    def __new__(_cls, index: PyObject, initrevs: PyObject, stoprev: Revision,
-                inclusive: bool) -> PyResult<AncestorsIterator> {
-        let initvec: Vec<Revision> = rev_pyiter_collect(py, &initrevs)?;
+    def __new__(
+        _cls,
+        index: PyObject,
+        initrevs: PyObject,
+        stoprev: PyRevision,
+        inclusive: bool
+    ) -> PyResult<AncestorsIterator> {
+        let index = pyindex_to_graph(py, index)?;
+        let initvec: Vec<_> = rev_pyiter_collect(py, &initrevs, &index)?;
         let ait = VCGAncestorsIterator::new(
-            pyindex_to_graph(py, index)?,
-            initvec,
-            stoprev,
+            index,
+            initvec.into_iter().map(|r| r.0),
+            stoprev.0,
             inclusive,
         )
         .map_err(|e| GraphError::pynew_from_vcsgraph(py, e))?;
@@ -98,10 +105,10 @@ impl AncestorsIterator {
 py_class!(pub class LazyAncestors |py| {
     data inner: RefCell<Box<VCGLazyAncestors<Index>>>;
 
-    def __contains__(&self, rev: Revision) -> PyResult<bool> {
+    def __contains__(&self, rev: PyRevision) -> PyResult<bool> {
         self.inner(py)
             .borrow_mut()
-            .contains(rev)
+            .contains(rev.0)
             .map_err(|e| GraphError::pynew_from_vcsgraph(py, e))
     }
 
@@ -113,14 +120,24 @@ py_class!(pub class LazyAncestors |py| {
         Ok(!self.inner(py).borrow().is_empty())
     }
 
-    def __new__(_cls, index: PyObject, initrevs: PyObject, stoprev: Revision,
-                inclusive: bool) -> PyResult<Self> {
-        let initvec: Vec<Revision> = rev_pyiter_collect(py, &initrevs)?;
+    def __new__(
+        _cls,
+        index: PyObject,
+        initrevs: PyObject,
+        stoprev: PyRevision,
+        inclusive: bool
+    ) -> PyResult<Self> {
+        let index = pyindex_to_graph(py, index)?;
+        let initvec: Vec<_> = rev_pyiter_collect(py, &initrevs, &index)?;
 
         let lazy =
-            VCGLazyAncestors::new(pyindex_to_graph(py, index)?,
-                          initvec, stoprev, inclusive)
-                .map_err(|e| GraphError::pynew_from_vcsgraph(py, e))?;
+            VCGLazyAncestors::new(
+                index,
+                initvec.into_iter().map(|r| r.0),
+                stoprev.0,
+                inclusive
+            )
+            .map_err(|e| GraphError::pynew_from_vcsgraph(py, e))?;
 
         Self::create_instance(py, RefCell::new(Box::new(lazy)))
         }
@@ -129,6 +146,7 @@ py_class!(pub class LazyAncestors |py| {
 
 py_class!(pub class MissingAncestors |py| {
     data inner: RefCell<Box<CoreMissing<Index>>>;
+    data index: RefCell<Index>;
 
     def __new__(
         _cls,
@@ -136,9 +154,15 @@ py_class!(pub class MissingAncestors |py| {
         bases: PyObject
     )
     -> PyResult<MissingAncestors> {
-        let bases_vec: Vec<Revision> = rev_pyiter_collect(py, &bases)?;
-        let inner = CoreMissing::new(pyindex_to_graph(py, index)?, bases_vec);
-        MissingAncestors::create_instance(py, RefCell::new(Box::new(inner)))
+        let index = pyindex_to_graph(py, index)?;
+        let bases_vec: Vec<_> = rev_pyiter_collect(py, &bases, &index)?;
+
+        let inner = CoreMissing::new(index.clone_ref(py), bases_vec);
+        MissingAncestors::create_instance(
+            py,
+            RefCell::new(Box::new(inner)),
+            RefCell::new(index)
+        )
     }
 
     def hasbases(&self) -> PyResult<bool> {
@@ -146,8 +170,9 @@ py_class!(pub class MissingAncestors |py| {
     }
 
     def addbases(&self, bases: PyObject) -> PyResult<PyObject> {
+        let index = self.index(py).borrow();
+        let bases_vec: Vec<_> = rev_pyiter_collect(py, &bases, &*index)?;
         let mut inner = self.inner(py).borrow_mut();
-        let bases_vec: Vec<Revision> = rev_pyiter_collect(py, &bases)?;
         inner.add_bases(bases_vec);
         // cpython doc has examples with PyResult<()> but this gives me
         //   the trait `cpython::ToPyObject` is not implemented for `()`
@@ -155,17 +180,31 @@ py_class!(pub class MissingAncestors |py| {
         Ok(py.None())
     }
 
-    def bases(&self) -> PyResult<HashSet<Revision>> {
-        Ok(self.inner(py).borrow().get_bases().clone())
+    def bases(&self) -> PyResult<HashSet<PyRevision>> {
+        Ok(
+            self.inner(py)
+                .borrow()
+                .get_bases()
+                .iter()
+                .map(|r| PyRevision(r.0))
+                .collect()
+        )
     }
 
-    def basesheads(&self) -> PyResult<HashSet<Revision>> {
+    def basesheads(&self) -> PyResult<HashSet<PyRevision>> {
         let inner = self.inner(py).borrow();
-        inner.bases_heads().map_err(|e| GraphError::pynew(py, e))
+        Ok(
+            inner
+                .bases_heads()
+                .map_err(|e| GraphError::pynew(py, e))?
+                .into_iter()
+                .map(|r| PyRevision(r.0))
+                .collect()
+        )
     }
 
     def removeancestorsfrom(&self, revs: PyObject) -> PyResult<PyObject> {
-        let mut inner = self.inner(py).borrow_mut();
+        let index = self.index(py).borrow();
         // this is very lame: we convert to a Rust set, update it in place
         // and then convert back to Python, only to have Python remove the
         // excess (thankfully, Python is happy with a list or even an iterator)
@@ -174,7 +213,10 @@ py_class!(pub class MissingAncestors |py| {
         //    discard
         //  - define a trait for sets of revisions in the core and implement
         //    it for a Python set rewrapped with the GIL marker
-        let mut revs_pyset: HashSet<Revision> = rev_pyiter_collect(py, &revs)?;
+        let mut revs_pyset: HashSet<Revision> = rev_pyiter_collect(
+            py, &revs, &*index
+        )?;
+        let mut inner = self.inner(py).borrow_mut();
         inner.remove_ancestors_from(&mut revs_pyset)
             .map_err(|e| GraphError::pynew(py, e))?;
 
@@ -182,15 +224,19 @@ py_class!(pub class MissingAncestors |py| {
         let mut remaining_pyint_vec: Vec<PyObject> = Vec::with_capacity(
             revs_pyset.len());
         for rev in revs_pyset {
-            remaining_pyint_vec.push(rev.to_py_object(py).into_object());
+            remaining_pyint_vec.push(
+                PyRevision(rev.0).to_py_object(py).into_object()
+            );
         }
         let remaining_pylist = PyList::new(py, remaining_pyint_vec.as_slice());
         revs.call_method(py, "intersection_update", (remaining_pylist, ), None)
     }
 
     def missingancestors(&self, revs: PyObject) -> PyResult<PyList> {
+        let index = self.index(py).borrow();
+        let revs_vec: Vec<Revision> = rev_pyiter_collect(py, &revs, &*index)?;
+
         let mut inner = self.inner(py).borrow_mut();
-        let revs_vec: Vec<Revision> = rev_pyiter_collect(py, &revs)?;
         let missing_vec = match inner.missing_ancestors(revs_vec) {
             Ok(missing) => missing,
             Err(e) => {
@@ -201,7 +247,9 @@ py_class!(pub class MissingAncestors |py| {
         let mut missing_pyint_vec: Vec<PyObject> = Vec::with_capacity(
             missing_vec.len());
         for rev in missing_vec {
-            missing_pyint_vec.push(rev.to_py_object(py).into_object());
+            missing_pyint_vec.push(
+                PyRevision(rev.0).to_py_object(py).into_object()
+            );
         }
         Ok(PyList::new(py, missing_pyint_vec.as_slice()))
     }

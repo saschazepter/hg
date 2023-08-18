@@ -9,6 +9,7 @@
 //! `hg-core` package.
 //!
 //! From Python, this will be seen as `mercurial.rustext.dagop`
+use crate::PyRevision;
 use crate::{conversion::rev_pyiter_collect, exceptions::GraphError};
 use cpython::{PyDict, PyModule, PyObject, PyResult, Python};
 use hg::dagops;
@@ -26,11 +27,12 @@ pub fn headrevs(
     py: Python,
     index: PyObject,
     revs: PyObject,
-) -> PyResult<HashSet<Revision>> {
-    let mut as_set: HashSet<Revision> = rev_pyiter_collect(py, &revs)?;
-    dagops::retain_heads(&pyindex_to_graph(py, index)?, &mut as_set)
+) -> PyResult<HashSet<PyRevision>> {
+    let index = pyindex_to_graph(py, index)?;
+    let mut as_set: HashSet<Revision> = rev_pyiter_collect(py, &revs, &index)?;
+    dagops::retain_heads(&index, &mut as_set)
         .map_err(|e| GraphError::pynew(py, e))?;
-    Ok(as_set)
+    Ok(as_set.into_iter().map(Into::into).collect())
 }
 
 /// Computes the rank, i.e. the number of ancestors including itself,
@@ -38,10 +40,10 @@ pub fn headrevs(
 pub fn rank(
     py: Python,
     index: PyObject,
-    p1r: Revision,
-    p2r: Revision,
+    p1r: PyRevision,
+    p2r: PyRevision,
 ) -> PyResult<Rank> {
-    node_rank(&pyindex_to_graph(py, index)?, &Parents([p1r, p2r]))
+    node_rank(&pyindex_to_graph(py, index)?, &Parents([p1r.0, p2r.0]))
         .map_err(|e| GraphError::pynew_from_vcsgraph(py, e))
 }
 
@@ -59,7 +61,7 @@ pub fn init_module(py: Python, package: &str) -> PyResult<PyModule> {
     m.add(
         py,
         "rank",
-        py_fn!(py, rank(index: PyObject, p1r: Revision, p2r: Revision)),
+        py_fn!(py, rank(index: PyObject, p1r: PyRevision, p2r: PyRevision)),
     )?;
 
     let sys = PyModule::import(py, "sys")?;
