@@ -2,7 +2,6 @@ import sys
 import unittest
 
 from mercurial.node import wdirrev
-from mercurial import error
 
 from mercurial.testing import revlog as revlogtesting
 
@@ -144,10 +143,14 @@ class rustancestorstest(revlogtesting.RevlogBasedTestBase):
 
     def testwdirunsupported(self):
         # trying to access ancestors of the working directory raises
-        # WdirUnsupported directly
         idx = self.parseindex()
-        with self.assertRaises(error.WdirUnsupported):
+        with self.assertRaises(rustext.GraphError) as arc:
             list(AncestorsIterator(idx, [wdirrev], -1, False))
+
+        exc = arc.exception
+        self.assertIsInstance(exc, ValueError)
+        # rust-cpython issues appropriate str instances for Python 2 and 3
+        self.assertEqual(exc.args, ('InvalidRevision', wdirrev))
 
     def testheadrevs(self):
         idx = self.parseindex()

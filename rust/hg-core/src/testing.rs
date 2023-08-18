@@ -41,22 +41,27 @@ pub struct SampleGraph;
 
 impl Graph for SampleGraph {
     fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
-        match rev {
-            0 => Ok([NULL_REVISION, NULL_REVISION]),
-            1 => Ok([0, NULL_REVISION]),
-            2 => Ok([1, NULL_REVISION]),
-            3 => Ok([1, NULL_REVISION]),
-            4 => Ok([2, NULL_REVISION]),
-            5 => Ok([4, NULL_REVISION]),
-            6 => Ok([4, NULL_REVISION]),
-            7 => Ok([4, NULL_REVISION]),
-            8 => Ok([NULL_REVISION, NULL_REVISION]),
+        let null_rev = NULL_REVISION.0;
+        let res = match rev.0 {
+            0 => Ok([null_rev, null_rev]),
+            1 => Ok([0, null_rev]),
+            2 => Ok([1, null_rev]),
+            3 => Ok([1, null_rev]),
+            4 => Ok([2, null_rev]),
+            5 => Ok([4, null_rev]),
+            6 => Ok([4, null_rev]),
+            7 => Ok([4, null_rev]),
+            8 => Ok([null_rev, null_rev]),
             9 => Ok([6, 7]),
-            10 => Ok([5, NULL_REVISION]),
+            10 => Ok([5, null_rev]),
             11 => Ok([3, 7]),
-            12 => Ok([9, NULL_REVISION]),
-            13 => Ok([8, NULL_REVISION]),
-            r => Err(GraphError::ParentOutOfRange(r)),
+            12 => Ok([9, null_rev]),
+            13 => Ok([8, null_rev]),
+            r => Err(GraphError::ParentOutOfRange(Revision(r))),
+        };
+        match res {
+            Ok([a, b]) => Ok([Revision(a), Revision(b)]),
+            Err(e) => Err(e),
         }
     }
 }
@@ -67,6 +72,6 @@ pub type VecGraph = Vec<[Revision; 2]>;
 
 impl Graph for VecGraph {
     fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
-        Ok(self[rev as usize])
+        Ok(self[rev.0 as usize])
     }
 }
