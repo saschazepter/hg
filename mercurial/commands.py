@@ -4497,16 +4497,19 @@ def locate(ui, repo, *pats, **opts):
 
     Returns 0 if a match is found, 1 otherwise.
     """
-    opts = pycompat.byteskwargs(opts)
-    if opts.get(b'print0'):
+    if opts.get('print0'):
         end = b'\0'
     else:
         end = b'\n'
-    ctx = logcmdutil.revsingle(repo, opts.get(b'rev'), None)
+    ctx = logcmdutil.revsingle(repo, opts.get('rev'), None)
 
     ret = 1
     m = scmutil.match(
-        ctx, pats, opts, default=b'relglob', badfn=lambda x, y: False
+        ctx,
+        pats,
+        pycompat.byteskwargs(opts),
+        default=b'relglob',
+        badfn=lambda x, y: False,
     )
 
     ui.pager(b'locate')
@@ -4518,7 +4521,7 @@ def locate(ui, repo, *pats, **opts):
         filesgen = ctx.matches(m)
     uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=bool(pats))
     for abs in filesgen:
-        if opts.get(b'fullpath'):
+        if opts.get('fullpath'):
             ui.write(repo.wjoin(abs), end)
         else:
             ui.write(uipathfn(abs), end)
