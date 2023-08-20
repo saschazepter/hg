@@ -4210,20 +4210,20 @@ def import_(ui, repo, patch1=None, *patches, **opts):
         opts, 'no_commit', ['bypass', 'secret']
     )
     cmdutil.check_incompatible_arguments(opts, 'exact', ['edit', 'prefix'])
-    opts = pycompat.byteskwargs(opts)
+
     if not patch1:
         raise error.InputError(_(b'need at least one patch to import'))
 
     patches = (patch1,) + patches
 
-    date = opts.get(b'date')
+    date = opts.get('date')
     if date:
-        opts[b'date'] = dateutil.parsedate(date)
+        opts['date'] = dateutil.parsedate(date)
 
-    exact = opts.get(b'exact')
-    update = not opts.get(b'bypass')
+    exact = opts.get('exact')
+    update = not opts.get('bypass')
     try:
-        sim = float(opts.get(b'similarity') or 0)
+        sim = float(opts.get('similarity') or 0)
     except ValueError:
         raise error.InputError(_(b'similarity must be a number'))
     if sim < 0 or sim > 100:
@@ -4231,17 +4231,17 @@ def import_(ui, repo, patch1=None, *patches, **opts):
     if sim and not update:
         raise error.InputError(_(b'cannot use --similarity with --bypass'))
 
-    base = opts[b"base"]
+    base = opts["base"]
     msgs = []
     ret = 0
 
     with repo.wlock():
         if update:
             cmdutil.checkunfinished(repo)
-            if exact or not opts.get(b'force'):
+            if exact or not opts.get('force'):
                 cmdutil.bailifchanged(repo)
 
-        if not opts.get(b'no_commit'):
+        if not opts.get('no_commit'):
             lock = repo.lock
             tr = lambda: repo.transaction(b'import')
         else:
@@ -4263,7 +4263,13 @@ def import_(ui, repo, patch1=None, *patches, **opts):
                 for hunk in patch.split(patchfile):
                     with patch.extract(ui, hunk) as patchdata:
                         msg, node, rej = cmdutil.tryimportone(
-                            ui, repo, patchdata, parents, opts, msgs, hg.clean
+                            ui,
+                            repo,
+                            patchdata,
+                            parents,
+                            pycompat.byteskwargs(opts),
+                            msgs,
+                            hg.clean,
                         )
                     if msg:
                         haspatch = True
