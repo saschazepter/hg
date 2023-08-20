@@ -27,7 +27,6 @@ from mercurial import (
     lock,
     logcmdutil,
     match as matchmod,
-    pycompat,
     scmutil,
     util,
 )
@@ -87,12 +86,11 @@ def lfconvert(ui, src, dest, *pats, **opts):
     Use --to-normal to convert largefiles back to normal files; after
     this, the DEST repository can be used without largefiles at all."""
 
-    opts = pycompat.byteskwargs(opts)
-    if opts[b'to_normal']:
+    if opts['to_normal']:
         tolfile = False
     else:
         tolfile = True
-        size = lfutil.getminsize(ui, True, opts.get(b'size'), default=None)
+        size = lfutil.getminsize(ui, True, opts.get('size'), default=None)
 
     if not hg.islocal(src):
         raise error.Abort(_(b'%s is not a local Mercurial repo') % src)
