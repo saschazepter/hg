@@ -6032,9 +6032,8 @@ def rename(ui, repo, *pats, **opts):
 
     Returns 0 on success, 1 if errors are encountered.
     """
-    opts = pycompat.byteskwargs(opts)
     context = lambda repo: repo.dirstate.changing_files(repo)
-    rev = opts.get(b'at_rev')
+    rev = opts.get('at_rev')
     ctx = None
     if rev:
         ctx = logcmdutil.revsingle(repo, rev)
@@ -6043,9 +6042,11 @@ def rename(ui, repo, *pats, **opts):
             def context(repo):
                 return util.nullcontextmanager()
 
-            opts[b'at_rev'] = ctx.rev()
+            opts['at_rev'] = ctx.rev()
     with repo.wlock(), context(repo):
-        return cmdutil.copy(ui, repo, pats, opts, rename=True)
+        return cmdutil.copy(
+            ui, repo, pats, pycompat.byteskwargs(opts), rename=True
+        )
 
 
 @command(
