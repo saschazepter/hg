@@ -4914,11 +4914,10 @@ def merge(ui, repo, node=None, **opts):
     Returns 0 on success, 1 if there are unresolved files.
     """
 
-    opts = pycompat.byteskwargs(opts)
-    abort = opts.get(b'abort')
+    abort = opts.get('abort')
     if abort and repo.dirstate.p2() == repo.nullid:
         cmdutil.wrongtooltocontinue(repo, _(b'merge'))
-    cmdutil.check_incompatible_arguments(opts, b'abort', [b'rev', b'preview'])
+    cmdutil.check_incompatible_arguments(opts, 'abort', ['rev', 'preview'])
     if abort:
         state = cmdutil.getunfinishedstate(repo)
         if state and state._opname != b'merge':
@@ -4930,10 +4929,10 @@ def merge(ui, repo, node=None, **opts):
             raise error.InputError(_(b"cannot specify a node with --abort"))
         return hg.abortmerge(repo.ui, repo)
 
-    if opts.get(b'rev') and node:
+    if opts.get('rev') and node:
         raise error.InputError(_(b"please specify just one revision"))
     if not node:
-        node = opts.get(b'rev')
+        node = opts.get('rev')
 
     if node:
         ctx = logcmdutil.revsingle(repo, node)
@@ -4952,22 +4951,24 @@ def merge(ui, repo, node=None, **opts):
             _(b'merging with the working copy has no effect')
         )
 
-    if opts.get(b'preview'):
+    if opts.get('preview'):
         # find nodes that are ancestors of p2 but not of p1
         p1 = repo[b'.'].node()
         p2 = ctx.node()
         nodes = repo.changelog.findmissing(common=[p1], heads=[p2])
 
-        displayer = logcmdutil.changesetdisplayer(ui, repo, opts)
+        displayer = logcmdutil.changesetdisplayer(
+            ui, repo, pycompat.byteskwargs(opts)
+        )
         for node in nodes:
             displayer.show(repo[node])
         displayer.close()
         return 0
 
     # ui.forcemerge is an internal variable, do not document
-    overrides = {(b'ui', b'forcemerge'): opts.get(b'tool', b'')}
+    overrides = {(b'ui', b'forcemerge'): opts.get('tool', b'')}
     with ui.configoverride(overrides, b'merge'):
-        force = opts.get(b'force')
+        force = opts.get('force')
         labels = [b'working copy', b'merge rev', b'common ancestor']
         return hg.merge(ctx, force=force, labels=labels)
 
