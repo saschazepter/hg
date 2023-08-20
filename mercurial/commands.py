@@ -3743,19 +3743,18 @@ def heads(ui, repo, *branchrevs, **opts):
     Returns 0 if matching heads are found, 1 if not.
     """
 
-    opts = pycompat.byteskwargs(opts)
     start = None
-    rev = opts.get(b'rev')
+    rev = opts.get('rev')
     if rev:
         repo = scmutil.unhidehashlikerevs(repo, [rev], b'nowarn')
         start = logcmdutil.revsingle(repo, rev, None).node()
 
-    if opts.get(b'topo'):
+    if opts.get('topo'):
         heads = [repo[h] for h in repo.heads(start)]
     else:
         heads = []
         for branch in repo.branchmap():
-            heads += repo.branchheads(branch, start, opts.get(b'closed'))
+            heads += repo.branchheads(branch, start, opts.get('closed'))
         heads = [repo[h] for h in heads]
 
     if branchrevs:
@@ -3764,7 +3763,7 @@ def heads(ui, repo, *branchrevs, **opts):
         }
         heads = [h for h in heads if h.branch() in branches]
 
-    if opts.get(b'active') and branchrevs:
+    if opts.get('active') and branchrevs:
         dagheads = repo.heads(start)
         heads = [h for h in heads if h.node() in dagheads]
 
@@ -3773,8 +3772,8 @@ def heads(ui, repo, *branchrevs, **opts):
         if branches - haveheads:
             headless = b', '.join(b for b in branches - haveheads)
             msg = _(b'no open branch heads found on branches %s')
-            if opts.get(b'rev'):
-                msg += _(b' (started at %s)') % opts[b'rev']
+            if opts.get('rev'):
+                msg += _(b' (started at %s)') % opts['rev']
             ui.warn((msg + b'\n') % headless)
 
     if not heads:
@@ -3782,7 +3781,9 @@ def heads(ui, repo, *branchrevs, **opts):
 
     ui.pager(b'heads')
     heads = sorted(heads, key=lambda x: -(x.rev()))
-    displayer = logcmdutil.changesetdisplayer(ui, repo, opts)
+    displayer = logcmdutil.changesetdisplayer(
+        ui, repo, pycompat.byteskwargs(opts)
+    )
     for ctx in heads:
         displayer.show(ctx)
     displayer.close()
