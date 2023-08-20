@@ -5453,10 +5453,7 @@ def pull(ui, repo, *sources, **opts):
     Returns 0 on success, 1 if an update had unresolved files.
     """
 
-    opts = pycompat.byteskwargs(opts)
-    if ui.configbool(b'commands', b'update.requiredest') and opts.get(
-        b'update'
-    ):
+    if ui.configbool(b'commands', b'update.requiredest') and opts.get('update'):
         msg = _(b'update destination required by configuration')
         hint = _(b'use hg pull followed by hg update DEST')
         raise error.InputError(msg, hint=hint)
@@ -5464,22 +5461,27 @@ def pull(ui, repo, *sources, **opts):
     for path in urlutil.get_pull_paths(repo, ui, sources):
         ui.status(_(b'pulling from %s\n') % urlutil.hidepassword(path.loc))
         ui.flush()
-        other = hg.peer(repo, opts, path, remotehidden=opts[b'remote_hidden'])
+        other = hg.peer(
+            repo,
+            pycompat.byteskwargs(opts),
+            path,
+            remotehidden=opts['remote_hidden'],
+        )
         update_conflict = None
         try:
-            branches = (path.branch, opts.get(b'branch', []))
+            branches = (path.branch, opts.get('branch', []))
             revs, checkout = hg.addbranchrevs(
                 repo,
                 other,
                 branches,
-                opts.get(b'rev'),
-                remotehidden=opts[b'remote_hidden'],
+                opts.get('rev'),
+                remotehidden=opts['remote_hidden'],
             )
 
             pullopargs = {}
 
             nodes = None
-            if opts.get(b'bookmark') or revs:
+            if opts.get('bookmark') or revs:
                 # The list of bookmark used here is the same used to actually update
                 # the bookmark names, to avoid the race from issue 4689 and we do
                 # all lookup and bookmark queries in one go so they see the same
@@ -5502,7 +5504,7 @@ def pull(ui, repo, *sources, **opts):
                 remotebookmarks = fremotebookmarks.result()
                 remotebookmarks = bookmarks.unhexlifybookmarks(remotebookmarks)
                 pullopargs[b'remotebookmarks'] = remotebookmarks
-                for b in opts.get(b'bookmark', []):
+                for b in opts.get('bookmark', []):
                     b = repo._bookmarks.expandname(b)
                     if b not in remotebookmarks:
                         raise error.InputError(
@@ -5516,19 +5518,19 @@ def pull(ui, repo, *sources, **opts):
                         checkout = node
 
             wlock = util.nullcontextmanager()
-            if opts.get(b'update'):
+            if opts.get('update'):
                 wlock = repo.wlock()
             with wlock:
-                pullopargs.update(opts.get(b'opargs', {}))
+                pullopargs.update(opts.get('opargs', {}))
                 modheads = exchange.pull(
                     repo,
                     other,
                     path=path,
                     heads=nodes,
-                    force=opts.get(b'force'),
-                    bookmarks=opts.get(b'bookmark', ()),
+                    force=opts.get('force'),
+                    bookmarks=opts.get('bookmark', ()),
                     opargs=pullopargs,
-                    confirm=opts.get(b'confirm'),
+                    confirm=opts.get('confirm'),
                 ).cgresult
 
                 # brev is a name, which might be a bookmark to be activated at
@@ -5542,10 +5544,10 @@ def pull(ui, repo, *sources, **opts):
                     # order below depends on implementation of
                     # hg.addbranchrevs(). opts['bookmark'] is ignored,
                     # because 'checkout' is determined without it.
-                    if opts.get(b'rev'):
-                        brev = opts[b'rev'][0]
-                    elif opts.get(b'branch'):
-                        brev = opts[b'branch'][0]
+                    if opts.get('rev'):
+                        brev = opts['rev'][0]
+                    elif opts.get('branch'):
+                        brev = opts['branch'][0]
                     else:
                         brev = path.branch
 
@@ -5555,7 +5557,7 @@ def pull(ui, repo, *sources, **opts):
                 repo._subtoppath = path.loc
                 try:
                     update_conflict = postincoming(
-                        ui, repo, modheads, opts.get(b'update'), checkout, brev
+                        ui, repo, modheads, opts.get('update'), checkout, brev
                     )
                 except error.FilteredRepoLookupError as exc:
                     msg = _(b'cannot update to target: %s') % exc.args[0]
