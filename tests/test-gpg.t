@@ -54,4 +54,21 @@ and migrate secret keys
   e63c23eaa88a is signed by:
    hgtest
 
+The signature is different each time, so avoid signing the previous signature so
+that the cset hashes are unchanging.
+  $ hg up -q '.^'
+
+  $ HGEDITOR=cat hg sign -f -e .
+  gpg: error retrieving key fingerprint from card: Invalid name (?)
+  signing 0:e63c23eaa88a
+  Added signature for changeset e63c23eaa88a
+  
+  
+  HG: Enter commit message.  Lines beginning with 'HG:' are removed.
+  HG: Leave message empty to abort commit.
+  HG: --
+  HG: user: test
+  HG: branch 'default'
+  HG: added .hgsigs
+
   $ cd ..
