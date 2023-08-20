@@ -2313,19 +2313,18 @@ def config(ui, repo, *values, **opts):
 
     """
 
-    opts = pycompat.byteskwargs(opts)
-    editopts = (b'edit', b'local', b'global', b'shared', b'non_shared')
+    editopts = ('edit', 'local', 'global', 'shared', 'non_shared')
     if any(opts.get(o) for o in editopts):
         cmdutil.check_at_most_one_arg(opts, *editopts[1:])
-        if opts.get(b'local'):
+        if opts.get('local'):
             if not repo:
                 raise error.InputError(
                     _(b"can't use --local outside a repository")
                 )
             paths = [repo.vfs.join(b'hgrc')]
-        elif opts.get(b'global'):
+        elif opts.get('global'):
             paths = rcutil.systemrcpath()
-        elif opts.get(b'shared'):
+        elif opts.get('shared'):
             if not repo.shared():
                 raise error.InputError(
                     _(b"repository is not shared; can't use --shared")
@@ -2338,7 +2337,7 @@ def config(ui, repo, *values, **opts):
                     )
                 )
             paths = [vfsmod.vfs(repo.sharedpath).join(b'hgrc')]
-        elif opts.get(b'non_shared'):
+        elif opts.get('non_shared'):
             paths = [repo.vfs.join(b'hgrc-not-shared')]
         else:
             paths = rcutil.userrcpath()
@@ -2347,9 +2346,9 @@ def config(ui, repo, *values, **opts):
             if os.path.exists(f):
                 break
         else:
-            if opts.get(b'global'):
+            if opts.get('global'):
                 samplehgrc = uimod.samplehgrcs[b'global']
-            elif opts.get(b'local'):
+            elif opts.get('local'):
                 samplehgrc = uimod.samplehgrcs[b'local']
             else:
                 samplehgrc = uimod.samplehgrcs[b'user']
@@ -2368,7 +2367,7 @@ def config(ui, repo, *values, **opts):
         )
         return
     ui.pager(b'config')
-    fm = ui.formatter(b'config', opts)
+    fm = ui.formatter(b'config', pycompat.byteskwargs(opts))
     for t, f in rcutil.rccomponents():
         if t == b'path':
             ui.debug(b'read config from: %s\n' % f)
@@ -2379,7 +2378,7 @@ def config(ui, repo, *values, **opts):
             pass
         else:
             raise error.ProgrammingError(b'unknown rctype: %s' % t)
-    untrusted = bool(opts.get(b'untrusted'))
+    untrusted = bool(opts.get('untrusted'))
 
     selsections = selentries = []
     if values:
@@ -2390,8 +2389,8 @@ def config(ui, repo, *values, **opts):
     selentries = set(selentries)
 
     matched = False
-    all_known = opts[b'exp_all_known']
-    show_source = ui.debugflag or opts.get(b'source')
+    all_known = opts['exp_all_known']
+    show_source = ui.debugflag or opts.get('source')
     entries = ui.walkconfig(untrusted=untrusted, all_known=all_known)
     for section, name, value in entries:
         source = ui.configsource(section, name, untrusted)
