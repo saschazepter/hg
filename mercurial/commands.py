@@ -5973,15 +5973,14 @@ def remove(ui, repo, *pats, **opts):
     Returns 0 on success, 1 if any warnings encountered.
     """
 
-    opts = pycompat.byteskwargs(opts)
-    after, force = opts.get(b'after'), opts.get(b'force')
-    dryrun = opts.get(b'dry_run')
+    after, force = opts.get('after'), opts.get('force')
+    dryrun = opts.get('dry_run')
     if not pats and not after:
         raise error.InputError(_(b'no files specified'))
 
     with repo.wlock(), repo.dirstate.changing_files(repo):
-        m = scmutil.match(repo[None], pats, opts)
-        subrepos = opts.get(b'subrepos')
+        m = scmutil.match(repo[None], pats, pycompat.byteskwargs(opts))
+        subrepos = opts.get('subrepos')
         uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
         return cmdutil.remove(
             ui, repo, m, b"", uipathfn, after, force, subrepos, dryrun=dryrun
