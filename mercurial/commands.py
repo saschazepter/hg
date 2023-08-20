@@ -18,7 +18,6 @@ from .node import (
     short,
     wdirrev,
 )
-from .pycompat import open
 from . import (
     archival,
     bookmarks,
@@ -2354,9 +2353,7 @@ def config(ui, repo, *values, **opts):
                 samplehgrc = uimod.samplehgrcs[b'user']
 
             f = paths[0]
-            fp = open(f, b"wb")
-            fp.write(util.tonativeeol(samplehgrc))
-            fp.close()
+            util.writefile(f, util.tonativeeol(samplehgrc))
 
         editor = ui.geteditor()
         ui.system(
