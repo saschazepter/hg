@@ -348,9 +348,8 @@ def _dosign(ui, repo, *revs, **opts):
                 hint=_(b"please commit .hgsigs manually"),
             )
 
-    sigsfile = repo.wvfs(b".hgsigs", b"ab")
-    sigsfile.write(sigmessage)
-    sigsfile.close()
+    with repo.wvfs(b".hgsigs", b"ab") as sigsfile:
+        sigsfile.write(sigmessage)
 
     if b'.hgsigs' not in repo.dirstate:
         with repo.dirstate.changing_files(repo):
