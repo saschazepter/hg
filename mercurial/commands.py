@@ -7603,9 +7603,8 @@ def tags(ui, repo, **opts):
     Returns 0 on success.
     """
 
-    opts = pycompat.byteskwargs(opts)
     ui.pager(b'tags')
-    fm = ui.formatter(b'tags', opts)
+    fm = ui.formatter(b'tags', pycompat.byteskwargs(opts))
     hexfunc = fm.hexfunc
 
     for t, n in reversed(repo.tagslist()):
