@@ -1339,12 +1339,11 @@ def branch(ui, repo, label=None, **opts):
 
     Returns 0 on success.
     """
-    opts = pycompat.byteskwargs(opts)
-    revs = opts.get(b'rev')
+    revs = opts.get('rev')
     if label:
         label = label.strip()
 
-    if not opts.get(b'clean') and not label:
+    if not opts.get('clean') and not label:
         if revs:
             raise error.InputError(
                 _(b"no branch name specified for the revisions")
@@ -1353,7 +1352,7 @@ def branch(ui, repo, label=None, **opts):
         return
 
     with repo.wlock():
-        if opts.get(b'clean'):
+        if opts.get('clean'):
             label = repo[b'.'].branch()
             repo.dirstate.setbranch(label, repo.currenttransaction())
             ui.status(_(b'reset working directory to branch %s\n') % label)
@@ -1361,9 +1360,9 @@ def branch(ui, repo, label=None, **opts):
 
             scmutil.checknewlabel(repo, label, b'branch')
             if revs:
-                return cmdutil.changebranch(ui, repo, revs, label, opts)
+                return cmdutil.changebranch(ui, repo, revs, label, **opts)
 
-            if not opts.get(b'force') and label in repo.branchmap():
+            if not opts.get('force') and label in repo.branchmap():
                 if label not in [p.branch() for p in repo[None].parents()]:
                     raise error.InputError(
                         _(b'a branch of the same name already exists'),
