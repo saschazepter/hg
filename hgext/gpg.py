@@ -339,8 +339,9 @@ def _dosign(ui, repo, *revs, **opts):
         repo.vfs.append(b"localsigs", sigmessage)
         return
 
+    msigs = match.exact([b'.hgsigs'])
+
     if not opts[b"force"]:
-        msigs = match.exact([b'.hgsigs'])
         if any(repo.status(match=msigs, unknown=True, ignored=True)):
             raise error.Abort(
                 _(b"working copy of .hgsigs is changed "),
