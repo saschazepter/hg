@@ -7115,7 +7115,6 @@ def summary(ui, repo, **opts):
     Returns 0 on success.
     """
 
-    opts = pycompat.byteskwargs(opts)
     ui.pager(b'summary')
     ctx = repo[None]
     parents = ctx.parents()
@@ -7304,11 +7303,13 @@ def summary(ui, repo, **opts):
 
     cmdutil.summaryhooks(ui, repo)
 
-    if opts.get(b'remote'):
+    if opts.get('remote'):
         needsincoming, needsoutgoing = True, True
     else:
         needsincoming, needsoutgoing = False, False
-        for i, o in cmdutil.summaryremotehooks(ui, repo, opts, None):
+        for i, o in cmdutil.summaryremotehooks(
+            ui, repo, pycompat.byteskwargs(opts), None
+        ):
             if i:
                 needsincoming = True
             if o:
@@ -7325,7 +7326,7 @@ def summary(ui, repo, **opts):
         try:
             other = hg.peer(repo, {}, path)
         except error.RepoError:
-            if opts.get(b'remote'):
+            if opts.get('remote'):
                 raise
             return path.loc, sbranch, None, None, None
         branches = (path.branch, [])
@@ -7364,7 +7365,7 @@ def summary(ui, repo, **opts):
             try:
                 dother = hg.peer(repo, {}, path if path is not None else dest)
             except error.RepoError:
-                if opts.get(b'remote'):
+                if opts.get('remote'):
                     raise
                 return dest, dbranch, None, None
             ui.debug(b'comparing with %s\n' % urlutil.hidepassword(dest))
@@ -7390,7 +7391,7 @@ def summary(ui, repo, **opts):
     else:
         dest = dbranch = dother = outgoing = None
 
-    if opts.get(b'remote'):
+    if opts.get('remote'):
         # Help pytype.  --remote sets both `needsincoming` and `needsoutgoing`.
         # The former always sets `sother` (or raises an exception if it can't);
         # the latter always sets `outgoing`.
@@ -7421,7 +7422,7 @@ def summary(ui, repo, **opts):
     cmdutil.summaryremotehooks(
         ui,
         repo,
-        opts,
+        pycompat.byteskwargs(opts),
         (
             (source, sbranch, sother, commoninc),
             (dest, dbranch, dother, outgoing),
