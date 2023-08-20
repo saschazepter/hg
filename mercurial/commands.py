@@ -1426,8 +1426,7 @@ def branches(ui, repo, active=False, closed=False, **opts):
     Returns 0.
     """
 
-    opts = pycompat.byteskwargs(opts)
-    revs = opts.get(b'rev')
+    revs = opts.get('rev')
     selectedbranches = None
     if revs:
         revs = logcmdutil.revrange(repo, revs)
@@ -1435,7 +1434,7 @@ def branches(ui, repo, active=False, closed=False, **opts):
         selectedbranches = {getbi(r)[0] for r in revs}
 
     ui.pager(b'branches')
-    fm = ui.formatter(b'branches', opts)
+    fm = ui.formatter(b'branches', pycompat.byteskwargs(opts))
     hexfunc = fm.hexfunc
 
     allheads = set(repo.heads())
