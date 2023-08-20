@@ -2973,13 +2973,12 @@ def forget(ui, repo, *pats, **opts):
     Returns 0 on success.
     """
 
-    opts = pycompat.byteskwargs(opts)
     if not pats:
         raise error.InputError(_(b'no files specified'))
 
     with repo.wlock(), repo.dirstate.changing_files(repo):
-        m = scmutil.match(repo[None], pats, opts)
-        dryrun, interactive = opts.get(b'dry_run'), opts.get(b'interactive')
+        m = scmutil.match(repo[None], pats, pycompat.byteskwargs(opts))
+        dryrun, interactive = opts.get('dry_run'), opts.get('interactive')
         uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
         rejected = cmdutil.forget(
             ui,
