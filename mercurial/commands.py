@@ -2175,7 +2175,6 @@ def _docommit(ui, repo, *pats, **opts):
             cmdutil.checkunfinished(repo)
 
         node = cmdutil.amend(ui, repo, old, extra, pats, opts)
-        opts = pycompat.byteskwargs(opts)
         if node == old.node():
             ui.status(_(b"nothing changed\n"))
             return 1
@@ -2206,11 +2205,14 @@ def _docommit(ui, repo, *pats, **opts):
                         extra=extra,
                     )
 
-        opts = pycompat.byteskwargs(opts)
-        node = cmdutil.commit(ui, repo, commitfunc, pats, opts)
+        node = cmdutil.commit(
+            ui, repo, commitfunc, pats, pycompat.byteskwargs(opts)
+        )
 
         if not node:
-            stat = cmdutil.postcommitstatus(repo, pats, opts)
+            stat = cmdutil.postcommitstatus(
+                repo, pats, pycompat.byteskwargs(opts)
+            )
             if stat.deleted:
                 ui.status(
                     _(
@@ -2223,7 +2225,7 @@ def _docommit(ui, repo, *pats, **opts):
                 ui.status(_(b"nothing changed\n"))
             return 1
 
-    cmdutil.commitstatus(repo, node, branch, bheads, tip, opts)
+    cmdutil.commitstatus(repo, node, branch, bheads, tip, **opts)
 
     if not ui.quiet and ui.configbool(b'commands', b'commit.post-status'):
         status(
@@ -2234,7 +2236,7 @@ def _docommit(ui, repo, *pats, **opts):
             removed=True,
             deleted=True,
             unknown=True,
-            subrepos=opts.get(b'subrepos'),
+            subrepos=opts.get('subrepos'),
         )
 
 
