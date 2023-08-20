@@ -2499,7 +2499,7 @@ def copy(ui, repo, *pats, **opts):
 
     context = lambda repo: repo.dirstate.changing_files(repo)
     rev = opts.get('at_rev')
-    ctx = None
+
     if rev:
         ctx = logcmdutil.revsingle(repo, rev)
         if ctx.rev() is not None:
