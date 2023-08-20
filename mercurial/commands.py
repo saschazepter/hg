@@ -4821,10 +4821,9 @@ def manifest(ui, repo, node=None, rev=None, **opts):
 
     Returns 0 on success.
     """
-    opts = pycompat.byteskwargs(opts)
-    fm = ui.formatter(b'manifest', opts)
+    fm = ui.formatter(b'manifest', pycompat.byteskwargs(opts))
 
-    if opts.get(b'all'):
+    if opts.get('all'):
         if rev or node:
             raise error.InputError(_(b"can't specify a revision with --all"))
 
