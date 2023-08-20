@@ -7478,7 +7478,7 @@ def tag(ui, repo, name1, *names, **opts):
     Returns 0 on success.
     """
     cmdutil.check_incompatible_arguments(opts, 'remove', ['rev'])
-    opts = pycompat.byteskwargs(opts)
+
     with repo.wlock(), repo.lock():
         rev_ = b"."
         names = [t.strip() for t in (name1,) + names]
@@ -7490,11 +7490,11 @@ def tag(ui, repo, name1, *names, **opts):
                 raise error.InputError(
                     _(b'tag names cannot consist entirely of whitespace')
                 )
-        if opts.get(b'rev'):
-            rev_ = opts[b'rev']
-        message = opts.get(b'message')
-        if opts.get(b'remove'):
-            if opts.get(b'local'):
+        if opts.get('rev'):
+            rev_ = opts['rev']
+        message = opts.get('message')
+        if opts.get('remove'):
+            if opts.get('local'):
                 expectedtype = b'local'
             else:
                 expectedtype = b'global'
@@ -7521,18 +7521,18 @@ def tag(ui, repo, name1, *names, **opts):
             if not message:
                 # we don't translate commit messages
                 message = b'Removed tag %s' % b', '.join(names)
-        elif not opts.get(b'force'):
+        elif not opts.get('force'):
             for n in names:
                 if n in repo.tags():
                     raise error.InputError(
                         _(b"tag '%s' already exists (use -f to force)") % n
                     )
-        if not opts.get(b'local'):
+        if not opts.get('local'):
             p1, p2 = repo.dirstate.parents()
             if p2 != repo.nullid:
                 raise error.StateError(_(b'uncommitted merge'))
             bheads = repo.branchheads()
-            if not opts.get(b'force') and bheads and p1 not in bheads:
+            if not opts.get('force') and bheads and p1 not in bheads:
                 raise error.InputError(
                     _(
                         b'working directory is not at a branch head '
@@ -7544,7 +7544,7 @@ def tag(ui, repo, name1, *names, **opts):
         # don't allow tagging the null rev or the working directory
         if node is None:
             raise error.InputError(_(b"cannot tag working directory"))
-        elif not opts.get(b'remove') and node == nullid:
+        elif not opts.get('remove') and node == nullid:
             raise error.InputError(_(b"cannot tag null revision"))
 
         if not message:
@@ -7554,25 +7554,23 @@ def tag(ui, repo, name1, *names, **opts):
                 short(node),
             )
 
-        date = opts.get(b'date')
+        date = opts.get('date')
         if date:
             date = dateutil.parsedate(date)
 
-        if opts.get(b'remove'):
+        if opts.get('remove'):
             editform = b'tag.remove'
         else:
             editform = b'tag.add'
-        editor = cmdutil.getcommiteditor(
-            editform=editform, **pycompat.strkwargs(opts)
-        )
+        editor = cmdutil.getcommiteditor(editform=editform, **opts)
 
         tagsmod.tag(
             repo,
             names,
             node,
             message,
-            opts.get(b'local'),
-            opts.get(b'user'),
+            opts.get('local'),
+            opts.get('user'),
             date,
             editor=editor,
         )
