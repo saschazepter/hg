@@ -3329,9 +3329,7 @@ def buildcommittext(repo, ctx, subs, extramsg):
     return b"\n".join(edittext)
 
 
-def commitstatus(repo, node, branch, bheads=None, tip=None, opts=None):
-    if opts is None:
-        opts = {}
+def commitstatus(repo, node, branch, bheads=None, tip=None, **opts):
     ctx = repo[node]
     parents = ctx.parents()
 
@@ -3341,7 +3339,7 @@ def commitstatus(repo, node, branch, bheads=None, tip=None, opts=None):
         # for most instances
         repo.ui.warn(_(b"warning: commit already existed in the repository!\n"))
     elif (
-        not opts.get(b'amend')
+        not opts.get('amend')
         and bheads
         and node not in bheads
         and not any(
@@ -3378,7 +3376,7 @@ def commitstatus(repo, node, branch, bheads=None, tip=None, opts=None):
         #
         # H H  n  head merge: head count decreases
 
-    if not opts.get(b'close_branch'):
+    if not opts.get('close_branch'):
         for r in parents:
             if r.closesbranch() and r.branch() == branch:
                 repo.ui.status(
