@@ -527,8 +527,8 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
     # import rules from a file
     newrules = opts.get('import_rules')
     if newrules:
+        filepath = os.path.join(encoding.getcwd(), newrules)
         try:
-            filepath = os.path.join(encoding.getcwd(), newrules)
             fdata = util.readfile(filepath)
         except IOError as inst:
             raise error.StorageError(
