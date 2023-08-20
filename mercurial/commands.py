@@ -7992,10 +7992,9 @@ def version_(ui, **opts):
       :bundled: Boolean. True if included in the release.
       :name:    String. Extension name.
     """
-    opts = pycompat.byteskwargs(opts)
     if ui.verbose:
         ui.pager(b'version')
-    fm = ui.formatter(b"version", opts)
+    fm = ui.formatter(b"version", pycompat.byteskwargs(opts))
     fm.startitem()
     fm.write(
         b"ver", _(b"Mercurial Distributed SCM (version %s)\n"), util.version()
