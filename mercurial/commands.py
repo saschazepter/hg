@@ -1794,25 +1794,22 @@ def cat(ui, repo, file1, *pats, **opts):
 
     Returns 0 on success.
     """
-    opts = pycompat.byteskwargs(opts)
-    rev = opts.get(b'rev')
+    rev = opts.get('rev')
     if rev:
         repo = scmutil.unhidehashlikerevs(repo, [rev], b'nowarn')
     ctx = logcmdutil.revsingle(repo, rev)
-    m = scmutil.match(ctx, (file1,) + pats, opts)
-    fntemplate = opts.pop(b'output', b'')
+    m = scmutil.match(ctx, (file1,) + pats, pycompat.byteskwargs(opts))
+    fntemplate = opts.pop('output', b'')
     if cmdutil.isstdiofilename(fntemplate):
         fntemplate = b''
 
     if fntemplate:
-        fm = formatter.nullformatter(ui, b'cat', opts)
+        fm = formatter.nullformatter(ui, b'cat', pycompat.byteskwargs(opts))
     else:
         ui.pager(b'cat')
-        fm = ui.formatter(b'cat', opts)
+        fm = ui.formatter(b'cat', pycompat.byteskwargs(opts))
     with fm:
-        return cmdutil.cat(
-            ui, repo, ctx, m, fm, fntemplate, b'', **pycompat.strkwargs(opts)
-        )
+        return cmdutil.cat(ui, repo, ctx, m, fm, fntemplate, b'', **opts)
 
 
 @command(
