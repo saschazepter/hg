@@ -1717,11 +1717,10 @@ def overridetransplant(orig, ui, repo, *revs, **opts):
 
 @eh.wrapcommand(b'cat')
 def overridecat(orig, ui, repo, file1, *pats, **opts):
-    opts = pycompat.byteskwargs(opts)
-    ctx = logcmdutil.revsingle(repo, opts.get(b'rev'))
+    ctx = logcmdutil.revsingle(repo, opts.get('rev'))
     err = 1
     notbad = set()
-    m = scmutil.match(ctx, (file1,) + pats, opts)
+    m = scmutil.match(ctx, (file1,) + pats, pycompat.byteskwargs(opts))
     origmatchfn = m.matchfn
 
     def lfmatchfn(f):
@@ -1758,12 +1757,12 @@ def overridecat(orig, ui, repo, file1, *pats, **opts):
     m.visitdir = lfvisitdirfn
 
     for f in ctx.walk(m):
-        with cmdutil.makefileobj(ctx, opts.get(b'output'), pathname=f) as fp:
+        with cmdutil.makefileobj(ctx, opts.get('output'), pathname=f) as fp:
             lf = lfutil.splitstandin(f)
             if lf is None or origmatchfn(f):
                 # duplicating unreachable code from commands.cat
                 data = ctx[f].data()
-                if opts.get(b'decode'):
+                if opts.get('decode'):
                     data = repo.wwritedata(f, data)
                 fp.write(data)
             else:
