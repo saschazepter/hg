@@ -5633,24 +5633,23 @@ def purge(ui, repo, *dirs, **opts):
     list of files that this program would delete, use the --print
     option.
     """
-    opts = pycompat.byteskwargs(opts)
-    cmdutil.check_at_most_one_arg(opts, b'all', b'ignored')
+    cmdutil.check_at_most_one_arg(opts, 'all', 'ignored')
 
-    act = not opts.get(b'print')
+    act = not opts.get('print')
     eol = b'\n'
-    if opts.get(b'print0'):
+    if opts.get('print0'):
         eol = b'\0'
         act = False  # --print0 implies --print
-    if opts.get(b'all', False):
+    if opts.get('all', False):
         ignored = True
         unknown = True
     else:
-        ignored = opts.get(b'ignored', False)
+        ignored = opts.get('ignored', False)
         unknown = not ignored
 
-    removefiles = opts.get(b'files')
-    removedirs = opts.get(b'dirs')
-    confirm = opts.get(b'confirm')
+    removefiles = opts.get('files')
+    removedirs = opts.get('dirs')
+    confirm = opts.get('confirm')
     if confirm is None:
         try:
             extensions.find(b'purge')
@@ -5662,7 +5661,7 @@ def purge(ui, repo, *dirs, **opts):
         removefiles = True
         removedirs = True
 
-    match = scmutil.match(repo[None], dirs, opts)
+    match = scmutil.match(repo[None], dirs, pycompat.byteskwargs(opts))
 
     paths = mergemod.purge(
         repo,
@@ -5671,7 +5670,7 @@ def purge(ui, repo, *dirs, **opts):
         ignored=ignored,
         removeemptydirs=removedirs,
         removefiles=removefiles,
-        abortonerror=opts.get(b'abort_on_err'),
+        abortonerror=opts.get('abort_on_err'),
         noop=not act,
         confirm=confirm,
     )
