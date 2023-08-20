@@ -6397,30 +6397,29 @@ def revert(ui, repo, *pats, **opts):
     Returns 0 on success.
     """
 
-    opts = pycompat.byteskwargs(opts)
-    if opts.get(b"date"):
-        cmdutil.check_incompatible_arguments(opts, b'date', [b'rev'])
-        opts[b"rev"] = cmdutil.finddate(ui, repo, opts[b"date"])
+    if opts.get("date"):
+        cmdutil.check_incompatible_arguments(opts, 'date', ['rev'])
+        opts["rev"] = cmdutil.finddate(ui, repo, opts["date"])
 
     parent, p2 = repo.dirstate.parents()
-    if not opts.get(b'rev') and p2 != repo.nullid:
+    if not opts.get('rev') and p2 != repo.nullid:
         # revert after merge is a trap for new users (issue2915)
         raise error.InputError(
             _(b'uncommitted merge with no revision specified'),
             hint=_(b"use 'hg update' or see 'hg help revert'"),
         )
 
-    rev = opts.get(b'rev')
+    rev = opts.get('rev')
     if rev:
         repo = scmutil.unhidehashlikerevs(repo, [rev], b'nowarn')
     ctx = logcmdutil.revsingle(repo, rev)
 
     if not (
         pats
-        or opts.get(b'include')
-        or opts.get(b'exclude')
-        or opts.get(b'all')
-        or opts.get(b'interactive')
+        or opts.get('include')
+        or opts.get('exclude')
+        or opts.get('all')
+        or opts.get('interactive')
     ):
         msg = _(b"no files or directories specified")
         if p2 != repo.nullid:
@@ -6454,7 +6453,7 @@ def revert(ui, repo, *pats, **opts):
             hint = _(b"use --all to revert all files")
         raise error.InputError(msg, hint=hint)
 
-    return cmdutil.revert(ui, repo, ctx, *pats, **pycompat.strkwargs(opts))
+    return cmdutil.revert(ui, repo, ctx, *pats, **opts)
 
 
 @command(
