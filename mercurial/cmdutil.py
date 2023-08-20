@@ -1007,7 +1007,7 @@ def findcmd(cmd, table, strict=True):
     raise error.UnknownCommand(cmd, allcmds)
 
 
-def changebranch(ui, repo, revs, label, opts):
+def changebranch(ui, repo, revs, label, **opts):
     """Change the branch name of given revs to label"""
 
     with repo.wlock(), repo.lock(), repo.transaction(b'branches'):
@@ -1026,7 +1026,7 @@ def changebranch(ui, repo, revs, label, opts):
         root = repo[roots.first()]
         rpb = {parent.branch() for parent in root.parents()}
         if (
-            not opts.get(b'force')
+            not opts.get('force')
             and label not in rpb
             and label in repo.branchmap()
         ):
