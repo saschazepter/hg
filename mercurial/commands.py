@@ -7961,10 +7961,8 @@ def verify(ui, repo, **opts):
 
     Returns 0 on success, 1 if errors are encountered.
     """
-    opts = pycompat.byteskwargs(opts)
-
     level = None
-    if opts[b'full']:
+    if opts['full']:
         level = verifymod.VERIFY_FULL
     return hg.verify(repo, level)
 
