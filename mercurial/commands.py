@@ -775,7 +775,6 @@ def backout(ui, repo, node=None, rev=None, **opts):
 
 def _dobackout(ui, repo, node=None, rev=None, **opts):
     cmdutil.check_incompatible_arguments(opts, 'no_commit', ['commit', 'merge'])
-    opts = pycompat.byteskwargs(opts)
 
     if rev and node:
         raise error.InputError(_(b"please specify just one revision"))
@@ -786,9 +785,9 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
     if not rev:
         raise error.InputError(_(b"please specify a revision to backout"))
 
-    date = opts.get(b'date')
+    date = opts.get('date')
     if date:
-        opts[b'date'] = dateutil.parsedate(date)
+        opts['date'] = dateutil.parsedate(date)
 
     cmdutil.checkunfinished(repo)
     cmdutil.bailifchanged(repo)
@@ -805,16 +804,16 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
     if p1 == repo.nullid:
         raise error.InputError(_(b'cannot backout a change with no parents'))
     if p2 != repo.nullid:
-        if not opts.get(b'parent'):
+        if not opts.get('parent'):
             raise error.InputError(_(b'cannot backout a merge changeset'))
-        p = repo.lookup(opts[b'parent'])
+        p = repo.lookup(opts['parent'])
         if p not in (p1, p2):
             raise error.InputError(
                 _(b'%s is not a parent of %s') % (short(p), short(node))
             )
         parent = p
     else:
-        if opts.get(b'parent'):
+        if opts.get('parent'):
             raise error.InputError(
                 _(b'cannot use --parent on non-merge changeset')
             )
@@ -824,9 +823,9 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
     branch = repo.dirstate.branch()
     bheads = repo.branchheads(branch)
     rctx = scmutil.revsingle(repo, hex(parent))
-    if not opts.get(b'merge') and op1 != node:
+    if not opts.get('merge') and op1 != node:
         with repo.transaction(b"backout"):
-            overrides = {(b'ui', b'forcemerge'): opts.get(b'tool', b'')}
+            overrides = {(b'ui', b'forcemerge'): opts.get('tool', b'')}
             with ui.configoverride(overrides, b'backout'):
                 stats = mergemod.back_out(ctx, parent=repo[parent])
             repo.setparents(op1, op2)
@@ -841,7 +840,7 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
         repo.dirstate.setbranch(branch, repo.currenttransaction())
         cmdutil.revert(ui, repo, rctx)
 
-    if opts.get(b'no_commit'):
+    if opts.get('no_commit'):
         msg = _(b"changeset %s backed out, don't forget to commit.\n")
         ui.status(msg % short(node))
         return 0
@@ -862,7 +861,9 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
     # save to detect changes
     tip = repo.changelog.tip()
 
-    newnode = cmdutil.commit(ui, repo, commitfunc, [], opts)
+    newnode = cmdutil.commit(
+        ui, repo, commitfunc, [], pycompat.byteskwargs(opts)
+    )
     if not newnode:
         ui.status(_(b"nothing changed\n"))
         return 1
@@ -875,10 +876,10 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
         _(b'changeset %s backs out changeset %s\n')
         % (nice(newnode), nice(node))
     )
-    if opts.get(b'merge') and op1 != node:
+    if opts.get('merge') and op1 != node:
         hg.clean(repo, op1, show_stats=False)
         ui.status(_(b'merging with changeset %s\n') % nice(newnode))
-        overrides = {(b'ui', b'forcemerge'): opts.get(b'tool', b'')}
+        overrides = {(b'ui', b'forcemerge'): opts.get('tool', b'')}
         with ui.configoverride(overrides, b'backout'):
             return hg.merge(repo[b'tip'])
     return 0
