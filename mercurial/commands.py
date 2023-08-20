@@ -5196,12 +5196,10 @@ def paths(ui, repo, search=None, **opts):
     Returns 0 on success.
     """
 
-    opts = pycompat.byteskwargs(opts)
-
     pathitems = urlutil.list_paths(ui, search)
     ui.pager(b'paths')
 
-    fm = ui.formatter(b'paths', opts)
+    fm = ui.formatter(b'paths', pycompat.byteskwargs(opts))
     if fm.isplain():
         hidepassword = urlutil.hidepassword
     else:
