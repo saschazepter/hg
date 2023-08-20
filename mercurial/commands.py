@@ -1239,56 +1239,55 @@ def bookmark(ui, repo, *names, **opts):
 
           hg book -ql .
     """
-    opts = pycompat.byteskwargs(opts)
-    force = opts.get(b'force')
-    rev = opts.get(b'rev')
-    inactive = opts.get(b'inactive')  # meaning add/rename to inactive bookmark
+    force = opts.get('force')
+    rev = opts.get('rev')
+    inactive = opts.get('inactive')  # meaning add/rename to inactive bookmark
 
-    action = cmdutil.check_at_most_one_arg(opts, b'delete', b'rename', b'list')
+    action = cmdutil.check_at_most_one_arg(opts, 'delete', 'rename', 'list')
     if action:
-        cmdutil.check_incompatible_arguments(opts, action, [b'rev'])
+        cmdutil.check_incompatible_arguments(opts, action, ['rev'])
     elif names or rev:
-        action = b'add'
+        action = 'add'
     elif inactive:
-        action = b'inactive'  # meaning deactivate
+        action = 'inactive'  # meaning deactivate
     else:
-        action = b'list'
+        action = 'list'
 
-    cmdutil.check_incompatible_arguments(
-        opts, b'inactive', [b'delete', b'list']
-    )
-    if not names and action in {b'add', b'delete'}:
+    cmdutil.check_incompatible_arguments(opts, 'inactive', ['delete', 'list'])
+    if not names and action in {'add', 'delete'}:
         raise error.InputError(_(b"bookmark name required"))
 
-    if action in {b'add', b'delete', b'rename', b'inactive'}:
+    if action in {'add', 'delete', 'rename', 'inactive'}:
         with repo.wlock(), repo.lock(), repo.transaction(b'bookmark') as tr:
-            if action == b'delete':
+            if action == 'delete':
                 names = pycompat.maplist(repo._bookmarks.expandname, names)
                 bookmarks.delete(repo, tr, names)
-            elif action == b'rename':
+            elif action == 'rename':
                 if not names:
                     raise error.InputError(_(b"new bookmark name required"))
                 elif len(names) > 1:
                     raise error.InputError(
                         _(b"only one new bookmark name allowed")
                     )
-                oldname = repo._bookmarks.expandname(opts[b'rename'])
+                oldname = repo._bookmarks.expandname(opts['rename'])
                 bookmarks.rename(repo, tr, oldname, names[0], force, inactive)
-            elif action == b'add':
+            elif action == 'add':
                 bookmarks.addbookmarks(repo, tr, names, rev, force, inactive)
-            elif action == b'inactive':
+            elif action == 'inactive':
                 if len(repo._bookmarks) == 0:
                     ui.status(_(b"no bookmarks set\n"))
                 elif not repo._activebookmark:
                     ui.status(_(b"no active bookmark\n"))
                 else:
                     bookmarks.deactivate(repo)
-    elif action == b'list':
+    elif action == 'list':
         names = pycompat.maplist(repo._bookmarks.expandname, names)
-        with ui.formatter(b'bookmarks', opts) as fm:
+        with ui.formatter(b'bookmarks', pycompat.byteskwargs(opts)) as fm:
             bookmarks.printbookmarks(ui, repo, fm, names)
     else:
-        raise error.ProgrammingError(b'invalid action: %s' % action)
+        raise error.ProgrammingError(
+            b'invalid action: %s' % pycompat.sysbytes(action)
+        )
 
 
 @command(
