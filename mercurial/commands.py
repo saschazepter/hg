@@ -646,8 +646,7 @@ def archive(ui, repo, dest, **opts):
     Returns 0 on success.
     """
 
-    opts = pycompat.byteskwargs(opts)
-    rev = opts.get(b'rev')
+    rev = opts.get('rev')
     if rev:
         repo = scmutil.unhidehashlikerevs(repo, [rev], b'nowarn')
     ctx = logcmdutil.revsingle(repo, rev)
@@ -660,8 +659,8 @@ def archive(ui, repo, dest, **opts):
     if os.path.realpath(dest) == repo.root:
         raise error.InputError(_(b'repository root cannot be destination'))
 
-    kind = opts.get(b'type') or archival.guesskind(dest) or b'files'
-    prefix = opts.get(b'prefix')
+    kind = opts.get('type') or archival.guesskind(dest) or b'files'
+    prefix = opts.get('prefix')
 
     if dest == b'-':
         if kind == b'files':
@@ -671,16 +670,16 @@ def archive(ui, repo, dest, **opts):
             prefix = os.path.basename(repo.root) + b'-%h'
 
     prefix = cmdutil.makefilename(ctx, prefix)
-    match = scmutil.match(ctx, [], opts)
+    match = scmutil.match(ctx, [], pycompat.byteskwargs(opts))
     archival.archive(
         repo,
         dest,
         node,
         kind,
-        not opts.get(b'no_decode'),
+        not opts.get('no_decode'),
         match,
         prefix,
-        subrepos=opts.get(b'subrepos'),
+        subrepos=opts.get('subrepos'),
     )
 
 
