@@ -1565,16 +1565,15 @@ def bundle(ui, repo, fname, *dests, **opts):
 
     Returns 0 on success, 1 if no changes found.
     """
-    opts = pycompat.byteskwargs(opts)
 
     revs = None
-    if b'rev' in opts:
-        revstrings = opts[b'rev']
+    if 'rev' in opts:
+        revstrings = opts['rev']
         revs = logcmdutil.revrange(repo, revstrings)
         if revstrings and not revs:
             raise error.InputError(_(b'no commits to bundle'))
 
-    bundletype = opts.get(b'type', b'bzip2').lower()
+    bundletype = opts.get('type', b'bzip2').lower()
     try:
         bundlespec = bundlecaches.parsebundlespec(
             repo, bundletype, strict=False
@@ -1593,28 +1592,28 @@ def bundle(ui, repo, fname, *dests, **opts):
             hint=_(b"use 'hg debugcreatestreamclonebundle'"),
         )
 
-    if opts.get(b'all'):
+    if opts.get('all'):
         if dests:
             raise error.InputError(
                 _(b"--all is incompatible with specifying destinations")
             )
-        if opts.get(b'base'):
+        if opts.get('base'):
             ui.warn(_(b"ignoring --base because --all was specified\n"))
-        if opts.get(b'exact'):
+        if opts.get('exact'):
             ui.warn(_(b"ignoring --exact because --all was specified\n"))
         base = [nullrev]
-    elif opts.get(b'exact'):
+    elif opts.get('exact'):
         if dests:
             raise error.InputError(
                 _(b"--exact is incompatible with specifying destinations")
             )
-        if opts.get(b'base'):
+        if opts.get('base'):
             ui.warn(_(b"ignoring --base because --exact was specified\n"))
         base = repo.revs(b'parents(%ld) - %ld', revs, revs)
         if not base:
             base = [nullrev]
     else:
-        base = logcmdutil.revrange(repo, opts.get(b'base'))
+        base = logcmdutil.revrange(repo, opts.get('base'))
     if cgversion not in changegroup.supportedoutgoingversions(repo):
         raise error.Abort(
             _(b"repository does not support bundle version %s") % cgversion
@@ -1635,7 +1634,7 @@ def bundle(ui, repo, fname, *dests, **opts):
         missing = set()
         excluded = set()
         for path in urlutil.get_push_paths(repo, ui, dests):
-            other = hg.peer(repo, opts, path)
+            other = hg.peer(repo, pycompat.byteskwargs(opts), path)
             if revs is not None:
                 hex_revs = [repo[r].hex() for r in revs]
             else:
@@ -1653,7 +1652,7 @@ def bundle(ui, repo, fname, *dests, **opts):
                 repo,
                 other,
                 onlyheads=heads,
-                force=opts.get(b'force'),
+                force=opts.get('force'),
                 portable=True,
             )
             missing.update(outgoing.missing)
