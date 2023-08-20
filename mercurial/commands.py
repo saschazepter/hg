@@ -1965,37 +1965,36 @@ def clone(ui, source, dest=None, **opts):
 
     Returns 0 on success.
     """
-    opts = pycompat.byteskwargs(opts)
-    cmdutil.check_at_most_one_arg(opts, b'noupdate', b'updaterev')
+    cmdutil.check_at_most_one_arg(opts, 'noupdate', 'updaterev')
 
     # --include/--exclude can come from narrow or sparse.
     includepats, excludepats = None, None
 
     # hg.clone() differentiates between None and an empty set. So make sure
     # patterns are sets if narrow is requested without patterns.
-    if opts.get(b'narrow'):
+    if opts.get('narrow'):
         includepats = set()
         excludepats = set()
 
-        if opts.get(b'include'):
-            includepats = narrowspec.parsepatterns(opts.get(b'include'))
-        if opts.get(b'exclude'):
-            excludepats = narrowspec.parsepatterns(opts.get(b'exclude'))
+        if opts.get('include'):
+            includepats = narrowspec.parsepatterns(opts.get('include'))
+        if opts.get('exclude'):
+            excludepats = narrowspec.parsepatterns(opts.get('exclude'))
 
     r = hg.clone(
         ui,
-        opts,
+        pycompat.byteskwargs(opts),
         source,
         dest,
-        pull=opts.get(b'pull'),
-        stream=opts.get(b'stream') or opts.get(b'uncompressed'),
-        revs=opts.get(b'rev'),
-        update=opts.get(b'updaterev') or not opts.get(b'noupdate'),
-        branch=opts.get(b'branch'),
-        shareopts=opts.get(b'shareopts'),
+        pull=opts.get('pull'),
+        stream=opts.get('stream') or opts.get('uncompressed'),
+        revs=opts.get('rev'),
+        update=opts.get('updaterev') or not opts.get('noupdate'),
+        branch=opts.get('branch'),
+        shareopts=opts.get('shareopts'),
         storeincludepats=includepats,
         storeexcludepats=excludepats,
-        depth=opts.get(b'depth') or None,
+        depth=opts.get('depth') or None,
     )
 
     return r is None
