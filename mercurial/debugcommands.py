@@ -4166,8 +4166,7 @@ def debugupgraderepo(ui, repo, run=False, optimize=None, backup=True, **opts):
 )
 def debugwalk(ui, repo, *pats, **opts):
     """show how files match on given patterns"""
-    opts = pycompat.byteskwargs(opts)
-    m = scmutil.match(repo[None], pats, opts)
+    m = scmutil.match(repo[None], pats, pycompat.byteskwargs(opts))
     if ui.verbose:
         ui.writenoi18n(b'* matcher:\n', stringutil.prettyrepr(m), b'\n')
     items = list(repo[None].walk(m))
