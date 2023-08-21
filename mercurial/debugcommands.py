@@ -709,8 +709,7 @@ def debugdag(ui, repo, file_=None, *revs, **opts):
 @command(b'debugdata', cmdutil.debugrevlogopts, _(b'-c|-m|FILE REV'))
 def debugdata(ui, repo, file_, rev=None, **opts):
     """dump the contents of a data file revision"""
-    opts = pycompat.byteskwargs(opts)
-    if opts.get(b'changelog') or opts.get(b'manifest') or opts.get(b'dir'):
+    if opts.get('changelog') or opts.get('manifest') or opts.get('dir'):
         if rev is not None:
             raise error.InputError(
                 _(b'cannot specify a revision with other arguments')
@@ -718,7 +717,9 @@ def debugdata(ui, repo, file_, rev=None, **opts):
         file_, rev = None, file_
     elif rev is None:
         raise error.InputError(_(b'please specify a revision'))
-    r = cmdutil.openstorage(repo, b'debugdata', file_, opts)
+    r = cmdutil.openstorage(
+        repo, b'debugdata', file_, pycompat.byteskwargs(opts)
+    )
     try:
         ui.write(r.rawdata(r.lookup(rev)))
     except KeyError:
