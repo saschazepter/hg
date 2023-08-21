@@ -500,16 +500,9 @@ class ParseRequestTests(unittest.TestCase):
         self.assertEqual(r.reponame, b'repo')
 
     def testenvencoding(self):
-        if pycompat.iswindows:
-            # On Windows, we can't generally know which non-ASCII characters
-            # are supported.
-            r = parse(DEFAULT_ENV, extra={'foo': 'bar'})
-            self.assertEqual(r.rawenv[b'foo'], b'bar')
-        else:
-            # Unix is byte-based. Therefore we test all possible bytes.
-            b = b''.join(pycompat.bytechr(i) for i in range(256))
-            r = parse(DEFAULT_ENV, extra={'foo': pycompat.fsdecode(b)})
-            self.assertEqual(r.rawenv[b'foo'], b)
+        b = b''.join(pycompat.bytechr(i) for i in range(256))
+        r = parse(DEFAULT_ENV, extra={'foo': b.decode('iso8859-1')})
+        self.assertEqual(r.rawenv[b'foo'], b)
 
 
 if __name__ == '__main__':
