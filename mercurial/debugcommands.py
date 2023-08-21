@@ -1473,10 +1473,9 @@ def debugdownload(ui, repo, url, output=None, **opts):
 @command(b'debugextensions', cmdutil.formatteropts, [], optionalrepo=True)
 def debugextensions(ui, repo, **opts):
     '''show information about active extensions'''
-    opts = pycompat.byteskwargs(opts)
     exts = extensions.extensions(ui)
     hgver = util.version()
-    fm = ui.formatter(b'debugextensions', opts)
+    fm = ui.formatter(b'debugextensions', pycompat.byteskwargs(opts))
     for extname, extmod in sorted(exts, key=operator.itemgetter(0)):
         isinternal = extensions.ismoduleinternal(extmod)
         extsource = None
