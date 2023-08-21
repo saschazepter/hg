@@ -1234,22 +1234,21 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
 
       Control the initial size of the discovery for initial change
     """
-    opts = pycompat.byteskwargs(opts)
     unfi = repo.unfiltered()
 
     # setup potential extra filtering
-    local_revs = opts[b"local_as_revs"]
-    remote_revs = opts[b"remote_as_revs"]
+    local_revs = opts["local_as_revs"]
+    remote_revs = opts["remote_as_revs"]
 
     # make sure tests are repeatable
-    random.seed(int(opts[b'seed']))
+    random.seed(int(opts['seed']))
 
     if not remote_revs:
         path = urlutil.get_unique_pull_path_obj(
             b'debugdiscovery', ui, remoteurl
         )
         branches = (path.branch, [])
-        remote = hg.peer(repo, opts, path)
+        remote = hg.peer(repo, pycompat.byteskwargs(opts), path)
         ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(path.loc))
     else:
         branches = (None, [])
@@ -1279,7 +1278,7 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
         repo = repo.filtered(b'debug-discovery-local-filter')
 
     data = {}
-    if opts.get(b'old'):
+    if opts.get('old'):
 
         def doit(pushedrevs, remoteheads, remote=remote):
             if not hasattr(remote, 'branches'):
@@ -1292,7 +1291,7 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
                 repo, remote, force=True, audit=data
             )
             common = set(common)
-            if not opts.get(b'nonheads'):
+            if not opts.get('nonheads'):
                 ui.writenoi18n(
                     b"unpruned common: %s\n"
                     % b" ".join(sorted(short(n) for n in common))
@@ -1321,9 +1320,9 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
             return common, hds
 
     remoterevs, _checkout = hg.addbranchrevs(repo, remote, branches, revs=None)
-    localrevs = opts[b'rev']
+    localrevs = opts['rev']
 
-    fm = ui.formatter(b'debugdiscovery', opts)
+    fm = ui.formatter(b'debugdiscovery', pycompat.byteskwargs(opts))
     if fm.strict_format:
 
         @contextlib.contextmanager
