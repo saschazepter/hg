@@ -4483,12 +4483,10 @@ def debugwireproto(ui, repo, path=None, **opts):
     resulting object is fed into a CBOR encoder. Otherwise it is interpreted
     as a Python byte string literal.
     """
-    opts = pycompat.byteskwargs(opts)
-
-    if opts[b'localssh'] and not repo:
+    if opts['localssh'] and not repo:
         raise error.Abort(_(b'--localssh requires a repository'))
 
-    if opts[b'peer'] and opts[b'peer'] not in (
+    if opts['peer'] and opts['peer'] not in (
         b'raw',
         b'ssh1',
     ):
@@ -4497,7 +4495,7 @@ def debugwireproto(ui, repo, path=None, **opts):
             hint=_(b'valid values are "raw" and "ssh1"'),
         )
 
-    if path and opts[b'localssh']:
+    if path and opts['localssh']:
         raise error.Abort(_(b'cannot specify --localssh with an explicit path'))
 
     if ui.interactive():
@@ -4511,7 +4509,7 @@ def debugwireproto(ui, repo, path=None, **opts):
     stderr = None
     opener = None
 
-    if opts[b'localssh']:
+    if opts['localssh']:
         # We start the SSH server in its own process so there is process
         # separation. This prevents a whole class of potential bugs around
         # shared state from interfering with server operation.
@@ -4534,7 +4532,7 @@ def debugwireproto(ui, repo, path=None, **opts):
         stderr = proc.stderr
 
         # We turn the pipes into observers so we can log I/O.
-        if ui.verbose or opts[b'peer'] == b'raw':
+        if ui.verbose or opts['peer'] == b'raw':
             stdin = util.makeloggingfileobject(
                 ui, proc.stdin, b'i', logdata=True
             )
@@ -4548,9 +4546,9 @@ def debugwireproto(ui, repo, path=None, **opts):
         # --localssh also implies the peer connection settings.
 
         url = b'ssh://localserver'
-        autoreadstderr = not opts[b'noreadstderr']
+        autoreadstderr = not opts['noreadstderr']
 
-        if opts[b'peer'] == b'ssh1':
+        if opts['peer'] == b'ssh1':
             ui.write(_(b'creating ssh peer for wire protocol version 1\n'))
             peer = sshpeer.sshv1peer(
                 ui,
@@ -4562,7 +4560,7 @@ def debugwireproto(ui, repo, path=None, **opts):
                 None,
                 autoreadstderr=autoreadstderr,
             )
-        elif opts[b'peer'] == b'raw':
+        elif opts['peer'] == b'raw':
             ui.write(_(b'using raw connection to peer\n'))
             peer = None
         else:
@@ -4609,17 +4607,17 @@ def debugwireproto(ui, repo, path=None, **opts):
         # Don't send default headers when in raw mode. This allows us to
         # bypass most of the behavior of our URL handling code so we can
         # have near complete control over what's sent on the wire.
-        if opts[b'peer'] == b'raw':
+        if opts['peer'] == b'raw':
             openerargs['sendaccept'] = False
 
         opener = urlmod.opener(ui, authinfo, **openerargs)
 
-        if opts[b'peer'] == b'raw':
+        if opts['peer'] == b'raw':
             ui.write(_(b'using raw connection to peer\n'))
             peer = None
-        elif opts[b'peer']:
+        elif opts['peer']:
             raise error.Abort(
-                _(b'--peer %s not supported with HTTP peers') % opts[b'peer']
+                _(b'--peer %s not supported with HTTP peers') % opts['peer']
             )
         else:
             peer_path = urlutil.try_path(ui, path)
