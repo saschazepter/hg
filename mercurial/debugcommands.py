@@ -1709,14 +1709,13 @@ def debugformat(ui, repo, **opts):
 
     Use --verbose to get extra information about current config value and
     Mercurial default."""
-    opts = pycompat.byteskwargs(opts)
     maxvariantlength = max(len(fv.name) for fv in upgrade.allformatvariant)
     maxvariantlength = max(len(b'format-variant'), maxvariantlength)
 
     def makeformatname(name):
         return b'%s:' + (b' ' * (maxvariantlength - len(name)))
 
-    fm = ui.formatter(b'debugformat', opts)
+    fm = ui.formatter(b'debugformat', pycompat.byteskwargs(opts))
     if fm.isplain():
 
         def formatvalue(value):
