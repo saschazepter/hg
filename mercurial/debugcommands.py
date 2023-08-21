@@ -1956,11 +1956,9 @@ def debuginstall(ui, **opts):
 
     Returns 0 on success.
     """
-    opts = pycompat.byteskwargs(opts)
-
     problems = 0
 
-    fm = ui.formatter(b'debuginstall', opts)
+    fm = ui.formatter(b'debuginstall', pycompat.byteskwargs(opts))
     fm.startitem()
 
     # encoding might be unknown or wrong. don't translate these messages.
