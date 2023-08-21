@@ -3210,10 +3210,11 @@ def debugrequirements(ui, repo):
 )
 def debugrevlog(ui, repo, file_=None, **opts):
     """show data and statistics about a revlog"""
-    opts = pycompat.byteskwargs(opts)
-    r = cmdutil.openrevlog(repo, b'debugrevlog', file_, opts)
+    r = cmdutil.openrevlog(
+        repo, b'debugrevlog', file_, pycompat.byteskwargs(opts)
+    )
 
-    if opts.get(b"dump"):
+    if opts.get("dump"):
         revlog_debug.dump(ui, r)
     else:
         revlog_debug.debug_revlog(ui, r)
