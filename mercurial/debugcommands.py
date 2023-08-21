@@ -1820,8 +1820,7 @@ def debuggetbundle(ui, repopath, bundlepath, head=None, common=None, **opts):
     Every ID must be a full-length hex node id string. Saves the bundle to the
     given file.
     """
-    opts = pycompat.byteskwargs(opts)
-    repo = hg.peer(ui, opts, repopath)
+    repo = hg.peer(ui, pycompat.byteskwargs(opts), repopath)
     if not repo.capable(b'getbundle'):
         raise error.Abort(b"getbundle() not supported by target repository")
     args = {}
@@ -1833,7 +1832,7 @@ def debuggetbundle(ui, repopath, bundlepath, head=None, common=None, **opts):
     args['bundlecaps'] = None
     bundle = repo.getbundle(b'debug', **args)
 
-    bundletype = opts.get(b'type', b'bzip2').lower()
+    bundletype = opts.get('type', b'bzip2').lower()
     btypes = {
         b'none': b'HG10UN',
         b'bzip2': b'HG10BZ',
