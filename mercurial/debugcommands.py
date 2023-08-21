@@ -3382,7 +3382,6 @@ def debugrevspec(ui, repo, expr, **opts):
     Use --verify-optimized to compare the optimized result with the unoptimized
     one. Returns 1 if the optimized result differs.
     """
-    opts = pycompat.byteskwargs(opts)
     aliases = ui.configitems(b'revsetalias')
     stages = [
         (b'parsed', lambda tree: tree),
@@ -3394,9 +3393,9 @@ def debugrevspec(ui, repo, expr, **opts):
         (b'analyzed', revsetlang.analyze),
         (b'optimized', revsetlang.optimize),
     ]
-    if opts[b'no_optimized']:
+    if opts['no_optimized']:
         stages = stages[:-1]
-    if opts[b'verify_optimized'] and opts[b'no_optimized']:
+    if opts['verify_optimized'] and opts['no_optimized']:
         raise error.Abort(
             _(b'cannot use --verify-optimized with --no-optimized')
         )
@@ -3404,21 +3403,21 @@ def debugrevspec(ui, repo, expr, **opts):
 
     showalways = set()
     showchanged = set()
-    if ui.verbose and not opts[b'show_stage']:
+    if ui.verbose and not opts['show_stage']:
         # show parsed tree by --verbose (deprecated)
         showalways.add(b'parsed')
         showchanged.update([b'expanded', b'concatenated'])
-        if opts[b'optimize']:
+        if opts['optimize']:
             showalways.add(b'optimized')
-    if opts[b'show_stage'] and opts[b'optimize']:
+    if opts['show_stage'] and opts['optimize']:
         raise error.Abort(_(b'cannot use --optimize with --show-stage'))
-    if opts[b'show_stage'] == [b'all']:
+    if opts['show_stage'] == [b'all']:
         showalways.update(stagenames)
     else:
-        for n in opts[b'show_stage']:
+        for n in opts['show_stage']:
             if n not in stagenames:
                 raise error.Abort(_(b'invalid stage name: %s') % n)
-        showalways.update(opts[b'show_stage'])
+        showalways.update(opts['show_stage'])
 
     treebystage = {}
     printedtree = None
@@ -3426,15 +3425,15 @@ def debugrevspec(ui, repo, expr, **opts):
     for n, f in stages:
         treebystage[n] = tree = f(tree)
         if n in showalways or (n in showchanged and tree != printedtree):
-            if opts[b'show_stage'] or n != b'parsed':
+            if opts['show_stage'] or n != b'parsed':
                 ui.write(b"* %s:\n" % n)
             ui.write(revsetlang.prettyformat(tree), b"\n")
             printedtree = tree
 
-    if opts[b'verify_optimized']:
+    if opts['verify_optimized']:
         arevs = revset.makematcher(treebystage[b'analyzed'])(repo)
         brevs = revset.makematcher(treebystage[b'optimized'])(repo)
-        if opts[b'show_set'] or (opts[b'show_set'] is None and ui.verbose):
+        if opts['show_set'] or (opts['show_set'] is None and ui.verbose):
             ui.writenoi18n(
                 b"* analyzed set:\n", stringutil.prettyrepr(arevs), b"\n"
             )
@@ -3462,9 +3461,9 @@ def debugrevspec(ui, repo, expr, **opts):
 
     func = revset.makematcher(tree)
     revs = func(repo)
-    if opts[b'show_set'] or (opts[b'show_set'] is None and ui.verbose):
+    if opts['show_set'] or (opts['show_set'] is None and ui.verbose):
         ui.writenoi18n(b"* set:\n", stringutil.prettyrepr(revs), b"\n")
-    if not opts[b'show_revs']:
+    if not opts['show_revs']:
         return
     for c in revs:
         ui.write(b"%d\n" % c)
