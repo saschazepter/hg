@@ -484,8 +484,7 @@ def debugbundle(ui, bundlepath, all=None, spec=None, **opts):
 @command(b'debugcapabilities', [], _(b'PATH'), norepo=True)
 def debugcapabilities(ui, path, **opts):
     """lists the capabilities of a remote peer"""
-    opts = pycompat.byteskwargs(opts)
-    peer = hg.peer(ui, opts, path)
+    peer = hg.peer(ui, pycompat.byteskwargs(opts), path)
     try:
         caps = peer.capabilities()
         ui.writenoi18n(b'Main capabilities:\n')
