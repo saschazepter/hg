@@ -3551,8 +3551,7 @@ def debugsidedata(ui, repo, file_, rev=None, **opts):
     """dump the side data for a cl/manifest/file revision
 
     Use --verbose to dump the sidedata content."""
-    opts = pycompat.byteskwargs(opts)
-    if opts.get(b'changelog') or opts.get(b'manifest') or opts.get(b'dir'):
+    if opts.get('changelog') or opts.get('manifest') or opts.get('dir'):
         if rev is not None:
             raise error.InputError(
                 _(b'cannot specify a revision with other arguments')
@@ -3560,7 +3559,9 @@ def debugsidedata(ui, repo, file_, rev=None, **opts):
         file_, rev = None, file_
     elif rev is None:
         raise error.InputError(_(b'please specify a revision'))
-    r = cmdutil.openstorage(repo, b'debugdata', file_, opts)
+    r = cmdutil.openstorage(
+        repo, b'debugdata', file_, pycompat.byteskwargs(opts)
+    )
     r = getattr(r, '_revlog', r)
     try:
         sidedata = r.sidedata(r.lookup(rev))
