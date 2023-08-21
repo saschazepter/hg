@@ -799,8 +799,9 @@ def debugdeltachain(ui, repo, file_=None, **opts):
 
     The sparse read can be enabled with experimental.sparse-read = True
     """
-    opts = pycompat.byteskwargs(opts)
-    r = cmdutil.openrevlog(repo, b'debugdeltachain', file_, opts)
+    r = cmdutil.openrevlog(
+        repo, b'debugdeltachain', file_, pycompat.byteskwargs(opts)
+    )
     index = r.index
     start = r.start
     length = r.length
@@ -890,7 +891,7 @@ def debugdeltachain(ui, repo, file_=None, **opts):
 
         return p1, p2, compsize, uncompsize, deltatype, chain, chain_size
 
-    fm = ui.formatter(b'debugdeltachain', opts)
+    fm = ui.formatter(b'debugdeltachain', pycompat.byteskwargs(opts))
 
     fm.plain(
         b'    rev      p1      p2  chain# chainlen     prev   delta       '
