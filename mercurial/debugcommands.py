@@ -2255,8 +2255,7 @@ def debugknown(ui, repopath, *ids, **opts):
     Every ID must be a full-length hex node id string. Returns a list of 0s
     and 1s indicating unknown/known.
     """
-    opts = pycompat.byteskwargs(opts)
-    repo = hg.peer(ui, opts, repopath)
+    repo = hg.peer(ui, pycompat.byteskwargs(opts), repopath)
     if not repo.capable(b'known'):
         raise error.Abort(b"known() not supported by target repository")
     flags = repo.known([bin(s) for s in ids])
