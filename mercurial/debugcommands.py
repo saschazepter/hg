@@ -1026,7 +1026,6 @@ def debugdeltafind(ui, repo, arg_1, arg_2=None, source=b'full', **opts):
 
     note: the process is initiated from a full text of the revision to store.
     """
-    opts = pycompat.byteskwargs(opts)
     if arg_2 is None:
         file_ = None
         rev = arg_1
@@ -1036,7 +1035,9 @@ def debugdeltafind(ui, repo, arg_1, arg_2=None, source=b'full', **opts):
 
     rev = int(rev)
 
-    revlog = cmdutil.openrevlog(repo, b'debugdeltachain', file_, opts)
+    revlog = cmdutil.openrevlog(
+        repo, b'debugdeltachain', file_, pycompat.byteskwargs(opts)
+    )
     p1r, p2r = revlog.parentrevs(rev)
 
     if source == b'full':
