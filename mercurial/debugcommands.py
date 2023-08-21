@@ -3172,8 +3172,7 @@ def debugrebuilddirstate(ui, repo, rev, **opts):
 )
 def debugrebuildfncache(ui, repo, **opts):
     """rebuild the fncache file"""
-    opts = pycompat.byteskwargs(opts)
-    repair.rebuildfncache(ui, repo, opts.get(b"only_data"))
+    repair.rebuildfncache(ui, repo, opts.get("only_data"))
 
 
 @command(
