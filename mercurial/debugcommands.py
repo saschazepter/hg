@@ -2840,8 +2840,7 @@ def debugp1copies(ui, repo, **opts):
 def debugp2copies(ui, repo, **opts):
     """dump copy information compared to p2"""
 
-    opts = pycompat.byteskwargs(opts)
-    ctx = scmutil.revsingle(repo, opts.get(b'rev'), default=None)
+    ctx = scmutil.revsingle(repo, opts.get('rev'), default=None)
     for dst, src in ctx.p2copies().items():
         ui.write(b'%s -> %s\n' % (src, dst))
 
