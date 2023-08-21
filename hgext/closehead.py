@@ -58,11 +58,10 @@ def close_branch(ui, repo, *revs, **opts):
             date=opts.get('date'),
             extra=extra,
         )
-        tr = repo.transaction(b'commit')
-        ret = repo.commitctx(cctx, True)
-        bookmarks.update(repo, [rev, None], ret)
-        cctx.markcommitted(ret)
-        tr.close()
+        with repo.transaction(b'commit'):
+            ret = repo.commitctx(cctx, True)
+            bookmarks.update(repo, [rev, None], ret)
+            cctx.markcommitted(ret)
 
     revs += tuple(opts.get('rev', []))
     revs = logcmdutil.revrange(repo, revs)
