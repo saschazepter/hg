@@ -3734,13 +3734,12 @@ def debugbackupbundle(ui, repo, *pats, **opts):
     )
     backups.sort(key=lambda x: os.path.getmtime(x), reverse=True)
 
-    opts = pycompat.byteskwargs(opts)
-    opts[b"bundle"] = b""
-    opts[b"force"] = None
-    limit = logcmdutil.getlimit(opts)
+    opts["bundle"] = b""
+    opts["force"] = None
+    limit = logcmdutil.getlimit(pycompat.byteskwargs(opts))
 
     def display(other, chlist, displayer):
-        if opts.get(b"newest_first"):
+        if opts.get("newest_first"):
             chlist.reverse()
         count = 0
         for n in chlist:
@@ -3749,12 +3748,12 @@ def debugbackupbundle(ui, repo, *pats, **opts):
             parents = [
                 True for p in other.changelog.parents(n) if p != repo.nullid
             ]
-            if opts.get(b"no_merges") and len(parents) == 2:
+            if opts.get("no_merges") and len(parents) == 2:
                 continue
             count += 1
             displayer.show(other[n])
 
-    recovernode = opts.get(b"recover")
+    recovernode = opts.get("recover")
     if recovernode:
         if scmutil.isrevsymbol(repo, recovernode):
             ui.warn(_(b"%s already exists in the repo\n") % recovernode)
@@ -3778,15 +3777,15 @@ def debugbackupbundle(ui, repo, *pats, **opts):
             source,
         )
         try:
-            other = hg.peer(repo, opts, path)
+            other = hg.peer(repo, pycompat.byteskwargs(opts), path)
         except error.LookupError as ex:
             msg = _(b"\nwarning: unable to open bundle %s") % path.loc
             hint = _(b"\n(missing parent rev %s)\n") % short(ex.name)
             ui.warn(msg, hint=hint)
             continue
-        branches = (path.branch, opts.get(b'branch', []))
+        branches = (path.branch, opts.get('branch', []))
         revs, checkout = hg.addbranchrevs(
-            repo, other, branches, opts.get(b"rev")
+            repo, other, branches, opts.get("rev")
         )
 
         if revs:
@@ -3795,7 +3794,7 @@ def debugbackupbundle(ui, repo, *pats, **opts):
         with ui.silent():
             try:
                 other, chlist, cleanupfn = bundlerepo.getremotechanges(
-                    ui, repo, other, revs, opts[b"bundle"], opts[b"force"]
+                    ui, repo, other, revs, opts["bundle"], opts["force"]
                 )
             except error.LookupError:
                 continue
@@ -3832,10 +3831,10 @@ def debugbackupbundle(ui, repo, *pats, **opts):
                     ui.status(b"%s%s\n" % (b"bundle:".ljust(13), path.loc))
                 else:
                     opts[
-                        b"template"
+                        "template"
                     ] = b"{label('status.modified', node|short)} {desc|firstline}\n"
                 displayer = logcmdutil.changesetdisplayer(
-                    ui, other, opts, False
+                    ui, other, pycompat.byteskwargs(opts), False
                 )
                 display(other, chlist, displayer)
                 displayer.close()
