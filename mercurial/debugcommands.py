@@ -3008,11 +3008,10 @@ def debugpickmergetool(ui, repo, *pats, **opts):
     information, even with --debug. In such case, information above is
     useful to know why a merge tool is chosen.
     """
-    opts = pycompat.byteskwargs(opts)
     overrides = {}
-    if opts[b'tool']:
-        overrides[(b'ui', b'forcemerge')] = opts[b'tool']
-        ui.notenoi18n(b'with --tool %r\n' % (pycompat.bytestr(opts[b'tool'])))
+    if opts['tool']:
+        overrides[(b'ui', b'forcemerge')] = opts['tool']
+        ui.notenoi18n(b'with --tool %r\n' % (pycompat.bytestr(opts['tool'])))
 
     with ui.configoverride(overrides, b'debugmergepatterns'):
         hgmerge = encoding.environ.get(b"HGMERGE")
@@ -3022,9 +3021,9 @@ def debugpickmergetool(ui, repo, *pats, **opts):
         if uimerge:
             ui.notenoi18n(b'with ui.merge=%r\n' % (pycompat.bytestr(uimerge)))
 
-        ctx = scmutil.revsingle(repo, opts.get(b'rev'))
-        m = scmutil.match(ctx, pats, opts)
-        changedelete = opts[b'changedelete']
+        ctx = scmutil.revsingle(repo, opts.get('rev'))
+        m = scmutil.match(ctx, pats, pycompat.byteskwargs(opts))
+        changedelete = opts['changedelete']
         for path in ctx.walk(m):
             fctx = ctx[path]
             with ui.silent(
