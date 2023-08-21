@@ -2490,9 +2490,8 @@ def debugmergestate(ui, repo, *args, **opts):
         else:
             ui.writenoi18n(b'v1 and v2 states mismatch: using v1\n')
 
-    opts = pycompat.byteskwargs(opts)
-    if not opts[b'template']:
-        opts[b'template'] = (
+    if not opts['template']:
+        opts['template'] = (
             b'{if(commits, "", "no merge state found\n")}'
             b'{commits % "{name}{if(label, " ({label})")}: {node}\n"}'
             b'{files % "file: {path} (state \\"{state}\\")\n'
@@ -2512,7 +2511,7 @@ def debugmergestate(ui, repo, *args, **opts):
 
     ms = mergestatemod.mergestate.read(repo)
 
-    fm = ui.formatter(b'debugmergestate', opts)
+    fm = ui.formatter(b'debugmergestate', pycompat.byteskwargs(opts))
     fm.startitem()
 
     fm_commits = fm.nested(b'commits')
