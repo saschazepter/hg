@@ -4219,16 +4219,15 @@ def debugwhyunstable(ui, repo, rev):
     norepo=True,
 )
 def debugwireargs(ui, repopath, *vals, **opts):
-    opts = pycompat.byteskwargs(opts)
-    repo = hg.peer(ui, opts, repopath)
+    repo = hg.peer(ui, pycompat.byteskwargs(opts), repopath)
     try:
         for opt in cmdutil.remoteopts:
-            del opts[opt[1]]
+            del opts[pycompat.sysstr(opt[1])]
         args = {}
         for k, v in opts.items():
             if v:
                 args[k] = v
-        args = pycompat.strkwargs(args)
+
         # run twice to check that we don't mess up the stream for the next command
         res1 = repo.debugwireargs(*vals, **args)
         res2 = repo.debugwireargs(*vals, **args)
