@@ -3490,30 +3490,28 @@ def debugserve(ui, repo, **opts):
     workaround to the fact that ``hg serve --stdio`` must have specific
     arguments for security reasons.
     """
-    opts = pycompat.byteskwargs(opts)
-
-    if not opts[b'sshstdio']:
+    if not opts['sshstdio']:
         raise error.Abort(_(b'only --sshstdio is currently supported'))
 
     logfh = None
 
-    if opts[b'logiofd'] and opts[b'logiofile']:
+    if opts['logiofd'] and opts['logiofile']:
         raise error.Abort(_(b'cannot use both --logiofd and --logiofile'))
 
-    if opts[b'logiofd']:
+    if opts['logiofd']:
         # Ideally we would be line buffered. But line buffering in binary
         # mode isn't supported and emits a warning in Python 3.8+. Disabling
         # buffering could have performance impacts. But since this isn't
         # performance critical code, it should be fine.
         try:
-            logfh = os.fdopen(int(opts[b'logiofd']), 'ab', 0)
+            logfh = os.fdopen(int(opts['logiofd']), 'ab', 0)
         except OSError as e:
             if e.errno != errno.ESPIPE:
                 raise
             # can't seek a pipe, so `ab` mode fails on py3
-            logfh = os.fdopen(int(opts[b'logiofd']), 'wb', 0)
-    elif opts[b'logiofile']:
-        logfh = open(opts[b'logiofile'], b'ab', 0)
+            logfh = os.fdopen(int(opts['logiofd']), 'wb', 0)
+    elif opts['logiofile']:
+        logfh = open(opts['logiofile'], b'ab', 0)
 
     s = wireprotoserver.sshserver(ui, repo, logfh=logfh)
     s.serve_forever()
