@@ -3183,9 +3183,8 @@ def debugrebuildfncache(ui, repo, **opts):
 def debugrename(ui, repo, *pats, **opts):
     """dump rename information"""
 
-    opts = pycompat.byteskwargs(opts)
-    ctx = scmutil.revsingle(repo, opts.get(b'rev'))
-    m = scmutil.match(ctx, pats, opts)
+    ctx = scmutil.revsingle(repo, opts.get('rev'))
+    m = scmutil.match(ctx, pats, pycompat.byteskwargs(opts))
     for abs in ctx.walk(m):
         fctx = ctx[abs]
         o = fctx.filelog().renamed(fctx.filenode())
