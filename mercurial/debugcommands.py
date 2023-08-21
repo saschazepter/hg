@@ -1926,8 +1926,9 @@ def debugindex(ui, repo, file_=None, **opts):
 )
 def debugindexdot(ui, repo, file_=None, **opts):
     """dump an index DAG as a graphviz dot file"""
-    opts = pycompat.byteskwargs(opts)
-    r = cmdutil.openstorage(repo, b'debugindexdot', file_, opts)
+    r = cmdutil.openstorage(
+        repo, b'debugindexdot', file_, pycompat.byteskwargs(opts)
+    )
     ui.writenoi18n(b"digraph G {\n")
     for i in r:
         node = r.node(i)
