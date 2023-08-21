@@ -1569,8 +1569,8 @@ def debugfileset(ui, repo, expr, **opts):
     from . import fileset
 
     fileset.symbols  # force import of fileset so we have predicates to optimize
-    opts = pycompat.byteskwargs(opts)
-    ctx = logcmdutil.revsingle(repo, opts.get(b'rev'), None)
+
+    ctx = logcmdutil.revsingle(repo, opts.get('rev'), None)
 
     stages = [
         (b'parsed', pycompat.identity),
@@ -1580,32 +1580,32 @@ def debugfileset(ui, repo, expr, **opts):
     stagenames = {n for n, f in stages}
 
     showalways = set()
-    if ui.verbose and not opts[b'show_stage']:
+    if ui.verbose and not opts['show_stage']:
         # show parsed tree by --verbose (deprecated)
         showalways.add(b'parsed')
-    if opts[b'show_stage'] == [b'all']:
+    if opts['show_stage'] == [b'all']:
         showalways.update(stagenames)
     else:
-        for n in opts[b'show_stage']:
+        for n in opts['show_stage']:
             if n not in stagenames:
                 raise error.Abort(_(b'invalid stage name: %s') % n)
-        showalways.update(opts[b'show_stage'])
+        showalways.update(opts['show_stage'])
 
     tree = filesetlang.parse(expr)
     for n, f in stages:
         tree = f(tree)
         if n in showalways:
-            if opts[b'show_stage'] or n != b'parsed':
+            if opts['show_stage'] or n != b'parsed':
                 ui.write(b"* %s:\n" % n)
             ui.write(filesetlang.prettyformat(tree), b"\n")
 
     files = set()
-    if opts[b'all_files']:
+    if opts['all_files']:
         for r in repo:
             c = repo[r]
             files.update(c.files())
             files.update(c.substate)
-    if opts[b'all_files'] or ctx.rev() is None:
+    if opts['all_files'] or ctx.rev() is None:
         wctx = repo[None]
         files.update(
             repo.dirstate.walk(
@@ -1621,7 +1621,7 @@ def debugfileset(ui, repo, expr, **opts):
         files.update(ctx.substate)
 
     m = ctx.matchfileset(repo.getcwd(), expr)
-    if opts[b'show_matcher'] or (opts[b'show_matcher'] is None and ui.verbose):
+    if opts['show_matcher'] or (opts['show_matcher'] is None and ui.verbose):
         ui.writenoi18n(b'* matcher:\n', stringutil.prettyrepr(m), b'\n')
     for f in sorted(files):
         if not m(f):
