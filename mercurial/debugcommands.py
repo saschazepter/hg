@@ -3230,9 +3230,10 @@ def debugrevlog(ui, repo, file_=None, **opts):
 )
 def debugrevlogindex(ui, repo, file_=None, **opts):
     """dump the contents of a revlog index"""
-    opts = pycompat.byteskwargs(opts)
-    r = cmdutil.openrevlog(repo, b'debugrevlogindex', file_, opts)
-    format = opts.get(b'format', 0)
+    r = cmdutil.openrevlog(
+        repo, b'debugrevlogindex', file_, pycompat.byteskwargs(opts)
+    )
+    format = opts.get('format', 0)
     if format not in (0, 1):
         raise error.Abort(_(b"unknown format %d") % format)
 
