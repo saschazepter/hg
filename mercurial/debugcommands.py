@@ -3917,10 +3917,9 @@ def debugshell(ui, repo, **opts):
 )
 def debug_revlog_stats(ui, repo, **opts):
     """display statistics about revlogs in the store"""
-    opts = pycompat.byteskwargs(opts)
-    changelog = opts[b"changelog"]
-    manifest = opts[b"manifest"]
-    filelogs = opts[b"filelogs"]
+    changelog = opts["changelog"]
+    manifest = opts["manifest"]
+    filelogs = opts["filelogs"]
 
     if changelog is None and manifest is None and filelogs is None:
         changelog = True
@@ -3928,7 +3927,7 @@ def debug_revlog_stats(ui, repo, **opts):
         filelogs = True
 
     repo = repo.unfiltered()
-    fm = ui.formatter(b'debug-revlog-stats', opts)
+    fm = ui.formatter(b'debug-revlog-stats', pycompat.byteskwargs(opts))
     revlog_debug.debug_revlog_stats(repo, fm, changelog, manifest, filelogs)
     fm.end()
 
