@@ -394,7 +394,6 @@ def _debugchangegroup(ui, gen, all=None, indent=0, **opts):
 
 def _debugobsmarkers(ui, part, indent=0, **opts):
     """display version and markers contained in 'data'"""
-    opts = pycompat.byteskwargs(opts)
     data = part.read()
     indent_string = b' ' * indent
     try:
@@ -407,7 +406,7 @@ def _debugobsmarkers(ui, part, indent=0, **opts):
         msg = b"%sversion: %d (%d bytes)\n"
         msg %= indent_string, version, len(data)
         ui.write(msg)
-        fm = ui.formatter(b'debugobsolete', opts)
+        fm = ui.formatter(b'debugobsolete', pycompat.byteskwargs(opts))
         for rawmarker in sorted(markers):
             m = obsutil.marker(None, rawmarker)
             fm.startitem()
