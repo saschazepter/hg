@@ -2699,8 +2699,6 @@ def debugobsolete(ui, repo, precursor=None, *successors, **opts):
 
     With no arguments, displays the list of obsolescence markers."""
 
-    opts = pycompat.byteskwargs(opts)
-
     def parsenodeid(s):
         try:
             # We do not use revsingle/revrange functions here to accept
@@ -2716,9 +2714,9 @@ def debugobsolete(ui, repo, precursor=None, *successors, **opts):
                 b'node identifiers'
             )
 
-    if opts.get(b'delete'):
+    if opts.get('delete'):
         indices = []
-        for v in opts.get(b'delete'):
+        for v in opts.get('delete'):
             try:
                 indices.append(int(v))
             except ValueError:
@@ -2739,25 +2737,25 @@ def debugobsolete(ui, repo, precursor=None, *successors, **opts):
         return
 
     if precursor is not None:
-        if opts[b'rev']:
+        if opts['rev']:
             raise error.InputError(
                 b'cannot select revision when creating marker'
             )
         metadata = {}
-        metadata[b'user'] = encoding.fromlocal(opts[b'user'] or ui.username())
+        metadata[b'user'] = encoding.fromlocal(opts['user'] or ui.username())
         succs = tuple(parsenodeid(succ) for succ in successors)
         l = repo.lock()
         try:
             tr = repo.transaction(b'debugobsolete')
             try:
-                date = opts.get(b'date')
+                date = opts.get('date')
                 if date:
                     date = dateutil.parsedate(date)
                 else:
                     date = None
                 prec = parsenodeid(precursor)
                 parents = None
-                if opts[b'record_parents']:
+                if opts['record_parents']:
                     if prec not in repo.unfiltered():
                         raise error.Abort(
                             b'cannot used --record-parents on '
@@ -2769,7 +2767,7 @@ def debugobsolete(ui, repo, precursor=None, *successors, **opts):
                     tr,
                     prec,
                     succs,
-                    opts[b'flags'],
+                    opts['flags'],
                     parents=parents,
                     date=date,
                     metadata=metadata,
@@ -2785,12 +2783,12 @@ def debugobsolete(ui, repo, precursor=None, *successors, **opts):
         finally:
             l.release()
     else:
-        if opts[b'rev']:
-            revs = logcmdutil.revrange(repo, opts[b'rev'])
+        if opts['rev']:
+            revs = logcmdutil.revrange(repo, opts['rev'])
             nodes = [repo[r].node() for r in revs]
             markers = list(
                 obsutil.getmarkers(
-                    repo, nodes=nodes, exclusive=opts[b'exclusive']
+                    repo, nodes=nodes, exclusive=opts['exclusive']
                 )
             )
             markers.sort(key=lambda x: x._data)
@@ -2799,12 +2797,12 @@ def debugobsolete(ui, repo, precursor=None, *successors, **opts):
 
         markerstoiter = markers
         isrelevant = lambda m: True
-        if opts.get(b'rev') and opts.get(b'index'):
+        if opts.get('rev') and opts.get('index'):
             markerstoiter = obsutil.getmarkers(repo)
             markerset = set(markers)
             isrelevant = lambda m: m in markerset
 
-        fm = ui.formatter(b'debugobsolete', opts)
+        fm = ui.formatter(b'debugobsolete', pycompat.byteskwargs(opts))
         for i, m in enumerate(markerstoiter):
             if not isrelevant(m):
                 # marker can be irrelevant when we're iterating over a set
@@ -2816,7 +2814,7 @@ def debugobsolete(ui, repo, precursor=None, *successors, **opts):
                 # are relevant to --rev value
                 continue
             fm.startitem()
-            ind = i if opts.get(b'index') else None
+            ind = i if opts.get('index') else None
             cmdutil.showmarker(fm, m, index=ind)
         fm.end()
 
