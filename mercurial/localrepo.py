@@ -3028,7 +3028,11 @@ class localrepository:
             if clearfilecache:
                 del self._filecache[k]
             try:
-                delattr(unfiltered, k)
+                # XXX ideally, the key would be a unicode string to match the
+                # fact it refers to an attribut name. However changing this was
+                # a bit a scope creep compared to the series cleaning up
+                # del/set/getattr so we kept thing simple here.
+                delattr(unfiltered, pycompat.sysstr(k))
             except AttributeError:
                 pass
         self.invalidatecaches()

@@ -1692,6 +1692,10 @@ class filecache:
     def __call__(self, func):
         self.func = func
         self.sname = func.__name__
+        # XXX We should be using a unicode string instead of bytes for the main
+        # name (and the _filecache key). The fact we use bytes is a remains
+        # from Python2, since the name is derived from an attribute name a
+        # `str` is a better fit now that we support Python3 only
         self.name = pycompat.sysbytes(self.sname)
         return self
 
