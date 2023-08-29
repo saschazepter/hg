@@ -775,7 +775,7 @@ def delta_reuse_policy(ui, path, value):
     return DELTA_REUSE_POLICIES.get(value)
 
 
-@pathsuboption(b'multi-urls', b'multi_urls', display=display_bool)
+@pathsuboption(b'multi-urls', 'multi_urls', display=display_bool)
 def multiurls_pathoption(ui, path, value):
     res = stringutil.parsebool(value)
     if res is None:
