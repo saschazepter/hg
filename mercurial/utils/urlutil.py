@@ -758,7 +758,7 @@ DELTA_REUSE_POLICIES_NAME = dict(i[::-1] for i in DELTA_REUSE_POLICIES.items())
 
 @pathsuboption(
     b'pulled-delta-reuse-policy',
-    b'delta_reuse_policy',
+    'delta_reuse_policy',
     display=DELTA_REUSE_POLICIES_NAME.get,
 )
 def delta_reuse_policy(ui, path, value):
