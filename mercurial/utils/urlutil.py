@@ -695,7 +695,7 @@ def display_bool(value):
     return b'yes' if value else b'no'
 
 
-@pathsuboption(b'pushurl', b'_pushloc')
+@pathsuboption(b'pushurl', '_pushloc')
 def pushurlpathoption(ui, path, value):
     u = url(value)
     # Actually require a URL.
