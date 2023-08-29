@@ -18,6 +18,7 @@ from .. import (
     error,
     pycompat,
     urllibcompat,
+    util,
 )
 
 from . import (
@@ -681,6 +682,10 @@ def pathsuboption(option, attr, display=pycompat.bytestr):
     This decorator can be used to perform additional verification of
     sub-options and to change the type of sub-options.
     """
+    if isinstance(attr, bytes):
+        msg = b'pathsuboption take `str` as "attr" argument, not `bytes`'
+        util.nouideprecwarn(msg, b"6.6", stacklevel=2)
+        attr = attr.decode('ascii')
 
     def register(func):
         _pathsuboptions[option] = (attr, func)
