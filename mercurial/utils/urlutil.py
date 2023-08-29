@@ -720,7 +720,7 @@ def pushurlpathoption(ui, path, value):
     return bytes(u)
 
 
-@pathsuboption(b'pushrev', b'pushrev')
+@pathsuboption(b'pushrev', 'pushrev')
 def pushrevpathoption(ui, path, value):
     return value
 
