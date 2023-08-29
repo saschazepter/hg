@@ -732,7 +732,7 @@ SUPPORTED_BOOKMARKS_MODES = {
 }
 
 
-@pathsuboption(b'bookmarks.mode', b'bookmarks_mode')
+@pathsuboption(b'bookmarks.mode', 'bookmarks_mode')
 def bookmarks_mode_option(ui, path, value):
     if value not in SUPPORTED_BOOKMARKS_MODES:
         path_name = path.name
