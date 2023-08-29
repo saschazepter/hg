@@ -359,10 +359,10 @@ class baseset(abstractsmartset):
         return s
 
     def __and__(self, other):
-        return self._fastsetop(other, b'__and__')
+        return self._fastsetop(other, '__and__')
 
     def __sub__(self, other):
-        return self._fastsetop(other, b'__sub__')
+        return self._fastsetop(other, '__sub__')
 
     def _slice(self, start, stop):
         # creating new list should be generally cheaper than iterating items
