@@ -403,7 +403,7 @@ class hgweb:
                 cmd = cmd[style + 1 :]
 
             # avoid accepting e.g. style parameter as command
-            if util.safehasattr(webcommands, cmd):
+            if util.safehasattr(webcommands, pycompat.sysstr(cmd)):
                 req.qsparams[b'cmd'] = cmd
 
             if cmd == b'static':
@@ -474,7 +474,7 @@ class hgweb:
                 # override easily enough.
                 res.status = b'200 Script output follows'
                 res.headers[b'Content-Type'] = ctype
-                return getattr(webcommands, cmd)(rctx)
+                return getattr(webcommands, pycompat.sysstr(cmd))(rctx)
 
         except (error.LookupError, error.RepoLookupError) as err:
             msg = pycompat.bytestr(err)
