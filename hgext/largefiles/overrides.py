@@ -1309,7 +1309,7 @@ def overridearchive(
 
 @eh.wrapfunction(subrepo.hgsubrepo, 'archive')
 def hgsubrepoarchive(orig, repo, archiver, prefix, match=None, decode=True):
-    lfenabled = util.safehasattr(repo._repo, b'_largefilesenabled')
+    lfenabled = util.safehasattr(repo._repo, '_largefilesenabled')
     if not lfenabled or not repo._repo.lfstatus:
         return orig(repo, archiver, prefix, match, decode)
 
