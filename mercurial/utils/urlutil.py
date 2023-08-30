@@ -257,18 +257,20 @@ class url:
     def __repr__(self):
         attrs = []
         for a in (
-            b'scheme',
-            b'user',
-            b'passwd',
-            b'host',
-            b'port',
-            b'path',
-            b'query',
-            b'fragment',
+            'scheme',
+            'user',
+            'passwd',
+            'host',
+            'port',
+            'path',
+            'query',
+            'fragment',
         ):
             v = getattr(self, a)
             if v is not None:
-                attrs.append(b'%s: %r' % (a, pycompat.bytestr(v)))
+                line = b'%s: %r'
+                line %= (pycompat.bytestr(a), pycompat.bytestr(v))
+                attrs.append(line)
         return b'<url %s>' % b', '.join(attrs)
 
     def __bytes__(self):
