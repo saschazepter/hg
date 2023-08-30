@@ -1467,7 +1467,7 @@ class ui:
         self.flush()
 
         wasformatted = self.formatted()
-        if util.safehasattr(signal, b"SIGPIPE"):
+        if util.safehasattr(signal, "SIGPIPE"):
             signal.signal(signal.SIGPIPE, _catchterm)
         if self._runpager(pagercmd, pagerenv):
             self.pageractive = True
@@ -1547,7 +1547,7 @@ class ui:
 
         @self.atexit
         def killpager():
-            if util.safehasattr(signal, b"SIGINT"):
+            if util.safehasattr(signal, "SIGINT"):
                 signal.signal(signal.SIGINT, signal.SIG_IGN)
             # restore original fds, closing pager.stdin copies in the process
             os.dup2(stdoutfd, procutil.stdout.fileno())
