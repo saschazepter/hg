@@ -78,7 +78,7 @@ class diffopts:
             v = opts.get(k)
             if v is None:
                 v = self.defaults[k]
-            setattr(self, k, v)
+            setattr(self, pycompat.sysstr(k), v)
 
         try:
             self.context = int(self.context)
@@ -89,14 +89,15 @@ class diffopts:
             )
 
     def copy(self, **kwargs):
-        opts = {k: getattr(self, k) for k in self.defaults}
+        opts = {k: getattr(self, pycompat.sysstr(k)) for k in self.defaults}
         opts = pycompat.strkwargs(opts)
         opts.update(kwargs)
         return diffopts(**opts)
 
     def __bytes__(self):
         return b", ".join(
-            b"%s: %r" % (k, getattr(self, k)) for k in self.defaults
+            b"%s: %r" % (k, getattr(self, pycompat.sysstr(k)))
+            for k in self.defaults
         )
 
     __str__ = encoding.strmethod(__bytes__)
