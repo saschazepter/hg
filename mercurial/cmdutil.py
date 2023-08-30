@@ -813,18 +813,17 @@ def tersedir(statuslist, terseargs):
     # creating a dirnode object for the root of the repo
     rootobj = dirnode(b'')
     pstatus = (
-        b'modified',
-        b'added',
-        b'deleted',
-        b'clean',
-        b'unknown',
-        b'ignored',
-        b'removed',
+        ('modified', b'm'),
+        ('added', b'a'),
+        ('deleted', b'd'),
+        ('clean', b'c'),
+        ('unknown', b'u'),
+        ('ignored', b'i'),
+        ('removed', b'r'),
     )
 
     tersedict = {}
-    for attrname in pstatus:
-        statuschar = attrname[0:1]
+    for attrname, statuschar in pstatus:
         for f in getattr(statuslist, attrname):
             rootobj.addfile(f, statuschar)
         tersedict[statuschar] = []
