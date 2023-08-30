@@ -1167,7 +1167,7 @@ def hgclone(orig, ui, opts, *args, **kwargs):
 
 @eh.wrapcommand(b'rebase', extension=b'rebase')
 def overriderebasecmd(orig, ui, repo, **opts):
-    if not util.safehasattr(repo, b'_largefilesenabled'):
+    if not util.safehasattr(repo, '_largefilesenabled'):
         return orig(ui, repo, **opts)
 
     resuming = opts.get('continue')
