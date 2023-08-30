@@ -60,8 +60,8 @@ def relink(ui, repo, origin=None, **opts):
     command is running. (Both repositories will be locked against
     writes.)
     """
-    if not util.safehasattr(util, b'samefile') or not util.safehasattr(
-        util, b'samedevice'
+    if not util.safehasattr(util, 'samefile') or not util.safehasattr(
+        util, 'samedevice'
     ):
         raise error.Abort(_(b'hardlinks are not supported on this system'))
 
