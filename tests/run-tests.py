@@ -3147,6 +3147,13 @@ class TestRunner:
         self._custom_bin_dir = os.path.join(self._hgtmp, b'custom-bin')
         os.makedirs(self._custom_bin_dir)
 
+        # detect and enforce an alternative way to specify rust extension usage
+        if (
+            not (self.options.pure or self.options.rust or self.options.no_rust)
+            and os.environ.get("HGWITHRUSTEXT") == "cpython"
+        ):
+            self.options.rust = True
+
         if self.options.with_hg:
             self._installdir = None
             whg = self.options.with_hg
