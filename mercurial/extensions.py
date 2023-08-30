@@ -165,7 +165,7 @@ def _rejectunicode(name, xs):
 
 
 # attributes set by registrar.command
-_cmdfuncattrs = (b'norepo', b'optionalrepo', b'inferrepo')
+_cmdfuncattrs = ('norepo', 'optionalrepo', 'inferrepo')
 
 
 def _validatecmdtable(ui, cmdtable):
@@ -175,10 +175,10 @@ def _validatecmdtable(ui, cmdtable):
         missing = [a for a in _cmdfuncattrs if not util.safehasattr(f, a)]
         if not missing:
             continue
-        raise error.ProgrammingError(
-            b'missing attributes: %s' % b', '.join(missing),
-            hint=b"use @command decorator to register '%s'" % c,
-        )
+        msg = b'missing attributes: %s'
+        msg %= b', '.join([stringutil.forcebytestr(m) for m in missing])
+        hint = b"use @command decorator to register '%s'" % c
+        raise error.ProgrammingError(msg, hint=hint)
 
 
 def _validatetables(ui, mod):
