@@ -1599,10 +1599,10 @@ def remoteui(src, opts):
 # Used to check if the repository has changed looking at mtime and size of
 # these files.
 foi = [
-    (b'spath', b'00changelog.i'),
-    (b'spath', b'phaseroots'),  # ! phase can change content at the same size
-    (b'spath', b'obsstore'),
-    (b'path', b'bookmarks'),  # ! bookmark can change content at the same size
+    ('spath', b'00changelog.i'),
+    ('spath', b'phaseroots'),  # ! phase can change content at the same size
+    ('spath', b'obsstore'),
+    ('path', b'bookmarks'),  # ! bookmark can change content at the same size
 ]
 
 
