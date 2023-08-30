@@ -986,13 +986,13 @@ def notloaded():
 
 def moduleversion(module):
     '''return version information from given module as a string'''
-    if util.safehasattr(module, b'getversion') and callable(module.getversion):
+    if util.safehasattr(module, 'getversion') and callable(module.getversion):
         try:
             version = module.getversion()
         except Exception:
             version = b'unknown'
 
-    elif util.safehasattr(module, b'__version__'):
+    elif util.safehasattr(module, '__version__'):
         version = module.__version__
     else:
         version = b''
