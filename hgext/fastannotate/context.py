@@ -151,7 +151,10 @@ def encodedir(path):
 
 def hashdiffopts(diffopts):
     diffoptstr = stringutil.pprint(
-        sorted((k, getattr(diffopts, k)) for k in mdiff.diffopts.defaults)
+        sorted(
+            (k, getattr(diffopts, pycompat.sysstr(k)))
+            for k in mdiff.diffopts.defaults
+        )
     )
     return hex(hashutil.sha1(diffoptstr).digest())[:6]
 
