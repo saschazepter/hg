@@ -155,10 +155,11 @@ def _rejectunicode(name, xs):
     elif isinstance(xs, dict):
         for k, v in xs.items():
             _rejectunicode(name, k)
-            _rejectunicode(b'%s.%s' % (name, stringutil.forcebytestr(k)), v)
-    elif isinstance(xs, type(u'')):
+            k = pycompat.sysstr(k)
+            _rejectunicode('%s.%s' % (name, k), v)
+    elif isinstance(xs, str):
         raise error.ProgrammingError(
-            b"unicode %r found in %s" % (xs, name),
+            b"unicode %r found in %s" % (xs, stringutil.forcebytestr(name)),
             hint=b"use b'' to make it byte string",
         )
 
@@ -182,15 +183,15 @@ def _validatecmdtable(ui, cmdtable):
 
 def _validatetables(ui, mod):
     """Sanity check for loadable tables provided by extension module"""
-    for t in [b'cmdtable', b'colortable', b'configtable']:
+    for t in ['cmdtable', 'colortable', 'configtable']:
         _rejectunicode(t, getattr(mod, t, {}))
     for t in [
-        b'filesetpredicate',
-        b'internalmerge',
-        b'revsetpredicate',
-        b'templatefilter',
-        b'templatefunc',
-        b'templatekeyword',
+        'filesetpredicate',
+        'internalmerge',
+        'revsetpredicate',
+        'templatefilter',
+        'templatefunc',
+        'templatekeyword',
     ]:
         o = getattr(mod, t, None)
         if o:
@@ -349,7 +350,7 @@ def loadall(ui, whitelist=None):
     #
     # This one is for the list of item that must be run before running any setup
     earlyextraloaders = [
-        (b'configtable', configitems, b'loadconfigtable'),
+        ('configtable', configitems, 'loadconfigtable'),
     ]
 
     ui.log(b'extension', b'- loading configtable attributes\n')
@@ -434,14 +435,14 @@ def loadall(ui, whitelist=None):
     #   which takes (ui, extensionname, extraobj) arguments
     ui.log(b'extension', b'- loading extension registration objects\n')
     extraloaders = [
-        (b'cmdtable', commands, b'loadcmdtable'),
-        (b'colortable', color, b'loadcolortable'),
-        (b'filesetpredicate', fileset, b'loadpredicate'),
-        (b'internalmerge', filemerge, b'loadinternalmerge'),
-        (b'revsetpredicate', revset, b'loadpredicate'),
-        (b'templatefilter', templatefilters, b'loadfilter'),
-        (b'templatefunc', templatefuncs, b'loadfunction'),
-        (b'templatekeyword', templatekw, b'loadkeyword'),
+        ('cmdtable', commands, 'loadcmdtable'),
+        ('colortable', color, 'loadcolortable'),
+        ('filesetpredicate', fileset, 'loadpredicate'),
+        ('internalmerge', filemerge, 'loadinternalmerge'),
+        ('revsetpredicate', revset, 'loadpredicate'),
+        ('templatefilter', templatefilters, 'loadfilter'),
+        ('templatefunc', templatefuncs, 'loadfunction'),
+        ('templatekeyword', templatekw, 'loadkeyword'),
     ]
     with util.timedcm('load registration objects') as stats:
         _loadextra(ui, newindex, extraloaders)
