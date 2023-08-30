@@ -228,7 +228,7 @@ def onetimesetup(ui):
         # When generating file blobs, taking the real path is too slow on large
         # repos, so force it to just return the linkrev directly.
         repo = self._repo
-        if util.safehasattr(repo, b'forcelinkrev') and repo.forcelinkrev:
+        if util.safehasattr(repo, 'forcelinkrev') and repo.forcelinkrev:
             return self._filelog.linkrev(self._filelog.rev(self._filenode))
         return orig(self, *args, **kwargs)
 
