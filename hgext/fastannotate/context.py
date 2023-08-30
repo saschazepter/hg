@@ -170,13 +170,12 @@ class annotateopts:
     """
 
     defaults = {
-        b'diffopts': None,
-        b'followrename': True,
-        b'followmerge': True,
+        'diffopts': None,
+        'followrename': True,
+        'followmerge': True,
     }
 
     def __init__(self, **opts):
-        opts = pycompat.byteskwargs(opts)
         for k, v in self.defaults.items():
             setattr(self, k, opts.get(k, v))
 
