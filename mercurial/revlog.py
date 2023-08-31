@@ -32,7 +32,6 @@ from .node import (
     wdirrev,
 )
 from .i18n import _
-from .pycompat import getattr
 from .revlogutils.constants import (
     ALL_KINDS,
     CHANGELOGV2,

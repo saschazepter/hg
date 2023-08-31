@@ -16,7 +16,6 @@ import wsgiref.validate
 
 from ..i18n import _
 from ..pycompat import (
-    getattr,
     open,
 )
 

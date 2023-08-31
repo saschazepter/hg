@@ -15,7 +15,6 @@ import ssl
 import warnings
 
 from .i18n import _
-from .pycompat import getattr
 from .node import hex
 from . import (
     encoding,

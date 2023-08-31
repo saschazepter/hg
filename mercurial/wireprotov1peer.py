@@ -12,10 +12,6 @@ import weakref
 from concurrent import futures
 from .i18n import _
 from .node import bin
-from .pycompat import (
-    getattr,
-    setattr,
-)
 from . import (
     bundle2,
     changegroup as changegroupmod,

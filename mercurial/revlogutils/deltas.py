@@ -14,7 +14,6 @@ import struct
 # import stuff from node for others to import from revlog
 from ..node import nullrev
 from ..i18n import _
-from ..pycompat import getattr
 
 from .constants import (
     COMP_MODE_DEFAULT,

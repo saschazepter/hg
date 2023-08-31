@@ -1,8 +1,6 @@
 import _lsprof
 import sys
 
-from .pycompat import getattr
-
 Profiler = _lsprof.Profiler
 
 # PyPy doesn't expose profiler_entry from the module.

@@ -13,7 +13,6 @@ import stat
 from typing import Generator, List
 
 from .i18n import _
-from .pycompat import getattr
 from .thirdparty import attr
 from .node import hex
 from .revlogutils.constants import (

@@ -11,10 +11,6 @@ import struct
 import zlib
 
 from .i18n import _
-from .pycompat import (
-    getattr,
-    setattr,
-)
 from . import (
     diffhelper,
     encoding,

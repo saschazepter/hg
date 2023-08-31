@@ -75,8 +75,6 @@ from mercurial.node import (
     short,
 )
 from mercurial.pycompat import (
-    delattr,
-    getattr,
     open,
 )
 from mercurial import (

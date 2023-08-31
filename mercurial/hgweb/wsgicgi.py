@@ -11,7 +11,6 @@
 
 import os
 
-from ..pycompat import getattr
 from .. import pycompat
 
 from ..utils import procutil

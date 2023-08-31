@@ -88,7 +88,6 @@ import re
 import weakref
 
 from mercurial.i18n import _
-from mercurial.pycompat import getattr
 from mercurial.hgweb import webcommands
 
 from mercurial import (

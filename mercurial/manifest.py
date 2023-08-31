@@ -17,7 +17,6 @@ from .node import (
     hex,
     nullrev,
 )
-from .pycompat import getattr
 from . import (
     encoding,
     error,

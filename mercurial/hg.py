@@ -19,7 +19,6 @@ from .node import (
     sha1nodeconstants,
     short,
 )
-from .pycompat import getattr
 
 from . import (
     bookmarks,

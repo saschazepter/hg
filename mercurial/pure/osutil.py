@@ -11,7 +11,6 @@ import ctypes.util
 import os
 import stat as statmod
 
-from ..pycompat import getattr
 from .. import (
     encoding,
     pycompat,

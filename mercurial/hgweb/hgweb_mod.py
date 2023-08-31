@@ -17,7 +17,6 @@ from .common import (
     permhooks,
     statusmessage,
 )
-from ..pycompat import getattr
 
 from .. import (
     encoding,

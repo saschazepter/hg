@@ -6,7 +6,6 @@
 # GNU General Public License version 2 or any later version.
 
 
-from .pycompat import getattr
 from . import (
     encoding,
     error,

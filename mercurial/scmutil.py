@@ -23,7 +23,6 @@ from .node import (
     short,
     wdirrev,
 )
-from .pycompat import getattr
 from .thirdparty import attr
 from . import (
     copies as copiesmod,

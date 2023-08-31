@@ -28,9 +28,7 @@ from .node import (
     short,
 )
 from .pycompat import (
-    getattr,
     open,
-    setattr,
 )
 from .thirdparty import attr
 

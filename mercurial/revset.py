@@ -12,7 +12,6 @@ import random
 import re
 
 from .i18n import _
-from .pycompat import getattr
 from .node import (
     bin,
     nullrev,

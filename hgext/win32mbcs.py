@@ -49,7 +49,6 @@ import os
 import sys
 
 from mercurial.i18n import _
-from mercurial.pycompat import getattr, setattr
 from mercurial import (
     encoding,
     error,
