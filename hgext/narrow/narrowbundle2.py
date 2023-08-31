@@ -259,7 +259,7 @@ def _handlechangespec(op, inpart):
     # will currently always be there when using the core+narrowhg server, but
     # other servers may include a changespec part even when not widening (e.g.
     # because we're deepening a shallow repo).
-    if util.safehasattr(repo, 'setnewnarrowpats'):
+    if hasattr(repo, 'setnewnarrowpats'):
         op.gettransaction()
         repo.setnewnarrowpats()
 
@@ -333,9 +333,9 @@ def setup():
 
     def wrappedcghandler(op, inpart):
         origcghandler(op, inpart)
-        if util.safehasattr(op, '_widen_bundle'):
+        if hasattr(op, '_widen_bundle'):
             handlechangegroup_widen(op, inpart)
-        if util.safehasattr(op, '_bookmarksbackup'):
+        if hasattr(op, '_bookmarksbackup'):
             localrepo.localrepository._bookmarks.set(
                 op.repo, op._bookmarksbackup
             )

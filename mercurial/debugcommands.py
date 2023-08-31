@@ -1282,7 +1282,7 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
     if opts.get(b'old'):
 
         def doit(pushedrevs, remoteheads, remote=remote):
-            if not util.safehasattr(remote, 'branches'):
+            if not hasattr(remote, 'branches'):
                 # enable in-client legacy support
                 remote = localrepo.locallegacypeer(remote.local())
                 if remote_revs:
@@ -1482,7 +1482,7 @@ def debugextensions(ui, repo, **opts):
         isinternal = extensions.ismoduleinternal(extmod)
         extsource = None
 
-        if util.safehasattr(extmod, '__file__'):
+        if hasattr(extmod, '__file__'):
             extsource = pycompat.fsencode(extmod.__file__)
         elif getattr(sys, 'oxidized', False):
             extsource = pycompat.sysexecutable
@@ -1722,7 +1722,7 @@ def debugformat(ui, repo, **opts):
     if fm.isplain():
 
         def formatvalue(value):
-            if util.safehasattr(value, 'startswith'):
+            if hasattr(value, 'startswith'):
                 return value
             if value:
                 return b'yes'
@@ -1947,7 +1947,7 @@ def debugindexstats(ui, repo):
     """show stats related to the changelog index"""
     repo.changelog.shortest(repo.nullid, 1)
     index = repo.changelog.index
-    if not util.safehasattr(index, 'stats'):
+    if not hasattr(index, 'stats'):
         raise error.Abort(_(b'debugindexstats only works with native code'))
     for k, v in sorted(index.stats().items()):
         ui.write(b'%s: %d\n' % (k, v))
@@ -1983,7 +1983,7 @@ def debuginstall(ui, **opts):
 
     # Python
     pythonlib = None
-    if util.safehasattr(os, '__file__'):
+    if hasattr(os, '__file__'):
         pythonlib = os.path.dirname(pycompat.fsencode(os.__file__))
     elif getattr(sys, 'oxidized', False):
         pythonlib = pycompat.sysexecutable
@@ -2065,7 +2065,7 @@ def debuginstall(ui, **opts):
 
     # compiled modules
     hgmodules = None
-    if util.safehasattr(sys.modules[__name__], '__file__'):
+    if hasattr(sys.modules[__name__], '__file__'):
         hgmodules = os.path.dirname(pycompat.fsencode(__file__))
     elif getattr(sys, 'oxidized', False):
         hgmodules = pycompat.sysexecutable
@@ -2649,7 +2649,7 @@ def debugnodemap(ui, repo, file_=None, **opts):
     if isinstance(r, (manifest.manifestrevlog, filelog.filelog)):
         r = r._revlog
     if opts['dump_new']:
-        if util.safehasattr(r.index, "nodemap_data_all"):
+        if hasattr(r.index, "nodemap_data_all"):
             data = r.index.nodemap_data_all()
         else:
             data = nodemap.persistent_data(r.index)

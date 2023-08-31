@@ -296,13 +296,12 @@ class filteredchangelogmixin:
         This returns a version of 'revs' to be used thereafter by the caller.
         In particular, if revs is an iterator, it is converted into a set.
         """
-        safehasattr = util.safehasattr
-        if safehasattr(revs, '__next__'):
+        if hasattr(revs, '__next__'):
             # Note that inspect.isgenerator() is not true for iterators,
             revs = set(revs)
 
         filteredrevs = self.filteredrevs
-        if safehasattr(revs, 'first'):  # smartset
+        if hasattr(revs, 'first'):  # smartset
             offenders = revs & filteredrevs
         else:
             offenders = filteredrevs.intersection(revs)

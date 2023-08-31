@@ -2583,7 +2583,7 @@ class atomictempfile:
             self._fp.close()
 
     def __del__(self):
-        if safehasattr(self, '_fp'):  # constructor actually did something
+        if hasattr(self, '_fp'):  # constructor actually did something
             self.discard()
 
     def __enter__(self):

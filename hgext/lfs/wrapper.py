@@ -26,7 +26,6 @@ from mercurial import (
     localrepo,
     revlog,
     scmutil,
-    util,
     vfs as vfsmod,
     wireprotov1server,
 )
@@ -72,7 +71,7 @@ def allsupportedversions(orig, ui):
 def _capabilities(orig, repo, proto):
     '''Wrap server command to announce lfs server capability'''
     caps = orig(repo, proto)
-    if util.safehasattr(repo.svfs, 'lfslocalblobstore'):
+    if hasattr(repo.svfs, 'lfslocalblobstore'):
         # Advertise a slightly different capability when lfs is *required*, so
         # that the client knows it MUST load the extension.  If lfs is not
         # required on the server, there's no reason to autoload the extension
@@ -335,14 +334,14 @@ def vfsinit(orig, self, othervfs):
     # also copy lfs blobstores. note: this can run before reposetup, so lfs
     # blobstore attributes are not always ready at this time.
     for name in ['lfslocalblobstore', 'lfsremoteblobstore']:
-        if util.safehasattr(othervfs, name):
+        if hasattr(othervfs, name):
             setattr(self, name, getattr(othervfs, name))
 
 
 def _prefetchfiles(repo, revmatches):
     """Ensure that required LFS blobs are present, fetching them as a group if
     needed."""
-    if not util.safehasattr(repo.svfs, 'lfslocalblobstore'):
+    if not hasattr(repo.svfs, 'lfslocalblobstore'):
         return
 
     pointers = []
@@ -366,7 +365,7 @@ def _prefetchfiles(repo, revmatches):
 
 def _canskipupload(repo):
     # Skip if this hasn't been passed to reposetup()
-    if not util.safehasattr(repo.svfs, 'lfsremoteblobstore'):
+    if not hasattr(repo.svfs, 'lfsremoteblobstore'):
         return True
 
     # if remotestore is a null store, upload is a no-op and can be skipped
@@ -375,7 +374,7 @@ def _canskipupload(repo):
 
 def candownload(repo):
     # Skip if this hasn't been passed to reposetup()
-    if not util.safehasattr(repo.svfs, 'lfsremoteblobstore'):
+    if not hasattr(repo.svfs, 'lfsremoteblobstore'):
         return False
 
     # if remotestore is a null store, downloads will lead to nothing
@@ -524,7 +523,7 @@ def upgradefinishdatamigration(orig, ui, srcrepo, dstrepo, requirements):
     orig(ui, srcrepo, dstrepo, requirements)
 
     # Skip if this hasn't been passed to reposetup()
-    if util.safehasattr(srcrepo.svfs, 'lfslocalblobstore') and util.safehasattr(
+    if hasattr(srcrepo.svfs, 'lfslocalblobstore') and hasattr(
         dstrepo.svfs, 'lfslocalblobstore'
     ):
         srclfsvfs = srcrepo.svfs.lfslocalblobstore.vfs

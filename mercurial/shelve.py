@@ -516,7 +516,7 @@ def mutableancestors(ctx):
 
 def getcommitfunc(extra, interactive, editor=False):
     def commitfunc(ui, repo, message, match, opts):
-        hasmq = util.safehasattr(repo, 'mq')
+        hasmq = hasattr(repo, 'mq')
         if hasmq:
             saved, repo.mq.checkapplied = repo.mq.checkapplied, False
 

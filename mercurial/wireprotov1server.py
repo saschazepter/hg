@@ -721,7 +721,7 @@ def unbundle(repo, proto, heads):
                 r = exchange.unbundle(
                     repo, gen, their_heads, b'serve', proto.client()
                 )
-                if util.safehasattr(r, 'addpart'):
+                if hasattr(r, 'addpart'):
                     # The return looks streamable, we are in the bundle2 case
                     # and should return a stream.
                     return wireprototypes.streamreslegacy(gen=r.getchunks())

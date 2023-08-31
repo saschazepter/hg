@@ -425,7 +425,7 @@ def cloneshallow(orig, ui, repo, *args, **opts):
     finally:
         if opts.get('shallow'):
             for r in repos:
-                if util.safehasattr(r, 'fileservice'):
+                if hasattr(r, 'fileservice'):
                     r.fileservice.close()
 
 
@@ -904,7 +904,7 @@ def gcclient(ui, cachepath):
         if not isenabled(repo):
             continue
 
-        if not util.safehasattr(repo, 'name'):
+        if not hasattr(repo, 'name'):
             ui.warn(
                 _(b"repo %s is a misconfigured remotefilelog repo\n") % path
             )
@@ -1034,7 +1034,7 @@ def wcpprefetch(ui, repo, **kwargs):
     bgprefetchrevs = revdatelimit(ui, bgprefetchrevs)
 
     def anon(unused_success):
-        if util.safehasattr(repo, 'ranprefetch') and repo.ranprefetch:
+        if hasattr(repo, 'ranprefetch') and repo.ranprefetch:
             return
         repo.ranprefetch = True
         repo.backgroundprefetch(bgprefetchrevs, repack=bgrepack)
@@ -1080,9 +1080,9 @@ def exchangepull(orig, repo, remote, *args, **kwargs):
             source, heads=heads, common=common, bundlecaps=bundlecaps, **kwargs
         )
 
-    if util.safehasattr(remote, '_callstream'):
+    if hasattr(remote, '_callstream'):
         remote._localrepo = repo
-    elif util.safehasattr(remote, 'getbundle'):
+    elif hasattr(remote, 'getbundle'):
         extensions.wrapfunction(remote, 'getbundle', localgetbundle)
 
     return orig(repo, remote, *args, **kwargs)

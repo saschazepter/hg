@@ -172,7 +172,7 @@ def _validatecmdtable(ui, cmdtable):
     """Check if extension commands have required attributes"""
     for c, e in cmdtable.items():
         f = e[0]
-        missing = [a for a in _cmdfuncattrs if not util.safehasattr(f, a)]
+        missing = [a for a in _cmdfuncattrs if not hasattr(f, a)]
         if not missing:
             continue
         msg = b'missing attributes: %s'
@@ -742,7 +742,7 @@ def _disabledpaths():
 
     # The hgext might not have a __file__ attribute (e.g. in PyOxidizer) and
     # it might not be on a filesystem even if it does.
-    if util.safehasattr(hgext, '__file__'):
+    if hasattr(hgext, '__file__'):
         extpath = os.path.dirname(
             util.abspath(pycompat.fsencode(hgext.__file__))
         )
@@ -857,7 +857,7 @@ def disabled_help(name):
 
             # The extensions are filesystem based, so either an error occurred
             # or all are enabled.
-            if util.safehasattr(hgext, '__file__'):
+            if hasattr(hgext, '__file__'):
                 return
 
             if name in _order:  # enabled
@@ -987,13 +987,13 @@ def notloaded():
 
 def moduleversion(module):
     '''return version information from given module as a string'''
-    if util.safehasattr(module, 'getversion') and callable(module.getversion):
+    if hasattr(module, 'getversion') and callable(module.getversion):
         try:
             version = module.getversion()
         except Exception:
             version = b'unknown'
 
-    elif util.safehasattr(module, '__version__'):
+    elif hasattr(module, '__version__'):
         version = module.__version__
     else:
         version = b''

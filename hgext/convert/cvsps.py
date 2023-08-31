@@ -198,9 +198,9 @@ def createlog(ui, directory=None, root=b"", rlog=True, cache=None):
             oldlog = pickle.load(open(cachefile, b'rb'))
             for e in oldlog:
                 if not (
-                    util.safehasattr(e, b'branchpoints')
-                    and util.safehasattr(e, b'commitid')
-                    and util.safehasattr(e, b'mergepoint')
+                    hasattr(e, b'branchpoints')
+                    and hasattr(e, b'commitid')
+                    and hasattr(e, b'mergepoint')
                 ):
                     ui.status(_(b'ignoring old cache\n'))
                     oldlog = []
