@@ -40,13 +40,14 @@ def pythonhook(ui, repo, htype, hname, funcname, args, throw):
 
     if callable(funcname):
         obj = funcname
-        funcname = pycompat.sysbytes(obj.__module__ + "." + obj.__name__)
+        funcname = obj.__module__ + "." + obj.__name__
     else:
-        d = funcname.rfind(b'.')
+        funcname = pycompat.sysstr(funcname)
+        d = funcname.rfind('.')
         if d == -1:
             raise error.HookLoadError(
                 _(b'%s hook is invalid: "%s" not in a module')
-                % (hname, funcname)
+                % (hname, stringutil.forcebytestr(funcname))
             )
         modname = funcname[:d]
         oldpaths = sys.path
@@ -89,27 +90,30 @@ def pythonhook(ui, repo, htype, hname, funcname, args, throw):
                         )
                     else:
                         tracebackhint = None
-                    raise error.HookLoadError(
-                        _(b'%s hook is invalid: import of "%s" failed')
-                        % (hname, modname),
-                        hint=tracebackhint,
+                    msg = _(b'%s hook is invalid: import of "%s" failed')
+                    msg %= (
+                        stringutil.forcebytestr(hname),
+                        stringutil.forcebytestr(modname),
                     )
+                    raise error.HookLoadError(msg, hint=tracebackhint)
         sys.path = oldpaths
         try:
-            for p in funcname.split(b'.')[1:]:
+            for p in funcname.split('.')[1:]:
                 obj = getattr(obj, p)
         except AttributeError:
             raise error.HookLoadError(
                 _(b'%s hook is invalid: "%s" is not defined')
-                % (hname, funcname)
+                % (hname, stringutil.forcebytestr(funcname))
             )
         if not callable(obj):
             raise error.HookLoadError(
                 _(b'%s hook is invalid: "%s" is not callable')
-                % (hname, funcname)
+                % (hname, stringutil.forcebytestr(funcname))
             )
 
-    ui.note(_(b"calling hook %s: %s\n") % (hname, funcname))
+    ui.note(
+        _(b"calling hook %s: %s\n") % (hname, stringutil.forcebytestr(funcname))
+    )
     starttime = util.timer()
 
     try:
@@ -134,7 +138,7 @@ def pythonhook(ui, repo, htype, hname, funcname, args, throw):
             b'pythonhook',
             b'pythonhook-%s: %s finished in %0.2f seconds\n',
             htype,
-            funcname,
+            stringutil.forcebytestr(funcname),
             duration,
         )
     if r:
@@ -347,11 +351,12 @@ def runhooks(ui, repo, htype, hooks, throw=False, **args):
                     if repo:
                         path = os.path.join(repo.root, path)
                     try:
-                        mod = extensions.loadpath(path, b'hghook.%s' % hname)
+                        mod_name = 'hghook.%s' % pycompat.sysstr(hname)
+                        mod = extensions.loadpath(path, mod_name)
                     except Exception:
                         ui.write(_(b"loading %s hook failed:\n") % hname)
                         raise
-                    hookfn = getattr(mod, cmd)
+                    hookfn = getattr(mod, pycompat.sysstr(cmd))
                 else:
                     hookfn = cmd[7:].strip()
                 r, raised = pythonhook(
