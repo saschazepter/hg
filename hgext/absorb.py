@@ -873,7 +873,7 @@ class fixupstate:
         # be slow. in absorb's case, no need to invalidate fsmonitorstate.
         noop = lambda: 0
         restore = noop
-        if util.safehasattr(dirstate, '_fsmonitorstate'):
+        if hasattr(dirstate, '_fsmonitorstate'):
             bak = dirstate._fsmonitorstate.invalidate
 
             def restore():

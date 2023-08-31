@@ -236,7 +236,7 @@ def _newchgui(srcui, csystem, attachio):
             # will behave differently (i.e. write to stdout).
             if (
                 out is not self.fout
-                or not util.safehasattr(self.fout, 'fileno')
+                or not hasattr(self.fout, 'fileno')
                 or self.fout.fileno() != procutil.stdout.fileno()
                 or self._finoutredirected
             ):
@@ -262,7 +262,7 @@ def _loadnewui(srcui, args, cdebug):
     newui = srcui.__class__.load()
     for a in ['fin', 'fout', 'ferr', 'environ']:
         setattr(newui, a, getattr(srcui, a))
-    if util.safehasattr(srcui, '_csystem'):
+    if hasattr(srcui, '_csystem'):
         newui._csystem = srcui._csystem
 
     # command line args
@@ -603,7 +603,7 @@ class chgcmdserver(commandserver.server):
         }
     )
 
-    if util.safehasattr(procutil, 'setprocname'):
+    if hasattr(procutil, 'setprocname'):
 
         def setprocname(self):
             """Change process title"""

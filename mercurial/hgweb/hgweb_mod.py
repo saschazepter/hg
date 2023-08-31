@@ -34,7 +34,6 @@ from .. import (
     templater,
     templateutil,
     ui as uimod,
-    util,
     wireprotoserver,
 )
 
@@ -403,7 +402,7 @@ class hgweb:
                 cmd = cmd[style + 1 :]
 
             # avoid accepting e.g. style parameter as command
-            if util.safehasattr(webcommands, pycompat.sysstr(cmd)):
+            if hasattr(webcommands, pycompat.sysstr(cmd)):
                 req.qsparams[b'cmd'] = cmd
 
             if cmd == b'static':
@@ -478,7 +477,7 @@ class hgweb:
 
         except (error.LookupError, error.RepoLookupError) as err:
             msg = pycompat.bytestr(err)
-            if util.safehasattr(err, 'name') and not isinstance(
+            if hasattr(err, 'name') and not isinstance(
                 err, error.ManifestLookupError
             ):
                 msg = b'revision not found: %s' % err.name

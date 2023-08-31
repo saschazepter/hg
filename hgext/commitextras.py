@@ -16,7 +16,6 @@ from mercurial import (
     error,
     extensions,
     registrar,
-    util,
 )
 
 cmdtable = {}
@@ -52,7 +51,7 @@ def extsetup(ui):
 
 
 def _commit(orig, ui, repo, *pats, **opts):
-    if util.safehasattr(repo, 'unfiltered'):
+    if hasattr(repo, 'unfiltered'):
         repo = repo.unfiltered()
 
     class repoextra(repo.__class__):

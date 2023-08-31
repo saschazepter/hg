@@ -13,7 +13,6 @@ from .. import (
     mdiff,
     node as nodemod,
     revlogutils,
-    util,
 )
 
 from . import (
@@ -409,7 +408,7 @@ def debug_revlog(ui, revlog):
                     numother_nad += 1
 
         # Obtain data on the raw chunks in the revlog.
-        if util.safehasattr(r, '_getsegmentforrevs'):
+        if hasattr(r, '_getsegmentforrevs'):
             segment = r._getsegmentforrevs(rev, rev)[1]
         else:
             segment = r._revlog._getsegmentforrevs(rev, rev)[1]

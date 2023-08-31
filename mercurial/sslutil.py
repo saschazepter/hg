@@ -50,11 +50,11 @@ hassni = getattr(ssl, 'HAS_SNI', False)
 # were defined only if compiled against a OpenSSL version with TLS 1.1 / 1.2
 # support. At the mentioned commit, they were unconditionally defined.
 supportedprotocols = set()
-if getattr(ssl, 'HAS_TLSv1', util.safehasattr(ssl, 'PROTOCOL_TLSv1')):
+if getattr(ssl, 'HAS_TLSv1', hasattr(ssl, 'PROTOCOL_TLSv1')):
     supportedprotocols.add(b'tls1.0')
-if getattr(ssl, 'HAS_TLSv1_1', util.safehasattr(ssl, 'PROTOCOL_TLSv1_1')):
+if getattr(ssl, 'HAS_TLSv1_1', hasattr(ssl, 'PROTOCOL_TLSv1_1')):
     supportedprotocols.add(b'tls1.1')
-if getattr(ssl, 'HAS_TLSv1_2', util.safehasattr(ssl, 'PROTOCOL_TLSv1_2')):
+if getattr(ssl, 'HAS_TLSv1_2', hasattr(ssl, 'PROTOCOL_TLSv1_2')):
     supportedprotocols.add(b'tls1.2')
 
 
@@ -312,7 +312,7 @@ def wrapsocket(sock, keyfile, certfile, ui, serverhostname=None):
     # is loaded and contains that removed CA, you've just undone the user's
     # choice.
 
-    if util.safehasattr(ssl, 'TLSVersion'):
+    if hasattr(ssl, 'TLSVersion'):
         # python 3.7+
         sslcontext = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         minimumprotocol = settings[b'minimumprotocol']
@@ -419,7 +419,7 @@ def wrapsocket(sock, keyfile, certfile, ui, serverhostname=None):
             pass
 
         # Try to print more helpful error messages for known failures.
-        if util.safehasattr(e, 'reason'):
+        if hasattr(e, 'reason'):
             # This error occurs when the client and server don't share a
             # common/supported SSL/TLS protocol. We've disabled SSLv2 and SSLv3
             # outright. Hopefully the reason for this error is that we require
@@ -546,7 +546,7 @@ def wrapserversocket(
                 _(b'referenced certificate file (%s) does not exist') % f
             )
 
-    if util.safehasattr(ssl, 'TLSVersion'):
+    if hasattr(ssl, 'TLSVersion'):
         # python 3.7+
         sslcontext = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         sslcontext.options |= getattr(ssl, 'OP_NO_COMPRESSION', 0)
@@ -628,7 +628,7 @@ def wrapserversocket(
     # Otherwise, use the list of more secure ciphers if found in the ssl module.
     if exactprotocol:
         sslcontext.set_ciphers('DEFAULT:@SECLEVEL=0')
-    elif util.safehasattr(ssl, '_RESTRICTED_SERVER_CIPHERS'):
+    elif hasattr(ssl, '_RESTRICTED_SERVER_CIPHERS'):
         sslcontext.options |= getattr(ssl, 'OP_CIPHER_SERVER_PREFERENCE', 0)
         # pytype: disable=module-attr
         sslcontext.set_ciphers(ssl._RESTRICTED_SERVER_CIPHERS)

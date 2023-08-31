@@ -40,7 +40,6 @@ from mercurial import (
     extensions,
     hg,
     ui as uimod,
-    util,
 )
 
 basedir = os.path.abspath(
@@ -66,7 +65,7 @@ def runperfcommand(reponame, command, *args, **kwargs):
     os.environ["HGRCPATH"] = os.environ.get("ASVHGRCPATH", "")
     # for "historical portability"
     # ui.load() has been available since d83ca85
-    if util.safehasattr(uimod.ui, "load"):
+    if hasattr(uimod.ui, "load"):
         ui = uimod.ui.load()
     else:
         ui = uimod.ui()

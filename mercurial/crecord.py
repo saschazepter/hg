@@ -573,7 +573,7 @@ def chunkselector(ui, headerlist, operation=None):
     ui.write(_(b'starting interactive selection\n'))
     chunkselector = curseschunkselector(headerlist, ui, operation)
     origsigtstp = sentinel = object()
-    if util.safehasattr(signal, 'SIGTSTP'):
+    if hasattr(signal, 'SIGTSTP'):
         origsigtstp = signal.getsignal(signal.SIGTSTP)
     try:
         with util.with_lc_ctype():
@@ -1944,7 +1944,7 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
         """
 
         origsigwinch = sentinel = object()
-        if util.safehasattr(signal, 'SIGWINCH'):
+        if hasattr(signal, 'SIGWINCH'):
             origsigwinch = signal.signal(signal.SIGWINCH, self.sigwinchhandler)
         try:
             return self._main(stdscr)

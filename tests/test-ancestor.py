@@ -12,7 +12,6 @@ from mercurial import (
     debugcommands,
     hg,
     ui as uimod,
-    util,
 )
 
 
@@ -416,7 +415,7 @@ def test_gca():
     for i, (dag, tests) in enumerate(dagtests):
         repo = hg.repository(u, b'gca%d' % i, create=1)
         cl = repo.changelog
-        if not util.safehasattr(cl.index, 'ancestors'):
+        if not hasattr(cl.index, 'ancestors'):
             # C version not available
             return
 

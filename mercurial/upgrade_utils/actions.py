@@ -671,7 +671,7 @@ def determine_upgrade_actions(
     newactions = []
 
     for d in format_upgrades:
-        if util.safehasattr(d, '_requirement'):
+        if hasattr(d, '_requirement'):
             name = d._requirement
         else:
             name = None

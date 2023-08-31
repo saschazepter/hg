@@ -1167,7 +1167,7 @@ def hgclone(orig, ui, opts, *args, **kwargs):
 
 @eh.wrapcommand(b'rebase', extension=b'rebase')
 def overriderebasecmd(orig, ui, repo, **opts):
-    if not util.safehasattr(repo, '_largefilesenabled'):
+    if not hasattr(repo, '_largefilesenabled'):
         return orig(ui, repo, **opts)
 
     resuming = opts.get('continue')
@@ -1298,7 +1298,7 @@ def overridearchive(
             # allow only hgsubrepos to set this, instead of the current scheme
             # where the parent sets this for the child.
             with (
-                util.safehasattr(sub, '_repo')
+                hasattr(sub, '_repo')
                 and lfstatus(sub._repo)
                 or util.nullcontextmanager()
             ):
@@ -1309,7 +1309,7 @@ def overridearchive(
 
 @eh.wrapfunction(subrepo.hgsubrepo, 'archive')
 def hgsubrepoarchive(orig, repo, archiver, prefix, match=None, decode=True):
-    lfenabled = util.safehasattr(repo._repo, '_largefilesenabled')
+    lfenabled = hasattr(repo._repo, '_largefilesenabled')
     if not lfenabled or not repo._repo.lfstatus:
         return orig(repo, archiver, prefix, match, decode)
 
@@ -1364,7 +1364,7 @@ def hgsubrepoarchive(orig, repo, archiver, prefix, match=None, decode=True):
         # would allow only hgsubrepos to set this, instead of the current scheme
         # where the parent sets this for the child.
         with (
-            util.safehasattr(sub, '_repo')
+            hasattr(sub, '_repo')
             and lfstatus(sub._repo)
             or util.nullcontextmanager()
         ):

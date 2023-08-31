@@ -1060,7 +1060,7 @@ class SnapshotCache:
             end_rev < self._start_rev or end_rev > self._end_rev
         ), (self._start_rev, self._end_rev, start_rev, end_rev)
         cache = self.snapshots
-        if util.safehasattr(revlog.index, 'findsnapshots'):
+        if hasattr(revlog.index, 'findsnapshots'):
             revlog.index.findsnapshots(cache, start_rev, end_rev)
         else:
             deltaparent = revlog.deltaparent
