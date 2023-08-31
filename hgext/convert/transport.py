@@ -27,8 +27,6 @@ import svn.ra
 Pool = svn.core.Pool
 SubversionException = svn.core.SubversionException
 
-from mercurial.pycompat import getattr
-
 # Some older versions of the Python bindings need to be
 # explicitly initialized. But what we want to do probably
 # won't work worth a darn against those libraries anyway!

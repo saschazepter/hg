@@ -16,9 +16,6 @@ from .node import (
     nullrev,
     short,
 )
-from .pycompat import (
-    getattr,
-)
 from . import (
     dagop,
     encoding,

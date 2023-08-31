@@ -71,7 +71,6 @@ import time
 
 from mercurial.node import bin, short
 from mercurial.i18n import _
-from mercurial.pycompat import getattr
 from mercurial.thirdparty import attr
 from mercurial import (
     cmdutil,

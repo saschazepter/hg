@@ -111,10 +111,6 @@ from .node import (
     short,
     wdirrev,
 )
-from .pycompat import (
-    getattr,
-    setattr,
-)
 from . import (
     error,
     pycompat,

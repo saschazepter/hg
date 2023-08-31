@@ -9,10 +9,6 @@ import re as remod
 import socket
 
 from ..i18n import _
-from ..pycompat import (
-    getattr,
-    setattr,
-)
 from .. import (
     encoding,
     error,

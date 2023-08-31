@@ -72,7 +72,6 @@ import os
 from .i18n import _
 from .pycompat import (
     FileNotFoundError,
-    getattr,
 )
 from . import (
     config,

@@ -15,11 +15,6 @@ from .node import (
     hex,
     nullrev,
 )
-from .pycompat import (
-    delattr,
-    getattr,
-    setattr,
-)
 from . import (
     error,
     obsolete,

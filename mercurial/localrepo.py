@@ -28,10 +28,6 @@ from .node import (
     sha1nodeconstants,
     short,
 )
-from .pycompat import (
-    delattr,
-    getattr,
-)
 from . import (
     bookmarks,
     branchmap,

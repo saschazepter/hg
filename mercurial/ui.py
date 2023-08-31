@@ -37,7 +37,6 @@ from typing import (
 from .i18n import _
 from .node import hex
 from .pycompat import (
-    getattr,
     open,
 )
 
