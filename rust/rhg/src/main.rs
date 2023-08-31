@@ -76,10 +76,15 @@ fn main_with_result(
 
     // Mercurial allows users to define "defaults" for commands, fallback
     // if a default is detected for the current command
-    let defaults = config.get_str(b"defaults", subcommand_name.as_bytes());
-    if defaults?.is_some() {
-        let msg = "`defaults` config set";
-        return Err(CommandError::unsupported(msg));
+    let defaults = config.get_str(b"defaults", subcommand_name.as_bytes())?;
+    match defaults {
+        // Programmatic usage might set defaults to an empty string to unset
+        // it; allow that
+        None | Some("") => {}
+        Some(_) => {
+            let msg = "`defaults` config set";
+            return Err(CommandError::unsupported(msg));
+        }
     }
 
     for prefix in ["pre", "post", "fail"].iter() {
