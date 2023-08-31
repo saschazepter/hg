@@ -260,7 +260,7 @@ def _loadnewui(srcui, args, cdebug):
     from . import dispatch  # avoid cycle
 
     newui = srcui.__class__.load()
-    for a in [b'fin', b'fout', b'ferr', b'environ']:
+    for a in ['fin', 'fout', 'ferr', 'environ']:
         setattr(newui, a, getattr(srcui, a))
     if util.safehasattr(srcui, '_csystem'):
         newui._csystem = srcui._csystem
@@ -348,9 +348,9 @@ class channeledsystem:
 
 _iochannels = [
     # server.ch, ui.fp, mode
-    (b'cin', b'fin', 'rb'),
-    (b'cout', b'fout', 'wb'),
-    (b'cerr', b'ferr', 'wb'),
+    ('cin', 'fin', 'rb'),
+    ('cout', 'fout', 'wb'),
+    ('cerr', 'ferr', 'wb'),
 ]
 
 
