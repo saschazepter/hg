@@ -15,7 +15,6 @@ import re
 import socket
 
 from mercurial.i18n import _
-from mercurial.pycompat import getattr
 from mercurial.node import hex
 
 from mercurial import (

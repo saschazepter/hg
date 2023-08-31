@@ -15,7 +15,6 @@ import struct
 
 from concurrent import futures
 from .i18n import _
-from .pycompat import getattr
 from . import (
     bundle2,
     error,

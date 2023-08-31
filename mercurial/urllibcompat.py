@@ -11,7 +11,6 @@ import urllib.parse
 import urllib.request
 import urllib.response
 
-from .pycompat import getattr
 from . import pycompat
 
 _sysstr = pycompat.sysstr

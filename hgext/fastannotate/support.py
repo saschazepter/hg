@@ -6,7 +6,6 @@
 # GNU General Public License version 2 or any later version.
 
 
-from mercurial.pycompat import getattr
 from mercurial import (
     context as hgcontext,
     dagop,

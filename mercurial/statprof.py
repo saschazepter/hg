@@ -167,7 +167,7 @@ class ProfileState:
         # a float
         if frequency:
             self.sample_interval = 1.0 / frequency
-        elif not pycompat.hasattr(self, 'sample_interval'):
+        elif not hasattr(self, 'sample_interval'):
             # default to 1000 Hz
             self.sample_interval = 1.0 / 1000.0
         else:

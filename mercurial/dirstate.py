@@ -13,7 +13,6 @@ import stat
 import uuid
 
 from .i18n import _
-from .pycompat import delattr
 
 from hgdemandimport import tracing
 
