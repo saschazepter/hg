@@ -73,7 +73,6 @@ certain files::
 
 
 from mercurial.i18n import _
-from mercurial.pycompat import setattr
 from mercurial import (
     cmdutil,
     commands,
