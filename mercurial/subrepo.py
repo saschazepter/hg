@@ -1136,7 +1136,7 @@ class svnsubrepo(abstractsubrepo):
             # --non-interactive.
             if commands[0] in (b'update', b'checkout', b'commit'):
                 cmd.append(b'--non-interactive')
-        if util.safehasattr(subprocess, 'CREATE_NO_WINDOW'):
+        if hasattr(subprocess, 'CREATE_NO_WINDOW'):
             # On Windows, prevent command prompts windows from popping up when
             # running in pythonw.
             extrakw['creationflags'] = getattr(subprocess, 'CREATE_NO_WINDOW')
@@ -1511,7 +1511,7 @@ class gitsubrepo(abstractsubrepo):
             # the end of git diff arguments is used for paths
             commands.insert(1, b'--color')
         extrakw = {}
-        if util.safehasattr(subprocess, 'CREATE_NO_WINDOW'):
+        if hasattr(subprocess, 'CREATE_NO_WINDOW'):
             # On Windows, prevent command prompts windows from popping up when
             # running in pythonw.
             extrakw['creationflags'] = getattr(subprocess, 'CREATE_NO_WINDOW')

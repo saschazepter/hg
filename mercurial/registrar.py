@@ -10,7 +10,6 @@ from . import (
     configitems,
     error,
     pycompat,
-    util,
 )
 
 # unlike the other registered items, config options are neither functions or
@@ -64,7 +63,7 @@ class _funcregistrarbase:
             msg = b'duplicate registration for name: "%s"' % name
             raise error.ProgrammingError(msg)
 
-        if func.__doc__ and not util.safehasattr(func, '_origdoc'):
+        if func.__doc__ and not hasattr(func, '_origdoc'):
             func._origdoc = func.__doc__.strip()
             doc = pycompat.sysbytes(func._origdoc)
             func.__doc__ = pycompat.sysstr(self._formatdoc(decl, doc))

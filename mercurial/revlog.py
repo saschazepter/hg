@@ -167,7 +167,7 @@ def _verify_revision(rl, skipflags, state, node):
 # We also consider we have a "fast" implementation in "pure" python because
 # people using pure don't really have performance consideration (and a
 # wheelbarrow of other slowness source)
-HAS_FAST_PERSISTENT_NODEMAP = rustrevlog is not None or util.safehasattr(
+HAS_FAST_PERSISTENT_NODEMAP = rustrevlog is not None or hasattr(
     parsers, 'BaseIndexObject'
 )
 
@@ -214,7 +214,7 @@ def parse_index_cl_v2(data, inline):
     return index, cache
 
 
-if util.safehasattr(parsers, 'parse_index_devel_nodemap'):
+if hasattr(parsers, 'parse_index_devel_nodemap'):
 
     def parse_index_v1_nodemap(data, inline):
         index, cache = parsers.parse_index_devel_nodemap(data, inline)
@@ -730,7 +730,7 @@ class revlog:
             use_nodemap = (
                 not self._inline
                 and self._nodemap_file is not None
-                and util.safehasattr(index, 'update_nodemap_data')
+                and hasattr(index, 'update_nodemap_data')
             )
             if use_nodemap:
                 nodemap_data = nodemaputil.persisted_data(self)
@@ -911,7 +911,7 @@ class revlog:
         use_nodemap = (
             not self._inline
             and self._nodemap_file is not None
-            and util.safehasattr(self.index, 'update_nodemap_data')
+            and hasattr(self.index, 'update_nodemap_data')
         )
         if use_nodemap:
             nodemap_data = nodemaputil.persisted_data(self)
@@ -1887,7 +1887,7 @@ class revlog:
         """tells whether rev is a snapshot"""
         if not self._sparserevlog:
             return self.deltaparent(rev) == nullrev
-        elif util.safehasattr(self.index, 'issnapshot'):
+        elif hasattr(self.index, 'issnapshot'):
             # directly assign the method to cache the testing and access
             self.issnapshot = self.index.issnapshot
             return self.issnapshot(rev)

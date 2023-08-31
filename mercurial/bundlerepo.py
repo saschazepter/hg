@@ -245,7 +245,7 @@ class bundlepeer(localrepo.localpeer):
 class bundlephasecache(phases.phasecache):
     def __init__(self, *args, **kwargs):
         super(bundlephasecache, self).__init__(*args, **kwargs)
-        if util.safehasattr(self, 'opener'):
+        if hasattr(self, 'opener'):
             self.opener = vfsmod.readonlyvfs(self.opener)
 
     def write(self):

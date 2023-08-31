@@ -174,9 +174,9 @@ def persist_nodemap(tr, revlog, pending=False, force=False):
             msg = "calling persist nodemap on a revlog without the feature enabled"
             raise error.ProgrammingError(msg)
 
-    can_incremental = util.safehasattr(revlog.index, "nodemap_data_incremental")
+    can_incremental = hasattr(revlog.index, "nodemap_data_incremental")
     ondisk_docket = revlog._nodemap_docket
-    feed_data = util.safehasattr(revlog.index, "update_nodemap_data")
+    feed_data = hasattr(revlog.index, "update_nodemap_data")
     use_mmap = revlog.opener.options.get(b"persistent-nodemap.mmap")
 
     data = None
@@ -216,7 +216,7 @@ def persist_nodemap(tr, revlog, pending=False, force=False):
         # otherwise fallback to a full new export
         target_docket = NodeMapDocket()
         datafile = _rawdata_filepath(revlog, target_docket)
-        if util.safehasattr(revlog.index, "nodemap_data_all"):
+        if hasattr(revlog.index, "nodemap_data_all"):
             data = revlog.index.nodemap_data_all()
         else:
             data = persistent_data(revlog.index)

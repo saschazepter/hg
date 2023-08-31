@@ -324,7 +324,7 @@ class _annotatecontext:
                     b'(resolved fctx: %s)\n'
                     % (
                         self.path,
-                        stringutil.pprint(util.safehasattr(revfctx, 'node')),
+                        stringutil.pprint(hasattr(revfctx, 'node')),
                     )
                 )
             return self.annotatedirectly(revfctx, showpath, showlines)
