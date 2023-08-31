@@ -84,9 +84,8 @@ def find(name):
 
 
 def loadpath(path, module_name):
-    module_name = module_name.replace(b'.', b'_')
+    module_name = module_name.replace('.', '_')
     path = util.normpath(util.expandpath(path))
-    module_name = pycompat.fsdecode(module_name)
     path = pycompat.fsdecode(path)
     if os.path.isdir(path):
         # module/__init__.py style
@@ -106,30 +105,31 @@ def loadpath(path, module_name):
 
 def _importh(name):
     """import and return the <name> module"""
-    mod = __import__(pycompat.sysstr(name))
-    components = name.split(b'.')
+    mod = __import__(name)
+    components = name.split('.')
     for comp in components[1:]:
         mod = getattr(mod, comp)
     return mod
 
 
 def _importext(name, path=None, reportfunc=None):
+    name = pycompat.fsdecode(name)
     if path:
         # the module will be loaded in sys.modules
         # choose an unique name so that it doesn't
         # conflicts with other modules
-        mod = loadpath(path, b'hgext.%s' % name)
+        mod = loadpath(path, 'hgext.%s' % name)
     else:
         try:
-            mod = _importh(b"hgext.%s" % name)
+            mod = _importh("hgext.%s" % name)
         except ImportError as err:
             if reportfunc:
-                reportfunc(err, b"hgext.%s" % name, b"hgext3rd.%s" % name)
+                reportfunc(err, "hgext.%s" % name, "hgext3rd.%s" % name)
             try:
-                mod = _importh(b"hgext3rd.%s" % name)
+                mod = _importh("hgext3rd.%s" % name)
             except ImportError as err:
                 if reportfunc:
-                    reportfunc(err, b"hgext3rd.%s" % name, name)
+                    reportfunc(err, "hgext3rd.%s" % name, name)
                 mod = _importh(name)
     return mod
 
@@ -140,9 +140,9 @@ def _reportimporterror(ui, err, failed, next):
     ui.log(
         b'extension',
         b'    - could not import %s (%s): trying %s\n',
-        failed,
+        stringutil.forcebytestr(failed),
         stringutil.forcebytestr(err),
-        next,
+        stringutil.forcebytestr(next),
     )
     if ui.debugflag and ui.configbool(b'devel', b'debug.extensions'):
         ui.traceback()

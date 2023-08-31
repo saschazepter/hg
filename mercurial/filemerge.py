@@ -834,12 +834,13 @@ def _xmerge(repo, mynode, local, other, base, toolconf, backup):
                 # avoid cycle cmdutil->merge->filemerge->extensions->cmdutil
                 from . import extensions
 
-                mod = extensions.loadpath(toolpath, b'hgmerge.%s' % tool)
+                mod_name = 'hgmerge.%s' % pycompat.sysstr(tool)
+                mod = extensions.loadpath(toolpath, mod_name)
             except Exception:
                 raise error.Abort(
                     _(b"loading python merge script failed: %s") % toolpath
                 )
-            mergefn = getattr(mod, scriptfn, None)
+            mergefn = getattr(mod, pycompat.sysstr(scriptfn), None)
             if mergefn is None:
                 raise error.Abort(
                     _(b"%s does not have function: %s") % (toolpath, scriptfn)
