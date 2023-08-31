@@ -168,7 +168,7 @@ def split(stream):
 
     mimeheaders = [b'content-type']
 
-    if not util.safehasattr(stream, 'next'):
+    if not hasattr(stream, 'next'):
         # http responses, for example, have readline but not next
         stream = fiter(stream)
 
@@ -1703,7 +1703,7 @@ def reversehunks(hunks):
 
     newhunks = []
     for c in hunks:
-        if util.safehasattr(c, 'reversehunk'):
+        if hasattr(c, 'reversehunk'):
             c = c.reversehunk()
         newhunks.append(c)
     return newhunks

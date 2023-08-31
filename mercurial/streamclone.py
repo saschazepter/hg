@@ -428,7 +428,7 @@ def consumev1(repo, fp, filecount, bytecount):
             with repo.svfs.backgroundclosing(repo.ui, expectedcount=filecount):
                 for i in range(filecount):
                     # XXX doesn't support '\n' or '\r' in filenames
-                    if util.safehasattr(fp, 'readline'):
+                    if hasattr(fp, 'readline'):
                         l = fp.readline()
                     else:
                         # inline clonebundles use a chunkbuffer, so no readline

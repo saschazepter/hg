@@ -66,7 +66,7 @@ sharedbookmarks = b'bookmarks'
 
 
 def addbranchrevs(lrepo, other, branches, revs, remotehidden=False):
-    if util.safehasattr(other, 'peer'):
+    if hasattr(other, 'peer'):
         # a courtesy to callers using a localrepo for other
         peer = other.peer(remotehidden=remotehidden)
     else:
@@ -174,7 +174,7 @@ def islocal(repo):
             cls.instance  # make sure we load the module
         else:
             cls = LocalFactory
-        if util.safehasattr(cls, 'islocal'):
+        if hasattr(cls, 'islocal'):
             return cls.islocal(repo)  # pytype: disable=module-attr
         return False
     repo.ui.deprecwarn(b"use obj.local() instead of islocal(obj)", b"6.4")
@@ -254,7 +254,7 @@ def peer(
     '''return a repository peer for the specified path'''
     ui = getattr(uiorrepo, 'ui', uiorrepo)
     rui = remoteui(uiorrepo, opts)
-    if util.safehasattr(path, 'url'):
+    if hasattr(path, 'url'):
         # this is already a urlutil.path object
         peer_path = path
     else:
@@ -317,7 +317,7 @@ def sharedreposource(repo):
     if repo.sharedpath == repo.path:
         return None
 
-    if util.safehasattr(repo, 'srcrepo') and repo.srcrepo:
+    if hasattr(repo, 'srcrepo') and repo.srcrepo:
         return repo.srcrepo
 
     # the sharedpath always ends in the .hg; we want the path to the repo
@@ -340,7 +340,7 @@ def share(
     '''create a shared repository'''
 
     not_local_msg = _(b'can only share local repositories')
-    if util.safehasattr(source, 'local'):
+    if hasattr(source, 'local'):
         if source.local() is None:
             raise error.Abort(not_local_msg)
     elif not islocal(source):
@@ -729,7 +729,7 @@ def clone(
             branches = (src_path.branch, branch or [])
             source = src_path.loc
     else:
-        if util.safehasattr(source, 'peer'):
+        if hasattr(source, 'peer'):
             srcpeer = source.peer()  # in case we were called with a localrepo
         else:
             srcpeer = source
@@ -1567,7 +1567,7 @@ def verify(repo, level=None):
 
 def remoteui(src, opts):
     """build a remote ui from ui or repo and opts"""
-    if util.safehasattr(src, 'baseui'):  # looks like a repository
+    if hasattr(src, 'baseui'):  # looks like a repository
         dst = src.baseui.copy()  # drop repo-specific config
         src = src.ui  # copy target options from repo
     else:  # assume it's a global ui object

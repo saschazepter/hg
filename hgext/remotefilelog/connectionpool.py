@@ -9,7 +9,6 @@
 from mercurial import (
     hg,
     sshpeer,
-    util,
 )
 
 _sshv1peer = sshpeer.sshv1peer
@@ -41,14 +40,14 @@ class connectionpool:
         if conn is None:
 
             peer = hg.peer(self._repo.ui, {}, path)
-            if util.safehasattr(peer, '_cleanup'):
+            if hasattr(peer, '_cleanup'):
 
                 class mypeer(peer.__class__):
                     def _cleanup(self, warn=None):
                         # close pipee first so peer.cleanup reading it won't
                         # deadlock, if there are other processes with pipeo
                         # open (i.e. us).
-                        if util.safehasattr(self, 'pipee'):
+                        if hasattr(self, 'pipee'):
                             self.pipee.close()
                         return super(mypeer, self)._cleanup()
 
@@ -83,5 +82,5 @@ class connection:
             self.close()
 
     def close(self):
-        if util.safehasattr(self.peer, 'cleanup'):
+        if hasattr(self.peer, 'cleanup'):
             self.peer.cleanup()

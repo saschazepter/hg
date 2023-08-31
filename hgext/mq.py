@@ -4186,7 +4186,7 @@ def reposetup(ui, repo):
 
 
 def mqimport(orig, ui, repo, *args, **kwargs):
-    if util.safehasattr(repo, 'abortifwdirpatched') and not kwargs.get(
+    if hasattr(repo, 'abortifwdirpatched') and not kwargs.get(
         'no_commit', False
     ):
         repo.abortifwdirpatched(

@@ -1043,7 +1043,7 @@ def _resolvenarrowrevisioninfo(
                         return i
                 # We failed to resolve a parent for this node, so
                 # we crash the changegroup construction.
-                if util.safehasattr(store, 'target'):
+                if hasattr(store, 'target'):
                     target = store.display_id
                 else:
                     # some revlog not actually a revlog
