@@ -541,7 +541,10 @@ def opener(
     else:
         handlers.append(httphandler(timeout=timeout))
         if has_https:
-            handlers.append(httpshandler(ui, timeout=timeout))
+            # pytype get confused about the conditional existence for httpshandler here.
+            handlers.append(
+                httpshandler(ui, timeout=timeout)  # pytype: disable=name-error
+            )
 
     handlers.append(proxyhandler(ui))
 
