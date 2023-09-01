@@ -222,47 +222,6 @@ def _generic_start_transaction(handler, h, req):
     h.headers = None
 
 
-def _generic_proxytunnel(self: "httpsconnection"):
-    headers = self.headers  # pytype: disable=attribute-error
-    proxyheaders = {
-        pycompat.bytestr(x): pycompat.bytestr(headers[x])
-        for x in headers
-        if x.lower().startswith('proxy-')
-    }
-    realhostport = self.realhostport  # pytype: disable=attribute-error
-    self.send(b'CONNECT %s HTTP/1.0\r\n' % realhostport)
-
-    for header in proxyheaders.items():
-        self.send(b'%s: %s\r\n' % header)
-    self.send(b'\r\n')
-
-    # majority of the following code is duplicated from
-    # httplib.HTTPConnection as there are no adequate places to
-    # override functions to provide the needed functionality.
-
-    # pytype: disable=attribute-error
-    res = self.response_class(self.sock, method=self._method)
-    # pytype: enable=attribute-error
-
-    while True:
-        # pytype: disable=attribute-error
-        version, status, reason = res._read_status()
-        # pytype: enable=attribute-error
-        if status != httplib.CONTINUE:
-            break
-        # skip lines that are all whitespace
-        list(iter(lambda: res.fp.readline().strip(), b''))
-
-    if status == 200:
-        # skip lines until we find a blank line
-        list(iter(res.fp.readline, b'\r\n'))
-    else:
-        self.close()
-        raise socket.error(
-            "Tunnel connection failed: %d %s" % (status, reason.strip())
-        )
-
-
 class httphandler(keepalive.HTTPHandler):
     def http_open(self, req):
         return self.do_open(httpconnection, req)
@@ -305,6 +264,46 @@ class logginghttphandler(httphandler):
 
 
 if has_https:
+
+    def _generic_proxytunnel(self: "httpsconnection"):
+        headers = self.headers  # pytype: disable=attribute-error
+        proxyheaders = {
+            pycompat.bytestr(x): pycompat.bytestr(headers[x])
+            for x in headers
+            if x.lower().startswith('proxy-')
+        }
+        realhostport = self.realhostport  # pytype: disable=attribute-error
+        self.send(b'CONNECT %s HTTP/1.0\r\n' % realhostport)
+
+        for header in proxyheaders.items():
+            self.send(b'%s: %s\r\n' % header)
+        self.send(b'\r\n')
+
+        # majority of the following code is duplicated from
+        # httplib.HTTPConnection as there are no adequate places to
+        # override functions to provide the needed functionality.
+
+        # pytype: disable=attribute-error
+        res = self.response_class(self.sock, method=self._method)
+        # pytype: enable=attribute-error
+
+        while True:
+            # pytype: disable=attribute-error
+            version, status, reason = res._read_status()
+            # pytype: enable=attribute-error
+            if status != httplib.CONTINUE:
+                break
+            # skip lines that are all whitespace
+            list(iter(lambda: res.fp.readline().strip(), b''))
+
+        if status == 200:
+            # skip lines until we find a blank line
+            list(iter(res.fp.readline, b'\r\n'))
+        else:
+            self.close()
+            raise socket.error(
+                "Tunnel connection failed: %d %s" % (status, reason.strip())
+            )
 
     class httpsconnection(keepalive.HTTPConnection):
         response_class = keepalive.HTTPResponse
