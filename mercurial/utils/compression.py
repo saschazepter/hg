@@ -185,7 +185,7 @@ class compressormanager:
         """
         assert role in (SERVERROLE, CLIENTROLE)
 
-        attr = b'serverpriority' if role == SERVERROLE else b'clientpriority'
+        attr = 'serverpriority' if role == SERVERROLE else 'clientpriority'
 
         engines = [self._engines[e] for e in self._wiretypes.values()]
         if onlyavailable:
