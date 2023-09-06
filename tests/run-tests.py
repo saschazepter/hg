@@ -165,6 +165,7 @@ def _bytes2sys(p):
     return p.decode('utf-8')
 
 
+original_env = os.environ.copy()
 osenvironb = getattr(os, 'environb', None)
 if osenvironb is None:
     # Windows lacks os.environb, for instance.  A proxy over the real thing
@@ -3770,7 +3771,7 @@ class TestRunner:
         makedirs(self._bindir)
 
         vlog("# Running", cmd.decode("utf-8"))
-        if subprocess.call(_bytes2sys(cmd), shell=True) == 0:
+        if subprocess.call(_bytes2sys(cmd), shell=True, env=original_env) == 0:
             if not self.options.verbose:
                 try:
                     os.remove(installerrs)

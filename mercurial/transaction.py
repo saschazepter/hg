@@ -16,6 +16,7 @@ import os
 
 from .i18n import _
 from . import (
+    encoding,
     error,
     pycompat,
     util,
@@ -229,7 +230,7 @@ class transaction(util.transactional):
         validator=None,
         releasefn=None,
         checkambigfiles=None,
-        name='<unnamed>',
+        name=b'<unnamed>',
     ):
         """Begin a new transaction
 
@@ -318,7 +319,7 @@ class transaction(util.transactional):
     def __repr__(self):
         name = b'/'.join(self._names)
         return '<transaction name=%s, count=%d, usages=%d>' % (
-            name,
+            encoding.strfromlocal(name),
             self._count,
             self._usages,
         )
@@ -574,7 +575,7 @@ class transaction(util.transactional):
         self._file.flush()
 
     @active
-    def nest(self, name='<unnamed>'):
+    def nest(self, name=b'<unnamed>'):
         self._count += 1
         self._usages += 1
         self._names.append(name)
