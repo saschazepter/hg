@@ -766,7 +766,26 @@ test CBOR style:
     ],
     'desc': 'third',
     'diff': 'diff -r 29114dbae42b -r 95c24699272e fourth\n--- /dev/null\tThu Jan 01 00:00:00 1970 +0000\n+++ b/fourth\tWed Jan 01 10:01:00 2020 +0000\n@@ -0,0 +1,1 @@\n+second\ndiff -r 29114dbae42b -r 95c24699272e second\n--- a/second\tMon Jan 12 13:46:40 1970 +0000\n+++ /dev/null\tThu Jan 01 00:00:00 1970 +0000\n@@ -1,1 +0,0 @@\n-second\ndiff -r 29114dbae42b -r 95c24699272e third\n--- /dev/null\tThu Jan 01 00:00:00 1970 +0000\n+++ b/third\tWed Jan 01 10:01:00 2020 +0000\n@@ -0,0 +1,1 @@\n+third\n',
-    'diffstat': ' fourth |  1 +\n second |  1 -\n third  |  1 +\n 3 files changed, 2 insertions(+), 1 deletions(-)\n',
+    'diffstat': [
+     {
+      'additions': 1,
+      'binary': False,
+      'name': 'fourth',
+      'removals': 0
+     },
+     {
+      'additions': 0,
+      'binary': False,
+      'name': 'second',
+      'removals': 1
+     },
+     {
+      'additions': 1,
+      'binary': False,
+      'name': 'third',
+      'removals': 0
+     }
+    ],
     'files': [
      'fourth',
      'second',
@@ -820,7 +839,7 @@ Test JSON style:
     "date": [1577872860, 0],
     "desc": "third",
     "diff": "diff -r 29114dbae42b -r 95c24699272e fourth\n--- /dev/null\tThu Jan 01 00:00:00 1970 +0000\n+++ b/fourth\tWed Jan 01 10:01:00 2020 +0000\n@@ -0,0 +1,1 @@\n+second\ndiff -r 29114dbae42b -r 95c24699272e second\n--- a/second\tMon Jan 12 13:46:40 1970 +0000\n+++ /dev/null\tThu Jan 01 00:00:00 1970 +0000\n@@ -1,1 +0,0 @@\n-second\ndiff -r 29114dbae42b -r 95c24699272e third\n--- /dev/null\tThu Jan 01 00:00:00 1970 +0000\n+++ b/third\tWed Jan 01 10:01:00 2020 +0000\n@@ -0,0 +1,1 @@\n+third\n",
-    "diffstat": " fourth |  1 +\n second |  1 -\n third  |  1 +\n 3 files changed, 2 insertions(+), 1 deletions(-)\n",
+    "diffstat": [{"additions": 1, "binary": false, "name": "fourth", "removals": 0}, {"additions": 0, "binary": false, "name": "second", "removals": 1}, {"additions": 1, "binary": false, "name": "third", "removals": 0}],
     "files": ["fourth", "second", "third"],
     "node": "95c24699272ef57d062b8bccc32c878bf841784a",
     "parents": ["29114dbae42b9f078cf2714dbe3a86bba8ec7453"],
@@ -1180,7 +1199,7 @@ honor --git but not format-breaking diffopts
 
   $ hg log -r. -T'json(diffstat)'
   [
-   {"diffstat": " fourth |  1 +\n second |  1 -\n third  |  1 +\n 3 files changed, 2 insertions(+), 1 deletions(-)\n"}
+   {"diffstat": [{"additions": 1, "binary": false, "name": "fourth", "removals": 0}, {"additions": 0, "binary": false, "name": "second", "removals": 1}, {"additions": 1, "binary": false, "name": "third", "removals": 0}]}
   ]
 
   $ hg log -r. -T'json(manifest)'
