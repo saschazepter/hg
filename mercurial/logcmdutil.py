@@ -98,7 +98,7 @@ def diff_parent(ctx):
         return ctx.p1()
 
 
-def diffordiffstat(
+def get_diff_chunks(
     ui,
     repo,
     diffopts,
@@ -107,14 +107,10 @@ def diffordiffstat(
     match,
     changes=None,
     stat=False,
-    fp=None,
-    graphwidth=0,
     prefix=b'',
     root=b'',
-    listsubrepos=False,
     hunksfilterfn=None,
 ):
-    '''show diff or diffstat.'''
     if root:
         relroot = pathutil.canonpath(repo.root, repo.getcwd(), root)
     else:
@@ -159,14 +155,11 @@ def diffordiffstat(
 
     if stat:
         diffopts = diffopts.copy(context=0, noprefix=False)
-        width = 80
-        if not ui.plain():
-            width = ui.termwidth() - graphwidth
         # If an explicit --root was given, don't respect ui.relative-paths
         if not relroot:
             pathfn = compose(scmutil.getuipathfn(repo), pathfn)
 
-    chunks = ctx2.diff(
+    return ctx2.diff(
         ctx1,
         match,
         changes,
@@ -175,6 +168,45 @@ def diffordiffstat(
         copysourcematch=copysourcematch,
         hunksfilterfn=hunksfilterfn,
     )
+
+
+def diffordiffstat(
+    ui,
+    repo,
+    diffopts,
+    ctx1,
+    ctx2,
+    match,
+    changes=None,
+    stat=False,
+    fp=None,
+    graphwidth=0,
+    prefix=b'',
+    root=b'',
+    listsubrepos=False,
+    hunksfilterfn=None,
+):
+    '''show diff or diffstat.'''
+
+    chunks = get_diff_chunks(
+        ui,
+        repo,
+        diffopts,
+        ctx1,
+        ctx2,
+        match,
+        changes=changes,
+        stat=stat,
+        prefix=prefix,
+        root=root,
+        hunksfilterfn=hunksfilterfn,
+    )
+
+    if stat:
+        diffopts = diffopts.copy(context=0, noprefix=False)
+        width = 80
+        if not ui.plain():
+            width = ui.termwidth() - graphwidth
 
     if fp is not None or ui.canwritewithoutlabels():
         out = fp or ui
@@ -248,6 +280,33 @@ class changesetdiffer:
             graphwidth=graphwidth,
             hunksfilterfn=self._makehunksfilter(ctx),
         )
+
+    def getdiffstats(self, ui, ctx, diffopts, stat=False):
+        chunks = get_diff_chunks(
+            ui,
+            ctx.repo(),
+            diffopts,
+            diff_parent(ctx),
+            ctx,
+            match=self._makefilematcher(ctx),
+            stat=stat,
+            hunksfilterfn=self._makehunksfilter(ctx),
+        )
+
+        diffdata = []
+        for filename, additions, removals, binary in patch.diffstatdata(
+            util.iterlines(chunks)
+        ):
+            diffdata.append(
+                {
+                    b"name": filename,
+                    b"additions": additions,
+                    b"removals": removals,
+                    b"binary": binary,
+                }
+            )
+
+        return diffdata
 
 
 def changesetlabels(ctx):
@@ -525,9 +584,10 @@ class changesetformatter(changesetprinter):
             )
 
         if self._includestat or b'diffstat' in datahint:
-            self.ui.pushbuffer()
-            self._differ.showdiff(self.ui, ctx, self._diffopts, stat=True)
-            fm.data(diffstat=self.ui.popbuffer())
+            data = self._differ.getdiffstats(
+                self.ui, ctx, self._diffopts, stat=True
+            )
+            fm.data(diffstat=fm.formatlist(data, name=b'diffstat'))
         if self._includediff or b'diff' in datahint:
             self.ui.pushbuffer()
             self._differ.showdiff(self.ui, ctx, self._diffopts, stat=False)
