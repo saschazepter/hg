@@ -537,13 +537,14 @@ impl<'revlog> RevlogEntry<'revlog> {
         // [_chaininfo] and in [index_deltachain].
         let uses_generaldelta = self.revlog.index.uses_generaldelta();
         while let Some(base_rev) = entry.base_rev_or_base_of_delta_chain {
-            let base_rev = if uses_generaldelta {
-                base_rev
+            entry = if uses_generaldelta {
+                delta_chain.push(entry);
+                self.revlog.get_entry_internal(base_rev)?
             } else {
-                entry.rev - 1
+                let base_rev = entry.rev - 1;
+                delta_chain.push(entry);
+                self.revlog.get_entry_internal(base_rev)?
             };
-            delta_chain.push(entry);
-            entry = self.revlog.get_entry_internal(base_rev)?;
         }
 
         let data = if delta_chain.is_empty() {
