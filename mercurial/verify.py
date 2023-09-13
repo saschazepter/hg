@@ -17,6 +17,7 @@ from . import (
     pycompat,
     requirements,
     revlog,
+    transaction,
     util,
 )
 
@@ -195,7 +196,7 @@ class verifier:
         if not repo.url().startswith(b'file:'):
             raise error.Abort(_(b"cannot verify bundle or remote repos"))
 
-        if os.path.exists(repo.sjoin(b"journal")):
+        if transaction.has_abandoned_transaction(repo):
             ui.warn(_(b"abandoned transaction found - run hg recover\n"))
 
         if ui.verbose or not self.revlogv1:
