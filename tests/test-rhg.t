@@ -315,8 +315,6 @@ Rhg status on a sparse repo with nodemap (this specific combination used to cras
 
   $ hg debugsparse -X excluded-dir
   $ $NO_FALLBACK rhg status
-  abort: dirstate points to non-existent parent node
-  [255]
 
 Specifying revisions by changeset ID
   $ $NO_FALLBACK rhg files -r c3ae8dec9fad

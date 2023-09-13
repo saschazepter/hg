@@ -225,23 +225,13 @@ impl Revlog {
         &self,
         node: NodePrefix,
     ) -> Result<Revision, RevlogError> {
-        let looked_up = if let Some(nodemap) = &self.nodemap {
+        if let Some(nodemap) = &self.nodemap {
             nodemap
                 .find_bin(&self.index, node)?
                 .ok_or(RevlogError::InvalidRevision)
         } else {
             self.rev_from_node_no_persistent_nodemap(node)
-        };
-
-        if node.is_prefix_of(&NULL_NODE) {
-            return match looked_up {
-                Ok(_) => Err(RevlogError::AmbiguousPrefix),
-                Err(RevlogError::InvalidRevision) => Ok(NULL_REVISION),
-                res => res,
-            };
-        };
-
-        looked_up
+        }
     }
 
     /// Same as `rev_from_node`, without using a persistent nodemap
@@ -257,16 +247,22 @@ impl Revlog {
         // TODO: consider building a non-persistent nodemap in memory to
         // optimize these cases.
         let mut found_by_prefix = None;
-        for rev in (0..self.len() as Revision).rev() {
-            let index_entry = self.index.get_entry(rev).ok_or_else(|| {
-                HgError::corrupted(
-                    "revlog references a revision not in the index",
-                )
-            })?;
-            if node == *index_entry.hash() {
+        for rev in (-1..self.len() as Revision).rev() {
+            let candidate_node = if rev == -1 {
+                NULL_NODE
+            } else {
+                let index_entry =
+                    self.index.get_entry(rev).ok_or_else(|| {
+                        HgError::corrupted(
+                            "revlog references a revision not in the index",
+                        )
+                    })?;
+                *index_entry.hash()
+            };
+            if node == candidate_node {
                 return Ok(rev);
             }
-            if node.is_prefix_of(index_entry.hash()) {
+            if node.is_prefix_of(&candidate_node) {
                 if found_by_prefix.is_some() {
                     return Err(RevlogError::AmbiguousPrefix);
                 }
