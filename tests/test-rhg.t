@@ -27,6 +27,8 @@ Finding root
 Reading and setting configuration
   $ echo "[ui]" >> $HGRCPATH
   $ echo "username = user1" >> $HGRCPATH
+  $ echo "[extensions]" >> $HGRCPATH
+  $ echo "sparse =" >> $HGRCPATH
   $ $NO_FALLBACK rhg config ui.username
   user1
   $ echo "[ui]" >> .hg/hgrc
@@ -308,6 +310,13 @@ Persistent nodemap
   .hg/store/00changelog.d
   .hg/store/00changelog.i
   .hg/store/00changelog.n
+
+Rhg status on a sparse repo with nodemap (this specific combination used to crash in 6.5.2)
+
+  $ hg debugsparse -X excluded-dir
+  $ $NO_FALLBACK rhg status
+  abort: dirstate points to non-existent parent node
+  [255]
 
 Specifying revisions by changeset ID
   $ $NO_FALLBACK rhg files -r c3ae8dec9fad
