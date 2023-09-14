@@ -680,7 +680,7 @@ impl NodeMap for NodeTree {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::NodeMapError::*;
     use super::*;
     use crate::revlog::node::{hex_pad_right, Node};
@@ -844,28 +844,35 @@ mod tests {
         Ok(())
     }
 
-    struct TestNtIndex {
-        index: TestIndex,
-        nt: NodeTree,
+    pub struct TestNtIndex {
+        pub index: TestIndex,
+        pub nt: NodeTree,
     }
 
     impl TestNtIndex {
-        fn new() -> Self {
+        pub fn new() -> Self {
             TestNtIndex {
                 index: HashMap::new(),
                 nt: NodeTree::default(),
             }
         }
 
-        fn insert(
+        pub fn insert_node(
+            &mut self,
+            rev: Revision,
+            node: Node,
+        ) -> Result<(), NodeMapError> {
+            self.index.insert(rev, node);
+            self.nt.insert(&self.index, &node, rev)?;
+            Ok(())
+        }
+
+        pub fn insert(
             &mut self,
             rev: Revision,
             hex: &str,
         ) -> Result<(), NodeMapError> {
-            let node = pad_node(hex);
-            self.index.insert(rev, node);
-            self.nt.insert(&self.index, &node, rev)?;
-            Ok(())
+            return self.insert_node(rev, pad_node(hex));
         }
 
         fn find_hex(

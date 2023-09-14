@@ -156,6 +156,16 @@ impl Revlog {
         data_path: Option<&Path>,
         use_nodemap: bool,
     ) -> Result<Self, HgError> {
+        Self::open_gen(store_vfs, index_path, data_path, use_nodemap, None)
+    }
+
+    fn open_gen(
+        store_vfs: &Vfs,
+        index_path: impl AsRef<Path>,
+        data_path: Option<&Path>,
+        use_nodemap: bool,
+        nodemap_for_test: Option<nodemap::NodeTree>,
+    ) -> Result<Self, HgError> {
         let index_path = index_path.as_ref();
         let index = {
             match store_vfs.mmap_open_opt(&index_path)? {
@@ -192,6 +202,8 @@ impl Revlog {
                 },
             )
         };
+
+        let nodemap = nodemap_for_test.or(nodemap);
 
         Ok(Revlog {
             index,
@@ -790,7 +802,13 @@ mod tests {
             .flatten()
             .collect_vec();
         std::fs::write(temp.path().join("foo.i"), contents).unwrap();
-        let revlog = Revlog::open(&vfs, "foo.i", None, false).unwrap();
+
+        let mut idx = nodemap::tests::TestNtIndex::new();
+        idx.insert_node(0, node0).unwrap();
+        idx.insert_node(1, node1).unwrap();
+
+        let revlog =
+            Revlog::open_gen(&vfs, "foo.i", None, true, Some(idx.nt)).unwrap();
 
         // accessing the data shows the corruption
         revlog.get_entry(0).unwrap().data().unwrap_err();
