@@ -712,21 +712,17 @@ def debug_revlog_stats(
         fm.plain(b'\n')
 
 
-def debug_delta_chain(revlog):
-    r = revlog
-    index = r.index
-    start = r.start
-    length = r.length
-    generaldelta = r.delta_config.general_delta
-    withsparseread = r.data_config.with_sparse_read
+class DeltaChainAuditor:
+    def __init__(self, revlog):
+        self._revlog = revlog
+        self._index = self._revlog.index
+        self._generaldelta = revlog.delta_config.general_delta
+        self._chain_size_cache = {}
+        # security to avoid crash on corrupted revlogs
+        self._total_revs = len(self._index)
 
-    # security to avoid crash on corrupted revlogs
-    total_revs = len(index)
-
-    chain_size_cache = {}
-
-    def revinfo(rev):
-        e = index[rev]
+    def revinfo(self, rev):
+        e = self._index[rev]
         compsize = e[constants.ENTRY_DATA_COMPRESSED_LENGTH]
         uncompsize = e[constants.ENTRY_DATA_UNCOMPRESSED_LENGTH]
 
@@ -742,33 +738,33 @@ def debug_delta_chain(revlog):
         # However we need to detect that as a special case for delta-type, that
         # is not simply "other".
         p1_base = p1
-        if p1 != nodemod.nullrev and p1 < total_revs:
-            e1 = index[p1]
+        if p1 != nodemod.nullrev and p1 < self._total_revs:
+            e1 = self._index[p1]
             while e1[constants.ENTRY_DATA_COMPRESSED_LENGTH] == 0:
                 new_base = e1[constants.ENTRY_DELTA_BASE]
                 if (
                     new_base == p1_base
                     or new_base == nodemod.nullrev
-                    or new_base >= total_revs
+                    or new_base >= self._total_revs
                 ):
                     break
                 p1_base = new_base
-                e1 = index[p1_base]
+                e1 = self._index[p1_base]
         p2_base = p2
-        if p2 != nodemod.nullrev and p2 < total_revs:
-            e2 = index[p2]
+        if p2 != nodemod.nullrev and p2 < self._total_revs:
+            e2 = self._index[p2]
             while e2[constants.ENTRY_DATA_COMPRESSED_LENGTH] == 0:
                 new_base = e2[constants.ENTRY_DELTA_BASE]
                 if (
                     new_base == p2_base
                     or new_base == nodemod.nullrev
-                    or new_base >= total_revs
+                    or new_base >= self._total_revs
                 ):
                     break
                 p2_base = new_base
-                e2 = index[p2_base]
+                e2 = self._index[p2_base]
 
-        if generaldelta:
+        if self._generaldelta:
             if base == p1:
                 deltatype = b'p1'
             elif base == p2:
@@ -779,7 +775,7 @@ def debug_delta_chain(revlog):
                 deltatype = b'skip1'
             elif base == p2_base:
                 deltatype = b'skip2'
-            elif r.issnapshot(rev):
+            elif self._revlog.issnapshot(rev):
                 deltatype = b'snap'
             elif base == rev - 1:
                 deltatype = b'prev'
@@ -791,18 +787,26 @@ def debug_delta_chain(revlog):
             else:
                 deltatype = b'prev'
 
-        chain = r._deltachain(rev)[0]
+        chain = self._revlog._deltachain(rev)[0]
         chain_size = 0
         for iter_rev in reversed(chain):
-            cached = chain_size_cache.get(iter_rev)
+            cached = self._chain_size_cache.get(iter_rev)
             if cached is not None:
                 chain_size += cached
                 break
-            e = index[iter_rev]
+            e = self._index[iter_rev]
             chain_size += e[constants.ENTRY_DATA_COMPRESSED_LENGTH]
-        chain_size_cache[rev] = chain_size
+        self._chain_size_cache[rev] = chain_size
 
         return p1, p2, compsize, uncompsize, deltatype, chain, chain_size
+
+
+def debug_delta_chain(revlog):
+    auditor = DeltaChainAuditor(revlog)
+    r = revlog
+    start = r.start
+    length = r.length
+    withsparseread = revlog.data_config.with_sparse_read
 
     header = (
         b'    rev      p1      p2  chain# chainlen     prev   delta       '
@@ -816,7 +820,7 @@ def debug_delta_chain(revlog):
 
     chainbases = {}
     for rev in r:
-        p1, p2, comp, uncomp, deltatype, chain, chainsize = revinfo(rev)
+        p1, p2, comp, uncomp, deltatype, chain, chainsize = auditor.revinfo(rev)
         chainbase = chain[0]
         chainid = chainbases.setdefault(chainbase, len(chainbases) + 1)
         basestart = start(chainbase)
