@@ -4,12 +4,14 @@ use crate::revlog::{Revlog, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
 use crate::vfs::Vfs;
-use crate::{Graph, GraphError, Revision, UncheckedRevision};
+use crate::{
+    Graph, GraphError, Revision, RevlogOpenOptions, UncheckedRevision,
+};
 
 /// A specialized `Revlog` to work with `manifest` data format.
 pub struct Manifestlog {
     /// The generic `revlog` format.
-    revlog: Revlog,
+    pub(crate) revlog: Revlog,
 }
 
 impl Graph for Manifestlog {
@@ -20,9 +22,11 @@ impl Graph for Manifestlog {
 
 impl Manifestlog {
     /// Open the `manifest` of a repository given by its root.
-    pub fn open(store_vfs: &Vfs, use_nodemap: bool) -> Result<Self, HgError> {
-        let revlog =
-            Revlog::open(store_vfs, "00manifest.i", None, use_nodemap)?;
+    pub fn open(
+        store_vfs: &Vfs,
+        options: RevlogOpenOptions,
+    ) -> Result<Self, HgError> {
+        let revlog = Revlog::open(store_vfs, "00manifest.i", None, options)?;
         Ok(Self { revlog })
     }
 

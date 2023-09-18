@@ -11,6 +11,7 @@ use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
 use crate::Graph;
 use crate::GraphError;
+use crate::RevlogOpenOptions;
 use crate::UncheckedRevision;
 use std::path::PathBuf;
 
@@ -30,16 +31,21 @@ impl Filelog {
     pub fn open_vfs(
         store_vfs: &crate::vfs::Vfs<'_>,
         file_path: &HgPath,
+        options: RevlogOpenOptions,
     ) -> Result<Self, HgError> {
         let index_path = store_path(file_path, b".i");
         let data_path = store_path(file_path, b".d");
         let revlog =
-            Revlog::open(store_vfs, index_path, Some(&data_path), false)?;
+            Revlog::open(store_vfs, index_path, Some(&data_path), options)?;
         Ok(Self { revlog })
     }
 
-    pub fn open(repo: &Repo, file_path: &HgPath) -> Result<Self, HgError> {
-        Self::open_vfs(&repo.store_vfs(), file_path)
+    pub fn open(
+        repo: &Repo,
+        file_path: &HgPath,
+        options: RevlogOpenOptions,
+    ) -> Result<Self, HgError> {
+        Self::open_vfs(&repo.store_vfs(), file_path, options)
     }
 
     /// The given node ID is that of the file as found in a filelog, not of a

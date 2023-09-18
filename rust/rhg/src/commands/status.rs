@@ -28,12 +28,12 @@ use hg::utils::files::{
     get_bytes_from_os_str, get_bytes_from_os_string, get_path_from_bytes,
 };
 use hg::utils::hg_path::{hg_path_to_path_buf, HgPath};
-use hg::DirstateStatus;
 use hg::PatternFileWarning;
 use hg::Revision;
 use hg::StatusError;
 use hg::StatusOptions;
 use hg::{self, narrow, sparse};
+use hg::{DirstateStatus, RevlogOpenOptions};
 use log::info;
 use rayon::prelude::*;
 use std::borrow::Cow;
@@ -383,6 +383,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             })?;
             let working_directory_vfs = repo.working_directory_vfs();
             let store_vfs = repo.store_vfs();
+            let revlog_open_options = repo.default_revlog_options(false)?;
             let res: Vec<_> = take(&mut ds_status.unsure)
                 .into_par_iter()
                 .map(|to_check| {
@@ -396,6 +397,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                         check_exec,
                         &manifest,
                         &to_check.path,
+                        revlog_open_options,
                     ) {
                         Err(HgError::IoError { .. }) => {
                             // IO errors most likely stem from the file being
@@ -747,6 +749,7 @@ fn unsure_is_modified(
     check_exec: bool,
     manifest: &Manifest,
     hg_path: &HgPath,
+    revlog_open_options: RevlogOpenOptions,
 ) -> Result<UnsureOutcome, HgError> {
     let vfs = working_directory_vfs;
     let fs_path = hg_path_to_path_buf(hg_path).expect("HgPath conversion");
@@ -778,7 +781,11 @@ fn unsure_is_modified(
     if entry_flags != fs_flags {
         return Ok(UnsureOutcome::Modified);
     }
-    let filelog = hg::filelog::Filelog::open_vfs(&store_vfs, hg_path)?;
+    let filelog = hg::filelog::Filelog::open_vfs(
+        &store_vfs,
+        hg_path,
+        revlog_open_options,
+    )?;
     let fs_len = fs_metadata.len();
     let file_node = entry.node_id()?;
     let filelog_entry = filelog.entry_for_node(file_node).map_err(|_| {
