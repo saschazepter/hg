@@ -4,7 +4,7 @@ use crate::revlog::{Node, NodePrefix};
 use crate::revlog::{Revlog, RevlogEntry, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::vfs::Vfs;
-use crate::{Graph, GraphError, UncheckedRevision};
+use crate::{Graph, GraphError, RevlogOpenOptions, UncheckedRevision};
 use itertools::Itertools;
 use std::ascii::escape_default;
 use std::borrow::Cow;
@@ -18,9 +18,11 @@ pub struct Changelog {
 
 impl Changelog {
     /// Open the `changelog` of a repository given by its root.
-    pub fn open(store_vfs: &Vfs, use_nodemap: bool) -> Result<Self, HgError> {
-        let revlog =
-            Revlog::open(store_vfs, "00changelog.i", None, use_nodemap)?;
+    pub fn open(
+        store_vfs: &Vfs,
+        options: RevlogOpenOptions,
+    ) -> Result<Self, HgError> {
+        let revlog = Revlog::open(store_vfs, "00changelog.i", None, options)?;
         Ok(Self { revlog })
     }
 
@@ -342,7 +344,9 @@ message",
         let temp = tempfile::tempdir().unwrap();
         let vfs = Vfs { base: temp.path() };
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
-        let revlog = Revlog::open(&vfs, "foo.i", None, false).unwrap();
+        let revlog =
+            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::new())
+                .unwrap();
 
         let changelog = Changelog { revlog };
         assert_eq!(

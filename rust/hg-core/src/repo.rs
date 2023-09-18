@@ -8,6 +8,10 @@ use crate::errors::HgResultExt;
 use crate::errors::{HgError, IoResultExt};
 use crate::lock::{try_with_lock_no_wait, LockError};
 use crate::manifest::{Manifest, Manifestlog};
+use crate::requirements::{
+    CHANGELOGV2_REQUIREMENT, GENERALDELTA_REQUIREMENT, NODEMAP_REQUIREMENT,
+    REVLOGV1_REQUIREMENT, REVLOGV2_REQUIREMENT,
+};
 use crate::revlog::filelog::Filelog;
 use crate::revlog::RevlogError;
 use crate::utils::debug::debug_wait_for_file_or_print;
@@ -15,8 +19,10 @@ use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
 use crate::vfs::{is_dir, is_file, Vfs};
-use crate::DirstateError;
-use crate::{requirements, NodePrefix, UncheckedRevision};
+use crate::{
+    requirements, NodePrefix, RevlogVersionOptions, UncheckedRevision,
+};
+use crate::{DirstateError, RevlogOpenOptions};
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashSet;
 use std::io::Seek;
@@ -523,7 +529,7 @@ impl Repo {
     }
 
     fn new_changelog(&self) -> Result<Changelog, HgError> {
-        Changelog::open(&self.store_vfs(), self.has_nodemap())
+        Changelog::open(&self.store_vfs(), self.default_revlog_options(true)?)
     }
 
     pub fn changelog(&self) -> Result<Ref<Changelog>, HgError> {
@@ -535,7 +541,10 @@ impl Repo {
     }
 
     fn new_manifestlog(&self) -> Result<Manifestlog, HgError> {
-        Manifestlog::open(&self.store_vfs(), self.has_nodemap())
+        Manifestlog::open(
+            &self.store_vfs(),
+            self.default_revlog_options(false)?,
+        )
     }
 
     pub fn manifestlog(&self) -> Result<Ref<Manifestlog>, HgError> {
@@ -581,7 +590,7 @@ impl Repo {
     }
 
     pub fn filelog(&self, path: &HgPath) -> Result<Filelog, HgError> {
-        Filelog::open(self, path)
+        Filelog::open(self, path, self.default_revlog_options(false)?)
     }
 
     /// Write to disk any updates that were made through `dirstate_map_mut`.
@@ -729,6 +738,35 @@ impl Repo {
             vfs.remove_file(format!("dirstate.{}", uuid))?;
         }
         Ok(())
+    }
+
+    pub fn default_revlog_options(
+        &self,
+        changelog: bool,
+    ) -> Result<RevlogOpenOptions, HgError> {
+        let requirements = self.requirements();
+        let version = if changelog
+            && requirements.contains(CHANGELOGV2_REQUIREMENT)
+        {
+            let compute_rank = self
+                .config()
+                .get_bool(b"experimental", b"changelog-v2.compute-rank")?;
+            RevlogVersionOptions::ChangelogV2 { compute_rank }
+        } else if requirements.contains(REVLOGV2_REQUIREMENT) {
+            RevlogVersionOptions::V2
+        } else if requirements.contains(REVLOGV1_REQUIREMENT) {
+            RevlogVersionOptions::V1 {
+                generaldelta: requirements.contains(GENERALDELTA_REQUIREMENT),
+            }
+        } else {
+            RevlogVersionOptions::V0
+        };
+        Ok(RevlogOpenOptions {
+            version,
+            // We don't need to dance around the slow path like in the Python
+            // implementation since we know we have access to the fast code.
+            use_nodemap: requirements.contains(NODEMAP_REQUIREMENT),
+        })
     }
 }
 

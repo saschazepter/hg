@@ -16,6 +16,7 @@ and O(changes) merge between branches.
 import binascii
 import collections
 import contextlib
+import functools
 import io
 import os
 import struct
@@ -224,9 +225,9 @@ else:
     parse_index_v1_nodemap = None
 
 
-def parse_index_v1_mixed(data, inline):
+def parse_index_v1_mixed(data, inline, default_header):
     index, cache = parse_index_v1(data, inline)
-    return rustrevlog.MixedIndex(index, data), cache
+    return rustrevlog.MixedIndex(index, data, default_header), cache
 
 
 # corresponds to uncompressed length of indexformatng (2 gigs, 4-byte
@@ -1694,7 +1695,9 @@ class revlog:
         elif devel_nodemap:
             self._parse_index = parse_index_v1_nodemap
         elif use_rust_index:
-            self._parse_index = parse_index_v1_mixed
+            self._parse_index = functools.partial(
+                parse_index_v1_mixed, default_header=new_header
+            )
         try:
             d = self._parse_index(index_data, self._inline)
             index, chunkcache = d
