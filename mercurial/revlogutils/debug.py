@@ -801,7 +801,7 @@ class DeltaChainAuditor:
         return p1, p2, compsize, uncompsize, deltatype, chain, chain_size
 
 
-def debug_delta_chain(revlog):
+def debug_delta_chain(revlog, revs=None):
     auditor = DeltaChainAuditor(revlog)
     r = revlog
     start = r.start
@@ -818,8 +818,14 @@ def debug_delta_chain(revlog):
     header += b'\n'
     yield header
 
+    if revs is None:
+        all_revs = iter(r)
+    else:
+        revlog_size = len(r)
+        all_revs = sorted(rev for rev in revs if rev < revlog_size)
+
     chainbases = {}
-    for rev in r:
+    for rev in all_revs:
         p1, p2, comp, uncomp, deltatype, chain, chainsize = auditor.revinfo(rev)
         chainbase = chain[0]
         chainid = chainbases.setdefault(chainbase, len(chainbases) + 1)
