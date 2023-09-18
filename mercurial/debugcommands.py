@@ -746,7 +746,16 @@ def debugdate(ui, date, range=None, **opts):
 
 @command(
     b'debugdeltachain',
-    cmdutil.debugrevlogopts + cmdutil.formatteropts,
+    [
+        (
+            b'r',
+            b'rev',
+            [],
+            _('restrict processing to these revlog revisions'),
+        ),
+    ]
+    + cmdutil.debugrevlogopts
+    + cmdutil.formatteropts,
     _(b'-c|-m|FILE'),
     optionalrepo=True,
 )
@@ -797,12 +806,16 @@ def debugdeltachain(ui, repo, file_=None, **opts):
 
     The sparse read can be enabled with experimental.sparse-read = True
     """
+    revs = None
+    revs_opt = opts.pop('rev', [])
+    if revs_opt:
+        revs = [int(r) for r in revs_opt]
     revlog = cmdutil.openrevlog(
         repo, b'debugdeltachain', file_, pycompat.byteskwargs(opts)
     )
     fm = ui.formatter(b'debugdeltachain', pycompat.byteskwargs(opts))
 
-    lines = revlog_debug.debug_delta_chain(revlog)
+    lines = revlog_debug.debug_delta_chain(revlog, revs=revs)
     # first entry is the header
     header = next(lines)
     fm.plain(header)
