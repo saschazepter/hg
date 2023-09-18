@@ -225,6 +225,55 @@ impl Graph for Revlog {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum RevlogVersionOptions {
+    V0,
+    V1 { generaldelta: bool },
+    V2,
+    ChangelogV2 { compute_rank: bool },
+}
+
+/// Options to govern how a revlog should be opened, usually from the
+/// repository configuration or requirements.
+#[derive(Debug, Copy, Clone)]
+pub struct RevlogOpenOptions {
+    /// The revlog version, along with any option specific to this version
+    pub version: RevlogVersionOptions,
+    /// Whether the revlog uses a persistent nodemap.
+    pub use_nodemap: bool,
+    // TODO other non-header/version options,
+}
+
+impl RevlogOpenOptions {
+    pub fn new() -> Self {
+        Self {
+            version: RevlogVersionOptions::V1 { generaldelta: true },
+            use_nodemap: false,
+        }
+    }
+
+    fn default_index_header(&self) -> index::IndexHeader {
+        index::IndexHeader {
+            header_bytes: match self.version {
+                RevlogVersionOptions::V0 => [0, 0, 0, 0],
+                RevlogVersionOptions::V1 { generaldelta } => {
+                    [0, if generaldelta { 3 } else { 1 }, 0, 1]
+                }
+                RevlogVersionOptions::V2 => 0xDEADu32.to_be_bytes(),
+                RevlogVersionOptions::ChangelogV2 { compute_rank: _ } => {
+                    0xD34Du32.to_be_bytes()
+                }
+            },
+        }
+    }
+}
+
+impl Default for RevlogOpenOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Revlog {
     /// Open a revlog index file.
     ///
@@ -234,24 +283,30 @@ impl Revlog {
         store_vfs: &Vfs,
         index_path: impl AsRef<Path>,
         data_path: Option<&Path>,
-        use_nodemap: bool,
+        options: RevlogOpenOptions,
     ) -> Result<Self, HgError> {
-        Self::open_gen(store_vfs, index_path, data_path, use_nodemap, None)
+        Self::open_gen(store_vfs, index_path, data_path, options, None)
     }
 
     fn open_gen(
         store_vfs: &Vfs,
         index_path: impl AsRef<Path>,
         data_path: Option<&Path>,
-        use_nodemap: bool,
+        options: RevlogOpenOptions,
         nodemap_for_test: Option<nodemap::NodeTree>,
     ) -> Result<Self, HgError> {
         let index_path = index_path.as_ref();
         let index = {
             match store_vfs.mmap_open_opt(index_path)? {
-                None => Index::new(Box::<Vec<_>>::default()),
+                None => Index::new(
+                    Box::<Vec<_>>::default(),
+                    options.default_index_header(),
+                ),
                 Some(index_mmap) => {
-                    let index = Index::new(Box::new(index_mmap))?;
+                    let index = Index::new(
+                        Box::new(index_mmap),
+                        options.default_index_header(),
+                    )?;
                     Ok(index)
                 }
             }
@@ -270,7 +325,7 @@ impl Revlog {
                 Some(Box::new(data_mmap))
             };
 
-        let nodemap = if index.is_inline() || !use_nodemap {
+        let nodemap = if index.is_inline() || !options.use_nodemap {
             None
         } else {
             NodeMapDocket::read_from_file(store_vfs, index_path)?.map(
@@ -809,7 +864,9 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let vfs = Vfs { base: temp.path() };
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
-        let revlog = Revlog::open(&vfs, "foo.i", None, false).unwrap();
+        let revlog =
+            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::new())
+                .unwrap();
         assert!(revlog.is_empty());
         assert_eq!(revlog.len(), 0);
         assert!(revlog.get_entry(0.into()).is_err());
@@ -855,7 +912,9 @@ mod tests {
             .flatten()
             .collect_vec();
         std::fs::write(temp.path().join("foo.i"), contents).unwrap();
-        let revlog = Revlog::open(&vfs, "foo.i", None, false).unwrap();
+        let revlog =
+            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::new())
+                .unwrap();
 
         let entry0 = revlog.get_entry(0.into()).ok().unwrap();
         assert_eq!(entry0.revision(), Revision(0));
@@ -926,8 +985,14 @@ mod tests {
         idx.insert_node(Revision(0), node0).unwrap();
         idx.insert_node(Revision(1), node1).unwrap();
 
-        let revlog =
-            Revlog::open_gen(&vfs, "foo.i", None, true, Some(idx.nt)).unwrap();
+        let revlog = Revlog::open_gen(
+            &vfs,
+            "foo.i",
+            None,
+            RevlogOpenOptions::new(),
+            Some(idx.nt),
+        )
+        .unwrap();
 
         // accessing the data shows the corruption
         revlog.get_entry(0.into()).unwrap().data().unwrap_err();

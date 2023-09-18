@@ -17,6 +17,7 @@ use cpython::{
     PyObject, PyResult, PyString, PyTuple, Python, PythonObject, ToPyObject,
 };
 use hg::{
+    index::IndexHeader,
     nodemap::{Block, NodeMapError, NodeTree},
     revlog::{nodemap::NodeMap, NodePrefix, RevlogIndex},
     BaseRevision, Revision, UncheckedRevision,
@@ -47,9 +48,10 @@ py_class!(pub class MixedIndex |py| {
     def __new__(
         _cls,
         cindex: PyObject,
-        data: PyObject
+        data: PyObject,
+        default_header: u32,
     ) -> PyResult<MixedIndex> {
-        Self::new(py, cindex, data)
+        Self::new(py, cindex, data, default_header)
     }
 
     /// Compatibility layer used for Python consumers needing access to the C index
@@ -364,6 +366,7 @@ impl MixedIndex {
         py: Python,
         cindex: PyObject,
         data: PyObject,
+        header: u32,
     ) -> PyResult<MixedIndex> {
         // Safety: we keep the buffer around inside the class as `index_mmap`
         let (buf, bytes) = unsafe { mmap_keeparound(py, data)? };
@@ -371,7 +374,15 @@ impl MixedIndex {
         Self::create_instance(
             py,
             RefCell::new(cindex::Index::new(py, cindex)?),
-            RefCell::new(hg::index::Index::new(bytes).unwrap()),
+            RefCell::new(
+                hg::index::Index::new(
+                    bytes,
+                    IndexHeader::parse(&header.to_be_bytes())
+                        .expect("default header is broken")
+                        .unwrap(),
+                )
+                .unwrap(),
+            ),
             RefCell::new(None),
             RefCell::new(None),
             RefCell::new(None),

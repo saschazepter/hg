@@ -15,7 +15,7 @@ pub const INDEX_ENTRY_SIZE: usize = 64;
 pub const COMPRESSION_MODE_INLINE: u8 = 2;
 
 pub struct IndexHeader {
-    header_bytes: [u8; 4],
+    pub(super) header_bytes: [u8; 4],
 }
 
 #[derive(Copy, Clone)]
@@ -54,32 +54,22 @@ impl IndexHeader {
         BigEndian::read_u16(&self.header_bytes[2..4])
     }
 
-    const EMPTY_INDEX_HEADER: IndexHeader = IndexHeader {
-        // We treat an empty file as a valid index with no entries.
-        // Here we make an arbitrary choice of what we assume the format of the
-        // index to be (V1, using generaldelta).
-        // This doesn't matter too much, since we're only doing read-only
-        // access. but the value corresponds to the `new_header` variable in
-        // `revlog.py`, `_loadindex`
-        header_bytes: [0, 3, 0, 1],
-    };
-
-    fn parse(index_bytes: &[u8]) -> Result<IndexHeader, HgError> {
+    pub fn parse(index_bytes: &[u8]) -> Result<Option<IndexHeader>, HgError> {
         if index_bytes.is_empty() {
-            return Ok(IndexHeader::EMPTY_INDEX_HEADER);
+            return Ok(None);
         }
         if index_bytes.len() < 4 {
             return Err(HgError::corrupted(
                 "corrupted revlog: can't read the index format header",
             ));
         }
-        Ok(IndexHeader {
+        Ok(Some(IndexHeader {
             header_bytes: {
                 let bytes: [u8; 4] =
                     index_bytes[0..4].try_into().expect("impossible");
                 bytes
             },
-        })
+        }))
     }
 }
 
@@ -239,8 +229,10 @@ impl Index {
     /// Calculate the start of each entry when is_inline is true.
     pub fn new(
         bytes: Box<dyn Deref<Target = [u8]> + Send>,
+        default_header: IndexHeader,
     ) -> Result<Self, HgError> {
-        let header = IndexHeader::parse(bytes.as_ref())?;
+        let header =
+            IndexHeader::parse(bytes.as_ref())?.unwrap_or(default_header);
 
         if header.format_version() != IndexHeader::REVLOGV1 {
             // A proper new version should have had a repo/store
@@ -598,6 +590,7 @@ mod tests {
     pub fn is_inline(index_bytes: &[u8]) -> bool {
         IndexHeader::parse(index_bytes)
             .expect("too short")
+            .unwrap()
             .format_flags()
             .is_inline()
     }
@@ -605,6 +598,7 @@ mod tests {
     pub fn uses_generaldelta(index_bytes: &[u8]) -> bool {
         IndexHeader::parse(index_bytes)
             .expect("too short")
+            .unwrap()
             .format_flags()
             .uses_generaldelta()
     }
@@ -612,6 +606,7 @@ mod tests {
     pub fn get_version(index_bytes: &[u8]) -> u16 {
         IndexHeader::parse(index_bytes)
             .expect("too short")
+            .unwrap()
             .format_version()
     }
 

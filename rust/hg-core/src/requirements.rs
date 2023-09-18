@@ -77,7 +77,7 @@ const REQUIRED: &[&str] = &["revlogv1", "store", "fncache", "dotencode"];
 
 /// rhg supports repository with or without these
 const SUPPORTED: &[&str] = &[
-    "generaldelta",
+    GENERALDELTA_REQUIREMENT,
     SHARED_REQUIREMENT,
     SHARESAFE_REQUIREMENT,
     SPARSEREVLOG_REQUIREMENT,
@@ -100,6 +100,7 @@ const SUPPORTED: &[&str] = &[
 // Copied from mercurial/requirements.py:
 
 pub const DIRSTATE_V2_REQUIREMENT: &str = "dirstate-v2";
+pub const GENERALDELTA_REQUIREMENT: &str = "generaldelta";
 
 /// A repository that uses the tracked hint dirstate file
 #[allow(unused)]
@@ -128,10 +129,19 @@ pub const INTERNAL_PHASE_REQUIREMENT: &str = "internal-phase";
 #[allow(unused)]
 pub const TREEMANIFEST_REQUIREMENT: &str = "treemanifest";
 
+/// Whether to use the "RevlogNG" or V1 of the revlog format
+#[allow(unused)]
+pub const REVLOGV1_REQUIREMENT: &str = "revlogv1";
+
 /// Increment the sub-version when the revlog v2 format changes to lock out old
 /// clients.
 #[allow(unused)]
 pub const REVLOGV2_REQUIREMENT: &str = "exp-revlogv2.1";
+
+/// Increment the sub-version when the revlog v2 format changes to lock out old
+/// clients.
+#[allow(unused)]
+pub const CHANGELOGV2_REQUIREMENT: &str = "exp-changelog-v2";
 
 /// A repository with the sparserevlog feature will have delta chains that
 /// can spread over a larger span. Sparse reading cuts these large spans into
