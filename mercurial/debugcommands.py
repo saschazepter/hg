@@ -753,6 +753,24 @@ def debugdate(ui, date, range=None, **opts):
             [],
             _('restrict processing to these revlog revisions'),
         ),
+        (
+            b'',
+            b'size-info',
+            True,
+            _('compute information related to deltas size'),
+        ),
+        (
+            b'',
+            b'dist-info',
+            True,
+            _('compute information related to base distance'),
+        ),
+        (
+            b'',
+            b'sparse-info',
+            True,
+            _('compute information related to sparse read'),
+        ),
     ]
     + cmdutil.debugrevlogopts
     + cmdutil.formatteropts,
@@ -767,8 +785,10 @@ def debugdeltachain(ui, repo, file_=None, **opts):
     :``rev``:       revision number
     :``p1``:        parent 1 revision number (for reference)
     :``p2``:        parent 2 revision number (for reference)
+
     :``chainid``:   delta chain identifier (numbered by unique base)
     :``chainlen``:  delta chain length to this revision
+
     :``prevrev``:   previous revision in delta chain
     :``deltatype``: role of delta / how it was computed
                     - base:  a full snapshot
@@ -781,11 +801,13 @@ def debugdeltachain(ui, repo, file_=None, **opts):
                               (when p2 has empty delta
                     - prev:  a delta against the previous revision
                     - other: a delta against an arbitrary revision
+
     :``compsize``:  compressed size of revision
     :``uncompsize``: uncompressed size of revision
     :``chainsize``: total size of compressed revisions in chain
     :``chainratio``: total chain size divided by uncompressed revision size
                     (new delta chains typically start at ratio 2.00)
+
     :``lindist``:   linear distance from base revision in delta chain to end
                     of this revision
     :``extradist``: total size of revisions not part of this delta chain from
@@ -804,18 +826,64 @@ def debugdeltachain(ui, repo, file_=None, **opts):
     :``readdensity``:  density of useful bytes in the data read from the disk
     :``srchunks``:  in how many data hunks the whole revision would be read
 
+    It is possible to select the information to be computed, this can provide a
+    noticeable speedup to the command in some cases.
+
+    Always computed:
+
+    - ``rev``
+    - ``p1``
+    - ``p2``
+    - ``chainid``
+    - ``chainlen``
+    - ``prevrev``
+    - ``deltatype``
+
+    Computed with --no-size-info
+
+    - ``compsize``
+    - ``uncompsize``
+    - ``chainsize``
+    - ``chainratio``
+
+    Computed with --no-dist-info
+
+    - ``lindist``
+    - ``extradist``
+    - ``extraratio``
+
+    Skipped with --no-sparse-info
+
+    - ``readsize``
+    - ``largestblock``
+    - ``readdensity``
+    - ``srchunks``
+
+    --
+
     The sparse read can be enabled with experimental.sparse-read = True
     """
     revs = None
     revs_opt = opts.pop('rev', [])
     if revs_opt:
         revs = [int(r) for r in revs_opt]
+
+    size_info = opts.pop('size_info', True)
+    dist_info = opts.pop('dist_info', True)
+    sparse_info = opts.pop('sparse_info', True)
+
     revlog = cmdutil.openrevlog(
         repo, b'debugdeltachain', file_, pycompat.byteskwargs(opts)
     )
     fm = ui.formatter(b'debugdeltachain', pycompat.byteskwargs(opts))
 
-    lines = revlog_debug.debug_delta_chain(revlog, revs=revs)
+    lines = revlog_debug.debug_delta_chain(
+        revlog,
+        revs=revs,
+        size_info=size_info,
+        dist_info=dist_info,
+        sparse_info=sparse_info,
+    )
     # first entry is the header
     header = next(lines)
     fm.plain(header)
