@@ -798,10 +798,24 @@ class DeltaChainAuditor:
             chain_size += e[constants.ENTRY_DATA_COMPRESSED_LENGTH]
         self._chain_size_cache[rev] = chain_size
 
-        return p1, p2, compsize, uncompsize, deltatype, chain, chain_size
+        return {
+            'p1': p1,
+            'p2': p2,
+            'compressed_size': compsize,
+            'uncompressed_size': uncompsize,
+            'deltatype': deltatype,
+            'chain': chain,
+            'chain_size': chain_size,
+        }
 
 
-def debug_delta_chain(revlog, revs=None):
+def debug_delta_chain(
+    revlog,
+    revs=None,
+    size_info=True,
+    dist_info=True,
+    sparse_info=True,
+):
     auditor = DeltaChainAuditor(revlog)
     r = revlog
     start = r.start
@@ -809,12 +823,20 @@ def debug_delta_chain(revlog, revs=None):
     withsparseread = revlog.data_config.with_sparse_read
 
     header = (
-        b'    rev      p1      p2  chain# chainlen     prev   delta       '
-        b'size    rawsize  chainsize     ratio   lindist extradist '
-        b'extraratio'
+        b'    rev'
+        b'      p1'
+        b'      p2'
+        b'  chain#'
+        b' chainlen'
+        b'     prev'
+        b'   delta'
     )
-    if withsparseread:
-        header += b'   readsize largestblk rddensity srchunks'
+    if size_info:
+        header += b'       size' b'    rawsize' b'  chainsize' b'     ratio'
+    if dist_info:
+        header += b'   lindist' b' extradist' b' extraratio'
+    if withsparseread and sparse_info:
+        header += b'   readsize' b' largestblk' b' rddensity' b' srchunks'
     header += b'\n'
     yield header
 
@@ -826,12 +848,16 @@ def debug_delta_chain(revlog, revs=None):
 
     chainbases = {}
     for rev in all_revs:
-        p1, p2, comp, uncomp, deltatype, chain, chainsize = auditor.revinfo(rev)
+        info = auditor.revinfo(rev)
+        comp = info['compressed_size']
+        uncomp = info['uncompressed_size']
+        chain = info['chain']
         chainbase = chain[0]
         chainid = chainbases.setdefault(chainbase, len(chainbases) + 1)
         basestart = start(chainbase)
         revstart = start(rev)
         lineardist = revstart + comp - basestart
+        chainsize = info['chain_size']
         extradist = lineardist - chainsize
         try:
             prevrev = chain[-2]
@@ -851,21 +877,31 @@ def debug_delta_chain(revlog, revs=None):
         # label, display-format, data-key, value
         entry = [
             (b'rev', b'%7d', 'rev', rev),
-            (b'p1', b'%7d', 'p1', p1),
-            (b'p2', b'%7d', 'p2', p2),
+            (b'p1', b'%7d', 'p1', info['p1']),
+            (b'p2', b'%7d', 'p2', info['p2']),
             (b'chainid', b'%7d', 'chainid', chainid),
             (b'chainlen', b'%8d', 'chainlen', len(chain)),
             (b'prevrev', b'%8d', 'prevrev', prevrev),
-            (b'deltatype', b'%7s', 'deltatype', deltatype),
-            (b'compsize', b'%10d', 'compsize', comp),
-            (b'uncompsize', b'%10d', 'uncompsize', uncomp),
-            (b'chainsize', b'%10d', 'chainsize', chainsize),
-            (b'chainratio', b'%9.5f', 'chainratio', chainratio),
-            (b'lindist', b'%9d', 'lindist', lineardist),
-            (b'extradist', b'%9d', 'extradist', extradist),
-            (b'extraratio', b'%10.5f', 'extraratio', extraratio),
+            (b'deltatype', b'%7s', 'deltatype', info['deltatype']),
         ]
-        if withsparseread:
+        if size_info:
+            entry.extend(
+                [
+                    (b'compsize', b'%10d', 'compsize', comp),
+                    (b'uncompsize', b'%10d', 'uncompsize', uncomp),
+                    (b'chainsize', b'%10d', 'chainsize', chainsize),
+                    (b'chainratio', b'%9.5f', 'chainratio', chainratio),
+                ]
+            )
+        if dist_info:
+            entry.extend(
+                [
+                    (b'lindist', b'%9d', 'lindist', lineardist),
+                    (b'extradist', b'%9d', 'extradist', extradist),
+                    (b'extraratio', b'%10.5f', 'extraratio', extraratio),
+                ]
+            )
+        if withsparseread and sparse_info:
             readsize = 0
             largestblock = 0
             srchunks = 0
