@@ -710,3 +710,175 @@ def debug_revlog_stats(
         fm.write(b'revlog.target', b' %s', revlog_target)
 
         fm.plain(b'\n')
+
+
+def debug_delta_chain(revlog):
+    r = revlog
+    index = r.index
+    start = r.start
+    length = r.length
+    generaldelta = r.delta_config.general_delta
+    withsparseread = r.data_config.with_sparse_read
+
+    # security to avoid crash on corrupted revlogs
+    total_revs = len(index)
+
+    chain_size_cache = {}
+
+    def revinfo(rev):
+        e = index[rev]
+        compsize = e[constants.ENTRY_DATA_COMPRESSED_LENGTH]
+        uncompsize = e[constants.ENTRY_DATA_UNCOMPRESSED_LENGTH]
+
+        base = e[constants.ENTRY_DELTA_BASE]
+        p1 = e[constants.ENTRY_PARENT_1]
+        p2 = e[constants.ENTRY_PARENT_2]
+
+        # If the parents of a revision has an empty delta, we never try to
+        # delta against that parent, but directly against the delta base of
+        # that parent (recursively). It avoids adding a useless entry in the
+        # chain.
+        #
+        # However we need to detect that as a special case for delta-type, that
+        # is not simply "other".
+        p1_base = p1
+        if p1 != nodemod.nullrev and p1 < total_revs:
+            e1 = index[p1]
+            while e1[constants.ENTRY_DATA_COMPRESSED_LENGTH] == 0:
+                new_base = e1[constants.ENTRY_DELTA_BASE]
+                if (
+                    new_base == p1_base
+                    or new_base == nodemod.nullrev
+                    or new_base >= total_revs
+                ):
+                    break
+                p1_base = new_base
+                e1 = index[p1_base]
+        p2_base = p2
+        if p2 != nodemod.nullrev and p2 < total_revs:
+            e2 = index[p2]
+            while e2[constants.ENTRY_DATA_COMPRESSED_LENGTH] == 0:
+                new_base = e2[constants.ENTRY_DELTA_BASE]
+                if (
+                    new_base == p2_base
+                    or new_base == nodemod.nullrev
+                    or new_base >= total_revs
+                ):
+                    break
+                p2_base = new_base
+                e2 = index[p2_base]
+
+        if generaldelta:
+            if base == p1:
+                deltatype = b'p1'
+            elif base == p2:
+                deltatype = b'p2'
+            elif base == rev:
+                deltatype = b'base'
+            elif base == p1_base:
+                deltatype = b'skip1'
+            elif base == p2_base:
+                deltatype = b'skip2'
+            elif r.issnapshot(rev):
+                deltatype = b'snap'
+            elif base == rev - 1:
+                deltatype = b'prev'
+            else:
+                deltatype = b'other'
+        else:
+            if base == rev:
+                deltatype = b'base'
+            else:
+                deltatype = b'prev'
+
+        chain = r._deltachain(rev)[0]
+        chain_size = 0
+        for iter_rev in reversed(chain):
+            cached = chain_size_cache.get(iter_rev)
+            if cached is not None:
+                chain_size += cached
+                break
+            e = index[iter_rev]
+            chain_size += e[constants.ENTRY_DATA_COMPRESSED_LENGTH]
+        chain_size_cache[rev] = chain_size
+
+        return p1, p2, compsize, uncompsize, deltatype, chain, chain_size
+
+    header = (
+        b'    rev      p1      p2  chain# chainlen     prev   delta       '
+        b'size    rawsize  chainsize     ratio   lindist extradist '
+        b'extraratio'
+    )
+    if withsparseread:
+        header += b'   readsize largestblk rddensity srchunks'
+    header += b'\n'
+    yield header
+
+    chainbases = {}
+    for rev in r:
+        p1, p2, comp, uncomp, deltatype, chain, chainsize = revinfo(rev)
+        chainbase = chain[0]
+        chainid = chainbases.setdefault(chainbase, len(chainbases) + 1)
+        basestart = start(chainbase)
+        revstart = start(rev)
+        lineardist = revstart + comp - basestart
+        extradist = lineardist - chainsize
+        try:
+            prevrev = chain[-2]
+        except IndexError:
+            prevrev = -1
+
+        if uncomp != 0:
+            chainratio = float(chainsize) / float(uncomp)
+        else:
+            chainratio = chainsize
+
+        if chainsize != 0:
+            extraratio = float(extradist) / float(chainsize)
+        else:
+            extraratio = extradist
+
+        # label, display-format, data-key, value
+        entry = [
+            (b'rev', b'%7d', 'rev', rev),
+            (b'p1', b'%7d', 'p1', p1),
+            (b'p2', b'%7d', 'p2', p2),
+            (b'chainid', b'%7d', 'chainid', chainid),
+            (b'chainlen', b'%8d', 'chainlen', len(chain)),
+            (b'prevrev', b'%8d', 'prevrev', prevrev),
+            (b'deltatype', b'%7s', 'deltatype', deltatype),
+            (b'compsize', b'%10d', 'compsize', comp),
+            (b'uncompsize', b'%10d', 'uncompsize', uncomp),
+            (b'chainsize', b'%10d', 'chainsize', chainsize),
+            (b'chainratio', b'%9.5f', 'chainratio', chainratio),
+            (b'lindist', b'%9d', 'lindist', lineardist),
+            (b'extradist', b'%9d', 'extradist', extradist),
+            (b'extraratio', b'%10.5f', 'extraratio', extraratio),
+        ]
+        if withsparseread:
+            readsize = 0
+            largestblock = 0
+            srchunks = 0
+
+            for revschunk in deltautil.slicechunk(r, chain):
+                srchunks += 1
+                blkend = start(revschunk[-1]) + length(revschunk[-1])
+                blksize = blkend - start(revschunk[0])
+
+                readsize += blksize
+                if largestblock < blksize:
+                    largestblock = blksize
+
+            if readsize:
+                readdensity = float(chainsize) / float(readsize)
+            else:
+                readdensity = 1
+            entry.extend(
+                [
+                    (b'readsize', b'%10d', 'readsize', readsize),
+                    (b'largestblock', b'%10d', 'largestblock', largestblock),
+                    (b'readdensity', b'%9.5f', 'readdensity', readdensity),
+                    (b'srchunks', b'%8d', 'srchunks', srchunks),
+                ]
+            )
+        yield entry

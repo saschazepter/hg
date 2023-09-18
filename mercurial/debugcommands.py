@@ -105,9 +105,7 @@ from .utils import (
 )
 
 from .revlogutils import (
-    constants as revlog_constants,
     debug as revlog_debug,
-    deltas as deltautil,
     nodemap,
     rewrite,
     sidedata,
@@ -799,200 +797,23 @@ def debugdeltachain(ui, repo, file_=None, **opts):
 
     The sparse read can be enabled with experimental.sparse-read = True
     """
-    r = cmdutil.openrevlog(
+    revlog = cmdutil.openrevlog(
         repo, b'debugdeltachain', file_, pycompat.byteskwargs(opts)
     )
-    index = r.index
-    start = r.start
-    length = r.length
-    generaldelta = r.delta_config.general_delta
-    withsparseread = r.data_config.with_sparse_read
-
-    # security to avoid crash on corrupted revlogs
-    total_revs = len(index)
-
-    chain_size_cache = {}
-
-    def revinfo(rev):
-        e = index[rev]
-        compsize = e[revlog_constants.ENTRY_DATA_COMPRESSED_LENGTH]
-        uncompsize = e[revlog_constants.ENTRY_DATA_UNCOMPRESSED_LENGTH]
-
-        base = e[revlog_constants.ENTRY_DELTA_BASE]
-        p1 = e[revlog_constants.ENTRY_PARENT_1]
-        p2 = e[revlog_constants.ENTRY_PARENT_2]
-
-        # If the parents of a revision has an empty delta, we never try to delta
-        # against that parent, but directly against the delta base of that
-        # parent (recursively). It avoids adding a useless entry in the chain.
-        #
-        # However we need to detect that as a special case for delta-type, that
-        # is not simply "other".
-        p1_base = p1
-        if p1 != nullrev and p1 < total_revs:
-            e1 = index[p1]
-            while e1[revlog_constants.ENTRY_DATA_COMPRESSED_LENGTH] == 0:
-                new_base = e1[revlog_constants.ENTRY_DELTA_BASE]
-                if (
-                    new_base == p1_base
-                    or new_base == nullrev
-                    or new_base >= total_revs
-                ):
-                    break
-                p1_base = new_base
-                e1 = index[p1_base]
-        p2_base = p2
-        if p2 != nullrev and p2 < total_revs:
-            e2 = index[p2]
-            while e2[revlog_constants.ENTRY_DATA_COMPRESSED_LENGTH] == 0:
-                new_base = e2[revlog_constants.ENTRY_DELTA_BASE]
-                if (
-                    new_base == p2_base
-                    or new_base == nullrev
-                    or new_base >= total_revs
-                ):
-                    break
-                p2_base = new_base
-                e2 = index[p2_base]
-
-        if generaldelta:
-            if base == p1:
-                deltatype = b'p1'
-            elif base == p2:
-                deltatype = b'p2'
-            elif base == rev:
-                deltatype = b'base'
-            elif base == p1_base:
-                deltatype = b'skip1'
-            elif base == p2_base:
-                deltatype = b'skip2'
-            elif r.issnapshot(rev):
-                deltatype = b'snap'
-            elif base == rev - 1:
-                deltatype = b'prev'
-            else:
-                deltatype = b'other'
-        else:
-            if base == rev:
-                deltatype = b'base'
-            else:
-                deltatype = b'prev'
-
-        chain = r._deltachain(rev)[0]
-        chain_size = 0
-        for iter_rev in reversed(chain):
-            cached = chain_size_cache.get(iter_rev)
-            if cached is not None:
-                chain_size += cached
-                break
-            e = index[iter_rev]
-            chain_size += e[revlog_constants.ENTRY_DATA_COMPRESSED_LENGTH]
-        chain_size_cache[rev] = chain_size
-
-        return p1, p2, compsize, uncompsize, deltatype, chain, chain_size
-
     fm = ui.formatter(b'debugdeltachain', pycompat.byteskwargs(opts))
 
-    fm.plain(
-        b'    rev      p1      p2  chain# chainlen     prev   delta       '
-        b'size    rawsize  chainsize     ratio   lindist extradist '
-        b'extraratio'
-    )
-    if withsparseread:
-        fm.plain(b'   readsize largestblk rddensity srchunks')
-    fm.plain(b'\n')
-
-    chainbases = {}
-    for rev in r:
-        p1, p2, comp, uncomp, deltatype, chain, chainsize = revinfo(rev)
-        chainbase = chain[0]
-        chainid = chainbases.setdefault(chainbase, len(chainbases) + 1)
-        basestart = start(chainbase)
-        revstart = start(rev)
-        lineardist = revstart + comp - basestart
-        extradist = lineardist - chainsize
-        try:
-            prevrev = chain[-2]
-        except IndexError:
-            prevrev = -1
-
-        if uncomp != 0:
-            chainratio = float(chainsize) / float(uncomp)
-        else:
-            chainratio = chainsize
-
-        if chainsize != 0:
-            extraratio = float(extradist) / float(chainsize)
-        else:
-            extraratio = extradist
-
+    lines = revlog_debug.debug_delta_chain(revlog)
+    # first entry is the header
+    header = next(lines)
+    fm.plain(header)
+    for entry in lines:
+        label = b' '.join(e[0] for e in entry)
+        format = b' '.join(e[1] for e in entry)
+        values = [e[3] for e in entry]
+        data = dict((e[2], e[3]) for e in entry)
         fm.startitem()
-        fm.write(
-            b'rev p1 p2 chainid chainlen prevrev deltatype compsize '
-            b'uncompsize chainsize chainratio lindist extradist '
-            b'extraratio',
-            b'%7d %7d %7d %7d %8d %8d %7s %10d %10d %10d %9.5f %9d %9d %10.5f',
-            rev,
-            p1,
-            p2,
-            chainid,
-            len(chain),
-            prevrev,
-            deltatype,
-            comp,
-            uncomp,
-            chainsize,
-            chainratio,
-            lineardist,
-            extradist,
-            extraratio,
-            rev=rev,
-            chainid=chainid,
-            chainlen=len(chain),
-            prevrev=prevrev,
-            deltatype=deltatype,
-            compsize=comp,
-            uncompsize=uncomp,
-            chainsize=chainsize,
-            chainratio=chainratio,
-            lindist=lineardist,
-            extradist=extradist,
-            extraratio=extraratio,
-        )
-        if withsparseread:
-            readsize = 0
-            largestblock = 0
-            srchunks = 0
-
-            for revschunk in deltautil.slicechunk(r, chain):
-                srchunks += 1
-                blkend = start(revschunk[-1]) + length(revschunk[-1])
-                blksize = blkend - start(revschunk[0])
-
-                readsize += blksize
-                if largestblock < blksize:
-                    largestblock = blksize
-
-            if readsize:
-                readdensity = float(chainsize) / float(readsize)
-            else:
-                readdensity = 1
-
-            fm.write(
-                b'readsize largestblock readdensity srchunks',
-                b' %10d %10d %9.5f %8d',
-                readsize,
-                largestblock,
-                readdensity,
-                srchunks,
-                readsize=readsize,
-                largestblock=largestblock,
-                readdensity=readdensity,
-                srchunks=srchunks,
-            )
-
+        fm.write(label, format, *values, **data)
         fm.plain(b'\n')
-
     fm.end()
 
 
