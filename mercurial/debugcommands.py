@@ -756,7 +756,7 @@ def debugdate(ui, date, range=None, **opts):
         (
             b'',
             b'all-info',
-            True,
+            False,
             _('compute all information unless specified otherwise'),
         ),
         (
@@ -874,7 +874,7 @@ def debugdeltachain(ui, repo, file_=None, **opts):
     if revs_opt:
         revs = [int(r) for r in revs_opt]
 
-    all_info = opts.pop('all_info', True)
+    all_info = opts.pop('all_info', False)
     size_info = opts.pop('size_info', None)
     if size_info is None:
         size_info = all_info
