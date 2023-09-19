@@ -894,7 +894,7 @@ class revlog:
         except KeyError:
             return False
 
-    def candelta(self, baserev, rev):
+    def _candelta(self, baserev, rev):
         """whether two revisions (baserev, rev) can be delta-ed or not"""
         # Disable delta if either rev requires a content-changing flag
         # processor (ex. LFS). This is because such flag processor can alter
@@ -3105,7 +3105,7 @@ class revlog:
             nodesorder,
             revlogrevisiondelta,
             deltaparentfn=self.deltaparent,
-            candeltafn=self.candelta,
+            candeltafn=self._candelta,
             rawsizefn=self.rawsize,
             revdifffn=self.revdiff,
             flagsfn=self.flags,
