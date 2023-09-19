@@ -908,6 +908,10 @@ class revlog:
         return True
 
     def update_caches(self, transaction):
+        """update on disk cache
+
+        If a transaction is passed, the update may be delayed to transaction
+        commit."""
         if self._nodemap_file is not None:
             if transaction is None:
                 nodemaputil.update_persistent_nodemap(self)
