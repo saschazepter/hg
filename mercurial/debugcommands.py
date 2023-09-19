@@ -755,20 +755,26 @@ def debugdate(ui, date, range=None, **opts):
         ),
         (
             b'',
-            b'size-info',
+            b'all-info',
             True,
+            _('compute all information unless specified otherwise'),
+        ),
+        (
+            b'',
+            b'size-info',
+            None,
             _('compute information related to deltas size'),
         ),
         (
             b'',
             b'dist-info',
-            True,
+            None,
             _('compute information related to base distance'),
         ),
         (
             b'',
             b'sparse-info',
-            True,
+            None,
             _('compute information related to sparse read'),
         ),
     ]
@@ -868,9 +874,16 @@ def debugdeltachain(ui, repo, file_=None, **opts):
     if revs_opt:
         revs = [int(r) for r in revs_opt]
 
-    size_info = opts.pop('size_info', True)
-    dist_info = opts.pop('dist_info', True)
-    sparse_info = opts.pop('sparse_info', True)
+    all_info = opts.pop('all_info', True)
+    size_info = opts.pop('size_info', None)
+    if size_info is None:
+        size_info = all_info
+    dist_info = opts.pop('dist_info', None)
+    if dist_info is None:
+        dist_info = all_info
+    sparse_info = opts.pop('sparse_info', None)
+    if sparse_info is None:
+        sparse_info = all_info
 
     revlog = cmdutil.openrevlog(
         repo, b'debugdeltachain', file_, pycompat.byteskwargs(opts)
