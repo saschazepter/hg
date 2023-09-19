@@ -517,6 +517,22 @@ class revlog:
             return b''
 
     def get_streams(self, max_linkrev, force_inline=False):
+        """return a list of streams that represent this revlog
+
+        This is used by stream-clone to do bytes to bytes copies of a repository.
+
+        This streams data for all revisions that refer to a changelog revision up
+        to `max_linkrev`.
+
+        If `force_inline` is set, it enforces that the stream will represent an inline revlog.
+
+        It returns is a list of three-tuple:
+
+            [
+                (filename, bytes_stream, stream_size),
+                …
+            ]
+        """
         n = len(self)
         index = self.index
         while n > 0:
