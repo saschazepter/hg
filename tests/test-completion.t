@@ -296,7 +296,7 @@ Show all commands + options
   debugdag: tags, branches, dots, spaces
   debugdata: changelog, manifest, dir
   debugdate: extended
-  debugdeltachain: rev, size-info, dist-info, sparse-info, changelog, manifest, dir, template
+  debugdeltachain: rev, all-info, size-info, dist-info, sparse-info, changelog, manifest, dir, template
   debugdirstateignorepatternshash: 
   debugdirstate: nodates, dates, datesort, docket, all
   debugdiscovery: old, nonheads, rev, seed, local-as-revs, remote-as-revs, ssh, remotecmd, insecure, template
