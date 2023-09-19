@@ -919,6 +919,7 @@ class revlog:
                 nodemaputil.setup_persistent_nodemap(transaction, self)
 
     def clearcaches(self):
+        """Clear in-memory caches"""
         self._revisioncache = None
         self._chainbasecache.clear()
         self._segmentfile.clear_cache()
