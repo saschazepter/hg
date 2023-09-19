@@ -721,7 +721,7 @@ class DeltaChainAuditor:
         # security to avoid crash on corrupted revlogs
         self._total_revs = len(self._index)
 
-    def revinfo(self, rev):
+    def revinfo(self, rev, size_info=True, dist_info=True, sparse_info=True):
         e = self._index[rev]
         compsize = e[constants.ENTRY_DATA_COMPRESSED_LENGTH]
         uncompsize = e[constants.ENTRY_DATA_UNCOMPRESSED_LENGTH]
@@ -788,25 +788,29 @@ class DeltaChainAuditor:
                 deltatype = b'prev'
 
         chain = self._revlog._deltachain(rev)[0]
-        chain_size = 0
-        for iter_rev in reversed(chain):
-            cached = self._chain_size_cache.get(iter_rev)
-            if cached is not None:
-                chain_size += cached
-                break
-            e = self._index[iter_rev]
-            chain_size += e[constants.ENTRY_DATA_COMPRESSED_LENGTH]
-        self._chain_size_cache[rev] = chain_size
 
-        return {
+        data = {
             'p1': p1,
             'p2': p2,
             'compressed_size': compsize,
             'uncompressed_size': uncompsize,
             'deltatype': deltatype,
             'chain': chain,
-            'chain_size': chain_size,
         }
+
+        if size_info or dist_info or sparse_info:
+            chain_size = 0
+            for iter_rev in reversed(chain):
+                cached = self._chain_size_cache.get(iter_rev)
+                if cached is not None:
+                    chain_size += cached
+                    break
+                e = self._index[iter_rev]
+                chain_size += e[constants.ENTRY_DATA_COMPRESSED_LENGTH]
+            self._chain_size_cache[rev] = chain_size
+            data['chain_size'] = chain_size
+
+        return data
 
 
 def debug_delta_chain(
@@ -848,31 +852,39 @@ def debug_delta_chain(
 
     chainbases = {}
     for rev in all_revs:
-        info = auditor.revinfo(rev)
+        info = auditor.revinfo(
+            rev,
+            size_info=size_info,
+            dist_info=dist_info,
+            sparse_info=sparse_info,
+        )
         comp = info['compressed_size']
         uncomp = info['uncompressed_size']
         chain = info['chain']
         chainbase = chain[0]
         chainid = chainbases.setdefault(chainbase, len(chainbases) + 1)
-        basestart = start(chainbase)
-        revstart = start(rev)
-        lineardist = revstart + comp - basestart
-        chainsize = info['chain_size']
-        extradist = lineardist - chainsize
+        if dist_info:
+            basestart = start(chainbase)
+            revstart = start(rev)
+            lineardist = revstart + comp - basestart
+            extradist = lineardist - info['chain_size']
         try:
             prevrev = chain[-2]
         except IndexError:
             prevrev = -1
 
-        if uncomp != 0:
-            chainratio = float(chainsize) / float(uncomp)
-        else:
-            chainratio = chainsize
+        if size_info:
+            chainsize = info['chain_size']
+            if uncomp != 0:
+                chainratio = float(chainsize) / float(uncomp)
+            else:
+                chainratio = chainsize
 
-        if chainsize != 0:
-            extraratio = float(extradist) / float(chainsize)
-        else:
-            extraratio = extradist
+        if dist_info:
+            if chainsize != 0:
+                extraratio = float(extradist) / float(chainsize)
+            else:
+                extraratio = extradist
 
         # label, display-format, data-key, value
         entry = [
@@ -902,6 +914,7 @@ def debug_delta_chain(
                 ]
             )
         if withsparseread and sparse_info:
+            chainsize = info['chain_size']
             readsize = 0
             largestblock = 0
             srchunks = 0
