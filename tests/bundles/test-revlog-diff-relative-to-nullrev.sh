@@ -32,7 +32,7 @@ echo ho > a
 hg up null
 echo ha > a
 ../../../hg commit -Am root-A
-../../../hg debugdeltachain a
+../../../hg debugdeltachain a --all-info
 rm -rf .hg/cache/ .hg/wcache/
 cd ..
 
