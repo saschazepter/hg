@@ -1,3 +1,4 @@
+use std::collections::hash_map::RandomState;
 use std::collections::HashSet;
 use std::fmt::Debug;
 use std::ops::Deref;
@@ -12,8 +13,8 @@ use crate::node::{NODE_BYTES_LENGTH, NULL_NODE, STORED_NODE_ID_BYTES};
 use crate::revlog::node::Node;
 use crate::revlog::{Revision, NULL_REVISION};
 use crate::{
-    BaseRevision, FastHashMap, Graph, GraphError, RevlogError, RevlogIndex,
-    UncheckedRevision,
+    dagops, BaseRevision, FastHashMap, Graph, GraphError, RevlogError,
+    RevlogIndex, UncheckedRevision,
 };
 
 pub const INDEX_ENTRY_SIZE: usize = 64;
@@ -259,6 +260,9 @@ pub struct Index {
     offsets: RwLock<Option<Vec<usize>>>,
     uses_generaldelta: bool,
     is_inline: bool,
+    /// Cache of the head revisions in this index, kept in sync. Should
+    /// be accessed via the [`Self::head_revs`] method.
+    head_revs: Vec<Revision>,
 }
 
 impl Debug for Index {
@@ -358,6 +362,7 @@ impl Index {
                     offsets: RwLock::new(Some(offsets)),
                     uses_generaldelta,
                     is_inline: true,
+                    head_revs: vec![],
                 })
             } else {
                 Err(HgError::corrupted("unexpected inline revlog length"))
@@ -368,6 +373,7 @@ impl Index {
                 offsets: RwLock::new(None),
                 uses_generaldelta,
                 is_inline: false,
+                head_revs: vec![],
             })
         }
     }
@@ -512,6 +518,26 @@ impl Index {
         }
     }
 
+    /// Return the head revisions of this index
+    pub fn head_revs(&mut self) -> Result<Vec<Revision>, GraphError> {
+        if !self.head_revs.is_empty() {
+            return Ok(self.head_revs.to_owned());
+        }
+        let mut revs: HashSet<Revision, RandomState> = (0..self.len())
+            .into_iter()
+            .map(|i| Revision(i as BaseRevision))
+            .collect();
+        dagops::retain_heads(self, &mut revs)?;
+        if self.is_empty() {
+            revs.insert(NULL_REVISION);
+        }
+        let mut as_vec: Vec<Revision> =
+            revs.into_iter().map(Into::into).collect();
+        as_vec.sort_unstable();
+        self.head_revs = as_vec.to_owned();
+        Ok(as_vec)
+    }
+
     /// Obtain the delta chain for a revision.
     ///
     /// `stop_rev` specifies a revision to stop at. If not specified, we
@@ -599,6 +625,7 @@ impl Index {
             offsets.push(new_offset)
         }
         self.bytes.added.extend(revision_data.into_v1().as_bytes());
+        self.head_revs.clear();
         Ok(())
     }
 
@@ -612,6 +639,7 @@ impl Index {
         if let Some(offsets) = &mut *self.get_offsets_mut() {
             offsets.truncate(rev.0 as usize)
         }
+        self.head_revs.clear();
         Ok(())
     }
 
@@ -620,6 +648,7 @@ impl Index {
         // instead of offsets to determine whether we're inline since we might
         // clear caches. This implies re-populating the offsets on-demand.
         self.offsets = RwLock::new(None);
+        self.head_revs.clear();
     }
 
     /// Unchecked version of `is_snapshot`.

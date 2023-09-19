@@ -13,9 +13,9 @@ use crate::{
 use cpython::{
     buffer::{Element, PyBuffer},
     exc::{IndexError, ValueError},
-    ObjectProtocol, PyBool, PyBytes, PyClone, PyDict, PyErr, PyInt, PyModule,
-    PyObject, PyResult, PySet, PyString, PyTuple, Python, PythonObject,
-    ToPyObject,
+    ObjectProtocol, PyBool, PyBytes, PyClone, PyDict, PyErr, PyInt, PyList,
+    PyModule, PyObject, PyResult, PySet, PyString, PyTuple, Python,
+    PythonObject, ToPyObject,
 };
 use hg::{
     errors::HgError,
@@ -250,7 +250,11 @@ py_class!(pub class MixedIndex |py| {
 
     /// get head revisions
     def headrevs(&self, *args, **kw) -> PyResult<PyObject> {
-        self.call_cindex(py, "headrevs", args, kw)
+        let rust_res = self.inner_headrevs(py)?;
+
+        let c_res = self.call_cindex(py, "headrevs", args, kw)?;
+        assert_py_eq(py, "headrevs", &rust_res, &c_res)?;
+        Ok(rust_res)
     }
 
     /// get filtered head revisions
@@ -782,6 +786,17 @@ impl MixedIndex {
             ),
         })
     }
+
+    fn inner_headrevs(&self, py: Python) -> PyResult<PyObject> {
+        let index = &mut *self.index(py).borrow_mut();
+        let as_vec: Vec<PyObject> = index
+            .head_revs()
+            .map_err(|e| graph_error(py, e))?
+            .iter()
+            .map(|r| PyRevision::from(*r).into_py_object(py).into_object())
+            .collect();
+        Ok(PyList::new(py, &as_vec).into_object())
+    }
 }
 
 fn revlog_error(py: Python) -> PyErr {
@@ -795,6 +810,12 @@ fn revlog_error(py: Python) -> PyErr {
             cls.call(py, (py.None(),), None).ok().into_py_object(py),
         ),
     }
+}
+
+fn graph_error(py: Python, _err: hg::GraphError) -> PyErr {
+    // ParentOutOfRange is currently the only alternative
+    // in `hg::GraphError`. The C index always raises this simple ValueError.
+    PyErr::new::<ValueError, _>(py, "parent out of range")
 }
 
 fn nodemap_rev_not_in_index(py: Python, rev: UncheckedRevision) -> PyErr {
