@@ -941,6 +941,7 @@ class revlog:
                 self.index.update_nodemap_data(*nodemap_data)
 
     def rev(self, node):
+        """return the revision number associated with a <nodeid>"""
         try:
             return self.index.rev(node)
         except TypeError:
