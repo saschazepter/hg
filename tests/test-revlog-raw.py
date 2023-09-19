@@ -158,7 +158,7 @@ def addgroupcopy(rlog, tr, destname=b'_destrevlog', optimaldelta=True):
             else:
                 # suboptimal deltaparent
                 deltaparent = min(0, parentrev)
-            if not rlog.candelta(deltaparent, r):
+            if not rlog._candelta(deltaparent, r):
                 deltaparent = -1
             return {
                 b'node': rlog.node(r),
