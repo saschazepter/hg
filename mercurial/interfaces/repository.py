@@ -1285,7 +1285,7 @@ class imanifeststorage(interfaceutil.Interface):
     def revision(node):
         """Obtain fulltext data for a node."""
 
-    def rawdata(node, _df=None):
+    def rawdata(node):
         """Obtain raw data for a node."""
 
     def revdiff(rev1, rev2):
