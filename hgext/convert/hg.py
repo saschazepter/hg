@@ -298,8 +298,9 @@ class mercurial_sink(common.converter_sink):
         parents = pl
         nparents = len(parents)
         if self.filemapmode and nparents == 1:
-            m1node = self.repo.changelog.read(bin(parents[0]))[0]
             parent = parents[0]
+            p1_node = bin(parent)
+            m1node = self.repo.changelog.changelogrevision(p1_node).manifest
 
         if len(parents) < 2:
             parents.append(self.repo.nullid)
