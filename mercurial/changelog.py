@@ -175,16 +175,22 @@ class _divertopener:
         return getattr(self._opener, attr)
 
 
-def _delayopener(opener, target, buf):
+class _delayopener:
     """build an opener that stores chunks in 'buf' instead of 'target'"""
 
-    def _delay(name, mode=b'r', checkambig=False, **kwargs):
-        if name != target:
-            return opener(name, mode, **kwargs)
-        assert not kwargs
-        return appender(opener, name, mode, buf)
+    def __init__(self, opener, target, buf):
+        self._opener = opener
+        self._target = target
+        self._buf = buf
 
-    return _delay
+    def __call__(self, name, mode=b'r', checkambig=False, **kwargs):
+        if name != self._target:
+            return self._opener(name, mode, **kwargs)
+        assert not kwargs
+        return appender(self._opener, name, mode, self._buf)
+
+    def __getattr__(self, attr):
+        return getattr(self._opener, attr)
 
 
 @attr.s
