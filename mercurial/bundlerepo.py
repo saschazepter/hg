@@ -12,6 +12,7 @@ were part of the actual repository.
 """
 
 
+import contextlib
 import os
 import shutil
 
@@ -107,6 +108,14 @@ class bundlerevlog(revlog.revlog):
             self.index.append(e)
             self.bundlerevs.add(n)
             n += 1
+
+    @contextlib.contextmanager
+    def reading(self):
+        if self.repotiprev < 0:
+            yield
+        else:
+            with super().reading() as x:
+                yield x
 
     def _chunk(self, rev, df=None):
         # Warning: in case of bundle, the diff is against what we stored as
