@@ -11,6 +11,8 @@
 allowing operations like diff and log with revsets.
 """
 
+import contextlib
+
 
 from .i18n import _
 
@@ -111,6 +113,19 @@ class unionrevlog(revlog.revlog):
             self.index.append(e)
             self.bundlerevs.add(n)
             n += 1
+
+    @contextlib.contextmanager
+    def reading(self):
+        if 0 <= len(self.bundlerevs) < len(self.index):
+            read_1 = super().reading
+        else:
+            read_1 = util.nullcontextmanager
+        if 0 < len(self.bundlerevs):
+            read_2 = self.revlog2.reading
+        else:
+            read_2 = util.nullcontextmanager
+        with read_1(), read_2():
+            yield
 
     def _chunk(self, rev, df=None):
         if rev <= self.repotiprev:
