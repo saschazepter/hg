@@ -516,7 +516,7 @@ def segmentspan(revlog, revs):
     return end - revlog.start(revs[0])
 
 
-def _textfromdelta(fh, revlog, baserev, delta, p1, p2, flags, expectednode):
+def _textfromdelta(revlog, baserev, delta, p1, p2, flags, expectednode):
     """build full text from a (base, delta) pair and other metadata"""
     # special case deltas which replace entire base; no need to decode
     # base revision. this neatly avoids censored bases, which throw when
@@ -529,7 +529,7 @@ def _textfromdelta(fh, revlog, baserev, delta, p1, p2, flags, expectednode):
     else:
         # deltabase is rawtext before changed by flag processors, which is
         # equivalent to non-raw text
-        basetext = revlog.revision(baserev, _df=fh)
+        basetext = revlog.revision(baserev)
         fulltext = mdiff.patch(basetext, delta)
 
     try:
@@ -1090,12 +1090,10 @@ class deltacomputer:
     def _gather_debug(self):
         return self._write_debug is not None or self._debug_info is not None
 
-    def buildtext(self, revinfo, fh):
+    def buildtext(self, revinfo):
         """Builds a fulltext version of a revision
 
         revinfo: revisioninfo instance that contains all needed info
-        fh:      file handle to either the .i or the .d revlog file,
-                 depending on whether it is inlined or not
         """
         btext = revinfo.btext
         if btext[0] is not None:
@@ -1107,7 +1105,6 @@ class deltacomputer:
         delta = cachedelta[1]
 
         fulltext = btext[0] = _textfromdelta(
-            fh,
             revlog,
             baserev,
             delta,
@@ -1118,21 +1115,21 @@ class deltacomputer:
         )
         return fulltext
 
-    def _builddeltadiff(self, base, revinfo, fh):
+    def _builddeltadiff(self, base, revinfo):
         revlog = self.revlog
-        t = self.buildtext(revinfo, fh)
+        t = self.buildtext(revinfo)
         if revlog.iscensored(base):
             # deltas based on a censored revision must replace the
             # full content in one patch, so delta works everywhere
             header = mdiff.replacediffheader(revlog.rawsize(base), len(t))
             delta = header + t
         else:
-            ptext = revlog.rawdata(base, _df=fh)
+            ptext = revlog.rawdata(base)
             delta = mdiff.textdiff(ptext, t)
 
         return delta
 
-    def _builddeltainfo(self, revinfo, base, fh, target_rev=None):
+    def _builddeltainfo(self, revinfo, base, target_rev=None):
         # can we use the cached delta?
         revlog = self.revlog
         chainbase = revlog.chainbase(base)
@@ -1170,7 +1167,7 @@ class deltacomputer:
             if self.revlog._lazydelta and currentbase == base:
                 delta = revinfo.cachedelta[1]
         if delta is None:
-            delta = self._builddeltadiff(base, revinfo, fh)
+            delta = self._builddeltadiff(base, revinfo)
         if self._debug_search:
             msg = b"DBG-DELTAS-SEARCH:     uncompressed-delta-size=%d\n"
             msg %= len(delta)
@@ -1212,8 +1209,8 @@ class deltacomputer:
             snapshotdepth,
         )
 
-    def _fullsnapshotinfo(self, fh, revinfo, curr):
-        rawtext = self.buildtext(revinfo, fh)
+    def _fullsnapshotinfo(self, revinfo, curr):
+        rawtext = self.buildtext(revinfo)
         data = self.revlog.compress(rawtext)
         compresseddeltalen = deltalen = dist = len(data[1]) + len(data[0])
         deltabase = chainbase = curr
@@ -1231,12 +1228,10 @@ class deltacomputer:
             snapshotdepth,
         )
 
-    def finddeltainfo(self, revinfo, fh, excluded_bases=None, target_rev=None):
+    def finddeltainfo(self, revinfo, excluded_bases=None, target_rev=None):
         """Find an acceptable delta against a candidate revision
 
         revinfo: information about the revision (instance of _revisioninfo)
-        fh:      file handle to either the .i or the .d revlog file,
-                 depending on whether it is inlined or not
 
         Returns the first acceptable candidate revision, as ordered by
         _candidategroups
@@ -1296,7 +1291,7 @@ class deltacomputer:
         # not calling candelta since only one revision needs test, also to
         # avoid overhead fetching flags again.
         if not revinfo.textlen or revinfo.flags & REVIDX_RAWTEXT_CHANGING_FLAGS:
-            deltainfo = self._fullsnapshotinfo(fh, revinfo, target_rev)
+            deltainfo = self._fullsnapshotinfo(revinfo, target_rev)
             if gather_debug:
                 end = util.timer()
                 dbg['duration'] = end - start
@@ -1322,7 +1317,7 @@ class deltacomputer:
             base = revinfo.cachedelta[0]
             if base == nullrev:
                 dbg_type = b"full"
-                deltainfo = self._fullsnapshotinfo(fh, revinfo, target_rev)
+                deltainfo = self._fullsnapshotinfo(revinfo, target_rev)
                 if gather_debug:
                     snapshotdepth = 0
             elif base not in excluded_bases:
@@ -1474,7 +1469,6 @@ class deltacomputer:
                 candidatedelta = self._builddeltainfo(
                     revinfo,
                     candidaterev,
-                    fh,
                     target_rev=target_rev,
                 )
                 if self._debug_search:
@@ -1505,7 +1499,7 @@ class deltacomputer:
 
         if deltainfo is None:
             dbg_type = b"full"
-            deltainfo = self._fullsnapshotinfo(fh, revinfo, target_rev)
+            deltainfo = self._fullsnapshotinfo(revinfo, target_rev)
         elif deltainfo.snapshotdepth:  # pytype: disable=attribute-error
             dbg_type = b"snapshot"
         else:
