@@ -1960,7 +1960,7 @@ class revlog:
         """
         return self._revisiondata(nodeorrev)
 
-    def sidedata(self, nodeorrev, _df=None):
+    def sidedata(self, nodeorrev):
         """a map of extra data related to the changeset but not part of the hash
 
         This function currently return a dictionary. However, more advanced
