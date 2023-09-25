@@ -2580,11 +2580,6 @@ class revlog:
             msg = b'adding revision outside `revlog._writing` context'
             raise error.ProgrammingError(msg)
 
-        if self._inline:
-            fh = self._writinghandles[0]
-        else:
-            fh = self._writinghandles[1]
-
         btext = [rawtext]
 
         curr = len(self)
@@ -2650,7 +2645,7 @@ class revlog:
             flags,
         )
 
-        deltainfo = deltacomputer.finddeltainfo(revinfo, fh)
+        deltainfo = deltacomputer.finddeltainfo(revinfo)
 
         compression_mode = COMP_MODE_INLINE
         if self._docket is not None:
@@ -2738,7 +2733,7 @@ class revlog:
         rawtext = btext[0]
 
         if alwayscache and rawtext is None:
-            rawtext = deltacomputer.buildtext(revinfo, fh)
+            rawtext = deltacomputer.buildtext(revinfo)
 
         if type(rawtext) == bytes:  # only accept immutable objects
             self._revisioncache = (node, curr, rawtext)
