@@ -234,7 +234,7 @@ def _precompute_rewritten_delta(
     dc = deltas.deltacomputer(revlog)
     rewritten_entries = {}
     first_excl_rev = min(excluded_revs)
-    with revlog.reading(), revlog._segmentfile._open_read() as dfh:
+    with revlog.reading():
         for rev in range(first_excl_rev, len(old_index)):
             if rev in excluded_revs:
                 # this revision will be preserved as is, so we don't need to
@@ -261,7 +261,7 @@ def _precompute_rewritten_delta(
                     flags=entry[ENTRY_DATA_OFFSET] & 0xFFFF,
                 )
                 d = dc.finddeltainfo(
-                    info, dfh, excluded_bases=excluded_revs, target_rev=rev
+                    info, excluded_bases=excluded_revs, target_rev=rev
                 )
                 default_comp = revlog._docket.default_compression_header
                 comp_mode, d = deltas.delta_compression(default_comp, d)
@@ -774,13 +774,7 @@ def filter_delta_issue6528(revlog, deltas_iter):
                 (base_rev, delta),
                 flags,
             )
-            # cached by the global "writing" context
-            assert revlog._writinghandles is not None
-            if revlog._inline:
-                fh = revlog._writinghandles[0]
-            else:
-                fh = revlog._writinghandles[1]
-            return deltacomputer.buildtext(revinfo, fh)
+            return deltacomputer.buildtext(revinfo)
 
         is_affected = _is_revision_affected_fast_inner(
             is_censored,
