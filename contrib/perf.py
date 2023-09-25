@@ -3744,16 +3744,20 @@ def perfrevlogchunks(ui, repo, file_=None, engines=None, startrev=0, **opts):
 
     revs = list(rl.revs(startrev, len(rl) - 1))
 
-    def rlfh(rl):
-        if rl._inline:
+    @contextlib.contextmanager
+    def reading(rl):
+        if getattr(rl, 'reading', None) is not None:
+            with rl.reading():
+                yield None
+        elif rl._inline:
             indexfile = getattr(rl, '_indexfile', None)
             if indexfile is None:
                 # compatibility with <= hg-5.8
                 indexfile = getattr(rl, 'indexfile')
-            return getsvfs(repo)(indexfile)
+            yield getsvfs(repo)(indexfile)
         else:
             datafile = getattr(rl, 'datafile', getattr(rl, 'datafile'))
-            return getsvfs(repo)(datafile)
+            yield getsvfs(repo)(datafile)
 
     def doread():
         rl.clearcaches()
@@ -3762,9 +3766,13 @@ def perfrevlogchunks(ui, repo, file_=None, engines=None, startrev=0, **opts):
 
     def doreadcachedfh():
         rl.clearcaches()
-        fh = rlfh(rl)
-        for rev in revs:
-            segmentforrevs(rev, rev, df=fh)
+        with reading(rl) as fh:
+            if fh is not None:
+                for rev in revs:
+                    segmentforrevs(rev, rev, df=fh)
+            else:
+                for rev in revs:
+                    segmentforrevs(rev, rev)
 
     def doreadbatch():
         rl.clearcaches()
@@ -3772,22 +3780,33 @@ def perfrevlogchunks(ui, repo, file_=None, engines=None, startrev=0, **opts):
 
     def doreadbatchcachedfh():
         rl.clearcaches()
-        fh = rlfh(rl)
-        segmentforrevs(revs[0], revs[-1], df=fh)
+        with reading(rl) as fh:
+            if fh is not None:
+                segmentforrevs(revs[0], revs[-1], df=fh)
+            else:
+                segmentforrevs(revs[0], revs[-1])
 
     def dochunk():
         rl.clearcaches()
-        fh = rlfh(rl)
-        for rev in revs:
-            rl._chunk(rev, df=fh)
+        with reading(rl) as fh:
+            if fh is not None:
+                for rev in revs:
+                    rl._chunk(rev, df=fh)
+            else:
+                for rev in revs:
+                    rl._chunk(rev)
 
     chunks = [None]
 
     def dochunkbatch():
         rl.clearcaches()
-        fh = rlfh(rl)
-        # Save chunks as a side-effect.
-        chunks[0] = rl._chunks(revs, df=fh)
+        with reading(rl) as fh:
+            if fh is not None:
+                # Save chunks as a side-effect.
+                chunks[0] = rl._chunks(revs, df=fh)
+            else:
+                # Save chunks as a side-effect.
+                chunks[0] = rl._chunks(revs)
 
     def docompress(compressor):
         rl.clearcaches()
