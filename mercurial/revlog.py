@@ -1954,13 +1954,11 @@ class revlog:
 
         return mdiff.textdiff(self.rawdata(rev1), self.rawdata(rev2))
 
-    def revision(self, nodeorrev, _df=None):
+    def revision(self, nodeorrev):
         """return an uncompressed revision of a given node or revision
         number.
-
-        _df - an existing file handle to read from. (internal-only)
         """
-        return self._revisiondata(nodeorrev, _df)
+        return self._revisiondata(nodeorrev)
 
     def sidedata(self, nodeorrev, _df=None):
         """a map of extra data related to the changeset but not part of the hash
