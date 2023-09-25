@@ -2282,9 +2282,12 @@ class revlog:
     @contextlib.contextmanager
     def reading(self):
         """Context manager that keeps data and sidedata files open for reading"""
-        with self._segmentfile.reading():
-            with self._segmentfile_sidedata.reading():
-                yield
+        if len(self.index) == 0:
+            yield  # nothing to be read
+        else:
+            with self._segmentfile.reading():
+                with self._segmentfile_sidedata.reading():
+                    yield
 
     @contextlib.contextmanager
     def _writing(self, transaction):
