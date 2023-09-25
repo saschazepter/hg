@@ -234,7 +234,7 @@ def _precompute_rewritten_delta(
     dc = deltas.deltacomputer(revlog)
     rewritten_entries = {}
     first_excl_rev = min(excluded_revs)
-    with revlog._segmentfile._open_read() as dfh:
+    with revlog.reading(), revlog._segmentfile._open_read() as dfh:
         for rev in range(first_excl_rev, len(old_index)):
             if rev in excluded_revs:
                 # this revision will be preserved as is, so we don't need to
@@ -250,7 +250,7 @@ def _precompute_rewritten_delta(
                 rewritten_entries[rev] = (nullrev, 0, 0, COMP_MODE_PLAIN)
             else:
 
-                text = revlog.rawdata(rev, _df=dfh)
+                text = revlog.rawdata(rev)
                 info = revlogutils.revisioninfo(
                     node=entry[ENTRY_NODE_ID],
                     p1=revlog.node(entry[ENTRY_PARENT_1]),
