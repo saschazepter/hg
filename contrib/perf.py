@@ -3759,10 +3759,24 @@ def perfrevlogchunks(ui, repo, file_=None, engines=None, startrev=0, **opts):
             datafile = getattr(rl, 'datafile', getattr(rl, 'datafile'))
             yield getsvfs(repo)(datafile)
 
+    if getattr(rl, 'reading', None) is not None:
+
+        @contextlib.contextmanager
+        def lazy_reading(rl):
+            with rl.reading():
+                yield
+
+    else:
+
+        @contextlib.contextmanager
+        def lazy_reading(rl):
+            yield
+
     def doread():
         rl.clearcaches()
         for rev in revs:
-            segmentforrevs(rev, rev)
+            with lazy_reading(rl):
+                segmentforrevs(rev, rev)
 
     def doreadcachedfh():
         rl.clearcaches()
@@ -3776,7 +3790,8 @@ def perfrevlogchunks(ui, repo, file_=None, engines=None, startrev=0, **opts):
 
     def doreadbatch():
         rl.clearcaches()
-        segmentforrevs(revs[0], revs[-1])
+        with lazy_reading(rl):
+            segmentforrevs(revs[0], revs[-1])
 
     def doreadbatchcachedfh():
         rl.clearcaches()
@@ -3883,6 +3898,19 @@ def perfrevlogrevision(ui, repo, file_, rev=None, cache=None, **opts):
     node = r.lookup(rev)
     rev = r.rev(node)
 
+    if getattr(r, 'reading', None) is not None:
+
+        @contextlib.contextmanager
+        def lazy_reading(r):
+            with r.reading():
+                yield
+
+    else:
+
+        @contextlib.contextmanager
+        def lazy_reading(r):
+            yield
+
     def getrawchunks(data, chain):
         start = r.start
         length = r.length
@@ -3916,7 +3944,8 @@ def perfrevlogrevision(ui, repo, file_, rev=None, cache=None, **opts):
         if not cache:
             r.clearcaches()
         for item in slicedchain:
-            segmentforrevs(item[0], item[-1])
+            with lazy_reading(r):
+                segmentforrevs(item[0], item[-1])
 
     def doslice(r, chain, size):
         for s in slicechunk(r, chain, targetsize=size):
