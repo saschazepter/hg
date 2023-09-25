@@ -576,7 +576,7 @@ class revlog:
         elif force_inline:
 
             def get_stream():
-                with self._datafp() as fp_d:
+                with self.reading():
                     yield None
 
                     for rev in range(n):
@@ -589,7 +589,7 @@ class revlog:
                             header = self.index.pack_header(header)
                             idx = header + idx
                         yield idx
-                        yield self._getsegmentforrevs(rev, rev, df=fp_d)[1]
+                        yield self._getsegmentforrevs(rev, rev)[1]
 
             inline_stream = get_stream()
             next(inline_stream)
