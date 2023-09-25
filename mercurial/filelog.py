@@ -110,8 +110,8 @@ class filelog:
     def revision(self, node):
         return self._revlog.revision(node)
 
-    def rawdata(self, node, _df=None):
-        return self._revlog.rawdata(node, _df=_df)
+    def rawdata(self, node):
+        return self._revlog.rawdata(node)
 
     def emitrevisions(
         self,

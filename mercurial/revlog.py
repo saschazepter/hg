@@ -2099,12 +2099,9 @@ class revlog:
         sidedata = sidedatautil.deserialize_sidedata(segment)
         return sidedata
 
-    def rawdata(self, nodeorrev, _df=None):
-        """return an uncompressed raw data of a given node or revision number.
-
-        _df - an existing file handle to read from. (internal-only)
-        """
-        return self._revisiondata(nodeorrev, _df, raw=True)
+    def rawdata(self, nodeorrev):
+        """return an uncompressed raw data of a given node or revision number."""
+        return self._revisiondata(nodeorrev, raw=True)
 
     def hash(self, text, p1, p2):
         """Compute a node hash.
