@@ -346,83 +346,86 @@ def debug_revlog(ui, revlog):
             l[1] = size
         l[2] += size
 
-    numrevs = len(r)
-    for rev in range(numrevs):
-        p1, p2 = r.parentrevs(rev)
-        delta = r.deltaparent(rev)
-        if format > 0:
-            s = r.rawsize(rev)
-            full_text_total_size += s
-            addsize(s, datasize)
-        if p2 != nodemod.nullrev:
-            nummerges += 1
-        size = r.length(rev)
-        if delta == nodemod.nullrev:
-            chainlengths.append(0)
-            chainbases.append(r.start(rev))
-            chainspans.append(size)
-            if size == 0:
-                numempty += 1
-                numemptytext += 1
+    with r.reading():
+        numrevs = len(r)
+        for rev in range(numrevs):
+            p1, p2 = r.parentrevs(rev)
+            delta = r.deltaparent(rev)
+            if format > 0:
+                s = r.rawsize(rev)
+                full_text_total_size += s
+                addsize(s, datasize)
+            if p2 != nodemod.nullrev:
+                nummerges += 1
+            size = r.length(rev)
+            if delta == nodemod.nullrev:
+                chainlengths.append(0)
+                chainbases.append(r.start(rev))
+                chainspans.append(size)
+                if size == 0:
+                    numempty += 1
+                    numemptytext += 1
+                else:
+                    numfull += 1
+                    numsnapdepth[0] += 1
+                    addsize(size, fullsize)
+                    addsize(size, snapsizedepth[0])
             else:
-                numfull += 1
-                numsnapdepth[0] += 1
-                addsize(size, fullsize)
-                addsize(size, snapsizedepth[0])
-        else:
-            nad = (
-                delta != p1 and delta != p2 and not r.isancestorrev(delta, rev)
-            )
-            chainlengths.append(chainlengths[delta] + 1)
-            baseaddr = chainbases[delta]
-            revaddr = r.start(rev)
-            chainbases.append(baseaddr)
-            chainspans.append((revaddr - baseaddr) + size)
-            if size == 0:
-                numempty += 1
-                numemptydelta += 1
-            elif r.issnapshot(rev):
-                addsize(size, semisize)
-                numsemi += 1
-                depth = r.snapshotdepth(rev)
-                numsnapdepth[depth] += 1
-                if nad:
-                    numsnapdepth_nad[depth] += 1
-                addsize(size, snapsizedepth[depth])
-            else:
-                addsize(size, deltasize)
-                if delta == rev - 1:
-                    numprev += 1
-                    if delta == p1:
-                        nump1prev += 1
+                nad = (
+                    delta != p1
+                    and delta != p2
+                    and not r.isancestorrev(delta, rev)
+                )
+                chainlengths.append(chainlengths[delta] + 1)
+                baseaddr = chainbases[delta]
+                revaddr = r.start(rev)
+                chainbases.append(baseaddr)
+                chainspans.append((revaddr - baseaddr) + size)
+                if size == 0:
+                    numempty += 1
+                    numemptydelta += 1
+                elif r.issnapshot(rev):
+                    addsize(size, semisize)
+                    numsemi += 1
+                    depth = r.snapshotdepth(rev)
+                    numsnapdepth[depth] += 1
+                    if nad:
+                        numsnapdepth_nad[depth] += 1
+                    addsize(size, snapsizedepth[depth])
+                else:
+                    addsize(size, deltasize)
+                    if delta == rev - 1:
+                        numprev += 1
+                        if delta == p1:
+                            nump1prev += 1
+                        elif delta == p2:
+                            nump2prev += 1
+                        elif nad:
+                            numprev_nad += 1
+                    elif delta == p1:
+                        nump1 += 1
                     elif delta == p2:
-                        nump2prev += 1
-                    elif nad:
-                        numprev_nad += 1
-                elif delta == p1:
-                    nump1 += 1
-                elif delta == p2:
-                    nump2 += 1
-                elif delta != nodemod.nullrev:
-                    numother += 1
-                    numother_nad += 1
+                        nump2 += 1
+                    elif delta != nodemod.nullrev:
+                        numother += 1
+                        numother_nad += 1
 
-        # Obtain data on the raw chunks in the revlog.
-        if hasattr(r, '_getsegmentforrevs'):
-            segment = r._getsegmentforrevs(rev, rev)[1]
-        else:
-            segment = r._revlog._getsegmentforrevs(rev, rev)[1]
-        if segment:
-            chunktype = bytes(segment[0:1])
-        else:
-            chunktype = b'empty'
+            # Obtain data on the raw chunks in the revlog.
+            if hasattr(r, '_getsegmentforrevs'):
+                segment = r._getsegmentforrevs(rev, rev)[1]
+            else:
+                segment = r._revlog._getsegmentforrevs(rev, rev)[1]
+            if segment:
+                chunktype = bytes(segment[0:1])
+            else:
+                chunktype = b'empty'
 
-        if chunktype not in chunktypecounts:
-            chunktypecounts[chunktype] = 0
-            chunktypesizes[chunktype] = 0
+            if chunktype not in chunktypecounts:
+                chunktypecounts[chunktype] = 0
+                chunktypesizes[chunktype] = 0
 
-        chunktypecounts[chunktype] += 1
-        chunktypesizes[chunktype] += size
+            chunktypecounts[chunktype] += 1
+            chunktypesizes[chunktype] += size
 
     # Adjust size min value for empty cases
     for size in (datasize, fullsize, semisize, deltasize):
