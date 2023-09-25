@@ -3218,14 +3218,15 @@ class revlog:
 
             destrevlog._deltabothparents = forcedeltabothparents or oldamd
 
-            self._clone(
-                tr,
-                destrevlog,
-                addrevisioncb,
-                deltareuse,
-                forcedeltabothparents,
-                sidedata_helpers,
-            )
+            with self.reading():
+                self._clone(
+                    tr,
+                    destrevlog,
+                    addrevisioncb,
+                    deltareuse,
+                    forcedeltabothparents,
+                    sidedata_helpers,
+                )
 
         finally:
             destrevlog._lazydelta = oldlazydelta
