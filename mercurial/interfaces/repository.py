@@ -1282,7 +1282,7 @@ class imanifeststorage(interfaceutil.Interface):
     def linkrev(rev):
         """Obtain the changeset revision number a revision is linked to."""
 
-    def revision(node, _df=None):
+    def revision(node):
         """Obtain fulltext data for a node."""
 
     def rawdata(node, _df=None):

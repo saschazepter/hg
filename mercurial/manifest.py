@@ -1821,8 +1821,8 @@ class manifestrevlog:
     def checksize(self):
         return self._revlog.checksize()
 
-    def revision(self, node, _df=None):
-        return self._revlog.revision(node, _df=_df)
+    def revision(self, node):
+        return self._revlog.revision(node)
 
     def rawdata(self, node, _df=None):
         return self._revlog.rawdata(node, _df=_df)
