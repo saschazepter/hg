@@ -684,7 +684,7 @@ class ifiledata(interfaceutil.Interface):
         Any metadata is excluded from size measurements.
         """
 
-    def revision(node, raw=False):
+    def revision(node):
         """Obtain fulltext data for a node.
 
         By default, any storage transformations are applied before the data
