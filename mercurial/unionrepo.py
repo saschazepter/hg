@@ -127,7 +127,7 @@ class unionrevlog(revlog.revlog):
         with read_1(), read_2():
             yield
 
-    def _chunk(self, rev, df=None):
+    def _chunk(self, rev):
         if rev <= self.repotiprev:
             return revlog.revlog._chunk(self, rev)
         return self.revlog2._chunk(self.node(rev))
@@ -144,7 +144,7 @@ class unionrevlog(revlog.revlog):
 
         return mdiff.textdiff(self.rawdata(rev1), self.rawdata(rev2))
 
-    def _revisiondata(self, nodeorrev, _df=None, raw=False):
+    def _revisiondata(self, nodeorrev, raw=False):
         if isinstance(nodeorrev, int):
             rev = nodeorrev
             node = self.node(rev)
@@ -158,7 +158,7 @@ class unionrevlog(revlog.revlog):
             func = revlog2._revisiondata
         else:
             func = super(unionrevlog, self)._revisiondata
-        return func(node, _df=_df, raw=raw)
+        return func(node, raw=raw)
 
     def addrevision(
         self,
