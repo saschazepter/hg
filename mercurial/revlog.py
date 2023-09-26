@@ -2228,9 +2228,9 @@ class revlog:
         new_dfh = self._datafp(b'w+')
         new_dfh.truncate(0)  # drop any potentially existing data
         try:
-            with self._indexfp() as read_ifh:
+            with self.reading():
                 for r in self:
-                    new_dfh.write(self._getsegmentforrevs(r, r, df=read_ifh)[1])
+                    new_dfh.write(self._getsegmentforrevs(r, r)[1])
                 new_dfh.flush()
 
             if side_write:
