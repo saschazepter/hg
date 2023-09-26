@@ -117,7 +117,7 @@ class bundlerevlog(revlog.revlog):
             with super().reading() as x:
                 yield x
 
-    def _chunk(self, rev, df=None):
+    def _chunk(self, rev):
         # Warning: in case of bundle, the diff is against what we stored as
         # delta base, not against rev - 1
         # XXX: could use some caching
@@ -138,7 +138,7 @@ class bundlerevlog(revlog.revlog):
 
         return mdiff.textdiff(self.rawdata(rev1), self.rawdata(rev2))
 
-    def _rawtext(self, node, rev, _df=None):
+    def _rawtext(self, node, rev):
         if rev is None:
             rev = self.rev(node)
         validated = False
@@ -156,7 +156,8 @@ class bundlerevlog(revlog.revlog):
             rawtext = b''
         elif rawtext is None:
             r = super(bundlerevlog, self)._rawtext(
-                self.node(iterrev), iterrev, _df=_df
+                self.node(iterrev),
+                iterrev,
             )
             __, rawtext, validated = r
         if chain:

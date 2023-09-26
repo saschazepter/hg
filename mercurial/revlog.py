@@ -1771,7 +1771,7 @@ class revlog:
         p1, p2 = self.parents(node)
         return storageutil.hashrevisionsha1(text, p1, p2) != node
 
-    def _getsegmentforrevs(self, startrev, endrev, df=None):
+    def _getsegmentforrevs(self, startrev, endrev):
         """Obtain a segment of raw data corresponding to a range of revisions.
 
         Accepts the start and end revisions and an optional already-open
@@ -1803,9 +1803,9 @@ class revlog:
             end += (endrev + 1) * self.index.entry_size
         length = end - start
 
-        return start, self._segmentfile.read_chunk(start, length, df)
+        return start, self._segmentfile.read_chunk(start, length)
 
-    def _chunk(self, rev, df=None):
+    def _chunk(self, rev):
         """Obtain a single decompressed chunk for a revision.
 
         Accepts an integer revision and an optional already-open file handle
@@ -1815,7 +1815,7 @@ class revlog:
         Returns a str holding uncompressed data for the requested revision.
         """
         compression_mode = self.index[rev][10]
-        data = self._getsegmentforrevs(rev, rev, df=df)[1]
+        data = self._getsegmentforrevs(rev, rev)[1]
         if compression_mode == COMP_MODE_PLAIN:
             return data
         elif compression_mode == COMP_MODE_DEFAULT:
@@ -1827,7 +1827,7 @@ class revlog:
             msg %= compression_mode
             raise error.RevlogError(msg)
 
-    def _chunks(self, revs, df=None, targetsize=None):
+    def _chunks(self, revs, targetsize=None):
         """Obtain decompressed chunks for the specified revisions.
 
         Accepts an iterable of numeric revisions that are assumed to be in
@@ -1866,11 +1866,11 @@ class revlog:
                     break
 
             try:
-                offset, data = self._getsegmentforrevs(firstrev, lastrev, df=df)
+                offset, data = self._getsegmentforrevs(firstrev, lastrev)
             except OverflowError:
                 # issue4215 - we can't cache a run of chunks greater than
                 # 2G on Windows
-                return [self._chunk(rev, df=df) for rev in revschunk]
+                return [self._chunk(rev) for rev in revschunk]
 
             decomp = self.decompress
             # self._decompressor might be None, but will not be used in that case
@@ -1974,7 +1974,7 @@ class revlog:
             rev = self.rev(nodeorrev)
         return self._sidedata(rev)
 
-    def _revisiondata(self, nodeorrev, _df=None, raw=False):
+    def _revisiondata(self, nodeorrev, raw=False):
         # deal with <nodeorrev> argument type
         if isinstance(nodeorrev, int):
             rev = nodeorrev
@@ -1989,7 +1989,7 @@ class revlog:
 
         # ``rawtext`` is the text as stored inside the revlog. Might be the
         # revision or might need to be processed to retrieve the revision.
-        rev, rawtext, validated = self._rawtext(node, rev, _df=_df)
+        rev, rawtext, validated = self._rawtext(node, rev)
 
         if raw and validated:
             # if we don't want to process the raw text and that raw
@@ -2018,7 +2018,7 @@ class revlog:
 
         return text
 
-    def _rawtext(self, node, rev, _df=None):
+    def _rawtext(self, node, rev):
         """return the possibly unvalidated rawtext for a revision
 
         returns (rev, rawtext, validated)
@@ -2052,7 +2052,7 @@ class revlog:
         if 0 <= rawsize:
             targetsize = 4 * rawsize
 
-        bins = self._chunks(chain, df=_df, targetsize=targetsize)
+        bins = self._chunks(chain, targetsize=targetsize)
         if basetext is None:
             basetext = bytes(bins[0])
             bins = bins[1:]
