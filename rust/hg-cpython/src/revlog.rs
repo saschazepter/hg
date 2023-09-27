@@ -614,6 +614,14 @@ fn nodemap_rev_not_in_index(py: Python, rev: UncheckedRevision) -> PyErr {
     )
 }
 
+#[allow(dead_code)]
+fn rev_not_in_index(py: Python, rev: UncheckedRevision) -> PyErr {
+    PyErr::new::<ValueError, _>(
+        py,
+        format!("revlog index out of range: {}", rev),
+    )
+}
+
 /// Standard treatment of NodeMapError
 fn nodemap_error(py: Python, err: NodeMapError) -> PyErr {
     match err {
