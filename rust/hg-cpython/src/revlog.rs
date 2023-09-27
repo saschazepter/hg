@@ -96,6 +96,9 @@ py_class!(pub class MixedIndex |py| {
 
     /// return True if the node exist in the index
     def has_node(&self, node: PyBytes) -> PyResult<bool> {
+        // TODO OPTIM we could avoid a needless conversion here,
+        // to do when scaffolding for pure Rust switch is removed,
+        // as `get_rev()` currently does the necessary assertions
         self.get_rev(py, node).map(|opt| opt.is_some())
     }
 
