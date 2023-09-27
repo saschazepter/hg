@@ -9,7 +9,7 @@
 //! `hg-core` crate. From Python, this will be seen as `rustext.discovery`
 //!
 //! # Classes visible from Python:
-//! - [`PartialDiscover`] is the Rust implementation of
+//! - [`PartialDiscovery`] is the Rust implementation of
 //!   `mercurial.setdiscovery.partialdiscovery`.
 
 use crate::PyRevision;
