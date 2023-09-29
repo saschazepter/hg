@@ -8,7 +8,6 @@
 use crate::{
     cindex,
     conversion::rev_pyiter_collect,
-    exceptions::GraphError,
     utils::{node_from_py_bytes, node_from_py_object},
     PyRevision,
 };
@@ -263,18 +262,9 @@ py_class!(pub class MixedIndex |py| {
     def headrevsfiltered(&self, *args, **kw) -> PyResult<PyObject> {
         let rust_res = self.inner_headrevsfiltered(py, &args.get_item(py, 0))?;
         let c_res = self.call_cindex(py, "headrevsfiltered", args, kw)?;
-        assert_eq!(
-            rust_res.len(),
-            c_res.len(py)?,
-            "filtered heads differ {:?} {}",
-            rust_res,
-            c_res
-        );
-        for (index, rev) in rust_res.iter().enumerate() {
-            let c_rev: BaseRevision = c_res.get_item(py, index)?.extract(py)?;
-            assert_eq!(c_rev, rev.0);
-        }
-        Ok(c_res)
+
+        assert_py_eq(py, "headrevsfiltered", &rust_res, &c_res)?;
+        Ok(rust_res)
     }
 
     /// True if the object is a snapshot
@@ -817,13 +807,17 @@ impl MixedIndex {
         &self,
         py: Python,
         filtered_revs: &PyObject,
-    ) -> PyResult<Vec<Revision>> {
+    ) -> PyResult<PyObject> {
         let index = &mut *self.index(py).borrow_mut();
         let filtered_revs = rev_pyiter_collect(py, filtered_revs, index)?;
 
-        index
+        let as_vec: Vec<PyObject> = index
             .head_revs_filtered(&filtered_revs)
-            .map_err(|e| GraphError::pynew(py, e))
+            .map_err(|e| graph_error(py, e))?
+            .iter()
+            .map(|r| PyRevision::from(*r).into_py_object(py).into_object())
+            .collect();
+        Ok(PyList::new(py, &as_vec).into_object())
     }
 }
 
