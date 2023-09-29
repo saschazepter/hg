@@ -13,7 +13,7 @@ use crate::{
 use cpython::{
     buffer::{Element, PyBuffer},
     exc::{IndexError, ValueError},
-    ObjectProtocol, PyBytes, PyClone, PyDict, PyErr, PyInt, PyModule,
+    ObjectProtocol, PyBool, PyBytes, PyClone, PyDict, PyErr, PyInt, PyModule,
     PyObject, PyResult, PyString, PyTuple, Python, PythonObject, ToPyObject,
 };
 use hg::{
@@ -218,10 +218,10 @@ py_class!(pub class MixedIndex |py| {
     def pack_header(&self, *args, **kw) -> PyResult<PyObject> {
         let rindex = self.index(py).borrow();
         let packed = rindex.pack_header(args.get_item(py, 0).extract(py)?);
-        let packed = PyBytes::new(py, &packed);
+        let packed = PyBytes::new(py, &packed).into_object();
         let cpacked = self.call_cindex(py, "pack_header", args, kw)?;
-        assert!(packed.as_object().compare(py, cpacked)?.is_eq());
-        Ok(packed.into_object())
+        assert_py_eq(py, "pack_header", &packed, &cpacked)?;
+        Ok(packed)
     }
 
     /// get an index entry
@@ -628,6 +628,27 @@ fn nodemap_error(py: Python, err: NodeMapError) -> PyErr {
         NodeMapError::MultipleResults => revlog_error(py),
         NodeMapError::RevisionNotInIndex(r) => nodemap_rev_not_in_index(py, r),
     }
+}
+
+fn assert_py_eq(
+    py: Python,
+    method: &str,
+    rust: &PyObject,
+    c: &PyObject,
+) -> PyResult<()> {
+    let locals = PyDict::new(py);
+    locals.set_item(py, "rust".into_py_object(py).into_object(), rust)?;
+    locals.set_item(py, "c".into_py_object(py).into_object(), c)?;
+    let is_eq: PyBool =
+        py.eval("rust == c", None, Some(&locals))?.extract(py)?;
+    assert!(
+        is_eq.is_true(),
+        "{} results differ. Rust: {:?} C: {:?}",
+        method,
+        rust,
+        c
+    );
+    Ok(())
 }
 
 /// Create the module, with __package__ given from parent
