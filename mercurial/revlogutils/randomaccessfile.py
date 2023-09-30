@@ -55,17 +55,13 @@ class randomaccessfile:
         return self.opener(self.filename, mode=mode)
 
     @contextlib.contextmanager
-    def _open_read(self, existing_file_obj=None):
+    def _read_handle(self):
         """File object suitable for reading data"""
-        # Use explicit file handle, if given.
-        if existing_file_obj is not None:
-            yield existing_file_obj
-
         # Use a file handle being actively used for writes, if available.
         # There is some danger to doing this because reads will seek the
         # file. However, revlog._writeentry performs a SEEK_END before all
         # writes, so we should be safe.
-        elif self.writing_handle:
+        if self.writing_handle:
             yield self.writing_handle
 
         elif self.reading_handle:
@@ -93,7 +89,7 @@ class randomaccessfile:
         else:
             yield
 
-    def read_chunk(self, offset, length, existing_file_obj=None):
+    def read_chunk(self, offset, length):
         """Read a chunk of bytes from the file.
 
         Accepts an absolute offset, length to read, and an optional existing
@@ -116,9 +112,9 @@ class randomaccessfile:
             relative_start = offset - cache_start
             return util.buffer(self._cached_chunk, relative_start, length)
 
-        return self._read_and_update_cache(offset, length, existing_file_obj)
+        return self._read_and_update_cache(offset, length)
 
-    def _read_and_update_cache(self, offset, length, existing_file_obj=None):
+    def _read_and_update_cache(self, offset, length):
         # Cache data both forward and backward around the requested
         # data, in a fixed size window. This helps speed up operations
         # involving reading the revlog backwards.
@@ -127,7 +123,7 @@ class randomaccessfile:
             (offset + length + self.default_cached_chunk_size)
             & ~(self.default_cached_chunk_size - 1)
         ) - real_offset
-        with self._open_read(existing_file_obj) as file_obj:
+        with self._read_handle() as file_obj:
             file_obj.seek(real_offset)
             data = file_obj.read(real_length)
 
