@@ -823,25 +823,49 @@ fn nodemap_error(py: Python, err: NodeMapError) -> PyErr {
     }
 }
 
+/// assert two Python objects to be equal from a Python point of view
+///
+/// `method` is a label for the assertion error message, intended to be the
+/// name of the caller.
+/// `normalizer` is a function that takes a Python variable name and returns
+/// an expression that the conparison will actually use.
+/// Foe example: `|v| format!("sorted({})", v)`
+fn assert_py_eq_normalized(
+    py: Python,
+    method: &str,
+    rust: &PyObject,
+    c: &PyObject,
+    normalizer: impl FnOnce(&str) -> String + Copy,
+) -> PyResult<()> {
+    let locals = PyDict::new(py);
+    locals.set_item(py, "rust".into_py_object(py).into_object(), rust)?;
+    locals.set_item(py, "c".into_py_object(py).into_object(), c)?;
+    //    let lhs = format!(normalizer_fmt, "rust");
+    //    let rhs = format!(normalizer_fmt, "c");
+    let is_eq: PyBool = py
+        .eval(
+            &format!("{} == {}", &normalizer("rust"), &normalizer("c")),
+            None,
+            Some(&locals),
+        )?
+        .extract(py)?;
+    assert!(
+        is_eq.is_true(),
+        "{} results differ. Rust: {:?} C: {:?} (before any normalization)",
+        method,
+        rust,
+        c
+    );
+    Ok(())
+}
+
 fn assert_py_eq(
     py: Python,
     method: &str,
     rust: &PyObject,
     c: &PyObject,
 ) -> PyResult<()> {
-    let locals = PyDict::new(py);
-    locals.set_item(py, "rust".into_py_object(py).into_object(), rust)?;
-    locals.set_item(py, "c".into_py_object(py).into_object(), c)?;
-    let is_eq: PyBool =
-        py.eval("rust == c", None, Some(&locals))?.extract(py)?;
-    assert!(
-        is_eq.is_true(),
-        "{} results differ. Rust: {:?} C: {:?}",
-        method,
-        rust,
-        c
-    );
-    Ok(())
+    assert_py_eq_normalized(py, method, rust, c, |v| v.to_owned())
 }
 
 /// Create the module, with __package__ given from parent
