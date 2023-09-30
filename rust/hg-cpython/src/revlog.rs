@@ -365,29 +365,8 @@ py_class!(pub class MixedIndex |py| {
         )?;
 
         let c_res = self.call_cindex(py, "slicechunktodensity", args, kw)?;
-        assert_eq!(
-            rust_res.len(),
-            c_res.len(py)?,
-            "chunks differ {:?} {}",
-            rust_res, c_res
-        );
-        for (i, chunk) in rust_res.iter().enumerate() {
-            let c_chunk = c_res.get_item(py, i)?;
-            assert_eq!(
-                chunk.len(),
-                c_chunk.len(py)?,
-                "chunk {} length differ {:?} {}",
-                i,
-                chunk,
-                c_res
-            );
-            for (j, rev) in chunk.iter().enumerate() {
-                let c_chunk: BaseRevision
-                    = c_chunk.get_item(py, j)?.extract(py)?;
-                assert_eq!(c_chunk, rev.0);
-            }
-        }
-        Ok(c_res)
+        assert_py_eq(py, "slicechunktodensity", &rust_res, &c_res)?;
+        Ok(rust_res)
     }
 
     /// stats for the index
@@ -856,10 +835,29 @@ impl MixedIndex {
         revs: PyObject,
         target_density: f64,
         min_gap_size: usize,
-    ) -> PyResult<Vec<Vec<Revision>>> {
+    ) -> PyResult<PyObject> {
         let index = &mut *self.index(py).borrow_mut();
         let revs: Vec<_> = rev_pyiter_collect(py, &revs, index)?;
-        Ok(index.slice_chunk_to_density(&revs, target_density, min_gap_size))
+        let as_nested_vec =
+            index.slice_chunk_to_density(&revs, target_density, min_gap_size);
+        let mut res = Vec::with_capacity(as_nested_vec.len());
+        let mut py_chunk = Vec::new();
+        for chunk in as_nested_vec {
+            py_chunk.clear();
+            py_chunk.reserve_exact(chunk.len());
+            for rev in chunk {
+                py_chunk.push(
+                    PyRevision::from(rev).into_py_object(py).into_object(),
+                );
+            }
+            res.push(PyList::new(py, &py_chunk).into_object());
+        }
+        // This is just to do the same as C, not sure why it does this
+        if res.len() == 1 {
+            Ok(PyTuple::new(py, &res).into_object())
+        } else {
+            Ok(PyList::new(py, &res).into_object())
+        }
     }
 }
 
