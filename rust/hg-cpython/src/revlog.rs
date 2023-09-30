@@ -218,10 +218,11 @@ py_class!(pub class MixedIndex |py| {
     def pack_header(&self, *args, **kw) -> PyResult<PyObject> {
         let rindex = self.index(py).borrow();
         let packed = rindex.pack_header(args.get_item(py, 0).extract(py)?);
-        let packed = PyBytes::new(py, &packed).into_object();
-        let cpacked = self.call_cindex(py, "pack_header", args, kw)?;
-        assert_py_eq(py, "pack_header", &packed, &cpacked)?;
-        Ok(packed)
+        let rust_res = PyBytes::new(py, &packed).into_object();
+
+        let c_res = self.call_cindex(py, "pack_header", args, kw)?;
+        assert_py_eq(py, "pack_header", &rust_res, &c_res)?;
+        Ok(rust_res)
     }
 
     /// get an index entry
