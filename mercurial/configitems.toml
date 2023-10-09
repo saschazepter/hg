@@ -2501,6 +2501,64 @@ Currently recognised values are:
 """
 
 [[items]]
+section = "usage"
+name = "resources"
+default = "default"
+documentation = """How aggressive Mercurial can be with resource usage:
+
+Currently recognised values are:
+- default: the default value currently is equivalent to medium,
+- high:    allows for higher cpu, memory and disk-space usage to improve the performance of some operations.
+- medium:  aims at a moderate resource usage,
+- low:     reduces resources usage when possible, decreasing overall performance.
+
+For finer configuration, see also `usage.resources.cpu`,
+`usage.resources.disk` and `usage.resources.memory`.
+"""
+
+[[items]]
+section = "usage"
+name = "resources.cpu"
+default = "default"
+documentation = """How aggressive Mercurial can be in terms of cpu usage:
+
+Currently recognised values are:
+- default: the default value, inherits the value from `usage.resources`,
+- high:    allows for more aggressive cpu usage, improving storage quality and
+           the performance of some operations at the expense of machine load
+- medium:  aims at a moderate cpu usage,
+- low:     reduces cpu usage when possible, potentially at the expense of
+           slower operations, increased storage and exchange payload.
+
+"""
+
+[[items]]
+section = "usage"
+name = "resources.disk"
+default = "default"
+documentation = """How aggressive Mercurial can be in terms of disk usage:
+
+Currently recognised values are:
+- default: the default value, inherits the value from `usage.resources`,
+- high:    allows for more disk space usage where it can improve the performance,
+- medium:  aims at a moderate disk usage,
+- low:     reduces disk usage when possible, decreasing performance in some occasion.
+"""
+
+[[items]]
+section = "usage"
+name = "resources.memory"
+default = "default"
+documentation = """How aggressive Mercurial can be in terms of memory usage:
+
+Currently recognised values are:
+- default: the default value, inherits the value from `usage.resources`,
+- high:    allows for more aggressive memory usage to improve overall performance,
+- medium:  aims at a moderate memory usage,
+- low:     reduces memory usage when possible at the cost of overall performance.
+"""
+
+[[items]]
 section = "verify"
 name = "skipflags"
 default = 0
