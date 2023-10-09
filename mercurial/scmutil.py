@@ -2325,3 +2325,34 @@ def ismember(ui, username, userlist):
     schemes.
     """
     return userlist == [b'*'] or username in userlist
+
+
+RESOURCE_HIGH = 3
+RESOURCE_MEDIUM = 2
+RESOURCE_LOW = 1
+RESOURCE_DEFAULT = 0
+
+RESOURCE_MAPPING = {
+    b'default': RESOURCE_DEFAULT,
+    b'low': RESOURCE_LOW,
+    b'medium': RESOURCE_MEDIUM,
+    b'high': RESOURCE_HIGH,
+}
+
+DEFAULT_RESOURCE = RESOURCE_MEDIUM
+
+
+def get_resource_profile(ui, dimension=None):
+    """return the resource profile for a dimension
+
+    If no dimension is specified, the generic value is returned"""
+    generic_name = ui.config(b'usage', b'resources')
+    value = RESOURCE_MAPPING.get(generic_name, RESOURCE_DEFAULT)
+    if value == RESOURCE_DEFAULT:
+        value = DEFAULT_RESOURCE
+    if dimension is not None:
+        sub_name = ui.config(b'usage', b'resources.%s' % dimension)
+        sub_value = RESOURCE_MAPPING.get(sub_name, RESOURCE_DEFAULT)
+        if sub_value != RESOURCE_DEFAULT:
+            value = sub_value
+    return value
