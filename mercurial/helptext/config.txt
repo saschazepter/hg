@@ -2994,6 +2994,18 @@ User interface controls.
     Increase the amount of output printed. (default: False)
 
 
+``usage``
+---------
+
+``repository-role``
+    What this repository is used for.
+
+    This is used to adjust behavior and performance to best fit the repository purpose.
+
+    Currently recognised values are:
+    - default: an all purpose repository
+
+
 ``command-templates``
 ---------------------
 
