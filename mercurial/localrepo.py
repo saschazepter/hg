@@ -1089,10 +1089,9 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     if chunkcachesize is not None:
         data_config.chunk_cache_size = chunkcachesize
 
-    deltabothparents = ui.configbool(
+    delta_config.delta_both_parents = ui.configbool(
         b'storage', b'revlog.optimize-delta-parent-choice'
     )
-    options[b'deltabothparents'] = deltabothparents
     dps_cgds = ui.configint(
         b'storage',
         b'revlog.delta-parent-search.candidate-group-chunk-size',
