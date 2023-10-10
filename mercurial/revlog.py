@@ -2782,7 +2782,7 @@ class revlog:
 
         if deltacomputer is None:
             write_debug = None
-            if self._debug_delta:
+            if self.delta_config.debug_delta:
                 write_debug = transaction._report
             deltacomputer = deltautil.deltacomputer(
                 self, write_debug=write_debug
@@ -3026,7 +3026,7 @@ class revlog:
         try:
             with self._writing(transaction):
                 write_debug = None
-                if self._debug_delta:
+                if self.delta_config.debug_delta:
                     write_debug = transaction._report
                 deltacomputer = deltautil.deltacomputer(
                     self,
@@ -3408,7 +3408,7 @@ class revlog:
     ):
         """perform the core duty of `revlog.clone` after parameter processing"""
         write_debug = None
-        if self._debug_delta:
+        if self.delta_config.debug_delta:
             write_debug = tr._report
         deltacomputer = deltautil.deltacomputer(
             destrevlog,
