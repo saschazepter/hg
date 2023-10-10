@@ -1096,7 +1096,7 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
         b'storage',
         b'revlog.delta-parent-search.candidate-group-chunk-size',
     )
-    options[b'debug-delta'] = ui.configbool(b'debug', b'revlog.debug-delta')
+    delta_config.debug_delta = ui.configbool(b'debug', b'revlog.debug-delta')
 
     issue6528 = ui.configbool(b'storage', b'revlog.issue6528.fix-incoming')
     options[b'issue6528.fix-incoming'] = issue6528
