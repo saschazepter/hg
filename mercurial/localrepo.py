@@ -1087,7 +1087,7 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     # experimental config: format.chunkcachesize
     chunkcachesize = ui.configint(b'format', b'chunkcachesize')
     if chunkcachesize is not None:
-        options[b'chunkcachesize'] = chunkcachesize
+        data_config.chunk_cache_size = chunkcachesize
 
     deltabothparents = ui.configbool(
         b'storage', b'revlog.optimize-delta-parent-choice'
