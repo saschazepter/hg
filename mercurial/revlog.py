@@ -241,8 +241,13 @@ FILE_TOO_SHORT_MSG = _(
 hexdigits = b'0123456789abcdefABCDEF'
 
 
+class _Config:
+    def copy(self):
+        return self.__class__(**self.__dict__)
+
+
 @attr.s()
-class FeatureConfig:
+class FeatureConfig(_Config):
     """Hold configuration values about the available revlog features"""
 
     # the default compression engine
@@ -265,9 +270,14 @@ class FeatureConfig:
     # can ellipsis commit be used
     enable_ellipsis = attr.ib(default=False)
 
+    def copy(self):
+        new = super().copy()
+        new.compression_engine_options = self.compression_engine_options.copy()
+        return new
+
 
 @attr.s()
-class DataConfig:
+class DataConfig(_Config):
     """Hold configuration value about how the revlog data are read"""
 
     # should we try to open the "pending" version of the revlog
@@ -297,7 +307,7 @@ class DataConfig:
 
 
 @attr.s()
-class DeltaConfig:
+class DeltaConfig(_Config):
     """Hold configuration value about how new delta are computed
 
     Some attributes are duplicated from DataConfig to help havign each object
@@ -3375,9 +3385,8 @@ class revlog:
 
         # lazydelta and lazydeltabase controls whether to reuse a cached delta,
         # if possible.
-        oldlazydelta = destrevlog._lazydelta
-        oldlazydeltabase = destrevlog._lazydeltabase
-        oldamd = destrevlog._deltabothparents
+        old_delta_config = destrevlog.delta_config
+        destrevlog.delta_config = destrevlog.delta_config.copy()
 
         try:
             if deltareuse == self.DELTAREUSEALWAYS:
@@ -3390,7 +3399,9 @@ class revlog:
                 destrevlog.delta_config.lazy_delta_base = False
                 destrevlog.delta_config.lazy_delta = False
 
-            delta_both_parents = forcedeltabothparents or oldamd
+            delta_both_parents = (
+                forcedeltabothparents or old_delta_config.delta_both_parents
+            )
             destrevlog.delta_config.delta_both_parents = delta_both_parents
 
             with self.reading():
@@ -3404,9 +3415,7 @@ class revlog:
                 )
 
         finally:
-            destrevlog.delta_config.lazy_delta = oldlazydelta
-            destrevlog.delta_config.lazy_delta_base = oldlazydeltabase
-            destrevlog.delta_config.delta_both_parents = oldamd
+            destrevlog.delta_config = old_delta_config
 
     def _clone(
         self,
