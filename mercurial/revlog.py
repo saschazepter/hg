@@ -976,7 +976,7 @@ class revlog:
 
     @util.propertycache
     def _compressor(self):
-        engine = util.compengines[self._compengine]
+        engine = util.compengines[self.feature_config.compression_engine]
         return engine.revlogcompressor(self._compengineopts)
 
     @util.propertycache
