@@ -444,15 +444,22 @@ class revlog:
         assert target[0] in ALL_KINDS
         assert len(target) == 2
         self.target = target
-        self.feature_config = FeatureConfig(
-            censorable=censorable,
-            canonical_parent_order=canonical_parent_order,
-        )
-        self.data_config = DataConfig(
-            check_ambig=checkambig,
-            mmap_large_index=mmaplargeindex,
-        )
-        self.delta_config = DeltaConfig()
+        if b'feature-config' in self.opener.options:
+            self.feature_config = self.opener.options[b'feature-config'].copy()
+        else:
+            self.feature_config = FeatureConfig()
+        self.feature_config.censorable = censorable
+        self.feature_config.canonical_parent_order = canonical_parent_order
+        if b'data-config' in self.opener.options:
+            self.data_config = self.opener.options[b'data-config'].copy()
+        else:
+            self.data_config = DataConfig()
+        self.data_config.check_ambig = checkambig
+        self.data_config.mmap_large_index = mmaplargeindex
+        if b'delta-config' in self.opener.options:
+            self.delta_config = self.opener.options[b'delta-config'].copy()
+        else:
+            self.delta_config = DeltaConfig()
 
         # 3-tuple of (node, rev, text) for a raw revision.
         self._revisioncache = None
