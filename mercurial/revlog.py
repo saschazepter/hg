@@ -610,7 +610,6 @@ class revlog:
         * force_nodemap:
             force the usage of a "development" version of the nodemap code
         """
-        mmapindexthreshold = None
         opts = self.opener.options
 
         if b'changelogv2' in opts and self.revlog_kind == KIND_CHANGELOG:
@@ -628,9 +627,9 @@ class revlog:
         else:
             new_header = REVLOG_DEFAULT_VERSION
 
-        if self._mmaplargeindex and b'mmapindexthreshold' in opts:
-            mmapindexthreshold = opts[b'mmapindexthreshold']
-            self.data_config.mmap_index_threshold = mmapindexthreshold
+        mmapindexthreshold = None
+        if self._mmaplargeindex:
+            mmapindexthreshold = self.data_config.mmap_index_threshold
         if b'sparse-revlog' in opts:
             self.delta_config.sparse_revlog = bool(opts[b'sparse-revlog'])
         if self.delta_config.sparse_revlog:

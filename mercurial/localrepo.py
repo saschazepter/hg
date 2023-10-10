@@ -1118,7 +1118,7 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
 
     mmapindexthreshold = ui.configbytes(b'experimental', b'mmapindexthreshold')
     if mmapindexthreshold is not None:
-        options[b'mmapindexthreshold'] = mmapindexthreshold
+        data_config.mmap_index_threshold = mmapindexthreshold
 
     withsparseread = ui.configbool(b'experimental', b'sparse-read')
     srdensitythres = float(
