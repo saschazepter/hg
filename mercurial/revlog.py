@@ -628,8 +628,6 @@ class revlog:
         else:
             new_header = REVLOG_DEFAULT_VERSION
 
-        if b'chunkcachesize' in opts:
-            self.data_config.chunk_cache_size = opts[b'chunkcachesize']
         if b'maxchainlen' in opts:
             self.delta_config.max_chain_len = opts[b'maxchainlen']
         if b'deltabothparents' in opts:
