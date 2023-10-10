@@ -634,8 +634,6 @@ class revlog:
             self.delta_config.lazy_delta = bool(opts[b'lazydelta'])
         if self._lazydelta and b'lazydeltabase' in opts:
             self.delta_config.lazy_delta_base = opts[b'lazydeltabase']
-        if b'debug-delta' in opts:
-            self.delta_config.debug_delta = opts[b'debug-delta']
         if b'compengine' in opts:
             self.feature_config.compression_engine = opts[b'compengine']
         comp_engine_opts = self.feature_config.compression_engine_options
