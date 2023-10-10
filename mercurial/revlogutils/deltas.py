@@ -597,7 +597,7 @@ def is_good_delta_info(revlog, deltainfo, revinfo):
     assert (
         revinfo.cachedelta is None
         or revinfo.cachedelta[2] != DELTA_BASE_REUSE_FORCE
-        or not revlog._generaldelta
+        or not revlog.delta_config.general_delta
     )
 
     # - 'deltainfo.distance' is the distance from the base revision --
@@ -695,7 +695,7 @@ def _candidategroups(
     if target_rev is None:
         target_rev = len(revlog)
 
-    if not revlog._generaldelta:
+    if not revlog.delta_config.general_delta:
         # before general delta, there is only one possible delta base
         yield (target_rev - 1,)
         yield None
@@ -707,7 +707,7 @@ def _candidategroups(
     assert (
         cachedelta is None
         or cachedelta[2] != DELTA_BASE_REUSE_FORCE
-        or not revlog._generaldelta
+        or not revlog.delta_config.general_delta
     )
 
     deltalength = revlog.length
@@ -908,7 +908,7 @@ def _rawgroups(revlog, p1, p2, cachedelta, snapshot_cache=None):
     The group order aims at providing fast or small candidates first.
     """
     # Why search for delta base if we cannot use a delta base ?
-    assert revlog._generaldelta
+    assert revlog.delta_config.general_delta
     # also see issue6056
     sparse = revlog._sparserevlog
     curr = len(revlog)
@@ -1140,7 +1140,7 @@ class deltacomputer:
         # can we use the cached delta?
         revlog = self.revlog
         chainbase = revlog.chainbase(base)
-        if revlog._generaldelta:
+        if revlog.delta_config.general_delta:
             deltabase = base
         else:
             if target_rev is not None and base != target_rev - 1:
@@ -1317,7 +1317,7 @@ class deltacomputer:
 
         # If this source delta are to be forcibly reuse, let us comply early.
         if (
-            revlog._generaldelta
+            revlog.delta_config.general_delta
             and revinfo.cachedelta is not None
             and revinfo.cachedelta[2] == DELTA_BASE_REUSE_FORCE
         ):

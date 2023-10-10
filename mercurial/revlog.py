@@ -873,7 +873,7 @@ class revlog:
         self.nullid = self.nodeconstants.nullid
 
         # sparse-revlog can't be on without general-delta (issue6056)
-        if not self._generaldelta:
+        if not self.delta_config.general_delta:
             self.delta_config.sparse_revlog = False
 
         self._storedeltachains = True
@@ -1253,7 +1253,7 @@ class revlog:
         if rev in chaininfocache:
             return chaininfocache[rev]
         index = self.index
-        generaldelta = self._generaldelta
+        generaldelta = self.delta_config.general_delta
         iterrev = rev
         e = index[iterrev]
         clen = 0
@@ -1289,9 +1289,10 @@ class revlog:
         revs in ascending order and ``stopped`` is a bool indicating whether
         ``stoprev`` was hit.
         """
+        generaldelta = self.delta_config.general_delta
         # Try C implementation.
         try:
-            return self.index.deltachain(rev, stoprev, self._generaldelta)
+            return self.index.deltachain(rev, stoprev, generaldelta)
         except AttributeError:
             pass
 
@@ -1299,7 +1300,6 @@ class revlog:
 
         # Alias to prevent attribute lookup in tight loop.
         index = self.index
-        generaldelta = self._generaldelta
 
         iterrev = rev
         e = index[iterrev]
@@ -2062,7 +2062,7 @@ class revlog:
         base = self.index[rev][3]
         if base == rev:
             return nullrev
-        elif self._generaldelta:
+        elif self.delta_config.general_delta:
             return base
         else:
             return rev - 1
@@ -2786,7 +2786,10 @@ class revlog:
             # If the cached delta has no information about how it should be
             # reused, add the default reuse instruction according to the
             # revlog's configuration.
-            if self._generaldelta and self._lazydeltabase:
+            if (
+                self.delta_config.general_delta
+                and self.delta_config.lazy_delta_base
+            ):
                 delta_base_reuse = DELTA_BASE_REUSE_TRY
             else:
                 delta_base_reuse = DELTA_BASE_REUSE_NO
@@ -3004,7 +3007,10 @@ class revlog:
         # read the default delta-base reuse policy from revlog config if the
         # group did not specify one.
         if delta_base_reuse_policy is None:
-            if self._generaldelta and self._lazydeltabase:
+            if (
+                self.delta_config.general_delta
+                and self.delta_config.lazy_delta_base
+            ):
                 delta_base_reuse_policy = DELTA_BASE_REUSE_TRY
             else:
                 delta_base_reuse_policy = DELTA_BASE_REUSE_NO
@@ -3251,7 +3257,7 @@ class revlog:
                 b'unhandled value for nodesorder: %s' % nodesorder
             )
 
-        if nodesorder is None and not self._generaldelta:
+        if nodesorder is None and not self.delta_config.general_delta:
             nodesorder = b'storage'
 
         if (
