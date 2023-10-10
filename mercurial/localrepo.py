@@ -1140,7 +1140,7 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     # experimental config: format.maxchainlen
     maxchainlen = ui.configint(b'format', b'maxchainlen', maxchainlen)
     if maxchainlen is not None:
-        options[b'maxchainlen'] = maxchainlen
+        delta_config.max_chain_len = maxchainlen
 
     for r in requirements:
         # we allow multiple compression engine requirement to co-exist because
