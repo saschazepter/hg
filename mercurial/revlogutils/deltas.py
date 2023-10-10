@@ -622,7 +622,7 @@ def is_good_delta_info(revlog, deltainfo, revinfo):
     #   possible to build pathological revlog where delta pattern would lead
     #   to too many reads. However, they do not happen in practice at all. So
     #   we skip the span check entirely.
-    if not revlog._sparserevlog and maxdist < deltainfo.distance:
+    if not revlog.delta_config.sparse_revlog and maxdist < deltainfo.distance:
         return False
 
     # Bad delta from new delta size:
@@ -715,7 +715,7 @@ def _candidategroups(
 
     deltalength = revlog.length
     deltaparent = revlog.deltaparent
-    sparse = revlog._sparserevlog
+    sparse = revlog.delta_config.sparse_revlog
     good = None
 
     deltas_limit = textlen * LIMIT_DELTA2TEXT
@@ -875,7 +875,7 @@ def _refinedgroups(revlog, p1, p2, cachedelta, snapshot_cache=None):
             break
 
     # If sparse revlog is enabled, we can try to refine the available deltas
-    if not revlog._sparserevlog:
+    if not revlog.delta_config.sparse_revlog:
         yield None
         return
 
@@ -916,7 +916,7 @@ def _rawgroups(revlog, p1, p2, cachedelta, snapshot_cache=None):
     # Why search for delta base if we cannot use a delta base ?
     assert revlog.delta_config.general_delta
     # also see issue6056
-    sparse = revlog._sparserevlog
+    sparse = revlog.delta_config.sparse_revlog
     curr = len(revlog)
     prev = curr - 1
     deltachain = lambda rev: revlog._deltachain(rev)[0]
@@ -1158,9 +1158,9 @@ class deltacomputer:
                 raise error.ProgrammingError(msg)
             deltabase = chainbase
         snapshotdepth = None
-        if revlog._sparserevlog and deltabase == nullrev:
+        if revlog.delta_config.sparse_revlog and deltabase == nullrev:
             snapshotdepth = 0
-        elif revlog._sparserevlog and revlog.issnapshot(deltabase):
+        elif revlog.delta_config.sparse_revlog and revlog.issnapshot(deltabase):
             # A delta chain should always be one full snapshot,
             # zero or more semi-snapshots, and zero or more deltas
             p1, p2 = revlog.rev(revinfo.p1), revlog.rev(revinfo.p2)
