@@ -641,7 +641,10 @@ def is_good_delta_info(revlog, deltainfo, revinfo):
     # Bad delta from chain length:
     #
     #   If the number of delta in the chain gets too high.
-    if revlog._maxchainlen and revlog._maxchainlen < deltainfo.chainlen:
+    if (
+        revlog.delta_config.max_chain_len
+        and revlog.delta_config.max_chain_len < deltainfo.chainlen
+    ):
         return False
 
     # bad delta from intermediate snapshot size limit
@@ -771,7 +774,10 @@ def _candidategroups(
             # here too.
             chainlen, chainsize = revlog._chaininfo(rev)
             # if chain will be too long, skip base
-            if revlog._maxchainlen and chainlen >= revlog._maxchainlen:
+            if (
+                revlog.delta_config.max_chain_len
+                and chainlen >= revlog.delta_config.max_chain_len
+            ):
                 tested.add(rev)
                 continue
             # if chain already have too much data, skip base
