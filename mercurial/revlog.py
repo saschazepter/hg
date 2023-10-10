@@ -630,17 +630,6 @@ class revlog:
         mmapindexthreshold = None
         if self._mmaplargeindex:
             mmapindexthreshold = self.data_config.mmap_index_threshold
-        if self.delta_config.sparse_revlog:
-            # sparse-revlog forces sparse-read
-            self.data_config.with_sparse_read = True
-        elif b'with-sparse-read' in opts:
-            self.data_config.with_sparse_read = bool(opts[b'with-sparse-read'])
-        if b'sparse-read-density-threshold' in opts:
-            self.data_config.sr_density_threshold = opts[
-                b'sparse-read-density-threshold'
-            ]
-        if b'sparse-read-min-gap-size' in opts:
-            self.data_config.sr_min_gap_size = opts[b'sparse-read-min-gap-size']
         if self.feature_config.enable_ellipsis:
             self._flagprocessors[REVIDX_ELLIPSIS] = ellipsisprocessor
 
