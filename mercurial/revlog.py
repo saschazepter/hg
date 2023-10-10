@@ -3457,7 +3457,7 @@ class revlog:
                     sidedata=sidedata,
                 )
             else:
-                if destrevlog._lazydelta:
+                if destrevlog.delta_config.lazy_delta:
                     dp = self.deltaparent(rev)
                     if dp != nullrev:
                         cachedelta = (dp, bytes(self._chunk(rev)))
