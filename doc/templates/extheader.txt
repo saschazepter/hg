@@ -1,0 +1,9 @@
+.. _ext-%(extname)s:
+
+%(exttitle)s
+
+.. contents::
+   :backlinks: top
+   :class: htmlonly
+   :depth: 2
+
