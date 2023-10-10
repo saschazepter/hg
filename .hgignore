@@ -40,10 +40,17 @@ contrib/merge-lists/target/
 dist
 packages
 doc/common.txt
+doc/commandlist.txt
+doc/extensionlist.txt
+doc/topiclist.txt
+doc/*.mk
 doc/*.[0-9]
 doc/*.[0-9].txt
 doc/*.[0-9].gendoc.txt
 doc/*.[0-9].{x,ht}ml
+doc/build
+doc/html
+doc/man
 MANIFEST
 MANIFEST.in
 patches

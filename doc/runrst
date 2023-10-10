@@ -13,6 +13,7 @@ where WRITER is the name of a Docutils writer such as 'html' or 'manpage'
 """
 
 
+import re
 import sys
 
 try:
@@ -31,13 +32,63 @@ except ImportError:
     )
     sys.exit(-1)
 
+# Whether we are rendering a help page for a single topic.
+# If false, we are rendering a monolithic page with all topics together.
+is_individual_pages_mode = False
+
+
+def make_cmd_ref_uri(cmd):
+    if is_individual_pages_mode:
+        return "hg-%s.html" % cmd
+    else:
+        return "hg.1.html#%s" % cmd
+
+
+known_refs = None
+
+
+def load_known_refs(fname):
+    try:
+        with open(fname, 'r') as fp:
+            text = fp.read()
+            return re.split(r'[ \n]+', text)
+    except OSError:
+        sys.stderr.write(
+            "abort: couldn't find '%', please run documentation generation "
+            "through the Makefile, or run 'make knownrefs'\n"
+        )
+        sys.exit(-1)
+
+
+def find_known_ref(ref):
+    global known_refs
+    if known_refs is None:
+        cmds = load_known_refs('commandlist.txt')
+        topics = load_known_refs('topiclist.txt')
+        exts = load_known_refs('extensionlist.txt')
+        known_refs = {'hg': cmds, 'topic': topics, 'ext': exts}
+    for reftype, refnames in known_refs.items():
+        if ref in refnames:
+            return reftype
+    return None
+
+
+def make_any_ref_uri(ref):
+    if is_individual_pages_mode:
+        # Try to find if ref is a command, topic, or extension. If not,
+        # reference the anchor in the main hg.1 help page.
+        reftype = find_known_ref(ref)
+        if reftype:
+            return '%s-%s.html' % (reftype, ref)
+    return "hg.1.html#%s" % ref
+
 
 def role_hg(name, rawtext, text, lineno, inliner, options=None, content=None):
     text = "hg " + utils.unescape(text)
     linktext = nodes.literal(rawtext, text)
     parts = text.split()
     cmd, args = parts[1], parts[2:]
-    refuri = "hg.1.html#%s" % cmd
+    refuri = make_cmd_ref_uri(cmd)
     if cmd == 'help' and args:
         if args[0] == 'config':
             # :hg:`help config`
@@ -48,9 +99,9 @@ def role_hg(name, rawtext, text, lineno, inliner, options=None, content=None):
         elif len(args) >= 2 and args[0] == '-c':
             # :hg:`help -c COMMAND ...` is equivalent to :hg:`COMMAND`
             # (mainly for :hg:`help -c config`)
-            refuri = "hg.1.html#%s" % args[1]
+            refuri = make_cmd_ref_uri(args[1])
         else:
-            refuri = "hg.1.html#%s" % args[0]
+            refuri = make_any_ref_uri(args[0])
     node = nodes.reference(rawtext, '', linktext, refuri=refuri)
     return [node], []
 
@@ -64,5 +115,9 @@ if __name__ == "__main__":
 
     writer = sys.argv[1]
     del sys.argv[1]
+
+    if sys.argv[1] == '--hg-individual-pages':
+        is_individual_pages_mode = True
+        del sys.argv[1]
 
     core.publish_cmdline(writer_name=writer)
