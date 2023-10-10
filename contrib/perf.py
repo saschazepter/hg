@@ -3549,7 +3549,10 @@ def _timeonewrite(
     timings = []
     tr = _faketr()
     with _temprevlog(ui, orig, startrev) as dest:
-        dest._lazydeltabase = lazydeltabase
+        if hasattr(dest, "delta_config"):
+            dest.delta_config.lazy_delta_base = lazydeltabase
+        else:
+            dest._lazydeltabase = lazydeltabase
         revs = list(orig.revs(startrev, stoprev))
         total = len(revs)
         topic = 'adding'
