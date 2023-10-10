@@ -628,7 +628,7 @@ class revlog:
             new_header = REVLOG_DEFAULT_VERSION
 
         mmapindexthreshold = None
-        if self._mmaplargeindex:
+        if self.data_config.mmap_large_index:
             mmapindexthreshold = self.data_config.mmap_index_threshold
         if self.feature_config.enable_ellipsis:
             self._flagprocessors[REVIDX_ELLIPSIS] = ellipsisprocessor
