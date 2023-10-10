@@ -1149,7 +1149,7 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
         # The compression used for new entries will be "the last one"
         prefix = r.startswith
         if prefix(b'revlog-compression-') or prefix(b'exp-compression-'):
-            options[b'compengine'] = r.split(b'-', 2)[2]
+            feature_config.compression_engine = r.split(b'-', 2)[2]
 
     options[b'zlib.level'] = ui.configint(b'storage', b'revlog.zlib.level')
     if options[b'zlib.level'] is not None:
