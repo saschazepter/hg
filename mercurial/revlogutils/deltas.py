@@ -924,7 +924,7 @@ def _rawgroups(revlog, p1, p2, cachedelta, snapshot_cache=None):
     # exclude already lazy tested base if any
     parents = [p for p in (p1, p2) if p != nullrev]
 
-    if not revlog._deltabothparents and len(parents) == 2:
+    if not revlog.delta_config.delta_both_parents and len(parents) == 2:
         parents.sort()
         # To minimize the chance of having to build a fulltext,
         # pick first whichever parent is closest to us (max rev)
