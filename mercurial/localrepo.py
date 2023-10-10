@@ -1130,7 +1130,7 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     options[b'sparse-read-min-gap-size'] = srmingapsize
 
     sparserevlog = requirementsmod.SPARSEREVLOG_REQUIREMENT in requirements
-    options[b'sparse-revlog'] = sparserevlog
+    delta_config.sparse_revlog = sparserevlog
     if sparserevlog:
         options[b'generaldelta'] = True
 

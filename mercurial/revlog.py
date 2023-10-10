@@ -630,8 +630,6 @@ class revlog:
         mmapindexthreshold = None
         if self._mmaplargeindex:
             mmapindexthreshold = self.data_config.mmap_index_threshold
-        if b'sparse-revlog' in opts:
-            self.delta_config.sparse_revlog = bool(opts[b'sparse-revlog'])
         if self.delta_config.sparse_revlog:
             # sparse-revlog forces sparse-read
             self.data_config.with_sparse_read = True
