@@ -50,7 +50,6 @@ class _testrevlog:
         from .. import revlog
 
         self._data = data
-        self._srmingapsize = mingap
         self.data_config = revlog.DataConfig()
         self.data_config.sr_density_threshold = density
         self.data_config.sr_min_gap_size = mingap
@@ -91,11 +90,11 @@ def slicechunk(revlog, revs, targetsize=None):
 
     The initial chunk is sliced until the overall density (payload/chunks-span
     ratio) is above `revlog.data_config.sr_density_threshold`. No gap smaller
-    than `revlog._srmingapsize` is skipped.
+    than `revlog.data_config.sr_min_gap_size` is skipped.
 
     If `targetsize` is set, no chunk larger than `targetsize` will be yield.
     For consistency with other slicing choice, this limit won't go lower than
-    `revlog._srmingapsize`.
+    `revlog.data_config.sr_min_gap_size`.
 
     If individual revisions chunk are larger than this limit, they will still
     be raised individually.
@@ -144,14 +143,16 @@ def slicechunk(revlog, revs, targetsize=None):
     [[-1], [13], [15]]
     """
     if targetsize is not None:
-        targetsize = max(targetsize, revlog._srmingapsize)
+        targetsize = max(targetsize, revlog.data_config.sr_min_gap_size)
     # targetsize should not be specified when evaluating delta candidates:
     # * targetsize is used to ensure we stay within specification when reading,
     densityslicing = getattr(revlog.index, 'slicechunktodensity', None)
     if densityslicing is None:
         densityslicing = lambda x, y, z: _slicechunktodensity(revlog, x, y, z)
     for chunk in densityslicing(
-        revs, revlog.data_config.sr_density_threshold, revlog._srmingapsize
+        revs,
+        revlog.data_config.sr_density_threshold,
+        revlog.data_config.sr_min_gap_size,
     ):
         for subchunk in _slicechunktosize(revlog, chunk, targetsize):
             yield subchunk
