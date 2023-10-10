@@ -241,6 +241,92 @@ FILE_TOO_SHORT_MSG = _(
 hexdigits = b'0123456789abcdefABCDEF'
 
 
+@attr.s()
+class FeatureConfig:
+    """Hold configuration values about the available revlog features"""
+
+    # the default compression engine
+    compression_engine = attr.ib(default=b'zlib')
+    # compression engines options
+    compression_engine_options = attr.ib(default=attr.Factory(dict))
+
+    # can we use censor on this revlog
+    censorable = attr.ib(default=False)
+    # does this revlog use the "side data" feature
+    has_side_data = attr.ib(default=False)
+    # might remove rank configuration once the computation has no impact
+    compute_rank = attr.ib(default=False)
+    # parent order is supposed to be semantically irrelevant, so we
+    # normally resort parents to ensure that the first parent is non-null,
+    # if there is a non-null parent at all.
+    # filelog abuses the parent order as flag to mark some instances of
+    # meta-encoded files, so allow it to disable this behavior.
+    canonical_parent_order = attr.ib(default=False)
+    # can ellipsis commit be used
+    enable_ellipsis = attr.ib(default=False)
+
+
+@attr.s()
+class DataConfig:
+    """Hold configuration value about how the revlog data are read"""
+
+    # should we try to open the "pending" version of the revlog
+    try_pending = attr.ib(default=False)
+    # should we try to open the "splitted" version of the revlog
+    try_split = attr.ib(default=False)
+    #  When True, indexfile should be opened with checkambig=True at writing,
+    #  to avoid file stat ambiguity.
+    check_ambig = attr.ib(default=False)
+
+    # If true, use mmap instead of reading to deal with large index
+    mmap_large_index = attr.ib(default=False)
+    # how much data is large
+    mmap_index_threshold = attr.ib(default=None)
+    # How much data to read and cache into the raw revlog data cache.
+    chunk_cache_size = attr.ib(default=65536)
+
+    # Allow sparse reading of the revlog data
+    with_sparse_read = attr.ib(default=False)
+    # minimal density of a sparse read chunk
+    sr_density_threshold = attr.ib(default=0.50)
+    # minimal size of data we skip when performing sparse read
+    sr_min_gap_size = attr.ib(default=262144)
+
+    # are delta encoded against arbitrary bases.
+    generaldelta = attr.ib(default=False)
+
+
+@attr.s()
+class DeltaConfig:
+    """Hold configuration value about how new delta are computed
+
+    Some attributes are duplicated from DataConfig to help havign each object
+    self contained.
+    """
+
+    # can delta be encoded against arbitrary bases.
+    general_delta = attr.ib(default=False)
+    # Allow sparse writing of the revlog data
+    sparse_revlog = attr.ib(default=False)
+    # maximum length of a delta chain
+    max_chain_len = attr.ib(default=None)
+    # Maximum distance between delta chain base start and end
+    max_deltachain_span = attr.ib(default=-1)
+    # If `upper_bound_comp` is not None, this is the expected maximal gain from
+    # compression for the data content.
+    upper_bound_comp = attr.ib(default=None)
+    # Should we try a delta against both parent
+    delta_both_parents = attr.ib(default=True)
+    # Test delta base candidate group by chunk of this maximal size.
+    candidate_group_chunk_size = attr.ib(default=0)
+    # Should we display debug information about delta computation
+    debug_delta = attr.ib(default=False)
+    # trust incoming delta by default
+    lazy_delta = attr.ib(default=True)
+    # trust the base of incoming delta by default
+    lazy_delta_base = attr.ib(default=False)
+
+
 class revlog:
     """
     the underlying revision storage object
@@ -348,42 +434,30 @@ class revlog:
         assert target[0] in ALL_KINDS
         assert len(target) == 2
         self.target = target
-        #  When True, indexfile is opened with checkambig=True at writing, to
-        #  avoid file stat ambiguity.
-        self._checkambig = checkambig
-        self._mmaplargeindex = mmaplargeindex
-        self._censorable = censorable
+        self.feature_config = FeatureConfig(
+            censorable=censorable,
+            canonical_parent_order=canonical_parent_order,
+        )
+        self.data_config = DataConfig(
+            check_ambig=checkambig,
+            mmap_large_index=mmaplargeindex,
+        )
+        self.delta_config = DeltaConfig()
+
         # 3-tuple of (node, rev, text) for a raw revision.
         self._revisioncache = None
         # Maps rev to chain base rev.
         self._chainbasecache = util.lrucachedict(100)
         # 2-tuple of (offset, data) of raw data from the revlog at an offset.
         self._chunkcache = (0, b'')
-        # How much data to read and cache into the raw revlog data cache.
-        self._chunkcachesize = 65536
-        self._maxchainlen = None
-        self._deltabothparents = True
-        self._candidate_group_chunk_size = 0
-        self._debug_delta = False
+
         self.index = None
         self._docket = None
         self._nodemap_docket = None
         # Mapping of partial identifiers to full nodes.
         self._pcache = {}
-        # Mapping of revision integer to full node.
-        self._compengine = b'zlib'
-        self._compengineopts = {}
-        self._maxdeltachainspan = -1
-        self._withsparseread = False
-        self._sparserevlog = False
-        self.hassidedata = False
-        self._srdensitythreshold = 0.50
-        self._srmingapsize = 262144
 
         # other optionnals features
-
-        # might remove rank configuration once the computation has no impact
-        self._compute_rank = False
 
         # Make copy of flag processors so each revlog instance can support
         # custom flags.
@@ -398,12 +472,110 @@ class revlog:
 
         self._concurrencychecker = concurrencychecker
 
-        # parent order is supposed to be semantically irrelevant, so we
-        # normally resort parents to ensure that the first parent is non-null,
-        # if there is a non-null parent at all.
-        # filelog abuses the parent order as flag to mark some instances of
-        # meta-encoded files, so allow it to disable this behavior.
-        self.canonical_parent_order = canonical_parent_order
+    @property
+    def _generaldelta(self):
+        """temporary compatibility proxy"""
+        return self.delta_config.general_delta
+
+    @property
+    def _checkambig(self):
+        """temporary compatibility proxy"""
+        return self.data_config.check_ambig
+
+    @property
+    def _mmaplargeindex(self):
+        """temporary compatibility proxy"""
+        return self.data_config.mmap_large_index
+
+    @property
+    def _censorable(self):
+        """temporary compatibility proxy"""
+        return self.feature_config.censorable
+
+    @property
+    def _chunkcachesize(self):
+        """temporary compatibility proxy"""
+        return self.data_config.chunk_cache_size
+
+    @property
+    def _maxchainlen(self):
+        """temporary compatibility proxy"""
+        return self.delta_config.max_chain_len
+
+    @property
+    def _deltabothparents(self):
+        """temporary compatibility proxy"""
+        return self.delta_config.delta_both_parents
+
+    @property
+    def _candidate_group_chunk_size(self):
+        """temporary compatibility proxy"""
+        return self.delta_config.candidate_group_chunk_size
+
+    @property
+    def _debug_delta(self):
+        """temporary compatibility proxy"""
+        return self.delta_config.debug_delta
+
+    @property
+    def _compengine(self):
+        """temporary compatibility proxy"""
+        return self.feature_config.compression_engine
+
+    @property
+    def _compengineopts(self):
+        """temporary compatibility proxy"""
+        return self.feature_config.compression_engine_options
+
+    @property
+    def _maxdeltachainspan(self):
+        """temporary compatibility proxy"""
+        return self.delta_config.max_deltachain_span
+
+    @property
+    def _withsparseread(self):
+        """temporary compatibility proxy"""
+        return self.data_config.with_sparse_read
+
+    @property
+    def _sparserevlog(self):
+        """temporary compatibility proxy"""
+        return self.delta_config.sparse_revlog
+
+    @property
+    def hassidedata(self):
+        """temporary compatibility proxy"""
+        return self.feature_config.has_side_data
+
+    @property
+    def _srdensitythreshold(self):
+        """temporary compatibility proxy"""
+        return self.data_config.sr_density_threshold
+
+    @property
+    def _srmingapsize(self):
+        """temporary compatibility proxy"""
+        return self.data_config.sr_min_gap_size
+
+    @property
+    def _compute_rank(self):
+        """temporary compatibility proxy"""
+        return self.feature_config.compute_rank
+
+    @property
+    def canonical_parent_order(self):
+        """temporary compatibility proxy"""
+        return self.feature_config.canonical_parent_order
+
+    @property
+    def _lazydelta(self):
+        """temporary compatibility proxy"""
+        return self.delta_config.lazy_delta
+
+    @property
+    def _lazydeltabase(self):
+        """temporary compatibility proxy"""
+        return self.delta_config.lazy_delta_base
 
     def _init_opts(self):
         """process options (from above/config) to setup associated default revlog mode
@@ -426,7 +598,8 @@ class revlog:
 
         if b'changelogv2' in opts and self.revlog_kind == KIND_CHANGELOG:
             new_header = CHANGELOGV2
-            self._compute_rank = opts.get(b'changelogv2.compute-rank', True)
+            compute_rank = opts.get(b'changelogv2.compute-rank', True)
+            self.feature_config.compute_rank = compute_rank
         elif b'revlogv2' in opts:
             new_header = REVLOGV2
         elif b'revlogv1' in opts:
@@ -439,54 +612,63 @@ class revlog:
             new_header = REVLOG_DEFAULT_VERSION
 
         if b'chunkcachesize' in opts:
-            self._chunkcachesize = opts[b'chunkcachesize']
+            self.data_config.chunk_cache_size = opts[b'chunkcachesize']
         if b'maxchainlen' in opts:
-            self._maxchainlen = opts[b'maxchainlen']
+            self.delta_config.max_chain_len = opts[b'maxchainlen']
         if b'deltabothparents' in opts:
-            self._deltabothparents = opts[b'deltabothparents']
+            self.delta_config.delta_both_parents = opts[b'deltabothparents']
         dps_cgds = opts.get(b'delta-parent-search.candidate-group-chunk-size')
         if dps_cgds:
-            self._candidate_group_chunk_size = dps_cgds
-        self._lazydelta = bool(opts.get(b'lazydelta', True))
-        self._lazydeltabase = False
-        if self._lazydelta:
-            self._lazydeltabase = bool(opts.get(b'lazydeltabase', False))
+            self.delta_config.candidate_group_chunk_size = dps_cgds
+        if b'lazydelta' in opts:
+            self.delta_config.lazy_delta = bool(opts[b'lazydelta'])
+        if self._lazydelta and b'lazydeltabase' in opts:
+            self.delta_config.lazy_delta_base = opts[b'lazydeltabase']
         if b'debug-delta' in opts:
-            self._debug_delta = opts[b'debug-delta']
+            self.delta_config.debug_delta = opts[b'debug-delta']
         if b'compengine' in opts:
-            self._compengine = opts[b'compengine']
+            self.feature_config.compression_engine = opts[b'compengine']
+        comp_engine_opts = self.feature_config.compression_engine_options
         if b'zlib.level' in opts:
-            self._compengineopts[b'zlib.level'] = opts[b'zlib.level']
+            comp_engine_opts[b'zlib.level'] = opts[b'zlib.level']
         if b'zstd.level' in opts:
-            self._compengineopts[b'zstd.level'] = opts[b'zstd.level']
+            comp_engine_opts[b'zstd.level'] = opts[b'zstd.level']
         if b'maxdeltachainspan' in opts:
-            self._maxdeltachainspan = opts[b'maxdeltachainspan']
+            self.delta_config.max_deltachain_span = opts[b'maxdeltachainspan']
         if self._mmaplargeindex and b'mmapindexthreshold' in opts:
             mmapindexthreshold = opts[b'mmapindexthreshold']
-        self._sparserevlog = bool(opts.get(b'sparse-revlog', False))
-        withsparseread = bool(opts.get(b'with-sparse-read', False))
-        # sparse-revlog forces sparse-read
-        self._withsparseread = self._sparserevlog or withsparseread
+            self.data_config.mmap_index_threshold = mmapindexthreshold
+        if b'sparse-revlog' in opts:
+            self.delta_config.sparse_revlog = bool(opts[b'sparse-revlog'])
+        if self.delta_config.sparse_revlog:
+            # sparse-revlog forces sparse-read
+            self.data_config.with_sparse_read = True
+        elif b'with-sparse-read' in opts:
+            self.data_config.with_sparse_read = bool(opts[b'with-sparse-read'])
         if b'sparse-read-density-threshold' in opts:
-            self._srdensitythreshold = opts[b'sparse-read-density-threshold']
+            self.data_config.sr_density_threshold = opts[
+                b'sparse-read-density-threshold'
+            ]
         if b'sparse-read-min-gap-size' in opts:
-            self._srmingapsize = opts[b'sparse-read-min-gap-size']
+            self.data_config.sr_min_gap_size = opts[b'sparse-read-min-gap-size']
         if opts.get(b'enableellipsis'):
+            self.feature_config.enable_ellipsis = True
             self._flagprocessors[REVIDX_ELLIPSIS] = ellipsisprocessor
 
         # revlog v0 doesn't have flag processors
         for flag, processor in opts.get(b'flagprocessors', {}).items():
             flagutil.insertflagprocessor(flag, processor, self._flagprocessors)
 
-        if self._chunkcachesize <= 0:
+        chunk_cache_size = self.data_config.chunk_cache_size
+        if chunk_cache_size <= 0:
             raise error.RevlogError(
                 _(b'revlog chunk cache size %r is not greater than 0')
-                % self._chunkcachesize
+                % chunk_cache_size
             )
-        elif self._chunkcachesize & (self._chunkcachesize - 1):
+        elif chunk_cache_size & (chunk_cache_size - 1):
             raise error.RevlogError(
                 _(b'revlog chunk cache size %r is not a power of 2')
-                % self._chunkcachesize
+                % chunk_cache_size
             )
         force_nodemap = opts.get(b'devel-force-nodemap', False)
         return new_header, mmapindexthreshold, force_nodemap
@@ -664,8 +846,10 @@ class revlog:
 
             features = FEATURES_BY_VERSION[self._format_version]
             self._inline = features[b'inline'](self._format_flags)
-            self._generaldelta = features[b'generaldelta'](self._format_flags)
-            self.hassidedata = features[b'sidedata']
+            self.delta_config.general_delta = features[b'generaldelta'](
+                self._format_flags
+            )
+            self.feature_config.has_side_data = features[b'sidedata']
 
             if not features[b'docket']:
                 self._indexfile = entry_point
@@ -694,7 +878,7 @@ class revlog:
 
             self._inline = False
             # generaldelta implied by version 2 revlogs.
-            self._generaldelta = True
+            self.delta_config.general_delta = True
             # the logic for persistent nodemap will be dealt with within the
             # main docket, so disable it for now.
             self._nodemap_file = None
@@ -712,7 +896,7 @@ class revlog:
 
         # sparse-revlog can't be on without general-delta (issue6056)
         if not self._generaldelta:
-            self._sparserevlog = False
+            self.delta_config.sparse_revlog = False
 
         self._storedeltachains = True
 
@@ -3197,16 +3381,17 @@ class revlog:
 
         try:
             if deltareuse == self.DELTAREUSEALWAYS:
-                destrevlog._lazydeltabase = True
-                destrevlog._lazydelta = True
+                destrevlog.delta_config.lazy_delta_base = True
+                destrevlog.delta_config.lazy_delta = True
             elif deltareuse == self.DELTAREUSESAMEREVS:
-                destrevlog._lazydeltabase = False
-                destrevlog._lazydelta = True
+                destrevlog.delta_config.lazy_delta_base = False
+                destrevlog.delta_config.lazy_delta = True
             elif deltareuse == self.DELTAREUSENEVER:
-                destrevlog._lazydeltabase = False
-                destrevlog._lazydelta = False
+                destrevlog.delta_config.lazy_delta_base = False
+                destrevlog.delta_config.lazy_delta = False
 
-            destrevlog._deltabothparents = forcedeltabothparents or oldamd
+            delta_both_parents = forcedeltabothparents or oldamd
+            destrevlog.delta_config.delta_both_parents = delta_both_parents
 
             with self.reading():
                 self._clone(
@@ -3219,9 +3404,9 @@ class revlog:
                 )
 
         finally:
-            destrevlog._lazydelta = oldlazydelta
-            destrevlog._lazydeltabase = oldlazydeltabase
-            destrevlog._deltabothparents = oldamd
+            destrevlog.delta_config.lazy_delta = oldlazydelta
+            destrevlog.delta_config.lazy_delta_base = oldlazydeltabase
+            destrevlog.delta_config.delta_both_parents = oldamd
 
     def _clone(
         self,

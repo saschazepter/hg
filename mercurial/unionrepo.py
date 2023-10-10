@@ -213,6 +213,15 @@ class unionmanifest(unionrevlog, manifest.manifestrevlog):
             self, opener, self._revlog.radix, manifest2, linkmapper
         )
 
+    # XXX small hack to work around the use of manifest.manifestrevlog
+    @property
+    def _generaldelta(self):
+        return self._revlog.delta_config.general_delta
+
+    @_generaldelta.setter
+    def _generaldelta(self, value):
+        self._revlog.delta_config.general_delta = value
+
 
 class unionfilelog(filelog.filelog):
     def __init__(self, opener, path, opener2, linkmapper, repo):
