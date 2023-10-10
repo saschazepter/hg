@@ -608,7 +608,7 @@ def is_good_delta_info(revlog, deltainfo, revinfo):
 
     textlen = revinfo.textlen
     defaultmax = textlen * 4
-    maxdist = revlog._maxdeltachainspan
+    maxdist = revlog.delta_config.max_deltachain_span
     if not maxdist:
         maxdist = deltainfo.distance  # ensure the conditional pass
     maxdist = max(maxdist, defaultmax)
