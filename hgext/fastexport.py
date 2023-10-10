@@ -45,9 +45,9 @@ def convert_to_git_user(authormap, user, rev):
             % rev
         )
     if user_person:
-        return b'"' + user_person + b'" <' + user_email + b'>'
+        return b'"%s" <%s>' % (user_person, user_email)
     else:
-        return b"<" + user_email + b">"
+        return b"<%s>" % user_email
 
 
 def convert_to_git_date(date):
