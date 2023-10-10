@@ -2021,7 +2021,7 @@ class revlog:
         l = []
         ladd = l.append
 
-        if not self._withsparseread:
+        if not self.data_config.with_sparse_read:
             slicedchunks = (revs,)
         else:
             slicedchunks = deltautil.slicechunk(
