@@ -644,8 +644,7 @@ class revlog:
             ]
         if b'sparse-read-min-gap-size' in opts:
             self.data_config.sr_min_gap_size = opts[b'sparse-read-min-gap-size']
-        if opts.get(b'enableellipsis'):
-            self.feature_config.enable_ellipsis = True
+        if self.feature_config.enable_ellipsis:
             self._flagprocessors[REVIDX_ELLIPSIS] = ellipsisprocessor
 
         # revlog v0 doesn't have flag processors
