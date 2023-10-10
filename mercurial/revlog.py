@@ -1223,7 +1223,7 @@ class revlog:
                 raise error.WdirUnsupported
             raise
 
-        if self.canonical_parent_order and entry[5] == nullrev:
+        if self.feature_config.canonical_parent_order and entry[5] == nullrev:
             return entry[6], entry[5]
         else:
             return entry[5], entry[6]
@@ -1248,7 +1248,7 @@ class revlog:
         i = self.index
         d = i[self.rev(node)]
         # inline node() to avoid function call overhead
-        if self.canonical_parent_order and d[5] == self.nullid:
+        if self.feature_config.canonical_parent_order and d[5] == self.nullid:
             return i[d[6]][7], i[d[5]][7]
         else:
             return i[d[5]][7], i[d[6]][7]
