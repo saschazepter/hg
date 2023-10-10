@@ -628,8 +628,6 @@ class revlog:
         else:
             new_header = REVLOG_DEFAULT_VERSION
 
-        if b'compengine' in opts:
-            self.feature_config.compression_engine = opts[b'compengine']
         comp_engine_opts = self.feature_config.compression_engine_options
         if b'zlib.level' in opts:
             comp_engine_opts[b'zlib.level'] = opts[b'zlib.level']
