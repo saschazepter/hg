@@ -630,8 +630,6 @@ class revlog:
 
         if b'maxchainlen' in opts:
             self.delta_config.max_chain_len = opts[b'maxchainlen']
-        if b'deltabothparents' in opts:
-            self.delta_config.delta_both_parents = opts[b'deltabothparents']
         dps_cgds = opts.get(b'delta-parent-search.candidate-group-chunk-size')
         if dps_cgds:
             self.delta_config.candidate_group_chunk_size = dps_cgds
