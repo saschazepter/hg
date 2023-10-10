@@ -50,7 +50,7 @@ tvfs = vfs.vfs(encoding.environ.get(b'TESTTMP', b'/tmp'))
 tvfs.options = {
     b'generaldelta': True,
     b'revlogv1': True,
-    b'sparse-revlog': True,
+    b'delta-config': revlog.DeltaConfig(sparse_revlog=True),
 }
 
 
