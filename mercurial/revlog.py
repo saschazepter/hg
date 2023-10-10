@@ -1156,7 +1156,7 @@ class revlog:
         return self.index[rev][1]
 
     def sidedata_length(self, rev):
-        if not self.hassidedata:
+        if not self.feature_config.has_side_data:
             return 0
         return self.index[rev][9]
 
@@ -2565,7 +2565,7 @@ class revlog:
 
         if sidedata is None:
             sidedata = {}
-        elif sidedata and not self.hassidedata:
+        elif sidedata and not self.feature_config.has_side_data:
             raise error.ProgrammingError(
                 _(b"trying to add sidedata to a revlog who don't support them")
             )
@@ -2824,7 +2824,7 @@ class revlog:
             compression_mode, deltainfo = r
 
         sidedata_compression_mode = COMP_MODE_INLINE
-        if sidedata and self.hassidedata:
+        if sidedata and self.feature_config.has_side_data:
             sidedata_compression_mode = COMP_MODE_PLAIN
             serialized_sidedata = sidedatautil.serialize_sidedata(sidedata)
             sidedata_offset = self._docket.sidedata_end
@@ -3640,7 +3640,7 @@ class revlog:
         return d
 
     def rewrite_sidedata(self, transaction, helpers, startrev, endrev):
-        if not self.hassidedata:
+        if not self.feature_config.has_side_data:
             return
         # revlog formats with sidedata support does not support inline
         assert not self._inline
@@ -3669,7 +3669,7 @@ class revlog:
                 )
 
                 sidedata_compression_mode = COMP_MODE_INLINE
-                if serialized_sidedata and self.hassidedata:
+                if serialized_sidedata and self.feature_config.has_side_data:
                     sidedata_compression_mode = COMP_MODE_PLAIN
                     h, comp_sidedata = self.compress(serialized_sidedata)
                     if (
