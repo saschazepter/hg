@@ -75,7 +75,7 @@ def v1_censor(rl, tr, censornode, tombstone=b''):
     )
     newrl._format_version = rl._format_version
     newrl._format_flags = rl._format_flags
-    newrl.delta_config.general_delta = rl._generaldelta
+    newrl.delta_config.general_delta = rl.delta_config.general_delta
     newrl._parse_index = rl._parse_index
 
     for rev in rl.revs():
