@@ -628,11 +628,6 @@ class revlog:
         else:
             new_header = REVLOG_DEFAULT_VERSION
 
-        comp_engine_opts = self.feature_config.compression_engine_options
-        if b'zlib.level' in opts:
-            comp_engine_opts[b'zlib.level'] = opts[b'zlib.level']
-        if b'zstd.level' in opts:
-            comp_engine_opts[b'zstd.level'] = opts[b'zstd.level']
         if self._mmaplargeindex and b'mmapindexthreshold' in opts:
             mmapindexthreshold = opts[b'mmapindexthreshold']
             self.data_config.mmap_index_threshold = mmapindexthreshold
