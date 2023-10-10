@@ -205,6 +205,8 @@ class unionchangelog(unionrevlog, changelog.changelog):
 
 class unionmanifest(unionrevlog, manifest.manifestrevlog):
     def __init__(self, nodeconstants, opener, opener2, linkmapper):
+        # XXX manifestrevlog is not actually a revlog , so mixing it with
+        # bundlerevlog is not a good idea.
         manifest.manifestrevlog.__init__(self, nodeconstants, opener)
         manifest2 = manifest.manifestrevlog(nodeconstants, opener2)
         unionrevlog.__init__(

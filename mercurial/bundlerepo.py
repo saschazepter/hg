@@ -204,6 +204,8 @@ class bundlemanifest(bundlerevlog, manifest.manifestrevlog):
         dirlogstarts=None,
         dir=b'',
     ):
+        # XXX manifestrevlog is not actually a revlog , so mixing it with
+        # bundlerevlog is not a good idea.
         manifest.manifestrevlog.__init__(self, nodeconstants, opener, tree=dir)
         bundlerevlog.__init__(
             self,
