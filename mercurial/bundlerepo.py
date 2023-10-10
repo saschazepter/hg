@@ -235,15 +235,6 @@ class bundlemanifest(bundlerevlog, manifest.manifestrevlog):
             )
         return super(bundlemanifest, self).dirlog(d)
 
-    # XXX small hack to work around the use of manifest.manifestrevlog
-    @property
-    def _generaldelta(self):
-        return self._revlog.delta_config.general_delta
-
-    @_generaldelta.setter
-    def _generaldelta(self, value):
-        self._revlog.delta_config.general_delta = value
-
 
 class bundlefilelog(filelog.filelog):
     def __init__(self, opener, path, cgunpacker, linkmapper):
