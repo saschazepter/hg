@@ -1165,7 +1165,7 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     feature_config.compression_engine_options[b'zstd.level'] = zstd_level
 
     if requirementsmod.NARROW_REQUIREMENT in requirements:
-        options[b'enableellipsis'] = True
+        feature_config.enable_ellipsis = True
 
     if ui.configbool(b'experimental', b'rust.index'):
         options[b'rust.index'] = True
