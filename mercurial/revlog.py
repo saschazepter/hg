@@ -2852,7 +2852,7 @@ class revlog:
             sidedata_offset = 0
 
         rank = RANK_UNKNOWN
-        if self._compute_rank:
+        if self.feature_config.compute_rank:
             if (p1r, p2r) == (nullrev, nullrev):
                 rank = 1
             elif p1r != nullrev and p2r == nullrev:
