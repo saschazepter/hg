@@ -628,8 +628,6 @@ class revlog:
         else:
             new_header = REVLOG_DEFAULT_VERSION
 
-        if b'maxchainlen' in opts:
-            self.delta_config.max_chain_len = opts[b'maxchainlen']
         if b'compengine' in opts:
             self.feature_config.compression_engine = opts[b'compengine']
         comp_engine_opts = self.feature_config.compression_engine_options
