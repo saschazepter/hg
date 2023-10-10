@@ -1614,7 +1614,7 @@ class manifestrevlog:
         )
 
         self.index = self._revlog.index
-        self._generaldelta = self._revlog._generaldelta
+        self._generaldelta = self._revlog.delta_config.general_delta
 
     def get_revlog(self):
         """return an actual revlog instance if any
