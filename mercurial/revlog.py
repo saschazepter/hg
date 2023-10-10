@@ -929,13 +929,13 @@ class revlog:
         self._segmentfile = randomaccessfile.randomaccessfile(
             self.opener,
             (self._indexfile if self._inline else self._datafile),
-            self._chunkcachesize,
+            self.data_config.chunk_cache_size,
             chunkcache,
         )
         self._segmentfile_sidedata = randomaccessfile.randomaccessfile(
             self.opener,
             self._sidedatafile,
-            self._chunkcachesize,
+            self.data_config.chunk_cache_size,
         )
         # revnum -> (chain-length, sum-delta-length)
         self._chaininfocache = util.lrucachedict(500)
@@ -2423,7 +2423,7 @@ class revlog:
             self._segmentfile = randomaccessfile.randomaccessfile(
                 self.opener,
                 self._datafile,
-                self._chunkcachesize,
+                self.data_config.chunk_cache_size,
             )
 
             if existing_handles:
