@@ -637,8 +637,6 @@ class revlog:
             comp_engine_opts[b'zlib.level'] = opts[b'zlib.level']
         if b'zstd.level' in opts:
             comp_engine_opts[b'zstd.level'] = opts[b'zstd.level']
-        if b'maxdeltachainspan' in opts:
-            self.delta_config.max_deltachain_span = opts[b'maxdeltachainspan']
         if self._mmaplargeindex and b'mmapindexthreshold' in opts:
             mmapindexthreshold = opts[b'mmapindexthreshold']
             self.data_config.mmap_index_threshold = mmapindexthreshold
