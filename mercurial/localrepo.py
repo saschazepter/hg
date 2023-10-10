@@ -1068,6 +1068,10 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     options = {}
     options[b'flagprocessors'] = {}
 
+    feature_config = options[b'feature-config'] = revlog.FeatureConfig()
+    data_config = options[b'data-config'] = revlog.DataConfig()
+    delta_config = options[b'delta-config'] = revlog.DeltaConfig()
+
     if requirementsmod.REVLOGV1_REQUIREMENT in requirements:
         options[b'revlogv1'] = True
     if requirementsmod.REVLOGV2_REQUIREMENT in requirements:
