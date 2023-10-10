@@ -539,7 +539,7 @@ def _reorder_filelog_parents(repo, fl, to_fix):
             util.copyfile(
                 rl.opener.join(index_file),
                 rl.opener.join(new_file_path),
-                checkambig=rl._checkambig,
+                checkambig=rl.data_config.check_ambig,
             )
 
             with rl.opener(new_file_path, mode=b"r+") as fp:
