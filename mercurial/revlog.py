@@ -2077,7 +2077,7 @@ class revlog:
 
     def issnapshot(self, rev):
         """tells whether rev is a snapshot"""
-        if not self._sparserevlog:
+        if not self.delta_config.sparse_revlog:
             return self.deltaparent(rev) == nullrev
         elif hasattr(self.index, 'issnapshot'):
             # directly assign the method to cache the testing and access
