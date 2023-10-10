@@ -1,0 +1,22 @@
+.. _hg-%(cmdname)s.1:
+
+%(cmdtitle)s
+
+%(cmdshortdesc)s
+
+.. contents::
+   :backlinks: top
+   :class: htmlonly
+   :depth: 1
+
+Synopsis
+--------
+
+::
+
+   %(cmdsynopsis)s
+
+Description
+-----------
+%(cmdlongdesc)s
+
