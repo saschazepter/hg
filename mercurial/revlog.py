@@ -630,9 +630,6 @@ class revlog:
 
         if b'maxchainlen' in opts:
             self.delta_config.max_chain_len = opts[b'maxchainlen']
-        dps_cgds = opts.get(b'delta-parent-search.candidate-group-chunk-size')
-        if dps_cgds:
-            self.delta_config.candidate_group_chunk_size = dps_cgds
         if b'lazydelta' in opts:
             self.delta_config.lazy_delta = bool(opts[b'lazydelta'])
         if self._lazydelta and b'lazydeltabase' in opts:
