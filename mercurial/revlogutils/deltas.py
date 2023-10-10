@@ -719,7 +719,7 @@ def _candidategroups(
     good = None
 
     deltas_limit = textlen * LIMIT_DELTA2TEXT
-    group_chunk_size = revlog._candidate_group_chunk_size
+    group_chunk_size = revlog.delta_config.candidate_group_chunk_size
 
     tested = {nullrev}
     candidates = _refinedgroups(
