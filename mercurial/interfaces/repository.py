@@ -1229,13 +1229,6 @@ class imanifeststorage(interfaceutil.Interface):
         """
     )
 
-    _generaldelta = interfaceutil.Attribute(
-        """Whether generaldelta storage is being used.
-
-        TODO this is revlog specific and should not be exposed.
-        """
-    )
-
     fulltextcache = interfaceutil.Attribute(
         """Dict with cache of fulltexts.
 
