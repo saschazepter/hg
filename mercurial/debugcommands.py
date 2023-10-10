@@ -805,7 +805,7 @@ def debugdeltachain(ui, repo, file_=None, **opts):
     index = r.index
     start = r.start
     length = r.length
-    generaldelta = r._generaldelta
+    generaldelta = r.delta_config.general_delta
     withsparseread = getattr(r, '_withsparseread', False)
 
     # security to avoid crash on corrupted revlogs
