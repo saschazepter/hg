@@ -1125,14 +1125,15 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
         ui.config(b'experimental', b'sparse-read.density-threshold')
     )
     srmingapsize = ui.configbytes(b'experimental', b'sparse-read.min-gap-size')
-    options[b'with-sparse-read'] = withsparseread
-    options[b'sparse-read-density-threshold'] = srdensitythres
-    options[b'sparse-read-min-gap-size'] = srmingapsize
+    data_config.with_sparse_read = withsparseread
+    data_config.sr_density_threshold = srdensitythres
+    data_config.sr_min_gap_size = srmingapsize
 
     sparserevlog = requirementsmod.SPARSEREVLOG_REQUIREMENT in requirements
     delta_config.sparse_revlog = sparserevlog
     if sparserevlog:
         options[b'generaldelta'] = True
+        data_config.with_sparse_read = True
 
     maxchainlen = None
     if sparserevlog:
