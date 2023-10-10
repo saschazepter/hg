@@ -371,7 +371,10 @@ slicingdata = [
 
 
 def slicingtest(rlog):
-    oldmin = rlog._srmingapsize
+    old_delta_config = rlog.delta_config
+    old_data_config = rlog.data_config
+    rlog.delta_config = rlog.delta_config.copy()
+    rlog.data_config = rlog.data_config.copy()
     try:
         # the test revlog is small, we remove the floor under which we
         # slicing is diregarded.
@@ -388,8 +391,8 @@ def slicingtest(rlog):
                 print('  expected: %s' % expected)
                 print('  result:   %s' % result)
     finally:
-        rlog.data_config.sr_min_gap_size = oldmin
-        rlog.delta_config.sr_min_gap_size = oldmin
+        rlog.delta_config = old_delta_config
+        rlog.data_config = old_data_config
 
 
 def md5sum(s):
