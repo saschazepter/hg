@@ -996,7 +996,9 @@ class revlog:
         # You should not use this directly and use `_writing` instead
         try:
             f = self.opener(
-                self._indexfile, mode=b"r+", checkambig=self._checkambig
+                self._indexfile,
+                mode=b"r+",
+                checkambig=self.data_config.check_ambig,
             )
             if self._docket is None:
                 f.seek(0, os.SEEK_END)
@@ -1005,7 +1007,9 @@ class revlog:
             return f
         except FileNotFoundError:
             return self.opener(
-                self._indexfile, mode=b"w+", checkambig=self._checkambig
+                self._indexfile,
+                mode=b"w+",
+                checkambig=self.data_config.check_ambig,
             )
 
     def __index_new_fp(self):
@@ -1013,7 +1017,7 @@ class revlog:
         return self.opener(
             self._indexfile,
             mode=b"w",
-            checkambig=self._checkambig,
+            checkambig=self.data_config.check_ambig,
             atomictemp=True,
         )
 
