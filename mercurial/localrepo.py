@@ -1151,16 +1151,18 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
         if prefix(b'revlog-compression-') or prefix(b'exp-compression-'):
             feature_config.compression_engine = r.split(b'-', 2)[2]
 
-    options[b'zlib.level'] = ui.configint(b'storage', b'revlog.zlib.level')
-    if options[b'zlib.level'] is not None:
-        if not (0 <= options[b'zlib.level'] <= 9):
+    zlib_level = ui.configint(b'storage', b'revlog.zlib.level')
+    if zlib_level is not None:
+        if not (0 <= zlib_level <= 9):
             msg = _(b'invalid value for `storage.revlog.zlib.level` config: %d')
-            raise error.Abort(msg % options[b'zlib.level'])
-    options[b'zstd.level'] = ui.configint(b'storage', b'revlog.zstd.level')
-    if options[b'zstd.level'] is not None:
-        if not (0 <= options[b'zstd.level'] <= 22):
+            raise error.Abort(msg % zlib_level)
+    feature_config.compression_engine_options[b'zlib.level'] = zlib_level
+    zstd_level = ui.configint(b'storage', b'revlog.zstd.level')
+    if zstd_level is not None:
+        if not (0 <= zstd_level <= 22):
             msg = _(b'invalid value for `storage.revlog.zstd.level` config: %d')
-            raise error.Abort(msg % options[b'zstd.level'])
+            raise error.Abort(msg % zstd_level)
+    feature_config.compression_engine_options[b'zstd.level'] = zstd_level
 
     if requirementsmod.NARROW_REQUIREMENT in requirements:
         options[b'enableellipsis'] = True
