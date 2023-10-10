@@ -966,7 +966,9 @@ class revlog:
         except KeyError:
             try:
                 engine = util.compengines.forrevlogheader(t)
-                compressor = engine.revlogcompressor(self._compengineopts)
+                compressor = engine.revlogcompressor(
+                    self.feature_config.compression_engine_options
+                )
                 self._decompressors[t] = compressor
             except KeyError:
                 raise error.RevlogError(
@@ -977,7 +979,9 @@ class revlog:
     @util.propertycache
     def _compressor(self):
         engine = util.compengines[self.feature_config.compression_engine]
-        return engine.revlogcompressor(self._compengineopts)
+        return engine.revlogcompressor(
+            self.feature_config.compression_engine_options
+        )
 
     @util.propertycache
     def _decompressor(self):
