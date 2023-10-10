@@ -3983,7 +3983,13 @@ def perfrevlogrevision(ui, repo, file_, rev=None, cache=None, **opts):
 
     size = r.length(rev)
     chain = r._deltachain(rev)[0]
-    if not getattr(r, '_withsparseread', False):
+
+    with_sparse_read = False
+    if hasattr(r, 'data_config'):
+        with_sparse_read = r.data_config.with_sparse_read
+    elif hasattr(r, '_withsparseread'):
+        with_sparse_read = r._withsparseread
+    if with_sparse_read:
         slicedchain = (chain,)
     else:
         slicedchain = tuple(slicechunk(r, chain, targetsize=size))
@@ -4000,7 +4006,7 @@ def perfrevlogrevision(ui, repo, file_, rev=None, cache=None, **opts):
         (lambda: doread(chain), b'read'),
     ]
 
-    if getattr(r, '_withsparseread', False):
+    if with_sparse_read:
         slicing = (lambda: doslice(r, chain, size), b'slice-sparse-chain')
         benches.append(slicing)
 
