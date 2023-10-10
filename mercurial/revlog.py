@@ -2304,7 +2304,9 @@ class revlog:
                     % (self.display_id, pycompat.bytestr(revornode))
                 )
         except error.RevlogError:
-            if self._censorable and storageutil.iscensoredtext(text):
+            if self.feature_config.censorable and storageutil.iscensoredtext(
+                text
+            ):
                 raise error.CensoredNodeError(self.display_id, node, text)
             raise
 
@@ -3114,14 +3116,14 @@ class revlog:
 
     def iscensored(self, rev):
         """Check if a file revision is censored."""
-        if not self._censorable:
+        if not self.feature_config.censorable:
             return False
 
         return self.flags(rev) & REVIDX_ISCENSORED
 
     def _peek_iscensored(self, baserev, delta):
         """Quickly check if a delta produces a censored revision."""
-        if not self._censorable:
+        if not self.feature_config.censorable:
             return False
 
         return storageutil.deltaiscensored(delta, baserev, self.rawsize)
