@@ -99,6 +99,7 @@ class blackboxlogger:
     def _log(self, ui, event, msg, opts):
         default = ui.configdate(b'devel', b'default-date')
         dateformat = ui.config(b'blackbox', b'date-format')
+        debug_to_stderr = ui.configbool(b'blackbox', b'debug.to-stderr')
         if dateformat:
             date = dateutil.datestr(default, dateformat)
         else:
@@ -130,7 +131,10 @@ class blackboxlogger:
                 maxfiles=self._maxfiles,
                 maxsize=self._maxsize,
             ) as fp:
-                fp.write(fmt % args)
+                msg = fmt % args
+                fp.write(msg)
+                if debug_to_stderr:
+                    ui.write_err(msg)
         except (IOError, OSError) as err:
             # deactivate this to avoid failed logging again
             self._trackedevents.clear()

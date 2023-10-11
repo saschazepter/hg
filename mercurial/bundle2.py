@@ -896,7 +896,7 @@ class unbundle20(unpackermixin):
         """utility to transfer a bundle2 as binary
 
         This is made necessary by the fact the 'getbundle' command over 'ssh'
-        have no way to know then the reply end, relying on the bundle to be
+        have no way to know when the reply ends, relying on the bundle to be
         interpreted to know its end. This is terrible and we are sorry, but we
         needed to move forward to get general delta enabled.
         """
