@@ -793,7 +793,7 @@ class revlog:
         if self._inline:
 
             def get_stream():
-                with self._indexfp() as fp:
+                with self.opener(self._indexfile, mode=b"r") as fp:
                     yield None
                     size = index_size + data_size
                     if size <= 65536:
@@ -832,7 +832,7 @@ class revlog:
         else:
 
             def get_index_stream():
-                with self._indexfp() as fp:
+                with self.opener(self._indexfile, mode=b"r") as fp:
                     yield None
                     if index_size <= 65536:
                         yield fp.read(index_size)
@@ -1064,10 +1064,6 @@ class revlog:
         t = self._docket.default_compression_header
         c = self._get_decompressor(t)
         return c.decompress
-
-    def _indexfp(self):
-        """file object for the revlog's index file"""
-        return self.opener(self._indexfile, mode=b"r")
 
     def __index_write_fp(self):
         # You should not use this directly and use `_writing` instead
