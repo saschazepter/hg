@@ -289,8 +289,7 @@ class sharesafe(requirementformatvariant):
 
     postdowngrademessage = _(
         b'repository downgraded to not use share safe mode, '
-        b'existing shares will not work and needs to'
-        b' be reshared.'
+        b'existing shares will not work and need to be reshared.'
     )
 
     postupgrademessage = _(
@@ -359,7 +358,7 @@ class copiessdc(requirementformatvariant):
     description = _(b'Stores copies information alongside changesets.')
 
     upgrademessage = _(
-        b'Allows to use more efficient algorithm to deal with ' b'copy tracing.'
+        b'Allows to use more efficient algorithm to deal with copy tracing.'
     )
 
     touches_filelogs = False

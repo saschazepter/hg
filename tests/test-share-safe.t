@@ -470,7 +470,7 @@ Test that downgrading works too
   (it is safe to interrupt this process any time before data migration completes)
   upgrading repository requirements
   removing temporary repository $TESTTMP/non-share-safe/.hg/upgrade.* (glob)
-  repository downgraded to not use share safe mode, existing shares will not work and needs to be reshared.
+  repository downgraded to not use share safe mode, existing shares will not work and need to be reshared.
 
   $ hg debugrequirements
   dotencode

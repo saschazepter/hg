@@ -2796,6 +2796,12 @@ default = false
 
 [[items]]
 section = "blackbox"
+name = "debug.to-stderr"
+default = false
+in_core_extension = "blackbox"
+
+[[items]]
+section = "blackbox"
 name = "dirty"
 default = false
 in_core_extension = "blackbox"
