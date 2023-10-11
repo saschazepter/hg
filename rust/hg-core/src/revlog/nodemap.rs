@@ -693,7 +693,7 @@ impl NodeMap for NodeTree {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::NodeMapError::*;
     use super::*;
     use crate::revlog::node::{hex_pad_right, Node};
@@ -871,29 +871,36 @@ mod tests {
         Ok(())
     }
 
-    struct TestNtIndex {
-        index: TestIndex,
-        nt: NodeTree,
+    pub struct TestNtIndex {
+        pub index: TestIndex,
+        pub nt: NodeTree,
     }
 
     impl TestNtIndex {
-        fn new() -> Self {
+        pub fn new() -> Self {
             TestNtIndex {
                 index: HashMap::new(),
                 nt: NodeTree::default(),
             }
         }
 
-        fn insert(&mut self, rev: i32, hex: &str) -> Result<(), NodeMapError> {
-            let node = pad_node(hex);
-            let rev: UncheckedRevision = rev.into();
-            self.index.insert(rev, node);
-            self.nt.insert(
-                &self.index,
-                &node,
-                self.index.check_revision(rev).unwrap(),
-            )?;
+        pub fn insert_node(
+            &mut self,
+            rev: Revision,
+            node: Node,
+        ) -> Result<(), NodeMapError> {
+            self.index.insert(rev.into(), node);
+            self.nt.insert(&self.index, &node, rev)?;
             Ok(())
+        }
+
+        pub fn insert(
+            &mut self,
+            rev: Revision,
+            hex: &str,
+        ) -> Result<(), NodeMapError> {
+            let node = pad_node(hex);
+            return self.insert_node(rev, node);
         }
 
         fn find_hex(
@@ -927,23 +934,23 @@ mod tests {
     #[test]
     fn test_insert_full_mutable() -> Result<(), NodeMapError> {
         let mut idx = TestNtIndex::new();
-        idx.insert(0, "1234")?;
+        idx.insert(Revision(0), "1234")?;
         assert_eq!(idx.find_hex("1")?, Some(R!(0)));
         assert_eq!(idx.find_hex("12")?, Some(R!(0)));
 
         // let's trigger a simple split
-        idx.insert(1, "1a34")?;
+        idx.insert(Revision(1), "1a34")?;
         assert_eq!(idx.nt.growable.len(), 1);
         assert_eq!(idx.find_hex("12")?, Some(R!(0)));
         assert_eq!(idx.find_hex("1a")?, Some(R!(1)));
 
         // reinserting is a no_op
-        idx.insert(1, "1a34")?;
+        idx.insert(Revision(1), "1a34")?;
         assert_eq!(idx.nt.growable.len(), 1);
         assert_eq!(idx.find_hex("12")?, Some(R!(0)));
         assert_eq!(idx.find_hex("1a")?, Some(R!(1)));
 
-        idx.insert(2, "1a01")?;
+        idx.insert(Revision(2), "1a01")?;
         assert_eq!(idx.nt.growable.len(), 2);
         assert_eq!(idx.find_hex("1a"), Err(NodeMapError::MultipleResults));
         assert_eq!(idx.find_hex("12")?, Some(R!(0)));
@@ -952,7 +959,7 @@ mod tests {
         assert_eq!(idx.find_hex("1a12")?, None);
 
         // now let's make it split and create more than one additional block
-        idx.insert(3, "1a345")?;
+        idx.insert(Revision(3), "1a345")?;
         assert_eq!(idx.nt.growable.len(), 4);
         assert_eq!(idx.find_hex("1a340")?, Some(R!(1)));
         assert_eq!(idx.find_hex("1a345")?, Some(R!(3)));
@@ -966,7 +973,7 @@ mod tests {
     #[test]
     fn test_unique_prefix_len_zero_prefix() {
         let mut idx = TestNtIndex::new();
-        idx.insert(0, "00000abcd").unwrap();
+        idx.insert(Revision(0), "00000abcd").unwrap();
 
         assert_eq!(idx.find_hex("000"), Err(NodeMapError::MultipleResults));
         // in the nodetree proper, this will be found at the first nybble
@@ -976,7 +983,7 @@ mod tests {
         assert_eq!(idx.unique_prefix_len_hex("00000ab"), Ok(Some(6)));
 
         // same with odd result
-        idx.insert(1, "00123").unwrap();
+        idx.insert(Revision(1), "00123").unwrap();
         assert_eq!(idx.unique_prefix_len_hex("001"), Ok(Some(3)));
         assert_eq!(idx.unique_prefix_len_hex("0012"), Ok(Some(3)));
 
@@ -1012,10 +1019,10 @@ mod tests {
     #[test]
     fn test_insert_partly_immutable() -> Result<(), NodeMapError> {
         let mut idx = TestNtIndex::new();
-        idx.insert(0, "1234")?;
-        idx.insert(1, "1235")?;
-        idx.insert(2, "131")?;
-        idx.insert(3, "cafe")?;
+        idx.insert(Revision(0), "1234")?;
+        idx.insert(Revision(1), "1235")?;
+        idx.insert(Revision(2), "131")?;
+        idx.insert(Revision(3), "cafe")?;
         let mut idx = idx.commit();
         assert_eq!(idx.find_hex("1234")?, Some(R!(0)));
         assert_eq!(idx.find_hex("1235")?, Some(R!(1)));
@@ -1024,7 +1031,7 @@ mod tests {
         // we did not add anything since init from readonly
         assert_eq!(idx.nt.masked_readonly_blocks(), 0);
 
-        idx.insert(4, "123A")?;
+        idx.insert(Revision(4), "123A")?;
         assert_eq!(idx.find_hex("1234")?, Some(R!(0)));
         assert_eq!(idx.find_hex("1235")?, Some(R!(1)));
         assert_eq!(idx.find_hex("131")?, Some(R!(2)));
@@ -1034,7 +1041,7 @@ mod tests {
         assert_eq!(idx.nt.masked_readonly_blocks(), 4);
 
         eprintln!("{:?}", idx.nt);
-        idx.insert(5, "c0")?;
+        idx.insert(Revision(5), "c0")?;
         assert_eq!(idx.find_hex("cafe")?, Some(R!(3)));
         assert_eq!(idx.find_hex("c0")?, Some(R!(5)));
         assert_eq!(idx.find_hex("c1")?, None);
@@ -1049,10 +1056,10 @@ mod tests {
     #[test]
     fn test_invalidate_all() -> Result<(), NodeMapError> {
         let mut idx = TestNtIndex::new();
-        idx.insert(0, "1234")?;
-        idx.insert(1, "1235")?;
-        idx.insert(2, "131")?;
-        idx.insert(3, "cafe")?;
+        idx.insert(Revision(0), "1234")?;
+        idx.insert(Revision(1), "1235")?;
+        idx.insert(Revision(2), "131")?;
+        idx.insert(Revision(3), "cafe")?;
         let mut idx = idx.commit();
 
         idx.nt.invalidate_all();
@@ -1079,9 +1086,9 @@ mod tests {
     #[test]
     fn test_into_added_bytes() -> Result<(), NodeMapError> {
         let mut idx = TestNtIndex::new();
-        idx.insert(0, "1234")?;
+        idx.insert(Revision(0), "1234")?;
         let mut idx = idx.commit();
-        idx.insert(4, "cafe")?;
+        idx.insert(Revision(4), "cafe")?;
         let (_, bytes) = idx.nt.into_readonly_and_added_bytes();
 
         // only the root block has been changed

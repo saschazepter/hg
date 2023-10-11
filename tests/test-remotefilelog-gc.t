@@ -106,11 +106,6 @@
 # Test that warning is displayed when the repo path is malformed
 
   $ printf "asdas\0das" >> $CACHEDIR/repos
-#if py311
-  $ hg gc
-  finished: removed 0 of 4 files (0.00 GB to 0.00 GB)
-#else
   $ hg gc
   abort: invalid path asdas\x00da: .*(null|NULL).* (re)
   [255]
-#endif
