@@ -882,23 +882,143 @@ def perfheads(ui, repo, **opts):
     fm.end()
 
 
+def _default_clear_on_disk_tags_cache(repo):
+    from mercurial import tags
+
+    repo.cachevfs.tryunlink(tags._filename(repo))
+
+
+def _default_clear_on_disk_tags_fnodes_cache(repo):
+    from mercurial import tags
+
+    repo.cachevfs.tryunlink(tags._fnodescachefile)
+
+
+def _default_forget_fnodes(repo, revs):
+    """function used by the perf extension to prune some entries from the
+    fnodes cache"""
+    from mercurial import tags
+
+    missing_1 = b'\xff' * 4
+    missing_2 = b'\xff' * 20
+    cache = tags.hgtagsfnodescache(repo.unfiltered())
+    for r in revs:
+        cache._writeentry(r * tags._fnodesrecsize, missing_1, missing_2)
+    cache.write()
+
+
 @command(
     b'perf::tags|perftags',
     formatteropts
     + [
         (b'', b'clear-revlogs', False, b'refresh changelog and manifest'),
+        (
+            b'',
+            b'clear-on-disk-cache',
+            False,
+            b'clear on disk tags cache (DESTRUCTIVE)',
+        ),
+        (
+            b'',
+            b'clear-fnode-cache-all',
+            False,
+            b'clear on disk file node cache (DESTRUCTIVE),',
+        ),
+        (
+            b'',
+            b'clear-fnode-cache-rev',
+            [],
+            b'clear on disk file node cache (DESTRUCTIVE),',
+            b'REVS',
+        ),
+        (
+            b'',
+            b'update-last',
+            b'',
+            b'simulate an update over the last N revisions (DESTRUCTIVE),',
+            b'N',
+        ),
     ],
 )
 def perftags(ui, repo, **opts):
+    """Benchmark tags retrieval in various situation
+
+    The option marked as (DESTRUCTIVE) will alter the on-disk cache, possibly
+    altering performance after the command was run. However, it does not
+    destroy any stored data.
+    """
+    from mercurial import tags
+
     opts = _byteskwargs(opts)
     timer, fm = gettimer(ui, opts)
     repocleartagscache = repocleartagscachefunc(repo)
     clearrevlogs = opts[b'clear_revlogs']
+    clear_disk = opts[b'clear_on_disk_cache']
+    clear_fnode = opts[b'clear_fnode_cache_all']
+
+    clear_fnode_revs = opts[b'clear_fnode_cache_rev']
+    update_last_str = opts[b'update_last']
+    update_last = None
+    if update_last_str:
+        try:
+            update_last = int(update_last_str)
+        except ValueError:
+            msg = b'could not parse value for update-last: "%s"'
+            msg %= update_last_str
+            hint = b'value should be an integer'
+            raise error.Abort(msg, hint=hint)
+
+    clear_disk_fn = getattr(
+        tags,
+        "clear_cache_on_disk",
+        _default_clear_on_disk_tags_cache,
+    )
+    clear_fnodes_fn = getattr(
+        tags,
+        "clear_cache_fnodes",
+        _default_clear_on_disk_tags_fnodes_cache,
+    )
+    clear_fnodes_rev_fn = getattr(
+        tags,
+        "forget_fnodes",
+        _default_forget_fnodes,
+    )
+
+    clear_revs = []
+    if clear_fnode_revs:
+        clear_revs.extends(scmutil.revrange(repo, clear_fnode_revs))
+
+    if update_last:
+        revset = b'last(all(), %d)' % update_last
+        last_revs = repo.unfiltered().revs(revset)
+        clear_revs.extend(last_revs)
+
+        from mercurial import repoview
+
+        rev_filter = {(b'experimental', b'extra-filter-revs'): revset}
+        with repo.ui.configoverride(rev_filter, source=b"perf"):
+            filter_id = repoview.extrafilter(repo.ui)
+
+        filter_name = b'%s%%%s' % (repo.filtername, filter_id)
+        pre_repo = repo.filtered(filter_name)
+        pre_repo.tags()  # warm the cache
+        old_tags_path = repo.cachevfs.join(tags._filename(pre_repo))
+        new_tags_path = repo.cachevfs.join(tags._filename(repo))
+
+    clear_revs = sorted(set(clear_revs))
 
     def s():
+        if update_last:
+            util.copyfile(old_tags_path, new_tags_path)
         if clearrevlogs:
             clearchangelog(repo)
             clearfilecache(repo.unfiltered(), 'manifest')
+        if clear_disk:
+            clear_disk_fn(repo)
+        if clear_fnode:
+            clear_fnodes_fn(repo)
+        elif clear_revs:
+            clear_fnodes_rev_fn(repo, clear_revs)
         repocleartagscache()
 
     def t():

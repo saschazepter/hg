@@ -148,9 +148,17 @@ test with empty repo (issue965)
   $ hg paths
   default = static-http://localhost:$HGPORT/remotempty
 
-test with non-repo
+test autodetecting static-http: scheme (issue6833)
 
   $ cd ..
+  $ hg init actually-static
+  $ hg clone http://localhost:$HGPORT/actually-static local4
+  no changes found
+  updating to branch default
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+test with non-repo
+
   $ mkdir notarepo
   $ hg clone static-http://localhost:$HGPORT/notarepo local3
   abort: 'http://localhost:$HGPORT/notarepo' does not appear to be an hg repository
@@ -225,6 +233,15 @@ List of files accessed over HTTP:
   /.hg/store/data/~2ehgsub.i (py37 !)
   /.hg/store/data/~2ehgsubstate.i (py37 !)
   /.hg/store/requires
+  /actually-static/.hg/bookmarks
+  /actually-static/.hg/bookmarks.current
+  /actually-static/.hg/dirstate
+  /actually-static/.hg/requires
+  /actually-static/.hg/store/00changelog.i
+  /actually-static/.hg/store/00manifest.i
+  /actually-static/.hg/store/requires
+  /actually-static/?cmd=capabilities
+  /actually-static?cmd=capabilities
   /notarepo/.hg/00changelog.i
   /notarepo/.hg/requires
   /remote-with-names/.hg/bookmarks

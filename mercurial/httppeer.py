@@ -662,7 +662,8 @@ def make_peer(
         return inst
     except error.RepoError as httpexception:
         try:
-            r = statichttprepo.make_peer(ui, b"static-" + path.loc, create)
+            path = path.copy(new_raw_location=b"static-" + path.rawloc)
+            r = statichttprepo.make_peer(ui, path, create)
             ui.note(_(b'(falling back to static-http)\n'))
             return r
         except error.RepoError:
