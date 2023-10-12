@@ -343,11 +343,52 @@ class dirstate:
 
     @contextlib.contextmanager
     def changing_parents(self, repo):
+        """Wrap a dirstate change related to a change of working copy parents
+
+        This context scopes a series of dirstate modifications that match an
+        update of the working copy parents (typically `hg update`, `hg merge`
+        etc).
+
+        The dirstate's methods that perform this kind of modifications require
+        this context to be present before being called.
+        Such methods are decorated with `@requires_changing_parents`.
+
+        The new dirstate contents will be written to disk when the top-most
+        `changing_parents` context exits successfully. If an exception is
+        raised during a `changing_parents` context of any level, all changes
+        are invalidated. If this context is open within an open transaction,
+        the dirstate writing is delayed until that transaction is successfully
+        committed (and the dirstate is invalidated on transaction abort).
+
+        The `changing_parents` operation is mutually exclusive with the
+        `changing_files` one.
+        """
         with self._changing(repo, CHANGE_TYPE_PARENTS) as c:
             yield c
 
     @contextlib.contextmanager
     def changing_files(self, repo):
+        """Wrap a dirstate change related to the set of tracked files
+
+        This context scopes a series of dirstate modifications that change the
+        set of tracked files. (typically `hg add`, `hg remove` etc) or some
+        dirstate stored information (like `hg rename --after`) but preserve
+        the working copy parents.
+
+        The dirstate's methods that perform this kind of modifications require
+        this context to be present before being called.
+        Such methods are decorated with `@requires_changing_files`.
+
+        The new dirstate contents will be written to disk when the top-most
+        `changing_files` context exits successfully. If an exception is raised
+        during a `changing_files` context of any level, all changes are
+        invalidated.  If this context is open within an open transaction, the
+        dirstate writing is delayed until that transaction is successfully
+        committed (and the dirstate is invalidated on transaction abort).
+
+        The `changing_files` operation is mutually exclusive with the
+        `changing_parents` one.
+        """
         with self._changing(repo, CHANGE_TYPE_FILES) as c:
             yield c
 
