@@ -292,6 +292,9 @@ class revlog:
 
     @staticmethod
     def is_inline_index(header_bytes):
+        if len(header_bytes) == 0:
+            return True
+
         header = INDEX_HEADER.unpack(header_bytes)[0]
 
         _format_flags = header & ~0xFFFF
