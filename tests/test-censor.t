@@ -530,3 +530,82 @@ Check the children is fine
    *50003 (re)
 
 #endif
+
+Testing repository upgrade with censors revision
+================================================
+
+  $ cd ../rclone
+
+With the "abort" policy
+=======================
+
+  $ hg verify --config censor.policy=ignore
+  checking changesets
+  checking manifests
+  crosschecking files in changesets and manifests
+  checking files
+  checking dirstate
+  checked 14 changesets with 15 changes to 2 files
+  $ hg debugupgraderepo --run --quiet \
+  > --optimize re-delta-parent \
+  > --config censor.policy=abort
+  upgrade will perform the following actions:
+  
+  requirements
+     preserved: * (glob)
+  
+  optimisations: re-delta-parent
+  
+  processed revlogs:
+    - all-filelogs
+    - changelog
+    - manifest
+  
+  transaction abort!
+  rollback completed
+  abort: file censored target:613bc869fceb
+  [255]
+  $ hg verify  --config censor.policy=ignore
+  checking changesets
+  checking manifests
+  crosschecking files in changesets and manifests
+  checking files
+  checking dirstate
+  checked 14 changesets with 15 changes to 2 files
+
+With the "ignore" policy
+========================
+
+  $ hg verify --config censor.policy=ignore
+  checking changesets
+  checking manifests
+  crosschecking files in changesets and manifests
+  checking files
+  checking dirstate
+  checked 14 changesets with 15 changes to 2 files
+  $ hg debugupgraderepo --run --quiet \
+  > --optimize re-delta-parent \
+  > --config censor.policy=ignore
+  upgrade will perform the following actions:
+  
+  requirements
+     preserved: * (glob)
+  
+  optimisations: re-delta-parent
+  
+  processed revlogs:
+    - all-filelogs
+    - changelog
+    - manifest
+  
+  transaction abort!
+  rollback completed
+  abort: file censored target:613bc869fceb
+  [255]
+  $ hg verify --config censor.policy=ignore
+  checking changesets
+  checking manifests
+  crosschecking files in changesets and manifests
+  checking files
+  checking dirstate
+  checked 14 changesets with 15 changes to 2 files
