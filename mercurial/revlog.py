@@ -3306,6 +3306,7 @@ class revlog:
         return (dd, di)
 
     def files(self):
+        """return list of files that compose this revlog"""
         res = [self._indexfile]
         if self._docket_file is None:
             if not self._inline:
