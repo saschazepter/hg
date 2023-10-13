@@ -784,8 +784,8 @@ def _candidategroups(
             if deltas_limit < chainsize:
                 tested.add(rev)
                 continue
-            if sparse and revlog.upperboundcomp is not None:
-                maxcomp = revlog.upperboundcomp
+            if sparse and revlog.delta_config.upper_bound_comp is not None:
+                maxcomp = revlog.delta_config.upper_bound_comp
                 basenotsnap = (p1, p2, nullrev)
                 if rev not in basenotsnap and revlog.issnapshot(rev):
                     snapshotdepth = revlog.snapshotdepth(rev)
@@ -1186,8 +1186,10 @@ class deltacomputer:
             msg %= len(delta)
             self._write_debug(msg)
         # snapshotdept need to be neither None nor 0 level snapshot
-        if revlog.upperboundcomp is not None and snapshotdepth:
-            lowestrealisticdeltalen = len(delta) // revlog.upperboundcomp
+        if revlog.delta_config.upper_bound_comp is not None and snapshotdepth:
+            lowestrealisticdeltalen = (
+                len(delta) // revlog.delta_config.upper_bound_comp
+            )
             snapshotlimit = revinfo.textlen >> snapshotdepth
             if self._debug_search:
                 msg = b"DBG-DELTAS-SEARCH:     projected-lower-size=%d\n"
