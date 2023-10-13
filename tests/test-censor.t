@@ -561,10 +561,6 @@ With the "abort" policy
     - changelog
     - manifest
   
-  transaction abort!
-  rollback completed
-  abort: file censored target:613bc869fceb
-  [255]
   $ hg verify  --config censor.policy=ignore
   checking changesets
   checking manifests
@@ -598,10 +594,6 @@ With the "ignore" policy
     - changelog
     - manifest
   
-  transaction abort!
-  rollback completed
-  abort: file censored target:613bc869fceb
-  [255]
   $ hg verify --config censor.policy=ignore
   checking changesets
   checking manifests
