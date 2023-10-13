@@ -425,7 +425,6 @@ class revlog:
         that test, debug, or performance measurement code might not set this to
         accurate value.
         """
-        self.upperboundcomp = upperboundcomp
 
         self.radix = radix
 
@@ -460,6 +459,7 @@ class revlog:
             self.delta_config = self.opener.options[b'delta-config'].copy()
         else:
             self.delta_config = DeltaConfig()
+        self.delta_config.upper_bound_comp = upperboundcomp
 
         # 3-tuple of (node, rev, text) for a raw revision.
         self._revisioncache = None
@@ -572,6 +572,16 @@ class revlog:
             stacklevel=2,
         )
         return self.feature_config.compression_engine
+
+    @property
+    def upperboundcomp(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.delta_config.upper_bound_comp",
+            b"6.6",
+            stacklevel=2,
+        )
+        return self.delta_config.upper_bound_comp
 
     @property
     def _compengineopts(self):
