@@ -3196,14 +3196,15 @@ class revlog:
 
             destrevlog._deltabothparents = forcedeltabothparents or oldamd
 
-            self._clone(
-                tr,
-                destrevlog,
-                addrevisioncb,
-                deltareuse,
-                forcedeltabothparents,
-                sidedata_helpers,
-            )
+            with self.reading(), destrevlog._writing(tr):
+                self._clone(
+                    tr,
+                    destrevlog,
+                    addrevisioncb,
+                    deltareuse,
+                    forcedeltabothparents,
+                    sidedata_helpers,
+                )
 
         finally:
             destrevlog._lazydelta = oldlazydelta
@@ -3288,19 +3289,18 @@ class revlog:
                     )
                     flags = flags | new_flags[0] & ~new_flags[1]
 
-                with destrevlog._writing(tr):
-                    destrevlog._addrevision(
-                        node,
-                        rawtext,
-                        tr,
-                        linkrev,
-                        p1,
-                        p2,
-                        flags,
-                        cachedelta,
-                        deltacomputer=deltacomputer,
-                        sidedata=sidedata,
-                    )
+                destrevlog._addrevision(
+                    node,
+                    rawtext,
+                    tr,
+                    linkrev,
+                    p1,
+                    p2,
+                    flags,
+                    cachedelta,
+                    deltacomputer=deltacomputer,
+                    sidedata=sidedata,
+                )
 
             if addrevisioncb:
                 addrevisioncb(self, rev, node)
