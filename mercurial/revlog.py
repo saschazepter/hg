@@ -3461,7 +3461,7 @@ class revlog:
             )
             destrevlog.delta_config.delta_both_parents = delta_both_parents
 
-            with self.reading():
+            with self.reading(), destrevlog._writing(tr):
                 self._clone(
                     tr,
                     destrevlog,
@@ -3552,19 +3552,18 @@ class revlog:
                     )
                     flags = flags | new_flags[0] & ~new_flags[1]
 
-                with destrevlog._writing(tr):
-                    destrevlog._addrevision(
-                        node,
-                        rawtext,
-                        tr,
-                        linkrev,
-                        p1,
-                        p2,
-                        flags,
-                        cachedelta,
-                        deltacomputer=deltacomputer,
-                        sidedata=sidedata,
-                    )
+                destrevlog._addrevision(
+                    node,
+                    rawtext,
+                    tr,
+                    linkrev,
+                    p1,
+                    p2,
+                    flags,
+                    cachedelta,
+                    deltacomputer=deltacomputer,
+                    sidedata=sidedata,
+                )
 
             if addrevisioncb:
                 addrevisioncb(self, rev, node)
