@@ -36,6 +36,7 @@ use hg::{self, narrow, sparse};
 use log::info;
 use rayon::prelude::*;
 use std::io;
+use std::mem::take;
 use std::path::PathBuf;
 
 pub const HELP_TEXT: &str = "
@@ -285,13 +286,37 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     type StatusResult<'a> =
         Result<(DirstateStatus<'a>, Vec<PatternFileWarning>), StatusError>;
 
+    let relative_status = config
+        .get_option(b"commands", b"status.relative")?
+        .expect("commands.status.relative should have a default value");
+
+    let relativize_paths = relative_status || {
+        // See in Python code with `getuipathfn` usage in `commands.py`.
+        let legacy_relative_behavior = args.contains_id("file");
+        match relative_paths(invocation.config)? {
+            RelativePaths::Legacy => legacy_relative_behavior,
+            RelativePaths::Bool(v) => v,
+        }
+    };
+
+    let mut output = DisplayStatusPaths {
+        ui,
+        no_status,
+        relativize: if relativize_paths {
+            Some(RelativizePaths::new(repo)?)
+        } else {
+            None
+        },
+        print0,
+    };
+
     let after_status = |res: StatusResult| -> Result<_, CommandError> {
         let (mut ds_status, pattern_warnings) = res?;
         for warning in pattern_warnings {
             ui.write_stderr(&format_pattern_file_warning(&warning, repo))?;
         }
 
-        for (path, error) in ds_status.bad {
+        for (path, error) in take(&mut ds_status.bad) {
             let error = match error {
                 hg::BadMatch::OsError(code) => {
                     std::io::Error::from_raw_os_error(code).to_string()
@@ -322,8 +347,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             })?;
             let working_directory_vfs = repo.working_directory_vfs();
             let store_vfs = repo.store_vfs();
-            let res: Vec<_> = ds_status
-                .unsure
+            let res: Vec<_> = take(&mut ds_status.unsure)
                 .into_par_iter()
                 .map(|to_check| {
                     // The compiler seems to get a bit confused with complex
@@ -370,54 +394,11 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             }
         }
 
-        let relative_status = config
-            .get_option(b"commands", b"status.relative")?
-            .expect("commands.status.relative should have a default value");
-
-        let relativize_paths = relative_status || {
-            // See in Python code with `getuipathfn` usage in `commands.py`.
-            let legacy_relative_behavior = args.contains_id("file");
-            match relative_paths(invocation.config)? {
-                RelativePaths::Legacy => legacy_relative_behavior,
-                RelativePaths::Bool(v) => v,
-            }
-        };
-
-        let output = DisplayStatusPaths {
-            ui,
-            no_status,
-            relativize: if relativize_paths {
-                Some(RelativizePaths::new(repo)?)
-            } else {
-                None
-            },
-            print0,
-        };
-        if display_states.modified {
-            output.display(b"M ", "status.modified", ds_status.modified)?;
-        }
-        if display_states.added {
-            output.display(b"A ", "status.added", ds_status.added)?;
-        }
-        if display_states.removed {
-            output.display(b"R ", "status.removed", ds_status.removed)?;
-        }
-        if display_states.deleted {
-            output.display(b"! ", "status.deleted", ds_status.deleted)?;
-        }
-        if display_states.unknown {
-            output.display(b"? ", "status.unknown", ds_status.unknown)?;
-        }
-        if display_states.ignored {
-            output.display(b"I ", "status.ignored", ds_status.ignored)?;
-        }
-        if display_states.clean {
-            output.display(b"C ", "status.clean", ds_status.clean)?;
-        }
-
         let dirstate_write_needed = ds_status.dirty;
         let filesystem_time_at_status_start =
             ds_status.filesystem_time_at_status_start;
+
+        output.output(display_states, ds_status)?;
 
         Ok((
             fixup,
@@ -625,6 +606,35 @@ impl DisplayStatusPaths<'_> {
                     label,
                 )?
             }
+        }
+        Ok(())
+    }
+
+    fn output(
+        &mut self,
+        display_states: DisplayStates,
+        ds_status: DirstateStatus,
+    ) -> Result<(), CommandError> {
+        if display_states.modified {
+            self.display(b"M ", "status.modified", ds_status.modified)?;
+        }
+        if display_states.added {
+            self.display(b"A ", "status.added", ds_status.added)?;
+        }
+        if display_states.removed {
+            self.display(b"R ", "status.removed", ds_status.removed)?;
+        }
+        if display_states.deleted {
+            self.display(b"! ", "status.deleted", ds_status.deleted)?;
+        }
+        if display_states.unknown {
+            self.display(b"? ", "status.unknown", ds_status.unknown)?;
+        }
+        if display_states.ignored {
+            self.display(b"I ", "status.ignored", ds_status.ignored)?;
+        }
+        if display_states.clean {
+            self.display(b"C ", "status.clean", ds_status.clean)?;
         }
         Ok(())
     }
