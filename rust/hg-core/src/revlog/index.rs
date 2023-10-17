@@ -1044,7 +1044,7 @@ impl Index {
     /// greatest common ancestor. In revset notation, this is the set
     /// `heads(::a and ::b and ...)`
     #[allow(dead_code)]
-    fn find_gca_candidates(
+    fn find_gca_candidates<BS: PoisonableBitSet + Clone>(
         &self,
         revs: &[Revision],
     ) -> Result<Vec<Revision>, GraphError> {
@@ -1053,13 +1053,12 @@ impl Index {
         }
         let revcount = revs.len();
         let mut candidates = vec![];
-        let all_seen = 1u64 << (revcount - 1);
-        let poison = 1u64 << revs.len();
         let max_rev = revs.iter().max().unwrap();
-        let mut seen = vec![0u64; (max_rev.0 + 1) as usize];
+
+        let mut seen = BS::vec_of_empty(revs.len(), (max_rev.0 + 1) as usize);
 
         for (idx, rev) in revs.iter().enumerate() {
-            seen[rev.0 as usize] = 1 << idx;
+            seen[rev.0 as usize].add(idx);
         }
         let mut current_rev = *max_rev;
         // Number of revisions whose inspection in the main loop
@@ -1089,17 +1088,18 @@ impl Index {
         // - Early return in case it is detected that one of the incoming revs
         //   is a common ancestor of all of them.
         while current_rev.0 >= 0 && interesting > 0 {
-            let mut current_seen = seen[current_rev.0 as usize];
+            let mut current_seen = seen[current_rev.0 as usize].clone();
 
-            if current_seen == 0 {
+            if current_seen.is_empty() {
                 current_rev = Revision(current_rev.0 - 1);
                 continue;
             }
-            if current_seen < poison {
+            if !current_seen.is_poisoned() {
                 interesting -= 1;
-                if current_seen == all_seen {
+                if current_seen.is_full_range(revcount) {
                     candidates.push(current_rev);
-                    current_seen |= poison;
+                    seen[current_rev.0 as usize].poison();
+                    current_seen.poison(); // avoid recloning
 
                     // Being a common ancestor, if `current_rev` is among
                     // the input revisions, it is *the* answer.
@@ -1114,26 +1114,28 @@ impl Index {
                 if parent == NULL_REVISION {
                     continue;
                 }
-                let parent_seen = seen[parent.0 as usize];
-                if current_seen < poison {
+                let parent_seen = &seen[parent.0 as usize];
+                if !current_seen.is_poisoned() {
                     // Without the `interesting` accounting, this block would
                     // be logically equivalent to: parent_seen |= current_seen
                     // The parent counts as interesting if it was not already
                     // known to be an ancestor (would already have counted)
-                    if parent_seen == 0 {
-                        seen[parent.0 as usize] = current_seen;
+                    if parent_seen.is_empty() {
+                        seen[parent.0 as usize] = current_seen.clone();
                         interesting += 1;
-                    } else if parent_seen != current_seen {
-                        seen[parent.0 as usize] |= current_seen;
+                    } else if *parent_seen != current_seen {
+                        seen[parent.0 as usize].union(&current_seen);
                     }
                 } else {
                     // this block is logically equivalent to poisoning parent
                     // and counting it as non interesting if it
                     // has been seen before (hence counted then as interesting)
-                    if parent_seen != 0 && parent_seen < poison {
+                    if !parent_seen.is_empty() && !parent_seen.is_poisoned() {
                         interesting -= 1;
                     }
-                    seen[parent.0 as usize] = current_seen;
+                    // equivalent to poisoning parent, which we should do to
+                    // avoid the cloning.
+                    seen[parent.0 as usize] = current_seen.clone();
                 }
             }
 
@@ -1239,6 +1241,189 @@ impl Index {
                 None
             })
             .collect())
+    }
+}
+
+/// The kind of functionality needed by find_gca_candidates
+///
+/// This is a bit mask which can be declared to be "poisoned", which callers
+/// interpret to break out of some loops.
+///
+/// The maximum capacity of the bit mask is up to the actual implementation
+trait PoisonableBitSet: Sized + PartialEq {
+    /// Return a vector of exactly n elements, initialized to be empty.
+    ///
+    /// Optimization can vastly depend on implementation. Those being `Copy`
+    /// and having constant capacity typically can have a very simple
+    /// implementation.
+    fn vec_of_empty(sets_size: usize, vec_len: usize) -> Vec<Self>;
+
+    /// The size of the bit mask in memory
+    fn size(&self) -> usize;
+
+    /// The number of elements that can be represented in the set.
+    ///
+    /// Another way to put it is that it is the highest integer `C` such that
+    /// the set is guaranteed to always be a subset of the integer range
+    /// `[0, C)`
+    fn capacity(&self) -> usize;
+
+    /// Declare `n` to belong to the set
+    fn add(&mut self, n: usize);
+
+    /// Declare `n` not to belong to the set
+    fn discard(&mut self, n: usize);
+
+    /// Replace this bit set by its union with other
+    fn union(&mut self, other: &Self);
+
+    /// Poison the bit set
+    ///
+    /// Interpretation up to the caller
+    fn poison(&mut self);
+
+    /// Is the bit set poisoned?
+    ///
+    /// Interpretation is up to the caller
+    fn is_poisoned(&self) -> bool;
+
+    /// Is the bit set empty?
+    fn is_empty(&self) -> bool;
+
+    /// return `true` if and only if the bit is the full range `[0, n)`
+    /// of integers
+    fn is_full_range(&self, n: usize) -> bool;
+}
+
+const U64_POISON: u64 = 1 << 63;
+
+impl PoisonableBitSet for u64 {
+    fn vec_of_empty(_sets_size: usize, vec_len: usize) -> Vec<Self> {
+        vec![0u64; vec_len]
+    }
+
+    fn size(&self) -> usize {
+        8
+    }
+
+    fn capacity(&self) -> usize {
+        63
+    }
+
+    fn add(&mut self, n: usize) {
+        (*self) |= 1u64 << n;
+    }
+
+    fn discard(&mut self, n: usize) {
+        (*self) &= u64::MAX - (1u64 << n);
+    }
+
+    fn union(&mut self, other: &Self) {
+        (*self) |= *other;
+    }
+
+    fn is_full_range(&self, n: usize) -> bool {
+        *self + 1 == (1u64 << n)
+    }
+
+    fn is_empty(&self) -> bool {
+        *self == 0
+    }
+
+    fn poison(&mut self) {
+        *self = U64_POISON;
+    }
+
+    fn is_poisoned(&self) -> bool {
+        // equality comparison would be tempting but would not resist
+        // operations after poisoning (even if these should be bogus).
+        *self >= U64_POISON
+    }
+}
+
+/// A poisonable bit set whose capacity is not known at compile time but
+/// is constant after initial construction
+///
+/// This can be way further optimized if performance assessments (speed
+/// and/or RAM) require it.
+/// As far as RAM is concerned, for large vectors of these, the main problem
+/// would be the repetition of set_size in each item. We would need a trait
+/// to abstract over the idea of a vector of such bit sets to do better.
+#[derive(Clone, PartialEq)]
+struct NonStaticPoisonableBitSet {
+    set_size: usize,
+    bit_set: Vec<u64>,
+}
+
+/// Number of `u64` needed for a [`NonStaticPoisonableBitSet`] of given size
+fn non_static_poisonable_inner_len(set_size: usize) -> usize {
+    1 + (set_size + 1) / 64
+}
+
+impl NonStaticPoisonableBitSet {
+    /// The index of the sub-bit set for the given n, and the index inside
+    /// the latter
+    fn index(&self, n: usize) -> (usize, usize) {
+        (n / 64, n % 64)
+    }
+}
+
+/// Mock implementation to ensure that the trait makes sense
+impl PoisonableBitSet for NonStaticPoisonableBitSet {
+    fn vec_of_empty(set_size: usize, vec_len: usize) -> Vec<Self> {
+        let tmpl = Self {
+            set_size,
+            bit_set: vec![0u64; non_static_poisonable_inner_len(set_size)],
+        };
+        vec![tmpl; vec_len]
+    }
+
+    fn size(&self) -> usize {
+        8 + self.bit_set.len() * 8
+    }
+
+    fn capacity(&self) -> usize {
+        self.set_size
+    }
+
+    fn add(&mut self, n: usize) {
+        let (sub_bs, bit_pos) = self.index(n);
+        self.bit_set[sub_bs] |= 1 << bit_pos
+    }
+
+    fn discard(&mut self, n: usize) {
+        let (sub_bs, bit_pos) = self.index(n);
+        self.bit_set[sub_bs] |= u64::MAX - (1 << bit_pos)
+    }
+
+    fn union(&mut self, other: &Self) {
+        assert!(
+            self.set_size == other.set_size,
+            "Binary operations on bit sets can only be done on same size"
+        );
+        for i in 0..self.bit_set.len() - 1 {
+            self.bit_set[i] |= other.bit_set[i]
+        }
+    }
+
+    fn is_full_range(&self, n: usize) -> bool {
+        let (sub_bs, bit_pos) = self.index(n);
+        self.bit_set[..sub_bs].iter().all(|bs| *bs == u64::MAX)
+            && self.bit_set[sub_bs] == (1 << (bit_pos + 1)) - 1
+    }
+
+    fn is_empty(&self) -> bool {
+        self.bit_set.iter().all(|bs| *bs == 0u64)
+    }
+
+    fn poison(&mut self) {
+        let (sub_bs, bit_pos) = self.index(self.set_size);
+        self.bit_set[sub_bs] = 1 << bit_pos;
+    }
+
+    fn is_poisoned(&self) -> bool {
+        let (sub_bs, bit_pos) = self.index(self.set_size);
+        self.bit_set[sub_bs] >= 1 << bit_pos
     }
 }
 
