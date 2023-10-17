@@ -1108,15 +1108,6 @@ class revlog:
         """file object for the revlog's data file"""
         return self.opener(self._datafile, mode=mode)
 
-    @contextlib.contextmanager
-    def _sidedatareadfp(self):
-        """file object suitable to read sidedata"""
-        if self._writinghandles:
-            yield self._writinghandles[2]
-        else:
-            with self.opener(self._sidedatafile) as fp:
-                yield fp
-
     def tiprev(self):
         return len(self.index) - 1
 
