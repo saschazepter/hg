@@ -465,8 +465,6 @@ class revlog:
         self._revisioncache = None
         # Maps rev to chain base rev.
         self._chainbasecache = util.lrucachedict(100)
-        # 2-tuple of (offset, data) of raw data from the revlog at an offset.
-        self._chunkcache = (0, b'')
 
         self.index = None
         self._docket = None
