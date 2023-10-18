@@ -196,12 +196,24 @@ py_class!(pub class MixedIndex |py| {
 
     /// return the gca set of the given revs
     def ancestors(&self, *args, **kw) -> PyResult<PyObject> {
-        self.call_cindex(py, "ancestors", args, kw)
+        let rust_res = self.inner_ancestors(py, args)?;
+
+        let c_res = self.call_cindex(py, "ancestors", args, kw)?;
+        // the algorithm should always provide the results in reverse ordering
+        assert_py_eq(py, "ancestors", &rust_res, &c_res)?;
+
+        Ok(rust_res)
     }
 
     /// return the heads of the common ancestors of the given revs
     def commonancestorsheads(&self, *args, **kw) -> PyResult<PyObject> {
-        self.call_cindex(py, "commonancestorsheads", args, kw)
+        let rust_res = self.inner_commonancestorsheads(py, args)?;
+
+        let c_res = self.call_cindex(py, "commonancestorsheads", args, kw)?;
+        // the algorithm should always provide the results in reverse ordering
+        assert_py_eq(py, "commonancestorsheads", &rust_res, &c_res)?;
+
+        Ok(rust_res)
     }
 
     /// Clear the index caches and inner py_class data.
@@ -843,6 +855,38 @@ impl MixedIndex {
 
         let as_vec: Vec<PyObject> = index
             .head_revs_filtered(&filtered_revs)
+            .map_err(|e| graph_error(py, e))?
+            .iter()
+            .map(|r| PyRevision::from(*r).into_py_object(py).into_object())
+            .collect();
+        Ok(PyList::new(py, &as_vec).into_object())
+    }
+
+    fn inner_ancestors(
+        &self,
+        py: Python,
+        py_revs: &PyTuple,
+    ) -> PyResult<PyObject> {
+        let index = &mut *self.index(py).borrow_mut();
+        let revs: Vec<_> = rev_pyiter_collect(py, py_revs.as_object(), index)?;
+        let as_vec: Vec<_> = index
+            .ancestors(&revs)
+            .map_err(|e| graph_error(py, e))?
+            .iter()
+            .map(|r| PyRevision::from(*r).into_py_object(py).into_object())
+            .collect();
+        Ok(PyList::new(py, &as_vec).into_object())
+    }
+
+    fn inner_commonancestorsheads(
+        &self,
+        py: Python,
+        py_revs: &PyTuple,
+    ) -> PyResult<PyObject> {
+        let index = &mut *self.index(py).borrow_mut();
+        let revs: Vec<_> = rev_pyiter_collect(py, py_revs.as_object(), index)?;
+        let as_vec: Vec<_> = index
+            .common_ancestor_heads(&revs)
             .map_err(|e| graph_error(py, e))?
             .iter()
             .map(|r| PyRevision::from(*r).into_py_object(py).into_object())
