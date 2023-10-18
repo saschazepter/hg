@@ -7,6 +7,9 @@
 
 //! Structs and types for matching files and directories.
 
+use format_bytes::format_bytes;
+use once_cell::sync::OnceCell;
+
 use crate::{
     dirstate::dirs_multiset::DirsChildrenMultiset,
     filepatterns::{
@@ -23,11 +26,11 @@ use crate::{
 
 use crate::dirstate::status::IgnoreFnType;
 use crate::filepatterns::normalize_path_bytes;
-use std::borrow::ToOwned;
 use std::collections::HashSet;
 use std::fmt::{Display, Error, Formatter};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use std::{borrow::ToOwned, collections::BTreeSet};
 
 #[derive(Debug, PartialEq)]
 pub enum VisitChildrenSet {
@@ -173,6 +176,7 @@ impl Matcher for NeverMatcher {
 pub struct FileMatcher {
     files: HashSet<HgPathBuf>,
     dirs: DirsMultiset,
+    sorted_visitchildrenset_candidates: OnceCell<BTreeSet<HgPathBuf>>,
 }
 
 impl FileMatcher {
@@ -181,6 +185,7 @@ impl FileMatcher {
         Ok(Self {
             files: HashSet::from_iter(files.into_iter()),
             dirs,
+            sorted_visitchildrenset_candidates: OnceCell::new(),
         })
     }
     fn inner_matches(&self, filename: &HgPath) -> bool {
@@ -199,30 +204,34 @@ impl Matcher for FileMatcher {
         self.inner_matches(filename)
     }
     fn visit_children_set(&self, directory: &HgPath) -> VisitChildrenSet {
-        if self.files.is_empty() || !self.dirs.contains(&directory) {
+        if self.files.is_empty() || !self.dirs.contains(directory) {
             return VisitChildrenSet::Empty;
         }
-        let mut candidates: HashSet<HgPathBuf> =
-            self.dirs.iter().cloned().collect();
 
-        candidates.extend(self.files.iter().cloned());
-        candidates.remove(HgPath::new(b""));
-
-        if !directory.as_ref().is_empty() {
-            let directory = [directory.as_ref().as_bytes(), b"/"].concat();
-            candidates = candidates
-                .iter()
-                .filter_map(|c| {
-                    if c.as_bytes().starts_with(&directory) {
-                        Some(HgPathBuf::from_bytes(
-                            &c.as_bytes()[directory.len()..],
-                        ))
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-        }
+        let compute_candidates = || -> BTreeSet<HgPathBuf> {
+            let mut candidates: BTreeSet<HgPathBuf> =
+                self.dirs.iter().cloned().collect();
+            candidates.extend(self.files.iter().cloned());
+            candidates.remove(HgPath::new(b""));
+            candidates
+        };
+        let candidates =
+            if directory.as_ref().is_empty() {
+                compute_candidates()
+            } else {
+                let sorted_candidates = self
+                    .sorted_visitchildrenset_candidates
+                    .get_or_init(compute_candidates);
+                let directory_bytes = directory.as_ref().as_bytes();
+                let start: HgPathBuf =
+                    format_bytes!(b"{}/", directory_bytes).into();
+                let start_len = start.len();
+                // `0` sorts after `/`
+                let end = format_bytes!(b"{}0", directory_bytes).into();
+                BTreeSet::from_iter(sorted_candidates.range(start..end).map(
+                    |c| HgPathBuf::from_bytes(&c.as_bytes()[start_len..]),
+                ))
+            };
 
         // `self.dirs` includes all of the directories, recursively, so if
         // we're attempting to match 'foo/bar/baz.txt', it'll have '', 'foo',
