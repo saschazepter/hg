@@ -2563,6 +2563,10 @@ class revlog:
         if not self._inline or total_size < _maxinline:
             return
 
+        if self._docket is not None:
+            msg = b"inline revlog should not have a docket"
+            raise error.ProgrammingError(msg)
+
         troffset = tr.findoffset(self._indexfile)
         if troffset is None:
             raise error.RevlogError(
@@ -2634,13 +2638,11 @@ class revlog:
                 self._inner.inline = False
                 for i in self:
                     e = self.index.entry_binary(i)
-                    if i == 0 and self._docket is None:
+                    if i == 0:
                         header = self._format_flags | self._format_version
                         header = self.index.pack_header(header)
                         e = header + e
                     fp.write(e)
-                if self._docket is not None:
-                    self._docket.index_end = fp.tell()
 
                 # If we don't use side-write, the temp file replace the real
                 # index when we exit the context manager
@@ -2655,8 +2657,6 @@ class revlog:
             if existing_handles:
                 # switched from inline to conventional reopen the index
                 index_end = None
-                if self._docket is not None:
-                    index_end = self._docket.index_end
                 ifh = self._inner._InnerRevlog__index_write_fp(
                     index_end=index_end
                 )
