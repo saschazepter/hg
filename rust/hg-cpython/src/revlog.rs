@@ -603,7 +603,7 @@ fn revlog_error(py: Python) -> PyErr {
     }
 }
 
-fn rev_not_in_index(py: Python, rev: UncheckedRevision) -> PyErr {
+fn nodemap_rev_not_in_index(py: Python, rev: UncheckedRevision) -> PyErr {
     PyErr::new::<ValueError, _>(
         py,
         format!(
@@ -618,7 +618,7 @@ fn rev_not_in_index(py: Python, rev: UncheckedRevision) -> PyErr {
 fn nodemap_error(py: Python, err: NodeMapError) -> PyErr {
     match err {
         NodeMapError::MultipleResults => revlog_error(py),
-        NodeMapError::RevisionNotInIndex(r) => rev_not_in_index(py, r),
+        NodeMapError::RevisionNotInIndex(r) => nodemap_rev_not_in_index(py, r),
     }
 }
 
