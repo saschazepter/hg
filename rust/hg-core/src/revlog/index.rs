@@ -1036,14 +1036,40 @@ impl Index {
 
     /// Given a (possibly overlapping) set of revs, return all the
     /// common ancestors heads: `heads(::args[0] and ::a[1] and ...)`
-    pub fn common_ancestor_heads(&self, _revisions: &[Revision]) {
-        todo!()
+    pub fn common_ancestor_heads(
+        &self,
+        revisions: &[Revision],
+    ) -> Result<Vec<Revision>, GraphError> {
+        // given that revisions is expected to be small, we find this shortcut
+        // potentially acceptable, especially given that `hg-cpython` could
+        // very much bypass this, constructing a vector of unique values from
+        // the onset.
+        let as_set: HashSet<Revision> = revisions.iter().copied().collect();
+        // Besides deduplicating, the C version also implements the shortcut
+        // for `NULL_REVISION`:
+        if as_set.contains(&NULL_REVISION) {
+            return Ok(vec![]);
+        }
+
+        let revisions: Vec<Revision> = as_set.into_iter().collect();
+
+        if revisions.len() <= 63 {
+            self.find_gca_candidates::<u64>(&revisions)
+        } else {
+            self.find_gca_candidates::<NonStaticPoisonableBitSet>(&revisions)
+        }
+    }
+
+    pub fn ancestors(
+        &self,
+        revisions: &[Revision],
+    ) -> Result<Vec<Revision>, GraphError> {
+        self.find_deepest_revs(&self.common_ancestor_heads(revisions)?)
     }
 
     /// Given a disjoint set of revs, return all candidates for the
     /// greatest common ancestor. In revset notation, this is the set
     /// `heads(::a and ::b and ...)`
-    #[allow(dead_code)]
     fn find_gca_candidates<BS: PoisonableBitSet + Clone>(
         &self,
         revs: &[Revision],
@@ -1147,7 +1173,6 @@ impl Index {
 
     /// Given a disjoint set of revs, return the subset with the longest path
     /// to the root.
-    #[allow(dead_code)]
     fn find_deepest_revs(
         &self,
         revs: &[Revision],
