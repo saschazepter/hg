@@ -938,6 +938,44 @@ class _InnerRevlog:
         del basetext  # let us have a chance to free memory early
         return (rev, rawtext, False)
 
+    def sidedata(self, rev, sidedata_end):
+        """Return the sidedata for a given revision number."""
+        index_entry = self.index[rev]
+        sidedata_offset = index_entry[8]
+        sidedata_size = index_entry[9]
+
+        if self.inline:
+            sidedata_offset += self.index.entry_size * (1 + rev)
+        if sidedata_size == 0:
+            return {}
+
+        if sidedata_end < sidedata_offset + sidedata_size:
+            filename = self.sidedata_file
+            end = sidedata_end
+            offset = sidedata_offset
+            length = sidedata_size
+            m = FILE_TOO_SHORT_MSG % (filename, length, offset, end)
+            raise error.RevlogError(m)
+
+        comp_segment = self._segmentfile_sidedata.read_chunk(
+            sidedata_offset, sidedata_size
+        )
+
+        comp = self.index[rev][11]
+        if comp == COMP_MODE_PLAIN:
+            segment = comp_segment
+        elif comp == COMP_MODE_DEFAULT:
+            segment = self._decompressor(comp_segment)
+        elif comp == COMP_MODE_INLINE:
+            segment = self.decompress(comp_segment)
+        else:
+            msg = b'unknown compression mode %d'
+            msg %= comp
+            raise error.RevlogError(msg)
+
+        sidedata = sidedatautil.deserialize_sidedata(segment)
+        return sidedata
+
 
 class revlog:
     """
@@ -2631,41 +2669,10 @@ class revlog:
 
     def _sidedata(self, rev):
         """Return the sidedata for a given revision number."""
-        index_entry = self.index[rev]
-        sidedata_offset = index_entry[8]
-        sidedata_size = index_entry[9]
-
-        if self._inline:
-            sidedata_offset += self.index.entry_size * (1 + rev)
-        if sidedata_size == 0:
-            return {}
-
-        if self._docket.sidedata_end < sidedata_offset + sidedata_size:
-            filename = self._sidedatafile
-            end = self._docket.sidedata_end
-            offset = sidedata_offset
-            length = sidedata_size
-            m = FILE_TOO_SHORT_MSG % (filename, length, offset, end)
-            raise error.RevlogError(m)
-
-        comp_segment = self._inner._segmentfile_sidedata.read_chunk(
-            sidedata_offset, sidedata_size
-        )
-
-        comp = self.index[rev][11]
-        if comp == COMP_MODE_PLAIN:
-            segment = comp_segment
-        elif comp == COMP_MODE_DEFAULT:
-            segment = self._inner._decompressor(comp_segment)
-        elif comp == COMP_MODE_INLINE:
-            segment = self._inner.decompress(comp_segment)
-        else:
-            msg = b'unknown compression mode %d'
-            msg %= comp
-            raise error.RevlogError(msg)
-
-        sidedata = sidedatautil.deserialize_sidedata(segment)
-        return sidedata
+        sidedata_end = None
+        if self._docket is not None:
+            sidedata_end = self._docket.sidedata_end
+        return self._inner.sidedata(rev, sidedata_end)
 
     def rawdata(self, nodeorrev):
         """return an uncompressed raw data of a given node or revision number."""
