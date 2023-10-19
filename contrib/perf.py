@@ -3824,13 +3824,14 @@ def perfrevlogchunks(ui, repo, file_=None, engines=None, startrev=0, **opts):
 
     def dochunkbatch():
         rl.clearcaches()
+        _chunks = getattr(rl, '_inner', rl)._chunks
         with reading(rl) as fh:
             if fh is not None:
                 # Save chunks as a side-effect.
-                chunks[0] = rl._chunks(revs, df=fh)
+                chunks[0] = _chunks(revs, df=fh)
             else:
                 # Save chunks as a side-effect.
-                chunks[0] = rl._chunks(revs)
+                chunks[0] = _chunks(revs)
 
     def docompress(compressor):
         rl.clearcaches()
@@ -4009,7 +4010,7 @@ def perfrevlogrevision(ui, repo, file_, rev=None, cache=None, **opts):
         slicedchain = tuple(slicechunk(r, chain, targetsize=size))
     data = [segmentforrevs(seg[0], seg[-1])[1] for seg in slicedchain]
     rawchunks = getrawchunks(data, slicedchain)
-    bins = r._chunks(chain)
+    bins = r._inner._chunks(chain)
     text = bytes(bins[0])
     bins = bins[1:]
     text = mdiff.patches(text, bins)

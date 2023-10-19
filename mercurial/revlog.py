@@ -787,6 +787,76 @@ class _InnerRevlog:
             msg %= compression_mode
             raise error.RevlogError(msg)
 
+    def _chunks(self, revs, targetsize=None):
+        """Obtain decompressed chunks for the specified revisions.
+
+        Accepts an iterable of numeric revisions that are assumed to be in
+        ascending order. Also accepts an optional already-open file handle
+        to be used for reading. If used, the seek position of the file will
+        not be preserved.
+
+        This function is similar to calling ``self._chunk()`` multiple times,
+        but is faster.
+
+        Returns a list with decompressed data for each requested revision.
+        """
+        if not revs:
+            return []
+        start = self.start
+        length = self.length
+        inline = self.inline
+        iosize = self.index.entry_size
+        buffer = util.buffer
+
+        l = []
+        ladd = l.append
+
+        if not self.data_config.with_sparse_read:
+            slicedchunks = (revs,)
+        else:
+            slicedchunks = deltautil.slicechunk(
+                self,
+                revs,
+                targetsize=targetsize,
+            )
+
+        for revschunk in slicedchunks:
+            firstrev = revschunk[0]
+            # Skip trailing revisions with empty diff
+            for lastrev in revschunk[::-1]:
+                if length(lastrev) != 0:
+                    break
+
+            try:
+                offset, data = self.get_segment_for_revs(firstrev, lastrev)
+            except OverflowError:
+                # issue4215 - we can't cache a run of chunks greater than
+                # 2G on Windows
+                return [self._chunk(rev) for rev in revschunk]
+
+            decomp = self.decompress
+            # self._decompressor might be None, but will not be used in that case
+            def_decomp = self._decompressor
+            for rev in revschunk:
+                chunkstart = start(rev)
+                if inline:
+                    chunkstart += (rev + 1) * iosize
+                chunklength = length(rev)
+                comp_mode = self.index[rev][10]
+                c = buffer(data, chunkstart - offset, chunklength)
+                if comp_mode == COMP_MODE_PLAIN:
+                    ladd(c)
+                elif comp_mode == COMP_MODE_INLINE:
+                    ladd(decomp(c))
+                elif comp_mode == COMP_MODE_DEFAULT:
+                    ladd(def_decomp(c))
+                else:
+                    msg = b'unknown compression mode %d'
+                    msg %= comp_mode
+                    raise error.RevlogError(msg)
+
+        return l
+
 
 class revlog:
     """
@@ -2406,77 +2476,6 @@ class revlog:
         p1, p2 = self.parents(node)
         return storageutil.hashrevisionsha1(text, p1, p2) != node
 
-    def _chunks(self, revs, targetsize=None):
-        """Obtain decompressed chunks for the specified revisions.
-
-        Accepts an iterable of numeric revisions that are assumed to be in
-        ascending order. Also accepts an optional already-open file handle
-        to be used for reading. If used, the seek position of the file will
-        not be preserved.
-
-        This function is similar to calling ``self._chunk()`` multiple times,
-        but is faster.
-
-        Returns a list with decompressed data for each requested revision.
-        """
-        if not revs:
-            return []
-        start = self.start
-        length = self.length
-        inline = self._inline
-        iosize = self.index.entry_size
-        buffer = util.buffer
-
-        l = []
-        ladd = l.append
-
-        if not self.data_config.with_sparse_read:
-            slicedchunks = (revs,)
-        else:
-            slicedchunks = deltautil.slicechunk(
-                self, revs, targetsize=targetsize
-            )
-
-        for revschunk in slicedchunks:
-            firstrev = revschunk[0]
-            # Skip trailing revisions with empty diff
-            for lastrev in revschunk[::-1]:
-                if length(lastrev) != 0:
-                    break
-
-            try:
-                offset, data = self._inner.get_segment_for_revs(
-                    firstrev,
-                    lastrev,
-                )
-            except OverflowError:
-                # issue4215 - we can't cache a run of chunks greater than
-                # 2G on Windows
-                return [self._inner._chunk(rev) for rev in revschunk]
-
-            decomp = self._inner.decompress
-            # self._decompressor might be None, but will not be used in that case
-            def_decomp = self._inner._decompressor
-            for rev in revschunk:
-                chunkstart = start(rev)
-                if inline:
-                    chunkstart += (rev + 1) * iosize
-                chunklength = length(rev)
-                comp_mode = self.index[rev][10]
-                c = buffer(data, chunkstart - offset, chunklength)
-                if comp_mode == COMP_MODE_PLAIN:
-                    ladd(c)
-                elif comp_mode == COMP_MODE_INLINE:
-                    ladd(decomp(c))
-                elif comp_mode == COMP_MODE_DEFAULT:
-                    ladd(def_decomp(c))
-                else:
-                    msg = b'unknown compression mode %d'
-                    msg %= comp_mode
-                    raise error.RevlogError(msg)
-
-        return l
-
     def deltaparent(self, rev):
         """return deltaparent of the given revision"""
         base = self.index[rev][3]
@@ -2608,7 +2607,7 @@ class revlog:
         if 0 <= rawsize:
             targetsize = 4 * rawsize
 
-        bins = self._chunks(chain, targetsize=targetsize)
+        bins = self._inner._chunks(chain, targetsize=targetsize)
         if basetext is None:
             basetext = bytes(bins[0])
             bins = bins[1:]
