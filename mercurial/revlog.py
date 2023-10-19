@@ -390,6 +390,8 @@ class _InnerRevlog:
 
         # revlog header -> revlog compressor
         self._decompressors = {}
+        # 3-tuple of (node, rev, text) for a raw revision.
+        self._revisioncache = None
 
     @property
     def index_file(self):
@@ -1023,8 +1025,6 @@ class revlog:
             self.delta_config = DeltaConfig()
         self.delta_config.upper_bound_comp = upperboundcomp
 
-        # 3-tuple of (node, rev, text) for a raw revision.
-        self._revisioncache = None
         # Maps rev to chain base rev.
         self._chainbasecache = util.lrucachedict(100)
 
@@ -1665,7 +1665,7 @@ class revlog:
 
     def clearcaches(self):
         """Clear in-memory caches"""
-        self._revisioncache = None
+        self._inner._revisioncache = None
         self._chainbasecache.clear()
         self._inner._segmentfile.clear_cache()
         self._inner._segmentfile_sidedata.clear_cache()
@@ -2571,7 +2571,7 @@ class revlog:
         if validatehash:
             self.checkhash(text, node, rev=rev)
         if not validated:
-            self._revisioncache = (node, rev, rawtext)
+            self._inner._revisioncache = (node, rev, rawtext)
 
         return text
 
@@ -2588,21 +2588,21 @@ class revlog:
 
         # Check if we have the entry in cache
         # The cache entry looks like (node, rev, rawtext)
-        if self._revisioncache:
-            if self._revisioncache[0] == node:
-                return (rev, self._revisioncache[2], True)
-            cachedrev = self._revisioncache[1]
+        if self._inner._revisioncache:
+            if self._inner._revisioncache[0] == node:
+                return (rev, self._inner._revisioncache[2], True)
+            cachedrev = self._inner._revisioncache[1]
 
         if rev is None:
             rev = self.rev(node)
 
         chain, stopped = self._inner._deltachain(rev, stoprev=cachedrev)
         if stopped:
-            basetext = self._revisioncache[2]
+            basetext = self._inner._revisioncache[2]
 
         # drop cache to save memory, the caller is expected to
-        # update self._revisioncache after validating the text
-        self._revisioncache = None
+        # update self._inner._revisioncache after validating the text
+        self._inner._revisioncache = None
 
         targetsize = None
         rawsize = self.index[rev][2]
@@ -2684,8 +2684,11 @@ class revlog:
                 # revision data is accessed. But this case should be rare and
                 # it is extra work to teach the cache about the hash
                 # verification state.
-                if self._revisioncache and self._revisioncache[0] == node:
-                    self._revisioncache = None
+                if (
+                    self._inner._revisioncache
+                    and self._inner._revisioncache[0] == node
+                ):
+                    self._inner._revisioncache = None
 
                 revornode = rev
                 if revornode is None:
@@ -3149,7 +3152,7 @@ class revlog:
             rawtext = deltacomputer.buildtext(revinfo)
 
         if type(rawtext) == bytes:  # only accept immutable objects
-            self._revisioncache = (node, curr, rawtext)
+            self._inner._revisioncache = (node, curr, rawtext)
         self._chainbasecache[curr] = deltainfo.chainbase
         return curr
 
@@ -3432,7 +3435,7 @@ class revlog:
             self._docket.write(transaction, stripping=True)
 
         # then reset internal state in memory to forget those revisions
-        self._revisioncache = None
+        self._inner._revisioncache = None
         self._chaininfocache = util.lrucachedict(500)
         self._inner._segmentfile.clear_cache()
         self._inner._segmentfile_sidedata.clear_cache()
