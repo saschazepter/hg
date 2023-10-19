@@ -900,6 +900,44 @@ class _InnerRevlog:
 
         return l
 
+    def raw_text(self, node, rev):
+        """return the possibly unvalidated rawtext for a revision
+
+        returns (rev, rawtext, validated)
+        """
+
+        # revision in the cache (could be useful to apply delta)
+        cachedrev = None
+        # An intermediate text to apply deltas to
+        basetext = None
+
+        # Check if we have the entry in cache
+        # The cache entry looks like (node, rev, rawtext)
+        if self._revisioncache:
+            cachedrev = self._revisioncache[1]
+
+        chain, stopped = self._deltachain(rev, stoprev=cachedrev)
+        if stopped:
+            basetext = self._revisioncache[2]
+
+        # drop cache to save memory, the caller is expected to
+        # update self._inner._revisioncache after validating the text
+        self._revisioncache = None
+
+        targetsize = None
+        rawsize = self.index[rev][2]
+        if 0 <= rawsize:
+            targetsize = 4 * rawsize
+
+        bins = self._chunks(chain, targetsize=targetsize)
+        if basetext is None:
+            basetext = bytes(bins[0])
+            bins = bins[1:]
+
+        rawtext = mdiff.patches(basetext, bins)
+        del basetext  # let us have a chance to free memory early
+        return (rev, rawtext, False)
+
 
 class revlog:
     """
@@ -2531,6 +2569,22 @@ class revlog:
             rev = self.rev(nodeorrev)
         return self._sidedata(rev)
 
+    def _rawtext(self, node, rev):
+        """return the possibly unvalidated rawtext for a revision
+
+        returns (rev, rawtext, validated)
+        """
+        # Check if we have the entry in cache
+        # The cache entry looks like (node, rev, rawtext)
+        if self._inner._revisioncache:
+            if self._inner._revisioncache[0] == node:
+                return (rev, self._inner._revisioncache[2], True)
+
+        if rev is None:
+            rev = self.rev(node)
+
+        return self._inner.raw_text(node, rev)
+
     def _revisiondata(self, nodeorrev, raw=False):
         # deal with <nodeorrev> argument type
         if isinstance(nodeorrev, int):
@@ -2574,49 +2628,6 @@ class revlog:
             self._inner._revisioncache = (node, rev, rawtext)
 
         return text
-
-    def _rawtext(self, node, rev):
-        """return the possibly unvalidated rawtext for a revision
-
-        returns (rev, rawtext, validated)
-        """
-
-        # revision in the cache (could be useful to apply delta)
-        cachedrev = None
-        # An intermediate text to apply deltas to
-        basetext = None
-
-        # Check if we have the entry in cache
-        # The cache entry looks like (node, rev, rawtext)
-        if self._inner._revisioncache:
-            if self._inner._revisioncache[0] == node:
-                return (rev, self._inner._revisioncache[2], True)
-            cachedrev = self._inner._revisioncache[1]
-
-        if rev is None:
-            rev = self.rev(node)
-
-        chain, stopped = self._inner._deltachain(rev, stoprev=cachedrev)
-        if stopped:
-            basetext = self._inner._revisioncache[2]
-
-        # drop cache to save memory, the caller is expected to
-        # update self._inner._revisioncache after validating the text
-        self._inner._revisioncache = None
-
-        targetsize = None
-        rawsize = self.index[rev][2]
-        if 0 <= rawsize:
-            targetsize = 4 * rawsize
-
-        bins = self._inner._chunks(chain, targetsize=targetsize)
-        if basetext is None:
-            basetext = bytes(bins[0])
-            bins = bins[1:]
-
-        rawtext = mdiff.patches(basetext, bins)
-        del basetext  # let us have a chance to free memory early
-        return (rev, rawtext, False)
 
     def _sidedata(self, rev):
         """Return the sidedata for a given revision number."""
