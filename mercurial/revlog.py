@@ -718,6 +718,28 @@ class _InnerRevlog:
 
         return start, self._segmentfile.read_chunk(start, length)
 
+    def _chunk(self, rev):
+        """Obtain a single decompressed chunk for a revision.
+
+        Accepts an integer revision and an optional already-open file handle
+        to be used for reading. If used, the seek position of the file will not
+        be preserved.
+
+        Returns a str holding uncompressed data for the requested revision.
+        """
+        compression_mode = self.index[rev][10]
+        data = self.get_segment_for_revs(rev, rev)[1]
+        if compression_mode == COMP_MODE_PLAIN:
+            return data
+        elif compression_mode == COMP_MODE_DEFAULT:
+            return self._decompressor(data)
+        elif compression_mode == COMP_MODE_INLINE:
+            return self.decompress(data)
+        else:
+            msg = b'unknown compression mode %d'
+            msg %= compression_mode
+            raise error.RevlogError(msg)
+
 
 class revlog:
     """
@@ -2336,28 +2358,6 @@ class revlog:
         p1, p2 = self.parents(node)
         return storageutil.hashrevisionsha1(text, p1, p2) != node
 
-    def _chunk(self, rev):
-        """Obtain a single decompressed chunk for a revision.
-
-        Accepts an integer revision and an optional already-open file handle
-        to be used for reading. If used, the seek position of the file will not
-        be preserved.
-
-        Returns a str holding uncompressed data for the requested revision.
-        """
-        compression_mode = self.index[rev][10]
-        data = self._inner.get_segment_for_revs(rev, rev)[1]
-        if compression_mode == COMP_MODE_PLAIN:
-            return data
-        elif compression_mode == COMP_MODE_DEFAULT:
-            return self._inner._decompressor(data)
-        elif compression_mode == COMP_MODE_INLINE:
-            return self._inner.decompress(data)
-        else:
-            msg = b'unknown compression mode %d'
-            msg %= compression_mode
-            raise error.RevlogError(msg)
-
     def _chunks(self, revs, targetsize=None):
         """Obtain decompressed chunks for the specified revisions.
 
@@ -2404,7 +2404,7 @@ class revlog:
             except OverflowError:
                 # issue4215 - we can't cache a run of chunks greater than
                 # 2G on Windows
-                return [self._chunk(rev) for rev in revschunk]
+                return [self._inner._chunk(rev) for rev in revschunk]
 
             decomp = self._inner.decompress
             # self._decompressor might be None, but will not be used in that case
@@ -2484,7 +2484,7 @@ class revlog:
         revlog data directly. So this function needs raw revision data.
         """
         if rev1 != nullrev and self.deltaparent(rev2) == rev1:
-            return bytes(self._chunk(rev2))
+            return bytes(self._inner._chunk(rev2))
 
         return mdiff.textdiff(self.rawdata(rev1), self.rawdata(rev2))
 
@@ -3681,7 +3681,7 @@ class revlog:
                 if destrevlog.delta_config.lazy_delta:
                     dp = self.deltaparent(rev)
                     if dp != nullrev:
-                        cachedelta = (dp, bytes(self._chunk(rev)))
+                        cachedelta = (dp, bytes(self._inner._chunk(rev)))
 
                 sidedata = None
                 if not cachedelta:
