@@ -109,7 +109,7 @@ def v1_censor(rl, tr, censornode, tombstone=b''):
                     b'revision having delta stored'
                 )
                 raise error.Abort(m)
-            rawtext = rl._chunk(rev)
+            rawtext = rl._inner._chunk(rev)
         else:
             rawtext = rl.rawdata(rev)
 

@@ -3810,13 +3810,15 @@ def perfrevlogchunks(ui, repo, file_=None, engines=None, startrev=0, **opts):
 
     def dochunk():
         rl.clearcaches()
+        # chunk used to be available directly on the revlog
+        _chunk = getattr(rl, '_inner', rl)._chunk
         with reading(rl) as fh:
             if fh is not None:
                 for rev in revs:
-                    rl._chunk(rev, df=fh)
+                    _chunk(rev, df=fh)
             else:
                 for rev in revs:
-                    rl._chunk(rev)
+                    _chunk(rev)
 
     chunks = [None]
 
