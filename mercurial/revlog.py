@@ -460,6 +460,47 @@ class _InnerRevlog:
             return False
         return self.issnapshot(base)
 
+    def _deltachain(self, rev, stoprev=None):
+        """Obtain the delta chain for a revision.
+
+        ``stoprev`` specifies a revision to stop at. If not specified, we
+        stop at the base of the chain.
+
+        Returns a 2-tuple of (chain, stopped) where ``chain`` is a list of
+        revs in ascending order and ``stopped`` is a bool indicating whether
+        ``stoprev`` was hit.
+        """
+        generaldelta = self.delta_config.general_delta
+        # Try C implementation.
+        try:
+            return self.index.deltachain(rev, stoprev, generaldelta)
+        except AttributeError:
+            pass
+
+        chain = []
+
+        # Alias to prevent attribute lookup in tight loop.
+        index = self.index
+
+        iterrev = rev
+        e = index[iterrev]
+        while iterrev != e[3] and iterrev != stoprev:
+            chain.append(iterrev)
+            if generaldelta:
+                iterrev = e[3]
+            else:
+                iterrev -= 1
+            e = index[iterrev]
+
+        if iterrev == stoprev:
+            stopped = True
+        else:
+            chain.append(iterrev)
+            stopped = False
+
+        chain.reverse()
+        return chain, stopped
+
     @util.propertycache
     def _compressor(self):
         engine = util.compengines[self.feature_config.compression_engine]
@@ -1003,7 +1044,6 @@ class revlog:
 
         chunk_cache = self._loadindex()
         self._load_inner(chunk_cache)
-
         self._concurrencychecker = concurrencychecker
 
     @property
@@ -1823,45 +1863,7 @@ class revlog:
         return r
 
     def _deltachain(self, rev, stoprev=None):
-        """Obtain the delta chain for a revision.
-
-        ``stoprev`` specifies a revision to stop at. If not specified, we
-        stop at the base of the chain.
-
-        Returns a 2-tuple of (chain, stopped) where ``chain`` is a list of
-        revs in ascending order and ``stopped`` is a bool indicating whether
-        ``stoprev`` was hit.
-        """
-        generaldelta = self.delta_config.general_delta
-        # Try C implementation.
-        try:
-            return self.index.deltachain(rev, stoprev, generaldelta)
-        except AttributeError:
-            pass
-
-        chain = []
-
-        # Alias to prevent attribute lookup in tight loop.
-        index = self.index
-
-        iterrev = rev
-        e = index[iterrev]
-        while iterrev != e[3] and iterrev != stoprev:
-            chain.append(iterrev)
-            if generaldelta:
-                iterrev = e[3]
-            else:
-                iterrev -= 1
-            e = index[iterrev]
-
-        if iterrev == stoprev:
-            stopped = True
-        else:
-            chain.append(iterrev)
-            stopped = False
-
-        chain.reverse()
-        return chain, stopped
+        return self._inner._deltachain(rev, stoprev=stoprev)
 
     def ancestors(self, revs, stoprev=0, inclusive=False):
         """Generate the ancestors of 'revs' in reverse revision order.
@@ -2496,7 +2498,7 @@ class revlog:
         """number of snapshot in the chain before this one"""
         if not self.issnapshot(rev):
             raise error.ProgrammingError(b'revision %d not a snapshot')
-        return len(self._deltachain(rev)[0]) - 1
+        return len(self._inner._deltachain(rev)[0]) - 1
 
     def revdiff(self, rev1, rev2):
         """return or calculate a delta between two revisions
@@ -2594,7 +2596,7 @@ class revlog:
         if rev is None:
             rev = self.rev(node)
 
-        chain, stopped = self._deltachain(rev, stoprev=cachedrev)
+        chain, stopped = self._inner._deltachain(rev, stoprev=cachedrev)
         if stopped:
             basetext = self._revisioncache[2]
 
