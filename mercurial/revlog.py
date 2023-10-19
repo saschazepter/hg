@@ -976,6 +976,72 @@ class _InnerRevlog:
         sidedata = sidedatautil.deserialize_sidedata(segment)
         return sidedata
 
+    def write_entry(
+        self,
+        transaction,
+        entry,
+        data,
+        link,
+        offset,
+        sidedata,
+        sidedata_offset,
+        index_end,
+        data_end,
+        sidedata_end,
+    ):
+        # Files opened in a+ mode have inconsistent behavior on various
+        # platforms. Windows requires that a file positioning call be made
+        # when the file handle transitions between reads and writes. See
+        # 3686fa2b8eee and the mixedfilemodewrapper in windows.py. On other
+        # platforms, Python or the platform itself can be buggy. Some versions
+        # of Solaris have been observed to not append at the end of the file
+        # if the file was seeked to before the end. See issue4943 for more.
+        #
+        # We work around this issue by inserting a seek() before writing.
+        # Note: This is likely not necessary on Python 3. However, because
+        # the file handle is reused for reads and may be seeked there, we need
+        # to be careful before changing this.
+        if self._writinghandles is None:
+            msg = b'adding revision outside `revlog._writing` context'
+            raise error.ProgrammingError(msg)
+        ifh, dfh, sdfh = self._writinghandles
+        if index_end is None:
+            ifh.seek(0, os.SEEK_END)
+        else:
+            ifh.seek(index_end, os.SEEK_SET)
+        if dfh:
+            if data_end is None:
+                dfh.seek(0, os.SEEK_END)
+            else:
+                dfh.seek(data_end, os.SEEK_SET)
+        if sdfh:
+            sdfh.seek(sidedata_end, os.SEEK_SET)
+
+        curr = len(self.index) - 1
+        if not self.inline:
+            transaction.add(self.data_file, offset)
+            if self.sidedata_file:
+                transaction.add(self.sidedata_file, sidedata_offset)
+            transaction.add(self.index_file, curr * len(entry))
+            if data[0]:
+                dfh.write(data[0])
+            dfh.write(data[1])
+            if sidedata:
+                sdfh.write(sidedata)
+            ifh.write(entry)
+        else:
+            offset += curr * self.index.entry_size
+            transaction.add(self.index_file, offset)
+            ifh.write(entry)
+            ifh.write(data[0])
+            ifh.write(data[1])
+            assert not sidedata
+        return (
+            ifh.tell(),
+            dfh.tell() if dfh else None,
+            sdfh.tell() if sdfh else None,
+        )
+
 
 class revlog:
     """
@@ -3189,7 +3255,14 @@ class revlog:
             return self._docket.data_end
 
     def _writeentry(
-        self, transaction, entry, data, link, offset, sidedata, sidedata_offset
+        self,
+        transaction,
+        entry,
+        data,
+        link,
+        offset,
+        sidedata,
+        sidedata_offset,
     ):
         # Files opened in a+ mode have inconsistent behavior on various
         # platforms. Windows requires that a file positioning call be made
@@ -3203,53 +3276,29 @@ class revlog:
         # Note: This is likely not necessary on Python 3. However, because
         # the file handle is reused for reads and may be seeked there, we need
         # to be careful before changing this.
-        if self._inner._writinghandles is None:
-            msg = b'adding revision outside `revlog._writing` context'
-            raise error.ProgrammingError(msg)
-        ifh, dfh, sdfh = self._inner._writinghandles
-        if self._docket is None:
-            ifh.seek(0, os.SEEK_END)
-        else:
-            ifh.seek(self._docket.index_end, os.SEEK_SET)
-        if dfh:
-            if self._docket is None:
-                dfh.seek(0, os.SEEK_END)
-            else:
-                dfh.seek(self._docket.data_end, os.SEEK_SET)
-        if sdfh:
-            sdfh.seek(self._docket.sidedata_end, os.SEEK_SET)
-
-        curr = len(self) - 1
-        if not self._inline:
-            transaction.add(self._datafile, offset)
-            if self._sidedatafile:
-                transaction.add(self._sidedatafile, sidedata_offset)
-            transaction.add(self._indexfile, curr * len(entry))
-            if data[0]:
-                dfh.write(data[0])
-            dfh.write(data[1])
-            if sidedata:
-                sdfh.write(sidedata)
-            ifh.write(entry)
-        else:
-            offset += curr * self.index.entry_size
-            transaction.add(self._indexfile, offset)
-            ifh.write(entry)
-            ifh.write(data[0])
-            ifh.write(data[1])
-            assert not sidedata
-            self._enforceinlinesize(transaction)
+        index_end = data_end = sidedata_end = None
         if self._docket is not None:
-            # revlog-v2 always has 3 writing handles, help Pytype
-            wh1 = self._inner._writinghandles[0]
-            wh2 = self._inner._writinghandles[1]
-            wh3 = self._inner._writinghandles[2]
-            assert wh1 is not None
-            assert wh2 is not None
-            assert wh3 is not None
-            self._docket.index_end = wh1.tell()
-            self._docket.data_end = wh2.tell()
-            self._docket.sidedata_end = wh3.tell()
+            index_end = self._docket.index_end
+            data_end = self._docket.data_end
+            sidedata_end = self._docket.sidedata_end
+
+        files_end = self._inner.write_entry(
+            transaction,
+            entry,
+            data,
+            link,
+            offset,
+            sidedata,
+            sidedata_offset,
+            index_end,
+            data_end,
+            sidedata_end,
+        )
+        self._enforceinlinesize(transaction)
+        if self._docket is not None:
+            self._docket.index_end = files_end[0]
+            self._docket.data_end = files_end[1]
+            self._docket.sidedata_end = files_end[2]
 
         nodemaputil.setup_persistent_nodemap(transaction, self)
 
