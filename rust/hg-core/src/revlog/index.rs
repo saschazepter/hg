@@ -1053,7 +1053,9 @@ impl Index {
 
         let revisions: Vec<Revision> = as_set.into_iter().collect();
 
-        if revisions.len() <= 63 {
+        if revisions.len() < 8 {
+            self.find_gca_candidates::<u8>(&revisions)
+        } else if revisions.len() < 64 {
             self.find_gca_candidates::<u64>(&revisions)
         } else {
             self.find_gca_candidates::<NonStaticPoisonableBitSet>(&revisions)
@@ -1314,6 +1316,7 @@ trait PoisonableBitSet: Sized + PartialEq {
 }
 
 const U64_POISON: u64 = 1 << 63;
+const U8_POISON: u8 = 1 << 7;
 
 impl PoisonableBitSet for u64 {
     fn vec_of_empty(_sets_size: usize, vec_len: usize) -> Vec<Self> {
@@ -1358,6 +1361,52 @@ impl PoisonableBitSet for u64 {
         // equality comparison would be tempting but would not resist
         // operations after poisoning (even if these should be bogus).
         *self >= U64_POISON
+    }
+}
+
+impl PoisonableBitSet for u8 {
+    fn vec_of_empty(_sets_size: usize, vec_len: usize) -> Vec<Self> {
+        vec![0; vec_len]
+    }
+
+    fn size(&self) -> usize {
+        1
+    }
+
+    fn capacity(&self) -> usize {
+        7
+    }
+
+    fn add(&mut self, n: usize) {
+        (*self) |= 1 << n;
+    }
+
+    fn discard(&mut self, n: usize) {
+        (*self) &= u8::MAX - (1 << n);
+    }
+
+    fn union(&mut self, other: &Self) {
+        if *self != *other {
+            (*self) |= *other;
+        }
+    }
+
+    fn is_full_range(&self, n: usize) -> bool {
+        *self + 1 == (1 << n)
+    }
+
+    fn is_empty(&self) -> bool {
+        *self == 0
+    }
+
+    fn poison(&mut self) {
+        *self = U8_POISON;
+    }
+
+    fn is_poisoned(&self) -> bool {
+        // equality comparison would be tempting but would not resist
+        // operations after poisoning (even if these should be bogus).
+        *self >= U8_POISON
     }
 }
 

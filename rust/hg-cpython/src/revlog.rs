@@ -20,7 +20,10 @@ use cpython::{
 };
 use hg::{
     errors::HgError,
-    index::{IndexHeader, Phase, RevisionDataParams, SnapshotsCache},
+    index::{
+        IndexHeader, Phase, RevisionDataParams, SnapshotsCache,
+        INDEX_ENTRY_SIZE,
+    },
     nodemap::{Block, NodeMapError, NodeTree},
     revlog::{nodemap::NodeMap, NodePrefix, RevlogError, RevlogIndex},
     BaseRevision, Revision, UncheckedRevision, NULL_REVISION,
@@ -483,12 +486,26 @@ py_class!(pub class MixedIndex |py| {
 
     @property
     def entry_size(&self) -> PyResult<PyInt> {
-        self.cindex(py).borrow().inner().getattr(py, "entry_size")?.extract::<PyInt>(py)
+        let rust_res: PyInt = INDEX_ENTRY_SIZE.to_py_object(py);
+
+        let c_res = self.cindex(py).borrow().inner()
+            .getattr(py, "entry_size")?;
+        assert_py_eq(py, "entry_size", rust_res.as_object(), &c_res)?;
+
+        Ok(rust_res)
     }
 
     @property
     def rust_ext_compat(&self) -> PyResult<PyInt> {
-        self.cindex(py).borrow().inner().getattr(py, "rust_ext_compat")?.extract::<PyInt>(py)
+        // will be entirely removed when the Rust index yet useful to
+        // implement in Rust to detangle things when removing `self.cindex`
+        let rust_res: PyInt = 1.to_py_object(py);
+
+        let c_res = self.cindex(py).borrow().inner()
+            .getattr(py, "rust_ext_compat")?;
+        assert_py_eq(py, "rust_ext_compat", rust_res.as_object(), &c_res)?;
+
+        Ok(rust_res)
     }
 
 });
@@ -671,7 +688,7 @@ impl MixedIndex {
         let rust_index_len = self.index(py).borrow().len();
         let cindex_len = self.cindex(py).borrow().inner().len(py)?;
         assert_eq!(rust_index_len, cindex_len);
-        Ok(cindex_len)
+        Ok(rust_index_len)
     }
 
     /// This is scaffolding at this point, but it could also become
