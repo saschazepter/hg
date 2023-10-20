@@ -1141,7 +1141,7 @@ impl Index {
                 if parent == NULL_REVISION {
                     continue;
                 }
-                let parent_seen = &seen[parent.0 as usize];
+                let parent_seen = &mut seen[parent.0 as usize];
                 if poison {
                     // this block is logically equivalent to poisoning parent
                     // and counting it as non interesting if it
@@ -1149,18 +1149,12 @@ impl Index {
                     if !parent_seen.is_empty() && !parent_seen.is_poisoned() {
                         interesting -= 1;
                     }
-                    seen[parent.0 as usize].poison();
+                    parent_seen.poison();
                 } else {
-                    // Without the `interesting` accounting, this block would
-                    // be logically equivalent to: parent_seen |= current_seen
-                    // The parent counts as interesting if it was not already
-                    // known to be an ancestor (would already have counted)
                     if parent_seen.is_empty() {
-                        seen[parent.0 as usize] = current_seen.clone();
                         interesting += 1;
-                    } else if *parent_seen != current_seen {
-                        seen[parent.0 as usize].union(&current_seen);
                     }
+                    parent_seen.union(&current_seen);
                 }
             }
 
@@ -1343,7 +1337,9 @@ impl PoisonableBitSet for u64 {
     }
 
     fn union(&mut self, other: &Self) {
-        (*self) |= *other;
+        if *self != *other {
+            (*self) |= *other;
+        }
     }
 
     fn is_full_range(&self, n: usize) -> bool {
