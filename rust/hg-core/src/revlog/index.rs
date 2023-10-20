@@ -1142,7 +1142,15 @@ impl Index {
                     continue;
                 }
                 let parent_seen = &seen[parent.0 as usize];
-                if !poison {
+                if poison {
+                    // this block is logically equivalent to poisoning parent
+                    // and counting it as non interesting if it
+                    // has been seen before (hence counted then as interesting)
+                    if !parent_seen.is_empty() && !parent_seen.is_poisoned() {
+                        interesting -= 1;
+                    }
+                    seen[parent.0 as usize].poison();
+                } else {
                     // Without the `interesting` accounting, this block would
                     // be logically equivalent to: parent_seen |= current_seen
                     // The parent counts as interesting if it was not already
@@ -1153,14 +1161,6 @@ impl Index {
                     } else if *parent_seen != current_seen {
                         seen[parent.0 as usize].union(&current_seen);
                     }
-                } else {
-                    // this block is logically equivalent to poisoning parent
-                    // and counting it as non interesting if it
-                    // has been seen before (hence counted then as interesting)
-                    if !parent_seen.is_empty() && !parent_seen.is_poisoned() {
-                        interesting -= 1;
-                    }
-                    seen[parent.0 as usize].poison();
                 }
             }
 
