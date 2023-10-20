@@ -448,6 +448,7 @@ class changelog(revlog.revlog):
 
     def delayupdate(self, tr):
         """delay visibility of index updates to other readers"""
+        assert not self._inner.is_open
         if self._docket is None and not self._delayed:
             if len(self) == 0:
                 self._divert = True
@@ -468,6 +469,7 @@ class changelog(revlog.revlog):
 
     def _finalize(self, tr):
         """finalize index updates"""
+        assert not self._inner.is_open
         self._delayed = False
         self.opener = self._realopener
         self._inner.opener = self.opener
@@ -494,6 +496,7 @@ class changelog(revlog.revlog):
     def _writepending(self, tr):
         """create a file containing the unfinalized state for
         pretxnchangegroup"""
+        assert not self._inner.is_open
         if self._docket:
             return self._docket.write(tr, pending=True)
         if self._delaybuf:

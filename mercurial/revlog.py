@@ -620,6 +620,13 @@ class _InnerRevlog:
         """True is a writing context is open"""
         return self._writinghandles is not None
 
+    @property
+    def is_open(self):
+        """True if any file handle is being held
+
+        Used for assert and debug in the python code"""
+        return self._segmentfile.is_open or self._segmentfile_sidedata.is_open
+
     @contextlib.contextmanager
     def writing(self, transaction, data_end=None, sidedata_end=None):
         """Open the revlog files for writing
