@@ -1091,15 +1091,16 @@ impl Index {
         // will give a result or trigger inspection of other revisions
         let mut interesting = revcount;
 
-        // poisoned means that the rev is already known to be a common
-        // ancestor, BUT when first encountered in the loop, not a maximal
-        // common ancestor.
+        // The algorithm works on a vector of bit sets, indexed by revision
+        // numbers and iterated on reverse order.
+        // An entry in this vector is poisoned if and only if the corresponding
+        // revision is a common, yet not maximal ancestor.
 
         // The principle of the algorithm is as follows:
         // For a revision `r`, when entering the loop, `seen[r]` is either
         // poisoned or the sub set of `revs` of which `r` is an ancestor.
-        // In the latter case if it "is" `revs`, we have a maximal common
-        // ancestor.
+        // In this sub set is full, then `r` is a solution and its parents
+        // have to be poisoned.
         //
         // At each iteration, the bit sets of the parents are updated by
         // union with `seen[r]`.
@@ -1114,18 +1115,18 @@ impl Index {
         // - Early return in case it is detected that one of the incoming revs
         //   is a common ancestor of all of them.
         while current_rev.0 >= 0 && interesting > 0 {
-            let mut current_seen = seen[current_rev.0 as usize].clone();
+            let current_seen = seen[current_rev.0 as usize].clone();
 
             if current_seen.is_empty() {
                 current_rev = Revision(current_rev.0 - 1);
                 continue;
             }
-            if !current_seen.is_poisoned() {
+            let mut poison = current_seen.is_poisoned();
+            if !poison {
                 interesting -= 1;
                 if current_seen.is_full_range(revcount) {
                     candidates.push(current_rev);
-                    seen[current_rev.0 as usize].poison();
-                    current_seen.poison(); // avoid recloning
+                    poison = true;
 
                     // Being a common ancestor, if `current_rev` is among
                     // the input revisions, it is *the* answer.
@@ -1141,7 +1142,7 @@ impl Index {
                     continue;
                 }
                 let parent_seen = &seen[parent.0 as usize];
-                if !current_seen.is_poisoned() {
+                if !poison {
                     // Without the `interesting` accounting, this block would
                     // be logically equivalent to: parent_seen |= current_seen
                     // The parent counts as interesting if it was not already
@@ -1159,9 +1160,7 @@ impl Index {
                     if !parent_seen.is_empty() && !parent_seen.is_poisoned() {
                         interesting -= 1;
                     }
-                    // equivalent to poisoning parent, which we should do to
-                    // avoid the cloning.
-                    seen[parent.0 as usize] = current_seen.clone();
+                    seen[parent.0 as usize].poison();
                 }
             }
 
