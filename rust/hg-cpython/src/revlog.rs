@@ -14,9 +14,9 @@ use crate::{
 use cpython::{
     buffer::{Element, PyBuffer},
     exc::{IndexError, ValueError},
-    ObjectProtocol, PyBool, PyBytes, PyClone, PyDict, PyErr, PyInt, PyList,
-    PyModule, PyObject, PyResult, PySet, PyString, PyTuple, Python,
-    PythonObject, ToPyObject, UnsafePyLeaked,
+    ObjectProtocol, PyBytes, PyClone, PyDict, PyErr, PyInt, PyList, PyModule,
+    PyObject, PyResult, PySet, PyString, PyTuple, Python, PythonObject,
+    ToPyObject, UnsafePyLeaked,
 };
 use hg::{
     errors::HgError,
@@ -123,14 +123,10 @@ py_class!(pub class MixedIndex |py| {
     def get_rev(&self, node: PyBytes) -> PyResult<Option<PyRevision>> {
         let opt = self.get_nodetree(py)?.borrow();
         let nt = opt.as_ref().unwrap();
-        let idx = &*self.cindex(py).borrow();
         let ridx = &*self.index(py).borrow();
         let node = node_from_py_bytes(py, &node)?;
         let rust_rev =
             nt.find_bin(ridx, node.into()).map_err(|e| nodemap_error(py, e))?;
-        let c_rev =
-            nt.find_bin(idx, node.into()).map_err(|e| nodemap_error(py, e))?;
-        assert_eq!(rust_rev, c_rev);
         Ok(rust_rev.map(Into::into))
 
     }
@@ -202,24 +198,22 @@ py_class!(pub class MixedIndex |py| {
         let node = node_from_py_object(py, &node_bytes)?;
 
         let rev = self.len(py)? as BaseRevision;
-        let mut idx = self.cindex(py).borrow_mut();
 
         // This is ok since we will just add the revision to the index
         let rev = Revision(rev);
-        idx.append(py, tup.clone_ref(py))?;
         self.index(py)
             .borrow_mut()
             .append(py_tuple_to_revision_data_params(py, tup)?)
             .unwrap();
+        let idx = &*self.index(py).borrow();
         self.get_nodetree(py)?.borrow_mut().as_mut().unwrap()
-            .insert(&*idx, &node, rev)
+            .insert(idx, &node, rev)
             .map_err(|e| nodemap_error(py, e))?;
         Ok(py.None())
     }
 
     def __delitem__(&self, key: PyObject) -> PyResult<()> {
         // __delitem__ is both for `del idx[r]` and `del idx[r1:r2]`
-        self.cindex(py).borrow().inner().del_item(py, &key)?;
         let start = key.getattr(py, "start")?;
         let start = UncheckedRevision(start.extract(py)?);
         let start = self.index(py)
@@ -237,80 +231,60 @@ py_class!(pub class MixedIndex |py| {
     }
 
     //
-    // Reforwarded C index API
+    // Index methods previously reforwarded to C index (tp_methods)
+    // Same ordering as in revlog.c
     //
 
-    // index_methods (tp_methods). Same ordering as in revlog.c
-
     /// return the gca set of the given revs
-    def ancestors(&self, *args, **kw) -> PyResult<PyObject> {
+    def ancestors(&self, *args, **_kw) -> PyResult<PyObject> {
         let rust_res = self.inner_ancestors(py, args)?;
-
-        let c_res = self.call_cindex(py, "ancestors", args, kw)?;
-        // the algorithm should always provide the results in reverse ordering
-        assert_py_eq(py, "ancestors", &rust_res, &c_res)?;
-
         Ok(rust_res)
     }
 
     /// return the heads of the common ancestors of the given revs
-    def commonancestorsheads(&self, *args, **kw) -> PyResult<PyObject> {
+    def commonancestorsheads(&self, *args, **_kw) -> PyResult<PyObject> {
         let rust_res = self.inner_commonancestorsheads(py, args)?;
-
-        let c_res = self.call_cindex(py, "commonancestorsheads", args, kw)?;
-        // the algorithm should always provide the results in reverse ordering
-        assert_py_eq(py, "commonancestorsheads", &rust_res, &c_res)?;
-
         Ok(rust_res)
     }
 
     /// Clear the index caches and inner py_class data.
     /// It is Python's responsibility to call `update_nodemap_data` again.
-    def clearcaches(&self, *args, **kw) -> PyResult<PyObject> {
+    def clearcaches(&self) -> PyResult<PyObject> {
         self.nt(py).borrow_mut().take();
         self.docket(py).borrow_mut().take();
         self.nodemap_mmap(py).borrow_mut().take();
         self.index(py).borrow().clear_caches();
-        self.call_cindex(py, "clearcaches", args, kw)
+        Ok(py.None())
     }
 
     /// return the raw binary string representing a revision
-    def entry_binary(&self, *args, **kw) -> PyResult<PyObject> {
+    def entry_binary(&self, *args, **_kw) -> PyResult<PyObject> {
         let rindex = self.index(py).borrow();
         let rev = UncheckedRevision(args.get_item(py, 0).extract(py)?);
         let rust_bytes = rindex.check_revision(rev).and_then(
             |r| rindex.entry_binary(r))
             .ok_or_else(|| rev_not_in_index(py, rev))?;
         let rust_res = PyBytes::new(py, rust_bytes).into_object();
-
-        let c_res = self.call_cindex(py, "entry_binary", args, kw)?;
-        assert_py_eq(py, "entry_binary", &rust_res, &c_res)?;
         Ok(rust_res)
     }
 
     /// return a binary packed version of the header
-    def pack_header(&self, *args, **kw) -> PyResult<PyObject> {
+    def pack_header(&self, *args, **_kw) -> PyResult<PyObject> {
         let rindex = self.index(py).borrow();
         let packed = rindex.pack_header(args.get_item(py, 0).extract(py)?);
         let rust_res = PyBytes::new(py, &packed).into_object();
-
-        let c_res = self.call_cindex(py, "pack_header", args, kw)?;
-        assert_py_eq(py, "pack_header", &rust_res, &c_res)?;
         Ok(rust_res)
     }
 
     /// compute phases
-    def computephasesmapsets(&self, *args, **kw) -> PyResult<PyObject> {
+    def computephasesmapsets(&self, *args, **_kw) -> PyResult<PyObject> {
         let py_roots = args.get_item(py, 0).extract::<PyDict>(py)?;
         let rust_res = self.inner_computephasesmapsets(py, py_roots)?;
-
-        let c_res = self.call_cindex(py, "computephasesmapsets", args, kw)?;
-        assert_py_eq(py, "computephasesmapsets", &rust_res, &c_res)?;
         Ok(rust_res)
     }
 
     /// reachableroots
-    def reachableroots2(&self, *args, **kw) -> PyResult<PyObject> {
+    def reachableroots2(&self, *args, **_kw) -> PyResult<PyObject> {
         let rust_res = self.inner_reachableroots2(
             py,
             UncheckedRevision(args.get_item(py, 0).extract(py)?),
@@ -318,51 +292,34 @@ py_class!(pub class MixedIndex |py| {
             args.get_item(py, 2),
             args.get_item(py, 3).extract(py)?,
         )?;
-
-        let c_res = self.call_cindex(py, "reachableroots2", args, kw)?;
-        // ordering of C result depends on how the computation went, and
-        // Rust result ordering is arbitrary. Hence we compare after
-        // sorting the results (in Python to avoid reconverting everything
-        // back to Rust structs).
-        assert_py_eq_normalized(py, "reachableroots2", &rust_res, &c_res,
-                                |v| format!("sorted({})", v))?;
-
         Ok(rust_res)
     }
 
     /// get head revisions
-    def headrevs(&self, *args, **kw) -> PyResult<PyObject> {
+    def headrevs(&self) -> PyResult<PyObject> {
         let rust_res = self.inner_headrevs(py)?;
-
-        let c_res = self.call_cindex(py, "headrevs", args, kw)?;
-        assert_py_eq(py, "headrevs", &rust_res, &c_res)?;
         Ok(rust_res)
     }
 
     /// get filtered head revisions
-    def headrevsfiltered(&self, *args, **kw) -> PyResult<PyObject> {
+    def headrevsfiltered(&self, *args, **_kw) -> PyResult<PyObject> {
         let rust_res = self.inner_headrevsfiltered(py, &args.get_item(py, 0))?;
-        let c_res = self.call_cindex(py, "headrevsfiltered", args, kw)?;
-
-        assert_py_eq(py, "headrevsfiltered", &rust_res, &c_res)?;
         Ok(rust_res)
     }
 
     /// True if the object is a snapshot
-    def issnapshot(&self, *args, **kw) -> PyResult<bool> {
+    def issnapshot(&self, *args, **_kw) -> PyResult<bool> {
         let index = self.index(py).borrow();
         let result = index
             .is_snapshot(UncheckedRevision(args.get_item(py, 0).extract(py)?))
             .map_err(|e| {
                 PyErr::new::<cpython::exc::ValueError, _>(py, e.to_string())
             })?;
-        let cresult = self.call_cindex(py, "issnapshot", args, kw)?;
-        assert_eq!(result, cresult.extract(py)?);
         Ok(result)
     }
 
     /// Gather snapshot data in a cache dict
-    def findsnapshots(&self, *args, **kw) -> PyResult<PyObject> {
+    def findsnapshots(&self, *args, **_kw) -> PyResult<PyObject> {
         let index = self.index(py).borrow();
         let cache: PyDict = args.get_item(py, 0).extract(py)?;
         // this methods operates by setting new values in the cache,
@@ -382,24 +339,11 @@ py_class!(pub class MixedIndex |py| {
             end_rev,
             &mut cache_wrapper,
         ).map_err(|_| revlog_error(py))?;
-
-        let c_args = PyTuple::new(
-            py,
-            &[
-                c_cache.clone_ref(py).into_object(),
-                args.get_item(py, 1),
-                args.get_item(py, 2)
-            ]
-        );
-        self.call_cindex(py, "findsnapshots", &c_args, kw)?;
-        assert_py_eq(py, "findsnapshots cache",
-                     &cache_wrapper.into_object(),
-                     &c_cache.into_object())?;
         Ok(py.None())
     }
 
     /// determine revisions with deltas to reconstruct fulltext
-    def deltachain(&self, *args, **kw) -> PyResult<PyObject> {
+    def deltachain(&self, *args, **_kw) -> PyResult<PyObject> {
         let index = self.index(py).borrow();
         let rev = args.get_item(py, 0).extract::<BaseRevision>(py)?.into();
         let stop_rev =
@@ -422,13 +366,7 @@ py_class!(pub class MixedIndex |py| {
             PyErr::new::<cpython::exc::ValueError, _>(py, e.to_string())
         })?;
 
-        let cresult = self.call_cindex(py, "deltachain", args, kw)?;
-        let cchain: Vec<BaseRevision> =
-            cresult.get_item(py, 0)?.extract::<Vec<BaseRevision>>(py)?;
         let chain: Vec<_> = chain.into_iter().map(|r| r.0).collect();
-        assert_eq!(chain, cchain);
-        assert_eq!(stopped, cresult.get_item(py, 1)?.extract(py)?);
-
         Ok(
             PyTuple::new(
                 py,
@@ -442,16 +380,13 @@ py_class!(pub class MixedIndex |py| {
     }
 
     /// slice planned chunk read to reach a density threshold
-    def slicechunktodensity(&self, *args, **kw) -> PyResult<PyObject> {
+    def slicechunktodensity(&self, *args, **_kw) -> PyResult<PyObject> {
         let rust_res = self.inner_slicechunktodensity(
             py,
             args.get_item(py, 0),
             args.get_item(py, 1).extract(py)?,
             args.get_item(py, 2).extract(py)?
         )?;
-
-        let c_res = self.call_cindex(py, "slicechunktodensity", args, kw)?;
-        assert_py_eq(py, "slicechunktodensity", &rust_res, &c_res)?;
         Ok(rust_res)
     }
 
@@ -468,23 +403,6 @@ py_class!(pub class MixedIndex |py| {
 
     def __getitem__(&self, key: PyObject) -> PyResult<PyObject> {
         let rust_res = self.inner_getitem(py, key.clone_ref(py))?;
-
-        // this conversion seems needless, but that's actually because
-        // `index_getitem` does not handle conversion from PyLong,
-        // which expressions such as [e for e in index] internally use.
-        // Note that we don't seem to have a direct way to call
-        // PySequence_GetItem (does the job), which would possibly be better
-        // for performance
-        // gracinet 2023: the above comment can be removed when we use
-        // the pure Rust impl only. Note also that `key` can be a binary
-        // node id.
-        let c_key = match key.extract::<BaseRevision>(py) {
-            Ok(rev) => rev.to_py_object(py).into_object(),
-            Err(_) => key,
-        };
-        let c_res = self.cindex(py).borrow().inner().get_item(py, c_key)?;
-
-        assert_py_eq(py, "__getitem__", &rust_res, &c_res)?;
         Ok(rust_res)
     }
 
@@ -492,7 +410,6 @@ py_class!(pub class MixedIndex |py| {
         // ObjectProtocol does not seem to provide contains(), so
         // this is an equivalent implementation of the index_contains()
         // defined in revlog.c
-        let cindex = self.cindex(py).borrow();
         match item.extract::<i32>(py) {
             Ok(rev) => {
                 Ok(rev >= -1 && rev < self.len(py)? as BaseRevision)
@@ -500,15 +417,6 @@ py_class!(pub class MixedIndex |py| {
             Err(_) => {
                 let item_bytes: PyBytes = item.extract(py)?;
                 let rust_res = self.has_node(py, item_bytes)?;
-
-                let c_res = cindex.inner().call_method(
-                    py,
-                    "has_node",
-                    PyTuple::new(py, &[item.clone_ref(py)]),
-                    None)?
-                .extract(py)?;
-
-                assert_eq!(rust_res, c_res);
                 Ok(rust_res)
             }
         }
@@ -532,11 +440,6 @@ py_class!(pub class MixedIndex |py| {
     @property
     def entry_size(&self) -> PyResult<PyInt> {
         let rust_res: PyInt = INDEX_ENTRY_SIZE.to_py_object(py);
-
-        let c_res = self.cindex(py).borrow().inner()
-            .getattr(py, "entry_size")?;
-        assert_py_eq(py, "entry_size", rust_res.as_object(), &c_res)?;
-
         Ok(rust_res)
     }
 
@@ -545,11 +448,6 @@ py_class!(pub class MixedIndex |py| {
         // will be entirely removed when the Rust index yet useful to
         // implement in Rust to detangle things when removing `self.cindex`
         let rust_res: PyInt = 1.to_py_object(py);
-
-        let c_res = self.cindex(py).borrow().inner()
-            .getattr(py, "rust_ext_compat")?;
-        assert_py_eq(py, "rust_ext_compat", rust_res.as_object(), &c_res)?;
-
         Ok(rust_res)
     }
 
@@ -672,12 +570,6 @@ struct PySnapshotsCache<'p> {
     dict: PyDict,
 }
 
-impl<'p> PySnapshotsCache<'p> {
-    fn into_object(self) -> PyObject {
-        self.dict.into_object()
-    }
-}
-
 impl<'p> SnapshotsCache for PySnapshotsCache<'p> {
     fn insert_for(
         &mut self,
@@ -731,8 +623,6 @@ impl MixedIndex {
 
     fn len(&self, py: Python) -> PyResult<usize> {
         let rust_index_len = self.index(py).borrow().len();
-        let cindex_len = self.cindex(py).borrow().inner().len(py)?;
-        assert_eq!(rust_index_len, cindex_len);
         Ok(rust_index_len)
     }
 
@@ -765,20 +655,6 @@ impl MixedIndex {
             self.nt(py).borrow_mut().replace(nt);
         }
         Ok(self.nt(py))
-    }
-
-    /// forward a method call to the underlying C index
-    fn call_cindex(
-        &self,
-        py: Python,
-        name: &str,
-        args: &PyTuple,
-        kwargs: Option<&PyDict>,
-    ) -> PyResult<PyObject> {
-        self.cindex(py)
-            .borrow()
-            .inner()
-            .call_method(py, name, args, kwargs)
     }
 
     pub fn clone_cindex(&self, py: Python) -> cindex::Index {
@@ -1142,51 +1018,6 @@ fn nodemap_error(py: Python, err: NodeMapError) -> PyErr {
         NodeMapError::MultipleResults => revlog_error(py),
         NodeMapError::RevisionNotInIndex(r) => nodemap_rev_not_in_index(py, r),
     }
-}
-
-/// assert two Python objects to be equal from a Python point of view
-///
-/// `method` is a label for the assertion error message, intended to be the
-/// name of the caller.
-/// `normalizer` is a function that takes a Python variable name and returns
-/// an expression that the conparison will actually use.
-/// Foe example: `|v| format!("sorted({})", v)`
-fn assert_py_eq_normalized(
-    py: Python,
-    method: &str,
-    rust: &PyObject,
-    c: &PyObject,
-    normalizer: impl FnOnce(&str) -> String + Copy,
-) -> PyResult<()> {
-    let locals = PyDict::new(py);
-    locals.set_item(py, "rust".into_py_object(py).into_object(), rust)?;
-    locals.set_item(py, "c".into_py_object(py).into_object(), c)?;
-    //    let lhs = format!(normalizer_fmt, "rust");
-    //    let rhs = format!(normalizer_fmt, "c");
-    let is_eq: PyBool = py
-        .eval(
-            &format!("{} == {}", &normalizer("rust"), &normalizer("c")),
-            None,
-            Some(&locals),
-        )?
-        .extract(py)?;
-    assert!(
-        is_eq.is_true(),
-        "{} results differ. Rust: {:?} C: {:?} (before any normalization)",
-        method,
-        rust,
-        c
-    );
-    Ok(())
-}
-
-fn assert_py_eq(
-    py: Python,
-    method: &str,
-    rust: &PyObject,
-    c: &PyObject,
-) -> PyResult<()> {
-    assert_py_eq_normalized(py, method, rust, c, |v| v.to_owned())
 }
 
 /// Create the module, with __package__ given from parent
