@@ -50,6 +50,15 @@ class randomaccessfile:
         self._cached_chunk = b''
         self._cached_chunk_position = 0
 
+    @property
+    def is_open(self):
+        """True if any file handle is being held
+
+        Used for assert and debug in the python code"""
+        return (
+            self.reading_handle is not None or self.writing_handle is not None
+        )
+
     def _open(self, mode=b'r'):
         """Return a file object"""
         return self.opener(self.filename, mode=mode)
