@@ -518,6 +518,64 @@ class _InnerRevlog:
             atomictemp=True,
         )
 
+    def split_inline(self, tr, header, new_index_file_path=None):
+        """split the data of an inline revlog into an index and a data file"""
+        existing_handles = False
+        if self._writinghandles is not None:
+            existing_handles = True
+            fp = self._writinghandles[0]
+            fp.flush()
+            fp.close()
+            # We can't use the cached file handle after close(). So prevent
+            # its usage.
+            self._writinghandles = None
+            self._segmentfile.writing_handle = None
+            # No need to deal with sidedata writing handle as it is only
+            # relevant with revlog-v2 which is never inline, not reaching
+            # this code
+
+        new_dfh = self.opener(self.data_file, mode=b"w+")
+        new_dfh.truncate(0)  # drop any potentially existing data
+        try:
+            with self.reading():
+                for r in range(len(self.index)):
+                    new_dfh.write(self.get_segment_for_revs(r, r)[1])
+                new_dfh.flush()
+
+            if new_index_file_path is not None:
+                self.index_file = new_index_file_path
+            with self.__index_new_fp() as fp:
+                self.inline = False
+                for i in range(len(self.index)):
+                    e = self.index.entry_binary(i)
+                    if i == 0:
+                        packed_header = self.index.pack_header(header)
+                        e = packed_header + e
+                    fp.write(e)
+
+                # If we don't use side-write, the temp file replace the real
+                # index when we exit the context manager
+
+            self._segmentfile = randomaccessfile.randomaccessfile(
+                self.opener,
+                self.data_file,
+                self.data_config.chunk_cache_size,
+            )
+
+            if existing_handles:
+                # switched from inline to conventional reopen the index
+                ifh = self.__index_write_fp()
+                self._writinghandles = (ifh, new_dfh, None)
+                self._segmentfile.writing_handle = new_dfh
+                new_dfh = None
+                # No need to deal with sidedata writing handle as it is only
+                # relevant with revlog-v2 which is never inline, not reaching
+                # this code
+        finally:
+            if new_dfh is not None:
+                new_dfh.close()
+        return self.index_file
+
     def get_segment_for_revs(self, startrev, endrev):
         """Obtain a segment of raw data corresponding to a range of revisions.
 
@@ -2586,26 +2644,15 @@ class revlog:
             tr.addbackup(self._indexfile, for_offset=True)
         tr.add(self._datafile, 0)
 
-        existing_handles = False
-        if self._inner._writinghandles is not None:
-            existing_handles = True
-            fp = self._inner._writinghandles[0]
-            fp.flush()
-            fp.close()
-            # We can't use the cached file handle after close(). So prevent
-            # its usage.
-            self._inner._writinghandles = None
-            self._inner._segmentfile.writing_handle = None
-            # No need to deal with sidedata writing handle as it is only
-            # relevant with revlog-v2 which is never inline, not reaching
-            # this code
+        new_index_file_path = None
         if side_write:
             old_index_file_path = self._indexfile
             new_index_file_path = self._split_index_file
             opener = self.opener
             weak_self = weakref.ref(self)
 
-            # the "split" index replace the real index when the transaction is finalized
+            # the "split" index replace the real index when the transaction is
+            # finalized
             def finalize_callback(tr):
                 opener.rename(
                     new_index_file_path,
@@ -2621,6 +2668,7 @@ class revlog:
                 maybe_self = weak_self()
                 if maybe_self is not None:
                     maybe_self._indexfile = old_index_file_path
+                    maybe_self._inner.inline = True
                     maybe_self._inner.index_file = old_index_file_path
 
             tr.registertmp(new_index_file_path)
@@ -2631,54 +2679,18 @@ class revlog:
             tr.addfinalize(callback_id, finalize_callback)
             tr.addabort(callback_id, abort_callback)
 
-        new_dfh = self._datafp(b'w+')
-        new_dfh.truncate(0)  # drop any potentially existing data
-        try:
-            with self.reading():
-                for r in self:
-                    new_dfh.write(self._inner.get_segment_for_revs(r, r)[1])
-                new_dfh.flush()
+        self._format_flags &= ~FLAG_INLINE_DATA
+        self._inner.split_inline(
+            tr,
+            self._format_flags | self._format_version,
+            new_index_file_path=new_index_file_path,
+        )
 
-            if side_write:
-                self._indexfile = new_index_file_path
-                self._inner.index_file = self._indexfile
-            with self._inner._InnerRevlog__index_new_fp() as fp:
-                self._format_flags &= ~FLAG_INLINE_DATA
-                self._inline = False
-                self._inner.inline = False
-                for i in self:
-                    e = self.index.entry_binary(i)
-                    if i == 0:
-                        header = self._format_flags | self._format_version
-                        header = self.index.pack_header(header)
-                        e = header + e
-                    fp.write(e)
+        self._inline = False
+        if new_index_file_path is not None:
+            self._indexfile = new_index_file_path
 
-                # If we don't use side-write, the temp file replace the real
-                # index when we exit the context manager
-
-            nodemaputil.setup_persistent_nodemap(tr, self)
-            self._inner._segmentfile = randomaccessfile.randomaccessfile(
-                self.opener,
-                self._datafile,
-                self.data_config.chunk_cache_size,
-            )
-
-            if existing_handles:
-                # switched from inline to conventional reopen the index
-                index_end = None
-                ifh = self._inner._InnerRevlog__index_write_fp(
-                    index_end=index_end
-                )
-                self._inner._writinghandles = (ifh, new_dfh, None)
-                self._inner._segmentfile.writing_handle = new_dfh
-                new_dfh = None
-                # No need to deal with sidedata writing handle as it is only
-                # relevant with revlog-v2 which is never inline, not reaching
-                # this code
-        finally:
-            if new_dfh is not None:
-                new_dfh.close()
+        nodemaputil.setup_persistent_nodemap(tr, self)
 
     def _nodeduplicatecallback(self, transaction, node):
         """called when trying to add a node already stored."""
