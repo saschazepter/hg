@@ -1123,11 +1123,9 @@ def _forgetunknownfiles(repo, shelvectx, addedbefore):
 
 def _finishunshelve(repo, oldtiprev, tr, activebookmark):
     _restoreactivebookmark(repo, activebookmark)
-    # The transaction aborting will strip all the commits for us,
-    # but it doesn't update the inmemory structures, so addchangegroup
-    # hooks still fire and try to operate on the missing commits.
-    # Clean up manually to prevent this.
-    repo.unfiltered().changelog.strip(oldtiprev, tr)
+    # We used to manually strip the commit to update inmemory structure and
+    # prevent some issue around hooks. This no longer seems to be the case, so
+    # we simply abort the transaction.
     _aborttransaction(repo, tr)
 
 
