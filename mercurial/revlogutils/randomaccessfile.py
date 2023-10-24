@@ -116,6 +116,8 @@ class randomaccessfile:
         if initial_cache:
             self._cached_chunk_position, self._cached_chunk = initial_cache
 
+        self._delay_buffer = None
+
     def clear_cache(self):
         self._cached_chunk = b''
         self._cached_chunk_position = 0
@@ -131,7 +133,12 @@ class randomaccessfile:
 
     def _open(self, mode=b'r'):
         """Return a file object"""
-        return self.opener(self.filename, mode=mode)
+        if self._delay_buffer is None:
+            return self.opener(self.filename, mode=mode)
+        else:
+            return appender(
+                self.opener, self.filename, mode, self._delay_buffer
+            )
 
     @contextlib.contextmanager
     def _read_handle(self):
