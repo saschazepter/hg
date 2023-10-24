@@ -508,6 +508,43 @@ class _InnerRevlog:
             atomictemp=True,
         )
 
+    def get_segment_for_revs(self, startrev, endrev):
+        """Obtain a segment of raw data corresponding to a range of revisions.
+
+        Accepts the start and end revisions and an optional already-open
+        file handle to be used for reading. If the file handle is read, its
+        seek position will not be preserved.
+
+        Requests for data may be satisfied by a cache.
+
+        Returns a 2-tuple of (offset, data) for the requested range of
+        revisions. Offset is the integer offset from the beginning of the
+        revlog and data is a str or buffer of the raw byte data.
+
+        Callers will need to call ``self.start(rev)`` and ``self.length(rev)``
+        to determine where each revision's data begins and ends.
+
+        API: we should consider making this a private part of the InnerRevlog
+        at some point.
+        """
+        # Inlined self.start(startrev) & self.end(endrev) for perf reasons
+        # (functions are expensive).
+        index = self.index
+        istart = index[startrev]
+        start = int(istart[0] >> 16)
+        if startrev == endrev:
+            end = start + istart[1]
+        else:
+            iend = index[endrev]
+            end = int(iend[0] >> 16) + iend[1]
+
+        if self.inline:
+            start += (startrev + 1) * self.index.entry_size
+            end += (endrev + 1) * self.index.entry_size
+        length = end - start
+
+        return start, self._segmentfile.read_chunk(start, length)
+
 
 class revlog:
     """
@@ -1000,7 +1037,7 @@ class revlog:
                             header = self.index.pack_header(header)
                             idx = header + idx
                         yield idx
-                        yield self._getsegmentforrevs(rev, rev)[1]
+                        yield self._inner.get_segment_for_revs(rev, rev)[1]
 
             inline_stream = get_stream()
             next(inline_stream)
@@ -2153,40 +2190,6 @@ class revlog:
         p1, p2 = self.parents(node)
         return storageutil.hashrevisionsha1(text, p1, p2) != node
 
-    def _getsegmentforrevs(self, startrev, endrev):
-        """Obtain a segment of raw data corresponding to a range of revisions.
-
-        Accepts the start and end revisions and an optional already-open
-        file handle to be used for reading. If the file handle is read, its
-        seek position will not be preserved.
-
-        Requests for data may be satisfied by a cache.
-
-        Returns a 2-tuple of (offset, data) for the requested range of
-        revisions. Offset is the integer offset from the beginning of the
-        revlog and data is a str or buffer of the raw byte data.
-
-        Callers will need to call ``self.start(rev)`` and ``self.length(rev)``
-        to determine where each revision's data begins and ends.
-        """
-        # Inlined self.start(startrev) & self.end(endrev) for perf reasons
-        # (functions are expensive).
-        index = self.index
-        istart = index[startrev]
-        start = int(istart[0] >> 16)
-        if startrev == endrev:
-            end = start + istart[1]
-        else:
-            iend = index[endrev]
-            end = int(iend[0] >> 16) + iend[1]
-
-        if self._inline:
-            start += (startrev + 1) * self.index.entry_size
-            end += (endrev + 1) * self.index.entry_size
-        length = end - start
-
-        return start, self._inner._segmentfile.read_chunk(start, length)
-
     def _chunk(self, rev):
         """Obtain a single decompressed chunk for a revision.
 
@@ -2197,7 +2200,7 @@ class revlog:
         Returns a str holding uncompressed data for the requested revision.
         """
         compression_mode = self.index[rev][10]
-        data = self._getsegmentforrevs(rev, rev)[1]
+        data = self._inner.get_segment_for_revs(rev, rev)[1]
         if compression_mode == COMP_MODE_PLAIN:
             return data
         elif compression_mode == COMP_MODE_DEFAULT:
@@ -2248,7 +2251,10 @@ class revlog:
                     break
 
             try:
-                offset, data = self._getsegmentforrevs(firstrev, lastrev)
+                offset, data = self._inner.get_segment_for_revs(
+                    firstrev,
+                    lastrev,
+                )
             except OverflowError:
                 # issue4215 - we can't cache a run of chunks greater than
                 # 2G on Windows
@@ -2616,7 +2622,7 @@ class revlog:
         try:
             with self.reading():
                 for r in self:
-                    new_dfh.write(self._getsegmentforrevs(r, r)[1])
+                    new_dfh.write(self._inner.get_segment_for_revs(r, r)[1])
                 new_dfh.flush()
 
             if side_write:

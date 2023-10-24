@@ -3720,11 +3720,15 @@ def perfrevlogchunks(ui, repo, file_=None, engines=None, startrev=0, **opts):
 
     rl = cmdutil.openrevlog(repo, b'perfrevlogchunks', file_, opts)
 
-    # _chunkraw was renamed to _getsegmentforrevs.
+    # - _chunkraw was renamed to _getsegmentforrevs
+    # - _getsegmentforrevs was moved on the inner object
     try:
-        segmentforrevs = rl._getsegmentforrevs
+        segmentforrevs = rl._inner.get_segment_for_revs
     except AttributeError:
-        segmentforrevs = rl._chunkraw
+        try:
+            segmentforrevs = rl._getsegmentforrevs
+        except AttributeError:
+            segmentforrevs = rl._chunkraw
 
     # Verify engines argument.
     if engines:
@@ -3894,9 +3898,12 @@ def perfrevlogrevision(ui, repo, file_, rev=None, cache=None, **opts):
 
     # _chunkraw was renamed to _getsegmentforrevs.
     try:
-        segmentforrevs = r._getsegmentforrevs
+        segmentforrevs = r._inner.get_segment_for_revs
     except AttributeError:
-        segmentforrevs = r._chunkraw
+        try:
+            segmentforrevs = r._getsegmentforrevs
+        except AttributeError:
+            segmentforrevs = r._chunkraw
 
     node = r.lookup(rev)
     rev = r.rev(node)
