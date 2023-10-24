@@ -411,8 +411,8 @@ def debug_revlog(ui, revlog):
                         numother_nad += 1
 
             # Obtain data on the raw chunks in the revlog.
-            if hasattr(r, '_getsegmentforrevs'):
-                segment = r._getsegmentforrevs(rev, rev)[1]
+            if hasattr(r, '_inner'):
+                segment = r._inner.get_segment_for_revs(rev, rev)[1]
             else:
                 segment = r._revlog._getsegmentforrevs(rev, rev)[1]
             if segment:

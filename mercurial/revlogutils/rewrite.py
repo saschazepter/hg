@@ -126,7 +126,8 @@ def v1_censor(rl, tr, censornode, tombstone=b''):
         rl.opener.rename(newrl._datafile, rl._datafile)
 
     rl.clearcaches()
-    rl._loadindex()
+    chunk_cache = rl._loadindex()
+    rl._load_inner(chunk_cache)
 
 
 def v2_censor(revlog, tr, censornode, tombstone=b''):
