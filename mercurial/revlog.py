@@ -358,7 +358,7 @@ class _InnerRevlog:
         self.opener = opener
         self.index = index
 
-        self.index_file = index_file
+        self.__index_file = index_file
         self.data_file = data_file
         self.sidedata_file = sidedata_file
         self.inline = inline
@@ -380,6 +380,16 @@ class _InnerRevlog:
             self.sidedata_file,
             self.data_config.chunk_cache_size,
         )
+
+    @property
+    def index_file(self):
+        return self.__index_file
+
+    @index_file.setter
+    def index_file(self, new_index_file):
+        self.__index_file = new_index_file
+        if self.inline:
+            self._segmentfile.filename = new_index_file
 
     # Derived from index values.
 
