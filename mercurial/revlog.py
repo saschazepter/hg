@@ -406,6 +406,11 @@ class _InnerRevlog:
     def __len__(self):
         return len(self.index)
 
+    def clear_cache(self):
+        self._revisioncache = None
+        self._segmentfile.clear_cache()
+        self._segmentfile_sidedata.clear_cache()
+
     # Derived from index values.
 
     def start(self, rev):
@@ -1807,10 +1812,8 @@ class revlog:
 
     def clearcaches(self):
         """Clear in-memory caches"""
-        self._inner._revisioncache = None
         self._chainbasecache.clear()
-        self._inner._segmentfile.clear_cache()
-        self._inner._segmentfile_sidedata.clear_cache()
+        self._inner.clear_cache()
         self._pcache = {}
         self._nodemap_docket = None
         self.index.clearcaches()
@@ -3502,10 +3505,8 @@ class revlog:
             self._docket.write(transaction, stripping=True)
 
         # then reset internal state in memory to forget those revisions
-        self._inner._revisioncache = None
         self._chaininfocache = util.lrucachedict(500)
-        self._inner._segmentfile.clear_cache()
-        self._inner._segmentfile_sidedata.clear_cache()
+        self._inner.clear_cache()
 
         del self.index[rev:-1]
 
