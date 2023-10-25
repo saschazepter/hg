@@ -353,6 +353,7 @@ class _InnerRevlog:
         sidedata_file,
         inline,
         data_config,
+        delta_config,
         feature_config,
         chunk_cache,
         default_compression_header,
@@ -365,6 +366,7 @@ class _InnerRevlog:
         self.sidedata_file = sidedata_file
         self.inline = inline
         self.data_config = data_config
+        self.delta_config = delta_config
         self.feature_config = feature_config
 
         self._default_compression_header = default_compression_header
@@ -399,6 +401,9 @@ class _InnerRevlog:
         if self.inline:
             self._segmentfile.filename = new_index_file
 
+    def __len__(self):
+        return len(self.index)
+
     # Derived from index values.
 
     def start(self, rev):
@@ -412,6 +417,48 @@ class _InnerRevlog:
     def end(self, rev):
         """the end of the data chunk for this revision"""
         return self.start(rev) + self.length(rev)
+
+    def deltaparent(self, rev):
+        """return deltaparent of the given revision"""
+        base = self.index[rev][3]
+        if base == rev:
+            return nullrev
+        elif self.delta_config.general_delta:
+            return base
+        else:
+            return rev - 1
+
+    def issnapshot(self, rev):
+        """tells whether rev is a snapshot"""
+        if not self.delta_config.sparse_revlog:
+            return self.deltaparent(rev) == nullrev
+        elif hasattr(self.index, 'issnapshot'):
+            # directly assign the method to cache the testing and access
+            self.issnapshot = self.index.issnapshot
+            return self.issnapshot(rev)
+        if rev == nullrev:
+            return True
+        entry = self.index[rev]
+        base = entry[3]
+        if base == rev:
+            return True
+        if base == nullrev:
+            return True
+        p1 = entry[5]
+        while self.length(p1) == 0:
+            b = self.deltaparent(p1)
+            if b == p1:
+                break
+            p1 = b
+        p2 = entry[6]
+        while self.length(p2) == 0:
+            b = self.deltaparent(p2)
+            if b == p2:
+                break
+            p2 = b
+        if base == p1 or base == p2:
+            return False
+        return self.issnapshot(base)
 
     @util.propertycache
     def _compressor(self):
@@ -1428,6 +1475,7 @@ class revlog:
             sidedata_file=self._sidedatafile,
             inline=self._inline,
             data_config=self.data_config,
+            delta_config=self.delta_config,
             feature_config=self.feature_config,
             chunk_cache=chunk_cache,
             default_compression_header=default_compression_header,
@@ -2441,35 +2489,9 @@ class revlog:
 
     def issnapshot(self, rev):
         """tells whether rev is a snapshot"""
-        if not self.delta_config.sparse_revlog:
-            return self.deltaparent(rev) == nullrev
-        elif hasattr(self.index, 'issnapshot'):
-            # directly assign the method to cache the testing and access
-            self.issnapshot = self.index.issnapshot
-            return self.issnapshot(rev)
-        if rev == nullrev:
-            return True
-        entry = self.index[rev]
-        base = entry[3]
-        if base == rev:
-            return True
-        if base == nullrev:
-            return True
-        p1 = entry[5]
-        while self.length(p1) == 0:
-            b = self.deltaparent(p1)
-            if b == p1:
-                break
-            p1 = b
-        p2 = entry[6]
-        while self.length(p2) == 0:
-            b = self.deltaparent(p2)
-            if b == p2:
-                break
-            p2 = b
-        if base == p1 or base == p2:
-            return False
-        return self.issnapshot(base)
+        ret = self._inner.issnapshot(rev)
+        self.issnapshot = self._inner.issnapshot
+        return ret
 
     def snapshotdepth(self, rev):
         """number of snapshot in the chain before this one"""
