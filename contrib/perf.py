@@ -3833,14 +3833,16 @@ def perfrevlogchunks(ui, repo, file_=None, engines=None, startrev=0, **opts):
     def docompress(compressor):
         rl.clearcaches()
 
+        compressor_holder = getattr(rl, '_inner', rl)
+
         try:
             # Swap in the requested compression engine.
-            oldcompressor = rl._compressor
-            rl._compressor = compressor
+            oldcompressor = compressor_holder._compressor
+            compressor_holder._compressor = compressor
             for chunk in chunks[0]:
                 rl.compress(chunk)
         finally:
-            rl._compressor = oldcompressor
+            compressor_holder._compressor = oldcompressor
 
     benches = [
         (lambda: doread(), b'read'),

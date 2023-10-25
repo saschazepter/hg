@@ -1205,7 +1205,7 @@ class deltacomputer:
                     msg = b"DBG-DELTAS-SEARCH:     DISCARDED (prev size)\n"
                     self._write_debug(msg)
                 return None
-        header, data = revlog.compress(delta)
+        header, data = revlog._inner.compress(delta)
         deltalen = len(header) + len(data)
         offset = revlog.end(len(revlog) - 1)
         dist = deltalen + offset - revlog.start(chainbase)
@@ -1226,7 +1226,7 @@ class deltacomputer:
 
     def _fullsnapshotinfo(self, revinfo, curr):
         rawtext = self.buildtext(revinfo)
-        data = self.revlog.compress(rawtext)
+        data = self.revlog._inner.compress(rawtext)
         compresseddeltalen = deltalen = dist = len(data[1]) + len(data[0])
         deltabase = chainbase = curr
         snapshotdepth = 0

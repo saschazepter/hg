@@ -353,7 +353,9 @@ class _InnerRevlog:
         sidedata_file,
         inline,
         data_config,
+        feature_config,
         chunk_cache,
+        default_compression_header,
     ):
         self.opener = opener
         self.index = index
@@ -363,6 +365,9 @@ class _InnerRevlog:
         self.sidedata_file = sidedata_file
         self.inline = inline
         self.data_config = data_config
+        self.feature_config = feature_config
+
+        self._default_compression_header = default_compression_header
 
         # index
 
@@ -380,6 +385,9 @@ class _InnerRevlog:
             self.sidedata_file,
             self.data_config.chunk_cache_size,
         )
+
+        # revlog header -> revlog compressor
+        self._decompressors = {}
 
     @property
     def index_file(self):
@@ -404,6 +412,103 @@ class _InnerRevlog:
     def end(self, rev):
         """the end of the data chunk for this revision"""
         return self.start(rev) + self.length(rev)
+
+    @util.propertycache
+    def _compressor(self):
+        engine = util.compengines[self.feature_config.compression_engine]
+        return engine.revlogcompressor(
+            self.feature_config.compression_engine_options
+        )
+
+    @util.propertycache
+    def _decompressor(self):
+        """the default decompressor"""
+        if self._default_compression_header is None:
+            return None
+        t = self._default_compression_header
+        c = self._get_decompressor(t)
+        return c.decompress
+
+    def _get_decompressor(self, t):
+        try:
+            compressor = self._decompressors[t]
+        except KeyError:
+            try:
+                engine = util.compengines.forrevlogheader(t)
+                compressor = engine.revlogcompressor(
+                    self.feature_config.compression_engine_options
+                )
+                self._decompressors[t] = compressor
+            except KeyError:
+                raise error.RevlogError(
+                    _(b'unknown compression type %s') % binascii.hexlify(t)
+                )
+        return compressor
+
+    def compress(self, data):
+        """Generate a possibly-compressed representation of data."""
+        if not data:
+            return b'', data
+
+        compressed = self._compressor.compress(data)
+
+        if compressed:
+            # The revlog compressor added the header in the returned data.
+            return b'', compressed
+
+        if data[0:1] == b'\0':
+            return b'', data
+        return b'u', data
+
+    def decompress(self, data):
+        """Decompress a revlog chunk.
+
+        The chunk is expected to begin with a header identifying the
+        format type so it can be routed to an appropriate decompressor.
+        """
+        if not data:
+            return data
+
+        # Revlogs are read much more frequently than they are written and many
+        # chunks only take microseconds to decompress, so performance is
+        # important here.
+        #
+        # We can make a few assumptions about revlogs:
+        #
+        # 1) the majority of chunks will be compressed (as opposed to inline
+        #    raw data).
+        # 2) decompressing *any* data will likely by at least 10x slower than
+        #    returning raw inline data.
+        # 3) we want to prioritize common and officially supported compression
+        #    engines
+        #
+        # It follows that we want to optimize for "decompress compressed data
+        # when encoded with common and officially supported compression engines"
+        # case over "raw data" and "data encoded by less common or non-official
+        # compression engines." That is why we have the inline lookup first
+        # followed by the compengines lookup.
+        #
+        # According to `hg perfrevlogchunks`, this is ~0.5% faster for zlib
+        # compressed chunks. And this matters for changelog and manifest reads.
+        t = data[0:1]
+
+        if t == b'x':
+            try:
+                return _zlibdecompress(data)
+            except zlib.error as e:
+                raise error.RevlogError(
+                    _(b'revlog decompress error: %s')
+                    % stringutil.forcebytestr(e)
+                )
+        # '\0' is more common than 'u' so it goes first.
+        elif t == b'\0':
+            return data
+        elif t == b'u':
+            return util.buffer(data, 1)
+
+        compressor = self._get_decompressor(t)
+
+        return compressor.decompress(data)
 
     @contextlib.contextmanager
     def reading(self):
@@ -1284,12 +1389,15 @@ class revlog:
         self.index = index
         # revnum -> (chain-length, sum-delta-length)
         self._chaininfocache = util.lrucachedict(500)
-        # revlog header -> revlog compressor
-        self._decompressors = {}
 
         return chunkcache
 
     def _load_inner(self, chunk_cache):
+        if self._docket is None:
+            default_compression_header = None
+        else:
+            default_compression_header = self._docket.default_compression_header
+
         self._inner = _InnerRevlog(
             opener=self.opener,
             index=self.index,
@@ -1298,7 +1406,9 @@ class revlog:
             sidedata_file=self._sidedatafile,
             inline=self._inline,
             data_config=self.data_config,
+            feature_config=self.feature_config,
             chunk_cache=chunk_cache,
+            default_compression_header=default_compression_header,
         )
 
     def get_revlog(self):
@@ -1318,38 +1428,6 @@ class revlog:
             return self.target[1]
         else:
             return self.radix
-
-    def _get_decompressor(self, t):
-        try:
-            compressor = self._decompressors[t]
-        except KeyError:
-            try:
-                engine = util.compengines.forrevlogheader(t)
-                compressor = engine.revlogcompressor(
-                    self.feature_config.compression_engine_options
-                )
-                self._decompressors[t] = compressor
-            except KeyError:
-                raise error.RevlogError(
-                    _(b'unknown compression type %s') % binascii.hexlify(t)
-                )
-        return compressor
-
-    @util.propertycache
-    def _compressor(self):
-        engine = util.compengines[self.feature_config.compression_engine]
-        return engine.revlogcompressor(
-            self.feature_config.compression_engine_options
-        )
-
-    @util.propertycache
-    def _decompressor(self):
-        """the default decompressor"""
-        if self._docket is None:
-            return None
-        t = self._docket.default_compression_header
-        c = self._get_decompressor(t)
-        return c.decompress
 
     def _datafp(self, mode=b'r'):
         """file object for the revlog's data file"""
@@ -2272,9 +2350,9 @@ class revlog:
         if compression_mode == COMP_MODE_PLAIN:
             return data
         elif compression_mode == COMP_MODE_DEFAULT:
-            return self._decompressor(data)
+            return self._inner._decompressor(data)
         elif compression_mode == COMP_MODE_INLINE:
-            return self.decompress(data)
+            return self._inner.decompress(data)
         else:
             msg = b'unknown compression mode %d'
             msg %= compression_mode
@@ -2328,9 +2406,9 @@ class revlog:
                 # 2G on Windows
                 return [self._chunk(rev) for rev in revschunk]
 
-            decomp = self.decompress
+            decomp = self._inner.decompress
             # self._decompressor might be None, but will not be used in that case
-            def_decomp = self._decompressor
+            def_decomp = self._inner._decompressor
             for rev in revschunk:
                 chunkstart = start(rev)
                 if inline:
@@ -2544,9 +2622,9 @@ class revlog:
         if comp == COMP_MODE_PLAIN:
             segment = comp_segment
         elif comp == COMP_MODE_DEFAULT:
-            segment = self._decompressor(comp_segment)
+            segment = self._inner._decompressor(comp_segment)
         elif comp == COMP_MODE_INLINE:
-            segment = self.decompress(comp_segment)
+            segment = self._inner.decompress(comp_segment)
         else:
             msg = b'unknown compression mode %d'
             msg %= comp
@@ -2842,69 +2920,10 @@ class revlog:
             )
 
     def compress(self, data):
-        """Generate a possibly-compressed representation of data."""
-        if not data:
-            return b'', data
-
-        compressed = self._compressor.compress(data)
-
-        if compressed:
-            # The revlog compressor added the header in the returned data.
-            return b'', compressed
-
-        if data[0:1] == b'\0':
-            return b'', data
-        return b'u', data
+        return self._inner.compress(data)
 
     def decompress(self, data):
-        """Decompress a revlog chunk.
-
-        The chunk is expected to begin with a header identifying the
-        format type so it can be routed to an appropriate decompressor.
-        """
-        if not data:
-            return data
-
-        # Revlogs are read much more frequently than they are written and many
-        # chunks only take microseconds to decompress, so performance is
-        # important here.
-        #
-        # We can make a few assumptions about revlogs:
-        #
-        # 1) the majority of chunks will be compressed (as opposed to inline
-        #    raw data).
-        # 2) decompressing *any* data will likely by at least 10x slower than
-        #    returning raw inline data.
-        # 3) we want to prioritize common and officially supported compression
-        #    engines
-        #
-        # It follows that we want to optimize for "decompress compressed data
-        # when encoded with common and officially supported compression engines"
-        # case over "raw data" and "data encoded by less common or non-official
-        # compression engines." That is why we have the inline lookup first
-        # followed by the compengines lookup.
-        #
-        # According to `hg perfrevlogchunks`, this is ~0.5% faster for zlib
-        # compressed chunks. And this matters for changelog and manifest reads.
-        t = data[0:1]
-
-        if t == b'x':
-            try:
-                return _zlibdecompress(data)
-            except zlib.error as e:
-                raise error.RevlogError(
-                    _(b'revlog decompress error: %s')
-                    % stringutil.forcebytestr(e)
-                )
-        # '\0' is more common than 'u' so it goes first.
-        elif t == b'\0':
-            return data
-        elif t == b'u':
-            return util.buffer(data, 1)
-
-        compressor = self._get_decompressor(t)
-
-        return compressor.decompress(data)
+        return self._inner.decompress(data)
 
     def _addrevision(
         self,
@@ -3029,7 +3048,7 @@ class revlog:
             sidedata_compression_mode = COMP_MODE_PLAIN
             serialized_sidedata = sidedatautil.serialize_sidedata(sidedata)
             sidedata_offset = self._docket.sidedata_end
-            h, comp_sidedata = self.compress(serialized_sidedata)
+            h, comp_sidedata = self._inner.compress(serialized_sidedata)
             if (
                 h != b'u'
                 and comp_sidedata[0:1] != b'\0'
@@ -3876,7 +3895,7 @@ class revlog:
                 sidedata_compression_mode = COMP_MODE_INLINE
                 if serialized_sidedata and self.feature_config.has_side_data:
                     sidedata_compression_mode = COMP_MODE_PLAIN
-                    h, comp_sidedata = self.compress(serialized_sidedata)
+                    h, comp_sidedata = self._inner.compress(serialized_sidedata)
                     if (
                         h != b'u'
                         and comp_sidedata[0] != b'\0'
