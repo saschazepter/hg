@@ -3019,7 +3019,7 @@ class localrepository:
             if (
                 k == b'changelog'
                 and self.currenttransaction()
-                and self.changelog._delayed
+                and self.changelog.is_delaying
             ):
                 # The changelog object may store unwritten revisions. We don't
                 # want to lose them.
