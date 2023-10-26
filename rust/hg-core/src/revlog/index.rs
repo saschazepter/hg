@@ -85,7 +85,7 @@ impl IndexHeader {
 /// happened. This makes it transparent for the callers.
 struct IndexData {
     /// Immutable bytes, most likely taken from disk
-    bytes: Box<dyn Deref<Target = [u8]> + Send>,
+    bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>,
     /// Used when stripping index contents, keeps track of the start of the
     /// first stripped revision, which is used to give a slice of the
     /// `bytes` field.
@@ -95,7 +95,7 @@ struct IndexData {
 }
 
 impl IndexData {
-    pub fn new(bytes: Box<dyn Deref<Target = [u8]> + Send>) -> Self {
+    pub fn new(bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>) -> Self {
         Self {
             bytes,
             truncation: None,
@@ -328,7 +328,7 @@ impl Index {
     /// Create an index from bytes.
     /// Calculate the start of each entry when is_inline is true.
     pub fn new(
-        bytes: Box<dyn Deref<Target = [u8]> + Send>,
+        bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>,
         default_header: IndexHeader,
     ) -> Result<Self, HgError> {
         let header =
