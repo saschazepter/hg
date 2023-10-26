@@ -416,7 +416,7 @@ class repoview:
         with util.timedcm('repo filter for %s', self.filtername):
             revs = filterrevs(unfi, self.filtername, self._visibilityexceptions)
         cl = self._clcache
-        newkey = (unfilen, unfinode, hash(revs), unfichangelog._delayed)
+        newkey = (unfilen, unfinode, hash(revs), unfichangelog.is_delaying)
         # if cl.index is not unfiindex, unfi.changelog would be
         # recreated, and our clcache refers to garbage object
         if cl is not None and (
