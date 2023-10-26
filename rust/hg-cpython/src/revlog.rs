@@ -520,7 +520,7 @@ unsafe fn mmap_keeparound(
     data: PyObject,
 ) -> PyResult<(
     PyBuffer,
-    Box<dyn std::ops::Deref<Target = [u8]> + Send + 'static>,
+    Box<dyn std::ops::Deref<Target = [u8]> + Send + Sync + 'static>,
 )> {
     let buf = PyBuffer::get(py, &data)?;
     let len = buf.item_count();
