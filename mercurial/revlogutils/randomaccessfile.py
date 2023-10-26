@@ -23,6 +23,76 @@ def _is_power_of_two(n):
     return (n & (n - 1) == 0) and n != 0
 
 
+class appender:
+    """the changelog index must be updated last on disk, so we use this class
+    to delay writes to it"""
+
+    def __init__(self, vfs, name, mode, buf):
+        self.data = buf
+        fp = vfs(name, mode)
+        self.fp = fp
+        self.offset = fp.tell()
+        self.size = vfs.fstat(fp).st_size
+        self._end = self.size
+
+    def end(self):
+        return self._end
+
+    def tell(self):
+        return self.offset
+
+    def flush(self):
+        pass
+
+    @property
+    def closed(self):
+        return self.fp.closed
+
+    def close(self):
+        self.fp.close()
+
+    def seek(self, offset, whence=0):
+        '''virtual file offset spans real file and data'''
+        if whence == 0:
+            self.offset = offset
+        elif whence == 1:
+            self.offset += offset
+        elif whence == 2:
+            self.offset = self.end() + offset
+        if self.offset < self.size:
+            self.fp.seek(self.offset)
+
+    def read(self, count=-1):
+        '''only trick here is reads that span real file and data'''
+        ret = b""
+        if self.offset < self.size:
+            s = self.fp.read(count)
+            ret = s
+            self.offset += len(s)
+            if count > 0:
+                count -= len(s)
+        if count != 0:
+            doff = self.offset - self.size
+            self.data.insert(0, b"".join(self.data))
+            del self.data[1:]
+            s = self.data[0][doff : doff + count]
+            self.offset += len(s)
+            ret += s
+        return ret
+
+    def write(self, s):
+        self.data.append(bytes(s))
+        self.offset += len(s)
+        self._end += len(s)
+
+    def __enter__(self):
+        self.fp.__enter__()
+        return self
+
+    def __exit__(self, *args):
+        return self.fp.__exit__(*args)
+
+
 class randomaccessfile:
     """Accessing arbitrary chuncks of data within a file, with some caching"""
 
