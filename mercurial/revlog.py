@@ -411,6 +411,10 @@ class _InnerRevlog:
         self._segmentfile.clear_cache()
         self._segmentfile_sidedata.clear_cache()
 
+    @property
+    def canonical_index_file(self):
+        return self.index_file
+
     # Derived from index values.
 
     def start(self, rev):
@@ -1034,7 +1038,7 @@ class _InnerRevlog:
             transaction.add(self.data_file, offset)
             if self.sidedata_file:
                 transaction.add(self.sidedata_file, sidedata_offset)
-            transaction.add(self.index_file, curr * len(entry))
+            transaction.add(self.canonical_index_file, curr * len(entry))
             if data[0]:
                 dfh.write(data[0])
             dfh.write(data[1])
@@ -1043,7 +1047,7 @@ class _InnerRevlog:
             ifh.write(entry)
         else:
             offset += curr * self.index.entry_size
-            transaction.add(self.index_file, offset)
+            transaction.add(self.canonical_index_file, offset)
             ifh.write(entry)
             ifh.write(data[0])
             ifh.write(data[1])
@@ -2833,13 +2837,13 @@ class revlog:
             msg = b"inline revlog should not have a docket"
             raise error.ProgrammingError(msg)
 
-        troffset = tr.findoffset(self._indexfile)
+        troffset = tr.findoffset(self._inner.canonical_index_file)
         if troffset is None:
             raise error.RevlogError(
                 _(b"%s not found in the transaction") % self._indexfile
             )
         if troffset:
-            tr.addbackup(self._indexfile, for_offset=True)
+            tr.addbackup(self._inner.canonical_index_file, for_offset=True)
         tr.add(self._datafile, 0)
 
         new_index_file_path = None
