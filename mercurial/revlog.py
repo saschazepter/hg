@@ -901,6 +901,8 @@ class _InnerRevlog:
 
         l = []
         ladd = l.append
+        chunks = []
+        ladd = chunks.append
 
         if not self.data_config.with_sparse_read:
             slicedchunks = (revs,)
@@ -923,7 +925,8 @@ class _InnerRevlog:
             except OverflowError:
                 # issue4215 - we can't cache a run of chunks greater than
                 # 2G on Windows
-                return [self._chunk(rev) for rev in revschunk]
+                for rev in revschunk:
+                    ladd((rev, self._chunk(rev)))
 
             decomp = self.decompress
             # self._decompressor might be None, but will not be used in that case
@@ -936,17 +939,18 @@ class _InnerRevlog:
                 comp_mode = self.index[rev][10]
                 c = buffer(data, chunkstart - offset, chunklength)
                 if comp_mode == COMP_MODE_PLAIN:
-                    ladd(c)
+                    c = c
                 elif comp_mode == COMP_MODE_INLINE:
-                    ladd(decomp(c))
+                    c = decomp(c)
                 elif comp_mode == COMP_MODE_DEFAULT:
-                    ladd(def_decomp(c))
+                    c = def_decomp(c)
                 else:
                     msg = b'unknown compression mode %d'
                     msg %= comp_mode
                     raise error.RevlogError(msg)
+                ladd((rev, c))
 
-        return l
+        return [x[1] for x in chunks]
 
     def raw_text(self, node, rev):
         """return the possibly unvalidated rawtext for a revision
