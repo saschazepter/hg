@@ -368,7 +368,12 @@ py_class!(pub class MixedIndex |py| {
                 nodemap_error(py, NodeMapError::RevisionNotInIndex(stop_rev))
             })?)
         } else {None};
-        let (chain, stopped) = index.delta_chain(rev, stop_rev).map_err(|e| {
+        let using_general_delta = args.get_item(py, 2)
+            .extract::<Option<u32>>(py)?
+            .map(|i| i != 0);
+        let (chain, stopped) = index.delta_chain(
+            rev, stop_rev, using_general_delta
+        ).map_err(|e| {
             PyErr::new::<cpython::exc::ValueError, _>(py, e.to_string())
         })?;
 
