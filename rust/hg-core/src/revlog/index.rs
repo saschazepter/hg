@@ -599,15 +599,18 @@ impl Index {
         &self,
         rev: Revision,
         stop_rev: Option<Revision>,
+        using_general_delta: Option<bool>,
     ) -> Result<(Vec<Revision>, bool), HgError> {
         let mut current_rev = rev;
         let mut entry = self.get_entry(rev).unwrap();
         let mut chain = vec![];
+        let using_general_delta =
+            using_general_delta.unwrap_or_else(|| self.uses_generaldelta());
         while current_rev.0 != entry.base_revision_or_base_of_delta_chain().0
             && stop_rev.map(|r| r != current_rev).unwrap_or(true)
         {
             chain.push(current_rev);
-            let new_rev = if self.uses_generaldelta() {
+            let new_rev = if using_general_delta {
                 entry.base_revision_or_base_of_delta_chain()
             } else {
                 UncheckedRevision(current_rev.0 - 1)
