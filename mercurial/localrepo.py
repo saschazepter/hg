@@ -1089,6 +1089,16 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     if chunkcachesize is not None:
         data_config.chunk_cache_size = chunkcachesize
 
+    if ui.configbool(b'experimental', b'revlog.uncompressed-cache.enabled'):
+        factor = ui.configint(
+            b'experimental', b'revlog.uncompressed-cache.factor'
+        )
+        count = ui.configint(
+            b'experimental', b'revlog.uncompressed-cache.count'
+        )
+        data_config.uncompressed_cache_factor = factor
+        data_config.uncompressed_cache_count = count
+
     delta_config.delta_both_parents = ui.configbool(
         b'storage', b'revlog.optimize-delta-parent-choice'
     )
