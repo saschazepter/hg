@@ -1683,7 +1683,10 @@ class revlog:
             if self._nodemap_file is not None:
                 use_rust_index = True
             else:
-                use_rust_index = self.opener.options.get(b'rust.index')
+                # Using the CIndex is not longer possible, as the
+                # `AncestorsIterator` and `LazyAncestors` classes now require
+                # a Rust index for instantiation.
+                use_rust_index = True
 
         self._parse_index = parse_index_v1
         if self._format_version == REVLOGV0:
