@@ -225,7 +225,7 @@ py_class!(pub class MixedIndex |py| {
         self.nt(py).borrow_mut().take();
         self.docket(py).borrow_mut().take();
         self.nodemap_mmap(py).borrow_mut().take();
-        self.index(py).borrow_mut().clear_caches();
+        self.index(py).borrow().clear_caches();
         self.call_cindex(py, "clearcaches", args, kw)
     }
 
@@ -849,7 +849,7 @@ impl MixedIndex {
     }
 
     fn inner_headrevs(&self, py: Python) -> PyResult<PyObject> {
-        let index = &mut *self.index(py).borrow_mut();
+        let index = &*self.index(py).borrow();
         let as_vec: Vec<PyObject> = index
             .head_revs()
             .map_err(|e| graph_error(py, e))?
@@ -881,7 +881,7 @@ impl MixedIndex {
         py: Python,
         py_revs: &PyTuple,
     ) -> PyResult<PyObject> {
-        let index = &mut *self.index(py).borrow_mut();
+        let index = &*self.index(py).borrow();
         let revs: Vec<_> = rev_pyiter_collect(py, py_revs.as_object(), index)?;
         let as_vec: Vec<_> = index
             .ancestors(&revs)
@@ -897,7 +897,7 @@ impl MixedIndex {
         py: Python,
         py_revs: &PyTuple,
     ) -> PyResult<PyObject> {
-        let index = &mut *self.index(py).borrow_mut();
+        let index = &*self.index(py).borrow();
         let revs: Vec<_> = rev_pyiter_collect(py, py_revs.as_object(), index)?;
         let as_vec: Vec<_> = index
             .common_ancestor_heads(&revs)
@@ -980,7 +980,7 @@ impl MixedIndex {
         target_density: f64,
         min_gap_size: usize,
     ) -> PyResult<PyObject> {
-        let index = &mut *self.index(py).borrow_mut();
+        let index = &*self.index(py).borrow();
         let revs: Vec<_> = rev_pyiter_collect(py, &revs, index)?;
         let as_nested_vec =
             index.slice_chunk_to_density(&revs, target_density, min_gap_size);
