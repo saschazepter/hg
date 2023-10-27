@@ -295,6 +295,12 @@ class DataConfig(_Config):
     # How much data to read and cache into the raw revlog data cache.
     chunk_cache_size = attr.ib(default=65536)
 
+    # The size of the uncompressed cache compared to the largest revision seen.
+    uncompressed_cache_factor = attr.ib(default=None)
+
+    # The number of chunk cached
+    uncompressed_cache_count = attr.ib(default=None)
+
     # Allow sparse reading of the revlog data
     with_sparse_read = attr.ib(default=False)
     # minimal density of a sparse read chunk
@@ -396,6 +402,18 @@ class _InnerRevlog:
         # 3-tuple of (node, rev, text) for a raw revision.
         self._revisioncache = None
 
+        # cache some uncompressed chunks
+        # rev → uncompressed_chunk
+        #
+        # the max cost is dynamically updated to be proportionnal to the
+        # size of revision we actually encounter.
+        self._uncompressed_chunk_cache = None
+        if self.data_config.uncompressed_cache_factor is not None:
+            self._uncompressed_chunk_cache = util.lrucachedict(
+                self.data_config.uncompressed_cache_count,
+                maxcost=65536,  # some arbitrary initial value
+            )
+
         self._delay_buffer = None
 
     @property
@@ -414,6 +432,8 @@ class _InnerRevlog:
     def clear_cache(self):
         assert not self.is_delaying
         self._revisioncache = None
+        if self._uncompressed_chunk_cache is not None:
+            self._uncompressed_chunk_cache.clear()
         self._segmentfile.clear_cache()
         self._segmentfile_sidedata.clear_cache()
 
@@ -865,18 +885,26 @@ class _InnerRevlog:
 
         Returns a str holding uncompressed data for the requested revision.
         """
+        if self._uncompressed_chunk_cache is not None:
+            uncomp = self._uncompressed_chunk_cache.get(rev)
+            if uncomp is not None:
+                return uncomp
+
         compression_mode = self.index[rev][10]
         data = self.get_segment_for_revs(rev, rev)[1]
         if compression_mode == COMP_MODE_PLAIN:
-            return data
+            uncomp = data
         elif compression_mode == COMP_MODE_DEFAULT:
-            return self._decompressor(data)
+            uncomp = self._decompressor(data)
         elif compression_mode == COMP_MODE_INLINE:
-            return self.decompress(data)
+            uncomp = self.decompress(data)
         else:
             msg = b'unknown compression mode %d'
             msg %= compression_mode
             raise error.RevlogError(msg)
+        if self._uncompressed_chunk_cache is not None:
+            self._uncompressed_chunk_cache.insert(rev, uncomp, cost=len(uncomp))
+        return uncomp
 
     def _chunks(self, revs, targetsize=None):
         """Obtain decompressed chunks for the specified revisions.
@@ -899,17 +927,30 @@ class _InnerRevlog:
         iosize = self.index.entry_size
         buffer = util.buffer
 
-        l = []
-        ladd = l.append
+        fetched_revs = []
+        fadd = fetched_revs.append
+
         chunks = []
         ladd = chunks.append
 
-        if not self.data_config.with_sparse_read:
-            slicedchunks = (revs,)
+        if self._uncompressed_chunk_cache is None:
+            fetched_revs = revs
+        else:
+            for rev in revs:
+                cached_value = self._uncompressed_chunk_cache.get(rev)
+                if cached_value is None:
+                    fadd(rev)
+                else:
+                    ladd((rev, cached_value))
+
+        if not fetched_revs:
+            slicedchunks = ()
+        elif not self.data_config.with_sparse_read:
+            slicedchunks = (fetched_revs,)
         else:
             slicedchunks = deltautil.slicechunk(
                 self,
-                revs,
+                fetched_revs,
                 targetsize=targetsize,
             )
 
@@ -949,7 +990,10 @@ class _InnerRevlog:
                     msg %= comp_mode
                     raise error.RevlogError(msg)
                 ladd((rev, c))
+                if self._uncompressed_chunk_cache is not None:
+                    self._uncompressed_chunk_cache.insert(rev, c, len(c))
 
+        chunks.sort()
         return [x[1] for x in chunks]
 
     def raw_text(self, node, rev):
@@ -980,6 +1024,14 @@ class _InnerRevlog:
         rawsize = self.index[rev][2]
         if 0 <= rawsize:
             targetsize = 4 * rawsize
+
+        if self._uncompressed_chunk_cache is not None:
+            # dynamically update the uncompressed_chunk_cache size to the
+            # largest revision we saw in this revlog.
+            factor = self.data_config.uncompressed_cache_factor
+            candidate_size = rawsize * factor
+            if candidate_size > self._uncompressed_chunk_cache.maxcost:
+                self._uncompressed_chunk_cache.maxcost = candidate_size
 
         bins = self._chunks(chain, targetsize=targetsize)
         if basetext is None:
