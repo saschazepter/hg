@@ -16,7 +16,7 @@ use cpython::{
     exc::{IndexError, ValueError},
     ObjectProtocol, PyBool, PyBytes, PyClone, PyDict, PyErr, PyInt, PyList,
     PyModule, PyObject, PyResult, PySet, PyString, PyTuple, Python,
-    PythonObject, ToPyObject,
+    PythonObject, ToPyObject, UnsafePyLeaked,
 };
 use hg::{
     errors::HgError,
@@ -25,10 +25,11 @@ use hg::{
         INDEX_ENTRY_SIZE,
     },
     nodemap::{Block, NodeMapError, NodeTree},
-    revlog::{nodemap::NodeMap, NodePrefix, RevlogError, RevlogIndex},
-    BaseRevision, Revision, UncheckedRevision, NULL_REVISION,
+    revlog::{nodemap::NodeMap, Graph, NodePrefix, RevlogError, RevlogIndex},
+    BaseRevision, Node, Revision, UncheckedRevision, NULL_REVISION,
 };
 use std::{cell::RefCell, collections::HashMap};
+use vcsgraph::graph::Graph as VCSGraph;
 
 /// Return a Struct implementing the Graph trait
 pub(crate) fn pyindex_to_graph(
@@ -41,9 +42,64 @@ pub(crate) fn pyindex_to_graph(
     }
 }
 
+pub struct PySharedIndex {
+    /// The underlying hg-core index
+    pub(crate) inner: &'static hg::index::Index,
+}
+
+/// Return a Struct implementing the Graph trait
+pub(crate) fn py_rust_index_to_graph(
+    py: Python,
+    index: PyObject,
+) -> PyResult<UnsafePyLeaked<PySharedIndex>> {
+    let midx = index.extract::<MixedIndex>(py)?;
+    let leaked = midx.index(py).leak_immutable();
+    Ok(unsafe { leaked.map(py, |idx| PySharedIndex { inner: idx }) })
+}
+
+impl Clone for PySharedIndex {
+    fn clone(&self) -> Self {
+        Self { inner: self.inner }
+    }
+}
+
+impl Graph for PySharedIndex {
+    fn parents(&self, rev: Revision) -> Result<[Revision; 2], hg::GraphError> {
+        self.inner.parents(rev)
+    }
+}
+
+impl VCSGraph for PySharedIndex {
+    fn parents(
+        &self,
+        rev: BaseRevision,
+    ) -> Result<vcsgraph::graph::Parents, vcsgraph::graph::GraphReadError>
+    {
+        // FIXME This trait should be reworked to decide between Revision
+        // and UncheckedRevision, get better errors names, etc.
+        match Graph::parents(self, Revision(rev)) {
+            Ok(parents) => {
+                Ok(vcsgraph::graph::Parents([parents[0].0, parents[1].0]))
+            }
+            Err(hg::GraphError::ParentOutOfRange(rev)) => {
+                Err(vcsgraph::graph::GraphReadError::KeyedInvalidKey(rev.0))
+            }
+        }
+    }
+}
+
+impl RevlogIndex for PySharedIndex {
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+    fn node(&self, rev: Revision) -> Option<&Node> {
+        self.inner.node(rev)
+    }
+}
+
 py_class!(pub class MixedIndex |py| {
     data cindex: RefCell<cindex::Index>;
-    data index: RefCell<hg::index::Index>;
+    @shared data index: hg::index::Index;
     data nt: RefCell<Option<NodeTree>>;
     data docket: RefCell<Option<PyObject>>;
     // Holds a reference to the mmap'ed persistent nodemap data
@@ -668,17 +724,15 @@ impl MixedIndex {
         Self::create_instance(
             py,
             RefCell::new(cindex::Index::new(py, cindex)?),
-            RefCell::new(
-                hg::index::Index::new(
-                    bytes,
-                    IndexHeader::parse(&header.to_be_bytes())
-                        .expect("default header is broken")
-                        .unwrap(),
-                )
-                .map_err(|e| {
-                    revlog_error_with_msg(py, e.to_string().as_bytes())
-                })?,
-            ),
+            hg::index::Index::new(
+                bytes,
+                IndexHeader::parse(&header.to_be_bytes())
+                    .expect("default header is broken")
+                    .unwrap(),
+            )
+            .map_err(|e| {
+                revlog_error_with_msg(py, e.to_string().as_bytes())
+            })?,
             RefCell::new(None),
             RefCell::new(None),
             RefCell::new(None),

@@ -50,7 +50,7 @@ class rustancestorstest(revlogtesting.RevlogBasedTestBase):
     """
 
     def testiteratorrevlist(self):
-        idx = self.parseindex()
+        idx = self.parserustindex()
         # checking test assumption about the index binary data:
         self.assertEqual(
             {i: (r[5], r[6]) for i, r in enumerate(idx)},
@@ -63,7 +63,7 @@ class rustancestorstest(revlogtesting.RevlogBasedTestBase):
         self.assertEqual([r for r in ait], [2, 1, 0])
 
     def testlazyancestors(self):
-        idx = self.parseindex()
+        idx = self.parserustindex()
         start_count = sys.getrefcount(idx)  # should be 2 (see Python doc)
         self.assertEqual(
             {i: (r[5], r[6]) for i, r in enumerate(idx)},
@@ -110,7 +110,7 @@ class rustancestorstest(revlogtesting.RevlogBasedTestBase):
         self.assertEqual(revs, {2, 3})
 
     def testrefcount(self):
-        idx = self.parseindex()
+        idx = self.parserustindex()
         start_count = sys.getrefcount(idx)
 
         # refcount increases upon iterator init...
@@ -127,13 +127,17 @@ class rustancestorstest(revlogtesting.RevlogBasedTestBase):
         del idx
         self.assertEqual(list(ait), [3, 2, 1, 0])
 
+        # the index is not tracked by the GC, hence there is nothing more
+        # we can assert to check that it is properly deleted once its refcount
+        # drops to 0
+
     def testgrapherror(self):
         data = (
             revlogtesting.data_non_inlined[: 64 + 27]
             + b'\xf2'
             + revlogtesting.data_non_inlined[64 + 28 :]
         )
-        idx = cparsers.parse_index2(data, False)[0]
+        idx = self.parserustindex(data=data)
         with self.assertRaises(rustext.GraphError) as arc:
             AncestorsIterator(idx, [1], -1, False)
         exc = arc.exception
@@ -143,7 +147,7 @@ class rustancestorstest(revlogtesting.RevlogBasedTestBase):
 
     def testwdirunsupported(self):
         # trying to access ancestors of the working directory raises
-        idx = self.parseindex()
+        idx = self.parserustindex()
         with self.assertRaises(rustext.GraphError) as arc:
             list(AncestorsIterator(idx, [wdirrev], -1, False))
 
