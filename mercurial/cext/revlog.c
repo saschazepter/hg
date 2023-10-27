@@ -3037,7 +3037,7 @@ static int index_init(indexObject *self, PyObject *args, PyObject *kwargs)
 	self->offsets = NULL;
 	self->nodelen = 20;
 	self->nullentry = NULL;
-	self->rust_ext_compat = 1;
+	self->rust_ext_compat = 0;
 	self->format_version = format_v1;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO|l", kwlist,
@@ -3055,6 +3055,7 @@ static int index_init(indexObject *self, PyObject *args, PyObject *kwargs)
 	}
 
 	if (self->format_version == format_v1) {
+		self->rust_ext_compat = 1;
 		self->entry_size = v1_entry_size;
 	} else if (self->format_version == format_v2) {
 		self->entry_size = v2_entry_size;

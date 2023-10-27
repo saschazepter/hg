@@ -54,7 +54,7 @@ class RustRevlogIndexTest(revlogtesting.RevlogBasedTestBase):
         self.assertEqual(list(lazy), [3, 2, 1, 0])
 
         # let's check bool for an empty one
-        self.assertFalse(LazyAncestors(idx, [0], 0, False))
+        self.assertFalse(LazyAncestors(rustidx, [0], 0, False))
 
 
 if __name__ == '__main__':

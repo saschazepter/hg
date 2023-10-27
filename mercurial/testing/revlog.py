@@ -21,11 +21,18 @@ data_non_inlined = (
     b'\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 )
 
+from ..revlogutils.constants import REVLOGV1
+
 
 try:
     from ..cext import parsers as cparsers  # pytype: disable=import-error
 except ImportError:
     cparsers = None
+
+try:
+    from ..rustext.revlog import MixedIndex  # pytype: disable=import-error
+except ImportError:
+    MixedIndex = None
 
 
 @unittest.skipIf(
@@ -33,5 +40,13 @@ except ImportError:
     'The C version of the "parsers" module is not available. It is needed for this test.',
 )
 class RevlogBasedTestBase(unittest.TestCase):
-    def parseindex(self):
-        return cparsers.parse_index2(data_non_inlined, False)[0]
+    def parseindex(self, data=None):
+        if data is None:
+            data = data_non_inlined
+        return cparsers.parse_index2(data, False)[0]
+
+    def parserustindex(self, data=None):
+        if data is None:
+            data = data_non_inlined
+        cindex = self.parseindex(data=data)
+        return MixedIndex(cindex, data, REVLOGV1)
