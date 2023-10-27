@@ -1111,6 +1111,28 @@ default = "65K"
 
 [[items]]
 section = "experimental"
+name = "revlog.uncompressed-cache.enabled"
+default = true
+experimental = true
+documentation = """Enable some caching of uncompressed chunk, greatly boosting
+performance at the cost of memory usage."""
+
+[[items]]
+section = "experimental"
+name = "revlog.uncompressed-cache.factor"
+default = 4
+experimental = true
+documentation = """The size of the cache compared to the largest revision seen."""
+
+[[items]]
+section = "experimental"
+name = "revlog.uncompressed-cache.count"
+default = 10000
+experimental = true
+documentation = """The number of chunk cached."""
+
+[[items]]
+section = "experimental"
 name = "stream-v3"
 default = false
 
