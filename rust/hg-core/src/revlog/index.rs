@@ -261,12 +261,13 @@ pub struct Index {
     offsets: RwLock<Option<Vec<usize>>>,
     uses_generaldelta: bool,
     is_inline: bool,
-    /// Cache of the head revisions in this index, kept in sync. Should
+    /// Cache of (head_revisions, filtered_revisions)
+    ///
+    /// The head revisions in this index, kept in sync. Should
     /// be accessed via the [`Self::head_revs`] method.
-    head_revs: Vec<Revision>,
-    /// Cache of the last filtered revisions in this index, used to make sure
+    /// The last filtered revisions in this index, used to make sure
     /// we haven't changed filters when returning the cached `head_revs`.
-    filtered_revs: HashSet<Revision>,
+    head_revs: RwLock<(Vec<Revision>, HashSet<Revision>)>,
 }
 
 impl Debug for Index {
@@ -366,8 +367,7 @@ impl Index {
                     offsets: RwLock::new(Some(offsets)),
                     uses_generaldelta,
                     is_inline: true,
-                    head_revs: vec![],
-                    filtered_revs: HashSet::new(),
+                    head_revs: RwLock::new((vec![], HashSet::new())),
                 })
             } else {
                 Err(HgError::corrupted("unexpected inline revlog length"))
@@ -378,8 +378,7 @@ impl Index {
                 offsets: RwLock::new(None),
                 uses_generaldelta,
                 is_inline: false,
-                head_revs: vec![],
-                filtered_revs: HashSet::new(),
+                head_revs: RwLock::new((vec![], HashSet::new())),
             })
         }
     }
@@ -532,17 +531,27 @@ impl Index {
     }
 
     /// Return the head revisions of this index
-    pub fn head_revs(&mut self) -> Result<Vec<Revision>, GraphError> {
+    pub fn head_revs(&self) -> Result<Vec<Revision>, GraphError> {
         self.head_revs_filtered(&HashSet::new())
     }
 
     /// Return the head revisions of this index
     pub fn head_revs_filtered(
-        &mut self,
+        &self,
         filtered_revs: &HashSet<Revision>,
     ) -> Result<Vec<Revision>, GraphError> {
-        if !self.head_revs.is_empty() && filtered_revs == &self.filtered_revs {
-            return Ok(self.head_revs.to_owned());
+        {
+            let guard = self
+                .head_revs
+                .read()
+                .expect("RwLock on Index.head_revs should not be poisoned");
+            let self_head_revs = &guard.0;
+            let self_filtered_revs = &guard.1;
+            if !self_head_revs.is_empty()
+                && filtered_revs == self_filtered_revs
+            {
+                return Ok(self_head_revs.to_owned());
+            }
         }
         let mut revs: HashSet<Revision, RandomState> =
             if filtered_revs.is_empty() {
@@ -570,8 +579,11 @@ impl Index {
         let mut as_vec: Vec<Revision> =
             revs.into_iter().map(Into::into).collect();
         as_vec.sort_unstable();
-        self.head_revs = as_vec.to_owned();
-        self.filtered_revs = filtered_revs.to_owned();
+        *self
+            .head_revs
+            .write()
+            .expect("RwLock on Index.head_revs should not be poisoned") =
+            (as_vec.to_owned(), filtered_revs.to_owned());
         Ok(as_vec)
     }
 
@@ -651,6 +663,14 @@ impl Index {
         Ok(())
     }
 
+    fn clear_head_revs(&self) {
+        self.head_revs
+            .write()
+            .expect("RwLock on Index.head_revs should not be poisoined")
+            .0
+            .clear()
+    }
+
     /// TODO move this to the trait probably, along with other things
     pub fn append(
         &mut self,
@@ -662,7 +682,7 @@ impl Index {
             offsets.push(new_offset)
         }
         self.bytes.added.extend(revision_data.into_v1().as_bytes());
-        self.head_revs.clear();
+        self.clear_head_revs();
         Ok(())
     }
 
@@ -676,16 +696,19 @@ impl Index {
         if let Some(offsets) = &mut *self.get_offsets_mut() {
             offsets.truncate(rev.0 as usize)
         }
-        self.head_revs.clear();
+        self.clear_head_revs();
         Ok(())
     }
 
-    pub fn clear_caches(&mut self) {
+    pub fn clear_caches(&self) {
         // We need to get the 'inline' value from Python at init and use this
         // instead of offsets to determine whether we're inline since we might
         // clear caches. This implies re-populating the offsets on-demand.
-        self.offsets = RwLock::new(None);
-        self.head_revs.clear();
+        *self
+            .offsets
+            .write()
+            .expect("RwLock on Index.offsets should not be poisoed") = None;
+        self.clear_head_revs();
     }
 
     /// Unchecked version of `is_snapshot`.
