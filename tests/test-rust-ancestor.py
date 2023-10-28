@@ -93,7 +93,7 @@ class rustancestorstest(revlogtesting.RevlogBasedTestBase):
         self.assertFalse(LazyAncestors(idx, [0], 0, False))
 
     def testmissingancestors(self):
-        idx = self.parseindex()
+        idx = self.parserustindex()
         missanc = MissingAncestors(idx, [1])
         self.assertTrue(missanc.hasbases())
         self.assertEqual(missanc.missingancestors([3]), [2, 3])
@@ -103,7 +103,7 @@ class rustancestorstest(revlogtesting.RevlogBasedTestBase):
         self.assertEqual(missanc.basesheads(), {2})
 
     def testmissingancestorsremove(self):
-        idx = self.parseindex()
+        idx = self.parserustindex()
         missanc = MissingAncestors(idx, [1])
         revs = {0, 1, 2, 3}
         missanc.removeancestorsfrom(revs)
