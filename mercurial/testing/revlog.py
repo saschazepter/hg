@@ -57,5 +57,4 @@ class RustRevlogBasedTestBase(unittest.TestCase):
         # not inheriting RevlogBasedTestCase to avoid having a
         # `parseindex` method that would be shadowed by future subclasses
         # this duplication will soon be removed
-        cindex = cparsers.parse_index2(data, False)[0]
-        return MixedIndex(cindex, data, REVLOGV1)
+        return MixedIndex(data, REVLOGV1)
