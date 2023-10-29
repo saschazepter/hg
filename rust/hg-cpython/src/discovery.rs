@@ -14,11 +14,12 @@
 
 use crate::PyRevision;
 use crate::{
-    cindex::Index, conversion::rev_pyiter_collect, exceptions::GraphError,
+    conversion::rev_pyiter_collect, exceptions::GraphError,
+    revlog::PySharedIndex,
 };
 use cpython::{
     ObjectProtocol, PyClone, PyDict, PyModule, PyObject, PyResult, PyTuple,
-    Python, PythonObject, ToPyObject,
+    Python, PythonObject, ToPyObject, UnsafePyLeaked,
 };
 use hg::discovery::PartialDiscovery as CorePartialDiscovery;
 use hg::Revision;
@@ -26,11 +27,11 @@ use std::collections::HashSet;
 
 use std::cell::RefCell;
 
-use crate::revlog::pyindex_to_graph;
+use crate::revlog::py_rust_index_to_graph;
 
 py_class!(pub class PartialDiscovery |py| {
-    data inner: RefCell<Box<CorePartialDiscovery<Index>>>;
-    data index: RefCell<Index>;
+    data inner: RefCell<UnsafePyLeaked<CorePartialDiscovery<PySharedIndex>>>;
+    data index: RefCell<UnsafePyLeaked<PySharedIndex>>;
 
     // `_respectsize` is currently only here to replicate the Python API and
     // will be used in future patches inside methods that are yet to be
@@ -58,15 +59,21 @@ py_class!(pub class PartialDiscovery |py| {
     }
 
     def hasinfo(&self) -> PyResult<bool> {
-        Ok(self.inner(py).borrow().has_info())
+        let leaked = self.inner(py).borrow();
+        let inner = unsafe { leaked.try_borrow(py)? };
+        Ok(inner.has_info())
     }
 
     def iscomplete(&self) -> PyResult<bool> {
-        Ok(self.inner(py).borrow().is_complete())
+        let leaked = self.inner(py).borrow();
+        let inner = unsafe { leaked.try_borrow(py)? };
+        Ok(inner.is_complete())
     }
 
     def stats(&self) -> PyResult<PyDict> {
-        let stats = self.inner(py).borrow().stats();
+        let leaked = self.inner(py).borrow();
+        let inner = unsafe { leaked.try_borrow(py)? };
+        let stats = inner.stats();
         let as_dict: PyDict = PyDict::new(py);
         as_dict.set_item(py, "undecided",
                          stats.undecided.map(
@@ -76,7 +83,9 @@ py_class!(pub class PartialDiscovery |py| {
     }
 
     def commonheads(&self) -> PyResult<HashSet<PyRevision>> {
-        let res = self.inner(py).borrow().common_heads()
+        let leaked = self.inner(py).borrow();
+        let inner = unsafe { leaked.try_borrow(py)? };
+        let res = inner.common_heads()
                     .map_err(|e| GraphError::pynew(py, e))?;
         Ok(res.into_iter().map(Into::into).collect())
     }
@@ -102,17 +111,27 @@ impl PartialDiscovery {
         randomize: bool,
     ) -> PyResult<Self> {
         let index = repo.getattr(py, "changelog")?.getattr(py, "index")?;
-        let index = pyindex_to_graph(py, index)?;
-        let target_heads = rev_pyiter_collect(py, &targetheads, &index)?;
+        let cloned_index = py_rust_index_to_graph(py, index.clone_ref(py))?;
+        let index = py_rust_index_to_graph(py, index)?;
+
+        let target_heads = {
+            let borrowed_idx = unsafe { index.try_borrow(py)? };
+            rev_pyiter_collect(py, &targetheads, &*borrowed_idx)?
+        };
+        let lazy_disco = unsafe {
+            index.map(py, |idx| {
+                CorePartialDiscovery::new(
+                    idx,
+                    target_heads,
+                    respectsize,
+                    randomize,
+                )
+            })
+        };
         Self::create_instance(
             py,
-            RefCell::new(Box::new(CorePartialDiscovery::new(
-                index.clone_ref(py),
-                target_heads,
-                respectsize,
-                randomize,
-            ))),
-            RefCell::new(index),
+            RefCell::new(lazy_disco),
+            RefCell::new(cloned_index),
         )
     }
 
@@ -122,7 +141,8 @@ impl PartialDiscovery {
         py: Python,
         iter: &PyObject,
     ) -> PyResult<Vec<Revision>> {
-        let index = self.index(py).borrow();
+        let leaked = self.index(py).borrow();
+        let index = unsafe { leaked.try_borrow(py)? };
         rev_pyiter_collect(py, iter, &*index)
     }
 
@@ -147,7 +167,8 @@ impl PartialDiscovery {
                 missing.push(rev);
             }
         }
-        let mut inner = self.inner(py).borrow_mut();
+        let mut leaked = self.inner(py).borrow_mut();
+        let mut inner = unsafe { leaked.try_borrow_mut(py)? };
         inner
             .add_common_revisions(common)
             .map_err(|e| GraphError::pynew(py, e))?;
@@ -163,7 +184,8 @@ impl PartialDiscovery {
         commons: PyObject,
     ) -> PyResult<PyObject> {
         let commons_vec = self.pyiter_to_vec(py, &commons)?;
-        let mut inner = self.inner(py).borrow_mut();
+        let mut leaked = self.inner(py).borrow_mut();
+        let mut inner = unsafe { leaked.try_borrow_mut(py)? };
         inner
             .add_common_revisions(commons_vec)
             .map_err(|e| GraphError::pynew(py, e))?;
@@ -176,7 +198,8 @@ impl PartialDiscovery {
         missings: PyObject,
     ) -> PyResult<PyObject> {
         let missings_vec = self.pyiter_to_vec(py, &missings)?;
-        let mut inner = self.inner(py).borrow_mut();
+        let mut leaked = self.inner(py).borrow_mut();
+        let mut inner = unsafe { leaked.try_borrow_mut(py)? };
         inner
             .add_missing_revisions(missings_vec)
             .map_err(|e| GraphError::pynew(py, e))?;
@@ -189,7 +212,8 @@ impl PartialDiscovery {
         _headrevs: PyObject,
         size: usize,
     ) -> PyResult<PyObject> {
-        let mut inner = self.inner(py).borrow_mut();
+        let mut leaked = self.inner(py).borrow_mut();
+        let mut inner = unsafe { leaked.try_borrow_mut(py)? };
         let sample = inner
             .take_full_sample(size)
             .map_err(|e| GraphError::pynew(py, e))?;
@@ -207,7 +231,8 @@ impl PartialDiscovery {
         size: usize,
     ) -> PyResult<PyObject> {
         let revsvec = self.pyiter_to_vec(py, &headrevs)?;
-        let mut inner = self.inner(py).borrow_mut();
+        let mut leaked = self.inner(py).borrow_mut();
+        let mut inner = unsafe { leaked.try_borrow_mut(py)? };
         let sample = inner
             .take_quick_sample(revsvec, size)
             .map_err(|e| GraphError::pynew(py, e))?;
