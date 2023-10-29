@@ -1,6 +1,7 @@
 import unittest
 
 from mercurial import policy
+from mercurial.testing import revlog as revlogtesting
 
 PartialDiscovery = policy.importrust('discovery', member='PartialDiscovery')
 
@@ -47,7 +48,7 @@ class fakerepo:
     "rustext or the C Extension parsers module "
     "discovery relies on is not available",
 )
-class rustdiscoverytest(unittest.TestCase):
+class rustdiscoverytest(revlogtesting.RustRevlogBasedTestBase):
     """Test the correctness of binding to Rust code.
 
     This test is merely for the binding to Rust itself: extraction of
@@ -60,7 +61,7 @@ class rustdiscoverytest(unittest.TestCase):
     """
 
     def parseindex(self):
-        return cparsers.parse_index2(data_non_inlined, False)[0]
+        return self.parserustindex(data=data_non_inlined)
 
     def repo(self):
         return fakerepo(self.parseindex())
