@@ -40,7 +40,7 @@ pub(crate) fn py_rust_index_to_graph(
     py: Python,
     index: PyObject,
 ) -> PyResult<UnsafePyLeaked<PySharedIndex>> {
-    let midx = index.extract::<MixedIndex>(py)?;
+    let midx = index.extract::<Index>(py)?;
     let leaked = midx.index(py).leak_immutable();
     Ok(unsafe { leaked.map(py, |idx| PySharedIndex { inner: idx }) })
 }
@@ -85,7 +85,7 @@ impl RevlogIndex for PySharedIndex {
     }
 }
 
-py_class!(pub class MixedIndex |py| {
+py_class!(pub class Index |py| {
     @shared data index: hg::index::Index;
     data nt: RefCell<Option<CoreNodeTree>>;
     data docket: RefCell<Option<PyObject>>;
@@ -98,7 +98,7 @@ py_class!(pub class MixedIndex |py| {
         _cls,
         data: PyObject,
         default_header: u32,
-    ) -> PyResult<MixedIndex> {
+    ) -> PyResult<Self> {
         Self::new(py, data, default_header)
     }
 
@@ -598,8 +598,8 @@ impl<'p> SnapshotsCache for PySnapshotsCache<'p> {
     }
 }
 
-impl MixedIndex {
-    fn new(py: Python, data: PyObject, header: u32) -> PyResult<MixedIndex> {
+impl Index {
+    fn new(py: Python, data: PyObject, header: u32) -> PyResult<Self> {
         // Safety: we keep the buffer around inside the class as `index_mmap`
         let (buf, bytes) = unsafe { mmap_keeparound(py, data)? };
 
@@ -1108,7 +1108,7 @@ pub fn init_module(py: Python, package: &str) -> PyResult<PyModule> {
     m.add(py, "__package__", package)?;
     m.add(py, "__doc__", "RevLog - Rust implementations")?;
 
-    m.add_class::<MixedIndex>(py)?;
+    m.add_class::<Index>(py)?;
     m.add_class::<NodeTree>(py)?;
 
     let sys = PyModule::import(py, "sys")?;

@@ -27,16 +27,16 @@ header = struct.unpack(">I", revlogtesting.data_non_inlined[:4])[0]
 class RustRevlogIndexTest(revlogtesting.RevlogBasedTestBase):
     def test_heads(self):
         idx = self.parseindex()
-        rustidx = revlog.MixedIndex(revlogtesting.data_non_inlined, header)
+        rustidx = revlog.Index(revlogtesting.data_non_inlined, header)
         self.assertEqual(rustidx.headrevs(), idx.headrevs())
 
     def test_len(self):
         idx = self.parseindex()
-        rustidx = revlog.MixedIndex(revlogtesting.data_non_inlined, header)
+        rustidx = revlog.Index(revlogtesting.data_non_inlined, header)
         self.assertEqual(len(rustidx), len(idx))
 
     def test_ancestors(self):
-        rustidx = revlog.MixedIndex(revlogtesting.data_non_inlined, header)
+        rustidx = revlog.Index(revlogtesting.data_non_inlined, header)
         lazy = LazyAncestors(rustidx, [3], 0, True)
         # we have two more references to the index:
         # - in its inner iterator for __contains__ and __bool__
