@@ -36,7 +36,7 @@ except ImportError:
     'The Rust or C version of the "parsers" module, which the "ancestor" module'
     ' relies on, is not available.',
 )
-class rustancestorstest(revlogtesting.RevlogBasedTestBase):
+class rustancestorstest(revlogtesting.RustRevlogBasedTestBase):
     """Test the correctness of binding to Rust code.
 
     This test is merely for the binding to Rust itself: extraction of

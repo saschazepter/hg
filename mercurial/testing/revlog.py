@@ -45,8 +45,17 @@ class RevlogBasedTestBase(unittest.TestCase):
             data = data_non_inlined
         return cparsers.parse_index2(data, False)[0]
 
+
+@unittest.skipIf(
+    MixedIndex is None,
+    'The Rust index is not available. It is needed for this test.',
+)
+class RustRevlogBasedTestBase(unittest.TestCase):
     def parserustindex(self, data=None):
         if data is None:
             data = data_non_inlined
-        cindex = self.parseindex(data=data)
+        # not inheriting RevlogBasedTestCase to avoid having a
+        # `parseindex` method that would be shadowed by future subclasses
+        # this duplication will soon be removed
+        cindex = cparsers.parse_index2(data, False)[0]
         return MixedIndex(cindex, data, REVLOGV1)
