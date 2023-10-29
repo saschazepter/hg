@@ -225,9 +225,9 @@ else:
     parse_index_v1_nodemap = None
 
 
-def parse_index_v1_mixed(data, inline, default_header):
+def parse_index_v1_rust(data, inline, default_header):
     cache = (0, data) if inline else None
-    return rustrevlog.MixedIndex(data, default_header), cache
+    return rustrevlog.Index(data, default_header), cache
 
 
 # corresponds to uncompressed length of indexformatng (2 gigs, 4-byte
@@ -1699,7 +1699,7 @@ class revlog:
             self._parse_index = parse_index_v1_nodemap
         elif use_rust_index:
             self._parse_index = functools.partial(
-                parse_index_v1_mixed, default_header=new_header
+                parse_index_v1_rust, default_header=new_header
             )
         try:
             d = self._parse_index(index_data, self._inline)
