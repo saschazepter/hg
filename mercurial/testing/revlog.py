@@ -30,9 +30,11 @@ except ImportError:
     cparsers = None
 
 try:
-    from ..rustext.revlog import MixedIndex  # pytype: disable=import-error
+    from ..rustext.revlog import (  # pytype: disable=import-error
+        Index as RustIndex,
+    )
 except ImportError:
-    MixedIndex = None
+    RustIndex = None
 
 
 @unittest.skipIf(
@@ -47,7 +49,7 @@ class RevlogBasedTestBase(unittest.TestCase):
 
 
 @unittest.skipIf(
-    MixedIndex is None,
+    RustIndex is None,
     'The Rust index is not available. It is needed for this test.',
 )
 class RustRevlogBasedTestBase(unittest.TestCase):
@@ -57,4 +59,4 @@ class RustRevlogBasedTestBase(unittest.TestCase):
         # not inheriting RevlogBasedTestCase to avoid having a
         # `parseindex` method that would be shadowed by future subclasses
         # this duplication will soon be removed
-        return MixedIndex(data, REVLOGV1)
+        return RustIndex(data, REVLOGV1)
