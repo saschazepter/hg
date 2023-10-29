@@ -31,17 +31,6 @@ use hg::{
 use std::{cell::RefCell, collections::HashMap};
 use vcsgraph::graph::Graph as VCSGraph;
 
-/// Return a Struct implementing the Graph trait
-pub(crate) fn pyindex_to_graph(
-    py: Python,
-    index: PyObject,
-) -> PyResult<cindex::Index> {
-    match index.extract::<MixedIndex>(py) {
-        Ok(midx) => Ok(midx.clone_cindex(py)),
-        Err(_) => cindex::Index::new(py, index),
-    }
-}
-
 pub struct PySharedIndex {
     /// The underlying hg-core index
     pub(crate) inner: &'static hg::index::Index,
