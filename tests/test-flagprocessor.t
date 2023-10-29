@@ -1,3 +1,7 @@
+# Rust index does not support creating new flags dynamically
+
+#if no-rust
+
 # Create server
   $ hg init server
   $ cd server
@@ -304,3 +308,6 @@ Ensure the data got to the server OK
 
   $ hg status
   $ hg diff
+
+
+#endif
