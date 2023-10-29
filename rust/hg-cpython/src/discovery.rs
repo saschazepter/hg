@@ -42,61 +42,19 @@ py_class!(pub class PartialDiscovery |py| {
         respectsize: bool,
         randomize: bool = true
     ) -> PyResult<PartialDiscovery> {
-        let index = repo.getattr(py, "changelog")?.getattr(py, "index")?;
-        let index = pyindex_to_graph(py, index)?;
-        let target_heads = rev_pyiter_collect(py, &targetheads, &index)?;
-        Self::create_instance(
-            py,
-            RefCell::new(Box::new(CorePartialDiscovery::new(
-                index.clone_ref(py),
-                target_heads,
-                respectsize,
-                randomize,
-            ))),
-            RefCell::new(index),
-        )
+        Self::inner_new(py, repo, targetheads, respectsize, randomize)
     }
 
     def addcommons(&self, commons: PyObject) -> PyResult<PyObject> {
-        let index = self.index(py).borrow();
-        let commons_vec: Vec<_> = rev_pyiter_collect(py, &commons, &*index)?;
-        let mut inner = self.inner(py).borrow_mut();
-        inner.add_common_revisions(commons_vec)
-        .map_err(|e| GraphError::pynew(py, e))?;
-    Ok(py.None())
-}
+        self.inner_addcommons(py, commons)
+    }
 
     def addmissings(&self, missings: PyObject) -> PyResult<PyObject> {
-        let index = self.index(py).borrow();
-        let missings_vec: Vec<_> = rev_pyiter_collect(py, &missings, &*index)?;
-        let mut inner = self.inner(py).borrow_mut();
-        inner.add_missing_revisions(missings_vec)
-            .map_err(|e| GraphError::pynew(py, e))?;
-        Ok(py.None())
+        self.inner_addmissings(py, missings)
     }
 
     def addinfo(&self, sample: PyObject) -> PyResult<PyObject> {
-        let mut missing: Vec<Revision> = Vec::new();
-        let mut common: Vec<Revision> = Vec::new();
-        for info in sample.iter(py)? { // info is a pair (Revision, bool)
-            let mut revknown = info?.iter(py)?;
-            let rev: PyRevision = revknown.next().unwrap()?.extract(py)?;
-            // This is fine since we're just using revisions as integers
-            // for the purposes of discovery
-            let rev = Revision(rev.0);
-            let known: bool = revknown.next().unwrap()?.extract(py)?;
-            if known {
-                common.push(rev);
-            } else {
-                missing.push(rev);
-            }
-        }
-        let mut inner = self.inner(py).borrow_mut();
-        inner.add_common_revisions(common)
-            .map_err(|e| GraphError::pynew(py, e))?;
-        inner.add_missing_revisions(missing)
-            .map_err(|e| GraphError::pynew(py, e))?;
-        Ok(py.None())
+        self.inner_addinfo(py, sample)
     }
 
     def hasinfo(&self) -> PyResult<bool> {
@@ -123,24 +81,109 @@ py_class!(pub class PartialDiscovery |py| {
         Ok(res.into_iter().map(Into::into).collect())
     }
 
-    def takefullsample(&self, _headrevs: PyObject,
+    def takefullsample(&self, headrevs: PyObject,
                        size: usize) -> PyResult<PyObject> {
-        let mut inner = self.inner(py).borrow_mut();
-        let sample = inner.take_full_sample(size)
-            .map_err(|e| GraphError::pynew(py, e))?;
-        let as_vec: Vec<PyObject> = sample
-            .iter()
-            .map(|rev| PyRevision(rev.0).to_py_object(py).into_object())
-            .collect();
-        Ok(PyTuple::new(py, as_vec.as_slice()).into_object())
+        self.inner_takefullsample(py, headrevs, size)
     }
 
     def takequicksample(&self, headrevs: PyObject,
                         size: usize) -> PyResult<PyObject> {
-        let index = self.index(py).borrow();
+        self.inner_takequicksample(py, headrevs, size)
+    }
+
+});
+
+impl PartialDiscovery {
+    fn inner_new(
+        py: Python,
+        repo: PyObject,
+        targetheads: PyObject,
+        respectsize: bool,
+        randomize: bool,
+    ) -> PyResult<Self> {
+        let index = repo.getattr(py, "changelog")?.getattr(py, "index")?;
+        let index = pyindex_to_graph(py, index)?;
+        let target_heads = rev_pyiter_collect(py, &targetheads, &index)?;
+        Self::create_instance(
+            py,
+            RefCell::new(Box::new(CorePartialDiscovery::new(
+                index.clone_ref(py),
+                target_heads,
+                respectsize,
+                randomize,
+            ))),
+            RefCell::new(index),
+        )
+    }
+
+    fn inner_addinfo(
+        &self,
+        py: Python,
+        sample: PyObject,
+    ) -> PyResult<PyObject> {
+        let mut missing: Vec<Revision> = Vec::new();
+        let mut common: Vec<Revision> = Vec::new();
+        for info in sample.iter(py)? {
+            // info is a pair (Revision, bool)
+            let mut revknown = info?.iter(py)?;
+            let rev: PyRevision = revknown.next().unwrap()?.extract(py)?;
+            // This is fine since we're just using revisions as integers
+            // for the purposes of discovery
+            let rev = Revision(rev.0);
+            let known: bool = revknown.next().unwrap()?.extract(py)?;
+            if known {
+                common.push(rev);
+            } else {
+                missing.push(rev);
+            }
+        }
         let mut inner = self.inner(py).borrow_mut();
-        let revsvec: Vec<_> = rev_pyiter_collect(py, &headrevs, &*index)?;
-        let sample = inner.take_quick_sample(revsvec, size)
+        inner
+            .add_common_revisions(common)
+            .map_err(|e| GraphError::pynew(py, e))?;
+        inner
+            .add_missing_revisions(missing)
+            .map_err(|e| GraphError::pynew(py, e))?;
+        Ok(py.None())
+    }
+
+    fn inner_addcommons(
+        &self,
+        py: Python,
+        commons: PyObject,
+    ) -> PyResult<PyObject> {
+        let index = self.index(py).borrow();
+        let commons_vec: Vec<_> = rev_pyiter_collect(py, &commons, &*index)?;
+        let mut inner = self.inner(py).borrow_mut();
+        inner
+            .add_common_revisions(commons_vec)
+            .map_err(|e| GraphError::pynew(py, e))?;
+        Ok(py.None())
+    }
+
+    fn inner_addmissings(
+        &self,
+        py: Python,
+        missings: PyObject,
+    ) -> PyResult<PyObject> {
+        let index = self.index(py).borrow();
+        let missings_vec: Vec<_> = rev_pyiter_collect(py, &missings, &*index)?;
+        let mut inner = self.inner(py).borrow_mut();
+        inner
+            .add_missing_revisions(missings_vec)
+            .map_err(|e| GraphError::pynew(py, e))?;
+        Ok(py.None())
+    }
+
+    fn inner_takefullsample(
+        &self,
+        py: Python,
+        _headrevs: PyObject,
+        size: usize,
+    ) -> PyResult<PyObject> {
+        let mut inner = self.inner(py).borrow_mut();
+        let sample = inner
+            .take_full_sample(size)
             .map_err(|e| GraphError::pynew(py, e))?;
         let as_vec: Vec<PyObject> = sample
             .iter()
@@ -149,7 +192,25 @@ py_class!(pub class PartialDiscovery |py| {
         Ok(PyTuple::new(py, as_vec.as_slice()).into_object())
     }
 
-});
+    fn inner_takequicksample(
+        &self,
+        py: Python,
+        headrevs: PyObject,
+        size: usize,
+    ) -> PyResult<PyObject> {
+        let index = self.index(py).borrow();
+        let mut inner = self.inner(py).borrow_mut();
+        let revsvec: Vec<_> = rev_pyiter_collect(py, &headrevs, &*index)?;
+        let sample = inner
+            .take_quick_sample(revsvec, size)
+            .map_err(|e| GraphError::pynew(py, e))?;
+        let as_vec: Vec<PyObject> = sample
+            .iter()
+            .map(|rev| PyRevision(rev.0).to_py_object(py).into_object())
+            .collect();
+        Ok(PyTuple::new(py, as_vec.as_slice()).into_object())
+    }
+}
 
 /// Create the module, with __package__ given from parent
 pub fn init_module(py: Python, package: &str) -> PyResult<PyModule> {
