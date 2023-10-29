@@ -226,8 +226,8 @@ else:
 
 
 def parse_index_v1_mixed(data, inline, default_header):
-    index, cache = parse_index_v1(data, inline)
-    return rustrevlog.MixedIndex(index, data, default_header), cache
+    cache = (0, data) if inline else None
+    return rustrevlog.MixedIndex(data, default_header), cache
 
 
 # corresponds to uncompressed length of indexformatng (2 gigs, 4-byte

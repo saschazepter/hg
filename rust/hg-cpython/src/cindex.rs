@@ -9,7 +9,7 @@
 //!
 //! Ideally, we should use an Index entirely implemented in Rust,
 //! but this will take some time to get there.
-
+#![allow(dead_code)]
 use cpython::{
     exc::ImportError, exc::TypeError, ObjectProtocol, PyClone, PyErr,
     PyObject, PyResult, PyTuple, Python, PythonObject,
