@@ -157,7 +157,7 @@ class rustancestorstest(revlogtesting.RevlogBasedTestBase):
         self.assertEqual(exc.args, ('InvalidRevision', wdirrev))
 
     def testheadrevs(self):
-        idx = self.parseindex()
+        idx = self.parserustindex()
         self.assertEqual(dagop.headrevs(idx, [1, 2, 3]), {3})
 
 
