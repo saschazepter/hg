@@ -6,7 +6,6 @@
 // GNU General Public License version 2 or any later version.
 
 use crate::{
-    cindex,
     conversion::{rev_pyiter_collect, rev_pyiter_collect_or_else},
     utils::{node_from_py_bytes, node_from_py_object},
     PyRevision,
@@ -87,7 +86,6 @@ impl RevlogIndex for PySharedIndex {
 }
 
 py_class!(pub class MixedIndex |py| {
-    data cindex: RefCell<cindex::Index>;
     @shared data index: hg::index::Index;
     data nt: RefCell<Option<CoreNodeTree>>;
     data docket: RefCell<Option<PyObject>>;
@@ -98,11 +96,10 @@ py_class!(pub class MixedIndex |py| {
 
     def __new__(
         _cls,
-        cindex: PyObject,
         data: PyObject,
         default_header: u32,
     ) -> PyResult<MixedIndex> {
-        Self::new(py, cindex, data, default_header)
+        Self::new(py, data, default_header)
     }
 
     /// Compatibility layer used for Python consumers needing access to the C index
@@ -111,11 +108,11 @@ py_class!(pub class MixedIndex |py| {
     /// that may need to build a custom `nodetree`, based on a specified revset.
     /// With a Rust implementation of the nodemap, we will be able to get rid of
     /// this, by exposing our own standalone nodemap class,
-    /// ready to accept `MixedIndex`.
-    def get_cindex(&self) -> PyResult<PyObject> {
+    /// ready to accept `Index`.
+/*    def get_cindex(&self) -> PyResult<PyObject> {
         Ok(self.cindex(py).borrow().inner().clone_ref(py))
     }
-
+*/
     // Index API involving nodemap, as defined in mercurial/pure/parsers.py
 
     /// Return Revision if found, raises a bare `error.RevlogError`
@@ -602,18 +599,12 @@ impl<'p> SnapshotsCache for PySnapshotsCache<'p> {
 }
 
 impl MixedIndex {
-    fn new(
-        py: Python,
-        cindex: PyObject,
-        data: PyObject,
-        header: u32,
-    ) -> PyResult<MixedIndex> {
+    fn new(py: Python, data: PyObject, header: u32) -> PyResult<MixedIndex> {
         // Safety: we keep the buffer around inside the class as `index_mmap`
         let (buf, bytes) = unsafe { mmap_keeparound(py, data)? };
 
         Self::create_instance(
             py,
-            RefCell::new(cindex::Index::new(py, cindex)?),
             hg::index::Index::new(
                 bytes,
                 IndexHeader::parse(&header.to_be_bytes())
@@ -664,10 +655,6 @@ impl MixedIndex {
             self.nt(py).borrow_mut().replace(nt);
         }
         Ok(self.nt(py))
-    }
-
-    pub fn clone_cindex(&self, py: Python) -> cindex::Index {
-        self.cindex(py).borrow().clone_ref(py)
     }
 
     /// Returns the full nodemap bytes to be written as-is to disk
