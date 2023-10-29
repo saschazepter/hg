@@ -116,6 +116,16 @@ impl PartialDiscovery {
         )
     }
 
+    /// Convert a Python iterator of revisions into a vector
+    fn pyiter_to_vec(
+        &self,
+        py: Python,
+        iter: &PyObject,
+    ) -> PyResult<Vec<Revision>> {
+        let index = self.index(py).borrow();
+        rev_pyiter_collect(py, iter, &*index)
+    }
+
     fn inner_addinfo(
         &self,
         py: Python,
@@ -152,8 +162,7 @@ impl PartialDiscovery {
         py: Python,
         commons: PyObject,
     ) -> PyResult<PyObject> {
-        let index = self.index(py).borrow();
-        let commons_vec: Vec<_> = rev_pyiter_collect(py, &commons, &*index)?;
+        let commons_vec = self.pyiter_to_vec(py, &commons)?;
         let mut inner = self.inner(py).borrow_mut();
         inner
             .add_common_revisions(commons_vec)
@@ -166,8 +175,7 @@ impl PartialDiscovery {
         py: Python,
         missings: PyObject,
     ) -> PyResult<PyObject> {
-        let index = self.index(py).borrow();
-        let missings_vec: Vec<_> = rev_pyiter_collect(py, &missings, &*index)?;
+        let missings_vec = self.pyiter_to_vec(py, &missings)?;
         let mut inner = self.inner(py).borrow_mut();
         inner
             .add_missing_revisions(missings_vec)
@@ -198,9 +206,8 @@ impl PartialDiscovery {
         headrevs: PyObject,
         size: usize,
     ) -> PyResult<PyObject> {
-        let index = self.index(py).borrow();
+        let revsvec = self.pyiter_to_vec(py, &headrevs)?;
         let mut inner = self.inner(py).borrow_mut();
-        let revsvec: Vec<_> = rev_pyiter_collect(py, &headrevs, &*index)?;
         let sample = inner
             .take_quick_sample(revsvec, size)
             .map_err(|e| GraphError::pynew(py, e))?;
