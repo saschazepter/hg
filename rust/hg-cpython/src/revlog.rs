@@ -517,7 +517,7 @@ impl MixedIndex {
         py: Python,
         nt: &mut NodeTree,
     ) -> PyResult<PyObject> {
-        let index = self.cindex(py).borrow();
+        let index = self.index(py).borrow();
         for r in 0..self.len(py)? {
             let rev = Revision(r as BaseRevision);
             // in this case node() won't ever return None
@@ -623,7 +623,7 @@ impl MixedIndex {
             .extract::<BaseRevision>(py)?
             .into();
         self.docket(py).borrow_mut().replace(docket.clone_ref(py));
-        let idx = self.cindex(py).borrow();
+        let idx = self.index(py).borrow();
         let data_tip = idx.check_revision(data_tip).ok_or_else(|| {
             nodemap_error(py, NodeMapError::RevisionNotInIndex(data_tip))
         })?;
