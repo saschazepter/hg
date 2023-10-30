@@ -555,20 +555,23 @@ def shortesthexnodeidprefix(repo, node, minlength=1, cache=None):
             nodetree = None
             if cache is not None:
                 nodetree = cache.get(b'disambiguationnodetree')
+            is_invalidated = getattr(nodetree, 'is_invalidated', lambda: False)
+            if is_invalidated():
+                nodetree = None
             if not nodetree:
-                if hasattr(parsers, 'nodetree'):
-                    # The CExt is the only implementation to provide a nodetree
-                    # class so far.
+                if hasattr(parsers, 'nodetree') and isinstance(
+                    cl.index, parsers.index
+                ):
                     index = cl.index
-                    if hasattr(index, 'get_cindex'):
-                        # the rust wrapped need to give access to its internal index
-                        index = index.get_cindex()
                     nodetree = parsers.nodetree(index, len(revs))
-                    for r in revs:
-                        nodetree.insert(r)
-                    if cache is not None:
-                        cache[b'disambiguationnodetree'] = nodetree
+            elif getattr(cl.index, 'is_rust', False):
+                nodetree = rustrevlog.NodeTree(cl.index)
+
             if nodetree is not None:
+                for r in revs:
+                    nodetree.insert(r)
+                if cache is not None:
+                    cache[b'disambiguationnodetree'] = nodetree
                 length = max(nodetree.shortest(node), minlength)
                 prefix = hexnode[:length]
                 return disambiguate(prefix)
