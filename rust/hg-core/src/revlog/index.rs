@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::ops::Deref;
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use byteorder::{BigEndian, ByteOrder};
 use bytes_cast::{unaligned, BytesCast};
@@ -225,8 +226,9 @@ pub struct Index {
     bytes: IndexData,
     /// Offsets of starts of index blocks.
     /// Only needed when the index is interleaved with data.
-    offsets: Option<Vec<usize>>,
+    offsets: RwLock<Option<Vec<usize>>>,
     uses_generaldelta: bool,
+    is_inline: bool,
 }
 
 impl Debug for Index {
@@ -294,8 +296,9 @@ impl Index {
             if offset == bytes.len() {
                 Ok(Self {
                     bytes: IndexData::new(bytes),
-                    offsets: Some(offsets),
+                    offsets: RwLock::new(Some(offsets)),
                     uses_generaldelta,
+                    is_inline: true,
                 })
             } else {
                 Err(HgError::corrupted("unexpected inline revlog length"))
@@ -303,8 +306,9 @@ impl Index {
         } else {
             Ok(Self {
                 bytes: IndexData::new(bytes),
-                offsets: None,
+                offsets: RwLock::new(None),
                 uses_generaldelta,
+                is_inline: false,
             })
         }
     }
@@ -315,7 +319,7 @@ impl Index {
 
     /// Value of the inline flag.
     pub fn is_inline(&self) -> bool {
-        self.offsets.is_some()
+        self.is_inline
     }
 
     /// Return a slice of bytes if `revlog` is inline. Panic if not.
@@ -328,11 +332,33 @@ impl Index {
 
     /// Return number of entries of the revlog index.
     pub fn len(&self) -> usize {
-        if let Some(offsets) = &self.offsets {
+        if let Some(offsets) = &*self.get_offsets() {
             offsets.len()
         } else {
             self.bytes.len() / INDEX_ENTRY_SIZE
         }
+    }
+
+    pub fn get_offsets(&self) -> RwLockReadGuard<Option<Vec<usize>>> {
+        if self.is_inline() {
+            {
+                // Wrap in a block to drop the read guard
+                // TODO perf?
+                let mut offsets = self.offsets.write().unwrap();
+                if offsets.is_none() {
+                    offsets.replace(inline_scan(&self.bytes.bytes).1);
+                }
+            }
+        }
+        self.offsets.read().unwrap()
+    }
+
+    pub fn get_offsets_mut(&mut self) -> RwLockWriteGuard<Option<Vec<usize>>> {
+        let mut offsets = self.offsets.write().unwrap();
+        if self.is_inline() && offsets.is_none() {
+            offsets.replace(inline_scan(&self.bytes.bytes).1);
+        }
+        offsets
     }
 
     /// Returns `true` if the `Index` has zero `entries`.
@@ -346,8 +372,8 @@ impl Index {
         if rev == NULL_REVISION {
             return None;
         }
-        Some(if let Some(offsets) = &self.offsets {
-            self.get_entry_inline(rev, offsets)
+        Some(if let Some(offsets) = &*self.get_offsets() {
+            self.get_entry_inline(rev, offsets.as_ref())
         } else {
             self.get_entry_separated(rev)
         })
@@ -393,7 +419,7 @@ impl Index {
     ) -> Result<(), RevlogError> {
         revision_data.validate()?;
         let new_offset = self.bytes.len();
-        if let Some(offsets) = self.offsets.as_mut() {
+        if let Some(offsets) = &mut *self.get_offsets_mut() {
             offsets.push(new_offset)
         }
         self.bytes.added.extend(revision_data.into_v1().as_bytes());
@@ -401,12 +427,37 @@ impl Index {
     }
 
     pub fn remove(&mut self, rev: Revision) -> Result<(), RevlogError> {
-        self.bytes.remove(rev, self.offsets.as_deref())?;
-        if let Some(offsets) = self.offsets.as_mut() {
+        let offsets = self.get_offsets().clone();
+        self.bytes.remove(rev, offsets.as_deref())?;
+        if let Some(offsets) = &mut *self.get_offsets_mut() {
             offsets.truncate(rev.0 as usize)
         }
         Ok(())
     }
+
+    pub fn clear_caches(&mut self) {
+        // We need to get the 'inline' value from Python at init and use this
+        // instead of offsets to determine whether we're inline since we might
+        // clear caches. This implies re-populating the offsets on-demand.
+        self.offsets = RwLock::new(None);
+    }
+}
+
+fn inline_scan(bytes: &[u8]) -> (usize, Vec<usize>) {
+    let mut offset: usize = 0;
+    let mut offsets = Vec::new();
+
+    while offset + INDEX_ENTRY_SIZE <= bytes.len() {
+        offsets.push(offset);
+        let end = offset + INDEX_ENTRY_SIZE;
+        let entry = IndexEntry {
+            bytes: &bytes[offset..end],
+            offset_override: None,
+        };
+
+        offset += INDEX_ENTRY_SIZE + entry.compressed_len() as usize;
+    }
+    (offset, offsets)
 }
 
 impl super::RevlogIndex for Index {
