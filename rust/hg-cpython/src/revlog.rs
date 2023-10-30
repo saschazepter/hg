@@ -979,6 +979,24 @@ py_class!(pub class NodeTree |py| {
         Self::create_instance(py, RefCell::new(nt), RefCell::new(index))
     }
 
+    /// Tell whether the NodeTree is still valid
+    ///
+    /// In case of mutation of the index, the given results are not
+    /// guaranteed to be correct, and in fact, the methods borrowing
+    /// the inner index would fail because of `PySharedRef` poisoning
+    /// (generation-based guard), same as iterating on a `dict` that has
+    /// been meanwhile mutated.
+    def is_invalidated(&self) -> PyResult<bool> {
+        let leaked = self.index(py).borrow();
+        let result = unsafe { leaked.try_borrow(py) };
+        // two cases for result to be an error:
+        // - the index has previously been mutably borrowed
+        // - there is currently a mutable borrow
+        // in both cases this amounts for previous results related to
+        // the index to still be valid.
+        Ok(result.is_err())
+    }
+
     def insert(&self, rev: PyRevision) -> PyResult<PyObject> {
         let leaked = self.index(py).borrow();
         let index = &*unsafe { leaked.try_borrow(py)? };

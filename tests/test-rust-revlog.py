@@ -87,6 +87,10 @@ class RustRevlogNodeTreeClassTest(revlogtesting.RustRevlogBasedTestBase):
             self.assertEqual(shortest, expected)
             self.assertEqual(nt.prefix_rev_lookup(hex_node[:shortest]), i)
 
+        # test invalidation (generation poisoning) detection
+        del idx[3]
+        self.assertTrue(nt.is_invalidated())
+
 
 if __name__ == '__main__':
     import silenttestrunner
