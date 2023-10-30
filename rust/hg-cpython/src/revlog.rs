@@ -24,7 +24,7 @@ use hg::{
         IndexHeader, Phase, RevisionDataParams, SnapshotsCache,
         INDEX_ENTRY_SIZE,
     },
-    nodemap::{Block, NodeMapError, NodeTree},
+    nodemap::{Block, NodeMapError, NodeTree as CoreNodeTree},
     revlog::{nodemap::NodeMap, Graph, NodePrefix, RevlogError, RevlogIndex},
     BaseRevision, Node, Revision, UncheckedRevision, NULL_REVISION,
 };
@@ -89,7 +89,7 @@ impl RevlogIndex for PySharedIndex {
 py_class!(pub class MixedIndex |py| {
     data cindex: RefCell<cindex::Index>;
     @shared data index: hg::index::Index;
-    data nt: RefCell<Option<NodeTree>>;
+    data nt: RefCell<Option<CoreNodeTree>>;
     data docket: RefCell<Option<PyObject>>;
     // Holds a reference to the mmap'ed persistent nodemap data
     data nodemap_mmap: RefCell<Option<PyBuffer>>;
@@ -632,7 +632,7 @@ impl MixedIndex {
     fn fill_nodemap(
         &self,
         py: Python,
-        nt: &mut NodeTree,
+        nt: &mut CoreNodeTree,
     ) -> PyResult<PyObject> {
         let index = self.index(py).borrow();
         for r in 0..self.len(py)? {
@@ -647,10 +647,10 @@ impl MixedIndex {
     fn get_nodetree<'a>(
         &'a self,
         py: Python<'a>,
-    ) -> PyResult<&'a RefCell<Option<NodeTree>>> {
+    ) -> PyResult<&'a RefCell<Option<CoreNodeTree>>> {
         if self.nt(py).borrow().is_none() {
             let readonly = Box::<Vec<_>>::default();
-            let mut nt = NodeTree::load_bytes(readonly, 0);
+            let mut nt = CoreNodeTree::load_bytes(readonly, 0);
             self.fill_nodemap(py, &mut nt)?;
             self.nt(py).borrow_mut().replace(nt);
         }
@@ -669,7 +669,7 @@ impl MixedIndex {
         // If there's anything readonly, we need to build the data again from
         // scratch
         let bytes = if readonly.len() > 0 {
-            let mut nt = NodeTree::load_bytes(Box::<Vec<_>>::default(), 0);
+            let mut nt = CoreNodeTree::load_bytes(Box::<Vec<_>>::default(), 0);
             self.fill_nodemap(py, &mut nt)?;
 
             let (readonly, bytes) = nt.into_readonly_and_added_bytes();
@@ -719,7 +719,7 @@ impl MixedIndex {
         let len = buf.item_count();
         self.nodemap_mmap(py).borrow_mut().replace(buf);
 
-        let mut nt = NodeTree::load_bytes(bytes, len);
+        let mut nt = CoreNodeTree::load_bytes(bytes, len);
 
         let data_tip = docket
             .getattr(py, "tip_rev")?
