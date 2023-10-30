@@ -263,6 +263,9 @@ pub struct Index {
     /// Cache of the head revisions in this index, kept in sync. Should
     /// be accessed via the [`Self::head_revs`] method.
     head_revs: Vec<Revision>,
+    /// Cache of the last filtered revisions in this index, used to make sure
+    /// we haven't changed filters when returning the cached `head_revs`.
+    filtered_revs: HashSet<Revision>,
 }
 
 impl Debug for Index {
@@ -363,6 +366,7 @@ impl Index {
                     uses_generaldelta,
                     is_inline: true,
                     head_revs: vec![],
+                    filtered_revs: HashSet::new(),
                 })
             } else {
                 Err(HgError::corrupted("unexpected inline revlog length"))
@@ -374,6 +378,7 @@ impl Index {
                 uses_generaldelta,
                 is_inline: false,
                 head_revs: vec![],
+                filtered_revs: HashSet::new(),
             })
         }
     }
@@ -520,13 +525,36 @@ impl Index {
 
     /// Return the head revisions of this index
     pub fn head_revs(&mut self) -> Result<Vec<Revision>, GraphError> {
-        if !self.head_revs.is_empty() {
+        self.head_revs_filtered(&HashSet::new())
+    }
+
+    /// Return the head revisions of this index
+    pub fn head_revs_filtered(
+        &mut self,
+        filtered_revs: &HashSet<Revision>,
+    ) -> Result<Vec<Revision>, GraphError> {
+        if !self.head_revs.is_empty() && filtered_revs == &self.filtered_revs {
             return Ok(self.head_revs.to_owned());
         }
-        let mut revs: HashSet<Revision, RandomState> = (0..self.len())
-            .into_iter()
-            .map(|i| Revision(i as BaseRevision))
-            .collect();
+        let mut revs: HashSet<Revision, RandomState> =
+            if filtered_revs.is_empty() {
+                (0..self.len())
+                    .into_iter()
+                    .map(|i| Revision(i as BaseRevision))
+                    .collect()
+            } else {
+                (0..self.len())
+                    .into_iter()
+                    .filter_map(|i| {
+                        let r = Revision(i as BaseRevision);
+                        if filtered_revs.contains(&r) {
+                            None
+                        } else {
+                            Some(r)
+                        }
+                    })
+                    .collect()
+            };
         dagops::retain_heads(self, &mut revs)?;
         if self.is_empty() {
             revs.insert(NULL_REVISION);
@@ -535,6 +563,7 @@ impl Index {
             revs.into_iter().map(Into::into).collect();
         as_vec.sort_unstable();
         self.head_revs = as_vec.to_owned();
+        self.filtered_revs = filtered_revs.to_owned();
         Ok(as_vec)
     }
 
