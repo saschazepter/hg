@@ -7,7 +7,7 @@
 
 use crate::{
     cindex,
-    conversion::rev_pyiter_collect,
+    conversion::{rev_pyiter_collect, rev_pyiter_collect_or_else},
     utils::{node_from_py_bytes, node_from_py_object},
     PyRevision,
 };
@@ -251,7 +251,23 @@ py_class!(pub class MixedIndex |py| {
 
     /// reachableroots
     def reachableroots2(&self, *args, **kw) -> PyResult<PyObject> {
-        self.call_cindex(py, "reachableroots2", args, kw)
+        let rust_res = self.inner_reachableroots2(
+            py,
+            UncheckedRevision(args.get_item(py, 0).extract(py)?),
+            args.get_item(py, 1),
+            args.get_item(py, 2),
+            args.get_item(py, 3).extract(py)?,
+        )?;
+
+        let c_res = self.call_cindex(py, "reachableroots2", args, kw)?;
+        // ordering of C result depends on how the computation went, and
+        // Rust result ordering is arbitrary. Hence we compare after
+        // sorting the results (in Python to avoid reconverting everything
+        // back to Rust structs).
+        assert_py_eq_normalized(py, "reachableroots2", &rust_res, &c_res,
+                                |v| format!("sorted({})", v))?;
+
+        Ok(rust_res)
     }
 
     /// get head revisions
@@ -928,6 +944,37 @@ impl MixedIndex {
         } else {
             Ok(PyList::new(py, &res).into_object())
         }
+    }
+
+    fn inner_reachableroots2(
+        &self,
+        py: Python,
+        min_root: UncheckedRevision,
+        heads: PyObject,
+        roots: PyObject,
+        include_path: bool,
+    ) -> PyResult<PyObject> {
+        let index = &*self.index(py).borrow();
+        let heads = rev_pyiter_collect_or_else(py, &heads, index, |_rev| {
+            PyErr::new::<IndexError, _>(py, "head out of range")
+        })?;
+        let roots: Result<_, _> = roots
+            .iter(py)?
+            .map(|r| {
+                r.and_then(|o| match o.extract::<PyRevision>(py) {
+                    Ok(r) => Ok(UncheckedRevision(r.0)),
+                    Err(e) => Err(e),
+                })
+            })
+            .collect();
+        let as_set = index
+            .reachable_roots(min_root, heads, roots?, include_path)
+            .map_err(|e| graph_error(py, e))?;
+        let as_vec: Vec<PyObject> = as_set
+            .iter()
+            .map(|r| PyRevision::from(*r).into_py_object(py).into_object())
+            .collect();
+        Ok(PyList::new(py, &as_vec).into_object())
     }
 }
 
