@@ -983,6 +983,56 @@ impl Index {
         }
         min_rev
     }
+
+    /// Return `(heads(::(<roots> and <roots>::<heads>)))`
+    /// If `include_path` is `true`, return `(<roots>::<heads>)`."""
+    ///
+    /// `min_root` and `roots` are unchecked since they are just used as
+    /// a bound or for comparison and don't need to represent a valid revision.
+    /// In practice, the only invalid revision passed is the working directory
+    /// revision ([`i32::MAX`]).
+    pub fn reachable_roots(
+        &self,
+        min_root: UncheckedRevision,
+        mut heads: Vec<Revision>,
+        roots: HashSet<UncheckedRevision>,
+        include_path: bool,
+    ) -> Result<HashSet<Revision>, GraphError> {
+        if roots.is_empty() {
+            return Ok(HashSet::new());
+        }
+        let mut reachable = HashSet::new();
+        let mut seen = HashMap::new();
+
+        while let Some(rev) = heads.pop() {
+            if roots.contains(&rev.into()) {
+                reachable.insert(rev);
+                if !include_path {
+                    continue;
+                }
+            }
+            let parents = self.parents(rev)?;
+            seen.insert(rev, parents);
+            for parent in parents {
+                if parent.0 >= min_root.0 && !seen.contains_key(&parent) {
+                    heads.push(parent);
+                }
+            }
+        }
+        if !include_path {
+            return Ok(reachable);
+        }
+        let mut revs: Vec<_> = seen.keys().collect();
+        revs.sort_unstable();
+        for rev in revs {
+            for parent in seen[rev] {
+                if reachable.contains(&parent) {
+                    reachable.insert(*rev);
+                }
+            }
+        }
+        Ok(reachable)
+    }
 }
 
 /// Set of roots of all non-public phases
