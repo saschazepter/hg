@@ -1,5 +1,5 @@
 use std::collections::hash_map::RandomState;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -910,7 +910,128 @@ impl Index {
         }
         &revs[start..end]
     }
+
+    /// Computes the set of revisions for each non-public phase from `roots`,
+    /// which are the last known roots for each non-public phase.
+    pub fn compute_phases_map_sets(
+        &self,
+        roots: HashMap<Phase, Vec<Revision>>,
+    ) -> Result<(usize, RootsPerPhase), GraphError> {
+        let mut phases = HashMap::new();
+        let mut min_phase_rev = NULL_REVISION;
+
+        for phase in Phase::non_public_phases() {
+            if let Some(phase_roots) = roots.get(phase) {
+                let min_rev =
+                    self.add_roots_get_min(phase_roots, &mut phases, *phase);
+                if min_rev != NULL_REVISION
+                    && (min_phase_rev == NULL_REVISION
+                        || min_rev < min_phase_rev)
+                {
+                    min_phase_rev = min_rev;
+                }
+            } else {
+                continue;
+            };
+        }
+        let mut phase_sets: RootsPerPhase = Default::default();
+
+        if min_phase_rev == NULL_REVISION {
+            min_phase_rev = Revision(self.len() as BaseRevision);
+        }
+
+        for rev in min_phase_rev.0..self.len() as BaseRevision {
+            let rev = Revision(rev);
+            let [p1, p2] = self.parents(rev)?;
+
+            const DEFAULT_PHASE: &Phase = &Phase::Public;
+            if p1.0 >= 0
+                && phases.get(&p1).unwrap_or(DEFAULT_PHASE)
+                    > phases.get(&rev).unwrap_or(DEFAULT_PHASE)
+            {
+                phases.insert(rev, phases[&p1]);
+            }
+            if p2.0 >= 0
+                && phases.get(&p2).unwrap_or(DEFAULT_PHASE)
+                    > phases.get(&rev).unwrap_or(DEFAULT_PHASE)
+            {
+                phases.insert(rev, phases[&p2]);
+            }
+            let set = match phases.get(&rev).unwrap_or(DEFAULT_PHASE) {
+                Phase::Public => continue,
+                phase => &mut phase_sets[*phase as usize - 1],
+            };
+            set.insert(rev);
+        }
+
+        Ok((self.len(), phase_sets))
+    }
+
+    fn add_roots_get_min(
+        &self,
+        phase_roots: &[Revision],
+        phases: &mut HashMap<Revision, Phase>,
+        phase: Phase,
+    ) -> Revision {
+        let mut min_rev = NULL_REVISION;
+
+        for root in phase_roots {
+            phases.insert(*root, phase);
+            if min_rev == NULL_REVISION || min_rev > *root {
+                min_rev = *root;
+            }
+        }
+        min_rev
+    }
 }
+
+/// Set of roots of all non-public phases
+pub type RootsPerPhase = [HashSet<Revision>; Phase::non_public_phases().len()];
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
+pub enum Phase {
+    Public = 0,
+    Draft = 1,
+    Secret = 2,
+    Archived = 3,
+    Internal = 4,
+}
+
+impl TryFrom<usize> for Phase {
+    type Error = RevlogError;
+
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        Ok(match value {
+            0 => Self::Public,
+            1 => Self::Draft,
+            2 => Self::Secret,
+            32 => Self::Archived,
+            96 => Self::Internal,
+            v => {
+                return Err(RevlogError::corrupted(format!(
+                    "invalid phase value {}",
+                    v
+                )))
+            }
+        })
+    }
+}
+
+impl Phase {
+    pub const fn all_phases() -> &'static [Self] {
+        &[
+            Self::Public,
+            Self::Draft,
+            Self::Secret,
+            Self::Archived,
+            Self::Internal,
+        ]
+    }
+    pub const fn non_public_phases() -> &'static [Self] {
+        &[Self::Draft, Self::Secret, Self::Archived, Self::Internal]
+    }
+}
+
 fn inline_scan(bytes: &[u8]) -> (usize, Vec<usize>) {
     let mut offset: usize = 0;
     let mut offsets = Vec::new();

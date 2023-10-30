@@ -20,12 +20,12 @@ use cpython::{
 };
 use hg::{
     errors::HgError,
-    index::{IndexHeader, RevisionDataParams, SnapshotsCache},
+    index::{IndexHeader, Phase, RevisionDataParams, SnapshotsCache},
     nodemap::{Block, NodeMapError, NodeTree},
     revlog::{nodemap::NodeMap, NodePrefix, RevlogError, RevlogIndex},
     BaseRevision, Revision, UncheckedRevision, NULL_REVISION,
 };
-use std::cell::RefCell;
+use std::{cell::RefCell, collections::HashMap};
 
 /// Return a Struct implementing the Graph trait
 pub(crate) fn pyindex_to_graph(
@@ -241,7 +241,12 @@ py_class!(pub class MixedIndex |py| {
 
     /// compute phases
     def computephasesmapsets(&self, *args, **kw) -> PyResult<PyObject> {
-        self.call_cindex(py, "computephasesmapsets", args, kw)
+        let py_roots = args.get_item(py, 0).extract::<PyDict>(py)?;
+        let rust_res = self.inner_computephasesmapsets(py, py_roots)?;
+
+        let c_res = self.call_cindex(py, "computephasesmapsets", args, kw)?;
+        assert_py_eq(py, "computephasesmapsets", &rust_res, &c_res)?;
+        Ok(rust_res)
     }
 
     /// reachableroots
@@ -827,6 +832,71 @@ impl MixedIndex {
             .map(|r| PyRevision::from(*r).into_py_object(py).into_object())
             .collect();
         Ok(PyList::new(py, &as_vec).into_object())
+    }
+
+    fn inner_computephasesmapsets(
+        &self,
+        py: Python,
+        py_roots: PyDict,
+    ) -> PyResult<PyObject> {
+        let index = &*self.index(py).borrow();
+        let opt = self.get_nodetree(py)?.borrow();
+        let nt = opt.as_ref().unwrap();
+        let roots: Result<HashMap<Phase, Vec<Revision>>, PyErr> = py_roots
+            .items_list(py)
+            .iter(py)
+            .map(|r| {
+                let phase = r.get_item(py, 0)?;
+                let nodes = r.get_item(py, 1)?;
+                // Transform the nodes from Python to revs here since we
+                // have access to the nodemap
+                let revs: Result<_, _> = nodes
+                    .iter(py)?
+                    .map(|node| match node?.extract::<PyBytes>(py) {
+                        Ok(py_bytes) => {
+                            let node = node_from_py_bytes(py, &py_bytes)?;
+                            nt.find_bin(index, node.into())
+                                .map_err(|e| nodemap_error(py, e))?
+                                .ok_or_else(|| revlog_error(py))
+                        }
+                        Err(e) => Err(e),
+                    })
+                    .collect();
+                let phase = Phase::try_from(phase.extract::<usize>(py)?)
+                    .map_err(|_| revlog_error(py));
+                Ok((phase?, revs?))
+            })
+            .collect();
+        let (len, phase_maps) = index
+            .compute_phases_map_sets(roots?)
+            .map_err(|e| graph_error(py, e))?;
+
+        // Ugly hack, but temporary
+        const IDX_TO_PHASE_NUM: [usize; 4] = [1, 2, 32, 96];
+        let py_phase_maps = PyDict::new(py);
+        for (idx, roots) in phase_maps.iter().enumerate() {
+            let phase_num = IDX_TO_PHASE_NUM[idx].into_py_object(py);
+            // OPTIM too bad we have to collect here. At least, we could
+            // reuse the same Vec and allocate it with capacity at
+            // max(len(phase_maps)
+            let roots_vec: Vec<PyInt> = roots
+                .iter()
+                .map(|r| PyRevision::from(*r).into_py_object(py))
+                .collect();
+            py_phase_maps.set_item(
+                py,
+                phase_num,
+                PySet::new(py, roots_vec)?,
+            )?;
+        }
+        Ok(PyTuple::new(
+            py,
+            &[
+                len.into_py_object(py).into_object(),
+                py_phase_maps.into_object(),
+            ],
+        )
+        .into_object())
     }
 
     fn inner_slicechunktodensity(
