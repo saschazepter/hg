@@ -205,6 +205,7 @@ py_class!(pub class MixedIndex |py| {
         self.nt(py).borrow_mut().take();
         self.docket(py).borrow_mut().take();
         self.nodemap_mmap(py).borrow_mut().take();
+        self.index(py).borrow_mut().clear_caches();
         self.call_cindex(py, "clearcaches", args, kw)
     }
 
