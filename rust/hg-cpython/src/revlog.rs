@@ -14,9 +14,9 @@ use crate::{
 use cpython::{
     buffer::{Element, PyBuffer},
     exc::{IndexError, ValueError},
-    ObjectProtocol, PyBytes, PyClone, PyDict, PyErr, PyInt, PyList, PyModule,
-    PyObject, PyResult, PySet, PyString, PyTuple, Python, PythonObject,
-    ToPyObject, UnsafePyLeaked,
+    ObjectProtocol, PyBool, PyBytes, PyClone, PyDict, PyErr, PyInt, PyList,
+    PyModule, PyObject, PyResult, PySet, PyString, PyTuple, Python,
+    PythonObject, ToPyObject, UnsafePyLeaked,
 };
 use hg::{
     errors::HgError,
@@ -449,6 +449,11 @@ py_class!(pub class MixedIndex |py| {
         // implement in Rust to detangle things when removing `self.cindex`
         let rust_res: PyInt = 1.to_py_object(py);
         Ok(rust_res)
+    }
+
+    @property
+    def is_rust(&self) -> PyResult<PyBool> {
+        Ok(false.to_py_object(py))
     }
 
 });
