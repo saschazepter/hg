@@ -1860,7 +1860,7 @@ def debugindexstats(ui, repo):
     repo.changelog.shortest(repo.nullid, 1)
     index = repo.changelog.index
     if not hasattr(index, 'stats'):
-        raise error.Abort(_(b'debugindexstats only works with native code'))
+        raise error.Abort(_(b'debugindexstats only works with native C code'))
     for k, v in sorted(index.stats().items()):
         ui.write(b'%s: %d\n' % (k, v))
 
