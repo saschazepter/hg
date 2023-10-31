@@ -675,7 +675,9 @@ impl MixedIndex {
                         .expect("default header is broken")
                         .unwrap(),
                 )
-                .unwrap(),
+                .map_err(|e| {
+                    revlog_error_with_msg(py, e.to_string().as_bytes())
+                })?,
             ),
             RefCell::new(None),
             RefCell::new(None),
@@ -1048,6 +1050,21 @@ fn revlog_error(py: Python) -> PyErr {
         Ok(cls) => PyErr::from_instance(
             py,
             cls.call(py, (py.None(),), None).ok().into_py_object(py),
+        ),
+    }
+}
+
+fn revlog_error_with_msg(py: Python, msg: &[u8]) -> PyErr {
+    match py
+        .import("mercurial.error")
+        .and_then(|m| m.get(py, "RevlogError"))
+    {
+        Err(e) => e,
+        Ok(cls) => PyErr::from_instance(
+            py,
+            cls.call(py, (PyBytes::new(py, msg),), None)
+                .ok()
+                .into_py_object(py),
         ),
     }
 }
