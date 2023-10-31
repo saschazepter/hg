@@ -479,7 +479,18 @@ impl Index {
             } else {
                 e.raw_offset()
             },
-            data_compressed_length: e.compressed_len().try_into().unwrap(),
+            data_compressed_length: e
+                .compressed_len()
+                .try_into()
+                .unwrap_or_else(|_| {
+                    // Python's `unionrepo` sets the compressed length to be
+                    // `-1` (or `u32::MAX` if transmuted to `u32`) because it
+                    // cannot know the correct compressed length of a given
+                    // revision. I'm not sure if this is true, but having this
+                    // edge case won't hurt other use cases, let's handle it.
+                    assert_eq!(e.compressed_len(), u32::MAX);
+                    NULL_REVISION.0
+                }),
             data_uncompressed_length: e.uncompressed_len(),
             data_delta_base: e.base_revision_or_base_of_delta_chain().0,
             link_rev: e.link_revision().0,
