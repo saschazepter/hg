@@ -405,11 +405,6 @@ py_class!(pub class MixedIndex |py| {
         Ok(rust_res)
     }
 
-    /// stats for the index
-    def stats(&self, *args, **kw) -> PyResult<PyObject> {
-        self.call_cindex(py, "stats", args, kw)
-    }
-
     // index_sequence_methods and index_mapping_methods.
     //
     // Since we call back through the high level Python API,
