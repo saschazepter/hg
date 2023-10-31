@@ -185,12 +185,12 @@ Test debugindex, with and without the --verbose/--debug flag
 
 debugdelta chain basic output
 
-#if reporevlogstore pure
+#if reporevlogstore pure rust
   $ hg debugindexstats
-  abort: debugindexstats only works with native code
+  abort: debugindexstats only works with native C code
   [255]
 #endif
-#if reporevlogstore no-pure
+#if reporevlogstore no-pure no-rust
   $ hg debugindexstats
   node trie capacity: 4
   node trie count: 2
