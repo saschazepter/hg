@@ -1132,7 +1132,10 @@ class fullreposet(_spanset):
             #
             # `other` was used with "&", let's assume this is a set like
             # object.
-            other = baseset(other - self._hiddenrevs)
+            other = baseset(other)
+
+        if self._hiddenrevs:
+            other = other - self._hiddenrevs
 
         other.sort(reverse=self.isdescending())
         return other
