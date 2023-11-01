@@ -1000,6 +1000,23 @@ Commit is hidden as expected
      date:        Thu Jan 01 00:00:00 1970 +0000
      summary:     A
   
+The hidden commit is an orphan but doesn't show up without --hidden
+
+  $ hg debugobsolete `hg id --debug -ir 0`
+  1 new obsolescence markers
+  obsoleted 1 changesets
+  $ hg --hidden log -G -r 'unstable()'
+  *  changeset:   1:c01c42dffc7f
+  |  tag:         tip
+  ~  user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     instability: orphan
+     summary:     my test internal commit
+  
+  $ hg log -G -r 'unstable()'
+  abort: filtered revision '1' (known-bad-output !)
+  [10]
+
 
 Test for archived phase
 -----------------------
