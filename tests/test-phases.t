@@ -1014,8 +1014,6 @@ The hidden commit is an orphan but doesn't show up without --hidden
      summary:     my test internal commit
   
   $ hg log -G -r 'unstable()'
-  abort: filtered revision '1' (known-bad-output !)
-  [10]
 
 
 Test for archived phase
