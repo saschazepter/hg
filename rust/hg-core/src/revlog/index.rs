@@ -20,6 +20,7 @@ use crate::{
 pub const INDEX_ENTRY_SIZE: usize = 64;
 pub const COMPRESSION_MODE_INLINE: u8 = 2;
 
+#[derive(Debug)]
 pub struct IndexHeader {
     pub(super) header_bytes: [u8; 4],
 }
@@ -523,6 +524,13 @@ impl Index {
         }
     }
 
+    fn null_entry(&self) -> IndexEntry {
+        IndexEntry {
+            bytes: &[0; INDEX_ENTRY_SIZE],
+            offset_override: Some(0),
+        }
+    }
+
     /// Return the head revisions of this index
     pub fn head_revs(&mut self) -> Result<Vec<Revision>, GraphError> {
         self.head_revs_filtered(&HashSet::new())
@@ -592,12 +600,12 @@ impl Index {
             } else {
                 UncheckedRevision(current_rev.0 - 1)
             };
-            if new_rev.0 == NULL_REVISION.0 {
-                break;
-            }
             current_rev = self.check_revision(new_rev).ok_or_else(|| {
                 HgError::corrupted(format!("Revision {new_rev} out of range"))
             })?;
+            if current_rev.0 == NULL_REVISION.0 {
+                break;
+            }
             entry = self.get_entry(current_rev).unwrap()
         }
 
@@ -745,6 +753,163 @@ impl Index {
             .ok_or_else(|| RevlogError::corrupted("test"))?;
         self.is_snapshot_unchecked(rev)
     }
+
+    /// Slice revs to reduce the amount of unrelated data to be read from disk.
+    ///
+    /// The index is sliced into groups that should be read in one time.
+    ///
+    /// The initial chunk is sliced until the overall density
+    /// (payload/chunks-span ratio) is above `target_density`.
+    /// No gap smaller than `min_gap_size` is skipped.
+    pub fn slice_chunk_to_density(
+        &self,
+        revs: &[Revision],
+        target_density: f64,
+        min_gap_size: usize,
+    ) -> Vec<Vec<Revision>> {
+        if revs.is_empty() {
+            return vec![];
+        }
+        if revs.len() == 1 {
+            return vec![revs.to_owned()];
+        }
+        let delta_chain_span = self.segment_span(revs);
+        if delta_chain_span < min_gap_size {
+            return vec![revs.to_owned()];
+        }
+        let entries: Vec<_> = revs
+            .iter()
+            .map(|r| {
+                (*r, self.get_entry(*r).unwrap_or_else(|| self.null_entry()))
+            })
+            .collect();
+
+        let mut read_data = delta_chain_span;
+        let chain_payload: u32 =
+            entries.iter().map(|(_r, e)| e.compressed_len()).sum();
+        let mut density = if delta_chain_span > 0 {
+            chain_payload as f64 / delta_chain_span as f64
+        } else {
+            1.0
+        };
+
+        if density >= target_density {
+            return vec![revs.to_owned()];
+        }
+
+        // Store the gaps in a heap to have them sorted by decreasing size
+        let mut gaps = Vec::new();
+        let mut previous_end = None;
+
+        for (i, (_rev, entry)) in entries.iter().enumerate() {
+            let start = entry.c_start() as usize;
+            let length = entry.compressed_len();
+
+            // Skip empty revisions to form larger holes
+            if length == 0 {
+                continue;
+            }
+
+            if let Some(end) = previous_end {
+                let gap_size = start - end;
+                // Only consider holes that are large enough
+                if gap_size > min_gap_size {
+                    gaps.push((gap_size, i));
+                }
+            }
+            previous_end = Some(start + length as usize);
+        }
+        if gaps.is_empty() {
+            return vec![revs.to_owned()];
+        }
+        // sort the gaps to pop them from largest to small
+        gaps.sort_unstable();
+
+        // Collect the indices of the largest holes until
+        // the density is acceptable
+        let mut selected = vec![];
+        while let Some((gap_size, gap_id)) = gaps.pop() {
+            if density >= target_density {
+                break;
+            }
+            selected.push(gap_id);
+
+            // The gap sizes are stored as negatives to be sorted decreasingly
+            // by the heap
+            read_data -= gap_size;
+            density = if read_data > 0 {
+                chain_payload as f64 / read_data as f64
+            } else {
+                1.0
+            };
+            if density >= target_density {
+                break;
+            }
+        }
+        selected.sort_unstable();
+        selected.push(revs.len());
+
+        // Cut the revs at collected indices
+        let mut previous_idx = 0;
+        let mut chunks = vec![];
+        for idx in selected {
+            let chunk = self.trim_chunk(&entries, previous_idx, idx);
+            if !chunk.is_empty() {
+                chunks.push(chunk.iter().map(|(rev, _entry)| *rev).collect());
+            }
+            previous_idx = idx;
+        }
+        let chunk = self.trim_chunk(&entries, previous_idx, entries.len());
+        if !chunk.is_empty() {
+            chunks.push(chunk.iter().map(|(rev, _entry)| *rev).collect());
+        }
+
+        chunks
+    }
+
+    /// Get the byte span of a segment of sorted revisions.
+    ///
+    /// Occurrences of [`NULL_REVISION`] are ignored at the beginning of
+    /// the `revs` segment.
+    ///
+    /// panics:
+    ///  - if `revs` is empty or only made of `NULL_REVISION`
+    ///  - if cannot retrieve entry for the last or first not null element of
+    ///    `revs`.
+    fn segment_span(&self, revs: &[Revision]) -> usize {
+        if revs.is_empty() {
+            return 0;
+        }
+        let last_entry = &self.get_entry(revs[revs.len() - 1]).unwrap();
+        let end = last_entry.c_start() + last_entry.compressed_len() as u64;
+        let first_rev = revs.iter().find(|r| r.0 != NULL_REVISION.0).unwrap();
+        let start = if (*first_rev).0 == 0 {
+            0
+        } else {
+            self.get_entry(*first_rev).unwrap().c_start()
+        };
+        (end - start) as usize
+    }
+
+    /// Returns `&revs[startidx..endidx]` without empty trailing revs
+    fn trim_chunk<'a>(
+        &'a self,
+        revs: &'a [(Revision, IndexEntry)],
+        start: usize,
+        mut end: usize,
+    ) -> &'a [(Revision, IndexEntry)] {
+        // Trim empty revs at the end, except the very first rev of a chain
+        let last_rev = revs[end - 1].0;
+        if last_rev.0 < self.len() as BaseRevision {
+            while end > 1
+                && end > start
+                && revs[end - 1].1.compressed_len() == 0
+            {
+                end -= 1
+            }
+        }
+        &revs[start..end]
+    }
 }
 fn inline_scan(bytes: &[u8]) -> (usize, Vec<usize>) {
     let mut offset: usize = 0;
@@ -805,6 +970,11 @@ impl<'a> IndexEntry<'a> {
     }
     pub fn raw_offset(&self) -> u64 {
         BigEndian::read_u64(&self.bytes[0..8])
+    }
+
+    /// Same result (except potentially for rev 0) as C `index_get_start()`
+    fn c_start(&self) -> u64 {
+        self.raw_offset() >> 16
     }
 
     pub fn flags(&self) -> u16 {
