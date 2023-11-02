@@ -214,8 +214,12 @@ py_class!(pub class MixedIndex |py| {
 
     def __delitem__(&self, key: PyObject) -> PyResult<()> {
         // __delitem__ is both for `del idx[r]` and `del idx[r1:r2]`
-        let start = key.getattr(py, "start")?;
-        let start = UncheckedRevision(start.extract(py)?);
+        let start = if let Ok(rev) = key.extract(py) {
+            UncheckedRevision(rev)
+        } else {
+            let start = key.getattr(py, "start")?;
+            UncheckedRevision(start.extract(py)?)
+        };
         let start = self.index(py)
             .borrow()
             .check_revision(start)
