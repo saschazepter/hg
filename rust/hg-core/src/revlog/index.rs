@@ -1033,6 +1033,213 @@ impl Index {
         }
         Ok(reachable)
     }
+
+    /// Given a (possibly overlapping) set of revs, return all the
+    /// common ancestors heads: `heads(::args[0] and ::a[1] and ...)`
+    pub fn common_ancestor_heads(&self, _revisions: &[Revision]) {
+        todo!()
+    }
+
+    /// Given a disjoint set of revs, return all candidates for the
+    /// greatest common ancestor. In revset notation, this is the set
+    /// `heads(::a and ::b and ...)`
+    #[allow(dead_code)]
+    fn find_gca_candidates(
+        &self,
+        revs: &[Revision],
+    ) -> Result<Vec<Revision>, GraphError> {
+        if revs.is_empty() {
+            return Ok(vec![]);
+        }
+        let revcount = revs.len();
+        let mut candidates = vec![];
+        let all_seen = 1u64 << (revcount - 1);
+        let poison = 1u64 << revs.len();
+        let max_rev = revs.iter().max().unwrap();
+        let mut seen = vec![0u64; (max_rev.0 + 1) as usize];
+
+        for (idx, rev) in revs.iter().enumerate() {
+            seen[rev.0 as usize] = 1 << idx;
+        }
+        let mut current_rev = *max_rev;
+        // Number of revisions whose inspection in the main loop
+        // will give a result or trigger inspection of other revisions
+        let mut interesting = revcount;
+
+        // poisoned means that the rev is already known to be a common
+        // ancestor, BUT when first encountered in the loop, not a maximal
+        // common ancestor.
+
+        // The principle of the algorithm is as follows:
+        // For a revision `r`, when entering the loop, `seen[r]` is either
+        // poisoned or the sub set of `revs` of which `r` is an ancestor.
+        // In the latter case if it "is" `revs`, we have a maximal common
+        // ancestor.
+        //
+        // At each iteration, the bit sets of the parents are updated by
+        // union with `seen[r]`.
+        // As we walk the index from the end, we are sure we have encountered
+        // all children of `r` before `r`, hence we know that `seen[r]` is
+        // fully computed.
+        //
+        // On top of that there are several optimizations that make reading
+        // less obvious than the comment above:
+        // - The `interesting` counter allows to break early
+        // - The loop starts from `max(revs)`
+        // - Early return in case it is detected that one of the incoming revs
+        //   is a common ancestor of all of them.
+        while current_rev.0 >= 0 && interesting > 0 {
+            let mut current_seen = seen[current_rev.0 as usize];
+
+            if current_seen == 0 {
+                current_rev = Revision(current_rev.0 - 1);
+                continue;
+            }
+            if current_seen < poison {
+                interesting -= 1;
+                if current_seen == all_seen {
+                    candidates.push(current_rev);
+                    current_seen |= poison;
+
+                    // Being a common ancestor, if `current_rev` is among
+                    // the input revisions, it is *the* answer.
+                    for rev in revs {
+                        if *rev == current_rev {
+                            return Ok(candidates);
+                        }
+                    }
+                }
+            }
+            for parent in self.parents(current_rev)? {
+                if parent == NULL_REVISION {
+                    continue;
+                }
+                let parent_seen = seen[parent.0 as usize];
+                if current_seen < poison {
+                    // Without the `interesting` accounting, this block would
+                    // be logically equivalent to: parent_seen |= current_seen
+                    // The parent counts as interesting if it was not already
+                    // known to be an ancestor (would already have counted)
+                    if parent_seen == 0 {
+                        seen[parent.0 as usize] = current_seen;
+                        interesting += 1;
+                    } else if parent_seen != current_seen {
+                        seen[parent.0 as usize] |= current_seen;
+                    }
+                } else {
+                    // this block is logically equivalent to poisoning parent
+                    // and counting it as non interesting if it
+                    // has been seen before (hence counted then as interesting)
+                    if parent_seen != 0 && parent_seen < poison {
+                        interesting -= 1;
+                    }
+                    seen[parent.0 as usize] = current_seen;
+                }
+            }
+
+            current_rev = Revision(current_rev.0 - 1);
+        }
+
+        Ok(candidates)
+    }
+
+    /// Given a disjoint set of revs, return the subset with the longest path
+    /// to the root.
+    #[allow(dead_code)]
+    fn find_deepest_revs(
+        &self,
+        revs: &[Revision],
+    ) -> Result<Vec<Revision>, GraphError> {
+        // TODO replace this all with just comparing rank?
+        // Also, the original implementations in C/Python are cryptic, not
+        // even sure we actually need this?
+        if revs.len() <= 1 {
+            return Ok(revs.to_owned());
+        }
+        let max_rev = revs.iter().max().unwrap().0;
+        let mut interesting = HashMap::new();
+        let mut seen = vec![0; max_rev as usize + 1];
+        let mut depth = vec![0; max_rev as usize + 1];
+        let mut mapping = vec![];
+        let mut revs = revs.to_owned();
+        revs.sort_unstable();
+
+        for (idx, rev) in revs.iter().enumerate() {
+            depth[rev.0 as usize] = 1;
+            let shift = 1 << idx;
+            seen[rev.0 as usize] = shift;
+            interesting.insert(shift, 1);
+            mapping.push((shift, *rev));
+        }
+
+        let mut current_rev = Revision(max_rev);
+        while current_rev.0 >= 0 && interesting.len() > 1 {
+            let current_depth = depth[current_rev.0 as usize];
+            if current_depth == 0 {
+                current_rev = Revision(current_rev.0 - 1);
+                continue;
+            }
+
+            let current_seen = seen[current_rev.0 as usize];
+            for parent in self.parents(current_rev)? {
+                if parent == NULL_REVISION {
+                    continue;
+                }
+                let parent_seen = seen[parent.0 as usize];
+                let parent_depth = depth[parent.0 as usize];
+                if parent_depth <= current_depth {
+                    depth[parent.0 as usize] = current_depth + 1;
+                    if parent_seen != current_seen {
+                        *interesting.get_mut(&current_seen).unwrap() += 1;
+                        seen[parent.0 as usize] = current_seen;
+                        if parent_seen != 0 {
+                            let parent_interesting =
+                                interesting.get_mut(&parent_seen).unwrap();
+                            *parent_interesting -= 1;
+                            if *parent_interesting == 0 {
+                                interesting.remove(&parent_seen);
+                            }
+                        }
+                    }
+                } else if current_depth == parent_depth - 1 {
+                    let either_seen = parent_seen | current_seen;
+                    if either_seen == parent_seen {
+                        continue;
+                    }
+                    seen[parent.0 as usize] = either_seen;
+                    interesting
+                        .entry(either_seen)
+                        .and_modify(|v| *v += 1)
+                        .or_insert(1);
+                    *interesting.get_mut(&parent_seen).unwrap() -= 1;
+                    if interesting[&parent_seen] == 0 {
+                        interesting.remove(&parent_seen);
+                    }
+                }
+            }
+            *interesting.get_mut(&current_seen).unwrap() -= 1;
+            if interesting[&current_seen] == 0 {
+                interesting.remove(&current_seen);
+            }
+
+            current_rev = Revision(current_rev.0 - 1);
+        }
+
+        if interesting.len() != 1 {
+            return Ok(vec![]);
+        }
+        let mask = interesting.keys().next().unwrap();
+
+        Ok(mapping
+            .into_iter()
+            .filter_map(|(shift, rev)| {
+                if (mask & shift) != 0 {
+                    return Some(rev);
+                }
+                None
+            })
+            .collect())
+    }
 }
 
 /// Set of roots of all non-public phases
