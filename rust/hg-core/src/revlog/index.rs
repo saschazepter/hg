@@ -123,6 +123,10 @@ impl IndexData {
         }
         Ok(())
     }
+
+    fn is_new(&self) -> bool {
+        self.bytes.is_empty()
+    }
 }
 
 impl std::ops::Index<std::ops::Range<usize>> for IndexData {
@@ -146,6 +150,7 @@ impl std::ops::Index<std::ops::Range<usize>> for IndexData {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct RevisionDataParams {
     pub flags: u16,
     pub data_offset: u64,
@@ -161,6 +166,27 @@ pub struct RevisionDataParams {
     pub data_compression_mode: u8,
     pub _sidedata_compression_mode: u8,
     pub _rank: i32,
+}
+
+impl Default for RevisionDataParams {
+    fn default() -> Self {
+        Self {
+            flags: 0,
+            data_offset: 0,
+            data_compressed_length: 0,
+            data_uncompressed_length: 0,
+            data_delta_base: -1,
+            link_rev: -1,
+            parent_rev_1: -1,
+            parent_rev_2: -1,
+            node_id: [0; NODE_BYTES_LENGTH],
+            _sidedata_offset: 0,
+            _sidedata_compressed_length: 0,
+            data_compression_mode: COMPRESSION_MODE_INLINE,
+            _sidedata_compression_mode: COMPRESSION_MODE_INLINE,
+            _rank: -1,
+        }
+    }
 }
 
 #[derive(BytesCast)]
@@ -397,6 +423,29 @@ impl Index {
         })
     }
 
+    pub fn entry_as_params(
+        &self,
+        rev: UncheckedRevision,
+    ) -> Option<RevisionDataParams> {
+        let rev = self.check_revision(rev)?;
+        self.get_entry(rev).map(|e| RevisionDataParams {
+            flags: e.flags(),
+            data_offset: if rev.0 == 0 && !self.bytes.is_new() {
+                e.flags() as u64
+            } else {
+                e.raw_offset()
+            },
+            data_compressed_length: e.compressed_len().try_into().unwrap(),
+            data_uncompressed_length: e.uncompressed_len(),
+            data_delta_base: e.base_revision_or_base_of_delta_chain().0,
+            link_rev: e.link_revision().0,
+            parent_rev_1: e.p1().0,
+            parent_rev_2: e.p2().0,
+            node_id: e.hash().as_bytes().try_into().unwrap(),
+            ..Default::default()
+        })
+    }
+
     fn get_entry_inline(
         &self,
         rev: Revision,
@@ -518,6 +567,9 @@ impl<'a> IndexEntry<'a> {
             bytes[2..8].copy_from_slice(&self.bytes[0..=5]);
             BigEndian::read_u64(&bytes[..]) as usize
         }
+    }
+    pub fn raw_offset(&self) -> u64 {
+        BigEndian::read_u64(&self.bytes[0..8])
     }
 
     pub fn flags(&self) -> u16 {

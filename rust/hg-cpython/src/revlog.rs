@@ -17,11 +17,10 @@ use cpython::{
     PyObject, PyResult, PyString, PyTuple, Python, PythonObject, ToPyObject,
 };
 use hg::{
-    index::IndexHeader,
-    index::{RevisionDataParams, COMPRESSION_MODE_INLINE},
+    index::{IndexHeader, RevisionDataParams},
     nodemap::{Block, NodeMapError, NodeTree},
     revlog::{nodemap::NodeMap, NodePrefix, RevlogIndex},
-    BaseRevision, Revision, UncheckedRevision,
+    BaseRevision, Revision, UncheckedRevision, NULL_REVISION,
 };
 use std::cell::RefCell;
 
@@ -237,11 +236,6 @@ py_class!(pub class MixedIndex |py| {
         Ok(rust_res)
     }
 
-    /// get an index entry
-    def get(&self, *args, **kw) -> PyResult<PyObject> {
-        self.call_cindex(py, "get", args, kw)
-    }
-
     /// compute phases
     def computephasesmapsets(&self, *args, **kw) -> PyResult<PyObject> {
         self.call_cindex(py, "computephasesmapsets", args, kw)
@@ -292,23 +286,32 @@ py_class!(pub class MixedIndex |py| {
     // Since we call back through the high level Python API,
     // there's no point making a distinction between index_get
     // and index_getitem.
+    // gracinet 2023: this above is no longer true for the pure Rust impl
 
     def __len__(&self) -> PyResult<usize> {
         self.len(py)
     }
 
     def __getitem__(&self, key: PyObject) -> PyResult<PyObject> {
+        let rust_res = self.inner_getitem(py, key.clone_ref(py))?;
+
         // this conversion seems needless, but that's actually because
         // `index_getitem` does not handle conversion from PyLong,
         // which expressions such as [e for e in index] internally use.
         // Note that we don't seem to have a direct way to call
         // PySequence_GetItem (does the job), which would possibly be better
         // for performance
-        let key = match key.extract::<i32>(py) {
+        // gracinet 2023: the above comment can be removed when we use
+        // the pure Rust impl only. Note also that `key` can be a binary
+        // node id.
+        let c_key = match key.extract::<BaseRevision>(py) {
             Ok(rev) => rev.to_py_object(py).into_object(),
             Err(_) => key,
         };
-        self.cindex(py).borrow().inner().get_item(py, key)
+        let c_res = self.cindex(py).borrow().inner().get_item(py, c_key)?;
+
+        assert_py_eq(py, "__getitem__", &rust_res, &c_res)?;
+        Ok(rust_res)
     }
 
     def __contains__(&self, item: PyObject) -> PyResult<bool> {
@@ -426,12 +429,48 @@ fn py_tuple_to_revision_data_params(
         parent_rev_1: tuple.get_item(py, 5).extract(py)?,
         parent_rev_2: tuple.get_item(py, 6).extract(py)?,
         node_id,
-        _sidedata_offset: 0,
-        _sidedata_compressed_length: 0,
-        data_compression_mode: COMPRESSION_MODE_INLINE,
-        _sidedata_compression_mode: COMPRESSION_MODE_INLINE,
-        _rank: -1,
+        ..Default::default()
     })
+}
+fn revision_data_params_to_py_tuple(
+    py: Python,
+    params: RevisionDataParams,
+) -> PyTuple {
+    PyTuple::new(
+        py,
+        &[
+            params.data_offset.into_py_object(py).into_object(),
+            params
+                .data_compressed_length
+                .into_py_object(py)
+                .into_object(),
+            params
+                .data_uncompressed_length
+                .into_py_object(py)
+                .into_object(),
+            params.data_delta_base.into_py_object(py).into_object(),
+            params.link_rev.into_py_object(py).into_object(),
+            params.parent_rev_1.into_py_object(py).into_object(),
+            params.parent_rev_2.into_py_object(py).into_object(),
+            PyBytes::new(py, &params.node_id)
+                .into_py_object(py)
+                .into_object(),
+            params._sidedata_offset.into_py_object(py).into_object(),
+            params
+                ._sidedata_compressed_length
+                .into_py_object(py)
+                .into_object(),
+            params
+                .data_compression_mode
+                .into_py_object(py)
+                .into_object(),
+            params
+                ._sidedata_compression_mode
+                .into_py_object(py)
+                .into_object(),
+            params._rank.into_py_object(py).into_object(),
+        ],
+    )
 }
 
 impl MixedIndex {
@@ -600,6 +639,34 @@ impl MixedIndex {
         *self.nt(py).borrow_mut() = Some(nt);
 
         Ok(py.None())
+    }
+
+    fn inner_getitem(&self, py: Python, key: PyObject) -> PyResult<PyObject> {
+        let idx = self.index(py).borrow();
+        Ok(match key.extract::<BaseRevision>(py) {
+            Ok(key_as_int) => {
+                let entry_params = if key_as_int == NULL_REVISION.0 {
+                    RevisionDataParams::default()
+                } else {
+                    let rev = UncheckedRevision(key_as_int);
+                    match idx.entry_as_params(rev) {
+                        Some(e) => e,
+                        None => {
+                            return Err(PyErr::new::<IndexError, _>(
+                                py,
+                                "revlog index out of range",
+                            ));
+                        }
+                    }
+                };
+                revision_data_params_to_py_tuple(py, entry_params)
+                    .into_object()
+            }
+            _ => self.get_rev(py, key.extract::<PyBytes>(py)?)?.map_or_else(
+                || py.None(),
+                |py_rev| py_rev.into_py_object(py).into_object(),
+            ),
+        })
     }
 }
 
