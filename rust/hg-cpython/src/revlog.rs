@@ -211,7 +211,16 @@ py_class!(pub class MixedIndex |py| {
 
     /// return the raw binary string representing a revision
     def entry_binary(&self, *args, **kw) -> PyResult<PyObject> {
-        self.call_cindex(py, "entry_binary", args, kw)
+        let rindex = self.index(py).borrow();
+        let rev = UncheckedRevision(args.get_item(py, 0).extract(py)?);
+        let rust_bytes = rindex.check_revision(rev).and_then(
+            |r| rindex.entry_binary(r))
+            .ok_or_else(|| rev_not_in_index(py, rev))?;
+        let rust_res = PyBytes::new(py, rust_bytes).into_object();
+
+        let c_res = self.call_cindex(py, "entry_binary", args, kw)?;
+        assert_py_eq(py, "entry_binary", &rust_res, &c_res)?;
+        Ok(rust_res)
     }
 
     /// return a binary packed version of the header
@@ -615,7 +624,6 @@ fn nodemap_rev_not_in_index(py: Python, rev: UncheckedRevision) -> PyErr {
     )
 }
 
-#[allow(dead_code)]
 fn rev_not_in_index(py: Python, rev: UncheckedRevision) -> PyErr {
     PyErr::new::<ValueError, _>(
         py,

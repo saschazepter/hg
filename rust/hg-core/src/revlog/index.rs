@@ -366,8 +366,11 @@ impl Index {
         self.len() == 0
     }
 
-    /// Return the index entry corresponding to the given revision if it
-    /// exists.
+    /// Return the index entry corresponding to the given revision or `None`
+    /// for [`NULL_REVISION`]
+    ///
+    /// The specified revision being of the checked type, it always exists
+    /// if it was validated by this index.
     pub fn get_entry(&self, rev: Revision) -> Option<IndexEntry> {
         if rev == NULL_REVISION {
             return None;
@@ -376,6 +379,21 @@ impl Index {
             self.get_entry_inline(rev, offsets.as_ref())
         } else {
             self.get_entry_separated(rev)
+        })
+    }
+
+    /// Return the binary content of the index entry for the given revision
+    ///
+    /// See [get_entry()](`Self::get_entry()`) for cases when `None` is
+    /// returned.
+    pub fn entry_binary(&self, rev: Revision) -> Option<&[u8]> {
+        self.get_entry(rev).map(|e| {
+            let bytes = e.as_bytes();
+            if rev.0 == 0 {
+                &bytes[4..]
+            } else {
+                bytes
+            }
         })
     }
 
@@ -542,6 +560,10 @@ impl<'a> IndexEntry<'a> {
     /// are used.
     pub fn hash(&self) -> &'a Node {
         (&self.bytes[32..52]).try_into().unwrap()
+    }
+
+    pub fn as_bytes(&self) -> &'a [u8] {
+        self.bytes
     }
 }
 
