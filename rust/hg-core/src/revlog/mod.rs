@@ -148,7 +148,9 @@ pub trait RevlogIndex {
     fn node(&self, rev: Revision) -> Option<&Node>;
 
     /// Return a [`Revision`] if `rev` is a valid revision number for this
-    /// index
+    /// index.
+    ///
+    /// [`NULL_REVISION`] is considered to be valid.
     fn check_revision(&self, rev: UncheckedRevision) -> Option<Revision> {
         let rev = rev.0;
 
