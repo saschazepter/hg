@@ -357,7 +357,37 @@ py_class!(pub class MixedIndex |py| {
 
     /// slice planned chunk read to reach a density threshold
     def slicechunktodensity(&self, *args, **kw) -> PyResult<PyObject> {
-        self.call_cindex(py, "slicechunktodensity", args, kw)
+        let rust_res = self.inner_slicechunktodensity(
+            py,
+            args.get_item(py, 0),
+            args.get_item(py, 1).extract(py)?,
+            args.get_item(py, 2).extract(py)?
+        )?;
+
+        let c_res = self.call_cindex(py, "slicechunktodensity", args, kw)?;
+        assert_eq!(
+            rust_res.len(),
+            c_res.len(py)?,
+            "chunks differ {:?} {}",
+            rust_res, c_res
+        );
+        for (i, chunk) in rust_res.iter().enumerate() {
+            let c_chunk = c_res.get_item(py, i)?;
+            assert_eq!(
+                chunk.len(),
+                c_chunk.len(py)?,
+                "chunk {} length differ {:?} {}",
+                i,
+                chunk,
+                c_res
+            );
+            for (j, rev) in chunk.iter().enumerate() {
+                let c_chunk: BaseRevision
+                    = c_chunk.get_item(py, j)?.extract(py)?;
+                assert_eq!(c_chunk, rev.0);
+            }
+        }
+        Ok(c_res)
     }
 
     /// stats for the index
@@ -818,6 +848,18 @@ impl MixedIndex {
             .map(|r| PyRevision::from(*r).into_py_object(py).into_object())
             .collect();
         Ok(PyList::new(py, &as_vec).into_object())
+    }
+
+    fn inner_slicechunktodensity(
+        &self,
+        py: Python,
+        revs: PyObject,
+        target_density: f64,
+        min_gap_size: usize,
+    ) -> PyResult<Vec<Vec<Revision>>> {
+        let index = &mut *self.index(py).borrow_mut();
+        let revs: Vec<_> = rev_pyiter_collect(py, &revs, index)?;
+        Ok(index.slice_chunk_to_density(&revs, target_density, min_gap_size))
     }
 }
 
