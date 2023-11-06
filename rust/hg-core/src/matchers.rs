@@ -28,7 +28,6 @@ use crate::dirstate::status::IgnoreFnType;
 use crate::filepatterns::normalize_path_bytes;
 use std::collections::HashSet;
 use std::fmt::{Display, Error, Formatter};
-use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::{borrow::ToOwned, collections::BTreeSet};
 
@@ -183,7 +182,7 @@ impl FileMatcher {
     pub fn new(files: Vec<HgPathBuf>) -> Result<Self, HgPathError> {
         let dirs = DirsMultiset::from_manifest(&files)?;
         Ok(Self {
-            files: HashSet::from_iter(files.into_iter()),
+            files: HashSet::from_iter(files),
             dirs,
             sorted_visitchildrenset_candidates: OnceCell::new(),
         })
@@ -316,7 +315,7 @@ impl<'a> PatternMatcher<'a> {
     pub fn new(ignore_patterns: Vec<IgnorePattern>) -> PatternResult<Self> {
         let (files, _) = roots_and_dirs(&ignore_patterns);
         let dirs = DirsMultiset::from_manifest(&files)?;
-        let files: HashSet<HgPathBuf> = HashSet::from_iter(files.into_iter());
+        let files: HashSet<HgPathBuf> = HashSet::from_iter(files);
 
         let prefix = ignore_patterns.iter().all(|k| {
             matches!(k.syntax, PatternSyntax::Path | PatternSyntax::RelPath)
@@ -773,10 +772,10 @@ fn re_matcher(pattern: &[u8]) -> PatternResult<RegexMatcher> {
 
 /// Returns the regex pattern and a function that matches an `HgPath` against
 /// said regex formed by the given ignore patterns.
-fn build_regex_match<'a, 'b>(
-    ignore_patterns: &'a [IgnorePattern],
+fn build_regex_match<'a>(
+    ignore_patterns: &[IgnorePattern],
     glob_suffix: &[u8],
-) -> PatternResult<(Vec<u8>, IgnoreFnType<'b>)> {
+) -> PatternResult<(Vec<u8>, IgnoreFnType<'a>)> {
     let mut regexps = vec![];
     let mut exact_set = HashSet::new();
 
@@ -958,7 +957,7 @@ fn build_match<'a>(
                 } else {
                     b"."
                 };
-                dirs.contains(dir.deref())
+                dirs.contains(dir)
             };
             match_funcs.push(Box::new(match_func));
 

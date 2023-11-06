@@ -23,7 +23,7 @@ pub fn args() -> clap::Command {
         )
         .group(
             ArgGroup::new("revlog")
-                .args(&["changelog", "manifest"])
+                .args(["changelog", "manifest"])
                 .required(true),
         )
         .arg(

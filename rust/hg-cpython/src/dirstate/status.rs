@@ -273,7 +273,7 @@ fn build_response(
                 py_warnings.append(
                     py,
                     (
-                        PyBytes::new(py, &get_bytes_from_path(&file)),
+                        PyBytes::new(py, &get_bytes_from_path(file)),
                         PyBytes::new(py, syn),
                     )
                         .to_py_object(py)
@@ -282,7 +282,7 @@ fn build_response(
             }
             PatternFileWarning::NoSuchFile(file) => py_warnings.append(
                 py,
-                PyBytes::new(py, &get_bytes_from_path(&file)).into_object(),
+                PyBytes::new(py, &get_bytes_from_path(file)).into_object(),
             ),
         }
     }
