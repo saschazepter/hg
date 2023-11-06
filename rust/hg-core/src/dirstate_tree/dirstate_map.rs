@@ -178,7 +178,7 @@ impl<'on_disk> ChildNodes<'on_disk> {
             ChildNodes::InMemory(nodes) => Ok(nodes),
             ChildNodes::OnDisk(nodes) => {
                 *unreachable_bytes +=
-                    std::mem::size_of_val::<[on_disk::Node]>(nodes) as u32;
+                    std::mem::size_of_val::<[on_disk::Node]>(*nodes) as u32;
                 let nodes = nodes
                     .iter()
                     .map(|node| {
@@ -764,7 +764,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
     ) -> Result<bool, DirstateV2ParseError> {
         let was_tracked = old_entry_opt.map_or(false, |e| e.tracked());
         let had_entry = old_entry_opt.is_some();
-        let tracked_count_increment = if was_tracked { 0 } else { 1 };
+        let tracked_count_increment = u32::from(!was_tracked);
         let mut new = false;
 
         let node = self.get_or_insert_node(filename, |ancestor| {

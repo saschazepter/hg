@@ -192,13 +192,13 @@ pub fn canonical_path(
     let name = name.as_ref();
 
     let name = if !name.is_absolute() {
-        root.join(&cwd).join(&name)
+        root.join(cwd).join(name)
     } else {
         name.to_owned()
     };
-    let auditor = PathAuditor::new(&root);
-    if name != root && name.starts_with(&root) {
-        let name = name.strip_prefix(&root).unwrap();
+    let auditor = PathAuditor::new(root);
+    if name != root && name.starts_with(root) {
+        let name = name.strip_prefix(root).unwrap();
         auditor.audit_path(path_to_hg_path_buf(name)?)?;
         Ok(name.to_owned())
     } else if name == root {
@@ -210,7 +210,7 @@ pub fn canonical_path(
         let mut name = name.deref();
         let original_name = name.to_owned();
         loop {
-            let same = is_same_file(&name, &root).unwrap_or(false);
+            let same = is_same_file(name, root).unwrap_or(false);
             if same {
                 if name == original_name {
                     // `name` was actually the same as root (maybe a symlink)
@@ -218,8 +218,8 @@ pub fn canonical_path(
                 }
                 // `name` is a symlink to root, so `original_name` is under
                 // root
-                let rel_path = original_name.strip_prefix(&name).unwrap();
-                auditor.audit_path(path_to_hg_path_buf(&rel_path)?)?;
+                let rel_path = original_name.strip_prefix(name).unwrap();
+                auditor.audit_path(path_to_hg_path_buf(rel_path)?)?;
                 return Ok(rel_path.to_owned());
             }
             name = match name.parent() {
@@ -429,7 +429,7 @@ mod tests {
             })
         );
         assert_eq!(
-            canonical_path(&root, Path::new(""), &under_repo_symlink),
+            canonical_path(&root, Path::new(""), under_repo_symlink),
             Ok(PathBuf::from("d"))
         );
     }

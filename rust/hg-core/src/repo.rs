@@ -686,7 +686,7 @@ impl Repo {
                 }
                 file.write_all(&data)?;
                 file.flush()?;
-                file.seek(SeekFrom::Current(0))
+                file.stream_position()
             })()
             .when_writing_file(&data_filename)?;
 

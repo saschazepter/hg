@@ -348,7 +348,7 @@ impl MixedIndex {
         py: Python<'a>,
     ) -> PyResult<&'a RefCell<Option<NodeTree>>> {
         if self.nt(py).borrow().is_none() {
-            let readonly = Box::new(Vec::new());
+            let readonly = Box::<Vec<_>>::default();
             let mut nt = NodeTree::load_bytes(readonly, 0);
             self.fill_nodemap(py, &mut nt)?;
             self.nt(py).borrow_mut().replace(nt);
@@ -382,7 +382,7 @@ impl MixedIndex {
         // If there's anything readonly, we need to build the data again from
         // scratch
         let bytes = if readonly.len() > 0 {
-            let mut nt = NodeTree::load_bytes(Box::new(vec![]), 0);
+            let mut nt = NodeTree::load_bytes(Box::<Vec<_>>::default(), 0);
             self.fill_nodemap(py, &mut nt)?;
 
             let (readonly, bytes) = nt.into_readonly_and_added_bytes();

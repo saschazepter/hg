@@ -656,7 +656,7 @@ impl From<Vec<Block>> for NodeTree {
 
 impl fmt::Debug for NodeTree {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let readonly: &[Block] = &*self.readonly;
+        let readonly: &[Block] = &self.readonly;
         write!(
             f,
             "readonly: {:?}, growable: {:?}, root: {:?}",
@@ -668,7 +668,7 @@ impl fmt::Debug for NodeTree {
 impl Default for NodeTree {
     /// Create a fully mutable empty NodeTree
     fn default() -> Self {
-        NodeTree::new(Box::new(Vec::new()))
+        NodeTree::new(Box::<Vec<_>>::default())
     }
 }
 
@@ -775,7 +775,7 @@ pub mod tests {
     /// strings for test data, and brings actual hash size independency.
     #[cfg(test)]
     fn pad_node(hex: &str) -> Node {
-        Node::from_hex(&hex_pad_right(hex)).unwrap()
+        Node::from_hex(hex_pad_right(hex)).unwrap()
     }
 
     /// Pad hexadecimal Node prefix with zeros on the right, then insert
@@ -824,7 +824,7 @@ pub mod tests {
             nt.find_node(&idx, idx.get(&1.into()).unwrap())?,
             Some(R!(1))
         );
-        let unknown = Node::from_hex(&hex_pad_right("3d")).unwrap();
+        let unknown = Node::from_hex(hex_pad_right("3d")).unwrap();
         assert_eq!(nt.find_node(&idx, &unknown)?, None);
         Ok(())
     }
@@ -900,7 +900,7 @@ pub mod tests {
             hex: &str,
         ) -> Result<(), NodeMapError> {
             let node = pad_node(hex);
-            return self.insert_node(rev, node);
+            self.insert_node(rev, node)
         }
 
         fn find_hex(
@@ -928,6 +928,12 @@ pub mod tests {
                 index: self.index,
                 nt: NodeTree::from(as_vec),
             }
+        }
+    }
+
+    impl Default for TestNtIndex {
+        fn default() -> Self {
+            Self::new()
         }
     }
 
@@ -1003,7 +1009,7 @@ pub mod tests {
         let mut node1_hex = hex_pad_right("444444");
         node1_hex.pop();
         node1_hex.push('5');
-        let node0 = Node::from_hex(&node0_hex).unwrap();
+        let node0 = Node::from_hex(node0_hex).unwrap();
         let node1 = Node::from_hex(&node1_hex).unwrap();
 
         idx.insert(0.into(), node0);
