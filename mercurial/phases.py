@@ -165,6 +165,7 @@ phasenumber2.update({phase: phase for phase in phasenames})
 phasenumber2.update({b'%i' % phase: phase for phase in phasenames})
 # record phase property
 mutablephases = (draft, secret, archived, internal)
+relevant_mutable_phases = (draft, secret)  # could be obsolete or unstable
 remotehiddenphases = (secret, archived, internal)
 localhiddenphases = (internal, archived)
 

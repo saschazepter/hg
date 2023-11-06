@@ -939,7 +939,7 @@ def clearobscaches(repo):
 
 def _mutablerevs(repo):
     """the set of mutable revision in the repository"""
-    return repo._phasecache.getrevset(repo, phases.mutablephases)
+    return repo._phasecache.getrevset(repo, phases.relevant_mutable_phases)
 
 
 @cachefor(b'obsolete')
