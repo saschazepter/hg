@@ -75,7 +75,7 @@ impl NodeMapDocket {
         // TODO: use `vfs.read()` here when the `persistent-nodemap.mmap`
         // config is false?
         if let Some(mmap) =
-            store_vfs.mmap_open(&data_path).io_not_found_as_none()?
+            store_vfs.mmap_open(data_path).io_not_found_as_none()?
         {
             if mmap.len() >= data_length {
                 Ok(Some((docket, mmap)))

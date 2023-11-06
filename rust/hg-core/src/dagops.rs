@@ -205,8 +205,7 @@ mod tests {
         graph: &impl Graph,
         revs: &[BaseRevision],
     ) -> Result<Vec<Revision>, GraphError> {
-        let iter_revs: Vec<_> =
-            revs.into_iter().cloned().map(Revision).collect();
+        let iter_revs: Vec<_> = revs.iter().cloned().map(Revision).collect();
         let heads = heads(graph, iter_revs.iter())?;
         let mut as_vec: Vec<Revision> = heads.iter().cloned().collect();
         as_vec.sort_unstable();

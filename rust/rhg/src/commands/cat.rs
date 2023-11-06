@@ -62,7 +62,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             return Err(CommandError::unsupported(message));
         }
 
-        let normalized = cwd.join(&file);
+        let normalized = cwd.join(file);
         // TODO: actually normalize `..` path segments etc?
         let dotted = normalized.components().any(|c| c.as_os_str() == "..");
         if file.as_bytes() == b"." || dotted {

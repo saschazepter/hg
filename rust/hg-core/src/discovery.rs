@@ -332,7 +332,7 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
             FastHashMap::default();
         for &rev in self.undecided.as_ref().unwrap() {
             for p in ParentsIterator::graph_parents(&self.graph, rev)? {
-                children.entry(p).or_insert_with(Vec::new).push(rev);
+                children.entry(p).or_default().push(rev);
             }
         }
         self.children_cache = Some(children);
@@ -695,7 +695,7 @@ mod tests {
     #[test]
     fn test_bidirectional_sample() -> Result<(), GraphError> {
         let mut disco = full_disco();
-        disco.undecided = Some((0..=13).into_iter().map(Revision).collect());
+        disco.undecided = Some((0..=13).map(Revision).collect());
 
         let (sample_set, size) = disco.bidirectional_sample(7)?;
         assert_eq!(size, 7);

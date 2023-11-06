@@ -758,7 +758,7 @@ mod tests {
         let tmpdir = tempfile::tempdir().unwrap();
         let tmpdir_path = tmpdir.path();
         let mut included_file =
-            File::create(&tmpdir_path.join("included.rc")).unwrap();
+            File::create(tmpdir_path.join("included.rc")).unwrap();
 
         included_file.write_all(b"[section]\nitem=value1").unwrap();
         let base_config_path = tmpdir_path.join("base.rc");

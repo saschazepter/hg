@@ -404,8 +404,8 @@ fn exit_code(
     }
 }
 
-fn exit<'a>(
-    original_args: &'a [OsString],
+fn exit(
+    original_args: &[OsString],
     initial_current_dir: &Option<PathBuf>,
     ui: &Ui,
     mut on_unsupported: OnUnsupported,

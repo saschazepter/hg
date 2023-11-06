@@ -249,7 +249,7 @@ impl<'a> HasIgnoredAncestor<'a> {
         }
     }
 
-    fn force<'b>(&self, ignore_fn: &IgnoreFnType<'b>) -> bool {
+    fn force(&self, ignore_fn: &IgnoreFnType<'_>) -> bool {
         match self.parent {
             None => false,
             Some(parent) => {

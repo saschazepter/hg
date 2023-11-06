@@ -629,8 +629,7 @@ impl SubInclude {
             normalize_path_bytes(&get_bytes_from_path(source));
 
         let source_root = get_path_from_bytes(&normalized_source);
-        let source_root =
-            source_root.parent().unwrap_or_else(|| source_root.deref());
+        let source_root = source_root.parent().unwrap_or(source_root);
 
         let path = source_root.join(get_path_from_bytes(pattern));
         let new_root = path.parent().unwrap_or_else(|| path.deref());
@@ -682,22 +681,21 @@ mod tests {
         assert_eq!(escape_pattern(untouched), untouched.to_vec());
         // All escape codes
         assert_eq!(
-            escape_pattern(br#"()[]{}?*+-|^$\\.&~#\t\n\r\v\f"#),
-            br#"\(\)\[\]\{\}\?\*\+\-\|\^\$\\\\\.\&\~\#\\t\\n\\r\\v\\f"#
-                .to_vec()
+            escape_pattern(br"()[]{}?*+-|^$\\.&~#\t\n\r\v\f"),
+            br"\(\)\[\]\{\}\?\*\+\-\|\^\$\\\\\.\&\~\#\\t\\n\\r\\v\\f".to_vec()
         );
     }
 
     #[test]
     fn glob_test() {
-        assert_eq!(glob_to_re(br#"?"#), br#"."#);
-        assert_eq!(glob_to_re(br#"*"#), br#"[^/]*"#);
-        assert_eq!(glob_to_re(br#"**"#), br#".*"#);
-        assert_eq!(glob_to_re(br#"**/a"#), br#"(?:.*/)?a"#);
-        assert_eq!(glob_to_re(br#"a/**/b"#), br#"a/(?:.*/)?b"#);
-        assert_eq!(glob_to_re(br#"[a*?!^][^b][!c]"#), br#"[a*?!^][\^b][^c]"#);
-        assert_eq!(glob_to_re(br#"{a,b}"#), br#"(?:a|b)"#);
-        assert_eq!(glob_to_re(br#".\*\?"#), br#"\.\*\?"#);
+        assert_eq!(glob_to_re(br"?"), br".");
+        assert_eq!(glob_to_re(br"*"), br"[^/]*");
+        assert_eq!(glob_to_re(br"**"), br".*");
+        assert_eq!(glob_to_re(br"**/a"), br"(?:.*/)?a");
+        assert_eq!(glob_to_re(br"a/**/b"), br"a/(?:.*/)?b");
+        assert_eq!(glob_to_re(br"[a*?!^][^b][!c]"), br"[a*?!^][\^b][^c]");
+        assert_eq!(glob_to_re(br"{a,b}"), br"(?:a|b)");
+        assert_eq!(glob_to_re(br".\*\?"), br"\.\*\?");
     }
 
     #[test]
