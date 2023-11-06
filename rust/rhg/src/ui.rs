@@ -251,7 +251,7 @@ pub(crate) fn format_pattern_file_warning(
         PatternFileWarning::InvalidSyntax(path, syntax) => format_bytes!(
             b"{}: ignoring invalid syntax '{}'\n",
             get_bytes_from_path(path),
-            &*syntax
+            syntax
         ),
         PatternFileWarning::NoSuchFile(path) => {
             let path = if let Ok(relative) =
@@ -259,7 +259,7 @@ pub(crate) fn format_pattern_file_warning(
             {
                 relative
             } else {
-                &*path
+                path
             };
             format_bytes!(
                 b"skipping unreadable pattern file '{}': \

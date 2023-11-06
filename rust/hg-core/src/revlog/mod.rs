@@ -248,8 +248,8 @@ impl Revlog {
     ) -> Result<Self, HgError> {
         let index_path = index_path.as_ref();
         let index = {
-            match store_vfs.mmap_open_opt(&index_path)? {
-                None => Index::new(Box::new(vec![])),
+            match store_vfs.mmap_open_opt(index_path)? {
+                None => Index::new(Box::<Vec<_>>::default()),
                 Some(index_mmap) => {
                     let index = Index::new(Box::new(index_mmap))?;
                     Ok(index)
