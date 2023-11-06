@@ -414,6 +414,8 @@ impl Node {
     }
 
     fn synthesize_unix_mode(&self) -> u32 {
+        // Some platforms' libc don't have the same type (MacOS uses i32 here)
+        #[allow(clippy::unnecessary_cast)]
         let file_type = if self.flags().contains(Flags::MODE_IS_SYMLINK) {
             libc::S_IFLNK as u32
         } else {
@@ -529,6 +531,8 @@ impl Node {
         flags.set(Flags::WDIR_TRACKED, wc_tracked);
         flags.set(Flags::P1_TRACKED, p1_tracked);
         flags.set(Flags::P2_INFO, p2_info);
+        // Some platforms' libc don't have the same type (MacOS uses i32 here)
+        #[allow(clippy::unnecessary_cast)]
         let size = if let Some((m, s)) = mode_size_opt {
             let exec_perm = m & (libc::S_IXUSR as u32) != 0;
             let is_symlink = m & (libc::S_IFMT as u32) == libc::S_IFLNK as u32;
