@@ -1279,6 +1279,9 @@ class revlog:
     @staticmethod
     def is_inline_index(header_bytes):
         """Determine if a revlog is inline from the initial bytes of the index"""
+        if len(header_bytes) == 0:
+            return True
+
         header = INDEX_HEADER.unpack(header_bytes)[0]
 
         _format_flags = header & ~0xFFFF
