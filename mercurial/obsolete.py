@@ -993,7 +993,8 @@ def _computephasedivergentset(repo):
     torev = cl.index.get_rev
     tonode = cl.node
     obsstore = repo.obsstore
-    for rev in repo.revs(b'(not public()) and (not obsolete())'):
+    candidates = sorted(_mutablerevs(repo) - getrevs(repo, b"obsolete"))
+    for rev in candidates:
         # We only evaluate mutable, non-obsolete revision
         node = tonode(rev)
         # (future) A cache of predecessors may worth if split is very common
