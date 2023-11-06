@@ -1016,7 +1016,8 @@ def _computecontentdivergentset(repo):
     obsstore = repo.obsstore
     newermap = {}
     tonode = repo.changelog.node
-    for rev in repo.revs(b'(not public()) - obsolete()'):
+    candidates = sorted(_mutablerevs(repo) - getrevs(repo, b"obsolete"))
+    for rev in candidates:
         node = tonode(rev)
         mark = obsstore.predecessors.get(node, ())
         toprocess = set(mark)
