@@ -24,7 +24,6 @@ from mercurial import (
     error,
     logcmdutil,
     minirst,
-    pycompat,
     registrar,
     util,
 )
@@ -665,17 +664,16 @@ def releasenotes(ui, repo, file_=None, **opts):
     admonitions (if any).
     """
 
-    opts = pycompat.byteskwargs(opts)
     sections = releasenotessections(ui, repo)
 
-    cmdutil.check_incompatible_arguments(opts, b'list', [b'rev', b'check'])
+    cmdutil.check_incompatible_arguments(opts, 'list', ['rev', 'check'])
 
-    if opts.get(b'list'):
+    if opts.get('list'):
         return _getadmonitionlist(ui, sections)
 
-    rev = opts.get(b'rev')
+    rev = opts.get('rev')
     revs = logcmdutil.revrange(repo, [rev or b'not public()'])
-    if opts.get(b'check'):
+    if opts.get('check'):
         return checkadmonitions(ui, repo, sections.names(), revs)
 
     incoming = parsenotesfromrevisions(repo, sections.names(), revs)

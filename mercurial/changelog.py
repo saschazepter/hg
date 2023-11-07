@@ -91,102 +91,6 @@ def stripdesc(desc):
     return b'\n'.join([l.rstrip() for l in desc.splitlines()]).strip(b'\n')
 
 
-class appender:
-    """the changelog index must be updated last on disk, so we use this class
-    to delay writes to it"""
-
-    def __init__(self, vfs, name, mode, buf):
-        self.data = buf
-        fp = vfs(name, mode)
-        self.fp = fp
-        self.offset = fp.tell()
-        self.size = vfs.fstat(fp).st_size
-        self._end = self.size
-
-    def end(self):
-        return self._end
-
-    def tell(self):
-        return self.offset
-
-    def flush(self):
-        pass
-
-    @property
-    def closed(self):
-        return self.fp.closed
-
-    def close(self):
-        self.fp.close()
-
-    def seek(self, offset, whence=0):
-        '''virtual file offset spans real file and data'''
-        if whence == 0:
-            self.offset = offset
-        elif whence == 1:
-            self.offset += offset
-        elif whence == 2:
-            self.offset = self.end() + offset
-        if self.offset < self.size:
-            self.fp.seek(self.offset)
-
-    def read(self, count=-1):
-        '''only trick here is reads that span real file and data'''
-        ret = b""
-        if self.offset < self.size:
-            s = self.fp.read(count)
-            ret = s
-            self.offset += len(s)
-            if count > 0:
-                count -= len(s)
-        if count != 0:
-            doff = self.offset - self.size
-            self.data.insert(0, b"".join(self.data))
-            del self.data[1:]
-            s = self.data[0][doff : doff + count]
-            self.offset += len(s)
-            ret += s
-        return ret
-
-    def write(self, s):
-        self.data.append(bytes(s))
-        self.offset += len(s)
-        self._end += len(s)
-
-    def __enter__(self):
-        self.fp.__enter__()
-        return self
-
-    def __exit__(self, *args):
-        return self.fp.__exit__(*args)
-
-
-class _divertopener:
-    def __init__(self, opener, target):
-        self._opener = opener
-        self._target = target
-
-    def __call__(self, name, mode=b'r', checkambig=False, **kwargs):
-        if name != self._target:
-            return self._opener(name, mode, **kwargs)
-        return self._opener(name + b".a", mode, **kwargs)
-
-    def __getattr__(self, attr):
-        return getattr(self._opener, attr)
-
-
-def _delayopener(opener, target, buf):
-    """build an opener that stores chunks in 'buf' instead of 'target'"""
-
-    def _delay(name, mode=b'r', checkambig=False, **kwargs):
-        if name != target:
-            return opener(name, mode, **kwargs)
-        assert not kwargs
-        return appender(opener, name, mode, buf)
-
-    return _delay
-
-
 @attr.s
 class _changelogrevision:
     # Extensions might modify _defaultextra, so let the constructor below pass
@@ -410,17 +314,14 @@ class changelog(revlog.revlog):
             # changelogs don't benefit from generaldelta.
 
             self._format_flags &= ~revlog.FLAG_GENERALDELTA
-            self._generaldelta = False
+            self.delta_config.general_delta = False
 
         # Delta chains for changelogs tend to be very small because entries
         # tend to be small and don't delta well with each. So disable delta
         # chains.
         self._storedeltachains = False
 
-        self._realopener = opener
-        self._delayed = False
-        self._delaybuf = None
-        self._divert = False
+        self._v2_delayed = False
         self._filteredrevs = frozenset()
         self._filteredrevs_hashcache = {}
         self._copiesstorage = opener.options.get(b'copies-storage')
@@ -437,83 +338,50 @@ class changelog(revlog.revlog):
         self._filteredrevs_hashcache = {}
 
     def _write_docket(self, tr):
-        if not self._delayed:
+        if not self._v2_delayed:
             super(changelog, self)._write_docket(tr)
 
     def delayupdate(self, tr):
         """delay visibility of index updates to other readers"""
-        if self._docket is None and not self._delayed:
-            if len(self) == 0:
-                self._divert = True
-                if self._realopener.exists(self._indexfile + b'.a'):
-                    self._realopener.unlink(self._indexfile + b'.a')
-                self.opener = _divertopener(self._realopener, self._indexfile)
-            else:
-                self._delaybuf = []
-                self.opener = _delayopener(
-                    self._realopener, self._indexfile, self._delaybuf
-                )
-            self._segmentfile.opener = self.opener
-            self._segmentfile_sidedata.opener = self.opener
-        self._delayed = True
+        assert not self._inner.is_open
+        if self._docket is not None:
+            self._v2_delayed = True
+        else:
+            new_index = self._inner.delay()
+            if new_index is not None:
+                self._indexfile = new_index
+                tr.registertmp(new_index)
         tr.addpending(b'cl-%i' % id(self), self._writepending)
         tr.addfinalize(b'cl-%i' % id(self), self._finalize)
 
     def _finalize(self, tr):
         """finalize index updates"""
-        self._delayed = False
-        self.opener = self._realopener
-        self._segmentfile.opener = self.opener
-        self._segmentfile_sidedata.opener = self.opener
-        # move redirected index data back into place
+        assert not self._inner.is_open
         if self._docket is not None:
-            self._write_docket(tr)
-        elif self._divert:
-            assert not self._delaybuf
-            tmpname = self._indexfile + b".a"
-            nfile = self.opener.open(tmpname)
-            nfile.close()
-            self.opener.rename(tmpname, self._indexfile, checkambig=True)
-        elif self._delaybuf:
-            fp = self.opener(self._indexfile, b'a', checkambig=True)
-            fp.write(b"".join(self._delaybuf))
-            fp.close()
-            self._delaybuf = None
-        self._divert = False
-        # split when we're done
-        self._enforceinlinesize(tr, side_write=False)
+            self._docket.write(tr)
+            self._v2_delayed = False
+        else:
+            new_index_file = self._inner.finalize_pending()
+            self._indexfile = new_index_file
+            # split when we're done
+            self._enforceinlinesize(tr, side_write=False)
 
     def _writepending(self, tr):
         """create a file containing the unfinalized state for
         pretxnchangegroup"""
+        assert not self._inner.is_open
         if self._docket:
-            return self._docket.write(tr, pending=True)
-        if self._delaybuf:
-            # make a temporary copy of the index
-            fp1 = self._realopener(self._indexfile)
-            pendingfilename = self._indexfile + b".a"
-            # register as a temp file to ensure cleanup on failure
-            tr.registertmp(pendingfilename)
-            # write existing data
-            fp2 = self._realopener(pendingfilename, b"w")
-            fp2.write(fp1.read())
-            # add pending data
-            fp2.write(b"".join(self._delaybuf))
-            fp2.close()
-            # switch modes so finalize can simply rename
-            self._delaybuf = None
-            self._divert = True
-            self.opener = _divertopener(self._realopener, self._indexfile)
-            self._segmentfile.opener = self.opener
-            self._segmentfile_sidedata.opener = self.opener
-
-        if self._divert:
-            return True
-
-        return False
+            any_pending = self._docket.write(tr, pending=True)
+            self._v2_delayed = False
+        else:
+            new_index, any_pending = self._inner.write_pending()
+            if new_index is not None:
+                self._indexfile = new_index
+                tr.registertmp(new_index)
+        return any_pending
 
     def _enforceinlinesize(self, tr, side_write=True):
-        if not self._delayed:
+        if not self.is_delaying:
             revlog.revlog._enforceinlinesize(self, tr, side_write=side_write)
 
     def read(self, nodeorrev):

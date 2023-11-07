@@ -1,5 +1,4 @@
 from .i18n import _
-from .pycompat import getattr
 from . import (
     bookmarks as bookmarksmod,
     cmdutil,
@@ -12,7 +11,6 @@ from . import (
     registrar,
     repair,
     scmutil,
-    util,
 )
 
 release = lockmod.release
@@ -36,7 +34,7 @@ def _findupdatetarget(repo, nodes):
     currentbranch = repo[None].branch()
 
     if (
-        util.safehasattr(repo, 'mq')
+        hasattr(repo, 'mq')
         and p2 != repo.nullid
         and p2 in [x.node for x in repo.mq.applied]
     ):

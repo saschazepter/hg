@@ -20,7 +20,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         .with_context(|| {
             IoErrorContext::CanonicalizingPath(working_directory.to_owned())
         })?;
-    let bytes = get_bytes_from_path(&working_directory);
+    let bytes = get_bytes_from_path(working_directory);
     invocation
         .ui
         .write_stdout(&format_bytes!(b"{}\n", bytes.as_slice()))?;

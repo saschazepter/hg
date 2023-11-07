@@ -342,8 +342,8 @@ def _featuresetup(ui, supported):
 
 
 def extsetup(ui):
-    extensions.wrapfunction(localrepo, b'makestore', _makestore)
-    extensions.wrapfunction(localrepo, b'makefilestorage', _makefilestorage)
+    extensions.wrapfunction(localrepo, 'makestore', _makestore)
+    extensions.wrapfunction(localrepo, 'makefilestorage', _makefilestorage)
     # Inject --git flag for `hg init`
     entry = extensions.wrapcommand(commands.table, b'init', init)
     entry[1].extend(

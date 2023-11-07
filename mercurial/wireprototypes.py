@@ -9,7 +9,6 @@ from .node import (
     hex,
 )
 from .i18n import _
-from .pycompat import getattr
 from .thirdparty import attr
 from . import (
     error,
@@ -367,9 +366,7 @@ def supportedcompengines(ui, role):
     # No explicit config. Filter out the ones that aren't supposed to be
     # advertised and return default ordering.
     if not configengines:
-        attr = (
-            b'serverpriority' if role == util.SERVERROLE else b'clientpriority'
-        )
+        attr = 'serverpriority' if role == util.SERVERROLE else 'clientpriority'
         return [
             e for e in compengines if getattr(e.wireprotosupport(), attr) > 0
         ]

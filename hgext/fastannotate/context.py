@@ -12,9 +12,7 @@ import os
 
 from mercurial.i18n import _
 from mercurial.pycompat import (
-    getattr,
     open,
-    setattr,
 )
 from mercurial.node import (
     bin,
@@ -151,7 +149,10 @@ def encodedir(path):
 
 def hashdiffopts(diffopts):
     diffoptstr = stringutil.pprint(
-        sorted((k, getattr(diffopts, k)) for k in mdiff.diffopts.defaults)
+        sorted(
+            (k, getattr(diffopts, pycompat.sysstr(k)))
+            for k in mdiff.diffopts.defaults
+        )
     )
     return hex(hashutil.sha1(diffoptstr).digest())[:6]
 
@@ -167,13 +168,12 @@ class annotateopts:
     """
 
     defaults = {
-        b'diffopts': None,
-        b'followrename': True,
-        b'followmerge': True,
+        'diffopts': None,
+        'followrename': True,
+        'followmerge': True,
     }
 
     def __init__(self, **opts):
-        opts = pycompat.byteskwargs(opts)
         for k, v in self.defaults.items():
             setattr(self, k, opts.get(k, v))
 
@@ -322,7 +322,7 @@ class _annotatecontext:
                     b'(resolved fctx: %s)\n'
                     % (
                         self.path,
-                        stringutil.pprint(util.safehasattr(revfctx, b'node')),
+                        stringutil.pprint(hasattr(revfctx, 'node')),
                     )
                 )
             return self.annotatedirectly(revfctx, showpath, showlines)

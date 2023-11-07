@@ -37,10 +37,7 @@ import warnings
 from .node import hex
 from .thirdparty import attr
 from .pycompat import (
-    delattr,
-    getattr,
     open,
-    setattr,
 )
 from hgdemandimport import tracing
 from . import (
@@ -2583,7 +2580,7 @@ class atomictempfile:
             self._fp.close()
 
     def __del__(self):
-        if safehasattr(self, '_fp'):  # constructor actually did something
+        if hasattr(self, '_fp'):  # constructor actually did something
             self.discard()
 
     def __enter__(self):

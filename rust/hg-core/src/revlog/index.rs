@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::ops::Deref;
 
 use byteorder::{BigEndian, ByteOrder};
@@ -5,6 +6,7 @@ use byteorder::{BigEndian, ByteOrder};
 use crate::errors::HgError;
 use crate::revlog::node::Node;
 use crate::revlog::{Revision, NULL_REVISION};
+use crate::{Graph, GraphError, RevlogIndex, UncheckedRevision};
 
 pub const INDEX_ENTRY_SIZE: usize = 64;
 
@@ -84,6 +86,32 @@ pub struct Index {
     /// Only needed when the index is interleaved with data.
     offsets: Option<Vec<usize>>,
     uses_generaldelta: bool,
+}
+
+impl Debug for Index {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Index")
+            .field("offsets", &self.offsets)
+            .field("uses_generaldelta", &self.uses_generaldelta)
+            .finish()
+    }
+}
+
+impl Graph for Index {
+    fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
+        let err = || GraphError::ParentOutOfRange(rev);
+        match self.get_entry(rev) {
+            Some(entry) => {
+                // The C implementation checks that the parents are valid
+                // before returning
+                Ok([
+                    self.check_revision(entry.p1()).ok_or_else(err)?,
+                    self.check_revision(entry.p2()).ok_or_else(err)?,
+                ])
+            }
+            None => Ok([NULL_REVISION, NULL_REVISION]),
+        }
+    }
 }
 
 impl Index {
@@ -175,48 +203,44 @@ impl Index {
         if rev == NULL_REVISION {
             return None;
         }
-        if let Some(offsets) = &self.offsets {
+        Some(if let Some(offsets) = &self.offsets {
             self.get_entry_inline(rev, offsets)
         } else {
             self.get_entry_separated(rev)
-        }
+        })
     }
 
     fn get_entry_inline(
         &self,
         rev: Revision,
         offsets: &[usize],
-    ) -> Option<IndexEntry> {
-        let start = *offsets.get(rev as usize)?;
-        let end = start.checked_add(INDEX_ENTRY_SIZE)?;
+    ) -> IndexEntry {
+        let start = offsets[rev.0 as usize];
+        let end = start + INDEX_ENTRY_SIZE;
         let bytes = &self.bytes[start..end];
 
         // See IndexEntry for an explanation of this override.
         let offset_override = Some(end);
 
-        Some(IndexEntry {
+        IndexEntry {
             bytes,
             offset_override,
-        })
+        }
     }
 
-    fn get_entry_separated(&self, rev: Revision) -> Option<IndexEntry> {
-        let max_rev = self.bytes.len() / INDEX_ENTRY_SIZE;
-        if rev as usize >= max_rev {
-            return None;
-        }
-        let start = rev as usize * INDEX_ENTRY_SIZE;
+    fn get_entry_separated(&self, rev: Revision) -> IndexEntry {
+        let start = rev.0 as usize * INDEX_ENTRY_SIZE;
         let end = start + INDEX_ENTRY_SIZE;
         let bytes = &self.bytes[start..end];
 
         // Override the offset of the first revision as its bytes are used
         // for the index's metadata (saving space because it is always 0)
-        let offset_override = if rev == 0 { Some(0) } else { None };
+        let offset_override = if rev == Revision(0) { Some(0) } else { None };
 
-        Some(IndexEntry {
+        IndexEntry {
             bytes,
             offset_override,
-        })
+        }
     }
 }
 
@@ -273,23 +297,23 @@ impl<'a> IndexEntry<'a> {
     }
 
     /// Return the revision upon which the data has been derived.
-    pub fn base_revision_or_base_of_delta_chain(&self) -> Revision {
+    pub fn base_revision_or_base_of_delta_chain(&self) -> UncheckedRevision {
         // TODO Maybe return an Option when base_revision == rev?
         //      Requires to add rev to IndexEntry
 
-        BigEndian::read_i32(&self.bytes[16..])
+        BigEndian::read_i32(&self.bytes[16..]).into()
     }
 
-    pub fn link_revision(&self) -> Revision {
-        BigEndian::read_i32(&self.bytes[20..])
+    pub fn link_revision(&self) -> UncheckedRevision {
+        BigEndian::read_i32(&self.bytes[20..]).into()
     }
 
-    pub fn p1(&self) -> Revision {
-        BigEndian::read_i32(&self.bytes[24..])
+    pub fn p1(&self) -> UncheckedRevision {
+        BigEndian::read_i32(&self.bytes[24..]).into()
     }
 
-    pub fn p2(&self) -> Revision {
-        BigEndian::read_i32(&self.bytes[28..])
+    pub fn p2(&self) -> UncheckedRevision {
+        BigEndian::read_i32(&self.bytes[28..]).into()
     }
 
     /// Return the hash of revision's full text.
@@ -335,8 +359,8 @@ mod tests {
                 offset: 0,
                 compressed_len: 0,
                 uncompressed_len: 0,
-                base_revision_or_base_of_delta_chain: 0,
-                link_revision: 0,
+                base_revision_or_base_of_delta_chain: Revision(0),
+                link_revision: Revision(0),
                 p1: NULL_REVISION,
                 p2: NULL_REVISION,
                 node: NULL_NODE,
@@ -426,11 +450,11 @@ mod tests {
             bytes.extend(&(self.compressed_len as u32).to_be_bytes());
             bytes.extend(&(self.uncompressed_len as u32).to_be_bytes());
             bytes.extend(
-                &self.base_revision_or_base_of_delta_chain.to_be_bytes(),
+                &self.base_revision_or_base_of_delta_chain.0.to_be_bytes(),
             );
-            bytes.extend(&self.link_revision.to_be_bytes());
-            bytes.extend(&self.p1.to_be_bytes());
-            bytes.extend(&self.p2.to_be_bytes());
+            bytes.extend(&self.link_revision.0.to_be_bytes());
+            bytes.extend(&self.p1.0.to_be_bytes());
+            bytes.extend(&self.p2.0.to_be_bytes());
             bytes.extend(self.node.as_bytes());
             bytes.extend(vec![0u8; 12]);
             bytes
@@ -540,50 +564,52 @@ mod tests {
     #[test]
     fn test_base_revision_or_base_of_delta_chain() {
         let bytes = IndexEntryBuilder::new()
-            .with_base_revision_or_base_of_delta_chain(1)
+            .with_base_revision_or_base_of_delta_chain(Revision(1))
             .build();
         let entry = IndexEntry {
             bytes: &bytes,
             offset_override: None,
         };
 
-        assert_eq!(entry.base_revision_or_base_of_delta_chain(), 1)
+        assert_eq!(entry.base_revision_or_base_of_delta_chain(), 1.into())
     }
 
     #[test]
     fn link_revision_test() {
-        let bytes = IndexEntryBuilder::new().with_link_revision(123).build();
+        let bytes = IndexEntryBuilder::new()
+            .with_link_revision(Revision(123))
+            .build();
 
         let entry = IndexEntry {
             bytes: &bytes,
             offset_override: None,
         };
 
-        assert_eq!(entry.link_revision(), 123);
+        assert_eq!(entry.link_revision(), 123.into());
     }
 
     #[test]
     fn p1_test() {
-        let bytes = IndexEntryBuilder::new().with_p1(123).build();
+        let bytes = IndexEntryBuilder::new().with_p1(Revision(123)).build();
 
         let entry = IndexEntry {
             bytes: &bytes,
             offset_override: None,
         };
 
-        assert_eq!(entry.p1(), 123);
+        assert_eq!(entry.p1(), 123.into());
     }
 
     #[test]
     fn p2_test() {
-        let bytes = IndexEntryBuilder::new().with_p2(123).build();
+        let bytes = IndexEntryBuilder::new().with_p2(Revision(123)).build();
 
         let entry = IndexEntry {
             bytes: &bytes,
             offset_override: None,
         };
 
-        assert_eq!(entry.p2(), 123);
+        assert_eq!(entry.p2(), 123.into());
     }
 
     #[test]

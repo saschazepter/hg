@@ -77,6 +77,8 @@ Test hiding some commands (which also happens to hide an entire category).
   
   Repository maintenance:
   
+   admin::verify
+                 verify the integrity of the repository
    manifest      output the current or given revision of the project manifest
    recover       roll back an interrupted transaction
    verify        verify the integrity of the repository
@@ -216,6 +218,8 @@ Test hiding some topics.
   
   Repository maintenance:
   
+   admin::verify
+                 verify the integrity of the repository
    manifest      output the current or given revision of the project manifest
    recover       roll back an interrupted transaction
    verify        verify the integrity of the repository

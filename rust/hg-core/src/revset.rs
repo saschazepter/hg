@@ -53,9 +53,11 @@ pub fn resolve_rev_number_or_hex_prefix(
     if let Ok(integer) = input.parse::<i32>() {
         if integer.to_string() == input
             && integer >= 0
-            && revlog.has_rev(integer)
+            && revlog.has_rev(integer.into())
         {
-            return Ok(integer);
+            // This is fine because we've just checked that the revision is
+            // valid for the given revlog.
+            return Ok(Revision(integer));
         }
     }
     if let Ok(prefix) = NodePrefix::from_hex(input) {

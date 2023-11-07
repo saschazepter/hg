@@ -11,10 +11,6 @@ import struct
 import zlib
 
 from .i18n import _
-from .pycompat import (
-    getattr,
-    setattr,
-)
 from . import (
     diffhelper,
     encoding,
@@ -78,7 +74,7 @@ class diffopts:
             v = opts.get(k)
             if v is None:
                 v = self.defaults[k]
-            setattr(self, k, v)
+            setattr(self, pycompat.sysstr(k), v)
 
         try:
             self.context = int(self.context)
@@ -89,14 +85,15 @@ class diffopts:
             )
 
     def copy(self, **kwargs):
-        opts = {k: getattr(self, k) for k in self.defaults}
+        opts = {k: getattr(self, pycompat.sysstr(k)) for k in self.defaults}
         opts = pycompat.strkwargs(opts)
         opts.update(kwargs)
         return diffopts(**opts)
 
     def __bytes__(self):
         return b", ".join(
-            b"%s: %r" % (k, getattr(self, k)) for k in self.defaults
+            b"%s: %r" % (k, getattr(self, pycompat.sysstr(k)))
+            for k in self.defaults
         )
 
     __str__ = encoding.strmethod(__bytes__)
@@ -210,11 +207,7 @@ def blocksinrange(blocks, rangeb):
 
 
 def chooseblocksfunc(opts=None):
-    if (
-        opts is None
-        or not opts.xdiff
-        or not util.safehasattr(bdiff, 'xdiffblocks')
-    ):
+    if opts is None or not opts.xdiff or not hasattr(bdiff, 'xdiffblocks'):
         return bdiff.blocks
     else:
         return bdiff.xdiffblocks

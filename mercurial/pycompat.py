@@ -355,6 +355,13 @@ def getdoc(obj: object) -> Optional[bytes]:
 def _wrapattrfunc(f):
     @functools.wraps(f)
     def w(object, name, *args):
+        if isinstance(name, bytes):
+            from . import util
+
+            msg = b'function "%s" take `str` as argument, not `bytes`'
+            fname = f.__name__.encode('ascii')
+            msg %= fname
+            util.nouideprecwarn(msg, b"6.6", stacklevel=2)
         return f(object, sysstr(name), *args)
 
     return w

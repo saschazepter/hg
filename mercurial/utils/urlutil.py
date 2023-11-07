@@ -9,15 +9,12 @@ import re as remod
 import socket
 
 from ..i18n import _
-from ..pycompat import (
-    getattr,
-    setattr,
-)
 from .. import (
     encoding,
     error,
     pycompat,
     urllibcompat,
+    util,
 )
 
 from . import (
@@ -257,18 +254,20 @@ class url:
     def __repr__(self):
         attrs = []
         for a in (
-            b'scheme',
-            b'user',
-            b'passwd',
-            b'host',
-            b'port',
-            b'path',
-            b'query',
-            b'fragment',
+            'scheme',
+            'user',
+            'passwd',
+            'host',
+            'port',
+            'path',
+            'query',
+            'fragment',
         ):
             v = getattr(self, a)
             if v is not None:
-                attrs.append(b'%s: %r' % (a, pycompat.bytestr(v)))
+                line = b'%s: %r'
+                line %= (pycompat.bytestr(a), pycompat.bytestr(v))
+                attrs.append(line)
         return b'<url %s>' % b', '.join(attrs)
 
     def __bytes__(self):
@@ -679,6 +678,10 @@ def pathsuboption(option, attr, display=pycompat.bytestr):
     This decorator can be used to perform additional verification of
     sub-options and to change the type of sub-options.
     """
+    if isinstance(attr, bytes):
+        msg = b'pathsuboption take `str` as "attr" argument, not `bytes`'
+        util.nouideprecwarn(msg, b"6.6", stacklevel=2)
+        attr = attr.decode('ascii')
 
     def register(func):
         _pathsuboptions[option] = (attr, func)
@@ -693,7 +696,7 @@ def display_bool(value):
     return b'yes' if value else b'no'
 
 
-@pathsuboption(b'pushurl', b'_pushloc')
+@pathsuboption(b'pushurl', '_pushloc')
 def pushurlpathoption(ui, path, value):
     u = url(value)
     # Actually require a URL.
@@ -718,7 +721,7 @@ def pushurlpathoption(ui, path, value):
     return bytes(u)
 
 
-@pathsuboption(b'pushrev', b'pushrev')
+@pathsuboption(b'pushrev', 'pushrev')
 def pushrevpathoption(ui, path, value):
     return value
 
@@ -730,7 +733,7 @@ SUPPORTED_BOOKMARKS_MODES = {
 }
 
 
-@pathsuboption(b'bookmarks.mode', b'bookmarks_mode')
+@pathsuboption(b'bookmarks.mode', 'bookmarks_mode')
 def bookmarks_mode_option(ui, path, value):
     if value not in SUPPORTED_BOOKMARKS_MODES:
         path_name = path.name
@@ -756,7 +759,7 @@ DELTA_REUSE_POLICIES_NAME = dict(i[::-1] for i in DELTA_REUSE_POLICIES.items())
 
 @pathsuboption(
     b'pulled-delta-reuse-policy',
-    b'delta_reuse_policy',
+    'delta_reuse_policy',
     display=DELTA_REUSE_POLICIES_NAME.get,
 )
 def delta_reuse_policy(ui, path, value):
@@ -773,7 +776,7 @@ def delta_reuse_policy(ui, path, value):
     return DELTA_REUSE_POLICIES.get(value)
 
 
-@pathsuboption(b'multi-urls', b'multi_urls', display=display_bool)
+@pathsuboption(b'multi-urls', 'multi_urls', display=display_bool)
 def multiurls_pathoption(ui, path, value):
     res = stringutil.parsebool(value)
     if res is None:

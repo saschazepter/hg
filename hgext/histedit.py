@@ -207,7 +207,6 @@ import struct
 
 from mercurial.i18n import _
 from mercurial.pycompat import (
-    getattr,
     open,
 )
 from mercurial.node import (
@@ -2652,7 +2651,7 @@ def stripwrapper(orig, ui, repo, nodelist, *args, **kwargs):
     return orig(ui, repo, nodelist, *args, **kwargs)
 
 
-extensions.wrapfunction(repair, b'strip', stripwrapper)
+extensions.wrapfunction(repair, 'strip', stripwrapper)
 
 
 def summaryhook(ui, repo):

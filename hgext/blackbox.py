@@ -67,48 +67,6 @@ testedwith = b'ships-with-hg-core'
 cmdtable = {}
 command = registrar.command(cmdtable)
 
-configtable = {}
-configitem = registrar.configitem(configtable)
-
-configitem(
-    b'blackbox',
-    b'dirty',
-    default=False,
-)
-configitem(
-    b'blackbox',
-    b'maxsize',
-    default=b'1 MB',
-)
-configitem(
-    b'blackbox',
-    b'logsource',
-    default=False,
-)
-configitem(
-    b'blackbox',
-    b'maxfiles',
-    default=7,
-)
-configitem(
-    b'blackbox',
-    b'track',
-    default=lambda: [b'*'],
-)
-# Debug config option that also display the blackbox output on stderr
-# (in addition to writing it to disk)
-configitem(
-    b'blackbox',
-    b'debug.to-stderr',
-    default=False,
-)
-configitem(
-    b'blackbox',
-    b'ignore',
-    default=lambda: [b'chgserver', b'cmdserver', b'extension'],
-)
-configitem(b'blackbox', b'date-format', default=b'')
-
 _lastlogger = loggingutil.proxylogger()
 
 

@@ -48,7 +48,6 @@ service entry controls the service name used when reading keys.
 
 import os
 from mercurial.i18n import _
-from mercurial.pycompat import setattr
 from mercurial.utils import procutil
 from mercurial import (
     error,

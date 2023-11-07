@@ -26,7 +26,6 @@ cd `hg root`
 # hgext/githelp.py              # [attribute-error] [wrong-arg-types]
 # hgext/hgk.py                  # [attribute-error]
 # hgext/histedit.py             # [attribute-error], [wrong-arg-types]
-# hgext/infinitepush            # using bytes for str literal; scheduled for removal
 # hgext/keyword.py              # [attribute-error]
 # hgext/largefiles/storefactory.py  # [attribute-error]
 # hgext/lfs/__init__.py         # [attribute-error]
@@ -88,7 +87,6 @@ pytype -V 3.7 --keep-going --jobs auto \
     -x hgext/githelp.py \
     -x hgext/hgk.py \
     -x hgext/histedit.py \
-    -x hgext/infinitepush \
     -x hgext/keyword.py \
     -x hgext/largefiles/storefactory.py \
     -x hgext/lfs/__init__.py \

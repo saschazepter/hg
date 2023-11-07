@@ -117,7 +117,7 @@ impl PathAuditor {
             if self.audited_dirs.read().unwrap().contains(prefix) {
                 continue;
             }
-            self.check_filesystem(&prefix, &path)?;
+            self.check_filesystem(prefix, path)?;
             self.audited_dirs.write().unwrap().insert(prefix.to_owned());
         }
 
@@ -203,12 +203,12 @@ mod tests {
             })
         );
 
-        create_dir(&base_dir_path.join("realdir")).unwrap();
-        File::create(&base_dir_path.join("realdir/realfile")).unwrap();
+        create_dir(base_dir_path.join("realdir")).unwrap();
+        File::create(base_dir_path.join("realdir/realfile")).unwrap();
         // TODO make portable
         std::os::unix::fs::symlink(
-            &base_dir_path.join("realdir"),
-            &base_dir_path.join("symlink"),
+            base_dir_path.join("realdir"),
+            base_dir_path.join("symlink"),
         )
         .unwrap();
         let path = HgPath::new(b"symlink/realfile");

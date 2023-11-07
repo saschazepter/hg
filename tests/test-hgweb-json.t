@@ -2112,6 +2112,10 @@ help/ shows help topics
         "topic": "addremove"
       },
       {
+        "summary": "verify the integrity of the repository",
+        "topic": "admin::verify"
+      },
+      {
         "summary": "create an unversioned archive of a repository revision",
         "topic": "archive"
       },

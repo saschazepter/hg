@@ -184,7 +184,7 @@ def _uisetup(ui):
     )
 
     extensions.wrapfunction(
-        wireprotov1server.commands[b'heads'], b'func', proto.heads
+        wireprotov1server.commands[b'heads'], 'func', proto.heads
     )
     # TODO also wrap wireproto.commandsv2 once heads is implemented there.
 
@@ -193,7 +193,7 @@ def _uisetup(ui):
         if name == b'rebase':
             # TODO: teach exthelper to handle this
             extensions.wrapfunction(
-                module, b'rebase', overrides.overriderebasecmd
+                module, 'rebase', overrides.overriderebasecmd
             )
 
 

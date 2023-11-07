@@ -37,7 +37,6 @@ from typing import (
 from .i18n import _
 from .node import hex
 from .pycompat import (
-    getattr,
     open,
 )
 
@@ -47,6 +46,7 @@ from . import (
     configitems,
     encoding,
     error,
+    extensions,
     formatter,
     loggingutil,
     progress,
@@ -658,6 +658,12 @@ class ui:
         value = itemdefault = default
         item = self._knownconfig.get(section, {}).get(name)
         alternates = [(section, name)]
+
+        if item is not None and item.in_core_extension is not None:
+            # Only return the default for an in-core extension item if said
+            # extension is enabled
+            if item.in_core_extension in extensions.extensions(self):
+                item = None
 
         if item is not None:
             alternates.extend(item.alias)
@@ -1460,7 +1466,7 @@ class ui:
         self.flush()
 
         wasformatted = self.formatted()
-        if util.safehasattr(signal, b"SIGPIPE"):
+        if hasattr(signal, "SIGPIPE"):
             signal.signal(signal.SIGPIPE, _catchterm)
         if self._runpager(pagercmd, pagerenv):
             self.pageractive = True
@@ -1531,8 +1537,9 @@ class ui:
             raise
 
         # back up original file descriptors
-        stdoutfd = os.dup(procutil.stdout.fileno())
-        stderrfd = os.dup(procutil.stderr.fileno())
+        if pycompat.sysplatform != b'OpenVMS':
+            stdoutfd = os.dup(procutil.stdout.fileno())
+            stderrfd = os.dup(procutil.stderr.fileno())
 
         os.dup2(pager.stdin.fileno(), procutil.stdout.fileno())
         if self._isatty(procutil.stderr):
@@ -1540,9 +1547,11 @@ class ui:
 
         @self.atexit
         def killpager():
-            if util.safehasattr(signal, b"SIGINT"):
+            if hasattr(signal, "SIGINT"):
                 signal.signal(signal.SIGINT, signal.SIG_IGN)
             # restore original fds, closing pager.stdin copies in the process
+            if pycompat.sysplatform == b'OpenVMS':
+                pager.kill()
             os.dup2(stdoutfd, procutil.stdout.fileno())
             os.dup2(stderrfd, procutil.stderr.fileno())
             pager.stdin.close()

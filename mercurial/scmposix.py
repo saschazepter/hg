@@ -9,7 +9,6 @@ from typing import (
     Tuple,
 )
 
-from .pycompat import getattr
 from . import (
     encoding,
     pycompat,

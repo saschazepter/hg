@@ -3,6 +3,7 @@ Show all commands except debug commands
   abort
   add
   addremove
+  admin::verify
   annotate
   archive
   backout
@@ -65,6 +66,7 @@ Show all commands that start with "a"
   abort
   add
   addremove
+  admin::verify
   annotate
   archive
 
@@ -257,6 +259,7 @@ Show all commands + options
   abort: dry-run
   add: include, exclude, subrepos, dry-run
   addremove: similarity, subrepos, include, exclude, dry-run
+  admin::verify: check, option
   annotate: rev, follow, no-follow, text, user, file, date, number, changeset, line-number, skip, ignore-all-space, ignore-space-change, ignore-blank-lines, ignore-space-at-eol, include, exclude, template
   archive: no-decode, prefix, rev, type, subrepos, include, exclude
   backout: merge, commit, no-commit, parent, rev, edit, tool, include, exclude, message, logfile, date, user
@@ -293,7 +296,7 @@ Show all commands + options
   debugdag: tags, branches, dots, spaces
   debugdata: changelog, manifest, dir
   debugdate: extended
-  debugdeltachain: changelog, manifest, dir, template
+  debugdeltachain: rev, all-info, size-info, dist-info, sparse-info, changelog, manifest, dir, template
   debugdirstateignorepatternshash: 
   debugdirstate: nodates, dates, datesort, docket, all
   debugdiscovery: old, nonheads, rev, seed, local-as-revs, remote-as-revs, ssh, remotecmd, insecure, template

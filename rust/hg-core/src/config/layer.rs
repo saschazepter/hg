@@ -107,7 +107,7 @@ impl ConfigLayer {
     ) {
         self.sections
             .entry(section)
-            .or_insert_with(HashMap::new)
+            .or_default()
             .insert(item, ConfigValue { bytes: value, line });
     }
 
@@ -178,7 +178,7 @@ impl ConfigLayer {
                     .expect("Path::parent fail on a file we’ve read");
                 // `Path::join` with an absolute argument correctly ignores the
                 // base path
-                let filename = dir.join(&get_path_from_bytes(&filename_bytes));
+                let filename = dir.join(get_path_from_bytes(&filename_bytes));
                 match std::fs::read(&filename) {
                     Ok(data) => {
                         layers.push(current_layer);
@@ -304,8 +304,9 @@ pub enum ConfigOrigin {
     CommandLineColor,
     /// From environment variables like `$PAGER` or `$EDITOR`
     Environment(Vec<u8>),
-    /* TODO defaults (configitems.py)
-     * TODO extensions
+    /// From configitems.toml
+    Defaults,
+    /* TODO extensions
      * TODO Python resources?
      * Others? */
 }
@@ -322,6 +323,9 @@ impl DisplayBytes for ConfigOrigin {
             ConfigOrigin::Environment(e) => write_bytes!(out, b"${}", e),
             ConfigOrigin::Tweakdefaults => {
                 write_bytes!(out, b"ui.tweakdefaults")
+            }
+            ConfigOrigin::Defaults => {
+                write_bytes!(out, b"configitems.toml")
             }
         }
     }

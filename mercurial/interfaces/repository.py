@@ -684,7 +684,7 @@ class ifiledata(interfaceutil.Interface):
         Any metadata is excluded from size measurements.
         """
 
-    def revision(node, raw=False):
+    def revision(node):
         """Obtain fulltext data for a node.
 
         By default, any storage transformations are applied before the data
@@ -1229,13 +1229,6 @@ class imanifeststorage(interfaceutil.Interface):
         """
     )
 
-    _generaldelta = interfaceutil.Attribute(
-        """Whether generaldelta storage is being used.
-
-        TODO this is revlog specific and should not be exposed.
-        """
-    )
-
     fulltextcache = interfaceutil.Attribute(
         """Dict with cache of fulltexts.
 
@@ -1282,10 +1275,10 @@ class imanifeststorage(interfaceutil.Interface):
     def linkrev(rev):
         """Obtain the changeset revision number a revision is linked to."""
 
-    def revision(node, _df=None):
+    def revision(node):
         """Obtain fulltext data for a node."""
 
-    def rawdata(node, _df=None):
+    def rawdata(node):
         """Obtain raw data for a node."""
 
     def revdiff(rev1, rev2):

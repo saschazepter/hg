@@ -67,7 +67,7 @@ def setupserver(ui, repo):
         )
 
     extensions.wrapfunction(
-        changegroup.cgpacker, b'generatefiles', generatefiles
+        changegroup.cgpacker, 'generatefiles', generatefiles
     )
 
 
@@ -207,7 +207,7 @@ def onetimesetup(ui):
             ):
                 yield x
 
-    extensions.wrapfunction(streamclone, b'_walkstreamfiles', _walkstreamfiles)
+    extensions.wrapfunction(streamclone, '_walkstreamfiles', _walkstreamfiles)
 
     # expose remotefilelog capabilities
     def _capabilities(orig, repo, proto):
@@ -222,18 +222,18 @@ def onetimesetup(ui):
             caps.append(b'x_rfl_getfile')
         return caps
 
-    extensions.wrapfunction(wireprotov1server, b'_capabilities', _capabilities)
+    extensions.wrapfunction(wireprotov1server, '_capabilities', _capabilities)
 
     def _adjustlinkrev(orig, self, *args, **kwargs):
         # When generating file blobs, taking the real path is too slow on large
         # repos, so force it to just return the linkrev directly.
         repo = self._repo
-        if util.safehasattr(repo, b'forcelinkrev') and repo.forcelinkrev:
+        if hasattr(repo, 'forcelinkrev') and repo.forcelinkrev:
             return self._filelog.linkrev(self._filelog.rev(self._filenode))
         return orig(self, *args, **kwargs)
 
     extensions.wrapfunction(
-        context.basefilectx, b'_adjustlinkrev', _adjustlinkrev
+        context.basefilectx, '_adjustlinkrev', _adjustlinkrev
     )
 
     def _iscmd(orig, cmd):
@@ -241,7 +241,7 @@ def onetimesetup(ui):
             return False
         return orig(cmd)
 
-    extensions.wrapfunction(wireprotoserver, b'iscmd', _iscmd)
+    extensions.wrapfunction(wireprotoserver, 'iscmd', _iscmd)
 
 
 def _loadfileblob(repo, cachepath, path, node):

@@ -88,7 +88,6 @@ import re
 import weakref
 
 from mercurial.i18n import _
-from mercurial.pycompat import getattr
 from mercurial.hgweb import webcommands
 
 from mercurial import (
@@ -131,7 +130,7 @@ nokwcommands = (
 )
 
 # webcommands that do not act on keywords
-nokwwebcommands = b'annotate changeset rev filediff diff comparison'
+nokwwebcommands = 'annotate changeset rev filediff diff comparison'
 
 # hg commands that trigger expansion only when writing to working dir,
 # not when reading filelog, and unexpand when reading from working dir
@@ -420,11 +419,10 @@ def _status(ui, repo, wctx, kwt, *pats, **opts):
     """Bails out if [keyword] configuration is not active.
     Returns status of working directory."""
     if kwt:
-        opts = pycompat.byteskwargs(opts)
         return repo.status(
-            match=scmutil.match(wctx, pats, opts),
+            match=scmutil.match(wctx, pats, pycompat.byteskwargs(opts)),
             clean=True,
-            unknown=opts.get(b'unknown') or opts.get(b'all'),
+            unknown=opts.get('unknown') or opts.get('all'),
         )
     if ui.configitems(b'keyword'):
         raise error.Abort(_(b'[keyword] patterns cannot match'))
@@ -604,26 +602,26 @@ def files(ui, repo, *pats, **opts):
     else:
         cwd = b''
     files = []
-    opts = pycompat.byteskwargs(opts)
-    if not opts.get(b'unknown') or opts.get(b'all'):
+
+    if not opts.get('unknown') or opts.get('all'):
         files = sorted(status.modified + status.added + status.clean)
     kwfiles = kwt.iskwfile(files, wctx)
     kwdeleted = kwt.iskwfile(status.deleted, wctx)
     kwunknown = kwt.iskwfile(status.unknown, wctx)
-    if not opts.get(b'ignore') or opts.get(b'all'):
+    if not opts.get('ignore') or opts.get('all'):
         showfiles = kwfiles, kwdeleted, kwunknown
     else:
         showfiles = [], [], []
-    if opts.get(b'all') or opts.get(b'ignore'):
+    if opts.get('all') or opts.get('ignore'):
         showfiles += (
             [f for f in files if f not in kwfiles],
             [f for f in status.unknown if f not in kwunknown],
         )
     kwlabels = b'enabled deleted enabledunknown ignored ignoredunknown'.split()
     kwstates = zip(kwlabels, pycompat.bytestr(b'K!kIi'), showfiles)
-    fm = ui.formatter(b'kwfiles', opts)
+    fm = ui.formatter(b'kwfiles', pycompat.byteskwargs(opts))
     fmt = b'%.0s%s\n'
-    if opts.get(b'all') or ui.verbose:
+    if opts.get('all') or ui.verbose:
         fmt = b'%s %s\n'
     for kwstate, char, filenames in kwstates:
         label = b'kwfiles.' + kwstate
@@ -806,14 +804,14 @@ def uisetup(ui):
         kwtools[b'hgcmd'] = cmd
         return cmd, func, args, options, cmdoptions
 
-    extensions.wrapfunction(dispatch, b'_parse', kwdispatch_parse)
+    extensions.wrapfunction(dispatch, '_parse', kwdispatch_parse)
 
-    extensions.wrapfunction(context.filectx, b'cmp', kwfilectx_cmp)
-    extensions.wrapfunction(patch.patchfile, b'__init__', kwpatchfile_init)
-    extensions.wrapfunction(patch, b'diff', kwdiff)
-    extensions.wrapfunction(cmdutil, b'amend', kw_amend)
-    extensions.wrapfunction(cmdutil, b'copy', kw_copy)
-    extensions.wrapfunction(cmdutil, b'dorecord', kw_dorecord)
+    extensions.wrapfunction(context.filectx, 'cmp', kwfilectx_cmp)
+    extensions.wrapfunction(patch.patchfile, '__init__', kwpatchfile_init)
+    extensions.wrapfunction(patch, 'diff', kwdiff)
+    extensions.wrapfunction(cmdutil, 'amend', kw_amend)
+    extensions.wrapfunction(cmdutil, 'copy', kw_copy)
+    extensions.wrapfunction(cmdutil, 'dorecord', kw_dorecord)
     for c in nokwwebcommands.split():
         extensions.wrapfunction(webcommands, c, kwweb_skip)
 

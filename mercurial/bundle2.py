@@ -980,7 +980,7 @@ class unbundle20(unpackermixin):
 
     def close(self):
         """close underlying file"""
-        if util.safehasattr(self._fp, 'close'):
+        if hasattr(self._fp, 'close'):
             return self._fp.close()
 
 
@@ -1068,7 +1068,7 @@ class bundlepart:
 
         The new part have the very same content but no partid assigned yet.
         Parts with generated data cannot be copied."""
-        assert not util.safehasattr(self.data, 'next')
+        assert not hasattr(self.data, 'next')
         return self.__class__(
             self.type,
             self._mandatoryparams,
@@ -1137,9 +1137,7 @@ class bundlepart:
                 msg.append(b')')
             if not self.data:
                 msg.append(b' empty payload')
-            elif util.safehasattr(self.data, 'next') or util.safehasattr(
-                self.data, b'__next__'
-            ):
+            elif hasattr(self.data, 'next') or hasattr(self.data, '__next__'):
                 msg.append(b' streamed payload')
             else:
                 msg.append(b' %i bytes payload' % len(self.data))
@@ -1233,9 +1231,7 @@ class bundlepart:
         Exists to handle the different methods to provide data to a part."""
         # we only support fixed size data now.
         # This will be improved in the future.
-        if util.safehasattr(self.data, 'next') or util.safehasattr(
-            self.data, '__next__'
-        ):
+        if hasattr(self.data, 'next') or hasattr(self.data, '__next__'):
             buff = util.chunkbuffer(self.data)
             chunk = buff.read(preferedchunksize)
             while chunk:
@@ -1380,9 +1376,7 @@ class unbundlepart(unpackermixin):
 
     def __init__(self, ui, header, fp):
         super(unbundlepart, self).__init__(fp)
-        self._seekable = util.safehasattr(fp, 'seek') and util.safehasattr(
-            fp, 'tell'
-        )
+        self._seekable = hasattr(fp, 'seek') and hasattr(fp, 'tell')
         self.ui = ui
         # unbundle state attr
         self._headerdata = header

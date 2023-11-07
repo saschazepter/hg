@@ -6,7 +6,6 @@
 # GNU General Public License version 2 or any later version.
 
 
-from .pycompat import getattr
 from . import (
     encoding,
     error,
@@ -137,7 +136,7 @@ class abstractsmartset:
 
         This is part of the mandatory API for smartset."""
         # builtin cannot be cached. but do not needs to
-        if cache and util.safehasattr(condition, '__code__'):
+        if cache and hasattr(condition, '__code__'):
             condition = util.cachefunc(condition)
         return filteredset(self, condition, condrepr)
 
@@ -359,10 +358,10 @@ class baseset(abstractsmartset):
         return s
 
     def __and__(self, other):
-        return self._fastsetop(other, b'__and__')
+        return self._fastsetop(other, '__and__')
 
     def __sub__(self, other):
-        return self._fastsetop(other, b'__sub__')
+        return self._fastsetop(other, '__sub__')
 
     def _slice(self, start, stop):
         # creating new list should be generally cheaper than iterating items
@@ -1127,13 +1126,16 @@ class fullreposet(_spanset):
         This boldly assumes the other contains valid revs only.
         """
         # other not a smartset, make is so
-        if not util.safehasattr(other, 'isascending'):
+        if not hasattr(other, 'isascending'):
             # filter out hidden revision
             # (this boldly assumes all smartset are pure)
             #
             # `other` was used with "&", let's assume this is a set like
             # object.
-            other = baseset(other - self._hiddenrevs)
+            other = baseset(other)
+
+        if self._hiddenrevs:
+            other = other - self._hiddenrevs
 
         other.sort(reverse=self.isdescending())
         return other

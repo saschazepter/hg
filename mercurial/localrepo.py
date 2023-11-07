@@ -28,10 +28,6 @@ from .node import (
     sha1nodeconstants,
     short,
 )
-from .pycompat import (
-    delattr,
-    getattr,
-)
 from . import (
     bookmarks,
     branchmap,
@@ -58,6 +54,7 @@ from . import (
     obsolete,
     pathutil,
     phases,
+    policy,
     pushkey,
     pycompat,
     rcutil,
@@ -419,7 +416,7 @@ class localpeer(repository.peer):
             try:
                 bundle = exchange.readbundle(self.ui, bundle, None)
                 ret = exchange.unbundle(self._repo, bundle, heads, b'push', url)
-                if util.safehasattr(ret, 'getchunks'):
+                if hasattr(ret, 'getchunks'):
                     # This is a bundle20 object, turn it into an unbundler.
                     # This little dance should be dropped eventually when the
                     # API is finally improved.
@@ -1071,6 +1068,10 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     options = {}
     options[b'flagprocessors'] = {}
 
+    feature_config = options[b'feature-config'] = revlog.FeatureConfig()
+    data_config = options[b'data-config'] = revlog.DataConfig()
+    delta_config = options[b'delta-config'] = revlog.DeltaConfig()
+
     if requirementsmod.REVLOGV1_REQUIREMENT in requirements:
         options[b'revlogv1'] = True
     if requirementsmod.REVLOGV2_REQUIREMENT in requirements:
@@ -1086,18 +1087,26 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     # experimental config: format.chunkcachesize
     chunkcachesize = ui.configint(b'format', b'chunkcachesize')
     if chunkcachesize is not None:
-        options[b'chunkcachesize'] = chunkcachesize
+        data_config.chunk_cache_size = chunkcachesize
 
-    deltabothparents = ui.configbool(
+    if ui.configbool(b'experimental', b'revlog.uncompressed-cache.enabled'):
+        factor = ui.configint(
+            b'experimental', b'revlog.uncompressed-cache.factor'
+        )
+        count = ui.configint(
+            b'experimental', b'revlog.uncompressed-cache.count'
+        )
+        data_config.uncompressed_cache_factor = factor
+        data_config.uncompressed_cache_count = count
+
+    delta_config.delta_both_parents = ui.configbool(
         b'storage', b'revlog.optimize-delta-parent-choice'
     )
-    options[b'deltabothparents'] = deltabothparents
-    dps_cgds = ui.configint(
+    delta_config.candidate_group_chunk_size = ui.configint(
         b'storage',
         b'revlog.delta-parent-search.candidate-group-chunk-size',
     )
-    options[b'delta-parent-search.candidate-group-chunk-size'] = dps_cgds
-    options[b'debug-delta'] = ui.configbool(b'debug', b'revlog.debug-delta')
+    delta_config.debug_delta = ui.configbool(b'debug', b'revlog.debug-delta')
 
     issue6528 = ui.configbool(b'storage', b'revlog.issue6528.fix-incoming')
     options[b'issue6528.fix-incoming'] = issue6528
@@ -1108,32 +1117,33 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
         lazydeltabase = ui.configbool(
             b'storage', b'revlog.reuse-external-delta-parent'
         )
-    if lazydeltabase is None:
-        lazydeltabase = not scmutil.gddeltaconfig(ui)
-    options[b'lazydelta'] = lazydelta
-    options[b'lazydeltabase'] = lazydeltabase
+        if lazydeltabase is None:
+            lazydeltabase = not scmutil.gddeltaconfig(ui)
+    delta_config.lazy_delta = lazydelta
+    delta_config.lazy_delta_base = lazydeltabase
 
     chainspan = ui.configbytes(b'experimental', b'maxdeltachainspan')
     if 0 <= chainspan:
-        options[b'maxdeltachainspan'] = chainspan
+        delta_config.max_deltachain_span = chainspan
 
     mmapindexthreshold = ui.configbytes(b'experimental', b'mmapindexthreshold')
     if mmapindexthreshold is not None:
-        options[b'mmapindexthreshold'] = mmapindexthreshold
+        data_config.mmap_index_threshold = mmapindexthreshold
 
     withsparseread = ui.configbool(b'experimental', b'sparse-read')
     srdensitythres = float(
         ui.config(b'experimental', b'sparse-read.density-threshold')
     )
     srmingapsize = ui.configbytes(b'experimental', b'sparse-read.min-gap-size')
-    options[b'with-sparse-read'] = withsparseread
-    options[b'sparse-read-density-threshold'] = srdensitythres
-    options[b'sparse-read-min-gap-size'] = srmingapsize
+    data_config.with_sparse_read = withsparseread
+    data_config.sr_density_threshold = srdensitythres
+    data_config.sr_min_gap_size = srmingapsize
 
     sparserevlog = requirementsmod.SPARSEREVLOG_REQUIREMENT in requirements
-    options[b'sparse-revlog'] = sparserevlog
+    delta_config.sparse_revlog = sparserevlog
     if sparserevlog:
         options[b'generaldelta'] = True
+        data_config.with_sparse_read = True
 
     maxchainlen = None
     if sparserevlog:
@@ -1141,7 +1151,7 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     # experimental config: format.maxchainlen
     maxchainlen = ui.configint(b'format', b'maxchainlen', maxchainlen)
     if maxchainlen is not None:
-        options[b'maxchainlen'] = maxchainlen
+        delta_config.max_chain_len = maxchainlen
 
     for r in requirements:
         # we allow multiple compression engine requirement to co-exist because
@@ -1150,21 +1160,23 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
         # The compression used for new entries will be "the last one"
         prefix = r.startswith
         if prefix(b'revlog-compression-') or prefix(b'exp-compression-'):
-            options[b'compengine'] = r.split(b'-', 2)[2]
+            feature_config.compression_engine = r.split(b'-', 2)[2]
 
-    options[b'zlib.level'] = ui.configint(b'storage', b'revlog.zlib.level')
-    if options[b'zlib.level'] is not None:
-        if not (0 <= options[b'zlib.level'] <= 9):
+    zlib_level = ui.configint(b'storage', b'revlog.zlib.level')
+    if zlib_level is not None:
+        if not (0 <= zlib_level <= 9):
             msg = _(b'invalid value for `storage.revlog.zlib.level` config: %d')
-            raise error.Abort(msg % options[b'zlib.level'])
-    options[b'zstd.level'] = ui.configint(b'storage', b'revlog.zstd.level')
-    if options[b'zstd.level'] is not None:
-        if not (0 <= options[b'zstd.level'] <= 22):
+            raise error.Abort(msg % zlib_level)
+    feature_config.compression_engine_options[b'zlib.level'] = zlib_level
+    zstd_level = ui.configint(b'storage', b'revlog.zstd.level')
+    if zstd_level is not None:
+        if not (0 <= zstd_level <= 22):
             msg = _(b'invalid value for `storage.revlog.zstd.level` config: %d')
-            raise error.Abort(msg % options[b'zstd.level'])
+            raise error.Abort(msg % zstd_level)
+    feature_config.compression_engine_options[b'zstd.level'] = zstd_level
 
     if requirementsmod.NARROW_REQUIREMENT in requirements:
-        options[b'enableellipsis'] = True
+        feature_config.enable_ellipsis = True
 
     if ui.configbool(b'experimental', b'rust.index'):
         options[b'rust.index'] = True
@@ -1460,7 +1472,7 @@ class localrepository:
         if self.ui.configbool(b'devel', b'all-warnings') or self.ui.configbool(
             b'devel', b'check-locks'
         ):
-            if util.safehasattr(self.svfs, 'vfs'):  # this is filtervfs
+            if hasattr(self.svfs, 'vfs'):  # this is filtervfs
                 self.svfs.vfs.audit = self._getsvfsward(self.svfs.vfs.audit)
             else:  # standard vfs
                 self.svfs.audit = self._getsvfsward(self.svfs.audit)
@@ -1522,8 +1534,8 @@ class localrepository:
             repo = rref()
             if (
                 repo is None
-                or not util.safehasattr(repo, '_wlockref')
-                or not util.safehasattr(repo, '_lockref')
+                or not hasattr(repo, '_wlockref')
+                or not hasattr(repo, '_lockref')
             ):
                 return
             if mode in (None, b'r', b'rb'):
@@ -1571,7 +1583,7 @@ class localrepository:
         def checksvfs(path, mode=None):
             ret = origfunc(path, mode=mode)
             repo = rref()
-            if repo is None or not util.safehasattr(repo, '_lockref'):
+            if repo is None or not hasattr(repo, '_lockref'):
                 return
             if mode in (None, b'r', b'rb'):
                 return
@@ -3017,7 +3029,7 @@ class localrepository:
             if (
                 k == b'changelog'
                 and self.currenttransaction()
-                and self.changelog._delayed
+                and self.changelog.is_delaying
             ):
                 # The changelog object may store unwritten revisions. We don't
                 # want to lose them.
@@ -3027,7 +3039,11 @@ class localrepository:
             if clearfilecache:
                 del self._filecache[k]
             try:
-                delattr(unfiltered, k)
+                # XXX ideally, the key would be a unicode string to match the
+                # fact it refers to an attribut name. However changing this was
+                # a bit a scope creep compared to the series cleaning up
+                # del/set/getattr so we kept thing simple here.
+                delattr(unfiltered, pycompat.sysstr(k))
             except AttributeError:
                 pass
         self.invalidatecaches()
@@ -3763,7 +3779,11 @@ def newreporequirements(ui, createopts):
     if ui.configbool(b'format', b'bookmarks-in-store'):
         requirements.add(requirementsmod.BOOKMARKS_IN_STORE_REQUIREMENT)
 
-    if ui.configbool(b'format', b'use-persistent-nodemap'):
+    # The feature is disabled unless a fast implementation is available.
+    persistent_nodemap_default = policy.importrust('revlog') is not None
+    if ui.configbool(
+        b'format', b'use-persistent-nodemap', persistent_nodemap_default
+    ):
         requirements.add(requirementsmod.NODEMAP_REQUIREMENT)
 
     # if share-safe is enabled, let's create the new repository with the new

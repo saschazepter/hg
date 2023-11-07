@@ -24,7 +24,6 @@ from typing import (
 
 from ..i18n import _
 from ..pycompat import (
-    getattr,
     open,
 )
 
@@ -182,7 +181,7 @@ if pycompat.iswindows:
     # Work around Windows bugs.
     stdout = platform.winstdout(stdout)  # pytype: disable=module-attr
     stderr = platform.winstdout(stderr)  # pytype: disable=module-attr
-if isatty(stdout):
+if isatty(stdout) and pycompat.sysplatform != b'OpenVMS':
     # The standard library doesn't offer line-buffered binary streams.
     stdout = make_line_buffered(stdout)
 
@@ -209,7 +208,7 @@ try:
 except AttributeError:
     pass
 
-closefds = pycompat.isposix
+closefds = pycompat.isposix and pycompat.sysplatform != b'OpenVMS'
 
 
 def explainexit(code):
@@ -339,8 +338,6 @@ def tempfilter(s, cmd):
         cmd = cmd.replace(b'INFILE', inname)
         cmd = cmd.replace(b'OUTFILE', outname)
         code = system(cmd)
-        if pycompat.sysplatform == b'OpenVMS' and code & 1:
-            code = 0
         if code:
             raise error.Abort(
                 _(b"command '%s' failed: %s") % (cmd, explainexit(code))
@@ -384,8 +381,10 @@ def hgexecutable():
     Defaults to $HG or 'hg' in the search path.
     """
     if _hgexecutable is None:
-        hg = encoding.environ.get(b'HG')
+        hg = encoding.environ.get(b'HG', '')
         mainmod = sys.modules['__main__']
+        if pycompat.sysplatform == b'OpenVMS' and hg[0:1] == '$':
+            hg = 'mcr ' + hg[1:]
         if hg:
             _sethgexecutable(hg)
         elif resourceutil.mainfrozen():
@@ -534,8 +533,6 @@ def system(cmd, environ=None, cwd=None, out=None):
             out.write(line)
         proc.wait()
         rc = proc.returncode
-    if pycompat.sysplatform == b'OpenVMS' and rc & 1:
-        rc = 0
     return rc
 
 

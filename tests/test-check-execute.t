@@ -20,5 +20,5 @@ look for shell scripts with execute bit but not shebang
 
 look for non scripts with no shebang
 
-  $ testrepohg files 'set:exec() and not **.sh and not **.py and not grep(r"^#!")'
+  $ testrepohg files 'set:exec() and not **.sh and not **.py and not grep(r"^#!") and not contrib/openvms/**'
   [1]

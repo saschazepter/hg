@@ -1330,11 +1330,11 @@ def verifierinit(orig, self, *args, **kwargs):
 def extsetup(ui):
     localrepo.featuresetupfuncs.add(featuresetup)
     extensions.wrapfunction(
-        localrepo, b'newreporequirements', newreporequirements
+        localrepo, 'newreporequirements', newreporequirements
     )
-    extensions.wrapfunction(localrepo, b'makefilestorage', makefilestorage)
-    extensions.wrapfunction(localrepo, b'makemain', makemain)
-    extensions.wrapfunction(verify.verifier, b'__init__', verifierinit)
+    extensions.wrapfunction(localrepo, 'makefilestorage', makefilestorage)
+    extensions.wrapfunction(localrepo, 'makemain', makemain)
+    extensions.wrapfunction(verify.verifier, '__init__', verifierinit)
 
 
 def reposetup(ui, repo):

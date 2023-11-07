@@ -16,11 +16,6 @@ from typing import (
 )
 
 from .i18n import _
-from .pycompat import (
-    delattr,
-    getattr,
-    setattr,
-)
 from . import (
     encoding,
     error,

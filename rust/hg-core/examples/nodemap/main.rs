@@ -36,7 +36,7 @@ fn create(index: &Index, path: &Path) -> io::Result<()> {
     let start = Instant::now();
     let mut nm = NodeTree::default();
     for rev in 0..index.len() {
-        let rev = rev as Revision;
+        let rev = Revision(rev as BaseRevision);
         nm.insert(index, index.node(rev).unwrap(), rev).unwrap();
     }
     eprintln!("Nodemap constructed in RAM in {:?}", start.elapsed());
@@ -55,7 +55,11 @@ fn bench(index: &Index, nm: &NodeTree, queries: usize) {
     let len = index.len() as u32;
     let mut rng = rand::thread_rng();
     let nodes: Vec<Node> = (0..queries)
-        .map(|_| *index.node((rng.gen::<u32>() % len) as Revision).unwrap())
+        .map(|_| {
+            *index
+                .node(Revision((rng.gen::<u32>() % len) as BaseRevision))
+                .unwrap()
+        })
         .collect();
     if queries < 10 {
         let nodes_hex: Vec<String> =

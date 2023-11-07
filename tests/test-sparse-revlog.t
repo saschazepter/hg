@@ -161,7 +161,7 @@ Test `debug-delta-find`
   $ ls -1
   SPARSE-REVLOG-TEST-FILE
   $ hg debugdeltachain SPARSE-REVLOG-TEST-FILE | grep snap | tail -1
-     4971    4970      -1       3        5     4930    snap      19179     346472     427596   1.23414  15994877  15567281   36.40652     427596     179288   1.00000        5
+     4971    4970      -1       3        5     4930    snap
   $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE 4971
   DBG-DELTAS-SEARCH: SEARCH rev=4971
   DBG-DELTAS-SEARCH: ROUND #1 - 1 candidates - search-down

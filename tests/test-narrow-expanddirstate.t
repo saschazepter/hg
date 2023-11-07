@@ -99,7 +99,7 @@ have this method available in narrowhg proper at the moment.
   >       expandnarrowspec(ui, repo, encoding.environ.get(b'PATCHINCLUDES'))
   >       return orig(ui, repo, *args, **kwargs)
   > 
-  >   extensions.wrapfunction(patch, b'patch', overridepatch)
+  >   extensions.wrapfunction(patch, 'patch', overridepatch)
   > EOF
   $ cat >> ".hg/hgrc" <<EOF
   > [extensions]

@@ -18,7 +18,6 @@ import traceback
 
 
 from .i18n import _
-from .pycompat import getattr
 
 from hgdemandimport import tracing
 
@@ -107,7 +106,7 @@ class request:
 def _flushstdio(ui, err):
     status = None
     # In all cases we try to flush stdio streams.
-    if util.safehasattr(ui, 'fout'):
+    if hasattr(ui, 'fout'):
         assert ui is not None  # help pytype
         assert ui.fout is not None  # help pytype
         try:
@@ -116,7 +115,7 @@ def _flushstdio(ui, err):
             err = e
             status = -1
 
-    if util.safehasattr(ui, 'ferr'):
+    if hasattr(ui, 'ferr'):
         assert ui is not None  # help pytype
         assert ui.ferr is not None  # help pytype
         try:
@@ -170,7 +169,7 @@ def initstdio():
             "newline": "\n",
             "line_buffering": sys.stdout.line_buffering,
         }
-        if util.safehasattr(sys.stdout, "write_through"):
+        if hasattr(sys.stdout, "write_through"):
             # pytype: disable=attribute-error
             kwargs["write_through"] = sys.stdout.write_through
             # pytype: enable=attribute-error
@@ -183,7 +182,7 @@ def initstdio():
             "newline": "\n",
             "line_buffering": sys.stderr.line_buffering,
         }
-        if util.safehasattr(sys.stderr, "write_through"):
+        if hasattr(sys.stderr, "write_through"):
             # pytype: disable=attribute-error
             kwargs["write_through"] = sys.stderr.write_through
             # pytype: enable=attribute-error
@@ -520,7 +519,7 @@ def _callcatch(ui, func):
 def aliasargs(fn, givenargs):
     args = []
     # only care about alias 'args', ignore 'args' set by extensions.wrapfunction
-    if not util.safehasattr(fn, '_origfunc'):
+    if not hasattr(fn, '_origfunc'):
         args = getattr(fn, 'args', args)
     if args:
         cmd = b' '.join(map(procutil.shellquote, args))
@@ -708,7 +707,7 @@ class cmdalias:
         }
         if name not in adefaults:
             raise AttributeError(name)
-        if self.badalias or util.safehasattr(self, 'shell'):
+        if self.badalias or hasattr(self, 'shell'):
             return adefaults[name]
         return getattr(self.fn, name)
 
@@ -734,7 +733,7 @@ class cmdalias:
             self.name,
             self.definition,
         )
-        if util.safehasattr(self, 'shell'):
+        if hasattr(self, 'shell'):
             return self.fn(ui, *args, **opts)
         else:
             try:
@@ -1024,7 +1023,7 @@ def _checkshellalias(lui, ui, args):
     cmd = aliases[0]
     fn = entry[0]
 
-    if cmd and util.safehasattr(fn, 'shell'):
+    if cmd and hasattr(fn, 'shell'):
         # shell alias shouldn't receive early options which are consumed by hg
         _earlyopts, args = _earlysplitopts(args)
         d = lambda: fn(ui, *args[1:])

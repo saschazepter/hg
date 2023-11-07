@@ -74,8 +74,8 @@ commit.
   $ cd client
   $ hg pull -q ../server -r 4
   $ hg debugdeltachain x
-      rev      p1      p2  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio
-        0      -1      -1       1        1       -1    base          3          2          3   1.50000         3         0    0.00000
+      rev      p1      p2  chain# chainlen     prev   delta
+        0      -1      -1       1        1       -1    base
 
   $ cd ..
 
@@ -104,23 +104,23 @@ delta coming from the server base delta server are not recompressed.
   updating to branch default
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg -R repo debugdeltachain -m
-      rev      p1      p2  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio
-        0      -1      -1       1        1       -1    base        10?        135        10?   0.7????       10?         0    0.00000 (glob)
-        1       0      -1       1        2        0    prev         57        135        1??   1.?????       16?         0    0.00000 (glob)
-        2       0      -1       1        3        1    prev         57        135        2??   1.6????       2??         0    0.00000 (glob)
-        3       0      -1       2        1       -1    base        104        135        104   0.77037       104         0    0.00000
+      rev      p1      p2  chain# chainlen     prev   delta
+        0      -1      -1       1        1       -1    base
+        1       0      -1       1        2        0    prev
+        2       0      -1       1        3        1    prev
+        3       0      -1       2        1       -1    base
   $ hg -R usegd debugdeltachain -m
-      rev      p1      p2  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio
-        0      -1      -1       1        1       -1    base        10?        135        10?   0.7????       10?         0    0.00000 (glob)
-        1       0      -1       1        2        0      p1         57        135        16?   1.?????       16?         0    0.00000 (glob)
-        2       0      -1       1        3        1    prev         57        135        2??   1.6????       2??         0    0.00000 (glob)
-        3       0      -1       1        2        0      p1         57        135        16?   1.?????       27?       114    0.????? (glob)
+      rev      p1      p2  chain# chainlen     prev   delta
+        0      -1      -1       1        1       -1    base
+        1       0      -1       1        2        0      p1
+        2       0      -1       1        3        1    prev
+        3       0      -1       1        2        0      p1
   $ hg -R full debugdeltachain -m
-      rev      p1      p2  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio
-        0      -1      -1       1        1       -1    base        10?        135        10?   0.7????       10?         0    0.00000 (glob)
-        1       0      -1       1        2        0      p1         57        135        16?   1.?????       16?         0    0.00000 (glob)
-        2       0      -1       1        2        0      p1         57        135        16?   1.?????       2??        57    0.3???? (glob)
-        3       0      -1       1        2        0      p1         57        135        16?   1.?????       27?       114    0.????? (glob)
+      rev      p1      p2  chain# chainlen     prev   delta
+        0      -1      -1       1        1       -1    base
+        1       0      -1       1        2        0      p1
+        2       0      -1       1        2        0      p1
+        3       0      -1       1        2        0      p1
 
 Test revlog.optimize-delta-parent-choice
 
@@ -140,10 +140,10 @@ Test revlog.optimize-delta-parent-choice
   $ hg merge -q 0
   $ hg commit -q -m merge
   $ hg debugdeltachain -m
-      rev      p1      p2  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio
-        0      -1      -1       1        1       -1    base         ??        215         ??   0.?????        ??         0    0.00000 (glob)
-        1      -1      -1       1        2        0    prev         ??         86        1??   1.?????       1??         0    0.00000 (glob)
-        2       1       0       1        2        0      p2         ??        301        1??   0.4????       ???        ??    0.5???? (glob)
+      rev      p1      p2  chain# chainlen     prev   delta
+        0      -1      -1       1        1       -1    base
+        1      -1      -1       1        2        0    prev
+        2       1       0       1        2        0      p2
 
   $ hg strip -q -r . --config extensions.strip=
 
@@ -152,10 +152,10 @@ Test revlog.optimize-delta-parent-choice
   $ hg merge -q 0
   $ hg commit -q -m merge --config storage.revlog.optimize-delta-parent-choice=yes
   $ hg debugdeltachain -m
-      rev      p1      p2  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio
-        0      -1      -1       1        1       -1    base         ??        215         ??   0.?????        ??         0    0.00000 (glob)
-        1      -1      -1       1        2        0    prev         ??         86        1??   1.?????       1??         0    0.00000 (glob)
-        2       1       0       1        2        0      p2         ??        301        1??   0.4????       ???        ??    0.5???? (glob)
+      rev      p1      p2  chain# chainlen     prev   delta
+        0      -1      -1       1        1       -1    base
+        1      -1      -1       1        2        0    prev
+        2       1       0       1        2        0      p2
 
 Test that strip bundle use bundle2
   $ hg --config extensions.strip= strip .
@@ -215,7 +215,7 @@ test maxdeltachainspan
   0 files updated, 0 files merged, 14 files removed, 0 files unresolved
   $ 
   $ cd ..
-  $ hg -R source-repo debugdeltachain -m
+  $ hg -R source-repo debugdeltachain -m --all-info
       rev      p1      p2  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio
         0      -1      -1       1        1       -1    base         46         45         46   1.02222        46         0    0.00000
         1       0      -1       1        2        0      p1         57         90        103   1.14444       103         0    0.00000
@@ -281,7 +281,7 @@ test maxdeltachainspan
   new changesets 61246295ee1e:c930ac4a5b32
   updating to branch default
   14 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg -R relax-chain debugdeltachain -m
+  $ hg -R relax-chain debugdeltachain -m --all-info
       rev      p1      p2  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio
         0      -1      -1       1        1       -1    base         46         45         46   1.02222        46         0    0.00000
         1       0      -1       1        2        0      p1         57         90        103   1.14444       103         0    0.00000
@@ -347,7 +347,7 @@ test maxdeltachainspan
   new changesets 61246295ee1e:c930ac4a5b32
   updating to branch default
   14 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg -R noconst-chain debugdeltachain -m
+  $ hg -R noconst-chain debugdeltachain -m --all-info
       rev      p1      p2  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio
         0      -1      -1       1        1       -1    base         46         45         46   1.02222        46         0    0.00000
         1       0      -1       1        2        0      p1         57         90        103   1.14444       103         0    0.00000

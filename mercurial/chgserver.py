@@ -49,10 +49,6 @@ import struct
 import time
 
 from .i18n import _
-from .pycompat import (
-    getattr,
-    setattr,
-)
 from .node import hex
 
 from . import (
@@ -236,7 +232,7 @@ def _newchgui(srcui, csystem, attachio):
             # will behave differently (i.e. write to stdout).
             if (
                 out is not self.fout
-                or not util.safehasattr(self.fout, 'fileno')
+                or not hasattr(self.fout, 'fileno')
                 or self.fout.fileno() != procutil.stdout.fileno()
                 or self._finoutredirected
             ):
@@ -260,9 +256,9 @@ def _loadnewui(srcui, args, cdebug):
     from . import dispatch  # avoid cycle
 
     newui = srcui.__class__.load()
-    for a in [b'fin', b'fout', b'ferr', b'environ']:
+    for a in ['fin', 'fout', 'ferr', 'environ']:
         setattr(newui, a, getattr(srcui, a))
-    if util.safehasattr(srcui, '_csystem'):
+    if hasattr(srcui, '_csystem'):
         newui._csystem = srcui._csystem
 
     # command line args
@@ -348,9 +344,9 @@ class channeledsystem:
 
 _iochannels = [
     # server.ch, ui.fp, mode
-    (b'cin', b'fin', 'rb'),
-    (b'cout', b'fout', 'wb'),
-    (b'cerr', b'ferr', 'wb'),
+    ('cin', 'fin', 'rb'),
+    ('cout', 'fout', 'wb'),
+    ('cerr', 'ferr', 'wb'),
 ]
 
 
@@ -603,7 +599,7 @@ class chgcmdserver(commandserver.server):
         }
     )
 
-    if util.safehasattr(procutil, 'setprocname'):
+    if hasattr(procutil, 'setprocname'):
 
         def setprocname(self):
             """Change process title"""

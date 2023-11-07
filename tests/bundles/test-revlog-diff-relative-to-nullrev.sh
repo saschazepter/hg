@@ -12,7 +12,7 @@
 #
 #          if deltainfo is None:
 # -            deltainfo = self._fullsnapshotinfo(fh, revinfo, target_rev)
-# +            if revlog._generaldelta:
+# +            if revlog.delta_config.general_delta:
 # +                deltainfo = self._builddeltainfo(revinfo, nullrev, fh)
 # +            else:
 # +                deltainfo = self._fullsnapshotinfo(fh, revinfo, target_rev)
@@ -32,7 +32,7 @@ echo ho > a
 hg up null
 echo ha > a
 ../../../hg commit -Am root-A
-../../../hg debugdeltachain a
+../../../hg debugdeltachain a --all-info
 rm -rf .hg/cache/ .hg/wcache/
 cd ..
 

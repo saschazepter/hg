@@ -15,8 +15,8 @@ use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
 use crate::vfs::{is_dir, is_file, Vfs};
-use crate::{requirements, NodePrefix};
-use crate::{DirstateError, Revision};
+use crate::DirstateError;
+use crate::{requirements, NodePrefix, UncheckedRevision};
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashSet;
 use std::io::Seek;
@@ -562,7 +562,7 @@ impl Repo {
     /// Returns the manifest of the *changeset* with the given revision number
     pub fn manifest_for_rev(
         &self,
-        revision: Revision,
+        revision: UncheckedRevision,
     ) -> Result<Manifest, RevlogError> {
         self.manifestlog()?.data_for_node(
             self.changelog()?
@@ -686,7 +686,7 @@ impl Repo {
                 }
                 file.write_all(&data)?;
                 file.flush()?;
-                file.seek(SeekFrom::Current(0))
+                file.stream_position()
             })()
             .when_writing_file(&data_filename)?;
 
