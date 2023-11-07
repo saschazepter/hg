@@ -23,7 +23,6 @@ from .node import (
     short,
     wdirrev,
 )
-from .pycompat import getattr
 from .thirdparty import attr
 from . import (
     copies as copiesmod,
@@ -233,11 +232,7 @@ def callcatch(ui, func):
             reason = encoding.unitolocal(reason)
         ui.error(_(b"abort: error: %s\n") % stringutil.forcebytestr(reason))
     except (IOError, OSError) as inst:
-        if (
-            util.safehasattr(inst, "args")
-            and inst.args
-            and inst.args[0] == errno.EPIPE
-        ):
+        if hasattr(inst, "args") and inst.args and inst.args[0] == errno.EPIPE:
             pass
         elif getattr(inst, "strerror", None):  # common IOError or OSError
             if getattr(inst, "filename", None) is not None:
@@ -561,11 +556,11 @@ def shortesthexnodeidprefix(repo, node, minlength=1, cache=None):
             if cache is not None:
                 nodetree = cache.get(b'disambiguationnodetree')
             if not nodetree:
-                if util.safehasattr(parsers, 'nodetree'):
+                if hasattr(parsers, 'nodetree'):
                     # The CExt is the only implementation to provide a nodetree
                     # class so far.
                     index = cl.index
-                    if util.safehasattr(index, 'get_cindex'):
+                    if hasattr(index, 'get_cindex'):
                         # the rust wrapped need to give access to its internal index
                         index = index.get_cindex()
                     nodetree = parsers.nodetree(index, len(revs))
@@ -1066,7 +1061,7 @@ def cleanupnodes(
         return
 
     # translate mapping's other forms
-    if not util.safehasattr(replacements, 'items'):
+    if not hasattr(replacements, 'items'):
         replacements = {(n,): () for n in replacements}
     else:
         # upgrading non tuple "source" to tuple ones for BC
@@ -1692,6 +1687,10 @@ class filecache:
     def __call__(self, func):
         self.func = func
         self.sname = func.__name__
+        # XXX We should be using a unicode string instead of bytes for the main
+        # name (and the _filecache key). The fact we use bytes is a remains
+        # from Python2, since the name is derived from an attribute name a
+        # `str` is a better fit now that we support Python3 only
         self.name = pycompat.sysbytes(self.sname)
         return self
 

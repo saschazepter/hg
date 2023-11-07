@@ -13,7 +13,6 @@ import re
 
 from ..i18n import _
 from ..node import hex, short
-from ..pycompat import getattr
 
 from .common import (
     ErrorResponse,
@@ -1050,7 +1049,9 @@ def annotate(web):
             }
 
     diffopts = webutil.difffeatureopts(web.req, web.repo.ui, b'annotate')
-    diffopts = {k: getattr(diffopts, k) for k in diffopts.defaults}
+    diffopts = {
+        k: getattr(diffopts, pycompat.sysstr(k)) for k in diffopts.defaults
+    }
 
     return web.sendtemplate(
         b'fileannotate',

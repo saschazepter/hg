@@ -75,7 +75,7 @@ def v1_censor(rl, tr, censornode, tombstone=b''):
     )
     newrl._format_version = rl._format_version
     newrl._format_flags = rl._format_flags
-    newrl._generaldelta = rl._generaldelta
+    newrl.delta_config.general_delta = rl.delta_config.general_delta
     newrl._parse_index = rl._parse_index
 
     for rev in rl.revs():
@@ -109,7 +109,7 @@ def v1_censor(rl, tr, censornode, tombstone=b''):
                     b'revision having delta stored'
                 )
                 raise error.Abort(m)
-            rawtext = rl._chunk(rev)
+            rawtext = rl._inner._chunk(rev)
         else:
             rawtext = rl.rawdata(rev)
 
@@ -126,7 +126,8 @@ def v1_censor(rl, tr, censornode, tombstone=b''):
         rl.opener.rename(newrl._datafile, rl._datafile)
 
     rl.clearcaches()
-    rl._loadindex()
+    chunk_cache = rl._loadindex()
+    rl._load_inner(chunk_cache)
 
 
 def v2_censor(revlog, tr, censornode, tombstone=b''):
@@ -234,7 +235,7 @@ def _precompute_rewritten_delta(
     dc = deltas.deltacomputer(revlog)
     rewritten_entries = {}
     first_excl_rev = min(excluded_revs)
-    with revlog._segmentfile._open_read() as dfh:
+    with revlog.reading():
         for rev in range(first_excl_rev, len(old_index)):
             if rev in excluded_revs:
                 # this revision will be preserved as is, so we don't need to
@@ -250,7 +251,7 @@ def _precompute_rewritten_delta(
                 rewritten_entries[rev] = (nullrev, 0, 0, COMP_MODE_PLAIN)
             else:
 
-                text = revlog.rawdata(rev, _df=dfh)
+                text = revlog.rawdata(rev)
                 info = revlogutils.revisioninfo(
                     node=entry[ENTRY_NODE_ID],
                     p1=revlog.node(entry[ENTRY_PARENT_1]),
@@ -261,7 +262,7 @@ def _precompute_rewritten_delta(
                     flags=entry[ENTRY_DATA_OFFSET] & 0xFFFF,
                 )
                 d = dc.finddeltainfo(
-                    info, dfh, excluded_bases=excluded_revs, target_rev=rev
+                    info, excluded_bases=excluded_revs, target_rev=rev
                 )
                 default_comp = revlog._docket.default_compression_header
                 comp_mode, d = deltas.delta_compression(default_comp, d)
@@ -539,7 +540,7 @@ def _reorder_filelog_parents(repo, fl, to_fix):
             util.copyfile(
                 rl.opener.join(index_file),
                 rl.opener.join(new_file_path),
-                checkambig=rl._checkambig,
+                checkambig=rl.data_config.check_ambig,
             )
 
             with rl.opener(new_file_path, mode=b"r+") as fp:
@@ -774,13 +775,7 @@ def filter_delta_issue6528(revlog, deltas_iter):
                 (base_rev, delta),
                 flags,
             )
-            # cached by the global "writing" context
-            assert revlog._writinghandles is not None
-            if revlog._inline:
-                fh = revlog._writinghandles[0]
-            else:
-                fh = revlog._writinghandles[1]
-            return deltacomputer.buildtext(revinfo, fh)
+            return deltacomputer.buildtext(revinfo)
 
         is_affected = _is_revision_affected_fast_inner(
             is_censored,

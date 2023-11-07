@@ -12,6 +12,7 @@ were part of the actual repository.
 """
 
 
+import contextlib
 import os
 import shutil
 
@@ -108,7 +109,15 @@ class bundlerevlog(revlog.revlog):
             self.bundlerevs.add(n)
             n += 1
 
-    def _chunk(self, rev, df=None):
+    @contextlib.contextmanager
+    def reading(self):
+        if self.repotiprev < 0:
+            yield
+        else:
+            with super().reading() as x:
+                yield x
+
+    def _chunk(self, rev):
         # Warning: in case of bundle, the diff is against what we stored as
         # delta base, not against rev - 1
         # XXX: could use some caching
@@ -129,7 +138,7 @@ class bundlerevlog(revlog.revlog):
 
         return mdiff.textdiff(self.rawdata(rev1), self.rawdata(rev2))
 
-    def _rawtext(self, node, rev, _df=None):
+    def _rawtext(self, node, rev):
         if rev is None:
             rev = self.rev(node)
         validated = False
@@ -138,8 +147,11 @@ class bundlerevlog(revlog.revlog):
         iterrev = rev
         # reconstruct the revision if it is from a changegroup
         while iterrev > self.repotiprev:
-            if self._revisioncache and self._revisioncache[1] == iterrev:
-                rawtext = self._revisioncache[2]
+            if (
+                self._inner._revisioncache
+                and self._inner._revisioncache[1] == iterrev
+            ):
+                rawtext = self._inner._revisioncache[2]
                 break
             chain.append(iterrev)
             iterrev = self.index[iterrev][3]
@@ -147,7 +159,8 @@ class bundlerevlog(revlog.revlog):
             rawtext = b''
         elif rawtext is None:
             r = super(bundlerevlog, self)._rawtext(
-                self.node(iterrev), iterrev, _df=_df
+                self.node(iterrev),
+                iterrev,
             )
             __, rawtext, validated = r
         if chain:
@@ -194,6 +207,8 @@ class bundlemanifest(bundlerevlog, manifest.manifestrevlog):
         dirlogstarts=None,
         dir=b'',
     ):
+        # XXX manifestrevlog is not actually a revlog , so mixing it with
+        # bundlerevlog is not a good idea.
         manifest.manifestrevlog.__init__(self, nodeconstants, opener, tree=dir)
         bundlerevlog.__init__(
             self,
@@ -245,7 +260,7 @@ class bundlepeer(localrepo.localpeer):
 class bundlephasecache(phases.phasecache):
     def __init__(self, *args, **kwargs):
         super(bundlephasecache, self).__init__(*args, **kwargs)
-        if util.safehasattr(self, 'opener'):
+        if hasattr(self, 'opener'):
             self.opener = vfsmod.readonlyvfs(self.opener)
 
     def write(self):

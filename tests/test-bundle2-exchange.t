@@ -917,7 +917,7 @@ Test lazily acquiring the lock during unbundle
   >         raise error.Abort(b"Lock should not be taken")
   >     return orig(repo, *args, **kwargs)
   > def extsetup(ui):
-  >    extensions.wrapfunction(bundle2, b'processbundle', checklock)
+  >    extensions.wrapfunction(bundle2, 'processbundle', checklock)
   > EOF
 
   $ hg init lazylock
@@ -1042,8 +1042,6 @@ Verify the global server.bundle1 option works
   adding changesets
   remote: abort: incompatible Mercurial client; bundle2 required
   remote: (see https://www.mercurial-scm.org/wiki/IncompatibleClient)
-  transaction abort!
-  rollback completed
   abort: stream ended unexpectedly (got 0 bytes, expected 4)
   [255]
 

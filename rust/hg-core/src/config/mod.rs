@@ -9,14 +9,19 @@
 
 //! Mercurial config parsing and interfaces.
 
+pub mod config_items;
 mod layer;
 mod plain_info;
 mod values;
 pub use layer::{ConfigError, ConfigOrigin, ConfigParseError};
+use lazy_static::lazy_static;
 pub use plain_info::PlainInfo;
 
+use self::config_items::DefaultConfig;
+use self::config_items::DefaultConfigItem;
 use self::layer::ConfigLayer;
 use self::layer::ConfigValue;
+use crate::errors::HgError;
 use crate::errors::{HgResultExt, IoResultExt};
 use crate::utils::files::get_bytes_from_os_str;
 use format_bytes::{write_bytes, DisplayBytes};
@@ -25,6 +30,14 @@ use std::env;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::str;
+
+lazy_static! {
+    static ref DEFAULT_CONFIG: Result<DefaultConfig, HgError> = {
+        DefaultConfig::from_contents(include_str!(
+            "../../../../mercurial/configitems.toml"
+        ))
+    };
+}
 
 /// Holds the config values for the current repository
 /// TODO update this docstring once we support more sources
@@ -347,13 +360,50 @@ impl Config {
         self.plain = plain;
     }
 
+    /// Returns the default value for the given config item, if any.
+    pub fn get_default(
+        &self,
+        section: &[u8],
+        item: &[u8],
+    ) -> Result<Option<&DefaultConfigItem>, HgError> {
+        let default_config = DEFAULT_CONFIG.as_ref().map_err(|e| {
+            HgError::abort(
+                e.to_string(),
+                crate::exit_codes::ABORT,
+                Some("`mercurial/configitems.toml` is not valid".into()),
+            )
+        })?;
+        let default_opt = default_config.get(section, item);
+        Ok(default_opt.filter(|default| {
+            default
+                .in_core_extension()
+                .map(|extension| {
+                    // Only return the default for an in-core extension item
+                    // if said extension is enabled
+                    self.is_extension_enabled(extension.as_bytes())
+                })
+                .unwrap_or(true)
+        }))
+    }
+
+    /// Return the config item that corresponds to a section + item, a function
+    /// to parse from the raw bytes to the expected type (which is passed as
+    /// a string only to make debugging easier).
+    /// Used by higher-level methods like `get_bool`.
+    ///
+    /// `fallback_to_default` controls whether the default value (if any) is
+    /// returned if nothing is found.
     fn get_parse<'config, T: 'config>(
         &'config self,
         section: &[u8],
         item: &[u8],
         expected_type: &'static str,
         parse: impl Fn(&'config [u8]) -> Option<T>,
-    ) -> Result<Option<T>, ConfigValueParseError> {
+        fallback_to_default: bool,
+    ) -> Result<Option<T>, HgError>
+    where
+        Option<T>: TryFrom<&'config DefaultConfigItem, Error = HgError>,
+    {
         match self.get_inner(section, item) {
             Some((layer, v)) => match parse(&v.bytes) {
                 Some(b) => Ok(Some(b)),
@@ -364,10 +414,73 @@ impl Config {
                     section: section.to_owned(),
                     item: item.to_owned(),
                     expected_type,
-                })),
+                })
+                .into()),
             },
-            None => Ok(None),
+            None => {
+                if !fallback_to_default {
+                    return Ok(None);
+                }
+                match self.get_default(section, item)? {
+                    Some(default) => {
+                        // Defaults are TOML values, so they're not in the same
+                        // shape as in the config files.
+                        // First try to convert directly to the expected type
+                        let as_t = default.try_into();
+                        match as_t {
+                            Ok(t) => Ok(t),
+                            Err(e) => {
+                                // If it fails, it means that...
+                                let as_bytes: Result<Option<&[u8]>, _> =
+                                    default.try_into();
+                                match as_bytes {
+                                    Ok(bytes_opt) => {
+                                        if let Some(bytes) = bytes_opt {
+                                            // ...we should be able to parse it
+                                            return Ok(parse(bytes));
+                                        }
+                                        Err(e)
+                                    }
+                                    Err(_) => Err(e),
+                                }
+                            }
+                        }
+                    }
+                    None => {
+                        self.print_devel_warning(section, item)?;
+                        Ok(None)
+                    }
+                }
+            }
         }
+    }
+
+    fn print_devel_warning(
+        &self,
+        section: &[u8],
+        item: &[u8],
+    ) -> Result<(), HgError> {
+        let warn_all = self.get_bool(b"devel", b"all-warnings")?;
+        let warn_specific = self.get_bool(b"devel", b"warn-config-unknown")?;
+        if !warn_all || !warn_specific {
+            // We technically shouldn't print anything here since it's not
+            // the concern of `hg-core`.
+            //
+            // We're printing directly to stderr since development warnings
+            // are not on by default and surfacing this to consumer crates
+            // (like `rhg`) would be more difficult, probably requiring
+            // something à la `log` crate.
+            //
+            // TODO maybe figure out a way of exposing a "warnings" channel
+            // that consumer crates can hook into. It would be useful for
+            // all other warnings that `hg-core` could expose.
+            eprintln!(
+                "devel-warn: accessing unregistered config item: '{}.{}'",
+                String::from_utf8_lossy(section),
+                String::from_utf8_lossy(item),
+            );
+        }
+        Ok(())
     }
 
     /// Returns an `Err` if the first value found is not a valid UTF-8 string.
@@ -376,10 +489,30 @@ impl Config {
         &self,
         section: &[u8],
         item: &[u8],
-    ) -> Result<Option<&str>, ConfigValueParseError> {
-        self.get_parse(section, item, "ASCII or UTF-8 string", |value| {
-            str::from_utf8(value).ok()
-        })
+    ) -> Result<Option<&str>, HgError> {
+        self.get_parse(
+            section,
+            item,
+            "ASCII or UTF-8 string",
+            |value| str::from_utf8(value).ok(),
+            true,
+        )
+    }
+
+    /// Same as `get_str`, but doesn't fall back to the default `configitem`
+    /// if not defined in the user config.
+    pub fn get_str_no_default(
+        &self,
+        section: &[u8],
+        item: &[u8],
+    ) -> Result<Option<&str>, HgError> {
+        self.get_parse(
+            section,
+            item,
+            "ASCII or UTF-8 string",
+            |value| str::from_utf8(value).ok(),
+            false,
+        )
     }
 
     /// Returns an `Err` if the first value found is not a valid unsigned
@@ -388,10 +521,14 @@ impl Config {
         &self,
         section: &[u8],
         item: &[u8],
-    ) -> Result<Option<u32>, ConfigValueParseError> {
-        self.get_parse(section, item, "valid integer", |value| {
-            str::from_utf8(value).ok()?.parse().ok()
-        })
+    ) -> Result<Option<u32>, HgError> {
+        self.get_parse(
+            section,
+            item,
+            "valid integer",
+            |value| str::from_utf8(value).ok()?.parse().ok(),
+            true,
+        )
     }
 
     /// Returns an `Err` if the first value found is not a valid file size
@@ -401,8 +538,14 @@ impl Config {
         &self,
         section: &[u8],
         item: &[u8],
-    ) -> Result<Option<u64>, ConfigValueParseError> {
-        self.get_parse(section, item, "byte quantity", values::parse_byte_size)
+    ) -> Result<Option<u64>, HgError> {
+        self.get_parse(
+            section,
+            item,
+            "byte quantity",
+            values::parse_byte_size,
+            true,
+        )
     }
 
     /// Returns an `Err` if the first value found is not a valid boolean.
@@ -412,8 +555,18 @@ impl Config {
         &self,
         section: &[u8],
         item: &[u8],
-    ) -> Result<Option<bool>, ConfigValueParseError> {
-        self.get_parse(section, item, "boolean", values::parse_bool)
+    ) -> Result<Option<bool>, HgError> {
+        self.get_parse(section, item, "boolean", values::parse_bool, true)
+    }
+
+    /// Same as `get_option`, but doesn't fall back to the default `configitem`
+    /// if not defined in the user config.
+    pub fn get_option_no_default(
+        &self,
+        section: &[u8],
+        item: &[u8],
+    ) -> Result<Option<bool>, HgError> {
+        self.get_parse(section, item, "boolean", values::parse_bool, false)
     }
 
     /// Returns the corresponding boolean in the config. Returns `Ok(false)`
@@ -422,8 +575,18 @@ impl Config {
         &self,
         section: &[u8],
         item: &[u8],
-    ) -> Result<bool, ConfigValueParseError> {
+    ) -> Result<bool, HgError> {
         Ok(self.get_option(section, item)?.unwrap_or(false))
+    }
+
+    /// Same as `get_bool`, but doesn't fall back to the default `configitem`
+    /// if not defined in the user config.
+    pub fn get_bool_no_default(
+        &self,
+        section: &[u8],
+        item: &[u8],
+    ) -> Result<bool, HgError> {
+        Ok(self.get_option_no_default(section, item)?.unwrap_or(false))
     }
 
     /// Returns `true` if the extension is enabled, `false` otherwise
@@ -595,7 +758,7 @@ mod tests {
         let tmpdir = tempfile::tempdir().unwrap();
         let tmpdir_path = tmpdir.path();
         let mut included_file =
-            File::create(&tmpdir_path.join("included.rc")).unwrap();
+            File::create(tmpdir_path.join("included.rc")).unwrap();
 
         included_file.write_all(b"[section]\nitem=value1").unwrap();
         let base_config_path = tmpdir_path.join("base.rc");
@@ -632,5 +795,16 @@ mod tests {
         );
         assert!(config.get_u32(b"section2", b"not-count").is_err());
         assert!(config.get_byte_size(b"section2", b"not-size").is_err());
+    }
+
+    #[test]
+    fn test_default_parse() {
+        let config = Config::load_from_explicit_sources(vec![])
+            .expect("expected valid config");
+        let ret = config.get_byte_size(b"cmdserver", b"max-log-size");
+        assert!(ret.is_ok(), "{:?}", ret);
+
+        let ret = config.get_byte_size(b"ui", b"formatted");
+        assert!(ret.unwrap().is_none());
     }
 }

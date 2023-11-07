@@ -76,17 +76,23 @@ fn main_with_result(
 
     // Mercurial allows users to define "defaults" for commands, fallback
     // if a default is detected for the current command
-    let defaults = config.get_str(b"defaults", subcommand_name.as_bytes());
-    if defaults?.is_some() {
-        let msg = "`defaults` config set";
-        return Err(CommandError::unsupported(msg));
+    let defaults = config.get_str(b"defaults", subcommand_name.as_bytes())?;
+    match defaults {
+        // Programmatic usage might set defaults to an empty string to unset
+        // it; allow that
+        None | Some("") => {}
+        Some(_) => {
+            let msg = "`defaults` config set";
+            return Err(CommandError::unsupported(msg));
+        }
     }
 
     for prefix in ["pre", "post", "fail"].iter() {
         // Mercurial allows users to define generic hooks for commands,
         // fallback if any are detected
         let item = format!("{}-{}", prefix, subcommand_name);
-        let hook_for_command = config.get_str(b"hooks", item.as_bytes())?;
+        let hook_for_command =
+            config.get_str_no_default(b"hooks", item.as_bytes())?;
         if hook_for_command.is_some() {
             let msg = format!("{}-{} hook defined", prefix, subcommand_name);
             return Err(CommandError::unsupported(msg));
@@ -349,11 +355,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
             &argv,
             &initial_current_dir,
             &ui,
-            OnUnsupported::Fallback {
-                executable: config
-                    .get(b"rhg", b"fallback-executable")
-                    .map(ToOwned::to_owned),
-            },
+            OnUnsupported::fallback(config),
             Err(CommandError::unsupported(
                 "`rhg.fallback-immediately is true`",
             )),
@@ -402,8 +404,8 @@ fn exit_code(
     }
 }
 
-fn exit<'a>(
-    original_args: &'a [OsString],
+fn exit(
+    original_args: &[OsString],
     initial_current_dir: &Option<PathBuf>,
     ui: &Ui,
     mut on_unsupported: OnUnsupported,
@@ -662,6 +664,18 @@ enum OnUnsupported {
 impl OnUnsupported {
     const DEFAULT: Self = OnUnsupported::Abort;
 
+    fn fallback_executable(config: &Config) -> Option<Vec<u8>> {
+        config
+            .get(b"rhg", b"fallback-executable")
+            .map(|x| x.to_owned())
+    }
+
+    fn fallback(config: &Config) -> Self {
+        OnUnsupported::Fallback {
+            executable: Self::fallback_executable(config),
+        }
+    }
+
     fn from_config(config: &Config) -> Self {
         match config
             .get(b"rhg", b"on-unsupported")
@@ -670,11 +684,7 @@ impl OnUnsupported {
         {
             Some(b"abort") => OnUnsupported::Abort,
             Some(b"abort-silent") => OnUnsupported::AbortSilent,
-            Some(b"fallback") => OnUnsupported::Fallback {
-                executable: config
-                    .get(b"rhg", b"fallback-executable")
-                    .map(|x| x.to_owned()),
-            },
+            Some(b"fallback") => Self::fallback(config),
             None => Self::DEFAULT,
             Some(_) => {
                 // TODO: warn about unknown config value

@@ -50,7 +50,7 @@ tvfs = vfs.vfs(encoding.environ.get(b'TESTTMP', b'/tmp'))
 tvfs.options = {
     b'generaldelta': True,
     b'revlogv1': True,
-    b'sparse-revlog': True,
+    b'delta-config': revlog.DeltaConfig(sparse_revlog=True),
 }
 
 
@@ -158,7 +158,7 @@ def addgroupcopy(rlog, tr, destname=b'_destrevlog', optimaldelta=True):
             else:
                 # suboptimal deltaparent
                 deltaparent = min(0, parentrev)
-            if not rlog.candelta(deltaparent, r):
+            if not rlog._candelta(deltaparent, r):
                 deltaparent = -1
             return {
                 b'node': rlog.node(r),
@@ -371,11 +371,15 @@ slicingdata = [
 
 
 def slicingtest(rlog):
-    oldmin = rlog._srmingapsize
+    old_delta_config = rlog.delta_config
+    old_data_config = rlog.data_config
+    rlog.delta_config = rlog.delta_config.copy()
+    rlog.data_config = rlog.data_config.copy()
     try:
         # the test revlog is small, we remove the floor under which we
         # slicing is diregarded.
-        rlog._srmingapsize = 0
+        rlog.data_config.sr_min_gap_size = 0
+        rlog.delta_config.sr_min_gap_size = 0
         for item in slicingdata:
             chain, expected, target = item
             result = deltas.slicechunk(rlog, chain, targetsize=target)
@@ -387,7 +391,8 @@ def slicingtest(rlog):
                 print('  expected: %s' % expected)
                 print('  result:   %s' % result)
     finally:
-        rlog._srmingapsize = oldmin
+        rlog.delta_config = old_delta_config
+        rlog.data_config = old_data_config
 
 
 def md5sum(s):

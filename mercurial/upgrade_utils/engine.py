@@ -9,7 +9,6 @@
 import stat
 
 from ..i18n import _
-from ..pycompat import getattr
 from .. import (
     error,
     metadata,

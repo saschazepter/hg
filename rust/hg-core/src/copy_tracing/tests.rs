@@ -1,5 +1,12 @@
 use super::*;
 
+/// Shorthand to reduce boilerplate when creating [`Revision`] for testing
+macro_rules! R {
+    ($revision:literal) => {
+        Revision($revision)
+    };
+}
+
 /// Unit tests for:
 ///
 /// ```ignore
@@ -27,7 +34,12 @@ fn test_compare_value() {
     use MergePick::*;
 
     assert_eq!(
-        compare_value!(1, Normal, (1, None, { 1 }), (1, None, { 1 })),
+        compare_value!(
+            R!(1),
+            Normal,
+            (R!(1), None, { R!(1) }),
+            (R!(1), None, { R!(1) })
+        ),
         (Any, false)
     );
 }
@@ -70,12 +82,12 @@ fn test_merge_copies_dict() {
 
     assert_eq!(
         merge_copies_dict!(
-            1,
-            {"foo" => (1, None, {})},
+            R!(1),
+            {"foo" => (R!(1), None, {})},
             {},
             {"foo" => Merged}
         ),
-        internal_path_copies!("foo" => (1, None, {}))
+        internal_path_copies!("foo" => (R!(1), None, {}))
     );
 }
 
@@ -124,17 +136,29 @@ fn test_combine_changeset_copies() {
 
     assert_eq!(
         combine_changeset_copies!(
-            { 1 => 1, 2 => 1 },
+            { R!(1) => 1, R!(2) => 1 },
             [
-                { rev: 1, p1: NULL, p2: NULL, actions: [], merge_cases: {}, },
-                { rev: 2, p1: NULL, p2: NULL, actions: [], merge_cases: {}, },
                 {
-                    rev: 3, p1: 1, p2: 2,
+                    rev: R!(1),
+                    p1: NULL,
+                    p2: NULL,
+                    actions: [],
+                    merge_cases: {},
+                },
+                {
+                    rev: R!(2),
+                    p1: NULL,
+                    p2: NULL,
+                    actions: [],
+                    merge_cases: {},
+                },
+                {
+                    rev: R!(3), p1: R!(1), p2: R!(2),
                     actions: [CopiedFromP1("destination.txt", "source.txt")],
                     merge_cases: {"destination.txt" => Merged},
                 },
             ],
-            3,
+            R!(3),
         ),
         path_copies!("destination.txt" => "source.txt")
     );

@@ -92,7 +92,7 @@ def peersetup(ui, peer):
                 not in self.capabilities()
             ):
                 return
-            if not util.safehasattr(self, '_localrepo'):
+            if not hasattr(self, '_localrepo'):
                 return
             if (
                 constants.SHALLOWREPO_REQUIREMENT
@@ -132,7 +132,7 @@ def peersetup(ui, peer):
 
         def _callstream(self, command, **opts):
             supertype = super(remotefilepeer, self)
-            if not util.safehasattr(supertype, '_sendrequest'):
+            if not hasattr(supertype, '_sendrequest'):
                 self._updatecallstreamopts(command, pycompat.byteskwargs(opts))
             return super(remotefilepeer, self)._callstream(command, **opts)
 
@@ -641,9 +641,7 @@ class fileserverclient:
             self._lfsprefetch(fileids)
 
     def _lfsprefetch(self, fileids):
-        if not _lfsmod or not util.safehasattr(
-            self.repo.svfs, b'lfslocalblobstore'
-        ):
+        if not _lfsmod or not hasattr(self.repo.svfs, b'lfslocalblobstore'):
             return
         if not _lfsmod.wrapper.candownload(self.repo):
             return

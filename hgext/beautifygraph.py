@@ -103,5 +103,5 @@ def extsetup(ui):
         )
         return
 
-    extensions.wrapfunction(graphmod, b'outputgraph', outputprettygraph)
-    extensions.wrapfunction(templatekw, b'getgraphnode', getprettygraphnode)
+    extensions.wrapfunction(graphmod, 'outputgraph', outputprettygraph)
+    extensions.wrapfunction(templatekw, 'getgraphnode', getprettygraphnode)

@@ -20,7 +20,7 @@ use std::{borrow::Cow, fmt};
 
 /// Wrong type of file from a `BadMatch`
 /// Note: a lot of those don't exist on all platforms.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BadType {
     CharacterDevice,
     BlockDevice,

@@ -11,7 +11,7 @@ without changegroup2 support
   > command = registrar.command(cmdtable)
   > @command('testcg2', norepo=True)
   > def testcg2(ui):
-  >     if not util.safehasattr(changegroup, 'cg2packer'):
+  >     if not hasattr(changegroup, 'cg2packer'):
   >         sys.exit(80)
   > EOF
   $ cat >> $HGRCPATH << EOF

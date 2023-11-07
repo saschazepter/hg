@@ -11,7 +11,6 @@ import posixpath
 import re
 
 from .i18n import _
-from .pycompat import getattr
 from . import (
     config,
     error,
@@ -384,7 +383,7 @@ def repo_rel_or_abs_source(repo):
     Either absolute or relative the outermost repo"""
     parent = repo
     chunks = []
-    while util.safehasattr(parent, '_subparent'):
+    while hasattr(parent, '_subparent'):
         source = urlutil.url(parent._subsource)
         chunks.append(bytes(source))
         if source.isabs():
@@ -400,7 +399,7 @@ def reporelpath(repo):
     # type: (localrepo.localrepository) -> bytes
     """return path to this (sub)repo as seen from outermost repo"""
     parent = repo
-    while util.safehasattr(parent, '_subparent'):
+    while hasattr(parent, '_subparent'):
         parent = parent._subparent
     return repo.root[len(pathutil.normasprefix(parent.root)) :]
 
@@ -415,7 +414,7 @@ def _abssource(repo, push=False, abort=True):
     # type: (localrepo.localrepository, bool, bool) -> Optional[bytes]
     """return pull/push path of repo - either based on parent repo .hgsub info
     or on the top repo config. Abort or return None if no source found."""
-    if util.safehasattr(repo, '_subparent'):
+    if hasattr(repo, '_subparent'):
         source = urlutil.url(repo._subsource)
         if source.isabs():
             return bytes(source)
@@ -428,7 +427,7 @@ def _abssource(repo, push=False, abort=True):
             return bytes(parent)
     else:  # recursion reached top repo
         path = None
-        if util.safehasattr(repo, '_subtoppath'):
+        if hasattr(repo, '_subtoppath'):
             path = repo._subtoppath
         elif push and repo.ui.config(b'paths', b'default-push'):
             path = repo.ui.config(b'paths', b'default-push')

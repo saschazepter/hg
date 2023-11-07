@@ -26,7 +26,6 @@ from .i18n import (
     _,
     gettext,
 )
-from .pycompat import getattr
 from . import (
     cmdutil,
     encoding,
@@ -43,7 +42,6 @@ from . import (
     templatefuncs,
     templatekw,
     ui as uimod,
-    util,
 )
 from .hgweb import webcommands
 from .utils import (
@@ -810,7 +808,7 @@ def help_(
         doc = gettext(pycompat.getdoc(entry[0]))
         if not doc:
             doc = _(b"(no help text available)")
-        if util.safehasattr(entry[0], 'definition'):  # aliased command
+        if hasattr(entry[0], 'definition'):  # aliased command
             source = entry[0].source
             if entry[0].definition.startswith(b'!'):  # shell alias
                 doc = _(b'shell alias for: %s\n\n%s\n\ndefined by: %s\n') % (

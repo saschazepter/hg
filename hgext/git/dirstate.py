@@ -47,7 +47,7 @@ def readpatternfile(orig, filepath, warn, sourceinfo=False):
     return result, warnings
 
 
-extensions.wrapfunction(matchmod, b'readpatternfile', readpatternfile)
+extensions.wrapfunction(matchmod, 'readpatternfile', readpatternfile)
 
 
 _STATUS_MAP = {}

@@ -435,7 +435,13 @@ class converter:
             """Sort revisions by date."""
 
             def getdate(n):
-                return dateutil.parsedate(self.commitcache[n].date)
+                commit = self.commitcache[n]
+                # The other entries are here as tie breaker for stability
+                return (
+                    dateutil.parsedate(commit.date),
+                    commit.rev,
+                    commit.branch,
+                )
 
             return keysorter(getdate)
 

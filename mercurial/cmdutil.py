@@ -28,9 +28,7 @@ from .node import (
     short,
 )
 from .pycompat import (
-    getattr,
     open,
-    setattr,
 )
 from .thirdparty import attr
 
@@ -813,18 +811,17 @@ def tersedir(statuslist, terseargs):
     # creating a dirnode object for the root of the repo
     rootobj = dirnode(b'')
     pstatus = (
-        b'modified',
-        b'added',
-        b'deleted',
-        b'clean',
-        b'unknown',
-        b'ignored',
-        b'removed',
+        ('modified', b'm'),
+        ('added', b'a'),
+        ('deleted', b'd'),
+        ('clean', b'c'),
+        ('unknown', b'u'),
+        ('ignored', b'i'),
+        ('removed', b'r'),
     )
 
     tersedict = {}
-    for attrname in pstatus:
-        statuschar = attrname[0:1]
+    for attrname, statuschar in pstatus:
         for f in getattr(statuslist, attrname):
             rootobj.addfile(f, statuschar)
         tersedict[statuschar] = []
@@ -1007,7 +1004,7 @@ def findcmd(cmd, table, strict=True):
     raise error.UnknownCommand(cmd, allcmds)
 
 
-def changebranch(ui, repo, revs, label, opts):
+def changebranch(ui, repo, revs, label, **opts):
     """Change the branch name of given revs to label"""
 
     with repo.wlock(), repo.lock(), repo.transaction(b'branches'):
@@ -1026,7 +1023,7 @@ def changebranch(ui, repo, revs, label, opts):
         root = repo[roots.first()]
         rpb = {parent.branch() for parent in root.parents()}
         if (
-            not opts.get(b'force')
+            not opts.get('force')
             and label not in rpb
             and label in repo.branchmap()
         ):
@@ -1450,7 +1447,7 @@ def openstorage(repo, cmd, file_, opts, returnrevlog=False):
         if returnrevlog:
             if isinstance(r, revlog.revlog):
                 pass
-            elif util.safehasattr(r, '_revlog'):
+            elif hasattr(r, '_revlog'):
                 r = r._revlog  # pytype: disable=attribute-error
             elif r is not None:
                 raise error.InputError(
@@ -3329,9 +3326,7 @@ def buildcommittext(repo, ctx, subs, extramsg):
     return b"\n".join(edittext)
 
 
-def commitstatus(repo, node, branch, bheads=None, tip=None, opts=None):
-    if opts is None:
-        opts = {}
+def commitstatus(repo, node, branch, bheads=None, tip=None, **opts):
     ctx = repo[node]
     parents = ctx.parents()
 
@@ -3341,7 +3336,7 @@ def commitstatus(repo, node, branch, bheads=None, tip=None, opts=None):
         # for most instances
         repo.ui.warn(_(b"warning: commit already existed in the repository!\n"))
     elif (
-        not opts.get(b'amend')
+        not opts.get('amend')
         and bheads
         and node not in bheads
         and not any(
@@ -3378,7 +3373,7 @@ def commitstatus(repo, node, branch, bheads=None, tip=None, opts=None):
         #
         # H H  n  head merge: head count decreases
 
-    if not opts.get(b'close_branch'):
+    if not opts.get('close_branch'):
         for r in parents:
             if r.closesbranch() and r.branch() == branch:
                 repo.ui.status(

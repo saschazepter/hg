@@ -19,9 +19,7 @@ from .i18n import (
     gettext,
 )
 from .pycompat import (
-    getattr,
     open,
-    setattr,
 )
 
 from . import (
@@ -84,9 +82,8 @@ def find(name):
 
 
 def loadpath(path, module_name):
-    module_name = module_name.replace(b'.', b'_')
+    module_name = module_name.replace('.', '_')
     path = util.normpath(util.expandpath(path))
-    module_name = pycompat.fsdecode(module_name)
     path = pycompat.fsdecode(path)
     if os.path.isdir(path):
         # module/__init__.py style
@@ -106,30 +103,31 @@ def loadpath(path, module_name):
 
 def _importh(name):
     """import and return the <name> module"""
-    mod = __import__(pycompat.sysstr(name))
-    components = name.split(b'.')
+    mod = __import__(name)
+    components = name.split('.')
     for comp in components[1:]:
         mod = getattr(mod, comp)
     return mod
 
 
 def _importext(name, path=None, reportfunc=None):
+    name = pycompat.fsdecode(name)
     if path:
         # the module will be loaded in sys.modules
         # choose an unique name so that it doesn't
         # conflicts with other modules
-        mod = loadpath(path, b'hgext.%s' % name)
+        mod = loadpath(path, 'hgext.%s' % name)
     else:
         try:
-            mod = _importh(b"hgext.%s" % name)
+            mod = _importh("hgext.%s" % name)
         except ImportError as err:
             if reportfunc:
-                reportfunc(err, b"hgext.%s" % name, b"hgext3rd.%s" % name)
+                reportfunc(err, "hgext.%s" % name, "hgext3rd.%s" % name)
             try:
-                mod = _importh(b"hgext3rd.%s" % name)
+                mod = _importh("hgext3rd.%s" % name)
             except ImportError as err:
                 if reportfunc:
-                    reportfunc(err, b"hgext3rd.%s" % name, name)
+                    reportfunc(err, "hgext3rd.%s" % name, name)
                 mod = _importh(name)
     return mod
 
@@ -140,9 +138,9 @@ def _reportimporterror(ui, err, failed, next):
     ui.log(
         b'extension',
         b'    - could not import %s (%s): trying %s\n',
-        failed,
+        stringutil.forcebytestr(failed),
         stringutil.forcebytestr(err),
-        next,
+        stringutil.forcebytestr(next),
     )
     if ui.debugflag and ui.configbool(b'devel', b'debug.extensions'):
         ui.traceback()
@@ -155,42 +153,43 @@ def _rejectunicode(name, xs):
     elif isinstance(xs, dict):
         for k, v in xs.items():
             _rejectunicode(name, k)
-            _rejectunicode(b'%s.%s' % (name, stringutil.forcebytestr(k)), v)
-    elif isinstance(xs, type(u'')):
+            k = pycompat.sysstr(k)
+            _rejectunicode('%s.%s' % (name, k), v)
+    elif isinstance(xs, str):
         raise error.ProgrammingError(
-            b"unicode %r found in %s" % (xs, name),
+            b"unicode %r found in %s" % (xs, stringutil.forcebytestr(name)),
             hint=b"use b'' to make it byte string",
         )
 
 
 # attributes set by registrar.command
-_cmdfuncattrs = (b'norepo', b'optionalrepo', b'inferrepo')
+_cmdfuncattrs = ('norepo', 'optionalrepo', 'inferrepo')
 
 
 def _validatecmdtable(ui, cmdtable):
     """Check if extension commands have required attributes"""
     for c, e in cmdtable.items():
         f = e[0]
-        missing = [a for a in _cmdfuncattrs if not util.safehasattr(f, a)]
+        missing = [a for a in _cmdfuncattrs if not hasattr(f, a)]
         if not missing:
             continue
-        raise error.ProgrammingError(
-            b'missing attributes: %s' % b', '.join(missing),
-            hint=b"use @command decorator to register '%s'" % c,
-        )
+        msg = b'missing attributes: %s'
+        msg %= b', '.join([stringutil.forcebytestr(m) for m in missing])
+        hint = b"use @command decorator to register '%s'" % c
+        raise error.ProgrammingError(msg, hint=hint)
 
 
 def _validatetables(ui, mod):
     """Sanity check for loadable tables provided by extension module"""
-    for t in [b'cmdtable', b'colortable', b'configtable']:
+    for t in ['cmdtable', 'colortable', 'configtable']:
         _rejectunicode(t, getattr(mod, t, {}))
     for t in [
-        b'filesetpredicate',
-        b'internalmerge',
-        b'revsetpredicate',
-        b'templatefilter',
-        b'templatefunc',
-        b'templatekeyword',
+        'filesetpredicate',
+        'internalmerge',
+        'revsetpredicate',
+        'templatefilter',
+        'templatefunc',
+        'templatekeyword',
     ]:
         o = getattr(mod, t, None)
         if o:
@@ -349,7 +348,7 @@ def loadall(ui, whitelist=None):
     #
     # This one is for the list of item that must be run before running any setup
     earlyextraloaders = [
-        (b'configtable', configitems, b'loadconfigtable'),
+        ('configtable', configitems, 'loadconfigtable'),
     ]
 
     ui.log(b'extension', b'- loading configtable attributes\n')
@@ -434,14 +433,14 @@ def loadall(ui, whitelist=None):
     #   which takes (ui, extensionname, extraobj) arguments
     ui.log(b'extension', b'- loading extension registration objects\n')
     extraloaders = [
-        (b'cmdtable', commands, b'loadcmdtable'),
-        (b'colortable', color, b'loadcolortable'),
-        (b'filesetpredicate', fileset, b'loadpredicate'),
-        (b'internalmerge', filemerge, b'loadinternalmerge'),
-        (b'revsetpredicate', revset, b'loadpredicate'),
-        (b'templatefilter', templatefilters, b'loadfilter'),
-        (b'templatefunc', templatefuncs, b'loadfunction'),
-        (b'templatekeyword', templatekw, b'loadkeyword'),
+        ('cmdtable', commands, 'loadcmdtable'),
+        ('colortable', color, 'loadcolortable'),
+        ('filesetpredicate', fileset, 'loadpredicate'),
+        ('internalmerge', filemerge, 'loadinternalmerge'),
+        ('revsetpredicate', revset, 'loadpredicate'),
+        ('templatefilter', templatefilters, 'loadfilter'),
+        ('templatefunc', templatefuncs, 'loadfunction'),
+        ('templatekeyword', templatekw, 'loadkeyword'),
     ]
     with util.timedcm('load registration objects') as stats:
         _loadextra(ui, newindex, extraloaders)
@@ -625,6 +624,10 @@ class wrappedfunction:
 
     def __init__(self, container, funcname, wrapper):
         assert callable(wrapper)
+        if not isinstance(funcname, str):
+            msg = b"pass wrappedfunction target name as `str`, not `bytes`"
+            util.nouideprecwarn(msg, b"6.6", stacklevel=2)
+            funcname = pycompat.sysstr(funcname)
         self._container = container
         self._funcname = funcname
         self._wrapper = wrapper
@@ -670,6 +673,11 @@ def wrapfunction(container, funcname, wrapper):
     subclass trick.
     """
     assert callable(wrapper)
+
+    if not isinstance(funcname, str):
+        msg = b"pass wrapfunction target name as `str`, not `bytes`"
+        util.nouideprecwarn(msg, b"6.6", stacklevel=2)
+        funcname = pycompat.sysstr(funcname)
 
     origfn = getattr(container, funcname)
     assert callable(origfn)
@@ -732,7 +740,7 @@ def _disabledpaths():
 
     # The hgext might not have a __file__ attribute (e.g. in PyOxidizer) and
     # it might not be on a filesystem even if it does.
-    if util.safehasattr(hgext, '__file__'):
+    if hasattr(hgext, '__file__'):
         extpath = os.path.dirname(
             util.abspath(pycompat.fsencode(hgext.__file__))
         )
@@ -847,7 +855,7 @@ def disabled_help(name):
 
             # The extensions are filesystem based, so either an error occurred
             # or all are enabled.
-            if util.safehasattr(hgext, '__file__'):
+            if hasattr(hgext, '__file__'):
                 return
 
             if name in _order:  # enabled
@@ -977,13 +985,13 @@ def notloaded():
 
 def moduleversion(module):
     '''return version information from given module as a string'''
-    if util.safehasattr(module, b'getversion') and callable(module.getversion):
+    if hasattr(module, 'getversion') and callable(module.getversion):
         try:
             version = module.getversion()
         except Exception:
             version = b'unknown'
 
-    elif util.safehasattr(module, b'__version__'):
+    elif hasattr(module, '__version__'):
         version = module.__version__
     else:
         version = b''

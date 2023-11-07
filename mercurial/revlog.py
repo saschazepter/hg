@@ -32,7 +32,6 @@ from .node import (
     wdirrev,
 )
 from .i18n import _
-from .pycompat import getattr
 from .revlogutils.constants import (
     ALL_KINDS,
     CHANGELOGV2,
@@ -167,7 +166,7 @@ def _verify_revision(rl, skipflags, state, node):
 # We also consider we have a "fast" implementation in "pure" python because
 # people using pure don't really have performance consideration (and a
 # wheelbarrow of other slowness source)
-HAS_FAST_PERSISTENT_NODEMAP = rustrevlog is not None or util.safehasattr(
+HAS_FAST_PERSISTENT_NODEMAP = rustrevlog is not None or hasattr(
     parsers, 'BaseIndexObject'
 )
 
@@ -214,7 +213,7 @@ def parse_index_cl_v2(data, inline):
     return index, cache
 
 
-if util.safehasattr(parsers, 'parse_index_devel_nodemap'):
+if hasattr(parsers, 'parse_index_devel_nodemap'):
 
     def parse_index_v1_nodemap(data, inline):
         index, cache = parsers.parse_index_devel_nodemap(data, inline)
@@ -240,6 +239,993 @@ FILE_TOO_SHORT_MSG = _(
 )
 
 hexdigits = b'0123456789abcdefABCDEF'
+
+
+class _Config:
+    def copy(self):
+        return self.__class__(**self.__dict__)
+
+
+@attr.s()
+class FeatureConfig(_Config):
+    """Hold configuration values about the available revlog features"""
+
+    # the default compression engine
+    compression_engine = attr.ib(default=b'zlib')
+    # compression engines options
+    compression_engine_options = attr.ib(default=attr.Factory(dict))
+
+    # can we use censor on this revlog
+    censorable = attr.ib(default=False)
+    # does this revlog use the "side data" feature
+    has_side_data = attr.ib(default=False)
+    # might remove rank configuration once the computation has no impact
+    compute_rank = attr.ib(default=False)
+    # parent order is supposed to be semantically irrelevant, so we
+    # normally resort parents to ensure that the first parent is non-null,
+    # if there is a non-null parent at all.
+    # filelog abuses the parent order as flag to mark some instances of
+    # meta-encoded files, so allow it to disable this behavior.
+    canonical_parent_order = attr.ib(default=False)
+    # can ellipsis commit be used
+    enable_ellipsis = attr.ib(default=False)
+
+    def copy(self):
+        new = super().copy()
+        new.compression_engine_options = self.compression_engine_options.copy()
+        return new
+
+
+@attr.s()
+class DataConfig(_Config):
+    """Hold configuration value about how the revlog data are read"""
+
+    # should we try to open the "pending" version of the revlog
+    try_pending = attr.ib(default=False)
+    # should we try to open the "splitted" version of the revlog
+    try_split = attr.ib(default=False)
+    #  When True, indexfile should be opened with checkambig=True at writing,
+    #  to avoid file stat ambiguity.
+    check_ambig = attr.ib(default=False)
+
+    # If true, use mmap instead of reading to deal with large index
+    mmap_large_index = attr.ib(default=False)
+    # how much data is large
+    mmap_index_threshold = attr.ib(default=None)
+    # How much data to read and cache into the raw revlog data cache.
+    chunk_cache_size = attr.ib(default=65536)
+
+    # The size of the uncompressed cache compared to the largest revision seen.
+    uncompressed_cache_factor = attr.ib(default=None)
+
+    # The number of chunk cached
+    uncompressed_cache_count = attr.ib(default=None)
+
+    # Allow sparse reading of the revlog data
+    with_sparse_read = attr.ib(default=False)
+    # minimal density of a sparse read chunk
+    sr_density_threshold = attr.ib(default=0.50)
+    # minimal size of data we skip when performing sparse read
+    sr_min_gap_size = attr.ib(default=262144)
+
+    # are delta encoded against arbitrary bases.
+    generaldelta = attr.ib(default=False)
+
+
+@attr.s()
+class DeltaConfig(_Config):
+    """Hold configuration value about how new delta are computed
+
+    Some attributes are duplicated from DataConfig to help havign each object
+    self contained.
+    """
+
+    # can delta be encoded against arbitrary bases.
+    general_delta = attr.ib(default=False)
+    # Allow sparse writing of the revlog data
+    sparse_revlog = attr.ib(default=False)
+    # maximum length of a delta chain
+    max_chain_len = attr.ib(default=None)
+    # Maximum distance between delta chain base start and end
+    max_deltachain_span = attr.ib(default=-1)
+    # If `upper_bound_comp` is not None, this is the expected maximal gain from
+    # compression for the data content.
+    upper_bound_comp = attr.ib(default=None)
+    # Should we try a delta against both parent
+    delta_both_parents = attr.ib(default=True)
+    # Test delta base candidate group by chunk of this maximal size.
+    candidate_group_chunk_size = attr.ib(default=0)
+    # Should we display debug information about delta computation
+    debug_delta = attr.ib(default=False)
+    # trust incoming delta by default
+    lazy_delta = attr.ib(default=True)
+    # trust the base of incoming delta by default
+    lazy_delta_base = attr.ib(default=False)
+
+
+class _InnerRevlog:
+    """An inner layer of the revlog object
+
+    That layer exist to be able to delegate some operation to Rust, its
+    boundaries are arbitrary and based on what we can delegate to Rust.
+    """
+
+    def __init__(
+        self,
+        opener,
+        index,
+        index_file,
+        data_file,
+        sidedata_file,
+        inline,
+        data_config,
+        delta_config,
+        feature_config,
+        chunk_cache,
+        default_compression_header,
+    ):
+        self.opener = opener
+        self.index = index
+
+        self.__index_file = index_file
+        self.data_file = data_file
+        self.sidedata_file = sidedata_file
+        self.inline = inline
+        self.data_config = data_config
+        self.delta_config = delta_config
+        self.feature_config = feature_config
+
+        # used during diverted write.
+        self._orig_index_file = None
+
+        self._default_compression_header = default_compression_header
+
+        # index
+
+        # 3-tuple of file handles being used for active writing.
+        self._writinghandles = None
+
+        self._segmentfile = randomaccessfile.randomaccessfile(
+            self.opener,
+            (self.index_file if self.inline else self.data_file),
+            self.data_config.chunk_cache_size,
+            chunk_cache,
+        )
+        self._segmentfile_sidedata = randomaccessfile.randomaccessfile(
+            self.opener,
+            self.sidedata_file,
+            self.data_config.chunk_cache_size,
+        )
+
+        # revlog header -> revlog compressor
+        self._decompressors = {}
+        # 3-tuple of (node, rev, text) for a raw revision.
+        self._revisioncache = None
+
+        # cache some uncompressed chunks
+        # rev → uncompressed_chunk
+        #
+        # the max cost is dynamically updated to be proportionnal to the
+        # size of revision we actually encounter.
+        self._uncompressed_chunk_cache = None
+        if self.data_config.uncompressed_cache_factor is not None:
+            self._uncompressed_chunk_cache = util.lrucachedict(
+                self.data_config.uncompressed_cache_count,
+                maxcost=65536,  # some arbitrary initial value
+            )
+
+        self._delay_buffer = None
+
+    @property
+    def index_file(self):
+        return self.__index_file
+
+    @index_file.setter
+    def index_file(self, new_index_file):
+        self.__index_file = new_index_file
+        if self.inline:
+            self._segmentfile.filename = new_index_file
+
+    def __len__(self):
+        return len(self.index)
+
+    def clear_cache(self):
+        assert not self.is_delaying
+        self._revisioncache = None
+        if self._uncompressed_chunk_cache is not None:
+            self._uncompressed_chunk_cache.clear()
+        self._segmentfile.clear_cache()
+        self._segmentfile_sidedata.clear_cache()
+
+    @property
+    def canonical_index_file(self):
+        if self._orig_index_file is not None:
+            return self._orig_index_file
+        return self.index_file
+
+    @property
+    def is_delaying(self):
+        """is the revlog is currently delaying the visibility of written data?
+
+        The delaying mechanism can be either in-memory or written on disk in a
+        side-file."""
+        return (self._delay_buffer is not None) or (
+            self._orig_index_file is not None
+        )
+
+    # Derived from index values.
+
+    def start(self, rev):
+        """the offset of the data chunk for this revision"""
+        return int(self.index[rev][0] >> 16)
+
+    def length(self, rev):
+        """the length of the data chunk for this revision"""
+        return self.index[rev][1]
+
+    def end(self, rev):
+        """the end of the data chunk for this revision"""
+        return self.start(rev) + self.length(rev)
+
+    def deltaparent(self, rev):
+        """return deltaparent of the given revision"""
+        base = self.index[rev][3]
+        if base == rev:
+            return nullrev
+        elif self.delta_config.general_delta:
+            return base
+        else:
+            return rev - 1
+
+    def issnapshot(self, rev):
+        """tells whether rev is a snapshot"""
+        if not self.delta_config.sparse_revlog:
+            return self.deltaparent(rev) == nullrev
+        elif hasattr(self.index, 'issnapshot'):
+            # directly assign the method to cache the testing and access
+            self.issnapshot = self.index.issnapshot
+            return self.issnapshot(rev)
+        if rev == nullrev:
+            return True
+        entry = self.index[rev]
+        base = entry[3]
+        if base == rev:
+            return True
+        if base == nullrev:
+            return True
+        p1 = entry[5]
+        while self.length(p1) == 0:
+            b = self.deltaparent(p1)
+            if b == p1:
+                break
+            p1 = b
+        p2 = entry[6]
+        while self.length(p2) == 0:
+            b = self.deltaparent(p2)
+            if b == p2:
+                break
+            p2 = b
+        if base == p1 or base == p2:
+            return False
+        return self.issnapshot(base)
+
+    def _deltachain(self, rev, stoprev=None):
+        """Obtain the delta chain for a revision.
+
+        ``stoprev`` specifies a revision to stop at. If not specified, we
+        stop at the base of the chain.
+
+        Returns a 2-tuple of (chain, stopped) where ``chain`` is a list of
+        revs in ascending order and ``stopped`` is a bool indicating whether
+        ``stoprev`` was hit.
+        """
+        generaldelta = self.delta_config.general_delta
+        # Try C implementation.
+        try:
+            return self.index.deltachain(rev, stoprev, generaldelta)
+        except AttributeError:
+            pass
+
+        chain = []
+
+        # Alias to prevent attribute lookup in tight loop.
+        index = self.index
+
+        iterrev = rev
+        e = index[iterrev]
+        while iterrev != e[3] and iterrev != stoprev:
+            chain.append(iterrev)
+            if generaldelta:
+                iterrev = e[3]
+            else:
+                iterrev -= 1
+            e = index[iterrev]
+
+        if iterrev == stoprev:
+            stopped = True
+        else:
+            chain.append(iterrev)
+            stopped = False
+
+        chain.reverse()
+        return chain, stopped
+
+    @util.propertycache
+    def _compressor(self):
+        engine = util.compengines[self.feature_config.compression_engine]
+        return engine.revlogcompressor(
+            self.feature_config.compression_engine_options
+        )
+
+    @util.propertycache
+    def _decompressor(self):
+        """the default decompressor"""
+        if self._default_compression_header is None:
+            return None
+        t = self._default_compression_header
+        c = self._get_decompressor(t)
+        return c.decompress
+
+    def _get_decompressor(self, t):
+        try:
+            compressor = self._decompressors[t]
+        except KeyError:
+            try:
+                engine = util.compengines.forrevlogheader(t)
+                compressor = engine.revlogcompressor(
+                    self.feature_config.compression_engine_options
+                )
+                self._decompressors[t] = compressor
+            except KeyError:
+                raise error.RevlogError(
+                    _(b'unknown compression type %s') % binascii.hexlify(t)
+                )
+        return compressor
+
+    def compress(self, data):
+        """Generate a possibly-compressed representation of data."""
+        if not data:
+            return b'', data
+
+        compressed = self._compressor.compress(data)
+
+        if compressed:
+            # The revlog compressor added the header in the returned data.
+            return b'', compressed
+
+        if data[0:1] == b'\0':
+            return b'', data
+        return b'u', data
+
+    def decompress(self, data):
+        """Decompress a revlog chunk.
+
+        The chunk is expected to begin with a header identifying the
+        format type so it can be routed to an appropriate decompressor.
+        """
+        if not data:
+            return data
+
+        # Revlogs are read much more frequently than they are written and many
+        # chunks only take microseconds to decompress, so performance is
+        # important here.
+        #
+        # We can make a few assumptions about revlogs:
+        #
+        # 1) the majority of chunks will be compressed (as opposed to inline
+        #    raw data).
+        # 2) decompressing *any* data will likely by at least 10x slower than
+        #    returning raw inline data.
+        # 3) we want to prioritize common and officially supported compression
+        #    engines
+        #
+        # It follows that we want to optimize for "decompress compressed data
+        # when encoded with common and officially supported compression engines"
+        # case over "raw data" and "data encoded by less common or non-official
+        # compression engines." That is why we have the inline lookup first
+        # followed by the compengines lookup.
+        #
+        # According to `hg perfrevlogchunks`, this is ~0.5% faster for zlib
+        # compressed chunks. And this matters for changelog and manifest reads.
+        t = data[0:1]
+
+        if t == b'x':
+            try:
+                return _zlibdecompress(data)
+            except zlib.error as e:
+                raise error.RevlogError(
+                    _(b'revlog decompress error: %s')
+                    % stringutil.forcebytestr(e)
+                )
+        # '\0' is more common than 'u' so it goes first.
+        elif t == b'\0':
+            return data
+        elif t == b'u':
+            return util.buffer(data, 1)
+
+        compressor = self._get_decompressor(t)
+
+        return compressor.decompress(data)
+
+    @contextlib.contextmanager
+    def reading(self):
+        """Context manager that keeps data and sidedata files open for reading"""
+        if len(self.index) == 0:
+            yield  # nothing to be read
+        else:
+            with self._segmentfile.reading():
+                with self._segmentfile_sidedata.reading():
+                    yield
+
+    @property
+    def is_writing(self):
+        """True is a writing context is open"""
+        return self._writinghandles is not None
+
+    @property
+    def is_open(self):
+        """True if any file handle is being held
+
+        Used for assert and debug in the python code"""
+        return self._segmentfile.is_open or self._segmentfile_sidedata.is_open
+
+    @contextlib.contextmanager
+    def writing(self, transaction, data_end=None, sidedata_end=None):
+        """Open the revlog files for writing
+
+        Add content to a revlog should be done within such context.
+        """
+        if self.is_writing:
+            yield
+        else:
+            ifh = dfh = sdfh = None
+            try:
+                r = len(self.index)
+                # opening the data file.
+                dsize = 0
+                if r:
+                    dsize = self.end(r - 1)
+                dfh = None
+                if not self.inline:
+                    try:
+                        dfh = self.opener(self.data_file, mode=b"r+")
+                        if data_end is None:
+                            dfh.seek(0, os.SEEK_END)
+                        else:
+                            dfh.seek(data_end, os.SEEK_SET)
+                    except FileNotFoundError:
+                        dfh = self.opener(self.data_file, mode=b"w+")
+                    transaction.add(self.data_file, dsize)
+                if self.sidedata_file is not None:
+                    assert sidedata_end is not None
+                    # revlog-v2 does not inline, help Pytype
+                    assert dfh is not None
+                    try:
+                        sdfh = self.opener(self.sidedata_file, mode=b"r+")
+                        dfh.seek(sidedata_end, os.SEEK_SET)
+                    except FileNotFoundError:
+                        sdfh = self.opener(self.sidedata_file, mode=b"w+")
+                    transaction.add(self.sidedata_file, sidedata_end)
+
+                # opening the index file.
+                isize = r * self.index.entry_size
+                ifh = self.__index_write_fp()
+                if self.inline:
+                    transaction.add(self.index_file, dsize + isize)
+                else:
+                    transaction.add(self.index_file, isize)
+                # exposing all file handle for writing.
+                self._writinghandles = (ifh, dfh, sdfh)
+                self._segmentfile.writing_handle = ifh if self.inline else dfh
+                self._segmentfile_sidedata.writing_handle = sdfh
+                yield
+            finally:
+                self._writinghandles = None
+                self._segmentfile.writing_handle = None
+                self._segmentfile_sidedata.writing_handle = None
+                if dfh is not None:
+                    dfh.close()
+                if sdfh is not None:
+                    sdfh.close()
+                # closing the index file last to avoid exposing referent to
+                # potential unflushed data content.
+                if ifh is not None:
+                    ifh.close()
+
+    def __index_write_fp(self, index_end=None):
+        """internal method to open the index file for writing
+
+        You should not use this directly and use `_writing` instead
+        """
+        try:
+            if self._delay_buffer is None:
+                f = self.opener(
+                    self.index_file,
+                    mode=b"r+",
+                    checkambig=self.data_config.check_ambig,
+                )
+            else:
+                # check_ambig affect we way we open file for writing, however
+                # here, we do not actually open a file for writting as write
+                # will appened to a delay_buffer. So check_ambig is not
+                # meaningful and unneeded here.
+                f = randomaccessfile.appender(
+                    self.opener, self.index_file, b"r+", self._delay_buffer
+                )
+            if index_end is None:
+                f.seek(0, os.SEEK_END)
+            else:
+                f.seek(index_end, os.SEEK_SET)
+            return f
+        except FileNotFoundError:
+            if self._delay_buffer is None:
+                return self.opener(
+                    self.index_file,
+                    mode=b"w+",
+                    checkambig=self.data_config.check_ambig,
+                )
+            else:
+                return randomaccessfile.appender(
+                    self.opener, self.index_file, b"w+", self._delay_buffer
+                )
+
+    def __index_new_fp(self):
+        """internal method to create a new index file for writing
+
+        You should not use this unless you are upgrading from inline revlog
+        """
+        return self.opener(
+            self.index_file,
+            mode=b"w",
+            checkambig=self.data_config.check_ambig,
+            atomictemp=True,
+        )
+
+    def split_inline(self, tr, header, new_index_file_path=None):
+        """split the data of an inline revlog into an index and a data file"""
+        existing_handles = False
+        if self._writinghandles is not None:
+            existing_handles = True
+            fp = self._writinghandles[0]
+            fp.flush()
+            fp.close()
+            # We can't use the cached file handle after close(). So prevent
+            # its usage.
+            self._writinghandles = None
+            self._segmentfile.writing_handle = None
+            # No need to deal with sidedata writing handle as it is only
+            # relevant with revlog-v2 which is never inline, not reaching
+            # this code
+
+        new_dfh = self.opener(self.data_file, mode=b"w+")
+        new_dfh.truncate(0)  # drop any potentially existing data
+        try:
+            with self.reading():
+                for r in range(len(self.index)):
+                    new_dfh.write(self.get_segment_for_revs(r, r)[1])
+                new_dfh.flush()
+
+            if new_index_file_path is not None:
+                self.index_file = new_index_file_path
+            with self.__index_new_fp() as fp:
+                self.inline = False
+                for i in range(len(self.index)):
+                    e = self.index.entry_binary(i)
+                    if i == 0:
+                        packed_header = self.index.pack_header(header)
+                        e = packed_header + e
+                    fp.write(e)
+
+                # If we don't use side-write, the temp file replace the real
+                # index when we exit the context manager
+
+            self._segmentfile = randomaccessfile.randomaccessfile(
+                self.opener,
+                self.data_file,
+                self.data_config.chunk_cache_size,
+            )
+
+            if existing_handles:
+                # switched from inline to conventional reopen the index
+                ifh = self.__index_write_fp()
+                self._writinghandles = (ifh, new_dfh, None)
+                self._segmentfile.writing_handle = new_dfh
+                new_dfh = None
+                # No need to deal with sidedata writing handle as it is only
+                # relevant with revlog-v2 which is never inline, not reaching
+                # this code
+        finally:
+            if new_dfh is not None:
+                new_dfh.close()
+        return self.index_file
+
+    def get_segment_for_revs(self, startrev, endrev):
+        """Obtain a segment of raw data corresponding to a range of revisions.
+
+        Accepts the start and end revisions and an optional already-open
+        file handle to be used for reading. If the file handle is read, its
+        seek position will not be preserved.
+
+        Requests for data may be satisfied by a cache.
+
+        Returns a 2-tuple of (offset, data) for the requested range of
+        revisions. Offset is the integer offset from the beginning of the
+        revlog and data is a str or buffer of the raw byte data.
+
+        Callers will need to call ``self.start(rev)`` and ``self.length(rev)``
+        to determine where each revision's data begins and ends.
+
+        API: we should consider making this a private part of the InnerRevlog
+        at some point.
+        """
+        # Inlined self.start(startrev) & self.end(endrev) for perf reasons
+        # (functions are expensive).
+        index = self.index
+        istart = index[startrev]
+        start = int(istart[0] >> 16)
+        if startrev == endrev:
+            end = start + istart[1]
+        else:
+            iend = index[endrev]
+            end = int(iend[0] >> 16) + iend[1]
+
+        if self.inline:
+            start += (startrev + 1) * self.index.entry_size
+            end += (endrev + 1) * self.index.entry_size
+        length = end - start
+
+        return start, self._segmentfile.read_chunk(start, length)
+
+    def _chunk(self, rev):
+        """Obtain a single decompressed chunk for a revision.
+
+        Accepts an integer revision and an optional already-open file handle
+        to be used for reading. If used, the seek position of the file will not
+        be preserved.
+
+        Returns a str holding uncompressed data for the requested revision.
+        """
+        if self._uncompressed_chunk_cache is not None:
+            uncomp = self._uncompressed_chunk_cache.get(rev)
+            if uncomp is not None:
+                return uncomp
+
+        compression_mode = self.index[rev][10]
+        data = self.get_segment_for_revs(rev, rev)[1]
+        if compression_mode == COMP_MODE_PLAIN:
+            uncomp = data
+        elif compression_mode == COMP_MODE_DEFAULT:
+            uncomp = self._decompressor(data)
+        elif compression_mode == COMP_MODE_INLINE:
+            uncomp = self.decompress(data)
+        else:
+            msg = b'unknown compression mode %d'
+            msg %= compression_mode
+            raise error.RevlogError(msg)
+        if self._uncompressed_chunk_cache is not None:
+            self._uncompressed_chunk_cache.insert(rev, uncomp, cost=len(uncomp))
+        return uncomp
+
+    def _chunks(self, revs, targetsize=None):
+        """Obtain decompressed chunks for the specified revisions.
+
+        Accepts an iterable of numeric revisions that are assumed to be in
+        ascending order. Also accepts an optional already-open file handle
+        to be used for reading. If used, the seek position of the file will
+        not be preserved.
+
+        This function is similar to calling ``self._chunk()`` multiple times,
+        but is faster.
+
+        Returns a list with decompressed data for each requested revision.
+        """
+        if not revs:
+            return []
+        start = self.start
+        length = self.length
+        inline = self.inline
+        iosize = self.index.entry_size
+        buffer = util.buffer
+
+        fetched_revs = []
+        fadd = fetched_revs.append
+
+        chunks = []
+        ladd = chunks.append
+
+        if self._uncompressed_chunk_cache is None:
+            fetched_revs = revs
+        else:
+            for rev in revs:
+                cached_value = self._uncompressed_chunk_cache.get(rev)
+                if cached_value is None:
+                    fadd(rev)
+                else:
+                    ladd((rev, cached_value))
+
+        if not fetched_revs:
+            slicedchunks = ()
+        elif not self.data_config.with_sparse_read:
+            slicedchunks = (fetched_revs,)
+        else:
+            slicedchunks = deltautil.slicechunk(
+                self,
+                fetched_revs,
+                targetsize=targetsize,
+            )
+
+        for revschunk in slicedchunks:
+            firstrev = revschunk[0]
+            # Skip trailing revisions with empty diff
+            for lastrev in revschunk[::-1]:
+                if length(lastrev) != 0:
+                    break
+
+            try:
+                offset, data = self.get_segment_for_revs(firstrev, lastrev)
+            except OverflowError:
+                # issue4215 - we can't cache a run of chunks greater than
+                # 2G on Windows
+                for rev in revschunk:
+                    ladd((rev, self._chunk(rev)))
+
+            decomp = self.decompress
+            # self._decompressor might be None, but will not be used in that case
+            def_decomp = self._decompressor
+            for rev in revschunk:
+                chunkstart = start(rev)
+                if inline:
+                    chunkstart += (rev + 1) * iosize
+                chunklength = length(rev)
+                comp_mode = self.index[rev][10]
+                c = buffer(data, chunkstart - offset, chunklength)
+                if comp_mode == COMP_MODE_PLAIN:
+                    c = c
+                elif comp_mode == COMP_MODE_INLINE:
+                    c = decomp(c)
+                elif comp_mode == COMP_MODE_DEFAULT:
+                    c = def_decomp(c)
+                else:
+                    msg = b'unknown compression mode %d'
+                    msg %= comp_mode
+                    raise error.RevlogError(msg)
+                ladd((rev, c))
+                if self._uncompressed_chunk_cache is not None:
+                    self._uncompressed_chunk_cache.insert(rev, c, len(c))
+
+        chunks.sort()
+        return [x[1] for x in chunks]
+
+    def raw_text(self, node, rev):
+        """return the possibly unvalidated rawtext for a revision
+
+        returns (rev, rawtext, validated)
+        """
+
+        # revision in the cache (could be useful to apply delta)
+        cachedrev = None
+        # An intermediate text to apply deltas to
+        basetext = None
+
+        # Check if we have the entry in cache
+        # The cache entry looks like (node, rev, rawtext)
+        if self._revisioncache:
+            cachedrev = self._revisioncache[1]
+
+        chain, stopped = self._deltachain(rev, stoprev=cachedrev)
+        if stopped:
+            basetext = self._revisioncache[2]
+
+        # drop cache to save memory, the caller is expected to
+        # update self._inner._revisioncache after validating the text
+        self._revisioncache = None
+
+        targetsize = None
+        rawsize = self.index[rev][2]
+        if 0 <= rawsize:
+            targetsize = 4 * rawsize
+
+        if self._uncompressed_chunk_cache is not None:
+            # dynamically update the uncompressed_chunk_cache size to the
+            # largest revision we saw in this revlog.
+            factor = self.data_config.uncompressed_cache_factor
+            candidate_size = rawsize * factor
+            if candidate_size > self._uncompressed_chunk_cache.maxcost:
+                self._uncompressed_chunk_cache.maxcost = candidate_size
+
+        bins = self._chunks(chain, targetsize=targetsize)
+        if basetext is None:
+            basetext = bytes(bins[0])
+            bins = bins[1:]
+
+        rawtext = mdiff.patches(basetext, bins)
+        del basetext  # let us have a chance to free memory early
+        return (rev, rawtext, False)
+
+    def sidedata(self, rev, sidedata_end):
+        """Return the sidedata for a given revision number."""
+        index_entry = self.index[rev]
+        sidedata_offset = index_entry[8]
+        sidedata_size = index_entry[9]
+
+        if self.inline:
+            sidedata_offset += self.index.entry_size * (1 + rev)
+        if sidedata_size == 0:
+            return {}
+
+        if sidedata_end < sidedata_offset + sidedata_size:
+            filename = self.sidedata_file
+            end = sidedata_end
+            offset = sidedata_offset
+            length = sidedata_size
+            m = FILE_TOO_SHORT_MSG % (filename, length, offset, end)
+            raise error.RevlogError(m)
+
+        comp_segment = self._segmentfile_sidedata.read_chunk(
+            sidedata_offset, sidedata_size
+        )
+
+        comp = self.index[rev][11]
+        if comp == COMP_MODE_PLAIN:
+            segment = comp_segment
+        elif comp == COMP_MODE_DEFAULT:
+            segment = self._decompressor(comp_segment)
+        elif comp == COMP_MODE_INLINE:
+            segment = self.decompress(comp_segment)
+        else:
+            msg = b'unknown compression mode %d'
+            msg %= comp
+            raise error.RevlogError(msg)
+
+        sidedata = sidedatautil.deserialize_sidedata(segment)
+        return sidedata
+
+    def write_entry(
+        self,
+        transaction,
+        entry,
+        data,
+        link,
+        offset,
+        sidedata,
+        sidedata_offset,
+        index_end,
+        data_end,
+        sidedata_end,
+    ):
+        # Files opened in a+ mode have inconsistent behavior on various
+        # platforms. Windows requires that a file positioning call be made
+        # when the file handle transitions between reads and writes. See
+        # 3686fa2b8eee and the mixedfilemodewrapper in windows.py. On other
+        # platforms, Python or the platform itself can be buggy. Some versions
+        # of Solaris have been observed to not append at the end of the file
+        # if the file was seeked to before the end. See issue4943 for more.
+        #
+        # We work around this issue by inserting a seek() before writing.
+        # Note: This is likely not necessary on Python 3. However, because
+        # the file handle is reused for reads and may be seeked there, we need
+        # to be careful before changing this.
+        if self._writinghandles is None:
+            msg = b'adding revision outside `revlog._writing` context'
+            raise error.ProgrammingError(msg)
+        ifh, dfh, sdfh = self._writinghandles
+        if index_end is None:
+            ifh.seek(0, os.SEEK_END)
+        else:
+            ifh.seek(index_end, os.SEEK_SET)
+        if dfh:
+            if data_end is None:
+                dfh.seek(0, os.SEEK_END)
+            else:
+                dfh.seek(data_end, os.SEEK_SET)
+        if sdfh:
+            sdfh.seek(sidedata_end, os.SEEK_SET)
+
+        curr = len(self.index) - 1
+        if not self.inline:
+            transaction.add(self.data_file, offset)
+            if self.sidedata_file:
+                transaction.add(self.sidedata_file, sidedata_offset)
+            transaction.add(self.canonical_index_file, curr * len(entry))
+            if data[0]:
+                dfh.write(data[0])
+            dfh.write(data[1])
+            if sidedata:
+                sdfh.write(sidedata)
+            if self._delay_buffer is None:
+                ifh.write(entry)
+            else:
+                self._delay_buffer.append(entry)
+        else:
+            offset += curr * self.index.entry_size
+            transaction.add(self.canonical_index_file, offset)
+            assert not sidedata
+            if self._delay_buffer is None:
+                ifh.write(entry)
+                ifh.write(data[0])
+                ifh.write(data[1])
+            else:
+                self._delay_buffer.append(entry)
+                self._delay_buffer.append(data[0])
+                self._delay_buffer.append(data[1])
+        return (
+            ifh.tell(),
+            dfh.tell() if dfh else None,
+            sdfh.tell() if sdfh else None,
+        )
+
+    def _divert_index(self):
+        return self.index_file + b'.a'
+
+    def delay(self):
+        assert not self.is_open
+        if self._delay_buffer is not None or self._orig_index_file is not None:
+            # delay or divert already in place
+            return None
+        elif len(self.index) == 0:
+            self._orig_index_file = self.index_file
+            self.index_file = self._divert_index()
+            self._segmentfile.filename = self.index_file
+            assert self._orig_index_file is not None
+            assert self.index_file is not None
+            if self.opener.exists(self.index_file):
+                self.opener.unlink(self.index_file)
+            return self.index_file
+        else:
+            self._segmentfile._delay_buffer = self._delay_buffer = []
+            return None
+
+    def write_pending(self):
+        assert not self.is_open
+        if self._orig_index_file is not None:
+            return None, True
+        any_pending = False
+        pending_index_file = self._divert_index()
+        if self.opener.exists(pending_index_file):
+            self.opener.unlink(pending_index_file)
+        util.copyfile(
+            self.opener.join(self.index_file),
+            self.opener.join(pending_index_file),
+        )
+        if self._delay_buffer:
+            with self.opener(pending_index_file, b'r+') as ifh:
+                ifh.seek(0, os.SEEK_END)
+                ifh.write(b"".join(self._delay_buffer))
+            any_pending = True
+        self._segmentfile._delay_buffer = self._delay_buffer = None
+        self._orig_index_file = self.index_file
+        self.index_file = pending_index_file
+        self._segmentfile.filename = self.index_file
+        return self.index_file, any_pending
+
+    def finalize_pending(self):
+        assert not self.is_open
+
+        delay = self._delay_buffer is not None
+        divert = self._orig_index_file is not None
+
+        if delay and divert:
+            assert False, "unreachable"
+        elif delay:
+            if self._delay_buffer:
+                with self.opener(self.index_file, b'r+') as ifh:
+                    ifh.seek(0, os.SEEK_END)
+                    ifh.write(b"".join(self._delay_buffer))
+            self._segmentfile._delay_buffer = self._delay_buffer = None
+        elif divert:
+            if self.opener.exists(self.index_file):
+                self.opener.rename(
+                    self.index_file,
+                    self._orig_index_file,
+                    checkambig=True,
+                )
+            self.index_file = self._orig_index_file
+            self._orig_index_file = None
+            self._segmentfile.filename = self.index_file
+        else:
+            msg = b"not delay or divert found on this revlog"
+            raise error.ProgrammingError(msg)
+        return self.canonical_index_file
 
 
 class revlog:
@@ -292,6 +1278,7 @@ class revlog:
 
     @staticmethod
     def is_inline_index(header_bytes):
+        """Determine if a revlog is inline from the initial bytes of the index"""
         if len(header_bytes) == 0:
             return True
 
@@ -332,7 +1319,6 @@ class revlog:
         that test, debug, or performance measurement code might not set this to
         accurate value.
         """
-        self.upperboundcomp = upperboundcomp
 
         self.radix = radix
 
@@ -351,62 +1337,232 @@ class revlog:
         assert target[0] in ALL_KINDS
         assert len(target) == 2
         self.target = target
-        #  When True, indexfile is opened with checkambig=True at writing, to
-        #  avoid file stat ambiguity.
-        self._checkambig = checkambig
-        self._mmaplargeindex = mmaplargeindex
-        self._censorable = censorable
-        # 3-tuple of (node, rev, text) for a raw revision.
-        self._revisioncache = None
+        if b'feature-config' in self.opener.options:
+            self.feature_config = self.opener.options[b'feature-config'].copy()
+        else:
+            self.feature_config = FeatureConfig()
+        self.feature_config.censorable = censorable
+        self.feature_config.canonical_parent_order = canonical_parent_order
+        if b'data-config' in self.opener.options:
+            self.data_config = self.opener.options[b'data-config'].copy()
+        else:
+            self.data_config = DataConfig()
+        self.data_config.check_ambig = checkambig
+        self.data_config.mmap_large_index = mmaplargeindex
+        if b'delta-config' in self.opener.options:
+            self.delta_config = self.opener.options[b'delta-config'].copy()
+        else:
+            self.delta_config = DeltaConfig()
+        self.delta_config.upper_bound_comp = upperboundcomp
+
         # Maps rev to chain base rev.
         self._chainbasecache = util.lrucachedict(100)
-        # 2-tuple of (offset, data) of raw data from the revlog at an offset.
-        self._chunkcache = (0, b'')
-        # How much data to read and cache into the raw revlog data cache.
-        self._chunkcachesize = 65536
-        self._maxchainlen = None
-        self._deltabothparents = True
-        self._candidate_group_chunk_size = 0
-        self._debug_delta = False
+
         self.index = None
         self._docket = None
         self._nodemap_docket = None
         # Mapping of partial identifiers to full nodes.
         self._pcache = {}
-        # Mapping of revision integer to full node.
-        self._compengine = b'zlib'
-        self._compengineopts = {}
-        self._maxdeltachainspan = -1
-        self._withsparseread = False
-        self._sparserevlog = False
-        self.hassidedata = False
-        self._srdensitythreshold = 0.50
-        self._srmingapsize = 262144
 
         # other optionnals features
-
-        # might remove rank configuration once the computation has no impact
-        self._compute_rank = False
 
         # Make copy of flag processors so each revlog instance can support
         # custom flags.
         self._flagprocessors = dict(flagutil.flagprocessors)
-
-        # 3-tuple of file handles being used for active writing.
-        self._writinghandles = None
         # prevent nesting of addgroup
         self._adding_group = None
 
-        self._loadindex()
-
+        chunk_cache = self._loadindex()
+        self._load_inner(chunk_cache)
         self._concurrencychecker = concurrencychecker
 
-        # parent order is supposed to be semantically irrelevant, so we
-        # normally resort parents to ensure that the first parent is non-null,
-        # if there is a non-null parent at all.
-        # filelog abuses the parent order as flag to mark some instances of
-        # meta-encoded files, so allow it to disable this behavior.
-        self.canonical_parent_order = canonical_parent_order
+    @property
+    def _generaldelta(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.delta_config.general_delta", b"6.6", stacklevel=2
+        )
+        return self.delta_config.general_delta
+
+    @property
+    def _checkambig(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.data_config.checkambig", b"6.6", stacklevel=2
+        )
+        return self.data_config.check_ambig
+
+    @property
+    def _mmaplargeindex(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.data_config.mmap_large_index", b"6.6", stacklevel=2
+        )
+        return self.data_config.mmap_large_index
+
+    @property
+    def _censorable(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.feature_config.censorable", b"6.6", stacklevel=2
+        )
+        return self.feature_config.censorable
+
+    @property
+    def _chunkcachesize(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.data_config.chunk_cache_size", b"6.6", stacklevel=2
+        )
+        return self.data_config.chunk_cache_size
+
+    @property
+    def _maxchainlen(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.delta_config.max_chain_len", b"6.6", stacklevel=2
+        )
+        return self.delta_config.max_chain_len
+
+    @property
+    def _deltabothparents(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.delta_config.delta_both_parents", b"6.6", stacklevel=2
+        )
+        return self.delta_config.delta_both_parents
+
+    @property
+    def _candidate_group_chunk_size(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.delta_config.candidate_group_chunk_size",
+            b"6.6",
+            stacklevel=2,
+        )
+        return self.delta_config.candidate_group_chunk_size
+
+    @property
+    def _debug_delta(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.delta_config.debug_delta", b"6.6", stacklevel=2
+        )
+        return self.delta_config.debug_delta
+
+    @property
+    def _compengine(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.feature_config.compression_engine",
+            b"6.6",
+            stacklevel=2,
+        )
+        return self.feature_config.compression_engine
+
+    @property
+    def upperboundcomp(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.delta_config.upper_bound_comp",
+            b"6.6",
+            stacklevel=2,
+        )
+        return self.delta_config.upper_bound_comp
+
+    @property
+    def _compengineopts(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.feature_config.compression_engine_options",
+            b"6.6",
+            stacklevel=2,
+        )
+        return self.feature_config.compression_engine_options
+
+    @property
+    def _maxdeltachainspan(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.delta_config.max_deltachain_span", b"6.6", stacklevel=2
+        )
+        return self.delta_config.max_deltachain_span
+
+    @property
+    def _withsparseread(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.data_config.with_sparse_read", b"6.6", stacklevel=2
+        )
+        return self.data_config.with_sparse_read
+
+    @property
+    def _sparserevlog(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.delta_config.sparse_revlog", b"6.6", stacklevel=2
+        )
+        return self.delta_config.sparse_revlog
+
+    @property
+    def hassidedata(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.feature_config.has_side_data", b"6.6", stacklevel=2
+        )
+        return self.feature_config.has_side_data
+
+    @property
+    def _srdensitythreshold(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.data_config.sr_density_threshold",
+            b"6.6",
+            stacklevel=2,
+        )
+        return self.data_config.sr_density_threshold
+
+    @property
+    def _srmingapsize(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.data_config.sr_min_gap_size", b"6.6", stacklevel=2
+        )
+        return self.data_config.sr_min_gap_size
+
+    @property
+    def _compute_rank(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.feature_config.compute_rank", b"6.6", stacklevel=2
+        )
+        return self.feature_config.compute_rank
+
+    @property
+    def canonical_parent_order(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.feature_config.canonical_parent_order",
+            b"6.6",
+            stacklevel=2,
+        )
+        return self.feature_config.canonical_parent_order
+
+    @property
+    def _lazydelta(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.delta_config.lazy_delta", b"6.6", stacklevel=2
+        )
+        return self.delta_config.lazy_delta
+
+    @property
+    def _lazydeltabase(self):
+        """temporary compatibility proxy"""
+        util.nouideprecwarn(
+            b"use revlog.delta_config.lazy_delta_base", b"6.6", stacklevel=2
+        )
+        return self.delta_config.lazy_delta_base
 
     def _init_opts(self):
         """process options (from above/config) to setup associated default revlog mode
@@ -424,12 +1580,12 @@ class revlog:
         * force_nodemap:
             force the usage of a "development" version of the nodemap code
         """
-        mmapindexthreshold = None
         opts = self.opener.options
 
         if b'changelogv2' in opts and self.revlog_kind == KIND_CHANGELOG:
             new_header = CHANGELOGV2
-            self._compute_rank = opts.get(b'changelogv2.compute-rank', True)
+            compute_rank = opts.get(b'changelogv2.compute-rank', True)
+            self.feature_config.compute_rank = compute_rank
         elif b'revlogv2' in opts:
             new_header = REVLOGV2
         elif b'revlogv1' in opts:
@@ -441,55 +1597,26 @@ class revlog:
         else:
             new_header = REVLOG_DEFAULT_VERSION
 
-        if b'chunkcachesize' in opts:
-            self._chunkcachesize = opts[b'chunkcachesize']
-        if b'maxchainlen' in opts:
-            self._maxchainlen = opts[b'maxchainlen']
-        if b'deltabothparents' in opts:
-            self._deltabothparents = opts[b'deltabothparents']
-        dps_cgds = opts.get(b'delta-parent-search.candidate-group-chunk-size')
-        if dps_cgds:
-            self._candidate_group_chunk_size = dps_cgds
-        self._lazydelta = bool(opts.get(b'lazydelta', True))
-        self._lazydeltabase = False
-        if self._lazydelta:
-            self._lazydeltabase = bool(opts.get(b'lazydeltabase', False))
-        if b'debug-delta' in opts:
-            self._debug_delta = opts[b'debug-delta']
-        if b'compengine' in opts:
-            self._compengine = opts[b'compengine']
-        if b'zlib.level' in opts:
-            self._compengineopts[b'zlib.level'] = opts[b'zlib.level']
-        if b'zstd.level' in opts:
-            self._compengineopts[b'zstd.level'] = opts[b'zstd.level']
-        if b'maxdeltachainspan' in opts:
-            self._maxdeltachainspan = opts[b'maxdeltachainspan']
-        if self._mmaplargeindex and b'mmapindexthreshold' in opts:
-            mmapindexthreshold = opts[b'mmapindexthreshold']
-        self._sparserevlog = bool(opts.get(b'sparse-revlog', False))
-        withsparseread = bool(opts.get(b'with-sparse-read', False))
-        # sparse-revlog forces sparse-read
-        self._withsparseread = self._sparserevlog or withsparseread
-        if b'sparse-read-density-threshold' in opts:
-            self._srdensitythreshold = opts[b'sparse-read-density-threshold']
-        if b'sparse-read-min-gap-size' in opts:
-            self._srmingapsize = opts[b'sparse-read-min-gap-size']
-        if opts.get(b'enableellipsis'):
+        mmapindexthreshold = None
+        if self.data_config.mmap_large_index:
+            mmapindexthreshold = self.data_config.mmap_index_threshold
+        if self.feature_config.enable_ellipsis:
             self._flagprocessors[REVIDX_ELLIPSIS] = ellipsisprocessor
 
         # revlog v0 doesn't have flag processors
         for flag, processor in opts.get(b'flagprocessors', {}).items():
             flagutil.insertflagprocessor(flag, processor, self._flagprocessors)
 
-        if self._chunkcachesize <= 0:
+        chunk_cache_size = self.data_config.chunk_cache_size
+        if chunk_cache_size <= 0:
             raise error.RevlogError(
                 _(b'revlog chunk cache size %r is not greater than 0')
-                % self._chunkcachesize
+                % chunk_cache_size
             )
-        elif self._chunkcachesize & (self._chunkcachesize - 1):
+        elif chunk_cache_size & (chunk_cache_size - 1):
             raise error.RevlogError(
                 _(b'revlog chunk cache size %r is not a power of 2')
-                % self._chunkcachesize
+                % chunk_cache_size
             )
         force_nodemap = opts.get(b'devel-force-nodemap', False)
         return new_header, mmapindexthreshold, force_nodemap
@@ -520,6 +1647,22 @@ class revlog:
             return b''
 
     def get_streams(self, max_linkrev, force_inline=False):
+        """return a list of streams that represent this revlog
+
+        This is used by stream-clone to do bytes to bytes copies of a repository.
+
+        This streams data for all revisions that refer to a changelog revision up
+        to `max_linkrev`.
+
+        If `force_inline` is set, it enforces that the stream will represent an inline revlog.
+
+        It returns is a list of three-tuple:
+
+            [
+                (filename, bytes_stream, stream_size),
+                …
+            ]
+        """
         n = len(self)
         index = self.index
         while n > 0:
@@ -547,7 +1690,7 @@ class revlog:
         if self._inline:
 
             def get_stream():
-                with self._indexfp() as fp:
+                with self.opener(self._indexfile, mode=b"r") as fp:
                     yield None
                     size = index_size + data_size
                     if size <= 65536:
@@ -563,7 +1706,7 @@ class revlog:
         elif force_inline:
 
             def get_stream():
-                with self._datafp() as fp_d:
+                with self.reading():
                     yield None
 
                     for rev in range(n):
@@ -576,7 +1719,7 @@ class revlog:
                             header = self.index.pack_header(header)
                             idx = header + idx
                         yield idx
-                        yield self._getsegmentforrevs(rev, rev, df=fp_d)[1]
+                        yield self._inner.get_segment_for_revs(rev, rev)[1]
 
             inline_stream = get_stream()
             next(inline_stream)
@@ -586,7 +1729,7 @@ class revlog:
         else:
 
             def get_index_stream():
-                with self._indexfp() as fp:
+                with self.opener(self._indexfile, mode=b"r") as fp:
                     yield None
                     if index_size <= 65536:
                         yield fp.read(index_size)
@@ -651,8 +1794,10 @@ class revlog:
 
             features = FEATURES_BY_VERSION[self._format_version]
             self._inline = features[b'inline'](self._format_flags)
-            self._generaldelta = features[b'generaldelta'](self._format_flags)
-            self.hassidedata = features[b'sidedata']
+            self.delta_config.general_delta = features[b'generaldelta'](
+                self._format_flags
+            )
+            self.feature_config.has_side_data = features[b'sidedata']
 
             if not features[b'docket']:
                 self._indexfile = entry_point
@@ -681,7 +1826,7 @@ class revlog:
 
             self._inline = False
             # generaldelta implied by version 2 revlogs.
-            self._generaldelta = True
+            self.delta_config.general_delta = True
             # the logic for persistent nodemap will be dealt with within the
             # main docket, so disable it for now.
             self._nodemap_file = None
@@ -698,8 +1843,8 @@ class revlog:
         self.nullid = self.nodeconstants.nullid
 
         # sparse-revlog can't be on without general-delta (issue6056)
-        if not self._generaldelta:
-            self._sparserevlog = False
+        if not self.delta_config.general_delta:
+            self.delta_config.sparse_revlog = False
 
         self._storedeltachains = True
 
@@ -733,7 +1878,7 @@ class revlog:
             use_nodemap = (
                 not self._inline
                 and self._nodemap_file is not None
-                and util.safehasattr(index, 'update_nodemap_data')
+                and hasattr(index, 'update_nodemap_data')
             )
             if use_nodemap:
                 nodemap_data = nodemaputil.persisted_data(self)
@@ -751,21 +1896,30 @@ class revlog:
                 _(b"index %s is corrupted") % self.display_id
             )
         self.index = index
-        self._segmentfile = randomaccessfile.randomaccessfile(
-            self.opener,
-            (self._indexfile if self._inline else self._datafile),
-            self._chunkcachesize,
-            chunkcache,
-        )
-        self._segmentfile_sidedata = randomaccessfile.randomaccessfile(
-            self.opener,
-            self._sidedatafile,
-            self._chunkcachesize,
-        )
         # revnum -> (chain-length, sum-delta-length)
         self._chaininfocache = util.lrucachedict(500)
-        # revlog header -> revlog compressor
-        self._decompressors = {}
+
+        return chunkcache
+
+    def _load_inner(self, chunk_cache):
+        if self._docket is None:
+            default_compression_header = None
+        else:
+            default_compression_header = self._docket.default_compression_header
+
+        self._inner = _InnerRevlog(
+            opener=self.opener,
+            index=self.index,
+            index_file=self._indexfile,
+            data_file=self._datafile,
+            sidedata_file=self._sidedatafile,
+            inline=self._inline,
+            data_config=self.data_config,
+            delta_config=self.delta_config,
+            feature_config=self.feature_config,
+            chunk_cache=chunk_cache,
+            default_compression_header=default_compression_header,
+        )
 
     def get_revlog(self):
         """simple function to mirror API of other not-really-revlog API"""
@@ -785,75 +1939,9 @@ class revlog:
         else:
             return self.radix
 
-    def _get_decompressor(self, t):
-        try:
-            compressor = self._decompressors[t]
-        except KeyError:
-            try:
-                engine = util.compengines.forrevlogheader(t)
-                compressor = engine.revlogcompressor(self._compengineopts)
-                self._decompressors[t] = compressor
-            except KeyError:
-                raise error.RevlogError(
-                    _(b'unknown compression type %s') % binascii.hexlify(t)
-                )
-        return compressor
-
-    @util.propertycache
-    def _compressor(self):
-        engine = util.compengines[self._compengine]
-        return engine.revlogcompressor(self._compengineopts)
-
-    @util.propertycache
-    def _decompressor(self):
-        """the default decompressor"""
-        if self._docket is None:
-            return None
-        t = self._docket.default_compression_header
-        c = self._get_decompressor(t)
-        return c.decompress
-
-    def _indexfp(self):
-        """file object for the revlog's index file"""
-        return self.opener(self._indexfile, mode=b"r")
-
-    def __index_write_fp(self):
-        # You should not use this directly and use `_writing` instead
-        try:
-            f = self.opener(
-                self._indexfile, mode=b"r+", checkambig=self._checkambig
-            )
-            if self._docket is None:
-                f.seek(0, os.SEEK_END)
-            else:
-                f.seek(self._docket.index_end, os.SEEK_SET)
-            return f
-        except FileNotFoundError:
-            return self.opener(
-                self._indexfile, mode=b"w+", checkambig=self._checkambig
-            )
-
-    def __index_new_fp(self):
-        # You should not use this unless you are upgrading from inline revlog
-        return self.opener(
-            self._indexfile,
-            mode=b"w",
-            checkambig=self._checkambig,
-            atomictemp=True,
-        )
-
     def _datafp(self, mode=b'r'):
         """file object for the revlog's data file"""
         return self.opener(self._datafile, mode=mode)
-
-    @contextlib.contextmanager
-    def _sidedatareadfp(self):
-        """file object suitable to read sidedata"""
-        if self._writinghandles:
-            yield self._writinghandles[2]
-        else:
-            with self.opener(self._sidedatafile) as fp:
-                yield fp
 
     def tiprev(self):
         return len(self.index) - 1
@@ -881,7 +1969,7 @@ class revlog:
         except KeyError:
             return False
 
-    def candelta(self, baserev, rev):
+    def _candelta(self, baserev, rev):
         """whether two revisions (baserev, rev) can be delta-ed or not"""
         # Disable delta if either rev requires a content-changing flag
         # processor (ex. LFS). This is because such flag processor can alter
@@ -895,6 +1983,10 @@ class revlog:
         return True
 
     def update_caches(self, transaction):
+        """update on disk cache
+
+        If a transaction is passed, the update may be delayed to transaction
+        commit."""
         if self._nodemap_file is not None:
             if transaction is None:
                 nodemaputil.update_persistent_nodemap(self)
@@ -902,10 +1994,9 @@ class revlog:
                 nodemaputil.setup_persistent_nodemap(transaction, self)
 
     def clearcaches(self):
-        self._revisioncache = None
+        """Clear in-memory caches"""
         self._chainbasecache.clear()
-        self._segmentfile.clear_cache()
-        self._segmentfile_sidedata.clear_cache()
+        self._inner.clear_cache()
         self._pcache = {}
         self._nodemap_docket = None
         self.index.clearcaches()
@@ -914,7 +2005,7 @@ class revlog:
         use_nodemap = (
             not self._inline
             and self._nodemap_file is not None
-            and util.safehasattr(self.index, 'update_nodemap_data')
+            and hasattr(self.index, 'update_nodemap_data')
         )
         if use_nodemap:
             nodemap_data = nodemaputil.persisted_data(self)
@@ -923,6 +2014,7 @@ class revlog:
                 self.index.update_nodemap_data(*nodemap_data)
 
     def rev(self, node):
+        """return the revision number associated with a <nodeid>"""
         try:
             return self.index.rev(node)
         except TypeError:
@@ -967,7 +2059,7 @@ class revlog:
         return self.index[rev][1]
 
     def sidedata_length(self, rev):
-        if not self.hassidedata:
+        if not self.feature_config.has_side_data:
             return 0
         return self.index[rev][9]
 
@@ -1034,7 +2126,7 @@ class revlog:
                 raise error.WdirUnsupported
             raise
 
-        if self.canonical_parent_order and entry[5] == nullrev:
+        if self.feature_config.canonical_parent_order and entry[5] == nullrev:
             return entry[6], entry[5]
         else:
             return entry[5], entry[6]
@@ -1059,7 +2151,7 @@ class revlog:
         i = self.index
         d = i[self.rev(node)]
         # inline node() to avoid function call overhead
-        if self.canonical_parent_order and d[5] == self.nullid:
+        if self.feature_config.canonical_parent_order and d[5] == self.nullid:
             return i[d[6]][7], i[d[5]][7]
         else:
             return i[d[5]][7], i[d[6]][7]
@@ -1072,7 +2164,7 @@ class revlog:
         if rev in chaininfocache:
             return chaininfocache[rev]
         index = self.index
-        generaldelta = self._generaldelta
+        generaldelta = self.delta_config.general_delta
         iterrev = rev
         e = index[iterrev]
         clen = 0
@@ -1099,45 +2191,7 @@ class revlog:
         return r
 
     def _deltachain(self, rev, stoprev=None):
-        """Obtain the delta chain for a revision.
-
-        ``stoprev`` specifies a revision to stop at. If not specified, we
-        stop at the base of the chain.
-
-        Returns a 2-tuple of (chain, stopped) where ``chain`` is a list of
-        revs in ascending order and ``stopped`` is a bool indicating whether
-        ``stoprev`` was hit.
-        """
-        # Try C implementation.
-        try:
-            return self.index.deltachain(rev, stoprev, self._generaldelta)
-        except AttributeError:
-            pass
-
-        chain = []
-
-        # Alias to prevent attribute lookup in tight loop.
-        index = self.index
-        generaldelta = self._generaldelta
-
-        iterrev = rev
-        e = index[iterrev]
-        while iterrev != e[3] and iterrev != stoprev:
-            chain.append(iterrev)
-            if generaldelta:
-                iterrev = e[3]
-            else:
-                iterrev -= 1
-            e = index[iterrev]
-
-        if iterrev == stoprev:
-            stopped = True
-        else:
-            chain.append(iterrev)
-            stopped = False
-
-        chain.reverse()
-        return chain, stopped
+        return self._inner._deltachain(rev, stoprev=stoprev)
 
     def ancestors(self, revs, stoprev=0, inclusive=False):
         """Generate the ancestors of 'revs' in reverse revision order.
@@ -1752,177 +2806,27 @@ class revlog:
         p1, p2 = self.parents(node)
         return storageutil.hashrevisionsha1(text, p1, p2) != node
 
-    def _getsegmentforrevs(self, startrev, endrev, df=None):
-        """Obtain a segment of raw data corresponding to a range of revisions.
-
-        Accepts the start and end revisions and an optional already-open
-        file handle to be used for reading. If the file handle is read, its
-        seek position will not be preserved.
-
-        Requests for data may be satisfied by a cache.
-
-        Returns a 2-tuple of (offset, data) for the requested range of
-        revisions. Offset is the integer offset from the beginning of the
-        revlog and data is a str or buffer of the raw byte data.
-
-        Callers will need to call ``self.start(rev)`` and ``self.length(rev)``
-        to determine where each revision's data begins and ends.
-        """
-        # Inlined self.start(startrev) & self.end(endrev) for perf reasons
-        # (functions are expensive).
-        index = self.index
-        istart = index[startrev]
-        start = int(istart[0] >> 16)
-        if startrev == endrev:
-            end = start + istart[1]
-        else:
-            iend = index[endrev]
-            end = int(iend[0] >> 16) + iend[1]
-
-        if self._inline:
-            start += (startrev + 1) * self.index.entry_size
-            end += (endrev + 1) * self.index.entry_size
-        length = end - start
-
-        return start, self._segmentfile.read_chunk(start, length, df)
-
-    def _chunk(self, rev, df=None):
-        """Obtain a single decompressed chunk for a revision.
-
-        Accepts an integer revision and an optional already-open file handle
-        to be used for reading. If used, the seek position of the file will not
-        be preserved.
-
-        Returns a str holding uncompressed data for the requested revision.
-        """
-        compression_mode = self.index[rev][10]
-        data = self._getsegmentforrevs(rev, rev, df=df)[1]
-        if compression_mode == COMP_MODE_PLAIN:
-            return data
-        elif compression_mode == COMP_MODE_DEFAULT:
-            return self._decompressor(data)
-        elif compression_mode == COMP_MODE_INLINE:
-            return self.decompress(data)
-        else:
-            msg = b'unknown compression mode %d'
-            msg %= compression_mode
-            raise error.RevlogError(msg)
-
-    def _chunks(self, revs, df=None, targetsize=None):
-        """Obtain decompressed chunks for the specified revisions.
-
-        Accepts an iterable of numeric revisions that are assumed to be in
-        ascending order. Also accepts an optional already-open file handle
-        to be used for reading. If used, the seek position of the file will
-        not be preserved.
-
-        This function is similar to calling ``self._chunk()`` multiple times,
-        but is faster.
-
-        Returns a list with decompressed data for each requested revision.
-        """
-        if not revs:
-            return []
-        start = self.start
-        length = self.length
-        inline = self._inline
-        iosize = self.index.entry_size
-        buffer = util.buffer
-
-        l = []
-        ladd = l.append
-
-        if not self._withsparseread:
-            slicedchunks = (revs,)
-        else:
-            slicedchunks = deltautil.slicechunk(
-                self, revs, targetsize=targetsize
-            )
-
-        for revschunk in slicedchunks:
-            firstrev = revschunk[0]
-            # Skip trailing revisions with empty diff
-            for lastrev in revschunk[::-1]:
-                if length(lastrev) != 0:
-                    break
-
-            try:
-                offset, data = self._getsegmentforrevs(firstrev, lastrev, df=df)
-            except OverflowError:
-                # issue4215 - we can't cache a run of chunks greater than
-                # 2G on Windows
-                return [self._chunk(rev, df=df) for rev in revschunk]
-
-            decomp = self.decompress
-            # self._decompressor might be None, but will not be used in that case
-            def_decomp = self._decompressor
-            for rev in revschunk:
-                chunkstart = start(rev)
-                if inline:
-                    chunkstart += (rev + 1) * iosize
-                chunklength = length(rev)
-                comp_mode = self.index[rev][10]
-                c = buffer(data, chunkstart - offset, chunklength)
-                if comp_mode == COMP_MODE_PLAIN:
-                    ladd(c)
-                elif comp_mode == COMP_MODE_INLINE:
-                    ladd(decomp(c))
-                elif comp_mode == COMP_MODE_DEFAULT:
-                    ladd(def_decomp(c))
-                else:
-                    msg = b'unknown compression mode %d'
-                    msg %= comp_mode
-                    raise error.RevlogError(msg)
-
-        return l
-
     def deltaparent(self, rev):
         """return deltaparent of the given revision"""
         base = self.index[rev][3]
         if base == rev:
             return nullrev
-        elif self._generaldelta:
+        elif self.delta_config.general_delta:
             return base
         else:
             return rev - 1
 
     def issnapshot(self, rev):
         """tells whether rev is a snapshot"""
-        if not self._sparserevlog:
-            return self.deltaparent(rev) == nullrev
-        elif util.safehasattr(self.index, 'issnapshot'):
-            # directly assign the method to cache the testing and access
-            self.issnapshot = self.index.issnapshot
-            return self.issnapshot(rev)
-        if rev == nullrev:
-            return True
-        entry = self.index[rev]
-        base = entry[3]
-        if base == rev:
-            return True
-        if base == nullrev:
-            return True
-        p1 = entry[5]
-        while self.length(p1) == 0:
-            b = self.deltaparent(p1)
-            if b == p1:
-                break
-            p1 = b
-        p2 = entry[6]
-        while self.length(p2) == 0:
-            b = self.deltaparent(p2)
-            if b == p2:
-                break
-            p2 = b
-        if base == p1 or base == p2:
-            return False
-        return self.issnapshot(base)
+        ret = self._inner.issnapshot(rev)
+        self.issnapshot = self._inner.issnapshot
+        return ret
 
     def snapshotdepth(self, rev):
         """number of snapshot in the chain before this one"""
         if not self.issnapshot(rev):
             raise error.ProgrammingError(b'revision %d not a snapshot')
-        return len(self._deltachain(rev)[0]) - 1
+        return len(self._inner._deltachain(rev)[0]) - 1
 
     def revdiff(self, rev1, rev2):
         """return or calculate a delta between two revisions
@@ -1931,19 +2835,17 @@ class revlog:
         revlog data directly. So this function needs raw revision data.
         """
         if rev1 != nullrev and self.deltaparent(rev2) == rev1:
-            return bytes(self._chunk(rev2))
+            return bytes(self._inner._chunk(rev2))
 
         return mdiff.textdiff(self.rawdata(rev1), self.rawdata(rev2))
 
-    def revision(self, nodeorrev, _df=None):
+    def revision(self, nodeorrev):
         """return an uncompressed revision of a given node or revision
         number.
-
-        _df - an existing file handle to read from. (internal-only)
         """
-        return self._revisiondata(nodeorrev, _df)
+        return self._revisiondata(nodeorrev)
 
-    def sidedata(self, nodeorrev, _df=None):
+    def sidedata(self, nodeorrev):
         """a map of extra data related to the changeset but not part of the hash
 
         This function currently return a dictionary. However, more advanced
@@ -1957,7 +2859,23 @@ class revlog:
             rev = self.rev(nodeorrev)
         return self._sidedata(rev)
 
-    def _revisiondata(self, nodeorrev, _df=None, raw=False):
+    def _rawtext(self, node, rev):
+        """return the possibly unvalidated rawtext for a revision
+
+        returns (rev, rawtext, validated)
+        """
+        # Check if we have the entry in cache
+        # The cache entry looks like (node, rev, rawtext)
+        if self._inner._revisioncache:
+            if self._inner._revisioncache[0] == node:
+                return (rev, self._inner._revisioncache[2], True)
+
+        if rev is None:
+            rev = self.rev(node)
+
+        return self._inner.raw_text(node, rev)
+
+    def _revisiondata(self, nodeorrev, raw=False):
         # deal with <nodeorrev> argument type
         if isinstance(nodeorrev, int):
             rev = nodeorrev
@@ -1972,7 +2890,7 @@ class revlog:
 
         # ``rawtext`` is the text as stored inside the revlog. Might be the
         # revision or might need to be processed to retrieve the revision.
-        rev, rawtext, validated = self._rawtext(node, rev, _df=_df)
+        rev, rawtext, validated = self._rawtext(node, rev)
 
         if raw and validated:
             # if we don't want to process the raw text and that raw
@@ -1997,97 +2915,20 @@ class revlog:
         if validatehash:
             self.checkhash(text, node, rev=rev)
         if not validated:
-            self._revisioncache = (node, rev, rawtext)
+            self._inner._revisioncache = (node, rev, rawtext)
 
         return text
 
-    def _rawtext(self, node, rev, _df=None):
-        """return the possibly unvalidated rawtext for a revision
-
-        returns (rev, rawtext, validated)
-        """
-
-        # revision in the cache (could be useful to apply delta)
-        cachedrev = None
-        # An intermediate text to apply deltas to
-        basetext = None
-
-        # Check if we have the entry in cache
-        # The cache entry looks like (node, rev, rawtext)
-        if self._revisioncache:
-            if self._revisioncache[0] == node:
-                return (rev, self._revisioncache[2], True)
-            cachedrev = self._revisioncache[1]
-
-        if rev is None:
-            rev = self.rev(node)
-
-        chain, stopped = self._deltachain(rev, stoprev=cachedrev)
-        if stopped:
-            basetext = self._revisioncache[2]
-
-        # drop cache to save memory, the caller is expected to
-        # update self._revisioncache after validating the text
-        self._revisioncache = None
-
-        targetsize = None
-        rawsize = self.index[rev][2]
-        if 0 <= rawsize:
-            targetsize = 4 * rawsize
-
-        bins = self._chunks(chain, df=_df, targetsize=targetsize)
-        if basetext is None:
-            basetext = bytes(bins[0])
-            bins = bins[1:]
-
-        rawtext = mdiff.patches(basetext, bins)
-        del basetext  # let us have a chance to free memory early
-        return (rev, rawtext, False)
-
     def _sidedata(self, rev):
         """Return the sidedata for a given revision number."""
-        index_entry = self.index[rev]
-        sidedata_offset = index_entry[8]
-        sidedata_size = index_entry[9]
+        sidedata_end = None
+        if self._docket is not None:
+            sidedata_end = self._docket.sidedata_end
+        return self._inner.sidedata(rev, sidedata_end)
 
-        if self._inline:
-            sidedata_offset += self.index.entry_size * (1 + rev)
-        if sidedata_size == 0:
-            return {}
-
-        if self._docket.sidedata_end < sidedata_offset + sidedata_size:
-            filename = self._sidedatafile
-            end = self._docket.sidedata_end
-            offset = sidedata_offset
-            length = sidedata_size
-            m = FILE_TOO_SHORT_MSG % (filename, length, offset, end)
-            raise error.RevlogError(m)
-
-        comp_segment = self._segmentfile_sidedata.read_chunk(
-            sidedata_offset, sidedata_size
-        )
-
-        comp = self.index[rev][11]
-        if comp == COMP_MODE_PLAIN:
-            segment = comp_segment
-        elif comp == COMP_MODE_DEFAULT:
-            segment = self._decompressor(comp_segment)
-        elif comp == COMP_MODE_INLINE:
-            segment = self.decompress(comp_segment)
-        else:
-            msg = b'unknown compression mode %d'
-            msg %= comp
-            raise error.RevlogError(msg)
-
-        sidedata = sidedatautil.deserialize_sidedata(segment)
-        return sidedata
-
-    def rawdata(self, nodeorrev, _df=None):
-        """return an uncompressed raw data of a given node or revision number.
-
-        _df - an existing file handle to read from. (internal-only)
-        """
-        return self._revisiondata(nodeorrev, _df, raw=True)
+    def rawdata(self, nodeorrev):
+        """return an uncompressed raw data of a given node or revision number."""
+        return self._revisiondata(nodeorrev, raw=True)
 
     def hash(self, text, p1, p2):
         """Compute a node hash.
@@ -2113,8 +2954,11 @@ class revlog:
                 # revision data is accessed. But this case should be rare and
                 # it is extra work to teach the cache about the hash
                 # verification state.
-                if self._revisioncache and self._revisioncache[0] == node:
-                    self._revisioncache = None
+                if (
+                    self._inner._revisioncache
+                    and self._inner._revisioncache[0] == node
+                ):
+                    self._inner._revisioncache = None
 
                 revornode = rev
                 if revornode is None:
@@ -2124,7 +2968,9 @@ class revlog:
                     % (self.display_id, pycompat.bytestr(revornode))
                 )
         except error.RevlogError:
-            if self._censorable and storageutil.iscensoredtext(text):
+            if self.feature_config.censorable and storageutil.iscensoredtext(
+                text
+            ):
                 raise error.CensoredNodeError(self.display_id, node, text)
             raise
 
@@ -2159,35 +3005,28 @@ class revlog:
         if not self._inline or total_size < _maxinline:
             return
 
-        troffset = tr.findoffset(self._indexfile)
+        if self._docket is not None:
+            msg = b"inline revlog should not have a docket"
+            raise error.ProgrammingError(msg)
+
+        troffset = tr.findoffset(self._inner.canonical_index_file)
         if troffset is None:
             raise error.RevlogError(
                 _(b"%s not found in the transaction") % self._indexfile
             )
         if troffset:
-            tr.addbackup(self._indexfile, for_offset=True)
+            tr.addbackup(self._inner.canonical_index_file, for_offset=True)
         tr.add(self._datafile, 0)
 
-        existing_handles = False
-        if self._writinghandles is not None:
-            existing_handles = True
-            fp = self._writinghandles[0]
-            fp.flush()
-            fp.close()
-            # We can't use the cached file handle after close(). So prevent
-            # its usage.
-            self._writinghandles = None
-            self._segmentfile.writing_handle = None
-            # No need to deal with sidedata writing handle as it is only
-            # relevant with revlog-v2 which is never inline, not reaching
-            # this code
+        new_index_file_path = None
         if side_write:
             old_index_file_path = self._indexfile
             new_index_file_path = self._split_index_file
             opener = self.opener
             weak_self = weakref.ref(self)
 
-            # the "split" index replace the real index when the transaction is finalized
+            # the "split" index replace the real index when the transaction is
+            # finalized
             def finalize_callback(tr):
                 opener.rename(
                     new_index_file_path,
@@ -2197,11 +3036,14 @@ class revlog:
                 maybe_self = weak_self()
                 if maybe_self is not None:
                     maybe_self._indexfile = old_index_file_path
+                    maybe_self._inner.index_file = maybe_self._indexfile
 
             def abort_callback(tr):
                 maybe_self = weak_self()
                 if maybe_self is not None:
                     maybe_self._indexfile = old_index_file_path
+                    maybe_self._inner.inline = True
+                    maybe_self._inner.index_file = old_index_file_path
 
             tr.registertmp(new_index_file_path)
             if self.target[1] is not None:
@@ -2211,61 +3053,26 @@ class revlog:
             tr.addfinalize(callback_id, finalize_callback)
             tr.addabort(callback_id, abort_callback)
 
-        new_dfh = self._datafp(b'w+')
-        new_dfh.truncate(0)  # drop any potentially existing data
-        try:
-            with self._indexfp() as read_ifh:
-                for r in self:
-                    new_dfh.write(self._getsegmentforrevs(r, r, df=read_ifh)[1])
-                new_dfh.flush()
+        self._format_flags &= ~FLAG_INLINE_DATA
+        self._inner.split_inline(
+            tr,
+            self._format_flags | self._format_version,
+            new_index_file_path=new_index_file_path,
+        )
 
-            if side_write:
-                self._indexfile = new_index_file_path
-            with self.__index_new_fp() as fp:
-                self._format_flags &= ~FLAG_INLINE_DATA
-                self._inline = False
-                for i in self:
-                    e = self.index.entry_binary(i)
-                    if i == 0 and self._docket is None:
-                        header = self._format_flags | self._format_version
-                        header = self.index.pack_header(header)
-                        e = header + e
-                    fp.write(e)
-                if self._docket is not None:
-                    self._docket.index_end = fp.tell()
+        self._inline = False
+        if new_index_file_path is not None:
+            self._indexfile = new_index_file_path
 
-                # If we don't use side-write, the temp file replace the real
-                # index when we exit the context manager
-
-            nodemaputil.setup_persistent_nodemap(tr, self)
-            self._segmentfile = randomaccessfile.randomaccessfile(
-                self.opener,
-                self._datafile,
-                self._chunkcachesize,
-            )
-
-            if existing_handles:
-                # switched from inline to conventional reopen the index
-                ifh = self.__index_write_fp()
-                self._writinghandles = (ifh, new_dfh, None)
-                self._segmentfile.writing_handle = new_dfh
-                new_dfh = None
-                # No need to deal with sidedata writing handle as it is only
-                # relevant with revlog-v2 which is never inline, not reaching
-                # this code
-        finally:
-            if new_dfh is not None:
-                new_dfh.close()
+        nodemaputil.setup_persistent_nodemap(tr, self)
 
     def _nodeduplicatecallback(self, transaction, node):
         """called when trying to add a node already stored."""
 
     @contextlib.contextmanager
     def reading(self):
-        """Context manager that keeps data and sidedata files open for reading"""
-        with self._segmentfile.reading():
-            with self._segmentfile_sidedata.reading():
-                yield
+        with self._inner.reading():
+            yield
 
     @contextlib.contextmanager
     def _writing(self, transaction):
@@ -2273,65 +3080,26 @@ class revlog:
             msg = b'try to write in a `trypending` revlog: %s'
             msg %= self.display_id
             raise error.ProgrammingError(msg)
-        if self._writinghandles is not None:
+        if self._inner.is_writing:
             yield
         else:
-            ifh = dfh = sdfh = None
-            try:
-                r = len(self)
-                # opening the data file.
-                dsize = 0
-                if r:
-                    dsize = self.end(r - 1)
-                dfh = None
-                if not self._inline:
-                    try:
-                        dfh = self._datafp(b"r+")
-                        if self._docket is None:
-                            dfh.seek(0, os.SEEK_END)
-                        else:
-                            dfh.seek(self._docket.data_end, os.SEEK_SET)
-                    except FileNotFoundError:
-                        dfh = self._datafp(b"w+")
-                    transaction.add(self._datafile, dsize)
-                if self._sidedatafile is not None:
-                    # revlog-v2 does not inline, help Pytype
-                    assert dfh is not None
-                    try:
-                        sdfh = self.opener(self._sidedatafile, mode=b"r+")
-                        dfh.seek(self._docket.sidedata_end, os.SEEK_SET)
-                    except FileNotFoundError:
-                        sdfh = self.opener(self._sidedatafile, mode=b"w+")
-                    transaction.add(
-                        self._sidedatafile, self._docket.sidedata_end
-                    )
-
-                # opening the index file.
-                isize = r * self.index.entry_size
-                ifh = self.__index_write_fp()
-                if self._inline:
-                    transaction.add(self._indexfile, dsize + isize)
-                else:
-                    transaction.add(self._indexfile, isize)
-                # exposing all file handle for writing.
-                self._writinghandles = (ifh, dfh, sdfh)
-                self._segmentfile.writing_handle = ifh if self._inline else dfh
-                self._segmentfile_sidedata.writing_handle = sdfh
+            data_end = None
+            sidedata_end = None
+            if self._docket is not None:
+                data_end = self._docket.data_end
+                sidedata_end = self._docket.sidedata_end
+            with self._inner.writing(
+                transaction,
+                data_end=data_end,
+                sidedata_end=sidedata_end,
+            ):
                 yield
                 if self._docket is not None:
                     self._write_docket(transaction)
-            finally:
-                self._writinghandles = None
-                self._segmentfile.writing_handle = None
-                self._segmentfile_sidedata.writing_handle = None
-                if dfh is not None:
-                    dfh.close()
-                if sdfh is not None:
-                    sdfh.close()
-                # closing the index file last to avoid exposing referent to
-                # potential unflushed data content.
-                if ifh is not None:
-                    ifh.close()
+
+    @property
+    def is_delaying(self):
+        return self._inner.is_delaying
 
     def _write_docket(self, transaction):
         """write the current docket on disk
@@ -2376,7 +3144,7 @@ class revlog:
 
         if sidedata is None:
             sidedata = {}
-        elif sidedata and not self.hassidedata:
+        elif sidedata and not self.feature_config.has_side_data:
             raise error.ProgrammingError(
                 _(b"trying to add sidedata to a revlog who don't support them")
             )
@@ -2452,69 +3220,10 @@ class revlog:
             )
 
     def compress(self, data):
-        """Generate a possibly-compressed representation of data."""
-        if not data:
-            return b'', data
-
-        compressed = self._compressor.compress(data)
-
-        if compressed:
-            # The revlog compressor added the header in the returned data.
-            return b'', compressed
-
-        if data[0:1] == b'\0':
-            return b'', data
-        return b'u', data
+        return self._inner.compress(data)
 
     def decompress(self, data):
-        """Decompress a revlog chunk.
-
-        The chunk is expected to begin with a header identifying the
-        format type so it can be routed to an appropriate decompressor.
-        """
-        if not data:
-            return data
-
-        # Revlogs are read much more frequently than they are written and many
-        # chunks only take microseconds to decompress, so performance is
-        # important here.
-        #
-        # We can make a few assumptions about revlogs:
-        #
-        # 1) the majority of chunks will be compressed (as opposed to inline
-        #    raw data).
-        # 2) decompressing *any* data will likely by at least 10x slower than
-        #    returning raw inline data.
-        # 3) we want to prioritize common and officially supported compression
-        #    engines
-        #
-        # It follows that we want to optimize for "decompress compressed data
-        # when encoded with common and officially supported compression engines"
-        # case over "raw data" and "data encoded by less common or non-official
-        # compression engines." That is why we have the inline lookup first
-        # followed by the compengines lookup.
-        #
-        # According to `hg perfrevlogchunks`, this is ~0.5% faster for zlib
-        # compressed chunks. And this matters for changelog and manifest reads.
-        t = data[0:1]
-
-        if t == b'x':
-            try:
-                return _zlibdecompress(data)
-            except zlib.error as e:
-                raise error.RevlogError(
-                    _(b'revlog decompress error: %s')
-                    % stringutil.forcebytestr(e)
-                )
-        # '\0' is more common than 'u' so it goes first.
-        elif t == b'\0':
-            return data
-        elif t == b'u':
-            return util.buffer(data, 1)
-
-        compressor = self._get_decompressor(t)
-
-        return compressor.decompress(data)
+        return self._inner.decompress(data)
 
     def _addrevision(
         self,
@@ -2554,14 +3263,9 @@ class revlog:
             raise error.RevlogError(
                 _(b"%s: attempt to add wdir revision") % self.display_id
             )
-        if self._writinghandles is None:
+        if self._inner._writinghandles is None:
             msg = b'adding revision outside `revlog._writing` context'
             raise error.ProgrammingError(msg)
-
-        if self._inline:
-            fh = self._writinghandles[0]
-        else:
-            fh = self._writinghandles[1]
 
         btext = [rawtext]
 
@@ -2571,7 +3275,7 @@ class revlog:
         offset = self._get_data_offset(prev)
 
         if self._concurrencychecker:
-            ifh, dfh, sdfh = self._writinghandles
+            ifh, dfh, sdfh = self._inner._writinghandles
             # XXX no checking for the sidedata file
             if self._inline:
                 # offset is "as if" it were in the .d file, so we need to add on
@@ -2602,7 +3306,7 @@ class revlog:
 
         if deltacomputer is None:
             write_debug = None
-            if self._debug_delta:
+            if self.delta_config.debug_delta:
                 write_debug = transaction._report
             deltacomputer = deltautil.deltacomputer(
                 self, write_debug=write_debug
@@ -2612,7 +3316,10 @@ class revlog:
             # If the cached delta has no information about how it should be
             # reused, add the default reuse instruction according to the
             # revlog's configuration.
-            if self._generaldelta and self._lazydeltabase:
+            if (
+                self.delta_config.general_delta
+                and self.delta_config.lazy_delta_base
+            ):
                 delta_base_reuse = DELTA_BASE_REUSE_TRY
             else:
                 delta_base_reuse = DELTA_BASE_REUSE_NO
@@ -2628,7 +3335,7 @@ class revlog:
             flags,
         )
 
-        deltainfo = deltacomputer.finddeltainfo(revinfo, fh)
+        deltainfo = deltacomputer.finddeltainfo(revinfo)
 
         compression_mode = COMP_MODE_INLINE
         if self._docket is not None:
@@ -2637,11 +3344,11 @@ class revlog:
             compression_mode, deltainfo = r
 
         sidedata_compression_mode = COMP_MODE_INLINE
-        if sidedata and self.hassidedata:
+        if sidedata and self.feature_config.has_side_data:
             sidedata_compression_mode = COMP_MODE_PLAIN
             serialized_sidedata = sidedatautil.serialize_sidedata(sidedata)
             sidedata_offset = self._docket.sidedata_end
-            h, comp_sidedata = self.compress(serialized_sidedata)
+            h, comp_sidedata = self._inner.compress(serialized_sidedata)
             if (
                 h != b'u'
                 and comp_sidedata[0:1] != b'\0'
@@ -2665,7 +3372,7 @@ class revlog:
             sidedata_offset = 0
 
         rank = RANK_UNKNOWN
-        if self._compute_rank:
+        if self.feature_config.compute_rank:
             if (p1r, p2r) == (nullrev, nullrev):
                 rank = 1
             elif p1r != nullrev and p2r == nullrev:
@@ -2716,10 +3423,10 @@ class revlog:
         rawtext = btext[0]
 
         if alwayscache and rawtext is None:
-            rawtext = deltacomputer.buildtext(revinfo, fh)
+            rawtext = deltacomputer.buildtext(revinfo)
 
         if type(rawtext) == bytes:  # only accept immutable objects
-            self._revisioncache = (node, curr, rawtext)
+            self._inner._revisioncache = (node, curr, rawtext)
         self._chainbasecache[curr] = deltainfo.chainbase
         return curr
 
@@ -2738,7 +3445,14 @@ class revlog:
             return self._docket.data_end
 
     def _writeentry(
-        self, transaction, entry, data, link, offset, sidedata, sidedata_offset
+        self,
+        transaction,
+        entry,
+        data,
+        link,
+        offset,
+        sidedata,
+        sidedata_offset,
     ):
         # Files opened in a+ mode have inconsistent behavior on various
         # platforms. Windows requires that a file positioning call be made
@@ -2752,53 +3466,29 @@ class revlog:
         # Note: This is likely not necessary on Python 3. However, because
         # the file handle is reused for reads and may be seeked there, we need
         # to be careful before changing this.
-        if self._writinghandles is None:
-            msg = b'adding revision outside `revlog._writing` context'
-            raise error.ProgrammingError(msg)
-        ifh, dfh, sdfh = self._writinghandles
-        if self._docket is None:
-            ifh.seek(0, os.SEEK_END)
-        else:
-            ifh.seek(self._docket.index_end, os.SEEK_SET)
-        if dfh:
-            if self._docket is None:
-                dfh.seek(0, os.SEEK_END)
-            else:
-                dfh.seek(self._docket.data_end, os.SEEK_SET)
-        if sdfh:
-            sdfh.seek(self._docket.sidedata_end, os.SEEK_SET)
-
-        curr = len(self) - 1
-        if not self._inline:
-            transaction.add(self._datafile, offset)
-            if self._sidedatafile:
-                transaction.add(self._sidedatafile, sidedata_offset)
-            transaction.add(self._indexfile, curr * len(entry))
-            if data[0]:
-                dfh.write(data[0])
-            dfh.write(data[1])
-            if sidedata:
-                sdfh.write(sidedata)
-            ifh.write(entry)
-        else:
-            offset += curr * self.index.entry_size
-            transaction.add(self._indexfile, offset)
-            ifh.write(entry)
-            ifh.write(data[0])
-            ifh.write(data[1])
-            assert not sidedata
-            self._enforceinlinesize(transaction)
+        index_end = data_end = sidedata_end = None
         if self._docket is not None:
-            # revlog-v2 always has 3 writing handles, help Pytype
-            wh1 = self._writinghandles[0]
-            wh2 = self._writinghandles[1]
-            wh3 = self._writinghandles[2]
-            assert wh1 is not None
-            assert wh2 is not None
-            assert wh3 is not None
-            self._docket.index_end = wh1.tell()
-            self._docket.data_end = wh2.tell()
-            self._docket.sidedata_end = wh3.tell()
+            index_end = self._docket.index_end
+            data_end = self._docket.data_end
+            sidedata_end = self._docket.sidedata_end
+
+        files_end = self._inner.write_entry(
+            transaction,
+            entry,
+            data,
+            link,
+            offset,
+            sidedata,
+            sidedata_offset,
+            index_end,
+            data_end,
+            sidedata_end,
+        )
+        self._enforceinlinesize(transaction)
+        if self._docket is not None:
+            self._docket.index_end = files_end[0]
+            self._docket.data_end = files_end[1]
+            self._docket.sidedata_end = files_end[2]
 
         nodemaputil.setup_persistent_nodemap(transaction, self)
 
@@ -2830,7 +3520,10 @@ class revlog:
         # read the default delta-base reuse policy from revlog config if the
         # group did not specify one.
         if delta_base_reuse_policy is None:
-            if self._generaldelta and self._lazydeltabase:
+            if (
+                self.delta_config.general_delta
+                and self.delta_config.lazy_delta_base
+            ):
                 delta_base_reuse_policy = DELTA_BASE_REUSE_TRY
             else:
                 delta_base_reuse_policy = DELTA_BASE_REUSE_NO
@@ -2840,7 +3533,7 @@ class revlog:
         try:
             with self._writing(transaction):
                 write_debug = None
-                if self._debug_delta:
+                if self.delta_config.debug_delta:
                     write_debug = transaction._report
                 deltacomputer = deltautil.deltacomputer(
                     self,
@@ -2930,14 +3623,14 @@ class revlog:
 
     def iscensored(self, rev):
         """Check if a file revision is censored."""
-        if not self._censorable:
+        if not self.feature_config.censorable:
             return False
 
         return self.flags(rev) & REVIDX_ISCENSORED
 
     def _peek_iscensored(self, baserev, delta):
         """Quickly check if a delta produces a censored revision."""
-        if not self._censorable:
+        if not self.feature_config.censorable:
             return False
 
         return storageutil.deltaiscensored(delta, baserev, self.rawsize)
@@ -2999,10 +3692,8 @@ class revlog:
             self._docket.write(transaction, stripping=True)
 
         # then reset internal state in memory to forget those revisions
-        self._revisioncache = None
         self._chaininfocache = util.lrucachedict(500)
-        self._segmentfile.clear_cache()
-        self._segmentfile_sidedata.clear_cache()
+        self._inner.clear_cache()
 
         del self.index[rev:-1]
 
@@ -3047,6 +3738,7 @@ class revlog:
         return (dd, di)
 
     def files(self):
+        """return list of files that compose this revlog"""
         res = [self._indexfile]
         if self._docket_file is None:
             if not self._inline:
@@ -3077,7 +3769,7 @@ class revlog:
                 b'unhandled value for nodesorder: %s' % nodesorder
             )
 
-        if nodesorder is None and not self._generaldelta:
+        if nodesorder is None and not self.delta_config.general_delta:
             nodesorder = b'storage'
 
         if (
@@ -3092,7 +3784,7 @@ class revlog:
             nodesorder,
             revlogrevisiondelta,
             deltaparentfn=self.deltaparent,
-            candeltafn=self.candelta,
+            candeltafn=self._candelta,
             rawsizefn=self.rawsize,
             revdifffn=self.revdiff,
             flagsfn=self.flags,
@@ -3179,22 +3871,24 @@ class revlog:
 
         # lazydelta and lazydeltabase controls whether to reuse a cached delta,
         # if possible.
-        oldlazydelta = destrevlog._lazydelta
-        oldlazydeltabase = destrevlog._lazydeltabase
-        oldamd = destrevlog._deltabothparents
+        old_delta_config = destrevlog.delta_config
+        destrevlog.delta_config = destrevlog.delta_config.copy()
 
         try:
             if deltareuse == self.DELTAREUSEALWAYS:
-                destrevlog._lazydeltabase = True
-                destrevlog._lazydelta = True
+                destrevlog.delta_config.lazy_delta_base = True
+                destrevlog.delta_config.lazy_delta = True
             elif deltareuse == self.DELTAREUSESAMEREVS:
-                destrevlog._lazydeltabase = False
-                destrevlog._lazydelta = True
+                destrevlog.delta_config.lazy_delta_base = False
+                destrevlog.delta_config.lazy_delta = True
             elif deltareuse == self.DELTAREUSENEVER:
-                destrevlog._lazydeltabase = False
-                destrevlog._lazydelta = False
+                destrevlog.delta_config.lazy_delta_base = False
+                destrevlog.delta_config.lazy_delta = False
 
-            destrevlog._deltabothparents = forcedeltabothparents or oldamd
+            delta_both_parents = (
+                forcedeltabothparents or old_delta_config.delta_both_parents
+            )
+            destrevlog.delta_config.delta_both_parents = delta_both_parents
 
             with self.reading(), destrevlog._writing(tr):
                 self._clone(
@@ -3207,9 +3901,7 @@ class revlog:
                 )
 
         finally:
-            destrevlog._lazydelta = oldlazydelta
-            destrevlog._lazydeltabase = oldlazydeltabase
-            destrevlog._deltabothparents = oldamd
+            destrevlog.delta_config = old_delta_config
 
     def _clone(
         self,
@@ -3222,7 +3914,7 @@ class revlog:
     ):
         """perform the core duty of `revlog.clone` after parameter processing"""
         write_debug = None
-        if self._debug_delta:
+        if self.delta_config.debug_delta:
             write_debug = tr._report
         deltacomputer = deltautil.deltacomputer(
             destrevlog,
@@ -3267,10 +3959,10 @@ class revlog:
                     sidedata=sidedata,
                 )
             else:
-                if destrevlog._lazydelta:
+                if destrevlog.delta_config.lazy_delta:
                     dp = self.deltaparent(rev)
                     if dp != nullrev:
-                        cachedelta = (dp, bytes(self._chunk(rev)))
+                        cachedelta = (dp, bytes(self._inner._chunk(rev)))
 
                 sidedata = None
                 if not cachedelta:
@@ -3453,7 +4145,7 @@ class revlog:
         return d
 
     def rewrite_sidedata(self, transaction, helpers, startrev, endrev):
-        if not self.hassidedata:
+        if not self.feature_config.has_side_data:
             return
         # revlog formats with sidedata support does not support inline
         assert not self._inline
@@ -3464,7 +4156,7 @@ class revlog:
         new_entries = []
         # append the new sidedata
         with self._writing(transaction):
-            ifh, dfh, sdfh = self._writinghandles
+            ifh, dfh, sdfh = self._inner._writinghandles
             dfh.seek(self._docket.sidedata_end, os.SEEK_SET)
 
             current_offset = sdfh.tell()
@@ -3482,9 +4174,9 @@ class revlog:
                 )
 
                 sidedata_compression_mode = COMP_MODE_INLINE
-                if serialized_sidedata and self.hassidedata:
+                if serialized_sidedata and self.feature_config.has_side_data:
                     sidedata_compression_mode = COMP_MODE_PLAIN
-                    h, comp_sidedata = self.compress(serialized_sidedata)
+                    h, comp_sidedata = self._inner.compress(serialized_sidedata)
                     if (
                         h != b'u'
                         and comp_sidedata[0] != b'\0'

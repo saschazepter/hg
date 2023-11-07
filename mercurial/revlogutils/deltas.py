@@ -14,7 +14,6 @@ import struct
 # import stuff from node for others to import from revlog
 from ..node import nullrev
 from ..i18n import _
-from ..pycompat import getattr
 
 from .constants import (
     COMP_MODE_DEFAULT,
@@ -48,9 +47,14 @@ class _testrevlog:
 
     def __init__(self, data, density=0.5, mingap=0, snapshot=()):
         """data is an list of revision payload boundaries"""
+        from .. import revlog
+
         self._data = data
-        self._srdensitythreshold = density
-        self._srmingapsize = mingap
+        self.data_config = revlog.DataConfig()
+        self.data_config.sr_density_threshold = density
+        self.data_config.sr_min_gap_size = mingap
+        self.delta_config = revlog.DeltaConfig()
+        self.feature_config = revlog.FeatureConfig()
         self._snapshot = set(snapshot)
         self.index = None
 
@@ -85,12 +89,12 @@ def slicechunk(revlog, revs, targetsize=None):
     Assume that revs are sorted.
 
     The initial chunk is sliced until the overall density (payload/chunks-span
-    ratio) is above `revlog._srdensitythreshold`. No gap smaller than
-    `revlog._srmingapsize` is skipped.
+    ratio) is above `revlog.data_config.sr_density_threshold`. No gap smaller
+    than `revlog.data_config.sr_min_gap_size` is skipped.
 
     If `targetsize` is set, no chunk larger than `targetsize` will be yield.
     For consistency with other slicing choice, this limit won't go lower than
-    `revlog._srmingapsize`.
+    `revlog.data_config.sr_min_gap_size`.
 
     If individual revisions chunk are larger than this limit, they will still
     be raised individually.
@@ -139,14 +143,16 @@ def slicechunk(revlog, revs, targetsize=None):
     [[-1], [13], [15]]
     """
     if targetsize is not None:
-        targetsize = max(targetsize, revlog._srmingapsize)
+        targetsize = max(targetsize, revlog.data_config.sr_min_gap_size)
     # targetsize should not be specified when evaluating delta candidates:
     # * targetsize is used to ensure we stay within specification when reading,
     densityslicing = getattr(revlog.index, 'slicechunktodensity', None)
     if densityslicing is None:
         densityslicing = lambda x, y, z: _slicechunktodensity(revlog, x, y, z)
     for chunk in densityslicing(
-        revs, revlog._srdensitythreshold, revlog._srmingapsize
+        revs,
+        revlog.data_config.sr_density_threshold,
+        revlog.data_config.sr_min_gap_size,
     ):
         for subchunk in _slicechunktosize(revlog, chunk, targetsize):
             yield subchunk
@@ -517,7 +523,7 @@ def segmentspan(revlog, revs):
     return end - revlog.start(revs[0])
 
 
-def _textfromdelta(fh, revlog, baserev, delta, p1, p2, flags, expectednode):
+def _textfromdelta(revlog, baserev, delta, p1, p2, flags, expectednode):
     """build full text from a (base, delta) pair and other metadata"""
     # special case deltas which replace entire base; no need to decode
     # base revision. this neatly avoids censored bases, which throw when
@@ -530,7 +536,7 @@ def _textfromdelta(fh, revlog, baserev, delta, p1, p2, flags, expectednode):
     else:
         # deltabase is rawtext before changed by flag processors, which is
         # equivalent to non-raw text
-        basetext = revlog.revision(baserev, _df=fh)
+        basetext = revlog.revision(baserev)
         fulltext = mdiff.patch(basetext, delta)
 
     try:
@@ -591,7 +597,7 @@ def is_good_delta_info(revlog, deltainfo, revinfo):
     assert (
         revinfo.cachedelta is None
         or revinfo.cachedelta[2] != DELTA_BASE_REUSE_FORCE
-        or not revlog._generaldelta
+        or not revlog.delta_config.general_delta
     )
 
     # - 'deltainfo.distance' is the distance from the base revision --
@@ -602,7 +608,7 @@ def is_good_delta_info(revlog, deltainfo, revinfo):
 
     textlen = revinfo.textlen
     defaultmax = textlen * 4
-    maxdist = revlog._maxdeltachainspan
+    maxdist = revlog.delta_config.max_deltachain_span
     if not maxdist:
         maxdist = deltainfo.distance  # ensure the conditional pass
     maxdist = max(maxdist, defaultmax)
@@ -616,7 +622,7 @@ def is_good_delta_info(revlog, deltainfo, revinfo):
     #   possible to build pathological revlog where delta pattern would lead
     #   to too many reads. However, they do not happen in practice at all. So
     #   we skip the span check entirely.
-    if not revlog._sparserevlog and maxdist < deltainfo.distance:
+    if not revlog.delta_config.sparse_revlog and maxdist < deltainfo.distance:
         return False
 
     # Bad delta from new delta size:
@@ -635,7 +641,10 @@ def is_good_delta_info(revlog, deltainfo, revinfo):
     # Bad delta from chain length:
     #
     #   If the number of delta in the chain gets too high.
-    if revlog._maxchainlen and revlog._maxchainlen < deltainfo.chainlen:
+    if (
+        revlog.delta_config.max_chain_len
+        and revlog.delta_config.max_chain_len < deltainfo.chainlen
+    ):
         return False
 
     # bad delta from intermediate snapshot size limit
@@ -689,7 +698,7 @@ def _candidategroups(
     if target_rev is None:
         target_rev = len(revlog)
 
-    if not revlog._generaldelta:
+    if not revlog.delta_config.general_delta:
         # before general delta, there is only one possible delta base
         yield (target_rev - 1,)
         yield None
@@ -701,16 +710,16 @@ def _candidategroups(
     assert (
         cachedelta is None
         or cachedelta[2] != DELTA_BASE_REUSE_FORCE
-        or not revlog._generaldelta
+        or not revlog.delta_config.general_delta
     )
 
     deltalength = revlog.length
     deltaparent = revlog.deltaparent
-    sparse = revlog._sparserevlog
+    sparse = revlog.delta_config.sparse_revlog
     good = None
 
     deltas_limit = textlen * LIMIT_DELTA2TEXT
-    group_chunk_size = revlog._candidate_group_chunk_size
+    group_chunk_size = revlog.delta_config.candidate_group_chunk_size
 
     tested = {nullrev}
     candidates = _refinedgroups(
@@ -765,15 +774,18 @@ def _candidategroups(
             # here too.
             chainlen, chainsize = revlog._chaininfo(rev)
             # if chain will be too long, skip base
-            if revlog._maxchainlen and chainlen >= revlog._maxchainlen:
+            if (
+                revlog.delta_config.max_chain_len
+                and chainlen >= revlog.delta_config.max_chain_len
+            ):
                 tested.add(rev)
                 continue
             # if chain already have too much data, skip base
             if deltas_limit < chainsize:
                 tested.add(rev)
                 continue
-            if sparse and revlog.upperboundcomp is not None:
-                maxcomp = revlog.upperboundcomp
+            if sparse and revlog.delta_config.upper_bound_comp is not None:
+                maxcomp = revlog.delta_config.upper_bound_comp
                 basenotsnap = (p1, p2, nullrev)
                 if rev not in basenotsnap and revlog.issnapshot(rev):
                     snapshotdepth = revlog.snapshotdepth(rev)
@@ -863,7 +875,7 @@ def _refinedgroups(revlog, p1, p2, cachedelta, snapshot_cache=None):
             break
 
     # If sparse revlog is enabled, we can try to refine the available deltas
-    if not revlog._sparserevlog:
+    if not revlog.delta_config.sparse_revlog:
         yield None
         return
 
@@ -902,9 +914,9 @@ def _rawgroups(revlog, p1, p2, cachedelta, snapshot_cache=None):
     The group order aims at providing fast or small candidates first.
     """
     # Why search for delta base if we cannot use a delta base ?
-    assert revlog._generaldelta
+    assert revlog.delta_config.general_delta
     # also see issue6056
-    sparse = revlog._sparserevlog
+    sparse = revlog.delta_config.sparse_revlog
     curr = len(revlog)
     prev = curr - 1
     deltachain = lambda rev: revlog._deltachain(rev)[0]
@@ -912,7 +924,7 @@ def _rawgroups(revlog, p1, p2, cachedelta, snapshot_cache=None):
     # exclude already lazy tested base if any
     parents = [p for p in (p1, p2) if p != nullrev]
 
-    if not revlog._deltabothparents and len(parents) == 2:
+    if not revlog.delta_config.delta_both_parents and len(parents) == 2:
         parents.sort()
         # To minimize the chance of having to build a fulltext,
         # pick first whichever parent is closest to us (max rev)
@@ -1060,7 +1072,7 @@ class SnapshotCache:
             end_rev < self._start_rev or end_rev > self._end_rev
         ), (self._start_rev, self._end_rev, start_rev, end_rev)
         cache = self.snapshots
-        if util.safehasattr(revlog.index, 'findsnapshots'):
+        if hasattr(revlog.index, 'findsnapshots'):
             revlog.index.findsnapshots(cache, start_rev, end_rev)
         else:
             deltaparent = revlog.deltaparent
@@ -1091,12 +1103,10 @@ class deltacomputer:
     def _gather_debug(self):
         return self._write_debug is not None or self._debug_info is not None
 
-    def buildtext(self, revinfo, fh):
+    def buildtext(self, revinfo):
         """Builds a fulltext version of a revision
 
         revinfo: revisioninfo instance that contains all needed info
-        fh:      file handle to either the .i or the .d revlog file,
-                 depending on whether it is inlined or not
         """
         btext = revinfo.btext
         if btext[0] is not None:
@@ -1108,7 +1118,6 @@ class deltacomputer:
         delta = cachedelta[1]
 
         fulltext = btext[0] = _textfromdelta(
-            fh,
             revlog,
             baserev,
             delta,
@@ -1119,25 +1128,25 @@ class deltacomputer:
         )
         return fulltext
 
-    def _builddeltadiff(self, base, revinfo, fh):
+    def _builddeltadiff(self, base, revinfo):
         revlog = self.revlog
-        t = self.buildtext(revinfo, fh)
+        t = self.buildtext(revinfo)
         if revlog.iscensored(base):
             # deltas based on a censored revision must replace the
             # full content in one patch, so delta works everywhere
             header = mdiff.replacediffheader(revlog.rawsize(base), len(t))
             delta = header + t
         else:
-            ptext = revlog.rawdata(base, _df=fh)
+            ptext = revlog.rawdata(base)
             delta = mdiff.textdiff(ptext, t)
 
         return delta
 
-    def _builddeltainfo(self, revinfo, base, fh, target_rev=None):
+    def _builddeltainfo(self, revinfo, base, target_rev=None):
         # can we use the cached delta?
         revlog = self.revlog
         chainbase = revlog.chainbase(base)
-        if revlog._generaldelta:
+        if revlog.delta_config.general_delta:
             deltabase = base
         else:
             if target_rev is not None and base != target_rev - 1:
@@ -1149,9 +1158,9 @@ class deltacomputer:
                 raise error.ProgrammingError(msg)
             deltabase = chainbase
         snapshotdepth = None
-        if revlog._sparserevlog and deltabase == nullrev:
+        if revlog.delta_config.sparse_revlog and deltabase == nullrev:
             snapshotdepth = 0
-        elif revlog._sparserevlog and revlog.issnapshot(deltabase):
+        elif revlog.delta_config.sparse_revlog and revlog.issnapshot(deltabase):
             # A delta chain should always be one full snapshot,
             # zero or more semi-snapshots, and zero or more deltas
             p1, p2 = revlog.rev(revinfo.p1), revlog.rev(revinfo.p2)
@@ -1168,17 +1177,19 @@ class deltacomputer:
                 and self.revlog.length(currentbase) == 0
             ):
                 currentbase = self.revlog.deltaparent(currentbase)
-            if self.revlog._lazydelta and currentbase == base:
+            if self.revlog.delta_config.lazy_delta and currentbase == base:
                 delta = revinfo.cachedelta[1]
         if delta is None:
-            delta = self._builddeltadiff(base, revinfo, fh)
+            delta = self._builddeltadiff(base, revinfo)
         if self._debug_search:
             msg = b"DBG-DELTAS-SEARCH:     uncompressed-delta-size=%d\n"
             msg %= len(delta)
             self._write_debug(msg)
         # snapshotdept need to be neither None nor 0 level snapshot
-        if revlog.upperboundcomp is not None and snapshotdepth:
-            lowestrealisticdeltalen = len(delta) // revlog.upperboundcomp
+        if revlog.delta_config.upper_bound_comp is not None and snapshotdepth:
+            lowestrealisticdeltalen = (
+                len(delta) // revlog.delta_config.upper_bound_comp
+            )
             snapshotlimit = revinfo.textlen >> snapshotdepth
             if self._debug_search:
                 msg = b"DBG-DELTAS-SEARCH:     projected-lower-size=%d\n"
@@ -1194,7 +1205,7 @@ class deltacomputer:
                     msg = b"DBG-DELTAS-SEARCH:     DISCARDED (prev size)\n"
                     self._write_debug(msg)
                 return None
-        header, data = revlog.compress(delta)
+        header, data = revlog._inner.compress(delta)
         deltalen = len(header) + len(data)
         offset = revlog.end(len(revlog) - 1)
         dist = deltalen + offset - revlog.start(chainbase)
@@ -1213,9 +1224,9 @@ class deltacomputer:
             snapshotdepth,
         )
 
-    def _fullsnapshotinfo(self, fh, revinfo, curr):
-        rawtext = self.buildtext(revinfo, fh)
-        data = self.revlog.compress(rawtext)
+    def _fullsnapshotinfo(self, revinfo, curr):
+        rawtext = self.buildtext(revinfo)
+        data = self.revlog._inner.compress(rawtext)
         compresseddeltalen = deltalen = dist = len(data[1]) + len(data[0])
         deltabase = chainbase = curr
         snapshotdepth = 0
@@ -1232,12 +1243,10 @@ class deltacomputer:
             snapshotdepth,
         )
 
-    def finddeltainfo(self, revinfo, fh, excluded_bases=None, target_rev=None):
+    def finddeltainfo(self, revinfo, excluded_bases=None, target_rev=None):
         """Find an acceptable delta against a candidate revision
 
         revinfo: information about the revision (instance of _revisioninfo)
-        fh:      file handle to either the .i or the .d revlog file,
-                 depending on whether it is inlined or not
 
         Returns the first acceptable candidate revision, as ordered by
         _candidategroups
@@ -1297,7 +1306,7 @@ class deltacomputer:
         # not calling candelta since only one revision needs test, also to
         # avoid overhead fetching flags again.
         if not revinfo.textlen or revinfo.flags & REVIDX_RAWTEXT_CHANGING_FLAGS:
-            deltainfo = self._fullsnapshotinfo(fh, revinfo, target_rev)
+            deltainfo = self._fullsnapshotinfo(revinfo, target_rev)
             if gather_debug:
                 end = util.timer()
                 dbg['duration'] = end - start
@@ -1316,14 +1325,14 @@ class deltacomputer:
 
         # If this source delta are to be forcibly reuse, let us comply early.
         if (
-            revlog._generaldelta
+            revlog.delta_config.general_delta
             and revinfo.cachedelta is not None
             and revinfo.cachedelta[2] == DELTA_BASE_REUSE_FORCE
         ):
             base = revinfo.cachedelta[0]
             if base == nullrev:
                 dbg_type = b"full"
-                deltainfo = self._fullsnapshotinfo(fh, revinfo, target_rev)
+                deltainfo = self._fullsnapshotinfo(revinfo, target_rev)
                 if gather_debug:
                     snapshotdepth = 0
             elif base not in excluded_bases:
@@ -1475,7 +1484,6 @@ class deltacomputer:
                 candidatedelta = self._builddeltainfo(
                     revinfo,
                     candidaterev,
-                    fh,
                     target_rev=target_rev,
                 )
                 if self._debug_search:
@@ -1506,7 +1514,7 @@ class deltacomputer:
 
         if deltainfo is None:
             dbg_type = b"full"
-            deltainfo = self._fullsnapshotinfo(fh, revinfo, target_rev)
+            deltainfo = self._fullsnapshotinfo(revinfo, target_rev)
         elif deltainfo.snapshotdepth:  # pytype: disable=attribute-error
             dbg_type = b"snapshot"
         else:

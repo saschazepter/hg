@@ -378,6 +378,8 @@ Testing -h/--help:
   
   Repository maintenance:
   
+   admin::verify
+                 verify the integrity of the repository
    manifest      output the current or given revision of the project manifest
    recover       roll back an interrupted transaction
    verify        verify the integrity of the repository
@@ -513,6 +515,8 @@ Testing -h/--help:
   
   Repository maintenance:
   
+   admin::verify
+                 verify the integrity of the repository
    manifest      output the current or given revision of the project manifest
    recover       roll back an interrupted transaction
    verify        verify the integrity of the repository

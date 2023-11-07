@@ -36,7 +36,6 @@ from typing import (
 
 from .i18n import _
 from .pycompat import (
-    getattr,
     open,
 )
 from . import (
@@ -551,6 +550,12 @@ if pycompat.sysplatform == b'cygwin':
     # problems when Mercurial is used from both Cygwin and native
     # Windows, with other native tools, or on shared volumes
     def checklink(path: bytes) -> bool:
+        return False
+
+
+if pycompat.sysplatform == b'OpenVMS':
+    # OpenVMS's symlink emulation is broken on some OpenVMS versions.
+    def checklink(path):
         return False
 
 

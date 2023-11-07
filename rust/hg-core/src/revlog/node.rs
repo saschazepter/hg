@@ -348,7 +348,7 @@ mod tests {
         assert_eq!(Node::from_hex(SAMPLE_NODE_HEX).unwrap(), SAMPLE_NODE);
         assert!(Node::from_hex(not_hex).is_err());
         assert!(Node::from_hex(too_short).is_err());
-        assert!(Node::from_hex(&too_long).is_err());
+        assert!(Node::from_hex(too_long).is_err());
     }
 
     #[test]

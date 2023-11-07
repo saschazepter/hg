@@ -332,7 +332,7 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
             FastHashMap::default();
         for &rev in self.undecided.as_ref().unwrap() {
             for p in ParentsIterator::graph_parents(&self.graph, rev)? {
-                children.entry(p).or_insert_with(Vec::new).push(rev);
+                children.entry(p).or_default().push(rev);
             }
         }
         self.children_cache = Some(children);
@@ -481,6 +481,13 @@ mod tests {
     use super::*;
     use crate::testing::SampleGraph;
 
+    /// Shorthand to reduce boilerplate when creating [`Revision`] for testing
+    macro_rules! R {
+        ($revision:literal) => {
+            Revision($revision)
+        };
+    }
+
     /// A PartialDiscovery as for pushing all the heads of `SampleGraph`
     ///
     /// To avoid actual randomness in these tests, we give it a fixed
@@ -488,7 +495,7 @@ mod tests {
     fn full_disco() -> PartialDiscovery<SampleGraph> {
         PartialDiscovery::new_with_seed(
             SampleGraph,
-            vec![10, 11, 12, 13],
+            vec![R!(10), R!(11), R!(12), R!(13)],
             [0; 16],
             true,
             true,
@@ -501,7 +508,7 @@ mod tests {
     fn disco12() -> PartialDiscovery<SampleGraph> {
         PartialDiscovery::new_with_seed(
             SampleGraph,
-            vec![12],
+            vec![R!(12)],
             [0; 16],
             true,
             true,
@@ -540,7 +547,7 @@ mod tests {
         assert!(!disco.has_info());
         assert_eq!(disco.stats().undecided, None);
 
-        disco.add_common_revisions(vec![11, 12])?;
+        disco.add_common_revisions(vec![R!(11), R!(12)])?;
         assert!(disco.has_info());
         assert!(!disco.is_complete());
         assert!(disco.missing.is_empty());
@@ -559,14 +566,14 @@ mod tests {
     #[test]
     fn test_discovery() -> Result<(), GraphError> {
         let mut disco = full_disco();
-        disco.add_common_revisions(vec![11, 12])?;
-        disco.add_missing_revisions(vec![8, 10])?;
+        disco.add_common_revisions(vec![R!(11), R!(12)])?;
+        disco.add_missing_revisions(vec![R!(8), R!(10)])?;
         assert_eq!(sorted_undecided(&disco), vec![5]);
         assert_eq!(sorted_missing(&disco), vec![8, 10, 13]);
         assert!(!disco.is_complete());
 
-        disco.add_common_revisions(vec![5])?;
-        assert_eq!(sorted_undecided(&disco), vec![]);
+        disco.add_common_revisions(vec![R!(5)])?;
+        assert_eq!(sorted_undecided(&disco), Vec::<Revision>::new());
         assert_eq!(sorted_missing(&disco), vec![8, 10, 13]);
         assert!(disco.is_complete());
         assert_eq!(sorted_common_heads(&disco)?, vec![5, 11, 12]);
@@ -577,12 +584,12 @@ mod tests {
     fn test_add_missing_early_continue() -> Result<(), GraphError> {
         eprintln!("test_add_missing_early_stop");
         let mut disco = full_disco();
-        disco.add_common_revisions(vec![13, 3, 4])?;
+        disco.add_common_revisions(vec![R!(13), R!(3), R!(4)])?;
         disco.ensure_children_cache()?;
         // 12 is grand-child of 6 through 9
         // passing them in this order maximizes the chances of the
         // early continue to do the wrong thing
-        disco.add_missing_revisions(vec![6, 9, 12])?;
+        disco.add_missing_revisions(vec![R!(6), R!(9), R!(12)])?;
         assert_eq!(sorted_undecided(&disco), vec![5, 7, 10, 11]);
         assert_eq!(sorted_missing(&disco), vec![6, 9, 12]);
         assert!(!disco.is_complete());
@@ -591,18 +598,24 @@ mod tests {
 
     #[test]
     fn test_limit_sample_no_need_to() {
-        let sample = vec![1, 2, 3, 4];
+        let sample = vec![R!(1), R!(2), R!(3), R!(4)];
         assert_eq!(full_disco().limit_sample(sample, 10), vec![1, 2, 3, 4]);
     }
 
     #[test]
     fn test_limit_sample_less_than_half() {
-        assert_eq!(full_disco().limit_sample((1..6).collect(), 2), vec![2, 5]);
+        assert_eq!(
+            full_disco().limit_sample((1..6).map(Revision).collect(), 2),
+            vec![2, 5]
+        );
     }
 
     #[test]
     fn test_limit_sample_more_than_half() {
-        assert_eq!(full_disco().limit_sample((1..4).collect(), 2), vec![1, 2]);
+        assert_eq!(
+            full_disco().limit_sample((1..4).map(Revision).collect(), 2),
+            vec![1, 2]
+        );
     }
 
     #[test]
@@ -610,7 +623,10 @@ mod tests {
         let mut disco = full_disco();
         disco.randomize = false;
         assert_eq!(
-            disco.limit_sample(vec![1, 8, 13, 5, 7, 3], 4),
+            disco.limit_sample(
+                vec![R!(1), R!(8), R!(13), R!(5), R!(7), R!(3)],
+                4
+            ),
             vec![1, 3, 5, 7]
         );
     }
@@ -618,7 +634,7 @@ mod tests {
     #[test]
     fn test_quick_sample_enough_undecided_heads() -> Result<(), GraphError> {
         let mut disco = full_disco();
-        disco.undecided = Some((1..=13).collect());
+        disco.undecided = Some((1..=13).map(Revision).collect());
 
         let mut sample_vec = disco.take_quick_sample(vec![], 4)?;
         sample_vec.sort_unstable();
@@ -631,7 +647,7 @@ mod tests {
         let mut disco = disco12();
         disco.ensure_undecided()?;
 
-        let mut sample_vec = disco.take_quick_sample(vec![12], 4)?;
+        let mut sample_vec = disco.take_quick_sample(vec![R!(12)], 4)?;
         sample_vec.sort_unstable();
         // r12's only parent is r9, whose unique grand-parent through the
         // diamond shape is r4. This ends there because the distance from r4
@@ -646,16 +662,16 @@ mod tests {
         disco.ensure_children_cache()?;
 
         let cache = disco.children_cache.unwrap();
-        assert_eq!(cache.get(&2).cloned(), Some(vec![4]));
-        assert_eq!(cache.get(&10).cloned(), None);
+        assert_eq!(cache.get(&R!(2)).cloned(), Some(vec![R!(4)]));
+        assert_eq!(cache.get(&R!(10)).cloned(), None);
 
-        let mut children_4 = cache.get(&4).cloned().unwrap();
+        let mut children_4 = cache.get(&R!(4)).cloned().unwrap();
         children_4.sort_unstable();
-        assert_eq!(children_4, vec![5, 6, 7]);
+        assert_eq!(children_4, vec![R!(5), R!(6), R!(7)]);
 
-        let mut children_7 = cache.get(&7).cloned().unwrap();
+        let mut children_7 = cache.get(&R!(7)).cloned().unwrap();
         children_7.sort_unstable();
-        assert_eq!(children_7, vec![9, 11]);
+        assert_eq!(children_7, vec![R!(9), R!(11)]);
 
         Ok(())
     }
@@ -664,14 +680,14 @@ mod tests {
     fn test_complete_sample() {
         let mut disco = full_disco();
         let undecided: HashSet<Revision> =
-            [4, 7, 9, 2, 3].iter().cloned().collect();
+            [4, 7, 9, 2, 3].iter().cloned().map(Revision).collect();
         disco.undecided = Some(undecided);
 
-        let mut sample = vec![0];
+        let mut sample = vec![R!(0)];
         disco.random_complete_sample(&mut sample, 3);
         assert_eq!(sample.len(), 3);
 
-        let mut sample = vec![2, 4, 7];
+        let mut sample = vec![R!(2), R!(4), R!(7)];
         disco.random_complete_sample(&mut sample, 1);
         assert_eq!(sample.len(), 3);
     }
@@ -679,7 +695,7 @@ mod tests {
     #[test]
     fn test_bidirectional_sample() -> Result<(), GraphError> {
         let mut disco = full_disco();
-        disco.undecided = Some((0..=13).into_iter().collect());
+        disco.undecided = Some((0..=13).map(Revision).collect());
 
         let (sample_set, size) = disco.bidirectional_sample(7)?;
         assert_eq!(size, 7);

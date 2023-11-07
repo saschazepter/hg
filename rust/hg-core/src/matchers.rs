@@ -7,6 +7,9 @@
 
 //! Structs and types for matching files and directories.
 
+use format_bytes::format_bytes;
+use once_cell::sync::OnceCell;
+
 use crate::{
     dirstate::dirs_multiset::DirsChildrenMultiset,
     filepatterns::{
@@ -15,20 +18,18 @@ use crate::{
     },
     utils::{
         files::find_dirs,
-        hg_path::{HgPath, HgPathBuf},
+        hg_path::{HgPath, HgPathBuf, HgPathError},
         Escaped,
     },
-    DirsMultiset, DirstateMapError, FastHashMap, IgnorePattern, PatternError,
-    PatternSyntax,
+    DirsMultiset, FastHashMap, IgnorePattern, PatternError, PatternSyntax,
 };
 
 use crate::dirstate::status::IgnoreFnType;
 use crate::filepatterns::normalize_path_bytes;
-use std::borrow::ToOwned;
 use std::collections::HashSet;
 use std::fmt::{Display, Error, Formatter};
-use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use std::{borrow::ToOwned, collections::BTreeSet};
 
 #[derive(Debug, PartialEq)]
 pub enum VisitChildrenSet {
@@ -174,14 +175,16 @@ impl Matcher for NeverMatcher {
 pub struct FileMatcher {
     files: HashSet<HgPathBuf>,
     dirs: DirsMultiset,
+    sorted_visitchildrenset_candidates: OnceCell<BTreeSet<HgPathBuf>>,
 }
 
 impl FileMatcher {
-    pub fn new(files: Vec<HgPathBuf>) -> Result<Self, DirstateMapError> {
+    pub fn new(files: Vec<HgPathBuf>) -> Result<Self, HgPathError> {
         let dirs = DirsMultiset::from_manifest(&files)?;
         Ok(Self {
-            files: HashSet::from_iter(files.into_iter()),
+            files: HashSet::from_iter(files),
             dirs,
+            sorted_visitchildrenset_candidates: OnceCell::new(),
         })
     }
     fn inner_matches(&self, filename: &HgPath) -> bool {
@@ -200,30 +203,34 @@ impl Matcher for FileMatcher {
         self.inner_matches(filename)
     }
     fn visit_children_set(&self, directory: &HgPath) -> VisitChildrenSet {
-        if self.files.is_empty() || !self.dirs.contains(&directory) {
+        if self.files.is_empty() || !self.dirs.contains(directory) {
             return VisitChildrenSet::Empty;
         }
-        let mut candidates: HashSet<HgPathBuf> =
-            self.dirs.iter().cloned().collect();
 
-        candidates.extend(self.files.iter().cloned());
-        candidates.remove(HgPath::new(b""));
-
-        if !directory.as_ref().is_empty() {
-            let directory = [directory.as_ref().as_bytes(), b"/"].concat();
-            candidates = candidates
-                .iter()
-                .filter_map(|c| {
-                    if c.as_bytes().starts_with(&directory) {
-                        Some(HgPathBuf::from_bytes(
-                            &c.as_bytes()[directory.len()..],
-                        ))
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-        }
+        let compute_candidates = || -> BTreeSet<HgPathBuf> {
+            let mut candidates: BTreeSet<HgPathBuf> =
+                self.dirs.iter().cloned().collect();
+            candidates.extend(self.files.iter().cloned());
+            candidates.remove(HgPath::new(b""));
+            candidates
+        };
+        let candidates =
+            if directory.as_ref().is_empty() {
+                compute_candidates()
+            } else {
+                let sorted_candidates = self
+                    .sorted_visitchildrenset_candidates
+                    .get_or_init(compute_candidates);
+                let directory_bytes = directory.as_ref().as_bytes();
+                let start: HgPathBuf =
+                    format_bytes!(b"{}/", directory_bytes).into();
+                let start_len = start.len();
+                // `0` sorts after `/`
+                let end = format_bytes!(b"{}0", directory_bytes).into();
+                BTreeSet::from_iter(sorted_candidates.range(start..end).map(
+                    |c| HgPathBuf::from_bytes(&c.as_bytes()[start_len..]),
+                ))
+            };
 
         // `self.dirs` includes all of the directories, recursively, so if
         // we're attempting to match 'foo/bar/baz.txt', it'll have '', 'foo',
@@ -248,6 +255,118 @@ impl Matcher for FileMatcher {
     }
     fn is_exact(&self) -> bool {
         true
+    }
+}
+
+/// Matches a set of (kind, pat, source) against a 'root' directory.
+/// (Currently the 'root' directory is effectively always empty)
+/// ```
+/// use hg::{
+///     matchers::{PatternMatcher, Matcher},
+///     IgnorePattern,
+///     PatternSyntax,
+///     utils::hg_path::{HgPath, HgPathBuf}
+/// };
+/// use std::collections::HashSet;
+/// use std::path::Path;
+/// ///
+/// let ignore_patterns : Vec<IgnorePattern> =
+///     vec![IgnorePattern::new(PatternSyntax::Regexp, br".*\.c$", Path::new("")),
+///          IgnorePattern::new(PatternSyntax::Path, b"foo/a", Path::new("")),
+///          IgnorePattern::new(PatternSyntax::RelPath, b"b", Path::new("")),
+///          IgnorePattern::new(PatternSyntax::Glob, b"*.h", Path::new("")),
+///     ];
+/// let matcher = PatternMatcher::new(ignore_patterns).unwrap();
+/// ///
+/// assert_eq!(matcher.matches(HgPath::new(b"main.c")), true); // matches re:.*\.c$
+/// assert_eq!(matcher.matches(HgPath::new(b"b.txt")), false);
+/// assert_eq!(matcher.matches(HgPath::new(b"foo/a")), true); // matches path:foo/a
+/// assert_eq!(matcher.matches(HgPath::new(b"a")), false); // does not match path:b, since 'root' is 'foo'
+/// assert_eq!(matcher.matches(HgPath::new(b"b")), true); // matches relpath:b, since 'root' is 'foo'
+/// assert_eq!(matcher.matches(HgPath::new(b"lib.h")), true); // matches glob:*.h
+/// assert_eq!(matcher.file_set().unwrap(),
+///            &HashSet::from([HgPathBuf::from_bytes(b""), HgPathBuf::from_bytes(b"foo/a"),
+///                            HgPathBuf::from_bytes(b""), HgPathBuf::from_bytes(b"b")]));
+/// assert_eq!(matcher.exact_match(HgPath::new(b"foo/a")), true);
+/// assert_eq!(matcher.exact_match(HgPath::new(b"b")), true);
+/// assert_eq!(matcher.exact_match(HgPath::new(b"lib.h")), false); // exact matches are for (rel)path kinds
+/// ```
+pub struct PatternMatcher<'a> {
+    patterns: Vec<u8>,
+    match_fn: IgnoreFnType<'a>,
+    /// Whether all the patterns match a prefix (i.e. recursively)
+    prefix: bool,
+    files: HashSet<HgPathBuf>,
+    dirs: DirsMultiset,
+}
+
+impl core::fmt::Debug for PatternMatcher<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PatternMatcher")
+            .field("patterns", &String::from_utf8_lossy(&self.patterns))
+            .field("prefix", &self.prefix)
+            .field("files", &self.files)
+            .field("dirs", &self.dirs)
+            .finish()
+    }
+}
+
+impl<'a> PatternMatcher<'a> {
+    pub fn new(ignore_patterns: Vec<IgnorePattern>) -> PatternResult<Self> {
+        let (files, _) = roots_and_dirs(&ignore_patterns);
+        let dirs = DirsMultiset::from_manifest(&files)?;
+        let files: HashSet<HgPathBuf> = HashSet::from_iter(files);
+
+        let prefix = ignore_patterns.iter().all(|k| {
+            matches!(k.syntax, PatternSyntax::Path | PatternSyntax::RelPath)
+        });
+        let (patterns, match_fn) = build_match(ignore_patterns, b"$")?;
+
+        Ok(Self {
+            patterns,
+            match_fn,
+            prefix,
+            files,
+            dirs,
+        })
+    }
+}
+
+impl<'a> Matcher for PatternMatcher<'a> {
+    fn file_set(&self) -> Option<&HashSet<HgPathBuf>> {
+        Some(&self.files)
+    }
+
+    fn exact_match(&self, filename: &HgPath) -> bool {
+        self.files.contains(filename)
+    }
+
+    fn matches(&self, filename: &HgPath) -> bool {
+        if self.files.contains(filename) {
+            return true;
+        }
+        (self.match_fn)(filename)
+    }
+
+    fn visit_children_set(&self, directory: &HgPath) -> VisitChildrenSet {
+        if self.prefix && self.files.contains(directory) {
+            return VisitChildrenSet::Recursive;
+        }
+        let path_or_parents_in_set = find_dirs(directory)
+            .any(|parent_dir| self.files.contains(parent_dir));
+        if self.dirs.contains(directory) || path_or_parents_in_set {
+            VisitChildrenSet::This
+        } else {
+            VisitChildrenSet::Empty
+        }
+    }
+
+    fn matches_everything(&self) -> bool {
+        false
+    }
+
+    fn is_exact(&self) -> bool {
+        false
     }
 }
 
@@ -479,7 +598,13 @@ impl IntersectionMatcher {
                 m1_files.iter().cloned().filter(|f| m2.matches(f)).collect()
             })
         } else {
-            None
+            // without exact input file sets, we can't do an exact
+            // intersection, so we must over-approximate by
+            // unioning instead
+            m1.file_set().map(|m1_files| match m2.file_set() {
+                Some(m2_files) => m1_files.union(m2_files).cloned().collect(),
+                None => m1_files.iter().cloned().collect(),
+            })
         };
         Self { m1, m2, files }
     }
@@ -647,14 +772,15 @@ fn re_matcher(pattern: &[u8]) -> PatternResult<RegexMatcher> {
 
 /// Returns the regex pattern and a function that matches an `HgPath` against
 /// said regex formed by the given ignore patterns.
-fn build_regex_match<'a, 'b>(
-    ignore_patterns: &'a [IgnorePattern],
-) -> PatternResult<(Vec<u8>, IgnoreFnType<'b>)> {
+fn build_regex_match<'a>(
+    ignore_patterns: &[IgnorePattern],
+    glob_suffix: &[u8],
+) -> PatternResult<(Vec<u8>, IgnoreFnType<'a>)> {
     let mut regexps = vec![];
     let mut exact_set = HashSet::new();
 
     for pattern in ignore_patterns {
-        if let Some(re) = build_single_regex(pattern)? {
+        if let Some(re) = build_single_regex(pattern, glob_suffix)? {
             regexps.push(re);
         } else {
             let exact = normalize_path_bytes(&pattern.pattern);
@@ -754,20 +880,12 @@ fn roots_dirs_and_parents(
     let mut parents = HashSet::new();
 
     parents.extend(
-        DirsMultiset::from_manifest(&dirs)
-            .map_err(|e| match e {
-                DirstateMapError::InvalidPath(e) => e,
-                _ => unreachable!(),
-            })?
+        DirsMultiset::from_manifest(&dirs)?
             .iter()
             .map(ToOwned::to_owned),
     );
     parents.extend(
-        DirsMultiset::from_manifest(&roots)
-            .map_err(|e| match e {
-                DirstateMapError::InvalidPath(e) => e,
-                _ => unreachable!(),
-            })?
+        DirsMultiset::from_manifest(&roots)?
             .iter()
             .map(ToOwned::to_owned),
     );
@@ -783,6 +901,7 @@ fn roots_dirs_and_parents(
 /// should be matched.
 fn build_match<'a>(
     ignore_patterns: Vec<IgnorePattern>,
+    glob_suffix: &[u8],
 ) -> PatternResult<(Vec<u8>, IgnoreFnType<'a>)> {
     let mut match_funcs: Vec<IgnoreFnType<'a>> = vec![];
     // For debugging and printing
@@ -838,7 +957,7 @@ fn build_match<'a>(
                 } else {
                     b"."
                 };
-                dirs.contains(dir.deref())
+                dirs.contains(dir)
             };
             match_funcs.push(Box::new(match_func));
 
@@ -846,7 +965,8 @@ fn build_match<'a>(
             dirs_vec.sort();
             patterns.extend(dirs_vec.escaped_bytes());
         } else {
-            let (new_re, match_func) = build_regex_match(&ignore_patterns)?;
+            let (new_re, match_func) =
+                build_regex_match(&ignore_patterns, glob_suffix)?;
             patterns = new_re;
             match_funcs.push(match_func)
         }
@@ -925,7 +1045,7 @@ impl<'a> IncludeMatcher<'a> {
         let prefix = ignore_patterns.iter().all(|k| {
             matches!(k.syntax, PatternSyntax::Path | PatternSyntax::RelPath)
         });
-        let (patterns, match_fn) = build_match(ignore_patterns)?;
+        let (patterns, match_fn) = build_match(ignore_patterns, b"(?:/|$)")?;
 
         Ok(Self {
             patterns,
@@ -1117,6 +1237,242 @@ mod tests {
         );
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"folder")),
+            VisitChildrenSet::Empty
+        );
+    }
+
+    #[test]
+    fn test_patternmatcher() {
+        // VisitdirPrefix
+        let m = PatternMatcher::new(vec![IgnorePattern::new(
+            PatternSyntax::Path,
+            b"dir/subdir",
+            Path::new(""),
+        )])
+        .unwrap();
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::This
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir")),
+            VisitChildrenSet::This
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir/subdir")),
+            VisitChildrenSet::Recursive
+        );
+        // OPT: This should probably be Recursive if its parent is?
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir/subdir/x")),
+            VisitChildrenSet::This
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"folder")),
+            VisitChildrenSet::Empty
+        );
+
+        // VisitchildrensetPrefix
+        let m = PatternMatcher::new(vec![IgnorePattern::new(
+            PatternSyntax::Path,
+            b"dir/subdir",
+            Path::new(""),
+        )])
+        .unwrap();
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::This
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir")),
+            VisitChildrenSet::This
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir/subdir")),
+            VisitChildrenSet::Recursive
+        );
+        // OPT: This should probably be Recursive if its parent is?
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir/subdir/x")),
+            VisitChildrenSet::This
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"folder")),
+            VisitChildrenSet::Empty
+        );
+
+        // VisitdirRootfilesin
+        let m = PatternMatcher::new(vec![IgnorePattern::new(
+            PatternSyntax::RootFiles,
+            b"dir/subdir",
+            Path::new(""),
+        )])
+        .unwrap();
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir/subdir/x")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"folder")),
+            VisitChildrenSet::Empty
+        );
+        // FIXME: These should probably be This.
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir/subdir")),
+            VisitChildrenSet::Empty
+        );
+
+        // VisitchildrensetRootfilesin
+        let m = PatternMatcher::new(vec![IgnorePattern::new(
+            PatternSyntax::RootFiles,
+            b"dir/subdir",
+            Path::new(""),
+        )])
+        .unwrap();
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir/subdir/x")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"folder")),
+            VisitChildrenSet::Empty
+        );
+        // FIXME: These should probably be {'dir'}, {'subdir'} and This,
+        // respectively, or at least This for all three.
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir/subdir")),
+            VisitChildrenSet::Empty
+        );
+
+        // VisitdirGlob
+        let m = PatternMatcher::new(vec![IgnorePattern::new(
+            PatternSyntax::Glob,
+            b"dir/z*",
+            Path::new(""),
+        )])
+        .unwrap();
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::This
+        );
+        // FIXME: This probably should be This
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"folder")),
+            VisitChildrenSet::Empty
+        );
+        // OPT: these should probably be False.
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir/subdir")),
+            VisitChildrenSet::This
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir/subdir/x")),
+            VisitChildrenSet::This
+        );
+
+        // VisitchildrensetGlob
+        let m = PatternMatcher::new(vec![IgnorePattern::new(
+            PatternSyntax::Glob,
+            b"dir/z*",
+            Path::new(""),
+        )])
+        .unwrap();
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::This
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"folder")),
+            VisitChildrenSet::Empty
+        );
+        // FIXME: This probably should be This
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir")),
+            VisitChildrenSet::Empty
+        );
+        // OPT: these should probably be Empty
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir/subdir")),
+            VisitChildrenSet::This
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir/subdir/x")),
+            VisitChildrenSet::This
+        );
+
+        // VisitdirFilepath
+        let m = PatternMatcher::new(vec![IgnorePattern::new(
+            PatternSyntax::FilePath,
+            b"dir/z",
+            Path::new(""),
+        )])
+        .unwrap();
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::This
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir")),
+            VisitChildrenSet::This
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"folder")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir/subdir")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir/subdir/x")),
+            VisitChildrenSet::Empty
+        );
+
+        // VisitchildrensetFilepath
+        let m = PatternMatcher::new(vec![IgnorePattern::new(
+            PatternSyntax::FilePath,
+            b"dir/z",
+            Path::new(""),
+        )])
+        .unwrap();
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::This
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"folder")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir")),
+            VisitChildrenSet::This
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir/subdir")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(
+            m.visit_children_set(HgPath::new(b"dir/subdir/x")),
             VisitChildrenSet::Empty
         );
     }

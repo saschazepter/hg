@@ -22,8 +22,8 @@ def mainfrozen():
     (portable, not much used).
     """
     return (
-        pycompat.safehasattr(sys, "frozen")  # new py2exe
-        or pycompat.safehasattr(sys, "importers")  # old py2exe
+        hasattr(sys, "frozen")  # new py2exe
+        or hasattr(sys, "importers")  # old py2exe
         or _imp.is_frozen("__main__")  # tools/freeze
     )
 
@@ -59,7 +59,7 @@ try:
     from importlib import resources  # pytype: disable=import-error
 
     # Force loading of the resources module
-    if pycompat.safehasattr(resources, 'files'):
+    if hasattr(resources, 'files'):
         resources.files  # pytype: disable=module-attr
     else:
         resources.open_binary  # pytype: disable=module-attr
@@ -95,7 +95,7 @@ else:
     from .. import encoding
 
     def open_resource(package, name):
-        if pycompat.safehasattr(resources, 'files'):
+        if hasattr(resources, 'files'):
             return (
                 resources.files(  # pytype: disable=module-attr
                     pycompat.sysstr(package)

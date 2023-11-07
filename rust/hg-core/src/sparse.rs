@@ -282,7 +282,8 @@ pub fn matcher(
                 let (patterns, subwarnings) = parse_pattern_file_contents(
                     &config.includes,
                     Path::new(""),
-                    Some(b"glob:".as_ref()),
+                    Some(PatternSyntax::Glob),
+                    false,
                     false,
                 )?;
                 warnings.extend(subwarnings.into_iter().map(From::from));
@@ -292,7 +293,8 @@ pub fn matcher(
                 let (patterns, subwarnings) = parse_pattern_file_contents(
                     &config.excludes,
                     Path::new(""),
-                    Some(b"glob:".as_ref()),
+                    Some(PatternSyntax::Glob),
+                    false,
                     false,
                 )?;
                 warnings.extend(subwarnings.into_iter().map(From::from));

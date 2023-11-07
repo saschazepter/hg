@@ -349,7 +349,7 @@ def capabilities(orig, repo, proto):
 
 
 def extsetup(ui):
-    extensions.wrapfunction(wireprotov1server, b'_capabilities', capabilities)
+    extensions.wrapfunction(wireprotov1server, '_capabilities', capabilities)
 
 
 # logic for bundle auto-generation
@@ -987,7 +987,7 @@ def reposetup(ui, repo):
         @localrepo.unfilteredmethod
         def clonebundles_lock(self, wait=True):
             '''Lock the repository file related to clone bundles'''
-            if not util.safehasattr(self, '_cb_lock_ref'):
+            if not hasattr(self, '_cb_lock_ref'):
                 self._cb_lock_ref = None
             l = self._currentlock(self._cb_lock_ref)
             if l is not None:

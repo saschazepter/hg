@@ -11,9 +11,10 @@
 allowing operations like diff and log with revsets.
 """
 
+import contextlib
+
 
 from .i18n import _
-from .pycompat import getattr
 
 from . import (
     changelog,
@@ -113,7 +114,20 @@ class unionrevlog(revlog.revlog):
             self.bundlerevs.add(n)
             n += 1
 
-    def _chunk(self, rev, df=None):
+    @contextlib.contextmanager
+    def reading(self):
+        if 0 <= len(self.bundlerevs) < len(self.index):
+            read_1 = super().reading
+        else:
+            read_1 = util.nullcontextmanager
+        if 0 < len(self.bundlerevs):
+            read_2 = self.revlog2.reading
+        else:
+            read_2 = util.nullcontextmanager
+        with read_1(), read_2():
+            yield
+
+    def _chunk(self, rev):
         if rev <= self.repotiprev:
             return revlog.revlog._chunk(self, rev)
         return self.revlog2._chunk(self.node(rev))
@@ -130,7 +144,7 @@ class unionrevlog(revlog.revlog):
 
         return mdiff.textdiff(self.rawdata(rev1), self.rawdata(rev2))
 
-    def _revisiondata(self, nodeorrev, _df=None, raw=False):
+    def _revisiondata(self, nodeorrev, raw=False):
         if isinstance(nodeorrev, int):
             rev = nodeorrev
             node = self.node(rev)
@@ -144,7 +158,7 @@ class unionrevlog(revlog.revlog):
             func = revlog2._revisiondata
         else:
             func = super(unionrevlog, self)._revisiondata
-        return func(node, _df=_df, raw=raw)
+        return func(node, raw=raw)
 
     def addrevision(
         self,
@@ -191,6 +205,8 @@ class unionchangelog(unionrevlog, changelog.changelog):
 
 class unionmanifest(unionrevlog, manifest.manifestrevlog):
     def __init__(self, nodeconstants, opener, opener2, linkmapper):
+        # XXX manifestrevlog is not actually a revlog , so mixing it with
+        # bundlerevlog is not a good idea.
         manifest.manifestrevlog.__init__(self, nodeconstants, opener)
         manifest2 = manifest.manifestrevlog(nodeconstants, opener2)
         unionrevlog.__init__(
