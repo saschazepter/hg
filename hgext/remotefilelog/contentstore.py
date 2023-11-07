@@ -4,7 +4,6 @@ from mercurial.node import (
     hex,
     sha1nodeconstants,
 )
-from mercurial.pycompat import getattr
 from mercurial import (
     mdiff,
     revlog,

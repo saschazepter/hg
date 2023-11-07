@@ -73,7 +73,6 @@ import struct
 import weakref
 
 from .i18n import _
-from .pycompat import getattr
 from .node import (
     bin,
     hex,
@@ -940,7 +939,7 @@ def clearobscaches(repo):
 
 def _mutablerevs(repo):
     """the set of mutable revision in the repository"""
-    return repo._phasecache.getrevset(repo, phases.mutablephases)
+    return repo._phasecache.getrevset(repo, phases.relevant_mutable_phases)
 
 
 @cachefor(b'obsolete')
@@ -994,7 +993,8 @@ def _computephasedivergentset(repo):
     torev = cl.index.get_rev
     tonode = cl.node
     obsstore = repo.obsstore
-    for rev in repo.revs(b'(not public()) and (not obsolete())'):
+    candidates = sorted(_mutablerevs(repo) - getrevs(repo, b"obsolete"))
+    for rev in candidates:
         # We only evaluate mutable, non-obsolete revision
         node = tonode(rev)
         # (future) A cache of predecessors may worth if split is very common
@@ -1016,7 +1016,8 @@ def _computecontentdivergentset(repo):
     obsstore = repo.obsstore
     newermap = {}
     tonode = repo.changelog.node
-    for rev in repo.revs(b'(not public()) - obsolete()'):
+    candidates = sorted(_mutablerevs(repo) - getrevs(repo, b"obsolete"))
+    for rev in candidates:
         node = tonode(rev)
         mark = obsstore.predecessors.get(node, ())
         toprocess = set(mark)

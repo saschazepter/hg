@@ -4,6 +4,7 @@ use crate::revlog::{Node, NodePrefix};
 use crate::revlog::{Revlog, RevlogEntry, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::vfs::Vfs;
+use crate::{Graph, GraphError, UncheckedRevision};
 use itertools::Itertools;
 use std::ascii::escape_default;
 use std::borrow::Cow;
@@ -29,15 +30,24 @@ impl Changelog {
         node: NodePrefix,
     ) -> Result<ChangelogRevisionData, RevlogError> {
         let rev = self.revlog.rev_from_node(node)?;
-        self.data_for_rev(rev)
+        self.entry_for_checked_rev(rev)?.data()
     }
 
     /// Return the [`ChangelogEntry`] for the given revision number.
     pub fn entry_for_rev(
         &self,
-        rev: Revision,
+        rev: UncheckedRevision,
     ) -> Result<ChangelogEntry, RevlogError> {
         let revlog_entry = self.revlog.get_entry(rev)?;
+        Ok(ChangelogEntry { revlog_entry })
+    }
+
+    /// Same as [`Self::entry_for_rev`] for checked revisions.
+    fn entry_for_checked_rev(
+        &self,
+        rev: Revision,
+    ) -> Result<ChangelogEntry, RevlogError> {
+        let revlog_entry = self.revlog.get_entry_for_checked_rev(rev)?;
         Ok(ChangelogEntry { revlog_entry })
     }
 
@@ -49,12 +59,12 @@ impl Changelog {
     /// [entry_for_rev](`Self::entry_for_rev`) and doing everything from there.
     pub fn data_for_rev(
         &self,
-        rev: Revision,
+        rev: UncheckedRevision,
     ) -> Result<ChangelogRevisionData, RevlogError> {
         self.entry_for_rev(rev)?.data()
     }
 
-    pub fn node_from_rev(&self, rev: Revision) -> Option<&Node> {
+    pub fn node_from_rev(&self, rev: UncheckedRevision) -> Option<&Node> {
         self.revlog.node_from_rev(rev)
     }
 
@@ -63,6 +73,12 @@ impl Changelog {
         node: NodePrefix,
     ) -> Result<Revision, RevlogError> {
         self.revlog.rev_from_node(node)
+    }
+}
+
+impl Graph for Changelog {
+    fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
+        self.revlog.parents(rev)
     }
 }
 
@@ -330,12 +346,12 @@ message",
 
         let changelog = Changelog { revlog };
         assert_eq!(
-            changelog.data_for_rev(NULL_REVISION)?,
+            changelog.data_for_rev(NULL_REVISION.into())?,
             ChangelogRevisionData::null()
         );
         // same with the intermediate entry object
         assert_eq!(
-            changelog.entry_for_rev(NULL_REVISION)?.data()?,
+            changelog.entry_for_rev(NULL_REVISION.into())?.data()?,
             ChangelogRevisionData::null()
         );
         Ok(())

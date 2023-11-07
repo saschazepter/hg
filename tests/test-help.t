@@ -129,6 +129,8 @@ the extension is unknown.
   
   Repository maintenance:
   
+   admin::verify
+                 verify the integrity of the repository
    manifest      output the current or given revision of the project manifest
    recover       roll back an interrupted transaction
    verify        verify the integrity of the repository
@@ -260,6 +262,8 @@ the extension is unknown.
   
   Repository maintenance:
   
+   admin::verify
+                 verify the integrity of the repository
    manifest      output the current or given revision of the project manifest
    recover       roll back an interrupted transaction
    verify        verify the integrity of the repository
@@ -604,8 +608,15 @@ Test ambiguous command help
   $ hg help ad
   list of commands:
   
+  Working directory management:
+  
    add           add the specified files on the next commit
    addremove     add all new files, delete all missing files
+  
+  Repository maintenance:
+  
+   admin::verify
+                 verify the integrity of the repository
   
   (use 'hg help -v ad' to show built-in aliases and global options)
 
@@ -625,6 +636,9 @@ Test command without options
   
       Please see https://mercurial-scm.org/wiki/RepositoryCorruption for more
       information about recovery from corruption of the repository.
+  
+      For an alternative UI with a lot more control over the verification
+      process and better error reporting, try 'hg help admin::verify'.
   
       Returns 0 on success, 1 if errors are encountered.
   
@@ -2648,6 +2662,13 @@ Dish up an empty repo; serve it cold.
   </a>
   </td><td>
   add all new files, delete all missing files
+  </td></tr>
+  <tr><td>
+  <a href="/help/admin::verify">
+  admin::verify
+  </a>
+  </td><td>
+  verify the integrity of the repository
   </td></tr>
   <tr><td>
   <a href="/help/archive">

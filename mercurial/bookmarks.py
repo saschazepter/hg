@@ -14,7 +14,6 @@ from .node import (
     hex,
     short,
 )
-from .pycompat import getattr
 from . import (
     encoding,
     error,

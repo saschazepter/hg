@@ -24,7 +24,7 @@ use std::vec::Vec;
 lazy_static! {
     static ref RE_ESCAPE: Vec<Vec<u8>> = {
         let mut v: Vec<Vec<u8>> = (0..=255).map(|byte| vec![byte]).collect();
-        let to_escape = b"()[]{}?*+-|^$\\.&~# \t\n\r\x0b\x0c";
+        let to_escape = b"()[]{}?*+-|^$\\.&~#\t\n\r\x0b\x0c";
         for byte in to_escape {
             v[*byte as usize].insert(0, b'\\');
         }
@@ -35,9 +35,6 @@ lazy_static! {
 /// These are matched in order
 const GLOB_REPLACEMENTS: &[(&[u8], &[u8])] =
     &[(b"*/", b"(?:.*/)?"), (b"*", b".*"), (b"", b"[^/]*")];
-
-/// Appended to the regexp of globs
-const GLOB_SUFFIX: &[u8; 7] = b"(?:/|$)";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PatternSyntax {
@@ -181,7 +178,7 @@ lazy_static! {
 /// Builds the regex that corresponds to the given pattern.
 /// If within a `syntax: regexp` context, returns the pattern,
 /// otherwise, returns the corresponding regex.
-fn _build_single_regex(entry: &IgnorePattern) -> Vec<u8> {
+fn _build_single_regex(entry: &IgnorePattern, glob_suffix: &[u8]) -> Vec<u8> {
     let IgnorePattern {
         syntax, pattern, ..
     } = entry;
@@ -245,13 +242,13 @@ fn _build_single_regex(entry: &IgnorePattern) -> Vec<u8> {
         PatternSyntax::RelGlob => {
             let glob_re = glob_to_re(pattern);
             if let Some(rest) = glob_re.drop_prefix(b"[^/]*") {
-                [b".*", rest, GLOB_SUFFIX].concat()
+                [b".*", rest, glob_suffix].concat()
             } else {
-                [b"(?:.*/)?", glob_re.as_slice(), GLOB_SUFFIX].concat()
+                [b"(?:.*/)?", glob_re.as_slice(), glob_suffix].concat()
             }
         }
         PatternSyntax::Glob | PatternSyntax::RootGlob => {
-            [glob_to_re(pattern).as_slice(), GLOB_SUFFIX].concat()
+            [glob_to_re(pattern).as_slice(), glob_suffix].concat()
         }
         PatternSyntax::Include
         | PatternSyntax::SubInclude
@@ -309,6 +306,7 @@ pub fn normalize_path_bytes(bytes: &[u8]) -> Vec<u8> {
 /// that don't need to be transformed into a regex.
 pub fn build_single_regex(
     entry: &IgnorePattern,
+    glob_suffix: &[u8],
 ) -> Result<Option<Vec<u8>>, PatternError> {
     let IgnorePattern {
         pattern, syntax, ..
@@ -317,6 +315,7 @@ pub fn build_single_regex(
         PatternSyntax::RootGlob
         | PatternSyntax::Path
         | PatternSyntax::RelGlob
+        | PatternSyntax::RelPath
         | PatternSyntax::RootFiles => normalize_path_bytes(pattern),
         PatternSyntax::Include | PatternSyntax::SubInclude => {
             return Err(PatternError::NonRegexPattern(entry.clone()))
@@ -330,22 +329,27 @@ pub fn build_single_regex(
     } else {
         let mut entry = entry.clone();
         entry.pattern = pattern;
-        Ok(Some(_build_single_regex(&entry)))
+        Ok(Some(_build_single_regex(&entry, glob_suffix)))
     }
 }
 
 lazy_static! {
-    static ref SYNTAXES: FastHashMap<&'static [u8], &'static [u8]> = {
+    static ref SYNTAXES: FastHashMap<&'static [u8], PatternSyntax> = {
         let mut m = FastHashMap::default();
 
-        m.insert(b"re".as_ref(), b"relre:".as_ref());
-        m.insert(b"regexp".as_ref(), b"relre:".as_ref());
-        m.insert(b"glob".as_ref(), b"relglob:".as_ref());
-        m.insert(b"rootglob".as_ref(), b"rootglob:".as_ref());
-        m.insert(b"include".as_ref(), b"include:".as_ref());
-        m.insert(b"subinclude".as_ref(), b"subinclude:".as_ref());
-        m.insert(b"path".as_ref(), b"path:".as_ref());
-        m.insert(b"rootfilesin".as_ref(), b"rootfilesin:".as_ref());
+        m.insert(b"re:".as_ref(), PatternSyntax::Regexp);
+        m.insert(b"regexp:".as_ref(), PatternSyntax::Regexp);
+        m.insert(b"path:".as_ref(), PatternSyntax::Path);
+        m.insert(b"filepath:".as_ref(), PatternSyntax::FilePath);
+        m.insert(b"relpath:".as_ref(), PatternSyntax::RelPath);
+        m.insert(b"rootfilesin:".as_ref(), PatternSyntax::RootFiles);
+        m.insert(b"relglob:".as_ref(), PatternSyntax::RelGlob);
+        m.insert(b"relre:".as_ref(), PatternSyntax::RelRegexp);
+        m.insert(b"glob:".as_ref(), PatternSyntax::Glob);
+        m.insert(b"rootglob:".as_ref(), PatternSyntax::RootGlob);
+        m.insert(b"include:".as_ref(), PatternSyntax::Include);
+        m.insert(b"subinclude:".as_ref(), PatternSyntax::SubInclude);
+
         m
     };
 }
@@ -358,11 +362,50 @@ pub enum PatternFileWarning {
     NoSuchFile(PathBuf),
 }
 
+pub fn parse_one_pattern(
+    pattern: &[u8],
+    source: &Path,
+    default: PatternSyntax,
+    normalize: bool,
+) -> IgnorePattern {
+    let mut pattern_bytes: &[u8] = pattern;
+    let mut syntax = default;
+
+    for (s, val) in SYNTAXES.iter() {
+        if let Some(rest) = pattern_bytes.drop_prefix(s) {
+            syntax = val.clone();
+            pattern_bytes = rest;
+            break;
+        }
+    }
+
+    let pattern = match syntax {
+        PatternSyntax::RootGlob
+        | PatternSyntax::Path
+        | PatternSyntax::Glob
+        | PatternSyntax::RelGlob
+        | PatternSyntax::RelPath
+        | PatternSyntax::RootFiles
+            if normalize =>
+        {
+            normalize_path_bytes(pattern_bytes)
+        }
+        _ => pattern_bytes.to_vec(),
+    };
+
+    IgnorePattern {
+        syntax,
+        pattern,
+        source: source.to_owned(),
+    }
+}
+
 pub fn parse_pattern_file_contents(
     lines: &[u8],
     file_path: &Path,
-    default_syntax_override: Option<&[u8]>,
+    default_syntax_override: Option<PatternSyntax>,
     warn: bool,
+    relativize: bool,
 ) -> Result<(Vec<IgnorePattern>, Vec<PatternFileWarning>), PatternError> {
     let comment_regex = Regex::new(r"((?:^|[^\\])(?:\\\\)*)#.*").unwrap();
 
@@ -372,11 +415,9 @@ pub fn parse_pattern_file_contents(
     let mut warnings: Vec<PatternFileWarning> = vec![];
 
     let mut current_syntax =
-        default_syntax_override.unwrap_or_else(|| b"relre:".as_ref());
+        default_syntax_override.unwrap_or(PatternSyntax::RelRegexp);
 
-    for (line_number, mut line) in lines.split(|c| *c == b'\n').enumerate() {
-        let line_number = line_number + 1;
-
+    for mut line in lines.split(|c| *c == b'\n') {
         let line_buf;
         if line.contains(&b'#') {
             if let Some(cap) = comment_regex.captures(line) {
@@ -386,7 +427,7 @@ pub fn parse_pattern_file_contents(
             line = &line_buf;
         }
 
-        let mut line = line.trim_end();
+        let line = line.trim_end();
 
         if line.is_empty() {
             continue;
@@ -395,48 +436,60 @@ pub fn parse_pattern_file_contents(
         if let Some(syntax) = line.drop_prefix(b"syntax:") {
             let syntax = syntax.trim();
 
-            if let Some(rel_syntax) = SYNTAXES.get(syntax) {
-                current_syntax = rel_syntax;
+            if let Some(parsed) =
+                SYNTAXES.get([syntax, &b":"[..]].concat().as_slice())
+            {
+                current_syntax = parsed.clone();
             } else if warn {
                 warnings.push(PatternFileWarning::InvalidSyntax(
                     file_path.to_owned(),
                     syntax.to_owned(),
                 ));
             }
-            continue;
+        } else {
+            let pattern = parse_one_pattern(
+                line,
+                file_path,
+                current_syntax.clone(),
+                false,
+            );
+            inputs.push(if relativize {
+                pattern.to_relative()
+            } else {
+                pattern
+            })
         }
-
-        let mut line_syntax: &[u8] = current_syntax;
-
-        for (s, rels) in SYNTAXES.iter() {
-            if let Some(rest) = line.drop_prefix(rels) {
-                line_syntax = rels;
-                line = rest;
-                break;
-            }
-            if let Some(rest) = line.drop_prefix(&[s, &b":"[..]].concat()) {
-                line_syntax = rels;
-                line = rest;
-                break;
-            }
-        }
-
-        inputs.push(IgnorePattern::new(
-            parse_pattern_syntax(line_syntax).map_err(|e| match e {
-                PatternError::UnsupportedSyntax(syntax) => {
-                    PatternError::UnsupportedSyntaxInFile(
-                        syntax,
-                        file_path.to_string_lossy().into(),
-                        line_number,
-                    )
-                }
-                _ => e,
-            })?,
-            line,
-            file_path,
-        ));
     }
     Ok((inputs, warnings))
+}
+
+pub fn parse_pattern_args(
+    patterns: Vec<Vec<u8>>,
+    cwd: &Path,
+    root: &Path,
+) -> Result<Vec<IgnorePattern>, HgPathError> {
+    let mut ignore_patterns: Vec<IgnorePattern> = Vec::new();
+    for pattern in patterns {
+        let pattern = parse_one_pattern(
+            &pattern,
+            Path::new("<args>"),
+            PatternSyntax::RelPath,
+            true,
+        );
+        match pattern.syntax {
+            PatternSyntax::RelGlob | PatternSyntax::RelPath => {
+                let name = get_path_from_bytes(&pattern.pattern);
+                let canon = canonical_path(root, cwd, name)?;
+                ignore_patterns.push(IgnorePattern {
+                    syntax: pattern.syntax,
+                    pattern: get_bytes_from_path(canon),
+                    source: pattern.source,
+                })
+            }
+            _ => ignore_patterns.push(pattern.to_owned()),
+        };
+    }
+    Ok(ignore_patterns)
 }
 
 pub fn read_pattern_file(
@@ -447,7 +500,7 @@ pub fn read_pattern_file(
     match std::fs::read(file_path) {
         Ok(contents) => {
             inspect_pattern_bytes(file_path, &contents);
-            parse_pattern_file_contents(&contents, file_path, None, warn)
+            parse_pattern_file_contents(&contents, file_path, None, warn, true)
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok((
             vec![],
@@ -471,6 +524,23 @@ impl IgnorePattern {
             syntax,
             pattern: pattern.to_owned(),
             source: source.to_owned(),
+        }
+    }
+
+    pub fn to_relative(self) -> Self {
+        let Self {
+            syntax,
+            pattern,
+            source,
+        } = self;
+        Self {
+            syntax: match syntax {
+                PatternSyntax::Regexp => PatternSyntax::RelRegexp,
+                PatternSyntax::Glob => PatternSyntax::RelGlob,
+                x => x,
+            },
+            pattern,
+            source,
         }
     }
 }
@@ -559,8 +629,7 @@ impl SubInclude {
             normalize_path_bytes(&get_bytes_from_path(source));
 
         let source_root = get_path_from_bytes(&normalized_source);
-        let source_root =
-            source_root.parent().unwrap_or_else(|| source_root.deref());
+        let source_root = source_root.parent().unwrap_or(source_root);
 
         let path = source_root.join(get_path_from_bytes(pattern));
         let new_root = path.parent().unwrap_or_else(|| path.deref());
@@ -612,22 +681,21 @@ mod tests {
         assert_eq!(escape_pattern(untouched), untouched.to_vec());
         // All escape codes
         assert_eq!(
-            escape_pattern(br#"()[]{}?*+-|^$\\.&~# \t\n\r\v\f"#),
-            br#"\(\)\[\]\{\}\?\*\+\-\|\^\$\\\\\.\&\~\#\ \\t\\n\\r\\v\\f"#
-                .to_vec()
+            escape_pattern(br"()[]{}?*+-|^$\\.&~#\t\n\r\v\f"),
+            br"\(\)\[\]\{\}\?\*\+\-\|\^\$\\\\\.\&\~\#\\t\\n\\r\\v\\f".to_vec()
         );
     }
 
     #[test]
     fn glob_test() {
-        assert_eq!(glob_to_re(br#"?"#), br#"."#);
-        assert_eq!(glob_to_re(br#"*"#), br#"[^/]*"#);
-        assert_eq!(glob_to_re(br#"**"#), br#".*"#);
-        assert_eq!(glob_to_re(br#"**/a"#), br#"(?:.*/)?a"#);
-        assert_eq!(glob_to_re(br#"a/**/b"#), br#"a/(?:.*/)?b"#);
-        assert_eq!(glob_to_re(br#"[a*?!^][^b][!c]"#), br#"[a*?!^][\^b][^c]"#);
-        assert_eq!(glob_to_re(br#"{a,b}"#), br#"(?:a|b)"#);
-        assert_eq!(glob_to_re(br#".\*\?"#), br#"\.\*\?"#);
+        assert_eq!(glob_to_re(br"?"), br".");
+        assert_eq!(glob_to_re(br"*"), br"[^/]*");
+        assert_eq!(glob_to_re(br"**"), br".*");
+        assert_eq!(glob_to_re(br"**/a"), br"(?:.*/)?a");
+        assert_eq!(glob_to_re(br"a/**/b"), br"a/(?:.*/)?b");
+        assert_eq!(glob_to_re(br"[a*?!^][^b][!c]"), br"[a*?!^][\^b][^c]");
+        assert_eq!(glob_to_re(br"{a,b}"), br"(?:a|b)");
+        assert_eq!(glob_to_re(br".\*\?"), br"\.\*\?");
     }
 
     #[test]
@@ -639,7 +707,8 @@ mod tests {
                 lines,
                 Path::new("file_path"),
                 None,
-                false
+                false,
+                true,
             )
             .unwrap()
             .0,
@@ -657,7 +726,8 @@ mod tests {
                 lines,
                 Path::new("file_path"),
                 None,
-                false
+                false,
+                true,
             )
             .unwrap()
             .0,
@@ -669,7 +739,8 @@ mod tests {
                 lines,
                 Path::new("file_path"),
                 None,
-                false
+                false,
+                true,
             )
             .unwrap()
             .0,
@@ -684,20 +755,26 @@ mod tests {
     #[test]
     fn test_build_single_regex() {
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::RelGlob,
-                b"rust/target/",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::RelGlob,
+                    b"rust/target/",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             Some(br"(?:.*/)?rust/target(?:/|$)".to_vec()),
         );
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::Regexp,
-                br"rust/target/\d+",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::Regexp,
+                    br"rust/target/\d+",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             Some(br"rust/target/\d+".to_vec()),
         );
@@ -706,29 +783,38 @@ mod tests {
     #[test]
     fn test_build_single_regex_shortcut() {
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::RootGlob,
-                b"",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::RootGlob,
+                    b"",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             None,
         );
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::RootGlob,
-                b"whatever",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::RootGlob,
+                    b"whatever",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             None,
         );
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::RootGlob,
-                b"*.o",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::RootGlob,
+                    b"*.o",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             Some(br"[^/]*\.o(?:/|$)".to_vec()),
         );
@@ -737,38 +823,50 @@ mod tests {
     #[test]
     fn test_build_single_relregex() {
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::RelRegexp,
-                b"^ba{2}r",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::RelRegexp,
+                    b"^ba{2}r",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             Some(b"^ba{2}r".to_vec()),
         );
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::RelRegexp,
-                b"ba{2}r",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::RelRegexp,
+                    b"ba{2}r",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             Some(b".*ba{2}r".to_vec()),
         );
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::RelRegexp,
-                b"(?ia)ba{2}r",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::RelRegexp,
+                    b"(?ia)ba{2}r",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             Some(b"(?ia:.*ba{2}r)".to_vec()),
         );
         assert_eq!(
-            build_single_regex(&IgnorePattern::new(
-                PatternSyntax::RelRegexp,
-                b"(?ia)^ba{2}r",
-                Path::new("")
-            ))
+            build_single_regex(
+                &IgnorePattern::new(
+                    PatternSyntax::RelRegexp,
+                    b"(?ia)^ba{2}r",
+                    Path::new("")
+                ),
+                b"(?:/|$)"
+            )
             .unwrap(),
             Some(b"(?ia:^ba{2}r)".to_vec()),
         );

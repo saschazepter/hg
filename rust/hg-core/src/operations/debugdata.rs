@@ -33,6 +33,6 @@ pub fn debug_data(
         Revlog::open(&repo.store_vfs(), index_file, None, use_nodemap)?;
     let rev =
         crate::revset::resolve_rev_number_or_hex_prefix(revset, &revlog)?;
-    let data = revlog.get_rev_data(rev)?;
+    let data = revlog.get_rev_data_for_checked_rev(rev)?;
     Ok(data.into_owned())
 }

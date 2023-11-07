@@ -19,7 +19,6 @@ from mercurial import (
     pycompat,
     registrar,
     scmutil,
-    util,
 )
 
 from . import (
@@ -218,7 +217,7 @@ def fastannotate(ui, repo, *pats, **opts):
     paths = list(_matchpaths(repo, rev, pats, opts, aopts))
 
     # for client, prefetch from the server
-    if util.safehasattr(repo, 'prefetchfastannotate'):
+    if hasattr(repo, 'prefetchfastannotate'):
         repo.prefetchfastannotate(paths)
 
     for path in paths:
@@ -273,7 +272,7 @@ def _annotatewrapper(orig, ui, repo, *pats, **opts):
 
     # check if we need to do prefetch (client-side)
     rev = opts.get('rev')
-    if util.safehasattr(repo, 'prefetchfastannotate') and rev is not None:
+    if hasattr(repo, 'prefetchfastannotate') and rev is not None:
         paths = list(_matchpaths(repo, rev, pats, pycompat.byteskwargs(opts)))
         repo.prefetchfastannotate(paths)
 
@@ -320,7 +319,7 @@ def debugbuildannotatecache(ui, repo, *pats, **opts):
     ctx = logcmdutil.revsingle(repo, rev)
     m = scmutil.match(ctx, pats, opts)
     paths = list(ctx.walk(m))
-    if util.safehasattr(repo, 'prefetchfastannotate'):
+    if hasattr(repo, 'prefetchfastannotate'):
         # client
         if opts.get(b'REV'):
             raise error.Abort(_(b'--rev cannot be used for client'))

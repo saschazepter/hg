@@ -4,9 +4,12 @@ use crate::ui::{
 };
 use crate::utils::path_utils::RelativizePaths;
 use clap::Arg;
+use hg::filepatterns::parse_pattern_args;
+use hg::matchers::IntersectionMatcher;
 use hg::narrow;
 use hg::operations::list_rev_tracked_files;
 use hg::repo::Repo;
+use hg::utils::files::get_bytes_from_os_str;
 use hg::utils::filter_map_results;
 use hg::utils::hg_path::HgPath;
 use rayon::prelude::*;
@@ -26,6 +29,12 @@ pub fn args() -> clap::Command {
                 .long("revision")
                 .value_name("REV"),
         )
+        .arg(
+            Arg::new("file")
+                .value_parser(clap::value_parser!(std::ffi::OsString))
+                .help("show only these files")
+                .action(clap::ArgAction::Append),
+        )
         .about(HELP_TEXT)
 }
 
@@ -35,7 +44,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         RelativePaths::Bool(v) => v,
     };
 
-    let rev = invocation.subcommand_args.get_one::<String>("rev");
+    let args = invocation.subcommand_args;
+    let rev = args.get_one::<String>("rev");
 
     let repo = invocation.repo?;
 
@@ -51,11 +61,34 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         ));
     }
 
-    let (narrow_matcher, narrow_warnings) = narrow::matcher(repo)?;
+    let (matcher, narrow_warnings) = narrow::matcher(repo)?;
     print_narrow_sparse_warnings(&narrow_warnings, &[], invocation.ui, repo)?;
+    let matcher = match args.get_many::<std::ffi::OsString>("file") {
+        None => matcher,
+        Some(files) => {
+            let patterns: Vec<Vec<u8>> = files
+                .filter(|s| !s.is_empty())
+                .map(get_bytes_from_os_str)
+                .collect();
+            for file in &patterns {
+                if file.starts_with(b"set:") {
+                    return Err(CommandError::unsupported("fileset"));
+                }
+            }
+            let cwd = hg::utils::current_dir()?;
+            let root = repo.working_directory_path();
+            let ignore_patterns = parse_pattern_args(patterns, &cwd, root)?;
+            let files_matcher =
+                hg::matchers::PatternMatcher::new(ignore_patterns)?;
+            Box::new(IntersectionMatcher::new(
+                Box::new(files_matcher),
+                matcher,
+            ))
+        }
+    };
 
     if let Some(rev) = rev {
-        let files = list_rev_tracked_files(repo, rev, narrow_matcher)
+        let files = list_rev_tracked_files(repo, rev, matcher)
             .map_err(|e| (e, rev.as_ref()))?;
         display_files(invocation.ui, repo, relative_paths, files.iter())
     } else {
@@ -63,7 +96,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         let dirstate = repo.dirstate_map()?;
         let files_res: Result<Vec<_>, _> =
             filter_map_results(dirstate.iter(), |(path, entry)| {
-                Ok(if entry.tracked() && narrow_matcher.matches(path) {
+                Ok(if entry.tracked() && matcher.matches(path) {
                     Some(path)
                 } else {
                     None

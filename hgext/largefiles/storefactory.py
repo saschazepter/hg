@@ -5,7 +5,6 @@
 import re
 
 from mercurial.i18n import _
-from mercurial.pycompat import getattr
 from mercurial import (
     error,
     hg,
@@ -57,7 +56,7 @@ def openstore(repo=None, remote=None, put=False, ui=None):
 
     # The path could be a scheme so use Mercurial's normal functionality
     # to resolve the scheme to a repository and use its path
-    path = util.safehasattr(remote, b'url') and remote.url() or remote.path
+    path = hasattr(remote, 'url') and remote.url() or remote.path
 
     match = _scheme_re.match(path)
     if not match:  # regular filesystem path

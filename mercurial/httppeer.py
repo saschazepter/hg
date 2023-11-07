@@ -15,7 +15,6 @@ import struct
 
 from concurrent import futures
 from .i18n import _
-from .pycompat import getattr
 from . import (
     bundle2,
     error,
@@ -65,7 +64,7 @@ def encodevalueinheaders(value, header, limit):
 class _multifile:
     def __init__(self, *fileobjs):
         for f in fileobjs:
-            if not util.safehasattr(f, 'length'):
+            if not hasattr(f, 'length'):
                 raise ValueError(
                     b'_multifile only supports file objects that '
                     b'have a length but this one does not:',
@@ -180,7 +179,7 @@ def makev1commandrequest(
     qs = b'?%s' % urlreq.urlencode(q)
     cu = b"%s%s" % (repobaseurl, qs)
     size = 0
-    if util.safehasattr(data, 'length'):
+    if hasattr(data, 'length'):
         size = data.length
     elif data is not None:
         size = len(data)

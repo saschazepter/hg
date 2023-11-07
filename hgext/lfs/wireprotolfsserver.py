@@ -16,7 +16,6 @@ from mercurial.hgweb import common as hgwebcommon
 from mercurial import (
     exthelper,
     pycompat,
-    util,
     wireprotoserver,
 )
 
@@ -33,7 +32,7 @@ HTTP_UNSUPPORTED_MEDIA_TYPE = hgwebcommon.HTTP_UNSUPPORTED_MEDIA_TYPE
 eh = exthelper.exthelper()
 
 
-@eh.wrapfunction(wireprotoserver, b'handlewsgirequest')
+@eh.wrapfunction(wireprotoserver, 'handlewsgirequest')
 def handlewsgirequest(orig, rctx, req, res, checkperm):
     """Wrap wireprotoserver.handlewsgirequest() to possibly process an LFS
     request if it is left unprocessed by the wrapped method.
@@ -44,7 +43,7 @@ def handlewsgirequest(orig, rctx, req, res, checkperm):
     if not rctx.repo.ui.configbool(b'experimental', b'lfs.serve'):
         return False
 
-    if not util.safehasattr(rctx.repo.svfs, 'lfslocalblobstore'):
+    if not hasattr(rctx.repo.svfs, 'lfslocalblobstore'):
         return False
 
     if not req.dispatchpath:

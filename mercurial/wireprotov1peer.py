@@ -12,10 +12,6 @@ import weakref
 from concurrent import futures
 from .i18n import _
 from .node import bin
-from .pycompat import (
-    getattr,
-    setattr,
-)
 from . import (
     bundle2,
     changegroup as changegroupmod,
@@ -499,7 +495,7 @@ class wirepeer(repository.peer):
         else:
             heads = wireprototypes.encodelist(heads)
 
-        if util.safehasattr(bundle, 'deltaheader'):
+        if hasattr(bundle, 'deltaheader'):
             # this a bundle10, do the old style call sequence
             ret, output = self._callpush(b"unbundle", bundle, heads=heads)
             if ret == b"":

@@ -26,25 +26,28 @@ fn build_random_graph(
         if i == 0 || rng.gen_bool(rootprob) {
             vg.push([NULL_REVISION, NULL_REVISION])
         } else if i == 1 {
-            vg.push([0, NULL_REVISION])
+            vg.push([Revision(0), NULL_REVISION])
         } else if rng.gen_bool(mergeprob) {
             let p1 = {
                 if i == 2 || rng.gen_bool(prevprob) {
-                    (i - 1) as Revision
+                    Revision((i - 1) as BaseRevision)
                 } else {
-                    rng.gen_range(0..i - 1) as Revision
+                    Revision(rng.gen_range(0..i - 1) as BaseRevision)
                 }
             };
             // p2 is a random revision lower than i and different from p1
-            let mut p2 = rng.gen_range(0..i - 1) as Revision;
+            let mut p2 = Revision(rng.gen_range(0..i - 1) as BaseRevision);
             if p2 >= p1 {
-                p2 += 1;
+                p2.0 += 1;
             }
             vg.push([p1, p2]);
         } else if rng.gen_bool(prevprob) {
-            vg.push([(i - 1) as Revision, NULL_REVISION])
+            vg.push([Revision((i - 1) as BaseRevision), NULL_REVISION])
         } else {
-            vg.push([rng.gen_range(0..i - 1) as Revision, NULL_REVISION])
+            vg.push([
+                Revision(rng.gen_range(0..i - 1) as BaseRevision),
+                NULL_REVISION,
+            ])
         }
     }
     vg
@@ -55,10 +58,10 @@ fn ancestors_sets(vg: &VecGraph) -> Vec<HashSet<Revision>> {
     let mut ancs: Vec<HashSet<Revision>> = Vec::new();
     (0..vg.len()).for_each(|i| {
         let mut ancs_i = HashSet::new();
-        ancs_i.insert(i as Revision);
+        ancs_i.insert(Revision(i as BaseRevision));
         for p in vg[i].iter().cloned() {
             if p != NULL_REVISION {
-                ancs_i.extend(&ancs[p as usize]);
+                ancs_i.extend(&ancs[p.0 as usize]);
             }
         }
         ancs.push(ancs_i);
@@ -115,7 +118,7 @@ impl<'a> NaiveMissingAncestors<'a> {
             .push(MissingAncestorsAction::RemoveAncestorsFrom(revs.clone()));
         for base in self.bases.iter().cloned() {
             if base != NULL_REVISION {
-                for rev in &self.ancestors_sets[base as usize] {
+                for rev in &self.ancestors_sets[base.0 as usize] {
                     revs.remove(rev);
                 }
             }
@@ -131,7 +134,7 @@ impl<'a> NaiveMissingAncestors<'a> {
         let mut missing: HashSet<Revision> = HashSet::new();
         for rev in revs_as_set.iter().cloned() {
             if rev != NULL_REVISION {
-                missing.extend(&self.ancestors_sets[rev as usize])
+                missing.extend(&self.ancestors_sets[rev.0 as usize])
             }
         }
         self.history
@@ -139,7 +142,7 @@ impl<'a> NaiveMissingAncestors<'a> {
 
         for base in self.bases.iter().cloned() {
             if base != NULL_REVISION {
-                for rev in &self.ancestors_sets[base as usize] {
+                for rev in &self.ancestors_sets[base.0 as usize] {
                     missing.remove(rev);
                 }
             }
@@ -193,10 +196,10 @@ fn sample_revs<R: RngCore>(
     let sigma = sigma_opt.unwrap_or(0.8);
 
     let log_normal = LogNormal::new(mu, sigma).unwrap();
-    let nb = min(maxrev as usize, log_normal.sample(rng).floor() as usize);
+    let nb = min(maxrev.0 as usize, log_normal.sample(rng).floor() as usize);
 
-    let dist = Uniform::from(NULL_REVISION..maxrev);
-    rng.sample_iter(&dist).take(nb).collect()
+    let dist = Uniform::from(NULL_REVISION.0..maxrev.0);
+    rng.sample_iter(&dist).take(nb).map(Revision).collect()
 }
 
 /// Produces the hexadecimal representation of a slice of bytes
@@ -294,7 +297,7 @@ fn test_missing_ancestors_compare_naive() {
             eprintln!("Tested with {} graphs", g);
         }
         let graph = build_random_graph(None, None, None, None);
-        let graph_len = graph.len() as Revision;
+        let graph_len = Revision(graph.len() as BaseRevision);
         let ancestors_sets = ancestors_sets(&graph);
         for _testno in 0..testcount {
             let bases: HashSet<Revision> =

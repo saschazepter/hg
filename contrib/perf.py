@@ -456,7 +456,7 @@ def gettimer(ui, opts=None):
         return functools.partial(stub_timer, fm), fm
 
     # experimental config: perf.all-timing
-    displayall = ui.configbool(b"perf", b"all-timing", False)
+    displayall = ui.configbool(b"perf", b"all-timing", True)
 
     # experimental config: perf.run-limits
     limitspec = ui.configlist(b"perf", b"run-limits", [])
@@ -3479,7 +3479,7 @@ def perfrevlogwrite(ui, repo, file_=None, startrev=1000, stoprev=-1, **opts):
 
     # get a formatter
     fm = ui.formatter(b'perf', opts)
-    displayall = ui.configbool(b"perf", b"all-timing", False)
+    displayall = ui.configbool(b"perf", b"all-timing", True)
 
     # print individual details if requested
     if opts['details']:
@@ -3549,7 +3549,10 @@ def _timeonewrite(
     timings = []
     tr = _faketr()
     with _temprevlog(ui, orig, startrev) as dest:
-        dest._lazydeltabase = lazydeltabase
+        if hasattr(dest, "delta_config"):
+            dest.delta_config.lazy_delta_base = lazydeltabase
+        else:
+            dest._lazydeltabase = lazydeltabase
         revs = list(orig.revs(startrev, stoprev))
         total = len(revs)
         topic = 'adding'
@@ -3717,11 +3720,15 @@ def perfrevlogchunks(ui, repo, file_=None, engines=None, startrev=0, **opts):
 
     rl = cmdutil.openrevlog(repo, b'perfrevlogchunks', file_, opts)
 
-    # _chunkraw was renamed to _getsegmentforrevs.
+    # - _chunkraw was renamed to _getsegmentforrevs
+    # - _getsegmentforrevs was moved on the inner object
     try:
-        segmentforrevs = rl._getsegmentforrevs
+        segmentforrevs = rl._inner.get_segment_for_revs
     except AttributeError:
-        segmentforrevs = rl._chunkraw
+        try:
+            segmentforrevs = rl._getsegmentforrevs
+        except AttributeError:
+            segmentforrevs = rl._chunkraw
 
     # Verify engines argument.
     if engines:
@@ -3744,62 +3751,101 @@ def perfrevlogchunks(ui, repo, file_=None, engines=None, startrev=0, **opts):
 
     revs = list(rl.revs(startrev, len(rl) - 1))
 
-    def rlfh(rl):
-        if rl._inline:
+    @contextlib.contextmanager
+    def reading(rl):
+        if getattr(rl, 'reading', None) is not None:
+            with rl.reading():
+                yield None
+        elif rl._inline:
             indexfile = getattr(rl, '_indexfile', None)
             if indexfile is None:
                 # compatibility with <= hg-5.8
                 indexfile = getattr(rl, 'indexfile')
-            return getsvfs(repo)(indexfile)
+            yield getsvfs(repo)(indexfile)
         else:
             datafile = getattr(rl, 'datafile', getattr(rl, 'datafile'))
-            return getsvfs(repo)(datafile)
+            yield getsvfs(repo)(datafile)
+
+    if getattr(rl, 'reading', None) is not None:
+
+        @contextlib.contextmanager
+        def lazy_reading(rl):
+            with rl.reading():
+                yield
+
+    else:
+
+        @contextlib.contextmanager
+        def lazy_reading(rl):
+            yield
 
     def doread():
         rl.clearcaches()
         for rev in revs:
-            segmentforrevs(rev, rev)
+            with lazy_reading(rl):
+                segmentforrevs(rev, rev)
 
     def doreadcachedfh():
         rl.clearcaches()
-        fh = rlfh(rl)
-        for rev in revs:
-            segmentforrevs(rev, rev, df=fh)
+        with reading(rl) as fh:
+            if fh is not None:
+                for rev in revs:
+                    segmentforrevs(rev, rev, df=fh)
+            else:
+                for rev in revs:
+                    segmentforrevs(rev, rev)
 
     def doreadbatch():
         rl.clearcaches()
-        segmentforrevs(revs[0], revs[-1])
+        with lazy_reading(rl):
+            segmentforrevs(revs[0], revs[-1])
 
     def doreadbatchcachedfh():
         rl.clearcaches()
-        fh = rlfh(rl)
-        segmentforrevs(revs[0], revs[-1], df=fh)
+        with reading(rl) as fh:
+            if fh is not None:
+                segmentforrevs(revs[0], revs[-1], df=fh)
+            else:
+                segmentforrevs(revs[0], revs[-1])
 
     def dochunk():
         rl.clearcaches()
-        fh = rlfh(rl)
-        for rev in revs:
-            rl._chunk(rev, df=fh)
+        # chunk used to be available directly on the revlog
+        _chunk = getattr(rl, '_inner', rl)._chunk
+        with reading(rl) as fh:
+            if fh is not None:
+                for rev in revs:
+                    _chunk(rev, df=fh)
+            else:
+                for rev in revs:
+                    _chunk(rev)
 
     chunks = [None]
 
     def dochunkbatch():
         rl.clearcaches()
-        fh = rlfh(rl)
-        # Save chunks as a side-effect.
-        chunks[0] = rl._chunks(revs, df=fh)
+        _chunks = getattr(rl, '_inner', rl)._chunks
+        with reading(rl) as fh:
+            if fh is not None:
+                # Save chunks as a side-effect.
+                chunks[0] = _chunks(revs, df=fh)
+            else:
+                # Save chunks as a side-effect.
+                chunks[0] = _chunks(revs)
 
     def docompress(compressor):
         rl.clearcaches()
 
+        compressor_holder = getattr(rl, '_inner', rl)
+
         try:
             # Swap in the requested compression engine.
-            oldcompressor = rl._compressor
-            rl._compressor = compressor
+            oldcompressor = compressor_holder._compressor
+            compressor_holder._compressor = compressor
             for chunk in chunks[0]:
                 rl.compress(chunk)
         finally:
-            rl._compressor = oldcompressor
+            compressor_holder._compressor = oldcompressor
 
     benches = [
         (lambda: doread(), b'read'),
@@ -3857,12 +3903,28 @@ def perfrevlogrevision(ui, repo, file_, rev=None, cache=None, **opts):
 
     # _chunkraw was renamed to _getsegmentforrevs.
     try:
-        segmentforrevs = r._getsegmentforrevs
+        segmentforrevs = r._inner.get_segment_for_revs
     except AttributeError:
-        segmentforrevs = r._chunkraw
+        try:
+            segmentforrevs = r._getsegmentforrevs
+        except AttributeError:
+            segmentforrevs = r._chunkraw
 
     node = r.lookup(rev)
     rev = r.rev(node)
+
+    if getattr(r, 'reading', None) is not None:
+
+        @contextlib.contextmanager
+        def lazy_reading(r):
+            with r.reading():
+                yield
+
+    else:
+
+        @contextlib.contextmanager
+        def lazy_reading(r):
+            yield
 
     def getrawchunks(data, chain):
         start = r.start
@@ -3897,7 +3959,8 @@ def perfrevlogrevision(ui, repo, file_, rev=None, cache=None, **opts):
         if not cache:
             r.clearcaches()
         for item in slicedchain:
-            segmentforrevs(item[0], item[-1])
+            with lazy_reading(r):
+                segmentforrevs(item[0], item[-1])
 
     def doslice(r, chain, size):
         for s in slicechunk(r, chain, targetsize=size):
@@ -3935,13 +3998,19 @@ def perfrevlogrevision(ui, repo, file_, rev=None, cache=None, **opts):
 
     size = r.length(rev)
     chain = r._deltachain(rev)[0]
-    if not getattr(r, '_withsparseread', False):
+
+    with_sparse_read = False
+    if hasattr(r, 'data_config'):
+        with_sparse_read = r.data_config.with_sparse_read
+    elif hasattr(r, '_withsparseread'):
+        with_sparse_read = r._withsparseread
+    if with_sparse_read:
         slicedchain = (chain,)
     else:
         slicedchain = tuple(slicechunk(r, chain, targetsize=size))
     data = [segmentforrevs(seg[0], seg[-1])[1] for seg in slicedchain]
     rawchunks = getrawchunks(data, slicedchain)
-    bins = r._chunks(chain)
+    bins = r._inner._chunks(chain)
     text = bytes(bins[0])
     bins = bins[1:]
     text = mdiff.patches(text, bins)
@@ -3952,7 +4021,7 @@ def perfrevlogrevision(ui, repo, file_, rev=None, cache=None, **opts):
         (lambda: doread(chain), b'read'),
     ]
 
-    if getattr(r, '_withsparseread', False):
+    if with_sparse_read:
         slicing = (lambda: doslice(r, chain, size), b'slice-sparse-chain')
         benches.append(slicing)
 
@@ -4541,7 +4610,8 @@ def uisetup(ui):
                 )
             return orig(repo, cmd, file_, opts)
 
-        extensions.wrapfunction(cmdutil, b'openrevlog', openrevlog)
+        name = _sysstr(b'openrevlog')
+        extensions.wrapfunction(cmdutil, name, openrevlog)
 
 
 @command(

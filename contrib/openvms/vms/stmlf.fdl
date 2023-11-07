@@ -1,0 +1,7 @@
+!
+! Used by hgmerge.com to convert file to stream_lf record format
+!
+RECORD
+        BLOCK_SPAN              yes
+        CARRIAGE_CONTROL        carriage_return
+        FORMAT                  stream_lf

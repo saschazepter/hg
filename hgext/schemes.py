@@ -159,7 +159,7 @@ def extsetup(ui):
         else:
             hg.repo_schemes[scheme] = ShortRepository(url, scheme, t)
 
-    extensions.wrapfunction(urlutil, b'hasdriveletter', hasdriveletter)
+    extensions.wrapfunction(urlutil, 'hasdriveletter', hasdriveletter)
 
 
 @command(b'debugexpandscheme', norepo=True)

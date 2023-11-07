@@ -15,7 +15,6 @@ import re
 import socket
 
 from mercurial.i18n import _
-from mercurial.pycompat import getattr
 from mercurial.node import hex
 
 from mercurial import (
@@ -271,7 +270,7 @@ def _urlerrorreason(urlerror):
     if isinstance(urlerror.reason, Exception):
         inst = urlerror.reason
 
-    if util.safehasattr(inst, b'reason'):
+    if hasattr(inst, 'reason'):
         try:  # usually it is in the form (errno, strerror)
             reason = inst.reason.args[1]
         except (AttributeError, IndexError):
@@ -751,7 +750,7 @@ def remote(repo, remote=None):
     if lfsurl is None:
         if remote:
             path = remote
-        elif util.safehasattr(repo, b'_subtoppath'):
+        elif hasattr(repo, '_subtoppath'):
             # The pull command sets this during the optional update phase, which
             # tells exactly where the pull originated, whether 'paths.default'
             # or explicit.

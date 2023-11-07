@@ -340,7 +340,7 @@ def wraprepo(repo):
     repo.excludepattern = repo.ui.configlist(
         b"remotefilelog", b"excludepattern", None
     )
-    if not util.safehasattr(repo, 'connectionpool'):
+    if not hasattr(repo, 'connectionpool'):
         repo.connectionpool = connectionpool.connectionpool(repo)
 
     if repo.includepattern or repo.excludepattern:

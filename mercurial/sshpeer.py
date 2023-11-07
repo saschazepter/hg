@@ -10,7 +10,6 @@ import re
 import uuid
 
 from .i18n import _
-from .pycompat import getattr
 from . import (
     error,
     pycompat,
@@ -130,7 +129,7 @@ class doublepipe:
             if sideready:
                 _forwardoutput(self._ui, self._side)
             if mainready:
-                meth = getattr(self._main, methname)
+                meth = getattr(self._main, pycompat.sysstr(methname))
                 if data is None:
                     return meth()
                 else:
