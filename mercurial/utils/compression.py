@@ -8,15 +8,12 @@ import bz2
 import collections
 import zlib
 
-from ..pycompat import getattr
 from .. import (
     error,
     i18n,
     pycompat,
 )
 from . import stringutil
-
-safehasattr = pycompat.safehasattr
 
 
 _ = i18n._
@@ -185,7 +182,7 @@ class compressormanager:
         """
         assert role in (SERVERROLE, CLIENTROLE)
 
-        attr = b'serverpriority' if role == SERVERROLE else b'clientpriority'
+        attr = 'serverpriority' if role == SERVERROLE else 'clientpriority'
 
         engines = [self._engines[e] for e in self._wiretypes.values()]
         if onlyavailable:
@@ -340,7 +337,7 @@ class compressionengine:
 
 class _CompressedStreamReader:
     def __init__(self, fh):
-        if safehasattr(fh, 'unbufferedread'):
+        if hasattr(fh, 'unbufferedread'):
             self._reader = fh.unbufferedread
         else:
             self._reader = fh.read

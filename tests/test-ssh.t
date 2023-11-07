@@ -479,7 +479,7 @@ stderr from remote commands should be printed before stdout from local code (iss
   >     return res
   > 
   > def extsetup(ui):
-  >     extensions.wrapfunction(exchange, b'push', wrappedpush)
+  >     extensions.wrapfunction(exchange, 'push', wrappedpush)
   > EOF
 
   $ cat >> .hg/hgrc << EOF

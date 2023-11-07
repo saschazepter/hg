@@ -377,7 +377,7 @@ class dirs:
         return d in self._dirs
 
 
-if util.safehasattr(parsers, 'dirs'):
+if hasattr(parsers, 'dirs'):
     dirs = parsers.dirs
 
 if rustdirs is not None:

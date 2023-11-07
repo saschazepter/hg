@@ -11,7 +11,6 @@ import locale
 import os
 import sys
 
-from .pycompat import getattr
 from .utils import resourceutil
 from . import (
     encoding,

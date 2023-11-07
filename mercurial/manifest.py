@@ -17,7 +17,6 @@ from .node import (
     hex,
     nullrev,
 )
-from .pycompat import getattr
 from . import (
     encoding,
     error,
@@ -1615,7 +1614,6 @@ class manifestrevlog:
         )
 
         self.index = self._revlog.index
-        self._generaldelta = self._revlog._generaldelta
 
     def get_revlog(self):
         """return an actual revlog instance if any
@@ -1628,7 +1626,7 @@ class manifestrevlog:
 
     def _setupmanifestcachehooks(self, repo):
         """Persist the manifestfulltextcache on lock release"""
-        if not util.safehasattr(repo, '_wlockref'):
+        if not hasattr(repo, '_wlockref'):
             return
 
         self._fulltextcache._opener = repo.wcachevfs
@@ -1822,11 +1820,11 @@ class manifestrevlog:
     def checksize(self):
         return self._revlog.checksize()
 
-    def revision(self, node, _df=None):
-        return self._revlog.revision(node, _df=_df)
+    def revision(self, node):
+        return self._revlog.revision(node)
 
-    def rawdata(self, node, _df=None):
-        return self._revlog.rawdata(node, _df=_df)
+    def rawdata(self, node):
+        return self._revlog.rawdata(node)
 
     def revdiff(self, rev1, rev2):
         return self._revlog.revdiff(rev1, rev2)

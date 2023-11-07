@@ -1309,6 +1309,7 @@ if py2exehacked:
 
 packages = [
     'mercurial',
+    'mercurial.admin',
     'mercurial.cext',
     'mercurial.cffi',
     'mercurial.defaultrc',
@@ -1322,6 +1323,7 @@ packages = [
     'mercurial.templates',
     'mercurial.thirdparty',
     'mercurial.thirdparty.attr',
+    'mercurial.thirdparty.tomli',
     'mercurial.thirdparty.zope',
     'mercurial.thirdparty.zope.interface',
     'mercurial.upgrade_utils',
@@ -1336,7 +1338,6 @@ packages = [
     'hgext.git',
     'hgext.highlight',
     'hgext.hooklib',
-    'hgext.infinitepush',
     'hgext.largefiles',
     'hgext.lfs',
     'hgext.narrow',
@@ -1659,6 +1660,7 @@ if os.name == 'nt':
 
 packagedata = {
     'mercurial': [
+        'configitems.toml',
         'locale/*/LC_MESSAGES/hg.mo',
         'dummycert.pem',
     ],

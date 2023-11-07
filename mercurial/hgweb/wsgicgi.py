@@ -9,7 +9,6 @@
 # http://www.python.org/dev/peps/pep-0333/#the-server-gateway-side
 
 
-from ..pycompat import getattr
 from .. import encoding, pycompat
 
 from ..utils import procutil

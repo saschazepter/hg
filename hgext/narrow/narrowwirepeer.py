@@ -36,7 +36,7 @@ def reposetup(repo):
                 kwargs["excludepats"] = b','.join(exclude)
             return orig(cmd, *args, **kwargs)
 
-        extensions.wrapfunction(peer, b'_calltwowaystream', wrapped)
+        extensions.wrapfunction(peer, '_calltwowaystream', wrapped)
 
     hg.wirepeersetupfuncs.append(wirereposetup)
 

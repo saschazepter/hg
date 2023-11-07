@@ -59,6 +59,11 @@ UNDO_FILES_MAY_NEED_CLEANUP = [
 ]
 
 
+def has_abandoned_transaction(repo):
+    """Return True if the repo has an abandoned transaction"""
+    return os.path.exists(repo.sjoin(b"journal"))
+
+
 def cleanup_undo_files(report, vfsmap, undo_prefix=b'undo'):
     """remove "undo" files used by the rollback logic
 
@@ -868,7 +873,7 @@ class transaction(util.transactional):
                 self._vfsmap,
                 entries,
                 self._backupentries,
-                False,
+                unlink=True,
                 checkambigfiles=self._checkambigfiles,
             )
             self._report(_(b"rollback completed\n"))

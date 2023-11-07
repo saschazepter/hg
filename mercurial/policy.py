@@ -9,8 +9,6 @@
 import os
 import sys
 
-from .pycompat import getattr
-
 # Rules for how modules can be loaded. Values are:
 #
 #    c - require C extensions

@@ -171,14 +171,15 @@ pub fn range(
 mod tests {
 
     use super::*;
-    use crate::testing::SampleGraph;
+    use crate::{testing::SampleGraph, BaseRevision};
 
     /// Apply `retain_heads()` to the given slice and return as a sorted `Vec`
     fn retain_heads_sorted(
         graph: &impl Graph,
-        revs: &[Revision],
+        revs: &[BaseRevision],
     ) -> Result<Vec<Revision>, GraphError> {
-        let mut revs: HashSet<Revision> = revs.iter().cloned().collect();
+        let mut revs: HashSet<Revision> =
+            revs.iter().cloned().map(Revision).collect();
         retain_heads(graph, &mut revs)?;
         let mut as_vec: Vec<Revision> = revs.iter().cloned().collect();
         as_vec.sort_unstable();
@@ -202,9 +203,10 @@ mod tests {
     /// Apply `heads()` to the given slice and return as a sorted `Vec`
     fn heads_sorted(
         graph: &impl Graph,
-        revs: &[Revision],
+        revs: &[BaseRevision],
     ) -> Result<Vec<Revision>, GraphError> {
-        let heads = heads(graph, revs.iter())?;
+        let iter_revs: Vec<_> = revs.iter().cloned().map(Revision).collect();
+        let heads = heads(graph, iter_revs.iter())?;
         let mut as_vec: Vec<Revision> = heads.iter().cloned().collect();
         as_vec.sort_unstable();
         Ok(as_vec)
@@ -227,9 +229,9 @@ mod tests {
     /// Apply `roots()` and sort the result for easier comparison
     fn roots_sorted(
         graph: &impl Graph,
-        revs: &[Revision],
+        revs: &[BaseRevision],
     ) -> Result<Vec<Revision>, GraphError> {
-        let set: HashSet<_> = revs.iter().cloned().collect();
+        let set: HashSet<_> = revs.iter().cloned().map(Revision).collect();
         let mut as_vec = roots(graph, &set)?;
         as_vec.sort_unstable();
         Ok(as_vec)
@@ -252,17 +254,24 @@ mod tests {
     /// Apply `range()` and convert the result into a Vec for easier comparison
     fn range_vec(
         graph: impl Graph + Clone,
-        roots: &[Revision],
-        heads: &[Revision],
+        roots: &[BaseRevision],
+        heads: &[BaseRevision],
     ) -> Result<Vec<Revision>, GraphError> {
-        range(&graph, roots.iter().cloned(), heads.iter().cloned())
-            .map(|bs| bs.into_iter().collect())
+        range(
+            &graph,
+            roots.iter().cloned().map(Revision),
+            heads.iter().cloned().map(Revision),
+        )
+        .map(|bs| bs.into_iter().collect())
     }
 
     #[test]
     fn test_range() -> Result<(), GraphError> {
         assert_eq!(range_vec(SampleGraph, &[0], &[4])?, vec![0, 1, 2, 4]);
-        assert_eq!(range_vec(SampleGraph, &[0], &[8])?, vec![]);
+        assert_eq!(
+            range_vec(SampleGraph, &[0], &[8])?,
+            Vec::<Revision>::new()
+        );
         assert_eq!(
             range_vec(SampleGraph, &[5, 6], &[10, 11, 13])?,
             vec![5, 10]

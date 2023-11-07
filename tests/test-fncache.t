@@ -275,7 +275,7 @@ Aborting transaction prevents fncache change
   > 
   > def uisetup(ui):
   >     extensions.wrapfunction(
-  >         localrepo.localrepository, b'transaction', wrapper)
+  >         localrepo.localrepository, 'transaction', wrapper)
   > 
   > cmdtable = {}
   > 
