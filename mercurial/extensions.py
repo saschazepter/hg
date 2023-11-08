@@ -625,9 +625,8 @@ class wrappedfunction:
     def __init__(self, container, funcname, wrapper):
         assert callable(wrapper)
         if not isinstance(funcname, str):
-            msg = b"pass wrappedfunction target name as `str`, not `bytes`"
-            util.nouideprecwarn(msg, b"6.6", stacklevel=2)
-            funcname = pycompat.sysstr(funcname)
+            msg = b"wrappedfunction target name should be `str`, not `bytes`"
+            raise TypeError(msg)
         self._container = container
         self._funcname = funcname
         self._wrapper = wrapper
