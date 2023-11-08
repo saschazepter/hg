@@ -923,14 +923,6 @@ class path:
             new._setup_url(self._pushloc)
         return new
 
-    def pushloc(self):
-        """compatibility layer for the deprecated attributes"""
-        from .. import util  # avoid a cycle
-
-        msg = "don't use path.pushloc, use path.get_push_variant()"
-        util.nouideprecwarn(msg, b"6.5")
-        return self._pushloc
-
     def _validate_path(self):
         # When given a raw location but not a symbolic name, validate the
         # location is valid.
