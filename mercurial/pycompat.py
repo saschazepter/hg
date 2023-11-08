@@ -12,7 +12,6 @@ This contains aliases to hide python version-specific details from the core.
 import builtins
 import codecs
 import concurrent.futures as futures
-import functools
 import getopt
 import http.client as httplib
 import http.cookiejar as cookielib
@@ -352,26 +351,11 @@ def getdoc(obj: object) -> Optional[bytes]:
     return sysbytes(doc)
 
 
-def _wrapattrfunc(f):
-    @functools.wraps(f)
-    def w(object, name, *args):
-        if isinstance(name, bytes):
-            from . import util
-
-            msg = b'function "%s" take `str` as argument, not `bytes`'
-            fname = f.__name__.encode('ascii')
-            msg %= fname
-            util.nouideprecwarn(msg, b"6.6", stacklevel=2)
-        return f(object, sysstr(name), *args)
-
-    return w
-
-
 # these wrappers are automagically imported by hgloader
-delattr = _wrapattrfunc(builtins.delattr)
-getattr = _wrapattrfunc(builtins.getattr)
-hasattr = _wrapattrfunc(builtins.hasattr)
-setattr = _wrapattrfunc(builtins.setattr)
+delattr = builtins.delattr
+getattr = builtins.getattr
+hasattr = builtins.hasattr
+setattr = builtins.setattr
 xrange = builtins.range
 unicode = str
 
@@ -386,7 +370,7 @@ def open(
     return builtins.open(name, sysstr(mode), buffering, encoding)
 
 
-safehasattr = _wrapattrfunc(builtins.hasattr)
+safehasattr = builtins.hasattr
 
 
 def _getoptbwrapper(
