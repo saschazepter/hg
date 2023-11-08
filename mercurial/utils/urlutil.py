@@ -14,7 +14,6 @@ from .. import (
     error,
     pycompat,
     urllibcompat,
-    util,
 )
 
 from . import (
@@ -680,8 +679,7 @@ def pathsuboption(option, attr, display=pycompat.bytestr):
     """
     if isinstance(attr, bytes):
         msg = b'pathsuboption take `str` as "attr" argument, not `bytes`'
-        util.nouideprecwarn(msg, b"6.6", stacklevel=2)
-        attr = attr.decode('ascii')
+        raise TypeError(msg)
 
     def register(func):
         _pathsuboptions[option] = (attr, func)
