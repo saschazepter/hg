@@ -408,16 +408,6 @@ class dirstate:
         """
         return self._changing_level > 0
 
-    def pendingparentchange(self):
-        return self.is_changing_parent()
-
-    def is_changing_parent(self):
-        """Returns true if the dirstate is in the middle of a set of changes
-        that modify the dirstate parent.
-        """
-        self._ui.deprecwarn(b"dirstate.is_changing_parents", b"6.5")
-        return self.is_changing_parents
-
     @property
     def is_changing_parents(self):
         """Returns true if the dirstate is in the middle of a set of changes
