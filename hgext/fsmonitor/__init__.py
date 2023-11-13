@@ -332,7 +332,7 @@ def overridewalk(orig, self, match, subrepos, unknown, ignored, full=True):
     matchfn = match.matchfn
     matchalways = match.always()
     dmap = self._map
-    if hasattr(dmap, b'_map'):
+    if hasattr(dmap, '_map'):
         # for better performance, directly access the inner dirstate map if the
         # standard dirstate implementation is in use.
         dmap = dmap._map
@@ -744,7 +744,7 @@ def makedirstate(repo, dirstate):
 def wrapdirstate(orig, self):
     ds = orig(self)
     # only override the dirstate when Watchman is available for the repo
-    if hasattr(self, b'_fsmonitorstate'):
+    if hasattr(self, '_fsmonitorstate'):
         makedirstate(self, ds)
     return ds
 
@@ -811,7 +811,7 @@ class state_update:
             self.oldnode = self.repo[b'.'].node()
 
         if self.repo.currentwlock() is None:
-            if hasattr(self.repo, b'wlocknostateupdate'):
+            if hasattr(self.repo, 'wlocknostateupdate'):
                 self._lock = self.repo.wlocknostateupdate()
             else:
                 self._lock = self.repo.wlock()
@@ -839,7 +839,7 @@ class state_update:
                 self._lock.release()
 
     def _state(self, cmd, commithash, status=b'ok'):
-        if not hasattr(self.repo, b'_watchmanclient'):
+        if not hasattr(self.repo, '_watchmanclient'):
             return False
         try:
             self.repo._watchmanclient.command(
