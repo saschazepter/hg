@@ -415,7 +415,7 @@ class baseunionstore:
 
     def markforrefresh(self):
         for store in self.stores:
-            if hasattr(store, b'markforrefresh'):
+            if hasattr(store, 'markforrefresh'):
                 store.markforrefresh()
 
     @staticmethod
