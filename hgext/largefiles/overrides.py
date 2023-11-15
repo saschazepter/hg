@@ -1252,8 +1252,6 @@ def overridearchive(
     if kind not in archival.archivers:
         raise error.Abort(_(b"unknown archive type '%s'") % kind)
 
-    ctx = repo[node]
-
     if kind == b'files':
         if prefix:
             raise error.Abort(_(b'cannot give prefix when archiving to files'))
@@ -1262,6 +1260,36 @@ def overridearchive(
 
     if not match:
         match = scmutil.matchall(repo)
+    archiver = None
+    ctx = repo[node]
+
+    def opencallback():
+        """Return the archiver instance, creating it if necessary.
+
+        This function is called when the first actual entry is created.
+        It may be called multiple times from different layers.
+        When serving the archive via hgweb, no errors should happen after
+        this point.
+        """
+        nonlocal archiver
+        if archiver is None:
+            if callable(dest):
+                output = dest()
+            else:
+                output = dest
+            archiver = archival.archivers[kind](output, mtime or ctx.date()[0])
+            assert archiver is not None
+
+            if repo.ui.configbool(b"ui", b"archivemeta"):
+                metaname = b'.hg_archival.txt'
+                if match(metaname):
+                    write(
+                        metaname,
+                        0o644,
+                        False,
+                        lambda: archival.buildmetadata(ctx),
+                    )
+        return archiver
 
     def write(name, mode, islink, getdata):
         if not match(name):
@@ -1269,17 +1297,10 @@ def overridearchive(
         data = getdata()
         if decode:
             data = repo.wwritedata(name, data)
+        if archiver is None:
+            opencallback()
+        assert archiver is not None, "archive should be opened by now"
         archiver.addfile(prefix + name, mode, islink, data)
-
-    archiver = archival.archivers[kind](dest, mtime or ctx.date()[0])
-
-    if repo.ui.configbool(b"ui", b"archivemeta"):
-        write(
-            b'.hg_archival.txt',
-            0o644,
-            False,
-            lambda: archival.buildmetadata(ctx),
-        )
 
     for f in ctx:
         ff = ctx.flags(f)
@@ -1319,18 +1340,19 @@ def overridearchive(
                 and lfstatus(sub._repo)
                 or util.nullcontextmanager()
             ):
-                sub.archive(archiver, subprefix, submatch)
+                sub.archive(opencallback, subprefix, submatch)
 
-    archiver.done()
+    if archiver:
+        archiver.done()
 
 
 @eh.wrapfunction(subrepo.hgsubrepo, 'archive')
 def hgsubrepoarchive(
-    orig, repo, archiver, prefix, match: matchmod.basematcher, decode=True
+    orig, repo, opener, prefix, match: matchmod.basematcher, decode=True
 ):
     lfenabled = hasattr(repo._repo, '_largefilesenabled')
     if not lfenabled or not repo._repo.lfstatus:
-        return orig(repo, archiver, prefix, match, decode)
+        return orig(repo, opener, prefix, match, decode)
 
     repo._get(repo._state + (b'hg',))
     rev = repo._state[1]
@@ -1339,7 +1361,10 @@ def hgsubrepoarchive(
     if ctx.node() is not None:
         lfcommands.cachelfiles(repo.ui, repo._repo, ctx.node())
 
+    archiver = None
+
     def write(name, mode, islink, getdata):
+        nonlocal archiver
         # At this point, the standin has been replaced with the largefile name,
         # so the normal matcher works here without the lfutil variants.
         if not match(f):
@@ -1348,6 +1373,8 @@ def hgsubrepoarchive(
         if decode:
             data = repo._repo.wwritedata(name, data)
 
+        if archiver is None:
+            archiver = opener()
         archiver.addfile(prefix + name, mode, islink, data)
 
     for f in ctx:
@@ -1387,7 +1414,7 @@ def hgsubrepoarchive(
             and lfstatus(sub._repo)
             or util.nullcontextmanager()
         ):
-            sub.archive(archiver, subprefix, submatch, decode)
+            sub.archive(opener, subprefix, submatch, decode)
 
 
 # If a largefile is modified, the change is not reflected in its
