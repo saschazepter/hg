@@ -88,6 +88,33 @@ Status compared to parent of the working copy, i.e. the dirstate status
 
 Status between first and second commit. Should ignore dirstate status.
 
+  $ hg status -marc --rev 0 --rev 1 --config rhg.on-unsupported=abort
+  M content1_content2_content1-tracked
+  M content1_content2_content1-untracked
+  M content1_content2_content2-tracked
+  M content1_content2_content2-untracked
+  M content1_content2_content3-tracked
+  M content1_content2_content3-untracked
+  M content1_content2_missing-tracked
+  M content1_content2_missing-untracked
+  A missing_content2_content2-tracked
+  A missing_content2_content2-untracked
+  A missing_content2_content3-tracked
+  A missing_content2_content3-untracked
+  A missing_content2_missing-tracked
+  A missing_content2_missing-untracked
+  R content1_missing_content1-tracked
+  R content1_missing_content1-untracked
+  R content1_missing_content3-tracked
+  R content1_missing_content3-untracked
+  R content1_missing_missing-tracked
+  R content1_missing_missing-untracked
+  C content1_content1_content1-tracked
+  C content1_content1_content1-untracked
+  C content1_content1_content3-tracked
+  C content1_content1_content3-untracked
+  C content1_content1_missing-tracked
+  C content1_content1_missing-untracked
   $ hg status -A --rev 0:1 'glob:content1_content2_*'
   M content1_content2_content1-tracked
   M content1_content2_content1-untracked
