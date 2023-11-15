@@ -524,13 +524,20 @@ fn exit_no_fallback(
     std::process::exit(exit_code(&result, use_detailed_exit_code))
 }
 
+mod commands {
+    pub mod cat;
+    pub mod config;
+    pub mod debugdata;
+    pub mod debugignorerhg;
+    pub mod debugrequirements;
+    pub mod debugrhgsparse;
+    pub mod files;
+    pub mod root;
+    pub mod status;
+}
+
 macro_rules! subcommands {
     ($( $command: ident )+) => {
-        mod commands {
-            $(
-                pub mod $command;
-            )+
-        }
 
         fn add_subcommand_args(app: clap::Command) -> clap::Command {
             app
