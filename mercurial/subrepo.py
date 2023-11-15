@@ -363,9 +363,7 @@ class abstractsubrepo:
         """handle the files command for this subrepo"""
         return 1
 
-    def archive(
-        self, archiver, prefix, match: matchmod.basematcher, decode=True
-    ):
+    def archive(self, opener, prefix, match: matchmod.basematcher, decode=True):
         files = [f for f in self.files() if match(f)]
         total = len(files)
         relpath = subrelpath(self)
@@ -373,10 +371,13 @@ class abstractsubrepo:
             _(b'archiving (%s)') % relpath, unit=_(b'files'), total=total
         )
         progress.update(0)
+        archiver = None
         for name in files:
             flags = self.fileflags(name)
             mode = b'x' in flags and 0o755 or 0o644
             symlink = b'l' in flags
+            if archiver is None:
+                archiver = opener()
             archiver.addfile(
                 prefix + name, mode, symlink, self.filedata(name, decode)
             )
@@ -651,9 +652,7 @@ class hgsubrepo(abstractsubrepo):
             )
 
     @annotatesubrepoerror
-    def archive(
-        self, archiver, prefix, match: matchmod.basematcher, decode=True
-    ):
+    def archive(self, opener, prefix, match: matchmod.basematcher, decode=True):
         self._get(self._state + (b'hg',))
         files = [f for f in self.files() if match(f)]
         rev = self._state[1]
@@ -661,12 +660,12 @@ class hgsubrepo(abstractsubrepo):
         scmutil.prefetchfiles(
             self._repo, [(ctx.rev(), scmutil.matchfiles(self._repo, files))]
         )
-        total = abstractsubrepo.archive(self, archiver, prefix, match)
+        total = abstractsubrepo.archive(self, opener, prefix, match)
         for subpath in ctx.substate:
             s = subrepo(ctx, subpath, True)
             submatch = matchmod.subdirmatcher(subpath, match)
             subprefix = prefix + subpath + b'/'
-            total += s.archive(archiver, subprefix, submatch, decode)
+            total += s.archive(opener, subprefix, submatch, decode)
         return total
 
     @annotatesubrepoerror
@@ -1910,9 +1909,7 @@ class gitsubrepo(abstractsubrepo):
             else:
                 self.wvfs.unlink(f)
 
-    def archive(
-        self, archiver, prefix, match: matchmod.basematcher, decode=True
-    ):
+    def archive(self, opener, prefix, match: matchmod.basematcher, decode=True):
         total = 0
         source, revision = self._state
         if not revision:
@@ -1928,6 +1925,7 @@ class gitsubrepo(abstractsubrepo):
         progress = self.ui.makeprogress(
             _(b'archiving (%s)') % relpath, unit=_(b'files')
         )
+        archiver = None
         progress.update(0)
         for info in tar:
             if info.isdir():
@@ -1944,6 +1942,8 @@ class gitsubrepo(abstractsubrepo):
                 else:
                     self.ui.warn(_(b'skipping "%s" (unknown type)') % bname)
                     continue
+            if archiver is None:
+                archiver = opener()
             archiver.addfile(prefix + bname, info.mode, info.issym(), data)
             total += 1
             progress.increment()

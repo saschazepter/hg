@@ -1283,35 +1283,46 @@ def archive(web):
 
     mimetype, artype, extension, encoding = webutil.archivespecs[type_]
 
-    web.res.headers[b'Content-Type'] = mimetype
-    web.res.headers[b'Content-Disposition'] = b'attachment; filename=%s%s' % (
-        name,
-        extension,
-    )
-
-    if encoding:
-        web.res.headers[b'Content-Encoding'] = encoding
-
-    web.res.setbodywillwrite()
-    if list(web.res.sendresponse()):
-        raise error.ProgrammingError(
-            b'sendresponse() should not emit data if writing later'
-        )
-
     if web.req.method == b'HEAD':
         return []
 
-    bodyfh = web.res.getbodyfile()
+    def open_archive():
+        """Open the output "file" for the archiver.
 
-    archival.archive(
+        This function starts the streaming response. Error reporting
+        after this point will result in short writes without proper
+        diagnostics to the client.
+        """
+        web.res.headers[b'Content-Type'] = mimetype
+        web.res.headers[
+            b'Content-Disposition'
+        ] = b'attachment; filename=%s%s' % (
+            name,
+            extension,
+        )
+
+        if encoding:
+            web.res.headers[b'Content-Encoding'] = encoding
+
+        web.res.setbodywillwrite()
+        if list(web.res.sendresponse()):
+            raise error.ProgrammingError(
+                b'sendresponse() should not emit data if writing later'
+            )
+
+        return web.res.getbodyfile()
+
+    total = archival.archive(
         web.repo,
-        bodyfh,
+        open_archive,
         cnode,
         artype,
         prefix=name,
         match=match,
         subrepos=web.configbool(b"web", b"archivesubrepos"),
     )
+    if total == 0:
+        raise ErrorResponse(HTTP_NOT_FOUND, b'no files found in changeset')
 
     return []
 

@@ -709,7 +709,8 @@ def archive(ui, repo, dest, **opts):
     if dest == b'-':
         if kind == b'files':
             raise error.InputError(_(b'cannot archive plain files to stdout'))
-        dest = cmdutil.makefileobj(ctx, dest)
+        realdest = dest
+        dest = lambda: cmdutil.makefileobj(ctx, realdest)
         if not prefix:
             prefix = os.path.basename(repo.root) + b'-%h'
 
