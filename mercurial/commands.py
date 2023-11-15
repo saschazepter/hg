@@ -29,6 +29,7 @@ from . import (
     copies,
     debugcommands as debugcommandsmod,
     destutil,
+    diffutil,
     discovery,
     encoding,
     error,
@@ -2655,7 +2656,7 @@ def diff(ui, repo, *pats, **opts):
     if change:
         repo = scmutil.unhidehashlikerevs(repo, [change], b'nowarn')
         ctx2 = logcmdutil.revsingle(repo, change, None)
-        ctx1 = logcmdutil.diff_parent(ctx2)
+        ctx1 = diffutil.diff_parent(ctx2)
     elif from_rev or to_rev:
         repo = scmutil.unhidehashlikerevs(
             repo, [from_rev] + [to_rev], b'nowarn'
