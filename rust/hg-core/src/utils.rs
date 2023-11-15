@@ -11,7 +11,10 @@ use crate::errors::{HgError, IoErrorContext};
 use crate::utils::hg_path::HgPath;
 use im_rc::ordmap::DiffItem;
 use im_rc::ordmap::OrdMap;
+use itertools::EitherOrBoth;
+use itertools::Itertools;
 use std::cell::Cell;
+use std::cmp::Ordering;
 use std::fmt;
 use std::{io::Write, ops::Deref};
 
@@ -497,6 +500,43 @@ where
         Ok(node) => f(node).transpose(),
         Err(e) => Some(Err(e)),
     })
+}
+
+/// Like `itertools::merge_join_by`, but merges fallible iterators.
+///
+/// The callback is only used for Ok values. Errors are passed through as-is.
+/// Errors compare less than Ok values, which makes the error handling
+/// conservative.
+pub fn merge_join_results_by<'a, I1, I2, F, A, B, E>(
+    iter1: I1,
+    iter2: I2,
+    f: F,
+) -> impl Iterator<Item = Result<EitherOrBoth<A, B>, E>> + 'a
+where
+    I1: Iterator<Item = Result<A, E>> + 'a,
+    I2: Iterator<Item = Result<B, E>> + 'a,
+    F: FnMut(&A, &B) -> Ordering + 'a,
+{
+    let mut g = f;
+    iter1
+        .merge_join_by(iter2, move |i1, i2| match i1 {
+            Err(_) => Ordering::Less,
+            Ok(i1) => match i2 {
+                Err(_) => Ordering::Greater,
+                Ok(i2) => g(i1, i2),
+            },
+        })
+        .map(|result| match result {
+            EitherOrBoth::Left(Err(e)) => Err(e),
+            EitherOrBoth::Right(Err(e)) => Err(e),
+            EitherOrBoth::Both(Err(e), _) => Err(e),
+            EitherOrBoth::Both(_, Err(e)) => Err(e),
+            EitherOrBoth::Left(Ok(v)) => Ok(EitherOrBoth::Left(v)),
+            EitherOrBoth::Right(Ok(v)) => Ok(EitherOrBoth::Right(v)),
+            EitherOrBoth::Both(Ok(v1), Ok(v2)) => {
+                Ok(EitherOrBoth::Both(v1, v2))
+            }
+        })
 }
 
 /// Force the global rayon threadpool to not exceed 16 concurrent threads
