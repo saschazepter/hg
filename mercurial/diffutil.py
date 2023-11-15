@@ -16,6 +16,7 @@ from typing import (
 )
 
 from .i18n import _
+from .node import nullrev
 
 from . import (
     mdiff,
@@ -155,3 +156,35 @@ def difffeatureopts(
         )
 
     return mdiff.diffopts(**pycompat.strkwargs(buildopts))
+
+
+def diff_parent(ctx):
+    """get the context object to use as parent when diffing
+
+
+    If diff.merge is enabled, an overlayworkingctx of the auto-merged parents will be returned.
+    """
+    repo = ctx.repo()
+    if repo.ui.configbool(b"diff", b"merge") and ctx.p2().rev() != nullrev:
+        # avoid circular import
+        from . import (
+            context,
+            merge,
+        )
+
+        wctx = context.overlayworkingctx(repo)
+        wctx.setbase(ctx.p1())
+        with repo.ui.configoverride(
+            {
+                (
+                    b"ui",
+                    b"forcemerge",
+                ): b"internal:merge3-lie-about-conflicts",
+            },
+            b"merge-diff",
+        ):
+            with repo.ui.silent():
+                merge.merge(ctx.p2(), wc=wctx)
+        return wctx
+    else:
+        return ctx.p1()
