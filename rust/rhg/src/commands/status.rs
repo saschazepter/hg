@@ -30,11 +30,13 @@ use hg::utils::files::{
 use hg::utils::hg_path::{hg_path_to_path_buf, HgPath};
 use hg::DirstateStatus;
 use hg::PatternFileWarning;
+use hg::Revision;
 use hg::StatusError;
 use hg::StatusOptions;
 use hg::{self, narrow, sparse};
 use log::info;
 use rayon::prelude::*;
+use std::borrow::Cow;
 use std::io;
 use std::mem::take;
 use std::path::PathBuf;
@@ -141,6 +143,38 @@ pub fn args() -> clap::Command {
                 .action(clap::ArgAction::SetTrue)
                 .long("verbose"),
         )
+        .arg(
+            Arg::new("rev")
+                .help("show difference from/to revision")
+                .long("rev")
+                .num_args(1)
+                .action(clap::ArgAction::Append)
+                .value_name("REV"),
+        )
+}
+
+fn parse_revpair(
+    repo: &Repo,
+    revs: Option<Vec<String>>,
+) -> Result<Option<(Revision, Revision)>, CommandError> {
+    let revs = match revs {
+        None => return Ok(None),
+        Some(revs) => revs,
+    };
+    if revs.is_empty() {
+        return Ok(None);
+    }
+    if revs.len() != 2 {
+        return Err(CommandError::unsupported("expected 0 or 2 --rev flags"));
+    }
+
+    let rev1 = &revs[0];
+    let rev2 = &revs[1];
+    let rev1 = hg::revset::resolve_single(rev1, repo)
+        .map_err(|e| (e, rev1.as_str()))?;
+    let rev2 = hg::revset::resolve_single(rev2, repo)
+        .map_err(|e| (e, rev2.as_str()))?;
+    Ok(Some((rev1, rev2)))
 }
 
 /// Pure data type allowing the caller to specify file states to display
@@ -230,6 +264,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let config = invocation.config;
     let args = invocation.subcommand_args;
 
+    let revs = args.get_many::<String>("rev");
     let print0 = args.get_flag("print0");
     let verbose = args.get_flag("verbose")
         || config.get_bool(b"ui", b"verbose")?
@@ -263,6 +298,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         || config.get_bool(b"ui", b"statuscopies")?;
 
     let repo = invocation.repo?;
+    let revpair = parse_revpair(repo, revs.map(|i| i.cloned().collect()))?;
 
     if verbose && has_unfinished_state(repo)? {
         return Err(CommandError::unsupported(
@@ -407,6 +443,57 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         ))
     };
     let (narrow_matcher, narrow_warnings) = narrow::matcher(repo)?;
+
+    match revpair {
+        Some((rev1, rev2)) => {
+            let mut ds_status = DirstateStatus::default();
+            if list_copies {
+                return Err(CommandError::unsupported(
+                    "status --rev --rev with copy information is not implemented yet",
+                ));
+            }
+
+            let stat = hg::operations::status_rev_rev_no_copies(
+                repo,
+                rev1,
+                rev2,
+                narrow_matcher,
+            )?;
+            for entry in stat.iter() {
+                let (path, status) = entry?;
+                let path = StatusPath {
+                    path: Cow::Borrowed(path),
+                    copy_source: None,
+                };
+                match status {
+                    hg::operations::DiffStatus::Removed => {
+                        if display_states.removed {
+                            ds_status.removed.push(path)
+                        }
+                    }
+                    hg::operations::DiffStatus::Added => {
+                        if display_states.added {
+                            ds_status.added.push(path)
+                        }
+                    }
+                    hg::operations::DiffStatus::Modified => {
+                        if display_states.modified {
+                            ds_status.modified.push(path)
+                        }
+                    }
+                    hg::operations::DiffStatus::Matching => {
+                        if display_states.clean {
+                            ds_status.clean.push(path)
+                        }
+                    }
+                }
+            }
+            output.output(display_states, ds_status)?;
+            return Ok(());
+        }
+        None => (),
+    }
+
     let (sparse_matcher, sparse_warnings) = sparse::matcher(repo)?;
     let matcher = match (repo.has_narrow(), repo.has_sparse()) {
         (true, true) => {
