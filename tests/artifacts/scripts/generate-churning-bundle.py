@@ -46,7 +46,7 @@ OTHER_CHANGES = 300
 
 def nextcontent(previous_content):
     """utility to produce a new file content from the previous one"""
-    return hashlib.md5(previous_content).hexdigest()
+    return hashlib.md5(previous_content).hexdigest().encode('ascii')
 
 
 def filecontent(iteridx, oldcontent):
@@ -57,9 +57,9 @@ def filecontent(iteridx, oldcontent):
 
     # initial call
     if iteridx is None:
-        current = ''
+        current = b''
     else:
-        current = str(iteridx)
+        current = b"%d" % iteridx
 
     for idx in range(NB_LINES):
         do_change_line = True
@@ -67,7 +67,7 @@ def filecontent(iteridx, oldcontent):
             do_change_line = not ((idx - iteridx) % OTHER_CHANGES)
 
         if do_change_line:
-            to_write = current + '\n'
+            to_write = current + b'\n'
             current = nextcontent(current)
         else:
             to_write = oldcontent[idx]
@@ -127,7 +127,7 @@ def run(target):
             data = bundle.read()
             digest = hashlib.md5(data).hexdigest()
         with open(target + '.md5', 'wb') as md5file:
-            md5file.write(digest + '\n')
+            md5file.write(digest.encode('ascii') + b'\n')
         if sys.stdout.isatty():
             print('bundle generated at "%s" md5: %s' % (target, digest))
 
