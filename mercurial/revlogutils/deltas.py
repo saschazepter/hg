@@ -699,6 +699,8 @@ class _DeltaSearch:
         self.p2 = p2
         self.cachedelta = cachedelta
         self.excluded_bases = excluded_bases
+        if target_rev is None:
+            self.target_rev = len(self.revlog)
         self.target_rev = target_rev
         if snapshot_cache is None:
             # map: base-rev: [snapshot-revs]
@@ -716,9 +718,6 @@ class _DeltaSearch:
         if not (len(self.revlog) and self.revlog._storedeltachains):
             yield None
             return
-
-        if self.target_rev is None:
-            self.target_rev = len(self.revlog)
 
         if not self.revlog.delta_config.general_delta:
             # before general delta, there is only one possible delta base
