@@ -741,13 +741,7 @@ class _DeltaSearch:
         group_chunk_size = self.revlog.delta_config.candidate_group_chunk_size
 
         tested = {nullrev}
-        candidates = _refinedgroups(
-            self.revlog,
-            self.p1,
-            self.p2,
-            self.cachedelta,
-            snapshot_cache=self.snapshot_cache,
-        )
+        candidates = self._refined_groups()
         while True:
             temptative = candidates.send(good)
             if temptative is None:
@@ -869,70 +863,79 @@ class _DeltaSearch:
 
         yield None
 
-
-def _refinedgroups(revlog, p1, p2, cachedelta, snapshot_cache=None):
-    good = None
-    # First we try to reuse a the delta contained in the bundle.
-    # (or from the source revlog)
-    #
-    # This logic only applies to general delta repositories and can be disabled
-    # through configuration. Disabling reuse source delta is useful when
-    # we want to make sure we recomputed "optimal" deltas.
-    debug_info = None
-    if cachedelta is not None and cachedelta[2] > DELTA_BASE_REUSE_NO:
-        # Assume what we received from the server is a good choice
-        # build delta will reuse the cache
-        if debug_info is not None:
-            debug_info['cached-delta.tested'] += 1
-        good = yield (cachedelta[0],)
-        if good is not None:
+    def _refined_groups(self):
+        good = None
+        # First we try to reuse a the delta contained in the bundle.  (or from
+        # the source revlog)
+        #
+        # This logic only applies to general delta repositories and can be
+        # disabled through configuration. Disabling reuse source delta is
+        # useful when we want to make sure we recomputed "optimal" deltas.
+        debug_info = None
+        if (
+            self.cachedelta is not None
+            and self.cachedelta[2] > DELTA_BASE_REUSE_NO
+        ):
+            # Assume what we received from the server is a good choice
+            # build delta will reuse the cache
             if debug_info is not None:
-                debug_info['cached-delta.accepted'] += 1
+                debug_info['cached-delta.tested'] += 1
+            good = yield (self.cachedelta[0],)
+            if good is not None:
+                if debug_info is not None:
+                    debug_info['cached-delta.accepted'] += 1
+                yield None
+                return
+        if self.snapshot_cache is None:
+            self.snapshot_cache = SnapshotCache()
+        groups = _rawgroups(
+            self.revlog,
+            self.p1,
+            self.p2,
+            self.cachedelta,
+            self.snapshot_cache,
+        )
+        for candidates in groups:
+            good = yield candidates
+            if good is not None:
+                break
+
+        # If sparse revlog is enabled, we can try to refine the available
+        # deltas
+        if not self.revlog.delta_config.sparse_revlog:
             yield None
             return
-    if snapshot_cache is None:
-        snapshot_cache = SnapshotCache()
-    groups = _rawgroups(
-        revlog,
-        p1,
-        p2,
-        cachedelta,
-        snapshot_cache,
-    )
-    for candidates in groups:
-        good = yield candidates
-        if good is not None:
-            break
 
-    # If sparse revlog is enabled, we can try to refine the available deltas
-    if not revlog.delta_config.sparse_revlog:
+        # if we have a refinable value, try to refine it
+        if (
+            good is not None
+            and good not in (self.p1, self.p2)
+            and self.revlog.issnapshot(good)
+        ):
+            # refine snapshot down
+            previous = None
+            while previous != good:
+                previous = good
+                base = self.revlog.deltaparent(good)
+                if base == nullrev:
+                    break
+                good = yield (base,)
+            # refine snapshot up
+            if not self.snapshot_cache.snapshots:
+                self.snapshot_cache.update(self.revlog, good + 1)
+            previous = None
+            while good != previous:
+                previous = good
+                children = tuple(
+                    sorted(c for c in self.snapshot_cache.snapshots[good])
+                )
+                good = yield children
+
+        if debug_info is not None:
+            if good is None:
+                debug_info['no-solution'] += 1
+
         yield None
-        return
-
-    # if we have a refinable value, try to refine it
-    if good is not None and good not in (p1, p2) and revlog.issnapshot(good):
-        # refine snapshot down
-        previous = None
-        while previous != good:
-            previous = good
-            base = revlog.deltaparent(good)
-            if base == nullrev:
-                break
-            good = yield (base,)
-        # refine snapshot up
-        if not snapshot_cache.snapshots:
-            snapshot_cache.update(revlog, good + 1)
-        previous = None
-        while good != previous:
-            previous = good
-            children = tuple(sorted(c for c in snapshot_cache.snapshots[good]))
-            good = yield children
-
-    if debug_info is not None:
-        if good is None:
-            debug_info['no-solution'] += 1
-
-    yield None
 
 
 def _rawgroups(revlog, p1, p2, cachedelta, snapshot_cache=None):
