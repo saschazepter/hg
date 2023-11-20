@@ -700,6 +700,9 @@ class _DeltaSearch:
         self.cachedelta = cachedelta
         self.excluded_bases = excluded_bases
         self.target_rev = target_rev
+        if snapshot_cache is None:
+            # map: base-rev: [snapshot-revs]
+            snapshot_cache = SnapshotCache()
         self.snapshot_cache = snapshot_cache
 
     def candidate_groups(self):
@@ -886,8 +889,6 @@ class _DeltaSearch:
                     debug_info['cached-delta.accepted'] += 1
                 yield None
                 return
-        if self.snapshot_cache is None:
-            self.snapshot_cache = SnapshotCache()
         groups = self._raw_groups()
         for candidates in groups:
             good = yield candidates
@@ -965,9 +966,6 @@ class _DeltaSearch:
             yield parents
 
         if sparse and parents:
-            if self.snapshot_cache is None:
-                # map: base-rev: [snapshot-revs]
-                self.snapshot_cache = SnapshotCache()
             # See if we can use an existing snapshot in the parent chains to
             # use as a base for a new intermediate-snapshot
             #
