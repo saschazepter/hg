@@ -675,169 +675,199 @@ def is_good_delta_info(revlog, deltainfo, revinfo):
 LIMIT_BASE2TEXT = 500
 
 
-def _candidategroups(
-    revlog,
-    textlen,
-    p1,
-    p2,
-    cachedelta,
-    excluded_bases=None,
-    target_rev=None,
-    snapshot_cache=None,
-):
-    """Provides group of revision to be tested as delta base
+class _DeltaSearch:
+    """perform the search of a good delta for a single revlog revision
 
-    This top level function focus on emitting groups with unique and worthwhile
-    content. See _raw_candidate_groups for details about the group order.
+    note: some of the deltacomputer.finddeltainfo logic should probably move
+    here.
     """
-    # should we try to build a delta?
-    if not (len(revlog) and revlog._storedeltachains):
-        yield None
-        return
 
-    if target_rev is None:
-        target_rev = len(revlog)
-
-    if not revlog.delta_config.general_delta:
-        # before general delta, there is only one possible delta base
-        yield (target_rev - 1,)
-        yield None
-        return
-
-    # the DELTA_BASE_REUSE_FORCE case should have been taken care of sooner so
-    # we should never end up asking such question. Adding the assert as a
-    # safe-guard to detect anything that would be fishy in this regard.
-    assert (
-        cachedelta is None
-        or cachedelta[2] != DELTA_BASE_REUSE_FORCE
-        or not revlog.delta_config.general_delta
-    )
-
-    deltalength = revlog.length
-    deltaparent = revlog.deltaparent
-    sparse = revlog.delta_config.sparse_revlog
-    good = None
-
-    deltas_limit = textlen * LIMIT_DELTA2TEXT
-    group_chunk_size = revlog.delta_config.candidate_group_chunk_size
-
-    tested = {nullrev}
-    candidates = _refinedgroups(
+    def __init__(
+        self,
         revlog,
+        textlen,
         p1,
         p2,
         cachedelta,
-        snapshot_cache=snapshot_cache,
-    )
-    while True:
-        temptative = candidates.send(good)
-        if temptative is None:
-            break
-        group = []
-        for rev in temptative:
-            # skip over empty delta (no need to include them in a chain)
-            while not (rev == nullrev or rev in tested or deltalength(rev)):
-                tested.add(rev)
-                rev = deltaparent(rev)
-            # no need to try a delta against nullrev, this will be done as a
-            # last resort.
-            if rev == nullrev:
-                continue
-            # filter out revision we tested already
-            if rev in tested:
-                continue
+        excluded_bases=None,
+        target_rev=None,
+        snapshot_cache=None,
+    ):
+        self.revlog = revlog
+        self.textlen = textlen
+        self.p1 = p1
+        self.p2 = p2
+        self.cachedelta = cachedelta
+        self.excluded_bases = excluded_bases
+        self.target_rev = target_rev
+        self.snapshot_cache = snapshot_cache
 
-            # an higher authority deamed the base unworthy (e.g. censored)
-            if excluded_bases is not None and rev in excluded_bases:
-                tested.add(rev)
-                continue
-            # We are in some recomputation cases and that rev is too high in
-            # the revlog
-            if target_rev is not None and rev >= target_rev:
-                tested.add(rev)
-                continue
-            # filter out delta base that will never produce good delta
-            if deltas_limit < revlog.length(rev):
-                tested.add(rev)
-                continue
-            if sparse and revlog.rawsize(rev) < (textlen // LIMIT_BASE2TEXT):
-                tested.add(rev)
-                continue
-            # no delta for rawtext-changing revs (see "candelta" for why)
-            if revlog.flags(rev) & REVIDX_RAWTEXT_CHANGING_FLAGS:
-                tested.add(rev)
-                continue
+    def candidate_groups(self):
+        """Provides group of revision to be tested as delta base
 
-            # If we reach here, we are about to build and test a delta.
-            # The delta building process will compute the chaininfo in all
-            # case, since that computation is cached, it is fine to access it
-            # here too.
-            chainlen, chainsize = revlog._chaininfo(rev)
-            # if chain will be too long, skip base
-            if (
-                revlog.delta_config.max_chain_len
-                and chainlen >= revlog.delta_config.max_chain_len
-            ):
-                tested.add(rev)
-                continue
-            # if chain already have too much data, skip base
-            if deltas_limit < chainsize:
-                tested.add(rev)
-                continue
-            if sparse and revlog.delta_config.upper_bound_comp is not None:
-                maxcomp = revlog.delta_config.upper_bound_comp
-                basenotsnap = (p1, p2, nullrev)
-                if rev not in basenotsnap and revlog.issnapshot(rev):
-                    snapshotdepth = revlog.snapshotdepth(rev)
-                    # If text is significantly larger than the base, we can
-                    # expect the resulting delta to be proportional to the size
-                    # difference
-                    revsize = revlog.rawsize(rev)
-                    rawsizedistance = max(textlen - revsize, 0)
-                    # use an estimate of the compression upper bound.
-                    lowestrealisticdeltalen = rawsizedistance // maxcomp
+        This top level function focus on emitting groups with unique and
+        worthwhile content. See _raw_candidate_groups for details about the
+        group order.
+        """
+        # should we try to build a delta?
+        if not (len(self.revlog) and self.revlog._storedeltachains):
+            yield None
+            return
 
-                    # check the absolute constraint on the delta size
-                    snapshotlimit = textlen >> snapshotdepth
-                    if snapshotlimit < lowestrealisticdeltalen:
-                        # delta lower bound is larger than accepted upper bound
-                        tested.add(rev)
-                        continue
+        if self.target_rev is None:
+            self.target_rev = len(self.revlog)
 
-                    # check the relative constraint on the delta size
-                    revlength = revlog.length(rev)
-                    if revlength < lowestrealisticdeltalen:
-                        # delta probable lower bound is larger than target base
-                        tested.add(rev)
-                        continue
+        if not self.revlog.delta_config.general_delta:
+            # before general delta, there is only one possible delta base
+            yield (self.target_rev - 1,)
+            yield None
+            return
 
-            group.append(rev)
-        if group:
-            # When the size of the candidate group is big, it can result in a
-            # quite significant performance impact. To reduce this, we can send
-            # them in smaller batches until the new batch does not provide any
-            # improvements.
-            #
-            # This might reduce the overall efficiency of the compression in
-            # some corner cases, but that should also prevent very pathological
-            # cases from being an issue. (eg. 20 000 candidates).
-            #
-            # XXX note that the ordering of the group becomes important as it
-            # now impacts the final result. The current order is unprocessed
-            # and can be improved.
-            if group_chunk_size == 0:
-                tested.update(group)
-                good = yield tuple(group)
-            else:
-                prev_good = good
-                for start in range(0, len(group), group_chunk_size):
-                    sub_group = group[start : start + group_chunk_size]
-                    tested.update(sub_group)
-                    good = yield tuple(sub_group)
-                    if prev_good == good:
-                        break
+        # the DELTA_BASE_REUSE_FORCE case should have been taken care of sooner
+        # so we should never end up asking such question. Adding the assert as
+        # a safe-guard to detect anything that would be fishy in this regard.
+        assert (
+            self.cachedelta is None
+            or self.cachedelta[2] != DELTA_BASE_REUSE_FORCE
+            or not self.revlog.delta_config.general_delta
+        )
 
-    yield None
+        deltalength = self.revlog.length
+        deltaparent = self.revlog.deltaparent
+        sparse = self.revlog.delta_config.sparse_revlog
+        good = None
+
+        deltas_limit = self.textlen * LIMIT_DELTA2TEXT
+        group_chunk_size = self.revlog.delta_config.candidate_group_chunk_size
+
+        tested = {nullrev}
+        candidates = _refinedgroups(
+            self.revlog,
+            self.p1,
+            self.p2,
+            self.cachedelta,
+            snapshot_cache=self.snapshot_cache,
+        )
+        while True:
+            temptative = candidates.send(good)
+            if temptative is None:
+                break
+            group = []
+            for rev in temptative:
+                # skip over empty delta (no need to include them in a chain)
+                while not (rev == nullrev or rev in tested or deltalength(rev)):
+                    tested.add(rev)
+                    rev = deltaparent(rev)
+                # no need to try a delta against nullrev, this will be done as
+                # a last resort.
+                if rev == nullrev:
+                    continue
+                # filter out revision we tested already
+                if rev in tested:
+                    continue
+
+                # an higher authority deamed the base unworthy (e.g. censored)
+                if (
+                    self.excluded_bases is not None
+                    and rev in self.excluded_bases
+                ):
+                    tested.add(rev)
+                    continue
+                # We are in some recomputation cases and that rev is too high
+                # in the revlog
+                if self.target_rev is not None and rev >= self.target_rev:
+                    tested.add(rev)
+                    continue
+                # filter out delta base that will never produce good delta
+                if deltas_limit < self.revlog.length(rev):
+                    tested.add(rev)
+                    continue
+                if sparse and self.revlog.rawsize(rev) < (
+                    self.textlen // LIMIT_BASE2TEXT
+                ):
+                    tested.add(rev)
+                    continue
+                # no delta for rawtext-changing revs (see "candelta" for why)
+                if self.revlog.flags(rev) & REVIDX_RAWTEXT_CHANGING_FLAGS:
+                    tested.add(rev)
+                    continue
+
+                # If we reach here, we are about to build and test a delta.
+                # The delta building process will compute the chaininfo in all
+                # case, since that computation is cached, it is fine to access
+                # it here too.
+                chainlen, chainsize = self.revlog._chaininfo(rev)
+                # if chain will be too long, skip base
+                if (
+                    self.revlog.delta_config.max_chain_len
+                    and chainlen >= self.revlog.delta_config.max_chain_len
+                ):
+                    tested.add(rev)
+                    continue
+                # if chain already have too much data, skip base
+                if deltas_limit < chainsize:
+                    tested.add(rev)
+                    continue
+                if (
+                    sparse
+                    and self.revlog.delta_config.upper_bound_comp is not None
+                ):
+                    maxcomp = self.revlog.delta_config.upper_bound_comp
+                    basenotsnap = (self.p1, self.p2, nullrev)
+                    if rev not in basenotsnap and self.revlog.issnapshot(rev):
+                        snapshotdepth = self.revlog.snapshotdepth(rev)
+                        # If text is significantly larger than the base, we can
+                        # expect the resulting delta to be proportional to the size
+                        # difference
+                        revsize = self.revlog.rawsize(rev)
+                        rawsizedistance = max(self.textlen - revsize, 0)
+                        # use an estimate of the compression upper bound.
+                        lowestrealisticdeltalen = rawsizedistance // maxcomp
+
+                        # check the absolute constraint on the delta size
+                        snapshotlimit = self.textlen >> snapshotdepth
+                        if snapshotlimit < lowestrealisticdeltalen:
+                            # delta lower bound is larger than accepted upper
+                            # bound
+                            tested.add(rev)
+                            continue
+
+                        # check the relative constraint on the delta size
+                        revlength = self.revlog.length(rev)
+                        if revlength < lowestrealisticdeltalen:
+                            # delta probable lower bound is larger than target
+                            # base
+                            tested.add(rev)
+                            continue
+
+                group.append(rev)
+            if group:
+                # When the size of the candidate group is big, it can result in
+                # a quite significant performance impact. To reduce this, we
+                # can send them in smaller batches until the new batch does not
+                # provide any improvements.
+                #
+                # This might reduce the overall efficiency of the compression
+                # in some corner cases, but that should also prevent very
+                # pathological cases from being an issue. (eg. 20 000
+                # candidates).
+                #
+                # XXX note that the ordering of the group becomes important as
+                # it now impacts the final result. The current order is
+                # unprocessed and can be improved.
+                if group_chunk_size == 0:
+                    tested.update(group)
+                    good = yield tuple(group)
+                else:
+                    prev_good = good
+                    for start in range(0, len(group), group_chunk_size):
+                        sub_group = group[start : start + group_chunk_size]
+                        tested.update(sub_group)
+                        good = yield tuple(sub_group)
+                        if prev_good == good:
+                            break
+
+        yield None
 
 
 def _refinedgroups(revlog, p1, p2, cachedelta, snapshot_cache=None):
@@ -1410,7 +1440,7 @@ class deltacomputer:
             msg %= target_rev
             self._write_debug(msg)
 
-        groups = _candidategroups(
+        search = _DeltaSearch(
             self.revlog,
             revinfo.textlen,
             p1r,
@@ -1420,6 +1450,8 @@ class deltacomputer:
             target_rev,
             snapshot_cache=self._snapshot_cache,
         )
+
+        groups = search.candidate_groups()
         candidaterevs = next(groups)
         while candidaterevs is not None:
             dbg_try_rounds += 1
