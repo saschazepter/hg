@@ -693,6 +693,14 @@ class _DeltaSearch:
         target_rev=None,
         snapshot_cache=None,
     ):
+        # the DELTA_BASE_REUSE_FORCE case should have been taken care of sooner
+        # so we should never end up asking such question. Adding the assert as
+        # a safe-guard to detect anything that would be fishy in this regard.
+        assert (
+            cachedelta is None
+            or cachedelta[2] != DELTA_BASE_REUSE_FORCE
+            or not revlog.delta_config.general_delta
+        )
         self.revlog = revlog
         self.textlen = textlen
         self.p1 = p1
@@ -724,15 +732,6 @@ class _DeltaSearch:
             yield (self.target_rev - 1,)
             yield None
             return
-
-        # the DELTA_BASE_REUSE_FORCE case should have been taken care of sooner
-        # so we should never end up asking such question. Adding the assert as
-        # a safe-guard to detect anything that would be fishy in this regard.
-        assert (
-            self.cachedelta is None
-            or self.cachedelta[2] != DELTA_BASE_REUSE_FORCE
-            or not self.revlog.delta_config.general_delta
-        )
 
         deltalength = self.revlog.length
         deltaparent = self.revlog.deltaparent
