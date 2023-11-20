@@ -888,13 +888,7 @@ class _DeltaSearch:
                 return
         if self.snapshot_cache is None:
             self.snapshot_cache = SnapshotCache()
-        groups = _rawgroups(
-            self.revlog,
-            self.p1,
-            self.p2,
-            self.cachedelta,
-            self.snapshot_cache,
-        )
+        groups = self._raw_groups()
         for candidates in groups:
             good = yield candidates
             if good is not None:
@@ -937,127 +931,133 @@ class _DeltaSearch:
 
         yield None
 
+    def _raw_groups(self):
+        """Provides group of revision to be tested as delta base
 
-def _rawgroups(revlog, p1, p2, cachedelta, snapshot_cache=None):
-    """Provides group of revision to be tested as delta base
+        This lower level function focus on emitting delta theorically
+        interresting without looking it any practical details.
 
-    This lower level function focus on emitting delta theorically interresting
-    without looking it any practical details.
+        The group order aims at providing fast or small candidates first.
+        """
+        # Why search for delta base if we cannot use a delta base ?
+        assert self.revlog.delta_config.general_delta
+        # also see issue6056
+        sparse = self.revlog.delta_config.sparse_revlog
+        curr = len(self.revlog)
+        prev = curr - 1
+        deltachain = lambda rev: self.revlog._deltachain(rev)[0]
 
-    The group order aims at providing fast or small candidates first.
-    """
-    # Why search for delta base if we cannot use a delta base ?
-    assert revlog.delta_config.general_delta
-    # also see issue6056
-    sparse = revlog.delta_config.sparse_revlog
-    curr = len(revlog)
-    prev = curr - 1
-    deltachain = lambda rev: revlog._deltachain(rev)[0]
+        # exclude already lazy tested base if any
+        parents = [p for p in (self.p1, self.p2) if p != nullrev]
 
-    # exclude already lazy tested base if any
-    parents = [p for p in (p1, p2) if p != nullrev]
+        if (
+            not self.revlog.delta_config.delta_both_parents
+            and len(parents) == 2
+        ):
+            parents.sort()
+            # To minimize the chance of having to build a fulltext,
+            # pick first whichever parent is closest to us (max rev)
+            yield (parents[1],)
+            # then the other one (min rev) if the first did not fit
+            yield (parents[0],)
+        elif len(parents) > 0:
+            # Test all parents (1 or 2), and keep the best candidate
+            yield parents
 
-    if not revlog.delta_config.delta_both_parents and len(parents) == 2:
-        parents.sort()
-        # To minimize the chance of having to build a fulltext,
-        # pick first whichever parent is closest to us (max rev)
-        yield (parents[1],)
-        # then the other one (min rev) if the first did not fit
-        yield (parents[0],)
-    elif len(parents) > 0:
-        # Test all parents (1 or 2), and keep the best candidate
-        yield parents
-
-    if sparse and parents:
-        if snapshot_cache is None:
-            # map: base-rev: [snapshot-revs]
-            snapshot_cache = SnapshotCache()
-        # See if we can use an existing snapshot in the parent chains to use as
-        # a base for a new intermediate-snapshot
-        #
-        # search for snapshot in parents delta chain
-        # map: snapshot-level: snapshot-rev
-        parents_snaps = collections.defaultdict(set)
-        candidate_chains = [deltachain(p) for p in parents]
-        for chain in candidate_chains:
-            for idx, s in enumerate(chain):
-                if not revlog.issnapshot(s):
-                    break
-                parents_snaps[idx].add(s)
-        snapfloor = min(parents_snaps[0]) + 1
-        snapshot_cache.update(revlog, snapfloor)
-        # search for the highest "unrelated" revision
-        #
-        # Adding snapshots used by "unrelated" revision increase the odd we
-        # reuse an independant, yet better snapshot chain.
-        #
-        # XXX instead of building a set of revisions, we could lazily enumerate
-        # over the chains. That would be more efficient, however we stick to
-        # simple code for now.
-        all_revs = set()
-        for chain in candidate_chains:
-            all_revs.update(chain)
-        other = None
-        for r in revlog.revs(prev, snapfloor):
-            if r not in all_revs:
-                other = r
-                break
-        if other is not None:
-            # To avoid unfair competition, we won't use unrelated intermediate
-            # snapshot that are deeper than the ones from the parent delta
-            # chain.
-            max_depth = max(parents_snaps.keys())
-            chain = deltachain(other)
-            for depth, s in enumerate(chain):
-                if s < snapfloor:
-                    continue
-                if max_depth < depth:
-                    break
-                if not revlog.issnapshot(s):
-                    break
-                parents_snaps[depth].add(s)
-        # Test them as possible intermediate snapshot base
-        # We test them from highest to lowest level. High level one are more
-        # likely to result in small delta
-        floor = None
-        for idx, snaps in sorted(parents_snaps.items(), reverse=True):
-            siblings = set()
-            for s in snaps:
-                siblings.update(snapshot_cache.snapshots[s])
-            # Before considering making a new intermediate snapshot, we check
-            # if an existing snapshot, children of base we consider, would be
-            # suitable.
+        if sparse and parents:
+            if self.snapshot_cache is None:
+                # map: base-rev: [snapshot-revs]
+                self.snapshot_cache = SnapshotCache()
+            # See if we can use an existing snapshot in the parent chains to
+            # use as a base for a new intermediate-snapshot
             #
-            # It give a change to reuse a delta chain "unrelated" to the
-            # current revision instead of starting our own. Without such
-            # re-use, topological branches would keep reopening new chains.
+            # search for snapshot in parents delta chain map: snapshot-level:
+            # snapshot-rev
+            parents_snaps = collections.defaultdict(set)
+            candidate_chains = [deltachain(p) for p in parents]
+            for chain in candidate_chains:
+                for idx, s in enumerate(chain):
+                    if not self.revlog.issnapshot(s):
+                        break
+                    parents_snaps[idx].add(s)
+            snapfloor = min(parents_snaps[0]) + 1
+            self.snapshot_cache.update(self.revlog, snapfloor)
+            # search for the highest "unrelated" revision
+            #
+            # Adding snapshots used by "unrelated" revision increase the odd we
+            # reuse an independant, yet better snapshot chain.
+            #
+            # XXX instead of building a set of revisions, we could lazily
+            # enumerate over the chains. That would be more efficient, however
+            # we stick to simple code for now.
+            all_revs = set()
+            for chain in candidate_chains:
+                all_revs.update(chain)
+            other = None
+            for r in self.revlog.revs(prev, snapfloor):
+                if r not in all_revs:
+                    other = r
+                    break
+            if other is not None:
+                # To avoid unfair competition, we won't use unrelated
+                # intermediate snapshot that are deeper than the ones from the
+                # parent delta chain.
+                max_depth = max(parents_snaps.keys())
+                chain = deltachain(other)
+                for depth, s in enumerate(chain):
+                    if s < snapfloor:
+                        continue
+                    if max_depth < depth:
+                        break
+                    if not self.revlog.issnapshot(s):
+                        break
+                    parents_snaps[depth].add(s)
+            # Test them as possible intermediate snapshot base We test them
+            # from highest to lowest level. High level one are more likely to
+            # result in small delta
+            floor = None
+            for idx, snaps in sorted(parents_snaps.items(), reverse=True):
+                siblings = set()
+                for s in snaps:
+                    siblings.update(self.snapshot_cache.snapshots[s])
+                # Before considering making a new intermediate snapshot, we
+                # check if an existing snapshot, children of base we consider,
+                # would be suitable.
+                #
+                # It give a change to reuse a delta chain "unrelated" to the
+                # current revision instead of starting our own. Without such
+                # re-use, topological branches would keep reopening new chains.
+                # Creating more and more snapshot as the repository grow.
+
+                if floor is not None:
+                    # We only do this for siblings created after the one in our
+                    # parent's delta chain. Those created before has less
+                    # chances to be valid base since our ancestors had to
+                    # create a new snapshot.
+                    siblings = [r for r in siblings if floor < r]
+                yield tuple(sorted(siblings))
+                # then test the base from our parent's delta chain.
+                yield tuple(sorted(snaps))
+                floor = min(snaps)
+            # No suitable base found in the parent chain, search if any full
+            # snapshots emitted since parent's base would be a suitable base
+            # for an intermediate snapshot.
+            #
+            # It give a chance to reuse a delta chain unrelated to the current
+            # revisions instead of starting our own. Without such re-use,
+            # topological branches would keep reopening new full chains.
             # Creating more and more snapshot as the repository grow.
+            full = [
+                r
+                for r in self.snapshot_cache.snapshots[nullrev]
+                if snapfloor <= r
+            ]
+            yield tuple(sorted(full))
 
-            if floor is not None:
-                # We only do this for siblings created after the one in our
-                # parent's delta chain. Those created before has less chances
-                # to be valid base since our ancestors had to create a new
-                # snapshot.
-                siblings = [r for r in siblings if floor < r]
-            yield tuple(sorted(siblings))
-            # then test the base from our parent's delta chain.
-            yield tuple(sorted(snaps))
-            floor = min(snaps)
-        # No suitable base found in the parent chain, search if any full
-        # snapshots emitted since parent's base would be a suitable base for an
-        # intermediate snapshot.
-        #
-        # It give a chance to reuse a delta chain unrelated to the current
-        # revisions instead of starting our own. Without such re-use,
-        # topological branches would keep reopening new full chains. Creating
-        # more and more snapshot as the repository grow.
-        full = [r for r in snapshot_cache.snapshots[nullrev] if snapfloor <= r]
-        yield tuple(sorted(full))
-
-    if not sparse:
-        # other approach failed try against prev to hopefully save us a
-        # fulltext.
-        yield (prev,)
+        if not sparse:
+            # other approach failed try against prev to hopefully save us a
+            # fulltext.
+            yield (prev,)
 
 
 class SnapshotCache:
