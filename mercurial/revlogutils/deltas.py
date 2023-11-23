@@ -776,6 +776,9 @@ class _DeltaSearch:
                     tested.add(rev)
                     continue
                 # filter out delta base that will never produce good delta
+                #
+                # if the delta of that base is already bigger than the limit
+                # for the delta chain size, doing a delta is hopeless.
                 if deltas_limit < self.revlog.length(rev):
                     tested.add(rev)
                     continue
