@@ -28,6 +28,7 @@ pub fn headrevs(
     revs: PyObject,
 ) -> PyResult<HashSet<PyRevision>> {
     let py_leaked = py_rust_index_to_graph(py, index)?;
+    // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
     let index = &*unsafe { py_leaked.try_borrow(py)? };
     let mut as_set: HashSet<Revision> = rev_pyiter_collect(py, &revs, index)?;
     dagops::retain_heads(index, &mut as_set)
