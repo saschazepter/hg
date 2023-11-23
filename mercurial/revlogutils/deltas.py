@@ -863,8 +863,7 @@ class _DeltaSearch:
         assert self.revlog.delta_config.general_delta
         # also see issue6056
         sparse = self.revlog.delta_config.sparse_revlog
-        curr = len(self.revlog)
-        prev = curr - 1
+        prev = self.target_rev - 1
         deltachain = lambda rev: self.revlog._deltachain(rev)[0]
 
         # exclude already lazy tested base if any
