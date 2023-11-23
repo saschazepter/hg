@@ -1020,19 +1020,14 @@ class _DeltaSearch(_BaseDeltaSearch):
         # This logic only applies to general delta repositories and can be
         # disabled through configuration. Disabling reuse source delta is
         # useful when we want to make sure we recomputed "optimal" deltas.
-        debug_info = None
         if (
             self.cachedelta is not None
             and self.cachedelta[2] > DELTA_BASE_REUSE_NO
         ):
             # Assume what we received from the server is a good choice
             # build delta will reuse the cache
-            if debug_info is not None:
-                debug_info['cached-delta.tested'] += 1
             good = yield (self.cachedelta[0],)
             if good is not None:
-                if debug_info is not None:
-                    debug_info['cached-delta.accepted'] += 1
                 yield None
                 return
         groups = self._raw_groups()
@@ -1071,10 +1066,6 @@ class _DeltaSearch(_BaseDeltaSearch):
                     sorted(c for c in self.snapshot_cache.snapshots[good])
                 )
                 good = yield children
-
-        if debug_info is not None:
-            if good is None:
-                debug_info['no-solution'] += 1
 
         yield None
 
