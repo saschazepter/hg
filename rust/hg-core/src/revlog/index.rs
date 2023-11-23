@@ -280,6 +280,7 @@ impl Debug for Index {
 }
 
 impl Graph for Index {
+    #[inline(always)]
     fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
         let err = || GraphError::ParentOutOfRange(rev);
         match self.get_entry(rev) {
