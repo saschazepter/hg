@@ -851,7 +851,7 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
     def next_group(self, good_delta=None):
         old_good = self._last_good
         if good_delta is not None:
-            self._last_good = good_delta.base
+            self._last_good = good_delta
         if self.current_stage == _STAGE_CACHED and good_delta is not None:
             # the cache is good, let us use the cache as requested
             self._candidates_iterator = None
@@ -1213,28 +1213,24 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
             if good is not None:
                 break
         # if we have a refinable value, try to refine it
-        if (
-            good is not None
-            and good not in (self.p1, self.p2)
-            and self.revlog.issnapshot(good)
-        ):
+        if good is not None and good.snapshotdepth is not None:
             assert self.current_stage == _STAGE_SNAPSHOT
             # refine snapshot down
             previous = None
             while previous != good:
                 previous = good
-                base = self.revlog.deltaparent(good)
+                base = self.revlog.deltaparent(good.base)
                 if base == nullrev:
                     break
                 good = yield (base,)
             # refine snapshot up
             if not self.snapshot_cache.snapshots:
-                self.snapshot_cache.update(self.revlog, good + 1)
+                self.snapshot_cache.update(self.revlog, good.base + 1)
             previous = None
             while good != previous:
                 previous = good
                 children = tuple(
-                    sorted(c for c in self.snapshot_cache.snapshots[good])
+                    sorted(c for c in self.snapshot_cache.snapshots[good.base])
                 )
                 good = yield children
         yield None
