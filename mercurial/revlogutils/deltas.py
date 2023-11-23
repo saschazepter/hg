@@ -740,8 +740,13 @@ class _DeltaSearch:
                 self.tested.add(rev)
         return group
 
-    def _pre_filter_rev(self, rev):
-        """return True if it seems okay to test a rev, False otherwise"""
+    def _pre_filter_rev_universal(self, rev):
+        """pre filtering that is need in all cases.
+
+        return True if it seems okay to test a rev, False otherwise.
+
+        used by _pre_filter_rev.
+        """
         # no need to try a delta against nullrev, this will be done as
         # a last resort.
         if rev == nullrev:
@@ -756,6 +761,15 @@ class _DeltaSearch:
         # We are in some recomputation cases and that rev is too high
         # in the revlog
         if self.target_rev is not None and rev >= self.target_rev:
+            return False
+        # no delta for rawtext-changing revs (see "candelta" for why)
+        if self.revlog.flags(rev) & REVIDX_RAWTEXT_CHANGING_FLAGS:
+            return False
+        return True
+
+    def _pre_filter_rev(self, rev):
+        """return True if it seems okay to test a rev, False otherwise"""
+        if not self._pre_filter_rev_universal(rev):
             return False
 
         deltas_limit = self.revinfo.textlen * LIMIT_DELTA2TEXT
@@ -772,10 +786,6 @@ class _DeltaSearch:
         if sparse and self.revlog.rawsize(rev) < (
             self.textlen // LIMIT_BASE2TEXT
         ):
-            return False
-
-        # no delta for rawtext-changing revs (see "candelta" for why)
-        if self.revlog.flags(rev) & REVIDX_RAWTEXT_CHANGING_FLAGS:
             return False
 
         # If we reach here, we are about to build and test a delta.
