@@ -715,6 +715,8 @@ class _DeltaSearch:
             snapshot_cache = SnapshotCache()
         self.snapshot_cache = snapshot_cache
 
+        self.tested = {nullrev}
+
     def candidate_groups(self):
         """Provides group of revision to be tested as delta base
 
@@ -741,7 +743,7 @@ class _DeltaSearch:
         deltas_limit = self.textlen * LIMIT_DELTA2TEXT
         group_chunk_size = self.revlog.delta_config.candidate_group_chunk_size
 
-        tested = {nullrev}
+        tested = self.tested  # prefetch for speed and code compactness
         candidates = self._refined_groups()
         while True:
             temptative = candidates.send(good)
