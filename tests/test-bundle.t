@@ -1062,8 +1062,8 @@ Test the debug output when applying delta
   DBG-DELTAS: CHANGELOG:   rev=2: delta-base=2 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=0 p2-chain-length=-1 - duration=* (glob)
   adding manifests
   DBG-DELTAS: MANIFESTLOG: rev=0: delta-base=0 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
-  DBG-DELTAS: MANIFESTLOG: rev=1: delta-base=0 is-cached=1 - search-rounds=1 try-count=1 - delta-type=delta  snap-depth=0 - p1-chain-length=0 p2-chain-length=-1 - duration=* (glob)
-  DBG-DELTAS: MANIFESTLOG: rev=2: delta-base=1 is-cached=1 - search-rounds=1 try-count=1 - delta-type=delta  snap-depth=0 - p1-chain-length=1 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: MANIFESTLOG: rev=1: delta-base=0 is-cached=1 - search-rounds=1 try-count=1 - delta-type=delta  snap-depth=-1 - p1-chain-length=0 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: MANIFESTLOG: rev=2: delta-base=1 is-cached=1 - search-rounds=1 try-count=1 - delta-type=delta  snap-depth=-1 - p1-chain-length=1 p2-chain-length=-1 - duration=* (glob)
   adding file changes
   DBG-DELTAS: FILELOG:a:   rev=0: delta-base=0 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
   DBG-DELTAS: FILELOG:b:   rev=0: delta-base=0 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
