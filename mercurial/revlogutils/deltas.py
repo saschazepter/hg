@@ -1074,6 +1074,12 @@ class _DeltaSearch(_BaseDeltaSearch):
             # Test all parents (1 or 2), and keep the best candidate
             yield parents
 
+    def _iter_prev(self):
+        # other approach failed try against prev to hopefully save us a
+        # fulltext.
+        self.current_stage = _STAGE_PREV
+        yield (self.target_rev - 1,)
+
     def _refined_groups(self):
         good = None
         groups = self._raw_groups()
@@ -1221,10 +1227,7 @@ class _DeltaSearch(_BaseDeltaSearch):
             yield tuple(sorted(full))
 
         if not sparse:
-            # other approach failed try against prev to hopefully save us a
-            # fulltext.
-            self.current_stage = _STAGE_PREV
-            yield (prev,)
+            yield from self._iter_prev()
 
 
 class SnapshotCache:
