@@ -1411,7 +1411,7 @@ class deltacomputer:
                     dbg['delta_try_count'] = 0
                     dbg['type'] = b"full"
                     if snapshotdepth is None:
-                        dbg['snapshot-depth'] = 0
+                        dbg['snapshot-depth'] = -1
                     else:
                         dbg['snapshot-depth'] = snapshotdepth
                     self._dbg_process_data(dbg)
@@ -1582,7 +1582,7 @@ class deltacomputer:
                     'snapshot-depth'
                 ] = deltainfo.snapshotdepth  # pytype: disable=attribute-error
             else:
-                dbg['snapshot-depth'] = 0
+                dbg['snapshot-depth'] = -1
             self._dbg_process_data(dbg)
         return deltainfo
 
