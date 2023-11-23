@@ -151,6 +151,7 @@ pub trait RevlogIndex {
     /// index.
     ///
     /// [`NULL_REVISION`] is considered to be valid.
+    #[inline(always)]
     fn check_revision(&self, rev: UncheckedRevision) -> Option<Revision> {
         let rev = rev.0;
 
