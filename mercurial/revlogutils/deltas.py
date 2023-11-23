@@ -1055,6 +1055,25 @@ class _DeltaSearch(_BaseDeltaSearch):
 
         return True
 
+    def _iter_parents(self):
+        # exclude already lazy tested base if any
+        parents = [p for p in (self.p1, self.p2) if p != nullrev]
+
+        self.current_stage = _STAGE_PARENTS
+        if (
+            not self.revlog.delta_config.delta_both_parents
+            and len(parents) == 2
+        ):
+            parents.sort()
+            # To minimize the chance of having to build a fulltext,
+            # pick first whichever parent is closest to us (max rev)
+            yield (parents[1],)
+            # then the other one (min rev) if the first did not fit
+            yield (parents[0],)
+        elif len(parents) > 0:
+            # Test all parents (1 or 2), and keep the best candidate
+            yield parents
+
     def _refined_groups(self):
         good = None
         groups = self._raw_groups()
@@ -1107,28 +1126,12 @@ class _DeltaSearch(_BaseDeltaSearch):
 
         The group order aims at providing fast or small candidates first.
         """
+        yield from self._iter_parents()
         sparse = self.revlog.delta_config.sparse_revlog
         prev = self.target_rev - 1
         deltachain = lambda rev: self.revlog._deltachain(rev)[0]
 
-        # exclude already lazy tested base if any
         parents = [p for p in (self.p1, self.p2) if p != nullrev]
-
-        self.current_stage = _STAGE_PARENTS
-        if (
-            not self.revlog.delta_config.delta_both_parents
-            and len(parents) == 2
-        ):
-            parents.sort()
-            # To minimize the chance of having to build a fulltext,
-            # pick first whichever parent is closest to us (max rev)
-            yield (parents[1],)
-            # then the other one (min rev) if the first did not fit
-            yield (parents[0],)
-        elif len(parents) > 0:
-            # Test all parents (1 or 2), and keep the best candidate
-            yield parents
-
         if sparse and parents:
             self.current_stage = _STAGE_SNAPSHOT
             # See if we can use an existing snapshot in the parent chains to
