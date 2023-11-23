@@ -60,18 +60,21 @@ py_class!(pub class PartialDiscovery |py| {
 
     def hasinfo(&self) -> PyResult<bool> {
         let leaked = self.inner(py).borrow();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let inner = unsafe { leaked.try_borrow(py)? };
         Ok(inner.has_info())
     }
 
     def iscomplete(&self) -> PyResult<bool> {
         let leaked = self.inner(py).borrow();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let inner = unsafe { leaked.try_borrow(py)? };
         Ok(inner.is_complete())
     }
 
     def stats(&self) -> PyResult<PyDict> {
         let leaked = self.inner(py).borrow();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let inner = unsafe { leaked.try_borrow(py)? };
         let stats = inner.stats();
         let as_dict: PyDict = PyDict::new(py);
@@ -84,6 +87,7 @@ py_class!(pub class PartialDiscovery |py| {
 
     def commonheads(&self) -> PyResult<HashSet<PyRevision>> {
         let leaked = self.inner(py).borrow();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let inner = unsafe { leaked.try_borrow(py)? };
         let res = inner.common_heads()
                     .map_err(|e| GraphError::pynew(py, e))?;
@@ -113,11 +117,12 @@ impl PartialDiscovery {
         let index = repo.getattr(py, "changelog")?.getattr(py, "index")?;
         let cloned_index = py_rust_index_to_graph(py, index.clone_ref(py))?;
         let index = py_rust_index_to_graph(py, index)?;
-
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let target_heads = {
             let borrowed_idx = unsafe { index.try_borrow(py)? };
             rev_pyiter_collect(py, &targetheads, &*borrowed_idx)?
         };
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let lazy_disco = unsafe {
             index.map(py, |idx| {
                 CorePartialDiscovery::new(
@@ -142,6 +147,7 @@ impl PartialDiscovery {
         iter: &PyObject,
     ) -> PyResult<Vec<Revision>> {
         let leaked = self.index(py).borrow();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let index = unsafe { leaked.try_borrow(py)? };
         rev_pyiter_collect(py, iter, &*index)
     }
@@ -168,6 +174,7 @@ impl PartialDiscovery {
             }
         }
         let mut leaked = self.inner(py).borrow_mut();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let mut inner = unsafe { leaked.try_borrow_mut(py)? };
         inner
             .add_common_revisions(common)
@@ -185,6 +192,7 @@ impl PartialDiscovery {
     ) -> PyResult<PyObject> {
         let commons_vec = self.pyiter_to_vec(py, &commons)?;
         let mut leaked = self.inner(py).borrow_mut();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let mut inner = unsafe { leaked.try_borrow_mut(py)? };
         inner
             .add_common_revisions(commons_vec)
@@ -199,6 +207,7 @@ impl PartialDiscovery {
     ) -> PyResult<PyObject> {
         let missings_vec = self.pyiter_to_vec(py, &missings)?;
         let mut leaked = self.inner(py).borrow_mut();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let mut inner = unsafe { leaked.try_borrow_mut(py)? };
         inner
             .add_missing_revisions(missings_vec)
@@ -213,6 +222,7 @@ impl PartialDiscovery {
         size: usize,
     ) -> PyResult<PyObject> {
         let mut leaked = self.inner(py).borrow_mut();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let mut inner = unsafe { leaked.try_borrow_mut(py)? };
         let sample = inner
             .take_full_sample(size)
@@ -232,6 +242,7 @@ impl PartialDiscovery {
     ) -> PyResult<PyObject> {
         let revsvec = self.pyiter_to_vec(py, &headrevs)?;
         let mut leaked = self.inner(py).borrow_mut();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let mut inner = unsafe { leaked.try_borrow_mut(py)? };
         let sample = inner
             .take_quick_sample(revsvec, size)

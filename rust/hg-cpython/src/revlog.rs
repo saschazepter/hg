@@ -42,6 +42,7 @@ pub(crate) fn py_rust_index_to_graph(
 ) -> PyResult<UnsafePyLeaked<PySharedIndex>> {
     let midx = index.extract::<Index>(py)?;
     let leaked = midx.index(py).leak_immutable();
+    // Safety: we don't leak the "faked" reference out of the `UnsafePyLeaked`
     Ok(unsafe { leaked.map(py, |idx| PySharedIndex { inner: idx }) })
 }
 
@@ -975,6 +976,7 @@ py_class!(pub class NodeTree |py| {
     /// been meanwhile mutated.
     def is_invalidated(&self) -> PyResult<bool> {
         let leaked = self.index(py).borrow();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let result = unsafe { leaked.try_borrow(py) };
         // two cases for result to be an error:
         // - the index has previously been mutably borrowed
@@ -986,6 +988,7 @@ py_class!(pub class NodeTree |py| {
 
     def insert(&self, rev: PyRevision) -> PyResult<PyObject> {
         let leaked = self.index(py).borrow();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let index = &*unsafe { leaked.try_borrow(py)? };
 
         let rev = UncheckedRevision(rev.0);
@@ -1020,6 +1023,7 @@ py_class!(pub class NodeTree |py| {
 
         let nt = self.nt(py).borrow();
         let leaked = self.index(py).borrow();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let index = &*unsafe { leaked.try_borrow(py)? };
 
         Ok(nt.find_bin(index, prefix)
@@ -1031,6 +1035,7 @@ py_class!(pub class NodeTree |py| {
     def shortest(&self, node: PyBytes) -> PyResult<usize> {
         let nt = self.nt(py).borrow();
         let leaked = self.index(py).borrow();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let idx = &*unsafe { leaked.try_borrow(py)? };
         match nt.unique_prefix_len_node(idx, &node_from_py_bytes(py, &node)?)
         {
