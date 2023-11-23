@@ -60,9 +60,9 @@ use vcsgraph::lazy_ancestors::{
 // of the `map` method with a signature such as:
 //
 // ```
-//   unafe fn map_or_err(py: Python,
-//                       f: impl FnOnce(T) -> Result(U, E),
-//                       convert_err: impl FnOnce(Python, E) -> PyErr)
+//   unsafe fn map_or_err(py: Python,
+//                        f: impl FnOnce(T) -> Result(U, E),
+//                        convert_err: impl FnOnce(Python, E) -> PyErr)
 // ```
 //
 // This would spare users of the `cpython` crate the additional `unsafe` deref
@@ -74,9 +74,11 @@ fn pyleaked_or_map_err<T, E: std::fmt::Debug + Copy>(
     convert_err: impl FnOnce(Python, E) -> PyErr,
 ) -> PyResult<UnsafePyLeaked<T>> {
     // Result.inspect_err is unstable in Rust 1.61
+    // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
     if let Err(e) = *unsafe { leaked.try_borrow(py)? } {
         return Err(convert_err(py, e));
     }
+    // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
     Ok(unsafe {
         leaked.map(py, |res| {
             res.expect("Error case should have already be treated")
@@ -89,6 +91,7 @@ py_class!(pub class AncestorsIterator |py| {
 
     def __next__(&self) -> PyResult<Option<PyRevision>> {
         let mut leaked = self.inner(py).borrow_mut();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let mut inner = unsafe { leaked.try_borrow_mut(py)? };
         match inner.next() {
             Some(Err(e)) => Err(GraphError::pynew_from_vcsgraph(py, e)),
@@ -99,6 +102,7 @@ py_class!(pub class AncestorsIterator |py| {
 
     def __contains__(&self, rev: PyRevision) -> PyResult<bool> {
         let mut leaked = self.inner(py).borrow_mut();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let mut inner = unsafe { leaked.try_borrow_mut(py)? };
         inner.contains(rev.0)
             .map_err(|e| GraphError::pynew_from_vcsgraph(py, e))
@@ -136,10 +140,12 @@ impl AncestorsIterator {
         inclusive: bool,
     ) -> PyResult<AncestorsIterator> {
         let index = py_rust_index_to_graph(py, index)?;
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let initvec: Vec<_> = {
             let borrowed_idx = unsafe { index.try_borrow(py)? };
             rev_pyiter_collect(py, &initrevs, &*borrowed_idx)?
         };
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let res_ait = unsafe {
             index.map(py, |idx| {
                 VCGAncestorsIterator::new(
@@ -167,6 +173,7 @@ py_class!(pub class LazyAncestors |py| {
 
     def __contains__(&self, rev: PyRevision) -> PyResult<bool> {
         let leaked = self.inner(py).borrow();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let inner: &RefCell<VCGLazyAncestors<PySharedIndex>> =
             &*unsafe { leaked.try_borrow(py)? };
         let inner_mut: &mut VCGLazyAncestors<PySharedIndex> =
@@ -185,6 +192,7 @@ py_class!(pub class LazyAncestors |py| {
 
     def __bool__(&self) -> PyResult<bool> {
         let leaked = self.inner(py).borrow();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let inner = unsafe { leaked.try_borrow(py)? };
         let empty = inner.borrow().is_empty();
         Ok(!empty)
@@ -200,10 +208,12 @@ py_class!(pub class LazyAncestors |py| {
         let cloned_index = index.clone_ref(py);
         let index = py_rust_index_to_graph(py, index)?;
         let initvec: Vec<_> = {
+            // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
             let borrowed_idx =  unsafe {index.try_borrow(py)?};
             rev_pyiter_collect(py, &initrevs, &*borrowed_idx)?
         };
 
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let res_lazy =
             unsafe { index.map(py, |idx| VCGLazyAncestors::new(
                 idx,
@@ -213,6 +223,7 @@ py_class!(pub class LazyAncestors |py| {
             ))};
         let lazy = pyleaked_or_map_err(py, res_lazy,
                                        GraphError::pynew_from_vcsgraph)?;
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let lazy_cell = unsafe { lazy.map(py, RefCell::new)};
         let res = Self::create_instance(
             py, RefCell::new(lazy_cell),
@@ -236,11 +247,13 @@ py_class!(pub class MissingAncestors |py| {
     -> PyResult<MissingAncestors> {
         let cloned_index = index.clone_ref(py);
         let inner_index = py_rust_index_to_graph(py, index)?;
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let bases_vec: Vec<_> = {
             let borrowed_idx = unsafe { inner_index.try_borrow(py)? };
             rev_pyiter_collect(py, &bases, &*borrowed_idx)?
         };
 
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let inner = unsafe {
             inner_index.map(py, |idx| CoreMissing::new(idx, bases_vec))
         };
@@ -253,6 +266,7 @@ py_class!(pub class MissingAncestors |py| {
 
     def hasbases(&self) -> PyResult<bool> {
         let leaked = self.inner(py).borrow();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let inner: &CoreMissing<PySharedIndex> =
             &*unsafe { leaked.try_borrow(py)? };
         Ok(inner.has_bases())
@@ -262,11 +276,13 @@ py_class!(pub class MissingAncestors |py| {
         let bases_vec: Vec<_> = {
             let leaked = py_rust_index_to_graph(py,
                                                self.index(py).clone_ref(py))?;
+            // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
             let index = &*unsafe { leaked.try_borrow(py)? };
             rev_pyiter_collect(py, &bases, index)?
         };
 
         let mut leaked = self.inner(py).borrow_mut();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let inner: &mut CoreMissing<PySharedIndex> =
             &mut *unsafe { leaked.try_borrow_mut(py)? };
 
@@ -279,6 +295,7 @@ py_class!(pub class MissingAncestors |py| {
 
     def bases(&self) -> PyResult<HashSet<PyRevision>> {
         let leaked = self.inner(py).borrow();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let inner: &CoreMissing<PySharedIndex> =
             &*unsafe { leaked.try_borrow(py)? };
         Ok(inner.get_bases()
@@ -290,6 +307,7 @@ py_class!(pub class MissingAncestors |py| {
 
     def basesheads(&self) -> PyResult<HashSet<PyRevision>> {
         let leaked = self.inner(py).borrow();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let inner: &CoreMissing<PySharedIndex> =
             &*unsafe { leaked.try_borrow(py)? };
         Ok(
@@ -315,11 +333,13 @@ py_class!(pub class MissingAncestors |py| {
             //    implement it for a Python set rewrapped with the GIL marker
             let leaked = py_rust_index_to_graph(py,
                                                self.index(py).clone_ref(py))?;
+            // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
             let index = &*unsafe { leaked.try_borrow(py)? };
             rev_pyiter_collect(py, &revs, &*index)?
         };
 
         let mut leaked = self.inner(py).borrow_mut();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let inner: &mut CoreMissing<PySharedIndex> =
             &mut *unsafe { leaked.try_borrow_mut(py)? };
 
@@ -342,11 +362,13 @@ py_class!(pub class MissingAncestors |py| {
         let revs_vec: Vec<Revision> = {
             let leaked = py_rust_index_to_graph(py,
                                                self.index(py).clone_ref(py))?;
+            // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
             let index = &*unsafe { leaked.try_borrow(py)? };
             rev_pyiter_collect(py, &revs, index)?
         };
 
         let mut leaked = self.inner(py).borrow_mut();
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
         let inner: &mut CoreMissing<PySharedIndex> =
             &mut *unsafe { leaked.try_borrow_mut(py)? };
 
