@@ -1313,20 +1313,6 @@ class deltacomputer:
             start = util.timer()
             dbg = self._one_dbg_data()
             dbg['revision'] = target_rev
-            target_revlog = b"UNKNOWN"
-            target_type = self.revlog.target[0]
-            target_key = self.revlog.target[1]
-            if target_type == KIND_CHANGELOG:
-                target_revlog = b'CHANGELOG:'
-            elif target_type == KIND_MANIFESTLOG:
-                target_revlog = b'MANIFESTLOG:'
-                if target_key:
-                    target_revlog += b'%s:' % target_key
-            elif target_type == KIND_FILELOG:
-                target_revlog = b'FILELOG:'
-                if target_key:
-                    target_revlog += b'%s:' % target_key
-            dbg['target-revlog'] = target_revlog
             p1r = revlog.rev(revinfo.p1)
             p2r = revlog.rev(revinfo.p2)
             if p1r != nullrev:
@@ -1599,7 +1585,7 @@ class deltacomputer:
         return deltainfo
 
     def _one_dbg_data(self):
-        return {
+        dbg = {
             'duration': None,
             'revision': None,
             'delta-base': None,
@@ -1612,6 +1598,21 @@ class deltacomputer:
             'snapshot-depth': None,
             'target-revlog': None,
         }
+        target_revlog = b"UNKNOWN"
+        target_type = self.revlog.target[0]
+        target_key = self.revlog.target[1]
+        if target_type == KIND_CHANGELOG:
+            target_revlog = b'CHANGELOG:'
+        elif target_type == KIND_MANIFESTLOG:
+            target_revlog = b'MANIFESTLOG:'
+            if target_key:
+                target_revlog += b'%s:' % target_key
+        elif target_type == KIND_FILELOG:
+            target_revlog = b'FILELOG:'
+            if target_key:
+                target_revlog += b'%s:' % target_key
+        dbg['target-revlog'] = target_revlog
+        return dbg
 
     def _dbg_process_data(self, dbg):
         if self._debug_info is not None:
