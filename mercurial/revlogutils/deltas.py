@@ -838,7 +838,7 @@ class _DeltaSearch(_BaseDeltaSearch):
         # Why search for delta base if we cannot use a delta base ?
         # also see issue6056
         assert self.revlog.delta_config.general_delta
-        self._candidates_iterator = self._refined_groups()
+        self._candidates_iterator = self._iter_groups()
         self._last_good = None
         if (
             self.cachedelta is not None
@@ -1082,13 +1082,13 @@ class _DeltaSearch(_BaseDeltaSearch):
 
     def _iter_snapshots_base(self):
         assert self.revlog.delta_config.sparse_revlog
+        assert self.current_stage == _STAGE_SNAPSHOT
         prev = self.target_rev - 1
         deltachain = lambda rev: self.revlog._deltachain(rev)[0]
 
         parents = [p for p in (self.p1, self.p2) if p != nullrev]
         if not parents:
             return
-        self.current_stage = _STAGE_SNAPSHOT
         # See if we can use an existing snapshot in the parent chains to
         # use as a base for a new intermediate-snapshot
         #
@@ -1173,21 +1173,15 @@ class _DeltaSearch(_BaseDeltaSearch):
         ]
         yield tuple(sorted(full))
 
-    def _refined_groups(self):
+    def _iter_snapshots(self):
+        assert self.revlog.delta_config.sparse_revlog
+        self.current_stage = _STAGE_SNAPSHOT
         good = None
-        groups = self._raw_groups()
+        groups = self._iter_snapshots_base()
         for candidates in groups:
             good = yield candidates
             if good is not None:
                 break
-
-        # If sparse revlog is enabled, we can try to refine the available
-        # deltas
-        if not self.revlog.delta_config.sparse_revlog:
-            self.current_stage = _STAGE_FULL
-            yield None
-            return
-
         # if we have a refinable value, try to refine it
         if (
             good is not None
@@ -1213,23 +1207,27 @@ class _DeltaSearch(_BaseDeltaSearch):
                     sorted(c for c in self.snapshot_cache.snapshots[good])
                 )
                 good = yield children
-
-        self.current_stage = _STAGE_FULL
         yield None
 
-    def _raw_groups(self):
-        """Provides group of revision to be tested as delta base
-
-        This lower level function focus on emitting delta theorically
-        interresting without looking it any practical details.
-
-        The group order aims at providing fast or small candidates first.
-        """
-        yield from self._iter_parents()
-        if self.revlog.delta_config.sparse_revlog:
-            yield from self._iter_snapshots_base()
+    def _iter_groups(self):
+        good = None
+        for group in self._iter_parents():
+            good = yield group
+            if good is not None:
+                break
         else:
-            yield from self._iter_prev()
+            assert good is None
+            if self.revlog.delta_config.sparse_revlog:
+                # If sparse revlog is enabled, we can try to refine the
+                # available deltas
+                iter_snap = self._iter_snapshots()
+                group = iter_snap.send(None)
+                while group is not None:
+                    good = yield group
+                    group = iter_snap.send(good)
+            else:
+                yield from self._iter_prev()
+        yield None
 
 
 class SnapshotCache:
