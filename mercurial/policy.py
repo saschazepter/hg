@@ -132,7 +132,9 @@ def _isrustpermissive() -> bool:
     return policy.endswith(b'-allow')
 
 
-def importrust(modname: str, member: "Optional[str]" = None, default=None):
+def importrust(
+    modname: str, member: "Optional[str]" = None, default=None, pyo3=False
+):
     """Import Rust module according to policy and availability.
 
     If policy isn't a Rust one, this returns `default`.
@@ -143,8 +145,10 @@ def importrust(modname: str, member: "Optional[str]" = None, default=None):
     if not policy.startswith(b'rust'):
         return default
 
+    dlib_name = "pyo3-rustext" if pyo3 else "rustext"
+
     try:
-        mod = _importfrom('rustext', modname)
+        mod = _importfrom(dlib_name, modname)
     except ImportError:
         if _isrustpermissive():
             return default
