@@ -1662,6 +1662,11 @@ extmodules = [
         'hg-cpython',
         'librusthg',
     ),
+    RustStandaloneExtension(
+        'mercurial.pyo3-rustext',
+        'hg-pyo3',
+        'librusthgpyo3',
+    ),
 ]
 
 

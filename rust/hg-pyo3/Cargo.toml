@@ -1,0 +1,15 @@
+[package]
+name = "hg-pyo3"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name='rusthgpyo3'
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.20.0", features = ["extension-module"] }
+hg-core = { path = "../hg-core"}
+stable_deref_trait = "1.2.0"
+log = "0.4.17"
+env_logger = "0.9.3"
