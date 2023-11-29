@@ -13,7 +13,7 @@
 //! - Similarly *relative roots* of a collection of `Revision`, we mean those
 //!   whose parents, if any, don't belong to the collection.
 use super::{Graph, GraphError, Revision, NULL_REVISION};
-use crate::ancestors::AncestorsIterator;
+use crate::{ancestors::AncestorsIterator, BaseRevision};
 use std::collections::{BTreeSet, HashSet};
 
 fn remove_parents<S: std::hash::BuildHasher>(
@@ -76,6 +76,32 @@ pub fn retain_heads<S: std::hash::BuildHasher>(
     for rev in as_vec {
         if rev != NULL_REVISION {
             remove_parents(graph, rev, revs)?;
+        }
+    }
+    Ok(())
+}
+
+/// Optimized version of `retain_heads` that expects an zeroed array of the size
+/// of the graph, to act as a faster but less space-efficient `HashSet`.
+///
+/// # Panics
+///
+/// Can panic if `not_heads` is shorten than the length of graph.
+pub fn retain_heads_fast(
+    graph: &impl Graph,
+    not_heads: &mut [bool],
+    filtered_revs: &HashSet<Revision>,
+) -> Result<(), GraphError> {
+    for idx in (0..not_heads.len()).rev() {
+        let rev = Revision(idx as BaseRevision);
+        if !not_heads[idx] && filtered_revs.contains(&rev) {
+            not_heads[idx] = true;
+            continue;
+        }
+        for parent in graph.parents(rev)?.iter() {
+            if *parent != NULL_REVISION {
+                not_heads[parent.0 as usize] = true;
+            }
         }
     }
     Ok(())
