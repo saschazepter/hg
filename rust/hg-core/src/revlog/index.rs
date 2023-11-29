@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
+use bitvec::prelude::*;
 use byteorder::{BigEndian, ByteOrder};
 use bytes_cast::{unaligned, BytesCast};
 
@@ -568,8 +569,12 @@ impl Index {
         let as_vec = if self.is_empty() {
             vec![NULL_REVISION]
         } else {
-            let mut not_heads = vec![false; self.len()];
-            dagops::retain_heads_fast(self, &mut not_heads, filtered_revs)?;
+            let mut not_heads = bitvec![0; self.len()];
+            dagops::retain_heads_fast(
+                self,
+                not_heads.as_mut_bitslice(),
+                filtered_revs,
+            )?;
             not_heads
                 .into_iter()
                 .enumerate()
