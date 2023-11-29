@@ -210,14 +210,10 @@ can add with --include
 
   $ hg add -I foo
   adding foo
-  adding foo/a (known-bad-output !)
-  abort: file 'foo' in dirstate clashes with 'foo/a' (known-bad-output !)
-  [255]
   $ hg status
   A bar/a
-  A foo (missing-correct-output !)
+  A foo
   R foo/a
-  ? foo (known-bad-output !)
 
   $ cd ..
 
