@@ -2381,8 +2381,19 @@ def add(ui, repo, match, prefix, uipathfn, explicitonly, **opts):
             full=False,
         )
     ):
+        entry = dirstate.get_entry(f)
+        # We don't want to even attmpt to add back files that have been removed
+        # It would lead to a misleading message saying we're adding the path,
+        # and can also lead to file/dir conflicts when attempting to add it.
+        removed = entry and entry.removed
         exact = match.exact(f)
-        if exact or not explicitonly and f not in wctx and repo.wvfs.lexists(f):
+        if (
+            exact
+            or not explicitonly
+            and f not in wctx
+            and repo.wvfs.lexists(f)
+            and not removed
+        ):
             if cca:
                 cca(f)
             names.append(f)
