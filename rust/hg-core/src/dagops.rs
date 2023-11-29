@@ -12,6 +12,8 @@
 //!   mean those revisions that have no children among the collection.
 //! - Similarly *relative roots* of a collection of `Revision`, we mean those
 //!   whose parents, if any, don't belong to the collection.
+use bitvec::slice::BitSlice;
+
 use super::{Graph, GraphError, Revision, NULL_REVISION};
 use crate::{ancestors::AncestorsIterator, BaseRevision};
 use std::collections::{BTreeSet, HashSet};
@@ -81,26 +83,26 @@ pub fn retain_heads<S: std::hash::BuildHasher>(
     Ok(())
 }
 
-/// Optimized version of `retain_heads` that expects an zeroed array of the size
-/// of the graph, to act as a faster but less space-efficient `HashSet`.
+/// Optimized version of `retain_heads` that expects an zeroed bitvec of the
+/// size of the graph, to act as a faster but less space-efficient `HashSet`.
 ///
 /// # Panics
 ///
 /// Can panic if `not_heads` is shorten than the length of graph.
 pub fn retain_heads_fast(
     graph: &impl Graph,
-    not_heads: &mut [bool],
+    not_heads: &mut BitSlice,
     filtered_revs: &HashSet<Revision>,
 ) -> Result<(), GraphError> {
     for idx in (0..not_heads.len()).rev() {
         let rev = Revision(idx as BaseRevision);
         if !not_heads[idx] && filtered_revs.contains(&rev) {
-            not_heads[idx] = true;
+            not_heads.get_mut(idx).unwrap().commit(true);
             continue;
         }
         for parent in graph.parents(rev)?.iter() {
             if *parent != NULL_REVISION {
-                not_heads[parent.0 as usize] = true;
+                not_heads.get_mut(parent.0 as usize).unwrap().commit(true);
             }
         }
     }
