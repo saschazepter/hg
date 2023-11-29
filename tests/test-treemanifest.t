@@ -869,3 +869,260 @@ testing cache update warming persistent nodemaps
 ------------------------------------------------
 
   $ hg debugupdatecache
+
+Test debug-revlog-reencode
+--------------------------
+
+  $ hg debug-revlog-stats
+  rev-count   data-size inl type      target 
+          4         436 no  changelog 
+          4         746 yes manifest  
+          3         529 yes manifest  dir/
+          2           6 yes file      dir/file
+          1           3 yes file      dir/foo-1
+          1           3 yes file      dir/foo-2
+          1           3 yes file      dir/foo-3
+          1           3 yes file      dir/foo-4
+          1           3 yes file      dir/foo-5
+          1           3 yes file      dir/foo-6
+          1           3 yes file      dir/foo-7
+          1           3 yes file      dir/foo-8
+          1           3 yes file      dir/foo-9
+          2           6 yes file      file
+          1           3 yes file      file-1
+          1           3 yes file      file-2
+          1           3 yes file      file-3
+          1           3 yes file      file-4
+          1           3 yes file      file-5
+          1           3 yes file      file-6
+          1           3 yes file      file-7
+          1           3 yes file      file-8
+          1           3 yes file      file-9
+  $ hg debugrevlog --dir dir/
+  format : 1
+  flags  : inline, generaldelta
+  
+  revisions     :   3
+      merges    :   0 ( 0.00%)
+      normal    :   3 (100.00%)
+  revisions     :   3
+      empty     :   0 ( 0.00%)
+                     text  :   0 (100.00%)
+                     delta :   0 (100.00%)
+      snapshot  :   2 (66.67%)
+        lvl-0   :         2 (66.67%)
+      deltas    :   1 (33.33%)
+  revision size : 529
+      snapshot  :  94 (17.77%)
+        lvl-0   :        94 (17.77%)
+      deltas    : 435 (82.23%)
+  
+  chunks        :   3
+      0x00      :   1 (33.33%)
+      0x75 (u)  :   2 (66.67%)
+  chunks size   : 529
+      0x00      : 435 (82.23%)
+      0x75 (u)  :  94 (17.77%)
+  
+  
+  total-stored-content: 561 bytes
+  
+  avg chain length  :   0
+  max chain length  :   1
+  max chain reach   : 482
+  compression ratio :   1
+  
+  uncompressed data size (min/max/avg) : 46 / 469 / 187
+  full revision size (min/max/avg)     : 47 / 47 / 47
+  inter-snapshot size (min/max/avg)    : 0 / 0 / 0
+  delta size (min/max/avg)             : 435 / 435 / 435
+  
+  deltas against prev  : 1 (100.00%)
+      where prev = p1  : 1     (100.00%)
+      where prev = p2  : 0     ( 0.00%)
+      other-ancestor   : 0     ( 0.00%)
+      unrelated        : 0     ( 0.00%)
+  deltas against p1    : 0 ( 0.00%)
+  deltas against p2    : 0 ( 0.00%)
+  deltas against ancs  : 0 ( 0.00%)
+  deltas against other : 0 ( 0.00%)
+  $ hg debug::revlog-reencoded-delta-info dir/foo-5
+  working in: * (glob)
+  format : 1
+  flags  : generaldelta
+  
+  revisions     : 1
+      merges    : 0 ( 0.00%)
+      normal    : 1 (100.00%)
+  revisions     : 1
+      empty     : 0 ( 0.00%)
+                     text  : 0 (100.00%)
+                     delta : 0 (100.00%)
+      snapshot  : 1 (100.00%)
+        lvl-0   :       1 (100.00%)
+      deltas    : 0 ( 0.00%)
+  revision size : 3
+      snapshot  : 3 (100.00%)
+        lvl-0   :       3 (100.00%)
+      deltas    : 0 ( 0.00%)
+  
+  chunks        : 1
+      0x75 (u)  : 1 (100.00%)
+  chunks size   : 3
+      0x75 (u)  : 3 (100.00%)
+  
+  
+  total-stored-content: 2 bytes
+  
+  avg chain length  : 0
+  max chain length  : 0
+  max chain reach   : 3
+  compression ratio : 0
+  
+  uncompressed data size (min/max/avg) : 2 / 2 / 2
+  full revision size (min/max/avg)     : 3 / 3 / 3
+  inter-snapshot size (min/max/avg)    : 0 / 0 / 0
+  delta size (min/max/avg)             : 0 / 0 / 0
+  cleaning up * (glob)
+    done
+  $ hg debug::revlog-reencoded-delta-info --dir dir/
+  working in: * (glob)
+  format : 1
+  flags  : generaldelta
+  
+  revisions     :   3
+      merges    :   0 ( 0.00%)
+      normal    :   3 (100.00%)
+  revisions     :   3
+      empty     :   0 ( 0.00%)
+                     text  :   0 (100.00%)
+                     delta :   0 (100.00%)
+      snapshot  :   2 (66.67%)
+        lvl-0   :         2 (66.67%)
+      deltas    :   1 (33.33%)
+  revision size : 529
+      snapshot  :  94 (17.77%)
+        lvl-0   :        94 (17.77%)
+      deltas    : 435 (82.23%)
+  
+  chunks        :   3
+      0x00      :   1 (33.33%)
+      0x75 (u)  :   2 (66.67%)
+  chunks size   : 529
+      0x00      : 435 (82.23%)
+      0x75 (u)  :  94 (17.77%)
+  
+  
+  total-stored-content: 561 bytes
+  
+  avg chain length  :   0
+  max chain length  :   1
+  max chain reach   : 482
+  compression ratio :   1
+  
+  uncompressed data size (min/max/avg) : 46 / 469 / 187
+  full revision size (min/max/avg)     : 47 / 47 / 47
+  inter-snapshot size (min/max/avg)    : 0 / 0 / 0
+  delta size (min/max/avg)             : 435 / 435 / 435
+  
+  deltas against prev  : 1 (100.00%)
+      where prev = p1  : 1     (100.00%)
+      where prev = p2  : 0     ( 0.00%)
+      other-ancestor   : 0     ( 0.00%)
+      unrelated        : 0     ( 0.00%)
+  deltas against p1    : 0 ( 0.00%)
+  deltas against p2    : 0 ( 0.00%)
+  deltas against ancs  : 0 ( 0.00%)
+  deltas against other : 0 ( 0.00%)
+  cleaning up * (glob)
+    done
+  $ hg debug::revlog-reencoded-delta-info -m
+  working in: * (glob)
+  format : 1
+  flags  : generaldelta
+  
+  revisions     :   4
+      merges    :   0 ( 0.00%)
+      normal    :   4 (100.00%)
+  revisions     :   4
+      empty     :   0 ( 0.00%)
+                     text  :   0 (100.00%)
+                     delta :   0 (100.00%)
+      snapshot  :   2 (50.00%)
+        lvl-0   :         2 (50.00%)
+      deltas    :   2 (50.00%)
+  revision size : 746
+      snapshot  : 186 (24.93%)
+        lvl-0   :       186 (24.93%)
+      deltas    : 560 (75.07%)
+  
+  chunks        :   4
+      0x00      :   2 (50.00%)
+      0x75 (u)  :   2 (50.00%)
+  chunks size   : 746
+      0x00      : 560 (75.07%)
+      0x75 (u)  : 186 (24.93%)
+  
+  
+  total-stored-content: 800 bytes
+  
+  avg chain length  :   0
+  max chain length  :   2
+  max chain reach   : 746
+  compression ratio :   1
+  
+  uncompressed data size (min/max/avg) : 92 / 524 / 200
+  full revision size (min/max/avg)     : 93 / 93 / 93
+  inter-snapshot size (min/max/avg)    : 0 / 0 / 0
+  delta size (min/max/avg)             : 58 / 502 / 280
+  
+  deltas against prev  : 1 (50.00%)
+      where prev = p1  : 1     (100.00%)
+      where prev = p2  : 0     ( 0.00%)
+      other-ancestor   : 0     ( 0.00%)
+      unrelated        : 0     ( 0.00%)
+  deltas against p1    : 1 (50.00%)
+  deltas against p2    : 0 ( 0.00%)
+  deltas against ancs  : 0 ( 0.00%)
+  deltas against other : 0 ( 0.00%)
+  cleaning up * (glob)
+    done
+  $ hg debug::revlog-reencoded-delta-info -c
+  working in: * (glob)
+  format : 1
+  flags  : generaldelta
+  
+  revisions     :   4
+      merges    :   0 ( 0.00%)
+      normal    :   4 (100.00%)
+  revisions     :   4
+      empty     :   0 ( 0.00%)
+                     text  :   0 (100.00%)
+                     delta :   0 (100.00%)
+      snapshot  :   4 (100.00%)
+        lvl-0   :         4 (100.00%)
+      deltas    :   0 ( 0.00%)
+  revision size : 436
+      snapshot  : 436 (100.00%)
+        lvl-0   :       436 (100.00%)
+      deltas    :   0 ( 0.00%)
+  
+  chunks        :   4
+      0x75 (u)  :   4 (100.00%)
+  chunks size   : 436
+      0x75 (u)  : 436 (100.00%)
+  
+  
+  total-stored-content: 432 bytes
+  
+  avg chain length  :   0
+  max chain length  :   0
+  max chain reach   : 222
+  compression ratio :   0
+  
+  uncompressed data size (min/max/avg) : 67 / 221 / 108
+  full revision size (min/max/avg)     : 68 / 222 / 109
+  inter-snapshot size (min/max/avg)    : 0 / 0 / 0
+  delta size (min/max/avg)             : 0 / 0 / 0
+  cleaning up * (glob)
+    done

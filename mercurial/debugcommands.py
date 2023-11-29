@@ -4972,3 +4972,53 @@ def debugwireproto(ui, repo, path=None, **opts):
 
     if proc:
         proc.kill()
+
+
+@command(
+    b'debug::revlog-reencoded-delta-info',
+    cmdutil.debugrevlogopts
+    + [
+        (b'', b'start-rev', b"", _(b'start at rev')),
+        (b'', b'stop-rev', b"", _(b'stop at rev')),
+        (b'', b'delete', True, _(b'delete the result')),
+        (
+            b'',
+            b'reuse-stored-delta',
+            True,
+            _(b'reuse stored delta when using the same base'),
+        ),
+    ],
+    _(b'-c|-m|FILE'),
+    optionalrepo=True,
+)
+def debug_reencoder_revlog(
+    ui,
+    repo,
+    file_=None,
+    start_rev=None,
+    stop_rev=None,
+    delete=True,
+    reuse_stored_delta=True,
+    **opts,
+):
+    """show revlog statistic if delta where to be reencoded
+
+    The reencoded delta are NOT persisted to the storage. This is not a command
+    to upgrade the on disk storage.
+    """
+    orig = cmdutil.openrevlog(
+        repo,
+        b'debugrevlog',
+        file_,
+        pycompat.byteskwargs(opts),
+    )
+    return revlog_debug.reencoded_info(
+        ui,
+        repo,
+        revlog.revlog,
+        orig,
+        start_rev=start_rev,
+        stop_rev=stop_rev,
+        delete=delete,
+        reuse_delta=reuse_stored_delta,
+    )
