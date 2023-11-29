@@ -1,4 +1,3 @@
-use std::collections::hash_map::RandomState;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::ops::Deref;
@@ -565,32 +564,24 @@ impl Index {
                 return Ok(self_head_revs.to_owned());
             }
         }
-        let mut revs: HashSet<Revision, RandomState> =
-            if filtered_revs.is_empty() {
-                (0..self.len())
-                    .into_iter()
-                    .map(|i| Revision(i as BaseRevision))
-                    .collect()
-            } else {
-                (0..self.len())
-                    .into_iter()
-                    .filter_map(|i| {
-                        let r = Revision(i as BaseRevision);
-                        if filtered_revs.contains(&r) {
-                            None
-                        } else {
-                            Some(r)
-                        }
-                    })
-                    .collect()
-            };
-        dagops::retain_heads(self, &mut revs)?;
-        if self.is_empty() {
-            revs.insert(NULL_REVISION);
-        }
-        let mut as_vec: Vec<Revision> =
-            revs.into_iter().map(Into::into).collect();
-        as_vec.sort_unstable();
+
+        let as_vec = if self.is_empty() {
+            vec![NULL_REVISION]
+        } else {
+            let mut not_heads = vec![false; self.len()];
+            dagops::retain_heads_fast(self, &mut not_heads, filtered_revs)?;
+            not_heads
+                .into_iter()
+                .enumerate()
+                .filter_map(|(idx, is_not_head)| {
+                    if is_not_head {
+                        None
+                    } else {
+                        Some(Revision(idx as BaseRevision))
+                    }
+                })
+                .collect()
+        };
         *self
             .head_revs
             .write()
