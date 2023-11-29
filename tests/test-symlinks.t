@@ -188,6 +188,39 @@ commit and update back
 
   $ cd ..
 
+== symlinks and add with --include ==
+
+directory moved and symlinked
+
+  $ hg init add-include
+  $ cd add-include
+  $ mkdir foo
+  $ touch foo/a
+  $ hg ci -Ama
+  adding foo/a
+  $ hg mv foo bar
+  moving foo/a to bar/a
+  $ ln -s bar foo
+  $ hg status
+  A bar/a
+  R foo/a
+  ? foo
+
+can add with --include
+
+  $ hg add -I foo
+  adding foo
+  adding foo/a (known-bad-output !)
+  abort: file 'foo' in dirstate clashes with 'foo/a' (known-bad-output !)
+  [255]
+  $ hg status
+  A bar/a
+  A foo (missing-correct-output !)
+  R foo/a
+  ? foo (known-bad-output !)
+
+  $ cd ..
+
 == root of repository is symlinked ==
 
   $ hg init root
