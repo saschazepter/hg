@@ -96,6 +96,7 @@ py_class!(pub class Index |py| {
     data nodemap_mmap: RefCell<Option<PyBuffer>>;
     // Holds a reference to the mmap'ed persistent index data
     data index_mmap: RefCell<Option<PyBuffer>>;
+    data head_revs_py_list: RefCell<Option<PyList>>;
 
     def __new__(
         _cls,
@@ -257,6 +258,7 @@ py_class!(pub class Index |py| {
         self.nt(py).borrow_mut().take();
         self.docket(py).borrow_mut().take();
         self.nodemap_mmap(py).borrow_mut().take();
+        self.head_revs_py_list(py).borrow_mut().take();
         self.index(py).borrow().clear_caches();
         Ok(py.None())
     }
@@ -621,6 +623,7 @@ impl Index {
             RefCell::new(None),
             RefCell::new(None),
             RefCell::new(Some(buf)),
+            RefCell::new(None),
         )
     }
 
@@ -773,13 +776,19 @@ impl Index {
 
     fn inner_headrevs(&self, py: Python) -> PyResult<PyObject> {
         let index = &*self.index(py).borrow();
-        let as_vec: Vec<PyObject> = index
-            .head_revs()
-            .map_err(|e| graph_error(py, e))?
-            .iter()
-            .map(|r| PyRevision::from(*r).into_py_object(py).into_object())
-            .collect();
-        Ok(PyList::new(py, &as_vec).into_object())
+        if let Some(new_heads) =
+            index.head_revs_shortcut().map_err(|e| graph_error(py, e))?
+        {
+            self.cache_new_heads_py_list(new_heads, py);
+        }
+
+        Ok(self
+            .head_revs_py_list(py)
+            .borrow()
+            .as_ref()
+            .expect("head revs should be cached")
+            .clone_ref(py)
+            .into_object())
     }
 
     fn inner_headrevsfiltered(
@@ -790,13 +799,35 @@ impl Index {
         let index = &mut *self.index(py).borrow_mut();
         let filtered_revs = rev_pyiter_collect(py, filtered_revs, index)?;
 
-        let as_vec: Vec<PyObject> = index
-            .head_revs_filtered(&filtered_revs)
+        if let Some(new_heads) = index
+            .head_revs_filtered(&filtered_revs, true)
             .map_err(|e| graph_error(py, e))?
+        {
+            self.cache_new_heads_py_list(new_heads, py);
+        }
+
+        Ok(self
+            .head_revs_py_list(py)
+            .borrow()
+            .as_ref()
+            .expect("head revs should be cached")
+            .clone_ref(py)
+            .into_object())
+    }
+
+    fn cache_new_heads_py_list(
+        &self,
+        new_heads: Vec<Revision>,
+        py: Python<'_>,
+    ) -> PyList {
+        let as_vec: Vec<PyObject> = new_heads
             .iter()
             .map(|r| PyRevision::from(*r).into_py_object(py).into_object())
             .collect();
-        Ok(PyList::new(py, &as_vec).into_object())
+        let new_heads_py_list = PyList::new(py, &as_vec);
+        *self.head_revs_py_list(py).borrow_mut() =
+            Some(new_heads_py_list.clone_ref(py));
+        new_heads_py_list
     }
 
     fn inner_ancestors(
