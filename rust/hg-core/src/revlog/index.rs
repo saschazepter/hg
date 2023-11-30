@@ -544,14 +544,23 @@ impl Index {
 
     /// Return the head revisions of this index
     pub fn head_revs(&self) -> Result<Vec<Revision>, GraphError> {
-        self.head_revs_filtered(&HashSet::new())
+        self.head_revs_filtered(&HashSet::new(), false)
+            .map(|h| h.unwrap())
+    }
+
+    /// Python-specific shortcut to save on PyList creation
+    pub fn head_revs_shortcut(
+        &self,
+    ) -> Result<Option<Vec<Revision>>, GraphError> {
+        self.head_revs_filtered(&HashSet::new(), true)
     }
 
     /// Return the head revisions of this index
     pub fn head_revs_filtered(
         &self,
         filtered_revs: &HashSet<Revision>,
-    ) -> Result<Vec<Revision>, GraphError> {
+        py_shortcut: bool,
+    ) -> Result<Option<Vec<Revision>>, GraphError> {
         {
             let guard = self
                 .head_revs
@@ -562,7 +571,13 @@ impl Index {
             if !self_head_revs.is_empty()
                 && filtered_revs == self_filtered_revs
             {
-                return Ok(self_head_revs.to_owned());
+                if py_shortcut {
+                    // Don't copy the revs since we've already cached them
+                    // on the Python side.
+                    return Ok(None);
+                } else {
+                    return Ok(Some(self_head_revs.to_owned()));
+                }
             }
         }
 
@@ -592,7 +607,7 @@ impl Index {
             .write()
             .expect("RwLock on Index.head_revs should not be poisoned") =
             (as_vec.to_owned(), filtered_revs.to_owned());
-        Ok(as_vec)
+        Ok(Some(as_vec))
     }
 
     /// Obtain the delta chain for a revision.
