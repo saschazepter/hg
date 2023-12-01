@@ -99,7 +99,10 @@ def _docensor(ui, repo, path, rev=b'', tombstone=b'', **opts):
 
     fnode = fctx.filenode()
     heads = []
-    for headnode in repo.heads():
+    repo_heads = repo.heads()
+    msg = b'checking for the censored content in %d heads\n' % len(repo_heads)
+    ui.status(msg)
+    for headnode in repo_heads:
         hc = repo[headnode]
         if path in hc and hc.filenode(path) == fnode:
             heads.append(hc)

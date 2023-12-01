@@ -78,6 +78,7 @@ Censor revision with 2 offenses
 
   $ mkdir -p foo/bar/baz
   $ hg --config extensions.censor= --cwd foo/bar/baz censor -r $C2 -t "remove password" ../../../target
+  checking for the censored content in 2 heads
   $ hg cat -r $H1 target | head -n 10
   Tainted file is now sanitized
   $ hg cat -r $H2 target | head -n 10
@@ -96,6 +97,7 @@ Censor revision with 1 offense
 (this also tests file pattern matching: with 'path:' scheme)
 
   $ hg --config extensions.censor= --cwd foo/bar/baz censor -r $C1 path:target
+  checking for the censored content in 2 heads
   $ hg cat -r $H1 target | head -n 10
   Tainted file is now sanitized
   $ hg cat -r $H2 target | head -n 10
@@ -235,6 +237,7 @@ with the file censored, but we can't censor at a head, so advance H1.
   $ hg ci -m 'advance head H1' target
   $ H1=`hg id --debug -i`
   $ hg --config extensions.censor= censor -r $C3 target
+  checking for the censored content in 2 heads
   $ hg update -r $H2
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg merge -r $C3
@@ -247,6 +250,7 @@ Revisions present in repository heads may not be censored
   $ hg update -C -r $H2
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg --config extensions.censor= censor -r $H2 target
+  checking for the censored content in 2 heads
   abort: cannot censor file in heads (78a8fc215e79)
   (clean/delete and commit first)
   [255]
@@ -254,6 +258,7 @@ Revisions present in repository heads may not be censored
   $ hg ci -m 'bystander commit'
   $ H2=`hg id --debug -i`
   $ hg --config extensions.censor= censor -r "$H2^" target
+  checking for the censored content in 2 heads
   abort: cannot censor file in heads (efbe78065929)
   (clean/delete and commit first)
   [255]
@@ -266,6 +271,7 @@ Cannot censor working directory
   $ hg update -r "$H2^"
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg --config extensions.censor= censor -r . target
+  checking for the censored content in 2 heads
   abort: cannot censor working directory
   (clean/delete/update first)
   [255]
@@ -279,6 +285,7 @@ Can re-add file after being deleted + censored
   $ hg ci -m 'delete target so it may be censored'
   $ H2=`hg id --debug -i`
   $ hg --config extensions.censor= censor -r $C4 target
+  checking for the censored content in 2 heads
   $ hg cat -r $C4 target | head -n 10
   $ hg cat -r "$H2^^" target | head -n 10
   Tainted file now super sanitized
@@ -311,6 +318,7 @@ Can censor enough revision to move back to inline storage
   rev-count   data-size inl type      target 
          10      ?????? no  file      target (glob)
   $ hg --config extensions.censor= censor -r $C5 target
+  checking for the censored content in 2 heads
 
 The important part is for the censor operation to not crash and the repository
 to not be corrupted.  Right now this involve keeping the revlog split.
@@ -389,6 +397,7 @@ Censored nodes can be pushed if they censor previously unexchanged nodes
   $ hg cat -r $REV target | head -n 10
   Passwords: hunter2hunter2
   $ hg --config extensions.censor= censor -r $REV target
+  checking for the censored content in 3 heads
   $ hg cat -r $REV target | head -n 10
   $ hg cat -r $CLEANREV target | head -n 10
   Re-sanitized; nothing to see here
@@ -489,6 +498,7 @@ Can import bundle where first revision of a file is censored
 
   $ hg init ../rinit
   $ hg --config extensions.censor= censor -r 0 target
+  checking for the censored content in 3 heads
   $ hg bundle -r 0 --base null ../rinit/initbundle
   1 changesets found
   $ cd ../rinit
@@ -539,6 +549,7 @@ Censor the file
   $ hg cat -r $B1 target | wc -l
    *50002 (re)
   $ hg --config extensions.censor= censor -r $B1 target
+  checking for the censored content in 1 heads
   $ hg cat -r $B1 target | wc -l
    *0 (re)
 
