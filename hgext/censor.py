@@ -36,7 +36,6 @@ from mercurial.node import short
 
 from mercurial import (
     error,
-    logcmdutil,
     registrar,
     scmutil,
 )
@@ -56,7 +55,7 @@ testedwith = b'ships-with-hg-core'
         (
             b'r',
             b'rev',
-            b'',
+            [],
             _(b'censor file from specified revision'),
             _(b'REV'),
         ),
@@ -71,7 +70,7 @@ testedwith = b'ships-with-hg-core'
     _(b'-r REV [-t TEXT] [FILE]'),
     helpcategory=command.CATEGORY_MAINTENANCE,
 )
-def censor(ui, repo, path, rev=b'', tombstone=b'', check_heads=True, **opts):
+def censor(ui, repo, path, rev=(), tombstone=b'', check_heads=True, **opts):
     with repo.wlock(), repo.lock():
         return _docensor(
             ui,
@@ -84,11 +83,11 @@ def censor(ui, repo, path, rev=b'', tombstone=b'', check_heads=True, **opts):
         )
 
 
-def _docensor(ui, repo, path, rev=b'', tombstone=b'', check_heads=True, **opts):
+def _docensor(ui, repo, path, revs=(), tombstone=b'', check_heads=True, **opts):
     if not path:
         raise error.Abort(_(b'must specify file path to censor'))
-    if not rev:
-        raise error.Abort(_(b'must specify revision to censor'))
+    if not revs:
+        raise error.Abort(_(b'must specify revisions to censor'))
 
     wctx = repo[None]
 
@@ -100,18 +99,17 @@ def _docensor(ui, repo, path, rev=b'', tombstone=b'', check_heads=True, **opts):
     if not len(flog):
         raise error.Abort(_(b'cannot censor file with no history'))
 
-    rev = logcmdutil.revsingle(repo, rev, rev).rev()
-    try:
-        ctx = repo[rev]
-    except KeyError:
-        raise error.Abort(_(b'invalid revision identifier %s') % rev)
+    revs = scmutil.revrange(repo, revs)
+    if not revs:
+        raise error.Abort(_(b'no matching revisions'))
+    file_nodes = set()
+    for r in revs:
+        try:
+            ctx = repo[r]
+            file_nodes.add(ctx.filectx(path).filenode())
+        except error.LookupError:
+            raise error.Abort(_(b'file does not exist at revision %s') % ctx)
 
-    try:
-        fctx = ctx.filectx(path)
-    except error.LookupError:
-        raise error.Abort(_(b'file does not exist at revision %s') % rev)
-
-    fnode = fctx.filenode()
     if check_heads:
         heads = []
         repo_heads = repo.heads()
@@ -120,7 +118,7 @@ def _docensor(ui, repo, path, rev=b'', tombstone=b'', check_heads=True, **opts):
         ui.status(msg)
         for headnode in repo_heads:
             hc = repo[headnode]
-            if path in hc and hc.filenode(path) == fnode:
+            if path in hc and hc.filenode(path) in file_nodes:
                 heads.append(hc)
         if heads:
             headlist = b', '.join([short(c.node()) for c in heads])
@@ -138,7 +136,8 @@ def _docensor(ui, repo, path, rev=b'', tombstone=b'', check_heads=True, **opts):
             hint=_(b'clean/delete/update first'),
         )
 
-    msg = b'censoring 1 file revision\n'
+    msg = b'censoring %d file revisions\n'
+    msg %= len(file_nodes)
     ui.status(msg)
     with repo.transaction(b'censor') as tr:
-        flog.censorrevision(tr, fnode, tombstone=tombstone)
+        flog.censorrevision(tr, file_nodes, tombstone=tombstone)
