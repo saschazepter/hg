@@ -221,6 +221,9 @@ class hgcommand:
         self.cmd = cmd
         self.env = env
 
+    def __repr__(self):
+        return f"<hgcommand cmd={self.cmd} env={self.env}>"
+
     def run(self, args):
         cmd = self.cmd + args
         returncode, out, err = runcmd(cmd, self.env)
@@ -1821,5 +1824,5 @@ setup(
             'welcome': 'contrib/packaging/macosx/Welcome.html',
         },
     },
-    **extra
+    **extra,
 )
