@@ -22,7 +22,9 @@ data needs to be materialized. Some commands, like ``hg cat``/``hg revert``,
 simply fail when asked to produce censored data. Others, like ``hg verify`` and
 ``hg update``, must be capable of tolerating censored data to continue to
 function in a meaningful way. Such commands only tolerate censored file
-revisions if they are allowed by the "censor.policy=ignore" config option.
+As having a censored version in a checkout is impractical. The current head
+revisions of the repository are checked. If the revision to be censored is in
+any of them the command will abort.
 
 A few informative commands such as ``hg grep`` will unconditionally
 ignore censored data and merely report that it was encountered.
