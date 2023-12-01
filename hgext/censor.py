@@ -129,6 +129,8 @@ def _docensor(ui, repo, path, rev=b'', tombstone=b'', check_heads=True, **opts):
                 hint=_(b'clean/delete and commit first'),
             )
 
+    msg = b'checking for the censored content in the working directory\n'
+    ui.status(msg)
     wp = wctx.parents()
     if ctx.node() in [p.node() for p in wp]:
         raise error.Abort(
@@ -136,5 +138,7 @@ def _docensor(ui, repo, path, rev=b'', tombstone=b'', check_heads=True, **opts):
             hint=_(b'clean/delete/update first'),
         )
 
+    msg = b'censoring 1 file revision\n'
+    ui.status(msg)
     with repo.transaction(b'censor') as tr:
         flog.censorrevision(tr, fnode, tombstone=tombstone)
