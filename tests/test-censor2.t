@@ -16,6 +16,8 @@
   $ hg commit -m "erased secret"
   $ hg censor target --config extensions.censor= -r ".^^"
   checking for the censored content in 1 heads
+  checking for the censored content in the working directory
+  censoring 1 file revision
   $ hg update ".^"
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cat target
