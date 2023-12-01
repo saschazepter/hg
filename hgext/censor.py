@@ -60,17 +60,31 @@ testedwith = b'ships-with-hg-core'
             _(b'censor file from specified revision'),
             _(b'REV'),
         ),
+        (
+            b'',
+            b'check-heads',
+            True,
+            _(b'check that repository heads are not affected'),
+        ),
         (b't', b'tombstone', b'', _(b'replacement tombstone data'), _(b'TEXT')),
     ],
     _(b'-r REV [-t TEXT] [FILE]'),
     helpcategory=command.CATEGORY_MAINTENANCE,
 )
-def censor(ui, repo, path, rev=b'', tombstone=b'', **opts):
+def censor(ui, repo, path, rev=b'', tombstone=b'', check_heads=True, **opts):
     with repo.wlock(), repo.lock():
-        return _docensor(ui, repo, path, rev, tombstone, **opts)
+        return _docensor(
+            ui,
+            repo,
+            path,
+            rev,
+            tombstone,
+            check_heads=check_heads,
+            **opts,
+        )
 
 
-def _docensor(ui, repo, path, rev=b'', tombstone=b'', **opts):
+def _docensor(ui, repo, path, rev=b'', tombstone=b'', check_heads=True, **opts):
     if not path:
         raise error.Abort(_(b'must specify file path to censor'))
     if not rev:
@@ -98,20 +112,22 @@ def _docensor(ui, repo, path, rev=b'', tombstone=b'', **opts):
         raise error.Abort(_(b'file does not exist at revision %s') % rev)
 
     fnode = fctx.filenode()
-    heads = []
-    repo_heads = repo.heads()
-    msg = b'checking for the censored content in %d heads\n' % len(repo_heads)
-    ui.status(msg)
-    for headnode in repo_heads:
-        hc = repo[headnode]
-        if path in hc and hc.filenode(path) == fnode:
-            heads.append(hc)
-    if heads:
-        headlist = b', '.join([short(c.node()) for c in heads])
-        raise error.Abort(
-            _(b'cannot censor file in heads (%s)') % headlist,
-            hint=_(b'clean/delete and commit first'),
-        )
+    if check_heads:
+        heads = []
+        repo_heads = repo.heads()
+        msg = b'checking for the censored content in %d heads\n'
+        msg %= len(repo_heads)
+        ui.status(msg)
+        for headnode in repo_heads:
+            hc = repo[headnode]
+            if path in hc and hc.filenode(path) == fnode:
+                heads.append(hc)
+        if heads:
+            headlist = b', '.join([short(c.node()) for c in heads])
+            raise error.Abort(
+                _(b'cannot censor file in heads (%s)') % headlist,
+                hint=_(b'clean/delete and commit first'),
+            )
 
     wp = wctx.parents()
     if ctx.node() in [p.node() for p in wp]:

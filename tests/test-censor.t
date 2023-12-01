@@ -511,6 +511,10 @@ Can import bundle where first revision of a file is censored
   (run 'hg update' to get a working copy)
   $ hg cat -r 0 target | head -n 10
 
+Can skip the head checking steps
+
+  $ hg --config extensions.censor= censor -r 0  --no-check-heads target
+
 #if revlogv2
 
 Testing feature that does not work in revlog v1
