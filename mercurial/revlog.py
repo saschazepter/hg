@@ -3835,16 +3835,16 @@ class revlog:
             if addrevisioncb:
                 addrevisioncb(self, rev, node)
 
-    def censorrevision(self, tr, censornode, tombstone=b''):
+    def censorrevision(self, tr, censor_nodes, tombstone=b''):
         if self._format_version == REVLOGV0:
             raise error.RevlogError(
                 _(b'cannot censor with version %d revlogs')
                 % self._format_version
             )
         elif self._format_version == REVLOGV1:
-            rewrite.v1_censor(self, tr, censornode, tombstone)
+            rewrite.v1_censor(self, tr, censor_nodes, tombstone)
         else:
-            rewrite.v2_censor(self, tr, censornode, tombstone)
+            rewrite.v2_censor(self, tr, censor_nodes, tombstone)
 
     def verifyintegrity(self, state):
         """Verifies the integrity of the revlog.
