@@ -51,14 +51,14 @@ from . import (
 )
 
 
-def v1_censor(rl, tr, censornode, tombstone=b''):
+def v1_censor(rl, tr, censor_nodes, tombstone=b''):
     """censors a revision in a "version 1" revlog"""
     assert rl._format_version == constants.REVLOGV1, rl._format_version
 
     # avoid cycle
     from .. import revlog
 
-    censorrev = rl.rev(censornode)
+    censor_revs = set(rl.rev(node) for node in censor_nodes)
     tombstone = storageutil.packmeta({b'censored': tombstone}, b'')
 
     # Rewriting the revlog in place is hard. Our strategy for censoring is
@@ -87,14 +87,14 @@ def v1_censor(rl, tr, censornode, tombstone=b''):
         node = rl.node(rev)
         p1, p2 = rl.parents(node)
 
-        if rev == censorrev:
+        if rev in censor_revs:
             newrl.addrawrevision(
                 tombstone,
                 tr,
-                rl.linkrev(censorrev),
+                rl.linkrev(rev),
                 p1,
                 p2,
-                censornode,
+                node,
                 constants.REVIDX_ISCENSORED,
             )
 
@@ -138,12 +138,12 @@ def v1_censor(rl, tr, censornode, tombstone=b''):
     rl._load_inner(chunk_cache)
 
 
-def v2_censor(revlog, tr, censornode, tombstone=b''):
+def v2_censor(revlog, tr, censor_nodes, tombstone=b''):
     """censors a revision in a "version 2" revlog"""
     assert revlog._format_version != REVLOGV0, revlog._format_version
     assert revlog._format_version != REVLOGV1, revlog._format_version
 
-    censor_revs = {revlog.rev(censornode)}
+    censor_revs = {revlog.rev(node) for node in censor_nodes}
     _rewrite_v2(revlog, tr, censor_revs, tombstone)
 
 

@@ -80,7 +80,7 @@ Censor revision with 2 offenses
   $ hg --config extensions.censor= --cwd foo/bar/baz censor -r $C2 -t "remove password" ../../../target
   checking for the censored content in 2 heads
   checking for the censored content in the working directory
-  censoring 1 file revision
+  censoring 1 file revisions
   $ hg cat -r $H1 target | head -n 10
   Tainted file is now sanitized
   $ hg cat -r $H2 target | head -n 10
@@ -101,7 +101,7 @@ Censor revision with 1 offense
   $ hg --config extensions.censor= --cwd foo/bar/baz censor -r $C1 path:target
   checking for the censored content in 2 heads
   checking for the censored content in the working directory
-  censoring 1 file revision
+  censoring 1 file revisions
   $ hg cat -r $H1 target | head -n 10
   Tainted file is now sanitized
   $ hg cat -r $H2 target | head -n 10
@@ -243,7 +243,7 @@ with the file censored, but we can't censor at a head, so advance H1.
   $ hg --config extensions.censor= censor -r $C3 target
   checking for the censored content in 2 heads
   checking for the censored content in the working directory
-  censoring 1 file revision
+  censoring 1 file revisions
   $ hg update -r $H2
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg merge -r $C3
@@ -294,7 +294,7 @@ Can re-add file after being deleted + censored
   $ hg --config extensions.censor= censor -r $C4 target
   checking for the censored content in 2 heads
   checking for the censored content in the working directory
-  censoring 1 file revision
+  censoring 1 file revisions
   $ hg cat -r $C4 target | head -n 10
   $ hg cat -r "$H2^^" target | head -n 10
   Tainted file now super sanitized
@@ -329,7 +329,7 @@ Can censor enough revision to move back to inline storage
   $ hg --config extensions.censor= censor -r $C5 target
   checking for the censored content in 2 heads
   checking for the censored content in the working directory
-  censoring 1 file revision
+  censoring 1 file revisions
 
 The important part is for the censor operation to not crash and the repository
 to not be corrupted.  Right now this involve keeping the revlog split.
@@ -410,7 +410,7 @@ Censored nodes can be pushed if they censor previously unexchanged nodes
   $ hg --config extensions.censor= censor -r $REV target
   checking for the censored content in 3 heads
   checking for the censored content in the working directory
-  censoring 1 file revision
+  censoring 1 file revisions
   $ hg cat -r $REV target | head -n 10
   $ hg cat -r $CLEANREV target | head -n 10
   Re-sanitized; nothing to see here
@@ -513,7 +513,7 @@ Can import bundle where first revision of a file is censored
   $ hg --config extensions.censor= censor -r 0 target
   checking for the censored content in 3 heads
   checking for the censored content in the working directory
-  censoring 1 file revision
+  censoring 1 file revisions
   $ hg bundle -r 0 --base null ../rinit/initbundle
   1 changesets found
   $ cd ../rinit
@@ -530,7 +530,17 @@ Can skip the head checking steps
 
   $ hg --config extensions.censor= censor -r 0  --no-check-heads target
   checking for the censored content in the working directory
-  censoring 1 file revision
+  censoring 1 file revisions
+
+Can censor multiple revision in one go.
+
+  $ cd ../r
+  $ hg --config extensions.censor= censor -r 0+1  target
+  checking for the censored content in 3 heads
+  checking for the censored content in the working directory
+  censoring 2 file revisions
+
+
 
 #if revlogv2
 
@@ -572,7 +582,7 @@ Censor the file
   $ hg --config extensions.censor= censor -r $B1 target
   checking for the censored content in 1 heads
   checking for the censored content in the working directory
-  censoring 1 file revision
+  censoring 1 file revisions
   $ hg cat -r $B1 target | wc -l
    *0 (re)
 
