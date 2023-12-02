@@ -1859,7 +1859,7 @@ if __name__ == '__main__':
     info = ServiceInfo(
         b"_http._tcp.local.",
         b"My Service Name._http._tcp.local.",
-        socket.inet_aton(b"127.0.0.1"),
+        socket.inet_aton("127.0.0.1"),
         1234,
         0,
         0,
