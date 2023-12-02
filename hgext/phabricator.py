@@ -1926,7 +1926,9 @@ def querydrev(ui, spec):
                 raise error.Abort(_(b'unknown symbol: %s') % tree[1])
         elif op in {b'and_', b'add', b'sub'}:
             assert len(tree) == 3
-            return getattr(operator, op)(walk(tree[1]), walk(tree[2]))
+            return getattr(operator, pycompat.sysstr(op))(
+                walk(tree[1]), walk(tree[2])
+            )
         elif op == b'group':
             return walk(tree[1])
         elif op == b'ancestors':
