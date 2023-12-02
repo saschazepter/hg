@@ -298,12 +298,9 @@ Can censor enough revision to move back to inline storage
 
   $ hg debugrevlogstats | grep target
   rev-count   data-size inl type      target 
-          8   ????????? no  file      target (glob) (revlogv2 !)
-          8   ????????? yes file      target (glob) (revlogv1 !)
-  $ for x in `"$PYTHON" $TESTDIR/seq.py 0 50000`
-  > do
-  >   echo "Password: hunter$x" >> target
-  > done
+          8         ??? no  file      target (glob) (revlogv2 !)
+          8         ??? yes file      target (glob) (revlogv1 !)
+  $ cat /dev/rand?m | dd status=none count=200 | f --hexdump > target
   $ hg ci -m 'add 100k passwords'
   $ H2=`hg id --debug -i`
   $ C5=$H2
@@ -312,17 +309,25 @@ Can censor enough revision to move back to inline storage
   $ H2=`hg id --debug -i`
   $ hg debugrevlogstats | grep target
   rev-count   data-size inl type      target 
-         10   ????????? no  file      target (glob) (revlogv2 !)
-         10   ????????? no  file      target (glob) (missing-correct-output revlogv1 !)
-         10   ????????? yes file      target (glob) (known-bad-output revlogv1 !)
+         10      ?????? no  file      target (glob)
   $ hg --config extensions.censor= censor -r $C5 target
+
+The important part is for the censor operation to not crash and the repository
+to not be corrupted.  Right now this involve keeping the revlog split.
+
   $ hg debugrevlogstats | grep target
   rev-count   data-size inl type      target 
-         10   ????????? no  file      target (glob) (revlogv2 !)
-         10   ????????? yes file      target (glob) (revlogv1 !)
+         10         ??? no  file      target (glob)
   $ hg cat -r $C5 target | head -n 10
   $ hg cat -r $H2 target | head -n 10
   fresh start
+  $ hg verify
+  checking changesets
+  checking manifests
+  crosschecking files in changesets and manifests
+  checking files
+  checking dirstate
+  checked 12 changesets with 13 changes to 2 files
 
 Repo with censored nodes can be cloned and cloned nodes are censored
 
@@ -354,7 +359,7 @@ Repo cloned before tainted content introduced can pull censored nodes
   adding manifests
   adding file changes
   added 11 changesets with 11 changes to 2 files (+1 heads)
-  new changesets 186fb27560c3:683e4645fded
+  new changesets * (glob)
   (run 'hg heads' to see heads, 'hg merge' to merge)
   $ hg update 4
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -414,7 +419,7 @@ Censored nodes can be bundled up and unbundled in another repo
   adding manifests
   adding file changes
   added 2 changesets with 2 changes to 2 files (+1 heads)
-  new changesets 075be80ac777:dcbaf17bf3a1 (2 drafts)
+  new changesets * (glob)
   (run 'hg heads .' to see heads, 'hg merge' to merge)
   $ hg cat -r $REV target | head -n 10
   $ hg cat -r $CLEANREV target | head -n 10
@@ -471,7 +476,7 @@ Censored nodes can be imported on top of censored nodes, consecutively
   adding manifests
   adding file changes
   added 6 changesets with 5 changes to 2 files (+1 heads)
-  new changesets efbe78065929:683e4645fded (6 drafts)
+  new changesets * (glob)
   (run 'hg heads .' to see heads, 'hg merge' to merge)
   $ hg update $H2
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
