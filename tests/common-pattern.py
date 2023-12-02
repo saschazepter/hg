@@ -170,6 +170,7 @@ _errors = {
         br'Cannot assign requested address',
         br'Can\'t assign requested address',
         # FormatMessage(WSAEADDRNOTAVAIL)
+        br'The requested address is not valid in its context',
     ),
 }
 
