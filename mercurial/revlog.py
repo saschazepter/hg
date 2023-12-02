@@ -1305,6 +1305,9 @@ class revlog:
         trypending=False,
         try_split=False,
         canonical_parent_order=True,
+        data_config=None,
+        delta_config=None,
+        feature_config=None,
     ):
         """
         create a revlog object
@@ -1337,19 +1340,25 @@ class revlog:
         assert target[0] in ALL_KINDS
         assert len(target) == 2
         self.target = target
-        if b'feature-config' in self.opener.options:
+        if feature_config is not None:
+            self.feature_config = feature_config.copy()
+        elif b'feature-config' in self.opener.options:
             self.feature_config = self.opener.options[b'feature-config'].copy()
         else:
             self.feature_config = FeatureConfig()
         self.feature_config.censorable = censorable
         self.feature_config.canonical_parent_order = canonical_parent_order
-        if b'data-config' in self.opener.options:
+        if data_config is not None:
+            self.data_config = data_config.copy()
+        elif b'data-config' in self.opener.options:
             self.data_config = self.opener.options[b'data-config'].copy()
         else:
             self.data_config = DataConfig()
         self.data_config.check_ambig = checkambig
         self.data_config.mmap_large_index = mmaplargeindex
-        if b'delta-config' in self.opener.options:
+        if delta_config is not None:
+            self.delta_config = delta_config.copy()
+        elif b'delta-config' in self.opener.options:
             self.delta_config = self.opener.options[b'delta-config'].copy()
         else:
             self.delta_config = DeltaConfig()
