@@ -1308,6 +1308,7 @@ class revlog:
         data_config=None,
         delta_config=None,
         feature_config=None,
+        may_inline=True,  # may inline new revlog
     ):
         """
         create a revlog object
@@ -1333,6 +1334,7 @@ class revlog:
         self.postfix = postfix
         self._trypending = trypending
         self._try_split = try_split
+        self._may_inline = may_inline
         self.opener = opener
         if persistentnodemap:
             self._nodemap_file = nodemaputil.get_nodemap_file(self)
@@ -1598,7 +1600,9 @@ class revlog:
         elif b'revlogv2' in opts:
             new_header = REVLOGV2
         elif b'revlogv1' in opts:
-            new_header = REVLOGV1 | FLAG_INLINE_DATA
+            new_header = REVLOGV1
+            if self._may_inline:
+                new_header |= FLAG_INLINE_DATA
             if b'generaldelta' in opts:
                 new_header |= FLAG_GENERALDELTA
         elif b'revlogv0' in self.opener.options:
