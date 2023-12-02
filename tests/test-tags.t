@@ -72,7 +72,7 @@ Try corrupting the cache
 
 Create local tag with long name:
 
-  $ T=`hg identify --debug --id`
+  $ T=`hg identify -r . -T '{node}'`
   $ hg tag -l "This is a local tag with a really long name!"
   $ hg tags
   tip                                0:acb14030fe0a
