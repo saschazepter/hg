@@ -294,8 +294,12 @@ Can re-add file after being deleted + censored
   $ hg cat -r "$H2^^^" target | head -n 10
   Tainted file now super sanitized
 
-Can censor after revlog has expanded to no longer permit inline storage
+Can censor enough revision to move back to inline storage
 
+  $ hg debugrevlogstats | grep target
+  rev-count   data-size inl type      target 
+          8   ????????? no  file      target (glob) (revlogv2 !)
+          8   ????????? yes file      target (glob) (revlogv1 !)
   $ for x in `"$PYTHON" $TESTDIR/seq.py 0 50000`
   > do
   >   echo "Password: hunter$x" >> target
@@ -306,7 +310,16 @@ Can censor after revlog has expanded to no longer permit inline storage
   $ hg revert -r "$H2^" target
   $ hg ci -m 'cleaned 100k passwords'
   $ H2=`hg id --debug -i`
+  $ hg debugrevlogstats | grep target
+  rev-count   data-size inl type      target 
+         10   ????????? no  file      target (glob) (revlogv2 !)
+         10   ????????? no  file      target (glob) (missing-correct-output revlogv1 !)
+         10   ????????? yes file      target (glob) (known-bad-output revlogv1 !)
   $ hg --config extensions.censor= censor -r $C5 target
+  $ hg debugrevlogstats | grep target
+  rev-count   data-size inl type      target 
+         10   ????????? no  file      target (glob) (revlogv2 !)
+         10   ????????? yes file      target (glob) (revlogv1 !)
   $ hg cat -r $C5 target | head -n 10
   $ hg cat -r $H2 target | head -n 10
   fresh start
