@@ -986,7 +986,7 @@ def perftags(ui, repo, **opts):
 
     clear_revs = []
     if clear_fnode_revs:
-        clear_revs.extends(scmutil.revrange(repo, clear_fnode_revs))
+        clear_revs.extend(scmutil.revrange(repo, clear_fnode_revs))
 
     if update_last:
         revset = b'last(all(), %d)' % update_last
