@@ -916,9 +916,13 @@ def clear_cache_on_disk(repo):
     repo.cachevfs.tryunlink(_filename(repo))
 
 
+# a small attribute to help `hg perf::tags` to detect a fixed version.
+clear_cache_fnodes_is_working = True
+
+
 def clear_cache_fnodes(repo):
     """function used by the perf extension to clear "file node cache"""
-    repo.cachevfs.tryunlink(_filename(repo))
+    repo.cachevfs.tryunlink(_fnodescachefile)
 
 
 def forget_fnodes(repo, revs):
