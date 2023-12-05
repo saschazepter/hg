@@ -305,6 +305,10 @@ class filteredchangelogmixin:
             raise error.FilteredIndexError(rev)
         return revs
 
+    def _head_node_ids(self):
+        # no Rust fast path implemented yet, so just loop in Python
+        return [self.node(r) for r in self.headrevs()]
+
     def headrevs(self, revs=None):
         if revs is None:
             try:
