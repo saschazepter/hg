@@ -307,6 +307,12 @@ py_class!(pub class Index |py| {
         Ok(rust_res)
     }
 
+    /// get head nodeids
+    def head_node_ids(&self) -> PyResult<PyObject> {
+        let rust_res = self.inner_head_node_ids(py)?;
+        Ok(rust_res)
+    }
+
     /// get filtered head revisions
     def headrevsfiltered(&self, *args, **_kw) -> PyResult<PyObject> {
         let rust_res = self.inner_headrevsfiltered(py, &args.get_item(py, 0))?;
@@ -772,6 +778,32 @@ impl Index {
                 |py_rev| py_rev.into_py_object(py).into_object(),
             ),
         })
+    }
+
+    fn inner_head_node_ids(&self, py: Python) -> PyResult<PyObject> {
+        let index = &*self.index(py).borrow();
+
+        // We don't use the shortcut here, as it's actually slower to loop
+        // through the cached `PyList` than to re-do the whole computation for
+        // large lists, which are the performance sensitive ones anyway.
+        let head_revs = index.head_revs().map_err(|e| graph_error(py, e))?;
+        let res: Vec<_> = head_revs
+            .iter()
+            .map(|r| {
+                PyBytes::new(
+                    py,
+                    index
+                        .node(*r)
+                        .expect("rev should have been in the index")
+                        .as_bytes(),
+                )
+                .into_object()
+            })
+            .collect();
+
+        self.cache_new_heads_py_list(head_revs, py);
+
+        Ok(PyList::new(py, &res).into_object())
     }
 
     fn inner_headrevs(&self, py: Python) -> PyResult<PyObject> {

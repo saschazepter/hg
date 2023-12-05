@@ -2362,6 +2362,12 @@ class revlog:
             ishead[e[5]] = ishead[e[6]] = 0  # my parent are not
         return [r for r, val in enumerate(ishead) if val]
 
+    def _head_node_ids(self):
+        try:
+            return self.index.head_node_ids()
+        except AttributeError:
+            return [self.node(r) for r in self.headrevs()]
+
     def heads(self, start=None, stop=None):
         """return the list of all nodes that have no children
 
@@ -2373,8 +2379,7 @@ class revlog:
         if start is None and stop is None:
             if not len(self):
                 return [self.nullid]
-            return [self.node(r) for r in self.headrevs()]
-
+            return self._head_node_ids()
         if start is None:
             start = nullrev
         else:
