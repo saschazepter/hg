@@ -97,6 +97,7 @@ py_class!(pub class Index |py| {
     // Holds a reference to the mmap'ed persistent index data
     data index_mmap: RefCell<Option<PyBuffer>>;
     data head_revs_py_list: RefCell<Option<PyList>>;
+    data head_node_ids_py_list: RefCell<Option<PyList>>;
 
     def __new__(
         _cls,
@@ -259,6 +260,7 @@ py_class!(pub class Index |py| {
         self.docket(py).borrow_mut().take();
         self.nodemap_mmap(py).borrow_mut().take();
         self.head_revs_py_list(py).borrow_mut().take();
+        self.head_node_ids_py_list(py).borrow_mut().take();
         self.index(py).borrow().clear_caches();
         Ok(py.None())
     }
@@ -630,6 +632,7 @@ impl Index {
             RefCell::new(None),
             RefCell::new(Some(buf)),
             RefCell::new(None),
+            RefCell::new(None),
         )
     }
 
@@ -801,7 +804,8 @@ impl Index {
             })
             .collect();
 
-        self.cache_new_heads_py_list(head_revs, py);
+        self.cache_new_heads_py_list(&head_revs, py);
+        self.cache_new_heads_node_ids_py_list(&head_revs, py);
 
         Ok(PyList::new(py, &res).into_object())
     }
@@ -811,7 +815,7 @@ impl Index {
         if let Some(new_heads) =
             index.head_revs_shortcut().map_err(|e| graph_error(py, e))?
         {
-            self.cache_new_heads_py_list(new_heads, py);
+            self.cache_new_heads_py_list(&new_heads, py);
         }
 
         Ok(self
@@ -835,7 +839,7 @@ impl Index {
             .head_revs_filtered(&filtered_revs, true)
             .map_err(|e| graph_error(py, e))?
         {
-            self.cache_new_heads_py_list(new_heads, py);
+            self.cache_new_heads_py_list(&new_heads, py);
         }
 
         Ok(self
@@ -847,9 +851,34 @@ impl Index {
             .into_object())
     }
 
+    fn cache_new_heads_node_ids_py_list(
+        &self,
+        new_heads: &[Revision],
+        py: Python<'_>,
+    ) -> PyList {
+        let index = self.index(py).borrow();
+        let as_vec: Vec<PyObject> = new_heads
+            .iter()
+            .map(|r| {
+                PyBytes::new(
+                    py,
+                    index
+                        .node(*r)
+                        .expect("rev should have been in the index")
+                        .as_bytes(),
+                )
+                .into_object()
+            })
+            .collect();
+        let new_heads_py_list = PyList::new(py, &as_vec);
+        *self.head_node_ids_py_list(py).borrow_mut() =
+            Some(new_heads_py_list.clone_ref(py));
+        new_heads_py_list
+    }
+
     fn cache_new_heads_py_list(
         &self,
-        new_heads: Vec<Revision>,
+        new_heads: &[Revision],
         py: Python<'_>,
     ) -> PyList {
         let as_vec: Vec<PyObject> = new_heads
