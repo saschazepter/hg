@@ -1173,7 +1173,9 @@ class _InnerRevlog:
                 self.opener.unlink(self.index_file)
             return self.index_file
         else:
-            self._segmentfile._delay_buffer = self._delay_buffer = []
+            self._delay_buffer = []
+            if self.inline:
+                self._segmentfile._delay_buffer = self._delay_buffer
             return None
 
     def write_pending(self):
@@ -1193,7 +1195,11 @@ class _InnerRevlog:
                 ifh.seek(0, os.SEEK_END)
                 ifh.write(b"".join(self._delay_buffer))
             any_pending = True
-        self._segmentfile._delay_buffer = self._delay_buffer = None
+        self._delay_buffer = None
+        if self.inline:
+            self._segmentfile._delay_buffer = self._delay_buffer
+        else:
+            assert self._segmentfile._delay_buffer is None
         self._orig_index_file = self.index_file
         self.index_file = pending_index_file
         self._segmentfile.filename = self.index_file
