@@ -783,6 +783,7 @@ class _InnerRevlog:
 
     def split_inline(self, tr, header, new_index_file_path=None):
         """split the data of an inline revlog into an index and a data file"""
+        assert self._delay_buffer is None
         existing_handles = False
         if self._writinghandles is not None:
             existing_handles = True
