@@ -1166,7 +1166,6 @@ class _InnerRevlog:
         elif len(self.index) == 0:
             self._orig_index_file = self.index_file
             self.index_file = self._divert_index()
-            self._segmentfile.filename = self.index_file
             assert self._orig_index_file is not None
             assert self.index_file is not None
             if self.opener.exists(self.index_file):
@@ -1202,7 +1201,6 @@ class _InnerRevlog:
             assert self._segmentfile._delay_buffer is None
         self._orig_index_file = self.index_file
         self.index_file = pending_index_file
-        self._segmentfile.filename = self.index_file
         return self.index_file, any_pending
 
     def finalize_pending(self):
@@ -1228,7 +1226,6 @@ class _InnerRevlog:
                 )
             self.index_file = self._orig_index_file
             self._orig_index_file = None
-            self._segmentfile.filename = self.index_file
         else:
             msg = b"not delay or divert found on this revlog"
             raise error.ProgrammingError(msg)
