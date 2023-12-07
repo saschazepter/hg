@@ -1,3 +1,16 @@
+= Mercurial 6.6.1 =
+
+The first two patches fix aborted transactions that could happen since 6.6.
+
+ * revlog: avoid exposing delayed index entry too widely in non-inline revlog
+ * revlog: avoid wrongly updating the data file location on "divert"
+ * tests: do not fail tests in a state with uncommitted .py file removal
+ * perf-tags: fix the --clear-fnode-cache-rev code
+ * perf-tags: fix clear_cache_fnodes to actually clear that cache
+ * censor: fix things around inlining
+ * Various Python 3 cleanups
+ * Various Windows test suite fixes
+
 = Mercurial 6.6 =
 
 As usual, a *lot* of patches don't make it to this list.
