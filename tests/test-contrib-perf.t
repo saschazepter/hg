@@ -309,9 +309,9 @@ Multiple entries
 
   $ hg perfparents --config perf.stub=no --config perf.run-limits='500000-1, 0.000000001-50'
   ! wall * comb * user * sys * (best of 50) (glob)
-  ! wall * comb * user * sys 0.000000 (max of 50) (glob)
-  ! wall * comb * user * sys 0.000000 (avg of 50) (glob)
-  ! wall * comb * user * sys 0.000000 (median of 50) (glob)
+  ! wall * comb * user * sys * (max of 50) (glob)
+  ! wall * comb * user * sys * (avg of 50) (glob)
+  ! wall * comb * user * sys * (median of 50) (glob)
 
 error case are ignored
 
