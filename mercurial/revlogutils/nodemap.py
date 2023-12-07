@@ -163,6 +163,8 @@ def delete_nodemap(tr, repo, revlog):
 
 def persist_nodemap(tr, revlog, pending=False, force=False):
     """Write nodemap data on disk for a given revlog"""
+    if len(revlog.index) <= 0:
+        return
     if getattr(revlog, 'filteredrevs', ()):
         raise error.ProgrammingError(
             "cannot persist nodemap of a filtered changelog"
