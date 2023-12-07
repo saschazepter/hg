@@ -973,11 +973,10 @@ def perftags(ui, repo, **opts):
         "clear_cache_on_disk",
         _default_clear_on_disk_tags_cache,
     )
-    clear_fnodes_fn = getattr(
-        tags,
-        "clear_cache_fnodes",
-        _default_clear_on_disk_tags_fnodes_cache,
-    )
+    if getattr(tags, 'clear_cache_fnodes_is_working', False):
+        clear_fnodes_fn = tags.clear_cache_fnodes
+    else:
+        clear_fnodes_fn = _default_clear_on_disk_tags_fnodes_cache
     clear_fnodes_rev_fn = getattr(
         tags,
         "forget_fnodes",
@@ -986,7 +985,7 @@ def perftags(ui, repo, **opts):
 
     clear_revs = []
     if clear_fnode_revs:
-        clear_revs.extends(scmutil.revrange(repo, clear_fnode_revs))
+        clear_revs.extend(scmutil.revrange(repo, clear_fnode_revs))
 
     if update_last:
         revset = b'last(all(), %d)' % update_last
