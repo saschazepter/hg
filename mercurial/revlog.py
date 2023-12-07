@@ -783,6 +783,7 @@ class _InnerRevlog:
 
     def split_inline(self, tr, header, new_index_file_path=None):
         """split the data of an inline revlog into an index and a data file"""
+        assert self._delay_buffer is None
         existing_handles = False
         if self._writinghandles is not None:
             existing_handles = True
@@ -1165,14 +1166,15 @@ class _InnerRevlog:
         elif len(self.index) == 0:
             self._orig_index_file = self.index_file
             self.index_file = self._divert_index()
-            self._segmentfile.filename = self.index_file
             assert self._orig_index_file is not None
             assert self.index_file is not None
             if self.opener.exists(self.index_file):
                 self.opener.unlink(self.index_file)
             return self.index_file
         else:
-            self._segmentfile._delay_buffer = self._delay_buffer = []
+            self._delay_buffer = []
+            if self.inline:
+                self._segmentfile._delay_buffer = self._delay_buffer
             return None
 
     def write_pending(self):
@@ -1192,10 +1194,13 @@ class _InnerRevlog:
                 ifh.seek(0, os.SEEK_END)
                 ifh.write(b"".join(self._delay_buffer))
             any_pending = True
-        self._segmentfile._delay_buffer = self._delay_buffer = None
+        self._delay_buffer = None
+        if self.inline:
+            self._segmentfile._delay_buffer = self._delay_buffer
+        else:
+            assert self._segmentfile._delay_buffer is None
         self._orig_index_file = self.index_file
         self.index_file = pending_index_file
-        self._segmentfile.filename = self.index_file
         return self.index_file, any_pending
 
     def finalize_pending(self):
@@ -1221,7 +1226,6 @@ class _InnerRevlog:
                 )
             self.index_file = self._orig_index_file
             self._orig_index_file = None
-            self._segmentfile.filename = self.index_file
         else:
             msg = b"not delay or divert found on this revlog"
             raise error.ProgrammingError(msg)
@@ -1305,6 +1309,10 @@ class revlog:
         trypending=False,
         try_split=False,
         canonical_parent_order=True,
+        data_config=None,
+        delta_config=None,
+        feature_config=None,
+        may_inline=True,  # may inline new revlog
     ):
         """
         create a revlog object
@@ -1330,6 +1338,7 @@ class revlog:
         self.postfix = postfix
         self._trypending = trypending
         self._try_split = try_split
+        self._may_inline = may_inline
         self.opener = opener
         if persistentnodemap:
             self._nodemap_file = nodemaputil.get_nodemap_file(self)
@@ -1337,19 +1346,25 @@ class revlog:
         assert target[0] in ALL_KINDS
         assert len(target) == 2
         self.target = target
-        if b'feature-config' in self.opener.options:
+        if feature_config is not None:
+            self.feature_config = feature_config.copy()
+        elif b'feature-config' in self.opener.options:
             self.feature_config = self.opener.options[b'feature-config'].copy()
         else:
             self.feature_config = FeatureConfig()
         self.feature_config.censorable = censorable
         self.feature_config.canonical_parent_order = canonical_parent_order
-        if b'data-config' in self.opener.options:
+        if data_config is not None:
+            self.data_config = data_config.copy()
+        elif b'data-config' in self.opener.options:
             self.data_config = self.opener.options[b'data-config'].copy()
         else:
             self.data_config = DataConfig()
         self.data_config.check_ambig = checkambig
         self.data_config.mmap_large_index = mmaplargeindex
-        if b'delta-config' in self.opener.options:
+        if delta_config is not None:
+            self.delta_config = delta_config.copy()
+        elif b'delta-config' in self.opener.options:
             self.delta_config = self.opener.options[b'delta-config'].copy()
         else:
             self.delta_config = DeltaConfig()
@@ -1401,7 +1416,9 @@ class revlog:
         elif b'revlogv2' in opts:
             new_header = REVLOGV2
         elif b'revlogv1' in opts:
-            new_header = REVLOGV1 | FLAG_INLINE_DATA
+            new_header = REVLOGV1
+            if self._may_inline:
+                new_header |= FLAG_INLINE_DATA
             if b'generaldelta' in opts:
                 new_header |= FLAG_GENERALDELTA
         elif b'revlogv0' in self.opener.options:
