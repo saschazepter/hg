@@ -384,7 +384,7 @@ def save_data(path):
             time = sample.time
             stack = sample.stack
             sites = [
-                b'\1'.join([s.path, b'%d' % s.lineno, s.function])
+                b'\1'.join([s.path, b'%d' % s.lineno or -1, s.function])
                 for s in stack
             ]
             file.write(b"%d\0%s\n" % (time, b'\0'.join(sites)))
@@ -663,7 +663,7 @@ def display_about_method(data, fp, function=None, **kwargs):
                 count / relevant_samples * 100,
                 pycompat.fsencode(parent.filename()),
                 pycompat.sysbytes(parent.function),
-                parent.lineno,
+                parent.lineno or -1,
                 pycompat.sysbytes(parent.getsource(50)),
             )
         )
@@ -705,7 +705,7 @@ def display_about_method(data, fp, function=None, **kwargs):
             b'        %6.2f%%   line %s: %s\n'
             % (
                 count / relevant_samples * 100,
-                child.lineno,
+                child.lineno or -1,
                 pycompat.sysbytes(child.getsource(50)),
             )
         )
@@ -865,7 +865,7 @@ def write_to_json(data, fp):
             stack.append(
                 (
                     pycompat.sysstr(frame.path),
-                    frame.lineno,
+                    frame.lineno or -1,
                     pycompat.sysstr(frame.function),
                 )
             )
@@ -954,7 +954,10 @@ def write_to_chrome(data, fp, minthreshold=0.005, maxthreshold=0.999):
             (
                 (
                     '%s:%d'
-                    % (simplifypath(pycompat.sysstr(frame.path)), frame.lineno),
+                    % (
+                        simplifypath(pycompat.sysstr(frame.path)),
+                        frame.lineno or -1,
+                    ),
                     pycompat.sysstr(frame.function),
                 )
                 for frame in sample.stack
