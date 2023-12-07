@@ -72,11 +72,16 @@ def v1_censor(rl, tr, censornode, tombstone=b''):
         radix=rl.radix,
         postfix=b'tmpcensored',
         censorable=True,
+        data_config=rl.data_config,
+        delta_config=rl.delta_config,
+        feature_config=rl.feature_config,
+        may_inline=rl._inline,
     )
-    newrl._format_version = rl._format_version
-    newrl._format_flags = rl._format_flags
-    newrl.delta_config.general_delta = rl.delta_config.general_delta
-    newrl._parse_index = rl._parse_index
+    # inline splitting will prepare some transaction work that will get
+    # confused by the final file move. So if there is a risk of not being
+    # inline at the end, we prevent the new revlog to be inline in the first
+    # place.
+    assert not (newrl._inline and not rl._inline)
 
     for rev in rl.revs():
         node = rl.node(rev)
@@ -122,7 +127,10 @@ def v1_censor(rl, tr, censornode, tombstone=b''):
         tr.addbackup(rl._datafile, location=b'store')
 
     rl.opener.rename(newrl._indexfile, rl._indexfile)
-    if not rl._inline:
+    if newrl._inline:
+        assert rl._inline
+    else:
+        assert not rl._inline
         rl.opener.rename(newrl._datafile, rl._datafile)
 
     rl.clearcaches()

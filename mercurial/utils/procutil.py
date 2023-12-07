@@ -686,8 +686,9 @@ if pycompat.iswindows:
         # we can't use close_fds *and* redirect stdin. I'm not sure that we
         # need to because the detached process has no console connection.
 
+        stdin = None
+
         try:
-            stdin = None
             if stdin_bytes is not None:
                 stdin = pycompat.unnamedtempfile()
                 stdin.write(stdin_bytes)
