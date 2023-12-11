@@ -88,7 +88,10 @@ Non store repo:
   adding tst.d/foo
   $ find .hg | sort
   .hg
+  .hg/00changelog-6b8ab34b.nd (rust !)
+  .hg/00changelog.d
   .hg/00changelog.i
+  .hg/00changelog.n (rust !)
   .hg/00manifest.i
   .hg/branch
   .hg/cache
@@ -135,7 +138,10 @@ Non fncache repo:
   .hg/last-message.txt
   .hg/requires
   .hg/store
+  .hg/store/00changelog-b875dfc5.nd (rust !)
+  .hg/store/00changelog.d
   .hg/store/00changelog.i
+  .hg/store/00changelog.n (rust !)
   .hg/store/00manifest.i
   .hg/store/data
   .hg/store/data/tst.d.hg

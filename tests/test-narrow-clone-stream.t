@@ -80,7 +80,10 @@ Making sure we have the correct set of requirements
 Making sure store has the required files
 
   $ ls .hg/store/
+  00changelog-????????.nd (glob) (rust !)
+  00changelog.d
   00changelog.i
+  00changelog.n (rust !)
   00manifest.i
   data
   fncache (tree !)

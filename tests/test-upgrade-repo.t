@@ -836,7 +836,10 @@ generaldelta added to original requirements files
 store directory has files we expect
 
   $ ls .hg/store
+  00changelog-????????.nd (glob) (rust !)
+  00changelog.d
   00changelog.i
+  00changelog.n (rust !)
   00manifest.i
   data
   data-s
@@ -860,7 +863,10 @@ old store should be backed up
   $ ls -d .hg/upgradebackup.*/
   .hg/upgradebackup.*/ (glob)
   $ ls .hg/upgradebackup.*/store
+  00changelog-????????.nd (glob) (rust !)
+  00changelog.d
   00changelog.i
+  00changelog.n (rust !)
   00manifest.i
   data
   data-s
@@ -868,6 +874,7 @@ old store should be backed up
   phaseroots
   requires
   undo
+  undo.backup.00changelog.n.bck (rust !)
   undo.backup.fncache.bck
   undo.backupfiles
 

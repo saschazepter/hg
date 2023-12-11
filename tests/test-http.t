@@ -29,8 +29,9 @@ clone via stream
 #if no-reposimplestore
   $ hg clone --stream http://localhost:$HGPORT/ copy 2>&1
   streaming all changes
-  9 files to transfer, 715 bytes of data (no-zstd !)
-  9 files to transfer, 717 bytes of data (zstd !)
+  10 files to transfer, 715 bytes of data (no-zstd !)
+  10 files to transfer, 717 bytes of data (zstd no-rust !)
+  12 files to transfer, 843 bytes of data (zstd rust !)
   transferred * bytes in * seconds (*/sec) (glob)
   updating to branch default
   4 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -254,7 +255,8 @@ test http authentication
 #if no-reposimplestore
   $ hg clone http://user:pass@localhost:$HGPORT2/ dest 2>&1
   streaming all changes
-  10 files to transfer, 1.01 KB of data
+  11 files to transfer, 1.01 KB of data (no-rust !)
+  13 files to transfer, 1.13 KB of data (rust !)
   transferred * KB in * seconds (*/sec) (glob)
   updating to branch default
   5 files updated, 0 files merged, 0 files removed, 0 files unresolved

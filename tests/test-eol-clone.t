@@ -80,7 +80,8 @@ the source repo:
   [patterns]
   **.txt = native
   $ hg clone repo repo-3 -v --debug
-  linked 7 files
+  linked 8 files (no-rust !)
+  linked 10 files (rust !)
   updating to branch default
   resolving manifests
    branchmerge: False, force: False, partial: False

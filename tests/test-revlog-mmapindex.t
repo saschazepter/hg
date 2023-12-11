@@ -10,10 +10,10 @@ create verbosemmap.py
   > )
   > 
   > def extsetup(ui):
-  >     def mmapread(orig, fp):
+  >     def mmapread(orig, fp, *args):
   >         ui.write(b"mmapping %s\n" % pycompat.bytestr(fp.name))
   >         ui.flush()
-  >         return orig(fp)
+  >         return orig(fp, *args)
   > 
   >     extensions.wrapfunction(util, 'mmapread', mmapread)
   > EOF
@@ -38,6 +38,7 @@ set up verbosemmap extension
 mmap index which is now more than 4k long
   $ hg log -l 5 -T '{rev}\n' --config experimental.mmapindexthreshold=4k
   mmapping $TESTTMP/a/.hg/store/00changelog.i
+  mmapping $TESTTMP/a/.hg/store/00changelog-????????.nd (glob) (rust !)
   100
   99
   98
@@ -46,6 +47,7 @@ mmap index which is now more than 4k long
 
 do not mmap index which is still less than 32k
   $ hg log -l 5 -T '{rev}\n' --config experimental.mmapindexthreshold=32k
+  mmapping $TESTTMP/a/.hg/store/00changelog-????????.nd (glob) (rust !)
   100
   99
   98

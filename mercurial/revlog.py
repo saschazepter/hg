@@ -1391,194 +1391,6 @@ class revlog:
         self._load_inner(chunk_cache)
         self._concurrencychecker = concurrencychecker
 
-    @property
-    def _generaldelta(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.general_delta", b"6.6", stacklevel=2
-        )
-        return self.delta_config.general_delta
-
-    @property
-    def _checkambig(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.data_config.checkambig", b"6.6", stacklevel=2
-        )
-        return self.data_config.check_ambig
-
-    @property
-    def _mmaplargeindex(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.data_config.mmap_large_index", b"6.6", stacklevel=2
-        )
-        return self.data_config.mmap_large_index
-
-    @property
-    def _censorable(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.feature_config.censorable", b"6.6", stacklevel=2
-        )
-        return self.feature_config.censorable
-
-    @property
-    def _chunkcachesize(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.data_config.chunk_cache_size", b"6.6", stacklevel=2
-        )
-        return self.data_config.chunk_cache_size
-
-    @property
-    def _maxchainlen(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.max_chain_len", b"6.6", stacklevel=2
-        )
-        return self.delta_config.max_chain_len
-
-    @property
-    def _deltabothparents(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.delta_both_parents", b"6.6", stacklevel=2
-        )
-        return self.delta_config.delta_both_parents
-
-    @property
-    def _candidate_group_chunk_size(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.candidate_group_chunk_size",
-            b"6.6",
-            stacklevel=2,
-        )
-        return self.delta_config.candidate_group_chunk_size
-
-    @property
-    def _debug_delta(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.debug_delta", b"6.6", stacklevel=2
-        )
-        return self.delta_config.debug_delta
-
-    @property
-    def _compengine(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.feature_config.compression_engine",
-            b"6.6",
-            stacklevel=2,
-        )
-        return self.feature_config.compression_engine
-
-    @property
-    def upperboundcomp(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.upper_bound_comp",
-            b"6.6",
-            stacklevel=2,
-        )
-        return self.delta_config.upper_bound_comp
-
-    @property
-    def _compengineopts(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.feature_config.compression_engine_options",
-            b"6.6",
-            stacklevel=2,
-        )
-        return self.feature_config.compression_engine_options
-
-    @property
-    def _maxdeltachainspan(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.max_deltachain_span", b"6.6", stacklevel=2
-        )
-        return self.delta_config.max_deltachain_span
-
-    @property
-    def _withsparseread(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.data_config.with_sparse_read", b"6.6", stacklevel=2
-        )
-        return self.data_config.with_sparse_read
-
-    @property
-    def _sparserevlog(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.sparse_revlog", b"6.6", stacklevel=2
-        )
-        return self.delta_config.sparse_revlog
-
-    @property
-    def hassidedata(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.feature_config.has_side_data", b"6.6", stacklevel=2
-        )
-        return self.feature_config.has_side_data
-
-    @property
-    def _srdensitythreshold(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.data_config.sr_density_threshold",
-            b"6.6",
-            stacklevel=2,
-        )
-        return self.data_config.sr_density_threshold
-
-    @property
-    def _srmingapsize(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.data_config.sr_min_gap_size", b"6.6", stacklevel=2
-        )
-        return self.data_config.sr_min_gap_size
-
-    @property
-    def _compute_rank(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.feature_config.compute_rank", b"6.6", stacklevel=2
-        )
-        return self.feature_config.compute_rank
-
-    @property
-    def canonical_parent_order(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.feature_config.canonical_parent_order",
-            b"6.6",
-            stacklevel=2,
-        )
-        return self.feature_config.canonical_parent_order
-
-    @property
-    def _lazydelta(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.lazy_delta", b"6.6", stacklevel=2
-        )
-        return self.delta_config.lazy_delta
-
-    @property
-    def _lazydeltabase(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.lazy_delta_base", b"6.6", stacklevel=2
-        )
-        return self.delta_config.lazy_delta_base
-
     def _init_opts(self):
         """process options (from above/config) to setup associated default revlog mode
 
@@ -3026,13 +2838,17 @@ class revlog:
             msg = b"inline revlog should not have a docket"
             raise error.ProgrammingError(msg)
 
+        # In the common case, we enforce inline size because the revlog has
+        # been appened too. And in such case, it must have an initial offset
+        # recorded in the transaction.
         troffset = tr.findoffset(self._inner.canonical_index_file)
-        if troffset is None:
+        pre_touched = troffset is not None
+        if not pre_touched and self.target[0] != KIND_CHANGELOG:
             raise error.RevlogError(
                 _(b"%s not found in the transaction") % self._indexfile
             )
-        if troffset:
-            tr.addbackup(self._inner.canonical_index_file, for_offset=True)
+
+        tr.addbackup(self._inner.canonical_index_file, for_offset=pre_touched)
         tr.add(self._datafile, 0)
 
         new_index_file_path = None

@@ -18,10 +18,12 @@
 
   $ hg clone --shallow ssh://user@dummy/master shallow --noupdate --config remotefilelog.includepattern=foo
   streaming all changes
-  3 files to transfer, 336 bytes of data (no-zstd !)
+  4 files to transfer, 336 bytes of data (no-zstd !)
   transferred 336 bytes in * seconds (* */sec) (glob) (no-zstd !)
-  3 files to transfer, 338 bytes of data (zstd !)
-  transferred 338 bytes in * seconds (* */sec) (glob) (zstd !)
+  4 files to transfer, 338 bytes of data (zstd no-rust !)
+  transferred 338 bytes in * seconds (* */sec) (glob) (zstd no-rust !)
+  6 files to transfer, 464 bytes of data (zstd rust !)
+  transferred 464 bytes in * seconds (*/sec) (glob) (zstd rust !)
   searching for changes
   no changes found
   $ cat >> shallow/.hg/hgrc <<EOF
