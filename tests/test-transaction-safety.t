@@ -155,7 +155,7 @@ the repository should still be inline (for relevant format)
 #if revlogv1
 
   $ hg debugrevlog of | grep inline
-  flags  : inline, generaldelta
+  flags  : inline, * (glob)
 
 #endif
 
@@ -167,7 +167,7 @@ the repository should still be inline (for relevant format)
 #if revlogv1
 
   $ hg debugrevlog of | grep inline
-  flags  : inline, generaldelta
+  flags  : inline, * (glob)
 
 #endif
 
@@ -180,7 +180,7 @@ the repository should still be inline (for relevant format)
 #if revlogv1
 
   $ hg debugrevlog of | grep inline
-  flags  : inline, generaldelta
+  flags  : inline, * (glob)
 
 #endif
 
@@ -192,7 +192,7 @@ the repository should still be inline (for relevant format)
 #if revlogv1
 
   $ hg debugrevlog of | grep inline
-  flags  : inline, generaldelta
+  flags  : inline, * (glob)
 
 #endif
 
@@ -206,7 +206,7 @@ the repository should still be inline (for relevant format)
 #if revlogv1
 
   $ hg debugrevlog of | grep inline
-  flags  : inline, generaldelta
+  flags  : inline, * (glob)
 
 #endif
 
@@ -218,7 +218,7 @@ the repository should no longer be inline (for relevant format)
 #if revlogv1
 
   $ hg debugrevlog of | grep inline
-  flags  : inline, generaldelta
+  flags  : inline, * (glob)
 
 #endif
 
