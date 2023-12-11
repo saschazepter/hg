@@ -80,17 +80,19 @@ relink
   $ hg relink --debug --config progress.debug=true | fix_path
   relinking $TESTTMP/repo/.hg/store to $TESTTMP/clone/.hg/store
   tip has 2 files, estimated total number of files: 3
-  collecting: 00changelog.i 1/3 files (33.33%)
-  collecting: 00manifest.i 2/3 files (66.67%)
-  collecting: a.i 3/3 files (100.00%)
-  collecting: b.i 4/3 files (133.33%)
-  collecting: dummy.i 5/3 files (166.67%)
-  collected 5 candidate storage files
+  collecting: 00changelog.d 1/3 files (33.33%)
+  collecting: 00changelog.i 2/3 files (66.67%)
+  collecting: 00manifest.i 3/3 files (100.00%)
+  collecting: a.i 4/3 files (133.33%)
+  collecting: b.i 5/3 files (166.67%)
+  collecting: dummy.i 6/3 files (200.00%)
+  collected 6 candidate storage files
+  not linkable: 00changelog.d
   not linkable: 00changelog.i
   not linkable: 00manifest.i
-  pruning: data/a.i 3/5 files (60.00%)
+  pruning: data/a.i 4/6 files (66.67%)
   not linkable: data/b.i
-  pruning: data/dummy.i 5/5 files (100.00%)
+  pruning: data/dummy.i 6/6 files (100.00%)
   pruned down to 2 probably relinkable files
   relinking: data/a.i 1/2 files (50.00%)
   not linkable: data/dummy.i

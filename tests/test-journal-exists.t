@@ -47,6 +47,8 @@ Check that zero-size journals are correctly aborted:
 
   $ hg -R foo unbundle repo.hg
   adding changesets
+  transaction abort!
+  rollback completed
   abort: $EACCES$: '$TESTTMP/repo/foo/.hg/store/.00changelog.i-*' (glob)
   [255]
 

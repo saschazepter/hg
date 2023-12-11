@@ -725,6 +725,8 @@ Server stops sending after bundle2 part header
   $ hg clone http://localhost:$HGPORT/ clone
   requesting all changes
   adding changesets
+  transaction abort!
+  rollback completed
   abort: HTTP request error (incomplete response)
   (this may be an intermittent network failure; if the error persists, consider contacting the network or server operator)
   [255]
@@ -757,6 +759,8 @@ Server stops after bundle2 part payload chunk size
   $ hg clone http://localhost:$HGPORT/ clone
   requesting all changes
   adding changesets
+  transaction abort!
+  rollback completed
   abort: HTTP request error (incomplete response*) (glob)
   (this may be an intermittent network failure; if the error persists, consider contacting the network or server operator)
   [255]
@@ -791,6 +795,8 @@ Server stops sending in middle of bundle2 payload chunk
   $ hg clone http://localhost:$HGPORT/ clone
   requesting all changes
   adding changesets
+  transaction abort!
+  rollback completed
   abort: HTTP request error (incomplete response)
   (this may be an intermittent network failure; if the error persists, consider contacting the network or server operator)
   [255]

@@ -28,12 +28,12 @@ Check that there's no space leak on debugrebuilddirstate
 
   $ f --size .hg/dirstate*
   .hg/dirstate: size=133
-  .hg/dirstate.b870a51b: size=511
-  $ hg debugrebuilddirstate
-  $ f --size .hg/dirstate*
-  .hg/dirstate: size=133
   .hg/dirstate.88698448: size=511
   $ hg debugrebuilddirstate
   $ f --size .hg/dirstate*
   .hg/dirstate: size=133
   .hg/dirstate.6b8ab34b: size=511
+  $ hg debugrebuilddirstate
+  $ f --size .hg/dirstate*
+  .hg/dirstate: size=133
+  .hg/dirstate.b875dfc5: size=511

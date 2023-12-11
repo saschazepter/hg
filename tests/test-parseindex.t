@@ -145,8 +145,8 @@ Test corrupted p1/p2 fields that could cause SEGV at parsers.c:
   > ]
   > for n, p in poisons:
   >     # corrupt p1 at rev0 and p2 at rev1
-  >     rev_0 = data[:64 + 63]
-  >     rev_1 = data[64 + 63:]
+  >     rev_0 = data[:64]
+  >     rev_1 = data[64:]
   >     altered_rev_0 = rev_0[:24] + p + rev_0[24 + 4:]
   >     altered_rev_1 = rev_1[:28] + p + rev_1[28 + 4:]
   >     new_data = altered_rev_0 + altered_rev_1

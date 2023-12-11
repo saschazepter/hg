@@ -44,7 +44,10 @@ Prepare repo r1:
   $ cd ../..
 
   $ nlinksdir r1/.hg/store
+  1 r1/.hg/store/00changelog-b870a51b.nd (rust !)
+  1 r1/.hg/store/00changelog.d
   1 r1/.hg/store/00changelog.i
+  1 r1/.hg/store/00changelog.n (rust !)
   1 r1/.hg/store/00manifest.i
   1 r1/.hg/store/data/d1/f2.i
   1 r1/.hg/store/data/f1.i
@@ -52,6 +55,7 @@ Prepare repo r1:
   1 r1/.hg/store/phaseroots
   1 r1/.hg/store/requires
   1 r1/.hg/store/undo
+  1 r1/.hg/store/undo.backup.00changelog.n.bck (rust !)
   1 r1/.hg/store/undo.backup.fncache.bck (repofncache !)
   1 r1/.hg/store/undo.backupfiles
 
@@ -59,14 +63,26 @@ Prepare repo r1:
 Create hardlinked clone r2:
 
   $ hg clone -U --debug r1 r2 --config progress.debug=true
-  linking: 1/7 files (14.29%)
-  linking: 2/7 files (28.57%)
-  linking: 3/7 files (42.86%)
-  linking: 4/7 files (57.14%)
-  linking: 5/7 files (71.43%)
-  linking: 6/7 files (85.71%)
-  linking: 7/7 files (100.00%)
-  linked 7 files
+  linking: 1/8 files (12.50%) (no-rust !)
+  linking: 2/8 files (25.00%) (no-rust !)
+  linking: 3/8 files (37.50%) (no-rust !)
+  linking: 4/8 files (50.00%) (no-rust !)
+  linking: 5/8 files (62.50%) (no-rust !)
+  linking: 6/8 files (75.00%) (no-rust !)
+  linking: 7/8 files (87.50%) (no-rust !)
+  linking: 8/8 files (100.00%) (no-rust !)
+  linked 8 files (no-rust !)
+  linking: 1/10 files (10.00%) (rust !)
+  linking: 2/10 files (20.00%) (rust !)
+  linking: 3/10 files (30.00%) (rust !)
+  linking: 4/10 files (40.00%) (rust !)
+  linking: 5/10 files (50.00%) (rust !)
+  linking: 6/10 files (60.00%) (rust !)
+  linking: 7/10 files (70.00%) (rust !)
+  linking: 8/10 files (80.00%) (rust !)
+  linking: 9/10 files (90.00%) (rust !)
+  linking: 10/10 files (100.00%) (rust !)
+  linked 10 files (rust !)
   updating the branch cache
 
 Create non-hardlinked clone r3:
@@ -85,7 +101,10 @@ Create non-hardlinked clone r3:
 Repos r1 and r2 should now contain hardlinked files:
 
   $ nlinksdir r1/.hg/store
+  1 r1/.hg/store/00changelog-b870a51b.nd (rust !)
+  2 r1/.hg/store/00changelog.d
   2 r1/.hg/store/00changelog.i
+  1 r1/.hg/store/00changelog.n (rust !)
   2 r1/.hg/store/00manifest.i
   2 r1/.hg/store/data/d1/f2.i
   2 r1/.hg/store/data/f1.i
@@ -93,11 +112,15 @@ Repos r1 and r2 should now contain hardlinked files:
   1 r1/.hg/store/phaseroots
   1 r1/.hg/store/requires
   1 r1/.hg/store/undo
+  1 r1/.hg/store/undo.backup.00changelog.n.bck (rust !)
   1 r1/.hg/store/undo.backup.fncache.bck (repofncache !)
   1 r1/.hg/store/undo.backupfiles
 
   $ nlinksdir r2/.hg/store
+  1 r2/.hg/store/00changelog-b870a51b.nd (rust !)
+  2 r2/.hg/store/00changelog.d
   2 r2/.hg/store/00changelog.i
+  1 r2/.hg/store/00changelog.n (rust !)
   2 r2/.hg/store/00manifest.i
   2 r2/.hg/store/data/d1/f2.i
   2 r2/.hg/store/data/f1.i
@@ -107,7 +130,10 @@ Repos r1 and r2 should now contain hardlinked files:
 Repo r3 should not be hardlinked:
 
   $ nlinksdir r3/.hg/store
+  1 r3/.hg/store/00changelog-88698448.nd (rust !)
+  1 r3/.hg/store/00changelog.d
   1 r3/.hg/store/00changelog.i
+  1 r3/.hg/store/00changelog.n (rust !)
   1 r3/.hg/store/00manifest.i
   1 r3/.hg/store/data/d1/f2.i
   1 r3/.hg/store/data/f1.i
@@ -132,7 +158,10 @@ Create a non-inlined filelog in r3:
   $ cd ../..
 
   $ nlinksdir r3/.hg/store
+  1 r3/.hg/store/00changelog-ea337809.nd (rust !)
+  1 r3/.hg/store/00changelog.d
   1 r3/.hg/store/00changelog.i
+  1 r3/.hg/store/00changelog.n (rust !)
   1 r3/.hg/store/00manifest.i
   1 r3/.hg/store/data/d1/f2.d
   1 r3/.hg/store/data/d1/f2.i
@@ -141,6 +170,7 @@ Create a non-inlined filelog in r3:
   1 r3/.hg/store/phaseroots
   1 r3/.hg/store/requires
   1 r3/.hg/store/undo
+  1 r3/.hg/store/undo.backup.00changelog.n.bck (rust !)
   1 r3/.hg/store/undo.backupfiles
 
 Push to repo r1 should break up most hardlinks in r2:
@@ -159,7 +189,10 @@ Push to repo r1 should break up most hardlinks in r2:
   $ cd ..
 
   $ nlinksdir r2/.hg/store
+  1 r2/.hg/store/00changelog-b870a51b.nd (rust !)
+  1 r2/.hg/store/00changelog.d
   1 r2/.hg/store/00changelog.i
+  1 r2/.hg/store/00changelog.n (rust !)
   1 r2/.hg/store/00manifest.i
   1 r2/.hg/store/data/d1/f2.i
   2 r2/.hg/store/data/f1.i
@@ -184,7 +217,10 @@ Committing a change to f1 in r1 must break up hardlink f1.i in r2:
   $ cd ..
 
   $ nlinksdir r2/.hg/store
+  1 r2/.hg/store/00changelog-b870a51b.nd (rust !)
+  1 r2/.hg/store/00changelog.d
   1 r2/.hg/store/00changelog.i
+  1 r2/.hg/store/00changelog.n (rust !)
   1 r2/.hg/store/00manifest.i
   1 r2/.hg/store/data/d1/f2.i
   1 r2/.hg/store/data/f1.i
@@ -241,7 +277,10 @@ r4 has hardlinks in the working dir (not just inside .hg):
   2 r4/.hg/hgrc
   2 r4/.hg/last-message.txt
   2 r4/.hg/requires
+  2 r4/.hg/store/00changelog-7f2eb713.nd (rust !)
+  2 r4/.hg/store/00changelog.d
   2 r4/.hg/store/00changelog.i
+  2 r4/.hg/store/00changelog.n (rust !)
   2 r4/.hg/store/00manifest.i
   2 r4/.hg/store/data/d1/f2.d
   2 r4/.hg/store/data/d1/f2.i
@@ -251,6 +290,7 @@ r4 has hardlinks in the working dir (not just inside .hg):
   2 r4/.hg/store/phaseroots
   2 r4/.hg/store/requires
   2 r4/.hg/store/undo
+  2 r4/.hg/store/undo.backup.00changelog.n.bck (rust !)
   2 r4/.hg/store/undo.backupfiles
   [24] r4/.hg/undo.backup.branch.bck (re)
   2 r4/\.hg/undo\.backup\.dirstate.bck (re)
@@ -294,7 +334,10 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
   2 r4/.hg/hgrc
   2 r4/.hg/last-message.txt
   2 r4/.hg/requires
+  2 r4/.hg/store/00changelog-7f2eb713.nd (rust !)
+  2 r4/.hg/store/00changelog.d
   2 r4/.hg/store/00changelog.i
+  2 r4/.hg/store/00changelog.n (rust !)
   2 r4/.hg/store/00manifest.i
   2 r4/.hg/store/data/d1/f2.d
   2 r4/.hg/store/data/d1/f2.i
@@ -304,6 +347,7 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
   2 r4/.hg/store/phaseroots
   2 r4/.hg/store/requires
   2 r4/.hg/store/undo
+  2 r4/.hg/store/undo.backup.00changelog.n.bck (rust !)
   2 r4/.hg/store/undo.backupfiles
   [23] r4/.hg/undo.backup.branch.bck (re)
   2 r4/\.hg/undo\.backup\.dirstate.bck (re)

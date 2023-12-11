@@ -17,8 +17,10 @@
 
   $ hgcloneshallow ssh://user@dummy/master shallow --noupdate
   streaming all changes
-  2 files to transfer, 227 bytes of data
-  transferred 227 bytes in * seconds (*/sec) (glob)
+  3 files to transfer, 227 bytes of data (no-rust !)
+  transferred 227 bytes in * seconds (*/sec) (glob) (no-rust !)
+  5 files to transfer, 353 bytes of data (rust !)
+  transferred 353 bytes in *.* seconds (*) (glob) (rust !)
   searching for changes
   no changes found
   $ cd shallow
@@ -55,8 +57,10 @@
 
   $ hgcloneshallow ssh://user@dummy/shallow shallow2  --noupdate
   streaming all changes
-  3 files to transfer, 564 bytes of data
-  transferred 564 bytes in * seconds (*/sec) (glob)
+  4 files to transfer, 564 bytes of data (no-rust !)
+  transferred 564 bytes in * seconds (*/sec) (glob) (no-rust !)
+  6 files to transfer, 690 bytes of data (rust !)
+  transferred 690 bytes in * seconds (*/sec) (glob) (rust !)
   searching for changes
   no changes found
   $ cd shallow2

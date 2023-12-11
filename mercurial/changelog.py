@@ -308,6 +308,7 @@ class changelog(revlog.revlog):
             persistentnodemap=opener.options.get(b'persistent-nodemap', False),
             concurrencychecker=concurrencychecker,
             trypending=trypending,
+            may_inline=False,
         )
 
         if self._initempty and (self._format_version == revlog.REVLOGV1):
@@ -344,6 +345,11 @@ class changelog(revlog.revlog):
     def delayupdate(self, tr):
         """delay visibility of index updates to other readers"""
         assert not self._inner.is_open
+        assert not self._may_inline
+        # enforce that older changelog that are still inline are split at the
+        # first opportunity.
+        if self._inline:
+            self._enforceinlinesize(tr)
         if self._docket is not None:
             self._v2_delayed = True
         else:
