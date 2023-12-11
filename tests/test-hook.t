@@ -458,14 +458,18 @@ more there after
 (Check that no 'changelog.i.a' file were left behind)
 
   $ ls -1 .hg/store/
+  00changelog-1335303a.nd (rust !)
+  00changelog.d
   00changelog.i
+  00changelog.n (rust !)
   00manifest.i
   data
-  fncache (repofncache !)
+  fncache
   phaseroots
   requires
   undo
-  undo.backup.fncache.bck (repofncache !)
+  undo.backup.00changelog.n.bck (rust !)
+  undo.backup.fncache.bck
   undo.backupfiles
 
 
