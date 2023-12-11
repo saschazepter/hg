@@ -25,8 +25,10 @@ Shallow clone and activate getflogheads testing extension
 
   $ hgcloneshallow ssh://user@dummy/master shallow --noupdate
   streaming all changes
-  2 files to transfer, 908 bytes of data
-  transferred 908 bytes in * seconds (*/sec) (glob)
+  3 files to transfer, 908 bytes of data (no-rust !)
+  transferred 908 bytes in * seconds (*/sec) (glob) (no-rust !)
+  5 files to transfer, 1.01 KB of data (rust !)
+  transferred 1.01 KB in * seconds (* */sec) (glob) (rust !)
   searching for changes
   no changes found
   $ cd shallow
