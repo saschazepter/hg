@@ -1760,8 +1760,6 @@ def _chistedit(ui, repo, freeargs, opts):
             rules.append(histeditrule(ui, repo[r], i))
         with util.with_lc_ctype():
             rc = curses.wrapper(functools.partial(_chisteditmain, repo, rules))
-        curses.echo()
-        curses.endwin()
         if rc is False:
             ui.write(_(b"histedit aborted\n"))
             return 0
