@@ -53,12 +53,14 @@ impl Clone for PySharedIndex {
 }
 
 impl Graph for PySharedIndex {
+    #[inline(always)]
     fn parents(&self, rev: Revision) -> Result<[Revision; 2], hg::GraphError> {
         self.inner.parents(rev)
     }
 }
 
 impl VCSGraph for PySharedIndex {
+    #[inline(always)]
     fn parents(
         &self,
         rev: BaseRevision,
