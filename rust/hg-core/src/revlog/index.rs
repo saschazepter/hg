@@ -403,30 +403,33 @@ impl Index {
 
     /// Return number of entries of the revlog index.
     pub fn len(&self) -> usize {
-        if let Some(offsets) = &*self.get_offsets() {
-            offsets.len()
+        if self.is_inline() {
+            (*self.get_offsets())
+                .as_ref()
+                .expect("inline should have offsets")
+                .len()
         } else {
             self.bytes.len() / INDEX_ENTRY_SIZE
         }
     }
 
     pub fn get_offsets(&self) -> RwLockReadGuard<Option<Vec<usize>>> {
-        if self.is_inline() {
-            {
-                // Wrap in a block to drop the read guard
-                // TODO perf?
-                let mut offsets = self.offsets.write().unwrap();
-                if offsets.is_none() {
-                    offsets.replace(inline_scan(&self.bytes.bytes).1);
-                }
+        assert!(self.is_inline());
+        {
+            // Wrap in a block to drop the read guard
+            // TODO perf?
+            let mut offsets = self.offsets.write().unwrap();
+            if offsets.is_none() {
+                offsets.replace(inline_scan(&self.bytes.bytes).1);
             }
         }
         self.offsets.read().unwrap()
     }
 
     pub fn get_offsets_mut(&mut self) -> RwLockWriteGuard<Option<Vec<usize>>> {
+        assert!(self.is_inline());
         let mut offsets = self.offsets.write().unwrap();
-        if self.is_inline() && offsets.is_none() {
+        if offsets.is_none() {
             offsets.replace(inline_scan(&self.bytes.bytes).1);
         }
         offsets
@@ -446,8 +449,8 @@ impl Index {
         if rev == NULL_REVISION {
             return None;
         }
-        Some(if let Some(offsets) = &*self.get_offsets() {
-            self.get_entry_inline(rev, offsets.as_ref())
+        Some(if self.is_inline() {
+            self.get_entry_inline(rev)
         } else {
             self.get_entry_separated(rev)
         })
@@ -502,11 +505,9 @@ impl Index {
         })
     }
 
-    fn get_entry_inline(
-        &self,
-        rev: Revision,
-        offsets: &[usize],
-    ) -> IndexEntry {
+    fn get_entry_inline(&self, rev: Revision) -> IndexEntry {
+        let offsets = &self.get_offsets();
+        let offsets = offsets.as_ref().expect("inline should have offsets");
         let start = offsets[rev.0 as usize];
         let end = start + INDEX_ENTRY_SIZE;
         let bytes = &self.bytes[start..end];
@@ -703,9 +704,11 @@ impl Index {
         revision_data: RevisionDataParams,
     ) -> Result<(), RevlogError> {
         revision_data.validate()?;
-        let new_offset = self.bytes.len();
-        if let Some(offsets) = &mut *self.get_offsets_mut() {
-            offsets.push(new_offset)
+        if self.is_inline() {
+            let new_offset = self.bytes.len();
+            if let Some(offsets) = &mut *self.get_offsets_mut() {
+                offsets.push(new_offset)
+            }
         }
         self.bytes.added.extend(revision_data.into_v1().as_bytes());
         self.clear_head_revs();
@@ -717,10 +720,16 @@ impl Index {
     }
 
     pub fn remove(&mut self, rev: Revision) -> Result<(), RevlogError> {
-        let offsets = self.get_offsets().clone();
+        let offsets = if self.is_inline() {
+            self.get_offsets().clone()
+        } else {
+            None
+        };
         self.bytes.remove(rev, offsets.as_deref())?;
-        if let Some(offsets) = &mut *self.get_offsets_mut() {
-            offsets.truncate(rev.0 as usize)
+        if self.is_inline() {
+            if let Some(offsets) = &mut *self.get_offsets_mut() {
+                offsets.truncate(rev.0 as usize)
+            }
         }
         self.clear_head_revs();
         Ok(())
