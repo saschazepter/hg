@@ -17,7 +17,7 @@
 #if reporevlogstore
   $ hg debugrevlog -c
   format : 1
-  flags  : inline
+  flags  : (none)
   
   revisions     :   3
       merges    :   0 ( 0.00%)
