@@ -761,7 +761,8 @@ Stream clone with basicstore
   $ hg clone --config experimental.changegroup3=True --stream -U \
   >   http://localhost:$HGPORT1 stream-clone-basicstore
   streaming all changes
-  28 files to transfer, * of data (glob)
+  29 files to transfer, * of data (glob) (no-rust !)
+  31 files to transfer, * of data (glob) (rust !)
   transferred * in * seconds (*) (glob)
   $ hg -R stream-clone-basicstore verify -q
   $ cat port-1-errors.log
@@ -770,7 +771,8 @@ Stream clone with encodedstore
   $ hg clone --config experimental.changegroup3=True --stream -U \
   >   http://localhost:$HGPORT2 stream-clone-encodedstore
   streaming all changes
-  28 files to transfer, * of data (glob)
+  29 files to transfer, * of data (glob) (no-rust !)
+  31 files to transfer, * of data (glob) (rust !)
   transferred * in * seconds (*) (glob)
   $ hg -R stream-clone-encodedstore verify -q
   $ cat port-2-errors.log
@@ -779,15 +781,17 @@ Stream clone with fncachestore
   $ hg clone --config experimental.changegroup3=True --stream -U \
   >   http://localhost:$HGPORT stream-clone-fncachestore
   streaming all changes
-  22 files to transfer, * of data (glob)
+  23 files to transfer, * of data (glob) (no-rust !)
+  25 files to transfer, * of data (glob) (rust !)
   transferred * in * seconds (*) (glob)
   $ hg -R stream-clone-fncachestore verify -q
   $ cat port-0-errors.log
 
 Packed bundle
   $ hg -R deeprepo debugcreatestreamclonebundle repo-packed.hg
-  writing 5330 bytes for 18 files (no-zstd !)
-  writing 5400 bytes for 18 files (zstd !)
+  writing 5330 bytes for 19 files (no-zstd !)
+  writing 5400 bytes for 19 files (zstd no-rust !)
+  writing 5654 bytes for 21 files (zstd rust !)
   bundle requirements:.* treemanifest(,.*)? (re)
   $ hg debugbundle --spec repo-packed.hg
   none-packed1;requirements%3D(.*%2C)?treemanifest(%2C.*)? (re)

@@ -367,7 +367,7 @@ Try it with a non-inline revlog
   $ cd repo-to-fix-not-inline
   $ tar -xf - < "$TESTDIR"/bundles/issue6528.tar
   $ echo b >> b.txt
-  $ hg commit -qm "inline -> separate"
+  $ hg commit -qm "inline -> separate" --traceback
   $ find .hg -name *b.txt.d
   .hg/store/data/b.txt.d
 

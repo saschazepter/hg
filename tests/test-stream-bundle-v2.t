@@ -60,9 +60,9 @@ The extension requires a repo (currently unused)
   $ hg bundle -a --type="none-v2;stream=$stream_version" bundle.hg
   $ hg debugbundle bundle.hg
   Stream params: {}
-  stream2 -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 no-zstd !)
-  stream2 -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 zstd no-rust !)
-  stream2 -- {bytecount: 1693, filecount: 11, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 rust !)
+  stream2 -- {bytecount: 1693, filecount: 12, requirements: generaldelta%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 no-zstd !)
+  stream2 -- {bytecount: 1693, filecount: 12, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 zstd no-rust !)
+  stream2 -- {bytecount: 1819, filecount: 14, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 rust !)
   stream3-exp -- {requirements: generaldelta%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 no-zstd !)
   stream3-exp -- {requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 zstd no-rust !)
   stream3-exp -- {requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 rust !)
@@ -97,7 +97,8 @@ Test that we can apply the bundle as a stream clone bundle
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "stream2" (params: 3 mandatory) supported
   applying stream bundle
-  11 files to transfer, 1.65 KB of data
+  12 files to transfer, 1.65 KB of data (no-rust !)
+  14 files to transfer, 1.78 KB of data (rust !)
   starting 4 threads for background file closing (?)
   starting 4 threads for background file closing (?)
   adding [s] data/A.i (66 bytes)
@@ -107,12 +108,17 @@ Test that we can apply the bundle as a stream clone bundle
   adding [s] data/E.i (66 bytes)
   adding [s] phaseroots (43 bytes)
   adding [s] 00manifest.i (584 bytes)
-  adding [s] 00changelog.i (595 bytes)
+  adding [s] 00changelog.n (62 bytes) (rust !)
+  adding [s] 00changelog-b875dfc5.nd (64 bytes) (rust !)
+  adding [s] 00changelog.d (275 bytes)
+  adding [s] 00changelog.i (320 bytes)
   adding [c] branch2-served (94 bytes)
   adding [c] rbc-names-v1 (7 bytes)
   adding [c] rbc-revs-v1 (40 bytes)
-  transferred 1.65 KB in * seconds (* */sec) (glob)
-  bundle2-input-part: total payload size 1840
+  transferred 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
+  bundle2-input-part: total payload size 1857 (no-rust !)
+  transferred 1.78 KB in * seconds (* */sec) (glob) (rust !)
+  bundle2-input-part: total payload size 2025 (rust !)
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle
@@ -154,7 +160,8 @@ Test that we can apply the bundle as a stream clone bundle
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "stream2" (params: 3 mandatory) supported
   applying stream bundle
-  11 files to transfer, 1.65 KB of data
+  12 files to transfer, 1.65 KB of data (no-rust !)
+  14 files to transfer, 1.78 KB of data (rust !)
   starting 4 threads for background file closing (?)
   starting 4 threads for background file closing (?)
   adding [s] data/A.i (66 bytes)
@@ -164,12 +171,17 @@ Test that we can apply the bundle as a stream clone bundle
   adding [s] data/E.i (66 bytes)
   adding [s] phaseroots (43 bytes)
   adding [s] 00manifest.i (584 bytes)
-  adding [s] 00changelog.i (595 bytes)
+  adding [s] 00changelog.n (62 bytes) (rust !)
+  adding [s] 00changelog-b875dfc5.nd (64 bytes) (rust !)
+  adding [s] 00changelog.d (275 bytes)
+  adding [s] 00changelog.i (320 bytes)
   adding [c] branch2-served (94 bytes)
   adding [c] rbc-names-v1 (7 bytes)
   adding [c] rbc-revs-v1 (40 bytes)
-  transferred 1.65 KB in * seconds (* */sec) (glob)
-  bundle2-input-part: total payload size 1840
+  transferred 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
+  bundle2-input-part: total payload size 1857 (no-rust !)
+  transferred 1.78 KB in * seconds (* */sec) (glob) (rust !)
+  bundle2-input-part: total payload size 2025 (rust !)
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle
@@ -224,12 +236,17 @@ Test that we can apply the bundle as a stream clone bundle
   adding [s] data/E.i (66 bytes)
   adding [s] phaseroots (43 bytes)
   adding [s] 00manifest.i (584 bytes)
-  adding [s] 00changelog.i (595 bytes)
+  adding [s] 00changelog.n (62 bytes) (rust !)
+  adding [s] 00changelog-b875dfc5.nd (64 bytes) (rust !)
+  adding [s] 00changelog.d (275 bytes)
+  adding [s] 00changelog.i (320 bytes)
   adding [c] branch2-served (94 bytes)
   adding [c] rbc-names-v1 (7 bytes)
   adding [c] rbc-revs-v1 (40 bytes)
-  transferred 1.65 KB in * seconds (* */sec) (glob)
-  bundle2-input-part: total payload size 1852
+  transferred 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
+  bundle2-input-part: total payload size 1869 (no-rust !)
+  transferred 1.78 KB in * seconds (* */sec) (glob) (rust !)
+  bundle2-input-part: total payload size 2037 (rust !)
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle
@@ -281,12 +298,17 @@ Test that we can apply the bundle as a stream clone bundle
   adding [s] data/E.i (66 bytes)
   adding [s] phaseroots (43 bytes)
   adding [s] 00manifest.i (584 bytes)
-  adding [s] 00changelog.i (595 bytes)
+  adding [s] 00changelog.n (62 bytes) (rust !)
+  adding [s] 00changelog-b875dfc5.nd (64 bytes) (rust !)
+  adding [s] 00changelog.d (275 bytes)
+  adding [s] 00changelog.i (320 bytes)
   adding [c] branch2-served (94 bytes)
   adding [c] rbc-names-v1 (7 bytes)
   adding [c] rbc-revs-v1 (40 bytes)
-  transferred 1.65 KB in * seconds (* */sec) (glob)
-  bundle2-input-part: total payload size 1852
+  transferred 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
+  bundle2-input-part: total payload size 1869 (no-rust !)
+  transferred 1.78 KB in * seconds (* */sec) (glob) (rust !)
+  bundle2-input-part: total payload size 2037 (rust !)
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle

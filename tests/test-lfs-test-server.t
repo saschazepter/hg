@@ -908,7 +908,8 @@ Check error message when object does not exist:
   $ cd $TESTTMP
   $ hg --debug clone test test2
   http auth: user foo, password ***
-  linked 6 files
+  linked 7 files (no-rust !)
+  linked 9 files (rust !)
   http auth: user foo, password ***
   updating to branch default
   resolving manifests

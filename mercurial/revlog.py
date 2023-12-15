@@ -367,7 +367,7 @@ class _InnerRevlog:
         self.opener = opener
         self.index = index
 
-        self.__index_file = index_file
+        self.index_file = index_file
         self.data_file = data_file
         self.sidedata_file = sidedata_file
         self.inline = inline
@@ -415,16 +415,6 @@ class _InnerRevlog:
             )
 
         self._delay_buffer = None
-
-    @property
-    def index_file(self):
-        return self.__index_file
-
-    @index_file.setter
-    def index_file(self, new_index_file):
-        self.__index_file = new_index_file
-        if self.inline:
-            self._segmentfile.filename = new_index_file
 
     def __len__(self):
         return len(self.index)
@@ -652,6 +642,9 @@ class _InnerRevlog:
         """Context manager that keeps data and sidedata files open for reading"""
         if len(self.index) == 0:
             yield  # nothing to be read
+        elif self._delay_buffer is not None and self.inline:
+            msg = "revlog with delayed write should not be inline"
+            raise error.ProgrammingError(msg)
         else:
             with self._segmentfile.reading():
                 with self._segmentfile_sidedata.reading():
@@ -1137,18 +1130,16 @@ class _InnerRevlog:
                 ifh.write(entry)
             else:
                 self._delay_buffer.append(entry)
+        elif self._delay_buffer is not None:
+            msg = b'invalid delayed write on inline revlog'
+            raise error.ProgrammingError(msg)
         else:
             offset += curr * self.index.entry_size
             transaction.add(self.canonical_index_file, offset)
             assert not sidedata
-            if self._delay_buffer is None:
-                ifh.write(entry)
-                ifh.write(data[0])
-                ifh.write(data[1])
-            else:
-                self._delay_buffer.append(entry)
-                self._delay_buffer.append(data[0])
-                self._delay_buffer.append(data[1])
+            ifh.write(entry)
+            ifh.write(data[0])
+            ifh.write(data[1])
         return (
             ifh.tell(),
             dfh.tell() if dfh else None,
@@ -1160,6 +1151,9 @@ class _InnerRevlog:
 
     def delay(self):
         assert not self.is_open
+        if self.inline:
+            msg = "revlog with delayed write should not be inline"
+            raise error.ProgrammingError(msg)
         if self._delay_buffer is not None or self._orig_index_file is not None:
             # delay or divert already in place
             return None
@@ -1173,12 +1167,13 @@ class _InnerRevlog:
             return self.index_file
         else:
             self._delay_buffer = []
-            if self.inline:
-                self._segmentfile._delay_buffer = self._delay_buffer
             return None
 
     def write_pending(self):
         assert not self.is_open
+        if self.inline:
+            msg = "revlog with delayed write should not be inline"
+            raise error.ProgrammingError(msg)
         if self._orig_index_file is not None:
             return None, True
         any_pending = False
@@ -1195,16 +1190,15 @@ class _InnerRevlog:
                 ifh.write(b"".join(self._delay_buffer))
             any_pending = True
         self._delay_buffer = None
-        if self.inline:
-            self._segmentfile._delay_buffer = self._delay_buffer
-        else:
-            assert self._segmentfile._delay_buffer is None
         self._orig_index_file = self.index_file
         self.index_file = pending_index_file
         return self.index_file, any_pending
 
     def finalize_pending(self):
         assert not self.is_open
+        if self.inline:
+            msg = "revlog with delayed write should not be inline"
+            raise error.ProgrammingError(msg)
 
         delay = self._delay_buffer is not None
         divert = self._orig_index_file is not None
@@ -1216,7 +1210,7 @@ class _InnerRevlog:
                 with self.opener(self.index_file, b'r+') as ifh:
                     ifh.seek(0, os.SEEK_END)
                     ifh.write(b"".join(self._delay_buffer))
-            self._segmentfile._delay_buffer = self._delay_buffer = None
+            self._delay_buffer = None
         elif divert:
             if self.opener.exists(self.index_file):
                 self.opener.rename(
@@ -2831,20 +2825,24 @@ class revlog:
         """
         tiprev = len(self) - 1
         total_size = self.start(tiprev) + self.length(tiprev)
-        if not self._inline or total_size < _maxinline:
+        if not self._inline or (self._may_inline and total_size < _maxinline):
             return
 
         if self._docket is not None:
             msg = b"inline revlog should not have a docket"
             raise error.ProgrammingError(msg)
 
+        # In the common case, we enforce inline size because the revlog has
+        # been appened too. And in such case, it must have an initial offset
+        # recorded in the transaction.
         troffset = tr.findoffset(self._inner.canonical_index_file)
-        if troffset is None:
+        pre_touched = troffset is not None
+        if not pre_touched and self.target[0] != KIND_CHANGELOG:
             raise error.RevlogError(
                 _(b"%s not found in the transaction") % self._indexfile
             )
-        if troffset:
-            tr.addbackup(self._inner.canonical_index_file, for_offset=True)
+
+        tr.addbackup(self._inner.canonical_index_file, for_offset=pre_touched)
         tr.add(self._datafile, 0)
 
         new_index_file_path = None
