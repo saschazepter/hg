@@ -6,6 +6,10 @@
   $ cat << EOF >> $HGRCPATH
   > [server]
   > bundle2.stream = no
+  > [format]
+  > # persistent nodemap is too broken with legacy format,
+  > # however client with nodemap support will have better stream support.
+  > use-persistent-nodemap=no
   > EOF
 #endif
 #if stream-bundle2-v3
@@ -328,9 +332,9 @@ Basic clone
 #if stream-legacy
   $ hg clone --stream -U http://localhost:$HGPORT clone1
   streaming all changes
-  1090 files to transfer, 102 KB of data (no-zstd !)
+  1091 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1090 files to transfer, 98.8 KB of data (zstd !)
+  1091 files to transfer, 98.8 KB of data (zstd !)
   transferred 98.8 KB in * seconds (* */sec) (glob) (zstd !)
   searching for changes
   no changes found
@@ -339,10 +343,12 @@ Basic clone
 #if stream-bundle2-v2
   $ hg clone --stream -U http://localhost:$HGPORT clone1
   streaming all changes
-  1093 files to transfer, 102 KB of data (no-zstd !)
+  1094 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1093 files to transfer, 98.9 KB of data (zstd !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
+  1094 files to transfer, 98.9 KB of data (zstd no-rust !)
+  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  1096 files to transfer, 99.0 KB of data (zstd rust !)
+  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
 
   $ ls -1 clone1/.hg/cache
   branch2-base
@@ -362,7 +368,8 @@ Basic clone
   streaming all changes
   1093 entries to transfer
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
+  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
 
   $ ls -1 clone1/.hg/cache
   branch2-base
@@ -387,12 +394,12 @@ getbundle requests with stream=1 are uncompressed
 
 #if no-zstd no-rust
   $ f --size --hex --bytes 256 body
-  body: size=119123
+  body: size=119140
   0000: 04 6e 6f 6e 65 48 47 32 30 00 00 00 00 00 00 00 |.noneHG20.......|
   0010: 62 07 53 54 52 45 41 4d 32 00 00 00 00 03 00 09 |b.STREAM2.......|
   0020: 06 09 04 0c 26 62 79 74 65 63 6f 75 6e 74 31 30 |....&bytecount10|
   0030: 34 31 31 35 66 69 6c 65 63 6f 75 6e 74 31 30 39 |4115filecount109|
-  0040: 33 72 65 71 75 69 72 65 6d 65 6e 74 73 67 65 6e |3requirementsgen|
+  0040: 34 72 65 71 75 69 72 65 6d 65 6e 74 73 67 65 6e |4requirementsgen|
   0050: 65 72 61 6c 64 65 6c 74 61 25 32 43 72 65 76 6c |eraldelta%2Crevl|
   0060: 6f 67 76 31 25 32 43 73 70 61 72 73 65 72 65 76 |ogv1%2Csparserev|
   0070: 6c 6f 67 00 00 80 00 73 08 42 64 61 74 61 2f 30 |log....s.Bdata/0|
@@ -407,14 +414,14 @@ getbundle requests with stream=1 are uncompressed
 #endif
 #if zstd no-rust
   $ f --size --hex --bytes 256 body
-  body: size=116310 (no-bigendian !)
-  body: size=116305 (bigendian !)
+  body: size=116327 (no-bigendian !)
+  body: size=116322 (bigendian !)
   0000: 04 6e 6f 6e 65 48 47 32 30 00 00 00 00 00 00 00 |.noneHG20.......|
   0010: 7c 07 53 54 52 45 41 4d 32 00 00 00 00 03 00 09 ||.STREAM2.......|
   0020: 06 09 04 0c 40 62 79 74 65 63 6f 75 6e 74 31 30 |....@bytecount10|
   0030: 31 32 37 36 66 69 6c 65 63 6f 75 6e 74 31 30 39 |1276filecount109| (no-bigendian !)
   0030: 31 32 37 31 66 69 6c 65 63 6f 75 6e 74 31 30 39 |1271filecount109| (bigendian !)
-  0040: 33 72 65 71 75 69 72 65 6d 65 6e 74 73 67 65 6e |3requirementsgen|
+  0040: 34 72 65 71 75 69 72 65 6d 65 6e 74 73 67 65 6e |4requirementsgen|
   0050: 65 72 61 6c 64 65 6c 74 61 25 32 43 72 65 76 6c |eraldelta%2Crevl|
   0060: 6f 67 2d 63 6f 6d 70 72 65 73 73 69 6f 6e 2d 7a |og-compression-z|
   0070: 73 74 64 25 32 43 72 65 76 6c 6f 67 76 31 25 32 |std%2Crevlogv1%2|
@@ -429,12 +436,22 @@ getbundle requests with stream=1 are uncompressed
 #endif
 #if zstd rust no-dirstate-v2
   $ f --size --hex --bytes 256 body
-  body: size=116310
+  body: size=116310 (no-rust !)
+  body: size=116495 (rust no-stream-legacy no-bigendian !)
+  body: size=116490 (rust no-stream-legacy bigendian !)
+  body: size=116327 (rust stream-legacy no-bigendian !)
+  body: size=116322 (rust stream-legacy bigendian !)
   0000: 04 6e 6f 6e 65 48 47 32 30 00 00 00 00 00 00 00 |.noneHG20.......|
   0010: 7c 07 53 54 52 45 41 4d 32 00 00 00 00 03 00 09 ||.STREAM2.......|
   0020: 06 09 04 0c 40 62 79 74 65 63 6f 75 6e 74 31 30 |....@bytecount10|
-  0030: 31 32 37 36 66 69 6c 65 63 6f 75 6e 74 31 30 39 |1276filecount109|
-  0040: 33 72 65 71 75 69 72 65 6d 65 6e 74 73 67 65 6e |3requirementsgen|
+  0030: 31 32 37 36 66 69 6c 65 63 6f 75 6e 74 31 30 39 |1276filecount109| (no-rust !)
+  0040: 33 72 65 71 75 69 72 65 6d 65 6e 74 73 67 65 6e |3requirementsgen| (no-rust !)
+  0030: 31 34 30 32 66 69 6c 65 63 6f 75 6e 74 31 30 39 |1402filecount109| (rust no-stream-legacy no-bigendian !)
+  0030: 31 33 39 37 66 69 6c 65 63 6f 75 6e 74 31 30 39 |1397filecount109| (rust no-stream-legacy bigendian !)
+  0040: 36 72 65 71 75 69 72 65 6d 65 6e 74 73 67 65 6e |6requirementsgen| (rust no-stream-legacy !)
+  0030: 31 32 37 36 66 69 6c 65 63 6f 75 6e 74 31 30 39 |1276filecount109| (rust stream-legacy no-bigendian !)
+  0030: 31 32 37 31 66 69 6c 65 63 6f 75 6e 74 31 30 39 |1271filecount109| (rust stream-legacy bigendian !)
+  0040: 34 72 65 71 75 69 72 65 6d 65 6e 74 73 67 65 6e |4requirementsgen| (rust stream-legacy !)
   0050: 65 72 61 6c 64 65 6c 74 61 25 32 43 72 65 76 6c |eraldelta%2Crevl|
   0060: 6f 67 2d 63 6f 6d 70 72 65 73 73 69 6f 6e 2d 7a |og-compression-z|
   0070: 73 74 64 25 32 43 72 65 76 6c 6f 67 76 31 25 32 |std%2Crevlogv1%2|
@@ -473,9 +490,9 @@ getbundle requests with stream=1 are uncompressed
 #if stream-legacy
   $ hg clone --uncompressed -U http://localhost:$HGPORT clone1-uncompressed
   streaming all changes
-  1090 files to transfer, 102 KB of data (no-zstd !)
+  1091 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1090 files to transfer, 98.8 KB of data (zstd !)
+  1091 files to transfer, 98.8 KB of data (zstd !)
   transferred 98.8 KB in * seconds (* */sec) (glob) (zstd !)
   searching for changes
   no changes found
@@ -483,17 +500,20 @@ getbundle requests with stream=1 are uncompressed
 #if stream-bundle2-v2
   $ hg clone --uncompressed -U http://localhost:$HGPORT clone1-uncompressed
   streaming all changes
-  1093 files to transfer, 102 KB of data (no-zstd !)
+  1094 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1093 files to transfer, 98.9 KB of data (zstd !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
+  1094 files to transfer, 98.9 KB of data (zstd no-rust !)
+  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  1096 files to transfer, 99.0 KB of data (zstd rust !)
+  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
 #endif
 #if stream-bundle2-v3
   $ hg clone --uncompressed -U http://localhost:$HGPORT clone1-uncompressed
   streaming all changes
   1093 entries to transfer
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
+  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
 #endif
 
 Clone with background file closing enabled
@@ -505,8 +525,8 @@ Clone with background file closing enabled
   sending branchmap command
   streaming all changes
   sending stream_out command
-  1090 files to transfer, 102 KB of data (no-zstd !)
-  1090 files to transfer, 98.8 KB of data (zstd !)
+  1091 files to transfer, 102 KB of data (no-zstd !)
+  1091 files to transfer, 98.8 KB of data (zstd !)
   starting 4 threads for background file closing
   updating the branch cache
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
@@ -537,16 +557,20 @@ Clone with background file closing enabled
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "stream2" (params: 3 mandatory) supported
   applying stream bundle
-  1093 files to transfer, 102 KB of data (no-zstd !)
-  1093 files to transfer, 98.9 KB of data (zstd !)
+  1094 files to transfer, 102 KB of data (no-zstd !)
+  1094 files to transfer, 98.9 KB of data (zstd no-rust !)
+  1096 files to transfer, 99.0 KB of data (zstd rust !)
   starting 4 threads for background file closing
   starting 4 threads for background file closing
   updating the branch cache
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  bundle2-input-part: total payload size 118984 (no-zstd !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
-  bundle2-input-part: total payload size 116145 (zstd no-bigendian !)
-  bundle2-input-part: total payload size 116140 (zstd bigendian !)
+  bundle2-input-part: total payload size 119001 (no-zstd !)
+  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
+  bundle2-input-part: total payload size 116162 (zstd no-bigendian no-rust !)
+  bundle2-input-part: total payload size 116330 (zstd no-bigendian rust !)
+  bundle2-input-part: total payload size 116157 (zstd bigendian no-rust !)
+  bundle2-input-part: total payload size 116325 (zstd bigendian rust !)
   bundle2-input-part: "listkeys" (params: 1 mandatory) supported
   bundle2-input-bundle: 2 parts total
   checking for updated bookmarks
@@ -569,10 +593,13 @@ Clone with background file closing enabled
   starting 4 threads for background file closing
   updating the branch cache
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  bundle2-input-part: total payload size 120079 (no-zstd !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
-  bundle2-input-part: total payload size 117240 (zstd no-bigendian !)
-  bundle2-input-part: total payload size 116138 (zstd bigendian !)
+  bundle2-input-part: total payload size 120096 (no-zstd !)
+  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
+  bundle2-input-part: total payload size 117257 (zstd no-rust no-bigendian !)
+  bundle2-input-part: total payload size 117425 (zstd rust no-bigendian !)
+  bundle2-input-part: total payload size 117252 (zstd bigendian no-rust !)
+  bundle2-input-part: total payload size 117420 (zstd bigendian rust !)
   bundle2-input-part: "listkeys" (params: 1 mandatory) supported
   bundle2-input-bundle: 2 parts total
   checking for updated bookmarks
@@ -604,9 +631,9 @@ Streaming of secrets can be overridden by server config
 #if stream-legacy
   $ hg clone --stream -U http://localhost:$HGPORT secret-allowed
   streaming all changes
-  1090 files to transfer, 102 KB of data (no-zstd !)
+  1091 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1090 files to transfer, 98.8 KB of data (zstd !)
+  1091 files to transfer, 98.8 KB of data (zstd !)
   transferred 98.8 KB in * seconds (* */sec) (glob) (zstd !)
   searching for changes
   no changes found
@@ -614,17 +641,20 @@ Streaming of secrets can be overridden by server config
 #if stream-bundle2-v2
   $ hg clone --stream -U http://localhost:$HGPORT secret-allowed
   streaming all changes
-  1093 files to transfer, 102 KB of data (no-zstd !)
+  1094 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1093 files to transfer, 98.9 KB of data (zstd !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
+  1094 files to transfer, 98.9 KB of data (zstd no-rust !)
+  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  1096 files to transfer, 99.0 KB of data (zstd rust !)
+  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
 #endif
 #if stream-bundle2-v3
   $ hg clone --stream -U http://localhost:$HGPORT secret-allowed
   streaming all changes
   1093 entries to transfer
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd !)
+  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
 #endif
 
   $ killdaemons.py
@@ -729,9 +759,9 @@ clone it
 #if stream-legacy
   $ hg clone --stream http://localhost:$HGPORT with-bookmarks
   streaming all changes
-  1090 files to transfer, 102 KB of data (no-zstd !)
+  1091 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1090 files to transfer, 98.8 KB of data (zstd !)
+  1091 files to transfer, 98.8 KB of data (zstd !)
   transferred 98.8 KB in * seconds (* */sec) (glob) (zstd !)
   searching for changes
   no changes found
@@ -741,10 +771,12 @@ clone it
 #if stream-bundle2-v2
   $ hg clone --stream http://localhost:$HGPORT with-bookmarks
   streaming all changes
-  1096 files to transfer, 102 KB of data (no-zstd !)
+  1097 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1096 files to transfer, 99.1 KB of data (zstd !)
-  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd !)
+  1097 files to transfer, 99.1 KB of data (zstd no-rust !)
+  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  1099 files to transfer, 99.2 KB of data (zstd rust !)
+  transferred 99.2 KB in * seconds (* */sec) (glob) (zstd rust !)
   updating to branch default
   1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
 #endif
@@ -753,7 +785,8 @@ clone it
   streaming all changes
   1096 entries to transfer
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd !)
+  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  transferred 99.2 KB in * seconds (* */sec) (glob) (zstd rust !)
   updating to branch default
   1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
 #endif
@@ -774,9 +807,9 @@ Clone as publishing
 #if stream-legacy
   $ hg clone --stream http://localhost:$HGPORT phase-publish
   streaming all changes
-  1090 files to transfer, 102 KB of data (no-zstd !)
+  1091 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1090 files to transfer, 98.8 KB of data (zstd !)
+  1091 files to transfer, 98.8 KB of data (zstd !)
   transferred 98.8 KB in * seconds (* */sec) (glob) (zstd !)
   searching for changes
   no changes found
@@ -786,10 +819,12 @@ Clone as publishing
 #if stream-bundle2-v2
   $ hg clone --stream http://localhost:$HGPORT phase-publish
   streaming all changes
-  1096 files to transfer, 102 KB of data (no-zstd !)
+  1097 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1096 files to transfer, 99.1 KB of data (zstd !)
-  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd !)
+  1097 files to transfer, 99.1 KB of data (zstd no-rust !)
+  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd  no-rust !)
+  1099 files to transfer, 99.2 KB of data (zstd rust !)
+  transferred 99.2 KB in * seconds (* */sec) (glob) (zstd rust !)
   updating to branch default
   1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
 #endif
@@ -798,7 +833,8 @@ Clone as publishing
   streaming all changes
   1096 entries to transfer
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd !)
+  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  transferred 99.2 KB in * seconds (* */sec) (glob) (zstd rust !)
   updating to branch default
   1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
 #endif
@@ -825,9 +861,9 @@ stream v1 unsuitable for non-publishing repository.
 
   $ hg clone --stream http://localhost:$HGPORT phase-no-publish
   streaming all changes
-  1090 files to transfer, 102 KB of data (no-zstd !)
+  1091 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1090 files to transfer, 98.8 KB of data (zstd !)
+  1091 files to transfer, 98.8 KB of data (zstd !)
   transferred 98.8 KB in * seconds (* */sec) (glob) (zstd !)
   searching for changes
   no changes found
@@ -841,10 +877,12 @@ stream v1 unsuitable for non-publishing repository.
 #if stream-bundle2-v2
   $ hg clone --stream http://localhost:$HGPORT phase-no-publish
   streaming all changes
-  1097 files to transfer, 102 KB of data (no-zstd !)
+  1098 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1097 files to transfer, 99.1 KB of data (zstd !)
-  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd !)
+  1098 files to transfer, 99.1 KB of data (zstd no-rust !)
+  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  1100 files to transfer, 99.2 KB of data (zstd rust !)
+  transferred 99.2 KB in * seconds (* */sec) (glob) (zstd rust !)
   updating to branch default
   1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg -R phase-no-publish phase -r 'all()'
@@ -857,7 +895,8 @@ stream v1 unsuitable for non-publishing repository.
   streaming all changes
   1097 entries to transfer
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd !)
+  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  transferred 99.2 KB in * seconds (* */sec) (glob) (zstd rust !)
   updating to branch default
   1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg -R phase-no-publish phase -r 'all()'
@@ -904,10 +943,12 @@ Clone non-publishing with obsolescence
 
   $ hg clone -U --stream http://localhost:$HGPORT with-obsolescence
   streaming all changes
-  1098 files to transfer, 102 KB of data (no-zstd !)
+  1099 files to transfer, 102 KB of data (no-zstd !)
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1098 files to transfer, 99.5 KB of data (zstd !)
-  transferred 99.5 KB in * seconds (* */sec) (glob) (zstd !)
+  1099 files to transfer, 99.5 KB of data (zstd no-rust !)
+  transferred 99.5 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  1101 files to transfer, 99.6 KB of data (zstd rust !)
+  transferred 99.6 KB in * seconds (* */sec) (glob) (zstd rust !)
   $ hg -R with-obsolescence log -T '{rev}: {phase}\n'
   2: draft
   1: draft
@@ -956,7 +997,8 @@ Clone non-publishing with obsolescence
   streaming all changes
   1098 entries to transfer
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  transferred 99.5 KB in * seconds (* */sec) (glob) (zstd !)
+  transferred 99.5 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  transferred 99.6 KB in * seconds (* */sec) (glob) (zstd rust !)
   $ hg -R with-obsolescence log -T '{rev}: {phase}\n'
   2: draft
   1: draft

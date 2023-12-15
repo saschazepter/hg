@@ -20,8 +20,10 @@ Shallow clone from full
 
   $ hgcloneshallow ssh://user@dummy/master shallow --noupdate
   streaming all changes
-  2 files to transfer, 473 bytes of data
-  transferred 473 bytes in * seconds (*/sec) (glob)
+  3 files to transfer, 473 bytes of data (no-rust !)
+  transferred 473 bytes in * seconds (*/sec) (glob) (no-rust !)
+  5 files to transfer, 599 bytes of data (rust !)
+  transferred 599 bytes in * seconds (*/sec) (glob) (rust !)
   searching for changes
   no changes found
   $ cd shallow
