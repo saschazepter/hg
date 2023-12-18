@@ -544,3 +544,31 @@ Test removing include while concurrently modifying file in that path
   deleting meta/d0/00manifest.i (tree !)
   deleting unwanted files from working copy
   not deleting possibly dirty file d0/f
+
+
+Test removing `rootfilesin:` include
+  $ hg clone --narrow ssh://user@dummy/master narrow-concurrent-modify -q \
+  > --include rootfilesin:d0 --include rootfilesin:d1
+  $ cd narrow-concurrent-modify
+#if flat
+  $ hg --config 'hooks.pretxnopen = echo modified >> d0/f' tracked --removeinclude rootfilesin:d0
+  comparing with ssh://user@dummy/master
+  searching for changes
+  looking for local changes to affected paths
+  deleting data/d0/f.i
+  deleting unwanted files from working copy
+  not deleting possibly dirty file d0/f
+#endif
+#if tree
+  $ hg --config 'hooks.pretxnopen = echo modified >> d0/f' tracked --removeinclude rootfilesin:d0
+  comparing with ssh://user@dummy/master
+  searching for changes
+  looking for local changes to affected paths
+  deleting data/d0/f.i
+  deleting meta/d0/00manifest.i
+  deleting meta/d1/00manifest.i (known-bad-output !)
+  deleting unwanted files from working copy
+  not deleting possibly dirty file d0/f
+  abort: meta/d1/00manifest@77a3e194be076ae47ba9282271028916012d815c: no node (known-bad-output !)
+  [50]
+#endif
