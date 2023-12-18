@@ -71,7 +71,7 @@ cd `hg root`
 
 # TODO: include hgext and hgext3rd
 
-pytype -V 3.7 --keep-going --jobs auto \
+pytype --keep-going --jobs auto \
     doc/check-seclevel.py hgdemandimport hgext mercurial \
     -x hgext/absorb.py \
     -x hgext/bugzilla.py \
