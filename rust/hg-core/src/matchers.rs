@@ -388,6 +388,15 @@ impl<'a> Matcher for PatternMatcher<'a> {
 /// assert_eq!(matcher.matches(HgPath::new(b"this should work")), true);
 /// assert_eq!(matcher.matches(HgPath::new(b"this also")), true);
 /// assert_eq!(matcher.matches(HgPath::new(b"but not this")), false);
+/// ///
+/// let ignore_patterns =
+/// vec![IgnorePattern::new(PatternSyntax::RootFiles, b"dir/subdir", Path::new(""))];
+/// let matcher = IncludeMatcher::new(ignore_patterns).unwrap();
+/// ///
+/// assert!(!matcher.matches(HgPath::new(b"file")));
+/// assert!(!matcher.matches(HgPath::new(b"dir/file")));
+/// assert!(matcher.matches(HgPath::new(b"dir/subdir/file")));
+/// assert!(!matcher.matches(HgPath::new(b"dir/subdir/subsubdir/file")));
 /// ```
 pub struct IncludeMatcher<'a> {
     patterns: Vec<u8>,
@@ -951,12 +960,8 @@ fn build_match<'a>(
 
             let match_func = move |path: &HgPath| -> bool {
                 let path = path.as_bytes();
-                let i = path.iter().rfind(|a| **a == b'/');
-                let dir = if let Some(i) = i {
-                    &path[..*i as usize]
-                } else {
-                    b"."
-                };
+                let i = path.iter().rposition(|a| *a == b'/');
+                let dir = if let Some(i) = i { &path[..i] } else { b"." };
                 dirs.contains(dir)
             };
             match_funcs.push(Box::new(match_func));
