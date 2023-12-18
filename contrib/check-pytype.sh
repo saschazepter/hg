@@ -3,7 +3,7 @@
 set -e
 set -u
 
-cd `hg root`
+cd "$(hg root)"
 
 # Many of the individual files that are excluded here confuse pytype
 # because they do a mix of Python 2 and Python 3 things
