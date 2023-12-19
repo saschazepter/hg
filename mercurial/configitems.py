@@ -82,7 +82,7 @@ class itemregister(dict):
         super(itemregister, self).__init__()
         self._generics = set()
 
-    def update(self, other):
+    def update(self, other):  # pytype: disable=signature-mismatch
         super(itemregister, self).update(other)
         self._generics.update(other._generics)
 
