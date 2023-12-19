@@ -59,8 +59,7 @@ class cmdstate:
         self._repo = repo
         self.fname = fname
 
-    def read(self):
-        # type: () -> Dict[bytes, Any]
+    def read(self) -> Dict[bytes, Any]:
         """read the existing state file and return a dict of data stored"""
         return self._read()
 

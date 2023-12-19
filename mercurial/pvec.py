@@ -72,8 +72,7 @@ def _bin(bs):
     return v
 
 
-def _str(v, l):
-    # type: (int, int) -> bytes
+def _str(v: int, l: int) -> bytes:
     bs = b""
     for p in range(l):
         bs = pycompat.bytechr(v & 255) + bs
