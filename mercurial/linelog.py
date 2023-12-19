@@ -45,7 +45,7 @@ class lineinfo:
 @attr.s
 class annotateresult:
     rev = attr.ib()
-    lines = attr.ib()
+    lines = attr.ib(type=bytearray)
     _eof = attr.ib()
 
     def __iter__(self):
