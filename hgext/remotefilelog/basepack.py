@@ -501,7 +501,7 @@ class mutablebasepack(versionmixin):
         self.idxfp.write(rawindex)
         self.idxfp.close()
 
-    def createindex(self, nodelocations):
+    def createindex(self, nodelocations, indexoffset):
         raise NotImplementedError()
 
     def _writeheader(self, indexparams):
