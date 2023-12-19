@@ -34,8 +34,7 @@ assert [Union]
 urlreq = urllibcompat.urlreq
 
 
-def getport(port):
-    # type: (Union[bytes, int]) -> int
+def getport(port: Union[bytes, int]) -> int:
     """Return the port for a given network service.
 
     If port is an integer, it's returned as is. If it's a string, it's
@@ -133,8 +132,12 @@ class url:
     _safepchars = b"/!~*'()+:\\"
     _matchscheme = remod.compile(b'^[a-zA-Z0-9+.\\-]+:').match
 
-    def __init__(self, path, parsequery=True, parsefragment=True):
-        # type: (bytes, bool, bool) -> None
+    def __init__(
+        self,
+        path: bytes,
+        parsequery: bool = True,
+        parsefragment: bool = True,
+    ) -> None:
         # We slowly chomp away at path until we have only the path left
         self.scheme = self.user = self.passwd = self.host = None
         self.port = self.path = self.query = self.fragment = None
@@ -378,8 +381,7 @@ class url:
             return True  # POSIX-style
         return False
 
-    def localpath(self):
-        # type: () -> bytes
+    def localpath(self) -> bytes:
         if self.scheme == b'file' or self.scheme == b'bundle':
             path = self.path or b'/'
             # For Windows, we need to promote hosts containing drive
@@ -402,23 +404,19 @@ class url:
         )
 
 
-def hasscheme(path):
-    # type: (bytes) -> bool
+def hasscheme(path: bytes) -> bool:
     return bool(url(path).scheme)  # cast to help pytype
 
 
-def hasdriveletter(path):
-    # type: (bytes) -> bool
+def hasdriveletter(path: bytes) -> bool:
     return bool(path) and path[1:2] == b':' and path[0:1].isalpha()
 
 
-def urllocalpath(path):
-    # type: (bytes) -> bytes
+def urllocalpath(path: bytes) -> bytes:
     return url(path, parsequery=False, parsefragment=False).localpath()
 
 
-def checksafessh(path):
-    # type: (bytes) -> None
+def checksafessh(path: bytes) -> None:
     """check if a path / url is a potentially unsafe ssh exploit (SEC)
 
     This is a sanity check for ssh urls. ssh will parse the first item as
@@ -435,8 +433,7 @@ def checksafessh(path):
         )
 
 
-def hidepassword(u):
-    # type: (bytes) -> bytes
+def hidepassword(u: bytes) -> bytes:
     '''hide user credential in a url string'''
     u = url(u)
     if u.passwd:
@@ -444,8 +441,7 @@ def hidepassword(u):
     return bytes(u)
 
 
-def removeauth(u):
-    # type: (bytes) -> bytes
+def removeauth(u: bytes) -> bytes:
     '''remove all authentication information from a url string'''
     u = url(u)
     u.user = u.passwd = None

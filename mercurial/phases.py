@@ -192,20 +192,20 @@ all_internal_phases = tuple(p for p in allphases if p & internal)
 no_bundle_phases = all_internal_phases
 
 
-def supportinternal(repo):
-    # type: (localrepo.localrepository) -> bool
+def supportinternal(repo: "localrepo.localrepository") -> bool:
     """True if the internal phase can be used on a repository"""
     return requirements.INTERNAL_PHASE_REQUIREMENT in repo.requirements
 
 
-def supportarchived(repo):
-    # type: (localrepo.localrepository) -> bool
+def supportarchived(repo: "localrepo.localrepository") -> bool:
     """True if the archived phase can be used on a repository"""
     return requirements.ARCHIVED_PHASE_REQUIREMENT in repo.requirements
 
 
-def _readroots(repo, phasedefaults=None):
-    # type: (localrepo.localrepository, Optional[Phasedefaults]) -> Tuple[Phaseroots, bool]
+def _readroots(
+    repo: "localrepo.localrepository",
+    phasedefaults: Optional["Phasedefaults"] = None,
+) -> Tuple[Phaseroots, bool]:
     """Read phase roots from disk
 
     phasedefaults is a list of fn(repo, roots) callable, which are
@@ -235,8 +235,7 @@ def _readroots(repo, phasedefaults=None):
     return roots, dirty
 
 
-def binaryencode(phasemapping):
-    # type: (Dict[int, List[bytes]]) -> bytes
+def binaryencode(phasemapping: Dict[int, List[bytes]]) -> bytes:
     """encode a 'phase -> nodes' mapping into a binary stream
 
     The revision lists are encoded as (phase, root) pairs.
@@ -248,8 +247,7 @@ def binaryencode(phasemapping):
     return b''.join(binarydata)
 
 
-def binarydecode(stream):
-    # type: (...) -> Dict[int, List[bytes]]
+def binarydecode(stream) -> Dict[int, List[bytes]]:
     """decode a binary stream into a 'phase -> nodes' mapping
 
     The (phase, root) pairs are turned back into a dictionary with
@@ -367,8 +365,12 @@ def _trackphasechange(data, rev, old, new):
 
 
 class phasecache:
-    def __init__(self, repo, phasedefaults, _load=True):
-        # type: (localrepo.localrepository, Optional[Phasedefaults], bool) -> None
+    def __init__(
+        self,
+        repo: "localrepo.localrepository",
+        phasedefaults: Optional["Phasedefaults"],
+        _load: bool = True,
+    ):
         if _load:
             # Cheap trick to allow shallow-copy without copy module
             self.phaseroots, self.dirty = _readroots(repo, phasedefaults)
@@ -377,8 +379,7 @@ class phasecache:
             self.filterunknown(repo)
             self.opener = repo.svfs
 
-    def hasnonpublicphases(self, repo):
-        # type: (localrepo.localrepository) -> bool
+    def hasnonpublicphases(self, repo: "localrepo.localrepository") -> bool:
         """detect if there are revisions with non-public phase"""
         repo = repo.unfiltered()
         cl = repo.changelog
@@ -389,8 +390,9 @@ class phasecache:
             revs for phase, revs in self.phaseroots.items() if phase != public
         )
 
-    def nonpublicphaseroots(self, repo):
-        # type: (localrepo.localrepository) -> Set[bytes]
+    def nonpublicphaseroots(
+        self, repo: "localrepo.localrepository"
+    ) -> Set[bytes]:
         """returns the roots of all non-public phases
 
         The roots are not minimized, so if the secret revisions are
@@ -409,8 +411,12 @@ class phasecache:
             ]
         )
 
-    def getrevset(self, repo, phases, subset=None):
-        # type: (localrepo.localrepository, Iterable[int], Optional[Any]) -> Any
+    def getrevset(
+        self,
+        repo: "localrepo.localrepository",
+        phases: Iterable[int],
+        subset: Optional[Any] = None,
+    ) -> Any:
         # TODO: finish typing this
         """return a smartset for the given phases"""
         self.loadphaserevs(repo)  # ensure phase's sets are loaded
@@ -506,8 +512,7 @@ class phasecache:
                 self._phasesets[phase] = ps
         self._loadedrevslen = len(cl)
 
-    def loadphaserevs(self, repo):
-        # type: (localrepo.localrepository) -> None
+    def loadphaserevs(self, repo: "localrepo.localrepository") -> None:
         """ensure phase information is loaded in the object"""
         if self._phasesets is None:
             try:
@@ -520,8 +525,7 @@ class phasecache:
         self._loadedrevslen = 0
         self._phasesets = None
 
-    def phase(self, repo, rev):
-        # type: (localrepo.localrepository, int) -> int
+    def phase(self, repo: "localrepo.localrepository", rev: int) -> int:
         # We need a repo argument here to be able to build _phasesets
         # if necessary. The repository instance is not stored in
         # phasecache to avoid reference cycles. The changelog instance
@@ -708,8 +712,7 @@ class phasecache:
             return True
         return False
 
-    def filterunknown(self, repo):
-        # type: (localrepo.localrepository) -> None
+    def filterunknown(self, repo: "localrepo.localrepository") -> None:
         """remove unknown nodes from the phase boundary
 
         Nothing is lost as unknown nodes only hold data for their descendants.
@@ -786,8 +789,7 @@ def registernew(repo, tr, targetphase, revs):
     repo._phasecache.replace(phcache)
 
 
-def listphases(repo):
-    # type: (localrepo.localrepository) -> Dict[bytes, bytes]
+def listphases(repo: "localrepo.localrepository") -> Dict[bytes, bytes]:
     """List phases root for serialization over pushkey"""
     # Use ordered dictionary so behavior is deterministic.
     keys = util.sortdict()
@@ -818,8 +820,12 @@ def listphases(repo):
     return keys
 
 
-def pushphase(repo, nhex, oldphasestr, newphasestr):
-    # type: (localrepo.localrepository, bytes, bytes, bytes) -> bool
+def pushphase(
+    repo: "localrepo.localrepository",
+    nhex: bytes,
+    oldphasestr: bytes,
+    newphasestr: bytes,
+) -> bool:
     """List phases root for serialization over pushkey"""
     repo = repo.unfiltered()
     with repo.lock():
@@ -966,8 +972,7 @@ def newheads(repo, heads, roots):
     return pycompat.maplist(cl.node, sorted(new_heads))
 
 
-def newcommitphase(ui):
-    # type: (uimod.ui) -> int
+def newcommitphase(ui: "uimod.ui") -> int:
     """helper to get the target phase of new commit
 
     Handle all possible values for the phases.new-commit options.
@@ -982,14 +987,16 @@ def newcommitphase(ui):
         )
 
 
-def hassecret(repo):
-    # type: (localrepo.localrepository) -> bool
+def hassecret(repo: "localrepo.localrepository") -> bool:
     """utility function that check if a repo have any secret changeset."""
     return bool(repo._phasecache.phaseroots[secret])
 
 
-def preparehookargs(node, old, new):
-    # type: (bytes, Optional[int], Optional[int]) -> Dict[bytes, bytes]
+def preparehookargs(
+    node: bytes,
+    old: Optional[int],
+    new: Optional[int],
+) -> Dict[bytes, bytes]:
     if old is None:
         old = b''
     else:

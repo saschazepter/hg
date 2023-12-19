@@ -196,15 +196,16 @@ class branchcache:
 
     def __init__(
         self,
-        repo,
-        entries=(),
-        tipnode=None,
-        tiprev=nullrev,
-        filteredhash=None,
-        closednodes=None,
-        hasnode=None,
-    ):
-        # type: (localrepo.localrepository, Union[Dict[bytes, List[bytes]], Iterable[Tuple[bytes, List[bytes]]]], bytes,  int, Optional[bytes], Optional[Set[bytes]], Optional[Callable[[bytes], bool]]) -> None
+        repo: "localrepo.localrepository",
+        entries: Union[
+            Dict[bytes, List[bytes]], Iterable[Tuple[bytes, List[bytes]]]
+        ] = (),
+        tipnode: Optional[bytes] = None,
+        tiprev: Optional[int] = nullrev,
+        filteredhash: Optional[bytes] = None,
+        closednodes: Optional[Set[bytes]] = None,
+        hasnode: Optional[Callable[[bytes], bool]] = None,
+    ) -> None:
         """hasnode is a function which can be used to verify whether changelog
         has a given node or not. If it's not provided, we assume that every node
         we have exists in changelog"""

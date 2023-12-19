@@ -516,8 +516,7 @@ def changeset(web):
 rev = webcommand(b'rev')(changeset)
 
 
-def decodepath(path):
-    # type: (bytes) -> bytes
+def decodepath(path: bytes) -> bytes:
     """Hook for mapping a path in the repository to a path in the
     working copy.
 
