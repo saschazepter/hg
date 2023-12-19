@@ -137,7 +137,7 @@ class lazyremotenamedict(collections.abc.MutableMapping):
     def __setitem__(self, k, v):
         raise NotImplementedError
 
-    def __delitem__(self):
+    def __delitem__(self, k):
         raise NotImplementedError
 
     def _fetchandcache(self, key):
