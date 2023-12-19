@@ -71,8 +71,7 @@ except AttributeError:
 _msgcache = {}  # encoding: {message: translation}
 
 
-def gettext(message):
-    # type: (bytes) -> bytes
+def gettext(message: bytes) -> bytes:
     """Translate message.
 
     The message is looked up in the catalog to get a Unicode string,
@@ -123,6 +122,10 @@ def _plain():
 
 
 if _plain():
-    _ = lambda message: message  # type: Callable[[bytes], bytes]
+
+    def _(message: bytes) -> bytes:
+        return message
+
+
 else:
     _ = gettext

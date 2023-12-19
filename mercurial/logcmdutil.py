@@ -789,8 +789,11 @@ class walkopts:
     limit = attr.ib(default=None)
 
 
-def parseopts(ui, pats, opts):
-    # type: (Any, Sequence[bytes], Dict[bytes, Any]) -> walkopts
+def parseopts(
+    ui: Any,
+    pats: Sequence[bytes],
+    opts: Dict[bytes, Any],
+) -> walkopts:
     """Parse log command options into walkopts
 
     The returned walkopts will be passed in to getrevs() or makewalker().
@@ -1080,8 +1083,12 @@ def _initialrevs(repo, wopts):
     return revs
 
 
-def makewalker(repo, wopts):
-    # type: (Any, walkopts) -> Tuple[smartset.abstractsmartset, Optional[Callable[[Any], matchmod.basematcher]]]
+def makewalker(
+    repo: Any,
+    wopts: walkopts,
+) -> Tuple[
+    smartset.abstractsmartset, Optional[Callable[[Any], matchmod.basematcher]]
+]:
     """Build (revs, makefilematcher) to scan revision/file history
 
     - revs is the smartset to be traversed.
@@ -1131,8 +1138,10 @@ def makewalker(repo, wopts):
     return revs, filematcher
 
 
-def getrevs(repo, wopts):
-    # type: (Any, walkopts) -> Tuple[smartset.abstractsmartset, Optional[changesetdiffer]]
+def getrevs(
+    repo: Any,
+    wopts: walkopts,
+) -> Tuple[smartset.abstractsmartset, Optional[changesetdiffer]]:
     """Return (revs, differ) where revs is a smartset
 
     differ is a changesetdiffer with pre-configured file matcher.

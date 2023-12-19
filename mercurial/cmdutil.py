@@ -4118,8 +4118,10 @@ def abortgraft(ui, repo, graftstate):
     return 0
 
 
-def readgraftstate(repo, graftstate):
-    # type: (Any, statemod.cmdstate) -> Dict[bytes, Any]
+def readgraftstate(
+    repo: Any,
+    graftstate: statemod.cmdstate,
+) -> Dict[bytes, Any]:
     """read the graft state file and return a dict of the data stored in it"""
     try:
         return graftstate.read()
