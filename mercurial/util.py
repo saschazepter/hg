@@ -2126,7 +2126,7 @@ timer = getattr(time, "perf_counter", None)
 if pycompat.iswindows:
     checkosfilename = checkwinfilename
     if not timer:
-        timer = time.clock
+        timer = time.clock  # pytype: disable=module-attr
 else:
     # mercurial.windows doesn't have platform.checkosfilename
     checkosfilename = platform.checkosfilename  # pytype: disable=module-attr
