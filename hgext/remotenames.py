@@ -134,7 +134,7 @@ class lazyremotenamedict(collections.abc.MutableMapping):
     def __len__(self):
         return len(self.potentialentries)
 
-    def __setitem__(self):
+    def __setitem__(self, k, v):
         raise NotImplementedError
 
     def __delitem__(self):
