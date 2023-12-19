@@ -147,8 +147,7 @@ unlink = platform.unlink
 username = platform.username
 
 
-def setumask(val):
-    # type: (int) -> None
+def setumask(val: int) -> None:
     '''updates the umask. used by chg server'''
     if pycompat.iswindows:
         return
@@ -1850,8 +1849,7 @@ if pycompat.ispypy:
     nogc = lambda x: x
 
 
-def pathto(root, n1, n2):
-    # type: (bytes, bytes, bytes) -> bytes
+def pathto(root: bytes, n1: bytes, n2: bytes) -> bytes:
     """return the relative path from one place to another.
     root should use os.sep to separate directories
     n1 should use os.sep to separate directories
@@ -2062,8 +2060,7 @@ _winreservednames = {
 _winreservedchars = b':*?"<>|'
 
 
-def checkwinfilename(path):
-    # type: (bytes) -> Optional[bytes]
+def checkwinfilename(path: bytes) -> Optional[bytes]:
     r"""Check that the base-relative path is a valid filename on Windows.
     Returns None if the path is ok, or a UI string describing the problem.
 
@@ -2157,8 +2154,7 @@ def makelock(info, pathname):
     os.close(ld)
 
 
-def readlock(pathname):
-    # type: (bytes) -> bytes
+def readlock(pathname: bytes) -> bytes:
     try:
         return readlink(pathname)
     except OSError as why:
@@ -2181,8 +2177,7 @@ def fstat(fp):
 # File system features
 
 
-def fscasesensitive(path):
-    # type: (bytes) -> bool
+def fscasesensitive(path: bytes) -> bool:
     """
     Return true if the given path is on a case-sensitive filesystem
 
@@ -2286,8 +2281,7 @@ re = _re()
 _fspathcache = {}
 
 
-def fspath(name, root):
-    # type: (bytes, bytes) -> bytes
+def fspath(name: bytes, root: bytes) -> bytes:
     """Get name in the case stored in the filesystem
 
     The name should be relative to root, and be normcase-ed for efficiency.
@@ -2331,8 +2325,7 @@ def fspath(name, root):
     return b''.join(result)
 
 
-def checknlink(testfile):
-    # type: (bytes) -> bool
+def checknlink(testfile: bytes) -> bool:
     '''check whether hardlink count reporting works properly'''
 
     # testfile may be open, so we need a separate file for checking to
@@ -2365,8 +2358,7 @@ def checknlink(testfile):
                 pass
 
 
-def endswithsep(path):
-    # type: (bytes) -> bool
+def endswithsep(path: bytes) -> bool:
     '''Check path ends with os.sep or os.altsep.'''
     return bool(  # help pytype
         path.endswith(pycompat.ossep)
@@ -2375,8 +2367,7 @@ def endswithsep(path):
     )
 
 
-def splitpath(path):
-    # type: (bytes) -> List[bytes]
+def splitpath(path: bytes) -> List[bytes]:
     """Split path by os.sep.
     Note that this function does not use os.altsep because this is
     an alternative of simple "xxx.split(os.sep)".
@@ -2609,8 +2600,9 @@ def tryrmdir(f):
             raise
 
 
-def unlinkpath(f, ignoremissing=False, rmdir=True):
-    # type: (bytes, bool, bool) -> None
+def unlinkpath(
+    f: bytes, ignoremissing: bool = False, rmdir: bool = True
+) -> None:
     """unlink and remove the directory if it is empty"""
     if ignoremissing:
         tryunlink(f)
@@ -2624,8 +2616,7 @@ def unlinkpath(f, ignoremissing=False, rmdir=True):
             pass
 
 
-def tryunlink(f):
-    # type: (bytes) -> None
+def tryunlink(f: bytes) -> None:
     """Attempt to remove a file, ignoring FileNotFoundError."""
     try:
         unlink(f)
@@ -2633,8 +2624,9 @@ def tryunlink(f):
         pass
 
 
-def makedirs(name, mode=None, notindexed=False):
-    # type: (bytes, Optional[int], bool) -> None
+def makedirs(
+    name: bytes, mode: Optional[int] = None, notindexed: bool = False
+) -> None:
     """recursive directory creation with parent mode inheritance
 
     Newly created directories are marked as "not to be indexed by
@@ -2663,20 +2655,17 @@ def makedirs(name, mode=None, notindexed=False):
         os.chmod(name, mode)
 
 
-def readfile(path):
-    # type: (bytes) -> bytes
+def readfile(path: bytes) -> bytes:
     with open(path, b'rb') as fp:
         return fp.read()
 
 
-def writefile(path, text):
-    # type: (bytes, bytes) -> None
+def writefile(path: bytes, text: bytes) -> None:
     with open(path, b'wb') as fp:
         fp.write(text)
 
 
-def appendfile(path, text):
-    # type: (bytes, bytes) -> None
+def appendfile(path: bytes, text: bytes) -> None:
     with open(path, b'ab') as fp:
         fp.write(text)
 
@@ -2837,8 +2826,7 @@ def unitcountfn(*unittable):
     return go
 
 
-def processlinerange(fromline, toline):
-    # type: (int, int) -> Tuple[int, int]
+def processlinerange(fromline: int, toline: int) -> Tuple[int, int]:
     """Check that linerange <fromline>:<toline> makes sense and return a
     0-based range.
 
@@ -2897,13 +2885,11 @@ class transformingwriter:
 _eolre = remod.compile(br'\r*\n')
 
 
-def tolf(s):
-    # type: (bytes) -> bytes
+def tolf(s: bytes) -> bytes:
     return _eolre.sub(b'\n', s)
 
 
-def tocrlf(s):
-    # type: (bytes) -> bytes
+def tocrlf(s: bytes) -> bytes:
     return _eolre.sub(b'\r\n', s)
 
 
@@ -2926,15 +2912,13 @@ def iterfile(fp):
     return fp
 
 
-def iterlines(iterator):
-    # type: (Iterable[bytes]) -> Iterator[bytes]
+def iterlines(iterator: Iterable[bytes]) -> Iterator[bytes]:
     for chunk in iterator:
         for line in chunk.splitlines():
             yield line
 
 
-def expandpath(path):
-    # type: (bytes) -> bytes
+def expandpath(path: bytes) -> bytes:
     return os.path.expanduser(os.path.expandvars(path))
 
 
@@ -3062,8 +3046,7 @@ _sizeunits = (
 )
 
 
-def sizetoint(s):
-    # type: (bytes) -> int
+def sizetoint(s: bytes) -> int:
     """Convert a space specifier to a byte count.
 
     >>> sizetoint(b'30')
@@ -3285,8 +3268,7 @@ def with_lc_ctype():
         yield
 
 
-def _estimatememory():
-    # type: () -> Optional[int]
+def _estimatememory() -> Optional[int]:
     """Provide an estimate for the available system memory in Bytes.
 
     If no estimate can be provided on the platform, returns None.

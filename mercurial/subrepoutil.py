@@ -69,8 +69,7 @@ if typing.TYPE_CHECKING:
 Substate = Dict[bytes, Tuple[bytes, bytes, bytes]]
 
 
-def state(ctx, ui):
-    # type: (context.changectx, uimod.ui) -> Substate
+def state(ctx: "context.changectx", ui: "uimod.ui") -> Substate:
     """return a state dict, mapping subrepo paths configured in .hgsub
     to tuple: (source from .hgsub, revision from .hgsubstate, kind
     (key in types dict))
@@ -122,8 +121,7 @@ def state(ctx, ui):
         except FileNotFoundError:
             pass
 
-    def remap(src):
-        # type: (bytes) -> bytes
+    def remap(src: bytes) -> bytes:
         for pattern, repl in p.items(b'subpaths'):
             # Turn r'C:\foo\bar' into r'C:\\foo\\bar' since re.sub
             # does a string decode.
@@ -175,8 +173,7 @@ def state(ctx, ui):
     return state
 
 
-def writestate(repo, state):
-    # type: (localrepo.localrepository, Substate) -> None
+def writestate(repo: "localrepo.localrepository", state: Substate) -> None:
     """rewrite .hgsubstate in (outer) repo with these subrepo states"""
     lines = [
         b'%s %s\n' % (state[s][1], s)
@@ -186,8 +183,14 @@ def writestate(repo, state):
     repo.wwrite(b'.hgsubstate', b''.join(lines), b'')
 
 
-def submerge(repo, wctx, mctx, actx, overwrite, labels=None):
-    # type: (localrepo.localrepository, context.workingctx, context.changectx, context.changectx, bool, Optional[Any]) -> Substate
+def submerge(
+    repo: "localrepo.localrepository",
+    wctx: "context.workingctx",
+    mctx: "context.changectx",
+    actx: "context.changectx",
+    overwrite: bool,
+    labels: Optional[Any] = None,
+) -> Substate:
     # TODO: type the `labels` arg
     """delegated from merge.applyupdates: merging of .hgsubstate file
     in working context, merging context and ancestor context"""
@@ -327,8 +330,13 @@ def submerge(repo, wctx, mctx, actx, overwrite, labels=None):
     return sm
 
 
-def precommit(ui, wctx, status, match, force=False):
-    # type: (uimod.ui, context.workingcommitctx, scmutil.status, matchmod.basematcher, bool) -> Tuple[List[bytes], Set[bytes], Substate]
+def precommit(
+    ui: "uimod.ui",
+    wctx: "context.workingcommitctx",
+    status: "scmutil.status",
+    match: "matchmod.basematcher",
+    force: bool = False,
+) -> Tuple[List[bytes], Set[bytes], Substate]:
     """Calculate .hgsubstate changes that should be applied before committing
 
     Returns (subs, commitsubs, newstate) where
@@ -416,8 +424,7 @@ def repo_rel_or_abs_source(repo):
     return posixpath.normpath(path)
 
 
-def reporelpath(repo):
-    # type: (localrepo.localrepository) -> bytes
+def reporelpath(repo: "localrepo.localrepository") -> bytes:
     """return path to this (sub)repo as seen from outermost repo"""
     parent = repo
     while hasattr(parent, '_subparent'):
@@ -425,14 +432,16 @@ def reporelpath(repo):
     return repo.root[len(pathutil.normasprefix(parent.root)) :]
 
 
-def subrelpath(sub):
-    # type: (subrepo.abstractsubrepo) -> bytes
+def subrelpath(sub: "subrepo.abstractsubrepo") -> bytes:
     """return path to this subrepo as seen from outermost repo"""
     return sub._relpath
 
 
-def _abssource(repo, push=False, abort=True):
-    # type: (localrepo.localrepository, bool, bool) -> Optional[bytes]
+def _abssource(
+    repo: "localrepo.localrepository",
+    push: bool = False,
+    abort: bool = True,
+) -> Optional[bytes]:
     """return pull/push path of repo - either based on parent repo .hgsub info
     or on the top repo config. Abort or return None if no source found."""
     if hasattr(repo, '_subparent'):
@@ -480,8 +489,7 @@ def _abssource(repo, push=False, abort=True):
         raise error.Abort(_(b"default path for subrepository not found"))
 
 
-def newcommitphase(ui, ctx):
-    # type: (uimod.ui, context.changectx) -> int
+def newcommitphase(ui: "uimod.ui", ctx: "context.changectx") -> int:
     commitphase = phases.newcommitphase(ui)
     substate = getattr(ctx, "substate", None)
     if not substate:
