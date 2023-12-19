@@ -410,15 +410,15 @@ class hgwebdir:
                     gc.collect(generation=1)
 
     def _runwsgi(self, req, res):
+        self.refresh()
+
+        csp, nonce = cspvalues(self.ui)
+        if csp:
+            res.headers[b'Content-Security-Policy'] = csp
+
+        virtual = req.dispatchpath.strip(b'/')
+        tmpl = self.templater(req, nonce)
         try:
-            self.refresh()
-
-            csp, nonce = cspvalues(self.ui)
-            if csp:
-                res.headers[b'Content-Security-Policy'] = csp
-
-            virtual = req.dispatchpath.strip(b'/')
-            tmpl = self.templater(req, nonce)
             ctype = tmpl.render(b'mimetype', {b'encoding': encoding.encoding})
 
             # Global defaults. These can be overridden by any handler.
