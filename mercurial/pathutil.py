@@ -23,14 +23,6 @@ from . import (
 rustdirs = policy.importrust('dirstate', 'Dirs')
 parsers = policy.importmod('parsers')
 
-# keeps pyflakes happy
-assert [
-    Any,
-    Callable,
-    Iterator,
-    Optional,
-]
-
 
 def _lowerclean(s: bytes) -> bytes:
     return encoding.hfsignoreclean(s.lower())

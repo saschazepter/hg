@@ -44,15 +44,6 @@ from .utils import (
 )
 
 
-# keep pyflakes happy
-assert [
-    Any,
-    List,
-    Tuple,
-    Union,
-]
-
-
 class STARTTLS(smtplib.SMTP):
     """Derived class to verify the peer certificate for STARTTLS.
 
