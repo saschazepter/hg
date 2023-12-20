@@ -3,6 +3,7 @@ import winreg  # pytype: disable=import-error
 
 from typing import (
     List,
+    TYPE_CHECKING,
     Tuple,
 )
 
@@ -13,7 +14,7 @@ from . import (
     win32,
 )
 
-if pycompat.TYPE_CHECKING:
+if TYPE_CHECKING:
     from . import ui as uimod
 
 # MS-DOS 'more' is the only pager available by default on Windows.

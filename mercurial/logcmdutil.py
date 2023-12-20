@@ -10,6 +10,15 @@ import itertools
 import os
 import posixpath
 
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Optional,
+    Sequence,
+    Tuple,
+)
+
 from .i18n import _
 from .node import wdirrev
 
@@ -39,19 +48,19 @@ from .utils import (
     stringutil,
 )
 
+# keeps pyflakes happy
+assert [
+    Any,
+    Callable,
+    Dict,
+    Optional,
+    Sequence,
+    Tuple,
+]
 
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        Any,
-        Callable,
-        Dict,
-        Optional,
-        Sequence,
-        Tuple,
-    )
-
-    for t in (Any, Callable, Dict, Optional, Tuple):
-        assert t
+# keep pyflakes happy
+for t in (Any, Callable, Dict, Optional, Tuple):
+    assert t
 
 
 def getlimit(opts):

@@ -34,6 +34,14 @@ import time
 import traceback
 import warnings
 
+from typing import (
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+)
+
 from .node import hex
 from .thirdparty import attr
 from .pycompat import (
@@ -55,14 +63,14 @@ from .utils import (
     stringutil,
 )
 
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        Iterable,
-        Iterator,
-        List,
-        Optional,
-        Tuple,
-    )
+# keeps pyflakes happy
+assert [
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+]
 
 
 base85 = policy.importmod('base85')

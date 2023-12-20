@@ -8,6 +8,10 @@ import os
 import re as remod
 import socket
 
+from typing import (
+    Union,
+)
+
 from ..i18n import _
 from .. import (
     encoding,
@@ -24,11 +28,8 @@ from ..revlogutils import (
     constants as revlog_constants,
 )
 
-
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        Union,
-    )
+# keeps pyflakes happy
+assert [Union]
 
 urlreq = urllibcompat.urlreq
 

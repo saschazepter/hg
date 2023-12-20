@@ -9,6 +9,16 @@
 import os
 import posixpath
 import re
+import typing
+
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Set,
+    Tuple,
+)
 
 from .i18n import _
 from . import (
@@ -17,7 +27,6 @@ from . import (
     filemerge,
     pathutil,
     phases,
-    pycompat,
     util,
 )
 from .utils import (
@@ -25,17 +34,19 @@ from .utils import (
     urlutil,
 )
 
+# keeps pyflakes happy
+assert [
+    Any,
+    Dict,
+    List,
+    Optional,
+    Set,
+    Tuple,
+]
+
 nullstate = (b'', b'', b'empty')
 
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        Any,
-        Dict,
-        List,
-        Optional,
-        Set,
-        Tuple,
-    )
+if typing.TYPE_CHECKING:
     from . import (
         context,
         localrepo,
@@ -45,7 +56,17 @@ if pycompat.TYPE_CHECKING:
         ui as uimod,
     )
 
-    Substate = Dict[bytes, Tuple[bytes, bytes, bytes]]
+    # keeps pyflakes happy
+    assert [
+        context,
+        localrepo,
+        matchmod,
+        scmutil,
+        subrepo,
+        uimod,
+    ]
+
+Substate = Dict[bytes, Tuple[bytes, bytes, bytes]]
 
 
 def state(ctx, ui):
