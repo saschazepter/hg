@@ -163,7 +163,9 @@ if typing.TYPE_CHECKING:
 _fphasesentry = struct.Struct(b'>i20s')
 
 # record phase index
-public, draft, secret = range(3)  # type: int
+public: int = 0
+draft: int = 1
+secret: int = 2
 archived = 32  # non-continuous for compatibility
 internal = 96  # non-continuous for compatibility
 allphases = (public, draft, secret, archived, internal)

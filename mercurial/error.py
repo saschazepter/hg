@@ -57,7 +57,7 @@ class Hint:
     """
 
     def __init__(self, *args, **kw):
-        self.hint = kw.pop('hint', None)  # type: Optional[bytes]
+        self.hint: Optional[bytes] = kw.pop('hint', None)
         super(Hint, self).__init__(*args, **kw)
 
 
