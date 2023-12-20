@@ -10,6 +10,15 @@ import calendar
 import datetime
 import time
 
+from typing import (
+    Callable,
+    Dict,
+    Iterable,
+    Optional,
+    Tuple,
+    Union,
+)
+
 from ..i18n import _
 from .. import (
     encoding,
@@ -17,17 +26,17 @@ from .. import (
     pycompat,
 )
 
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        Callable,
-        Dict,
-        Iterable,
-        Optional,
-        Tuple,
-        Union,
-    )
+# keeps pyflakes happy
+assert [
+    Callable,
+    Dict,
+    Iterable,
+    Optional,
+    Tuple,
+    Union,
+]
 
-    hgdate = Tuple[float, int]  # (unixtime, offset)
+hgdate = Tuple[float, int]  # (unixtime, offset)
 
 # used by parsedate
 defaultdateformats = (

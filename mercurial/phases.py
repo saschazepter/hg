@@ -102,6 +102,18 @@ Note: old client behave as a publishing server with draft only content
 
 
 import struct
+import typing
+
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+)
 
 from .i18n import _
 from .node import (
@@ -120,23 +132,29 @@ from . import (
     util,
 )
 
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        Any,
-        Callable,
-        Dict,
-        Iterable,
-        List,
-        Optional,
-        Set,
-        Tuple,
-    )
+# keeps pyflakes happy
+assert [
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+]
+
+Phaseroots = Dict[int, Set[bytes]]
+
+if typing.TYPE_CHECKING:
     from . import (
         localrepo,
         ui as uimod,
     )
 
-    Phaseroots = Dict[int, Set[bytes]]
+    # keeps pyflakes happy
+    assert [uimod]
+
     Phasedefaults = List[
         Callable[[localrepo.localrepository, Phaseroots], Phaseroots]
     ]
