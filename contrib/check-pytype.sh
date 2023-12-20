@@ -127,5 +127,7 @@ pytype -V 3.7 --keep-going --jobs auto \
     -x mercurial/wireprotov1peer.py \
     -x mercurial/wireprotov1server.py
 
-echo 'pytype crashed while generating the following type stubs:'
-find .pytype/pyi -name '*.pyi' | xargs grep -l '# Caught error' | sort
+if find .pytype/pyi -name '*.pyi' | xargs grep -ql '# Caught error'; then
+    echo 'pytype crashed while generating the following type stubs:'
+    find .pytype/pyi -name '*.pyi' | xargs grep -l '# Caught error' | sort
+fi
