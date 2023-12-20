@@ -177,7 +177,7 @@ py_class!(pub class LazyAncestors |py| {
         let inner: &RefCell<VCGLazyAncestors<PySharedIndex>> =
             &*unsafe { leaked.try_borrow(py)? };
         let inner_mut: &mut VCGLazyAncestors<PySharedIndex> =
-            &mut *inner.borrow_mut();
+            &mut inner.borrow_mut();
         inner_mut.contains(rev.0)
             .map_err(|e| GraphError::pynew_from_vcsgraph(py, e))
     }
@@ -335,7 +335,7 @@ py_class!(pub class MissingAncestors |py| {
                                                self.index(py).clone_ref(py))?;
             // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
             let index = &*unsafe { leaked.try_borrow(py)? };
-            rev_pyiter_collect(py, &revs, &*index)?
+            rev_pyiter_collect(py, &revs, index)?
         };
 
         let mut leaked = self.inner(py).borrow_mut();

@@ -320,7 +320,7 @@ impl SnapshotsCache for FastHashMap<BaseRevision, HashSet<BaseRevision>> {
         rev: BaseRevision,
         value: BaseRevision,
     ) -> Result<(), RevlogError> {
-        let all_values = self.entry(rev).or_insert_with(HashSet::new);
+        let all_values = self.entry(rev).or_default();
         all_values.insert(value);
         Ok(())
     }
@@ -941,7 +941,7 @@ impl Index {
         let last_entry = &self.get_entry(revs[revs.len() - 1]).unwrap();
         let end = last_entry.c_start() + last_entry.compressed_len() as u64;
         let first_rev = revs.iter().find(|r| r.0 != NULL_REVISION.0).unwrap();
-        let start = if (*first_rev).0 == 0 {
+        let start = if first_rev.0 == 0 {
             0
         } else {
             self.get_entry(*first_rev).unwrap().c_start()
@@ -1822,28 +1822,28 @@ mod tests {
         pub fn build(&self) -> Vec<u8> {
             let mut bytes = Vec::with_capacity(INDEX_ENTRY_SIZE);
             if self.is_first {
-                bytes.extend(&match (self.is_general_delta, self.is_inline) {
+                bytes.extend(match (self.is_general_delta, self.is_inline) {
                     (false, false) => [0u8, 0],
                     (false, true) => [0u8, 1],
                     (true, false) => [0u8, 2],
                     (true, true) => [0u8, 3],
                 });
-                bytes.extend(&self.version.to_be_bytes());
+                bytes.extend(self.version.to_be_bytes());
                 // Remaining offset bytes.
-                bytes.extend(&[0u8; 2]);
+                bytes.extend([0u8; 2]);
             } else {
                 // Offset stored on 48 bits (6 bytes)
                 bytes.extend(&(self.offset as u64).to_be_bytes()[2..]);
             }
-            bytes.extend(&[0u8; 2]); // Revision flags.
-            bytes.extend(&(self.compressed_len as u32).to_be_bytes());
-            bytes.extend(&(self.uncompressed_len as u32).to_be_bytes());
+            bytes.extend([0u8; 2]); // Revision flags.
+            bytes.extend((self.compressed_len as u32).to_be_bytes());
+            bytes.extend((self.uncompressed_len as u32).to_be_bytes());
             bytes.extend(
-                &self.base_revision_or_base_of_delta_chain.0.to_be_bytes(),
+                self.base_revision_or_base_of_delta_chain.0.to_be_bytes(),
             );
-            bytes.extend(&self.link_revision.0.to_be_bytes());
-            bytes.extend(&self.p1.0.to_be_bytes());
-            bytes.extend(&self.p2.0.to_be_bytes());
+            bytes.extend(self.link_revision.0.to_be_bytes());
+            bytes.extend(self.p1.0.to_be_bytes());
+            bytes.extend(self.p2.0.to_be_bytes());
             bytes.extend(self.node.as_bytes());
             bytes.extend(vec![0u8; 12]);
             bytes
