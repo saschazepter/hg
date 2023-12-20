@@ -392,4 +392,4 @@ if rustdirs is not None:
 # rather not let our internals know that we're thinking in posix terms
 # - instead we'll let them be oblivious.
 join = posixpath.join
-dirname = posixpath.dirname  # type: Callable[[bytes], bytes]
+dirname: Callable[[bytes], bytes] = posixpath.dirname
