@@ -108,7 +108,7 @@ class improvement:
     compatible_with_share = False
 
 
-allformatvariant = []  # type: List[Type['formatvariant']]
+allformatvariant: List[Type['formatvariant']] = []
 
 
 def registerformatvariant(cls):

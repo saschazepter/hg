@@ -89,7 +89,7 @@ def gettext(message: bytes) -> bytes:
     if message not in cache:
         if type(message) is str:
             # goofy unicode docstrings in test
-            paragraphs = message.split(u'\n\n')  # type: List[str]
+            paragraphs: List[str] = message.split(u'\n\n')
         else:
             # should be ascii, but we have unicode docstrings in test, which
             # are converted to utf-8 bytes on Python 3.
