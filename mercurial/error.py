@@ -498,8 +498,7 @@ class UnknownVersion(Abort):
 
 class LockError(IOError):
     def __init__(self, errno, strerror, filename, desc):
-        # TODO: figure out if this should be bytes or str
-        # _type: (int, str, str, bytes) -> None
+        # _type: (int, str, bytes, bytes) -> None
         IOError.__init__(self, errno, strerror, filename)
         self.desc = desc
 
@@ -508,7 +507,7 @@ class LockError(IOError):
 
 class LockHeld(LockError):
     def __init__(self, errno, filename, desc, locker):
-        LockError.__init__(self, errno, b'Lock held', filename, desc)
+        LockError.__init__(self, errno, 'Lock held', filename, desc)
         self.locker = locker
 
 
