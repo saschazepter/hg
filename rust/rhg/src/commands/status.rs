@@ -446,54 +446,51 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     };
     let (narrow_matcher, narrow_warnings) = narrow::matcher(repo)?;
 
-    match revpair {
-        Some((rev1, rev2)) => {
-            let mut ds_status = DirstateStatus::default();
-            if list_copies {
-                return Err(CommandError::unsupported(
-                    "status --rev --rev with copy information is not implemented yet",
-                ));
-            }
+    if let Some((rev1, rev2)) = revpair {
+        let mut ds_status = DirstateStatus::default();
+        if list_copies {
+            return Err(CommandError::unsupported(
+                "status --rev --rev with copy information is not implemented yet",
+            ));
+        }
 
-            let stat = hg::operations::status_rev_rev_no_copies(
-                repo,
-                rev1,
-                rev2,
-                narrow_matcher,
-            )?;
-            for entry in stat.iter() {
-                let (path, status) = entry?;
-                let path = StatusPath {
-                    path: Cow::Borrowed(path),
-                    copy_source: None,
-                };
-                match status {
-                    hg::operations::DiffStatus::Removed => {
-                        if display_states.removed {
-                            ds_status.removed.push(path)
-                        }
+        let stat = hg::operations::status_rev_rev_no_copies(
+            repo,
+            rev1,
+            rev2,
+            narrow_matcher,
+        )?;
+        for entry in stat.iter() {
+            let (path, status) = entry?;
+            let path = StatusPath {
+                path: Cow::Borrowed(path),
+                copy_source: None,
+            };
+            match status {
+                hg::operations::DiffStatus::Removed => {
+                    if display_states.removed {
+                        ds_status.removed.push(path)
                     }
-                    hg::operations::DiffStatus::Added => {
-                        if display_states.added {
-                            ds_status.added.push(path)
-                        }
+                }
+                hg::operations::DiffStatus::Added => {
+                    if display_states.added {
+                        ds_status.added.push(path)
                     }
-                    hg::operations::DiffStatus::Modified => {
-                        if display_states.modified {
-                            ds_status.modified.push(path)
-                        }
+                }
+                hg::operations::DiffStatus::Modified => {
+                    if display_states.modified {
+                        ds_status.modified.push(path)
                     }
-                    hg::operations::DiffStatus::Matching => {
-                        if display_states.clean {
-                            ds_status.clean.push(path)
-                        }
+                }
+                hg::operations::DiffStatus::Matching => {
+                    if display_states.clean {
+                        ds_status.clean.push(path)
                     }
                 }
             }
-            output.output(display_states, ds_status)?;
-            return Ok(());
         }
-        None => (),
+        output.output(display_states, ds_status)?;
+        return Ok(());
     }
 
     let (sparse_matcher, sparse_warnings) = sparse::matcher(repo)?;
