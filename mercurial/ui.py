@@ -18,6 +18,7 @@ import socket
 import subprocess
 import sys
 import traceback
+import typing
 
 from typing import (
     Any,
@@ -1766,7 +1767,7 @@ class ui:
 
         return line
 
-    if pycompat.TYPE_CHECKING:
+    if typing.TYPE_CHECKING:
 
         @overload
         def prompt(self, msg: bytes, default: bytes) -> bytes:
@@ -1782,7 +1783,7 @@ class ui:
         """
         return self._prompt(msg, default=default)
 
-    if pycompat.TYPE_CHECKING:
+    if typing.TYPE_CHECKING:
 
         @overload
         def _prompt(

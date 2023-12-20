@@ -11,18 +11,22 @@ import locale
 import os
 import sys
 
+from typing import (
+    Callable,
+    List,
+)
+
 from .utils import resourceutil
 from . import (
     encoding,
     pycompat,
 )
 
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        Callable,
-        List,
-    )
-
+# keeps pyflakes happy
+assert [
+    Callable,
+    List,
+]
 
 # modelled after templater.templatepath:
 if getattr(sys, 'frozen', None) is not None:

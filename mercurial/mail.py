@@ -18,6 +18,13 @@ import smtplib
 import socket
 import time
 
+from typing import (
+    Any,
+    List,
+    Tuple,
+    Union,
+)
+
 from .i18n import _
 from .pycompat import (
     open,
@@ -35,11 +42,14 @@ from .utils import (
     urlutil,
 )
 
-if pycompat.TYPE_CHECKING:
-    from typing import Any, List, Tuple, Union
 
-    # keep pyflakes happy
-    assert all((Any, List, Tuple, Union))
+# keep pyflakes happy
+assert [
+    Any,
+    List,
+    Tuple,
+    Union,
+]
 
 
 class STARTTLS(smtplib.SMTP):

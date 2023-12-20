@@ -20,23 +20,22 @@ the data.
 
 import contextlib
 
+from typing import (
+    Any,
+    Dict,
+)
+
 from .i18n import _
 
 from . import (
     error,
-    pycompat,
     util,
 )
 from .utils import cborutil
 
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        Any,
-        Dict,
-    )
-
-    for t in (Any, Dict):
-        assert t
+# keeps pyflakes happy
+for t in (Any, Dict):
+    assert t
 
 
 class cmdstate:
