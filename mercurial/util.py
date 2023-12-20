@@ -1527,7 +1527,6 @@ class lrucachedict:
                 raise
             return default
 
-        assert node is not None  # help pytype
         value = node.value
         self.totalcost -= node.cost
         node.markempty()
@@ -1555,7 +1554,6 @@ class lrucachedict:
         """
         try:
             node = self._cache[k]
-            assert node is not None  # help pytype
             return node.value
         except KeyError:
             if default is _notset:
@@ -1614,12 +1612,8 @@ class lrucachedict:
         # a non-empty node.
         n = self._head.prev
 
-        assert n is not None  # help pytype
-
         while n.key is _notset:
             n = n.prev
-
-        assert n is not None  # help pytype
 
         key, value = n.key, n.value
 
@@ -1630,7 +1624,7 @@ class lrucachedict:
 
         return key, value
 
-    def _movetohead(self, node):
+    def _movetohead(self, node: _lrucachenode):
         """Mark a node as the newest, making it the new head.
 
         When a node is accessed, it becomes the freshest entry in the LRU
@@ -1677,7 +1671,7 @@ class lrucachedict:
 
         self._head = node
 
-    def _addcapacity(self):
+    def _addcapacity(self) -> _lrucachenode:
         """Add a node to the circular linked list.
 
         The new node is inserted before the head node.
