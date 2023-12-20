@@ -7,11 +7,15 @@
 
 import random
 
+from typing import (
+    List,
+    Type,
+)
+
 from ..i18n import _
 from .. import (
     error,
     localrepo,
-    pycompat,
     requirements,
     revlog,
     util,
@@ -19,12 +23,11 @@ from .. import (
 
 from ..utils import compression
 
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        List,
-        Type,
-    )
-
+# keeps pyflakes happy
+assert [
+    List,
+    Type,
+]
 
 # list of requirements that request a clone of all revlog if added/removed
 RECLONES_REQUIREMENTS = {

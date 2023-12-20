@@ -18,6 +18,7 @@ from typing import (
     Dict,
     Iterable,
     Optional,
+    TYPE_CHECKING,
     cast,
 )
 
@@ -71,7 +72,7 @@ from .revlogutils import (
     constants as revlog_constants,
 )
 
-if pycompat.TYPE_CHECKING:
+if TYPE_CHECKING:
     from . import (
         ui as uimod,
     )

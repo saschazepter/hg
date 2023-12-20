@@ -14,19 +14,30 @@ imports.
 
 import difflib
 
+from typing import (
+    Any,
+    AnyStr,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Union,
+)
+
 # Do not import anything but pycompat here, please
 from . import pycompat
 
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        Any,
-        AnyStr,
-        Iterable,
-        List,
-        Optional,
-        Sequence,
-        Union,
-    )
+
+# keeps pyflakes happy
+assert [
+    Any,
+    AnyStr,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Union,
+]
 
 
 def _tobytes(exc):

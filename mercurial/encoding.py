@@ -9,7 +9,18 @@
 import locale
 import os
 import re
+import typing
 import unicodedata
+
+from typing import (
+    Any,
+    Callable,
+    List,
+    Text,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from . import (
     error,
@@ -19,22 +30,11 @@ from . import (
 
 from .pure import charencode as charencodepure
 
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        Any,
-        Callable,
-        List,
-        Text,
-        Type,
-        TypeVar,
-        Union,
-    )
+# keep pyflakes happy
+for t in (Any, Callable, List, Text, Type, Union):
+    assert t
 
-    # keep pyflakes happy
-    for t in (Any, Callable, List, Text, Type, Union):
-        assert t
-
-    _Tlocalstr = TypeVar('_Tlocalstr', bound='localstr')
+_Tlocalstr = TypeVar('_Tlocalstr', bound='localstr')
 
 charencode = policy.importmod('charencode')
 
@@ -131,7 +131,7 @@ class localstr(bytes):
         s._utf8 = u
         return s
 
-    if pycompat.TYPE_CHECKING:
+    if typing.TYPE_CHECKING:
         # pseudo implementation to help pytype see localstr() constructor
         def __init__(self, u, l):
             # type: (bytes, bytes) -> None

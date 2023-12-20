@@ -13,47 +13,50 @@ from .node import (
     hex,
     nullrev,
 )
+
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    TYPE_CHECKING,
+    Tuple,
+    Union,
+)
+
 from . import (
     encoding,
     error,
     obsolete,
-    pycompat,
     scmutil,
     util,
 )
+
 from .utils import (
     repoviewutil,
     stringutil,
 )
 
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        Any,
-        Callable,
-        Dict,
-        Iterable,
-        List,
-        Optional,
-        Set,
-        Tuple,
-        Union,
-    )
+# keeps pyflakes happy
+assert [
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+]
+
+if TYPE_CHECKING:
     from . import localrepo
 
-    assert any(
-        (
-            Any,
-            Callable,
-            Dict,
-            Iterable,
-            List,
-            Optional,
-            Set,
-            Tuple,
-            Union,
-            localrepo,
-        )
-    )
+    assert [localrepo]
 
 subsettable = repoviewutil.subsettable
 

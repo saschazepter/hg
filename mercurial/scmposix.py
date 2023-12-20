@@ -3,6 +3,7 @@ import errno
 import fcntl
 import os
 import sys
+import typing
 
 from typing import (
     List,
@@ -15,7 +16,7 @@ from . import (
     util,
 )
 
-if pycompat.TYPE_CHECKING:
+if typing.TYPE_CHECKING:
     from . import ui as uimod
 
 # BSD 'more' escapes ANSI color sequences by default. This can be disabled by
