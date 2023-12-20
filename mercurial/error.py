@@ -15,7 +15,6 @@ imports.
 import difflib
 
 from typing import (
-    Any,
     AnyStr,
     Iterable,
     List,
@@ -26,18 +25,6 @@ from typing import (
 
 # Do not import anything but pycompat here, please
 from . import pycompat
-
-
-# keeps pyflakes happy
-assert [
-    Any,
-    AnyStr,
-    Iterable,
-    List,
-    Optional,
-    Sequence,
-    Union,
-]
 
 
 def _tobytes(exc) -> bytes:

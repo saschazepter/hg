@@ -12,7 +12,6 @@ import os
 import sys
 
 from typing import (
-    Callable,
     List,
 )
 
@@ -21,12 +20,6 @@ from . import (
     encoding,
     pycompat,
 )
-
-# keeps pyflakes happy
-assert [
-    Callable,
-    List,
-]
 
 # modelled after templater.templatepath:
 if getattr(sys, 'frozen', None) is not None:
