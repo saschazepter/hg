@@ -15,11 +15,8 @@ import unicodedata
 from typing import (
     Any,
     Callable,
-    List,
     Text,
-    Type,
     TypeVar,
-    Union,
 )
 
 from . import (
@@ -29,10 +26,6 @@ from . import (
 )
 
 from .pure import charencode as charencodepure
-
-# keep pyflakes happy
-for t in (Any, Callable, List, Text, Type, Union):
-    assert t
 
 _Tlocalstr = TypeVar('_Tlocalstr', bound='localstr')
 
