@@ -74,7 +74,7 @@ def state(ctx: "context.changectx", ui: "uimod.ui") -> Substate:
     to tuple: (source from .hgsub, revision from .hgsubstate, kind
     (key in types dict))
     """
-    p = config.config()
+    p: config.config = config.config()
     repo = ctx.repo()
 
     def read(f, sections=None, remap=None):
@@ -143,7 +143,7 @@ def state(ctx: "context.changectx", ui: "uimod.ui") -> Substate:
         return src
 
     state = {}
-    for path, src in p.items(b''):  # type: bytes
+    for path, src in p.items(b''):
         kind = b'hg'
         if src.startswith(b'['):
             if b']' not in src:
