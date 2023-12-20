@@ -15,7 +15,6 @@ from .node import (
 )
 
 from typing import (
-    Any,
     Callable,
     Dict,
     Iterable,
@@ -39,19 +38,6 @@ from .utils import (
     repoviewutil,
     stringutil,
 )
-
-# keeps pyflakes happy
-assert [
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Set,
-    Tuple,
-    Union,
-]
 
 if TYPE_CHECKING:
     from . import localrepo

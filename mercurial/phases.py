@@ -132,18 +132,6 @@ from . import (
     util,
 )
 
-# keeps pyflakes happy
-assert [
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Set,
-    Tuple,
-]
-
 Phaseroots = Dict[int, Set[bytes]]
 
 if typing.TYPE_CHECKING:

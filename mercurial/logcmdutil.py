@@ -48,20 +48,6 @@ from .utils import (
     stringutil,
 )
 
-# keeps pyflakes happy
-assert [
-    Any,
-    Callable,
-    Dict,
-    Optional,
-    Sequence,
-    Tuple,
-]
-
-# keep pyflakes happy
-for t in (Any, Callable, Dict, Optional, Tuple):
-    assert t
-
 
 def getlimit(opts):
     """get the log limit according to option -l/--limit"""
