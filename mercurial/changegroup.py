@@ -518,7 +518,7 @@ class cg1unpacker:
             # will not see an inconsistent view
             cl = repo.changelog
             cl.delayupdate(tr)
-            oldheads = set(cl.heads())
+            oldrevcount = len(cl)
 
             trp = weakref.proxy(tr)
             # pull off the changeset group
@@ -673,12 +673,12 @@ class cg1unpacker:
                 tr.changes[b'changegroup-count-files'] += newfiles
 
             deltaheads = 0
-            if oldheads:
-                heads = cl.heads()
-                deltaheads += len(heads) - len(oldheads)
-                for h in heads:
-                    if h not in oldheads and repo[h].closesbranch():
-                        deltaheads -= 1
+            newrevcount = len(cl)
+            heads_removed, heads_added = cl.diffheads(oldrevcount, newrevcount)
+            deltaheads += len(heads_added) - len(heads_removed)
+            for h in heads_added:
+                if repo[h].closesbranch():
+                    deltaheads -= 1
 
             # see previous comment about checking ui.quiet
             if not repo.ui.quiet:
@@ -746,12 +746,11 @@ class cg1unpacker:
                         del args[b'node_last']
                         repo.hook(b"incoming", **pycompat.strkwargs(args))
 
-                    newheads = [h for h in repo.heads() if h not in oldheads]
                     repo.ui.log(
                         b"incoming",
                         b"%d incoming changes - new heads: %s\n",
                         len(added),
-                        b', '.join([hex(c[:6]) for c in newheads]),
+                        b', '.join([hex(c[:6]) for c in heads_added]),
                     )
 
                 tr.addpostclose(
@@ -1735,7 +1734,6 @@ class cgpacker:
                     x in self._fullclnodes
                     or cl.rev(x) in self._precomputedellipsis
                 ):
-
                     manifestnode = c.manifest
                     # Record the first changeset introducing this manifest
                     # version.
@@ -1994,6 +1992,7 @@ class cgpacker:
             clrevtolocalrev.clear()
 
             linkrevnodes = linknodes(filerevlog, fname)
+
             # Lookup for filenodes, we collected the linkrev nodes above in the
             # fastpath case and with lookupmf in the slowpath case.
             def lookupfilelog(x):
