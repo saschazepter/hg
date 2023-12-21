@@ -132,6 +132,7 @@ _zlibdecompress = zlib.decompress
 # max size of inline data embedded into a revlog
 _maxinline = 131072
 
+
 # Flag processors for REVIDX_ELLIPSIS.
 def ellipsisreadprocessor(rl, text):
     return text, False
@@ -1577,7 +1578,6 @@ class revlog:
             ]
 
     def _loadindex(self, docket=None):
-
         new_header, mmapindexthreshold, force_nodemap = self._init_opts()
 
         if self.postfix is not None:
@@ -2345,6 +2345,12 @@ class revlog:
             return rustdagop.headrevs(self.index, revs)
         return dagop.headrevs(revs, self._uncheckedparentrevs)
 
+    def headrevsdiff(self, start, stop):
+        try:
+            return self.index.headrevsdiff(start, stop)
+        except AttributeError:
+            return dagop.headrevsdiff(self._uncheckedparentrevs, start, stop)
+
     def computephases(self, roots):
         return self.index.computephasesmapsets(roots)
 
@@ -2391,6 +2397,12 @@ class revlog:
         )
 
         return [self.node(rev) for rev in revs]
+
+    def diffheads(self, start, stop):
+        """return the nodes that make up the difference between
+        heads of revs before `start` and heads of revs before `stop`"""
+        removed, added = self.headrevsdiff(start, stop)
+        return [self.node(r) for r in removed], [self.node(r) for r in added]
 
     def children(self, node):
         """find the children of a given node"""

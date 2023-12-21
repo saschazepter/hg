@@ -1035,6 +1035,37 @@ def headrevs(revs, parentsfn):
     return headrevs
 
 
+def headrevsdiff(parentsfn, start, stop):
+    """Compute how the set of heads changed between
+    revisions `start-1` and `stop-1`.
+    """
+    parents = set()
+
+    heads_added = set()
+    heads_removed = set()
+
+    for rev in range(stop - 1, start - 1, -1):
+        if rev in parents:
+            parents.remove(rev)
+        else:
+            heads_added.add(rev)
+        for p in parentsfn(rev):
+            parents.add(p)
+
+    # now `parents` is the collection of candidate removed heads
+    rev = start - 1
+    while parents:
+        if rev in parents:
+            heads_removed.add(rev)
+            parents.remove(rev)
+
+        for p in parentsfn(rev):
+            parents.discard(p)
+        rev = rev - 1
+
+    return (heads_removed, heads_added)
+
+
 def headrevssubset(revsfn, parentrevsfn, startrev=None, stoprevs=None):
     """Returns the set of all revs that have no children with control.
 
