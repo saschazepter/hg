@@ -1332,6 +1332,197 @@ bail:
 	return NULL;
 }
 
+/* "rgs" stands for "reverse growable set".
+   It is a representation of a set of integers that can't exceed, but
+   tend to be close to `max`.
+
+   `body` is a growable bit array covering the range `max-len+1..max`,
+   in reverse order.
+   `sum` keeps track of the cardinality of the set.
+*/
+typedef struct rgs {
+	int max;
+	int len;
+	char *body;
+	int sum;
+} rgs;
+
+static int rgs_offset(rgs *rgs, int i)
+{
+	return rgs->max - i;
+}
+
+/* returns 1 on success, 0 on failure */
+static int rgs_alloc(rgs *rgs, int max)
+{
+	int new_len = 64;
+	char *new_body = calloc(new_len, 1);
+	if (new_body == NULL)
+		return 0;
+	rgs->len = new_len;
+	rgs->body = new_body;
+	rgs->max = max;
+	rgs->sum = 0;
+	return 1;
+}
+
+static bool rgs_get(rgs *rgs, int i)
+{
+	int offset = rgs_offset(rgs, i);
+	if (offset >= rgs->len) {
+		return 0;
+	}
+	if (offset < 0) {
+		abort();
+	}
+	return rgs->body[offset];
+}
+
+/* Realloc `body` to length `new_len`.
+   Returns -1 when out of memory. */
+static int rgs_realloc(rgs *rgs, int new_len)
+{
+	int old_len = rgs->len;
+	char *old_body = rgs->body;
+	char *new_body = calloc(new_len, 1);
+	assert(new_len >= old_len);
+	if (new_body == NULL)
+		return -1;
+	memcpy(new_body, old_body, old_len);
+	free(old_body);
+	rgs->body = new_body;
+	rgs->len = new_len;
+	return 0;
+}
+
+/* Realloc the rgs `body` to include the `offset` */
+static int rgs_realloc_amortized(rgs *rgs, int offset)
+{
+	int old_len = rgs->len;
+	int new_len = old_len * 4;
+	if (offset >= new_len)
+		new_len = offset + 1;
+	return rgs_realloc(rgs, new_len);
+}
+
+/* returns 0 on success, -1 on error */
+static int rgs_set(rgs *rgs, int i, bool v)
+{
+	int offset = rgs_offset(rgs, i);
+	if (offset >= rgs->len) {
+		if (v == 0) {
+			/* no-op change: no need to resize */
+			return 0;
+		}
+		if (rgs_realloc_amortized(rgs, offset) == -1)
+			return -1;
+	}
+	if (offset < 0) {
+		abort();
+	}
+	rgs->sum -= rgs->body[offset];
+	rgs->sum += v;
+	rgs->body[offset] = v;
+	return 0;
+}
+
+/* Add a size_t value to a Python list. Return -1 on failure. */
+static inline int pylist_append_size_t(PyObject *list, size_t v)
+{
+	return pylist_append_owned(list, PyLong_FromSsize_t(v));
+}
+
+static PyObject *index_headrevsdiff(indexObject *self, PyObject *args)
+{
+	int begin, end;
+	Py_ssize_t i, j;
+	PyObject *heads_added = NULL;
+	PyObject *heads_removed = NULL;
+	PyObject *res = NULL;
+	rgs rgs;
+	rgs.body = NULL;
+
+	if (!PyArg_ParseTuple(args, "ii", &begin, &end))
+		goto bail;
+
+	if (!rgs_alloc(&rgs, end))
+		goto bail;
+
+	heads_added = PyList_New(0);
+	if (heads_added == NULL)
+		goto bail;
+	heads_removed = PyList_New(0);
+	if (heads_removed == NULL)
+		goto bail;
+
+	for (i = end - 1; i >= begin; i--) {
+		int parents[2];
+
+		if (rgs_get(&rgs, i)) {
+			if (rgs_set(&rgs, i, false) == -1) {
+				goto bail;
+			};
+		} else {
+			if (pylist_append_size_t(heads_added, i) == -1) {
+				goto bail;
+			}
+		}
+
+		if (index_get_parents(self, i, parents, i) < 0)
+			goto bail;
+		for (j = 0; j < 2; j++) {
+			if (parents[j] >= 0)
+				if (rgs_set(&rgs, parents[j], true) == -1) {
+					goto bail;
+				}
+		}
+	}
+
+	while (rgs.sum) {
+		int parents[2];
+
+		if (rgs_get(&rgs, i)) {
+			if (rgs_set(&rgs, i, false) == -1) {
+				goto bail;
+			}
+			if (pylist_append_size_t(heads_removed, i) == -1) {
+				goto bail;
+			}
+		}
+
+		if (index_get_parents(self, i, parents, i) < 0)
+			goto bail;
+		for (j = 0; j < 2; j++) {
+			if (parents[j] >= 0)
+				if (rgs_set(&rgs, parents[j], false) == -1) {
+					/* can't actually fail */
+					goto bail;
+				}
+		}
+		i--;
+	}
+
+	if (begin == 0 && end > 0) {
+		if (pylist_append_size_t(heads_removed, -1) == -1) {
+			goto bail;
+		}
+	}
+
+	if (!(res = PyTuple_Pack(2, heads_removed, heads_added))) {
+		goto bail;
+	}
+
+	Py_XDECREF(heads_removed);
+	Py_XDECREF(heads_added);
+	free(rgs.body);
+	return res;
+bail:
+	Py_XDECREF(heads_added);
+	Py_XDECREF(heads_removed);
+	free(rgs.body);
+	return NULL;
+}
+
 /**
  * Obtain the base revision index entry.
  *
@@ -3141,6 +3332,8 @@ static PyMappingMethods index_mapping_methods = {
 static PyMethodDef index_methods[] = {
     {"ancestors", (PyCFunction)index_ancestors, METH_VARARGS,
      "return the gca set of the given revs"},
+    {"headrevsdiff", (PyCFunction)index_headrevsdiff, METH_VARARGS,
+     "return the set of heads removed/added by a range of commits"},
     {"commonancestorsheads", (PyCFunction)index_commonancestorsheads,
      METH_VARARGS,
      "return the heads of the common ancestors of the given revs"},
