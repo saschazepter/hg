@@ -1083,6 +1083,12 @@ class SnapshotCache:
 
 
 class deltacomputer:
+    """object capable of computing delta and finding delta for multiple revision
+
+    This object is meant to compute and find multiple delta applied to the same
+    revlog.
+    """
+
     def __init__(
         self,
         revlog,
