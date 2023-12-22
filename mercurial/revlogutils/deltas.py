@@ -685,7 +685,7 @@ class _DeltaSearch:
     def __init__(
         self,
         revlog,
-        textlen,
+        revinfo,
         p1,
         p2,
         cachedelta,
@@ -702,7 +702,8 @@ class _DeltaSearch:
             or not revlog.delta_config.general_delta
         )
         self.revlog = revlog
-        self.textlen = textlen
+        self.revinfo = revinfo
+        self.textlen = revinfo.textlen
         self.p1 = p1
         self.p2 = p2
         self.cachedelta = cachedelta
@@ -1432,7 +1433,7 @@ class deltacomputer:
 
         search = _DeltaSearch(
             self.revlog,
-            revinfo.textlen,
+            revinfo,
             p1r,
             p2r,
             cachedelta,
