@@ -141,14 +141,9 @@ should fail
   ignoring --base because --all was specified
   9 changesets found
   $ hg -R test bundle --base 3-3 -r tip test-base-match-nothing-with-dest.hg --config paths.default=$TESTTMP/test-3
-  searching for changes (known-bad-output !)
-  1 changesets found (known-bad-output !)
-  5 changesets found (missing-correct-output !)
+  5 changesets found
   $ hg -R test bundle --base 3-3 -r tip test-base-match-nothing-no-dest.hg
-  config error: default repository not configured! (known-bad-output !)
-  (see 'hg help config.paths') (known-bad-output !)
-  5 changesets found (missing-correct-output !)
-  [30]
+  5 changesets found
   $ hg -R test bundle --base 3 -r tip test-bundle-should-fail.hg
   1 changesets found
 
