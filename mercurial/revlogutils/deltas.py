@@ -633,7 +633,31 @@ class _DeltaSearch:
 
         self.tested = {nullrev}
 
-    def candidate_groups(self):
+        self._candidates_iterator = self._candidate_groups()
+        self._last_good = None
+        self.current_group = self._candidates_iterator.send(self._last_good)
+
+    @property
+    def done(self):
+        """True when all possible candidate have been tested"""
+        return self.current_group is None
+
+    def next_group(self, good_delta=None):
+        """move to the next group to test
+
+        The group of revision to test will be available in
+        `self.current_group`.  If the previous group had any good delta, the
+        best one can be passed as the `good_delta` parameter to help selecting
+        the next group.
+
+        If not revision remains to be, `self.done` will be True and
+        `self.current_group` will be None.
+        """
+        if good_delta is not None:
+            self._last_good = good_delta.base
+        self.current_group = self._candidates_iterator.send(self._last_good)
+
+    def _candidate_groups(self):
         """Provides group of revision to be tested as delta base
 
         This top level function focus on emitting groups with unique and
@@ -1443,9 +1467,12 @@ class deltacomputer:
             snapshot_cache=self._snapshot_cache,
         )
 
-        groups = search.candidate_groups()
-        candidaterevs = next(groups)
-        while candidaterevs is not None:
+        while not search.done:
+            current_group = search.current_group
+            # current_group can be `None`, but not is search.done is False
+            # We add this assert to help pytype
+            assert current_group is not None
+            candidaterevs = current_group
             dbg_try_rounds += 1
             if self._debug_search:
                 prev = None
@@ -1537,10 +1564,7 @@ class deltacomputer:
                     self._write_debug(msg)
             if nominateddeltas:
                 deltainfo = min(nominateddeltas, key=lambda x: x.deltalen)
-            if deltainfo is not None:
-                candidaterevs = groups.send(deltainfo.base)
-            else:
-                candidaterevs = next(groups)
+            search.next_group(deltainfo)
 
         if deltainfo is None:
             dbg_type = b"full"
