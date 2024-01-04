@@ -767,42 +767,20 @@ class _DeltaSearch:
             return False
         return True
 
-    def _pre_filter_rev(self, rev):
-        """return True if it seems okay to test a rev, False otherwise"""
-        if not self._pre_filter_rev_universal(rev):
-            return False
+    def _pre_filter_rev_sparse(self, rev):
+        """pre filtering that is needed in sparse revlog cases
 
-        deltas_limit = self.revinfo.textlen * LIMIT_DELTA2TEXT
-        # filter out delta base that will never produce good delta
-        #
-        # if the delta of that base is already bigger than the limit
-        # for the delta chain size, doing a delta is hopeless.
-        if deltas_limit < self.revlog.length(rev):
-            return False
+        return True if it seems okay to test a rev, False otherwise.
 
-        sparse = self.revlog.delta_config.sparse_revlog
+        used by _pre_filter_rev.
+        """
+        assert self.revlog.delta_config.sparse_revlog
         # if the revision we test again is too small, the resulting delta
         # will be large anyway as that amount of data to be added is big
-        if sparse and self.revlog.rawsize(rev) < (
-            self.textlen // LIMIT_BASE2TEXT
-        ):
+        if self.revlog.rawsize(rev) < (self.textlen // LIMIT_BASE2TEXT):
             return False
 
-        # If we reach here, we are about to build and test a delta.
-        # The delta building process will compute the chaininfo in all
-        # case, since that computation is cached, it is fine to access
-        # it here too.
-        chainlen, chainsize = self.revlog._chaininfo(rev)
-        # if chain will be too long, skip base
-        if (
-            self.revlog.delta_config.max_chain_len
-            and chainlen >= self.revlog.delta_config.max_chain_len
-        ):
-            return False
-        # if chain already have too much data, skip base
-        if deltas_limit < chainsize:
-            return False
-        if sparse and self.revlog.delta_config.upper_bound_comp is not None:
+        if self.revlog.delta_config.upper_bound_comp is not None:
             maxcomp = self.revlog.delta_config.upper_bound_comp
             basenotsnap = (self.p1, self.p2, nullrev)
             if rev not in basenotsnap and self.revlog.issnapshot(rev):
@@ -828,6 +806,40 @@ class _DeltaSearch:
                     # delta probable lower bound is larger than target
                     # base
                     return False
+        return True
+
+    def _pre_filter_rev(self, rev):
+        """return True if it seems okay to test a rev, False otherwise"""
+        if not self._pre_filter_rev_universal(rev):
+            return False
+
+        deltas_limit = self.revinfo.textlen * LIMIT_DELTA2TEXT
+        # filter out delta base that will never produce good delta
+        #
+        # if the delta of that base is already bigger than the limit
+        # for the delta chain size, doing a delta is hopeless.
+        if deltas_limit < self.revlog.length(rev):
+            return False
+
+        # If we reach here, we are about to build and test a delta.
+        # The delta building process will compute the chaininfo in all
+        # case, since that computation is cached, it is fine to access
+        # it here too.
+        chainlen, chainsize = self.revlog._chaininfo(rev)
+        # if chain will be too long, skip base
+        if (
+            self.revlog.delta_config.max_chain_len
+            and chainlen >= self.revlog.delta_config.max_chain_len
+        ):
+            return False
+        # if chain already have too much data, skip base
+        if deltas_limit < chainsize:
+            return False
+
+        if self.revlog.delta_config.sparse_revlog:
+            if not self._pre_filter_rev_sparse(rev):
+                return False
+
         return True
 
     def _refined_groups(self):
