@@ -64,18 +64,12 @@ Narrow should not be able to remove the exclusion for f3
   $ hg -R narrowclone1 tracked --removeexclude f3
   comparing with http://localhost:$HGPORT1/
   searching for changes
-  adding changesets
-  adding manifests
-  adding file changes
-  added 0 changesets with 1 changes to 1 files
+  abort: The following excludes cannot be removed for test: ['path:f3']
+  [255]
   $ ls -A -1 narrowclone1 | sort
   .hg
   f1
   f2
-  f3
   $ hg -R narrowclone1 tracked
   I path:.
-
-
-XXX: BUG! This test demonstrates that we are presently
-able to gain access to f3 by removing the exclusion.
+  X path:f3
