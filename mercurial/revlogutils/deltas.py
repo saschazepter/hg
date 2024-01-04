@@ -1042,9 +1042,27 @@ class _DeltaSearch:
             yield (prev,)
 
     def is_good_delta_info(self, deltainfo):
-        """Returns True if the given delta is good. Good means that it is
-        within the disk span, disk size, and chain length bounds that we know
-        to be performant."""
+        """Returns True if the given delta is good.
+
+        Good means that it is within the disk span, disk size, and chain length
+        bounds that we know to be performant.
+        """
+        if not self._is_good_delta_info_universal(deltainfo):
+            return False
+        if not self._is_good_delta_info_chain_quality(deltainfo):
+            return False
+        if not self._is_good_delta_info_snapshot_constraints(deltainfo):
+            return False
+        return True
+
+    def _is_good_delta_info_universal(self, deltainfo):
+        """Returns True if the given delta is good.
+
+        This performs generic checks needed by all format variants.
+
+        This is used by is_good_delta_info.
+        """
+
         if deltainfo is None:
             return False
 
@@ -1064,11 +1082,19 @@ class _DeltaSearch:
         if self.revinfo.textlen < deltainfo.deltalen:
             return False
 
+        return True
+
+    def _is_good_delta_info_chain_quality(self, deltainfo):
+        """Returns True if the chain associated with the delta is good.
+
+        This performs checks for format that use delta chains.
+
+        This is used by is_good_delta_info.
+        """
         # - 'deltainfo.distance' is the distance from the base revision --
         #   bounding it limits the amount of I/O we need to do.
 
-        textlen = self.revinfo.textlen
-        defaultmax = textlen * 4
+        defaultmax = self.revinfo.textlen * 4
         maxdist = self.revlog.delta_config.max_deltachain_span
         if not maxdist:
             maxdist = deltainfo.distance  # ensure the conditional pass
@@ -1107,7 +1133,16 @@ class _DeltaSearch:
             and self.revlog.delta_config.max_chain_len < deltainfo.chainlen
         ):
             return False
+        return True
 
+    def _is_good_delta_info_snapshot_constraints(self, deltainfo):
+        """Returns True if the chain associated with snapshots
+
+        This performs checks for format that use sparse-revlog and intermediate
+        snapshots.
+
+        This is used by is_good_delta_info.
+        """
         # bad delta from intermediate snapshot size limit
         #
         #   If an intermediate snapshot size is higher than the limit.  The
@@ -1115,7 +1150,8 @@ class _DeltaSearch:
         #   created.
         if (
             deltainfo.snapshotdepth is not None
-            and (textlen >> deltainfo.snapshotdepth) < deltainfo.deltalen
+            and (self.revinfo.textlen >> deltainfo.snapshotdepth)
+            < deltainfo.deltalen
         ):
             return False
 
