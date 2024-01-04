@@ -1066,9 +1066,6 @@ class _DeltaSearch:
 
         # - 'deltainfo.distance' is the distance from the base revision --
         #   bounding it limits the amount of I/O we need to do.
-        # - 'deltainfo.compresseddeltalen' is the sum of the total size of
-        #   deltas we need to apply -- bounding it limits the amount of CPU
-        #   we consume.
 
         textlen = self.revinfo.textlen
         defaultmax = textlen * 4
@@ -1094,8 +1091,12 @@ class _DeltaSearch:
 
         # Bad delta from cumulated payload size:
         #
+        # - 'deltainfo.compresseddeltalen' is the sum of the total size of
+        #   deltas we need to apply -- bounding it limits the amount of CPU
+        #   we consume.
+        max_chain_data = self.revinfo.textlen * LIMIT_DELTA2TEXT
         #   If the sum of delta get larger than K * target text length.
-        if textlen * LIMIT_DELTA2TEXT < deltainfo.compresseddeltalen:
+        if max_chain_data < deltainfo.compresseddeltalen:
             return False
 
         # Bad delta from chain length:
