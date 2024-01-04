@@ -742,83 +742,82 @@ class _DeltaSearch:
 
     def _pre_filter_rev(self, rev):
         """return True if it seems okay to test a rev, False otherwise"""
-        if True:
-            # no need to try a delta against nullrev, this will be done as
-            # a last resort.
-            if rev == nullrev:
-                return False
-            # filter out revision we tested already
-            if rev in self.tested:
-                return False
+        # no need to try a delta against nullrev, this will be done as
+        # a last resort.
+        if rev == nullrev:
+            return False
+        # filter out revision we tested already
+        if rev in self.tested:
+            return False
 
-            # an higher authority deamed the base unworthy (e.g. censored)
-            if self.excluded_bases is not None and rev in self.excluded_bases:
-                return False
-            # We are in some recomputation cases and that rev is too high
-            # in the revlog
-            if self.target_rev is not None and rev >= self.target_rev:
-                return False
+        # an higher authority deamed the base unworthy (e.g. censored)
+        if self.excluded_bases is not None and rev in self.excluded_bases:
+            return False
+        # We are in some recomputation cases and that rev is too high
+        # in the revlog
+        if self.target_rev is not None and rev >= self.target_rev:
+            return False
 
-            deltas_limit = self.revinfo.textlen * LIMIT_DELTA2TEXT
-            # filter out delta base that will never produce good delta
-            #
-            # if the delta of that base is already bigger than the limit
-            # for the delta chain size, doing a delta is hopeless.
-            if deltas_limit < self.revlog.length(rev):
-                return False
+        deltas_limit = self.revinfo.textlen * LIMIT_DELTA2TEXT
+        # filter out delta base that will never produce good delta
+        #
+        # if the delta of that base is already bigger than the limit
+        # for the delta chain size, doing a delta is hopeless.
+        if deltas_limit < self.revlog.length(rev):
+            return False
 
-            sparse = self.revlog.delta_config.sparse_revlog
-            # if the revision we test again is too small, the resulting delta
-            # will be large anyway as that amount of data to be added is big
-            if sparse and self.revlog.rawsize(rev) < (
-                self.textlen // LIMIT_BASE2TEXT
-            ):
-                return False
+        sparse = self.revlog.delta_config.sparse_revlog
+        # if the revision we test again is too small, the resulting delta
+        # will be large anyway as that amount of data to be added is big
+        if sparse and self.revlog.rawsize(rev) < (
+            self.textlen // LIMIT_BASE2TEXT
+        ):
+            return False
 
-            # no delta for rawtext-changing revs (see "candelta" for why)
-            if self.revlog.flags(rev) & REVIDX_RAWTEXT_CHANGING_FLAGS:
-                return False
+        # no delta for rawtext-changing revs (see "candelta" for why)
+        if self.revlog.flags(rev) & REVIDX_RAWTEXT_CHANGING_FLAGS:
+            return False
 
-            # If we reach here, we are about to build and test a delta.
-            # The delta building process will compute the chaininfo in all
-            # case, since that computation is cached, it is fine to access
-            # it here too.
-            chainlen, chainsize = self.revlog._chaininfo(rev)
-            # if chain will be too long, skip base
-            if (
-                self.revlog.delta_config.max_chain_len
-                and chainlen >= self.revlog.delta_config.max_chain_len
-            ):
-                return False
-            # if chain already have too much data, skip base
-            if deltas_limit < chainsize:
-                return False
-            if sparse and self.revlog.delta_config.upper_bound_comp is not None:
-                maxcomp = self.revlog.delta_config.upper_bound_comp
-                basenotsnap = (self.p1, self.p2, nullrev)
-                if rev not in basenotsnap and self.revlog.issnapshot(rev):
-                    snapshotdepth = self.revlog.snapshotdepth(rev)
-                    # If text is significantly larger than the base, we can
-                    # expect the resulting delta to be proportional to the size
-                    # difference
-                    revsize = self.revlog.rawsize(rev)
-                    rawsizedistance = max(self.textlen - revsize, 0)
-                    # use an estimate of the compression upper bound.
-                    lowestrealisticdeltalen = rawsizedistance // maxcomp
+        # If we reach here, we are about to build and test a delta.
+        # The delta building process will compute the chaininfo in all
+        # case, since that computation is cached, it is fine to access
+        # it here too.
+        chainlen, chainsize = self.revlog._chaininfo(rev)
+        # if chain will be too long, skip base
+        if (
+            self.revlog.delta_config.max_chain_len
+            and chainlen >= self.revlog.delta_config.max_chain_len
+        ):
+            return False
+        # if chain already have too much data, skip base
+        if deltas_limit < chainsize:
+            return False
+        if sparse and self.revlog.delta_config.upper_bound_comp is not None:
+            maxcomp = self.revlog.delta_config.upper_bound_comp
+            basenotsnap = (self.p1, self.p2, nullrev)
+            if rev not in basenotsnap and self.revlog.issnapshot(rev):
+                snapshotdepth = self.revlog.snapshotdepth(rev)
+                # If text is significantly larger than the base, we can
+                # expect the resulting delta to be proportional to the size
+                # difference
+                revsize = self.revlog.rawsize(rev)
+                rawsizedistance = max(self.textlen - revsize, 0)
+                # use an estimate of the compression upper bound.
+                lowestrealisticdeltalen = rawsizedistance // maxcomp
 
-                    # check the absolute constraint on the delta size
-                    snapshotlimit = self.textlen >> snapshotdepth
-                    if snapshotlimit < lowestrealisticdeltalen:
-                        # delta lower bound is larger than accepted upper
-                        # bound
-                        return False
+                # check the absolute constraint on the delta size
+                snapshotlimit = self.textlen >> snapshotdepth
+                if snapshotlimit < lowestrealisticdeltalen:
+                    # delta lower bound is larger than accepted upper
+                    # bound
+                    return False
 
-                    # check the relative constraint on the delta size
-                    revlength = self.revlog.length(rev)
-                    if revlength < lowestrealisticdeltalen:
-                        # delta probable lower bound is larger than target
-                        # base
-                        return False
+                # check the relative constraint on the delta size
+                revlength = self.revlog.length(rev)
+                if revlength < lowestrealisticdeltalen:
+                    # delta probable lower bound is larger than target
+                    # base
+                    return False
         return True
 
     def _refined_groups(self):
