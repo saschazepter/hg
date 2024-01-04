@@ -808,11 +808,13 @@ class _DeltaSearch:
                     return False
         return True
 
-    def _pre_filter_rev(self, rev):
-        """return True if it seems okay to test a rev, False otherwise"""
-        if not self._pre_filter_rev_universal(rev):
-            return False
+    def _pre_filter_rev_delta_chain(self, rev):
+        """pre filtering that is needed in sparse revlog cases
 
+        return True if it seems okay to test a rev, False otherwise.
+
+        used by _pre_filter_rev.
+        """
         deltas_limit = self.revinfo.textlen * LIMIT_DELTA2TEXT
         # filter out delta base that will never produce good delta
         #
@@ -835,7 +837,14 @@ class _DeltaSearch:
         # if chain already have too much data, skip base
         if deltas_limit < chainsize:
             return False
+        return True
 
+    def _pre_filter_rev(self, rev):
+        """return True if it seems okay to test a rev, False otherwise"""
+        if not self._pre_filter_rev_universal(rev):
+            return False
+        if not self._pre_filter_rev_delta_chain(rev):
+            return False
         if self.revlog.delta_config.sparse_revlog:
             if not self._pre_filter_rev_sparse(rev):
                 return False
