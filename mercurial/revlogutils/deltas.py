@@ -1057,6 +1057,13 @@ class _DeltaSearch:
             or not self.revlog.delta_config.general_delta
         )
 
+        # Bad delta from new delta size:
+        #
+        #   If the delta size is larger than the target text, storing the delta
+        #   will be inefficient.
+        if self.revinfo.textlen < deltainfo.deltalen:
+            return False
+
         # - 'deltainfo.distance' is the distance from the base revision --
         #   bounding it limits the amount of I/O we need to do.
         # - 'deltainfo.compresseddeltalen' is the sum of the total size of
@@ -1083,13 +1090,6 @@ class _DeltaSearch:
             not self.revlog.delta_config.sparse_revlog
             and maxdist < deltainfo.distance
         ):
-            return False
-
-        # Bad delta from new delta size:
-        #
-        #   If the delta size is larger than the target text, storing the delta
-        #   will be inefficient.
-        if textlen < deltainfo.deltalen:
             return False
 
         # Bad delta from cumulated payload size:
