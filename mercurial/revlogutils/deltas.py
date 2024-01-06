@@ -637,6 +637,130 @@ class _DeltaSearch:
         self._last_good = None
         self.current_group = self._candidates_iterator.send(self._last_good)
 
+    def is_good_delta_info(self, deltainfo):
+        """Returns True if the given delta is good.
+
+        Good means that it is within the disk span, disk size, and chain length
+        bounds that we know to be performant.
+        """
+        if not self._is_good_delta_info_universal(deltainfo):
+            return False
+        if not self._is_good_delta_info_chain_quality(deltainfo):
+            return False
+        if not self._is_good_delta_info_snapshot_constraints(deltainfo):
+            return False
+        return True
+
+    def _is_good_delta_info_universal(self, deltainfo):
+        """Returns True if the given delta is good.
+
+        This performs generic checks needed by all format variants.
+
+        This is used by is_good_delta_info.
+        """
+
+        if deltainfo is None:
+            return False
+
+        # the DELTA_BASE_REUSE_FORCE case should have been taken care of sooner
+        # so we should never end up asking such question. Adding the assert as
+        # a safe-guard to detect anything that would be fishy in this regard.
+        assert (
+            self.revinfo.cachedelta is None
+            or self.revinfo.cachedelta[2] != DELTA_BASE_REUSE_FORCE
+            or not self.revlog.delta_config.general_delta
+        )
+
+        # Bad delta from new delta size:
+        #
+        #   If the delta size is larger than the target text, storing the delta
+        #   will be inefficient.
+        if self.revinfo.textlen < deltainfo.deltalen:
+            return False
+
+        return True
+
+    def _is_good_delta_info_chain_quality(self, deltainfo):
+        """Returns True if the chain associated with the delta is good.
+
+        This performs checks for format that use delta chains.
+
+        This is used by is_good_delta_info.
+        """
+        # - 'deltainfo.distance' is the distance from the base revision --
+        #   bounding it limits the amount of I/O we need to do.
+
+        defaultmax = self.revinfo.textlen * 4
+        maxdist = self.revlog.delta_config.max_deltachain_span
+        if not maxdist:
+            maxdist = deltainfo.distance  # ensure the conditional pass
+        maxdist = max(maxdist, defaultmax)
+
+        # Bad delta from read span:
+        #
+        #   If the span of data read is larger than the maximum allowed.
+        #
+        #   In the sparse-revlog case, we rely on the associated "sparse
+        #   reading" to avoid issue related to the span of data. In theory, it
+        #   would be possible to build pathological revlog where delta pattern
+        #   would lead to too many reads. However, they do not happen in
+        #   practice at all. So we skip the span check entirely.
+        if (
+            not self.revlog.delta_config.sparse_revlog
+            and maxdist < deltainfo.distance
+        ):
+            return False
+
+        # Bad delta from cumulated payload size:
+        #
+        # - 'deltainfo.compresseddeltalen' is the sum of the total size of
+        #   deltas we need to apply -- bounding it limits the amount of CPU
+        #   we consume.
+        max_chain_data = self.revinfo.textlen * LIMIT_DELTA2TEXT
+        #   If the sum of delta get larger than K * target text length.
+        if max_chain_data < deltainfo.compresseddeltalen:
+            return False
+
+        # Bad delta from chain length:
+        #
+        #   If the number of delta in the chain gets too high.
+        if (
+            self.revlog.delta_config.max_chain_len
+            and self.revlog.delta_config.max_chain_len < deltainfo.chainlen
+        ):
+            return False
+        return True
+
+    def _is_good_delta_info_snapshot_constraints(self, deltainfo):
+        """Returns True if the chain associated with snapshots
+
+        This performs checks for format that use sparse-revlog and intermediate
+        snapshots.
+
+        This is used by is_good_delta_info.
+        """
+        # bad delta from intermediate snapshot size limit
+        #
+        #   If an intermediate snapshot size is higher than the limit.  The
+        #   limit exist to prevent endless chain of intermediate delta to be
+        #   created.
+        if (
+            deltainfo.snapshotdepth is not None
+            and (self.revinfo.textlen >> deltainfo.snapshotdepth)
+            < deltainfo.deltalen
+        ):
+            return False
+
+        # bad delta if new intermediate snapshot is larger than the previous
+        # snapshot
+        if (
+            deltainfo.snapshotdepth
+            and self.revlog.length(deltainfo.base) < deltainfo.deltalen
+        ):
+            return False
+
+        return True
+
     @property
     def done(self):
         """True when all possible candidate have been tested"""
@@ -1040,130 +1164,6 @@ class _DeltaSearch:
             # other approach failed try against prev to hopefully save us a
             # fulltext.
             yield (prev,)
-
-    def is_good_delta_info(self, deltainfo):
-        """Returns True if the given delta is good.
-
-        Good means that it is within the disk span, disk size, and chain length
-        bounds that we know to be performant.
-        """
-        if not self._is_good_delta_info_universal(deltainfo):
-            return False
-        if not self._is_good_delta_info_chain_quality(deltainfo):
-            return False
-        if not self._is_good_delta_info_snapshot_constraints(deltainfo):
-            return False
-        return True
-
-    def _is_good_delta_info_universal(self, deltainfo):
-        """Returns True if the given delta is good.
-
-        This performs generic checks needed by all format variants.
-
-        This is used by is_good_delta_info.
-        """
-
-        if deltainfo is None:
-            return False
-
-        # the DELTA_BASE_REUSE_FORCE case should have been taken care of sooner
-        # so we should never end up asking such question. Adding the assert as
-        # a safe-guard to detect anything that would be fishy in this regard.
-        assert (
-            self.revinfo.cachedelta is None
-            or self.revinfo.cachedelta[2] != DELTA_BASE_REUSE_FORCE
-            or not self.revlog.delta_config.general_delta
-        )
-
-        # Bad delta from new delta size:
-        #
-        #   If the delta size is larger than the target text, storing the delta
-        #   will be inefficient.
-        if self.revinfo.textlen < deltainfo.deltalen:
-            return False
-
-        return True
-
-    def _is_good_delta_info_chain_quality(self, deltainfo):
-        """Returns True if the chain associated with the delta is good.
-
-        This performs checks for format that use delta chains.
-
-        This is used by is_good_delta_info.
-        """
-        # - 'deltainfo.distance' is the distance from the base revision --
-        #   bounding it limits the amount of I/O we need to do.
-
-        defaultmax = self.revinfo.textlen * 4
-        maxdist = self.revlog.delta_config.max_deltachain_span
-        if not maxdist:
-            maxdist = deltainfo.distance  # ensure the conditional pass
-        maxdist = max(maxdist, defaultmax)
-
-        # Bad delta from read span:
-        #
-        #   If the span of data read is larger than the maximum allowed.
-        #
-        #   In the sparse-revlog case, we rely on the associated "sparse
-        #   reading" to avoid issue related to the span of data. In theory, it
-        #   would be possible to build pathological revlog where delta pattern
-        #   would lead to too many reads. However, they do not happen in
-        #   practice at all. So we skip the span check entirely.
-        if (
-            not self.revlog.delta_config.sparse_revlog
-            and maxdist < deltainfo.distance
-        ):
-            return False
-
-        # Bad delta from cumulated payload size:
-        #
-        # - 'deltainfo.compresseddeltalen' is the sum of the total size of
-        #   deltas we need to apply -- bounding it limits the amount of CPU
-        #   we consume.
-        max_chain_data = self.revinfo.textlen * LIMIT_DELTA2TEXT
-        #   If the sum of delta get larger than K * target text length.
-        if max_chain_data < deltainfo.compresseddeltalen:
-            return False
-
-        # Bad delta from chain length:
-        #
-        #   If the number of delta in the chain gets too high.
-        if (
-            self.revlog.delta_config.max_chain_len
-            and self.revlog.delta_config.max_chain_len < deltainfo.chainlen
-        ):
-            return False
-        return True
-
-    def _is_good_delta_info_snapshot_constraints(self, deltainfo):
-        """Returns True if the chain associated with snapshots
-
-        This performs checks for format that use sparse-revlog and intermediate
-        snapshots.
-
-        This is used by is_good_delta_info.
-        """
-        # bad delta from intermediate snapshot size limit
-        #
-        #   If an intermediate snapshot size is higher than the limit.  The
-        #   limit exist to prevent endless chain of intermediate delta to be
-        #   created.
-        if (
-            deltainfo.snapshotdepth is not None
-            and (self.revinfo.textlen >> deltainfo.snapshotdepth)
-            < deltainfo.deltalen
-        ):
-            return False
-
-        # bad delta if new intermediate snapshot is larger than the previous
-        # snapshot
-        if (
-            deltainfo.snapshotdepth
-            and self.revlog.length(deltainfo.base) < deltainfo.deltalen
-        ):
-            return False
-
-        return True
 
 
 class SnapshotCache:
