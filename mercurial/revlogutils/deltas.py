@@ -821,6 +821,7 @@ class _PrevDeltaSearch(_BaseDeltaSearch):
     def _init_group(self):
         self.current_stage = _STAGE_PREV
         self.current_group = [self.target_rev - 1]
+        self.tested.update(self.current_group)
 
     def next_group(self, good_delta=None):
         self.current_stage = _STAGE_FULL
@@ -837,60 +838,60 @@ class _DeltaSearch(_BaseDeltaSearch):
         # Why search for delta base if we cannot use a delta base ?
         # also see issue6056
         assert self.revlog.delta_config.general_delta
-        self._candidates_iterator = self._candidate_groups()
+        self._candidates_iterator = self._refined_groups()
         self._last_good = None
-        self.current_group = self._candidates_iterator.send(self._last_good)
+        self._next_internal_group()
+
+    def _next_internal_group(self):
+        # self._internal_group can be larger than self.current_group
+        self._internal_idx = 0
+        group = self._candidates_iterator.send(self._last_good)
+        if group is not None:
+            group = self._pre_filter_candidate_revs(group)
+        self._internal_group = group
+        if self._internal_group is None:
+            self.current_group = None
+        elif len(self._internal_group) == 0:
+            self.next_group()
+        else:
+            chunk_size = self.revlog.delta_config.candidate_group_chunk_size
+            if chunk_size > 0:
+                self.current_group = self._internal_group[:chunk_size]
+                self._internal_idx += chunk_size
+            else:
+                self.current_group = self._internal_group
+                self._internal_idx += len(self.current_group)
+
+            self.tested.update(self.current_group)
 
     def next_group(self, good_delta=None):
+        old_good = self._last_good
         if good_delta is not None:
             self._last_good = good_delta.base
-        self.current_group = self._candidates_iterator.send(self._last_good)
-
-    def _candidate_groups(self):
-        """Provides group of revision to be tested as delta base
-
-        This top level function focus on emitting groups with unique and
-        worthwhile content. See _raw_candidate_groups for details about the
-        group order.
-        """
-        good = None
-
-        group_chunk_size = self.revlog.delta_config.candidate_group_chunk_size
-
-        tested = self.tested  # prefetch for speed and code compactness
-        candidates = self._refined_groups()
-        while True:
-            temptative = candidates.send(good)
-            if temptative is None:
-                break
-            group = self._pre_filter_candidate_revs(temptative)
-            if group:
-                # When the size of the candidate group is big, it can result in
-                # a quite significant performance impact. To reduce this, we
-                # can send them in smaller batches until the new batch does not
-                # provide any improvements.
-                #
-                # This might reduce the overall efficiency of the compression
-                # in some corner cases, but that should also prevent very
-                # pathological cases from being an issue. (eg. 20 000
-                # candidates).
-                #
-                # XXX note that the ordering of the group becomes important as
-                # it now impacts the final result. The current order is
-                # unprocessed and can be improved.
-                if group_chunk_size == 0:
-                    tested.update(group)
-                    good = yield tuple(group)
-                else:
-                    prev_good = good
-                    for start in range(0, len(group), group_chunk_size):
-                        sub_group = group[start : start + group_chunk_size]
-                        tested.update(sub_group)
-                        good = yield tuple(sub_group)
-                        if prev_good == good:
-                            break
-
-        yield None
+        if (self._internal_idx < len(self._internal_group)) and (
+            old_good != good_delta
+        ):
+            # When the size of the candidate group is big, it can result in
+            # a quite significant performance impact. To reduce this, we
+            # can send them in smaller batches until the new batch does not
+            # provide any improvements.
+            #
+            # This might reduce the overall efficiency of the compression
+            # in some corner cases, but that should also prevent very
+            # pathological cases from being an issue. (eg. 20 000
+            # candidates).
+            #
+            # XXX note that the ordering of the group becomes important as
+            # it now impacts the final result. The current order is
+            # unprocessed and can be improved.
+            next_idx = self._internal_idx + self._group_chunk_size
+            self.current_group = self._internal_group[
+                self._internal_idx : next_idx
+            ]
+            self.tested.update(self.current_group)
+            self._internal_idx = next_idx
+        else:
+            self._next_internal_group()
 
     def _pre_filter_candidate_revs(self, temptative):
         """filter possible candidate before computing a delta
