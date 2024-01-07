@@ -271,7 +271,7 @@ test maxdeltachainspan
        51      17      -1       4        3       50    prev        3??        5??        6??   1.0????       6??         0    0.00000 (glob)
        52      51      -1       4        4       51      p1         58        640        6??   1.0????       6??         0    0.00000 (glob)
        53      52      -1       5        1       -1    base          0          0          0   0.00000         0         0    0.00000
-       54      53      -1       6        1       -1    base        3??        640        3??   0.5????       3??         0    0.00000 (glob)
+       54      53      -1       5        2       53      p1        3??        640        3??   0.5????       3??         0    0.00000 (glob)
   $ hg clone --pull source-repo --config experimental.maxdeltachainspan=2800 relax-chain --config format.generaldelta=yes
   requesting all changes
   adding changesets
