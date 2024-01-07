@@ -1067,7 +1067,7 @@ class _DeltaSearch(_BaseDeltaSearch):
             and good not in (self.p1, self.p2)
             and self.revlog.issnapshot(good)
         ):
-            self.current_stage = _STAGE_SNAPSHOT
+            assert self.current_stage == _STAGE_SNAPSHOT
             # refine snapshot down
             previous = None
             while previous != good:
@@ -1336,7 +1336,9 @@ class deltacomputer:
 
         return delta
 
-    def _builddeltainfo(self, revinfo, base, target_rev=None):
+    def _builddeltainfo(
+        self, revinfo, base, target_rev=None, as_snapshot=False
+    ):
         # can we use the cached delta?
         revlog = self.revlog
         chainbase = revlog.chainbase(base)
@@ -1354,7 +1356,8 @@ class deltacomputer:
         snapshotdepth = None
         if revlog.delta_config.sparse_revlog and deltabase == nullrev:
             snapshotdepth = 0
-        elif revlog.delta_config.sparse_revlog and revlog.issnapshot(deltabase):
+        elif revlog.delta_config.sparse_revlog and as_snapshot:
+            assert revlog.issnapshot(deltabase)
             # A delta chain should always be one full snapshot,
             # zero or more semi-snapshots, and zero or more deltas
             p1, p2 = revlog.rev(revinfo.p1), revlog.rev(revinfo.p2)
@@ -1679,6 +1682,7 @@ class deltacomputer:
                     revinfo,
                     candidaterev,
                     target_rev=target_rev,
+                    as_snapshot=search.current_stage == _STAGE_SNAPSHOT,
                 )
                 if self._debug_search:
                     delta_end = util.timer()
