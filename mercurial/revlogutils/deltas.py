@@ -662,8 +662,6 @@ class _BaseDeltaSearch(abc.ABC):
             return False
         if not self._is_good_delta_info_chain_quality(deltainfo):
             return False
-        if not self._is_good_delta_info_snapshot_constraints(deltainfo):
-            return False
         return True
 
     def _is_good_delta_info_universal(self, deltainfo):
@@ -744,34 +742,6 @@ class _BaseDeltaSearch(abc.ABC):
             and self.revlog.delta_config.max_chain_len < deltainfo.chainlen
         ):
             return False
-        return True
-
-    def _is_good_delta_info_snapshot_constraints(self, deltainfo):
-        """Returns True if the chain associated with snapshots
-
-        This performs checks for format that use sparse-revlog and intermediate
-        snapshots.
-
-        This is used by is_good_delta_info.
-        """
-        # if not a snapshot, this method has no filtering to do
-        if deltainfo.snapshotdepth is None:
-            return True
-        # bad delta from intermediate snapshot size limit
-        #
-        #   If an intermediate snapshot size is higher than the limit.  The
-        #   limit exist to prevent endless chain of intermediate delta to be
-        #   created.
-        if (
-            self.revinfo.textlen >> deltainfo.snapshotdepth
-        ) < deltainfo.deltalen:
-            return False
-
-        # bad delta if new intermediate snapshot is larger than the previous
-        # snapshot
-        if self.revlog.length(deltainfo.base) < deltainfo.deltalen:
-            return False
-
         return True
 
     @property
@@ -1091,6 +1061,48 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
 
 class _SparseDeltaSearch(_GeneralDeltaSearch):
     """Delta search variants for sparse-revlog"""
+
+    def is_good_delta_info(self, deltainfo):
+        """Returns True if the given delta is good.
+
+        Good means that it is within the disk span, disk size, and chain length
+        bounds that we know to be performant.
+        """
+        if not self._is_good_delta_info_universal(deltainfo):
+            return False
+        if not self._is_good_delta_info_chain_quality(deltainfo):
+            return False
+        if not self._is_good_delta_info_snapshot_constraints(deltainfo):
+            return False
+        return True
+
+    def _is_good_delta_info_snapshot_constraints(self, deltainfo):
+        """Returns True if the chain associated with snapshots
+
+        This performs checks for format that use sparse-revlog and intermediate
+        snapshots.
+
+        This is used by is_good_delta_info.
+        """
+        # if not a snapshot, this method has no filtering to do
+        if deltainfo.snapshotdepth is None:
+            return True
+        # bad delta from intermediate snapshot size limit
+        #
+        #   If an intermediate snapshot size is higher than the limit.  The
+        #   limit exist to prevent endless chain of intermediate delta to be
+        #   created.
+        if (
+            self.revinfo.textlen >> deltainfo.snapshotdepth
+        ) < deltainfo.deltalen:
+            return False
+
+        # bad delta if new intermediate snapshot is larger than the previous
+        # snapshot
+        if self.revlog.length(deltainfo.base) < deltainfo.deltalen:
+            return False
+
+        return True
 
     def _iter_snapshots_base(self):
         assert self.revlog.delta_config.sparse_revlog
