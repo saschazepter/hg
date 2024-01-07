@@ -938,47 +938,6 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
             return False
         return True
 
-    def _pre_filter_rev_sparse(self, rev):
-        """pre filtering that is needed in sparse revlog cases
-
-        return True if it seems okay to test a rev, False otherwise.
-
-        used by _pre_filter_rev.
-        """
-        assert self.revlog.delta_config.sparse_revlog
-        # if the revision we test again is too small, the resulting delta
-        # will be large anyway as that amount of data to be added is big
-        if self.revlog.rawsize(rev) < (self.textlen // LIMIT_BASE2TEXT):
-            return False
-
-        if self.revlog.delta_config.upper_bound_comp is not None:
-            maxcomp = self.revlog.delta_config.upper_bound_comp
-            basenotsnap = (self.p1, self.p2, nullrev)
-            if rev not in basenotsnap and self.revlog.issnapshot(rev):
-                snapshotdepth = self.revlog.snapshotdepth(rev)
-                # If text is significantly larger than the base, we can
-                # expect the resulting delta to be proportional to the size
-                # difference
-                revsize = self.revlog.rawsize(rev)
-                rawsizedistance = max(self.textlen - revsize, 0)
-                # use an estimate of the compression upper bound.
-                lowestrealisticdeltalen = rawsizedistance // maxcomp
-
-                # check the absolute constraint on the delta size
-                snapshotlimit = self.textlen >> snapshotdepth
-                if snapshotlimit < lowestrealisticdeltalen:
-                    # delta lower bound is larger than accepted upper
-                    # bound
-                    return False
-
-                # check the relative constraint on the delta size
-                revlength = self.revlog.length(rev)
-                if revlength < lowestrealisticdeltalen:
-                    # delta probable lower bound is larger than target
-                    # base
-                    return False
-        return True
-
     def _pre_filter_rev_delta_chain(self, rev):
         """pre filtering that is needed in sparse revlog cases
 
@@ -1016,10 +975,6 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
             return False
         if not self._pre_filter_rev_delta_chain(rev):
             return False
-        if self.revlog.delta_config.sparse_revlog:
-            if not self._pre_filter_rev_sparse(rev):
-                return False
-
         return True
 
     def _iter_parents(self):
@@ -1102,6 +1057,57 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
         if self.revlog.length(deltainfo.base) < deltainfo.deltalen:
             return False
 
+        return True
+
+    def _pre_filter_rev(self, rev):
+        """return True if it seems okay to test a rev, False otherwise"""
+        if not self._pre_filter_rev_universal(rev):
+            return False
+        if not self._pre_filter_rev_delta_chain(rev):
+            return False
+        if not self._pre_filter_rev_sparse(rev):
+            return False
+        return True
+
+    def _pre_filter_rev_sparse(self, rev):
+        """pre filtering that is needed in sparse revlog cases
+
+        return True if it seems okay to test a rev, False otherwise.
+
+        used by _pre_filter_rev.
+        """
+        assert self.revlog.delta_config.sparse_revlog
+        # if the revision we test again is too small, the resulting delta
+        # will be large anyway as that amount of data to be added is big
+        if self.revlog.rawsize(rev) < (self.textlen // LIMIT_BASE2TEXT):
+            return False
+
+        if self.revlog.delta_config.upper_bound_comp is not None:
+            maxcomp = self.revlog.delta_config.upper_bound_comp
+            basenotsnap = (self.p1, self.p2, nullrev)
+            if rev not in basenotsnap and self.revlog.issnapshot(rev):
+                snapshotdepth = self.revlog.snapshotdepth(rev)
+                # If text is significantly larger than the base, we can
+                # expect the resulting delta to be proportional to the size
+                # difference
+                revsize = self.revlog.rawsize(rev)
+                rawsizedistance = max(self.textlen - revsize, 0)
+                # use an estimate of the compression upper bound.
+                lowestrealisticdeltalen = rawsizedistance // maxcomp
+
+                # check the absolute constraint on the delta size
+                snapshotlimit = self.textlen >> snapshotdepth
+                if snapshotlimit < lowestrealisticdeltalen:
+                    # delta lower bound is larger than accepted upper
+                    # bound
+                    return False
+
+                # check the relative constraint on the delta size
+                revlength = self.revlog.length(rev)
+                if revlength < lowestrealisticdeltalen:
+                    # delta probable lower bound is larger than target
+                    # base
+                    return False
         return True
 
     def _iter_snapshots_base(self):
