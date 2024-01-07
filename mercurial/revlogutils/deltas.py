@@ -739,24 +739,22 @@ class _DeltaSearch:
 
         This is used by is_good_delta_info.
         """
+        # if not a snapshot, this method has no filtering to do
+        if deltainfo.snapshotdepth is None:
+            return True
         # bad delta from intermediate snapshot size limit
         #
         #   If an intermediate snapshot size is higher than the limit.  The
         #   limit exist to prevent endless chain of intermediate delta to be
         #   created.
         if (
-            deltainfo.snapshotdepth is not None
-            and (self.revinfo.textlen >> deltainfo.snapshotdepth)
-            < deltainfo.deltalen
-        ):
+            self.revinfo.textlen >> deltainfo.snapshotdepth
+        ) < deltainfo.deltalen:
             return False
 
         # bad delta if new intermediate snapshot is larger than the previous
         # snapshot
-        if (
-            deltainfo.snapshotdepth
-            and self.revlog.length(deltainfo.base) < deltainfo.deltalen
-        ):
+        if self.revlog.length(deltainfo.base) < deltainfo.deltalen:
             return False
 
         return True
