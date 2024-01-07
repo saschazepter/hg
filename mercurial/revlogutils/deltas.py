@@ -840,7 +840,24 @@ class _DeltaSearch(_BaseDeltaSearch):
         assert self.revlog.delta_config.general_delta
         self._candidates_iterator = self._refined_groups()
         self._last_good = None
-        self._next_internal_group()
+        if (
+            self.cachedelta is not None
+            and self.cachedelta[2] > DELTA_BASE_REUSE_NO
+            and self._pre_filter_rev(self.cachedelta[0])
+        ):
+            # First we try to reuse a the delta contained in the bundle.  (or from
+            # the source revlog)
+            #
+            # This logic only applies to general delta repositories and can be
+            # disabled through configuration. Disabling reuse source delta is
+            # useful when we want to make sure we recomputed "optimal" deltas.
+            self.current_stage = _STAGE_CACHED
+            self._internal_group = (self.cachedelta[0],)
+            self._internal_idx = 0
+            self.current_group = self._internal_group
+            self.tested.update(self.current_group)
+        else:
+            self._next_internal_group()
 
     def _next_internal_group(self):
         # self._internal_group can be larger than self.current_group
@@ -868,6 +885,14 @@ class _DeltaSearch(_BaseDeltaSearch):
         old_good = self._last_good
         if good_delta is not None:
             self._last_good = good_delta.base
+        if self.current_stage == _STAGE_CACHED and good_delta is not None:
+            # the cache is good, let us use the cache as requested
+            self._candidates_iterator = None
+            self._internal_group = None
+            self._internal_idx = None
+            self.current_group = None
+            return
+
         if (self._internal_idx < len(self._internal_group)) and (
             old_good != good_delta
         ):
@@ -1032,23 +1057,6 @@ class _DeltaSearch(_BaseDeltaSearch):
 
     def _refined_groups(self):
         good = None
-        # First we try to reuse a the delta contained in the bundle.  (or from
-        # the source revlog)
-        #
-        # This logic only applies to general delta repositories and can be
-        # disabled through configuration. Disabling reuse source delta is
-        # useful when we want to make sure we recomputed "optimal" deltas.
-        if (
-            self.cachedelta is not None
-            and self.cachedelta[2] > DELTA_BASE_REUSE_NO
-        ):
-            # Assume what we received from the server is a good choice
-            # build delta will reuse the cache
-            self.current_stage = _STAGE_CACHED
-            good = yield (self.cachedelta[0],)
-            if good is not None:
-                yield None
-                return
         groups = self._raw_groups()
         for candidates in groups:
             good = yield candidates
