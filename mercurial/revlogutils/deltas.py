@@ -828,11 +828,8 @@ class _PrevDeltaSearch(_BaseDeltaSearch):
         self.current_group = None
 
 
-class _DeltaSearch(_BaseDeltaSearch):
-    """Generic delta search variants
-
-    (expect this to be split further)
-    """
+class _GeneralDeltaSearch(_BaseDeltaSearch):
+    """Delta search variant for general-delta repository"""
 
     def _init_group(self):
         # Why search for delta base if we cannot use a delta base ?
@@ -1080,6 +1077,21 @@ class _DeltaSearch(_BaseDeltaSearch):
         self.current_stage = _STAGE_PREV
         yield (self.target_rev - 1,)
 
+    def _iter_groups(self):
+        good = None
+        for group in self._iter_parents():
+            good = yield group
+            if good is not None:
+                break
+        else:
+            assert good is None
+            yield from self._iter_prev()
+        yield None
+
+
+class _SparseDeltaSearch(_GeneralDeltaSearch):
+    """Delta search variants for sparse-revlog"""
+
     def _iter_snapshots_base(self):
         assert self.revlog.delta_config.sparse_revlog
         assert self.current_stage == _STAGE_SNAPSHOT
@@ -1217,16 +1229,14 @@ class _DeltaSearch(_BaseDeltaSearch):
                 break
         else:
             assert good is None
-            if self.revlog.delta_config.sparse_revlog:
-                # If sparse revlog is enabled, we can try to refine the
-                # available deltas
-                iter_snap = self._iter_snapshots()
-                group = iter_snap.send(None)
-                while group is not None:
-                    good = yield group
-                    group = iter_snap.send(good)
-            else:
-                yield from self._iter_prev()
+            assert self.revlog.delta_config.sparse_revlog
+            # If sparse revlog is enabled, we can try to refine the
+            # available deltas
+            iter_snap = self._iter_snapshots()
+            group = iter_snap.send(None)
+            while group is not None:
+                good = yield group
+                group = iter_snap.send(good)
         yield None
 
 
@@ -1605,11 +1615,13 @@ class deltacomputer:
         # should we try to build a delta?
         if not (len(self.revlog) and self.revlog._storedeltachains):
             search_cls = _NoDeltaSearch
-        elif not self.revlog.delta_config.general_delta:
+        elif self.revlog.delta_config.sparse_revlog:
+            search_cls = _SparseDeltaSearch
+        elif self.revlog.delta_config.general_delta:
+            search_cls = _GeneralDeltaSearch
+        else:
             # before general delta, there is only one possible delta base
             search_cls = _PrevDeltaSearch
-        else:
-            search_cls = _DeltaSearch
 
         search = search_cls(
             self.revlog,
