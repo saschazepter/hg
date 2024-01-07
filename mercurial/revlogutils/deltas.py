@@ -8,6 +8,7 @@
 """Helper class to compute deltas stored inside revlogs"""
 
 
+import abc
 import collections
 import struct
 
@@ -590,7 +591,7 @@ def drop_u_compression(delta):
 LIMIT_BASE2TEXT = 500
 
 
-class _DeltaSearch:
+class _BaseDeltaSearch(abc.ABC):
     """perform the search of a good delta for a single revlog revision
 
     note: some of the deltacomputer.finddeltainfo logic should probably move
@@ -633,9 +634,8 @@ class _DeltaSearch:
 
         self.tested = {nullrev}
 
-        self._candidates_iterator = self._candidate_groups()
-        self._last_good = None
-        self.current_group = self._candidates_iterator.send(self._last_good)
+        self.current_group = None
+        self._init_group()
 
     def is_good_delta_info(self, deltainfo):
         """Returns True if the given delta is good.
@@ -764,6 +764,7 @@ class _DeltaSearch:
         """True when all possible candidate have been tested"""
         return self.current_group is None
 
+    @abc.abstractmethod
     def next_group(self, good_delta=None):
         """move to the next group to test
 
@@ -775,6 +776,20 @@ class _DeltaSearch:
         If not revision remains to be, `self.done` will be True and
         `self.current_group` will be None.
         """
+        pass
+
+    @abc.abstractmethod
+    def _init_group(self):
+        pass
+
+
+class _DeltaSearch(_BaseDeltaSearch):
+    def _init_group(self):
+        self._candidates_iterator = self._candidate_groups()
+        self._last_good = None
+        self.current_group = self._candidates_iterator.send(self._last_good)
+
+    def next_group(self, good_delta=None):
         if good_delta is not None:
             self._last_good = good_delta.base
         self.current_group = self._candidates_iterator.send(self._last_good)
