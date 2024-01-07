@@ -590,6 +590,20 @@ def drop_u_compression(delta):
 # consider these candidates.
 LIMIT_BASE2TEXT = 500
 
+### stage of the search, used for debug and to select and to adjust some logic.
+# initial stage, next step is unknown
+_STAGE_UNSPECIFIED = "unspecified"
+# trying the cached delta
+_STAGE_CACHED = "cached"
+# trying delta based on parents
+_STAGE_PARENTS = "parents"
+# trying to build a valid snapshot of any level
+_STAGE_SNAPSHOT = "snapshot"
+# trying to build a delta based of the previous revision
+_STAGE_PREV = "prev"
+# trying to build a full snapshot
+_STAGE_FULL = "full"
+
 
 class _BaseDeltaSearch(abc.ABC):
     """perform the search of a good delta for a single revlog revision
@@ -634,6 +648,7 @@ class _BaseDeltaSearch(abc.ABC):
 
         self.tested = {nullrev}
 
+        self.current_stage = _STAGE_UNSPECIFIED
         self.current_group = None
         self._init_group()
 
@@ -790,7 +805,7 @@ class _NoDeltaSearch(_BaseDeltaSearch):
     """
 
     def _init_group(self):
-        pass
+        self.current_stage = _STAGE_FULL
 
     def next_group(self, good_delta=None):
         pass
@@ -804,9 +819,11 @@ class _PrevDeltaSearch(_BaseDeltaSearch):
     """
 
     def _init_group(self):
+        self.current_stage = _STAGE_PREV
         self.current_group = [self.target_rev - 1]
 
     def next_group(self, good_delta=None):
+        self.current_stage = _STAGE_FULL
         self.current_group = None
 
 
@@ -1026,6 +1043,7 @@ class _DeltaSearch(_BaseDeltaSearch):
         ):
             # Assume what we received from the server is a good choice
             # build delta will reuse the cache
+            self.current_stage = _STAGE_CACHED
             good = yield (self.cachedelta[0],)
             if good is not None:
                 yield None
@@ -1039,6 +1057,7 @@ class _DeltaSearch(_BaseDeltaSearch):
         # If sparse revlog is enabled, we can try to refine the available
         # deltas
         if not self.revlog.delta_config.sparse_revlog:
+            self.current_stage = _STAGE_FULL
             yield None
             return
 
@@ -1048,6 +1067,7 @@ class _DeltaSearch(_BaseDeltaSearch):
             and good not in (self.p1, self.p2)
             and self.revlog.issnapshot(good)
         ):
+            self.current_stage = _STAGE_SNAPSHOT
             # refine snapshot down
             previous = None
             while previous != good:
@@ -1067,6 +1087,7 @@ class _DeltaSearch(_BaseDeltaSearch):
                 )
                 good = yield children
 
+        self.current_stage = _STAGE_FULL
         yield None
 
     def _raw_groups(self):
@@ -1084,6 +1105,7 @@ class _DeltaSearch(_BaseDeltaSearch):
         # exclude already lazy tested base if any
         parents = [p for p in (self.p1, self.p2) if p != nullrev]
 
+        self.current_stage = _STAGE_PARENTS
         if (
             not self.revlog.delta_config.delta_both_parents
             and len(parents) == 2
@@ -1099,6 +1121,7 @@ class _DeltaSearch(_BaseDeltaSearch):
             yield parents
 
         if sparse and parents:
+            self.current_stage = _STAGE_SNAPSHOT
             # See if we can use an existing snapshot in the parent chains to
             # use as a base for a new intermediate-snapshot
             #
@@ -1188,6 +1211,7 @@ class _DeltaSearch(_BaseDeltaSearch):
         if not sparse:
             # other approach failed try against prev to hopefully save us a
             # fulltext.
+            self.current_stage = _STAGE_PREV
             yield (prev,)
 
 
