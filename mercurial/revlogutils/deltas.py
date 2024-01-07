@@ -783,8 +783,43 @@ class _BaseDeltaSearch(abc.ABC):
         pass
 
 
-class _DeltaSearch(_BaseDeltaSearch):
+class _NoDeltaSearch(_BaseDeltaSearch):
+    """Search for no delta.
+
+    This search variant is to be used in case where we should not store delta.
+    """
+
     def _init_group(self):
+        pass
+
+    def next_group(self, good_delta=None):
+        pass
+
+
+class _PrevDeltaSearch(_BaseDeltaSearch):
+    """Search for delta against the previous revision only
+
+    This search variant is to be used when the format does not allow for delta
+    against arbitrary bases.
+    """
+
+    def _init_group(self):
+        self.current_group = [self.target_rev - 1]
+
+    def next_group(self, good_delta=None):
+        self.current_group = None
+
+
+class _DeltaSearch(_BaseDeltaSearch):
+    """Generic delta search variants
+
+    (expect this to be split further)
+    """
+
+    def _init_group(self):
+        # Why search for delta base if we cannot use a delta base ?
+        # also see issue6056
+        assert self.revlog.delta_config.general_delta
         self._candidates_iterator = self._candidate_groups()
         self._last_good = None
         self.current_group = self._candidates_iterator.send(self._last_good)
@@ -801,17 +836,6 @@ class _DeltaSearch(_BaseDeltaSearch):
         worthwhile content. See _raw_candidate_groups for details about the
         group order.
         """
-        # should we try to build a delta?
-        if not (len(self.revlog) and self.revlog._storedeltachains):
-            yield None
-            return
-
-        if not self.revlog.delta_config.general_delta:
-            # before general delta, there is only one possible delta base
-            yield (self.target_rev - 1,)
-            yield None
-            return
-
         good = None
 
         group_chunk_size = self.revlog.delta_config.candidate_group_chunk_size
@@ -1062,9 +1086,6 @@ class _DeltaSearch(_BaseDeltaSearch):
 
         The group order aims at providing fast or small candidates first.
         """
-        # Why search for delta base if we cannot use a delta base ?
-        assert self.revlog.delta_config.general_delta
-        # also see issue6056
         sparse = self.revlog.delta_config.sparse_revlog
         prev = self.target_rev - 1
         deltachain = lambda rev: self.revlog._deltachain(rev)[0]
@@ -1548,7 +1569,16 @@ class deltacomputer:
             msg %= target_rev
             self._write_debug(msg)
 
-        search = _DeltaSearch(
+        # should we try to build a delta?
+        if not (len(self.revlog) and self.revlog._storedeltachains):
+            search_cls = _NoDeltaSearch
+        elif not self.revlog.delta_config.general_delta:
+            # before general delta, there is only one possible delta base
+            search_cls = _PrevDeltaSearch
+        else:
+            search_cls = _DeltaSearch
+
+        search = search_cls(
             self.revlog,
             revinfo,
             p1r,
