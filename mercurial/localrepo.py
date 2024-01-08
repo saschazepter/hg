@@ -2927,8 +2927,6 @@ class localrepository:
                 self.ui.debug(b'updating the branch cache\n')
                 self.filtered(b'served').branchmap()
                 self.filtered(b'served.hidden').branchmap()
-                # flush all possibly delayed write.
-                self._branchcaches.write_delayed(self)
 
         if repository.CACHE_CHANGELOG_CACHE in caches:
             self.changelog.update_caches(transaction=tr)
@@ -2974,6 +2972,9 @@ class localrepository:
             for filt in repoview.filtertable.keys():
                 filtered = self.filtered(filt)
                 self._branchcaches.update_disk(filtered)
+
+        # flush all possibly delayed write.
+        self._branchcaches.write_delayed(self)
 
     def invalidatecaches(self):
         if '_tagscache' in vars(self):
