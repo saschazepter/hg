@@ -2913,3 +2913,8 @@ section = "blackbox"
 name = "date-format"
 default = ""
 in_core_extension = "blackbox"
+
+[[items]]
+section = "format"
+name = "mmap-revbranchcache"
+default = false
