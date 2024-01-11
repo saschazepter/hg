@@ -202,6 +202,13 @@ class bytestr(bytes):
     >>> bytestr(bytesable())
     'bytes'
 
+    ...unless the argument is the bytes *type* itself: it gets a
+    __bytes__() method in Python 3.11, which cannot be used as in an instance
+    of bytes:
+
+    >>> bytestr(bytes)
+    "<class 'bytes'>"
+
     There's no implicit conversion from non-ascii str as its encoding is
     unknown:
 
@@ -251,10 +258,9 @@ class bytestr(bytes):
     def __new__(cls: Type[_Tbytestr], s: object = b'') -> _Tbytestr:
         if isinstance(s, bytestr):
             return s
-        if not isinstance(
-            s, (bytes, bytearray)
-        ) and not builtins.hasattr(  # hasattr-py3-only
-            s, u'__bytes__'
+        if not isinstance(s, (bytes, bytearray)) and (
+            isinstance(s, type)
+            or not builtins.hasattr(s, u'__bytes__')  # hasattr-py3-only
         ):
             s = str(s).encode('ascii')
         return bytes.__new__(cls, s)
