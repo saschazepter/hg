@@ -387,9 +387,9 @@ class changelog(revlog.revlog):
                 tr.registertmp(new_index)
         return any_pending
 
-    def _enforceinlinesize(self, tr, side_write=True):
+    def _enforceinlinesize(self, tr):
         if not self.is_delaying:
-            revlog.revlog._enforceinlinesize(self, tr, side_write=side_write)
+            revlog.revlog._enforceinlinesize(self, tr)
 
     def read(self, nodeorrev):
         """Obtain data from a parsed changelog revision.

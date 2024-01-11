@@ -2827,7 +2827,7 @@ class revlog:
             # manifest), no risk of collision.
             return self.radix + b'.i.s'
 
-    def _enforceinlinesize(self, tr, side_write=True):
+    def _enforceinlinesize(self, tr):
         """Check if the revlog is too big for inline and convert if so.
 
         This should be called after revisions are added to the revlog. If the
@@ -2857,39 +2857,38 @@ class revlog:
         tr.add(self._datafile, 0)
 
         new_index_file_path = None
-        if side_write:
-            old_index_file_path = self._indexfile
-            new_index_file_path = self._split_index_file
-            opener = self.opener
-            weak_self = weakref.ref(self)
+        old_index_file_path = self._indexfile
+        new_index_file_path = self._split_index_file
+        opener = self.opener
+        weak_self = weakref.ref(self)
 
-            # the "split" index replace the real index when the transaction is
-            # finalized
-            def finalize_callback(tr):
-                opener.rename(
-                    new_index_file_path,
-                    old_index_file_path,
-                    checkambig=True,
-                )
-                maybe_self = weak_self()
-                if maybe_self is not None:
-                    maybe_self._indexfile = old_index_file_path
-                    maybe_self._inner.index_file = maybe_self._indexfile
+        # the "split" index replace the real index when the transaction is
+        # finalized
+        def finalize_callback(tr):
+            opener.rename(
+                new_index_file_path,
+                old_index_file_path,
+                checkambig=True,
+            )
+            maybe_self = weak_self()
+            if maybe_self is not None:
+                maybe_self._indexfile = old_index_file_path
+                maybe_self._inner.index_file = maybe_self._indexfile
 
-            def abort_callback(tr):
-                maybe_self = weak_self()
-                if maybe_self is not None:
-                    maybe_self._indexfile = old_index_file_path
-                    maybe_self._inner.inline = True
-                    maybe_self._inner.index_file = old_index_file_path
+        def abort_callback(tr):
+            maybe_self = weak_self()
+            if maybe_self is not None:
+                maybe_self._indexfile = old_index_file_path
+                maybe_self._inner.inline = True
+                maybe_self._inner.index_file = old_index_file_path
 
-            tr.registertmp(new_index_file_path)
-            if self.target[1] is not None:
-                callback_id = b'000-revlog-split-%d-%s' % self.target
-            else:
-                callback_id = b'000-revlog-split-%d' % self.target[0]
-            tr.addfinalize(callback_id, finalize_callback)
-            tr.addabort(callback_id, abort_callback)
+        tr.registertmp(new_index_file_path)
+        if self.target[1] is not None:
+            callback_id = b'000-revlog-split-%d-%s' % self.target
+        else:
+            callback_id = b'000-revlog-split-%d' % self.target[0]
+        tr.addfinalize(callback_id, finalize_callback)
+        tr.addabort(callback_id, abort_callback)
 
         self._format_flags &= ~FLAG_INLINE_DATA
         self._inner.split_inline(
