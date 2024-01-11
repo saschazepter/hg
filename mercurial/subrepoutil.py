@@ -131,7 +131,7 @@ def state(ctx: "context.changectx", ui: "uimod.ui") -> Substate:
             # extra escapes are needed because re.sub string decodes.
             repl = re.sub(br'\\\\([0-9]+)', br'\\\1', repl)
             try:
-                src = re.sub(pattern, repl, src, 1)
+                src = re.sub(pattern, repl, src, count=1)
             except re.error as e:
                 raise error.Abort(
                     _(b"bad subrepository pattern in %s: %s")
