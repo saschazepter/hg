@@ -369,8 +369,9 @@ class changelog(revlog.revlog):
         else:
             new_index_file = self._inner.finalize_pending()
             self._indexfile = new_index_file
-            # split when we're done
-            self._enforceinlinesize(tr, side_write=False)
+            if self._inline:
+                msg = 'changelog should not be inline at that point'
+                raise error.ProgrammingError(msg)
 
     def _writepending(self, tr):
         """create a file containing the unfinalized state for
