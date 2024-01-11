@@ -1,3 +1,12 @@
+= Mercurial 6.6.2 =
+
+ * histedit: remove superfluous echo() and endwin() calls (issue6859)
+ * persistent-nodemap: avoid writing nodemap for empty revlog
+ * persistent-nodemap: respect the mmap setting when refreshing data
+ * bundle: do not detect --base argument that match nothing as lack of argument
+ * narrow: prevent removal of ACL-defined excludes
+ * pycompat: fix bytestr(bytes) in Python 3.11
+
 = Mercurial 6.6.1 =
 
 The first two patches fix aborted transactions that could happen since 6.6.
