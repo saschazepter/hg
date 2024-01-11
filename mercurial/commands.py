@@ -1593,13 +1593,13 @@ def bundle(ui, repo, fname, *dests, **opts):
             _(b'packed bundles cannot be produced by "hg bundle"'),
             hint=_(b"use 'hg debugcreatestreamclonebundle'"),
         )
-
+    base_opt = opts.get('base')
     if opts.get('all'):
         if dests:
             raise error.InputError(
                 _(b"--all is incompatible with specifying destinations")
             )
-        if opts.get('base'):
+        if base_opt:
             ui.warn(_(b"ignoring --base because --all was specified\n"))
         if opts.get('exact'):
             ui.warn(_(b"ignoring --exact because --all was specified\n"))
@@ -1609,19 +1609,24 @@ def bundle(ui, repo, fname, *dests, **opts):
             raise error.InputError(
                 _(b"--exact is incompatible with specifying destinations")
             )
-        if opts.get('base'):
+        if base_opt:
             ui.warn(_(b"ignoring --base because --exact was specified\n"))
         base = repo.revs(b'parents(%ld) - %ld', revs, revs)
         if not base:
             base = [nullrev]
+    elif base_opt:
+        base = logcmdutil.revrange(repo, base_opt)
+        if not base:
+            # base specified, but nothing was selected
+            base = [nullrev]
     else:
-        base = logcmdutil.revrange(repo, opts.get('base'))
+        base = None
     if cgversion not in changegroup.supportedoutgoingversions(repo):
         raise error.Abort(
             _(b"repository does not support bundle version %s") % cgversion
         )
 
-    if base:
+    if base is not None:
         if dests:
             raise error.InputError(
                 _(b"--base is incompatible with specifying destinations")
