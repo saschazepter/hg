@@ -772,7 +772,6 @@ class _InnerRevlog:
             self.index_file,
             mode=b"w",
             checkambig=self.data_config.check_ambig,
-            atomictemp=True,
         )
 
     def split_inline(self, tr, header, new_index_file_path=None):
