@@ -300,7 +300,7 @@ Can censor enough revision to move back to inline storage
   rev-count   data-size inl type      target 
           8         ??? no  file      target (glob) (revlogv2 !)
           8         ??? yes file      target (glob) (revlogv1 !)
-  $ cat /dev/rand?m | dd status=none count=200 | f --hexdump > target
+  $ cat /dev/rand?m | dd bs=512 count=200 2> /dev/null | f --hexdump > target
   $ hg ci -m 'add 100k passwords'
   $ H2=`hg id --debug -i`
   $ C5=$H2
