@@ -26,7 +26,6 @@ Simple invocation
   $ hg init repo
   $ cd repo
   $ hg admin::chainsaw-update --rev default --source ../src
-  breaking locks, if any
   recovering after interrupted transaction, if any
   no interrupted transaction available
   pulling from ../src
@@ -51,8 +50,15 @@ from the current hostname (happens a lot with succesive containers):
   wlock: (.*?), process 171814, host invalid.host.test/effffffc \((\d+)s\) (re)
   [2]
 
-  $ hg admin::chainsaw-update --no-purge-ignored --rev default --source ../src -q
+  $ hg admin::chainsaw-update --no-purge-ignored --rev default --source ../src
+  had to break store lock
+  had to break working copy lock
+  recovering after interrupted transaction, if any
   no interrupted transaction available
+  pulling from ../src
+  updating to revision 'default'
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  chainsaw-update to revision 'default' for repository at '$TESTTMP/repo' done
 
 Test file purging capabilities
 ------------------------------
