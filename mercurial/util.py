@@ -2610,12 +2610,16 @@ def unlinkpath(
             pass
 
 
-def tryunlink(f: bytes) -> None:
-    """Attempt to remove a file, ignoring FileNotFoundError."""
+def tryunlink(f: bytes) -> bool:
+    """Attempt to remove a file, ignoring FileNotFoundError.
+
+    Returns False in case the file did not exit, True otherwise
+    """
     try:
         unlink(f)
+        return True
     except FileNotFoundError:
-        pass
+        return False
 
 
 def makedirs(
