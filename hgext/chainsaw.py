@@ -120,9 +120,10 @@ def update(ui, repo, **opts):
         raise error.InputError(_(b'specify a target revision with --rev'))
     if not source:
         raise error.InputError(_(b'specify a pull path with --source'))
-    ui.status(_(b'breaking locks, if any\n'))
-    repo.svfs.tryunlink(b'lock')
-    repo.vfs.tryunlink(b'wlock')
+    if repo.svfs.tryunlink(b'lock'):
+        ui.status(_(b'had to break store lock\n'))
+    if repo.vfs.tryunlink(b'wlock'):
+        ui.status(_(b'had to break working copy lock\n'))
 
     ui.status(_(b'recovering after interrupted transaction, if any\n'))
     repo.recover()
