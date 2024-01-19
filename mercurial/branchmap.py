@@ -59,7 +59,24 @@ class BranchMapCache:
 
     def __getitem__(self, repo):
         self.updatecache(repo)
-        return self._per_filter[repo.filtername]
+        bcache = self._per_filter[repo.filtername]
+        return bcache
+
+    def update_disk(self, repo):
+        """ensure and up-to-date cache is (or will be) written on disk
+
+        The cache for this repository view is updated  if needed and written on
+        disk.
+
+        If a transaction is in progress, the writing is schedule to transaction
+        close. See the `BranchMapCache.write_delayed` method.
+
+        This method exist independently of __getitem__ as it is sometime useful
+        to signal that we have no intend to use the data in memory yet.
+        """
+        self.updatecache(repo)
+        bcache = self._per_filter[repo.filtername]
+        bcache.write(repo)
 
     def updatecache(self, repo):
         """Update the cache for the given filtered view on a repository"""

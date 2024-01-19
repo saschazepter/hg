@@ -2973,7 +2973,7 @@ class localrepository:
             # they're a subset of another kind of cache that *has* been used).
             for filt in repoview.filtertable.keys():
                 filtered = self.filtered(filt)
-                filtered.branchmap().write(filtered)
+                self._branchcaches.update_disk(filtered)
 
     def invalidatecaches(self):
         if '_tagscache' in vars(self):
