@@ -10,20 +10,13 @@ basic setup
   > [debug]
   > revlog.debug-delta=yes
   > EOF
-  $ cat << EOF >> sha256line.py
-  > # a way to quickly produce file of significant size and poorly compressable content.
-  > import hashlib
-  > import sys
-  > for line in sys.stdin:
-  >     print(hashlib.sha256(line.encode('utf8')).hexdigest())
-  > EOF
 
   $ hg init base-repo
   $ cd base-repo
 
 create a "large" file
 
-  $ $TESTDIR/seq.py 1000 | $PYTHON $TESTTMP/sha256line.py > my-file.txt
+  $ $TESTDIR/seq.py 1000 | $TESTDIR/sha256line.py > my-file.txt
   $ hg add my-file.txt
   $ hg commit -m initial-commit
   DBG-DELTAS: FILELOG:my-file.txt: rev=0: delta-base=0 * (glob)
@@ -32,7 +25,7 @@ create a "large" file
 
 Add more change at the end of the file
 
-  $ $TESTDIR/seq.py 1001 1200 | $PYTHON $TESTTMP/sha256line.py >> my-file.txt
+  $ $TESTDIR/seq.py 1001 1200 | $TESTDIR/sha256line.py >> my-file.txt
   $ hg commit -m "large-change"
   DBG-DELTAS: FILELOG:my-file.txt: rev=1: delta-base=0 * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
@@ -273,7 +266,7 @@ We build a very different file content to force a full snapshot
 
   $ hg -R peer-bad-delta-with-full update 'desc("merge")' --quiet
   $ ($TESTDIR/seq.py 2000 2100; $TESTDIR/seq.py 500 510; $TESTDIR/seq.py 3000 3050) \
-  > | $PYTHON $TESTTMP/sha256line.py > peer-bad-delta-with-full/my-file.txt
+  > | $TESTDIR/sha256line.py > peer-bad-delta-with-full/my-file.txt
   $ hg -R peer-bad-delta-with-full commit -m 'trigger-full'
   DBG-DELTAS: FILELOG:my-file.txt: rev=4: delta-base=4 * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
