@@ -5,10 +5,11 @@ use crate::revlog::{Revlog, RevlogEntry, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::vfs::Vfs;
 use crate::{Graph, GraphError, UncheckedRevision};
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use std::ascii::escape_default;
 use std::borrow::Cow;
 use std::fmt::{Debug, Formatter};
+use std::iter;
 
 /// A specialized `Revlog` to work with changelog data format.
 pub struct Changelog {
@@ -228,9 +229,15 @@ impl<'changelog> ChangelogRevisionData<'changelog> {
 
     /// The files changed in this revision.
     pub fn files(&self) -> impl Iterator<Item = &HgPath> {
-        self.bytes[self.timestamp_end + 1..self.files_end]
-            .split(|b| b == &b'\n')
-            .map(HgPath::new)
+        if self.timestamp_end == self.files_end {
+            Either::Left(iter::empty())
+        } else {
+            Either::Right(
+                self.bytes[self.timestamp_end + 1..self.files_end]
+                    .split(|b| b == &b'\n')
+                    .map(HgPath::new),
+            )
+        }
     }
 
     /// The change description.
@@ -355,5 +362,13 @@ message",
             ChangelogRevisionData::null()
         );
         Ok(())
+    }
+
+    #[test]
+    fn test_empty_files_list() {
+        assert!(ChangelogRevisionData::null()
+            .files()
+            .collect_vec()
+            .is_empty());
     }
 }
