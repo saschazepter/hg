@@ -11,10 +11,7 @@ import sys
 # to work when run from a virtualenv.  The modules were chosen empirically
 # so that the return value matches the return value without virtualenv.
 if True:  # disable lexical sorting checks
-    try:
-        import BaseHTTPServer as basehttpserver
-    except ImportError:
-        basehttpserver = None
+    import argparse
     import zlib
 
 import testparseutil
@@ -244,7 +241,7 @@ def list_stdlib_modules():
     stdlib_prefixes = {sys.prefix, sys.exec_prefix}
     # We need to supplement the list of prefixes for the search to work
     # when run from within a virtualenv.
-    for mod in (basehttpserver, zlib):
+    for mod in (argparse, zlib):
         if mod is None:
             continue
         try:
