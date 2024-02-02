@@ -355,9 +355,7 @@ def gethgversion():
     return _hgversion
 
 
-@checkvers(
-    "hg", "Mercurial >= %s", list([(1.0 * x) / 10 for x in range(9, 99)])
-)
+@checkvers("hg", "Mercurial >= %s", [(1.0 * x) / 10 for x in range(9, 99)])
 def has_hg_range(v):
     major, minor = v.split('.')[0:2]
     return gethgversion() >= (int(major), int(minor))
