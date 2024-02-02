@@ -67,7 +67,7 @@ def checkvers(name, desc, vers):
             return f
 
         for v in vers:
-            v = str(v)
+            assert isinstance(v, str)
             f = funcv(v)
             checks['%s%s' % (name, v.replace('.', ''))] = (f, desc % v)
         return func
@@ -355,7 +355,9 @@ def gethgversion():
     return _hgversion
 
 
-@checkvers("hg", "Mercurial >= %s", [(1.0 * x) / 10 for x in range(9, 99)])
+@checkvers(
+    "hg", "Mercurial >= %s", ['%d.%d' % divmod(x, 10) for x in range(9, 99)]
+)
 def has_hg_range(v):
     major, minor = v.split('.')[0:2]
     return gethgversion() >= (int(major), int(minor))
@@ -433,7 +435,7 @@ def has_lfsserver():
     )
 
 
-@checkvers("git", "git client (with ext::sh support) version >= %s", (1.9,))
+@checkvers("git", "git client (with ext::sh support) version >= %s", ('1.9',))
 def has_git_range(v):
     major, minor = v.split('.')[0:2]
     return getgitversion() >= (int(major), int(minor))
@@ -457,7 +459,7 @@ def getsvnversion():
     return (int(m.group(1)), int(m.group(2)))
 
 
-@checkvers("svn", "subversion client and admin tools >= %s", (1.3, 1.5))
+@checkvers("svn", "subversion client and admin tools >= %s", ('1.3', '1.5'))
 def has_svn_range(v):
     major, minor = v.split('.')[0:2]
     return getsvnversion() >= (int(major), int(minor))
@@ -660,7 +662,7 @@ def getpygmentsversion():
         return (0, 0)
 
 
-@checkvers("pygments", "Pygments version >= %s", (2.5, 2.11, 2.14))
+@checkvers("pygments", "Pygments version >= %s", ('2.5', '2.11', '2.14'))
 def has_pygments_range(v):
     major, minor = v.split('.')[0:2]
     return getpygmentsversion() >= (int(major), int(minor))
@@ -866,7 +868,7 @@ def has_demandimport():
 
 # Add "py36", "py37", ... as possible feature checks. Note that there's no
 # punctuation here.
-@checkvers("py", "Python >= %s", (3.6, 3.7, 3.8, 3.9, 3.10, 3.11))
+@checkvers("py", "Python >= %s", ('3.6', '3.7', '3.8', '3.9', '3.10', '3.11'))
 def has_python_range(v):
     major, minor = v.split('.')[0:2]
     py_major, py_minor = sys.version_info.major, sys.version_info.minor
