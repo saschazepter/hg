@@ -583,7 +583,7 @@ def runcommand(orig, lui, repo, *args, **kwargs):
 # prevent strip from stripping remotefilelogs
 def _collectbrokencsets(orig, repo, files, striprev):
     if isenabled(repo):
-        files = list([f for f in files if not repo.shallowmatch(f)])
+        files = [f for f in files if not repo.shallowmatch(f)]
     return orig(repo, files, striprev)
 
 
