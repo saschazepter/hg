@@ -525,6 +525,23 @@ Test wdir
   port2:2147483647:deport
   port2:2147483647:wport
 
+Testing include/exclude
+
+  $ hg cp port tort
+  $ hg grep port -X tort
+  port:export
+  port:vaportight
+  port:import/export
+  port2:export
+  port2:vaportight
+  port2:import/export
+  port2:deport
+  port2:wport
+  $ hg grep port -I tort
+  tort:export
+  tort:vaportight
+  tort:import/export
+
   $ cd ..
   $ hg init t2
   $ cd t2

@@ -3679,7 +3679,7 @@ def grep(ui, repo, pattern, *pats, **opts):
 
     wopts = logcmdutil.walkopts(
         pats=pats,
-        opts=opts,
+        opts=pycompat.byteskwargs(opts),
         revspec=opts['rev'],
         include_pats=opts['include'],
         exclude_pats=opts['exclude'],
