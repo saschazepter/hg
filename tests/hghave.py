@@ -868,7 +868,11 @@ def has_demandimport():
 
 # Add "py36", "py37", ... as possible feature checks. Note that there's no
 # punctuation here.
-@checkvers("py", "Python >= %s", ('3.6', '3.7', '3.8', '3.9', '3.10', '3.11'))
+@checkvers(
+    "py",
+    "Python >= %s",
+    ('3.6', '3.7', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13'),
+)
 def has_python_range(v):
     major, minor = v.split('.')[0:2]
     py_major, py_minor = sys.version_info.major, sys.version_info.minor
