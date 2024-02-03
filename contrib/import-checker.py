@@ -195,9 +195,8 @@ def populateextmods(localmods):
 def list_stdlib_modules():
     """List the modules present in the stdlib.
 
-    >>> py3 = sys.version_info[0] >= 3
     >>> mods = set(list_stdlib_modules())
-    >>> 'BaseHTTPServer' in mods or py3
+    >>> 'http' in mods
     True
 
     os.path isn't really a module, so it's missing:
@@ -214,7 +213,7 @@ def list_stdlib_modules():
     >>> 'collections' in mods
     True
 
-    >>> 'cStringIO' in mods or py3
+    >>> 'array' in mods
     True
 
     >>> 'cffi' in mods
