@@ -316,7 +316,7 @@ Can censor enough revision to move back to inline storage
   rev-count   data-size inl type      target 
           8         ??? no  file      target (glob) (revlogv2 !)
           8         ??? yes file      target (glob) (revlogv1 !)
-  $ cat /dev/rand?m | dd status=none count=200 | f --hexdump > target
+  $ $TESTDIR/seq.py 4000 | $TESTDIR/sha256line.py > target
   $ hg ci -m 'add 100k passwords'
   $ H2=`hg id --debug -i`
   $ C5=$H2
