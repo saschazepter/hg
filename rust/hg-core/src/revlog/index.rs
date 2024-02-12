@@ -556,6 +556,57 @@ impl Index {
         self.head_revs_filtered(&HashSet::new(), true)
     }
 
+    /// Return the heads removed and added by advancing from `begin` to `end`.
+    /// In revset language, we compute:
+    /// - `heads(:begin)-heads(:end)`
+    /// - `heads(:end)-heads(:begin)`
+    pub fn head_revs_diff(
+        &self,
+        begin: Revision,
+        end: Revision,
+    ) -> Result<(Vec<Revision>, Vec<Revision>), GraphError> {
+        let mut heads_added = vec![];
+        let mut heads_removed = vec![];
+
+        let mut acc = HashSet::new();
+        let Revision(begin) = begin;
+        let Revision(end) = end;
+        let mut i = end;
+
+        while i > begin {
+            // acc invariant:
+            // `j` is in the set iff `j <= i` and it has children
+            // among `i+1..end` (inclusive)
+            if !acc.remove(&i) {
+                heads_added.push(Revision(i));
+            }
+            for Revision(parent) in self.parents(Revision(i))? {
+                acc.insert(parent);
+            }
+            i -= 1;
+        }
+
+        // At this point `acc` contains old revisions that gained new children.
+        // We need to check if they had any children before. If not, those
+        // revisions are the removed heads.
+        while !acc.is_empty() {
+            // acc invariant:
+            // `j` is in the set iff `j <= i` and it has children
+            // among `begin+1..end`, but not among `i+1..begin` (inclusive)
+
+            assert!(i >= -1); // yes, `-1` can also be a head if the repo is empty
+            if acc.remove(&i) {
+                heads_removed.push(Revision(i));
+            }
+            for Revision(parent) in self.parents(Revision(i))? {
+                acc.remove(&parent);
+            }
+            i -= 1;
+        }
+
+        Ok((heads_removed, heads_added))
+    }
+
     /// Return the head revisions of this index
     pub fn head_revs_filtered(
         &self,
