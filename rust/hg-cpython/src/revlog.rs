@@ -315,6 +315,15 @@ py_class!(pub class Index |py| {
         Ok(rust_res)
     }
 
+    /// get diff in head revisions
+    def headrevsdiff(&self, *args, **_kw) -> PyResult<PyObject> {
+        let rust_res = self.inner_headrevsdiff(
+          py,
+          &args.get_item(py, 0),
+          &args.get_item(py, 1))?;
+        Ok(rust_res)
+    }
+
     /// get filtered head revisions
     def headrevsfiltered(&self, *args, **_kw) -> PyResult<PyObject> {
         let rust_res = self.inner_headrevsfiltered(py, &args.get_item(py, 0))?;
@@ -825,6 +834,38 @@ impl Index {
             .expect("head revs should be cached")
             .clone_ref(py)
             .into_object())
+    }
+
+    fn check_revision(
+        index: &hg::index::Index,
+        rev: UncheckedRevision,
+        py: Python,
+    ) -> PyResult<Revision> {
+        index
+            .check_revision(rev)
+            .ok_or_else(|| rev_not_in_index(py, rev))
+    }
+
+    fn inner_headrevsdiff(
+        &self,
+        py: Python,
+        begin: &PyObject,
+        end: &PyObject,
+    ) -> PyResult<PyObject> {
+        let begin = begin.extract::<BaseRevision>(py)?;
+        let end = end.extract::<BaseRevision>(py)?;
+        let index = &mut *self.index(py).borrow_mut();
+        let begin =
+            Self::check_revision(index, UncheckedRevision(begin - 1), py)?;
+        let end = Self::check_revision(index, UncheckedRevision(end - 1), py)?;
+        let (removed, added) = index
+            .head_revs_diff(begin, end)
+            .map_err(|e| graph_error(py, e))?;
+        let removed: Vec<_> =
+            removed.into_iter().map(PyRevision::from).collect();
+        let added: Vec<_> = added.into_iter().map(PyRevision::from).collect();
+        let res = (removed, added).to_py_object(py).into_object();
+        Ok(res)
     }
 
     fn inner_headrevsfiltered(
