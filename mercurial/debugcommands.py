@@ -3438,18 +3438,18 @@ def debugsetparents(ui, repo, rev1, rev2=None):
 
     This command is not what you are looking for and should not be used. Using
     this command will most certainly results in slight corruption of the file
-    level histories withing your repository. DO NOT USE THIS COMMAND.
+    level histories within your repository. DO NOT USE THIS COMMAND.
 
-    The command update the p1 and p2 field in the dirstate, and not touching
+    The command updates the p1 and p2 fields in the dirstate, without touching
     anything else. This useful for writing repository conversion tools, but
     should be used with extreme care. For example, neither the working
-    directory nor the dirstate is updated, so file status may be incorrect
-    after running this command. Only used if you are one of the few people that
-    deeply unstand both conversion tools and file level histories. If you are
-    reading this help, you are not one of this people (most of them sailed west
-    from Mithlond anyway.
+    directory nor the dirstate is updated, so file statuses may be incorrect
+    after running this command. Use it only if you are one of the few people who
+    deeply understands both conversion tools and file level histories. If you are
+    reading this help, you are not one of those people (most of them sailed west
+    from Mithlond anyway).
 
-    So one last time DO NOT USE THIS COMMAND.
+    So, one more time, DO NOT USE THIS COMMAND.
 
     Returns 0 on success.
     """
