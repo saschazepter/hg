@@ -371,6 +371,13 @@ def addremove(ui, repo, *pats, **opts):
             _(b'revset to not display (EXPERIMENTAL)'),
             _(b'REV'),
         ),
+        (
+            b'L',
+            b'line-range',
+            [],
+            _(b'follow line range of specified file (EXPERIMENTAL)'),
+            _(b'FILE,RANGE'),
+        ),
     ]
     + diffwsopts
     + walkopts
@@ -399,6 +406,13 @@ def annotate(ui, repo, *pats, **opts):
 
     .. container:: verbose
 
+       Use -L/--line-range FILE,M:N options to filter the output to the lines
+       from M to N in FILE. This option is incompatible with --no-follow and
+       cannot be combined with file pattern arguments. When combined with --rev
+       the line ranges refer to the state of the file at the requested revision.
+
+    .. container:: verbose
+
       Template:
 
       The following keywords are supported in addition to the common template
@@ -419,7 +433,20 @@ def annotate(ui, repo, *pats, **opts):
     Returns 0 on success.
     """
     opts = pycompat.byteskwargs(opts)
-    if not pats:
+
+    linerange = opts.get(b'line_range')
+
+    if linerange and opts.get(b'no_follow'):
+        raise error.InputError(
+            _(b'--line-range is incompatible with --no-follow')
+        )
+
+    if pats and linerange:
+        raise error.InputError(
+            _(b'cannot combine filename or pattern and --line-range')
+        )
+
+    if not pats and not linerange:
         raise error.InputError(
             _(b'at least one filename or pattern is required')
         )
@@ -449,6 +476,12 @@ def annotate(ui, repo, *pats, **opts):
     if rev:
         repo = scmutil.unhidehashlikerevs(repo, [rev], b'nowarn')
     ctx = logcmdutil.revsingle(repo, rev)
+
+    if not pats:
+        pats = [
+            fname
+            for fname, _ranges in logcmdutil._parselinerangeopt(repo, opts)
+        ]
 
     ui.pager(b'annotate')
     rootfm = ui.formatter(b'annotate', opts)
@@ -554,6 +587,16 @@ def annotate(ui, repo, *pats, **opts):
         lines = fctx.annotate(
             follow=follow, skiprevs=skiprevs, diffopts=diffopts
         )
+        if linerange:
+            _fname, (line_start, line_end) = list(
+                logcmdutil._parselinerangeopt(repo, opts)
+            )[0]
+            lines = [
+                line
+                for no, line in enumerate(lines)
+                if line_start <= no < line_end
+            ]
+
         if not lines:
             fm.end()
             continue
@@ -1359,7 +1402,6 @@ def branch(ui, repo, label=None, **opts):
             repo.dirstate.setbranch(label, repo.currenttransaction())
             ui.status(_(b'reset working directory to branch %s\n') % label)
         elif label:
-
             scmutil.checknewlabel(repo, label, b'branch')
             if revs:
                 return cmdutil.changebranch(ui, repo, revs, label, **opts)
