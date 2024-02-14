@@ -430,6 +430,69 @@ linkrev vs rev with -l
   1:2: a
   1:3: a
 
+annotate line-range
+
+  $ hg annotate -l -L b,8:10
+   8: 8: more
+   9: 9: more
+  10:10: more
+
+annotate line-range beyond last line
+
+  $ hg annotate -l -L b,8:13
+   8: 8: more
+   9: 9: more
+  10:10: more
+
+annotate line-range before first line
+
+  $ hg annotate -l -L b,0:2
+  hg: parse error: fromline must be strictly positive
+  [10]
+
+annotate line-range with --rev
+  $ hg annotate -l -L b,5:7
+  4:5: c
+  3:5: b5
+  7:7: d
+  $ sed 's/d/x/' b > b.new
+  $ mv b.new b
+  $ hg annotate --rev 'wdir()' -l -L b,5:7
+   4 :5: c
+   3 :5: b5
+  10+:7: x
+  $ hg annotate -l -L b,5:7
+  4:5: c
+  3:5: b5
+  7:7: d
+  $ hg revert --no-backup b
+  $ hg annotate --rev 3 -l b
+  0:1: a
+  1:2: a
+  1:3: a
+  3:4: b4
+  3:5: b5
+  3:6: b6
+  $ hg annotate --rev 3 -l -L b,5:7
+  3:5: b5
+  3:6: b6
+
+annotate line-range invalid combination of options
+
+  $ hg annotate --no-follow -L b,5:7
+  abort: --line-range is incompatible with --no-follow
+  [10]
+  $ hg annotate -L b,5:7 a
+  abort: cannot combine filename or pattern and --line-range
+  [10]
+
+annote line-range with glob patterns
+
+  $ hg annotate -l -L glob:b*,5:7
+  4:5: c
+  3:5: b5
+  7:7: d
+
 Issue589: "undelete" sequence leads to crash
 
 annotate was crashing when trying to --follow something
