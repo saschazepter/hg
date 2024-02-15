@@ -1889,6 +1889,32 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
                 return False
         return True
 
+    def showsearch(self, regex, forward=True):
+        if not regex:
+            return
+
+        moveattr = 'nextitem' if forward else 'previtem'
+        currentitem = getattr(self.currentselecteditem, moveattr)(
+            skipfolded=False
+        )
+
+        matches = None
+        regex = re.compile(regex)
+        while currentitem:
+            matches = regex.search(currentitem.content)
+            if matches:
+                self.currentselecteditem = currentitem
+                break
+            currentitem = getattr(currentitem, moveattr)(skipfolded=False)
+
+        # Whatever is selected should now be visible
+        unfolded = self.currentselecteditem
+        while matches and unfolded:
+            unfolded.folded = False
+            unfolded = unfolded.parentitem()
+
+        return matches
+
     def handlekeypressed(self, keypressed, test=False):
         """
         Perform actions based on pressed keys.
