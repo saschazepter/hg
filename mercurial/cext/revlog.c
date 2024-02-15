@@ -909,6 +909,19 @@ static inline void set_phase_from_parents(char *phases, int parent_1,
 		phases[i] = phases[parent_2];
 }
 
+/* Take ownership of a given Python value and add it to a Python list.
+   Return -1 on failure (including if [elem] is NULL). */
+static int pylist_append_owned(PyObject *list, PyObject *elem)
+{
+	int res;
+
+	if (elem == NULL)
+		return -1;
+	res = PyList_Append(list, elem);
+	Py_DECREF(elem);
+	return res;
+}
+
 static PyObject *reachableroots2(indexObject *self, PyObject *args)
 {
 
@@ -921,7 +934,6 @@ static PyObject *reachableroots2(indexObject *self, PyObject *args)
 	PyObject *roots = NULL;
 	PyObject *reachable = NULL;
 
-	PyObject *val;
 	Py_ssize_t len = index_length(self);
 	long revnum;
 	Py_ssize_t k;
@@ -1002,11 +1014,8 @@ static PyObject *reachableroots2(indexObject *self, PyObject *args)
 		revnum = tovisit[k++];
 		if (revstates[revnum + 1] & RS_ROOT) {
 			revstates[revnum + 1] |= RS_REACHABLE;
-			val = PyLong_FromLong(revnum);
-			if (val == NULL)
-				goto bail;
-			r = PyList_Append(reachable, val);
-			Py_DECREF(val);
+			r = pylist_append_owned(reachable,
+			                        PyLong_FromLong(revnum));
 			if (r < 0)
 				goto bail;
 			if (includepath == 0)
@@ -1047,11 +1056,8 @@ static PyObject *reachableroots2(indexObject *self, PyObject *args)
 			     RS_REACHABLE) &&
 			    !(revstates[i + 1] & RS_REACHABLE)) {
 				revstates[i + 1] |= RS_REACHABLE;
-				val = PyLong_FromSsize_t(i);
-				if (val == NULL)
-					goto bail;
-				r = PyList_Append(reachable, val);
-				Py_DECREF(val);
+				r = pylist_append_owned(reachable,
+				                        PyLong_FromSsize_t(i));
 				if (r < 0)
 					goto bail;
 			}
@@ -1263,8 +1269,7 @@ static PyObject *index_headrevs(indexObject *self, PyObject *args)
 	if (heads == NULL)
 		goto bail;
 	if (len == 0) {
-		PyObject *nullid = PyLong_FromLong(-1);
-		if (nullid == NULL || PyList_Append(heads, nullid) == -1) {
+		if (pylist_append_owned(heads, PyLong_FromLong(-1)) == -1) {
 			Py_XDECREF(nullid);
 			goto bail;
 		}
@@ -1308,13 +1313,9 @@ static PyObject *index_headrevs(indexObject *self, PyObject *args)
 	}
 
 	for (i = 0; i < len; i++) {
-		PyObject *head;
-
 		if (nothead[i])
 			continue;
-		head = PyLong_FromSsize_t(i);
-		if (head == NULL || PyList_Append(heads, head) == -1) {
-			Py_XDECREF(head);
+		if (pylist_append_owned(heads, PyLong_FromSsize_t(i)) == -1) {
 			goto bail;
 		}
 	}
@@ -1561,15 +1562,9 @@ static PyObject *index_deltachain(indexObject *self, PyObject *args)
 	iterrev = rev;
 
 	while (iterrev != baserev && iterrev != stoprev) {
-		PyObject *value = PyLong_FromLong(iterrev);
-		if (value == NULL) {
+		if (pylist_append_owned(chain, PyLong_FromLong(iterrev))) {
 			goto bail;
 		}
-		if (PyList_Append(chain, value)) {
-			Py_DECREF(value);
-			goto bail;
-		}
-		Py_DECREF(value);
 
 		if (generaldelta) {
 			iterrev = baserev;
@@ -1600,15 +1595,9 @@ static PyObject *index_deltachain(indexObject *self, PyObject *args)
 	if (iterrev == stoprev) {
 		stopped = 1;
 	} else {
-		PyObject *value = PyLong_FromLong(iterrev);
-		if (value == NULL) {
+		if (pylist_append_owned(chain, PyLong_FromLong(iterrev))) {
 			goto bail;
 		}
-		if (PyList_Append(chain, value)) {
-			Py_DECREF(value);
-			goto bail;
-		}
-		Py_DECREF(value);
 
 		stopped = 0;
 	}
@@ -1727,7 +1716,6 @@ static PyObject *index_slicechunktodensity(indexObject *self, PyObject *args)
 	    0; /* total number of notable gap recorded so far */
 	Py_ssize_t *selected_indices = NULL; /* indices of gap skipped over */
 	Py_ssize_t num_selected = 0;         /* number of gaps skipped */
-	PyObject *chunk = NULL;              /* individual slice */
 	PyObject *allchunks = NULL;          /* all slices */
 	Py_ssize_t previdx;
 
@@ -1872,15 +1860,11 @@ static PyObject *index_slicechunktodensity(indexObject *self, PyObject *args)
 			goto bail;
 		}
 		if (previdx < endidx) {
-			chunk = PyList_GetSlice(list_revs, previdx, endidx);
-			if (chunk == NULL) {
+			PyObject *chunk =
+			    PyList_GetSlice(list_revs, previdx, endidx);
+			if (pylist_append_owned(allchunks, chunk) == -1) {
 				goto bail;
 			}
-			if (PyList_Append(allchunks, chunk) == -1) {
-				goto bail;
-			}
-			Py_DECREF(chunk);
-			chunk = NULL;
 		}
 		previdx = idx;
 	}
@@ -1889,7 +1873,6 @@ static PyObject *index_slicechunktodensity(indexObject *self, PyObject *args)
 
 bail:
 	Py_XDECREF(allchunks);
-	Py_XDECREF(chunk);
 done:
 	free(revs);
 	free(gaps);
@@ -2534,11 +2517,8 @@ static PyObject *find_gca_candidates(indexObject *self, const int *revs,
 		if (sv < poison) {
 			interesting -= 1;
 			if (sv == allseen) {
-				PyObject *obj = PyLong_FromLong(v);
-				if (obj == NULL)
-					goto bail;
-				if (PyList_Append(gca, obj) == -1) {
-					Py_DECREF(obj);
+				if (pylist_append_owned(
+				        gca, PyLong_FromLong(v)) == -1) {
 					goto bail;
 				}
 				sv |= poison;
