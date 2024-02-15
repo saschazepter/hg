@@ -1953,6 +1953,16 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
             self.stdscr.clear()
             self.stdscr.refresh()
 
+    def handlenextsearch(self):
+        self.searchdirection(
+            _(b"Next pattern not found (press ENTER)"), forward=True
+        )
+
+    def handleprevsearch(self):
+        self.searchdirection(
+            _(b"Previous pattern not found (press ENTER)"), forward=False
+        )
+
     def handlekeypressed(self, keypressed, test=False):
         """
         Perform actions based on pressed keys.
