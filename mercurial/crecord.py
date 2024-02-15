@@ -201,9 +201,8 @@ class patch(patchnode, list):  # todo: rename patchroot
 
 
 class uiheader(patchnode):
-    """patch header
-
-    xxx shouldn't we move this to mercurial/patch.py ?
+    """
+    patchnode class wrapping a patch.header
     """
 
     def __init__(self, header):
