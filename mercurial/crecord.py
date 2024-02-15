@@ -86,6 +86,10 @@ class patchnode:
     (i.e. patchroot, header, hunk, hunkline)
     """
 
+    @property
+    def content(self):
+        return b''
+
     def firstchild(self):
         raise NotImplementedError(b"method must be implemented by subclass")
 
@@ -223,6 +227,10 @@ class uiheader(patchnode):
         self.neverunfolded = True
         self.hunks = [uihunk(h, self) for h in self.hunks]
 
+    @property
+    def content(self):
+        return self.filename()
+
     def prettystr(self):
         x = stringio()
         self.pretty(x)
@@ -289,6 +297,10 @@ class uihunkline(patchnode):
         # in the previtem method.
         self.folded = False
 
+    @property
+    def content(self):
+        return self.linetext
+
     def prettystr(self):
         return self.linetext
 
@@ -346,6 +358,10 @@ class uihunk(patchnode):
         # flag which only affects the status display indicating if a node's
         # children are partially applied (i.e. some applied, some not).
         self.partial = False
+
+    @property
+    def content(self):
+        return self.proc if self.proc else b''
 
     def nextsibling(self):
         numhunksinheader = len(self.header.hunks)
