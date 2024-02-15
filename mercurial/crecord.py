@@ -1939,6 +1939,20 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
 
         return matches
 
+    def searchdirection(self, failuremsg, forward=True):
+        if not self.regex:
+            return
+
+        if not self.showsearch(self.regex, forward=forward):
+            win = curses.newwin(1, self.xscreensize, self.yscreensize - 1, 0)
+            self.printstring(win, failuremsg, pairname=b"legend", align=False)
+            while win.getkey() not in ["\n", "KEY_ENTER"]:
+                pass
+            del win
+
+            self.stdscr.clear()
+            self.stdscr.refresh()
+
     def handlekeypressed(self, keypressed, test=False):
         """
         Perform actions based on pressed keys.
