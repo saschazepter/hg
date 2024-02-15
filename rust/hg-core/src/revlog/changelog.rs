@@ -1,3 +1,12 @@
+use std::ascii::escape_default;
+use std::borrow::Cow;
+use std::collections::BTreeMap;
+use std::fmt::{Debug, Formatter};
+use std::{iter, str};
+
+use chrono::{DateTime, FixedOffset, NaiveDateTime};
+use itertools::{Either, Itertools};
+
 use crate::errors::HgError;
 use crate::revlog::Revision;
 use crate::revlog::{Node, NodePrefix};
@@ -5,11 +14,6 @@ use crate::revlog::{Revlog, RevlogEntry, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::vfs::Vfs;
 use crate::{Graph, GraphError, RevlogOpenOptions, UncheckedRevision};
-use itertools::{Either, Itertools};
-use std::ascii::escape_default;
-use std::borrow::Cow;
-use std::fmt::{Debug, Formatter};
-use std::iter;
 
 /// A specialized `Revlog` to work with changelog data format.
 pub struct Changelog {
@@ -229,6 +233,11 @@ impl<'changelog> ChangelogRevisionData<'changelog> {
         &self.bytes[self.user_end + 1..self.timestamp_end]
     }
 
+    /// Parsed timestamp line, including optional extras.
+    pub fn parsed_timestamp(&self) -> Result<TimestampAndExtra, HgError> {
+        TimestampAndExtra::from_bytes(self.timestamp_line())
+    }
+
     /// The files changed in this revision.
     pub fn files(&self) -> impl Iterator<Item = &HgPath> {
         if self.timestamp_end == self.files_end {
@@ -284,6 +293,203 @@ fn debug_bytes(bytes: &[u8]) -> String {
         &bytes.iter().flat_map(|b| escape_default(*b)).collect_vec(),
     )
     .to_string()
+}
+
+/// Parsed timestamp line, including the timestamp and optional extras.
+#[derive(Clone, Debug)]
+pub struct TimestampAndExtra {
+    pub timestamp: DateTime<FixedOffset>,
+    pub extra: BTreeMap<String, Vec<u8>>,
+}
+
+impl TimestampAndExtra {
+    /// Parse the raw bytes of the timestamp line from a changelog entry.
+    ///
+    /// According to the documentation in `hg help dates` and the
+    /// implementation in `changelog.py`, the format of the timestamp line
+    /// is `time tz extra\n` where:
+    ///
+    /// - `time` is an ASCII-encoded signed int or float denoting a UTC
+    ///   timestamp as seconds since the UNIX epoch.
+    ///
+    /// - `tz` is the timezone offset as an ASCII-encoded signed integer
+    ///   denoting seconds WEST of UTC (so negative for timezones east of UTC,
+    ///   which is the opposite of the sign in ISO 8601 timestamps).
+    ///
+    /// - `extra` is an optional set of NUL-delimited key-value pairs, with the
+    ///   key and value in each pair separated by an ASCII colon. Keys are
+    ///   limited to ASCII letters, digits, hyphens, and underscores, whereas
+    ///   values can be arbitrary bytes.
+    fn from_bytes(line: &[u8]) -> Result<Self, HgError> {
+        let mut parts = line.splitn(3, |c| *c == b' ');
+
+        let timestamp_bytes = parts
+            .next()
+            .ok_or_else(|| HgError::corrupted("missing timestamp"))?;
+        let timestamp_str = str::from_utf8(timestamp_bytes).map_err(|e| {
+            HgError::corrupted(format!("timestamp is not valid UTF-8: {e}"))
+        })?;
+        let timestamp_utc = timestamp_str
+            .parse()
+            .map_err(|e| {
+                HgError::corrupted(format!("failed to parse timestamp: {e}"))
+            })
+            .and_then(|secs| {
+                NaiveDateTime::from_timestamp_opt(secs, 0).ok_or_else(|| {
+                    HgError::corrupted(format!(
+                        "integer timestamp out of valid range: {secs}"
+                    ))
+                })
+            })
+            // Attempt to parse the timestamp as a float if we can't parse
+            // it as an int. It doesn't seem like float timestamps are actually
+            // used in practice, but the Python code supports them.
+            .or_else(|_| parse_float_timestamp(timestamp_str))?;
+
+        let timezone_bytes = parts
+            .next()
+            .ok_or_else(|| HgError::corrupted("missing timezone"))?;
+        let timezone_secs: i32 = str::from_utf8(timezone_bytes)
+            .map_err(|e| {
+                HgError::corrupted(format!("timezone is not valid UTF-8: {e}"))
+            })?
+            .parse()
+            .map_err(|e| {
+                HgError::corrupted(format!("timezone is not an integer: {e}"))
+            })?;
+        let timezone =
+            FixedOffset::west_opt(timezone_secs).ok_or_else(|| {
+                HgError::corrupted("timezone offset out of bounds")
+            })?;
+
+        let timestamp =
+            DateTime::from_naive_utc_and_offset(timestamp_utc, timezone);
+        let extra = parts
+            .next()
+            .map(parse_extra)
+            .transpose()?
+            .unwrap_or_default();
+
+        Ok(Self { timestamp, extra })
+    }
+}
+
+/// Attempt to parse the given string as floating-point timestamp, and
+/// convert the result into a `chrono::NaiveDateTime`.
+fn parse_float_timestamp(
+    timestamp_str: &str,
+) -> Result<NaiveDateTime, HgError> {
+    let timestamp = timestamp_str.parse::<f64>().map_err(|e| {
+        HgError::corrupted(format!("failed to parse timestamp: {e}"))
+    })?;
+
+    // To construct a `NaiveDateTime` we'll need to convert the float
+    // into signed integer seconds and unsigned integer nanoseconds.
+    let mut secs = timestamp.trunc() as i64;
+    let mut subsecs = timestamp.fract();
+
+    // If the timestamp is negative, we need to express the fractional
+    // component as positive nanoseconds since the previous second.
+    if timestamp < 0.0 {
+        secs -= 1;
+        subsecs += 1.0;
+    }
+
+    // This cast should be safe because the fractional component is
+    // by definition less than 1.0, so this value should not exceed
+    // 1 billion, which is representable as an f64 without loss of
+    // precision and should fit into a u32 without overflowing.
+    //
+    // (Any loss of precision in the fractional component will have
+    // already happened at the time of initial parsing; in general,
+    // f64s are insufficiently precise to provide nanosecond-level
+    // precision with present-day timestamps.)
+    let nsecs = (subsecs * 1_000_000_000.0) as u32;
+
+    NaiveDateTime::from_timestamp_opt(secs, nsecs).ok_or_else(|| {
+        HgError::corrupted(format!(
+            "float timestamp out of valid range: {timestamp}"
+        ))
+    })
+}
+
+/// Parse the "extra" fields from a changeset's timestamp line.
+///
+/// Extras are null-delimited key-value pairs where the key consists of ASCII
+/// alphanumeric characters plus hyphens and underscores, and the value can
+/// contain arbitrary bytes.
+fn parse_extra(extra: &[u8]) -> Result<BTreeMap<String, Vec<u8>>, HgError> {
+    extra
+        .split(|c| *c == b'\0')
+        .map(|pair| {
+            let pair = unescape_extra(pair);
+            let mut iter = pair.splitn(2, |c| *c == b':');
+
+            let key_bytes =
+                iter.next().filter(|k| !k.is_empty()).ok_or_else(|| {
+                    HgError::corrupted("empty key in changeset extras")
+                })?;
+
+            let key = str::from_utf8(key_bytes)
+                .ok()
+                .filter(|k| {
+                    k.chars().all(|c| {
+                        c.is_ascii_alphanumeric() || c == '_' || c == '-'
+                    })
+                })
+                .ok_or_else(|| {
+                    let key = String::from_utf8_lossy(key_bytes);
+                    HgError::corrupted(format!(
+                        "invalid key in changeset extras: {key}",
+                    ))
+                })?
+                .to_string();
+
+            let value = iter.next().map(Into::into).ok_or_else(|| {
+                HgError::corrupted(format!(
+                    "missing value for changeset extra: {key}"
+                ))
+            })?;
+
+            Ok((key, value))
+        })
+        .collect()
+}
+
+/// Decode Mercurial's escaping for changelog extras.
+///
+/// The `_string_escape` function in `changelog.py` only escapes 4 characters
+/// (null, backslash, newline, and carriage return) so we only decode those.
+///
+/// The Python code also includes a workaround for decoding escaped nuls
+/// that are followed by an ASCII octal digit, since Python's built-in
+/// `string_escape` codec will interpret that as an escaped octal byte value.
+/// That workaround is omitted here since we don't support decoding octal.
+fn unescape_extra(bytes: &[u8]) -> Vec<u8> {
+    let mut output = Vec::with_capacity(bytes.len());
+    let mut input = bytes.iter().copied();
+
+    while let Some(c) = input.next() {
+        if c != b'\\' {
+            output.push(c);
+            continue;
+        }
+
+        match input.next() {
+            Some(b'0') => output.push(b'\0'),
+            Some(b'\\') => output.push(b'\\'),
+            Some(b'n') => output.push(b'\n'),
+            Some(b'r') => output.push(b'\r'),
+            // The following cases should never occur in theory because any
+            // backslashes in the original input should have been escaped
+            // with another backslash, so it should not be possible to
+            // observe an escape sequence other than the 4 above.
+            Some(c) => output.extend_from_slice(&[b'\\', c]),
+            None => output.push(b'\\'),
+        }
+    }
+
+    output
 }
 
 #[cfg(test)]
@@ -374,5 +580,167 @@ message",
             .files()
             .collect_vec()
             .is_empty());
+    }
+
+    #[test]
+    fn test_unescape_basic() {
+        // '\0', '\\', '\n', and '\r' are correctly unescaped.
+        let expected = b"AAA\0BBB\\CCC\nDDD\rEEE";
+        let escaped = br"AAA\0BBB\\CCC\nDDD\rEEE";
+        let unescaped = unescape_extra(escaped);
+        assert_eq!(&expected[..], &unescaped[..]);
+    }
+
+    #[test]
+    fn test_unescape_unsupported_sequence() {
+        // Other escape sequences are left unaltered.
+        for c in 0u8..255 {
+            match c {
+                b'0' | b'\\' | b'n' | b'r' => continue,
+                c => {
+                    let expected = &[b'\\', c][..];
+                    let unescaped = unescape_extra(expected);
+                    assert_eq!(expected, &unescaped[..]);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_unescape_trailing_backslash() {
+        // Trailing backslashes are OK.
+        let expected = br"hi\";
+        let unescaped = unescape_extra(expected);
+        assert_eq!(&expected[..], &unescaped[..]);
+    }
+
+    #[test]
+    fn test_unescape_nul_followed_by_octal() {
+        // Escaped NUL chars followed by octal digits are decoded correctly.
+        let expected = b"\012";
+        let escaped = br"\012";
+        let unescaped = unescape_extra(escaped);
+        assert_eq!(&expected[..], &unescaped[..]);
+    }
+
+    #[test]
+    fn test_parse_float_timestamp() {
+        let test_cases = [
+            // Zero should map to the UNIX epoch.
+            ("0.0", "1970-01-01 00:00:00"),
+            // Negative zero should be the same as positive zero.
+            ("-0.0", "1970-01-01 00:00:00"),
+            // Values without fractional components should work like integers.
+            // (Assuming the timestamp is within the limits of f64 precision.)
+            ("1115154970.0", "2005-05-03 21:16:10"),
+            // We expect some loss of precision in the fractional component
+            // when parsing arbitrary floating-point values.
+            ("1115154970.123456789", "2005-05-03 21:16:10.123456716"),
+            // But representable f64 values should parse losslessly.
+            ("1115154970.123456716", "2005-05-03 21:16:10.123456716"),
+            // Negative fractional components are subtracted from the epoch.
+            ("-1.333", "1969-12-31 23:59:58.667"),
+        ];
+
+        for (input, expected) in test_cases {
+            let res = parse_float_timestamp(input).unwrap().to_string();
+            assert_eq!(res, expected);
+        }
+    }
+
+    fn escape_extra(bytes: &[u8]) -> Vec<u8> {
+        let mut output = Vec::with_capacity(bytes.len());
+
+        for c in bytes.iter().copied() {
+            output.extend_from_slice(match c {
+                b'\0' => &b"\\0"[..],
+                b'\\' => &b"\\\\"[..],
+                b'\n' => &b"\\n"[..],
+                b'\r' => &b"\\r"[..],
+                _ => {
+                    output.push(c);
+                    continue;
+                }
+            });
+        }
+
+        output
+    }
+
+    fn encode_extra<K, V>(pairs: impl IntoIterator<Item = (K, V)>) -> Vec<u8>
+    where
+        K: AsRef<[u8]>,
+        V: AsRef<[u8]>,
+    {
+        let extras = pairs.into_iter().map(|(k, v)| {
+            escape_extra(&[k.as_ref(), b":", v.as_ref()].concat())
+        });
+        // Use fully-qualified syntax to avoid a future naming conflict with
+        // the standard library: https://github.com/rust-lang/rust/issues/79524
+        Itertools::intersperse(extras, b"\0".to_vec()).concat()
+    }
+
+    #[test]
+    fn test_parse_extra() {
+        let extra = [
+            ("branch".into(), b"default".to_vec()),
+            ("key-with-hyphens".into(), b"value1".to_vec()),
+            ("key_with_underscores".into(), b"value2".to_vec()),
+            ("empty-value".into(), b"".to_vec()),
+            ("binary-value".into(), (0u8..=255).collect::<Vec<_>>()),
+        ]
+        .into_iter()
+        .collect::<BTreeMap<String, Vec<u8>>>();
+
+        let encoded = encode_extra(&extra);
+        let parsed = parse_extra(&encoded).unwrap();
+
+        assert_eq!(extra, parsed);
+    }
+
+    #[test]
+    fn test_corrupt_extra() {
+        let test_cases = [
+            (&b""[..], "empty input"),
+            (&b"\0"[..], "unexpected null byte"),
+            (&b":empty-key"[..], "empty key"),
+            (&b"\0leading-null:"[..], "leading null"),
+            (&b"trailing-null:\0"[..], "trailing null"),
+            (&b"missing-value"[..], "missing value"),
+            (&b"$!@# non-alphanum-key:"[..], "non-alphanumeric key"),
+            (&b"\xF0\x9F\xA6\x80 non-ascii-key:"[..], "non-ASCII key"),
+        ];
+
+        for (extra, msg) in test_cases {
+            assert!(
+                parse_extra(&extra).is_err(),
+                "corrupt extra should have failed to parse: {}",
+                msg
+            );
+        }
+    }
+
+    #[test]
+    fn test_parse_timestamp_line() {
+        let extra = [
+            ("branch".into(), b"default".to_vec()),
+            ("key-with-hyphens".into(), b"value1".to_vec()),
+            ("key_with_underscores".into(), b"value2".to_vec()),
+            ("empty-value".into(), b"".to_vec()),
+            ("binary-value".into(), (0u8..=255).collect::<Vec<_>>()),
+        ]
+        .into_iter()
+        .collect::<BTreeMap<String, Vec<u8>>>();
+
+        let mut line: Vec<u8> = b"1115154970 28800 ".to_vec();
+        line.extend_from_slice(&encode_extra(&extra));
+
+        let parsed = TimestampAndExtra::from_bytes(&line).unwrap();
+
+        assert_eq!(
+            &parsed.timestamp.to_rfc3339(),
+            "2005-05-03T13:16:10-08:00"
+        );
+        assert_eq!(extra, parsed.extra);
     }
 }
