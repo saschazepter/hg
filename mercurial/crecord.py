@@ -1665,6 +1665,9 @@ smaller changesets. the following are valid keystrokes:
                       a : toggle all selections
                       c : confirm selected changes
                       r : review/edit and confirm selected changes
+                      / : regex search for code or filename
+                      n : next search result for code or filename
+                      N : previous search result for code or filename
                       q : quit without confirming (no changes will be made)
                       ? : help (what you're currently reading)"""
         )
@@ -2013,6 +2016,12 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
             self.togglefolded(foldparent=True)
         elif keypressed in ["m"]:
             self.commitMessageWindow()
+        elif keypressed in ["/"]:
+            self.handlesearch()
+        elif keypressed in ["n"]:
+            self.handlenextsearch()
+        elif keypressed in ["N"]:
+            self.handleprevsearch()
         elif keypressed in ["g", "KEY_HOME"]:
             self.handlefirstlineevent()
         elif keypressed in ["G", "KEY_END"]:
