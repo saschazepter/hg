@@ -161,7 +161,7 @@ class patchnode:
             except AttributeError:  # parent and/or grandparent was None
                 return None
 
-    def previtem(self):
+    def previtem(self, skipfolded=None):
         """
         Try to return the previous item closest to this item, regardless of
         item's type (header, hunk, or hunkline).
