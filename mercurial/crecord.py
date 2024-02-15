@@ -709,6 +709,8 @@ class curseschunkselector:
             )
         self.operation = operation
 
+        self.regex = None
+
     def uparrowevent(self):
         """
         try to select the previous item to the current item that has the
