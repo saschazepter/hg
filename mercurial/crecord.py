@@ -1889,6 +1889,30 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
                 return False
         return True
 
+    def handlesearch(self):
+        win = curses.newwin(1, self.xscreensize, self.yscreensize - 1, 0)
+        win.echochar("/")
+
+        curses.echo()
+        curses.curs_set(1)
+        self.regex = win.getstr() or None
+        curses.noecho()
+        curses.curs_set(0)
+
+        if not self.showsearch(self.regex):
+            self.printstring(
+                win,
+                _(b"Pattern not found (press ENTER)"),
+                pairname=b"legend",
+                align=False,
+            )
+            while win.getkey() not in ["\n", "KEY_ENTER"]:
+                pass
+        del win
+
+        self.stdscr.clear()
+        self.stdscr.refresh()
+
     def showsearch(self, regex, forward=True):
         if not regex:
             return
