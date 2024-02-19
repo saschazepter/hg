@@ -4303,6 +4303,11 @@ def perfbranchmapupdate(ui, repo, base=(), target=(), **opts):
         baserepo = repo.filtered(b'__perf_branchmap_update_base')
         targetrepo = repo.filtered(b'__perf_branchmap_update_target')
 
+        copy_base_kwargs = copy_base_kwargs = {}
+        if 'repo' in getargspec(repo.branchmap().copy).args:
+            copy_base_kwargs = {"repo": baserepo}
+            copy_target_kwargs = {"repo": targetrepo}
+
         # try to find an existing branchmap to reuse
         subsettable = getbranchmapsubsettable()
         candidatefilter = subsettable.get(None)
@@ -4311,7 +4316,7 @@ def perfbranchmapupdate(ui, repo, base=(), target=(), **opts):
             if candidatebm.validfor(baserepo):
                 filtered = repoview.filterrevs(repo, candidatefilter)
                 missing = [r for r in allbaserevs if r in filtered]
-                base = candidatebm.copy()
+                base = candidatebm.copy(**copy_base_kwargs)
                 base.update(baserepo, missing)
                 break
             candidatefilter = subsettable.get(candidatefilter)
@@ -4321,7 +4326,7 @@ def perfbranchmapupdate(ui, repo, base=(), target=(), **opts):
             base.update(baserepo, allbaserevs)
 
         def setup():
-            x[0] = base.copy()
+            x[0] = base.copy(**copy_target_kwargs)
             if clearcaches:
                 unfi._revbranchcache = None
                 clearchangelog(repo)
