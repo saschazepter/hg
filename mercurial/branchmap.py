@@ -216,6 +216,7 @@ class branchcache:
         filteredhash: Optional[bytes] = None,
         closednodes: Optional[Set[bytes]] = None,
         hasnode: Optional[Callable[[bytes], bool]] = None,
+        verify_node: bool = False,
     ) -> None:
         """hasnode is a function which can be used to verify whether changelog
         has a given node or not. If it's not provided, we assume that every node
@@ -236,18 +237,23 @@ class branchcache:
         else:
             self._closednodes = closednodes
         self._entries = dict(entries)
+        # Do we need to verify branch at all ?
+        self._verify_node = verify_node
         # whether closed nodes are verified or not
         self._closedverified = False
         # branches for which nodes are verified
         self._verifiedbranches = set()
-        self._hasnode = hasnode
-        if self._hasnode is None:
-            self._hasnode = lambda x: True
+        self._hasnode = None
+        if self._verify_node:
+            self._hasnode = repo.changelog.hasnode
 
     def _verifyclosed(self):
         """verify the closed nodes we have"""
+        if not self._verify_node:
+            return
         if self._closedverified:
             return
+        assert self._hasnode is not None
         for node in self._closednodes:
             if not self._hasnode(node):
                 _unknownnode(node)
@@ -256,8 +262,11 @@ class branchcache:
 
     def _verifybranch(self, branch):
         """verify head nodes for the given branch."""
+        if not self._verify_node:
+            return
         if branch not in self._entries or branch in self._verifiedbranches:
             return
+        assert self._hasnode is not None
         for n in self._entries[branch]:
             if not self._hasnode(n):
                 _unknownnode(n)
@@ -306,7 +315,6 @@ class branchcache:
             last, lrev = cachekey[:2]
             last, lrev = bin(last), int(lrev)
             filteredhash = None
-            hasnode = repo.changelog.hasnode
             if len(cachekey) > 2:
                 filteredhash = bin(cachekey[2])
             bcache = cls(
@@ -314,7 +322,7 @@ class branchcache:
                 tipnode=last,
                 tiprev=lrev,
                 filteredhash=filteredhash,
-                hasnode=hasnode,
+                verify_node=True,
             )
             if not bcache.validfor(repo):
                 # invalidate the cache
@@ -432,6 +440,7 @@ class branchcache:
             self.tiprev,
             self.filteredhash,
             self._closednodes,
+            verify_node=self._verify_node,
         )
 
     def write(self, repo):
