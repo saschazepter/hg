@@ -432,16 +432,26 @@ class branchcache:
         return self._entries.values()
 
     def copy(self, repo):
-        """return an deep copy of the branchcache object"""
-        return type(self)(
-            repo,
-            self._entries,
-            self.tipnode,
-            self.tiprev,
-            self.filteredhash,
-            self._closednodes,
+        """return a deep copy of the branchcache object"""
+        other = type(self)(
+            repo=repo,
+            # we always do a shally copy of self._entries, and the values is
+            # always replaced, so no need to deepcopy until the above remains
+            # true.
+            entries=self._entries,
+            tipnode=self.tipnode,
+            tiprev=self.tiprev,
+            filteredhash=self.filteredhash,
+            closednodes=set(self._closednodes),
             verify_node=self._verify_node,
         )
+        # we copy will likely schedule a write anyway, but that does not seems
+        # to hurt to overschedule
+        other._delayed = self._delayed
+        # also copy information about the current verification state
+        other._closedverified = self._closedverified
+        other._verifiedbranches = set(self._verifiedbranches)
+        return other
 
     def write(self, repo):
         assert self._filtername == repo.filtername, (
