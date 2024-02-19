@@ -60,6 +60,10 @@ class BranchMapCache:
     def __getitem__(self, repo):
         self.updatecache(repo)
         bcache = self._per_filter[repo.filtername]
+        assert bcache._repo.filtername == repo.filtername, (
+            bcache._repo.filtername,
+            repo.filtername,
+        )
         return bcache
 
     def update_disk(self, repo):
@@ -76,6 +80,10 @@ class BranchMapCache:
         """
         self.updatecache(repo)
         bcache = self._per_filter[repo.filtername]
+        assert bcache._repo.filtername == repo.filtername, (
+            bcache._repo.filtername,
+            repo.filtername,
+        )
         bcache.write(repo)
 
     def updatecache(self, repo):
@@ -99,7 +107,7 @@ class BranchMapCache:
             subsetname = subsettable.get(filtername)
             if subsetname is not None:
                 subset = repo.filtered(subsetname)
-                bcache = self[subset].copy()
+                bcache = self[subset].copy(repo)
                 extrarevs = subset.changelog.filteredrevs - cl.filteredrevs
                 revs.extend(r for r in extrarevs if r <= bcache.tiprev)
             else:
@@ -148,7 +156,7 @@ class BranchMapCache:
             for candidate in (b'base', b'immutable', b'served'):
                 rview = repo.filtered(candidate)
                 if cache.validfor(rview):
-                    self._per_filter[candidate] = cache
+                    cache = self._per_filter[candidate] = cache.copy(rview)
                     cache.write(rview)
                     return
 
@@ -415,10 +423,10 @@ class branchcache:
         self._verifyall()
         return self._entries.values()
 
-    def copy(self):
+    def copy(self, repo):
         """return an deep copy of the branchcache object"""
         return type(self)(
-            self._repo,
+            repo,
             self._entries,
             self.tipnode,
             self.tiprev,
@@ -427,6 +435,10 @@ class branchcache:
         )
 
     def write(self, repo):
+        assert self._repo.filtername == repo.filtername, (
+            self._repo.filtername,
+            repo.filtername,
+        )
         tr = repo.currenttransaction()
         if not getattr(tr, 'finalized', True):
             # Avoid premature writing.
@@ -471,6 +483,10 @@ class branchcache:
         missing heads, and a generator of nodes that are strictly a superset of
         heads missing, this function updates self to be correct.
         """
+        assert self._repo.filtername == repo.filtername, (
+            self._repo.filtername,
+            repo.filtername,
+        )
         starttime = util.timer()
         cl = repo.changelog
         # collect new branch entries
