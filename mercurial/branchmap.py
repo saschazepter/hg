@@ -60,8 +60,8 @@ class BranchMapCache:
     def __getitem__(self, repo):
         self.updatecache(repo)
         bcache = self._per_filter[repo.filtername]
-        assert bcache._repo.filtername == repo.filtername, (
-            bcache._repo.filtername,
+        assert bcache._filtername == repo.filtername, (
+            bcache._filtername,
             repo.filtername,
         )
         return bcache
@@ -80,8 +80,8 @@ class BranchMapCache:
         """
         self.updatecache(repo)
         bcache = self._per_filter[repo.filtername]
-        assert bcache._repo.filtername == repo.filtername, (
-            bcache._repo.filtername,
+        assert bcache._filtername == repo.filtername, (
+            bcache._filtername,
             repo.filtername,
         )
         bcache.write(repo)
@@ -220,7 +220,7 @@ class branchcache:
         """hasnode is a function which can be used to verify whether changelog
         has a given node or not. If it's not provided, we assume that every node
         we have exists in changelog"""
-        self._repo = repo
+        self._filtername = repo.filtername
         self._delayed = False
         if tipnode is None:
             self.tipnode = repo.nullid
@@ -435,8 +435,8 @@ class branchcache:
         )
 
     def write(self, repo):
-        assert self._repo.filtername == repo.filtername, (
-            self._repo.filtername,
+        assert self._filtername == repo.filtername, (
+            self._filtername,
             repo.filtername,
         )
         tr = repo.currenttransaction()
@@ -483,8 +483,8 @@ class branchcache:
         missing heads, and a generator of nodes that are strictly a superset of
         heads missing, this function updates self to be correct.
         """
-        assert self._repo.filtername == repo.filtername, (
-            self._repo.filtername,
+        assert self._filtername == repo.filtername, (
+            self._filtername,
             repo.filtername,
         )
         starttime = util.timer()
