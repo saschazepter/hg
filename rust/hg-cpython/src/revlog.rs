@@ -970,31 +970,16 @@ impl Index {
         py_roots: PyDict,
     ) -> PyResult<PyObject> {
         let index = &*self.index(py).borrow();
-        let opt = self.get_nodetree(py)?.borrow();
-        let nt = opt.as_ref().unwrap();
         let roots: Result<HashMap<Phase, Vec<Revision>>, PyErr> = py_roots
             .items_list(py)
             .iter(py)
             .map(|r| {
                 let phase = r.get_item(py, 0)?;
-                let nodes = r.get_item(py, 1)?;
-                // Transform the nodes from Python to revs here since we
-                // have access to the nodemap
-                let revs: Result<_, _> = nodes
-                    .iter(py)?
-                    .map(|node| match node?.extract::<PyBytes>(py) {
-                        Ok(py_bytes) => {
-                            let node = node_from_py_bytes(py, &py_bytes)?;
-                            nt.find_bin(index, node.into())
-                                .map_err(|e| nodemap_error(py, e))?
-                                .ok_or_else(|| revlog_error(py))
-                        }
-                        Err(e) => Err(e),
-                    })
-                    .collect();
+                let revs: Vec<_> =
+                    rev_pyiter_collect(py, &r.get_item(py, 1)?, index)?;
                 let phase = Phase::try_from(phase.extract::<usize>(py)?)
                     .map_err(|_| revlog_error(py));
-                Ok((phase?, revs?))
+                Ok((phase?, revs))
             })
             .collect();
         let (len, phase_maps) = index

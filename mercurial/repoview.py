@@ -160,7 +160,7 @@ def computeimpactable(repo, visibilityexceptions=None):
     firstmutable = len(cl)
     roots = repo._phasecache.nonpublicphaseroots(repo)
     if roots:
-        firstmutable = min(firstmutable, min(cl.rev(r) for r in roots))
+        firstmutable = min(firstmutable, min(roots))
     # protect from nullrev root
     firstmutable = max(0, firstmutable)
     return frozenset(range(firstmutable, len(cl)))

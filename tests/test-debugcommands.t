@@ -197,7 +197,7 @@ debugdelta chain basic output
   node trie depth: 1
   node trie last rev scanned: -1 (no-rust !)
   node trie last rev scanned: 3 (rust !)
-  node trie lookups: 4 (no-rust !)
+  node trie lookups: 3 (no-rust !)
   node trie lookups: 2 (rust !)
   node trie misses: 1
   node trie splits: 1
