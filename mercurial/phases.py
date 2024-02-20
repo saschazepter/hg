@@ -103,6 +103,7 @@ Note: old client behave as a publishing server with draft only content
 
 import struct
 import typing
+import weakref
 
 from typing import (
     Any,
@@ -367,7 +368,6 @@ class phasecache:
             self._loadedrevslen = 0
             self._phasesets = None
             self.filterunknown(repo)
-            self.opener = repo.svfs
 
     def hasnonpublicphases(self, repo: "localrepo.localrepository") -> bool:
         """detect if there are revisions with non-public phase"""
@@ -466,7 +466,6 @@ class phasecache:
         ph = self.__class__(None, None, _load=False)
         ph._phaseroots = self._phaseroots.copy()
         ph.dirty = self.dirty
-        ph.opener = self.opener
         ph._loadedrevslen = self._loadedrevslen
         ph._phasesets = self._phasesets
         return ph
@@ -476,7 +475,6 @@ class phasecache:
         for a in (
             '_phaseroots',
             'dirty',
-            'opener',
             '_loadedrevslen',
             '_phasesets',
         ):
@@ -533,27 +531,36 @@ class phasecache:
                 return phase
         return public
 
-    def write(self):
+    def write(self, repo):
         if not self.dirty:
             return
-        f = self.opener(b'phaseroots', b'w', atomictemp=True, checkambig=True)
+        f = repo.svfs(b'phaseroots', b'w', atomictemp=True, checkambig=True)
         try:
-            self._write(f)
+            self._write(repo.unfiltered(), f)
         finally:
             f.close()
 
-    def _write(self, fp):
+    def _write(self, repo, fp):
+        assert repo.filtername is None
         for phase, roots in self._phaseroots.items():
             for h in sorted(roots):
                 fp.write(b'%i %s\n' % (phase, hex(h)))
         self.dirty = False
 
-    def _updateroots(self, phase, newroots, tr):
+    def _updateroots(self, repo, phase, newroots, tr):
         self._phaseroots[phase] = newroots
         self.invalidate()
         self.dirty = True
 
-        tr.addfilegenerator(b'phase', (b'phaseroots',), self._write)
+        assert repo.filtername is None
+        wrepo = weakref.ref(repo)
+
+        def tr_write(fp):
+            repo = wrepo()
+            assert repo is not None
+            self._write(repo, fp)
+
+        tr.addfilegenerator(b'phase', (b'phaseroots',), tr_write)
         tr.hookargs[b'phases_moved'] = b'1'
 
     def registernew(self, repo, tr, targetphase, revs):
@@ -614,7 +621,7 @@ class phasecache:
                 for ctx in repo.set(b'roots((%ln::) - %ld)', olds, affected)
             }
             if olds != roots:
-                self._updateroots(phase, roots, tr)
+                self._updateroots(repo, phase, roots, tr)
                 # some roots may need to be declared for lower phases
                 delroots.extend(olds - roots)
         if not dryrun:
@@ -697,7 +704,10 @@ class phasecache:
             finalroots.update(updatedroots)
         if finalroots != oldroots:
             self._updateroots(
-                targetphase, {tonode(rev) for rev in finalroots}, tr
+                repo,
+                targetphase,
+                {tonode(rev) for rev in finalroots},
+                tr,
             )
             return True
         return False
@@ -717,7 +727,7 @@ class phasecache:
         for targetphase, nodes in list(self._phaseroots.items()):
             filtered = {n for n in nodes if to_rev(n) >= strip_rev}
             if filtered:
-                self._updateroots(targetphase, nodes - filtered, tr)
+                self._updateroots(repo, targetphase, nodes - filtered, tr)
         self.invalidate()
 
     def filterunknown(self, repo: "localrepo.localrepository") -> None:
