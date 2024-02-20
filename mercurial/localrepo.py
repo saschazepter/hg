@@ -3363,7 +3363,7 @@ class localrepository:
         # dirty after committing. Then when we strip, the repo is invalidated,
         # causing those changes to disappear.
         if '_phasecache' in vars(self):
-            self._phasecache.write()
+            self._phasecache.write(self)
 
     @unfilteredmethod
     def destroyed(self):
