@@ -1595,7 +1595,6 @@ abort behavior
 trying to push a secret changeset doesn't confuse auto-publish
 
   $ hg phase --secret --force
-  test-debug-phase: move rev 0: 1 -> 2
   test-debug-phase: move rev 1: 1 -> 2
 
   $ hg push --config experimental.auto-publish=abort

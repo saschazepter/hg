@@ -54,9 +54,7 @@ Following commit are draft too
 Working directory phase is secret when its parent is secret.
 
   $ hg phase --force --secret .
-  test-debug-phase: move rev 0: 1 -> 2
   test-debug-phase: move rev 1: 1 -> 2
-  test-hook-close-phase: 4a2df7238c3b48766b5e22fafbb8a2f506ec8256:  draft -> secret
   test-hook-close-phase: 27547f69f25460a52fff66ad004e58da7ad3fb56:  draft -> secret
   $ hg log -r 'wdir()' -T '{phase}\n'
   secret
