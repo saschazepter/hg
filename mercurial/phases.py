@@ -210,12 +210,20 @@ def _readroots(
     repo = repo.unfiltered()
     dirty = False
     roots = {i: set() for i in allphases}
+    has_node = repo.changelog.index.has_node
+    unknown_msg = b'removing unknown node %s from %i-phase boundary\n'
     try:
         f, pending = txnutil.trypending(repo.root, repo.svfs, b'phaseroots')
         try:
             for line in f:
-                phase, nh = line.split()
-                roots[int(phase)].add(bin(nh))
+                str_phase, hex_node = line.split()
+                phase = int(str_phase)
+                node = bin(hex_node)
+                if not has_node(node):
+                    repo.ui.debug(unknown_msg % (short(hex_node), phase))
+                    dirty = True
+                else:
+                    roots[phase].add(node)
         finally:
             f.close()
     except FileNotFoundError:
@@ -364,10 +372,11 @@ class phasecache:
     ):
         if _load:
             # Cheap trick to allow shallow-copy without copy module
-            self._phaseroots, self.dirty = _readroots(repo, phasedefaults)
+            loaded = _readroots(repo, phasedefaults)
+            self._phaseroots: Phaseroots = loaded[0]
+            self.dirty: bool = loaded[1]
             self._loadedrevslen = 0
             self._phasesets = None
-            self.filterunknown(repo)
 
     def hasnonpublicphases(self, repo: "localrepo.localrepository") -> bool:
         """detect if there are revisions with non-public phase"""
@@ -728,35 +737,6 @@ class phasecache:
             filtered = {n for n in nodes if to_rev(n) >= strip_rev}
             if filtered:
                 self._updateroots(repo, targetphase, nodes - filtered, tr)
-        self.invalidate()
-
-    def filterunknown(self, repo: "localrepo.localrepository") -> None:
-        """remove unknown nodes from the phase boundary
-
-        Nothing is lost as unknown nodes only hold data for their descendants.
-        """
-        filtered = False
-        has_node = repo.changelog.index.has_node  # to filter unknown nodes
-        for phase, nodes in self._phaseroots.items():
-            missing = sorted(node for node in nodes if not has_node(node))
-            if missing:
-                for mnode in missing:
-                    repo.ui.debug(
-                        b'removing unknown node %s from %i-phase boundary\n'
-                        % (short(mnode), phase)
-                    )
-                nodes.symmetric_difference_update(missing)
-                filtered = True
-        if filtered:
-            self.dirty = True
-        # filterunknown is called by repo.destroyed, we may have no changes in
-        # root but _phasesets contents is certainly invalid (or at least we
-        # have not proper way to check that). related to issue 3858.
-        #
-        # The other caller is __init__ that have no _phasesets initialized
-        # anyway. If this change we should consider adding a dedicated
-        # "destroyed" function to phasecache or a proper cache key mechanism
-        # (see branchmap one)
         self.invalidate()
 
 
