@@ -1081,7 +1081,6 @@ static int add_roots_get_min(indexObject *self, PyObject *roots, char *phases,
 	PyObject *item;
 	PyObject *iterator;
 	int rev, minrev = -1;
-	char *node;
 
 	if (!PySet_Check(roots)) {
 		PyErr_SetString(PyExc_TypeError,
@@ -1092,9 +1091,10 @@ static int add_roots_get_min(indexObject *self, PyObject *roots, char *phases,
 	if (iterator == NULL)
 		return -2;
 	while ((item = PyIter_Next(iterator))) {
-		if (node_check(self->nodelen, item, &node) == -1)
+		rev = (int)PyLong_AsLong(item);
+		if (rev == -1 && PyErr_Occurred()) {
 			goto failed;
-		rev = index_find_node(self, node);
+		}
 		/* null is implicitly public, so negative is invalid */
 		if (rev < 0 || rev >= len)
 			goto failed;
