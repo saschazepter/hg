@@ -702,6 +702,24 @@ class phasecache:
             return True
         return False
 
+    def register_strip(
+        self,
+        repo: "localrepo.localrepository",
+        tr,
+        strip_rev: int,
+    ):
+        """announce a strip to the phase cache
+
+        Any roots higher than the stripped revision should be dropped.
+        """
+        assert repo.filtername is None
+        to_rev = repo.changelog.index.rev
+        for targetphase, nodes in list(self.phaseroots.items()):
+            filtered = {n for n in nodes if to_rev(n) >= strip_rev}
+            if filtered:
+                self._updateroots(targetphase, nodes - filtered, tr)
+        self.invalidate()
+
     def filterunknown(self, repo: "localrepo.localrepository") -> None:
         """remove unknown nodes from the phase boundary
 
