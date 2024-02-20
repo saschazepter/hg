@@ -645,11 +645,6 @@ class phasecache:
         return changes
 
     def retractboundary(self, repo, tr, targetphase, nodes):
-        oldroots = {
-            phase: revs
-            for phase, revs in self._phaseroots.items()
-            if phase <= targetphase
-        }
         if tr is None:
             phasetracking = None
         else:
@@ -657,22 +652,8 @@ class phasecache:
         repo = repo.unfiltered()
         retracted = self._retractboundary(repo, tr, targetphase, nodes)
         if retracted and phasetracking is not None:
-
-            # find the affected revisions
-            new = self._phaseroots[targetphase]
-            old = oldroots[targetphase]
-            affected = set(repo.revs(b'(%ld::) - (%ld::)', new, old))
-
-            # find the phase of the affected revision
-            for phase in range(targetphase, -1, -1):
-                if phase:
-                    roots = oldroots.get(phase, [])
-                    revs = set(repo.revs(b'%ld::%ld', roots, affected))
-                    affected -= revs
-                else:  # public phase
-                    revs = affected
-                for r in sorted(revs):
-                    _trackphasechange(phasetracking, r, phase, targetphase)
+            for r, old_phase in sorted(retracted.items()):
+                _trackphasechange(phasetracking, r, old_phase, targetphase)
         repo.invalidatevolatilesets()
 
     def _retractboundary(self, repo, tr, targetphase, nodes=None, revs=None):
