@@ -233,9 +233,14 @@ impl<'changelog> ChangelogRevisionData<'changelog> {
         &self.bytes[self.user_end + 1..self.timestamp_end]
     }
 
-    /// Parsed timestamp line, including optional extras.
-    pub fn parsed_timestamp(&self) -> Result<TimestampAndExtra, HgError> {
-        TimestampAndExtra::from_bytes(self.timestamp_line())
+    /// Parsed timestamp.
+    pub fn timestamp(&self) -> Result<DateTime<FixedOffset>, HgError> {
+        parse_timestamp(self.timestamp_line())
+    }
+
+    /// Optional commit extras.
+    pub fn extra(&self) -> Result<BTreeMap<String, Vec<u8>>, HgError> {
+        parse_timestamp_line_extra(self.timestamp_line())
     }
 
     /// The files changed in this revision.
@@ -295,83 +300,66 @@ fn debug_bytes(bytes: &[u8]) -> String {
     .to_string()
 }
 
-/// Parsed timestamp line, including the timestamp and optional extras.
-#[derive(Clone, Debug)]
-pub struct TimestampAndExtra {
-    pub timestamp: DateTime<FixedOffset>,
-    pub extra: BTreeMap<String, Vec<u8>>,
-}
+/// Parse the raw bytes of the timestamp line from a changelog entry.
+///
+/// According to the documentation in `hg help dates` and the
+/// implementation in `changelog.py`, the format of the timestamp line
+/// is `time tz extra\n` where:
+///
+/// - `time` is an ASCII-encoded signed int or float denoting a UTC timestamp
+///   as seconds since the UNIX epoch.
+///
+/// - `tz` is the timezone offset as an ASCII-encoded signed integer denoting
+///   seconds WEST of UTC (so negative for timezones east of UTC, which is the
+///   opposite of the sign in ISO 8601 timestamps).
+///
+/// - `extra` is an optional set of NUL-delimited key-value pairs, with the key
+///   and value in each pair separated by an ASCII colon. Keys are limited to
+///   ASCII letters, digits, hyphens, and underscores, whereas values can be
+///   arbitrary bytes.
+fn parse_timestamp(
+    timestamp_line: &[u8],
+) -> Result<DateTime<FixedOffset>, HgError> {
+    let mut parts = timestamp_line.splitn(3, |c| *c == b' ');
 
-impl TimestampAndExtra {
-    /// Parse the raw bytes of the timestamp line from a changelog entry.
-    ///
-    /// According to the documentation in `hg help dates` and the
-    /// implementation in `changelog.py`, the format of the timestamp line
-    /// is `time tz extra\n` where:
-    ///
-    /// - `time` is an ASCII-encoded signed int or float denoting a UTC
-    ///   timestamp as seconds since the UNIX epoch.
-    ///
-    /// - `tz` is the timezone offset as an ASCII-encoded signed integer
-    ///   denoting seconds WEST of UTC (so negative for timezones east of UTC,
-    ///   which is the opposite of the sign in ISO 8601 timestamps).
-    ///
-    /// - `extra` is an optional set of NUL-delimited key-value pairs, with the
-    ///   key and value in each pair separated by an ASCII colon. Keys are
-    ///   limited to ASCII letters, digits, hyphens, and underscores, whereas
-    ///   values can be arbitrary bytes.
-    fn from_bytes(line: &[u8]) -> Result<Self, HgError> {
-        let mut parts = line.splitn(3, |c| *c == b' ');
+    let timestamp_bytes = parts
+        .next()
+        .ok_or_else(|| HgError::corrupted("missing timestamp"))?;
+    let timestamp_str = str::from_utf8(timestamp_bytes).map_err(|e| {
+        HgError::corrupted(format!("timestamp is not valid UTF-8: {e}"))
+    })?;
+    let timestamp_utc = timestamp_str
+        .parse()
+        .map_err(|e| {
+            HgError::corrupted(format!("failed to parse timestamp: {e}"))
+        })
+        .and_then(|secs| {
+            NaiveDateTime::from_timestamp_opt(secs, 0).ok_or_else(|| {
+                HgError::corrupted(format!(
+                    "integer timestamp out of valid range: {secs}"
+                ))
+            })
+        })
+        // Attempt to parse the timestamp as a float if we can't parse
+        // it as an int. It doesn't seem like float timestamps are actually
+        // used in practice, but the Python code supports them.
+        .or_else(|_| parse_float_timestamp(timestamp_str))?;
 
-        let timestamp_bytes = parts
-            .next()
-            .ok_or_else(|| HgError::corrupted("missing timestamp"))?;
-        let timestamp_str = str::from_utf8(timestamp_bytes).map_err(|e| {
-            HgError::corrupted(format!("timestamp is not valid UTF-8: {e}"))
+    let timezone_bytes = parts
+        .next()
+        .ok_or_else(|| HgError::corrupted("missing timezone"))?;
+    let timezone_secs: i32 = str::from_utf8(timezone_bytes)
+        .map_err(|e| {
+            HgError::corrupted(format!("timezone is not valid UTF-8: {e}"))
+        })?
+        .parse()
+        .map_err(|e| {
+            HgError::corrupted(format!("timezone is not an integer: {e}"))
         })?;
-        let timestamp_utc = timestamp_str
-            .parse()
-            .map_err(|e| {
-                HgError::corrupted(format!("failed to parse timestamp: {e}"))
-            })
-            .and_then(|secs| {
-                NaiveDateTime::from_timestamp_opt(secs, 0).ok_or_else(|| {
-                    HgError::corrupted(format!(
-                        "integer timestamp out of valid range: {secs}"
-                    ))
-                })
-            })
-            // Attempt to parse the timestamp as a float if we can't parse
-            // it as an int. It doesn't seem like float timestamps are actually
-            // used in practice, but the Python code supports them.
-            .or_else(|_| parse_float_timestamp(timestamp_str))?;
+    let timezone = FixedOffset::west_opt(timezone_secs)
+        .ok_or_else(|| HgError::corrupted("timezone offset out of bounds"))?;
 
-        let timezone_bytes = parts
-            .next()
-            .ok_or_else(|| HgError::corrupted("missing timezone"))?;
-        let timezone_secs: i32 = str::from_utf8(timezone_bytes)
-            .map_err(|e| {
-                HgError::corrupted(format!("timezone is not valid UTF-8: {e}"))
-            })?
-            .parse()
-            .map_err(|e| {
-                HgError::corrupted(format!("timezone is not an integer: {e}"))
-            })?;
-        let timezone =
-            FixedOffset::west_opt(timezone_secs).ok_or_else(|| {
-                HgError::corrupted("timezone offset out of bounds")
-            })?;
-
-        let timestamp =
-            DateTime::from_naive_utc_and_offset(timestamp_utc, timezone);
-        let extra = parts
-            .next()
-            .map(parse_extra)
-            .transpose()?
-            .unwrap_or_default();
-
-        Ok(Self { timestamp, extra })
-    }
+    Ok(DateTime::from_naive_utc_and_offset(timestamp_utc, timezone))
 }
 
 /// Attempt to parse the given string as floating-point timestamp, and
@@ -413,12 +401,12 @@ fn parse_float_timestamp(
     })
 }
 
-/// Parse the "extra" fields from a changeset's timestamp line.
+/// Decode changeset extra fields.
 ///
 /// Extras are null-delimited key-value pairs where the key consists of ASCII
 /// alphanumeric characters plus hyphens and underscores, and the value can
 /// contain arbitrary bytes.
-fn parse_extra(extra: &[u8]) -> Result<BTreeMap<String, Vec<u8>>, HgError> {
+fn decode_extra(extra: &[u8]) -> Result<BTreeMap<String, Vec<u8>>, HgError> {
     extra
         .split(|c| *c == b'\0')
         .map(|pair| {
@@ -454,6 +442,18 @@ fn parse_extra(extra: &[u8]) -> Result<BTreeMap<String, Vec<u8>>, HgError> {
             Ok((key, value))
         })
         .collect()
+}
+
+/// Parse the extra fields from a changeset's timestamp line.
+fn parse_timestamp_line_extra(
+    timestamp_line: &[u8],
+) -> Result<BTreeMap<String, Vec<u8>>, HgError> {
+    Ok(timestamp_line
+        .splitn(3, |c| *c == b' ')
+        .nth(2)
+        .map(decode_extra)
+        .transpose()?
+        .unwrap_or_default())
 }
 
 /// Decode Mercurial's escaping for changelog extras.
@@ -681,7 +681,7 @@ message",
     }
 
     #[test]
-    fn test_parse_extra() {
+    fn test_decode_extra() {
         let extra = [
             ("branch".into(), b"default".to_vec()),
             ("key-with-hyphens".into(), b"value1".to_vec()),
@@ -693,9 +693,9 @@ message",
         .collect::<BTreeMap<String, Vec<u8>>>();
 
         let encoded = encode_extra(&extra);
-        let parsed = parse_extra(&encoded).unwrap();
+        let decoded = decode_extra(&encoded).unwrap();
 
-        assert_eq!(extra, parsed);
+        assert_eq!(extra, decoded);
     }
 
     #[test]
@@ -713,7 +713,7 @@ message",
 
         for (extra, msg) in test_cases {
             assert!(
-                parse_extra(&extra).is_err(),
+                decode_extra(&extra).is_err(),
                 "corrupt extra should have failed to parse: {}",
                 msg
             );
@@ -735,12 +735,10 @@ message",
         let mut line: Vec<u8> = b"1115154970 28800 ".to_vec();
         line.extend_from_slice(&encode_extra(&extra));
 
-        let parsed = TimestampAndExtra::from_bytes(&line).unwrap();
+        let timestamp = parse_timestamp(&line).unwrap();
+        assert_eq!(&timestamp.to_rfc3339(), "2005-05-03T13:16:10-08:00");
 
-        assert_eq!(
-            &parsed.timestamp.to_rfc3339(),
-            "2005-05-03T13:16:10-08:00"
-        );
-        assert_eq!(extra, parsed.extra);
+        let parsed_extra = parse_timestamp_line_extra(&line).unwrap();
+        assert_eq!(extra, parsed_extra);
     }
 }
