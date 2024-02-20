@@ -4073,7 +4073,7 @@ def mqphasedefaults(repo, roots):
         else:
             mqphase = phases.draft
         qbase = repo[repo.mq.applied[0].node]
-        roots[mqphase].add(qbase.node())
+        roots[mqphase].add(qbase.rev())
     return roots
 
 
