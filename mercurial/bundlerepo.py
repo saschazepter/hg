@@ -270,7 +270,7 @@ class bundlephasecache(phases.phasecache):
         raise NotImplementedError
 
     def _updateroots(self, phase, newroots, tr):
-        self.phaseroots[phase] = newroots
+        self._phaseroots[phase] = newroots
         self.invalidate()
         self.dirty = True
 
