@@ -489,7 +489,7 @@ class compressionlevel(formatvariant):
             level = repo.ui.configint(b'storage', b'revlog.zstd.level')
         if level is None:
             return b'default'
-        return bytes(level)
+        return b"%d" % level
 
     @classmethod
     def fromconfig(cls, repo):
@@ -501,7 +501,7 @@ class compressionlevel(formatvariant):
             level = repo.ui.configint(b'storage', b'revlog.zstd.level')
         if level is None:
             return b'default'
-        return bytes(level)
+        return b"%d" % level
 
 
 def find_format_upgrades(repo):
