@@ -383,10 +383,7 @@ class phasecache:
     def hasnonpublicphases(self, repo: "localrepo.localrepository") -> bool:
         """detect if there are revisions with non-public phase"""
         repo = repo.unfiltered()
-        cl = repo.changelog
-        if len(cl) > self._loadedrevslen:
-            self.invalidate()
-            self.loadphaserevs(repo)
+        self._ensure_phase_sets(repo)
         return any(
             revs for phase, revs in self._phaseroots.items() if phase != public
         )
@@ -400,10 +397,7 @@ class phasecache:
         descendants of draft revisions, their roots will still be present.
         """
         repo = repo.unfiltered()
-        cl = repo.changelog
-        if len(cl) > self._loadedrevslen:
-            self.invalidate()
-            self.loadphaserevs(repo)
+        self._ensure_phase_sets(repo)
         return set().union(
             *[
                 revs
@@ -420,7 +414,7 @@ class phasecache:
     ) -> Any:
         # TODO: finish typing this
         """return a smartset for the given phases"""
-        self.loadphaserevs(repo)  # ensure phase's sets are loaded
+        self._ensure_phase_sets(repo)  # ensure phase's sets are loaded
         phases = set(phases)
         publicphase = public in phases
 
@@ -511,14 +505,20 @@ class phasecache:
                 self._phasesets[phase] = ps
         self._loadedrevslen = len(cl)
 
-    def loadphaserevs(self, repo: "localrepo.localrepository") -> None:
-        """ensure phase information is loaded in the object"""
+    def _ensure_phase_sets(self, repo: "localrepo.localrepository") -> None:
+        """ensure phase information is loaded in the object and up to date"""
+        update = False
         if self._phasesets is None:
+            update = True
+        elif len(repo.changelog) > self._loadedrevslen:
+            update = True
+        if update:
             try:
                 res = self._getphaserevsnative(repo)
                 self._loadedrevslen, self._phasesets = res
             except AttributeError:
                 self._computephaserevspure(repo)
+            assert self._loadedrevslen == len(repo.changelog)
 
     def invalidate(self):
         self._loadedrevslen = 0
@@ -534,9 +534,10 @@ class phasecache:
             return public
         if rev < nullrev:
             raise ValueError(_(b'cannot lookup negative revision'))
+        # double check self._loadedrevslen to avoid an extra method call as
+        # python is slow for that.
         if rev >= self._loadedrevslen:
-            self.invalidate()
-            self.loadphaserevs(repo)
+            self._ensure_phase_sets(repo)
         for phase in trackedphases:
             if rev in self._phasesets[phase]:
                 return phase
