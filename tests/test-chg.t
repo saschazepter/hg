@@ -561,12 +561,12 @@ If CHGHG is not set, chg will set it before spawning the command server.
   $ hg --kill-chg-daemon
   $ HG=$CHGHG CHGHG= CHGDEBUG= hg debugshell -c \
   >   'ui.write(b"CHGHG=%s\n" % ui.environ.get(b"CHGHG"))' 2>&1 \
-  >   | grep -E 'CHGHG|start'
+  >   | grep -E 'CHGHG|start cmdserver'
   chg: debug: * start cmdserver at * (glob)
   CHGHG=/*/install/bin/hg (glob)
 
 Running the same command a second time shouldn't spawn a new command server.
   $ HG=$CHGHG CHGHG= CHGDEBUG= hg debugshell -c \
   >   'ui.write(b"CHGHG=%s\n" % ui.environ.get(b"CHGHG"))' 2>&1 \
-  >   | grep -E 'CHGHG|start'
+  >   | grep -E 'CHGHG|start cmdserver'
   CHGHG=/*/install/bin/hg (glob)
