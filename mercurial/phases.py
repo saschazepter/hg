@@ -748,6 +748,14 @@ class phasecache:
         if nullrev in new_revs:
             raise error.Abort(_(b'cannot change null revision phase'))
 
+        # Filter revision that are already in the right phase
+        self._ensure_phase_sets(repo)
+        for phase, revs in self._phasesets.items():
+            if phase >= targetphase:
+                new_revs -= revs
+        if not new_revs:  # all revisions already in the right phases
+            return {}
+
         # Compute change in phase roots by walking the graph
         #
         # note: If we had a cheap parent → children mapping we could do
