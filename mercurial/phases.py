@@ -384,7 +384,7 @@ class phasecache:
         """detect if there are revisions with non-public phase"""
         repo = repo.unfiltered()
         cl = repo.changelog
-        if len(cl) >= self._loadedrevslen:
+        if len(cl) > self._loadedrevslen:
             self.invalidate()
             self.loadphaserevs(repo)
         return any(
@@ -401,7 +401,7 @@ class phasecache:
         """
         repo = repo.unfiltered()
         cl = repo.changelog
-        if len(cl) >= self._loadedrevslen:
+        if len(cl) > self._loadedrevslen:
             self.invalidate()
             self.loadphaserevs(repo)
         return set().union(
