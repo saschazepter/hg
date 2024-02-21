@@ -624,10 +624,11 @@ class phasecache:
                 fp.write(b'%i %s\n' % (phase, hex(h)))
         self.dirty = False
 
-    def _updateroots(self, repo, phase, newroots, tr):
+    def _updateroots(self, repo, phase, newroots, tr, invalidate=True):
         self._phaseroots[phase] = newroots
-        self.invalidate()
         self.dirty = True
+        if invalidate:
+            self.invalidate()
 
         assert repo.filtername is None
         wrepo = weakref.ref(repo)
@@ -811,11 +812,23 @@ class phasecache:
                         changed_revs[r] = r_phase
                     elif r in currentroots:
                         replaced_roots.add(r)
+            sets = self._phasesets
+            sets[targetphase].update(changed_revs)
+            for r, old in changed_revs.items():
+                if old > public:
+                    sets[old].discard(r)
 
         if new_roots:
             assert changed_revs
+
             final_roots = new_roots | currentroots - replaced_roots
-            self._updateroots(repo, targetphase, final_roots, tr)
+            self._updateroots(
+                repo,
+                targetphase,
+                final_roots,
+                tr,
+                invalidate=False,
+            )
             if targetphase > 1:
                 retracted = set(changed_revs)
                 for lower_phase in range(1, targetphase):
@@ -824,7 +837,13 @@ class phasecache:
                         continue
                     if lower_roots & retracted:
                         simpler_roots = lower_roots - retracted
-                        self._updateroots(repo, lower_phase, simpler_roots, tr)
+                        self._updateroots(
+                            repo,
+                            lower_phase,
+                            simpler_roots,
+                            tr,
+                            invalidate=False,
+                        )
             return changed_revs
         else:
             assert not changed_revs
