@@ -674,6 +674,8 @@ class phasecache:
         repo.invalidatevolatilesets()
 
     def _retractboundary(self, repo, tr, targetphase, nodes=None, revs=None):
+        if targetphase == public:
+            return False
         # Be careful to preserve shallow-copied values: do not update
         # phaseroots values, replace them.
         if revs is None:
