@@ -413,7 +413,7 @@ class phasecache:
     ) -> Any:
         # TODO: finish typing this
         """return a smartset for the given phases"""
-        self._ensure_phase_sets(repo)  # ensure phase's sets are loaded
+        self._ensure_phase_sets(repo.unfiltered())
         phases = set(phases)
         publicphase = public in phases
 
@@ -536,7 +536,7 @@ class phasecache:
         # double check self._loadedrevslen to avoid an extra method call as
         # python is slow for that.
         if rev >= self._loadedrevslen:
-            self._ensure_phase_sets(repo)
+            self._ensure_phase_sets(repo.unfiltered())
         for phase in trackedphases:
             if rev in self._phasesets[phase]:
                 return phase
