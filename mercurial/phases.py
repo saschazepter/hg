@@ -677,15 +677,7 @@ class phasecache:
 
     def _retractboundary(self, repo, tr, targetphase, nodes=None, revs=None):
         if targetphase == public:
-            return False
-        # Be careful to preserve shallow-copied values: do not update
-        # phaseroots values, replace them.
-        if revs is None:
-            revs = []
-        if nodes is None:
-            nodes = []
-        if not revs and not nodes:
-            return False
+            return {}
         if (
             targetphase == internal
             and not supportinternal(repo)
@@ -695,34 +687,103 @@ class phasecache:
             name = phasenames[targetphase]
             msg = b'this repository does not support the %s phase' % name
             raise error.ProgrammingError(msg)
+        assert repo.filtername is None
+        cl = repo.changelog
+        torev = cl.index.rev
+        new_revs = set()
+        if revs is not None:
+            new_revs.update(revs)
+        if nodes is not None:
+            new_revs.update(torev(node) for node in nodes)
+        if not new_revs:  # bail out early to avoid the loadphaserevs call
+            return {}  # note: why do people call retractboundary with nothing ?
 
-        torev = repo.changelog.index.rev
+        if nullrev in new_revs:
+            raise error.Abort(_(b'cannot change null revision phase'))
+
+        # Compute change in phase roots by walking the graph
+        #
+        # note: If we had a cheap parent → children mapping we could do
+        # something even cheaper/more-bounded
+        #
+        # The idea would be to walk from item in new_revs stopping at
+        # descendant with phases >= target_phase.
+        #
+        # 1) This detect new_revs that are not new_roots (either already >=
+        #    target_phase or reachable though another new_revs
+        # 2) This detect replaced current_roots as we reach them
+        # 3) This can avoid walking to the tip if we retract over a small
+        #    branch.
+        #
+        # So instead, we do a variation of this, we walk from the smaller new
+        # revision to the tip to avoid missing any potential children.
+        #
+        # The following code would be a good candidate for native code… if only
+        # we could knew the phase of a changeset efficiently in native code.
+        parents = cl.parentrevs
+        phase = self.phase
+        new_roots = set()  # roots added by this phases
+        changed_revs = {}  # revision affected by this call
+        replaced_roots = set()  # older roots replaced by this call
         currentroots = self._phaseroots[targetphase]
-        finalroots = oldroots = set(currentroots)
-        newroots = [torev(node) for node in nodes] + [r for r in revs]
-        newroots = [
-            rev for rev in newroots if self.phase(repo, rev) < targetphase
-        ]
+        start = min(new_revs)
+        end = len(cl)
+        rev_phases = [None] * (end - start)
+        for r in range(start, end):
 
-        if newroots:
-            if nullrev in newroots:
-                raise error.Abort(_(b'cannot change null revision phase'))
-            # do not break the CoW assumption of the shallow copy
-            currentroots = currentroots.copy()
-            currentroots.update(newroots)
+            # gather information about the current_rev
+            r_phase = phase(repo, r)
+            p_phase = None  # phase inherited from parents
+            p1, p2 = parents(r)
+            if p1 >= start:
+                p1_phase = rev_phases[p1 - start]
+                if p1_phase is not None:
+                    p_phase = p1_phase
+            if p2 >= start:
+                p2_phase = rev_phases[p2 - start]
+                if p2_phase is not None:
+                    if p_phase is not None:
+                        p_phase = max(p_phase, p2_phase)
+                    else:
+                        p_phase = p2_phase
 
-            # Only compute new roots for revs above the roots that are being
-            # retracted.
-            minnewroot = min(newroots)
-            aboveroots = [rev for rev in currentroots if rev >= minnewroot]
-            updatedroots = repo.revs(b'roots(%ld::)', aboveroots)
+            # assess the situation
+            if r in new_revs and r_phase < targetphase:
+                if p_phase is None or p_phase < targetphase:
+                    new_roots.add(r)
+                rev_phases[r - start] = targetphase
+                changed_revs[r] = r_phase
+            elif p_phase is None:
+                rev_phases[r - start] = r_phase
+            else:
+                if p_phase > r_phase:
+                    rev_phases[r - start] = p_phase
+                else:
+                    rev_phases[r - start] = r_phase
+                if p_phase == targetphase:
+                    if p_phase > r_phase:
+                        changed_revs[r] = r_phase
+                    elif r in currentroots:
+                        replaced_roots.add(r)
 
-            finalroots = {rev for rev in currentroots if rev < minnewroot}
-            finalroots.update(updatedroots)
-        if finalroots != oldroots:
-            self._updateroots(repo, targetphase, finalroots, tr)
-            return True
-        return False
+        if new_roots:
+            assert changed_revs
+            final_roots = new_roots | currentroots - replaced_roots
+            self._updateroots(repo, targetphase, final_roots, tr)
+            if targetphase > 1:
+                retracted = set(changed_revs)
+                for lower_phase in range(1, targetphase):
+                    lower_roots = self._phaseroots.get(lower_phase)
+                    if lower_roots is None:
+                        continue
+                    if lower_roots & retracted:
+                        simpler_roots = lower_roots - retracted
+                        self._updateroots(repo, lower_phase, simpler_roots, tr)
+            return changed_revs
+        else:
+            assert not changed_revs
+            assert not replaced_roots
+            return {}
 
     def register_strip(
         self,
