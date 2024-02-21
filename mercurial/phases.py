@@ -365,6 +365,14 @@ def _trackphasechange(data, rev, old, new):
         data.insert(low + 1, (range(rev, rev + 1), t))
 
 
+# consider incrementaly updating the phase set the update set is not bigger
+# than this size
+#
+# Be warned, this number is picked arbitrarily, without any benchmark. It
+# should blindly pickup "small update"
+INCREMENTAL_PHASE_SETS_UPDATE_MAX_UPDATE = 100
+
+
 class phasecache:
     def __init__(
         self,
@@ -508,19 +516,72 @@ class phasecache:
         self._loadedrevslen = len(cl)
 
     def _ensure_phase_sets(self, repo: "localrepo.localrepository") -> None:
-        """ensure phase information is loaded in the object and up to date"""
-        update = False
+        """ensure phase information is loaded in the object"""
+        assert repo.filtername is None
+        update = -1
+        cl = repo.changelog
+        cl_size = len(cl)
         if self._phasesets is None:
-            update = True
-        elif len(repo.changelog) > self._loadedrevslen:
-            update = True
-        if update:
+            update = 0
+        else:
+            if cl_size > self._loadedrevslen:
+                # check if an incremental update is worth it.
+                # note we need a tradeoff here because the whole logic is not
+                # stored and implemented in native code nd datastructure.
+                # Otherwise the incremental update woul always be a win.
+                missing = cl_size - self._loadedrevslen
+                if missing <= INCREMENTAL_PHASE_SETS_UPDATE_MAX_UPDATE:
+                    update = self._loadedrevslen
+                else:
+                    update = 0
+
+        if update == 0:
             try:
                 res = self._getphaserevsnative(repo)
                 self._loadedrevslen, self._phasesets = res
             except AttributeError:
                 self._computephaserevspure(repo)
             assert self._loadedrevslen == len(repo.changelog)
+        elif update > 0:
+            # good candidate for native code
+            assert update == self._loadedrevslen
+            if self.hasnonpublicphases(repo):
+                start = self._loadedrevslen
+                get_phase = self.phase
+                rev_phases = [0] * missing
+                parents = cl.parentrevs
+                sets = {phase: set() for phase in self._phasesets}
+                for phase, roots in self._phaseroots.items():
+                    # XXX should really store the max somewhere
+                    for r in roots:
+                        if r >= start:
+                            rev_phases[r - start] = phase
+                for rev in range(start, cl_size):
+                    phase = rev_phases[rev - start]
+                    p1, p2 = parents(rev)
+                    if p1 == nullrev:
+                        p1_phase = public
+                    elif p1 >= start:
+                        p1_phase = rev_phases[p1 - start]
+                    else:
+                        p1_phase = max(phase, get_phase(repo, p1))
+                    if p2 == nullrev:
+                        p2_phase = public
+                    elif p2 >= start:
+                        p2_phase = rev_phases[p2 - start]
+                    else:
+                        p2_phase = max(phase, get_phase(repo, p2))
+                    phase = max(phase, p1_phase, p2_phase)
+                    if phase > public:
+                        rev_phases[rev - start] = phase
+                        sets[phase].add(rev)
+
+                # Be careful to preserve shallow-copied values: do not update
+                # phaseroots values, replace them.
+                for phase, extra in sets.items():
+                    if extra:
+                        self._phasesets[phase] = self._phasesets[phase] | extra
+            self._loadedrevslen = cl_size
 
     def invalidate(self):
         self._loadedrevslen = 0
