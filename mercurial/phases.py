@@ -382,8 +382,7 @@ class phasecache:
 
     def hasnonpublicphases(self, repo: "localrepo.localrepository") -> bool:
         """detect if there are revisions with non-public phase"""
-        repo = repo.unfiltered()
-        self._ensure_phase_sets(repo)
+        # XXX deprecate the unused repo argument
         return any(
             revs for phase, revs in self._phaseroots.items() if phase != public
         )
