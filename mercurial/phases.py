@@ -134,6 +134,7 @@ from . import (
 )
 
 Phaseroots = Dict[int, Set[int]]
+PhaseSets = Dict[int, Set[int]]
 
 if typing.TYPE_CHECKING:
     from . import (
@@ -377,7 +378,7 @@ class phasecache:
             self._phaseroots: Phaseroots = loaded[0]
             self.dirty: bool = loaded[1]
             self._loadedrevslen = 0
-            self._phasesets = None
+            self._phasesets: PhaseSets = None
 
     def hasnonpublicphases(self, repo: "localrepo.localrepository") -> bool:
         """detect if there are revisions with non-public phase"""
