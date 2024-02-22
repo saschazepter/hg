@@ -471,7 +471,10 @@ class phasecache:
         ph._phaseroots = self._phaseroots.copy()
         ph.dirty = self.dirty
         ph._loadedrevslen = self._loadedrevslen
-        ph._phasesets = self._phasesets
+        if self._phasesets is None:
+            ph._phasesets = None
+        else:
+            ph._phasesets = self._phasesets.copy()
         return ph
 
     def replace(self, phcache):
