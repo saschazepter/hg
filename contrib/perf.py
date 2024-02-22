@@ -1719,6 +1719,7 @@ def perfphases(ui, repo, **opts):
     timer, fm = gettimer(ui, opts)
     _phases = repo._phasecache
     full = opts.get(b'full')
+    tip_rev = repo.changelog.tiprev()
 
     def d():
         phases = _phases
@@ -1726,7 +1727,7 @@ def perfphases(ui, repo, **opts):
             clearfilecache(repo, b'_phasecache')
             phases = repo._phasecache
         phases.invalidate()
-        phases.loadphaserevs(repo)
+        phases.phase(repo, tip_rev)
 
     timer(d)
     fm.end()

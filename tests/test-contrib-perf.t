@@ -293,6 +293,7 @@ perfstatus
   $ hg perfwalk
   $ hg perfparents
   $ hg perfdiscovery -q .
+  $ hg perf::phases
 
 Test run control
 ----------------
