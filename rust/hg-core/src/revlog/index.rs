@@ -1026,7 +1026,7 @@ impl Index {
         &self,
         roots: HashMap<Phase, Vec<Revision>>,
     ) -> Result<(usize, RootsPerPhase), GraphError> {
-        let mut phases = HashMap::new();
+        let mut phases = vec![Phase::Public; self.len()];
         let mut min_phase_rev = NULL_REVISION;
 
         for phase in Phase::non_public_phases() {
@@ -1053,24 +1053,17 @@ impl Index {
             let rev = Revision(rev);
             let [p1, p2] = self.parents(rev)?;
 
-            const DEFAULT_PHASE: &Phase = &Phase::Public;
-            if p1.0 >= 0
-                && phases.get(&p1).unwrap_or(DEFAULT_PHASE)
-                    > phases.get(&rev).unwrap_or(DEFAULT_PHASE)
-            {
-                phases.insert(rev, phases[&p1]);
+            if p1.0 >= 0 && phases[p1.0 as usize] > phases[rev.0 as usize] {
+                phases[rev.0 as usize] = phases[p1.0 as usize];
             }
-            if p2.0 >= 0
-                && phases.get(&p2).unwrap_or(DEFAULT_PHASE)
-                    > phases.get(&rev).unwrap_or(DEFAULT_PHASE)
-            {
-                phases.insert(rev, phases[&p2]);
+            if p2.0 >= 0 && phases[p2.0 as usize] > phases[rev.0 as usize] {
+                phases[rev.0 as usize] = phases[p2.0 as usize];
             }
-            let set = match phases.get(&rev).unwrap_or(DEFAULT_PHASE) {
+            let set = match phases[rev.0 as usize] {
                 Phase::Public => continue,
-                phase => &mut phase_sets[*phase as usize - 1],
+                phase => &mut phase_sets[phase as usize - 1],
             };
-            set.insert(rev);
+            set.push(rev);
         }
 
         Ok((self.len(), phase_sets))
@@ -1079,13 +1072,13 @@ impl Index {
     fn add_roots_get_min(
         &self,
         phase_roots: &[Revision],
-        phases: &mut HashMap<Revision, Phase>,
+        phases: &mut [Phase],
         phase: Phase,
     ) -> Revision {
         let mut min_rev = NULL_REVISION;
 
         for root in phase_roots {
-            phases.insert(*root, phase);
+            phases[root.0 as usize] = phase;
             if min_rev == NULL_REVISION || min_rev > *root {
                 min_rev = *root;
             }
@@ -1606,7 +1599,7 @@ impl PoisonableBitSet for NonStaticPoisonableBitSet {
 }
 
 /// Set of roots of all non-public phases
-pub type RootsPerPhase = [HashSet<Revision>; Phase::non_public_phases().len()];
+pub type RootsPerPhase = [Vec<Revision>; Phase::non_public_phases().len()];
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub enum Phase {
