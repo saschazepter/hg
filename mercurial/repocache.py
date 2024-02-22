@@ -119,7 +119,8 @@ def _warmupcache(repo):
     repo.obsstore.children
     for name in obsolete.cachefuncs:
         obsolete.getrevs(repo, name)
-    repo._phasecache.loadphaserevs(repo)
+    # ensure the phase cache is fully initialized
+    repo._phasecache.phase(repo, repo.changelog.tiprev())
 
 
 # TODO: think about proper API of attaching preloaded attributes
