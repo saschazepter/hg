@@ -597,6 +597,8 @@ class phasecache:
 
         Returns a set of revs whose phase is changed or should be changed
         """
+        if targetphase == public and not self.hasnonpublicphases(repo):
+            return set()
         # Be careful to preserve shallow-copied values: do not update
         # phaseroots values, replace them.
         if revs is None:
