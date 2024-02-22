@@ -989,20 +989,15 @@ impl Index {
         // Ugly hack, but temporary
         const IDX_TO_PHASE_NUM: [usize; 4] = [1, 2, 32, 96];
         let py_phase_maps = PyDict::new(py);
-        for (idx, roots) in phase_maps.iter().enumerate() {
+        for (idx, roots) in phase_maps.into_iter().enumerate() {
             let phase_num = IDX_TO_PHASE_NUM[idx].into_py_object(py);
-            // OPTIM too bad we have to collect here. At least, we could
-            // reuse the same Vec and allocate it with capacity at
-            // max(len(phase_maps)
-            let roots_vec: Vec<PyInt> = roots
-                .iter()
-                .map(|r| PyRevision::from(*r).into_py_object(py))
-                .collect();
-            py_phase_maps.set_item(
-                py,
-                phase_num,
-                PySet::new(py, roots_vec)?,
-            )?;
+            // This is a bit faster than collecting into a `Vec` and passing
+            // it to `PySet::new`.
+            let set = PySet::empty(py)?;
+            for rev in roots {
+                set.add(py, PyRevision::from(rev).into_py_object(py))?;
+            }
+            py_phase_maps.set_item(py, phase_num, set)?;
         }
         Ok(PyTuple::new(
             py,
