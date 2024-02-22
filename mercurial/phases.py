@@ -665,20 +665,36 @@ class phasecache:
         """
         if targetphase == public and not self.hasnonpublicphases(repo):
             return set()
+        repo = repo.unfiltered()
+        cl = repo.changelog
+        torev = cl.index.rev
         # Be careful to preserve shallow-copied values: do not update
         # phaseroots values, replace them.
-        if revs is None:
-            revs = []
-        if not revs and not nodes:
-            return set()
+        new_revs = set()
+        if revs is not None:
+            new_revs.update(revs)
+        if nodes is not None:
+            new_revs.update(torev(node) for node in nodes)
+        if not new_revs:  # bail out early to avoid the loadphaserevs call
+            return (
+                set()
+            )  # note: why do people call advanceboundary with nothing?
+
         if tr is None:
             phasetracking = None
         else:
             phasetracking = tr.changes.get(b'phases')
 
-        repo = repo.unfiltered()
-        revs = [repo[n].rev() for n in nodes] + [r for r in revs]
+        # filter revision already in the right phase
+        self._ensure_phase_sets(repo)
+        for phase, revs in self._phasesets.items():
+            if phase <= targetphase:
+                new_revs -= revs
+        if not new_revs:
+            return set()
 
+        # search for affected high phase changesets and roots
+        revs = new_revs
         changes = set()  # set of revisions to be changed
         delroots = []  # set of root deleted by this path
         for phase in (phase for phase in allphases if phase > targetphase):
