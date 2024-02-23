@@ -3226,7 +3226,6 @@ static int index_init(indexObject *self, PyObject *args, PyObject *kwargs)
 	}
 
 	if (self->format_version == format_v1) {
-		self->rust_ext_compat = 1;
 		self->entry_size = v1_entry_size;
 	} else if (self->format_version == format_v2) {
 		self->entry_size = v2_entry_size;
