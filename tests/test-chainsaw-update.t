@@ -58,25 +58,39 @@ setup
 Actual tests
 ============
 
-Simple invocation
------------------
+Initial cloning if needed
+-------------------------
 
-  $ hg init repo
-  $ cd repo
-  $ hg admin::chainsaw-update --rev default --source ../src
+  $ hg admin::chainsaw-update --dest repo --rev default --source ./src
+  no such directory: "repo"
+  creating repository at "repo"
   recovering after interrupted transaction, if any
   no interrupted transaction available
-  pulling from ../src
+  pulling from ./src
   updating to revision 'default'
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   chainsaw-update to revision 'default' for repository at '$TESTTMP/repo' done
 
+  $ cd repo
   $ hg log -G
-  @  changeset:   1:bfcb8e629987
+  @  changeset:   3:bfcb8e629987
   |  tag:         tip
+  |  parent:      0:06f48e4098b8
   |  user:        test
   |  date:        Thu Jan 01 00:00:00 1970 +0000
   |  summary:     B_0
+  |
+  | o  changeset:   2:7fd8de258aa4
+  | |  branch:      A
+  | |  user:        test
+  | |  date:        Thu Jan 01 00:00:00 1970 +0000
+  | |  summary:     A_1
+  | |
+  | o  changeset:   1:ae1692b8aadb
+  |/   branch:      A
+  |    user:        test
+  |    date:        Thu Jan 01 00:00:00 1970 +0000
+  |    summary:     A_0
   |
   o  changeset:   0:06f48e4098b8
      user:        test
@@ -103,7 +117,8 @@ from the current hostname (happens a lot with succesive containers):
   wlock: (.*?), process 171814, host invalid.host.test/effffffc \((\d+)s\) (re)
   [2]
 
-  $ hg admin::chainsaw-update --no-purge-ignored --rev default --source ../src
+  $ hg admin::chainsaw-update --no-purge-ignored --dest . --rev default --source ../src
+  loaded repository at "."
   had to break store lock
   had to break working copy lock
   recovering after interrupted transaction, if any
@@ -127,9 +142,39 @@ purging.
   C root
 
   $ echo 2 > ../src/foo
-  $ hg -R ../src commit -m2
-  $ hg admin::chainsaw-update --rev default --source ../src -q
+  $ hg -R ../src commit -mB_1
+  $ hg admin::chainsaw-update --dest . --rev default --source ../src -q
   no interrupted transaction available
+  $ hg log -G
+  @  changeset:   4:973ab81c95fb
+  |  tag:         tip
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     B_1
+  |
+  o  changeset:   3:bfcb8e629987
+  |  parent:      0:06f48e4098b8
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     B_0
+  |
+  | o  changeset:   2:7fd8de258aa4
+  | |  branch:      A
+  | |  user:        test
+  | |  date:        Thu Jan 01 00:00:00 1970 +0000
+  | |  summary:     A_1
+  | |
+  | o  changeset:   1:ae1692b8aadb
+  |/   branch:      A
+  |    user:        test
+  |    date:        Thu Jan 01 00:00:00 1970 +0000
+  |    summary:     A_0
+  |
+  o  changeset:   0:06f48e4098b8
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     R_0
+  
   $ hg status -A
   C foo
   C root
@@ -148,7 +193,7 @@ the --no-purge-ignored flag is passed, but they are purged by default
   C foo
   C root
 
-  $ hg admin::chainsaw-update --no-purge-ignored --rev default --source ../src -q
+  $ hg admin::chainsaw-update --no-purge-ignored --dest . --rev default --source ../src -q
   no interrupted transaction available
   $ hg status --all
   I bar
@@ -158,7 +203,7 @@ the --no-purge-ignored flag is passed, but they are purged by default
   $ cat bar
   ignored
 
-  $ hg admin::chainsaw-update --rev default --source ../src -q
+  $ hg admin::chainsaw-update --dest . --rev default --source ../src -q
   no interrupted transaction available
   $ hg status --all
   C .hgignore
@@ -167,3 +212,44 @@ the --no-purge-ignored flag is passed, but they are purged by default
   $ test -f bar
   [1]
 
+test --minimal-initial-cloning variant
+--------------------------------------
+
+With `--minimal-initial-cloning`, there is no "requesting all changes"
+message. Hence clone bundles would be bypassed (TODO test both cases
+# with an actual clone-bundle)
+
+  $ cd ..
+  $ hg admin::chainsaw-update --dest repo2 --rev default --source src --initial-clone-minimal
+  no such directory: "repo2"
+  creating repository at "repo2"
+  recovering after interrupted transaction, if any
+  no interrupted transaction available
+  pulling from src
+  updating to revision 'default'
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  chainsaw-update to revision 'default' for repository at '$TESTTMP/repo2' done
+
+  $ cd repo2
+  $ hg log -G
+  @  changeset:   2:973ab81c95fb
+  |  tag:         tip
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     B_1
+  |
+  o  changeset:   1:bfcb8e629987
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     B_0
+  |
+  o  changeset:   0:06f48e4098b8
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     R_0
+  
+  $ hg status -A
+  C foo
+  C root
+  $ cat foo
+  2
