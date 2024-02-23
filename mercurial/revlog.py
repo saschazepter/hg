@@ -1678,14 +1678,15 @@ class revlog:
         )
 
         use_rust_index = False
-        if rustrevlog is not None:
-            if self._nodemap_file is not None:
-                use_rust_index = True
-            else:
-                # Using the CIndex is not longer possible, as the
-                # `AncestorsIterator` and `LazyAncestors` classes now require
-                # a Rust index for instantiation.
-                use_rust_index = True
+        if rustrevlog is not None and self._nodemap_file is not None:
+            # we would like to use the rust_index in all case, especially
+            # because it is necessary for AncestorsIterator and LazyAncestors
+            # since the 6.7 cycle.
+            #
+            # However, the performance impact of inconditionnaly building the
+            # nodemap is currently a problem for non-persistent nodemap
+            # repository.
+            use_rust_index = True
 
         self._parse_index = parse_index_v1
         if self._format_version == REVLOGV0:
