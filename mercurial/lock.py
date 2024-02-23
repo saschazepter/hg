@@ -12,6 +12,7 @@ import os
 import signal
 import socket
 import time
+import typing
 import warnings
 
 from .i18n import _
@@ -154,8 +155,12 @@ def trylock(ui, vfs, lockname, timeout, warntimeout, *args, **kwargs):
             if delay == warningidx:
                 printwarning(ui.warn, inst.locker)
             if timeout <= delay:
+                assert isinstance(inst.filename, bytes)
                 raise error.LockHeld(
-                    errno.ETIMEDOUT, inst.filename, l.desc, inst.locker
+                    errno.ETIMEDOUT,
+                    typing.cast(bytes, inst.filename),
+                    l.desc,
+                    inst.locker,
                 )
             time.sleep(1)
             delay += 1
@@ -290,8 +295,13 @@ class lock:
                             locker,
                         )
                 else:
+                    assert isinstance(why.filename, bytes)
+                    assert isinstance(why.strerror, str)
                     raise error.LockUnavailable(
-                        why.errno, why.strerror, why.filename, self.desc
+                        why.errno,
+                        why.strerror,
+                        typing.cast(bytes, why.filename),
+                        self.desc,
                     )
 
         if not self.held:

@@ -324,7 +324,7 @@ class changelog(baselog):
         if common is None:
             common = [sha1nodeconstants.nullid]
         if heads is None:
-            heads = self.heads()
+            heads = [self.node(r) for r in self.headrevs()]
 
         common = [self.rev(n) for n in common]
         heads = [self.rev(n) for n in heads]

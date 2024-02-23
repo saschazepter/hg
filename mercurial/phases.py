@@ -101,7 +101,21 @@ Note: old client behave as a publishing server with draft only content
 """
 
 
+import heapq
 import struct
+import typing
+import weakref
+
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+)
 
 from .i18n import _
 from .node import (
@@ -120,23 +134,18 @@ from . import (
     util,
 )
 
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        Any,
-        Callable,
-        Dict,
-        Iterable,
-        List,
-        Optional,
-        Set,
-        Tuple,
-    )
+Phaseroots = Dict[int, Set[int]]
+PhaseSets = Dict[int, Set[int]]
+
+if typing.TYPE_CHECKING:
     from . import (
         localrepo,
         ui as uimod,
     )
 
-    Phaseroots = Dict[int, Set[bytes]]
+    # keeps pyflakes happy
+    assert [uimod]
+
     Phasedefaults = List[
         Callable[[localrepo.localrepository, Phaseroots], Phaseroots]
     ]
@@ -145,7 +154,9 @@ if pycompat.TYPE_CHECKING:
 _fphasesentry = struct.Struct(b'>i20s')
 
 # record phase index
-public, draft, secret = range(3)  # type: int
+public: int = 0
+draft: int = 1
+secret: int = 2
 archived = 32  # non-continuous for compatibility
 internal = 96  # non-continuous for compatibility
 allphases = (public, draft, secret, archived, internal)
@@ -174,20 +185,20 @@ all_internal_phases = tuple(p for p in allphases if p & internal)
 no_bundle_phases = all_internal_phases
 
 
-def supportinternal(repo):
-    # type: (localrepo.localrepository) -> bool
+def supportinternal(repo: "localrepo.localrepository") -> bool:
     """True if the internal phase can be used on a repository"""
     return requirements.INTERNAL_PHASE_REQUIREMENT in repo.requirements
 
 
-def supportarchived(repo):
-    # type: (localrepo.localrepository) -> bool
+def supportarchived(repo: "localrepo.localrepository") -> bool:
     """True if the archived phase can be used on a repository"""
     return requirements.ARCHIVED_PHASE_REQUIREMENT in repo.requirements
 
 
-def _readroots(repo, phasedefaults=None):
-    # type: (localrepo.localrepository, Optional[Phasedefaults]) -> Tuple[Phaseroots, bool]
+def _readroots(
+    repo: "localrepo.localrepository",
+    phasedefaults: Optional["Phasedefaults"] = None,
+) -> Tuple[Phaseroots, bool]:
     """Read phase roots from disk
 
     phasedefaults is a list of fn(repo, roots) callable, which are
@@ -201,12 +212,21 @@ def _readroots(repo, phasedefaults=None):
     repo = repo.unfiltered()
     dirty = False
     roots = {i: set() for i in allphases}
+    to_rev = repo.changelog.index.get_rev
+    unknown_msg = b'removing unknown node %s from %i-phase boundary\n'
     try:
         f, pending = txnutil.trypending(repo.root, repo.svfs, b'phaseroots')
         try:
             for line in f:
-                phase, nh = line.split()
-                roots[int(phase)].add(bin(nh))
+                str_phase, hex_node = line.split()
+                phase = int(str_phase)
+                node = bin(hex_node)
+                rev = to_rev(node)
+                if rev is None:
+                    repo.ui.debug(unknown_msg % (short(hex_node), phase))
+                    dirty = True
+                else:
+                    roots[phase].add(rev)
         finally:
             f.close()
     except FileNotFoundError:
@@ -217,8 +237,7 @@ def _readroots(repo, phasedefaults=None):
     return roots, dirty
 
 
-def binaryencode(phasemapping):
-    # type: (Dict[int, List[bytes]]) -> bytes
+def binaryencode(phasemapping: Dict[int, List[bytes]]) -> bytes:
     """encode a 'phase -> nodes' mapping into a binary stream
 
     The revision lists are encoded as (phase, root) pairs.
@@ -230,8 +249,7 @@ def binaryencode(phasemapping):
     return b''.join(binarydata)
 
 
-def binarydecode(stream):
-    # type: (...) -> Dict[int, List[bytes]]
+def binarydecode(stream) -> Dict[int, List[bytes]]:
     """decode a binary stream into a 'phase -> nodes' mapping
 
     The (phase, root) pairs are turned back into a dictionary with
@@ -348,54 +366,63 @@ def _trackphasechange(data, rev, old, new):
         data.insert(low + 1, (range(rev, rev + 1), t))
 
 
+# consider incrementaly updating the phase set the update set is not bigger
+# than this size
+#
+# Be warned, this number is picked arbitrarily, without any benchmark. It
+# should blindly pickup "small update"
+INCREMENTAL_PHASE_SETS_UPDATE_MAX_UPDATE = 100
+
+
 class phasecache:
-    def __init__(self, repo, phasedefaults, _load=True):
-        # type: (localrepo.localrepository, Optional[Phasedefaults], bool) -> None
+    def __init__(
+        self,
+        repo: "localrepo.localrepository",
+        phasedefaults: Optional["Phasedefaults"],
+        _load: bool = True,
+    ):
         if _load:
             # Cheap trick to allow shallow-copy without copy module
-            self.phaseroots, self.dirty = _readroots(repo, phasedefaults)
+            loaded = _readroots(repo, phasedefaults)
+            self._phaseroots: Phaseroots = loaded[0]
+            self.dirty: bool = loaded[1]
             self._loadedrevslen = 0
-            self._phasesets = None
-            self.filterunknown(repo)
-            self.opener = repo.svfs
+            self._phasesets: PhaseSets = None
 
-    def hasnonpublicphases(self, repo):
-        # type: (localrepo.localrepository) -> bool
+    def hasnonpublicphases(self, repo: "localrepo.localrepository") -> bool:
         """detect if there are revisions with non-public phase"""
-        repo = repo.unfiltered()
-        cl = repo.changelog
-        if len(cl) >= self._loadedrevslen:
-            self.invalidate()
-            self.loadphaserevs(repo)
+        # XXX deprecate the unused repo argument
         return any(
-            revs for phase, revs in self.phaseroots.items() if phase != public
+            revs for phase, revs in self._phaseroots.items() if phase != public
         )
 
-    def nonpublicphaseroots(self, repo):
-        # type: (localrepo.localrepository) -> Set[bytes]
+    def nonpublicphaseroots(
+        self, repo: "localrepo.localrepository"
+    ) -> Set[int]:
         """returns the roots of all non-public phases
 
         The roots are not minimized, so if the secret revisions are
         descendants of draft revisions, their roots will still be present.
         """
         repo = repo.unfiltered()
-        cl = repo.changelog
-        if len(cl) >= self._loadedrevslen:
-            self.invalidate()
-            self.loadphaserevs(repo)
+        self._ensure_phase_sets(repo)
         return set().union(
             *[
                 revs
-                for phase, revs in self.phaseroots.items()
+                for phase, revs in self._phaseroots.items()
                 if phase != public
             ]
         )
 
-    def getrevset(self, repo, phases, subset=None):
-        # type: (localrepo.localrepository, Iterable[int], Optional[Any]) -> Any
+    def getrevset(
+        self,
+        repo: "localrepo.localrepository",
+        phases: Iterable[int],
+        subset: Optional[Any] = None,
+    ) -> Any:
         # TODO: finish typing this
         """return a smartset for the given phases"""
-        self.loadphaserevs(repo)  # ensure phase's sets are loaded
+        self._ensure_phase_sets(repo.unfiltered())
         phases = set(phases)
         publicphase = public in phases
 
@@ -450,19 +477,20 @@ class phasecache:
         # Shallow copy meant to ensure isolation in
         # advance/retractboundary(), nothing more.
         ph = self.__class__(None, None, _load=False)
-        ph.phaseroots = self.phaseroots.copy()
+        ph._phaseroots = self._phaseroots.copy()
         ph.dirty = self.dirty
-        ph.opener = self.opener
         ph._loadedrevslen = self._loadedrevslen
-        ph._phasesets = self._phasesets
+        if self._phasesets is None:
+            ph._phasesets = None
+        else:
+            ph._phasesets = self._phasesets.copy()
         return ph
 
     def replace(self, phcache):
         """replace all values in 'self' with content of phcache"""
         for a in (
-            'phaseroots',
+            '_phaseroots',
             'dirty',
-            'opener',
             '_loadedrevslen',
             '_phasesets',
         ):
@@ -470,7 +498,7 @@ class phasecache:
 
     def _getphaserevsnative(self, repo):
         repo = repo.unfiltered()
-        return repo.changelog.computephases(self.phaseroots)
+        return repo.changelog.computephases(self._phaseroots)
 
     def _computephaserevspure(self, repo):
         repo = repo.unfiltered()
@@ -478,7 +506,7 @@ class phasecache:
         self._phasesets = {phase: set() for phase in allphases}
         lowerroots = set()
         for phase in reversed(trackedphases):
-            roots = pycompat.maplist(cl.rev, self.phaseroots[phase])
+            roots = self._phaseroots[phase]
             if roots:
                 ps = set(cl.descendants(roots))
                 for root in roots:
@@ -488,22 +516,79 @@ class phasecache:
                 self._phasesets[phase] = ps
         self._loadedrevslen = len(cl)
 
-    def loadphaserevs(self, repo):
-        # type: (localrepo.localrepository) -> None
+    def _ensure_phase_sets(self, repo: "localrepo.localrepository") -> None:
         """ensure phase information is loaded in the object"""
+        assert repo.filtername is None
+        update = -1
+        cl = repo.changelog
+        cl_size = len(cl)
         if self._phasesets is None:
+            update = 0
+        else:
+            if cl_size > self._loadedrevslen:
+                # check if an incremental update is worth it.
+                # note we need a tradeoff here because the whole logic is not
+                # stored and implemented in native code nd datastructure.
+                # Otherwise the incremental update woul always be a win.
+                missing = cl_size - self._loadedrevslen
+                if missing <= INCREMENTAL_PHASE_SETS_UPDATE_MAX_UPDATE:
+                    update = self._loadedrevslen
+                else:
+                    update = 0
+
+        if update == 0:
             try:
                 res = self._getphaserevsnative(repo)
                 self._loadedrevslen, self._phasesets = res
             except AttributeError:
                 self._computephaserevspure(repo)
+            assert self._loadedrevslen == len(repo.changelog)
+        elif update > 0:
+            # good candidate for native code
+            assert update == self._loadedrevslen
+            if self.hasnonpublicphases(repo):
+                start = self._loadedrevslen
+                get_phase = self.phase
+                rev_phases = [0] * missing
+                parents = cl.parentrevs
+                sets = {phase: set() for phase in self._phasesets}
+                for phase, roots in self._phaseroots.items():
+                    # XXX should really store the max somewhere
+                    for r in roots:
+                        if r >= start:
+                            rev_phases[r - start] = phase
+                for rev in range(start, cl_size):
+                    phase = rev_phases[rev - start]
+                    p1, p2 = parents(rev)
+                    if p1 == nullrev:
+                        p1_phase = public
+                    elif p1 >= start:
+                        p1_phase = rev_phases[p1 - start]
+                    else:
+                        p1_phase = max(phase, get_phase(repo, p1))
+                    if p2 == nullrev:
+                        p2_phase = public
+                    elif p2 >= start:
+                        p2_phase = rev_phases[p2 - start]
+                    else:
+                        p2_phase = max(phase, get_phase(repo, p2))
+                    phase = max(phase, p1_phase, p2_phase)
+                    if phase > public:
+                        rev_phases[rev - start] = phase
+                        sets[phase].add(rev)
+
+                # Be careful to preserve shallow-copied values: do not update
+                # phaseroots values, replace them.
+                for phase, extra in sets.items():
+                    if extra:
+                        self._phasesets[phase] = self._phasesets[phase] | extra
+            self._loadedrevslen = cl_size
 
     def invalidate(self):
         self._loadedrevslen = 0
         self._phasesets = None
 
-    def phase(self, repo, rev):
-        # type: (localrepo.localrepository, int) -> int
+    def phase(self, repo: "localrepo.localrepository", rev: int) -> int:
         # We need a repo argument here to be able to build _phasesets
         # if necessary. The repository instance is not stored in
         # phasecache to avoid reference cycles. The changelog instance
@@ -513,35 +598,48 @@ class phasecache:
             return public
         if rev < nullrev:
             raise ValueError(_(b'cannot lookup negative revision'))
+        # double check self._loadedrevslen to avoid an extra method call as
+        # python is slow for that.
         if rev >= self._loadedrevslen:
-            self.invalidate()
-            self.loadphaserevs(repo)
+            self._ensure_phase_sets(repo.unfiltered())
         for phase in trackedphases:
             if rev in self._phasesets[phase]:
                 return phase
         return public
 
-    def write(self):
+    def write(self, repo):
         if not self.dirty:
             return
-        f = self.opener(b'phaseroots', b'w', atomictemp=True, checkambig=True)
+        f = repo.svfs(b'phaseroots', b'w', atomictemp=True, checkambig=True)
         try:
-            self._write(f)
+            self._write(repo.unfiltered(), f)
         finally:
             f.close()
 
-    def _write(self, fp):
-        for phase, roots in self.phaseroots.items():
-            for h in sorted(roots):
+    def _write(self, repo, fp):
+        assert repo.filtername is None
+        to_node = repo.changelog.node
+        for phase, roots in self._phaseroots.items():
+            for r in sorted(roots):
+                h = to_node(r)
                 fp.write(b'%i %s\n' % (phase, hex(h)))
         self.dirty = False
 
-    def _updateroots(self, phase, newroots, tr):
-        self.phaseroots[phase] = newroots
-        self.invalidate()
+    def _updateroots(self, repo, phase, newroots, tr, invalidate=True):
+        self._phaseroots[phase] = newroots
         self.dirty = True
+        if invalidate:
+            self.invalidate()
 
-        tr.addfilegenerator(b'phase', (b'phaseroots',), self._write)
+        assert repo.filtername is None
+        wrepo = weakref.ref(repo)
+
+        def tr_write(fp):
+            repo = wrepo()
+            assert repo is not None
+            self._write(repo, fp)
+
+        tr.addfilegenerator(b'phase', (b'phaseroots',), tr_write)
         tr.hookargs[b'phases_moved'] = b'1'
 
     def registernew(self, repo, tr, targetphase, revs):
@@ -556,7 +654,7 @@ class phasecache:
         repo.invalidatevolatilesets()
 
     def advanceboundary(
-        self, repo, tr, targetphase, nodes, revs=None, dryrun=None
+        self, repo, tr, targetphase, nodes=None, revs=None, dryrun=None
     ):
         """Set all 'nodes' to phase 'targetphase'
 
@@ -566,90 +664,149 @@ class phasecache:
 
         Returns a set of revs whose phase is changed or should be changed
         """
+        if targetphase == public and not self.hasnonpublicphases(repo):
+            return set()
+        repo = repo.unfiltered()
+        cl = repo.changelog
+        torev = cl.index.rev
         # Be careful to preserve shallow-copied values: do not update
         # phaseroots values, replace them.
-        if revs is None:
-            revs = []
+        new_revs = set()
+        if revs is not None:
+            new_revs.update(revs)
+        if nodes is not None:
+            new_revs.update(torev(node) for node in nodes)
+        if not new_revs:  # bail out early to avoid the loadphaserevs call
+            return (
+                set()
+            )  # note: why do people call advanceboundary with nothing?
+
         if tr is None:
             phasetracking = None
         else:
             phasetracking = tr.changes.get(b'phases')
 
-        repo = repo.unfiltered()
-        revs = [repo[n].rev() for n in nodes] + [r for r in revs]
+        affectable_phases = sorted(
+            p for p in allphases if p > targetphase and self._phaseroots[p]
+        )
+        # filter revision already in the right phases
+        candidates = new_revs
+        new_revs = set()
+        self._ensure_phase_sets(repo)
+        for phase in affectable_phases:
+            found = candidates & self._phasesets[phase]
+            new_revs |= found
+            candidates -= found
+            if not candidates:
+                break
+        if not new_revs:
+            return set()
 
-        changes = set()  # set of revisions to be changed
-        delroots = []  # set of root deleted by this path
-        for phase in (phase for phase in allphases if phase > targetphase):
-            # filter nodes that are not in a compatible phase already
-            revs = [rev for rev in revs if self.phase(repo, rev) >= phase]
-            if not revs:
-                break  # no roots to move anymore
+        # search for affected high phase changesets and roots
+        push = heapq.heappush
+        pop = heapq.heappop
+        parents = cl.parentrevs
+        get_phase = self.phase
+        changed = {}  # set of revisions to be changed
+        # set of root deleted by this path
+        delroots = set()
+        new_roots = {p: set() for p in affectable_phases}
+        new_target_roots = set()
+        # revision to walk down
+        revs = [-r for r in new_revs]
+        heapq.heapify(revs)
+        while revs:
+            current = -pop(revs)
+            current_phase = get_phase(repo, current)
+            changed[current] = current_phase
+            p1, p2 = parents(current)
+            if p1 == nullrev:
+                p1_phase = public
+            else:
+                p1_phase = get_phase(repo, p1)
+            if p2 == nullrev:
+                p2_phase = public
+            else:
+                p2_phase = get_phase(repo, p2)
+            # do we have a root ?
+            if current_phase != p1_phase and current_phase != p2_phase:
+                # do not record phase, because we could have "duplicated"
+                # roots, were one root is shadowed by the very same roots of an
+                # higher phases
+                delroots.add(current)
+            # schedule a walk down if needed
+            if p1_phase > targetphase:
+                push(revs, -p1)
+            if p2_phase > targetphase:
+                push(revs, -p2)
+            if p1_phase < targetphase and p2_phase < targetphase:
+                new_target_roots.add(current)
 
-            olds = self.phaseroots[phase]
+        # the last iteration was done with the smallest value
+        min_current = current
+        # do we have unwalked children that might be new roots
+        if (min_current + len(changed)) < len(cl):
+            for r in range(min_current, len(cl)):
+                if r in changed:
+                    continue
+                phase = get_phase(repo, r)
+                if phase <= targetphase:
+                    continue
+                p1, p2 = parents(r)
+                if not (p1 in changed or p2 in changed):
+                    continue  # not affected
+                if p1 != nullrev and p1 not in changed:
+                    p1_phase = get_phase(repo, p1)
+                    if p1_phase == phase:
+                        continue  # not a root
+                if p2 != nullrev and p2 not in changed:
+                    p2_phase = get_phase(repo, p2)
+                    if p2_phase == phase:
+                        continue  # not a root
+                new_roots[phase].add(r)
 
-            affected = repo.revs(b'%ln::%ld', olds, revs)
-            changes.update(affected)
-            if dryrun:
-                continue
-            for r in affected:
-                _trackphasechange(
-                    phasetracking, r, self.phase(repo, r), targetphase
-                )
-
-            roots = {
-                ctx.node()
-                for ctx in repo.set(b'roots((%ln::) - %ld)', olds, affected)
-            }
-            if olds != roots:
-                self._updateroots(phase, roots, tr)
-                # some roots may need to be declared for lower phases
-                delroots.extend(olds - roots)
+        # apply the changes
         if not dryrun:
-            # declare deleted root in the target phase
-            if targetphase != 0:
-                self._retractboundary(repo, tr, targetphase, delroots)
+            for r, p in changed.items():
+                _trackphasechange(phasetracking, r, p, targetphase)
+            if targetphase > public:
+                self._phasesets[targetphase].update(changed)
+            for phase in affectable_phases:
+                roots = self._phaseroots[phase]
+                removed = roots & delroots
+                if removed or new_roots[phase]:
+                    self._phasesets[phase].difference_update(changed)
+                    # Be careful to preserve shallow-copied values: do not
+                    # update phaseroots values, replace them.
+                    final_roots = roots - delroots | new_roots[phase]
+                    self._updateroots(
+                        repo, phase, final_roots, tr, invalidate=False
+                    )
+            if new_target_roots:
+                # Thanks for previous filtering, we can't replace existing
+                # roots
+                new_target_roots |= self._phaseroots[targetphase]
+                self._updateroots(
+                    repo, targetphase, new_target_roots, tr, invalidate=False
+                )
             repo.invalidatevolatilesets()
-        return changes
+        return changed
 
     def retractboundary(self, repo, tr, targetphase, nodes):
-        oldroots = {
-            phase: revs
-            for phase, revs in self.phaseroots.items()
-            if phase <= targetphase
-        }
         if tr is None:
             phasetracking = None
         else:
             phasetracking = tr.changes.get(b'phases')
         repo = repo.unfiltered()
-        if (
-            self._retractboundary(repo, tr, targetphase, nodes)
-            and phasetracking is not None
-        ):
-
-            # find the affected revisions
-            new = self.phaseroots[targetphase]
-            old = oldroots[targetphase]
-            affected = set(repo.revs(b'(%ln::) - (%ln::)', new, old))
-
-            # find the phase of the affected revision
-            for phase in range(targetphase, -1, -1):
-                if phase:
-                    roots = oldroots.get(phase, [])
-                    revs = set(repo.revs(b'%ln::%ld', roots, affected))
-                    affected -= revs
-                else:  # public phase
-                    revs = affected
-                for r in sorted(revs):
-                    _trackphasechange(phasetracking, r, phase, targetphase)
+        retracted = self._retractboundary(repo, tr, targetphase, nodes)
+        if retracted and phasetracking is not None:
+            for r, old_phase in sorted(retracted.items()):
+                _trackphasechange(phasetracking, r, old_phase, targetphase)
         repo.invalidatevolatilesets()
 
-    def _retractboundary(self, repo, tr, targetphase, nodes, revs=None):
-        # Be careful to preserve shallow-copied values: do not update
-        # phaseroots values, replace them.
-        if revs is None:
-            revs = []
+    def _retractboundary(self, repo, tr, targetphase, nodes=None, revs=None):
+        if targetphase == public:
+            return {}
         if (
             targetphase == internal
             and not supportinternal(repo)
@@ -659,65 +816,144 @@ class phasecache:
             name = phasenames[targetphase]
             msg = b'this repository does not support the %s phase' % name
             raise error.ProgrammingError(msg)
+        assert repo.filtername is None
+        cl = repo.changelog
+        torev = cl.index.rev
+        new_revs = set()
+        if revs is not None:
+            new_revs.update(revs)
+        if nodes is not None:
+            new_revs.update(torev(node) for node in nodes)
+        if not new_revs:  # bail out early to avoid the loadphaserevs call
+            return {}  # note: why do people call retractboundary with nothing ?
 
-        repo = repo.unfiltered()
-        torev = repo.changelog.rev
-        tonode = repo.changelog.node
-        currentroots = {torev(node) for node in self.phaseroots[targetphase]}
-        finalroots = oldroots = set(currentroots)
-        newroots = [torev(node) for node in nodes] + [r for r in revs]
-        newroots = [
-            rev for rev in newroots if self.phase(repo, rev) < targetphase
-        ]
+        if nullrev in new_revs:
+            raise error.Abort(_(b'cannot change null revision phase'))
 
-        if newroots:
-            if nullrev in newroots:
-                raise error.Abort(_(b'cannot change null revision phase'))
-            currentroots.update(newroots)
+        # Filter revision that are already in the right phase
+        self._ensure_phase_sets(repo)
+        for phase, revs in self._phasesets.items():
+            if phase >= targetphase:
+                new_revs -= revs
+        if not new_revs:  # all revisions already in the right phases
+            return {}
 
-            # Only compute new roots for revs above the roots that are being
-            # retracted.
-            minnewroot = min(newroots)
-            aboveroots = [rev for rev in currentroots if rev >= minnewroot]
-            updatedroots = repo.revs(b'roots(%ld::)', aboveroots)
-
-            finalroots = {rev for rev in currentroots if rev < minnewroot}
-            finalroots.update(updatedroots)
-        if finalroots != oldroots:
-            self._updateroots(
-                targetphase, {tonode(rev) for rev in finalroots}, tr
-            )
-            return True
-        return False
-
-    def filterunknown(self, repo):
-        # type: (localrepo.localrepository) -> None
-        """remove unknown nodes from the phase boundary
-
-        Nothing is lost as unknown nodes only hold data for their descendants.
-        """
-        filtered = False
-        has_node = repo.changelog.index.has_node  # to filter unknown nodes
-        for phase, nodes in self.phaseroots.items():
-            missing = sorted(node for node in nodes if not has_node(node))
-            if missing:
-                for mnode in missing:
-                    repo.ui.debug(
-                        b'removing unknown node %s from %i-phase boundary\n'
-                        % (short(mnode), phase)
-                    )
-                nodes.symmetric_difference_update(missing)
-                filtered = True
-        if filtered:
-            self.dirty = True
-        # filterunknown is called by repo.destroyed, we may have no changes in
-        # root but _phasesets contents is certainly invalid (or at least we
-        # have not proper way to check that). related to issue 3858.
+        # Compute change in phase roots by walking the graph
         #
-        # The other caller is __init__ that have no _phasesets initialized
-        # anyway. If this change we should consider adding a dedicated
-        # "destroyed" function to phasecache or a proper cache key mechanism
-        # (see branchmap one)
+        # note: If we had a cheap parent → children mapping we could do
+        # something even cheaper/more-bounded
+        #
+        # The idea would be to walk from item in new_revs stopping at
+        # descendant with phases >= target_phase.
+        #
+        # 1) This detect new_revs that are not new_roots (either already >=
+        #    target_phase or reachable though another new_revs
+        # 2) This detect replaced current_roots as we reach them
+        # 3) This can avoid walking to the tip if we retract over a small
+        #    branch.
+        #
+        # So instead, we do a variation of this, we walk from the smaller new
+        # revision to the tip to avoid missing any potential children.
+        #
+        # The following code would be a good candidate for native code… if only
+        # we could knew the phase of a changeset efficiently in native code.
+        parents = cl.parentrevs
+        phase = self.phase
+        new_roots = set()  # roots added by this phases
+        changed_revs = {}  # revision affected by this call
+        replaced_roots = set()  # older roots replaced by this call
+        currentroots = self._phaseroots[targetphase]
+        start = min(new_revs)
+        end = len(cl)
+        rev_phases = [None] * (end - start)
+        for r in range(start, end):
+
+            # gather information about the current_rev
+            r_phase = phase(repo, r)
+            p_phase = None  # phase inherited from parents
+            p1, p2 = parents(r)
+            if p1 >= start:
+                p1_phase = rev_phases[p1 - start]
+                if p1_phase is not None:
+                    p_phase = p1_phase
+            if p2 >= start:
+                p2_phase = rev_phases[p2 - start]
+                if p2_phase is not None:
+                    if p_phase is not None:
+                        p_phase = max(p_phase, p2_phase)
+                    else:
+                        p_phase = p2_phase
+
+            # assess the situation
+            if r in new_revs and r_phase < targetphase:
+                if p_phase is None or p_phase < targetphase:
+                    new_roots.add(r)
+                rev_phases[r - start] = targetphase
+                changed_revs[r] = r_phase
+            elif p_phase is None:
+                rev_phases[r - start] = r_phase
+            else:
+                if p_phase > r_phase:
+                    rev_phases[r - start] = p_phase
+                else:
+                    rev_phases[r - start] = r_phase
+                if p_phase == targetphase:
+                    if p_phase > r_phase:
+                        changed_revs[r] = r_phase
+                    elif r in currentroots:
+                        replaced_roots.add(r)
+            sets = self._phasesets
+            sets[targetphase].update(changed_revs)
+            for r, old in changed_revs.items():
+                if old > public:
+                    sets[old].discard(r)
+
+        if new_roots:
+            assert changed_revs
+
+            final_roots = new_roots | currentroots - replaced_roots
+            self._updateroots(
+                repo,
+                targetphase,
+                final_roots,
+                tr,
+                invalidate=False,
+            )
+            if targetphase > 1:
+                retracted = set(changed_revs)
+                for lower_phase in range(1, targetphase):
+                    lower_roots = self._phaseroots.get(lower_phase)
+                    if lower_roots is None:
+                        continue
+                    if lower_roots & retracted:
+                        simpler_roots = lower_roots - retracted
+                        self._updateroots(
+                            repo,
+                            lower_phase,
+                            simpler_roots,
+                            tr,
+                            invalidate=False,
+                        )
+            return changed_revs
+        else:
+            assert not changed_revs
+            assert not replaced_roots
+            return {}
+
+    def register_strip(
+        self,
+        repo,
+        tr,
+        strip_rev: int,
+    ):
+        """announce a strip to the phase cache
+
+        Any roots higher than the stripped revision should be dropped.
+        """
+        for targetphase, roots in list(self._phaseroots.items()):
+            filtered = {r for r in roots if r >= strip_rev}
+            if filtered:
+                self._updateroots(repo, targetphase, roots - filtered, tr)
         self.invalidate()
 
 
@@ -768,16 +1004,16 @@ def registernew(repo, tr, targetphase, revs):
     repo._phasecache.replace(phcache)
 
 
-def listphases(repo):
-    # type: (localrepo.localrepository) -> Dict[bytes, bytes]
+def listphases(repo: "localrepo.localrepository") -> Dict[bytes, bytes]:
     """List phases root for serialization over pushkey"""
     # Use ordered dictionary so behavior is deterministic.
     keys = util.sortdict()
     value = b'%i' % draft
     cl = repo.unfiltered().changelog
-    for root in repo._phasecache.phaseroots[draft]:
-        if repo._phasecache.phase(repo, cl.rev(root)) <= draft:
-            keys[hex(root)] = value
+    to_node = cl.node
+    for root in repo._phasecache._phaseroots[draft]:
+        if repo._phasecache.phase(repo, root) <= draft:
+            keys[hex(to_node(root))] = value
 
     if repo.publishing():
         # Add an extra data to let remote know we are a publishing
@@ -800,8 +1036,12 @@ def listphases(repo):
     return keys
 
 
-def pushphase(repo, nhex, oldphasestr, newphasestr):
-    # type: (localrepo.localrepository, bytes, bytes, bytes) -> bool
+def pushphase(
+    repo: "localrepo.localrepository",
+    nhex: bytes,
+    oldphasestr: bytes,
+    newphasestr: bytes,
+) -> bool:
     """List phases root for serialization over pushkey"""
     repo = repo.unfiltered()
     with repo.lock():
@@ -948,8 +1188,7 @@ def newheads(repo, heads, roots):
     return pycompat.maplist(cl.node, sorted(new_heads))
 
 
-def newcommitphase(ui):
-    # type: (uimod.ui) -> int
+def newcommitphase(ui: "uimod.ui") -> int:
     """helper to get the target phase of new commit
 
     Handle all possible values for the phases.new-commit options.
@@ -964,14 +1203,16 @@ def newcommitphase(ui):
         )
 
 
-def hassecret(repo):
-    # type: (localrepo.localrepository) -> bool
+def hassecret(repo: "localrepo.localrepository") -> bool:
     """utility function that check if a repo have any secret changeset."""
-    return bool(repo._phasecache.phaseroots[secret])
+    return bool(repo._phasecache._phaseroots[secret])
 
 
-def preparehookargs(node, old, new):
-    # type: (bytes, Optional[int], Optional[int]) -> Dict[bytes, bytes]
+def preparehookargs(
+    node: bytes,
+    old: Optional[int],
+    new: Optional[int],
+) -> Dict[bytes, bytes]:
     if old is None:
         old = b''
     else:

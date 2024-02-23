@@ -413,7 +413,7 @@ def _runcatch(req):
                     # debugging has been requested
                     with demandimport.deactivated():
                         try:
-                            debugmod = __import__(debugger)
+                            debugmod = __import__(pycompat.sysstr(debugger))
                         except ImportError:
                             pass  # Leave debugmod = pdb
 

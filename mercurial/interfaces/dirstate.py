@@ -123,7 +123,7 @@ class idirstate(interfaceutil.Interface):
         See localrepo.setparents()
         """
 
-    def setbranch(branch, transaction=None):
+    def setbranch(branch, transaction):
         pass
 
     def invalidate():

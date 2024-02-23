@@ -18,6 +18,7 @@ from typing import (
     Dict,
     Iterable,
     Optional,
+    TYPE_CHECKING,
     cast,
 )
 
@@ -71,7 +72,7 @@ from .revlogutils import (
     constants as revlog_constants,
 )
 
-if pycompat.TYPE_CHECKING:
+if TYPE_CHECKING:
     from . import (
         ui as uimod,
     )
@@ -2381,8 +2382,19 @@ def add(ui, repo, match, prefix, uipathfn, explicitonly, **opts):
             full=False,
         )
     ):
+        entry = dirstate.get_entry(f)
+        # We don't want to even attmpt to add back files that have been removed
+        # It would lead to a misleading message saying we're adding the path,
+        # and can also lead to file/dir conflicts when attempting to add it.
+        removed = entry and entry.removed
         exact = match.exact(f)
-        if exact or not explicitonly and f not in wctx and repo.wvfs.lexists(f):
+        if (
+            exact
+            or not explicitonly
+            and f not in wctx
+            and repo.wvfs.lexists(f)
+            and not removed
+        ):
             if cca:
                 cca(f)
             names.append(f)
@@ -4106,8 +4118,10 @@ def abortgraft(ui, repo, graftstate):
     return 0
 
 
-def readgraftstate(repo, graftstate):
-    # type: (Any, statemod.cmdstate) -> Dict[bytes, Any]
+def readgraftstate(
+    repo: Any,
+    graftstate: statemod.cmdstate,
+) -> Dict[bytes, Any]:
     """read the graft state file and return a dict of the data stored in it"""
     try:
         return graftstate.read()

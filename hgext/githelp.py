@@ -111,7 +111,7 @@ def parseoptions(ui, cmdoptions, args):
 
             ui.warn(_(b"ignoring unknown option %s\n") % flag)
 
-    args = list([convert(x) for x in args])
+    args = [convert(x) for x in args]
     opts = dict(
         [
             (k, convert(v)) if isinstance(v, bytes) else (k, v)

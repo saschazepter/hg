@@ -9,7 +9,15 @@
 import locale
 import os
 import re
+import typing
 import unicodedata
+
+from typing import (
+    Any,
+    Callable,
+    Text,
+    TypeVar,
+)
 
 from . import (
     error,
@@ -19,22 +27,7 @@ from . import (
 
 from .pure import charencode as charencodepure
 
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        Any,
-        Callable,
-        List,
-        Text,
-        Type,
-        TypeVar,
-        Union,
-    )
-
-    # keep pyflakes happy
-    for t in (Any, Callable, List, Text, Type, Union):
-        assert t
-
-    _Tlocalstr = TypeVar('_Tlocalstr', bound='localstr')
+_Tlocalstr = TypeVar('_Tlocalstr', bound='localstr')
 
 charencode = policy.importmod('charencode')
 
@@ -59,8 +52,7 @@ _ignore = [
 assert all(i.startswith((b"\xe2", b"\xef")) for i in _ignore)
 
 
-def hfsignoreclean(s):
-    # type: (bytes) -> bytes
+def hfsignoreclean(s: bytes) -> bytes:
     """Remove codepoints ignored by HFS+ from s.
 
     >>> hfsignoreclean(u'.h\u200cg'.encode('utf-8'))
@@ -131,10 +123,9 @@ class localstr(bytes):
         s._utf8 = u
         return s
 
-    if pycompat.TYPE_CHECKING:
+    if typing.TYPE_CHECKING:
         # pseudo implementation to help pytype see localstr() constructor
-        def __init__(self, u, l):
-            # type: (bytes, bytes) -> None
+        def __init__(self, u: bytes, l: bytes) -> None:
             super(localstr, self).__init__(l)
             self._utf8 = u
 
@@ -153,8 +144,7 @@ class safelocalstr(bytes):
     """
 
 
-def tolocal(s):
-    # type: (bytes) -> bytes
+def tolocal(s: bytes) -> bytes:
     """
     Convert a string from internal UTF-8 to local encoding
 
@@ -222,8 +212,7 @@ def tolocal(s):
         )
 
 
-def fromlocal(s):
-    # type: (bytes) -> bytes
+def fromlocal(s: bytes) -> bytes:
     """
     Convert a string from the local character encoding to UTF-8
 
@@ -254,20 +243,17 @@ def fromlocal(s):
         )
 
 
-def unitolocal(u):
-    # type: (Text) -> bytes
+def unitolocal(u: str) -> bytes:
     """Convert a unicode string to a byte string of local encoding"""
     return tolocal(u.encode('utf-8'))
 
 
-def unifromlocal(s):
-    # type: (bytes) -> Text
+def unifromlocal(s: bytes) -> str:
     """Convert a byte string of local encoding to a unicode string"""
     return fromlocal(s).decode('utf-8')
 
 
-def unimethod(bytesfunc):
-    # type: (Callable[[Any], bytes]) -> Callable[[Any], Text]
+def unimethod(bytesfunc: Callable[[Any], bytes]) -> Callable[[Any], str]:
     """Create a proxy method that forwards __unicode__() and __str__() of
     Python 3 to __bytes__()"""
 
@@ -285,8 +271,7 @@ strfromlocal = unifromlocal
 strmethod = unimethod
 
 
-def lower(s):
-    # type: (bytes) -> bytes
+def lower(s: bytes) -> bytes:
     """best-effort encoding-aware case-folding of local string s"""
     try:
         return asciilower(s)
@@ -310,8 +295,7 @@ def lower(s):
         )
 
 
-def upper(s):
-    # type: (bytes) -> bytes
+def upper(s: bytes) -> bytes:
     """best-effort encoding-aware case-folding of local string s"""
     try:
         return asciiupper(s)
@@ -319,8 +303,7 @@ def upper(s):
         return upperfallback(s)
 
 
-def upperfallback(s):
-    # type: (Any) -> Any
+def upperfallback(s: Any) -> Any:
     try:
         if isinstance(s, localstr):
             u = s._utf8.decode("utf-8")
@@ -395,14 +378,12 @@ _wide = _sysstr(
 )
 
 
-def colwidth(s):
-    # type: (bytes) -> int
+def colwidth(s: bytes) -> int:
     """Find the column width of a string for display in the local encoding"""
     return ucolwidth(s.decode(_sysstr(encoding), 'replace'))
 
 
-def ucolwidth(d):
-    # type: (Text) -> int
+def ucolwidth(d: Text) -> int:
     """Find the column width of a Unicode string for display"""
     eaw = getattr(unicodedata, 'east_asian_width', None)
     if eaw is not None:
@@ -410,8 +391,7 @@ def ucolwidth(d):
     return len(d)
 
 
-def getcols(s, start, c):
-    # type: (bytes, int, int) -> bytes
+def getcols(s: bytes, start: int, c: int) -> bytes:
     """Use colwidth to find a c-column substring of s starting at byte
     index start"""
     for x in range(start + c, len(s)):
@@ -421,8 +401,12 @@ def getcols(s, start, c):
     raise ValueError('substring not found')
 
 
-def trim(s, width, ellipsis=b'', leftside=False):
-    # type: (bytes, int, bytes, bool) -> bytes
+def trim(
+    s: bytes,
+    width: int,
+    ellipsis: bytes = b'',
+    leftside: bool = False,
+) -> bytes:
     """Trim string 's' to at most 'width' columns (including 'ellipsis').
 
     If 'leftside' is True, left side of string 's' is trimmed.
@@ -540,8 +524,7 @@ class normcasespecs:
     other = 0
 
 
-def jsonescape(s, paranoid=False):
-    # type: (Any, Any) -> Any
+def jsonescape(s: Any, paranoid: Any = False) -> Any:
     """returns a string suitable for JSON
 
     JSON is problematic for us because it doesn't support non-Unicode
@@ -601,8 +584,7 @@ _utf8strict = r'surrogatepass'
 _utf8len = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 4]
 
 
-def getutf8char(s, pos):
-    # type: (bytes, int) -> bytes
+def getutf8char(s: bytes, pos: int) -> bytes:
     """get the next full utf-8 character in the given string, starting at pos
 
     Raises a UnicodeError if the given location does not start a valid
@@ -620,8 +602,7 @@ def getutf8char(s, pos):
     return c
 
 
-def toutf8b(s):
-    # type: (bytes) -> bytes
+def toutf8b(s: bytes) -> bytes:
     """convert a local, possibly-binary string into UTF-8b
 
     This is intended as a generic method to preserve data when working
@@ -689,8 +670,7 @@ def toutf8b(s):
     return bytes(r)
 
 
-def fromutf8b(s):
-    # type: (bytes) -> bytes
+def fromutf8b(s: bytes) -> bytes:
     """Given a UTF-8b string, return a local, possibly-binary string.
 
     return the original binary string. This

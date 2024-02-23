@@ -82,6 +82,7 @@ Show debug commands if there are no other candidates
   debug-revlog-stats
   debug::stable-tail-sort
   debug::stable-tail-sort-leaps
+  debug::unbundle
   debugancestor
   debugantivirusrunning
   debugapplystreamclonebundle
@@ -260,7 +261,7 @@ Show all commands + options
   add: include, exclude, subrepos, dry-run
   addremove: similarity, subrepos, include, exclude, dry-run
   admin::verify: check, option
-  annotate: rev, follow, no-follow, text, user, file, date, number, changeset, line-number, skip, ignore-all-space, ignore-space-change, ignore-blank-lines, ignore-space-at-eol, include, exclude, template
+  annotate: rev, follow, no-follow, text, user, file, date, number, changeset, line-number, skip, line-range, ignore-all-space, ignore-space-change, ignore-blank-lines, ignore-space-at-eol, include, exclude, template
   archive: no-decode, prefix, rev, type, subrepos, include, exclude
   backout: merge, commit, no-commit, parent, rev, edit, tool, include, exclude, message, logfile, date, user
   bisect: reset, good, bad, skip, extend, command, noupdate
@@ -280,6 +281,7 @@ Show all commands + options
   debug-revlog-stats: changelog, manifest, filelogs, template
   debug::stable-tail-sort: template
   debug::stable-tail-sort-leaps: template, specific
+  debug::unbundle: update
   debugancestor: 
   debugantivirusrunning: 
   debugapplystreamclonebundle: 

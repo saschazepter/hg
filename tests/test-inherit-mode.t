@@ -78,7 +78,10 @@ new directories are setgid
   00660 ./.hg/last-message.txt
   00600 ./.hg/requires
   00770 ./.hg/store/
+  00660 ./.hg/store/00changelog-150e1cfc.nd (rust !)
+  00660 ./.hg/store/00changelog.d
   00660 ./.hg/store/00changelog.i
+  00660 ./.hg/store/00changelog.n (rust !)
   00660 ./.hg/store/00manifest.i
   00770 ./.hg/store/data/
   00770 ./.hg/store/data/dir/
@@ -137,7 +140,10 @@ group can still write everything
   00660 ../push/.hg/cache/rbc-revs-v1
   00660 ../push/.hg/requires
   00770 ../push/.hg/store/
+  00660 ../push/.hg/store/00changelog-b870a51b.nd (rust !)
+  00660 ../push/.hg/store/00changelog.d
   00660 ../push/.hg/store/00changelog.i
+  00660 ../push/.hg/store/00changelog.n (rust !)
   00660 ../push/.hg/store/00manifest.i
   00770 ../push/.hg/store/data/
   00770 ../push/.hg/store/data/dir/
