@@ -769,19 +769,26 @@ class phasecache:
         if not dryrun:
             for r, p in changed.items():
                 _trackphasechange(phasetracking, r, p, targetphase)
+            if targetphase > public:
+                self._phasesets[targetphase].update(changed)
             for phase in affectable_phases:
                 roots = self._phaseroots[phase]
                 removed = roots & delroots
                 if removed or new_roots[phase]:
+                    self._phasesets[phase].difference_update(changed)
                     # Be careful to preserve shallow-copied values: do not
                     # update phaseroots values, replace them.
                     final_roots = roots - delroots | new_roots[phase]
-                    self._updateroots(repo, phase, final_roots, tr)
+                    self._updateroots(
+                        repo, phase, final_roots, tr, invalidate=False
+                    )
             if new_target_roots:
                 # Thanks for previous filtering, we can't replace existing
                 # roots
                 new_target_roots |= self._phaseroots[targetphase]
-                self._updateroots(repo, targetphase, new_target_roots, tr)
+                self._updateroots(
+                    repo, targetphase, new_target_roots, tr, invalidate=False
+                )
             repo.invalidatevolatilesets()
         return changed
 
