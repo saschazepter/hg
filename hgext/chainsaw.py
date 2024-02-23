@@ -194,10 +194,18 @@ def update(ui, **opts):
         overrides = {(b'ui', b'quiet'): True}
         with repo.ui.configoverride(overrides, b'chainsaw-update'):
             pull = cmdutil.findcmd(b'pull', commands.table)[1][0]
-            pull(repo.ui, repo, source, rev=pull_revs, remote_hidden=False)
+            ret = pull(
+                repo.ui,
+                repo,
+                source,
+                rev=pull_revs,
+                remote_hidden=False,
+            )
+            if ret:
+                return ret
 
         purge = cmdutil.findcmd(b'purge', commands.table)[1][0]
-        purge(
+        ret = purge(
             ui,
             repo,
             dirs=True,
@@ -205,10 +213,14 @@ def update(ui, **opts):
             files=opts.get('purge_unknown'),
             confirm=False,
         )
+        if ret:
+            return ret
 
         ui.status(_(b'updating to revision \'%s\'\n') % rev)
         update = cmdutil.findcmd(b'update', commands.table)[1][0]
-        update(ui, repo, rev=rev, clean=True)
+        ret = update(ui, repo, rev=rev, clean=True)
+        if ret:
+            return ret
 
         ui.status(
             _(
