@@ -659,6 +659,19 @@ Test cache warming command
   .hg/cache/branch2-immutable
   .hg/cache/branch2-base
 
+Test debug::unbundle
+
+  $ hg bundle --exact --rev tip foo.hg
+  1 changesets found
+  $ hg debug::unbundle foo.hg
+  adding changesets
+  adding manifests
+  adding file changes
+  added 0 changesets with 0 changes to 1 files (no-pure !)
+  9 local changesets published (no-pure !)
+  3 local changesets published (pure !)
+  (run 'hg update' to get a working copy)
+
 Test debugcolor
 
 #if no-windows

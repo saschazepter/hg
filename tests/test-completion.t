@@ -82,6 +82,7 @@ Show debug commands if there are no other candidates
   debug-revlog-stats
   debug::stable-tail-sort
   debug::stable-tail-sort-leaps
+  debug::unbundle
   debugancestor
   debugantivirusrunning
   debugapplystreamclonebundle
@@ -280,6 +281,7 @@ Show all commands + options
   debug-revlog-stats: changelog, manifest, filelogs, template
   debug::stable-tail-sort: template
   debug::stable-tail-sort-leaps: template, specific
+  debug::unbundle: update
   debugancestor: 
   debugantivirusrunning: 
   debugapplystreamclonebundle: 
