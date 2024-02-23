@@ -12,9 +12,47 @@ setup
 
   $ hg init src
   $ cd src
+  $ echo 1 > root
+  $ hg add root
+  $ hg ci -Am R_0
+  $ hg branch A
+  marked working directory as branch A
+  (branches are permanent and global, did you want a bookmark?)
+  $ echo 42 > bar
+  $ hg add bar
+  $ hg ci -Am A_0
+  $ echo 1337 > bar
+  $ hg ci -Am A_1
+  $ hg update 'desc(R_0)'
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
   $ echo 1 > foo
-  $ hg ci -Am1
-  adding foo
+  $ hg add foo
+  $ hg ci -Am B_0
+  $ hg log -G
+  @  changeset:   3:bfcb8e629987
+  |  tag:         tip
+  |  parent:      0:06f48e4098b8
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     B_0
+  |
+  | o  changeset:   2:7fd8de258aa4
+  | |  branch:      A
+  | |  user:        test
+  | |  date:        Thu Jan 01 00:00:00 1970 +0000
+  | |  summary:     A_1
+  | |
+  | o  changeset:   1:ae1692b8aadb
+  |/   branch:      A
+  |    user:        test
+  |    date:        Thu Jan 01 00:00:00 1970 +0000
+  |    summary:     A_0
+  |
+  o  changeset:   0:06f48e4098b8
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     R_0
+  
   $ cd ..
 
 Actual tests
@@ -30,9 +68,24 @@ Simple invocation
   no interrupted transaction available
   pulling from ../src
   updating to revision 'default'
-  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   chainsaw-update to revision 'default' for repository at '$TESTTMP/repo' done
 
+  $ hg log -G
+  @  changeset:   1:bfcb8e629987
+  |  tag:         tip
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     B_0
+  |
+  o  changeset:   0:06f48e4098b8
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     R_0
+  
+  $ hg status -A
+  C foo
+  C root
   $ cat foo
   1
 
@@ -71,6 +124,7 @@ purging.
   $ hg status -A
   M foo
   ? bar
+  C root
 
   $ echo 2 > ../src/foo
   $ hg -R ../src commit -m2
@@ -78,6 +132,7 @@ purging.
   no interrupted transaction available
   $ hg status -A
   C foo
+  C root
   $ cat foo
   2
 
@@ -91,6 +146,7 @@ the --no-purge-ignored flag is passed, but they are purged by default
   I bar
   C .hgignore
   C foo
+  C root
 
   $ hg admin::chainsaw-update --no-purge-ignored --rev default --source ../src -q
   no interrupted transaction available
@@ -98,6 +154,7 @@ the --no-purge-ignored flag is passed, but they are purged by default
   I bar
   C .hgignore
   C foo
+  C root
   $ cat bar
   ignored
 
@@ -106,6 +163,7 @@ the --no-purge-ignored flag is passed, but they are purged by default
   $ hg status --all
   C .hgignore
   C foo
+  C root
   $ test -f bar
   [1]
 
