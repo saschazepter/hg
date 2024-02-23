@@ -16,6 +16,7 @@ and O(changes) merge between branches.
 import binascii
 import collections
 import contextlib
+import functools
 import io
 import os
 import struct
@@ -131,6 +132,7 @@ _zlibdecompress = zlib.decompress
 # max size of inline data embedded into a revlog
 _maxinline = 131072
 
+
 # Flag processors for REVIDX_ELLIPSIS.
 def ellipsisreadprocessor(rl, text):
     return text, False
@@ -224,9 +226,9 @@ else:
     parse_index_v1_nodemap = None
 
 
-def parse_index_v1_mixed(data, inline):
-    index, cache = parse_index_v1(data, inline)
-    return rustrevlog.MixedIndex(index), cache
+def parse_index_v1_rust(data, inline, default_header):
+    cache = (0, data) if inline else None
+    return rustrevlog.Index(data, default_header), cache
 
 
 # corresponds to uncompressed length of indexformatng (2 gigs, 4-byte
@@ -367,7 +369,7 @@ class _InnerRevlog:
         self.opener = opener
         self.index = index
 
-        self.__index_file = index_file
+        self.index_file = index_file
         self.data_file = data_file
         self.sidedata_file = sidedata_file
         self.inline = inline
@@ -415,16 +417,6 @@ class _InnerRevlog:
             )
 
         self._delay_buffer = None
-
-    @property
-    def index_file(self):
-        return self.__index_file
-
-    @index_file.setter
-    def index_file(self, new_index_file):
-        self.__index_file = new_index_file
-        if self.inline:
-            self._segmentfile.filename = new_index_file
 
     def __len__(self):
         return len(self.index)
@@ -652,6 +644,9 @@ class _InnerRevlog:
         """Context manager that keeps data and sidedata files open for reading"""
         if len(self.index) == 0:
             yield  # nothing to be read
+        elif self._delay_buffer is not None and self.inline:
+            msg = "revlog with delayed write should not be inline"
+            raise error.ProgrammingError(msg)
         else:
             with self._segmentfile.reading():
                 with self._segmentfile_sidedata.reading():
@@ -778,7 +773,6 @@ class _InnerRevlog:
             self.index_file,
             mode=b"w",
             checkambig=self.data_config.check_ambig,
-            atomictemp=True,
         )
 
     def split_inline(self, tr, header, new_index_file_path=None):
@@ -1137,18 +1131,16 @@ class _InnerRevlog:
                 ifh.write(entry)
             else:
                 self._delay_buffer.append(entry)
+        elif self._delay_buffer is not None:
+            msg = b'invalid delayed write on inline revlog'
+            raise error.ProgrammingError(msg)
         else:
             offset += curr * self.index.entry_size
             transaction.add(self.canonical_index_file, offset)
             assert not sidedata
-            if self._delay_buffer is None:
-                ifh.write(entry)
-                ifh.write(data[0])
-                ifh.write(data[1])
-            else:
-                self._delay_buffer.append(entry)
-                self._delay_buffer.append(data[0])
-                self._delay_buffer.append(data[1])
+            ifh.write(entry)
+            ifh.write(data[0])
+            ifh.write(data[1])
         return (
             ifh.tell(),
             dfh.tell() if dfh else None,
@@ -1160,6 +1152,9 @@ class _InnerRevlog:
 
     def delay(self):
         assert not self.is_open
+        if self.inline:
+            msg = "revlog with delayed write should not be inline"
+            raise error.ProgrammingError(msg)
         if self._delay_buffer is not None or self._orig_index_file is not None:
             # delay or divert already in place
             return None
@@ -1173,12 +1168,13 @@ class _InnerRevlog:
             return self.index_file
         else:
             self._delay_buffer = []
-            if self.inline:
-                self._segmentfile._delay_buffer = self._delay_buffer
             return None
 
     def write_pending(self):
         assert not self.is_open
+        if self.inline:
+            msg = "revlog with delayed write should not be inline"
+            raise error.ProgrammingError(msg)
         if self._orig_index_file is not None:
             return None, True
         any_pending = False
@@ -1195,16 +1191,15 @@ class _InnerRevlog:
                 ifh.write(b"".join(self._delay_buffer))
             any_pending = True
         self._delay_buffer = None
-        if self.inline:
-            self._segmentfile._delay_buffer = self._delay_buffer
-        else:
-            assert self._segmentfile._delay_buffer is None
         self._orig_index_file = self.index_file
         self.index_file = pending_index_file
         return self.index_file, any_pending
 
     def finalize_pending(self):
         assert not self.is_open
+        if self.inline:
+            msg = "revlog with delayed write should not be inline"
+            raise error.ProgrammingError(msg)
 
         delay = self._delay_buffer is not None
         divert = self._orig_index_file is not None
@@ -1216,7 +1211,7 @@ class _InnerRevlog:
                 with self.opener(self.index_file, b'r+') as ifh:
                     ifh.seek(0, os.SEEK_END)
                     ifh.write(b"".join(self._delay_buffer))
-            self._segmentfile._delay_buffer = self._delay_buffer = None
+            self._delay_buffer = None
         elif divert:
             if self.opener.exists(self.index_file):
                 self.opener.rename(
@@ -1390,194 +1385,6 @@ class revlog:
         chunk_cache = self._loadindex()
         self._load_inner(chunk_cache)
         self._concurrencychecker = concurrencychecker
-
-    @property
-    def _generaldelta(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.general_delta", b"6.6", stacklevel=2
-        )
-        return self.delta_config.general_delta
-
-    @property
-    def _checkambig(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.data_config.checkambig", b"6.6", stacklevel=2
-        )
-        return self.data_config.check_ambig
-
-    @property
-    def _mmaplargeindex(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.data_config.mmap_large_index", b"6.6", stacklevel=2
-        )
-        return self.data_config.mmap_large_index
-
-    @property
-    def _censorable(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.feature_config.censorable", b"6.6", stacklevel=2
-        )
-        return self.feature_config.censorable
-
-    @property
-    def _chunkcachesize(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.data_config.chunk_cache_size", b"6.6", stacklevel=2
-        )
-        return self.data_config.chunk_cache_size
-
-    @property
-    def _maxchainlen(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.max_chain_len", b"6.6", stacklevel=2
-        )
-        return self.delta_config.max_chain_len
-
-    @property
-    def _deltabothparents(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.delta_both_parents", b"6.6", stacklevel=2
-        )
-        return self.delta_config.delta_both_parents
-
-    @property
-    def _candidate_group_chunk_size(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.candidate_group_chunk_size",
-            b"6.6",
-            stacklevel=2,
-        )
-        return self.delta_config.candidate_group_chunk_size
-
-    @property
-    def _debug_delta(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.debug_delta", b"6.6", stacklevel=2
-        )
-        return self.delta_config.debug_delta
-
-    @property
-    def _compengine(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.feature_config.compression_engine",
-            b"6.6",
-            stacklevel=2,
-        )
-        return self.feature_config.compression_engine
-
-    @property
-    def upperboundcomp(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.upper_bound_comp",
-            b"6.6",
-            stacklevel=2,
-        )
-        return self.delta_config.upper_bound_comp
-
-    @property
-    def _compengineopts(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.feature_config.compression_engine_options",
-            b"6.6",
-            stacklevel=2,
-        )
-        return self.feature_config.compression_engine_options
-
-    @property
-    def _maxdeltachainspan(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.max_deltachain_span", b"6.6", stacklevel=2
-        )
-        return self.delta_config.max_deltachain_span
-
-    @property
-    def _withsparseread(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.data_config.with_sparse_read", b"6.6", stacklevel=2
-        )
-        return self.data_config.with_sparse_read
-
-    @property
-    def _sparserevlog(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.sparse_revlog", b"6.6", stacklevel=2
-        )
-        return self.delta_config.sparse_revlog
-
-    @property
-    def hassidedata(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.feature_config.has_side_data", b"6.6", stacklevel=2
-        )
-        return self.feature_config.has_side_data
-
-    @property
-    def _srdensitythreshold(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.data_config.sr_density_threshold",
-            b"6.6",
-            stacklevel=2,
-        )
-        return self.data_config.sr_density_threshold
-
-    @property
-    def _srmingapsize(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.data_config.sr_min_gap_size", b"6.6", stacklevel=2
-        )
-        return self.data_config.sr_min_gap_size
-
-    @property
-    def _compute_rank(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.feature_config.compute_rank", b"6.6", stacklevel=2
-        )
-        return self.feature_config.compute_rank
-
-    @property
-    def canonical_parent_order(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.feature_config.canonical_parent_order",
-            b"6.6",
-            stacklevel=2,
-        )
-        return self.feature_config.canonical_parent_order
-
-    @property
-    def _lazydelta(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.lazy_delta", b"6.6", stacklevel=2
-        )
-        return self.delta_config.lazy_delta
-
-    @property
-    def _lazydeltabase(self):
-        """temporary compatibility proxy"""
-        util.nouideprecwarn(
-            b"use revlog.delta_config.lazy_delta_base", b"6.6", stacklevel=2
-        )
-        return self.delta_config.lazy_delta_base
 
     def _init_opts(self):
         """process options (from above/config) to setup associated default revlog mode
@@ -1771,7 +1578,6 @@ class revlog:
             ]
 
     def _loadindex(self, docket=None):
-
         new_header, mmapindexthreshold, force_nodemap = self._init_opts()
 
         if self.postfix is not None:
@@ -1872,11 +1678,15 @@ class revlog:
         )
 
         use_rust_index = False
-        if rustrevlog is not None:
-            if self._nodemap_file is not None:
-                use_rust_index = True
-            else:
-                use_rust_index = self.opener.options.get(b'rust.index')
+        if rustrevlog is not None and self._nodemap_file is not None:
+            # we would like to use the rust_index in all case, especially
+            # because it is necessary for AncestorsIterator and LazyAncestors
+            # since the 6.7 cycle.
+            #
+            # However, the performance impact of inconditionnaly building the
+            # nodemap is currently a problem for non-persistent nodemap
+            # repository.
+            use_rust_index = True
 
         self._parse_index = parse_index_v1
         if self._format_version == REVLOGV0:
@@ -1888,7 +1698,9 @@ class revlog:
         elif devel_nodemap:
             self._parse_index = parse_index_v1_nodemap
         elif use_rust_index:
-            self._parse_index = parse_index_v1_mixed
+            self._parse_index = functools.partial(
+                parse_index_v1_rust, default_header=new_header
+            )
         try:
             d = self._parse_index(index_data, self._inline)
             index, chunkcache = d
@@ -2534,6 +2346,12 @@ class revlog:
             return rustdagop.headrevs(self.index, revs)
         return dagop.headrevs(revs, self._uncheckedparentrevs)
 
+    def headrevsdiff(self, start, stop):
+        try:
+            return self.index.headrevsdiff(start, stop)
+        except AttributeError:
+            return dagop.headrevsdiff(self._uncheckedparentrevs, start, stop)
+
     def computephases(self, roots):
         return self.index.computephasesmapsets(roots)
 
@@ -2550,6 +2368,12 @@ class revlog:
             ishead[e[5]] = ishead[e[6]] = 0  # my parent are not
         return [r for r, val in enumerate(ishead) if val]
 
+    def _head_node_ids(self):
+        try:
+            return self.index.head_node_ids()
+        except AttributeError:
+            return [self.node(r) for r in self.headrevs()]
+
     def heads(self, start=None, stop=None):
         """return the list of all nodes that have no children
 
@@ -2561,8 +2385,7 @@ class revlog:
         if start is None and stop is None:
             if not len(self):
                 return [self.nullid]
-            return [self.node(r) for r in self.headrevs()]
-
+            return self._head_node_ids()
         if start is None:
             start = nullrev
         else:
@@ -2575,6 +2398,12 @@ class revlog:
         )
 
         return [self.node(rev) for rev in revs]
+
+    def diffheads(self, start, stop):
+        """return the nodes that make up the difference between
+        heads of revs before `start` and heads of revs before `stop`"""
+        removed, added = self.headrevsdiff(start, stop)
+        return [self.node(r) for r in removed], [self.node(r) for r in added]
 
     def children(self, node):
         """find the children of a given node"""
@@ -3010,7 +2839,7 @@ class revlog:
             # manifest), no risk of collision.
             return self.radix + b'.i.s'
 
-    def _enforceinlinesize(self, tr, side_write=True):
+    def _enforceinlinesize(self, tr):
         """Check if the revlog is too big for inline and convert if so.
 
         This should be called after revisions are added to the revlog. If the
@@ -3019,56 +2848,59 @@ class revlog:
         """
         tiprev = len(self) - 1
         total_size = self.start(tiprev) + self.length(tiprev)
-        if not self._inline or total_size < _maxinline:
+        if not self._inline or (self._may_inline and total_size < _maxinline):
             return
 
         if self._docket is not None:
             msg = b"inline revlog should not have a docket"
             raise error.ProgrammingError(msg)
 
+        # In the common case, we enforce inline size because the revlog has
+        # been appened too. And in such case, it must have an initial offset
+        # recorded in the transaction.
         troffset = tr.findoffset(self._inner.canonical_index_file)
-        if troffset is None:
+        pre_touched = troffset is not None
+        if not pre_touched and self.target[0] != KIND_CHANGELOG:
             raise error.RevlogError(
                 _(b"%s not found in the transaction") % self._indexfile
             )
-        if troffset:
-            tr.addbackup(self._inner.canonical_index_file, for_offset=True)
+
+        tr.addbackup(self._inner.canonical_index_file, for_offset=pre_touched)
         tr.add(self._datafile, 0)
 
         new_index_file_path = None
-        if side_write:
-            old_index_file_path = self._indexfile
-            new_index_file_path = self._split_index_file
-            opener = self.opener
-            weak_self = weakref.ref(self)
+        old_index_file_path = self._indexfile
+        new_index_file_path = self._split_index_file
+        opener = self.opener
+        weak_self = weakref.ref(self)
 
-            # the "split" index replace the real index when the transaction is
-            # finalized
-            def finalize_callback(tr):
-                opener.rename(
-                    new_index_file_path,
-                    old_index_file_path,
-                    checkambig=True,
-                )
-                maybe_self = weak_self()
-                if maybe_self is not None:
-                    maybe_self._indexfile = old_index_file_path
-                    maybe_self._inner.index_file = maybe_self._indexfile
+        # the "split" index replace the real index when the transaction is
+        # finalized
+        def finalize_callback(tr):
+            opener.rename(
+                new_index_file_path,
+                old_index_file_path,
+                checkambig=True,
+            )
+            maybe_self = weak_self()
+            if maybe_self is not None:
+                maybe_self._indexfile = old_index_file_path
+                maybe_self._inner.index_file = maybe_self._indexfile
 
-            def abort_callback(tr):
-                maybe_self = weak_self()
-                if maybe_self is not None:
-                    maybe_self._indexfile = old_index_file_path
-                    maybe_self._inner.inline = True
-                    maybe_self._inner.index_file = old_index_file_path
+        def abort_callback(tr):
+            maybe_self = weak_self()
+            if maybe_self is not None:
+                maybe_self._indexfile = old_index_file_path
+                maybe_self._inner.inline = True
+                maybe_self._inner.index_file = old_index_file_path
 
-            tr.registertmp(new_index_file_path)
-            if self.target[1] is not None:
-                callback_id = b'000-revlog-split-%d-%s' % self.target
-            else:
-                callback_id = b'000-revlog-split-%d' % self.target[0]
-            tr.addfinalize(callback_id, finalize_callback)
-            tr.addabort(callback_id, abort_callback)
+        tr.registertmp(new_index_file_path)
+        if self.target[1] is not None:
+            callback_id = b'000-revlog-split-%d-%s' % self.target
+        else:
+            callback_id = b'000-revlog-split-%d' % self.target[0]
+        tr.addfinalize(callback_id, finalize_callback)
+        tr.addabort(callback_id, abort_callback)
 
         self._format_flags &= ~FLAG_INLINE_DATA
         self._inner.split_inline(
@@ -4014,16 +3846,16 @@ class revlog:
             if addrevisioncb:
                 addrevisioncb(self, rev, node)
 
-    def censorrevision(self, tr, censornode, tombstone=b''):
+    def censorrevision(self, tr, censor_nodes, tombstone=b''):
         if self._format_version == REVLOGV0:
             raise error.RevlogError(
                 _(b'cannot censor with version %d revlogs')
                 % self._format_version
             )
         elif self._format_version == REVLOGV1:
-            rewrite.v1_censor(self, tr, censornode, tombstone)
+            rewrite.v1_censor(self, tr, censor_nodes, tombstone)
         else:
-            rewrite.v2_censor(self, tr, censornode, tombstone)
+            rewrite.v2_censor(self, tr, censor_nodes, tombstone)
 
     def verifyintegrity(self, state):
         """Verifies the integrity of the revlog.

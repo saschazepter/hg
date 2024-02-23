@@ -42,9 +42,6 @@ from .interfaces import (
 parsers = policy.importmod('parsers')
 rustmod = policy.importrust('dirstate')
 
-# use to detect lack of a parameter
-SENTINEL = object()
-
 HAS_FAST_DIRSTATE_V2 = rustmod is not None
 
 propertycache = util.propertycache
@@ -408,16 +405,6 @@ class dirstate:
         """
         return self._changing_level > 0
 
-    def pendingparentchange(self):
-        return self.is_changing_parent()
-
-    def is_changing_parent(self):
-        """Returns true if the dirstate is in the middle of a set of changes
-        that modify the dirstate parent.
-        """
-        self._ui.deprecwarn(b"dirstate.is_changing_parents", b"6.5")
-        return self.is_changing_parents
-
     @property
     def is_changing_parents(self):
         """Returns true if the dirstate is in the middle of a set of changes
@@ -670,12 +657,8 @@ class dirstate:
         fold_p2 = oldp2 != nullid and p2 == nullid
         return self._map.setparents(p1, p2, fold_p2=fold_p2)
 
-    def setbranch(self, branch, transaction=SENTINEL):
+    def setbranch(self, branch, transaction):
         self.__class__._branch.set(self, encoding.fromlocal(branch))
-        if transaction is SENTINEL:
-            msg = b"setbranch needs a `transaction` argument"
-            self._ui.deprecwarn(msg, b'6.5')
-            transaction = None
         if transaction is not None:
             self._setup_tr_abort(transaction)
             transaction.addfilegenerator(

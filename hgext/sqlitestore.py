@@ -810,7 +810,11 @@ class sqlitefilestore:
 
         return not empty
 
-    def censorrevision(self, tr, censornode, tombstone=b''):
+    def censorrevision(self, tr, censor_nodes, tombstone=b''):
+        for node in censor_nodes:
+            self._censor_one_revision(tr, node, tombstone=tombstone)
+
+    def _censor_one_revision(self, tr, censornode, tombstone):
         tombstone = storageutil.packmeta({b'censored': tombstone}, b'')
 
         # This restriction is cargo culted from revlogs and makes no sense for

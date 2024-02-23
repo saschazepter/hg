@@ -28,17 +28,28 @@ where
     C: FromIterator<Revision>,
     I: RevlogIndex,
 {
+    rev_pyiter_collect_or_else(py, revs, index, |r| {
+        PyErr::new::<GraphError, _>(py, ("InvalidRevision", r.0))
+    })
+}
+
+/// Same as [`rev_pyiter_collect`], giving control on returned errors
+pub fn rev_pyiter_collect_or_else<C, I>(
+    py: Python,
+    revs: &PyObject,
+    index: &I,
+    invalid_rev_error: impl FnOnce(PyRevision) -> PyErr + Copy,
+) -> PyResult<C>
+where
+    C: FromIterator<Revision>,
+    I: RevlogIndex,
+{
     revs.iter(py)?
         .map(|r| {
             r.and_then(|o| match o.extract::<PyRevision>(py) {
                 Ok(r) => index
                     .check_revision(UncheckedRevision(r.0))
-                    .ok_or_else(|| {
-                        PyErr::new::<GraphError, _>(
-                            py,
-                            ("InvalidRevision", r.0),
-                        )
-                    }),
+                    .ok_or_else(|| invalid_rev_error(r)),
                 Err(e) => Err(e),
             })
         })

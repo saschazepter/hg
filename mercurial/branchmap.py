@@ -13,47 +13,36 @@ from .node import (
     hex,
     nullrev,
 )
+
+from typing import (
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    TYPE_CHECKING,
+    Tuple,
+    Union,
+)
+
 from . import (
     encoding,
     error,
     obsolete,
-    pycompat,
     scmutil,
     util,
 )
+
 from .utils import (
     repoviewutil,
     stringutil,
 )
 
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        Any,
-        Callable,
-        Dict,
-        Iterable,
-        List,
-        Optional,
-        Set,
-        Tuple,
-        Union,
-    )
+if TYPE_CHECKING:
     from . import localrepo
 
-    assert any(
-        (
-            Any,
-            Callable,
-            Dict,
-            Iterable,
-            List,
-            Optional,
-            Set,
-            Tuple,
-            Union,
-            localrepo,
-        )
-    )
+    assert [localrepo]
 
 subsettable = repoviewutil.subsettable
 
@@ -193,15 +182,16 @@ class branchcache:
 
     def __init__(
         self,
-        repo,
-        entries=(),
-        tipnode=None,
-        tiprev=nullrev,
-        filteredhash=None,
-        closednodes=None,
-        hasnode=None,
-    ):
-        # type: (localrepo.localrepository, Union[Dict[bytes, List[bytes]], Iterable[Tuple[bytes, List[bytes]]]], bytes,  int, Optional[bytes], Optional[Set[bytes]], Optional[Callable[[bytes], bool]]) -> None
+        repo: "localrepo.localrepository",
+        entries: Union[
+            Dict[bytes, List[bytes]], Iterable[Tuple[bytes, List[bytes]]]
+        ] = (),
+        tipnode: Optional[bytes] = None,
+        tiprev: Optional[int] = nullrev,
+        filteredhash: Optional[bytes] = None,
+        closednodes: Optional[Set[bytes]] = None,
+        hasnode: Optional[Callable[[bytes], bool]] = None,
+    ) -> None:
         """hasnode is a function which can be used to verify whether changelog
         has a given node or not. If it's not provided, we assume that every node
         we have exists in changelog"""
@@ -631,6 +621,74 @@ _rbcbranchidxmask = 0x7FFFFFFF
 _rbccloseflag = 0x80000000
 
 
+class rbcrevs:
+    """a byte string consisting of an immutable prefix followed by a mutable suffix"""
+
+    def __init__(self, revs):
+        self._prefix = revs
+        self._rest = bytearray()
+
+    def __len__(self):
+        return len(self._prefix) + len(self._rest)
+
+    def unpack_record(self, rbcrevidx):
+        if rbcrevidx < len(self._prefix):
+            return unpack_from(_rbcrecfmt, util.buffer(self._prefix), rbcrevidx)
+        else:
+            return unpack_from(
+                _rbcrecfmt,
+                util.buffer(self._rest),
+                rbcrevidx - len(self._prefix),
+            )
+
+    def make_mutable(self):
+        if len(self._prefix) > 0:
+            entirety = bytearray()
+            entirety[:] = self._prefix
+            entirety.extend(self._rest)
+            self._rest = entirety
+            self._prefix = bytearray()
+
+    def truncate(self, pos):
+        self.make_mutable()
+        del self._rest[pos:]
+
+    def pack_into(self, rbcrevidx, node, branchidx):
+        if rbcrevidx < len(self._prefix):
+            self.make_mutable()
+        buf = self._rest
+        start_offset = rbcrevidx - len(self._prefix)
+        end_offset = start_offset + _rbcrecsize
+
+        if len(self._rest) < end_offset:
+            # bytearray doesn't allocate extra space at least in Python 3.7.
+            # When multiple changesets are added in a row, precise resize would
+            # result in quadratic complexity. Overallocate to compensate by
+            # using the classic doubling technique for dynamic arrays instead.
+            # If there was a gap in the map before, less space will be reserved.
+            self._rest.extend(b'\0' * end_offset)
+        return pack_into(
+            _rbcrecfmt,
+            buf,
+            start_offset,
+            node,
+            branchidx,
+        )
+
+    def extend(self, extension):
+        return self._rest.extend(extension)
+
+    def slice(self, begin, end):
+        if begin < len(self._prefix):
+            acc = bytearray()
+            acc[:] = self._prefix[begin:end]
+            acc.extend(
+                self._rest[begin - len(self._prefix) : end - len(self._prefix)]
+            )
+            return acc
+        return self._rest[begin - len(self._prefix) : end - len(self._prefix)]
+
+
 class revbranchcache:
     """Persistent cache, mapping from revision number to branch name and close.
     This is a low level cache, independent of filtering.
@@ -658,7 +716,7 @@ class revbranchcache:
         assert repo.filtername is None
         self._repo = repo
         self._names = []  # branch names in local encoding with static index
-        self._rbcrevs = bytearray()
+        self._rbcrevs = rbcrevs(bytearray())
         self._rbcsnameslen = 0  # length of names read at _rbcsnameslen
         try:
             bndata = repo.cachevfs.read(_rbcnames)
@@ -674,8 +732,12 @@ class revbranchcache:
 
         if self._names:
             try:
-                data = repo.cachevfs.read(_rbcrevs)
-                self._rbcrevs[:] = data
+                if repo.ui.configbool(b'format', b'mmap-revbranchcache'):
+                    with repo.cachevfs(_rbcrevs) as fp:
+                        data = util.buffer(util.mmapread(fp))
+                else:
+                    data = repo.cachevfs.read(_rbcrevs)
+                self._rbcrevs = rbcrevs(data)
             except (IOError, OSError) as inst:
                 repo.ui.debug(
                     b"couldn't read revision branch cache: %s\n"
@@ -695,7 +757,7 @@ class revbranchcache:
         del self._names[:]
         self._rbcnamescount = 0
         self._rbcrevslen = len(self._repo.changelog)
-        self._rbcrevs = bytearray(self._rbcrevslen * _rbcrecsize)
+        self._rbcrevs = rbcrevs(bytearray(self._rbcrevslen * _rbcrecsize))
         util.clearcachedproperty(self, b'_namesreverse')
 
     @util.propertycache
@@ -718,9 +780,7 @@ class revbranchcache:
 
         # fast path: extract data from cache, use it if node is matching
         reponode = changelog.node(rev)[:_rbcnodelen]
-        cachenode, branchidx = unpack_from(
-            _rbcrecfmt, util.buffer(self._rbcrevs), rbcrevidx
-        )
+        cachenode, branchidx = self._rbcrevs.unpack_record(rbcrevidx)
         close = bool(branchidx & _rbccloseflag)
         if close:
             branchidx &= _rbcbranchidxmask
@@ -743,7 +803,7 @@ class revbranchcache:
                 b"revision branch cache to revision %d\n" % rev
             )
             truncate = rbcrevidx + _rbcrecsize
-            del self._rbcrevs[truncate:]
+            self._rbcrevs.truncate(truncate)
             self._rbcrevslen = min(self._rbcrevslen, truncate)
 
         # fall back to slow path and make sure it will be written to disk
@@ -792,16 +852,7 @@ class revbranchcache:
         if rev == nullrev:
             return
         rbcrevidx = rev * _rbcrecsize
-        requiredsize = rbcrevidx + _rbcrecsize
-        rbccur = len(self._rbcrevs)
-        if rbccur < requiredsize:
-            # bytearray doesn't allocate extra space at least in Python 3.7.
-            # When multiple changesets are added in a row, precise resize would
-            # result in quadratic complexity. Overallocate to compensate by
-            # use the classic doubling technique for dynamic arrays instead.
-            # If there was a gap in the map before, less space will be reserved.
-            self._rbcrevs.extend(b'\0' * max(_rbcmininc, requiredsize))
-        pack_into(_rbcrecfmt, self._rbcrevs, rbcrevidx, node, branchidx)
+        self._rbcrevs.pack_into(rbcrevidx, node, branchidx)
         self._rbcrevslen = min(self._rbcrevslen, rev)
 
         tr = self._repo.currenttransaction()
@@ -876,5 +927,5 @@ class revbranchcache:
                     f.seek(start)
                 f.truncate()
             end = revs * _rbcrecsize
-            f.write(self._rbcrevs[start:end])
+            f.write(self._rbcrevs.slice(start, end))
         self._rbcrevslen = revs

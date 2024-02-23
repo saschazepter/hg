@@ -145,8 +145,13 @@ Test corrupted p1/p2 fields that could cause SEGV at parsers.c:
   > ]
   > for n, p in poisons:
   >     # corrupt p1 at rev0 and p2 at rev1
-  >     d = data[:24] + p + data[28:127 + 28] + p + data[127 + 32:]
-  >     open(n + b"/.hg/store/00changelog.i", "wb").write(d)
+  >     rev_0 = data[:64]
+  >     rev_1 = data[64:]
+  >     altered_rev_0 = rev_0[:24] + p + rev_0[24 + 4:]
+  >     altered_rev_1 = rev_1[:28] + p + rev_1[28 + 4:]
+  >     new_data = altered_rev_0 + altered_rev_1
+  >     with open(n + b"/.hg/store/00changelog.i", "wb") as f:
+  >         f.write(new_data)
   > EOF
 
   $ hg -R limit debugrevlogindex -f1 -c
@@ -182,7 +187,7 @@ Test corrupted p1/p2 fields that could cause SEGV at parsers.c:
   > ops = [
   >     ('reachableroots',
   >      lambda: cl.index.reachableroots2(0, [1], [0], False)),
-  >     ('compute_phases_map_sets', lambda: cl.computephases({1: {cl.node(0)}})),
+  >     ('compute_phases_map_sets', lambda: cl.computephases({1: {0}})),
   >     ('index_headrevs', lambda: cl.headrevs()),
   >     ('find_gca_candidates', lambda: cl.commonancestorsheads(n0, n1)),
   >     ('find_deepest', lambda: cl.ancestor(n0, n1)),

@@ -369,7 +369,7 @@ class localpeer(repository.peer):
         common=None,
         bundlecaps=None,
         remote_sidedata=None,
-        **kwargs
+        **kwargs,
     ):
         chunks = exchange.getbundlechunks(
             self._repo,
@@ -378,7 +378,7 @@ class localpeer(repository.peer):
             common=common,
             bundlecaps=bundlecaps,
             remote_sidedata=remote_sidedata,
-            **kwargs
+            **kwargs,
         )[1]
         cb = util.chunkbuffer(chunks)
 
@@ -1089,15 +1089,12 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     if chunkcachesize is not None:
         data_config.chunk_cache_size = chunkcachesize
 
-    if ui.configbool(b'experimental', b'revlog.uncompressed-cache.enabled'):
-        factor = ui.configint(
-            b'experimental', b'revlog.uncompressed-cache.factor'
-        )
-        count = ui.configint(
-            b'experimental', b'revlog.uncompressed-cache.count'
-        )
-        data_config.uncompressed_cache_factor = factor
-        data_config.uncompressed_cache_count = count
+    memory_profile = scmutil.get_resource_profile(ui, b'memory')
+    if memory_profile >= scmutil.RESOURCE_MEDIUM:
+        data_config.uncompressed_cache_count = 10_000
+        data_config.uncompressed_cache_factor = 4
+        if memory_profile >= scmutil.RESOURCE_HIGH:
+            data_config.uncompressed_cache_factor = 10
 
     delta_config.delta_both_parents = ui.configbool(
         b'storage', b'revlog.optimize-delta-parent-choice'
@@ -2401,7 +2398,7 @@ class localrepository:
         data: bytes,
         flags: bytes,
         backgroundclose=False,
-        **kwargs
+        **kwargs,
     ) -> int:
         """write ``data`` into ``filename`` in the working directory
 
@@ -2584,7 +2581,7 @@ class localrepository:
                     repo.hook(
                         b'pretxnclose-bookmark',
                         throw=True,
-                        **pycompat.strkwargs(args)
+                        **pycompat.strkwargs(args),
                     )
             if hook.hashook(repo.ui, b'pretxnclose-phase'):
                 cl = repo.unfiltered().changelog
@@ -2596,7 +2593,7 @@ class localrepository:
                         repo.hook(
                             b'pretxnclose-phase',
                             throw=True,
-                            **pycompat.strkwargs(args)
+                            **pycompat.strkwargs(args),
                         )
 
             repo.hook(
@@ -2671,7 +2668,7 @@ class localrepository:
                         repo.hook(
                             b'txnclose-bookmark',
                             throw=False,
-                            **pycompat.strkwargs(args)
+                            **pycompat.strkwargs(args),
                         )
 
                 if hook.hashook(repo.ui, b'txnclose-phase'):
@@ -2687,7 +2684,7 @@ class localrepository:
                             repo.hook(
                                 b'txnclose-phase',
                                 throw=False,
-                                **pycompat.strkwargs(args)
+                                **pycompat.strkwargs(args),
                             )
 
                 repo.hook(
@@ -2921,17 +2918,7 @@ class localrepository:
 
         unfi = self.unfiltered()
 
-        if full:
-            msg = (
-                "`full` argument for `repo.updatecaches` is deprecated\n"
-                "(use `caches=repository.CACHE_ALL` instead)"
-            )
-            self.ui.deprecwarn(msg, b"5.9")
-            caches = repository.CACHES_ALL
-            if full == b"post-clone":
-                caches = repository.CACHES_POST_CLONE
-            caches = repository.CACHES_ALL
-        elif caches is None:
+        if caches is None:
             caches = repository.CACHES_DEFAULT
 
         if repository.CACHE_BRANCHMAP_SERVED in caches:
@@ -3376,7 +3363,7 @@ class localrepository:
         # dirty after committing. Then when we strip, the repo is invalidated,
         # causing those changes to disappear.
         if '_phasecache' in vars(self):
-            self._phasecache.write()
+            self._phasecache.write(self)
 
     @unfilteredmethod
     def destroyed(self):
@@ -3384,17 +3371,6 @@ class localrepository:
         Intended for use by strip and rollback, so there's a common
         place for anything that has to be done after destroying history.
         """
-        # When one tries to:
-        # 1) destroy nodes thus calling this method (e.g. strip)
-        # 2) use phasecache somewhere (e.g. commit)
-        #
-        # then 2) will fail because the phasecache contains nodes that were
-        # removed. We can either remove phasecache from the filecache,
-        # causing it to reload next time it is accessed, or simply filter
-        # the removed nodes now and write the updated cache.
-        self._phasecache.filterunknown(self)
-        self._phasecache.write()
-
         # refresh all repository caches
         self.updatecaches()
 

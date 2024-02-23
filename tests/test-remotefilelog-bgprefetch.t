@@ -29,10 +29,12 @@
 
   $ hgcloneshallow ssh://user@dummy/master shallow --noupdate
   streaming all changes
-  2 files to transfer, 776 bytes of data (no-zstd !)
+  3 files to transfer, 776 bytes of data (no-zstd !)
   transferred 776 bytes in * seconds (*/sec) (glob) (no-zstd !)
-  2 files to transfer, 784 bytes of data (zstd !)
-  transferred 784 bytes in * seconds (* */sec) (glob) (zstd !)
+  3 files to transfer, 784 bytes of data (zstd no-rust !)
+  transferred 784 bytes in * seconds (*/sec) (glob) (zstd no-rust !)
+  5 files to transfer, 910 bytes of data (rust !)
+  transferred 910 bytes in * seconds (*/sec) (glob) (rust !)
   searching for changes
   no changes found
 

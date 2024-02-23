@@ -61,7 +61,7 @@ def setupserver(ui, repo):
                     repo.root, b'', None, includepattern, excludepattern
                 )
 
-            changedfiles = list([f for f in changedfiles if not m(f)])
+            changedfiles = [f for f in changedfiles if not m(f)]
         return orig(
             self, changedfiles, linknodes, commonrevs, source, *args, **kwargs
         )

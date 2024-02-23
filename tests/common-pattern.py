@@ -127,6 +127,10 @@ substitutions = [
         br'\b(\d+) total queries in \d.\d\d\d\ds\b',
         lambda m: (br'%s total queries in *.????s (glob)' % m.group(1)),
     ),
+    (
+        br'\belapsed time:  \d+.\d{6} seconds\b',
+        br'elapsed time:  *.?????? seconds (glob)',
+    ),
 ]
 
 # Various platform error strings, keyed on a common replacement string

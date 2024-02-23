@@ -110,7 +110,7 @@ happen for the changelog (the linkrev should always refer to itself).
   note: use 'hg commit --logfile .hg/last-message.txt --edit' to reuse it
   transaction abort!
   rollback completed
-  abort: 00changelog.i: file cursor at position 249, expected 121
+  abort: 00changelog.i: file cursor at position 128, expected 64
 And no corruption in the changelog.
   $ hg debugrevlogindex -c
      rev linkrev nodeid       p1           p2

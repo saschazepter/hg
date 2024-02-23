@@ -308,6 +308,7 @@ class changelog(revlog.revlog):
             persistentnodemap=opener.options.get(b'persistent-nodemap', False),
             concurrencychecker=concurrencychecker,
             trypending=trypending,
+            may_inline=False,
         )
 
         if self._initempty and (self._format_version == revlog.REVLOGV1):
@@ -344,6 +345,11 @@ class changelog(revlog.revlog):
     def delayupdate(self, tr):
         """delay visibility of index updates to other readers"""
         assert not self._inner.is_open
+        assert not self._may_inline
+        # enforce that older changelog that are still inline are split at the
+        # first opportunity.
+        if self._inline:
+            self._enforceinlinesize(tr)
         if self._docket is not None:
             self._v2_delayed = True
         else:
@@ -363,8 +369,9 @@ class changelog(revlog.revlog):
         else:
             new_index_file = self._inner.finalize_pending()
             self._indexfile = new_index_file
-            # split when we're done
-            self._enforceinlinesize(tr, side_write=False)
+            if self._inline:
+                msg = 'changelog should not be inline at that point'
+                raise error.ProgrammingError(msg)
 
     def _writepending(self, tr):
         """create a file containing the unfinalized state for
@@ -380,9 +387,9 @@ class changelog(revlog.revlog):
                 tr.registertmp(new_index)
         return any_pending
 
-    def _enforceinlinesize(self, tr, side_write=True):
+    def _enforceinlinesize(self, tr):
         if not self.is_delaying:
-            revlog.revlog._enforceinlinesize(self, tr, side_write=side_write)
+            revlog.revlog._enforceinlinesize(self, tr)
 
     def read(self, nodeorrev):
         """Obtain data from a parsed changelog revision.

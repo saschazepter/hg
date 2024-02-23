@@ -2001,6 +2001,8 @@ Diff here should be the same:
   @@ -0,0 +1,1 @@
   +b
   
+  $ hg log -r 3 -T'{diffstat}\n'
+  2: +2/-1
 
 Test that diff.merge is respected (file b was added on one side and
 and therefore merged cleanly)
@@ -2021,6 +2023,9 @@ and therefore merged cleanly)
   -b
   +c
   
+  $ hg log -r 3 -T'{diffstat}\n' --config diff.merge=yes
+  1: +1/-1
+
   $ cd ..
 
 'hg log -r rev fn' when last(filelog(fn)) != rev

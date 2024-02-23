@@ -787,7 +787,7 @@ def _defaultcacerts(ui):
     # The "certifi" Python package provides certificates. If it is installed
     # and usable, assume the user intends it to be used and use it.
     try:
-        import certifi
+        import certifi  # pytype: disable=import-error
 
         certs = certifi.where()
         if os.path.exists(certs):

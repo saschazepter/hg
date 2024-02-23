@@ -296,7 +296,7 @@ def _narrow(
                     for file_ in entry.files():
                         todelete.append(file_.unencoded_path)
             elif entry.is_manifestlog:
-                dir = entry.target_id
+                dir = entry.target_id[:-1]
                 dirs = sorted(pathutil.dirs({dir})) + [dir]
                 include = True
                 for d in dirs:

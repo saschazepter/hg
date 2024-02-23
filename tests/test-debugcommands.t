@@ -17,7 +17,7 @@
 #if reporevlogstore
   $ hg debugrevlog -c
   format : 1
-  flags  : inline
+  flags  : (none)
   
   revisions     :   3
       merges    :   0 ( 0.00%)
@@ -185,19 +185,19 @@ Test debugindex, with and without the --verbose/--debug flag
 
 debugdelta chain basic output
 
-#if reporevlogstore pure
+#if reporevlogstore pure rust
   $ hg debugindexstats
-  abort: debugindexstats only works with native code
+  abort: debugindexstats only works with native C code
   [255]
 #endif
-#if reporevlogstore no-pure
+#if reporevlogstore no-pure no-rust
   $ hg debugindexstats
   node trie capacity: 4
   node trie count: 2
   node trie depth: 1
   node trie last rev scanned: -1 (no-rust !)
   node trie last rev scanned: 3 (rust !)
-  node trie lookups: 4 (no-rust !)
+  node trie lookups: 3 (no-rust !)
   node trie lookups: 2 (rust !)
   node trie misses: 1
   node trie splits: 1
@@ -658,6 +658,19 @@ Test cache warming command
   .hg/cache/branch2-served
   .hg/cache/branch2-immutable
   .hg/cache/branch2-base
+
+Test debug::unbundle
+
+  $ hg bundle --exact --rev tip foo.hg
+  1 changesets found
+  $ hg debug::unbundle foo.hg
+  adding changesets
+  adding manifests
+  adding file changes
+  added 0 changesets with 0 changes to 1 files (no-pure !)
+  9 local changesets published (no-pure !)
+  3 local changesets published (pure !)
+  (run 'hg update' to get a working copy)
 
 Test debugcolor
 

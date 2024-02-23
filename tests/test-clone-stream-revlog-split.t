@@ -102,21 +102,28 @@ Check everything is fine
   bundle2-input-part: "stream2" (params: 3 mandatory) supported (stream-bundle2-v2 !)
   bundle2-input-part: "stream3-exp" (params: 1 mandatory) supported (stream-bundle2-v3 !)
   applying stream bundle
-  7 files to transfer, 2.11 KB of data (stream-bundle2-v2 !)
+  8 files to transfer, 2.11 KB of data (stream-bundle2-v2 no-rust !)
+  10 files to transfer, 2.29 KB of data (stream-bundle2-v2 rust !)
   adding [s] data/some-file.i (1.23 KB) (stream-bundle2-v2 !)
   7 entries to transfer (stream-bundle2-v3 !)
   adding [s] data/some-file.d (1.04 KB) (stream-bundle2-v3 !)
   adding [s] data/some-file.i (192 bytes) (stream-bundle2-v3 !)
   adding [s] phaseroots (43 bytes)
   adding [s] 00manifest.i (348 bytes)
-  adding [s] 00changelog.i (381 bytes)
+  adding [s] 00changelog.n (62 bytes) (rust !)
+  adding [s] 00changelog-88698448.nd (128 bytes) (rust !)
+  adding [s] 00changelog.d (189 bytes)
+  adding [s] 00changelog.i (192 bytes)
   adding [c] branch2-served (94 bytes)
   adding [c] rbc-names-v1 (7 bytes)
   adding [c] rbc-revs-v1 (24 bytes)
   updating the branch cache
-  transferred 2.11 KB in * seconds (* */sec) (glob)
-  bundle2-input-part: total payload size 2268 (stream-bundle2-v2 !)
-  bundle2-input-part: total payload size 2296 (stream-bundle2-v3 !)
+  transferred 2.11 KB in * seconds (* */sec) (glob) (no-rust !)
+  transferred 2.29 KB in * seconds (* */sec) (glob) (rust !)
+  bundle2-input-part: total payload size 2285 (stream-bundle2-v2 no-rust !)
+  bundle2-input-part: total payload size 2518 (stream-bundle2-v2 rust !)
+  bundle2-input-part: total payload size 2313 (stream-bundle2-v3 no-rust !)
+  bundle2-input-part: total payload size 2546 (stream-bundle2-v3 rust !)
   bundle2-input-part: "listkeys" (params: 1 mandatory) supported
   bundle2-input-bundle: 2 parts total
   checking for updated bookmarks

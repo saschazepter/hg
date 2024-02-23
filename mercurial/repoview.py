@@ -160,7 +160,7 @@ def computeimpactable(repo, visibilityexceptions=None):
     firstmutable = len(cl)
     roots = repo._phasecache.nonpublicphaseroots(repo)
     if roots:
-        firstmutable = min(firstmutable, min(cl.rev(r) for r in roots))
+        firstmutable = min(firstmutable, min(roots))
     # protect from nullrev root
     firstmutable = max(0, firstmutable)
     return frozenset(range(firstmutable, len(cl)))
@@ -304,6 +304,10 @@ class filteredchangelogmixin:
         for rev in offenders:
             raise error.FilteredIndexError(rev)
         return revs
+
+    def _head_node_ids(self):
+        # no Rust fast path implemented yet, so just loop in Python
+        return [self.node(r) for r in self.headrevs()]
 
     def headrevs(self, revs=None):
         if revs is None:

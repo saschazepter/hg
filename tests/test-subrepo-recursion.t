@@ -454,6 +454,65 @@ cloned:
 #if hardlink
   $ hg clone -U . ../empty
   \r (no-eol) (esc)
+  linking [===>                                       ]  1/10\r (no-eol) (esc) (no-rust !)
+  linking [=======>                                   ]  2/10\r (no-eol) (esc) (no-rust !)
+  linking [===========>                               ]  3/10\r (no-eol) (esc) (no-rust !)
+  linking [================>                          ]  4/10\r (no-eol) (esc) (no-rust !)
+  linking [====================>                      ]  5/10\r (no-eol) (esc) (no-rust !)
+  linking [========================>                  ]  6/10\r (no-eol) (esc) (no-rust !)
+  linking [=============================>             ]  7/10\r (no-eol) (esc) (no-rust !)
+  linking [=================================>         ]  8/10\r (no-eol) (esc) (no-rust !)
+  linking [=====================================>     ]  9/10\r (no-eol) (esc) (no-rust !)
+  linking [==========================================>] 10/10\r (no-eol) (esc) (no-rust !)
+  linking [==>                                        ]  1/12\r (no-eol) (esc) (rust !)
+  linking [======>                                    ]  2/12\r (no-eol) (esc) (rust !)
+  linking [=========>                                 ]  3/12\r (no-eol) (esc) (rust !)
+  linking [=============>                             ]  4/12\r (no-eol) (esc) (rust !)
+  linking [================>                          ]  5/12\r (no-eol) (esc) (rust !)
+  linking [====================>                      ]  6/12\r (no-eol) (esc) (rust !)
+  linking [========================>                  ]  7/12\r (no-eol) (esc) (rust !)
+  linking [===========================>               ]  8/12\r (no-eol) (esc) (rust !)
+  linking [===============================>           ]  9/12\r (no-eol) (esc) (rust !)
+  linking [==================================>        ] 10/12\r (no-eol) (esc) (rust !)
+  linking [======================================>    ] 11/12\r (no-eol) (esc) (rust !)
+  linking [==========================================>] 12/12\r (no-eol) (esc) (rust !)
+                                                              \r (no-eol) (esc)
+#else
+  $ hg clone -U . ../empty
+  \r (no-eol) (esc)
+  linking [ <=>                                           ] 1 (no-eol)
+#endif
+
+  $ cd ../empty
+#if hardlink
+#if rust
+  $ hg archive --subrepos -r tip --prefix './' ../archive.tar.gz
+  \r (no-eol) (esc)
+  archiving [                                           ] 0/3\r (no-eol) (esc)
+  archiving [=============>                             ] 1/3\r (no-eol) (esc)
+  archiving [===========================>               ] 2/3\r (no-eol) (esc)
+  archiving [==========================================>] 3/3\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  linking [==>                                        ]  1/11\r (no-eol) (esc)
+  linking [======>                                    ]  2/11\r (no-eol) (esc)
+  linking [==========>                                ]  3/11\r (no-eol) (esc)
+  linking [==============>                            ]  4/11\r (no-eol) (esc)
+  linking [==================>                        ]  5/11\r (no-eol) (esc)
+  linking [======================>                    ]  6/11\r (no-eol) (esc)
+  linking [==========================>                ]  7/11\r (no-eol) (esc)
+  linking [==============================>            ]  8/11\r (no-eol) (esc)
+  linking [==================================>        ]  9/11\r (no-eol) (esc)
+  linking [======================================>    ] 10/11\r (no-eol) (esc)
+  linking [==========================================>] 11/11\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  archiving (foo) [                                     ] 0/3\r (no-eol) (esc)
+  archiving (foo) [===========>                         ] 1/3\r (no-eol) (esc)
+  archiving (foo) [=======================>             ] 2/3\r (no-eol) (esc)
+  archiving (foo) [====================================>] 3/3\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
   linking [====>                                        ] 1/9\r (no-eol) (esc)
   linking [=========>                                   ] 2/9\r (no-eol) (esc)
   linking [==============>                              ] 3/9\r (no-eol) (esc)
@@ -464,14 +523,13 @@ cloned:
   linking [=======================================>     ] 8/9\r (no-eol) (esc)
   linking [============================================>] 9/9\r (no-eol) (esc)
                                                               \r (no-eol) (esc)
-#else
-  $ hg clone -U . ../empty
   \r (no-eol) (esc)
-  linking [ <=>                                           ] 1 (no-eol)
-#endif
-
-  $ cd ../empty
-#if hardlink
+  archiving (foo/bar) [                                 ] 0/1\r (no-eol) (esc)
+  archiving (foo/bar) [================================>] 1/1\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  cloning subrepo foo from $TESTTMP/repo/foo
+  cloning subrepo foo/bar from $TESTTMP/repo/foo/bar
+#else
   $ hg archive --subrepos -r tip --prefix './' ../archive.tar.gz
   \r (no-eol) (esc)
   archiving [                                           ] 0/3\r (no-eol) (esc)
@@ -480,14 +538,15 @@ cloned:
   archiving [==========================================>] 3/3\r (no-eol) (esc)
                                                               \r (no-eol) (esc)
   \r (no-eol) (esc)
-  linking [====>                                        ] 1/8\r (no-eol) (esc)
-  linking [==========>                                  ] 2/8\r (no-eol) (esc)
-  linking [===============>                             ] 3/8\r (no-eol) (esc)
-  linking [=====================>                       ] 4/8\r (no-eol) (esc)
-  linking [===========================>                 ] 5/8\r (no-eol) (esc)
-  linking [================================>            ] 6/8\r (no-eol) (esc)
-  linking [======================================>      ] 7/8\r (no-eol) (esc)
-  linking [============================================>] 8/8\r (no-eol) (esc)
+  linking [====>                                        ] 1/9\r (no-eol) (esc)
+  linking [=========>                                   ] 2/9\r (no-eol) (esc)
+  linking [==============>                              ] 3/9\r (no-eol) (esc)
+  linking [===================>                         ] 4/9\r (no-eol) (esc)
+  linking [========================>                    ] 5/9\r (no-eol) (esc)
+  linking [=============================>               ] 6/9\r (no-eol) (esc)
+  linking [==================================>          ] 7/9\r (no-eol) (esc)
+  linking [=======================================>     ] 8/9\r (no-eol) (esc)
+  linking [============================================>] 9/9\r (no-eol) (esc)
                                                               \r (no-eol) (esc)
   \r (no-eol) (esc)
   archiving (foo) [                                     ] 0/3\r (no-eol) (esc)
@@ -496,12 +555,13 @@ cloned:
   archiving (foo) [====================================>] 3/3\r (no-eol) (esc)
                                                               \r (no-eol) (esc)
   \r (no-eol) (esc)
-  linking [======>                                      ] 1/6\r (no-eol) (esc)
-  linking [==============>                              ] 2/6\r (no-eol) (esc)
-  linking [=====================>                       ] 3/6\r (no-eol) (esc)
-  linking [=============================>               ] 4/6\r (no-eol) (esc)
-  linking [====================================>        ] 5/6\r (no-eol) (esc)
-  linking [============================================>] 6/6\r (no-eol) (esc)
+  linking [=====>                                       ] 1/7\r (no-eol) (esc)
+  linking [===========>                                 ] 2/7\r (no-eol) (esc)
+  linking [==================>                          ] 3/7\r (no-eol) (esc)
+  linking [========================>                    ] 4/7\r (no-eol) (esc)
+  linking [===============================>             ] 5/7\r (no-eol) (esc)
+  linking [=====================================>       ] 6/7\r (no-eol) (esc)
+  linking [============================================>] 7/7\r (no-eol) (esc)
                                                               \r (no-eol) (esc)
   \r (no-eol) (esc)
   archiving (foo/bar) [                                 ] 0/1\r (no-eol) (esc)
@@ -509,6 +569,7 @@ cloned:
                                                               \r (no-eol) (esc)
   cloning subrepo foo from $TESTTMP/repo/foo
   cloning subrepo foo/bar from $TESTTMP/repo/foo/bar
+#endif
 #else
 Note there's a slight output glitch on non-hardlink systems: the last
 "linking" progress topic never gets closed, leading to slight output corruption on that platform.

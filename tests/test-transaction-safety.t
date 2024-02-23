@@ -89,7 +89,7 @@ Automated commands:
   > rm -f $TESTTMP/sync/*
   > rm -f $TESTTMP/output/*
   > hg log --rev 'tip' -T 'pre-commit: {rev} {desc}\n'
-  > echo x >> a
+  > echo x >> of
   > sh $TESTTMP/script/external.sh & hg commit -m "$1"
   > cat $TESTTMP/output/external.out
   > cat $TESTTMP/output/internal.out
@@ -101,7 +101,7 @@ Automated commands:
   > rm -f $TESTTMP/sync/*
   > rm -f $TESTTMP/output/*
   > hg log --rev 'tip' -T 'pre-commit: {rev} {desc}\n'
-  > echo x >> a
+  > echo x >> of
   > sh $TESTTMP/script/external.sh & hg pull ../other-repo/ --rev "$1" --force --quiet
   > cat $TESTTMP/output/external.out
   > cat $TESTTMP/output/internal.out
@@ -113,22 +113,22 @@ prepare a large source to which to pull from:
 The source is large to unsure we don't use inline more after the pull
 
   $ hg init other-repo
-  $ hg -R other-repo debugbuilddag .+500
+  $ hg -R other-repo debugbuilddag .+500 --overwritten-file
 
 
 prepare an empty repository where to make test:
 
   $ hg init repo
   $ cd repo
-  $ touch a
-  $ hg add a
+  $ touch of
+  $ hg add of
 
 prepare a small extension to controll inline size
 
   $ mkdir $TESTTMP/ext
   $ cat << EOF > $TESTTMP/ext/small_inline.py
   > from mercurial import revlog
-  > revlog._maxinline = 64 * 100
+  > revlog._maxinline = 3 * 100
   > EOF
 
 
@@ -154,8 +154,8 @@ the repository should still be inline (for relevant format)
 
 #if revlogv1
 
-  $ hg debugrevlog -c | grep inline
-  flags  : inline
+  $ hg debugrevlog of | grep inline
+  flags  : inline, * (glob)
 
 #endif
 
@@ -166,8 +166,8 @@ the repository should still be inline (for relevant format)
 
 #if revlogv1
 
-  $ hg debugrevlog -c | grep inline
-  flags  : inline
+  $ hg debugrevlog of | grep inline
+  flags  : inline, * (glob)
 
 #endif
 
@@ -179,8 +179,8 @@ the repository should still be inline (for relevant format)
 
 #if revlogv1
 
-  $ hg debugrevlog -c | grep inline
-  flags  : inline
+  $ hg debugrevlog of | grep inline
+  flags  : inline, * (glob)
 
 #endif
 
@@ -191,8 +191,8 @@ the repository should still be inline (for relevant format)
 
 #if revlogv1
 
-  $ hg debugrevlog -c | grep inline
-  flags  : inline
+  $ hg debugrevlog of | grep inline
+  flags  : inline, * (glob)
 
 #endif
 
@@ -205,8 +205,8 @@ the repository should still be inline (for relevant format)
 
 #if revlogv1
 
-  $ hg debugrevlog -c | grep inline
-  flags  : inline
+  $ hg debugrevlog of | grep inline
+  flags  : inline, * (glob)
 
 #endif
 
@@ -217,8 +217,8 @@ the repository should no longer be inline (for relevant format)
 
 #if revlogv1
 
-  $ hg debugrevlog -c | grep inline
-  flags  : inline
+  $ hg debugrevlog of | grep inline
+  flags  : inline, * (glob)
 
 #endif
 
@@ -230,7 +230,7 @@ the repository should no longer be inline (for relevant format)
 
 #if revlogv1
 
-  $ hg debugrevlog -c | grep inline
+  $ hg debugrevlog of | grep inline
   [1]
 
 #endif
@@ -242,7 +242,7 @@ the repository should no longer be inline (for relevant format)
 
 #if revlogv1
 
-  $ hg debugrevlog -c | grep inline
+  $ hg debugrevlog of | grep inline
   [1]
 
 #endif
@@ -255,7 +255,7 @@ the repository should no longer be inline (for relevant format)
 
 #if revlogv1
 
-  $ hg debugrevlog -c | grep inline
+  $ hg debugrevlog of | grep inline
   [1]
 
 #endif
@@ -268,7 +268,7 @@ the repository should no longer be inline (for relevant format)
 
 #if revlogv1
 
-  $ hg debugrevlog -c | grep inline
+  $ hg debugrevlog of | grep inline
   [1]
 
 #endif
@@ -281,7 +281,7 @@ the repository should no longer be inline (for relevant format)
 
 #if revlogv1
 
-  $ hg debugrevlog -c | grep inline
+  $ hg debugrevlog of | grep inline
   [1]
 
 #endif

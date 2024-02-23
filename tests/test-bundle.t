@@ -286,13 +286,17 @@ packed1 is produced properly
 #if reporevlogstore rust
 
   $ hg -R test debugcreatestreamclonebundle packed.hg
-  writing 2665 bytes for 6 files
+  writing 2665 bytes for 6 files (no-rust !)
+  writing 2919 bytes for 9 files (rust !)
   bundle requirements: generaldelta, revlog-compression-zstd, revlogv1, sparserevlog
 
   $ f -B 64 --size --sha1 --hexdump packed.hg
-  packed.hg: size=2865, sha1=353d10311f4befa195d9a1ca4b8e26518115c702
-  0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 06 00 00 |HGS1UN..........|
-  0010: 00 00 00 00 0a 69 00 3b 67 65 6e 65 72 61 6c 64 |.....i.;generald|
+  packed.hg: size=2865, sha1=353d10311f4befa195d9a1ca4b8e26518115c702 (no-rust !)
+  0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 06 00 00 |HGS1UN..........| (no-rust !)
+  0010: 00 00 00 00 0a 69 00 3b 67 65 6e 65 72 61 6c 64 |.....i.;generald| (no-rust !)
+  packed.hg: size=3181, sha1=b202787710a1c109246554be589506cd2916acb7 (rust !)
+  0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 09 00 00 |HGS1UN..........| (rust !)
+  0010: 00 00 00 00 0b 67 00 3b 67 65 6e 65 72 61 6c 64 |.....g.;generald| (rust !)
   0020: 65 6c 74 61 2c 72 65 76 6c 6f 67 2d 63 6f 6d 70 |elta,revlog-comp|
   0030: 72 65 73 73 69 6f 6e 2d 7a 73 74 64 2c 72 65 76 |ression-zstd,rev|
   $ hg debugbundle --spec packed.hg
@@ -302,12 +306,12 @@ packed1 is produced properly
 #if reporevlogstore no-rust zstd
 
   $ hg -R test debugcreatestreamclonebundle packed.hg
-  writing 2665 bytes for 6 files
+  writing 2665 bytes for 7 files
   bundle requirements: generaldelta, revlog-compression-zstd, revlogv1, sparserevlog
 
   $ f -B 64 --size --sha1 --hexdump packed.hg
-  packed.hg: size=2865, sha1=353d10311f4befa195d9a1ca4b8e26518115c702
-  0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 06 00 00 |HGS1UN..........|
+  packed.hg: size=2882, sha1=6525b07e6bfced4b6c2319cb58c6ff76ca72fa13
+  0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 07 00 00 |HGS1UN..........|
   0010: 00 00 00 00 0a 69 00 3b 67 65 6e 65 72 61 6c 64 |.....i.;generald|
   0020: 65 6c 74 61 2c 72 65 76 6c 6f 67 2d 63 6f 6d 70 |elta,revlog-comp|
   0030: 72 65 73 73 69 6f 6e 2d 7a 73 74 64 2c 72 65 76 |ression-zstd,rev|
@@ -318,12 +322,12 @@ packed1 is produced properly
 #if reporevlogstore no-rust no-zstd
 
   $ hg -R test debugcreatestreamclonebundle packed.hg
-  writing 2664 bytes for 6 files
+  writing 2664 bytes for 7 files
   bundle requirements: generaldelta, revlogv1, sparserevlog
 
   $ f -B 64 --size --sha1 --hexdump packed.hg
-  packed.hg: size=2840, sha1=12bf3eee3eb8a04c503ce2d29b48f0135c7edff5
-  0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 06 00 00 |HGS1UN..........|
+  packed.hg: size=2857, sha1=3a7353323915b095baa6f2ee0a5aed588f11f5f0
+  0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 07 00 00 |HGS1UN..........|
   0010: 00 00 00 00 0a 68 00 23 67 65 6e 65 72 61 6c 64 |.....h.#generald|
   0020: 65 6c 74 61 2c 72 65 76 6c 6f 67 76 31 2c 73 70 |elta,revlogv1,sp|
   0030: 61 72 73 65 72 65 76 6c 6f 67 00 64 61 74 61 2f |arserevlog.data/|
@@ -346,13 +350,17 @@ generaldelta requirement is not listed in stream clone bundles unless used
 #if reporevlogstore rust
 
   $ hg -R testnongd debugcreatestreamclonebundle packednongd.hg
-  writing 301 bytes for 3 files
+  writing 301 bytes for 3 files (no-rust !)
+  writing 427 bytes for 6 files (rust !)
   bundle requirements: revlog-compression-zstd, revlogv1
 
   $ f -B 64 --size --sha1 --hexdump packednongd.hg
-  packednongd.hg: size=407, sha1=0b8714422b785ba8eb98c916b41ffd5fb994c9b5
-  0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 03 00 00 |HGS1UN..........|
-  0010: 00 00 00 00 01 2d 00 21 72 65 76 6c 6f 67 2d 63 |.....-.!revlog-c|
+  packednongd.hg: size=407, sha1=0b8714422b785ba8eb98c916b41ffd5fb994c9b5 (no-rust !)
+  0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 03 00 00 |HGS1UN..........| (no-rust !)
+  0010: 00 00 00 00 01 2d 00 21 72 65 76 6c 6f 67 2d 63 |.....-.!revlog-c| (no-rust !)
+  packednongd.hg: size=593, sha1=1ad0cbea11b5dd7b0437e54ae20fc5f8df118521 (rust !)
+  0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 06 00 00 |HGS1UN..........| (rust !)
+  0010: 00 00 00 00 01 ab 00 21 72 65 76 6c 6f 67 2d 63 |.......!revlog-c| (rust !)
   0020: 6f 6d 70 72 65 73 73 69 6f 6e 2d 7a 73 74 64 2c |ompression-zstd,|
   0030: 72 65 76 6c 6f 67 76 31 00 64 61 74 61 2f 66 6f |revlogv1.data/fo|
 
@@ -364,12 +372,12 @@ generaldelta requirement is not listed in stream clone bundles unless used
 #if reporevlogstore no-rust zstd
 
   $ hg -R testnongd debugcreatestreamclonebundle packednongd.hg
-  writing 301 bytes for 3 files
+  writing 301 bytes for 4 files
   bundle requirements: revlog-compression-zstd, revlogv1
 
   $ f -B 64 --size --sha1 --hexdump packednongd.hg
-  packednongd.hg: size=407, sha1=0b8714422b785ba8eb98c916b41ffd5fb994c9b5
-  0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 03 00 00 |HGS1UN..........|
+  packednongd.hg: size=423, sha1=4269c89cf64b6a4377be75a3983771c4153362bf
+  0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 04 00 00 |HGS1UN..........|
   0010: 00 00 00 00 01 2d 00 21 72 65 76 6c 6f 67 2d 63 |.....-.!revlog-c|
   0020: 6f 6d 70 72 65 73 73 69 6f 6e 2d 7a 73 74 64 2c |ompression-zstd,|
   0030: 72 65 76 6c 6f 67 76 31 00 64 61 74 61 2f 66 6f |revlogv1.data/fo|
@@ -383,12 +391,12 @@ generaldelta requirement is not listed in stream clone bundles unless used
 #if reporevlogstore no-rust no-zstd
 
   $ hg -R testnongd debugcreatestreamclonebundle packednongd.hg
-  writing 301 bytes for 3 files
+  writing 301 bytes for 4 files
   bundle requirements: revlogv1
 
   $ f -B 64 --size --sha1 --hexdump packednongd.hg
-  packednongd.hg: size=383, sha1=1d9c230238edd5d38907100b729ba72b1831fe6f
-  0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 03 00 00 |HGS1UN..........|
+  packednongd.hg: size=399, sha1=99bb89decfc6674a3cf2cc87accc8c5332ede7fd
+  0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 04 00 00 |HGS1UN..........|
   0010: 00 00 00 00 01 2d 00 09 72 65 76 6c 6f 67 76 31 |.....-..revlogv1|
   0020: 00 64 61 74 61 2f 66 6f 6f 2e 69 00 36 34 0a 00 |.data/foo.i.64..|
   0030: 01 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 |................|
@@ -416,7 +424,8 @@ Warning emitted when packed bundles contain secret changesets
 
   $ hg -R testsecret debugcreatestreamclonebundle packedsecret.hg
   (warning: stream clone bundle will contain secret revisions)
-  writing 301 bytes for 3 files
+  writing 301 bytes for 3 files (no-rust !)
+  writing 427 bytes for 6 files (rust !)
   bundle requirements: generaldelta, revlog-compression-zstd, revlogv1, sparserevlog
 
 #endif
@@ -425,7 +434,7 @@ Warning emitted when packed bundles contain secret changesets
 
   $ hg -R testsecret debugcreatestreamclonebundle packedsecret.hg
   (warning: stream clone bundle will contain secret revisions)
-  writing 301 bytes for 3 files
+  writing 301 bytes for 4 files
   bundle requirements: generaldelta, revlog-compression-zstd, revlogv1, sparserevlog
 
 #endif
@@ -434,7 +443,7 @@ Warning emitted when packed bundles contain secret changesets
 
   $ hg -R testsecret debugcreatestreamclonebundle packedsecret.hg
   (warning: stream clone bundle will contain secret revisions)
-  writing 301 bytes for 3 files
+  writing 301 bytes for 4 files
   bundle requirements: generaldelta, revlogv1, sparserevlog
 
 #endif
@@ -479,10 +488,12 @@ transaction)
   > EOF
 
   $ hg -R packed debugapplystreamclonebundle packed.hg
-  6 files to transfer, 2.60 KB of data
+  7 files to transfer, 2.60 KB of data (no-rust !)
+  9 files to transfer, 2.85 KB of data (rust !)
   pretxnopen: 000000000000
   pretxnclose: aa35859c02ea
-  transferred 2.60 KB in * seconds (* */sec) (glob)
+  transferred 2.60 KB in * seconds (* */sec) (glob) (no-rust !)
+  transferred 2.85 KB in * seconds (* */sec) (glob) (rust !)
   txnclose: aa35859c02ea
 
 (for safety, confirm visibility of streamclone-ed changes by another
@@ -1051,8 +1062,8 @@ Test the debug output when applying delta
   DBG-DELTAS: CHANGELOG:   rev=2: delta-base=2 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=0 p2-chain-length=-1 - duration=* (glob)
   adding manifests
   DBG-DELTAS: MANIFESTLOG: rev=0: delta-base=0 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
-  DBG-DELTAS: MANIFESTLOG: rev=1: delta-base=0 is-cached=1 - search-rounds=1 try-count=1 - delta-type=delta  snap-depth=0 - p1-chain-length=0 p2-chain-length=-1 - duration=* (glob)
-  DBG-DELTAS: MANIFESTLOG: rev=2: delta-base=1 is-cached=1 - search-rounds=1 try-count=1 - delta-type=delta  snap-depth=0 - p1-chain-length=1 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: MANIFESTLOG: rev=1: delta-base=0 is-cached=1 - search-rounds=1 try-count=1 - delta-type=delta  snap-depth=-1 - p1-chain-length=0 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS: MANIFESTLOG: rev=2: delta-base=1 is-cached=1 - search-rounds=1 try-count=1 - delta-type=delta  snap-depth=-1 - p1-chain-length=1 p2-chain-length=-1 - duration=* (glob)
   adding file changes
   DBG-DELTAS: FILELOG:a:   rev=0: delta-base=0 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
   DBG-DELTAS: FILELOG:b:   rev=0: delta-base=0 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - p1-chain-length=-1 p2-chain-length=-1 - duration=* (glob)
