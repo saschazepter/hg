@@ -1710,7 +1710,8 @@ def perfpathcopies(ui, repo, rev1, rev2, **opts):
     b'perf::phases|perfphases',
     [
         (b'', b'full', False, b'include file reading time too'),
-    ],
+    ]
+    + formatteropts,
     b"",
 )
 def perfphases(ui, repo, **opts):
