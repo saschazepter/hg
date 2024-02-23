@@ -335,6 +335,9 @@ test revlog format 0
   checked 1 changesets with 1 changes to 1 files
   $ cd ..
 
+# rust index does not allow creation of new flags dynamically
+#if no-rust
+
 test flag processor and skipflags
 
   $ hg init skipflags
@@ -363,3 +366,4 @@ test flag processor and skipflags
   [1]
   $ hg verify --config verify.skipflags=2147483647 -q
 
+#endif

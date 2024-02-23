@@ -168,7 +168,7 @@ def findcommonoutgoing(
     og.commonheads, _any, _hds = commoninc
 
     # compute outgoing
-    mayexclude = repo._phasecache.phaseroots[phases.secret] or repo.obsstore
+    mayexclude = phases.hassecret(repo) or repo.obsstore
     if not mayexclude:
         og.ancestorsof = onlyheads or repo.heads()
     elif onlyheads is None:

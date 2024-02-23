@@ -5,12 +5,17 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+import random
+
+from typing import (
+    List,
+    Type,
+)
 
 from ..i18n import _
 from .. import (
     error,
     localrepo,
-    pycompat,
     requirements,
     revlog,
     util,
@@ -18,12 +23,11 @@ from .. import (
 
 from ..utils import compression
 
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        List,
-        Type,
-    )
-
+# keeps pyflakes happy
+assert [
+    List,
+    Type,
+]
 
 # list of requirements that request a clone of all revlog if added/removed
 RECLONES_REQUIREMENTS = {
@@ -104,7 +108,7 @@ class improvement:
     compatible_with_share = False
 
 
-allformatvariant = []  # type: List[Type['formatvariant']]
+allformatvariant: List[Type['formatvariant']] = []
 
 
 def registerformatvariant(cls):
@@ -409,9 +413,17 @@ class removecldeltachain(formatvariant):
     def fromrepo(repo):
         # Mercurial 4.0 changed changelogs to not use delta chains. Search for
         # changelogs with deltas.
-        cl = repo.changelog
+        cl = repo.unfiltered().changelog
+        if len(cl) <= 1000:
+            some_rev = list(cl)
+        else:
+            # do a random sampling to speeds things up Scanning the whole
+            # repository can get really slow on bigger repo.
+            some_rev = sorted(
+                {random.randint(0, len(cl) - 1) for x in range(1000)}
+            )
         chainbase = cl.chainbase
-        return all(rev == chainbase(rev) for rev in cl)
+        return all(rev == chainbase(rev) for rev in some_rev)
 
     @staticmethod
     def fromconfig(repo):

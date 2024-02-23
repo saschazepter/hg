@@ -303,7 +303,7 @@ class abstractvfs:
 
     def tryunlink(self, path: Optional[bytes] = None):
         """Attempt to remove a file, ignoring missing file errors."""
-        util.tryunlink(self.join(path))
+        return util.tryunlink(self.join(path))
 
     def unlinkpath(
         self, path: Optional[bytes] = None, ignoremissing=False, rmdir=True

@@ -1720,6 +1720,7 @@ def perfphases(ui, repo, **opts):
     timer, fm = gettimer(ui, opts)
     _phases = repo._phasecache
     full = opts.get(b'full')
+    tip_rev = repo.changelog.tiprev()
 
     def d():
         phases = _phases
@@ -1727,7 +1728,7 @@ def perfphases(ui, repo, **opts):
             clearfilecache(repo, b'_phasecache')
             phases = repo._phasecache
         phases.invalidate()
-        phases.loadphaserevs(repo)
+        phases.phase(repo, tip_rev)
 
     timer(d)
     fm.end()
@@ -3007,13 +3008,21 @@ def perfbdiff(ui, repo, file_, rev=None, count=None, threads=0, **opts):
 
 @command(
     b'perf::unbundle',
-    formatteropts,
+    [
+        (b'', b'as-push', None, b'pretend the bundle comes from a push'),
+    ]
+    + formatteropts,
     b'BUNDLE_FILE',
 )
 def perf_unbundle(ui, repo, fname, **opts):
     """benchmark application of a bundle in a repository.
 
-    This does not include the final transaction processing"""
+    This does not include the final transaction processing
+
+    The --as-push option make the unbundle operation appears like it comes from
+    a client push. It change some aspect of the processing and associated
+    performance profile.
+    """
 
     from mercurial import exchange
     from mercurial import bundle2
@@ -3033,6 +3042,10 @@ def perf_unbundle(ui, repo, fname, **opts):
     # that conclude the fix run for the bug introduced in 63edc384d3b7.
     args = getargspec(error.Abort.__init__).args
     post_18415fc918a1 = "detailed_exit_code" in args
+
+    unbundle_source = b'perf::unbundle'
+    if opts[b'as_push']:
+        unbundle_source = b'push'
 
     old_max_inline = None
     try:
@@ -3069,7 +3082,7 @@ def perf_unbundle(ui, repo, fname, **opts):
                             repo,
                             gen,
                             tr,
-                            source=b'perf::unbundle',
+                            source=unbundle_source,
                             url=fname,
                         )
 

@@ -371,8 +371,7 @@ def debugsparse(ui, repo, **opts):
         sparse.clearrules(repo, force=force)
 
     if refresh:
-        try:
-            wlock = repo.wlock()
+        with repo.wlock():
             fcounts = pycompat.maplist(
                 len,
                 sparse.refreshwdir(
@@ -386,7 +385,5 @@ def debugsparse(ui, repo, **opts):
                 dropped=fcounts[1],
                 conflicting=fcounts[2],
             )
-        finally:
-            wlock.release()
 
     del repo._has_sparse

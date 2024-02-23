@@ -296,10 +296,12 @@ pyoxidizer-macos-tests: pyoxidizer
 	rm -rf $(PYOX_DIR)/doc
 	cp -a doc $(PYOX_DIR)/doc
 
+pytype-docker:
+	contrib/docker/pytype/recipe.sh
 
 .PHONY: help all local build doc cleanbutpackages clean install install-bin \
 	install-doc install-home install-home-bin install-home-doc \
 	dist dist-notests check tests rust-tests check-code format-c \
 	update-pot pyoxidizer pyoxidizer-windows-tests pyoxidizer-macos-tests \
 	$(packaging_targets) \
-	osx
+	osx pytype-docker

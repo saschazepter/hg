@@ -7,7 +7,6 @@
 # GNU General Public License version 2 or any later version.
 
 import collections
-import os
 
 from mercurial.node import bin
 from mercurial.i18n import _
@@ -22,7 +21,6 @@ from mercurial.revlogutils import flagutil
 
 from . import (
     constants,
-    fileserverclient,
     shallowutil,
 )
 
@@ -386,33 +384,6 @@ class remotefilelog:
 
     def rawdata(self, node):
         return self.revision(node, raw=False)
-
-    def _read(self, id):
-        """reads the raw file blob from disk, cache, or server"""
-        fileservice = self.repo.fileservice
-        localcache = fileservice.localcache
-        cachekey = fileserverclient.getcachekey(
-            self.repo.name, self.filename, id
-        )
-        try:
-            return localcache.read(cachekey)
-        except KeyError:
-            pass
-
-        localkey = fileserverclient.getlocalkey(self.filename, id)
-        localpath = os.path.join(self.localpath, localkey)
-        try:
-            return shallowutil.readfile(localpath)
-        except IOError:
-            pass
-
-        fileservice.prefetch([(self.filename, id)])
-        try:
-            return localcache.read(cachekey)
-        except KeyError:
-            pass
-
-        raise error.LookupError(id, self.filename, _(b'no node'))
 
     def ancestormap(self, node):
         return self.repo.metadatastore.getancestors(self.filename, node)
