@@ -555,20 +555,23 @@ def shortesthexnodeidprefix(repo, node, minlength=1, cache=None):
             nodetree = None
             if cache is not None:
                 nodetree = cache.get(b'disambiguationnodetree')
+            is_invalidated = getattr(nodetree, 'is_invalidated', lambda: False)
+            if is_invalidated():
+                nodetree = None
             if not nodetree:
-                if hasattr(parsers, 'nodetree'):
-                    # The CExt is the only implementation to provide a nodetree
-                    # class so far.
+                if hasattr(parsers, 'nodetree') and isinstance(
+                    cl.index, parsers.index
+                ):
                     index = cl.index
-                    if hasattr(index, 'get_cindex'):
-                        # the rust wrapped need to give access to its internal index
-                        index = index.get_cindex()
                     nodetree = parsers.nodetree(index, len(revs))
-                    for r in revs:
-                        nodetree.insert(r)
-                    if cache is not None:
-                        cache[b'disambiguationnodetree'] = nodetree
+            elif getattr(cl.index, 'is_rust', False):
+                nodetree = rustrevlog.NodeTree(cl.index)
+
             if nodetree is not None:
+                for r in revs:
+                    nodetree.insert(r)
+                if cache is not None:
+                    cache[b'disambiguationnodetree'] = nodetree
                 length = max(nodetree.shortest(node), minlength)
                 prefix = hexnode[:length]
                 return disambiguate(prefix)
@@ -2322,3 +2325,34 @@ def ismember(ui, username, userlist):
     schemes.
     """
     return userlist == [b'*'] or username in userlist
+
+
+RESOURCE_HIGH = 3
+RESOURCE_MEDIUM = 2
+RESOURCE_LOW = 1
+RESOURCE_DEFAULT = 0
+
+RESOURCE_MAPPING = {
+    b'default': RESOURCE_DEFAULT,
+    b'low': RESOURCE_LOW,
+    b'medium': RESOURCE_MEDIUM,
+    b'high': RESOURCE_HIGH,
+}
+
+DEFAULT_RESOURCE = RESOURCE_MEDIUM
+
+
+def get_resource_profile(ui, dimension=None):
+    """return the resource profile for a dimension
+
+    If no dimension is specified, the generic value is returned"""
+    generic_name = ui.config(b'usage', b'resources')
+    value = RESOURCE_MAPPING.get(generic_name, RESOURCE_DEFAULT)
+    if value == RESOURCE_DEFAULT:
+        value = DEFAULT_RESOURCE
+    if dimension is not None:
+        sub_name = ui.config(b'usage', b'resources.%s' % dimension)
+        sub_value = RESOURCE_MAPPING.get(sub_name, RESOURCE_DEFAULT)
+        if sub_value != RESOURCE_DEFAULT:
+            value = sub_value
+    return value

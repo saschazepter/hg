@@ -243,7 +243,7 @@ class statichttprepository(
     def wlock(self, wait=True):
         raise error.LockUnavailable(
             0,
-            _(b'lock not available'),
+            pycompat.sysstr(_(b'lock not available')),
             b'lock',
             _(b'cannot lock static-http repository'),
         )
@@ -251,7 +251,7 @@ class statichttprepository(
     def lock(self, wait=True):
         raise error.LockUnavailable(
             0,
-            _(b'lock not available'),
+            pycompat.sysstr(_(b'lock not available')),
             b'lock',
             _(b'cannot lock static-http repository'),
         )

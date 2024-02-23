@@ -269,9 +269,10 @@ class bundlephasecache(phases.phasecache):
     def _write(self, fp):
         raise NotImplementedError
 
-    def _updateroots(self, phase, newroots, tr):
-        self.phaseroots[phase] = newroots
-        self.invalidate()
+    def _updateroots(self, repo, phase, newroots, tr, invalidate=True):
+        self._phaseroots[phase] = newroots
+        if invalidate:
+            self.invalidate()
         self.dirty = True
 
 

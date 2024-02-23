@@ -20,23 +20,22 @@ the data.
 
 import contextlib
 
+from typing import (
+    Any,
+    Dict,
+)
+
 from .i18n import _
 
 from . import (
     error,
-    pycompat,
     util,
 )
 from .utils import cborutil
 
-if pycompat.TYPE_CHECKING:
-    from typing import (
-        Any,
-        Dict,
-    )
-
-    for t in (Any, Dict):
-        assert t
+# keeps pyflakes happy
+for t in (Any, Dict):
+    assert t
 
 
 class cmdstate:
@@ -60,8 +59,7 @@ class cmdstate:
         self._repo = repo
         self.fname = fname
 
-    def read(self):
-        # type: () -> Dict[bytes, Any]
+    def read(self) -> Dict[bytes, Any]:
         """read the existing state file and return a dict of data stored"""
         return self._read()
 

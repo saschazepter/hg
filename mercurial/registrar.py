@@ -524,7 +524,7 @@ class internalmerge(_funcregistrarbase):
         precheck=None,
         binary=False,
         symlink=False,
-    ):
+    ):  # pytype: disable=signature-mismatch
         func.mergetype = mergetype
         func.onfailure = onfailure
         func.precheck = precheck

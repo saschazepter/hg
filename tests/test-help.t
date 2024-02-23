@@ -1006,6 +1006,8 @@ Test list of internal help commands
    debug::stable-tail-sort-leaps
                  display the leaps in the stable-tail sort of a node, one per
                  line
+   debug::unbundle
+                 same as 'hg unbundle', but pretent to come from a push
    debugancestor
                  find the ancestor revision of two revisions in a given index
    debugantivirusrunning
