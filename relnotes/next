@@ -13,8 +13,6 @@ Mercurial XXX.
 
 == Backwards Compatibility Changes ==
 
-* remove the experimental infinite push extension
-
 == Internal API Changes ==
 
 == Miscellaneous ==
