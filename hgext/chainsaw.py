@@ -26,7 +26,11 @@ from mercurial import (
     cmdutil,
     commands,
     error,
+    localrepo,
     registrar,
+)
+from mercurial.utils import (
+    urlutil,
 )
 
 cmdtable = {}
@@ -73,23 +77,49 @@ testedwith = b'ships-with-hg-core'
             b'',
             _(b'repository to clone from'),
         ),
+        (
+            b'',
+            b'dest',
+            b'',
+            _(b'repository to update to REV (possibly cloning)'),
+        ),
+        (
+            b'',
+            b'initial-clone-minimal',
+            False,
+            _(
+                b'Pull only the prescribed revision upon initial cloning. '
+                b'This has the side effect of ignoring clone-bundles, '
+                b'which if often slower on the client side and stressful '
+                b'to the server than applying available clone bundles.'
+            ),
+        ),
     ],
-    _(b'hg admin::chainsaw-update [OPTION] --rev REV --source SOURCE...'),
+    _(
+        b'hg admin::chainsaw-update [OPTION] --rev REV --source SOURCE --dest DEST'
+    ),
     helpbasic=True,
+    norepo=True,
 )
-def update(ui, repo, **opts):
+def update(ui, **opts):
     """pull and update to a given revision, no matter what, (EXPERIMENTAL)
 
     Context of application: *some* Continuous Integration (CI) systems,
     packaging or deployment tools.
 
-    Wanted end result: clean working directory updated at the given revision.
+    Wanted end result: local repository at the given REPO_PATH, having the
+    latest changes to the given revision and with a clean working directory
+    updated at the given revision.
 
     chainsaw-update pulls from one source, then updates the working directory
     to the given revision, overcoming anything that would stand in the way.
 
     By default, it will:
 
+    - clone if the local repo does not exist yet, **removing any directory
+      at the given path** that would not be a Mercurial repository.
+      The initial clone is full by default, so that clonebundles can be
+      applied. Use the --initial-clone-minimal flag to avoid this.
     - break locks if needed, leading to possible corruption if there
       is a concurrent write access.
     - perform recovery actions if needed
@@ -116,10 +146,36 @@ def update(ui, repo, **opts):
     """
     rev = opts['rev']
     source = opts['source']
+    repo_path = opts['dest']
     if not rev:
         raise error.InputError(_(b'specify a target revision with --rev'))
     if not source:
         raise error.InputError(_(b'specify a pull path with --source'))
+    if not repo_path:
+        raise error.InputError(_(b'specify a repo path with --dest'))
+    repo_path = urlutil.urllocalpath(repo_path)
+
+    try:
+        repo = localrepo.instance(ui, repo_path, create=False)
+        repo_created = False
+        ui.status(_(b'loaded repository at "%s"\n' % repo_path))
+    except error.RepoError:
+        try:
+            shutil.rmtree(repo_path)
+        except FileNotFoundError:
+            ui.status(_(b'no such directory: "%s"\n' % repo_path))
+        else:
+            ui.status(
+                _(
+                    b'removed non-repository file or directory '
+                    b'at "%s"' % repo_path
+                )
+            )
+
+        ui.status(_(b'creating repository at "%s"\n' % repo_path))
+        repo = localrepo.instance(ui, repo_path, create=True)
+        repo_created = True
+
     if repo.svfs.tryunlink(b'lock'):
         ui.status(_(b'had to break store lock\n'))
     if repo.vfs.tryunlink(b'wlock'):
@@ -129,10 +185,14 @@ def update(ui, repo, **opts):
     repo.recover()
 
     ui.status(_(b'pulling from %s\n') % source)
+    if repo_created and not opts.get('initial_clone_minimal'):
+        pull_revs = []
+    else:
+        pull_revs = [rev]
     overrides = {(b'ui', b'quiet'): True}
-    with ui.configoverride(overrides, b'chainsaw-update'):
+    with repo.ui.configoverride(overrides, b'chainsaw-update'):
         pull = cmdutil.findcmd(b'pull', commands.table)[1][0]
-        pull(ui, repo, source, rev=[rev], remote_hidden=False)
+        pull(repo.ui, repo, source, rev=pull_revs, remote_hidden=False)
 
     purge = cmdutil.findcmd(b'purge', commands.table)[1][0]
     purge(
