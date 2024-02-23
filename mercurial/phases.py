@@ -101,6 +101,7 @@ Note: old client behave as a publishing server with draft only content
 """
 
 
+import heapq
 import struct
 import typing
 import weakref
@@ -685,46 +686,104 @@ class phasecache:
         else:
             phasetracking = tr.changes.get(b'phases')
 
-        # filter revision already in the right phase
+        affectable_phases = sorted(
+            p for p in allphases if p > targetphase and self._phaseroots[p]
+        )
+        # filter revision already in the right phases
+        candidates = new_revs
+        new_revs = set()
         self._ensure_phase_sets(repo)
-        for phase, revs in self._phasesets.items():
-            if phase <= targetphase:
-                new_revs -= revs
+        for phase in affectable_phases:
+            found = candidates & self._phasesets[phase]
+            new_revs |= found
+            candidates -= found
+            if not candidates:
+                break
         if not new_revs:
             return set()
 
         # search for affected high phase changesets and roots
-        revs = new_revs
-        changes = set()  # set of revisions to be changed
-        delroots = []  # set of root deleted by this path
-        for phase in (phase for phase in allphases if phase > targetphase):
-            # filter nodes that are not in a compatible phase already
-            revs = [rev for rev in revs if self.phase(repo, rev) >= phase]
-            if not revs:
-                break  # no roots to move anymore
+        push = heapq.heappush
+        pop = heapq.heappop
+        parents = cl.parentrevs
+        get_phase = self.phase
+        changed = {}  # set of revisions to be changed
+        # set of root deleted by this path
+        delroots = set()
+        new_roots = {p: set() for p in affectable_phases}
+        new_target_roots = set()
+        # revision to walk down
+        revs = [-r for r in new_revs]
+        heapq.heapify(revs)
+        while revs:
+            current = -pop(revs)
+            current_phase = get_phase(repo, current)
+            changed[current] = current_phase
+            p1, p2 = parents(current)
+            if p1 == nullrev:
+                p1_phase = public
+            else:
+                p1_phase = get_phase(repo, p1)
+            if p2 == nullrev:
+                p2_phase = public
+            else:
+                p2_phase = get_phase(repo, p2)
+            # do we have a root ?
+            if current_phase != p1_phase and current_phase != p2_phase:
+                # do not record phase, because we could have "duplicated"
+                # roots, were one root is shadowed by the very same roots of an
+                # higher phases
+                delroots.add(current)
+            # schedule a walk down if needed
+            if p1_phase > targetphase:
+                push(revs, -p1)
+            if p2_phase > targetphase:
+                push(revs, -p2)
+            if p1_phase < targetphase and p2_phase < targetphase:
+                new_target_roots.add(current)
 
-            olds = self._phaseroots[phase]
+        # the last iteration was done with the smallest value
+        min_current = current
+        # do we have unwalked children that might be new roots
+        if (min_current + len(changed)) < len(cl):
+            for r in range(min_current, len(cl)):
+                if r in changed:
+                    continue
+                phase = get_phase(repo, r)
+                if phase <= targetphase:
+                    continue
+                p1, p2 = parents(r)
+                if not (p1 in changed or p2 in changed):
+                    continue  # not affected
+                if p1 != nullrev and p1 not in changed:
+                    p1_phase = get_phase(repo, p1)
+                    if p1_phase == phase:
+                        continue  # not a root
+                if p2 != nullrev and p2 not in changed:
+                    p2_phase = get_phase(repo, p2)
+                    if p2_phase == phase:
+                        continue  # not a root
+                new_roots[phase].add(r)
 
-            affected = repo.revs(b'%ld::%ld', olds, revs)
-            changes.update(affected)
-            if dryrun:
-                continue
-            for r in affected:
-                _trackphasechange(
-                    phasetracking, r, self.phase(repo, r), targetphase
-                )
-
-            roots = set(repo.revs(b'roots((%ld::) - %ld)', olds, affected))
-            if olds != roots:
-                self._updateroots(repo, phase, roots, tr)
-                # some roots may need to be declared for lower phases
-                delroots.extend(olds - roots)
+        # apply the changes
         if not dryrun:
-            # declare deleted root in the target phase
-            if targetphase != 0:
-                self._retractboundary(repo, tr, targetphase, revs=delroots)
+            for r, p in changed.items():
+                _trackphasechange(phasetracking, r, p, targetphase)
+            for phase in affectable_phases:
+                roots = self._phaseroots[phase]
+                removed = roots & delroots
+                if removed or new_roots[phase]:
+                    # Be careful to preserve shallow-copied values: do not
+                    # update phaseroots values, replace them.
+                    final_roots = roots - delroots | new_roots[phase]
+                    self._updateroots(repo, phase, final_roots, tr)
+            if new_target_roots:
+                # Thanks for previous filtering, we can't replace existing
+                # roots
+                new_target_roots |= self._phaseroots[targetphase]
+                self._updateroots(repo, targetphase, new_target_roots, tr)
             repo.invalidatevolatilesets()
-        return changes
+        return changed
 
     def retractboundary(self, repo, tr, targetphase, nodes):
         if tr is None:
