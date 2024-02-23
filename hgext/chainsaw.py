@@ -180,38 +180,40 @@ def update(ui, **opts):
         ui.status(_(b'had to break store lock\n'))
     if repo.vfs.tryunlink(b'wlock'):
         ui.status(_(b'had to break working copy lock\n'))
+    # If another process relock after the breacking above, the next locking
+    # will have to wait.
+    with repo.wlock(), repo.lock():
+        ui.status(_(b'recovering after interrupted transaction, if any\n'))
+        repo.recover()
 
-    ui.status(_(b'recovering after interrupted transaction, if any\n'))
-    repo.recover()
+        ui.status(_(b'pulling from %s\n') % source)
+        if repo_created and not opts.get('initial_clone_minimal'):
+            pull_revs = []
+        else:
+            pull_revs = [rev]
+        overrides = {(b'ui', b'quiet'): True}
+        with repo.ui.configoverride(overrides, b'chainsaw-update'):
+            pull = cmdutil.findcmd(b'pull', commands.table)[1][0]
+            pull(repo.ui, repo, source, rev=pull_revs, remote_hidden=False)
 
-    ui.status(_(b'pulling from %s\n') % source)
-    if repo_created and not opts.get('initial_clone_minimal'):
-        pull_revs = []
-    else:
-        pull_revs = [rev]
-    overrides = {(b'ui', b'quiet'): True}
-    with repo.ui.configoverride(overrides, b'chainsaw-update'):
-        pull = cmdutil.findcmd(b'pull', commands.table)[1][0]
-        pull(repo.ui, repo, source, rev=pull_revs, remote_hidden=False)
-
-    purge = cmdutil.findcmd(b'purge', commands.table)[1][0]
-    purge(
-        ui,
-        repo,
-        dirs=True,
-        all=opts.get('purge_ignored'),
-        files=opts.get('purge_unknown'),
-        confirm=False,
-    )
-
-    ui.status(_(b'updating to revision \'%s\'\n') % rev)
-    update = cmdutil.findcmd(b'update', commands.table)[1][0]
-    update(ui, repo, rev=rev, clean=True)
-
-    ui.status(
-        _(
-            b'chainsaw-update to revision \'%s\' '
-            b'for repository at \'%s\' done\n'
+        purge = cmdutil.findcmd(b'purge', commands.table)[1][0]
+        purge(
+            ui,
+            repo,
+            dirs=True,
+            all=opts.get('purge_ignored'),
+            files=opts.get('purge_unknown'),
+            confirm=False,
         )
-        % (rev, repo.root)
-    )
+
+        ui.status(_(b'updating to revision \'%s\'\n') % rev)
+        update = cmdutil.findcmd(b'update', commands.table)[1][0]
+        update(ui, repo, rev=rev, clean=True)
+
+        ui.status(
+            _(
+                b'chainsaw-update to revision \'%s\' '
+                b'for repository at \'%s\' done\n'
+            )
+            % (rev, repo.root)
+        )
