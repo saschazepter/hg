@@ -438,8 +438,6 @@ class branchcache(_BaseBranchCache):
 
         # Do we need to verify branch at all ?
         self._verify_node = verify_node
-        # whether closed nodes are verified or not
-        self._closedverified = False
         # branches for which nodes are verified
         self._verifiedbranches = set()
         self._hasnode = None
@@ -553,7 +551,6 @@ class branchcache(_BaseBranchCache):
         # to hurt to overschedule
         other._delayed = self._delayed
         # also copy information about the current verification state
-        other._closedverified = self._closedverified
         other._verifiedbranches = set(self._verifiedbranches)
         return other
 
@@ -600,19 +597,6 @@ class branchcache(_BaseBranchCache):
                 b"couldn't write branch cache: %s\n"
                 % stringutil.forcebytestr(inst)
             )
-
-    def _verifyclosed(self):
-        """verify the closed nodes we have"""
-        if not self._verify_node:
-            return
-        if self._closedverified:
-            return
-        assert self._hasnode is not None
-        for node in self._closednodes:
-            if not self._hasnode(node):
-                _unknownnode(node)
-
-        self._closedverified = True
 
     def _verifybranch(self, branch):
         """verify head nodes for the given branch."""
