@@ -698,26 +698,22 @@ class _LocalBranchCache(_BaseBranchCache):
         if max_rev is not None and max_rev > self.tiprev:
             self.tiprev = max_rev
             self.tipnode = cl.node(max_rev)
+        else:
+            # We should not be here is if this is false
+            assert cl.node(self.tiprev) == self.tipnode
 
         if not self.validfor(repo):
-            # old cache key is now invalid for the repo, but we've just updated
-            # the cache and we assume it's valid, so let's make the cache key
-            # valid as well by recomputing it from the cached data
-            self.tipnode = repo.nullid
-            self.tiprev = nullrev
-            for heads in self.iterheads():
-                if not heads:
-                    # all revisions on a branch are obsolete
-                    continue
-                # note: tiprev is not necessarily the tip revision of repo,
-                # because the tip could be obsolete (i.e. not a head)
-                tiprev = max(cl.rev(node) for node in heads)
-                if tiprev > self.tiprev:
-                    self.tipnode = cl.node(tiprev)
-                    self.tiprev = tiprev
-        self.filteredhash = scmutil.filteredhash(
-            repo, self.tiprev, needobsolete=True
-        )
+            # the tiprev and tipnode should be aligned, so if the current repo
+            # is not seens as valid this is because old cache key is now
+            # invalid for the repo.
+            #
+            # However. we've just updated the cache and we assume it's valid,
+            # so let's make the cache key valid as well by recomputing it from
+            # the cached data
+            self.filteredhash = scmutil.filteredhash(
+                repo, self.tiprev, needobsolete=True
+            )
+
         self._state = STATE_DIRTY
         tr = repo.currenttransaction()
         if getattr(tr, 'finalized', True):
