@@ -183,7 +183,7 @@ def _branchcachedesc(repo):
         return b'branch cache'
 
 
-class branchcache:
+class _BaseBranchCache:
     """A dict like object that hold branches heads cache.
 
     This cache is used to avoid costly computations to determine all the
@@ -652,11 +652,12 @@ class branchcache:
         self.write(repo)
 
 
-class remotebranchcache(branchcache):
-    """Branchmap info for a remote connection, should not write locally"""
+class branchcache(_BaseBranchCache):
+    """Branchmap info for a local repo or repoview"""
 
-    def write(self, repo):
-        pass
+
+class remotebranchcache(_BaseBranchCache):
+    """Branchmap info for a remote connection, should not write locally"""
 
 
 # Revision branch info cache
