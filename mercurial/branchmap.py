@@ -406,6 +406,8 @@ class _BaseBranchCache:
 class branchcache(_BaseBranchCache):
     """Branchmap info for a local repo or repoview"""
 
+    _base_filename = b"branch2"
+
     def __init__(
         self,
         repo: "localrepo.localrepository",
@@ -525,10 +527,10 @@ class branchcache(_BaseBranchCache):
             if state == b'c':
                 self._closednodes.add(node)
 
-    @staticmethod
-    def _filename(repo):
+    @classmethod
+    def _filename(cls, repo):
         """name of a branchcache file for a given repo or repoview"""
-        filename = b"branch2"
+        filename = cls._base_filename
         if repo.filtername:
             filename = b'%s-%s' % (filename, repo.filtername)
         return filename
