@@ -1,9 +1,21 @@
-#testcases mmap nommap
+#testcases mmap nommap v3
 
 #if mmap
   $ cat <<EOF >> $HGRCPATH
   > [storage]
   > revbranchcache.mmap=true
+  > EOF
+#endif
+
+#if v3
+  $ cat <<EOF >> $HGRCPATH
+  > [experimental]
+  > branch-cache-v3=yes
+  > EOF
+#else
+  $ cat <<EOF >> $HGRCPATH
+  > [experimental]
+  > branch-cache-v3=no
   > EOF
 #endif
 
@@ -1322,9 +1334,15 @@ Unbundling revision should warm the served cache
   new changesets 2ab8003a1750:99ba08759bc7
   updating to branch A
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+#if v3
+  $ cat branchmap-update-01/.hg/cache/branch3-base
+  99ba08759bc7f6fdbe5304e83d0387f35c082479 1
+  99ba08759bc7f6fdbe5304e83d0387f35c082479 o A
+#else
   $ cat branchmap-update-01/.hg/cache/branch2-base
   99ba08759bc7f6fdbe5304e83d0387f35c082479 1
   99ba08759bc7f6fdbe5304e83d0387f35c082479 o A
+#endif
   $ hg -R branchmap-update-01 unbundle bundle.hg
   adding changesets
   adding manifests
@@ -1332,9 +1350,15 @@ Unbundling revision should warm the served cache
   added 2 changesets with 0 changes to 0 files
   new changesets a3b807b3ff0b:71ca9a6d524e (2 drafts)
   (run 'hg update' to get a working copy)
+#if v3
+  $ cat branchmap-update-01/.hg/cache/branch3-served
+  71ca9a6d524ed3c2a215119b2086ac3b8c4c8286 3
+  71ca9a6d524ed3c2a215119b2086ac3b8c4c8286 o A
+#else
   $ cat branchmap-update-01/.hg/cache/branch2-served
   71ca9a6d524ed3c2a215119b2086ac3b8c4c8286 3
   71ca9a6d524ed3c2a215119b2086ac3b8c4c8286 o A
+#endif
 
 aborted Unbundle should not update the on disk cache
 
@@ -1356,9 +1380,15 @@ aborted Unbundle should not update the on disk cache
   updating to branch A
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
+#if v3
+  $ cat branchmap-update-02/.hg/cache/branch3-base
+  99ba08759bc7f6fdbe5304e83d0387f35c082479 1
+  99ba08759bc7f6fdbe5304e83d0387f35c082479 o A
+#else
   $ cat branchmap-update-02/.hg/cache/branch2-base
   99ba08759bc7f6fdbe5304e83d0387f35c082479 1
   99ba08759bc7f6fdbe5304e83d0387f35c082479 o A
+#endif
   $ hg -R branchmap-update-02 unbundle bundle.hg --config "hooks.pretxnclose=python:$TESTTMP/simplehook.py:hook"
   adding changesets
   adding manifests
@@ -1367,6 +1397,12 @@ aborted Unbundle should not update the on disk cache
   rollback completed
   abort: pretxnclose hook failed
   [40]
+#if v3
+  $ cat branchmap-update-02/.hg/cache/branch3-base
+  99ba08759bc7f6fdbe5304e83d0387f35c082479 1
+  99ba08759bc7f6fdbe5304e83d0387f35c082479 o A
+#else
   $ cat branchmap-update-02/.hg/cache/branch2-base
   99ba08759bc7f6fdbe5304e83d0387f35c082479 1
   99ba08759bc7f6fdbe5304e83d0387f35c082479 o A
+#endif
