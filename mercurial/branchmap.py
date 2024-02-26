@@ -778,14 +778,24 @@ class BranchCacheV3(_LocalBranchCache):
 
     The cache is serialized on disk in the following format:
 
-    <tip hex node> <tip rev number> [optional filtered repo hex hash]
+    <cache-key-xxx>=<xxx-value> <cache-key-yyy>=<yyy-value> […]
     <branch head hex node> <open/closed state> <branch name>
     <branch head hex node> <open/closed state> <branch name>
     ...
 
-    The first line is used to check if the cache is still valid. If the
-    branch cache is for a filtered repo view, an optional third hash is
-    included that hashes the hashes of all filtered and obsolete revisions.
+    The first line is used to check if the cache is still valid. It is a series
+    of key value pair. The following key are recognized:
+
+    - tip-rev: the rev-num of the tip-most revision seen by this cache
+    - tip-node: the node-id of the tip-most revision sen by this cache
+    - filtered-hash: the hash of all filtered and obsolete revisions (before
+                     tip-rev) ignored by this cache.
+
+    The tip-rev is used to know how far behind the value in the file are
+    compared to the current repository state.
+
+    The tip-node and filtered-hash are used to detect if this cache can be used
+    for this repository state at all.
 
     The open/closed state is represented by a single letter 'o' or 'c'.
     This field can be used to avoid changelog reads when determining if a
@@ -793,6 +803,35 @@ class BranchCacheV3(_LocalBranchCache):
     """
 
     _base_filename = b"branch3"
+
+    def _write_header(self, fp) -> None:
+        cache_keys = {
+            b"tip-node": hex(self.tipnode),
+            b"tip-rev": b'%d' % self.tiprev,
+        }
+        if self.filteredhash is not None:
+            cache_keys[b"filtered-hash"] = hex(self.filteredhash)
+        pieces = (b"%s=%s" % i for i in sorted(cache_keys.items()))
+        fp.write(b" ".join(pieces) + b'\n')
+
+    @classmethod
+    def _load_header(cls, repo, lineiter):
+        header_line = next(lineiter)
+        pieces = header_line.rstrip(b'\n').split(b" ")
+        cache_keys = dict(p.split(b'=', 1) for p in pieces)
+
+        args = {}
+        for k, v in cache_keys.items():
+            if k == b"tip-rev":
+                args["tiprev"] = int(v)
+            elif k == b"tip-node":
+                args["tipnode"] = bin(v)
+            elif k == b"filtered-hash":
+                args["filteredhash"] = bin(v)
+            else:
+                msg = b"unknown cache key: %r" % k
+                raise ValueError(msg)
+        return args
 
 
 class remotebranchcache(_BaseBranchCache):
