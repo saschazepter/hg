@@ -489,7 +489,7 @@ class branchcache(_BaseBranchCache):
             if not bcache.validfor(repo):
                 # invalidate the cache
                 raise ValueError('tip differs')
-            bcache.load(repo, lineiter)
+            bcache._load_heads(repo, lineiter)
         except (IOError, OSError):
             return None
 
@@ -511,7 +511,7 @@ class branchcache(_BaseBranchCache):
 
         return bcache
 
-    def load(self, repo, lineiter):
+    def _load_heads(self, repo, lineiter):
         """fully loads the branchcache by reading from the file using the line
         iterator passed"""
         for line in lineiter:
