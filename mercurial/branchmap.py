@@ -585,16 +585,7 @@ class branchcache(_BaseBranchCache):
                 if self.filteredhash is not None:
                     cachekey.append(hex(self.filteredhash))
                 f.write(b" ".join(cachekey) + b'\n')
-                nodecount = 0
-                for label, nodes in sorted(self._entries.items()):
-                    label = encoding.fromlocal(label)
-                    for node in nodes:
-                        nodecount += 1
-                        if node in self._closednodes:
-                            state = b'c'
-                        else:
-                            state = b'o'
-                        f.write(b"%s %s %s\n" % (hex(node), state, label))
+                nodecount = self._write_heads(f)
             repo.ui.log(
                 b'branchcache',
                 b'wrote %s with %d labels and %d nodes\n',
@@ -609,6 +600,22 @@ class branchcache(_BaseBranchCache):
                 b"couldn't write branch cache: %s\n"
                 % stringutil.forcebytestr(inst)
             )
+
+    def _write_heads(self, fp) -> int:
+        """write list of heads to a file
+
+        Return the number of heads written."""
+        nodecount = 0
+        for label, nodes in sorted(self._entries.items()):
+            label = encoding.fromlocal(label)
+            for node in nodes:
+                nodecount += 1
+                if node in self._closednodes:
+                    state = b'c'
+                else:
+                    state = b'o'
+                fp.write(b"%s %s %s\n" % (hex(node), state, label))
+        return nodecount
 
     def _verifybranch(self, branch):
         """verify head nodes for the given branch."""
