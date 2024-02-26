@@ -15,6 +15,7 @@ from .node import (
 )
 
 from typing import (
+    Any,
     Callable,
     Dict,
     Iterable,
@@ -473,18 +474,11 @@ class branchcache(_BaseBranchCache):
         try:
             f = repo.cachevfs(cls._filename(repo))
             lineiter = iter(f)
-            cachekey = next(lineiter).rstrip(b'\n').split(b" ", 2)
-            last, lrev = cachekey[:2]
-            last, lrev = bin(last), int(lrev)
-            filteredhash = None
-            if len(cachekey) > 2:
-                filteredhash = bin(cachekey[2])
+            init_kwargs = cls._load_header(repo, lineiter)
             bcache = cls(
                 repo,
-                tipnode=last,
-                tiprev=lrev,
-                filteredhash=filteredhash,
                 verify_node=True,
+                **init_kwargs,
             )
             if not bcache.validfor(repo):
                 # invalidate the cache
@@ -508,6 +502,24 @@ class branchcache(_BaseBranchCache):
                 f.close()
 
         return bcache
+
+    @classmethod
+    def _load_header(cls, repo, lineiter) -> "dict[str, Any]":
+        """parse the head of a branchmap file
+
+        return parameters to pass to a newly created class instance.
+        """
+        cachekey = next(lineiter).rstrip(b'\n').split(b" ", 2)
+        last, lrev = cachekey[:2]
+        last, lrev = bin(last), int(lrev)
+        filteredhash = None
+        if len(cachekey) > 2:
+            filteredhash = bin(cachekey[2])
+        return {
+            "tipnode": last,
+            "tiprev": lrev,
+            "filteredhash": filteredhash,
+        }
 
     def _load_heads(self, repo, lineiter):
         """fully loads the branchcache by reading from the file using the line
