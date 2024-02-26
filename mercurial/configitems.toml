@@ -719,6 +719,12 @@ section = "experimental"
 name = "auto-publish"
 default = "publish"
 
+
+[[items]]
+section = "experimental"
+name = "branch-cache-v3"
+default = false
+
 [[items]]
 section = "experimental"
 name = "bundle-phases"

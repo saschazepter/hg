@@ -728,13 +728,25 @@ class _LocalBranchCache(_BaseBranchCache):
 
 
 def branch_cache_from_file(repo) -> Optional[_LocalBranchCache]:
-    """Build a branch cache from on-disk data if possible"""
-    return BranchCacheV2.fromfile(repo)
+    """Build a branch cache from on-disk data if possible
+
+    Return a branch cache of the right format depending of the repository.
+    """
+    if repo.ui.configbool(b"experimental", b"branch-cache-v3"):
+        return BranchCacheV3.fromfile(repo)
+    else:
+        return BranchCacheV2.fromfile(repo)
 
 
 def new_branch_cache(repo, *args, **kwargs):
-    """Build a new branch cache from argument"""
-    return BranchCacheV2(repo, *args, **kwargs)
+    """Build a new branch cache from argument
+
+    Return a branch cache of the right format depending of the repository.
+    """
+    if repo.ui.configbool(b"experimental", b"branch-cache-v3"):
+        return BranchCacheV3(repo, *args, **kwargs)
+    else:
+        return BranchCacheV2(repo, *args, **kwargs)
 
 
 class BranchCacheV2(_LocalBranchCache):
@@ -757,6 +769,30 @@ class BranchCacheV2(_LocalBranchCache):
     """
 
     _base_filename = b"branch2"
+
+
+class BranchCacheV3(_LocalBranchCache):
+    """a branch cache using version 3 of the format on disk
+
+    This version is still EXPERIMENTAL and the format is subject to changes.
+
+    The cache is serialized on disk in the following format:
+
+    <tip hex node> <tip rev number> [optional filtered repo hex hash]
+    <branch head hex node> <open/closed state> <branch name>
+    <branch head hex node> <open/closed state> <branch name>
+    ...
+
+    The first line is used to check if the cache is still valid. If the
+    branch cache is for a filtered repo view, an optional third hash is
+    included that hashes the hashes of all filtered and obsolete revisions.
+
+    The open/closed state is represented by a single letter 'o' or 'c'.
+    This field can be used to avoid changelog reads when determining if a
+    branch head closes a branch or not.
+    """
+
+    _base_filename = b"branch3"
 
 
 class remotebranchcache(_BaseBranchCache):
