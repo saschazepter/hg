@@ -581,10 +581,7 @@ class branchcache(_BaseBranchCache):
         try:
             filename = self._filename(repo)
             with repo.cachevfs(filename, b"w", atomictemp=True) as f:
-                cachekey = [hex(self.tipnode), b'%d' % self.tiprev]
-                if self.filteredhash is not None:
-                    cachekey.append(hex(self.filteredhash))
-                f.write(b" ".join(cachekey) + b'\n')
+                self._write_header(f)
                 nodecount = self._write_heads(f)
             repo.ui.log(
                 b'branchcache',
@@ -600,6 +597,13 @@ class branchcache(_BaseBranchCache):
                 b"couldn't write branch cache: %s\n"
                 % stringutil.forcebytestr(inst)
             )
+
+    def _write_header(self, fp) -> None:
+        """write the branch cache header to a file"""
+        cachekey = [hex(self.tipnode), b'%d' % self.tiprev]
+        if self.filteredhash is not None:
+            cachekey.append(hex(self.filteredhash))
+        fp.write(b" ".join(cachekey) + b'\n')
 
     def _write_heads(self, fp) -> int:
         """write list of heads to a file
