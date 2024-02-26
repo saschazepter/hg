@@ -496,13 +496,11 @@ class branchcache(_BaseBranchCache):
         except Exception as inst:
             if repo.ui.debugflag:
                 msg = b'invalid %s: %s\n'
-                repo.ui.debug(
-                    msg
-                    % (
-                        _branchcachedesc(repo),
-                        stringutil.forcebytestr(inst),
-                    )
+                msg %= (
+                    _branchcachedesc(repo),
+                    stringutil.forcebytestr(inst),
                 )
+                repo.ui.debug(msg)
             bcache = None
 
         finally:
