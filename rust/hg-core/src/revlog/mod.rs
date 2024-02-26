@@ -859,7 +859,7 @@ fn hash(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::index::{IndexEntryBuilder, INDEX_ENTRY_SIZE};
+    use crate::index::IndexEntryBuilder;
     use itertools::Itertools;
 
     #[test]
@@ -897,15 +897,10 @@ mod tests {
             .is_first(true)
             .with_version(1)
             .with_inline(true)
-            .with_offset(INDEX_ENTRY_SIZE)
             .with_node(node0)
             .build();
-        let entry1_bytes = IndexEntryBuilder::new()
-            .with_offset(INDEX_ENTRY_SIZE)
-            .with_node(node1)
-            .build();
+        let entry1_bytes = IndexEntryBuilder::new().with_node(node1).build();
         let entry2_bytes = IndexEntryBuilder::new()
-            .with_offset(INDEX_ENTRY_SIZE)
             .with_p1(Revision(0))
             .with_p2(Revision(1))
             .with_node(node2)
@@ -971,13 +966,9 @@ mod tests {
             .is_first(true)
             .with_version(1)
             .with_inline(true)
-            .with_offset(INDEX_ENTRY_SIZE)
             .with_node(node0)
             .build();
-        let entry1_bytes = IndexEntryBuilder::new()
-            .with_offset(INDEX_ENTRY_SIZE)
-            .with_node(node1)
-            .build();
+        let entry1_bytes = IndexEntryBuilder::new().with_node(node1).build();
         let contents = vec![entry0_bytes, entry1_bytes]
             .into_iter()
             .flatten()
