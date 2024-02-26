@@ -29,6 +29,7 @@ use zstd;
 use self::node::{NODE_BYTES_LENGTH, NULL_NODE};
 use self::nodemap_docket::NodeMapDocket;
 use super::index::Index;
+use super::index::INDEX_ENTRY_SIZE;
 use super::nodemap::{NodeMap, NodeMapError};
 use crate::errors::HgError;
 use crate::vfs::Vfs;
@@ -531,7 +532,12 @@ impl Revlog {
             .index
             .get_entry(rev)
             .ok_or(RevlogError::InvalidRevision)?;
-        let start = index_entry.offset();
+        let offset = index_entry.offset();
+        let start = if self.index.is_inline() {
+            offset + ((rev.0 as usize + 1) * INDEX_ENTRY_SIZE)
+        } else {
+            offset
+        };
         let end = start + index_entry.compressed_len() as usize;
         let data = if self.index.is_inline() {
             self.index.data(start, end)
