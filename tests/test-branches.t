@@ -825,6 +825,7 @@ recovery from invalid cache revs file with trailing data
   truncating cache/rbc-revs-v1 to 160
   $ f --size .hg/cache/rbc-revs*
   .hg/cache/rbc-revs-v1: size=160
+
 recovery from invalid cache file with partial last record
   $ mv .hg/cache/rbc-revs-v1 .
   $ f -qDB 119 rbc-revs-v1 > .hg/cache/rbc-revs-v1
@@ -835,6 +836,7 @@ recovery from invalid cache file with partial last record
   truncating cache/rbc-revs-v1 to 112
   $ f --size .hg/cache/rbc-revs*
   .hg/cache/rbc-revs-v1: size=160
+
 recovery from invalid cache file with missing record - no truncation
   $ mv .hg/cache/rbc-revs-v1 .
   $ f -qDB 112 rbc-revs-v1 > .hg/cache/rbc-revs-v1
@@ -842,6 +844,7 @@ recovery from invalid cache file with missing record - no truncation
   5
   $ f --size .hg/cache/rbc-revs*
   .hg/cache/rbc-revs-v1: size=160
+
 recovery from invalid cache file with some bad records
   $ mv .hg/cache/rbc-revs-v1 .
   $ f -qDB 8 rbc-revs-v1 > .hg/cache/rbc-revs-v1
@@ -860,6 +863,7 @@ recovery from invalid cache file with some bad records
   $ f --size --hexdump --bytes=16 .hg/cache/rbc-revs*
   .hg/cache/rbc-revs-v1: size=160
   0000: 19 70 9c 5a 00 00 00 00 dd 6b 44 0d 00 00 00 01 |.p.Z.....kD.....|
+
 cache is updated when committing
   $ hg branch i-will-regret-this
   marked working directory as branch i-will-regret-this
@@ -867,6 +871,7 @@ cache is updated when committing
   $ f --size .hg/cache/rbc-*
   .hg/cache/rbc-names-v1: size=111
   .hg/cache/rbc-revs-v1: size=168
+
 update after rollback - the cache will be correct but rbc-names will will still
 contain the branch name even though it no longer is used
   $ hg up -qr '.^'
@@ -891,6 +896,7 @@ contain the branch name even though it no longer is used
   0070: f8 94 c2 56 80 00 00 03 f3 44 76 37 00 00 00 05 |...V.....Dv7....|
   0080: a5 8c a5 d3 00 00 00 05 df 34 3b 0d 00 00 00 05 |.........4;.....|
   0090: c9 14 c9 9f 00 00 00 06 cd 21 a8 0b 80 00 00 05 |.........!......|
+
 cache is updated/truncated when stripping - it is thus very hard to get in a
 situation where the cache is out of sync and the hash check detects it
   $ hg --config extensions.strip= strip -r tip --nob
