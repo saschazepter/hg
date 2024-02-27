@@ -4205,15 +4205,24 @@ def perfbranchmap(ui, repo, *filternames, **opts):
         # add unfiltered
         allfilters.append(None)
 
-    if util.safehasattr(branchmap.branchcache, 'fromfile'):
+    old_branch_cache_from_file = None
+    branchcacheread = None
+    if util.safehasattr(branchmap, 'branch_cache_from_file'):
+        old_branch_cache_from_file = branchmap.branch_cache_from_file
+        branchmap.branch_cache_from_file = lambda *args: None
+    elif util.safehasattr(branchmap.branchcache, 'fromfile'):
         branchcacheread = safeattrsetter(branchmap.branchcache, b'fromfile')
         branchcacheread.set(classmethod(lambda *args: None))
     else:
         # older versions
         branchcacheread = safeattrsetter(branchmap, b'read')
         branchcacheread.set(lambda *args: None)
-    branchcachewrite = safeattrsetter(branchmap.branchcache, b'write')
-    branchcachewrite.set(lambda *args: None)
+    if util.safehasattr(branchmap, '_LocalBranchCache'):
+        branchcachewrite = safeattrsetter(branchmap._LocalBranchCache, b'write')
+        branchcachewrite.set(lambda *args: None)
+    else:
+        branchcachewrite = safeattrsetter(branchmap.branchcache, b'write')
+        branchcachewrite.set(lambda *args: None)
     try:
         for name in allfilters:
             printname = name
@@ -4221,7 +4230,10 @@ def perfbranchmap(ui, repo, *filternames, **opts):
                 printname = b'unfiltered'
             timer(getbranchmap(name), title=printname)
     finally:
-        branchcacheread.restore()
+        if old_branch_cache_from_file is not None:
+            branchmap.branch_cache_from_file = old_branch_cache_from_file
+        if branchcacheread is not None:
+            branchcacheread.restore()
         branchcachewrite.restore()
     fm.end()
 
@@ -4381,10 +4393,10 @@ def perfbranchmapload(ui, repo, filter=b'', list=False, **opts):
 
     repo.branchmap()  # make sure we have a relevant, up to date branchmap
 
-    try:
-        fromfile = branchmap.branchcache.fromfile
-    except AttributeError:
-        # older versions
+    fromfile = getattr(branchmap, 'branch_cache_from_file', None)
+    if fromfile is None:
+        fromfile = getattr(branchmap.branchcache, 'fromfile', None)
+    if fromfile is None:
         fromfile = branchmap.read
 
     currentfilter = filter

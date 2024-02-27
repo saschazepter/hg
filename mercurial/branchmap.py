@@ -100,7 +100,7 @@ class BranchMapCache:
         bcache = self._per_filter.get(filtername)
         if bcache is None or not bcache.validfor(repo):
             # cache object missing or cache object stale? Read from disk
-            bcache = branchcache.fromfile(repo)
+            bcache = branch_cache_from_file(repo)
 
         revs = []
         if bcache is None:
@@ -116,7 +116,7 @@ class BranchMapCache:
                 revs.extend(r for r in extrarevs if r <= bcache.tiprev)
             else:
                 # nothing to fall back on, start empty.
-                bcache = branchcache(repo)
+                bcache = new_branch_cache(repo)
 
         revs.extend(cl.revs(start=bcache.tiprev + 1))
         if revs:
@@ -147,7 +147,7 @@ class BranchMapCache:
 
         if rbheads:
             rtiprev = max((int(clrev(node)) for node in rbheads))
-            cache = branchcache(
+            cache = new_branch_cache(
                 repo,
                 remotebranchmap,
                 repo[rtiprev].node(),
@@ -199,21 +199,6 @@ class _BaseBranchCache:
 
     This cache is used to avoid costly computations to determine all the
     branch heads of a repo.
-
-    The cache is serialized on disk in the following format:
-
-    <tip hex node> <tip rev number> [optional filtered repo hex hash]
-    <branch head hex node> <open/closed state> <branch name>
-    <branch head hex node> <open/closed state> <branch name>
-    ...
-
-    The first line is used to check if the cache is still valid. If the
-    branch cache is for a filtered repo view, an optional third hash is
-    included that hashes the hashes of all filtered and obsolete revisions.
-
-    The open/closed state is represented by a single letter 'o' or 'c'.
-    This field can be used to avoid changelog reads when determining if a
-    branch head closes a branch or not.
     """
 
     def __init__(
@@ -420,10 +405,10 @@ STATE_INHERITED = 2
 STATE_DIRTY = 3
 
 
-class branchcache(_BaseBranchCache):
-    """Branchmap info for a local repo or repoview"""
+class _LocalBranchCache(_BaseBranchCache):
+    """base class of branch-map info for a local repo or repoview"""
 
-    _base_filename = b"branch2"
+    _base_filename = None
 
     def __init__(
         self,
@@ -560,6 +545,7 @@ class branchcache(_BaseBranchCache):
     def _filename(cls, repo):
         """name of a branchcache file for a given repo or repoview"""
         filename = cls._base_filename
+        assert filename is not None
         if repo.filtername:
             filename = b'%s-%s' % (filename, repo.filtername)
         return filename
@@ -739,6 +725,38 @@ class branchcache(_BaseBranchCache):
             #
             # (The cache warming setup by localrepo will update the file later.)
             self.write(repo)
+
+
+def branch_cache_from_file(repo) -> Optional[_LocalBranchCache]:
+    """Build a branch cache from on-disk data if possible"""
+    return BranchCacheV2.fromfile(repo)
+
+
+def new_branch_cache(repo, *args, **kwargs):
+    """Build a new branch cache from argument"""
+    return BranchCacheV2(repo, *args, **kwargs)
+
+
+class BranchCacheV2(_LocalBranchCache):
+    """a branch cache using version 2 of the format on disk
+
+    The cache is serialized on disk in the following format:
+
+    <tip hex node> <tip rev number> [optional filtered repo hex hash]
+    <branch head hex node> <open/closed state> <branch name>
+    <branch head hex node> <open/closed state> <branch name>
+    ...
+
+    The first line is used to check if the cache is still valid. If the
+    branch cache is for a filtered repo view, an optional third hash is
+    included that hashes the hashes of all filtered and obsolete revisions.
+
+    The open/closed state is represented by a single letter 'o' or 'c'.
+    This field can be used to avoid changelog reads when determining if a
+    branch head closes a branch or not.
+    """
+
+    _base_filename = b"branch2"
 
 
 class remotebranchcache(_BaseBranchCache):
