@@ -179,6 +179,13 @@ based clone with a warning.
   $ cd ..
 
 Basic clone
+-----------
+
+Check that --stream trigger a stream clone and result in a valid repositoty
+
+We check the associated output for exact bytes on file number as changes in
+these value implies changes in the data transfered and can detect unintended
+changes in the process.
 
 #if stream-legacy
   $ hg clone --stream -U http://localhost:$HGPORT clone1
@@ -189,7 +196,6 @@ Basic clone
   transferred 98.8 KB in * seconds (* */sec) (glob) (zstd !)
   searching for changes
   no changes found
-  $ cat server/errors.txt
 #endif
 #if stream-bundle2-v2
   $ hg clone --stream -U http://localhost:$HGPORT clone1
@@ -200,20 +206,8 @@ Basic clone
   transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
   1096 files to transfer, 99.0 KB of data (zstd rust !)
   transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
-
-  $ ls -1 clone1/.hg/cache
-  branch2-base
-  branch2-immutable
-  branch2-served
-  branch2-served.hidden
-  branch2-visible
-  branch2-visible-hidden
-  rbc-names-v1
-  rbc-revs-v1
-  tags2
-  tags2-served
-  $ cat server/errors.txt
 #endif
+
 #if stream-bundle2-v3
   $ hg clone --stream -U http://localhost:$HGPORT clone1
   streaming all changes
@@ -221,7 +215,9 @@ Basic clone
   transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
   transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
   transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
+#endif
 
+#if no-stream-legacy
   $ ls -1 clone1/.hg/cache
   branch2-base
   branch2-immutable
@@ -233,8 +229,10 @@ Basic clone
   rbc-revs-v1
   tags2
   tags2-served
-  $ cat server/errors.txt
 #endif
+
+  $ hg -R clone1 verify --quiet
+  $ cat server/errors.txt
 
 getbundle requests with stream=1 are uncompressed
 
