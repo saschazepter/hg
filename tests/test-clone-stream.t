@@ -373,11 +373,15 @@ there is no security so it isn't important to prevent a clone here.)
   $ hg -R server phase --draft 'secret()'
 
 Stream clone while repo is changing:
+------------------------------------
+
+We should send a repository in a valid state, ignoring the ongoing transaction.
 
   $ mkdir changing
   $ cd changing
 
 prepare repo with small and big file to cover both code paths in emitrevlogdata
+(inlined revlog and non-inlined revlogs).
 
   $ hg init repo
   $ touch repo/f1
@@ -408,6 +412,7 @@ actually serving file content
   $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_3
   $ hg -R clone id
   000000000000
+  $ hg -R clone verify --quiet
   $ cat errors.log
   $ cd ..
 
