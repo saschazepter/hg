@@ -235,104 +235,22 @@ changes in the process.
   $ cat server/errors.txt
 
 getbundle requests with stream=1 are uncompressed
+-------------------------------------------------
+
+We check that `getbundle` will return a stream bundle when requested.
+
+XXX manually building the --requestheader is fragile and will drift away from actual usage
 
   $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=getbundle' content-type --bodyfile body --hgproto '0.1 0.2 comp=zlib,none' --requestheader "x-hgarg-1=bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%252C03%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Aphases%253Dheads%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps%250Astream%253Dv2&cg=0&common=0000000000000000000000000000000000000000&heads=c17445101a72edac06facd130d14808dfbd5c7c2&stream=1"
   200 Script output follows
   content-type: application/mercurial-0.2
   
 
-#if no-zstd no-rust
-  $ f --size --hex --bytes 256 body
-  body: size=119140
+  $ f --size --hex --bytes 48 body
+  body: size=* (glob)
   0000: 04 6e 6f 6e 65 48 47 32 30 00 00 00 00 00 00 00 |.noneHG20.......|
-  0010: 62 07 53 54 52 45 41 4d 32 00 00 00 00 03 00 09 |b.STREAM2.......|
-  0020: 06 09 04 0c 26 62 79 74 65 63 6f 75 6e 74 31 30 |....&bytecount10|
-  0030: 34 31 31 35 66 69 6c 65 63 6f 75 6e 74 31 30 39 |4115filecount109|
-  0040: 34 72 65 71 75 69 72 65 6d 65 6e 74 73 67 65 6e |4requirementsgen|
-  0050: 65 72 61 6c 64 65 6c 74 61 25 32 43 72 65 76 6c |eraldelta%2Crevl|
-  0060: 6f 67 76 31 25 32 43 73 70 61 72 73 65 72 65 76 |ogv1%2Csparserev|
-  0070: 6c 6f 67 00 00 80 00 73 08 42 64 61 74 61 2f 30 |log....s.Bdata/0|
-  0080: 2e 69 00 03 00 01 00 00 00 00 00 00 00 02 00 00 |.i..............|
-  0090: 00 01 00 00 00 00 00 00 00 01 ff ff ff ff ff ff |................|
-  00a0: ff ff 80 29 63 a0 49 d3 23 87 bf ce fe 56 67 92 |...)c.I.#....Vg.|
-  00b0: 67 2c 69 d1 ec 39 00 00 00 00 00 00 00 00 00 00 |g,i..9..........|
-  00c0: 00 00 75 30 73 26 45 64 61 74 61 2f 30 30 63 68 |..u0s&Edata/00ch|
-  00d0: 61 6e 67 65 6c 6f 67 2d 61 62 33 34 39 31 38 30 |angelog-ab349180|
-  00e0: 61 30 34 30 35 30 31 30 2e 6e 64 2e 69 00 03 00 |a0405010.nd.i...|
-  00f0: 01 00 00 00 00 00 00 00 05 00 00 00 04 00 00 00 |................|
-#endif
-#if zstd no-rust
-  $ f --size --hex --bytes 256 body
-  body: size=116327 (no-bigendian !)
-  body: size=116322 (bigendian !)
-  0000: 04 6e 6f 6e 65 48 47 32 30 00 00 00 00 00 00 00 |.noneHG20.......|
-  0010: 7c 07 53 54 52 45 41 4d 32 00 00 00 00 03 00 09 ||.STREAM2.......|
-  0020: 06 09 04 0c 40 62 79 74 65 63 6f 75 6e 74 31 30 |....@bytecount10|
-  0030: 31 32 37 36 66 69 6c 65 63 6f 75 6e 74 31 30 39 |1276filecount109| (no-bigendian !)
-  0030: 31 32 37 31 66 69 6c 65 63 6f 75 6e 74 31 30 39 |1271filecount109| (bigendian !)
-  0040: 34 72 65 71 75 69 72 65 6d 65 6e 74 73 67 65 6e |4requirementsgen|
-  0050: 65 72 61 6c 64 65 6c 74 61 25 32 43 72 65 76 6c |eraldelta%2Crevl|
-  0060: 6f 67 2d 63 6f 6d 70 72 65 73 73 69 6f 6e 2d 7a |og-compression-z|
-  0070: 73 74 64 25 32 43 72 65 76 6c 6f 67 76 31 25 32 |std%2Crevlogv1%2|
-  0080: 43 73 70 61 72 73 65 72 65 76 6c 6f 67 00 00 80 |Csparserevlog...|
-  0090: 00 73 08 42 64 61 74 61 2f 30 2e 69 00 03 00 01 |.s.Bdata/0.i....|
-  00a0: 00 00 00 00 00 00 00 02 00 00 00 01 00 00 00 00 |................|
-  00b0: 00 00 00 01 ff ff ff ff ff ff ff ff 80 29 63 a0 |.............)c.|
-  00c0: 49 d3 23 87 bf ce fe 56 67 92 67 2c 69 d1 ec 39 |I.#....Vg.g,i..9|
-  00d0: 00 00 00 00 00 00 00 00 00 00 00 00 75 30 73 26 |............u0s&|
-  00e0: 45 64 61 74 61 2f 30 30 63 68 61 6e 67 65 6c 6f |Edata/00changelo|
-  00f0: 67 2d 61 62 33 34 39 31 38 30 61 30 34 30 35 30 |g-ab349180a04050|
-#endif
-#if zstd rust no-dirstate-v2
-  $ f --size --hex --bytes 256 body
-  body: size=116310 (no-rust !)
-  body: size=116495 (rust no-stream-legacy no-bigendian !)
-  body: size=116490 (rust no-stream-legacy bigendian !)
-  body: size=116327 (rust stream-legacy no-bigendian !)
-  body: size=116322 (rust stream-legacy bigendian !)
-  0000: 04 6e 6f 6e 65 48 47 32 30 00 00 00 00 00 00 00 |.noneHG20.......|
-  0010: 7c 07 53 54 52 45 41 4d 32 00 00 00 00 03 00 09 ||.STREAM2.......|
-  0020: 06 09 04 0c 40 62 79 74 65 63 6f 75 6e 74 31 30 |....@bytecount10|
-  0030: 31 32 37 36 66 69 6c 65 63 6f 75 6e 74 31 30 39 |1276filecount109| (no-rust !)
-  0040: 33 72 65 71 75 69 72 65 6d 65 6e 74 73 67 65 6e |3requirementsgen| (no-rust !)
-  0030: 31 34 30 32 66 69 6c 65 63 6f 75 6e 74 31 30 39 |1402filecount109| (rust no-stream-legacy no-bigendian !)
-  0030: 31 33 39 37 66 69 6c 65 63 6f 75 6e 74 31 30 39 |1397filecount109| (rust no-stream-legacy bigendian !)
-  0040: 36 72 65 71 75 69 72 65 6d 65 6e 74 73 67 65 6e |6requirementsgen| (rust no-stream-legacy !)
-  0030: 31 32 37 36 66 69 6c 65 63 6f 75 6e 74 31 30 39 |1276filecount109| (rust stream-legacy no-bigendian !)
-  0030: 31 32 37 31 66 69 6c 65 63 6f 75 6e 74 31 30 39 |1271filecount109| (rust stream-legacy bigendian !)
-  0040: 34 72 65 71 75 69 72 65 6d 65 6e 74 73 67 65 6e |4requirementsgen| (rust stream-legacy !)
-  0050: 65 72 61 6c 64 65 6c 74 61 25 32 43 72 65 76 6c |eraldelta%2Crevl|
-  0060: 6f 67 2d 63 6f 6d 70 72 65 73 73 69 6f 6e 2d 7a |og-compression-z|
-  0070: 73 74 64 25 32 43 72 65 76 6c 6f 67 76 31 25 32 |std%2Crevlogv1%2|
-  0080: 43 73 70 61 72 73 65 72 65 76 6c 6f 67 00 00 80 |Csparserevlog...|
-  0090: 00 73 08 42 64 61 74 61 2f 30 2e 69 00 03 00 01 |.s.Bdata/0.i....|
-  00a0: 00 00 00 00 00 00 00 02 00 00 00 01 00 00 00 00 |................|
-  00b0: 00 00 00 01 ff ff ff ff ff ff ff ff 80 29 63 a0 |.............)c.|
-  00c0: 49 d3 23 87 bf ce fe 56 67 92 67 2c 69 d1 ec 39 |I.#....Vg.g,i..9|
-  00d0: 00 00 00 00 00 00 00 00 00 00 00 00 75 30 73 26 |............u0s&|
-  00e0: 45 64 61 74 61 2f 30 30 63 68 61 6e 67 65 6c 6f |Edata/00changelo|
-  00f0: 67 2d 61 62 33 34 39 31 38 30 61 30 34 30 35 30 |g-ab349180a04050|
-#endif
-#if zstd dirstate-v2
-  $ f --size --hex --bytes 256 body
-  body: size=109549
-  0000: 04 6e 6f 6e 65 48 47 32 30 00 00 00 00 00 00 00 |.noneHG20.......|
-  0010: c0 07 53 54 52 45 41 4d 32 00 00 00 00 03 00 09 |..STREAM2.......|
-  0020: 05 09 04 0c 85 62 79 74 65 63 6f 75 6e 74 39 35 |.....bytecount95|
-  0030: 38 39 37 66 69 6c 65 63 6f 75 6e 74 31 30 33 30 |897filecount1030|
-  0040: 72 65 71 75 69 72 65 6d 65 6e 74 73 64 6f 74 65 |requirementsdote|
-  0050: 6e 63 6f 64 65 25 32 43 65 78 70 2d 64 69 72 73 |ncode%2Cexp-dirs|
-  0060: 74 61 74 65 2d 76 32 25 32 43 66 6e 63 61 63 68 |tate-v2%2Cfncach|
-  0070: 65 25 32 43 67 65 6e 65 72 61 6c 64 65 6c 74 61 |e%2Cgeneraldelta|
-  0080: 25 32 43 70 65 72 73 69 73 74 65 6e 74 2d 6e 6f |%2Cpersistent-no|
-  0090: 64 65 6d 61 70 25 32 43 72 65 76 6c 6f 67 2d 63 |demap%2Crevlog-c|
-  00a0: 6f 6d 70 72 65 73 73 69 6f 6e 2d 7a 73 74 64 25 |ompression-zstd%|
-  00b0: 32 43 72 65 76 6c 6f 67 76 31 25 32 43 73 70 61 |2Crevlogv1%2Cspa|
-  00c0: 72 73 65 72 65 76 6c 6f 67 25 32 43 73 74 6f 72 |rserevlog%2Cstor|
-  00d0: 65 00 00 80 00 73 08 42 64 61 74 61 2f 30 2e 69 |e....s.Bdata/0.i|
-  00e0: 00 03 00 01 00 00 00 00 00 00 00 02 00 00 00 01 |................|
-  00f0: 00 00 00 00 00 00 00 01 ff ff ff ff ff ff ff ff |................|
-#endif
+  0010: ?? 07 53 54 52 45 41 4d 32 00 00 00 00 03 00 09 |?.STREAM2.......| (glob)
+  0020: 06 09 04 0c ?? 62 79 74 65 63 6f 75 6e 74 31 30 |....?bytecount10| (glob)
 
 --uncompressed is an alias to --stream
 
