@@ -508,18 +508,20 @@ make stream v1 unsuitable for non-publishing repository.
 
   $ killdaemons.py
 
+
+Stream repository with obsolescence
+-----------------------------------
+
 #if stream-legacy
 
 With v1 of the stream protocol, changeset are always cloned as public. There's
 no obsolescence markers exchange in stream v1.
 
-#endif
-#if stream-bundle2-v2
-
-Stream repository with obsolescence
------------------------------------
+#else
 
 Clone non-publishing with obsolescence
+
+The obsstore file should be send as part of the stream bundle
 
   $ cat >> $HGRCPATH << EOF
   > [experimental]
@@ -543,62 +545,10 @@ Clone non-publishing with obsolescence
 
   $ hg clone -U --stream http://localhost:$HGPORT with-obsolescence
   streaming all changes
-  1099 files to transfer, 102 KB of data (no-zstd !)
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1099 files to transfer, 99.5 KB of data (zstd no-rust !)
-  transferred 99.5 KB in * seconds (* */sec) (glob) (zstd no-rust !)
-  1101 files to transfer, 99.6 KB of data (zstd rust !)
-  transferred 99.6 KB in * seconds (* */sec) (glob) (zstd rust !)
-  $ hg -R with-obsolescence log -T '{rev}: {phase}\n'
-  2: draft
-  1: draft
-  0: draft
-  $ hg debugobsolete -R with-obsolescence
-  8c206a663911c1f97f2f9d7382e417ae55872cfa 0 {5223b5e3265f0df40bb743da62249413d74ac70f} (Thu Jan 01 00:00:00 1970 +0000) {'user': 'test'}
-  $ hg verify -R with-obsolescence -q
-
-  $ hg clone -U --stream --config experimental.evolution=0 http://localhost:$HGPORT with-obsolescence-no-evolution
-  streaming all changes
-  remote: abort: server has obsolescence markers, but client cannot receive them via stream clone
-  abort: pull failed on remote
-  [100]
-
-  $ killdaemons.py
-
-#endif
-#if stream-bundle2-v3
-
-Stream repository with obsolescence
------------------------------------
-
-Clone non-publishing with obsolescence
-
-  $ cat >> $HGRCPATH << EOF
-  > [experimental]
-  > evolution=all
-  > EOF
-
-  $ cd server
-  $ echo foo > foo
-  $ hg -q commit -m 'about to be pruned'
-  $ hg debugobsolete `hg log -r . -T '{node}'` -d '0 0' -u test --record-parents
-  1 new obsolescence markers
-  obsoleted 1 changesets
-  $ hg up null -q
-  $ hg log -T '{rev}: {phase}\n'
-  2: draft
-  1: draft
-  0: draft
-  $ hg serve -p $HGPORT -d --pid-file=hg.pid
-  $ cat hg.pid > $DAEMON_PIDS
-  $ cd ..
-
-  $ hg clone -U --stream http://localhost:$HGPORT with-obsolescence
-  streaming all changes
-  1098 entries to transfer
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  transferred 99.5 KB in * seconds (* */sec) (glob) (zstd no-rust !)
-  transferred 99.6 KB in * seconds (* */sec) (glob) (zstd rust !)
+  1099 files to transfer, * KB of data (glob) (stream-bundle2-v2 no-rust !)
+  1101 files to transfer, * KB of data (glob) (stream-bundle2-v2 rust !)
+  1098 entries to transfer (no-stream-bundle2-v2 !)
+  transferred * KB in * seconds (* */sec) (glob)
   $ hg -R with-obsolescence log -T '{rev}: {phase}\n'
   2: draft
   1: draft
