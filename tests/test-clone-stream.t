@@ -277,6 +277,10 @@ the result should be a valid repository.
   $ hg verify -R clone-background --quiet
 
 Cannot stream clone when there are secret changesets
+----------------------------------------------------
+
+If secret changeset are present the should not be cloned (by default) and the
+clone falls back to a bundle clone.
 
   $ hg -R server phase --force --secret -r tip
   $ hg clone --stream -U http://localhost:$HGPORT secret-denied
@@ -291,40 +295,22 @@ Cannot stream clone when there are secret changesets
   $ killdaemons.py
 
 Streaming of secrets can be overridden by server config
+-------------------------------------------------------
+
+Secret changeset can still be streamed if the server is configured to do so.
 
   $ cd server
   $ hg serve --config server.uncompressedallowsecret=true -p $HGPORT -d --pid-file=hg.pid
   $ cat hg.pid > $DAEMON_PIDS
   $ cd ..
 
-#if stream-legacy
   $ hg clone --stream -U http://localhost:$HGPORT secret-allowed
   streaming all changes
-  1091 files to transfer, 102 KB of data (no-zstd !)
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1091 files to transfer, 98.8 KB of data (zstd !)
-  transferred 98.8 KB in * seconds (* */sec) (glob) (zstd !)
-  searching for changes
-  no changes found
-#endif
-#if stream-bundle2-v2
-  $ hg clone --stream -U http://localhost:$HGPORT secret-allowed
-  streaming all changes
-  1094 files to transfer, 102 KB of data (no-zstd !)
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1094 files to transfer, 98.9 KB of data (zstd no-rust !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
-  1096 files to transfer, 99.0 KB of data (zstd rust !)
-  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
-#endif
-#if stream-bundle2-v3
-  $ hg clone --stream -U http://localhost:$HGPORT secret-allowed
-  streaming all changes
-  1093 entries to transfer
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
-  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
-#endif
+  * files to transfer* (glob) (no-stream-bundle2-v3 !)
+  * entries to transfer (glob) (stream-bundle2-v3 !)
+  transferred * KB in * seconds (* */sec) (glob)
+  searching for changes (stream-legacy !)
+  no changes found (stream-legacy !)
 
   $ killdaemons.py
 
@@ -373,6 +359,10 @@ there is no security so it isn't important to prevent a clone here.)
   added 2 changesets with 1025 changes to 1025 files
   new changesets 96ee1d7354c4:c17445101a72
 
+(revert introduction of secret changeset)
+
+  $ hg -R server phase --draft 'secret()'
+
 Stream clone while repo is changing:
 
   $ mkdir changing
@@ -414,10 +404,6 @@ actually serving file content
 
 Stream repository with bookmarks
 --------------------------------
-
-(revert introduction of secret changeset)
-
-  $ hg -R server phase --draft 'secret()'
 
 add a bookmark
 
