@@ -445,6 +445,9 @@ clone it
 Stream repository with phases
 -----------------------------
 
+The file storing phases information (e.g. phaseroots) should be sent as part of
+the stream bundle.
+
 Clone as publishing
 
   $ hg -R server phase -r 'all()'
@@ -452,40 +455,17 @@ Clone as publishing
   1: draft
   2: draft
 
-#if stream-legacy
   $ hg clone --stream http://localhost:$HGPORT phase-publish
   streaming all changes
-  1091 files to transfer, 102 KB of data (no-zstd !)
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1091 files to transfer, 98.8 KB of data (zstd !)
-  transferred 98.8 KB in * seconds (* */sec) (glob) (zstd !)
-  searching for changes
-  no changes found
+  1091 files to transfer, * KB of data (glob) (stream-legacy !)
+  1097 files to transfer, * KB of data (glob) (stream-bundle2-v2 no-rust !)
+  1099 files to transfer, * KB of data (glob) (stream-bundle2-v2 rust !)
+  1096 entries to transfer (stream-bundle2-v3 !)
+  transferred * KB in * seconds (* */sec) (glob)
+  searching for changes (stream-legacy !)
+  no changes found (stream-legacy !)
   updating to branch default
   1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
-#endif
-#if stream-bundle2-v2
-  $ hg clone --stream http://localhost:$HGPORT phase-publish
-  streaming all changes
-  1097 files to transfer, 102 KB of data (no-zstd !)
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1097 files to transfer, 99.1 KB of data (zstd no-rust !)
-  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd  no-rust !)
-  1099 files to transfer, 99.2 KB of data (zstd rust !)
-  transferred 99.2 KB in * seconds (* */sec) (glob) (zstd rust !)
-  updating to branch default
-  1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
-#endif
-#if stream-bundle2-v3
-  $ hg clone --stream http://localhost:$HGPORT phase-publish
-  streaming all changes
-  1096 entries to transfer
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd no-rust !)
-  transferred 99.2 KB in * seconds (* */sec) (glob) (zstd rust !)
-  updating to branch default
-  1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
-#endif
   $ hg verify -R phase-publish -q
   $ hg -R phase-publish phase -r 'all()'
   0: public
@@ -502,56 +482,28 @@ Clone as non publishing
   $ hg -R server serve -p $HGPORT -d --pid-file=hg.pid
   $ cat hg.pid > $DAEMON_PIDS
 
-#if stream-legacy
+  $ hg clone --stream http://localhost:$HGPORT phase-no-publish
+  streaming all changes
+  1091 files to transfer, * KB of data (glob) (stream-legacy !)
+  1098 files to transfer, * KB of data (glob) (stream-bundle2-v2 no-rust !)
+  1100 files to transfer, * KB of data (glob) (stream-bundle2-v2 rust !)
+  1097 entries to transfer (stream-bundle2-v3 !)
+  transferred * KB in * seconds (* */sec) (glob)
+  searching for changes (stream-legacy !)
+  no changes found (stream-legacy !)
+  updating to branch default
+  1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
-With v1 of the stream protocol, changeset are always cloned as public. It make
-stream v1 unsuitable for non-publishing repository.
+Note: With v1 of the stream protocol, changeset are always cloned as public. It
+make stream v1 unsuitable for non-publishing repository.
 
-  $ hg clone --stream http://localhost:$HGPORT phase-no-publish
-  streaming all changes
-  1091 files to transfer, 102 KB of data (no-zstd !)
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1091 files to transfer, 98.8 KB of data (zstd !)
-  transferred 98.8 KB in * seconds (* */sec) (glob) (zstd !)
-  searching for changes
-  no changes found
-  updating to branch default
-  1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg -R phase-no-publish phase -r 'all()'
-  0: public
-  1: public
-  2: public
-#endif
-#if stream-bundle2-v2
-  $ hg clone --stream http://localhost:$HGPORT phase-no-publish
-  streaming all changes
-  1098 files to transfer, 102 KB of data (no-zstd !)
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1098 files to transfer, 99.1 KB of data (zstd no-rust !)
-  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd no-rust !)
-  1100 files to transfer, 99.2 KB of data (zstd rust !)
-  transferred 99.2 KB in * seconds (* */sec) (glob) (zstd rust !)
-  updating to branch default
-  1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg -R phase-no-publish phase -r 'all()'
-  0: draft
-  1: draft
-  2: draft
-#endif
-#if stream-bundle2-v3
-  $ hg clone --stream http://localhost:$HGPORT phase-no-publish
-  streaming all changes
-  1097 entries to transfer
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  transferred 99.1 KB in * seconds (* */sec) (glob) (zstd no-rust !)
-  transferred 99.2 KB in * seconds (* */sec) (glob) (zstd rust !)
-  updating to branch default
-  1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg -R phase-no-publish phase -r 'all()'
-  0: draft
-  1: draft
-  2: draft
-#endif
+  0: public (stream-legacy !)
+  1: public (stream-legacy !)
+  2: public (stream-legacy !)
+  0: draft (no-stream-legacy !)
+  1: draft (no-stream-legacy !)
+  2: draft (no-stream-legacy !)
   $ hg verify -R phase-no-publish -q
 
   $ killdaemons.py
