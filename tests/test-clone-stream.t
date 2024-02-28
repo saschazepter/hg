@@ -580,9 +580,4 @@ Cloning a repo with an empty manifestlog doesn't give some weird error
   $ rm -r empty-repo; hg init empty-repo
   $ (cd empty-repo; touch x; hg commit -Am empty; hg debugstrip -r 0) > /dev/null
   $ hg clone -q --stream ssh://user@dummy/empty-repo empty-repo3
-  $ hg --cwd empty-repo3 verify -q 2>&1 | grep -v warning
-  [1]
-
-The warnings filtered out here are talking about zero-length 'orphan' data files.
-Those are harmless, so that's fine.
-
+  $ hg --cwd empty-repo3 verify -q
