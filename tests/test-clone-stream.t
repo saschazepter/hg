@@ -266,95 +266,15 @@ The alias flag should trigger a stream clone too.
   no changes found (stream-legacy !)
 
 Clone with background file closing enabled
+-------------------------------------------
 
-#if stream-legacy
-  $ hg --debug --config worker.backgroundclose=true --config worker.backgroundcloseminfilecount=1 clone --stream -U http://localhost:$HGPORT clone-background | grep -v adding
-  using http://localhost:$HGPORT/
-  sending capabilities command
-  sending branchmap command
-  streaming all changes
-  sending stream_out command
-  1091 files to transfer, 102 KB of data (no-zstd !)
-  1091 files to transfer, 98.8 KB of data (zstd !)
+The backgound file closing logic should trigger when configured to do so, and
+the result should be a valid repository.
+
+  $ hg --debug --config worker.backgroundclose=true --config worker.backgroundcloseminfilecount=1 clone --stream -U http://localhost:$HGPORT clone-background | grep "background file closing"
   starting 4 threads for background file closing
-  updating the branch cache
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  transferred 98.8 KB in * seconds (* */sec) (glob) (zstd !)
-  query 1; heads
-  sending batch command
-  searching for changes
-  all remote heads known locally
-  no changes found
-  sending getbundle command
-  bundle2-input-bundle: with-transaction
-  bundle2-input-part: "listkeys" (params: 1 mandatory) supported
-  bundle2-input-part: "phase-heads" supported
-  bundle2-input-part: total payload size 24
-  bundle2-input-bundle: 2 parts total
-  checking for updated bookmarks
-  updating the branch cache
-  (sent 5 HTTP requests and * bytes; received * bytes in responses) (glob)
-#endif
-#if stream-bundle2-v2
-  $ hg --debug --config worker.backgroundclose=true --config worker.backgroundcloseminfilecount=1 clone --stream -U http://localhost:$HGPORT clone-background | grep -v adding
-  using http://localhost:$HGPORT/
-  sending capabilities command
-  query 1; heads
-  sending batch command
-  streaming all changes
-  sending getbundle command
-  bundle2-input-bundle: with-transaction
-  bundle2-input-part: "stream2" (params: 3 mandatory) supported
-  applying stream bundle
-  1094 files to transfer, 102 KB of data (no-zstd !)
-  1094 files to transfer, 98.9 KB of data (zstd no-rust !)
-  1096 files to transfer, 99.0 KB of data (zstd rust !)
-  starting 4 threads for background file closing
-  starting 4 threads for background file closing
-  updating the branch cache
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  bundle2-input-part: total payload size 119001 (no-zstd !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
-  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
-  bundle2-input-part: total payload size 116162 (zstd no-bigendian no-rust !)
-  bundle2-input-part: total payload size 116330 (zstd no-bigendian rust !)
-  bundle2-input-part: total payload size 116157 (zstd bigendian no-rust !)
-  bundle2-input-part: total payload size 116325 (zstd bigendian rust !)
-  bundle2-input-part: "listkeys" (params: 1 mandatory) supported
-  bundle2-input-bundle: 2 parts total
-  checking for updated bookmarks
-  updating the branch cache
-  (sent 3 HTTP requests and * bytes; received * bytes in responses) (glob)
-#endif
-#if stream-bundle2-v3
-  $ hg --debug --config worker.backgroundclose=true --config worker.backgroundcloseminfilecount=1 clone --stream -U http://localhost:$HGPORT clone-background | grep -v adding
-  using http://localhost:$HGPORT/
-  sending capabilities command
-  query 1; heads
-  sending batch command
-  streaming all changes
-  sending getbundle command
-  bundle2-input-bundle: with-transaction
-  bundle2-input-part: "stream3-exp" (params: 1 mandatory) supported
-  applying stream bundle
-  1093 entries to transfer
-  starting 4 threads for background file closing
-  starting 4 threads for background file closing
-  updating the branch cache
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  bundle2-input-part: total payload size 120096 (no-zstd !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
-  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
-  bundle2-input-part: total payload size 117257 (zstd no-rust no-bigendian !)
-  bundle2-input-part: total payload size 117425 (zstd rust no-bigendian !)
-  bundle2-input-part: total payload size 117252 (zstd bigendian no-rust !)
-  bundle2-input-part: total payload size 117420 (zstd bigendian rust !)
-  bundle2-input-part: "listkeys" (params: 1 mandatory) supported
-  bundle2-input-bundle: 2 parts total
-  checking for updated bookmarks
-  updating the branch cache
-  (sent 3 HTTP requests and * bytes; received * bytes in responses) (glob)
-#endif
+  starting 4 threads for background file closing (no-stream-legacy !)
+  $ hg verify -R clone-background --quiet
 
 Cannot stream clone when there are secret changesets
 
