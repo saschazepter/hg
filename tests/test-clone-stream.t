@@ -109,14 +109,18 @@ Check that the clone went well
 Check uncompressed
 ==================
 
-Cannot stream clone when server.uncompressed is set
+Cannot stream clone when server.uncompressed is set to false
+------------------------------------------------------------
+
+When `server.uncompressed` is disabled, the client should fallback to a bundle
+based clone with a warning.
+
 
   $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=stream_out'
   200 Script output follows
   
   1
 
-#if stream-legacy
   $ hg debugcapabilities http://localhost:$HGPORT
   Main capabilities:
     batch
@@ -167,159 +171,6 @@ Cannot stream clone when server.uncompressed is set
   adding file changes
   added 3 changesets with 1088 changes to 1088 files
   new changesets 96ee1d7354c4:5223b5e3265f
-
-  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=getbundle' content-type --bodyfile body --hgproto 0.2 --requestheader "x-hgarg-1=bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%252C03%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Aphases%253Dheads%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps&cg=0&common=0000000000000000000000000000000000000000&heads=c17445101a72edac06facd130d14808dfbd5c7c2&stream=1"
-  200 Script output follows
-  content-type: application/mercurial-0.2
-  
-
-  $ f --size body --hexdump --bytes 100
-  body: size=140
-  0000: 04 6e 6f 6e 65 48 47 32 30 00 00 00 00 00 00 00 |.noneHG20.......|
-  0010: 73 0b 45 52 52 4f 52 3a 41 42 4f 52 54 00 00 00 |s.ERROR:ABORT...|
-  0020: 00 01 01 07 3c 04 16 6d 65 73 73 61 67 65 73 74 |....<..messagest|
-  0030: 72 65 61 6d 20 64 61 74 61 20 72 65 71 75 65 73 |ream data reques|
-  0040: 74 65 64 20 62 75 74 20 73 65 72 76 65 72 20 64 |ted but server d|
-  0050: 6f 65 73 20 6e 6f 74 20 61 6c 6c 6f 77 20 74 68 |oes not allow th|
-  0060: 69 73 20 66                                     |is f|
-
-#endif
-#if stream-bundle2-v2
-  $ hg debugcapabilities http://localhost:$HGPORT
-  Main capabilities:
-    batch
-    branchmap
-    $USUAL_BUNDLE2_CAPS_SERVER$
-    changegroupsubset
-    compression=$BUNDLE2_COMPRESSIONS$
-    getbundle
-    httpheader=1024
-    httpmediatype=0.1rx,0.1tx,0.2tx
-    known
-    lookup
-    pushkey
-    unbundle=HG10GZ,HG10BZ,HG10UN
-    unbundlehash
-  Bundle2 capabilities:
-    HG20
-    bookmarks
-    changegroup
-      01
-      02
-      03
-    checkheads
-      related
-    digests
-      md5
-      sha1
-      sha512
-    error
-      abort
-      unsupportedcontent
-      pushraced
-      pushkey
-    hgtagsfnodes
-    listkeys
-    phases
-      heads
-    pushkey
-    remote-changegroup
-      http
-      https
-
-  $ hg clone --stream -U http://localhost:$HGPORT server-disabled
-  warning: stream clone requested but server has them disabled
-  requesting all changes
-  adding changesets
-  adding manifests
-  adding file changes
-  added 3 changesets with 1088 changes to 1088 files
-  new changesets 96ee1d7354c4:5223b5e3265f
-
-  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=getbundle' content-type --bodyfile body --hgproto 0.2 --requestheader "x-hgarg-1=bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%252C03%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Aphases%253Dheads%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps&cg=0&common=0000000000000000000000000000000000000000&heads=c17445101a72edac06facd130d14808dfbd5c7c2&stream=1"
-  200 Script output follows
-  content-type: application/mercurial-0.2
-  
-
-  $ f --size body --hexdump --bytes 100
-  body: size=140
-  0000: 04 6e 6f 6e 65 48 47 32 30 00 00 00 00 00 00 00 |.noneHG20.......|
-  0010: 73 0b 45 52 52 4f 52 3a 41 42 4f 52 54 00 00 00 |s.ERROR:ABORT...|
-  0020: 00 01 01 07 3c 04 16 6d 65 73 73 61 67 65 73 74 |....<..messagest|
-  0030: 72 65 61 6d 20 64 61 74 61 20 72 65 71 75 65 73 |ream data reques|
-  0040: 74 65 64 20 62 75 74 20 73 65 72 76 65 72 20 64 |ted but server d|
-  0050: 6f 65 73 20 6e 6f 74 20 61 6c 6c 6f 77 20 74 68 |oes not allow th|
-  0060: 69 73 20 66                                     |is f|
-
-#endif
-#if stream-bundle2-v3
-  $ hg debugcapabilities http://localhost:$HGPORT
-  Main capabilities:
-    batch
-    branchmap
-    $USUAL_BUNDLE2_CAPS_SERVER$
-    changegroupsubset
-    compression=$BUNDLE2_COMPRESSIONS$
-    getbundle
-    httpheader=1024
-    httpmediatype=0.1rx,0.1tx,0.2tx
-    known
-    lookup
-    pushkey
-    unbundle=HG10GZ,HG10BZ,HG10UN
-    unbundlehash
-  Bundle2 capabilities:
-    HG20
-    bookmarks
-    changegroup
-      01
-      02
-      03
-    checkheads
-      related
-    digests
-      md5
-      sha1
-      sha512
-    error
-      abort
-      unsupportedcontent
-      pushraced
-      pushkey
-    hgtagsfnodes
-    listkeys
-    phases
-      heads
-    pushkey
-    remote-changegroup
-      http
-      https
-
-  $ hg clone --stream -U http://localhost:$HGPORT server-disabled
-  warning: stream clone requested but server has them disabled
-  requesting all changes
-  adding changesets
-  adding manifests
-  adding file changes
-  added 3 changesets with 1088 changes to 1088 files
-  new changesets 96ee1d7354c4:5223b5e3265f
-
-  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=getbundle' content-type --bodyfile body --hgproto 0.2 --requestheader "x-hgarg-1=bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%252C03%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Aphases%253Dheads%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps&cg=0&common=0000000000000000000000000000000000000000&heads=c17445101a72edac06facd130d14808dfbd5c7c2&stream=1"
-  200 Script output follows
-  content-type: application/mercurial-0.2
-  
-
-  $ f --size body --hexdump --bytes 100
-  body: size=140
-  0000: 04 6e 6f 6e 65 48 47 32 30 00 00 00 00 00 00 00 |.noneHG20.......|
-  0010: 73 0b 45 52 52 4f 52 3a 41 42 4f 52 54 00 00 00 |s.ERROR:ABORT...|
-  0020: 00 01 01 07 3c 04 16 6d 65 73 73 61 67 65 73 74 |....<..messagest|
-  0030: 72 65 61 6d 20 64 61 74 61 20 72 65 71 75 65 73 |ream data reques|
-  0040: 74 65 64 20 62 75 74 20 73 65 72 76 65 72 20 64 |ted but server d|
-  0050: 6f 65 73 20 6e 6f 74 20 61 6c 6c 6f 77 20 74 68 |oes not allow th|
-  0060: 69 73 20 66                                     |is f|
-
-#endif
 
   $ killdaemons.py
   $ cd server
