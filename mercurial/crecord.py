@@ -1563,7 +1563,6 @@ class curseschunkselector:
     def sigwinchhandler(self, n, frame):
         """handle window resizing"""
         try:
-            curses.endwin()
             self.xscreensize, self.yscreensize = scmutil.termsize(self.ui)
             self.statuswin.resize(self.numstatuslines, self.xscreensize)
             self.numpadlines = self.getnumlinesdisplayed(ignorefolding=True) + 1
@@ -1694,7 +1693,6 @@ smaller changesets. the following are valid keystrokes:
 
         curses.raw()
         curses.def_prog_mode()
-        curses.endwin()
         self.commenttext = self.ui.edit(self.commenttext, self.ui.username())
         curses.cbreak()
         self.stdscr.refresh()
