@@ -1160,6 +1160,19 @@ name = "[^:]*:required"
 default = false
 generic = true
 
+
+# The format section is dedicated to control of the repository on disk format
+# and constraints.
+#
+# A format change affects which data is expected to be stored in the repository
+# and how. It impacts other client whichever their version are, format change
+# often comes with an associated entry in the requirements.
+#
+# The option are usually in the form `use-xxx-yyy` (with xxx-yy the feature name).
+#
+# To configure details of how the repository is accessed, without affect the
+# repository formats, see the `storage section`.
+
 [[items]]
 section = "format"
 name = "bookmarks-in-store"
@@ -2101,6 +2114,15 @@ section = "sparse"
 name = "missingwarning"
 default = true
 experimental = true
+
+
+# The "storage" section house config options that change how the repository
+# data are accessed by  the current process but does not affects the on disk
+# format. They can also adjust how the storage is computed, but without affect
+# compatibility wither other clients.
+#
+# For deeper format change, see the `format` section.
+
 
 [[items]]
 section = "storage"
