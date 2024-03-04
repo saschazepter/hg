@@ -2,8 +2,8 @@
 
 #if mmap
   $ cat <<EOF >> $HGRCPATH
-  > [format]
-  > mmap-revbranchcache=true
+  > [storage]
+  > revbranchcache.mmap=true
   > EOF
 #endif
 
