@@ -2132,6 +2132,11 @@ experimental = true  # experimental as long as format.use-dirstate-v2 is.
 
 [[items]]
 section = "storage"
+name = "revbranchcache.mmap"
+default = true
+
+[[items]]
+section = "storage"
 name = "new-repo-backend"
 default = "revlogv1"
 experimental = true
@@ -2935,8 +2940,3 @@ section = "blackbox"
 name = "date-format"
 default = ""
 in_core_extension = "blackbox"
-
-[[items]]
-section = "format"
-name = "mmap-revbranchcache"
-default = false
