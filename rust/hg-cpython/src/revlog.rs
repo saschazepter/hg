@@ -854,7 +854,7 @@ impl Index {
     ) -> PyResult<PyObject> {
         let begin = begin.extract::<BaseRevision>(py)?;
         let end = end.extract::<BaseRevision>(py)?;
-        let index = &mut *self.index(py).borrow_mut();
+        let index = &*self.index(py).borrow();
         let begin =
             Self::check_revision(index, UncheckedRevision(begin - 1), py)?;
         let end = Self::check_revision(index, UncheckedRevision(end - 1), py)?;
