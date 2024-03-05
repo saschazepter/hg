@@ -873,7 +873,7 @@ impl Index {
         py: Python,
         filtered_revs: &PyObject,
     ) -> PyResult<PyObject> {
-        let index = &mut *self.index(py).borrow_mut();
+        let index = &*self.index(py).borrow();
         let filtered_revs = rev_pyiter_collect(py, filtered_revs, index)?;
 
         if let Some(new_heads) = index
