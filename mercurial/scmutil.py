@@ -377,12 +377,17 @@ def filteredhash(repo, maxrev, needobsolete=False):
     if not result:
         revs = sorted(r for r in cl.filteredrevs | obsrevs if r <= maxrev)
         if revs:
-            s = hashutil.sha1()
-            for rev in revs:
-                s.update(b'%d;' % rev)
-            result = s.digest()
+            result = _hash_revs(revs)
             cl._filteredrevs_hashcache[key] = result
     return result
+
+
+def _hash_revs(revs):
+    """return a hash from a list of revision numbers"""
+    s = hashutil.sha1()
+    for rev in revs:
+        s.update(b'%d;' % rev)
+    return s.digest()
 
 
 def walkrepos(path, followsym=False, seen_dirs=None, recurse=False):
