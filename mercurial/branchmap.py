@@ -288,6 +288,7 @@ class _BaseBranchCache:
         obsrevs = obsolete.getrevs(repo, b'obsolete')
         # collect new branch entries
         newbranches = {}
+        new_closed = set()
         obs_ignored = set()
         getbranchinfo = repo.revbranchcache().branchinfo
         max_rev = -1
@@ -301,7 +302,7 @@ class _BaseBranchCache:
             branch, closesbranch = getbranchinfo(r)
             newbranches.setdefault(branch, []).append(r)
             if closesbranch:
-                self._closednodes.add(cl.node(r))
+                new_closed.add(r)
         if max_rev < 0:
             msg = "running branchcache.update without revision to update"
             raise error.ProgrammingError(msg)
@@ -390,6 +391,8 @@ class _BaseBranchCache:
                         bheadset -= ancestors
             if bheadset:
                 self[branch] = [cl.node(rev) for rev in sorted(bheadset)]
+
+        self._closednodes.update(cl.node(rev) for rev in new_closed)
 
         duration = util.timer() - starttime
         repo.ui.log(
