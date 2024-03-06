@@ -375,11 +375,28 @@ def filteredhash(repo, maxrev, needobsolete=False):
 
     result = cl._filteredrevs_hashcache.get(key)
     if not result:
-        revs = sorted(r for r in cl.filteredrevs | obsrevs if r <= maxrev)
+        revs, obs_revs = _filtered_and_obs_revs(repo, maxrev)
+        if needobsolete:
+            revs = revs | obs_revs
+        revs = sorted(revs)
         if revs:
             result = _hash_revs(revs)
             cl._filteredrevs_hashcache[key] = result
     return result
+
+
+def _filtered_and_obs_revs(repo, max_rev):
+    """return the set of filtered and non-filtered obsolete revision"""
+    cl = repo.changelog
+    obs_set = obsolete.getrevs(repo, b'obsolete')
+    filtered_set = cl.filteredrevs
+    if cl.filteredrevs:
+        obs_set = obs_set - cl.filteredrevs
+    if max_rev < (len(cl) - 1):
+        # there might be revision to filter out
+        filtered_set = set(r for r in filtered_set if r <= max_rev)
+        obs_set = set(r for r in obs_set if r <= max_rev)
+    return (filtered_set, obs_set)
 
 
 def _hash_revs(revs):
