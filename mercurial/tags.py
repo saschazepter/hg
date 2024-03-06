@@ -433,7 +433,11 @@ def _readtagcache(ui, repo):
     if (
         cacherev == tiprev
         and cachenode == tipnode
-        and cachehash == scmutil.filteredhash(repo, tiprev)
+        and cachehash
+        == scmutil.combined_filtered_and_obsolete_hash(
+            repo,
+            tiprev,
+        )
     ):
         tags = _readtags(ui, repo, cachelines, cachefile.name)
         cachefile.close()
@@ -441,7 +445,14 @@ def _readtagcache(ui, repo):
     if cachefile:
         cachefile.close()  # ignore rest of file
 
-    valid = (tiprev, tipnode, scmutil.filteredhash(repo, tiprev))
+    valid = (
+        tiprev,
+        tipnode,
+        scmutil.combined_filtered_and_obsolete_hash(
+            repo,
+            tiprev,
+        ),
+    )
 
     repoheads = repo.heads()
     # Case 2 (uncommon): empty repo; get out quickly and don't bother
