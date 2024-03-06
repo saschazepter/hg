@@ -349,7 +349,7 @@ class casecollisionauditor:
         self._newfiles.add(f)
 
 
-def filteredhash(repo, maxrev, needobsolete=False):
+def combined_filtered_and_obsolete_hash(repo, maxrev, needobsolete=False):
     """build hash of filtered revisions in the current repoview.
 
     Multiple caches perform up-to-date validation by checking that the

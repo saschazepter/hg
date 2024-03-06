@@ -466,7 +466,11 @@ class _LocalBranchCache(_BaseBranchCache):
             # tiprev doesn't correspond to tipnode: repo was stripped, or this
             # repo has a different order of changesets
             return False
-        tiphash = scmutil.filteredhash(repo, self.tiprev, needobsolete=True)
+        tiphash = scmutil.combined_filtered_and_obsolete_hash(
+            repo,
+            self.tiprev,
+            needobsolete=True,
+        )
         # hashes don't match if this repo view has a different set of filtered
         # revisions (e.g. due to phase changes) or obsolete revisions (e.g.
         # history was rewritten)
@@ -710,8 +714,10 @@ class _LocalBranchCache(_BaseBranchCache):
             # However. we've just updated the cache and we assume it's valid,
             # so let's make the cache key valid as well by recomputing it from
             # the cached data
-            self.filteredhash = scmutil.filteredhash(
-                repo, self.tiprev, needobsolete=True
+            self.filteredhash = scmutil.combined_filtered_and_obsolete_hash(
+                repo,
+                self.tiprev,
+                needobsolete=True,
             )
 
         self._state = STATE_DIRTY
