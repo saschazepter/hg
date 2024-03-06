@@ -25,6 +25,7 @@ from typing import (
     TYPE_CHECKING,
     Tuple,
     Union,
+    cast,
 )
 
 from . import (
@@ -409,6 +410,7 @@ class _LocalBranchCache(_BaseBranchCache):
     """base class of branch-map info for a local repo or repoview"""
 
     _base_filename = None
+    _default_key_hashes: Tuple[bytes] = cast(Tuple[bytes], ())
 
     def __init__(
         self,
@@ -418,7 +420,7 @@ class _LocalBranchCache(_BaseBranchCache):
         ] = (),
         tipnode: Optional[bytes] = None,
         tiprev: Optional[int] = nullrev,
-        filteredhash: Optional[bytes] = None,
+        key_hashes: Optional[Tuple[bytes]] = None,
         closednodes: Optional[Set[bytes]] = None,
         hasnode: Optional[Callable[[bytes], bool]] = None,
         verify_node: bool = False,
@@ -433,7 +435,10 @@ class _LocalBranchCache(_BaseBranchCache):
         else:
             self.tipnode = tipnode
         self.tiprev = tiprev
-        self.filteredhash = filteredhash
+        if key_hashes is None:
+            self.key_hashes = self._default_key_hashes
+        else:
+            self.key_hashes = key_hashes
         self._state = STATE_CLEAN
         if inherited:
             self._state = STATE_INHERITED
@@ -451,6 +456,9 @@ class _LocalBranchCache(_BaseBranchCache):
         if self._verify_node:
             self._hasnode = repo.changelog.hasnode
 
+    def _compute_key_hashes(self, repo) -> Tuple[bytes]:
+        raise NotImplementedError
+
     def validfor(self, repo):
         """check that cache contents are valid for (a subset of) this repo
 
@@ -466,15 +474,11 @@ class _LocalBranchCache(_BaseBranchCache):
             # tiprev doesn't correspond to tipnode: repo was stripped, or this
             # repo has a different order of changesets
             return False
-        tiphash = scmutil.combined_filtered_and_obsolete_hash(
-            repo,
-            self.tiprev,
-            needobsolete=True,
-        )
+        repo_key_hashes = self._compute_key_hashes(repo)
         # hashes don't match if this repo view has a different set of filtered
         # revisions (e.g. due to phase changes) or obsolete revisions (e.g.
         # history was rewritten)
-        return self.filteredhash == tiphash
+        return self.key_hashes == repo_key_hashes
 
     @classmethod
     def fromfile(cls, repo):
@@ -513,21 +517,7 @@ class _LocalBranchCache(_BaseBranchCache):
 
     @classmethod
     def _load_header(cls, repo, lineiter) -> "dict[str, Any]":
-        """parse the head of a branchmap file
-
-        return parameters to pass to a newly created class instance.
-        """
-        cachekey = next(lineiter).rstrip(b'\n').split(b" ", 2)
-        last, lrev = cachekey[:2]
-        last, lrev = bin(last), int(lrev)
-        filteredhash = None
-        if len(cachekey) > 2:
-            filteredhash = bin(cachekey[2])
-        return {
-            "tipnode": last,
-            "tiprev": lrev,
-            "filteredhash": filteredhash,
-        }
+        raise NotImplementedError
 
     def _load_heads(self, repo, lineiter):
         """fully loads the branchcache by reading from the file using the line
@@ -565,7 +555,7 @@ class _LocalBranchCache(_BaseBranchCache):
             entries=self._entries,
             tipnode=self.tipnode,
             tiprev=self.tiprev,
-            filteredhash=self.filteredhash,
+            key_hashes=self.key_hashes,
             closednodes=set(self._closednodes),
             verify_node=self._verify_node,
             inherited=True,
@@ -621,11 +611,7 @@ class _LocalBranchCache(_BaseBranchCache):
             )
 
     def _write_header(self, fp) -> None:
-        """write the branch cache header to a file"""
-        cachekey = [hex(self.tipnode), b'%d' % self.tiprev]
-        if self.filteredhash is not None:
-            cachekey.append(hex(self.filteredhash))
-        fp.write(b" ".join(cachekey) + b'\n')
+        raise NotImplementedError
 
     def _write_heads(self, fp) -> int:
         """write list of heads to a file
@@ -714,10 +700,10 @@ class _LocalBranchCache(_BaseBranchCache):
             # However. we've just updated the cache and we assume it's valid,
             # so let's make the cache key valid as well by recomputing it from
             # the cached data
+            self.key_hashes = self._compute_key_hashes(repo)
             self.filteredhash = scmutil.combined_filtered_and_obsolete_hash(
                 repo,
                 self.tiprev,
-                needobsolete=True,
             )
 
         self._state = STATE_DIRTY
@@ -772,6 +758,43 @@ class BranchCacheV2(_LocalBranchCache):
 
     _base_filename = b"branch2"
 
+    @classmethod
+    def _load_header(cls, repo, lineiter) -> "dict[str, Any]":
+        """parse the head of a branchmap file
+
+        return parameters to pass to a newly created class instance.
+        """
+        cachekey = next(lineiter).rstrip(b'\n').split(b" ", 2)
+        last, lrev = cachekey[:2]
+        last, lrev = bin(last), int(lrev)
+        filteredhash = ()
+        if len(cachekey) > 2:
+            filteredhash = (bin(cachekey[2]),)
+        return {
+            "tipnode": last,
+            "tiprev": lrev,
+            "key_hashes": filteredhash,
+        }
+
+    def _write_header(self, fp) -> None:
+        """write the branch cache header to a file"""
+        cachekey = [hex(self.tipnode), b'%d' % self.tiprev]
+        if self.key_hashes:
+            cachekey.append(hex(self.key_hashes[0]))
+        fp.write(b" ".join(cachekey) + b'\n')
+
+    def _compute_key_hashes(self, repo) -> Tuple[bytes]:
+        """return the cache key hashes that match this repoview state"""
+        filtered_hash = scmutil.combined_filtered_and_obsolete_hash(
+            repo,
+            self.tiprev,
+            needobsolete=True,
+        )
+        keys: Tuple[bytes] = cast(Tuple[bytes], ())
+        if filtered_hash is not None:
+            keys: Tuple[bytes] = (filtered_hash,)
+        return keys
+
 
 class BranchCacheV3(_LocalBranchCache):
     """a branch cache using version 3 of the format on disk
@@ -811,8 +834,8 @@ class BranchCacheV3(_LocalBranchCache):
             b"tip-node": hex(self.tipnode),
             b"tip-rev": b'%d' % self.tiprev,
         }
-        if self.filteredhash is not None:
-            cache_keys[b"filtered-hash"] = hex(self.filteredhash)
+        if self.key_hashes:
+            cache_keys[b"filtered-hash"] = hex(self.key_hashes[0])
         pieces = (b"%s=%s" % i for i in sorted(cache_keys.items()))
         fp.write(b" ".join(pieces) + b'\n')
 
@@ -829,11 +852,23 @@ class BranchCacheV3(_LocalBranchCache):
             elif k == b"tip-node":
                 args["tipnode"] = bin(v)
             elif k == b"filtered-hash":
-                args["filteredhash"] = bin(v)
+                args["key_hashes"] = (bin(v),)
             else:
                 msg = b"unknown cache key: %r" % k
                 raise ValueError(msg)
         return args
+
+    def _compute_key_hashes(self, repo) -> Tuple[bytes]:
+        """return the cache key hashes that match this repoview state"""
+        filtered_hash = scmutil.combined_filtered_and_obsolete_hash(
+            repo,
+            self.tiprev,
+            needobsolete=True,
+        )
+        if filtered_hash is None:
+            return cast(Tuple[bytes], ())
+        else:
+            return (filtered_hash,)
 
 
 class remotebranchcache(_BaseBranchCache):
