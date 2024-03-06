@@ -307,13 +307,46 @@ class _BaseBranchCache:
             msg = "running branchcache.update without revision to update"
             raise error.ProgrammingError(msg)
 
+        self._process_new(
+            repo,
+            newbranches,
+            new_closed,
+            obs_ignored,
+            max_rev,
+        )
+
+        self._closednodes.update(cl.node(rev) for rev in new_closed)
+
+        duration = util.timer() - starttime
+        repo.ui.log(
+            b'branchcache',
+            b'updated %s in %.4f seconds\n',
+            _branchcachedesc(repo),
+            duration,
+        )
+        return max_rev
+
+    def _process_new(
+        self,
+        repo,
+        newbranches,
+        new_closed,
+        obs_ignored,
+        max_rev,
+    ):
+        """update the branchmap from a set of new information"""
         # Delay fetching the topological heads until they are needed.
         # A repository without non-continous branches can skip this part.
         topoheads = None
 
+        cl = repo.changelog
+        getbranchinfo = repo.revbranchcache().branchinfo
+        # Faster than using ctx.obsolete()
+        obsrevs = obsolete.getrevs(repo, b'obsolete')
+
         # If a changeset is visible, its parents must be visible too, so
         # use the faster unfiltered parent accessor.
-        parentrevs = repo.unfiltered().changelog.parentrevs
+        parentrevs = cl._uncheckedparentrevs
 
         for branch, newheadrevs in newbranches.items():
             # For every branch, compute the new branchheads.
@@ -391,17 +424,6 @@ class _BaseBranchCache:
                         bheadset -= ancestors
             if bheadset:
                 self[branch] = [cl.node(rev) for rev in sorted(bheadset)]
-
-        self._closednodes.update(cl.node(rev) for rev in new_closed)
-
-        duration = util.timer() - starttime
-        repo.ui.log(
-            b'branchcache',
-            b'updated %s in %.4f seconds\n',
-            _branchcachedesc(repo),
-            duration,
-        )
-        return max_rev
 
 
 STATE_CLEAN = 1
