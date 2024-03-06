@@ -22,12 +22,21 @@ See also: test-obsolete-checkheads.t
   > [experimental]
   > branch-cache-v3=yes
   > EOF
+  $ CACHE_PREFIX=branch3
 #else
   $ cat <<EOF >> $HGRCPATH
   > [experimental]
   > branch-cache-v3=no
   > EOF
+  $ CACHE_PREFIX=branch2
 #endif
+
+  $ show_cache() {
+  >     for cache_file in .hg/cache/$CACHE_PREFIX*; do
+  >         echo "##### $cache_file"
+  >         cat $cache_file
+  >     done
+  > }
 
 Setup graph
 #############
@@ -139,6 +148,19 @@ Absolete a couple of changes
   $ hg heads -T '{desc}\n'
   A_3
   B_1
+#if v2
+  $ show_cache
+  ##### .hg/cache/branch2-served
+  7c29ff2453bf38c75ee8982935739103c38a9284 7 f8006d64a10d35c011a5c5fa88be1e25c5929514
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#else
+  $ show_cache
+  ##### .hg/cache/branch3-served
+  filtered-hash=f8006d64a10d35c011a5c5fa88be1e25c5929514 tip-node=7c29ff2453bf38c75ee8982935739103c38a9284 tip-rev=7
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#endif
   $ cd ..
 
 
@@ -175,6 +197,27 @@ Revealing tipmost changeset
   $ hg heads -T '{desc}\n'
   A_3
   B_1
+#if v2
+  $ show_cache
+  ##### .hg/cache/branch2
+  3d808bbc94408ea19da905596d4079357a1f28be 8 a943c3355ad9e93654d58b1c934c7c4329a5d1d4
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+  ##### .hg/cache/branch2-served
+  3d808bbc94408ea19da905596d4079357a1f28be 8 a943c3355ad9e93654d58b1c934c7c4329a5d1d4
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#else
+  $ show_cache
+  ##### .hg/cache/branch3
+  filtered-hash=a943c3355ad9e93654d58b1c934c7c4329a5d1d4 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+  ##### .hg/cache/branch3-served
+  filtered-hash=a943c3355ad9e93654d58b1c934c7c4329a5d1d4 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#endif
 
 Even when computing branches from scratch
 
@@ -183,6 +226,19 @@ Even when computing branches from scratch
   $ hg heads -T '{desc}\n'
   A_3
   B_1
+#if v2
+  $ show_cache
+  ##### .hg/cache/branch2-served
+  3d808bbc94408ea19da905596d4079357a1f28be 8 a943c3355ad9e93654d58b1c934c7c4329a5d1d4
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#else
+  $ show_cache
+  ##### .hg/cache/branch3-served
+  filtered-hash=a943c3355ad9e93654d58b1c934c7c4329a5d1d4 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#endif
 
 And we can get back to normal
 
@@ -190,6 +246,19 @@ And we can get back to normal
   $ hg heads -T '{desc}\n'
   A_3
   B_1
+#if v2
+  $ show_cache
+  ##### .hg/cache/branch2-served
+  7c29ff2453bf38c75ee8982935739103c38a9284 7 f8006d64a10d35c011a5c5fa88be1e25c5929514
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#else
+  $ show_cache
+  ##### .hg/cache/branch3-served
+  filtered-hash=f8006d64a10d35c011a5c5fa88be1e25c5929514 tip-node=7c29ff2453bf38c75ee8982935739103c38a9284 tip-rev=7
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#endif
 
   $ cd ..
   $ rm -rf tmp-repo
@@ -222,6 +291,27 @@ Check that revealing an obsolete changeset does not confuse branch computation a
   $ hg heads -T '{desc}\n'
   A_3
   B_1
+#if v2
+  $ show_cache
+  ##### .hg/cache/branch2
+  3d808bbc94408ea19da905596d4079357a1f28be 8 a943c3355ad9e93654d58b1c934c7c4329a5d1d4
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+  ##### .hg/cache/branch2-served
+  7c29ff2453bf38c75ee8982935739103c38a9284 7 f8006d64a10d35c011a5c5fa88be1e25c5929514
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#else
+  $ show_cache
+  ##### .hg/cache/branch3
+  filtered-hash=a943c3355ad9e93654d58b1c934c7c4329a5d1d4 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+  ##### .hg/cache/branch3-served
+  filtered-hash=f8006d64a10d35c011a5c5fa88be1e25c5929514 tip-node=7c29ff2453bf38c75ee8982935739103c38a9284 tip-rev=7
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#endif
 
 Even when computing branches from scratch
 
@@ -230,6 +320,19 @@ Even when computing branches from scratch
   $ hg heads -T '{desc}\n'
   A_3
   B_1
+#if v2
+  $ show_cache
+  ##### .hg/cache/branch2-served
+  7c29ff2453bf38c75ee8982935739103c38a9284 7 f8006d64a10d35c011a5c5fa88be1e25c5929514
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#else
+  $ show_cache
+  ##### .hg/cache/branch3-served
+  filtered-hash=f8006d64a10d35c011a5c5fa88be1e25c5929514 tip-node=7c29ff2453bf38c75ee8982935739103c38a9284 tip-rev=7
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#endif
 
 And we can get back to normal
 
@@ -237,6 +340,19 @@ And we can get back to normal
   $ hg heads -T '{desc}\n'
   A_3
   B_1
+#if v2
+  $ show_cache
+  ##### .hg/cache/branch2-served
+  7c29ff2453bf38c75ee8982935739103c38a9284 7 f8006d64a10d35c011a5c5fa88be1e25c5929514
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#else
+  $ show_cache
+  ##### .hg/cache/branch3-served
+  filtered-hash=f8006d64a10d35c011a5c5fa88be1e25c5929514 tip-node=7c29ff2453bf38c75ee8982935739103c38a9284 tip-rev=7
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#endif
 
   $ cd ..
   $ rm -rf tmp-repo
@@ -280,6 +396,19 @@ branch head are okay
   $ hg heads -T '{desc}\n'
   A_3
   B_4
+#if v2
+  $ show_cache
+  ##### .hg/cache/branch2-served
+  3d808bbc94408ea19da905596d4079357a1f28be 8 ac5282439f301518f362f37547fcd52bcc670373
+  63ba7cd843d1e95aac1a24435befeb1909c53619 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#else
+  $ show_cache
+  ##### .hg/cache/branch3-served
+  filtered-hash=ac5282439f301518f362f37547fcd52bcc670373 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  63ba7cd843d1e95aac1a24435befeb1909c53619 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#endif
 
 Even when computing branches from scratch
 
@@ -288,6 +417,19 @@ Even when computing branches from scratch
   $ hg heads -T '{desc}\n'
   A_3
   B_4
+#if v2
+  $ show_cache
+  ##### .hg/cache/branch2-served
+  3d808bbc94408ea19da905596d4079357a1f28be 8 ac5282439f301518f362f37547fcd52bcc670373
+  63ba7cd843d1e95aac1a24435befeb1909c53619 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#else
+  $ show_cache
+  ##### .hg/cache/branch3-served
+  filtered-hash=ac5282439f301518f362f37547fcd52bcc670373 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  63ba7cd843d1e95aac1a24435befeb1909c53619 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#endif
 
 And we can get back to normal
 
@@ -295,6 +437,19 @@ And we can get back to normal
   $ hg heads -T '{desc}\n'
   A_3
   B_4
+#if v2
+  $ show_cache
+  ##### .hg/cache/branch2-served
+  7c29ff2453bf38c75ee8982935739103c38a9284 7
+  63ba7cd843d1e95aac1a24435befeb1909c53619 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#else
+  $ show_cache
+  ##### .hg/cache/branch3-served
+  tip-node=7c29ff2453bf38c75ee8982935739103c38a9284 tip-rev=7
+  63ba7cd843d1e95aac1a24435befeb1909c53619 o default
+  7c29ff2453bf38c75ee8982935739103c38a9284 o default
+#endif
 
   $ cd ..
   $ rm -rf tmp-repo
@@ -327,6 +482,20 @@ Getting the obsolescence marker after the fact for another rev
   $ hg heads -T '{desc}\n'
   A_4
   B_4
+#if v2
+  $ show_cache
+  ##### .hg/cache/branch2-served
+  3d808bbc94408ea19da905596d4079357a1f28be 8
+  63ba7cd843d1e95aac1a24435befeb1909c53619 o default
+  3d808bbc94408ea19da905596d4079357a1f28be o default
+#else
+  $ show_cache
+  ##### .hg/cache/branch3-served
+  tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  63ba7cd843d1e95aac1a24435befeb1909c53619 o default
+  3d808bbc94408ea19da905596d4079357a1f28be o default
+#endif
+
   $ hg pull --rev `cat ../main-single-branch-node_B4` --remote-hidden
   pulling from $TESTTMP/main-single-branch
   no changes found
@@ -338,6 +507,19 @@ branch head are okay
   $ hg heads -T '{desc}\n'
   A_4
   B_1
+#if v2
+  $ show_cache
+  ##### .hg/cache/branch2-served
+  3d808bbc94408ea19da905596d4079357a1f28be 8 f8006d64a10d35c011a5c5fa88be1e25c5929514
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  3d808bbc94408ea19da905596d4079357a1f28be o default
+#else
+  $ show_cache
+  ##### .hg/cache/branch3-served
+  filtered-hash=f8006d64a10d35c011a5c5fa88be1e25c5929514 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  3d808bbc94408ea19da905596d4079357a1f28be o default
+#endif
 
 Even when computing branches from scratch
 
@@ -346,6 +528,19 @@ Even when computing branches from scratch
   $ hg heads -T '{desc}\n'
   A_4
   B_1
+#if v2
+  $ show_cache
+  ##### .hg/cache/branch2-served
+  3d808bbc94408ea19da905596d4079357a1f28be 8 f8006d64a10d35c011a5c5fa88be1e25c5929514
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  3d808bbc94408ea19da905596d4079357a1f28be o default
+#else
+  $ show_cache
+  ##### .hg/cache/branch3-served
+  filtered-hash=f8006d64a10d35c011a5c5fa88be1e25c5929514 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  3d808bbc94408ea19da905596d4079357a1f28be o default
+#endif
 
 And we can get back to normal
 
@@ -353,6 +548,19 @@ And we can get back to normal
   $ hg heads -T '{desc}\n'
   A_4
   B_1
+#if v2
+  $ show_cache
+  ##### .hg/cache/branch2-served
+  3d808bbc94408ea19da905596d4079357a1f28be 8 f8006d64a10d35c011a5c5fa88be1e25c5929514
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  3d808bbc94408ea19da905596d4079357a1f28be o default
+#else
+  $ show_cache
+  ##### .hg/cache/branch3-served
+  filtered-hash=f8006d64a10d35c011a5c5fa88be1e25c5929514 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  550bb31f072912453ccbb503de1d554616911e88 o default
+  3d808bbc94408ea19da905596d4079357a1f28be o default
+#endif
 
   $ cd ..
   $ rm -rf tmp-repo
