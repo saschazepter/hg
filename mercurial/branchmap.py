@@ -284,16 +284,22 @@ class _BaseBranchCache:
         """
         starttime = util.timer()
         cl = repo.changelog
+        # Faster than using ctx.obsolete()
+        obsrevs = obsolete.getrevs(repo, b'obsolete')
         # collect new branch entries
         newbranches = {}
         getbranchinfo = repo.revbranchcache().branchinfo
         max_rev = -1
         for r in revgen:
+            max_rev = max(max_rev, r)
+            if r in obsrevs:
+                # We ignore obsolete changesets as they shouldn't be
+                # considered heads.
+                continue
             branch, closesbranch = getbranchinfo(r)
             newbranches.setdefault(branch, []).append(r)
             if closesbranch:
                 self._closednodes.add(cl.node(r))
-            max_rev = max(max_rev, r)
         if max_rev < 0:
             msg = "running branchcache.update without revision to update"
             raise error.ProgrammingError(msg)
@@ -305,9 +311,6 @@ class _BaseBranchCache:
         # If a changeset is visible, its parents must be visible too, so
         # use the faster unfiltered parent accessor.
         parentrevs = repo.unfiltered().changelog.parentrevs
-
-        # Faster than using ctx.obsolete()
-        obsrevs = obsolete.getrevs(repo, b'obsolete')
 
         for branch, newheadrevs in newbranches.items():
             # For every branch, compute the new branchheads.
@@ -349,11 +352,6 @@ class _BaseBranchCache:
             bheadset = {cl.rev(node) for node in bheads}
             uncertain = set()
             for newrev in sorted(newheadrevs):
-                if newrev in obsrevs:
-                    # We ignore obsolete changesets as they shouldn't be
-                    # considered heads.
-                    continue
-
                 if not bheadset:
                     bheadset.add(newrev)
                     continue
