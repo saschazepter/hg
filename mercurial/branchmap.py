@@ -288,6 +288,7 @@ class _BaseBranchCache:
         obsrevs = obsolete.getrevs(repo, b'obsolete')
         # collect new branch entries
         newbranches = {}
+        obs_ignored = set()
         getbranchinfo = repo.revbranchcache().branchinfo
         max_rev = -1
         for r in revgen:
@@ -295,6 +296,7 @@ class _BaseBranchCache:
             if r in obsrevs:
                 # We ignore obsolete changesets as they shouldn't be
                 # considered heads.
+                obs_ignored.add(r)
                 continue
             branch, closesbranch = getbranchinfo(r)
             newbranches.setdefault(branch, []).append(r)
