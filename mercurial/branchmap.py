@@ -813,14 +813,16 @@ class BranchCacheV3(_LocalBranchCache):
 
     - tip-rev: the rev-num of the tip-most revision seen by this cache
     - tip-node: the node-id of the tip-most revision sen by this cache
-    - filtered-hash: the hash of all filtered and obsolete revisions (before
+    - filtered-hash: the hash of all filtered revisions (before tip-rev)
+                     ignored by this cache.
+    - obsolete-hash: the hash of all non-filtered obsolete revisions (before
                      tip-rev) ignored by this cache.
 
     The tip-rev is used to know how far behind the value in the file are
     compared to the current repository state.
 
-    The tip-node and filtered-hash are used to detect if this cache can be used
-    for this repository state at all.
+    The tip-node, filtered-hash and obsolete-hash are used to detect if this
+    cache can be used for this repository state at all.
 
     The open/closed state is represented by a single letter 'o' or 'c'.
     This field can be used to avoid changelog reads when determining if a
@@ -828,6 +830,7 @@ class BranchCacheV3(_LocalBranchCache):
     """
 
     _base_filename = b"branch3"
+    _default_key_hashes = (None, None)
 
     def _write_header(self, fp) -> None:
         cache_keys = {
@@ -835,7 +838,10 @@ class BranchCacheV3(_LocalBranchCache):
             b"tip-rev": b'%d' % self.tiprev,
         }
         if self.key_hashes:
-            cache_keys[b"filtered-hash"] = hex(self.key_hashes[0])
+            if self.key_hashes[0] is not None:
+                cache_keys[b"filtered-hash"] = hex(self.key_hashes[0])
+            if self.key_hashes[1] is not None:
+                cache_keys[b"obsolete-hash"] = hex(self.key_hashes[1])
         pieces = (b"%s=%s" % i for i in sorted(cache_keys.items()))
         fp.write(b" ".join(pieces) + b'\n')
 
@@ -846,29 +852,29 @@ class BranchCacheV3(_LocalBranchCache):
         cache_keys = dict(p.split(b'=', 1) for p in pieces)
 
         args = {}
+        filtered_hash = None
+        obsolete_hash = None
         for k, v in cache_keys.items():
             if k == b"tip-rev":
                 args["tiprev"] = int(v)
             elif k == b"tip-node":
                 args["tipnode"] = bin(v)
             elif k == b"filtered-hash":
-                args["key_hashes"] = (bin(v),)
+                filtered_hash = bin(v)
+            elif k == b"obsolete-hash":
+                obsolete_hash = bin(v)
             else:
                 msg = b"unknown cache key: %r" % k
                 raise ValueError(msg)
+        args["key_hashes"] = (filtered_hash, obsolete_hash)
         return args
 
     def _compute_key_hashes(self, repo) -> Tuple[bytes]:
         """return the cache key hashes that match this repoview state"""
-        filtered_hash = scmutil.combined_filtered_and_obsolete_hash(
+        return scmutil.filtered_and_obsolete_hash(
             repo,
             self.tiprev,
-            needobsolete=True,
         )
-        if filtered_hash is None:
-            return cast(Tuple[bytes], ())
-        else:
-            return (filtered_hash,)
 
 
 class remotebranchcache(_BaseBranchCache):
