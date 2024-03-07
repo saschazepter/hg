@@ -594,7 +594,7 @@ class _LocalBranchCache(_BaseBranchCache):
             filename = self._filename(repo)
             with repo.cachevfs(filename, b"w", atomictemp=True) as f:
                 self._write_header(f)
-                nodecount = self._write_heads(f)
+                nodecount = self._write_heads(repo, f)
             repo.ui.log(
                 b'branchcache',
                 b'wrote %s with %d labels and %d nodes\n',
@@ -613,7 +613,7 @@ class _LocalBranchCache(_BaseBranchCache):
     def _write_header(self, fp) -> None:
         raise NotImplementedError
 
-    def _write_heads(self, fp) -> int:
+    def _write_heads(self, repo, fp) -> int:
         """write list of heads to a file
 
         Return the number of heads written."""
@@ -827,10 +827,26 @@ class BranchCacheV3(_LocalBranchCache):
     The open/closed state is represented by a single letter 'o' or 'c'.
     This field can be used to avoid changelog reads when determining if a
     branch head closes a branch or not.
+
+    Topological heads are not included in the listing and should be dispatched
+    on the right branch at read time. Obsolete topological heads should be
+    ignored.
     """
 
     _base_filename = b"branch3"
     _default_key_hashes = (None, None)
+
+    def _get_topo_heads(self, repo) -> List[int]:
+        """returns the topological head of a repoview content up to self.tiprev"""
+        cl = repo.changelog
+        if self.tiprev == nullrev:
+            return []
+        elif self.tiprev == cl.tiprev():
+            return cl.headrevs()
+        else:
+            # XXX passing tiprev as ceiling of cl.headrevs could be faster
+            heads = cl.headrevs(cl.revs(stop=self.tiprev))
+            return heads
 
     def _write_header(self, fp) -> None:
         cache_keys = {
@@ -844,6 +860,27 @@ class BranchCacheV3(_LocalBranchCache):
                 cache_keys[b"obsolete-hash"] = hex(self.key_hashes[1])
         pieces = (b"%s=%s" % i for i in sorted(cache_keys.items()))
         fp.write(b" ".join(pieces) + b'\n')
+
+    def _write_heads(self, repo, fp) -> int:
+        """write list of heads to a file
+
+        Return the number of heads written."""
+        nodecount = 0
+        topo_heads = set(self._get_topo_heads(repo))
+        to_rev = repo.changelog.index.rev
+        for label, nodes in sorted(self._entries.items()):
+            label = encoding.fromlocal(label)
+            for node in nodes:
+                rev = to_rev(node)
+                if rev in topo_heads:
+                    continue
+                if node in self._closednodes:
+                    state = b'c'
+                else:
+                    state = b'o'
+                nodecount += 1
+                fp.write(b"%s %s %s\n" % (hex(node), state, label))
+        return nodecount
 
     @classmethod
     def _load_header(cls, repo, lineiter):
@@ -868,6 +905,28 @@ class BranchCacheV3(_LocalBranchCache):
                 raise ValueError(msg)
         args["key_hashes"] = (filtered_hash, obsolete_hash)
         return args
+
+    def _load_heads(self, repo, lineiter):
+        """fully loads the branchcache by reading from the file using the line
+        iterator passed"""
+        super()._load_heads(repo, lineiter)
+        cl = repo.changelog
+        getbranchinfo = repo.revbranchcache().branchinfo
+        obsrevs = obsolete.getrevs(repo, b'obsolete')
+        to_node = cl.node
+        touched_branch = set()
+        for head in self._get_topo_heads(repo):
+            if head in obsrevs:
+                continue
+            node = to_node(head)
+            branch, closed = getbranchinfo(head)
+            self._entries.setdefault(branch, []).append(node)
+            if closed:
+                self._closednodes.add(node)
+            touched_branch.add(branch)
+        to_rev = cl.index.rev
+        for branch in touched_branch:
+            self._entries[branch].sort(key=to_rev)
 
     def _compute_key_hashes(self, repo) -> Tuple[bytes]:
         """return the cache key hashes that match this repoview state"""
