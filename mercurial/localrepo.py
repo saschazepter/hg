@@ -2924,8 +2924,13 @@ class localrepository:
         if repository.CACHE_BRANCHMAP_SERVED in caches:
             if tr is None or tr.changes[b'origrepolen'] < len(self):
                 self.ui.debug(b'updating the branch cache\n')
-                self._branchcaches.update_disk(self.filtered(b'served'))
-                self._branchcaches.update_disk(self.filtered(b'served.hidden'))
+                dpt = repository.CACHE_BRANCHMAP_DETECT_PURE_TOPO in caches
+                served = self.filtered(b'served')
+                self._branchcaches.update_disk(served, detect_pure_topo=dpt)
+                served_hidden = self.filtered(b'served.hidden')
+                self._branchcaches.update_disk(
+                    served_hidden, detect_pure_topo=dpt
+                )
 
         if repository.CACHE_CHANGELOG_CACHE in caches:
             self.changelog.update_caches(transaction=tr)
@@ -2968,9 +2973,11 @@ class localrepository:
             # even if they haven't explicitly been requested yet (if they've
             # never been used by hg, they won't ever have been written, even if
             # they're a subset of another kind of cache that *has* been used).
+            dpt = repository.CACHE_BRANCHMAP_DETECT_PURE_TOPO in caches
+
             for filt in repoview.filtertable.keys():
                 filtered = self.filtered(filt)
-                self._branchcaches.update_disk(filtered)
+                self._branchcaches.update_disk(filtered, detect_pure_topo=dpt)
 
         # flush all possibly delayed write.
         self._branchcaches.write_dirty(self)
