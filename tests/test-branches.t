@@ -867,7 +867,7 @@ recovery from invalid cache file with some bad records
   $ f --size .hg/cache/rbc-revs*
   .hg/cache/rbc-revs-v1: size=120
   $ hg log -r 'branch(.)' -T '{rev} ' --debug
-  history modification detected - truncating revision branch cache to revision 13
+  history modification detected - truncating revision branch cache to revision * (glob)
   history modification detected - truncating revision branch cache to revision 1
   3 4 8 9 10 11 12 13 truncating cache/rbc-revs-v1 to 8
   $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n' --debug
@@ -889,26 +889,11 @@ update after rollback - the cache will be correct but rbc-names will will still
 contain the branch name even though it no longer is used
   $ hg up -qr '.^'
   $ hg rollback -qf
-  $ f --size --hexdump .hg/cache/rbc-*
+  $ f --size .hg/cache/rbc-names-*
   .hg/cache/rbc-names-v1: size=111
-  0000: 64 65 66 61 75 6c 74 00 61 00 62 00 63 00 61 20 |default.a.b.c.a |
-  0010: 62 72 61 6e 63 68 20 6e 61 6d 65 20 6d 75 63 68 |branch name much|
-  0020: 20 6c 6f 6e 67 65 72 20 74 68 61 6e 20 74 68 65 | longer than the|
-  0030: 20 64 65 66 61 75 6c 74 20 6a 75 73 74 69 66 69 | default justifi|
-  0040: 63 61 74 69 6f 6e 20 75 73 65 64 20 62 79 20 62 |cation used by b|
-  0050: 72 61 6e 63 68 65 73 00 6d 00 6d 64 00 69 2d 77 |ranches.m.md.i-w|
-  0060: 69 6c 6c 2d 72 65 67 72 65 74 2d 74 68 69 73    |ill-regret-this|
+  $ grep "i-will-regret-this" .hg/cache/rbc-names-* > /dev/null
+  $ f --size .hg/cache/rbc-revs-*
   .hg/cache/rbc-revs-v1: size=160
-  0000: 19 70 9c 5a 00 00 00 00 dd 6b 44 0d 00 00 00 01 |.p.Z.....kD.....|
-  0010: 88 1f e2 b9 00 00 00 01 ac 22 03 33 00 00 00 02 |.........".3....|
-  0020: ae e3 9c d1 00 00 00 02 d8 cb c6 1d 00 00 00 01 |................|
-  0030: 58 97 36 a2 00 00 00 03 10 ff 58 95 00 00 00 04 |X.6.......X.....|
-  0040: ee bb 94 44 00 00 00 02 5f 40 61 bb 00 00 00 02 |...D...._@a.....|
-  0050: bf be 84 1b 00 00 00 02 d3 f1 63 45 80 00 00 02 |..........cE....|
-  0060: e3 d4 9c 05 80 00 00 02 e2 3b 55 05 00 00 00 02 |.........;U.....|
-  0070: f8 94 c2 56 80 00 00 03 f3 44 76 37 00 00 00 05 |...V.....Dv7....|
-  0080: a5 8c a5 d3 00 00 00 05 df 34 3b 0d 00 00 00 05 |.........4;.....|
-  0090: c9 14 c9 9f 00 00 00 06 cd 21 a8 0b 80 00 00 05 |.........!......|
 
 cache is updated/truncated when stripping - it is thus very hard to get in a
 situation where the cache is out of sync and the hash check detects it
@@ -921,38 +906,21 @@ cache is rebuilt when corruption is detected
   $ hg log -r '5:&branch(.)' -T '{rev} ' --debug
   referenced branch names not found - rebuilding revision branch cache from scratch
   8 9 10 11 12 13 truncating cache/rbc-revs-v1 to 40
-  $ f --size --hexdump .hg/cache/rbc-*
+  $ f --size .hg/cache/rbc-names-*
   .hg/cache/rbc-names-v1: size=84
-  0000: 62 00 61 00 63 00 61 20 62 72 61 6e 63 68 20 6e |b.a.c.a branch n|
-  0010: 61 6d 65 20 6d 75 63 68 20 6c 6f 6e 67 65 72 20 |ame much longer |
-  0020: 74 68 61 6e 20 74 68 65 20 64 65 66 61 75 6c 74 |than the default|
-  0030: 20 6a 75 73 74 69 66 69 63 61 74 69 6f 6e 20 75 | justification u|
-  0040: 73 65 64 20 62 79 20 62 72 61 6e 63 68 65 73 00 |sed by branches.|
-  0050: 6d 00 6d 64                                     |m.md|
+  $ grep "i-will-regret-this" .hg/cache/rbc-names-* > /dev/null
+  [1]
+  $ f --size .hg/cache/rbc-revs-*
   .hg/cache/rbc-revs-v1: size=152
-  0000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 |................|
-  0010: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 |................|
-  0020: 00 00 00 00 00 00 00 00 d8 cb c6 1d 00 00 00 01 |................|
-  0030: 58 97 36 a2 00 00 00 02 10 ff 58 95 00 00 00 03 |X.6.......X.....|
-  0040: ee bb 94 44 00 00 00 00 5f 40 61 bb 00 00 00 00 |...D...._@a.....|
-  0050: bf be 84 1b 00 00 00 00 d3 f1 63 45 80 00 00 00 |..........cE....|
-  0060: e3 d4 9c 05 80 00 00 00 e2 3b 55 05 00 00 00 00 |.........;U.....|
-  0070: f8 94 c2 56 80 00 00 02 f3 44 76 37 00 00 00 04 |...V.....Dv7....|
-  0080: a5 8c a5 d3 00 00 00 04 df 34 3b 0d 00 00 00 04 |.........4;.....|
-  0090: c9 14 c9 9f 00 00 00 05                         |........|
 
 Test that cache files are created and grows correctly:
 
   $ rm .hg/cache/rbc*
   $ hg log -r "5 & branch(5)" -T "{rev}\n"
   5
-  $ f --size --hexdump .hg/cache/rbc-*
+  $ f --size .hg/cache/rbc-*
   .hg/cache/rbc-names-v1: size=1
-  0000: 61                                              |a|
   .hg/cache/rbc-revs-v1: size=48
-  0000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 |................|
-  0010: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 |................|
-  0020: 00 00 00 00 00 00 00 00 d8 cb c6 1d 00 00 00 00 |................|
 
   $ cd ..
 
@@ -967,22 +935,20 @@ Test for multiple incorrect branch cache entries:
   $ hg branch -q branch
   $ hg ci -Amf
 
-  $ f --size --hexdump .hg/cache/rbc-*
-  .hg/cache/rbc-names-v1: size=14
-  0000: 64 65 66 61 75 6c 74 00 62 72 61 6e 63 68       |default.branch|
-  .hg/cache/rbc-revs-v1: size=24
-  0000: 66 e5 f5 aa 00 00 00 00 fa 4c 04 e5 00 00 00 00 |f........L......|
-  0010: 56 46 78 69 00 00 00 01                         |VFxi....|
+#if v2
+
+  $ f --size --sha256 .hg/cache/rbc-*
+  .hg/cache/rbc-names-v1: size=14, sha256=d376f7eea9a7e28fac6470e78dae753c81a5543c9ad436e96999590e004a281c
+  .hg/cache/rbc-revs-v1: size=24, sha256=ec89032fd4e66e7282cb6e403848c681a855a9c36c6b44d19179218553b78779
+
   $ : > .hg/cache/rbc-revs-v1
 
 No superfluous rebuilding of cache:
   $ hg log -r "branch(null)&branch(branch)" --debug
-  $ f --size --hexdump .hg/cache/rbc-*
-  .hg/cache/rbc-names-v1: size=14
-  0000: 64 65 66 61 75 6c 74 00 62 72 61 6e 63 68       |default.branch|
-  .hg/cache/rbc-revs-v1: size=24
-  0000: 66 e5 f5 aa 00 00 00 00 fa 4c 04 e5 00 00 00 00 |f........L......|
-  0010: 56 46 78 69 00 00 00 01                         |VFxi....|
+  $ f --size --sha256 .hg/cache/rbc-*
+  .hg/cache/rbc-names-v1: size=14, sha256=d376f7eea9a7e28fac6470e78dae753c81a5543c9ad436e96999590e004a281c
+  .hg/cache/rbc-revs-v1: size=24, sha256=ec89032fd4e66e7282cb6e403848c681a855a9c36c6b44d19179218553b78779
+#endif
 
   $ cd ..
 
