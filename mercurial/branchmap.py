@@ -168,7 +168,10 @@ class BranchMapCache:
         unfi = repo.unfiltered()
         for filtername, cache in self._per_filter.items():
             if cache._delayed:
-                repo = unfi.filtered(filtername)
+                if filtername is None:
+                    repo = unfi
+                else:
+                    repo = unfi.filtered(filtername)
                 cache.write(repo)
 
 
