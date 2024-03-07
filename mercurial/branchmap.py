@@ -62,6 +62,7 @@ class BranchMapCache:
     def __getitem__(self, repo):
         self.updatecache(repo)
         bcache = self._per_filter[repo.filtername]
+        bcache._ensure_populated(repo)
         assert bcache._filtername == repo.filtername, (
             bcache._filtername,
             repo.filtername,
@@ -484,6 +485,9 @@ class _LocalBranchCache(_BaseBranchCache):
     def _compute_key_hashes(self, repo) -> Tuple[bytes]:
         raise NotImplementedError
 
+    def _ensure_populated(self, repo):
+        """make sure any lazily loaded values are fully populated"""
+
     def validfor(self, repo):
         """check that cache contents are valid for (a subset of) this repo
 
@@ -861,7 +865,18 @@ class BranchCacheV3(_LocalBranchCache):
     _base_filename = b"branch3"
     _default_key_hashes = (None, None)
 
-    def _get_topo_heads(self, repo) -> List[int]:
+    def __init__(self, *args, pure_topo_branch=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._pure_topo_branch = pure_topo_branch
+        self._needs_populate = self._pure_topo_branch is not None
+
+    def inherit_for(self, repo):
+        new = super().inherit_for(repo)
+        new._pure_topo_branch = self._pure_topo_branch
+        new._needs_populate = self._needs_populate
+        return new
+
+    def _get_topo_heads(self, repo):
         """returns the topological head of a repoview content up to self.tiprev"""
         cl = repo.changelog
         if self.tiprev == nullrev:
@@ -883,22 +898,33 @@ class BranchCacheV3(_LocalBranchCache):
                 cache_keys[b"filtered-hash"] = hex(self.key_hashes[0])
             if self.key_hashes[1] is not None:
                 cache_keys[b"obsolete-hash"] = hex(self.key_hashes[1])
+        if self._pure_topo_branch is not None:
+            cache_keys[b"topo-mode"] = b"pure"
         pieces = (b"%s=%s" % i for i in sorted(cache_keys.items()))
         fp.write(b" ".join(pieces) + b'\n')
+        if self._pure_topo_branch is not None:
+            label = encoding.fromlocal(self._pure_topo_branch)
+            fp.write(label + b'\n')
 
     def _write_heads(self, repo, fp) -> int:
         """write list of heads to a file
 
         Return the number of heads written."""
         nodecount = 0
-        topo_heads = set(self._get_topo_heads(repo))
+        topo_heads = None
+        if self._pure_topo_branch is None:
+            topo_heads = set(self._get_topo_heads(repo))
         to_rev = repo.changelog.index.rev
         for label, nodes in sorted(self._entries.items()):
+            if label == self._pure_topo_branch:
+                # not need to write anything the header took care of that
+                continue
             label = encoding.fromlocal(label)
             for node in nodes:
-                rev = to_rev(node)
-                if rev in topo_heads:
-                    continue
+                if topo_heads is not None:
+                    rev = to_rev(node)
+                    if rev in topo_heads:
+                        continue
                 if node in self._closednodes:
                     state = b'c'
                 else:
@@ -916,6 +942,7 @@ class BranchCacheV3(_LocalBranchCache):
         args = {}
         filtered_hash = None
         obsolete_hash = None
+        has_pure_topo_heads = False
         for k, v in cache_keys.items():
             if k == b"tip-rev":
                 args["tiprev"] = int(v)
@@ -925,16 +952,28 @@ class BranchCacheV3(_LocalBranchCache):
                 filtered_hash = bin(v)
             elif k == b"obsolete-hash":
                 obsolete_hash = bin(v)
+            elif k == b"topo-mode":
+                if v == b"pure":
+                    has_pure_topo_heads = True
+                else:
+                    msg = b"unknown topo-mode: %r" % v
+                    raise ValueError(msg)
             else:
                 msg = b"unknown cache key: %r" % k
                 raise ValueError(msg)
         args["key_hashes"] = (filtered_hash, obsolete_hash)
+        if has_pure_topo_heads:
+            pure_line = next(lineiter).rstrip(b'\n')
+            args["pure_topo_branch"] = encoding.tolocal(pure_line)
         return args
 
     def _load_heads(self, repo, lineiter):
         """fully loads the branchcache by reading from the file using the line
         iterator passed"""
         super()._load_heads(repo, lineiter)
+        if self._pure_topo_branch is not None:
+            # no need to read the repository heads, we know their value already.
+            return
         cl = repo.changelog
         getbranchinfo = repo.revbranchcache().branchinfo
         obsrevs = obsolete.getrevs(repo, b'obsolete')
@@ -959,6 +998,62 @@ class BranchCacheV3(_LocalBranchCache):
             repo,
             self.tiprev,
         )
+
+    def _process_new(
+        self,
+        repo,
+        newbranches,
+        new_closed,
+        obs_ignored,
+        max_rev,
+    ) -> None:
+        if (
+            # note: the check about `obs_ignored` is too strict as the
+            # obsolete revision could be non-topological, but lets keep
+            # things simple for now
+            #
+            # The same apply to `new_closed` if the closed changeset are
+            # not a head, we don't care that it is closed, but lets keep
+            # things simple here too.
+            not (obs_ignored or new_closed)
+            and (
+                not newbranches
+                or (
+                    len(newbranches) == 1
+                    and (
+                        self.tiprev == nullrev
+                        or self._pure_topo_branch in newbranches
+                    )
+                )
+            )
+        ):
+            if newbranches:
+                assert len(newbranches) == 1
+                self._pure_topo_branch = list(newbranches.keys())[0]
+                self._needs_populate = True
+                self._entries.pop(self._pure_topo_branch, None)
+            return
+
+        self._ensure_populated(repo)
+        self._pure_topo_branch = None
+        super()._process_new(
+            repo,
+            newbranches,
+            new_closed,
+            obs_ignored,
+            max_rev,
+        )
+
+    def _ensure_populated(self, repo):
+        """make sure any lazily loaded values are fully populated"""
+        if self._needs_populate:
+            assert self._pure_topo_branch is not None
+            cl = repo.changelog
+            to_node = cl.node
+            topo_heads = self._get_topo_heads(repo)
+            heads = [to_node(r) for r in topo_heads]
+            self._entries[self._pure_topo_branch] = heads
+            self._needs_populate = False
 
 
 class remotebranchcache(_BaseBranchCache):
