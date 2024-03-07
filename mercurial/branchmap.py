@@ -69,7 +69,7 @@ class BranchMapCache:
         )
         return bcache
 
-    def update_disk(self, repo):
+    def update_disk(self, repo, detect_pure_topo=False):
         """ensure and up-to-date cache is (or will be) written on disk
 
         The cache for this repository view is updated  if needed and written on
@@ -87,6 +87,8 @@ class BranchMapCache:
             bcache._filtername,
             repo.filtername,
         )
+        if detect_pure_topo:
+            bcache._detect_pure_topo(repo)
         tr = repo.currenttransaction()
         if getattr(tr, 'finalized', True):
             bcache.sync_disk(repo)
@@ -487,6 +489,9 @@ class _LocalBranchCache(_BaseBranchCache):
 
     def _ensure_populated(self, repo):
         """make sure any lazily loaded values are fully populated"""
+
+    def _detect_pure_topo(self, repo) -> None:
+        pass
 
     def validfor(self, repo):
         """check that cache contents are valid for (a subset of) this repo
@@ -1054,6 +1059,19 @@ class BranchCacheV3(_LocalBranchCache):
             heads = [to_node(r) for r in topo_heads]
             self._entries[self._pure_topo_branch] = heads
             self._needs_populate = False
+
+    def _detect_pure_topo(self, repo) -> None:
+        if self._pure_topo_branch is not None:
+            # we are pure topological already
+            return
+        to_node = repo.changelog.node
+        topo_heads = [to_node(r) for r in self._get_topo_heads(repo)]
+        if any(n in self._closednodes for n in topo_heads):
+            return
+        for branch, heads in self._entries.items():
+            if heads == topo_heads:
+                self._pure_topo_branch = branch
+                break
 
 
 class remotebranchcache(_BaseBranchCache):
