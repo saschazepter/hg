@@ -1312,7 +1312,8 @@ Unbundling revision should warm the served cache
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
 #if v3
   $ cat branchmap-update-01/.hg/cache/branch3-base
-  tip-node=99ba08759bc7f6fdbe5304e83d0387f35c082479 tip-rev=1
+  tip-node=99ba08759bc7f6fdbe5304e83d0387f35c082479 tip-rev=1 topo-mode=pure
+  A
 #else
   $ cat branchmap-update-01/.hg/cache/branch2-base
   99ba08759bc7f6fdbe5304e83d0387f35c082479 1
@@ -1327,7 +1328,8 @@ Unbundling revision should warm the served cache
   (run 'hg update' to get a working copy)
 #if v3
   $ cat branchmap-update-01/.hg/cache/branch3-served
-  tip-node=71ca9a6d524ed3c2a215119b2086ac3b8c4c8286 tip-rev=3
+  tip-node=71ca9a6d524ed3c2a215119b2086ac3b8c4c8286 tip-rev=3 topo-mode=pure
+  A
 #else
   $ cat branchmap-update-01/.hg/cache/branch2-served
   71ca9a6d524ed3c2a215119b2086ac3b8c4c8286 3
@@ -1356,7 +1358,8 @@ aborted Unbundle should not update the on disk cache
 
 #if v3
   $ cat branchmap-update-02/.hg/cache/branch3-base
-  tip-node=99ba08759bc7f6fdbe5304e83d0387f35c082479 tip-rev=1
+  tip-node=99ba08759bc7f6fdbe5304e83d0387f35c082479 tip-rev=1 topo-mode=pure
+  A
 #else
   $ cat branchmap-update-02/.hg/cache/branch2-base
   99ba08759bc7f6fdbe5304e83d0387f35c082479 1
@@ -1372,7 +1375,8 @@ aborted Unbundle should not update the on disk cache
   [40]
 #if v3
   $ cat branchmap-update-02/.hg/cache/branch3-base
-  tip-node=99ba08759bc7f6fdbe5304e83d0387f35c082479 tip-rev=1
+  tip-node=99ba08759bc7f6fdbe5304e83d0387f35c082479 tip-rev=1 topo-mode=pure
+  A
 #else
   $ cat branchmap-update-02/.hg/cache/branch2-base
   99ba08759bc7f6fdbe5304e83d0387f35c082479 1
