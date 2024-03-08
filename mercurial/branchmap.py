@@ -556,6 +556,7 @@ class branchcache(_BaseBranchCache):
 
     def copy(self, repo):
         """return a deep copy of the branchcache object"""
+        assert repo.filtername != self._filtername
         other = type(self)(
             repo=repo,
             # we always do a shally copy of self._entries, and the values is
