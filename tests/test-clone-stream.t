@@ -315,6 +315,10 @@ Secret changeset can still be streamed if the server is configured to do so.
   $ killdaemons.py
 
 Verify interaction between preferuncompressed and secret presence
+-----------------------------------------------------------------
+
+Secret presence will still make the clone falls back to a normal bundle even if
+the server prefers stream clone.
 
   $ cd server
   $ hg serve --config server.preferuncompressed=true -p $HGPORT -d --pid-file=hg.pid
@@ -332,6 +336,9 @@ Verify interaction between preferuncompressed and secret presence
   $ killdaemons.py
 
 Clone not allowed when full bundles disabled and can't serve secrets
+--------------------------------------------------------------------
+
+The clone should fail as no valid option is found.
 
   $ cd server
   $ hg serve --config server.disablefullbundle=true -p $HGPORT -d --pid-file=hg.pid
@@ -347,6 +354,8 @@ Clone not allowed when full bundles disabled and can't serve secrets
   [100]
 
 Local stream clone with secrets involved
+----------------------------------------
+
 (This is just a test over behavior: if you have access to the repo's files,
 there is no security so it isn't important to prevent a clone here.)
 
@@ -673,12 +682,14 @@ Clone non-publishing with obsolescence
 #endif
 
 Cloning a repo with no requirements doesn't give some obscure error
+-------------------------------------------------------------------
 
   $ mkdir -p empty-repo/.hg
   $ hg clone -q --stream ssh://user@dummy/empty-repo empty-repo2
   $ hg --cwd empty-repo2 verify -q
 
 Cloning a repo with an empty manifestlog doesn't give some weird error
+----------------------------------------------------------------------
 
   $ rm -r empty-repo; hg init empty-repo
   $ (cd empty-repo; touch x; hg commit -Am empty; hg debugstrip -r 0) > /dev/null
