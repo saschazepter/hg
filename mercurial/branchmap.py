@@ -302,7 +302,8 @@ class _BaseBranchCache:
                 self._closednodes.add(cl.node(r))
             max_rev = max(max_rev, r)
         if max_rev < 0:
-            max_rev = None
+            msg = "running branchcache.update without revision to update"
+            raise error.ProgrammingError(msg)
 
         # Delay fetching the topological heads until they are needed.
         # A repository without non-continous branches can skip this part.
