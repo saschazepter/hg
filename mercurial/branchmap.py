@@ -166,7 +166,10 @@ class BranchMapCache:
 
     def write_delayed(self, repo):
         unfi = repo.unfiltered()
-        for filtername, cache in self._per_filter.items():
+        for filtername in repoviewutil.get_ordered_subset():
+            cache = self._per_filter.get(filtername)
+            if cache is None:
+                continue
             if cache._delayed:
                 if filtername is None:
                     repo = unfi
