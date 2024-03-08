@@ -2974,7 +2974,7 @@ class localrepository:
                 self._branchcaches.update_disk(filtered)
 
         # flush all possibly delayed write.
-        self._branchcaches.write_delayed(self)
+        self._branchcaches.write_dirty(self)
 
     def invalidatecaches(self):
         if '_tagscache' in vars(self):
