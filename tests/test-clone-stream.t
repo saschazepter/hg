@@ -253,35 +253,17 @@ XXX manually building the --requestheader is fragile and will drift away from ac
   0020: 06 09 04 0c ?? 62 79 74 65 63 6f 75 6e 74 31 30 |....?bytecount10| (glob)
 
 --uncompressed is an alias to --stream
+---------------------------------------
 
-#if stream-legacy
+The alias flag should trigger a stream clone too.
+
   $ hg clone --uncompressed -U http://localhost:$HGPORT clone1-uncompressed
   streaming all changes
-  1091 files to transfer, 102 KB of data (no-zstd !)
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1091 files to transfer, 98.8 KB of data (zstd !)
-  transferred 98.8 KB in * seconds (* */sec) (glob) (zstd !)
-  searching for changes
-  no changes found
-#endif
-#if stream-bundle2-v2
-  $ hg clone --uncompressed -U http://localhost:$HGPORT clone1-uncompressed
-  streaming all changes
-  1094 files to transfer, 102 KB of data (no-zstd !)
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  1094 files to transfer, 98.9 KB of data (zstd no-rust !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
-  1096 files to transfer, 99.0 KB of data (zstd rust !)
-  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
-#endif
-#if stream-bundle2-v3
-  $ hg clone --uncompressed -U http://localhost:$HGPORT clone1-uncompressed
-  streaming all changes
-  1093 entries to transfer
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
-  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
-#endif
+  * files to transfer* (glob) (no-stream-bundle2-v3 !)
+  * entries to transfer (glob) (stream-bundle2-v3 !)
+  transferred * KB in * seconds (* */sec) (glob)
+  searching for changes (stream-legacy !)
+  no changes found (stream-legacy !)
 
 Clone with background file closing enabled
 
