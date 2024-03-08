@@ -74,7 +74,7 @@ class BranchMapCache:
         disk.
 
         If a transaction is in progress, the writing is schedule to transaction
-        close. See the `BranchMapCache.write_delayed` method.
+        close. See the `BranchMapCache.write_dirty` method.
 
         This method exist independently of __getitem__ as it is sometime useful
         to signal that we have no intend to use the data in memory yet.
@@ -164,13 +164,13 @@ class BranchMapCache:
     def clear(self):
         self._per_filter.clear()
 
-    def write_delayed(self, repo):
+    def write_dirty(self, repo):
         unfi = repo.unfiltered()
         for filtername in repoviewutil.get_ordered_subset():
             cache = self._per_filter.get(filtername)
             if cache is None:
                 continue
-            if cache._delayed:
+            if cache._dirty:
                 if filtername is None:
                     repo = unfi
                 else:
@@ -433,13 +433,13 @@ class branchcache(_BaseBranchCache):
         has a given node or not. If it's not provided, we assume that every node
         we have exists in changelog"""
         self._filtername = repo.filtername
-        self._delayed = False
         if tipnode is None:
             self.tipnode = repo.nullid
         else:
             self.tipnode = tipnode
         self.tiprev = tiprev
         self.filteredhash = filteredhash
+        self._dirty = False
 
         super().__init__(repo=repo, entries=entries, closed_nodes=closednodes)
         # closednodes is a set of nodes that close their branch. If the branch
@@ -568,7 +568,7 @@ class branchcache(_BaseBranchCache):
         )
         # we copy will likely schedule a write anyway, but that does not seems
         # to hurt to overschedule
-        other._delayed = self._delayed
+        other._dirty = self._dirty
         # also copy information about the current verification state
         other._verifiedbranches = set(self._verifiedbranches)
         return other
@@ -583,7 +583,6 @@ class branchcache(_BaseBranchCache):
             # Avoid premature writing.
             #
             # (The cache warming setup by localrepo will update the file later.)
-            self._delayed = True
             return
         try:
             filename = self._filename(repo)
@@ -597,7 +596,7 @@ class branchcache(_BaseBranchCache):
                 len(self._entries),
                 nodecount,
             )
-            self._delayed = False
+            self._dirty = False
         except (IOError, OSError, error.Abort) as inst:
             # Abort may be raised by read only opener, so log and continue
             repo.ui.debug(
@@ -707,7 +706,7 @@ class branchcache(_BaseBranchCache):
         self.filteredhash = scmutil.filteredhash(
             repo, self.tiprev, needobsolete=True
         )
-
+        self._dirty = True
         self.write(repo)
 
 
