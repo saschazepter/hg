@@ -569,9 +569,6 @@ class branchcache(_BaseBranchCache):
             closednodes=set(self._closednodes),
             verify_node=self._verify_node,
         )
-        # we copy will likely schedule a write anyway, but that does not seems
-        # to hurt to overschedule
-        other._dirty = self._dirty
         # also copy information about the current verification state
         other._verifiedbranches = set(self._verifiedbranches)
         return other
