@@ -157,7 +157,9 @@ class BranchMapCache:
             for candidate in (b'base', b'immutable', b'served'):
                 rview = repo.filtered(candidate)
                 if cache.validfor(rview):
-                    cache = self._per_filter[candidate] = cache.copy(rview)
+                    cache._filtername = candidate
+                    self._per_filter[candidate] = cache
+                    cache._dirty = True
                     cache.write(rview)
                     return
 
