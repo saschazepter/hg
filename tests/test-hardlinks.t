@@ -263,11 +263,7 @@ r4 has hardlinks in the working dir (not just inside .hg):
   2 r4/.hg/00changelog.i
   [24] r4/.hg/branch (re)
   2 r4/.hg/cache/branch2-base
-  2 r4/.hg/cache/branch2-immutable
   2 r4/.hg/cache/branch2-served
-  2 r4/.hg/cache/branch2-served.hidden
-  2 r4/.hg/cache/branch2-visible
-  2 r4/.hg/cache/branch2-visible-hidden
   2 r4/.hg/cache/rbc-names-v1
   2 r4/.hg/cache/rbc-revs-v1
   2 r4/.hg/cache/tags2
@@ -320,11 +316,7 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
   2 r4/.hg/00changelog.i
   1 r4/.hg/branch
   2 r4/.hg/cache/branch2-base
-  2 r4/.hg/cache/branch2-immutable
   2 r4/.hg/cache/branch2-served
-  2 r4/.hg/cache/branch2-served.hidden
-  2 r4/.hg/cache/branch2-visible
-  2 r4/.hg/cache/branch2-visible-hidden
   2 r4/.hg/cache/rbc-names-v1
   2 r4/.hg/cache/rbc-revs-v1
   2 r4/.hg/cache/tags2

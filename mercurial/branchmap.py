@@ -85,7 +85,8 @@ class BranchMapCache:
             bcache._filtername,
             repo.filtername,
         )
-        bcache.write(repo)
+        if bcache._dirty:
+            bcache.write(repo)
 
     def updatecache(self, repo):
         """Update the cache for the given filtered view on a repository"""
