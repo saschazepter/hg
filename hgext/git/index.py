@@ -18,7 +18,7 @@ from . import gitutil
 
 pygit2 = gitutil.get_pygit2()
 
-_CURRENT_SCHEMA_VERSION = 2
+_CURRENT_SCHEMA_VERSION = 3
 _SCHEMA = (
     """
 CREATE TABLE refs (
@@ -47,7 +47,8 @@ CREATE TABLE changelog (
   rev INTEGER NOT NULL PRIMARY KEY,
   node TEXT NOT NULL,
   p1 TEXT,
-  p2 TEXT
+  p2 TEXT,
+  synthetic TEXT
 );
 
 CREATE UNIQUE INDEX changelog_node_idx ON changelog(node);
@@ -306,26 +307,43 @@ def _index_repo(
     prog = progress_factory(b'commits')
     # This walker is sure to visit all the revisions in history, but
     # only once.
-    for pos, commit in enumerate(walker):
+    pos = -1
+    for commit in walker:
         if prog is not None:
             prog.update(pos)
         p1 = p2 = gitutil.nullgit
-        if len(commit.parents) > 2:
-            raise error.ProgrammingError(
-                (
-                    b"git support can't handle octopus merges, "
-                    b"found a commit with %d parents :("
-                )
-                % len(commit.parents)
+        if len(commit.parents) <= 2:
+            if commit.parents:
+                p1 = commit.parents[0].id.hex
+            if len(commit.parents) == 2:
+                p2 = commit.parents[1].id.hex
+            pos += 1
+            db.execute(
+                'INSERT INTO changelog (rev, node, p1, p2, synthetic) VALUES(?, ?, ?, ?, NULL)',
+                (pos, commit.id.hex, p1, p2),
             )
-        if commit.parents:
-            p1 = commit.parents[0].id.hex
-        if len(commit.parents) == 2:
-            p2 = commit.parents[1].id.hex
-        db.execute(
-            'INSERT INTO changelog (rev, node, p1, p2) VALUES(?, ?, ?, ?)',
-            (pos, commit.id.hex, p1, p2),
-        )
+        else:
+            parents = list(commit.parents)
+
+            p1 = parents.pop(0).id.hex
+            while parents:
+                pos += 1
+
+                if len(parents) == 1:
+                    this = commit.id.hex
+                    synth = None
+                else:
+                    this = "%040x" % pos
+                    synth = commit.id.hex
+
+                p2 = parents.pop(0).id.hex
+
+                db.execute(
+                    'INSERT INTO changelog (rev, node, p1, p2, synthetic) VALUES(?, ?, ?, ?, ?)',
+                    (pos, this, p1, p2, synth),
+                )
+
+                p1 = this
 
         num_changedfiles = db.execute(
             "SELECT COUNT(*) from changedfiles WHERE node = ?",

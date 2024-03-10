@@ -154,6 +154,22 @@ class baselog:  # revlog.revlog):
             raise error.LookupError(r, b'00changelog.i', _(b'no node'))
         return bin(t[0])
 
+    def synthetic(self, n):
+        """Map any node to a non-synthetic node.
+
+        Indexing may have created synthetic nodes to handle octopus merges.
+        Certain operations on these made up nodes need to actually happen on
+        the real octopus merge commit.  Given any node, this function
+        returns the real commit hash.  One can think of this as hg-to-git
+        commit hash translation that always works."""
+        t = self._db.execute(
+            'SELECT synthetic FROM changelog WHERE node = ?',
+            (gitutil.togitnode(n),),
+        ).fetchone()
+        if t is None or t[0] is None:
+            return n
+        return bin(t[0])
+
     def hasnode(self, n):
         t = self._db.execute(
             'SELECT node FROM changelog WHERE node = ?',
@@ -321,6 +337,7 @@ class changelog(baselog):
             return hgchangelog._changelogrevision(
                 extra=extra, manifest=sha1nodeconstants.nullid
             )
+        n = self.synthetic(n)
         hn = gitutil.togitnode(n)
         # We've got a real commit!
         files = [
@@ -466,20 +483,13 @@ class changelog(baselog):
         return bool(self.reachableroots(a, [b], [a], includepath=False))
 
     def parentrevs(self, rev):
-        n = self.node(rev)
-        hn = gitutil.togitnode(n)
-        if hn != gitutil.nullgit:
-            c = self.gitrepo[hn]
-        else:
-            return nullrev, nullrev
-        p1 = p2 = nullrev
-        if c.parents:
-            p1 = self.rev(c.parents[0].id.raw)
-            if len(c.parents) > 2:
-                raise error.Abort(b'TODO octopus merge handling')
-            if len(c.parents) == 2:
-                p2 = self.rev(c.parents[1].id.raw)
-        return p1, p2
+        assert rev >= 0, rev
+        t = self._db.execute(
+            'SELECT p1, p2 FROM changelog WHERE rev = ?', (rev,)
+        ).fetchone()
+        if t is None:
+            raise error.LookupError(rev, b'00changelog.i', _(b'no rev'))
+        return self.rev(bin(t[0])), self.rev(bin(t[1]))
 
     # Private method is used at least by the tags code.
     _uncheckedparentrevs = parentrevs
@@ -558,6 +568,7 @@ class manifestlog(baselog):
         if node == sha1nodeconstants.nullid:
             # TODO: this should almost certainly be a memgittreemanifestctx
             return manifest.memtreemanifestctx(self, relpath)
+        node = self.synthetic(node)
         commit = self.gitrepo[gitutil.togitnode(node)]
         t = commit.tree
         if relpath:
