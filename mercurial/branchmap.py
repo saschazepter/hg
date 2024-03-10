@@ -85,8 +85,7 @@ class BranchMapCache:
             bcache._filtername,
             repo.filtername,
         )
-        if bcache._dirty:
-            bcache.write(repo)
+        bcache.sync_disk(repo)
 
     def updatecache(self, repo):
         """Update the cache for the given filtered view on a repository"""
@@ -109,7 +108,7 @@ class BranchMapCache:
             subsetname = subsettable.get(filtername)
             if subsetname is not None:
                 subset = repo.filtered(subsetname)
-                bcache = self[subset].copy(repo)
+                bcache = self[subset].inherit_for(repo)
                 extrarevs = subset.changelog.filteredrevs - cl.filteredrevs
                 revs.extend(r for r in extrarevs if r <= bcache.tiprev)
             else:
@@ -160,7 +159,7 @@ class BranchMapCache:
                 if cache.validfor(rview):
                     cache._filtername = candidate
                     self._per_filter[candidate] = cache
-                    cache._dirty = True
+                    cache._state = STATE_DIRTY
                     cache.write(rview)
                     return
 
@@ -173,12 +172,11 @@ class BranchMapCache:
             cache = self._per_filter.get(filtername)
             if cache is None:
                 continue
-            if cache._dirty:
-                if filtername is None:
-                    repo = unfi
-                else:
-                    repo = unfi.filtered(filtername)
-                cache.write(repo)
+            if filtername is None:
+                repo = unfi
+            else:
+                repo = unfi.filtered(filtername)
+            cache.sync_disk(repo)
 
 
 def _unknownnode(node):
@@ -414,6 +412,11 @@ class _BaseBranchCache:
         return max_rev
 
 
+STATE_CLEAN = 1
+STATE_INHERITED = 2
+STATE_DIRTY = 3
+
+
 class branchcache(_BaseBranchCache):
     """Branchmap info for a local repo or repoview"""
 
@@ -431,6 +434,7 @@ class branchcache(_BaseBranchCache):
         closednodes: Optional[Set[bytes]] = None,
         hasnode: Optional[Callable[[bytes], bool]] = None,
         verify_node: bool = False,
+        inherited: bool = False,
     ) -> None:
         """hasnode is a function which can be used to verify whether changelog
         has a given node or not. If it's not provided, we assume that every node
@@ -442,7 +446,9 @@ class branchcache(_BaseBranchCache):
             self.tipnode = tipnode
         self.tiprev = tiprev
         self.filteredhash = filteredhash
-        self._dirty = False
+        self._state = STATE_CLEAN
+        if inherited:
+            self._state = STATE_INHERITED
 
         super().__init__(repo=repo, entries=entries, closed_nodes=closednodes)
         # closednodes is a set of nodes that close their branch. If the branch
@@ -555,7 +561,7 @@ class branchcache(_BaseBranchCache):
             filename = b'%s-%s' % (filename, repo.filtername)
         return filename
 
-    def copy(self, repo):
+    def inherit_for(self, repo):
         """return a deep copy of the branchcache object"""
         assert repo.filtername != self._filtername
         other = type(self)(
@@ -569,16 +575,33 @@ class branchcache(_BaseBranchCache):
             filteredhash=self.filteredhash,
             closednodes=set(self._closednodes),
             verify_node=self._verify_node,
+            inherited=True,
         )
         # also copy information about the current verification state
         other._verifiedbranches = set(self._verifiedbranches)
         return other
+
+    def sync_disk(self, repo):
+        """synchronise the on disk file with the cache state
+
+        If new value specific to this filter level need to be written, the file
+        will be updated, if the state of the branchcache is inherited from a
+        subset, any stalled on disk file will be deleted.
+
+        That method does nothing if there is nothing to do.
+        """
+        if self._state == STATE_DIRTY:
+            self.write(repo)
+        elif self._state == STATE_INHERITED:
+            filename = self._filename(repo)
+            repo.cachevfs.tryunlink(filename)
 
     def write(self, repo):
         assert self._filtername == repo.filtername, (
             self._filtername,
             repo.filtername,
         )
+        assert self._state == STATE_DIRTY, self._state
         tr = repo.currenttransaction()
         if not getattr(tr, 'finalized', True):
             # Avoid premature writing.
@@ -597,7 +620,7 @@ class branchcache(_BaseBranchCache):
                 len(self._entries),
                 nodecount,
             )
-            self._dirty = False
+            self._state = STATE_CLEAN
         except (IOError, OSError, error.Abort) as inst:
             # Abort may be raised by read only opener, so log and continue
             repo.ui.debug(
@@ -707,7 +730,7 @@ class branchcache(_BaseBranchCache):
         self.filteredhash = scmutil.filteredhash(
             repo, self.tiprev, needobsolete=True
         )
-        self._dirty = True
+        self._state = STATE_DIRTY
         self.write(repo)
 
 

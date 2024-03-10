@@ -4303,8 +4303,16 @@ def perfbranchmapupdate(ui, repo, base=(), target=(), **opts):
         baserepo = repo.filtered(b'__perf_branchmap_update_base')
         targetrepo = repo.filtered(b'__perf_branchmap_update_target')
 
+        bcache = repo.branchmap()
+        copy_method = 'copy'
+
         copy_base_kwargs = copy_base_kwargs = {}
-        if 'repo' in getargspec(repo.branchmap().copy).args:
+        if hasattr(bcache, 'copy'):
+            if 'repo' in getargspec(bcache.copy).args:
+                copy_base_kwargs = {"repo": baserepo}
+                copy_target_kwargs = {"repo": targetrepo}
+        else:
+            copy_method = 'inherit_for'
             copy_base_kwargs = {"repo": baserepo}
             copy_target_kwargs = {"repo": targetrepo}
 
@@ -4316,7 +4324,7 @@ def perfbranchmapupdate(ui, repo, base=(), target=(), **opts):
             if candidatebm.validfor(baserepo):
                 filtered = repoview.filterrevs(repo, candidatefilter)
                 missing = [r for r in allbaserevs if r in filtered]
-                base = candidatebm.copy(**copy_base_kwargs)
+                base = getattr(candidatebm, copy_method)(**copy_base_kwargs)
                 base.update(baserepo, missing)
                 break
             candidatefilter = subsettable.get(candidatefilter)
@@ -4326,7 +4334,7 @@ def perfbranchmapupdate(ui, repo, base=(), target=(), **opts):
             base.update(baserepo, allbaserevs)
 
         def setup():
-            x[0] = base.copy(**copy_target_kwargs)
+            x[0] = getattr(base, copy_method)(**copy_target_kwargs)
             if clearcaches:
                 unfi._revbranchcache = None
                 clearchangelog(repo)
