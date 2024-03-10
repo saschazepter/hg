@@ -108,7 +108,8 @@ class BranchMapCache:
             subsetname = subsettable.get(filtername)
             if subsetname is not None:
                 subset = repo.filtered(subsetname)
-                bcache = self[subset].inherit_for(repo)
+                self.updatecache(subset)
+                bcache = self._per_filter[subset.filtername].inherit_for(repo)
                 extrarevs = subset.changelog.filteredrevs - cl.filteredrevs
                 revs.extend(r for r in extrarevs if r <= bcache.tiprev)
             else:
