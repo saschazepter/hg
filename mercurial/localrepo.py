@@ -2923,10 +2923,9 @@ class localrepository:
 
         if repository.CACHE_BRANCHMAP_SERVED in caches:
             if tr is None or tr.changes[b'origrepolen'] < len(self):
-                # accessing the 'served' branchmap should refresh all the others,
                 self.ui.debug(b'updating the branch cache\n')
-                self.filtered(b'served').branchmap()
-                self.filtered(b'served.hidden').branchmap()
+                self._branchcaches.update_disk(self.filtered(b'served'))
+                self._branchcaches.update_disk(self.filtered(b'served.hidden'))
 
         if repository.CACHE_CHANGELOG_CACHE in caches:
             self.changelog.update_caches(transaction=tr)
