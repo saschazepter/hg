@@ -43,11 +43,9 @@ older one have been actively deleted.
 
   $ ls -1 .hg/cache/branch?*
   .hg/cache/branch2-base
-  .hg/cache/branch2-served
-  $ cat .hg/cache/branch?-served
-  222ae9789a75703f9836e44de7db179cbfd420ee 2
-  a3498d6e39376d2456425dd8c692367bdbf00fa2 o default
-  222ae9789a75703f9836e44de7db179cbfd420ee o default
+  $ cat .hg/cache/branch?-base
+  7ab0a3bd758a58b9f79557ce708533e627776cce 0
+  7ab0a3bd758a58b9f79557ce708533e627776cce o default
 
 We do a new commit and we get a new valid branchmap for the served version
 
