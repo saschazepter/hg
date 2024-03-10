@@ -85,7 +85,9 @@ class BranchMapCache:
             bcache._filtername,
             repo.filtername,
         )
-        bcache.sync_disk(repo)
+        tr = repo.currenttransaction()
+        if getattr(tr, 'finalized', True):
+            bcache.sync_disk(repo)
 
     def updatecache(self, repo):
         """Update the cache for the given filtered view on a repository"""
@@ -603,12 +605,11 @@ class branchcache(_BaseBranchCache):
             repo.filtername,
         )
         assert self._state == STATE_DIRTY, self._state
+        # This method should not be called during an open transaction
         tr = repo.currenttransaction()
         if not getattr(tr, 'finalized', True):
-            # Avoid premature writing.
-            #
-            # (The cache warming setup by localrepo will update the file later.)
-            return
+            msg = "writing branchcache in the middle of a transaction"
+            raise error.ProgrammingError(msg)
         try:
             filename = self._filename(repo)
             with repo.cachevfs(filename, b"w", atomictemp=True) as f:
@@ -732,7 +733,12 @@ class branchcache(_BaseBranchCache):
             repo, self.tiprev, needobsolete=True
         )
         self._state = STATE_DIRTY
-        self.write(repo)
+        tr = repo.currenttransaction()
+        if getattr(tr, 'finalized', True):
+            # Avoid premature writing.
+            #
+            # (The cache warming setup by localrepo will update the file later.)
+            self.write(repo)
 
 
 class remotebranchcache(_BaseBranchCache):
