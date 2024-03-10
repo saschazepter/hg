@@ -63,11 +63,7 @@ Cloning a shared repo should pick up the full cache dir on the other hand.
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ ls -1 ../repo2-clone/.hg/cache
   branch2-base
-  branch2-immutable
   branch2-served
-  branch2-served.hidden
-  branch2-visible
-  branch2-visible-hidden
   rbc-names-v1
   rbc-revs-v1
   tags2

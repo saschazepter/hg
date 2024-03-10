@@ -220,11 +220,7 @@ changes in the process.
 #if no-stream-legacy
   $ ls -1 clone1/.hg/cache
   branch2-base
-  branch2-immutable
   branch2-served
-  branch2-served.hidden
-  branch2-visible
-  branch2-visible-hidden
   rbc-names-v1
   rbc-revs-v1
   tags2

@@ -1316,7 +1316,7 @@ Unbundling revision should warm the served cache
   new changesets 2ab8003a1750:99ba08759bc7
   updating to branch A
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ cat branchmap-update-01/.hg/cache/branch2-served
+  $ cat branchmap-update-01/.hg/cache/branch2-base
   99ba08759bc7f6fdbe5304e83d0387f35c082479 1
   99ba08759bc7f6fdbe5304e83d0387f35c082479 o A
   $ hg -R branchmap-update-01 unbundle bundle.hg
@@ -1350,7 +1350,7 @@ aborted Unbundle should not update the on disk cache
   updating to branch A
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
-  $ cat branchmap-update-02/.hg/cache/branch2-served
+  $ cat branchmap-update-02/.hg/cache/branch2-base
   99ba08759bc7f6fdbe5304e83d0387f35c082479 1
   99ba08759bc7f6fdbe5304e83d0387f35c082479 o A
   $ hg -R branchmap-update-02 unbundle bundle.hg --config "hooks.pretxnclose=python:$TESTTMP/simplehook.py:hook"
@@ -1361,6 +1361,6 @@ aborted Unbundle should not update the on disk cache
   rollback completed
   abort: pretxnclose hook failed
   [40]
-  $ cat branchmap-update-02/.hg/cache/branch2-served
+  $ cat branchmap-update-02/.hg/cache/branch2-base
   99ba08759bc7f6fdbe5304e83d0387f35c082479 1
   99ba08759bc7f6fdbe5304e83d0387f35c082479 o A

@@ -1,3 +1,5 @@
+This test cover a bug that no longer exist.
+
 Define helpers.
 
   $ hg_log () { hg log -G -T "{rev}:{node|short}"; }
@@ -18,7 +20,10 @@ Setup hg repo.
 
   $ hg pull -q ../repo
 
-  $ cat .hg/cache/branch2-visible
+  $ ls -1 .hg/cache/branch?*
+  .hg/cache/branch2-base
+  .hg/cache/branch2-served
+  $ cat .hg/cache/branch?-served
   222ae9789a75703f9836e44de7db179cbfd420ee 2
   a3498d6e39376d2456425dd8c692367bdbf00fa2 o default
   222ae9789a75703f9836e44de7db179cbfd420ee o default
@@ -33,24 +38,38 @@ Setup hg repo.
 
   $ strip '1:'
 
-The branchmap cache is not adjusted on strip.
-Now mentions a changelog entry that has been stripped.
+After the strip the "served" cache is now identical to the "base" one, and the
+older one have been actively deleted.
 
-  $ cat .hg/cache/branch2-visible
+  $ ls -1 .hg/cache/branch?*
+  .hg/cache/branch2-base
+  .hg/cache/branch2-served
+  $ cat .hg/cache/branch?-served
   222ae9789a75703f9836e44de7db179cbfd420ee 2
   a3498d6e39376d2456425dd8c692367bdbf00fa2 o default
   222ae9789a75703f9836e44de7db179cbfd420ee o default
+
+We do a new commit and we get a new valid branchmap for the served version
 
   $ commit c
+  $ ls -1 .hg/cache/branch?*
+  .hg/cache/branch2-base
+  .hg/cache/branch2-served
+  $ cat .hg/cache/branch?-served
+  a1602b357cfca067600406eb19060c7128804d72 1
+  a1602b357cfca067600406eb19060c7128804d72 o default
 
-Not adjusted on commit, either.
-
-  $ cat .hg/cache/branch2-visible
-  222ae9789a75703f9836e44de7db179cbfd420ee 2
-  a3498d6e39376d2456425dd8c692367bdbf00fa2 o default
-  222ae9789a75703f9836e44de7db179cbfd420ee o default
 
 On pull we end up with the same tip, and so wrongly reuse the invalid cache and crash.
 
-  $ hg pull ../repo 2>&1 | grep 'ValueError:'
-  ValueError: node a3498d6e39376d2456425dd8c692367bdbf00fa2 does not exist (known-bad-output !)
+  $ hg pull ../repo --quiet
+  $ hg heads -T '{rev} {node} {branch}\n'
+  2 222ae9789a75703f9836e44de7db179cbfd420ee default
+  1 a1602b357cfca067600406eb19060c7128804d72 default
+  $ ls -1 .hg/cache/branch?*
+  .hg/cache/branch2-base
+  .hg/cache/branch2-served
+  $ cat .hg/cache/branch?-served
+  222ae9789a75703f9836e44de7db179cbfd420ee 2
+  a1602b357cfca067600406eb19060c7128804d72 o default
+  222ae9789a75703f9836e44de7db179cbfd420ee o default
