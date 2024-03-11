@@ -583,6 +583,11 @@ default-type = "list_type"
 
 [[items]]
 section = "devel"
+name = "lock-wait-sync-file"
+default = ""
+
+[[items]]
+section = "devel"
 name = "persistent-nodemap"
 default = false
 documentation = """When true, revlogs use a special reference version of the \
