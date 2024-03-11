@@ -138,12 +138,12 @@ Test revlog.optimize-delta-parent-choice
 
 - Verify non-aggressive merge uses p1 (commit 1) as delta parent
   $ hg merge -q 0
-  $ hg commit -q -m merge
+  $ hg commit -q -m merge --config storage.revlog.optimize-delta-parent-choice=no
   $ hg debugdeltachain -m
       rev      p1      p2  chain# chainlen     prev   delta
         0      -1      -1       1        1       -1    base
         1      -1      -1       1        2        0    prev
-        2       1       0       1        2        0      p2
+        2       1       0       1        3        1      p1
 
   $ hg strip -q -r . --config extensions.strip=
 
