@@ -737,14 +737,11 @@ impl RegexMatcher {
     }
 }
 
-/// Returns a function that matches an `HgPath` against the given regex
-/// pattern.
+/// Return a `RegexBuilder` from a bytes pattern
 ///
-/// This can fail when the pattern is invalid or not supported by the
-/// underlying engine (the `regex` crate), for instance anything with
-/// back-references.
-#[logging_timer::time("trace")]
-fn re_matcher(pattern: &[u8]) -> PatternResult<RegexMatcher> {
+/// This works around the fact that even if it works on byte haysacks,
+/// [`regex::bytes::Regex`] still uses UTF-8 patterns.
+pub fn re_bytes_builder(pattern: &[u8]) -> regex::bytes::RegexBuilder {
     use std::io::Write;
 
     // The `regex` crate adds `.*` to the start and end of expressions if there
@@ -764,7 +761,18 @@ fn re_matcher(pattern: &[u8]) -> PatternResult<RegexMatcher> {
     // # Safety
     // This is safe because we escaped all non-ASCII bytes.
     let pattern_string = unsafe { String::from_utf8_unchecked(escaped_bytes) };
-    let re = regex::bytes::RegexBuilder::new(&pattern_string)
+    regex::bytes::RegexBuilder::new(&pattern_string)
+}
+
+/// Returns a function that matches an `HgPath` against the given regex
+/// pattern.
+///
+/// This can fail when the pattern is invalid or not supported by the
+/// underlying engine (the `regex` crate), for instance anything with
+/// back-references.
+#[logging_timer::time("trace")]
+fn re_matcher(pattern: &[u8]) -> PatternResult<RegexMatcher> {
+    let re = re_bytes_builder(pattern)
         .unicode(false)
         // Big repos with big `.hgignore` will hit the default limit and
         // incur a significant performance hit. One repo's `hg status` hit
