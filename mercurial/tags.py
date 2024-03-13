@@ -83,7 +83,9 @@ from .utils import stringutil
 def warm_cache(repo):
     """ensure the cache is properly filled"""
     unfi = repo.unfiltered()
-    fnoderevs(repo.ui, unfi, unfi.changelog.revs())
+    tonode = unfi.changelog.node
+    nodes = [tonode(r) for r in unfi.changelog.revs()]
+    _getfnodes(repo.ui, repo, nodes)
 
 
 def fnoderevs(ui, repo, revs):
