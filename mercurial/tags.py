@@ -80,6 +80,12 @@ from .utils import stringutil
 # setting it) for each tag is last.
 
 
+def warm_cache(repo):
+    """ensure the cache is properly filled"""
+    unfi = repo.unfiltered()
+    fnoderevs(repo.ui, unfi, unfi.changelog.revs())
+
+
 def fnoderevs(ui, repo, revs):
     """return the list of '.hgtags' fnodes used in a set revisions
 
