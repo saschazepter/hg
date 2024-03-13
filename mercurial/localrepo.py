@@ -2959,7 +2959,7 @@ class localrepository:
 
         if repository.CACHE_FILE_NODE_TAGS in caches:
             # accessing fnode cache warms the cache
-            tagsmod.fnoderevs(self.ui, unfi, unfi.changelog.revs())
+            tagsmod.warm_cache(self)
 
         if repository.CACHE_TAGS_DEFAULT in caches:
             # accessing tags warm the cache
