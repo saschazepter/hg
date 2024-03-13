@@ -83,9 +83,7 @@ from .utils import stringutil
 def warm_cache(repo):
     """ensure the cache is properly filled"""
     unfi = repo.unfiltered()
-    tonode = unfi.changelog.node
-    nodes = [tonode(r) for r in unfi.changelog.revs()]
-    _getfnodes(repo.ui, repo, nodes)
+    _getfnodes(repo.ui, repo, revs=unfi.changelog.revs())
 
 
 def fnoderevs(ui, repo, revs):
@@ -498,7 +496,7 @@ def _readtagcache(ui, repo):
     return (repoheads, cachefnode, valid, None, True)
 
 
-def _getfnodes(ui, repo, nodes):
+def _getfnodes(ui, repo, nodes=None, revs=None):
     """return .hgtags fnodes for a list of changeset nodes
 
     Return value is a {node: fnode} mapping. There will be no entry for nodes
@@ -510,9 +508,21 @@ def _getfnodes(ui, repo, nodes):
     validated_fnodes = set()
     unknown_entries = set()
 
+    if nodes is None and revs is None:
+        raise error.ProgrammingError("need to specify either nodes or revs")
+    elif nodes is not None and revs is None:
+        to_rev = repo.changelog.index.rev
+        nodes_revs = ((n, to_rev(n)) for n in nodes)
+    elif nodes is None and revs is not None:
+        to_node = repo.changelog.node
+        nodes_revs = ((to_node(r), r) for r in revs)
+    else:
+        msg = "need to specify only one of nodes or revs"
+        raise error.ProgrammingError(msg)
+
     flog = None
-    for node in nodes:
-        fnode = fnodescache.getfnode(node)
+    for node, rev in nodes_revs:
+        fnode = fnodescache.getfnode(node=node, rev=rev)
         if fnode != repo.nullid:
             if fnode not in validated_fnodes:
                 if flog is None:
@@ -765,7 +775,7 @@ class hgtagsfnodescache:
             # TODO: zero fill entire record, because it's invalid not missing?
             self._raw.extend(b'\xff' * (wantedlen - rawlen))
 
-    def getfnode(self, node, computemissing=True):
+    def getfnode(self, node, computemissing=True, rev=None):
         """Obtain the filenode of the .hgtags file at a specified revision.
 
         If the value is in the cache, the entry will be validated and returned.
@@ -780,7 +790,8 @@ class hgtagsfnodescache:
         if node == self._repo.nullid:
             return node
 
-        rev = self._repo.changelog.rev(node)
+        if rev is None:
+            rev = self._repo.changelog.rev(node)
 
         self.lookupcount += 1
 
