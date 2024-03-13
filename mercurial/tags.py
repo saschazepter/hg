@@ -21,6 +21,7 @@ from .node import (
     short,
 )
 from .i18n import _
+from .revlogutils.constants import ENTRY_NODE_ID
 from . import (
     encoding,
     error,
@@ -29,6 +30,7 @@ from . import (
     util,
 )
 from .utils import stringutil
+
 
 # Tags computation can be expensive and caches exist to make it fast in
 # the common case.
@@ -83,7 +85,29 @@ from .utils import stringutil
 def warm_cache(repo):
     """ensure the cache is properly filled"""
     unfi = repo.unfiltered()
-    _getfnodes(repo.ui, repo, revs=unfi.changelog.revs())
+    fnodescache = hgtagsfnodescache(unfi)
+    validated_fnodes = set()
+    unknown_entries = set()
+    flog = None
+
+    entries = enumerate(repo.changelog.index)
+    node_revs = ((e[ENTRY_NODE_ID], rev) for (rev, e) in entries)
+
+    for node, rev in node_revs:
+        fnode = fnodescache.getfnode(node=node, rev=rev)
+        if fnode != repo.nullid:
+            if fnode not in validated_fnodes:
+                if flog is None:
+                    flog = repo.file(b'.hgtags')
+                if flog.hasnode(fnode):
+                    validated_fnodes.add(fnode)
+                else:
+                    unknown_entries.add(node)
+
+    if unknown_entries:
+        fnodescache.refresh_invalid_nodes(unknown_entries)
+
+    fnodescache.write()
 
 
 def fnoderevs(ui, repo, revs):
