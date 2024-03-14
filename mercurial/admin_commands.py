@@ -6,11 +6,12 @@
 # GNU General Public License version 2 or any later version.
 
 from .i18n import _
-from .admin import verify
+from .admin import chainsaw, verify
 from . import error, registrar, transaction
 
 
 table = {}
+table.update(chainsaw.command._table)
 command = registrar.command(table)
 
 
