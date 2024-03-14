@@ -412,6 +412,9 @@ Test short command list with verbose option
   
    abort         abort an unfinished operation (EXPERIMENTAL)
    add           add the specified files on the next commit
+   admin::chainsaw-update, admin::chainsawupdate
+                 pull and update to a given revision, no matter what,
+                 (EXPERIMENTAL)
    annotate, blame
                  show changeset information by line for each file
    clone         make a copy of an existing repository
@@ -2533,6 +2536,13 @@ Dish up an empty repo; serve it cold.
   </a>
   </td><td>
   add the specified files on the next commit
+  </td></tr>
+  <tr><td>
+  <a href="/help/admin::chainsaw-update">
+  admin::chainsaw-update
+  </a>
+  </td><td>
+  pull and update to a given revision, no matter what, (EXPERIMENTAL)
   </td></tr>
   <tr><td>
   <a href="/help/annotate">
