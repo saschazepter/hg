@@ -1,7 +1,4 @@
-= Mercurial 6.7rc0 =
-
-/!\ These are **tentative** release notes for the upcoming Mercurial 6.7.
-Anything can be added or removed before the actual release.
+= Mercurial 6.7 =
 
 As usual, a *lot* of patches don't make it to this list.
 
@@ -20,6 +17,7 @@ As usual, a *lot* of patches don't make it to this list.
  * annotate: limit output to range of lines
  * unbundle: faster computation of changed heads
  * Large improvements of some of the phases code (23950e39281f)
+ * rust-filepatterns: export glob_to_re function
 
 == New Experimental Features ==
 
@@ -41,6 +39,11 @@ As usual, a *lot* of patches don't make it to this list.
  * cext: fix potential memory leaks of list items appended with PyList_Append
  * doc: document that labels must have a dot in them to have an effect
  * debugformat: fix formatting for compression level
+ * obsutil: sort metadata before comparing in geteffectflag()
+ * crecord: drop calls to `curses.endwin()`
+ * rust-index: don't use mutable borrow for head-diff computation
+ * rust-index: don't use mutable borrow to computed filtered heads
+
 
 == Backwards Compatibility Changes ==
 

@@ -288,7 +288,9 @@ print only the last 10 lines, since we aren't sure how many records are
 preserved (since setprocname isn't available on py3 and pure version,
 the 10th-most-recent line is different when using py3):
 
-  $ cat log/server.log.1 log/server.log | tail -10 | filterlog
+(the "worker process exited" line is matched independently as it order is unstable with the "exiting" line, the worker might exit before the server decide to exit).
+
+  $ cat log/server.log.1 log/server.log | tail -10 | grep -v "worker process exited" | filterlog
   YYYY/MM/DD HH:MM:SS (PID)> confighash = ... mtimehash = ... (no-setprocname !)
   YYYY/MM/DD HH:MM:SS (PID)> forked worker process (pid=...)
   YYYY/MM/DD HH:MM:SS (PID)> setprocname: ... (setprocname !)
@@ -298,8 +300,9 @@ the 10th-most-recent line is different when using py3):
   YYYY/MM/DD HH:MM:SS (PID)> setenv: ...
   YYYY/MM/DD HH:MM:SS (PID)> confighash = ... mtimehash = ...
   YYYY/MM/DD HH:MM:SS (PID)> validate: []
-  YYYY/MM/DD HH:MM:SS (PID)> worker process exited (pid=...)
   YYYY/MM/DD HH:MM:SS (PID)> $TESTTMP/extreload/chgsock/server-... is not owned, exiting.
+  $ cat log/server.log.1 log/server.log | tail -10 | grep "worker process exited" | filterlog
+  YYYY/MM/DD HH:MM:SS (PID)> worker process exited (pid=...)
 
 global data mutated by schems
 -----------------------------

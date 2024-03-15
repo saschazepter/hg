@@ -880,7 +880,7 @@ class revbranchcache:
 
         if self._names:
             try:
-                if repo.ui.configbool(b'format', b'mmap-revbranchcache'):
+                if repo.ui.configbool(b'storage', b'revbranchcache.mmap'):
                     with repo.cachevfs(_rbcrevs) as fp:
                         data = util.buffer(util.mmapread(fp))
                 else:
