@@ -5,11 +5,6 @@ Tests for the admin::chainsaw-update command
 setup
 =====
 
-  $ cat >> $HGRCPATH << EOF
-  > [extensions]
-  > chainsaw=
-  > EOF
-
   $ hg init src
   $ cd src
   $ echo 1 > root

@@ -2038,6 +2038,10 @@ help/ shows help topics
         "topic": "add"
       },
       {
+        "summary": "pull and update to a given revision, no matter what, (EXPERIMENTAL)",
+        "topic": "admin::chainsaw-update"
+      },
+      {
         "summary": "show changeset information by line for each file",
         "topic": "annotate"
       },
