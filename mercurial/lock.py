@@ -115,6 +115,7 @@ def trylock(ui, vfs, lockname, timeout, warntimeout, *args, **kwargs):
 
     This function is responsible to issue warnings and or debug messages about
     the held lock while trying to acquires it."""
+    devel_wait_file = kwargs.pop("devel_wait_sync_file", None)
 
     def printwarning(printer, locker):
         """issue the usual "waiting on lock" message through any channel"""
@@ -150,6 +151,11 @@ def trylock(ui, vfs, lockname, timeout, warntimeout, *args, **kwargs):
             l._trylock()
             break
         except error.LockHeld as inst:
+            if devel_wait_file is not None:
+                # create the file to signal we are waiting
+                with open(devel_wait_file, 'w'):
+                    pass
+
             if delay == debugidx:
                 printwarning(ui.debug, inst.locker)
             if delay == warningidx:

@@ -73,7 +73,7 @@ pub enum PatternSyntax {
 }
 
 /// Transforms a glob pattern into a regex
-fn glob_to_re(pat: &[u8]) -> Vec<u8> {
+pub fn glob_to_re(pat: &[u8]) -> Vec<u8> {
     let mut input = pat;
     let mut res: Vec<u8> = vec![];
     let mut group_depth = 0;

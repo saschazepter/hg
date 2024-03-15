@@ -8,7 +8,7 @@
 
   "Don't use a chainsaw to cut your food!"
 
-The chainsaw extension provides commands that are so much geared towards a
+The chainsaw is a collection of commands that are so much geared towards a
 specific use case in a specific context or environment that they are totally
 inappropriate and **really dangerous** in other contexts.
 
@@ -21,25 +21,20 @@ variable (see :hg:`help scripting`).
 
 import shutil
 
-from mercurial.i18n import _
-from mercurial import (
+from ..i18n import _
+from .. import (
     cmdutil,
     commands,
     error,
     localrepo,
     registrar,
 )
-from mercurial.utils import (
+from ..utils import (
     urlutil,
 )
 
 cmdtable = {}
 command = registrar.command(cmdtable)
-# Note for extension authors: ONLY specify testedwith = 'ships-with-hg-core' for
-# extensions which SHIP WITH MERCURIAL. Non-mainline extensions should
-# be specifying the version(s) of Mercurial they are tested with, or
-# leave the attribute unspecified.
-testedwith = b'ships-with-hg-core'
 
 
 @command(

@@ -3072,6 +3072,9 @@ class localrepository:
             warntimeout = self.ui.configint(b"ui", b"timeout.warn")
         # internal config: ui.signal-safe-lock
         signalsafe = self.ui.configbool(b'ui', b'signal-safe-lock')
+        sync_file = self.ui.config(b'devel', b'lock-wait-sync-file')
+        if not sync_file:
+            sync_file = None
 
         l = lockmod.trylock(
             self.ui,
@@ -3083,6 +3086,7 @@ class localrepository:
             acquirefn=acquirefn,
             desc=desc,
             signalsafe=signalsafe,
+            devel_wait_sync_file=sync_file,
         )
         return l
 
