@@ -703,6 +703,7 @@ class phasecache:
             return set()
 
         # search for affected high phase changesets and roots
+        seen = set(new_revs)
         push = heapq.heappush
         pop = heapq.heappop
         parents = cl.parentrevs
@@ -735,9 +736,11 @@ class phasecache:
                 # higher phases
                 delroots.add(current)
             # schedule a walk down if needed
-            if p1_phase > targetphase:
+            if p1_phase > targetphase and p1 not in seen:
+                seen.add(p1)
                 push(revs, -p1)
-            if p2_phase > targetphase:
+            if p2_phase > targetphase and p2 not in seen:
+                seen.add(p2)
                 push(revs, -p2)
             if p1_phase < targetphase and p2_phase < targetphase:
                 new_target_roots.add(current)
