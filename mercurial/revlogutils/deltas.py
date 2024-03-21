@@ -876,7 +876,8 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
             # XXX note that the ordering of the group becomes important as
             # it now impacts the final result. The current order is
             # unprocessed and can be improved.
-            next_idx = self._internal_idx + self._group_chunk_size
+            chunk_size = self.revlog.delta_config.candidate_group_chunk_size
+            next_idx = self._internal_idx + chunk_size
             self.current_group = self._internal_group[
                 self._internal_idx : next_idx
             ]
