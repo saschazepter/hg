@@ -421,7 +421,18 @@ def repo_rel_or_abs_source(repo):
 
     chunks.reverse()
     path = posixpath.join(*chunks)
-    return posixpath.normpath(path)
+    matchscheme = re.compile(b'^[a-zA-Z0-9+.\\-]+:').match
+    if matchscheme(path):
+        scheme, path = path.split(b':', 1)
+        if path.startswith(b'//'):
+            path = path[2:]
+            sep = b'//'
+        else:
+            sep = b''
+        normalized_path = scheme + b':' + sep + posixpath.normpath(path)
+    else:
+        normalized_path = posixpath.normpath(path)
+    return normalized_path
 
 
 def reporelpath(repo: "localrepo.localrepository") -> bytes:
