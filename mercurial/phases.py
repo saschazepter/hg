@@ -907,9 +907,10 @@ class phasecache:
                         replaced_roots.add(r)
             sets = self._phasesets
             sets[targetphase].update(changed_revs)
-            for r, old in changed_revs.items():
-                if old > public:
-                    sets[old].discard(r)
+            if targetphase > draft:
+                for r, old in changed_revs.items():
+                    if old > public:
+                        sets[old].discard(r)
 
         if new_roots:
             assert changed_revs
