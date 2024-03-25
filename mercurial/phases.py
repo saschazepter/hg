@@ -869,6 +869,8 @@ class phasecache:
         start = min(new_revs)
         end = len(cl)
         rev_phases = [None] * (end - start)
+
+        this_phase_set = self._phasesets[targetphase]
         for r in range(start, end):
 
             # gather information about the current_rev
@@ -893,6 +895,7 @@ class phasecache:
                     new_roots.add(r)
                 rev_phases[r - start] = targetphase
                 changed_revs[r] = r_phase
+                this_phase_set.add(r)
             elif p_phase is None:
                 rev_phases[r - start] = r_phase
             else:
@@ -903,13 +906,14 @@ class phasecache:
                 if p_phase == targetphase:
                     if p_phase > r_phase:
                         changed_revs[r] = r_phase
+                        this_phase_set.add(r)
                     elif r in currentroots:
                         replaced_roots.add(r)
             sets = self._phasesets
-            sets[targetphase].update(changed_revs)
-            for r, old in changed_revs.items():
-                if old > public:
-                    sets[old].discard(r)
+            if targetphase > draft:
+                for r, old in changed_revs.items():
+                    if old > public:
+                        sets[old].discard(r)
 
         if new_roots:
             assert changed_revs
