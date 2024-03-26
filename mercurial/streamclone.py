@@ -723,8 +723,8 @@ def _emit3(repo, entries):
         # create a copy of volatile files
         for k, vfs, e in entries:
             for f in e.files():
-                f.file_size(vfs)  # record the expected size under lock
                 if f.is_volatile:
+                    f.file_size(vfs)  # record the expected size under lock
                     copy(vfs.join(f.unencoded_path))
         # the first yield release the lock on the repository
         yield None
