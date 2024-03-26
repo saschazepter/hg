@@ -453,6 +453,10 @@ class StoreFile:
                 self._file_size = 0
         return self._file_size
 
+    @property
+    def has_size(self):
+        return self._file_size is not None
+
     def get_stream(self, vfs, copies):
         """return data "stream" information for this file
 
@@ -601,7 +605,8 @@ class RevlogStoreEntry(BaseStoreEntry):
         max_changeset=None,
         preserve_file_count=False,
     ):
-        if (
+        pre_sized = all(f.has_size for f in self.files())
+        if pre_sized and (
             repo is None
             or max_changeset is None
             # This use revlog-v2, ignore for now
