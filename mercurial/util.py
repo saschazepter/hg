@@ -333,8 +333,10 @@ except NameError:
 
     def buffer(sliceable, offset=0, length=None):
         if length is not None:
-            return memoryview(sliceable)[offset : offset + length]
-        return memoryview(sliceable)[offset:]
+            view = memoryview(sliceable)[offset : offset + length]
+        else:
+            view = memoryview(sliceable)[offset:]
+        return view.toreadonly()
 
 
 _chunksize = 4096
