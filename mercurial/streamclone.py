@@ -850,7 +850,10 @@ def generatev3(repo, includes, excludes, includeobsmarkers):
     - ways to adjust the number of expected entries/files ?
     """
 
-    with repo.lock():
+    # Python is getting crazy at all the small container we creates while
+    # considering the files to preserve, disabling the gc while we do so helps
+    # performance a lot.
+    with repo.lock(), util.nogc():
 
         repo.ui.debug(b'scanning\n')
 
