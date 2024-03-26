@@ -2058,8 +2058,7 @@ def _find_stream_generator(version):
     if generatev3 is not None:
 
         def generate(repo):
-            entries, bytes, data = generatev3(repo, None, None, True)
-            return data
+            return generatev3(repo, None, None, True)
 
         available[b'v3-exp'] = generate
 
