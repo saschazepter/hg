@@ -2040,7 +2040,7 @@ def _find_stream_generator(version):
     if generatev1 is not None:
 
         def generate(repo):
-            entries, bytes, data = generatev2(repo, None, None, True)
+            entries, bytes, data = generatev1(repo, None, None, True)
             return data
 
         available[b'v1'] = generatev1
