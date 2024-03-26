@@ -770,23 +770,26 @@ def _entries_walk(repo, includes, excludes, includeobsmarkers):
         matcher = narrowspec.match(repo.root, includes, excludes)
 
     phase = not repo.publishing()
-    entries = _walkstreamfiles(
-        repo,
-        matcher,
-        phase=phase,
-        obsolescence=includeobsmarkers,
-    )
-    for entry in entries:
-        yield (_srcstore, entry)
+    # Python is getting crazy at all the small container we creates, disabling
+    # the gc while we do so helps performance a lot.
+    with util.nogc():
+        entries = _walkstreamfiles(
+            repo,
+            matcher,
+            phase=phase,
+            obsolescence=includeobsmarkers,
+        )
+        for entry in entries:
+            yield (_srcstore, entry)
 
-    for name in cacheutil.cachetocopy(repo):
-        if repo.cachevfs.exists(name):
-            # not really a StoreEntry, but close enough
-            entry = store.SimpleStoreEntry(
-                entry_path=name,
-                is_volatile=True,
-            )
-            yield (_srccache, entry)
+        for name in cacheutil.cachetocopy(repo):
+            if repo.cachevfs.exists(name):
+                # not really a StoreEntry, but close enough
+                entry = store.SimpleStoreEntry(
+                    entry_path=name,
+                    is_volatile=True,
+                )
+                yield (_srccache, entry)
 
 
 def generatev2(repo, includes, excludes, includeobsmarkers):
