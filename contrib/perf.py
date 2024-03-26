@@ -2084,7 +2084,8 @@ def _find_stream_generator(version):
             b'',
             b'stream-version',
             b'latest',
-            b'stream version to use ("v1", "v2", "v3" or "latest", (the default))',
+            b'stream version to use ("v1", "v2", "v3-exp" '
+            b'or "latest", (the default))',
         ),
     ]
     + formatteropts,
@@ -2119,7 +2120,8 @@ def perf_stream_clone_scan(ui, repo, stream_version, **opts):
             b'',
             b'stream-version',
             b'latest',
-            b'stream version to us ("v1", "v2" or "latest", (the default))',
+            b'stream version to us ("v1", "v2", "v3-exp" '
+            b'or "latest", (the default))',
         ),
     ]
     + formatteropts,
