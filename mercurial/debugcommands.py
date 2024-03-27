@@ -2614,6 +2614,9 @@ def debugnodemap(ui, repo, file_=None, **opts):
             ui.write((b"data-unused: %d\n") % docket.data_unused)
             unused_perc = docket.data_unused * 100.0 / docket.data_length
             ui.write((b"data-unused: %2.3f%%\n") % unused_perc)
+    else:
+        ui.warn((b'no action specified\n'))
+        return 1
 
 
 @command(
