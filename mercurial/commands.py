@@ -5375,46 +5375,6 @@ def phase(ui, repo, *revs, **opts):
     return ret
 
 
-def postincoming(ui, repo, modheads, optupdate, checkout, brev):
-    """Run after a changegroup has been added via pull/unbundle
-
-    This takes arguments below:
-
-    :modheads: change of heads by pull/unbundle
-    :optupdate: updating working directory is needed or not
-    :checkout: update destination revision (or None to default destination)
-    :brev: a name, which might be a bookmark to be activated after updating
-
-    return True if update raise any conflict, False otherwise.
-    """
-    if modheads == 0:
-        return False
-    if optupdate:
-        try:
-            return hg.updatetotally(ui, repo, checkout, brev)
-        except error.UpdateAbort as inst:
-            msg = _(b"not updating: %s") % stringutil.forcebytestr(inst)
-            hint = inst.hint
-            raise error.UpdateAbort(msg, hint=hint)
-    if ui.quiet:
-        pass  # we won't report anything so the other clause are useless.
-    elif modheads is not None and modheads > 1:
-        currentbranchheads = len(repo.branchheads())
-        if currentbranchheads == modheads:
-            ui.status(
-                _(b"(run 'hg heads' to see heads, 'hg merge' to merge)\n")
-            )
-        elif currentbranchheads > 1:
-            ui.status(
-                _(b"(run 'hg heads .' to see heads, 'hg merge' to merge)\n")
-            )
-        else:
-            ui.status(_(b"(run 'hg heads' to see heads)\n"))
-    elif not ui.configbool(b'commands', b'update.requiredest'):
-        ui.status(_(b"(run 'hg update' to get a working copy)\n"))
-    return False
-
-
 @command(
     b'pull',
     [
@@ -5610,7 +5570,7 @@ def pull(ui, repo, *sources, **opts):
                 # for pushes.
                 repo._subtoppath = path.loc
                 try:
-                    update_conflict = postincoming(
+                    update_conflict = cmdutil.postincoming(
                         ui, repo, modheads, opts.get('update'), checkout, brev
                     )
                 except error.FilteredRepoLookupError as exc:
@@ -7777,7 +7737,7 @@ def unbundle(ui, repo, fname1, *fnames, _unbundle_source=b'unbundle', **opts):
                 )
             modheads = bundle2.combinechangegroupresults(op)
 
-    if postincoming(ui, repo, modheads, opts.get('update'), None, None):
+    if cmdutil.postincoming(ui, repo, modheads, opts.get('update'), None, None):
         return 1
     else:
         return 0
