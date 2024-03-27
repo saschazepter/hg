@@ -2133,16 +2133,16 @@ def pullrebase(orig, ui, repo, *args, **opts):
             )
 
             revsprepull = len(repo)
-            origpostincoming = commands.postincoming
+            origpostincoming = cmdutil.postincoming
 
             def _dummy(*args, **kwargs):
                 pass
 
-            commands.postincoming = _dummy
+            cmdutil.postincoming = _dummy
             try:
                 ret = orig(ui, repo, *args, **opts)
             finally:
-                commands.postincoming = origpostincoming
+                cmdutil.postincoming = origpostincoming
             revspostpull = len(repo)
             if revspostpull > revsprepull:
                 # --rev option from pull conflict with rebase own --rev
