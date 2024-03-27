@@ -2202,11 +2202,15 @@ def perf_stream_clone_consume(ui, repo, filename, **opts):
     def runone():
         bundle = run_variables[0]
         tmp_dir = run_variables[1]
+
+        # we actually wants to copy all config to ensure the repo config is
+        # taken in account during the benchmark
+        new_ui = repo.ui.__class__(repo.ui)
         # only pass ui when no srcrepo
         localrepo.createrepository(
-            repo.ui, tmp_dir, requirements=repo.requirements
+            new_ui, tmp_dir, requirements=repo.requirements
         )
-        target = hg.repository(repo.ui, tmp_dir)
+        target = hg.repository(new_ui, tmp_dir)
         gen = exchange.readbundle(target.ui, bundle, bundle.name)
         # stream v1
         if util.safehasattr(gen, 'apply'):
