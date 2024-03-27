@@ -5396,7 +5396,9 @@ def postincoming(ui, repo, modheads, optupdate, checkout, brev):
             msg = _(b"not updating: %s") % stringutil.forcebytestr(inst)
             hint = inst.hint
             raise error.UpdateAbort(msg, hint=hint)
-    if modheads is not None and modheads > 1:
+    if ui.quiet:
+        pass  # we won't report anything so the other clause are useless.
+    elif modheads is not None and modheads > 1:
         currentbranchheads = len(repo.branchheads())
         if currentbranchheads == modheads:
             ui.status(
