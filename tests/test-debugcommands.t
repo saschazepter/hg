@@ -663,9 +663,6 @@ Test debug::unbundle
   adding manifests
   adding file changes
   added 0 changesets with 0 changes to 1 files (no-pure !)
-  9 local changesets published (no-pure !)
-  3 local changesets published (pure !)
-  (run 'hg update' to get a working copy)
 
 Test debugcolor
 

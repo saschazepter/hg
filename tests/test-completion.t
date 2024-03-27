@@ -284,7 +284,7 @@ Show all commands + options
   debug-revlog-stats: changelog, manifest, filelogs, template
   debug::stable-tail-sort: template
   debug::stable-tail-sort-leaps: template, specific
-  debug::unbundle: update
+  debug::unbundle: 
   debugancestor: 
   debugantivirusrunning: 
   debugapplystreamclonebundle: 
