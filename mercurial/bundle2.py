@@ -1822,7 +1822,11 @@ def addparttagsfnodescache(repo, bundler, outgoing):
             chunks.extend([node, fnode])
 
     if chunks:
-        bundler.newpart(b'hgtagsfnodes', data=b''.join(chunks))
+        bundler.newpart(
+            b'hgtagsfnodes',
+            mandatory=False,
+            data=b''.join(chunks),
+        )
 
 
 def addpartrevbranchcache(repo, bundler, outgoing):
