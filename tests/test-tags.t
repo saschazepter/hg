@@ -845,7 +845,7 @@ Check that the bundle includes cache data
       c4dab0c2fd337eb9191f80c3024830a4889a8f34
       f63cc8fe54e4d326f8d692805d70e092f851ddb1
       40f0358cb314c824a5929ee527308d90e023bc10
-  hgtagsfnodes -- {} (mandatory: True)
+  hgtagsfnodes -- {} (mandatory: False)
   cache:rev-branch-cache -- {} (mandatory: False)
 
 Check that local clone includes cache data
