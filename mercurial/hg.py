@@ -1425,6 +1425,7 @@ def _outgoing(ui, repo, dests, opts, subpath=None):
     others = []
     for path in urlutil.get_push_paths(repo, ui, dests):
         dest = path.loc
+        repo._subtoppath = dest
         if subpath is not None:
             subpath = urlutil.url(subpath)
             if subpath.isabs():
@@ -1528,6 +1529,7 @@ def outgoing(ui, repo, dests, opts, subpath=None):
     finally:
         for oth in others:
             oth.close()
+        del repo._subtoppath
 
 
 def verify(repo, level=None):
