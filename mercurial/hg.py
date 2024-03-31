@@ -1472,30 +1472,18 @@ def display_outgoing_revs(ui, repo, o, opts):
             displayer.close()
 
 
+_no_subtoppath = object()
+
+
 def outgoing(ui, repo, dests, opts, subpath=None):
     if opts.get(b'graph'):
         logcmdutil.checkunsupportedgraphflags([], opts)
-    o, others = _outgoing(ui, repo, dests, opts, subpath=subpath)
     ret = 1
-    try:
-        if o:
-            ret = 0
-            display_outgoing_revs(ui, repo, o, opts)
-        for oth in others:
-            cmdutil.outgoinghooks(ui, repo, oth, opts, o)
-            ret = min(ret, _outgoing_recurse(ui, repo, dests, opts))
-        return ret  # exit code is zero since we found outgoing changes
-    finally:
-        for oth in others:
-            oth.close()
-
-
-def _outgoing(ui, repo, dests, opts, subpath=None):
-    out = set()
-    others = []
     for path in urlutil.get_push_paths(repo, ui, dests):
         dest = path.loc
-        if True:
+        prev_subtopath = getattr(repo, "_subtoppath", _no_subtoppath)
+        try:
+            repo._subtoppath = dest
             if subpath is not None:
                 subpath = urlutil.url(subpath)
                 if subpath.isabs():
@@ -1525,14 +1513,24 @@ def _outgoing(ui, repo, dests, opts, subpath=None):
                     repo, other, revs, force=opts.get(b'force')
                 )
                 o = outgoing.missing
-                out.update(o)
                 if not o:
                     scmutil.nochangesfound(repo.ui, repo, outgoing.excluded)
-                others.append(other)
+                else:
+                    ret = 0
+                    display_outgoing_revs(ui, repo, o, opts)
+
+                cmdutil.outgoinghooks(ui, repo, other, opts, o)
+                ret = min(ret, _outgoing_recurse(ui, repo, dests, opts))
             except:  # re-raises
-                other.close()
                 raise
-    return list(out), others
+            finally:
+                other.close()
+        finally:
+            if prev_subtopath is _no_subtoppath:
+                del repo._subtoppath
+            else:
+                repo._subtoppath = prev_subtopath
+    return ret
 
 
 def verify(repo, level=None):
