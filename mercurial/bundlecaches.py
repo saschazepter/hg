@@ -136,7 +136,7 @@ _bundlespeccontentopts = {
         b'cg.version': b'02',
         b'obsolescence': False,
         b'phases': False,
-        b"streamv2": True,
+        b"stream": "v2",
         b'tagsfnodescache': False,
         b'revbranchcache': False,
     },
@@ -145,7 +145,7 @@ _bundlespeccontentopts = {
         b'cg.version': b'03',
         b'obsolescence': False,
         b'phases': False,
-        b"streamv3-exp": True,
+        b"stream": "v3-exp",
         b'tagsfnodescache': False,
         b'revbranchcache': False,
     },
@@ -388,10 +388,7 @@ def isstreamclonespec(bundlespec):
     if (
         bundlespec.wirecompression == b'UN'
         and bundlespec.wireversion == b'02'
-        and (
-            bundlespec.contentopts.get(b'streamv2')
-            or bundlespec.contentopts.get(b'streamv3-exp')
-        )
+        and bundlespec.contentopts.get(b'stream', None) in (b"v2", b"v3-exp")
     ):
         return True
 
