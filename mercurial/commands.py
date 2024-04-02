@@ -1626,6 +1626,8 @@ def bundle(ui, repo, fname, *dests, **opts):
             pycompat.bytestr(e),
             hint=_(b"see 'hg help bundlespec' for supported values for --type"),
         )
+
+    has_changegroup = bundlespec.params.get(b"changegroup", False)
     cgversion = bundlespec.params[b"cg.version"]
 
     # Packed bundles are a pseudo bundle format for now.
@@ -1662,7 +1664,8 @@ def bundle(ui, repo, fname, *dests, **opts):
             base = [nullrev]
     else:
         base = None
-    if cgversion not in changegroup.supportedoutgoingversions(repo):
+    supported_cg_versions = changegroup.supportedoutgoingversions(repo)
+    if has_changegroup and cgversion not in supported_cg_versions:
         raise error.Abort(
             _(b"repository does not support bundle version %s") % cgversion
         )
