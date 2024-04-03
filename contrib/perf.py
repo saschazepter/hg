@@ -2188,10 +2188,18 @@ def perf_stream_clone_consume(ui, repo, filename, **opts):
 
     run_variables = [None, None]
 
+    # we create the new repository next to the other one for two reasons:
+    # - this way we use the same file system, which are relevant for benchmark
+    # - if /tmp/ is small, the operation could overfills it.
+    source_repo_dir = os.path.dirname(repo.root)
+
     @contextlib.contextmanager
     def context():
         with open(filename, mode='rb') as bundle:
-            with tempfile.TemporaryDirectory() as tmp_dir:
+            with tempfile.TemporaryDirectory(
+                prefix=b'hg-perf-stream-consume-',
+                dir=source_repo_dir,
+            ) as tmp_dir:
                 tmp_dir = fsencode(tmp_dir)
                 run_variables[0] = bundle
                 run_variables[1] = tmp_dir
