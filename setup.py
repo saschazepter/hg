@@ -232,6 +232,10 @@ class hgcommand:
             print("stderr from '%s':" % (' '.join(cmd)), file=sys.stderr)
             print(err, file=sys.stderr)
         if returncode != 0:
+            print(
+                "non zero-return '%s': %d" % (' '.join(cmd), returncode),
+                file=sys.stderr,
+            )
             return b''
         return out
 
