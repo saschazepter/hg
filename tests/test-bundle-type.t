@@ -620,3 +620,93 @@ Test controlling the changegroup version
       b9f5f740a8cd76700020e3903ee55ecff78bd3e5
   $ hg debugbundle ./v2-cg-03.hg --spec
   bzip2-v2;cg.version=03
+
+tests controlling bundle contents
+=================================
+
+  $ hg debugupdatecache -R t1
+
+default content
+---------------
+
+  $ hg -R t1 bundle --all --quiet --type 'v2' ./v2.hg
+  $ hg debugbundle ./v2.hg --spec
+  bzip2-v2
+  $ hg debugbundle ./v2.hg --quiet
+  Stream params: {Compression: BZ}
+  changegroup -- {nbchanges: 7, version: 02} (mandatory: True)
+  hgtagsfnodes -- {} (mandatory: False)
+  cache:rev-branch-cache -- {} (mandatory: False)
+
+  $ hg -R t1 bundle --all --quiet --type 'v3' ./v3.hg
+  $ hg debugbundle ./v3.hg --spec
+  bzip2-v2;cg.version=03
+  $ hg debugbundle ./v3.hg --quiet
+  Stream params: {Compression: BZ}
+  changegroup -- {nbchanges: 7, targetphase: 2, version: 03} (mandatory: True)
+  hgtagsfnodes -- {} (mandatory: False)
+  cache:rev-branch-cache -- {} (mandatory: False)
+  phase-heads -- {} (mandatory: True)
+
+adding extra parts
+------------------
+
+We should have a "phase-heads" part here that we did not had in the default content
+
+  $ hg -R t1 bundle --all --quiet --type 'v2;phases=1' ./v2-phases.hg
+  $ hg debugbundle ./v2-phases.hg --spec
+  bzip2-v2
+  $ hg debugbundle ./v2-phases.hg --quiet
+  Stream params: {Compression: BZ}
+  changegroup -- {nbchanges: 7, targetphase: 2, version: 02} (mandatory: True)
+  hgtagsfnodes -- {} (mandatory: False)
+  cache:rev-branch-cache -- {} (mandatory: False)
+  phase-heads -- {} (mandatory: True)
+
+skipping default inclusion
+--------------------------
+
+  $ hg -R t1 bundle --all --quiet --type 'v2;tagsfnodescache=false' ./v2-no-tfc.hg
+  $ hg debugbundle ./v2-no-tfc.hg --spec
+  bzip2-v2
+  $ hg debugbundle ./v2-no-tfc.hg --quiet
+  Stream params: {Compression: BZ}
+  changegroup -- {nbchanges: 7, version: 02} (mandatory: True)
+  cache:rev-branch-cache -- {} (mandatory: False)
+
+  $ hg -R t1 bundle --all --quiet --type 'v3;phases=0' ./v3-no-phases.hg
+  $ hg debugbundle ./v3-no-phases.hg --spec
+  bzip2-v2;cg.version=03
+  $ hg debugbundle ./v3-no-phases.hg --quiet
+  Stream params: {Compression: BZ}
+  changegroup -- {nbchanges: 7, version: 03} (mandatory: True)
+  hgtagsfnodes -- {} (mandatory: False)
+  cache:rev-branch-cache -- {} (mandatory: False)
+
+  $ hg -R t1 bundle --all --quiet --type 'v3;phases=no;tagsfnodescache=0' ./v3-multi-no.hg
+  $ hg debugbundle ./v3-multi-no.hg --spec
+  bzip2-v2;cg.version=03
+  $ hg debugbundle ./v3-multi-no.hg --quiet
+  Stream params: {Compression: BZ}
+  changegroup -- {nbchanges: 7, version: 03} (mandatory: True)
+  cache:rev-branch-cache -- {} (mandatory: False)
+
+skipping changegroup
+--------------------
+
+  $ hg -R t1 bundle --all --quiet --type 'v2;changegroup=no' ./v2-no-cg.hg
+  $ hg debugbundle ./v2-no-cg.hg --spec
+  bzip2-v2;changegroup=no
+  $ hg debugbundle ./v2-no-cg.hg --quiet
+  Stream params: {Compression: BZ}
+  hgtagsfnodes -- {} (mandatory: False)
+  cache:rev-branch-cache -- {} (mandatory: False)
+
+  $ hg -R t1 bundle --all --quiet --type 'v3;changegroup=0' ./v3-no-cg.hg
+  $ hg debugbundle ./v3-no-cg.hg --spec
+  bzip2-v2;changegroup=no
+  $ hg debugbundle ./v3-no-cg.hg --quiet
+  Stream params: {Compression: BZ}
+  hgtagsfnodes -- {} (mandatory: False)
+  cache:rev-branch-cache -- {} (mandatory: False)
+  phase-heads -- {} (mandatory: True)
