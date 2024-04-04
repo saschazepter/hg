@@ -527,24 +527,34 @@ class sshserver:
     def __init__(self, ui, repo, logfh=None, accesshidden=False):
         self._ui = ui
         self._repo = repo
-        self._fin, self._fout = ui.protectfinout()
         self._accesshidden = accesshidden
-
-        # Log write I/O to stdout and stderr if configured.
-        if logfh:
-            self._fout = util.makeloggingfileobject(
-                logfh, self._fout, b'o', logdata=True
-            )
-            ui.ferr = util.makeloggingfileobject(
-                logfh, ui.ferr, b'e', logdata=True
-            )
+        self._logfh = logfh
 
     def serve_forever(self):
         self.serveuntil(threading.Event())
-        self._ui.restorefinout(self._fin, self._fout)
 
     def serveuntil(self, ev):
         """Serve until a threading.Event is set."""
-        _runsshserver(
-            self._ui, self._repo, self._fin, self._fout, ev, self._accesshidden
-        )
+        with self._ui.protectedfinout() as (fin, fout):
+            if self._logfh:
+                # Log write I/O to stdout and stderr if configured.
+                fout = util.makeloggingfileobject(
+                    self._logfh,
+                    fout,
+                    b'o',
+                    logdata=True,
+                )
+                self._ui.ferr = util.makeloggingfileobject(
+                    self._logfh,
+                    self._ui.ferr,
+                    b'e',
+                    logdata=True,
+                )
+            _runsshserver(
+                self._ui,
+                self._repo,
+                fin,
+                fout,
+                ev,
+                self._accesshidden,
+            )
