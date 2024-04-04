@@ -158,9 +158,8 @@ def getbundlespec(ui, fh):
                     params[b'obsolescence-mandatory'] = b'no'
 
         if not version:
-            raise error.Abort(
-                _(b'could not identify changegroup version in bundle')
-            )
+            params[b'changegroup'] = b'no'
+            version = b'v2'
         spec = b'%s-%s' % (comp, version)
         if params:
             spec += b';'
