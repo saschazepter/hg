@@ -1132,30 +1132,32 @@ def analyze_remote_phases(
     return public_heads, draft_roots
 
 
-class remotephasessummary:
+class RemotePhasesSummary:
     """summarize phase information on the remote side
 
     :publishing: True is the remote is publishing
-    :publicheads: list of remote public phase heads (nodes)
-    :draftheads: list of remote draft phase heads (nodes)
-    :draftroots: list of remote draft phase root (nodes)
+    :public_heads: list of remote public phase heads (revs)
+    :draft_heads: list of remote draft phase heads (revs)
+    :draft_roots: list of remote draft phase root (revs)
     """
 
-    def __init__(self, repo, remotesubset, remoteroots):
+    def __init__(
+        self,
+        repo,
+        remote_subset: Collection[int],
+        remote_roots: Dict[bytes, bytes],
+    ):
         unfi = repo.unfiltered()
-        to_rev = unfi.changelog.index.rev
-        to_node = unfi.changelog.node
-        self._allremoteroots = remoteroots
+        self._allremoteroots: Dict[bytes, bytes] = remote_roots
 
-        self.publishing = remoteroots.get(b'publishing', False)
+        self.publishing: bool = bool(remote_roots.get(b'publishing', False))
 
-        remote_subset = [to_rev(n) for n in remotesubset]
-        heads, roots = analyze_remote_phases(repo, remote_subset, remoteroots)
-        self.publicheads = [to_node(r) for r in heads]
-        self.draftroots = [to_node(r) for r in roots]
+        heads, roots = analyze_remote_phases(repo, remote_subset, remote_roots)
+        self.public_heads: Collection[int] = heads
+        self.draft_roots: Collection[int] = roots
         # Get the list of all "heads" revs draft on remote
         dheads = unfi.revs(b'heads(%ld::%ld)', roots, remote_subset)
-        self.draftheads = [to_node(r) for r in dheads]
+        self.draft_heads: Collection[int] = dheads
 
 
 def new_heads(
