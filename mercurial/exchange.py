@@ -622,6 +622,7 @@ def _pushdiscoveryphase(pushop):
     (computed for both success and failure case for changesets push)"""
     outgoing = pushop.outgoing
     unfi = pushop.repo.unfiltered()
+    to_rev = unfi.changelog.index.rev
     remotephases = listkeys(pushop.remote, b'phases')
 
     if (
@@ -643,15 +644,19 @@ def _pushdiscoveryphase(pushop):
         pushop.fallbackoutdatedphases = []
         return
 
-    pushop.remotephases = phases.remotephasessummary(
-        pushop.repo, pushop.fallbackheads, remotephases
+    fallbackheads_rev = [to_rev(n) for n in pushop.fallbackheads]
+
+    pushop.remotephases = phases.RemotePhasesSummary(
+        pushop.repo,
+        fallbackheads_rev,
+        remotephases,
     )
-    droots = pushop.remotephases.draftroots
+    droots = pushop.remotephases.draft_roots
 
     extracond = b''
     if not pushop.remotephases.publishing:
         extracond = b' and public()'
-    revset = b'heads((%%ln::%%ln) %s)' % extracond
+    revset = b'heads((%%ld::%%ln) %s)' % extracond
     # Get the list of all revs draft on remote by public here.
     # XXX Beware that revset break if droots is not strictly
     # XXX root we may want to ensure it is but it is costly
@@ -659,7 +664,7 @@ def _pushdiscoveryphase(pushop):
     if not pushop.remotephases.publishing and pushop.publish:
         future = list(
             unfi.set(
-                b'%ln and (not public() or %ln::)', pushop.futureheads, droots
+                b'%ln and (not public() or %ld::)', pushop.futureheads, droots
             )
         )
     elif not outgoing.missing:
@@ -670,9 +675,9 @@ def _pushdiscoveryphase(pushop):
         # should not be necessary for publishing server, but because of an
         # issue fixed in xxxxx we have to do it anyway.
         fdroots = list(
-            unfi.set(b'roots(%ln  + %ln::)', outgoing.missing, droots)
+            unfi.set(b'roots(%ln  + %ld::)', outgoing.missing, droots)
         )
-        fdroots = [f.node() for f in fdroots]
+        fdroots = [f.rev() for f in fdroots]
         future = list(unfi.set(revset, fdroots, pushop.futureheads))
     pushop.outdatedphases = future
     pushop.fallbackoutdatedphases = fallback
@@ -903,8 +908,13 @@ def _pushb2checkphases(pushop, bundler):
     if pushop.remotephases is not None and hasphaseheads:
         # check that the remote phase has not changed
         checks = {p: [] for p in phases.allphases}
-        checks[phases.public].extend(pushop.remotephases.publicheads)
-        checks[phases.draft].extend(pushop.remotephases.draftroots)
+        to_node = pushop.repo.unfiltered().changelog.node
+        checks[phases.public].extend(
+            to_node(r) for r in pushop.remotephases.public_heads
+        )
+        checks[phases.draft].extend(
+            to_node(r) for r in pushop.remotephases.draft_roots
+        )
         if any(checks.values()):
             for phase in checks:
                 checks[phase].sort()
