@@ -1308,8 +1308,16 @@ def _pushsyncphase(pushop):
         _localphasemove(pushop, cheads)
         # don't push any phase data as there is nothing to push
     else:
-        ana = phases.analyzeremotephases(pushop.repo, cheads, remotephases)
-        pheads, droots = ana
+        unfi = pushop.repo.unfiltered()
+        to_rev = unfi.changelog.index.rev
+        to_node = unfi.changelog.node
+        cheads_revs = [to_rev(n) for n in cheads]
+        pheads_revs, _dr = phases.analyze_remote_phases(
+            pushop.repo,
+            cheads_revs,
+            remotephases,
+        )
+        pheads = [to_node(r) for r in pheads_revs]
         ### Apply remote phase on local
         if remotephases.get(b'publishing', False):
             _localphasemove(pushop, cheads)
@@ -2063,10 +2071,17 @@ def _pullapplyphases(pullop, remotephases):
     pullop.stepsdone.add(b'phases')
     publishing = bool(remotephases.get(b'publishing', False))
     if remotephases and not publishing:
+        unfi = pullop.repo.unfiltered()
+        to_rev = unfi.changelog.index.rev
+        to_node = unfi.changelog.node
+        pulledsubset_revs = [to_rev(n) for n in pullop.pulledsubset]
         # remote is new and non-publishing
-        pheads, _dr = phases.analyzeremotephases(
-            pullop.repo, pullop.pulledsubset, remotephases
+        pheads_revs, _dr = phases.analyze_remote_phases(
+            pullop.repo,
+            pulledsubset_revs,
+            remotephases,
         )
+        pheads = [to_node(r) for r in pheads_revs]
         dheads = pullop.pulledsubset
     else:
         # Remote is old or publishing all common changesets
