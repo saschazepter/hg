@@ -645,6 +645,7 @@ def _pushdiscoveryphase(pushop):
         return
 
     fallbackheads_rev = [to_rev(n) for n in pushop.fallbackheads]
+    futureheads_rev = [to_rev(n) for n in pushop.futureheads]
 
     pushop.remotephases = phases.RemotePhasesSummary(
         pushop.repo,
@@ -656,15 +657,15 @@ def _pushdiscoveryphase(pushop):
     extracond = b''
     if not pushop.remotephases.publishing:
         extracond = b' and public()'
-    revset = b'heads((%%ld::%%ln) %s)' % extracond
+    revset = b'heads((%%ld::%%ld) %s)' % extracond
     # Get the list of all revs draft on remote by public here.
     # XXX Beware that revset break if droots is not strictly
     # XXX root we may want to ensure it is but it is costly
-    fallback = list(unfi.set(revset, droots, pushop.fallbackheads))
+    fallback = list(unfi.set(revset, droots, fallbackheads_rev))
     if not pushop.remotephases.publishing and pushop.publish:
         future = list(
             unfi.set(
-                b'%ln and (not public() or %ld::)', pushop.futureheads, droots
+                b'%ld and (not public() or %ld::)', futureheads_rev, droots
             )
         )
     elif not outgoing.missing:
@@ -674,11 +675,10 @@ def _pushdiscoveryphase(pushop):
         #
         # should not be necessary for publishing server, but because of an
         # issue fixed in xxxxx we have to do it anyway.
-        fdroots = list(
-            unfi.set(b'roots(%ln  + %ld::)', outgoing.missing, droots)
-        )
+        missing_rev = [to_rev(n) for n in outgoing.missing]
+        fdroots = list(unfi.set(b'roots(%ld  + %ld::)', missing_rev, droots))
         fdroots = [f.rev() for f in fdroots]
-        future = list(unfi.set(revset, fdroots, pushop.futureheads))
+        future = list(unfi.set(revset, fdroots, futureheads_rev))
     pushop.outdatedphases = future
     pushop.fallbackoutdatedphases = fallback
 
