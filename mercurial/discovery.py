@@ -190,7 +190,12 @@ def findcommonoutgoing(
         if len(missing) == len(allmissing):
             ancestorsof = onlyheads
         else:  # update missing heads
-            ancestorsof = phases.newheads(repo, onlyheads, excluded)
+            to_rev = repo.changelog.index.rev
+            to_node = repo.changelog.node
+            excluded_revs = [to_rev(r) for r in excluded]
+            onlyheads_revs = [to_rev(r) for r in onlyheads]
+            new_heads = phases.new_heads(repo, onlyheads_revs, excluded_revs)
+            ancestorsof = [to_node(r) for r in new_heads]
         og.ancestorsof = ancestorsof
     if portable:
         # recompute common and ancestorsof as if -r<rev> had been given for
