@@ -414,6 +414,27 @@ class phasecache:
             ]
         )
 
+    def get_raw_set(
+        self,
+        repo: "localrepo.localrepository",
+        phase: int,
+    ) -> Set[int]:
+        """return the set of revision in that phase
+
+        The returned set is not filtered and might contains revision filtered
+        for the passed repoview.
+
+        The returned set might be the internal one and MUST NOT be mutated to
+        avoid side effect.
+        """
+        if phase == public:
+            raise error.ProgrammingError("cannot get_set for public phase")
+        self._ensure_phase_sets(repo.unfiltered())
+        revs = self._phasesets.get(phase)
+        if revs is None:
+            return set()
+        return revs
+
     def getrevset(
         self,
         repo: "localrepo.localrepository",
