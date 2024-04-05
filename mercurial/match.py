@@ -644,6 +644,11 @@ class patternmatcher(basematcher):
         super(patternmatcher, self).__init__(badfn)
         kindpats.sort()
 
+        if rustmod is not None:
+            # We need to pass the patterns to Rust because they can contain
+            # patterns from the user interface
+            self._kindpats = kindpats
+
         roots, dirs, parents = _rootsdirsandparents(kindpats)
         self._files = _explicitfiles(kindpats)
         self._dirs_explicit = set(dirs)
