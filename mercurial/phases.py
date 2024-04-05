@@ -1095,7 +1095,11 @@ def updatephases(repo, trgetter, headsbyphase):
             advanceboundary(repo, trgetter(), phase, heads)
 
 
-def analyzeremotephases(repo, subset, roots):
+def analyze_remote_phases(
+    repo,
+    subset: Collection[int],
+    roots: Dict[bytes, bytes],
+) -> Tuple[Collection[int], Collection[int]]:
     """Compute phases heads and root in a subset of node from root dict
 
     * subset is heads of the subset
@@ -1107,7 +1111,6 @@ def analyzeremotephases(repo, subset, roots):
     # build list from dictionary
     draft_roots = []
     to_rev = repo.changelog.index.get_rev
-    to_node = repo.changelog.node
     for nhex, phase in roots.items():
         if nhex == b'publishing':  # ignore data related to publish option
             continue
@@ -1125,11 +1128,8 @@ def analyzeremotephases(repo, subset, roots):
             msg = _(b'ignoring unexpected root from remote: %i %s\n')
             repo.ui.warn(msg % (phase, nhex))
     # compute heads
-    subset_revs = [to_rev(n) for n in subset]
-    public_heads = new_heads(repo, subset_revs, draft_roots)
-    draft_nodes = [to_node(r) for r in draft_roots]
-    public_nodes = [to_node(r) for r in public_heads]
-    return public_nodes, draft_nodes
+    public_heads = new_heads(repo, subset, draft_roots)
+    return public_heads, draft_roots
 
 
 class remotephasessummary:
@@ -1143,14 +1143,18 @@ class remotephasessummary:
 
     def __init__(self, repo, remotesubset, remoteroots):
         unfi = repo.unfiltered()
+        to_rev = unfi.changelog.index.rev
+        to_node = unfi.changelog.node
         self._allremoteroots = remoteroots
 
         self.publishing = remoteroots.get(b'publishing', False)
 
-        ana = analyzeremotephases(repo, remotesubset, remoteroots)
-        self.publicheads, self.draftroots = ana
+        remote_subset = [to_rev(n) for n in remotesubset]
+        heads, roots = analyze_remote_phases(repo, remote_subset, remoteroots)
+        self.publicheads = [to_node(r) for r in heads]
+        self.draftroots = [to_node(r) for r in roots]
         # Get the list of all "heads" revs draft on remote
-        dheads = unfi.set(b'heads(%ln::%ln)', self.draftroots, remotesubset)
+        dheads = unfi.set(b'heads(%ld::%ld)', roots, remote_subset)
         self.draftheads = [c.node() for c in dheads]
 
 
