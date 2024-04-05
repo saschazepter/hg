@@ -1114,21 +1114,14 @@ def analyzeremotephases(repo, subset, roots):
         phase = int(phase)
         if phase == public:
             if node != repo.nullid:
-                repo.ui.warn(
-                    _(
-                        b'ignoring inconsistent public root'
-                        b' from remote: %s\n'
-                    )
-                    % nhex
-                )
+                msg = _(b'ignoring inconsistent public root from remote: %s\n')
+                repo.ui.warn(msg % nhex)
         elif phase == draft:
             if has_node(node):
                 draftroots.append(node)
         else:
-            repo.ui.warn(
-                _(b'ignoring unexpected root from remote: %i %s\n')
-                % (phase, nhex)
-            )
+            msg = _(b'ignoring unexpected root from remote: %i %s\n')
+            repo.ui.warn(msg % (phase, nhex))
     # compute heads
     publicheads = newheads(repo, subset, draftroots)
     return publicheads, draftroots
