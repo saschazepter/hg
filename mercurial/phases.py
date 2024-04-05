@@ -109,6 +109,7 @@ import weakref
 from typing import (
     Any,
     Callable,
+    Collection,
     Dict,
     Iterable,
     List,
@@ -127,7 +128,6 @@ from .node import (
 )
 from . import (
     error,
-    pycompat,
     requirements,
     smartset,
     txnutil,
@@ -1125,9 +1125,11 @@ def analyzeremotephases(repo, subset, roots):
             msg = _(b'ignoring unexpected root from remote: %i %s\n')
             repo.ui.warn(msg % (phase, nhex))
     # compute heads
+    subset_revs = [to_rev(n) for n in subset]
+    public_heads = new_heads(repo, subset_revs, draft_roots)
     draft_nodes = [to_node(r) for r in draft_roots]
-    publicheads = newheads(repo, subset, draft_nodes)
-    return publicheads, draft_nodes
+    public_nodes = [to_node(r) for r in public_heads]
+    return public_nodes, draft_nodes
 
 
 class remotephasessummary:
@@ -1152,7 +1154,11 @@ class remotephasessummary:
         self.draftheads = [c.node() for c in dheads]
 
 
-def newheads(repo, heads, roots):
+def new_heads(
+    repo,
+    heads: Collection[int],
+    roots: Collection[int],
+) -> Collection[int]:
     """compute new head of a subset minus another
 
     * `heads`: define the first subset
@@ -1161,16 +1167,15 @@ def newheads(repo, heads, roots):
     # phases > dagop > patch > copies > scmutil > obsolete > obsutil > phases
     from . import dagop
 
-    repo = repo.unfiltered()
-    cl = repo.changelog
-    rev = cl.index.get_rev
     if not roots:
         return heads
-    if not heads or heads == [repo.nullid]:
+    if not heads or heads == [nullrev]:
         return []
     # The logic operated on revisions, convert arguments early for convenience
-    new_heads = {rev(n) for n in heads if n != repo.nullid}
-    roots = [rev(n) for n in roots]
+    # PERF-XXX: maybe heads could directly comes as a set without impacting
+    # other user of that value
+    new_heads = set(heads)
+    new_heads.discard(nullrev)
     # compute the area we need to remove
     affected_zone = repo.revs(b"(%ld::%ld)", roots, new_heads)
     # heads in the area are no longer heads
@@ -1188,7 +1193,9 @@ def newheads(repo, heads, roots):
         pruned = dagop.reachableroots(repo, candidates, prunestart)
         new_heads.difference_update(pruned)
 
-    return pycompat.maplist(cl.node, sorted(new_heads))
+    # PERF-XXX: do we actually need a sorted list here? Could we simply return
+    # a set?
+    return sorted(new_heads)
 
 
 def newcommitphase(ui: "uimod.ui") -> int:
