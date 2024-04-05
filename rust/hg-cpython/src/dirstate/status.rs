@@ -17,7 +17,7 @@ use cpython::{
 use hg::dirstate::status::StatusPath;
 use hg::matchers::{
     DifferenceMatcher, IntersectionMatcher, Matcher, NeverMatcher,
-    UnionMatcher,
+    PatternMatcher, UnionMatcher,
 };
 use hg::{
     matchers::{AlwaysMatcher, FileMatcher, IncludeMatcher},
@@ -252,6 +252,38 @@ fn extract_matcher(
             let m2 = extract_matcher(py, matcher.getattr(py, "_m2")?)?;
 
             Ok(Box::new(DifferenceMatcher::new(m1, m2)))
+        }
+        "patternmatcher" => {
+            let ignore_patterns = matcher
+                .getattr(py, "_kindpats")?
+                .iter(py)?
+                .map(|k| {
+                    let k = k?;
+                    let syntax = parse_pattern_syntax(
+                        &[
+                            k.get_item(py, 0)?
+                                .extract::<PyBytes>(py)?
+                                .data(py),
+                            &b":"[..],
+                        ]
+                        .concat(),
+                    )
+                    .map_err(|e| {
+                        handle_fallback(py, StatusError::Pattern(e))
+                    })?;
+                    let pattern = k.get_item(py, 1)?.extract::<PyBytes>(py)?;
+                    let pattern = pattern.data(py);
+                    let source = k.get_item(py, 2)?.extract::<PyBytes>(py)?;
+                    let source = get_path_from_bytes(source.data(py));
+                    let new = IgnorePattern::new(syntax, pattern, source);
+                    Ok(new)
+                })
+                .collect::<PyResult<Vec<_>>>()?;
+
+            let matcher = PatternMatcher::new(ignore_patterns)
+                .map_err(|e| handle_fallback(py, e.into()))?;
+
+            Ok(Box::new(matcher))
         }
         e => Err(PyErr::new::<FallbackError, _>(
             py,
