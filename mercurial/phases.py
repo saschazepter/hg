@@ -1154,8 +1154,8 @@ class remotephasessummary:
         self.publicheads = [to_node(r) for r in heads]
         self.draftroots = [to_node(r) for r in roots]
         # Get the list of all "heads" revs draft on remote
-        dheads = unfi.set(b'heads(%ld::%ld)', roots, remote_subset)
-        self.draftheads = [c.node() for c in dheads]
+        dheads = unfi.revs(b'heads(%ld::%ld)', roots, remote_subset)
+        self.draftheads = [to_node(r) for r in dheads]
 
 
 def new_heads(
