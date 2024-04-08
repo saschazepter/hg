@@ -1105,8 +1105,9 @@ def analyzeremotephases(repo, subset, roots):
     """
     repo = repo.unfiltered()
     # build list from dictionary
-    draftroots = []
-    has_node = repo.changelog.index.has_node  # to filter unknown nodes
+    draft_roots = []
+    to_rev = repo.changelog.index.get_rev
+    to_node = repo.changelog.node
     for nhex, phase in roots.items():
         if nhex == b'publishing':  # ignore data related to publish option
             continue
@@ -1117,14 +1118,16 @@ def analyzeremotephases(repo, subset, roots):
                 msg = _(b'ignoring inconsistent public root from remote: %s\n')
                 repo.ui.warn(msg % nhex)
         elif phase == draft:
-            if has_node(node):
-                draftroots.append(node)
+            rev = to_rev(node)
+            if rev is not None:  # to filter unknown nodes
+                draft_roots.append(rev)
         else:
             msg = _(b'ignoring unexpected root from remote: %i %s\n')
             repo.ui.warn(msg % (phase, nhex))
     # compute heads
-    publicheads = newheads(repo, subset, draftroots)
-    return publicheads, draftroots
+    draft_nodes = [to_node(r) for r in draft_roots]
+    publicheads = newheads(repo, subset, draft_nodes)
+    return publicheads, draft_nodes
 
 
 class remotephasessummary:
