@@ -18,6 +18,7 @@ from . import (
     bookmarks,
     branchmap,
     error,
+    node as nodemod,
     obsolete,
     phases,
     pycompat,
@@ -98,29 +99,50 @@ class outgoing:
     def __init__(
         self, repo, commonheads=None, ancestorsof=None, missingroots=None
     ):
-        # at least one of them must not be set
-        assert None in (commonheads, missingroots)
+        # at most one of them must not be set
+        if commonheads is not None and missingroots is not None:
+            m = 'commonheads and missingroots arguments are mutually exclusive'
+            raise error.ProgrammingError(m)
         cl = repo.changelog
+        missing = None
+        common = None
         if ancestorsof is None:
             ancestorsof = cl.heads()
         if missingroots:
             # TODO remove call to nodesbetween.
-            # TODO populate attributes on outgoing instance instead of setting
-            # discbases.
-            csets, roots, heads = cl.nodesbetween(missingroots, ancestorsof)
-            included = set(csets)
-            discbases = []
-            for n in csets:
-                discbases.extend([p for p in cl.parents(n) if p != repo.nullid])
-            ancestorsof = heads
-            commonheads = [n for n in discbases if n not in included]
+            missing_rev = repo.revs('%ln::%ln', missingroots, ancestorsof)
+            unfi = repo.unfiltered()
+            ucl = unfi.changelog
+            to_node = ucl.node
+            ancestorsof = [to_node(r) for r in ucl.headrevs(missing_rev)]
+            parent_revs = ucl.parentrevs
+            common_legs = set()
+            for r in missing_rev:
+                p1, p2 = parent_revs(r)
+                if p1 not in missing_rev:
+                    common_legs.add(p1)
+                if p2 not in missing_rev:
+                    common_legs.add(p2)
+            common_legs.discard(nodemod.nullrev)
+            if not common_legs:
+                commonheads = [repo.nullid]
+                common = set()
+            else:
+                commonheads_revs = unfi.revs(
+                    'heads(%ld::%ld)',
+                    common_legs,
+                    common_legs,
+                )
+                commonheads = [to_node(r) for r in commonheads_revs]
+                common = ucl.ancestors(commonheads_revs, inclusive=True)
+            missing = [to_node(r) for r in missing_rev]
         elif not commonheads:
             commonheads = [repo.nullid]
         self.commonheads = commonheads
         self.ancestorsof = ancestorsof
         self._revlog = cl
-        self._common = None
-        self._missing = None
+        self._common = common
+        self._missing = missing
         self.excluded = []
 
     def _computecommonmissing(self):
