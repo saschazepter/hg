@@ -11,7 +11,7 @@
 
 use crate::{dirstate::DirstateMap, exceptions::FallbackError};
 use cpython::{
-    exc::ValueError, ObjectProtocol, PyBytes, PyErr, PyList, PyObject,
+    exc::ValueError, ObjectProtocol, PyBool, PyBytes, PyErr, PyList, PyObject,
     PyResult, PyTuple, Python, PythonObject, ToPyObject,
 };
 use hg::dirstate::status::StatusPath;
@@ -26,8 +26,8 @@ use hg::{
         files::{get_bytes_from_path, get_path_from_bytes},
         hg_path::{HgPath, HgPathBuf},
     },
-    BadMatch, DirstateStatus, IgnorePattern, PatternFileWarning, StatusError,
-    StatusOptions,
+    BadMatch, DirstateStatus, IgnorePattern, PatternError, PatternFileWarning,
+    StatusError, StatusOptions,
 };
 use std::borrow::Borrow;
 
@@ -158,6 +158,18 @@ fn extract_matcher(
     py: Python,
     matcher: PyObject,
 ) -> PyResult<Box<dyn Matcher + Sync>> {
+    let tampered = matcher
+        .call_method(py, "was_tampered_with", PyTuple::empty(py), None)?
+        .extract::<PyBool>(py)?
+        .is_true();
+    if tampered {
+        return Err(handle_fallback(
+            py,
+            StatusError::Pattern(PatternError::UnsupportedSyntax(
+                "Pattern matcher was tampered with!".to_string(),
+            )),
+        ));
+    };
     match matcher.get_type(py).name(py).borrow() {
         "alwaysmatcher" => Ok(Box::new(AlwaysMatcher)),
         "nevermatcher" => Ok(Box::new(NeverMatcher)),
