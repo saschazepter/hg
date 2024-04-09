@@ -160,8 +160,6 @@ _bundlespeccontentopts: Dict[bytes, Dict[bytes, Union[bool, bytes]]] = {
 }
 _bundlespeccontentopts[b'bundle2'] = _bundlespeccontentopts[b'v2']
 
-_bundlespecvariants = {b"streamv2": {}}
-
 # Compression engines allowed in version 1. THIS SHOULD NEVER CHANGE.
 _bundlespecv1compengines = {b'gzip', b'bzip2', b'none'}
 
