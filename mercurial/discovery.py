@@ -104,16 +104,28 @@ class outgoing:
             m = 'commonheads and missingroots arguments are mutually exclusive'
             raise error.ProgrammingError(m)
         cl = repo.changelog
+        unfi = repo.unfiltered()
+        ucl = unfi.changelog
+        to_node = ucl.node
         missing = None
         common = None
+        arg_anc = ancestorsof
         if ancestorsof is None:
             ancestorsof = cl.heads()
-        if missingroots:
+
+        # XXX-perf: do we need all this to be node-list? They would be simpler
+        # as rev-num sets (and smartset)
+        if missingroots == [nodemod.nullrev] or missingroots == []:
+            commonheads = [repo.nullid]
+            common = set()
+            if arg_anc is None:
+                missing = [to_node(r) for r in cl]
+            else:
+                missing_rev = repo.revs('::%ln', missingroots, ancestorsof)
+                missing = [to_node(r) for r in missing_rev]
+        elif missingroots is not None:
             # TODO remove call to nodesbetween.
             missing_rev = repo.revs('%ln::%ln', missingroots, ancestorsof)
-            unfi = repo.unfiltered()
-            ucl = unfi.changelog
-            to_node = ucl.node
             ancestorsof = [to_node(r) for r in ucl.headrevs(missing_rev)]
             parent_revs = ucl.parentrevs
             common_legs = set()
