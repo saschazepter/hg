@@ -71,6 +71,7 @@ def composelargefilematcher(match, manifest):
     """create a matcher that matches only the largefiles in the original
     matcher"""
     m = copy.copy(match)
+    m._was_tampered_with = True
     lfile = lambda f: lfutil.standin(f) in manifest
     m._files = [lf for lf in m._files if lfile(lf)]
     m._fileset = set(m._files)
@@ -86,6 +87,7 @@ def composenormalfilematcher(match, manifest, exclude=None):
         excluded.update(exclude)
 
     m = copy.copy(match)
+    m._was_tampered_with = True
     notlfile = lambda f: not (
         lfutil.isstandin(f) or lfutil.standin(f) in manifest or f in excluded
     )
@@ -441,6 +443,8 @@ def overridelog(orig, ui, repo, *pats, **opts):
                 return lfutil.standin(f)
 
         pats.update(fixpats(f, tostandin) for f in p)
+
+        m._was_tampered_with = True
 
         for i in range(0, len(m._files)):
             # Don't add '.hglf' to m.files, since that is already covered by '.'
@@ -849,6 +853,7 @@ def overridecopy(orig, ui, repo, pats, opts, rename=False):
                     newpats.append(pat)
             match = orig(ctx, newpats, opts, globbed, default, badfn=badfn)
             m = copy.copy(match)
+            m._was_tampered_with = True
             lfile = lambda f: lfutil.standin(f) in manifest
             m._files = [lfutil.standin(f) for f in m._files if lfile(f)]
             m._fileset = set(m._files)
@@ -967,6 +972,7 @@ def overriderevert(orig, ui, repo, ctx, *pats, **opts):
                 opts = {}
             match = orig(mctx, pats, opts, globbed, default, badfn=badfn)
             m = copy.copy(match)
+            m._was_tampered_with = True
 
             # revert supports recursing into subrepos, and though largefiles
             # currently doesn't work correctly in that case, this match is
@@ -1595,6 +1601,7 @@ def scmutiladdremove(
     # confused state later.
     if s.deleted:
         m = copy.copy(matcher)
+        m._was_tampered_with = True
 
         # The m._files and m._map attributes are not changed to the deleted list
         # because that affects the m.exact() test, which in turn governs whether
@@ -1721,6 +1728,7 @@ def overridecat(orig, ui, repo, file1, *pats, **opts):
     err = 1
     notbad = set()
     m = scmutil.match(ctx, (file1,) + pats, pycompat.byteskwargs(opts))
+    m._was_tampered_with = True
     origmatchfn = m.matchfn
 
     def lfmatchfn(f):
