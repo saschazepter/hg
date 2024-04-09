@@ -345,32 +345,56 @@ class pushoperation:
             # not target to push, all common are relevant
             return self.outgoing.commonheads
         unfi = self.repo.unfiltered()
-        # I want cheads = heads(::ancestorsof and ::commonheads)
-        # (ancestorsof is revs with secret changeset filtered out)
+        # I want cheads = heads(::push_heads and ::commonheads)
         #
-        # This can be expressed as:
-        #     cheads = ( (ancestorsof and ::commonheads)
-        #              + (commonheads and ::ancestorsof))"
-        #              )
-        #
-        # while trying to push we already computed the following:
+        # To push, we already computed
         #     common = (::commonheads)
-        #     missing = ((commonheads::ancestorsof) - commonheads)
+        #     missing = ((commonheads::push_heads) - commonheads)
         #
-        # We can pick:
-        # * ancestorsof part of common (::commonheads)
+        # So we basically search
+        #
+        #     almost_heads = heads((parents(missing) + push_heads) & common)
+        #
+        # We use "almost" here as this can return revision that are ancestors
+        # of other in the set and we need to explicitly turn it into an
+        # antichain later. We can do so using:
+        #
+        #     cheads = heads(almost_heads::almost_heads)
+        #
+        # In pratice the code is a bit more convulted to avoid some extra
+        # computation. It aims at doing the same computation as highlighted
+        # above however.
         common = self.outgoing.common
-        rev = self.repo.changelog.index.rev
-        cheads = [node for node in self.revs if rev(node) in common]
-        # and
-        # * commonheads parents on missing
-        revset = unfi.set(
-            b'%ln and parents(roots(%ln))',
-            self.outgoing.commonheads,
-            self.outgoing.missing,
-        )
-        cheads.extend(c.node() for c in revset)
-        return cheads
+        unfi = self.repo.unfiltered()
+        cl = unfi.changelog
+        to_rev = cl.index.rev
+        to_node = cl.node
+        parent_revs = cl.parentrevs
+        unselected = []
+        cheads = set()
+        # XXX-perf: `self.revs` and `outgoing.missing` could hold revs directly
+        for n in self.revs:
+            r = to_rev(n)
+            if r in common:
+                cheads.add(r)
+            else:
+                unselected.append(r)
+        known_non_heads = cl.ancestors(cheads, inclusive=True)
+        if unselected:
+            missing_revs = {to_rev(n) for n in self.outgoing.missing}
+            missing_revs.add(nullrev)
+            root_points = set()
+            for r in missing_revs:
+                p1, p2 = parent_revs(r)
+                if p1 not in missing_revs and p1 not in known_non_heads:
+                    root_points.add(p1)
+                if p2 not in missing_revs and p2 not in known_non_heads:
+                    root_points.add(p2)
+            if root_points:
+                heads = unfi.revs('heads(%ld::%ld)', root_points, root_points)
+                cheads.update(heads)
+        # XXX-perf: could this be a set of revision?
+        return [to_node(r) for r in sorted(cheads)]
 
     @property
     def commonheads(self):
