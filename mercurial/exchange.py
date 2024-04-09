@@ -621,8 +621,10 @@ def _pushdiscoveryphase(pushop):
 
     (computed for both success and failure case for changesets push)"""
     outgoing = pushop.outgoing
-    unfi = pushop.repo.unfiltered()
-    to_rev = unfi.changelog.index.rev
+    repo = pushop.repo
+    unfi = repo.unfiltered()
+    cl = unfi.changelog
+    to_rev = cl.index.rev
     remotephases = listkeys(pushop.remote, b'phases')
 
     if (
@@ -644,42 +646,43 @@ def _pushdiscoveryphase(pushop):
         pushop.fallbackoutdatedphases = []
         return
 
-    fallbackheads_rev = [to_rev(n) for n in pushop.fallbackheads]
-    futureheads_rev = [to_rev(n) for n in pushop.futureheads]
-
+    fallbackheads_rev = {to_rev(n) for n in pushop.fallbackheads}
     pushop.remotephases = phases.RemotePhasesSummary(
         pushop.repo,
         fallbackheads_rev,
         remotephases,
     )
-    droots = pushop.remotephases.draft_roots
+    droots = set(pushop.remotephases.draft_roots)
 
-    extracond = b''
-    if not pushop.remotephases.publishing:
-        extracond = b' and public()'
-    revset = b'heads((%%ld::%%ld) %s)' % extracond
-    # Get the list of all revs draft on remote by public here.
-    # XXX Beware that revset break if droots is not strictly
-    # XXX root we may want to ensure it is but it is costly
-    fallback = list(unfi.set(revset, droots, fallbackheads_rev))
-    if not pushop.remotephases.publishing and pushop.publish:
-        future = list(
-            unfi.set(
-                b'%ld and (not public() or %ld::)', futureheads_rev, droots
-            )
-        )
-    elif not outgoing.missing:
-        future = fallback
+    fallback_publishing = pushop.remotephases.publishing
+    push_publishing = pushop.remotephases.publishing or pushop.publish
+    missing_revs = {to_rev(n) for n in outgoing.missing}
+    drafts = unfi._phasecache.get_raw_set(unfi, phases.draft)
+
+    if fallback_publishing:
+        fallback_roots = droots - missing_revs
+        revset = b'heads(%ld::%ld)'
     else:
-        # adds changeset we are going to push as draft
-        #
-        # should not be necessary for publishing server, but because of an
-        # issue fixed in xxxxx we have to do it anyway.
-        missing_rev = [to_rev(n) for n in outgoing.missing]
-        fdroots = list(unfi.set(b'roots(%ld  + %ld::)', missing_rev, droots))
-        fdroots = [f.rev() for f in fdroots]
-        future = list(unfi.set(revset, fdroots, futureheads_rev))
-    pushop.outdatedphases = future
+        fallback_roots = droots - drafts
+        fallback_roots -= missing_revs
+        # Get the list of all revs draft on remote but public here.
+        revset = b'heads((%ld::%ld) and public())'
+    if not fallback_roots:
+        fallback = fallback_rev = []
+    else:
+        fallback_rev = unfi.revs(revset, fallback_roots, fallbackheads_rev)
+        fallback = [repo[r] for r in fallback_rev]
+
+    if push_publishing:
+        published = missing_revs.copy()
+    else:
+        published = missing_revs - drafts
+    if pushop.publish:
+        published.update(fallbackheads_rev & drafts)
+    elif fallback:
+        published.update(fallback_rev)
+
+    pushop.outdatedphases = [repo[r] for r in cl.headrevs(published)]
     pushop.fallbackoutdatedphases = fallback
 
 
