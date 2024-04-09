@@ -395,8 +395,14 @@ def _donormalize(patterns, default, root, cwd, auditor=None, warn=None):
 
 class basematcher:
     def __init__(self, badfn=None):
+        self._was_tampered_with = False
         if badfn is not None:
             self.bad = badfn
+
+    def was_tampered_with(self):
+        # [_was_tampered_with] is used to track if when extensions changed the matcher
+        # behavior (crazy stuff!), so we disable the rust fast path.
+        return self._was_tampered_with
 
     def __call__(self, fn):
         return self.matchfn(fn)
