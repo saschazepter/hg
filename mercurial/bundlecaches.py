@@ -6,6 +6,8 @@
 import collections
 
 from typing import (
+    Dict,
+    Union,
     cast,
 )
 
@@ -106,7 +108,7 @@ _bundlespeccgversions = {
 }
 
 # Maps bundle version with content opts to choose which part to bundle
-_bundlespeccontentopts = {
+_bundlespeccontentopts: Dict[bytes, Dict[bytes, Union[bool, bytes]]] = {
     b'v1': {
         b'changegroup': True,
         b'cg.version': b'01',
