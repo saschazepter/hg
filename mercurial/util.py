@@ -440,13 +440,18 @@ class bufferedinputpipe:
         return data
 
 
-def mmapread(fp, size=None):
+def mmapread(fp, size=None, pre_populate=True):
     """Read a file content using mmap
 
     The responsability of checking the file system is mmap safe is the
-    responsability of the caller.
+    responsability of the caller (see `vfs.is_mmap_safe`).
 
     In some case, a normal string might be returned.
+
+    If `pre_populate` is True (the default), the mmapped data will be
+    pre-populated in memory if the system support this option, this slow down
+    the initial mmaping but avoid potentially crippling page fault on later
+    access. If this is not the desired behavior, set `pre_populate` to False.
     """
     if size == 0:
         # size of 0 to mmap.mmap() means "all data"
@@ -455,8 +460,12 @@ def mmapread(fp, size=None):
     elif size is None:
         size = 0
     fd = getattr(fp, 'fileno', lambda: fp)()
+    flags = mmap.MAP_PRIVATE
+    if pre_populate:
+        flags |= getattr(mmap, 'MAP_POPULATE', 0)
     try:
-        return mmap.mmap(fd, size, access=mmap.ACCESS_READ)
+        m = mmap.mmap(fd, size, flags=flags, prot=mmap.PROT_READ)
+        return m
     except ValueError:
         # Empty files cannot be mmapped, but mmapread should still work.  Check
         # if the file is empty, and if so, return an empty buffer.
