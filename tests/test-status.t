@@ -842,6 +842,14 @@ Check the output
   C clean
   C subdir/clean
 
+FIXME: it's a bug in rhg that the status below is empty:
+
+  $ hg status 'glob:subdir/*'
+  M subdir/modified (no-rhg !)
+  R subdir/removed (no-rhg !)
+  ! subdir/deleted (no-rhg !)
+  ? subdir/unknown (no-rhg !)
+
 Note: `hg status some-name` creates a patternmatcher which is not supported
 yet by the Rust implementation of status, but includematcher is supported.
 --include is used below for that reason
