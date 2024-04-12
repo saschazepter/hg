@@ -57,7 +57,7 @@ pub enum PatternSyntax {
     RelRegexp,
     /// A path relative to repository root, which is matched non-recursively
     /// (will not match subdirectories)
-    RootFiles,
+    RootFilesIn,
     /// A file of patterns to read and include
     Include,
     /// A file of patterns to match against files under the same directory
@@ -158,7 +158,7 @@ pub fn parse_pattern_syntax(
         b"path:" => Ok(PatternSyntax::Path),
         b"filepath:" => Ok(PatternSyntax::FilePath),
         b"relpath:" => Ok(PatternSyntax::RelPath),
-        b"rootfilesin:" => Ok(PatternSyntax::RootFiles),
+        b"rootfilesin:" => Ok(PatternSyntax::RootFilesIn),
         b"relglob:" => Ok(PatternSyntax::RelGlob),
         b"relre:" => Ok(PatternSyntax::RelRegexp),
         b"glob:" => Ok(PatternSyntax::Glob),
@@ -227,7 +227,7 @@ fn _build_single_regex(entry: &IgnorePattern, glob_suffix: &[u8]) -> Vec<u8> {
             }
             [escape_pattern(pattern).as_slice(), b"(?:/|$)"].concat()
         }
-        PatternSyntax::RootFiles => {
+        PatternSyntax::RootFilesIn => {
             let mut res = if pattern == b"." {
                 vec![]
             } else {
@@ -316,7 +316,7 @@ pub fn build_single_regex(
         | PatternSyntax::Path
         | PatternSyntax::RelGlob
         | PatternSyntax::RelPath
-        | PatternSyntax::RootFiles => normalize_path_bytes(pattern),
+        | PatternSyntax::RootFilesIn => normalize_path_bytes(pattern),
         PatternSyntax::Include | PatternSyntax::SubInclude => {
             return Err(PatternError::NonRegexPattern(entry.clone()))
         }
@@ -342,7 +342,7 @@ lazy_static! {
         m.insert(b"path:".as_ref(), PatternSyntax::Path);
         m.insert(b"filepath:".as_ref(), PatternSyntax::FilePath);
         m.insert(b"relpath:".as_ref(), PatternSyntax::RelPath);
-        m.insert(b"rootfilesin:".as_ref(), PatternSyntax::RootFiles);
+        m.insert(b"rootfilesin:".as_ref(), PatternSyntax::RootFilesIn);
         m.insert(b"relglob:".as_ref(), PatternSyntax::RelGlob);
         m.insert(b"relre:".as_ref(), PatternSyntax::RelRegexp);
         m.insert(b"glob:".as_ref(), PatternSyntax::Glob);
@@ -385,7 +385,7 @@ pub fn parse_one_pattern(
         | PatternSyntax::Glob
         | PatternSyntax::RelGlob
         | PatternSyntax::RelPath
-        | PatternSyntax::RootFiles
+        | PatternSyntax::RootFilesIn
             if normalize =>
         {
             normalize_path_bytes(pattern_bytes)
