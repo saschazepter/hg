@@ -842,19 +842,19 @@ Check the output
   C clean
   C subdir/clean
 
+Test various matchers interatction with dirstate code:
+
   $ hg status path:subdir
   M subdir/modified
   R subdir/removed
   ! subdir/deleted
   ? subdir/unknown
 
-FIXME: it's a bug in rhg that the status below is empty:
-
   $ hg status 'glob:subdir/*'
-  M subdir/modified (no-rhg !)
-  R subdir/removed (no-rhg !)
-  ! subdir/deleted (no-rhg !)
-  ? subdir/unknown (no-rhg !)
+  M subdir/modified
+  R subdir/removed
+  ! subdir/deleted
+  ? subdir/unknown
 
 FIXME: it's a bug (both in rhg and in Python) that the status below is wrong,
 in rhg it's empty, in Python it's missing the unknown file:

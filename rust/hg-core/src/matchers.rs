@@ -17,7 +17,7 @@ use crate::{
         PatternFileWarning, PatternResult,
     },
     utils::{
-        files::find_dirs,
+        files::{dir_ancestors, find_dirs},
         hg_path::{HgPath, HgPathBuf, HgPathError},
         Escaped,
     },
@@ -354,7 +354,7 @@ impl<'a> Matcher for PatternMatcher<'a> {
         if self.prefix && self.files.contains(directory) {
             return VisitChildrenSet::Recursive;
         }
-        let path_or_parents_in_set = find_dirs(directory)
+        let path_or_parents_in_set = dir_ancestors(directory)
             .any(|parent_dir| self.files.contains(parent_dir));
         if self.dirs.contains(directory) || path_or_parents_in_set {
             VisitChildrenSet::This
@@ -2298,7 +2298,7 @@ mod tests {
     #[test]
     fn test_pattern_matcher_visit_children_set() {
         let tree = make_example_tree();
-        let _pattern_dir1_glob_c =
+        let pattern_dir1_glob_c =
             PatternMatcher::new(vec![IgnorePattern::new(
                 PatternSyntax::Glob,
                 b"dir1/*.c",
@@ -2327,10 +2327,6 @@ mod tests {
             )])
             .unwrap()
         };
-        //        // TODO: re-enable this test when the corresponding bug is
-        // fixed        if false {
-        //            tree.check_matcher(&pattern_dir1_glob_c);
-        //        }
         let files = vec![HgPathBuf::from_bytes(b"dir/subdir/b.txt")];
         let file_dir_subdir_b = FileMatcher::new(files).unwrap();
 
@@ -2393,6 +2389,7 @@ mod tests {
 
         tree.check_matcher(&pattern_dir1(), 25);
         tree.check_matcher(&pattern_dir1_a, 1);
+        tree.check_matcher(&pattern_dir1_glob_c, 2);
         tree.check_matcher(&pattern_relglob_c(), 14);
         tree.check_matcher(&AlwaysMatcher, 112);
         tree.check_matcher(&NeverMatcher, 0);
