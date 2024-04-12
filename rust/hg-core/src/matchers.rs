@@ -354,9 +354,12 @@ impl<'a> Matcher for PatternMatcher<'a> {
         if self.prefix && self.files.contains(directory) {
             return VisitChildrenSet::Recursive;
         }
-        let path_or_parents_in_set = dir_ancestors(directory)
-            .any(|parent_dir| self.files.contains(parent_dir));
-        if self.dirs.contains(directory) || path_or_parents_in_set {
+        if self.dirs.contains(directory) {
+            return VisitChildrenSet::This;
+        }
+        if dir_ancestors(directory)
+            .any(|parent_dir| self.files.contains(parent_dir))
+        {
             VisitChildrenSet::This
         } else {
             VisitChildrenSet::Empty
