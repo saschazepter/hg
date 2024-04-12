@@ -856,14 +856,11 @@ Test various matchers interatction with dirstate code:
   ! subdir/deleted
   ? subdir/unknown
 
-FIXME: it's a bug (both in rhg and in Python) that the status below is wrong,
-in rhg it's empty, in Python it's missing the unknown file:
-
   $ hg status rootfilesin:subdir
-  M subdir/modified (no-rhg !)
-  R subdir/removed (no-rhg !)
-  ! subdir/deleted (no-rhg !)
-  ? subdir/unknown (no-rhg !)
+  M subdir/modified
+  R subdir/removed
+  ! subdir/deleted
+  ? subdir/unknown
 
 Note: `hg status some-name` creates a patternmatcher which is not supported
 yet by the Rust implementation of status, but includematcher is supported.
