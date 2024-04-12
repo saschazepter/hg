@@ -638,7 +638,10 @@ class patternmatcher(basematcher):
         super(patternmatcher, self).__init__(badfn)
         kindpats.sort()
 
+        roots, dirs, parents = _rootsdirsandparents(kindpats)
         self._files = _explicitfiles(kindpats)
+        self._dirs_explicit = set(dirs)
+        self._dirs = parents
         self._prefix = _prefix(kindpats)
         self._pats, self._matchfn = _buildmatch(kindpats, b'$', root)
 
@@ -647,14 +650,14 @@ class patternmatcher(basematcher):
             return True
         return self._matchfn(fn)
 
-    @propertycache
-    def _dirs(self):
-        return set(pathutil.dirs(self._fileset))
-
     def visitdir(self, dir):
         if self._prefix and dir in self._fileset:
             return b'all'
-        return dir in self._dirs or path_or_parents_in_set(dir, self._fileset)
+        return (
+            dir in self._dirs
+            or path_or_parents_in_set(dir, self._fileset)
+            or path_or_parents_in_set(dir, self._dirs_explicit)
+        )
 
     def visitchildrenset(self, dir):
         ret = self.visitdir(dir)
@@ -1461,7 +1464,7 @@ def _buildregexmatch(kindpats, globsuffix):
         allgroups = []
         regexps = []
         exact = set()
-        for (kind, pattern, _source) in kindpats:
+        for kind, pattern, _source in kindpats:
             if kind == b'filepath':
                 exact.add(pattern)
                 continue
