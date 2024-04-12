@@ -863,6 +863,7 @@ in rhg it's empty, in Python it's missing the unknown file:
   M subdir/modified (no-rhg !)
   R subdir/removed (no-rhg !)
   ! subdir/deleted (no-rhg !)
+  ? subdir/unknown (no-rhg !)
 
 Note: `hg status some-name` creates a patternmatcher which is not supported
 yet by the Rust implementation of status, but includematcher is supported.
