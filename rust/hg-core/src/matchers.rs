@@ -299,6 +299,7 @@ pub struct PatternMatcher<'a> {
     /// Whether all the patterns match a prefix (i.e. recursively)
     prefix: bool,
     files: HashSet<HgPathBuf>,
+    dirs_explicit: HashSet<HgPathBuf>,
     dirs: DirsMultiset,
 }
 
@@ -315,8 +316,13 @@ impl core::fmt::Debug for PatternMatcher<'_> {
 
 impl<'a> PatternMatcher<'a> {
     pub fn new(ignore_patterns: Vec<IgnorePattern>) -> PatternResult<Self> {
-        let (files, _) = roots_and_dirs(&ignore_patterns);
-        let dirs = DirsMultiset::from_manifest(&files)?;
+        let RootsDirsAndParents {
+            roots,
+            dirs: dirs_explicit,
+            parents,
+        } = roots_dirs_and_parents(&ignore_patterns)?;
+        let files = roots;
+        let dirs = parents;
         let files: HashSet<HgPathBuf> = HashSet::from_iter(files);
 
         let prefix = ignore_patterns.iter().all(|k| {
@@ -330,6 +336,7 @@ impl<'a> PatternMatcher<'a> {
             prefix,
             files,
             dirs,
+            dirs_explicit,
         })
     }
 }
@@ -357,9 +364,10 @@ impl<'a> Matcher for PatternMatcher<'a> {
         if self.dirs.contains(directory) {
             return VisitChildrenSet::This;
         }
-        if dir_ancestors(directory)
-            .any(|parent_dir| self.files.contains(parent_dir))
-        {
+        if dir_ancestors(directory).any(|parent_dir| {
+            self.files.contains(parent_dir)
+                || self.dirs_explicit.contains(parent_dir)
+        }) {
             VisitChildrenSet::This
         } else {
             VisitChildrenSet::Empty
@@ -410,7 +418,7 @@ pub struct IncludeMatcher<'a> {
     prefix: bool,
     roots: HashSet<HgPathBuf>,
     dirs: HashSet<HgPathBuf>,
-    parents: HashSet<HgPathBuf>,
+    parents: DirsMultiset,
 }
 
 impl core::fmt::Debug for IncludeMatcher<'_> {
@@ -890,7 +898,7 @@ struct RootsDirsAndParents {
     /// Directories to match non-recursively
     pub dirs: HashSet<HgPathBuf>,
     /// Implicitly required directories to go to items in either roots or dirs
-    pub parents: HashSet<HgPathBuf>,
+    pub parents: DirsMultiset,
 }
 
 /// Extract roots, dirs and parents from patterns.
@@ -899,18 +907,11 @@ fn roots_dirs_and_parents(
 ) -> PatternResult<RootsDirsAndParents> {
     let (roots, dirs) = roots_and_dirs(ignore_patterns);
 
-    let mut parents = HashSet::new();
+    let mut parents = DirsMultiset::from_manifest(&dirs)?;
 
-    parents.extend(
-        DirsMultiset::from_manifest(&dirs)?
-            .iter()
-            .map(ToOwned::to_owned),
-    );
-    parents.extend(
-        DirsMultiset::from_manifest(&roots)?
-            .iter()
-            .map(ToOwned::to_owned),
-    );
+    for path in &roots {
+        parents.add_path(path)?
+    }
 
     Ok(RootsDirsAndParents {
         roots: HashSet::from_iter(roots),
@@ -1082,7 +1083,7 @@ impl<'a> IncludeMatcher<'a> {
             .iter()
             .chain(self.roots.iter())
             .chain(self.parents.iter());
-        DirsChildrenMultiset::new(thing, Some(&self.parents))
+        DirsChildrenMultiset::new(thing, Some(self.parents.iter()))
     }
 
     pub fn debug_get_patterns(&self) -> &[u8] {
@@ -1149,9 +1150,12 @@ mod tests {
 
         let dirs = HashSet::new();
 
-        let mut parents = HashSet::new();
-        parents.insert(HgPathBuf::new());
-        parents.insert(HgPathBuf::from_bytes(b"g"));
+        let parents = DirsMultiset::from_manifest(&[
+            HgPathBuf::from_bytes(b"x"),
+            HgPathBuf::from_bytes(b"g/x"),
+            HgPathBuf::from_bytes(b"g/y"),
+        ])
+        .unwrap();
 
         assert_eq!(
             roots_dirs_and_parents(&pats).unwrap(),
@@ -1331,24 +1335,23 @@ mod tests {
         .unwrap();
         assert_eq!(
             m.visit_children_set(HgPath::new(b"dir/subdir/x")),
-            VisitChildrenSet::Empty
+            VisitChildrenSet::This
         );
         assert_eq!(
             m.visit_children_set(HgPath::new(b"folder")),
             VisitChildrenSet::Empty
         );
-        // FIXME: These should probably be This.
         assert_eq!(
             m.visit_children_set(HgPath::new(b"")),
-            VisitChildrenSet::Empty
+            VisitChildrenSet::This
         );
         assert_eq!(
             m.visit_children_set(HgPath::new(b"dir")),
-            VisitChildrenSet::Empty
+            VisitChildrenSet::This
         );
         assert_eq!(
             m.visit_children_set(HgPath::new(b"dir/subdir")),
-            VisitChildrenSet::Empty
+            VisitChildrenSet::This
         );
 
         // VisitchildrensetRootfilesin
@@ -1360,25 +1363,25 @@ mod tests {
         .unwrap();
         assert_eq!(
             m.visit_children_set(HgPath::new(b"dir/subdir/x")),
-            VisitChildrenSet::Empty
+            VisitChildrenSet::This
         );
         assert_eq!(
             m.visit_children_set(HgPath::new(b"folder")),
             VisitChildrenSet::Empty
         );
         // FIXME: These should probably be {'dir'}, {'subdir'} and This,
-        // respectively, or at least This for all three.
+        // respectively
         assert_eq!(
             m.visit_children_set(HgPath::new(b"")),
-            VisitChildrenSet::Empty
+            VisitChildrenSet::This
         );
         assert_eq!(
             m.visit_children_set(HgPath::new(b"dir")),
-            VisitChildrenSet::Empty
+            VisitChildrenSet::This
         );
         assert_eq!(
             m.visit_children_set(HgPath::new(b"dir/subdir")),
-            VisitChildrenSet::Empty
+            VisitChildrenSet::This
         );
 
         // VisitdirGlob
@@ -1392,10 +1395,9 @@ mod tests {
             m.visit_children_set(HgPath::new(b"")),
             VisitChildrenSet::This
         );
-        // FIXME: This probably should be This
         assert_eq!(
             m.visit_children_set(HgPath::new(b"dir")),
-            VisitChildrenSet::Empty
+            VisitChildrenSet::This
         );
         assert_eq!(
             m.visit_children_set(HgPath::new(b"folder")),
@@ -1426,10 +1428,9 @@ mod tests {
             m.visit_children_set(HgPath::new(b"folder")),
             VisitChildrenSet::Empty
         );
-        // FIXME: This probably should be This
         assert_eq!(
             m.visit_children_set(HgPath::new(b"dir")),
-            VisitChildrenSet::Empty
+            VisitChildrenSet::This
         );
         // OPT: these should probably be Empty
         assert_eq!(
@@ -2341,7 +2342,7 @@ mod tests {
             HgPathBuf::from_bytes(b"a/b/c/d/file.txt"),
         ];
         let file_abcdfile = FileMatcher::new(files).unwrap();
-        let _rootfilesin_dir = PatternMatcher::new(vec![IgnorePattern::new(
+        let rootfilesin_dir = PatternMatcher::new(vec![IgnorePattern::new(
             PatternSyntax::RootFilesIn,
             b"dir",
             Path::new(""),
@@ -2419,12 +2420,7 @@ mod tests {
         );
         tree.check_matcher(&file_dir_subdir_b, 1);
         tree.check_matcher(&file_abcdfile, 4);
-        //        // TODO: re-enable this test when the corresponding bug is
-        // fixed
-        //
-        //        if false {
-        //            tree.check_matcher(&rootfilesin_dir, 6);
-        //        }
+        tree.check_matcher(&rootfilesin_dir, 8);
         tree.check_matcher(&pattern_filepath_dir_subdir, 1);
         tree.check_matcher(&include_dir_subdir, 9);
         tree.check_matcher(&more_includematchers[0], 17);
