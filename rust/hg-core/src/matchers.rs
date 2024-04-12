@@ -395,7 +395,7 @@ impl<'a> Matcher for PatternMatcher<'a> {
 /// assert_eq!(matcher.matches(HgPath::new(b"but not this")), false);
 /// ///
 /// let ignore_patterns =
-/// vec![IgnorePattern::new(PatternSyntax::RootFiles, b"dir/subdir", Path::new(""))];
+/// vec![IgnorePattern::new(PatternSyntax::RootFilesIn, b"dir/subdir", Path::new(""))];
 /// let matcher = IncludeMatcher::new(ignore_patterns).unwrap();
 /// ///
 /// assert!(!matcher.matches(HgPath::new(b"file")));
@@ -866,7 +866,7 @@ fn roots_and_dirs(
                 });
                 roots.push(pat.to_owned());
             }
-            PatternSyntax::RootFiles => {
+            PatternSyntax::RootFilesIn => {
                 let pat = if pattern == b"." {
                     &[] as &[u8]
                 } else {
@@ -963,7 +963,7 @@ fn build_match<'a>(
         // with a regex.
         if ignore_patterns
             .iter()
-            .all(|k| k.syntax == PatternSyntax::RootFiles)
+            .all(|k| k.syntax == PatternSyntax::RootFilesIn)
         {
             let dirs: HashSet<_> = ignore_patterns
                 .iter()
@@ -1324,7 +1324,7 @@ mod tests {
 
         // VisitdirRootfilesin
         let m = PatternMatcher::new(vec![IgnorePattern::new(
-            PatternSyntax::RootFiles,
+            PatternSyntax::RootFilesIn,
             b"dir/subdir",
             Path::new(""),
         )])
@@ -1353,7 +1353,7 @@ mod tests {
 
         // VisitchildrensetRootfilesin
         let m = PatternMatcher::new(vec![IgnorePattern::new(
-            PatternSyntax::RootFiles,
+            PatternSyntax::RootFilesIn,
             b"dir/subdir",
             Path::new(""),
         )])
@@ -1537,7 +1537,7 @@ mod tests {
 
         // VisitchildrensetRootfilesin
         let matcher = IncludeMatcher::new(vec![IgnorePattern::new(
-            PatternSyntax::RootFiles,
+            PatternSyntax::RootFilesIn,
             b"dir/subdir",
             Path::new(""),
         )])
@@ -1672,7 +1672,7 @@ mod tests {
         )])
         .unwrap();
         let m2 = IncludeMatcher::new(vec![IgnorePattern::new(
-            PatternSyntax::RootFiles,
+            PatternSyntax::RootFilesIn,
             b"dir",
             Path::new(""),
         )])
@@ -1833,7 +1833,7 @@ mod tests {
         );
         let m2 = Box::new(
             IncludeMatcher::new(vec![IgnorePattern::new(
-                PatternSyntax::RootFiles,
+                PatternSyntax::RootFilesIn,
                 b"dir",
                 Path::new(""),
             )])
@@ -2084,7 +2084,7 @@ mod tests {
         );
         let m2 = Box::new(
             IncludeMatcher::new(vec![IgnorePattern::new(
-                PatternSyntax::RootFiles,
+                PatternSyntax::RootFilesIn,
                 b"dir",
                 Path::new("/repo"),
             )])
@@ -2342,7 +2342,7 @@ mod tests {
         ];
         let file_abcdfile = FileMatcher::new(files).unwrap();
         let _rootfilesin_dir = PatternMatcher::new(vec![IgnorePattern::new(
-            PatternSyntax::RootFiles,
+            PatternSyntax::RootFilesIn,
             b"dir",
             Path::new(""),
         )])
