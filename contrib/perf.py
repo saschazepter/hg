@@ -2046,6 +2046,19 @@ def perfstartup(ui, repo, **opts):
     fm.end()
 
 
+def _clear_store_audit_cache(repo):
+    vfs = getsvfs(repo)
+    # unwrap the fncache proxy
+    if not hasattr(vfs, "audit"):
+        vfs = getattr(vfs, "vfs", vfs)
+    auditor = vfs.audit
+    if hasattr(auditor, "clear_audit_cache"):
+        auditor.clear_audit_cache()
+    elif hasattr(auditor, "audited"):
+        auditor.audited.clear()
+        auditor.auditeddir.clear()
+
+
 def _find_stream_generator(version):
     """find the proper generator function for this stream version"""
     import mercurial.streamclone
@@ -2119,6 +2132,9 @@ def perf_stream_clone_scan(ui, repo, stream_version, **opts):
 
     def setupone():
         result_holder[0] = None
+        # This is important for the full generation, even if it does not
+        # currently matters, it seems safer to also real it here.
+        _clear_store_audit_cache(repo)
 
     generate = _find_stream_generator(stream_version)
 
@@ -2154,12 +2170,15 @@ def perf_stream_clone_generate(ui, repo, stream_version, **opts):
 
     generate = _find_stream_generator(stream_version)
 
+    def setup():
+        _clear_store_audit_cache(repo)
+
     def runone():
         # the lock is held for the duration the initialisation
         for chunk in generate(repo):
             pass
 
-    timer(runone, title=b"generate")
+    timer(runone, setup=setup, title=b"generate")
     fm.end()
 
 
