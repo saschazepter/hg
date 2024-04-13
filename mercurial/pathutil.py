@@ -180,6 +180,13 @@ class pathauditor:
                 self.auditeddir.clear()
                 self._cached = False
 
+    def clear_audit_cache(self):
+        """reset all audit cache
+
+        intended for debug and performance benchmark purposes"""
+        self.audited.clear()
+        self.auditeddir.clear()
+
 
 def canonpath(
     root: bytes,
