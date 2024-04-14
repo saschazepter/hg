@@ -581,6 +581,7 @@ def _timer(
         if setup is not None:
             setup()
         with context():
+            gc.collect()
             with prof:
                 with timeone() as item:
                     r = func()
