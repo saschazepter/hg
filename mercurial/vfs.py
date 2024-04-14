@@ -616,6 +616,10 @@ class proxyvfs(abstractvfs):
     def options(self, value):
         self.vfs.options = value
 
+    @property
+    def audit(self):
+        return self.vfs.audit
+
 
 class filtervfs(proxyvfs, abstractvfs):
     '''Wrapper vfs for filtering filenames with a function.'''
