@@ -563,7 +563,6 @@ def _timer(
 ):
     gc.collect()
     results = []
-    begin = util.timer()
     count = 0
     if profiler is None:
         profiler = lambda: NOOPCTX
@@ -572,6 +571,7 @@ def _timer(
             setup()
         with context():
             func()
+    begin = util.timer()
     keepgoing = True
     while keepgoing:
         if count in profiled_runs:
