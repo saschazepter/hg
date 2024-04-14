@@ -646,11 +646,12 @@ def _emit2(repo, entries):
 
     max_linkrev = len(repo)
     file_count = totalfilesize = 0
-    # record the expected size of every file
-    for k, vfs, e in entries:
-        for f in e.files():
-            file_count += 1
-            totalfilesize += f.file_size(vfs)
+    with util.nogc():
+        # record the expected size of every file
+        for k, vfs, e in entries:
+            for f in e.files():
+                file_count += 1
+                totalfilesize += f.file_size(vfs)
 
     progress = repo.ui.makeprogress(
         _(b'bundle'), total=totalfilesize, unit=_(b'bytes')
