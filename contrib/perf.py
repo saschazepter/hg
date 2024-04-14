@@ -20,7 +20,10 @@ Configurations
 
 ``profile-benchmark``
   Enable profiling for the benchmarked section.
-  (The first iteration is benchmarked)
+  (by default, the first iteration is benchmarked)
+
+``profiled-runs``
+  list of iteration to profile (starting from 0)
 
 ``run-limits``
   Control the number of runs each benchmark will perform. The option value
@@ -318,6 +321,11 @@ try:
     )
     configitem(
         b'perf',
+        b'profiled-runs',
+        default=mercurial.configitems.dynamicdefault,
+    )
+    configitem(
+        b'perf',
         b'run-limits',
         default=mercurial.configitems.dynamicdefault,
         experimental=True,
@@ -354,7 +362,7 @@ except TypeError:
     )
     configitem(
         b'perf',
-        b'profile-benchmark',
+        b'profiled-runs',
         default=mercurial.configitems.dynamicdefault,
     )
     configitem(
@@ -491,9 +499,12 @@ def gettimer(ui, opts=None):
         limits = DEFAULTLIMITS
 
     profiler = None
+    profiled_runs = set()
     if profiling is not None:
         if ui.configbool(b"perf", b"profile-benchmark", False):
-            profiler = profiling.profile(ui)
+            profiler = lambda: profiling.profile(ui)
+            for run in ui.configlist(b"perf", b"profiled-runs", [0]):
+                profiled_runs.add(int(run))
 
     prerun = getint(ui, b"perf", b"pre-run", 0)
     t = functools.partial(
@@ -503,6 +514,7 @@ def gettimer(ui, opts=None):
         limits=limits,
         prerun=prerun,
         profiler=profiler,
+        profiled_runs=profiled_runs,
     )
     return t, fm
 
@@ -547,13 +559,14 @@ def _timer(
     limits=DEFAULTLIMITS,
     prerun=0,
     profiler=None,
+    profiled_runs=(0,),
 ):
     gc.collect()
     results = []
     begin = util.timer()
     count = 0
     if profiler is None:
-        profiler = NOOPCTX
+        profiler = lambda: NOOPCTX
     for i in range(prerun):
         if setup is not None:
             setup()
@@ -561,13 +574,16 @@ def _timer(
             func()
     keepgoing = True
     while keepgoing:
+        if count in profiled_runs:
+            prof = profiler()
+        else:
+            prof = NOOPCTX
         if setup is not None:
             setup()
         with context():
-            with profiler:
+            with prof:
                 with timeone() as item:
                     r = func()
-        profiler = NOOPCTX
         count += 1
         results.append(item[0])
         cstop = util.timer()
