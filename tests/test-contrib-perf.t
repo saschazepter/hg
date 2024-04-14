@@ -59,8 +59,11 @@ perfstatus
     number of run to perform before starting measurement.
   
   "profile-benchmark"
-    Enable profiling for the benchmarked section. (The first iteration is
-    benchmarked)
+    Enable profiling for the benchmarked section. (by default, the first
+    iteration is benchmarked)
+  
+  "profiled-runs"
+    list of iteration to profile (starting from 0)
   
   "run-limits"
     Control the number of runs each benchmark will perform. The option value
