@@ -2146,7 +2146,11 @@ mod tests {
                 visit_children_set: &'a VisitChildrenSet,
             }
 
-            fn holds(matching: &Tree, vcs: &VisitChildrenSet) -> bool {
+            fn holds(
+                matching: &Tree,
+                not_matching: &Tree,
+                vcs: &VisitChildrenSet,
+            ) -> bool {
                 match vcs {
                     VisitChildrenSet::Empty => matching.is_empty(),
                     VisitChildrenSet::This => {
@@ -2154,14 +2158,11 @@ mod tests {
                         true
                     }
                     VisitChildrenSet::Recursive => {
-                        // `Recursive` does not come with any correctness
-                        // obligations.
-                        // It instructs the caller to stop calling
-                        // `visit_children_set` for all
-                        // descendants, so may have negative performance
-                        // implications, but we're not testing against that
-                        // here.
-                        true
+                        // `Recursive` requires that *everything* in the
+                        // subtree matches. This
+                        // requirement is relied on for example in
+                        // DifferenceMatcher implementation.
+                        not_matching.is_empty()
                     }
                     VisitChildrenSet::Set(allowed_children) => {
                         // `allowed_children` does not distinguish between
@@ -2186,9 +2187,10 @@ mod tests {
                 matcher: &M,
                 path: &HgPath,
                 matching: &Tree,
+                not_matching: &Tree,
                 visit_children_set: &VisitChildrenSet,
             ) {
-                if !holds(matching, visit_children_set) {
+                if !holds(matching, not_matching, visit_children_set) {
                     panic!(
                         "{:#?}",
                         Error {
@@ -2223,34 +2225,52 @@ mod tests {
             self.files.is_empty() && self.dirs.is_empty()
         }
 
+        fn make(
+            files: BTreeSet<HgPathBuf>,
+            dirs: BTreeMap<HgPathBuf, Tree>,
+        ) -> Self {
+            Self {
+                files,
+                dirs: dirs
+                    .into_iter()
+                    .filter(|(_k, v)| (!(v.is_empty())))
+                    .collect(),
+            }
+        }
+
         fn filter_and_check<M: Matcher + Debug>(
             &self,
             m: &M,
             path: &HgPath,
-        ) -> Self {
-            let files: BTreeSet<HgPathBuf> = self
-                .files
-                .iter()
-                .filter(|v| m.matches(&path.join(v)))
-                .map(|f| f.to_owned())
-                .collect();
-            let dirs: BTreeMap<HgPathBuf, Tree> = self
+        ) -> (Self, Self) {
+            let (files1, files2): (BTreeSet<HgPathBuf>, BTreeSet<HgPathBuf>) =
+                self.files
+                    .iter()
+                    .map(|v| v.to_owned())
+                    .partition(|v| m.matches(&path.join(v)));
+            let (dirs1, dirs2): (
+                BTreeMap<HgPathBuf, Tree>,
+                BTreeMap<HgPathBuf, Tree>,
+            ) = self
                 .dirs
                 .iter()
-                .filter_map(|(k, v)| {
+                .map(|(k, v)| {
                     let path = path.join(k);
-                    let v = v.filter_and_check(m, &path);
-                    if v.is_empty() {
-                        None
-                    } else {
-                        Some((k.to_owned(), v))
-                    }
+                    let (t1, t2) = v.filter_and_check(m, &path);
+                    ((k.clone(), t1), (k.clone(), t2))
                 })
-                .collect();
-            let matching = Self { files, dirs };
+                .unzip();
+            let matching = Self::make(files1, dirs1);
+            let not_matching = Self::make(files2, dirs2);
             let vcs = m.visit_children_set(path);
-            invariants::visit_children_set::check(m, path, &matching, &vcs);
-            matching
+            invariants::visit_children_set::check(
+                m,
+                path,
+                &matching,
+                &not_matching,
+                &vcs,
+            );
+            (matching, not_matching)
         }
 
         fn check_matcher<M: Matcher + Debug>(
@@ -2259,11 +2279,11 @@ mod tests {
             expect_count: usize,
         ) {
             let res = self.filter_and_check(m, &HgPathBuf::new());
-            if expect_count != res.len() {
+            if expect_count != res.0.len() {
                 eprintln!(
                     "warning: expected {} matches, got {} for {:#?}",
                     expect_count,
-                    res.len(),
+                    res.0.len(),
                     m
                 );
             }
