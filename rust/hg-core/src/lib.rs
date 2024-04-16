@@ -41,7 +41,7 @@ pub mod vfs;
 
 use crate::utils::hg_path::{HgPathBuf, HgPathError};
 pub use filepatterns::{
-    parse_pattern_syntax, read_pattern_file, IgnorePattern,
+    parse_pattern_syntax_kind, read_pattern_file, IgnorePattern,
     PatternFileWarning, PatternSyntax,
 };
 use std::collections::HashMap;
