@@ -153,6 +153,33 @@ pub fn status_wrapper(
     )
 }
 
+fn collect_kindpats(
+    py: Python,
+    matcher: PyObject,
+) -> PyResult<Vec<IgnorePattern>> {
+    matcher
+        .getattr(py, "_kindpats")?
+        .iter(py)?
+        .map(|k| {
+            let k = k?;
+            let syntax = parse_pattern_syntax(
+                &[
+                    k.get_item(py, 0)?.extract::<PyBytes>(py)?.data(py),
+                    &b":"[..],
+                ]
+                .concat(),
+            )
+            .map_err(|e| handle_fallback(py, StatusError::Pattern(e)))?;
+            let pattern = k.get_item(py, 1)?.extract::<PyBytes>(py)?;
+            let pattern = pattern.data(py);
+            let source = k.get_item(py, 2)?.extract::<PyBytes>(py)?;
+            let source = get_path_from_bytes(source.data(py));
+            let new = IgnorePattern::new(syntax, pattern, source);
+            Ok(new)
+        })
+        .collect()
+}
+
 /// Transform a Python matcher into a Rust matcher.
 fn extract_matcher(
     py: Python,
@@ -199,33 +226,7 @@ fn extract_matcher(
             // Get the patterns from Python even though most of them are
             // redundant with those we will parse later on, as they include
             // those passed from the command line.
-            let ignore_patterns: PyResult<Vec<_>> = matcher
-                .getattr(py, "_kindpats")?
-                .iter(py)?
-                .map(|k| {
-                    let k = k?;
-                    let syntax = parse_pattern_syntax(
-                        &[
-                            k.get_item(py, 0)?
-                                .extract::<PyBytes>(py)?
-                                .data(py),
-                            &b":"[..],
-                        ]
-                        .concat(),
-                    )
-                    .map_err(|e| {
-                        handle_fallback(py, StatusError::Pattern(e))
-                    })?;
-                    let pattern = k.get_item(py, 1)?.extract::<PyBytes>(py)?;
-                    let pattern = pattern.data(py);
-                    let source = k.get_item(py, 2)?.extract::<PyBytes>(py)?;
-                    let source = get_path_from_bytes(source.data(py));
-                    let new = IgnorePattern::new(syntax, pattern, source);
-                    Ok(new)
-                })
-                .collect();
-
-            let ignore_patterns = ignore_patterns?;
+            let ignore_patterns = collect_kindpats(py, matcher)?;
 
             let matcher = IncludeMatcher::new(ignore_patterns)
                 .map_err(|e| handle_fallback(py, e.into()))?;
@@ -254,33 +255,9 @@ fn extract_matcher(
             Ok(Box::new(DifferenceMatcher::new(m1, m2)))
         }
         "patternmatcher" => {
-            let ignore_patterns = matcher
-                .getattr(py, "_kindpats")?
-                .iter(py)?
-                .map(|k| {
-                    let k = k?;
-                    let syntax = parse_pattern_syntax(
-                        &[
-                            k.get_item(py, 0)?
-                                .extract::<PyBytes>(py)?
-                                .data(py),
-                            &b":"[..],
-                        ]
-                        .concat(),
-                    )
-                    .map_err(|e| {
-                        handle_fallback(py, StatusError::Pattern(e))
-                    })?;
-                    let pattern = k.get_item(py, 1)?.extract::<PyBytes>(py)?;
-                    let pattern = pattern.data(py);
-                    let source = k.get_item(py, 2)?.extract::<PyBytes>(py)?;
-                    let source = get_path_from_bytes(source.data(py));
-                    let new = IgnorePattern::new(syntax, pattern, source);
-                    Ok(new)
-                })
-                .collect::<PyResult<Vec<_>>>()?;
+            let patterns = collect_kindpats(py, matcher)?;
 
-            let matcher = PatternMatcher::new(ignore_patterns)
+            let matcher = PatternMatcher::new(patterns)
                 .map_err(|e| handle_fallback(py, e.into()))?;
 
             Ok(Box::new(matcher))
