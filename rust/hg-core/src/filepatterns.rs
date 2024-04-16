@@ -150,21 +150,21 @@ fn escape_pattern(pattern: &[u8]) -> Vec<u8> {
         .collect()
 }
 
-pub fn parse_pattern_syntax(
+pub fn parse_pattern_syntax_kind(
     kind: &[u8],
 ) -> Result<PatternSyntax, PatternError> {
     match kind {
-        b"re:" => Ok(PatternSyntax::Regexp),
-        b"path:" => Ok(PatternSyntax::Path),
-        b"filepath:" => Ok(PatternSyntax::FilePath),
-        b"relpath:" => Ok(PatternSyntax::RelPath),
-        b"rootfilesin:" => Ok(PatternSyntax::RootFilesIn),
-        b"relglob:" => Ok(PatternSyntax::RelGlob),
-        b"relre:" => Ok(PatternSyntax::RelRegexp),
-        b"glob:" => Ok(PatternSyntax::Glob),
-        b"rootglob:" => Ok(PatternSyntax::RootGlob),
-        b"include:" => Ok(PatternSyntax::Include),
-        b"subinclude:" => Ok(PatternSyntax::SubInclude),
+        b"re" => Ok(PatternSyntax::Regexp),
+        b"path" => Ok(PatternSyntax::Path),
+        b"filepath" => Ok(PatternSyntax::FilePath),
+        b"relpath" => Ok(PatternSyntax::RelPath),
+        b"rootfilesin" => Ok(PatternSyntax::RootFilesIn),
+        b"relglob" => Ok(PatternSyntax::RelGlob),
+        b"relre" => Ok(PatternSyntax::RelRegexp),
+        b"glob" => Ok(PatternSyntax::Glob),
+        b"rootglob" => Ok(PatternSyntax::RootGlob),
+        b"include" => Ok(PatternSyntax::Include),
+        b"subinclude" => Ok(PatternSyntax::SubInclude),
         _ => Err(PatternError::UnsupportedSyntax(
             String::from_utf8_lossy(kind).to_string(),
         )),
