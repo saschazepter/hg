@@ -21,7 +21,7 @@ use hg::matchers::{
 };
 use hg::{
     matchers::{AlwaysMatcher, FileMatcher, IncludeMatcher},
-    parse_pattern_syntax,
+    parse_pattern_syntax_kind,
     utils::{
         files::{get_bytes_from_path, get_path_from_bytes},
         hg_path::{HgPath, HgPathBuf},
@@ -162,12 +162,8 @@ fn collect_kindpats(
         .iter(py)?
         .map(|k| {
             let k = k?;
-            let syntax = parse_pattern_syntax(
-                &[
-                    k.get_item(py, 0)?.extract::<PyBytes>(py)?.data(py),
-                    &b":"[..],
-                ]
-                .concat(),
+            let syntax = parse_pattern_syntax_kind(
+                k.get_item(py, 0)?.extract::<PyBytes>(py)?.data(py),
             )
             .map_err(|e| handle_fallback(py, StatusError::Pattern(e)))?;
             let pattern = k.get_item(py, 1)?.extract::<PyBytes>(py)?;
