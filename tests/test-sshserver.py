@@ -25,9 +25,8 @@ class SSHServerGetArgsTests(unittest.TestCase):
 
     def assertparse(self, cmd, input, expected):
         server = mockserver(input)
-        proto = wireprotoserver.sshv1protocolhandler(
-            server._ui, server._fin, server._fout
-        )
+        ui = server._ui
+        proto = wireprotoserver.sshv1protocolhandler(ui, ui.fin, ui.fout)
         _func, spec = wireprotov1server.commands[cmd]
         self.assertEqual(proto.getargs(spec), expected)
 
@@ -35,6 +34,9 @@ class SSHServerGetArgsTests(unittest.TestCase):
 def mockserver(inbytes):
     ui = mockui(inbytes)
     repo = mockrepo(ui)
+    # note: this test unfortunately doesn't really test anything about
+    # `sshserver` class anymore: the entirety of logic of that class lives
+    # in `serveuntil`, and that function is not even called by this test.
     return wireprotoserver.sshserver(ui, repo)
 
 

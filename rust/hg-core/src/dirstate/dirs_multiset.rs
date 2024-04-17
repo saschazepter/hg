@@ -158,14 +158,13 @@ pub struct DirsChildrenMultiset<'a> {
 }
 
 impl<'a> DirsChildrenMultiset<'a> {
-    pub fn new(
+    pub fn new<I: Iterator<Item = &'a HgPathBuf>>(
         paths: impl Iterator<Item = &'a HgPathBuf>,
-        only_include: Option<&'a HashSet<impl AsRef<HgPath> + 'a>>,
+        only_include: Option<I>,
     ) -> Self {
         let mut new = Self {
             inner: HashMap::default(),
-            only_include: only_include
-                .map(|s| s.iter().map(AsRef::as_ref).collect()),
+            only_include: only_include.map(|s| s.map(AsRef::as_ref).collect()),
         };
 
         for path in paths {

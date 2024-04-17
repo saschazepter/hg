@@ -30,7 +30,7 @@ class bannerserver(wireprotoserver.sshserver):
 
     def serve_forever(self):
         for i in range(10):
-            self._fout.write(b'banner: line %d\n' % i)
+            self._ui.fout.write(b'banner: line %d\n' % i)
 
         super(bannerserver, self).serve_forever()
 
@@ -45,17 +45,16 @@ class prehelloserver(wireprotoserver.sshserver):
     """
 
     def serve_forever(self):
-        l = self._fin.readline()
+        ui = self._ui
+        l = ui.fin.readline()
         assert l == b'hello\n'
         # Respond to unknown commands with an empty reply.
-        wireprotoserver._sshv1respondbytes(self._fout, b'')
-        l = self._fin.readline()
+        wireprotoserver._sshv1respondbytes(ui.fout, b'')
+        l = ui.fin.readline()
         assert l == b'between\n'
-        proto = wireprotoserver.sshv1protocolhandler(
-            self._ui, self._fin, self._fout
-        )
+        proto = wireprotoserver.sshv1protocolhandler(ui, ui.fin, ui.fout)
         rsp = wireprotov1server.dispatch(self._repo, proto, b'between')
-        wireprotoserver._sshv1respondbytes(self._fout, rsp.data)
+        wireprotoserver._sshv1respondbytes(ui.fout, rsp.data)
 
         super(prehelloserver, self).serve_forever()
 
