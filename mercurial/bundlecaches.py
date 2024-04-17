@@ -179,6 +179,9 @@ bundle_spec_param_processing = {
     b"obsolescence": param_bool,
     b"obsolescence-mandatory": param_bool,
     b"phases": param_bool,
+    b"changegroup": param_bool,
+    b"tagsfnodescache": param_bool,
+    b"revbranchcache": param_bool,
 }
 
 

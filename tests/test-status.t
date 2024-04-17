@@ -842,6 +842,26 @@ Check the output
   C clean
   C subdir/clean
 
+Test various matchers interatction with dirstate code:
+
+  $ hg status path:subdir
+  M subdir/modified
+  R subdir/removed
+  ! subdir/deleted
+  ? subdir/unknown
+
+  $ hg status 'glob:subdir/*'
+  M subdir/modified
+  R subdir/removed
+  ! subdir/deleted
+  ? subdir/unknown
+
+  $ hg status rootfilesin:subdir
+  M subdir/modified
+  R subdir/removed
+  ! subdir/deleted
+  ? subdir/unknown
+
 Note: `hg status some-name` creates a patternmatcher which is not supported
 yet by the Rust implementation of status, but includematcher is supported.
 --include is used below for that reason

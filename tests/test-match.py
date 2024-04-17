@@ -94,12 +94,14 @@ class PatternMatcherTests(unittest.TestCase):
             patterns=[b'rootfilesin:dir/subdir'],
         )
         assert isinstance(m, matchmod.patternmatcher)
-        self.assertFalse(m.visitdir(b'dir/subdir/x'))
+        # OPT: we shouldn't visit [x] as a directory,
+        # but we should still visit it as a file.
+        # Unfortunately, `visitdir` is used for both.
+        self.assertTrue(m.visitdir(b'dir/subdir/x'))
         self.assertFalse(m.visitdir(b'folder'))
-        # FIXME: These should probably be True.
-        self.assertFalse(m.visitdir(b''))
-        self.assertFalse(m.visitdir(b'dir'))
-        self.assertFalse(m.visitdir(b'dir/subdir'))
+        self.assertTrue(m.visitdir(b''))
+        self.assertTrue(m.visitdir(b'dir'))
+        self.assertTrue(m.visitdir(b'dir/subdir'))
 
     def testVisitchildrensetRootfilesin(self):
         m = matchmod.match(
@@ -108,13 +110,13 @@ class PatternMatcherTests(unittest.TestCase):
             patterns=[b'rootfilesin:dir/subdir'],
         )
         assert isinstance(m, matchmod.patternmatcher)
-        self.assertEqual(m.visitchildrenset(b'dir/subdir/x'), set())
+        self.assertEqual(m.visitchildrenset(b'dir/subdir/x'), b'this')
         self.assertEqual(m.visitchildrenset(b'folder'), set())
-        # FIXME: These should probably be {'dir'}, {'subdir'} and 'this',
-        # respectively, or at least 'this' for all three.
-        self.assertEqual(m.visitchildrenset(b''), set())
-        self.assertEqual(m.visitchildrenset(b'dir'), set())
-        self.assertEqual(m.visitchildrenset(b'dir/subdir'), set())
+        # OPT: These should probably be {'dir'}, {'subdir'} and 'this',
+        # respectively
+        self.assertEqual(m.visitchildrenset(b''), b'this')
+        self.assertEqual(m.visitchildrenset(b'dir'), b'this')
+        self.assertEqual(m.visitchildrenset(b'dir/subdir'), b'this')
 
     def testVisitdirGlob(self):
         m = matchmod.match(
