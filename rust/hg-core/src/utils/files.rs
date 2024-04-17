@@ -120,6 +120,10 @@ pub fn find_dirs(path: &HgPath) -> Ancestors {
     dirs
 }
 
+pub fn dir_ancestors(path: &HgPath) -> Ancestors {
+    Ancestors { next: Some(path) }
+}
+
 /// Returns an iterator yielding ancestor directories of the given repository
 /// path.
 ///
