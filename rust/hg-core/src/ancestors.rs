@@ -423,6 +423,18 @@ mod tests {
             ),
             vec![8, 7, 4, 3, 2, 1, 0]
         );
+        // it works as well on references, because &Graph implements Graph
+        // this is needed as of this writing by RHGitaly
+        assert_eq!(
+            list_ancestors(
+                &SampleGraph,
+                vec![11.into(), 13.into()],
+                0.into(),
+                false
+            ),
+            vec![8, 7, 4, 3, 2, 1, 0]
+        );
+
         assert_eq!(
             list_ancestors(
                 SampleGraph,
