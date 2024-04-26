@@ -182,7 +182,7 @@ fn extract_matcher(
     matcher: PyObject,
 ) -> PyResult<Box<dyn Matcher + Sync>> {
     let tampered = matcher
-        .call_method(py, "was_tampered_with", PyTuple::empty(py), None)?
+        .call_method(py, "was_tampered_with_nonrec", PyTuple::empty(py), None)?
         .extract::<PyBool>(py)?
         .is_true();
     if tampered {
