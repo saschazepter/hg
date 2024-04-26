@@ -1639,25 +1639,12 @@ class dirstate:
 
         use_rust = True
 
-        allowed_matchers = (
-            matchmod.alwaysmatcher,
-            matchmod.differencematcher,
-            matchmod.exactmatcher,
-            matchmod.includematcher,
-            matchmod.intersectionmatcher,
-            matchmod.nevermatcher,
-            matchmod.unionmatcher,
-        )
-
         if rustmod is None:
             use_rust = False
         elif self._checkcase:
             # Case-insensitive filesystems are not handled yet
             use_rust = False
         elif subrepos:
-            use_rust = False
-        elif not isinstance(match, allowed_matchers):
-            # Some matchers have yet to be implemented
             use_rust = False
 
         # Get the time from the filesystem so we can disambiguate files that
