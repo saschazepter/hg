@@ -1420,44 +1420,58 @@ def incoming(ui, repo, source, opts, subpath=None):
     )
 
 
+_no_subtoppath = object()
+
+
 def _outgoing(ui, repo, dests, opts, subpath=None):
     out = set()
     others = []
     for path in urlutil.get_push_paths(repo, ui, dests):
         dest = path.loc
-        repo._subtoppath = dest
-        if subpath is not None:
-            subpath = urlutil.url(subpath)
-            if subpath.isabs():
-                dest = bytes(subpath)
-            else:
-                p = urlutil.url(dest)
-                if p.islocal():
-                    normpath = os.path.normpath
-                else:
-                    normpath = posixpath.normpath
-                p.path = normpath(b'%s/%s' % (p.path, subpath))
-                dest = bytes(p)
-        branches = path.branch, opts.get(b'branch') or []
-
-        ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(dest))
-        revs, checkout = addbranchrevs(repo, repo, branches, opts.get(b'rev'))
-        if revs:
-            revs = [repo[rev].node() for rev in logcmdutil.revrange(repo, revs)]
-
-        other = peer(repo, opts, dest)
+        prev_subtopath = getattr(repo, "_subtoppath", _no_subtoppath)
         try:
-            outgoing = discovery.findcommonoutgoing(
-                repo, other, revs, force=opts.get(b'force')
+            repo._subtoppath = dest
+            if subpath is not None:
+                subpath = urlutil.url(subpath)
+                if subpath.isabs():
+                    dest = bytes(subpath)
+                else:
+                    p = urlutil.url(dest)
+                    if p.islocal():
+                        normpath = os.path.normpath
+                    else:
+                        normpath = posixpath.normpath
+                    p.path = normpath(b'%s/%s' % (p.path, subpath))
+                    dest = bytes(p)
+            branches = path.branch, opts.get(b'branch') or []
+
+            ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(dest))
+            revs, checkout = addbranchrevs(
+                repo, repo, branches, opts.get(b'rev')
             )
-            o = outgoing.missing
-            out.update(o)
-            if not o:
-                scmutil.nochangesfound(repo.ui, repo, outgoing.excluded)
-            others.append(other)
-        except:  # re-raises
-            other.close()
-            raise
+            if revs:
+                revs = [
+                    repo[rev].node() for rev in logcmdutil.revrange(repo, revs)
+                ]
+
+            other = peer(repo, opts, dest)
+            try:
+                outgoing = discovery.findcommonoutgoing(
+                    repo, other, revs, force=opts.get(b'force')
+                )
+                o = outgoing.missing
+                out.update(o)
+                if not o:
+                    scmutil.nochangesfound(repo.ui, repo, outgoing.excluded)
+                others.append(other)
+            except:  # re-raises
+                other.close()
+                raise
+        finally:
+            if prev_subtopath is _no_subtoppath:
+                del repo._subtoppath
+            else:
+                repo._subtoppath = prev_subtopath
     # make sure this is ordered by revision number
     outgoing_revs = list(out)
     cl = repo.changelog
@@ -1529,7 +1543,6 @@ def outgoing(ui, repo, dests, opts, subpath=None):
     finally:
         for oth in others:
             oth.close()
-        del repo._subtoppath
 
 
 def verify(repo, level=None):
