@@ -47,4 +47,4 @@ def admin_verify(ui, repo, **opts):
         ui.status(_(b"running %s\n") % name)
         errors = func()
         if errors:
-            ui.warn(_(b"found %d errors\n") % len(errors))
+            ui.warn(_(b"found %d errors\n") % errors)
