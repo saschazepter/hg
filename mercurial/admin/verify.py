@@ -38,7 +38,7 @@ def check_dirstate(ui, repo, **options):
     is_narrow = requirements.NARROW_REQUIREMENT in repo.requirements
     narrow_matcher = repo.narrowmatch() if is_narrow else None
     for err in repo.dirstate.verify(m1, m2, parent1, narrow_matcher):
-        ui.warn(err[0] % err[1:])
+        ui.warn(err)
         errors += 1
 
     return errors
