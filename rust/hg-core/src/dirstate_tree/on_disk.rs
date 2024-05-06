@@ -691,9 +691,11 @@ impl Writer<'_, '_> {
         // First accumulate serialized nodes in a `Vec`
         let mut on_disk_nodes = Vec::with_capacity(nodes_len);
         for node in nodes {
-            let children =
-                self.write_nodes(node.children(self.dirstate_map.on_disk)?)?;
+            let children = node.children(self.dirstate_map.on_disk)?;
             let full_path = node.full_path(self.dirstate_map.on_disk)?;
+            self.check_children(&children, full_path)?;
+
+            let children = self.write_nodes(children)?;
             let full_path = self.write_path(full_path.as_bytes());
             let copy_source = if let Some(source) =
                 node.copy_source(self.dirstate_map.on_disk)?
@@ -769,6 +771,37 @@ impl Writer<'_, '_> {
         let len = child_nodes_len_from_usize(nodes_len);
         self.out.extend(on_disk_nodes.as_bytes());
         Ok(ChildNodes { start, len })
+    }
+
+    /// Catch some dirstate corruptions before writing them to disk
+    fn check_children(
+        &mut self,
+        children: &dirstate_map::ChildNodesRef,
+        full_path: &HgPath,
+    ) -> Result<(), DirstateError> {
+        for child in children.iter() {
+            let child_full_path =
+                child.full_path(self.dirstate_map.on_disk)?;
+
+            let prefix_length = child_full_path.len()
+                // remove the filename
+                - child.base_name(self.dirstate_map.on_disk)?.len()
+                // remove the slash
+                - 1;
+
+            let child_prefix = &child_full_path.as_bytes()[..prefix_length];
+
+            if child_prefix != full_path.as_bytes() {
+                let explanation = format!(
+                    "dirstate child node's path '{}' \
+                        does not start with its parent's path '{}'",
+                    child_full_path, full_path,
+                );
+
+                return Err(HgError::corrupted(explanation).into());
+            }
+        }
+        Ok(())
     }
 
     /// If the given slice of items is within `on_disk`, returns its offset
