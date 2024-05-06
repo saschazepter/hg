@@ -133,6 +133,12 @@ pub enum GraphError {
     ParentOutOfRange(Revision),
 }
 
+impl<T: Graph> Graph for &T {
+    fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
+        (*self).parents(rev)
+    }
+}
+
 /// The Mercurial Revlog Index
 ///
 /// This is currently limited to the minimal interface that is needed for
