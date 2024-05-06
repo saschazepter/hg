@@ -2209,6 +2209,8 @@ def fscasesensitive(path: bytes) -> bool:
 
 
 _re2_input = lambda x: x
+# google-re2 will need to be tell to not output error on its own
+_re2_options = None
 try:
     import re2  # pytype: disable=import-error
 
@@ -2229,6 +2231,7 @@ class _re:
     def _checkre2():
         global _re2
         global _re2_input
+        global _re2_options
         if _re2 is not None:
             # we already have the answer
             return
@@ -2247,6 +2250,12 @@ class _re:
             check_input = pycompat.sysstr(check_input)
             _re2 = bool(re2.match(check_pattern, check_input))
             _re2_input = pycompat.sysstr
+        try:
+            quiet = re2.Options()
+            quiet.log_errors = False
+            _re2_options = quiet
+        except AttributeError:
+            pass
 
     def compile(self, pat, flags=0):
         """Compile a regular expression, using re2 if possible
@@ -2262,7 +2271,12 @@ class _re:
             if flags & remod.MULTILINE:
                 pat = b'(?m)' + pat
             try:
-                return re2.compile(_re2_input(pat))
+                input_regex = _re2_input(pat)
+                if _re2_options is not None:
+                    compiled = re2.compile(input_regex, options=_re2_options)
+                else:
+                    compiled = re2.compile(input_regex)
+                return compiled
             except re2.error:
                 pass
         return remod.compile(pat, flags)
