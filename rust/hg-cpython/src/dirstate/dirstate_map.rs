@@ -270,9 +270,9 @@ py_class!(pub class DirstateMap |py| {
                 let tuple = (packed, tree_metadata, append);
                 Ok(tuple.to_py_object(py).into_object())
             },
-            Err(_) => Err(PyErr::new::<exc::OSError, _>(
+            Err(e) => Err(PyErr::new::<exc::OSError, _>(
                 py,
-                "Dirstate error".to_string(),
+                e.to_string(),
             )),
         }
     }
