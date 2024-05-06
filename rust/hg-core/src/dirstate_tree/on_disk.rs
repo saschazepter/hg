@@ -640,7 +640,20 @@ pub(super) fn write(
         out: Vec::with_capacity(size_guess),
     };
 
-    let root_nodes = writer.write_nodes(dirstate_map.root.as_ref())?;
+    let root_nodes = dirstate_map.root.as_ref();
+    for node in root_nodes.iter() {
+        // Catch some corruptions before we write to disk
+        let full_path = node.full_path(dirstate_map.on_disk)?;
+        let base_name = node.base_name(dirstate_map.on_disk)?;
+        if full_path != base_name {
+            let explanation = format!(
+                "Dirstate root node '{}' is not at the root",
+                full_path
+            );
+            return Err(HgError::corrupted(explanation).into());
+        }
+    }
+    let root_nodes = writer.write_nodes(root_nodes)?;
 
     let unreachable_bytes = if append {
         dirstate_map.unreachable_bytes
