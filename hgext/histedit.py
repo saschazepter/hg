@@ -1581,14 +1581,16 @@ pgup/K: move patch up, pgdn/J: move patch down, c: commit, q: abort
 
     def change_action(self, pos, action):
         """Change the action state on the given position to the new action"""
-        assert 0 <= pos < len(self.rules)
-        self.rules[pos].action = action
+        rule_pos = self.display_pos_to_rule_pos(pos)
+        assert 0 <= rule_pos < len(self.rules)
+        self.rules[rule_pos].action = action
 
     def cycle_action(self, pos, next=False):
         """Changes the action state the next or the previous action from
         the action list"""
-        assert 0 <= pos < len(self.rules)
-        current = self.rules[pos].action
+        rule_pos = self.display_pos_to_rule_pos(pos)
+        assert 0 <= rule_pos < len(self.rules)
+        current = self.rules[rule_pos].action
 
         assert current in KEY_LIST
 
@@ -1597,6 +1599,8 @@ pgup/K: move patch up, pgdn/J: move patch down, c: commit, q: abort
             index += 1
         else:
             index -= 1
+        # using pos instead of rule_pos because change_action() also calls
+        # display_pos_to_rule_pos()
         self.change_action(pos, KEY_LIST[index % len(KEY_LIST)])
 
     def change_view(self, delta, unit):
