@@ -1597,7 +1597,7 @@ class dirstate:
                         )
                     )
 
-        for fn, message in bad:
+        for fn, message in sorted(bad):
             matcher.bad(fn, encoding.strtolocal(message))
 
         status = scmutil.status(
