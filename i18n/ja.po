@@ -34780,8 +34780,8 @@ msgid "creating obsolete markers is not enabled on this repo"
 msgstr "廃止マーカの作成機能は無効化されています"
 
 #, python-format
-msgid "obsolete feature not enabled but %i markers found!\n"
-msgstr "obsolete 機能は無効ですが、 %i 個の廃止情報マーカが存在します!\n"
+msgid "\"obsolete\" feature not enabled but %i markers found!\n"
+msgstr "\"obsolete\" 機能は無効ですが、 %i 個の廃止情報マーカが存在します!\n"
 
 #, python-format
 msgid "unknown key: %r"

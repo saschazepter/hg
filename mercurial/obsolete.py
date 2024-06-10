@@ -818,7 +818,7 @@ def makestore(ui, repo):
     store = obsstore(repo, repo.svfs, readonly=readonly, **kwargs)
     if store and readonly:
         ui.warn(
-            _(b'obsolete feature not enabled but %i markers found!\n')
+            _(b'"obsolete" feature not enabled but %i markers found!\n')
             % len(list(store))
         )
     return store
