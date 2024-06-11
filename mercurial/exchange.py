@@ -1694,10 +1694,10 @@ def pull(
             )
 
     pullop.trmanager = transactionmanager(repo, b'pull', remote.url())
-    wlock = util.nullcontextmanager()
+    wlock = util.nullcontextmanager
     if not bookmod.bookmarksinstore(repo):
-        wlock = repo.wlock()
-    with wlock, repo.lock(), pullop.trmanager:
+        wlock = repo.wlock
+    with wlock(), repo.lock(), pullop.trmanager:
         if confirm or (
             repo.ui.configbool(b"pull", b"confirm") and not repo.ui.plain()
         ):
