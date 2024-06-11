@@ -717,13 +717,19 @@ def _processcompared(pushop, pushed, explicit, remotebms, comp):
             if bookmod.isdivergent(b):
                 pushop.ui.warn(_(b'cannot push divergent bookmark %s!\n') % b)
                 pushop.bkresult = 2
+            elif pushed and repo[scid].rev() not in pushed:
+                # in case of race or secret
+                msg = _(b'cannot push bookmark X without its revision: %s!\n')
+                pushop.ui.warn(msg % b)
+                pushop.bkresult = 2
             else:
                 pushop.outbookmarks.append((b, b'', scid))
     # search for overwritten bookmark
     for b, scid, dcid in list(advdst) + list(diverge) + list(differ):
         if b in explicit:
             explicit.remove(b)
-            pushop.outbookmarks.append((b, dcid, scid))
+            if not pushed or repo[scid].rev() in pushed:
+                pushop.outbookmarks.append((b, dcid, scid))
     # search for bookmark to delete
     for b, scid, dcid in adddst:
         if b in explicit:
