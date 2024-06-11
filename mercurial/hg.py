@@ -1420,6 +1420,72 @@ def incoming(ui, repo, source, opts, subpath=None):
     )
 
 
+def _outgoing_filter(repo, revs, opts):
+    """apply revision filtering/ordering option for outgoing"""
+    limit = logcmdutil.getlimit(opts)
+    no_merges = opts.get(b'no_merges')
+    if opts.get(b'newest_first'):
+        revs.reverse()
+    if limit is None and not no_merges:
+        for r in revs:
+            yield r
+        return
+
+    count = 0
+    cl = repo.changelog
+    for n in revs:
+        if limit is not None and count >= limit:
+            break
+        parents = [p for p in cl.parents(n) if p != repo.nullid]
+        if no_merges and len(parents) == 2:
+            continue
+        count += 1
+        yield n
+
+
+def _outgoing_recurse(ui, repo, dests, opts):
+    ret = 1
+    if opts.get(b'subrepos'):
+        ctx = repo[None]
+        for subpath in sorted(ctx.substate):
+            sub = ctx.sub(subpath)
+            ret = min(ret, sub.outgoing(ui, dests, opts))
+    return ret
+
+
+def outgoing(ui, repo, dests, opts, subpath=None):
+    if opts.get(b'graph'):
+        logcmdutil.checkunsupportedgraphflags([], opts)
+    o, others = _outgoing(ui, repo, dests, opts, subpath=subpath)
+    ret = 1
+    try:
+        if o:
+            ret = 0
+
+            if opts.get(b'graph'):
+                revdag = logcmdutil.graphrevs(repo, o, opts)
+                ui.pager(b'outgoing')
+                displayer = logcmdutil.changesetdisplayer(
+                    ui, repo, opts, buffered=True
+                )
+                logcmdutil.displaygraph(
+                    ui, repo, revdag, displayer, graphmod.asciiedges
+                )
+            else:
+                ui.pager(b'outgoing')
+                displayer = logcmdutil.changesetdisplayer(ui, repo, opts)
+                for n in _outgoing_filter(repo, o, opts):
+                    displayer.show(repo[n])
+                displayer.close()
+        for oth in others:
+            cmdutil.outgoinghooks(ui, repo, oth, opts, o)
+            ret = min(ret, _outgoing_recurse(ui, repo, dests, opts))
+        return ret  # exit code is zero since we found outgoing changes
+    finally:
+        for oth in others:
+            oth.close()
+
+
 def _outgoing(ui, repo, dests, opts, subpath=None):
     out = set()
     others = []
@@ -1462,72 +1528,6 @@ def _outgoing(ui, repo, dests, opts, subpath=None):
     cl = repo.changelog
     outgoing_revs.sort(key=cl.rev)
     return outgoing_revs, others
-
-
-def _outgoing_recurse(ui, repo, dests, opts):
-    ret = 1
-    if opts.get(b'subrepos'):
-        ctx = repo[None]
-        for subpath in sorted(ctx.substate):
-            sub = ctx.sub(subpath)
-            ret = min(ret, sub.outgoing(ui, dests, opts))
-    return ret
-
-
-def _outgoing_filter(repo, revs, opts):
-    """apply revision filtering/ordering option for outgoing"""
-    limit = logcmdutil.getlimit(opts)
-    no_merges = opts.get(b'no_merges')
-    if opts.get(b'newest_first'):
-        revs.reverse()
-    if limit is None and not no_merges:
-        for r in revs:
-            yield r
-        return
-
-    count = 0
-    cl = repo.changelog
-    for n in revs:
-        if limit is not None and count >= limit:
-            break
-        parents = [p for p in cl.parents(n) if p != repo.nullid]
-        if no_merges and len(parents) == 2:
-            continue
-        count += 1
-        yield n
-
-
-def outgoing(ui, repo, dests, opts, subpath=None):
-    if opts.get(b'graph'):
-        logcmdutil.checkunsupportedgraphflags([], opts)
-    o, others = _outgoing(ui, repo, dests, opts, subpath=subpath)
-    ret = 1
-    try:
-        if o:
-            ret = 0
-
-            if opts.get(b'graph'):
-                revdag = logcmdutil.graphrevs(repo, o, opts)
-                ui.pager(b'outgoing')
-                displayer = logcmdutil.changesetdisplayer(
-                    ui, repo, opts, buffered=True
-                )
-                logcmdutil.displaygraph(
-                    ui, repo, revdag, displayer, graphmod.asciiedges
-                )
-            else:
-                ui.pager(b'outgoing')
-                displayer = logcmdutil.changesetdisplayer(ui, repo, opts)
-                for n in _outgoing_filter(repo, o, opts):
-                    displayer.show(repo[n])
-                displayer.close()
-        for oth in others:
-            cmdutil.outgoinghooks(ui, repo, oth, opts, o)
-            ret = min(ret, _outgoing_recurse(ui, repo, dests, opts))
-        return ret  # exit code is zero since we found outgoing changes
-    finally:
-        for oth in others:
-            oth.close()
 
 
 def verify(repo, level=None):
