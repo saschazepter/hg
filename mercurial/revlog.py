@@ -1148,7 +1148,14 @@ class _InnerRevlog:
         )
 
     def _divert_index(self):
-        return self.index_file + b'.a'
+        index_file = self.index_file
+        # when we encounter a legacy inline-changelog, split it. However it is
+        # important to use the expected filename for pending content
+        # (<radix>.a) otherwise hooks won't be seeing the content of the
+        # pending transaction.
+        if index_file.endswith(b'.s'):
+            index_file = self.index_file[:-2]
+        return index_file + b'.a'
 
     def delay(self):
         assert not self.is_open

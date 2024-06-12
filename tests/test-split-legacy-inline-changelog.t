@@ -98,9 +98,7 @@ Before 6.7.3 this used to delete the changelog index
   $ echo b > b
   $ hg add b
   $ hg commit -m "second changeset"
-  pre-txn tip rev: 1 (missing-correct-output !)
-  warning: ignoring unknown working parent 11b63e930bf2! (known-bad-output !)
-  pre-txn tip rev: 0 (known-bad-output !)
+  pre-txn tip rev: 1
   $ hg verify
   checking changesets
   checking manifests
@@ -195,8 +193,7 @@ Before 6.7.3 this used to delete the server changelog
   adding changesets
   adding manifests
   adding file changes
-  pre-txn tip rev: 1 (missing-correct-output !)
-  pre-txn tip rev: 0 (known-bad-output !)
+  pre-txn tip rev: 1
   added 1 changesets with 1 changes to 1 files
   $ cd ..
 
@@ -289,8 +286,7 @@ Before 6.7.3 this used to delete the server changelog
   remote: adding changesets
   remote: adding manifests
   remote: adding file changes
-  remote: pre-txn tip rev: 1 (missing-correct-output !)
-  remote: pre-txn tip rev: 0 (known-bad-output !)
+  remote: pre-txn tip rev: 1
   remote: added 1 changesets with 1 changes to 1 files
   $ cd ..
 
