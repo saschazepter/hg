@@ -1,4 +1,22 @@
+= Mercurial 6.7.4 =
+
+Exceptional release following a critical regression causing possible data loss
+in certain conditions:
+
+ * inline-changelog: fix a critical bug in write_pending that delete data (3cf9e52f5e27)
+ * inline-changelog: fix pending transaction visibility when splitting (1721d983dd6d)
+
+Other changes in this release:
+
+ * exchange: fix locking to actually be scoped
+ * chistedit: change action for the correct item
+ * rust-status: sort the failed matches when printing them
+ * hooks: add a prewlock and a prelock hooks
+ * bookmark: fix remote bookmark deletion when the push is raced
+
 = Mercurial 6.7.3 =
+
+/!\ This release contains a bug causing possible data loss, use 6.7.4 instead.
 
  * setup: display return code information about failed `hg` call
  * bundle-spec: properly identify changegroup-less bundle
@@ -17,6 +35,8 @@
 
 = Mercurial 6.7.2 =
 
+/!\ This release contains a bug causing possible data loss, use 6.7.4 instead.
+
 Exceptional release following a large performance regression when cloning.
 
 We are setting up automated benchmarks to reduce the likelihood of regressions
@@ -28,6 +48,8 @@ of the sort from happening in the future.
 
 = Mercurial 6.7.1 =
 
+/!\ This release contains a bug causing possible data loss, use 6.7.4 instead.
+
 Exceptional release following a crash found in delta code that can be triggered
 with complex repository shapes.
 
@@ -36,6 +58,8 @@ with complex repository shapes.
  * subrepo: fix normalizing paths with scheme
 
 = Mercurial 6.7 =
+
+/!\ This release contains a bug causing possible data loss, use 6.7.4 instead.
 
 As usual, a *lot* of patches don't make it to this list.
 
