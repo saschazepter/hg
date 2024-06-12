@@ -3122,6 +3122,7 @@ class localrepository:
             l.lock()
             return l
 
+        self.hook(b'prelock', throw=True)
         l = self._lock(
             vfs=self.svfs,
             lockname=b"lock",
@@ -3146,6 +3147,7 @@ class localrepository:
             l.lock()
             return l
 
+        self.hook(b'prewlock', throw=True)
         # We do not need to check for non-waiting lock acquisition.  Such
         # acquisition would not cause dead-lock as they would just fail.
         if wait and (
