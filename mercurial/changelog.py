@@ -360,8 +360,10 @@ class changelog(revlog.revlog):
             if new_index is not None:
                 self._indexfile = new_index
                 tr.registertmp(new_index)
-        tr.addpending(b'cl-%i' % id(self), self._writepending)
-        tr.addfinalize(b'cl-%i' % id(self), self._finalize)
+        # use "000" as prefix to make sure we run before the spliting of legacy
+        # inline changelog..
+        tr.addpending(b'000-cl-%i' % id(self), self._writepending)
+        tr.addfinalize(b'000-cl-%i' % id(self), self._finalize)
 
     def _finalize(self, tr):
         """finalize index updates"""
