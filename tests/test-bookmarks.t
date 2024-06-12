@@ -1082,9 +1082,9 @@ ensure changelog is written before bookmarks
   >            time.sleep(0.5)
   >        if os.path.exists(b"$TESTTMP/unpause"):
   >            os.remove(b"$TESTTMP/unpause")
-  >    # It is important that this finalizer start with 'a', so it runs before
-  >    # the changelog finalizer appends to the changelog.
-  >    tr.addfinalize(b'a-sleep', sleep)
+  >    # It is important that this finalizer start with '000-a', so it runs
+  >    # before the changelog finalizer appends to the changelog.
+  >    tr.addfinalize(b'000-a-sleep', sleep)
   >    return tr
   > 
   > def extsetup(ui):
