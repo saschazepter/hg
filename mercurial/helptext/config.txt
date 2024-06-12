@@ -1438,6 +1438,12 @@ be ``$HG_HOOKTYPE=incoming`` and ``$HG_HOOKNAME=incoming.email``.
   parent is in ``$HG_PARENT2``. If the update succeeded, ``$HG_ERROR=0``. If the
   update failed (e.g. because conflicts were not resolved), ``$HG_ERROR=1``.
 
+``prelock``
+  run before the store lock is taken, mostly used for test and debug.
+
+``prewlock``
+  run before the working copy lock is taken, mostly used for test and debug.
+
 .. note::
 
    It is generally better to use standard hooks rather than the

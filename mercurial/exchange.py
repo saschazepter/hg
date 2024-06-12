@@ -490,42 +490,46 @@ def push(
     # get lock as we might write phase data
     wlock = lock = None
     try:
-        # bundle2 push may receive a reply bundle touching bookmarks
-        # requiring the wlock. Take it now to ensure proper ordering.
-        maypushback = pushop.ui.configbool(b'experimental', b'bundle2.pushback')
-        if (
-            (not _forcebundle1(pushop))
-            and maypushback
-            and not bookmod.bookmarksinstore(repo)
-        ):
-            wlock = pushop.repo.wlock()
-        lock = pushop.repo.lock()
-        pushop.trmanager = transactionmanager(
-            pushop.repo, b'push-response', pushop.remote.url()
-        )
-    except error.LockUnavailable as err:
-        # source repo cannot be locked.
-        # We do not abort the push, but just disable the local phase
-        # synchronisation.
-        msg = b'cannot lock source repository: %s\n' % stringutil.forcebytestr(
-            err
-        )
-        pushop.ui.debug(msg)
+        try:
+            # bundle2 push may receive a reply bundle touching bookmarks
+            # requiring the wlock. Take it now to ensure proper ordering.
+            maypushback = pushop.ui.configbool(
+                b'experimental',
+                b'bundle2.pushback',
+            )
+            if (
+                (not _forcebundle1(pushop))
+                and maypushback
+                and not bookmod.bookmarksinstore(repo)
+            ):
+                wlock = pushop.repo.wlock()
+            lock = pushop.repo.lock()
+            pushop.trmanager = transactionmanager(
+                pushop.repo, b'push-response', pushop.remote.url()
+            )
+        except error.LockUnavailable as err:
+            # source repo cannot be locked.
+            # We do not abort the push, but just disable the local phase
+            # synchronisation.
+            msg = b'cannot lock source repository: %s\n'
+            msg %= stringutil.forcebytestr(err)
+            pushop.ui.debug(msg)
 
-    with wlock or util.nullcontextmanager():
-        with lock or util.nullcontextmanager():
-            with pushop.trmanager or util.nullcontextmanager():
-                pushop.repo.checkpush(pushop)
-                _checkpublish(pushop)
-                _pushdiscovery(pushop)
-                if not pushop.force:
-                    _checksubrepostate(pushop)
-                if not _forcebundle1(pushop):
-                    _pushbundle2(pushop)
-                _pushchangeset(pushop)
-                _pushsyncphase(pushop)
-                _pushobsolete(pushop)
-                _pushbookmark(pushop)
+        pushop.repo.checkpush(pushop)
+        _checkpublish(pushop)
+        _pushdiscovery(pushop)
+        if not pushop.force:
+            _checksubrepostate(pushop)
+        if not _forcebundle1(pushop):
+            _pushbundle2(pushop)
+        _pushchangeset(pushop)
+        _pushsyncphase(pushop)
+        _pushobsolete(pushop)
+        _pushbookmark(pushop)
+        if pushop.trmanager is not None:
+            pushop.trmanager.close()
+    finally:
+        lockmod.release(pushop.trmanager, lock, wlock)
 
     if repo.ui.configbool(b'experimental', b'remotenames'):
         logexchange.pullremotenames(repo, remote)
@@ -745,13 +749,19 @@ def _processcompared(pushop, pushed, explicit, remotebms, comp):
             if bookmod.isdivergent(b):
                 pushop.ui.warn(_(b'cannot push divergent bookmark %s!\n') % b)
                 pushop.bkresult = 2
+            elif pushed and repo[scid].rev() not in pushed:
+                # in case of race or secret
+                msg = _(b'cannot push bookmark X without its revision: %s!\n')
+                pushop.ui.warn(msg % b)
+                pushop.bkresult = 2
             else:
                 pushop.outbookmarks.append((b, b'', scid))
     # search for overwritten bookmark
     for b, scid, dcid in list(advdst) + list(diverge) + list(differ):
         if b in explicit:
             explicit.remove(b)
-            pushop.outbookmarks.append((b, dcid, scid))
+            if not pushed or repo[scid].rev() in pushed:
+                pushop.outbookmarks.append((b, dcid, scid))
     # search for bookmark to delete
     for b, scid, dcid in adddst:
         if b in explicit:
@@ -1739,10 +1749,10 @@ def pull(
             )
 
     pullop.trmanager = transactionmanager(repo, b'pull', remote.url())
-    wlock = util.nullcontextmanager()
+    wlock = util.nullcontextmanager
     if not bookmod.bookmarksinstore(repo):
-        wlock = repo.wlock()
-    with wlock, repo.lock(), pullop.trmanager:
+        wlock = repo.wlock
+    with wlock(), repo.lock(), pullop.trmanager:
         if confirm or (
             repo.ui.configbool(b"pull", b"confirm") and not repo.ui.plain()
         ):
