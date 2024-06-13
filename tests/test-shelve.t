@@ -325,7 +325,7 @@ expect "a" to no longer be present, but status otherwise unchanged
   R b/b
   R d
   $ hg shelve -l --stat
-  wibble          (*)    wat (glob)
+  wibble +\([^)]+\) +wat (re)
    a/a |  1 +
    1 files changed, 1 insertions(+), 0 deletions(-)
 
