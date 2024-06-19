@@ -531,6 +531,54 @@ impl Config {
         )
     }
 
+    /// Returns an `Err` if the first value found is not a valid unsigned
+    /// integer. Otherwise, returns an `Ok(value)` if found, or `None`.
+    pub fn get_i64(
+        &self,
+        section: &[u8],
+        item: &[u8],
+    ) -> Result<Option<i64>, HgError> {
+        self.get_parse(
+            section,
+            item,
+            "valid integer",
+            |value| str::from_utf8(value).ok()?.parse().ok(),
+            true,
+        )
+    }
+
+    /// Returns an `Err` if the first value found is not a valid unsigned
+    /// integer. Otherwise, returns an `Ok(value)` if found, or `None`.
+    pub fn get_u64(
+        &self,
+        section: &[u8],
+        item: &[u8],
+    ) -> Result<Option<u64>, HgError> {
+        self.get_parse(
+            section,
+            item,
+            "valid integer",
+            |value| str::from_utf8(value).ok()?.parse().ok(),
+            true,
+        )
+    }
+
+    /// Returns an `Err` if the first value found is not a valid float
+    /// representation. Otherwise, returns an `Ok(value)` if found, or `None`.
+    pub fn get_f64(
+        &self,
+        section: &[u8],
+        item: &[u8],
+    ) -> Result<Option<f64>, HgError> {
+        self.get_parse(
+            section,
+            item,
+            "valid float",
+            |value| str::from_utf8(value).ok()?.parse().ok(),
+            true,
+        )
+    }
+
     /// Returns an `Err` if the first value found is not a valid file size
     /// value such as `30` (default unit is bytes), `7 MB`, or `42.5 kb`.
     /// Otherwise, returns an `Ok(value_in_bytes)` if found, or `None`.
@@ -545,6 +593,22 @@ impl Config {
             "byte quantity",
             values::parse_byte_size,
             true,
+        )
+    }
+
+    /// Same as [`Self::get_byte_size`], but doesn't fall back to the default
+    /// `configitem` if not defined in the user config.
+    pub fn get_byte_size_no_default(
+        &self,
+        section: &[u8],
+        item: &[u8],
+    ) -> Result<Option<u64>, HgError> {
+        self.get_parse(
+            section,
+            item,
+            "byte quantity",
+            values::parse_byte_size,
+            false,
         )
     }
 
@@ -744,6 +808,60 @@ impl Config {
     pub fn tweakdefaults(&mut self) {
         self.layers.insert(0, Config::tweakdefaults_layer());
     }
+
+    /// Return the resource profile for a dimension (memory, cpu or disk).
+    ///
+    /// If no dimension is specified, the generic value is returned.
+    pub fn get_resource_profile(
+        &self,
+        dimension: Option<&str>,
+    ) -> ResourceProfile {
+        let mut value = self.resource_profile_from_item(b"usage", b"resource");
+        if let Some(dimension) = &dimension {
+            let sub_value = self.resource_profile_from_item(
+                b"usage",
+                format!("resources.{}", dimension).as_bytes(),
+            );
+            if sub_value != ResourceProfileValue::Default {
+                value = sub_value
+            }
+        }
+        ResourceProfile {
+            dimension: dimension.map(ToOwned::to_owned),
+            value,
+        }
+    }
+
+    fn resource_profile_from_item(
+        &self,
+        section: &[u8],
+        item: &[u8],
+    ) -> ResourceProfileValue {
+        match self.get(section, item).unwrap_or(b"default") {
+            b"default" => ResourceProfileValue::Default,
+            b"low" => ResourceProfileValue::Low,
+            b"medium" => ResourceProfileValue::Medium,
+            b"high" => ResourceProfileValue::High,
+            _ => ResourceProfileValue::Default,
+        }
+    }
+}
+
+/// Corresponds to `usage.resources[.<dimension>]`.
+///
+/// See `hg help config.usage.resources`.
+#[derive(Debug, Eq, PartialEq, PartialOrd, Ord)]
+pub struct ResourceProfile {
+    pub dimension: Option<String>,
+    pub value: ResourceProfileValue,
+}
+
+#[derive(Debug, Eq, PartialEq, PartialOrd, Ord)]
+pub enum ResourceProfileValue {
+    Default,
+    Low,
+    Medium,
+    High,
 }
 
 #[cfg(test)]
