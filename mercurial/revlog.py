@@ -2810,6 +2810,8 @@ class revlog:
 
     def _sidedata(self, rev):
         """Return the sidedata for a given revision number."""
+        if self._sidedatafile is None:
+            return {}
         sidedata_end = None
         if self._docket is not None:
             sidedata_end = self._docket.sidedata_end
