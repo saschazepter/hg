@@ -935,9 +935,7 @@ class _InnerRevlog:
         """Obtain decompressed chunks for the specified revisions.
 
         Accepts an iterable of numeric revisions that are assumed to be in
-        ascending order. Also accepts an optional already-open file handle
-        to be used for reading. If used, the seek position of the file will
-        not be preserved.
+        ascending order.
 
         This function is similar to calling ``self._chunk()`` multiple times,
         but is faster.
