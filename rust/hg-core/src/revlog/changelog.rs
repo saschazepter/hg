@@ -501,7 +501,10 @@ fn unescape_extra(bytes: &[u8]) -> Vec<u8> {
 mod tests {
     use super::*;
     use crate::vfs::Vfs;
-    use crate::NULL_REVISION;
+    use crate::{
+        RevlogDataConfig, RevlogDeltaConfig, RevlogFeatureConfig,
+        NULL_REVISION,
+    };
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -562,9 +565,19 @@ message",
         let temp = tempfile::tempdir().unwrap();
         let vfs = Vfs { base: temp.path() };
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
-        let revlog =
-            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::new())
-                .unwrap();
+        std::fs::write(temp.path().join("foo.d"), b"").unwrap();
+        let revlog = Revlog::open(
+            &vfs,
+            "foo.i",
+            None,
+            RevlogOpenOptions::new(
+                false,
+                RevlogDataConfig::default(),
+                RevlogDeltaConfig::default(),
+                RevlogFeatureConfig::default(),
+            ),
+        )
+        .unwrap();
 
         let changelog = Changelog { revlog };
         assert_eq!(

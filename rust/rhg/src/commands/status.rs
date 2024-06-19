@@ -28,12 +28,12 @@ use hg::utils::files::{
     get_bytes_from_os_str, get_bytes_from_os_string, get_path_from_bytes,
 };
 use hg::utils::hg_path::{hg_path_to_path_buf, HgPath};
-use hg::PatternFileWarning;
 use hg::Revision;
 use hg::StatusError;
 use hg::StatusOptions;
 use hg::{self, narrow, sparse};
 use hg::{DirstateStatus, RevlogOpenOptions};
+use hg::{PatternFileWarning, RevlogType};
 use log::info;
 use rayon::prelude::*;
 use std::borrow::Cow;
@@ -383,7 +383,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             })?;
             let working_directory_vfs = repo.working_directory_vfs();
             let store_vfs = repo.store_vfs();
-            let revlog_open_options = repo.default_revlog_options(false)?;
+            let revlog_open_options =
+                repo.default_revlog_options(RevlogType::Manifestlog)?;
             let res: Vec<_> = take(&mut ds_status.unsure)
                 .into_par_iter()
                 .map(|to_check| {
