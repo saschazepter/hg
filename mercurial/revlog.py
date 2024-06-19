@@ -3160,7 +3160,7 @@ class revlog:
             raise error.RevlogError(
                 _(b"%s: attempt to add wdir revision") % self.display_id
             )
-        if self._inner._writinghandles is None:
+        if not self._inner.is_writing:
             msg = b'adding revision outside `revlog._writing` context'
             raise error.ProgrammingError(msg)
 
