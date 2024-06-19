@@ -18,7 +18,7 @@ use crate::utils::debug::debug_wait_for_file_or_print;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
-use crate::vfs::{is_dir, is_file, Vfs};
+use crate::vfs::{is_dir, is_file, VfsImpl};
 use crate::{
     requirements, NodePrefix, RevlogDataConfig, RevlogDeltaConfig,
     RevlogFeatureConfig, RevlogType, RevlogVersionOptions, UncheckedRevision,
@@ -121,8 +121,10 @@ impl Repo {
         let mut repo_config_files =
             vec![dot_hg.join("hgrc"), dot_hg.join("hgrc-not-shared")];
 
-        let hg_vfs = Vfs { base: &dot_hg };
-        let mut reqs = requirements::load_if_exists(hg_vfs)?;
+        let hg_vfs = VfsImpl {
+            base: dot_hg.to_owned(),
+        };
+        let mut reqs = requirements::load_if_exists(&hg_vfs)?;
         let relative =
             reqs.contains(requirements::RELATIVE_SHARED_REQUIREMENT);
         let shared =
@@ -163,9 +165,10 @@ impl Repo {
 
             store_path = shared_path.join("store");
 
-            let source_is_share_safe =
-                requirements::load(Vfs { base: &shared_path })?
-                    .contains(requirements::SHARESAFE_REQUIREMENT);
+            let source_is_share_safe = requirements::load(VfsImpl {
+                base: shared_path.to_owned(),
+            })?
+            .contains(requirements::SHARESAFE_REQUIREMENT);
 
             if share_safe != source_is_share_safe {
                 return Err(HgError::unsupported("share-safe mismatch").into());
@@ -176,7 +179,9 @@ impl Repo {
             }
         }
         if share_safe {
-            reqs.extend(requirements::load(Vfs { base: &store_path })?);
+            reqs.extend(requirements::load(VfsImpl {
+                base: store_path.to_owned(),
+            })?);
         }
 
         let repo_config = if std::env::var_os("HGRCSKIPREPO").is_none() {
@@ -216,19 +221,23 @@ impl Repo {
 
     /// For accessing repository files (in `.hg`), except for the store
     /// (`.hg/store`).
-    pub fn hg_vfs(&self) -> Vfs<'_> {
-        Vfs { base: &self.dot_hg }
+    pub fn hg_vfs(&self) -> VfsImpl {
+        VfsImpl {
+            base: self.dot_hg.to_owned(),
+        }
     }
 
     /// For accessing repository store files (in `.hg/store`)
-    pub fn store_vfs(&self) -> Vfs<'_> {
-        Vfs { base: &self.store }
+    pub fn store_vfs(&self) -> VfsImpl {
+        VfsImpl {
+            base: self.store.to_owned(),
+        }
     }
 
     /// For accessing the working copy
-    pub fn working_directory_vfs(&self) -> Vfs<'_> {
-        Vfs {
-            base: &self.working_directory,
+    pub fn working_directory_vfs(&self) -> VfsImpl {
+        VfsImpl {
+            base: self.working_directory.to_owned(),
         }
     }
 
@@ -236,7 +245,7 @@ impl Repo {
         &self,
         f: impl FnOnce() -> R,
     ) -> Result<R, LockError> {
-        try_with_lock_no_wait(self.hg_vfs(), "wlock", f)
+        try_with_lock_no_wait(&self.hg_vfs(), "wlock", f)
     }
 
     /// Whether this repo should use dirstate-v2.

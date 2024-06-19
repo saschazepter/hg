@@ -29,7 +29,7 @@ impl Graph for Filelog {
 
 impl Filelog {
     pub fn open_vfs(
-        store_vfs: &crate::vfs::Vfs<'_>,
+        store_vfs: &crate::vfs::VfsImpl,
         file_path: &HgPath,
         options: RevlogOpenOptions,
     ) -> Result<Self, HgError> {
