@@ -366,10 +366,7 @@ fn parse_timestamp(
     let timezone = FixedOffset::west_opt(timezone_secs)
         .ok_or_else(|| HgError::corrupted("timezone offset out of bounds"))?;
 
-    Ok(DateTime::from_naive_utc_and_offset(
-        timestamp_utc.naive_utc(),
-        timezone,
-    ))
+    Ok(timestamp_utc.with_timezone(&timezone))
 }
 
 /// Attempt to parse the given string as floating-point timestamp, and
