@@ -1647,6 +1647,7 @@ class revlog:
             self.delta_config.general_delta = features[b'generaldelta'](
                 self._format_flags
             )
+            self.data_config.generaldelta = self.delta_config.general_delta
             self.feature_config.has_side_data = features[b'sidedata']
 
             if not features[b'docket']:
@@ -1677,6 +1678,7 @@ class revlog:
             self._inline = False
             # generaldelta implied by version 2 revlogs.
             self.delta_config.general_delta = True
+            self.data_config.generaldelta = True
             # the logic for persistent nodemap will be dealt with within the
             # main docket, so disable it for now.
             self._nodemap_file = None
