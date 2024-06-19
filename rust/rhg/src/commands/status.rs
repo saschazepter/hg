@@ -393,8 +393,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                     // + map_err + collect, so let's just inline some of the
                     // logic.
                     match unsure_is_modified(
-                        working_directory_vfs,
-                        store_vfs,
+                        &working_directory_vfs,
+                        &store_vfs,
                         check_exec,
                         &manifest,
                         &to_check.path,
@@ -748,8 +748,8 @@ enum UnsureOutcome {
 /// This meant to be used for those that the dirstate cannot resolve, due
 /// to time resolution limits.
 fn unsure_is_modified(
-    working_directory_vfs: hg::vfs::Vfs,
-    store_vfs: hg::vfs::Vfs,
+    working_directory_vfs: &hg::vfs::VfsImpl,
+    store_vfs: &hg::vfs::VfsImpl,
     check_exec: bool,
     manifest: &Manifest,
     hg_path: &HgPath,
@@ -786,7 +786,7 @@ fn unsure_is_modified(
         return Ok(UnsureOutcome::Modified);
     }
     let filelog = hg::filelog::Filelog::open_vfs(
-        &store_vfs,
+        store_vfs,
         hg_path,
         revlog_open_options,
     )?;
