@@ -672,6 +672,9 @@ class BaseIndexObject:
             r = (offset,) + r[1:]
         return r
 
+    def __delitem__(self, i):
+        raise NotImplementedError()
+
     def _unpack_entry(self, rev, data):
         r = self.index_format.unpack(data)
         r = r + (
