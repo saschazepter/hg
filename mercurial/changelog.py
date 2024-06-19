@@ -324,6 +324,7 @@ class changelog(revlog.revlog):
 
             self._format_flags &= ~revlog.FLAG_GENERALDELTA
             self.delta_config.general_delta = False
+            self.data_config.generaldelta = False
 
         # Delta chains for changelogs tend to be very small because entries
         # tend to be small and don't delta well with each. So disable delta
