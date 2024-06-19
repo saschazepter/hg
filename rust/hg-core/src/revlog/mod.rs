@@ -223,7 +223,7 @@ impl RevlogError {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(derive_more::Display, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum RevlogType {
     Changelog,
     Manifestlog,
@@ -368,8 +368,8 @@ impl RevlogDataConfig {
             }
         }
 
-        if let Some(mmap_index_threshold) =
-            config.get_byte_size(b"experimental", b"mmapindexthreshold")?
+        if let Some(mmap_index_threshold) = config
+            .get_byte_size(b"storage", b"revlog.mmap.index:size-threshold")?
         {
             data_config.mmap_index_threshold = Some(mmap_index_threshold);
         }
@@ -618,10 +618,10 @@ impl Graph for Revlog {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum RevlogVersionOptions {
     V0,
-    V1 { generaldelta: bool },
+    V1 { general_delta: bool, inline: bool },
     V2,
     ChangelogV2 { compute_rank: bool },
 }
@@ -634,36 +634,71 @@ pub struct RevlogOpenOptions {
     pub version: RevlogVersionOptions,
     /// Whether the revlog uses a persistent nodemap.
     pub use_nodemap: bool,
-    // TODO other non-header/version options,
+    pub delta_config: RevlogDeltaConfig,
+    pub data_config: RevlogDataConfig,
+    pub feature_config: RevlogFeatureConfig,
+}
+
+#[cfg(test)]
+impl Default for RevlogOpenOptions {
+    fn default() -> Self {
+        Self {
+            version: RevlogVersionOptions::V1 {
+                general_delta: true,
+                inline: false,
+            },
+            use_nodemap: true,
+            data_config: Default::default(),
+            delta_config: Default::default(),
+            feature_config: Default::default(),
+        }
+    }
 }
 
 impl RevlogOpenOptions {
-    pub fn new() -> Self {
+    pub fn new(
+        inline: bool,
+        data_config: RevlogDataConfig,
+        delta_config: RevlogDeltaConfig,
+        feature_config: RevlogFeatureConfig,
+    ) -> Self {
         Self {
-            version: RevlogVersionOptions::V1 { generaldelta: true },
+            version: RevlogVersionOptions::V1 {
+                general_delta: data_config.general_delta,
+                inline,
+            },
             use_nodemap: false,
+            data_config,
+            delta_config,
+            feature_config,
         }
     }
 
-    fn default_index_header(&self) -> index::IndexHeader {
+    pub fn index_header(&self) -> index::IndexHeader {
         index::IndexHeader {
             header_bytes: match self.version {
                 RevlogVersionOptions::V0 => [0, 0, 0, 0],
-                RevlogVersionOptions::V1 { generaldelta } => {
-                    [0, if generaldelta { 3 } else { 1 }, 0, 1]
-                }
+                RevlogVersionOptions::V1 {
+                    general_delta,
+                    inline,
+                } => [
+                    0,
+                    if general_delta && inline {
+                        3
+                    } else if general_delta {
+                        2
+                    } else {
+                        u8::from(inline)
+                    },
+                    0,
+                    1,
+                ],
                 RevlogVersionOptions::V2 => 0xDEADu32.to_be_bytes(),
                 RevlogVersionOptions::ChangelogV2 { compute_rank: _ } => {
                     0xD34Du32.to_be_bytes()
                 }
             },
         }
-    }
-}
-
-impl Default for RevlogOpenOptions {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -693,12 +728,12 @@ impl Revlog {
             match store_vfs.mmap_open_opt(index_path)? {
                 None => Index::new(
                     Box::<Vec<_>>::default(),
-                    options.default_index_header(),
+                    options.index_header(),
                 ),
                 Some(index_mmap) => {
                     let index = Index::new(
                         Box::new(index_mmap),
-                        options.default_index_header(),
+                        options.index_header(),
                     )?;
                     Ok(index)
                 }
@@ -1265,8 +1300,9 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let vfs = Vfs { base: temp.path() };
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
+        std::fs::write(temp.path().join("foo.d"), b"").unwrap();
         let revlog =
-            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::new())
+            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::default())
                 .unwrap();
         assert!(revlog.is_empty());
         assert_eq!(revlog.len(), 0);
@@ -1309,7 +1345,7 @@ mod tests {
             .collect_vec();
         std::fs::write(temp.path().join("foo.i"), contents).unwrap();
         let revlog =
-            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::new())
+            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::default())
                 .unwrap();
 
         let entry0 = revlog.get_entry(0.into()).ok().unwrap();
@@ -1381,7 +1417,7 @@ mod tests {
             &vfs,
             "foo.i",
             None,
-            RevlogOpenOptions::new(),
+            RevlogOpenOptions::default(),
             Some(idx.nt),
         )
         .unwrap();
