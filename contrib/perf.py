@@ -3780,6 +3780,11 @@ def perfrevlogchunks(ui, repo, file_=None, engines=None, startrev=0, **opts):
 
     rl = cmdutil.openrevlog(repo, b'perfrevlogchunks', file_, opts)
 
+    if rl.uses_rust:
+        raise NotImplementedError(
+            "perfrevlogchunks is not implemented for the Rust revlog"
+        )
+
     # - _chunkraw was renamed to _getsegmentforrevs
     # - _getsegmentforrevs was moved on the inner object
     try:
@@ -3960,6 +3965,10 @@ def perfrevlogrevision(ui, repo, file_, rev=None, cache=None, **opts):
         raise error.CommandError(b'perfrevlogrevision', b'invalid arguments')
 
     r = cmdutil.openrevlog(repo, b'perfrevlogrevision', file_, opts)
+    if r.uses_rust:
+        raise NotImplementedError(
+            "perfrevlogrevision is not implemented for the Rust revlog"
+        )
 
     # _chunkraw was renamed to _getsegmentforrevs.
     try:

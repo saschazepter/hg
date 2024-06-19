@@ -219,6 +219,9 @@ class statichttprepository(
         self.store = localrepo.makestore(requirements, self.path, vfsclass)
         self.spath = self.store.path
         self.svfs = self.store.opener
+        # We can't use Rust because the Rust code cannot cope with the
+        # `httprangereader` (yet?)
+        self.svfs.rust_compatible = False
         self.sjoin = self.store.join
         self._filecache = {}
         self.requirements = requirements

@@ -47,6 +47,7 @@ mod pybytes_deref;
 pub mod revlog;
 pub mod update;
 pub mod utils;
+pub mod vfs;
 
 /// Revision as exposed to/from the Python layer.
 ///
