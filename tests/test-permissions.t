@@ -34,10 +34,16 @@
   $ chmod -w .hg/store/data/a.i
 
   $ echo barber > a
+#if rust
+  $ hg commit -m "2"
+  abort: failed to call opener: [Errno 13] $EACCES$: b'$TESTTMP/t/.hg/store/data/a.i'
+  [50]
+#else
   $ hg commit -m "2"
   trouble committing a!
   abort: $EACCES$: '$TESTTMP/t/.hg/store/data/a.i'
   [255]
+#endif
 
   $ chmod -w .
 

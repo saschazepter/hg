@@ -82,6 +82,10 @@ class abstractvfs(abc.ABC):
     # encoded vfs (see issue6546)
     _dir_sep: bytes = b'/'
 
+    # Used to disable the Rust `InnerRevlog` in case the VFS is not supported
+    # by the Rust code
+    rust_compatible = True
+
     # TODO: type return, which is util.posixfile wrapped by a proxy
     @abc.abstractmethod
     def __call__(self, path: bytes, mode: bytes = b'rb', **kwargs) -> Any:
