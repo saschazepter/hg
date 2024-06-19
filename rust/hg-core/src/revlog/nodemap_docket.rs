@@ -3,7 +3,7 @@ use bytes_cast::{unaligned, BytesCast};
 use memmap2::Mmap;
 use std::path::{Path, PathBuf};
 
-use crate::vfs::Vfs;
+use crate::vfs::VfsImpl;
 
 const ONDISK_VERSION: u8 = 1;
 
@@ -33,7 +33,7 @@ impl NodeMapDocket {
     /// * The docket file points to a missing (likely deleted) data file (this
     ///   can happen in a rare race condition).
     pub fn read_from_file(
-        store_vfs: &Vfs,
+        store_vfs: &VfsImpl,
         index_path: &Path,
     ) -> Result<Option<(Self, Mmap)>, HgError> {
         let docket_path = index_path.with_extension("n");

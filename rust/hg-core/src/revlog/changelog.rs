@@ -13,7 +13,7 @@ use crate::revlog::Revision;
 use crate::revlog::{Node, NodePrefix};
 use crate::revlog::{Revlog, RevlogEntry, RevlogError};
 use crate::utils::hg_path::HgPath;
-use crate::vfs::Vfs;
+use crate::vfs::VfsImpl;
 use crate::{Graph, GraphError, RevlogOpenOptions, UncheckedRevision};
 
 /// A specialized `Revlog` to work with changelog data format.
@@ -25,7 +25,7 @@ pub struct Changelog {
 impl Changelog {
     /// Open the `changelog` of a repository given by its root.
     pub fn open(
-        store_vfs: &Vfs,
+        store_vfs: &VfsImpl,
         options: RevlogOpenOptions,
     ) -> Result<Self, HgError> {
         let revlog = Revlog::open(store_vfs, "00changelog.i", None, options)?;
@@ -500,7 +500,7 @@ fn unescape_extra(bytes: &[u8]) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::vfs::Vfs;
+    use crate::vfs::VfsImpl;
     use crate::{
         RevlogDataConfig, RevlogDeltaConfig, RevlogFeatureConfig,
         NULL_REVISION,
@@ -563,7 +563,9 @@ message",
     fn test_data_from_rev_null() -> Result<(), RevlogError> {
         // an empty revlog will be enough for this case
         let temp = tempfile::tempdir().unwrap();
-        let vfs = Vfs { base: temp.path() };
+        let vfs = VfsImpl {
+            base: temp.path().to_owned(),
+        };
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
         std::fs::write(temp.path().join("foo.d"), b"").unwrap();
         let revlog = Revlog::open(

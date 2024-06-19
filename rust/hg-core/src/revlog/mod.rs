@@ -38,7 +38,7 @@ use crate::exit_codes;
 use crate::requirements::{
     GENERALDELTA_REQUIREMENT, NARROW_REQUIREMENT, SPARSEREVLOG_REQUIREMENT,
 };
-use crate::vfs::Vfs;
+use crate::vfs::VfsImpl;
 
 /// As noted in revlog.c, revision numbers are actually encoded in
 /// 4 bytes, and are liberally converted to ints, whence the i32
@@ -708,7 +708,8 @@ impl Revlog {
     /// It will also open the associated data file if index and data are not
     /// interleaved.
     pub fn open(
-        store_vfs: &Vfs,
+        // Todo use the `Vfs` trait here once we create a function for mmap
+        store_vfs: &VfsImpl,
         index_path: impl AsRef<Path>,
         data_path: Option<&Path>,
         options: RevlogOpenOptions,
@@ -717,7 +718,8 @@ impl Revlog {
     }
 
     fn open_gen(
-        store_vfs: &Vfs,
+        // Todo use the `Vfs` trait here once we create a function for mmap
+        store_vfs: &VfsImpl,
         index_path: impl AsRef<Path>,
         data_path: Option<&Path>,
         options: RevlogOpenOptions,
@@ -1298,7 +1300,9 @@ mod tests {
     #[test]
     fn test_empty() {
         let temp = tempfile::tempdir().unwrap();
-        let vfs = Vfs { base: temp.path() };
+        let vfs = VfsImpl {
+            base: temp.path().to_owned(),
+        };
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
         std::fs::write(temp.path().join("foo.d"), b"").unwrap();
         let revlog =
@@ -1320,7 +1324,9 @@ mod tests {
     #[test]
     fn test_inline() {
         let temp = tempfile::tempdir().unwrap();
-        let vfs = Vfs { base: temp.path() };
+        let vfs = VfsImpl {
+            base: temp.path().to_owned(),
+        };
         let node0 = Node::from_hex("2ed2a3912a0b24502043eae84ee4b279c18b90dd")
             .unwrap();
         let node1 = Node::from_hex("b004912a8510032a0350a74daa2803dadfb00e12")
@@ -1387,7 +1393,9 @@ mod tests {
     #[test]
     fn test_nodemap() {
         let temp = tempfile::tempdir().unwrap();
-        let vfs = Vfs { base: temp.path() };
+        let vfs = VfsImpl {
+            base: temp.path().to_owned(),
+        };
 
         // building a revlog with a forced Node starting with zeros
         // This is a corruption, but it does not preclude using the nodemap

@@ -1,5 +1,5 @@
 use crate::errors::{HgError, HgResultExt, IoErrorContext, IoResultExt};
-use crate::vfs::Vfs;
+use crate::vfs::VfsImpl;
 use std::io::Write;
 
 /// An utility to append to a log file with the given name, and optionally
@@ -9,14 +9,14 @@ use std::io::Write;
 /// "example.log.1" to "example.log.2" etc up to the given maximum number of
 /// files.
 pub struct LogFile<'a> {
-    vfs: Vfs<'a>,
+    vfs: VfsImpl,
     name: &'a str,
     max_size: Option<u64>,
     max_files: u32,
 }
 
 impl<'a> LogFile<'a> {
-    pub fn new(vfs: Vfs<'a>, name: &'a str) -> Self {
+    pub fn new(vfs: VfsImpl, name: &'a str) -> Self {
         Self {
             vfs,
             name,
@@ -87,8 +87,12 @@ impl<'a> LogFile<'a> {
 #[test]
 fn test_rotation() {
     let temp = tempfile::tempdir().unwrap();
-    let vfs = Vfs { base: temp.path() };
-    let logger = LogFile::new(vfs, "log").max_size(Some(3)).max_files(2);
+    let vfs = VfsImpl {
+        base: temp.path().to_owned(),
+    };
+    let logger = LogFile::new(vfs.clone(), "log")
+        .max_size(Some(3))
+        .max_files(2);
     logger.write(b"one\n").unwrap();
     logger.write(b"two\n").unwrap();
     logger.write(b"3\n").unwrap();
