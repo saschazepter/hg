@@ -283,8 +283,15 @@ perfstatus
 #if reporevlogstore
   $ hg perfrevlogrevisions .hg/store/data/a.i
 #endif
+
+#if no-rust
+Cannot test in Rust because this these are highly invasive and expect a certain
+structure from Python code.
+
   $ hg perfrevlogrevision -m 0
   $ hg perfrevlogchunks -c
+#endif
+
   $ hg perfrevrange
   $ hg perfrevset 'all()'
   $ hg perfstartup
