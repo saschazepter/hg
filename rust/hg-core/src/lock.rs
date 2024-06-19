@@ -2,7 +2,7 @@
 
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
-use crate::vfs::Vfs;
+use crate::vfs::VfsImpl;
 use std::io;
 use std::io::ErrorKind;
 
@@ -21,7 +21,7 @@ pub enum LockError {
 /// The return value of `f` is dropped in that case. If all is successful, the
 /// return value of `f` is forwarded.
 pub fn try_with_lock_no_wait<R>(
-    hg_vfs: Vfs,
+    hg_vfs: &VfsImpl,
     lock_filename: &str,
     f: impl FnOnce() -> R,
 ) -> Result<R, LockError> {
@@ -57,7 +57,7 @@ pub fn try_with_lock_no_wait<R>(
     Err(LockError::AlreadyHeld)
 }
 
-fn break_lock(hg_vfs: Vfs, lock_filename: &str) -> Result<(), LockError> {
+fn break_lock(hg_vfs: &VfsImpl, lock_filename: &str) -> Result<(), LockError> {
     try_with_lock_no_wait(hg_vfs, &format!("{}.break", lock_filename), || {
         // Check again in case some other process broke and
         // acquired the lock in the meantime
@@ -71,7 +71,7 @@ fn break_lock(hg_vfs: Vfs, lock_filename: &str) -> Result<(), LockError> {
 
 #[cfg(unix)]
 fn make_lock(
-    hg_vfs: Vfs,
+    hg_vfs: &VfsImpl,
     lock_filename: &str,
     data: &str,
 ) -> Result<(), HgError> {
@@ -82,7 +82,7 @@ fn make_lock(
 }
 
 fn read_lock(
-    hg_vfs: Vfs,
+    hg_vfs: &VfsImpl,
     lock_filename: &str,
 ) -> Result<Option<String>, HgError> {
     let link_target =
@@ -98,7 +98,7 @@ fn read_lock(
     }
 }
 
-fn unlock(hg_vfs: Vfs, lock_filename: &str) -> Result<(), HgError> {
+fn unlock(hg_vfs: &VfsImpl, lock_filename: &str) -> Result<(), HgError> {
     hg_vfs.remove_file(lock_filename)
 }
 

@@ -3,7 +3,7 @@ use crate::revlog::{Node, NodePrefix};
 use crate::revlog::{Revlog, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
-use crate::vfs::Vfs;
+use crate::vfs::VfsImpl;
 use crate::{
     Graph, GraphError, Revision, RevlogOpenOptions, UncheckedRevision,
 };
@@ -23,7 +23,7 @@ impl Graph for Manifestlog {
 impl Manifestlog {
     /// Open the `manifest` of a repository given by its root.
     pub fn open(
-        store_vfs: &Vfs,
+        store_vfs: &VfsImpl,
         options: RevlogOpenOptions,
     ) -> Result<Self, HgError> {
         let revlog = Revlog::open(store_vfs, "00manifest.i", None, options)?;
