@@ -20,7 +20,8 @@ use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
 use crate::vfs::{is_dir, is_file, Vfs};
 use crate::{
-    requirements, NodePrefix, RevlogVersionOptions, UncheckedRevision,
+    requirements, NodePrefix, RevlogDataConfig, RevlogDeltaConfig,
+    RevlogFeatureConfig, RevlogType, RevlogVersionOptions, UncheckedRevision,
 };
 use crate::{DirstateError, RevlogOpenOptions};
 use std::cell::{Ref, RefCell, RefMut};
@@ -529,7 +530,10 @@ impl Repo {
     }
 
     fn new_changelog(&self) -> Result<Changelog, HgError> {
-        Changelog::open(&self.store_vfs(), self.default_revlog_options(true)?)
+        Changelog::open(
+            &self.store_vfs(),
+            self.default_revlog_options(RevlogType::Changelog)?,
+        )
     }
 
     pub fn changelog(&self) -> Result<Ref<Changelog>, HgError> {
@@ -543,7 +547,7 @@ impl Repo {
     fn new_manifestlog(&self) -> Result<Manifestlog, HgError> {
         Manifestlog::open(
             &self.store_vfs(),
-            self.default_revlog_options(false)?,
+            self.default_revlog_options(RevlogType::Manifestlog)?,
         )
     }
 
@@ -590,9 +594,12 @@ impl Repo {
     }
 
     pub fn filelog(&self, path: &HgPath) -> Result<Filelog, HgError> {
-        Filelog::open(self, path, self.default_revlog_options(false)?)
+        Filelog::open(
+            self,
+            path,
+            self.default_revlog_options(RevlogType::Filelog)?,
+        )
     }
-
     /// Write to disk any updates that were made through `dirstate_map_mut`.
     ///
     /// The "wlock" must be held while calling this.
@@ -742,10 +749,11 @@ impl Repo {
 
     pub fn default_revlog_options(
         &self,
-        changelog: bool,
+        revlog_type: RevlogType,
     ) -> Result<RevlogOpenOptions, HgError> {
         let requirements = self.requirements();
-        let version = if changelog
+        let is_changelog = revlog_type == RevlogType::Changelog;
+        let version = if is_changelog
             && requirements.contains(CHANGELOGV2_REQUIREMENT)
         {
             let compute_rank = self
@@ -756,7 +764,8 @@ impl Repo {
             RevlogVersionOptions::V2
         } else if requirements.contains(REVLOGV1_REQUIREMENT) {
             RevlogVersionOptions::V1 {
-                generaldelta: requirements.contains(GENERALDELTA_REQUIREMENT),
+                general_delta: requirements.contains(GENERALDELTA_REQUIREMENT),
+                inline: !is_changelog,
             }
         } else {
             RevlogVersionOptions::V0
@@ -766,6 +775,19 @@ impl Repo {
             // We don't need to dance around the slow path like in the Python
             // implementation since we know we have access to the fast code.
             use_nodemap: requirements.contains(NODEMAP_REQUIREMENT),
+            delta_config: RevlogDeltaConfig::new(
+                self.config(),
+                self.requirements(),
+                revlog_type,
+            )?,
+            data_config: RevlogDataConfig::new(
+                self.config(),
+                self.requirements(),
+            )?,
+            feature_config: RevlogFeatureConfig::new(
+                self.config(),
+                requirements,
+            )?,
         })
     }
 }
