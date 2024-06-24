@@ -35,11 +35,13 @@ from .thirdparty import attr
 
 from . import (
     bookmarks,
+    bundle2,
     changelog,
     copies,
     crecord as crecordmod,
     encoding,
     error,
+    exchange,
     formatter,
     logcmdutil,
     match as matchmod,
@@ -56,6 +58,7 @@ from . import (
     rewriteutil,
     scmutil,
     state as statemod,
+    streamclone,
     subrepoutil,
     templatekw,
     templater,
@@ -66,6 +69,7 @@ from . import (
 from .utils import (
     dateutil,
     stringutil,
+    urlutil,
 )
 
 from .revlogutils import (
@@ -4135,3 +4139,90 @@ def hgabortgraft(ui, repo):
     with repo.wlock():
         graftstate = statemod.cmdstate(repo, b'graftstate')
         return abortgraft(ui, repo, graftstate)
+
+
+def postincoming(ui, repo, modheads, optupdate, checkout, brev):
+    """Run after a changegroup has been added via pull/unbundle
+
+    This takes arguments below:
+
+    :modheads: change of heads by pull/unbundle
+    :optupdate: updating working directory is needed or not
+    :checkout: update destination revision (or None to default destination)
+    :brev: a name, which might be a bookmark to be activated after updating
+
+    return True if update raise any conflict, False otherwise.
+    """
+    if modheads == 0:
+        return False
+    if optupdate:
+        # avoid circular import
+        from . import hg
+
+        try:
+            return hg.updatetotally(ui, repo, checkout, brev)
+        except error.UpdateAbort as inst:
+            msg = _(b"not updating: %s") % stringutil.forcebytestr(inst)
+            hint = inst.hint
+            raise error.UpdateAbort(msg, hint=hint)
+    if ui.quiet:
+        pass  # we won't report anything so the other clause are useless.
+    elif modheads is not None and modheads > 1:
+        currentbranchheads = len(repo.branchheads())
+        if currentbranchheads == modheads:
+            ui.status(
+                _(b"(run 'hg heads' to see heads, 'hg merge' to merge)\n")
+            )
+        elif currentbranchheads > 1:
+            ui.status(
+                _(b"(run 'hg heads .' to see heads, 'hg merge' to merge)\n")
+            )
+        else:
+            ui.status(_(b"(run 'hg heads' to see heads)\n"))
+    elif not ui.configbool(b'commands', b'update.requiredest'):
+        ui.status(_(b"(run 'hg update' to get a working copy)\n"))
+    return False
+
+
+def unbundle_files(ui, repo, fnames, unbundle_source=b'unbundle'):
+    """utility for `hg unbundle` and `hg debug::unbundle`"""
+    assert fnames
+    # avoid circular import
+    from . import hg
+
+    with repo.lock():
+        for fname in fnames:
+            f = hg.openpath(ui, fname)
+            gen = exchange.readbundle(ui, f, fname)
+            if isinstance(gen, streamclone.streamcloneapplier):
+                raise error.InputError(
+                    _(
+                        b'packed bundles cannot be applied with '
+                        b'"hg unbundle"'
+                    ),
+                    hint=_(b'use "hg debugapplystreamclonebundle"'),
+                )
+            url = b'bundle:' + fname
+            try:
+                txnname = b'unbundle'
+                if not isinstance(gen, bundle2.unbundle20):
+                    txnname = b'unbundle\n%s' % urlutil.hidepassword(url)
+                with repo.transaction(txnname) as tr:
+                    op = bundle2.applybundle(
+                        repo,
+                        gen,
+                        tr,
+                        source=unbundle_source,  # used by debug::unbundle
+                        url=url,
+                    )
+            except error.BundleUnknownFeatureError as exc:
+                raise error.Abort(
+                    _(b'%s: unknown bundle feature, %s') % (fname, exc),
+                    hint=_(
+                        b"see https://mercurial-scm.org/"
+                        b"wiki/BundleFeature for more "
+                        b"information"
+                    ),
+                )
+            modheads = bundle2.combinechangegroupresults(op)
+    return modheads

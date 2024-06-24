@@ -771,10 +771,11 @@ class obsstore:
             _addchildren(self.children, markers)
         _checkinvalidmarkers(self.repo, markers)
 
-    def relevantmarkers(self, nodes):
-        """return a set of all obsolescence markers relevant to a set of nodes.
+    def relevantmarkers(self, nodes=None, revs=None):
+        """return a set of all obsolescence markers relevant to a set of
+        nodes or revisions.
 
-        "relevant" to a set of nodes mean:
+        "relevant" to a set of nodes or revisions mean:
 
         - marker that use this changeset as successor
         - prune marker of direct children on this changeset
@@ -782,8 +783,21 @@ class obsstore:
           markers
 
         It is a set so you cannot rely on order."""
+        if nodes is None:
+            nodes = set()
+        if revs is None:
+            revs = set()
 
-        pendingnodes = set(nodes)
+        get_rev = self.repo.unfiltered().changelog.index.get_rev
+        pendingnodes = set()
+        for marker in self._all:
+            for node in (marker[0],) + marker[1] + (marker[5] or ()):
+                if node in nodes:
+                    pendingnodes.add(node)
+                elif revs:
+                    rev = get_rev(node)
+                    if rev is not None and rev in revs:
+                        pendingnodes.add(node)
         seenmarkers = set()
         seennodes = set(pendingnodes)
         precursorsmarkers = self.predecessors
@@ -818,7 +832,7 @@ def makestore(ui, repo):
     store = obsstore(repo, repo.svfs, readonly=readonly, **kwargs)
     if store and readonly:
         ui.warn(
-            _(b'obsolete feature not enabled but %i markers found!\n')
+            _(b'"obsolete" feature not enabled but %i markers found!\n')
             % len(list(store))
         )
     return store

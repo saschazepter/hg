@@ -127,13 +127,11 @@ clone, commit, pull
   added 1 changesets with 1 changes to 1 files
   new changesets d02f48003e62
   (run 'hg update' to get a working copy)
-  $ hg blackbox -l 6
+  $ hg blackbox -l 4
   1970-01-01 00:00:00.000 bob @6563da9dcf87b1949716e38ff3e3dfaa3198eb06 (5000)> wrote branch cache (served) with 1 labels and 2 nodes
-  1970-01-01 00:00:00.000 bob @6563da9dcf87b1949716e38ff3e3dfaa3198eb06 (5000)> updated branch cache (served.hidden) in * seconds (glob)
-  1970-01-01 00:00:00.000 bob @6563da9dcf87b1949716e38ff3e3dfaa3198eb06 (5000)> wrote branch cache (served.hidden) with 1 labels and 2 nodes
   1970-01-01 00:00:00.000 bob @6563da9dcf87b1949716e38ff3e3dfaa3198eb06 (5000)> 1 incoming changes - new heads: d02f48003e62
   1970-01-01 00:00:00.000 bob @6563da9dcf87b1949716e38ff3e3dfaa3198eb06 (5000)> pull exited 0 after * seconds (glob)
-  1970-01-01 00:00:00.000 bob @6563da9dcf87b1949716e38ff3e3dfaa3198eb06 (5000)> blackbox -l 6
+  1970-01-01 00:00:00.000 bob @6563da9dcf87b1949716e38ff3e3dfaa3198eb06 (5000)> blackbox -l 4
 
 we must not cause a failure if we cannot write to the log
 
@@ -190,13 +188,11 @@ backup bundles get logged
   $ hg strip tip
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
   saved backup bundle to $TESTTMP/blackboxtest2/.hg/strip-backup/*-backup.hg (glob)
-  $ hg blackbox -l 6
+  $ hg blackbox -l 4
   1970-01-01 00:00:00.000 bob @73f6ee326b27d820b0472f1a825e3a50f3dc489b (5000)> strip tip
   1970-01-01 00:00:00.000 bob @6563da9dcf87b1949716e38ff3e3dfaa3198eb06 (5000)> saved backup bundle to $TESTTMP/blackboxtest2/.hg/strip-backup/73f6ee326b27-7612e004-backup.hg
-  1970-01-01 00:00:00.000 bob @6563da9dcf87b1949716e38ff3e3dfaa3198eb06 (5000)> updated branch cache (immutable) in * seconds (glob)
-  1970-01-01 00:00:00.000 bob @6563da9dcf87b1949716e38ff3e3dfaa3198eb06 (5000)> wrote branch cache (immutable) with 1 labels and 2 nodes
   1970-01-01 00:00:00.000 bob @6563da9dcf87b1949716e38ff3e3dfaa3198eb06 (5000)> strip tip exited 0 after * seconds (glob)
-  1970-01-01 00:00:00.000 bob @6563da9dcf87b1949716e38ff3e3dfaa3198eb06 (5000)> blackbox -l 6
+  1970-01-01 00:00:00.000 bob @6563da9dcf87b1949716e38ff3e3dfaa3198eb06 (5000)> blackbox -l 4
 
 extension and python hooks - use the eol extension for a pythonhook
 

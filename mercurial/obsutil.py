@@ -108,7 +108,7 @@ def getmarkers(repo, nodes=None, exclusive=False):
     elif exclusive:
         rawmarkers = exclusivemarkers(repo, nodes)
     else:
-        rawmarkers = repo.obsstore.relevantmarkers(nodes)
+        rawmarkers = repo.obsstore.relevantmarkers(nodes=nodes)
 
     for markerdata in rawmarkers:
         yield marker(repo, markerdata)
