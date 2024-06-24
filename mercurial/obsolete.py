@@ -799,8 +799,7 @@ class obsstore:
                     if rev is not None and rev in revs:
                         pendingnodes.add(node)
         seenmarkers = set()
-        seenmarkers = set()
-        seennodes = set()
+        seennodes = set(pendingnodes)
         precursorsmarkers = self.predecessors
         succsmarkers = self.successors
         children = self.children
