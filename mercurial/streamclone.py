@@ -646,11 +646,12 @@ def _emit2(repo, entries):
 
     max_linkrev = len(repo)
     file_count = totalfilesize = 0
-    # record the expected size of every file
-    for k, vfs, e in entries:
-        for f in e.files():
-            file_count += 1
-            totalfilesize += f.file_size(vfs)
+    with util.nogc():
+        # record the expected size of every file
+        for k, vfs, e in entries:
+            for f in e.files():
+                file_count += 1
+                totalfilesize += f.file_size(vfs)
 
     progress = repo.ui.makeprogress(
         _(b'bundle'), total=totalfilesize, unit=_(b'bytes')
@@ -722,10 +723,12 @@ def _emit3(repo, entries):
     with TempCopyManager() as copy, progress:
         # create a copy of volatile files
         for k, vfs, e in entries:
-            for f in e.files():
-                f.file_size(vfs)  # record the expected size under lock
-                if f.is_volatile:
-                    copy(vfs.join(f.unencoded_path))
+            if e.maybe_volatile:
+                for f in e.files():
+                    if f.is_volatile:
+                        # record the expected size under lock
+                        f.file_size(vfs)
+                        copy(vfs.join(f.unencoded_path))
         # the first yield release the lock on the repository
         yield None
 
@@ -770,23 +773,26 @@ def _entries_walk(repo, includes, excludes, includeobsmarkers):
         matcher = narrowspec.match(repo.root, includes, excludes)
 
     phase = not repo.publishing()
-    entries = _walkstreamfiles(
-        repo,
-        matcher,
-        phase=phase,
-        obsolescence=includeobsmarkers,
-    )
-    for entry in entries:
-        yield (_srcstore, entry)
+    # Python is getting crazy at all the small container we creates, disabling
+    # the gc while we do so helps performance a lot.
+    with util.nogc():
+        entries = _walkstreamfiles(
+            repo,
+            matcher,
+            phase=phase,
+            obsolescence=includeobsmarkers,
+        )
+        for entry in entries:
+            yield (_srcstore, entry)
 
-    for name in cacheutil.cachetocopy(repo):
-        if repo.cachevfs.exists(name):
-            # not really a StoreEntry, but close enough
-            entry = store.SimpleStoreEntry(
-                entry_path=name,
-                is_volatile=True,
-            )
-            yield (_srccache, entry)
+        for name in cacheutil.cachetocopy(repo):
+            if repo.cachevfs.exists(name):
+                # not really a StoreEntry, but close enough
+                entry = store.SimpleStoreEntry(
+                    entry_path=name,
+                    is_volatile=True,
+                )
+                yield (_srccache, entry)
 
 
 def generatev2(repo, includes, excludes, includeobsmarkers):
@@ -847,7 +853,10 @@ def generatev3(repo, includes, excludes, includeobsmarkers):
     - ways to adjust the number of expected entries/files ?
     """
 
-    with repo.lock():
+    # Python is getting crazy at all the small container we creates while
+    # considering the files to preserve, disabling the gc while we do so helps
+    # performance a lot.
+    with repo.lock(), util.nogc():
 
         repo.ui.debug(b'scanning\n')
 
