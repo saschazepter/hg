@@ -867,7 +867,7 @@ class BranchCacheV3(_LocalBranchCache):
     ignored.
     """
 
-    _base_filename = b"branch3"
+    _base_filename = b"branch3-exp"
     _default_key_hashes = (None, None)
 
     def __init__(self, *args, pure_topo_branch=None, **kwargs):
