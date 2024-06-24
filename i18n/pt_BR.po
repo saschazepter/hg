@@ -36049,9 +36049,9 @@ msgstr ""
 "repositório"
 
 #, python-format
-msgid "obsolete feature not enabled but %i markers found!\n"
+msgid "\"obsolete\" feature not enabled but %i markers found!\n"
 msgstr ""
-"a funcionalidade obsolete não está habilitada, mas foram encontradas %i "
+"a funcionalidade \"obsolete\" não está habilitada, mas foram encontradas %i "
 "marcações!\n"
 
 #, python-format

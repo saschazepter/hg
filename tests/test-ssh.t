@@ -72,8 +72,8 @@ clone bookmarks via stream
   $ hg -R local-stream book mybook
   $ hg clone --stream ssh://user@dummy/local-stream stream2
   streaming all changes
-  16 files to transfer, * of data (glob) (no-rust !)
-  18 files to transfer, * of data (glob) (rust !)
+  12 files to transfer, * of data (glob) (no-rust !)
+  14 files to transfer, * of data (glob) (rust !)
   transferred * in * seconds (*) (glob)
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved

@@ -453,6 +453,10 @@ class StoreFile:
                 self._file_size = 0
         return self._file_size
 
+    @property
+    def has_size(self):
+        return self._file_size is not None
+
     def get_stream(self, vfs, copies):
         """return data "stream" information for this file
 
@@ -480,6 +484,8 @@ class BaseStoreEntry:
 
     This is returned by `store.walk` and represent some data in the store."""
 
+    maybe_volatile = True
+
     def files(self) -> List[StoreFile]:
         raise NotImplementedError
 
@@ -505,6 +511,7 @@ class SimpleStoreEntry(BaseStoreEntry):
 
     is_revlog = False
 
+    maybe_volatile = attr.ib()
     _entry_path = attr.ib()
     _is_volatile = attr.ib(default=False)
     _file_size = attr.ib(default=None)
@@ -521,6 +528,7 @@ class SimpleStoreEntry(BaseStoreEntry):
         self._is_volatile = is_volatile
         self._file_size = file_size
         self._files = None
+        self.maybe_volatile = is_volatile
 
     def files(self) -> List[StoreFile]:
         if self._files is None:
@@ -542,6 +550,7 @@ class RevlogStoreEntry(BaseStoreEntry):
 
     revlog_type = attr.ib(default=None)
     target_id = attr.ib(default=None)
+    maybe_volatile = attr.ib(default=True)
     _path_prefix = attr.ib(default=None)
     _details = attr.ib(default=None)
     _files = attr.ib(default=None)
@@ -558,6 +567,12 @@ class RevlogStoreEntry(BaseStoreEntry):
         self.target_id = target_id
         self._path_prefix = path_prefix
         assert b'.i' in details, (path_prefix, details)
+        for ext in details:
+            if ext.endswith(REVLOG_FILES_VOLATILE_EXT):
+                self.maybe_volatile = True
+                break
+        else:
+            self.maybe_volatile = False
         self._details = details
         self._files = None
 
@@ -601,7 +616,8 @@ class RevlogStoreEntry(BaseStoreEntry):
         max_changeset=None,
         preserve_file_count=False,
     ):
-        if (
+        pre_sized = all(f.has_size for f in self.files())
+        if pre_sized and (
             repo is None
             or max_changeset is None
             # This use revlog-v2, ignore for now

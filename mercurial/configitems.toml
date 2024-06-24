@@ -719,6 +719,15 @@ section = "experimental"
 name = "auto-publish"
 default = "publish"
 
+
+# The current implementation of the filtering/injecting of topological heads is
+# naive and need proper benchmark and optimisation because we can envision
+# moving the the v3 of the branch-cache format out of experimental
+[[items]]
+section = "experimental"
+name = "branch-cache-v3"
+default = false
+
 [[items]]
 section = "experimental"
 name = "bundle-phases"

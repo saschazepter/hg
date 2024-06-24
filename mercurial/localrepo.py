@@ -2923,12 +2923,14 @@ class localrepository:
 
         if repository.CACHE_BRANCHMAP_SERVED in caches:
             if tr is None or tr.changes[b'origrepolen'] < len(self):
-                # accessing the 'served' branchmap should refresh all the others,
                 self.ui.debug(b'updating the branch cache\n')
-                self.filtered(b'served').branchmap()
-                self.filtered(b'served.hidden').branchmap()
-                # flush all possibly delayed write.
-                self._branchcaches.write_delayed(self)
+                dpt = repository.CACHE_BRANCHMAP_DETECT_PURE_TOPO in caches
+                served = self.filtered(b'served')
+                self._branchcaches.update_disk(served, detect_pure_topo=dpt)
+                served_hidden = self.filtered(b'served.hidden')
+                self._branchcaches.update_disk(
+                    served_hidden, detect_pure_topo=dpt
+                )
 
         if repository.CACHE_CHANGELOG_CACHE in caches:
             self.changelog.update_caches(transaction=tr)
@@ -2957,7 +2959,7 @@ class localrepository:
 
         if repository.CACHE_FILE_NODE_TAGS in caches:
             # accessing fnode cache warms the cache
-            tagsmod.fnoderevs(self.ui, unfi, unfi.changelog.revs())
+            tagsmod.warm_cache(self)
 
         if repository.CACHE_TAGS_DEFAULT in caches:
             # accessing tags warm the cache
@@ -2971,9 +2973,14 @@ class localrepository:
             # even if they haven't explicitly been requested yet (if they've
             # never been used by hg, they won't ever have been written, even if
             # they're a subset of another kind of cache that *has* been used).
+            dpt = repository.CACHE_BRANCHMAP_DETECT_PURE_TOPO in caches
+
             for filt in repoview.filtertable.keys():
                 filtered = self.filtered(filt)
-                filtered.branchmap().write(filtered)
+                self._branchcaches.update_disk(filtered, detect_pure_topo=dpt)
+
+        # flush all possibly delayed write.
+        self._branchcaches.write_dirty(self)
 
     def invalidatecaches(self):
         if '_tagscache' in vars(self):

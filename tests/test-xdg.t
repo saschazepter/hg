@@ -1,4 +1,4 @@
-#if no-windows no-osx
+#if no-windows
 
   $ mkdir -p xdgconf/hg
   $ echo '[ui]' > xdgconf/hg/hgrc

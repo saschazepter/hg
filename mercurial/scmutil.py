@@ -349,7 +349,7 @@ class casecollisionauditor:
         self._newfiles.add(f)
 
 
-def filteredhash(repo, maxrev, needobsolete=False):
+def combined_filtered_and_obsolete_hash(repo, maxrev, needobsolete=False):
     """build hash of filtered revisions in the current repoview.
 
     Multiple caches perform up-to-date validation by checking that the
@@ -375,14 +375,67 @@ def filteredhash(repo, maxrev, needobsolete=False):
 
     result = cl._filteredrevs_hashcache.get(key)
     if not result:
-        revs = sorted(r for r in cl.filteredrevs | obsrevs if r <= maxrev)
+        revs, obs_revs = _filtered_and_obs_revs(repo, maxrev)
+        if needobsolete:
+            revs = revs | obs_revs
+        revs = sorted(revs)
         if revs:
-            s = hashutil.sha1()
-            for rev in revs:
-                s.update(b'%d;' % rev)
-            result = s.digest()
+            result = _hash_revs(revs)
             cl._filteredrevs_hashcache[key] = result
     return result
+
+
+def filtered_and_obsolete_hash(repo, maxrev):
+    """build hashs of filtered and obsolete revisions in the current repoview.
+
+    Multiple caches perform up-to-date validation by checking that the
+    tiprev and tipnode stored in the cache file match the current repository.
+    However, this is not sufficient for validating repoviews because the set
+    of revisions in the view may change without the repository tiprev and
+    tipnode changing.
+
+    This function hashes all the revs filtered from the view up to maxrev and
+    returns that SHA-1 digest. The obsolete revisions hashed are only the
+    non-filtered one.
+    """
+    cl = repo.changelog
+    obs_set = obsolete.getrevs(repo, b'obsolete')
+    key = (maxrev, hash(cl.filteredrevs), hash(obs_set))
+
+    result = cl._filteredrevs_hashcache.get(key)
+    if result is None:
+        filtered_hash = None
+        obs_hash = None
+        filtered_revs, obs_revs = _filtered_and_obs_revs(repo, maxrev)
+        if filtered_revs:
+            filtered_hash = _hash_revs(filtered_revs)
+        if obs_revs:
+            obs_hash = _hash_revs(obs_revs)
+        result = (filtered_hash, obs_hash)
+        cl._filteredrevs_hashcache[key] = result
+    return result
+
+
+def _filtered_and_obs_revs(repo, max_rev):
+    """return the set of filtered and non-filtered obsolete revision"""
+    cl = repo.changelog
+    obs_set = obsolete.getrevs(repo, b'obsolete')
+    filtered_set = cl.filteredrevs
+    if cl.filteredrevs:
+        obs_set = obs_set - cl.filteredrevs
+    if max_rev < (len(cl) - 1):
+        # there might be revision to filter out
+        filtered_set = set(r for r in filtered_set if r <= max_rev)
+        obs_set = set(r for r in obs_set if r <= max_rev)
+    return (filtered_set, obs_set)
+
+
+def _hash_revs(revs):
+    """return a hash from a list of revision numbers"""
+    s = hashutil.sha1()
+    for rev in revs:
+        s.update(b'%d;' % rev)
+    return s.digest()
 
 
 def walkrepos(path, followsym=False, seen_dirs=None, recurse=False):

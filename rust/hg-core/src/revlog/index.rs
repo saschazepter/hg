@@ -18,11 +18,12 @@ use crate::{
 };
 
 pub const INDEX_ENTRY_SIZE: usize = 64;
+pub const INDEX_HEADER_SIZE: usize = 4;
 pub const COMPRESSION_MODE_INLINE: u8 = 2;
 
 #[derive(Debug)]
 pub struct IndexHeader {
-    pub(super) header_bytes: [u8; 4],
+    pub(super) header_bytes: [u8; INDEX_HEADER_SIZE],
 }
 
 #[derive(Copy, Clone)]
@@ -92,14 +93,21 @@ struct IndexData {
     truncation: Option<usize>,
     /// Bytes that were added after reading the index
     added: Vec<u8>,
+    first_entry: [u8; INDEX_ENTRY_SIZE],
 }
 
 impl IndexData {
     pub fn new(bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>) -> Self {
+        let mut first_entry = [0; INDEX_ENTRY_SIZE];
+        if bytes.len() >= INDEX_ENTRY_SIZE {
+            first_entry[INDEX_HEADER_SIZE..]
+                .copy_from_slice(&bytes[INDEX_HEADER_SIZE..INDEX_ENTRY_SIZE])
+        }
         Self {
             bytes,
             truncation: None,
             added: vec![],
+            first_entry,
         }
     }
 
@@ -356,7 +364,6 @@ impl Index {
                 let end = offset + INDEX_ENTRY_SIZE;
                 let entry = IndexEntry {
                     bytes: &bytes[offset..end],
-                    offset_override: None,
                 };
 
                 offset += INDEX_ENTRY_SIZE + entry.compressed_len() as usize;
@@ -449,11 +456,17 @@ impl Index {
         if rev == NULL_REVISION {
             return None;
         }
-        Some(if self.is_inline() {
-            self.get_entry_inline(rev)
+        if rev.0 == 0 {
+            Some(IndexEntry {
+                bytes: &self.bytes.first_entry[..],
+            })
         } else {
-            self.get_entry_separated(rev)
-        })
+            Some(if self.is_inline() {
+                self.get_entry_inline(rev)
+            } else {
+                self.get_entry_separated(rev)
+            })
+        }
     }
 
     /// Return the binary content of the index entry for the given revision
@@ -512,13 +525,7 @@ impl Index {
         let end = start + INDEX_ENTRY_SIZE;
         let bytes = &self.bytes[start..end];
 
-        // See IndexEntry for an explanation of this override.
-        let offset_override = Some(end);
-
-        IndexEntry {
-            bytes,
-            offset_override,
-        }
+        IndexEntry { bytes }
     }
 
     fn get_entry_separated(&self, rev: Revision) -> IndexEntry {
@@ -526,20 +533,12 @@ impl Index {
         let end = start + INDEX_ENTRY_SIZE;
         let bytes = &self.bytes[start..end];
 
-        // Override the offset of the first revision as its bytes are used
-        // for the index's metadata (saving space because it is always 0)
-        let offset_override = if rev == Revision(0) { Some(0) } else { None };
-
-        IndexEntry {
-            bytes,
-            offset_override,
-        }
+        IndexEntry { bytes }
     }
 
     fn null_entry(&self) -> IndexEntry {
         IndexEntry {
             bytes: &[0; INDEX_ENTRY_SIZE],
-            offset_override: Some(0),
         }
     }
 
@@ -755,13 +754,20 @@ impl Index {
         revision_data: RevisionDataParams,
     ) -> Result<(), RevlogError> {
         revision_data.validate()?;
+        let entry_v1 = revision_data.into_v1();
+        let entry_bytes = entry_v1.as_bytes();
+        if self.bytes.len() == 0 {
+            self.bytes.first_entry[INDEX_HEADER_SIZE..].copy_from_slice(
+                &entry_bytes[INDEX_HEADER_SIZE..INDEX_ENTRY_SIZE],
+            )
+        }
         if self.is_inline() {
             let new_offset = self.bytes.len();
             if let Some(offsets) = &mut *self.get_offsets_mut() {
                 offsets.push(new_offset)
             }
         }
-        self.bytes.added.extend(revision_data.into_v1().as_bytes());
+        self.bytes.added.extend(entry_bytes);
         self.clear_head_revs();
         Ok(())
     }
@@ -1654,7 +1660,6 @@ fn inline_scan(bytes: &[u8]) -> (usize, Vec<usize>) {
         let end = offset + INDEX_ENTRY_SIZE;
         let entry = IndexEntry {
             bytes: &bytes[offset..end],
-            offset_override: None,
         };
 
         offset += INDEX_ENTRY_SIZE + entry.compressed_len() as usize;
@@ -1678,29 +1683,14 @@ impl super::RevlogIndex for Index {
 #[derive(Debug)]
 pub struct IndexEntry<'a> {
     bytes: &'a [u8],
-    /// Allows to override the offset value of the entry.
-    ///
-    /// For interleaved index and data, the offset stored in the index
-    /// corresponds to the separated data offset.
-    /// It has to be overridden with the actual offset in the interleaved
-    /// index which is just after the index block.
-    ///
-    /// For separated index and data, the offset stored in the first index
-    /// entry is mixed with the index headers.
-    /// It has to be overridden with 0.
-    offset_override: Option<usize>,
 }
 
 impl<'a> IndexEntry<'a> {
     /// Return the offset of the data.
     pub fn offset(&self) -> usize {
-        if let Some(offset_override) = self.offset_override {
-            offset_override
-        } else {
-            let mut bytes = [0; 8];
-            bytes[2..8].copy_from_slice(&self.bytes[0..=5]);
-            BigEndian::read_u64(&bytes[..]) as usize
-        }
+        let mut bytes = [0; 8];
+        bytes[2..8].copy_from_slice(&self.bytes[0..=5]);
+        BigEndian::read_u64(&bytes[..]) as usize
     }
     pub fn raw_offset(&self) -> u64 {
         BigEndian::read_u64(&self.bytes[0..8])
@@ -1956,32 +1946,15 @@ mod tests {
     #[test]
     fn test_offset() {
         let bytes = IndexEntryBuilder::new().with_offset(1).build();
-        let entry = IndexEntry {
-            bytes: &bytes,
-            offset_override: None,
-        };
+        let entry = IndexEntry { bytes: &bytes };
 
         assert_eq!(entry.offset(), 1)
     }
 
     #[test]
-    fn test_with_overridden_offset() {
-        let bytes = IndexEntryBuilder::new().with_offset(1).build();
-        let entry = IndexEntry {
-            bytes: &bytes,
-            offset_override: Some(2),
-        };
-
-        assert_eq!(entry.offset(), 2)
-    }
-
-    #[test]
     fn test_compressed_len() {
         let bytes = IndexEntryBuilder::new().with_compressed_len(1).build();
-        let entry = IndexEntry {
-            bytes: &bytes,
-            offset_override: None,
-        };
+        let entry = IndexEntry { bytes: &bytes };
 
         assert_eq!(entry.compressed_len(), 1)
     }
@@ -1989,10 +1962,7 @@ mod tests {
     #[test]
     fn test_uncompressed_len() {
         let bytes = IndexEntryBuilder::new().with_uncompressed_len(1).build();
-        let entry = IndexEntry {
-            bytes: &bytes,
-            offset_override: None,
-        };
+        let entry = IndexEntry { bytes: &bytes };
 
         assert_eq!(entry.uncompressed_len(), 1)
     }
@@ -2002,10 +1972,7 @@ mod tests {
         let bytes = IndexEntryBuilder::new()
             .with_base_revision_or_base_of_delta_chain(Revision(1))
             .build();
-        let entry = IndexEntry {
-            bytes: &bytes,
-            offset_override: None,
-        };
+        let entry = IndexEntry { bytes: &bytes };
 
         assert_eq!(entry.base_revision_or_base_of_delta_chain(), 1.into())
     }
@@ -2016,10 +1983,7 @@ mod tests {
             .with_link_revision(Revision(123))
             .build();
 
-        let entry = IndexEntry {
-            bytes: &bytes,
-            offset_override: None,
-        };
+        let entry = IndexEntry { bytes: &bytes };
 
         assert_eq!(entry.link_revision(), 123.into());
     }
@@ -2028,10 +1992,7 @@ mod tests {
     fn p1_test() {
         let bytes = IndexEntryBuilder::new().with_p1(Revision(123)).build();
 
-        let entry = IndexEntry {
-            bytes: &bytes,
-            offset_override: None,
-        };
+        let entry = IndexEntry { bytes: &bytes };
 
         assert_eq!(entry.p1(), 123.into());
     }
@@ -2040,10 +2001,7 @@ mod tests {
     fn p2_test() {
         let bytes = IndexEntryBuilder::new().with_p2(Revision(123)).build();
 
-        let entry = IndexEntry {
-            bytes: &bytes,
-            offset_override: None,
-        };
+        let entry = IndexEntry { bytes: &bytes };
 
         assert_eq!(entry.p2(), 123.into());
     }
@@ -2054,10 +2012,7 @@ mod tests {
             .unwrap();
         let bytes = IndexEntryBuilder::new().with_node(node).build();
 
-        let entry = IndexEntry {
-            bytes: &bytes,
-            offset_override: None,
-        };
+        let entry = IndexEntry { bytes: &bytes };
 
         assert_eq!(*entry.hash(), node);
     }

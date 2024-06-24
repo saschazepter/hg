@@ -109,6 +109,7 @@ import weakref
 from typing import (
     Any,
     Callable,
+    Collection,
     Dict,
     Iterable,
     List,
@@ -127,7 +128,6 @@ from .node import (
 )
 from . import (
     error,
-    pycompat,
     requirements,
     smartset,
     txnutil,
@@ -413,6 +413,27 @@ class phasecache:
                 if phase != public
             ]
         )
+
+    def get_raw_set(
+        self,
+        repo: "localrepo.localrepository",
+        phase: int,
+    ) -> Set[int]:
+        """return the set of revision in that phase
+
+        The returned set is not filtered and might contains revision filtered
+        for the passed repoview.
+
+        The returned set might be the internal one and MUST NOT be mutated to
+        avoid side effect.
+        """
+        if phase == public:
+            raise error.ProgrammingError("cannot get_set for public phase")
+        self._ensure_phase_sets(repo.unfiltered())
+        revs = self._phasesets.get(phase)
+        if revs is None:
+            return set()
+        return revs
 
     def getrevset(
         self,
@@ -1095,7 +1116,11 @@ def updatephases(repo, trgetter, headsbyphase):
             advanceboundary(repo, trgetter(), phase, heads)
 
 
-def analyzeremotephases(repo, subset, roots):
+def analyze_remote_phases(
+    repo,
+    subset: Collection[int],
+    roots: Dict[bytes, bytes],
+) -> Tuple[Collection[int], Collection[int]]:
     """Compute phases heads and root in a subset of node from root dict
 
     * subset is heads of the subset
@@ -1105,8 +1130,8 @@ def analyzeremotephases(repo, subset, roots):
     """
     repo = repo.unfiltered()
     # build list from dictionary
-    draftroots = []
-    has_node = repo.changelog.index.has_node  # to filter unknown nodes
+    draft_roots = []
+    to_rev = repo.changelog.index.get_rev
     for nhex, phase in roots.items():
         if nhex == b'publishing':  # ignore data related to publish option
             continue
@@ -1114,49 +1139,53 @@ def analyzeremotephases(repo, subset, roots):
         phase = int(phase)
         if phase == public:
             if node != repo.nullid:
-                repo.ui.warn(
-                    _(
-                        b'ignoring inconsistent public root'
-                        b' from remote: %s\n'
-                    )
-                    % nhex
-                )
+                msg = _(b'ignoring inconsistent public root from remote: %s\n')
+                repo.ui.warn(msg % nhex)
         elif phase == draft:
-            if has_node(node):
-                draftroots.append(node)
+            rev = to_rev(node)
+            if rev is not None:  # to filter unknown nodes
+                draft_roots.append(rev)
         else:
-            repo.ui.warn(
-                _(b'ignoring unexpected root from remote: %i %s\n')
-                % (phase, nhex)
-            )
+            msg = _(b'ignoring unexpected root from remote: %i %s\n')
+            repo.ui.warn(msg % (phase, nhex))
     # compute heads
-    publicheads = newheads(repo, subset, draftroots)
-    return publicheads, draftroots
+    public_heads = new_heads(repo, subset, draft_roots)
+    return public_heads, draft_roots
 
 
-class remotephasessummary:
+class RemotePhasesSummary:
     """summarize phase information on the remote side
 
     :publishing: True is the remote is publishing
-    :publicheads: list of remote public phase heads (nodes)
-    :draftheads: list of remote draft phase heads (nodes)
-    :draftroots: list of remote draft phase root (nodes)
+    :public_heads: list of remote public phase heads (revs)
+    :draft_heads: list of remote draft phase heads (revs)
+    :draft_roots: list of remote draft phase root (revs)
     """
 
-    def __init__(self, repo, remotesubset, remoteroots):
+    def __init__(
+        self,
+        repo,
+        remote_subset: Collection[int],
+        remote_roots: Dict[bytes, bytes],
+    ):
         unfi = repo.unfiltered()
-        self._allremoteroots = remoteroots
+        self._allremoteroots: Dict[bytes, bytes] = remote_roots
 
-        self.publishing = remoteroots.get(b'publishing', False)
+        self.publishing: bool = bool(remote_roots.get(b'publishing', False))
 
-        ana = analyzeremotephases(repo, remotesubset, remoteroots)
-        self.publicheads, self.draftroots = ana
+        heads, roots = analyze_remote_phases(repo, remote_subset, remote_roots)
+        self.public_heads: Collection[int] = heads
+        self.draft_roots: Collection[int] = roots
         # Get the list of all "heads" revs draft on remote
-        dheads = unfi.set(b'heads(%ln::%ln)', self.draftroots, remotesubset)
-        self.draftheads = [c.node() for c in dheads]
+        dheads = unfi.revs(b'heads(%ld::%ld)', roots, remote_subset)
+        self.draft_heads: Collection[int] = dheads
 
 
-def newheads(repo, heads, roots):
+def new_heads(
+    repo,
+    heads: Collection[int],
+    roots: Collection[int],
+) -> Collection[int]:
     """compute new head of a subset minus another
 
     * `heads`: define the first subset
@@ -1165,16 +1194,15 @@ def newheads(repo, heads, roots):
     # phases > dagop > patch > copies > scmutil > obsolete > obsutil > phases
     from . import dagop
 
-    repo = repo.unfiltered()
-    cl = repo.changelog
-    rev = cl.index.get_rev
     if not roots:
         return heads
-    if not heads or heads == [repo.nullid]:
+    if not heads or heads == [nullrev]:
         return []
     # The logic operated on revisions, convert arguments early for convenience
-    new_heads = {rev(n) for n in heads if n != repo.nullid}
-    roots = [rev(n) for n in roots]
+    # PERF-XXX: maybe heads could directly comes as a set without impacting
+    # other user of that value
+    new_heads = set(heads)
+    new_heads.discard(nullrev)
     # compute the area we need to remove
     affected_zone = repo.revs(b"(%ld::%ld)", roots, new_heads)
     # heads in the area are no longer heads
@@ -1192,7 +1220,9 @@ def newheads(repo, heads, roots):
         pruned = dagop.reachableroots(repo, candidates, prunestart)
         new_heads.difference_update(pruned)
 
-    return pycompat.maplist(cl.node, sorted(new_heads))
+    # PERF-XXX: do we actually need a sorted list here? Could we simply return
+    # a set?
+    return sorted(new_heads)
 
 
 def newcommitphase(ui: "uimod.ui") -> int:

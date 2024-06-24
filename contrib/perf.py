@@ -20,7 +20,10 @@ Configurations
 
 ``profile-benchmark``
   Enable profiling for the benchmarked section.
-  (The first iteration is benchmarked)
+  (by default, the first iteration is benchmarked)
+
+``profiled-runs``
+  list of iteration to profile (starting from 0)
 
 ``run-limits``
   Control the number of runs each benchmark will perform. The option value
@@ -318,6 +321,11 @@ try:
     )
     configitem(
         b'perf',
+        b'profiled-runs',
+        default=mercurial.configitems.dynamicdefault,
+    )
+    configitem(
+        b'perf',
         b'run-limits',
         default=mercurial.configitems.dynamicdefault,
         experimental=True,
@@ -354,7 +362,7 @@ except TypeError:
     )
     configitem(
         b'perf',
-        b'profile-benchmark',
+        b'profiled-runs',
         default=mercurial.configitems.dynamicdefault,
     )
     configitem(
@@ -491,9 +499,12 @@ def gettimer(ui, opts=None):
         limits = DEFAULTLIMITS
 
     profiler = None
+    profiled_runs = set()
     if profiling is not None:
         if ui.configbool(b"perf", b"profile-benchmark", False):
-            profiler = profiling.profile(ui)
+            profiler = lambda: profiling.profile(ui)
+            for run in ui.configlist(b"perf", b"profiled-runs", [0]):
+                profiled_runs.add(int(run))
 
     prerun = getint(ui, b"perf", b"pre-run", 0)
     t = functools.partial(
@@ -503,6 +514,7 @@ def gettimer(ui, opts=None):
         limits=limits,
         prerun=prerun,
         profiler=profiler,
+        profiled_runs=profiled_runs,
     )
     return t, fm
 
@@ -547,27 +559,32 @@ def _timer(
     limits=DEFAULTLIMITS,
     prerun=0,
     profiler=None,
+    profiled_runs=(0,),
 ):
     gc.collect()
     results = []
-    begin = util.timer()
     count = 0
     if profiler is None:
-        profiler = NOOPCTX
+        profiler = lambda: NOOPCTX
     for i in range(prerun):
         if setup is not None:
             setup()
         with context():
             func()
+    begin = util.timer()
     keepgoing = True
     while keepgoing:
+        if count in profiled_runs:
+            prof = profiler()
+        else:
+            prof = NOOPCTX
         if setup is not None:
             setup()
         with context():
-            with profiler:
+            gc.collect()
+            with prof:
                 with timeone() as item:
                     r = func()
-        profiler = NOOPCTX
         count += 1
         results.append(item[0])
         cstop = util.timer()
@@ -2029,6 +2046,19 @@ def perfstartup(ui, repo, **opts):
     fm.end()
 
 
+def _clear_store_audit_cache(repo):
+    vfs = getsvfs(repo)
+    # unwrap the fncache proxy
+    if not hasattr(vfs, "audit"):
+        vfs = getattr(vfs, "vfs", vfs)
+    auditor = vfs.audit
+    if hasattr(auditor, "clear_audit_cache"):
+        auditor.clear_audit_cache()
+    elif hasattr(auditor, "audited"):
+        auditor.audited.clear()
+        auditor.auditeddir.clear()
+
+
 def _find_stream_generator(version):
     """find the proper generator function for this stream version"""
     import mercurial.streamclone
@@ -2040,7 +2070,7 @@ def _find_stream_generator(version):
     if generatev1 is not None:
 
         def generate(repo):
-            entries, bytes, data = generatev2(repo, None, None, True)
+            entries, bytes, data = generatev1(repo, None, None, True)
             return data
 
         available[b'v1'] = generatev1
@@ -2058,8 +2088,7 @@ def _find_stream_generator(version):
     if generatev3 is not None:
 
         def generate(repo):
-            entries, bytes, data = generatev3(repo, None, None, True)
-            return data
+            return generatev3(repo, None, None, True)
 
         available[b'v3-exp'] = generate
 
@@ -2085,7 +2114,8 @@ def _find_stream_generator(version):
             b'',
             b'stream-version',
             b'latest',
-            b'stream version to use ("v1", "v2", "v3" or "latest", (the default))',
+            b'stream version to use ("v1", "v2", "v3-exp" '
+            b'or "latest", (the default))',
         ),
     ]
     + formatteropts,
@@ -2102,6 +2132,9 @@ def perf_stream_clone_scan(ui, repo, stream_version, **opts):
 
     def setupone():
         result_holder[0] = None
+        # This is important for the full generation, even if it does not
+        # currently matters, it seems safer to also real it here.
+        _clear_store_audit_cache(repo)
 
     generate = _find_stream_generator(stream_version)
 
@@ -2120,7 +2153,8 @@ def perf_stream_clone_scan(ui, repo, stream_version, **opts):
             b'',
             b'stream-version',
             b'latest',
-            b'stream version to us ("v1", "v2" or "latest", (the default))',
+            b'stream version to us ("v1", "v2", "v3-exp" '
+            b'or "latest", (the default))',
         ),
     ]
     + formatteropts,
@@ -2136,12 +2170,15 @@ def perf_stream_clone_generate(ui, repo, stream_version, **opts):
 
     generate = _find_stream_generator(stream_version)
 
+    def setup():
+        _clear_store_audit_cache(repo)
+
     def runone():
         # the lock is held for the duration the initialisation
         for chunk in generate(repo):
             pass
 
-    timer(runone, title=b"generate")
+    timer(runone, setup=setup, title=b"generate")
     fm.end()
 
 
@@ -2187,10 +2224,18 @@ def perf_stream_clone_consume(ui, repo, filename, **opts):
 
     run_variables = [None, None]
 
+    # we create the new repository next to the other one for two reasons:
+    # - this way we use the same file system, which are relevant for benchmark
+    # - if /tmp/ is small, the operation could overfills it.
+    source_repo_dir = os.path.dirname(repo.root)
+
     @contextlib.contextmanager
     def context():
         with open(filename, mode='rb') as bundle:
-            with tempfile.TemporaryDirectory() as tmp_dir:
+            with tempfile.TemporaryDirectory(
+                prefix=b'hg-perf-stream-consume-',
+                dir=source_repo_dir,
+            ) as tmp_dir:
                 tmp_dir = fsencode(tmp_dir)
                 run_variables[0] = bundle
                 run_variables[1] = tmp_dir
@@ -2201,11 +2246,15 @@ def perf_stream_clone_consume(ui, repo, filename, **opts):
     def runone():
         bundle = run_variables[0]
         tmp_dir = run_variables[1]
+
+        # we actually wants to copy all config to ensure the repo config is
+        # taken in account during the benchmark
+        new_ui = repo.ui.__class__(repo.ui)
         # only pass ui when no srcrepo
         localrepo.createrepository(
-            repo.ui, tmp_dir, requirements=repo.requirements
+            new_ui, tmp_dir, requirements=repo.requirements
         )
-        target = hg.repository(repo.ui, tmp_dir)
+        target = hg.repository(new_ui, tmp_dir)
         gen = exchange.readbundle(target.ui, bundle, bundle.name)
         # stream v1
         if util.safehasattr(gen, 'apply'):
@@ -4205,15 +4254,24 @@ def perfbranchmap(ui, repo, *filternames, **opts):
         # add unfiltered
         allfilters.append(None)
 
-    if util.safehasattr(branchmap.branchcache, 'fromfile'):
+    old_branch_cache_from_file = None
+    branchcacheread = None
+    if util.safehasattr(branchmap, 'branch_cache_from_file'):
+        old_branch_cache_from_file = branchmap.branch_cache_from_file
+        branchmap.branch_cache_from_file = lambda *args: None
+    elif util.safehasattr(branchmap.branchcache, 'fromfile'):
         branchcacheread = safeattrsetter(branchmap.branchcache, b'fromfile')
         branchcacheread.set(classmethod(lambda *args: None))
     else:
         # older versions
         branchcacheread = safeattrsetter(branchmap, b'read')
         branchcacheread.set(lambda *args: None)
-    branchcachewrite = safeattrsetter(branchmap.branchcache, b'write')
-    branchcachewrite.set(lambda *args: None)
+    if util.safehasattr(branchmap, '_LocalBranchCache'):
+        branchcachewrite = safeattrsetter(branchmap._LocalBranchCache, b'write')
+        branchcachewrite.set(lambda *args: None)
+    else:
+        branchcachewrite = safeattrsetter(branchmap.branchcache, b'write')
+        branchcachewrite.set(lambda *args: None)
     try:
         for name in allfilters:
             printname = name
@@ -4221,7 +4279,10 @@ def perfbranchmap(ui, repo, *filternames, **opts):
                 printname = b'unfiltered'
             timer(getbranchmap(name), title=printname)
     finally:
-        branchcacheread.restore()
+        if old_branch_cache_from_file is not None:
+            branchmap.branch_cache_from_file = old_branch_cache_from_file
+        if branchcacheread is not None:
+            branchcacheread.restore()
         branchcachewrite.restore()
     fm.end()
 
@@ -4303,6 +4364,19 @@ def perfbranchmapupdate(ui, repo, base=(), target=(), **opts):
         baserepo = repo.filtered(b'__perf_branchmap_update_base')
         targetrepo = repo.filtered(b'__perf_branchmap_update_target')
 
+        bcache = repo.branchmap()
+        copy_method = 'copy'
+
+        copy_base_kwargs = copy_base_kwargs = {}
+        if hasattr(bcache, 'copy'):
+            if 'repo' in getargspec(bcache.copy).args:
+                copy_base_kwargs = {"repo": baserepo}
+                copy_target_kwargs = {"repo": targetrepo}
+        else:
+            copy_method = 'inherit_for'
+            copy_base_kwargs = {"repo": baserepo}
+            copy_target_kwargs = {"repo": targetrepo}
+
         # try to find an existing branchmap to reuse
         subsettable = getbranchmapsubsettable()
         candidatefilter = subsettable.get(None)
@@ -4311,7 +4385,7 @@ def perfbranchmapupdate(ui, repo, base=(), target=(), **opts):
             if candidatebm.validfor(baserepo):
                 filtered = repoview.filterrevs(repo, candidatefilter)
                 missing = [r for r in allbaserevs if r in filtered]
-                base = candidatebm.copy()
+                base = getattr(candidatebm, copy_method)(**copy_base_kwargs)
                 base.update(baserepo, missing)
                 break
             candidatefilter = subsettable.get(candidatefilter)
@@ -4321,7 +4395,7 @@ def perfbranchmapupdate(ui, repo, base=(), target=(), **opts):
             base.update(baserepo, allbaserevs)
 
         def setup():
-            x[0] = base.copy()
+            x[0] = getattr(base, copy_method)(**copy_target_kwargs)
             if clearcaches:
                 unfi._revbranchcache = None
                 clearchangelog(repo)
@@ -4368,10 +4442,10 @@ def perfbranchmapload(ui, repo, filter=b'', list=False, **opts):
 
     repo.branchmap()  # make sure we have a relevant, up to date branchmap
 
-    try:
-        fromfile = branchmap.branchcache.fromfile
-    except AttributeError:
-        # older versions
+    fromfile = getattr(branchmap, 'branch_cache_from_file', None)
+    if fromfile is None:
+        fromfile = getattr(branchmap.branchcache, 'fromfile', None)
+    if fromfile is None:
         fromfile = branchmap.read
 
     currentfilter = filter

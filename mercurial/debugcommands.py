@@ -4078,26 +4078,17 @@ def debugupgraderepo(ui, repo, run=False, optimize=None, backup=True, **opts):
 
 @command(
     b'debug::unbundle',
-    [
-        (
-            b'u',
-            b'update',
-            None,
-            _(b'update to new branch head if changesets were unbundled'),
-        )
-    ],
-    _(b'[-u] FILE...'),
+    [],
+    _(b'FILE...'),
     helpcategory=command.CATEGORY_IMPORT_EXPORT,
 )
-def debugunbundle(ui, repo, *args, **kwargs):
+def debugunbundle(ui, repo, fname1, *fnames):
     """same as `hg unbundle`, but pretent to come from a push
 
     This is useful to debug behavior and performance change in this case.
     """
-    from . import commands  # avoid cycle
-
-    unbundle = cmdutil.findcmd(b'unbundle', commands.table)[1][0]
-    return unbundle(ui, repo, *args, _unbundle_source=b'push', **kwargs)
+    fnames = (fname1,) + fnames
+    cmdutil.unbundle_files(ui, repo, fnames)
 
 
 @command(

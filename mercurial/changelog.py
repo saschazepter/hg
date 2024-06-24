@@ -327,6 +327,9 @@ class changelog(revlog.revlog):
         self._filteredrevs_hashcache = {}
         self._copiesstorage = opener.options.get(b'copies-storage')
 
+    def __contains__(self, rev):
+        return (0 <= rev < len(self)) and rev not in self._filteredrevs
+
     @property
     def filteredrevs(self):
         return self._filteredrevs
