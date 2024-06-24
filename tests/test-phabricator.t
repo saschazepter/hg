@@ -730,7 +730,7 @@ getoldnodedrevmap() in later phabsends.
   $ hg amend --config experimental.evolution=all --config extensions.amend=
   1 new orphan changesets
   $ hg up 3
-  obsolete feature not enabled but 1 markers found!
+  "obsolete" feature not enabled but 1 markers found!
   1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   $ hg rebase --config experimental.evolution=all --config extensions.rebase=
   note: not rebasing 2:832553266fe8 "two: second commit to review", already in destination as 4:0124e5474c88 tip "two: second commit to review"
@@ -741,7 +741,7 @@ updated.
 
   $ echo y | hg phabsend --fold --confirm -r 1:: \
   >          --test-vcr "$VCR/phabsend-fold-updated.json"
-  obsolete feature not enabled but 2 markers found!
+  "obsolete" feature not enabled but 2 markers found!
   602c4e738243 mapped to old nodes ['602c4e738243']
   0124e5474c88 mapped to old nodes ['832553266fe8']
   e4edb1fe3565 mapped to old nodes ['921f8265efbd']
@@ -752,11 +752,11 @@ updated.
   D8387 - updated - 1:602c4e738243 "one: first commit to review"
   D8387 - updated - 4:0124e5474c88 "two: second commit to review"
   D8387 - updated - 5:e4edb1fe3565 tip "3: a commit with no detailed message"
-  obsolete feature not enabled but 2 markers found! (?)
+  "obsolete" feature not enabled but 2 markers found! (?)
   updating local commit list for D8387
   new commits: ['602c4e738243', '0124e5474c88', 'e4edb1fe3565']
   $ hg log -Tcompact
-  obsolete feature not enabled but 2 markers found!
+  "obsolete" feature not enabled but 2 markers found!
   5[tip]   e4edb1fe3565   1970-01-01 00:00 +0000   test
     3: a commit with no detailed message
   
@@ -773,17 +773,17 @@ When nothing has changed locally since the last phabsend, the commit list isn't
 updated, and nothing is changed locally afterward.
 
   $ hg phabsend --fold -r 1:: --test-vcr "$VCR/phabsend-fold-no-changes.json"
-  obsolete feature not enabled but 2 markers found!
+  "obsolete" feature not enabled but 2 markers found!
   602c4e738243 mapped to old nodes ['602c4e738243']
   0124e5474c88 mapped to old nodes ['0124e5474c88']
   e4edb1fe3565 mapped to old nodes ['e4edb1fe3565']
   D8387 - updated - 1:602c4e738243 "one: first commit to review"
   D8387 - updated - 4:0124e5474c88 "two: second commit to review"
   D8387 - updated - 5:e4edb1fe3565 tip "3: a commit with no detailed message"
-  obsolete feature not enabled but 2 markers found! (?)
+  "obsolete" feature not enabled but 2 markers found! (?)
   local commit list for D8387 is already up-to-date
   $ hg log -Tcompact
-  obsolete feature not enabled but 2 markers found!
+  "obsolete" feature not enabled but 2 markers found!
   5[tip]   e4edb1fe3565   1970-01-01 00:00 +0000   test
     3: a commit with no detailed message
   
@@ -800,7 +800,7 @@ Fold will accept new revisions at the end...
 
   $ echo 'another mod' > file2.txt
   $ hg ci -m 'four: extend the fold range'
-  obsolete feature not enabled but 2 markers found!
+  "obsolete" feature not enabled but 2 markers found!
   $ hg phabsend --fold -r 1:: --test-vcr "$VCR/phabsend-fold-extend-end.json" \
   >             --config experimental.evolution=all
   602c4e738243 mapped to old nodes ['602c4e738243']
@@ -817,7 +817,7 @@ Fold will accept new revisions at the end...
   
   Differential Revision: https://phab.mercurial-scm.org/D8387
   $ hg log -T'{rev} {if(phabreview, "{phabreview.url} {phabreview.id}")}\n' -r 1::
-  obsolete feature not enabled but 3 markers found!
+  "obsolete" feature not enabled but 3 markers found!
   1 https://phab.mercurial-scm.org/D8387 D8387
   4 https://phab.mercurial-scm.org/D8387 D8387
   5 https://phab.mercurial-scm.org/D8387 D8387
@@ -846,7 +846,7 @@ TODO: See if it can reuse the existing Differential.
   new commits: ['15e9b14b4b4c', '6320b7d714cf', '3ee132d41dbc', '30682b960804', 'ac7db67f0991']
 
   $ hg log -T '{rev}:{node|short}\n{indent(desc, "  ")}\n'
-  obsolete feature not enabled but 8 markers found!
+  "obsolete" feature not enabled but 8 markers found!
   12:ac7db67f0991
     four: extend the fold range
   
@@ -962,7 +962,7 @@ Test phabsend --fold with an `hg fold` at the end of the range
   new commits: ['15e9b14b4b4c', '6320b7d714cf', '3ee132d41dbc', '30682b960804', 'e919cdf3d4fe']
 
   $ hg log -r tip -v
-  obsolete feature not enabled but 12 markers found!
+  "obsolete" feature not enabled but 12 markers found!
   changeset:   16:e919cdf3d4fe
   tag:         tip
   parent:      11:30682b960804

@@ -6,6 +6,8 @@
 import collections
 
 from typing import (
+    Dict,
+    Union,
     cast,
 )
 
@@ -106,7 +108,7 @@ _bundlespeccgversions = {
 }
 
 # Maps bundle version with content opts to choose which part to bundle
-_bundlespeccontentopts = {
+_bundlespeccontentopts: Dict[bytes, Dict[bytes, Union[bool, bytes]]] = {
     b'v1': {
         b'changegroup': True,
         b'cg.version': b'01',
@@ -136,7 +138,7 @@ _bundlespeccontentopts = {
         b'cg.version': b'02',
         b'obsolescence': False,
         b'phases': False,
-        b"streamv2": True,
+        b"stream": b"v2",
         b'tagsfnodescache': False,
         b'revbranchcache': False,
     },
@@ -145,7 +147,7 @@ _bundlespeccontentopts = {
         b'cg.version': b'03',
         b'obsolescence': False,
         b'phases': False,
-        b"streamv3-exp": True,
+        b"stream": b"v3-exp",
         b'tagsfnodescache': False,
         b'revbranchcache': False,
     },
@@ -157,8 +159,6 @@ _bundlespeccontentopts = {
     },
 }
 _bundlespeccontentopts[b'bundle2'] = _bundlespeccontentopts[b'v2']
-
-_bundlespecvariants = {b"streamv2": {}}
 
 # Compression engines allowed in version 1. THIS SHOULD NEVER CHANGE.
 _bundlespecv1compengines = {b'gzip', b'bzip2', b'none'}
@@ -391,10 +391,7 @@ def isstreamclonespec(bundlespec):
     if (
         bundlespec.wirecompression == b'UN'
         and bundlespec.wireversion == b'02'
-        and (
-            bundlespec.contentopts.get(b'streamv2')
-            or bundlespec.contentopts.get(b'streamv3-exp')
-        )
+        and bundlespec.contentopts.get(b'stream', None) in (b"v2", b"v3-exp")
     ):
         return True
 

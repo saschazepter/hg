@@ -344,32 +344,56 @@ class pushoperation:
             # not target to push, all common are relevant
             return self.outgoing.commonheads
         unfi = self.repo.unfiltered()
-        # I want cheads = heads(::ancestorsof and ::commonheads)
-        # (ancestorsof is revs with secret changeset filtered out)
+        # I want cheads = heads(::push_heads and ::commonheads)
         #
-        # This can be expressed as:
-        #     cheads = ( (ancestorsof and ::commonheads)
-        #              + (commonheads and ::ancestorsof))"
-        #              )
-        #
-        # while trying to push we already computed the following:
+        # To push, we already computed
         #     common = (::commonheads)
-        #     missing = ((commonheads::ancestorsof) - commonheads)
+        #     missing = ((commonheads::push_heads) - commonheads)
         #
-        # We can pick:
-        # * ancestorsof part of common (::commonheads)
+        # So we basically search
+        #
+        #     almost_heads = heads((parents(missing) + push_heads) & common)
+        #
+        # We use "almost" here as this can return revision that are ancestors
+        # of other in the set and we need to explicitly turn it into an
+        # antichain later. We can do so using:
+        #
+        #     cheads = heads(almost_heads::almost_heads)
+        #
+        # In pratice the code is a bit more convulted to avoid some extra
+        # computation. It aims at doing the same computation as highlighted
+        # above however.
         common = self.outgoing.common
-        rev = self.repo.changelog.index.rev
-        cheads = [node for node in self.revs if rev(node) in common]
-        # and
-        # * commonheads parents on missing
-        revset = unfi.set(
-            b'%ln and parents(roots(%ln))',
-            self.outgoing.commonheads,
-            self.outgoing.missing,
-        )
-        cheads.extend(c.node() for c in revset)
-        return cheads
+        unfi = self.repo.unfiltered()
+        cl = unfi.changelog
+        to_rev = cl.index.rev
+        to_node = cl.node
+        parent_revs = cl.parentrevs
+        unselected = []
+        cheads = set()
+        # XXX-perf: `self.revs` and `outgoing.missing` could hold revs directly
+        for n in self.revs:
+            r = to_rev(n)
+            if r in common:
+                cheads.add(r)
+            else:
+                unselected.append(r)
+        known_non_heads = cl.ancestors(cheads, inclusive=True)
+        if unselected:
+            missing_revs = {to_rev(n) for n in self.outgoing.missing}
+            missing_revs.add(nullrev)
+            root_points = set()
+            for r in missing_revs:
+                p1, p2 = parent_revs(r)
+                if p1 not in missing_revs and p1 not in known_non_heads:
+                    root_points.add(p1)
+                if p2 not in missing_revs and p2 not in known_non_heads:
+                    root_points.add(p2)
+            if root_points:
+                heads = unfi.revs('heads(%ld::%ld)', root_points, root_points)
+                cheads.update(heads)
+        # XXX-perf: could this be a set of revision?
+        return [to_node(r) for r in sorted(cheads)]
 
     @property
     def commonheads(self):
@@ -600,7 +624,10 @@ def _pushdiscoveryphase(pushop):
 
     (computed for both success and failure case for changesets push)"""
     outgoing = pushop.outgoing
-    unfi = pushop.repo.unfiltered()
+    repo = pushop.repo
+    unfi = repo.unfiltered()
+    cl = unfi.changelog
+    to_rev = cl.index.rev
     remotephases = listkeys(pushop.remote, b'phases')
 
     if (
@@ -622,38 +649,43 @@ def _pushdiscoveryphase(pushop):
         pushop.fallbackoutdatedphases = []
         return
 
-    pushop.remotephases = phases.remotephasessummary(
-        pushop.repo, pushop.fallbackheads, remotephases
+    fallbackheads_rev = {to_rev(n) for n in pushop.fallbackheads}
+    pushop.remotephases = phases.RemotePhasesSummary(
+        pushop.repo,
+        fallbackheads_rev,
+        remotephases,
     )
-    droots = pushop.remotephases.draftroots
+    droots = set(pushop.remotephases.draft_roots)
 
-    extracond = b''
-    if not pushop.remotephases.publishing:
-        extracond = b' and public()'
-    revset = b'heads((%%ln::%%ln) %s)' % extracond
-    # Get the list of all revs draft on remote by public here.
-    # XXX Beware that revset break if droots is not strictly
-    # XXX root we may want to ensure it is but it is costly
-    fallback = list(unfi.set(revset, droots, pushop.fallbackheads))
-    if not pushop.remotephases.publishing and pushop.publish:
-        future = list(
-            unfi.set(
-                b'%ln and (not public() or %ln::)', pushop.futureheads, droots
-            )
-        )
-    elif not outgoing.missing:
-        future = fallback
+    fallback_publishing = pushop.remotephases.publishing
+    push_publishing = pushop.remotephases.publishing or pushop.publish
+    missing_revs = {to_rev(n) for n in outgoing.missing}
+    drafts = unfi._phasecache.get_raw_set(unfi, phases.draft)
+
+    if fallback_publishing:
+        fallback_roots = droots - missing_revs
+        revset = b'heads(%ld::%ld)'
     else:
-        # adds changeset we are going to push as draft
-        #
-        # should not be necessary for publishing server, but because of an
-        # issue fixed in xxxxx we have to do it anyway.
-        fdroots = list(
-            unfi.set(b'roots(%ln  + %ln::)', outgoing.missing, droots)
-        )
-        fdroots = [f.node() for f in fdroots]
-        future = list(unfi.set(revset, fdroots, pushop.futureheads))
-    pushop.outdatedphases = future
+        fallback_roots = droots - drafts
+        fallback_roots -= missing_revs
+        # Get the list of all revs draft on remote but public here.
+        revset = b'heads((%ld::%ld) and public())'
+    if not fallback_roots:
+        fallback = fallback_rev = []
+    else:
+        fallback_rev = unfi.revs(revset, fallback_roots, fallbackheads_rev)
+        fallback = [repo[r] for r in fallback_rev]
+
+    if push_publishing:
+        published = missing_revs.copy()
+    else:
+        published = missing_revs - drafts
+    if pushop.publish:
+        published.update(fallbackheads_rev & drafts)
+    elif fallback:
+        published.update(fallback_rev)
+
+    pushop.outdatedphases = [repo[r] for r in cl.headrevs(published)]
     pushop.fallbackoutdatedphases = fallback
 
 
@@ -671,8 +703,8 @@ def _pushdiscoveryobsmarkers(pushop):
     repo = pushop.repo
     # very naive computation, that can be quite expensive on big repo.
     # However: evolution is currently slow on them anyway.
-    nodes = (c.node() for c in repo.set(b'::%ln', pushop.futureheads))
-    pushop.outobsmarkers = pushop.repo.obsstore.relevantmarkers(nodes)
+    revs = repo.revs(b'::%ln', pushop.futureheads)
+    pushop.outobsmarkers = pushop.repo.obsstore.relevantmarkers(revs=revs)
 
 
 @pushdiscovery(b'bookmarks')
@@ -888,8 +920,13 @@ def _pushb2checkphases(pushop, bundler):
     if pushop.remotephases is not None and hasphaseheads:
         # check that the remote phase has not changed
         checks = {p: [] for p in phases.allphases}
-        checks[phases.public].extend(pushop.remotephases.publicheads)
-        checks[phases.draft].extend(pushop.remotephases.draftroots)
+        to_node = pushop.repo.unfiltered().changelog.node
+        checks[phases.public].extend(
+            to_node(r) for r in pushop.remotephases.public_heads
+        )
+        checks[phases.draft].extend(
+            to_node(r) for r in pushop.remotephases.draft_roots
+        )
         if any(checks.values()):
             for phase in checks:
                 checks[phase].sort()
@@ -1293,8 +1330,16 @@ def _pushsyncphase(pushop):
         _localphasemove(pushop, cheads)
         # don't push any phase data as there is nothing to push
     else:
-        ana = phases.analyzeremotephases(pushop.repo, cheads, remotephases)
-        pheads, droots = ana
+        unfi = pushop.repo.unfiltered()
+        to_rev = unfi.changelog.index.rev
+        to_node = unfi.changelog.node
+        cheads_revs = [to_rev(n) for n in cheads]
+        pheads_revs, _dr = phases.analyze_remote_phases(
+            pushop.repo,
+            cheads_revs,
+            remotephases,
+        )
+        pheads = [to_node(r) for r in pheads_revs]
         ### Apply remote phase on local
         if remotephases.get(b'publishing', False):
             _localphasemove(pushop, cheads)
@@ -2048,10 +2093,17 @@ def _pullapplyphases(pullop, remotephases):
     pullop.stepsdone.add(b'phases')
     publishing = bool(remotephases.get(b'publishing', False))
     if remotephases and not publishing:
+        unfi = pullop.repo.unfiltered()
+        to_rev = unfi.changelog.index.rev
+        to_node = unfi.changelog.node
+        pulledsubset_revs = [to_rev(n) for n in pullop.pulledsubset]
         # remote is new and non-publishing
-        pheads, _dr = phases.analyzeremotephases(
-            pullop.repo, pullop.pulledsubset, remotephases
+        pheads_revs, _dr = phases.analyze_remote_phases(
+            pullop.repo,
+            pulledsubset_revs,
+            remotephases,
         )
+        pheads = [to_node(r) for r in pheads_revs]
         dheads = pullop.pulledsubset
     else:
         # Remote is old or publishing all common changesets
@@ -2553,8 +2605,8 @@ def _getbundleobsmarkerpart(
     if kwargs.get('obsmarkers', False):
         if heads is None:
             heads = repo.heads()
-        subset = [c.node() for c in repo.set(b'::%ln', heads)]
-        markers = repo.obsstore.relevantmarkers(subset)
+        revs = repo.revs(b'::%ln', heads)
+        markers = repo.obsstore.relevantmarkers(revs=revs)
         markers = obsutil.sortedmarkers(markers)
         bundle2.buildobsmarkerspart(bundler, markers)
 

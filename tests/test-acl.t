@@ -167,7 +167,6 @@ Extension disabled for lack of acl.sources
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   3 changesets found
   list of changesets:
@@ -187,7 +186,6 @@ Extension disabled for lack of acl.sources
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -237,7 +235,6 @@ No [acl.allow]/[acl.deny]
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   3 changesets found
   list of changesets:
@@ -257,7 +254,6 @@ No [acl.allow]/[acl.deny]
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -317,7 +313,6 @@ Empty [acl.allow]
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   3 changesets found
   list of changesets:
@@ -337,7 +332,6 @@ Empty [acl.allow]
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -388,7 +382,6 @@ fred is allowed inside foo/
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   3 changesets found
   list of changesets:
@@ -408,7 +401,6 @@ fred is allowed inside foo/
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -463,7 +455,6 @@ Empty [acl.deny]
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   3 changesets found
   list of changesets:
@@ -483,7 +474,6 @@ Empty [acl.deny]
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -535,7 +525,6 @@ fred is allowed inside foo/, but not foo/bar/ (case matters)
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   3 changesets found
   list of changesets:
@@ -555,7 +544,6 @@ fred is allowed inside foo/, but not foo/bar/ (case matters)
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -612,7 +600,6 @@ fred is allowed inside foo/, but not foo/Bar/
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   3 changesets found
   list of changesets:
@@ -632,7 +619,6 @@ fred is allowed inside foo/, but not foo/Bar/
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -686,7 +672,6 @@ fred is allowed inside foo/, but not foo/Bar/
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   3 changesets found
   list of changesets:
@@ -706,7 +691,6 @@ fred is allowed inside foo/, but not foo/Bar/
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -761,7 +745,6 @@ fred is not blocked from moving bookmarks
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   1 changesets found
   list of changesets:
@@ -783,7 +766,6 @@ fred is not blocked from moving bookmarks
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -810,7 +792,6 @@ fred is not blocked from moving bookmarks
   acl: bookmark access granted: "ef1ea85a6374b77d6da9dcda9541f498f2d17df7" on bookmark "moving-bookmark"
   bundle2-input-bundle: 7 parts total
   updating the branch cache
-  invalid branch cache (served.hidden): tip differs
   added 1 changesets with 1 changes to 1 files
   bundle2-output-bundle: "HG20", 1 parts total
   bundle2-output-part: "reply:changegroup" (advisory) (params: 0 advisory) empty payload
@@ -850,7 +831,6 @@ fred is not allowed to move bookmarks
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   1 changesets found
   list of changesets:
@@ -872,7 +852,6 @@ fred is not allowed to move bookmarks
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -939,7 +918,6 @@ barney is allowed everywhere
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   3 changesets found
   list of changesets:
@@ -959,7 +937,6 @@ barney is allowed everywhere
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -1025,7 +1002,6 @@ wilma can change files with a .txt extension
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   3 changesets found
   list of changesets:
@@ -1045,7 +1021,6 @@ wilma can change files with a .txt extension
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -1109,7 +1084,6 @@ file specified by acl.config does not exist
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   3 changesets found
   list of changesets:
@@ -1129,7 +1103,6 @@ file specified by acl.config does not exist
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -1187,7 +1160,6 @@ betty is allowed inside foo/ by a acl.config file
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   3 changesets found
   list of changesets:
@@ -1207,7 +1179,6 @@ betty is allowed inside foo/ by a acl.config file
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -1276,7 +1247,6 @@ acl.config can set only [acl.allow]/[acl.deny]
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   3 changesets found
   list of changesets:
@@ -1296,7 +1266,6 @@ acl.config can set only [acl.allow]/[acl.deny]
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -1366,7 +1335,6 @@ fred is always allowed
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   3 changesets found
   list of changesets:
@@ -1386,7 +1354,6 @@ fred is always allowed
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -1453,7 +1420,6 @@ no one is allowed inside foo/Bar/
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   3 changesets found
   list of changesets:
@@ -1473,7 +1439,6 @@ no one is allowed inside foo/Bar/
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -1536,7 +1501,6 @@ OS-level groups
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   3 changesets found
   list of changesets:
@@ -1556,7 +1520,6 @@ OS-level groups
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -1623,7 +1586,6 @@ OS-level groups
   listing keys for "phases"
   checking for updated bookmarks
   listing keys for "bookmarks"
-  invalid branch cache (served): tip differs
   listing keys for "bookmarks"
   3 changesets found
   list of changesets:
@@ -1643,7 +1605,6 @@ OS-level groups
   bundle2-input-part: total payload size * (glob)
   bundle2-input-part: "check:updated-heads" supported
   bundle2-input-part: total payload size * (glob)
-  invalid branch cache (served): tip differs
   bundle2-input-part: "changegroup" (params: 1 mandatory) supported
   adding changesets
   add changeset ef1ea85a6374
@@ -1797,7 +1758,6 @@ No branch acls specified
   bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   updating the branch cache
-  invalid branch cache (served.hidden): tip differs
   added 4 changesets with 4 changes to 4 files (+1 heads)
   bundle2-output-bundle: "HG20", 1 parts total
   bundle2-output-part: "reply:changegroup" (advisory) (params: 0 advisory) empty payload
@@ -2104,7 +2064,6 @@ Branch acl allow other
   bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   updating the branch cache
-  invalid branch cache (served.hidden): tip differs
   added 4 changesets with 4 changes to 4 files (+1 heads)
   bundle2-output-bundle: "HG20", 1 parts total
   bundle2-output-part: "reply:changegroup" (advisory) (params: 0 advisory) empty payload
@@ -2196,7 +2155,6 @@ push foobar into the remote
   bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   updating the branch cache
-  invalid branch cache (served.hidden): tip differs
   added 4 changesets with 4 changes to 4 files (+1 heads)
   bundle2-output-bundle: "HG20", 1 parts total
   bundle2-output-part: "reply:changegroup" (advisory) (params: 0 advisory) empty payload
@@ -2360,7 +2318,6 @@ User 'astro' must not be denied
   bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
   updating the branch cache
-  invalid branch cache (served.hidden): tip differs
   added 4 changesets with 4 changes to 4 files (+1 heads)
   bundle2-output-bundle: "HG20", 1 parts total
   bundle2-output-part: "reply:changegroup" (advisory) (params: 0 advisory) empty payload

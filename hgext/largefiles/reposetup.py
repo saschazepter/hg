@@ -181,6 +181,7 @@ def reposetup(ui, repo):
                     return newfiles
 
                 m = copy.copy(match)
+                m._was_tampered_with = True
                 m._files = tostandins(m._files)
 
                 result = orig(
@@ -193,6 +194,7 @@ def reposetup(ui, repo):
                         dirstate = self.dirstate
                         return sf in dirstate or dirstate.hasdir(sf)
 
+                    match._was_tampered_with = True
                     match._files = [f for f in match._files if sfindirstate(f)]
                     # Don't waste time getting the ignored and unknown
                     # files from lfdirstate

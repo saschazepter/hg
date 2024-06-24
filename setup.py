@@ -252,7 +252,10 @@ def filterhgerr(err):
         if (
             not e.startswith(b'not trusting file')
             and not e.startswith(b'warning: Not importing')
-            and not e.startswith(b'obsolete feature not enabled')
+            and not (
+                e.startswith(b'obsolete feature not enabled')
+                or e.startswith(b'"obsolete" feature not enabled')
+            )
             and not e.startswith(b'*** failed to import extension')
             and not e.startswith(b'devel-warn:')
             and not (

@@ -47,11 +47,7 @@ Ensure branchcache got copied over:
 
   $ ls .hg/cache
   branch2-base
-  branch2-immutable
   branch2-served
-  branch2-served.hidden
-  branch2-visible
-  branch2-visible-hidden
   rbc-names-v1
   rbc-revs-v1
   tags2
@@ -71,42 +67,34 @@ No update, with debug option:
 
 #if hardlink
   $ hg --debug clone -U . ../c --config progress.debug=true
-  linking: 1/16 files (6.25%) (no-rust !)
-  linking: 2/16 files (12.50%) (no-rust !)
-  linking: 3/16 files (18.75%) (no-rust !)
-  linking: 4/16 files (25.00%) (no-rust !)
-  linking: 5/16 files (31.25%) (no-rust !)
-  linking: 6/16 files (37.50%) (no-rust !)
-  linking: 7/16 files (43.75%) (no-rust !)
-  linking: 8/16 files (50.00%) (no-rust !)
-  linking: 9/16 files (56.25%) (no-rust !)
-  linking: 10/16 files (62.50%) (no-rust !)
-  linking: 11/16 files (68.75%) (no-rust !)
-  linking: 12/16 files (75.00%) (no-rust !)
-  linking: 13/16 files (81.25%) (no-rust !)
-  linking: 14/16 files (87.50%) (no-rust !)
-  linking: 15/16 files (93.75%) (no-rust !)
-  linking: 16/16 files (100.00%) (no-rust !)
-  linked 16 files (no-rust !)
-  linking: 1/18 files (5.56%) (rust !)
-  linking: 2/18 files (11.11%) (rust !)
-  linking: 3/18 files (16.67%) (rust !)
-  linking: 4/18 files (22.22%) (rust !)
-  linking: 5/18 files (27.78%) (rust !)
-  linking: 6/18 files (33.33%) (rust !)
-  linking: 7/18 files (38.89%) (rust !)
-  linking: 8/18 files (44.44%) (rust !)
-  linking: 9/18 files (50.00%) (rust !)
-  linking: 10/18 files (55.56%) (rust !)
-  linking: 11/18 files (61.11%) (rust !)
-  linking: 12/18 files (66.67%) (rust !)
-  linking: 13/18 files (72.22%) (rust !)
-  linking: 14/18 files (77.78%) (rust !)
-  linking: 15/18 files (83.33%) (rust !)
-  linking: 16/18 files (88.89%) (rust !)
-  linking: 17/18 files (94.44%) (rust !)
-  linking: 18/18 files (100.00%) (rust !)
-  linked 18 files (rust !)
+  linking: 1/12 files (8.33%) (no-rust !)
+  linking: 2/12 files (16.67%) (no-rust !)
+  linking: 3/12 files (25.00%) (no-rust !)
+  linking: 4/12 files (33.33%) (no-rust !)
+  linking: 5/12 files (41.67%) (no-rust !)
+  linking: 6/12 files (50.00%) (no-rust !)
+  linking: 7/12 files (58.33%) (no-rust !)
+  linking: 8/12 files (66.67%) (no-rust !)
+  linking: 9/12 files (75.00%) (no-rust !)
+  linking: 10/12 files (83.33%) (no-rust !)
+  linking: 11/12 files (91.67%) (no-rust !)
+  linking: 12/12 files (100.00%) (no-rust !)
+  linked 12 files (no-rust !)
+  linking: 1/14 files (7.14%) (rust !)
+  linking: 2/14 files (14.29%) (rust !)
+  linking: 3/14 files (21.43%) (rust !)
+  linking: 4/14 files (28.57%) (rust !)
+  linking: 5/14 files (35.71%) (rust !)
+  linking: 6/14 files (42.86%) (rust !)
+  linking: 7/14 files (50.00%) (rust !)
+  linking: 8/14 files (57.14%) (rust !)
+  linking: 9/14 files (64.29%) (rust !)
+  linking: 10/14 files (71.43%) (rust !)
+  linking: 11/14 files (78.57%) (rust !)
+  linking: 12/14 files (85.71%) (rust !)
+  linking: 13/14 files (92.86%) (rust !)
+  linking: 14/14 files (100.00%) (rust !)
+  linked 14 files (rust !)
   updating the branch cache
 #else
   $ hg --debug clone -U . ../c --config progress.debug=true
@@ -125,11 +113,7 @@ Ensure branchcache got copied over:
 
   $ ls .hg/cache
   branch2-base
-  branch2-immutable
   branch2-served
-  branch2-served.hidden
-  branch2-visible
-  branch2-visible-hidden
   rbc-names-v1
   rbc-revs-v1
   tags2

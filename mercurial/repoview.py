@@ -397,6 +397,9 @@ class repoview:
     """
 
     def __init__(self, repo, filtername, visibilityexceptions=None):
+        if filtername is None:
+            msg = "repoview should have a non-None filtername"
+            raise error.ProgrammingError(msg)
         object.__setattr__(self, '_unfilteredrepo', repo)
         object.__setattr__(self, 'filtername', filtername)
         object.__setattr__(self, '_clcachekey', None)

@@ -54,6 +54,8 @@ CACHE_BRANCHMAP_ALL = b"branchmap-all"
 CACHE_BRANCHMAP_SERVED = b"branchmap-served"
 # Warm internal changelog cache (eg: persistent nodemap)
 CACHE_CHANGELOG_CACHE = b"changelog-cache"
+# check of a branchmap can use the "pure topo" mode
+CACHE_BRANCHMAP_DETECT_PURE_TOPO = b"branchmap-detect-pure-topo"
 # Warm full manifest cache
 CACHE_FULL_MANIFEST = b"full-manifest"
 # Warm file-node-tags cache
@@ -78,6 +80,7 @@ CACHES_DEFAULT = {
 CACHES_ALL = {
     CACHE_BRANCHMAP_SERVED,
     CACHE_BRANCHMAP_ALL,
+    CACHE_BRANCHMAP_DETECT_PURE_TOPO,
     CACHE_CHANGELOG_CACHE,
     CACHE_FILE_NODE_TAGS,
     CACHE_FULL_MANIFEST,

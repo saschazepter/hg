@@ -312,6 +312,7 @@ def clonebundles(repo, proto):
         if line.startswith(bundlecaches.CLONEBUNDLESCHEME):
             continue
         modified_manifest.append(line)
+    modified_manifest.append(b'')
     return wireprototypes.bytesresponse(b'\n'.join(modified_manifest))
 
 
