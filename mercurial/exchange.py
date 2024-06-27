@@ -2900,8 +2900,23 @@ def _maybeapplyclonebundle(pullop):
     entries = bundlecaches.sortclonebundleentries(repo.ui, entries)
 
     url = entries[0][b'URL']
+    digest = entries[0].get(b'DIGEST')
+    if digest:
+        algorithms = urlmod.digesthandler.digest_algorithms.keys()
+        preference = dict(zip(algorithms, range(len(algorithms))))
+        best_entry = None
+        best_preference = len(preference)
+        for digest_entry in digest.split(b','):
+            cur_algo, cur_digest = digest_entry.split(b':')
+            if cur_algo not in preference:
+                continue
+            if preference[cur_algo] < best_preference:
+                best_entry = digest_entry
+                best_preference = preference[cur_algo]
+        digest = best_entry
+
     repo.ui.status(_(b'applying clone bundle from %s\n') % url)
-    if trypullbundlefromurl(repo.ui, repo, url, remote):
+    if trypullbundlefromurl(repo.ui, repo, url, remote, digest):
         repo.ui.status(_(b'finished applying clone bundle\n'))
     # Bundle failed.
     #
@@ -2930,14 +2945,14 @@ def inline_clone_bundle_open(ui, url, peer):
     return util.chunkbuffer(peerclonebundle)
 
 
-def trypullbundlefromurl(ui, repo, url, peer):
+def trypullbundlefromurl(ui, repo, url, peer, digest):
     """Attempt to apply a bundle from a URL."""
     with repo.lock(), repo.transaction(b'bundleurl') as tr:
         try:
             if url.startswith(bundlecaches.CLONEBUNDLESCHEME):
                 fh = inline_clone_bundle_open(ui, url, peer)
             else:
-                fh = urlmod.open(ui, url)
+                fh = urlmod.open(ui, url, digest=digest)
             cg = readbundle(ui, fh, b'stream')
 
             if isinstance(cg, streamclone.streamcloneapplier):
