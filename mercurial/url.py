@@ -10,9 +10,11 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import socket
 
 from .i18n import _
+from .node import hex
 from . import (
     encoding,
     error,
@@ -499,6 +501,71 @@ class readlinehandler(urlreq.basehandler):
     https_response = http_response
 
 
+class digesthandler(urlreq.basehandler):
+    # exchange.py assumes the algorithms are listed in order of preference,
+    # earlier entries are prefered.
+    digest_algorithms = {
+        b'sha256': hashlib.sha256,
+        b'sha512': hashlib.sha512,
+    }
+
+    def __init__(self, digest):
+        if b':' not in digest:
+            raise error.Abort(_(b'invalid digest specification'))
+        algo, checksum = digest.split(b':')
+        if algo not in self.digest_algorithms:
+            raise error.Abort(_(b'unsupported digest algorithm: %s') % algo)
+        self._digest = checksum
+        self._hasher = self.digest_algorithms[algo]()
+
+    def http_response(self, request, response):
+        class digestresponse(response.__class__):
+            def _digest_input(self, data):
+                self._hasher.update(data)
+                self._digest_consumed += len(data)
+                if self._digest_finished:
+                    digest = hex(self._hasher.digest())
+                    if digest != self._digest:
+                        raise error.SecurityError(
+                            _(
+                                b'file with digest %s expected, but %s found for %d bytes'
+                            )
+                            % (
+                                pycompat.bytestr(self._digest),
+                                pycompat.bytestr(digest),
+                                self._digest_consumed,
+                            )
+                        )
+
+            def read(self, amt=None):
+                data = super().read(amt)
+                self._digest_input(data)
+                return data
+
+            def readline(self):
+                data = super().readline()
+                self._digest_input(data)
+                return data
+
+            def readinto(self, dest):
+                got = super().readinto(dest)
+                self._digest_input(dest[:got])
+                return got
+
+            def _close_conn(self):
+                self._digest_finished = True
+                return super().close()
+
+        response.__class__ = digestresponse
+        response._digest = self._digest
+        response._digest_consumed = 0
+        response._hasher = self._hasher.copy()
+        response._digest_finished = False
+        return response
+
+    https_response = http_response
+
+
 handlerfuncs = []
 
 
@@ -510,6 +577,7 @@ def opener(
     loggingname=b's',
     loggingopts=None,
     sendaccept=True,
+    digest=None,
 ):
     """
     construct an opener suitable for urllib2
@@ -562,6 +630,8 @@ def opener(
     handlers.extend([h(ui, passmgr) for h in handlerfuncs])
     handlers.append(urlreq.httpcookieprocessor(cookiejar=load_cookiejar(ui)))
     handlers.append(readlinehandler())
+    if digest:
+        handlers.append(digesthandler(digest))
     opener = urlreq.buildopener(*handlers)
 
     # keepalive.py's handlers will populate these attributes if they exist.
@@ -600,7 +670,7 @@ def opener(
     return opener
 
 
-def open(ui, url_, data=None, sendaccept=True):
+def open(ui, url_, data=None, sendaccept=True, digest=None):
     u = urlutil.url(url_)
     if u.scheme:
         u.scheme = u.scheme.lower()
@@ -611,7 +681,7 @@ def open(ui, url_, data=None, sendaccept=True):
             urlreq.pathname2url(pycompat.fsdecode(path))
         )
         authinfo = None
-    return opener(ui, authinfo, sendaccept=sendaccept).open(
+    return opener(ui, authinfo, sendaccept=sendaccept, digest=digest).open(
         pycompat.strurl(url_), data
     )
 
