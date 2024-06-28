@@ -573,19 +573,6 @@ class HTTPResponse(httplib.HTTPResponse):
         chunks[-1] = chunks[-1][:i]
         return b''.join(chunks)
 
-    def readlines(self, sizehint=0):
-        total = 0
-        list = []
-        while True:
-            line = self.readline()
-            if not line:
-                break
-            list.append(line)
-            total += len(line)
-            if sizehint and total >= sizehint:
-                break
-        return list
-
     def readinto(self, dest):
         if self._raw_readinto is None:
             res = self.read(len(dest))
