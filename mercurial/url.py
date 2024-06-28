@@ -499,6 +499,28 @@ class cookiehandler(urlreq.basehandler):
         return request
 
 
+class readlinehandler(urlreq.basehandler):
+    def http_response(self, request, response):
+        class readlineresponse(response.__class__):
+            def readlines(self, sizehint=0):
+                total = 0
+                list = []
+                while True:
+                    line = self.readline()
+                    if not line:
+                        break
+                    list.append(line)
+                    total += len(line)
+                    if sizehint and total >= sizehint:
+                        break
+                return list
+
+        response.__class__ = readlineresponse
+        return response
+
+    https_response = http_response
+
+
 handlerfuncs = []
 
 
@@ -564,6 +586,7 @@ def opener(
     )
     handlers.extend([h(ui, passmgr) for h in handlerfuncs])
     handlers.append(cookiehandler(ui))
+    handlers.append(readlinehandler())
     opener = urlreq.buildopener(*handlers)
 
     # keepalive.py's handlers will populate these attributes if they exist.
