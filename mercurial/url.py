@@ -455,41 +455,25 @@ class httpbasicauthhandler(urlreq.httpbasicauthhandler):
             return None
 
 
-class cookiehandler(urlreq.basehandler):
-    def __init__(self, ui):
-        self.cookiejar = None
-
-        cookiefile = ui.config(b'auth', b'cookiefile')
-        if not cookiefile:
-            return
-
-        cookiefile = util.expandpath(cookiefile)
-        try:
-            cookiejar = util.cookielib.MozillaCookieJar(
-                pycompat.fsdecode(cookiefile)
+def load_cookiejar(ui):
+    cookiefile = ui.config(b'auth', b'cookiefile')
+    if not cookiefile:
+        return
+    cookiefile = util.expandpath(cookiefile)
+    try:
+        cookiejar = util.cookielib.MozillaCookieJar(
+            pycompat.fsdecode(cookiefile)
+        )
+        cookiejar.load()
+        return cookiejar
+    except util.cookielib.LoadError as e:
+        ui.warn(
+            _(
+                b'(error loading cookie file %s: %s; continuing without '
+                b'cookies)\n'
             )
-            cookiejar.load()
-            self.cookiejar = cookiejar
-        except util.cookielib.LoadError as e:
-            ui.warn(
-                _(
-                    b'(error loading cookie file %s: %s; continuing without '
-                    b'cookies)\n'
-                )
-                % (cookiefile, stringutil.forcebytestr(e))
-            )
-
-    def http_request(self, request):
-        if self.cookiejar:
-            self.cookiejar.add_cookie_header(request)
-
-        return request
-
-    def https_request(self, request):
-        if self.cookiejar:
-            self.cookiejar.add_cookie_header(request)
-
-        return request
+            % (cookiefile, stringutil.forcebytestr(e))
+        )
 
 
 class readlinehandler(urlreq.basehandler):
@@ -575,7 +559,7 @@ def opener(
         (httpbasicauthhandler(passmgr), httpdigestauthhandler(passmgr))
     )
     handlers.extend([h(ui, passmgr) for h in handlerfuncs])
-    handlers.append(cookiehandler(ui))
+    handlers.append(urlreq.httpcookieprocessor(cookiejar=load_cookiejar(ui)))
     handlers.append(readlinehandler())
     opener = urlreq.buildopener(*handlers)
 

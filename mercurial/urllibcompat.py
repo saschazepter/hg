@@ -68,6 +68,7 @@ urlreq._registeraliases(
         b"FileHandler",
         b"FTPHandler",
         b"ftpwrapper",
+        b"HTTPCookieProcessor",
         b"HTTPHandler",
         b"HTTPSHandler",
         b"install_opener",
