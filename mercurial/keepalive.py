@@ -380,8 +380,8 @@ class HTTPHandler(KeepAliveHandler, urlreq.httphandler):
 
 class HTTPResponse(httplib.HTTPResponse):
     # we need to subclass HTTPResponse in order to
-    # 1) add close_connection() methods
-    # 2) add info() and geturl() methods
+    # 1) add close_connection() method
+    # 2) add geturl() method
     # 3) add accounting for read(), readlines() and readinto()
 
     def __init__(self, sock, debuglevel=0, strict=0, method=None):
@@ -419,49 +419,34 @@ class HTTPResponse(httplib.HTTPResponse):
         self._handler._remove_connection(self._host, self._connection, close=1)
         self.close()
 
-    def info(self):
-        return self.headers
-
     def geturl(self):
         return self._url
 
     def read(self, amt=None):
         data = super().read(amt)
         self.receivedbytescount += len(data)
-        try:
+        if self._connection is not None:
             self._connection.receivedbytescount += len(data)
-        except AttributeError:
-            pass
-        try:
+        if self._handler is not None:
             self._handler.parent.receivedbytescount += len(data)
-        except AttributeError:
-            pass
         return data
 
     def readline(self):
         data = super().readline()
         self.receivedbytescount += len(data)
-        try:
+        if self._connection is not None:
             self._connection.receivedbytescount += len(data)
-        except AttributeError:
-            pass
-        try:
+        if self._handler is not None:
             self._handler.parent.receivedbytescount += len(data)
-        except AttributeError:
-            pass
         return data
 
     def readinto(self, dest):
         got = super().readinto(dest)
         self.receivedbytescount += got
-        try:
+        if self._connection is not None:
             self._connection.receivedbytescount += got
-        except AttributeError:
-            pass
-        try:
+        if self._handler is not None:
             self._handler.parent.receivedbytescount += got
-        except AttributeError:
-            pass
         return got
 
 
