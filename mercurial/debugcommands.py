@@ -4510,8 +4510,10 @@ def debugwireproto(ui, repo, path=None, **opts):
         # TODO consider not doing this because we skip
         # ``hg.wirepeersetupfuncs`` and potentially other useful functionality.
         u = urlutil.url(path)
-        if u.scheme != b'http':
-            raise error.Abort(_(b'only http:// paths are currently supported'))
+        if u.scheme not in (b'http', b'https'):
+            raise error.Abort(
+                _(b'only http:// and https:// paths are currently supported')
+            )
 
         url, authinfo = u.authinfo()
         openerargs = {

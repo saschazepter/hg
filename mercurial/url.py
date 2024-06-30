@@ -231,36 +231,29 @@ class httphandler(keepalive.HTTPHandler):
         return keepalive.HTTPHandler._start_transaction(self, h, req)
 
 
-class logginghttpconnection(keepalive.HTTPConnection):
-    def __init__(self, createconn, *args, **kwargs):
-        keepalive.HTTPConnection.__init__(self, *args, **kwargs)
-        self._create_connection = createconn
-
-
 class logginghttphandler(httphandler):
-    """HTTP handler that logs socket I/O."""
+    """HTTP(S) handler that logs socket I/O."""
 
-    def __init__(self, logfh, name, observeropts, timeout=None):
-        super(logginghttphandler, self).__init__(timeout=timeout)
+    def __init__(self, logfh, name, observeropts, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self._logfh = logfh
         self._logname = name
         self._observeropts = observeropts
 
-    # do_open() calls the passed class to instantiate an HTTPConnection. We
-    # pass in a callable method that creates a custom HTTPConnection instance
-    # whose callback to create the socket knows how to proxy the socket.
-    def http_open(self, req):
-        return self.do_open(self._makeconnection, req)
+    def do_open(self, http_class, *args, **kwargs):
+        _logfh = self._logfh
+        _logname = self._logname
+        _observeropts = self._observeropts
 
-    def _makeconnection(self, *args, **kwargs):
-        def createconnection(*args, **kwargs):
-            sock = socket.create_connection(*args, **kwargs)
-            return util.makeloggingsocket(
-                self._logfh, sock, self._logname, **self._observeropts
-            )
+        class logginghttpconnection(http_class):
+            def connect(self):
+                super().connect()
+                self.sock = util.makeloggingsocket(
+                    _logfh, self.sock, _logname, **_observeropts
+                )
 
-        return logginghttpconnection(createconnection, *args, **kwargs)
+        return super().do_open(logginghttpconnection, *args, **kwargs)
 
 
 if has_https:
@@ -557,16 +550,13 @@ def opener(
                 loggingfh, loggingname, loggingopts or {}, timeout=timeout
             )
         )
-        # We don't yet support HTTPS when logging I/O. If we attempt to open
-        # an HTTPS URL, we'll likely fail due to unknown protocol.
-
     else:
         handlers.append(httphandler(timeout=timeout))
-        if has_https:
-            # pytype get confused about the conditional existence for httpshandler here.
-            handlers.append(
-                httpshandler(ui, timeout=timeout)  # pytype: disable=name-error
-            )
+    if has_https:
+        # pytype get confused about the conditional existence for httpshandler here.
+        handlers.append(
+            httpshandler(ui, timeout=timeout)  # pytype: disable=name-error
+        )
 
     handlers.append(proxyhandler(ui))
 
