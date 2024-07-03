@@ -441,6 +441,13 @@ class bufferedinputpipe:
 
 
 def mmapread(fp, size=None):
+    """Read a file content using mmap
+
+    The responsability of checking the file system is mmap safe is the
+    responsability of the caller.
+
+    In some case, a normal string might be returned.
+    """
     if size == 0:
         # size of 0 to mmap.mmap() means "all data"
         # rather than "zero bytes", so special case that.
