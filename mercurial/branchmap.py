@@ -1213,11 +1213,12 @@ class revbranchcache:
 
         if self._names:
             try:
-                if repo.ui.configbool(b'storage', b'revbranchcache.mmap'):
-                    with repo.cachevfs(_rbcrevs) as fp:
+                usemmap = repo.ui.configbool(b'storage', b'revbranchcache.mmap')
+                with repo.cachevfs(_rbcrevs) as fp:
+                    if usemmap and repo.cachevfs.is_mmap_safe(_rbcrevs):
                         data = util.buffer(util.mmapread(fp))
-                else:
-                    data = repo.cachevfs.read(_rbcrevs)
+                    else:
+                        data = fp.read()
                 self._rbcrevs = rbcrevs(data)
             except (IOError, OSError) as inst:
                 repo.ui.debug(
