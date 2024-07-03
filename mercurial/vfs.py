@@ -189,6 +189,35 @@ class abstractvfs:
     def lstat(self, path: Optional[bytes] = None):
         return os.lstat(self.join(path))
 
+    def is_mmap_safe(self, path: Optional[bytes] = None) -> bool:
+        """return True if it is safe to read a file content as mmap
+
+        This focus on the file system aspect of such safety, the application
+        logic around that file is not taken into account, so caller need to
+        make sure the file won't be truncated in a way that will create SIGBUS
+        on access.
+
+
+        The initial motivation for this logic is that if mmap is used on NFS
+        and somebody deletes the mapped file (e.g. by renaming on top of it),
+        then you get SIGBUS, which can be pretty disruptive: we get core dump
+        reports, and the process terminates without writing to the blackbox.
+
+        Instead in this situation we prefer to read the file normally.
+        The risk of ESTALE in the middle of the read remains, but it's
+        smaller because we read sooner and the error should be reported
+        just as any other error.
+
+        Note that python standard library does not offer the necessary function
+        to detect the file stem bits. So this detection rely on compiled bits
+        and is not available in pure python.
+        """
+        # XXX Since we already assume a vfs to address a consistent file system
+        # in other location, we could determine the fstype once for the root
+        # and cache that value.
+        fstype = util.getfstype(self.join(path))
+        return fstype is not None and fstype != b'nfs'
+
     def listdir(self, path: Optional[bytes] = None):
         return os.listdir(self.join(path))
 
