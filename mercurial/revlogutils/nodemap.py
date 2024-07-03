@@ -74,7 +74,7 @@ def persisted_data(revlog):
     test_race_hook_1()
     try:
         with revlog.opener(filename) as fd:
-            if use_mmap:
+            if use_mmap and revlog.opener.is_mmap_safe(filename):
                 try:
                     data = util.buffer(util.mmapread(fd, data_length))
                 except ValueError:
@@ -205,7 +205,7 @@ def persist_nodemap(tr, revlog, pending=False, force=False):
                 fd.seek(target_docket.data_length)
                 fd.write(data)
                 if feed_data:
-                    if use_mmap:
+                    if use_mmap and revlog.opener.is_mmap_safe(datafile):
                         fd.flush()
                         new_data = util.buffer(util.mmapread(fd, new_length))
                     else:
@@ -238,7 +238,7 @@ def persist_nodemap(tr, revlog, pending=False, force=False):
         with revlog.opener(datafile, b'w+') as fd:
             fd.write(data)
             if feed_data:
-                if use_mmap:
+                if use_mmap and revlog.opener.is_mmap_safe(datafile):
                     fd.flush()
                     new_data = util.buffer(util.mmapread(fd, len(data)))
                 else:
