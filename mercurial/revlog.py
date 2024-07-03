@@ -1460,7 +1460,10 @@ class revlog:
             with self.opener(filepath) as fp:
                 if mmap_threshold is not None:
                     file_size = self.opener.fstat(fp).st_size
-                    if file_size >= mmap_threshold:
+                    if (
+                        file_size >= mmap_threshold
+                        and self.opener.is_mmap_safe(filepath)
+                    ):
                         if size is not None:
                             # avoid potentiel mmap crash
                             size = min(file_size, size)
