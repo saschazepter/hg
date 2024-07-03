@@ -239,10 +239,10 @@ def persist_nodemap(tr, revlog, pending=False, force=False):
             fd.write(data)
             if feed_data:
                 if use_mmap:
-                    new_data = data
-                else:
                     fd.flush()
                     new_data = util.buffer(util.mmapread(fd, len(data)))
+                else:
+                    new_data = data
         target_docket.data_length = len(data)
     target_docket.tip_rev = revlog.tiprev()
     target_docket.tip_node = revlog.node(target_docket.tip_rev)
