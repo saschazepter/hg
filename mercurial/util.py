@@ -440,6 +440,10 @@ class bufferedinputpipe:
         return data
 
 
+def has_mmap_populate():
+    return hasattr(mmap, 'MAP_POPULATE')
+
+
 def mmapread(fp, size=None, pre_populate=True):
     """Read a file content using mmap
 
