@@ -771,11 +771,10 @@ class obsstore:
             _addchildren(self.children, markers)
         _checkinvalidmarkers(self.repo, markers)
 
-    def relevantmarkers(self, nodes=None, revs=None):
-        """return a set of all obsolescence markers relevant to a set of
-        nodes or revisions.
+    def relevantmarkers(self, nodes):
+        """return a set of all obsolescence markers relevant to a set of nodes.
 
-        "relevant" to a set of nodes or revisions mean:
+        "relevant" to a set of nodes mean:
 
         - marker that use this changeset as successor
         - prune marker of direct children on this changeset
@@ -783,24 +782,10 @@ class obsstore:
           markers
 
         It is a set so you cannot rely on order."""
-        if nodes is None:
-            nodes = set()
-        if revs is None:
-            revs = set()
 
-        get_rev = self.repo.unfiltered().changelog.index.get_rev
-        pendingnodes = set()
-        for marker in self._all:
-            for node in (marker[0],) + marker[1] + (marker[5] or ()):
-                if node in nodes:
-                    pendingnodes.add(node)
-                elif revs:
-                    rev = get_rev(node)
-                    if rev is not None and rev in revs:
-                        pendingnodes.add(node)
+        pendingnodes = set(nodes)
         seenmarkers = set()
-        seenmarkers = set()
-        seennodes = set()
+        seennodes = set(pendingnodes)
         precursorsmarkers = self.predecessors
         succsmarkers = self.successors
         children = self.children
