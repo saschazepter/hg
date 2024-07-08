@@ -1123,9 +1123,11 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     if 0 <= chainspan:
         delta_config.max_deltachain_span = chainspan
 
-    mmapindexthreshold = ui.configbytes(b'experimental', b'mmapindexthreshold')
-    if mmapindexthreshold is not None:
-        data_config.mmap_index_threshold = mmapindexthreshold
+    if ui.configbool(b'storage', b'revlog.mmap.index'):
+        data_config.mmap_index_threshold = ui.configbytes(
+            b'storage',
+            b'revlog.mmap.index:size-threshold',
+        )
 
     withsparseread = ui.configbool(b'experimental', b'sparse-read')
     srdensitythres = float(
