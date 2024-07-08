@@ -1804,7 +1804,7 @@ def _addpartsfromopts(ui, repo, bundler, source, outgoing, opts):
         addpartrevbranchcache(repo, bundler, outgoing)
 
     if opts.get(b'obsolescence', False):
-        obsmarkers = repo.obsstore.relevantmarkers(outgoing.missing)
+        obsmarkers = repo.obsstore.relevantmarkers(nodes=outgoing.missing)
         buildobsmarkerspart(
             bundler,
             obsmarkers,
