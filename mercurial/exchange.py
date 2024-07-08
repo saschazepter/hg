@@ -704,8 +704,8 @@ def _pushdiscoveryobsmarkers(pushop):
     repo = pushop.repo
     # very naive computation, that can be quite expensive on big repo.
     # However: evolution is currently slow on them anyway.
-    nodes = (c.node() for c in repo.set(b'::%ln', pushop.futureheads))
-    pushop.outobsmarkers = pushop.repo.obsstore.relevantmarkers(nodes)
+    revs = repo.revs(b'::%ln', pushop.futureheads)
+    pushop.outobsmarkers = pushop.repo.obsstore.relevantmarkers(revs=revs)
 
 
 @pushdiscovery(b'bookmarks')
@@ -2604,10 +2604,15 @@ def _getbundleobsmarkerpart(
 ):
     """add an obsolescence markers part to the requested bundle"""
     if kwargs.get('obsmarkers', False):
+        unfi_cl = repo.unfiltered().changelog
         if heads is None:
-            heads = repo.heads()
-        subset = [c.node() for c in repo.set(b'::%ln', heads)]
-        markers = repo.obsstore.relevantmarkers(subset)
+            headrevs = repo.changelog.headrevs()
+        else:
+            get_rev = unfi_cl.index.get_rev
+            headrevs = [get_rev(node) for node in heads]
+            headrevs = [rev for rev in headrevs if rev is not None]
+        revs = unfi_cl.ancestors(headrevs, inclusive=True)
+        markers = repo.obsstore.relevantmarkers(revs=revs)
         markers = obsutil.sortedmarkers(markers)
         bundle2.buildobsmarkerspart(bundler, markers)
 
