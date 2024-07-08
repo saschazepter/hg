@@ -237,6 +237,8 @@ def list_stdlib_modules():
         yield m
     for m in ['cffi']:
         yield m
+    yield 'distutils'  # in Python < 3.12
+    yield 'distutils.version'  # in Python < 3.12
     stdlib_prefixes = {sys.prefix, sys.exec_prefix}
     # We need to supplement the list of prefixes for the search to work
     # when run from within a virtualenv.
