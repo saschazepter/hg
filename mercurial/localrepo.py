@@ -1123,7 +1123,8 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     if 0 <= chainspan:
         delta_config.max_deltachain_span = chainspan
 
-    if ui.configbool(b'storage', b'revlog.mmap.index'):
+    has_populate = util.has_mmap_populate()
+    if ui.configbool(b'storage', b'revlog.mmap.index', has_populate):
         data_config.mmap_index_threshold = ui.configbytes(
             b'storage',
             b'revlog.mmap.index:size-threshold',
