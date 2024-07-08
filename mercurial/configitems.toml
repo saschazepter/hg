@@ -2164,7 +2164,7 @@ default = true
 [[items]]
 section = "storage"
 name = "revlog.mmap.index"
-default = false
+default-type = "dynamic"
 
 [[items]]
 section = "storage"
