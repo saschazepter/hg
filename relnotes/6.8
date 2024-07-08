@@ -1,6 +1,4 @@
-= Mercurial 6.8rc0 =
-
-/!\ This is a tentative release, any and all notes below are subject to change or removal.
+= Mercurial 6.8 =
 
 As usual, a *lot* of patches don't make it to this list.
 
@@ -32,8 +30,6 @@ As usual, a *lot* of patches don't make it to this list.
  * tags-cache: skip the filternode step if we are not going to use it
  * tags-cache: directly operate on rev-num warming hgtagsfnodescache
  * tags-cache: directly perform a monimal walk for hgtagsfnodescache warming
- * exchange: improve computation of relevant markers for large repos
-
 
 == New Experimental Features ==
 
@@ -43,9 +39,9 @@ As usual, a *lot* of patches don't make it to this list.
     * branchcache: add a "pure topological head" fast path
     * branchcache: allow to detect "pure topological case" for branchmap
 
-
 == Bug Fixes ==
 
+ * rust: use `cpython` 0.7.2 crate to add support for Python 3.12
  * perf-stream-locked-section: actually use v1 generation when requested
  * perf-stream-locked-section: fix the call to the v3 generator
  * perf-stream-locked-section: advertise the right version key in the help
@@ -62,6 +58,8 @@ As usual, a *lot* of patches don't make it to this list.
  * hgrc: search XDG_CONFIG_HOME on mac
  * clonebundles: add missing newline to legacy response
  * narrow: add a test for linkrev computation done during widen
+ * Multiple fixes to guard against mmap issues
+ * portability: fix build on Solaris-derived systemd
 
 == Backwards Compatibility Changes ==
 
