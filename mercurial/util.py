@@ -451,7 +451,9 @@ class bufferedinputpipe:
 
 
 def has_mmap_populate():
-    return hasattr(mmap, 'MAP_POPULATE')
+    return hasattr(osutil, "background_mmap_populate") or hasattr(
+        mmap, 'MAP_POPULATE'
+    )
 
 
 def mmapread(fp, size=None, pre_populate=True):
@@ -475,10 +477,13 @@ def mmapread(fp, size=None, pre_populate=True):
         size = 0
     fd = getattr(fp, 'fileno', lambda: fp)()
     flags = mmap.MAP_PRIVATE
-    if pre_populate:
+    bg_populate = hasattr(osutil, "background_mmap_populate")
+    if pre_populate and not bg_populate:
         flags |= getattr(mmap, 'MAP_POPULATE', 0)
     try:
         m = mmap.mmap(fd, size, flags=flags, prot=mmap.PROT_READ)
+        if pre_populate and bg_populate:
+            osutil.background_mmap_populate(m)
         return m
     except ValueError:
         # Empty files cannot be mmapped, but mmapread should still work.  Check
