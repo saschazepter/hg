@@ -291,7 +291,7 @@ class abstractvfs:
 
     def rmtree(
         self, path: Optional[bytes] = None, ignore_errors=False, forcibly=False
-    ):
+    ) -> None:
         """Remove a directory tree recursively
 
         If ``forcibly``, this tries to remove READ-ONLY files, too.
