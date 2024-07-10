@@ -548,7 +548,7 @@ if pycompat.sysplatform == b'cygwin':
 
 if pycompat.sysplatform == b'OpenVMS':
     # OpenVMS's symlink emulation is broken on some OpenVMS versions.
-    def checklink(path):
+    def checklink(path: bytes) -> bool:
         return False
 
 
