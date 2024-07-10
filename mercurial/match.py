@@ -399,12 +399,12 @@ class basematcher:
         if badfn is not None:
             self.bad = badfn
 
-    def was_tampered_with_nonrec(self):
+    def was_tampered_with_nonrec(self) -> bool:
         # [_was_tampered_with] is used to track if when extensions changed the matcher
         # behavior (crazy stuff!), so we disable the rust fast path.
         return self._was_tampered_with
 
-    def was_tampered_with(self):
+    def was_tampered_with(self) -> bool:
         return self.was_tampered_with_nonrec()
 
     def __call__(self, fn):
@@ -894,7 +894,7 @@ class differencematcher(basematcher):
         self.bad = m1.bad
         self.traversedir = m1.traversedir
 
-    def was_tampered_with(self):
+    def was_tampered_with(self) -> bool:
         return (
             self.was_tampered_with_nonrec()
             or self._m1.was_tampered_with()
@@ -984,7 +984,7 @@ class intersectionmatcher(basematcher):
         self.bad = m1.bad
         self.traversedir = m1.traversedir
 
-    def was_tampered_with(self):
+    def was_tampered_with(self) -> bool:
         return (
             self.was_tampered_with_nonrec()
             or self._m1.was_tampered_with()
@@ -1088,7 +1088,7 @@ class subdirmatcher(basematcher):
         if matcher.prefix():
             self._always = any(f == path for f in matcher._files)
 
-    def was_tampered_with(self):
+    def was_tampered_with(self) -> bool:
         return (
             self.was_tampered_with_nonrec() or self._matcher.was_tampered_with()
         )
@@ -1227,7 +1227,7 @@ class unionmatcher(basematcher):
         self.traversedir = m1.traversedir
         self._matchers = matchers
 
-    def was_tampered_with(self):
+    def was_tampered_with(self) -> bool:
         return self.was_tampered_with_nonrec() or any(
             map(lambda m: m.was_tampered_with(), self._matchers)
         )
