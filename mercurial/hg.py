@@ -11,6 +11,7 @@ import os
 import posixpath
 import shutil
 import stat
+import typing
 import weakref
 
 from .i18n import _
@@ -57,6 +58,11 @@ from .utils import (
     urlutil,
 )
 
+if typing.TYPE_CHECKING:
+    from typing import (
+        List,
+        Tuple,
+    )
 
 release = lock.release
 
@@ -1597,7 +1603,7 @@ def remoteui(src, opts):
 # Files of interest
 # Used to check if the repository has changed looking at mtime and size of
 # these files.
-foi = [
+foi: "List[Tuple[str, bytes]]" = [
     ('spath', b'00changelog.i'),
     ('spath', b'phaseroots'),  # ! phase can change content at the same size
     ('spath', b'obsstore'),
