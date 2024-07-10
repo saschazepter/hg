@@ -9,6 +9,9 @@ import re as remod
 import socket
 
 from typing import (
+    Callable,
+    Dict,
+    Tuple,
     Union,
 )
 
@@ -29,7 +32,7 @@ from ..revlogutils import (
 )
 
 # keeps pyflakes happy
-assert [Union]
+assert [Callable, Dict, Tuple, Union]
 
 urlreq = urllibcompat.urlreq
 
@@ -652,12 +655,12 @@ class paths(dict):
             self[name] = new_paths
 
 
-_pathsuboptions = {}
+_pathsuboptions: "Dict[bytes, Tuple[str, Callable]]" = {}
 # a dictionnary of methods that can be used to format a sub-option value
 path_suboptions_display = {}
 
 
-def pathsuboption(option, attr, display=pycompat.bytestr):
+def pathsuboption(option: bytes, attr: str, display=pycompat.bytestr):
     """Decorator used to declare a path sub-option.
 
     Arguments are the sub-option name and the attribute it should set on
