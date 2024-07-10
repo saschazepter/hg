@@ -69,6 +69,12 @@ mappedgenerator
 import abc
 import os
 
+from typing import (
+    BinaryIO,
+    Optional,
+    Tuple,
+)
+
 from .i18n import _
 from .pycompat import (
     FileNotFoundError,
@@ -1121,7 +1127,9 @@ def templatedir():
     return path if os.path.isdir(path) else None
 
 
-def open_template(name, templatepath=None):
+def open_template(
+    name: bytes, templatepath: Optional[bytes] = None
+) -> Tuple[bytes, BinaryIO]:
     """returns a file-like object for the given template, and its full path
 
     If the name is a relative path and we're in a frozen binary, the template
@@ -1156,7 +1164,9 @@ def open_template(name, templatepath=None):
     )
 
 
-def try_open_template(name, templatepath=None):
+def try_open_template(
+    name: bytes, templatepath: Optional[bytes] = None
+) -> Tuple[Optional[bytes], Optional[BinaryIO]]:
     try:
         return open_template(name, templatepath)
     except (EnvironmentError, ImportError):
