@@ -103,14 +103,15 @@ _encodingrewrites = {
 if pycompat.iswindows:
     _encodingrewrites[b'cp65001'] = b'utf-8'
 
+encoding: bytes = b''  # help pytype avoid seeing None value
 try:
-    encoding = environ.get(b"HGENCODING")
+    encoding = environ.get(b"HGENCODING", b'')
     if not encoding:
         encoding = locale.getpreferredencoding().encode('ascii') or b'ascii'
         encoding = _encodingrewrites.get(encoding, encoding)
 except locale.Error:
     encoding = b'ascii'
-encodingmode = environ.get(b"HGENCODINGMODE", b"strict")
+encodingmode: bytes = environ.get(b"HGENCODINGMODE", b"strict")
 fallbackencoding = b'ISO-8859-1'
 
 
