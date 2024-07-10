@@ -30,7 +30,7 @@ CB_MANIFEST_FILE = b'clonebundles.manifest'
 CLONEBUNDLESCHEME = b"peer-bundle-cache://"
 
 
-def get_manifest(repo):
+def get_manifest(repo) -> bytes:
     """get the bundle manifest to be served to a client from a server"""
     raw_text = repo.vfs.tryread(CB_MANIFEST_FILE)
     entries = [e.split(b' ', 1) for e in raw_text.splitlines()]
@@ -46,7 +46,7 @@ def get_manifest(repo):
     return b''.join(new_lines)
 
 
-def alter_bundle_url(repo, url):
+def alter_bundle_url(repo, url: bytes) -> bytes:
     """a function that exist to help extension and hosting to alter the url
 
     This will typically be used to inject authentication information in the url
