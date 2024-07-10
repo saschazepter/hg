@@ -23,6 +23,11 @@ import struct
 import weakref
 import zlib
 
+from typing import (
+    Optional,
+    Tuple,
+)
+
 # import stuff from node for others to import from revlog
 from .node import (
     bin,
@@ -558,7 +563,7 @@ class _InnerRevlog:
         c = self._get_decompressor(t)
         return c.decompress
 
-    def _get_decompressor(self, t):
+    def _get_decompressor(self, t: bytes):
         try:
             compressor = self._decompressors[t]
         except KeyError:
@@ -574,7 +579,7 @@ class _InnerRevlog:
                 )
         return compressor
 
-    def compress(self, data):
+    def compress(self, data: bytes) -> Tuple[bytes, bytes]:
         """Generate a possibly-compressed representation of data."""
         if not data:
             return b'', data
@@ -589,7 +594,7 @@ class _InnerRevlog:
             return b'', data
         return b'u', data
 
-    def decompress(self, data):
+    def decompress(self, data: bytes):
         """Decompress a revlog chunk.
 
         The chunk is expected to begin with a header identifying the
@@ -1295,6 +1300,8 @@ class revlog:
 
         features = FEATURES_BY_VERSION[_format_version]
         return features[b'inline'](_format_flags)
+
+    _docket_file: Optional[bytes]
 
     def __init__(
         self,
@@ -3081,7 +3088,7 @@ class revlog:
                 sidedata=sidedata,
             )
 
-    def compress(self, data):
+    def compress(self, data: bytes) -> Tuple[bytes, bytes]:
         return self._inner.compress(data)
 
     def decompress(self, data):
