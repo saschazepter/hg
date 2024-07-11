@@ -6,7 +6,6 @@
 # GNU General Public License version 2 or any later version.
 
 import base64
-import datetime
 import os
 import pickle
 import re
@@ -22,7 +21,10 @@ from mercurial import (
     pycompat,
     util,
 )
-from mercurial.utils import procutil
+from mercurial.utils import (
+    dateutil,
+    procutil,
+)
 
 propertycache = util.propertycache
 
@@ -565,12 +567,5 @@ class mapfile(dict):
             self.fp = None
 
 
-def makedatetimestamp(t):
-    """Like dateutil.makedate() but for time t instead of current time"""
-    tz = round(
-        t
-        - datetime.datetime.fromtimestamp(t)
-        .replace(tzinfo=datetime.timezone.utc)
-        .timestamp()
-    )
-    return t, tz
+def makedatetimestamp(t: float) -> dateutil.hgdate:
+    return dateutil.makedate(t)
