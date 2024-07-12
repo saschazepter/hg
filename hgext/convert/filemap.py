@@ -76,7 +76,7 @@ class filemapper:
     rename: MutableMapping[bytes, bytes]
     targetprefixes: Optional[Set[bytes]]
 
-    def __init__(self, ui: "uimod.ui", path=None) -> None:
+    def __init__(self, ui: "uimod.ui", path: Optional[bytes] = None) -> None:
         self.ui = ui
         self.include = {}
         self.exclude = {}
@@ -86,8 +86,7 @@ class filemapper:
             if self.parse(path):
                 raise error.Abort(_(b'errors in filemap'))
 
-    # TODO: cmd==b'source' case breaks if ``path``is str
-    def parse(self, path) -> int:
+    def parse(self, path: Optional[bytes]) -> int:
         errs = 0
 
         def check(name: bytes, mapping, listname: bytes):
@@ -218,7 +217,9 @@ class filemapper:
 
 
 class filemap_source(common.converter_source):
-    def __init__(self, ui: "uimod.ui", baseconverter, filemap) -> None:
+    def __init__(
+        self, ui: "uimod.ui", baseconverter, filemap: Optional[bytes]
+    ) -> None:
         super(filemap_source, self).__init__(ui, baseconverter.repotype)
         self.base = baseconverter
         self.filemapper = filemapper(ui, filemap)

@@ -72,8 +72,10 @@ class _shlexpy3proxy:
         return _encodeornone(self._l.get_token())
 
     @property
-    def infile(self):
-        return self._l.infile or b'<unknown>'
+    def infile(self) -> bytes:
+        if self._l.infile is not None:
+            return encoding.strtolocal(self._l.infile)
+        return b'<unknown>'
 
     @property
     def lineno(self) -> int:
@@ -82,7 +84,7 @@ class _shlexpy3proxy:
 
 def shlexer(
     data=None,
-    filepath: Optional[str] = None,
+    filepath: Optional[bytes] = None,
     wordchars: Optional[bytes] = None,
     whitespace: Optional[bytes] = None,
 ):
@@ -94,7 +96,8 @@ def shlexer(
                 b'shlexer only accepts data or filepath, not both'
             )
         data = data.decode('latin1')
-    l = shlex.shlex(data, infile=filepath, posix=True)
+    infile = encoding.strfromlocal(filepath) if filepath is not None else None
+    l = shlex.shlex(data, infile=infile, posix=True)
     if whitespace is not None:
         l.whitespace_split = True
         l.whitespace += whitespace.decode('latin1')
