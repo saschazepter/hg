@@ -161,7 +161,7 @@ def createlog(ui, directory=None, root=b"", rlog=True, cache=None):
 
         # Use the Root file in the sandbox, if it exists
         try:
-            root = open(os.path.join(b'CVS', b'Root'), b'rb').read().strip()
+            root = util.readfile(os.path.join(b'CVS', b'Root')).strip()
         except IOError:
             pass
 
@@ -195,16 +195,17 @@ def createlog(ui, directory=None, root=b"", rlog=True, cache=None):
     if cache == b'update':
         try:
             ui.note(_(b'reading cvs log cache %s\n') % cachefile)
-            oldlog = pickle.load(open(cachefile, b'rb'))
-            for e in oldlog:
-                if not (
-                    hasattr(e, 'branchpoints')
-                    and hasattr(e, 'commitid')
-                    and hasattr(e, 'mergepoint')
-                ):
-                    ui.status(_(b'ignoring old cache\n'))
-                    oldlog = []
-                    break
+            with open(cachefile, b'rb') as fp:
+                oldlog = pickle.load(fp)
+                for e in oldlog:
+                    if not (
+                        hasattr(e, 'branchpoints')
+                        and hasattr(e, 'commitid')
+                        and hasattr(e, 'mergepoint')
+                    ):
+                        ui.status(_(b'ignoring old cache\n'))
+                        oldlog = []
+                        break
 
             ui.note(_(b'cache has %d log entries\n') % len(oldlog))
         except Exception as e:
@@ -526,7 +527,9 @@ def createlog(ui, directory=None, root=b"", rlog=True, cache=None):
 
             # write the new cachefile
             ui.note(_(b'writing cvs log cache %s\n') % cachefile)
-            pickle.dump(log, open(cachefile, b'wb'))
+
+            with open(cachefile, b'wb') as fp:
+                pickle.dump(log, fp)
         else:
             log = oldlog
 
