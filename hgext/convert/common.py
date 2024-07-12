@@ -575,22 +575,25 @@ class mapfile(dict):
             fp = open(self.path, b'rb')
         except FileNotFoundError:
             return
-        for i, line in enumerate(fp):
-            line = line.splitlines()[0].rstrip()
-            if not line:
-                # Ignore blank lines
-                continue
-            try:
-                key, value = line.rsplit(b' ', 1)
-            except ValueError:
-                raise error.Abort(
-                    _(b'syntax error in %s(%d): key/value pair expected')
-                    % (self.path, i + 1)
-                )
-            if key not in self:
-                self.order.append(key)
-            super(mapfile, self).__setitem__(key, value)
-        fp.close()
+
+        try:
+            for i, line in enumerate(fp):
+                line = line.splitlines()[0].rstrip()
+                if not line:
+                    # Ignore blank lines
+                    continue
+                try:
+                    key, value = line.rsplit(b' ', 1)
+                except ValueError:
+                    raise error.Abort(
+                        _(b'syntax error in %s(%d): key/value pair expected')
+                        % (self.path, i + 1)
+                    )
+                if key not in self:
+                    self.order.append(key)
+                super(mapfile, self).__setitem__(key, value)
+        finally:
+            fp.close()
 
     def __setitem__(self, key, value) -> None:
         if self.fp is None:

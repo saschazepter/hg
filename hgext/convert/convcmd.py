@@ -13,6 +13,8 @@ import typing
 
 from typing import (
     AnyStr,
+    Dict,
+    List,
     Mapping,
     Optional,
     Union,
@@ -297,7 +299,7 @@ class converter:
         self.splicemap = self.parsesplicemap(opts.get(b'splicemap'))
         self.branchmap = mapfile(ui, opts.get(b'branchmap'))
 
-    def parsesplicemap(self, path: bytes):
+    def parsesplicemap(self, path: bytes) -> Dict[bytes, List[bytes]]:
         """check and validate the splicemap format and
         return a child/parents dictionary.
         Format checking has two parts.
@@ -312,31 +314,31 @@ class converter:
             return {}
         m = {}
         try:
-            fp = open(path, b'rb')
-            for i, line in enumerate(fp):
-                line = line.splitlines()[0].rstrip()
-                if not line:
-                    # Ignore blank lines
-                    continue
-                # split line
-                lex = common.shlexer(data=line, whitespace=b',')
-                line = list(lex)
-                # check number of parents
-                if not (2 <= len(line) <= 3):
-                    raise error.Abort(
-                        _(
-                            b'syntax error in %s(%d): child parent1'
-                            b'[,parent2] expected'
+            with open(path, b'rb') as fp:
+                for i, line in enumerate(fp):
+                    line = line.splitlines()[0].rstrip()
+                    if not line:
+                        # Ignore blank lines
+                        continue
+                    # split line
+                    lex = common.shlexer(data=line, whitespace=b',')
+                    line = list(lex)
+                    # check number of parents
+                    if not (2 <= len(line) <= 3):
+                        raise error.Abort(
+                            _(
+                                b'syntax error in %s(%d): child parent1'
+                                b'[,parent2] expected'
+                            )
+                            % (path, i + 1)
                         )
-                        % (path, i + 1)
-                    )
-                for part in line:
-                    self.source.checkrevformat(part)
-                child, p1, p2 = line[0], line[1:2], line[2:]
-                if p1 == p2:
-                    m[child] = p1
-                else:
-                    m[child] = p1 + p2
+                    for part in line:
+                        self.source.checkrevformat(part)
+                    child, p1, p2 = line[0], line[1:2], line[2:]
+                    if p1 == p2:
+                        m[child] = p1
+                    else:
+                        m[child] = p1 + p2
         # if file does not exist or error reading, exit
         except IOError:
             raise error.Abort(
@@ -509,14 +511,13 @@ class converter:
         authorfile = self.authorfile
         if authorfile:
             self.ui.status(_(b'writing author map file %s\n') % authorfile)
-            ofile = open(authorfile, b'wb+')
-            for author in self.authors:
-                ofile.write(
-                    util.tonativeeol(
-                        b"%s=%s\n" % (author, self.authors[author])
+            with open(authorfile, b'wb+') as ofile:
+                for author in self.authors:
+                    ofile.write(
+                        util.tonativeeol(
+                            b"%s=%s\n" % (author, self.authors[author])
+                        )
                     )
-                )
-            ofile.close()
 
     def readauthormap(self, authorfile) -> None:
         self.authors = readauthormap(self.ui, authorfile, self.authors)
