@@ -19,8 +19,8 @@
 //!   `mercurial.ancestor.incrementalmissingancestors`.
 //!
 //!   API differences:
-//!    + it is instantiated with a C `parsers.index`
-//!      instance instead of a parents function.
+//!    + it is instantiated with a C `parsers.index` instance instead of a
+//!      parents function.
 //!    + `MissingAncestors.bases` is a method returning a tuple instead of
 //!      a set-valued attribute. We could return a Python set easily if our
 //!      [PySet PR](https://github.com/dgrunwald/rust-cpython/pull/165)
