@@ -7,6 +7,9 @@
 
 
 import os
+from typing import (
+    Set,
+)
 
 from mercurial.i18n import _
 from mercurial import (
@@ -254,7 +257,7 @@ def fastannotate(ui, repo, *pats, **opts):
 
 
 _newopts = set()
-_knownopts = {
+_knownopts: Set[bytes] = {
     opt[1].replace(b'-', b'_')
     for opt in (fastannotatecommandargs['options'] + commands.globalopts)
 }
