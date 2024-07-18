@@ -5,7 +5,6 @@ from mercurial import store
 
 class hybridencodetests(unittest.TestCase):
     def hybridencode(self, input, want):
-
         # Check the C implementation if it's in use
         got = store._pathencode(input)
         self.assertEqual(want, got)

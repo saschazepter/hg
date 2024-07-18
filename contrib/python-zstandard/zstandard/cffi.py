@@ -273,7 +273,6 @@ class ZstdCompressionParameters(object):
         ldm_hash_every_log=-1,
         threads=0,
     ):
-
         params = lib.ZSTD_createCCtxParams()
         if params == ffi.NULL:
             raise MemoryError()
@@ -1423,7 +1422,6 @@ class ZstdCompressor(object):
         read_size=COMPRESSION_RECOMMENDED_INPUT_SIZE,
         write_size=COMPRESSION_RECOMMENDED_OUTPUT_SIZE,
     ):
-
         if not hasattr(ifh, "read"):
             raise ValueError("first argument must have a read() method")
         if not hasattr(ofh, "write"):
@@ -1523,7 +1521,6 @@ class ZstdCompressor(object):
         write_size=COMPRESSION_RECOMMENDED_OUTPUT_SIZE,
         write_return_read=False,
     ):
-
         if not hasattr(writer, "write"):
             raise ValueError("must pass an object with a write() method")
 

@@ -405,7 +405,6 @@ def diffrevs(
     guitool,
     opts,
 ):
-
     subrepos = opts.get(b'subrepos')
 
     # calculate list of files changed between both revs

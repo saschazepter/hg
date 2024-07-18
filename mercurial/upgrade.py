@@ -194,7 +194,6 @@ def upgraderepo(
                 onlydefault.append(d)
 
         if fromconfig or onlydefault:
-
             if fromconfig:
                 ui.status(
                     _(

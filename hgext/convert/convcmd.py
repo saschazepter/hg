@@ -76,7 +76,6 @@ def readauthormap(ui: "uimod.ui", authorfile, authors=None):
         authors = {}
     with open(authorfile, b'rb') as afile:
         for line in afile:
-
             line = line.strip()
             if not line or line.startswith(b'#'):
                 continue
@@ -273,7 +272,6 @@ class keysorter:
 
 class converter:
     def __init__(self, ui: "uimod.ui", source, dest, revmapfile, opts) -> None:
-
         self.source = source
         self.dest = dest
         self.ui = ui

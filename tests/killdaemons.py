@@ -75,7 +75,6 @@ if os.name == 'nt':
             raise
         _check(ctypes.windll.kernel32.CloseHandle(handle))
 
-
 else:
 
     def kill(pid, logfn, tryhard=True):

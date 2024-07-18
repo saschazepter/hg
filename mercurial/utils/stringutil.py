@@ -574,7 +574,6 @@ def parsemailmap(mailmapcontent):
         return mailmap
 
     for line in mailmapcontent.splitlines():
-
         # Don't bother checking the line if it is a comment or
         # is an improperly formed author field
         if line.lstrip().startswith(b'#'):
@@ -801,7 +800,6 @@ def _MBTextWrapper(**kwargs):
             chunks.reverse()
 
             while chunks:
-
                 # Start the list of chunks that will make up the current line.
                 # cur_len is just the length of all the chunks in cur_line.
                 cur_line = []

@@ -407,7 +407,7 @@ class cg1unpacker:
                 yield chunkheader(len(chunk))
                 pos = 0
                 while pos < len(chunk):
-                    next = pos + 2 ** 20
+                    next = pos + 2**20
                     yield chunk[pos:next]
                     pos = next
             yield closechunk()

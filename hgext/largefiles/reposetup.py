@@ -140,7 +140,6 @@ def reposetup(ui, repo):
                 wlock = util.nullcontextmanager()
                 gotlock = False
             with wlock, self.dirstate.running_status(self):
-
                 # First check if paths or patterns were specified on the
                 # command line.  If there were, and they don't match any
                 # largefiles, we should just bail here and let super

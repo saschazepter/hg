@@ -893,7 +893,6 @@ class phasecache:
 
         this_phase_set = self._phasesets[targetphase]
         for r in range(start, end):
-
             # gather information about the current_rev
             r_phase = phase(repo, r)
             p_phase = None  # phase inherited from parents
