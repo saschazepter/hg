@@ -675,8 +675,10 @@ def isexec(f: bytes) -> bool:
 
 
 class cachestat:
+    stat: Optional[os.stat_result]
+
     def __init__(self, path: bytes) -> None:
-        pass
+        self.stat = None
 
     def cacheable(self) -> bool:
         return False

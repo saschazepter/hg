@@ -4,6 +4,11 @@
 # GNU General Public License version 2 or any later version.
 
 
+from typing import (
+    Optional,
+    TYPE_CHECKING,
+)
+
 from .i18n import _
 
 from . import (
@@ -12,6 +17,7 @@ from . import (
     policy,
     testing,
     txnutil,
+    typelib,
     util,
 )
 
@@ -19,6 +25,11 @@ from .dirstateutils import (
     docket as docketmod,
     v2,
 )
+
+if TYPE_CHECKING:
+    from . import (
+        ui as uimod,
+    )
 
 parsers = policy.importmod('parsers')
 rustmod = policy.importrust('dirstate')
@@ -46,12 +57,31 @@ class _dirstatemapcommon:
     class, with and without Rust extensions enabled.
     """
 
+    _use_dirstate_v2: bool
+    _nodeconstants: typelib.NodeConstants
+    _ui: "uimod.ui"
+    _root: bytes
+    _filename: bytes
+    _nodelen: int
+    _dirtyparents: bool
+    _docket: Optional["docketmod.DirstateDocket"]
+    _write_mode: int
+    _pendingmode: Optional[bool]
+    identity: Optional[typelib.CacheStat]
+
     # please pytype
 
     _map = None
     copymap = None
 
-    def __init__(self, ui, opener, root, nodeconstants, use_dirstate_v2):
+    def __init__(
+        self,
+        ui: "uimod.ui",
+        opener,
+        root: bytes,
+        nodeconstants: typelib.NodeConstants,
+        use_dirstate_v2: bool,
+    ) -> None:
         self._use_dirstate_v2 = use_dirstate_v2
         self._nodeconstants = nodeconstants
         self._ui = ui
@@ -76,16 +106,16 @@ class _dirstatemapcommon:
         # for consistent view between _pl() and _read() invocations
         self._pendingmode = None
 
-    def _set_identity(self):
+    def _set_identity(self) -> None:
         self.identity = self._get_current_identity()
 
-    def _get_current_identity(self):
+    def _get_current_identity(self) -> Optional[typelib.CacheStat]:
         try:
             return util.cachestat(self._opener.join(self._filename))
         except FileNotFoundError:
             return None
 
-    def may_need_refresh(self):
+    def may_need_refresh(self) -> bool:
         if 'identity' not in vars(self):
             # no existing identity, we need a refresh
             return True
@@ -104,7 +134,7 @@ class _dirstatemapcommon:
             return True
         return current_identity != self.identity
 
-    def preload(self):
+    def preload(self) -> None:
         """Loads the underlying data, if it's not already loaded"""
         self._map
 
@@ -135,7 +165,7 @@ class _dirstatemapcommon:
         self._pendingmode = mode
         return fp
 
-    def _readdirstatefile(self, size=-1):
+    def _readdirstatefile(self, size: int = -1) -> bytes:
         try:
             with self._opendirstatefile() as fp:
                 return fp.read(size)
@@ -144,7 +174,7 @@ class _dirstatemapcommon:
             return b''
 
     @property
-    def docket(self):
+    def docket(self) -> "docketmod.DirstateDocket":
         if not self._docket:
             if not self._use_dirstate_v2:
                 raise error.ProgrammingError(
