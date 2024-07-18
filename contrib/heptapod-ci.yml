@@ -22,7 +22,7 @@ workflow:
 stages:
   - tests
 
-image: registry.heptapod.net/mercurial/ci-images/mercurial-core:$HG_CI_IMAGE_TAG
+image: registry.heptapod.net/mercurial/ci-images/mercurial-core@sha256:16720f3e2ba29408f816b87407841d77a01ea6e9fe29894181cea6513cc8bfec
 
 variables:
     PYTHON: python
@@ -39,6 +39,8 @@ variables:
     # The runner made a clone as root.
     # We make a new clone owned by user used to run the step.
     before_script:
+      - whoami
+      - pyenv shell 3.7.17
       - hg clone . /tmp/mercurial-ci/ --noupdate --config phases.publish=no
       - hg -R /tmp/mercurial-ci/ update `hg log --rev '.' --template '{node}'`
       - cd /tmp/mercurial-ci/
@@ -55,7 +57,7 @@ checks:
     <<: *runtests
     variables:
         RUNTEST_ARGS: "--time --test-list /tmp/check-tests.txt"
-        PYTHON: python3
+        PYTHON: python
         CI_CLEVER_CLOUD_FLAVOR: S
 
 rust-cargo-test:
@@ -63,17 +65,18 @@ rust-cargo-test:
     stage: tests
     script:
         - echo "python used, $PYTHON"
+        - $PYTHON --version
         - make rust-tests
         - make cargo-clippy
     variables:
-        PYTHON: python3
+        PYTHON: python
         CI_CLEVER_CLOUD_FLAVOR: S
 
 test-c:
     <<: *runtests
     variables:
         RUNTEST_ARGS: " --no-rust --blacklist /tmp/check-tests.txt"
-        PYTHON: python3
+        PYTHON: python
         TEST_HGMODULEPOLICY: "c"
         TEST_HGTESTS_ALLOW_NETIO: "1"
 
@@ -81,7 +84,7 @@ test-pure:
     <<: *runtests
     variables:
         RUNTEST_ARGS: "--pure --blacklist /tmp/check-tests.txt"
-        PYTHON: python3
+        PYTHON: python
         TEST_HGMODULEPOLICY: "py"
 
 test-rust:
@@ -89,7 +92,7 @@ test-rust:
     variables:
         HGWITHRUSTEXT: cpython
         RUNTEST_ARGS: "--rust --blacklist /tmp/check-tests.txt"
-        PYTHON: python3
+        PYTHON: python
         TEST_HGMODULEPOLICY: "rust+c"
 
 test-rhg:
@@ -97,19 +100,20 @@ test-rhg:
     variables:
         HGWITHRUSTEXT: cpython
         RUNTEST_ARGS: "--rust --rhg --blacklist /tmp/check-tests.txt"
-        PYTHON: python3
+        PYTHON: python
         TEST_HGMODULEPOLICY: "rust+c"
 
 test-chg:
     <<: *runtests
     variables:
-        PYTHON: python3
+        PYTHON: python
         RUNTEST_ARGS: "--blacklist /tmp/check-tests.txt --chg"
         TEST_HGMODULEPOLICY: "c"
 
 check-pytype:
     extends: .runtests_template
     before_script:
+      - pyenv shell 3.7.17
       - hg clone . /tmp/mercurial-ci/ --noupdate --config phases.publish=no
       - hg -R /tmp/mercurial-ci/ update `hg log --rev '.' --template '{node}'`
       - cd /tmp/mercurial-ci/
@@ -120,7 +124,7 @@ check-pytype:
       - echo "Entering script section"
       - sh contrib/check-pytype.sh
     variables:
-        PYTHON: python3
+        PYTHON: python
 
 # `sh.exe --login` sets a couple of extra environment variables that are defined
 # in the MinGW shell, but switches CWD to /home/$username.  The previous value
