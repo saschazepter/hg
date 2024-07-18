@@ -17,6 +17,7 @@ from mercurial import (
 )
 from mercurial.utils import dateutil
 
+
 # imitating mercurial.commands.annotate, not using the vanilla formatter since
 # the data structures are a bit different, and we have some fast paths.
 class defaultformatter:

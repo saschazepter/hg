@@ -3833,7 +3833,6 @@ def _performrevert(
         original_headers = patch.parsepatch(diff)
 
         try:
-
             chunks, opts = recordfilter(
                 repo.ui, original_headers, match, operation=operation
             )

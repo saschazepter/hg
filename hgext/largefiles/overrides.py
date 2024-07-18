@@ -897,7 +897,7 @@ def overridecopy(orig, ui, repo, pats, opts, rename=False):
                 result += orig(ui, repo, listpats, opts, rename)
 
         lfdirstate = lfutil.openlfdirstate(ui, repo)
-        for (src, dest) in copiedfiles:
+        for src, dest in copiedfiles:
             if lfutil.shortname in src and dest.startswith(
                 repo.wjoin(lfutil.shortname)
             ):

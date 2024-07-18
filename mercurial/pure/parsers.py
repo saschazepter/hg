@@ -911,7 +911,6 @@ class IndexChangelogV2(IndexObject2):
         )
 
     def _pack_entry(self, rev, entry):
-
         base = entry[revlog_constants.ENTRY_DELTA_BASE]
         link_rev = entry[revlog_constants.ENTRY_LINK_REV]
         assert base == rev, (base, rev)

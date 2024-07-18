@@ -290,7 +290,7 @@ def loadall(ui, whitelist=None):
     with util.timedcm('load all extensions') as stats:
         default_sub_options = ui.configsuboptions(b"extensions", b"*")[1]
 
-        for (name, path) in result:
+        for name, path in result:
             if path:
                 if path[0:1] == b'!':
                     if name not in _disabledextensions:
