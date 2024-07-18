@@ -1112,7 +1112,7 @@ def changebranch(ui, repo, revs, label, **opts):
         ui.status(_(b"changed branch on %d changesets\n") % len(replacements))
 
 
-def findrepo(p):
+def findrepo(p: bytes) -> Optional[bytes]:
     while not os.path.isdir(os.path.join(p, b".hg")):
         oldp, p = p, os.path.dirname(p)
         if p == oldp:
