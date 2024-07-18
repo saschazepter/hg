@@ -511,7 +511,7 @@ class _zlibengine(compressionengine):
                 parts = []
                 pos = 0
                 while pos < insize:
-                    pos2 = pos + 2 ** 20
+                    pos2 = pos + 2**20
                     parts.append(z.compress(data[pos:pos2]))
                     pos = pos2
                 parts.append(z.flush())

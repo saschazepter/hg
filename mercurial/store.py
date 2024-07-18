@@ -37,7 +37,7 @@ from .utils import hashutil
 parsers = policy.importmod('parsers')
 # how much bytes should be read from fncache in one read
 # It is done to prevent loading large fncache files into memory
-fncache_chunksize = 10 ** 6
+fncache_chunksize = 10**6
 
 
 def _match_tracked_entry(entry, matcher):

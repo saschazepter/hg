@@ -414,7 +414,7 @@ class mutabledatapack(basepack.mutablebasepack):
 
     def add(self, name, node, deltabasenode, delta, metadata=None):
         # metadata is a dict, ex. {METAKEYFLAG: flag}
-        if len(name) > 2 ** 16:
+        if len(name) > 2**16:
             raise RuntimeError(_(b"name too long %s") % name)
         if len(node) != 20:
             raise RuntimeError(_(b"node should be 20 bytes %s") % node)

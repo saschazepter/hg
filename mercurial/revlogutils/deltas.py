@@ -428,7 +428,6 @@ def _slicechunktodensity(revlog, revs, targetdensity=0.5, mingapsize=0):
     # Cut the revs at collected indices
     previdx = 0
     for idx in selected:
-
         chunk = _trimchunk(revlog, revs, previdx, idx)
         if chunk:
             yield chunk

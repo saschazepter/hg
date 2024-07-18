@@ -915,11 +915,14 @@ class branch_copies:
         self.movewithdir = {} if movewithdir is None else movewithdir
 
     def __repr__(self):
-        return '<branch_copies\n  copy=%r\n  renamedelete=%r\n  dirmove=%r\n  movewithdir=%r\n>' % (
-            self.copy,
-            self.renamedelete,
-            self.dirmove,
-            self.movewithdir,
+        return (
+            '<branch_copies\n  copy=%r\n  renamedelete=%r\n  dirmove=%r\n  movewithdir=%r\n>'
+            % (
+                self.copy,
+                self.renamedelete,
+                self.dirmove,
+                self.movewithdir,
+            )
         )
 
 

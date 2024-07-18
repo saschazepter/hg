@@ -53,7 +53,6 @@ class annotateresult:
 
 
 class _llinstruction:  # pytype: disable=ignored-metaclass
-
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod

@@ -225,7 +225,6 @@ def copytoworkingcopy(repo):
         m = "changing narrow spec outside of a transaction"
         raise error.ProgrammingError(m)
     else:
-
         reporef = weakref.ref(repo)
 
         def clean_pending(tr):
