@@ -174,12 +174,16 @@ class annotateopts:
         'followmerge': True,
     }
 
+    diffopts: mdiff.diffopts
+    followrename: bool
+    followmerge: bool
+
     def __init__(self, **opts):
         for k, v in self.defaults.items():
             setattr(self, k, opts.get(k, v))
 
     @util.propertycache
-    def shortstr(self):
+    def shortstr(self) -> bytes:
         """represent opts in a short string, suitable for a directory name"""
         result = b''
         if not self.followrename:
