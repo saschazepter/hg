@@ -120,7 +120,6 @@ def rawindexentries(ui, repos, req, subdir=b''):
     seenrepos = set()
     seendirs = set()
     for name, path in repos:
-
         if not name.startswith(subdir):
             continue
         name = name[len(subdir) :]

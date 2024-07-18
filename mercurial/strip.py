@@ -63,7 +63,6 @@ def strip(
     soft=False,
 ):
     with repo.wlock(), repo.lock():
-
         if update:
             checklocalchanges(repo, force=force)
             urev = _findupdatetarget(repo, revs)

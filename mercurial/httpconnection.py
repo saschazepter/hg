@@ -25,6 +25,7 @@ from .utils import (
 urlerr = util.urlerr
 urlreq = util.urlreq
 
+
 # moved here from url.py to avoid a cycle
 class httpsendfile:
     """This is a wrapper around the objects returned by python's "open".

@@ -226,7 +226,6 @@ if hasattr(parsers, 'parse_index_devel_nodemap'):
         index, cache = parsers.parse_index_devel_nodemap(data, inline)
         return index, cache
 
-
 else:
     parse_index_v1_nodemap = None
 

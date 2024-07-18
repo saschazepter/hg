@@ -408,7 +408,7 @@ class bundlerepository:
         with os.fdopen(fdtemp, 'wb') as fptemp:
             fptemp.write(header)
             while True:
-                chunk = readfn(2 ** 18)
+                chunk = readfn(2**18)
                 if not chunk:
                     break
                 fptemp.write(chunk)

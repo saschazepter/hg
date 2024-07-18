@@ -223,6 +223,7 @@ if WINDOWS:
 # For Windows support
 wifexited = getattr(os, "WIFEXITED", lambda x: False)
 
+
 # Whether to use IPv6
 def checksocketfamily(name, port=20058):
     """return true if we can listen on localhost using family=name
@@ -3397,7 +3398,6 @@ class TestRunner:
                 os.path.basename(t).startswith(b'test-')
                 and (t.endswith(b'.py') or t.endswith(b'.t'))
             ):
-
                 m = testcasepattern.match(os.path.basename(t))
                 if m is not None:
                     t_basename, casestr = m.groups()
