@@ -37,7 +37,7 @@ _packageprefs = {
 }
 
 try:
-    from . import __modulepolicy__
+    from . import __modulepolicy__  # type: ignore
 
     policy = __modulepolicy__.modulepolicy
 except ImportError:
