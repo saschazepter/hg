@@ -615,8 +615,8 @@ settings.register_profile(
     settings(
         timeout=-1,
         stateful_step_count=1000,
-        max_examples=10 ** 8,
-        max_iterations=10 ** 8,
+        max_examples=10**8,
+        max_iterations=10**8,
         database=writeonlydatabase(settings.default.database),
     ),
 )

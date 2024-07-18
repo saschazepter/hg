@@ -201,7 +201,6 @@ def run_tests_linux(
     with aws.temporary_linux_dev_instances(
         c, image, instance_type, ensure_extra_volume=ensure_extra_volume
     ) as insts:
-
         instance = insts[0]
 
         linux.prepare_exec_environment(

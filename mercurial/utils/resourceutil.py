@@ -52,7 +52,6 @@ if mainfrozen() and getattr(sys, "frozen", None) != "macosx_app":
         assert dirs[0] == b"mercurial"
         return os.path.join(_rootpath, *dirs[1:])
 
-
 else:
     datapath = os.path.dirname(os.path.dirname(pycompat.fsencode(__file__)))
     _rootpath = os.path.dirname(datapath)
@@ -97,7 +96,6 @@ except (ImportError, AttributeError):
 
         for p in os.listdir(path):
             yield pycompat.fsencode(p)
-
 
 else:
     from .. import encoding

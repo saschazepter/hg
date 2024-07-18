@@ -1286,7 +1286,6 @@ class interrupthandler(unpackermixin):
         return None
 
     def __call__(self):
-
         self.ui.debug(
             b'bundle2-input-stream-interrupt: opening out of band context\n'
         )
@@ -2614,7 +2613,6 @@ def bundle2getvars(op, part):
 
 @parthandler(b'stream2', (b'requirements', b'filecount', b'bytecount'))
 def handlestreamv2bundle(op, part):
-
     requirements = urlreq.unquote(part.params[b'requirements'])
     requirements = requirements.split(b',') if requirements else []
     filecount = int(part.params[b'filecount'])

@@ -210,7 +210,6 @@ if _debugging:
             )
         )
 
-
 else:
 
     def log(fmt, *args):
