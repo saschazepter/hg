@@ -711,7 +711,6 @@ if pycompat.iswindows:
             if stdin is not None:
                 stdin.close()
 
-
 else:
 
     def runbgcommand(

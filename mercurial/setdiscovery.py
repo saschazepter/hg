@@ -190,7 +190,6 @@ class partialdiscovery:
         return getparents
 
     def _childrengetter(self):
-
         if self._childrenmap is not None:
             # During discovery, the `undecided` set keep shrinking.
             # Therefore, the map computed for an iteration N will be
@@ -454,7 +453,6 @@ def findcommonheads(
     full = not initial_head_exchange
     progress = ui.makeprogress(_(b'searching'), unit=_(b'queries'))
     while not disco.iscomplete():
-
         if full or disco.hasinfo():
             if full:
                 ui.note(_(b"sampling from both directions\n"))
