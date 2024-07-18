@@ -617,7 +617,7 @@ message",
     #[test]
     fn test_unescape_nul_followed_by_octal() {
         // Escaped NUL chars followed by octal digits are decoded correctly.
-        let expected = b"\012";
+        let expected = b"\x0012";
         let escaped = br"\012";
         let unescaped = unescape_extra(escaped);
         assert_eq!(&expected[..], &unescaped[..]);
@@ -713,7 +713,7 @@ message",
 
         for (extra, msg) in test_cases {
             assert!(
-                decode_extra(&extra).is_err(),
+                decode_extra(extra).is_err(),
                 "corrupt extra should have failed to parse: {}",
                 msg
             );
