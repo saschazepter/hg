@@ -186,7 +186,7 @@ class datapacktestsbase:
             content = b'put-something-here \n' * i
             node = self.getHash(content)
             meta = {
-                constants.METAKEYFLAG: i ** 4,
+                constants.METAKEYFLAG: i**4,
                 constants.METAKEYSIZE: len(content),
                 b'Z': b'random_string',
                 b'_': b'\0' * i,

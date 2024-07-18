@@ -1038,7 +1038,6 @@ def _computecontentdivergentset(repo):
 
 
 def makefoldid(relation, user):
-
     folddigest = hashutil.sha1(user)
     for p in relation[0] + relation[1]:
         folddigest.update(b'%d' % p.rev())
