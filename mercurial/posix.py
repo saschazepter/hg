@@ -707,6 +707,8 @@ def hidewindow() -> None:
 
 
 class cachestat:
+    stat: os.stat_result
+
     def __init__(self, path: bytes) -> None:
         self.stat = os.stat(path)
 
