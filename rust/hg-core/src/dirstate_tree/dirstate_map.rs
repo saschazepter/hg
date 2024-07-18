@@ -427,17 +427,12 @@ pub(super) struct Node<'on_disk> {
     pub(super) tracked_descendants_count: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(super) enum NodeData {
     Entry(DirstateEntry),
     CachedDirectory { mtime: TruncatedTimestamp },
+    #[default]
     None,
-}
-
-impl Default for NodeData {
-    fn default() -> Self {
-        NodeData::None
-    }
 }
 
 impl NodeData {
