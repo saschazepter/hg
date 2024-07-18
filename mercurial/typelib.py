@@ -21,8 +21,21 @@ TYPE_CHECKING = typing.TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import (
         BinaryIO,
+        Union,
+    )
+
+    from . import (
+        node,
+        posix,
+        windows,
     )
 
     BinaryIO_Proxy = BinaryIO
+    CacheStat = Union[posix.cachestat, windows.cachestat]
+    NodeConstants = node.sha1nodeconstants
 else:
+    from typing import Any
+
     BinaryIO_Proxy = object
+    CacheStat = Any
+    NodeConstants = Any
