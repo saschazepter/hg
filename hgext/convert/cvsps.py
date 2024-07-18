@@ -639,7 +639,6 @@ def createchangeset(ui, log, fuzz=60, mergefrom=None, mergeto=None):
     files = set()
     c = None
     for i, e in enumerate(log):
-
         # Check if log entry belongs to the current changeset or not.
 
         # Since CVS is file-centric, two different file revisions with
@@ -983,7 +982,6 @@ def debugcvsps(ui, *args, **opts):
     branches = {}  # latest version number in each branch
     ancestors = {}  # parent branch
     for cs in changesets:
-
         if opts[b"ancestors"]:
             if cs.branch not in branches and cs.parents and cs.parents[0].id:
                 ancestors[cs.branch] = (
