@@ -736,7 +736,7 @@ def _from_report(ui, repo, context, from_report, dry_run):
 
 def filter_delta_issue6528(revlog, deltas_iter):
     """filter incomind deltas to repaire issue 6528 on the fly"""
-    metadata_cache = {}
+    metadata_cache = {nullrev: False}
 
     deltacomputer = deltas.deltacomputer(revlog)
 
@@ -847,7 +847,7 @@ def repair_issue6528(
 
             # Set of filerevs (or hex filenodes if `to_report`) that need fixing
             to_fix = set()
-            metadata_cache = {}
+            metadata_cache = {nullrev: False}
             for filerev in fl.revs():
                 affected = _is_revision_affected_fast(
                     repo, fl, filerev, metadata_cache
