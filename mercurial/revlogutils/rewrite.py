@@ -668,6 +668,7 @@ def _is_revision_affected_fast_inner(
     chunk = delta()
     if not len(chunk):
         # No diff for this revision
+        metadata_cache[filerev] = parent_has_metadata
         return parent_has_metadata
 
     header_length = 12
