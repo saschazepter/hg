@@ -620,10 +620,10 @@ def groupname(gid: Optional[int] = None) -> Optional[bytes]:
     return None
 
 
-def readlink(pathname: bytes) -> bytes:
-    path = pycompat.fsdecode(pathname)
+def readlink(path: bytes) -> bytes:
+    path_str = pycompat.fsdecode(path)
     try:
-        link = os.readlink(path)
+        link = os.readlink(path_str)
     except ValueError as e:
         # On py2, os.readlink() raises an AttributeError since it is
         # unsupported.  On py3, reading a non-link raises a ValueError.  Simply
