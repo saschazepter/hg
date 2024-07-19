@@ -31,7 +31,7 @@ def verify(repo, level=None):
         return v.verify()
 
 
-def _normpath(f):
+def _normpath(f: bytes) -> bytes:
     # under hg < 2.4, convert didn't sanitize paths properly, so a
     # converted repo may contain repeated slashes
     while b'//' in f:
