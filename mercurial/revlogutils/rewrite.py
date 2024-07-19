@@ -615,7 +615,7 @@ def _is_revision_affected_fast(repo, fl, filerev, metadata_cache):
     rl = fl._revlog
     is_censored = lambda: rl.iscensored(filerev)
     delta_base = lambda: rl.deltaparent(filerev)
-    delta = lambda: rl._chunk(filerev)
+    delta = lambda: rl._inner._chunk(filerev)
     full_text = lambda: rl.rawdata(filerev)
     parent_revs = lambda: rl.parentrevs(filerev)
     return _is_revision_affected_fast_inner(
