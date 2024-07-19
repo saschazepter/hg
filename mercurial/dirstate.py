@@ -643,8 +643,8 @@ class dirstate:
             p2 = self._nodeconstants.nullid
         if self._changing_level == 0:
             raise ValueError(
-                b"cannot set dirstate parent outside of "
-                b"dirstate.changing_parents context manager"
+                "cannot set dirstate parent outside of "
+                "dirstate.changing_parents context manager"
             )
 
         self._dirty = True
@@ -788,7 +788,7 @@ class dirstate:
         a `with dirstate.changing_parents(repo):` context.
         """
         if self.in_merge:
-            msg = b'update_file_reference should not be called when merging'
+            msg = 'update_file_reference should not be called when merging'
             raise error.ProgrammingError(msg)
         entry = self._map.get(filename)
         if entry is None:
