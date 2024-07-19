@@ -32,10 +32,13 @@ import stat
 import sys
 import time
 import traceback
+import typing
 import warnings
 
 from typing import (
     Any,
+    BinaryIO,
+    Callable,
     Iterable,
     Iterator,
     List,
@@ -55,6 +58,7 @@ from . import (
     i18n,
     policy,
     pycompat,
+    typelib,
     urllibcompat,
 )
 from .utils import (
@@ -2907,20 +2911,20 @@ bytecount = unitcountfn(
 )
 
 
-class transformingwriter:
+class transformingwriter(typelib.BinaryIO_Proxy):
     """Writable file wrapper to transform data by function"""
 
-    def __init__(self, fp, encode):
+    def __init__(self, fp: BinaryIO, encode: Callable[[bytes], bytes]) -> None:
         self._fp = fp
         self._encode = encode
 
-    def close(self):
+    def close(self) -> None:
         self._fp.close()
 
-    def flush(self):
+    def flush(self) -> None:
         self._fp.flush()
 
-    def write(self, data):
+    def write(self, data: bytes) -> int:
         return self._fp.write(self._encode(data))
 
 
@@ -2938,7 +2942,7 @@ def tocrlf(s: bytes) -> bytes:
     return _eolre.sub(b'\r\n', s)
 
 
-def _crlfwriter(fp):
+def _crlfwriter(fp: typelib.BinaryIO_Proxy) -> typelib.BinaryIO_Proxy:
     return transformingwriter(fp, tocrlf)
 
 
@@ -2950,6 +2954,21 @@ else:
     tonativeeol = pycompat.identity
     fromnativeeol = pycompat.identity
     nativeeolwriter = pycompat.identity
+
+if typing.TYPE_CHECKING:
+    # Replace the various overloads that come along with aliasing other methods
+    # with the narrow definition that we care about in the type checking phase
+    # only.  This ensures that both Windows and POSIX see only the definition
+    # that is actually available.
+
+    def tonativeeol(s: bytes) -> bytes:
+        raise NotImplementedError
+
+    def fromnativeeol(s: bytes) -> bytes:
+        raise NotImplementedError
+
+    def nativeeolwriter(fp: typelib.BinaryIO_Proxy) -> typelib.BinaryIO_Proxy:
+        raise NotImplementedError
 
 
 # TODO delete since workaround variant for Python 2 no longer needed.
