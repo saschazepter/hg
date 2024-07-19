@@ -460,10 +460,10 @@ def nlinks(name: bytes) -> int:
     return _getfileinfo(name).nNumberOfLinks
 
 
-def samefile(path1: bytes, path2: bytes) -> bool:
-    '''Returns whether path1 and path2 refer to the same file or directory.'''
-    res1 = _getfileinfo(path1)
-    res2 = _getfileinfo(path2)
+def samefile(fpath1: bytes, fpath2: bytes) -> bool:
+    '''Returns whether fpath1 and fpath2 refer to the same file or directory.'''
+    res1 = _getfileinfo(fpath1)
+    res2 = _getfileinfo(fpath2)
     return (
         res1.dwVolumeSerialNumber == res2.dwVolumeSerialNumber
         and res1.nFileIndexHigh == res2.nFileIndexHigh
@@ -471,10 +471,10 @@ def samefile(path1: bytes, path2: bytes) -> bool:
     )
 
 
-def samedevice(path1: bytes, path2: bytes) -> bool:
-    '''Returns whether path1 and path2 are on the same device.'''
-    res1 = _getfileinfo(path1)
-    res2 = _getfileinfo(path2)
+def samedevice(fpath1: bytes, fpath2: bytes) -> bool:
+    '''Returns whether fpath1 and fpath2 are on the same device.'''
+    res1 = _getfileinfo(fpath1)
+    res2 = _getfileinfo(fpath2)
     return res1.dwVolumeSerialNumber == res2.dwVolumeSerialNumber
 
 
@@ -711,16 +711,16 @@ def spawndetached(args: List[bytes]) -> int:
     return pi.dwProcessId
 
 
-def unlink(f: bytes) -> None:
+def unlink(path: bytes) -> None:
     '''try to implement POSIX' unlink semantics on Windows'''
 
-    if os.path.isdir(f):
+    if os.path.isdir(path):
         # use EPERM because it is POSIX prescribed value, even though
         # unlink(2) on directories returns EISDIR on Linux
         raise IOError(
             errno.EPERM,
             r"Unlinking directory not permitted: '%s'"
-            % encoding.strfromlocal(f),
+            % encoding.strfromlocal(path),
         )
 
     # POSIX allows to unlink and rename open files. Windows has serious
@@ -741,9 +741,9 @@ def unlink(f: bytes) -> None:
     # implicit zombie filename blocking on a temporary name.
 
     for tries in range(10):
-        temp = b'%s-%08x' % (f, random.randint(0, 0xFFFFFFFF))
+        temp = b'%s-%08x' % (path, random.randint(0, 0xFFFFFFFF))
         try:
-            os.rename(f, temp)
+            os.rename(path, temp)
             break
         except FileExistsError:
             pass
