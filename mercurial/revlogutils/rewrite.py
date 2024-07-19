@@ -653,6 +653,7 @@ def _is_revision_affected_fast_inner(
 
     p1, p2 = parent_revs()
     if p1 == nullrev or p2 != nullrev:
+        metadata_cache[filerev] = True
         return False
 
     delta_parent = delta_base()
