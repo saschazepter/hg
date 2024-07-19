@@ -12,6 +12,7 @@ import os
 import sys
 
 from typing import (
+    Dict,
     List,
 )
 
@@ -61,7 +62,9 @@ except AttributeError:
     _ugettext = t.gettext
 
 
-_msgcache = {}  # encoding: {message: translation}
+_msgcache: Dict[
+    bytes, Dict[bytes, bytes]
+] = {}  # encoding: {message: translation}
 
 
 def gettext(message: bytes) -> bytes:
