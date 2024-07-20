@@ -23,7 +23,7 @@ def _mkb85dec():
         _b85dec[c] = i
 
 
-def b85encode(text, pad=False):
+def b85encode(text: bytes, pad: bool = False) -> bytes:
     """encode text in base85 format"""
     l = len(text)
     r = l % 4
@@ -50,7 +50,7 @@ def b85encode(text, pad=False):
     return out[:olen]
 
 
-def b85decode(text):
+def b85decode(text: bytes) -> bytes:
     """decode base85-encoded text"""
     if not _b85dec:
         _mkb85dec()
