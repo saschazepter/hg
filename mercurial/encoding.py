@@ -40,6 +40,16 @@ _sysstr = pycompat.sysstr
 
 unichr = chr
 
+if typing.TYPE_CHECKING:
+    # TODO: make a stub file for .cext.charencode, and import here
+    from .pure.charencode import (
+        asciilower,
+        asciiupper,
+        isasciistr,
+        jsonescapeu8fast as _jsonescapeu8fast,
+    )
+
+
 # These unicode characters are ignored by HFS+ (Apple Technote 1150,
 # "Unicode Subtleties"), so we need to ignore them in some places for
 # sanity.
@@ -524,7 +534,7 @@ class normcasespecs:
     other = 0
 
 
-def jsonescape(s: Any, paranoid: Any = False) -> Any:
+def jsonescape(s: bytes, paranoid: bool = False) -> bytes:
     """returns a string suitable for JSON
 
     JSON is problematic for us because it doesn't support non-Unicode
