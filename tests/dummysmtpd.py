@@ -31,8 +31,15 @@ def log(msg):
 def mocksmtpserversession(conn, addr):
     conn.send(b'220 smtp.example.com ESMTP\r\n')
 
-    line = conn.recv(1024)
+    try:
+        # Newer versions of OpenSSL raise on EOF
+        line = conn.recv(1024)
+    except ssl.SSLError:
+        log('no hello: EOF\n')
+        return
+
     if not line.lower().startswith(b'ehlo '):
+        # Older versions of OpenSSl don't raise
         log('no hello: %s\n' % line)
         return
 
