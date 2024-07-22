@@ -11,6 +11,8 @@
 import os
 import sys
 
+from typing import Iterator
+
 from .. import pycompat
 
 
@@ -48,6 +50,7 @@ if mainfrozen() and getattr(sys, "frozen", None) != "macosx_app":
         assert dirs[0] == b"mercurial"
         return os.path.join(_rootpath, *dirs[1:])
 
+
 else:
     datapath = os.path.dirname(os.path.dirname(pycompat.fsencode(__file__)))
     _rootpath = os.path.dirname(datapath)
@@ -62,7 +65,7 @@ try:
     from importlib import resources  # pytype: disable=import-error
 
     # Force loading of the resources module
-    if hasattr(resources, 'files'):
+    if hasattr(resources, 'files'):  # Introduced in Python 3.9
         resources.files  # pytype: disable=module-attr
     else:
         resources.open_binary  # pytype: disable=module-attr
@@ -93,6 +96,7 @@ except (ImportError, AttributeError):
         for p in os.listdir(path):
             yield pycompat.fsencode(p)
 
+
 else:
     from .. import encoding
 
@@ -110,13 +114,25 @@ else:
                 pycompat.sysstr(package), pycompat.sysstr(name)
             )
 
-    def is_resource(package, name):
-        return resources.is_resource(  # pytype: disable=module-attr
-            pycompat.sysstr(package), encoding.strfromlocal(name)
-        )
+    def is_resource(package: bytes, name: bytes) -> bool:
+        if hasattr(resources, 'files'):  # Introduced in Python 3.9
+            return (
+                resources.files(pycompat.sysstr(package))
+                .joinpath(encoding.strfromlocal(name))
+                .is_file()
+            )
+        else:
+            return resources.is_resource(  # pytype: disable=module-attr
+                pycompat.sysstr(package), encoding.strfromlocal(name)
+            )
 
-    def contents(package):
-        # pytype: disable=module-attr
-        for r in resources.contents(pycompat.sysstr(package)):
-            # pytype: enable=module-attr
-            yield encoding.strtolocal(r)
+    def contents(package: bytes) -> "Iterator[bytes]":
+        if hasattr(resources, 'files'):  # Introduced in Python 3.9
+            for path in resources.files(pycompat.sysstr(package)).iterdir():
+                if path.is_file():
+                    yield encoding.strtolocal(path.name)
+        else:
+            # pytype: disable=module-attr
+            for r in resources.contents(pycompat.sysstr(package)):
+                # pytype: enable=module-attr
+                yield encoding.strtolocal(r)
