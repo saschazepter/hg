@@ -22,7 +22,7 @@ workflow:
 stages:
   - tests
 
-image: registry.heptapod.net/mercurial/ci-images/mercurial-core@sha256:0e75333b941efb5cfe81543e97fb15931fa7b6eb5d8f5e4d5dbdf1df008a4a94
+image: registry.heptapod.net/mercurial/ci-images/mercurial-core@sha256:dc95edf69e2f9baee0eba74a92514b0d6852b98aba48495831a81a495f58c1e7
 
 variables:
     PYTHON: python
@@ -111,7 +111,6 @@ check-pytype:
       - hg -R /tmp/mercurial-ci/ update `hg log --rev '.' --template '{node}'`
       - cd /tmp/mercurial-ci/
       - make local PYTHON=$PYTHON
-      - $PYTHON -m pip install --user -U libcst==0.3.20 pytype==2022.11.18
       - ./contrib/setup-pytype.sh
     script:
       - echo "Entering script section"
