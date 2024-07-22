@@ -66,7 +66,7 @@ try:
     from importlib import resources  # pytype: disable=import-error
 
     # Force loading of the resources module
-    if hasattr(resources, 'files'):
+    if hasattr(resources, 'files'):  # Introduced in Python 3.9
         resources.files  # pytype: disable=module-attr
     else:
         resources.open_binary  # pytype: disable=module-attr
@@ -115,12 +115,24 @@ else:
             )
 
     def is_resource(package: bytes, name: bytes) -> bool:
-        return resources.is_resource(  # pytype: disable=module-attr
-            pycompat.sysstr(package), encoding.strfromlocal(name)
-        )
+        if hasattr(resources, 'files'):  # Introduced in Python 3.9
+            return (
+                resources.files(pycompat.sysstr(package))
+                .joinpath(encoding.strfromlocal(name))
+                .is_file()
+            )
+        else:
+            return resources.is_resource(  # pytype: disable=module-attr
+                pycompat.sysstr(package), encoding.strfromlocal(name)
+            )
 
     def contents(package: bytes) -> "Iterator[bytes]":
-        # pytype: disable=module-attr
-        for r in resources.contents(pycompat.sysstr(package)):
-            # pytype: enable=module-attr
-            yield encoding.strtolocal(r)
+        if hasattr(resources, 'files'):  # Introduced in Python 3.9
+            for path in resources.files(pycompat.sysstr(package)).iterdir():
+                if path.is_file():
+                    yield encoding.strtolocal(path.name)
+        else:
+            # pytype: disable=module-attr
+            for r in resources.contents(pycompat.sysstr(package)):
+                # pytype: enable=module-attr
+                yield encoding.strtolocal(r)
