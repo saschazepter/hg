@@ -8,6 +8,7 @@ use chrono::{DateTime, FixedOffset, NaiveDateTime};
 use itertools::{Either, Itertools};
 
 use crate::errors::HgError;
+use crate::revlog::Index;
 use crate::revlog::Revision;
 use crate::revlog::{Node, NodePrefix};
 use crate::revlog::{Revlog, RevlogEntry, RevlogError};
@@ -80,6 +81,10 @@ impl Changelog {
         node: NodePrefix,
     ) -> Result<Revision, RevlogError> {
         self.revlog.rev_from_node(node)
+    }
+
+    pub fn get_index(&self) -> &Index {
+        &self.revlog.index
     }
 }
 
