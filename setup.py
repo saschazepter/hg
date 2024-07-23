@@ -463,6 +463,7 @@ class hgbuild(build):
 
 
 class hgbuildmo(build):
+
     description = "build translations (.mo files)"
 
     def run(self):
@@ -1055,6 +1056,7 @@ class hgbuilddoc(Command):
 
 
 class hginstall(install):
+
     user_options = install.user_options + [
         (
             'old-and-unmanageable',

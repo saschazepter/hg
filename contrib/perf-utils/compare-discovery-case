@@ -205,6 +205,7 @@ def process(case, variant):
 
 
 if __name__ == '__main__':
+
     argv = sys.argv[:]
 
     kwargs = {}

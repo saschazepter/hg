@@ -546,7 +546,7 @@ def createtextoutputframe(
     """
     atomdicts = []
 
-    for formatting, args, labels in atoms:
+    for (formatting, args, labels) in atoms:
         # TODO look for localstr, other types here?
 
         if not isinstance(formatting, bytes):
@@ -1198,6 +1198,7 @@ class serverreactor:
                         b'%s' % stringutil.forcebytestr(e),
                         errtype=b'server',
                     ):
+
                         yield frame
 
                     break
@@ -1258,6 +1259,7 @@ class serverreactor:
                         for chunk in cborutil.streamencodebytestringfromiter(
                             o.chunks
                         ):
+
                             for frame in emitter.send(chunk):
                                 yield frame
 

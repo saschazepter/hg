@@ -1152,7 +1152,7 @@ def makeloggingsocket(
 def version():
     """Return version information if available."""
     try:
-        from . import __version__  # type: ignore
+        from . import __version__
 
         return __version__.version
     except ImportError:
@@ -1328,7 +1328,7 @@ class sortdict(collections.OrderedDict):
                 self[k] = f[k]
 
     def insert(self, position, key, value):
-        for i, (k, v) in enumerate(list(self.items())):
+        for (i, (k, v)) in enumerate(list(self.items())):
             if i == position:
                 self[key] = value
             if i >= position:
@@ -2724,10 +2724,10 @@ class chunkbuffer:
 
         def splitbig(chunks):
             for chunk in chunks:
-                if len(chunk) > 2**20:
+                if len(chunk) > 2 ** 20:
                     pos = 0
                     while pos < len(chunk):
-                        end = pos + 2**18
+                        end = pos + 2 ** 18
                         yield chunk[pos:end]
                         pos = end
                 else:
@@ -2751,7 +2751,7 @@ class chunkbuffer:
         while left > 0:
             # refill the queue
             if not queue:
-                target = 2**18
+                target = 2 ** 18
                 for chunk in self.iter:
                     queue.append(chunk)
                     target -= len(chunk)
@@ -3081,12 +3081,12 @@ def timed(func):
 
 
 _sizeunits = (
-    (b'm', 2**20),
-    (b'k', 2**10),
-    (b'g', 2**30),
-    (b'kb', 2**10),
-    (b'mb', 2**20),
-    (b'gb', 2**30),
+    (b'm', 2 ** 20),
+    (b'k', 2 ** 10),
+    (b'g', 2 ** 30),
+    (b'kb', 2 ** 10),
+    (b'mb', 2 ** 20),
+    (b'gb', 2 ** 30),
     (b'b', 1),
 )
 

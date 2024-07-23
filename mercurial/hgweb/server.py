@@ -66,6 +66,7 @@ class _error_logger:
 
 
 class _httprequesthandler(httpservermod.basehttprequesthandler):
+
     url_scheme = b'http'
 
     @staticmethod
@@ -357,6 +358,7 @@ def openlog(opt, default):
 
 
 class MercurialHTTPServer(_mixin, httpservermod.httpserver, object):
+
     # SO_REUSEADDR has broken semantics on windows
     if pycompat.iswindows:
         allow_reuse_address = 0
@@ -394,6 +396,7 @@ class IPv6HTTPServer(MercurialHTTPServer):
 
 
 def create_server(ui, app):
+
     if ui.config(b'web', b'certificate'):
         handler = _httprequesthandlerssl
     else:

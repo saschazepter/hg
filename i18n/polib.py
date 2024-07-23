@@ -64,6 +64,7 @@ if sys.version_info[:2] < (3, 0):
     def u(s):
         return unicode(s, "unicode_escape")
 
+
 else:
     PY3 = True
     text_type = str
@@ -1888,6 +1889,7 @@ class TextWrapper(textwrap.TextWrapper):
         chunks.reverse()
 
         while chunks:
+
             # Start the list of chunks that will make up the current line.
             # cur_len is just the length of all the chunks in cur_line.
             cur_line = []

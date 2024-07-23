@@ -259,6 +259,7 @@ def extsetup(ui):
 
 
 def reposetup(ui, repo):
+
     # set the config option to store remotenames
     repo.ui.setconfig(b'experimental', b'remotenames', True, b'remotenames-ext')
 

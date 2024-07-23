@@ -1113,13 +1113,13 @@ def has_emacs():
     return matchoutput('emacs --version', b'GNU Emacs 2(4.4|4.5|5|6|7|8|9)')
 
 
-@check('black', 'the black formatter for python >=23.3.0')
+@check('black', 'the black formatter for python (>= 20.8b1)')
 def has_black():
     blackcmd = 'black --version'
     version_regex = b'black, (?:version )?([0-9a-b.]+)'
     version = matchoutput(blackcmd, version_regex)
     sv = distutils.version.StrictVersion
-    return version and sv(_bytes2sys(version.group(1))) >= sv('23.3.0')
+    return version and sv(_bytes2sys(version.group(1))) >= sv('20.8b1')
 
 
 @check('pytype', 'the pytype type checker')

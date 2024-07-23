@@ -32,7 +32,6 @@ from . import (
     shallowutil,
 )
 
-
 # These make*stores functions are global so that other extensions can replace
 # them.
 def makelocalstores(repo):

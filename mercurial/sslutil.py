@@ -497,6 +497,7 @@ def wrapsocket(sock, keyfile, certfile, ui, serverhostname=None):
                     )
 
             elif e.reason == 'CERTIFICATE_VERIFY_FAILED' and pycompat.iswindows:
+
                 ui.warn(
                     _(
                         b'(the full certificate chain may not be available '

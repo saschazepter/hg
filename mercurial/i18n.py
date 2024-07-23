@@ -119,5 +119,6 @@ if _plain():
     def _(message: bytes) -> bytes:
         return message
 
+
 else:
     _ = gettext

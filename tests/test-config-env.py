@@ -15,7 +15,6 @@ from mercurial.utils import procutil
 
 testtmp = encoding.environ[b'TESTTMP']
 
-
 # prepare hgrc files
 def join(name):
     return os.path.join(testtmp, name)
@@ -26,7 +25,6 @@ with open(join(b'sysrc'), 'wb') as f:
 
 with open(join(b'userrc'), 'wb') as f:
     f.write(b'[ui]\neditor=e1')
-
 
 # replace rcpath functions so they point to the files above
 def systemrcpath():
@@ -41,7 +39,6 @@ extensions.wrapfunction(rcutil, 'default_rc_resources', lambda orig: [])
 
 rcutil.systemrcpath = systemrcpath
 rcutil.userrcpath = userrcpath
-
 
 # utility to print configs
 def printconfigs(env):

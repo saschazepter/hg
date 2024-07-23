@@ -55,6 +55,7 @@ class localthing(thing):
 
 # usage of "thing" interface
 def use(it):
+
     # Direct call to base method shared between client and server.
     bprint(it.hello())
 
@@ -105,7 +106,6 @@ def unescapearg(escaped):
 
 # server side
 
-
 # equivalent of wireproto's global functions
 class server:
     def __init__(self, local):
@@ -155,7 +155,6 @@ class server:
 myserver = server(mylocal)
 
 # local side
-
 
 # equivalent of wireproto.encode/decodelist, that is, type-specific marshalling
 # here we just transform the strings a bit to check we're properly en-/decoding

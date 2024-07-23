@@ -961,6 +961,7 @@ def _getfilteredreason(repo, changeid, ctx):
         single_successor = short(successors[0][0])
         return filteredmsgtable[b'superseded'] % (changeid, single_successor)
     elif fate == b'superseded_split':
+
         succs = []
         for node_id in successors[0]:
             succs.append(short(node_id))

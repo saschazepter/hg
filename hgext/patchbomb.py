@@ -261,6 +261,7 @@ def makepatch(
     numbered,
     patchname=None,
 ):
+
     desc = []
     node = None
     body = b''
