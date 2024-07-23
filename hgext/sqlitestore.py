@@ -47,6 +47,7 @@ option to ``sqlite`` to enable new repositories to use SQLite for storage.
 import sqlite3
 import struct
 import threading
+import typing
 import zlib
 
 from mercurial.i18n import _
@@ -56,6 +57,12 @@ from mercurial.node import (
     short,
 )
 from mercurial.thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from mercurial import (
     ancestor,
     dagop,

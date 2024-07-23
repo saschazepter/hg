@@ -13,6 +13,7 @@ import codecs
 import re as remod
 import textwrap
 import types
+import typing
 
 from typing import (
     Optional,
@@ -21,6 +22,11 @@ from typing import (
 
 from ..i18n import _
 from ..thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
 
 from .. import (
     encoding,

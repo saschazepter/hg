@@ -4,12 +4,20 @@
 # GNU General Public License version 2 or any later version.
 
 
+import typing
+
 from .node import (
     bin,
     hex,
 )
 from .i18n import _
 from .thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from . import (
     error,
     util,
