@@ -21,6 +21,11 @@ in a new body of annotate information.
 
 import abc
 import struct
+import typing
+
+from typing import (
+    List,
+)
 
 from .thirdparty import attr
 from . import pycompat
@@ -45,7 +50,7 @@ class lineinfo:
 @attr.s
 class annotateresult:
     rev = attr.ib()
-    lines = attr.ib(type=bytearray)
+    lines = attr.ib(type=List[lineinfo])
     _eof = attr.ib()
 
     def __iter__(self):
@@ -400,7 +405,7 @@ class linelog:
 
     def annotate(self, rev):
         pc = 1
-        lines = []
+        lines: List[lineinfo] = []
         executed = 0
         # Sanity check: if instructions executed exceeds len(program), we
         # hit an infinite loop in the linelog program somehow and we
