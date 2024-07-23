@@ -39,15 +39,15 @@ variables:
     # The runner made a clone as root.
     # We make a new clone owned by user used to run the step.
     before_script:
+      - echo "python used, $PYTHON"
+      - $PYTHON --version
+      - black --version
+      - clang-format --version
       - hg clone . /tmp/mercurial-ci/ --noupdate --config phases.publish=no
       - hg -R /tmp/mercurial-ci/ update `hg log --rev '.' --template '{node}'`
       - cd /tmp/mercurial-ci/
       - ls -1 tests/test-check-*.* > /tmp/check-tests.txt
-      - black --version
-      - clang-format --version
     script:
-        - echo "python used, $PYTHON"
-        - $PYTHON --version
         - echo "$RUNTEST_ARGS"
         - HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" HGMODULEPOLICY="$TEST_HGMODULEPOLICY" "$PYTHON" tests/run-tests.py --color=always $RUNTEST_ARGS
 
@@ -62,7 +62,6 @@ rust-cargo-test:
     <<: *all
     stage: tests
     script:
-        - echo "python used, $PYTHON"
         - make rust-tests
         - make cargo-clippy
     variables:
