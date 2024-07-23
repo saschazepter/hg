@@ -420,11 +420,11 @@ def checkpathconflicts(repo, wctx, mctx, mresult):
     # Track the names of all deleted files.
     for f in mresult.files((mergestatemod.ACTION_REMOVE,)):
         deletedfiles.add(f)
-    for f, args, msg in mresult.getactions((mergestatemod.ACTION_MERGE,)):
+    for (f, args, msg) in mresult.getactions((mergestatemod.ACTION_MERGE,)):
         f1, f2, fa, move, anc = args
         if move:
             deletedfiles.add(f1)
-    for f, args, msg in mresult.getactions(
+    for (f, args, msg) in mresult.getactions(
         (mergestatemod.ACTION_DIR_RENAME_MOVE_LOCAL,)
     ):
         f2, flags = args

@@ -649,6 +649,7 @@ class sqlitefilestore:
             deltamode=deltamode,
             sidedata_helpers=sidedata_helpers,
         ):
+
             yield delta
 
     # End of ifiledata interface.

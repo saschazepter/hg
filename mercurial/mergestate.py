@@ -495,6 +495,7 @@ class _mergestate_base:
 
 
 class mergestate(_mergestate_base):
+
     statepathv1 = b'merge/state'
     statepathv2 = b'merge/state2'
 

@@ -172,7 +172,6 @@ CERT_TRUST_IS_PARTIAL_CHAIN = 0x10000
 X509_ASN_ENCODING = 0x00000001
 PKCS_7_ASN_ENCODING = 0x00010000
 
-
 # These structs are only complete enough to achieve what we need.
 class CERT_CHAIN_CONTEXT(ctypes.Structure):
     _fields_ = (
@@ -369,7 +368,7 @@ def _raiseoserror(name: bytes) -> NoReturn:
     # See https://bugs.python.org/issue28474
     code = _kernel32.GetLastError()
     if code > 0x7FFFFFFF:
-        code -= 2**32
+        code -= 2 ** 32
     err = ctypes.WinError(code=code)  # pytype: disable=module-attr
     raise OSError(
         err.errno, '%s: %s' % (encoding.strfromlocal(name), err.strerror)

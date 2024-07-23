@@ -83,7 +83,7 @@ impl<'a> TryFrom<&'a [u8]> for &'a Node {
     #[inline]
     fn try_from(bytes: &'a [u8]) -> Result<Self, Self::Error> {
         match Node::from_bytes(bytes) {
-            Ok((node, [])) => Ok(node),
+            Ok((node, rest)) if rest.is_empty() => Ok(node),
             _ => Err(()),
         }
     }
@@ -323,9 +323,6 @@ impl PartialEq<Node> for NodePrefix {
 }
 
 #[cfg(test)]
-pub use tests::hex_pad_right;
-
-#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -431,3 +428,6 @@ mod tests {
         assert_eq!(prefix.first_different_nybble(&node), None);
     }
 }
+
+#[cfg(test)]
+pub use tests::hex_pad_right;

@@ -713,7 +713,7 @@ message",
 
         for (extra, msg) in test_cases {
             assert!(
-                decode_extra(extra).is_err(),
+                decode_extra(&extra).is_err(),
                 "corrupt extra should have failed to parse: {}",
                 msg
             );

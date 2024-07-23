@@ -331,7 +331,7 @@ class dirstatemap(_dirstatemapcommon):
 
         `all` is unused when Rust is not enabled
         """
-        for filename, item in self.items():
+        for (filename, item) in self.items():
             yield (filename, item.state, item.mode, item.size, item.mtime)
 
     def keys(self):
@@ -617,8 +617,7 @@ class dirstatemap(_dirstatemapcommon):
 
         This should also drop associated copy information
 
-        The fact we actually need to drop it is the responsability of the caller
-        """
+        The fact we actually need to drop it is the responsability of the caller"""
         self._map.pop(f, None)
         self.copymap.pop(f, None)
 
@@ -626,6 +625,7 @@ class dirstatemap(_dirstatemapcommon):
 if rustmod is not None:
 
     class dirstatemap(_dirstatemapcommon):
+
         ### Core data storage and access
 
         @propertycache
