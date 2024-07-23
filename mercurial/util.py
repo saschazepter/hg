@@ -48,6 +48,12 @@ from typing import (
 
 from .node import hex
 from .thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from .pycompat import (
     open,
 )
