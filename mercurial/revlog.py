@@ -20,6 +20,7 @@ import functools
 import io
 import os
 import struct
+import typing
 import weakref
 import zlib
 
@@ -74,6 +75,12 @@ from .revlogutils.flagutil import (
     REVIDX_RAWTEXT_CHANGING_FLAGS,
 )
 from .thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from . import (
     ancestor,
     dagop,

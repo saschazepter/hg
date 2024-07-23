@@ -12,9 +12,16 @@
 
 import collections
 import struct
+import typing
 
 from .i18n import _
 from .thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from . import (
     encoding,
     error,

@@ -11,6 +11,7 @@ import errno
 import functools
 import os
 import re
+import typing
 
 from typing import (
     Any,
@@ -32,6 +33,11 @@ from .pycompat import (
     open,
 )
 from .thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
 
 from . import (
     bookmarks,

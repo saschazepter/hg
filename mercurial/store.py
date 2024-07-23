@@ -10,10 +10,18 @@ import functools
 import os
 import re
 import stat
+import typing
+
 from typing import Generator, List
 
 from .i18n import _
 from .thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from .node import hex
 from .revlogutils.constants import (
     INDEX_HEADER,

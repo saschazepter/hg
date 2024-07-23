@@ -6,7 +6,15 @@
 # GNU General Public License version 2 or any later version.
 
 
+import typing
+
 from ..thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from ..interfaces import repository
 
 # See mercurial.revlogutils.constants for doc

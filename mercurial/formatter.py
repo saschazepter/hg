@@ -110,6 +110,7 @@ import contextlib
 import itertools
 import os
 import pickle
+import typing
 
 from .i18n import _
 from .node import (
@@ -117,6 +118,11 @@ from .node import (
     short,
 )
 from .thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
 
 from . import (
     error,
