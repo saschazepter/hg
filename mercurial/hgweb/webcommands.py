@@ -601,6 +601,7 @@ def manifest(web):
 
     def dirlist(context):
         for d in sorted(dirs):
+
             emptydirs = []
             h = dirs[d]
             while isinstance(h, dict) and len(h) == 1:
@@ -1426,7 +1427,7 @@ def graph(web):
         return tree
 
     def jsdata(context):
-        for id, type, ctx, vtx, edges in fulltree():
+        for (id, type, ctx, vtx, edges) in fulltree():
             yield {
                 b'node': pycompat.bytestr(ctx),
                 b'graphnode': webutil.getgraphnode(web.repo, ctx),

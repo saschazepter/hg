@@ -367,6 +367,7 @@ if pycompat.iswindows:
             cwd = cwd[0:1].upper() + cwd[1:]
         return cwd
 
+
 else:
     getcwd = os.getcwdb  # re-exports
 

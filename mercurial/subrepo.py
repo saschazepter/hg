@@ -1227,12 +1227,16 @@ class svnsubrepo(abstractsubrepo):
                 externals.append(path)
             elif item == 'missing':
                 missing.append(path)
-            if item not in (
-                '',
-                'normal',
-                'unversioned',
-                'external',
-            ) or props not in ('', 'none', 'normal'):
+            if (
+                item
+                not in (
+                    '',
+                    'normal',
+                    'unversioned',
+                    'external',
+                )
+                or props not in ('', 'none', 'normal')
+            ):
                 changes.append(path)
         for path in changes:
             for ext in externals:

@@ -109,7 +109,6 @@ httpserver._registeraliases(
     ),
 )
 
-
 # urllib.parse.quote() accepts both str and bytes, decodes bytes
 # (if necessary), and returns str. This is wonky. We provide a custom
 # implementation that only accepts bytes and emits bytes.

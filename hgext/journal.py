@@ -64,7 +64,6 @@ sharednamespaces = {
     bookmarktype: hg.sharedbookmarks,
 }
 
-
 # Journal recording, register hooks and storage object
 def extsetup(ui):
     extensions.wrapfunction(dispatch, 'runcommand', runcommand)

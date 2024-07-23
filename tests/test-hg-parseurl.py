@@ -5,6 +5,7 @@ from mercurial.utils import urlutil
 
 class ParseRequestTests(unittest.TestCase):
     def testparse(self):
+
         self.assertEqual(
             urlutil.parseurl(b'http://example.com/no/anchor'),
             (b'http://example.com/no/anchor', (None, [])),

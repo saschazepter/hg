@@ -332,7 +332,9 @@ impl Node {
     ) -> Result<usize, DirstateV2ParseError> {
         let start = self.base_name_start.get();
         if start < self.full_path.len.get() {
-            let start = usize::from(start);
+            let start = usize::try_from(start)
+                // u32 -> usize, could only panic on a 16-bit CPU
+                .expect("dirstate-v2 base_name_start out of bounds");
             Ok(start)
         } else {
             Err(DirstateV2ParseError::new("not enough bytes for base name"))
@@ -591,8 +593,8 @@ where
 {
     // Either `usize::MAX` would result in "out of bounds" error since a single
     // `&[u8]` cannot occupy the entire addess space.
-    let start = start.get().try_into().unwrap_or(usize::MAX);
-    let len = len.try_into().unwrap_or(usize::MAX);
+    let start = start.get().try_into().unwrap_or(std::usize::MAX);
+    let len = len.try_into().unwrap_or(std::usize::MAX);
     let bytes = match on_disk.get(start..) {
         Some(bytes) => bytes,
         None => {
