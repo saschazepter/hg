@@ -41,6 +41,7 @@ class remotefilelognodemap:
 
 
 class remotefilelog:
+
     _flagserrorclass = error.RevlogError
 
     def __init__(self, opener, path, repo):

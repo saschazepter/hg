@@ -229,6 +229,7 @@ def extract(ui, fileobj):
 
 
 def _extract(ui, fileobj, tmpname, tmpfp):
+
     # attempt to detect the start of a patch
     # (this heuristic is borrowed from quilt)
     diffre = re.compile(
@@ -595,7 +596,7 @@ class filestore:
         self.created = 0
         self.maxsize = maxsize
         if self.maxsize is None:
-            self.maxsize = 4 * (2**20)
+            self.maxsize = 4 * (2 ** 20)
         self.size = 0
         self.data = {}
 

@@ -98,7 +98,7 @@ Without certificates:
   $ wait_log "no hello:"
   $ cat ../log
   connection from * (glob)
-  no hello: (b''|EOF) (re)
+  no hello: b''
   $ : > ../log
 
 With global certificates:

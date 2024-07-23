@@ -893,6 +893,7 @@ def wrapupdate(
     matcher=None,
     **kwargs
 ):
+
     distance = 0
     partial = True
     oldnode = repo[b'.'].node()

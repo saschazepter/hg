@@ -677,14 +677,14 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                 // The directory was modified too recently,
                 // don’t cache its `read_dir` results.
                 //
-                // 1. A change to this directory (direct child was added or
-                //    removed) cause its mtime to be set (possibly truncated)
-                //    to `directory_mtime`
+                // 1. A change to this directory (direct child was
+                //    added or removed) cause its mtime to be set
+                //    (possibly truncated) to `directory_mtime`
                 // 2. This `status` algorithm calls `read_dir`
-                // 3. An other change is made to the same directory is made so
-                //    that calling `read_dir` agin would give different
-                //    results, but soon enough after 1. that the mtime stays
-                //    the same
+                // 3. An other change is made to the same directory is
+                //    made so that calling `read_dir` agin would give
+                //    different results, but soon enough after 1. that
+                //    the mtime stays the same
                 //
                 // On a system where the time resolution poor, this
                 // scenario is not unlikely if all three steps are caused

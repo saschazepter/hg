@@ -136,6 +136,7 @@ CHANGE_TYPE_FILES = "files"
 
 @interfaceutil.implementer(intdirstate.idirstate)
 class dirstate:
+
     # used by largefile to avoid overwritting transaction callback
     _tr_key_suffix = b''
 
@@ -879,6 +880,7 @@ class dirstate:
         possibly_dirty=False,
         parentfiledata=None,
     ):
+
         # note: I do not think we need to double check name clash here since we
         # are in a update/merge case that should already have taken care of
         # this. The test agrees
@@ -1090,6 +1092,7 @@ class dirstate:
 
         write_key = self._use_tracked_hint and self._dirty_tracked_set
         if tr:
+
             self._setup_tr_abort(tr)
             self._attached_to_a_transaction = True
 
@@ -1283,7 +1286,7 @@ class dirstate:
                     badfn(ff, badtype(kind))
                     if nf in dmap:
                         results[nf] = None
-            except OSError as inst:
+            except (OSError) as inst:
                 # nf not found on disk - it is dirstate only
                 if nf in dmap:  # does it exactly match a missing file?
                     results[nf] = None

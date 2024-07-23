@@ -543,6 +543,7 @@ class notifier:
             )
 
     def diff(self, ctx, ref=None):
+
         maxdiff = int(self.ui.config(b'notify', b'maxdiff'))
         prev = ctx.p1().node()
         if ref:

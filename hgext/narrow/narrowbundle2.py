@@ -37,7 +37,6 @@ _ELIDEDMFHEADER = b'>20s20s20s20sl'  # manifest id, p1, p2, link id, len(text)
 _CSHEADERSIZE = struct.calcsize(_ELIDEDCSHEADER)
 _MFHEADERSIZE = struct.calcsize(_ELIDEDMFHEADER)
 
-
 # Serve a changegroup for a client with a narrow clone.
 def getbundlechangegrouppart_narrow(
     bundler,

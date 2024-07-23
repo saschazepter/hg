@@ -43,6 +43,7 @@ SYNTAX_CSS = (
 
 
 def pygmentize(field, fctx, style, tmpl, guessfilenameonly=False):
+
     # append a <link ...> to the syntax highlighting css
     tmpl.load(b'header')
     old_header = tmpl.cache[b'header']

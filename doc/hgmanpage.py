@@ -95,6 +95,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 
 
 class Writer(writers.Writer):
+
     supported = 'manpage'
     """Formats this writer supports."""
 
@@ -296,7 +297,7 @@ class Translator(nodes.NodeVisitor):
             (u'´', u"\\'"),
             (u'`', u'\\(ga'),
         ]
-        for in_char, out_markup in replace_pairs:
+        for (in_char, out_markup) in replace_pairs:
             text = text.replace(in_char, out_markup)
         # unicode
         text = self.deunicode(text)

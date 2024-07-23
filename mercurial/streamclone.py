@@ -547,7 +547,6 @@ _filefull = 1  # full snapshot file
 _srcstore = b's'  # store (svfs)
 _srccache = b'c'  # cache (cache)
 
-
 # This is it's own function so extensions can override it.
 def _walkstreamfullstorefiles(repo):
     """list snapshot file from the store"""
@@ -810,6 +809,7 @@ def generatev2(repo, includes, excludes, includeobsmarkers):
     """
 
     with repo.lock():
+
         repo.ui.debug(b'scanning\n')
 
         entries = _entries_walk(
@@ -857,6 +857,7 @@ def generatev3(repo, includes, excludes, includeobsmarkers):
     # considering the files to preserve, disabling the gc while we do so helps
     # performance a lot.
     with repo.lock(), util.nogc():
+
         repo.ui.debug(b'scanning\n')
 
         entries = _entries_walk(
@@ -989,6 +990,7 @@ def consumev3(repo, fp):
         with repo.transaction(b'clone'):
             ctxs = (vfs.backgroundclosing(repo.ui) for vfs in vfsmap.values())
             with nested(*ctxs):
+
                 for i in range(entrycount):
                     filecount = util.uvarintdecodestream(fp)
                     if filecount == 0:
@@ -1121,6 +1123,7 @@ def local_copy(src_repo, dest_repo):
 
     with dest_repo.lock():
         with src_repo.lock():
+
             # bookmark is not integrated to the streaming as it might use the
             # `repo.vfs` and they are too many sentitive data accessible
             # through `repo.vfs` to expose it to streaming clone.

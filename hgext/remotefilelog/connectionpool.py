@@ -38,6 +38,7 @@ class connectionpool:
                 pass
 
         if conn is None:
+
             peer = hg.peer(self._repo.ui, {}, path)
             if hasattr(peer, '_cleanup'):
 

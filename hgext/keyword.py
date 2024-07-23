@@ -160,8 +160,6 @@ configitem(
     b'svn',
     default=False,
 )
-
-
 # date like in cvs' $Date
 @templatefilter(b'utcdate', intype=templateutil.date)
 def utcdate(date):

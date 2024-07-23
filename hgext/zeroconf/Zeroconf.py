@@ -1307,7 +1307,6 @@ class ServiceInfo:
         delay = _LISTENER_TIME
         next = now + delay
         last = now + timeout
-        result = False
         try:
             zeroconf.addListener(
                 self, DNSQuestion(self.name, _TYPE_ANY, _CLASS_IN)
@@ -1353,7 +1352,7 @@ class ServiceInfo:
 
                 zeroconf.wait(min(next, last) - now)
                 now = currentTimeMillis()
-            result = True
+            result = 1
         finally:
             zeroconf.removeListener(self)
 

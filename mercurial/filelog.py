@@ -175,6 +175,7 @@ class filelog:
             )
 
         with self._revlog._writing(transaction):
+
             if self._fix_issue6528:
                 deltas = rewrite.filter_delta_issue6528(self._revlog, deltas)
 

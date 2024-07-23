@@ -258,6 +258,7 @@ def _precompute_rewritten_delta(
                 # this revision is empty, we can delta against nullrev
                 rewritten_entries[rev] = (nullrev, 0, 0, COMP_MODE_PLAIN)
             else:
+
                 text = revlog.rawdata(rev)
                 info = revlogutils.revisioninfo(
                     node=entry[ENTRY_NODE_ID],

@@ -38,7 +38,6 @@ from . import (
     revmap as revmapmod,
 )
 
-
 # given path, get filelog, cached
 @util.lrucachefunc
 def _getflog(repo, path):

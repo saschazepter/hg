@@ -601,7 +601,7 @@ def _writetagcache(ui, repo, valid, cachetags):
     # we keep them in UTF-8 throughout this module.  If we converted
     # them local encoding on input, we would lose info writing them to
     # the cache.
-    for name, (node, hist) in sorted(cachetags.items()):
+    for (name, (node, hist)) in sorted(cachetags.items()):
         for n in hist:
             cachefile.write(b"%s %s\n" % (hex(n), name))
         cachefile.write(b"%s %s\n" % (hex(node), name))

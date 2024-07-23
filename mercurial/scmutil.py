@@ -730,6 +730,7 @@ def _filterederror(repo, changeid):
     This is extracted in a function to help extensions (eg: evolve) to
     experiment with various message variants."""
     if repo.filtername.startswith(b'visible'):
+
         # Check if the changeset is obsolete
         unfilteredrepo = repo.unfiltered()
         ctx = revsymbol(unfilteredrepo, changeid)

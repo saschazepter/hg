@@ -1425,6 +1425,7 @@ class svn_sink(converter_sink, commandline):
         return self.join(b'hg-authormap')
 
     def __init__(self, ui, repotype, path):
+
         converter_sink.__init__(self, ui, repotype, path)
         commandline.__init__(self, ui, b'svn')
         self.delete = []

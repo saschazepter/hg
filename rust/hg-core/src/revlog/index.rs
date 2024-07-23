@@ -1387,7 +1387,6 @@ trait PoisonableBitSet: Sized + PartialEq {
     fn vec_of_empty(sets_size: usize, vec_len: usize) -> Vec<Self>;
 
     /// The size of the bit mask in memory
-    #[allow(unused)]
     fn size(&self) -> usize;
 
     /// The number of elements that can be represented in the set.
@@ -1395,14 +1394,12 @@ trait PoisonableBitSet: Sized + PartialEq {
     /// Another way to put it is that it is the highest integer `C` such that
     /// the set is guaranteed to always be a subset of the integer range
     /// `[0, C)`
-    #[allow(unused)]
     fn capacity(&self) -> usize;
 
     /// Declare `n` to belong to the set
     fn add(&mut self, n: usize);
 
     /// Declare `n` not to belong to the set
-    #[allow(unused)]
     fn discard(&mut self, n: usize);
 
     /// Replace this bit set by its union with other
@@ -1752,9 +1749,6 @@ impl<'a> IndexEntry<'a> {
 }
 
 #[cfg(test)]
-pub use tests::IndexEntryBuilder;
-
-#[cfg(test)]
 mod tests {
     use super::*;
     use crate::node::NULL_NODE;
@@ -2033,3 +2027,6 @@ mod tests {
         assert_eq!(get_version(&bytes), 2)
     }
 }
+
+#[cfg(test)]
+pub use tests::IndexEntryBuilder;

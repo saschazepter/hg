@@ -685,7 +685,7 @@ def mirroring_remote(ui, repo, remotemarks):
     remotemarks"""
     changed = []
     localmarks = repo._bookmarks
-    for b, id in remotemarks.items():
+    for (b, id) in remotemarks.items():
         if id != localmarks.get(b, None) and id in repo:
             changed.append((b, id, ui.debug, _(b"updating bookmark %s\n") % b))
     for b in localmarks:
