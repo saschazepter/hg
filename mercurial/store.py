@@ -40,7 +40,7 @@ parsers = policy.importmod('parsers')
 fncache_chunksize = 10**6
 
 
-def _match_tracked_entry(entry, matcher):
+def _match_tracked_entry(entry: "BaseStoreEntry", matcher):
     """parses a fncache entry and returns whether the entry is tracking a path
     matched by matcher or not.
 
@@ -48,10 +48,16 @@ def _match_tracked_entry(entry, matcher):
 
     if matcher is None:
         return True
+
+    # TODO: make this safe for other entry types.  Currently, the various
+    #  store.data_entry generators only yield  RevlogStoreEntry, so the
+    #  attributes do exist on `entry`.
+    # pytype: disable=attribute-error
     if entry.is_filelog:
         return matcher(entry.target_id)
     elif entry.is_manifestlog:
         return matcher.visitdir(entry.target_id.rstrip(b'/'))
+    # pytype: enable=attribute-error
     raise error.ProgrammingError(b"cannot process entry %r" % entry)
 
 
