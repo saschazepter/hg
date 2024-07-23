@@ -11,6 +11,7 @@
 import abc
 import collections
 import struct
+import typing
 
 # import stuff from node for others to import from revlog
 from ..node import nullrev
@@ -30,6 +31,11 @@ from .constants import (
 )
 
 from ..thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
 
 from .. import (
     error,

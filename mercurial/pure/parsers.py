@@ -9,6 +9,7 @@
 import io
 import stat
 import struct
+import typing
 import zlib
 
 from ..node import (
@@ -16,6 +17,12 @@ from ..node import (
     sha1nodeconstants,
 )
 from ..thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from .. import (
     error,
     revlogutils,

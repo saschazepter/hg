@@ -8,10 +8,17 @@
 
 import collections
 import struct
+import typing
 
 from .i18n import _
 from .node import nullrev
 from .thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from .utils import stringutil
 from .dirstateutils import timestamp
 from . import (

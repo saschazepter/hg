@@ -28,6 +28,12 @@ from typing import (
 )
 
 from .thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from . import pycompat
 
 _llentry = struct.Struct(b'>II')

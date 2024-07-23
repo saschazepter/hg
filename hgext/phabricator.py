@@ -68,10 +68,17 @@ import mimetypes
 import operator
 import re
 import time
+import typing
 
 from mercurial.node import bin, short
 from mercurial.i18n import _
 from mercurial.thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from mercurial import (
     cmdutil,
     context,

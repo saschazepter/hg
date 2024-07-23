@@ -13,6 +13,7 @@ import os
 import posixpath
 import re
 import subprocess
+import typing
 import weakref
 
 from .i18n import _
@@ -24,6 +25,12 @@ from .node import (
     wdirrev,
 )
 from .thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from . import (
     copies as copiesmod,
     encoding,
