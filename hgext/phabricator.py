@@ -698,7 +698,7 @@ class phabhunk(dict):
     oldLength = attr.ib(default=0)  # camelcase-required
     newOffset = attr.ib(default=0)  # camelcase-required
     newLength = attr.ib(default=0)  # camelcase-required
-    corpus = attr.ib(default='')
+    corpus = attr.ib(default=b'')
     # These get added to the phabchange's equivalents
     addLines = attr.ib(default=0)  # camelcase-required
     delLines = attr.ib(default=0)  # camelcase-required
