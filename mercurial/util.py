@@ -1162,7 +1162,7 @@ def makeloggingsocket(
 def version():
     """Return version information if available."""
     try:
-        from . import __version__  # type: ignore
+        from . import __version__  # pytype: disable=import-error
 
         return __version__.version
     except ImportError:

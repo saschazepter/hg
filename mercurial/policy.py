@@ -45,7 +45,7 @@ _packageprefs: "Dict[bytes, Tuple[Optional[str], Optional[str]]]" = {
 }
 
 try:
-    from . import __modulepolicy__  # type: ignore
+    from . import __modulepolicy__  # pytype: disable=import-error
 
     policy: bytes = __modulepolicy__.modulepolicy
 except ImportError:
