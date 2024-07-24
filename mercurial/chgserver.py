@@ -151,7 +151,7 @@ def _getmtimepaths(ui):
     """
     modules = [m for n, m in extensions.extensions(ui)]
     try:
-        from . import __version__  # type: ignore
+        from . import __version__  # pytype: disable=import-error
 
         modules.append(__version__)
     except ImportError:
