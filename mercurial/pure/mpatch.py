@@ -106,7 +106,7 @@ def patches(a: bytes, bins: List[bytes]) -> bytes:
             try:
                 p1, p2, l = struct.unpack(b">lll", m.read(12))
             except struct.error:
-                raise mpatchError(b"patch cannot be decoded")
+                raise mpatchError("patch cannot be decoded")
             _pull(new, frags, p1 - last)  # what didn't change
             _pull([], frags, p2 - p1)  # what got deleted
             new.append((l, pos + 12))  # what got added
@@ -137,7 +137,7 @@ def patchedsize(orig: int, delta: bytes) -> int:
         outlen += length
 
     if bin != binend:
-        raise mpatchError(b"patch cannot be decoded")
+        raise mpatchError("patch cannot be decoded")
 
     outlen += orig - last
     return outlen
