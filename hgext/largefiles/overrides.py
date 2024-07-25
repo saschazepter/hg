@@ -825,11 +825,11 @@ def overridecopy(orig, ui, repo, pats, opts, rename=False):
         if not os.path.isdir(makestandin(dest)):
             os.makedirs(makestandin(dest))
 
-    try:
-        # When we call orig below it creates the standins but we don't add
-        # them to the dir state until later so lock during that time.
-        wlock = repo.wlock()
+    # When we call orig below it creates the standins but we don't add
+    # them to the dir state until later so lock during that time.
+    wlock = repo.wlock()
 
+    try:
         manifest = repo[None].manifest()
 
         def overridematch(
