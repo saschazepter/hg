@@ -25,6 +25,7 @@ if typing.TYPE_CHECKING:
 
 from .. import (
     error,
+    pycompat,
     revlogutils,
     util,
 )
@@ -235,7 +236,7 @@ class DirstateItem:
                     parentfiledata=(mode, size, (mtime, 0, False)),
                 )
         else:
-            raise RuntimeError(b'unknown state: %s' % state)
+            raise RuntimeError('unknown state: %s' % pycompat.sysstr(state))
 
     def set_possibly_dirty(self):
         """Mark a file as "possibly dirty"
@@ -651,7 +652,7 @@ class BaseIndexObject:
 
     def _check_index(self, i):
         if not isinstance(i, int):
-            raise TypeError(b"expecting int indexes")
+            raise TypeError("expecting int indexes")
         if i < 0 or i >= len(self):
             raise IndexError(i)
 
@@ -711,7 +712,7 @@ class IndexObject(BaseIndexObject):
 
     def __delitem__(self, i):
         if not isinstance(i, slice) or not i.stop == -1 or i.step is not None:
-            raise ValueError(b"deleting slices only supports a:-1 with step 1")
+            raise ValueError("deleting slices only supports a:-1 with step 1")
         i = i.start
         self._check_index(i)
         self._stripnodes(i)
@@ -790,12 +791,12 @@ class InlinedIndexObject(BaseIndexObject):
             count += 1
             off += self.entry_size + s
         if off != len(self._data):
-            raise ValueError(b"corrupted data")
+            raise ValueError("corrupted data")
         return count
 
     def __delitem__(self, i):
         if not isinstance(i, slice) or not i.stop == -1 or i.step is not None:
-            raise ValueError(b"deleting slices only supports a:-1 with step 1")
+            raise ValueError("deleting slices only supports a:-1 with step 1")
         i = i.start
         self._check_index(i)
         self._stripnodes(i)
@@ -848,7 +849,7 @@ class IndexObject2(IndexObject):
             raise KeyError
         self._check_index(rev)
         if rev < self._lgt:
-            msg = b"cannot rewrite entries outside of this transaction"
+            msg = "cannot rewrite entries outside of this transaction"
             raise KeyError(msg)
         else:
             entry = list(self[rev])
