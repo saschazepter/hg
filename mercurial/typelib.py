@@ -7,6 +7,10 @@
 
 import typing
 
+from typing import (
+    Callable,
+)
+
 # Note: this is slightly different from pycompat.TYPE_CHECKING, as using
 # pycompat causes the BinaryIO_Proxy type to be resolved to ``object`` when
 # used as the base class during a pytype run.
@@ -39,3 +43,6 @@ else:
     BinaryIO_Proxy = object
     CacheStat = Any
     NodeConstants = Any
+
+# scmutil.getuipathfn() related callback.
+UiPathFn = Callable[[bytes], bytes]
