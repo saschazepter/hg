@@ -58,6 +58,10 @@ IGNORES = {
     # setuptools uses this hack to inject it's own distutils at import time
     'setuptools',
     '_distutils_hack.override',
+    # threading is locally imported by importlib.util.LazyLoader.exec_module
+    '_weakrefset',
+    'warnings',
+    'threading',
 }
 
 _pypy = '__pypy__' in sys.builtin_module_names
