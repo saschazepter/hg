@@ -245,8 +245,9 @@ def sendrequest(ui, opener, req):
     Returns the response object.
     """
     dbg = ui.debug
+    line = b'devel-peer-request: %s\n'
+
     if ui.debugflag and ui.configbool(b'devel', b'debug.peer-request'):
-        line = b'devel-peer-request: %s\n'
         dbg(
             line
             % b'%s %s'
