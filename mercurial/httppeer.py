@@ -520,10 +520,9 @@ class httppeer(wireprotov1peer.wirepeer):
             os.unlink(tempname)
 
     def _calltwowaystream(self, cmd, fp, **args):
-        filename = None
+        # dump bundle to disk
+        fd, filename = pycompat.mkstemp(prefix=b"hg-bundle-", suffix=b".hg")
         try:
-            # dump bundle to disk
-            fd, filename = pycompat.mkstemp(prefix=b"hg-bundle-", suffix=b".hg")
             with os.fdopen(fd, "wb") as fh:
                 d = fp.read(4096)
                 while d:
@@ -534,8 +533,7 @@ class httppeer(wireprotov1peer.wirepeer):
                 headers = {'Content-Type': 'application/mercurial-0.1'}
                 return self._callstream(cmd, data=fp_, headers=headers, **args)
         finally:
-            if filename is not None:
-                os.unlink(filename)
+            os.unlink(filename)
 
     def _callcompressable(self, cmd, **args):
         return self._callstream(cmd, _compressible=True, **args)
