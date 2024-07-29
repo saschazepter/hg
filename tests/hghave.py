@@ -1130,11 +1130,11 @@ def has_pytype():
     return version and sv(_bytes2sys(version.group(0))) >= sv('2019.10.17')
 
 
-@check("rustfmt", "rustfmt tool at version nightly-2021-11-02")
+@check("rustfmt", "rustfmt tool at version nightly-2024-07-16")
 def has_rustfmt():
     # We use Nightly's rustfmt due to current unstable config options.
     return matchoutput(
-        '`rustup which --toolchain nightly-2021-11-02 rustfmt` --version',
+        '`rustup which --toolchain nightly-2024-07-16 rustfmt` --version',
         b'rustfmt',
     )
 
