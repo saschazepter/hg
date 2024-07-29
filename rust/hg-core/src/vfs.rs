@@ -1,9 +1,11 @@
 use crate::errors::{HgError, IoErrorContext, IoResultExt};
 use crate::exit_codes;
+use crate::fncache::FnCache;
+use crate::path_encode::path_encode;
+use crate::utils::files::{get_bytes_from_path, get_path_from_bytes};
 use dyn_clone::DynClone;
 use memmap2::{Mmap, MmapOptions};
-use rand::distributions::DistString;
-use rand_distr::Alphanumeric;
+use rand::distributions::{Alphanumeric, DistString};
 use std::fs::{File, OpenOptions};
 use std::io::{ErrorKind, Write};
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
@@ -490,6 +492,140 @@ fn fix_directory_permissions(
             .when_writing_file(ancestor)?;
     }
     Ok(())
+}
+
+/// A VFS that understands the `fncache` store layout (file encoding), and
+/// adds new entries to the `fncache`.
+/// TODO Only works when using from Python for now.
+pub struct FnCacheVfs {
+    inner: VfsImpl,
+    fncache: Box<dyn FnCache>,
+}
+
+impl Clone for FnCacheVfs {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            fncache: dyn_clone::clone_box(&*self.fncache),
+        }
+    }
+}
+
+impl FnCacheVfs {
+    pub fn new(
+        base: PathBuf,
+        readonly: bool,
+        fncache: Box<dyn FnCache>,
+    ) -> Self {
+        let inner = VfsImpl::new(base, readonly);
+        Self { inner, fncache }
+    }
+
+    fn maybe_add_to_fncache(
+        &self,
+        filename: &Path,
+        encoded_path: &Path,
+    ) -> Result<(), HgError> {
+        let relevant_file = (filename.starts_with("data/")
+            || filename.starts_with("meta/"))
+            && is_revlog_file(filename);
+        if relevant_file {
+            let not_load = !self.fncache.is_loaded()
+                && (self.exists(filename)
+                    && self
+                        .inner
+                        .join(encoded_path)
+                        .metadata()
+                        .when_reading_file(encoded_path)?
+                        .size()
+                        != 0);
+            if !not_load {
+                self.fncache.add(filename);
+            }
+        };
+        Ok(())
+    }
+}
+
+impl Vfs for FnCacheVfs {
+    fn open(&self, filename: &Path) -> Result<std::fs::File, HgError> {
+        let encoded = path_encode(&get_bytes_from_path(filename));
+        let encoded_path = get_path_from_bytes(&encoded);
+        self.maybe_add_to_fncache(filename, encoded_path)?;
+        self.inner.open(encoded_path)
+    }
+
+    fn open_read(&self, filename: &Path) -> Result<std::fs::File, HgError> {
+        let encoded = path_encode(&get_bytes_from_path(filename));
+        let filename = get_path_from_bytes(&encoded);
+        self.inner.open_read(filename)
+    }
+
+    fn open_check_ambig(
+        &self,
+        filename: &Path,
+    ) -> Result<std::fs::File, HgError> {
+        let encoded = path_encode(&get_bytes_from_path(filename));
+        let filename = get_path_from_bytes(&encoded);
+        self.inner.open_check_ambig(filename)
+    }
+
+    fn create(&self, filename: &Path) -> Result<std::fs::File, HgError> {
+        let encoded = path_encode(&get_bytes_from_path(filename));
+        let encoded_path = get_path_from_bytes(&encoded);
+        self.maybe_add_to_fncache(filename, encoded_path)?;
+        self.inner.create(encoded_path)
+    }
+
+    fn create_atomic(
+        &self,
+        filename: &Path,
+        check_ambig: bool,
+    ) -> Result<AtomicFile, HgError> {
+        let encoded = path_encode(&get_bytes_from_path(filename));
+        let filename = get_path_from_bytes(&encoded);
+        self.inner.create_atomic(filename, check_ambig)
+    }
+
+    fn file_size(&self, file: &File) -> Result<u64, HgError> {
+        self.inner.file_size(file)
+    }
+
+    fn exists(&self, filename: &Path) -> bool {
+        let encoded = path_encode(&get_bytes_from_path(filename));
+        let filename = get_path_from_bytes(&encoded);
+        self.inner.exists(filename)
+    }
+
+    fn unlink(&self, filename: &Path) -> Result<(), HgError> {
+        let encoded = path_encode(&get_bytes_from_path(filename));
+        let filename = get_path_from_bytes(&encoded);
+        self.inner.unlink(filename)
+    }
+
+    fn rename(
+        &self,
+        from: &Path,
+        to: &Path,
+        check_ambig: bool,
+    ) -> Result<(), HgError> {
+        let encoded = path_encode(&get_bytes_from_path(from));
+        let from = get_path_from_bytes(&encoded);
+        let encoded = path_encode(&get_bytes_from_path(to));
+        let to = get_path_from_bytes(&encoded);
+        self.inner.rename(from, to, check_ambig)
+    }
+
+    fn copy(&self, from: &Path, to: &Path) -> Result<(), HgError> {
+        let encoded = path_encode(&get_bytes_from_path(from));
+        let from = get_path_from_bytes(&encoded);
+        let encoded = path_encode(&get_bytes_from_path(to));
+        let to = get_path_from_bytes(&encoded);
+        self.inner.copy(from, to)
+    }
+    fn base(&self) -> &Path {
+        self.inner.base()
+    }
 }
 
 /// Detects whether `path` is a hardlink and does a tmp copy + rename erase
