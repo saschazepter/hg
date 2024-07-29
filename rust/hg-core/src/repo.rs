@@ -18,7 +18,7 @@ use crate::utils::debug::debug_wait_for_file_or_print;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
-use crate::vfs::{is_dir, is_file, VfsImpl};
+use crate::vfs::{is_dir, is_file, Vfs, VfsImpl};
 use crate::DirstateError;
 use crate::{
     exit_codes, requirements, NodePrefix, RevlogType, UncheckedRevision,
@@ -147,9 +147,7 @@ impl Repo {
         let mut repo_config_files =
             vec![dot_hg.join("hgrc"), dot_hg.join("hgrc-not-shared")];
 
-        let hg_vfs = VfsImpl {
-            base: dot_hg.to_owned(),
-        };
+        let hg_vfs = VfsImpl::new(dot_hg.to_owned(), false);
         let mut reqs = requirements::load_if_exists(&hg_vfs)?;
         let relative =
             reqs.contains(requirements::RELATIVE_SHARED_REQUIREMENT);
@@ -191,9 +189,10 @@ impl Repo {
 
             store_path = shared_path.join("store");
 
-            let source_is_share_safe = requirements::load(VfsImpl {
-                base: shared_path.to_owned(),
-            })?
+            let source_is_share_safe = requirements::load(VfsImpl::new(
+                shared_path.to_owned(),
+                true,
+            ))?
             .contains(requirements::SHARESAFE_REQUIREMENT);
 
             if share_safe != source_is_share_safe {
@@ -205,9 +204,10 @@ impl Repo {
             }
         }
         if share_safe {
-            reqs.extend(requirements::load(VfsImpl {
-                base: store_path.to_owned(),
-            })?);
+            reqs.extend(requirements::load(VfsImpl::new(
+                store_path.to_owned(),
+                true,
+            ))?);
         }
 
         let repo_config = if std::env::var_os("HGRCSKIPREPO").is_none() {
@@ -248,23 +248,17 @@ impl Repo {
     /// For accessing repository files (in `.hg`), except for the store
     /// (`.hg/store`).
     pub fn hg_vfs(&self) -> VfsImpl {
-        VfsImpl {
-            base: self.dot_hg.to_owned(),
-        }
+        VfsImpl::new(self.dot_hg.to_owned(), false)
     }
 
     /// For accessing repository store files (in `.hg/store`)
     pub fn store_vfs(&self) -> VfsImpl {
-        VfsImpl {
-            base: self.store.to_owned(),
-        }
+        VfsImpl::new(self.store.to_owned(), false)
     }
 
     /// For accessing the working copy
     pub fn working_directory_vfs(&self) -> VfsImpl {
-        VfsImpl {
-            base: self.working_directory.to_owned(),
-        }
+        VfsImpl::new(self.working_directory.to_owned(), false)
     }
 
     pub fn try_with_wlock_no_wait<R>(
@@ -795,7 +789,7 @@ impl Repo {
         if let Some(uuid) = old_uuid_to_remove {
             // Remove the old data file after the new docket pointing to the
             // new data file was written.
-            vfs.remove_file(format!("dirstate.{}", uuid))?;
+            vfs.unlink(Path::new(&format!("dirstate.{}", uuid)))?;
         }
         Ok(())
     }

@@ -286,4 +286,9 @@ impl Vfs for PyVfs {
         std::fs::copy(from, to).when_writing_file(to)?;
         Ok(())
     }
+
+    fn base(&self) -> &Path {
+        // This will only be useful in a later patch
+        todo!()
+    }
 }

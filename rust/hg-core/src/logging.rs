@@ -1,6 +1,7 @@
 use crate::errors::{HgError, HgResultExt, IoErrorContext, IoResultExt};
-use crate::vfs::VfsImpl;
+use crate::vfs::{Vfs, VfsImpl};
 use std::io::Write;
+use std::path::Path;
 
 /// An utility to append to a log file with the given name, and optionally
 /// rotate it after it reaches a certain maximum size.
@@ -64,15 +65,20 @@ impl<'a> LogFile<'a> {
                 for i in (1..self.max_files).rev() {
                     self.vfs
                         .rename(
-                            format!("{}.{}", self.name, i),
-                            format!("{}.{}", self.name, i + 1),
+                            Path::new(&format!("{}.{}", self.name, i)),
+                            Path::new(&format!("{}.{}", self.name, i + 1)),
+                            false,
                         )
                         .io_not_found_as_none()?;
                 }
                 // Then rename `{name}` to `{name}.1`. This is the
                 // previously-opened `file`.
                 self.vfs
-                    .rename(self.name, format!("{}.1", self.name))
+                    .rename(
+                        Path::new(&self.name),
+                        Path::new(&format!("{}.1", self.name)),
+                        false,
+                    )
                     .io_not_found_as_none()?;
                 // Finally, create a new `{name}` file and replace our `file`
                 // handle.
@@ -87,9 +93,7 @@ impl<'a> LogFile<'a> {
 #[test]
 fn test_rotation() {
     let temp = tempfile::tempdir().unwrap();
-    let vfs = VfsImpl {
-        base: temp.path().to_owned(),
-    };
+    let vfs = VfsImpl::new(temp.path().to_owned(), false);
     let logger = LogFile::new(vfs.clone(), "log")
         .max_size(Some(3))
         .max_files(2);

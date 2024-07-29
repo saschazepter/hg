@@ -66,6 +66,10 @@ pub enum IoErrorContext {
         from: std::path::PathBuf,
         to: std::path::PathBuf,
     },
+    CopyingFile {
+        from: std::path::PathBuf,
+        to: std::path::PathBuf,
+    },
     /// `std::fs::canonicalize`
     CanonicalizingPath(std::path::PathBuf),
     /// `std::env::current_dir`
@@ -144,6 +148,12 @@ impl fmt::Display for IoErrorContext {
             IoErrorContext::RenamingFile { from, to } => write!(
                 f,
                 "when renaming {} to {}",
+                from.display(),
+                to.display()
+            ),
+            IoErrorContext::CopyingFile { from, to } => write!(
+                f,
+                "when copying {} to {}",
                 from.display(),
                 to.display()
             ),
