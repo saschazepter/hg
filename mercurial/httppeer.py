@@ -492,6 +492,9 @@ class httppeer(wireprotov1peer.wirepeer):
             # boolean capability. They only support headerless/uncompressed
             # bundles.
             types = [b""]
+
+        type = b""
+
         for x in types:
             if x in bundle2.bundletypes:
                 type = x
