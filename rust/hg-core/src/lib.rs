@@ -14,6 +14,7 @@ pub mod dirstate;
 pub mod dirstate_tree;
 pub mod discovery;
 pub mod exit_codes;
+pub mod fncache;
 pub mod requirements;
 pub mod testing; // unconditionally built, for use from integration tests
 pub use dirstate::{
