@@ -1120,7 +1120,7 @@ class fncache:
 class _fncachevfs(vfsmod.proxyvfs):
     def __init__(self, vfs, fnc, encode):
         vfsmod.proxyvfs.__init__(self, vfs)
-        self.fncache = fnc
+        self.fncache: fncache = fnc
         self.encode = encode
 
     def __call__(self, path, mode=b'r', *args, **kw):
