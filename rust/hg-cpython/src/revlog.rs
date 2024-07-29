@@ -10,7 +10,6 @@ use crate::{
     conversion::{rev_pyiter_collect, rev_pyiter_collect_or_else},
     pybytes_deref::{PyBufferDeref, PyBytesDeref},
     utils::{node_from_py_bytes, node_from_py_object},
-    vfs::PyVfs,
     PyRevision,
 };
 use cpython::{
@@ -22,24 +21,29 @@ use cpython::{
 };
 use hg::{
     errors::HgError,
+    fncache::FnCache,
     index::{Phase, RevisionDataParams, SnapshotsCache, INDEX_ENTRY_SIZE},
     nodemap::{Block, NodeMapError, NodeTree as CoreNodeTree},
-    revlog::compression::CompressionConfig,
-    revlog::inner_revlog::InnerRevlog as CoreInnerRevlog,
-    revlog::inner_revlog::RevisionBuffer,
-    revlog::options::{
-        RevlogDataConfig, RevlogDeltaConfig, RevlogFeatureConfig,
-        RevlogOpenOptions,
+    revlog::{
+        compression::CompressionConfig,
+        inner_revlog::{InnerRevlog as CoreInnerRevlog, RevisionBuffer},
+        nodemap::NodeMap,
+        options::{
+            RevlogDataConfig, RevlogDeltaConfig, RevlogFeatureConfig,
+            RevlogOpenOptions,
+        },
+        Graph, NodePrefix, RevlogError, RevlogIndex,
     },
-    revlog::{nodemap::NodeMap, Graph, NodePrefix, RevlogError, RevlogIndex},
     transaction::Transaction,
     utils::files::{get_bytes_from_path, get_path_from_bytes},
+    vfs::FnCacheVfs,
     BaseRevision, Node, Revision, RevlogType, UncheckedRevision,
     NULL_REVISION,
 };
 use std::{
     cell::{Cell, RefCell},
     collections::{HashMap, HashSet},
+    sync::atomic::{AtomicBool, Ordering},
     sync::OnceLock,
 };
 use vcsgraph::graph::Graph as VCSGraph;
@@ -647,6 +651,67 @@ py_class!(pub class WritingContextManager |py| {
     }
 });
 
+struct PyFnCache {
+    fncache: PyObject,
+}
+impl PyFnCache {
+    fn new(fncache: PyObject) -> Self {
+        Self { fncache }
+    }
+}
+
+impl Clone for PyFnCache {
+    fn clone(&self) -> Self {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Self {
+            fncache: self.fncache.clone_ref(py),
+        }
+    }
+}
+
+/// Cache whether the fncache is loaded to avoid Python round-trip every time.
+/// Once the fncache is loaded, it stays loaded unless we're in a very
+/// long-running process, none of which we actually support for now.
+static FN_CACHE_IS_LOADED: AtomicBool = AtomicBool::new(false);
+
+impl FnCache for PyFnCache {
+    fn is_loaded(&self) -> bool {
+        if FN_CACHE_IS_LOADED.load(Ordering::Relaxed) {
+            return true;
+        }
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        // TODO raise in case of error?
+        let is_loaded = self
+            .fncache
+            .getattr(py, "is_loaded")
+            .ok()
+            .map(|o| {
+                o.extract::<bool>(py)
+                    .expect("is_loaded returned something other than a bool")
+            })
+            .unwrap_or(false);
+        if is_loaded {
+            FN_CACHE_IS_LOADED.store(true, Ordering::Relaxed);
+        }
+        is_loaded
+    }
+    fn add(&self, path: &std::path::Path) {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        // TODO raise in case of error?
+        self.fncache
+            .call_method(
+                py,
+                "add",
+                (PyBytes::new(py, &get_bytes_from_path(path)),),
+                None,
+            )
+            .ok();
+    }
+}
+
 py_class!(pub class InnerRevlog |py| {
     @shared data inner: CoreInnerRevlog;
     data nt: RefCell<Option<CoreNodeTree>>;
@@ -661,7 +726,9 @@ py_class!(pub class InnerRevlog |py| {
 
     def __new__(
         _cls,
-        opener: PyObject,
+        vfs_base: PyObject,
+        fncache: PyObject,
+        vfs_is_readonly: bool,
         index_data: PyObject,
         index_file: PyObject,
         data_file: PyObject,
@@ -676,7 +743,9 @@ py_class!(pub class InnerRevlog |py| {
     ) -> PyResult<Self> {
         Self::inner_new(
             py,
-            opener,
+            vfs_base,
+            fncache,
+            vfs_is_readonly,
             index_data,
             index_file,
             data_file,
@@ -1874,7 +1943,9 @@ impl InnerRevlog {
 impl InnerRevlog {
     pub fn inner_new(
         py: Python,
-        opener: PyObject,
+        vfs_base: PyObject,
+        fncache: PyObject,
+        vfs_is_readonly: bool,
         index_data: PyObject,
         index_file: PyObject,
         data_file: PyObject,
@@ -1887,7 +1958,6 @@ impl InnerRevlog {
         _default_compression_header: PyObject,
         revlog_type: usize,
     ) -> PyResult<Self> {
-        let vfs = Box::new(PyVfs::new(py, opener)?);
         let index_file =
             get_path_from_bytes(index_file.extract::<PyBytes>(py)?.data(py))
                 .to_owned();
@@ -1907,12 +1977,20 @@ impl InnerRevlog {
             delta_config,
             feature_config,
         );
+
         // Safety: we keep the buffer around inside the class as `index_mmap`
         let (buf, bytes) = unsafe { mmap_keeparound(py, index_data)? };
         let index = hg::index::Index::new(bytes, options.index_header())
             .map_err(|e| revlog_error_from_msg(py, e))?;
+
+        let base = &vfs_base.extract::<PyBytes>(py)?;
+        let base = get_path_from_bytes(base.data(py)).to_owned();
         let core = CoreInnerRevlog::new(
-            vfs,
+            Box::new(FnCacheVfs::new(
+                base,
+                vfs_is_readonly,
+                Box::new(PyFnCache::new(fncache)),
+            )),
             index,
             index_file,
             data_file,
