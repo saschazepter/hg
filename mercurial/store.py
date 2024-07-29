@@ -1122,6 +1122,7 @@ class _fncachevfs(vfsmod.proxyvfs):
         vfsmod.proxyvfs.__init__(self, vfs)
         self.fncache: fncache = fnc
         self.encode = encode
+        self.uses_dotencode = encode is _pathencode
 
     def __call__(self, path, mode=b'r', *args, **kw):
         encoded = self.encode(path)
