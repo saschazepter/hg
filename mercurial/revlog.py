@@ -1793,6 +1793,17 @@ class revlog:
             if self._format_version != REVLOGV1:
                 use_rust_index = False
 
+        if hasattr(self.opener, "fncache"):
+            vfs = self.opener.vfs
+            if not self.opener.uses_dotencode:
+                use_rust_index = False
+            if not isinstance(vfs, vfsmod.vfs):
+                # Be cautious since we don't support other vfs
+                use_rust_index = False
+        else:
+            # Rust only supports repos with fncache
+            use_rust_index = False
+
         self._parse_index = parse_index_v1
         if self._format_version == REVLOGV0:
             self._parse_index = revlogv0.parse_index_v0
@@ -1828,8 +1839,26 @@ class revlog:
             default_compression_header = self._docket.default_compression_header
 
         if self.uses_rust:
+            vfs_is_readonly = False
+            fncache = None
+
+            if hasattr(self.opener, "vfs"):
+                vfs = self.opener
+                if isinstance(vfs, vfsmod.readonlyvfs):
+                    vfs_is_readonly = True
+                    vfs = vfs.vfs
+                fncache = vfs.fncache
+                vfs = vfs.vfs
+            else:
+                vfs = self.opener
+
+            vfs_base = vfs.base
+            assert fncache is not None, "Rust only supports repos with fncache"
+
             self._inner = rustrevlog.InnerRevlog(
-                opener=RustVFSWrapper(self.opener),
+                vfs_base=vfs_base,
+                fncache=fncache,
+                vfs_is_readonly=vfs_is_readonly,
                 index_data=index,
                 index_file=self._indexfile,
                 data_file=self._datafile,

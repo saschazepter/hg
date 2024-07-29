@@ -36,7 +36,7 @@
   $ echo barber > a
 #if rust
   $ hg commit -m "2"
-  abort: failed to call opener: [Errno 13] $EACCES$: b'$TESTTMP/t/.hg/store/data/a.i'
+  abort: abort: when writing $TESTTMP/t/.hg/store/data/a.i: $EACCES$
   [50]
 #else
   $ hg commit -m "2"
