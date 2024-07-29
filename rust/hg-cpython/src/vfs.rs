@@ -20,6 +20,7 @@ use hg::{
 /// Wrapper around a Python VFS object to call back into Python from `hg-core`.
 pub struct PyVfs {
     inner: PyObject,
+    base: PathBuf,
 }
 
 impl Clone for PyVfs {
@@ -28,13 +29,21 @@ impl Clone for PyVfs {
         let py = gil.python();
         Self {
             inner: self.inner.clone_ref(py),
+            base: self.base.clone(),
         }
     }
 }
 
 impl PyVfs {
-    pub fn new(_py: Python, py_vfs: PyObject) -> PyResult<Self> {
-        Ok(Self { inner: py_vfs })
+    pub fn new(
+        _py: Python,
+        py_vfs: PyObject,
+        base: PathBuf,
+    ) -> PyResult<Self> {
+        Ok(Self {
+            inner: py_vfs,
+            base,
+        })
     }
 
     fn inner_open(
@@ -288,7 +297,6 @@ impl Vfs for PyVfs {
     }
 
     fn base(&self) -> &Path {
-        // This will only be useful in a later patch
-        todo!()
+        &self.base
     }
 }
