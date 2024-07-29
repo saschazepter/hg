@@ -1006,11 +1006,10 @@ impl Index {
         }
         let last_rev = revs[revs.len() - 1];
         let last_entry = &self.get_entry(last_rev).unwrap();
-        let end = self.start(last_rev, last_entry)
-            + last_entry.compressed_len() as usize;
+        let end = last_entry.offset() + last_entry.compressed_len() as usize;
         let first_rev = revs.iter().find(|r| r.0 != NULL_REVISION.0).unwrap();
         let first_entry = self.get_entry(*first_rev).unwrap();
-        let start = self.start(*first_rev, &first_entry);
+        let start = first_entry.offset();
         end - start
     }
 
