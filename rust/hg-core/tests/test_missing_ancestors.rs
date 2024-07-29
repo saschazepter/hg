@@ -69,7 +69,7 @@ fn ancestors_sets(vg: &VecGraph) -> Vec<HashSet<Revision>> {
     ancs
 }
 
-#[allow(unused)]  // Useful when debugging
+#[allow(unused)] // Useful when debugging
 #[derive(Clone, Debug)]
 enum MissingAncestorsAction {
     InitialBases(HashSet<Revision>),
