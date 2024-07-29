@@ -430,7 +430,9 @@ pub(super) struct Node<'on_disk> {
 #[derive(Debug, Default)]
 pub(super) enum NodeData {
     Entry(DirstateEntry),
-    CachedDirectory { mtime: TruncatedTimestamp },
+    CachedDirectory {
+        mtime: TruncatedTimestamp,
+    },
     #[default]
     None,
 }
