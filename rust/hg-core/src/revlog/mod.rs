@@ -719,9 +719,7 @@ mod tests {
     #[test]
     fn test_empty() {
         let temp = tempfile::tempdir().unwrap();
-        let vfs = VfsImpl {
-            base: temp.path().to_owned(),
-        };
+        let vfs = VfsImpl::new(temp.path().to_owned(), false);
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
         std::fs::write(temp.path().join("foo.d"), b"").unwrap();
         let revlog =
@@ -743,9 +741,7 @@ mod tests {
     #[test]
     fn test_inline() {
         let temp = tempfile::tempdir().unwrap();
-        let vfs = VfsImpl {
-            base: temp.path().to_owned(),
-        };
+        let vfs = VfsImpl::new(temp.path().to_owned(), false);
         let node0 = Node::from_hex("2ed2a3912a0b24502043eae84ee4b279c18b90dd")
             .unwrap();
         let node1 = Node::from_hex("b004912a8510032a0350a74daa2803dadfb00e12")
@@ -812,9 +808,7 @@ mod tests {
     #[test]
     fn test_nodemap() {
         let temp = tempfile::tempdir().unwrap();
-        let vfs = VfsImpl {
-            base: temp.path().to_owned(),
-        };
+        let vfs = VfsImpl::new(temp.path().to_owned(), false);
 
         // building a revlog with a forced Node starting with zeros
         // This is a corruption, but it does not preclude using the nodemap

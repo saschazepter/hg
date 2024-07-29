@@ -562,9 +562,7 @@ message",
     fn test_data_from_rev_null() -> Result<(), RevlogError> {
         // an empty revlog will be enough for this case
         let temp = tempfile::tempdir().unwrap();
-        let vfs = VfsImpl {
-            base: temp.path().to_owned(),
-        };
+        let vfs = VfsImpl::new(temp.path().to_owned(), false);
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
         let revlog =
             Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::default())

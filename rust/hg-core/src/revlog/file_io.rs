@@ -382,7 +382,7 @@ mod tests {
         let filename = Path::new("a");
         let file_path = base.join(filename);
         let raf = RandomAccessFile::new(
-            Box::new(VfsImpl { base }),
+            Box::new(VfsImpl::new(base.clone(), true)),
             filename.to_owned(),
         );
 
@@ -411,7 +411,7 @@ mod tests {
         let filename = base.join("a");
         // No `create` should fail
         FileHandle::new(
-            Box::new(VfsImpl { base: base.clone() }),
+            Box::new(VfsImpl::new(base.clone(), false)),
             &filename,
             false,
             false,
@@ -420,7 +420,7 @@ mod tests {
         std::fs::write(&filename, b"1234567890").unwrap();
 
         let mut read_handle = FileHandle::new(
-            Box::new(VfsImpl { base: base.clone() }),
+            Box::new(VfsImpl::new(base.clone(), true)),
             &filename,
             false,
             false,
@@ -445,17 +445,14 @@ mod tests {
         // Seeking too much data should fail
         read_handle.read_exact(1000).unwrap_err();
 
-        // Work around the yet unimplemented VFS for write
-        let mut options = std::fs::OpenOptions::new();
-        options.read(true);
-        options.write(true);
-        let file = options.open(&filename).unwrap();
         // Open a write handle
-        let mut handle = FileHandle::from_file(
-            file,
-            Box::new(VfsImpl { base: base.clone() }),
+        let mut handle = FileHandle::new(
+            Box::new(VfsImpl::new(base.clone(), false)),
             &filename,
-        );
+            false,
+            true,
+        )
+        .unwrap();
 
         // Now writing should succeed
         handle.write_all(b"new data").unwrap();
@@ -463,15 +460,28 @@ mod tests {
         assert_eq!(handle.position().unwrap(), 8);
         // We can still read
         assert_eq!(handle.read_exact(2).unwrap(), b"90".to_vec());
+
+        let mut read_handle = FileHandle::new(
+            Box::new(VfsImpl::new(base.clone(), true)),
+            &filename,
+            false,
+            false,
+        )
+        .unwrap();
+        read_handle.seek(SeekFrom::Start(0)).unwrap();
+        // On-disk file contents should be changed
+        assert_eq!(
+            &read_handle.read_exact(10).unwrap(),
+            &b"new data90".to_vec(),
+        );
         // Flushing doesn't do anything unexpected
         handle.flush().unwrap();
 
         let delayed_buffer = Arc::new(Mutex::new(DelayedBuffer::default()));
-        let file = options.open(&filename).unwrap();
-        let mut handle = FileHandle::from_file_delayed(
-            file,
-            Box::new(VfsImpl { base: base.clone() }),
+        let mut handle = FileHandle::new_delayed(
+            Box::new(VfsImpl::new(base.clone(), false)),
             &filename,
+            false,
             delayed_buffer,
         )
         .unwrap();

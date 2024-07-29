@@ -2,20 +2,66 @@ use crate::errors::{HgError, IoErrorContext, IoResultExt};
 use crate::exit_codes;
 use dyn_clone::DynClone;
 use memmap2::{Mmap, MmapOptions};
-use std::fs::File;
+use rand::distributions::DistString;
+use rand_distr::Alphanumeric;
+use std::fs::{File, OpenOptions};
 use std::io::{ErrorKind, Write};
-use std::os::unix::fs::MetadataExt;
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 /// Filesystem access abstraction for the contents of a given "base" diretory
 #[derive(Clone)]
 pub struct VfsImpl {
     pub(crate) base: PathBuf,
+    pub readonly: bool,
+    pub mode: Option<u32>,
 }
 
 struct FileNotFound(std::io::Error, PathBuf);
 
+/// Store the umask for the whole process since it's expensive to get.
+static UMASK: OnceLock<u32> = OnceLock::new();
+
+fn get_umask() -> u32 {
+    *UMASK.get_or_init(|| unsafe {
+        // TODO is there any way of getting the umask without temporarily
+        // setting it? Doesn't this affect all threads in this tiny window?
+        let mask = libc::umask(0);
+        libc::umask(mask);
+        mask & 0o777
+    })
+}
+
+/// Return the (unix) mode with which we will create/fix files
+fn get_mode(base: impl AsRef<Path>) -> Option<u32> {
+    match base.as_ref().metadata() {
+        Ok(meta) => {
+            // files in .hg/ will be created using this mode
+            let mode = meta.mode();
+            // avoid some useless chmods
+            if (0o777 & !get_umask()) == (0o777 & mode) {
+                None
+            } else {
+                Some(mode)
+            }
+        }
+        Err(_) => None,
+    }
+}
+
 impl VfsImpl {
+    pub fn new(base: PathBuf, readonly: bool) -> Self {
+        let mode = get_mode(&base);
+        Self {
+            base,
+            readonly,
+            mode,
+        }
+    }
+
+    // XXX these methods are probably redundant with VFS trait?
+
     pub fn join(&self, relative_path: impl AsRef<Path>) -> PathBuf {
         self.base.join(relative_path)
     }
@@ -101,26 +147,6 @@ impl VfsImpl {
             Err(FileNotFound(err, path)) => Err(err).when_reading_file(&path),
             Ok(res) => Ok(res),
         }
-    }
-
-    pub fn rename(
-        &self,
-        relative_from: impl AsRef<Path>,
-        relative_to: impl AsRef<Path>,
-    ) -> Result<(), HgError> {
-        let from = self.join(relative_from);
-        let to = self.join(relative_to);
-        std::fs::rename(&from, &to)
-            .with_context(|| IoErrorContext::RenamingFile { from, to })
-    }
-
-    pub fn remove_file(
-        &self,
-        relative_path: impl AsRef<Path>,
-    ) -> Result<(), HgError> {
-        let path = self.join(relative_path);
-        std::fs::remove_file(&path)
-            .with_context(|| IoErrorContext::RemovingFile(path))
     }
 
     #[cfg(unix)]
@@ -284,27 +310,97 @@ pub trait Vfs: Sync + Send + DynClone {
         check_ambig: bool,
     ) -> Result<(), HgError>;
     fn copy(&self, from: &Path, to: &Path) -> Result<(), HgError>;
+    fn base(&self) -> &Path;
 }
 
 /// These methods will need to be implemented once `rhg` (and other) non-Python
 /// users of `hg-core` start doing more on their own, like writing to files.
 impl Vfs for VfsImpl {
-    fn open(&self, _filename: &Path) -> Result<std::fs::File, HgError> {
-        todo!()
+    fn open(&self, filename: &Path) -> Result<std::fs::File, HgError> {
+        if self.readonly {
+            return Err(HgError::abort(
+                "write access in a readonly vfs",
+                exit_codes::ABORT,
+                None,
+            ));
+        }
+        // TODO auditpath
+        let path = self.base.join(filename);
+        copy_in_place_if_hardlink(&path)?;
+
+        OpenOptions::new()
+            .create(false)
+            .create_new(false)
+            .write(true)
+            .read(true)
+            .open(&path)
+            .when_writing_file(&path)
     }
+
     fn open_read(&self, filename: &Path) -> Result<std::fs::File, HgError> {
+        // TODO auditpath
         let path = self.base.join(filename);
         std::fs::File::open(&path).when_reading_file(&path)
     }
+
     fn open_check_ambig(
         &self,
-        _filename: &Path,
+        filename: &Path,
     ) -> Result<std::fs::File, HgError> {
-        todo!()
+        if self.readonly {
+            return Err(HgError::abort(
+                "write access in a readonly vfs",
+                exit_codes::ABORT,
+                None,
+            ));
+        }
+
+        let path = self.base.join(filename);
+        copy_in_place_if_hardlink(&path)?;
+
+        // TODO auditpath, check ambig
+        OpenOptions::new()
+            .write(true)
+            .read(true) // Can be used for reading to save on `open` calls
+            .create(false)
+            .open(&path)
+            .when_reading_file(&path)
     }
-    fn create(&self, _filename: &Path) -> Result<std::fs::File, HgError> {
-        todo!()
+
+    fn create(&self, filename: &Path) -> Result<std::fs::File, HgError> {
+        if self.readonly {
+            return Err(HgError::abort(
+                "write access in a readonly vfs",
+                exit_codes::ABORT,
+                None,
+            ));
+        }
+        // TODO auditpath
+        let path = self.base.join(filename);
+        let parent = path.parent().expect("file at root");
+        std::fs::create_dir_all(parent).when_writing_file(parent)?;
+        // TODO checkambig (wrap File somehow)
+
+        let file = OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .read(true)
+            .open(&path)
+            .when_writing_file(&path)?;
+
+        if let Some(mode) = self.mode {
+            // Creating the file with the right permission (with `.mode()`)
+            // may not work since umask takes effect for file creation.
+            // So we need to fix the permission after creating the file.
+            fix_directory_permissions(&self.base, &path, mode)?;
+            let perm = std::fs::Permissions::from_mode(mode & 0o666);
+            std::fs::set_permissions(&path, perm).when_writing_file(&path)?;
+        }
+
+        Ok(file)
     }
+
     fn create_atomic(
         &self,
         _filename: &Path,
@@ -312,6 +408,7 @@ impl Vfs for VfsImpl {
     ) -> Result<AtomicFile, HgError> {
         todo!()
     }
+
     fn file_size(&self, file: &File) -> Result<u64, HgError> {
         Ok(file
             .metadata()
@@ -324,23 +421,116 @@ impl Vfs for VfsImpl {
             })?
             .size())
     }
-    fn exists(&self, _filename: &Path) -> bool {
-        todo!()
+
+    fn exists(&self, filename: &Path) -> bool {
+        self.base.join(filename).exists()
     }
-    fn unlink(&self, _filename: &Path) -> Result<(), HgError> {
-        todo!()
+
+    fn unlink(&self, filename: &Path) -> Result<(), HgError> {
+        if self.readonly {
+            return Err(HgError::abort(
+                "write access in a readonly vfs",
+                exit_codes::ABORT,
+                None,
+            ));
+        }
+        let path = self.base.join(filename);
+        std::fs::remove_file(&path)
+            .with_context(|| IoErrorContext::RemovingFile(path))
     }
+
     fn rename(
         &self,
-        _from: &Path,
-        _to: &Path,
+        from: &Path,
+        to: &Path,
         _check_ambig: bool,
     ) -> Result<(), HgError> {
-        todo!()
+        if self.readonly {
+            return Err(HgError::abort(
+                "write access in a readonly vfs",
+                exit_codes::ABORT,
+                None,
+            ));
+        }
+        // TODO checkambig
+        let from = self.base.join(from);
+        let to = self.base.join(to);
+        std::fs::rename(&from, &to)
+            .with_context(|| IoErrorContext::RenamingFile { from, to })
     }
-    fn copy(&self, _from: &Path, _to: &Path) -> Result<(), HgError> {
-        todo!()
+
+    fn copy(&self, from: &Path, to: &Path) -> Result<(), HgError> {
+        // TODO checkambig?
+        let from = self.base.join(from);
+        let to = self.base.join(to);
+        std::fs::copy(&from, &to)
+            .with_context(|| IoErrorContext::CopyingFile { from, to })
+            .map(|_| ())
     }
+
+    fn base(&self) -> &Path {
+        &self.base
+    }
+}
+
+fn fix_directory_permissions(
+    base: &Path,
+    path: &Path,
+    mode: u32,
+) -> Result<(), HgError> {
+    let mut ancestors = path.ancestors();
+    ancestors.next(); // yields the path itself
+
+    for ancestor in ancestors {
+        if ancestor == base {
+            break;
+        }
+        let perm = std::fs::Permissions::from_mode(mode);
+        std::fs::set_permissions(ancestor, perm)
+            .when_writing_file(ancestor)?;
+    }
+    Ok(())
+}
+
+/// Detects whether `path` is a hardlink and does a tmp copy + rename erase
+/// to turn it into its own file. Revlogs are usually hardlinked when doing
+/// a local clone, and we don't want to modify the original repo.
+fn copy_in_place_if_hardlink(path: &Path) -> Result<(), HgError> {
+    let metadata = path.metadata().when_writing_file(path)?;
+    if metadata.nlink() > 0 {
+        // If it's hardlinked, copy it and rename it back before changing it.
+        let tmpdir = path.parent().expect("file at root");
+        let name = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+        let tmpfile = tmpdir.join(name);
+        std::fs::create_dir_all(tmpfile.parent().expect("file at root"))
+            .with_context(|| IoErrorContext::CopyingFile {
+                from: path.to_owned(),
+                to: tmpfile.to_owned(),
+            })?;
+        std::fs::copy(path, &tmpfile).with_context(|| {
+            IoErrorContext::CopyingFile {
+                from: path.to_owned(),
+                to: tmpfile.to_owned(),
+            }
+        })?;
+        std::fs::rename(&tmpfile, path).with_context(|| {
+            IoErrorContext::RenamingFile {
+                from: tmpfile,
+                to: path.to_owned(),
+            }
+        })?;
+    }
+    Ok(())
+}
+
+pub fn is_revlog_file(path: impl AsRef<Path>) -> bool {
+    path.as_ref()
+        .extension()
+        .map(|ext| {
+            ["i", "idx", "d", "dat", "n", "nd", "sda"]
+                .contains(&ext.to_string_lossy().as_ref())
+        })
+        .unwrap_or(false)
 }
 
 pub(crate) fn is_dir(path: impl AsRef<Path>) -> Result<bool, HgError> {
