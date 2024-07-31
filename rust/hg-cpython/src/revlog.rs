@@ -43,7 +43,7 @@ use hg::{
 use std::{
     cell::{Cell, RefCell},
     collections::{HashMap, HashSet},
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     sync::OnceLock,
 };
 use vcsgraph::graph::Graph as VCSGraph;
@@ -723,6 +723,7 @@ py_class!(pub class InnerRevlog |py| {
     data head_node_ids_py_list: RefCell<Option<PyList>>;
     data revision_cache: RefCell<Option<PyObject>>;
     data use_persistent_nodemap: bool;
+    data nodemap_queries: AtomicUsize;
 
     def __new__(
         _cls,
@@ -766,6 +767,7 @@ py_class!(pub class InnerRevlog |py| {
         assert!(!self.is_delaying(py)?);
         self.revision_cache(py).borrow_mut().take();
         self.inner(py).borrow_mut().clear_cache();
+        self.nodemap_queries(py).store(0, Ordering::Relaxed);
         Ok(py.None())
     }
 
@@ -1115,10 +1117,11 @@ py_class!(pub class InnerRevlog |py| {
         // brute force lookup from the end backwards. If there is a very large
         // filelog (automation file that changes every commit etc.), it also
         // seems to work quite well for all measured purposes so far.
-        //
-        // TODO build an in-memory nodemap if more than 4 queries to the same
-        // revlog are made?
-        if !*self.use_persistent_nodemap(py) {
+        let mut nodemap_queries =
+            self.nodemap_queries(py).fetch_add(1, Ordering::Relaxed);
+        // Still need to add since `fetch_add` returns the old value
+        nodemap_queries += 1;
+        if !*self.use_persistent_nodemap(py) && nodemap_queries <= 4 {
             let idx = &self.inner(py).borrow().index;
             let res =
                 idx.rev_from_node_no_persistent_nodemap(node.into()).ok();
@@ -2025,6 +2028,7 @@ impl InnerRevlog {
             RefCell::new(None),
             RefCell::new(None),
             use_persistent_nodemap,
+            AtomicUsize::new(0),
         )
     }
 }
