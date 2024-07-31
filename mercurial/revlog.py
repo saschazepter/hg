@@ -1870,6 +1870,7 @@ class revlog:
                 chunk_cache=chunk_cache,
                 default_compression_header=default_compression_header,
                 revlog_type=self.target[0],
+                use_persistent_nodemap=self._nodemap_file is not None,
             )
             self.index = RustIndexProxy(self._inner)
             self._register_nodemap_info(self.index)

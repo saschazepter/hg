@@ -723,6 +723,7 @@ py_class!(pub class InnerRevlog |py| {
     data head_revs_py_list: RefCell<Option<PyList>>;
     data head_node_ids_py_list: RefCell<Option<PyList>>;
     data revision_cache: RefCell<Option<PyObject>>;
+    data use_persistent_nodemap: bool;
 
     def __new__(
         _cls,
@@ -740,6 +741,7 @@ py_class!(pub class InnerRevlog |py| {
         chunk_cache: PyObject,
         default_compression_header: PyObject,
         revlog_type: usize,
+        use_persistent_nodemap: bool,
     ) -> PyResult<Self> {
         Self::inner_new(
             py,
@@ -756,7 +758,8 @@ py_class!(pub class InnerRevlog |py| {
             feature_config,
             chunk_cache,
             default_compression_header,
-            revlog_type
+            revlog_type,
+            use_persistent_nodemap
         )
     }
 
@@ -1108,10 +1111,23 @@ py_class!(pub class InnerRevlog |py| {
     // -- forwarded index methods --
 
     def _index_get_rev(&self, node: PyBytes) -> PyResult<Option<PyRevision>> {
+        let node = node_from_py_bytes(py, &node)?;
+        // Filelogs have no persistent nodemaps and are often small, use a
+        // brute force lookup from the end backwards. If there is a very large
+        // filelog (automation file that changes every commit etc.), it also
+        // seems to work quite well for all measured purposes so far.
+        //
+        // TODO build an in-memory nodemap if more than 4 queries to the same
+        // revlog are made?
+        if !*self.use_persistent_nodemap(py) {
+            let idx = &self.inner(py).borrow().index;
+            let res =
+                idx.rev_from_node_no_persistent_nodemap(node.into()).ok();
+            return Ok(res.map(Into::into))
+        }
         let opt = self.get_nodetree(py)?.borrow();
         let nt = opt.as_ref().expect("nodetree should be set");
         let ridx = &self.inner(py).borrow().index;
-        let node = node_from_py_bytes(py, &node)?;
         let rust_rev =
             nt.find_bin(ridx, node.into()).map_err(|e| nodemap_error(py, e))?;
         Ok(rust_rev.map(Into::into))
@@ -1957,6 +1973,7 @@ impl InnerRevlog {
         _chunk_cache: PyObject,
         _default_compression_header: PyObject,
         revlog_type: usize,
+        use_persistent_nodemap: bool,
     ) -> PyResult<Self> {
         let index_file =
             get_path_from_bytes(index_file.extract::<PyBytes>(py)?.data(py))
@@ -2008,6 +2025,7 @@ impl InnerRevlog {
             RefCell::new(None),
             RefCell::new(None),
             RefCell::new(None),
+            use_persistent_nodemap,
         )
     }
 }
