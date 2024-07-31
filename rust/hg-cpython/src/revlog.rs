@@ -137,8 +137,7 @@ unsafe fn mmap_keeparound(
     } else {
         return Err(PyErr::new::<ValueError, _>(
             py,
-            "Nodemap data buffer has an invalid memory representation"
-                .to_string(),
+            "buffer has an invalid memory representation".to_string(),
         ));
     };
 
