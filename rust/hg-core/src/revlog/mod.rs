@@ -363,48 +363,8 @@ impl Revlog {
                 .find_bin(self.index(), node)?
                 .ok_or(RevlogError::InvalidRevision(format!("{:x}", node)))
         } else {
-            self.rev_from_node_no_persistent_nodemap(node)
+            self.index().rev_from_node_no_persistent_nodemap(node)
         }
-    }
-
-    /// Same as `rev_from_node`, without using a persistent nodemap
-    ///
-    /// This is used as fallback when a persistent nodemap is not present.
-    /// This happens when the persistent-nodemap experimental feature is not
-    /// enabled, or for small revlogs.
-    fn rev_from_node_no_persistent_nodemap(
-        &self,
-        node: NodePrefix,
-    ) -> Result<Revision, RevlogError> {
-        // Linear scan of the revlog
-        // TODO: consider building a non-persistent nodemap in memory to
-        // optimize these cases.
-        let mut found_by_prefix = None;
-        for rev in (-1..self.len() as BaseRevision).rev() {
-            let rev = Revision(rev as BaseRevision);
-            let candidate_node = if rev == Revision(-1) {
-                NULL_NODE
-            } else {
-                let index_entry =
-                    self.index().get_entry(rev).ok_or_else(|| {
-                        HgError::corrupted(
-                            "revlog references a revision not in the index",
-                        )
-                    })?;
-                *index_entry.hash()
-            };
-            if node == candidate_node {
-                return Ok(rev);
-            }
-            if node.is_prefix_of(&candidate_node) {
-                if found_by_prefix.is_some() {
-                    return Err(RevlogError::AmbiguousPrefix);
-                }
-                found_by_prefix = Some(rev)
-            }
-        }
-        found_by_prefix
-            .ok_or(RevlogError::InvalidRevision(format!("{:x}", node)))
     }
 
     /// Returns whether the given revision exists in this revlog.
