@@ -7,7 +7,7 @@ use bitvec::prelude::*;
 use byteorder::{BigEndian, ByteOrder};
 use bytes_cast::{unaligned, BytesCast};
 
-use super::REVIDX_KNOWN_FLAGS;
+use super::{NodePrefix, REVIDX_KNOWN_FLAGS};
 use crate::errors::HgError;
 use crate::node::{NODE_BYTES_LENGTH, NULL_NODE, STORED_NODE_ID_BYTES};
 use crate::revlog::node::Node;
@@ -415,6 +415,45 @@ impl Index {
         } else {
             self.bytes.len() / INDEX_ENTRY_SIZE
         }
+    }
+
+    /// Same as `rev_from_node`, without using a persistent nodemap
+    ///
+    /// This is used as fallback when a persistent nodemap is not present.
+    /// This happens when the persistent-nodemap experimental feature is not
+    /// enabled, or for small revlogs.
+    pub fn rev_from_node_no_persistent_nodemap(
+        &self,
+        node: NodePrefix,
+    ) -> Result<Revision, RevlogError> {
+        // Linear scan of the revlog
+        // TODO: consider building a non-persistent nodemap in memory to
+        // optimize these cases.
+        let mut found_by_prefix = None;
+        for rev in (-1..self.len() as BaseRevision).rev() {
+            let rev = Revision(rev as BaseRevision);
+            let candidate_node = if rev == Revision(-1) {
+                NULL_NODE
+            } else {
+                let index_entry = self.get_entry(rev).ok_or_else(|| {
+                    HgError::corrupted(
+                        "revlog references a revision not in the index",
+                    )
+                })?;
+                *index_entry.hash()
+            };
+            if node == candidate_node {
+                return Ok(rev);
+            }
+            if node.is_prefix_of(&candidate_node) {
+                if found_by_prefix.is_some() {
+                    return Err(RevlogError::AmbiguousPrefix);
+                }
+                found_by_prefix = Some(rev)
+            }
+        }
+        found_by_prefix
+            .ok_or_else(|| RevlogError::InvalidRevision(format!("{:x}", node)))
     }
 
     pub fn get_offsets(&self) -> RwLockReadGuard<Option<Vec<usize>>> {
