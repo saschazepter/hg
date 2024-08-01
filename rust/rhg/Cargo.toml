@@ -20,6 +20,7 @@ logging_timer = "1.1.0"
 regex = "1.7.0"
 env_logger = "0.9.3"
 format-bytes = "0.3.0"
+shellexpand = { version = "3.1", features = ["full"]}
 whoami = "1.4"
 which = "4.3.0"
 rayon = "1.7.0"
