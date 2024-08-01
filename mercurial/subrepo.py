@@ -363,11 +363,8 @@ class abstractsubrepo:
         """handle the files command for this subrepo"""
         return 1
 
-    def archive(self, archiver, prefix, match=None, decode=True):
-        if match is not None:
-            files = [f for f in self.files() if match(f)]
-        else:
-            files = self.files()
+    def archive(self, archiver, prefix, match, decode=True):
+        files = [f for f in self.files() if match(f)]
         total = len(files)
         relpath = subrelpath(self)
         progress = self.ui.makeprogress(
@@ -652,11 +649,9 @@ class hgsubrepo(abstractsubrepo):
             )
 
     @annotatesubrepoerror
-    def archive(self, archiver, prefix, match=None, decode=True):
+    def archive(self, archiver, prefix, match, decode=True):
         self._get(self._state + (b'hg',))
-        files = self.files()
-        if match:
-            files = [f for f in files if match(f)]
+        files = [f for f in self.files() if match(f)]
         rev = self._state[1]
         ctx = self._repo[rev]
         scmutil.prefetchfiles(
@@ -1911,7 +1906,7 @@ class gitsubrepo(abstractsubrepo):
             else:
                 self.wvfs.unlink(f)
 
-    def archive(self, archiver, prefix, match=None, decode=True):
+    def archive(self, archiver, prefix, match, decode=True):
         total = 0
         source, revision = self._state
         if not revision:
@@ -1932,7 +1927,7 @@ class gitsubrepo(abstractsubrepo):
             if info.isdir():
                 continue
             bname = pycompat.fsencode(info.name)
-            if match and not match(bname):
+            if not match(bname):
                 continue
             if info.issym():
                 data = info.linkname

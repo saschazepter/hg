@@ -1252,8 +1252,11 @@ def overridearchive(
     else:
         prefix = archival.tidyprefix(dest, kind, prefix)
 
+    if not match:
+        match = scmutil.matchall(repo)
+
     def write(name, mode, islink, getdata):
-        if match and not match(name):
+        if not match(name):
             return
         data = getdata()
         if decode:
@@ -1314,7 +1317,7 @@ def overridearchive(
 
 
 @eh.wrapfunction(subrepo.hgsubrepo, 'archive')
-def hgsubrepoarchive(orig, repo, archiver, prefix, match=None, decode=True):
+def hgsubrepoarchive(orig, repo, archiver, prefix, match, decode=True):
     lfenabled = hasattr(repo._repo, '_largefilesenabled')
     if not lfenabled or not repo._repo.lfstatus:
         return orig(repo, archiver, prefix, match, decode)
@@ -1329,7 +1332,7 @@ def hgsubrepoarchive(orig, repo, archiver, prefix, match=None, decode=True):
     def write(name, mode, islink, getdata):
         # At this point, the standin has been replaced with the largefile name,
         # so the normal matcher works here without the lfutil variants.
-        if match and not match(f):
+        if not match(f):
             return
         data = getdata()
         if decode:
