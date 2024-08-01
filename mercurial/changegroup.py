@@ -1830,7 +1830,8 @@ class cgpacker:
                 treemanifests to send.
                 """
                 clnode = nodes[x]
-                mdata = mfl.get(tree, x).readfast(shallow=True)
+                mctx = mfl.get(tree, x)
+                mdata = mctx.read_delta_parents(shallow=True, exact=False)
                 for p, n, fl in mdata.iterentries():
                     if fl == b't':  # subdirectory manifest
                         subtree = tree + p + b'/'
