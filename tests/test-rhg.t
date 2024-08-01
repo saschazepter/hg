@@ -412,6 +412,14 @@ The `:required` extension suboptions are correctly ignored
   $ rhg files
   a
 
+Check that we expand both user and environment in ignore includes (HOME is TESTTMP)
+
+  $ echo "specificprefix" > ~/ignore.expected-extension
+  $ touch specificprefix
+  $ $NO_FALLBACK rhg st
+  ? specificprefix
+  $ $NO_FALLBACK RHG_EXT_TEST=expected-extension rhg st --config 'ui.ignore=~/ignore.${RHG_EXT_TEST}'
+
 We can ignore all extensions at once
 
   $ echo "[extensions]" >> $HGRCPATH
