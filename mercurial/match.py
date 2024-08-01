@@ -1071,7 +1071,7 @@ class subdirmatcher(basematcher):
     sub/x.txt: No such file
     """
 
-    def __init__(self, path, matcher):
+    def __init__(self, path: bytes, matcher: basematcher) -> None:
         super(subdirmatcher, self).__init__()
         self._path = path
         self._matcher = matcher
