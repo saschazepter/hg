@@ -446,6 +446,48 @@ impl Revlog {
 
 type IndexData = Box<dyn Deref<Target = [u8]> + Send + Sync>;
 
+/// TODO We should check for version 5.14+ at runtime, but we either should
+/// add the `nix` dependency to get it efficiently, or vendor the code to read
+/// both of which are overkill for such a feature. If we need this dependency
+/// for more things later, we'll use it here too.
+#[cfg(target_os = "linux")]
+fn can_advise_populate_read() -> bool {
+    true
+}
+
+#[cfg(not(target_os = "linux"))]
+fn can_advise_populate_read() -> bool {
+    false
+}
+
+/// Call `madvise` on the mmap with `MADV_POPULATE_READ` in a separate thread
+/// to populate the mmap in the background for a small perf improvement.
+#[cfg(target_os = "linux")]
+fn advise_populate_read_mmap(mmap: &memmap2::Mmap) {
+    const MADV_POPULATE_READ: i32 = 22;
+
+    // This is fine because the mmap is still referenced for at least
+    // the duration of this function, and the kernel will reject any wrong
+    // address.
+    let ptr = mmap.as_ptr() as u64;
+    let len = mmap.len();
+
+    // Fire and forget. The `JoinHandle` returned by `spawn` is dropped right
+    // after the call, the thread is thus detached. We don't care about success
+    // or failure here.
+    std::thread::spawn(move || unsafe {
+        // mmap's pointer is always page-aligned on Linux. In the case of
+        // file-based mmap (which is our use-case), the length should be
+        // correct. If not, it's not a safety concern as the kernel will just
+        // ignore unmapped pages and return ENOMEM, which we will promptly
+        // ignore, because we don't care about any errors.
+        libc::madvise(ptr as *mut libc::c_void, len, MADV_POPULATE_READ);
+    });
+}
+
+#[cfg(not(target_os = "linux"))]
+fn advise_populate_read_mmap(mmap: &memmap2::Mmap) {}
+
 /// Open the revlog [`Index`] at `index_path`, through the `store_vfs` and the
 /// given `options`. This controls whether (and how) we `mmap` the index file,
 /// and returns an empty buffer if the index does not exist on disk.
@@ -465,8 +507,12 @@ pub fn open_index(
                 if size >= threshold {
                     // TODO madvise populate read in a background thread
                     let mut mmap_options = MmapOptions::new();
-                    // This does nothing on platforms where it's not defined
-                    mmap_options.populate();
+                    if !can_advise_populate_read() {
+                        // Fall back to populating in the main thread if
+                        // post-creation advice is not supported.
+                        // Does nothing on platforms where it's not defined.
+                        mmap_options.populate();
+                    }
                     // Safety is "enforced" by locks and assuming other
                     // processes are well-behaved. If any misbehaving or
                     // malicious process does touch the index, it could lead
@@ -476,6 +522,11 @@ pub fn open_index(
                     // TODO linux: set the immutable flag with `chattr(1)`?
                     let mmap = unsafe { mmap_options.map(&file) }
                         .when_reading_file(index_path)?;
+
+                    if can_advise_populate_read() {
+                        advise_populate_read_mmap(&mmap);
+                    }
+
                     Some(Box::new(mmap) as IndexData)
                 } else {
                     None
