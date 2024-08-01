@@ -1187,7 +1187,7 @@ class imanifestrevisionstored(imanifestrevisionbase):
         The returned object conforms to the ``imanifestdict`` interface.
         """
 
-    def read_any_fast_delta(valid_bases, *, shallow=False):
+    def read_any_fast_delta(valid_bases=None, *, shallow=False):
         """read some manifest information as fast if possible
 
         This might return a "delta", a manifest object containing only file

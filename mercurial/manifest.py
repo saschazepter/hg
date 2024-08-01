@@ -2264,7 +2264,7 @@ class ManifestCtx:
 
     def read_any_fast_delta(
         self,
-        valid_bases: Collection[int],
+        valid_bases: Optional[Collection[int]] = None,
         *,
         shallow: bool = False,
     ) -> Tuple[Optional[int], ManifestDict]:
@@ -2272,6 +2272,9 @@ class ManifestCtx:
         store = self._storage()
         r = store.rev(self._node)
         deltaparent = store.deltaparent(r)
+        if valid_bases is None:
+            # make sure the next check is True
+            valid_bases = (deltaparent,)
         if deltaparent != nullrev and deltaparent in valid_bases:
             d = mdiff.patchtext(store.revdiff(deltaparent, r))
             return (
@@ -2419,7 +2422,7 @@ class TreeManifestCtx:
 
     def read_any_fast_delta(
         self,
-        valid_bases: Collection[int],
+        valid_bases: Optional[Collection[int]] = None,
         *,
         shallow: bool = False,
     ) -> Tuple[Optional[int], AnyManifestDict]:
@@ -2428,6 +2431,9 @@ class TreeManifestCtx:
         r = store.rev(self._node)
         deltaparent = store.deltaparent(r)
 
+        if valid_bases is None:
+            # make sure the next check is True
+            valid_bases = (deltaparent,)
         can_use_delta = deltaparent != nullrev and deltaparent in valid_bases
 
         if shallow:
