@@ -1175,8 +1175,37 @@ class imanifestrevisionstored(imanifestrevisionbase):
     def readdelta(shallow=False):
         """Obtain the manifest data structure representing changes from parent.
 
-        This manifest is compared to its 1st parent. A new manifest representing
-        those differences is constructed.
+        This manifest is compared to its 1st parent. A new manifest
+        representing those differences is constructed.
+
+        If `shallow` is True, this will read the delta for this directory,
+        without recursively reading subdirectory manifests. Instead, any
+        subdirectory entry will be reported as it appears in the manifest, i.e.
+        the subdirectory will be reported among files and distinguished only by
+        its 't' flag. This only apply if the underlying manifest support it.
+
+        The returned object conforms to the ``imanifestdict`` interface.
+        """
+
+    def read_any_fast_delta(valid_bases, *, shallow=False):
+        """read some manifest information as fast if possible
+
+        This might return a "delta", a manifest object containing only file
+        changed compared to another revisions. The `valid_bases` argument
+        control the set of revision that might be used as a base.
+
+        If no delta can be retrieved quickly, a full read of the manifest will
+        be performed instead.
+
+        The function return a tuple with two elements. The first one is the
+        delta base used (or None if we did a full read), the second one is the
+        manifest information.
+
+        If `shallow` is True, this will read the delta for this directory,
+        without recursively reading subdirectory manifests. Instead, any
+        subdirectory entry will be reported as it appears in the manifest, i.e.
+        the subdirectory will be reported among files and distinguished only by
+        its 't' flag. This only apply if the underlying manifest support it.
 
         The returned object conforms to the ``imanifestdict`` interface.
         """

@@ -14,6 +14,7 @@ import weakref
 from typing import (
     ByteString,
     Callable,
+    Collection,
     Dict,
     Iterable,
     Iterator,
@@ -2261,6 +2262,24 @@ class ManifestCtx:
         d = mdiff.patchtext(store.revdiff(store.deltaparent(r), r))
         return manifestdict(store.nodeconstants.nodelen, d)
 
+    def read_any_fast_delta(
+        self,
+        valid_bases: Collection[int],
+        *,
+        shallow: bool = False,
+    ) -> Tuple[Optional[int], ManifestDict]:
+        """see `imanifestrevisionstored` documentation"""
+        store = self._storage()
+        r = store.rev(self._node)
+        deltaparent = store.deltaparent(r)
+        if deltaparent != nullrev and deltaparent in valid_bases:
+            d = mdiff.patchtext(store.revdiff(deltaparent, r))
+            return (
+                deltaparent,
+                manifestdict(store.nodeconstants.nodelen, d),
+            )
+        return (None, self.read())
+
     def find(self, key: bytes) -> Tuple[bytes, bytes]:
         return self.read().find(key)
 
@@ -2379,16 +2398,7 @@ class TreeManifestCtx:
         return self._storage().parents(self._node)
 
     def readdelta(self, shallow: bool = False) -> AnyManifestDict:
-        """Returns a manifest containing just the entries that are present
-        in this manifest, but not in its p1 manifest. This is efficient to read
-        if the revlog delta is already p1.
-
-        If `shallow` is True, this will read the delta for this directory,
-        without recursively reading subdirectory manifests. Instead, any
-        subdirectory entry will be reported as it appears in the manifest, i.e.
-        the subdirectory will be reported among files and distinguished only by
-        its 't' flag.
-        """
+        """see `imanifestrevisionstored` documentation"""
         store = self._storage()
         if shallow:
             r = store.rev(self._node)
@@ -2406,6 +2416,69 @@ class TreeManifestCtx:
                     if fl1:
                         md.setflag(f, fl1)
             return md
+
+    def read_any_fast_delta(
+        self,
+        valid_bases: Collection[int],
+        *,
+        shallow: bool = False,
+    ) -> Tuple[Optional[int], AnyManifestDict]:
+        """see `imanifestrevisionstored` documentation"""
+        store = self._storage()
+        r = store.rev(self._node)
+        deltaparent = store.deltaparent(r)
+
+        can_use_delta = deltaparent != nullrev and deltaparent in valid_bases
+
+        if shallow:
+            if can_use_delta:
+                return (deltaparent, self._read_storage_delta_shallow())
+            else:
+                d = store.revision(self._node)
+                return (None, manifestdict(store.nodeconstants.nodelen, d))
+        else:
+            # note: This use "slow_delta" here is cargo culted from the previous
+            # implementation. I am not sure it make sense since the goal here is to
+            # be fast, so why are we computing a delta? On the other hand, tree
+            # manifest delta as fairly "cheap" and allow for skipping whole part of
+            # the tree that a full read would access. So it might be a good idea.
+            #
+            # If we realize we don't need delta here, we should simply use:
+            #
+            #     return (None, self.read())
+            if can_use_delta:
+                return (None, self._read_storage_slow_delta(base=deltaparent))
+            else:
+                parents = [
+                    p
+                    for p in store.parentrevs(r)
+                    if p is not nullrev and p in valid_bases
+                ]
+                if parents:
+                    best_base = max(parents)
+                else:
+                    best_base = max(valid_bases)
+                return (None, self._read_storage_slow_delta(base=best_base))
+
+    def _read_storage_delta_shallow(self) -> ManifestDict:
+        store = self._storage()
+        r = store.rev(self._node)
+        d = mdiff.patchtext(store.revdiff(store.deltaparent(r), r))
+        return manifestdict(store.nodeconstants.nodelen, d)
+
+    def _read_storage_slow_delta(self, base) -> 'TreeManifest':
+        store = self._storage()
+        if base is None:
+            base = store.deltaparent(store.rev(self._node))
+        m0 = self._manifestlog.get(self._dir, store.node(base)).read()
+        m1 = self.read()
+        md = treemanifest(self._manifestlog.nodeconstants, dir=self._dir)
+        for f, ((n0, fl0), (n1, fl1)) in m0.diff(m1).items():
+            if n1:
+                md[f] = n1
+                if fl1:
+                    md.setflag(f, fl1)
+        return md
 
     def readfast(self, shallow=False) -> AnyManifestDict:
         """Calls either readdelta or read, based on which would be less work.
