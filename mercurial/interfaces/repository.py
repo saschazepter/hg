@@ -1021,6 +1021,12 @@ class imanifestdict(interfaceutil.Interface):
 
     __bool__ = __nonzero__
 
+    def set(path, node, flags):
+        """Define the node value and flags for a path in the manifest.
+
+        Equivalent to __setitem__ followed by setflag, but can be more efficient.
+        """
+
     def __setitem__(path, node):
         """Define the node value for a path in the manifest.
 

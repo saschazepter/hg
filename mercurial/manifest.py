@@ -493,6 +493,9 @@ class manifestdict:
 
     __bool__ = __nonzero__
 
+    def set(self, key, node, flags):
+        self._lm[key] = node, flags
+
     def __setitem__(self, key, node):
         self._lm[key] = node, self.flags(key)
 
@@ -1046,6 +1049,26 @@ class treemanifest:
             del self._files[f]
             if f in self._flags:
                 del self._flags[f]
+        self._dirty = True
+
+    def set(self, f, node, flags):
+        """Set both the node and the flags for path f."""
+        assert node is not None
+        if flags not in _manifestflags:
+            raise TypeError(b"Invalid manifest flag set.")
+        self._load()
+        dir, subpath = _splittopdir(f)
+        if dir:
+            self._loadlazy(dir)
+            if dir not in self._dirs:
+                self._dirs[dir] = treemanifest(
+                    self.nodeconstants, self._subpath(dir)
+                )
+            self._dirs[dir].set(subpath, node, flags)
+        else:
+            assert len(node) in (20, 32)
+            self._files[f] = node
+            self._flags[f] = flags
         self._dirty = True
 
     def __setitem__(self, f, n):
