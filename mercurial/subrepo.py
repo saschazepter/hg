@@ -363,7 +363,9 @@ class abstractsubrepo:
         """handle the files command for this subrepo"""
         return 1
 
-    def archive(self, archiver, prefix, match, decode=True):
+    def archive(
+        self, archiver, prefix, match: matchmod.basematcher, decode=True
+    ):
         files = [f for f in self.files() if match(f)]
         total = len(files)
         relpath = subrelpath(self)
@@ -649,7 +651,9 @@ class hgsubrepo(abstractsubrepo):
             )
 
     @annotatesubrepoerror
-    def archive(self, archiver, prefix, match, decode=True):
+    def archive(
+        self, archiver, prefix, match: matchmod.basematcher, decode=True
+    ):
         self._get(self._state + (b'hg',))
         files = [f for f in self.files() if match(f)]
         rev = self._state[1]
@@ -1906,7 +1910,9 @@ class gitsubrepo(abstractsubrepo):
             else:
                 self.wvfs.unlink(f)
 
-    def archive(self, archiver, prefix, match, decode=True):
+    def archive(
+        self, archiver, prefix, match: matchmod.basematcher, decode=True
+    ):
         total = 0
         source, revision = self._state
         if not revision:
