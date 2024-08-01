@@ -1210,6 +1210,20 @@ class imanifestrevisionstored(imanifestrevisionbase):
         The returned object conforms to the ``imanifestdict`` interface.
         """
 
+    def read_delta_parents(*, shallow=False, exact=True):
+        """return a diff from this revision against both parents.
+
+        If `exact` is False, this might return a superset of the diff, containing
+        files that are actually present as is in one of the parents.
+
+        If `shallow` is True, this will read the delta for this directory,
+        without recursively reading subdirectory manifests. Instead, any
+        subdirectory entry will be reported as it appears in the manifest, i.e.
+        the subdirectory will be reported among files and distinguished only by
+        its 't' flag. This only apply if the underlying manifest support it.
+
+        The returned object conforms to the ``imanifestdict`` interface."""
+
     def readfast(shallow=False):
         """Calls either ``read()`` or ``readdelta()``.
 
