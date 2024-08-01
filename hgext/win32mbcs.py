@@ -73,7 +73,7 @@ configitem(
     default=lambda: encoding.encoding,
 )
 
-_encoding = None  # see extsetup
+_encoding: str = ""  # see extsetup
 
 
 def decode(arg):
@@ -129,7 +129,7 @@ def basewrapper(func, argtype, enc, dec, args, kwds):
     except UnicodeError:
         raise error.Abort(
             _(b"[win32mbcs] filename conversion failed with %s encoding\n")
-            % _encoding
+            % encoding.strtolocal(_encoding)
         )
 
 
@@ -199,7 +199,7 @@ def extsetup(ui):
         return
     # determine encoding for filename
     global _encoding
-    _encoding = ui.config(b'win32mbcs', b'encoding')
+    _encoding = encoding.strfromlocal(ui.config(b'win32mbcs', b'encoding'))
     # fake is only for relevant environment.
     if _encoding.lower() in problematic_encodings.split():
         for f in funcs.split():
@@ -217,5 +217,6 @@ def extsetup(ui):
         # extensions.loadall() is called.
         if '--debug' in sys.argv:
             ui.writenoi18n(
-                b"[win32mbcs] activated with encoding: %s\n" % _encoding
+                b"[win32mbcs] activated with encoding: %s\n"
+                % encoding.strtolocal(_encoding)
             )
