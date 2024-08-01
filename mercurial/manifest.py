@@ -2283,6 +2283,40 @@ class ManifestCtx:
             )
         return (None, self.read())
 
+    def read_delta_parents(
+        self,
+        *,
+        shallow: bool = False,
+        exact: bool = True,
+    ) -> ManifestDict:
+        """see `interface.imanifestrevisionbase` documentations"""
+        store = self._storage()
+        r = store.rev(self._node)
+        deltaparent = store.deltaparent(r)
+        parents = [p for p in store.parentrevs(r) if p is not nullrev]
+        if not exact and deltaparent in parents:
+            d = mdiff.patchtext(store.revdiff(store.deltaparent(r), r))
+            return manifestdict(store.nodeconstants.nodelen, d)
+        elif not exact or len(parents) == 0:
+            return self.read()
+        elif len(parents) == 1:
+            p = parents[0]
+            d = mdiff.patchtext(store.revdiff(p, r))
+            return manifestdict(store.nodeconstants.nodelen, d)
+        else:
+            p1, p2 = parents
+            d1 = mdiff.patchtext(store.revdiff(p1, r))
+            d2 = mdiff.patchtext(store.revdiff(p2, r))
+            d1 = manifestdict(store.nodeconstants.nodelen, d1)
+            d2 = manifestdict(store.nodeconstants.nodelen, d2)
+            md = manifestdict(store.nodeconstants.nodelen)
+            for f, new_node, new_flag in d1.iterentries():
+                if f not in d2:
+                    continue
+                if new_node is not None:
+                    md.set(f, new_node, new_flag)
+            return md
+
     def find(self, key: bytes) -> Tuple[bytes, bytes]:
         return self.read().find(key)
 
@@ -2485,6 +2519,62 @@ class TreeManifestCtx:
                 if fl1:
                     md.setflag(f, fl1)
         return md
+
+    def read_delta_parents(
+        self,
+        *,
+        shallow: bool = False,
+        exact: bool = True,
+    ) -> AnyManifestDict:
+        """see `interface.imanifestrevisionbase` documentations"""
+        store = self._storage()
+        r = store.rev(self._node)
+        parents = [p for p in store.parentrevs(r) if p is not nullrev]
+        if not exact:
+            return self.read_any_fast_delta(parents, shallow=shallow)[1]
+        elif len(parents) == 0:
+            if shallow:
+                d = store.revision(self._node)
+                return manifestdict(store.nodeconstants.nodelen, d)
+            else:
+                return self.read()
+        elif len(parents) == 1:
+            p = parents[0]
+            if shallow:
+                d = mdiff.patchtext(store.revdiff(p, r))
+                return manifestdict(store.nodeconstants.nodelen, d)
+            else:
+                return self._read_storage_slow_delta(base=p)
+        else:
+            p1, p2 = parents
+            if shallow:
+                d1 = mdiff.patchtext(store.revdiff(p1, r))
+                d2 = mdiff.patchtext(store.revdiff(p2, r))
+                d1 = manifestdict(store.nodeconstants.nodelen, d1)
+                d2 = manifestdict(store.nodeconstants.nodelen, d2)
+                md = manifestdict(store.nodeconstants.nodelen)
+                for f, new_node, new_flag in d1.iterentries():
+                    if f not in d2:
+                        continue
+                    if new_node is not None:
+                        md.set(f, new_node, new_flag)
+                return md
+            else:
+                m1 = self._manifestlog.get(self._dir, store.node(p1)).read()
+                m2 = self._manifestlog.get(self._dir, store.node(p2)).read()
+                mc = self.read()
+                d1 = m1.diff(mc)
+                d2 = m2.diff(mc)
+                md = treemanifest(
+                    self._manifestlog.nodeconstants,
+                    dir=self._dir,
+                )
+                for f, new_node, new_flag in d1.iterentries():
+                    if f not in d2:
+                        continue
+                    if new_node is not None:
+                        md.set(f, new_node, new_flag)
+                return md
 
     def readfast(self, shallow=False) -> AnyManifestDict:
         """Calls either readdelta or read, based on which would be less work.
