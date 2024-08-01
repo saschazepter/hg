@@ -265,6 +265,9 @@ class basectx:
                 raise error.ManifestLookupError(
                     self._node or b'None', path, _(b'not found in manifest')
                 )
+        # Try to find the file in the manifest delta that can be faster to read
+        # than a full manifest. If we fail to find the file, it might still
+        # exist in the full manifest, so lets look for it there.
         if '_manifestdelta' in self.__dict__ or path in self.files():
             if path in self._manifestdelta:
                 return (
