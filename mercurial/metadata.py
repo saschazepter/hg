@@ -243,7 +243,7 @@ def compute_all_files_changes(ctx):
         return _process_linear(p1, ctx)
     elif p1.rev() == nullrev and p2.rev() != nullrev:
         # In the wild, one can encounter changeset where p1 is null but p2 is not
-        return _process_linear(p1, ctx, parent=2)
+        return _process_linear(p2, ctx, parent=2)
     elif p1.rev() == p2.rev():
         # In the wild, one can encounter such "non-merge"
         return _process_linear(p1, ctx)
