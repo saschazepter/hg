@@ -11,6 +11,9 @@
 import contextlib
 import copy
 import os
+from typing import (
+    Optional,
+)
 
 from mercurial.i18n import _
 
@@ -1224,7 +1227,7 @@ def overridearchive(
     node,
     kind,
     decode=True,
-    match=None,
+    match: Optional[matchmod.basematcher] = None,
     prefix=b'',
     mtime=None,
     subrepos=None,
@@ -1317,7 +1320,9 @@ def overridearchive(
 
 
 @eh.wrapfunction(subrepo.hgsubrepo, 'archive')
-def hgsubrepoarchive(orig, repo, archiver, prefix, match, decode=True):
+def hgsubrepoarchive(
+    orig, repo, archiver, prefix, match: matchmod.basematcher, decode=True
+):
     lfenabled = hasattr(repo._repo, '_largefilesenabled')
     if not lfenabled or not repo._repo.lfstatus:
         return orig(repo, archiver, prefix, match, decode)
