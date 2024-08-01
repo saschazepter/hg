@@ -632,9 +632,11 @@ fn ignore_files(repo: &Repo, config: &Config) -> Vec<PathBuf> {
     for (key, value) in config.iter_section(b"ui") {
         if key == b"ignore" || key.starts_with(b"ignore.") {
             let path = get_path_from_bytes(value);
-            // TODO: expand "~/" and environment variable here, like Python
-            // does with `os.path.expanduser` and `os.path.expandvars`
-
+            let path = shellexpand::path::full_with_context_no_errors(
+                path,
+                home::home_dir,
+                |s| std::env::var(s).ok(),
+            );
             let joined = repo.working_directory_path().join(path);
             ignore_files.push(joined);
         }
