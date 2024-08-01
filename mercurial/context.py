@@ -541,7 +541,10 @@ class changectx(basectx):
 
     @propertycache
     def _manifestdelta(self):
-        return self._manifestctx.readdelta()
+        base, delta = self._manifestctx.read_any_fast_delta()
+        if base is None:
+            self._manifest = delta
+        return delta
 
     @propertycache
     def _parents(self):
