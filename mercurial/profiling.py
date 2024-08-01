@@ -7,6 +7,9 @@
 
 
 import contextlib
+import os
+import signal
+import subprocess
 
 from .i18n import _
 from .pycompat import (
@@ -175,6 +178,50 @@ def statprofile(ui, fp):
         fp.flush()
 
 
+@contextlib.contextmanager
+def pyspy_profile(ui, fp):
+    exe = ui.config(b'profiling', b'py-spy.exe')
+
+    freq = ui.configint(b'profiling', b'py-spy.freq')
+
+    format = ui.config(b'profiling', b'py-spy.format')
+
+    fd = fp.fileno()
+
+    output_path = "/dev/fd/%d" % (fd)
+
+    my_pid = os.getpid()
+
+    cmd = [
+        exe,
+        "record",
+        "--pid",
+        str(my_pid),
+        "--native",
+        "--rate",
+        str(freq),
+        "--output",
+        output_path,
+    ]
+
+    if format:
+        cmd.extend(["--format", format])
+
+    proc = subprocess.Popen(
+        cmd,
+        pass_fds={fd},
+        stdout=subprocess.PIPE,
+    )
+
+    _ = proc.stdout.readline()
+
+    try:
+        yield
+    finally:
+        os.kill(proc.pid, signal.SIGINT)
+        proc.communicate()
+
+
 class profile:
     """Start profiling.
 
@@ -214,7 +261,7 @@ class profile:
         proffn = None
         if profiler is None:
             profiler = self._ui.config(b'profiling', b'type')
-        if profiler not in (b'ls', b'stat', b'flame'):
+        if profiler not in (b'ls', b'stat', b'flame', b'py-spy'):
             # try load profiler from extension with the same name
             proffn = _loadprofiler(self._ui, profiler)
             if proffn is None:
@@ -257,6 +304,8 @@ class profile:
                 proffn = lsprofile
             elif profiler == b'flame':
                 proffn = flameprofile
+            elif profiler == b'py-spy':
+                proffn = pyspy_profile
             else:
                 proffn = statprofile
 

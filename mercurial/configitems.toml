@@ -1811,6 +1811,20 @@ name = "type"
 default = "stat"
 
 [[items]]
+section = "profiling"
+name = "py-spy.exe"
+default = "py-spy"
+
+[[items]]
+section = "profiling"
+name = "py-spy.freq"
+default = 100
+
+[[items]]
+section = "profiling"
+name = "py-spy.format"
+
+[[items]]
 section = "progress"
 name = "assume-tty"
 default = false
