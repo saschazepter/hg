@@ -55,7 +55,11 @@ from .revlogutils import (
 
 
 class bundlerevlog(revlog.revlog):
-    def __init__(self, opener, target, radix, cgunpacker, linkmapper):
+    def __init__(
+        self, opener: typing.Any, target, radix, cgunpacker, linkmapper
+    ):
+        # TODO: figure out real type of opener
+        #
         # How it works:
         # To retrieve a revision, we need to know the offset of the revision in
         # the bundle (an unbundle object). We store this offset in the index
@@ -124,7 +128,7 @@ class bundlerevlog(revlog.revlog):
         # delta base, not against rev - 1
         # XXX: could use some caching
         if rev <= self.repotiprev:
-            return revlog.revlog._chunk(self, rev)
+            return super(bundlerevlog, self)._inner._chunk(rev)
         self.bundle.seek(self.start(rev))
         return self.bundle.read(self.length(rev))
 
@@ -265,10 +269,10 @@ class bundlephasecache(phases.phasecache):
         if hasattr(self, 'opener'):
             self.opener = vfsmod.readonlyvfs(self.opener)
 
-    def write(self):
+    def write(self, repo):
         raise NotImplementedError
 
-    def _write(self, fp):
+    def _write(self, repo, fp):
         raise NotImplementedError
 
     def _updateroots(self, repo, phase, newroots, tr, invalidate=True):
