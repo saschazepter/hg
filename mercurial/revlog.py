@@ -1310,6 +1310,7 @@ class revlog:
     """
 
     _flagserrorclass = error.RevlogError
+    _inner: "_InnerRevlog"
 
     opener: vfsmod.vfs
 
