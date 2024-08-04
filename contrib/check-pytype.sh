@@ -54,7 +54,6 @@ cd "$(hg root)"
 # mercurial/interfaces          # No attribute 'capabilities' on peer [attribute-error]
 # mercurial/keepalive.py        # [attribute-error]
 # mercurial/localrepo.py        # [attribute-error]
-# mercurial/manifest.py         # [unsupported-operands], [wrong-arg-types]
 # mercurial/minirst.py          # [unsupported-operands], [attribute-error]
 # mercurial/pure/parsers.py     # [attribute-error]
 # mercurial/repoview.py         # [attribute-error]
@@ -113,7 +112,6 @@ pytype --keep-going --jobs auto \
     -x mercurial/interfaces \
     -x mercurial/keepalive.py \
     -x mercurial/localrepo.py \
-    -x mercurial/manifest.py \
     -x mercurial/minirst.py \
     -x mercurial/pure/parsers.py \
     -x mercurial/repoview.py \
