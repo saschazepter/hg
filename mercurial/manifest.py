@@ -1605,10 +1605,12 @@ class manifestrevlog:
         # stacks of commits, the number can go up, hence the config knob below.
         cachesize = 4
         optiontreemanifest = False
+        persistentnodemap = False
         opts = getattr(opener, 'options', None)
         if opts is not None:
             cachesize = opts.get(b'manifestcachesize', cachesize)
             optiontreemanifest = opts.get(b'treemanifest', False)
+            persistentnodemap = opts.get(b'persistent-nodemap', False)
 
         self._treeondisk = optiontreemanifest or treemanifest
 
@@ -1637,7 +1639,7 @@ class manifestrevlog:
             checkambig=not bool(tree),
             mmaplargeindex=True,
             upperboundcomp=MAXCOMPRESSION,
-            persistentnodemap=opener.options.get(b'persistent-nodemap', False),
+            persistentnodemap=persistentnodemap,
         )
 
         self.index = self._revlog.index
