@@ -11,6 +11,10 @@ import itertools
 import struct
 import weakref
 
+from typing import (
+    Iterable,
+)
+
 from .i18n import _
 from .node import (
     bin,
@@ -1705,8 +1709,8 @@ class manifestrevlog:
         link,
         p1,
         p2,
-        added,
-        removed,
+        added: Iterable[Iterable],
+        removed: Iterable[Iterable],
         readtree=None,
         match=None,
     ):
