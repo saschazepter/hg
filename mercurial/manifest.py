@@ -143,10 +143,10 @@ class lazymanifestiterentries:
     __next__ = next
 
 
-def unhexlify(data, extra, pos, length):
+def unhexlify(data: bytes, extra: int, pos, length: int):
     s = bin(data[pos : pos + length])
     if extra:
-        s += chr(extra & 0xFF)
+        s += bytes([extra & 0xFF])
     return s
 
 
