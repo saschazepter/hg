@@ -161,7 +161,7 @@ def _cmp(a, b):
 _manifestflags = {b'', b'l', b't', b'x'}
 
 
-class _lazymanifest:
+class _LazyManifest:
     """A pure python manifest backed by a byte string.  It is supplimented with
     internal lists as it is modified, until it is compacted back to a pure byte
     string.
@@ -472,11 +472,10 @@ class _lazymanifest:
 try:
     _lazymanifest = parsers.lazymanifest
 except AttributeError:
-    pass
+    _lazymanifest = _LazyManifest
 
 
-@interfaceutil.implementer(repository.imanifestdict)
-class manifestdict:
+class ManifestDict:
     def __init__(self, nodelen, data=b''):
         self._nodelen = nodelen
         self._lm = _lazymanifest(nodelen, data)
@@ -713,6 +712,9 @@ class manifestdict:
         return arraytext, deltatext
 
 
+manifestdict = interfaceutil.implementer(repository.imanifestdict)(ManifestDict)
+
+
 def _msearch(m, s, lo=0, hi=None):
     """return a tuple (start, end) that says where to find s within m.
 
@@ -801,8 +803,7 @@ def _splittopdir(f):
 _noop = lambda s: None
 
 
-@interfaceutil.implementer(repository.imanifestdict)
-class treemanifest:
+class TreeManifest:
     def __init__(self, nodeconstants, dir=b'', text=b''):
         self._dir = dir
         self.nodeconstants = nodeconstants
@@ -1441,6 +1442,9 @@ class treemanifest:
                 yield subtree
 
 
+treemanifest = interfaceutil.implementer(repository.imanifestdict)(TreeManifest)
+
+
 class manifestfulltextcache(util.lrucachedict):
     """File-backed LRU cache for the manifest cache
 
@@ -1575,8 +1579,7 @@ class FastdeltaUnavailable(Exception):
     """Exception raised when fastdelta isn't usable on a manifest."""
 
 
-@interfaceutil.implementer(repository.imanifeststorage)
-class manifestrevlog:
+class ManifestRevlog:
     """A revlog that stores manifest texts. This is responsible for caching the
     full-text manifest contents.
     """
@@ -1949,6 +1952,11 @@ class manifestrevlog:
         self._revlog.opener = value
 
 
+manifestrevlog = interfaceutil.implementer(repository.imanifeststorage)(
+    ManifestRevlog
+)
+
+
 @interfaceutil.implementer(repository.imanifestlog)
 class manifestlog:
     """A collection class representing the collection of manifest snapshots
@@ -2048,8 +2056,7 @@ class manifestlog:
         return self._rootstore._revlog.update_caches(transaction=transaction)
 
 
-@interfaceutil.implementer(repository.imanifestrevisionwritable)
-class memmanifestctx:
+class MemManifestCtx:
     def __init__(self, manifestlog):
         self._manifestlog = manifestlog
         self._manifestdict = manifestdict(manifestlog.nodeconstants.nodelen)
@@ -2078,8 +2085,12 @@ class memmanifestctx:
         )
 
 
-@interfaceutil.implementer(repository.imanifestrevisionstored)
-class manifestctx:
+memmanifestctx = interfaceutil.implementer(
+    repository.imanifestrevisionwritable
+)(MemManifestCtx)
+
+
+class ManifestCtx:
     """A class representing a single revision of a manifest, including its
     contents, its parent revs, and its linkrev.
     """
@@ -2158,8 +2169,12 @@ class manifestctx:
         return self.read().find(key)
 
 
-@interfaceutil.implementer(repository.imanifestrevisionwritable)
-class memtreemanifestctx:
+manifestctx = interfaceutil.implementer(repository.imanifestrevisionstored)(
+    ManifestCtx
+)
+
+
+class MemTreeManifestCtx:
     def __init__(self, manifestlog, dir=b''):
         self._manifestlog = manifestlog
         self._dir = dir
@@ -2193,8 +2208,12 @@ class memtreemanifestctx:
         )
 
 
-@interfaceutil.implementer(repository.imanifestrevisionstored)
-class treemanifestctx:
+memtreemanifestctx = interfaceutil.implementer(
+    repository.imanifestrevisionwritable
+)(MemTreeManifestCtx)
+
+
+class TreeManifestCtx:
     def __init__(self, manifestlog, dir, node):
         self._manifestlog = manifestlog
         self._dir = dir
@@ -2315,6 +2334,11 @@ class treemanifestctx:
 
     def find(self, key):
         return self.read().find(key)
+
+
+treemanifestctx = interfaceutil.implementer(repository.imanifestrevisionstored)(
+    TreeManifestCtx
+)
 
 
 class excludeddir(treemanifest):
