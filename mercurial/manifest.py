@@ -692,13 +692,13 @@ class ManifestDict:
                         dline.append(l)
                 else:
                     if dstart is not None:
-                        delta.append([dstart, dend, b"".join(dline)])
+                        delta.append((dstart, dend, b"".join(dline)))
                     dstart = start
                     dend = end
                     dline = [l]
 
             if dstart is not None:
-                delta.append([dstart, dend, b"".join(dline)])
+                delta.append((dstart, dend, b"".join(dline)))
             # apply the delta to the base, and get a delta for addrevision
             deltatext, arraytext = _addlistdelta(base, delta)
         else:
