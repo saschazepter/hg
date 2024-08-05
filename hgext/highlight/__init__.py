@@ -105,4 +105,4 @@ def extsetup(ui):
     )
     extensions.wrapfunction(webcommands, 'annotate', annotate_highlight)
     webcommands.highlightcss = generate_css
-    webcommands.__all__.append(b'highlightcss')
+    webcommands.__all__.append('highlightcss')
