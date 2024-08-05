@@ -76,7 +76,7 @@ def bdiff(sa: bytes, sb: bytes) -> bytes:
                         lgt,
                     )
                 )
-                rl.append(str(ffi.buffer((b[0] + lb).l, lgt)))
+                rl.append(bytes(ffi.buffer((b[0] + lb).l, lgt)))
             la = h.a2
             lb = h.b2
             h = h.next
