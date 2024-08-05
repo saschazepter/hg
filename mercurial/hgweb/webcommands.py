@@ -72,7 +72,7 @@ class webcommand:
         self.name = name
 
     def __call__(self, func):
-        __all__.append(self.name)
+        __all__.append(pycompat.sysstr(self.name))
         commands[self.name] = func
         return func
 

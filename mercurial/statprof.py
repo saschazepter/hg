@@ -122,7 +122,7 @@ from . import (
 defaultdict = collections.defaultdict
 contextmanager = contextlib.contextmanager
 
-__all__ = [b'start', b'stop', b'reset', b'display', b'profile']
+__all__ = ['start', 'stop', 'reset', 'display', 'profile']
 
 skips = {
     "util.py:check",

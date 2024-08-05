@@ -20,4 +20,4 @@ def raiseerror(web):
 
 def extsetup(ui):
     setattr(webcommands, 'raiseerror', raiseerror)
-    webcommands.__all__.append(b'raiseerror')
+    webcommands.__all__.append('raiseerror')
