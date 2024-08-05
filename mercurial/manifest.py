@@ -842,7 +842,7 @@ class TreeManifest:
 
     def _loadlazy(self, d):
         v = self._lazydirs.get(d)
-        if v:
+        if v is not None:
             node, readsubtree, docopy = v
             if docopy:
                 self._dirs[d] = readsubtree(self._subpath(d), node).copy()
