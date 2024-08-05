@@ -874,7 +874,7 @@ class TreeManifest:
         toloadlazy = []
         for d, v1 in t1._lazydirs.items():
             v2 = t2._lazydirs.get(d)
-            if not v2 or v2[0] != v1[0]:
+            if v2 is None or v2[0] != v1[0]:
                 toloadlazy.append(d)
         for d, v1 in t2._lazydirs.items():
             if d not in t1._lazydirs:
