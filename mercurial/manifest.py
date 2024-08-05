@@ -2247,6 +2247,11 @@ class ManifestCtx:
 
         If `shallow` is True, nothing changes since this is a flat manifest.
         """
+        util.nouideprecwarn(
+            b'"readfast" is deprecated use "read_any_fast_delta" or "read_delta_parents"',
+            b"6.9",
+            stacklevel=2,
+        )
         store = self._storage()
         r = store.rev(self._node)
         deltaparent = store.deltaparent(r)
@@ -2261,6 +2266,11 @@ class ManifestCtx:
 
         Changing the value of `shallow` has no effect on flat manifests.
         """
+        util.nouideprecwarn(
+            b'"readfast" is deprecated use "read_any_fast_delta" or "read_delta_new_entries"',
+            b"6.9",
+            stacklevel=2,
+        )
         store = self._storage()
         r = store.rev(self._node)
         d = mdiff.patchtext(store.revdiff(store.deltaparent(r), r))
@@ -2454,6 +2464,11 @@ class TreeManifestCtx:
 
     def readdelta(self, shallow: bool = False) -> AnyManifestDict:
         """see `imanifestrevisionstored` documentation"""
+        util.nouideprecwarn(
+            b'"readdelta" is deprecated use "read_any_fast_delta" or "read_delta_new_entries"',
+            b"6.9",
+            stacklevel=2,
+        )
         store = self._storage()
         if shallow:
             r = store.rev(self._node)
@@ -2619,6 +2634,11 @@ class TreeManifestCtx:
         If `shallow` is True, it only returns the entries from this manifest,
         and not any submanifests.
         """
+        util.nouideprecwarn(
+            b'"readdelta" is deprecated use "read_any_fast_delta" or "read_delta_parents"',
+            b"6.9",
+            stacklevel=2,
+        )
         store = self._storage()
         r = store.rev(self._node)
         deltaparent = store.deltaparent(r)
