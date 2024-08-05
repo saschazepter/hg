@@ -89,7 +89,7 @@ import traceback
 
 from mercurial import pycompat
 
-__all__ = [b"Zeroconf", b"ServiceInfo", b"ServiceBrowser"]
+__all__ = ["Zeroconf", "ServiceInfo", "ServiceBrowser"]
 
 # hook for threads
 
