@@ -1407,7 +1407,9 @@ class TreeManifest:
             ld = m._lazydirs.get(d)
             if ld:
                 return ld[0]
-            return m._dirs.get(d, emptytree)._node
+            tree = m._dirs.get(d, emptytree)
+            assert tree is not None  # helps pytype
+            return tree._node
 
         # let's skip investigating things that `match` says we do not need.
         visit = match.visitchildrenset(self._dir[:-1])
