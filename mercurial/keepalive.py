@@ -852,6 +852,6 @@ if __name__ == '__main__':
         N = int(sys.argv[1])
         url = sys.argv[2]
     except (IndexError, ValueError):
-        print(b"%s <integer> <url>" % sys.argv[0])
+        print("%s <integer> <url>" % sys.argv[0])
     else:
         test(url, N)
