@@ -611,7 +611,7 @@ class cg1unpacker:
                 # validate incoming csets have their manifests
                 for cset in range(clstart, clend):
                     mfnode = cl.changelogrevision(cset).manifest
-                    mfest = ml[mfnode].readdelta()
+                    mfest = ml[mfnode].read_delta_new_entries()
                     # store file nodes we must see
                     for f, n in mfest.items():
                         needfiles.setdefault(f, set()).add(n)
