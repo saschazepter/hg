@@ -2090,6 +2090,10 @@ class manifestlog:
         """
         return self.get(b'', node)
 
+    @property
+    def narrowed(self):
+        return not (self._narrowmatch is None or self._narrowmatch.always())
+
     def get(
         self, tree: bytes, node: bytes, verify: bool = True
     ) -> AnyManifestCtx:
@@ -2316,6 +2320,20 @@ class ManifestCtx:
                 if new_node is not None:
                     md.set(f, new_node, new_flag)
             return md
+
+    def read_delta_new_entries(self, *, shallow=False) -> ManifestDict:
+        """see `interface.imanifestrevisionbase` documentations"""
+        # If we are using narrow, returning a delta against an arbitrary
+        # changeset might return file outside the narrowspec. This can create
+        # issue when running validation server side with strict security as
+        # push from low priviledge usage might be seen as adding new revision
+        # for files they cannot touch. So we are strict if narrow is involved.
+        if self._manifestlog.narrowed:
+            return self.read_delta_parents(shallow=shallow, exact=True)
+        store = self._storage()
+        r = store.rev(self._node)
+        d = mdiff.patchtext(store.revdiff(store.deltaparent(r), r))
+        return manifestdict(store.nodeconstants.nodelen, d)
 
     def find(self, key: bytes) -> Tuple[bytes, bytes]:
         return self.read().find(key)
@@ -2575,6 +2593,23 @@ class TreeManifestCtx:
                     if new_node is not None:
                         md.set(f, new_node, new_flag)
                 return md
+
+    def read_delta_new_entries(
+        self, *, shallow: bool = False
+    ) -> AnyManifestDict:
+        """see `interface.imanifestrevisionbase` documentations"""
+        # If we are using narrow, returning a delta against an arbitrary
+        # changeset might return file outside the narrowspec. This can create
+        # issue when running validation server side with strict security as
+        # push from low priviledge usage might be seen as adding new revision
+        # for files they cannot touch. So we are strict if narrow is involved.
+        if self._manifestlog.narrowed:
+            return self.read_delta_parents(shallow=shallow, exact=True)
+        # delegate to existing another existing method for simplicity
+        store = self._storage()
+        r = store.rev(self._node)
+        bases = (store.deltaparent(r),)
+        return self.read_any_fast_delta(bases, shallow=shallow)[1]
 
     def readfast(self, shallow=False) -> AnyManifestDict:
         """Calls either readdelta or read, based on which would be less work.

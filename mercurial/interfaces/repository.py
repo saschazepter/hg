@@ -1224,6 +1224,21 @@ class imanifestrevisionstored(imanifestrevisionbase):
 
         The returned object conforms to the ``imanifestdict`` interface."""
 
+    def read_delta_new_entries(*, shallow=False):
+        """Return a manifest containing just the entries that might be new to
+        the repository.
+
+        This is often equivalent to a diff against both parents, but without
+        garantee. For performance reason, It might contains more files in some cases.
+
+        If `shallow` is True, this will read the delta for this directory,
+        without recursively reading subdirectory manifests. Instead, any
+        subdirectory entry will be reported as it appears in the manifest, i.e.
+        the subdirectory will be reported among files and distinguished only by
+        its 't' flag. This only apply if the underlying manifest support it.
+
+        The returned object conforms to the ``imanifestdict`` interface."""
+
     def readfast(shallow=False):
         """Calls either ``read()`` or ``readdelta()``.
 
@@ -1475,6 +1490,10 @@ class imanifestlog(interfaceutil.Interface):
 
     nodeconstants = interfaceutil.Attribute(
         """nodeconstants used by the current repository."""
+    )
+
+    narrowed = interfaceutil.Attribute(
+        """True, is the manifest is narrowed by a matcher"""
     )
 
     def __getitem__(node):
