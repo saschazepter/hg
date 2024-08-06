@@ -20,7 +20,7 @@ lib = _mpatch.lib
 def cffi_get_next_item(arg, pos):
     all, bins = ffi.from_handle(arg)
     container = ffi.new("struct mpatch_flist*[1]")
-    to_pass = ffi.new("char[]", str(bins[pos]))
+    to_pass = ffi.new("char[]", bytes(bins[pos]))
     all.append(to_pass)
     r = lib.mpatch_decode(to_pass, len(to_pass) - 1, container)
     if r < 0:
