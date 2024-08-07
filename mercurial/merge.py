@@ -521,7 +521,7 @@ def _filternarrowactions(narrowmatch, branchmerge, mresult):
     """
     # We mutate the items in the dict during iteration, so iterate
     # over a copy.
-    for f, action in mresult.filemap():
+    for f, action in list(mresult.filemap()):
         if narrowmatch(f):
             pass
         elif not branchmerge:
@@ -662,7 +662,7 @@ class mergeresult:
         return sum(len(self._actionmapping[a]) for a in actions)
 
     def filemap(self, sort=False):
-        if sorted:
+        if sort:
             for key, val in sorted(self._filemapping.items()):
                 yield key, val
         else:
