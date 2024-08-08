@@ -1714,7 +1714,7 @@ def _chisteditmain(repo, rules, stdscr):
             ch = encoding.strtolocal(stdscr.getkey())
 
 
-def _chistedit(ui, repo, freeargs, opts):
+def _chistedit(ui, repo, state, freeargs, opts):
     """interactively edit changeset history via a curses interface
 
     Provides a ncurses interface to histedit. Press ? in chistedit mode
@@ -1774,7 +1774,7 @@ def _chistedit(ui, repo, freeargs, opts):
                 for r in rules:
                     fp.write(r)
                 opts[b'commands'] = fp.name
-            return _texthistedit(ui, repo, freeargs, opts)
+            return _texthistedit(ui, repo, state, freeargs, opts)
     except KeyboardInterrupt:
         pass
     return -1
@@ -1913,20 +1913,20 @@ def histedit(ui, repo, *freeargs, **opts):
     """
     opts = pycompat.byteskwargs(opts)
 
-    # kludge: _chistedit only works for starting an edit, not aborting
-    # or continuing, so fall back to regular _texthistedit for those
-    # operations.
-    if ui.interface(b'histedit') == b'curses' and _getgoal(opts) == goalnew:
-        return _chistedit(ui, repo, freeargs, opts)
-    return _texthistedit(ui, repo, freeargs, opts)
-
-
-def _texthistedit(ui, repo, freeargs, opts):
     state = histeditstate(repo)
     with repo.wlock() as wlock, repo.lock() as lock:
         state.wlock = wlock
         state.lock = lock
-        _histedit(ui, repo, state, freeargs, opts)
+        # kludge: _chistedit only works for starting an edit, not aborting
+        # or continuing, so fall back to regular _texthistedit for those
+        # operations.
+        if ui.interface(b'histedit') == b'curses' and _getgoal(opts) == goalnew:
+            return _chistedit(ui, repo, state, freeargs, opts)
+        return _texthistedit(ui, repo, state, freeargs, opts)
+
+
+def _texthistedit(ui, repo, state, freeargs, opts):
+    _histedit(ui, repo, state, freeargs, opts)
 
 
 goalcontinue = b'continue'
