@@ -1076,6 +1076,11 @@ Ensure base clone command argument validation
   abort: --all-largefiles is incompatible with non-local destination ssh://localhost/a
   [255]
 
+  $ touch existing_destination
+  $ hg clone --all-largefiles a existing_destination
+  abort: destination 'existing_destination' already exists
+  [10]
+
 Test pulling with --all-largefiles flag.  Also test that the largefiles are
 downloaded from 'default' instead of 'default-push' when no source is specified
 (issue3584)

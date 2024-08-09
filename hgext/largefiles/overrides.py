@@ -46,6 +46,8 @@ from mercurial.upgrade_utils import (
     actions as upgrade_actions,
 )
 
+from mercurial.utils import urlutil
+
 from . import (
     lfcommands,
     lfutil,
@@ -1136,7 +1138,10 @@ def overrideclone(orig, ui, source, dest=None, **opts):
     d = dest
     if d is None:
         d = hg.defaultdest(source)
-    if opts.get('all_largefiles') and not hg.islocal(d):
+    if opts.get('all_largefiles') and urlutil.url(d).scheme not in (
+        b'file',
+        None,
+    ):
         raise error.Abort(
             _(b'--all-largefiles is incompatible with non-local destination %s')
             % d
