@@ -122,7 +122,7 @@ def split(stream):
         if not m.is_multipart():
             yield msgfp(m)
         else:
-            ok_types = (b'text/plain', b'text/x-diff', b'text/x-patch')
+            ok_types = ('text/plain', 'text/x-diff', 'text/x-patch')
             for part in m.walk():
                 ct = part.get_content_type()
                 if ct not in ok_types:
