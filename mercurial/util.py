@@ -2432,7 +2432,12 @@ def splitpath(path: bytes) -> List[bytes]:
     return path.split(pycompat.ossep)
 
 
-def mktempcopy(name, emptyok=False, createmode=None, enforcewritable=False):
+def mktempcopy(
+    name: bytes,
+    emptyok: bool = False,
+    createmode: Optional[int] = None,
+    enforcewritable: bool = False,
+) -> bytes:
     """Create a temporary file with the same contents from name
 
     The permission bits are copied from the original file.
