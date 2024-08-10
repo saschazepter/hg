@@ -213,7 +213,7 @@ def setflags(f: bytes, l: bool, x: bool) -> None:
 def copymode(
     src: bytes,
     dst: bytes,
-    mode: Optional[bytes] = None,
+    mode: Optional[int] = None,
     enforcewritable: bool = False,
 ) -> None:
     """Copy the file mode from the file at path src to dst.
