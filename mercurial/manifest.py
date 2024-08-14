@@ -534,7 +534,7 @@ class ManifestDict:
             return False
         return key in self._lm
 
-    def __delitem__(self, key: bytes) -> bool:
+    def __delitem__(self, key: bytes) -> None:
         del self._lm[key]
 
     def __iter__(self) -> Iterator[bytes]:
