@@ -308,7 +308,7 @@ def upgrade_share_to_safe(
 ):
     """Upgrades a share to use share-safe mechanism"""
     wlock = None
-    store_requirements = localrepo._readrequires(storevfs, False)
+    store_requirements = scmutil.readrequires(storevfs, False)
     original_crequirements = current_requirements.copy()
     # after upgrade, store requires will be shared, so lets find
     # the requirements which are not present in store and
@@ -325,7 +325,7 @@ def upgrade_share_to_safe(
         wlock = lockmod.trylock(ui, hgvfs, b'wlock', 0, 0)
         # some process might change the requirement in between, re-read
         # and update current_requirements
-        locked_requirements = localrepo._readrequires(hgvfs, True)
+        locked_requirements = scmutil.readrequires(hgvfs, True)
         if locked_requirements != original_crequirements:
             removed = current_requirements - locked_requirements
             # update current_requirements in place because it's passed
@@ -371,7 +371,7 @@ def downgrade_share_to_non_safe(
 ):
     """Downgrades a share which use share-safe to not use it"""
     wlock = None
-    source_requirements = localrepo._readrequires(sharedvfs, True)
+    source_requirements = scmutil.readrequires(sharedvfs, True)
     original_crequirements = current_requirements.copy()
     # we cannot be 100% sure on which requirements were present in store when
     # the source supported share-safe. However, we do know that working
@@ -386,7 +386,7 @@ def downgrade_share_to_non_safe(
         wlock = lockmod.trylock(ui, hgvfs, b'wlock', 0, 0)
         # some process might change the requirement in between, re-read
         # and update current_requirements
-        locked_requirements = localrepo._readrequires(hgvfs, True)
+        locked_requirements = scmutil.readrequires(hgvfs, True)
         if locked_requirements != original_crequirements:
             removed = current_requirements - locked_requirements
             # update current_requirements in place because it's passed
