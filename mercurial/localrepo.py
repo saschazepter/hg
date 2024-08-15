@@ -523,20 +523,6 @@ def _getsharedvfs(hgvfs, requirements):
     return sharedvfs
 
 
-def _readrequires(vfs, allowmissing):
-    """reads the require file present at root of this vfs
-    and return a set of requirements
-
-    If allowmissing is True, we suppress FileNotFoundError if raised"""
-    # requires file contains a newline-delimited list of
-    # features/capabilities the opener (us) must have in order to use
-    # the repository. This file was introduced in Mercurial 0.9.2,
-    # which means very old repositories may not have one. We assume
-    # a missing file translates to no requirements.
-    read = vfs.tryread if allowmissing else vfs.read
-    return set(read(b'requires').splitlines())
-
-
 def makelocalrepository(baseui, path: bytes, intents=None):
     """Create a local repository object.
 
@@ -598,7 +584,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
 
         raise error.RepoError(_(b'repository %s not found') % path)
 
-    requirements = _readrequires(hgvfs, True)
+    requirements = scmutil.readrequires(hgvfs, True)
     shared = (
         requirementsmod.SHARED_REQUIREMENT in requirements
         or requirementsmod.RELATIVE_SHARED_REQUIREMENT in requirements
@@ -626,7 +612,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
         if (
             shared
             and requirementsmod.SHARESAFE_REQUIREMENT
-            not in _readrequires(sharedvfs, True)
+            not in scmutil.readrequires(sharedvfs, True)
         ):
             mismatch_warn = ui.configbool(
                 b'share', b'safe-mismatch.source-not-safe.warn'
@@ -670,9 +656,9 @@ def makelocalrepository(baseui, path: bytes, intents=None):
                     hint=hint,
                 )
         else:
-            requirements |= _readrequires(storevfs, False)
+            requirements |= scmutil.readrequires(storevfs, False)
     elif shared:
-        sourcerequires = _readrequires(sharedvfs, False)
+        sourcerequires = scmutil.readrequires(sharedvfs, False)
         if requirementsmod.SHARESAFE_REQUIREMENT in sourcerequires:
             mismatch_config = ui.config(b'share', b'safe-mismatch.source-safe')
             mismatch_warn = ui.configbool(
