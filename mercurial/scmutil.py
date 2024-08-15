@@ -1687,6 +1687,20 @@ def writereporequirements(repo, requirements=None) -> None:
         repo.svfs.tryunlink(b'requires')
 
 
+def readrequires(vfs, allowmissing):
+    """reads the require file present at root of this vfs
+    and return a set of requirements
+
+    If allowmissing is True, we suppress FileNotFoundError if raised"""
+    # requires file contains a newline-delimited list of
+    # features/capabilities the opener (us) must have in order to use
+    # the repository. This file was introduced in Mercurial 0.9.2,
+    # which means very old repositories may not have one. We assume
+    # a missing file translates to no requirements.
+    read = vfs.tryread if allowmissing else vfs.read
+    return set(read(b'requires').splitlines())
+
+
 def writerequires(opener, requirements) -> None:
     with opener(b'requires', b'w', atomictemp=True) as fp:
         for r in sorted(requirements):
