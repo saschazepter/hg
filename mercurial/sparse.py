@@ -612,7 +612,7 @@ def _updateconfigandrefreshwdir(
     repo, includes, excludes, profiles, force=False, removing=False
 ):
     """Update the sparse config and working directory state."""
-    with repo.lock():
+    with repo.wlock():
         raw = repo.vfs.tryread(b'sparse')
         oldincludes, oldexcludes, oldprofiles = parseconfig(
             repo.ui, raw, b'sparse'
@@ -730,7 +730,7 @@ def updateconfig(
 
     The new config is written out and a working directory refresh is performed.
     """
-    with repo.wlock(), repo.lock(), repo.dirstate.changing_parents(repo):
+    with repo.wlock(), repo.dirstate.changing_parents(repo):
         raw = repo.vfs.tryread(b'sparse')
         oldinclude, oldexclude, oldprofiles = parseconfig(
             repo.ui, raw, b'sparse'
