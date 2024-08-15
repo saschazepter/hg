@@ -1702,9 +1702,11 @@ def readrequires(vfs, allowmissing):
 
 
 def writerequires(opener, requirements) -> None:
-    with opener(b'requires', b'w', atomictemp=True) as fp:
-        for r in sorted(requirements):
-            fp.write(b"%s\n" % r)
+    on_disk = readrequires(opener, True)
+    if not (on_disk == set(requirements)):
+        with opener(b'requires', b'w', atomictemp=True) as fp:
+            for r in sorted(requirements):
+                fp.write(b"%s\n" % r)
 
 
 class filecachesubentry:
