@@ -1668,7 +1668,7 @@ def istreemanifest(repo) -> bool:
     return requirementsmod.TREEMANIFEST_REQUIREMENT in repo.requirements
 
 
-def writereporequirements(repo, requirements=None) -> None:
+def writereporequirements(repo, requirements=None, maywritestore=True) -> None:
     """writes requirements for the repo
 
     Requirements are written to .hg/requires and .hg/store/requires based
@@ -1681,10 +1681,11 @@ def writereporequirements(repo, requirements=None) -> None:
     if wcreq is not None:
         writerequires(repo.vfs, wcreq)
     if storereq is not None:
-        writerequires(repo.svfs, storereq)
+        writerequires(repo.svfs, storereq, maywrite=maywritestore)
     elif repo.ui.configbool(b'format', b'usestore'):
         # only remove store requires if we are using store
-        repo.svfs.tryunlink(b'requires')
+        if maywritestore:
+            repo.svfs.tryunlink(b'requires')
 
 
 def readrequires(vfs, allowmissing):
@@ -1701,9 +1702,11 @@ def readrequires(vfs, allowmissing):
     return set(read(b'requires').splitlines())
 
 
-def writerequires(opener, requirements) -> None:
+def writerequires(opener, requirements, maywrite=True) -> None:
     on_disk = readrequires(opener, True)
     if not (on_disk == set(requirements)):
+        if not maywrite:
+            raise error.Abort(_(b"store requirements are not as expected"))
         with opener(b'requires', b'w', atomictemp=True) as fp:
             for r in sorted(requirements):
                 fp.write(b"%s\n" % r)
