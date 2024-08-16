@@ -10,6 +10,7 @@ import collections
 import contextlib
 import os
 import stat
+import typing
 import uuid
 
 from .i18n import _
@@ -1809,3 +1810,6 @@ class DirState:
 
 
 dirstate = interfaceutil.implementer(intdirstate.idirstate)(DirState)
+
+if typing.TYPE_CHECKING:
+    dirstate = DirState
