@@ -632,10 +632,10 @@ def _updateconfigandrefreshwdir(
 
         if requirements.SPARSE_REQUIREMENT in oldrequires and removing:
             repo.requirements.discard(requirements.SPARSE_REQUIREMENT)
-            scmutil.writereporequirements(repo)
+            scmutil.writereporequirements(repo, maywritestore=False)
         elif requirements.SPARSE_REQUIREMENT not in oldrequires:
             repo.requirements.add(requirements.SPARSE_REQUIREMENT)
-            scmutil.writereporequirements(repo)
+            scmutil.writereporequirements(repo, maywritestore=False)
 
         try:
             writeconfig(repo, includes, excludes, profiles)
@@ -644,7 +644,7 @@ def _updateconfigandrefreshwdir(
             if repo.requirements != oldrequires:
                 repo.requirements.clear()
                 repo.requirements |= oldrequires
-                scmutil.writereporequirements(repo)
+                scmutil.writereporequirements(repo, maywritestore=False)
             writeconfig(repo, oldincludes, oldexcludes, oldprofiles)
             raise
 
