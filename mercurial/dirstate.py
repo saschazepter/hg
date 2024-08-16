@@ -134,8 +134,7 @@ CHANGE_TYPE_PARENTS = "parents"
 CHANGE_TYPE_FILES = "files"
 
 
-@interfaceutil.implementer(intdirstate.idirstate)
-class dirstate:
+class DirState:
     # used by largefile to avoid overwritting transaction callback
     _tr_key_suffix = b''
 
@@ -1807,3 +1806,6 @@ class dirstate:
             entry = self.get_entry(f)
             if not entry.p1_tracked:
                 yield missing_from_ds % (f, node.short(p1))
+
+
+dirstate = interfaceutil.implementer(intdirstate.idirstate)(DirState)
