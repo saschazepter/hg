@@ -116,6 +116,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    overload,
 )
 
 from .i18n import _
@@ -138,6 +139,9 @@ Phaseroots = Dict[int, Set[int]]
 PhaseSets = Dict[int, Set[int]]
 
 if typing.TYPE_CHECKING:
+    from typing_extensions import (
+        Literal,  # py3.8+
+    )
     from . import (
         localrepo,
         ui as uimod,
@@ -375,11 +379,31 @@ INCREMENTAL_PHASE_SETS_UPDATE_MAX_UPDATE = 100
 
 
 class phasecache:
+    if typing.TYPE_CHECKING:
+
+        @overload
+        def __init__(
+            self,
+            repo: Any,
+            phasedefaults: Any,
+            _load: Literal[False],
+        ) -> None:
+            pass
+
+        @overload
+        def __init__(
+            self,
+            repo: "localrepo.localrepository",
+            phasedefaults: Optional["Phasedefaults"],
+            _load: bool = True,
+        ) -> None:
+            pass
+
     def __init__(
         self,
-        repo: "localrepo.localrepository",
-        phasedefaults: Optional["Phasedefaults"],
-        _load: bool = True,
+        repo,
+        phasedefaults,
+        _load=True,
     ):
         if _load:
             # Cheap trick to allow shallow-copy without copy module
