@@ -387,7 +387,7 @@ class phasecache:
             self._phaseroots: Phaseroots = loaded[0]
             self.dirty: bool = loaded[1]
             self._loadedrevslen = 0
-            self._phasesets: PhaseSets = None
+            self._phasesets: Optional[PhaseSets] = None
 
     def hasnonpublicphases(self, repo: "localrepo.localrepository") -> bool:
         """detect if there are revisions with non-public phase"""
