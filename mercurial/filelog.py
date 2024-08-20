@@ -6,6 +6,8 @@
 # GNU General Public License version 2 or any later version.
 
 
+import typing
+
 from .i18n import _
 from .node import nullrev
 from . import (
@@ -23,8 +25,7 @@ from .revlogutils import (
 )
 
 
-@interfaceutil.implementer(repository.ifilestorage)
-class filelog:
+class FileLog:
     def __init__(self, opener, path, try_split=False):
         self._revlog = revlog.revlog(
             opener,
@@ -260,6 +261,12 @@ class filelog:
             raise error.ProgrammingError(msg)
 
         return self._revlog.clone(tr, destrevlog._revlog, **kwargs)
+
+
+filelog = interfaceutil.implementer(repository.ifilestorage)(FileLog)
+
+if typing.TYPE_CHECKING:
+    filelog = FileLog
 
 
 class narrowfilelog(filelog):
