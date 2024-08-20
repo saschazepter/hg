@@ -186,9 +186,8 @@ HAS_FAST_PERSISTENT_NODEMAP = rustrevlog is not None or hasattr(
 )
 
 
-@interfaceutil.implementer(repository.irevisiondelta)
 @attr.s(slots=True)
-class revlogrevisiondelta:
+class RevLogRevisionDelta:
     node = attr.ib()
     p1node = attr.ib()
     p2node = attr.ib()
@@ -202,12 +201,27 @@ class revlogrevisiondelta:
     linknode = attr.ib(default=None)
 
 
-@interfaceutil.implementer(repository.iverifyproblem)
+revlogrevisiondelta = interfaceutil.implementer(repository.irevisiondelta)(
+    RevLogRevisionDelta
+)
+
+if typing.TYPE_CHECKING:
+    revlogrevisiondelta = RevLogRevisionDelta
+
+
 @attr.s(frozen=True)
-class revlogproblem:
+class RevLogProblem:
     warning = attr.ib(default=None)
     error = attr.ib(default=None)
     node = attr.ib(default=None)
+
+
+revlogproblem = interfaceutil.implementer(repository.iverifyproblem)(
+    RevLogProblem
+)
+
+if typing.TYPE_CHECKING:
+    revlogproblem = RevLogProblem
 
 
 def parse_index_v1(data, inline):
