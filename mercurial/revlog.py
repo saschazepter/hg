@@ -211,9 +211,9 @@ if typing.TYPE_CHECKING:
 
 @attr.s(frozen=True)
 class RevLogProblem:
-    warning = attr.ib(default=None)
-    error = attr.ib(default=None)
-    node = attr.ib(default=None)
+    warning = attr.ib(default=None, type=Optional[bytes])
+    error = attr.ib(default=None, type=Optional[bytes])
+    node = attr.ib(default=None, type=Optional[bytes])
 
 
 revlogproblem = interfaceutil.implementer(repository.iverifyproblem)(
