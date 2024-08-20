@@ -160,7 +160,7 @@ class monotone_source(common.converter_source, common.commandline):
             raise error.Abort(
                 _(
                     b"bad mtn packet - unable to read full packet "
-                    b"read %s of %s"
+                    b"read %s of %d"
                 )
                 % (len(read), length)
             )
@@ -398,7 +398,7 @@ class monotone_source(common.converter_source, common.commandline):
                     )
         else:
             self.ui.debug(
-                b"mtn automate version %s - not using automate stdio "
+                b"mtn automate version %f - not using automate stdio "
                 b"(automate >= 12.0 - mtn >= 0.46 is needed)\n" % version
             )
 
