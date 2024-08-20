@@ -5,6 +5,9 @@ set -u
 
 cd "$(hg root)"
 
+printf "pytype version: "
+pytype --version
+
 # Many of the individual files that are excluded here confuse pytype
 # because they do a mix of Python 2 and Python 3 things
 # conditionally. There's no good way to help it out with that as far as
