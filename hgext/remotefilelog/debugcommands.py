@@ -34,7 +34,7 @@ from . import (
 )
 
 
-def debugremotefilelog(ui, path, **opts):
+def debugremotefilelog(ui, path, **opts) -> None:
     decompress = opts.get('decompress')
 
     size, firstnode, mapping = parsefileblob(path, decompress)

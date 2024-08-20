@@ -575,6 +575,10 @@ class changesettemplater(changesetprinter):
     functions that use changesest_templater.
     """
 
+    _tresources: formatter.templateresources
+    lastheader: Optional[bytes]
+    t: templater.templater
+
     # Arguments before "buffered" used to be positional. Consider not
     # adding/removing arguments before "buffered" to not break callers.
     def __init__(
@@ -665,7 +669,7 @@ class changesettemplater(changesetprinter):
                 self.footer = self.t.render(self._parts[b'footer'], props)
 
 
-def templatespec(tmpl, mapfile):
+def templatespec(tmpl, mapfile) -> formatter.templatespec:
     assert not (tmpl and mapfile)
     if mapfile:
         return formatter.mapfile_templatespec(b'changeset', mapfile)
@@ -673,7 +677,7 @@ def templatespec(tmpl, mapfile):
         return formatter.literal_templatespec(tmpl)
 
 
-def _lookuptemplate(ui, tmpl, style):
+def _lookuptemplate(ui, tmpl, style) -> formatter.templatespec:
     """Find the template matching the given template spec or style
 
     See formatter.lookuptemplate() for details.

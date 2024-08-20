@@ -8,6 +8,9 @@
 
 import os
 import re
+from typing import (
+    Tuple,
+)
 
 from mercurial.i18n import _
 from mercurial.pycompat import open
@@ -121,7 +124,7 @@ class monotone_source(common.converter_source, common.commandline):
 
         return self.mtnstdioreadcommandoutput(command)
 
-    def mtnstdioreadpacket(self):
+    def mtnstdioreadpacket(self) -> Tuple[bytes, bytes, int, bytes]:
         read = None
         commandnbr = b''
         while read != b':':
@@ -167,7 +170,7 @@ class monotone_source(common.converter_source, common.commandline):
 
         return (commandnbr, stream, length, read)
 
-    def mtnstdioreadcommandoutput(self, command):
+    def mtnstdioreadcommandoutput(self, command) -> bytes:
         retval = []
         while True:
             commandnbr, stream, length, output = self.mtnstdioreadpacket()

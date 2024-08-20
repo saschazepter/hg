@@ -85,7 +85,7 @@ class request:
         # store the parsed and canonical command
         self.canonical_command = None
 
-    def _runexithandlers(self):
+    def _runexithandlers(self) -> None:
         exc = None
         handlers = self.ui._exithandlers
         try:
@@ -239,7 +239,7 @@ def dispatch(req):
     return status
 
 
-def _rundispatch(req):
+def _rundispatch(req) -> int:
     with tracing.log('dispatch._rundispatch'):
         if req.ferr:
             ferr = req.ferr
