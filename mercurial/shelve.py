@@ -792,6 +792,7 @@ def _loadshelvedstate(ui, repo, opts):
         state = shelvedstate.load(repo)
         if opts.get(b'keep') is None:
             opts[b'keep'] = state.keep
+        return state
     except FileNotFoundError:
         cmdutil.wrongtooltocontinue(repo, _(b'unshelve'))
     except error.CorruptedState as err:
@@ -812,7 +813,10 @@ def _loadshelvedstate(ui, repo, opts):
                     b'please update to some commit\n'
                 )
             )
-    return state
+        else:
+            raise error.ProgrammingError(
+                "a corrupted shelvedstate exists without --abort or --continue"
+            )
 
 
 def unshelveabort(ui, repo, state):
