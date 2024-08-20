@@ -113,6 +113,10 @@ import sys
 import threading
 import time
 
+from typing import (
+    List,
+)
+
 from .pycompat import open
 from . import (
     encoding,
@@ -155,6 +159,8 @@ def clock():
 
 
 class ProfileState:
+    samples: List["Sample"]
+
     def __init__(self, frequency=None):
         self.reset(frequency)
         self.track = b'cpu'

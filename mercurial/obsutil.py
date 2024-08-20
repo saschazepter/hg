@@ -947,7 +947,7 @@ filteredmsgtable = {
 }
 
 
-def _getfilteredreason(repo, changeid, ctx):
+def _getfilteredreason(repo, changeid, ctx) -> bytes:
     """return a human-friendly string on why a obsolete changeset is hidden"""
     successors = successorssets(repo, ctx.node())
     fate = _getobsfate(successors)
@@ -974,6 +974,8 @@ def _getfilteredreason(repo, changeid, ctx):
 
             args = (changeid, firstsuccessors, remainingnumber)
             return filteredmsgtable[b'superseded_split_several'] % args
+    else:
+        raise error.ProgrammingError("unhandled fate: %r" % fate)
 
 
 def divergentsets(repo, ctx):

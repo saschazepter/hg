@@ -482,7 +482,7 @@ def showlatesttag(context, mapping):
     return showlatesttags(context, mapping, None)
 
 
-def showlatesttags(context, mapping, pattern):
+def showlatesttags(context, mapping, pattern) -> _hybrid:
     """helper method for the latesttag keyword and function"""
     latesttags = getlatesttags(context, mapping, pattern)
 
