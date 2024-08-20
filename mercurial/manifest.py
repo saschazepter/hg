@@ -9,6 +9,7 @@
 import heapq
 import itertools
 import struct
+import typing
 import weakref
 
 from typing import (
@@ -752,6 +753,9 @@ class ManifestDict:
 
 
 manifestdict = interfaceutil.implementer(repository.imanifestdict)(ManifestDict)
+
+if typing.TYPE_CHECKING:
+    manifestdict = ManifestDict
 
 
 def _msearch(
@@ -1535,6 +1539,9 @@ class TreeManifest:
 
 treemanifest = interfaceutil.implementer(repository.imanifestdict)(TreeManifest)
 
+if typing.TYPE_CHECKING:
+    treemanifest = TreeManifest
+
 
 class manifestfulltextcache(util.lrucachedict):
     """File-backed LRU cache for the manifest cache
@@ -2047,13 +2054,14 @@ manifestrevlog = interfaceutil.implementer(repository.imanifeststorage)(
     ManifestRevlog
 )
 
+if typing.TYPE_CHECKING:
+    manifestrevlog = ManifestRevlog
 
 AnyManifestCtx = Union['ManifestCtx', 'TreeManifestCtx']
 AnyManifestDict = Union[ManifestDict, TreeManifest]
 
 
-@interfaceutil.implementer(repository.imanifestlog)
-class manifestlog:
+class ManifestLog:
     """A collection class representing the collection of manifest snapshots
     referenced by commits in the repository.
 
@@ -2157,6 +2165,12 @@ class manifestlog:
         return self._rootstore._revlog.update_caches(transaction=transaction)
 
 
+manifestlog = interfaceutil.implementer(repository.imanifestlog)(ManifestLog)
+
+if typing.TYPE_CHECKING:
+    manifestlog = ManifestLog
+
+
 class MemManifestCtx:
     def __init__(self, manifestlog):
         self._manifestlog = manifestlog
@@ -2189,6 +2203,9 @@ class MemManifestCtx:
 memmanifestctx = interfaceutil.implementer(
     repository.imanifestrevisionwritable
 )(MemManifestCtx)
+
+if typing.TYPE_CHECKING:
+    memmanifestctx = MemManifestCtx
 
 
 class ManifestCtx:
@@ -2353,6 +2370,9 @@ manifestctx = interfaceutil.implementer(repository.imanifestrevisionstored)(
     ManifestCtx
 )
 
+if typing.TYPE_CHECKING:
+    manifestctx = ManifestCtx
+
 
 class MemTreeManifestCtx:
     def __init__(self, manifestlog, dir=b''):
@@ -2391,6 +2411,9 @@ class MemTreeManifestCtx:
 memtreemanifestctx = interfaceutil.implementer(
     repository.imanifestrevisionwritable
 )(MemTreeManifestCtx)
+
+if typing.TYPE_CHECKING:
+    memtreemanifestctx = MemTreeManifestCtx
 
 
 class TreeManifestCtx:
@@ -2659,6 +2682,9 @@ class TreeManifestCtx:
 treemanifestctx = interfaceutil.implementer(repository.imanifestrevisionstored)(
     TreeManifestCtx
 )
+
+if typing.TYPE_CHECKING:
+    treemanifestctx = TreeManifestCtx
 
 
 class excludeddir(treemanifest):
