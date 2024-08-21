@@ -391,7 +391,7 @@ class shelvedstate:
                 obj.activebookmark = d.get(b'activebook', b'')
             obj.interactive = d.get(b'interactive') == cls._interactive
         except (error.RepoLookupError, KeyError) as err:
-            raise error.CorruptedState(pycompat.bytestr(err))
+            raise error.CorruptedState(stringutil.forcebytestr(err))
 
         return obj
 
