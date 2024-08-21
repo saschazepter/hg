@@ -115,7 +115,7 @@ def debugindex(orig, ui, repo, file_=None, **opts):
     r = buildtemprevlog(repo, file_)
 
     # debugindex like normal
-    format = opts.get(b'format', 0)
+    format = opts.get('format', 0)
     if format not in (0, 1):
         raise error.Abort(_(b"unknown format %d") % format)
 
