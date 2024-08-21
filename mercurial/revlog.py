@@ -91,6 +91,7 @@ from . import (
     revlogutils,
     templatefilters,
     util,
+    vfs as vfsmod,
 )
 from .interfaces import (
     repository,
@@ -363,9 +364,11 @@ class _InnerRevlog:
     boundaries are arbitrary and based on what we can delegate to Rust.
     """
 
+    opener: vfsmod.vfs
+
     def __init__(
         self,
-        opener,
+        opener: vfsmod.vfs,
         index,
         index_file,
         data_file,
@@ -1293,6 +1296,8 @@ class revlog:
 
     _flagserrorclass = error.RevlogError
 
+    opener: vfsmod.vfs
+
     @staticmethod
     def is_inline_index(header_bytes):
         """Determine if a revlog is inline from the initial bytes of the index"""
@@ -1311,7 +1316,7 @@ class revlog:
 
     def __init__(
         self,
-        opener,
+        opener: vfsmod.vfs,
         target,
         radix,
         postfix=None,  # only exist for `tmpcensored` now
