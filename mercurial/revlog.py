@@ -25,6 +25,8 @@ import weakref
 import zlib
 
 from typing import (
+    Iterable,
+    Iterator,
     Optional,
     Tuple,
 )
@@ -1826,7 +1828,7 @@ class revlog:
     def __len__(self):
         return len(self.index)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[int]:
         return iter(range(len(self)))
 
     def revs(self, start=0, stop=None):
@@ -3902,7 +3904,7 @@ class revlog:
         else:
             rewrite.v2_censor(self, tr, censor_nodes, tombstone)
 
-    def verifyintegrity(self, state):
+    def verifyintegrity(self, state) -> Iterable[RevLogProblem]:
         """Verifies the integrity of the revlog.
 
         Yields ``revlogproblem`` instances describing problems that are

@@ -160,6 +160,8 @@ class statichttprepository(
 ):
     supported = localrepo.localrepository._basesupported
 
+    manifestlog: manifest.ManifestLog
+
     def __init__(self, ui, path):
         self._url = path
         self.ui = ui

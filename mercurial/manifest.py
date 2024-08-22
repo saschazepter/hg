@@ -850,6 +850,12 @@ _noop = lambda s: None
 
 
 class TreeManifest:
+    _dir: bytes
+    _dirs: Dict[bytes, 'TreeManifest']
+    _dirty: bool
+    _files: Dict[bytes, bytes]
+    _flags: Dict[bytes, bytes]
+
     def __init__(self, nodeconstants, dir: bytes = b'', text: bytes = b''):
         self._dir = dir
         self.nodeconstants = nodeconstants
@@ -858,13 +864,13 @@ class TreeManifest:
         self._loadfunc = _noop
         self._copyfunc = _noop
         self._dirty = False
-        self._dirs: Dict[bytes, 'TreeManifest'] = {}
+        self._dirs = {}
         self._lazydirs: Dict[
             bytes,
             Tuple[bytes, Callable[[bytes, bytes], 'TreeManifest'], bool],
         ] = {}
         # Using _lazymanifest here is a little slower than plain old dicts
-        self._files: Dict[bytes, bytes] = {}
+        self._files = {}
         self._flags = {}
         if text:
 
@@ -2172,6 +2178,8 @@ if typing.TYPE_CHECKING:
 
 
 class MemManifestCtx:
+    _manifestdict: ManifestDict
+
     def __init__(self, manifestlog):
         self._manifestlog = manifestlog
         self._manifestdict = manifestdict(manifestlog.nodeconstants.nodelen)
@@ -2212,6 +2220,8 @@ class ManifestCtx:
     """A class representing a single revision of a manifest, including its
     contents, its parent revs, and its linkrev.
     """
+
+    _data: Optional[ManifestDict]
 
     def __init__(self, manifestlog, node):
         self._manifestlog = manifestlog
@@ -2375,6 +2385,8 @@ if typing.TYPE_CHECKING:
 
 
 class MemTreeManifestCtx:
+    _treemanifest: TreeManifest
+
     def __init__(self, manifestlog, dir=b''):
         self._manifestlog = manifestlog
         self._dir = dir
@@ -2417,6 +2429,8 @@ if typing.TYPE_CHECKING:
 
 
 class TreeManifestCtx:
+    _data: Optional[TreeManifest]
+
     def __init__(self, manifestlog, dir, node):
         self._manifestlog = manifestlog
         self._dir = dir
@@ -2698,6 +2712,9 @@ class excludeddir(treemanifest):
     class is: it stands in for a directory whose node is known, but
     whose contents are unknown.
     """
+
+    _files: Dict[bytes, bytes]
+    _flags: Dict[bytes, bytes]
 
     def __init__(self, nodeconstants, dir, node):
         super(excludeddir, self).__init__(nodeconstants, dir)
