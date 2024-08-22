@@ -8,6 +8,11 @@
 
 import typing
 
+from typing import (
+    Iterable,
+    Iterator,
+)
+
 from .i18n import _
 from .node import nullrev
 from . import (
@@ -26,6 +31,10 @@ from .revlogutils import (
 
 
 class FileLog:
+    _revlog: revlog.revlog
+    nullid: bytes
+    _fix_issue6528: bool
+
     def __init__(self, opener, path, try_split=False):
         self._revlog = revlog.revlog(
             opener,
@@ -43,7 +52,7 @@ class FileLog:
         opts = opener.options
         self._fix_issue6528 = opts.get(b'issue6528.fix-incoming', True)
 
-    def get_revlog(self):
+    def get_revlog(self) -> revlog.revlog:
         """return an actual revlog instance if any
 
         This exist because a lot of code leverage the fact the underlying
@@ -52,10 +61,10 @@ class FileLog:
         """
         return self._revlog
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._revlog)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[int]:
         return self._revlog.__iter__()
 
     def hasnode(self, node):
@@ -234,7 +243,7 @@ class FileLog:
         """
         return not storageutil.filedataequivalent(self, node, text)
 
-    def verifyintegrity(self, state):
+    def verifyintegrity(self, state) -> Iterable[revlog.RevLogProblem]:
         return self._revlog.verifyintegrity(state)
 
     def storageinfo(
