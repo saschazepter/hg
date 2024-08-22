@@ -62,7 +62,7 @@ def debugremotefilelog(ui, path, **opts) -> None:
             queue.append(p2)
 
 
-def buildtemprevlog(repo, file):
+def buildtemprevlog(repo, file) -> filelog.FileLog:
     # get filename key
     filekey = hex(hashutil.sha1(file).digest())
     filedir = os.path.join(repo.path, b'store/data', filekey)

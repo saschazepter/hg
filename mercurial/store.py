@@ -817,7 +817,7 @@ class basicstore:
             concurrencychecker=concurrencychecker,
         )
 
-    def manifestlog(self, repo, storenarrowmatch):
+    def manifestlog(self, repo, storenarrowmatch) -> manifest.ManifestLog:
         rootstore = manifest.manifestrevlog(repo.nodeconstants, self.vfs)
         return manifest.manifestlog(self.vfs, repo, rootstore, storenarrowmatch)
 
