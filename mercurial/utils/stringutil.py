@@ -724,7 +724,7 @@ def ellipsis(text: bytes, maxlength: int = 400) -> bytes:
 
 def escapestr(s: bytes) -> bytes:
     # "bytes" is also a typing shortcut for bytes, bytearray, and memoryview
-    if isinstance(s, memoryview):
+    if isinstance(s, (memoryview, bytearray)):
         s = bytes(s)
     # call underlying function of s.encode('string_escape') directly for
     # Python 3 compatibility
