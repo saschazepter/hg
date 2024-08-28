@@ -66,7 +66,7 @@ rust-cargo-test:
     variables:
         CI_CLEVER_CLOUD_FLAVOR: S
 
-test-c:
+test-c: &test_c
     <<: *runtests
     variables:
         RUNTEST_ARGS: " --no-rust --blacklist /tmp/check-tests.txt"
@@ -98,6 +98,21 @@ test-chg:
     variables:
         RUNTEST_ARGS: "--blacklist /tmp/check-tests.txt --chg"
         TEST_HGMODULEPOLICY: "c"
+
+# note: we should probably get a full matrix for flavor × py-version, but this
+# is a simple start to be able to check if we break the lowest supported
+# version (and 3.12 have been giving us various troubles)
+test-3.8-c:
+    <<: *test_c
+    when: manual  # avoid overloading the CI by default
+    variables:
+        PYTHON: python3.8
+
+test-3.12-c:
+    <<: *test_c
+    when: manual  # avoid overloading the CI by default
+    variables:
+        PYTHON: python3.12
 
 check-pytype:
     extends: .runtests_template
