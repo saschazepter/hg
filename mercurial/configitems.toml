@@ -2163,7 +2163,7 @@ experimental = true  # experimental as long as format.use-dirstate-v2 is.
 [[items]]
 section = "storage"
 name = "revbranchcache.mmap"
-default = false
+default = true
 
 [[items]]
 section = "storage"
