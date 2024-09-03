@@ -910,11 +910,13 @@ class BranchCacheV3(_LocalBranchCache):
         """write list of heads to a file
 
         Return the number of heads written."""
+        to_node = repo.changelog.node
         nodecount = 0
         topo_heads = None
         if self._pure_topo_branch is None:
-            topo_heads = set(self._get_topo_heads(repo))
-        to_rev = repo.changelog.index.rev
+            # we match using node because it is faster to built the set of node
+            # than to resolve node → rev later.
+            topo_heads = set(to_node(r) for r in self._get_topo_heads(repo))
         for label, nodes in sorted(self._entries.items()):
             if label == self._pure_topo_branch:
                 # not need to write anything the header took care of that
@@ -922,8 +924,7 @@ class BranchCacheV3(_LocalBranchCache):
             label = encoding.fromlocal(label)
             for node in nodes:
                 if topo_heads is not None:
-                    rev = to_rev(node)
-                    if rev in topo_heads:
+                    if node in topo_heads:
                         continue
                 if node in self._closednodes:
                     state = b'c'
