@@ -884,8 +884,7 @@ class BranchCacheV3(_LocalBranchCache):
         elif self.tiprev == cl.tiprev():
             return cl.headrevs()
         else:
-            # XXX passing tiprev as ceiling of cl.headrevs could be faster
-            heads = cl.headrevs(cl.revs(stop=self.tiprev))
+            heads = cl.headrevs(stop_rev=self.tiprev + 1)
             return heads
 
     def _write_header(self, fp) -> None:
