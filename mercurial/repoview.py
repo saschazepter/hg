@@ -310,9 +310,14 @@ class filteredchangelogmixin:
         # no Rust fast path implemented yet, so just loop in Python
         return [self.node(r) for r in self.headrevs()]
 
-    def headrevs(self, revs=None):
+    def headrevs(self, revs=None, stop_rev=None):
         if revs is None:
-            return self.index.headrevs(self.filteredrevs)
+            filtered = self.filteredrevs
+            if stop_rev is not None and stop_rev < len(self.index):
+                filtered = set(self.filteredrevs)
+                filtered.update(range(stop_rev, len(self.index)))
+            return self.index.headrevs(filtered)
+        assert stop_rev is None
 
         revs = self._checknofilteredinrevs(revs)
         return super(filteredchangelogmixin, self).headrevs(revs)
