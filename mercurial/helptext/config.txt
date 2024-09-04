@@ -2046,6 +2046,9 @@ statistical text report generated from the profiling data.
       Use a statistical profiler, statprof. This profiler is most
       useful for profiling commands that run for longer than about 0.1
       seconds.
+    ``py-spy``
+      use the py-spy profiler. A external py-spy executable must be available.
+      (Make sure to check `profiling.output` config to write the result.)
 
 ``format``
     Profiling format.  Specific to the ``ls`` instrumenting profiler.

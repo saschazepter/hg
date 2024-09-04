@@ -1605,7 +1605,7 @@ Show nested definitions
 ("profiling.type"[break]"ls"[break]"stat"[break])
 
   $ hg help config.type | grep -E '^$'|wc -l
-  \s*3 (re)
+  \s*4 (re)
 
   $ hg help config.profiling.type.ls
           "profiling.type.ls"
