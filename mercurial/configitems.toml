@@ -65,7 +65,13 @@ default = ""
 section = "censor"
 name = "policy"
 default = "abort"
-experimental = true
+documentation="""Control how to react when accessing censored content.
+Accepted value: "abort", "ignore". Defaults to abort.
+
+A few informative commands such as ``hg grep`` will unconditionally ignore
+censored data and merely report that it was encountered.
+"""
+
 
 [[items]]
 section = "chgserver"
