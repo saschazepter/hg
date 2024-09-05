@@ -1662,7 +1662,11 @@ if os.name == 'nt':
     # Allow compiler/linker flags to be added to Visual Studio builds.  Passing
     # extra_link_args to distutils.extensions.Extension() doesn't have any
     # effect.
-    from distutils import msvccompiler
+    try:
+        # setuptools < 65.0
+        from distutils import msvccompiler
+    except ImportError:
+        from distutils import _msvccompiler as msvccompiler
 
     msvccompilerclass = msvccompiler.MSVCCompiler
 
