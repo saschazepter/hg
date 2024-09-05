@@ -125,7 +125,7 @@ from distutils.command.install import install
 from distutils.command.install_lib import install_lib
 from distutils.command.install_scripts import install_scripts
 from distutils import log
-from distutils.spawn import spawn, find_executable
+from distutils.spawn import spawn
 from distutils import file_util
 from distutils.errors import (
     CCompilerError,
@@ -464,6 +464,12 @@ class hgbuildmo(build):
     description = "build translations (.mo files)"
 
     def run(self):
+        try:
+            from shutil import which as find_executable
+        except ImportError:
+            # Deprecated in py3.12
+            from distutils.spawn import find_executable
+
         if not find_executable('msgfmt'):
             self.warn(
                 "could not find msgfmt executable, no translations "
