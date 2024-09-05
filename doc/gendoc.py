@@ -156,7 +156,8 @@ def showdoc(ui):
     for extensionname in sorted(allextensionnames()):
         mod = extensions.load(ui, extensionname, None)
         ui.write(minirst.subsection(extensionname))
-        ui.write(b"%s\n\n" % gettext(pycompat.getdoc(mod)))
+        ext_doc = help.ext_help(ui, mod)
+        ui.write(b"%s\n\n" % ext_doc)
         cmdtable = getattr(mod, 'cmdtable', None)
         if cmdtable:
             ui.write(minirst.subsubsection(_(b'Commands')))
