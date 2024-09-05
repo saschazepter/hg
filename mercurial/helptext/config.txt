@@ -418,6 +418,12 @@ Supported arguments:
 If no suitable authentication entry is found, the user is prompted
 for credentials as usual if required by the remote.
 
+``censor``
+----------
+
+``policy``
+    :config-doc:`censor.policy`
+
 ``cmdserver``
 -------------
 
