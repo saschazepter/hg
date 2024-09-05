@@ -114,36 +114,73 @@ try:  # is pygments installed
 except ImportError:
     pass
 
+progress_type = {}
+
 if pygmentspresent:
+    _T_ERROR = token.string_to_tokentype("Token.Generic.Error")
+    _T_FAILED = token.string_to_tokentype("Token.Generic.Failed")
+    _T_FNAME = token.string_to_tokentype("Token.Generic.FName")
+    _T_IGNORED = token.string_to_tokentype("Token.Generic.Ignored")
+    _T_SKIPPED = token.string_to_tokentype("Token.Generic.Skipped")
+    _T_SNAME = token.string_to_tokentype("Token.Generic.SName")
+    _T_SKIPPED_DOT = token.string_to_tokentype("Token.Generic.SkippedDot")
+    _T_SUCCESS = token.string_to_tokentype("Token.Generic.Success")
+    _T_TIMEDOUT = token.string_to_tokentype("Token.Generic.TimedOut")
 
     class TestRunnerStyle(style.Style):
         default_style = ""
-        skipped = token.string_to_tokentype("Token.Generic.Skipped")
-        failed = token.string_to_tokentype("Token.Generic.Failed")
-        skippedname = token.string_to_tokentype("Token.Generic.SName")
-        failedname = token.string_to_tokentype("Token.Generic.FName")
         styles = {
-            skipped: '#e5e5e5',
-            skippedname: '#00ffff',
-            failed: '#7f0000',
-            failedname: '#ff0000',
+            _T_ERROR: '#cd00cd',
+            _T_FAILED: '#7f0000',
+            _T_FNAME: '#ff0000',
+            _T_IGNORED: '#cdcd00',
+            _T_SKIPPED: '#e5e5e5',
+            _T_SNAME: '#00ffff',
+            _T_SKIPPED_DOT: '#00ffff',
+            _T_SUCCESS: '#00cd00',
+            _T_TIMEDOUT: '#ff00ff',
         }
 
     class TestRunnerLexer(lexer.RegexLexer):
         testpattern = r'[\w-]+\.(t|py)(#[a-zA-Z0-9_\-\.]+)?'
         tokens = {
             'root': [
-                (r'^Skipped', token.Generic.Skipped, 'skipped'),
-                (r'^Failed ', token.Generic.Failed, 'failed'),
-                (r'^ERROR: ', token.Generic.Failed, 'failed'),
+                (r'^Skipped', _T_SKIPPED, 'skipped'),
+                (r'^Failed ', _T_FAILED, 'failed'),
+                (r'^ERROR: ', _T_FAILED, 'failed'),
             ],
             'skipped': [
-                (testpattern, token.Generic.SName),
-                (r':.*', token.Generic.Skipped),
+                (testpattern, _T_SNAME),
+                (r':.*', _T_SKIPPED),
             ],
             'failed': [
-                (testpattern, token.Generic.FName),
-                (r'(:| ).*', token.Generic.Failed),
+                (testpattern, _T_FNAME),
+                (r'(:| ).*', _T_FAILED),
+            ],
+        }
+
+    progress_type['.'] = _T_SUCCESS
+    progress_type['s'] = _T_SKIPPED_DOT
+    progress_type['i'] = _T_IGNORED
+    progress_type['!'] = _T_FAILED
+    progress_type['E'] = _T_ERROR
+    progress_type['t'] = _T_TIMEDOUT
+
+    class progressLexer(lexer.RegexLexer):
+        testpattern = r'[\w-]+\.(t|py)(#[a-zA-Z0-9_\-\.]+)?'
+        tokens = {
+            'root': [
+                (r'^Skipped', _T_SKIPPED, 'skipped'),
+                (r'^Failed ', _T_FAILED, 'failed'),
+                (r'^ERROR: ', _T_FAILED, 'failed'),
+            ],
+            'skipped': [
+                (testpattern, _T_SNAME),
+                (r':.*', _T_SKIPPED),
+            ],
+            'failed': [
+                (testpattern, _T_FNAME),
+                (r'(:| ).*', _T_FAILED),
             ],
         }
 
@@ -945,6 +982,20 @@ def highlightmsg(msg, color):
         return msg
     assert pygmentspresent
     return pygments.highlight(msg, runnerlexer, runnerformatter)
+
+
+def highlight_progress(progress, color):
+    if not color:
+        return progress
+    assert pygmentspresent
+    token = progress_type.get(progress)
+    if token is None:
+        return progress
+    style = runnerformatter.style_string.get(str(token))
+    if style is None:
+        return progress
+    else:
+        return style[0] + progress + style[1]
 
 
 def terminate(proc):
@@ -2266,6 +2317,12 @@ class TestResult(base_class):
         else:  # 'always', for testing purposes
             self.color = pygmentspresent
 
+    def _write_dot(self, progress):
+        """write an item of the "dot" progress"""
+        formated = highlight_progress(progress, self.color)
+        self.stream.write(formated)
+        self.stream.flush()
+
     def onStart(self, test):
         """Can be overriden by custom TestResult"""
 
@@ -2280,24 +2337,33 @@ class TestResult(base_class):
         else:
             with iolock:
                 if reason == "timed out":
-                    self.stream.write('t')
+                    self._write_dot('t')
                 else:
                     if not self._options.nodiff:
                         self.stream.write('\n')
                         # Exclude the '\n' from highlighting to lex correctly
                         formatted = 'ERROR: %s output changed\n' % test
                         self.stream.write(highlightmsg(formatted, self.color))
-                    self.stream.write('!')
+                    self._write_dot('!')
 
                 self.stream.flush()
 
     def addSuccess(self, test):
         with iolock:
-            super(TestResult, self).addSuccess(test)
+            # bypass the TextTestResult method as do deal with the output ourself
+            super(base_class, self).addSuccess(test)
+            if self.showAll:
+                self._write_status(test, "ok")
+            elif self.dots:
+                self._write_dot('.')
         self.successes.append(test)
 
     def addError(self, test, err):
-        super(TestResult, self).addError(test, err)
+        super(base_class, self).addError(test, err)
+        if self.showAll:
+            self._write_status(test, "ERROR")
+        elif self.dots:
+            self._write_dot('E')
         if self._options.first:
             self.stop()
 
@@ -2308,8 +2374,7 @@ class TestResult(base_class):
             if self.showAll:
                 self.stream.writeln('skipped %s' % reason)
             else:
-                self.stream.write('s')
-                self.stream.flush()
+                self._write_dot('s')
 
     def addIgnore(self, test, reason):
         self.ignored.append((test, reason))
@@ -2318,10 +2383,9 @@ class TestResult(base_class):
                 self.stream.writeln('ignored %s' % reason)
             else:
                 if reason not in ('not retesting', "doesn't match keyword"):
-                    self.stream.write('i')
+                    self._write_dot('i')
                 else:
                     self.testsRun += 1
-                self.stream.flush()
 
     def addOutputMismatch(self, test, ret, got, expected):
         """Record a mismatch in test output for a particular test."""
