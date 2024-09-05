@@ -1654,27 +1654,6 @@ except ImportError:
         pass
 
 
-if os.name == 'nt':
-    # Allow compiler/linker flags to be added to Visual Studio builds.  Passing
-    # extra_link_args to distutils.extensions.Extension() doesn't have any
-    # effect.
-    try:
-        # setuptools < 65.0
-        from distutils import msvccompiler
-    except ImportError:
-        from distutils import _msvccompiler as msvccompiler
-
-    msvccompilerclass = msvccompiler.MSVCCompiler
-
-    class HackedMSVCCompiler(msvccompiler.MSVCCompiler):
-        def initialize(self):
-            msvccompilerclass.initialize(self)
-            # "warning LNK4197: export 'func' specified multiple times"
-            self.ldflags_shared.append('/ignore:4197')
-            self.ldflags_shared_debug.append('/ignore:4197')
-
-    msvccompiler.MSVCCompiler = HackedMSVCCompiler
-
 packagedata = {
     'mercurial': [
         'configitems.toml',
