@@ -611,7 +611,11 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             log::info!("not writing dirstate from `status`: lock is held")
         }
         Err(LockError::Other(HgError::IoError { error, .. }))
-            if error.kind() == io::ErrorKind::PermissionDenied =>
+            if error.kind() == io::ErrorKind::PermissionDenied
+                || match error.raw_os_error() {
+                    None => false,
+                    Some(errno) => libc::EROFS == errno,
+                } =>
         {
             // `hg status` on a read-only repository is fine
         }

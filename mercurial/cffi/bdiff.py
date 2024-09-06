@@ -21,11 +21,11 @@ lib = _bdiff.lib
 
 
 def blocks(sa: bytes, sb: bytes) -> List[Tuple[int, int, int, int]]:
-    a = ffi.new(b"struct bdiff_line**")
-    b = ffi.new(b"struct bdiff_line**")
-    ac = ffi.new(b"char[]", str(sa))
-    bc = ffi.new(b"char[]", str(sb))
-    l = ffi.new(b"struct bdiff_hunk*")
+    a = ffi.new("struct bdiff_line**")
+    b = ffi.new("struct bdiff_line**")
+    ac = ffi.new("char[]", bytes(sa))
+    bc = ffi.new("char[]", bytes(sb))
+    l = ffi.new("struct bdiff_hunk*")
     try:
         an = lib.bdiff_splitlines(ac, len(sa), a)
         bn = lib.bdiff_splitlines(bc, len(sb), b)
@@ -49,11 +49,11 @@ def blocks(sa: bytes, sb: bytes) -> List[Tuple[int, int, int, int]]:
 
 
 def bdiff(sa: bytes, sb: bytes) -> bytes:
-    a = ffi.new(b"struct bdiff_line**")
-    b = ffi.new(b"struct bdiff_line**")
-    ac = ffi.new(b"char[]", str(sa))
-    bc = ffi.new(b"char[]", str(sb))
-    l = ffi.new(b"struct bdiff_hunk*")
+    a = ffi.new("struct bdiff_line**")
+    b = ffi.new("struct bdiff_line**")
+    ac = ffi.new("char[]", bytes(sa))
+    bc = ffi.new("char[]", bytes(sb))
+    l = ffi.new("struct bdiff_hunk*")
     try:
         an = lib.bdiff_splitlines(ac, len(sa), a)
         bn = lib.bdiff_splitlines(bc, len(sb), b)
@@ -76,7 +76,7 @@ def bdiff(sa: bytes, sb: bytes) -> bytes:
                         lgt,
                     )
                 )
-                rl.append(str(ffi.buffer((b[0] + lb).l, lgt)))
+                rl.append(bytes(ffi.buffer((b[0] + lb).l, lgt)))
             la = h.a2
             lb = h.b2
             h = h.next

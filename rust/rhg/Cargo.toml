@@ -24,3 +24,4 @@ shellexpand = { version = "3.1", features = ["full"]}
 whoami = "1.4"
 which = "4.3.0"
 rayon = "1.7.0"
+libc = "0.2.155"

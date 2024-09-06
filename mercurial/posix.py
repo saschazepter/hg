@@ -23,6 +23,7 @@ import unicodedata
 from typing import (
     Any,
     AnyStr,
+    Callable,
     Iterable,
     Iterator,
     List,
@@ -552,7 +553,7 @@ if pycompat.sysplatform == b'OpenVMS':
         return False
 
 
-_needsshellquote: Optional[Match[bytes]] = None
+_needsshellquote: Optional[Callable[[bytes], Optional[Match[bytes]]]] = None
 
 
 def shellquote(s: bytes) -> bytes:
