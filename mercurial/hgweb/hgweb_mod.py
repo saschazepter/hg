@@ -464,7 +464,7 @@ class hgweb:
 
                 res.headers[b'ETag'] = tag
 
-            if cmd not in webcommands.__all__:
+            if pycompat.sysstr(cmd) not in webcommands.__all__:
                 msg = b'no such method: %s' % cmd
                 raise ErrorResponse(HTTP_BAD_REQUEST, msg)
             else:
