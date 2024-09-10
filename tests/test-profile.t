@@ -54,9 +54,17 @@ In alias
 
 Profiling of HTTP requests works
 
-  $ prof --config profiling.format=text --config profiling.output=../profile.log serve -d -p $HGPORT --pid-file ../hg.pid -A ../access.log
+  $ prof \
+  >   --config profiling.format=text \
+  >   --config profiling.output=../profile.log \
+  >  serve -d \
+  >    -p $HGPORT \
+  >    --pid-file ../hg.pid \
+  >    -A ../access.log \
+  >    --errorlog ../error.log
   $ cat ../hg.pid >> $DAEMON_PIDS
   $ hg -q clone -U http://localhost:$HGPORT ../clone
+  $ cat ../error.log
 
 A single profile is logged because file logging doesn't append
   $ grep CallCount ../profile.log | wc -l
