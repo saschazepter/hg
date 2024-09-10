@@ -5,11 +5,9 @@
 # 'python setup.py --help' for more options
 import os
 
-# Mercurial can't work on 3.6.0 or 3.6.1 due to a bug in % formatting
-# in bytestrings.
 supportedpy = ','.join(
     [
-        '>=3.6.2',
+        '>=3.8.0',
     ]
 )
 
