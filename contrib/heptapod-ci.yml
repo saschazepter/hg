@@ -79,7 +79,7 @@ test-pure:
         RUNTEST_ARGS: "--pure --blacklist /tmp/check-tests.txt"
         TEST_HGMODULEPOLICY: "py"
 
-test-rust:
+test-rust: &test_rust
     <<: *runtests
     variables:
         HGWITHRUSTEXT: cpython
@@ -110,6 +110,12 @@ test-3.8-c:
 
 test-3.12-c:
     <<: *test_c
+    when: manual  # avoid overloading the CI by default
+    variables:
+        PYTHON: python3.12
+
+test-3.12-rust:
+    <<: *test_rust
     when: manual  # avoid overloading the CI by default
     variables:
         PYTHON: python3.12
