@@ -7,6 +7,7 @@
 
 
 import contextlib
+import sys
 
 from .i18n import _
 from .pycompat import (
@@ -54,7 +55,23 @@ def lsprofile(ui, fp):
             )
         )
     p = lsprof.Profiler()
-    p.enable(subcalls=True)
+    try:
+        p.enable(subcalls=True)
+    except ValueError as exc:
+        if str(exc) != "Another profiling tool is already active":
+            raise
+        if not hasattr(sys, "monitoring"):
+            raise
+        # python >=3.12 prevent more than one profiler to run at the same
+        # time, tries to improve the report to help the user understand
+        # what is going on.
+        other_tool_name = sys.monitoring.get_tool(sys.monitoring.PROFILER_ID)
+        if other_tool_name == "cProfile":
+            msg = 'cannot recursively call `lsprof`'
+            raise error.Abort(msg) from None
+        else:
+            m = 'failed to start "lsprofile"; another profiler already running: %s'
+            raise error.Abort(_(m) % other_tool_name) from None
     try:
         yield
     finally:
