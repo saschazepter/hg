@@ -50,11 +50,15 @@ In alias
 
 #endif
 
-#if lsprof serve
+#if serve
 
 Profiling of HTTP requests works
 
-  $ prof \
+  $ stats_prof () {
+  >   hg --config profiling.type=stat --profile $@
+  > }
+
+  $ stats_prof \
   >   --config profiling.format=text \
   >   --config profiling.output=../profile.log \
   >  serve -d \
@@ -67,7 +71,9 @@ Profiling of HTTP requests works
   $ cat ../error.log
 
 A single profile is logged because file logging doesn't append
-  $ grep CallCount ../profile.log | wc -l
+  $ grep 'Sample count:' ../profile.log | wc -l
+  \s*1 (re)
+  $ grep 'Total time:' ../profile.log | wc -l
   \s*1 (re)
 
 #endif
