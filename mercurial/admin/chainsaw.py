@@ -19,6 +19,8 @@ It is recommended to run these commands with the ``HGPLAIN`` environment
 variable (see :hg:`help scripting`).
 """
 
+from __future__ import annotations
+
 import shutil
 
 from ..i18n import _
