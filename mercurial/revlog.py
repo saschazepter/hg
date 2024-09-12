@@ -1019,7 +1019,7 @@ class _InnerRevlog:
         chunks.sort()
         return [x[1] for x in chunks]
 
-    def raw_text(self, node, rev):
+    def raw_text(self, node, rev) -> bytes:
         """return the possibly unvalidated rawtext for a revision
 
         returns rawtext
