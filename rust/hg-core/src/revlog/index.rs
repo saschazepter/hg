@@ -350,9 +350,6 @@ impl Index {
             return Err(HgError::corrupted("unsupported revlog version"));
         }
 
-        // This is only correct because we know version is REVLOGV1.
-        // In v2 we always use generaldelta, while in v0 we never use
-        // generaldelta. Similar for [is_inline] (it's only used in v1).
         let uses_generaldelta = header.format_flags().uses_generaldelta();
 
         if header.format_flags().is_inline() {
@@ -424,7 +421,6 @@ impl Index {
         assert!(self.is_inline());
         {
             // Wrap in a block to drop the read guard
-            // TODO perf?
             let mut offsets = self.offsets.write().unwrap();
             if offsets.is_none() {
                 offsets.replace(inline_scan(&self.bytes.bytes).1);
