@@ -87,6 +87,12 @@ import re
 import shutil
 import stat
 import subprocess
+import typing
+from typing import (
+    List,
+    Optional,
+    Tuple,
+)
 
 from mercurial.i18n import _
 from mercurial.node import (
@@ -110,6 +116,12 @@ from mercurial.utils import (
     procutil,
     stringutil,
 )
+
+if typing.TYPE_CHECKING:
+    from mercurial import (
+        localrepo,
+        ui as uimod,
+    )
 
 cmdtable = {}
 command = registrar.command(cmdtable)
@@ -150,7 +162,14 @@ configitem(
 testedwith = b'ships-with-hg-core'
 
 
-def snapshot(ui, repo, files, node, tmproot, listsubrepos):
+def snapshot(
+    ui: "uimod.ui",
+    repo: "localrepo.localrepository",
+    files,
+    node: Optional[bytes],
+    tmproot: bytes,
+    listsubrepos: bool,
+) -> Tuple[bytes, List[Tuple[bytes, bytes, os.stat_result]]]:
     """snapshot files as of some revision
     if not using snapshot, -I/-X does not work and recursive diff
     in tools like kdiff3 and meld displays too many files."""

@@ -11,8 +11,13 @@ import os
 import struct
 import tarfile
 import time
+import typing
 import zipfile
 import zlib
+
+from typing import (
+    Optional,
+)
 
 from .i18n import _
 from .node import nullrev
@@ -29,6 +34,11 @@ from . import (
 )
 
 from .utils import stringutil
+
+if typing.TYPE_CHECKING:
+    from . import (
+        localrepo,
+    )
 
 stringio = util.stringio
 
@@ -281,16 +291,16 @@ archivers = {
 
 
 def archive(
-    repo,
-    dest,
+    repo: "localrepo.localrepository",
+    dest,  # TODO: should be bytes, but could be Callable
     node,
-    kind,
-    decode=True,
+    kind: bytes,
+    decode: bool = True,
     match=None,
-    prefix=b'',
-    mtime=None,
-    subrepos=False,
-):
+    prefix: bytes = b'',
+    mtime: Optional[float] = None,
+    subrepos: bool = False,
+) -> int:
     """create archive of repo as it was at node.
 
     dest can be name of directory, name of archive file, a callable, or file
