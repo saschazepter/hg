@@ -26,7 +26,7 @@ pub struct IndexHeader {
     pub(super) header_bytes: [u8; INDEX_HEADER_SIZE],
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct IndexHeaderFlags {
     flags: u16,
 }
