@@ -448,6 +448,7 @@ impl Index {
     ///
     /// The specified revision being of the checked type, it always exists
     /// if it was validated by this index.
+    #[inline(always)]
     pub fn get_entry(&self, rev: Revision) -> Option<IndexEntry> {
         if rev == NULL_REVISION {
             return None;
