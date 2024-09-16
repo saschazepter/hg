@@ -1657,7 +1657,7 @@ def scmutiladdremove(
             m,
             uipathfn,
             opts.get(b'dry_run'),
-            **pycompat.strkwargs(opts)
+            **pycompat.strkwargs(opts),
         )
     # Call into the normal add code, and any files that *should* be added as
     # largefiles will be

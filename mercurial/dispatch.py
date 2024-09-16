@@ -300,7 +300,7 @@ def _rundispatch(req) -> int:
                 req.ui.log(
                     b'uiblocked',
                     b'ui blocked ms\n',
-                    **pycompat.strkwargs(req.ui._blockedtimes)
+                    **pycompat.strkwargs(req.ui._blockedtimes),
                 )
             return_code = ret & 255
             req.ui.log(

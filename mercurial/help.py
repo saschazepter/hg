@@ -805,7 +805,7 @@ def help_(
     full: bool = True,
     subtopic: Optional[bytes] = None,
     fullname: Optional[bytes] = None,
-    **opts
+    **opts,
 ) -> bytes:
     """
     Generate the help for 'name' as unformatted restructured text. If
@@ -1228,7 +1228,7 @@ def formattedhelp(
     keep: Optional[Iterable[bytes]] = None,
     unknowncmd: bool = False,
     full: bool = True,
-    **opts
+    **opts,
 ) -> bytes:
     """get help for a given topic (as a dotted name) as rendered rst
 
@@ -1261,7 +1261,7 @@ def formattedhelp(
         subtopic=subtopic,
         unknowncmd=unknowncmd,
         full=full,
-        **opts
+        **opts,
     )
 
     blocks, pruned = minirst.parse(text, keep=keep)

@@ -339,7 +339,7 @@ def fix(ui, repo, *pats, **opts):
                     repo.hook(
                         b'postfixfile',
                         throw=False,
-                        **pycompat.strkwargs(hookargs)
+                        **pycompat.strkwargs(hookargs),
                     )
                 numitems[rev] -= 1
                 # Apply the fixes for this and any other revisions that are

@@ -619,7 +619,7 @@ def trydiff(
     copy,
     getfilectx,
     *args,
-    **kwargs
+    **kwargs,
 ):
     if isenabled(repo):
         prefetch = []
@@ -648,7 +648,7 @@ def trydiff(
         copy,
         getfilectx,
         *args,
-        **kwargs
+        **kwargs,
     )
 
 

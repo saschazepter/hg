@@ -351,7 +351,7 @@ class remotefilectx(context.filectx):
                 b'linkrevfixup',
                 logmsg + b'\n',
                 elapsed=elapsed * 1000,
-                **commonlogkwargs
+                **commonlogkwargs,
             )
 
     def _verifylinknode(self, revs, linknode):
