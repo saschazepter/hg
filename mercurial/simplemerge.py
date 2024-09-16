@@ -16,6 +16,7 @@
 # mbp: "you know that thing where cvs gives you conflict markers?"
 # s: "i hate that."
 
+from __future__ import annotations
 
 from .i18n import _
 from . import (

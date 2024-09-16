@@ -10,6 +10,7 @@
 # Eventually, it could take care of updating (adding/removing/moving)
 # tags too.
 
+from __future__ import annotations
 
 import binascii
 import io

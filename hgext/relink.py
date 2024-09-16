@@ -7,6 +7,8 @@
 
 """recreates hardlinks between repository clones"""
 
+from __future__ import annotations
+
 import os
 import stat
 

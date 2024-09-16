@@ -9,6 +9,8 @@
 # with Bazaar or `bzr`, that was formerly known as Bazaar-NG;
 # it cannot access `bar` repositories, but they were never used very much.
 
+from __future__ import annotations
+
 import os
 
 from mercurial.i18n import _

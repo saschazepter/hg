@@ -65,6 +65,7 @@ The following ``share.`` config options influence this feature:
     and there are no untracked files, delete that share and create a new share.
 '''
 
+from __future__ import annotations
 
 from mercurial.i18n import _
 from mercurial import (

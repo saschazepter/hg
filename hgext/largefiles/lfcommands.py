@@ -8,6 +8,8 @@
 
 '''High-level command function for lfconvert, plus the cmdtable.'''
 
+from __future__ import annotations
+
 import binascii
 import os
 import shutil

@@ -9,6 +9,7 @@ written by Barry Warsaw.
 
 # Regular expression that matches `special' characters in parameters, the
 # existence of which force quoting of the parameter value.
+from __future__ import annotations
 
 import re
 

@@ -8,6 +8,8 @@
 
 '''largefiles utility code: must not import other modules in this package.'''
 
+from __future__ import annotations
+
 import contextlib
 import copy
 import os
