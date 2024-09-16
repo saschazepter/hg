@@ -174,7 +174,7 @@ def _filerevision(web, fctx):
         rename=webutil.renamelink(fctx),
         permissions=fctx.manifest().flags(f),
         ishead=int(ishead),
-        **pycompat.strkwargs(webutil.commonentry(web.repo, fctx))
+        **pycompat.strkwargs(webutil.commonentry(web.repo, fctx)),
     )
 
 
@@ -628,7 +628,7 @@ def manifest(web):
         fentries=templateutil.mappinggenerator(filelist),
         dentries=templateutil.mappinggenerator(dirlist),
         archives=web.archivelist(hex(node)),
-        **pycompat.strkwargs(webutil.commonentry(web.repo, ctx))
+        **pycompat.strkwargs(webutil.commonentry(web.repo, ctx)),
     )
 
 
@@ -873,7 +873,7 @@ def filediff(web):
         symrev=webutil.symrevorshortnode(web.req, ctx),
         rename=rename,
         diff=diffs,
-        **pycompat.strkwargs(webutil.commonentry(web.repo, ctx))
+        **pycompat.strkwargs(webutil.commonentry(web.repo, ctx)),
     )
 
 
@@ -954,7 +954,7 @@ def comparison(web):
         rightrev=rightrev,
         rightnode=hex(rightnode),
         comparison=comparison,
-        **pycompat.strkwargs(webutil.commonentry(web.repo, ctx))
+        **pycompat.strkwargs(webutil.commonentry(web.repo, ctx)),
     )
 
 
@@ -1061,7 +1061,7 @@ def annotate(web):
         permissions=fctx.manifest().flags(f),
         ishead=int(ishead),
         diffopts=templateutil.hybriddict(diffopts),
-        **pycompat.strkwargs(webutil.commonentry(web.repo, fctx))
+        **pycompat.strkwargs(webutil.commonentry(web.repo, fctx)),
     )
 
 
@@ -1224,7 +1224,7 @@ def filelog(web):
         revcount=revcount,
         morevars=morevars,
         lessvars=lessvars,
-        **pycompat.strkwargs(webutil.commonentry(web.repo, fctx))
+        **pycompat.strkwargs(webutil.commonentry(web.repo, fctx)),
     )
 
 

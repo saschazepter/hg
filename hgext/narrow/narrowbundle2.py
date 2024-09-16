@@ -47,7 +47,7 @@ def getbundlechangegrouppart_narrow(
     b2caps=None,
     heads=None,
     common=None,
-    **kwargs
+    **kwargs,
 ):
     assert repo.ui.configbool(b'experimental', b'narrowservebrokenellipses')
 

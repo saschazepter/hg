@@ -2116,7 +2116,7 @@ def handlechangegroup(op, inpart):
         op.source,
         b'bundle2',
         expectedtotal=nbchangesets,
-        **extrakwargs
+        **extrakwargs,
     )
     if op.reply is not None:
         # This is definitely not the final form of this

@@ -136,7 +136,7 @@ def _qrecord(cmdsuggest, ui, repo, patch, *pats, **opts):
             False,
             cmdutil.recordfilter,
             *pats,
-            **opts
+            **opts,
         )
 
 
