@@ -122,6 +122,7 @@ perform other post-fixing work. The supported hooks are::
     previously passed to the "postfixfile" hook.
 """
 
+from __future__ import annotations
 
 import collections
 import itertools

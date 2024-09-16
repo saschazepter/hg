@@ -145,6 +145,7 @@ future, dropping the stream may become an option for channel we do not care to
 preserve.
 """
 
+from __future__ import annotations
 
 import collections
 import errno

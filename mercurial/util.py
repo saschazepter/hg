@@ -13,6 +13,7 @@ This contains helper routines that are independent of the SCM core and
 hide platform-specific details from the core.
 """
 
+from __future__ import annotations
 
 import abc
 import collections

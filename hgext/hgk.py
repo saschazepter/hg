@@ -34,6 +34,7 @@ Revisions context menu will now display additional entries to fire
 vdiff on hovered and selected revisions.
 '''
 
+from __future__ import annotations
 
 import os
 

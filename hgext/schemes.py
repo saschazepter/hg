@@ -40,6 +40,8 @@ You can override a predefined scheme by defining a new scheme with the
 same name.
 """
 
+from __future__ import annotations
+
 import os
 import re
 

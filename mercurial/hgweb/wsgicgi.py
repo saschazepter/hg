@@ -8,6 +8,7 @@
 # This was originally copied from the public domain code at
 # http://www.python.org/dev/peps/pep-0333/#the-server-gateway-side
 
+from __future__ import annotations
 
 from .. import encoding, pycompat
 
