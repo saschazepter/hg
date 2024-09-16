@@ -23,6 +23,8 @@ You can discover Zeroconf-enabled repositories by running
   zc-test = http://example.com:8000/test
 '''
 
+from __future__ import annotations
+
 import os
 import socket
 import time

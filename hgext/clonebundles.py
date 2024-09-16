@@ -308,6 +308,7 @@ the `$HGCB_BUNDLE_URL` environment variable.
 If the file was already deleted, the command must still succeed.
 """
 
+from __future__ import annotations
 
 import os
 import weakref

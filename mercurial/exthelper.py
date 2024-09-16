@@ -9,6 +9,7 @@
 ### Extension helper                                              ###
 #####################################################################
 
+from __future__ import annotations
 
 from . import (
     commands,

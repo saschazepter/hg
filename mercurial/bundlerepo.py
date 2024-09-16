@@ -11,6 +11,7 @@ This provides a read-only repository interface to bundles as if they
 were part of the actual repository.
 """
 
+from __future__ import annotations
 
 import contextlib
 import os

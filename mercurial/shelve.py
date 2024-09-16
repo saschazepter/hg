@@ -21,6 +21,8 @@ shelved change has a distinct name. For details, see the help for "hg
 shelve".
 """
 
+from __future__ import annotations
+
 import collections
 import io
 import itertools

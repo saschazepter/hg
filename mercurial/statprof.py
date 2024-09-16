@@ -101,6 +101,7 @@ significantly off if other threads' work patterns are not similar to the
 main thread's work patterns.
 """
 # no-check-code
+from __future__ import annotations
 
 import collections
 import contextlib

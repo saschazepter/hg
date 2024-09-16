@@ -48,6 +48,7 @@ Uses:
   different branches
 '''
 
+from __future__ import annotations
 
 from .node import nullrev
 from . import (

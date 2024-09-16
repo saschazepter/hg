@@ -14,6 +14,7 @@ For more information:
 https://mercurial-scm.org/wiki/RebaseExtension
 '''
 
+from __future__ import annotations
 
 import os
 

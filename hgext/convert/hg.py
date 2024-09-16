@@ -17,6 +17,8 @@
 #   the converted revision to have a different identity than the
 #   source.
 
+from __future__ import annotations
+
 import os
 import re
 import time

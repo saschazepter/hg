@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from mercurial.i18n import _
 
 from mercurial.node import (

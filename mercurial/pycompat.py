@@ -8,6 +8,7 @@
 This contains aliases to hide python version-specific details from the core.
 """
 
+from __future__ import annotations
 
 import builtins
 import codecs

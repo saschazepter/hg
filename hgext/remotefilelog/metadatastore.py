@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from mercurial.node import (
     hex,
     sha1nodeconstants,

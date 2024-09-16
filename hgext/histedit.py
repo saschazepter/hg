@@ -190,6 +190,7 @@ unexpectedly::
 
 """
 
+from __future__ import annotations
 
 # chistedit dependencies that are not available everywhere
 try:

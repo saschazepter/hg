@@ -120,6 +120,7 @@ Configs::
     usercache = /path/to/global/cache
 """
 
+from __future__ import annotations
 
 import sys
 

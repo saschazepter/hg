@@ -14,6 +14,8 @@ Transplanted patches are recorded in .hg/transplant/transplants, as a
 map from a changeset hash to its hash in the source repository.
 '''
 
+from __future__ import annotations
+
 import os
 
 from mercurial.i18n import _

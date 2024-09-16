@@ -8,6 +8,7 @@
 # The original module was split in an interface and an implementation
 # file to defer pygments loading and speedup extension setup.
 
+from __future__ import annotations
 
 from mercurial import demandimport
 

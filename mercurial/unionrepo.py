@@ -11,6 +11,8 @@
 allowing operations like diff and log with revsets.
 """
 
+from __future__ import annotations
+
 import contextlib
 
 

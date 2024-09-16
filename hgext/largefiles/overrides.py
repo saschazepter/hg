@@ -8,6 +8,8 @@
 
 '''Overridden Mercurial commands and functions for the largefiles extension'''
 
+from __future__ import annotations
+
 import contextlib
 import copy
 import os

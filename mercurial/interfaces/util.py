@@ -9,6 +9,7 @@
 # bookkeeping for declaring interfaces. So, we use stubs for various
 # zope.interface primitives unless instructed otherwise.
 
+from __future__ import annotations
 
 from .. import encoding
 

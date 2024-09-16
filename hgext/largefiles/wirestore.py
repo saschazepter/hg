@@ -5,6 +5,8 @@
 
 '''largefile store working over Mercurial's wire protocol'''
 
+from __future__ import annotations
+
 from . import (
     lfutil,
     remotestore,

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """ Multicast DNS Service Discovery for Python, v0.12
     Copyright (C) 2003, Paul Scott-Murphy
 

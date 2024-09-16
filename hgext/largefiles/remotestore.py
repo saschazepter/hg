@@ -6,6 +6,8 @@
 
 '''remote largefile store; the base class for wirestore'''
 
+from __future__ import annotations
+
 from mercurial.i18n import _
 
 from mercurial import (

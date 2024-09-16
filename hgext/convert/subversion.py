@@ -2,6 +2,8 @@
 #
 # Copyright(C) 2007 Daniel Holth et al
 
+from __future__ import annotations
+
 import codecs
 import locale
 import os

@@ -8,6 +8,8 @@
 
 '''store class for local filesystem'''
 
+from __future__ import annotations
+
 from mercurial.i18n import _
 from mercurial.pycompat import open
 from mercurial import util

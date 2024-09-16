@@ -2,6 +2,8 @@
 #
 # check-translation.py - check Mercurial specific translation problems
 
+from __future__ import annotations
+
 import re
 
 import polib

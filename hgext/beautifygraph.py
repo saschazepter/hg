@@ -11,6 +11,7 @@
    A terminal with UTF-8 support and monospace narrow text are required.
 '''
 
+from __future__ import annotations
 
 from mercurial.i18n import _
 from mercurial import (

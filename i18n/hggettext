@@ -20,6 +20,7 @@ Use xgettext like normal to extract strings marked as translatable and
 join the message cataloges to get the final catalog.
 """
 
+from __future__ import annotations
 
 import inspect
 import os
