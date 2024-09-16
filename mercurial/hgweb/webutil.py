@@ -600,7 +600,7 @@ def changesetentry(web, ctx):
         diffsummary=lambda context, mapping: diffsummary(diffstatsgen),
         diffstat=diffstats,
         archives=web.archivelist(ctx.hex()),
-        **pycompat.strkwargs(commonentry(web.repo, ctx))
+        **pycompat.strkwargs(commonentry(web.repo, ctx)),
     )
 
 

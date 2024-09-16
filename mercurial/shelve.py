@@ -673,7 +673,7 @@ def _docreatecmd(ui, repo, pats, opts):
                 False,
                 cmdutil.recordfilter,
                 *pats,
-                **pycompat.strkwargs(opts)
+                **pycompat.strkwargs(opts),
             )
         if not node:
             _nothingtoshelvemessaging(ui, repo, pats, opts)
@@ -1050,7 +1050,7 @@ def _createunshelvectx(
         False,
         cmdutil.recordfilter,
         *pats,
-        **pycompat.strkwargs(opts)
+        **pycompat.strkwargs(opts),
     )
     snode = repo.commit(
         text=shelvectx.description(),

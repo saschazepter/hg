@@ -312,7 +312,7 @@ if has_https:
             key_file=None,
             cert_file=None,
             *args,
-            **kwargs
+            **kwargs,
         ):
             keepalive.HTTPConnection.__init__(self, host, port, *args, **kwargs)
             self.key_file = key_file

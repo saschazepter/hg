@@ -697,7 +697,7 @@ class cg1unpacker:
                 repo.hook(
                     b'pretxnchangegroup',
                     throw=True,
-                    **pycompat.strkwargs(hookargs)
+                    **pycompat.strkwargs(hookargs),
                 )
 
             added = range(clstart, clend)

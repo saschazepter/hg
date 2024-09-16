@@ -416,7 +416,7 @@ class notifier:
             baseurl=self.ui.config(b'web', b'baseurl'),
             root=self.repo.root,
             webroot=self.root,
-            **props
+            **props,
         )
         return True
 

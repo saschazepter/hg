@@ -449,7 +449,7 @@ def push(
         newbranch,
         bookmarks,
         publish,
-        **pycompat.strkwargs(opargs)
+        **pycompat.strkwargs(opargs),
     )
     if pushop.remote.local():
         missing = (
@@ -1717,7 +1717,7 @@ def pull(
         includepats=includepats,
         excludepats=excludepats,
         depth=depth,
-        **pycompat.strkwargs(opargs)
+        **pycompat.strkwargs(opargs),
     )
 
     peerlocal = pullop.remote.local()
@@ -2420,7 +2420,7 @@ def getbundlechunks(
     common=None,
     bundlecaps=None,
     remote_sidedata=None,
-    **kwargs
+    **kwargs,
 ):
     """Return chunks constituting a bundle's raw data.
 
@@ -2480,7 +2480,7 @@ def getbundlechunks(
             bundlecaps=bundlecaps,
             b2caps=b2caps,
             remote_sidedata=remote_sidedata,
-            **pycompat.strkwargs(kwargs)
+            **pycompat.strkwargs(kwargs),
         )
 
     info[b'prefercompressed'] = bundler.prefercompressed
@@ -2503,7 +2503,7 @@ def _getbundlechangegrouppart(
     heads=None,
     common=None,
     remote_sidedata=None,
-    **kwargs
+    **kwargs,
 ):
     """add a changegroup part to the requested bundle"""
     if not kwargs.get('cg', True) or not b2caps:
@@ -2669,7 +2669,7 @@ def _getbundletagsfnodes(
     b2caps=None,
     heads=None,
     common=None,
-    **kwargs
+    **kwargs,
 ):
     """Transfer the .hgtags filenodes mapping.
 
@@ -2697,7 +2697,7 @@ def _getbundlerevbranchcache(
     b2caps=None,
     heads=None,
     common=None,
-    **kwargs
+    **kwargs,
 ):
     """Transfer the rev-branch-cache mapping
 

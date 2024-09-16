@@ -891,7 +891,7 @@ def wrapupdate(
     mergeancestor=False,
     labels=None,
     matcher=None,
-    **kwargs
+    **kwargs,
 ):
     distance = 0
     partial = True
@@ -918,7 +918,7 @@ def wrapupdate(
             mergeancestor,
             labels,
             matcher,
-            **kwargs
+            **kwargs,
         )
 
 

@@ -805,7 +805,7 @@ class Bser2WithFallbackCodec(BserCodec):
             cmd = bser.dumps(
                 *args,
                 version=self.bser_version,
-                capabilities=self.bser_capabilities
+                capabilities=self.bser_capabilities,
             )
         else:
             cmd = bser.dumps(*args)

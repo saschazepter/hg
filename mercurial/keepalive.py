@@ -339,7 +339,7 @@ class KeepAliveHandler:
                 h.putrequest(
                     req.get_method(),
                     urllibcompat.getselector(req),
-                    **skipheaders
+                    **skipheaders,
                 )
                 if 'content-type' not in headers:
                     h.putheader(
@@ -351,7 +351,7 @@ class KeepAliveHandler:
                 h.putrequest(
                     req.get_method(),
                     urllibcompat.getselector(req),
-                    **skipheaders
+                    **skipheaders,
                 )
         except socket.error as err:
             raise urlerr.urlerror(err)
