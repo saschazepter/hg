@@ -68,6 +68,8 @@ comment associated with each format for details.
 
 """
 
+from __future__ import annotations
+
 import binascii
 import struct
 import weakref

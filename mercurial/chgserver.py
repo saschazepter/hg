@@ -39,6 +39,7 @@ Config
   skiphash = False
 """
 
+from __future__ import annotations
 
 import inspect
 import os

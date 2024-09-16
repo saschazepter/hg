@@ -107,6 +107,7 @@ created.
 # The issues related to nested repos and subrepos are probably not fundamental
 # ones. Patches to fix them are welcome.
 
+from __future__ import annotations
 
 import codecs
 import os

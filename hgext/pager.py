@@ -22,6 +22,8 @@ takes precedence over ignore options and defaults::
   attend-cat = false
 '''
 
+from __future__ import annotations
+
 from mercurial import (
     cmdutil,
     commands,

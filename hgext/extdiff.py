@@ -81,6 +81,7 @@ needed files, so running the external diff program will actually be
 pretty fast (at least faster than having to compare the entire tree).
 '''
 
+from __future__ import annotations
 
 import os
 import re

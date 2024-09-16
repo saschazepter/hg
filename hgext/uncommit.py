@@ -17,6 +17,7 @@ removed in the changeset will be left unchanged, and so will remain modified,
 added and removed in the working directory.
 """
 
+from __future__ import annotations
 
 from mercurial.i18n import _
 

@@ -105,6 +105,8 @@ explicitly do so with the --large flag passed to the :hg:`add`
 command.
 '''
 
+from __future__ import annotations
+
 from mercurial import (
     cmdutil,
     configitems,

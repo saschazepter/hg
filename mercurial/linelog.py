@@ -19,6 +19,8 @@ deletion is performed on the file, a jump instruction is used to patch
 in a new body of annotate information.
 """
 
+from __future__ import annotations
+
 import abc
 import struct
 import typing

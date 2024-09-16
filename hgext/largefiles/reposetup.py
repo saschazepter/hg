@@ -8,6 +8,8 @@
 
 '''setup for largefiles repositories: reposetup'''
 
+from __future__ import annotations
+
 import copy
 
 from mercurial.i18n import _

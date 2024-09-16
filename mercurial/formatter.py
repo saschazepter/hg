@@ -105,6 +105,7 @@ bar
 baz: foo, bar
 """
 
+from __future__ import annotations
 
 import contextlib
 import itertools

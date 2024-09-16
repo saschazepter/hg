@@ -4,6 +4,7 @@ This is currently super experimental. It probably will consume your
 firstborn a la Rumpelstiltskin, etc.
 """
 
+from __future__ import annotations
 
 import os
 

@@ -155,6 +155,8 @@ web.baseurl
 
 '''
 
+from __future__ import annotations
+
 import email.errors as emailerrors
 import email.utils as emailutils
 import fnmatch
