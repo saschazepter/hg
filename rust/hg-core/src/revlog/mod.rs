@@ -712,6 +712,9 @@ impl Revlog {
         let data_bytes: Option<Box<dyn Deref<Target = [u8]> + Send>> =
             if index.is_inline() {
                 None
+            } else if index.is_empty() {
+                // No need to even try to open the data file then.
+                Some(Box::new(&[][..]))
             } else {
                 let data_path = data_path.unwrap_or(&default_data_path);
                 let data_mmap = store_vfs.mmap_open(data_path)?;
