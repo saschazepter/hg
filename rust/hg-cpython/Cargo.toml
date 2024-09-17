@@ -9,7 +9,7 @@ name='rusthg'
 crate-type = ["cdylib"]
 
 [dependencies]
-cpython = { version = "0.7.1", features = ["extension-module"] }
+cpython = { version = "0.7.2", features = ["extension-module"] }
 crossbeam-channel = "0.5.6"
 hg-core = { path = "../hg-core"}
 libc = "0.2.137"
