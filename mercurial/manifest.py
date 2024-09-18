@@ -1793,7 +1793,7 @@ class ManifestRevlog:
     def fulltextcache(self):
         return self._fulltextcache
 
-    def clearcaches(self, clear_persisted_data=False):
+    def clearcaches(self, clear_persisted_data: bool = False) -> None:
         self._revlog.clearcaches()
         self._fulltextcache.clear(clear_persisted_data=clear_persisted_data)
         self._dirlogcache = {self.tree: self}
