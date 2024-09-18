@@ -16,6 +16,7 @@ from __future__ import annotations
 import contextlib
 import os
 import shutil
+import typing
 
 from .i18n import _
 from .node import (
@@ -287,7 +288,13 @@ def _getfilestarts(cgunpacker):
     return filespos
 
 
-class bundlerepository:
+_bundle_repo_baseclass = object
+
+if typing.TYPE_CHECKING:
+    _bundle_repo_baseclass = localrepo.localrepository
+
+
+class bundlerepository(_bundle_repo_baseclass):
     """A repository instance that is a union of a local repo and a bundle.
 
     Instances represent a read-only repository composed of a local repository
