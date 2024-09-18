@@ -1532,7 +1532,7 @@ class imanifestlog(interfaceutil.Interface):
         TODO formalize interface for returned object.
         """
 
-    def clearcaches():
+    def clearcaches(clear_persisted_data: bool = False) -> None:
         """Clear caches associated with this collection."""
 
     def rev(node):
