@@ -1866,7 +1866,7 @@ class revlog:
             else:
                 nodemaputil.setup_persistent_nodemap(transaction, self)
 
-    def clearcaches(self):
+    def clearcaches(self, clear_persisted_data: bool = False) -> None:
         """Clear in-memory caches"""
         self._chainbasecache.clear()
         self._inner.clear_cache()
