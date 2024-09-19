@@ -44,7 +44,6 @@ pytype --version
 # hgext/sqlitestore.py          # [attribute-error]
 # hgext/zeroconf/__init__.py    # bytes vs str; tests fail on macOS
 #
-# mercurial/bundlerepo.py       # no vfs and ui attrs on bundlerepo
 # mercurial/context.py          # many [attribute-error]
 # mercurial/crecord.py          # tons of [attribute-error], [module-attr]
 # mercurial/debugcommands.py    # [wrong-arg-types]
@@ -102,7 +101,6 @@ pytype --keep-going --jobs auto \
     -x hgext/remotefilelog/shallowbundle.py \
     -x hgext/sqlitestore.py \
     -x hgext/zeroconf/__init__.py \
-    -x mercurial/bundlerepo.py \
     -x mercurial/context.py \
     -x mercurial/crecord.py \
     -x mercurial/debugcommands.py \
