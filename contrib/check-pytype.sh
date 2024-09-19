@@ -60,7 +60,6 @@ pytype --version
 # mercurial/pure/parsers.py     # [attribute-error]
 # mercurial/repoview.py         # [attribute-error]
 # mercurial/testing/storage.py  # tons of [attribute-error]
-# mercurial/unionrepo.py        # ui, svfs, unfiltered [attribute-error]
 # mercurial/win32.py            # [not-callable]
 # mercurial/wireprotoframing.py # [unsupported-operands], [attribute-error], [import-error]
 # mercurial/wireprotov1peer.py  # [attribute-error]
@@ -118,7 +117,6 @@ pytype --keep-going --jobs auto \
     -x mercurial/repoview.py \
     -x mercurial/testing/storage.py \
     -x mercurial/thirdparty \
-    -x mercurial/unionrepo.py \
     -x mercurial/win32.py \
     -x mercurial/wireprotoframing.py \
     -x mercurial/wireprotov1peer.py \
