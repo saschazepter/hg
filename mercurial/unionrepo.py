@@ -39,7 +39,9 @@ from .revlogutils import (
 
 
 class unionrevlog(revlog.revlog):
-    def __init__(self, opener, radix, revlog2, linkmapper):
+    def __init__(self, opener: typing.Any, radix, revlog2, linkmapper):
+        # TODO: figure out real type of opener
+        #
         # How it works:
         # To retrieve a revision, we just need to know the node id so we can
         # look it up in revlog2.
@@ -49,6 +51,10 @@ class unionrevlog(revlog.revlog):
         opener = vfsmod.readonlyvfs(opener)
         target = getattr(revlog2, 'target', None)
         if target is None:
+            # Help pytype- changelog and revlog are not possible here because
+            # they both have a 'target' attr.
+            assert not isinstance(revlog2, (changelog.changelog, revlog.revlog))
+
             # a revlog wrapper, eg: the manifestlog that is not an actual revlog
             target = revlog2._revlog.target
         revlog.revlog.__init__(self, opener, target=target, radix=radix)
@@ -131,7 +137,7 @@ class unionrevlog(revlog.revlog):
 
     def _chunk(self, rev):
         if rev <= self.repotiprev:
-            return revlog.revlog._chunk(self, rev)
+            return super(unionrevlog, self)._inner._chunk(rev)
         return self.revlog2._chunk(self.node(rev))
 
     def revdiff(self, rev1, rev2):
