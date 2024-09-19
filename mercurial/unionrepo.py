@@ -14,7 +14,7 @@ allowing operations like diff and log with revsets.
 from __future__ import annotations
 
 import contextlib
-
+import typing
 
 from .i18n import _
 
@@ -247,13 +247,20 @@ class unionpeer(localrepo.localpeer):
         return False
 
 
-class unionrepository:
+_union_repo_baseclass = object
+
+if typing.TYPE_CHECKING:
+    _union_repo_baseclass = localrepo.localrepository
+
+
+class unionrepository(_union_repo_baseclass):
     """Represents the union of data in 2 repositories.
 
     Instances are not usable if constructed directly. Use ``instance()``
     or ``makeunionrepository()`` to create a usable instance.
     """
 
+    # noinspection PyMissingConstructor
     def __init__(self, repo2, url):
         self.repo2 = repo2
         self._url = url
