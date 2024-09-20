@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import abc
 import contextlib
 import os
 import shutil
@@ -46,7 +47,7 @@ def _avoidambig(path: bytes, oldstat):
         checkandavoid()
 
 
-class abstractvfs:
+class abstractvfs(abc.ABC):
     """Abstract base class; cannot be instantiated"""
 
     # default directory separator for vfs
@@ -57,19 +58,18 @@ class abstractvfs:
     # encoded vfs (see issue6546)
     _dir_sep = b'/'
 
-    def __init__(self, *args, **kwargs):
-        '''Prevent instantiation; don't call this from subclasses.'''
-        raise NotImplementedError('attempted instantiating ' + str(type(self)))
-
     # TODO: type return, which is util.posixfile wrapped by a proxy
+    @abc.abstractmethod
     def __call__(self, path: bytes, mode: bytes = b'rb', **kwargs):
-        raise NotImplementedError
+        ...
 
+    @abc.abstractmethod
     def _auditpath(self, path: bytes, mode: bytes):
-        raise NotImplementedError
+        ...
 
+    @abc.abstractmethod
     def join(self, path: Optional[bytes], *insidef: bytes) -> bytes:
-        raise NotImplementedError
+        ...
 
     def tryread(self, path: bytes) -> bytes:
         '''gracefully return an empty string for missing files'''
@@ -625,7 +625,7 @@ class vfs(abstractvfs):
 opener = vfs
 
 
-class proxyvfs(abstractvfs):
+class proxyvfs(abstractvfs, abc.ABC):
     def __init__(self, vfs: "vfs"):
         self.vfs = vfs
 
@@ -684,7 +684,7 @@ class readonlyvfs(proxyvfs):
         return self.vfs.join(path, *insidef)
 
 
-class closewrapbase:
+class closewrapbase(abc.ABC):
     """Base class of wrapper, which hooks closing
 
     Do not instantiate outside of the vfs layer.
@@ -706,11 +706,13 @@ class closewrapbase:
         self._origfh.__enter__()
         return self
 
+    @abc.abstractmethod
     def __exit__(self, exc_type, exc_value, exc_tb):
-        raise NotImplementedError('attempted instantiating ' + str(type(self)))
+        ...
 
+    @abc.abstractmethod
     def close(self):
-        raise NotImplementedError('attempted instantiating ' + str(type(self)))
+        ...
 
 
 class delayclosedfile(closewrapbase):
