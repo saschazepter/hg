@@ -273,12 +273,12 @@ class abstractvfs(abc.ABC):
         self._auditpath(dst, b'w')
         srcpath = self.join(src)
         dstpath = self.join(dst)
-        oldstat = checkambig and util.filestat.frompath(dstpath)
+        oldstat = util.filestat.frompath(dstpath) if checkambig else None
+
+        util.rename(srcpath, dstpath)
+
         if oldstat and oldstat.stat:
-            ret = util.rename(srcpath, dstpath)
             _avoidambig(dstpath, oldstat)
-            return ret
-        return util.rename(srcpath, dstpath)
 
     def readlink(self, path: bytes) -> bytes:
         return util.readlink(self.join(path))
