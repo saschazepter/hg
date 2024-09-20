@@ -2201,8 +2201,10 @@ def makelock(info, pathname):
 
     flags = os.O_CREAT | os.O_WRONLY | os.O_EXCL | getattr(os, 'O_BINARY', 0)
     ld = os.open(pathname, flags)
-    os.write(ld, info)
-    os.close(ld)
+    try:
+        os.write(ld, info)
+    finally:
+        os.close(ld)
 
 
 def readlock(pathname: bytes) -> bytes:
