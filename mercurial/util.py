@@ -45,6 +45,8 @@ from typing import (
     List,
     Optional,
     Tuple,
+    Type,
+    TypeVar,
 )
 
 from .node import hex
@@ -157,6 +159,10 @@ statislink = platform.statislink
 umask = platform.umask
 unlink = platform.unlink
 username = platform.username
+
+
+if typing.TYPE_CHECKING:
+    _Tfilestat = TypeVar('_Tfilestat', bound='filestat')
 
 
 def setumask(val: int) -> None:
@@ -2491,11 +2497,11 @@ class filestat:
     'exists()' examination on client side of this class.
     """
 
-    def __init__(self, stat):
+    def __init__(self, stat: Optional[os.stat_result]) -> None:
         self.stat = stat
 
     @classmethod
-    def frompath(cls, path):
+    def frompath(cls: Type[_Tfilestat], path: bytes) -> _Tfilestat:
         try:
             stat = os.stat(path)
         except FileNotFoundError:
@@ -2503,13 +2509,13 @@ class filestat:
         return cls(stat)
 
     @classmethod
-    def fromfp(cls, fp):
+    def fromfp(cls: Type[_Tfilestat], fp: BinaryIO) -> _Tfilestat:
         stat = os.fstat(fp.fileno())
         return cls(stat)
 
     __hash__ = object.__hash__
 
-    def __eq__(self, old):
+    def __eq__(self, old) -> bool:
         try:
             # if ambiguity between stat of new and old file is
             # avoided, comparison of size, ctime and mtime is enough
@@ -2526,7 +2532,7 @@ class filestat:
         except AttributeError:
             return False
 
-    def isambig(self, old):
+    def isambig(self, old: _Tfilestat) -> bool:
         """Examine whether new (= self) stat is ambiguous against old one
 
         "S[N]" below means stat of a file at N-th change:
@@ -2561,7 +2567,7 @@ class filestat:
         except AttributeError:
             return False
 
-    def avoidambig(self, path, old):
+    def avoidambig(self, path: bytes, old: _Tfilestat) -> bool:
         """Change file stat of specified path to avoid ambiguity
 
         'old' should be previous filestat of 'path'.
@@ -2581,7 +2587,7 @@ class filestat:
             return False
         return True
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> bool:
         return not self == other
 
 
