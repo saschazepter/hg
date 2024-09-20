@@ -126,7 +126,11 @@ class abstractvfs(abc.ABC):
             return fp.write(data)
 
     def writelines(
-        self, path: bytes, data: bytes, mode: bytes = b'wb', notindexed=False
+        self,
+        path: bytes,
+        data: Iterable[bytes],
+        mode: bytes = b'wb',
+        notindexed=False,
     ) -> None:
         with self(path, mode=mode, notindexed=notindexed) as fp:
             return fp.writelines(data)
@@ -362,7 +366,9 @@ class abstractvfs(abc.ABC):
     def utime(self, path: Optional[bytes] = None, t=None) -> None:
         return os.utime(self.join(path), t)
 
-    def walk(self, path: Optional[bytes] = None, onerror=None):
+    def walk(
+        self, path: Optional[bytes] = None, onerror=None
+    ) -> Iterator[Tuple[bytes, List[bytes], List[bytes]]]:
         """Yield (dirpath, dirs, files) tuple for each directory under path
 
         ``dirpath`` is relative one from the root of this vfs. This
@@ -379,7 +385,9 @@ class abstractvfs(abc.ABC):
             yield (dirpath[prefixlen:], dirs, files)
 
     @contextlib.contextmanager
-    def backgroundclosing(self, ui, expectedcount=-1):
+    def backgroundclosing(
+        self, ui, expectedcount=-1
+    ) -> Iterator[Optional[backgroundfilecloser]]:
         """Allow files to be closed asynchronously.
 
         When this context manager is active, ``backgroundclose`` can be passed
@@ -723,11 +731,11 @@ class closewrapbase(abc.ABC):
         return self
 
     @abc.abstractmethod
-    def __exit__(self, exc_type, exc_value, exc_tb):
+    def __exit__(self, exc_type, exc_value, exc_tb) -> None:
         ...
 
     @abc.abstractmethod
-    def close(self):
+    def close(self) -> None:
         ...
 
 
@@ -741,7 +749,7 @@ class delayclosedfile(closewrapbase):
         super(delayclosedfile, self).__init__(fh)
         object.__setattr__(self, '_closer', closer)
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
+    def __exit__(self, exc_type, exc_value, exc_tb) -> None:
         self._closer.close(self._origfh)
 
     def close(self) -> None:
@@ -793,7 +801,7 @@ class backgroundfilecloser:
         self._entered = True
         return self
 
-    def __exit__(self, exc_type, exc_value, exc_tb) -> None:  # TODO
+    def __exit__(self, exc_type, exc_value, exc_tb) -> None:
         self._running = False
 
         # Wait for threads to finish closing so open files don't linger for
@@ -860,7 +868,7 @@ class checkambigatclosing(closewrapbase):
         if oldstat.stat:
             _avoidambig(self._origfh.name, oldstat)
 
-    def __exit__(self, exc_type, exc_value, exc_tb) -> None:  # TODO
+    def __exit__(self, exc_type, exc_value, exc_tb) -> None:
         self._origfh.__exit__(exc_type, exc_value, exc_tb)
         self._checkambig()
 
