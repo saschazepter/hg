@@ -54,7 +54,7 @@ class abstractvfs(abc.ABC):
     #
     # Other vfs code always use `/` and this works fine because python file API
     # abstract the use of `/` and make it work transparently. For consistency
-    # vfs will always use `/` when joining. This avoid some confusion in
+    # vfs will always use `/` when joining. This avoids some confusion in
     # encoded vfs (see issue6546)
     _dir_sep = b'/'
 
@@ -205,7 +205,7 @@ class abstractvfs(abc.ABC):
         then you get SIGBUS, which can be pretty disruptive: we get core dump
         reports, and the process terminates without writing to the blackbox.
 
-        Instead in this situation we prefer to read the file normally.
+        Instead, in this situation we prefer to read the file normally.
         The risk of ESTALE in the middle of the read remains, but it's
         smaller because we read sooner and the error should be reported
         just as any other error.
@@ -347,7 +347,7 @@ class abstractvfs(abc.ABC):
         return os.utime(self.join(path), t)
 
     def walk(self, path: Optional[bytes] = None, onerror=None):
-        """Yield (dirpath, dirs, files) tuple for each directories under path
+        """Yield (dirpath, dirs, files) tuple for each directory under path
 
         ``dirpath`` is relative one from the root of this vfs. This
         uses ``os.sep`` as path separator, even you specify POSIX
@@ -687,7 +687,7 @@ class readonlyvfs(proxyvfs):
 class closewrapbase(abc.ABC):
     """Base class of wrapper, which hooks closing
 
-    Do not instantiate outside of the vfs layer.
+    Do not instantiate outside the vfs layer.
     """
 
     def __init__(self, fh):
@@ -718,7 +718,7 @@ class closewrapbase(abc.ABC):
 class delayclosedfile(closewrapbase):
     """Proxy for a file object whose close is delayed.
 
-    Do not instantiate outside of the vfs layer.
+    Do not instantiate outside the vfs layer.
     """
 
     def __init__(self, fh, closer):
@@ -809,7 +809,7 @@ class backgroundfilecloser:
             )
 
         # If a background thread encountered an exception, raise now so we fail
-        # fast. Otherwise we may potentially go on for minutes until the error
+        # fast. Otherwise, we may potentially go on for minutes until the error
         # is acted on.
         if self._threadexception:
             e = self._threadexception
@@ -832,7 +832,7 @@ class checkambigatclosing(closewrapbase):
     This proxy is useful only if the target file is guarded by any
     lock (e.g. repo.lock or repo.wlock)
 
-    Do not instantiate outside of the vfs layer.
+    Do not instantiate outside the vfs layer.
     """
 
     def __init__(self, fh):
