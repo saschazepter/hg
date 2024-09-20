@@ -2185,7 +2185,7 @@ else:
         timer = time.time
 
 
-def makelock(info, pathname):
+def makelock(info: bytes, pathname: bytes) -> None:
     """Create a lock file atomically if possible
 
     This may leave a stale lock file if symlink isn't supported and signal
