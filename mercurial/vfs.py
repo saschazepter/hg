@@ -373,10 +373,7 @@ class abstractvfs:
         # Sharing backgroundfilecloser between threads is complex and using
         # multiple instances puts us at risk of running out of file descriptors
         # only allow to use backgroundfilecloser when in main thread.
-        if not isinstance(
-            threading.current_thread(),
-            threading._MainThread,  # pytype: disable=module-attr
-        ):
+        if threading.current_thread() is not threading.main_thread():
             yield
             return
         vfs = getattr(self, 'vfs', self)
@@ -575,9 +572,9 @@ class vfs(abstractvfs):
                 )
             fp = checkambigatclosing(fp)
 
-        if backgroundclose and isinstance(
-            threading.current_thread(),
-            threading._MainThread,  # pytype: disable=module-attr
+        if (
+            backgroundclose
+            and threading.current_thread() is threading.main_thread()
         ):
             if (
                 not self._backgroundfilecloser  # pytype: disable=attribute-error
