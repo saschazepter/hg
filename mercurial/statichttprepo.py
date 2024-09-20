@@ -139,6 +139,9 @@ def build_opener(ui, authinfo):
             f = b"/".join((self.base, urlreq.quote(path)))
             return httprangereader(f, urlopener)
 
+        def _auditpath(self, path: bytes, mode: bytes) -> None:
+            raise NotImplementedError
+
         def join(self, path, *insidef):
             if path:
                 return pathutil.join(self.base, path, *insidef)
