@@ -14,6 +14,7 @@ import random
 import re
 import sys
 import time
+import typing
 import weakref
 
 from concurrent import futures
@@ -255,8 +256,7 @@ moderncaps = {
 legacycaps = moderncaps.union({b'changegroupsubset'})
 
 
-@interfaceutil.implementer(repository.ipeercommandexecutor)
-class localcommandexecutor:
+class LocalCommandExecutor:
     def __init__(self, peer):
         self._peer = peer
         self._sent = False
@@ -301,12 +301,20 @@ class localcommandexecutor:
         self._closed = True
 
 
-@interfaceutil.implementer(repository.ipeercommands)
-class localpeer(repository.peer):
+localcommandexecutor = interfaceutil.implementer(
+    repository.ipeercommandexecutor
+)(LocalCommandExecutor)
+
+if typing.TYPE_CHECKING:
+    # Help pytype by hiding the interface stuff that confuses it.
+    localcommandexecutor = LocalCommandExecutor
+
+
+class LocalPeer(repository.peer):
     '''peer for a local repo; reflects only the most recent API'''
 
     def __init__(self, repo, caps=None, path=None, remotehidden=False):
-        super(localpeer, self).__init__(
+        super(LocalPeer, self).__init__(
             repo.ui, path=path, remotehidden=remotehidden
         )
 
@@ -456,13 +464,19 @@ class localpeer(repository.peer):
     # End of peer interface.
 
 
-@interfaceutil.implementer(repository.ipeerlegacycommands)
-class locallegacypeer(localpeer):
+localpeer = interfaceutil.implementer(repository.ipeercommands)(LocalPeer)
+
+if typing.TYPE_CHECKING:
+    # Help pytype by hiding the interface stuff that confuses it.
+    localpeer = LocalPeer
+
+
+class LocalLegacyPeer(localpeer):
     """peer extension which implements legacy methods too; used for tests with
     restricted capabilities"""
 
     def __init__(self, repo, path=None, remotehidden=False):
-        super(locallegacypeer, self).__init__(
+        super(LocalLegacyPeer, self).__init__(
             repo, caps=legacycaps, path=path, remotehidden=remotehidden
         )
 
@@ -488,6 +502,14 @@ class locallegacypeer(localpeer):
 
     # End of baselegacywirecommands interface.
 
+
+locallegacypeer = interfaceutil.implementer(repository.ipeerlegacycommands)(
+    LocalLegacyPeer
+)
+
+if typing.TYPE_CHECKING:
+    # Help pytype by hiding the interface stuff that confuses it.
+    locallegacypeer = LocalLegacyPeer
 
 # Functions receiving (ui, features) that extensions can register to impact
 # the ability to load repositories with custom requirements. Only
@@ -1241,8 +1263,7 @@ def makemain(**kwargs):
     return localrepository
 
 
-@interfaceutil.implementer(repository.ilocalrepositoryfilestorage)
-class revlogfilestorage:
+class RevlogFileStorage:
     """File storage when using revlogs."""
 
     def file(self, path):
@@ -1257,8 +1278,16 @@ class revlogfilestorage:
         return filelog.filelog(self.svfs, path, try_split=try_split)
 
 
-@interfaceutil.implementer(repository.ilocalrepositoryfilestorage)
-class revlognarrowfilestorage:
+revlogfilestorage = interfaceutil.implementer(
+    repository.ilocalrepositoryfilestorage
+)(RevlogFileStorage)
+
+if typing.TYPE_CHECKING:
+    # Help pytype by hiding the interface stuff that confuses it.
+    revlogfilestorage = RevlogFileStorage
+
+
+class RevlogNarrowFileStorage:
     """File storage when using revlogs and narrow files."""
 
     def file(self, path):
@@ -1272,6 +1301,15 @@ class revlognarrowfilestorage:
         return filelog.narrowfilelog(
             self.svfs, path, self._storenarrowmatch, try_split=try_split
         )
+
+
+revlognarrowfilestorage = interfaceutil.implementer(
+    repository.ilocalrepositoryfilestorage
+)(RevlogNarrowFileStorage)
+
+if typing.TYPE_CHECKING:
+    # Help pytype by hiding the interface stuff that confuses it.
+    revlognarrowfilestorage = RevlogNarrowFileStorage
 
 
 def makefilestorage(requirements, features, **kwargs):
@@ -1295,9 +1333,16 @@ REPO_INTERFACES = [
     (repository.ilocalrepositoryfilestorage, lambda: makefilestorage),
 ]
 
+_localrepo_base_classes = object
 
-@interfaceutil.implementer(repository.ilocalrepositorymain)
-class localrepository:
+if typing.TYPE_CHECKING:
+    _localrepo_base_classes = [
+        repository.ilocalrepositorymain,
+        repository.ilocalrepositoryfilestorage,
+    ]
+
+
+class LocalRepository(_localrepo_base_classes):
     """Main class for representing local repositories.
 
     All local repositories are instances of this class.
@@ -3596,6 +3641,15 @@ class localrepository:
             raise error.ProgrammingError(msg % category)
         self._sidedata_computers.setdefault(kind, {})
         self._sidedata_computers[kind][category] = (keys, computer, flags)
+
+
+localrepository = interfaceutil.implementer(repository.ilocalrepositorymain)(
+    LocalRepository
+)
+
+if typing.TYPE_CHECKING:
+    # Help pytype by hiding the interface stuff that confuses it.
+    localrepository = LocalRepository
 
 
 def undoname(fn: bytes) -> bytes:
