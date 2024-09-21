@@ -504,7 +504,7 @@ class vfs(abstractvfs):
     def isfileorlink_checkdir(
         self,
         dircache: MutableMapping[bytes, bool],
-        path: Optional[bytes] = None,
+        path: bytes,
     ) -> bool:
         """return True if the path is a regular file or a symlink and
         the directories along the path are "normal", that is
@@ -513,8 +513,6 @@ class vfs(abstractvfs):
         Ignores the `_audit` setting, and checks the directories regardless.
         `dircache` is used to cache the directory checks.
         """
-        # TODO: Should be a None check on 'path', or shouldn't default to None
-        #  because of the immediate call to util.localpath().
         try:
             for prefix in pathutil.finddirs_rev_noroot(util.localpath(path)):
                 if prefix in dircache:
