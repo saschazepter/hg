@@ -432,8 +432,8 @@ class HTTPResponse(httplib.HTTPResponse):
             self._handler.parent.receivedbytescount += len(data)
         return data
 
-    def readline(self):
-        data = super().readline()
+    def readline(self, limit: int = -1):
+        data = super().readline(limit=limit)
         self.receivedbytescount += len(data)
         if self._connection is not None:
             self._connection.receivedbytescount += len(data)
