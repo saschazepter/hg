@@ -3358,6 +3358,7 @@ def _estimatememory() -> Optional[int]:
     """
     if pycompat.sysplatform.startswith(b'win'):
         # On Windows, use the GlobalMemoryStatusEx kernel function directly.
+        # noinspection PyPep8Naming
         from ctypes import c_long as DWORD, c_ulonglong as DWORDLONG
         from ctypes.wintypes import (  # pytype: disable=import-error
             Structure,
