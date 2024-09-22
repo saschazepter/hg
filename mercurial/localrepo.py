@@ -77,6 +77,10 @@ from . import (
     wireprototypes,
 )
 
+from .branching import (
+    rev_cache as rev_branch_cache,
+)
+
 from .interfaces import (
     repository,
     util as interfaceutil,
@@ -2281,7 +2285,8 @@ class LocalRepository(_localrepo_base_classes):
     @unfilteredmethod
     def revbranchcache(self):
         if not self._revbranchcache:
-            self._revbranchcache = branchmap.revbranchcache(self.unfiltered())
+            unfi = self.unfiltered()
+            self._revbranchcache = rev_branch_cache.revbranchcache(unfi)
         return self._revbranchcache
 
     def register_changeset(self, rev, changelogrevision):
