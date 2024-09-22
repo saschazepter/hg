@@ -206,7 +206,6 @@ def streamencodenone(v):
 STREAM_ENCODERS = {
     bytes: streamencodebytestring,
     int: streamencodeint,
-    int: streamencodeint,
     list: streamencodearray,
     tuple: streamencodearray,
     dict: streamencodemap,
