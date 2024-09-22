@@ -1331,6 +1331,7 @@ packages = [
     'mercurial.admin',
     'mercurial.cext',
     'mercurial.cffi',
+    'mercurial.branching',
     'mercurial.defaultrc',
     'mercurial.dirstateutils',
     'mercurial.helptext',
