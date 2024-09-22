@@ -14,7 +14,11 @@ import re
 import stat
 import typing
 
-from typing import Generator, List
+from typing import (
+    Generator,
+    List,
+    Optional,
+)
 
 from .i18n import _
 from .thirdparty import attr
@@ -1135,11 +1139,13 @@ class _fncachevfs(vfsmod.proxyvfs):
                 self.fncache.add(path)
         return self.vfs(encoded, mode, *args, **kw)
 
-    def join(self, path):
+    def join(self, path: Optional[bytes], *insidef: bytes) -> bytes:
+        insidef = (self.encode(f) for f in insidef)
+
         if path:
-            return self.vfs.join(self.encode(path))
+            return self.vfs.join(self.encode(path), *insidef)
         else:
-            return self.vfs.join(path)
+            return self.vfs.join(path, *insidef)
 
     def register_file(self, path):
         """generic hook point to lets fncache steer its stew"""
