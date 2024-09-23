@@ -316,27 +316,30 @@ class revbranchcache:
 
     def _writenames(self, repo):
         """write the new branch names to revbranchcache"""
-        if self._rbcnamescount != 0:
-            f = repo.cachevfs.open(_rbcnames, b'ab')
-            if f.tell() == self._rbcsnameslen:
-                f.write(b'\0')
-            else:
+        f = None
+        try:
+            if self._rbcnamescount != 0:
+                f = repo.cachevfs.open(_rbcnames, b'ab')
+                if f.tell() == self._rbcsnameslen:
+                    f.write(b'\0')
+                else:
+                    f.close()
+                    f = None
+                    repo.ui.debug(b"%s changed - rewriting it\n" % _rbcnames)
+                    self._rbcnamescount = 0
+                    self._rbcrevslen = 0
+            if self._rbcnamescount == 0:
+                # before rewriting names, make sure references are removed
+                repo.cachevfs.unlinkpath(_rbcrevs, ignoremissing=True)
+                f = repo.cachevfs.open(_rbcnames, b'wb')
+            names = self._names[self._rbcnamescount :]
+            from_local = encoding.fromlocal
+            data = b'\0'.join(from_local(b) for b in names)
+            f.write(data)
+            self._rbcsnameslen = f.tell()
+        finally:
+            if f is not None:
                 f.close()
-                repo.ui.debug(b"%s changed - rewriting it\n" % _rbcnames)
-                self._rbcnamescount = 0
-                self._rbcrevslen = 0
-        if self._rbcnamescount == 0:
-            # before rewriting names, make sure references are removed
-            repo.cachevfs.unlinkpath(_rbcrevs, ignoremissing=True)
-            f = repo.cachevfs.open(_rbcnames, b'wb')
-        f.write(
-            b'\0'.join(
-                encoding.fromlocal(b)
-                for b in self._names[self._rbcnamescount :]
-            )
-        )
-        self._rbcsnameslen = f.tell()
-        f.close()
         self._rbcnamescount = len(self._names)
 
     def _writerevs(self, repo, start):
