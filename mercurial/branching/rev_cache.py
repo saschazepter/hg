@@ -4,6 +4,7 @@
 # GNU General Public License version 2 or any later version.
 from __future__ import annotations
 
+import os
 import struct
 
 from ..node import (
@@ -37,6 +38,10 @@ _rbcmininc = 64 * _rbcrecsize
 _rbcnodelen = 4
 _rbcbranchidxmask = 0x7FFFFFFF
 _rbccloseflag = 0x80000000
+
+
+# with atomic replacement.
+REWRITE_RATIO = 0.2
 
 
 class rbcrevs:
@@ -345,19 +350,44 @@ class revbranchcache:
     def _writerevs(self, repo, start):
         """write the new revs to revbranchcache"""
         revs = min(len(repo.changelog), len(self._rbcrevs) // _rbcrecsize)
+
+        end = revs * _rbcrecsize
         if self._force_overwrite:
             start = 0
-        with repo.cachevfs.open(_rbcrevs, b'ab') as f:
+
+        with repo.cachevfs.open(_rbcrevs, b'a+b') as f:
+            pass  # this make sure the file exist…
+        with repo.cachevfs.open(_rbcrevs, b'r+b') as f:
+            f.seek(0, os.SEEK_END)
             current_size = f.tell()
             if current_size < start:
                 start = 0
             if current_size != start:
-                msg = b"truncating cache/%s to %d\n"
-                msg %= (_rbcrevs, start)
-                repo.ui.debug(msg)
+                threshold = current_size * REWRITE_RATIO
+                if (max(end, current_size) - start) < threshold:
+                    # end affected, let overwrite the bad value
+                    dbg = b"overwriting %d bytes from %d in cache/%s"
+                    dbg %= (current_size - start, start, _rbcrevs)
+                    if end < current_size:
+                        extra = b" leaving (%d trailing bytes)"
+                        extra %= current_size - end
+                        dbg += extra
+                    dbg += b'\n'
+                    repo.ui.debug(dbg)
+                else:
+                    start = 0
+                    dbg = b"resetting content of cache/%s\n" % _rbcrevs
+                    repo.ui.debug(dbg)
+            if start > 0:
                 f.seek(start)
-                f.truncate()
-            end = revs * _rbcrecsize
-            f.write(self._rbcrevs.slice(start, end))
+                f.write(self._rbcrevs.slice(start, end))
+            else:
+                f.close()
+                with repo.cachevfs.open(
+                    _rbcrevs,
+                    b'wb',
+                    atomictemp=True,
+                ) as rev_file:
+                    rev_file.write(self._rbcrevs.slice(start, end))
         self._rbcrevslen = revs
         self._force_overwrite = False
