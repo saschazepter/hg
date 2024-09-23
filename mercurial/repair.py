@@ -242,6 +242,10 @@ def strip(ui, repo, nodelist, backup=True, topic=b'backup'):
                 del repo.obsstore
                 repo.invalidatevolatilesets()
 
+            # NOTE: eventually make a common entry point on localrepo to help
+            # other caches
+            repo.revbranchcache().invalidate(striprev)
+
             if tmpbundlefile:
                 ui.note(_(b"adding branch\n"))
                 f = vfs.open(tmpbundlefile, b"rb")
