@@ -336,14 +336,14 @@ class revbranchcache:
         """write the new revs to revbranchcache"""
         revs = min(len(repo.changelog), len(self._rbcrevs) // _rbcrecsize)
         with repo.cachevfs.open(_rbcrevs, b'ab') as f:
-            if f.tell() != start:
-                repo.ui.debug(
-                    b"truncating cache/%s to %d\n" % (_rbcrevs, start)
-                )
+            current_size = f.tell()
+            if current_size < start:
+                start = 0
+            if current_size != start:
+                msg = b"truncating cache/%s to %d\n"
+                msg %= (_rbcrevs, start)
+                repo.ui.debug(msg)
                 f.seek(start)
-                if f.tell() != start:
-                    start = 0
-                    f.seek(start)
                 f.truncate()
             end = revs * _rbcrecsize
             f.write(self._rbcrevs.slice(start, end))

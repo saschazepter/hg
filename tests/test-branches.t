@@ -905,7 +905,7 @@ cache is rebuilt when corruption is detected
   $ echo > .hg/cache/rbc-names-v1
   $ hg log -r '5:&branch(.)' -T '{rev} ' --debug
   referenced branch names not found - rebuilding revision branch cache from scratch
-  8 9 10 11 12 13 truncating cache/rbc-revs-v1 to 40
+  8 9 10 11 12 13  (no-eol)
   $ f --size .hg/cache/rbc-names-*
   .hg/cache/rbc-names-v1: size=84
   $ grep "i-will-regret-this" .hg/cache/rbc-names-* > /dev/null
