@@ -19,6 +19,7 @@ from typing import (
     Any,
     BinaryIO,
     Callable,
+    Dict,
     Iterable,
     Iterator,
     List,
@@ -27,6 +28,7 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
+    Union,
 )
 
 from .i18n import _
@@ -455,7 +457,12 @@ class vfs(abstractvfs):
     See pathutil.pathauditor() for details.
     """
 
+    audit: Union[pathutil.pathauditor, Callable[[bytes, Optional[bytes]], Any]]
+    base: bytes
     createmode: Optional[int]
+    options: Dict[bytes, Any]
+    _audit: bool
+    _trustnlink: Optional[bool]
 
     def __init__(
         self,
@@ -688,11 +695,11 @@ class proxyvfs(abstractvfs, abc.ABC):
         return self.vfs._auditpath(path, mode)
 
     @property
-    def options(self):
+    def options(self) -> Dict[bytes, Any]:
         return self.vfs.options
 
     @options.setter
-    def options(self, value):
+    def options(self, value: Dict[bytes, Any]) -> None:
         self.vfs.options = value
 
     @property
@@ -703,7 +710,7 @@ class proxyvfs(abstractvfs, abc.ABC):
 class filtervfs(proxyvfs, abstractvfs):
     '''Wrapper vfs for filtering filenames with a function.'''
 
-    def __init__(self, vfs: vfs, filter) -> None:
+    def __init__(self, vfs: vfs, filter: Callable[[bytes], bytes]) -> None:
         proxyvfs.__init__(self, vfs)
         self._filter = filter
 
