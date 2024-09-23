@@ -170,6 +170,7 @@ class revbranchcache:
             self._names = []
         self._rbcnamescount = len(self._names)  # number of names read at
         # _rbcsnameslen
+        self._force_overwrite = False
 
     def _clear(self):
         self._rbcsnameslen = 0
@@ -178,6 +179,12 @@ class revbranchcache:
         self._rbcrevslen = len(self._repo.changelog)
         self._rbcrevs = rbcrevs(bytearray(self._rbcrevslen * _rbcrecsize))
         util.clearcachedproperty(self, b'_namesreverse')
+        self._force_overwrite = True
+
+    def invalidate(self, rev=0):
+        self._rbcrevslen = rev
+        self._rbcrevs.truncate(rev)
+        self._force_overwrite = True
 
     @util.propertycache
     def _namesreverse(self):
@@ -292,7 +299,7 @@ class revbranchcache:
 
             # write the new revs
             start = self._rbcrevslen * _rbcrecsize
-            if start != len(self._rbcrevs):
+            if self._force_overwrite or start != len(self._rbcrevs):
                 step = b''
                 if wlock is None:
                     wlock = repo.wlock(wait=False)
@@ -335,6 +342,8 @@ class revbranchcache:
     def _writerevs(self, repo, start):
         """write the new revs to revbranchcache"""
         revs = min(len(repo.changelog), len(self._rbcrevs) // _rbcrecsize)
+        if self._force_overwrite:
+            start = 0
         with repo.cachevfs.open(_rbcrevs, b'ab') as f:
             current_size = f.tell()
             if current_size < start:
@@ -348,3 +357,4 @@ class revbranchcache:
             end = revs * _rbcrecsize
             f.write(self._rbcrevs.slice(start, end))
         self._rbcrevslen = revs
+        self._force_overwrite = False
