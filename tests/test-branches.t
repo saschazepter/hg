@@ -835,9 +835,9 @@ recovery from invalid cache revs file with trailing data
   $ echo >> .hg/cache/rbc-revs-v1
   $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n' --debug
   5
-  truncating cache/rbc-revs-v1 to 160
+  overwriting 2 bytes from 160 in cache/rbc-revs-v1 leaving (2 trailing bytes)
   $ f --size .hg/cache/rbc-revs*
-  .hg/cache/rbc-revs-v1: size=160
+  .hg/cache/rbc-revs-v1: size=162
 
 recovery from invalid cache file with partial last record
   $ mv .hg/cache/rbc-revs-v1 .
@@ -846,7 +846,7 @@ recovery from invalid cache file with partial last record
   .hg/cache/rbc-revs-v1: size=119
   $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n' --debug
   5
-  truncating cache/rbc-revs-v1 to 112
+  resetting content of cache/rbc-revs-v1
   $ f --size .hg/cache/rbc-revs*
   .hg/cache/rbc-revs-v1: size=160
 
@@ -869,10 +869,10 @@ recovery from invalid cache file with some bad records
   $ hg log -r 'branch(.)' -T '{rev} ' --debug
   history modification detected - truncating revision branch cache to revision * (glob)
   history modification detected - truncating revision branch cache to revision 1
-  3 4 8 9 10 11 12 13 truncating cache/rbc-revs-v1 to 8
+  3 4 8 9 10 11 12 13 resetting content of cache/rbc-revs-v1
   $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n' --debug
   5
-  truncating cache/rbc-revs-v1 to 104
+  resetting content of cache/rbc-revs-v1
   $ f --size --hexdump --bytes=16 .hg/cache/rbc-revs*
   .hg/cache/rbc-revs-v1: size=160
   0000: 19 70 9c 5a 00 00 00 00 dd 6b 44 0d 00 00 00 01 |.p.Z.....kD.....|
@@ -893,7 +893,7 @@ contain the branch name even though it no longer is used
   .hg/cache/rbc-names-v1: size=111
   $ grep "i-will-regret-this" .hg/cache/rbc-names-* > /dev/null
   $ f --size .hg/cache/rbc-revs-*
-  .hg/cache/rbc-revs-v1: size=160
+  .hg/cache/rbc-revs-v1: size=168
 
 cache is updated/truncated when stripping - it is thus very hard to get in a
 situation where the cache is out of sync and the hash check detects it
