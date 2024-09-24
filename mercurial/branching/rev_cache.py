@@ -28,7 +28,9 @@ unpack_from = struct.unpack_from
 
 # Revision branch info cache
 
-_rbcversion = b'-v1'
+# The "V2" version use the same format as the "V1" but garantee it won't be
+# truncated, preventing SIGBUS when it is mmap-ed
+_rbcversion = b'-v2'
 _rbcnames = b'rbc-names' + _rbcversion
 _rbcrevs = b'rbc-revs' + _rbcversion
 # [4 byte hash prefix][4 byte branch name number with sign bit indicating open]
