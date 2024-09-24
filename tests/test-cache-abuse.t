@@ -82,13 +82,13 @@ Beat up branch caches:
   $ damage branches branch2-base "rm .hg/cache/branch2-[vs]*"
   $ damage branches branch2-served "rm .hg/cache/branch2-[bv]*"
   $ damage branches branch2-visible
-  $ damage "log -r branch(.)" rbc-names-v1
-  $ damage "log -r branch(default)" rbc-names-v1
-  $ damage "log -r branch(b2)" rbc-revs-v1
+  $ damage "log -r branch(.)" rbc-names-v2
+  $ damage "log -r branch(default)" rbc-names-v2
+  $ damage "log -r branch(b2)" rbc-revs-v2
 
 We currently can't detect an rbc cache with unknown names:
 
-  $ damage "log -qr branch(b2)" rbc-names-v1
+  $ damage "log -qr branch(b2)" rbc-names-v2
   --- before	* (glob)
   +++ after	* (glob)
   @@ -1,8 +?,0 @@ (glob)
