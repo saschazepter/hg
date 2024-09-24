@@ -877,6 +877,69 @@ recovery from invalid cache file with some bad records
   .hg/cache/rbc-revs-v2: size=160
   0000: 19 70 9c 5a 00 00 00 00 dd 6b 44 0d 00 00 00 01 |.p.Z.....kD.....|
 
+Smoothly reuse "v1" format if no v2 exists
+------------------------------------------
+
+read only operation with valid data(
+(does not need to rewrite anything, maybe we should force it?)
+
+  $ rm .hg/cache/rbc-names-v2
+  $ rm .hg/cache/rbc-revs-v2
+  $ rm .hg/cache/branch*
+  $ hg head a -T '{rev}\n' --debug
+  5
+  $ mv .hg/cache/rbc-names-v2 .hg/cache/rbc-names-v1
+  $ mv .hg/cache/rbc-revs-v2 .hg/cache/rbc-revs-v1
+  $ rm .hg/cache/branch*
+  $ hg head a -T '{rev}\n' --debug
+  5
+  $ f --size .hg/cache/rbc-*-*
+  .hg/cache/rbc-names-v1: size=92
+  .hg/cache/rbc-revs-v1: size=160
+
+
+Write operation write a full v2 files
+
+  $ hg branch not-here-for-long
+  marked working directory as branch not-here-for-long
+  $ hg ci -m not-long --debug
+  reusing manifest from p1 (no file change)
+  committing changelog
+  rbc-names-v2 changed - rewriting it
+  updating the branch cache
+  committed changeset * (glob)
+  $ f --size .hg/cache/rbc-*
+  .hg/cache/rbc-names-v1: size=92
+  .hg/cache/rbc-names-v2: size=110
+  .hg/cache/rbc-revs-v1: size=160
+  .hg/cache/rbc-revs-v2: size=168
+
+
+With invalid v1 data, we rewrite it too (as v2)
+
+  $ cp .hg/cache/rbc-names-v2 .hg/cache/rbc-names-v1
+  $ mv .hg/cache/rbc-names-v2 .hg/cache/rbc-revs-v1
+  $ rm .hg/cache/rbc-revs-v2
+  $ rm .hg/cache/branch*
+  $ 
+  $ hg head a -T '{rev}\n' --debug
+  history modification detected - truncating revision branch cache to revision 0
+  5
+  $ f --size .hg/cache/rbc-*-*
+  .hg/cache/rbc-names-v1: size=110
+  .hg/cache/rbc-revs-v1: size=110
+  .hg/cache/rbc-revs-v2: size=168
+
+cleanup
+
+  $ hg up -qr '.^'
+  $ hg rollback -qf
+  $ rm .hg/cache/*
+  $ hg debugupdatecache
+  $ f --size .hg/cache/rbc-*
+  .hg/cache/rbc-names-v2: size=92
+  .hg/cache/rbc-revs-v2: size=160
+
 cache is updated when committing
   $ hg branch i-will-regret-this
   marked working directory as branch i-will-regret-this

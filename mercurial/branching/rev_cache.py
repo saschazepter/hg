@@ -33,6 +33,9 @@ unpack_from = struct.unpack_from
 _rbcversion = b'-v2'
 _rbcnames = b'rbc-names' + _rbcversion
 _rbcrevs = b'rbc-revs' + _rbcversion
+_rbc_legacy_version = b'-v1'
+_rbc_legacy_names = b'rbc-names' + _rbc_legacy_version
+_rbc_legacy_revs = b'rbc-revs' + _rbc_legacy_version
 # [4 byte hash prefix][4 byte branch name number with sign bit indicating open]
 _rbcrecfmt = b'>4sI'
 _rbcrecsize = calcsize(_rbcrecfmt)
@@ -143,8 +146,17 @@ class revbranchcache:
         self._names = []  # branch names in local encoding with static index
         self._rbcrevs = rbcrevs(bytearray())
         self._rbcsnameslen = 0  # length of names read at _rbcsnameslen
+        v1_fallback = False
         try:
-            bndata = repo.cachevfs.read(_rbcnames)
+            try:
+                bndata = repo.cachevfs.read(_rbcnames)
+            except (IOError, OSError):
+                # If we don't have "v2" data, we might have "v1" data worth
+                # using.
+                #
+                # consider stop doing this many version after hg-6.9 release
+                bndata = repo.cachevfs.read(_rbc_legacy_names)
+                v1_fallback = True
             self._rbcsnameslen = len(bndata)  # for verification before writing
             if bndata:
                 self._names = [
@@ -158,10 +170,19 @@ class revbranchcache:
         if self._names:
             try:
                 usemmap = repo.ui.configbool(b'storage', b'revbranchcache.mmap')
-                with repo.cachevfs(_rbcrevs) as fp:
-                    if usemmap and repo.cachevfs.is_mmap_safe(_rbcrevs):
-                        data = util.buffer(util.mmapread(fp))
-                    else:
+                if not v1_fallback:
+                    with repo.cachevfs(_rbcrevs) as fp:
+                        if usemmap and repo.cachevfs.is_mmap_safe(_rbcrevs):
+                            data = util.buffer(util.mmapread(fp))
+                        else:
+                            data = fp.read()
+                else:
+                    # If we don't have "v2" data, we might have "v1" data worth
+                    # using.
+                    #
+                    # Consider stop doing this many version after hg-6.9
+                    # release.
+                    with repo.cachevfs(_rbc_legacy_revs) as fp:
                         data = fp.read()
                 self._rbcrevs = rbcrevs(data)
             except (IOError, OSError) as inst:
