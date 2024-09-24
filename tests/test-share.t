@@ -52,8 +52,8 @@ share shouldn't have a full cache dir, original repo should
   manifestfulltextcache (reporevlogstore !)
   $ ls -1 ../repo1/.hg/cache
   branch2-served
-  rbc-names-v1
-  rbc-revs-v1
+  rbc-names-v2
+  rbc-revs-v2
   tags2-visible
 
 Cloning a shared repo should pick up the full cache dir on the other hand.
@@ -64,8 +64,8 @@ Cloning a shared repo should pick up the full cache dir on the other hand.
   $ ls -1 ../repo2-clone/.hg/cache
   branch2-base
   branch2-served
-  rbc-names-v1
-  rbc-revs-v1
+  rbc-names-v2
+  rbc-revs-v2
   tags2
   tags2-served
   tags2-visible

@@ -649,8 +649,8 @@ Test cache warming command
   $ ls -r .hg/cache/*
   .hg/cache/tags2-served
   .hg/cache/tags2
-  .hg/cache/rbc-revs-v1
-  .hg/cache/rbc-names-v1
+  .hg/cache/rbc-revs-v2
+  .hg/cache/rbc-names-v2
   .hg/cache/hgtagsfnodes1
   .hg/cache/branch2-served
 

@@ -96,8 +96,8 @@ Non store repo:
   .hg/branch
   .hg/cache
   .hg/cache/branch2-served
-  .hg/cache/rbc-names-v1
-  .hg/cache/rbc-revs-v1
+  .hg/cache/rbc-names-v2
+  .hg/cache/rbc-revs-v2
   .hg/data
   .hg/data/tst.d.hg
   .hg/data/tst.d.hg/foo.i
@@ -131,8 +131,8 @@ Non fncache repo:
   .hg/branch
   .hg/cache
   .hg/cache/branch2-served
-  .hg/cache/rbc-names-v1
-  .hg/cache/rbc-revs-v1
+  .hg/cache/rbc-names-v2
+  .hg/cache/rbc-revs-v2
   .hg/dirstate
   .hg/fsmonitor.state (fsmonitor !)
   .hg/last-message.txt

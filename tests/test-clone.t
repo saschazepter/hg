@@ -33,8 +33,8 @@ Trigger branchcache creation:
   default                       10:a7949464abda
   $ ls .hg/cache
   branch2-served
-  rbc-names-v1
-  rbc-revs-v1
+  rbc-names-v2
+  rbc-revs-v2
 
 Default operation:
 
@@ -48,8 +48,8 @@ Ensure branchcache got copied over:
   $ ls .hg/cache
   branch2-base
   branch2-served
-  rbc-names-v1
-  rbc-revs-v1
+  rbc-names-v2
+  rbc-revs-v2
   tags2
   tags2-served
 
@@ -114,8 +114,8 @@ Ensure branchcache got copied over:
   $ ls .hg/cache
   branch2-base
   branch2-served
-  rbc-names-v1
-  rbc-revs-v1
+  rbc-names-v2
+  rbc-revs-v2
   tags2
   tags2-served
 
