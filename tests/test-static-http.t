@@ -267,6 +267,7 @@ List of files accessed over HTTP:
   /remote/.hg/cache/branch2-immutable
   /remote/.hg/cache/branch2-served
   /remote/.hg/cache/hgtagsfnodes1
+  /remote/.hg/cache/rbc-names-v1
   /remote/.hg/cache/rbc-names-v2
   /remote/.hg/cache/tags2-served
   /remote/.hg/dirstate
