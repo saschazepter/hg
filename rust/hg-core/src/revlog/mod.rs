@@ -13,6 +13,7 @@ use compression::{uncompressed_zstd_data, CompressionConfig};
 pub use node::{FromHexError, Node, NodePrefix};
 pub mod changelog;
 pub mod compression;
+pub mod file_io;
 pub mod filelog;
 pub mod index;
 pub mod manifest;
