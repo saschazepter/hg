@@ -2382,10 +2382,7 @@ class revlog:
 
     def headrevs(self, revs=None):
         if revs is None:
-            try:
-                return self.index.headrevs()
-            except AttributeError:
-                return self._headrevs()
+            return self.index.headrevs()
         if rustdagop is not None and self.index.rust_ext_compat:
             return rustdagop.headrevs(self.index, revs)
         return dagop.headrevs(revs, self._uncheckedparentrevs)
@@ -2398,19 +2395,6 @@ class revlog:
 
     def computephases(self, roots):
         return self.index.computephasesmapsets(roots)
-
-    def _headrevs(self):
-        count = len(self)
-        if not count:
-            return [nullrev]
-        # we won't iter over filtered rev so nobody is a head at start
-        ishead = [0] * (count + 1)
-        index = self.index
-        for r in self:
-            ishead[r] = 1  # I may be an head
-            e = index[r]
-            ishead[e[5]] = ishead[e[6]] = 0  # my parent are not
-        return [r for r, val in enumerate(ishead) if val]
 
     def _head_node_ids(self):
         try:

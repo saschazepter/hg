@@ -312,12 +312,7 @@ class filteredchangelogmixin:
 
     def headrevs(self, revs=None):
         if revs is None:
-            try:
-                return self.index.headrevs(self.filteredrevs)
-            # AttributeError covers non-c-extension environments and
-            # old c extensions without filter handling.
-            except AttributeError:
-                return self._headrevs()
+            return self.index.headrevs(self.filteredrevs)
 
         revs = self._checknofilteredinrevs(revs)
         return super(filteredchangelogmixin, self).headrevs(revs)
