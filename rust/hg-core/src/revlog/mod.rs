@@ -9,8 +9,10 @@ pub mod node;
 pub mod nodemap;
 mod nodemap_docket;
 pub mod path_encode;
+use compression::{uncompressed_zstd_data, CompressionConfig};
 pub use node::{FromHexError, Node, NodePrefix};
 pub mod changelog;
+pub mod compression;
 pub mod filelog;
 pub mod index;
 pub mod manifest;
@@ -24,8 +26,6 @@ use std::path::Path;
 
 use flate2::read::ZlibDecoder;
 use sha1::{Digest, Sha1};
-use std::cell::RefCell;
-use zstd;
 
 use self::node::{NODE_BYTES_LENGTH, NULL_NODE};
 use self::nodemap_docket::NodeMapDocket;
@@ -258,75 +258,6 @@ impl TryFrom<usize> for RevlogType {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum CompressionEngine {
-    Zlib {
-        /// Between 0 and 9 included
-        level: u32,
-    },
-    Zstd {
-        /// Between 0 and 22 included
-        level: u32,
-        /// Never used in practice for now
-        threads: u32,
-    },
-    /// No compression is performed
-    None,
-}
-impl CompressionEngine {
-    pub fn set_level(&mut self, new_level: usize) -> Result<(), HgError> {
-        match self {
-            CompressionEngine::Zlib { level } => {
-                if new_level > 9 {
-                    return Err(HgError::abort(
-                        format!(
-                            "invalid compression zlib compression level {}",
-                            new_level
-                        ),
-                        exit_codes::ABORT,
-                        None,
-                    ));
-                }
-                *level = new_level as u32;
-            }
-            CompressionEngine::Zstd { level, .. } => {
-                if new_level > 22 {
-                    return Err(HgError::abort(
-                        format!(
-                            "invalid compression zstd compression level {}",
-                            new_level
-                        ),
-                        exit_codes::ABORT,
-                        None,
-                    ));
-                }
-                *level = new_level as u32;
-            }
-            CompressionEngine::None => {}
-        }
-        Ok(())
-    }
-
-    pub fn zstd(
-        zstd_level: Option<u32>,
-    ) -> Result<CompressionEngine, HgError> {
-        let mut engine = CompressionEngine::Zstd {
-            level: 3,
-            threads: 0,
-        };
-        if let Some(level) = zstd_level {
-            engine.set_level(level as usize)?;
-        }
-        Ok(engine)
-    }
-}
-
-impl Default for CompressionEngine {
-    fn default() -> Self {
-        Self::Zlib { level: 6 }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// Holds configuration values about how the revlog data is read
 pub struct RevlogDataConfig {
@@ -546,7 +477,7 @@ impl Default for RevlogDeltaConfig {
 /// Holds configuration values about the available revlog features
 pub struct RevlogFeatureConfig {
     /// The compression engine and its options
-    pub compression_engine: CompressionEngine,
+    pub compression_engine: CompressionConfig,
     /// Can we use censor on this revlog
     pub censorable: bool,
     /// Does this revlog use the "side data" feature
@@ -568,46 +499,11 @@ impl RevlogFeatureConfig {
         config: &Config,
         requirements: &HashSet<String>,
     ) -> Result<Self, HgError> {
-        let mut feature_config = Self::default();
-
-        let zlib_level = config.get_u32(b"storage", b"revlog.zlib.level")?;
-        let zstd_level = config.get_u32(b"storage", b"revlog.zstd.level")?;
-
-        feature_config.compression_engine = CompressionEngine::default();
-
-        for requirement in requirements {
-            if requirement.starts_with("revlog-compression-")
-                || requirement.starts_with("exp-compression-")
-            {
-                let split = &mut requirement.splitn(3, '-');
-                split.next();
-                split.next();
-                feature_config.compression_engine = match split.next().unwrap()
-                {
-                    "zstd" => CompressionEngine::zstd(zstd_level)?,
-                    e => {
-                        return Err(HgError::UnsupportedFeature(format!(
-                            "Unsupported compression engine '{e}'"
-                        )))
-                    }
-                };
-            }
-        }
-        if let Some(level) = zlib_level {
-            if matches!(
-                feature_config.compression_engine,
-                CompressionEngine::Zlib { .. }
-            ) {
-                feature_config
-                    .compression_engine
-                    .set_level(level as usize)?;
-            }
-        }
-
-        feature_config.enable_ellipsis =
-            requirements.contains(NARROW_REQUIREMENT);
-
-        Ok(feature_config)
+        Ok(Self {
+            compression_engine: CompressionConfig::new(config, requirements)?,
+            enable_ellipsis: requirements.contains(NARROW_REQUIREMENT),
+            ..Default::default()
+        })
     }
 }
 
@@ -1058,21 +954,6 @@ pub struct RevlogEntry<'revlog> {
     hash: Node,
 }
 
-thread_local! {
-  // seems fine to [unwrap] here: this can only fail due to memory allocation
-  // failing, and it's normal for that to cause panic.
-  static ZSTD_DECODER : RefCell<zstd::bulk::Decompressor<'static>> =
-      RefCell::new(zstd::bulk::Decompressor::new().ok().unwrap());
-}
-
-fn zstd_decompress_to_buffer(
-    bytes: &[u8],
-    buf: &mut Vec<u8>,
-) -> Result<usize, std::io::Error> {
-    ZSTD_DECODER
-        .with(|decoder| decoder.borrow_mut().decompress_to_buffer(bytes, buf))
-}
-
 impl<'revlog> RevlogEntry<'revlog> {
     pub fn revision(&self) -> Revision {
         self.rev
@@ -1218,7 +1099,11 @@ impl<'revlog> RevlogEntry<'revlog> {
             // zlib (RFC 1950) data.
             b'x' => Ok(Cow::Owned(self.uncompressed_zlib_data()?)),
             // zstd data.
-            b'\x28' => Ok(Cow::Owned(self.uncompressed_zstd_data()?)),
+            b'\x28' => Ok(Cow::Owned(uncompressed_zstd_data(
+                self.bytes,
+                self.is_delta(),
+                self.uncompressed_len.max(0),
+            )?)),
             // A proper new format should have had a repo/store requirement.
             format_type => Err(corrupted(format!(
                 "unknown compression header '{}'",
@@ -1242,38 +1127,6 @@ impl<'revlog> RevlogEntry<'revlog> {
                 .read_exact(&mut buf)
                 .map_err(|e| corrupted(e.to_string()))?;
             Ok(buf)
-        }
-    }
-
-    fn uncompressed_zstd_data(&self) -> Result<Vec<u8>, HgError> {
-        let cap = self.uncompressed_len.max(0) as usize;
-        if self.is_delta() {
-            // [cap] is usually an over-estimate of the space needed because
-            // it's the length of delta-decoded data, but we're interested
-            // in the size of the delta.
-            // This means we have to [shrink_to_fit] to avoid holding on
-            // to a large chunk of memory, but it also means we must have a
-            // fallback branch, for the case when the delta is longer than
-            // the original data (surprisingly, this does happen in practice)
-            let mut buf = Vec::with_capacity(cap);
-            match zstd_decompress_to_buffer(self.bytes, &mut buf) {
-                Ok(_) => buf.shrink_to_fit(),
-                Err(_) => {
-                    buf.clear();
-                    zstd::stream::copy_decode(self.bytes, &mut buf)
-                        .map_err(|e| corrupted(e.to_string()))?;
-                }
-            };
-            Ok(buf)
-        } else {
-            let mut buf = Vec::with_capacity(cap);
-            let len = zstd_decompress_to_buffer(self.bytes, &mut buf)
-                .map_err(|e| corrupted(e.to_string()))?;
-            if len != self.uncompressed_len as usize {
-                Err(corrupted("uncompressed length does not match"))
-            } else {
-                Ok(buf)
-            }
         }
     }
 
