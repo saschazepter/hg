@@ -16,8 +16,8 @@ def cachetocopy(srcrepo):
     # ones. Therefore copy all branch caches over.
     cachefiles = [b'branch2']
     cachefiles += [b'branch2-%s' % f for f in repoview.filtertable]
-    cachefiles += [b'branch3']
-    cachefiles += [b'branch3-%s' % f for f in repoview.filtertable]
+    cachefiles += [b'branch3-exp']
+    cachefiles += [b'branch3-exp-%s' % f for f in repoview.filtertable]
     cachefiles += [b'rbc-names-v2', b'rbc-revs-v2']
     cachefiles += [b'tags2']
     cachefiles += [b'tags2-%s' % f for f in repoview.filtertable]
