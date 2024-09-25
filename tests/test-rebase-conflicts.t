@@ -319,7 +319,7 @@ Check that the right ancestors is used while rebasing a merge (issue4041)
   bundle2-input-part: "phase-heads" supported
   bundle2-input-part: total payload size 24
   bundle2-input-bundle: 3 parts total
-  resetting content of cache/rbc-revs-v2
+  resetting content of rbc-names-v2
   added 2 changesets with 2 changes to 1 files
   updating the branch cache
   invalid branch cache (served): tip differs

@@ -146,6 +146,7 @@ class revbranchcache:
         self._names = []  # branch names in local encoding with static index
         self._rbcrevs = rbcrevs(bytearray())
         self._rbcsnameslen = 0  # length of names read at _rbcsnameslen
+        self._force_overwrite = False
         v1_fallback = False
         try:
             try:
@@ -157,6 +158,7 @@ class revbranchcache:
                 # consider stop doing this many version after hg-6.9 release
                 bndata = repo.cachevfs.read(_rbc_legacy_names)
                 v1_fallback = True
+                self._force_overwrite = True
             self._rbcsnameslen = len(bndata)  # for verification before writing
             if bndata:
                 self._names = [
@@ -198,7 +200,6 @@ class revbranchcache:
             self._names = []
         self._rbcnamescount = len(self._names)  # number of names read at
         # _rbcsnameslen
-        self._force_overwrite = False
 
     def _clear(self):
         self._rbcsnameslen = 0
@@ -320,7 +321,7 @@ class revbranchcache:
         step = b''
         try:
             # write the new names
-            if self._rbcnamescount < len(self._names):
+            if self._force_overwrite or self._rbcnamescount < len(self._names):
                 wlock = repo.wlock(wait=False)
                 step = b' names'
                 self._writenames(repo)
@@ -345,15 +346,24 @@ class revbranchcache:
     def _writenames(self, repo):
         """write the new branch names to revbranchcache"""
         f = None
+        if self._force_overwrite:
+            self._rbcsnameslen = 0
+            self._rbcnamescount = 0
         try:
-            if self._rbcnamescount != 0:
+            if self._force_overwrite or self._rbcnamescount != 0:
                 f = repo.cachevfs.open(_rbcnames, b'ab')
-                if f.tell() == self._rbcsnameslen:
+                current_size = f.tell()
+                if current_size == self._rbcsnameslen:
                     f.write(b'\0')
                 else:
                     f.close()
-                    f = None
-                    repo.ui.debug(b"%s changed - rewriting it\n" % _rbcnames)
+                    if self._force_overwrite:
+                        dbg = b"resetting content of %s\n"
+                    elif current_size > 0:
+                        dbg = b"%s changed - rewriting it\n"
+                    else:
+                        dbg = b"%s is missing - rewriting it\n"
+                    repo.ui.debug(dbg % _rbcnames)
                     self._rbcnamescount = 0
                     self._rbcrevslen = 0
             if self._rbcnamescount == 0:
