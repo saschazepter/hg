@@ -880,8 +880,8 @@ recovery from invalid cache file with some bad records
 Smoothly reuse "v1" format if no v2 exists
 ------------------------------------------
 
-read only operation with valid data(
-(does not need to rewrite anything, maybe we should force it?)
+read only operation with valid data
+(actively rewrite data)
 
   $ rm .hg/cache/rbc-names-v2
   $ rm .hg/cache/rbc-revs-v2
@@ -895,17 +895,23 @@ read only operation with valid data(
   5
   $ f --size .hg/cache/rbc-*-*
   .hg/cache/rbc-names-v1: size=92
+  .hg/cache/rbc-names-v2: size=92
   .hg/cache/rbc-revs-v1: size=160
+  .hg/cache/rbc-revs-v2: size=160
 
 
 Write operation write a full v2 files
 
+  $ mv .hg/cache/rbc-names-v2 .hg/cache/rbc-names-v1
+  $ mv .hg/cache/rbc-revs-v2 .hg/cache/rbc-revs-v1
+  $ f --size .hg/cache/rbc-*
+  .hg/cache/rbc-names-v1: size=92
+  .hg/cache/rbc-revs-v1: size=160
   $ hg branch not-here-for-long
   marked working directory as branch not-here-for-long
   $ hg ci -m not-long --debug
   reusing manifest from p1 (no file change)
   committing changelog
-  rbc-names-v2 changed - rewriting it
   updating the branch cache
   committed changeset * (glob)
   $ f --size .hg/cache/rbc-*
@@ -927,6 +933,7 @@ With invalid v1 data, we rewrite it too (as v2)
   5
   $ f --size .hg/cache/rbc-*-*
   .hg/cache/rbc-names-v1: size=110
+  .hg/cache/rbc-names-v2: size=110
   .hg/cache/rbc-revs-v1: size=110
   .hg/cache/rbc-revs-v2: size=168
 
@@ -968,7 +975,7 @@ cache is rebuilt when corruption is detected
   $ echo > .hg/cache/rbc-names-v2
   $ hg log -r '5:&branch(.)' -T '{rev} ' --debug
   referenced branch names not found - rebuilding revision branch cache from scratch
-  8 9 10 11 12 13  (no-eol)
+  8 9 10 11 12 13 resetting content of rbc-names-v2
   $ f --size .hg/cache/rbc-names-*
   .hg/cache/rbc-names-v2: size=84
   $ grep "i-will-regret-this" .hg/cache/rbc-names-* > /dev/null
