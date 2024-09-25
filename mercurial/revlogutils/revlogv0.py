@@ -111,6 +111,22 @@ class revlogoldindex(list):
         )
         return INDEX_ENTRY_V0.pack(*e2)
 
+    def headrevs(self, excluded_revs=None):
+        count = len(self)
+        if not count:
+            return [node.nullrev]
+        # we won't iter over filtered rev so nobody is a head at start
+        ishead = [0] * (count + 1)
+        revs = range(count)
+        if excluded_revs is not None:
+            revs = (r for r in revs if r not in excluded_revs)
+
+        for r in revs:
+            ishead[r] = 1  # I may be an head
+            e = self[r]
+            ishead[e[5]] = ishead[e[6]] = 0  # my parent are not
+        return [r for r, val in enumerate(ishead) if val]
+
 
 def parse_index_v0(data, inline):
     s = INDEX_ENTRY_V0.size
