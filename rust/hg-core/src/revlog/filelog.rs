@@ -11,9 +11,10 @@ use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
 use crate::Graph;
 use crate::GraphError;
-use crate::RevlogOpenOptions;
 use crate::UncheckedRevision;
 use std::path::PathBuf;
+
+use super::options::RevlogOpenOptions;
 
 /// A specialized `Revlog` to work with file data logs.
 pub struct Filelog {

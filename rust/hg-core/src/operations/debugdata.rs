@@ -7,6 +7,7 @@
 
 use crate::errors::HgError;
 use crate::repo::Repo;
+use crate::revlog::options::default_revlog_options;
 use crate::revlog::Revlog;
 use crate::{exit_codes, RevlogError, RevlogType};
 
@@ -31,7 +32,11 @@ pub fn debug_data(
         &repo.store_vfs(),
         index_file,
         None,
-        repo.default_revlog_options(RevlogType::Changelog)?,
+        default_revlog_options(
+            repo.config(),
+            repo.requirements(),
+            RevlogType::Changelog,
+        )?,
     )?;
     let rev =
         crate::revset::resolve_rev_number_or_hex_prefix(revset, &revlog)?;
