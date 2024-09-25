@@ -313,7 +313,7 @@ class filteredchangelogmixin:
     def headrevs(self, revs=None):
         if revs is None:
             try:
-                return self.index.headrevsfiltered(self.filteredrevs)
+                return self.index.headrevs(self.filteredrevs)
             # AttributeError covers non-c-extension environments and
             # old c extensions without filter handling.
             except AttributeError:
