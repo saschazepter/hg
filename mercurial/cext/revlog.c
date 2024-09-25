@@ -3352,9 +3352,7 @@ static PyMethodDef index_methods[] = {
     {"replace_sidedata_info", (PyCFunction)index_replace_sidedata_info,
      METH_VARARGS, "replace an existing index entry with a new value"},
     {"headrevs", (PyCFunction)index_headrevs, METH_VARARGS,
-     "get head revisions"}, /* Can do filtering since 3.2 */
-    {"headrevsfiltered", (PyCFunction)index_headrevs, METH_VARARGS,
-     "get filtered head revisions"}, /* Can always do filtering */
+     "get head revisions"},
     {"issnapshot", (PyCFunction)index_issnapshot, METH_O,
      "True if the object is a snapshot"},
     {"findsnapshots", (PyCFunction)index_findsnapshots, METH_VARARGS,
