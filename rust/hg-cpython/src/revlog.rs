@@ -304,8 +304,17 @@ py_class!(pub class Index |py| {
     }
 
     /// get head revisions
-    def headrevs(&self) -> PyResult<PyObject> {
-        let rust_res = self.inner_headrevs(py)?;
+    def headrevs(&self, *args, **_kw) -> PyResult<PyObject> {
+        let filtered_revs = match &args.len(py) {
+             0 => Ok(py.None()),
+             1 => Ok(args.get_item(py, 0)),
+             _ => Err(PyErr::new::<cpython::exc::TypeError, _>(py, "too many arguments")),
+        }?;
+        let rust_res = if filtered_revs.is_none(py) {
+            self.inner_headrevs(py)
+        } else {
+            self.inner_headrevsfiltered(py, &filtered_revs)
+        }?;
         Ok(rust_res)
     }
 
