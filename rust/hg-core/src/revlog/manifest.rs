@@ -6,9 +6,9 @@ use crate::revlog::{Revlog, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
 use crate::vfs::VfsImpl;
-use crate::{
-    Graph, GraphError, Revision, RevlogOpenOptions, UncheckedRevision,
-};
+use crate::{Graph, GraphError, Revision, UncheckedRevision};
+
+use super::options::RevlogOpenOptions;
 
 /// A specialized `Revlog` to work with `manifest` data format.
 pub struct Manifestlog {
