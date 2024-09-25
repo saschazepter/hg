@@ -14,7 +14,9 @@ use crate::revlog::{Node, NodePrefix};
 use crate::revlog::{Revlog, RevlogEntry, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::vfs::VfsImpl;
-use crate::{Graph, GraphError, RevlogOpenOptions, UncheckedRevision};
+use crate::{Graph, GraphError, UncheckedRevision};
+
+use super::options::RevlogOpenOptions;
 
 /// A specialized `Revlog` to work with changelog data format.
 pub struct Changelog {
@@ -504,10 +506,7 @@ fn unescape_extra(bytes: &[u8]) -> Vec<u8> {
 mod tests {
     use super::*;
     use crate::vfs::VfsImpl;
-    use crate::{
-        RevlogDataConfig, RevlogDeltaConfig, RevlogFeatureConfig,
-        NULL_REVISION,
-    };
+    use crate::NULL_REVISION;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -571,18 +570,9 @@ message",
         };
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
         std::fs::write(temp.path().join("foo.d"), b"").unwrap();
-        let revlog = Revlog::open(
-            &vfs,
-            "foo.i",
-            None,
-            RevlogOpenOptions::new(
-                false,
-                RevlogDataConfig::default(),
-                RevlogDeltaConfig::default(),
-                RevlogFeatureConfig::default(),
-            ),
-        )
-        .unwrap();
+        let revlog =
+            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::default())
+                .unwrap();
 
         let changelog = Changelog { revlog };
         assert_eq!(
