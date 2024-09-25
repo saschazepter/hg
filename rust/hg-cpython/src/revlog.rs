@@ -839,6 +839,30 @@ impl Index {
             .into_object())
     }
 
+    fn inner_headrevsfiltered(
+        &self,
+        py: Python,
+        filtered_revs: &PyObject,
+    ) -> PyResult<PyObject> {
+        let index = &*self.index(py).borrow();
+        let filtered_revs = rev_pyiter_collect(py, filtered_revs, index)?;
+
+        if let Some(new_heads) = index
+            .head_revs_filtered(&filtered_revs, true)
+            .map_err(|e| graph_error(py, e))?
+        {
+            self.cache_new_heads_py_list(&new_heads, py);
+        }
+
+        Ok(self
+            .head_revs_py_list(py)
+            .borrow()
+            .as_ref()
+            .expect("head revs should be cached")
+            .clone_ref(py)
+            .into_object())
+    }
+
     fn check_revision(
         index: &hg::index::Index,
         rev: UncheckedRevision,
@@ -869,30 +893,6 @@ impl Index {
         let added: Vec<_> = added.into_iter().map(PyRevision::from).collect();
         let res = (removed, added).to_py_object(py).into_object();
         Ok(res)
-    }
-
-    fn inner_headrevsfiltered(
-        &self,
-        py: Python,
-        filtered_revs: &PyObject,
-    ) -> PyResult<PyObject> {
-        let index = &*self.index(py).borrow();
-        let filtered_revs = rev_pyiter_collect(py, filtered_revs, index)?;
-
-        if let Some(new_heads) = index
-            .head_revs_filtered(&filtered_revs, true)
-            .map_err(|e| graph_error(py, e))?
-        {
-            self.cache_new_heads_py_list(&new_heads, py);
-        }
-
-        Ok(self
-            .head_revs_py_list(py)
-            .borrow()
-            .as_ref()
-            .expect("head revs should be cached")
-            .clone_ref(py)
-            .into_object())
     }
 
     fn cache_new_heads_node_ids_py_list(
