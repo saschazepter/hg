@@ -192,9 +192,8 @@ class statichttprepository(
 
             # check if it is a non-empty old-style repository
             try:
-                fp = self.vfs(b"00changelog.i")
-                fp.read(1)
-                fp.close()
+                with self.vfs(b"00changelog.i") as fp:
+                    fp.read(1)
             except FileNotFoundError:
                 # we do not care about empty old-style repositories here
                 msg = _(b"'%s' does not appear to be an hg repository") % path
