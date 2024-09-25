@@ -545,6 +545,61 @@ impl Index {
             .map(|h| h.unwrap())
     }
 
+    /// Return the head revisions of this index
+    pub fn head_revs_filtered(
+        &self,
+        filtered_revs: &HashSet<Revision>,
+        py_shortcut: bool,
+    ) -> Result<Option<Vec<Revision>>, GraphError> {
+        {
+            let guard = self
+                .head_revs
+                .read()
+                .expect("RwLock on Index.head_revs should not be poisoned");
+            let self_head_revs = &guard.0;
+            let self_filtered_revs = &guard.1;
+            if !self_head_revs.is_empty()
+                && filtered_revs == self_filtered_revs
+            {
+                if py_shortcut {
+                    // Don't copy the revs since we've already cached them
+                    // on the Python side.
+                    return Ok(None);
+                } else {
+                    return Ok(Some(self_head_revs.to_owned()));
+                }
+            }
+        }
+
+        let as_vec = if self.is_empty() {
+            vec![NULL_REVISION]
+        } else {
+            let mut not_heads = bitvec![0; self.len()];
+            dagops::retain_heads_fast(
+                self,
+                not_heads.as_mut_bitslice(),
+                filtered_revs,
+            )?;
+            not_heads
+                .into_iter()
+                .enumerate()
+                .filter_map(|(idx, is_not_head)| {
+                    if is_not_head {
+                        None
+                    } else {
+                        Some(Revision(idx as BaseRevision))
+                    }
+                })
+                .collect()
+        };
+        *self
+            .head_revs
+            .write()
+            .expect("RwLock on Index.head_revs should not be poisoned") =
+            (as_vec.to_owned(), filtered_revs.to_owned());
+        Ok(Some(as_vec))
+    }
+
     /// Python-specific shortcut to save on PyList creation
     pub fn head_revs_shortcut(
         &self,
@@ -601,61 +656,6 @@ impl Index {
         }
 
         Ok((heads_removed, heads_added))
-    }
-
-    /// Return the head revisions of this index
-    pub fn head_revs_filtered(
-        &self,
-        filtered_revs: &HashSet<Revision>,
-        py_shortcut: bool,
-    ) -> Result<Option<Vec<Revision>>, GraphError> {
-        {
-            let guard = self
-                .head_revs
-                .read()
-                .expect("RwLock on Index.head_revs should not be poisoned");
-            let self_head_revs = &guard.0;
-            let self_filtered_revs = &guard.1;
-            if !self_head_revs.is_empty()
-                && filtered_revs == self_filtered_revs
-            {
-                if py_shortcut {
-                    // Don't copy the revs since we've already cached them
-                    // on the Python side.
-                    return Ok(None);
-                } else {
-                    return Ok(Some(self_head_revs.to_owned()));
-                }
-            }
-        }
-
-        let as_vec = if self.is_empty() {
-            vec![NULL_REVISION]
-        } else {
-            let mut not_heads = bitvec![0; self.len()];
-            dagops::retain_heads_fast(
-                self,
-                not_heads.as_mut_bitslice(),
-                filtered_revs,
-            )?;
-            not_heads
-                .into_iter()
-                .enumerate()
-                .filter_map(|(idx, is_not_head)| {
-                    if is_not_head {
-                        None
-                    } else {
-                        Some(Revision(idx as BaseRevision))
-                    }
-                })
-                .collect()
-        };
-        *self
-            .head_revs
-            .write()
-            .expect("RwLock on Index.head_revs should not be poisoned") =
-            (as_vec.to_owned(), filtered_revs.to_owned());
-        Ok(Some(as_vec))
     }
 
     /// Obtain the delta chain for a revision.
