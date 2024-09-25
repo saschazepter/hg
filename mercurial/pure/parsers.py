@@ -696,6 +696,22 @@ class BaseIndexObject:
             p = p[revlog_constants.INDEX_HEADER.size :]
         return p
 
+    def headrevs(self, excluded_revs=None):
+        count = len(self)
+        if not count:
+            return [nullrev]
+        # we won't iter over filtered rev so nobody is a head at start
+        ishead = [0] * (count + 1)
+        revs = range(count)
+        if excluded_revs is not None:
+            revs = (r for r in revs if r not in excluded_revs)
+
+        for r in revs:
+            ishead[r] = 1  # I may be an head
+            e = self[r]
+            ishead[e[5]] = ishead[e[6]] = 0  # my parent are not
+        return [r for r, val in enumerate(ishead) if val]
+
 
 class IndexObject(BaseIndexObject):
     def __init__(self, data):
