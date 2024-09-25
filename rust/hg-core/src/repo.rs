@@ -10,11 +10,8 @@ use crate::errors::HgResultExt;
 use crate::errors::{HgError, IoResultExt};
 use crate::lock::{try_with_lock_no_wait, LockError};
 use crate::manifest::{Manifest, Manifestlog};
-use crate::requirements::{
-    CHANGELOGV2_REQUIREMENT, DIRSTATE_TRACKED_HINT_V1,
-    GENERALDELTA_REQUIREMENT, NODEMAP_REQUIREMENT, REVLOGV1_REQUIREMENT,
-    REVLOGV2_REQUIREMENT,
-};
+use crate::options::default_revlog_options;
+use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::revlog::filelog::Filelog;
 use crate::revlog::RevlogError;
 use crate::utils::debug::debug_wait_for_file_or_print;
@@ -22,11 +19,10 @@ use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
 use crate::vfs::{is_dir, is_file, VfsImpl};
+use crate::DirstateError;
 use crate::{
-    exit_codes, requirements, NodePrefix, RevlogDataConfig, RevlogDeltaConfig,
-    RevlogFeatureConfig, RevlogType, RevlogVersionOptions, UncheckedRevision,
+    exit_codes, requirements, NodePrefix, RevlogType, UncheckedRevision,
 };
-use crate::{DirstateError, RevlogOpenOptions};
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashSet;
 use std::io::Seek;
@@ -577,7 +573,11 @@ impl Repo {
     fn new_changelog(&self) -> Result<Changelog, HgError> {
         Changelog::open(
             &self.store_vfs(),
-            self.default_revlog_options(RevlogType::Changelog)?,
+            default_revlog_options(
+                self.config(),
+                self.requirements(),
+                RevlogType::Changelog,
+            )?,
         )
     }
 
@@ -592,7 +592,11 @@ impl Repo {
     fn new_manifestlog(&self) -> Result<Manifestlog, HgError> {
         Manifestlog::open(
             &self.store_vfs(),
-            self.default_revlog_options(RevlogType::Manifestlog)?,
+            default_revlog_options(
+                self.config(),
+                self.requirements(),
+                RevlogType::Manifestlog,
+            )?,
         )
     }
 
@@ -642,7 +646,11 @@ impl Repo {
         Filelog::open(
             self,
             path,
-            self.default_revlog_options(RevlogType::Filelog)?,
+            default_revlog_options(
+                self.config(),
+                self.requirements(),
+                RevlogType::Filelog,
+            )?,
         )
     }
     /// Write to disk any updates that were made through `dirstate_map_mut`.
@@ -790,50 +798,6 @@ impl Repo {
             vfs.remove_file(format!("dirstate.{}", uuid))?;
         }
         Ok(())
-    }
-
-    pub fn default_revlog_options(
-        &self,
-        revlog_type: RevlogType,
-    ) -> Result<RevlogOpenOptions, HgError> {
-        let requirements = self.requirements();
-        let is_changelog = revlog_type == RevlogType::Changelog;
-        let version = if is_changelog
-            && requirements.contains(CHANGELOGV2_REQUIREMENT)
-        {
-            let compute_rank = self
-                .config()
-                .get_bool(b"experimental", b"changelog-v2.compute-rank")?;
-            RevlogVersionOptions::ChangelogV2 { compute_rank }
-        } else if requirements.contains(REVLOGV2_REQUIREMENT) {
-            RevlogVersionOptions::V2
-        } else if requirements.contains(REVLOGV1_REQUIREMENT) {
-            RevlogVersionOptions::V1 {
-                general_delta: requirements.contains(GENERALDELTA_REQUIREMENT),
-                inline: !is_changelog,
-            }
-        } else {
-            RevlogVersionOptions::V0
-        };
-        Ok(RevlogOpenOptions {
-            version,
-            // We don't need to dance around the slow path like in the Python
-            // implementation since we know we have access to the fast code.
-            use_nodemap: requirements.contains(NODEMAP_REQUIREMENT),
-            delta_config: RevlogDeltaConfig::new(
-                self.config(),
-                self.requirements(),
-                revlog_type,
-            )?,
-            data_config: RevlogDataConfig::new(
-                self.config(),
-                self.requirements(),
-            )?,
-            feature_config: RevlogFeatureConfig::new(
-                self.config(),
-                requirements,
-            )?,
-        })
     }
 
     pub fn node(&self, rev: UncheckedRevision) -> Option<crate::Node> {

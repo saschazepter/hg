@@ -19,6 +19,7 @@ use crate::{
     narrow,
     node::NULL_NODE,
     operations::{list_rev_tracked_files, ExpandedManifestEntry},
+    options::{default_revlog_options, RevlogOpenOptions},
     progress::Progress,
     repo::Repo,
     sparse,
@@ -28,7 +29,7 @@ use crate::{
         path_auditor::PathAuditor,
     },
     vfs::{is_on_nfs_mount, VfsImpl},
-    DirstateParents, RevlogError, RevlogOpenOptions, UncheckedRevision,
+    DirstateParents, RevlogError, UncheckedRevision,
 };
 use crossbeam_channel::{Receiver, Sender};
 use rayon::prelude::*;
@@ -89,7 +90,11 @@ pub fn update_from_null(
         return Ok(0);
     }
     let store_vfs = &repo.store_vfs();
-    let options = repo.default_revlog_options(crate::RevlogType::Filelog)?;
+    let options = default_revlog_options(
+        repo.config(),
+        repo.requirements(),
+        crate::RevlogType::Filelog,
+    )?;
     let (errors_sender, errors_receiver) = crossbeam_channel::unbounded();
     let (files_sender, files_receiver) = crossbeam_channel::unbounded();
     let working_directory_path = &repo.working_directory_path();
