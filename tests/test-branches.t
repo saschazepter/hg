@@ -920,6 +920,18 @@ Write operation write a full v2 files
   .hg/cache/rbc-revs-v1: size=160
   .hg/cache/rbc-revs-v2: size=168
 
+So does explicit cache upgrade
+  $ mv .hg/cache/rbc-names-v2 .hg/cache/rbc-names-v1
+  $ mv .hg/cache/rbc-revs-v2 .hg/cache/rbc-revs-v1
+  $ f --size .hg/cache/rbc-*
+  .hg/cache/rbc-names-v1: size=110
+  .hg/cache/rbc-revs-v1: size=168
+  $ hg debugupdatecache
+  $ f --size .hg/cache/rbc-*
+  .hg/cache/rbc-names-v1: size=110
+  .hg/cache/rbc-names-v2: size=110
+  .hg/cache/rbc-revs-v1: size=168
+  .hg/cache/rbc-revs-v2: size=168
 
 With invalid v1 data, we rewrite it too (as v2)
 
