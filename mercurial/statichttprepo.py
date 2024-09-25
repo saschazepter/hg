@@ -52,11 +52,14 @@ class httprangereader:
     def seek(self, pos):
         self.pos = pos
 
-    def read(self, bytes=None):
+    def read(self, bytes: int = -1):
         req = urlreq.request(pycompat.strurl(self.url))
-        end = b''
-        if bytes:
-            end = self.pos + bytes - 1
+        end = ''
+
+        if bytes == 0:
+            return b''
+        elif bytes > 0:
+            end = "%d" % (self.pos + bytes - 1)
         if self.pos or end:
             req.add_header('Range', 'bytes=%d-%s' % (self.pos, end))
 
@@ -76,11 +79,13 @@ class httprangereader:
         if code == 200:
             # HTTPRangeHandler does nothing if remote does not support
             # Range headers and returns the full entity. Let's slice it.
-            if bytes:
+            if bytes > 0 and (self.pos + bytes) < len(data):
                 data = data[self.pos : self.pos + bytes]
-            else:
+            elif self.pos < len(data):
                 data = data[self.pos :]
-        elif bytes:
+            else:
+                data = b''
+        elif 0 < bytes < len(data):
             data = data[:bytes]
         self.pos += len(data)
         return data
