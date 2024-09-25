@@ -333,12 +333,6 @@ py_class!(pub class Index |py| {
         Ok(rust_res)
     }
 
-    /// get filtered head revisions
-    def headrevsfiltered(&self, *args, **_kw) -> PyResult<PyObject> {
-        let rust_res = self.inner_headrevsfiltered(py, &args.get_item(py, 0))?;
-        Ok(rust_res)
-    }
-
     /// True if the object is a snapshot
     def issnapshot(&self, *args, **_kw) -> PyResult<bool> {
         let index = self.index(py).borrow();
