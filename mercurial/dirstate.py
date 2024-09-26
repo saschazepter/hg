@@ -11,7 +11,6 @@ import collections
 import contextlib
 import os
 import stat
-import typing
 import uuid
 
 from .i18n import _
@@ -38,7 +37,6 @@ from .dirstateutils import (
 
 from .interfaces import (
     dirstate as intdirstate,
-    util as interfaceutil,
 )
 
 parsers = policy.importmod('parsers')
@@ -136,7 +134,7 @@ CHANGE_TYPE_PARENTS = "parents"
 CHANGE_TYPE_FILES = "files"
 
 
-class DirState:
+class dirstate(intdirstate.idirstate):
     # used by largefile to avoid overwritting transaction callback
     _tr_key_suffix = b''
 
@@ -1808,9 +1806,3 @@ class DirState:
             entry = self.get_entry(f)
             if not entry.p1_tracked:
                 yield missing_from_ds % (f, node.short(p1))
-
-
-dirstate = interfaceutil.implementer(intdirstate.idirstate)(DirState)
-
-if typing.TYPE_CHECKING:
-    dirstate = DirState
