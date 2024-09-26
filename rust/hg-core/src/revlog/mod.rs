@@ -503,6 +503,10 @@ pub fn open_index(
             {
                 let size = store_vfs.file_size(&file)?;
                 if size >= threshold {
+                    // TODO madvise populate read in a background thread
+                    let mut mmap_options = MmapOptions::new();
+                    // This does nothing on platforms where it's not defined
+                    mmap_options.populate();
                     // Safety is "enforced" by locks and assuming other
                     // processes are well-behaved. If any misbehaving or
                     // malicious process does touch the index, it could lead
@@ -510,7 +514,7 @@ pub fn open_index(
                     // `mmap`, though some platforms have some ways of
                     // mitigating.
                     // TODO linux: set the immutable flag with `chattr(1)`?
-                    let mmap = unsafe { MmapOptions::new().map(&file) }
+                    let mmap = unsafe { mmap_options.map(&file) }
                         .when_reading_file(index_path)?;
                     Some(Box::new(mmap) as IndexData)
                 } else {
