@@ -18,7 +18,6 @@ from mercurial.dirstateutils import (
 )
 from mercurial.interfaces import (
     dirstate as intdirstate,
-    util as interfaceutil,
 )
 
 from . import gitutil
@@ -73,8 +72,7 @@ if pygit2:
     }
 
 
-@interfaceutil.implementer(intdirstate.idirstate)
-class gitdirstate:
+class gitdirstate(intdirstate.idirstate):
     def __init__(self, ui, vfs, gitrepo, use_dirstate_v2):
         self._ui = ui
         self._root = os.path.dirname(vfs.base)
