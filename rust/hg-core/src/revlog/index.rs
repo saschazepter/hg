@@ -7,14 +7,14 @@ use bitvec::prelude::*;
 use byteorder::{BigEndian, ByteOrder};
 use bytes_cast::{unaligned, BytesCast};
 
-use super::{NodePrefix, REVIDX_KNOWN_FLAGS};
+use super::{NodePrefix, RevlogError, RevlogIndex, REVIDX_KNOWN_FLAGS};
 use crate::errors::HgError;
-use crate::node::{NODE_BYTES_LENGTH, NULL_NODE, STORED_NODE_ID_BYTES};
-use crate::revlog::node::Node;
+use crate::revlog::node::{
+    Node, NODE_BYTES_LENGTH, NULL_NODE, STORED_NODE_ID_BYTES,
+};
 use crate::revlog::{Revision, NULL_REVISION};
 use crate::{
-    dagops, BaseRevision, FastHashMap, Graph, GraphError, RevlogError,
-    RevlogIndex, UncheckedRevision,
+    dagops, BaseRevision, FastHashMap, Graph, GraphError, UncheckedRevision,
 };
 
 pub const INDEX_ENTRY_SIZE: usize = 64;
@@ -1825,7 +1825,7 @@ pub use tests::IndexEntryBuilder;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::node::NULL_NODE;
+    use crate::NULL_NODE;
 
     #[cfg(test)]
     #[derive(Debug, Copy, Clone)]

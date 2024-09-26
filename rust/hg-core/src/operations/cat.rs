@@ -12,8 +12,8 @@ use crate::revlog::RevlogError;
 use crate::utils::hg_path::HgPath;
 
 use crate::errors::HgError;
-use crate::manifest::Manifest;
-use crate::manifest::ManifestEntry;
+use crate::revlog::manifest::Manifest;
+use crate::revlog::manifest::ManifestEntry;
 use itertools::put_back;
 use itertools::PutBack;
 use std::cmp::Ordering;

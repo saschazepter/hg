@@ -30,7 +30,12 @@ pub mod filepatterns;
 pub mod matchers;
 pub mod repo;
 pub mod revlog;
-pub use revlog::*;
+// Export very common types to make discovery easier
+pub use revlog::{
+    BaseRevision, Graph, GraphError, Node, NodePrefix, Revision,
+    UncheckedRevision, NULL_NODE, NULL_NODE_ID, NULL_REVISION,
+    WORKING_DIRECTORY_HEX, WORKING_DIRECTORY_REVISION,
+};
 pub mod checkexec;
 pub mod config;
 pub mod lock;

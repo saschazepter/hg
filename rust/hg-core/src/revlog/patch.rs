@@ -1,6 +1,6 @@
 use byteorder::{BigEndian, ByteOrder};
 
-use crate::RevlogError;
+use crate::revlog::RevlogError;
 
 use super::inner_revlog::RevisionBuffer;
 
@@ -229,7 +229,7 @@ pub fn fold_patch_lists<'a>(lists: &[PatchList<'a>]) -> PatchList<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::inner_revlog::CoreRevisionBuffer;
+    use crate::revlog::inner_revlog::CoreRevisionBuffer;
 
     use super::*;
 
