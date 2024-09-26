@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 import contextlib
+import typing
 
 from typing import (
+    Callable,
     Protocol,
 )
 
-from . import util as interfaceutil
+if typing.TYPE_CHECKING:
+    # Almost all mercurial modules are only imported in the type checking phase
+    # to avoid circular imports
+    from .. import (
+        match as matchmod,
+    )
 
 
 class idirstate(Protocol):
@@ -31,16 +38,22 @@ class idirstate(Protocol):
 
     # TODO: all these private methods and attributes should be made
     # public or removed from the interface.
-    _ignore = interfaceutil.Attribute("""Matcher for ignored files.""")
-    is_changing_any = interfaceutil.Attribute(
+
+    # TODO: decorate with `@rootcache(b'.hgignore')` like dirstate class?
+    _ignore: matchmod.basematcher
+    """Matcher for ignored files."""
+
+    @property
+    def is_changing_any(self) -> bool:
         """True if any changes in progress."""
-    )
-    is_changing_parents = interfaceutil.Attribute(
+
+    @property
+    def is_changing_parents(self) -> bool:
         """True if parents changes in progress."""
-    )
-    is_changing_files = interfaceutil.Attribute(
+
+    @property
+    def is_changing_files(self) -> bool:
         """True if file tracking changes in progress."""
-    )
 
     def _ignorefiles(self):
         """Return a list of files containing patterns to ignore."""
@@ -48,8 +61,19 @@ class idirstate(Protocol):
     def _ignorefileandline(self, f):
         """Given a file `f`, return the ignore file and line that ignores it."""
 
-    _checklink = interfaceutil.Attribute("""Callable for checking symlinks.""")
-    _checkexec = interfaceutil.Attribute("""Callable for checking exec bits.""")
+    # TODO: decorate with `@util.propertycache` like dirstate class?
+    #  (can't because circular import)
+    # TODO: The doc looks wrong- the core class has this as a @property, not a
+    #  callable.
+    _checklink: Callable
+    """Callable for checking symlinks."""
+
+    # TODO: decorate with `@util.propertycache` like dirstate class?
+    #  (can't because circular import)
+    # TODO: The doc looks wrong- the core class has this as a @property, not a
+    #  callable.
+    _checkexec: Callable
+    """Callable for checking exec bits."""
 
     @contextlib.contextmanager
     def changing_parents(self, repo):
