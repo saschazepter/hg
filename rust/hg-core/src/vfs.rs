@@ -1,7 +1,7 @@
 use crate::errors::{HgError, IoErrorContext, IoResultExt};
 use crate::exit_codes;
 use crate::fncache::FnCache;
-use crate::path_encode::path_encode;
+use crate::revlog::path_encode::path_encode;
 use crate::utils::files::{get_bytes_from_path, get_path_from_bytes};
 use dyn_clone::DynClone;
 use memmap2::{Mmap, MmapOptions};

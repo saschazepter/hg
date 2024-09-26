@@ -22,23 +22,24 @@ use cpython::{
 use hg::{
     errors::HgError,
     fncache::FnCache,
-    index::{Phase, RevisionDataParams, SnapshotsCache, INDEX_ENTRY_SIZE},
-    nodemap::{Block, NodeMapError, NodeTree as CoreNodeTree},
     revlog::{
         compression::CompressionConfig,
+        index::{
+            Index, IndexHeader, Phase, RevisionDataParams, SnapshotsCache,
+            INDEX_ENTRY_SIZE,
+        },
         inner_revlog::{InnerRevlog as CoreInnerRevlog, RevisionBuffer},
-        nodemap::NodeMap,
+        nodemap::{Block, NodeMap, NodeMapError, NodeTree as CoreNodeTree},
         options::{
             RevlogDataConfig, RevlogDeltaConfig, RevlogFeatureConfig,
             RevlogOpenOptions,
         },
-        Graph, NodePrefix, RevlogError, RevlogIndex,
+        Graph, NodePrefix, RevlogError, RevlogIndex, RevlogType,
     },
     transaction::Transaction,
     utils::files::{get_bytes_from_path, get_path_from_bytes},
     vfs::FnCacheVfs,
-    BaseRevision, Node, Revision, RevlogType, UncheckedRevision,
-    NULL_REVISION,
+    BaseRevision, Node, Revision, UncheckedRevision, NULL_REVISION,
 };
 use std::{
     cell::{Cell, RefCell},
@@ -50,7 +51,7 @@ use vcsgraph::graph::Graph as VCSGraph;
 
 pub struct PySharedIndex {
     /// The underlying hg-core index
-    pub(crate) inner: &'static hg::index::Index,
+    pub(crate) inner: &'static Index,
 }
 
 /// Return a Struct implementing the Graph trait
@@ -989,7 +990,7 @@ py_class!(pub class InnerRevlog |py| {
             },
             None => None,
         };
-        let header = hg::index::IndexHeader::parse(&header.to_be_bytes());
+        let header = IndexHeader::parse(&header.to_be_bytes());
         let header = header.expect("invalid header bytes");
         let path = inner
             .split_inline(header, new_index_file_path)
@@ -1732,7 +1733,7 @@ impl InnerRevlog {
     }
 
     fn check_revision(
-        index: &hg::index::Index,
+        index: &Index,
         rev: UncheckedRevision,
         py: Python,
     ) -> PyResult<Revision> {
@@ -1999,7 +2000,7 @@ impl InnerRevlog {
 
         // Safety: we keep the buffer around inside the class as `index_mmap`
         let (buf, bytes) = unsafe { mmap_keeparound(py, index_data)? };
-        let index = hg::index::Index::new(bytes, options.index_header())
+        let index = Index::new(bytes, options.index_header())
             .map_err(|e| revlog_error_from_msg(py, e))?;
 
         let base = &vfs_base.extract::<PyBytes>(py)?;

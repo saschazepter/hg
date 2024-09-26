@@ -6,10 +6,10 @@
 // GNU General Public License version 2 or any later version.
 
 use crate::errors::HgError;
+use crate::exit_codes;
 use crate::repo::Repo;
 use crate::revlog::options::default_revlog_options;
-use crate::revlog::Revlog;
-use crate::{exit_codes, RevlogError, RevlogType};
+use crate::revlog::{Revlog, RevlogError, RevlogType};
 
 /// Dump the contents data of a revision.
 pub fn debug_data(

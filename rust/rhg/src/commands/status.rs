@@ -20,21 +20,22 @@ use hg::dirstate::TruncatedTimestamp;
 use hg::errors::{HgError, IoResultExt};
 use hg::filepatterns::parse_pattern_args;
 use hg::lock::LockError;
-use hg::manifest::Manifest;
 use hg::matchers::{AlwaysMatcher, IntersectionMatcher};
 use hg::repo::Repo;
+use hg::revlog::manifest::Manifest;
 use hg::revlog::options::{default_revlog_options, RevlogOpenOptions};
+use hg::revlog::RevlogType;
 use hg::utils::debug::debug_wait_for_file;
 use hg::utils::files::{
     get_bytes_from_os_str, get_bytes_from_os_string, get_path_from_bytes,
 };
 use hg::utils::hg_path::{hg_path_to_path_buf, HgPath};
 use hg::DirstateStatus;
+use hg::PatternFileWarning;
 use hg::Revision;
 use hg::StatusError;
 use hg::StatusOptions;
 use hg::{self, narrow, sparse};
-use hg::{PatternFileWarning, RevlogType};
 use log::info;
 use rayon::prelude::*;
 use std::borrow::Cow;
@@ -789,7 +790,7 @@ fn unsure_is_modified(
     if entry_flags.map(|f| f.into()) != fs_flags {
         return Ok(UnsureOutcome::Modified);
     }
-    let filelog = hg::filelog::Filelog::open_vfs(
+    let filelog = hg::revlog::filelog::Filelog::open_vfs(
         store_vfs,
         hg_path,
         revlog_open_options,

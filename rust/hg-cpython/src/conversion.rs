@@ -9,7 +9,7 @@
 //! `hg-core` crate. From Python, this will be seen as `rustext.ancestor`
 
 use cpython::{ObjectProtocol, PyErr, PyObject, PyResult, Python};
-use hg::{Revision, RevlogIndex, UncheckedRevision};
+use hg::{revlog::RevlogIndex, Revision, UncheckedRevision};
 
 use crate::{exceptions::GraphError, PyRevision};
 
