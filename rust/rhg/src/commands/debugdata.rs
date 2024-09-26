@@ -2,7 +2,7 @@ use crate::error::CommandError;
 use clap::Arg;
 use clap::ArgGroup;
 use hg::operations::debug_data;
-use hg::RevlogType;
+use hg::revlog::RevlogType;
 
 pub const HELP_TEXT: &str = "
 Dump the contents of a data file revision

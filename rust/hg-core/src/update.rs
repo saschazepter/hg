@@ -14,14 +14,14 @@ use crate::{
         dirstate_map::DirstateEntryReset, on_disk::write_tracked_key,
     },
     errors::{HgError, IoResultExt},
-    exit_codes,
-    filelog::Filelog,
-    narrow,
-    node::NULL_NODE,
+    exit_codes, narrow,
     operations::{list_rev_tracked_files, ExpandedManifestEntry},
-    options::{default_revlog_options, RevlogOpenOptions},
     progress::Progress,
     repo::Repo,
+    revlog::filelog::Filelog,
+    revlog::node::NULL_NODE,
+    revlog::options::{default_revlog_options, RevlogOpenOptions},
+    revlog::RevlogError,
     sparse,
     utils::{
         files::{filesystem_now, get_path_from_bytes},
@@ -29,7 +29,7 @@ use crate::{
         path_auditor::PathAuditor,
     },
     vfs::{is_on_nfs_mount, VfsImpl},
-    DirstateParents, RevlogError, UncheckedRevision,
+    DirstateParents, UncheckedRevision,
 };
 use crossbeam_channel::{Receiver, Sender};
 use rayon::prelude::*;
@@ -93,7 +93,7 @@ pub fn update_from_null(
     let options = default_revlog_options(
         repo.config(),
         repo.requirements(),
-        crate::RevlogType::Filelog,
+        crate::revlog::RevlogType::Filelog,
     )?;
     let (errors_sender, errors_receiver) = crossbeam_channel::unbounded();
     let (files_sender, files_receiver) = crossbeam_channel::unbounded();
@@ -134,7 +134,7 @@ pub fn update_from_null(
 
 fn handle_revlog_error(e: RevlogError) -> HgError {
     match e {
-        crate::RevlogError::Other(hg_error) => hg_error,
+        crate::revlog::RevlogError::Other(hg_error) => hg_error,
         e => HgError::abort(
             format!("revlog error: {}", e),
             exit_codes::ABORT,
