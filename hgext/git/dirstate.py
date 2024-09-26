@@ -243,7 +243,7 @@ class gitdirstate:
             return DirstateItem()
         return entry
 
-    def normalize(self, path):
+    def normalize(self, path, isknown=False, ignoremissing=False):
         normed = util.normcase(path)
         assert normed == path, b"TODO handling of case folding: %s != %s" % (
             normed,
@@ -262,11 +262,13 @@ class gitdirstate:
     # # TODO what the heck is this
     _filecache = set()
 
+    @property
     def is_changing_parents(self):
         # TODO: we need to implement the context manager bits and
         # correctly stage/revert index edits.
         return False
 
+    @property
     def is_changing_any(self):
         # TODO: we need to implement the context manager bits and
         # correctly stage/revert index edits.
