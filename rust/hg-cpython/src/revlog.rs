@@ -310,12 +310,7 @@ py_class!(pub class Index |py| {
              1 => Ok(args.get_item(py, 0)),
              _ => Err(PyErr::new::<cpython::exc::TypeError, _>(py, "too many arguments")),
         }?;
-        let rust_res = if filtered_revs.is_none(py) {
-            self.inner_headrevs(py)
-        } else {
-            self.inner_headrevsfiltered(py, &filtered_revs)
-        }?;
-        Ok(rust_res)
+        self.inner_headrevs(py, &filtered_revs)
     }
 
     /// get head nodeids
@@ -822,35 +817,23 @@ impl Index {
         Ok(PyList::new(py, &res).into_object())
     }
 
-    fn inner_headrevs(&self, py: Python) -> PyResult<PyObject> {
-        let index = &*self.index(py).borrow();
-        if let Some(new_heads) =
-            index.head_revs_shortcut().map_err(|e| graph_error(py, e))?
-        {
-            self.cache_new_heads_py_list(&new_heads, py);
-        }
-
-        Ok(self
-            .head_revs_py_list(py)
-            .borrow()
-            .as_ref()
-            .expect("head revs should be cached")
-            .clone_ref(py)
-            .into_object())
-    }
-
-    fn inner_headrevsfiltered(
+    fn inner_headrevs(
         &self,
         py: Python,
         filtered_revs: &PyObject,
     ) -> PyResult<PyObject> {
         let index = &*self.index(py).borrow();
-        let filtered_revs = rev_pyiter_collect(py, filtered_revs, index)?;
 
-        if let Some(new_heads) = index
-            .head_revs_filtered(&filtered_revs, true)
-            .map_err(|e| graph_error(py, e))?
-        {
+        let from_core = match filtered_revs.is_none(py) {
+            true => index.head_revs_shortcut(),
+            false => {
+                let filtered_revs =
+                    rev_pyiter_collect(py, filtered_revs, index)?;
+                index.head_revs_filtered(&filtered_revs, true)
+            }
+        };
+
+        if let Some(new_heads) = from_core.map_err(|e| graph_error(py, e))? {
             self.cache_new_heads_py_list(&new_heads, py);
         }
 
