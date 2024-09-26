@@ -103,6 +103,20 @@ impl RevlogOpenOptions {
     }
 }
 
+/// Technically only Linux 2.5.46+ has `MAP_POPULATE` and only `2.6.23` on
+/// private mappings, but if you're using such ancient Linux, you have other
+/// problems.
+#[cfg(target_os = "linux")]
+const fn can_populate_mmap() -> bool {
+    true
+}
+
+/// There is a of populating mmaps for Windows, but it would need testing.
+#[cfg(not(target_os = "linux"))]
+const fn can_populate_mmap() {
+    false
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// Holds configuration values about how the revlog data is read
 pub struct RevlogDataConfig {
@@ -152,6 +166,20 @@ impl RevlogDataConfig {
             data_config.uncompressed_cache_factor = Some(4.0);
             if memory_profile.value >= ResourceProfileValue::High {
                 data_config.uncompressed_cache_factor = Some(10.0)
+            }
+        }
+
+        // Use mmap if requested, or by default if we can fully populate it
+        let mmap_index = config
+            .get_option_no_default(b"storage", b"revlog.mmap.index")?
+            .unwrap_or(can_populate_mmap());
+        if mmap_index {
+            if let Some(mmap_index_threshold) = config.get_byte_size(
+                b"storage",
+                b"revlog.mmap.index:size-threshold",
+            )? {
+                // Only mmap if above the requested size threshold
+                data_config.mmap_index_threshold = Some(mmap_index_threshold);
             }
         }
 
