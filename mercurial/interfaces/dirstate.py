@@ -2,26 +2,32 @@ from __future__ import annotations
 
 import contextlib
 
+from typing import (
+    Protocol,
+)
+
 from . import util as interfaceutil
 
 
-class idirstate(interfaceutil.Interface):
-    def __init__(
-        opener,
-        ui,
-        root,
-        validate,
-        sparsematchfn,
-        nodeconstants,
-        use_dirstate_v2,
-        use_tracked_hint=False,
-    ):
-        """Create a new dirstate object.
-
-        opener is an open()-like callable that can be used to open the
-        dirstate file; root is the root of the directory tracked by
-        the dirstate.
-        """
+class idirstate(Protocol):
+    # TODO: convert these constructor args to fields?
+    # def __init__(
+    #     self,
+    #     opener,
+    #     ui,
+    #     root,
+    #     validate,
+    #     sparsematchfn,
+    #     nodeconstants,
+    #     use_dirstate_v2,
+    #     use_tracked_hint=False,
+    # ):
+    #     """Create a new dirstate object.
+    #
+    #     opener is an open()-like callable that can be used to open the
+    #     dirstate file; root is the root of the directory tracked by
+    #     the dirstate.
+    #     """
 
     # TODO: all these private methods and attributes should be made
     # public or removed from the interface.
