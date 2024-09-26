@@ -42,17 +42,17 @@ class idirstate(Protocol):
         """True if file tracking changes in progress."""
     )
 
-    def _ignorefiles():
+    def _ignorefiles(self):
         """Return a list of files containing patterns to ignore."""
 
-    def _ignorefileandline(f):
+    def _ignorefileandline(self, f):
         """Given a file `f`, return the ignore file and line that ignores it."""
 
     _checklink = interfaceutil.Attribute("""Callable for checking symlinks.""")
     _checkexec = interfaceutil.Attribute("""Callable for checking exec bits.""")
 
     @contextlib.contextmanager
-    def changing_parents(repo):
+    def changing_parents(self, repo):
         """Context manager for handling dirstate parents.
 
         If an exception occurs in the scope of the context manager,
@@ -61,7 +61,7 @@ class idirstate(Protocol):
         """
 
     @contextlib.contextmanager
-    def changing_files(repo):
+    def changing_files(self, repo):
         """Context manager for handling dirstate files.
 
         If an exception occurs in the scope of the context manager,
@@ -69,10 +69,10 @@ class idirstate(Protocol):
         released.
         """
 
-    def hasdir(d):
+    def hasdir(self, d):
         pass
 
-    def flagfunc(buildfallback):
+    def flagfunc(self, buildfallback):
         """build a callable that returns flags associated with a filename
 
         The information is extracted from three possible layers:
@@ -81,7 +81,7 @@ class idirstate(Protocol):
         3. a more expensive mechanism inferring the flags from the parents.
         """
 
-    def getcwd():
+    def getcwd(self):
         """Return the path from which a canonical path is calculated.
 
         This path should be used to resolve file patterns or to convert
@@ -89,19 +89,19 @@ class idirstate(Protocol):
         used to get real file paths. Use vfs functions instead.
         """
 
-    def pathto(f, cwd=None):
+    def pathto(self, f, cwd=None):
         pass
 
-    def get_entry(path):
+    def get_entry(self, path):
         """return a DirstateItem for the associated path"""
 
-    def __contains__(key):
+    def __contains__(self, key):
         """Check if bytestring `key` is known to the dirstate."""
 
-    def __iter__():
+    def __iter__(self):
         """Iterate the dirstate's contained filenames as bytestrings."""
 
-    def items():
+    def items(self):
         """Iterate the dirstate's entries as (filename, DirstateItem.
 
         As usual, filename is a bytestring.
@@ -109,19 +109,19 @@ class idirstate(Protocol):
 
     iteritems = items
 
-    def parents():
+    def parents(self):
         pass
 
-    def p1():
+    def p1(self):
         pass
 
-    def p2():
+    def p2(self):
         pass
 
-    def branch():
+    def branch(self):
         pass
 
-    def setparents(p1, p2=None):
+    def setparents(self, p1, p2=None):
         """Set dirstate parents to p1 and p2.
 
         When moving from two parents to one, "merged" entries a
@@ -131,26 +131,26 @@ class idirstate(Protocol):
         See localrepo.setparents()
         """
 
-    def setbranch(branch, transaction):
+    def setbranch(self, branch, transaction):
         pass
 
-    def invalidate():
+    def invalidate(self):
         """Causes the next access to reread the dirstate.
 
         This is different from localrepo.invalidatedirstate() because it always
         rereads the dirstate. Use localrepo.invalidatedirstate() if you want to
         check whether the dirstate has changed before rereading it."""
 
-    def copy(source, dest):
+    def copy(self, source, dest):
         """Mark dest as a copy of source. Unmark dest if source is None."""
 
-    def copied(file):
+    def copied(self, file):
         pass
 
-    def copies():
+    def copies(self):
         pass
 
-    def normalize(path, isknown=False, ignoremissing=False):
+    def normalize(self, path, isknown=False, ignoremissing=False):
         """
         normalize the case of a pathname when on a casefolding filesystem
 
@@ -168,16 +168,16 @@ class idirstate(Protocol):
         - version provided via command arguments
         """
 
-    def clear():
+    def clear(self):
         pass
 
-    def rebuild(parent, allfiles, changedfiles=None):
+    def rebuild(self, parent, allfiles, changedfiles=None):
         pass
 
-    def write(tr):
+    def write(self, tr):
         pass
 
-    def addparentchangecallback(category, callback):
+    def addparentchangecallback(self, category, callback):
         """add a callback to be called when the wd parents are changed
 
         Callback will be called with the following arguments:
@@ -187,7 +187,7 @@ class idirstate(Protocol):
         with a newer callback.
         """
 
-    def walk(match, subrepos, unknown, ignored, full=True):
+    def walk(self, match, subrepos, unknown, ignored, full=True):
         """
         Walk recursively through the directory tree, finding all files
         matched by match.
@@ -199,7 +199,7 @@ class idirstate(Protocol):
 
         """
 
-    def status(match, subrepos, ignored, clean, unknown):
+    def status(self, match, subrepos, ignored, clean, unknown):
         """Determine the status of the working copy relative to the
         dirstate and return a pair of (unsure, status), where status is of type
         scmutil.status and:
@@ -216,12 +216,12 @@ class idirstate(Protocol):
             dirstate was written
         """
 
-    def matches(match):
+    def matches(self, match):
         """
         return files in the dirstate (in whatever state) filtered by match
         """
 
-    def verify(m1, m2, p1, narrow_matcher=None):
+    def verify(self, m1, m2, p1, narrow_matcher=None):
         """
         check the dirstate contents against the parent manifest and yield errors
         """
