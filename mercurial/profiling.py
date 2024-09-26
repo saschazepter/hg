@@ -71,11 +71,14 @@ def lsprofile(ui, fp):
         # what is going on.
         other_tool_name = sys.monitoring.get_tool(sys.monitoring.PROFILER_ID)
         if other_tool_name == "cProfile":
-            msg = 'cannot recursively call `lsprof`'
+            msg = b'cannot recursively call `lsprof`'
             raise error.Abort(msg) from None
         else:
-            m = 'failed to start "lsprofile"; another profiler already running: %s'
-            raise error.Abort(_(m) % other_tool_name) from None
+            tool = b'<unknown>'
+            if other_tool_name:
+                tool = encoding.strtolocal(other_tool_name)
+            m = b'failed to start "lsprofile"; another profiler already running: %s'
+            raise error.Abort(_(m) % tool) from None
     try:
         yield
     finally:
