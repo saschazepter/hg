@@ -13,7 +13,7 @@ use inner_revlog::CoreRevisionBuffer;
 use inner_revlog::InnerRevlog;
 use inner_revlog::RevisionBuffer;
 use memmap2::MmapOptions;
-pub use node::{FromHexError, Node, NodePrefix};
+pub use node::{FromHexError, Node, NodePrefix, NULL_NODE, NULL_NODE_ID};
 use options::RevlogOpenOptions;
 pub mod changelog;
 pub mod compression;
@@ -31,13 +31,12 @@ use std::io::Read;
 use std::ops::Deref;
 use std::path::Path;
 
-use self::node::NULL_NODE;
 use self::nodemap_docket::NodeMapDocket;
-use super::index::Index;
-use super::nodemap::{NodeMap, NodeMapError};
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
+use crate::revlog::index::Index;
+use crate::revlog::nodemap::{NodeMap, NodeMapError};
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
 
@@ -724,7 +723,7 @@ impl<'revlog> RevlogEntry<'revlog> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::index::IndexEntryBuilder;
+    use crate::revlog::index::IndexEntryBuilder;
     use itertools::Itertools;
 
     #[test]
