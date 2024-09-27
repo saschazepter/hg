@@ -40,8 +40,9 @@ class idirstate(Protocol):
     # public or removed from the interface.
 
     # TODO: decorate with `@rootcache(b'.hgignore')` like dirstate class?
-    _ignore: matchmod.basematcher
-    """Matcher for ignored files."""
+    @property
+    def _ignore(self) -> matchmod.basematcher:
+        """Matcher for ignored files."""
 
     @property
     def is_changing_any(self) -> bool:
@@ -63,17 +64,15 @@ class idirstate(Protocol):
 
     # TODO: decorate with `@util.propertycache` like dirstate class?
     #  (can't because circular import)
-    # TODO: The doc looks wrong- the core class has this as a @property, not a
-    #  callable.
-    _checklink: Callable
-    """Callable for checking symlinks."""
+    @property
+    def _checklink(self) -> bool:
+        """Callable for checking symlinks."""  # TODO: this comment looks stale
 
     # TODO: decorate with `@util.propertycache` like dirstate class?
     #  (can't because circular import)
-    # TODO: The doc looks wrong- the core class has this as a @property, not a
-    #  callable.
-    _checkexec: Callable
-    """Callable for checking exec bits."""
+    @property
+    def _checkexec(self) -> bool:
+        """Callable for checking exec bits."""  # TODO: this comment looks stale
 
     @contextlib.contextmanager
     def changing_parents(self, repo):
