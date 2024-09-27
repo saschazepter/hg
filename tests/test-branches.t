@@ -835,7 +835,7 @@ recovery from invalid cache revs file with trailing data
   $ echo >> .hg/cache/rbc-revs-v2
   $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n' --debug
   5
-  overwriting 2 bytes from 160 in cache/rbc-revs-v2 leaving (2 trailing bytes)
+  overwriting 0 bytes from 160 in cache/rbc-revs-v2 leaving (2 trailing bytes)
   $ f --size .hg/cache/rbc-revs*
   .hg/cache/rbc-revs-v2: size=162
 
