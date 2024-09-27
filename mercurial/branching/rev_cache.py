@@ -399,8 +399,9 @@ class revbranchcache:
                 threshold = current_size * REWRITE_RATIO
                 if (max(end, current_size) - start) < threshold:
                     # end affected, let overwrite the bad value
+                    overwritten = min(end, current_size) - start
                     dbg = b"overwriting %d bytes from %d in cache/%s"
-                    dbg %= (current_size - start, start, _rbcrevs)
+                    dbg %= (overwritten, start, _rbcrevs)
                     if end < current_size:
                         extra = b" leaving (%d trailing bytes)"
                         extra %= current_size - end
