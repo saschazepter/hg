@@ -937,6 +937,10 @@ class BranchCacheV3(_LocalBranchCache):
     def _load_header(cls, repo, lineiter):
         header_line = next(lineiter)
         pieces = header_line.rstrip(b'\n').split(b" ")
+        for p in pieces:
+            if b'=' not in p:
+                msg = b"invalid header_line: %r" % header_line
+                raise ValueError(msg)
         cache_keys = dict(p.split(b'=', 1) for p in pieces)
 
         args = {}
