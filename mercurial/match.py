@@ -12,6 +12,16 @@ import copy
 import itertools
 import os
 import re
+import typing
+
+from typing import (
+    Any,
+    Callable,
+    List,
+    Tuple,
+    Union,
+    overload,
+)
 
 from .i18n import _
 from .pycompat import open
@@ -1663,6 +1673,33 @@ def _prefix(kindpats):
 
 
 _commentre = None
+
+if typing.TYPE_CHECKING:
+    from typing_extensions import (
+        Literal,
+    )
+
+    @overload
+    def readpatternfile(
+        filepath: bytes, warn: Callable[[bytes], Any], sourceinfo: Literal[True]
+    ) -> List[Tuple[bytes, int, bytes]]:
+        ...
+
+    @overload
+    def readpatternfile(
+        filepath: bytes,
+        warn: Callable[[bytes], Any],
+        sourceinfo: Literal[False],
+    ) -> List[bytes]:
+        ...
+
+    @overload
+    def readpatternfile(
+        filepath: bytes,
+        warn: Callable[[bytes], Any],
+        sourceinfo: bool = False,
+    ) -> List[Union[Tuple[bytes, int, bytes], bytes]]:
+        ...
 
 
 def readpatternfile(filepath, warn, sourceinfo=False):
