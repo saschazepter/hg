@@ -312,11 +312,8 @@ class filteredchangelogmixin:
 
     def headrevs(self, revs=None, stop_rev=None):
         if revs is None:
-            filtered = self.filteredrevs
-            if stop_rev is not None and stop_rev < len(self.index):
-                filtered = set(self.filteredrevs)
-                filtered.update(range(stop_rev, len(self.index)))
-            return self.index.headrevs(filtered)
+            return self.index.headrevs(self.filteredrevs, stop_rev)
+        # it is ignored from here, so better double check we passed the right argument
         assert stop_rev is None
 
         revs = self._checknofilteredinrevs(revs)

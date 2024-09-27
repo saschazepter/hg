@@ -541,14 +541,15 @@ impl Index {
 
     /// Return the head revisions of this index
     pub fn head_revs(&self) -> Result<Vec<Revision>, GraphError> {
-        self.head_revs_filtered(&HashSet::new(), false)
+        self.head_revs_advanced(&HashSet::new(), None, false)
             .map(|h| h.unwrap())
     }
 
     /// Return the head revisions of this index
-    pub fn head_revs_filtered(
+    pub fn head_revs_advanced(
         &self,
         filtered_revs: &HashSet<Revision>,
+        stop_rev: Option<Revision>,
         py_shortcut: bool,
     ) -> Result<Option<Vec<Revision>>, GraphError> {
         {
@@ -560,6 +561,7 @@ impl Index {
             let self_filtered_revs = &guard.1;
             if !self_head_revs.is_empty()
                 && filtered_revs == self_filtered_revs
+                && stop_rev.is_none()
             {
                 if py_shortcut {
                     // Don't copy the revs since we've already cached them
@@ -571,32 +573,42 @@ impl Index {
             }
         }
 
-        let as_vec = if self.is_empty() {
-            vec![NULL_REVISION]
+        let (as_vec, cachable) = if self.is_empty() {
+            (vec![NULL_REVISION], true)
         } else {
-            let mut not_heads = bitvec![0; self.len()];
+            let length: usize = match stop_rev {
+                Some(r) => r.0 as usize,
+                None => self.len(),
+            };
+            let cachable = self.len() == length;
+            let mut not_heads = bitvec![0; length];
             dagops::retain_heads_fast(
                 self,
                 not_heads.as_mut_bitslice(),
                 filtered_revs,
             )?;
-            not_heads
-                .into_iter()
-                .enumerate()
-                .filter_map(|(idx, is_not_head)| {
-                    if is_not_head {
-                        None
-                    } else {
-                        Some(Revision(idx as BaseRevision))
-                    }
-                })
-                .collect()
+            (
+                not_heads
+                    .into_iter()
+                    .enumerate()
+                    .filter_map(|(idx, is_not_head)| {
+                        if is_not_head {
+                            None
+                        } else {
+                            Some(Revision(idx as BaseRevision))
+                        }
+                    })
+                    .collect(),
+                cachable,
+            )
         };
-        *self
-            .head_revs
-            .write()
-            .expect("RwLock on Index.head_revs should not be poisoned") =
-            (as_vec.to_owned(), filtered_revs.to_owned());
+        if cachable {
+            *self
+                .head_revs
+                .write()
+                .expect("RwLock on Index.head_revs should not be poisoned") =
+                (as_vec.to_owned(), filtered_revs.to_owned());
+        }
         Ok(Some(as_vec))
     }
 
@@ -604,7 +616,7 @@ impl Index {
     pub fn head_revs_shortcut(
         &self,
     ) -> Result<Option<Vec<Revision>>, GraphError> {
-        self.head_revs_filtered(&HashSet::new(), true)
+        self.head_revs_advanced(&HashSet::new(), None, true)
     }
 
     /// Return the heads removed and added by advancing from `begin` to `end`.

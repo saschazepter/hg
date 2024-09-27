@@ -696,8 +696,10 @@ class BaseIndexObject:
             p = p[revlog_constants.INDEX_HEADER.size :]
         return p
 
-    def headrevs(self, excluded_revs=None):
+    def headrevs(self, excluded_revs=None, stop_rev=None):
         count = len(self)
+        if stop_rev is not None:
+            count = min(count, stop_rev)
         if not count:
             return [nullrev]
         # we won't iter over filtered rev so nobody is a head at start
