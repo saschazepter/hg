@@ -2382,12 +2382,7 @@ class revlog:
 
     def headrevs(self, revs=None, stop_rev=None):
         if revs is None:
-            excluded = None
-            if stop_rev is not None and stop_rev < len(self.index):
-                # We should let the native code handle it, but that a
-                # simple enough first step.
-                excluded = range(stop_rev, len(self.index))
-            return self.index.headrevs(excluded)
+            return self.index.headrevs(None, stop_rev)
         assert stop_rev is None
         if rustdagop is not None and self.index.rust_ext_compat:
             return rustdagop.headrevs(self.index, revs)
