@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
 use std::{iter, str};
 
-use chrono::{DateTime, FixedOffset, NaiveDateTime};
+use chrono::{DateTime, FixedOffset, Utc};
 use itertools::{Either, Itertools};
 
 use crate::errors::HgError;
@@ -339,7 +339,7 @@ fn parse_timestamp(
             HgError::corrupted(format!("failed to parse timestamp: {e}"))
         })
         .and_then(|secs| {
-            NaiveDateTime::from_timestamp_opt(secs, 0).ok_or_else(|| {
+            DateTime::from_timestamp(secs, 0).ok_or_else(|| {
                 HgError::corrupted(format!(
                     "integer timestamp out of valid range: {secs}"
                 ))
@@ -364,14 +364,17 @@ fn parse_timestamp(
     let timezone = FixedOffset::west_opt(timezone_secs)
         .ok_or_else(|| HgError::corrupted("timezone offset out of bounds"))?;
 
-    Ok(DateTime::from_naive_utc_and_offset(timestamp_utc, timezone))
+    Ok(DateTime::from_naive_utc_and_offset(
+        timestamp_utc.naive_utc(),
+        timezone,
+    ))
 }
 
 /// Attempt to parse the given string as floating-point timestamp, and
 /// convert the result into a `chrono::NaiveDateTime`.
 fn parse_float_timestamp(
     timestamp_str: &str,
-) -> Result<NaiveDateTime, HgError> {
+) -> Result<DateTime<Utc>, HgError> {
     let timestamp = timestamp_str.parse::<f64>().map_err(|e| {
         HgError::corrupted(format!("failed to parse timestamp: {e}"))
     })?;
@@ -399,7 +402,7 @@ fn parse_float_timestamp(
     // precision with present-day timestamps.)
     let nsecs = (subsecs * 1_000_000_000.0) as u32;
 
-    NaiveDateTime::from_timestamp_opt(secs, nsecs).ok_or_else(|| {
+    DateTime::from_timestamp(secs, nsecs).ok_or_else(|| {
         HgError::corrupted(format!(
             "float timestamp out of valid range: {timestamp}"
         ))
@@ -647,19 +650,19 @@ message",
     fn test_parse_float_timestamp() {
         let test_cases = [
             // Zero should map to the UNIX epoch.
-            ("0.0", "1970-01-01 00:00:00"),
+            ("0.0", "1970-01-01 00:00:00 UTC"),
             // Negative zero should be the same as positive zero.
-            ("-0.0", "1970-01-01 00:00:00"),
+            ("-0.0", "1970-01-01 00:00:00 UTC"),
             // Values without fractional components should work like integers.
             // (Assuming the timestamp is within the limits of f64 precision.)
-            ("1115154970.0", "2005-05-03 21:16:10"),
+            ("1115154970.0", "2005-05-03 21:16:10 UTC"),
             // We expect some loss of precision in the fractional component
             // when parsing arbitrary floating-point values.
-            ("1115154970.123456789", "2005-05-03 21:16:10.123456716"),
+            ("1115154970.123456789", "2005-05-03 21:16:10.123456716 UTC"),
             // But representable f64 values should parse losslessly.
-            ("1115154970.123456716", "2005-05-03 21:16:10.123456716"),
+            ("1115154970.123456716", "2005-05-03 21:16:10.123456716 UTC"),
             // Negative fractional components are subtracted from the epoch.
-            ("-1.333", "1969-12-31 23:59:58.667"),
+            ("-1.333", "1969-12-31 23:59:58.667 UTC"),
         ];
 
         for (input, expected) in test_cases {
