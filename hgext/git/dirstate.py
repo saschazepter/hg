@@ -125,7 +125,7 @@ class gitdirstate(intdirstate.idirstate):
 
     def parents(self):
         # TODO how on earth do we find p2 if a merge is in flight?
-        return self.p1(), sha1nodeconstants.nullid
+        return [self.p1(), sha1nodeconstants.nullid]
 
     def __iter__(self):
         return (pycompat.fsencode(f.path) for f in self.git.index)
