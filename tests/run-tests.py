@@ -3717,15 +3717,18 @@ class TestRunner:
         vlog("# Performing temporary installation of HG")
         installerrs = os.path.join(self._hgtmp, b"install.err")
         compiler = ''
+        install_env = original_env.copy()
         if self.options.compiler:
             compiler = '--compiler ' + self.options.compiler
         setup_opts = b""
         if self.options.pure:
             setup_opts = b"--pure"
+            install_env.pop('HGWITHRUSTEXT', None)
         elif self.options.rust:
             setup_opts = b"--rust"
         elif self.options.no_rust:
             setup_opts = b"--no-rust"
+            install_env.pop('HGWITHRUSTEXT', None)
 
         # Run installer in hg root
         compiler = _sys2bytes(compiler)
@@ -3771,7 +3774,7 @@ class TestRunner:
         makedirs(self._bindir)
 
         vlog("# Running", cmd.decode("utf-8"))
-        if subprocess.call(_bytes2sys(cmd), shell=True, env=original_env) == 0:
+        if subprocess.call(_bytes2sys(cmd), shell=True, env=install_env) == 0:
             if not self.options.verbose:
                 try:
                     os.remove(installerrs)
