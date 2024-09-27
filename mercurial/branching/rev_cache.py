@@ -56,23 +56,28 @@ class rbcrevs:
         self._prefix = revs
         self._rest = bytearray()
 
+    @property
+    def len_prefix(self):
+        size = len(self._prefix)
+        return size - (size % _rbcrecsize)
+
     def __len__(self):
-        return len(self._prefix) + len(self._rest)
+        return self.len_prefix + len(self._rest)
 
     def unpack_record(self, rbcrevidx):
-        if rbcrevidx < len(self._prefix):
+        if rbcrevidx < self.len_prefix:
             return unpack_from(_rbcrecfmt, util.buffer(self._prefix), rbcrevidx)
         else:
             return unpack_from(
                 _rbcrecfmt,
                 util.buffer(self._rest),
-                rbcrevidx - len(self._prefix),
+                rbcrevidx - self.len_prefix,
             )
 
     def make_mutable(self):
-        if len(self._prefix) > 0:
+        if self.len_prefix > 0:
             entirety = bytearray()
-            entirety[:] = self._prefix
+            entirety[:] = self._prefix[: self.len_prefix]
             entirety.extend(self._rest)
             self._rest = entirety
             self._prefix = bytearray()
@@ -82,10 +87,10 @@ class rbcrevs:
         del self._rest[pos:]
 
     def pack_into(self, rbcrevidx, node, branchidx):
-        if rbcrevidx < len(self._prefix):
+        if rbcrevidx < self.len_prefix:
             self.make_mutable()
         buf = self._rest
-        start_offset = rbcrevidx - len(self._prefix)
+        start_offset = rbcrevidx - self.len_prefix
         end_offset = start_offset + _rbcrecsize
 
         if len(self._rest) < end_offset:
@@ -107,14 +112,14 @@ class rbcrevs:
         return self._rest.extend(extension)
 
     def slice(self, begin, end):
-        if begin < len(self._prefix):
+        if begin < self.len_prefix:
             acc = bytearray()
-            acc[:] = self._prefix[begin:end]
+            acc[:] = self._prefix[begin : min(end, self.len_prefix)]
             acc.extend(
-                self._rest[begin - len(self._prefix) : end - len(self._prefix)]
+                self._rest[begin - self.len_prefix : end - self.len_prefix]
             )
             return acc
-        return self._rest[begin - len(self._prefix) : end - len(self._prefix)]
+        return self._rest[begin - self.len_prefix : end - self.len_prefix]
 
 
 class revbranchcache:
@@ -387,6 +392,9 @@ class revbranchcache:
         end = revs * _rbcrecsize
         if self._force_overwrite:
             start = 0
+
+        # align start on entry boundary
+        start = _rbcrecsize * (start // _rbcrecsize)
 
         with repo.cachevfs.open(_rbcrevs, b'a+b') as f:
             pass  # this make sure the file exist…

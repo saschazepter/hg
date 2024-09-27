@@ -831,15 +831,30 @@ no errors when wlock cannot be acquired
   $ mv .hg/cache/rbc-revs-v2_ .hg/cache/rbc-revs-v2
 #endif
 
-recovery from invalid cache revs file with trailing data
-  $ echo >> .hg/cache/rbc-revs-v2
+dealing with valid cache revs file but for extra trailing data
+--------------------------------------------------------------
+
+When the trailing data are smaller than a record, they are practically
+invisible to the cache and ignored. No warning is issued about them.
+
+  $ echo '42' >> .hg/cache/rbc-revs-v2
   $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n' --debug
   5
-  cache/rbc-revs-v2 contains 2 unknown trailing bytes
   $ f --size .hg/cache/rbc-revs*
-  .hg/cache/rbc-revs-v2: size=162
+  .hg/cache/rbc-revs-v2: size=164
+
+When the trailing data are larger than a record, they are seens as extra
+(probably invalid) data. We warn about them when writing.
+
+  $ echo 'abracadabra!' >> .hg/cache/rbc-revs-v2
+  $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n' --debug
+  5
+  cache/rbc-revs-v2 contains 17 unknown trailing bytes
+  $ f --size .hg/cache/rbc-revs*
+  .hg/cache/rbc-revs-v2: size=177
 
 recovery from invalid cache file with partial last record
+---------------------------------------------------------
   $ mv .hg/cache/rbc-revs-v2 .
   $ f -qDB 119 rbc-revs-v2 > .hg/cache/rbc-revs-v2
   $ f --size .hg/cache/rbc-revs*
