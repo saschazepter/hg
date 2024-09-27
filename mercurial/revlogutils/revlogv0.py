@@ -111,8 +111,10 @@ class revlogoldindex(list):
         )
         return INDEX_ENTRY_V0.pack(*e2)
 
-    def headrevs(self, excluded_revs=None):
+    def headrevs(self, excluded_revs=None, stop_rev=None):
         count = len(self)
+        if stop_rev is not None:
+            count = min(count, stop_rev)
         if not count:
             return [node.nullrev]
         # we won't iter over filtered rev so nobody is a head at start
