@@ -397,11 +397,15 @@ class revbranchcache:
                 start = 0
             if current_size != start:
                 threshold = current_size * REWRITE_RATIO
-                if (max(end, current_size) - start) < threshold:
-                    # end affected, let overwrite the bad value
-                    overwritten = min(end, current_size) - start
+                overwritten = min(end, current_size) - start
+                if (max(end, current_size) - start) >= threshold:
+                    start = 0
+                    dbg = b"resetting content of cache/%s\n" % _rbcrevs
+                    repo.ui.debug(dbg)
+                elif overwritten > 0:
+                    # end affected, let us overwrite the bad value
                     dbg = b"overwriting %d bytes from %d in cache/%s"
-                    dbg %= (overwritten, start, _rbcrevs)
+                    dbg %= (current_size - start, start, _rbcrevs)
                     if end < current_size:
                         extra = b" leaving (%d trailing bytes)"
                         extra %= current_size - end
@@ -409,9 +413,12 @@ class revbranchcache:
                     dbg += b'\n'
                     repo.ui.debug(dbg)
                 else:
-                    start = 0
-                    dbg = b"resetting content of cache/%s\n" % _rbcrevs
+                    # extra untouched data at the end, lets warn about them
+                    assert start == end  # since don't write anything
+                    dbg = b"cache/%s contains %d unknown trailing bytes\n"
+                    dbg %= (_rbcrevs, current_size - start)
                     repo.ui.debug(dbg)
+
             if start > 0:
                 f.seek(start)
                 f.write(self._rbcrevs.slice(start, end))
