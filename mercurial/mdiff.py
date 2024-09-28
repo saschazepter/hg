@@ -20,9 +20,13 @@ from . import (
     pycompat,
     util,
 )
+from .interfaces import (
+    modules as intmod,
+)
+
 from .utils import dateutil
 
-bdiff = policy.importmod('bdiff')
+bdiff: intmod.BDiff = policy.importmod('bdiff')
 mpatch = policy.importmod('mpatch')
 
 blocks = bdiff.blocks
