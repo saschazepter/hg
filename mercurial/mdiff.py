@@ -212,7 +212,11 @@ def blocksinrange(blocks, rangeb):
 
 
 def chooseblocksfunc(opts=None):
-    if opts is None or not opts.xdiff or not hasattr(bdiff, 'xdiffblocks'):
+    if (
+        opts is None
+        or not opts.xdiff
+        or not getattr(bdiff, 'xdiffblocks', None)
+    ):
         return bdiff.blocks
     else:
         return bdiff.xdiffblocks
