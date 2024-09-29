@@ -8,14 +8,19 @@ from __future__ import annotations
 import typing
 
 from typing import (
+    Callable,
     List,
+    Optional,
     Protocol,
     Tuple,
 )
 
 if typing.TYPE_CHECKING:
     BDiffBlock = Tuple[int, int, int, int]
-    """An entry in the list returned by bdiff.blocks()."""
+    """An entry in the list returned by bdiff.{xdiff,}blocks()."""
+
+    BDiffBlocksFnc = Callable[[bytes, bytes], List[BDiffBlock]]
+    """The signature of `bdiff.blocks()` and `bdiff.xdiffblocks()`."""
 
 
 class BDiff(Protocol):
@@ -32,3 +37,6 @@ class BDiff(Protocol):
 
     def fixws(self, text: bytes, allws: bool) -> bytes:
         ...
+
+    xdiffblocks: Optional[BDiffBlocksFnc]
+    """This method is currently only available in the ``cext`` module."""
