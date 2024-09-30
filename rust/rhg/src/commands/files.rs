@@ -90,7 +90,15 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     if let Some(rev) = rev {
         let files = list_rev_tracked_files(repo, rev, matcher)
             .map_err(|e| (e, rev.as_ref()))?;
-        display_files(invocation.ui, repo, relative_paths, files.iter())
+        display_files(
+            invocation.ui,
+            repo,
+            relative_paths,
+            files.iter().map::<Result<_, CommandError>, _>(|f| {
+                let (f, _, _) = f?;
+                Ok(f)
+            }),
+        )
     } else {
         // The dirstate always reflects the sparse narrowspec.
         let dirstate = repo.dirstate_map()?;
