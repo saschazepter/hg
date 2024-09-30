@@ -9,6 +9,7 @@ use crate::dirstate_tree::dirstate_map::NodeRef;
 use crate::dirstate_tree::on_disk::DirstateV2ParseError;
 use crate::matchers::get_ignore_function;
 use crate::matchers::{Matcher, VisitChildrenSet};
+use crate::utils::files::filesystem_now;
 use crate::utils::files::get_bytes_from_os_string;
 use crate::utils::files::get_bytes_from_path;
 use crate::utils::files::get_path_from_bytes;
@@ -30,7 +31,6 @@ use std::os::unix::prelude::FileTypeExt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use std::time::SystemTime;
 
 /// Returns the status of the working directory compared to its parent
 /// changeset.
@@ -1033,23 +1033,4 @@ impl<'a> DirEntry<'a> {
             _ => None,
         }
     }
-}
-
-/// Return the `mtime` of a temporary file newly-created in the `.hg` directory
-/// of the give repository.
-///
-/// This is similar to `SystemTime::now()`, with the result truncated to the
-/// same time resolution as other files’ modification times. Using `.hg`
-/// instead of the system’s default temporary directory (such as `/tmp`) makes
-/// it more likely the temporary file is in the same disk partition as contents
-/// of the working directory, which can matter since different filesystems may
-/// store timestamps with different resolutions.
-///
-/// This may fail, typically if we lack write permissions. In that case we
-/// should continue the `status()` algoritm anyway and consider the current
-/// date/time to be unknown.
-fn filesystem_now(repo_root: &Path) -> Result<SystemTime, io::Error> {
-    tempfile::tempfile_in(repo_root.join(".hg"))?
-        .metadata()?
-        .modified()
 }
