@@ -88,7 +88,7 @@ py_class!(pub class DirstateMap |py| {
     /// Returns an empty DirstateMap. Only used for a new dirstate.
     @staticmethod
     def new_empty() -> PyResult<PyObject> {
-        let map = OwningDirstateMap::new_empty(vec![]);
+        let map = OwningDirstateMap::new_empty(vec![], None);
         let map = Self::create_instance(py, map)?;
         Ok(map.into_object())
     }

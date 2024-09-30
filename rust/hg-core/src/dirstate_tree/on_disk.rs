@@ -292,6 +292,8 @@ pub(super) fn read<'on_disk>(
 ) -> Result<DirstateMap<'on_disk>, DirstateV2ParseError> {
     if on_disk.is_empty() {
         let mut map = DirstateMap::empty(on_disk);
+        map.identity = identity;
+        map.old_uuid = Some(uuid);
         map.dirstate_version = DirstateVersion::V2;
         return Ok(map);
     }
