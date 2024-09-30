@@ -797,6 +797,12 @@ impl Repo {
             )?,
         })
     }
+
+    pub fn node(&self, rev: UncheckedRevision) -> Option<crate::Node> {
+        self.changelog()
+            .ok()
+            .and_then(|c| c.node_from_rev(rev).copied())
+    }
 }
 
 /// Lazily-initialized component of `Repo` with interior mutability
