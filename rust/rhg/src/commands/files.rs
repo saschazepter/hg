@@ -7,7 +7,7 @@ use clap::Arg;
 use hg::filepatterns::parse_pattern_args;
 use hg::matchers::IntersectionMatcher;
 use hg::narrow;
-use hg::operations::list_rev_tracked_files;
+use hg::operations::list_revset_tracked_files;
 use hg::repo::Repo;
 use hg::utils::files::get_bytes_from_os_str;
 use hg::utils::filter_map_results;
@@ -88,7 +88,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     };
 
     if let Some(rev) = rev {
-        let files = list_rev_tracked_files(repo, rev, matcher)
+        let files = list_revset_tracked_files(repo, rev, matcher)
             .map_err(|e| (e, rev.as_ref()))?;
         display_files(
             invocation.ui,
