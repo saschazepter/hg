@@ -15,13 +15,17 @@ self_cell!(
 );
 
 impl OwningDirstateMap {
-    pub fn new_empty<OnDisk>(on_disk: OnDisk) -> Self
+    pub fn new_empty<OnDisk>(on_disk: OnDisk, identity: Option<u64>) -> Self
     where
         OnDisk: Deref<Target = [u8]> + Send + 'static,
     {
         let on_disk = Box::new(on_disk);
 
-        OwningDirstateMap::new(on_disk, |bytes| DirstateMap::empty(bytes))
+        OwningDirstateMap::new(on_disk, |bytes| {
+            let mut empty = DirstateMap::empty(bytes);
+            empty.identity = identity;
+            empty
+        })
     }
 
     pub fn new_v1<OnDisk>(
