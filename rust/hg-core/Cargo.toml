@@ -16,6 +16,7 @@ derive_more = "0.99.17"
 hashbrown = { version = "0.13.1", features = ["rayon"] }
 home = "0.5.4"
 im-rc = "15.1.0"
+indicatif = "0.17.8"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 libc = "0.2.137"
