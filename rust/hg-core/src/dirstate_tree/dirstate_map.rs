@@ -495,6 +495,8 @@ impl<'on_disk> DirstateMap<'on_disk> {
         identity: Option<u64>,
     ) -> Result<(Self, Option<DirstateParents>), DirstateError> {
         let mut map = Self::empty(on_disk);
+        map.identity = identity;
+
         if map.on_disk.is_empty() {
             return Ok((map, None));
         }
@@ -534,7 +536,6 @@ impl<'on_disk> DirstateMap<'on_disk> {
             },
         )?;
         let parents = Some(*parents);
-        map.identity = identity;
 
         Ok((map, parents))
     }
@@ -1555,7 +1556,7 @@ mod tests {
     /// Test the very simple case a single tracked file
     #[test]
     fn test_tracked_descendants_simple() -> Result<(), DirstateError> {
-        let mut map = OwningDirstateMap::new_empty(vec![]);
+        let mut map = OwningDirstateMap::new_empty(vec![], None);
         assert_eq!(map.len(), 0);
 
         map.set_tracked(p(b"some/nested/path"))?;
@@ -1575,7 +1576,7 @@ mod tests {
     /// Test the simple case of all tracked, but multiple files
     #[test]
     fn test_tracked_descendants_multiple() -> Result<(), DirstateError> {
-        let mut map = OwningDirstateMap::new_empty(vec![]);
+        let mut map = OwningDirstateMap::new_empty(vec![], None);
 
         map.set_tracked(p(b"some/nested/path"))?;
         map.set_tracked(p(b"some/nested/file"))?;
@@ -1637,7 +1638,7 @@ mod tests {
     /// Check with a mix of tracked and non-tracked items
     #[test]
     fn test_tracked_descendants_different() -> Result<(), DirstateError> {
-        let mut map = OwningDirstateMap::new_empty(vec![]);
+        let mut map = OwningDirstateMap::new_empty(vec![], None);
 
         // A file that was just added
         map.set_tracked(p(b"some/nested/path"))?;
@@ -1734,7 +1735,7 @@ mod tests {
     /// Check that copies counter is correctly updated
     #[test]
     fn test_copy_source() -> Result<(), DirstateError> {
-        let mut map = OwningDirstateMap::new_empty(vec![]);
+        let mut map = OwningDirstateMap::new_empty(vec![], None);
 
         // Clean file
         map.reset_state(p(b"files/clean"), true, true, false, false, None)?;
@@ -1791,7 +1792,7 @@ mod tests {
     #[test]
     fn test_on_disk() -> Result<(), DirstateError> {
         // First let's create some data to put "on disk"
-        let mut map = OwningDirstateMap::new_empty(vec![]);
+        let mut map = OwningDirstateMap::new_empty(vec![], None);
 
         // A file that was just added
         map.set_tracked(p(b"some/nested/added"))?;
