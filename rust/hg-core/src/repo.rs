@@ -342,7 +342,6 @@ impl Repo {
         let identity = self.dirstate_identity()?;
         let dirstate = self.dirstate_file_contents()?;
         if dirstate.is_empty() {
-            self.dirstate_parents.set(DirstateParents::NULL);
             Ok((identity, None, 0))
         } else {
             let docket_res =
@@ -427,7 +426,7 @@ impl Repo {
         let dirstate_file_contents = self.dirstate_file_contents()?;
         if dirstate_file_contents.is_empty() {
             self.dirstate_parents.set(DirstateParents::NULL);
-            Ok(OwningDirstateMap::new_empty(Vec::new()))
+            Ok(OwningDirstateMap::new_empty(Vec::new(), identity))
         } else {
             let (map, parents) =
                 OwningDirstateMap::new_v1(dirstate_file_contents, identity)?;
@@ -443,8 +442,7 @@ impl Repo {
         let dirstate_file_contents = self.dirstate_file_contents()?;
         let identity = self.dirstate_identity()?;
         if dirstate_file_contents.is_empty() {
-            self.dirstate_parents.set(DirstateParents::NULL);
-            return Ok(OwningDirstateMap::new_empty(Vec::new()));
+            return Ok(OwningDirstateMap::new_empty(Vec::new(), identity));
         }
         let docket = crate::dirstate_tree::on_disk::read_docket(
             &dirstate_file_contents,
