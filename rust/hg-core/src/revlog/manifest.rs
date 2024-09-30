@@ -1,3 +1,5 @@
+use std::num::NonZeroU8;
+
 use crate::errors::HgError;
 use crate::revlog::{Node, NodePrefix};
 use crate::revlog::{Revlog, RevlogError};
@@ -178,7 +180,7 @@ pub struct ManifestEntry<'manifest> {
     pub hex_node_id: &'manifest [u8],
 
     /// `Some` values are b'x', b'l', or 't'
-    pub flags: Option<u8>,
+    pub flags: Option<NonZeroU8>,
 }
 
 impl<'a> ManifestEntry<'a> {
@@ -198,7 +200,7 @@ impl<'a> ManifestEntry<'a> {
         Self {
             path: HgPath::new(path),
             hex_node_id,
-            flags,
+            flags: flags.map(|f| f.try_into().expect("invalid flag")),
         }
     }
 
