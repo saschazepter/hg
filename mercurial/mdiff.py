@@ -9,7 +9,19 @@ from __future__ import annotations
 
 import re
 import struct
+import typing
 import zlib
+
+from typing import (
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    cast,
+)
 
 from .i18n import _
 from . import (
@@ -35,6 +47,21 @@ patches = mpatch.patches
 patchedsize = mpatch.patchedsize
 textdiff = bdiff.bdiff
 splitnewlines = bdiff.splitnewlines
+
+if typing.TYPE_CHECKING:
+    HunkLines = List[bytes]
+    """Lines of a hunk- a header, followed by line additions and deletions."""
+
+    HunkRange = Tuple[int, int, int, int]
+    """HunkRange represents the range information of a hunk.
+
+    The tuple (s1, l1, s2, l2) forms the header '@@ -s1,l1 +s2,l2 @@'."""
+
+    Range = Tuple[int, int]
+    """A (lowerbound, upperbound) range tuple."""
+
+    TypedBlock = Tuple[intmod.BDiffBlock, bytes]
+    """A bdiff block with its type."""
 
 
 # TODO: this looks like it could be an attrs, which might help pytype
@@ -107,7 +134,7 @@ class diffopts:
 defaultopts = diffopts()
 
 
-def wsclean(opts, text, blank=True):
+def wsclean(opts: diffopts, text: bytes, blank: bool = True) -> bytes:
     if opts.ignorews:
         text = bdiff.fixws(text, True)
     elif opts.ignorewsamount:
@@ -119,7 +146,13 @@ def wsclean(opts, text, blank=True):
     return text
 
 
-def splitblock(base1, lines1, base2, lines2, opts):
+def splitblock(
+    base1: int,
+    lines1: Iterable[bytes],
+    base2: int,
+    lines2: Iterable[bytes],
+    opts: diffopts,
+) -> Iterable[TypedBlock]:
     # The input lines matches except for interwoven blank lines. We
     # transform it into a sequence of matching blocks and blank blocks.
     lines1 = [(wsclean(opts, l) and 1 or 0) for l in lines1]
@@ -145,7 +178,7 @@ def splitblock(base1, lines1, base2, lines2, opts):
         s2 = i2
 
 
-def hunkinrange(hunk, linerange):
+def hunkinrange(hunk: Tuple[int, int], linerange: Range) -> bool:
     """Return True if `hunk` defined as (start, length) is in `linerange`
     defined as (lowerbound, upperbound).
 
@@ -171,7 +204,9 @@ def hunkinrange(hunk, linerange):
     return lowerbound < start + length and start < upperbound
 
 
-def blocksinrange(blocks, rangeb):
+def blocksinrange(
+    blocks: Iterable[TypedBlock], rangeb: Range
+) -> Tuple[List[TypedBlock], Range]:
     """filter `blocks` like (a1, a2, b1, b2) from items outside line range
     `rangeb` from ``(b1, b2)`` point of view.
 
@@ -211,7 +246,7 @@ def blocksinrange(blocks, rangeb):
     return filteredblocks, (lba, uba)
 
 
-def chooseblocksfunc(opts=None):
+def chooseblocksfunc(opts: Optional[diffopts] = None) -> intmod.BDiffBlocksFnc:
     if (
         opts is None
         or not opts.xdiff
@@ -222,7 +257,13 @@ def chooseblocksfunc(opts=None):
         return bdiff.xdiffblocks
 
 
-def allblocks(text1, text2, opts=None, lines1=None, lines2=None):
+def allblocks(
+    text1: bytes,
+    text2: bytes,
+    opts: Optional[diffopts] = None,
+    lines1: Optional[Sequence[bytes]] = None,
+    lines2: Optional[Sequence[bytes]] = None,
+) -> Iterable[TypedBlock]:
     """Return (block, type) tuples, where block is an mdiff.blocks
     line entry. type is '=' for blocks matching exactly one another
     (bdiff blocks), '!' for non-matching blocks and '~' for blocks
@@ -264,7 +305,16 @@ def allblocks(text1, text2, opts=None, lines1=None, lines2=None):
         yield s1, b'='
 
 
-def unidiff(a, ad, b, bd, fn1, fn2, binary, opts=defaultopts):
+def unidiff(
+    a: bytes,
+    ad: bytes,
+    b: bytes,
+    bd: bytes,
+    fn1: bytes,
+    fn2: bytes,
+    binary: bool,
+    opts: diffopts = defaultopts,
+) -> Tuple[List[bytes], Iterable[Tuple[Optional[HunkRange], HunkLines]]]:
     """Return a unified diff as a (headers, hunks) tuple.
 
     If the diff is not null, `headers` is a list with unified diff header
@@ -275,7 +325,7 @@ def unidiff(a, ad, b, bd, fn1, fn2, binary, opts=defaultopts):
     Set binary=True if either a or b should be taken as a binary file.
     """
 
-    def datetag(date, fn=None):
+    def datetag(date: bytes, fn: Optional[bytes] = None):
         if not opts.git and not opts.nodates:
             return b'\t%s' % date
         if fn and b' ' in fn:
@@ -344,10 +394,16 @@ def unidiff(a, ad, b, bd, fn1, fn2, binary, opts=defaultopts):
             b"+++ %s%s%s" % (bprefix, fn2, datetag(bd, fn2)),
         ]
 
-    return headerlines, hunks
+    # The possible bool is consumed from the iterator above in the `next()`
+    # call.
+    return headerlines, cast(
+        "Iterable[Tuple[Optional[HunkRange], HunkLines]]", hunks
+    )
 
 
-def _unidiff(t1, t2, opts=defaultopts):
+def _unidiff(
+    t1: bytes, t2: bytes, opts: diffopts = defaultopts
+) -> Iterator[Union[bool, Tuple[HunkRange, HunkLines]]]:
     """Yield hunks of a headerless unified diff from t1 and t2 texts.
 
     Each hunk consists of a (hunkrange, hunklines) tuple where `hunkrange` is a
@@ -375,7 +431,9 @@ def _unidiff(t1, t2, opts=defaultopts):
 
     lastfunc = [0, b'']
 
-    def yieldhunk(hunk):
+    def yieldhunk(
+        hunk: Tuple[int, int, int, int, List[bytes]]
+    ) -> Iterable[Tuple[HunkRange, HunkLines]]:
         (astart, a2, bstart, b2, delta) = hunk
         aend = contextend(a2, len(l1))
         alen = aend - astart
@@ -495,7 +553,7 @@ def _unidiff(t1, t2, opts=defaultopts):
         yield False
 
 
-def b85diff(to, tn):
+def b85diff(to: Optional[bytes], tn: Optional[bytes]) -> bytes:
     '''print base85-encoded binary diff'''
 
     def fmtline(line):
@@ -532,7 +590,7 @@ def b85diff(to, tn):
     return b''.join(ret)
 
 
-def patchtext(bin):
+def patchtext(bin: bytes) -> bytes:
     pos = 0
     t = []
     while pos < len(bin):
@@ -551,13 +609,13 @@ def patch(a, bin):
 
 
 # similar to difflib.SequenceMatcher.get_matching_blocks
-def get_matching_blocks(a, b):
+def get_matching_blocks(a: bytes, b: bytes) -> List[Tuple[int, int, int]]:
     return [(d[0], d[2], d[1] - d[0]) for d in bdiff.blocks(a, b)]
 
 
-def trivialdiffheader(length):
+def trivialdiffheader(length: int) -> bytes:
     return struct.pack(b">lll", 0, 0, length) if length else b''
 
 
-def replacediffheader(oldlen, newlen):
+def replacediffheader(oldlen: int, newlen: int) -> bytes:
     return struct.pack(b">lll", 0, oldlen, newlen)
