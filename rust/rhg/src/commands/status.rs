@@ -776,13 +776,13 @@ fn unsure_is_modified(
 
     let entry_flags = if check_exec {
         entry.flags
-    } else if entry.flags == Some(b'x') {
+    } else if entry.flags.map(|f| f.into()) == Some(b'x') {
         None
     } else {
         entry.flags
     };
 
-    if entry_flags != fs_flags {
+    if entry_flags.map(|f| f.into()) != fs_flags {
         return Ok(UnsureOutcome::Modified);
     }
     let filelog = hg::filelog::Filelog::open_vfs(
