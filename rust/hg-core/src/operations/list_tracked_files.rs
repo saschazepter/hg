@@ -20,7 +20,7 @@ use crate::Node;
 pub fn list_rev_tracked_files(
     repo: &Repo,
     revset: &str,
-    narrow_matcher: Box<dyn Matcher>,
+    narrow_matcher: Box<dyn Matcher + Sync>,
 ) -> Result<FilesForRev, RevlogError> {
     let rev = crate::revset::resolve_single(revset, repo)?;
     Ok(FilesForRev {
@@ -31,7 +31,7 @@ pub fn list_rev_tracked_files(
 
 pub struct FilesForRev {
     manifest: Manifest,
-    narrow_matcher: Box<dyn Matcher>,
+    narrow_matcher: Box<dyn Matcher + Sync>,
 }
 
 /// Like [`crate::revlog::manifest::ManifestEntry`], but with the `Node`
