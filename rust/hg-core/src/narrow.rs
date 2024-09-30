@@ -24,7 +24,7 @@ const DIRSTATE_FILENAME: &str = "narrowspec.dirstate";
 /// as part of wire protocol commands. That means that changes to this
 /// data structure influence the wire protocol and should not be taken
 /// lightly - especially removals.
-const VALID_PREFIXES: [&str; 2] = ["path:", "rootfilesin:"];
+pub const VALID_PREFIXES: [&str; 2] = ["path:", "rootfilesin:"];
 
 /// Return the matcher for the current narrow spec, and all configuration
 /// warnings to display.
