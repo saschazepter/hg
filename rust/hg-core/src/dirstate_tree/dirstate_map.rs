@@ -962,6 +962,26 @@ impl<'on_disk> DirstateMap<'on_disk> {
     }
 }
 
+/// Sets the parameters for resetting a dirstate entry
+pub struct DirstateEntryReset<'a> {
+    /// Which entry are we resetting
+    pub filename: &'a HgPath,
+    /// Whether the entry is tracked in the working copy
+    pub wc_tracked: bool,
+    /// Whether the entry is tracked in p1
+    pub p1_tracked: bool,
+    /// Whether the entry has merge information
+    pub p2_info: bool,
+    /// Whether the entry's mtime should be trusted
+    pub has_meaningful_mtime: bool,
+    /// Information from the parent file data (from the manifest)
+    pub parent_file_data_opt: Option<ParentFileData>,
+    /// Set this to `true` if you are *certain* that there is no old entry for
+    /// this filename. Yield better performance in cases where we do a lot
+    /// of additions to the dirstate.
+    pub from_empty: bool,
+}
+
 type DebugDirstateTuple<'a> = (&'a HgPath, (u8, i32, i32, i32));
 
 impl OwningDirstateMap {
@@ -1048,28 +1068,31 @@ impl OwningDirstateMap {
 
     pub fn reset_state(
         &mut self,
-        filename: &HgPath,
-        wc_tracked: bool,
-        p1_tracked: bool,
-        p2_info: bool,
-        has_meaningful_mtime: bool,
-        parent_file_data_opt: Option<ParentFileData>,
+        reset: DirstateEntryReset,
     ) -> Result<(), DirstateError> {
-        if !(p1_tracked || p2_info || wc_tracked) {
-            self.drop_entry_and_copy_source(filename)?;
+        if !(reset.p1_tracked || reset.p2_info || reset.wc_tracked) {
+            self.drop_entry_and_copy_source(reset.filename)?;
             return Ok(());
         }
-        self.copy_map_remove(filename)?;
-        let old_entry_opt = self.get(filename)?;
+        if !reset.from_empty {
+            self.copy_map_remove(reset.filename)?;
+        }
+
+        let old_entry_opt = if reset.from_empty {
+            None
+        } else {
+            self.get(reset.filename)?
+        };
+
         self.with_dmap_mut(|map| {
             map.reset_state(
-                filename,
+                reset.filename,
                 old_entry_opt,
-                wc_tracked,
-                p1_tracked,
-                p2_info,
-                has_meaningful_mtime,
-                parent_file_data_opt,
+                reset.wc_tracked,
+                reset.p1_tracked,
+                reset.p2_info,
+                reset.has_meaningful_mtime,
+                reset.parent_file_data_opt,
             )
         })
     }
@@ -1643,39 +1666,79 @@ mod tests {
         // A file that was just added
         map.set_tracked(p(b"some/nested/path"))?;
         // This has no information, the dirstate should ignore it
-        map.reset_state(p(b"some/file"), false, false, false, false, None)?;
+        let reset = DirstateEntryReset {
+            filename: p(b"some/file"),
+            wc_tracked: false,
+            p1_tracked: false,
+            p2_info: false,
+            has_meaningful_mtime: false,
+            parent_file_data_opt: None,
+            from_empty: false,
+        };
+        map.reset_state(reset)?;
         assert_does_not_exist(&map, b"some/file");
 
         // A file that was removed
-        map.reset_state(
-            p(b"some/nested/file"),
-            false,
-            true,
-            false,
-            false,
-            None,
-        )?;
+        let reset = DirstateEntryReset {
+            filename: p(b"some/nested/file"),
+            wc_tracked: false,
+            p1_tracked: true,
+            p2_info: false,
+            has_meaningful_mtime: false,
+            parent_file_data_opt: None,
+            from_empty: false,
+        };
+        map.reset_state(reset)?;
         assert!(!map.get(p(b"some/nested/file"))?.unwrap().tracked());
         // Only present in p2
-        map.reset_state(p(b"some/file3"), false, false, true, false, None)?;
+        let reset = DirstateEntryReset {
+            filename: p(b"some/file3"),
+            wc_tracked: false,
+            p1_tracked: false,
+            p2_info: true,
+            has_meaningful_mtime: false,
+            parent_file_data_opt: None,
+            from_empty: false,
+        };
+        map.reset_state(reset)?;
         assert!(!map.get(p(b"some/file3"))?.unwrap().tracked());
         // A file that was merged
-        map.reset_state(p(b"root_file"), true, true, true, false, None)?;
+        let reset = DirstateEntryReset {
+            filename: p(b"root_file"),
+            wc_tracked: true,
+            p1_tracked: true,
+            p2_info: true,
+            has_meaningful_mtime: false,
+            parent_file_data_opt: None,
+            from_empty: false,
+        };
+        map.reset_state(reset)?;
         assert!(map.get(p(b"root_file"))?.unwrap().tracked());
         // A file that is added, with info from p2
         // XXX is that actually possible?
-        map.reset_state(p(b"some/file2"), true, false, true, false, None)?;
+        let reset = DirstateEntryReset {
+            filename: p(b"some/file2"),
+            wc_tracked: true,
+            p1_tracked: false,
+            p2_info: true,
+            has_meaningful_mtime: false,
+            parent_file_data_opt: None,
+            from_empty: false,
+        };
+        map.reset_state(reset)?;
         assert!(map.get(p(b"some/file2"))?.unwrap().tracked());
         // A clean file
         // One layer without any files to test deletion cascade
-        map.reset_state(
-            p(b"some/other/nested/path"),
-            true,
-            true,
-            false,
-            false,
-            None,
-        )?;
+        let reset = DirstateEntryReset {
+            filename: p(b"some/other/nested/path"),
+            wc_tracked: true,
+            p1_tracked: true,
+            p2_info: false,
+            has_meaningful_mtime: false,
+            parent_file_data_opt: None,
+            from_empty: false,
+        };
+        map.reset_state(reset)?;
         assert!(map.get(p(b"some/other/nested/path"))?.unwrap().tracked());
 
         assert_eq!(map.len(), 6);
@@ -1738,13 +1801,49 @@ mod tests {
         let mut map = OwningDirstateMap::new_empty(vec![], None);
 
         // Clean file
-        map.reset_state(p(b"files/clean"), true, true, false, false, None)?;
+        let reset = DirstateEntryReset {
+            filename: p(b"files/clean"),
+            wc_tracked: true,
+            p1_tracked: true,
+            p2_info: false,
+            has_meaningful_mtime: false,
+            parent_file_data_opt: None,
+            from_empty: false,
+        };
+        map.reset_state(reset)?;
         // Merged file
-        map.reset_state(p(b"files/from_p2"), true, true, true, false, None)?;
+        let reset = DirstateEntryReset {
+            filename: p(b"files/from_p2"),
+            wc_tracked: true,
+            p1_tracked: true,
+            p2_info: true,
+            has_meaningful_mtime: false,
+            parent_file_data_opt: None,
+            from_empty: false,
+        };
+        map.reset_state(reset)?;
         // Removed file
-        map.reset_state(p(b"removed"), false, true, false, false, None)?;
+        let reset = DirstateEntryReset {
+            filename: p(b"removed"),
+            wc_tracked: false,
+            p1_tracked: true,
+            p2_info: false,
+            has_meaningful_mtime: false,
+            parent_file_data_opt: None,
+            from_empty: false,
+        };
+        map.reset_state(reset)?;
         // Added file
-        map.reset_state(p(b"files/added"), true, false, false, false, None)?;
+        let reset = DirstateEntryReset {
+            filename: p(b"files/added"),
+            wc_tracked: true,
+            p1_tracked: false,
+            p2_info: false,
+            has_meaningful_mtime: false,
+            parent_file_data_opt: None,
+            from_empty: false,
+        };
+        map.reset_state(reset)?;
         // Add copy
         map.copy_map_insert(p(b"files/clean"), p(b"clean_copy_source"))?;
         assert_eq!(map.copy_map_len(), 1);
@@ -1799,49 +1898,66 @@ mod tests {
         map.copy_map_insert(p(b"some/nested/added"), p(b"added_copy_source"))?;
 
         // A file that was removed
-        map.reset_state(
-            p(b"some/nested/removed"),
-            false,
-            true,
-            false,
-            false,
-            None,
-        )?;
+        let reset = DirstateEntryReset {
+            filename: p(b"some/nested/removed"),
+            wc_tracked: false,
+            p1_tracked: true,
+            p2_info: false,
+            has_meaningful_mtime: false,
+            parent_file_data_opt: None,
+            from_empty: false,
+        };
+        map.reset_state(reset)?;
         // Only present in p2
-        map.reset_state(
-            p(b"other/p2_info_only"),
-            false,
-            false,
-            true,
-            false,
-            None,
-        )?;
+        let reset = DirstateEntryReset {
+            filename: p(b"other/p2_info_only"),
+            wc_tracked: false,
+            p1_tracked: false,
+            p2_info: true,
+            has_meaningful_mtime: false,
+            parent_file_data_opt: None,
+            from_empty: false,
+        };
+        map.reset_state(reset)?;
         map.copy_map_insert(
             p(b"other/p2_info_only"),
             p(b"other/p2_info_copy_source"),
         )?;
         // A file that was merged
-        map.reset_state(p(b"merged"), true, true, true, false, None)?;
+        let reset = DirstateEntryReset {
+            filename: p(b"merged"),
+            wc_tracked: true,
+            p1_tracked: true,
+            p2_info: true,
+            has_meaningful_mtime: false,
+            parent_file_data_opt: None,
+            from_empty: false,
+        };
+        map.reset_state(reset)?;
         // A file that is added, with info from p2
         // XXX is that actually possible?
-        map.reset_state(
-            p(b"other/added_with_p2"),
-            true,
-            false,
-            true,
-            false,
-            None,
-        )?;
+        let reset = DirstateEntryReset {
+            filename: p(b"other/added_with_p2"),
+            wc_tracked: true,
+            p1_tracked: false,
+            p2_info: true,
+            has_meaningful_mtime: false,
+            parent_file_data_opt: None,
+            from_empty: false,
+        };
+        map.reset_state(reset)?;
         // One layer without any files to test deletion cascade
         // A clean file
-        map.reset_state(
-            p(b"some/other/nested/clean"),
-            true,
-            true,
-            false,
-            false,
-            None,
-        )?;
+        let reset = DirstateEntryReset {
+            filename: p(b"some/other/nested/clean"),
+            wc_tracked: true,
+            p1_tracked: true,
+            p2_info: false,
+            has_meaningful_mtime: false,
+            parent_file_data_opt: None,
+            from_empty: false,
+        };
+        map.reset_state(reset)?;
 
         let (packed, metadata, _should_append, _old_data_size) =
             map.pack_v2(DirstateMapWriteMode::ForceNewDataFile)?;

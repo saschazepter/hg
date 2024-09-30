@@ -14,7 +14,10 @@ use cpython::{
     exc, PyBool, PyBytes, PyClone, PyDict, PyErr, PyList, PyNone, PyObject,
     PyResult, Python, PythonObject, ToPyObject, UnsafePyLeaked,
 };
-use hg::dirstate::{ParentFileData, TruncatedTimestamp};
+use hg::{
+    dirstate::{ParentFileData, TruncatedTimestamp},
+    dirstate_tree::dirstate_map::DirstateEntryReset,
+};
 
 use crate::{
     dirstate::copymap::{CopyMap, CopyMapItemsIterator, CopyMapKeysIterator},
@@ -196,14 +199,16 @@ py_class!(pub class DirstateMap |py| {
         };
         let bytes = f.extract::<PyBytes>(py)?;
         let path = HgPath::new(bytes.data(py));
-        let res = self.inner(py).borrow_mut().reset_state(
-            path,
+        let reset = DirstateEntryReset {
+            filename: path,
             wc_tracked,
             p1_tracked,
             p2_info,
             has_meaningful_mtime,
-            parent_file_data,
-        );
+            parent_file_data_opt: parent_file_data,
+            from_empty: false
+        };
+        let res = self.inner(py).borrow_mut().reset_state(reset);
         res.map_err(|_| PyErr::new::<exc::OSError, _>(py, "Dirstate error".to_string()))?;
         Ok(PyNone)
     }
