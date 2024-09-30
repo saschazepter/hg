@@ -14,10 +14,10 @@ use crate::revlog::manifest::Manifest;
 use crate::revlog::RevlogError;
 use crate::utils::filter_map_results;
 use crate::utils::hg_path::HgPath;
-use crate::Node;
+use crate::{Node, UncheckedRevision};
 
-/// List files under Mercurial control at a given revision.
-pub fn list_rev_tracked_files(
+/// List files under Mercurial control at a given revset.
+pub fn list_revset_tracked_files(
     repo: &Repo,
     revset: &str,
     narrow_matcher: Box<dyn Matcher + Sync>,
@@ -25,6 +25,18 @@ pub fn list_rev_tracked_files(
     let rev = crate::revset::resolve_single(revset, repo)?;
     Ok(FilesForRev {
         manifest: repo.manifest_for_rev(rev.into())?,
+        narrow_matcher,
+    })
+}
+
+/// List files under Mercurial control at a given revision.
+pub fn list_rev_tracked_files(
+    repo: &Repo,
+    rev: UncheckedRevision,
+    narrow_matcher: Box<dyn Matcher + Sync>,
+) -> Result<FilesForRev, RevlogError> {
+    Ok(FilesForRev {
+        manifest: repo.manifest_for_rev(rev)?,
         narrow_matcher,
     })
 }
