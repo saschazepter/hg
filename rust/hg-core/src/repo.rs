@@ -803,6 +803,24 @@ impl Repo {
             .ok()
             .and_then(|c| c.node_from_rev(rev).copied())
     }
+
+    /// Change the current working directory parents cached in the repo.
+    ///
+    /// TODO
+    /// This does *not* do a lot of what it expected from a full `set_parents`:
+    ///     - parents should probably be stored in the dirstate
+    ///     - dirstate should have a "changing parents" context
+    ///     - dirstate should return copies if out of a merge context to be
+    ///       discarded within the repo context
+    /// See `setparents` in `context.py`.
+    pub fn manually_set_parents(
+        &self,
+        new_parents: DirstateParents,
+    ) -> Result<(), HgError> {
+        let mut parents = self.dirstate_parents.value.borrow_mut();
+        *parents = Some(new_parents);
+        Ok(())
+    }
 }
 
 /// Lazily-initialized component of `Repo` with interior mutability
