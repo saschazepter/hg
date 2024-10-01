@@ -608,6 +608,12 @@ class VolatileManager:
         unmodified."""
         return self._copies.get(src, src)
 
+    @contextlib.contextmanager
+    def open(self, src):
+        actual_path = self._copies.get(src, src)
+        with open(actual_path, 'rb') as fp:
+            yield fp
+
     def __exit__(self, *args, **kwars):
         """discard all backups"""
         for tmp in self._copies.values():
