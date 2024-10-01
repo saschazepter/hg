@@ -601,13 +601,6 @@ class VolatileManager:
         util.copyfiles(src, dst, hardlink=True)
         return dst
 
-    def __getitem__(self, src):
-        """return the path to a valid version of `src`
-
-        If the file has no backup, the path of the file is returned
-        unmodified."""
-        return self._copies.get(src, src)
-
     @contextlib.contextmanager
     def open(self, src):
         actual_path = self._copies.get(src, src)
