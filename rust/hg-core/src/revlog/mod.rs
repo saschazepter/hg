@@ -139,6 +139,16 @@ pub enum GraphError {
     ParentOutOfRange(Revision),
 }
 
+impl std::fmt::Display for GraphError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GraphError::ParentOutOfRange(revision) => {
+                write!(f, "parent out of range ({})", revision)
+            }
+        }
+    }
+}
+
 impl<T: Graph> Graph for &T {
     fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
         (*self).parents(rev)
@@ -193,7 +203,8 @@ const NULL_REVLOG_ENTRY_FLAGS: u16 = 0;
 
 #[derive(Debug, derive_more::From, derive_more::Display)]
 pub enum RevlogError {
-    InvalidRevision,
+    #[display(fmt = "invalid revision identifier: {}", "_0")]
+    InvalidRevision(String),
     /// Working directory is not supported
     WDirUnsupported,
     /// Found more than one entry whose ID match the requested prefix
@@ -809,7 +820,7 @@ impl Revlog {
         if let Some(nodemap) = &self.nodemap {
             nodemap
                 .find_bin(&self.index, node)?
-                .ok_or(RevlogError::InvalidRevision)
+                .ok_or(RevlogError::InvalidRevision(format!("{:x}", node)))
         } else {
             self.rev_from_node_no_persistent_nodemap(node)
         }
@@ -851,7 +862,8 @@ impl Revlog {
                 found_by_prefix = Some(rev)
             }
         }
-        found_by_prefix.ok_or(RevlogError::InvalidRevision)
+        found_by_prefix
+            .ok_or(RevlogError::InvalidRevision(format!("{:x}", node)))
     }
 
     /// Returns whether the given revision exists in this revlog.
@@ -960,7 +972,7 @@ impl Revlog {
         let index_entry = self
             .index
             .get_entry(rev)
-            .ok_or(RevlogError::InvalidRevision)?;
+            .ok_or(RevlogError::InvalidRevision(rev.to_string()))?;
         let offset = index_entry.offset();
         let start = if self.index.is_inline() {
             offset + ((rev.0 as usize + 1) * INDEX_ENTRY_SIZE)
