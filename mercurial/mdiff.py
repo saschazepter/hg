@@ -140,7 +140,7 @@ def splitblock(base1, lines1, base2, lines2, opts):
             while i1 < e1 and lines1[i1] == 1 and lines2[i2] == 1:
                 i1 += 1
                 i2 += 1
-        yield [base1 + s1, base1 + i1, base2 + s2, base2 + i2], btype
+        yield (base1 + s1, base1 + i1, base2 + s2, base2 + i2), btype
         s1 = i1
         s2 = i2
 
@@ -244,8 +244,8 @@ def allblocks(text1, text2, opts=None, lines1=None, lines2=None):
         if i > 0:
             s = diff[i - 1]
         else:
-            s = [0, 0, 0, 0]
-        s = [s[1], s1[0], s[3], s1[2]]
+            s = (0, 0, 0, 0)
+        s = (s[1], s1[0], s[3], s1[2])
 
         # bdiff sometimes gives huge matches past eof, this check eats them,
         # and deals with the special first match case described above
@@ -475,12 +475,11 @@ def _unidiff(t1, t2, opts=defaultopts):
                     yield x
         if prev:
             # we've joined the previous hunk, record the new ending points.
-            hunk[1] = a2
-            hunk[3] = b2
+            hunk = (hunk[0], a2, hunk[2], b2, hunk[4])
             delta = hunk[4]
         else:
             # create a new hunk
-            hunk = [astart, a2, bstart, b2, delta]
+            hunk = (astart, a2, bstart, b2, delta)
 
         delta[len(delta) :] = [b' ' + x for x in l1[astart:a1]]
         delta[len(delta) :] = [b'-' + x for x in old]

@@ -51,9 +51,9 @@ class blocksinrangetests(unittest.TestCase):
     def setUp(self):
         self.blocks = list(mdiff.allblocks(text1, text2))
         assert self.blocks == [
-            ([0, 3, 0, 2], b'!'),
+            ((0, 3, 0, 2), b'!'),
             ((3, 7, 2, 6), b'='),
-            ([7, 12, 6, 12], b'!'),
+            ((7, 12, 6, 12), b'!'),
             ((12, 12, 12, 12), b'='),
         ], self.blocks
 
