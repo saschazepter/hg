@@ -485,15 +485,24 @@ def mmapread(fp, size=None, pre_populate=True):
     elif size is None:
         size = 0
     fd = getattr(fp, 'fileno', lambda: fp)()
-    flags = mmap.MAP_PRIVATE
-    bg_populate = hasattr(osutil, "background_mmap_populate")
-    if pre_populate and not bg_populate:
-        flags |= getattr(mmap, 'MAP_POPULATE', 0)
+
+    if pycompat.iswindows:
+        _mmap = lambda fd, size: mmap.mmap(fd, size, access=mmap.ACCESS_READ)
+    else:
+        flags = mmap.MAP_PRIVATE
+        bg_populate = hasattr(osutil, "background_mmap_populate")
+
+        if pre_populate and not bg_populate:
+            flags |= getattr(mmap, 'MAP_POPULATE', 0)
+
+        def _mmap(fd, size) -> mmap.mmap:
+            m = mmap.mmap(fd, size, flags=flags, prot=mmap.PROT_READ)
+            if pre_populate and bg_populate:
+                osutil.background_mmap_populate(m)
+            return m
+
     try:
-        m = mmap.mmap(fd, size, flags=flags, prot=mmap.PROT_READ)
-        if pre_populate and bg_populate:
-            osutil.background_mmap_populate(m)
-        return m
+        return _mmap(fd, size)
     except ValueError:
         # Empty files cannot be mmapped, but mmapread should still work.  Check
         # if the file is empty, and if so, return an empty buffer.
