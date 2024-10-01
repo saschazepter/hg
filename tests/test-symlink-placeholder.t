@@ -3,12 +3,13 @@
 Create extension that can disable symlink support:
 
   $ cat > nolink.py <<EOF
-  > from mercurial import extensions, util
+  > from mercurial import extensions, merge, util
   > def setflags(orig, f, l, x):
   >     pass
   > def checklink(orig, path):
   >     return False
   > def extsetup(ui):
+  >     merge.MAYBE_USE_RUST_UPDATE = False
   >     extensions.wrapfunction(util, 'setflags', setflags)
   >     extensions.wrapfunction(util, 'checklink', checklink)
   > EOF

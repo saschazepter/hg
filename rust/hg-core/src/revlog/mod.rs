@@ -1180,7 +1180,7 @@ impl<'revlog> RevlogEntry<'revlog> {
         } else {
             if (self.flags & REVISION_FLAG_ELLIPSIS) != 0 {
                 return Err(HgError::unsupported(
-                    "ellipsis revisions are not supported by rhg",
+                    "support for ellipsis nodes is missing",
                 )
                 .into());
             }

@@ -8,7 +8,9 @@ use crate::dirstate_tree::dirstate_map::{
     self, DirstateMap, DirstateMapWriteMode, NodeRef,
 };
 use crate::dirstate_tree::path_with_basename::WithBasename;
-use crate::errors::HgError;
+use crate::errors::{HgError, IoResultExt};
+use crate::repo::Repo;
+use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::utils::hg_path::HgPath;
 use crate::DirstateEntry;
 use crate::DirstateError;
@@ -20,6 +22,7 @@ use format_bytes::format_bytes;
 use rand::Rng;
 use std::borrow::Cow;
 use std::fmt::Write;
+use uuid::Uuid;
 
 use super::dirstate_map::DirstateIdentity;
 
@@ -915,4 +918,23 @@ impl PackedTruncatedTimestamp {
             nanoseconds: 0.into(),
         }
     }
+}
+
+/// Write a new tracked key to disk.
+/// See `format.use-dirstate-tracked-hint` config help for more details.
+pub fn write_tracked_key(repo: &Repo) -> Result<(), HgError> {
+    // TODO move this to the dirstate itself once it grows a `dirty` flag and
+    // can reason about which context it needs to write this in.
+    // For now, only this fast-path needs to think about the tracked hint.
+    // Use [`crate::dirstate_tree::dirstate_map::DirstateMap::
+    // use_tracked_hint`] instead of looking at the requirements once
+    // refactored.
+    if !repo.requirements().contains(DIRSTATE_TRACKED_HINT_V1) {
+        return Ok(());
+    }
+    // TODO use `hg_vfs` once the `InnerRevlog` is in.
+    let path = repo
+        .working_directory_path()
+        .join(".hg/dirstate-tracked-hint");
+    std::fs::write(&path, Uuid::new_v4().as_bytes()).when_writing_file(&path)
 }
