@@ -485,8 +485,8 @@ class StoreFile:
         size = self.file_size(None)
 
         def get_stream():
-            actual_path = volatiles[vfs.join(self.unencoded_path)]
-            with open(actual_path, 'rb') as fp:
+            path = vfs.join(self.unencoded_path)
+            with volatiles.open(path) as fp:
                 yield None  # ready to stream
                 if size <= 65536:
                     yield fp.read(size)
