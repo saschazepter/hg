@@ -20,7 +20,7 @@ use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
 use crate::vfs::{is_dir, is_file, VfsImpl};
 use crate::{
-    requirements, NodePrefix, RevlogDataConfig, RevlogDeltaConfig,
+    exit_codes, requirements, NodePrefix, RevlogDataConfig, RevlogDeltaConfig,
     RevlogFeatureConfig, RevlogType, RevlogVersionOptions, UncheckedRevision,
 };
 use crate::{DirstateError, RevlogOpenOptions};
@@ -64,6 +64,32 @@ impl From<ConfigError> for RepoError {
         match error {
             ConfigError::Parse(error) => error.into(),
             ConfigError::Other(error) => error.into(),
+        }
+    }
+}
+
+impl From<RepoError> for HgError {
+    fn from(value: RepoError) -> Self {
+        match value {
+            RepoError::NotFound { at } => HgError::abort(
+                format!(
+                    "abort: no repository found in '{}' (.hg not found)!",
+                    at.display()
+                ),
+                exit_codes::ABORT,
+                None,
+            ),
+            RepoError::ConfigParseError(config_parse_error) => {
+                HgError::Abort {
+                    message: String::from_utf8_lossy(
+                        &config_parse_error.message,
+                    )
+                    .to_string(),
+                    detailed_exit_code: exit_codes::CONFIG_PARSE_ERROR_ABORT,
+                    hint: None,
+                }
+            }
+            RepoError::Other(hg_error) => hg_error,
         }
     }
 }
