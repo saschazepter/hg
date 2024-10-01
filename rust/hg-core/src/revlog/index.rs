@@ -829,7 +829,7 @@ impl Index {
             }
             let [mut p1, mut p2] = self
                 .parents(rev)
-                .map_err(|_| RevlogError::InvalidRevision)?;
+                .map_err(|e| RevlogError::InvalidRevision(e.to_string()))?;
             while let Some(p1_entry) = self.get_entry(p1) {
                 if p1_entry.compressed_len() != 0 || p1.0 == 0 {
                     break;
@@ -839,9 +839,9 @@ impl Index {
                 if parent_base.0 == p1.0 {
                     break;
                 }
-                p1 = self
-                    .check_revision(parent_base)
-                    .ok_or(RevlogError::InvalidRevision)?;
+                p1 = self.check_revision(parent_base).ok_or(
+                    RevlogError::InvalidRevision(parent_base.to_string()),
+                )?;
             }
             while let Some(p2_entry) = self.get_entry(p2) {
                 if p2_entry.compressed_len() != 0 || p2.0 == 0 {
@@ -852,16 +852,16 @@ impl Index {
                 if parent_base.0 == p2.0 {
                     break;
                 }
-                p2 = self
-                    .check_revision(parent_base)
-                    .ok_or(RevlogError::InvalidRevision)?;
+                p2 = self.check_revision(parent_base).ok_or(
+                    RevlogError::InvalidRevision(parent_base.to_string()),
+                )?;
             }
             if base == p1.0 || base == p2.0 {
                 return Ok(false);
             }
             rev = self
                 .check_revision(base.into())
-                .ok_or(RevlogError::InvalidRevision)?;
+                .ok_or(RevlogError::InvalidRevision(base.to_string()))?;
         }
         Ok(rev == NULL_REVISION)
     }

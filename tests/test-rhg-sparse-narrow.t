@@ -70,7 +70,7 @@ We support most things when narrow is enabled, too, with a couple of caveats.
 TODO: bad error message
 
   $ $NO_FALLBACK rhg cat -r "$tip" hide
-  abort: invalid revision identifier: 6d714a4a2998cbfd0620db44da58b749f6565d63
+  abort: invalid revision identifier: 1406e74118627694268417491f018a4a883152f0
   [255]
   $ "$real_hg" cat -r "$tip" hide
   [1]
