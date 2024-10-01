@@ -1070,6 +1070,7 @@ class BranchCacheV3(_LocalBranchCache):
         for branch, heads in self._entries.items():
             if heads == topo_heads:
                 self._pure_topo_branch = branch
+                self._state = STATE_DIRTY
                 break
 
 
