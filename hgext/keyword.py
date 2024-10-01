@@ -102,6 +102,7 @@ from mercurial import (
     localrepo,
     logcmdutil,
     match,
+    merge,
     patch,
     pathutil,
     pycompat,
@@ -818,6 +819,7 @@ def uisetup(ui):
     extensions.wrapfunction(cmdutil, 'dorecord', kw_dorecord)
     for c in nokwwebcommands.split():
         extensions.wrapfunction(webcommands, c, kwweb_skip)
+    merge.MAYBE_USE_RUST_UPDATE = False
 
 
 def reposetup(ui, repo):
