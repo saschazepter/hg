@@ -1235,7 +1235,7 @@ We should see a warning about no fsmonitor on supported platforms
 #if linuxormacos no-fsmonitor
   $ hg clone a nofsmonitor
   updating to bookmark @ on branch stable
-  (warning: large working directory being used without fsmonitor enabled; enable fsmonitor to improve performance; see "hg help -e fsmonitor")
+  (warning: large working directory being used without fsmonitor enabled; enable fsmonitor to improve performance; see "hg help -e fsmonitor") (no-rust !)
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
 #else
   $ hg clone a nofsmonitor
@@ -1284,7 +1284,7 @@ Warning not printed if working directory isn't empty
 
 #if linuxormacos no-fsmonitor
   $ hg up cf0fe1914066
-  (warning: large working directory being used without fsmonitor enabled; enable fsmonitor to improve performance; see "hg help -e fsmonitor")
+  (warning: large working directory being used without fsmonitor enabled; enable fsmonitor to improve performance; see "hg help -e fsmonitor") (no-rust !)
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 #else
   $ hg up cf0fe1914066

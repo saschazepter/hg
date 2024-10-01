@@ -96,11 +96,12 @@ update with worker processes
 #if no-windows
 
   $ cat <<EOF > forceworker.py
-  > from mercurial import extensions, worker
+  > from mercurial import extensions, merge, worker
   > def nocost(orig, ui, costperop, nops, threadsafe=True):
   >     return worker._numworkers(ui) > 1
   > def uisetup(ui):
   >     extensions.wrapfunction(worker, 'worthwhile', nocost)
+  >     merge.MAYBE_USE_RUST_UPDATE = False
   > EOF
 
   $ hg init worker

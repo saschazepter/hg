@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import collections
+import os
 import struct
 import typing
 from typing import Dict, Optional, Tuple
@@ -34,11 +35,14 @@ from . import (
     pathutil,
     policy,
     pycompat,
+    requirements,
     scmutil,
     subrepoutil,
     util,
     worker,
 )
+
+rust_update_mod = policy.importrust("update")
 
 _pack = struct.pack
 _unpack = struct.unpack
@@ -147,6 +151,8 @@ def _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce):
     dircache = dict()
     dirstate = repo.dirstate
     wvfs = repo.wvfs
+    # wouldn't it be easier to loop over unknown files (and dirs)?
+
     if not force:
 
         def collectconflicts(conflicts, config):
@@ -1835,6 +1841,12 @@ UPDATECHECK_NONE = b'none'
 UPDATECHECK_LINEAR = b'linear'
 UPDATECHECK_NO_CONFLICT = b'noconflict'
 
+# Let extensions turn off any Rust code in the update code if that interferes
+# will their patching.
+# This being `True` does not mean that you have Rust extensions installed or
+# that the Rust path will be taken for any given invocation.
+MAYBE_USE_RUST_UPDATE = True
+
 
 def _update(
     repo,
@@ -2008,6 +2020,60 @@ def _update(
         if not branchmerge and not wc.dirty(missing=True):
             followcopies = False
 
+        update_from_null = False
+        update_from_null_fallback = False
+        if (
+            MAYBE_USE_RUST_UPDATE
+            and rust_update_mod is not None
+            and p1.rev() == nullrev
+            and not branchmerge
+            # TODO it's probably not too hard to pass down the transaction and
+            # respect the write patterns from Rust. But since it doesn't affect
+            # a simple update from null, then it doesn't matter yet.
+            and repo.currenttransaction() is None
+            and matcher is None
+            and not wc.mergestate().active()
+            and b'.hgsubstate' not in p2
+        ):
+            working_dir_iter = os.scandir(repo.root)
+            maybe_hg_folder = next(working_dir_iter)
+            assert maybe_hg_folder is not None
+            if maybe_hg_folder.name == b".hg":
+                try:
+                    next(working_dir_iter)
+                except StopIteration:
+                    update_from_null = True
+
+        if update_from_null:
+            # Check the narrowspec and sparsespec here to display warnings
+            # more easily.
+            # TODO figure out of a way of bubbling up warnings to Python
+            # while not polluting the Rust code (probably a channel)
+            repo.narrowmatch()
+            sparse.matcher(repo, [nullrev, p2.rev()])
+            repo.hook(b'preupdate', throw=True, parent1=xp1, parent2=xp2)
+            # note that we're in the middle of an update
+            repo.vfs.write(b'updatestate', p2.hex())
+            try:
+                updated_count = rust_update_mod.update_from_null(
+                    repo.root, p2.rev()
+                )
+            except rust_update_mod.FallbackError:
+                update_from_null_fallback = True
+            else:
+                # We've changed the dirstate from Rust, we need to tell Python
+                repo.dirstate.invalidate()
+                # This includes setting the parents, since they are not read
+                # again on invalidation
+                with repo.dirstate.changing_parents(repo):
+                    repo.dirstate.setparents(fp2)
+                repo.dirstate.setbranch(p2.branch(), repo.currenttransaction())
+                sparse.prunetemporaryincludes(repo)
+                repo.hook(b'update', parent1=xp1, parent2=xp2, error=0)
+                # update completed, clear state
+                util.unlink(repo.vfs.join(b'updatestate'))
+                return updateresult(updated_count, 0, 0, 0)
+
         ### calculate phase
         mresult = calculateupdates(
             repo,
@@ -2131,11 +2197,13 @@ def _update(
         # the dirstate.
         always = matcher is None or matcher.always()
         updatedirstate = updatedirstate and always and not wc.isinmemory()
-        if updatedirstate:
+        # If we're in the fallback case, we've already done this
+        if updatedirstate and not update_from_null_fallback:
             repo.hook(b'preupdate', throw=True, parent1=xp1, parent2=xp2)
             # note that we're in the middle of an update
             repo.vfs.write(b'updatestate', p2.hex())
 
+        # TODO don't run if Rust is available
         _advertisefsmonitor(
             repo, mresult.len((mergestatemod.ACTION_GET,)), p1.node()
         )
@@ -2172,13 +2240,13 @@ def _update(
                 mergestatemod.recordupdates(
                     repo, mresult.actionsdict, branchmerge, getfiledata
                 )
-                # update completed, clear state
-                util.unlink(repo.vfs.join(b'updatestate'))
-
                 if not branchmerge:
                     repo.dirstate.setbranch(
                         p2.branch(), repo.currenttransaction()
                     )
+
+                # update completed, clear state
+                util.unlink(repo.vfs.join(b'updatestate'))
 
                 # If we're updating to a location, clean up any stale temporary includes
                 # (ex: this happens during hg rebase --abort).

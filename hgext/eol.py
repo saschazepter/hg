@@ -101,6 +101,7 @@ from mercurial import (
     error as errormod,
     extensions,
     match,
+    merge,
     pycompat,
     registrar,
     scmutil,
@@ -376,6 +377,7 @@ def extsetup(ui):
 
 def reposetup(ui, repo):
     uisetup(repo.ui)
+    merge.MAYBE_USE_RUST_UPDATE = False
 
     if not repo.local():
         return
