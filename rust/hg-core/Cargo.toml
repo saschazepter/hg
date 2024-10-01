@@ -44,6 +44,7 @@ bitvec = "1.0.1"
 chrono = "0.4.34"
 dyn-clone = "1.0.16"
 filetime = "0.2.23"
+uuid = { version = "1.10", features = ["v4"] }
 
 # We don't use the `miniz-oxide` backend to not change rhg benchmarks and until
 # we have a clearer view of which backend is the fastest.

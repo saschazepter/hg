@@ -152,19 +152,19 @@ Test that we can apply the bundle as a stream clone bundle
   bundle2-input-bundle: 2 parts total
   checking for updated bookmarks
   updating to branch default
-  resolving manifests
-   branchmerge: False, force: False, partial: False
-   ancestor: 000000000000, local: 000000000000+, remote: 9bc730a19041
-   A: remote created -> g
-  getting A
-   B: remote created -> g
-  getting B
-   C: remote created -> g
-  getting C
-   D: remote created -> g
-  getting D
-   E: remote created -> g
-  getting E
+  resolving manifests (no-rust !)
+   branchmerge: False, force: False, partial: False (no-rust !)
+   ancestor: 000000000000, local: 000000000000+, remote: 9bc730a19041 (no-rust !)
+   A: remote created -> g (no-rust !)
+  getting A (no-rust !)
+   B: remote created -> g (no-rust !)
+  getting B (no-rust !)
+   C: remote created -> g (no-rust !)
+  getting C (no-rust !)
+   D: remote created -> g (no-rust !)
+  getting D (no-rust !)
+   E: remote created -> g (no-rust !)
+  getting E (no-rust !)
   5 files updated, 0 files merged, 0 files removed, 0 files unresolved
   updating the branch cache
   (sent 4 HTTP requests and * bytes; received * bytes in responses) (glob)
@@ -215,19 +215,19 @@ Test that we can apply the bundle as a stream clone bundle
   bundle2-input-bundle: 2 parts total
   checking for updated bookmarks
   updating to branch default
-  resolving manifests
-   branchmerge: False, force: False, partial: False
-   ancestor: 000000000000, local: 000000000000+, remote: 9bc730a19041
-   A: remote created -> g
-  getting A
-   B: remote created -> g
-  getting B
-   C: remote created -> g
-  getting C
-   D: remote created -> g
-  getting D
-   E: remote created -> g
-  getting E
+  resolving manifests (no-rust !)
+   branchmerge: False, force: False, partial: False (no-rust !)
+   ancestor: 000000000000, local: 000000000000+, remote: 9bc730a19041 (no-rust !)
+   A: remote created -> g (no-rust !)
+  getting A (no-rust !)
+   B: remote created -> g (no-rust !)
+  getting B (no-rust !)
+   C: remote created -> g (no-rust !)
+  getting C (no-rust !)
+   D: remote created -> g (no-rust !)
+  getting D (no-rust !)
+   E: remote created -> g (no-rust !)
+  getting E (no-rust !)
   5 files updated, 0 files merged, 0 files removed, 0 files unresolved
   updating the branch cache
   (sent 4 HTTP requests and * bytes; received * bytes in responses) (glob)
@@ -280,19 +280,19 @@ Test that we can apply the bundle as a stream clone bundle
   bundle2-input-bundle: 2 parts total
   checking for updated bookmarks
   updating to branch default
-  resolving manifests
-   branchmerge: False, force: False, partial: False
-   ancestor: 000000000000, local: 000000000000+, remote: 9bc730a19041
-   A: remote created -> g
-  getting A
-   B: remote created -> g
-  getting B
-   C: remote created -> g
-  getting C
-   D: remote created -> g
-  getting D
-   E: remote created -> g
-  getting E
+  resolving manifests (no-rust !)
+   branchmerge: False, force: False, partial: False (no-rust !)
+   ancestor: 000000000000, local: 000000000000+, remote: 9bc730a19041 (no-rust !)
+   A: remote created -> g (no-rust !)
+  getting A (no-rust !)
+   B: remote created -> g (no-rust !)
+  getting B (no-rust !)
+   C: remote created -> g (no-rust !)
+  getting C (no-rust !)
+   D: remote created -> g (no-rust !)
+  getting D (no-rust !)
+   E: remote created -> g (no-rust !)
+  getting E (no-rust !)
   5 files updated, 0 files merged, 0 files removed, 0 files unresolved
   updating the branch cache
   (sent 4 HTTP requests and * bytes; received * bytes in responses) (glob)
@@ -342,19 +342,19 @@ Test that we can apply the bundle as a stream clone bundle
   bundle2-input-bundle: 2 parts total
   checking for updated bookmarks
   updating to branch default
-  resolving manifests
-   branchmerge: False, force: False, partial: False
-   ancestor: 000000000000, local: 000000000000+, remote: 9bc730a19041
-   A: remote created -> g
-  getting A
-   B: remote created -> g
-  getting B
-   C: remote created -> g
-  getting C
-   D: remote created -> g
-  getting D
-   E: remote created -> g
-  getting E
+  resolving manifests (no-rust !)
+   branchmerge: False, force: False, partial: False (no-rust !)
+   ancestor: 000000000000, local: 000000000000+, remote: 9bc730a19041 (no-rust !)
+   A: remote created -> g (no-rust !)
+  getting A (no-rust !)
+   B: remote created -> g (no-rust !)
+  getting B (no-rust !)
+   C: remote created -> g (no-rust !)
+  getting C (no-rust !)
+   D: remote created -> g (no-rust !)
+  getting D (no-rust !)
+   E: remote created -> g (no-rust !)
+  getting E (no-rust !)
   5 files updated, 0 files merged, 0 files removed, 0 files unresolved
   updating the branch cache
   (sent 4 HTTP requests and * bytes; received * bytes in responses) (glob)
