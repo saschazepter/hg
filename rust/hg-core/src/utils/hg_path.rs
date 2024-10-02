@@ -5,6 +5,7 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
+use crate::errors::HgError;
 use crate::utils::SliceExt;
 use std::borrow::Borrow;
 use std::borrow::Cow;
@@ -48,6 +49,12 @@ pub enum HgPathError {
     },
 }
 
+impl From<HgPathError> for HgError {
+    fn from(value: HgPathError) -> Self {
+        HgError::Path(value)
+    }
+}
+
 impl fmt::Display for HgPathError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -76,41 +83,34 @@ impl fmt::Display for HgPathError {
                 bytes
             ),
             HgPathError::EndsWithSlash(path) => {
-                write!(f, "Audit failed for '{}': ends with a slash.", path)
+                write!(f, "path '{}': ends with a slash", path)
             }
-            HgPathError::ContainsIllegalComponent(path) => write!(
-                f,
-                "Audit failed for '{}': contains an illegal component.",
-                path
-            ),
-            HgPathError::InsideDotHg(path) => write!(
-                f,
-                "Audit failed for '{}': is inside the '.hg' folder.",
-                path
-            ),
+            HgPathError::ContainsIllegalComponent(path) => {
+                write!(f, "path contains illegal component: {}", path)
+            }
+            HgPathError::InsideDotHg(path) => {
+                write!(f, "path '{}' is inside the '.hg' folder", path)
+            }
             HgPathError::IsInsideNestedRepo {
                 path,
                 nested_repo: nested,
             } => {
-                write!(f,
-                "Audit failed for '{}': is inside a nested repository '{}'.",
-                path, nested
-            )
+                write!(f, "path '{}' is inside nested repo '{}'", path, nested)
             }
             HgPathError::TraversesSymbolicLink { path, symlink } => write!(
                 f,
-                "Audit failed for '{}': traverses symbolic link '{}'.",
+                "path '{}' traverses symbolic link '{}'",
                 path, symlink
             ),
             HgPathError::NotFsCompliant(path) => write!(
                 f,
-                "Audit failed for '{}': cannot be turned into a \
-                 filesystem path.",
+                "path '{}' cannot be turned into a \
+                 filesystem path",
                 path
             ),
             HgPathError::NotUnderRoot { path, root } => write!(
                 f,
-                "Audit failed for '{}': not under root {}.",
+                "path '{}' not under root {}",
                 path.display(),
                 root.display()
             ),

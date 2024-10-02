@@ -1,5 +1,8 @@
 use cpython::exc::ValueError;
-use cpython::{PyBytes, PyDict, PyErr, PyObject, PyResult, PyTuple, Python};
+use cpython::{
+    ObjectProtocol, PyBytes, PyDict, PyErr, PyObject, PyResult, PyTuple,
+    Python, ToPyObject,
+};
 use hg::config::Config;
 use hg::errors::HgError;
 use hg::repo::{Repo, RepoError};
@@ -35,6 +38,17 @@ pub fn hgerror_to_pyerr<T>(
         }
         HgError::RaceDetected(_) => {
             unreachable!("must not surface to the user")
+        }
+        HgError::Path(path_error) => {
+            let msg = PyBytes::new(py, path_error.to_string().as_bytes());
+            let cls = py
+                .import("mercurial.error")
+                .and_then(|m| m.get(py, "InputError"))
+                .unwrap();
+            PyErr::from_instance(
+                py,
+                cls.call(py, (msg,), None).ok().into_py_object(py),
+            )
         }
         e => PyErr::new::<cpython::exc::RuntimeError, _>(py, e.to_string()),
     })
