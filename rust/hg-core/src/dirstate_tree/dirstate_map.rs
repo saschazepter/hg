@@ -88,6 +88,9 @@ pub struct DirstateMap<'on_disk> {
 
     /// Controlled by config option `devel.dirstate.v2.data_update_mode`
     pub(super) write_mode: DirstateMapWriteMode,
+
+    /// Controlled by config option `format.use-dirstate-tracked-hint`
+    pub(super) use_tracked_hint: bool,
 }
 
 /// Using a plain `HgPathBuf` of the full path from the repository root as a
@@ -471,6 +474,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
             identity: None,
             dirstate_version: DirstateVersion::V1,
             write_mode: DirstateMapWriteMode::Auto,
+            use_tracked_hint: false,
         }
     }
 
@@ -959,6 +963,10 @@ impl<'on_disk> DirstateMap<'on_disk> {
 
     pub(crate) fn set_write_mode(&mut self, write_mode: DirstateMapWriteMode) {
         self.write_mode = write_mode;
+    }
+
+    pub(crate) fn set_tracked_hint(&mut self, tracked_hint: bool) {
+        self.use_tracked_hint = tracked_hint;
     }
 }
 
