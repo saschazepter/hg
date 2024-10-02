@@ -114,7 +114,7 @@ attack back/test where back symlinks to ..
 #else
 ('back' will be a file and cause some other system specific error)
   $ hg update -Cr2
-  abort: $TESTTMP/target/back/test: $ENOTDIR$
+  abort: $TESTTMP/repo/target/back/test: $ENOTDIR$
   [255]
 #endif
 
