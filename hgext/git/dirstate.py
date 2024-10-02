@@ -465,3 +465,6 @@ class gitdirstate(intdirstate.idirstate):
         self, m1, m2, p1: bytes, narrow_matcher: Optional[Any] = None
     ) -> Iterator[bytes]:
         raise NotImplementedError
+
+    def running_status(self, repo):
+        raise NotImplementedError
