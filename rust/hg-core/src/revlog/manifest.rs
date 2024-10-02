@@ -87,6 +87,11 @@ pub struct Manifest {
 }
 
 impl Manifest {
+    /// Return a new empty manifest
+    pub fn empty() -> Self {
+        Self { bytes: vec![] }
+    }
+
     pub fn iter(
         &self,
     ) -> impl Iterator<Item = Result<ManifestEntry, HgError>> {
