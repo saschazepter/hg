@@ -18,7 +18,7 @@ from . import gitutil
 
 pygit2 = gitutil.get_pygit2()
 
-_CURRENT_SCHEMA_VERSION = 1
+_CURRENT_SCHEMA_VERSION = 2
 _SCHEMA = (
     """
 CREATE TABLE refs (
@@ -34,6 +34,8 @@ CREATE TABLE refs (
 CREATE TABLE possible_heads (
   node TEXT NOT NULL
 );
+
+CREATE UNIQUE INDEX possible_heads_idx ON possible_heads(node);
 
 -- The topological heads of the changelog, which hg depends on.
 CREATE TABLE heads (
@@ -331,14 +333,21 @@ def _index_repo(
                 )
     db.execute('DELETE FROM heads')
     db.execute('DELETE FROM possible_heads')
-    for hid in possible_heads:
-        h = hid.hex
-        db.execute('INSERT INTO possible_heads (node) VALUES(?)', (h,))
-        haschild = db.execute(
-            'SELECT COUNT(*) FROM changelog WHERE p1 = ? OR p2 = ?', (h, h)
-        ).fetchone()[0]
-        if not haschild:
-            db.execute('INSERT INTO heads (node) VALUES(?)', (h,))
+    db.executemany(
+        'INSERT INTO possible_heads (node) VALUES(?)',
+        [(hid.hex,) for hid in possible_heads],
+    )
+    db.execute(
+        '''
+    INSERT INTO heads (node)
+        SELECT node FROM possible_heads WHERE
+            node NOT IN (
+                SELECT DISTINCT possible_heads.node FROM changelog, possible_heads WHERE
+                    changelog.p1 = possible_heads.node OR
+                    changelog.p2 = possible_heads.node
+            )
+    '''
+    )
 
     db.commit()
     if prog is not None:
