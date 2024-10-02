@@ -23,8 +23,13 @@ type ParseResult<'a> = (
 pub fn parse_dirstate_parents(
     contents: &[u8],
 ) -> Result<&DirstateParents, HgError> {
-    let (parents, _rest) = DirstateParents::from_bytes(contents)
-        .map_err(|_| HgError::corrupted("Too little data for dirstate."))?;
+    let contents_len = contents.len();
+    let (parents, _rest) =
+        DirstateParents::from_bytes(contents).map_err(|_| {
+            HgError::corrupted(format!(
+                "Too little data for dirstate: {contents_len} bytes.",
+            ))
+        })?;
     Ok(parents)
 }
 
