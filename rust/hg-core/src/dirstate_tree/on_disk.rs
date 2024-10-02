@@ -317,6 +317,7 @@ pub(super) fn read<'on_disk>(
         identity,
         dirstate_version: DirstateVersion::V2,
         write_mode: DirstateMapWriteMode::Auto,
+        use_tracked_hint: false,
     };
     Ok(dirstate_map)
 }

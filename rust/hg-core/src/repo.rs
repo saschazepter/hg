@@ -9,8 +9,9 @@ use crate::errors::{HgError, IoResultExt};
 use crate::lock::{try_with_lock_no_wait, LockError};
 use crate::manifest::{Manifest, Manifestlog};
 use crate::requirements::{
-    CHANGELOGV2_REQUIREMENT, GENERALDELTA_REQUIREMENT, NODEMAP_REQUIREMENT,
-    REVLOGV1_REQUIREMENT, REVLOGV2_REQUIREMENT,
+    CHANGELOGV2_REQUIREMENT, DIRSTATE_TRACKED_HINT_V1,
+    GENERALDELTA_REQUIREMENT, NODEMAP_REQUIREMENT, REVLOGV1_REQUIREMENT,
+    REVLOGV2_REQUIREMENT,
 };
 use crate::revlog::filelog::Filelog;
 use crate::revlog::RevlogError;
@@ -547,7 +548,13 @@ impl Repo {
             _ => DirstateMapWriteMode::Auto,
         };
 
-        map.with_dmap_mut(|m| m.set_write_mode(write_mode));
+        let tracked_hint =
+            self.requirements().contains(DIRSTATE_TRACKED_HINT_V1);
+
+        map.with_dmap_mut(|m| {
+            m.set_write_mode(write_mode);
+            m.set_tracked_hint(tracked_hint);
+        });
 
         Ok(map)
     }
