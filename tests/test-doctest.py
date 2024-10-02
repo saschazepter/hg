@@ -72,7 +72,8 @@ if not os.path.isdir(os.path.join(cwd, ".hg")):
     sys.exit(0)
 
 files = subprocess.check_output(
-    "hg files --print0 \"%s\"" % fileset,
+    "HGRCPATH=/dev/null . helpers-testrepo.sh; testrepohg files --print0 \"%s\""
+    % fileset,
     shell=True,
     cwd=cwd,
 ).split(b'\0')
