@@ -168,6 +168,12 @@ _errors = {
         # FormatMessage(WSAEADDRNOTAVAIL)
         br'The requested address is not valid in its context',
     ),
+    br'$ECONNREFUSED$': (
+        # strerror()
+        br'Connection refused',
+        # FormatMessage(WSAECONNREFUSED)
+        br'No connection could be made because the target machine actively refused it',
+    ),
 }
 
 for replace, msgs in _errors.items():
