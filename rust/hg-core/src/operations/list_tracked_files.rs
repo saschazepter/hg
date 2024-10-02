@@ -8,7 +8,7 @@
 use std::num::NonZeroU8;
 
 use crate::errors::HgError;
-use crate::matchers::Matcher;
+use crate::matchers::{Matcher, VisitChildrenSet};
 use crate::repo::Repo;
 use crate::revlog::manifest::Manifest;
 use crate::revlog::RevlogError;
@@ -23,10 +23,7 @@ pub fn list_revset_tracked_files(
     narrow_matcher: Box<dyn Matcher + Sync>,
 ) -> Result<FilesForRev, RevlogError> {
     let rev = crate::revset::resolve_single(revset, repo)?;
-    Ok(FilesForRev {
-        manifest: repo.manifest_for_rev(rev.into())?,
-        narrow_matcher,
-    })
+    list_rev_tracked_files(repo, rev.into(), narrow_matcher)
 }
 
 /// List files under Mercurial control at a given revision.
@@ -35,8 +32,30 @@ pub fn list_rev_tracked_files(
     rev: UncheckedRevision,
     narrow_matcher: Box<dyn Matcher + Sync>,
 ) -> Result<FilesForRev, RevlogError> {
+    // TODO move this to the repo itself
+    // This implies storing the narrow matcher in the repo, bubbling up the
+    // errors and warnings, so it's a bit of churn. In the meantime, the repo
+    // method will error out on narrowed manifests.
+    let manifest = match repo.manifest_for_rev(rev) {
+        Ok(manifest) => manifest,
+        Err(e) => match e {
+            RevlogError::InvalidRevision(_) => {
+                let outside_of_current_narrow_spec = narrow_matcher
+                    .visit_children_set(HgPath::new(""))
+                    == VisitChildrenSet::Empty;
+                if outside_of_current_narrow_spec {
+                    // Fake a manifest for a manifest whose node is known, but
+                    // which doesn't exist because it's empty after narrowing
+                    Manifest::empty()
+                } else {
+                    return Err(e);
+                }
+            }
+            _ => return Err(e),
+        },
+    };
     Ok(FilesForRev {
-        manifest: repo.manifest_for_rev(rev)?,
+        manifest,
         narrow_matcher,
     })
 }
