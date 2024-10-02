@@ -450,11 +450,14 @@ impl Repo {
         debug_wait_for_file_or_print(self.config(), "dirstate.pre-read-file");
         let identity = self.dirstate_identity()?;
         let dirstate_file_contents = self.dirstate_file_contents()?;
+        let parents = self.dirstate_parents()?;
         if dirstate_file_contents.is_empty() {
-            self.dirstate_parents.set(DirstateParents::NULL);
+            self.dirstate_parents.set(parents);
             Ok(OwningDirstateMap::new_empty(Vec::new(), identity))
         } else {
-            let (map, parents) =
+            // Ignore the dirstate on-disk parents, they may have been set in
+            // the repo before
+            let (map, _) =
                 OwningDirstateMap::new_v1(dirstate_file_contents, identity)?;
             self.dirstate_parents.set(parents);
             Ok(map)
