@@ -1,5 +1,6 @@
 use crate::config::ConfigValueParseError;
 use crate::exit_codes;
+use crate::utils::hg_path::HgPathError;
 use std::fmt;
 
 /// Common error cases that can happen in many different APIs
@@ -49,6 +50,8 @@ pub enum HgError {
     /// A race condition has been detected. This *must* be handled locally
     /// and not directly surface to the user.
     RaceDetected(String),
+    /// An invalid path was found
+    Path(HgPathError),
 }
 
 /// Details about where an I/O error happened
@@ -117,6 +120,7 @@ impl fmt::Display for HgError {
             HgError::RaceDetected(context) => {
                 write!(f, "encountered a race condition {context}")
             }
+            HgError::Path(hg_path_error) => write!(f, "{}", hg_path_error),
         }
     }
 }
