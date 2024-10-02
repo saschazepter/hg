@@ -19,12 +19,11 @@
   >     stdout.write(b'%s\n' % s)
   > EOF
 
-  $ cd "$TESTDIR"/..
-
 Check if ":hg:`help TOPIC`" is valid:
 (use "xargs -n1 -t" to see which help commands are executed)
 
+  $ cd "$TESTDIR"/..
   $ testrepohg files 'glob:{hgdemandimport,hgext,mercurial}/**/*.py' \
   > | sed 's|\\|/|g' \
   > | xargs "$PYTHON" "$TESTTMP/scanhelptopics.py" \
-  > | xargs -n1 hg help --config extensions.phabricator= > /dev/null
+  > | xargs -n1 hg --cwd "$TESTTMP" help --config extensions.phabricator= > /dev/null
