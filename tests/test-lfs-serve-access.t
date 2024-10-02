@@ -83,7 +83,7 @@ Reasonable hint for a misconfigured blob server
   [50]
 
   $ hg -R httpclone update default --config lfs.url=http://localhost:$HGPORT2/missing
-  abort: LFS error: *onnection *refused* (glob) (?)
+  abort: LFS error: $ECONNREFUSED$ (?)
   abort: LFS error: $EADDRNOTAVAIL$ (glob) (?)
   abort: LFS error: No route to host (?)
   (the "lfs.url" config may be used to override http://localhost:$HGPORT2/missing)

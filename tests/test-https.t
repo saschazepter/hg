@@ -490,7 +490,7 @@ Test when proxy can't connect to server
 
   $ http_proxy=http://localhost:$HGPORT1/ hg -R copy-pull pull --insecure https://localhost:0/
   pulling from https://localhost:0/
-  abort: error: Tunnel connection failed: 404 (Connection refused|\$EADDRNOTAVAIL\$) (re)
+  abort: error: Tunnel connection failed: 404 (\$ECONNREFUSED\$|\$EADDRNOTAVAIL\$) (re)
   [100]
 
 
