@@ -766,7 +766,7 @@ test hidden changeset are not cloned as public (issue3935)
   > EOF
 
 (making a changeset hidden; H in that case)
-  $ hg debugobsolete `hg id --debug -r 5`
+  $ hg debugobsolete `hg id -T "{node}" -r 5`
   1 new obsolescence markers
   obsoleted 1 changesets
 
@@ -1018,7 +1018,7 @@ Commit is hidden as expected
 The hidden commit is an orphan but doesn't show up without --hidden
 And internal changesets are not considered for unstability.
 
-  $ hg debugobsolete `hg id --debug -ir 0`
+  $ hg debugobsolete `hg id -T "{node}" -r 0`
   1 new obsolescence markers
   obsoleted 1 changesets
   $ hg --hidden log -G -r '(0::) - 0'
