@@ -2082,6 +2082,8 @@ Quiet upgrade and downgrade
   tracked-hint:        no
   share-safe:         yes
 
+#if unix-permissions
+
 Attempting Auto-upgrade on a read-only repository
 -------------------------------------------------
 
@@ -2094,6 +2096,8 @@ Attempting Auto-upgrade on a read-only repository
   dirstate-v2:        yes
 
   $ chmod -R u+w auto-upgrade
+
+#endif
 
 Attempting Auto-upgrade on a locked repository
 ----------------------------------------------
