@@ -218,6 +218,35 @@ def fill_in_filelog(gitrepo, db, startcommit, path, startfilenode):
     db.commit()
 
 
+def _index_repo_commit(gitrepo, db, commit):
+    files = {}
+    # I *think* we only need to check p1 for changed files
+    # (and therefore linkrevs), because any node that would
+    # actually have this commit as a linkrev would be
+    # completely new in this rev.
+    p1 = commit.parents[0].id.hex if commit.parents else None
+    if p1 is not None:
+        patchgen = gitrepo.diff(p1, commit.id.hex, flags=_DIFF_FLAGS)
+    else:
+        patchgen = commit.tree.diff_to_tree(swap=True, flags=_DIFF_FLAGS)
+    new_files = (p.delta.new_file for p in patchgen)
+    files = {
+        nf.path: nf.id.hex
+        for nf in new_files
+        if nf.id.raw != sha1nodeconstants.nullid
+    }
+    for p, n in files.items():
+        # We intentionally set NULLs for any file parentage
+        # information so it'll get demand-computed later. We
+        # used to do it right here, and it was _very_ slow.
+        db.execute(
+            'INSERT INTO changedfiles ('
+            'node, filename, filenode, p1node, p1filenode, p2node, '
+            'p2filenode) VALUES(?, ?, ?, ?, ?, ?, ?)',
+            (commit.id.hex, p, n, None, None, None, None),
+        )
+
+
 def _index_repo(
     gitrepo,
     db,
@@ -303,34 +332,7 @@ def _index_repo(
             (commit.id.hex,),
         ).fetchone()[0]
         if not num_changedfiles:
-            files = {}
-            # I *think* we only need to check p1 for changed files
-            # (and therefore linkrevs), because any node that would
-            # actually have this commit as a linkrev would be
-            # completely new in this rev.
-            p1 = commit.parents[0].id.hex if commit.parents else None
-            if p1 is not None:
-                patchgen = gitrepo.diff(p1, commit.id.hex, flags=_DIFF_FLAGS)
-            else:
-                patchgen = commit.tree.diff_to_tree(
-                    swap=True, flags=_DIFF_FLAGS
-                )
-            new_files = (p.delta.new_file for p in patchgen)
-            files = {
-                nf.path: nf.id.hex
-                for nf in new_files
-                if nf.id.raw != sha1nodeconstants.nullid
-            }
-            for p, n in files.items():
-                # We intentionally set NULLs for any file parentage
-                # information so it'll get demand-computed later. We
-                # used to do it right here, and it was _very_ slow.
-                db.execute(
-                    'INSERT INTO changedfiles ('
-                    'node, filename, filenode, p1node, p1filenode, p2node, '
-                    'p2filenode) VALUES(?, ?, ?, ?, ?, ?, ?)',
-                    (commit.id.hex, p, n, None, None, None, None),
-                )
+            _index_repo_commit(gitrepo, db, commit)
     db.execute('DELETE FROM heads')
     db.execute('DELETE FROM possible_heads')
     db.executemany(
