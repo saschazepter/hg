@@ -1,5 +1,7 @@
 use bytes_cast::BytesCast;
 use std::borrow::Cow;
+use std::fs::Metadata;
+use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 
 use super::on_disk;
@@ -45,6 +47,68 @@ pub enum DirstateMapWriteMode {
     ForceAppend,
 }
 
+/// Used to detect out-of-process changes in the dirstate
+#[derive(Debug, Copy, Clone)]
+pub struct DirstateIdentity {
+    pub mode: u32,
+    pub dev: u64,
+    pub ino: u64,
+    pub nlink: u64,
+    pub uid: u32,
+    pub gid: u32,
+    pub size: u64,
+    pub mtime: i64,
+    pub mtime_nsec: i64,
+    pub ctime: i64,
+    pub ctime_nsec: i64,
+}
+
+impl From<Metadata> for DirstateIdentity {
+    fn from(value: Metadata) -> Self {
+        Self {
+            mode: value.mode(),
+            dev: value.dev(),
+            ino: value.ino(),
+            nlink: value.nlink(),
+            uid: value.uid(),
+            gid: value.gid(),
+            size: value.size(),
+            mtime: value.mtime(),
+            mtime_nsec: value.mtime_nsec(),
+            ctime: value.ctime(),
+            ctime_nsec: value.ctime_nsec(),
+        }
+    }
+}
+
+impl PartialEq for DirstateIdentity {
+    fn eq(&self, other: &Self) -> bool {
+        // Some platforms return 0 when they have no support for nanos.
+        // This shouldn't be a problem in practice because of how highly
+        // unlikely it is that we actually get exactly 0 nanos, and worst
+        // case scenario, we don't write out the dirstate in a non-wlocked
+        // situation like status.
+        let mtime_nanos_equal = (self.mtime_nsec == 0
+            || other.mtime_nsec == 0)
+            || self.mtime_nsec == other.mtime_nsec;
+        let ctime_nanos_equal = (self.ctime_nsec == 0
+            || other.ctime_nsec == 0)
+            || self.ctime_nsec == other.ctime_nsec;
+
+        self.mode == other.mode
+            && self.dev == other.dev
+            && self.ino == other.ino
+            && self.nlink == other.nlink
+            && self.uid == other.uid
+            && self.gid == other.gid
+            && self.size == other.size
+            && self.mtime == other.mtime
+            && mtime_nanos_equal
+            && self.ctime == other.ctime
+            && ctime_nanos_equal
+    }
+}
+
 #[derive(Debug)]
 pub struct DirstateMap<'on_disk> {
     /// Contents of the `.hg/dirstate` file
@@ -82,7 +146,7 @@ pub struct DirstateMap<'on_disk> {
     /// check the file identity.
     ///
     /// TODO On non-Unix systems, something like hashing is a possibility?
-    pub(super) identity: Option<u64>,
+    pub(super) identity: Option<DirstateIdentity>,
 
     pub(super) dirstate_version: DirstateVersion,
 
@@ -484,7 +548,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
         data_size: usize,
         metadata: &[u8],
         uuid: Vec<u8>,
-        identity: Option<u64>,
+        identity: Option<DirstateIdentity>,
     ) -> Result<Self, DirstateError> {
         if let Some(data) = on_disk.get(..data_size) {
             Ok(on_disk::read(data, metadata, uuid, identity)?)
@@ -496,7 +560,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
     #[logging_timer::time("trace")]
     pub fn new_v1(
         on_disk: &'on_disk [u8],
-        identity: Option<u64>,
+        identity: Option<DirstateIdentity>,
     ) -> Result<(Self, Option<DirstateParents>), DirstateError> {
         let mut map = Self::empty(on_disk);
         map.identity = identity;
