@@ -1782,6 +1782,7 @@ setup(
         ' fast, reliable distributed revision control, such as '
         'Mozilla.'
     ),
+    long_description_content_type='text/x-rst',
     license='GNU GPLv2 or any later version',
     classifiers=[
         'Development Status :: 6 - Mature',
