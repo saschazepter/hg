@@ -21,6 +21,8 @@ use rand::Rng;
 use std::borrow::Cow;
 use std::fmt::Write;
 
+use super::dirstate_map::DirstateIdentity;
+
 /// Added at the start of `.hg/dirstate` when the "v2" format is used.
 /// This a redundant sanity check more than an actual "magic number" since
 /// `.hg/requires` already governs which format should be used.
@@ -288,7 +290,7 @@ pub(super) fn read<'on_disk>(
     on_disk: &'on_disk [u8],
     metadata: &[u8],
     uuid: Vec<u8>,
-    identity: Option<u64>,
+    identity: Option<DirstateIdentity>,
 ) -> Result<DirstateMap<'on_disk>, DirstateV2ParseError> {
     if on_disk.is_empty() {
         let mut map = DirstateMap::empty(on_disk);

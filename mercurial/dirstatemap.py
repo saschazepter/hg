@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import stat
+
 from typing import (
     Optional,
     TYPE_CHECKING,
@@ -678,12 +680,7 @@ if rustmod is not None:
                     parents = self._v1_map(e)
                 else:
                     parents = self.docket.parents
-                    inode = (
-                        self.identity.stat.st_ino
-                        if self.identity is not None
-                        and self.identity.stat is not None
-                        else None
-                    )
+                    identity = self._get_rust_identity()
                     testing.wait_on_cfg(
                         self._ui, b'dirstate.post-docket-read-file'
                     )
@@ -697,7 +694,7 @@ if rustmod is not None:
                             self.docket.data_size,
                             self.docket.tree_metadata,
                             self.docket.uuid,
-                            inode,
+                            identity,
                         )
                     parents = self.docket.parents
             else:
@@ -711,16 +708,31 @@ if rustmod is not None:
             self.get = self._map.get
             return self._map
 
-        def _v1_map(self, from_v2_exception=None):
+        def _get_rust_identity(self):
             self._set_identity()
-            inode = (
-                self.identity.stat.st_ino
-                if self.identity is not None and self.identity.stat is not None
-                else None
-            )
+            identity = None
+            if self.identity is not None and self.identity.stat is not None:
+                stat_info = self.identity.stat
+                identity = rustmod.DirstateIdentity(
+                    mode=stat_info.st_mode,
+                    dev=stat_info.st_dev,
+                    ino=stat_info.st_ino,
+                    nlink=stat_info.st_nlink,
+                    uid=stat_info.st_uid,
+                    gid=stat_info.st_gid,
+                    size=stat_info.st_size,
+                    mtime=stat_info[stat.ST_MTIME],
+                    mtime_nsec=0,
+                    ctime=stat_info[stat.ST_CTIME],
+                    ctime_nsec=0,
+                )
+            return identity
+
+        def _v1_map(self, from_v2_exception=None):
+            identity = self._get_rust_identity()
             try:
                 self._map, parents = rustmod.DirstateMap.new_v1(
-                    self._readdirstatefile(), inode
+                    self._readdirstatefile(), identity
                 )
             except OSError as e:
                 if from_v2_exception is not None:

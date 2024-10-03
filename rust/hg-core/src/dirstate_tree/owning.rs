@@ -1,6 +1,6 @@
 use crate::{DirstateError, DirstateParents};
 
-use super::dirstate_map::DirstateMap;
+use super::dirstate_map::{DirstateIdentity, DirstateMap};
 use self_cell::self_cell;
 use std::ops::Deref;
 
@@ -15,7 +15,10 @@ self_cell!(
 );
 
 impl OwningDirstateMap {
-    pub fn new_empty<OnDisk>(on_disk: OnDisk, identity: Option<u64>) -> Self
+    pub fn new_empty<OnDisk>(
+        on_disk: OnDisk,
+        identity: Option<DirstateIdentity>,
+    ) -> Self
     where
         OnDisk: Deref<Target = [u8]> + Send + 'static,
     {
@@ -30,7 +33,7 @@ impl OwningDirstateMap {
 
     pub fn new_v1<OnDisk>(
         on_disk: OnDisk,
-        identity: Option<u64>,
+        identity: Option<DirstateIdentity>,
     ) -> Result<(Self, DirstateParents), DirstateError>
     where
         OnDisk: Deref<Target = [u8]> + Send + 'static,
@@ -54,7 +57,7 @@ impl OwningDirstateMap {
         data_size: usize,
         metadata: &[u8],
         uuid: Vec<u8>,
-        identity: Option<u64>,
+        identity: Option<DirstateIdentity>,
     ) -> Result<Self, DirstateError>
     where
         OnDisk: Deref<Target = [u8]> + Send + 'static,
@@ -85,7 +88,7 @@ impl OwningDirstateMap {
         self.get_map().old_uuid.as_deref()
     }
 
-    pub fn old_identity(&self) -> Option<u64> {
+    pub fn old_identity(&self) -> Option<DirstateIdentity> {
         self.get_map().identity
     }
 

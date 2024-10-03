@@ -1,7 +1,9 @@
 use crate::changelog::Changelog;
 use crate::config::{Config, ConfigError, ConfigParseError};
 use crate::dirstate::DirstateParents;
-use crate::dirstate_tree::dirstate_map::DirstateMapWriteMode;
+use crate::dirstate_tree::dirstate_map::{
+    DirstateIdentity, DirstateMapWriteMode,
+};
 use crate::dirstate_tree::on_disk::Docket as DirstateDocket;
 use crate::dirstate_tree::owning::OwningDirstateMap;
 use crate::errors::HgResultExt;
@@ -34,7 +36,8 @@ use std::path::{Path, PathBuf};
 
 const V2_MAX_READ_ATTEMPTS: usize = 5;
 
-type DirstateMapIdentity = (Option<u64>, Option<Vec<u8>>, usize);
+/// Docket file identity, data file uuid and the data size
+type DirstateV2Identity = (Option<DirstateIdentity>, Option<Vec<u8>>, usize);
 
 /// A repository on disk
 pub struct Repo {
@@ -311,13 +314,12 @@ impl Repo {
             .unwrap_or_default())
     }
 
-    fn dirstate_identity(&self) -> Result<Option<u64>, HgError> {
-        use std::os::unix::fs::MetadataExt;
+    fn dirstate_identity(&self) -> Result<Option<DirstateIdentity>, HgError> {
         Ok(self
             .hg_vfs()
             .symlink_metadata("dirstate")
             .io_not_found_as_none()?
-            .map(|meta| meta.ino()))
+            .map(DirstateIdentity::from))
     }
 
     pub fn dirstate_parents(&self) -> Result<DirstateParents, HgError> {
@@ -355,10 +357,10 @@ impl Repo {
     /// Returns the information read from the dirstate docket necessary to
     /// check if the data file has been updated/deleted by another process
     /// since we last read the dirstate.
-    /// Namely, the inode, data file uuid and the data size.
+    /// Namely the docket file identity, data file uuid and the data size.
     fn get_dirstate_data_file_integrity(
         &self,
-    ) -> Result<DirstateMapIdentity, HgError> {
+    ) -> Result<DirstateV2Identity, HgError> {
         assert!(
             self.use_dirstate_v2(),
             "accessing dirstate data file ID without dirstate-v2"
