@@ -16,7 +16,9 @@ use cpython::{
 };
 use hg::{
     dirstate::{ParentFileData, TruncatedTimestamp},
-    dirstate_tree::dirstate_map::DirstateEntryReset,
+    dirstate_tree::dirstate_map::{
+        DirstateEntryReset, DirstateIdentity as CoreDirstateIdentity,
+    },
 };
 
 use crate::{
@@ -51,10 +53,13 @@ py_class!(pub class DirstateMap |py| {
     @staticmethod
     def new_v1(
         on_disk: PyBytes,
-        identity: Option<u64>,
+        identity: Option<DirstateIdentity>,
     ) -> PyResult<PyObject> {
         let on_disk = PyBytesDeref::new(py, on_disk);
-        let (map, parents) = OwningDirstateMap::new_v1(on_disk, identity)
+        let (map, parents) = OwningDirstateMap::new_v1(
+            on_disk,
+            identity.map(|i| *i.inner(py))
+        )
             .map_err(|e| dirstate_error(py, e))?;
         let map = Self::create_instance(py, map)?;
         let p1 = PyBytes::new(py, parents.p1.as_bytes());
@@ -70,7 +75,7 @@ py_class!(pub class DirstateMap |py| {
         data_size: usize,
         tree_metadata: PyBytes,
         uuid: PyBytes,
-        identity: Option<u64>,
+        identity: Option<DirstateIdentity>,
     ) -> PyResult<PyObject> {
         let dirstate_error = |e: DirstateError| {
             PyErr::new::<exc::OSError, _>(py, format!("Dirstate error: {:?}", e))
@@ -82,7 +87,7 @@ py_class!(pub class DirstateMap |py| {
             data_size,
             tree_metadata.data(py),
             uuid.to_owned(),
-            identity,
+            identity.map(|i| *i.inner(py)),
         ).map_err(dirstate_error)?;
         let map = Self::create_instance(py, map)?;
         Ok(map.into_object())
@@ -543,6 +548,41 @@ py_shared_iterator!(
     DirstateMap::translate_key_value,
     Option<(PyBytes, PyObject)>
 );
+
+py_class!(pub class DirstateIdentity |py| {
+    data inner: CoreDirstateIdentity;
+
+    def __new__(
+        _cls,
+        mode: u32,
+        dev: u64,
+        ino: u64,
+        nlink: u64,
+        uid: u32,
+        gid: u32,
+        size: u64,
+        mtime: i64,
+        mtime_nsec: i64,
+        ctime: i64,
+        ctime_nsec: i64) -> PyResult<DirstateIdentity> {
+            Self::create_instance(
+                py,
+                CoreDirstateIdentity {
+                    mode,
+                    dev,
+                    ino,
+                    nlink,
+                    uid,
+                    gid,
+                    size,
+                    mtime,
+                    mtime_nsec,
+                    ctime,
+                    ctime_nsec
+                }
+            )
+    }
+});
 
 fn extract_node_id(py: Python, obj: &PyObject) -> PyResult<Node> {
     let bytes = obj.extract::<PyBytes>(py)?;
