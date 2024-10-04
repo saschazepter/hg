@@ -73,9 +73,9 @@ import uuid
 import xml.dom.minidom as minidom
 
 
-if sys.version_info < (3, 5, 0):
+if sys.version_info < (3, 8, 0):
     print(
-        '%s is only supported on Python 3.5+, not %s'
+        '%s is only supported on Python 3.8+, not %s'
         % (sys.argv[0], '.'.join(str(v) for v in sys.version_info[:3]))
     )
     sys.exit(70)  # EX_SOFTWARE from `man 3 sysexit`
