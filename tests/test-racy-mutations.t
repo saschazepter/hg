@@ -59,7 +59,7 @@ Start an hg commit that will take a while
   >    WAITLOCK_ANNOUNCE="${EDITOR_STARTED}" \
   >    WAITLOCK_FILE="${MISCHIEF_MANAGED}" \
   >    hg commit -qAm 'r1 (foo)' --edit foo \
-  >    --config ui.editor="sh $TESTTMP_FORWARD_SLASH/waitlock_editor.sh" \
+  >    --config ui.editor="sh $TESTTMP/waitlock_editor.sh" \
   >    > .foo_commit_out 2>&1 ;\
   >    touch "${JOBS_FINISHED}"
   > ) &
