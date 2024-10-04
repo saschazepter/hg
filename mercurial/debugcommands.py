@@ -2238,6 +2238,13 @@ def debuglocks(ui, repo, **opts):
 
     locks = []
     try:
+        # Help the tests out on Windows by writing the correct PID when
+        # invoked by the test harness, before creating the lock.
+        pids = encoding.environ.get(b'DAEMON_PIDS')
+        if pids:
+            with open(pids, "ab") as fp:
+                fp.write(b'%d\n' % os.getpid())
+
         if opts.get('set_wlock'):
             try:
                 locks.append(repo.wlock(False))
