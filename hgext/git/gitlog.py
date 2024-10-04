@@ -340,6 +340,7 @@ class changelog(baselog):
         n = self.synthetic(n)
         hn = gitutil.togitnode(n)
         # We've got a real commit!
+        index._index_repo_commit(self.gitrepo, self._db, hn, commit=True)
         files = [
             r[0]
             for r in self._db.execute(

@@ -222,7 +222,7 @@ def fill_in_filelog(gitrepo, db, startcommit, path, startfilenode):
 
 def _index_repo_commit(gitrepo, db, node, commit=False):
     already_done = db.execute(
-        "SELECT changedfiles FROM changelog WHERE node=?", (node.id.hex,)
+        "SELECT changedfiles FROM changelog WHERE node=?", (node,)
     ).fetchone()[0]
     if already_done:
         return  # This commit has already been indexed
@@ -333,7 +333,7 @@ def _index_repo(
                 p2 = commit.parents[1].id.hex
             pos += 1
             db.execute(
-                'INSERT INTO changelog (rev, node, p1, p2, synthetic, changedfiles) VALUES(?, ?, ?, ?, NULL, TRUE)',
+                'INSERT INTO changelog (rev, node, p1, p2, synthetic, changedfiles) VALUES(?, ?, ?, ?, NULL, FALSE)',
                 (pos, commit.id.hex, p1, p2),
             )
         else:
@@ -353,18 +353,12 @@ def _index_repo(
                 p2 = parents.pop(0).id.hex
 
                 db.execute(
-                    'INSERT INTO changelog (rev, node, p1, p2, synthetic, changedfiles) VALUES(?, ?, ?, ?, ?, TRUE)',
+                    'INSERT INTO changelog (rev, node, p1, p2, synthetic, changedfiles) VALUES(?, ?, ?, ?, ?, FALSE)',
                     (pos, this, p1, p2, synth),
                 )
 
                 p1 = this
-
-        num_changedfiles = db.execute(
-            "SELECT COUNT(*) from changedfiles WHERE node = ?",
-            (commit.id.hex,),
-        ).fetchone()[0]
-        if not num_changedfiles:
-            _index_repo_commit(gitrepo, db, commit)
+    # Determine heads from the list of possible heads.
     db.execute('DELETE FROM heads')
     db.execute('DELETE FROM possible_heads')
     db.executemany(
@@ -382,6 +376,27 @@ def _index_repo(
             )
     '''
     )
+    # Mark all commits with already-loaded changefiles info
+    db.execute(
+        '''
+    UPDATE changelog SET changedfiles=TRUE WHERE node IN (
+        SELECT DISTINCT node FROM changedfiles
+    )
+    '''
+    )
+
+    if prog is not None:
+        prog.complete()
+
+    # Index the changed files for head commits
+    prog = progress_factory(b'indexing head files')
+    heads = [
+        row[0].decode('ascii') for row in db.execute("SELECT * FROM heads")
+    ]
+    for pos, h in enumerate(heads):
+        if prog is not None:
+            prog.update(pos)
+        _index_repo_commit(gitrepo, db, h)
 
     db.commit()
     if prog is not None:
