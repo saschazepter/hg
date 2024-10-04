@@ -18,7 +18,7 @@ from . import gitutil
 
 pygit2 = gitutil.get_pygit2()
 
-_CURRENT_SCHEMA_VERSION = 4
+_CURRENT_SCHEMA_VERSION = 5
 _SCHEMA = (
     """
 CREATE TABLE refs (
@@ -71,6 +71,12 @@ CREATE TABLE changedfiles (
 
 CREATE INDEX changedfiles_nodes_idx
   ON changedfiles(node);
+
+-- Cached values to improve performance
+CREATE TABLE cache (
+  ncommits INTEGER
+);
+INSERT INTO cache (ncommits) VALUES (NULL);
 
 PRAGMA user_version=%d
 """
@@ -397,6 +403,13 @@ def _index_repo(
         if prog is not None:
             prog.update(pos)
         _index_repo_commit(gitrepo, db, h)
+
+    db.execute(
+        '''
+    UPDATE cache SET
+        ncommits = (SELECT COUNT(1) FROM changelog)
+    '''
+    )
 
     db.commit()
     if prog is not None:
