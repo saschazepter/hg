@@ -43,9 +43,7 @@ class baselog:  # revlog.revlog):
         self._db = db
 
     def __len__(self) -> int:
-        return int(
-            self._db.execute('SELECT COUNT(*) FROM changelog').fetchone()[0]
-        )
+        return int(self._db.execute('SELECT ncommits FROM cache').fetchone()[0])
 
     def files(self):
         raise NotImplementedError
