@@ -68,7 +68,7 @@ Start a client doing a streaming clone
 
   $ ( \
   >    hg clone --debug --stream -U http://localhost:$HGPORT1 \
-  >    clone-while-split > client.log 2>&1; \
+  >    clone-while-split --config worker.backgroundclose=0 > client.log 2>&1; \
   >    touch "$HG_TEST_STREAM_WALKED_FILE_3" \
   > ) &
 
