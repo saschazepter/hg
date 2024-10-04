@@ -105,8 +105,13 @@ Demonstrate lock-breaking capabilities with locks that regular Mercurial
 operation would not break, because the hostnames registered in locks differ
 from the current hostname (happens a lot with succesive containers):
 
+#if symlink
   $ ln -s invalid.host.test/effffffc:171814 .hg/store/lock
   $ ln -s invalid.host.test/effffffc:171814 .hg/wlock
+#else
+  $ printf 'invalid.host.test/effffffc:171814' > .hg/store/lock
+  $ printf 'invalid.host.test/effffffc:171814' > .hg/wlock
+#endif
   $ hg debuglock
   lock:  (.*?), process 171814, host invalid.host.test/effffffc \((\d+)s\) (re)
   wlock: (.*?), process 171814, host invalid.host.test/effffffc \((\d+)s\) (re)
