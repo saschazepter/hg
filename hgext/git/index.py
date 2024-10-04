@@ -18,7 +18,7 @@ from . import gitutil
 
 pygit2 = gitutil.get_pygit2()
 
-_CURRENT_SCHEMA_VERSION = 3
+_CURRENT_SCHEMA_VERSION = 4
 _SCHEMA = (
     """
 CREATE TABLE refs (
@@ -48,7 +48,8 @@ CREATE TABLE changelog (
   node TEXT NOT NULL,
   p1 TEXT,
   p2 TEXT,
-  synthetic TEXT
+  synthetic TEXT,
+  changedfiles BOOLEAN
 );
 
 CREATE UNIQUE INDEX changelog_node_idx ON changelog(node);
@@ -219,7 +220,14 @@ def fill_in_filelog(gitrepo, db, startcommit, path, startfilenode):
     db.commit()
 
 
-def _index_repo_commit(gitrepo, db, commit):
+def _index_repo_commit(gitrepo, db, node, commit=False):
+    already_done = db.execute(
+        "SELECT changedfiles FROM changelog WHERE node=?", (node.id.hex,)
+    ).fetchone()[0]
+    if already_done:
+        return  # This commit has already been indexed
+
+    commit = gitrepo[node]
     files = {}
     # I *think* we only need to check p1 for changed files
     # (and therefore linkrevs), because any node that would
@@ -246,6 +254,12 @@ def _index_repo_commit(gitrepo, db, commit):
             'p2filenode) VALUES(?, ?, ?, ?, ?, ?, ?)',
             (commit.id.hex, p, n, None, None, None, None),
         )
+    # Mark the commit as loaded
+    db.execute(
+        "UPDATE changelog SET changedfiles=TRUE WHERE node=?", (commit.id.hex,)
+    )
+    if commit:
+        db.commit()
 
 
 def _index_repo(
@@ -319,7 +333,7 @@ def _index_repo(
                 p2 = commit.parents[1].id.hex
             pos += 1
             db.execute(
-                'INSERT INTO changelog (rev, node, p1, p2, synthetic) VALUES(?, ?, ?, ?, NULL)',
+                'INSERT INTO changelog (rev, node, p1, p2, synthetic, changedfiles) VALUES(?, ?, ?, ?, NULL, TRUE)',
                 (pos, commit.id.hex, p1, p2),
             )
         else:
@@ -339,7 +353,7 @@ def _index_repo(
                 p2 = parents.pop(0).id.hex
 
                 db.execute(
-                    'INSERT INTO changelog (rev, node, p1, p2, synthetic) VALUES(?, ?, ?, ?, ?)',
+                    'INSERT INTO changelog (rev, node, p1, p2, synthetic, changedfiles) VALUES(?, ?, ?, ?, ?, TRUE)',
                     (pos, this, p1, p2, synth),
                 )
 
