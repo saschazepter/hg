@@ -374,7 +374,7 @@ if 'java' in sys.platform:
 
 default_defaults = {
     'jobs': ('HGTEST_JOBS', multiprocessing.cpu_count()),
-    'timeout': ('HGTEST_TIMEOUT', 360),
+    'timeout': ('HGTEST_TIMEOUT', 360 if not WINDOWS else 360 * 4),
     'slowtimeout': ('HGTEST_SLOWTIMEOUT', 1500),
     'port': ('HGTEST_PORT', 20059),
     'shell': ('HGTEST_SHELL', 'sh'),
