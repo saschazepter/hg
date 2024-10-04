@@ -274,9 +274,9 @@ def _index_repo(
             # No commit to be found, so we don't care for hg's purposes.
             continue
         possible_heads.add(start.id)
-    # Optimization: if the list of heads hasn't changed, don't
-    # reindex, the changelog. This doesn't matter on small
-    # repositories, but on even moderately deep histories (eg cpython)
+    # Optimization: if the list of refs hasn't changed, don't
+    # reindex the changelog. This doesn't matter on small
+    # repositories, but on even moderately deep histories (e.g., cpython)
     # this is a very important performance win.
     #
     # TODO: we should figure out how to incrementally index history
