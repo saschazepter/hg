@@ -28,13 +28,15 @@ The proliferation of status implementations can be confusing:
   $ touch d1/y
   $ chmod -r d1
   $ hg status
-  d1: $EACCES$
+  d1: $EACCES$ (unix-permissions !)
   ! d1/x (rhg !)
   ! d1/x (no-rhg rust !)
+  ? d1/y (no-unix-permissions !)
   $ hg status
-  d1: $EACCES$
+  d1: $EACCES$ (unix-permissions !)
   ! d1/x (rust !)
   ! d1/x (no-rust rhg !)
+  ? d1/y (no-unix-permissions !)
   $ chmod +r d1
   $ hg status
   ? d1/y
