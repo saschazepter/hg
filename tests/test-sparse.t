@@ -34,7 +34,9 @@ Test that sparse pattern by default is interpreted as "glob:", and is interprete
   $ mk 'foo' bar
   $ mk 'foo-bar' x
   $ mk 'unanchoredfoo-bar' x
+#if no-windows
   $ mk 'foo*bar' x
+#endif
   $ mk 'dir/foo-bar' x
   $ hg status --config rhg.on-unsupported=abort
   ? dir/foo-bar/x
