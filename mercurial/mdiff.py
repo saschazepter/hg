@@ -39,7 +39,7 @@ from .interfaces import (
 from .utils import dateutil
 
 bdiff: intmod.BDiff = policy.importmod('bdiff')
-mpatch = policy.importmod('mpatch')
+mpatch: intmod.MPatch = policy.importmod('mpatch')
 
 blocks = bdiff.blocks
 fixws = bdiff.fixws
