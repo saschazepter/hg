@@ -23,6 +23,16 @@ if typing.TYPE_CHECKING:
     """The signature of `bdiff.blocks()` and `bdiff.xdiffblocks()`."""
 
 
+class Base85(Protocol):
+    """A Protocol class for the various base85 module implementations."""
+
+    def b85encode(self, text: bytes, pad: bool = False) -> bytes:
+        """encode text in base85 format"""
+
+    def b85decode(self, text: bytes) -> bytes:
+        """decode base85-encoded text"""
+
+
 class BDiff(Protocol):
     """A Protocol class for the various bdiff module implementations."""
 
