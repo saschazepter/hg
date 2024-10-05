@@ -73,3 +73,13 @@ class CharEncoding(Protocol):
 
         Raises ValueError if non-ASCII characters have to be escaped.
         """
+
+
+class MPatch(Protocol):
+    """A protocol class for the various mpatch module implementations."""
+
+    def patches(self, a: bytes, bins: List[bytes]) -> bytes:
+        ...
+
+    def patchedsize(self, orig: int, delta: bytes) -> int:
+        ...
