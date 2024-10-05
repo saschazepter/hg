@@ -26,11 +26,12 @@ from . import (
     pycompat,
 )
 
+from .interfaces import modules as intmod
 from .pure import charencode as charencodepure
 
 _Tlocalstr = TypeVar('_Tlocalstr', bound='localstr')
 
-charencode = policy.importmod('charencode')
+charencode: intmod.CharEncoding = policy.importmod('charencode')
 
 isasciistr = charencode.isasciistr
 asciilower = charencode.asciilower
@@ -40,15 +41,6 @@ _jsonescapeu8fast = charencode.jsonescapeu8fast
 _sysstr = pycompat.sysstr
 
 unichr = chr
-
-if typing.TYPE_CHECKING:
-    # TODO: make a stub file for .cext.charencode, and import here
-    from .pure.charencode import (
-        asciilower,
-        asciiupper,
-        isasciistr,
-        jsonescapeu8fast as _jsonescapeu8fast,
-    )
 
 
 # These unicode characters are ignored by HFS+ (Apple Technote 1150,
