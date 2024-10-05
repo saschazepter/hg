@@ -58,6 +58,8 @@ def b85decode(text: bytes) -> bytes:
 
     l = len(text)
     out = []
+    acc = 0
+
     for i in range(0, len(text), 5):
         chunk = text[i : i + 5]
         chunk = pycompat.bytestr(chunk)
