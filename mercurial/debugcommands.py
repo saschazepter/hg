@@ -143,7 +143,7 @@ def debugancestor(ui, repo, *args):
 @command(b'debugantivirusrunning', [])
 def debugantivirusrunning(ui, repo):
     """attempt to trigger an antivirus scanner to see if one is active"""
-    with repo.cachevfs.open('eicar-test-file.com', b'wb') as f:
+    with repo.cachevfs.open(b'eicar-test-file.com', b'wb') as f:
         f.write(
             util.b85decode(
                 # This is a base85-armored version of the EICAR test file. See
@@ -154,7 +154,7 @@ def debugantivirusrunning(ui, repo):
         )
     # Give an AV engine time to scan the file.
     time.sleep(2)
-    util.unlink(repo.cachevfs.join('eicar-test-file.com'))
+    util.unlink(repo.cachevfs.join(b'eicar-test-file.com'))
 
 
 @command(b'debugapplystreamclonebundle', [], b'FILE')
