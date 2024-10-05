@@ -70,6 +70,9 @@ from . import (
     typelib,
     urllibcompat,
 )
+from .interfaces import (
+    modules as intmod,
+)
 from .utils import (
     compression,
     hashutil,
@@ -87,7 +90,7 @@ assert [
 ]
 
 
-base85 = policy.importmod('base85')
+base85: intmod.Base85 = policy.importmod('base85')
 osutil = policy.importmod('osutil')
 
 b85decode = base85.b85decode
