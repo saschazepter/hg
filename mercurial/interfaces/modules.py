@@ -50,3 +50,26 @@ class BDiff(Protocol):
 
     xdiffblocks: Optional[BDiffBlocksFnc]
     """This method is currently only available in the ``cext`` module."""
+
+
+class CharEncoding(Protocol):
+    """A Protocol class for the various charencoding module implementations."""
+
+    def isasciistr(self, s: bytes) -> bool:
+        """Can the byte string be decoded with the ``ascii`` codec?"""
+
+    def asciilower(self, s: bytes) -> bytes:
+        """convert a string to lowercase if ASCII
+
+        Raises UnicodeDecodeError if non-ASCII characters are found."""
+
+    def asciiupper(self, s: bytes) -> bytes:
+        """convert a string to uppercase if ASCII
+
+        Raises UnicodeDecodeError if non-ASCII characters are found."""
+
+    def jsonescapeu8fast(self, u8chars: bytes, paranoid: bool) -> bytes:
+        """Convert a UTF-8 byte string to JSON-escaped form (fast path)
+
+        Raises ValueError if non-ASCII characters have to be escaped.
+        """
