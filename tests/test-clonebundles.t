@@ -290,8 +290,10 @@ Pre-transmit Hook
 Hooks work with inline bundle
 
   $ cp server/.hg/hgrc server/.hg/hgrc-beforeinlinehooks
-  $ echo "[hooks]" >> server/.hg/hgrc
-  $ echo "pretransmit-inline-clone-bundle=echo foo" >> server/.hg/hgrc
+  $ cat >> server/.hg/hgrc <<-EOF
+  > [hooks]
+  > pretransmit-inline-clone-bundle=sh -c 'printf "foo\n"'
+  > EOF
   $ hg clone -U ssh://user@dummy/server ssh-inline-clone-hook
   applying clone bundle from peer-bundle-cache://full.hg
   remote: foo
@@ -307,8 +309,10 @@ Hooks work with inline bundle
 Hooks can make an inline bundle fail
 
   $ cp server/.hg/hgrc-beforeinlinehooks server/.hg/hgrc
-  $ echo "[hooks]" >> server/.hg/hgrc
-  $ echo "pretransmit-inline-clone-bundle=echo bar && false" >> server/.hg/hgrc
+  $ cat >> server/.hg/hgrc <<-EOF
+  > [hooks]
+  > pretransmit-inline-clone-bundle=sh -c 'printf "bar\n"' && false
+  > EOF
   $ hg clone -U ssh://user@dummy/server ssh-inline-clone-hook-fail
   applying clone bundle from peer-bundle-cache://full.hg
   remote: bar
