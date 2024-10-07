@@ -250,7 +250,8 @@ We should not allow it
   (1 internal changesets selected)
   [255]
   $ hg debugbundle ../internal-01.hg
-  abort: $ENOENT$: '../internal-01.hg'
+  abort: $ENOENT$: '../internal-01.hg' (no-windows !)
+  abort: ../internal-01.hg: $ENOENT$ (windows !)
   [255]
 
 try to bundle it with other, somewhat explicitly
@@ -263,7 +264,8 @@ We should not allow it
   (1 internal changesets selected)
   [255]
   $ hg debugbundle ../internal-02.hg
-  abort: $ENOENT$: '../internal-02.hg'
+  abort: $ENOENT$: '../internal-02.hg' (no-windows !)
+  abort: ../internal-02.hg: $ENOENT$ (windows !)
   [255]
 
 bundle visible ancestors
