@@ -280,7 +280,7 @@ impl AtomicFile {
 impl Drop for AtomicFile {
     fn drop(&mut self) {
         if self.is_open {
-            std::fs::remove_file(self.target()).ok();
+            std::fs::remove_file(&self.temp_path).ok();
         }
     }
 }
