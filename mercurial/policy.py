@@ -60,7 +60,7 @@ if '__pypy__' in sys.builtin_module_names:
     policy: bytes = b'cffi'
 
 # Environment variable can always force settings.
-if 'HGMODULEPOLICY' in os.environ:
+if os.environ.get('HGMODULEPOLICY'):  # ignore None and Empty
     policy: bytes = os.environ['HGMODULEPOLICY'].encode('utf-8')
 
 
