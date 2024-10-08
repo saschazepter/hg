@@ -223,6 +223,7 @@ if WINDOWS:
 # For Windows support
 wifexited = getattr(os, "WIFEXITED", lambda x: False)
 
+
 # Whether to use IPv6
 def checksocketfamily(name, port=20058):
     """return true if we can listen on localhost using family=name
@@ -3307,6 +3308,10 @@ class TestRunner:
             pypath.append(oldpypath)
         osenvironb[IMPL_PATH] = sepb.join(pypath)
 
+        os.environ["HGTEST_BASE_HGMODULEPOLICY"] = os.environ.get(
+            "HGMODULEPOLICY", ""
+        )
+
         if self.options.pure:
             os.environ["HGTEST_RUN_TESTS_PURE"] = "--pure"
             os.environ["HGMODULEPOLICY"] = "py"
@@ -3397,7 +3402,6 @@ class TestRunner:
                 os.path.basename(t).startswith(b'test-')
                 and (t.endswith(b'.py') or t.endswith(b'.t'))
             ):
-
                 m = testcasepattern.match(os.path.basename(t))
                 if m is not None:
                     t_basename, casestr = m.groups()
