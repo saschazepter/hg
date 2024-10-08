@@ -161,7 +161,11 @@ testpats = [
         (r'(\[|\btest\b).*-e ', "don't use 'test -e', use 'test -f'"),
         (r'\[\[\s+[^\]]*\]\]', "don't use '[[ ]]', use '[ ]'"),
         (r'^alias\b.*=', "don't use alias, use a function"),
-        (r'if\s*!', "don't use '!' to negate exit status"),
+        # Solaris sh can not negate exit status with '!'
+        (
+            r'if\s*!',
+            "don't use '!' to negate exit status (use `||` or if/else)",
+        ),
         (r'/dev/u?random', "don't use entropy, use /dev/zero"),
         (r'do\s*true;\s*done', "don't use true as loop body, use sleep 0"),
         (
