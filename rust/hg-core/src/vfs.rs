@@ -1,13 +1,14 @@
-use crate::errors::{HgError, IoErrorContext, IoResultExt};
+use crate::errors::{HgError, HgResultExt, IoErrorContext, IoResultExt};
 use crate::exit_codes;
 use crate::fncache::FnCache;
 use crate::revlog::path_encode::path_encode;
 use crate::utils::files::{get_bytes_from_path, get_path_from_bytes};
 use dyn_clone::DynClone;
+use format_bytes::format_bytes;
 use memmap2::{Mmap, MmapOptions};
 use rand::distributions::{Alphanumeric, DistString};
 use std::fs::{File, OpenOptions};
-use std::io::{ErrorKind, Write};
+use std::io::{ErrorKind, Seek, Write};
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -188,7 +189,7 @@ fn fs_metadata(
     path: impl AsRef<Path>,
 ) -> Result<Option<std::fs::Metadata>, HgError> {
     let path = path.as_ref();
-    match std::fs::metadata(path) {
+    match path.metadata() {
         Ok(meta) => Ok(Some(meta)),
         Err(error) => match error.kind() {
             // TODO: when we require a Rust version where `NotADirectory` is
@@ -209,6 +210,7 @@ fn fs_metadata(
 /// the temporary copy to the original name, making the changes
 /// visible. If the object is destroyed without being closed, all your
 /// writes are discarded.
+#[derive(Debug)]
 pub struct AtomicFile {
     /// The temporary file to write to
     fp: std::fs::File,
@@ -225,6 +227,48 @@ pub struct AtomicFile {
 
 impl AtomicFile {
     pub fn new(
+        target_path: impl AsRef<Path>,
+        empty: bool,
+        check_ambig: bool,
+    ) -> Result<Self, HgError> {
+        let target_path = target_path.as_ref().to_owned();
+
+        let random_id =
+            Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let filename =
+            target_path.file_name().expect("target has no filename");
+        let filename = get_bytes_from_path(filename);
+        let temp_filename =
+            format_bytes!(b".{}-{}~", filename, random_id.as_bytes());
+        let temp_path =
+            target_path.with_file_name(get_path_from_bytes(&temp_filename));
+
+        if !empty {
+            std::fs::copy(&target_path, &temp_path)
+                .with_context(|| IoErrorContext::CopyingFile {
+                    from: target_path.to_owned(),
+                    to: temp_path.to_owned(),
+                })
+                // If it doesn't exist, create it on open
+                .io_not_found_as_none()?;
+        }
+        let fp = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(empty)
+            .open(&temp_path)
+            .when_writing_file(&temp_path)?;
+
+        Ok(Self {
+            fp,
+            temp_path,
+            check_ambig,
+            target_name: target_path,
+            is_open: true,
+        })
+    }
+
+    pub fn from_file(
         fp: std::fs::File,
         check_ambig: bool,
         temp_name: PathBuf,
@@ -256,7 +300,7 @@ impl AtomicFile {
         self.fp.flush()?;
         let target = self.target();
         if self.check_ambig {
-            if let Ok(stat) = std::fs::metadata(&target) {
+            if let Ok(stat) = target.metadata() {
                 std::fs::rename(&self.temp_path, &target)?;
                 let new_stat = std::fs::metadata(&target)?;
                 let ctime = new_stat.ctime();
@@ -270,10 +314,16 @@ impl AtomicFile {
                 std::fs::rename(&self.temp_path, target)?;
             }
         } else {
-            std::fs::rename(&self.temp_path, target).unwrap();
+            std::fs::rename(&self.temp_path, target)?;
         }
         self.is_open = false;
         Ok(())
+    }
+}
+
+impl Seek for AtomicFile {
+    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+        self.fp.seek(pos)
     }
 }
 
@@ -706,4 +756,62 @@ pub(crate) fn is_on_nfs_mount(path: impl AsRef<Path>) -> bool {
 #[cfg(not(target_os = "linux"))]
 pub(crate) fn is_on_nfs_mount(_path: impl AsRef<Path>) -> bool {
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_atomic_file() {
+        let dir = tempfile::tempdir().unwrap().into_path();
+        let target_path = dir.join("sometargetname");
+
+        for empty in [true, false] {
+            let file = AtomicFile::new(&target_path, empty, false).unwrap();
+            assert!(file.is_open);
+            let filename =
+                file.temp_path.file_name().unwrap().to_str().unwrap();
+            // Make sure we have a coherent temp name
+            assert_eq!(filename.len(), 29, "{}", filename);
+            assert!(filename.contains("sometargetname"));
+
+            // Make sure the temp file is created in the same folder
+            assert_eq!(target_path.parent(), file.temp_path.parent());
+        }
+
+        assert!(!target_path.exists());
+        std::fs::write(&target_path, "version 1").unwrap();
+        let mut file = AtomicFile::new(&target_path, false, false).unwrap();
+        file.write_all(b"version 2!").unwrap();
+        assert_eq!(
+            std::fs::read(&target_path).unwrap(),
+            b"version 1".to_vec()
+        );
+        let temp_path = file.temp_path.to_owned();
+        // test that dropping the file should discard the temp file and not
+        // affect the target path.
+        drop(file);
+        assert_eq!(
+            std::fs::read(&target_path).unwrap(),
+            b"version 1".to_vec()
+        );
+        assert!(!temp_path.exists());
+
+        let mut file = AtomicFile::new(&target_path, false, false).unwrap();
+        file.write_all(b"version 2!").unwrap();
+        assert_eq!(
+            std::fs::read(&target_path).unwrap(),
+            b"version 1".to_vec()
+        );
+        file.close().unwrap();
+        assert_eq!(
+            std::fs::read(&target_path).unwrap(),
+            b"version 2!".to_vec(),
+            "{}",
+            std::fs::read_to_string(&target_path).unwrap()
+        );
+        assert!(target_path.exists());
+        assert!(!temp_path.exists());
+    }
 }
