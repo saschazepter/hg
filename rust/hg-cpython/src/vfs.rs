@@ -170,7 +170,7 @@ impl Vfs for PyVfs {
     ) -> Result<hg::vfs::AtomicFile, HgError> {
         self.inner_open(filename, true, false, true, true).map(
             |(fp, temp_name)| {
-                hg::vfs::AtomicFile::new(
+                hg::vfs::AtomicFile::from_file(
                     fp,
                     check_ambig,
                     temp_name.expect("temp name should exist"),
