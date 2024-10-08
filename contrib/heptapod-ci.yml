@@ -41,6 +41,7 @@ variables:
     before_script:
       - echo "python used, $PYTHON"
       - for tool in $SHOW_VERSION_OF ; do echo '#' version of $tool; $tool --version; done
+      - rm -rf /tmp/mercurial-ci/  # Clean slate if not using containers
       - hg clone . /tmp/mercurial-ci/ --noupdate --config phases.publish=no
       - hg -R /tmp/mercurial-ci/ update `hg log --rev '.' --template '{node}'`
       - cd /tmp/mercurial-ci/
@@ -179,3 +180,8 @@ windows-pyox:
     variables:
         RUNTEST_ARGS: "--blacklist C:/Temp/check-tests.txt --pyoxidized"
         PYTHON: py -3
+
+macos:
+    <<: *test_c
+    tags:
+      - macos
