@@ -95,7 +95,7 @@ __all__ = ["Zeroconf", "ServiceInfo", "ServiceBrowser"]
 
 # hook for threads
 
-globals()[b'_GLOBAL_DONE'] = 0
+globals()['_GLOBAL_DONE'] = 0
 
 # Some timing constants
 
@@ -949,7 +949,7 @@ class Engine(threading.Thread):
         self.start()
 
     def run(self):
-        while not globals()[b'_GLOBAL_DONE']:
+        while not globals()['_GLOBAL_DONE']:
             rs = self.getReaders()
             if len(rs) == 0:
                 # No sockets to manage, but we wait for the timeout
@@ -965,7 +965,7 @@ class Engine(threading.Thread):
                         try:
                             self.readers[sock].handle_read()
                         except Exception:
-                            if not globals()[b'_GLOBAL_DONE']:
+                            if not globals()['_GLOBAL_DONE']:
                                 traceback.print_exc()
                 except Exception:
                     pass
@@ -1045,7 +1045,7 @@ class Reaper(threading.Thread):
     def run(self):
         while True:
             self.zeroconf.wait(10 * 1000)
-            if globals()[b'_GLOBAL_DONE']:
+            if globals()['_GLOBAL_DONE']:
                 return
             now = currentTimeMillis()
             for record in self.zeroconf.cache.entries():
@@ -1118,7 +1118,7 @@ class ServiceBrowser(threading.Thread):
             now = currentTimeMillis()
             if len(self.list) == 0 and self.nexttime > now:
                 self.zeroconf.wait(self.nexttime - now)
-            if globals()[b'_GLOBAL_DONE'] or self.done:
+            if globals()['_GLOBAL_DONE'] or self.done:
                 return
             now = currentTimeMillis()
 
@@ -1408,7 +1408,7 @@ class Zeroconf:
     def __init__(self, bindaddress=None):
         """Creates an instance of the Zeroconf class, establishing
         multicast communications, listening and reaping threads."""
-        globals()[b'_GLOBAL_DONE'] = 0
+        globals()['_GLOBAL_DONE'] = 0
         if bindaddress is None:
             self.intf = socket.gethostbyname(socket.gethostname())
         else:
@@ -1848,8 +1848,8 @@ class Zeroconf:
     def close(self):
         """Ends the background threads, and prevent this instance from
         servicing further queries."""
-        if globals()[b'_GLOBAL_DONE'] == 0:
-            globals()[b'_GLOBAL_DONE'] = 1
+        if globals()['_GLOBAL_DONE'] == 0:
+            globals()['_GLOBAL_DONE'] = 1
             self.notifyAll()
             self.engine.notify()
             self.unregisterAllServices()
