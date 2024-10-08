@@ -69,8 +69,13 @@ cwd = os.path.dirname(os.environ["TESTDIR"])
 if not os.path.isdir(os.path.join(cwd, ".hg")):
     sys.exit(0)
 
+files_cmd = "hg files --print0 \"%s\"" % fileset
+
+if 'HGTEST_RESTOREENV' in os.environ:
+    files_cmd = '. $HGTEST_RESTOREENV; ' + files_cmd
+
 files = subprocess.check_output(
-    "hg files --print0 \"%s\"" % fileset,
+    files_cmd,
     shell=True,
     cwd=cwd,
 ).split(b'\0')
