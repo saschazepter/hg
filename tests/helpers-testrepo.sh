@@ -29,6 +29,12 @@ syshgenv () {
     . "$HGTEST_RESTOREENV"
     HGPLAIN=1
     export HGPLAIN
+    if [ -n "$HGTEST_BASE_HGMODULEPOLICY" ]; then
+        HGMODULEPOLICY="$HGTEST_BASE_HGMODULEPOLICY"
+    else
+        unset HGMODULEPOLICY
+    fi
+    export HGMODULEPOLICY
 }
 
 # The test-repo is a live hg repository which may have evolution markers
