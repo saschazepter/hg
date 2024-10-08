@@ -18,7 +18,8 @@ We should have a repository around
 
   $ mkdir sanity-check
   $ cd sanity-check
-  $ tar xf $TESTDIR/bundles/inlined-changelog.tar
+  $ cat "$TESTDIR/bundles/inlined-changelog.tar" |  tar xf -
+
   $ cd inlined-changelog
   $ hg root
   $TESTTMP/sanity-check/inlined-changelog
@@ -55,7 +56,7 @@ Simple commit
 
   $ mkdir simple-commit
   $ cd simple-commit
-  $ tar xf $TESTDIR/bundles/inlined-changelog.tar
+  $ cat "$TESTDIR/bundles/inlined-changelog.tar" |  tar xf -
   $ cd inlined-changelog
   $ hg up --quiet
   $ hg log -GT '[{rev}] {desc}\n'
@@ -85,7 +86,7 @@ Before 6.7.3 this used to delete the changelog index
 
   $ mkdir pretxnclose-commit
   $ cd pretxnclose-commit
-  $ tar xf $TESTDIR/bundles/inlined-changelog.tar
+  $ cat "$TESTDIR/bundles/inlined-changelog.tar" |  tar xf -
   $ cat >> inlined-changelog/.hg/hgrc <<EOF
   > [hooks]
   > pretxnclose=hg log -r tip -T "pre-txn tip rev: {rev}\n"
@@ -121,7 +122,7 @@ Simple local push
 
   $ mkdir simple-local-push
   $ cd simple-local-push
-  $ tar xf $TESTDIR/bundles/inlined-changelog.tar
+  $ cat "$TESTDIR/bundles/inlined-changelog.tar" |  tar xf -
   $ hg log -R inlined-changelog -T '[{rev}] {desc}\n'
   [0] first commit
 
@@ -166,7 +167,7 @@ Before 6.7.3 this used to delete the server changelog
 
   $ mkdir pretxnchangegroup-local-push
   $ cd pretxnchangegroup-local-push
-  $ tar xf $TESTDIR/bundles/inlined-changelog.tar
+  $ cat "$TESTDIR/bundles/inlined-changelog.tar" |  tar xf -
   $ cat >> inlined-changelog/.hg/hgrc <<EOF
   > [hooks]
   > pretxnchangegroup=hg log -r tip -T "pre-txn tip rev: {rev}\n"
@@ -214,7 +215,7 @@ Simple ssh push
 
   $ mkdir simple-ssh-push
   $ cd simple-ssh-push
-  $ tar xf $TESTDIR/bundles/inlined-changelog.tar
+  $ cat "$TESTDIR/bundles/inlined-changelog.tar" |  tar xf -
   $ hg log -R inlined-changelog -T '[{rev}] {desc}\n'
   [0] first commit
 
@@ -259,7 +260,7 @@ Before 6.7.3 this used to delete the server changelog
 
   $ mkdir pretxnchangegroup-ssh-push
   $ cd pretxnchangegroup-ssh-push
-  $ tar xf $TESTDIR/bundles/inlined-changelog.tar
+  $ cat "$TESTDIR/bundles/inlined-changelog.tar" |  tar xf -
   $ cat >> inlined-changelog/.hg/hgrc <<EOF
   > [hooks]
   > pretxnchangegroup=hg log -r tip -T "pre-txn tip rev: {rev}\n"
