@@ -2,6 +2,12 @@
   $ . "$TESTDIR/helpers-testrepo.sh"
 
   $ cd $TESTDIR/..
+  $ if hg root 2> /dev/null >&2; then true;
+  > else
+  >   echo 'skipped: cannot read the source repository';
+  >   exit 80;
+  > fi
+
   $ python3 contrib/relnotes 4.4 --stoprev 4.5
   changeset 3398603c5621: unexpected block in release notes directive feature
   New Features
