@@ -26,7 +26,6 @@ image: registry.heptapod.net/mercurial/ci-images/mercurial-core:$HG_CI_IMAGE_TAG
 
 variables:
     PYTHON: python
-    TEST_HGMODULEPOLICY: "allow"
     HG_CI_IMAGE_TAG: "v1.0"
     TEST_HGTESTS_ALLOW_NETIO: "0"
 
@@ -49,7 +48,7 @@ variables:
         - echo "python used, $PYTHON"
         - $PYTHON --version
         - echo "$RUNTEST_ARGS"
-        - HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" HGMODULEPOLICY="$TEST_HGMODULEPOLICY" "$PYTHON" tests/run-tests.py --color=always $RUNTEST_ARGS
+        - HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" "$PYTHON" tests/run-tests.py --color=always $RUNTEST_ARGS
 
 checks:
     <<: *runtests
@@ -74,7 +73,6 @@ test-c:
     variables:
         RUNTEST_ARGS: " --no-rust --blacklist /tmp/check-tests.txt"
         PYTHON: python3
-        TEST_HGMODULEPOLICY: "c"
         TEST_HGTESTS_ALLOW_NETIO: "1"
 
 test-pure:
@@ -82,7 +80,6 @@ test-pure:
     variables:
         RUNTEST_ARGS: "--pure --blacklist /tmp/check-tests.txt"
         PYTHON: python3
-        TEST_HGMODULEPOLICY: "py"
 
 test-rust:
     <<: *runtests
@@ -90,7 +87,6 @@ test-rust:
         HGWITHRUSTEXT: cpython
         RUNTEST_ARGS: "--rust --blacklist /tmp/check-tests.txt"
         PYTHON: python3
-        TEST_HGMODULEPOLICY: "rust+c"
 
 test-rhg:
     <<: *runtests
@@ -98,14 +94,12 @@ test-rhg:
         HGWITHRUSTEXT: cpython
         RUNTEST_ARGS: "--rust --rhg --blacklist /tmp/check-tests.txt"
         PYTHON: python3
-        TEST_HGMODULEPOLICY: "rust+c"
 
 test-chg:
     <<: *runtests
     variables:
         PYTHON: python3
         RUNTEST_ARGS: "--blacklist /tmp/check-tests.txt --chg"
-        TEST_HGMODULEPOLICY: "c"
 
 check-pytype:
     extends: .runtests_template
@@ -144,14 +138,13 @@ check-pytype:
         - echo "$Env:TMP"
         - echo "$Env:TEMP"
 
-        - C:/MinGW/msys/1.0/bin/sh.exe --login -c 'cd "$OLDPWD" && HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" HGMODULEPOLICY="$TEST_HGMODULEPOLICY" $PYTHON tests/run-tests.py --color=always $RUNTEST_ARGS'
+        - C:/MinGW/msys/1.0/bin/sh.exe --login -c 'cd "$OLDPWD" && HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" $PYTHON tests/run-tests.py --color=always $RUNTEST_ARGS'
 
 windows:
     <<: *windows_runtests
     tags:
       - windows
     variables:
-        TEST_HGMODULEPOLICY: "c"
         RUNTEST_ARGS: "--blacklist C:/Temp/check-tests.txt"
         PYTHON: py -3
 
@@ -160,6 +153,5 @@ windows-pyox:
     tags:
       - windows
     variables:
-        TEST_HGMODULEPOLICY: "c"
         RUNTEST_ARGS: "--blacklist C:/Temp/check-tests.txt --pyoxidized"
         PYTHON: py -3
