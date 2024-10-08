@@ -232,6 +232,16 @@ class BadDomainNameCircular(BadDomainName):
 
 # implementation classes
 
+_SOL_IP = socket.SOL_IP
+
+if pycompat.iswindows:
+    # XXX: Not sure if there are newer versions of python where this would fail,
+    # but apparently socket.SOL_IP used to be 0, and socket.IPPROTO_IP is 0, so
+    # this would work with older versions of python.
+    #
+    # https://github.com/python/cpython/issues/101960
+    _SOL_IP = socket.IPPROTO_IP
+
 
 class DNSEntry:
     """A DNS entry"""
@@ -1419,8 +1429,8 @@ class Zeroconf:
             # work as expected.
             #
             pass
-        self.socket.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_TTL, b"\xff")
-        self.socket.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_LOOP, b"\x01")
+        self.socket.setsockopt(_SOL_IP, socket.IP_MULTICAST_TTL, b"\xff")
+        self.socket.setsockopt(_SOL_IP, socket.IP_MULTICAST_LOOP, b"\x01")
         try:
             self.socket.bind(self.group)
         except Exception:
@@ -1428,7 +1438,7 @@ class Zeroconf:
             # SO_REUSEADDR and SO_REUSEPORT have been set, so ignore it
             pass
         self.socket.setsockopt(
-            socket.SOL_IP,
+            _SOL_IP,
             socket.IP_ADD_MEMBERSHIP,
             socket.inet_aton(_MDNS_ADDR) + socket.inet_aton('0.0.0.0'),
         )
@@ -1844,7 +1854,7 @@ class Zeroconf:
             self.engine.notify()
             self.unregisterAllServices()
             self.socket.setsockopt(
-                socket.SOL_IP,
+                _SOL_IP,
                 socket.IP_DROP_MEMBERSHIP,
                 socket.inet_aton(_MDNS_ADDR) + socket.inet_aton('0.0.0.0'),
             )
