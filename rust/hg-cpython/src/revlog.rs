@@ -828,16 +828,15 @@ impl Index {
         stop_rev: &PyObject,
     ) -> PyResult<PyObject> {
         let index = &*self.index(py).borrow();
-        let stop_rev = match stop_rev.is_none(py) {
-            false => {
-                let rev = stop_rev.extract::<i32>(py)?;
-                if 0 <= rev && rev < index.len() as BaseRevision {
-                    Some(Revision(rev))
-                } else {
-                    None
-                }
+        let stop_rev = if stop_rev.is_none(py) {
+            None
+        } else {
+            let rev = stop_rev.extract::<i32>(py)?;
+            if 0 <= rev && rev < index.len() as BaseRevision {
+                Some(Revision(rev))
+            } else {
+                None
             }
-            true => None,
         };
         let from_core = match (filtered_revs.is_none(py), stop_rev.is_none()) {
             (true, true) => index.head_revs_shortcut(),
