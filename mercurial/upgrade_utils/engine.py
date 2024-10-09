@@ -31,6 +31,14 @@ from . import actions as upgrade_actions
 
 def get_sidedata_helpers(srcrepo, dstrepo):
     use_w = srcrepo.ui.configbool(b'experimental', b'worker.repository-upgrade')
+
+    if use_w and pycompat.isdarwin:
+        # Avoid a PicklingError on macOS in bundlerepository.
+        use_w = False
+        srcrepo.ui.debug(
+            b'ignoring experimental.worker.repository-upgrade=True on darwin'
+        )
+
     sequential = pycompat.iswindows or not use_w
     if not sequential:
         srcrepo.register_sidedata_computer(
