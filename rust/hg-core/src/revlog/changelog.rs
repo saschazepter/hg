@@ -86,7 +86,7 @@ impl Changelog {
     }
 
     pub fn get_index(&self) -> &Index {
-        &self.revlog.index
+        self.revlog.index()
     }
 }
 
@@ -569,7 +569,6 @@ message",
             base: temp.path().to_owned(),
         };
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
-        std::fs::write(temp.path().join("foo.d"), b"").unwrap();
         let revlog =
             Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::default())
                 .unwrap();
