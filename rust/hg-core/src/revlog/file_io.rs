@@ -2,7 +2,6 @@
 
 use std::{
     cell::RefCell,
-    fs::File,
     io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
@@ -10,7 +9,7 @@ use std::{
 
 use crate::{
     errors::{HgError, IoResultExt},
-    vfs::Vfs,
+    vfs::{Vfs, VfsFile},
 };
 
 /// Wraps accessing arbitrary chunks of data within a file and reusing handles.
@@ -123,12 +122,12 @@ impl DelayedBuffer {
     }
 }
 
-/// Holds an open [`File`] and the related data. This can be used for reading
-/// and writing. Writes can be delayed to a buffer before touching the disk,
-/// if relevant (in the changelog case), but reads are transparent.
+/// Holds an open [`VfsFile`] and the related data. This can be used for
+/// reading and writing. Writes can be delayed to a buffer before touching
+/// the disk, if relevant (in the changelog case), but reads are transparent.
 pub struct FileHandle {
     /// The actual open file
-    pub file: File,
+    pub file: VfsFile,
     /// The VFS with which the file was opened
     vfs: Box<dyn Vfs>,
     /// Filename of the open file, relative to the repo root
@@ -171,7 +170,7 @@ impl FileHandle {
         write: bool,
     ) -> Result<Self, HgError> {
         let file = if create {
-            vfs.create(filename.as_ref())?
+            vfs.create(filename.as_ref(), false)?
         } else if write {
             vfs.open(filename.as_ref())?
         } else {
@@ -193,7 +192,7 @@ impl FileHandle {
         delayed_buffer: Arc<Mutex<DelayedBuffer>>,
     ) -> Result<Self, HgError> {
         let mut file = if create {
-            vfs.create(filename.as_ref())?
+            vfs.create(filename.as_ref(), false)?
         } else {
             vfs.open(filename.as_ref())?
         };
@@ -216,9 +215,9 @@ impl FileHandle {
         })
     }
 
-    /// Wrap an existing [`File`]
+    /// Wrap an existing [`VfsFile`]
     pub fn from_file(
-        file: File,
+        file: VfsFile,
         vfs: Box<dyn Vfs>,
         filename: impl AsRef<Path>,
     ) -> Self {
@@ -230,9 +229,9 @@ impl FileHandle {
         }
     }
 
-    /// Wrap an existing [`File`], but writes go to a [`DelayedBuffer`].
+    /// Wrap an existing [`VfsFile`], but writes go to a [`DelayedBuffer`].
     pub fn from_file_delayed(
-        mut file: File,
+        mut file: VfsFile,
         vfs: Box<dyn Vfs>,
         filename: impl AsRef<Path>,
         delayed_buffer: Arc<Mutex<DelayedBuffer>>,
