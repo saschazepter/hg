@@ -114,6 +114,18 @@ test-3.12-rust:
     variables:
         PYTHON: python3.12
 
+test-3.13-c:
+    <<: *test_c
+    when: manual  # avoid overloading the CI by default
+    variables:
+        PYTHON: python3.13
+
+test-3.13-rust:
+    <<: *test_rust
+    when: manual  # avoid overloading the CI by default
+    variables:
+        PYTHON: python3.13
+
 check-pytype:
     extends: .runtests_template
     before_script:
