@@ -272,7 +272,7 @@ pub struct Index {
     /// be accessed via the [`Self::head_revs`] method.
     /// The last filtered revisions in this index, used to make sure
     /// we haven't changed filters when returning the cached `head_revs`.
-    head_revs: RwLock<(Vec<Revision>, HashSet<Revision>)>,
+    pub(super) head_revs: RwLock<(Vec<Revision>, HashSet<Revision>)>,
 }
 
 impl Debug for Index {
@@ -1395,6 +1395,14 @@ impl Index {
             offset + ((rev.0 as usize + 1) * INDEX_ENTRY_SIZE)
         } else {
             offset
+        }
+    }
+
+    pub(crate) fn make_null_entry(&self) -> IndexEntry<'_> {
+        IndexEntry {
+            bytes: b"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0 \
+            \xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff \
+            \0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",
         }
     }
 }
