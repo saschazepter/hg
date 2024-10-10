@@ -62,16 +62,13 @@ impl IndexHeader {
         BigEndian::read_u16(&self.header_bytes[2..4])
     }
 
-    pub fn parse(index_bytes: &[u8]) -> Result<Option<IndexHeader>, HgError> {
-        if index_bytes.is_empty() {
-            return Ok(None);
-        }
+    pub fn parse(index_bytes: &[u8]) -> Result<IndexHeader, HgError> {
         if index_bytes.len() < 4 {
             return Err(HgError::corrupted(
                 "corrupted revlog: can't read the index format header",
             ));
         }
-        Ok(Some(IndexHeader {
+        Ok(IndexHeader {
             header_bytes: {
                 let bytes: [u8; 4] =
                     index_bytes[0..4].try_into().expect("impossible");
@@ -341,8 +338,11 @@ impl Index {
         bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>,
         default_header: IndexHeader,
     ) -> Result<Self, HgError> {
-        let header =
-            IndexHeader::parse(bytes.as_ref())?.unwrap_or(default_header);
+        let header = if bytes.len() < INDEX_ENTRY_SIZE {
+            default_header
+        } else {
+            IndexHeader::parse(bytes.as_ref())?
+        };
 
         if header.format_version() != IndexHeader::REVLOGV1 {
             // A proper new version should have had a repo/store
@@ -1901,24 +1901,21 @@ mod tests {
 
     pub fn is_inline(index_bytes: &[u8]) -> bool {
         IndexHeader::parse(index_bytes)
-            .expect("too short")
-            .unwrap()
+            .expect("invalid header")
             .format_flags()
             .is_inline()
     }
 
     pub fn uses_generaldelta(index_bytes: &[u8]) -> bool {
         IndexHeader::parse(index_bytes)
-            .expect("too short")
-            .unwrap()
+            .expect("invalid header")
             .format_flags()
             .uses_generaldelta()
     }
 
     pub fn get_version(index_bytes: &[u8]) -> u16 {
         IndexHeader::parse(index_bytes)
-            .expect("too short")
-            .unwrap()
+            .expect("invalid header")
             .format_version()
     }
 
