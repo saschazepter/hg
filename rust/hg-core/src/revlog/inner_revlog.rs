@@ -857,7 +857,7 @@ impl InnerRevlog {
                         if error.kind() != ErrorKind::NotFound {
                             return Err(HgError::IoError { error, context });
                         }
-                        self.vfs.create(&self.data_file)?
+                        self.vfs.create(&self.data_file, true)?
                     }
                     e => return Err(e),
                 },
@@ -964,7 +964,8 @@ impl InnerRevlog {
             self.writing_handles.take();
             self.segment_file.writing_handle.take();
         }
-        let mut new_data_file_handle = self.vfs.create(&self.data_file)?;
+        let mut new_data_file_handle =
+            self.vfs.create(&self.data_file, true)?;
         // Drop any potential data, possibly redundant with the VFS impl.
         new_data_file_handle
             .set_len(0)
@@ -988,7 +989,7 @@ impl InnerRevlog {
             self.index_file = index_path
         }
 
-        let mut new_index_handle = self.vfs.create(&self.index_file)?;
+        let mut new_index_handle = self.vfs.create(&self.index_file, true)?;
         let mut new_data = Vec::with_capacity(self.len() * INDEX_ENTRY_SIZE);
         for r in 0..self.len() {
             let rev = Revision(r as BaseRevision);
