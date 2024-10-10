@@ -14,7 +14,7 @@ use hg::{
     errors::{HgError, IoResultExt},
     exit_codes,
     utils::files::{get_bytes_from_path, get_path_from_bytes},
-    vfs::Vfs,
+    vfs::{Vfs, VfsFile},
 };
 
 /// Wrapper around a Python VFS object to call back into Python from `hg-core`.
@@ -141,46 +141,47 @@ py_class!(pub class PyFile |py| {
 });
 
 impl Vfs for PyVfs {
-    fn open(&self, filename: &Path) -> Result<File, HgError> {
+    fn open(&self, filename: &Path) -> Result<VfsFile, HgError> {
         self.inner_open(filename, false, false, false, true)
-            .map(|(f, _)| f)
+            .map(|(f, _)| VfsFile::normal(f, filename.to_owned()))
     }
-    fn open_read(&self, filename: &Path) -> Result<File, HgError> {
+    fn open_read(&self, filename: &Path) -> Result<VfsFile, HgError> {
         self.inner_open(filename, false, false, false, false)
-            .map(|(f, _)| f)
+            .map(|(f, _)| VfsFile::normal(f, filename.to_owned()))
     }
 
-    fn open_check_ambig(
+    fn open_check_ambig(&self, filename: &Path) -> Result<VfsFile, HgError> {
+        self.inner_open(filename, false, true, false, true)
+            .map(|(f, _)| VfsFile::normal(f, filename.to_owned()))
+    }
+
+    fn create(
         &self,
         filename: &Path,
-    ) -> Result<std::fs::File, HgError> {
-        self.inner_open(filename, false, true, false, true)
-            .map(|(f, _)| f)
-    }
-
-    fn create(&self, filename: &Path) -> Result<std::fs::File, HgError> {
-        self.inner_open(filename, true, false, false, true)
-            .map(|(f, _)| f)
+        check_ambig: bool,
+    ) -> Result<VfsFile, HgError> {
+        self.inner_open(filename, true, check_ambig, false, true)
+            .map(|(f, _)| VfsFile::normal(f, filename.to_owned()))
     }
 
     fn create_atomic(
         &self,
         filename: &Path,
         check_ambig: bool,
-    ) -> Result<hg::vfs::AtomicFile, HgError> {
+    ) -> Result<VfsFile, HgError> {
         self.inner_open(filename, true, false, true, true).map(
             |(fp, temp_name)| {
-                hg::vfs::AtomicFile::from_file(
+                VfsFile::Atomic(hg::vfs::AtomicFile::from_file(
                     fp,
                     check_ambig,
                     temp_name.expect("temp name should exist"),
                     filename.to_owned(),
-                )
+                ))
             },
         )
     }
 
-    fn file_size(&self, file: &File) -> Result<u64, HgError> {
+    fn file_size(&self, file: &VfsFile) -> Result<u64, HgError> {
         let gil = &Python::acquire_gil();
         let py = gil.python();
         let raw_fd = file.as_raw_fd();

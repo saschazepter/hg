@@ -7,10 +7,15 @@ use dyn_clone::DynClone;
 use format_bytes::format_bytes;
 use memmap2::{Mmap, MmapOptions};
 use rand::distributions::{Alphanumeric, DistString};
-use std::fs::{File, OpenOptions};
-use std::io::{ErrorKind, Seek, Write};
+use std::fs::{File, Metadata, OpenOptions};
+use std::io::{ErrorKind, Read, Seek, Write};
+use std::os::fd::AsRawFd;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
+#[cfg(test)]
+use std::sync::atomic::AtomicUsize;
+#[cfg(test)]
+use std::sync::atomic::Ordering;
 use std::sync::OnceLock;
 
 /// Filesystem access abstraction for the contents of a given "base" diretory
@@ -203,6 +208,188 @@ fn fs_metadata(
     }
 }
 
+/// Abstraction over the files handled by a [`Vfs`].
+#[derive(Debug)]
+pub enum VfsFile {
+    Atomic(AtomicFile),
+
+    Normal {
+        file: File,
+        path: PathBuf,
+        /// If `Some`, check (and maybe fix) this file's timestamp ambiguity.
+        /// See [`is_filetime_ambiguous`].
+        check_ambig: Option<Metadata>,
+    },
+}
+
+impl VfsFile {
+    pub fn normal(file: File, path: PathBuf) -> Self {
+        Self::Normal {
+            file,
+            check_ambig: None,
+            path,
+        }
+    }
+    pub fn normal_check_ambig(
+        file: File,
+        path: PathBuf,
+    ) -> Result<Self, HgError> {
+        Ok(Self::Normal {
+            file,
+            check_ambig: Some(path.metadata().when_reading_file(&path)?),
+            path,
+        })
+    }
+    pub fn try_clone(&self) -> Result<VfsFile, HgError> {
+        Ok(match self {
+            VfsFile::Atomic(AtomicFile {
+                fp,
+                temp_path,
+                check_ambig,
+                target_name,
+                is_open,
+            }) => Self::Atomic(AtomicFile {
+                fp: fp.try_clone().when_reading_file(temp_path)?,
+                temp_path: temp_path.clone(),
+                check_ambig: *check_ambig,
+                target_name: target_name.clone(),
+                is_open: *is_open,
+            }),
+            VfsFile::Normal {
+                file,
+                check_ambig,
+                path,
+            } => Self::Normal {
+                file: file.try_clone().when_reading_file(path)?,
+                check_ambig: check_ambig.clone(),
+                path: path.to_owned(),
+            },
+        })
+    }
+    pub fn set_len(&self, len: u64) -> Result<(), std::io::Error> {
+        match self {
+            VfsFile::Atomic(atomic_file) => atomic_file.fp.set_len(len),
+            VfsFile::Normal { file, .. } => file.set_len(len),
+        }
+    }
+
+    pub fn metadata(&self) -> Result<std::fs::Metadata, std::io::Error> {
+        match self {
+            VfsFile::Atomic(atomic_file) => atomic_file.fp.metadata(),
+            VfsFile::Normal { file, .. } => file.metadata(),
+        }
+    }
+}
+
+impl AsRawFd for VfsFile {
+    fn as_raw_fd(&self) -> std::os::unix::prelude::RawFd {
+        match self {
+            VfsFile::Atomic(atomic_file) => atomic_file.fp.as_raw_fd(),
+            VfsFile::Normal { file, .. } => file.as_raw_fd(),
+        }
+    }
+}
+
+impl Seek for VfsFile {
+    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+        match self {
+            VfsFile::Atomic(atomic_file) => atomic_file.seek(pos),
+            VfsFile::Normal { file, .. } => file.seek(pos),
+        }
+    }
+}
+
+impl Read for VfsFile {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        match self {
+            VfsFile::Atomic(atomic_file) => atomic_file.fp.read(buf),
+            VfsFile::Normal { file, .. } => file.read(buf),
+        }
+    }
+}
+
+impl Write for VfsFile {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        match self {
+            VfsFile::Atomic(atomic_file) => atomic_file.fp.write(buf),
+            VfsFile::Normal { file, .. } => file.write(buf),
+        }
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        match self {
+            VfsFile::Atomic(atomic_file) => atomic_file.fp.flush(),
+            VfsFile::Normal { file, .. } => file.flush(),
+        }
+    }
+}
+
+impl Drop for VfsFile {
+    fn drop(&mut self) {
+        if let VfsFile::Normal {
+            path,
+            check_ambig: Some(old),
+            ..
+        } = self
+        {
+            avoid_timestamp_ambiguity(path, old)
+        }
+    }
+}
+
+/// Records the number of times we've fixed a timestamp ambiguity, only
+/// applicable for tests.
+#[cfg(test)]
+static TIMESTAMP_FIXES_CALLS: AtomicUsize = AtomicUsize::new(0);
+
+fn avoid_timestamp_ambiguity(path: &Path, old: &Metadata) {
+    if let Ok(new) = path.metadata() {
+        let is_ambiguous = is_filetime_ambiguous(&new, old);
+        if is_ambiguous {
+            let advanced =
+                filetime::FileTime::from_unix_time(old.mtime() + 1, 0);
+            if filetime::set_file_times(path, advanced, advanced).is_ok() {
+                #[cfg(test)]
+                {
+                    TIMESTAMP_FIXES_CALLS.fetch_add(1, Ordering::Relaxed);
+                }
+            }
+        }
+    }
+}
+
+/// Examine whether new stat is ambiguous against old one
+///
+/// "S[N]" below means stat of a file at N-th change:
+///
+/// - S[n-1].ctime  < S[n].ctime: can detect change of a file
+/// - S[n-1].ctime == S[n].ctime
+///   - S[n-1].ctime  < S[n].mtime: means natural advancing (*1)
+///   - S[n-1].ctime == S[n].mtime: is ambiguous (*2)
+///   - S[n-1].ctime  > S[n].mtime: never occurs naturally (don't care)
+/// - S[n-1].ctime  > S[n].ctime: never occurs naturally (don't care)
+///
+/// Case (*2) above means that a file was changed twice or more at
+/// same time in sec (= S[n-1].ctime), and comparison of timestamp
+/// is ambiguous.
+///
+/// Base idea to avoid such ambiguity is "advance mtime 1 sec, if
+/// timestamp is ambiguous".
+///
+/// But advancing mtime only in case (*2) doesn't work as
+/// expected, because naturally advanced S[n].mtime in case (*1)
+/// might be equal to manually advanced S[n-1 or earlier].mtime.
+///
+/// Therefore, all "S[n-1].ctime == S[n].ctime" cases should be
+/// treated as ambiguous regardless of mtime, to avoid overlooking
+/// by confliction between such mtime.
+///
+/// Advancing mtime "if isambig(new, old)" ensures "S[n-1].mtime !=
+/// S[n].mtime", even if size of a file isn't changed.
+fn is_filetime_ambiguous(new: &Metadata, old: &Metadata) -> bool {
+    new.ctime() == old.ctime()
+}
+
 /// Writable file object that atomically updates a file
 ///
 /// All writes will go to a temporary copy of the original file. Call
@@ -302,14 +489,7 @@ impl AtomicFile {
         if self.check_ambig {
             if let Ok(stat) = target.metadata() {
                 std::fs::rename(&self.temp_path, &target)?;
-                let new_stat = std::fs::metadata(&target)?;
-                let ctime = new_stat.ctime();
-                let is_ambiguous = ctime == stat.ctime();
-                if is_ambiguous {
-                    let advanced =
-                        filetime::FileTime::from_unix_time(ctime + 1, 0);
-                    filetime::set_file_times(target, advanced, advanced)?;
-                }
+                avoid_timestamp_ambiguity(&target, &stat);
             } else {
                 std::fs::rename(&self.temp_path, target)?;
             }
@@ -339,20 +519,21 @@ impl Drop for AtomicFile {
 /// filesystem layer (like passing one from Python).
 pub trait Vfs: Sync + Send + DynClone {
     // TODO make `open` readonly and make `open_read` an `open_write`
-    fn open(&self, filename: &Path) -> Result<std::fs::File, HgError>;
-    fn open_read(&self, filename: &Path) -> Result<std::fs::File, HgError>;
-    fn open_check_ambig(
+    fn open(&self, filename: &Path) -> Result<VfsFile, HgError>;
+    fn open_read(&self, filename: &Path) -> Result<VfsFile, HgError>;
+    fn open_check_ambig(&self, filename: &Path) -> Result<VfsFile, HgError>;
+    fn create(
         &self,
         filename: &Path,
-    ) -> Result<std::fs::File, HgError>;
-    fn create(&self, filename: &Path) -> Result<std::fs::File, HgError>;
+        check_ambig: bool,
+    ) -> Result<VfsFile, HgError>;
     /// Must truncate the new file if exist
     fn create_atomic(
         &self,
         filename: &Path,
         check_ambig: bool,
-    ) -> Result<AtomicFile, HgError>;
-    fn file_size(&self, file: &File) -> Result<u64, HgError>;
+    ) -> Result<VfsFile, HgError>;
+    fn file_size(&self, file: &VfsFile) -> Result<u64, HgError>;
     fn exists(&self, filename: &Path) -> bool;
     fn unlink(&self, filename: &Path) -> Result<(), HgError>;
     fn rename(
@@ -368,7 +549,7 @@ pub trait Vfs: Sync + Send + DynClone {
 /// These methods will need to be implemented once `rhg` (and other) non-Python
 /// users of `hg-core` start doing more on their own, like writing to files.
 impl Vfs for VfsImpl {
-    fn open(&self, filename: &Path) -> Result<std::fs::File, HgError> {
+    fn open(&self, filename: &Path) -> Result<VfsFile, HgError> {
         if self.readonly {
             return Err(HgError::abort(
                 "write access in a readonly vfs",
@@ -380,46 +561,56 @@ impl Vfs for VfsImpl {
         let path = self.base.join(filename);
         copy_in_place_if_hardlink(&path)?;
 
-        OpenOptions::new()
-            .create(false)
-            .create_new(false)
-            .write(true)
-            .read(true)
-            .open(&path)
-            .when_writing_file(&path)
+        Ok(VfsFile::normal(
+            OpenOptions::new()
+                .create(false)
+                .create_new(false)
+                .write(true)
+                .read(true)
+                .open(&path)
+                .when_writing_file(&path)?,
+            path.to_owned(),
+        ))
     }
 
-    fn open_read(&self, filename: &Path) -> Result<std::fs::File, HgError> {
+    fn open_read(&self, filename: &Path) -> Result<VfsFile, HgError> {
         // TODO auditpath
         let path = self.base.join(filename);
-        std::fs::File::open(&path).when_reading_file(&path)
+        Ok(VfsFile::normal(
+            std::fs::File::open(&path).when_reading_file(&path)?,
+            filename.to_owned(),
+        ))
     }
 
-    fn open_check_ambig(
+    fn open_check_ambig(&self, filename: &Path) -> Result<VfsFile, HgError> {
+        if self.readonly {
+            return Err(HgError::abort(
+                "write access in a readonly vfs",
+                exit_codes::ABORT,
+                None,
+            ));
+        }
+
+        let path = self.base.join(filename);
+        copy_in_place_if_hardlink(&path)?;
+
+        // TODO auditpath
+        VfsFile::normal_check_ambig(
+            OpenOptions::new()
+                .write(true)
+                .read(true) // Can be used for reading to save on `open` calls
+                .create(false)
+                .open(&path)
+                .when_reading_file(&path)?,
+            path.to_owned(),
+        )
+    }
+
+    fn create(
         &self,
         filename: &Path,
-    ) -> Result<std::fs::File, HgError> {
-        if self.readonly {
-            return Err(HgError::abort(
-                "write access in a readonly vfs",
-                exit_codes::ABORT,
-                None,
-            ));
-        }
-
-        let path = self.base.join(filename);
-        copy_in_place_if_hardlink(&path)?;
-
-        // TODO auditpath, check ambig
-        OpenOptions::new()
-            .write(true)
-            .read(true) // Can be used for reading to save on `open` calls
-            .create(false)
-            .open(&path)
-            .when_reading_file(&path)
-    }
-
-    fn create(&self, filename: &Path) -> Result<std::fs::File, HgError> {
+        check_ambig: bool,
+    ) -> Result<VfsFile, HgError> {
         if self.readonly {
             return Err(HgError::abort(
                 "write access in a readonly vfs",
@@ -431,7 +622,6 @@ impl Vfs for VfsImpl {
         let path = self.base.join(filename);
         let parent = path.parent().expect("file at root");
         std::fs::create_dir_all(parent).when_writing_file(parent)?;
-        // TODO checkambig (wrap File somehow)
 
         let file = OpenOptions::new()
             .create(true)
@@ -450,18 +640,26 @@ impl Vfs for VfsImpl {
             std::fs::set_permissions(&path, perm).when_writing_file(&path)?;
         }
 
-        Ok(file)
+        Ok(VfsFile::Normal {
+            file,
+            check_ambig: if check_ambig {
+                Some(path.metadata().when_reading_file(&path)?)
+            } else {
+                None
+            },
+            path: path.to_owned(),
+        })
     }
 
     fn create_atomic(
         &self,
         _filename: &Path,
         _check_ambig: bool,
-    ) -> Result<AtomicFile, HgError> {
+    ) -> Result<VfsFile, HgError> {
         todo!()
     }
 
-    fn file_size(&self, file: &File) -> Result<u64, HgError> {
+    fn file_size(&self, file: &VfsFile) -> Result<u64, HgError> {
         Ok(file
             .metadata()
             .map_err(|e| {
@@ -495,7 +693,7 @@ impl Vfs for VfsImpl {
         &self,
         from: &Path,
         to: &Path,
-        _check_ambig: bool,
+        check_ambig: bool,
     ) -> Result<(), HgError> {
         if self.readonly {
             return Err(HgError::abort(
@@ -504,15 +702,30 @@ impl Vfs for VfsImpl {
                 None,
             ));
         }
-        // TODO checkambig
+        let old_stat = if check_ambig {
+            Some(
+                from.metadata()
+                    .when_reading_file(from)
+                    .io_not_found_as_none()?,
+            )
+        } else {
+            None
+        };
         let from = self.base.join(from);
         let to = self.base.join(to);
-        std::fs::rename(&from, &to)
-            .with_context(|| IoErrorContext::RenamingFile { from, to })
+        std::fs::rename(&from, &to).with_context(|| {
+            IoErrorContext::RenamingFile {
+                from,
+                to: to.to_owned(),
+            }
+        })?;
+        if let Some(Some(old)) = old_stat {
+            avoid_timestamp_ambiguity(&to, &old);
+        }
+        Ok(())
     }
 
     fn copy(&self, from: &Path, to: &Path) -> Result<(), HgError> {
-        // TODO checkambig?
         let from = self.base.join(from);
         let to = self.base.join(to);
         std::fs::copy(&from, &to)
@@ -598,46 +811,47 @@ impl FnCacheVfs {
 }
 
 impl Vfs for FnCacheVfs {
-    fn open(&self, filename: &Path) -> Result<std::fs::File, HgError> {
+    fn open(&self, filename: &Path) -> Result<VfsFile, HgError> {
         let encoded = path_encode(&get_bytes_from_path(filename));
         let encoded_path = get_path_from_bytes(&encoded);
         self.maybe_add_to_fncache(filename, encoded_path)?;
         self.inner.open(encoded_path)
     }
 
-    fn open_read(&self, filename: &Path) -> Result<std::fs::File, HgError> {
+    fn open_read(&self, filename: &Path) -> Result<VfsFile, HgError> {
         let encoded = path_encode(&get_bytes_from_path(filename));
         let filename = get_path_from_bytes(&encoded);
         self.inner.open_read(filename)
     }
 
-    fn open_check_ambig(
-        &self,
-        filename: &Path,
-    ) -> Result<std::fs::File, HgError> {
+    fn open_check_ambig(&self, filename: &Path) -> Result<VfsFile, HgError> {
         let encoded = path_encode(&get_bytes_from_path(filename));
         let filename = get_path_from_bytes(&encoded);
         self.inner.open_check_ambig(filename)
     }
 
-    fn create(&self, filename: &Path) -> Result<std::fs::File, HgError> {
+    fn create(
+        &self,
+        filename: &Path,
+        check_ambig: bool,
+    ) -> Result<VfsFile, HgError> {
         let encoded = path_encode(&get_bytes_from_path(filename));
         let encoded_path = get_path_from_bytes(&encoded);
         self.maybe_add_to_fncache(filename, encoded_path)?;
-        self.inner.create(encoded_path)
+        self.inner.create(encoded_path, check_ambig)
     }
 
     fn create_atomic(
         &self,
         filename: &Path,
         check_ambig: bool,
-    ) -> Result<AtomicFile, HgError> {
+    ) -> Result<VfsFile, HgError> {
         let encoded = path_encode(&get_bytes_from_path(filename));
         let filename = get_path_from_bytes(&encoded);
         self.inner.create_atomic(filename, check_ambig)
     }
 
-    fn file_size(&self, file: &File) -> Result<u64, HgError> {
+    fn file_size(&self, file: &VfsFile) -> Result<u64, HgError> {
         self.inner.file_size(file)
     }
 
@@ -813,5 +1027,75 @@ mod tests {
         );
         assert!(target_path.exists());
         assert!(!temp_path.exists());
+    }
+
+    #[test]
+    fn test_vfs_file_check_ambig() {
+        let dir = tempfile::tempdir().unwrap().into_path();
+        let file_path = dir.join("file");
+
+        fn vfs_file_write(file_path: &Path, check_ambig: bool) {
+            let file = std::fs::OpenOptions::new()
+                .write(true)
+                .open(file_path)
+                .unwrap();
+            let old_stat = if check_ambig {
+                Some(file.metadata().unwrap())
+            } else {
+                None
+            };
+
+            let mut vfs_file = VfsFile::Normal {
+                file,
+                path: file_path.to_owned(),
+                check_ambig: old_stat,
+            };
+            vfs_file.write_all(b"contents").unwrap();
+        }
+
+        std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&file_path)
+            .unwrap();
+
+        let number_of_writes = 3;
+
+        // Try multiple times, because reproduction of an ambiguity depends
+        // on "filesystem time"
+        for _ in 0..5 {
+            TIMESTAMP_FIXES_CALLS.store(0, Ordering::Relaxed);
+            vfs_file_write(&file_path, false);
+            let old_stat = file_path.metadata().unwrap();
+            if old_stat.ctime() != old_stat.mtime() {
+                // subsequent changing never causes ambiguity
+                continue;
+            }
+
+            // Repeat atomic write with `check_ambig == true`, to examine
+            // whether the mtime is advanced multiple times as expected
+            for _ in 0..number_of_writes {
+                vfs_file_write(&file_path, true);
+            }
+            let new_stat = file_path.metadata().unwrap();
+            if !is_filetime_ambiguous(&new_stat, &old_stat) {
+                // timestamp ambiguity was naturally avoided while repetition
+                continue;
+            }
+
+            assert_eq!(
+                TIMESTAMP_FIXES_CALLS.load(Ordering::Relaxed),
+                number_of_writes
+            );
+            assert_eq!(
+                old_stat.mtime() + number_of_writes as i64,
+                file_path.metadata().unwrap().mtime()
+            );
+            break;
+        }
+        // If we've arrived here without breaking, we might not have
+        // tested anything because the platform is too slow. This test will
+        // still work on fast platforms.
     }
 }
