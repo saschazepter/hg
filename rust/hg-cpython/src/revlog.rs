@@ -632,8 +632,7 @@ impl Index {
             hg::index::Index::new(
                 bytes,
                 IndexHeader::parse(&header.to_be_bytes())
-                    .expect("default header is broken")
-                    .unwrap(),
+                    .expect("default header is broken"),
             )
             .map_err(|e| {
                 revlog_error_with_msg(py, e.to_string().as_bytes())
