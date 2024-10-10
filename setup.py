@@ -1766,16 +1766,7 @@ if os.name == 'nt':
     setupversion = setupversion.split(r'+', 1)[0]
 
 setup(
-    name='mercurial',
     version=setupversion,
-    author='Olivia Mackall and many others',
-    author_email='mercurial@mercurial-scm.org',
-    url='https://mercurial-scm.org/',
-    download_url='https://mercurial-scm.org/release/',
-    description=(
-        'Fast scalable distributed SCM (revision control, version '
-        'control) system'
-    ),
     long_description=(
         'Mercurial is a distributed SCM tool written in Python.'
         ' It is used by a number of large projects that require'
@@ -1783,26 +1774,6 @@ setup(
         'Mozilla.'
     ),
     long_description_content_type='text/x-rst',
-    license='GNU GPLv2 or any later version',
-    classifiers=[
-        'Development Status :: 6 - Mature',
-        'Environment :: Console',
-        'Intended Audience :: Developers',
-        'Intended Audience :: System Administrators',
-        'License :: OSI Approved :: GNU General Public License (GPL)',
-        'Natural Language :: Danish',
-        'Natural Language :: English',
-        'Natural Language :: German',
-        'Natural Language :: Italian',
-        'Natural Language :: Japanese',
-        'Natural Language :: Portuguese (Brazilian)',
-        'Operating System :: Microsoft :: Windows',
-        'Operating System :: OS Independent',
-        'Operating System :: POSIX',
-        'Programming Language :: C',
-        'Programming Language :: Python',
-        'Topic :: Software Development :: Version Control',
-    ],
     scripts=scripts,
     packages=packages,
     ext_modules=extmodules,
