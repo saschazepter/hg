@@ -74,7 +74,7 @@ impl IndexHeader {
                     index_bytes[0..4].try_into().expect("impossible");
                 bytes
             },
-        }))
+        })
     }
 }
 
@@ -925,8 +925,8 @@ impl Index {
         let mut gaps = Vec::new();
         let mut previous_end = None;
 
-        for (i, (_rev, entry)) in entries.iter().enumerate() {
-            let start = entry.c_start() as usize;
+        for (i, (rev, entry)) in entries.iter().enumerate() {
+            let start = self.start(*rev, entry);
             let length = entry.compressed_len();
 
             // Skip empty revisions to form larger holes
@@ -1004,15 +1004,14 @@ impl Index {
         if revs.is_empty() {
             return 0;
         }
-        let last_entry = &self.get_entry(revs[revs.len() - 1]).unwrap();
-        let end = last_entry.c_start() + last_entry.compressed_len() as u64;
+        let last_rev = revs[revs.len() - 1];
+        let last_entry = &self.get_entry(last_rev).unwrap();
+        let end = self.start(last_rev, last_entry)
+            + last_entry.compressed_len() as usize;
         let first_rev = revs.iter().find(|r| r.0 != NULL_REVISION.0).unwrap();
-        let start = if first_rev.0 == 0 {
-            0
-        } else {
-            self.get_entry(*first_rev).unwrap().c_start()
-        };
-        (end - start) as usize
+        let first_entry = self.get_entry(*first_rev).unwrap();
+        let start = self.start(*first_rev, &first_entry);
+        end - start
     }
 
     /// Returns `&revs[startidx..endidx]` without empty trailing revs
@@ -1379,6 +1378,25 @@ impl Index {
             })
             .collect())
     }
+
+    /// Return the offset into the data corresponding to `rev` (in the index
+    /// file if inline, in the data file otherwise). `entry` must be the entry
+    /// for `rev`: the API is done this way to reduce the number of lookups
+    /// since we sometimes already have the entry, and because very few places
+    /// actually use this function.
+    #[inline(always)]
+    pub fn start(&self, rev: Revision, entry: &IndexEntry<'_>) -> usize {
+        #[cfg(debug_assertions)]
+        {
+            assert_eq!(&self.get_entry(rev).unwrap(), entry);
+        }
+        let offset = entry.offset();
+        if self.is_inline() {
+            offset + ((rev.0 as usize + 1) * INDEX_ENTRY_SIZE)
+        } else {
+            offset
+        }
+    }
 }
 
 /// The kind of functionality needed by find_gca_candidates
@@ -1692,7 +1710,7 @@ impl super::RevlogIndex for Index {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct IndexEntry<'a> {
     bytes: &'a [u8],
 }
@@ -1706,11 +1724,6 @@ impl<'a> IndexEntry<'a> {
     }
     pub fn raw_offset(&self) -> u64 {
         BigEndian::read_u64(&self.bytes[0..8])
-    }
-
-    /// Same result (except potentially for rev 0) as C `index_get_start()`
-    fn c_start(&self) -> u64 {
-        self.raw_offset() >> 16
     }
 
     pub fn flags(&self) -> u16 {
