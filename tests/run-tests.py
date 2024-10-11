@@ -3358,14 +3358,15 @@ class TestRunner:
 
         # Setting PYTHONPATH with an activated venv causes the modules installed
         # in it to be ignored.  Therefore, include the related paths in sys.path
-        # in PYTHONPATH.
-        virtual_env = osenvironb.get(b"VIRTUAL_ENV")
-        if virtual_env:
-            virtual_env = os.path.join(virtual_env, b'')
-            for p in sys.path:
-                p = _sys2bytes(p)
-                if p.startswith(virtual_env):
-                    pypath.append(p)
+        # in PYTHONPATH.  If the executable is run directly without activation,
+        # any modules installed in it would also be ignored, so include them for
+        # the same reason.
+
+        for p in sys.path:
+            if p.startswith(sys.exec_prefix):
+                path = _sys2bytes(p)
+                if path not in pypath:
+                    pypath.append(path)
 
         # We have to augment PYTHONPATH, rather than simply replacing
         # it, in case external libraries are only available via current
