@@ -538,18 +538,27 @@ class digesthandler(urlreq.basehandler):
                         )
 
             def read(self, amt=None):
+                self._digest_recursion_level += 1
                 data = super().read(amt)
-                self._digest_input(data)
+                self._digest_recursion_level -= 1
+                if self._digest_recursion_level == 0:
+                    self._digest_input(data)
                 return data
 
             def readline(self):
+                self._digest_recursion_level += 1
                 data = super().readline()
-                self._digest_input(data)
+                self._digest_recursion_level -= 1
+                if self._digest_recursion_level == 0:
+                    self._digest_input(data)
                 return data
 
             def readinto(self, dest):
+                self._digest_recursion_level += 1
                 got = super().readinto(dest)
-                self._digest_input(dest[:got])
+                self._digest_recursion_level -= 1
+                if self._digest_recursion_level == 0:
+                    self._digest_input(dest[:got])
                 return got
 
             def _close_conn(self):
@@ -560,6 +569,8 @@ class digesthandler(urlreq.basehandler):
         response._digest = self._digest
         response._digest_consumed = 0
         response._hasher = self._hasher.copy()
+        # Python 3.8 / 3.9 recurses internally between read/readinto.
+        response._digest_recursion_level = 0
         response._digest_finished = False
         return response
 
