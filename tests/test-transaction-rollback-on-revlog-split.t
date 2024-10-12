@@ -8,29 +8,29 @@ Helper extension to intercept renames and kill process
 
   $ cat > $TESTTMP/intercept_before_rename.py << EOF
   > import os
-  > import signal
   > from mercurial import extensions, util
+  > from mercurial.testing import ps_util
   > 
   > def extsetup(ui):
   >     def rename(orig, src, dest, *args, **kwargs):
   >         path = util.normpath(dest)
   >         if path.endswith(b'data/file.i'):
-  >             os.kill(os.getpid(), signal.SIGKILL)
+  >             ps_util.kill(os.getpid())
   >         return orig(src, dest, *args, **kwargs)
   >     extensions.wrapfunction(util, 'rename', rename)
   > EOF
 
   $ cat > $TESTTMP/intercept_after_rename.py << EOF
   > import os
-  > import signal
   > from mercurial import extensions, util
+  > from mercurial.testing import ps_util
   > 
   > def extsetup(ui):
   >     def close(orig, *args, **kwargs):
   >         path = util.normpath(args[0]._atomictempfile__name)
   >         r = orig(*args, **kwargs)
   >         if path.endswith(b'/.hg/store/data/file.i'):
-  >             os.kill(os.getpid(), signal.SIGKILL)
+  >             ps_util.kill(os.getpid())
   >         return r
   >     extensions.wrapfunction(util.atomictempfile, 'close', close)
   > def extsetup(ui):
@@ -38,17 +38,17 @@ Helper extension to intercept renames and kill process
   >         path = util.normpath(dest)
   >         r = orig(src, dest, *args, **kwargs)
   >         if path.endswith(b'data/file.i'):
-  >             os.kill(os.getpid(), signal.SIGKILL)
+  >             ps_util.kill(os.getpid())
   >         return r
   >     extensions.wrapfunction(util, 'rename', rename)
   > EOF
 
   $ cat > $TESTTMP/killme.py << EOF
   > import os
-  > import signal
+  > from mercurial.testing import ps_util
   > 
   > def killme(ui, repo, hooktype, **kwargs):
-  >     os.kill(os.getpid(), signal.SIGKILL)
+  >     ps_util.kill(os.getpid())
   > EOF
 
   $ cat > $TESTTMP/reader_wait_split.py << EOF
