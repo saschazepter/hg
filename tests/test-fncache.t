@@ -304,7 +304,7 @@ Aborted transactions can be recovered later
 
   $ cat > ../exceptionext.py <<EOF
   > import os
-  > import signal
+  > from mercurial.testing import ps_util
   > from mercurial import (
   >   commands,
   >   error,
@@ -316,7 +316,7 @@ Aborted transactions can be recovered later
   > def trwrapper(orig, self, *args, **kwargs):
   >     tr = orig(self, *args, **kwargs)
   >     def fail(tr):
-  >         os.kill(os.getpid(), signal.SIGKILL)
+  >         ps_util.kill(os.getpid())
   >     # zzz prefix to ensure it sorted after store.write
   >     tr.addfinalize(b'zzz-forcefails', fail)
   >     return tr
