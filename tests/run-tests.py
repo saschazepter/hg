@@ -2298,6 +2298,7 @@ class TestResult(base_class):
         # sense to map it into skip some day.
         self.ignored = []
 
+        self._dot_printed = 0
         self.times = []
         self._firststarttime = None
         # Data stored for the benefit of generating xunit reports.
@@ -2321,6 +2322,9 @@ class TestResult(base_class):
         """write an item of the "dot" progress"""
         formated = highlight_progress(progress, self.color)
         self.stream.write(formated)
+        self._dot_printed += 1
+        if not self._dot_printed % 75:
+            self.stream.write(f' [{self._dot_printed}]\n'.rjust(8))
         self.stream.flush()
 
     def onStart(self, test):
@@ -2514,7 +2518,7 @@ class TestSuite(unittest.TestSuite):
         loadtest=None,
         showchannels=False,
         *args,
-        **kwargs
+        **kwargs,
     ):
         """Create a new instance that can run tests with a configuration.
 
@@ -3676,7 +3680,7 @@ class TestRunner:
             usechg=bool(self.options.with_chg or self.options.chg),
             chgdebug=self.options.chg_debug,
             useipv6=useipv6,
-            **kwds
+            **kwds,
         )
         t.should_reload = True
         return t
