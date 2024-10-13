@@ -379,7 +379,7 @@ class DNSRecord(DNSEntry):
         """Abstract method"""
         raise AbstractMethodException
 
-    def toString(self, other):
+    def toString(self, hdr, other):
         """String representation with additional information"""
         arg = b"%s/%s,%s" % (
             self.ttl,
@@ -457,7 +457,7 @@ class DNSPointer(DNSRecord):
 
     def __repr__(self):
         """String representation"""
-        return self.toString(self.alias)
+        return self.toString(b'', self.alias)
 
 
 class DNSText(DNSRecord):
@@ -480,9 +480,9 @@ class DNSText(DNSRecord):
     def __repr__(self):
         """String representation"""
         if len(self.text) > 10:
-            return self.toString(self.text[:7] + b"...")
+            return self.toString(b'', self.text[:7] + b"...")
         else:
-            return self.toString(self.text)
+            return self.toString(b'', self.text)
 
 
 class DNSService(DNSRecord):
@@ -515,7 +515,7 @@ class DNSService(DNSRecord):
 
     def __repr__(self):
         """String representation"""
-        return self.toString(b"%s:%s" % (self.server, self.port))
+        return self.toString(b'', b"%s:%s" % (self.server, self.port))
 
 
 class DNSIncoming:
