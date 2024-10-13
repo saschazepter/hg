@@ -28,6 +28,7 @@ variables:
     PYTHON: python
     HG_CI_IMAGE_TAG: "v2.1"
     TEST_HGTESTS_ALLOW_NETIO: "0"
+    SHOW_VERSION_OF: "$PYTHON"
 
 .all_template: &all
   when: on_success
@@ -39,9 +40,7 @@ variables:
     # We make a new clone owned by user used to run the step.
     before_script:
       - echo "python used, $PYTHON"
-      - $PYTHON --version
-      - black --version
-      - clang-format --version
+      - for tool in $SHOW_VERSION_OF ; do echo '#' version of $tool; $tool --version; done
       - hg clone . /tmp/mercurial-ci/ --noupdate --config phases.publish=no
       - hg -R /tmp/mercurial-ci/ update `hg log --rev '.' --template '{node}'`
       - cd /tmp/mercurial-ci/
@@ -53,6 +52,7 @@ variables:
 checks:
     <<: *runtests
     variables:
+        SHOW_VERSION_OF: "$PYTHON black clang-format"
         RUNTEST_ARGS: "--time --test-list /tmp/check-tests.txt"
         CI_CLEVER_CLOUD_FLAVOR: S
 
