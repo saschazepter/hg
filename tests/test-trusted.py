@@ -29,7 +29,7 @@ def _maybesysstr(v):
 def bprint(*args, **kwargs):
     print(
         *[_maybesysstr(a) for a in args],
-        **{k: _maybesysstr(v) for k, v in kwargs.items()}
+        **{k: _maybesysstr(v) for k, v in kwargs.items()},
     )
     # avoid awkward interleaving with ui object's output
     sys.stdout.flush()
