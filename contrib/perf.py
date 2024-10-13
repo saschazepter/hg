@@ -4509,7 +4509,7 @@ def perflrucache(
     sets=10000,
     mixed=10000,
     mixedgetfreq=50,
-    **opts
+    **opts,
 ):
     opts = _byteskwargs(opts)
 
