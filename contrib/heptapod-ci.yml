@@ -183,5 +183,6 @@ windows-pyox:
 
 macos:
     <<: *test_c
+    when: manual  # avoid overloading the CI by default
     tags:
       - macos
