@@ -167,23 +167,7 @@ The file should in a "added" state
 
 The status process should return a consistent result and not crash.
 
-#if dirstate-v1
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/n
-  A dir/o
-  R dir/nested/m
-  ? p
-  ? q
-#else
-#if rhg pre-some-read dirstate-v2-append
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  R dir/nested/m
-  ? dir/n
-  ? p
-  ? q
-#else
-#if rust no-rhg dirstate-v2-append
+#if rust dirstate-v2-append pre-some-read
   $ cat $TESTTMP/status-race-lock.out
   A dir/o
   R dir/nested/m
@@ -197,8 +181,6 @@ The status process should return a consistent result and not crash.
   R dir/nested/m
   ? p
   ? q
-#endif
-#endif
 #endif
   $ cat $TESTTMP/status-race-lock.log
 
@@ -249,30 +231,19 @@ commit was created, and status is now clean
 
 The status process should return a consistent result and not crash.
 
-#if no-rhg
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  R dir/nested/m
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#else
-#if pre-some-read dirstate-v2-append
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  R dir/nested/m
-  ? dir/n
-  ? p
-  ? q
-  $ cat $TESTTMP/status-race-lock.log
-#else
+#if dirstate-v1
   $ cat $TESTTMP/status-race-lock.out
   ? dir/n
   ? p
   ? q
-  $ cat $TESTTMP/status-race-lock.log
 #endif
+#if dirstate-v2
+  $ cat $TESTTMP/status-race-lock.out
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
 #endif
 
 final cleanup
@@ -323,21 +294,7 @@ do an update
 
 The status process should return a consistent result and not crash.
 
-#if rhg dirstate-v2-append pre-some-read
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  R dir/nested/m
-  ! dir/i
-  ! dir/j
-  ! dir/nested/h
-  ! dir2/k
-  ! dir2/l
-  ! g
-  ? dir/n
-  ? p
-  ? q
-#else
-#if rust no-rhg dirstate-v2-append
+#if rust dirstate-v2-append pre-some-read
   $ cat $TESTTMP/status-race-lock.out
   A dir/o
   R dir/nested/m
@@ -356,7 +313,6 @@ The status process should return a consistent result and not crash.
   ? dir/n
   ? p
   ? q
-#endif
 #endif
   $ cat $TESTTMP/status-race-lock.log
 
