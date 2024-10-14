@@ -167,6 +167,7 @@ class _dirstatemapcommon:
         return fp
 
     def _readdirstatefile(self, size: int = -1) -> bytes:
+        testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
         try:
             with self._opendirstatefile() as fp:
                 return fp.read(size)
@@ -176,6 +177,7 @@ class _dirstatemapcommon:
 
     @property
     def docket(self) -> "docketmod.DirstateDocket":
+        testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
         if not self._docket:
             if not self._use_dirstate_v2:
                 raise error.ProgrammingError(
