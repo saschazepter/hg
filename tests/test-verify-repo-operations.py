@@ -36,7 +36,7 @@ except ImportError:
 
 import binascii
 from contextlib import contextmanager
-import pipes
+import shlex
 import shutil
 import silenttestrunner
 import subprocess
@@ -267,7 +267,7 @@ class verifyingstatemachine(RuleBasedStateMachine):
         if os.path.exists(path):
             return
         self.log.append(
-            "$ mkdir -p -- %s" % (pipes.quote(os.path.relpath(path)),)
+            "$ mkdir -p -- %s" % (shlex.quote(os.path.relpath(path)),)
         )
         os.makedirs(path)
 
@@ -276,7 +276,7 @@ class verifyingstatemachine(RuleBasedStateMachine):
         if path == ".":
             return
         os.chdir(path)
-        self.log.append("$ cd -- %s" % (pipes.quote(path),))
+        self.log.append("$ cd -- %s" % (shlex.quote(path),))
 
     def hg(self, *args):
         extra_flags = []
@@ -286,7 +286,7 @@ class verifyingstatemachine(RuleBasedStateMachine):
         self.command("hg", *(tuple(extra_flags) + args))
 
     def command(self, *args):
-        self.log.append("$ " + ' '.join(map(pipes.quote, args)))
+        self.log.append("$ " + ' '.join(map(shlex.quote, args)))
         subprocess.check_output(args, stderr=subprocess.STDOUT)
 
     # Section: Set up basic data
@@ -355,7 +355,7 @@ class verifyingstatemachine(RuleBasedStateMachine):
             )
             % (
                 binascii.hexlify(content),
-                pipes.quote(path),
+                shlex.quote(path),
             )
         )
 
@@ -405,7 +405,7 @@ class verifyingstatemachine(RuleBasedStateMachine):
         if amend:
             errors.append("cannot amend public changesets")
             command.append("--amend")
-        command.append("-m" + pipes.quote(message))
+        command.append("-m" + shlex.quote(message))
         if secret:
             command.append("--secret")
         if close_branch:
