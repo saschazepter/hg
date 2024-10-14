@@ -477,7 +477,7 @@ class StoreFile:
     def has_size(self):
         return self._file_size is not None
 
-    def get_stream(self, vfs, copies):
+    def get_stream(self, vfs, volatiles):
         """return data "stream" information for this file
 
         (unencoded_file_path, content_iterator, content_size)
@@ -485,7 +485,7 @@ class StoreFile:
         size = self.file_size(None)
 
         def get_stream():
-            actual_path = copies[vfs.join(self.unencoded_path)]
+            actual_path = volatiles[vfs.join(self.unencoded_path)]
             with open(actual_path, 'rb') as fp:
                 yield None  # ready to stream
                 if size <= 65536:
@@ -513,7 +513,7 @@ class BaseStoreEntry:
         self,
         repo=None,
         vfs=None,
-        copies=None,
+        volatiles=None,
         max_changeset=None,
         preserve_file_count=False,
     ):
@@ -522,7 +522,7 @@ class BaseStoreEntry:
         return [(unencoded_file_path, content_iterator, content_size), …]
         """
         assert vfs is not None
-        return [f.get_stream(vfs, copies) for f in self.files()]
+        return [f.get_stream(vfs, volatiles) for f in self.files()]
 
 
 @attr.s(slots=True, init=False)
@@ -632,7 +632,7 @@ class RevlogStoreEntry(BaseStoreEntry):
         self,
         repo=None,
         vfs=None,
-        copies=None,
+        volatiles=None,
         max_changeset=None,
         preserve_file_count=False,
     ):
@@ -648,13 +648,13 @@ class RevlogStoreEntry(BaseStoreEntry):
             return super().get_streams(
                 repo=repo,
                 vfs=vfs,
-                copies=copies,
+                volatiles=volatiles,
                 max_changeset=max_changeset,
                 preserve_file_count=preserve_file_count,
             )
         elif not preserve_file_count:
             stream = [
-                f.get_stream(vfs, copies)
+                f.get_stream(vfs, volatiles)
                 for f in self.files()
                 if not f.unencoded_path.endswith((b'.i', b'.d'))
             ]
@@ -668,7 +668,7 @@ class RevlogStoreEntry(BaseStoreEntry):
             name_to_size[f.unencoded_path] = f.file_size(None)
 
         stream = [
-            f.get_stream(vfs, copies)
+            f.get_stream(vfs, volatiles)
             for f in self.files()
             if not f.unencoded_path.endswith(b'.i')
         ]
