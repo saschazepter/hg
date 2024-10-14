@@ -566,7 +566,7 @@ def _filterfull(entry, copy, vfsmap):
     return (src, name, ftype, copy(vfsmap[src].join(name)))
 
 
-class TempCopyManager:
+class VolatileManager:
     """Manage temporary backup of volatile file during stream clone
 
     This should be used as a Python context, the copies will be discarded when
@@ -659,12 +659,12 @@ def _emit2(repo, entries):
         _(b'bundle'), total=totalfilesize, unit=_(b'bytes')
     )
     progress.update(0)
-    with TempCopyManager() as copy, progress:
-        # create a copy of volatile files
+    with VolatileManager() as volatiles, progress:
+        # make sure we preserve volatile files
         for k, vfs, e in entries:
             for f in e.files():
                 if f.is_volatile:
-                    copy(vfs.join(f.unencoded_path))
+                    volatiles(vfs.join(f.unencoded_path))
         # the first yield release the lock on the repository
         yield file_count, totalfilesize
         totalbytecount = 0
@@ -673,7 +673,7 @@ def _emit2(repo, entries):
             entry_streams = e.get_streams(
                 repo=repo,
                 vfs=vfs,
-                copies=copy,
+                volatiles=volatiles,
                 max_changeset=max_linkrev,
                 preserve_file_count=True,
             )
@@ -722,15 +722,15 @@ def _emit3(repo, entries):
         unit=_(b'entry'),
     )
     progress.update(0)
-    with TempCopyManager() as copy, progress:
-        # create a copy of volatile files
+    with VolatileManager() as volatiles, progress:
+        # make sure we preserve volatile files
         for k, vfs, e in entries:
             if e.maybe_volatile:
                 for f in e.files():
                     if f.is_volatile:
                         # record the expected size under lock
                         f.file_size(vfs)
-                        copy(vfs.join(f.unencoded_path))
+                        volatiles(vfs.join(f.unencoded_path))
         # the first yield release the lock on the repository
         yield None
 
@@ -740,7 +740,7 @@ def _emit3(repo, entries):
             entry_streams = e.get_streams(
                 repo=repo,
                 vfs=vfs,
-                copies=copy,
+                volatiles=volatiles,
                 max_changeset=max_linkrev,
             )
             yield util.uvarintencode(len(entry_streams))
