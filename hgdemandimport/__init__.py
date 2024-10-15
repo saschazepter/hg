@@ -63,6 +63,7 @@ IGNORES = {
     '_weakrefset',
     'warnings',
     'threading',
+    'collections.abc',
 }
 
 _pypy = '__pypy__' in sys.builtin_module_names
