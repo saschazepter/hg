@@ -638,7 +638,7 @@ Useful when testing race conditions."""
 [[items]]
 section = 'devel'
 name = 'sync.status.pre-dirstate-write-file-timeout'
-default=2
+default=20
 
 [[items]]
 section = 'devel'
@@ -647,7 +647,7 @@ name = 'sync.dirstate.post-docket-read-file'
 [[items]]
 section = 'devel'
 name = 'sync.dirstate.post-docket-read-file-timeout'
-default=2
+default=20
 
 [[items]]
 section = 'devel'
@@ -656,7 +656,7 @@ name = 'sync.dirstate.pre-read-file'
 [[items]]
 section = 'devel'
 name = 'sync.dirstate.pre-read-file-timeout'
-default=2
+default=20
 
 [[items]]
 section = "devel"
