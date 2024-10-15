@@ -161,18 +161,18 @@ assert f(re) == "<module 'sys' (built-in)>"
 assert f(type(re.stderr)) == "<class '_io.TextIOWrapper'>", f(type(re.stderr))
 assert f(re) == "<module 'sys' (built-in)>"
 
-assert 'telnetlib' not in sys.modules
-import telnetlib
+assert 'wsgiref' not in sys.modules
+import wsgiref
 
-assert isinstance(telnetlib, _LazyModule)
-assert f(telnetlib) == "<module 'telnetlib' from '?'>"
+assert isinstance(wsgiref, _LazyModule)
+assert f(wsgiref) == "<module 'wsgiref' from '?'>"
 
 try:
-    from telnetlib import unknownattr
+    from wsgiref import unknownattr
 
     assert False, (
         'no demandmod should be created for attribute of non-package '
-        'module:\ntelnetlib.unknownattr = %s' % f(unknownattr)
+        'module:\nwsgiref.unknownattr = %s' % f(unknownattr)
     )
 except ImportError as inst:
     assert rsub(r"'", '', str(inst)).startswith(
@@ -189,8 +189,8 @@ assert not hasattr(zipfileimp, 'unknownattr')
 
 
 # test deactivation for issue6725
-del sys.modules['telnetlib']
+del sys.modules['wsgiref']
 with demandimport.deactivated():
-    import telnetlib
-assert telnetlib.__loader__ == telnetlib.__spec__.loader
-assert telnetlib.__loader__.get_resource_reader
+    import wsgiref
+assert wsgiref.__loader__ == wsgiref.__spec__.loader
+assert wsgiref.__loader__.get_resource_reader
