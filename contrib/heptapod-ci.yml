@@ -291,3 +291,29 @@ macos:
     when: manual  # avoid overloading the CI by default
     tags:
       - macos
+
+# we use CIBW_SKIP="pp*" to prevent the building of pypy wheel that are neither
+# needed nor working.
+#
+# We could use CIBW_BUILD="cp310-*" to only build the Python 3.10 wheel for now as
+# this is the only one we need to test. However testing that build work on all version is useful and match what we do with Linux.
+#
+# The weird directory structure match the one we use for Linux to deal with the
+# multiple jobs. (all this might be unnecessary)
+build-c-wheel-macos:
+    when: manual  # avoid overloading the CI by default
+    stage: build
+    tags:
+      - macos
+    script:
+      - rm -rf tmp-wheels
+      - CIBW_SKIP="pp*" cibuildwheel --output-dir tmp-wheels/
+      - for py_version in cp38-cp38 cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313; do
+          mkdir -p wheels/c/$py_version/;
+          mv tmp-wheels/*$py_version*.whl wheels/c/$py_version/;
+        done
+      - rm -rf tmp-wheels
+    artifacts:
+      paths:
+        - wheels
+      expire_in: 1 week
