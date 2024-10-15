@@ -3,6 +3,7 @@
 """dummy SMTP server for use in tests"""
 
 
+import io
 import optparse
 import os
 import socket
@@ -16,6 +17,13 @@ from mercurial import (
     ui as uimod,
 )
 
+if pycompat.iswindows:
+    sys.stdout = io.TextIOWrapper(
+        sys.stdout.buffer,
+        sys.stdout.encoding,
+        sys.stdout.errors,
+        newline="\n",
+    )
 
 if os.environ.get('HGIPV6', '0') == '1':
     family = socket.AF_INET6
