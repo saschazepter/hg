@@ -35,7 +35,6 @@ from . import (
     pathutil,
     policy,
     pycompat,
-    requirements,
     scmutil,
     subrepoutil,
     util,
@@ -2024,6 +2023,7 @@ def _update(
         update_from_null_fallback = False
         if (
             MAYBE_USE_RUST_UPDATE
+            and repo.ui.configbool(b"rust", b"update-from-null")
             and rust_update_mod is not None
             and p1.rev() == nullrev
             and not branchmerge
