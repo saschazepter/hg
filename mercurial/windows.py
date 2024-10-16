@@ -18,6 +18,7 @@ import typing
 import winreg  # pytype: disable=import-error
 
 from typing import (
+    Any,
     AnyStr,
     BinaryIO,
     Iterable,
@@ -675,11 +676,38 @@ def isexec(f: bytes) -> bool:
 
 
 class cachestat:
+    stat: os.stat_result
+
     def __init__(self, path: bytes) -> None:
-        pass
+        self.stat = os.stat(path)
 
     def cacheable(self) -> bool:
-        return False
+        return bool(self.stat.st_ino)
+
+    __hash__ = object.__hash__
+
+    def __eq__(self, other: Any) -> bool:
+        try:
+            # Only dev, ino, size, mtime and atime are likely to change. Out
+            # of these, we shouldn't compare atime but should compare the
+            # rest. However, one of the other fields changing indicates
+            # something fishy going on, so return False if anything but atime
+            # changes.
+            return (
+                self.stat.st_ino == other.stat.st_ino
+                and self.stat.st_dev == other.stat.st_dev
+                and self.stat.st_nlink == other.stat.st_nlink
+                and self.stat.st_uid == other.stat.st_uid
+                and self.stat.st_gid == other.stat.st_gid
+                and self.stat.st_size == other.stat.st_size
+                and self.stat[stat.ST_MTIME] == other.stat[stat.ST_MTIME]
+                and self.stat[stat.ST_CTIME] == other.stat[stat.ST_CTIME]
+            )
+        except AttributeError:
+            return False
+
+    def __ne__(self, other: Any) -> bool:
+        return not self == other
 
 
 def lookupreg(
