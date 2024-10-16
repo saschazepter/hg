@@ -1769,14 +1769,28 @@ class dirstate(intdirstate.idirstate):
                         ladd(fn)
                     else:
                         madd(fn)
-                elif not t.mtime_likely_equal_to(timestamp.mtime_of(st)):
-                    # There might be a change in the future if for example the
-                    # internal clock is off, but this is a case where the issues
-                    # the user would face would be a lot worse and there is
-                    # nothing we can really do.
-                    ladd(fn)
-                elif listclean:
-                    cadd(fn)
+                else:
+                    reliable = None
+                    if mtime_boundary is not None:
+                        reliable = timestamp.reliable_mtime_of(
+                            st, mtime_boundary
+                        )
+                    elif t.mtime_likely_equal_to(timestamp.mtime_of(st)):
+                        # We can't compute the current fs time, so we're in
+                        # a readonly fs or a LFS context.
+                        cadd(fn)
+                        continue
+
+                    if reliable is None or not t.mtime_likely_equal_to(
+                        reliable
+                    ):
+                        # There might be a change in the future if for example
+                        # the internal clock is off, but this is a case where
+                        # the issues the user would face would be a lot worse
+                        # and there is nothing we can really do.
+                        ladd(fn)
+                    elif listclean:
+                        cadd(fn)
         status = scmutil.status(
             modified, added, removed, deleted, unknown, ignored, clean
         )
