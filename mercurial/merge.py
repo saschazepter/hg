@@ -10,6 +10,7 @@ from __future__ import annotations
 import collections
 import struct
 import typing
+from typing import Dict, Optional, Tuple
 
 from .i18n import _
 from .node import nullrev
@@ -2164,70 +2165,8 @@ def _update(
                 mresult.len((mergestatemod.ACTION_GET,)) if wantfiledata else 0
             )
             with repo.dirstate.changing_parents(repo):
-                ### Filter Filedata
-                #
-                # We gathered "cache" information for the clean file while
-                # updating them: mtime, size and mode.
-                #
-                # At the time this comment is written, they are various issues
-                # with how we gather the `mode` and `mtime` information (see
-                # the comment in `batchget`).
-                #
-                # We are going to smooth one of this issue here : mtime ambiguity.
-                #
-                # i.e. even if the mtime gathered during `batchget` was
-                # correct[1] a change happening right after it could change the
-                # content while keeping the same mtime[2].
-                #
-                # When we reach the current code, the "on disk" part of the
-                # update operation is finished. We still assume that no other
-                # process raced that "on disk" part, but we want to at least
-                # prevent later file change to alter the content of the file
-                # right after the update operation. So quickly that the same
-                # mtime is record for the operation.
-                # To prevent such ambiguity to happens, we will only keep the
-                # "file data" for files with mtime that are stricly in the past,
-                # i.e. whose mtime is strictly lower than the current time.
-                #
-                # This protect us from race conditions from operation that could
-                # run right after this one, especially other Mercurial
-                # operation that could be waiting for the wlock to touch files
-                # content and the dirstate.
-                #
-                # In an ideal world, we could only get reliable information in
-                # `getfiledata` (from `getbatch`), however the current approach
-                # have been a successful compromise since many years.
-                #
-                # At the time this comment is written, not using any "cache"
-                # file data at all here would not be viable. As it would result is
-                # a very large amount of work (equivalent to the previous `hg
-                # update` during the next status after an update).
-                #
-                # [1] the current code cannot grantee that the `mtime` and
-                # `mode` are correct, but the result is "okay in practice".
-                # (see the comment in `batchget`).                #
-                #
-                # [2] using nano-second precision can greatly help here because
-                # it makes the "different write with same mtime" issue
-                # virtually vanish. However, dirstate v1 cannot store such
-                # precision and a bunch of python-runtime, operating-system and
-                # filesystem does not provide use with such precision, so we
-                # have to operate as if it wasn't available.
                 if getfiledata:
-                    ambiguous_mtime = {}
-                    now = timestamp.get_fs_now(repo.vfs)
-                    if now is None:
-                        # we can't write to the FS, so we won't actually update
-                        # the dirstate content anyway, no need to put cache
-                        # information.
-                        getfiledata = None
-                    else:
-                        now_sec = now[0]
-                        for f, m in getfiledata.items():
-                            if m is not None and m[2][0] >= now_sec:
-                                ambiguous_mtime[f] = (m[0], m[1], None)
-                        for f, m in ambiguous_mtime.items():
-                            getfiledata[f] = m
+                    getfiledata = filter_ambiguous_files(repo, getfiledata)
 
                 repo.setparents(fp1, fp2)
                 mergestatemod.recordupdates(
@@ -2251,6 +2190,74 @@ def _update(
             b'update', parent1=xp1, parent2=xp2, error=stats.unresolvedcount
         )
     return stats
+
+
+# filename -> (mode, size, timestamp)
+FileData = Dict[bytes, Optional[Tuple[int, int, Optional[timestamp.timestamp]]]]
+
+
+def filter_ambiguous_files(repo, file_data: FileData) -> Optional[FileData]:
+    """We've gathered "cache" information for the clean files while updating
+    them: their mtime, size and mode.
+
+    At the time this comment is written, there are various issues with how we
+    gather the `mode` and `mtime` information (see the comment in `batchget`).
+
+    We are going to smooth one of these issues here: mtime ambiguity.
+
+    i.e. even if the mtime gathered during `batchget` was correct[1] a change
+    happening right after it could change the content while keeping
+    the same mtime[2].
+
+    When we reach the current code, the "on disk" part of the update operation
+    is finished. We still assume that no other process raced that "on disk"
+    part, but we want to at least prevent later file changes to alter the
+    contents of the file right after the update operation so quickly that the
+    same mtime is recorded for the operation.
+    To prevent such ambiguities from happenning, we will only keep the
+    "file data" for files with mtimes that are strictly in the past,
+    i.e. whose mtime is strictly lower than the current time.
+
+    This protects us from race conditions from operations that could run right
+    after this one, especially other Mercurial operations that could be waiting
+    for the wlock to touch files contents and the dirstate.
+
+    In an ideal world, we could only get reliable information in `getfiledata`
+    (from `getbatch`), however the current approach has been a successful
+    compromise for many years.
+
+    At the time this comment is written, not using any "cache" file data at all
+    here would not be viable, as it would result is a very large amount of work
+    (equivalent to the previous `hg update` during the next status after an
+    update).
+
+    [1] the current code cannot grantee that the `mtime` and `mode`
+    are correct, but the result is "okay in practice".
+    (see the comment in `batchget`)
+
+    [2] using nano-second precision can greatly help here because it makes the
+    "different write with same mtime" issue virtually vanish. However,
+    dirstate v1 cannot store such precision and a bunch of python-runtime,
+    operating-system and filesystem parts do not provide us with such
+    precision, so we have to operate as if it wasn't available."""
+    ambiguous_mtime: FileData = {}
+    now = timestamp.get_fs_now(repo.vfs)
+    if fs_now_result is None:
+        # we can't write to the FS, so we won't actually update
+        # the dirstate content anyway, no need to put cache
+        # information.
+        return None
+    else:
+        now_sec = now[0]
+        now, timed_out = fs_now_result
+        if timed_out:
+            fast_enough_fs = False
+        for f, m in file_data.items():
+            if m is not None and m[2][0] >= now_sec:
+                ambiguous_mtime[f] = (m[0], m[1], None)
+        for f, m in ambiguous_mtime.items():
+            file_data[f] = m
+    return file_data
 
 
 def merge(ctx, labels=None, force=False, wc=None):
