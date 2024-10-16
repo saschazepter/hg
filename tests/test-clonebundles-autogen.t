@@ -10,8 +10,8 @@ initial setup
   > 
   > [clone-bundles]
   > auto-generate.on-change = yes
-  > upload-command = cp "\$HGCB_BUNDLE_PATH" "$TESTTMP"/final-upload/
-  > delete-command = rm -f "$TESTTMP/final-upload/\$HGCB_BASENAME"
+  > upload-command = sh -c 'cp "\$HGCB_BUNDLE_PATH" $TESTTMP_FORWARD_SLASH/final-upload/'
+  > delete-command = sh -c 'rm -f $TESTTMP_FORWARD_SLASH/final-upload/\$HGCB_BASENAME'
   > url-template = file://$TESTTMP/final-upload/{basename}
   > 
   > [devel]
