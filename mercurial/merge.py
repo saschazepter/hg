@@ -2214,17 +2214,38 @@ def filter_ambiguous_files(repo, file_data: FileData) -> Optional[FileData]:
     part, but we want to at least prevent later file changes to alter the
     contents of the file right after the update operation so quickly that the
     same mtime is recorded for the operation.
-    To prevent such ambiguities from happenning, we will only keep the
-    "file data" for files with mtimes that are strictly in the past,
-    i.e. whose mtime is strictly lower than the current time.
+
+    To prevent such ambiguities from happenning, we will do (up to) two things:
+        - wait until the filesystem clock has ticked
+        - only keep the "file data" for files with mtimes that are strictly in
+          the past, i.e. whose mtime is strictly lower than the current time.
+
+    We only wait for the system clock to tick if using dirstate-v2, since v1
+    only has second-level granularity and waiting for a whole second is
+    too much of a penalty in the general case.
+
+    Although we're assuming that people running dirstate-v2 on Linux
+    don't have a second-granularity FS (with the exclusion of NFS), users
+    can be surprising, and at some point in the future, dirstate-v2 will become
+    the default. To that end, we limit the wait time to 100ms and fall back
+    to the filtering method in case of a timeout.
+
+    +------------+------+--------------+
+    |   version  | wait | filter level |
+    +------------+------+--------------+
+    |     V1     | No   | Second       |
+    |     V2     | Yes  | Nanosecond   |
+    | V2-slow-fs | No   | Second       |
+    +------------+------+--------------+
 
     This protects us from race conditions from operations that could run right
     after this one, especially other Mercurial operations that could be waiting
     for the wlock to touch files contents and the dirstate.
 
     In an ideal world, we could only get reliable information in `getfiledata`
-    (from `getbatch`), however the current approach has been a successful
-    compromise for many years.
+    (from `getbatch`), however this filtering approach has been a successful
+    compromise for many years. A patch series of the linux kernel might change
+    this in 6.12³.
 
     At the time this comment is written, not using any "cache" file data at all
     here would not be viable, as it would result is a very large amount of work
@@ -2239,22 +2260,55 @@ def filter_ambiguous_files(repo, file_data: FileData) -> Optional[FileData]:
     "different write with same mtime" issue virtually vanish. However,
     dirstate v1 cannot store such precision and a bunch of python-runtime,
     operating-system and filesystem parts do not provide us with such
-    precision, so we have to operate as if it wasn't available."""
+    precision, so we have to operate as if it wasn't available.
+
+    [3] https://lore.kernel.org/all/20241002-mgtime-v10-8-d1c4717f5284@kernel.org
+    """
     ambiguous_mtime: FileData = {}
-    now = timestamp.get_fs_now(repo.vfs)
+    dirstate_v2 = repo.dirstate._use_dirstate_v2
+    fs_now_result = None
+    fast_enough_fs = True
+    if dirstate_v2:
+        fstype = util.getfstype(repo.vfs.base)
+        # Exclude NFS right off the bat
+        fast_enough_fs = fstype != b'nfs'
+        if fstype is not None and fast_enough_fs:
+            fs_now_result = timestamp.wait_until_fs_tick(repo.vfs)
+
+    if fs_now_result is None:
+        try:
+            now = timestamp.get_fs_now(repo.vfs)
+            fs_now_result = (now, False)
+        except OSError:
+            pass
+
     if fs_now_result is None:
         # we can't write to the FS, so we won't actually update
         # the dirstate content anyway, no need to put cache
         # information.
         return None
     else:
-        now_sec = now[0]
         now, timed_out = fs_now_result
         if timed_out:
             fast_enough_fs = False
         for f, m in file_data.items():
-            if m is not None and m[2][0] >= now_sec:
-                ambiguous_mtime[f] = (m[0], m[1], None)
+            if m is not None:
+                reliable = timestamp.make_mtime_reliable(m[2], now)
+                if reliable is None or (
+                    reliable[2] and (not dirstate_v2 or not fast_enough_fs)
+                ):
+                    # Either it's not reliable, or it's second ambiguous
+                    # and we're in dirstate-v1 or in a slow fs, so discard
+                    # the mtime.
+                    ambiguous_mtime[f] = (m[0], m[1], None)
+                elif reliable[2]:
+                    # We need to remember that this time is "second ambiguous"
+                    # otherwise the next status might miss a subsecond change
+                    # if its "stat" doesn't provide nanoseconds.
+                    #
+                    # TODO make osutil.c understand nanoseconds when possible
+                    # (see timestamp.py for the same note)
+                    ambiguous_mtime[f] = (m[0], m[1], reliable)
         for f, m in ambiguous_mtime.items():
             file_data[f] = m
     return file_data

@@ -137,3 +137,44 @@ def make_mtime_reliable(
         return None
     else:
         return file_timestamp
+
+
+FS_TICK_WAIT_TIMEOUT = 0.1  # 100 milliseconds
+
+
+def wait_until_fs_tick(vfs) -> Optional[Tuple[timestamp, bool]]:
+    """Wait until the next update from the filesystem time by writing in a loop
+    a new temporary file inside the working directory and checking if its time
+    differs from the first one observed.
+
+    Returns `None` if we are unable to get the filesystem time,
+    `(timestamp, True)` if we've timed out waiting for the filesystem clock
+    to tick, and `(timestamp, False)` if we've waited successfully.
+
+    On Linux, your average tick is going to be a "jiffy", or 1/HZ.
+    HZ is your kernel's tick rate (if it has one configured) and the value
+    is the one returned by `grep 'CONFIG_HZ=' /boot/config-$(uname -r)`,
+    again assuming a normal setup.
+
+    In my case (Alphare) at the time of writing, I get `CONFIG_HZ=250`,
+    which equates to 4ms.
+    This might change with a series that could make it to Linux 6.12:
+    https://lore.kernel.org/all/20241002-mgtime-v10-8-d1c4717f5284@kernel.org
+    """
+    start = time.monotonic()
+
+    try:
+        old_fs_time = get_fs_now(vfs)
+        new_fs_time = get_fs_now(vfs)
+
+        while (
+            new_fs_time[0] == old_fs_time[0]
+            and new_fs_time[1] == old_fs_time[1]
+        ):
+            if time.monotonic() - start > FS_TICK_WAIT_TIMEOUT:
+                return (old_fs_time, True)
+            new_fs_time = get_fs_now(vfs)
+    except OSError:
+        return None
+    else:
+        return (new_fs_time, False)
