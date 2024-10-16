@@ -1963,6 +1963,17 @@ default = "abort"
 experimental = true
 
 [[items]]
+section = "rust"
+name = "update-from-null"
+default = true
+experimental = true
+documentation = """Whether to use the Rust fast-path when an update from null
+is detected. This config item is here to help users disable the fastpath in
+case one of their extensions is interfering with the update code. If you are
+one of these people, please reach out.
+"""
+
+[[items]]
 section = "server"
 name = "bookmarks-pushkey-compat"
 default = true
