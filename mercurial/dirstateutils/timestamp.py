@@ -8,6 +8,8 @@ from __future__ import annotations
 import functools
 import os
 import stat
+import time
+from typing import Optional, Tuple
 
 from .. import error
 
@@ -49,7 +51,7 @@ class timestamp(tuple):
         )
 
 
-def get_fs_now(vfs):
+def get_fs_now(vfs) -> Optional[timestamp]:
     """return a timestamp for "now" in the current vfs
 
     This will raise an exception if no temporary files could be created.
@@ -62,14 +64,14 @@ def get_fs_now(vfs):
         vfs.unlink(tmpname)
 
 
-def zero():
+def zero() -> timestamp:
     """
     Returns the `timestamp` at the Unix epoch.
     """
     return tuple.__new__(timestamp, (0, 0))
 
 
-def mtime_of(stat_result):
+def mtime_of(stat_result: os.stat_result) -> timestamp:
     """
     Takes an `os.stat_result`-like object and returns a `timestamp` object
     for its modification time.
@@ -95,7 +97,9 @@ def mtime_of(stat_result):
     return timestamp((secs, subsec_nanos, False))
 
 
-def reliable_mtime_of(stat_result, present_mtime):
+def reliable_mtime_of(
+    stat_result: os.stat_result, present_mtime: timestamp
+) -> Optional[timestamp]:
     """Same as `mtime_of`, but return `None` or a `Timestamp` with
     `second_ambiguous` set if the date might be ambiguous.
 
