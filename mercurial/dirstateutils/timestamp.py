@@ -100,6 +100,14 @@ def mtime_of(stat_result: os.stat_result) -> timestamp:
 def reliable_mtime_of(
     stat_result: os.stat_result, present_mtime: timestamp
 ) -> Optional[timestamp]:
+    """Wrapper for `make_mtime_reliable` for stat objects"""
+    file_mtime = mtime_of(stat_result)
+    return make_mtime_reliable(file_mtime, present_mtime)
+
+
+def make_mtime_reliable(
+    file_timestamp: timestamp, present_mtime: timestamp
+) -> Optional[timestamp]:
     """Same as `mtime_of`, but return `None` or a `Timestamp` with
     `second_ambiguous` set if the date might be ambiguous.
 
@@ -108,9 +116,8 @@ def reliable_mtime_of(
 
     Otherwise a concurrent modification might happens with the same mtime.
     """
-    file_mtime = mtime_of(stat_result)
-    file_second = file_mtime[0]
-    file_ns = file_mtime[1]
+    file_second = file_timestamp[0]
+    file_ns = file_timestamp[1]
     boundary_second = present_mtime[0]
     boundary_ns = present_mtime[1]
     # If the mtime of the ambiguous file is younger (or equal) to the starting
@@ -129,4 +136,4 @@ def reliable_mtime_of(
     elif boundary_second < file_second < (3600 * 24 + boundary_second):
         return None
     else:
-        return file_mtime
+        return file_timestamp
