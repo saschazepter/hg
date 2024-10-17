@@ -260,6 +260,7 @@ impl Drop for AtomicFile {
 /// Abstracts over the VFS to allow for different implementations of the
 /// filesystem layer (like passing one from Python).
 pub trait Vfs: Sync + Send + DynClone {
+    // TODO make `open` readonly and make `open_read` an `open_write`
     fn open(&self, filename: &Path) -> Result<std::fs::File, HgError>;
     fn open_read(&self, filename: &Path) -> Result<std::fs::File, HgError>;
     fn open_check_ambig(
