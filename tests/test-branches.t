@@ -6,6 +6,11 @@
   > [storage]
   > revbranchcache.mmap=true
   > EOF
+#else
+  $ cat <<EOF >> $HGRCPATH
+  > [storage]
+  > revbranchcache.mmap=false
+  > EOF
 #endif
 
 #if v3
