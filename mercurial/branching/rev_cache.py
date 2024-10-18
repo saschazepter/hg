@@ -14,6 +14,7 @@ from ..node import (
 from .. import (
     encoding,
     error,
+    pycompat,
     util,
 )
 
@@ -176,7 +177,19 @@ class revbranchcache:
 
         if self._names:
             try:
-                usemmap = repo.ui.configbool(b'storage', b'revbranchcache.mmap')
+                # In order to rename the atomictempfile in _writerevs(), the
+                # existing file needs to be removed.  The Windows code
+                # (successfully) renames it to a temp file first, before moving
+                # the temp file into its place.  But the removal of the original
+                # file then fails, because it's still mapped.  The mmap object
+                # needs to be closed in order to remove the file, but in order
+                # to do that, the memoryview returned by util.buffer needs to be
+                # released.
+                usemmap = repo.ui.configbool(
+                    b'storage',
+                    b'revbranchcache.mmap',
+                    default=not pycompat.iswindows,
+                )
                 if not v1_fallback:
                     with repo.cachevfs(_rbcrevs) as fp:
                         if usemmap and repo.cachevfs.is_mmap_safe(_rbcrevs):
