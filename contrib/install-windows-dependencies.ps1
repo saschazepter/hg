@@ -34,6 +34,22 @@ $PYTHON310_x86_SHA256 = "BD115A575E86E61CEA9136C5A2C47E090BA484DC2DEE8B51A34111B
 $PYTHON310_X64_URL = "https://www.python.org/ftp/python/3.10.11/python-3.10.11-amd64.exe"
 $PYTHON310_x64_SHA256 = "D8DEDE5005564B408BA50317108B765ED9C3C510342A598F9FD42681CBE0648B"
 
+# Final installer release for this version
+$PYTHON311_x86_URL = "https://www.python.org/ftp/python/3.11.9/python-3.11.9.exe"
+$PYTHON311_x86_SHA256 = "AF19E5E2F03E715A822181F2CB7D4EFEF4EDA13FA4A2DB6DA12E998E46F5CBF9"
+$PYTHON311_X64_URL = "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe"
+$PYTHON311_x64_SHA256 = "5EE42C4EEE1E6B4464BB23722F90B45303F79442DF63083F05322F1785F5FDDE"
+
+$PYTHON312_X86_URL = "https://www.python.org/ftp/python/3.12.7/python-3.12.7.exe"
+$PYTHON312_x86_SHA256 = "5BF4F3F0A58E1661A26754AE2FF0C2499EFFF093F34833EE0921922887FB3851"
+$PYTHON312_x64_URL = "https://www.python.org/ftp/python/3.12.7/python-3.12.7-amd64.exe"
+$PYTHON312_x64_SHA256 = "1206721601A62C925D4E4A0DCFC371E88F2DDBE8C0C07962EBB2BE9B5BDE4570"
+
+$PYTHON313_x86_URL = "https://www.python.org/ftp/python/3.13.0/python-3.13.0.exe"
+$PYTHON313_x86_SHA256 = "A9BE7082CCD3D0B947D14A87BCEADB1A3551382A68FCB64D245A2EBCC779B272"
+$PYTHON313_X64_URL = "https://www.python.org/ftp/python/3.13.0/python-3.13.0-amd64.exe"
+$PYTHON313_x64_SHA256 = "78156AD0CF0EC4123BFB5333B40F078596EBF15F2D062A10144863680AFBDEFC"
+
 # PIP 22.0.4.
 $PIP_URL = "https://github.com/pypa/get-pip/raw/38e54e5de07c66e875c11a1ebbdb938854625dd8/public/get-pip.py"
 $PIP_SHA256 = "e235c437e5c7d7524fbce3880ca39b917a73dc565e0c813465b7a7a329bb279a"
@@ -138,6 +154,13 @@ function Install-Dependencies($prefix) {
     Secure-Download $PYTHON39_x64_URL ${prefix}\assets\python39-x64.exe $PYTHON39_x64_SHA256
     Secure-Download $PYTHON310_x86_URL ${prefix}\assets\python310-x86.exe $PYTHON310_x86_SHA256
     Secure-Download $PYTHON310_x64_URL ${prefix}\assets\python310-x64.exe $PYTHON310_x64_SHA256
+    Secure-Download $PYTHON311_x86_URL ${prefix}\assets\python311-x86.exe $PYTHON311_x86_SHA256
+    Secure-Download $PYTHON311_x64_URL ${prefix}\assets\python311-x64.exe $PYTHON311_x64_SHA256
+    Secure-Download $PYTHON312_x86_URL ${prefix}\assets\python312-x86.exe $PYTHON312_x86_SHA256
+    Secure-Download $PYTHON312_x64_URL ${prefix}\assets\python312-x64.exe $PYTHON312_x64_SHA256
+    Secure-Download $PYTHON313_x86_URL ${prefix}\assets\python313-x86.exe $PYTHON313_x86_SHA256
+    Secure-Download $PYTHON313_x64_URL ${prefix}\assets\python313-x64.exe $PYTHON313_x64_SHA256
+
     Secure-Download $PIP_URL ${pip} $PIP_SHA256
     Secure-Download $VS_BUILD_TOOLS_URL ${prefix}\assets\vs_buildtools.exe $VS_BUILD_TOOLS_SHA256
     Secure-Download $INNO_SETUP_URL ${prefix}\assets\InnoSetup.exe $INNO_SETUP_SHA256
@@ -152,6 +175,12 @@ function Install-Dependencies($prefix) {
     Install-Python3 "Python 3.9 64-bit" ${prefix}\assets\python39-x64.exe ${prefix}\python39-x64 ${pip}
     Install-Python3 "Python 3.10 32-bit" ${prefix}\assets\python310-x86.exe ${prefix}\python310-x86 ${pip}
     Install-Python3 "Python 3.10 64-bit" ${prefix}\assets\python310-x64.exe ${prefix}\python310-x64 ${pip}
+    Install-Python3 "Python 3.11 32-bit" ${prefix}\assets\python311-x86.exe ${prefix}\python311-x86 ${pip}
+    Install-Python3 "Python 3.11 64-bit" ${prefix}\assets\python311-x64.exe ${prefix}\python311-x64 ${pip}
+    Install-Python3 "Python 3.12 32-bit" ${prefix}\assets\python312-x86.exe ${prefix}\python312-x86 ${pip}
+    Install-Python3 "Python 3.12 64-bit" ${prefix}\assets\python312-x64.exe ${prefix}\python312-x64 ${pip}
+    Install-Python3 "Python 3.13 32-bit" ${prefix}\assets\python313-x86.exe ${prefix}\python313-x86 ${pip}
+    Install-Python3 "Python 3.13 64-bit" ${prefix}\assets\python313-x64.exe ${prefix}\python313-x64 ${pip}
 
     Write-Output "installing Visual Studio 2017 Build Tools and SDKs"
     Invoke-Process ${prefix}\assets\vs_buildtools.exe "--quiet --wait --norestart --nocache --channelUri https://aka.ms/vs/15/release/channel --add Microsoft.VisualStudio.Workload.MSBuildTools --add Microsoft.VisualStudio.Component.Windows10SDK.17763 --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.Windows10SDK --add Microsoft.VisualStudio.Component.VC.140"
