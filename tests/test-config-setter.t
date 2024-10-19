@@ -21,10 +21,12 @@ no repo
 
 #if windows
   $ USER_RC="$TESTTMP\\mercurial.ini"
-  $ USER_AUTO_RC="$TESTTMP\\mercurial-managed.ini"
+  $ AUTO_BASENAME="mercurial-managed.ini"
+  $ USER_AUTO_RC="$TESTTMP\\$AUTO_BASENAME"
 #else
   $ USER_RC="$TESTTMP/.hgrc"
-  $ USER_AUTO_RC="$TESTTMP/.hgrc-managed"
+  $ AUTO_BASENAME=".hgrc-managed"
+  $ USER_AUTO_RC="$TESTTMP/$AUTO_BASENAME"
 #endif
 
 #if windows
@@ -244,3 +246,29 @@ The user level is the default, even within a repository:
   value-h
   $ hg -R repo config alias.config-set-test-H
   value-h
+
+
+Checking we are smoothly integrating with existing config
+=========================================================
+
+(injecting the include when needed, and only once, is covered by the sections
+above)
+
+The include line is moved back to the top if hand edits pushed it further
+down, so hand-written values keep overriding the managed ones:
+
+  $ cat > $USER_RC <<EOF
+  > [ui]
+  > username = Test User
+  > %include $AUTO_BASENAME
+  > EOF
+  $ hg config --set alias.config-set-test-H=value-h
+  $ cat $USER_RC
+  %include .hgrc-managed (no-windows !)
+  %include mercurial-managed.ini (windows !)
+  [ui]
+  username = Test User
+  $ hg config alias.config-set-test-H
+  value-h
+  $ hg config ui.username
+  Test User

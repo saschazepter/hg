@@ -180,7 +180,9 @@ def set_config(
 
 
 def _inject_managed_include(base_content: bytes, target: bytes) -> bytes:
-    """return `base_content` with a single `%include` of `target`
+    """return `base_content` with a single `%include` of `target` on top
+
+    The include must stay the first line. Manually set value always wins.
 
     >>> _inject_managed_include(b'[ui]\\nusername = Foo\\n', b'.hgrc.managed')
     b'%include .hgrc.managed\\n[ui]\\nusername = Foo\\n'
@@ -188,15 +190,23 @@ def _inject_managed_include(base_content: bytes, target: bytes) -> bytes:
     b'%include .hgrc.managed\\n'
     >>> _inject_managed_include(b'no newline', b'.hgrc.managed')
     b'%include .hgrc.managed\\nno newline\\n'
+    >>> _inject_managed_include(
+    ...     b'[ui]\\nusername = Foo\\n%include .hgrc.managed\\n',
+    ...     b'.hgrc.managed',
+    ... )
+    b'%include .hgrc.managed\\n[ui]\\nusername = Foo\\n'
     """
     # `%include` is resolved relative to the including file, and both files
     # live in the same directory, so a bare basename is enough (and stays
     # valid if the configuration directory is moved around).
     include_line = b"%%include %s" % target
-    for line in base_content.splitlines():
-        if line.rstrip() == include_line:
-            # already included, nothing to do
-            return base_content
+    lines = base_content.splitlines(True)
+    if lines and lines[0].rstrip() == include_line:
+        # already included first, nothing to do
+        return base_content
+    # drop any occurrence further down before re-inserting it at the top
+    lines = [l for l in lines if l.rstrip() != include_line]
+    base_content = b"".join(lines)
     if base_content and not base_content.endswith(b'\n'):
         base_content += b'\n'
     return include_line + b"\n" + base_content
