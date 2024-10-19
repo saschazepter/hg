@@ -27,6 +27,7 @@ from . import (
     bookmarks,
     cmd_impls,
     cmdutil,
+    configuration,
     context as contextmod,
     copies,
     destutil,
@@ -2207,7 +2208,10 @@ def config(ui, repo, *values, **opts):
     set_args = opts.get('set')
     if set_args:
         set_values = config_command.parse_config_args(set_args)
-        return config_command.set_config(ui, repo, set_values)
+        set_level = config_command.find_edit_level(ui, repo, opts)
+        if set_level is None:
+            set_level = configuration.LEVEL_USER
+        return config_command.set_config(ui, repo, set_values, set_level)
     edit_level = config_command.find_edit_level(ui, repo, opts)
     if edit_level is not None:
         return config_command.edit_config(ui, repo, edit_level)

@@ -211,3 +211,36 @@ does not apply and the generic 255 exit code is used for InputError)
   abort: malformed --set option: 'alias=value-f'
   (use --set section.name=value)
   [255]
+
+Checking writing to the right level
+===================================
+
+Config start empty
+
+  $ hg config alias.config-set-test-C
+  [1]
+
+Running --local outside a repository should error
+
+  $ hg config --local --set  alias.config-set-test-G=value-00
+  abort: no "local" configuration file location known
+  [255]
+
+Updating the repo and the share independently
+
+  $ hg -R repo config --local --set  alias.config-set-test-G=value-01
+  $ hg -R share config --local --set  alias.config-set-test-G=value-02
+  $ hg config alias.config-set-test-G
+  [1]
+  $ hg -R repo config alias.config-set-test-G
+  value-01
+  $ hg -R share config alias.config-set-test-G
+  value-02
+
+The user level is the default, even within a repository:
+
+  $ hg -R repo config --set alias.config-set-test-H=value-h
+  $ hg config alias.config-set-test-H
+  value-h
+  $ hg -R repo config alias.config-set-test-H
+  value-h

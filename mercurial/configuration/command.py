@@ -29,7 +29,6 @@ from . import (
     ConfigLevelT,
     EDIT_LEVELS,
     LEVEL_SHARED,
-    LEVEL_USER,
     NO_REPO_EDIT_LEVELS,
     rcutil,
 )
@@ -138,7 +137,12 @@ def _target_by_level(
     )
 
 
-def set_config(ui: uimod.ui, repo, values: Collection[ConfigSpecT]) -> int:
+def set_config(
+    ui: uimod.ui,
+    repo,
+    values: Collection[ConfigSpecT],
+    level: ConfigLevelT,
+) -> int:
     """persist ``section.key=value`` to the managed configuration
 
     Values are stored in a machine-managed companion file so the file the user
@@ -147,7 +151,7 @@ def set_config(ui: uimod.ui, repo, values: Collection[ConfigSpecT]) -> int:
 
     timeout = ui.configint(b'ui', b'timeout')
     warntimeout = ui.configint(b'ui', b'timeout.warn')
-    vfs, base_file, managed_file = _target_by_level(repo, LEVEL_USER)
+    vfs, base_file, managed_file = _target_by_level(repo, level)
     # grab some lock so concurrent `--set` don't clobber each other's writes.
     with lockmod.trylock(
         ui,
