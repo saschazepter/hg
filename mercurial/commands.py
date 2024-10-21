@@ -68,7 +68,6 @@ from . import (
 from .cmd_impls import graft as graft_impl
 from .configuration import (
     command as config_command,
-    rcutil,
 )
 from .utils import (
     dateutil,
@@ -2370,18 +2369,10 @@ def config(ui, repo, *values, **opts):
     edit_level = config_command.find_edit_level(ui, repo, opts)
     if edit_level is not None:
         return config_command.edit_config(ui, repo, edit_level)
+
     ui.pager(b'config')
+    config_command.show_component(ui, repo)
     fm = ui.formatter(b'config', pycompat.byteskwargs(opts))
-    for t, f in rcutil.rccomponents():
-        if t == b'path':
-            ui.debug(b'read config from: %s\n' % f)
-        elif t == b'resource':
-            ui.debug(b'read config from: resource:%s.%s\n' % (f[0], f[1]))
-        elif t == b'items':
-            # Don't print anything for 'items'.
-            pass
-        else:
-            raise error.ProgrammingError(b'unknown rctype: %s' % t)
     untrusted = bool(opts.get('untrusted'))
 
     selsections = selentries = []
