@@ -106,3 +106,21 @@ def edit_config(ui: uimod.ui, repo, level: ConfigLevelT) -> None:
         errprefix=_(b"edit failed"),
         blockedtag=b'config_edit',
     )
+
+
+def show_component(ui: uimod.ui, repo) -> None:
+    """show the component used to build the config
+
+    XXX this skip over various source and ignore the repository config, so it
+    XXX is probably useless old code.
+    """
+    for t, f in rcutil.rccomponents():
+        if t == b'path':
+            ui.debug(b'read config from: %s\n' % f)
+        elif t == b'resource':
+            ui.debug(b'read config from: resource:%s.%s\n' % (f[0], f[1]))
+        elif t == b'items':
+            # Don't print anything for 'items'.
+            pass
+        else:
+            raise error.ProgrammingError(b'unknown rctype: %s' % t)
