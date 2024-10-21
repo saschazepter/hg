@@ -4072,8 +4072,14 @@ class TestRunner:
         if self._hgpath is not None:
             return self._hgpath
 
-        cmd = b'"%s" -c "import mercurial; print (mercurial.__path__[0])"'
-        cmd = _bytes2sys(cmd % PYTHON)
+        # PYTHONSAFEPATH (-P) new in 3.11
+        if sys.version_info >= (3, 11, 0):
+            python_safe_path = b"-P "
+        else:
+            python_safe_path = b""
+
+        cmd = b'"%s" %s-c "import mercurial; print (mercurial.__path__[0])"'
+        cmd = _bytes2sys(cmd % (PYTHON, python_safe_path))
 
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
         out, err = p.communicate()
