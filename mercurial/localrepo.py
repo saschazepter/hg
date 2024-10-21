@@ -59,7 +59,6 @@ from . import (
     policy,
     pushkey,
     pycompat,
-    rcutil,
     repoview,
     requirements as requirementsmod,
     revlog,
@@ -80,7 +79,7 @@ from . import (
 from .branching import (
     rev_cache as rev_branch_cache,
 )
-
+from .configuration import rcutil
 from .interfaces import (
     repository,
 )

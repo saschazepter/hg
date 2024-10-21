@@ -36,9 +36,9 @@ from mercurial import (
     extensions,
     hg,
     pycompat,
-    rcutil,
     ui as uimod,
 )
+from mercurial.configuration import rcutil
 from mercurial.hgweb import server as servermod
 
 # Note for extension authors: ONLY specify testedwith = 'ships-with-hg-core' for

@@ -50,10 +50,10 @@ from . import (
     loggingutil,
     progress,
     pycompat,
-    rcutil,
     scmutil,
     util,
 )
+from .configuration import rcutil
 from .utils import (
     dateutil,
     procutil,

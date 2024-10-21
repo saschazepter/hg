@@ -9,18 +9,18 @@ from __future__ import annotations
 
 import os
 
-from . import (
+from .. import (
     encoding,
     pycompat,
     util,
 )
 
-from .utils import resourceutil
+from ..utils import resourceutil
 
 if pycompat.iswindows:
-    from . import scmwindows as scmplatform
+    from .. import scmwindows as scmplatform
 else:
-    from . import scmposix as scmplatform
+    from .. import scmposix as scmplatform
 
 fallbackpager = scmplatform.fallbackpager
 systemrcpath = scmplatform.systemrcpath

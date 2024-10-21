@@ -35,7 +35,6 @@ from .. import (
     pathutil,
     profiling,
     pycompat,
-    rcutil,
     registrar,
     scmutil,
     templater,
@@ -50,6 +49,7 @@ from . import (
     webutil,
     wsgicgi,
 )
+from ..configuration import rcutil
 from ..utils import dateutil
 
 
