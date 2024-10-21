@@ -58,6 +58,34 @@ Test bundles are generated on push
   $ hg -q commit -A -m 'add foo'
   $ touch bar
   $ hg -q commit -A -m 'add bar'
+
+Test that the HGCB_BUNDLE_BASENAME variable behaves as expected when unquoted.
+#if no-windows
+  $ hg clone ../server '../embed-"-name/server'
+  updating to branch default
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ cp ../server/.hg/hgrc '../embed-"-name/server/.hg/hgrc'
+
+  $ mv ../final-upload/ ../final-upload.bak/
+  $ mkdir ../final-upload/
+
+  $ hg push --config paths.default='../embed-"-name/server'
+  pushing to $TESTTMP/embed-"-name/server
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  2 changesets found
+  cp: cannot stat ''\''$TESTTMP/embed-"-name/server/.hg/tmp-bundles/full-bzip2-v2-2_revs-aaff8d2ffbbf_tip-*_txn.hg'\''': $ENOENT$ (glob)
+  abort: command returned status 1: cp "$HGCB_BUNDLE_PATH" "$TESTTMP"/final-upload/
+  added 2 changesets with 2 changes to 2 files
+  clone-bundles: starting bundle generation: bzip2-v2
+
+Restore the original upload directory for windows test consistency
+  $ rm -r ../final-upload/
+  $ mv ../final-upload.bak/ ../final-upload/
+#endif
+
   $ hg push
   pushing to $TESTTMP/server
   searching for changes
