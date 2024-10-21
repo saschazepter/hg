@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import os
 
-from typing import Any, Dict, Optional
+from typing import Any, Collection, Dict, Optional
 
 from ..i18n import _
 
 from .. import (
     cmdutil,
     error,
+    formatter,
+    pycompat,
     requirements,
     ui as uimod,
     util,
@@ -124,3 +126,76 @@ def show_component(ui: uimod.ui, repo) -> None:
             pass
         else:
             raise error.ProgrammingError(b'unknown rctype: %s' % t)
+
+
+def show_config(
+    ui: uimod.ui,
+    repo,
+    value_filters: Collection[bytes],
+    formatter_options: dict,
+    untrusted: bool = False,
+    all_known: bool = False,
+    show_source: bool = False,
+) -> bool:
+    """Display config value to the user
+
+    The display is done using a dedicated `formatter` object.
+
+
+    :value_filters:
+        if non-empty filter the display value according to these filters. If
+        the filter does not match any value, the function return False. True
+        otherwise.
+
+    :formatter_option:
+        options passed to the formatter
+
+    :untrusted:
+        When set, use untrusted value instead of ignoring them
+
+    :all_known:
+        Display all known config item, not just the one with an explicit value.
+
+    :show_source:
+        Show where each value has been defined.
+    """
+    fm = ui.formatter(b'config', formatter_options)
+    selsections = selentries = []
+    filtered = False
+    if value_filters:
+        selsections = [v for v in value_filters if b'.' not in v]
+        selentries = [v for v in value_filters if b'.' in v]
+        filtered = True
+    uniquesel = len(selentries) == 1 and not selsections
+    selsections = set(selsections)
+    selentries = set(selentries)
+
+    matched = False
+    entries = ui.walkconfig(untrusted=untrusted, all_known=all_known)
+    for section, name, value in entries:
+        source = ui.configsource(section, name, untrusted)
+        value = pycompat.bytestr(value)
+        defaultvalue = ui.configdefault(section, name)
+        if fm.isplain():
+            source = source or b'none'
+            value = value.replace(b'\n', b'\\n')
+        entryname = section + b'.' + name
+        if filtered and not (section in selsections or entryname in selentries):
+            continue
+        fm.startitem()
+        fm.condwrite(show_source, b'source', b'%s: ', source)
+        if uniquesel:
+            fm.data(name=entryname)
+            fm.write(b'value', b'%s\n', value)
+        else:
+            fm.write(b'name value', b'%s=%s\n', entryname, value)
+        if formatter.isprintable(defaultvalue):
+            fm.data(defaultvalue=defaultvalue)
+        elif isinstance(defaultvalue, list) and all(
+            formatter.isprintable(e) for e in defaultvalue
+        ):
+            fm.data(defaultvalue=fm.formatlist(defaultvalue, name=b'value'))
+        # TODO: no idea how to process unsupported defaultvalue types
+        matched = True
+    fm.end()
+    return matched

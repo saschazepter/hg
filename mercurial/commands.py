@@ -2372,47 +2372,16 @@ def config(ui, repo, *values, **opts):
 
     ui.pager(b'config')
     config_command.show_component(ui, repo)
-    fm = ui.formatter(b'config', pycompat.byteskwargs(opts))
-    untrusted = bool(opts.get('untrusted'))
 
-    selsections = selentries = []
-    if values:
-        selsections = [v for v in values if b'.' not in v]
-        selentries = [v for v in values if b'.' in v]
-    uniquesel = len(selentries) == 1 and not selsections
-    selsections = set(selsections)
-    selentries = set(selentries)
-
-    matched = False
-    all_known = opts['exp_all_known']
-    show_source = ui.debugflag or opts.get('source')
-    entries = ui.walkconfig(untrusted=untrusted, all_known=all_known)
-    for section, name, value in entries:
-        source = ui.configsource(section, name, untrusted)
-        value = pycompat.bytestr(value)
-        defaultvalue = ui.configdefault(section, name)
-        if fm.isplain():
-            source = source or b'none'
-            value = value.replace(b'\n', b'\\n')
-        entryname = section + b'.' + name
-        if values and not (section in selsections or entryname in selentries):
-            continue
-        fm.startitem()
-        fm.condwrite(show_source, b'source', b'%s: ', source)
-        if uniquesel:
-            fm.data(name=entryname)
-            fm.write(b'value', b'%s\n', value)
-        else:
-            fm.write(b'name value', b'%s=%s\n', entryname, value)
-        if formatter.isprintable(defaultvalue):
-            fm.data(defaultvalue=defaultvalue)
-        elif isinstance(defaultvalue, list) and all(
-            formatter.isprintable(e) for e in defaultvalue
-        ):
-            fm.data(defaultvalue=fm.formatlist(defaultvalue, name=b'value'))
-        # TODO: no idea how to process unsupported defaultvalue types
-        matched = True
-    fm.end()
+    matched = config_command.show_config(
+        ui,
+        repo,
+        value_filters=values,
+        formatter_options=pycompat.byteskwargs(opts),
+        untrusted=bool(opts.get('untrusted')),
+        all_known=bool(opts.get('exp_all_known')),
+        show_source=bool(ui.debugflag or opts.get('source')),
+    )
     if matched:
         return 0
     return 1
