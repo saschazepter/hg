@@ -52,7 +52,6 @@ from . import (
     patch,
     phases,
     pycompat,
-    rcutil,
     registrar,
     requirements,
     revsetlang,
@@ -70,7 +69,7 @@ from . import (
 )
 
 from .cmd_impls import graft as graft_impl
-
+from .configuration import rcutil
 from .utils import (
     dateutil,
     procutil,

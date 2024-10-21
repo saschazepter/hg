@@ -37,7 +37,6 @@ from . import (
     localrepo,
     profiling,
     pycompat,
-    rcutil,
     registrar,
     requirements as requirementsmod,
     scmutil,
@@ -46,6 +45,7 @@ from . import (
     vfs,
 )
 
+from .configuration import rcutil
 from .utils import (
     procutil,
     stringutil,
