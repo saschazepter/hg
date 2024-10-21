@@ -6,11 +6,11 @@ import os
 from mercurial import (
     encoding,
     extensions,
-    rcutil,
     ui as uimod,
     util,
 )
 
+from mercurial.configuration import rcutil
 from mercurial.utils import procutil
 
 testtmp = encoding.environ[b'TESTTMP']
