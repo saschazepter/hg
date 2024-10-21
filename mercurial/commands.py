@@ -53,7 +53,6 @@ from . import (
     phases,
     pycompat,
     registrar,
-    requirements,
     revsetlang,
     rewriteutil,
     scmutil,
@@ -61,15 +60,16 @@ from . import (
     shelve as shelvemod,
     state as statemod,
     tags as tagsmod,
-    ui as uimod,
     util,
     verify as verifymod,
-    vfs as vfsmod,
     wireprotoserver,
 )
 
 from .cmd_impls import graft as graft_impl
-from .configuration import rcutil
+from .configuration import (
+    command as config_command,
+    rcutil,
+)
 from .utils import (
     dateutil,
     procutil,
@@ -2367,58 +2367,9 @@ def config(ui, repo, *values, **opts):
     Returns 0 on success, 1 if NAME does not exist.
 
     """
-
-    editopts = ('edit', 'local', 'global', 'shared', 'non_shared')
-    if any(opts.get(o) for o in editopts):
-        cmdutil.check_at_most_one_arg(opts, *editopts[1:])
-        if opts.get('local'):
-            if not repo:
-                raise error.InputError(
-                    _(b"can't use --local outside a repository")
-                )
-            paths = [repo.vfs.join(b'hgrc')]
-        elif opts.get('global'):
-            paths = rcutil.systemrcpath()
-        elif opts.get('shared'):
-            if not repo.shared():
-                raise error.InputError(
-                    _(b"repository is not shared; can't use --shared")
-                )
-            if requirements.SHARESAFE_REQUIREMENT not in repo.requirements:
-                raise error.InputError(
-                    _(
-                        b"share safe feature not enabled; "
-                        b"unable to edit shared source repository config"
-                    )
-                )
-            paths = [vfsmod.vfs(repo.sharedpath).join(b'hgrc')]
-        elif opts.get('non_shared'):
-            paths = [repo.vfs.join(b'hgrc-not-shared')]
-        else:
-            paths = rcutil.userrcpath()
-
-        for f in paths:
-            if os.path.exists(f):
-                break
-        else:
-            if opts.get('global'):
-                samplehgrc = uimod.samplehgrcs[b'global']
-            elif opts.get('local'):
-                samplehgrc = uimod.samplehgrcs[b'local']
-            else:
-                samplehgrc = uimod.samplehgrcs[b'user']
-
-            f = paths[0]
-            util.writefile(f, util.tonativeeol(samplehgrc))
-
-        editor = ui.geteditor()
-        ui.system(
-            b"%s \"%s\"" % (editor, f),
-            onerr=error.InputError,
-            errprefix=_(b"edit failed"),
-            blockedtag=b'config_edit',
-        )
-        return
+    edit_level = config_command.find_edit_level(ui, repo, opts)
+    if edit_level is not None:
+        return config_command.edit_config(ui, repo, edit_level)
     ui.pager(b'config')
     fm = ui.formatter(b'config', pycompat.byteskwargs(opts))
     for t, f in rcutil.rccomponents():
