@@ -519,30 +519,60 @@ impl Drop for AtomicFile {
 /// filesystem layer (like passing one from Python).
 pub trait Vfs: Sync + Send + DynClone {
     // TODO make `open` readonly and make `open_read` an `open_write`
+    /// Open a [`VfsFile::Normal`] for writing and reading the file at
+    /// `filename`, relative to this VFS's root.
     fn open(&self, filename: &Path) -> Result<VfsFile, HgError>;
+    /// Open a [`VfsFile::Normal`] for reading the file at `filename`,
+    /// relative to this VFS's root.
     fn open_read(&self, filename: &Path) -> Result<VfsFile, HgError>;
+    /// Open a [`VfsFile::Normal`] for reading and writing the file at
+    /// `filename`, relative to this VFS's root. This file will be checked
+    /// for an ambiguous mtime on [`drop`]. See [`is_filetime_ambiguous`].
     fn open_check_ambig(&self, filename: &Path) -> Result<VfsFile, HgError>;
+    /// Create a [`VfsFile::Normal`] for reading and writing the file at
+    /// `filename`, relative to this VFS's root. If the file already exists,
+    /// it will be truncated to 0 bytes.
     fn create(
         &self,
         filename: &Path,
         check_ambig: bool,
     ) -> Result<VfsFile, HgError>;
-    /// Must truncate the new file if exist
+    /// Create a [`VfsFile::Atomic`] for reading and writing the file at
+    /// `filename`, relative to this VFS's root. If the file already exists,
+    /// it will be truncated to 0 bytes.
     fn create_atomic(
         &self,
         filename: &Path,
         check_ambig: bool,
     ) -> Result<VfsFile, HgError>;
+    /// Return the total file size in bytes of the open `file`. Errors are
+    /// usual IO errors (invalid file handle, permissions, etc.)
     fn file_size(&self, file: &VfsFile) -> Result<u64, HgError>;
+    /// Return `true` if `filename` exists relative to this VFS's root. Errors
+    /// will coerce to `false`, to this also returns `false` if there are
+    /// IO problems. This is fine because any operation that actually tries
+    /// to do anything with this path will get the same error.
     fn exists(&self, filename: &Path) -> bool;
+    /// Remove the file at `filename` relative to this VFS's root. Errors
+    /// are the usual IO errors (lacking permission, file does not exist, etc.)
     fn unlink(&self, filename: &Path) -> Result<(), HgError>;
+    /// Rename the file `from` to `to`, both relative to this VFS's root.
+    /// Errors are the usual IO errors (lacking permission, file does not
+    /// exist, etc.). If `check_ambig` is `true`, the VFS will check for an
+    /// ambiguous mtime on rename. See [`is_filetime_ambiguous`].
     fn rename(
         &self,
         from: &Path,
         to: &Path,
         check_ambig: bool,
     ) -> Result<(), HgError>;
+    /// Rename the file `from` to `to`, both relative to this VFS's root.
+    /// Errors are the usual IO errors (lacking permission, file does not
+    /// exist, etc.). If `check_ambig` is passed, the VFS will check for an
+    /// ambiguous mtime on rename. See [`is_filetime_ambiguous`].
     fn copy(&self, from: &Path, to: &Path) -> Result<(), HgError>;
+    /// Returns the absolute root path of this VFS, relative to which all
+    /// operations are done.
     fn base(&self) -> &Path;
 }
 
