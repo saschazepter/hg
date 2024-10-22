@@ -447,18 +447,17 @@ class iverifyproblem(Protocol):
     Instances are essentially messages associated with severity.
     """
 
-    warning = interfaceutil.Attribute(
-        """Message indicating a non-fatal problem."""
-    )
+    warning: bytes | None
+    """Message indicating a non-fatal problem."""
 
-    error = interfaceutil.Attribute("""Message indicating a fatal problem.""")
+    error: bytes | None
+    """Message indicating a fatal problem."""
 
-    node = interfaceutil.Attribute(
-        """Revision encountering the problem.
+    node: bytes | None
+    """Revision encountering the problem.
 
-        ``None`` means the problem doesn't apply to a single revision.
-        """
-    )
+    ``None`` means the problem doesn't apply to a single revision.
+    """
 
 
 class irevisiondelta(Protocol):
