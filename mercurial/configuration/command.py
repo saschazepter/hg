@@ -111,7 +111,7 @@ def show_component(ui: uimod.ui, repo) -> None:
     XXX this skip over various source and ignore the repository config, so it
     XXX is probably useless old code.
     """
-    for t, f in rcutil.rccomponents():
+    for _lvl, t, f in rcutil.rccomponents():
         if t == b'path':
             ui.debug(b'read config from: %s\n' % f)
         elif t == b'resource':

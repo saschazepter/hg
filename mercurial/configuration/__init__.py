@@ -10,11 +10,15 @@ from typing import (
 
 # keep typing simple for now
 ConfigLevelT = str
-LEVEL_USER = 'user'  # "user" is the default level and never passed explicitly
+LEVEL_BUNDLED_RESOURCE = 'RESOURCE'
+LEVEL_ENV_OVERWRITE = 'ENV-HGRCPATH'
+LEVEL_USER = 'user'
 LEVEL_LOCAL = 'local'
 LEVEL_GLOBAL = 'global'
 LEVEL_SHARED = 'shared'
 LEVEL_NON_SHARED = 'non_shared'
+# only include level that it make sense to edit
+# note: "user" is the default level and never passed explicitly
 EDIT_LEVELS = (
     LEVEL_USER,
     LEVEL_LOCAL,
@@ -27,6 +31,7 @@ ConfigItemT = Tuple[bytes, bytes, bytes, bytes]
 ResourceIDT = Tuple[bytes, bytes]
 FileRCT = bytes
 ComponentT = Tuple[
+    ConfigLevelT,
     bytes,
     Union[
         List[ConfigItemT],
