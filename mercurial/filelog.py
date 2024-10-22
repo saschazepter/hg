@@ -241,7 +241,7 @@ class filelog:  # (repository.ifilestorage)
         """
         return not storageutil.filedataequivalent(self, node, text)
 
-    def verifyintegrity(self, state) -> Iterable[revlog.revlogproblem]:
+    def verifyintegrity(self, state) -> Iterable[repository.iverifyproblem]:
         return self._revlog.verifyintegrity(state)
 
     def storageinfo(
