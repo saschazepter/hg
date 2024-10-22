@@ -115,7 +115,7 @@ class ipeerconnection(Protocol):
     ui = interfaceutil.Attribute("""ui.ui instance""")
     path = interfaceutil.Attribute("""a urlutil.path instance or None""")
 
-    def url():
+    def url(self):
         """Returns a URL string representing this peer.
 
         Currently, implementations expose the raw URL used to construct the
@@ -127,17 +127,17 @@ class ipeerconnection(Protocol):
         value.
         """
 
-    def local():
+    def local(self):
         """Returns a local repository instance.
 
         If the peer represents a local repository, returns an object that
         can be used to interface with it. Otherwise returns ``None``.
         """
 
-    def canpush():
+    def canpush(self):
         """Returns a boolean indicating if this peer can be pushed to."""
 
-    def close():
+    def close(self):
         """Close the connection to this peer.
 
         This is called when the peer will no longer be used. Resources
@@ -148,7 +148,7 @@ class ipeerconnection(Protocol):
 class ipeercapabilities(Protocol):
     """Peer sub-interface related to capabilities."""
 
-    def capable(name):
+    def capable(self, name):
         """Determine support for a named capability.
 
         Returns ``False`` if capability not supported.
@@ -159,7 +159,7 @@ class ipeercapabilities(Protocol):
         Capability strings may or may not map to wire protocol capabilities.
         """
 
-    def requirecap(name, purpose):
+    def requirecap(self, name, purpose):
         """Require a capability to be present.
 
         Raises a ``CapabilityError`` if the capability isn't present.
@@ -173,35 +173,35 @@ class ipeercommands(Protocol):
     methods commonly call wire protocol commands of the same name.
     """
 
-    def branchmap():
+    def branchmap(self):
         """Obtain heads in named branches.
 
         Returns a dict mapping branch name to an iterable of nodes that are
         heads on that branch.
         """
 
-    def capabilities():
+    def capabilities(self):
         """Obtain capabilities of the peer.
 
         Returns a set of string capabilities.
         """
 
-    def get_cached_bundle_inline(path):
+    def get_cached_bundle_inline(self, path):
         """Retrieve a clonebundle across the wire.
 
         Returns a chunkbuffer
         """
 
-    def clonebundles():
+    def clonebundles(self):
         """Obtains the clone bundles manifest for the repo.
 
         Returns the manifest as unparsed bytes.
         """
 
-    def debugwireargs(one, two, three=None, four=None, five=None):
+    def debugwireargs(self, one, two, three=None, four=None, five=None):
         """Used to facilitate debugging of arguments passed over the wire."""
 
-    def getbundle(source, **kwargs):
+    def getbundle(self, source, **kwargs):
         """Obtain remote repository data as a bundle.
 
         This command is how the bulk of repository data is transferred from
@@ -210,13 +210,13 @@ class ipeercommands(Protocol):
         Returns a generator of bundle data.
         """
 
-    def heads():
+    def heads(self):
         """Determine all known head revisions in the peer.
 
         Returns an iterable of binary nodes.
         """
 
-    def known(nodes):
+    def known(self, nodes):
         """Determine whether multiple nodes are known.
 
         Accepts an iterable of nodes whose presence to check for.
@@ -225,19 +225,19 @@ class ipeercommands(Protocol):
         at that index is known to the peer.
         """
 
-    def listkeys(namespace):
+    def listkeys(self, namespace):
         """Obtain all keys in a pushkey namespace.
 
         Returns an iterable of key names.
         """
 
-    def lookup(key):
+    def lookup(self, key):
         """Resolve a value to a known revision.
 
         Returns a binary node of the resolved revision on success.
         """
 
-    def pushkey(namespace, key, old, new):
+    def pushkey(self, namespace, key, old, new):
         """Set a value using the ``pushkey`` protocol.
 
         Arguments correspond to the pushkey namespace and key to operate on and
@@ -247,13 +247,13 @@ class ipeercommands(Protocol):
         namespace.
         """
 
-    def stream_out():
+    def stream_out(self):
         """Obtain streaming clone data.
 
         Successful result should be a generator of data chunks.
         """
 
-    def unbundle(bundle, heads, url):
+    def unbundle(self, bundle, heads, url):
         """Transfer repository data to the peer.
 
         This is how the bulk of data during a push is transferred.
@@ -270,7 +270,7 @@ class ipeerlegacycommands(Protocol):
     legacy, the interfaces are split.
     """
 
-    def between(pairs):
+    def between(self, pairs):
         """Obtain nodes between pairs of nodes.
 
         ``pairs`` is an iterable of node pairs.
@@ -279,7 +279,7 @@ class ipeerlegacycommands(Protocol):
         requested pair.
         """
 
-    def branches(nodes):
+    def branches(self, nodes):
         """Obtain ancestor changesets of specific nodes back to a branch point.
 
         For each requested node, the peer finds the first ancestor node that is
@@ -288,10 +288,10 @@ class ipeerlegacycommands(Protocol):
         Returns an iterable of iterables with the resolved values for each node.
         """
 
-    def changegroup(nodes, source):
+    def changegroup(self, nodes, source):
         """Obtain a changegroup with data for descendants of specified nodes."""
 
-    def changegroupsubset(bases, heads, source):
+    def changegroupsubset(self, bases, heads, source):
         pass
 
 
@@ -304,7 +304,7 @@ class ipeercommandexecutor(Protocol):
     outstanding requests are waited on.
     """
 
-    def callcommand(name, args):
+    def callcommand(self, name, args):
         """Request that a named command be executed.
 
         Receives the command name and a dictionary of command arguments.
@@ -326,7 +326,7 @@ class ipeercommandexecutor(Protocol):
         until all command requests have been issued.
         """
 
-    def sendcommands():
+    def sendcommands(self):
         """Trigger submission of queued command requests.
 
         Not all transports submit commands as soon as they are requested to
@@ -336,7 +336,7 @@ class ipeercommandexecutor(Protocol):
         When called, no more new commands may be issued with this executor.
         """
 
-    def close():
+    def close(self):
         """Signal that this command request is finished.
 
         When called, no more new commands may be issued. All outstanding
@@ -360,7 +360,7 @@ class ipeerrequests(Protocol):
         """True if the peer cannot receive large argument value for commands."""
     )
 
-    def commandexecutor():
+    def commandexecutor(self):
         """A context manager that resolves to an ipeercommandexecutor.
 
         The object this resolves to can be used to issue command requests
@@ -541,10 +541,10 @@ class ifilerevisionssequence(Protocol):
     in the index.
     """
 
-    def __len__():
+    def __len__(self):
         """The total number of revisions."""
 
-    def __getitem__(rev):
+    def __getitem__(self, rev):
         """Returns the object having a specific revision number.
 
         Returns an 8-tuple with the following fields:
@@ -575,7 +575,7 @@ class ifilerevisionssequence(Protocol):
         recent revision.
         """
 
-    def __contains__(rev):
+    def __contains__(self, rev):
         """Whether a revision number exists."""
 
     def insert(self, i, entry):
@@ -599,13 +599,13 @@ class ifileindex(Protocol):
         """node for the null revision for use as delta base."""
     )
 
-    def __len__():
+    def __len__(self):
         """Obtain the number of revisions stored for this file."""
 
-    def __iter__():
+    def __iter__(self):
         """Iterate over revision numbers for this file."""
 
-    def hasnode(node):
+    def hasnode(self, node):
         """Returns a bool indicating if a node is known to this store.
 
         Implementations must only return True for full, binary node values:
@@ -615,31 +615,31 @@ class ifileindex(Protocol):
         The null node is never present.
         """
 
-    def revs(start=0, stop=None):
+    def revs(self, start=0, stop=None):
         """Iterate over revision numbers for this file, with control."""
 
-    def parents(node):
+    def parents(self, node):
         """Returns a 2-tuple of parent nodes for a revision.
 
         Values will be ``nullid`` if the parent is empty.
         """
 
-    def parentrevs(rev):
+    def parentrevs(self, rev):
         """Like parents() but operates on revision numbers."""
 
-    def rev(node):
+    def rev(self, node):
         """Obtain the revision number given a node.
 
         Raises ``error.LookupError`` if the node is not known.
         """
 
-    def node(rev):
+    def node(self, rev):
         """Obtain the node value given a revision number.
 
         Raises ``IndexError`` if the node is not known.
         """
 
-    def lookup(node):
+    def lookup(self, node):
         """Attempt to resolve a value to a node.
 
         Value can be a binary node, hex node, revision number, or a string
@@ -648,25 +648,25 @@ class ifileindex(Protocol):
         Raises ``error.LookupError`` if a node could not be resolved.
         """
 
-    def linkrev(rev):
+    def linkrev(self, rev):
         """Obtain the changeset revision number a revision is linked to."""
 
-    def iscensored(rev):
+    def iscensored(self, rev):
         """Return whether a revision's content has been censored."""
 
-    def commonancestorsheads(node1, node2):
+    def commonancestorsheads(self, node1, node2):
         """Obtain an iterable of nodes containing heads of common ancestors.
 
         See ``ancestor.commonancestorsheads()``.
         """
 
-    def descendants(revs):
+    def descendants(self, revs):
         """Obtain descendant revision numbers for a set of revision numbers.
 
         If ``nullrev`` is in the set, this is equivalent to ``revs()``.
         """
 
-    def heads(start=None, stop=None):
+    def heads(self, start=None, stop=None):
         """Obtain a list of nodes that are DAG heads, with control.
 
         The set of revisions examined can be limited by specifying
@@ -676,7 +676,7 @@ class ifileindex(Protocol):
         encountered.
         """
 
-    def children(node):
+    def children(self, node):
         """Obtain nodes that are children of a node.
 
         Returns a list of nodes.
@@ -690,13 +690,13 @@ class ifiledata(Protocol):
     data for a tracked file.
     """
 
-    def size(rev):
+    def size(self, rev):
         """Obtain the fulltext size of file data.
 
         Any metadata is excluded from size measurements.
         """
 
-    def revision(node):
+    def revision(self, node):
         """Obtain fulltext data for a node.
 
         By default, any storage transformations are applied before the data
@@ -707,24 +707,24 @@ class ifiledata(Protocol):
         consumers should use ``read()`` to obtain the actual file data.
         """
 
-    def rawdata(node):
+    def rawdata(self, node):
         """Obtain raw data for a node."""
 
-    def read(node):
+    def read(self, node):
         """Resolve file fulltext data.
 
         This is similar to ``revision()`` except any metadata in the data
         headers is stripped.
         """
 
-    def renamed(node):
+    def renamed(self, node):
         """Obtain copy metadata for a node.
 
         Returns ``False`` if no copy metadata is stored or a 2-tuple of
         (path, node) from which this revision was copied.
         """
 
-    def cmp(node, fulltext):
+    def cmp(self, node, fulltext):
         """Compare fulltext to another revision.
 
         Returns True if the fulltext is different from what is stored.
@@ -735,6 +735,7 @@ class ifiledata(Protocol):
         """
 
     def emitrevisions(
+        self,
         nodes,
         nodesorder=None,
         revisiondata=False,
@@ -793,7 +794,7 @@ class ifiledata(Protocol):
 class ifilemutation(Protocol):
     """Storage interface for mutation events of a tracked file."""
 
-    def add(filedata, meta, transaction, linkrev, p1, p2):
+    def add(self, filedata, meta, transaction, linkrev, p1, p2):
         """Add a new revision to the store.
 
         Takes file data, dictionary of metadata, a transaction, linkrev,
@@ -805,6 +806,7 @@ class ifilemutation(Protocol):
         """
 
     def addrevision(
+        self,
         revisiondata,
         transaction,
         linkrev,
@@ -831,6 +833,7 @@ class ifilemutation(Protocol):
         """
 
     def addgroup(
+        self,
         deltas,
         linkmapper,
         transaction,
@@ -867,7 +870,7 @@ class ifilemutation(Protocol):
         even if it existed in the store previously.
         """
 
-    def censorrevision(tr, node, tombstone=b''):
+    def censorrevision(self, tr, node, tombstone=b''):
         """Remove the content of a single revision.
 
         The specified ``node`` will have its content purged from storage.
@@ -884,7 +887,7 @@ class ifilemutation(Protocol):
         that they no longer reference the deleted content.
         """
 
-    def getstrippoint(minlink):
+    def getstrippoint(self, minlink):
         """Find the minimum revision that must be stripped to strip a linkrev.
 
         Returns a 2-tuple containing the minimum revision number and a set
@@ -894,7 +897,7 @@ class ifilemutation(Protocol):
         a higher-level deletion API. ``repair.strip()`` relies on this.
         """
 
-    def strip(minlink, transaction):
+    def strip(self, minlink, transaction):
         """Remove storage of items starting at a linkrev.
 
         This uses ``getstrippoint()`` to determine the first node to remove.
@@ -908,7 +911,7 @@ class ifilemutation(Protocol):
 class ifilestorage(ifileindex, ifiledata, ifilemutation):
     """Complete storage interface for a single tracked file."""
 
-    def files():
+    def files(self):
         """Obtain paths that are backing storage for this file.
 
         TODO this is used heavily by verify code and there should probably
@@ -916,6 +919,7 @@ class ifilestorage(ifileindex, ifiledata, ifilemutation):
         """
 
     def storageinfo(
+        self,
         exclusivefiles=False,
         sharedfiles=False,
         revisionscount=False,
@@ -954,7 +958,7 @@ class ifilestorage(ifileindex, ifiledata, ifilemutation):
         callers are expected to handle this special value.
         """
 
-    def verifyintegrity(state):
+    def verifyintegrity(self, state):
         """Verifies the integrity of file storage.
 
         ``state`` is a dict holding state of the verifier process. It can be
@@ -979,23 +983,23 @@ class idirs(Protocol):
     directories from a collection of paths.
     """
 
-    def addpath(path):
+    def addpath(self, path):
         """Add a path to the collection.
 
         All directories in the path will be added to the collection.
         """
 
-    def delpath(path):
+    def delpath(self, path):
         """Remove a path from the collection.
 
         If the removal was the last path in a particular directory, the
         directory is removed from the collection.
         """
 
-    def __iter__():
+    def __iter__(self):
         """Iterate over the directories in this collection of paths."""
 
-    def __contains__(path):
+    def __contains__(self, path):
         """Whether a specific directory is in this collection."""
 
 
@@ -1006,7 +1010,7 @@ class imanifestdict(Protocol):
     consists of a binary node and extra flags affecting that entry.
     """
 
-    def __getitem__(path):
+    def __getitem__(self, path):
         """Returns the binary node value for a path in the manifest.
 
         Raises ``KeyError`` if the path does not exist in the manifest.
@@ -1014,7 +1018,7 @@ class imanifestdict(Protocol):
         Equivalent to ``self.find(path)[0]``.
         """
 
-    def find(path):
+    def find(self, path):
         """Returns the entry for a path in the manifest.
 
         Returns a 2-tuple of (node, flags).
@@ -1022,46 +1026,46 @@ class imanifestdict(Protocol):
         Raises ``KeyError`` if the path does not exist in the manifest.
         """
 
-    def __len__():
+    def __len__(self):
         """Return the number of entries in the manifest."""
 
-    def __nonzero__():
+    def __nonzero__(self):
         """Returns True if the manifest has entries, False otherwise."""
 
     __bool__ = __nonzero__
 
-    def set(path, node, flags):
+    def set(self, path, node, flags):
         """Define the node value and flags for a path in the manifest.
 
         Equivalent to __setitem__ followed by setflag, but can be more efficient.
         """
 
-    def __setitem__(path, node):
+    def __setitem__(self, path, node):
         """Define the node value for a path in the manifest.
 
         If the path is already in the manifest, its flags will be copied to
         the new entry.
         """
 
-    def __contains__(path):
+    def __contains__(self, path):
         """Whether a path exists in the manifest."""
 
-    def __delitem__(path):
+    def __delitem__(self, path):
         """Remove a path from the manifest.
 
         Raises ``KeyError`` if the path is not in the manifest.
         """
 
-    def __iter__():
+    def __iter__(self):
         """Iterate over paths in the manifest."""
 
-    def iterkeys():
+    def iterkeys(self):
         """Iterate over paths in the manifest."""
 
-    def keys():
+    def keys(self):
         """Obtain a list of paths in the manifest."""
 
-    def filesnotin(other, match=None):
+    def filesnotin(self, other, match=None):
         """Obtain the set of paths in this manifest but not in another.
 
         ``match`` is an optional matcher function to be applied to both
@@ -1070,20 +1074,20 @@ class imanifestdict(Protocol):
         Returns a set of paths.
         """
 
-    def dirs():
+    def dirs(self):
         """Returns an object implementing the ``idirs`` interface."""
 
-    def hasdir(dir):
+    def hasdir(self, dir):
         """Returns a bool indicating if a directory is in this manifest."""
 
-    def walk(match):
+    def walk(self, match):
         """Generator of paths in manifest satisfying a matcher.
 
         If the matcher has explicit files listed and they don't exist in
         the manifest, ``match.bad()`` is called for each missing file.
         """
 
-    def diff(other, match=None, clean=False):
+    def diff(self, other, match=None, clean=False):
         """Find differences between this manifest and another.
 
         This manifest is compared to ``other``.
@@ -1100,41 +1104,41 @@ class imanifestdict(Protocol):
         are the same for the other manifest.
         """
 
-    def setflag(path, flag):
+    def setflag(self, path, flag):
         """Set the flag value for a given path.
 
         Raises ``KeyError`` if the path is not already in the manifest.
         """
 
-    def get(path, default=None):
+    def get(self, path, default=None):
         """Obtain the node value for a path or a default value if missing."""
 
-    def flags(path):
+    def flags(self, path):
         """Return the flags value for a path (default: empty bytestring)."""
 
-    def copy():
+    def copy(self):
         """Return a copy of this manifest."""
 
-    def items():
+    def items(self):
         """Returns an iterable of (path, node) for items in this manifest."""
 
-    def iteritems():
+    def iteritems(self):
         """Identical to items()."""
 
-    def iterentries():
+    def iterentries(self):
         """Returns an iterable of (path, node, flags) for this manifest.
 
         Similar to ``iteritems()`` except items are a 3-tuple and include
         flags.
         """
 
-    def text():
+    def text(self):
         """Obtain the raw data representation for this manifest.
 
         Result is used to create a manifest revision.
         """
 
-    def fastdelta(base, changes):
+    def fastdelta(self, base, changes):
         """Obtain a delta between this manifest and another given changes.
 
         ``base`` in the raw data representation for another manifest.
@@ -1156,7 +1160,7 @@ class imanifestrevisionbase(Protocol):
     as part of a larger interface.
     """
 
-    def copy():
+    def copy(self):
         """Obtain a copy of this manifest instance.
 
         Returns an object conforming to the ``imanifestrevisionwritable``
@@ -1164,7 +1168,7 @@ class imanifestrevisionbase(Protocol):
         ``imanifestlog`` collection as this instance.
         """
 
-    def read():
+    def read(self):
         """Obtain the parsed manifest data structure.
 
         The returned object conforms to the ``imanifestdict`` interface.
@@ -1174,14 +1178,14 @@ class imanifestrevisionbase(Protocol):
 class imanifestrevisionstored(imanifestrevisionbase):
     """Interface representing a manifest revision committed to storage."""
 
-    def node():
+    def node(self):
         """The binary node for this manifest."""
 
     parents = interfaceutil.Attribute(
         """List of binary nodes that are parents for this manifest revision."""
     )
 
-    def readdelta(shallow=False):
+    def readdelta(self, shallow=False):
         """Obtain the manifest data structure representing changes from parent.
 
         This manifest is compared to its 1st parent. A new manifest
@@ -1196,7 +1200,7 @@ class imanifestrevisionstored(imanifestrevisionbase):
         The returned object conforms to the ``imanifestdict`` interface.
         """
 
-    def read_any_fast_delta(valid_bases=None, *, shallow=False):
+    def read_any_fast_delta(self, valid_bases=None, *, shallow=False):
         """read some manifest information as fast if possible
 
         This might return a "delta", a manifest object containing only file
@@ -1219,7 +1223,7 @@ class imanifestrevisionstored(imanifestrevisionbase):
         The returned object conforms to the ``imanifestdict`` interface.
         """
 
-    def read_delta_parents(*, shallow=False, exact=True):
+    def read_delta_parents(self, *, shallow=False, exact=True):
         """return a diff from this revision against both parents.
 
         If `exact` is False, this might return a superset of the diff, containing
@@ -1233,7 +1237,7 @@ class imanifestrevisionstored(imanifestrevisionbase):
 
         The returned object conforms to the ``imanifestdict`` interface."""
 
-    def read_delta_new_entries(*, shallow=False):
+    def read_delta_new_entries(self, *, shallow=False):
         """Return a manifest containing just the entries that might be new to
         the repository.
 
@@ -1248,13 +1252,13 @@ class imanifestrevisionstored(imanifestrevisionbase):
 
         The returned object conforms to the ``imanifestdict`` interface."""
 
-    def readfast(shallow=False):
+    def readfast(self, shallow=False):
         """Calls either ``read()`` or ``readdelta()``.
 
         The faster of the two options is called.
         """
 
-    def find(key):
+    def find(self, key):
         """Calls self.read().find(key)``.
 
         Returns a 2-tuple of ``(node, flags)`` or raises ``KeyError``.
@@ -1264,7 +1268,9 @@ class imanifestrevisionstored(imanifestrevisionbase):
 class imanifestrevisionwritable(imanifestrevisionbase):
     """Interface representing a manifest revision that can be committed."""
 
-    def write(transaction, linkrev, p1node, p2node, added, removed, match=None):
+    def write(
+        self, transaction, linkrev, p1node, p2node, added, removed, match=None
+    ):
         """Add this revision to storage.
 
         Takes a transaction object, the changeset revision number it will
@@ -1312,25 +1318,25 @@ class imanifeststorage(Protocol):
         """
     )
 
-    def __len__():
+    def __len__(self):
         """Obtain the number of revisions stored for this manifest."""
 
-    def __iter__():
+    def __iter__(self):
         """Iterate over revision numbers for this manifest."""
 
-    def rev(node):
+    def rev(self, node):
         """Obtain the revision number given a binary node.
 
         Raises ``error.LookupError`` if the node is not known.
         """
 
-    def node(rev):
+    def node(self, rev):
         """Obtain the node value given a revision number.
 
         Raises ``error.LookupError`` if the revision is not known.
         """
 
-    def lookup(value):
+    def lookup(self, value):
         """Attempt to resolve a value to a node.
 
         Value can be a binary node, hex node, revision number, or a bytes
@@ -1339,38 +1345,39 @@ class imanifeststorage(Protocol):
         Raises ``error.LookupError`` if a ndoe could not be resolved.
         """
 
-    def parents(node):
+    def parents(self, node):
         """Returns a 2-tuple of parent nodes for a node.
 
         Values will be ``nullid`` if the parent is empty.
         """
 
-    def parentrevs(rev):
+    def parentrevs(self, rev):
         """Like parents() but operates on revision numbers."""
 
-    def linkrev(rev):
+    def linkrev(self, rev):
         """Obtain the changeset revision number a revision is linked to."""
 
-    def revision(node):
+    def revision(self, node):
         """Obtain fulltext data for a node."""
 
-    def rawdata(node):
+    def rawdata(self, node):
         """Obtain raw data for a node."""
 
-    def revdiff(rev1, rev2):
+    def revdiff(self, rev1, rev2):
         """Obtain a delta between two revision numbers.
 
         The returned data is the result of ``bdiff.bdiff()`` on the raw
         revision data.
         """
 
-    def cmp(node, fulltext):
+    def cmp(self, node, fulltext):
         """Compare fulltext to another revision.
 
         Returns True if the fulltext is different from what is stored.
         """
 
     def emitrevisions(
+        self,
         nodes,
         nodesorder=None,
         revisiondata=False,
@@ -1382,6 +1389,7 @@ class imanifeststorage(Protocol):
         """
 
     def addgroup(
+        self,
         deltas,
         linkmapper,
         transaction,
@@ -1393,7 +1401,7 @@ class imanifeststorage(Protocol):
         See the documentation in ``ifilemutation`` for more.
         """
 
-    def rawsize(rev):
+    def rawsize(self, rev):
         """Obtain the size of tracked data.
 
         Is equivalent to ``len(m.rawdata(node))``.
@@ -1401,49 +1409,58 @@ class imanifeststorage(Protocol):
         TODO this method is only used by upgrade code and may be removed.
         """
 
-    def getstrippoint(minlink):
+    def getstrippoint(self, minlink):
         """Find minimum revision that must be stripped to strip a linkrev.
 
         See the documentation in ``ifilemutation`` for more.
         """
 
-    def strip(minlink, transaction):
+    def strip(self, minlink, transaction):
         """Remove storage of items starting at a linkrev.
 
         See the documentation in ``ifilemutation`` for more.
         """
 
-    def checksize():
+    def checksize(self):
         """Obtain the expected sizes of backing files.
 
         TODO this is used by verify and it should not be part of the interface.
         """
 
-    def files():
+    def files(self):
         """Obtain paths that are backing storage for this manifest.
 
         TODO this is used by verify and there should probably be a better API
         for this functionality.
         """
 
-    def deltaparent(rev):
+    def deltaparent(self, rev):
         """Obtain the revision that a revision is delta'd against.
 
         TODO delta encoding is an implementation detail of storage and should
         not be exposed to the storage interface.
         """
 
-    def clone(tr, dest, **kwargs):
+    def clone(self, tr, dest, **kwargs):
         """Clone this instance to another."""
 
-    def clearcaches(clear_persisted_data=False):
+    def clearcaches(self, clear_persisted_data=False):
         """Clear any caches associated with this instance."""
 
-    def dirlog(d):
+    def dirlog(self, d):
         """Obtain a manifest storage instance for a tree."""
 
     def add(
-        m, transaction, link, p1, p2, added, removed, readtree=None, match=None
+        self,
+        m,
+        transaction,
+        link,
+        p1,
+        p2,
+        added,
+        removed,
+        readtree=None,
+        match=None,
     ):
         """Add a revision to storage.
 
@@ -1467,6 +1484,7 @@ class imanifeststorage(Protocol):
         """
 
     def storageinfo(
+        self,
         exclusivefiles=False,
         sharedfiles=False,
         revisionscount=False,
@@ -1479,7 +1497,7 @@ class imanifeststorage(Protocol):
         This one behaves the same way, except for manifest data.
         """
 
-    def get_revlog():
+    def get_revlog(self):
         """return an actual revlog instance if any
 
         This exist because a lot of code leverage the fact the underlying
@@ -1505,7 +1523,7 @@ class imanifestlog(Protocol):
         """True, is the manifest is narrowed by a matcher"""
     )
 
-    def __getitem__(node):
+    def __getitem__(self, node):
         """Obtain a manifest instance for a given binary node.
 
         Equivalent to calling ``self.get('', node)``.
@@ -1514,7 +1532,7 @@ class imanifestlog(Protocol):
         interface.
         """
 
-    def get(tree, node, verify=True):
+    def get(self, tree, node, verify=True):
         """Retrieve the manifest instance for a given directory and binary node.
 
         ``node`` always refers to the node of the root manifest (which will be
@@ -1531,7 +1549,7 @@ class imanifestlog(Protocol):
         interface.
         """
 
-    def getstorage(tree):
+    def getstorage(self, tree):
         """Retrieve an interface to storage for a particular tree.
 
         If ``tree`` is the empty bytestring, storage for the root manifest will
@@ -1540,16 +1558,16 @@ class imanifestlog(Protocol):
         TODO formalize interface for returned object.
         """
 
-    def clearcaches(clear_persisted_data: bool = False) -> None:
+    def clearcaches(self, clear_persisted_data: bool = False) -> None:
         """Clear caches associated with this collection."""
 
-    def rev(node):
+    def rev(self, node):
         """Obtain the revision number for a binary node.
 
         Raises ``error.LookupError`` if the node is not known.
         """
 
-    def update_caches(transaction):
+    def update_caches(self, transaction):
         """update whatever cache are relevant for the used storage."""
 
 
@@ -1560,7 +1578,7 @@ class ilocalrepositoryfilestorage(Protocol):
     tracked file path.
     """
 
-    def file(f):
+    def file(self, f):
         """Obtain a filelog for a tracked path.
 
         The returned type conforms to the ``ifilestorage`` interface.
@@ -1700,16 +1718,16 @@ class ilocalrepositorymain(Protocol):
         """The way files copies should be dealt with in this repo."""
     )
 
-    def close():
+    def close(self):
         """Close the handle on this repository."""
 
-    def peer(path=None):
+    def peer(self, path=None):
         """Obtain an object conforming to the ``peer`` interface."""
 
-    def unfiltered():
+    def unfiltered(self):
         """Obtain an unfiltered/raw view of this repo."""
 
-    def filtered(name, visibilityexceptions=None):
+    def filtered(self, name, visibilityexceptions=None):
         """Obtain a named view of this repository."""
 
     obsstore = interfaceutil.Attribute("""A store of obsolescence data.""")
@@ -1729,73 +1747,73 @@ class ilocalrepositorymain(Protocol):
         """Matcher patterns for this repository's narrowspec."""
     )
 
-    def narrowmatch(match=None, includeexact=False):
+    def narrowmatch(self, match=None, includeexact=False):
         """Obtain a matcher for the narrowspec."""
 
-    def setnarrowpats(newincludes, newexcludes):
+    def setnarrowpats(self, newincludes, newexcludes):
         """Define the narrowspec for this repository."""
 
-    def __getitem__(changeid):
+    def __getitem__(self, changeid):
         """Try to resolve a changectx."""
 
-    def __contains__(changeid):
+    def __contains__(self, changeid):
         """Whether a changeset exists."""
 
-    def __nonzero__():
+    def __nonzero__(self):
         """Always returns True."""
         return True
 
     __bool__ = __nonzero__
 
-    def __len__():
+    def __len__(self):
         """Returns the number of changesets in the repo."""
 
-    def __iter__():
+    def __iter__(self):
         """Iterate over revisions in the changelog."""
 
-    def revs(expr, *args):
+    def revs(self, expr, *args):
         """Evaluate a revset.
 
         Emits revisions.
         """
 
-    def set(expr, *args):
+    def set(self, expr, *args):
         """Evaluate a revset.
 
         Emits changectx instances.
         """
 
-    def anyrevs(specs, user=False, localalias=None):
+    def anyrevs(self, specs, user=False, localalias=None):
         """Find revisions matching one of the given revsets."""
 
-    def url():
+    def url(self):
         """Returns a string representing the location of this repo."""
 
-    def hook(name, throw=False, **args):
+    def hook(self, name, throw=False, **args):
         """Call a hook."""
 
-    def tags():
+    def tags(self):
         """Return a mapping of tag to node."""
 
-    def tagtype(tagname):
+    def tagtype(self, tagname):
         """Return the type of a given tag."""
 
-    def tagslist():
+    def tagslist(self):
         """Return a list of tags ordered by revision."""
 
-    def nodetags(node):
+    def nodetags(self, node):
         """Return the tags associated with a node."""
 
-    def nodebookmarks(node):
+    def nodebookmarks(self, node):
         """Return the list of bookmarks pointing to the specified node."""
 
-    def branchmap():
+    def branchmap(self):
         """Return a mapping of branch to heads in that branch."""
 
-    def revbranchcache():
+    def revbranchcache(self):
         pass
 
-    def register_changeset(rev, changelogrevision):
+    def register_changeset(self, rev, changelogrevision):
         """Extension point for caches for new nodes.
 
         Multiple consumers are expected to need parts of the changelogrevision,
@@ -1803,113 +1821,114 @@ class ilocalrepositorymain(Protocol):
         cache would be fragile when other revisions are accessed, too."""
         pass
 
-    def branchtip(branchtip, ignoremissing=False):
+    def branchtip(self, branchtip, ignoremissing=False):
         """Return the tip node for a given branch."""
 
-    def lookup(key):
+    def lookup(self, key):
         """Resolve the node for a revision."""
 
-    def lookupbranch(key):
+    def lookupbranch(self, key):
         """Look up the branch name of the given revision or branch name."""
 
-    def known(nodes):
+    def known(self, nodes):
         """Determine whether a series of nodes is known.
 
         Returns a list of bools.
         """
 
-    def local():
+    def local(self):
         """Whether the repository is local."""
         return True
 
-    def publishing():
+    def publishing(self):
         """Whether the repository is a publishing repository."""
 
-    def cancopy():
+    def cancopy(self):
         pass
 
-    def shared():
+    def shared(self):
         """The type of shared repository or None."""
 
-    def wjoin(f, *insidef):
+    def wjoin(self, f, *insidef):
         """Calls self.vfs.reljoin(self.root, f, *insidef)"""
 
-    def setparents(p1, p2):
+    def setparents(self, p1, p2):
         """Set the parent nodes of the working directory."""
 
-    def filectx(path, changeid=None, fileid=None):
+    def filectx(self, path, changeid=None, fileid=None):
         """Obtain a filectx for the given file revision."""
 
-    def getcwd():
+    def getcwd(self):
         """Obtain the current working directory from the dirstate."""
 
-    def pathto(f, cwd=None):
+    def pathto(self, f, cwd=None):
         """Obtain the relative path to a file."""
 
-    def adddatafilter(name, fltr):
+    def adddatafilter(self, name, fltr):
         pass
 
-    def wread(filename):
+    def wread(self, filename):
         """Read a file from wvfs, using data filters."""
 
-    def wwrite(filename, data, flags, backgroundclose=False, **kwargs):
+    def wwrite(self, filename, data, flags, backgroundclose=False, **kwargs):
         """Write data to a file in the wvfs, using data filters."""
 
-    def wwritedata(filename, data):
+    def wwritedata(self, filename, data):
         """Resolve data for writing to the wvfs, using data filters."""
 
-    def currenttransaction():
+    def currenttransaction(self):
         """Obtain the current transaction instance or None."""
 
-    def transaction(desc, report=None):
+    def transaction(self, desc, report=None):
         """Open a new transaction to write to the repository."""
 
-    def undofiles():
+    def undofiles(self):
         """Returns a list of (vfs, path) for files to undo transactions."""
 
-    def recover():
+    def recover(self):
         """Roll back an interrupted transaction."""
 
-    def rollback(dryrun=False, force=False):
+    def rollback(self, dryrun=False, force=False):
         """Undo the last transaction.
 
         DANGEROUS.
         """
 
-    def updatecaches(tr=None, full=False, caches=None):
+    def updatecaches(self, tr=None, full=False, caches=None):
         """Warm repo caches."""
 
-    def invalidatecaches():
+    def invalidatecaches(self):
         """Invalidate cached data due to the repository mutating."""
 
-    def invalidatevolatilesets():
+    def invalidatevolatilesets(self):
         pass
 
-    def invalidatedirstate():
+    def invalidatedirstate(self):
         """Invalidate the dirstate."""
 
-    def invalidate(clearfilecache=False):
+    def invalidate(self, clearfilecache=False):
         pass
 
-    def invalidateall():
+    def invalidateall(self):
         pass
 
-    def lock(wait=True):
+    def lock(self, wait=True):
         """Lock the repository store and return a lock instance."""
 
-    def currentlock():
+    def currentlock(self):
         """Return the lock if it's held or None."""
 
-    def wlock(wait=True):
+    def wlock(self, wait=True):
         """Lock the non-store parts of the repository."""
 
-    def currentwlock():
+    def currentwlock(self):
         """Return the wlock if it's held or None."""
 
-    def checkcommitpatterns(wctx, match, status, fail):
+    def checkcommitpatterns(self, wctx, match, status, fail):
         pass
 
     def commit(
+        self,
         text=b'',
         user=None,
         date=None,
@@ -1920,16 +1939,17 @@ class ilocalrepositorymain(Protocol):
     ):
         """Add a new revision to the repository."""
 
-    def commitctx(ctx, error=False, origctx=None):
+    def commitctx(self, ctx, error=False, origctx=None):
         """Commit a commitctx instance to the repository."""
 
-    def destroying():
+    def destroying(self):
         """Inform the repository that nodes are about to be destroyed."""
 
-    def destroyed():
+    def destroyed(self):
         """Inform the repository that nodes have been destroyed."""
 
     def status(
+        self,
         node1=b'.',
         node2=None,
         match=None,
@@ -1940,50 +1960,50 @@ class ilocalrepositorymain(Protocol):
     ):
         """Convenience method to call repo[x].status()."""
 
-    def addpostdsstatus(ps):
+    def addpostdsstatus(self, ps):
         pass
 
-    def postdsstatus():
+    def postdsstatus(self):
         pass
 
-    def clearpostdsstatus():
+    def clearpostdsstatus(self):
         pass
 
-    def heads(start=None):
+    def heads(self, start=None):
         """Obtain list of nodes that are DAG heads."""
 
-    def branchheads(branch=None, start=None, closed=False):
+    def branchheads(self, branch=None, start=None, closed=False):
         pass
 
-    def branches(nodes):
+    def branches(self, nodes):
         pass
 
-    def between(pairs):
+    def between(self, pairs):
         pass
 
-    def checkpush(pushop):
+    def checkpush(self, pushop):
         pass
 
     prepushoutgoinghooks = interfaceutil.Attribute("""util.hooks instance.""")
 
-    def pushkey(namespace, key, old, new):
+    def pushkey(self, namespace, key, old, new):
         pass
 
-    def listkeys(namespace):
+    def listkeys(self, namespace):
         pass
 
-    def debugwireargs(one, two, three=None, four=None, five=None):
+    def debugwireargs(self, one, two, three=None, four=None, five=None):
         pass
 
-    def savecommitmessage(text):
+    def savecommitmessage(self, text):
         pass
 
     def register_sidedata_computer(
-        kind, category, keys, computer, flags, replace=False
+        self, kind, category, keys, computer, flags, replace=False
     ):
         pass
 
-    def register_wanted_sidedata(category):
+    def register_wanted_sidedata(self, category):
         pass
 
 
@@ -2076,20 +2096,20 @@ class iwireprotocolcommandcacher(Protocol):
     instances to avoid this overhead.
     """
 
-    def __enter__():
+    def __enter__(self):
         """Marks the instance as active.
 
         Should return self.
         """
 
-    def __exit__(exctype, excvalue, exctb):
+    def __exit__(self, exctype, excvalue, exctb):
         """Called when cacher is no longer used.
 
         This can be used by implementations to perform cleanup actions (e.g.
         disconnecting network sockets, aborting a partially cached response.
         """
 
-    def adjustcachekeystate(state):
+    def adjustcachekeystate(self, state):
         """Influences cache key derivation by adjusting state to derive key.
 
         A dict defining the state used to derive the cache key is passed.
@@ -2101,7 +2121,7 @@ class iwireprotocolcommandcacher(Protocol):
         existing keys.
         """
 
-    def setcachekey(key):
+    def setcachekey(self, key):
         """Record the derived cache key for this request.
 
         Instances may mutate the key for internal usage, as desired. e.g.
@@ -2113,7 +2133,7 @@ class iwireprotocolcommandcacher(Protocol):
         instance.
         """
 
-    def lookup():
+    def lookup(self):
         """Attempt to resolve an entry in the cache.
 
         The instance is instructed to look for the cache key that it was
@@ -2131,7 +2151,7 @@ class iwireprotocolcommandcacher(Protocol):
            would return if invoked or an equivalent representation thereof.
         """
 
-    def onobject(obj):
+    def onobject(self, obj):
         """Called when a new object is emitted from the command function.
 
         Receives as its argument the object that was emitted from the
@@ -2142,7 +2162,7 @@ class iwireprotocolcommandcacher(Protocol):
         ``yield obj``.
         """
 
-    def onfinished():
+    def onfinished(self):
         """Called after all objects have been emitted from the command function.
 
         Implementations should return an iterator of objects to forward to
