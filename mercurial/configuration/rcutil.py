@@ -152,13 +152,13 @@ def _shared_source_component(path: bytes) -> List[FileRCT]:
     return []
 
 
-def repo_components(repo_path: bytes) -> List[FileRCT]:
+def repo_components(repo_path: bytes) -> List[ComponentT]:
     """return the list of config file to read for a repository"""
     components = []
     components.extend(_shared_source_component(repo_path))
     components.append(os.path.join(repo_path, b".hg", b"hgrc"))
     components.append(os.path.join(repo_path, b".hg", b"hgrc-not-shared"))
-    return components
+    return [(b'path', c) for c in components]
 
 
 def defaultpagerenv() -> Dict[bytes, bytes]:
