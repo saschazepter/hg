@@ -189,18 +189,18 @@ HAS_FAST_PERSISTENT_NODEMAP = rustrevlog is not None or hasattr(
 
 
 @attr.s(slots=True)
-class revlogrevisiondelta:  # (repository.irevisiondelta)
-    node = attr.ib()
-    p1node = attr.ib()
-    p2node = attr.ib()
-    basenode = attr.ib()
-    flags = attr.ib()
-    baserevisionsize = attr.ib()
-    revision = attr.ib()
-    delta = attr.ib()
-    sidedata = attr.ib()
-    protocol_flags = attr.ib()
-    linknode = attr.ib(default=None)
+class revlogrevisiondelta(repository.irevisiondelta):
+    node = attr.ib(type=bytes)
+    p1node = attr.ib(type=bytes)
+    p2node = attr.ib(type=bytes)
+    basenode = attr.ib(type=bytes)
+    flags = attr.ib(type=int)
+    baserevisionsize = attr.ib(type=Optional[int])
+    revision = attr.ib(type=Optional[bytes])
+    delta = attr.ib(type=Optional[bytes])
+    sidedata = attr.ib(type=Optional[bytes])
+    protocol_flags = attr.ib(type=int)
+    linknode = attr.ib(default=None, type=Optional[bytes])
 
 
 @attr.s(frozen=True)

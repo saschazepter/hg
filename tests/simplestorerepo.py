@@ -72,18 +72,17 @@ class simplestoreerror(error.StorageError):
     pass
 
 
-@interfaceutil.implementer(repository.irevisiondelta)
 @attr.s(slots=True)
-class simplestorerevisiondelta:
-    node = attr.ib()
-    p1node = attr.ib()
-    p2node = attr.ib()
-    basenode = attr.ib()
-    flags = attr.ib()
-    baserevisionsize = attr.ib()
-    revision = attr.ib()
-    delta = attr.ib()
-    linknode = attr.ib(default=None)
+class simplestorerevisiondelta(repository.irevisiondelta):
+    node = attr.ib(type=bytes)
+    p1node = attr.ib(type=bytes)
+    p2node = attr.ib(type=bytes)
+    basenode = attr.ib(type=bytes)
+    flags = attr.ib(type=int)
+    baserevisionsize = attr.ib(type=Optional[int])
+    revision = attr.ib(type=Optional[bytes])
+    delta = attr.ib(type=Optional[bytes])
+    linknode = attr.ib(default=None, type=Optional[bytes])
 
 
 @attr.s(frozen=True)
