@@ -8,6 +8,10 @@
 
 from __future__ import annotations
 
+from typing import (
+    Protocol,
+)
+
 from ..i18n import _
 from .. import error
 from . import util as interfaceutil
@@ -98,7 +102,7 @@ CACHES_POST_CLONE.discard(CACHE_FILE_NODE_TAGS)
 CACHES_POST_CLONE.discard(CACHE_REV_BRANCH)
 
 
-class ipeerconnection(interfaceutil.Interface):
+class ipeerconnection(Protocol):
     """Represents a "connection" to a repository.
 
     This is the base interface for representing a connection to a repository.
@@ -141,7 +145,7 @@ class ipeerconnection(interfaceutil.Interface):
         """
 
 
-class ipeercapabilities(interfaceutil.Interface):
+class ipeercapabilities(Protocol):
     """Peer sub-interface related to capabilities."""
 
     def capable(name):
@@ -162,7 +166,7 @@ class ipeercapabilities(interfaceutil.Interface):
         """
 
 
-class ipeercommands(interfaceutil.Interface):
+class ipeercommands(Protocol):
     """Client-side interface for communicating over the wire protocol.
 
     This interface is used as a gateway to the Mercurial wire protocol.
@@ -258,7 +262,7 @@ class ipeercommands(interfaceutil.Interface):
         """
 
 
-class ipeerlegacycommands(interfaceutil.Interface):
+class ipeerlegacycommands(Protocol):
     """Interface for implementing support for legacy wire protocol commands.
 
     Wire protocol commands transition to legacy status when they are no longer
@@ -291,7 +295,7 @@ class ipeerlegacycommands(interfaceutil.Interface):
         pass
 
 
-class ipeercommandexecutor(interfaceutil.Interface):
+class ipeercommandexecutor(Protocol):
     """Represents a mechanism to execute remote commands.
 
     This is the primary interface for requesting that wire protocol commands
@@ -349,7 +353,7 @@ class ipeercommandexecutor(interfaceutil.Interface):
         """
 
 
-class ipeerrequests(interfaceutil.Interface):
+class ipeerrequests(Protocol):
     """Interface for executing commands on a peer."""
 
     limitedarguments = interfaceutil.Attribute(
@@ -431,7 +435,7 @@ class peer:
         )
 
 
-class iverifyproblem(interfaceutil.Interface):
+class iverifyproblem(Protocol):
     """Represents a problem with the integrity of the repository.
 
     Instances of this interface are emitted to describe an integrity issue
@@ -454,7 +458,7 @@ class iverifyproblem(interfaceutil.Interface):
     )
 
 
-class irevisiondelta(interfaceutil.Interface):
+class irevisiondelta(Protocol):
     """Represents a delta between one revision and another.
 
     Instances convey enough information to allow a revision to be exchanged
@@ -526,7 +530,7 @@ class irevisiondelta(interfaceutil.Interface):
     )
 
 
-class ifilerevisionssequence(interfaceutil.Interface):
+class ifilerevisionssequence(Protocol):
     """Contains index data for all revisions of a file.
 
     Types implementing this behave like lists of tuples. The index
@@ -578,7 +582,7 @@ class ifilerevisionssequence(interfaceutil.Interface):
         """Add an item to the index at specific revision."""
 
 
-class ifileindex(interfaceutil.Interface):
+class ifileindex(Protocol):
     """Storage interface for index data of a single file.
 
     File storage data is divided into index metadata and data storage.
@@ -679,7 +683,7 @@ class ifileindex(interfaceutil.Interface):
         """
 
 
-class ifiledata(interfaceutil.Interface):
+class ifiledata(Protocol):
     """Storage interface for data storage of a specific file.
 
     This complements ``ifileindex`` and provides an interface for accessing
@@ -786,7 +790,7 @@ class ifiledata(interfaceutil.Interface):
         """
 
 
-class ifilemutation(interfaceutil.Interface):
+class ifilemutation(Protocol):
     """Storage interface for mutation events of a tracked file."""
 
     def add(filedata, meta, transaction, linkrev, p1, p2):
@@ -968,7 +972,7 @@ class ifilestorage(ifileindex, ifiledata, ifilemutation):
         """
 
 
-class idirs(interfaceutil.Interface):
+class idirs(Protocol):
     """Interface representing a collection of directories from paths.
 
     This interface is essentially a derived data structure representing
@@ -995,7 +999,7 @@ class idirs(interfaceutil.Interface):
         """Whether a specific directory is in this collection."""
 
 
-class imanifestdict(interfaceutil.Interface):
+class imanifestdict(Protocol):
     """Interface representing a manifest data structure.
 
     A manifest is effectively a dict mapping paths to entries. Each entry
@@ -1145,7 +1149,7 @@ class imanifestdict(interfaceutil.Interface):
         """
 
 
-class imanifestrevisionbase(interfaceutil.Interface):
+class imanifestrevisionbase(Protocol):
     """Base interface representing a single revision of a manifest.
 
     Should not be used as a primary interface: should always be inherited
@@ -1276,7 +1280,7 @@ class imanifestrevisionwritable(imanifestrevisionbase):
         """
 
 
-class imanifeststorage(interfaceutil.Interface):
+class imanifeststorage(Protocol):
     """Storage interface for manifest data."""
 
     nodeconstants = interfaceutil.Attribute(
@@ -1484,7 +1488,7 @@ class imanifeststorage(interfaceutil.Interface):
         """
 
 
-class imanifestlog(interfaceutil.Interface):
+class imanifestlog(Protocol):
     """Interface representing a collection of manifest snapshots.
 
     Represents the root manifest in a repository.
@@ -1549,7 +1553,7 @@ class imanifestlog(interfaceutil.Interface):
         """update whatever cache are relevant for the used storage."""
 
 
-class ilocalrepositoryfilestorage(interfaceutil.Interface):
+class ilocalrepositoryfilestorage(Protocol):
     """Local repository sub-interface providing access to tracked file storage.
 
     This interface defines how a repository accesses storage for a single
@@ -1563,7 +1567,7 @@ class ilocalrepositoryfilestorage(interfaceutil.Interface):
         """
 
 
-class ilocalrepositorymain(interfaceutil.Interface):
+class ilocalrepositorymain(Protocol):
     """Main interface for local repositories.
 
     This currently captures the reality of things - not how things should be.
@@ -1989,7 +1993,7 @@ class completelocalrepository(
     """Complete interface for a local repository."""
 
 
-class iwireprotocolcommandcacher(interfaceutil.Interface):
+class iwireprotocolcommandcacher(Protocol):
     """Represents a caching backend for wire protocol commands.
 
     Wire protocol version 2 supports transparent caching of many commands.
