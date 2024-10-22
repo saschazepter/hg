@@ -19,8 +19,11 @@ from typing import (
 
 from .. import (
     encoding,
+    localrepo,
     pycompat,
+    requirements as requirementsmod,
     util,
+    vfs,
 )
 
 from ..utils import resourceutil
@@ -125,6 +128,37 @@ def rccomponents() -> List[ComponentT]:
         _rccomponents.append(envrc)
         _rccomponents.extend(normpaths(userrcpath()))
     return _rccomponents
+
+
+def _shared_source_component(path: bytes) -> List[FileRCT]:
+    """if the current repository is shared one, this tries to read
+    .hg/hgrc of shared source if we are in share-safe mode
+
+    This should be called before reading .hg/hgrc or the main repo
+    as that overrides config set in shared source"""
+    try:
+        with open(os.path.join(path, b".hg", b"requires"), "rb") as fp:
+            requirements = set(fp.read().splitlines())
+            if not (
+                requirementsmod.SHARESAFE_REQUIREMENT in requirements
+                and requirementsmod.SHARED_REQUIREMENT in requirements
+            ):
+                return []
+            hgvfs = vfs.vfs(os.path.join(path, b".hg"))
+            sharedvfs = localrepo._getsharedvfs(hgvfs, requirements)
+            return [sharedvfs.join(b"hgrc")]
+    except IOError:
+        pass
+    return []
+
+
+def repo_components(repo_path: bytes) -> List[FileRCT]:
+    """return the list of config file to read for a repository"""
+    components = []
+    components.extend(_shared_source_component(repo_path))
+    components.append(os.path.join(repo_path, b".hg", b"hgrc"))
+    components.append(os.path.join(repo_path, b".hg", b"hgrc-not-shared"))
+    return components
 
 
 def defaultpagerenv() -> Dict[bytes, bytes]:
