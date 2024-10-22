@@ -954,7 +954,7 @@ def _getlocal(ui, rpath, wd=None):
     else:
         lui = ui.copy()
         if rcutil.use_repo_hgrc():
-            for c_type, rc_path in rcutil.repo_components(path):
+            for __, c_type, rc_path in rcutil.repo_components(path):
                 assert c_type == b'path'
                 lui.readconfig(rc_path, root=path)
 
@@ -966,7 +966,7 @@ def _getlocal(ui, rpath, wd=None):
         path = path_obj.rawloc
         lui = ui.copy()
         if rcutil.use_repo_hgrc():
-            for c_type, rc_path in rcutil.repo_components(path):
+            for __, c_type, rc_path in rcutil.repo_components(path):
                 assert c_type == b'path'
                 lui.readconfig(rc_path, root=path)
 

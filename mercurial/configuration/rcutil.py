@@ -100,25 +100,29 @@ def rccomponents() -> List[ComponentT]:
     list of (section, name, value, source) that should fill the config directly.
     If type is 'resource', obj is a tuple of (package name, resource name).
     """
-    envrc = (b'items', envrcitems())
+    envrc = (conf_mod.LEVEL_ENV_OVERWRITE, b'items', envrcitems())
+
+    _rccomponents = []
+    comp = _rccomponents.append
 
     if b'HGRCPATH' in encoding.environ:
         # assume HGRCPATH is all about user configs so environments can be
         # overridden.
-        _rccomponents = [envrc]
+        comp(envrc)
         for p in encoding.environ[b'HGRCPATH'].split(pycompat.ospathsep):
             if not p:
                 continue
-            _rccomponents.extend((b'path', p) for p in _expandrcpath(p))
+            for p in _expandrcpath(p):
+                comp((conf_mod.LEVEL_ENV_OVERWRITE, b'path', p))
     else:
-        _rccomponents = [(b'resource', r) for r in default_rc_resources()]
+        for r in default_rc_resources():
+            comp((conf_mod.LEVEL_BUNDLED_RESOURCE, b'resource', r))
 
-        normpaths = lambda paths: [
-            (b'path', os.path.normpath(p)) for p in paths
-        ]
-        _rccomponents.extend(normpaths(systemrcpath()))
-        _rccomponents.append(envrc)
-        _rccomponents.extend(normpaths(userrcpath()))
+        for p in systemrcpath():
+            comp((conf_mod.LEVEL_GLOBAL, b'path', os.path.normpath(p)))
+        comp(envrc)
+        for p in userrcpath():
+            comp((conf_mod.LEVEL_USER, b'path', os.path.normpath(p)))
     return _rccomponents
 
 
@@ -147,10 +151,24 @@ def _shared_source_component(path: bytes) -> List[FileRCT]:
 def repo_components(repo_path: bytes) -> List[ComponentT]:
     """return the list of config file to read for a repository"""
     components = []
-    components.extend(_shared_source_component(repo_path))
-    components.append(os.path.join(repo_path, b".hg", b"hgrc"))
-    components.append(os.path.join(repo_path, b".hg", b"hgrc-not-shared"))
-    return [(b'path', c) for c in components]
+    comp = components.append
+    for p in _shared_source_component(repo_path):
+        comp((conf_mod.LEVEL_SHARED, b'path', p))
+    comp(
+        (
+            conf_mod.LEVEL_LOCAL,
+            b'path',
+            os.path.join(repo_path, b".hg", b"hgrc"),
+        )
+    )
+    comp(
+        (
+            conf_mod.LEVEL_NON_SHARED,
+            b'path',
+            os.path.join(repo_path, b".hg", b"hgrc-not-shared"),
+        )
+    )
+    return components
 
 
 def defaultpagerenv() -> Dict[bytes, bytes]:
