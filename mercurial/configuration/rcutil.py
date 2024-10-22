@@ -13,11 +13,10 @@ from typing import (
     Dict,
     List,
     Optional,
-    Tuple,
-    Union,
 )
 
 from .. import (
+    configuration as conf_mod,
     encoding,
     localrepo,
     pycompat,
@@ -37,17 +36,10 @@ fallbackpager = scmplatform.fallbackpager
 systemrcpath = scmplatform.systemrcpath
 userrcpath = scmplatform.userrcpath
 
-ConfigItemT = Tuple[bytes, bytes, bytes, bytes]
-ResourceIDT = Tuple[bytes, bytes]
-FileRCT = bytes
-ComponentT = Tuple[
-    bytes,
-    Union[
-        List[ConfigItemT],
-        FileRCT,
-        ResourceIDT,
-    ],
-]
+ComponentT = conf_mod.ComponentT
+ConfigItemT = conf_mod.ConfigItemT
+FileRCT = conf_mod.FileRCT
+ResourceIDT = conf_mod.ResourceIDT
 
 
 def _expandrcpath(path: bytes) -> List[FileRCT]:
