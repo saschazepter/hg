@@ -986,6 +986,9 @@ def _getlocal(ui, rpath, wd=None):
             lui.readconfig(os.path.join(path, b".hg", b"hgrc-not-shared"), path)
 
     if rpath:
+        # the specified path, might be defined in the [paths] section of the
+        # local repository. So we had to read the local config first even if it
+        # get overriden here.
         path_obj = urlutil.get_clone_path_obj(lui, rpath)
         path = path_obj.rawloc
         lui = ui.copy()
