@@ -9,6 +9,14 @@ from __future__ import annotations
 
 import os
 
+from typing import (
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
+
 from .. import (
     encoding,
     pycompat,
@@ -26,8 +34,20 @@ fallbackpager = scmplatform.fallbackpager
 systemrcpath = scmplatform.systemrcpath
 userrcpath = scmplatform.userrcpath
 
+ConfigItemT = Tuple[bytes, bytes, bytes, bytes]
+ResourceIDT = Tuple[bytes, bytes]
+FileRCT = bytes
+ComponentT = Tuple[
+    bytes,
+    Union[
+        List[ConfigItemT],
+        FileRCT,
+        ResourceIDT,
+    ],
+]
 
-def _expandrcpath(path):
+
+def _expandrcpath(path: bytes) -> List[FileRCT]:
     '''path could be a file or a directory. return a list of file paths'''
     p = util.expandpath(path)
     if os.path.isdir(p):
@@ -38,7 +58,7 @@ def _expandrcpath(path):
     return [p]
 
 
-def envrcitems(env=None):
+def envrcitems(env: Optional[Dict[bytes, bytes]] = None) -> List[ConfigItemT]:
     """Return [(section, name, value, source)] config items.
 
     The config items are extracted from environment variables specified by env,
@@ -61,7 +81,7 @@ def envrcitems(env=None):
     return result
 
 
-def default_rc_resources():
+def default_rc_resources() -> List[ResourceIDT]:
     """return rc resource IDs in defaultrc"""
     rsrcs = resourceutil.contents(b'mercurial.defaultrc')
     return [
@@ -72,7 +92,7 @@ def default_rc_resources():
     ]
 
 
-def rccomponents():
+def rccomponents() -> List[ComponentT]:
     """return an ordered [(type, obj)] about where to load configs.
 
     respect $HGRCPATH. if $HGRCPATH is empty, only .hg/hgrc of current repo is
@@ -107,13 +127,13 @@ def rccomponents():
     return _rccomponents
 
 
-def defaultpagerenv():
+def defaultpagerenv() -> Dict[bytes, bytes]:
     """return a dict of default environment variables and their values,
     intended to be set before starting a pager.
     """
     return {b'LESS': b'FRX', b'LV': b'-c'}
 
 
-def use_repo_hgrc():
+def use_repo_hgrc() -> bool:
     """True if repositories `.hg/hgrc` config should be read"""
     return b'HGRCSKIPREPO' not in encoding.environ
