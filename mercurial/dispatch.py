@@ -34,15 +34,12 @@ from . import (
     help,
     hg,
     hook,
-    localrepo,
     profiling,
     pycompat,
     registrar,
-    requirements as requirementsmod,
     scmutil,
     ui as uimod,
     util,
-    vfs,
 )
 
 from .configuration import rcutil
@@ -929,29 +926,6 @@ def runcommand(lui, repo, cmd, fullargs, ui, options, d, cmdpats, cmdoptions):
     return ret
 
 
-def _readsharedsourceconfig(ui, path):
-    """if the current repository is shared one, this tries to read
-    .hg/hgrc of shared source if we are in share-safe mode
-
-    Config read is loaded into the ui object passed
-
-    This should be called before reading .hg/hgrc or the main repo
-    as that overrides config set in shared source"""
-    try:
-        with open(os.path.join(path, b".hg", b"requires"), "rb") as fp:
-            requirements = set(fp.read().splitlines())
-            if not (
-                requirementsmod.SHARESAFE_REQUIREMENT in requirements
-                and requirementsmod.SHARED_REQUIREMENT in requirements
-            ):
-                return
-            hgvfs = vfs.vfs(os.path.join(path, b".hg"))
-            sharedvfs = localrepo._getsharedvfs(hgvfs, requirements)
-            ui.readconfig(sharedvfs.join(b"hgrc"), root=path)
-    except IOError:
-        pass
-
-
 def _getlocal(ui, rpath, wd=None):
     """Return (path, local ui object) for the given target path.
 
@@ -980,9 +954,8 @@ def _getlocal(ui, rpath, wd=None):
     else:
         lui = ui.copy()
         if rcutil.use_repo_hgrc():
-            _readsharedsourceconfig(lui, path)
-            lui.readconfig(os.path.join(path, b".hg", b"hgrc"), path)
-            lui.readconfig(os.path.join(path, b".hg", b"hgrc-not-shared"), path)
+            for rc_path in rcutil.repo_components(path):
+                lui.readconfig(rc_path, root=path)
 
     if rpath:
         # the specified path, might be defined in the [paths] section of the
@@ -992,9 +965,8 @@ def _getlocal(ui, rpath, wd=None):
         path = path_obj.rawloc
         lui = ui.copy()
         if rcutil.use_repo_hgrc():
-            _readsharedsourceconfig(lui, path)
-            lui.readconfig(os.path.join(path, b".hg", b"hgrc"), path)
-            lui.readconfig(os.path.join(path, b".hg", b"hgrc-not-shared"), path)
+            for rc_path in rcutil.repo_components(path):
+                lui.readconfig(rc_path, root=path)
 
     if oldcwd:
         os.chdir(oldcwd)
