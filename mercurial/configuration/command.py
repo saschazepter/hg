@@ -19,29 +19,24 @@ from .. import (
     vfs as vfsmod,
 )
 
-from . import rcutil
+from . import (
+    ConfigLevelT,
+    EDIT_LEVELS,
+    LEVEL_GLOBAL,
+    LEVEL_LOCAL,
+    LEVEL_NON_SHARED,
+    LEVEL_SHARED,
+    LEVEL_USER,
+    rcutil,
+)
 
 EDIT_FLAG = 'edit'
 
 
-# keep typing simple for now
-ConfigLevelT = str
-LEVEL_USER = 'user'  # "user" is the default level and never passed explicitly
-LEVEL_LOCAL = 'local'
-LEVEL_GLOBAL = 'global'
-LEVEL_SHARED = 'shared'
-LEVEL_NON_SHARED = 'non_shared'
-EDIT_LEVELS = (
-    LEVEL_USER,
-    LEVEL_LOCAL,
-    LEVEL_GLOBAL,
-    LEVEL_SHARED,
-    LEVEL_NON_SHARED,
-)
-
-
 def find_edit_level(
-    ui: uimod.ui, repo, opts: Dict[str, Any]
+    ui: uimod.ui,
+    repo,
+    opts: Dict[str, Any],
 ) -> Optional[ConfigLevelT]:
     """return the level we should edit, if any.
 
