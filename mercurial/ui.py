@@ -335,7 +335,7 @@ class ui:
         """Create a ui and load global and user configs"""
         u = cls()
         # we always trust global config files and environment variables
-        for t, f in rcutil.rccomponents():
+        for _lvl, t, f in rcutil.rccomponents():
             if t == b'path':
                 u.readconfig(f, trust=True)
             elif t == b'resource':
