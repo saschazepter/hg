@@ -473,63 +473,57 @@ class irevisiondelta(Protocol):
     Typically used for changegroup generation.
     """
 
-    node = interfaceutil.Attribute("""20 byte node of this revision.""")
+    node: bytes
+    """20 byte node of this revision."""
 
-    p1node = interfaceutil.Attribute(
-        """20 byte node of 1st parent of this revision."""
-    )
+    p1node: bytes
+    """20 byte node of 1st parent of this revision."""
 
-    p2node = interfaceutil.Attribute(
-        """20 byte node of 2nd parent of this revision."""
-    )
+    p2node: bytes
+    """20 byte node of 2nd parent of this revision."""
 
-    linknode = interfaceutil.Attribute(
-        """20 byte node of the changelog revision this node is linked to."""
-    )
+    # TODO: is this really optional? revlog.revlogrevisiondelta defaults to None
+    linknode: bytes | None
+    """20 byte node of the changelog revision this node is linked to."""
 
-    flags = interfaceutil.Attribute(
-        """2 bytes of integer flags that apply to this revision.
+    flags: int
+    """2 bytes of integer flags that apply to this revision.
 
-        This is a bitwise composition of the ``REVISION_FLAG_*`` constants.
-        """
-    )
+    This is a bitwise composition of the ``REVISION_FLAG_*`` constants.
+    """
 
-    basenode = interfaceutil.Attribute(
-        """20 byte node of the revision this data is a delta against.
+    basenode: bytes
+    """20 byte node of the revision this data is a delta against.
 
-        ``nullid`` indicates that the revision is a full revision and not
-        a delta.
-        """
-    )
+    ``nullid`` indicates that the revision is a full revision and not
+    a delta.
+    """
 
-    baserevisionsize = interfaceutil.Attribute(
-        """Size of base revision this delta is against.
+    baserevisionsize: int | None
+    """Size of base revision this delta is against.
 
-        May be ``None`` if ``basenode`` is ``nullid``.
-        """
-    )
+    May be ``None`` if ``basenode`` is ``nullid``.
+    """
 
-    revision = interfaceutil.Attribute(
-        """Raw fulltext of revision data for this node."""
-    )
+    # TODO: is this really optional? (Seems possible in
+    #  storageutil.emitrevisions()).
+    revision: bytes | None
+    """Raw fulltext of revision data for this node."""
 
-    delta = interfaceutil.Attribute(
-        """Delta between ``basenode`` and ``node``.
+    delta: bytes | None
+    """Delta between ``basenode`` and ``node``.
 
-        Stored in the bdiff delta format.
-        """
-    )
+    Stored in the bdiff delta format.
+    """
 
-    sidedata = interfaceutil.Attribute(
-        """Raw sidedata bytes for the given revision."""
-    )
+    sidedata: bytes | None
+    """Raw sidedata bytes for the given revision."""
 
-    protocol_flags = interfaceutil.Attribute(
-        """Single byte of integer flags that can influence the protocol.
+    protocol_flags: int
+    """Single byte of integer flags that can influence the protocol.
 
-        This is a bitwise composition of the ``storageutil.CG_FLAG*`` constants.
-        """
-    )
+    This is a bitwise composition of the ``storageutil.CG_FLAG*`` constants.
+    """
 
 
 class ifilerevisionssequence(Protocol):
