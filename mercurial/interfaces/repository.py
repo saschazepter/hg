@@ -116,7 +116,7 @@ CACHES_POST_CLONE.discard(CACHE_FILE_NODE_TAGS)
 CACHES_POST_CLONE.discard(CACHE_REV_BRANCH)
 
 
-class ipeerconnection(Protocol):
+class _ipeerconnection(Protocol):
     """Represents a "connection" to a repository.
 
     This is the base interface for representing a connection to a repository.
@@ -400,7 +400,7 @@ class ipeerrequests(Protocol):
         """
 
 
-class ipeerbase(ipeerconnection, ipeercapabilities, ipeerrequests):
+class ipeerbase(_ipeerconnection, ipeercapabilities, ipeerrequests):
     """Unified interface for peer repositories.
 
     All peer instances must conform to this interface.
