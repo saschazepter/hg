@@ -204,7 +204,7 @@ class revlogrevisiondelta:  # (repository.irevisiondelta)
 
 
 @attr.s(frozen=True)
-class revlogproblem:  # (repository.iverifyproblem)
+class revlogproblem(repository.iverifyproblem):
     warning = attr.ib(default=None, type=Optional[bytes])
     error = attr.ib(default=None, type=Optional[bytes])
     node = attr.ib(default=None, type=Optional[bytes])
@@ -4021,7 +4021,7 @@ class revlog:
         else:
             rewrite.v2_censor(self, tr, censor_nodes, tombstone)
 
-    def verifyintegrity(self, state) -> Iterable[revlogproblem]:
+    def verifyintegrity(self, state) -> Iterable[repository.iverifyproblem]:
         """Verifies the integrity of the revlog.
 
         Yields ``revlogproblem`` instances describing problems that are

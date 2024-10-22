@@ -13,6 +13,10 @@
 
 import stat
 
+from typing import (
+    Optional,
+)
+
 from mercurial.i18n import _
 from mercurial.node import (
     bin,
@@ -82,12 +86,11 @@ class simplestorerevisiondelta:
     linknode = attr.ib(default=None)
 
 
-@interfaceutil.implementer(repository.iverifyproblem)
 @attr.s(frozen=True)
-class simplefilestoreproblem:
-    warning = attr.ib(default=None)
-    error = attr.ib(default=None)
-    node = attr.ib(default=None)
+class simplefilestoreproblem(repository.iverifyproblem):
+    warning = attr.ib(default=None, type=Optional[bytes])
+    error = attr.ib(default=None, type=Optional[bytes])
+    node = attr.ib(default=None, type=Optional[bytes])
 
 
 @interfaceutil.implementer(repository.ifilestorage)
