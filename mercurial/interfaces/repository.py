@@ -399,18 +399,13 @@ class ipeerrequests(Protocol):
         """
 
 
-class ipeerbase(_ipeerconnection, ipeercapabilities, ipeerrequests):
+class peer(_ipeerconnection, ipeercapabilities, ipeerrequests, Protocol):
     """Unified interface for peer repositories.
 
     All peer instances must conform to this interface.
     """
 
-
-@interfaceutil.implementer(ipeerbase)
-class peer:
-    """Base class for peer repositories."""
-
-    limitedarguments = False
+    limitedarguments: bool = False
 
     def __init__(self, ui, path=None, remotehidden=False):
         self.ui = ui
