@@ -51,6 +51,10 @@ import threading
 import typing
 import zlib
 
+from typing import (
+    Optional,
+)
+
 from mercurial.i18n import _
 from mercurial.node import (
     nullrev,
@@ -300,12 +304,11 @@ class sqliterevisiondelta:
     linknode = attr.ib(default=None)
 
 
-@interfaceutil.implementer(repository.iverifyproblem)
 @attr.s(frozen=True)
-class sqliteproblem:
-    warning = attr.ib(default=None)
-    error = attr.ib(default=None)
-    node = attr.ib(default=None)
+class sqliteproblem(repository.iverifyproblem):
+    warning = attr.ib(default=None, type=Optional[bytes])
+    error = attr.ib(default=None, type=Optional[bytes])
+    node = attr.ib(default=None, type=Optional[bytes])
 
 
 @interfaceutil.implementer(repository.ifilestorage)
