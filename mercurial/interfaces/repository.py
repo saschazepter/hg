@@ -8,13 +8,27 @@
 
 from __future__ import annotations
 
+import typing
+
 from typing import (
+    Any,
     Protocol,
 )
 
 from ..i18n import _
 from .. import error
 from . import util as interfaceutil
+
+if typing.TYPE_CHECKING:
+    # Almost all mercurial modules are only imported in the type checking phase
+    # to avoid circular imports
+    from ..utils import (
+        urlutil,
+    )
+
+    # TODO: create a Protocol class, since importing uimod here causes a cycle
+    #  that confuses pytype.
+    Ui = Any
 
 # Local repository feature string.
 
@@ -112,8 +126,11 @@ class ipeerconnection(Protocol):
     outside of this module.
     """
 
-    ui = interfaceutil.Attribute("""ui.ui instance""")
-    path = interfaceutil.Attribute("""a urlutil.path instance or None""")
+    ui: Ui
+    """ui.ui instance"""
+
+    path: urlutil.path | None
+    """a urlutil.path instance or None"""
 
     def url(self):
         """Returns a URL string representing this peer.
