@@ -947,8 +947,7 @@ def _readsharedsourceconfig(ui, path):
                 return
             hgvfs = vfs.vfs(os.path.join(path, b".hg"))
             sharedvfs = localrepo._getsharedvfs(hgvfs, requirements)
-            root = sharedvfs.base
-            ui.readconfig(sharedvfs.join(b"hgrc"), root)
+            ui.readconfig(sharedvfs.join(b"hgrc"), root=path)
     except IOError:
         pass
 
