@@ -373,9 +373,8 @@ class ipeercommandexecutor(Protocol):
 class ipeerrequests(Protocol):
     """Interface for executing commands on a peer."""
 
-    limitedarguments = interfaceutil.Attribute(
-        """True if the peer cannot receive large argument value for commands."""
-    )
+    limitedarguments: bool
+    """True if the peer cannot receive large argument value for commands."""
 
     def commandexecutor(self):
         """A context manager that resolves to an ipeercommandexecutor.
