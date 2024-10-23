@@ -1243,7 +1243,7 @@ def makemain(**kwargs):
     return localrepository
 
 
-class RevlogFileStorage:
+class revlogfilestorage:  # (repository.ilocalrepositoryfilestorage)
     """File storage when using revlogs."""
 
     def file(self, path):
@@ -1256,15 +1256,6 @@ class RevlogFileStorage:
         )
 
         return filelog.filelog(self.svfs, path, try_split=try_split)
-
-
-revlogfilestorage = interfaceutil.implementer(
-    repository.ilocalrepositoryfilestorage
-)(RevlogFileStorage)
-
-if typing.TYPE_CHECKING:
-    # Help pytype by hiding the interface stuff that confuses it.
-    revlogfilestorage = RevlogFileStorage
 
 
 class RevlogNarrowFileStorage:
