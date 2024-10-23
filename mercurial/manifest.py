@@ -10,7 +10,6 @@ from __future__ import annotations
 import heapq
 import itertools
 import struct
-import typing
 import weakref
 
 from typing import (
@@ -47,7 +46,6 @@ from . import (
 )
 from .interfaces import (
     repository,
-    util as interfaceutil,
 )
 from .revlogutils import (
     constants as revlog_constants,
@@ -2045,7 +2043,8 @@ class manifestrevlog:  # (repository.imanifeststorage)
         self._revlog.opener = value
 
 
-AnyManifestCtx = Union['manifestctx', 'TreeManifestCtx']
+# TODO: drop this in favor of repository.imanifestrevisionstored?
+AnyManifestCtx = Union['manifestctx', 'treemanifestctx']
 # TODO: drop this in favor of repository.imanifestdict
 AnyManifestDict = Union[manifestdict, treemanifest]
 
@@ -2381,7 +2380,7 @@ class memtreemanifestctx:  # (repository.imanifestrevisionwritable)
         )
 
 
-class TreeManifestCtx:
+class treemanifestctx:  # (repository.imanifestrevisionstored)
     _data: Optional[treemanifest]
 
     def __init__(self, manifestlog, dir, node):
@@ -2644,14 +2643,6 @@ class TreeManifestCtx:
 
     def find(self, key: bytes) -> Tuple[bytes, bytes]:
         return self.read().find(key)
-
-
-treemanifestctx = interfaceutil.implementer(repository.imanifestrevisionstored)(
-    TreeManifestCtx
-)
-
-if typing.TYPE_CHECKING:
-    treemanifestctx = TreeManifestCtx
 
 
 class excludeddir(treemanifest):
