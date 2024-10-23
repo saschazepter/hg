@@ -259,8 +259,7 @@ class gittreemanifest:
         return iter(sorted((baseline | pend) - deleted))
 
 
-@interfaceutil.implementer(repository.imanifestrevisionstored)
-class gittreemanifestctx:
+class gittreemanifestctx(repository.imanifestrevisionstored):
     def __init__(self, repo, gittree):
         self._repo = repo
         self._tree = gittree

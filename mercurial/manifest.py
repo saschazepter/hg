@@ -2190,7 +2190,7 @@ class memmanifestctx:  # (repository.imanifestrevisionwritable)
         )
 
 
-class manifestctx:  # (repository.imanifestrevisionstored)
+class manifestctx(repository.imanifestrevisionstored):
     """A class representing a single revision of a manifest, including its
     contents, its parent revs, and its linkrev.
     """
@@ -2386,7 +2386,7 @@ class memtreemanifestctx:  # (repository.imanifestrevisionwritable)
         )
 
 
-class treemanifestctx:  # (repository.imanifestrevisionstored)
+class treemanifestctx(repository.imanifestrevisionstored):
     _data: Optional[treemanifest]
 
     def __init__(self, manifestlog, dir, node):
