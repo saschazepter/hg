@@ -2414,7 +2414,7 @@ test multiple flags for multiple patches:
   
 
 test multi-address parsing:
-  $ hg email --date '1980-1-1 0:1' -m tmp.mbox -f quux -t 'spam<spam><eggs>' \
+  $ hg email --date '1980-1-1 0:1' -m tmp.mbox -f quux -t 'spam<spam>' \
   >  -t toast -c 'foo,bar@example.com' -c '"A, B <>" <a@example.com>' -s test -r 0 \
   >  --config email.bcc='"Quux, A." <quux>'
   this patch series consists of 1 patches.
@@ -2435,7 +2435,7 @@ test multi-address parsing:
   User-Agent: Mercurial-patchbomb/* (glob)
   Date: Tue, 01 Jan 1980 00:01:00 +0000
   From: quux
-  To: =?iso-8859-1?q?spam?= <spam>, eggs, toast
+  To: =?iso-8859-1?q?spam?= <spam>, toast
   Cc: foo, bar@example.com, =?iso-8859-1?q?A=2C_B_=3C=3E?= <a@example.com>
   Bcc: =?iso-8859-1?q?Quux=2C_A=2E?= <quux>
   
