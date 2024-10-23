@@ -83,7 +83,6 @@ from .branching import (
 
 from .interfaces import (
     repository,
-    util as interfaceutil,
 )
 
 from .utils import (
@@ -1304,7 +1303,7 @@ if typing.TYPE_CHECKING:
     ]
 
 
-class LocalRepository(_localrepo_base_classes):
+class localrepository(_localrepo_base_classes):
     """Main class for representing local repositories.
 
     All local repositories are instances of this class.
@@ -3604,15 +3603,6 @@ class LocalRepository(_localrepo_base_classes):
             raise error.ProgrammingError(msg % category)
         self._sidedata_computers.setdefault(kind, {})
         self._sidedata_computers[kind][category] = (keys, computer, flags)
-
-
-localrepository = interfaceutil.implementer(repository.ilocalrepositorymain)(
-    LocalRepository
-)
-
-if typing.TYPE_CHECKING:
-    # Help pytype by hiding the interface stuff that confuses it.
-    localrepository = LocalRepository
 
 
 def undoname(fn: bytes) -> bytes:
