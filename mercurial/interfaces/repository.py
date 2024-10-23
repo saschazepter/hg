@@ -19,15 +19,22 @@ from typing import (
     Iterator,
     Mapping,
     Protocol,
+    Set,
 )
 
 from ..i18n import _
 from .. import error
 
 if typing.TYPE_CHECKING:
+    from typing import (
+        ByteString,  # TODO: change to Buffer for 3.14
+    )
+
     # Almost all mercurial modules are only imported in the type checking phase
     # to avoid circular imports
     from .. import (
+        match as matchmod,
+        pathutil,
         util,
     )
     from ..utils import (
@@ -1052,7 +1059,7 @@ class imanifestdict(Protocol):
     consists of a binary node and extra flags affecting that entry.
     """
 
-    def __getitem__(self, path):
+    def __getitem__(self, key: bytes) -> bytes:
         """Returns the binary node value for a path in the manifest.
 
         Raises ``KeyError`` if the path does not exist in the manifest.
@@ -1060,7 +1067,7 @@ class imanifestdict(Protocol):
         Equivalent to ``self.find(path)[0]``.
         """
 
-    def find(self, path):
+    def find(self, path: bytes) -> tuple[bytes, bytes]:
         """Returns the entry for a path in the manifest.
 
         Returns a 2-tuple of (node, flags).
@@ -1068,46 +1075,46 @@ class imanifestdict(Protocol):
         Raises ``KeyError`` if the path does not exist in the manifest.
         """
 
-    def __len__(self):
+    def __len__(self) -> int:
         """Return the number of entries in the manifest."""
 
-    def __nonzero__(self):
+    def __nonzero__(self) -> bool:
         """Returns True if the manifest has entries, False otherwise."""
 
     __bool__ = __nonzero__
 
-    def set(self, path, node, flags):
+    def set(self, path: bytes, node: bytes, flags: bytes) -> None:
         """Define the node value and flags for a path in the manifest.
 
         Equivalent to __setitem__ followed by setflag, but can be more efficient.
         """
 
-    def __setitem__(self, path, node):
+    def __setitem__(self, path: bytes, node: bytes) -> None:
         """Define the node value for a path in the manifest.
 
         If the path is already in the manifest, its flags will be copied to
         the new entry.
         """
 
-    def __contains__(self, path):
+    def __contains__(self, path: bytes) -> bool:
         """Whether a path exists in the manifest."""
 
-    def __delitem__(self, path):
+    def __delitem__(self, path: bytes) -> None:
         """Remove a path from the manifest.
 
         Raises ``KeyError`` if the path is not in the manifest.
         """
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[bytes]:
         """Iterate over paths in the manifest."""
 
-    def iterkeys(self):
+    def iterkeys(self) -> Iterator[bytes]:
         """Iterate over paths in the manifest."""
 
-    def keys(self):
+    def keys(self) -> list[bytes]:
         """Obtain a list of paths in the manifest."""
 
-    def filesnotin(self, other, match=None):
+    def filesnotin(self, other, match=None) -> Set[bytes]:
         """Obtain the set of paths in this manifest but not in another.
 
         ``match`` is an optional matcher function to be applied to both
@@ -1116,20 +1123,28 @@ class imanifestdict(Protocol):
         Returns a set of paths.
         """
 
-    def dirs(self):
+    def dirs(self) -> pathutil.dirs:
         """Returns an object implementing the ``idirs`` interface."""
 
-    def hasdir(self, dir):
+    def hasdir(self, dir: bytes) -> bool:
         """Returns a bool indicating if a directory is in this manifest."""
 
-    def walk(self, match):
+    def walk(self, match: matchmod.basematcher) -> Iterator[bytes]:
         """Generator of paths in manifest satisfying a matcher.
 
         If the matcher has explicit files listed and they don't exist in
         the manifest, ``match.bad()`` is called for each missing file.
         """
 
-    def diff(self, other, match=None, clean=False):
+    def diff(
+        self,
+        other: Any,  # TODO: 'manifestdict' or (better) equivalent interface
+        match: matchmod.basematcher | None = None,
+        clean: bool = False,
+    ) -> dict[
+        bytes,
+        tuple[tuple[bytes | None, bytes], tuple[bytes | None, bytes]] | None,
+    ]:
         """Find differences between this manifest and another.
 
         This manifest is compared to ``other``.
@@ -1146,41 +1161,43 @@ class imanifestdict(Protocol):
         are the same for the other manifest.
         """
 
-    def setflag(self, path, flag):
+    def setflag(self, path: bytes, flag: bytes) -> None:
         """Set the flag value for a given path.
 
         Raises ``KeyError`` if the path is not already in the manifest.
         """
 
-    def get(self, path, default=None):
+    def get(self, path: bytes, default=None) -> bytes | None:
         """Obtain the node value for a path or a default value if missing."""
 
-    def flags(self, path):
+    def flags(self, path: bytes) -> bytes:
         """Return the flags value for a path (default: empty bytestring)."""
 
-    def copy(self):
+    def copy(self) -> 'imanifestdict':
         """Return a copy of this manifest."""
 
-    def items(self):
+    def items(self) -> Iterator[tuple[bytes, bytes]]:
         """Returns an iterable of (path, node) for items in this manifest."""
 
-    def iteritems(self):
+    def iteritems(self) -> Iterator[tuple[bytes, bytes]]:
         """Identical to items()."""
 
-    def iterentries(self):
+    def iterentries(self) -> Iterator[tuple[bytes, bytes, bytes]]:
         """Returns an iterable of (path, node, flags) for this manifest.
 
         Similar to ``iteritems()`` except items are a 3-tuple and include
         flags.
         """
 
-    def text(self):
+    def text(self) -> ByteString:
         """Obtain the raw data representation for this manifest.
 
         Result is used to create a manifest revision.
         """
 
-    def fastdelta(self, base, changes):
+    def fastdelta(
+        self, base: ByteString, changes: Iterable[tuple[bytes, bool]]
+    ) -> tuple[ByteString, ByteString]:
         """Obtain a delta between this manifest and another given changes.
 
         ``base`` in the raw data representation for another manifest.
