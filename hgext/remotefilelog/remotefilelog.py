@@ -302,7 +302,7 @@ class remotefilelog:
         deltamode=None,
         sidedata_helpers=None,
         debug_info=None,
-    ) -> Iterator[revlog.RevLogRevisionDelta]:
+    ) -> Iterator[revlog.revlogrevisiondelta]:
         # we don't use any of these parameters here
         del nodesorder, revisiondata, assumehaveparentrevisions, deltaprevious
         del deltamode
