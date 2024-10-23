@@ -591,9 +591,8 @@ class ifileindex(Protocol):
     * Metadata to facilitate storage.
     """
 
-    nullid = interfaceutil.Attribute(
-        """node for the null revision for use as delta base."""
-    )
+    nullid: bytes
+    """node for the null revision for use as delta base."""
 
     def __len__(self):
         """Obtain the number of revisions stored for this file."""
