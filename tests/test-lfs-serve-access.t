@@ -84,6 +84,7 @@ Reasonable hint for a misconfigured blob server
 
   $ hg -R httpclone update default --config lfs.url=http://localhost:$HGPORT2/missing
   abort: LFS error: *onnection *refused* (glob) (?)
+  abort: LFS error: $ECONNREFUSED$ (?)
   abort: LFS error: $EADDRNOTAVAIL$ (glob) (?)
   abort: LFS error: No route to host (?)
   (the "lfs.url" config may be used to override http://localhost:$HGPORT2/missing)
@@ -364,6 +365,7 @@ Test a checksum failure during the processing of the GET request
       self.do_write()
       self.do_hgweb()
       for chunk in self.server.application(env, self._start_response):
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ (py312 !)
       for r in self._runwsgi(req, res, repo):
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ (py311 !)
       handled = wireprotoserver.handlewsgirequest( (py38 !)
