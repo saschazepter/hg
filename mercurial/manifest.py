@@ -2045,7 +2045,7 @@ class manifestrevlog:  # (repository.imanifeststorage)
         self._revlog.opener = value
 
 
-AnyManifestCtx = Union['ManifestCtx', 'TreeManifestCtx']
+AnyManifestCtx = Union['manifestctx', 'TreeManifestCtx']
 # TODO: drop this in favor of repository.imanifestdict
 AnyManifestDict = Union[manifestdict, treemanifest]
 
@@ -2185,7 +2185,7 @@ class memmanifestctx:  # (repository.imanifestrevisionwritable)
         )
 
 
-class ManifestCtx:
+class manifestctx:  # (repository.imanifestrevisionstored)
     """A class representing a single revision of a manifest, including its
     contents, its parent revs, and its linkrev.
     """
@@ -2343,14 +2343,6 @@ class ManifestCtx:
 
     def find(self, key: bytes) -> Tuple[bytes, bytes]:
         return self.read().find(key)
-
-
-manifestctx = interfaceutil.implementer(repository.imanifestrevisionstored)(
-    ManifestCtx
-)
-
-if typing.TYPE_CHECKING:
-    manifestctx = ManifestCtx
 
 
 class MemTreeManifestCtx:
