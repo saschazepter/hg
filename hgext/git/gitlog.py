@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from typing import (
+    Iterator,
+)
+
 from mercurial.i18n import _
 
 from mercurial.node import (
@@ -34,7 +38,7 @@ class baselog:  # revlog.revlog):
         self.gitrepo = gr
         self._db = db
 
-    def __len__(self):
+    def __len__(self) -> int:
         return int(
             self._db.execute('SELECT COUNT(*) FROM changelog').fetchone()[0]
         )
@@ -500,7 +504,7 @@ class filelog(baselog):
         assert not meta  # Should we even try to handle this?
         return self.gitrepo.create_blob(text).raw
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[int]:
         for clrev in self._db.execute(
             '''
 SELECT rev FROM changelog

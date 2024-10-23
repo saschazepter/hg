@@ -52,6 +52,8 @@ import typing
 import zlib
 
 from typing import (
+    Iterable,
+    Iterator,
     Optional,
 )
 
@@ -402,10 +404,10 @@ class sqlitefilestore:
 
     # Start of ifileindex interface.
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._revisions)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[int]:
         return iter(range(len(self._revisions)))
 
     def hasnode(self, node):
@@ -986,7 +988,7 @@ class sqlitefilestore:
 
         return d
 
-    def verifyintegrity(self, state):
+    def verifyintegrity(self, state) -> Iterable[repository.iverifyproblem]:
         state[b'skipread'] = set()
 
         for rev in self:
