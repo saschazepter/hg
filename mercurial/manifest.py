@@ -2345,7 +2345,7 @@ class manifestctx:  # (repository.imanifestrevisionstored)
         return self.read().find(key)
 
 
-class MemTreeManifestCtx:
+class memtreemanifestctx:  # (repository.imanifestrevisionwritable)
     _treemanifest: treemanifest
 
     def __init__(self, manifestlog, dir=b''):
@@ -2356,7 +2356,7 @@ class MemTreeManifestCtx:
     def _storage(self) -> manifestrevlog:
         return self._manifestlog.getstorage(b'')
 
-    def copy(self) -> 'MemTreeManifestCtx':
+    def copy(self) -> 'memtreemanifestctx':
         memmf = memtreemanifestctx(self._manifestlog, dir=self._dir)
         memmf._treemanifest = self._treemanifest.copy()
         return memmf
@@ -2379,14 +2379,6 @@ class MemTreeManifestCtx:
             readtree=readtree,
             match=match,
         )
-
-
-memtreemanifestctx = interfaceutil.implementer(
-    repository.imanifestrevisionwritable
-)(MemTreeManifestCtx)
-
-if typing.TYPE_CHECKING:
-    memtreemanifestctx = MemTreeManifestCtx
 
 
 class TreeManifestCtx:
@@ -2451,7 +2443,7 @@ class TreeManifestCtx:
     def node(self) -> bytes:
         return self._node
 
-    def copy(self) -> 'MemTreeManifestCtx':
+    def copy(self) -> 'memtreemanifestctx':
         memmf = memtreemanifestctx(self._manifestlog, dir=self._dir)
         memmf._treemanifest = self.read().copy()
         return memmf
