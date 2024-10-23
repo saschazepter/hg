@@ -1658,6 +1658,7 @@ class ilocalrepositoryfilestorage(Protocol):
     tracked file path.
     """
 
+    @abc.abstractmethod
     def file(self, f):
         """Obtain a filelog for a tracked path.
 
