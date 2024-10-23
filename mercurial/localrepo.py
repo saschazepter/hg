@@ -1241,7 +1241,7 @@ def makemain(**kwargs):
     return localrepository
 
 
-class revlogfilestorage:  # (repository.ilocalrepositoryfilestorage)
+class revlogfilestorage(repository.ilocalrepositoryfilestorage):
     """File storage when using revlogs."""
 
     def file(self, path):
@@ -1256,7 +1256,7 @@ class revlogfilestorage:  # (repository.ilocalrepositoryfilestorage)
         return filelog.filelog(self.svfs, path, try_split=try_split)
 
 
-class revlognarrowfilestorage:  # (repository.ilocalrepositoryfilestorage)
+class revlognarrowfilestorage(repository.ilocalrepositoryfilestorage):
     """File storage when using revlogs and narrow files."""
 
     def file(self, path):
