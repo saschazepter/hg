@@ -12,6 +12,7 @@ import typing
 
 from typing import (
     Any,
+    Collection,
     Protocol,
 )
 
@@ -1173,13 +1174,13 @@ class imanifestrevisionbase(Protocol):
 class imanifestrevisionstored(imanifestrevisionbase):
     """Interface representing a manifest revision committed to storage."""
 
-    def node(self):
+    def node(self) -> bytes:
         """The binary node for this manifest."""
 
     parents: list[bytes]
     """List of binary nodes that are parents for this manifest revision."""
 
-    def readdelta(self, shallow=False):
+    def readdelta(self, shallow: bool = False):
         """Obtain the manifest data structure representing changes from parent.
 
         This manifest is compared to its 1st parent. A new manifest
@@ -1194,7 +1195,12 @@ class imanifestrevisionstored(imanifestrevisionbase):
         The returned object conforms to the ``imanifestdict`` interface.
         """
 
-    def read_any_fast_delta(self, valid_bases=None, *, shallow=False):
+    def read_any_fast_delta(
+        self,
+        valid_bases: Collection[int] | None = None,
+        *,
+        shallow: bool = False,
+    ):
         """read some manifest information as fast if possible
 
         This might return a "delta", a manifest object containing only file
@@ -1217,7 +1223,7 @@ class imanifestrevisionstored(imanifestrevisionbase):
         The returned object conforms to the ``imanifestdict`` interface.
         """
 
-    def read_delta_parents(self, *, shallow=False, exact=True):
+    def read_delta_parents(self, *, shallow: bool = False, exact: bool = True):
         """return a diff from this revision against both parents.
 
         If `exact` is False, this might return a superset of the diff, containing
@@ -1231,7 +1237,7 @@ class imanifestrevisionstored(imanifestrevisionbase):
 
         The returned object conforms to the ``imanifestdict`` interface."""
 
-    def read_delta_new_entries(self, *, shallow=False):
+    def read_delta_new_entries(self, *, shallow: bool = False):
         """Return a manifest containing just the entries that might be new to
         the repository.
 
@@ -1246,13 +1252,13 @@ class imanifestrevisionstored(imanifestrevisionbase):
 
         The returned object conforms to the ``imanifestdict`` interface."""
 
-    def readfast(self, shallow=False):
+    def readfast(self, shallow: bool = False):
         """Calls either ``read()`` or ``readdelta()``.
 
         The faster of the two options is called.
         """
 
-    def find(self, key):
+    def find(self, key: bytes) -> tuple[bytes, bytes]:
         """Calls self.read().find(key)``.
 
         Returns a 2-tuple of ``(node, flags)`` or raises ``KeyError``.

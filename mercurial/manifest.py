@@ -2332,7 +2332,7 @@ class manifestctx:  # (repository.imanifestrevisionstored)
                     md.set(f, new_node, new_flag)
             return md
 
-    def read_delta_new_entries(self, *, shallow=False) -> manifestdict:
+    def read_delta_new_entries(self, *, shallow: bool = False) -> manifestdict:
         """see `interface.imanifestrevisionbase` documentations"""
         # If we are using narrow, returning a delta against an arbitrary
         # changeset might return file outside the narrowspec. This can create
@@ -2621,7 +2621,7 @@ class treemanifestctx:  # (repository.imanifestrevisionstored)
         bases = (store.deltaparent(r),)
         return self.read_any_fast_delta(bases, shallow=shallow)[1]
 
-    def readfast(self, shallow=False) -> AnyManifestDict:
+    def readfast(self, shallow: bool = False) -> AnyManifestDict:
         """Calls either readdelta or read, based on which would be less work.
         readdelta is called if the delta is against the p1, and therefore can be
         read quickly.
@@ -2694,7 +2694,7 @@ class excludeddirmanifestctx(treemanifestctx):
     def read(self):
         return excludeddir(self.nodeconstants, self._dir, self._node)
 
-    def readfast(self, shallow=False):
+    def readfast(self, shallow: bool = False):
         # special version of readfast since we don't have underlying storage
         return self.read()
 
