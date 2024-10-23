@@ -508,7 +508,7 @@ except AttributeError:
     _lazymanifest = _LazyManifest
 
 
-class manifestdict:  # (repository.imanifestdict)
+class manifestdict(repository.imanifestdict):
     def __init__(self, nodelen: int, data: ByteString = b''):
         self._nodelen = nodelen
         self._lm = _lazymanifest(nodelen, data)
