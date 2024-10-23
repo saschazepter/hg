@@ -504,7 +504,7 @@ except AttributeError:
     _lazymanifest = _LazyManifest
 
 
-class ManifestDict:
+class manifestdict:  # (repository.imanifestdict)
     def __init__(self, nodelen: int, data: ByteString = b''):
         self._nodelen = nodelen
         self._lm = _lazymanifest(nodelen, data)
@@ -612,7 +612,7 @@ class ManifestDict:
             if not self.hasdir(fn):
                 match.bad(fn, None)
 
-    def _matches(self, match: matchmod.basematcher) -> 'ManifestDict':
+    def _matches(self, match: matchmod.basematcher) -> 'manifestdict':
         '''generate a new manifest filtered by the match argument'''
         if match.always():
             return self.copy()
@@ -631,7 +631,7 @@ class ManifestDict:
 
     def diff(
         self,
-        m2: 'ManifestDict',
+        m2: 'manifestdict',
         match: Optional[matchmod.basematcher] = None,
         clean: bool = False,
     ) -> Dict[
@@ -677,7 +677,7 @@ class ManifestDict:
         except KeyError:
             return b''
 
-    def copy(self) -> 'ManifestDict':
+    def copy(self) -> 'manifestdict':
         c = manifestdict(self._nodelen)
         c._lm = self._lm.copy()
         return c
@@ -751,12 +751,6 @@ class ManifestDict:
             )
 
         return arraytext, deltatext
-
-
-manifestdict = interfaceutil.implementer(repository.imanifestdict)(ManifestDict)
-
-if typing.TYPE_CHECKING:
-    manifestdict = ManifestDict
 
 
 def _msearch(
@@ -2065,7 +2059,7 @@ if typing.TYPE_CHECKING:
     manifestrevlog = ManifestRevlog
 
 AnyManifestCtx = Union['ManifestCtx', 'TreeManifestCtx']
-AnyManifestDict = Union[ManifestDict, TreeManifest]
+AnyManifestDict = Union[manifestdict, TreeManifest]
 
 
 class ManifestLog:
@@ -2179,7 +2173,7 @@ if typing.TYPE_CHECKING:
 
 
 class MemManifestCtx:
-    _manifestdict: ManifestDict
+    _manifestdict: manifestdict
 
     def __init__(self, manifestlog):
         self._manifestlog = manifestlog
@@ -2193,7 +2187,7 @@ class MemManifestCtx:
         memmf._manifestdict = self.read().copy()
         return memmf
 
-    def read(self) -> 'ManifestDict':
+    def read(self) -> 'manifestdict':
         return self._manifestdict
 
     def write(self, transaction, link, p1, p2, added, removed, match=None):
@@ -2222,7 +2216,7 @@ class ManifestCtx:
     contents, its parent revs, and its linkrev.
     """
 
-    _data: Optional[ManifestDict]
+    _data: Optional[manifestdict]
 
     def __init__(self, manifestlog, node):
         self._manifestlog = manifestlog
@@ -2252,7 +2246,7 @@ class ManifestCtx:
     def parents(self) -> Tuple[bytes, bytes]:
         return self._storage().parents(self._node)
 
-    def read(self) -> 'ManifestDict':
+    def read(self) -> 'manifestdict':
         if self._data is None:
             nc = self._manifestlog.nodeconstants
             if self._node == nc.nullid:
@@ -2268,7 +2262,7 @@ class ManifestCtx:
                 self._data = manifestdict(nc.nodelen, text)
         return self._data
 
-    def readfast(self, shallow: bool = False) -> 'ManifestDict':
+    def readfast(self, shallow: bool = False) -> 'manifestdict':
         """Calls either readdelta or read, based on which would be less work.
         readdelta is called if the delta is against the p1, and therefore can be
         read quickly.
@@ -2287,7 +2281,7 @@ class ManifestCtx:
             return self.readdelta()
         return self.read()
 
-    def readdelta(self, shallow: bool = False) -> 'ManifestDict':
+    def readdelta(self, shallow: bool = False) -> 'manifestdict':
         """Returns a manifest containing just the entries that are present
         in this manifest, but not in its p1 manifest. This is efficient to read
         if the revlog delta is already p1.
@@ -2309,7 +2303,7 @@ class ManifestCtx:
         valid_bases: Optional[Collection[int]] = None,
         *,
         shallow: bool = False,
-    ) -> Tuple[Optional[int], ManifestDict]:
+    ) -> Tuple[Optional[int], manifestdict]:
         """see `imanifestrevisionstored` documentation"""
         store = self._storage()
         r = store.rev(self._node)
@@ -2330,7 +2324,7 @@ class ManifestCtx:
         *,
         shallow: bool = False,
         exact: bool = True,
-    ) -> ManifestDict:
+    ) -> manifestdict:
         """see `interface.imanifestrevisionbase` documentations"""
         store = self._storage()
         r = store.rev(self._node)
@@ -2359,7 +2353,7 @@ class ManifestCtx:
                     md.set(f, new_node, new_flag)
             return md
 
-    def read_delta_new_entries(self, *, shallow=False) -> ManifestDict:
+    def read_delta_new_entries(self, *, shallow=False) -> manifestdict:
         """see `interface.imanifestrevisionbase` documentations"""
         # If we are using narrow, returning a delta against an arbitrary
         # changeset might return file outside the narrowspec. This can create
@@ -2571,7 +2565,7 @@ class TreeManifestCtx:
                     best_base = max(valid_bases)
                 return (None, self._read_storage_slow_delta(base=best_base))
 
-    def _read_storage_delta_shallow(self) -> ManifestDict:
+    def _read_storage_delta_shallow(self) -> manifestdict:
         store = self._storage()
         r = store.rev(self._node)
         d = mdiff.patchtext(store.revdiff(store.deltaparent(r), r))
