@@ -1552,13 +1552,11 @@ class imanifestlog(Protocol):
     tree manifests.
     """
 
-    nodeconstants = interfaceutil.Attribute(
-        """nodeconstants used by the current repository."""
-    )
+    nodeconstants: NodeConstants
+    """nodeconstants used by the current repository."""
 
-    narrowed = interfaceutil.Attribute(
-        """True, is the manifest is narrowed by a matcher"""
-    )
+    narrowed: bool
+    """True, is the manifest is narrowed by a matcher"""
 
     def __getitem__(self, node):
         """Obtain a manifest instance for a given binary node.
