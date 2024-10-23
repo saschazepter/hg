@@ -213,7 +213,7 @@ class unionchangelog(unionrevlog, changelog.changelog):
 
 class unionmanifest(unionrevlog, manifest.manifestrevlog):
     repotiprev: int
-    revlog2: manifest.ManifestRevlog
+    revlog2: manifest.manifestrevlog
 
     def __init__(self, nodeconstants, opener, opener2, linkmapper):
         # XXX manifestrevlog is not actually a revlog , so mixing it with
