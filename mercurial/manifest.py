@@ -2154,7 +2154,7 @@ class manifestlog:  # (repository.imanifestlog)
         return self._rootstore._revlog.update_caches(transaction=transaction)
 
 
-class MemManifestCtx:
+class memmanifestctx:  # (repository.imanifestrevisionwritable)
     _manifestdict: manifestdict
 
     def __init__(self, manifestlog):
@@ -2164,7 +2164,7 @@ class MemManifestCtx:
     def _storage(self) -> manifestrevlog:
         return self._manifestlog.getstorage(b'')
 
-    def copy(self) -> 'MemManifestCtx':
+    def copy(self) -> 'memmanifestctx':
         memmf = memmanifestctx(self._manifestlog)
         memmf._manifestdict = self.read().copy()
         return memmf
@@ -2183,14 +2183,6 @@ class MemManifestCtx:
             removed,
             match=match,
         )
-
-
-memmanifestctx = interfaceutil.implementer(
-    repository.imanifestrevisionwritable
-)(MemManifestCtx)
-
-if typing.TYPE_CHECKING:
-    memmanifestctx = MemManifestCtx
 
 
 class ManifestCtx:
@@ -2219,7 +2211,7 @@ class ManifestCtx:
     def node(self) -> bytes:
         return self._node
 
-    def copy(self) -> MemManifestCtx:
+    def copy(self) -> memmanifestctx:
         memmf = memmanifestctx(self._manifestlog)
         memmf._manifestdict = self.read().copy()
         return memmf
