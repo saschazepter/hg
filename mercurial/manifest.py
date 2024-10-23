@@ -2350,7 +2350,7 @@ class manifestctx(repository.imanifestrevisionstored):
         return self.read().find(key)
 
 
-class memtreemanifestctx:  # (repository.imanifestrevisionwritable)
+class memtreemanifestctx(repository.imanifestrevisionwritable):
     _treemanifest: treemanifest
 
     def __init__(self, manifestlog, dir=b''):

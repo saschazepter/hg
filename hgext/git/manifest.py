@@ -279,8 +279,7 @@ class gittreemanifestctx(repository.imanifestrevisionstored):
         return self.read()[path]
 
 
-@interfaceutil.implementer(repository.imanifestrevisionwritable)
-class memgittreemanifestctx:
+class memgittreemanifestctx(repository.imanifestrevisionwritable):
     def __init__(self, repo, tree):
         self._repo = repo
         self._tree = tree
