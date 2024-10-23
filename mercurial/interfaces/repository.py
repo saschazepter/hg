@@ -13,20 +13,26 @@ import typing
 
 from typing import (
     Any,
+    Callable,
     Collection,
+    Mapping,
     Protocol,
 )
 
 from ..i18n import _
 from .. import error
-from . import util as interfaceutil
 
 if typing.TYPE_CHECKING:
     # Almost all mercurial modules are only imported in the type checking phase
     # to avoid circular imports
+    from .. import (
+        util,
+    )
     from ..utils import (
         urlutil,
     )
+
+    from . import dirstate as intdirstate
 
     # TODO: make a protocol class for this
     NodeConstants = Any
@@ -1632,132 +1638,119 @@ class ilocalrepositorymain(Protocol):
     This currently captures the reality of things - not how things should be.
     """
 
-    nodeconstants = interfaceutil.Attribute(
-        """Constant nodes matching the hash function used by the repository."""
-    )
-    nullid = interfaceutil.Attribute(
-        """null revision for the hash function used by the repository."""
-    )
+    nodeconstants: NodeConstants
+    """Constant nodes matching the hash function used by the repository."""
 
-    supported = interfaceutil.Attribute(
-        """Set of requirements that this repo is capable of opening."""
-    )
+    nullid: bytes
+    """null revision for the hash function used by the repository."""
 
-    requirements = interfaceutil.Attribute(
-        """Set of requirements this repo uses."""
-    )
+    supported: set[bytes]
+    """Set of requirements that this repo is capable of opening."""
 
-    features = interfaceutil.Attribute(
-        """Set of "features" this repository supports.
+    requirements: set[bytes]
+    """Set of requirements this repo uses."""
 
-        A "feature" is a loosely-defined term. It can refer to a feature
-        in the classical sense or can describe an implementation detail
-        of the repository. For example, a ``readonly`` feature may denote
-        the repository as read-only. Or a ``revlogfilestore`` feature may
-        denote that the repository is using revlogs for file storage.
+    features: set[bytes]
+    """Set of "features" this repository supports.
 
-        The intent of features is to provide a machine-queryable mechanism
-        for repo consumers to test for various repository characteristics.
+    A "feature" is a loosely-defined term. It can refer to a feature
+    in the classical sense or can describe an implementation detail
+    of the repository. For example, a ``readonly`` feature may denote
+    the repository as read-only. Or a ``revlogfilestore`` feature may
+    denote that the repository is using revlogs for file storage.
 
-        Features are similar to ``requirements``. The main difference is that
-        requirements are stored on-disk and represent requirements to open the
-        repository. Features are more run-time capabilities of the repository
-        and more granular capabilities (which may be derived from requirements).
-        """
-    )
+    The intent of features is to provide a machine-queryable mechanism
+    for repo consumers to test for various repository characteristics.
 
-    filtername = interfaceutil.Attribute(
-        """Name of the repoview that is active on this repo."""
-    )
+    Features are similar to ``requirements``. The main difference is that
+    requirements are stored on-disk and represent requirements to open the
+    repository. Features are more run-time capabilities of the repository
+    and more granular capabilities (which may be derived from requirements).
+    """
 
-    vfs_map = interfaceutil.Attribute(
-        """a bytes-key → vfs mapping used by transaction and others"""
-    )
+    filtername: bytes
+    """Name of the repoview that is active on this repo."""
 
-    wvfs = interfaceutil.Attribute(
-        """VFS used to access the working directory."""
-    )
+    vfs_map: Mapping[bytes, Vfs]
+    """a bytes-key → vfs mapping used by transaction and others"""
 
-    vfs = interfaceutil.Attribute(
-        """VFS rooted at the .hg directory.
+    wvfs: Vfs
+    """VFS used to access the working directory."""
 
-        Used to access repository data not in the store.
-        """
-    )
+    vfs: Vfs
+    """VFS rooted at the .hg directory.
 
-    svfs = interfaceutil.Attribute(
-        """VFS rooted at the store.
+    Used to access repository data not in the store.
+    """
 
-        Used to access repository data in the store. Typically .hg/store.
-        But can point elsewhere if the store is shared.
-        """
-    )
+    svfs: Vfs
+    """VFS rooted at the store.
 
-    root = interfaceutil.Attribute(
-        """Path to the root of the working directory."""
-    )
+    Used to access repository data in the store. Typically .hg/store.
+    But can point elsewhere if the store is shared.
+    """
 
-    path = interfaceutil.Attribute("""Path to the .hg directory.""")
+    root: bytes
+    """Path to the root of the working directory."""
 
-    origroot = interfaceutil.Attribute(
-        """The filesystem path that was used to construct the repo."""
-    )
+    path: bytes
+    """Path to the .hg directory."""
 
-    auditor = interfaceutil.Attribute(
-        """A pathauditor for the working directory.
+    origroot: bytes
+    """The filesystem path that was used to construct the repo."""
 
-        This checks if a path refers to a nested repository.
+    auditor: Any
+    """A pathauditor for the working directory.
 
-        Operates on the filesystem.
-        """
-    )
+    This checks if a path refers to a nested repository.
 
-    nofsauditor = interfaceutil.Attribute(
-        """A pathauditor for the working directory.
+    Operates on the filesystem.
+    """
 
-        This is like ``auditor`` except it doesn't do filesystem checks.
-        """
-    )
+    nofsauditor: Any  # TODO: add type hints
+    """A pathauditor for the working directory.
 
-    baseui = interfaceutil.Attribute(
-        """Original ui instance passed into constructor."""
-    )
+    This is like ``auditor`` except it doesn't do filesystem checks.
+    """
 
-    ui = interfaceutil.Attribute("""Main ui instance for this instance.""")
+    baseui: Ui
+    """Original ui instance passed into constructor."""
 
-    sharedpath = interfaceutil.Attribute(
-        """Path to the .hg directory of the repo this repo was shared from."""
-    )
+    ui: Ui
+    """Main ui instance for this instance."""
 
-    store = interfaceutil.Attribute("""A store instance.""")
+    sharedpath: bytes
+    """Path to the .hg directory of the repo this repo was shared from."""
 
-    spath = interfaceutil.Attribute("""Path to the store.""")
+    store: Any  # TODO: add type hints
+    """A store instance."""
 
-    sjoin = interfaceutil.Attribute("""Alias to self.store.join.""")
+    spath: bytes
+    """Path to the store."""
 
-    cachevfs = interfaceutil.Attribute(
-        """A VFS used to access the cache directory.
+    sjoin: Callable  # TODO: add type hints
+    """Alias to self.store.join."""
 
-        Typically .hg/cache.
-        """
-    )
+    cachevfs: Vfs
+    """A VFS used to access the cache directory.
 
-    wcachevfs = interfaceutil.Attribute(
-        """A VFS used to access the cache directory dedicated to working copy
+    Typically .hg/cache.
+    """
 
-        Typically .hg/wcache.
-        """
-    )
+    wcachevfs: Vfs
+    """A VFS used to access the cache directory dedicated to working copy
 
-    filteredrevcache = interfaceutil.Attribute(
-        """Holds sets of revisions to be filtered."""
-    )
+    Typically .hg/wcache.
+    """
 
-    names = interfaceutil.Attribute("""A ``namespaces`` instance.""")
+    filteredrevcache: Any  # TODO: add type hints
+    """Holds sets of revisions to be filtered."""
 
-    filecopiesmode = interfaceutil.Attribute(
-        """The way files copies should be dealt with in this repo."""
-    )
+    names: Any  # TODO: add type hints
+    """A ``namespaces`` instance."""
+
+    filecopiesmode: Any  # TODO: add type hints
+    """The way files copies should be dealt with in this repo."""
 
     def close(self):
         """Close the handle on this repository."""
@@ -1771,22 +1764,23 @@ class ilocalrepositorymain(Protocol):
     def filtered(self, name, visibilityexceptions=None):
         """Obtain a named view of this repository."""
 
-    obsstore = interfaceutil.Attribute("""A store of obsolescence data.""")
+    obsstore: Any  # TODO: add type hints
+    """A store of obsolescence data."""
 
-    changelog = interfaceutil.Attribute("""A handle on the changelog revlog.""")
+    changelog: Any  # TODO: add type hints
+    """A handle on the changelog revlog."""
 
-    manifestlog = interfaceutil.Attribute(
-        """An instance conforming to the ``imanifestlog`` interface.
+    manifestlog: imanifestlog
+    """An instance conforming to the ``imanifestlog`` interface.
 
-        Provides access to manifests for the repository.
-        """
-    )
+    Provides access to manifests for the repository.
+    """
 
-    dirstate = interfaceutil.Attribute("""Working directory state.""")
+    dirstate: intdirstate.idirstate
+    """Working directory state."""
 
-    narrowpats = interfaceutil.Attribute(
-        """Matcher patterns for this repository's narrowspec."""
-    )
+    narrowpats: Any  # TODO: add type hints
+    """Matcher patterns for this repository's narrowspec."""
 
     def narrowmatch(self, match=None, includeexact=False):
         """Obtain a matcher for the narrowspec."""
@@ -2025,7 +2019,8 @@ class ilocalrepositorymain(Protocol):
     def checkpush(self, pushop):
         pass
 
-    prepushoutgoinghooks = interfaceutil.Attribute("""util.hooks instance.""")
+    prepushoutgoinghooks: util.hooks
+    """util.hooks instance."""
 
     def pushkey(self, namespace, key, old, new):
         pass
