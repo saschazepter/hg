@@ -40,7 +40,6 @@ from mercurial import (
 )
 from mercurial.interfaces import (
     repository,
-    util as interfaceutil,
 )
 from mercurial.utils import (
     cborutil,
@@ -96,8 +95,7 @@ class simplefilestoreproblem(repository.iverifyproblem):
     node = attr.ib(default=None, type=Optional[bytes])
 
 
-@interfaceutil.implementer(repository.ifilestorage)
-class filestorage:
+class filestorage(repository.ifilestorage):
     """Implements storage for a tracked path.
 
     Data is stored in the VFS in a directory corresponding to the tracked

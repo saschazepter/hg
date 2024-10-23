@@ -28,7 +28,7 @@ from .revlogutils import (
 )
 
 
-class filelog:  # (repository.ifilestorage)
+class filelog(repository.ifilestorage):
     _revlog: revlog.revlog
     nullid: bytes
     _fix_issue6528: bool
