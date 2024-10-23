@@ -15,6 +15,8 @@ from typing import (
     Any,
     Callable,
     Collection,
+    Iterable,
+    Iterator,
     Mapping,
     Protocol,
 )
@@ -608,10 +610,10 @@ class ifileindex(Protocol):
     nullid: bytes
     """node for the null revision for use as delta base."""
 
-    def __len__(self):
+    def __len__(self) -> int:
         """Obtain the number of revisions stored for this file."""
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[int]:
         """Iterate over revision numbers for this file."""
 
     def hasnode(self, node):
@@ -967,7 +969,7 @@ class ifilestorage(ifileindex, ifiledata, ifilemutation):
         callers are expected to handle this special value.
         """
 
-    def verifyintegrity(self, state):
+    def verifyintegrity(self, state) -> Iterable[iverifyproblem]:
         """Verifies the integrity of file storage.
 
         ``state`` is a dict holding state of the verifier process. It can be
