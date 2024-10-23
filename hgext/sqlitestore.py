@@ -86,7 +86,6 @@ from mercurial import (
 )
 from mercurial.interfaces import (
     repository,
-    util as interfaceutil,
 )
 from mercurial.utils import (
     hashutil,
@@ -1282,8 +1281,7 @@ def newreporequirements(orig, ui, createopts):
     return requirements
 
 
-@interfaceutil.implementer(repository.ilocalrepositoryfilestorage)
-class sqlitefilestorage:
+class sqlitefilestorage(repository.ilocalrepositoryfilestorage):
     """Repository file storage backed by SQLite."""
 
     def file(self, path):
