@@ -2055,7 +2055,7 @@ AnyManifestCtx = Union['manifestctx', 'treemanifestctx']
 AnyManifestDict = Union[manifestdict, treemanifest]
 
 
-class manifestlog:  # (repository.imanifestlog)
+class manifestlog(repository.imanifestlog):
     """A collection class representing the collection of manifest snapshots
     referenced by commits in the repository.
 
