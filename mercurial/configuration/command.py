@@ -16,17 +16,13 @@ from .. import (
     requirements,
     ui as uimod,
     util,
-    vfs as vfsmod,
 )
 
 from . import (
     ConfigLevelT,
     EDIT_LEVELS,
-    LEVEL_GLOBAL,
-    LEVEL_LOCAL,
-    LEVEL_NON_SHARED,
     LEVEL_SHARED,
-    LEVEL_USER,
+    NO_REPO_EDIT_LEVELS,
     rcutil,
 )
 
@@ -55,21 +51,14 @@ def find_edit_level(
 def edit_config(ui: uimod.ui, repo, level: ConfigLevelT) -> None:
     """let the user edit configuration file for the given level"""
 
-    if level == LEVEL_USER:
-        paths = rcutil.userrcpath()
-    elif level == LEVEL_GLOBAL:
-        paths = rcutil.systemrcpath()
-    elif level == LEVEL_LOCAL:
-        if not repo:
-            raise error.InputError(_(b"can't use --local outside a repository"))
-        paths = [repo.vfs.join(b'hgrc')]
-    elif level == LEVEL_NON_SHARED:
-        paths = [repo.vfs.join(b'hgrc-not-shared')]
-    elif level == LEVEL_SHARED:
+    # validate input
+    if repo is None and level not in NO_REPO_EDIT_LEVELS:
+        msg = b"can't use --%s outside a repository" % pycompat.bytestr(level)
+        raise error.InputError(_(msg))
+    if level == LEVEL_SHARED:
         if not repo.shared():
-            raise error.InputError(
-                _(b"repository is not shared; can't use --shared")
-            )
+            msg = _(b"repository is not shared; can't use --shared")
+            raise error.InputError(msg)
         if requirements.SHARESAFE_REQUIREMENT not in repo.requirements:
             raise error.InputError(
                 _(
@@ -77,24 +66,32 @@ def edit_config(ui: uimod.ui, repo, level: ConfigLevelT) -> None:
                     b"unable to edit shared source repository config"
                 )
             )
-        paths = [vfsmod.vfs(repo.sharedpath).join(b'hgrc')]
-    else:
+
+    # find rc files paths
+    repo_path = None
+    if repo is not None:
+        repo_path = repo.root
+    all_rcs = rcutil.all_rc_components(repo_path)
+    rc_by_level = {}
+    for lvl, rc_type, values in all_rcs:
+        if rc_type != b'path':
+            continue
+        rc_by_level.setdefault(lvl, []).append(values)
+
+    if level not in rc_by_level:
         msg = 'unknown config level: %s' % level
         raise error.ProgrammingError(msg)
 
+    paths = rc_by_level[level]
     for f in paths:
         if os.path.exists(f):
             break
     else:
-        if LEVEL_GLOBAL:
-            samplehgrc = uimod.samplehgrcs[b'global']
-        elif LEVEL_LOCAL:
-            samplehgrc = uimod.samplehgrcs[b'local']
-        else:
-            samplehgrc = uimod.samplehgrcs[b'user']
+        samplehgrc = uimod.samplehgrcs.get(level)
 
         f = paths[0]
-        util.writefile(f, util.tonativeeol(samplehgrc))
+        if samplehgrc is not None:
+            util.writefile(f, util.tonativeeol(samplehgrc))
 
     editor = ui.geteditor()
     ui.system(

@@ -26,6 +26,11 @@ EDIT_LEVELS = (
     LEVEL_SHARED,
     LEVEL_NON_SHARED,
 )
+# levels that can works without a repository
+NO_REPO_EDIT_LEVELS = (
+    LEVEL_USER,
+    LEVEL_GLOBAL,
+)
 
 ConfigItemT = Tuple[bytes, bytes, bytes, bytes]
 ResourceIDT = Tuple[bytes, bytes]
