@@ -1,8 +1,5 @@
-#
 # This is the mercurial setup script.
-#
-# 'python setup.py install', or
-# 'python setup.py --help' for more options
+
 import os
 
 supportedpy = ','.join(
@@ -11,7 +8,8 @@ supportedpy = ','.join(
     ]
 )
 
-import sys, platform
+import sys
+import platform
 import sysconfig
 
 
