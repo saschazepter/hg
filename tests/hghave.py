@@ -609,14 +609,7 @@ def has_root():
 
 @check("pyflakes", "Pyflakes python linter")
 def has_pyflakes():
-    try:
-        import pyflakes
-
-        pyflakes.__version__
-    except ImportError:
-        return False
-    else:
-        return True
+    return matchoutput("pyflakes --version", br"^\d+\.\d+\.\d+\b", True)
 
 
 @check("pylint", "Pylint python linter")
