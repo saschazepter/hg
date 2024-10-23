@@ -87,11 +87,12 @@ def default_rc_resources() -> List[ResourceIDT]:
     ]
 
 
-def rccomponents() -> List[ComponentT]:
+def rccomponents(use_hgrcpath=True) -> List[ComponentT]:
     """return an ordered [(type, obj)] about where to load configs.
 
     respect $HGRCPATH. if $HGRCPATH is empty, only .hg/hgrc of current repo is
-    used. if $HGRCPATH is not set, the platform default will be used.
+    used. if $HGRCPATH is not set, the platform default will be used. If
+    `use_hgrcpath` is False, it is never used.
 
     if a directory is provided, *.rc files under it will be used.
 
@@ -105,7 +106,7 @@ def rccomponents() -> List[ComponentT]:
     _rccomponents = []
     comp = _rccomponents.append
 
-    if b'HGRCPATH' in encoding.environ:
+    if b'HGRCPATH' in encoding.environ and use_hgrcpath:
         # assume HGRCPATH is all about user configs so environments can be
         # overridden.
         comp(envrc)
@@ -168,6 +169,14 @@ def repo_components(repo_path: bytes) -> List[ComponentT]:
             os.path.join(repo_path, b".hg", b"hgrc-not-shared"),
         )
     )
+    return components
+
+
+def all_rc_components(repo_path: Optional[bytes]):
+    components = []
+    components.extend(rccomponents(use_hgrcpath=False))
+    if repo_path is not None:
+        components.extend(repo_components(repo_path))
     return components
 
 
