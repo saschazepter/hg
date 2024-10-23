@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+import typing
+
+from typing import (
+    Any,
+    Iterator,
+    Set,
+)
+
 from mercurial import (
     match as matchmod,
     pathutil,
@@ -12,6 +20,10 @@ from mercurial.interfaces import (
 )
 from . import gitutil
 
+if typing.TYPE_CHECKING:
+    from typing import (
+        ByteString,  # TODO: change to Buffer for 3.14
+    )
 
 pygit2 = gitutil.get_pygit2()
 
@@ -71,16 +83,16 @@ class gittreemanifest:
             raise ValueError('unsupported mode %s' % oct(ent.filemode))
         return ent.id.raw, flags
 
-    def __getitem__(self, path):
+    def __getitem__(self, path: bytes) -> bytes:
         return self._resolve_entry(path)[0]
 
-    def find(self, path):
+    def find(self, path: bytes) -> tuple[bytes, bytes]:
         return self._resolve_entry(path)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(list(self.walk(matchmod.always())))
 
-    def __nonzero__(self):
+    def __nonzero__(self) -> bool:
         try:
             next(iter(self))
             return True
@@ -89,30 +101,30 @@ class gittreemanifest:
 
     __bool__ = __nonzero__
 
-    def __contains__(self, path):
+    def __contains__(self, path: bytes) -> bool:
         try:
             self._resolve_entry(path)
             return True
         except KeyError:
             return False
 
-    def iterkeys(self):
+    def iterkeys(self) -> Iterator[bytes]:
         return self.walk(matchmod.always())
 
-    def keys(self):
+    def keys(self) -> list[bytes]:
         return list(self.iterkeys())
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[bytes]:
         return self.iterkeys()
 
-    def __setitem__(self, path, node):
+    def __setitem__(self, path: bytes, node: bytes) -> None:
         self._pending_changes[path] = node, self.flags(path)
 
-    def __delitem__(self, path):
+    def __delitem__(self, path: bytes) -> None:
         # TODO: should probably KeyError for already-deleted  files?
         self._pending_changes[path] = None
 
-    def filesnotin(self, other, match=None):
+    def filesnotin(self, other, match=None) -> Set[bytes]:
         if match is not None:
             match = matchmod.badmatch(match, lambda path, msg: None)
             sm2 = set(other.walk(match))
@@ -123,10 +135,18 @@ class gittreemanifest:
     def _dirs(self):
         return pathutil.dirs(self)
 
-    def hasdir(self, dir):
+    def hasdir(self, dir: bytes) -> bool:
         return dir in self._dirs
 
-    def diff(self, other, match=lambda x: True, clean=False):
+    def diff(
+        self,
+        other: Any,  # TODO: 'manifestdict' or (better) equivalent interface
+        match: Any = lambda x: True,  # TODO: Optional[matchmod.basematcher] = None,
+        clean: bool = False,
+    ) -> dict[
+        bytes,
+        tuple[tuple[bytes | None, bytes], tuple[bytes | None, bytes]] | None,
+    ]:
         """Finds changes between the current manifest and m2.
 
         The result is returned as a dict with filename as key and
@@ -200,42 +220,43 @@ class gittreemanifest:
 
         return result
 
-    def setflag(self, path, flag):
+    def setflag(self, path: bytes, flag: bytes) -> None:
         node, unused_flag = self._resolve_entry(path)
         self._pending_changes[path] = node, flag
 
-    def get(self, path, default=None):
+    def get(self, path: bytes, default=None) -> bytes | None:
         try:
             return self._resolve_entry(path)[0]
         except KeyError:
             return default
 
-    def flags(self, path):
+    def flags(self, path: bytes) -> bytes:
         try:
             return self._resolve_entry(path)[1]
         except KeyError:
             return b''
 
-    def copy(self):
+    def copy(self) -> 'gittreemanifest':
         return gittreemanifest(
             self._git_repo, self._tree, dict(self._pending_changes)
         )
 
-    def items(self):
+    def items(self) -> Iterator[tuple[bytes, bytes]]:
         for f in self:
             # TODO: build a proper iterator version of this
             yield f, self[f]
 
-    def iteritems(self):
+    def iteritems(self) -> Iterator[tuple[bytes, bytes]]:
         return self.items()
 
-    def iterentries(self):
+    def iterentries(self) -> Iterator[tuple[bytes, bytes, bytes]]:
         for f in self:
             # TODO: build a proper iterator version of this
             yield f, *self._resolve_entry(f)
 
-    def text(self):
-        assert False  # TODO can this method move out of the manifest iface?
+    def text(self) -> ByteString:
+        # TODO can this method move out of the manifest iface?
+        raise NotImplementedError
 
     def _walkonetree(self, tree, match, subdir):
         for te in tree:
@@ -249,7 +270,7 @@ class gittreemanifest:
             elif match(realname):
                 yield pycompat.fsencode(realname)
 
-    def walk(self, match):
+    def walk(self, match: matchmod.basematcher) -> Iterator[bytes]:
         # TODO: this is a very lazy way to merge in the pending
         # changes. There is absolutely room for optimization here by
         # being clever about walking over the sets...
