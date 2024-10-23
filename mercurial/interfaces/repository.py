@@ -1176,9 +1176,8 @@ class imanifestrevisionstored(imanifestrevisionbase):
     def node(self):
         """The binary node for this manifest."""
 
-    parents = interfaceutil.Attribute(
-        """List of binary nodes that are parents for this manifest revision."""
-    )
+    parents: list[bytes]
+    """List of binary nodes that are parents for this manifest revision."""
 
     def readdelta(self, shallow=False):
         """Obtain the manifest data structure representing changes from parent.
