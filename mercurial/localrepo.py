@@ -1258,7 +1258,7 @@ class revlogfilestorage:  # (repository.ilocalrepositoryfilestorage)
         return filelog.filelog(self.svfs, path, try_split=try_split)
 
 
-class RevlogNarrowFileStorage:
+class revlognarrowfilestorage:  # (repository.ilocalrepositoryfilestorage)
     """File storage when using revlogs and narrow files."""
 
     def file(self, path):
@@ -1272,15 +1272,6 @@ class RevlogNarrowFileStorage:
         return filelog.narrowfilelog(
             self.svfs, path, self._storenarrowmatch, try_split=try_split
         )
-
-
-revlognarrowfilestorage = interfaceutil.implementer(
-    repository.ilocalrepositoryfilestorage
-)(RevlogNarrowFileStorage)
-
-if typing.TYPE_CHECKING:
-    # Help pytype by hiding the interface stuff that confuses it.
-    revlognarrowfilestorage = RevlogNarrowFileStorage
 
 
 def makefilestorage(requirements, features, **kwargs):
