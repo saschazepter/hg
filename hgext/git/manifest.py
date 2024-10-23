@@ -268,7 +268,7 @@ class gittreemanifestctx:
     def read(self):
         return gittreemanifest(self._repo, self._tree, None)
 
-    def readfast(self, shallow=False):
+    def readfast(self, shallow: bool = False):
         return self.read()
 
     def copy(self):
@@ -276,7 +276,7 @@ class gittreemanifestctx:
         # because the caller expects a mutable manifest.
         return memgittreemanifestctx(self._repo, self._tree)
 
-    def find(self, path):
+    def find(self, path: bytes) -> tuple[bytes, bytes]:
         return self.read()[path]
 
 
