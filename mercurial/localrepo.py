@@ -459,12 +459,12 @@ class localpeer(repository.peer):  # (repository.ipeercommands)
     # End of peer interface.
 
 
-class LocalLegacyPeer(localpeer):
+class locallegacypeer(localpeer):  # (repository.ipeerlegacycommands)
     """peer extension which implements legacy methods too; used for tests with
     restricted capabilities"""
 
     def __init__(self, repo, path=None, remotehidden=False):
-        super(LocalLegacyPeer, self).__init__(
+        super(locallegacypeer, self).__init__(
             repo, caps=legacycaps, path=path, remotehidden=remotehidden
         )
 
@@ -490,14 +490,6 @@ class LocalLegacyPeer(localpeer):
 
     # End of baselegacywirecommands interface.
 
-
-locallegacypeer = interfaceutil.implementer(repository.ipeerlegacycommands)(
-    LocalLegacyPeer
-)
-
-if typing.TYPE_CHECKING:
-    # Help pytype by hiding the interface stuff that confuses it.
-    locallegacypeer = LocalLegacyPeer
 
 # Functions receiving (ui, features) that extensions can register to impact
 # the ability to load repositories with custom requirements. Only
