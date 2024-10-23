@@ -28,9 +28,15 @@ if typing.TYPE_CHECKING:
         urlutil,
     )
 
+    # TODO: make a protocol class for this
+    NodeConstants = Any
+
     # TODO: create a Protocol class, since importing uimod here causes a cycle
     #  that confuses pytype.
     Ui = Any
+
+    # TODO: make a protocol class for this
+    Vfs = Any
 
 # Local repository feature string.
 
@@ -1297,34 +1303,30 @@ class imanifestrevisionwritable(imanifestrevisionbase):
 class imanifeststorage(Protocol):
     """Storage interface for manifest data."""
 
-    nodeconstants = interfaceutil.Attribute(
-        """nodeconstants used by the current repository."""
-    )
+    nodeconstants: NodeConstants
+    """nodeconstants used by the current repository."""
 
-    tree = interfaceutil.Attribute(
-        """The path to the directory this manifest tracks.
+    tree: bytes
+    """The path to the directory this manifest tracks.
 
-        The empty bytestring represents the root manifest.
-        """
-    )
+    The empty bytestring represents the root manifest.
+    """
 
-    index = interfaceutil.Attribute(
-        """An ``ifilerevisionssequence`` instance."""
-    )
+    index: ifilerevisionssequence
+    """An ``ifilerevisionssequence`` instance."""
 
-    opener = interfaceutil.Attribute(
-        """VFS opener to use to access underlying files used for storage.
+    opener: Vfs
+    """VFS opener to use to access underlying files used for storage.
 
-        TODO this is revlog specific and should not be exposed.
-        """
-    )
+    TODO this is revlog specific and should not be exposed.
+    """
 
-    fulltextcache = interfaceutil.Attribute(
-        """Dict with cache of fulltexts.
+    # TODO: finish type hints
+    fulltextcache: dict
+    """Dict with cache of fulltexts.
 
-        TODO this doesn't feel appropriate for the storage interface.
-        """
-    )
+    TODO this doesn't feel appropriate for the storage interface.
+    """
 
     def __len__(self):
         """Obtain the number of revisions stored for this manifest."""
