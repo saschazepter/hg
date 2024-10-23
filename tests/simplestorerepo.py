@@ -14,6 +14,8 @@
 import stat
 
 from typing import (
+    Iterable,
+    Iterator,
     Optional,
 )
 
@@ -164,10 +166,10 @@ class filestorage:
 
         self._index.append((0, 0, 0, -1, -1, -1, -1, self._repo.nullid))
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._indexdata)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[int]:
         return iter(range(len(self)))
 
     def revs(self, start=0, stop=None):
@@ -431,7 +433,7 @@ class filestorage:
             'storedsize': None,
         }
 
-    def verifyintegrity(self, state):
+    def verifyintegrity(self, state) -> Iterable[repository.iverifyproblem]:
         state['skipread'] = set()
         for rev in self:
             node = self.node(rev)
