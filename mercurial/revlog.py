@@ -98,7 +98,6 @@ from . import (
 )
 from .interfaces import (
     repository,
-    util as interfaceutil,
 )
 from .revlogutils import (
     deltas as deltautil,
@@ -205,18 +204,10 @@ class revlogrevisiondelta:  # (repository.irevisiondelta)
 
 
 @attr.s(frozen=True)
-class RevLogProblem:
+class revlogproblem:  # (repository.iverifyproblem)
     warning = attr.ib(default=None, type=Optional[bytes])
     error = attr.ib(default=None, type=Optional[bytes])
     node = attr.ib(default=None, type=Optional[bytes])
-
-
-revlogproblem = interfaceutil.implementer(repository.iverifyproblem)(
-    RevLogProblem
-)
-
-if typing.TYPE_CHECKING:
-    revlogproblem = RevLogProblem
 
 
 def parse_index_v1(data, inline):
@@ -3884,7 +3875,7 @@ class revlog:
         else:
             rewrite.v2_censor(self, tr, censor_nodes, tombstone)
 
-    def verifyintegrity(self, state) -> Iterable[RevLogProblem]:
+    def verifyintegrity(self, state) -> Iterable[revlogproblem]:
         """Verifies the integrity of the revlog.
 
         Yields ``revlogproblem`` instances describing problems that are
