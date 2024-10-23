@@ -2,12 +2,6 @@
 
 import os
 
-supportedpy = ','.join(
-    [
-        '>=3.8.0',
-    ]
-)
-
 import sys
 import platform
 import sysconfig
@@ -1787,9 +1781,6 @@ py2exe_includes = []
 
 py2exeexcludes = []
 py2exedllexcludes = ['crypt32.dll']
-
-if issetuptools:
-    extra['python_requires'] = supportedpy
 
 if py2exeloaded:
     extra['console'] = [
