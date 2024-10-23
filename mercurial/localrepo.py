@@ -260,7 +260,7 @@ moderncaps = {
 legacycaps = moderncaps.union({b'changegroupsubset'})
 
 
-class LocalCommandExecutor:
+class localcommandexecutor:  # (repository.ipeercommandexecutor)
     def __init__(self, peer):
         self._peer = peer
         self._sent = False
@@ -303,15 +303,6 @@ class LocalCommandExecutor:
 
     def close(self):
         self._closed = True
-
-
-localcommandexecutor = interfaceutil.implementer(
-    repository.ipeercommandexecutor
-)(LocalCommandExecutor)
-
-if typing.TYPE_CHECKING:
-    # Help pytype by hiding the interface stuff that confuses it.
-    localcommandexecutor = LocalCommandExecutor
 
 
 class LocalPeer(repository.peer):
