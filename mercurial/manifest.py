@@ -844,9 +844,9 @@ def _splittopdir(f: bytes) -> Tuple[bytes, bytes]:
 _noop = lambda s: None
 
 
-class TreeManifest:
+class treemanifest:  # (repository.imanifestdict)
     _dir: bytes
-    _dirs: Dict[bytes, 'TreeManifest']
+    _dirs: Dict[bytes, 'treemanifest']
     _dirty: bool
     _files: Dict[bytes, bytes]
     _flags: Dict[bytes, bytes]
@@ -862,7 +862,7 @@ class TreeManifest:
         self._dirs = {}
         self._lazydirs: Dict[
             bytes,
-            Tuple[bytes, Callable[[bytes, bytes], 'TreeManifest'], bool],
+            Tuple[bytes, Callable[[bytes, bytes], 'treemanifest'], bool],
         ] = {}
         # Using _lazymanifest here is a little slower than plain old dicts
         self._files = {}
@@ -916,7 +916,7 @@ class TreeManifest:
             loadlazy(k + b'/')
         return visit
 
-    def _loaddifflazy(self, t1: 'TreeManifest', t2: 'TreeManifest'):
+    def _loaddifflazy(self, t1: 'treemanifest', t2: 'treemanifest'):
         """load items in t1 and t2 if they're needed for diffing.
 
         The criteria currently is:
@@ -993,7 +993,7 @@ class TreeManifest:
 
     def iterentries(
         self,
-    ) -> Iterator[Tuple[bytes, Union[bytes, 'TreeManifest'], bytes]]:
+    ) -> Iterator[Tuple[bytes, Union[bytes, 'treemanifest'], bytes]]:
         self._load()
         self._loadalllazy()
         for p, n in sorted(
@@ -1005,7 +1005,7 @@ class TreeManifest:
                 for x in n.iterentries():
                     yield x
 
-    def items(self) -> Iterator[Tuple[bytes, Union[bytes, 'TreeManifest']]]:
+    def items(self) -> Iterator[Tuple[bytes, Union[bytes, 'treemanifest']]]:
         self._load()
         self._loadalllazy()
         for p, n in sorted(
@@ -1176,7 +1176,7 @@ class TreeManifest:
             self._flags[f] = flags
         self._dirty = True
 
-    def copy(self) -> 'TreeManifest':
+    def copy(self) -> 'treemanifest':
         copy = treemanifest(self.nodeconstants, self._dir)
         copy._node = self._node
         copy._dirty = self._dirty
@@ -1202,7 +1202,7 @@ class TreeManifest:
         return copy
 
     def filesnotin(
-        self, m2: 'TreeManifest', match: Optional[matchmod.basematcher] = None
+        self, m2: 'treemanifest', match: Optional[matchmod.basematcher] = None
     ) -> Set[bytes]:
         '''Set of files in this manifest that are not in the other'''
         if match and not match.always():
@@ -1295,13 +1295,13 @@ class TreeManifest:
                     for f in self._dirs[p]._walk(match):
                         yield f
 
-    def _matches(self, match: matchmod.basematcher) -> 'TreeManifest':
+    def _matches(self, match: matchmod.basematcher) -> 'treemanifest':
         """recursively generate a new manifest filtered by the match argument."""
         if match.always():
             return self.copy()
         return self._matches_inner(match)
 
-    def _matches_inner(self, match: matchmod.basematcher) -> 'TreeManifest':
+    def _matches_inner(self, match: matchmod.basematcher) -> 'treemanifest':
         if match.always():
             return self.copy()
 
@@ -1349,7 +1349,7 @@ class TreeManifest:
 
     def diff(
         self,
-        m2: 'TreeManifest',
+        m2: 'treemanifest',
         match: Optional[matchmod.basematcher] = None,
         clean: bool = False,
     ) -> Dict[
@@ -1418,13 +1418,13 @@ class TreeManifest:
             _iterativediff(t1, t2, stackls)
         return result
 
-    def unmodifiedsince(self, m2: 'TreeManifest') -> bool:
+    def unmodifiedsince(self, m2: 'treemanifest') -> bool:
         return not self._dirty and not m2._dirty and self._node == m2._node
 
     def parse(
         self,
         text: bytes,
-        readsubtree: Callable[[bytes, bytes], 'TreeManifest'],
+        readsubtree: Callable[[bytes, bytes], 'treemanifest'],
     ) -> None:
         selflazy = self._lazydirs
         for f, n, fl in _parse(self._nodelen, text):
@@ -1467,7 +1467,7 @@ class TreeManifest:
     def read(
         self,
         gettext: Callable[[], ByteString],
-        readsubtree: Callable[[bytes, bytes], 'TreeManifest'],
+        readsubtree: Callable[[bytes, bytes], 'treemanifest'],
     ) -> None:
         def _load_for_read(s):
             s.parse(gettext(), readsubtree)
@@ -1477,11 +1477,11 @@ class TreeManifest:
 
     def writesubtrees(
         self,
-        m1: 'TreeManifest',
-        m2: 'TreeManifest',
+        m1: 'treemanifest',
+        m2: 'treemanifest',
         writesubtree: Callable[
             [
-                Callable[['TreeManifest'], None],
+                Callable[['treemanifest'], None],
                 bytes,
                 bytes,
                 matchmod.basematcher,
@@ -1519,7 +1519,7 @@ class TreeManifest:
 
     def walksubtrees(
         self, matcher: Optional[matchmod.basematcher] = None
-    ) -> Iterator['TreeManifest']:
+    ) -> Iterator['treemanifest']:
         """Returns an iterator of the subtrees of this manifest, including this
         manifest itself.
 
@@ -1536,12 +1536,6 @@ class TreeManifest:
         for d, subm in self._dirs.items():
             for subtree in subm.walksubtrees(matcher=matcher):
                 yield subtree
-
-
-treemanifest = interfaceutil.implementer(repository.imanifestdict)(TreeManifest)
-
-if typing.TYPE_CHECKING:
-    treemanifest = TreeManifest
 
 
 class manifestfulltextcache(util.lrucachedict):
@@ -2059,7 +2053,8 @@ if typing.TYPE_CHECKING:
     manifestrevlog = ManifestRevlog
 
 AnyManifestCtx = Union['ManifestCtx', 'TreeManifestCtx']
-AnyManifestDict = Union[manifestdict, TreeManifest]
+# TODO: drop this in favor of repository.imanifestdict
+AnyManifestDict = Union[manifestdict, treemanifest]
 
 
 class ManifestLog:
@@ -2380,7 +2375,7 @@ if typing.TYPE_CHECKING:
 
 
 class MemTreeManifestCtx:
-    _treemanifest: TreeManifest
+    _treemanifest: treemanifest
 
     def __init__(self, manifestlog, dir=b''):
         self._manifestlog = manifestlog
@@ -2395,7 +2390,7 @@ class MemTreeManifestCtx:
         memmf._treemanifest = self._treemanifest.copy()
         return memmf
 
-    def read(self) -> 'TreeManifest':
+    def read(self) -> 'treemanifest':
         return self._treemanifest
 
     def write(self, transaction, link, p1, p2, added, removed, match=None):
@@ -2424,7 +2419,7 @@ if typing.TYPE_CHECKING:
 
 
 class TreeManifestCtx:
-    _data: Optional[TreeManifest]
+    _data: Optional[treemanifest]
 
     def __init__(self, manifestlog, dir, node):
         self._manifestlog = manifestlog
@@ -2449,7 +2444,7 @@ class TreeManifestCtx:
                 )
         return self._manifestlog.getstorage(self._dir)
 
-    def read(self) -> 'TreeManifest':
+    def read(self) -> 'treemanifest':
         if self._data is None:
             store = self._storage()
             if self._node == self._manifestlog.nodeconstants.nullid:
@@ -2571,7 +2566,7 @@ class TreeManifestCtx:
         d = mdiff.patchtext(store.revdiff(store.deltaparent(r), r))
         return manifestdict(store.nodeconstants.nodelen, d)
 
-    def _read_storage_slow_delta(self, base) -> 'TreeManifest':
+    def _read_storage_slow_delta(self, base) -> 'treemanifest':
         store = self._storage()
         if base is None:
             base = store.deltaparent(store.rev(self._node))
