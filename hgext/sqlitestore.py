@@ -312,8 +312,7 @@ class sqliteproblem(repository.iverifyproblem):
     node = attr.ib(default=None, type=Optional[bytes])
 
 
-@interfaceutil.implementer(repository.ifilestorage)
-class sqlitefilestore:
+class sqlitefilestore(repository.ifilestorage):
     """Implements storage for an individual tracked path."""
 
     def __init__(self, db, path, compression):
