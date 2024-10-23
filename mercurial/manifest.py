@@ -1672,7 +1672,7 @@ class FastdeltaUnavailable(Exception):
     """Exception raised when fastdelta isn't usable on a manifest."""
 
 
-class ManifestRevlog:
+class manifestrevlog:  # (repository.imanifeststorage)
     """A revlog that stores manifest texts. This is responsible for caching the
     full-text manifest contents.
     """
@@ -2045,13 +2045,6 @@ class ManifestRevlog:
         self._revlog.opener = value
 
 
-manifestrevlog = interfaceutil.implementer(repository.imanifeststorage)(
-    ManifestRevlog
-)
-
-if typing.TYPE_CHECKING:
-    manifestrevlog = ManifestRevlog
-
 AnyManifestCtx = Union['ManifestCtx', 'TreeManifestCtx']
 # TODO: drop this in favor of repository.imanifestdict
 AnyManifestDict = Union[manifestdict, treemanifest]
@@ -2174,7 +2167,7 @@ class MemManifestCtx:
         self._manifestlog = manifestlog
         self._manifestdict = manifestdict(manifestlog.nodeconstants.nodelen)
 
-    def _storage(self) -> ManifestRevlog:
+    def _storage(self) -> manifestrevlog:
         return self._manifestlog.getstorage(b'')
 
     def copy(self) -> 'MemManifestCtx':
@@ -2226,7 +2219,7 @@ class ManifestCtx:
         # rev = store.rev(node)
         # self.linkrev = store.linkrev(rev)
 
-    def _storage(self) -> 'ManifestRevlog':
+    def _storage(self) -> 'manifestrevlog':
         return self._manifestlog.getstorage(b'')
 
     def node(self) -> bytes:
@@ -2382,7 +2375,7 @@ class MemTreeManifestCtx:
         self._dir = dir
         self._treemanifest = treemanifest(manifestlog.nodeconstants)
 
-    def _storage(self) -> ManifestRevlog:
+    def _storage(self) -> manifestrevlog:
         return self._manifestlog.getstorage(b'')
 
     def copy(self) -> 'MemTreeManifestCtx':
@@ -2435,7 +2428,7 @@ class TreeManifestCtx:
         # rev = store.rev(node)
         # self.linkrev = store.linkrev(rev)
 
-    def _storage(self) -> ManifestRevlog:
+    def _storage(self) -> manifestrevlog:
         narrowmatch = self._manifestlog._narrowmatch
         if not narrowmatch.always():
             if not narrowmatch.visitdir(self._dir[:-1]):
