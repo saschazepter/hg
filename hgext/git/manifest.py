@@ -17,7 +17,6 @@ from mercurial import (
 )
 from mercurial.interfaces import (
     repository,
-    util as interfaceutil,
 )
 from . import gitutil
 
@@ -29,8 +28,7 @@ if typing.TYPE_CHECKING:
 pygit2 = gitutil.get_pygit2()
 
 
-@interfaceutil.implementer(repository.imanifestdict)
-class gittreemanifest:
+class gittreemanifest(repository.imanifestdict):
     """Expose git trees (and optionally a builder's overlay) as a manifestdict.
 
     Very similar to mercurial.manifest.treemanifest.
