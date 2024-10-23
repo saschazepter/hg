@@ -7,8 +7,6 @@
 
 from __future__ import annotations
 
-import typing
-
 from typing import (
     Iterable,
     Iterator,
@@ -22,7 +20,6 @@ from . import (
 )
 from .interfaces import (
     repository,
-    util as interfaceutil,
 )
 from .utils import storageutil
 from .revlogutils import (
@@ -31,7 +28,7 @@ from .revlogutils import (
 )
 
 
-class FileLog:
+class filelog:  # (repository.ifilestorage)
     _revlog: revlog.revlog
     nullid: bytes
     _fix_issue6528: bool
@@ -271,12 +268,6 @@ class FileLog:
             raise error.ProgrammingError(msg)
 
         return self._revlog.clone(tr, destrevlog._revlog, **kwargs)
-
-
-filelog = interfaceutil.implementer(repository.ifilestorage)(FileLog)
-
-if typing.TYPE_CHECKING:
-    filelog = FileLog
 
 
 class narrowfilelog(filelog):
