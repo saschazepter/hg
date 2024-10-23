@@ -305,11 +305,11 @@ class localcommandexecutor:  # (repository.ipeercommandexecutor)
         self._closed = True
 
 
-class LocalPeer(repository.peer):
+class localpeer(repository.peer):  # (repository.ipeercommands)
     '''peer for a local repo; reflects only the most recent API'''
 
     def __init__(self, repo, caps=None, path=None, remotehidden=False):
-        super(LocalPeer, self).__init__(
+        super(localpeer, self).__init__(
             repo.ui, path=path, remotehidden=remotehidden
         )
 
@@ -457,13 +457,6 @@ class LocalPeer(repository.peer):
         return localcommandexecutor(self)
 
     # End of peer interface.
-
-
-localpeer = interfaceutil.implementer(repository.ipeercommands)(LocalPeer)
-
-if typing.TYPE_CHECKING:
-    # Help pytype by hiding the interface stuff that confuses it.
-    localpeer = LocalPeer
 
 
 class LocalLegacyPeer(localpeer):
