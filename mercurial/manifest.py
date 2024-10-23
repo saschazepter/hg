@@ -2050,7 +2050,7 @@ AnyManifestCtx = Union['ManifestCtx', 'TreeManifestCtx']
 AnyManifestDict = Union[manifestdict, treemanifest]
 
 
-class ManifestLog:
+class manifestlog:  # (repository.imanifestlog)
     """A collection class representing the collection of manifest snapshots
     referenced by commits in the repository.
 
@@ -2152,12 +2152,6 @@ class ManifestLog:
 
     def update_caches(self, transaction) -> None:
         return self._rootstore._revlog.update_caches(transaction=transaction)
-
-
-manifestlog = interfaceutil.implementer(repository.imanifestlog)(ManifestLog)
-
-if typing.TYPE_CHECKING:
-    manifestlog = ManifestLog
 
 
 class MemManifestCtx:
