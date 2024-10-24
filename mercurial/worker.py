@@ -13,6 +13,7 @@ import signal
 import sys
 import threading
 import time
+import warnings
 
 from .i18n import _
 from . import (
@@ -20,6 +21,18 @@ from . import (
     error,
     pycompat,
     scmutil,
+)
+
+# XXX TODO: We should seriously look into this fork + thread issues, however
+# this is wreaking havoc in the tests suites, so silencing for now.
+warnings.filterwarnings(
+    'ignore',
+    message=(
+        r'This process \(pid=\d+\) is multi-threaded,'
+        r' use of fork\(\) may lead to deadlocks in the child.'
+    ),
+    category=DeprecationWarning,
+    module='mercurial.worker',
 )
 
 
