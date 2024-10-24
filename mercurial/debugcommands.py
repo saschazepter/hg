@@ -255,6 +255,10 @@ def debugbuilddag(
     progress = ui.makeprogress(
         _(b'building'), unit=_(b'revisions'), total=total
     )
+    merge_relaxed_sync = ui.configbool(
+        b'experimental',
+        b'relaxed-block-sync-merge',
+    )
     with progress, repo.wlock(), repo.lock(), repo.transaction(b"builddag"):
         at = -1
         atbranch = b'default'
@@ -279,7 +283,12 @@ def debugbuilddag(
                         base, local, other = [
                             x[fn].data() for x in (pa, p1, p2)
                         ]
-                        m3 = simplemerge.Merge3Text(base, local, other)
+                        m3 = simplemerge.Merge3Text(
+                            base,
+                            local,
+                            other,
+                            relaxed_sync=merge_relaxed_sync,
+                        )
                         ml = [
                             l.strip()
                             for l in simplemerge.render_minimized(m3)[0]

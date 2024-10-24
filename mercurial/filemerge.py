@@ -481,6 +481,8 @@ def _merge(repo, local, other, base, mode):
     suppresses the markers."""
     ui = repo.ui
 
+    relaxed_sync = ui.configbool(b'experimental', b'relaxed-block-sync-merge')
+
     try:
         _verifytext(local, ui)
         _verifytext(base, ui)
@@ -489,7 +491,11 @@ def _merge(repo, local, other, base, mode):
         return True, True, False
     else:
         merged_text, conflicts = simplemerge.simplemerge(
-            local, base, other, mode=mode
+            local,
+            base,
+            other,
+            mode=mode,
+            relaxed_sync=relaxed_sync,
         )
         # fcd.flags() already has the merged flags (done in
         # mergestate.resolve())

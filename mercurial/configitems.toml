@@ -1530,6 +1530,24 @@ name = "strict-capability-check"
 default = false
 
 [[items]]
+section = "experimental"
+name = "relaxed-block-sync-merge"
+default = false
+documentation="""When using built-in simple merge tools, this config makes it so that changes
+touching adjacent file regions no longer conflict with each other.
+
+In particular, addition/modification/removal adjacent to modification/removal
+are all allowed with no conflict.
+
+Addition next to addition is still treated as a conflict because it presents
+a legitimate ambiguity.
+
+The change tweaks existing logic for aligning file changes, making it so
+that a 0-length spacing between regions is just as good as a 1-line spacing.
+(default: False)
+"""
+
+[[items]]
 section = "merge-tools"
 name = ".*"
 generic = true
