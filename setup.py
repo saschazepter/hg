@@ -121,19 +121,18 @@ if os.name == 'nt':
 
 def cancompile(cc, code):
     tmpdir = tempfile.mkdtemp(prefix='hg-install-')
-    devnull = oldstderr = None
+    oldstderr = None
     try:
         fname = os.path.join(tmpdir, 'testcomp.c')
-        f = open(fname, 'w')
-        f.write(code)
-        f.close()
+        with open(fname, 'w') as file:
+            file.write(code)
+        oldstderr = os.dup(sys.stderr.fileno())
         # Redirect stderr to /dev/null to hide any error messages
         # from the compiler.
         # This will have to be changed if we ever have to check
         # for a function on Windows.
-        devnull = open('/dev/null', 'w')
-        oldstderr = os.dup(sys.stderr.fileno())
-        os.dup2(devnull.fileno(), sys.stderr.fileno())
+        with open('/dev/null', 'w') as devnull:
+            os.dup2(devnull.fileno(), sys.stderr.fileno())
         objects = cc.compile([fname], output_dir=tmpdir)
         cc.link_executable(objects, os.path.join(tmpdir, "a.out"))
         return True
@@ -142,8 +141,6 @@ def cancompile(cc, code):
     finally:
         if oldstderr is not None:
             os.dup2(oldstderr, sys.stderr.fileno())
-        if devnull is not None:
-            devnull.close()
         shutil.rmtree(tmpdir)
 
 
