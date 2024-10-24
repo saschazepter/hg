@@ -26,7 +26,7 @@ except ImportError:
     try:
         import sha
 
-        sha.sha  # silence unused import warning
+        del sha  # silence unused import warning
     except ImportError:
         raise SystemExit(
             "Couldn't import standard hashlib (incomplete Python install)."
@@ -35,17 +35,16 @@ except ImportError:
 try:
     import zlib
 
-    zlib.compressobj  # silence unused import warning
+    del zlib  # silence unused import warning
 except ImportError:
     raise SystemExit(
         "Couldn't import standard zlib (incomplete Python install)."
     )
 
-
 try:
     import bz2
 
-    bz2.BZ2Compressor  # silence unused import warning
+    del bz2  # silence unused import warning
 except ImportError:
     raise SystemExit(
         "Couldn't import standard bz2 (incomplete Python install)."
