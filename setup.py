@@ -3,7 +3,6 @@
 import os
 
 import sys
-import platform
 import sysconfig
 
 
@@ -54,26 +53,15 @@ except ImportError:
         "Couldn't import standard zlib (incomplete Python install)."
     )
 
-# The base IronPython distribution (as of 2.7.1) doesn't support bz2
-isironpython = False
+
 try:
-    isironpython = (
-        platform.python_implementation().lower().find("ironpython") != -1
+    import bz2
+
+    bz2.BZ2Compressor  # silence unused import warning
+except ImportError:
+    raise SystemExit(
+        "Couldn't import standard bz2 (incomplete Python install)."
     )
-except AttributeError:
-    pass
-
-if isironpython:
-    sys.stderr.write("warning: IronPython detected (no bz2 support)\n")
-else:
-    try:
-        import bz2
-
-        bz2.BZ2Compressor  # silence unused import warning
-    except ImportError:
-        raise SystemExit(
-            "Couldn't import standard bz2 (incomplete Python install)."
-        )
 
 ispypy = "PyPy" in sys.version
 
