@@ -467,15 +467,15 @@ Test short command list with verbose option
   
   add the specified files on the next commit
   
-      Schedule files to be version controlled and added to the repository.
+  Schedule files to be version controlled and added to the repository.
   
-      The files will be added to the repository at the next commit. To undo an
-      add before that, see 'hg forget'.
+  The files will be added to the repository at the next commit. To undo an add
+  before that, see 'hg forget'.
   
-      If no names are given, add all files to the repository (except files
-      matching ".hgignore").
+  If no names are given, add all files to the repository (except files matching
+  ".hgignore").
   
-      Returns 0 if all files are successfully added.
+  Returns 0 if all files are successfully added.
   
   options ([+] can be repeated):
   
@@ -493,40 +493,40 @@ Verbose help for add
   
   add the specified files on the next commit
   
-      Schedule files to be version controlled and added to the repository.
+  Schedule files to be version controlled and added to the repository.
   
-      The files will be added to the repository at the next commit. To undo an
-      add before that, see 'hg forget'.
+  The files will be added to the repository at the next commit. To undo an add
+  before that, see 'hg forget'.
   
-      If no names are given, add all files to the repository (except files
-      matching ".hgignore").
+  If no names are given, add all files to the repository (except files matching
+  ".hgignore").
   
-      Examples:
+  Examples:
   
-        - New (unknown) files are added automatically by 'hg add':
+    - New (unknown) files are added automatically by 'hg add':
   
-            $ ls
-            foo.c
-            $ hg status
-            ? foo.c
-            $ hg add
-            adding foo.c
-            $ hg status
-            A foo.c
+        $ ls
+        foo.c
+        $ hg status
+        ? foo.c
+        $ hg add
+        adding foo.c
+        $ hg status
+        A foo.c
   
-        - Specific files to be added can be specified:
+    - Specific files to be added can be specified:
   
-            $ ls
-            bar.c  foo.c
-            $ hg status
-            ? bar.c
-            ? foo.c
-            $ hg add bar.c
-            $ hg status
-            A bar.c
-            ? foo.c
+        $ ls
+        bar.c  foo.c
+        $ hg status
+        ? bar.c
+        ? foo.c
+        $ hg add bar.c
+        $ hg status
+        A bar.c
+        ? foo.c
   
-      Returns 0 if all files are successfully added.
+  Returns 0 if all files are successfully added.
   
   options ([+] can be repeated):
   
@@ -568,10 +568,10 @@ Test the textwidth config option
   print the root (top) of the current working
   directory
   
-      Print the root directory of the current
-      repository.
+  Print the root directory of the current
+  repository.
   
-      Returns 0 on success.
+  Returns 0 on success.
   
   options:
   
@@ -630,20 +630,19 @@ Test command without options
   
   verify the integrity of the repository
   
-      Verify the integrity of the current repository.
+  Verify the integrity of the current repository.
   
-      This will perform an extensive check of the repository's integrity,
-      validating the hashes and checksums of each entry in the changelog,
-      manifest, and tracked files, as well as the integrity of their crosslinks
-      and indices.
+  This will perform an extensive check of the repository's integrity, validating
+  the hashes and checksums of each entry in the changelog, manifest, and tracked
+  files, as well as the integrity of their crosslinks and indices.
   
-      Please see https://mercurial-scm.org/wiki/RepositoryCorruption for more
-      information about recovery from corruption of the repository.
+  Please see https://mercurial-scm.org/wiki/RepositoryCorruption for more
+  information about recovery from corruption of the repository.
   
-      For an alternative UI with a lot more control over the verification
-      process and better error reporting, try 'hg help admin::verify'.
+  For an alternative UI with a lot more control over the verification process
+  and better error reporting, try 'hg help admin::verify'.
   
-      Returns 0 on success, 1 if errors are encountered.
+  Returns 0 on success, 1 if errors are encountered.
   
   options:
   
@@ -654,36 +653,36 @@ Test command without options
   
   diff repository (or selected files)
   
-      Show differences between revisions for the specified files.
+  Show differences between revisions for the specified files.
   
-      Differences between files are shown using the unified diff format.
+  Differences between files are shown using the unified diff format.
   
-      Note:
-         'hg diff' may generate unexpected results for merges, as it will
-         default to comparing against the working directory's first parent
-         changeset if no revisions are specified.  To diff against the conflict
-         regions, you can use '--config diff.merge=yes'.
+  Note:
+     'hg diff' may generate unexpected results for merges, as it will default to
+     comparing against the working directory's first parent changeset if no
+     revisions are specified.  To diff against the conflict regions, you can use
+     '--config diff.merge=yes'.
   
-      By default, the working directory files are compared to its first parent.
-      To see the differences from another revision, use --from. To see the
-      difference to another revision, use --to. For example, 'hg diff --from .^'
-      will show the differences from the working copy's grandparent to the
-      working copy, 'hg diff --to .' will show the diff from the working copy to
-      its parent (i.e. the reverse of the default), and 'hg diff --from 1.0 --to
-      1.2' will show the diff between those two revisions.
+  By default, the working directory files are compared to its first parent. To
+  see the differences from another revision, use --from. To see the difference
+  to another revision, use --to. For example, 'hg diff --from .^' will show the
+  differences from the working copy's grandparent to the working copy, 'hg diff
+  --to .' will show the diff from the working copy to its parent (i.e. the
+  reverse of the default), and 'hg diff --from 1.0 --to 1.2' will show the diff
+  between those two revisions.
   
-      Alternatively you can specify -c/--change with a revision to see the
-      changes in that changeset relative to its first parent (i.e. 'hg diff -c
-      42' is equivalent to 'hg diff --from 42^ --to 42')
+  Alternatively you can specify -c/--change with a revision to see the changes
+  in that changeset relative to its first parent (i.e. 'hg diff -c 42' is
+  equivalent to 'hg diff --from 42^ --to 42')
   
-      Without the -a/--text option, diff will avoid generating diffs of files it
-      detects as binary. With -a, diff will generate a diff anyway, probably
-      with undesirable results.
+  Without the -a/--text option, diff will avoid generating diffs of files it
+  detects as binary. With -a, diff will generate a diff anyway, probably with
+  undesirable results.
   
-      Use the -g/--git option to generate diffs in the git extended diff format.
-      For more information, read 'hg help diffs'.
+  Use the -g/--git option to generate diffs in the git extended diff format. For
+  more information, read 'hg help diffs'.
   
-      Returns 0 on success.
+  Returns 0 on success.
   
   options ([+] can be repeated):
   
@@ -717,38 +716,37 @@ Test command without options
   
   show changed files in the working directory
   
-      Show status of files in the repository. If names are given, only files
-      that match are shown. Files that are clean or ignored or the source of a
-      copy/move operation, are not listed unless -c/--clean, -i/--ignored,
-      -C/--copies or -A/--all are given. Unless options described with "show
-      only ..." are given, the options -mardu are used.
+  Show status of files in the repository. If names are given, only files that
+  match are shown. Files that are clean or ignored or the source of a copy/move
+  operation, are not listed unless -c/--clean, -i/--ignored, -C/--copies or
+  -A/--all are given. Unless options described with "show only ..." are given,
+  the options -mardu are used.
   
-      Option -q/--quiet hides untracked (unknown and ignored) files unless
-      explicitly requested with -u/--unknown or -i/--ignored.
+  Option -q/--quiet hides untracked (unknown and ignored) files unless
+  explicitly requested with -u/--unknown or -i/--ignored.
   
-      Note:
-         'hg status' may appear to disagree with diff if permissions have
-         changed or a merge has occurred. The standard diff format does not
-         report permission changes and diff only reports changes relative to one
-         merge parent.
+  Note:
+     'hg status' may appear to disagree with diff if permissions have changed or
+     a merge has occurred. The standard diff format does not report permission
+     changes and diff only reports changes relative to one merge parent.
   
-      If one revision is given, it is used as the base revision. If two
-      revisions are given, the differences between them are shown. The --change
-      option can also be used as a shortcut to list the changed files of a
-      revision from its first parent.
+  If one revision is given, it is used as the base revision. If two revisions
+  are given, the differences between them are shown. The --change option can
+  also be used as a shortcut to list the changed files of a revision from its
+  first parent.
   
-      The codes used to show the status of files are:
+  The codes used to show the status of files are:
   
-        M = modified
-        A = added
-        R = removed
-        C = clean
-        ! = missing (deleted by non-hg command, but still tracked)
-        ? = not tracked
-        I = ignored
-          = origin of the previous file (with --copies)
+    M = modified
+    A = added
+    R = removed
+    C = clean
+    ! = missing (deleted by non-hg command, but still tracked)
+    ? = not tracked
+    I = ignored
+      = origin of the previous file (with --copies)
   
-      Returns 0 on success.
+  Returns 0 on success.
   
   options ([+] can be repeated):
   
@@ -907,13 +905,13 @@ Test for aliases
   
   summarize working directory state
   
-      This generates a brief summary of the working directory state, including
-      parents, branch, commit status, phase and available updates.
+  This generates a brief summary of the working directory state, including
+  parents, branch, commit status, phase and available updates.
   
-      With the --remote option, this will check the default paths for incoming
-      and outgoing changes. This can be time-consuming.
+  With the --remote option, this will check the default paths for incoming and
+  outgoing changes. This can be time-consuming.
   
-      Returns 0 on success.
+  Returns 0 on success.
   
   defined by: helpext
   

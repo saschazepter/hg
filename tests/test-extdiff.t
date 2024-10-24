@@ -37,15 +37,15 @@ Should diff cloned directories:
   
   use external program to diff repository (or selected files)
   
-      Show differences between revisions for the specified files, using the
-      following program:
+  Show differences between revisions for the specified files, using the
+  following program:
   
-        'echo'
+    'echo'
   
-      When two revision arguments are given, then changes are shown between
-      those revisions. If only one revision is specified then that revision is
-      compared to the working directory, and, when no revisions are specified,
-      the working directory files are compared to its parent.
+  When two revision arguments are given, then changes are shown between those
+  revisions. If only one revision is specified then that revision is compared to
+  the working directory, and, when no revisions are specified, the working
+  directory files are compared to its parent.
   
   options ([+] can be repeated):
   
@@ -532,8 +532,8 @@ Test handling of non-ASCII paths in generated docstrings (issue5301)
   [10]
 
   $ LC_MESSAGES=ja_JP.UTF-8 hg --config hgext.extdiff= --config extdiff.cmd.td=$U help td \
-  > | grep "^      '"
-        '\xa5\xa5'
+  > | grep "^  '"
+    '\xa5\xa5'
 
   $ cd $TESTTMP
 
