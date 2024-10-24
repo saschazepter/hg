@@ -1495,38 +1495,43 @@ def _outgoing(ui, repo, dests, opts, subpath=None):
     others = []
     for path in urlutil.get_push_paths(repo, ui, dests):
         dest = path.loc
-        if subpath is not None:
-            subpath = urlutil.url(subpath)
-            if subpath.isabs():
-                dest = bytes(subpath)
-            else:
-                p = urlutil.url(dest)
-                if p.islocal():
-                    normpath = os.path.normpath
+        if True:
+            if subpath is not None:
+                subpath = urlutil.url(subpath)
+                if subpath.isabs():
+                    dest = bytes(subpath)
                 else:
-                    normpath = posixpath.normpath
-                p.path = normpath(b'%s/%s' % (p.path, subpath))
-                dest = bytes(p)
-        branches = path.branch, opts.get(b'branch') or []
+                    p = urlutil.url(dest)
+                    if p.islocal():
+                        normpath = os.path.normpath
+                    else:
+                        normpath = posixpath.normpath
+                    p.path = normpath(b'%s/%s' % (p.path, subpath))
+                    dest = bytes(p)
+            branches = path.branch, opts.get(b'branch') or []
 
-        ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(dest))
-        revs, checkout = addbranchrevs(repo, repo, branches, opts.get(b'rev'))
-        if revs:
-            revs = [repo[rev].node() for rev in logcmdutil.revrange(repo, revs)]
-
-        other = peer(repo, opts, dest)
-        try:
-            outgoing = discovery.findcommonoutgoing(
-                repo, other, revs, force=opts.get(b'force')
+            ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(dest))
+            revs, checkout = addbranchrevs(
+                repo, repo, branches, opts.get(b'rev')
             )
-            o = outgoing.missing
-            out.update(o)
-            if not o:
-                scmutil.nochangesfound(repo.ui, repo, outgoing.excluded)
-            others.append(other)
-        except:  # re-raises
-            other.close()
-            raise
+            if revs:
+                revs = [
+                    repo[rev].node() for rev in logcmdutil.revrange(repo, revs)
+                ]
+
+            other = peer(repo, opts, dest)
+            try:
+                outgoing = discovery.findcommonoutgoing(
+                    repo, other, revs, force=opts.get(b'force')
+                )
+                o = outgoing.missing
+                out.update(o)
+                if not o:
+                    scmutil.nochangesfound(repo.ui, repo, outgoing.excluded)
+                others.append(other)
+            except:  # re-raises
+                other.close()
+                raise
     return list(out), others
 
 
