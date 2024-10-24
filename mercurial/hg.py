@@ -1454,6 +1454,9 @@ def _outgoing_recurse(ui, repo, dests, opts):
 
 
 def display_outgoing_revs(ui, repo, o, opts):
+    # make sure this is ordered by revision number
+    cl = repo.changelog
+    o.sort(key=cl.rev)
     if opts.get(b'graph'):
         revdag = logcmdutil.graphrevs(repo, o, opts)
         ui.pager(b'outgoing')
@@ -1524,11 +1527,7 @@ def _outgoing(ui, repo, dests, opts, subpath=None):
         except:  # re-raises
             other.close()
             raise
-    # make sure this is ordered by revision number
-    outgoing_revs = list(out)
-    cl = repo.changelog
-    outgoing_revs.sort(key=cl.rev)
-    return outgoing_revs, others
+    return list(out), others
 
 
 def verify(repo, level=None):
