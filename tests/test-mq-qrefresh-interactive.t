@@ -12,22 +12,22 @@ help qrefresh (no record)
   
   update the current patch
   
-      If any file patterns are provided, the refreshed patch will contain only
-      the modifications that match those patterns; the remaining modifications
-      will remain in the working directory.
+  If any file patterns are provided, the refreshed patch will contain only the
+  modifications that match those patterns; the remaining modifications will
+  remain in the working directory.
   
-      If -s/--short is specified, files currently included in the patch will be
-      refreshed just like matched files and remain in the patch.
+  If -s/--short is specified, files currently included in the patch will be
+  refreshed just like matched files and remain in the patch.
   
-      If -e/--edit is specified, Mercurial will start your configured editor for
-      you to enter a message. In case qrefresh fails, you will find a backup of
-      your message in ".hg/last-message.txt".
+  If -e/--edit is specified, Mercurial will start your configured editor for you
+  to enter a message. In case qrefresh fails, you will find a backup of your
+  message in ".hg/last-message.txt".
   
-      hg add/remove/copy/rename work as usual, though you might want to use git-
-      style patches (-g/--git or [diff] git=1) to track copies and renames. See
-      the diffs help topic for more information on the git diff format.
+  hg add/remove/copy/rename work as usual, though you might want to use git-
+  style patches (-g/--git or [diff] git=1) to track copies and renames. See the
+  diffs help topic for more information on the git diff format.
   
-      Returns 0 on success.
+  Returns 0 on success.
   
   options ([+] can be repeated):
   
@@ -54,22 +54,22 @@ help qrefresh (record)
   
   update the current patch
   
-      If any file patterns are provided, the refreshed patch will contain only
-      the modifications that match those patterns; the remaining modifications
-      will remain in the working directory.
+  If any file patterns are provided, the refreshed patch will contain only the
+  modifications that match those patterns; the remaining modifications will
+  remain in the working directory.
   
-      If -s/--short is specified, files currently included in the patch will be
-      refreshed just like matched files and remain in the patch.
+  If -s/--short is specified, files currently included in the patch will be
+  refreshed just like matched files and remain in the patch.
   
-      If -e/--edit is specified, Mercurial will start your configured editor for
-      you to enter a message. In case qrefresh fails, you will find a backup of
-      your message in ".hg/last-message.txt".
+  If -e/--edit is specified, Mercurial will start your configured editor for you
+  to enter a message. In case qrefresh fails, you will find a backup of your
+  message in ".hg/last-message.txt".
   
-      hg add/remove/copy/rename work as usual, though you might want to use git-
-      style patches (-g/--git or [diff] git=1) to track copies and renames. See
-      the diffs help topic for more information on the git diff format.
+  hg add/remove/copy/rename work as usual, though you might want to use git-
+  style patches (-g/--git or [diff] git=1) to track copies and renames. See the
+  diffs help topic for more information on the git diff format.
   
-      Returns 0 on success.
+  Returns 0 on success.
   
   options ([+] can be repeated):
   
