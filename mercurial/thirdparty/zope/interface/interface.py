@@ -352,7 +352,14 @@ class InterfaceClass(Element, InterfaceBase, Specification):
         # Make sure that all recorded attributes (and methods) are of type
         # `Attribute` and `Method`
         for name, attr in list(attrs.items()):
-            if name in ('__locals__', '__qualname__', '__annotations__'):
+            compiler_attributes = (
+                '__locals__',
+                '__qualname__',
+                '__annotations__',
+                '__firstlineno__',
+                '__static_attributes__',
+            )
+            if name in compiler_attributes:
                 # __locals__: Python 3 sometimes adds this.
                 # __qualname__: PEP 3155 (Python 3.3+)
                 # __annotations__: PEP 3107 (Python 3.0+)
