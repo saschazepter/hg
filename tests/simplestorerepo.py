@@ -82,6 +82,8 @@ class simplestorerevisiondelta(repository.irevisiondelta):
     baserevisionsize = attr.ib(type=Optional[int])
     revision = attr.ib(type=Optional[bytes])
     delta = attr.ib(type=Optional[bytes])
+    sidedata = attr.ib(type=Optional[bytes])
+    protocol_flags = attr.ib(type=int)
     linknode = attr.ib(default=None, type=Optional[bytes])
 
 
