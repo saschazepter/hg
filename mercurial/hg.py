@@ -1453,6 +1453,22 @@ def _outgoing_recurse(ui, repo, dests, opts):
     return ret
 
 
+def display_outgoing_revs(ui, repo, o, opts):
+    if opts.get(b'graph'):
+        revdag = logcmdutil.graphrevs(repo, o, opts)
+        ui.pager(b'outgoing')
+        displayer = logcmdutil.changesetdisplayer(ui, repo, opts, buffered=True)
+        logcmdutil.displaygraph(
+            ui, repo, revdag, displayer, graphmod.asciiedges
+        )
+    else:
+        ui.pager(b'outgoing')
+        displayer = logcmdutil.changesetdisplayer(ui, repo, opts)
+        for n in _outgoing_filter(repo, o, opts):
+            displayer.show(repo[n])
+            displayer.close()
+
+
 def outgoing(ui, repo, dests, opts, subpath=None):
     if opts.get(b'graph'):
         logcmdutil.checkunsupportedgraphflags([], opts)
@@ -1461,22 +1477,7 @@ def outgoing(ui, repo, dests, opts, subpath=None):
     try:
         if o:
             ret = 0
-
-            if opts.get(b'graph'):
-                revdag = logcmdutil.graphrevs(repo, o, opts)
-                ui.pager(b'outgoing')
-                displayer = logcmdutil.changesetdisplayer(
-                    ui, repo, opts, buffered=True
-                )
-                logcmdutil.displaygraph(
-                    ui, repo, revdag, displayer, graphmod.asciiedges
-                )
-            else:
-                ui.pager(b'outgoing')
-                displayer = logcmdutil.changesetdisplayer(ui, repo, opts)
-                for n in _outgoing_filter(repo, o, opts):
-                    displayer.show(repo[n])
-                displayer.close()
+            display_outgoing_revs(ui, repo, o, opts)
         for oth in others:
             cmdutil.outgoinghooks(ui, repo, oth, opts, o)
             ret = min(ret, _outgoing_recurse(ui, repo, dests, opts))
