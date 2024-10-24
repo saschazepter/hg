@@ -17,30 +17,30 @@ Record help
   
   interactively select changes to commit
   
-      If a list of files is omitted, all changes reported by 'hg status' will be
-      candidates for recording.
+  If a list of files is omitted, all changes reported by 'hg status' will be
+  candidates for recording.
   
-      See 'hg help dates' for a list of formats valid for -d/--date.
+  See 'hg help dates' for a list of formats valid for -d/--date.
   
-      If using the text interface (see 'hg help config'), you will be prompted
-      for whether to record changes to each modified file, and for files with
-      multiple changes, for each change to use. For each query, the following
-      responses are possible:
+  If using the text interface (see 'hg help config'), you will be prompted for
+  whether to record changes to each modified file, and for files with multiple
+  changes, for each change to use. For each query, the following responses are
+  possible:
   
-        y - record this change
-        n - skip this change
-        e - edit this change manually
+    y - record this change
+    n - skip this change
+    e - edit this change manually
   
-        s - skip remaining changes to this file
-        f - record remaining changes to this file
+    s - skip remaining changes to this file
+    f - record remaining changes to this file
   
-        d - done, skip remaining changes and files
-        a - record all changes to all remaining files
-        q - quit, recording no changes
+    d - done, skip remaining changes and files
+    a - record all changes to all remaining files
+    q - quit, recording no changes
   
-        ? - display help
+    ? - display help
   
-      This command is not available when committing a merge.
+  This command is not available when committing a merge.
   
   (use 'hg help -e record' to show help for the record extension)
   

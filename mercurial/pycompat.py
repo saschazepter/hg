@@ -349,12 +349,46 @@ def raisewithtb(exc: BaseException, tb) -> NoReturn:
     raise exc.with_traceback(tb)
 
 
+# Copied over from the 3.13 Python stdlib `inspect.cleandoc`, with a couple
+# of removals explained inline.
+# It differs slightly from the 3.8+ version, so it's better to use the same
+# version to remove any potential for variation.
+def cleandoc(doc):
+    """Clean up indentation from docstrings.
+
+    Any whitespace that can be uniformly removed from the second line
+    onwards is removed."""
+    lines = doc.expandtabs().split('\n')
+
+    # Find minimum indentation of any non-blank lines after first line.
+    margin = sys.maxsize
+    for line in lines[1:]:
+        content = len(line.lstrip(' '))
+        if content:
+            indent = len(line) - content
+            margin = min(margin, indent)
+    # Remove indentation.
+    if lines:
+        lines[0] = lines[0].lstrip(' ')
+    if margin < sys.maxsize:
+        for i in range(1, len(lines)):
+            lines[i] = lines[i][margin:]
+    # Here the upstream *Python* version does newline trimming, but it looks
+    # like the compiler (written in C) does not, so go with what the compiler
+    # does.
+    return '\n'.join(lines)
+
+
 def getdoc(obj: object) -> Optional[bytes]:
     """Get docstring as bytes; may be None so gettext() won't confuse it
     with _('')"""
     doc = builtins.getattr(obj, '__doc__', None)
     if doc is None:
         return doc
+    if sys.version_info < (3, 13):
+        # Python 3.13+ "cleans up" the docstring at compile time, let's
+        # normalize this behavior for previous versions
+        doc = cleandoc(doc)
     return sysbytes(doc)
 
 
