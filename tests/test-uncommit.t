@@ -22,13 +22,12 @@ Help for uncommit
   
   uncommit part or all of a local changeset
   
-      This command undoes the effect of a local commit, returning the affected
-      files to their uncommitted state. This means that files modified or
-      deleted in the changeset will be left unchanged, and so will remain
-      modified in the working directory.
+  This command undoes the effect of a local commit, returning the affected files
+  to their uncommitted state. This means that files modified or deleted in the
+  changeset will be left unchanged, and so will remain modified in the working
+  directory.
   
-      If no files are specified, the commit will be pruned, unless --keep is
-      given.
+  If no files are specified, the commit will be pruned, unless --keep is given.
   
   (use 'hg help -e uncommit' to show help for the uncommit extension)
   

@@ -45,34 +45,34 @@ shelve has a help message
   
   save and set aside changes from the working directory
   
-      Shelving takes files that "hg status" reports as not clean, saves the
-      modifications to a bundle (a shelved change), and reverts the files so
-      that their state in the working directory becomes clean.
+  Shelving takes files that "hg status" reports as not clean, saves the
+  modifications to a bundle (a shelved change), and reverts the files so that
+  their state in the working directory becomes clean.
   
-      To restore these changes to the working directory, using "hg unshelve";
-      this will work even if you switch to a different commit.
+  To restore these changes to the working directory, using "hg unshelve"; this
+  will work even if you switch to a different commit.
   
-      When no files are specified, "hg shelve" saves all not-clean files. If
-      specific files or directories are named, only changes to those files are
-      shelved.
+  When no files are specified, "hg shelve" saves all not-clean files. If
+  specific files or directories are named, only changes to those files are
+  shelved.
   
-      In bare shelve (when no files are specified, without interactive, include
-      and exclude option), shelving remembers information if the working
-      directory was on newly created branch, in other words working directory
-      was on different branch than its first parent. In this situation
-      unshelving restores branch information to the working directory.
+  In bare shelve (when no files are specified, without interactive, include and
+  exclude option), shelving remembers information if the working directory was
+  on newly created branch, in other words working directory was on different
+  branch than its first parent. In this situation unshelving restores branch
+  information to the working directory.
   
-      Each shelved change has a name that makes it easier to find later. The
-      name of a shelved change defaults to being based on the active bookmark,
-      or if there is no active bookmark, the current named branch.  To specify a
-      different name, use "--name".
+  Each shelved change has a name that makes it easier to find later. The name of
+  a shelved change defaults to being based on the active bookmark, or if there
+  is no active bookmark, the current named branch.  To specify a different name,
+  use "--name".
   
-      To see a list of existing shelved changes, use the "--list" option. For
-      each shelved change, this will print its name, age, and description; use "
-      --patch" or "--stat" for more details.
+  To see a list of existing shelved changes, use the "--list" option. For each
+  shelved change, this will print its name, age, and description; use "--patch"
+  or "--stat" for more details.
   
-      To delete specific shelved changes, use "--delete". To delete all shelved
-      changes, use "--cleanup".
+  To delete specific shelved changes, use "--delete". To delete all shelved
+  changes, use "--cleanup".
   
   options ([+] can be repeated):
   
