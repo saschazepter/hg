@@ -23,6 +23,7 @@ ensure that failing ui.atexit handlers report sensibly
     File "*/mercurial/dispatch.py", line *, in _runexithandlers (glob) (no-pyoxidizer !)
     File "mercurial.dispatch", line *, in _runexithandlers (glob) (pyoxidizer !)
       func(*args, **kwargs)
+      ~~~~^^^^^^^^^^^^^^^^^ (py313 !)
     File "$TESTTMP/bailatexit.py", line *, in bail (glob)
       raise RuntimeError('ui.atexit handler exception')
   RuntimeError: ui.atexit handler exception
