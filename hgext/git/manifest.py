@@ -42,7 +42,7 @@ class gittreemanifest:
         # dict of path: Optional[Tuple(node, flags)]
         self._pending_changes = pending_changes
 
-    def _resolve_entry(self, path):
+    def _resolve_entry(self, path) -> tuple[bytes, bytes]:
         """Given a path, load its node and flags, or raise KeyError if missing.
 
         This takes into account any pending writes in the builder.
@@ -224,7 +224,7 @@ class gittreemanifest:
     def items(self):
         for f in self:
             # TODO: build a proper iterator version of this
-            yield self[f]
+            yield f, self[f]
 
     def iteritems(self):
         return self.items()
@@ -232,7 +232,7 @@ class gittreemanifest:
     def iterentries(self):
         for f in self:
             # TODO: build a proper iterator version of this
-            yield self._resolve_entry(f)
+            yield f, *self._resolve_entry(f)
 
     def text(self):
         assert False  # TODO can this method move out of the manifest iface?
@@ -276,7 +276,7 @@ class gittreemanifestctx(repository.imanifestrevisionstored):
         return memgittreemanifestctx(self._repo, self._tree)
 
     def find(self, path: bytes) -> tuple[bytes, bytes]:
-        return self.read()[path]
+        return self.read().find(path)
 
 
 class memgittreemanifestctx(repository.imanifestrevisionwritable):
