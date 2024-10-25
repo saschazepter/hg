@@ -213,6 +213,7 @@ class ipeercommands(Protocol):
     methods commonly call wire protocol commands of the same name.
     """
 
+    @abc.abstractmethod
     def branchmap(self):
         """Obtain heads in named branches.
 
@@ -220,27 +221,32 @@ class ipeercommands(Protocol):
         heads on that branch.
         """
 
+    @abc.abstractmethod
     def capabilities(self):
         """Obtain capabilities of the peer.
 
         Returns a set of string capabilities.
         """
 
+    @abc.abstractmethod
     def get_cached_bundle_inline(self, path):
         """Retrieve a clonebundle across the wire.
 
         Returns a chunkbuffer
         """
 
+    @abc.abstractmethod
     def clonebundles(self):
         """Obtains the clone bundles manifest for the repo.
 
         Returns the manifest as unparsed bytes.
         """
 
+    @abc.abstractmethod
     def debugwireargs(self, one, two, three=None, four=None, five=None):
         """Used to facilitate debugging of arguments passed over the wire."""
 
+    @abc.abstractmethod
     def getbundle(self, source, **kwargs):
         """Obtain remote repository data as a bundle.
 
@@ -250,12 +256,14 @@ class ipeercommands(Protocol):
         Returns a generator of bundle data.
         """
 
+    @abc.abstractmethod
     def heads(self):
         """Determine all known head revisions in the peer.
 
         Returns an iterable of binary nodes.
         """
 
+    @abc.abstractmethod
     def known(self, nodes):
         """Determine whether multiple nodes are known.
 
@@ -265,18 +273,21 @@ class ipeercommands(Protocol):
         at that index is known to the peer.
         """
 
+    @abc.abstractmethod
     def listkeys(self, namespace):
         """Obtain all keys in a pushkey namespace.
 
         Returns an iterable of key names.
         """
 
+    @abc.abstractmethod
     def lookup(self, key):
         """Resolve a value to a known revision.
 
         Returns a binary node of the resolved revision on success.
         """
 
+    @abc.abstractmethod
     def pushkey(self, namespace, key, old, new):
         """Set a value using the ``pushkey`` protocol.
 
@@ -287,12 +298,14 @@ class ipeercommands(Protocol):
         namespace.
         """
 
+    @abc.abstractmethod
     def stream_out(self):
         """Obtain streaming clone data.
 
         Successful result should be a generator of data chunks.
         """
 
+    @abc.abstractmethod
     def unbundle(self, bundle, heads, url):
         """Transfer repository data to the peer.
 
@@ -310,6 +323,7 @@ class ipeerlegacycommands(Protocol):
     legacy, the interfaces are split.
     """
 
+    @abc.abstractmethod
     def between(self, pairs):
         """Obtain nodes between pairs of nodes.
 
@@ -319,6 +333,7 @@ class ipeerlegacycommands(Protocol):
         requested pair.
         """
 
+    @abc.abstractmethod
     def branches(self, nodes):
         """Obtain ancestor changesets of specific nodes back to a branch point.
 
@@ -328,9 +343,11 @@ class ipeerlegacycommands(Protocol):
         Returns an iterable of iterables with the resolved values for each node.
         """
 
+    @abc.abstractmethod
     def changegroup(self, nodes, source):
         """Obtain a changegroup with data for descendants of specified nodes."""
 
+    @abc.abstractmethod
     def changegroupsubset(self, bases, heads, source):
         pass
 
