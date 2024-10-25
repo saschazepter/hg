@@ -258,7 +258,7 @@ moderncaps = {
 legacycaps = moderncaps.union({b'changegroupsubset'})
 
 
-class localcommandexecutor:  # (repository.ipeercommandexecutor)
+class localcommandexecutor(repository.ipeercommandexecutor):
     def __init__(self, peer):
         self._peer = peer
         self._sent = False

@@ -344,6 +344,7 @@ class ipeercommandexecutor(Protocol):
     outstanding requests are waited on.
     """
 
+    @abc.abstractmethod
     def callcommand(self, name, args):
         """Request that a named command be executed.
 
@@ -366,6 +367,7 @@ class ipeercommandexecutor(Protocol):
         until all command requests have been issued.
         """
 
+    @abc.abstractmethod
     def sendcommands(self):
         """Trigger submission of queued command requests.
 
@@ -376,6 +378,7 @@ class ipeercommandexecutor(Protocol):
         When called, no more new commands may be issued with this executor.
         """
 
+    @abc.abstractmethod
     def close(self):
         """Signal that this command request is finished.
 

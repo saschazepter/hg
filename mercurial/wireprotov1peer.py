@@ -107,8 +107,7 @@ class unsentfuture(futures.Future):
         return self.result(timeout)
 
 
-# @interfaceutil.implementer(repository.ipeercommandexecutor)
-class peerexecutor:
+class peerexecutor(repository.ipeercommandexecutor):
     def __init__(self, peer):
         self._peer = peer
         self._sent = False
