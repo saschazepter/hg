@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import abc
 import typing
 
 from typing import (
@@ -193,11 +194,13 @@ class baseprotocolhandler(Protocol):
     the request, handle response types, etc.
     """
 
-    name: bytes
-    """The name of the protocol implementation.
+    @property
+    @abc.abstractmethod
+    def name(self) -> bytes:
+        """The name of the protocol implementation.
 
-    Used for uniquely identifying the transport type.
-    """
+        Used for uniquely identifying the transport type.
+        """
 
     def getargs(self, args):
         """return the value for arguments in <args>
