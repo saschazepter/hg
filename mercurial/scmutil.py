@@ -1764,10 +1764,13 @@ class filecachesubentry:
 
     @staticmethod
     def stat(path: bytes) -> Optional[typelib.CacheStat]:
+        # TODO have a cleaner approach on httpstaticrepo side
+        if path.startswith(b'https://') or path.startswith(b'http://'):
+            return util.uncacheable_cachestat()
         try:
             return util.cachestat(path)
         except FileNotFoundError:
-            pass
+            return None
 
 
 class filecacheentry:
