@@ -113,8 +113,12 @@ class _dirstatemapcommon:
         self.identity = self._get_current_identity()
 
     def _get_current_identity(self) -> Optional[typelib.CacheStat]:
+        # TODO have a cleaner approach on httpstaticrepo side
+        path = self._opener.join(self._filename)
+        if path.startswith(b'https://') or path.startswith(b'http://'):
+            return util.uncacheable_cachestat()
         try:
-            return util.cachestat(self._opener.join(self._filename))
+            return util.cachestat(path)
         except FileNotFoundError:
             return None
 

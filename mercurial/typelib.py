@@ -33,11 +33,16 @@ if TYPE_CHECKING:
     from . import (
         node,
         posix,
+        util,
         windows,
     )
 
     BinaryIO_Proxy = BinaryIO
-    CacheStat = Union[posix.cachestat, windows.cachestat]
+    CacheStat = Union[
+        posix.cachestat,
+        windows.cachestat,
+        util.uncacheable_cachestat,
+    ]
     NodeConstants = node.sha1nodeconstants
 else:
     from typing import Any
