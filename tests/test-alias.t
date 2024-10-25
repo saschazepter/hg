@@ -139,37 +139,38 @@ help
   
   show changed files in the working directory
   
-  Show status of files in the repository. If names are given, only files that
-  match are shown. Files that are clean or ignored or the source of a copy/move
-  operation, are not listed unless -c/--clean, -i/--ignored, -C/--copies or
-  -A/--all are given. Unless options described with "show only ..." are given,
-  the options -mardu are used.
+      Show status of files in the repository. If names are given, only files
+      that match are shown. Files that are clean or ignored or the source of a
+      copy/move operation, are not listed unless -c/--clean, -i/--ignored,
+      -C/--copies or -A/--all are given. Unless options described with "show
+      only ..." are given, the options -mardu are used.
   
-  Option -q/--quiet hides untracked (unknown and ignored) files unless
-  explicitly requested with -u/--unknown or -i/--ignored.
+      Option -q/--quiet hides untracked (unknown and ignored) files unless
+      explicitly requested with -u/--unknown or -i/--ignored.
   
-  Note:
-     'hg status' may appear to disagree with diff if permissions have changed or
-     a merge has occurred. The standard diff format does not report permission
-     changes and diff only reports changes relative to one merge parent.
+      Note:
+         'hg status' may appear to disagree with diff if permissions have
+         changed or a merge has occurred. The standard diff format does not
+         report permission changes and diff only reports changes relative to one
+         merge parent.
   
-  If one revision is given, it is used as the base revision. If two revisions
-  are given, the differences between them are shown. The --change option can
-  also be used as a shortcut to list the changed files of a revision from its
-  first parent.
+      If one revision is given, it is used as the base revision. If two
+      revisions are given, the differences between them are shown. The --change
+      option can also be used as a shortcut to list the changed files of a
+      revision from its first parent.
   
-  The codes used to show the status of files are:
+      The codes used to show the status of files are:
   
-    M = modified
-    A = added
-    R = removed
-    C = clean
-    ! = missing (deleted by non-hg command, but still tracked)
-    ? = not tracked
-    I = ignored
-      = origin of the previous file (with --copies)
+        M = modified
+        A = added
+        R = removed
+        C = clean
+        ! = missing (deleted by non-hg command, but still tracked)
+        ? = not tracked
+        I = ignored
+          = origin of the previous file (with --copies)
   
-  Returns 0 on success.
+      Returns 0 on success.
   
   defined by: * (glob)
   */* (glob) (?)
