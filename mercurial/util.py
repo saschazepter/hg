@@ -1197,7 +1197,8 @@ def version():
     try:
         from . import __version__  # pytype: disable=import-error
 
-        return __version__.version
+        # setuptools-scm uses py3 str
+        return __version__.version.encode()
     except ImportError:
         return b'unknown'
 

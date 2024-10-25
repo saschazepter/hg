@@ -11,7 +11,6 @@ import subprocess
 import sys
 import sysconfig
 import tempfile
-import time
 
 if not ssl.HAS_TLSv1_2:
     error = """
@@ -219,84 +218,6 @@ def filterhgerr(err):
     return b'\n'.join(b'  ' + e for e in err)
 
 
-def findhg():
-    """Try to figure out how we should invoke hg for examining the local
-    repository contents.
-
-    Returns an hgcommand object."""
-    # By default, prefer the "hg" command in the user's path.  This was
-    # presumably the hg command that the user used to create this repository.
-    #
-    # This repository may require extensions or other settings that would not
-    # be enabled by running the hg script directly from this local repository.
-    hgenv = os.environ.copy()
-    # Use HGPLAIN to disable hgrc settings that would change output formatting,
-    # and disable localization for the same reasons.
-    hgenv['HGPLAIN'] = '1'
-    hgenv['LANGUAGE'] = 'C'
-    # PYTHONPATH and co can be used for isolated builds, which can break hg
-    hgenv.pop("PYTHONNOUSERSITE", None)
-    if "PYTHONPATH" in hgenv:
-        hgenv["PYTHONPATH"] = os.pathsep.join(
-            [
-                path
-                for path in hgenv["PYTHONPATH"].split(os.pathsep)
-                if "-build-env-" not in path
-            ]
-        )
-    hgcmd = ['hg']
-    # Run a simple "hg log" command just to see if using hg from the user's
-    # path works and can successfully interact with this repository.  Windows
-    # gives precedence to hg.exe in the current directory, so fall back to the
-    # python invocation of local hg, where pythonXY.dll can always be found.
-    check_cmd = ['log', '-r.', '-Ttest']
-    attempts = []
-
-    def attempt(cmd, env):
-        try:
-            retcode, out, err = runcmd(hgcmd + check_cmd, hgenv)
-            res = (True, retcode, out, err)
-            if retcode == 0 and not filterhgerr(err):
-                return True
-        except OSError as e:
-            res = (False, e)
-        attempts.append((cmd, res))
-        return False
-
-    if os.name != 'nt' or not os.path.exists("hg.exe"):
-        if attempt(hgcmd + check_cmd, hgenv):
-            return hgcommand(hgcmd, hgenv)
-
-    # Fall back to trying the local hg installation (pure python)
-    repo_hg = os.path.join(os.path.dirname(__file__), 'hg')
-    hgenv = localhgenv()
-    hgcmd = [sys.executable, repo_hg]
-    if attempt(hgcmd + check_cmd, hgenv):
-        return hgcommand(hgcmd, hgenv)
-    # Fall back to trying the local hg installation (whatever we can)
-    hgenv = localhgenv(pure_python=False)
-    hgcmd = [sys.executable, repo_hg]
-    if attempt(hgcmd + check_cmd, hgenv):
-        return hgcommand(hgcmd, hgenv)
-
-    eprint("/!\\")
-    eprint(r"/!\ Unable to find a working hg binary")
-    eprint(r"/!\ Version cannot be extracted from the repository")
-    eprint(r"/!\ Re-run the setup once a first version is built")
-    eprint(r"/!\ Attempts:")
-    for i, e in enumerate(attempts):
-        eprint(r"/!\   attempt #%d:" % (i))
-        eprint(r"/!\     cmd:        ", e[0])
-        res = e[1]
-        if res[0]:
-            eprint(r"/!\     return code:", res[1])
-            eprint("/!\\     std output:\n%s" % (res[2].decode()), end="")
-            eprint("/!\\     std error:\n%s" % (res[3].decode()), end="")
-        else:
-            eprint(r"/!\     exception:  ", res[1])
-    return None
-
-
 def localhgenv(pure_python=True):
     """Get an environment dictionary to use for invoking or importing
     mercurial from the local repository."""
@@ -319,158 +240,6 @@ def localhgenv(pure_python=True):
 
 
 version = ''
-
-
-def _try_get_version():
-    hg = findhg()
-    if hg is None:
-        return ''
-    hgid = None
-    numerictags = []
-    cmd = ['log', '-r', '.', '--template', '{tags}\n']
-    pieces = sysstr(hg.run(cmd)).split()
-    numerictags = [t for t in pieces if t[0:1].isdigit()]
-    hgid = sysstr(hg.run(['id', '-i'])).strip()
-    if hgid.count('+') == 2:
-        hgid = hgid.replace("+", ".", 1)
-    if not hgid:
-        eprint("/!\\")
-        eprint(r"/!\ Unable to determine hg version from local repository")
-        eprint(r"/!\ Failed to retrieve current revision tags")
-        return ''
-    if numerictags:  # tag(s) found
-        return _version(tag=numerictags[-1], dirty=hgid.endswith('+'))
-    else:  # no tag found on the checked out revision
-        ltagcmd = ['log', '--rev', 'wdir()', '--template', '{latesttag}']
-        ltag = sysstr(hg.run(ltagcmd))
-        if not ltag:
-            eprint("/!\\")
-            eprint(r"/!\ Unable to determine hg version from local repository")
-            eprint(
-                r"/!\ Failed to retrieve current revision distance to lated tag"
-            )
-            return ''
-        changessincecmd = [
-            'log',
-            '-T',
-            'x\n',
-            '-r',
-            "only(parents(),'%s')" % ltag,
-        ]
-        changessince = len(hg.run(changessincecmd).splitlines())
-        branch = hg.run(["branch"]).strip()
-        return _version(
-            tag=ltag,
-            branch=branch,
-            hgid=hgid.rstrip('+'),
-            changes_since=changessince,
-            dirty=hgid.endswith('+'),
-        )
-
-
-def _version(
-    tag: str,
-    branch: str = '',
-    hgid: str = '',
-    changes_since: int = 0,
-    dirty: bool = False,
-):
-    """compute a version number from available information"""
-    version = tag
-    if changes_since > 0:
-        assert branch
-        if branch == b'stable':
-            post_nb = 0
-        elif branch == b'default':
-            # we use 1 here to be greater than 0 to make sure change from
-            # default are considered newer than change on stable
-            post_nb = 1
-        else:
-            # what is this branch ? probably a local variant ?
-            post_nb = 2
-
-        assert hgid
-
-        # logic of the scheme
-        # - '.postX' to mark the version as "above" the tagged version
-        #   X is 0 for stable, 1 for default, 2 for anything else
-        # - use '.devY'
-        #   Y is the number of extra revision compared to the tag. So that
-        #   revision with more change are "above" previous ones.
-        # - '+hg.NODEID.local.DATE' if there is any uncommitted changes.
-        version += '.post%d.dev%d+hg.%s' % (post_nb, changes_since, hgid)
-    if dirty:
-        version = version[:-1] + '.local.' + time.strftime('%Y%m%d')
-    # try to give warning early about bad version if possible
-    try:
-        from packaging.version import Version
-
-        Version(version)
-    except ImportError:
-        pass
-    except ValueError as exc:
-        eprint(r"/!\ generated version is invalid")
-        eprint(r"/!\ error: %s" % exc)
-    return version
-
-
-if os.path.isdir('.hg'):
-    version = _try_get_version()
-elif os.path.exists('.hg_archival.txt'):
-    kw = dict(
-        [[t.strip() for t in l.split(':', 1)] for l in open('.hg_archival.txt')]
-    )
-    if 'tag' in kw:
-        version = _version(tag=kw['tag'])
-    elif 'latesttag' in kw:
-        distance = int(kw.get('changessincelatesttag', kw['latesttagdistance']))
-        version = _version(
-            tag=kw['latesttag'],
-            branch=kw['branch'],
-            changes_since=distance,
-            hgid=kw['node'][:12],
-        )
-    else:
-        version = _version(
-            tag='0',
-            branch='unknown-source',
-            changes_since=1,
-            hgid=kw.get('node', 'unknownid')[:12],
-            dirty=True,
-        )
-elif os.path.exists('mercurial/__version__.py'):
-    with open('mercurial/__version__.py') as f:
-        data = f.read()
-    version = re.search('version = b"(.*)"', data).group(1)
-if not version:
-    if os.environ.get("MERCURIAL_SETUP_MAKE_LOCAL") == "1":
-        version = "0.0+0"
-        eprint("/!\\")
-        eprint(r"/!\ Using '0.0+0' as the default version")
-        eprint(r"/!\ Re-run make local once that first version is built")
-        eprint("/!\\")
-    else:
-        eprint("/!\\")
-        eprint(r"/!\ Could not determine the Mercurial version")
-        eprint(r"/!\ You need to build a local version first")
-        eprint(r"/!\ Run `make local` and try again")
-        eprint("/!\\")
-        msg = "Run `make local` first to get a working local version"
-        raise SystemExit(msg)
-
-versionb = version
-if not isinstance(versionb, bytes):
-    versionb = versionb.encode('ascii')
-
-write_if_changed(
-    'mercurial/__version__.py',
-    b''.join(
-        [
-            b'# this file is autogenerated by setup.py\n'
-            b'version = b"%s"\n' % versionb,
-        ]
-    ),
-)
 
 
 class hgbuild(build):
@@ -1730,13 +1499,6 @@ for root in ('templates',):
         packagename = curdir.replace(os.sep, '.')
         packagedata[packagename] = list(filter(ordinarypath, files))
 
-# distutils expects version to be str/unicode. Converting it to
-# unicode on Python 2 still works because it won't contain any
-# non-ascii bytes and will be implicitly converted back to bytes
-# when operated on.
-assert isinstance(version, str)
-setupversion = version
-
 extra = {}
 
 py2exepackages = [
@@ -1794,7 +1556,6 @@ if os.environ.get('PYOXIDIZER'):
     hgbuild.sub_commands.insert(0, ('build_hgextindex', None))
 
 setup(
-    version=setupversion,
     long_description=(
         'Mercurial is a distributed SCM tool written in Python.'
         ' It is used by a number of large projects that require'
