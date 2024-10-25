@@ -25,25 +25,25 @@ No arguments shows available views
   
   show various repository information
   
-  A requested view of repository data is displayed.
+      A requested view of repository data is displayed.
   
-  If no view is requested, the list of available views is shown and the command
-  aborts.
+      If no view is requested, the list of available views is shown and the
+      command aborts.
   
-  Note:
-     There are no backwards compatibility guarantees for the output of this
-     command. Output may change in any future Mercurial release.
+      Note:
+         There are no backwards compatibility guarantees for the output of this
+         command. Output may change in any future Mercurial release.
   
-     Consumers wanting stable command output should specify a template via
-     "-T/--template".
+         Consumers wanting stable command output should specify a template via
+         "-T/--template".
   
-  List of available views:
+      List of available views:
   
-  bookmarks   bookmarks and their associated changeset
+      bookmarks   bookmarks and their associated changeset
   
-  stack       current line of work
+      stack       current line of work
   
-  work        changesets that aren't finished
+      work        changesets that aren't finished
   
   (use 'hg help -e show' to show help for the show extension)
   
