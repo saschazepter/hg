@@ -133,9 +133,25 @@ push
   $ hg out -G -R test-repo-bare ./branch-E-push ./branch-G-push ./branch-H-push
   comparing with ./branch-E-push
   searching for changes
+  o  changeset:   7:40faebb2ec45
+     tag:         tip
+     parent:      2:f838bfaca5c7
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     H
+  
+  o  changeset:   6:c521a06b234b
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     G
+  |
+  o  changeset:   5:2f3a4c5c1417
+     parent:      1:27547f69f254
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     F
+  
   comparing with ./branch-G-push
-  searching for changes
-  comparing with ./branch-H-push
   searching for changes
   o  changeset:   7:40faebb2ec45
   |  tag:         tip
@@ -143,17 +159,6 @@ push
   |  user:        test
   |  date:        Thu Jan 01 00:00:00 1970 +0000
   |  summary:     H
-  |
-  | o  changeset:   6:c521a06b234b
-  | |  user:        test
-  | |  date:        Thu Jan 01 00:00:00 1970 +0000
-  | |  summary:     G
-  | |
-  | o  changeset:   5:2f3a4c5c1417
-  |    parent:      1:27547f69f254
-  |    user:        test
-  |    date:        Thu Jan 01 00:00:00 1970 +0000
-  |    summary:     F
   |
   | o  changeset:   4:a603bfb5a83e
   | |  user:        test
@@ -169,6 +174,29 @@ push
      user:        test
      date:        Thu Jan 01 00:00:00 1970 +0000
      summary:     C
+  
+  comparing with ./branch-H-push
+  searching for changes
+  o  changeset:   6:c521a06b234b
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     G
+  |
+  o  changeset:   5:2f3a4c5c1417
+     parent:      1:27547f69f254
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     F
+  
+  o  changeset:   4:a603bfb5a83e
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     E
+  |
+  o  changeset:   3:b3325c91a4d9
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     D
   
   $ hg bundle -R test-repo-bare bundle.hg ./branch-E-push ./branch-G-push ./branch-H-push
   searching for changes
@@ -339,11 +367,15 @@ We only push a specific branch with --rev
   $ hg out -G -R test-repo-bare ./branch-E-push ./branch-G-push ./branch-H-push --rev default
   comparing with ./branch-E-push
   searching for changes
+  o  changeset:   7:40faebb2ec45
+     tag:         tip
+     parent:      2:f838bfaca5c7
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     H
+  
   comparing with ./branch-G-push
   searching for changes
-  comparing with ./branch-H-push
-  searching for changes
-  no changes found
   o  changeset:   7:40faebb2ec45
   |  tag:         tip
   |  parent:      2:f838bfaca5c7
@@ -356,6 +388,9 @@ We only push a specific branch with --rev
      date:        Thu Jan 01 00:00:00 1970 +0000
      summary:     C
   
+  comparing with ./branch-H-push
+  searching for changes
+  no changes found
   $ hg bundle -R test-repo-bare bundle.hg ./branch-E-push ./branch-G-push ./branch-H-push --rev default
   searching for changes
   searching for changes
@@ -422,11 +457,6 @@ Same push, but the first one is a no-op
   $ hg out -G -R test-repo-bare ./branch-G-push ./branch-H-push ./branch-E-push --rev default
   comparing with ./branch-G-push
   searching for changes
-  comparing with ./branch-H-push
-  searching for changes
-  no changes found
-  comparing with ./branch-E-push
-  searching for changes
   o  changeset:   7:40faebb2ec45
   |  tag:         tip
   |  parent:      2:f838bfaca5c7
@@ -438,6 +468,18 @@ Same push, but the first one is a no-op
      user:        test
      date:        Thu Jan 01 00:00:00 1970 +0000
      summary:     C
+  
+  comparing with ./branch-H-push
+  searching for changes
+  no changes found
+  comparing with ./branch-E-push
+  searching for changes
+  o  changeset:   7:40faebb2ec45
+     tag:         tip
+     parent:      2:f838bfaca5c7
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     H
   
   $ hg bundle -R test-repo-bare bundle.hg ./branch-G-push ./branch-H-push ./branch-E-push --rev default
   searching for changes
