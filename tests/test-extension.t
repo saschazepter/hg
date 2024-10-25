@@ -596,6 +596,7 @@ Even though the extension fails during uisetup, hg is still basically usable:
     File "*/mercurial/extensions.py", line *, in _runuisetup (glob) (no-pyoxidizer !)
     File "mercurial.extensions", line *, in _runuisetup (glob) (pyoxidizer !)
       uisetup(ui)
+      ~~~~~~~^^^^ (py313 !)
     File "$TESTTMP/baduisetup.py", line 2, in uisetup
       1 / 0
       ~~^~~ (py311 !)

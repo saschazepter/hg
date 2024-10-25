@@ -246,6 +246,8 @@ Now do a variation using POST to send arguments
   read limit reached; closing socket
   $LOCALIP - - [$ERRDATE$] Exception happened during processing request '/?cmd=batch': (glob)
   Traceback (most recent call last):
+          rctx, req, res, self.check_perm (py313 !)
+      ) (py313 !)
   Exception: connection closed after receiving N bytes
   
 
