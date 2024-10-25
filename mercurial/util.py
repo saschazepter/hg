@@ -514,6 +514,16 @@ def mmapread(fp, size=None, pre_populate=True):
         raise
 
 
+class uncacheable_cachestat:
+    stat: Optional[os.stat_result]
+
+    def __init__(self) -> None:
+        self.stat = None
+
+    def cacheable(self) -> bool:
+        return False
+
+
 class fileobjectproxy:
     """A proxy around file objects that tells a watcher when events occur.
 
