@@ -213,35 +213,36 @@ check-pytype:
     when: manual  # we don't have any Windows runners anymore at the moment
     stage: platform-compat
     before_script:
-      - C:/MinGW/msys/1.0/bin/sh.exe --login -c 'cd "$OLDPWD" && ls -1 tests/test-check-*.* > C:/Temp/check-tests.txt'
+      - C:/hgdev/MinGW/msys/1.0/bin/sh.exe --login -c 'cd "$OLDPWD" && ls -1 tests/test-check-*.* > C:/hgdev/tmp/check-tests.txt'
       # TODO: find/install cvs, bzr, perforce, gpg, sqlite3
 
     script:
         - echo "Entering script section"
         - echo "python used, $Env:PYTHON"
         - Invoke-Expression "$Env:PYTHON -V"
-        - Invoke-Expression "$Env:PYTHON -m black --version"
         - echo "$Env:RUNTEST_ARGS"
         - echo "$Env:TMP"
         - echo "$Env:TEMP"
 
-        - C:/MinGW/msys/1.0/bin/sh.exe --login -c 'cd "$OLDPWD" && HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" $PYTHON tests/run-tests.py --color=always $RUNTEST_ARGS'
+        - C:/hgdev/MinGW/msys/1.0/bin/sh.exe --login -c 'cd "$OLDPWD" && HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" $PYTHON tests/run-tests.py --color=always $RUNTEST_ARGS'
 
 windows:
     <<: *windows_runtests
+    when: manual
     tags:
       - windows
     variables:
-        RUNTEST_ARGS: "--blacklist C:/Temp/check-tests.txt"
-        PYTHON: py -3
+        RUNTEST_ARGS: "-j 8 --blacklist C:/hgdev/tmp/check-tests.txt"
+        PYTHON: C:/hgdev/venvs/python39-x64/Scripts/python.exe
 
 windows-pyox:
     <<: *windows_runtests
+    when: manual  # pyoxidizer builds seem broken with --no-use-pep517
     tags:
       - windows
     variables:
-        RUNTEST_ARGS: "--blacklist C:/Temp/check-tests.txt --pyoxidized"
-        PYTHON: py -3
+        RUNTEST_ARGS: "--blacklist C:/hgdev/tmp/check-tests.txt --pyoxidized"
+        PYTHON: C:/hgdev/venvs/python39-x64/Scripts/python.exe
 
 macos:
     <<: *test_c
