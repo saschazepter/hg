@@ -396,7 +396,7 @@ def supportedcompengines(ui, role):
             )
             % config,
             hint=_(b'usable compression engines: %s')
-            % b', '.sorted(validnames),  # pytype: disable=attribute-error
+            % b', '.join(sorted(validnames)),
         )
 
     return compengines
