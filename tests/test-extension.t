@@ -755,28 +755,30 @@ Extension module help vs command help:
   
   use external program to diff repository (or selected files)
   
-  Show differences between revisions for the specified files, using an external
-  program. The default program used is diff, with default options "-Npru".
+      Show differences between revisions for the specified files, using an
+      external program. The default program used is diff, with default options
+      "-Npru".
   
-  To select a different program, use the -p/--program option. The program will
-  be passed the names of two directories to compare, unless the --per-file
-  option is specified (see below). To pass additional options to the program,
-  use -o/--option. These will be passed before the names of the directories or
-  files to compare.
+      To select a different program, use the -p/--program option. The program
+      will be passed the names of two directories to compare, unless the --per-
+      file option is specified (see below). To pass additional options to the
+      program, use -o/--option. These will be passed before the names of the
+      directories or files to compare.
   
-  The --from, --to, and --change options work the same way they do for 'hg
-  diff'.
+      The --from, --to, and --change options work the same way they do for 'hg
+      diff'.
   
-  The --per-file option runs the external program repeatedly on each file to
-  diff, instead of once on two directories. By default, this happens one by one,
-  where the next file diff is open in the external program only once the
-  previous external program (for the previous file diff) has exited. If the
-  external program has a graphical interface, it can open all the file diffs at
-  once instead of one by one. See 'hg help -e extdiff' for information about how
-  to tell Mercurial that a given program has a graphical interface.
+      The --per-file option runs the external program repeatedly on each file to
+      diff, instead of once on two directories. By default, this happens one by
+      one, where the next file diff is open in the external program only once
+      the previous external program (for the previous file diff) has exited. If
+      the external program has a graphical interface, it can open all the file
+      diffs at once instead of one by one. See 'hg help -e extdiff' for
+      information about how to tell Mercurial that a given program has a
+      graphical interface.
   
-  The --confirm option will prompt the user before each invocation of the
-  external program. It is ignored if --per-file isn't specified.
+      The --confirm option will prompt the user before each invocation of the
+      external program. It is ignored if --per-file isn't specified.
   
   (use 'hg help -e extdiff' to show help for the extdiff extension)
   
@@ -1830,7 +1832,9 @@ Test synopsis and docstring extending
   >     return orig(*args, **opts)
   > def uisetup(ui):
   >     synopsis = b' GREPME [--foo] [-x]'
-  >     docstring = '\nGREPME make sure that this is in the help!'
+  >     docstring = '''
+  >     GREPME make sure that this is in the help!
+  >     '''
   >     extensions.wrapcommand(commands.table, b'bookmarks', exbookmarks,
   >                            synopsis, docstring)
   > EOF
@@ -1840,7 +1844,7 @@ Test synopsis and docstring extending
   $ cd exthelp
   $ hg help bookmarks | grep GREPME
   hg bookmarks [OPTIONS]... [NAME]... GREPME [--foo] [-x]
-  GREPME make sure that this is in the help!
+      GREPME make sure that this is in the help!
   $ cd ..
 
 Prohibit the use of unicode strings as the default value of options
