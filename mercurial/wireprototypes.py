@@ -7,6 +7,10 @@ from __future__ import annotations
 
 import typing
 
+from typing import (
+    Protocol,
+)
+
 from .node import (
     bin,
     hex,
@@ -23,7 +27,6 @@ from . import (
     error,
     util,
 )
-from .interfaces import util as interfaceutil
 from .utils import compression
 
 # Names of the SSH protocol implementations.
@@ -181,7 +184,7 @@ GETBUNDLE_ARGUMENTS = {
 }
 
 
-class baseprotocolhandler(interfaceutil.Interface):
+class baseprotocolhandler(Protocol):
     """Abstract base class for wire protocol handlers.
 
     A wire protocol handler serves as an interface between protocol command
@@ -190,14 +193,13 @@ class baseprotocolhandler(interfaceutil.Interface):
     the request, handle response types, etc.
     """
 
-    name = interfaceutil.Attribute(
-        """The name of the protocol implementation.
+    name: bytes
+    """The name of the protocol implementation.
 
-        Used for uniquely identifying the transport type.
-        """
-    )
+    Used for uniquely identifying the transport type.
+    """
 
-    def getargs(args):
+    def getargs(self, args):
         """return the value for arguments in <args>
 
         For version 1 transports, returns a list of values in the same
@@ -205,20 +207,20 @@ class baseprotocolhandler(interfaceutil.Interface):
         a dict mapping argument name to value.
         """
 
-    def getprotocaps():
+    def getprotocaps(self):
         """Returns the list of protocol-level capabilities of client
 
         Returns a list of capabilities as declared by the client for
         the current request (or connection for stateful protocol handlers)."""
 
-    def getpayload():
+    def getpayload(self):
         """Provide a generator for the raw payload.
 
         The caller is responsible for ensuring that the full payload is
         processed.
         """
 
-    def mayberedirectstdio():
+    def mayberedirectstdio(self):
         """Context manager to possibly redirect stdio.
 
         The context manager yields a file-object like object that receives
@@ -231,10 +233,10 @@ class baseprotocolhandler(interfaceutil.Interface):
         won't be captured.
         """
 
-    def client():
+    def client(self):
         """Returns a string representation of this client (as bytes)."""
 
-    def addcapabilities(repo, caps):
+    def addcapabilities(self, repo, caps):
         """Adds advertised capabilities specific to this protocol.
 
         Receives the list of capabilities collected so far.
@@ -242,7 +244,7 @@ class baseprotocolhandler(interfaceutil.Interface):
         Returns a list of capabilities. The passed in argument can be returned.
         """
 
-    def checkperm(perm):
+    def checkperm(self, perm):
         """Validate that the client has permissions to perform a request.
 
         The argument is the permission required to proceed. If the client
