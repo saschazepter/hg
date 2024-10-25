@@ -202,6 +202,7 @@ class baseprotocolhandler(Protocol):
         Used for uniquely identifying the transport type.
         """
 
+    @abc.abstractmethod
     def getargs(self, args):
         """return the value for arguments in <args>
 
@@ -210,12 +211,14 @@ class baseprotocolhandler(Protocol):
         a dict mapping argument name to value.
         """
 
+    @abc.abstractmethod
     def getprotocaps(self):
         """Returns the list of protocol-level capabilities of client
 
         Returns a list of capabilities as declared by the client for
         the current request (or connection for stateful protocol handlers)."""
 
+    @abc.abstractmethod
     def getpayload(self):
         """Provide a generator for the raw payload.
 
@@ -223,6 +226,7 @@ class baseprotocolhandler(Protocol):
         processed.
         """
 
+    @abc.abstractmethod
     def mayberedirectstdio(self):
         """Context manager to possibly redirect stdio.
 
@@ -236,9 +240,11 @@ class baseprotocolhandler(Protocol):
         won't be captured.
         """
 
+    @abc.abstractmethod
     def client(self):
         """Returns a string representation of this client (as bytes)."""
 
+    @abc.abstractmethod
     def addcapabilities(self, repo, caps):
         """Adds advertised capabilities specific to this protocol.
 
@@ -247,6 +253,7 @@ class baseprotocolhandler(Protocol):
         Returns a list of capabilities. The passed in argument can be returned.
         """
 
+    @abc.abstractmethod
     def checkperm(self, perm):
         """Validate that the client has permissions to perform a request.
 
