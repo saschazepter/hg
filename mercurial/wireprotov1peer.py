@@ -25,7 +25,6 @@ from . import (
 )
 from .interfaces import (
     repository,
-    util as interfaceutil,
 )
 from .utils import hashutil
 
@@ -321,10 +320,9 @@ class peerexecutor(repository.ipeercommandexecutor):
                     f.set_result(result)
 
 
-@interfaceutil.implementer(
-    repository.ipeercommands, repository.ipeerlegacycommands
-)
-class wirepeer(repository.peer):
+class wirepeer(
+    repository.peer, repository.ipeercommands, repository.ipeerlegacycommands
+):
     """Client-side interface for communicating with a peer repository.
 
     Methods commonly call wire protocol commands of the same name.
