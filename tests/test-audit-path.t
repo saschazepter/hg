@@ -224,7 +224,7 @@ audited first by calculateupdates(), where no symlink is created so both
   $ hg up -qC null
 #if rust
   $ hg up 1
-  abort: path 'a/*' traverses symbolic link 'a'
+  abort: path 'a/?' traverses symbolic link 'a' (glob)
   [10]
 #endif
 
@@ -239,15 +239,11 @@ try branch update replacing directory with symlink, and its content: the
 path 'a' is audited as a directory first, which should be audited again as
 a symlink.
 
-#if rust
   $ rm -rf a
-#else
-  $ rm -f a
-#endif
   $ hg up -qC 2
 
   $ hg up 1
-  abort: path 'a/b' traverses symbolic link 'a'
+  abort: path 'a/?' traverses symbolic link 'a' (glob)
   [255]
   $ ls ../update-symlink-out
 
