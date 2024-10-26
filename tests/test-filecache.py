@@ -48,7 +48,7 @@ class fakerepo:
     def sjoin(self, p):
         return p
 
-    @localrepo.repofilecache('x', 'y')
+    @localrepo.repofilecache(b'x', b'y')
     def cached(self):
         print('creating')
         return 'string from function'
