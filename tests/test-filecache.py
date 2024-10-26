@@ -72,15 +72,15 @@ def basic(repo):
     repo.cached
 
     # create empty file
-    f = open('x', 'w')
+    f = open('x', 'wb')
     f.close()
     repo.invalidate()
     print("* empty file x created")
     # should recreate the object
     repo.cached
 
-    f = open('x', 'w')
-    f.write('a')
+    f = open('x', 'wb')
+    f.write(b'a')
     f.close()
     repo.invalidate()
     print("* file x changed size")
@@ -104,15 +104,15 @@ def basic(repo):
     repo.cached
 
     # create empty file y
-    f = open('y', 'w')
+    f = open('y', 'wb')
     f.close()
     repo.invalidate()
     print("* empty file y created")
     # should recreate the object
     repo.cached
 
-    f = open('y', 'w')
-    f.write('A')
+    f = open('y', 'wb')
+    f.write(b'A')
     f.close()
     repo.invalidate()
     print("* file y changed size")
@@ -151,7 +151,7 @@ def fakeuncacheable():
         util.cachestat, 'cacheable', wrapcacheable
     )
 
-    for fn in ['x', 'y']:
+    for fn in [b'x', b'y']:
         try:
             os.remove(fn)
         except OSError:
@@ -180,15 +180,15 @@ def test_filecache_synced():
 
 
 def setbeforeget(repo):
-    os.remove('x')
-    os.remove('y')
+    os.remove(b'x')
+    os.remove(b'y')
     repo.__class__.cached.set(repo, 'string set externally')
     repo.invalidate()
     print("* neither file exists")
     print(repo.cached)
     repo.invalidate()
-    f = open('x', 'w')
-    f.write('a')
+    f = open('x', 'wb')
+    f.write(b'a')
     f.close()
     print("* file x created")
     print(repo.cached)
@@ -199,8 +199,8 @@ def setbeforeget(repo):
     print(repo.cached)
 
     repo.invalidate()
-    f = open('y', 'w')
-    f.write('b')
+    f = open('y', 'wb')
+    f.write(b'b')
     f.close()
     print("* file y created")
     print(repo.cached)
@@ -212,8 +212,8 @@ def antiambiguity():
     # try some times, because reproduction of ambiguity depends on
     # "filesystem time"
     for i in range(5):
-        fp = open(filename, 'w')
-        fp.write('FOO')
+        fp = open(filename, 'wb')
+        fp.write(b'FOO')
         fp.close()
 
         oldstat = os.stat(filename)
@@ -227,13 +227,13 @@ def antiambiguity():
         # st_mtime is advanced multiple times as expected
         for i in range(repetition):
             # explicit closing
-            fp = vfsmod.checkambigatclosing(open(filename, 'a'))
-            fp.write('FOO')
+            fp = vfsmod.checkambigatclosing(open(filename, 'ab'))
+            fp.write(b'FOO')
             fp.close()
 
             # implicit closing by "with" statement
-            with vfsmod.checkambigatclosing(open(filename, 'a')) as fp:
-                fp.write('BAR')
+            with vfsmod.checkambigatclosing(open(filename, 'ab')) as fp:
+                fp.write(b'BAR')
 
         newstat = os.stat(filename)
         if oldstat[stat.ST_CTIME] != newstat[stat.ST_CTIME]:
