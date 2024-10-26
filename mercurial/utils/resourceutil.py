@@ -13,6 +13,8 @@ import os
 import sys
 import typing
 
+from typing import Iterator
+
 from .. import pycompat
 
 
