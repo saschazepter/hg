@@ -477,7 +477,9 @@ def createalternatelocationresponseframe(stream, requestid, location):
     ):
         value = getattr(location, a)
         if value is not None:
+            # pytype: disable=unsupported-operands
             data[b'location'][pycompat.bytestr(a)] = value
+            # pytype: enable=unsupported-operands
 
     payload = b''.join(cborutil.streamencode(data))
 
@@ -507,7 +509,7 @@ def createcommanderrorresponse(stream, requestid, message, args=None):
     }
 
     if args:
-        m[b'error'][b'args'] = args
+        m[b'error'][b'args'] = args  # pytype: disable=unsupported-operands
 
     overall = b''.join(cborutil.streamencode(m))
 
@@ -773,7 +775,7 @@ class zlibdecoder:
 
 class zstdbaseencoder:
     def __init__(self, level):
-        from . import zstd
+        from . import zstd  # pytype: disable=import-error
 
         self._zstd = zstd
         cctx = zstd.ZstdCompressor(level=level)
@@ -801,7 +803,7 @@ class zstd8mbencoder(zstdbaseencoder):
 
 class zstdbasedecoder:
     def __init__(self, maxwindowsize):
-        from . import zstd
+        from . import zstd  # pytype: disable=import-error
 
         dctx = zstd.ZstdDecompressor(max_window_size=maxwindowsize)
         self._decompressor = dctx.decompressobj()
@@ -831,7 +833,7 @@ def populatestreamencoders():
         return
 
     try:
-        from . import zstd
+        from . import zstd  # pytype: disable=import-error
 
         zstd.__version__
     except ImportError:
