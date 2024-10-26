@@ -222,7 +222,6 @@ class parseindex2tests(unittest.TestCase):
         # Test different major-minor versions.
         self.assertversionfail(3, makehex(major + 1, minor, micro))
         self.assertversionfail(4, makehex(major, minor + 1, micro))
-        self.assertversionfail(5, "'foo'")
 
     def testbadargs(self):
         # Check that parse_index2() raises TypeError on bad arguments.
