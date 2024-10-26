@@ -203,20 +203,8 @@ Ensure the data got to the server OK
   > extension=$TESTDIR/flagprocessorext.py
   > duplicate=$TESTDIR/flagprocessorext.py
   > EOF
-  $ hg debugrebuilddirstate
-  Traceback (most recent call last):
-    File "*/mercurial/extensions.py", line *, in _runextsetup (glob) (no-pyoxidizer !)
-    File "mercurial.extensions", line *, in _runextsetup (glob) (pyoxidizer !)
-      extsetup(ui)
+  $ hg debugrebuilddirstate 2>&1 | grep -E 'cannot register multiple processors|flagprocessorext'
     File "*/tests/flagprocessorext.py", line *, in extsetup (glob)
-      flagutil.addflagprocessor( (py38 !)
-      validatehash, (no-py38 !)
-    File "*/mercurial/revlogutils/flagutil.py", line *, in addflagprocessor (glob) (no-pyoxidizer !)
-    File "mercurial.revlogutils.flagutil", line *, in addflagprocessor (glob) (pyoxidizer !)
-      insertflagprocessor(flag, processor, flagprocessors)
-    File "*/mercurial/revlogutils/flagutil.py", line *, in insertflagprocessor (glob) (no-pyoxidizer !)
-    File "mercurial.revlogutils.flagutil", line *, in insertflagprocessor (glob) (pyoxidizer !)
-      raise error.Abort(msg)
   mercurial.error.Abort: cannot register multiple processors on flag '0x8'.
   *** failed to set up extension duplicate: cannot register multiple processors on flag '0x8'.
   $ hg st 2>&1 | grep -E 'cannot register multiple processors|flagprocessorext'
