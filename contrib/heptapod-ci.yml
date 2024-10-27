@@ -20,7 +20,12 @@ workflow:
       when: always
 
 stages:
+  - build
+  - checks
   - tests
+  - platform-compat
+  - py-version-compat
+
 
 image: registry.heptapod.net/mercurial/ci-images/mercurial-core:$HG_CI_IMAGE_TAG
 
@@ -32,6 +37,7 @@ variables:
 
 .all_template: &all
   when: on_success
+  needs: []
 
 .runtests_template: &runtests
     <<: *all
@@ -52,6 +58,7 @@ variables:
 
 checks:
     <<: *runtests
+    stage: checks
     variables:
         SHOW_VERSION_OF: "$PYTHON black clang-format"
         RUNTEST_ARGS: "--time --test-list /tmp/check-tests.txt"
@@ -59,7 +66,7 @@ checks:
 
 rust-cargo-test:
     <<: *all
-    stage: tests
+    stage: checks
     script:
         - make rust-tests
         - make cargo-clippy
@@ -99,36 +106,42 @@ test-chg:
 # version (and 3.12 have been giving us various troubles)
 test-3.8-c:
     <<: *test_c
+    stage: py-version-compat
     when: manual  # avoid overloading the CI by default
     variables:
         PYTHON: python3.8
 
 test-3.12-c:
     <<: *test_c
+    stage: py-version-compat
     when: manual  # avoid overloading the CI by default
     variables:
         PYTHON: python3.12
 
 test-3.12-rust:
     <<: *test_rust
+    stage: py-version-compat
     when: manual  # avoid overloading the CI by default
     variables:
         PYTHON: python3.12
 
 test-3.13-c:
     <<: *test_c
+    stage: py-version-compat
     when: manual  # avoid overloading the CI by default
     variables:
         PYTHON: python3.13
 
 test-3.13-rust:
     <<: *test_rust
+    stage: py-version-compat
     when: manual  # avoid overloading the CI by default
     variables:
         PYTHON: python3.13
 
 check-pytype:
     <<: *test_rust
+    stage: checks
     before_script:
       - export PATH="/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/shims:/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/bin:$PATH"
       - echo "PATH, $PATH"
@@ -149,7 +162,7 @@ check-pytype:
 .window_runtests_template: &windows_runtests
     <<: *all
     when: manual  # we don't have any Windows runners anymore at the moment
-    stage: tests
+    stage: platform-compat
     before_script:
       - C:/MinGW/msys/1.0/bin/sh.exe --login -c 'cd "$OLDPWD" && ls -1 tests/test-check-*.* > C:/Temp/check-tests.txt'
       # TODO: find/install cvs, bzr, perforce, gpg, sqlite3
@@ -183,6 +196,7 @@ windows-pyox:
 
 macos:
     <<: *test_c
+    stage: platform-compat
     when: manual  # avoid overloading the CI by default
     tags:
       - macos
