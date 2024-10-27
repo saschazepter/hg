@@ -3789,10 +3789,7 @@ class TestRunner:
         """
         vlog("# Performing temporary installation of HG")
         installerrs = os.path.join(self._hgtmp, b"install.err")
-        compiler = ''
         install_env = original_env.copy()
-        if self.options.compiler:
-            compiler = '--compiler ' + self.options.compiler
         setup_opts = b""
         if self.options.pure:
             setup_opts = b"--pure"
@@ -3804,37 +3801,43 @@ class TestRunner:
             install_env.pop('HGWITHRUSTEXT', None)
 
         # Run installer in hg root
-        compiler = _sys2bytes(compiler)
         script = _sys2bytes(os.path.realpath(sys.argv[0]))
         exe = _sys2bytes(sysexecutable)
         hgroot = os.path.dirname(os.path.dirname(script))
         self._hgroot = hgroot
         os.chdir(hgroot)
-        nohome = b'--home=""'
-        if WINDOWS:
+        cmd = [
+            exe,
+            b"setup.py",
+        ]
+        if setup_opts:
+            cmd.append(setup_opts)
+        cmd.extend(
+            [
+                b"clean",
+                b"--all",
+                b"build",
+            ]
+        )
+        if self.options.compiler:
+            cmd.append("--compiler")
+            cmd.append(_sys2bytes(self.options.compiler))
+        cmd.extend(
+            [
+                b"--build-base=%s" % os.path.join(self._hgtmp, b"build"),
+                b"install",
+                b"--force",
+                b"--prefix=%s" % self._installdir,
+                b"--install-lib=%s" % self._pythondir,
+                b"--install-scripts=%s" % self._bindir,
+            ]
+        )
+        if not WINDOWS:
             # The --home="" trick works only on OS where os.sep == '/'
             # because of a distutils convert_path() fast-path. Avoid it at
             # least on Windows for now, deal with .pydistutils.cfg bugs
             # when they happen.
-            nohome = b''
-        cmd = (
-            b'"%(exe)s" setup.py %(setup_opts)s clean --all'
-            b' build %(compiler)s --build-base="%(base)s"'
-            b' install --force --prefix="%(prefix)s"'
-            b' --install-lib="%(libdir)s"'
-            b' --install-scripts="%(bindir)s" %(nohome)s >%(logfile)s 2>&1'
-            % {
-                b'exe': exe,
-                b'setup_opts': setup_opts,
-                b'compiler': compiler,
-                b'base': os.path.join(self._hgtmp, b"build"),
-                b'prefix': self._installdir,
-                b'libdir': self._pythondir,
-                b'bindir': self._bindir,
-                b'nohome': nohome,
-                b'logfile': installerrs,
-            }
-        )
+            cmd.append(b"--home=")
 
         # setuptools requires install directories to exist.
         def makedirs(p):
@@ -3846,8 +3849,16 @@ class TestRunner:
         makedirs(self._pythondir)
         makedirs(self._bindir)
 
-        vlog("# Running", cmd.decode("utf-8"))
-        if subprocess.call(_bytes2sys(cmd), shell=True, env=install_env) == 0:
+        vlog("# Running", cmd)
+        print(cmd)
+        with open(installerrs, "wb") as logfile:
+            r = subprocess.call(
+                cmd,
+                env=install_env,
+                stdout=logfile,
+                stderr=subprocess.STDOUT,
+            )
+        if r == 0:
             if not self.options.verbose:
                 try:
                     os.remove(installerrs)
