@@ -43,7 +43,17 @@ def testmod(name, optionflags=0, testtarget=None):
     checker = py3docchecker()
     runner = doctest.DocTestRunner(checker=checker, optionflags=optionflags)
     for test in finder.find(mod, name):
-        runner.run(test)
+        # Windows doesn't have time.tzset(), so skip methods that invoke it in
+        # a doctest, without hardcoding the function name.  There is a feature
+        # request for adding syntax to the test itself to conditionally skip
+        # that would make this unnecessary:
+        #
+        # https://github.com/python/cpython/issues/117364
+        for example in test.examples:
+            if os.name == 'nt' and 'time.tzset()' in example.source:
+                break
+        else:
+            runner.run(test)
     runner.summarize()
 
 
