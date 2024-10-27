@@ -128,7 +128,7 @@ test-3.13-rust:
         PYTHON: python3.13
 
 check-pytype:
-    extends: .runtests_template
+    <<: *test_rust
     before_script:
       - export PATH="/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/shims:/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/bin:$PATH"
       - echo "PATH, $PATH"
