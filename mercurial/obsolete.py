@@ -1053,7 +1053,9 @@ def _computecontentdivergentset(repo):
             if prec not in newermap:
                 obsutil.successorssets(repo, prec, cache=newermap)
             newer = [n for n in newermap[prec] if n]
-            if len(newer) > 1:
+            # Strickly speaking, the len(newer) is not needed, but it speeds
+            # things up.
+            if len(newer) > 1 and any(n for n in newer if node not in n):
                 divergent.add(rev)
                 break
             toprocess.update(obsstore.predecessors.get(prec, ()))

@@ -2304,7 +2304,7 @@ Diverge one of the splitted commit
   $ hg up 6 --hidden
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg commit --amend -m "Add B only"
-  4 new content-divergent changesets
+  2 new content-divergent changesets
 
   $ hg log -G
   @  changeset:   9:0b997eb7ceee
@@ -2325,7 +2325,7 @@ Diverge one of the splitted commit
   | *  changeset:   7:ba2ed02b0c9a
   | |  user:        test
   | |  date:        Thu Jan 01 00:00:00 1970 +0000
-  | |  instability: orphan, content-divergent
+  | |  instability: orphan
   | |  summary:     Add A,B,C
   | |
   | x  changeset:   6:4a004186e638
@@ -2335,11 +2335,10 @@ Diverge one of the splitted commit
   |    obsolete:    rewritten using amend as 9:0b997eb7ceee
   |    summary:     Add A,B,C
   |
-  *  changeset:   5:dd800401bd8c
+  o  changeset:   5:dd800401bd8c
   |  parent:      3:f897c6137566
   |  user:        test
   |  date:        Thu Jan 01 00:00:00 1970 +0000
-  |  instability: content-divergent
   |  summary:     Add A,B,C
   |
   o  changeset:   3:f897c6137566
@@ -2391,7 +2390,7 @@ Check templates
   |      multi-line: 8:b18bc8331526
   |      multi-line: 9:0b997eb7ceee
   |      json: [["b18bc8331526a22cbb1801022bd1555bf291c48b"], ["0b997eb7ceeee06200a02f8aab185979092d514e"]]
-  *  dd800401bd8c
+  o  dd800401bd8c
   |    Predecessors:
   |    semi-colon:
   |    json: []
@@ -2424,7 +2423,7 @@ Check templates
   | |
   | x  4a004186e638
   |/     Obsfate: rewritten using amend as 8:b18bc8331526 by test (at 1970-01-01 00:00 +0000); rewritten using amend as 9:0b997eb7ceee by test (at 1970-01-01 00:00 +0000);
-  *  dd800401bd8c
+  o  dd800401bd8c
   |
   o  f897c6137566
   |
@@ -2464,7 +2463,7 @@ Check templates
   |      multi-line: 8:b18bc8331526
   |      multi-line: 9:0b997eb7ceee
   |      json: [["b18bc8331526a22cbb1801022bd1555bf291c48b"], ["0b997eb7ceeee06200a02f8aab185979092d514e"]]
-  *  dd800401bd8c
+  o  dd800401bd8c
   |    Predecessors: 4:9bd10a0775e4
   |    semi-colon: 4:9bd10a0775e4
   |    json: ["9bd10a0775e478708cada5f176ec6de654359ce7"]
@@ -2522,7 +2521,7 @@ Check templates
   | |
   | x  4a004186e638
   |/     Obsfate: rewritten using amend as 8:b18bc8331526 by test (at 1970-01-01 00:00 +0000); rewritten using amend as 9:0b997eb7ceee by test (at 1970-01-01 00:00 +0000);
-  *  dd800401bd8c
+  o  dd800401bd8c
   |
   | x  9bd10a0775e4
   |/     Obsfate: split as 5:dd800401bd8c, 6:4a004186e638, 7:ba2ed02b0c9a by test (at 1970-01-01 00:00 +0000);
@@ -2543,7 +2542,7 @@ Check templates
   | |
   | x  4a004186e638
   |/     Obsfate: [{"markers": [["4a004186e63889f20cb16434fcbd72220bd1eace", ["b18bc8331526a22cbb1801022bd1555bf291c48b"], 0, [["ef1", "1"], ["operation", "amend"], ["user", "test"]], [0.0, 0], null]], "successors": ["b18bc8331526a22cbb1801022bd1555bf291c48b"]}, {"markers": [["4a004186e63889f20cb16434fcbd72220bd1eace", ["0b997eb7ceeee06200a02f8aab185979092d514e"], 0, [["ef1", "1"], ["operation", "amend"], ["user", "test"]], [0.0, 0], null]], "successors": ["0b997eb7ceeee06200a02f8aab185979092d514e"]}]
-  *  dd800401bd8c
+  o  dd800401bd8c
   |
   | x  9bd10a0775e4
   |/     Obsfate: [{"markers": [["9bd10a0775e478708cada5f176ec6de654359ce7", ["dd800401bd8c79d815329277739e433e883f784e", "4a004186e63889f20cb16434fcbd72220bd1eace", "ba2ed02b0c9a56b9fdbc4e79c7e57866984d8a1f"], 0, [["user", "test"]], [0.0, 0], null]], "successors": ["dd800401bd8c79d815329277739e433e883f784e", "4a004186e63889f20cb16434fcbd72220bd1eace", "ba2ed02b0c9a56b9fdbc4e79c7e57866984d8a1f"]}]
@@ -2562,7 +2561,7 @@ Check templates
   $ hg rebase -r 7 -d 8 --config extensions.rebase=
   rebasing 7:ba2ed02b0c9a "Add A,B,C"
   $ hg tlog
-  *  eceed8f98ffc
+  o  eceed8f98ffc
   |    Predecessors: 4:9bd10a0775e4
   |    semi-colon: 4:9bd10a0775e4
   |    json: ["9bd10a0775e478708cada5f176ec6de654359ce7"]
@@ -2586,7 +2585,7 @@ Check templates
   |      Successors:
   |      multi-line:
   |      json: []
-  *  dd800401bd8c
+  o  dd800401bd8c
   |    Predecessors: 4:9bd10a0775e4
   |    semi-colon: 4:9bd10a0775e4
   |    json: ["9bd10a0775e478708cada5f176ec6de654359ce7"]
@@ -2621,13 +2620,13 @@ Check templates
        json: []
 
   $ hg fatelog
-  *  eceed8f98ffc
+  o  eceed8f98ffc
   |
   | *  0b997eb7ceee
   | |
   * |  b18bc8331526
   |/
-  *  dd800401bd8c
+  o  dd800401bd8c
   |
   | @  9bd10a0775e4
   |/     Obsfate: split using amend, rebase as 5:dd800401bd8c, 9:0b997eb7ceee, 10:eceed8f98ffc by test (at 1970-01-01 00:00 +0000); split using amend, rebase as 5:dd800401bd8c, 8:b18bc8331526, 10:eceed8f98ffc by test (at 1970-01-01 00:00 +0000);
@@ -2639,7 +2638,7 @@ Check other fatelog implementations
 -----------------------------------
 
   $ hg fatelogkw --hidden -q
-  *  eceed8f98ffc
+  o  eceed8f98ffc
   |
   | *  0b997eb7ceee
   | |
@@ -2650,7 +2649,7 @@ Check other fatelog implementations
   | x  4a004186e638
   |/     Obsfate: rewritten using amend as 8:b18bc8331526
   |      Obsfate: rewritten using amend as 9:0b997eb7ceee
-  *  dd800401bd8c
+  o  dd800401bd8c
   |
   | @  9bd10a0775e4
   |/     Obsfate: split as 5:dd800401bd8c, 6:4a004186e638, 7:ba2ed02b0c9a
@@ -2664,7 +2663,7 @@ Check other fatelog implementations
   o  ea207398892e
   
   $ hg fatelogkw --hidden
-  *  eceed8f98ffc
+  o  eceed8f98ffc
   |
   | *  0b997eb7ceee
   | |
@@ -2675,7 +2674,7 @@ Check other fatelog implementations
   | x  4a004186e638
   |/     Obsfate: rewritten using amend as 8:b18bc8331526
   |      Obsfate: rewritten using amend as 9:0b997eb7ceee
-  *  dd800401bd8c
+  o  dd800401bd8c
   |
   | @  9bd10a0775e4
   |/     Obsfate: split as 5:dd800401bd8c, 6:4a004186e638, 7:ba2ed02b0c9a
@@ -2689,7 +2688,7 @@ Check other fatelog implementations
   o  ea207398892e
   
   $ hg fatelogkw --hidden -v
-  *  eceed8f98ffc
+  o  eceed8f98ffc
   |
   | *  0b997eb7ceee
   | |
@@ -2700,7 +2699,7 @@ Check other fatelog implementations
   | x  4a004186e638
   |/     Obsfate: rewritten using amend as 8:b18bc8331526 by test (at 1970-01-01 00:00 +0000)
   |      Obsfate: rewritten using amend as 9:0b997eb7ceee by test (at 1970-01-01 00:00 +0000)
-  *  dd800401bd8c
+  o  dd800401bd8c
   |
   | @  9bd10a0775e4
   |/     Obsfate: split as 5:dd800401bd8c, 6:4a004186e638, 7:ba2ed02b0c9a by test (at 1970-01-01 00:00 +0000)
@@ -2714,12 +2713,11 @@ Check other fatelog implementations
   o  ea207398892e
   
   $ hg log -G -T "default" --hidden
-  *  changeset:   10:eceed8f98ffc
+  o  changeset:   10:eceed8f98ffc
   |  tag:         tip
   |  parent:      8:b18bc8331526
   |  user:        test
   |  date:        Thu Jan 01 00:00:00 1970 +0000
-  |  instability: content-divergent
   |  summary:     Add A,B,C
   |
   | *  changeset:   9:0b997eb7ceee
@@ -2749,11 +2747,10 @@ Check other fatelog implementations
   |    obsolete:    rewritten using amend as 9:0b997eb7ceee
   |    summary:     Add A,B,C
   |
-  *  changeset:   5:dd800401bd8c
+  o  changeset:   5:dd800401bd8c
   |  parent:      3:f897c6137566
   |  user:        test
   |  date:        Thu Jan 01 00:00:00 1970 +0000
-  |  instability: content-divergent
   |  summary:     Add A,B,C
   |
   | @  changeset:   4:9bd10a0775e4
