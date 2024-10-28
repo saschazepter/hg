@@ -5,12 +5,23 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import bisect
 import copy
 import itertools
 import os
 import re
+import typing
+
+from typing import (
+    Any,
+    Callable,
+    List,
+    Tuple,
+    Union,
+    overload,
+)
 
 from .i18n import _
 from .pycompat import open
@@ -399,12 +410,12 @@ class basematcher:
         if badfn is not None:
             self.bad = badfn
 
-    def was_tampered_with_nonrec(self):
+    def was_tampered_with_nonrec(self) -> bool:
         # [_was_tampered_with] is used to track if when extensions changed the matcher
         # behavior (crazy stuff!), so we disable the rust fast path.
         return self._was_tampered_with
 
-    def was_tampered_with(self):
+    def was_tampered_with(self) -> bool:
         return self.was_tampered_with_nonrec()
 
     def __call__(self, fn):
@@ -894,7 +905,7 @@ class differencematcher(basematcher):
         self.bad = m1.bad
         self.traversedir = m1.traversedir
 
-    def was_tampered_with(self):
+    def was_tampered_with(self) -> bool:
         return (
             self.was_tampered_with_nonrec()
             or self._m1.was_tampered_with()
@@ -984,7 +995,7 @@ class intersectionmatcher(basematcher):
         self.bad = m1.bad
         self.traversedir = m1.traversedir
 
-    def was_tampered_with(self):
+    def was_tampered_with(self) -> bool:
         return (
             self.was_tampered_with_nonrec()
             or self._m1.was_tampered_with()
@@ -1071,7 +1082,7 @@ class subdirmatcher(basematcher):
     sub/x.txt: No such file
     """
 
-    def __init__(self, path, matcher):
+    def __init__(self, path: bytes, matcher: basematcher) -> None:
         super(subdirmatcher, self).__init__()
         self._path = path
         self._matcher = matcher
@@ -1088,7 +1099,7 @@ class subdirmatcher(basematcher):
         if matcher.prefix():
             self._always = any(f == path for f in matcher._files)
 
-    def was_tampered_with(self):
+    def was_tampered_with(self) -> bool:
         return (
             self.was_tampered_with_nonrec() or self._matcher.was_tampered_with()
         )
@@ -1227,7 +1238,7 @@ class unionmatcher(basematcher):
         self.traversedir = m1.traversedir
         self._matchers = matchers
 
-    def was_tampered_with(self):
+    def was_tampered_with(self) -> bool:
         return self.was_tampered_with_nonrec() or any(
             map(lambda m: m.was_tampered_with(), self._matchers)
         )
@@ -1662,6 +1673,33 @@ def _prefix(kindpats):
 
 
 _commentre = None
+
+if typing.TYPE_CHECKING:
+    from typing_extensions import (
+        Literal,
+    )
+
+    @overload
+    def readpatternfile(
+        filepath: bytes, warn: Callable[[bytes], Any], sourceinfo: Literal[True]
+    ) -> List[Tuple[bytes, int, bytes]]:
+        ...
+
+    @overload
+    def readpatternfile(
+        filepath: bytes,
+        warn: Callable[[bytes], Any],
+        sourceinfo: Literal[False],
+    ) -> List[bytes]:
+        ...
+
+    @overload
+    def readpatternfile(
+        filepath: bytes,
+        warn: Callable[[bytes], Any],
+        sourceinfo: bool = False,
+    ) -> List[Union[Tuple[bytes, int, bytes], bytes]]:
+        ...
 
 
 def readpatternfile(filepath, warn, sourceinfo=False):

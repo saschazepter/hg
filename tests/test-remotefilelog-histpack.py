@@ -177,7 +177,7 @@ class histpacktests(unittest.TestCase):
         pack = self.createPack(revisions)
 
         # Verify the pack contents
-        for (filename, node) in allentries:
+        for filename, node in allentries:
             ancestors = pack.getancestors(filename, node)
             self.assertEqual(ancestorcounts[(filename, node)], len(ancestors))
             for anode, (ap1, ap2, alinknode, copyfrom) in ancestors.items():

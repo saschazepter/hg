@@ -221,8 +221,8 @@ changes in the process.
   $ ls -1 clone1/.hg/cache
   branch2-base
   branch2-served
-  rbc-names-v1
-  rbc-revs-v1
+  rbc-names-v2
+  rbc-revs-v2
   tags2
   tags2-served
 #endif

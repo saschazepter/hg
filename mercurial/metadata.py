@@ -7,6 +7,8 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
+
 import multiprocessing
 import struct
 
@@ -433,14 +435,12 @@ def _process_merge(p1_ctx, p2_ctx, ctx):
     # Iteration over d1 content will deal with all cases, but the one in the
     # first column of the table.
     for filename, d1 in diff_p1.items():
-
         d2 = diff_p2.pop(filename, None)
 
         if d2 is None:
             # this deal with the first line of the table.
             _process_other_unchanged(md, mas, filename, d1)
         else:
-
             if d1[0][0] is None and d2[0][0] is None:
                 # case 🄼 — both deleted the file.
                 md.mark_added(filename)

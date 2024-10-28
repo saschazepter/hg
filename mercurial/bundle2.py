@@ -145,6 +145,7 @@ future, dropping the stream may become an option for channel we do not care to
 preserve.
 """
 
+from __future__ import annotations
 
 import collections
 import errno
@@ -153,6 +154,7 @@ import re
 import string
 import struct
 import sys
+import typing
 
 from .i18n import _
 from .node import (
@@ -180,6 +182,17 @@ from .utils import (
     urlutil,
 )
 from .interfaces import repository
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        Dict,
+        List,
+        Optional,
+        Tuple,
+        Union,
+    )
+
+    Capabilities = Dict[bytes, Union[List[bytes], Tuple[bytes, ...]]]
 
 urlerr = util.urlerr
 urlreq = util.urlreq
@@ -602,7 +615,7 @@ def _processpart(op, part):
             )
 
 
-def decodecaps(blob):
+def decodecaps(blob: bytes) -> "Capabilities":
     """decode a bundle2 caps bytes blob into a dictionary
 
     The blob is a list of capabilities (one per line)
@@ -662,11 +675,14 @@ class bundle20:
 
     _magicstring = b'HG20'
 
-    def __init__(self, ui, capabilities=()):
+    def __init__(self, ui, capabilities: "Optional[Capabilities]" = None):
+        if capabilities is None:
+            capabilities = {}
+
         self.ui = ui
         self._params = []
         self._parts = []
-        self.capabilities = dict(capabilities)
+        self.capabilities: "Capabilities" = dict(capabilities)
         self._compengine = util.compengines.forbundletype(b'UN')
         self._compopts = None
         # If compression is being handled by a consumer of the raw
@@ -1271,7 +1287,6 @@ class interrupthandler(unpackermixin):
         return None
 
     def __call__(self):
-
         self.ui.debug(
             b'bundle2-input-stream-interrupt: opening out of band context\n'
         )
@@ -1612,7 +1627,7 @@ class seekableunbundlepart(unbundlepart):
 
 # These are only the static capabilities.
 # Check the 'getrepocaps' function for the rest.
-capabilities = {
+capabilities: "Capabilities" = {
     b'HG20': (),
     b'bookmarks': (),
     b'error': (b'abort', b'unsupportedcontent', b'pushraced', b'pushkey'),
@@ -1626,7 +1641,8 @@ capabilities = {
 }
 
 
-def getrepocaps(repo, allowpushback=False, role=None):
+# TODO: drop the default value for 'role'
+def getrepocaps(repo, allowpushback: bool = False, role=None) -> "Capabilities":
     """return the bundle2 capabilities for a given repo
 
     Exists to allow extensions (like evolution) to mutate the capabilities.
@@ -1675,7 +1691,7 @@ def getrepocaps(repo, allowpushback=False, role=None):
     return caps
 
 
-def bundle2caps(remote):
+def bundle2caps(remote) -> "Capabilities":
     """return the bundle capabilities of a peer as dict"""
     raw = remote.capable(b'bundle2')
     if not raw and raw != b'':
@@ -1684,7 +1700,7 @@ def bundle2caps(remote):
     return decodecaps(capsblob)
 
 
-def obsmarkersversion(caps):
+def obsmarkersversion(caps: "Capabilities"):
     """extract the list of supported obsmarkers versions from a bundle2caps dict"""
     obscaps = caps.get(b'obsmarkers', ())
     return [int(c[1:]) for c in obscaps if c.startswith(b'V')]
@@ -1725,7 +1741,7 @@ def writenewbundle(
         msg %= count
         raise error.ProgrammingError(msg)
 
-    caps = {}
+    caps: "Capabilities" = {}
     if opts.get(b'obsolescence', False):
         caps[b'obsmarkers'] = (b'V1',)
     stream_version = opts.get(b'stream', b"")
@@ -1788,7 +1804,7 @@ def _addpartsfromopts(ui, repo, bundler, source, outgoing, opts):
         addpartrevbranchcache(repo, bundler, outgoing)
 
     if opts.get(b'obsolescence', False):
-        obsmarkers = repo.obsstore.relevantmarkers(outgoing.missing)
+        obsmarkers = repo.obsstore.relevantmarkers(nodes=outgoing.missing)
         buildobsmarkerspart(
             bundler,
             obsmarkers,
@@ -2101,7 +2117,7 @@ def handlechangegroup(op, inpart):
         op.source,
         b'bundle2',
         expectedtotal=nbchangesets,
-        **extrakwargs
+        **extrakwargs,
     )
     if op.reply is not None:
         # This is definitely not the final form of this
@@ -2598,7 +2614,6 @@ def bundle2getvars(op, part):
 
 @parthandler(b'stream2', (b'requirements', b'filecount', b'bytecount'))
 def handlestreamv2bundle(op, part):
-
     requirements = urlreq.unquote(part.params[b'requirements'])
     requirements = requirements.split(b',') if requirements else []
     filecount = int(part.params[b'filecount'])

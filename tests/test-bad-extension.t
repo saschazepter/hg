@@ -143,6 +143,7 @@ show traceback for ImportError of hgext.name if devel.debug.extensions is set
   YYYY/MM/DD HH:MM:SS (PID)> > extension baddocext take a total of * to load (glob)
   YYYY/MM/DD HH:MM:SS (PID)> > extension gpg take a total of * to load (glob)
   YYYY/MM/DD HH:MM:SS (PID)> extension loading complete
+  Given a topic, extension, or command name, print help for that topic.
 #endif
 
 confirm that there's no crash when an extension's documentation is bad

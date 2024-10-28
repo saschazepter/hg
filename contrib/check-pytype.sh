@@ -5,6 +5,9 @@ set -u
 
 cd "$(hg root)"
 
+printf "pytype version: "
+pytype --version
+
 # Many of the individual files that are excluded here confuse pytype
 # because they do a mix of Python 2 and Python 3 things
 # conditionally. There's no good way to help it out with that as far as
@@ -41,7 +44,6 @@ cd "$(hg root)"
 # hgext/sqlitestore.py          # [attribute-error]
 # hgext/zeroconf/__init__.py    # bytes vs str; tests fail on macOS
 #
-# mercurial/bundlerepo.py       # no vfs and ui attrs on bundlerepo
 # mercurial/context.py          # many [attribute-error]
 # mercurial/crecord.py          # tons of [attribute-error], [module-attr]
 # mercurial/debugcommands.py    # [wrong-arg-types]
@@ -54,16 +56,11 @@ cd "$(hg root)"
 # mercurial/interfaces          # No attribute 'capabilities' on peer [attribute-error]
 # mercurial/keepalive.py        # [attribute-error]
 # mercurial/localrepo.py        # [attribute-error]
-# mercurial/manifest.py         # [unsupported-operands], [wrong-arg-types]
 # mercurial/minirst.py          # [unsupported-operands], [attribute-error]
-# mercurial/pure/osutil.py      # [invalid-typevar], [not-callable]
 # mercurial/pure/parsers.py     # [attribute-error]
 # mercurial/repoview.py         # [attribute-error]
 # mercurial/testing/storage.py  # tons of [attribute-error]
-# mercurial/unionrepo.py        # ui, svfs, unfiltered [attribute-error]
 # mercurial/win32.py            # [not-callable]
-# mercurial/wireprotoframing.py # [unsupported-operands], [attribute-error], [import-error]
-# mercurial/wireprotov1peer.py  # [attribute-error]
 # mercurial/wireprotov1server.py  # BUG?: BundleValueError handler accesses subclass's attrs
 
 # TODO: use --no-cache on test server?  Caching the files locally helps during
@@ -101,7 +98,6 @@ pytype --keep-going --jobs auto \
     -x hgext/remotefilelog/shallowbundle.py \
     -x hgext/sqlitestore.py \
     -x hgext/zeroconf/__init__.py \
-    -x mercurial/bundlerepo.py \
     -x mercurial/context.py \
     -x mercurial/crecord.py \
     -x mercurial/debugcommands.py \
@@ -114,17 +110,12 @@ pytype --keep-going --jobs auto \
     -x mercurial/interfaces \
     -x mercurial/keepalive.py \
     -x mercurial/localrepo.py \
-    -x mercurial/manifest.py \
     -x mercurial/minirst.py \
-    -x mercurial/pure/osutil.py \
     -x mercurial/pure/parsers.py \
     -x mercurial/repoview.py \
     -x mercurial/testing/storage.py \
     -x mercurial/thirdparty \
-    -x mercurial/unionrepo.py \
     -x mercurial/win32.py \
-    -x mercurial/wireprotoframing.py \
-    -x mercurial/wireprotov1peer.py \
     -x mercurial/wireprotov1server.py
 
 if find .pytype/pyi -name '*.pyi' | xargs grep -ql '# Caught error'; then

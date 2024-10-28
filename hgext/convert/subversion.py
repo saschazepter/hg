@@ -2,6 +2,8 @@
 #
 # Copyright(C) 2007 Daniel Holth et al
 
+from __future__ import annotations
+
 import codecs
 import locale
 import os
@@ -1425,7 +1427,6 @@ class svn_sink(converter_sink, commandline):
         return self.join(b'hg-authormap')
 
     def __init__(self, ui, repotype, path):
-
         converter_sink.__init__(self, ui, repotype, path)
         commandline.__init__(self, ui, b'svn')
         self.delete = []
@@ -1488,9 +1489,11 @@ class svn_sink(converter_sink, commandline):
                 prop_actions_allowed.append((b'M', b'svn:date'))
 
             hook = os.path.join(created, b'hooks', b'pre-revprop-change')
-            fp = open(hook, b'wb')
-            fp.write(gen_pre_revprop_change_hook(prop_actions_allowed))
-            fp.close()
+
+            util.writefile(
+                hook, gen_pre_revprop_change_hook(prop_actions_allowed)
+            )
+
             util.setflags(hook, False, True)
 
         output = self.run0(b'info')

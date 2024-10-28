@@ -16,11 +16,15 @@ use crate::utils::{
 };
 use lazy_static::lazy_static;
 use same_file::is_same_file;
-use std::borrow::{Cow, ToOwned};
 use std::ffi::{OsStr, OsString};
 use std::iter::FusedIterator;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use std::{
+    borrow::{Cow, ToOwned},
+    io,
+    time::SystemTime,
+};
 
 pub fn get_os_str_from_bytes(bytes: &[u8]) -> &OsStr {
     let os_str;
@@ -304,6 +308,25 @@ pub fn relativize_path(path: &HgPath, cwd: impl AsRef<HgPath>) -> Cow<[u8]> {
         }
         Cow::Owned(res)
     }
+}
+
+/// Return the `mtime` of a temporary file newly-created in the `.hg` directory
+/// of the give repository.
+///
+/// This is similar to `SystemTime::now()`, with the result truncated to the
+/// same time resolution as other files’ modification times. Using `.hg`
+/// instead of the system’s default temporary directory (such as `/tmp`) makes
+/// it more likely the temporary file is in the same disk partition as contents
+/// of the working directory, which can matter since different filesystems may
+/// store timestamps with different resolutions.
+///
+/// This may fail, typically if we lack write permissions. In that case we
+/// should continue the `status()` algoritm anyway and consider the current
+/// date/time to be unknown.
+pub fn filesystem_now(repo_root: &Path) -> Result<SystemTime, io::Error> {
+    tempfile::tempfile_in(repo_root.join(".hg"))?
+        .metadata()?
+        .modified()
 }
 
 #[cfg(test)]

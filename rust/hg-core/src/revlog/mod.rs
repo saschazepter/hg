@@ -17,6 +17,7 @@ pub mod manifest;
 pub mod patch;
 
 use std::borrow::Cow;
+use std::collections::HashSet;
 use std::io::Read;
 use std::ops::Deref;
 use std::path::Path;
@@ -31,8 +32,13 @@ use self::nodemap_docket::NodeMapDocket;
 use super::index::Index;
 use super::index::INDEX_ENTRY_SIZE;
 use super::nodemap::{NodeMap, NodeMapError};
+use crate::config::{Config, ResourceProfileValue};
 use crate::errors::HgError;
-use crate::vfs::Vfs;
+use crate::exit_codes;
+use crate::requirements::{
+    GENERALDELTA_REQUIREMENT, NARROW_REQUIREMENT, SPARSEREVLOG_REQUIREMENT,
+};
+use crate::vfs::VfsImpl;
 
 /// As noted in revlog.c, revision numbers are actually encoded in
 /// 4 bytes, and are liberally converted to ints, whence the i32
@@ -133,6 +139,16 @@ pub enum GraphError {
     ParentOutOfRange(Revision),
 }
 
+impl std::fmt::Display for GraphError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GraphError::ParentOutOfRange(revision) => {
+                write!(f, "parent out of range ({})", revision)
+            }
+        }
+    }
+}
+
 impl<T: Graph> Graph for &T {
     fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
         (*self).parents(rev)
@@ -187,7 +203,8 @@ const NULL_REVLOG_ENTRY_FLAGS: u16 = 0;
 
 #[derive(Debug, derive_more::From, derive_more::Display)]
 pub enum RevlogError {
-    InvalidRevision,
+    #[display(fmt = "invalid revision identifier: {}", "_0")]
+    InvalidRevision(String),
     /// Working directory is not supported
     WDirUnsupported,
     /// Found more than one entry whose ID match the requested prefix
@@ -217,6 +234,383 @@ impl RevlogError {
     }
 }
 
+#[derive(derive_more::Display, Debug, Copy, Clone, PartialEq, Eq)]
+pub enum RevlogType {
+    Changelog,
+    Manifestlog,
+    Filelog,
+}
+
+impl TryFrom<usize> for RevlogType {
+    type Error = HgError;
+
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        match value {
+            1001 => Ok(Self::Changelog),
+            1002 => Ok(Self::Manifestlog),
+            1003 => Ok(Self::Filelog),
+            t => Err(HgError::abort(
+                format!("Unknown revlog type {}", t),
+                exit_codes::ABORT,
+                None,
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum CompressionEngine {
+    Zlib {
+        /// Between 0 and 9 included
+        level: u32,
+    },
+    Zstd {
+        /// Between 0 and 22 included
+        level: u32,
+        /// Never used in practice for now
+        threads: u32,
+    },
+    /// No compression is performed
+    None,
+}
+impl CompressionEngine {
+    pub fn set_level(&mut self, new_level: usize) -> Result<(), HgError> {
+        match self {
+            CompressionEngine::Zlib { level } => {
+                if new_level > 9 {
+                    return Err(HgError::abort(
+                        format!(
+                            "invalid compression zlib compression level {}",
+                            new_level
+                        ),
+                        exit_codes::ABORT,
+                        None,
+                    ));
+                }
+                *level = new_level as u32;
+            }
+            CompressionEngine::Zstd { level, .. } => {
+                if new_level > 22 {
+                    return Err(HgError::abort(
+                        format!(
+                            "invalid compression zstd compression level {}",
+                            new_level
+                        ),
+                        exit_codes::ABORT,
+                        None,
+                    ));
+                }
+                *level = new_level as u32;
+            }
+            CompressionEngine::None => {}
+        }
+        Ok(())
+    }
+
+    pub fn zstd(
+        zstd_level: Option<u32>,
+    ) -> Result<CompressionEngine, HgError> {
+        let mut engine = CompressionEngine::Zstd {
+            level: 3,
+            threads: 0,
+        };
+        if let Some(level) = zstd_level {
+            engine.set_level(level as usize)?;
+        }
+        Ok(engine)
+    }
+}
+
+impl Default for CompressionEngine {
+    fn default() -> Self {
+        Self::Zlib { level: 6 }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+/// Holds configuration values about how the revlog data is read
+pub struct RevlogDataConfig {
+    /// Should we try to open the "pending" version of the revlog
+    pub try_pending: bool,
+    /// Should we try to open the "split" version of the revlog
+    pub try_split: bool,
+    /// When True, `indexfile` should be opened with `checkambig=True` at
+    /// writing time, to avoid file stat ambiguity
+    pub check_ambig: bool,
+    /// If true, use mmap instead of reading to deal with large indexes
+    pub mmap_large_index: bool,
+    /// How much data is considered large
+    pub mmap_index_threshold: Option<u64>,
+    /// How much data to read and cache into the raw revlog data cache
+    pub chunk_cache_size: u64,
+    /// The size of the uncompressed cache compared to the largest revision
+    /// seen
+    pub uncompressed_cache_factor: Option<f64>,
+    /// The number of chunks cached
+    pub uncompressed_cache_count: Option<u64>,
+    /// Allow sparse reading of the revlog data
+    pub with_sparse_read: bool,
+    /// Minimal density of a sparse read chunk
+    pub sr_density_threshold: f64,
+    /// Minimal size of the data we skip when performing sparse reads
+    pub sr_min_gap_size: u64,
+    /// Whether deltas are encoded against arbitrary bases
+    pub general_delta: bool,
+}
+
+impl RevlogDataConfig {
+    pub fn new(
+        config: &Config,
+        requirements: &HashSet<String>,
+    ) -> Result<Self, HgError> {
+        let mut data_config = Self::default();
+        if let Some(chunk_cache_size) =
+            config.get_byte_size(b"format", b"chunkcachesize")?
+        {
+            data_config.chunk_cache_size = chunk_cache_size;
+        }
+
+        let memory_profile = config.get_resource_profile(Some("memory"));
+        if memory_profile.value >= ResourceProfileValue::Medium {
+            data_config.uncompressed_cache_count = Some(10_000);
+            data_config.uncompressed_cache_factor = Some(4.0);
+            if memory_profile.value >= ResourceProfileValue::High {
+                data_config.uncompressed_cache_factor = Some(10.0)
+            }
+        }
+
+        if let Some(mmap_index_threshold) = config
+            .get_byte_size(b"storage", b"revlog.mmap.index:size-threshold")?
+        {
+            data_config.mmap_index_threshold = Some(mmap_index_threshold);
+        }
+
+        let with_sparse_read =
+            config.get_bool(b"experimental", b"sparse-read")?;
+        if let Some(sr_density_threshold) = config
+            .get_f64(b"experimental", b"sparse-read.density-threshold")?
+        {
+            data_config.sr_density_threshold = sr_density_threshold;
+        }
+        data_config.with_sparse_read = with_sparse_read;
+        if let Some(sr_min_gap_size) = config
+            .get_byte_size(b"experimental", b"sparse-read.min-gap-size")?
+        {
+            data_config.sr_min_gap_size = sr_min_gap_size;
+        }
+
+        data_config.with_sparse_read =
+            requirements.contains(SPARSEREVLOG_REQUIREMENT);
+
+        Ok(data_config)
+    }
+}
+
+impl Default for RevlogDataConfig {
+    fn default() -> Self {
+        Self {
+            chunk_cache_size: 65536,
+            sr_density_threshold: 0.50,
+            sr_min_gap_size: 262144,
+            try_pending: Default::default(),
+            try_split: Default::default(),
+            check_ambig: Default::default(),
+            mmap_large_index: Default::default(),
+            mmap_index_threshold: Default::default(),
+            uncompressed_cache_factor: Default::default(),
+            uncompressed_cache_count: Default::default(),
+            with_sparse_read: Default::default(),
+            general_delta: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+/// Holds configuration values about how new deltas are computed.
+///
+/// Some attributes are duplicated from [`RevlogDataConfig`] to help having
+/// each object self contained.
+pub struct RevlogDeltaConfig {
+    /// Whether deltas can be encoded against arbitrary bases
+    pub general_delta: bool,
+    /// Allow sparse writing of the revlog data
+    pub sparse_revlog: bool,
+    /// Maximum length of a delta chain
+    pub max_chain_len: Option<u64>,
+    /// Maximum distance between a delta chain's start and end
+    pub max_deltachain_span: Option<u64>,
+    /// If `upper_bound_comp` is not None, this is the expected maximal
+    /// gain from compression for the data content
+    pub upper_bound_comp: Option<f64>,
+    /// Should we try a delta against both parents
+    pub delta_both_parents: bool,
+    /// Test delta base candidate groups by chunks of this maximal size
+    pub candidate_group_chunk_size: u64,
+    /// Should we display debug information about delta computation
+    pub debug_delta: bool,
+    /// Trust incoming deltas by default
+    pub lazy_delta: bool,
+    /// Trust the base of incoming deltas by default
+    pub lazy_delta_base: bool,
+}
+impl RevlogDeltaConfig {
+    pub fn new(
+        config: &Config,
+        requirements: &HashSet<String>,
+        revlog_type: RevlogType,
+    ) -> Result<Self, HgError> {
+        let mut delta_config = Self {
+            delta_both_parents: config
+                .get_option_no_default(
+                    b"storage",
+                    b"revlog.optimize-delta-parent-choice",
+                )?
+                .unwrap_or(true),
+            candidate_group_chunk_size: config
+                .get_u64(
+                    b"storage",
+                    b"revlog.delta-parent-search.candidate-group-chunk-size",
+                )?
+                .unwrap_or_default(),
+            ..Default::default()
+        };
+
+        delta_config.debug_delta =
+            config.get_bool(b"debug", b"revlog.debug-delta")?;
+
+        delta_config.general_delta =
+            requirements.contains(GENERALDELTA_REQUIREMENT);
+
+        let lazy_delta =
+            config.get_bool(b"storage", b"revlog.reuse-external-delta")?;
+
+        if revlog_type == RevlogType::Manifestlog {
+            // upper bound of what we expect from compression
+            // (real life value seems to be 3)
+            delta_config.upper_bound_comp = Some(3.0)
+        }
+
+        let mut lazy_delta_base = false;
+        if lazy_delta {
+            lazy_delta_base = match config.get_option_no_default(
+                b"storage",
+                b"revlog.reuse-external-delta-parent",
+            )? {
+                Some(base) => base,
+                None => config.get_bool(b"format", b"generaldelta")?,
+            };
+        }
+        delta_config.lazy_delta = lazy_delta;
+        delta_config.lazy_delta_base = lazy_delta_base;
+
+        delta_config.max_deltachain_span =
+            match config.get_i64(b"experimental", b"maxdeltachainspan")? {
+                Some(span) => {
+                    if span < 0 {
+                        None
+                    } else {
+                        Some(span as u64)
+                    }
+                }
+                None => None,
+            };
+
+        delta_config.sparse_revlog =
+            requirements.contains(SPARSEREVLOG_REQUIREMENT);
+
+        delta_config.max_chain_len =
+            config.get_byte_size_no_default(b"format", b"maxchainlen")?;
+
+        Ok(delta_config)
+    }
+}
+
+impl Default for RevlogDeltaConfig {
+    fn default() -> Self {
+        Self {
+            delta_both_parents: true,
+            lazy_delta: true,
+            general_delta: Default::default(),
+            sparse_revlog: Default::default(),
+            max_chain_len: Default::default(),
+            max_deltachain_span: Default::default(),
+            upper_bound_comp: Default::default(),
+            candidate_group_chunk_size: Default::default(),
+            debug_delta: Default::default(),
+            lazy_delta_base: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+/// Holds configuration values about the available revlog features
+pub struct RevlogFeatureConfig {
+    /// The compression engine and its options
+    pub compression_engine: CompressionEngine,
+    /// Can we use censor on this revlog
+    pub censorable: bool,
+    /// Does this revlog use the "side data" feature
+    pub has_side_data: bool,
+    /// Might remove this configuration once the rank computation has no
+    /// impact
+    pub compute_rank: bool,
+    /// Parent order is supposed to be semantically irrelevant, so we
+    /// normally re-sort parents to ensure that the first parent is non-null,
+    /// if there is a non-null parent at all.
+    /// filelog abuses the parent order as a flag to mark some instances of
+    /// meta-encoded files, so allow it to disable this behavior.
+    pub canonical_parent_order: bool,
+    /// Can ellipsis commit be used
+    pub enable_ellipsis: bool,
+}
+impl RevlogFeatureConfig {
+    pub fn new(
+        config: &Config,
+        requirements: &HashSet<String>,
+    ) -> Result<Self, HgError> {
+        let mut feature_config = Self::default();
+
+        let zlib_level = config.get_u32(b"storage", b"revlog.zlib.level")?;
+        let zstd_level = config.get_u32(b"storage", b"revlog.zstd.level")?;
+
+        feature_config.compression_engine = CompressionEngine::default();
+
+        for requirement in requirements {
+            if requirement.starts_with("revlog-compression-")
+                || requirement.starts_with("exp-compression-")
+            {
+                let split = &mut requirement.splitn(3, '-');
+                split.next();
+                split.next();
+                feature_config.compression_engine = match split.next().unwrap()
+                {
+                    "zstd" => CompressionEngine::zstd(zstd_level)?,
+                    e => {
+                        return Err(HgError::UnsupportedFeature(format!(
+                            "Unsupported compression engine '{e}'"
+                        )))
+                    }
+                };
+            }
+        }
+        if let Some(level) = zlib_level {
+            if matches!(
+                feature_config.compression_engine,
+                CompressionEngine::Zlib { .. }
+            ) {
+                feature_config
+                    .compression_engine
+                    .set_level(level as usize)?;
+            }
+        }
+
+        feature_config.enable_ellipsis =
+            requirements.contains(NARROW_REQUIREMENT);
+
+        Ok(feature_config)
+    }
+}
+
 /// Read only implementation of revlog.
 pub struct Revlog {
     /// When index and data are not interleaved: bytes of the revlog index.
@@ -235,10 +629,10 @@ impl Graph for Revlog {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum RevlogVersionOptions {
     V0,
-    V1 { generaldelta: bool },
+    V1 { general_delta: bool, inline: bool },
     V2,
     ChangelogV2 { compute_rank: bool },
 }
@@ -251,24 +645,65 @@ pub struct RevlogOpenOptions {
     pub version: RevlogVersionOptions,
     /// Whether the revlog uses a persistent nodemap.
     pub use_nodemap: bool,
-    // TODO other non-header/version options,
+    pub delta_config: RevlogDeltaConfig,
+    pub data_config: RevlogDataConfig,
+    pub feature_config: RevlogFeatureConfig,
+}
+
+#[cfg(test)]
+impl Default for RevlogOpenOptions {
+    fn default() -> Self {
+        Self {
+            version: RevlogVersionOptions::V1 {
+                general_delta: true,
+                inline: false,
+            },
+            use_nodemap: true,
+            data_config: Default::default(),
+            delta_config: Default::default(),
+            feature_config: Default::default(),
+        }
+    }
 }
 
 impl RevlogOpenOptions {
-    pub fn new() -> Self {
+    pub fn new(
+        inline: bool,
+        data_config: RevlogDataConfig,
+        delta_config: RevlogDeltaConfig,
+        feature_config: RevlogFeatureConfig,
+    ) -> Self {
         Self {
-            version: RevlogVersionOptions::V1 { generaldelta: true },
+            version: RevlogVersionOptions::V1 {
+                general_delta: data_config.general_delta,
+                inline,
+            },
             use_nodemap: false,
+            data_config,
+            delta_config,
+            feature_config,
         }
     }
 
-    fn default_index_header(&self) -> index::IndexHeader {
+    pub fn index_header(&self) -> index::IndexHeader {
         index::IndexHeader {
             header_bytes: match self.version {
                 RevlogVersionOptions::V0 => [0, 0, 0, 0],
-                RevlogVersionOptions::V1 { generaldelta } => {
-                    [0, if generaldelta { 3 } else { 1 }, 0, 1]
-                }
+                RevlogVersionOptions::V1 {
+                    general_delta,
+                    inline,
+                } => [
+                    0,
+                    if general_delta && inline {
+                        3
+                    } else if general_delta {
+                        2
+                    } else {
+                        u8::from(inline)
+                    },
+                    0,
+                    1,
+                ],
                 RevlogVersionOptions::V2 => 0xDEADu32.to_be_bytes(),
                 RevlogVersionOptions::ChangelogV2 { compute_rank: _ } => {
                     0xD34Du32.to_be_bytes()
@@ -278,19 +713,14 @@ impl RevlogOpenOptions {
     }
 }
 
-impl Default for RevlogOpenOptions {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Revlog {
     /// Open a revlog index file.
     ///
     /// It will also open the associated data file if index and data are not
     /// interleaved.
     pub fn open(
-        store_vfs: &Vfs,
+        // Todo use the `Vfs` trait here once we create a function for mmap
+        store_vfs: &VfsImpl,
         index_path: impl AsRef<Path>,
         data_path: Option<&Path>,
         options: RevlogOpenOptions,
@@ -299,7 +729,8 @@ impl Revlog {
     }
 
     fn open_gen(
-        store_vfs: &Vfs,
+        // Todo use the `Vfs` trait here once we create a function for mmap
+        store_vfs: &VfsImpl,
         index_path: impl AsRef<Path>,
         data_path: Option<&Path>,
         options: RevlogOpenOptions,
@@ -310,12 +741,12 @@ impl Revlog {
             match store_vfs.mmap_open_opt(index_path)? {
                 None => Index::new(
                     Box::<Vec<_>>::default(),
-                    options.default_index_header(),
+                    options.index_header(),
                 ),
                 Some(index_mmap) => {
                     let index = Index::new(
                         Box::new(index_mmap),
-                        options.default_index_header(),
+                        options.index_header(),
                     )?;
                     Ok(index)
                 }
@@ -329,6 +760,9 @@ impl Revlog {
         let data_bytes: Option<Box<dyn Deref<Target = [u8]> + Send>> =
             if index.is_inline() {
                 None
+            } else if index.is_empty() {
+                // No need to even try to open the data file then.
+                Some(Box::new(&[][..]))
             } else {
                 let data_path = data_path.unwrap_or(&default_data_path);
                 let data_mmap = store_vfs.mmap_open(data_path)?;
@@ -386,7 +820,7 @@ impl Revlog {
         if let Some(nodemap) = &self.nodemap {
             nodemap
                 .find_bin(&self.index, node)?
-                .ok_or(RevlogError::InvalidRevision)
+                .ok_or(RevlogError::InvalidRevision(format!("{:x}", node)))
         } else {
             self.rev_from_node_no_persistent_nodemap(node)
         }
@@ -428,7 +862,8 @@ impl Revlog {
                 found_by_prefix = Some(rev)
             }
         }
-        found_by_prefix.ok_or(RevlogError::InvalidRevision)
+        found_by_prefix
+            .ok_or(RevlogError::InvalidRevision(format!("{:x}", node)))
     }
 
     /// Returns whether the given revision exists in this revlog.
@@ -537,7 +972,7 @@ impl Revlog {
         let index_entry = self
             .index
             .get_entry(rev)
-            .ok_or(RevlogError::InvalidRevision)?;
+            .ok_or(RevlogError::InvalidRevision(rev.to_string()))?;
         let offset = index_entry.offset();
         let start = if self.index.is_inline() {
             offset + ((rev.0 as usize + 1) * INDEX_ENTRY_SIZE)
@@ -745,7 +1180,7 @@ impl<'revlog> RevlogEntry<'revlog> {
         } else {
             if (self.flags & REVISION_FLAG_ELLIPSIS) != 0 {
                 return Err(HgError::unsupported(
-                    "ellipsis revisions are not supported by rhg",
+                    "support for ellipsis nodes is missing",
                 )
                 .into());
             }
@@ -877,10 +1312,13 @@ mod tests {
     #[test]
     fn test_empty() {
         let temp = tempfile::tempdir().unwrap();
-        let vfs = Vfs { base: temp.path() };
+        let vfs = VfsImpl {
+            base: temp.path().to_owned(),
+        };
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
+        std::fs::write(temp.path().join("foo.d"), b"").unwrap();
         let revlog =
-            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::new())
+            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::default())
                 .unwrap();
         assert!(revlog.is_empty());
         assert_eq!(revlog.len(), 0);
@@ -898,7 +1336,9 @@ mod tests {
     #[test]
     fn test_inline() {
         let temp = tempfile::tempdir().unwrap();
-        let vfs = Vfs { base: temp.path() };
+        let vfs = VfsImpl {
+            base: temp.path().to_owned(),
+        };
         let node0 = Node::from_hex("2ed2a3912a0b24502043eae84ee4b279c18b90dd")
             .unwrap();
         let node1 = Node::from_hex("b004912a8510032a0350a74daa2803dadfb00e12")
@@ -923,7 +1363,7 @@ mod tests {
             .collect_vec();
         std::fs::write(temp.path().join("foo.i"), contents).unwrap();
         let revlog =
-            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::new())
+            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::default())
                 .unwrap();
 
         let entry0 = revlog.get_entry(0.into()).ok().unwrap();
@@ -965,7 +1405,9 @@ mod tests {
     #[test]
     fn test_nodemap() {
         let temp = tempfile::tempdir().unwrap();
-        let vfs = Vfs { base: temp.path() };
+        let vfs = VfsImpl {
+            base: temp.path().to_owned(),
+        };
 
         // building a revlog with a forced Node starting with zeros
         // This is a corruption, but it does not preclude using the nodemap
@@ -995,7 +1437,7 @@ mod tests {
             &vfs,
             "foo.i",
             None,
-            RevlogOpenOptions::new(),
+            RevlogOpenOptions::default(),
             Some(idx.nt),
         )
         .unwrap();

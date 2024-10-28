@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import filecmp
 import os
@@ -265,6 +266,9 @@ class basectx:
                 raise error.ManifestLookupError(
                     self._node or b'None', path, _(b'not found in manifest')
                 )
+        # Try to find the file in the manifest delta that can be faster to read
+        # than a full manifest. If we fail to find the file, it might still
+        # exist in the full manifest, so lets look for it there.
         if '_manifestdelta' in self.__dict__ or path in self.files():
             if path in self._manifestdelta:
                 return (
@@ -538,7 +542,10 @@ class changectx(basectx):
 
     @propertycache
     def _manifestdelta(self):
-        return self._manifestctx.readdelta()
+        base, delta = self._manifestctx.read_any_fast_delta()
+        if base is None:
+            self._manifest = delta
+        return delta
 
     @propertycache
     def _parents(self):
@@ -1057,7 +1064,12 @@ class basefilectx:
                 if path in ac[3]:  # checking the 'files' field.
                     # The file has been touched, check if the content is
                     # similar to the one we search for.
-                    if fnode == mfl[ac[0]].readfast().get(path):
+                    #
+                    # If the content is similar to one of the parents, then it
+                    # cannot be an adjusted linkrev
+                    if fnode == (
+                        mfl[ac[0]].read_delta_parents(exact=False).get(path)
+                    ):
                         return a
             # In theory, we should never get out of that loop without a result.
             # But if manifest uses a buggy file revision (not children of the

@@ -5,6 +5,8 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
+
 import collections
 import time
 
@@ -100,7 +102,11 @@ class remotefilectx(context.filectx):
             if path in data[3]:  # checking the 'files' field.
                 # The file has been touched, check if the hash is what we're
                 # looking for.
-                if fileid == mfl[data[0]].readfast().get(path):
+                #
+                # The change has to be against a parent, otherwise we might be
+                # missing linkrev worthy changes.
+                m = mfl[data[0]].read_delta_parents(exact=False)
+                if fileid == m.get(path):
                     return rev
 
         # Couldn't find the linkrev. This should generally not happen, and will
@@ -199,8 +205,10 @@ class remotefilectx(context.filectx):
         manifestnode, files = ancctx[0], ancctx[3]
         # If the file was touched in this ancestor, and the content is similar
         # to the one we are searching for.
-        if path in files and fnode == mfl[manifestnode].readfast().get(path):
-            return cl.node(ancrev)
+        if path in files:
+            m = mfl[manifestnode].read_delta_parents(exact=False)
+            if fnode == m.get(path):
+                return cl.node(ancrev)
         return None
 
     def _adjustlinknode(self, path, filelog, fnode, srcrev, inclusive=False):
@@ -345,7 +353,7 @@ class remotefilectx(context.filectx):
                 b'linkrevfixup',
                 logmsg + b'\n',
                 elapsed=elapsed * 1000,
-                **commonlogkwargs
+                **commonlogkwargs,
             )
 
     def _verifylinknode(self, revs, linknode):

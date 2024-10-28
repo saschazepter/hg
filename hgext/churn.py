@@ -8,6 +8,7 @@
 
 '''command to display statistics about repository history'''
 
+from __future__ import annotations
 
 import datetime
 import os

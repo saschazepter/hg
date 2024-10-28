@@ -3,6 +3,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import bz2
 import collections
@@ -511,7 +512,7 @@ class _zlibengine(compressionengine):
                 parts = []
                 pos = 0
                 while pos < insize:
-                    pos2 = pos + 2 ** 20
+                    pos2 = pos + 2**20
                     parts.append(z.compress(data[pos:pos2]))
                     pos = pos2
                 parts.append(z.flush())

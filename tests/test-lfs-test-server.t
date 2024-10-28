@@ -858,6 +858,7 @@ Check error message when object does not exist:
 (Restart the server in a different location so it no longer has the content)
 
   $ "$PYTHON" $RUNTESTDIR/killdaemons.py $DAEMON_PIDS
+  *Terminated: * (glob) (?)
 
 #if hg-server
   $ cat $TESTTMP/access.log $TESTTMP/errors.log
@@ -947,3 +948,5 @@ Check error message when object does not exist:
   [50]
 
   $ "$PYTHON" $RUNTESTDIR/killdaemons.py $DAEMON_PIDS
+  *Terminated: * (glob) (?)
+

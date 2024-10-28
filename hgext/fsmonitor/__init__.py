@@ -107,6 +107,7 @@ created.
 # The issues related to nested repos and subrepos are probably not fundamental
 # ones. Patches to fix them are welcome.
 
+from __future__ import annotations
 
 import codecs
 import os
@@ -891,9 +892,8 @@ def wrapupdate(
     mergeancestor=False,
     labels=None,
     matcher=None,
-    **kwargs
+    **kwargs,
 ):
-
     distance = 0
     partial = True
     oldnode = repo[b'.'].node()
@@ -919,7 +919,7 @@ def wrapupdate(
             mergeancestor,
             labels,
             matcher,
-            **kwargs
+            **kwargs,
         )
 
 

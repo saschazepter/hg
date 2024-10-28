@@ -190,6 +190,7 @@ unexpectedly::
 
 """
 
+from __future__ import annotations
 
 # chistedit dependencies that are not available everywhere
 try:
@@ -1526,7 +1527,8 @@ pgup/K: move patch up, pgdn/J: move patch down, c: commit, q: abort
 
     def move_cursor(self, oldpos, newpos):
         """Change the rule/changeset that the cursor is pointing to, regardless of
-        current mode (you can switch between patches from the view patch window)."""
+        current mode (you can switch between patches from the view patch window).
+        """
         self.pos = newpos
 
         mode, _ = self.mode
@@ -1605,7 +1607,8 @@ pgup/K: move patch up, pgdn/J: move patch down, c: commit, q: abort
 
     def change_view(self, delta, unit):
         """Change the region of whatever is being viewed (a patch or the list of
-        changesets). 'delta' is an amount (+/- 1) and 'unit' is 'page' or 'line'."""
+        changesets). 'delta' is an amount (+/- 1) and 'unit' is 'page' or 'line'.
+        """
         mode, _ = self.mode
         if mode != MODE_PATCH:
             return

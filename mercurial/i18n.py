@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import gettext as gettextmod
 import locale
@@ -12,6 +13,7 @@ import os
 import sys
 
 from typing import (
+    Dict,
     List,
 )
 
@@ -61,7 +63,9 @@ except AttributeError:
     _ugettext = t.gettext
 
 
-_msgcache = {}  # encoding: {message: translation}
+_msgcache: Dict[
+    bytes, Dict[bytes, bytes]
+] = {}  # encoding: {message: translation}
 
 
 def gettext(message: bytes) -> bytes:
@@ -118,7 +122,6 @@ if _plain():
 
     def _(message: bytes) -> bytes:
         return message
-
 
 else:
     _ = gettext

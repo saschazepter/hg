@@ -1,9 +1,11 @@
+use std::num::NonZeroU8;
+
 use crate::errors::HgError;
 use crate::revlog::{Node, NodePrefix};
 use crate::revlog::{Revlog, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
-use crate::vfs::Vfs;
+use crate::vfs::VfsImpl;
 use crate::{
     Graph, GraphError, Revision, RevlogOpenOptions, UncheckedRevision,
 };
@@ -23,7 +25,7 @@ impl Graph for Manifestlog {
 impl Manifestlog {
     /// Open the `manifest` of a repository given by its root.
     pub fn open(
-        store_vfs: &Vfs,
+        store_vfs: &VfsImpl,
         options: RevlogOpenOptions,
     ) -> Result<Self, HgError> {
         let revlog = Revlog::open(store_vfs, "00manifest.i", None, options)?;
@@ -85,6 +87,11 @@ pub struct Manifest {
 }
 
 impl Manifest {
+    /// Return a new empty manifest
+    pub fn empty() -> Self {
+        Self { bytes: vec![] }
+    }
+
     pub fn iter(
         &self,
     ) -> impl Iterator<Item = Result<ManifestEntry, HgError>> {
@@ -178,7 +185,7 @@ pub struct ManifestEntry<'manifest> {
     pub hex_node_id: &'manifest [u8],
 
     /// `Some` values are b'x', b'l', or 't'
-    pub flags: Option<u8>,
+    pub flags: Option<NonZeroU8>,
 }
 
 impl<'a> ManifestEntry<'a> {
@@ -198,7 +205,7 @@ impl<'a> ManifestEntry<'a> {
         Self {
             path: HgPath::new(path),
             hex_node_id,
-            flags,
+            flags: flags.map(|f| f.try_into().expect("invalid flag")),
         }
     }
 

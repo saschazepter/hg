@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import os
 
@@ -612,7 +613,7 @@ def _updateconfigandrefreshwdir(
     repo, includes, excludes, profiles, force=False, removing=False
 ):
     """Update the sparse config and working directory state."""
-    with repo.lock():
+    with repo.wlock():
         raw = repo.vfs.tryread(b'sparse')
         oldincludes, oldexcludes, oldprofiles = parseconfig(
             repo.ui, raw, b'sparse'
@@ -632,10 +633,10 @@ def _updateconfigandrefreshwdir(
 
         if requirements.SPARSE_REQUIREMENT in oldrequires and removing:
             repo.requirements.discard(requirements.SPARSE_REQUIREMENT)
-            scmutil.writereporequirements(repo)
+            scmutil.writereporequirements(repo, maywritestore=False)
         elif requirements.SPARSE_REQUIREMENT not in oldrequires:
             repo.requirements.add(requirements.SPARSE_REQUIREMENT)
-            scmutil.writereporequirements(repo)
+            scmutil.writereporequirements(repo, maywritestore=False)
 
         try:
             writeconfig(repo, includes, excludes, profiles)
@@ -644,7 +645,7 @@ def _updateconfigandrefreshwdir(
             if repo.requirements != oldrequires:
                 repo.requirements.clear()
                 repo.requirements |= oldrequires
-                scmutil.writereporequirements(repo)
+                scmutil.writereporequirements(repo, maywritestore=False)
             writeconfig(repo, oldincludes, oldexcludes, oldprofiles)
             raise
 
@@ -730,7 +731,7 @@ def updateconfig(
 
     The new config is written out and a working directory refresh is performed.
     """
-    with repo.wlock(), repo.lock(), repo.dirstate.changing_parents(repo):
+    with repo.wlock(), repo.dirstate.changing_parents(repo):
         raw = repo.vfs.tryread(b'sparse')
         oldinclude, oldexclude, oldprofiles = parseconfig(
             repo.ui, raw, b'sparse'

@@ -1,17 +1,21 @@
 use crate::errors::{HgError, IoErrorContext, IoResultExt};
+use crate::exit_codes;
+use dyn_clone::DynClone;
 use memmap2::{Mmap, MmapOptions};
+use std::fs::File;
 use std::io::{ErrorKind, Write};
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 /// Filesystem access abstraction for the contents of a given "base" diretory
-#[derive(Clone, Copy)]
-pub struct Vfs<'a> {
-    pub(crate) base: &'a Path,
+#[derive(Clone)]
+pub struct VfsImpl {
+    pub(crate) base: PathBuf,
 }
 
 struct FileNotFound(std::io::Error, PathBuf);
 
-impl Vfs<'_> {
+impl VfsImpl {
     pub fn join(&self, relative_path: impl AsRef<Path>) -> PathBuf {
         self.base.join(relative_path)
     }
@@ -71,7 +75,12 @@ impl Vfs<'_> {
             }
             Ok(file) => file,
         };
-        // TODO: what are the safety requirements here?
+        // Safety is "enforced" by locks and assuming other processes are
+        // well-behaved. If any misbehaving or malicious process does touch
+        // the index, it could lead to corruption. This is inherent
+        // to file-based `mmap`, though some platforms have some ways of
+        // mitigating.
+        // TODO linux: set the immutable flag with `chattr(1)`?
         let mmap = unsafe { MmapOptions::new().map(&file) }
             .when_reading_file(&path)?;
         Ok(Ok(mmap))
@@ -134,8 +143,8 @@ impl Vfs<'_> {
         relative_path: impl AsRef<Path>,
         contents: &[u8],
     ) -> Result<(), HgError> {
-        let mut tmp = tempfile::NamedTempFile::new_in(self.base)
-            .when_writing_file(self.base)?;
+        let mut tmp = tempfile::NamedTempFile::new_in(&self.base)
+            .when_writing_file(&self.base)?;
         tmp.write_all(contents)
             .and_then(|()| tmp.flush())
             .when_writing_file(tmp.path())?;
@@ -162,6 +171,174 @@ fn fs_metadata(
             }),
             _ => Ok(None),
         },
+    }
+}
+
+/// Writable file object that atomically updates a file
+///
+/// All writes will go to a temporary copy of the original file. Call
+/// [`Self::close`] when you are done writing, and [`Self`] will rename
+/// the temporary copy to the original name, making the changes
+/// visible. If the object is destroyed without being closed, all your
+/// writes are discarded.
+pub struct AtomicFile {
+    /// The temporary file to write to
+    fp: std::fs::File,
+    /// Path of the temp file
+    temp_path: PathBuf,
+    /// Used when stat'ing the file, is useful only if the target file is
+    /// guarded by any lock (e.g. repo.lock or repo.wlock).
+    check_ambig: bool,
+    /// Path of the target file
+    target_name: PathBuf,
+    /// Whether the file is open or not
+    is_open: bool,
+}
+
+impl AtomicFile {
+    pub fn new(
+        fp: std::fs::File,
+        check_ambig: bool,
+        temp_name: PathBuf,
+        target_name: PathBuf,
+    ) -> Self {
+        Self {
+            fp,
+            check_ambig,
+            temp_path: temp_name,
+            target_name,
+            is_open: true,
+        }
+    }
+
+    /// Write `buf` to the temporary file
+    pub fn write_all(&mut self, buf: &[u8]) -> Result<(), std::io::Error> {
+        self.fp.write_all(buf)
+    }
+
+    fn target(&self) -> PathBuf {
+        self.temp_path
+            .parent()
+            .expect("should not be at the filesystem root")
+            .join(&self.target_name)
+    }
+
+    /// Close the temporary file and rename to the target
+    pub fn close(mut self) -> Result<(), std::io::Error> {
+        self.fp.flush()?;
+        let target = self.target();
+        if self.check_ambig {
+            if let Ok(stat) = std::fs::metadata(&target) {
+                std::fs::rename(&self.temp_path, &target)?;
+                let new_stat = std::fs::metadata(&target)?;
+                let ctime = new_stat.ctime();
+                let is_ambiguous = ctime == stat.ctime();
+                if is_ambiguous {
+                    let advanced =
+                        filetime::FileTime::from_unix_time(ctime + 1, 0);
+                    filetime::set_file_times(target, advanced, advanced)?;
+                }
+            } else {
+                std::fs::rename(&self.temp_path, target)?;
+            }
+        } else {
+            std::fs::rename(&self.temp_path, target).unwrap();
+        }
+        self.is_open = false;
+        Ok(())
+    }
+}
+
+impl Drop for AtomicFile {
+    fn drop(&mut self) {
+        if self.is_open {
+            std::fs::remove_file(self.target()).ok();
+        }
+    }
+}
+
+/// Abstracts over the VFS to allow for different implementations of the
+/// filesystem layer (like passing one from Python).
+pub trait Vfs: Sync + Send + DynClone {
+    fn open(&self, filename: &Path) -> Result<std::fs::File, HgError>;
+    fn open_read(&self, filename: &Path) -> Result<std::fs::File, HgError>;
+    fn open_check_ambig(
+        &self,
+        filename: &Path,
+    ) -> Result<std::fs::File, HgError>;
+    fn create(&self, filename: &Path) -> Result<std::fs::File, HgError>;
+    /// Must truncate the new file if exist
+    fn create_atomic(
+        &self,
+        filename: &Path,
+        check_ambig: bool,
+    ) -> Result<AtomicFile, HgError>;
+    fn file_size(&self, file: &File) -> Result<u64, HgError>;
+    fn exists(&self, filename: &Path) -> bool;
+    fn unlink(&self, filename: &Path) -> Result<(), HgError>;
+    fn rename(
+        &self,
+        from: &Path,
+        to: &Path,
+        check_ambig: bool,
+    ) -> Result<(), HgError>;
+    fn copy(&self, from: &Path, to: &Path) -> Result<(), HgError>;
+}
+
+/// These methods will need to be implemented once `rhg` (and other) non-Python
+/// users of `hg-core` start doing more on their own, like writing to files.
+impl Vfs for VfsImpl {
+    fn open(&self, _filename: &Path) -> Result<std::fs::File, HgError> {
+        todo!()
+    }
+    fn open_read(&self, filename: &Path) -> Result<std::fs::File, HgError> {
+        let path = self.base.join(filename);
+        std::fs::File::open(&path).when_reading_file(&path)
+    }
+    fn open_check_ambig(
+        &self,
+        _filename: &Path,
+    ) -> Result<std::fs::File, HgError> {
+        todo!()
+    }
+    fn create(&self, _filename: &Path) -> Result<std::fs::File, HgError> {
+        todo!()
+    }
+    fn create_atomic(
+        &self,
+        _filename: &Path,
+        _check_ambig: bool,
+    ) -> Result<AtomicFile, HgError> {
+        todo!()
+    }
+    fn file_size(&self, file: &File) -> Result<u64, HgError> {
+        Ok(file
+            .metadata()
+            .map_err(|e| {
+                HgError::abort(
+                    format!("Could not get file metadata: {}", e),
+                    exit_codes::ABORT,
+                    None,
+                )
+            })?
+            .size())
+    }
+    fn exists(&self, _filename: &Path) -> bool {
+        todo!()
+    }
+    fn unlink(&self, _filename: &Path) -> Result<(), HgError> {
+        todo!()
+    }
+    fn rename(
+        &self,
+        _from: &Path,
+        _to: &Path,
+        _check_ambig: bool,
+    ) -> Result<(), HgError> {
+        todo!()
+    }
+    fn copy(&self, _from: &Path, _to: &Path) -> Result<(), HgError> {
+        todo!()
     }
 }
 

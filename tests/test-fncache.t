@@ -96,8 +96,8 @@ Non store repo:
   .hg/branch
   .hg/cache
   .hg/cache/branch2-served
-  .hg/cache/rbc-names-v1
-  .hg/cache/rbc-revs-v1
+  .hg/cache/rbc-names-v2
+  .hg/cache/rbc-revs-v2
   .hg/data
   .hg/data/tst.d.hg
   .hg/data/tst.d.hg/foo.i
@@ -131,8 +131,8 @@ Non fncache repo:
   .hg/branch
   .hg/cache
   .hg/cache/branch2-served
-  .hg/cache/rbc-names-v1
-  .hg/cache/rbc-revs-v1
+  .hg/cache/rbc-names-v2
+  .hg/cache/rbc-revs-v2
   .hg/dirstate
   .hg/fsmonitor.state (fsmonitor !)
   .hg/last-message.txt
@@ -304,7 +304,7 @@ Aborted transactions can be recovered later
 
   $ cat > ../exceptionext.py <<EOF
   > import os
-  > import signal
+  > from mercurial.testing import ps_util
   > from mercurial import (
   >   commands,
   >   error,
@@ -316,7 +316,7 @@ Aborted transactions can be recovered later
   > def trwrapper(orig, self, *args, **kwargs):
   >     tr = orig(self, *args, **kwargs)
   >     def fail(tr):
-  >         os.kill(os.getpid(), signal.SIGKILL)
+  >         ps_util.kill(os.getpid())
   >     # zzz prefix to ensure it sorted after store.write
   >     tr.addfinalize(b'zzz-forcefails', fail)
   >     return tr

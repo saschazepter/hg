@@ -7,6 +7,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import errno
 
@@ -51,11 +52,14 @@ class httprangereader:
     def seek(self, pos):
         self.pos = pos
 
-    def read(self, bytes=None):
+    def read(self, n: int = -1):
         req = urlreq.request(pycompat.strurl(self.url))
-        end = b''
-        if bytes:
-            end = self.pos + bytes - 1
+        end = ''
+
+        if n == 0:
+            return b''
+        elif n > 0:
+            end = "%d" % (self.pos + n - 1)
         if self.pos or end:
             req.add_header('Range', 'bytes=%d-%s' % (self.pos, end))
 
@@ -75,12 +79,14 @@ class httprangereader:
         if code == 200:
             # HTTPRangeHandler does nothing if remote does not support
             # Range headers and returns the full entity. Let's slice it.
-            if bytes:
-                data = data[self.pos : self.pos + bytes]
-            else:
+            if n > 0 and (self.pos + n) < len(data):
+                data = data[self.pos : self.pos + n]
+            elif self.pos < len(data):
                 data = data[self.pos :]
-        elif bytes:
-            data = data[:bytes]
+            else:
+                data = b''
+        elif 0 < n < len(data):
+            data = data[:n]
         self.pos += len(data)
         return data
 
@@ -138,6 +144,9 @@ def build_opener(ui, authinfo):
             f = b"/".join((self.base, urlreq.quote(path)))
             return httprangereader(f, urlopener)
 
+        def _auditpath(self, path: bytes, mode: bytes) -> None:
+            raise NotImplementedError
+
         def join(self, path, *insidef):
             if path:
                 return pathutil.join(self.base, path, *insidef)
@@ -159,6 +168,8 @@ class statichttprepository(
     localrepo.localrepository, localrepo.revlogfilestorage
 ):
     supported = localrepo.localrepository._basesupported
+
+    manifestlog: manifest.manifestlog
 
     def __init__(self, ui, path):
         self._url = path
@@ -186,9 +197,8 @@ class statichttprepository(
 
             # check if it is a non-empty old-style repository
             try:
-                fp = self.vfs(b"00changelog.i")
-                fp.read(1)
-                fp.close()
+                with self.vfs(b"00changelog.i") as fp:
+                    fp.read(1)
             except FileNotFoundError:
                 # we do not care about empty old-style repositories here
                 msg = _(b"'%s' does not appear to be an hg repository") % path

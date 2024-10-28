@@ -222,6 +222,7 @@ Multiple branches
   $ cd repo-trunk
   $ echo a > a
   $ brz add -q a
+  $ sleep 1 # help with sorting
   $ brz ci -qm adda
   $ brz tag trunk-tag
   Created tag trunk-tag.
@@ -237,6 +238,7 @@ Multiple branches
   Updated to revision 1.
   Switched to branch*/repo/trunk/ (glob)
   $ echo a >> a
+  $ sleep 1 # help with sorting
   $ brz ci -qm changea
   $ cd ..
   $ hg convert --datesort repo repo-bzr

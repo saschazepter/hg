@@ -78,7 +78,7 @@ Server is not running aborts
   $ echo "http://localhost:$HGPORT1/bundle.hg" > server/.hg/clonebundles.manifest
   $ hg clone http://localhost:$HGPORT server-not-runner
   applying clone bundle from http://localhost:$HGPORT1/bundle.hg
-  error fetching bundle: (.* refused.*|Protocol not supported|(.* )?\$EADDRNOTAVAIL\$|.* No route to host) (re)
+  error fetching bundle: (.*\$ECONNREFUSED\$|Protocol not supported|(.* )?\$EADDRNOTAVAIL\$|.* No route to host) (re)
   abort: error applying bundle
   (if this error persists, consider contacting the server operator or disable clone bundles via "--config ui.clonebundles=false")
   [255]
@@ -290,8 +290,10 @@ Pre-transmit Hook
 Hooks work with inline bundle
 
   $ cp server/.hg/hgrc server/.hg/hgrc-beforeinlinehooks
-  $ echo "[hooks]" >> server/.hg/hgrc
-  $ echo "pretransmit-inline-clone-bundle=echo foo" >> server/.hg/hgrc
+  $ cat >> server/.hg/hgrc <<-EOF
+  > [hooks]
+  > pretransmit-inline-clone-bundle=sh -c 'printf "foo\n"'
+  > EOF
   $ hg clone -U ssh://user@dummy/server ssh-inline-clone-hook
   applying clone bundle from peer-bundle-cache://full.hg
   remote: foo
@@ -307,8 +309,10 @@ Hooks work with inline bundle
 Hooks can make an inline bundle fail
 
   $ cp server/.hg/hgrc-beforeinlinehooks server/.hg/hgrc
-  $ echo "[hooks]" >> server/.hg/hgrc
-  $ echo "pretransmit-inline-clone-bundle=echo bar && false" >> server/.hg/hgrc
+  $ cat >> server/.hg/hgrc <<-EOF
+  > [hooks]
+  > pretransmit-inline-clone-bundle=sh -c 'printf "bar\n"' && false
+  > EOF
   $ hg clone -U ssh://user@dummy/server ssh-inline-clone-hook-fail
   applying clone bundle from peer-bundle-cache://full.hg
   remote: bar
@@ -741,6 +745,66 @@ on a 32MB system.
   calling hook changegroup.lfiles: hgext.largefiles.reposetup.checkrequireslfiles
   updating the branch cache
   (sent 4 HTTP requests and * bytes; received * bytes in responses) (glob)
+  $ killdaemons.py
+
+Testing a clone bundle with digest
+==================================
+
+  $ "$PYTHON" $TESTDIR/dumbhttp.py -p $HGPORT1 --pid http.pid
+  $ cat http.pid >> $DAEMON_PIDS
+  $ hg -R server serve -d -p $HGPORT --pid-file hg.pid --accesslog access.log
+  $ cat hg.pid >> $DAEMON_PIDS
+
+  $ digest=$("$PYTHON" -c "import hashlib; print (hashlib.sha256(open('gz-a.hg', 'rb').read()).hexdigest())")
+  $ cat > server/.hg/clonebundles.manifest << EOF
+  > http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:${digest}
+  > EOF
+  $ hg clone -U http://localhost:$HGPORT digest-valid
+  applying clone bundle from http://localhost:$HGPORT1/gz-a.hg
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files
+  finished applying clone bundle
+  searching for changes
+  no changes found
+  2 local changesets published
+  $ digest_bad=$("$PYTHON" -c "import hashlib; print (hashlib.sha256(open('gz-a.hg', 'rb').read()+b'.').hexdigest())")
+  $ cat > server/.hg/clonebundles.manifest << EOF
+  > http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:${digest_bad}
+  > EOF
+  $ hg clone -U  http://localhost:$HGPORT digest-invalid
+  applying clone bundle from http://localhost:$HGPORT1/gz-a.hg
+  abort: file with digest [0-9a-f]* expected, but [0-9a-f]* found for [0-9]* bytes (re)
+  [150]
+  $ cat > server/.hg/clonebundles.manifest << EOF
+  > http://localhost:$HGPORT1/bad-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:xx
+  > http://localhost:$HGPORT1/bad-b.hg BUNDLESPEC=gzip-v2 DIGEST=xxx:0000
+  > http://localhost:$HGPORT1/bad-c.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:0000
+  > http://localhost:$HGPORT1/bad-d.hg BUNDLESPEC=gzip-v2 DIGEST=xxx:00,xxx:01
+  > http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:${digest_bad}
+  > EOF
+  $ hg clone --debug -U  http://localhost:$HGPORT digest-malformed
+  using http://localhost:$HGPORT/
+  sending capabilities command
+  sending clonebundles_manifest command
+  filtering http://localhost:$HGPORT1/bad-a.hg due to a bad DIGEST attribute
+  filtering http://localhost:$HGPORT1/bad-b.hg due to lack of supported digest
+  filtering http://localhost:$HGPORT1/bad-c.hg due to a bad sha256 digest
+  filtering http://localhost:$HGPORT1/bad-d.hg due to conflicting xxx digests
+  applying clone bundle from http://localhost:$HGPORT1/gz-a.hg
+  bundle2-input-bundle: 1 params with-transaction
+  bundle2-input-bundle: 0 parts total
+  \(sent [0-9]* HTTP requests and [0-9]* bytes; received [0-9]* bytes in responses\) (re)
+  abort: file with digest [0-9a-f]* expected, but [0-9a-f]* found for [0-9]* bytes (re)
+  [150]
+  $ cat > server/.hg/clonebundles.manifest << EOF
+  > http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha512:00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000,sha256:0000000000000000000000000000000000000000000000000000000000000000
+  > EOF
+  $ hg clone -U  http://localhost:$HGPORT digest-preference
+  applying clone bundle from http://localhost:$HGPORT1/gz-a.hg
+  abort: file with digest 0{64} expected, but [0-9a-f]+ found for [0-9]+ bytes (re)
+  [150]
   $ killdaemons.py
 
 Testing a clone bundles that involves revlog splitting (issue6811)

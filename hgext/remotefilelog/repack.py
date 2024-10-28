@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import time
 
@@ -468,18 +470,14 @@ def keepset(repo, keyfn, lastkeepkeys=None):
 
     # process the commits in toposorted order starting from the oldest
     for r in reversed(keep._list):
-        if repo[r].p1().rev() in processed:
-            # if the direct parent has already been processed
-            # then we only need to process the delta
-            m = repo[r].manifestctx().readdelta()
-        else:
-            # otherwise take the manifest and diff it
-            # with the previous manifest if one exists
+        delta_from, m = repo[r].manifestctx().read_any_fast_delta(processed)
+        if delta_from is None and lastmanifest is not None:
+            # could not find a delta, compute one.
+            # XXX (is this really faster?)
+            full = m
             if lastmanifest:
-                m = repo[r].manifest().diff(lastmanifest)
-            else:
-                m = repo[r].manifest()
-        lastmanifest = repo[r].manifest()
+                m = m.diff(lastmanifest)
+            lastmanifest = full
         processed.add(r)
 
         # populate keepkeys with keys from the current manifest

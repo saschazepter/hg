@@ -18,6 +18,7 @@ Remember to update https://mercurial-scm.org/wiki/HelpStyleGuide
 when adding support for new constructs.
 """
 
+from __future__ import annotations
 
 import re
 

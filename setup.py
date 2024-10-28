@@ -5,11 +5,9 @@
 # 'python setup.py --help' for more options
 import os
 
-# Mercurial can't work on 3.6.0 or 3.6.1 due to a bug in % formatting
-# in bytestrings.
 supportedpy = ','.join(
     [
-        '>=3.6.2',
+        '>=3.8.0',
     ]
 )
 
@@ -127,7 +125,7 @@ from distutils.command.install import install
 from distutils.command.install_lib import install_lib
 from distutils.command.install_scripts import install_scripts
 from distutils import log
-from distutils.spawn import spawn, find_executable
+from distutils.spawn import spawn
 from distutils import file_util
 from distutils.errors import (
     CCompilerError,
@@ -463,10 +461,15 @@ class hgbuild(build):
 
 
 class hgbuildmo(build):
-
     description = "build translations (.mo files)"
 
     def run(self):
+        try:
+            from shutil import which as find_executable
+        except ImportError:
+            # Deprecated in py3.12
+            from distutils.spawn import find_executable
+
         if not find_executable('msgfmt'):
             self.warn(
                 "could not find msgfmt executable, no translations "
@@ -1056,7 +1059,6 @@ class hgbuilddoc(Command):
 
 
 class hginstall(install):
-
     user_options = install.user_options + [
         (
             'old-and-unmanageable',
@@ -1329,6 +1331,7 @@ packages = [
     'mercurial.admin',
     'mercurial.cext',
     'mercurial.cffi',
+    'mercurial.branching',
     'mercurial.defaultrc',
     'mercurial.dirstateutils',
     'mercurial.helptext',
@@ -1658,27 +1661,6 @@ except ImportError:
         pass
 
 
-if os.name == 'nt':
-    # Allow compiler/linker flags to be added to Visual Studio builds.  Passing
-    # extra_link_args to distutils.extensions.Extension() doesn't have any
-    # effect.
-    try:
-        # setuptools < 65.0
-        from distutils import msvccompiler
-    except ImportError:
-        from distutils import _msvccompiler as msvccompiler
-
-    msvccompilerclass = msvccompiler.MSVCCompiler
-
-    class HackedMSVCCompiler(msvccompiler.MSVCCompiler):
-        def initialize(self):
-            msvccompilerclass.initialize(self)
-            # "warning LNK4197: export 'func' specified multiple times"
-            self.ldflags_shared.append('/ignore:4197')
-            self.ldflags_shared_debug.append('/ignore:4197')
-
-    msvccompiler.MSVCCompiler = HackedMSVCCompiler
-
 packagedata = {
     'mercurial': [
         'configitems.toml',
@@ -1784,42 +1766,14 @@ if os.name == 'nt':
     setupversion = setupversion.split(r'+', 1)[0]
 
 setup(
-    name='mercurial',
     version=setupversion,
-    author='Olivia Mackall and many others',
-    author_email='mercurial@mercurial-scm.org',
-    url='https://mercurial-scm.org/',
-    download_url='https://mercurial-scm.org/release/',
-    description=(
-        'Fast scalable distributed SCM (revision control, version '
-        'control) system'
-    ),
     long_description=(
         'Mercurial is a distributed SCM tool written in Python.'
         ' It is used by a number of large projects that require'
         ' fast, reliable distributed revision control, such as '
         'Mozilla.'
     ),
-    license='GNU GPLv2 or any later version',
-    classifiers=[
-        'Development Status :: 6 - Mature',
-        'Environment :: Console',
-        'Intended Audience :: Developers',
-        'Intended Audience :: System Administrators',
-        'License :: OSI Approved :: GNU General Public License (GPL)',
-        'Natural Language :: Danish',
-        'Natural Language :: English',
-        'Natural Language :: German',
-        'Natural Language :: Italian',
-        'Natural Language :: Japanese',
-        'Natural Language :: Portuguese (Brazilian)',
-        'Operating System :: Microsoft :: Windows',
-        'Operating System :: OS Independent',
-        'Operating System :: POSIX',
-        'Programming Language :: C',
-        'Programming Language :: Python',
-        'Topic :: Software Development :: Version Control',
-    ],
+    long_description_content_type='text/x-rst',
     scripts=scripts,
     packages=packages,
     ext_modules=extmodules,

@@ -26,6 +26,7 @@ from mercurial.revlogutils import (
 
 parsers = policy.importmod('parsers')
 
+
 # original python implementation
 def gettype(q):
     return int(q & 0xFFFF)

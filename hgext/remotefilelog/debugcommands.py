@@ -5,6 +5,8 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
+
 import os
 import zlib
 
@@ -34,7 +36,7 @@ from . import (
 )
 
 
-def debugremotefilelog(ui, path, **opts):
+def debugremotefilelog(ui, path, **opts) -> None:
     decompress = opts.get('decompress')
 
     size, firstnode, mapping = parsefileblob(path, decompress)
@@ -62,7 +64,7 @@ def debugremotefilelog(ui, path, **opts):
             queue.append(p2)
 
 
-def buildtemprevlog(repo, file):
+def buildtemprevlog(repo, file) -> filelog.filelog:
     # get filename key
     filekey = hex(hashutil.sha1(file).digest())
     filedir = os.path.join(repo.path, b'store/data', filekey)
@@ -115,11 +117,11 @@ def debugindex(orig, ui, repo, file_=None, **opts):
     r = buildtemprevlog(repo, file_)
 
     # debugindex like normal
-    format = opts.get(b'format', 0)
+    format = opts.get('format', 0)
     if format not in (0, 1):
         raise error.Abort(_(b"unknown format %d") % format)
 
-    generaldelta = r.version & revlog.FLAG_GENERALDELTA
+    generaldelta = r.get_revlog()._format_flags & revlog.FLAG_GENERALDELTA
     if generaldelta:
         basehdr = b' delta'
     else:
@@ -144,9 +146,9 @@ def debugindex(orig, ui, repo, file_=None, **opts):
     for i in r:
         node = r.node(i)
         if generaldelta:
-            base = r.deltaparent(i)
+            base = r.get_revlog().deltaparent(i)
         else:
-            base = r.chainbase(i)
+            base = r.get_revlog().chainbase(i)
         if format == 0:
             try:
                 pp = r.parents(node)
@@ -156,8 +158,8 @@ def debugindex(orig, ui, repo, file_=None, **opts):
                 b"% 6d % 9d % 7d % 6d % 7d %s %s %s\n"
                 % (
                     i,
-                    r.start(i),
-                    r.length(i),
+                    r.get_revlog().start(i),
+                    r.get_revlog().length(i),
                     base,
                     r.linkrev(i),
                     short(node),
@@ -171,10 +173,10 @@ def debugindex(orig, ui, repo, file_=None, **opts):
                 b"% 6d %04x % 8d % 8d % 8d % 6d % 6d % 6d % 6d %s\n"
                 % (
                     i,
-                    r.flags(i),
-                    r.start(i),
-                    r.length(i),
-                    r.rawsize(i),
+                    r.get_revlog().flags(i),
+                    r.get_revlog().start(i),
+                    r.get_revlog().length(i),
+                    r.get_revlog().rawsize(i),
                     base,
                     r.linkrev(i),
                     pr[0],

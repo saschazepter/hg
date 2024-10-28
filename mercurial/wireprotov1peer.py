@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import sys
 import weakref
@@ -92,6 +93,8 @@ class unsentfuture(futures.Future):
     call ``sendcommands()``.
     """
 
+    _peerexecutor: "peerexecutor"
+
     def result(self, timeout=None):
         if self.done():
             return futures.Future.result(self, timeout)
@@ -104,7 +107,7 @@ class unsentfuture(futures.Future):
         return self.result(timeout)
 
 
-@interfaceutil.implementer(repository.ipeercommandexecutor)
+# @interfaceutil.implementer(repository.ipeercommandexecutor)
 class peerexecutor:
     def __init__(self, peer):
         self._peer = peer
@@ -274,6 +277,9 @@ class peerexecutor:
         try:
             self._responsef.result()
         finally:
+            # Help pytype- this is initialized by self.sendcommands(), called
+            # above.
+            assert self._responseexecutor is not None
             self._responseexecutor.shutdown(wait=True)
             self._responsef = None
             self._responseexecutor = None

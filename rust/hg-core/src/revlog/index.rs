@@ -26,7 +26,7 @@ pub struct IndexHeader {
     pub(super) header_bytes: [u8; INDEX_HEADER_SIZE],
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct IndexHeaderFlags {
     flags: u16,
 }
@@ -350,9 +350,6 @@ impl Index {
             return Err(HgError::corrupted("unsupported revlog version"));
         }
 
-        // This is only correct because we know version is REVLOGV1.
-        // In v2 we always use generaldelta, while in v0 we never use
-        // generaldelta. Similar for [is_inline] (it's only used in v1).
         let uses_generaldelta = header.format_flags().uses_generaldelta();
 
         if header.format_flags().is_inline() {
@@ -424,7 +421,6 @@ impl Index {
         assert!(self.is_inline());
         {
             // Wrap in a block to drop the read guard
-            // TODO perf?
             let mut offsets = self.offsets.write().unwrap();
             if offsets.is_none() {
                 offsets.replace(inline_scan(&self.bytes.bytes).1);
@@ -452,6 +448,7 @@ impl Index {
     ///
     /// The specified revision being of the checked type, it always exists
     /// if it was validated by this index.
+    #[inline(always)]
     pub fn get_entry(&self, rev: Revision) -> Option<IndexEntry> {
         if rev == NULL_REVISION {
             return None;
@@ -544,15 +541,82 @@ impl Index {
 
     /// Return the head revisions of this index
     pub fn head_revs(&self) -> Result<Vec<Revision>, GraphError> {
-        self.head_revs_filtered(&HashSet::new(), false)
+        self.head_revs_advanced(&HashSet::new(), None, false)
             .map(|h| h.unwrap())
+    }
+
+    /// Return the head revisions of this index
+    pub fn head_revs_advanced(
+        &self,
+        filtered_revs: &HashSet<Revision>,
+        stop_rev: Option<Revision>,
+        py_shortcut: bool,
+    ) -> Result<Option<Vec<Revision>>, GraphError> {
+        {
+            let guard = self
+                .head_revs
+                .read()
+                .expect("RwLock on Index.head_revs should not be poisoned");
+            let self_head_revs = &guard.0;
+            let self_filtered_revs = &guard.1;
+            if !self_head_revs.is_empty()
+                && filtered_revs == self_filtered_revs
+                && stop_rev.is_none()
+            {
+                if py_shortcut {
+                    // Don't copy the revs since we've already cached them
+                    // on the Python side.
+                    return Ok(None);
+                } else {
+                    return Ok(Some(self_head_revs.to_owned()));
+                }
+            }
+        }
+
+        let (as_vec, cachable) = if self.is_empty() {
+            (vec![NULL_REVISION], true)
+        } else {
+            let length: usize = match stop_rev {
+                Some(r) => r.0 as usize,
+                None => self.len(),
+            };
+            let cachable = self.len() == length;
+            let mut not_heads = bitvec![0; length];
+            dagops::retain_heads_fast(
+                self,
+                not_heads.as_mut_bitslice(),
+                filtered_revs,
+            )?;
+            (
+                not_heads
+                    .into_iter()
+                    .enumerate()
+                    .filter_map(|(idx, is_not_head)| {
+                        if is_not_head {
+                            None
+                        } else {
+                            Some(Revision(idx as BaseRevision))
+                        }
+                    })
+                    .collect(),
+                cachable,
+            )
+        };
+        if cachable {
+            *self
+                .head_revs
+                .write()
+                .expect("RwLock on Index.head_revs should not be poisoned") =
+                (as_vec.to_owned(), filtered_revs.to_owned());
+        }
+        Ok(Some(as_vec))
     }
 
     /// Python-specific shortcut to save on PyList creation
     pub fn head_revs_shortcut(
         &self,
     ) -> Result<Option<Vec<Revision>>, GraphError> {
-        self.head_revs_filtered(&HashSet::new(), true)
+        self.head_revs_advanced(&HashSet::new(), None, true)
     }
 
     /// Return the heads removed and added by advancing from `begin` to `end`.
@@ -604,61 +668,6 @@ impl Index {
         }
 
         Ok((heads_removed, heads_added))
-    }
-
-    /// Return the head revisions of this index
-    pub fn head_revs_filtered(
-        &self,
-        filtered_revs: &HashSet<Revision>,
-        py_shortcut: bool,
-    ) -> Result<Option<Vec<Revision>>, GraphError> {
-        {
-            let guard = self
-                .head_revs
-                .read()
-                .expect("RwLock on Index.head_revs should not be poisoned");
-            let self_head_revs = &guard.0;
-            let self_filtered_revs = &guard.1;
-            if !self_head_revs.is_empty()
-                && filtered_revs == self_filtered_revs
-            {
-                if py_shortcut {
-                    // Don't copy the revs since we've already cached them
-                    // on the Python side.
-                    return Ok(None);
-                } else {
-                    return Ok(Some(self_head_revs.to_owned()));
-                }
-            }
-        }
-
-        let as_vec = if self.is_empty() {
-            vec![NULL_REVISION]
-        } else {
-            let mut not_heads = bitvec![0; self.len()];
-            dagops::retain_heads_fast(
-                self,
-                not_heads.as_mut_bitslice(),
-                filtered_revs,
-            )?;
-            not_heads
-                .into_iter()
-                .enumerate()
-                .filter_map(|(idx, is_not_head)| {
-                    if is_not_head {
-                        None
-                    } else {
-                        Some(Revision(idx as BaseRevision))
-                    }
-                })
-                .collect()
-        };
-        *self
-            .head_revs
-            .write()
-            .expect("RwLock on Index.head_revs should not be poisoned") =
-            (as_vec.to_owned(), filtered_revs.to_owned());
-        Ok(Some(as_vec))
     }
 
     /// Obtain the delta chain for a revision.
@@ -820,7 +829,7 @@ impl Index {
             }
             let [mut p1, mut p2] = self
                 .parents(rev)
-                .map_err(|_| RevlogError::InvalidRevision)?;
+                .map_err(|e| RevlogError::InvalidRevision(e.to_string()))?;
             while let Some(p1_entry) = self.get_entry(p1) {
                 if p1_entry.compressed_len() != 0 || p1.0 == 0 {
                     break;
@@ -830,9 +839,9 @@ impl Index {
                 if parent_base.0 == p1.0 {
                     break;
                 }
-                p1 = self
-                    .check_revision(parent_base)
-                    .ok_or(RevlogError::InvalidRevision)?;
+                p1 = self.check_revision(parent_base).ok_or(
+                    RevlogError::InvalidRevision(parent_base.to_string()),
+                )?;
             }
             while let Some(p2_entry) = self.get_entry(p2) {
                 if p2_entry.compressed_len() != 0 || p2.0 == 0 {
@@ -843,16 +852,16 @@ impl Index {
                 if parent_base.0 == p2.0 {
                     break;
                 }
-                p2 = self
-                    .check_revision(parent_base)
-                    .ok_or(RevlogError::InvalidRevision)?;
+                p2 = self.check_revision(parent_base).ok_or(
+                    RevlogError::InvalidRevision(parent_base.to_string()),
+                )?;
             }
             if base == p1.0 || base == p2.0 {
                 return Ok(false);
             }
             rev = self
                 .check_revision(base.into())
-                .ok_or(RevlogError::InvalidRevision)?;
+                .ok_or(RevlogError::InvalidRevision(base.to_string()))?;
         }
         Ok(rev == NULL_REVISION)
     }
@@ -1387,6 +1396,7 @@ trait PoisonableBitSet: Sized + PartialEq {
     fn vec_of_empty(sets_size: usize, vec_len: usize) -> Vec<Self>;
 
     /// The size of the bit mask in memory
+    #[allow(unused)]
     fn size(&self) -> usize;
 
     /// The number of elements that can be represented in the set.
@@ -1394,12 +1404,14 @@ trait PoisonableBitSet: Sized + PartialEq {
     /// Another way to put it is that it is the highest integer `C` such that
     /// the set is guaranteed to always be a subset of the integer range
     /// `[0, C)`
+    #[allow(unused)]
     fn capacity(&self) -> usize;
 
     /// Declare `n` to belong to the set
     fn add(&mut self, n: usize);
 
     /// Declare `n` not to belong to the set
+    #[allow(unused)]
     fn discard(&mut self, n: usize);
 
     /// Replace this bit set by its union with other
@@ -1749,6 +1761,9 @@ impl<'a> IndexEntry<'a> {
 }
 
 #[cfg(test)]
+pub use tests::IndexEntryBuilder;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::node::NULL_NODE;
@@ -2027,6 +2042,3 @@ mod tests {
         assert_eq!(get_version(&bytes), 2)
     }
 }
-
-#[cfg(test)]
-pub use tests::IndexEntryBuilder;

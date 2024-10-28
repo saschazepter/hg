@@ -33,8 +33,8 @@ Trigger branchcache creation:
   default                       10:a7949464abda
   $ ls .hg/cache
   branch2-served
-  rbc-names-v1
-  rbc-revs-v1
+  rbc-names-v2
+  rbc-revs-v2
 
 Default operation:
 
@@ -48,8 +48,8 @@ Ensure branchcache got copied over:
   $ ls .hg/cache
   branch2-base
   branch2-served
-  rbc-names-v1
-  rbc-revs-v1
+  rbc-names-v2
+  rbc-revs-v2
   tags2
   tags2-served
 
@@ -114,8 +114,8 @@ Ensure branchcache got copied over:
   $ ls .hg/cache
   branch2-base
   branch2-served
-  rbc-names-v1
-  rbc-revs-v1
+  rbc-names-v2
+  rbc-revs-v2
   tags2
   tags2-served
 
@@ -618,15 +618,10 @@ Invalid URL
 
 No remote source
 
-#if windows
   $ hg clone http://$LOCALIP:3121/a b
-  abort: error: * (glob)
+  abort: error: $ECONNREFUSED$
   [100]
-#else
-  $ hg clone http://$LOCALIP:3121/a b
-  abort: error: *refused* (glob)
-  [100]
-#endif
+
   $ rm -rf b # work around bug with http clone
 
 
@@ -1240,7 +1235,7 @@ We should see a warning about no fsmonitor on supported platforms
 #if linuxormacos no-fsmonitor
   $ hg clone a nofsmonitor
   updating to bookmark @ on branch stable
-  (warning: large working directory being used without fsmonitor enabled; enable fsmonitor to improve performance; see "hg help -e fsmonitor")
+  (warning: large working directory being used without fsmonitor enabled; enable fsmonitor to improve performance; see "hg help -e fsmonitor") (no-rust !)
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
 #else
   $ hg clone a nofsmonitor
@@ -1289,7 +1284,7 @@ Warning not printed if working directory isn't empty
 
 #if linuxormacos no-fsmonitor
   $ hg up cf0fe1914066
-  (warning: large working directory being used without fsmonitor enabled; enable fsmonitor to improve performance; see "hg help -e fsmonitor")
+  (warning: large working directory being used without fsmonitor enabled; enable fsmonitor to improve performance; see "hg help -e fsmonitor") (no-rust !)
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 #else
   $ hg up cf0fe1914066

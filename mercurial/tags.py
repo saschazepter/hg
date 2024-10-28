@@ -10,6 +10,7 @@
 # Eventually, it could take care of updating (adding/removing/moving)
 # tags too.
 
+from __future__ import annotations
 
 import binascii
 import io
@@ -601,7 +602,7 @@ def _writetagcache(ui, repo, valid, cachetags):
     # we keep them in UTF-8 throughout this module.  If we converted
     # them local encoding on input, we would lose info writing them to
     # the cache.
-    for (name, (node, hist)) in sorted(cachetags.items()):
+    for name, (node, hist) in sorted(cachetags.items()):
         for n in hist:
             cachefile.write(b"%s %s\n" % (hex(n), name))
         cachefile.write(b"%s %s\n" % (hex(node), name))
@@ -851,25 +852,45 @@ class hgtagsfnodescache:
         rev = ctx.rev()
         fnode = None
         cl = self._repo.changelog
+        ml = self._repo.manifestlog
+        mctx = ctx.manifestctx()
+        base_values = {}
         p1rev, p2rev = cl._uncheckedparentrevs(rev)
-        p1node = cl.node(p1rev)
-        p1fnode = self.getfnode(p1node, computemissing=False)
+        m_p1_node, m_p2_node = mctx.parents
+        if p1rev != nullrev:
+            p1_node = cl.node(p1rev)
+            fnode = self.getfnode(p1_node, computemissing=False)
+            # when unknown, fnode is None or False
+            if fnode:
+                p1_manifest_rev = ml.rev(m_p1_node)
+                base_values[p1_manifest_rev] = fnode
         if p2rev != nullrev:
-            # There is some no-merge changeset where p1 is null and p2 is set
-            # Processing them as merge is just slower, but still gives a good
-            # result.
-            p2node = cl.node(p2rev)
-            p2fnode = self.getfnode(p2node, computemissing=False)
-            if p1fnode != p2fnode:
-                # we cannot rely on readfast because we don't know against what
-                # parent the readfast delta is computed
-                p1fnode = None
-        if p1fnode:
-            mctx = ctx.manifestctx()
-            fnode = mctx.readfast().get(b'.hgtags')
+            p2_node = cl.node(p2rev)
+            fnode = self.getfnode(p2_node, computemissing=False)
+            # when unknown, fnode is None or False
+            if fnode:
+                p2_manifest_rev = ml.rev(m_p2_node)
+                base_values[p2_manifest_rev] = fnode
+        # XXX: Beware that using delta to speed things up here is actually
+        # buggy as it will fails to detect a `.hgtags` deletion. That buggy
+        # behavior has been cargo culted from the previous version of this code
+        # as "in practice this seems fine" and not using delta is just too
+        # slow.
+        #
+        # However note that we only consider delta from p1 or p2 because it is
+        # far less likely to have a .hgtags delete in a child than missing from
+        # one branch to another. As the delta chain construction keep being
+        # optimized, it means we will not use delta as often as we could.
+        if base_values:
+            base, m = mctx.read_any_fast_delta(base_values)
+            fnode = m.get(b'.hgtags')
             if fnode is None:
-                fnode = p1fnode
-        if fnode is None:
+                if base is not None:
+                    fnode = base_values[base]
+                else:
+                    # No delta and .hgtags file on this revision.
+                    fnode = self._repo.nullid
+        else:
             # Populate missing entry.
             try:
                 fnode = ctx.filenode(b'.hgtags')

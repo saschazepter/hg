@@ -15,11 +15,11 @@
   $ echo a >> a
   $ hg ci -Am addb
   adding b
-  $ PARENTID1=`hg id --debug -i`
+  $ PARENTID1=`hg id -r . -T "{node}"`
   $ echo c > c
   $ hg ci -Am addc
   adding c
-  $ PARENTID2=`hg id --debug -i`
+  $ PARENTID2=`hg id -r . -T "{node}"`
   $ cd ..
   $ glog -R repo1
   @  2:e55c719b85b6 "addc" files: c
@@ -38,10 +38,10 @@
   adding d
   $ INVALIDID1=afd12345af
   $ INVALIDID2=28173x36ddd1e67bf7098d541130558ef5534a86
-  $ CHILDID1=`hg id --debug -i`
+  $ CHILDID1=`hg id -r . -T "{node}"`
   $ echo d >> d
   $ hg ci -Am changed
-  $ CHILDID2=`hg id --debug -i`
+  $ CHILDID2=`hg id -r . -T "{node}"`
   $ echo e > e
   $ hg ci -Am adde
   adding e

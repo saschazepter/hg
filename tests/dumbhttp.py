@@ -5,6 +5,7 @@
 Small and dumb HTTP server for use in tests.
 """
 
+import io
 import optparse
 import os
 import signal
@@ -21,11 +22,24 @@ from mercurial import (
 httpserver = util.httpserver
 OptionParser = optparse.OptionParser
 
+if pycompat.iswindows:
+    sys.stdout = io.TextIOWrapper(
+        sys.stdout.buffer,
+        sys.stdout.encoding,
+        sys.stdout.errors,
+        newline="\n",
+    )
+    sys.stderr = io.TextIOWrapper(
+        sys.stderr.buffer,
+        sys.stderr.encoding,
+        sys.stderr.errors,
+        newline="\n",
+    )
+
 if os.environ.get('HGIPV6', '0') == '1':
 
     class simplehttpserver(httpserver.httpserver):
         address_family = socket.AF_INET6
-
 
 else:
     simplehttpserver = httpserver.httpserver
