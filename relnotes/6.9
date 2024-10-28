@@ -1,0 +1,94 @@
+= Mercurial 6.9rc0 =
+
+/!\ These are release notes for a release candidate version. Any and all points can be reverted before the final release.
+
+== New Features ==
+
+ * exchange: improve computation of relevant markers for large repos
+ * Add a Rust fast-path to speed up update (also for `clone`) from null (up to 4x faster) 
+ * Introduced a new rev-branch-cache version (v2) that is mmap-resistant
+ * The branchmap's performance was improved
+ * Improved the performance of the fix for issue6528
+ * clonebundles: allow manifest to specify sha256 digest of bundles
+ * merge: improve working-copy mtime race handling
+ * profiling: add a py-spy profiling backend
+ * revlog: use an explicit config option to enable mmap usage for index
+ * revlog: use mmap by default is pre-population is available
+ * mmap: populate the mapping by default
+ * mmap: populate mapping in a background thread
+
+== Experimental features ==
+
+ * merge: add a config to allow conflict-free merge of changes on adjacent lines
+
+== Bug Fixes ==
+
+ * `config.server.validate` now also works on narrowed repositories
+ * convert: fix various leaked file descriptors
+ * stream: prefer keeping an open file handle to volatile file instead of copy
+ * dummysmtpd: fix EOF handling on newer versions of OpenSSL
+ * cext: correct the argument handling of `b85encode()`
+ * branchmap-v3: make sure we write the cache after detecting pure-topo mode
+ * rust: apply clippy lints
+ * copies: make sure deleted copy info do not overwriting unrelated ones
+ * rebase: don't call rewriteutil.precheck() with to-be-skipped commits
+ * phabricator: correct the default value of `phabhunk.corpus`
+ * linelog: correct the default value of `annotateresult.lines`
+ * largefiles: avoid a potentially undefined variable in exception case
+ * httppeer: move a variable to avoid a bad reference before assignment warning
+ * httppeer: avoid another bad reference before assignment warning
+ * tests: use packaging from setuptools instead of deprecated distutils
+ * manifest: type and fix unhexlify
+ * manifest: align some vfs option access on the fact we might not have options
+ * scmutils: read the requires file before writing to avoid unnecessary rewrite
+ * debugsparse: stop taking the store lock
+ * sparse: reliably avoid writing to store without a lock
+ * largefiles: sync up `largefilesdirstate` methods with `dirstate` base class
+ * shelve: raise an error when loading a corrupt state file in an impossible case
+ * monotone: replace %s interpolation with appropriate numeric specifiers
+ * shelve: consistently convert exception to bytes via `stringutil.forcebytestr`
+ * remotefilelog: honor the `--format` arg of the `debugindex` command
+ * remotefilelog: adapt the `debugindex` command to past API changes
+ * run-tests: add color to the progress output
+ * archive: defer opening the output until a file is matched
+ * help: add :config-doc:`section.key` shorthand to insert documentation
+ * censor: document the censor.policy option (issue6909)
+ * rust-revlog: don't try to open the data file if the index is empty
+ * bundlerepo: fix mismatches with repository and revlog classes
+ * revlog: make `clearcaches()` signature consistent with ManifestRevlog
+ * unionrepo: fix mismatches with revlog classes
+ * keepalive: fix a signature mismatch for a http.client.HTTPResponse subclass
+ * lfs: fix various signature mismatches for vfs subclasses
+ * store: fix a signature mismatch for a vfs subclass
+ * util: avoid a leaked file descriptor in `util.makelock()` exceptional case
+ * statichttprepo: fix `httprangereader.read()` for py3
+ * util: make `mmapread()` work on Windows again
+ * mdiff: tweak calls into `bdiff.fixws` to match its type hints
+ * base85: avoid a spurious use-before-initialized warning in `pure` module
+ * install: static data moved from setup.py to pyproject.toml
+ * upgrade: disable using the parallel workers optimization on macOS
+ * doc: generate separate commands/topics/extension pages
+ * extdiff: don't run gui programs when in a cli-only environment
+ * clonebundles: stop shell quoting `HGCB_BUNDLE_BASENAME` environment variable
+ * rev-branch-cache: disable mmapping by default on Windows
+
+== Backwards Compatibility Changes ==
+
+ * This release drops support for Python 3.6 and 3.7.
+
+== Internal API Changes ==
+
+ * manifest: deprecated readdelta and readfast
+
+== Miscellaneous ==
+
+ * http: reuse Python's implementation of read/readline/readinto
+ * http: use urllib's cookie handler
+ * rev-branch-cache: schedule a write of the "v2" format if we read from "v1"
+ * rev-branch-cache: have debugupdatecache warm rbc too
+ * rev-branch-cache: reenable memory mapping of the revision data
+ * debugwireproto: redo logging to also work for https
+ * rust: use `.cargo/config.toml` instead of `.cargo/config`
+ * A whole bunch of typing improvements, which in turn found many bugs
+ * Test suite improvements
+ * Various packaging improvements
