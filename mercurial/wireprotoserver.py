@@ -4,6 +4,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import contextlib
 import struct
@@ -18,7 +19,6 @@ from . import (
     wireprototypes,
     wireprotov1server,
 )
-from .interfaces import util as interfaceutil
 from .utils import (
     compression,
     stringutil,
@@ -55,8 +55,7 @@ def decodevaluefromheaders(req, headerprefix):
     return b''.join(chunks)
 
 
-@interfaceutil.implementer(wireprototypes.baseprotocolhandler)
-class httpv1protocolhandler:
+class httpv1protocolhandler(wireprototypes.baseprotocolhandler):
     def __init__(self, req, ui, checkperm):
         self._req = req
         self._ui = ui
@@ -64,7 +63,7 @@ class httpv1protocolhandler:
         self._protocaps = None
 
     @property
-    def name(self):
+    def name(self) -> bytes:
         return b'http-v1'
 
     def getargs(self, args):
@@ -374,8 +373,7 @@ def _sshv1respondooberror(fout, ferr, rsp):
     fout.flush()
 
 
-@interfaceutil.implementer(wireprototypes.baseprotocolhandler)
-class sshv1protocolhandler:
+class sshv1protocolhandler(wireprototypes.baseprotocolhandler):
     """Handler for requests services via version 1 of SSH protocol."""
 
     def __init__(self, ui, fin, fout):
@@ -385,7 +383,7 @@ class sshv1protocolhandler:
         self._protocaps = set()
 
     @property
-    def name(self):
+    def name(self) -> bytes:
         return wireprototypes.SSHV1
 
     def getargs(self, args):

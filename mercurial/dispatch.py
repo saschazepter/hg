@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import errno
 import getopt
@@ -85,7 +86,7 @@ class request:
         # store the parsed and canonical command
         self.canonical_command = None
 
-    def _runexithandlers(self):
+    def _runexithandlers(self) -> None:
         exc = None
         handlers = self.ui._exithandlers
         try:
@@ -239,7 +240,7 @@ def dispatch(req):
     return status
 
 
-def _rundispatch(req):
+def _rundispatch(req) -> int:
     with tracing.log('dispatch._rundispatch'):
         if req.ferr:
             ferr = req.ferr
@@ -300,7 +301,7 @@ def _rundispatch(req):
                 req.ui.log(
                     b'uiblocked',
                     b'ui blocked ms\n',
-                    **pycompat.strkwargs(req.ui._blockedtimes)
+                    **pycompat.strkwargs(req.ui._blockedtimes),
                 )
             return_code = ret & 255
             req.ui.log(

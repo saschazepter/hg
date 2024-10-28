@@ -83,6 +83,8 @@ like CVS' $Log$, are not supported. A keyword template map "Log =
 '''
 
 
+from __future__ import annotations
+
 import os
 import re
 import weakref
@@ -100,6 +102,7 @@ from mercurial import (
     localrepo,
     logcmdutil,
     match,
+    merge,
     patch,
     pathutil,
     pycompat,
@@ -160,6 +163,8 @@ configitem(
     b'svn',
     default=False,
 )
+
+
 # date like in cvs' $Date
 @templatefilter(b'utcdate', intype=templateutil.date)
 def utcdate(date):
@@ -814,6 +819,7 @@ def uisetup(ui):
     extensions.wrapfunction(cmdutil, 'dorecord', kw_dorecord)
     for c in nokwwebcommands.split():
         extensions.wrapfunction(webcommands, c, kwweb_skip)
+    merge.MAYBE_USE_RUST_UPDATE = False
 
 
 def reposetup(ui, repo):

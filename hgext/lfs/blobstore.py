@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import contextlib
 import errno
@@ -13,6 +14,10 @@ import json
 import os
 import re
 import socket
+
+from typing import (
+    Optional,
+)
 
 from mercurial.i18n import _
 from mercurial.node import hex
@@ -41,11 +46,11 @@ _lfsre = re.compile(br'\A[a-f0-9]{64}\Z')
 
 
 class lfsvfs(vfsmod.vfs):
-    def join(self, path):
+    def join(self, path: Optional[bytes], *insidef: bytes) -> bytes:
         """split the path at first two characters, like: XX/XXXXX..."""
         if not _lfsre.match(path):
             raise error.ProgrammingError(b'unexpected lfs path: %s' % path)
-        return super(lfsvfs, self).join(path[0:2], path[2:])
+        return super(lfsvfs, self).join(path[0:2], path[2:], *insidef)
 
     def walk(self, path=None, onerror=None):
         """Yield (dirpath, [], oids) tuple for blobs under path
@@ -76,7 +81,7 @@ class nullvfs(lfsvfs):
     def __init__(self):
         pass
 
-    def exists(self, oid):
+    def exists(self, path: Optional[bytes] = None) -> bool:
         return False
 
     def read(self, oid):
@@ -92,8 +97,8 @@ class nullvfs(lfsvfs):
     def walk(self, path=None, onerror=None):
         return (b'', [], [])
 
-    def write(self, oid, data):
-        pass
+    def write(self, *args, **kwargs) -> int:
+        return 0
 
 
 class lfsuploadfile(httpconnectionmod.httpsendfile):

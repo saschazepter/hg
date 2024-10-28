@@ -8,7 +8,9 @@ use crate::dirstate_tree::dirstate_map::{
     self, DirstateMap, DirstateMapWriteMode, NodeRef,
 };
 use crate::dirstate_tree::path_with_basename::WithBasename;
-use crate::errors::HgError;
+use crate::errors::{HgError, IoResultExt};
+use crate::repo::Repo;
+use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::utils::hg_path::HgPath;
 use crate::DirstateEntry;
 use crate::DirstateError;
@@ -20,6 +22,9 @@ use format_bytes::format_bytes;
 use rand::Rng;
 use std::borrow::Cow;
 use std::fmt::Write;
+use uuid::Uuid;
+
+use super::dirstate_map::DirstateIdentity;
 
 /// Added at the start of `.hg/dirstate` when the "v2" format is used.
 /// This a redundant sanity check more than an actual "magic number" since
@@ -288,10 +293,12 @@ pub(super) fn read<'on_disk>(
     on_disk: &'on_disk [u8],
     metadata: &[u8],
     uuid: Vec<u8>,
-    identity: Option<u64>,
+    identity: Option<DirstateIdentity>,
 ) -> Result<DirstateMap<'on_disk>, DirstateV2ParseError> {
     if on_disk.is_empty() {
         let mut map = DirstateMap::empty(on_disk);
+        map.identity = identity;
+        map.old_uuid = Some(uuid);
         map.dirstate_version = DirstateVersion::V2;
         return Ok(map);
     }
@@ -315,6 +322,7 @@ pub(super) fn read<'on_disk>(
         identity,
         dirstate_version: DirstateVersion::V2,
         write_mode: DirstateMapWriteMode::Auto,
+        use_tracked_hint: false,
     };
     Ok(dirstate_map)
 }
@@ -332,9 +340,7 @@ impl Node {
     ) -> Result<usize, DirstateV2ParseError> {
         let start = self.base_name_start.get();
         if start < self.full_path.len.get() {
-            let start = usize::try_from(start)
-                // u32 -> usize, could only panic on a 16-bit CPU
-                .expect("dirstate-v2 base_name_start out of bounds");
+            let start = usize::from(start);
             Ok(start)
         } else {
             Err(DirstateV2ParseError::new("not enough bytes for base name"))
@@ -593,8 +599,8 @@ where
 {
     // Either `usize::MAX` would result in "out of bounds" error since a single
     // `&[u8]` cannot occupy the entire addess space.
-    let start = start.get().try_into().unwrap_or(std::usize::MAX);
-    let len = len.try_into().unwrap_or(std::usize::MAX);
+    let start = start.get().try_into().unwrap_or(usize::MAX);
+    let len = len.try_into().unwrap_or(usize::MAX);
     let bytes = match on_disk.get(start..) {
         Some(bytes) => bytes,
         None => {
@@ -912,4 +918,23 @@ impl PackedTruncatedTimestamp {
             nanoseconds: 0.into(),
         }
     }
+}
+
+/// Write a new tracked key to disk.
+/// See `format.use-dirstate-tracked-hint` config help for more details.
+pub fn write_tracked_key(repo: &Repo) -> Result<(), HgError> {
+    // TODO move this to the dirstate itself once it grows a `dirty` flag and
+    // can reason about which context it needs to write this in.
+    // For now, only this fast-path needs to think about the tracked hint.
+    // Use [`crate::dirstate_tree::dirstate_map::DirstateMap::
+    // use_tracked_hint`] instead of looking at the requirements once
+    // refactored.
+    if !repo.requirements().contains(DIRSTATE_TRACKED_HINT_V1) {
+        return Ok(());
+    }
+    // TODO use `hg_vfs` once the `InnerRevlog` is in.
+    let path = repo
+        .working_directory_path()
+        .join(".hg/dirstate-tracked-hint");
+    std::fs::write(&path, Uuid::new_v4().as_bytes()).when_writing_file(&path)
 }

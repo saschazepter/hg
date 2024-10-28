@@ -617,7 +617,11 @@ impl IntersectionMatcher {
                 std::mem::swap(&mut m1, &mut m2);
             }
             m1.file_set().map(|m1_files| {
-                m1_files.iter().filter(|f| m2.matches(f)).cloned().collect()
+                m1_files
+                    .iter()
+                    .filter(|&f| m2.matches(f))
+                    .cloned()
+                    .collect()
             })
         } else {
             // without exact input file sets, we can't do an exact
@@ -710,7 +714,7 @@ impl DifferenceMatcher {
         };
         if base_is_exact {
             new.files = base_files.map(|files| {
-                files.iter().filter(|f| new.matches(f)).cloned().collect()
+                files.iter().filter(|&f| new.matches(f)).cloned().collect()
             });
         }
         new

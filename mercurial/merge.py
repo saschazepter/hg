@@ -5,13 +5,23 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import collections
+import os
 import struct
+import typing
+from typing import Dict, Optional, Tuple
 
 from .i18n import _
 from .node import nullrev
 from .thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from .utils import stringutil
 from .dirstateutils import timestamp
 from . import (
@@ -30,6 +40,8 @@ from . import (
     util,
     worker,
 )
+
+rust_update_mod = policy.importrust("update")
 
 _pack = struct.pack
 _unpack = struct.unpack
@@ -138,6 +150,8 @@ def _checkunknownfiles(repo, wctx, mctx, force, mresult, mergeforce):
     dircache = dict()
     dirstate = repo.dirstate
     wvfs = repo.wvfs
+    # wouldn't it be easier to loop over unknown files (and dirs)?
+
     if not force:
 
         def collectconflicts(conflicts, config):
@@ -420,11 +434,11 @@ def checkpathconflicts(repo, wctx, mctx, mresult):
     # Track the names of all deleted files.
     for f in mresult.files((mergestatemod.ACTION_REMOVE,)):
         deletedfiles.add(f)
-    for (f, args, msg) in mresult.getactions((mergestatemod.ACTION_MERGE,)):
+    for f, args, msg in mresult.getactions((mergestatemod.ACTION_MERGE,)):
         f1, f2, fa, move, anc = args
         if move:
             deletedfiles.add(f1)
-    for (f, args, msg) in mresult.getactions(
+    for f, args, msg in mresult.getactions(
         (mergestatemod.ACTION_DIR_RENAME_MOVE_LOCAL,)
     ):
         f2, flags = args
@@ -1826,6 +1840,12 @@ UPDATECHECK_NONE = b'none'
 UPDATECHECK_LINEAR = b'linear'
 UPDATECHECK_NO_CONFLICT = b'noconflict'
 
+# Let extensions turn off any Rust code in the update code if that interferes
+# will their patching.
+# This being `True` does not mean that you have Rust extensions installed or
+# that the Rust path will be taken for any given invocation.
+MAYBE_USE_RUST_UPDATE = True
+
 
 def _update(
     repo,
@@ -1999,6 +2019,61 @@ def _update(
         if not branchmerge and not wc.dirty(missing=True):
             followcopies = False
 
+        update_from_null = False
+        update_from_null_fallback = False
+        if (
+            MAYBE_USE_RUST_UPDATE
+            and repo.ui.configbool(b"rust", b"update-from-null")
+            and rust_update_mod is not None
+            and p1.rev() == nullrev
+            and not branchmerge
+            # TODO it's probably not too hard to pass down the transaction and
+            # respect the write patterns from Rust. But since it doesn't affect
+            # a simple update from null, then it doesn't matter yet.
+            and repo.currenttransaction() is None
+            and matcher is None
+            and not wc.mergestate().active()
+            and b'.hgsubstate' not in p2
+        ):
+            working_dir_iter = os.scandir(repo.root)
+            maybe_hg_folder = next(working_dir_iter)
+            assert maybe_hg_folder is not None
+            if maybe_hg_folder.name == b".hg":
+                try:
+                    next(working_dir_iter)
+                except StopIteration:
+                    update_from_null = True
+
+        if update_from_null:
+            # Check the narrowspec and sparsespec here to display warnings
+            # more easily.
+            # TODO figure out of a way of bubbling up warnings to Python
+            # while not polluting the Rust code (probably a channel)
+            repo.narrowmatch()
+            sparse.matcher(repo, [nullrev, p2.rev()])
+            repo.hook(b'preupdate', throw=True, parent1=xp1, parent2=xp2)
+            # note that we're in the middle of an update
+            repo.vfs.write(b'updatestate', p2.hex())
+            try:
+                updated_count = rust_update_mod.update_from_null(
+                    repo.root, p2.rev()
+                )
+            except rust_update_mod.FallbackError:
+                update_from_null_fallback = True
+            else:
+                # We've changed the dirstate from Rust, we need to tell Python
+                repo.dirstate.invalidate()
+                # This includes setting the parents, since they are not read
+                # again on invalidation
+                with repo.dirstate.changing_parents(repo):
+                    repo.dirstate.setparents(fp2)
+                repo.dirstate.setbranch(p2.branch(), repo.currenttransaction())
+                sparse.prunetemporaryincludes(repo)
+                repo.hook(b'update', parent1=xp1, parent2=xp2, error=0)
+                # update completed, clear state
+                util.unlink(repo.vfs.join(b'updatestate'))
+                return updateresult(updated_count, 0, 0, 0)
+
         ### calculate phase
         mresult = calculateupdates(
             repo,
@@ -2122,11 +2197,13 @@ def _update(
         # the dirstate.
         always = matcher is None or matcher.always()
         updatedirstate = updatedirstate and always and not wc.isinmemory()
-        if updatedirstate:
+        # If we're in the fallback case, we've already done this
+        if updatedirstate and not update_from_null_fallback:
             repo.hook(b'preupdate', throw=True, parent1=xp1, parent2=xp2)
             # note that we're in the middle of an update
             repo.vfs.write(b'updatestate', p2.hex())
 
+        # TODO don't run if Rust is available
         _advertisefsmonitor(
             repo, mresult.len((mergestatemod.ACTION_GET,)), p1.node()
         )
@@ -2156,82 +2233,20 @@ def _update(
                 mresult.len((mergestatemod.ACTION_GET,)) if wantfiledata else 0
             )
             with repo.dirstate.changing_parents(repo):
-                ### Filter Filedata
-                #
-                # We gathered "cache" information for the clean file while
-                # updating them: mtime, size and mode.
-                #
-                # At the time this comment is written, they are various issues
-                # with how we gather the `mode` and `mtime` information (see
-                # the comment in `batchget`).
-                #
-                # We are going to smooth one of this issue here : mtime ambiguity.
-                #
-                # i.e. even if the mtime gathered during `batchget` was
-                # correct[1] a change happening right after it could change the
-                # content while keeping the same mtime[2].
-                #
-                # When we reach the current code, the "on disk" part of the
-                # update operation is finished. We still assume that no other
-                # process raced that "on disk" part, but we want to at least
-                # prevent later file change to alter the content of the file
-                # right after the update operation. So quickly that the same
-                # mtime is record for the operation.
-                # To prevent such ambiguity to happens, we will only keep the
-                # "file data" for files with mtime that are stricly in the past,
-                # i.e. whose mtime is strictly lower than the current time.
-                #
-                # This protect us from race conditions from operation that could
-                # run right after this one, especially other Mercurial
-                # operation that could be waiting for the wlock to touch files
-                # content and the dirstate.
-                #
-                # In an ideal world, we could only get reliable information in
-                # `getfiledata` (from `getbatch`), however the current approach
-                # have been a successful compromise since many years.
-                #
-                # At the time this comment is written, not using any "cache"
-                # file data at all here would not be viable. As it would result is
-                # a very large amount of work (equivalent to the previous `hg
-                # update` during the next status after an update).
-                #
-                # [1] the current code cannot grantee that the `mtime` and
-                # `mode` are correct, but the result is "okay in practice".
-                # (see the comment in `batchget`).                #
-                #
-                # [2] using nano-second precision can greatly help here because
-                # it makes the "different write with same mtime" issue
-                # virtually vanish. However, dirstate v1 cannot store such
-                # precision and a bunch of python-runtime, operating-system and
-                # filesystem does not provide use with such precision, so we
-                # have to operate as if it wasn't available.
                 if getfiledata:
-                    ambiguous_mtime = {}
-                    now = timestamp.get_fs_now(repo.vfs)
-                    if now is None:
-                        # we can't write to the FS, so we won't actually update
-                        # the dirstate content anyway, no need to put cache
-                        # information.
-                        getfiledata = None
-                    else:
-                        now_sec = now[0]
-                        for f, m in getfiledata.items():
-                            if m is not None and m[2][0] >= now_sec:
-                                ambiguous_mtime[f] = (m[0], m[1], None)
-                        for f, m in ambiguous_mtime.items():
-                            getfiledata[f] = m
+                    getfiledata = filter_ambiguous_files(repo, getfiledata)
 
                 repo.setparents(fp1, fp2)
                 mergestatemod.recordupdates(
                     repo, mresult.actionsdict, branchmerge, getfiledata
                 )
-                # update completed, clear state
-                util.unlink(repo.vfs.join(b'updatestate'))
-
                 if not branchmerge:
                     repo.dirstate.setbranch(
                         p2.branch(), repo.currenttransaction()
                     )
+
+                # update completed, clear state
+                util.unlink(repo.vfs.join(b'updatestate'))
 
                 # If we're updating to a location, clean up any stale temporary includes
                 # (ex: this happens during hg rebase --abort).
@@ -2243,6 +2258,128 @@ def _update(
             b'update', parent1=xp1, parent2=xp2, error=stats.unresolvedcount
         )
     return stats
+
+
+# filename -> (mode, size, timestamp)
+FileData = Dict[bytes, Optional[Tuple[int, int, Optional[timestamp.timestamp]]]]
+
+
+def filter_ambiguous_files(repo, file_data: FileData) -> Optional[FileData]:
+    """We've gathered "cache" information for the clean files while updating
+    them: their mtime, size and mode.
+
+    At the time this comment is written, there are various issues with how we
+    gather the `mode` and `mtime` information (see the comment in `batchget`).
+
+    We are going to smooth one of these issues here: mtime ambiguity.
+
+    i.e. even if the mtime gathered during `batchget` was correct[1] a change
+    happening right after it could change the content while keeping
+    the same mtime[2].
+
+    When we reach the current code, the "on disk" part of the update operation
+    is finished. We still assume that no other process raced that "on disk"
+    part, but we want to at least prevent later file changes to alter the
+    contents of the file right after the update operation so quickly that the
+    same mtime is recorded for the operation.
+
+    To prevent such ambiguities from happenning, we will do (up to) two things:
+        - wait until the filesystem clock has ticked
+        - only keep the "file data" for files with mtimes that are strictly in
+          the past, i.e. whose mtime is strictly lower than the current time.
+
+    We only wait for the system clock to tick if using dirstate-v2, since v1
+    only has second-level granularity and waiting for a whole second is
+    too much of a penalty in the general case.
+
+    Although we're assuming that people running dirstate-v2 on Linux
+    don't have a second-granularity FS (with the exclusion of NFS), users
+    can be surprising, and at some point in the future, dirstate-v2 will become
+    the default. To that end, we limit the wait time to 100ms and fall back
+    to the filtering method in case of a timeout.
+
+    +------------+------+--------------+
+    |   version  | wait | filter level |
+    +------------+------+--------------+
+    |     V1     | No   | Second       |
+    |     V2     | Yes  | Nanosecond   |
+    | V2-slow-fs | No   | Second       |
+    +------------+------+--------------+
+
+    This protects us from race conditions from operations that could run right
+    after this one, especially other Mercurial operations that could be waiting
+    for the wlock to touch files contents and the dirstate.
+
+    In an ideal world, we could only get reliable information in `getfiledata`
+    (from `getbatch`), however this filtering approach has been a successful
+    compromise for many years. A patch series of the linux kernel might change
+    this in 6.12³.
+
+    At the time this comment is written, not using any "cache" file data at all
+    here would not be viable, as it would result is a very large amount of work
+    (equivalent to the previous `hg update` during the next status after an
+    update).
+
+    [1] the current code cannot grantee that the `mtime` and `mode`
+    are correct, but the result is "okay in practice".
+    (see the comment in `batchget`)
+
+    [2] using nano-second precision can greatly help here because it makes the
+    "different write with same mtime" issue virtually vanish. However,
+    dirstate v1 cannot store such precision and a bunch of python-runtime,
+    operating-system and filesystem parts do not provide us with such
+    precision, so we have to operate as if it wasn't available.
+
+    [3] https://lore.kernel.org/all/20241002-mgtime-v10-8-d1c4717f5284@kernel.org
+    """
+    ambiguous_mtime: FileData = {}
+    dirstate_v2 = repo.dirstate._use_dirstate_v2
+    fs_now_result = None
+    fast_enough_fs = True
+    if dirstate_v2:
+        fstype = util.getfstype(repo.vfs.base)
+        # Exclude NFS right off the bat
+        fast_enough_fs = fstype != b'nfs'
+        if fstype is not None and fast_enough_fs:
+            fs_now_result = timestamp.wait_until_fs_tick(repo.vfs)
+
+    if fs_now_result is None:
+        try:
+            now = timestamp.get_fs_now(repo.vfs)
+            fs_now_result = (now, False)
+        except OSError:
+            pass
+
+    if fs_now_result is None:
+        # we can't write to the FS, so we won't actually update
+        # the dirstate content anyway, no need to put cache
+        # information.
+        return None
+    else:
+        now, timed_out = fs_now_result
+        if timed_out:
+            fast_enough_fs = False
+        for f, m in file_data.items():
+            if m is not None:
+                reliable = timestamp.make_mtime_reliable(m[2], now)
+                if reliable is None or (
+                    reliable[2] and (not dirstate_v2 or not fast_enough_fs)
+                ):
+                    # Either it's not reliable, or it's second ambiguous
+                    # and we're in dirstate-v1 or in a slow fs, so discard
+                    # the mtime.
+                    ambiguous_mtime[f] = (m[0], m[1], None)
+                elif reliable[2]:
+                    # We need to remember that this time is "second ambiguous"
+                    # otherwise the next status might miss a subsecond change
+                    # if its "stat" doesn't provide nanoseconds.
+                    #
+                    # TODO make osutil.c understand nanoseconds when possible
+                    # (see timestamp.py for the same note)
+                    ambiguous_mtime[f] = (m[0], m[1], reliable)
+        for f, m in ambiguous_mtime.items():
+            file_data[f] = m
+    return file_data
 
 
 def merge(ctx, labels=None, force=False, wc=None):

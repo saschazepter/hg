@@ -308,6 +308,7 @@ the `$HGCB_BUNDLE_URL` environment variable.
 If the file was already deleted, the command must still succeed.
 """
 
+from __future__ import annotations
 
 import os
 import weakref
@@ -785,9 +786,8 @@ def upload_bundle(repo, bundle):
     else:
         cmd = repo.ui.config(b'clone-bundles', b'upload-command')
         url = repo.ui.config(b'clone-bundles', b'url-template')
-        filepath = procutil.shellquote(bundle.filepath)
         variables = {
-            b'HGCB_BUNDLE_PATH': filepath,
+            b'HGCB_BUNDLE_PATH': bundle.filepath,
             b'HGCB_BUNDLE_BASENAME': basename,
         }
         env = procutil.shellenviron(environ=variables)

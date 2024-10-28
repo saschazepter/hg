@@ -609,14 +609,7 @@ def has_root():
 
 @check("pyflakes", "Pyflakes python linter")
 def has_pyflakes():
-    try:
-        import pyflakes
-
-        pyflakes.__version__
-    except ImportError:
-        return False
-    else:
-        return True
+    return matchoutput("pyflakes --version", br"^\d+\.\d+\.\d+\b", True)
 
 
 @check("pylint", "Pylint python linter")
@@ -624,12 +617,13 @@ def has_pylint():
     return matchoutput("pylint --help", br"[Uu]sage:[ ]+pylint", True)
 
 
-@check("clang-format", "clang-format C code formatter (>= 11)")
+@check("clang-format", "clang-format C code formatter (11 <= ... < 19)")
 def has_clang_format():
     m = matchoutput('clang-format --version', br'clang-format version (\d+)')
-    # style changed somewhere between 10.x and 11.x
+    # style changed somewhere between 10.x and 11.x and after 19.
     if m:
-        return int(m.group(1)) >= 11
+        major_version = int(m.group(1))
+        return 11 <= major_version < 19
     # Assist Googler contributors, they have a centrally-maintained version of
     # clang-format that is generally very fresh, but unlike most builds (both
     # official and unofficial), it does *not* include a version number.
@@ -736,6 +730,13 @@ def has_setprocname():
         return True
     except AttributeError:
         return False
+
+
+@check("gui", "whether a gui environment is available or not")
+def has_gui():
+    from mercurial.utils import procutil
+
+    return procutil.gui()
 
 
 @check("test-repo", "running tests from repository")
@@ -1117,14 +1118,14 @@ def has_emacs():
     return matchoutput('emacs --version', b'GNU Emacs 2(4.4|4.5|5|6|7|8|9)')
 
 
-@check('black', 'the black formatter for python (>= 20.8b1)')
+@check('black', 'the black formatter for python >=23.3.0')
 def has_black():
     blackcmd = 'black --version'
     version_regex = b'black, (?:version )?([0-9a-b.]+)'
     version = matchoutput(blackcmd, version_regex)
     if not version:
         return False
-    return Version(_bytes2sys(version.group(1))) >= Version('20.8b1')
+    return Version(_bytes2sys(version.group(1))) >= Version('23.3.0')
 
 
 @check('pytype', 'the pytype type checker')
@@ -1136,11 +1137,11 @@ def has_pytype():
     return Version(_bytes2sys(version.group(0))) >= Version('2019.10.17')
 
 
-@check("rustfmt", "rustfmt tool at version nightly-2021-11-02")
+@check("rustfmt", "rustfmt tool at version nightly-2024-07-16")
 def has_rustfmt():
     # We use Nightly's rustfmt due to current unstable config options.
     return matchoutput(
-        '`rustup which --toolchain nightly-2021-11-02 rustfmt` --version',
+        '`rustup which --toolchain nightly-2024-07-16 rustfmt` --version',
         b'rustfmt',
     )
 

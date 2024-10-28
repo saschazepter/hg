@@ -207,9 +207,9 @@ impl From<(RevlogError, &str)> for CommandError {
             RevlogError::WDirUnsupported => CommandError::abort(
                 "abort: working directory revision cannot be specified",
             ),
-            RevlogError::InvalidRevision => CommandError::abort(format!(
+            RevlogError::InvalidRevision(r) => CommandError::abort(format!(
                 "abort: invalid revision identifier: {}",
-                rev
+                r
             )),
             RevlogError::AmbiguousPrefix => CommandError::abort(format!(
                 "abort: ambiguous revision identifier: {}",

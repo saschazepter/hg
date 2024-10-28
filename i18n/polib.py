@@ -13,6 +13,7 @@ modify entries, comments or metadata, etc. or create new po files from scratch.
 :func:`~polib.mofile` convenience functions.
 """
 
+from __future__ import annotations
 
 __author__ = 'David Jean Louis <izimobil@gmail.com>'
 __version__ = '1.0.7'
@@ -63,7 +64,6 @@ if sys.version_info[:2] < (3, 0):
 
     def u(s):
         return unicode(s, "unicode_escape")
-
 
 else:
     PY3 = True
@@ -1889,7 +1889,6 @@ class TextWrapper(textwrap.TextWrapper):
         chunks.reverse()
 
         while chunks:
-
             # Start the list of chunks that will make up the current line.
             # cur_len is just the length of all the chunks in cur_line.
             cur_line = []

@@ -116,7 +116,12 @@ impl TruncatedTimestamp {
         metadata: &fs::Metadata,
         boundary: &Self,
     ) -> io::Result<Option<Self>> {
-        let mut mtime = Self::for_mtime_of(metadata)?;
+        Ok(Self::for_mtime_of(metadata)?.for_reliable_mtime_of_self(boundary))
+    }
+
+    /// See [`Self::for_reliable_mtime_of`]
+    pub fn for_reliable_mtime_of_self(&self, boundary: &Self) -> Option<Self> {
+        let mut new = *self;
         // If the mtime of the ambiguous file is younger (or equal) to the
         // starting point of the `status` walk, we cannot garantee that
         // another, racy, write will not happen right after with the same mtime
@@ -126,23 +131,23 @@ impl TruncatedTimestamp {
         // mismatch between the current clock and previous file system
         // operation. So mtime more than one days in the future are considered
         // fine.
-        let reliable = if mtime.truncated_seconds == boundary.truncated_seconds
+        let reliable = if self.truncated_seconds == boundary.truncated_seconds
         {
-            mtime.second_ambiguous = true;
-            mtime.nanoseconds != 0
+            new.second_ambiguous = true;
+            self.nanoseconds != 0
                 && boundary.nanoseconds != 0
-                && mtime.nanoseconds < boundary.nanoseconds
+                && self.nanoseconds < boundary.nanoseconds
         } else {
             // `truncated_seconds` is less than 2**31,
             // so this does not overflow `u32`:
             let one_day_later = boundary.truncated_seconds + 24 * 3600;
-            mtime.truncated_seconds < boundary.truncated_seconds
-                || mtime.truncated_seconds > one_day_later
+            self.truncated_seconds < boundary.truncated_seconds
+                || self.truncated_seconds > one_day_later
         };
         if reliable {
-            Ok(Some(mtime))
+            Some(new)
         } else {
-            Ok(None)
+            None
         }
     }
 

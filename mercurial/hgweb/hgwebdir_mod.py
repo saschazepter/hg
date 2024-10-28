@@ -6,6 +6,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import gc
 import os
@@ -120,7 +121,6 @@ def rawindexentries(ui, repos, req, subdir=b''):
     seenrepos = set()
     seendirs = set()
     for name, path in repos:
-
         if not name.startswith(subdir):
             continue
         name = name[len(subdir) :]

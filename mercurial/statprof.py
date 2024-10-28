@@ -101,6 +101,7 @@ significantly off if other threads' work patterns are not similar to the
 main thread's work patterns.
 """
 # no-check-code
+from __future__ import annotations
 
 import collections
 import contextlib
@@ -112,6 +113,10 @@ import signal
 import sys
 import threading
 import time
+
+from typing import (
+    List,
+)
 
 from .pycompat import open
 from . import (
@@ -155,6 +160,8 @@ def clock():
 
 
 class ProfileState:
+    samples: List["Sample"]
+
     def __init__(self, frequency=None):
         self.reset(frequency)
         self.track = b'cpu'

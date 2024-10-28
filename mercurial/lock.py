@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import contextlib
 import errno
@@ -110,7 +111,7 @@ def _delayedinterrupt():
         raiseinterrupt(assertedsigs[0])
 
 
-def trylock(ui, vfs, lockname, timeout, warntimeout, *args, **kwargs):
+def trylock(ui, vfs, lockname, timeout, warntimeout, *args, **kwargs) -> "lock":
     """return an acquired lock or raise an a LockHeld exception
 
     This function is responsible to issue warnings and or debug messages about
@@ -256,7 +257,7 @@ class lock:
         # wrapper around procutil.getpid() to make testing easier
         return procutil.getpid()
 
-    def lock(self):
+    def lock(self) -> int:
         timeout = self.timeout
         while True:
             try:
@@ -272,7 +273,7 @@ class lock:
                     errno.ETIMEDOUT, inst.filename, self.desc, inst.locker
                 )
 
-    def _trylock(self):
+    def _trylock(self) -> None:
         if self.held:
             self.held += 1
             return

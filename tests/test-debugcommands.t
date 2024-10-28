@@ -523,29 +523,15 @@ Test debuglocks command:
 
 * Test setting the lock
 
-waitlock <file> will wait for file to be created. If it isn't in a reasonable
-amount of time, displays error message and returns 1
-  $ waitlock() {
-  >     start=`date +%s`
-  >     timeout=5
-  >     while [ \( ! -f $1 \) -a \( ! -L $1 \) ]; do
-  >         now=`date +%s`
-  >         if [ "`expr $now - $start`" -gt $timeout ]; then
-  >             echo "timeout: $1 was not created in $timeout seconds"
-  >             return 1
-  >         fi
-  >         sleep 0.1
-  >     done
-  > }
   $ dolock() {
   >     {
-  >         waitlock .hg/unlock
+  >         "$RUNTESTDIR/testlib/wait-on-file" 5 .hg/unlock
   >         rm -f .hg/unlock
   >         echo y
   >     } | hg debuglocks "$@" > /dev/null
   > }
   $ dolock -s &
-  $ waitlock .hg/store/lock
+  $ "$RUNTESTDIR/testlib/wait-on-file" 5 .hg/store/lock
 
   $ hg debuglocks
   lock:  user *, process * (*s) (glob)
@@ -559,7 +545,7 @@ amount of time, displays error message and returns 1
 * Test setting the wlock
 
   $ dolock -S &
-  $ waitlock .hg/wlock
+  $ "$RUNTESTDIR/testlib/wait-on-file" 5 .hg/wlock
 
   $ hg debuglocks
   lock:  free
@@ -573,7 +559,8 @@ amount of time, displays error message and returns 1
 * Test setting both locks
 
   $ dolock -Ss &
-  $ waitlock .hg/wlock && waitlock .hg/store/lock
+  $ "$RUNTESTDIR/testlib/wait-on-file" 5 .hg/wlock
+  $ "$RUNTESTDIR/testlib/wait-on-file" 5 .hg/store/lock
 
   $ hg debuglocks
   lock:  user *, process * (*s) (glob)
@@ -600,7 +587,7 @@ amount of time, displays error message and returns 1
 * Test forcing the lock
 
   $ dolock -s &
-  $ waitlock .hg/store/lock
+  $ "$RUNTESTDIR/testlib/wait-on-file" 5 .hg/store/lock
 
   $ hg debuglocks
   lock:  user *, process * (*s) (glob)
@@ -619,7 +606,7 @@ amount of time, displays error message and returns 1
 * Test forcing the wlock
 
   $ dolock -S &
-  $ waitlock .hg/wlock
+  $ "$RUNTESTDIR/testlib/wait-on-file" 5 .hg/wlock
 
   $ hg debuglocks
   lock:  free
@@ -649,8 +636,8 @@ Test cache warming command
   $ ls -r .hg/cache/*
   .hg/cache/tags2-served
   .hg/cache/tags2
-  .hg/cache/rbc-revs-v1
-  .hg/cache/rbc-names-v1
+  .hg/cache/rbc-revs-v2
+  .hg/cache/rbc-names-v2
   .hg/cache/hgtagsfnodes1
   .hg/cache/branch2-served
 

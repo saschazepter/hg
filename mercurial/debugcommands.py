@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import binascii
 import codecs
@@ -142,7 +143,7 @@ def debugancestor(ui, repo, *args):
 @command(b'debugantivirusrunning', [])
 def debugantivirusrunning(ui, repo):
     """attempt to trigger an antivirus scanner to see if one is active"""
-    with repo.cachevfs.open('eicar-test-file.com', b'wb') as f:
+    with repo.cachevfs.open(b'eicar-test-file.com', b'wb') as f:
         f.write(
             util.b85decode(
                 # This is a base85-armored version of the EICAR test file. See
@@ -153,7 +154,7 @@ def debugantivirusrunning(ui, repo):
         )
     # Give an AV engine time to scan the file.
     time.sleep(2)
-    util.unlink(repo.cachevfs.join('eicar-test-file.com'))
+    util.unlink(repo.cachevfs.join(b'eicar-test-file.com'))
 
 
 @command(b'debugapplystreamclonebundle', [], b'FILE')
@@ -254,6 +255,10 @@ def debugbuilddag(
     progress = ui.makeprogress(
         _(b'building'), unit=_(b'revisions'), total=total
     )
+    merge_relaxed_sync = ui.configbool(
+        b'experimental',
+        b'relaxed-block-sync-merge',
+    )
     with progress, repo.wlock(), repo.lock(), repo.transaction(b"builddag"):
         at = -1
         atbranch = b'default'
@@ -278,7 +283,12 @@ def debugbuilddag(
                         base, local, other = [
                             x[fn].data() for x in (pa, p1, p2)
                         ]
-                        m3 = simplemerge.Merge3Text(base, local, other)
+                        m3 = simplemerge.Merge3Text(
+                            base,
+                            local,
+                            other,
+                            relaxed_sync=merge_relaxed_sync,
+                        )
                         ml = [
                             l.strip()
                             for l in simplemerge.render_minimized(m3)[0]
@@ -2237,6 +2247,13 @@ def debuglocks(ui, repo, **opts):
 
     locks = []
     try:
+        # Help the tests out on Windows by writing the correct PID when
+        # invoked by the test harness, before creating the lock.
+        pids = encoding.environ.get(b'DAEMON_PIDS')
+        if pids:
+            with open(pids, "ab") as fp:
+                fp.write(b'%d\n' % os.getpid())
+
         if opts.get('set_wlock'):
             try:
                 locks.append(repo.wlock(False))
@@ -4510,8 +4527,10 @@ def debugwireproto(ui, repo, path=None, **opts):
         # TODO consider not doing this because we skip
         # ``hg.wirepeersetupfuncs`` and potentially other useful functionality.
         u = urlutil.url(path)
-        if u.scheme != b'http':
-            raise error.Abort(_(b'only http:// paths are currently supported'))
+        if u.scheme not in (b'http', b'https'):
+            raise error.Abort(
+                _(b'only http:// and https:// paths are currently supported')
+            )
 
         url, authinfo = u.authinfo()
         openerargs = {

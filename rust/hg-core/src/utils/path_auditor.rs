@@ -180,7 +180,7 @@ impl PathAuditor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs::{create_dir, File};
+    use std::fs::{create_dir, create_dir_all, File};
     use tempfile::tempdir;
 
     #[test]
@@ -195,6 +195,16 @@ mod tests {
             Err(HgPathError::InsideDotHg(path.to_owned()))
         );
         let path = HgPath::new(b"this/is/nested/.hg/thing.txt");
+        assert_eq!(
+            auditor.audit_path(path),
+            Err(HgPathError::IsInsideNestedRepo {
+                path: path.to_owned(),
+                nested_repo: HgPathBuf::from_bytes(b"this/is/nested")
+            })
+        );
+
+        create_dir_all(base_dir_path.join("this/is/nested/.hg")).unwrap();
+        let path = HgPath::new(b"this/is/nested/repo");
         assert_eq!(
             auditor.audit_path(path),
             Err(HgPathError::IsInsideNestedRepo {

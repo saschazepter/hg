@@ -14,6 +14,7 @@ This extension is deprecated. You should use :hg:`log -r
 "children(REV)"` instead.
 '''
 
+from __future__ import annotations
 
 from mercurial.i18n import _
 from mercurial import (

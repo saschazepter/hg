@@ -1237,22 +1237,36 @@ release:
 
 static PyObject *index_headrevs(indexObject *self, PyObject *args)
 {
-	Py_ssize_t i, j, len;
+	Py_ssize_t i, j, len, stop_rev;
 	char *nothead = NULL;
 	PyObject *heads = NULL;
 	PyObject *filter = NULL;
 	PyObject *filteredrevs = Py_None;
+	PyObject *stop_rev_obj = Py_None;
 
-	if (!PyArg_ParseTuple(args, "|O", &filteredrevs)) {
+	if (!PyArg_ParseTuple(args, "|OO", &filteredrevs, &stop_rev_obj)) {
 		return NULL;
 	}
 
-	if (self->headrevs && filteredrevs == self->filteredrevs)
+	len = index_length(self);
+	if (stop_rev_obj == Py_None) {
+		stop_rev = len;
+	} else {
+		stop_rev = PyLong_AsSsize_t(stop_rev_obj);
+		if (stop_rev == -1 && PyErr_Occurred() != NULL) {
+			return NULL;
+		}
+	}
+
+	if (self->headrevs && filteredrevs == self->filteredrevs &&
+	    stop_rev == len)
 		return list_copy(self->headrevs);
 
-	Py_DECREF(self->filteredrevs);
-	self->filteredrevs = filteredrevs;
-	Py_INCREF(filteredrevs);
+	if (stop_rev == len) {
+		Py_DECREF(self->filteredrevs);
+		self->filteredrevs = filteredrevs;
+		Py_INCREF(filteredrevs);
+	}
 
 	if (filteredrevs != Py_None) {
 		filter = PyObject_GetAttrString(filteredrevs, "__contains__");
@@ -1264,11 +1278,10 @@ static PyObject *index_headrevs(indexObject *self, PyObject *args)
 		}
 	}
 
-	len = index_length(self);
 	heads = PyList_New(0);
 	if (heads == NULL)
 		goto bail;
-	if (len == 0) {
+	if (stop_rev == 0) {
 		if (pylist_append_owned(heads, PyLong_FromLong(-1)) == -1) {
 			Py_XDECREF(nullid);
 			goto bail;
@@ -1276,13 +1289,13 @@ static PyObject *index_headrevs(indexObject *self, PyObject *args)
 		goto done;
 	}
 
-	nothead = calloc(len, 1);
+	nothead = calloc(stop_rev, 1);
 	if (nothead == NULL) {
 		PyErr_NoMemory();
 		goto bail;
 	}
 
-	for (i = len - 1; i >= 0; i--) {
+	for (i = stop_rev - 1; i >= 0; i--) {
 		int isfiltered;
 		int parents[2];
 
@@ -1304,7 +1317,7 @@ static PyObject *index_headrevs(indexObject *self, PyObject *args)
 			}
 		}
 
-		if (index_get_parents(self, i, parents, (int)len - 1) < 0)
+		if (index_get_parents(self, i, parents, (int)stop_rev - 1) < 0)
 			goto bail;
 		for (j = 0; j < 2; j++) {
 			if (parents[j] >= 0)
@@ -1312,7 +1325,7 @@ static PyObject *index_headrevs(indexObject *self, PyObject *args)
 		}
 	}
 
-	for (i = 0; i < len; i++) {
+	for (i = 0; i < stop_rev; i++) {
 		if (nothead[i])
 			continue;
 		if (pylist_append_owned(heads, PyLong_FromSsize_t(i)) == -1) {
@@ -1321,10 +1334,14 @@ static PyObject *index_headrevs(indexObject *self, PyObject *args)
 	}
 
 done:
-	self->headrevs = heads;
 	Py_XDECREF(filter);
 	free(nothead);
-	return list_copy(self->headrevs);
+	if (stop_rev == len) {
+		self->headrevs = heads;
+		return list_copy(self->headrevs);
+	} else {
+		return heads;
+	}
 bail:
 	Py_XDECREF(filter);
 	Py_XDECREF(heads);
@@ -3352,9 +3369,7 @@ static PyMethodDef index_methods[] = {
     {"replace_sidedata_info", (PyCFunction)index_replace_sidedata_info,
      METH_VARARGS, "replace an existing index entry with a new value"},
     {"headrevs", (PyCFunction)index_headrevs, METH_VARARGS,
-     "get head revisions"}, /* Can do filtering since 3.2 */
-    {"headrevsfiltered", (PyCFunction)index_headrevs, METH_VARARGS,
-     "get filtered head revisions"}, /* Can always do filtering */
+     "get head revisions"},
     {"issnapshot", (PyCFunction)index_issnapshot, METH_O,
      "True if the object is a snapshot"},
     {"findsnapshots", (PyCFunction)index_findsnapshots, METH_VARARGS,

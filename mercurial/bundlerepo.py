@@ -11,10 +11,12 @@ This provides a read-only repository interface to bundles as if they
 were part of the actual repository.
 """
 
+from __future__ import annotations
 
 import contextlib
 import os
 import shutil
+import typing
 
 from .i18n import _
 from .node import (
@@ -53,7 +55,11 @@ from .revlogutils import (
 
 
 class bundlerevlog(revlog.revlog):
-    def __init__(self, opener, target, radix, cgunpacker, linkmapper):
+    def __init__(
+        self, opener: typing.Any, target, radix, cgunpacker, linkmapper
+    ):
+        # TODO: figure out real type of opener
+        #
         # How it works:
         # To retrieve a revision, we need to know the offset of the revision in
         # the bundle (an unbundle object). We store this offset in the index
@@ -122,7 +128,7 @@ class bundlerevlog(revlog.revlog):
         # delta base, not against rev - 1
         # XXX: could use some caching
         if rev <= self.repotiprev:
-            return revlog.revlog._chunk(self, rev)
+            return super(bundlerevlog, self)._inner._chunk(rev)
         self.bundle.seek(self.start(rev))
         return self.bundle.read(self.length(rev))
 
@@ -263,10 +269,10 @@ class bundlephasecache(phases.phasecache):
         if hasattr(self, 'opener'):
             self.opener = vfsmod.readonlyvfs(self.opener)
 
-    def write(self):
+    def write(self, repo):
         raise NotImplementedError
 
-    def _write(self, fp):
+    def _write(self, repo, fp):
         raise NotImplementedError
 
     def _updateroots(self, repo, phase, newroots, tr, invalidate=True):
@@ -286,7 +292,13 @@ def _getfilestarts(cgunpacker):
     return filespos
 
 
-class bundlerepository:
+_bundle_repo_baseclass = object
+
+if typing.TYPE_CHECKING:
+    _bundle_repo_baseclass = localrepo.localrepository
+
+
+class bundlerepository(_bundle_repo_baseclass):
     """A repository instance that is a union of a local repo and a bundle.
 
     Instances represent a read-only repository composed of a local repository
@@ -408,7 +420,7 @@ class bundlerepository:
         with os.fdopen(fdtemp, 'wb') as fptemp:
             fptemp.write(header)
             while True:
-                chunk = readfn(2 ** 18)
+                chunk = readfn(2**18)
                 if not chunk:
                     break
                 fptemp.write(chunk)

@@ -13,6 +13,7 @@ This contains helper routines that are independent of the SCM core and
 hide platform-specific details from the core.
 """
 
+from __future__ import annotations
 
 import abc
 import collections
@@ -32,19 +33,30 @@ import stat
 import sys
 import time
 import traceback
+import typing
 import warnings
 
 from typing import (
     Any,
+    BinaryIO,
+    Callable,
     Iterable,
     Iterator,
     List,
     Optional,
     Tuple,
+    Type,
+    TypeVar,
 )
 
 from .node import hex
 from .thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from .pycompat import (
     open,
 )
@@ -55,7 +67,11 @@ from . import (
     i18n,
     policy,
     pycompat,
+    typelib,
     urllibcompat,
+)
+from .interfaces import (
+    modules as intmod,
 )
 from .utils import (
     compression,
@@ -74,7 +90,7 @@ assert [
 ]
 
 
-base85 = policy.importmod('base85')
+base85: intmod.Base85 = policy.importmod('base85')
 osutil = policy.importmod('osutil')
 
 b85decode = base85.b85decode
@@ -146,6 +162,10 @@ statislink = platform.statislink
 umask = platform.umask
 unlink = platform.unlink
 username = platform.username
+
+
+if typing.TYPE_CHECKING:
+    _Tfilestat = TypeVar('_Tfilestat', bound='filestat')
 
 
 def setumask(val: int) -> None:
@@ -323,8 +343,10 @@ except NameError:
 
     def buffer(sliceable, offset=0, length=None):
         if length is not None:
-            return memoryview(sliceable)[offset : offset + length]
-        return memoryview(sliceable)[offset:]
+            view = memoryview(sliceable)[offset : offset + length]
+        else:
+            view = memoryview(sliceable)[offset:]
+        return view.toreadonly()
 
 
 _chunksize = 4096
@@ -440,13 +462,24 @@ class bufferedinputpipe:
         return data
 
 
-def mmapread(fp, size=None):
+def has_mmap_populate():
+    return hasattr(osutil, "background_mmap_populate") or hasattr(
+        mmap, 'MAP_POPULATE'
+    )
+
+
+def mmapread(fp, size=None, pre_populate=True):
     """Read a file content using mmap
 
-    The responsability of checking the file system is mmap safe is the
-    responsability of the caller.
+    The responsibility of checking the file system is mmap safe is the
+    responsibility of the caller (see `vfs.is_mmap_safe`).
 
     In some case, a normal string might be returned.
+
+    If `pre_populate` is True (the default), the mmapped data will be
+    pre-populated in memory if the system support this option, this slow down
+    the initial mmapping but avoid potentially crippling page fault on later
+    access. If this is not the desired behavior, set `pre_populate` to False.
     """
     if size == 0:
         # size of 0 to mmap.mmap() means "all data"
@@ -455,14 +488,40 @@ def mmapread(fp, size=None):
     elif size is None:
         size = 0
     fd = getattr(fp, 'fileno', lambda: fp)()
+
+    if pycompat.iswindows:
+        _mmap = lambda fd, size: mmap.mmap(fd, size, access=mmap.ACCESS_READ)
+    else:
+        flags = mmap.MAP_PRIVATE
+        bg_populate = hasattr(osutil, "background_mmap_populate")
+
+        if pre_populate and not bg_populate:
+            flags |= getattr(mmap, 'MAP_POPULATE', 0)
+
+        def _mmap(fd, size) -> mmap.mmap:
+            m = mmap.mmap(fd, size, flags=flags, prot=mmap.PROT_READ)
+            if pre_populate and bg_populate:
+                osutil.background_mmap_populate(m)
+            return m
+
     try:
-        return mmap.mmap(fd, size, access=mmap.ACCESS_READ)
+        return _mmap(fd, size)
     except ValueError:
         # Empty files cannot be mmapped, but mmapread should still work.  Check
         # if the file is empty, and if so, return an empty buffer.
         if os.fstat(fd).st_size == 0:
             return b''
         raise
+
+
+class uncacheable_cachestat:
+    stat: Optional[os.stat_result]
+
+    def __init__(self) -> None:
+        self.stat = None
+
+    def cacheable(self) -> bool:
+        return False
 
 
 class fileobjectproxy:
@@ -1139,7 +1198,7 @@ def makeloggingsocket(
 def version():
     """Return version information if available."""
     try:
-        from . import __version__
+        from . import __version__  # pytype: disable=import-error
 
         return __version__.version
     except ImportError:
@@ -1315,7 +1374,7 @@ class sortdict(collections.OrderedDict):
                 self[k] = f[k]
 
     def insert(self, position, key, value):
-        for (i, (k, v)) in enumerate(list(self.items())):
+        for i, (k, v) in enumerate(list(self.items())):
             if i == position:
                 self[key] = value
             if i >= position:
@@ -2148,7 +2207,7 @@ else:
         timer = time.time
 
 
-def makelock(info, pathname):
+def makelock(info: bytes, pathname: bytes) -> None:
     """Create a lock file atomically if possible
 
     This may leave a stale lock file if symlink isn't supported and signal
@@ -2164,8 +2223,10 @@ def makelock(info, pathname):
 
     flags = os.O_CREAT | os.O_WRONLY | os.O_EXCL | getattr(os, 'O_BINARY', 0)
     ld = os.open(pathname, flags)
-    os.write(ld, info)
-    os.close(ld)
+    try:
+        os.write(ld, info)
+    finally:
+        os.close(ld)
 
 
 def readlock(pathname: bytes) -> bytes:
@@ -2404,7 +2465,12 @@ def splitpath(path: bytes) -> List[bytes]:
     return path.split(pycompat.ossep)
 
 
-def mktempcopy(name, emptyok=False, createmode=None, enforcewritable=False):
+def mktempcopy(
+    name: bytes,
+    emptyok: bool = False,
+    createmode: Optional[int] = None,
+    enforcewritable: bool = False,
+) -> bytes:
     """Create a temporary file with the same contents from name
 
     The permission bits are copied from the original file.
@@ -2455,11 +2521,11 @@ class filestat:
     'exists()' examination on client side of this class.
     """
 
-    def __init__(self, stat):
+    def __init__(self, stat: Optional[os.stat_result]) -> None:
         self.stat = stat
 
     @classmethod
-    def frompath(cls, path):
+    def frompath(cls: Type[_Tfilestat], path: bytes) -> _Tfilestat:
         try:
             stat = os.stat(path)
         except FileNotFoundError:
@@ -2467,13 +2533,13 @@ class filestat:
         return cls(stat)
 
     @classmethod
-    def fromfp(cls, fp):
+    def fromfp(cls: Type[_Tfilestat], fp: BinaryIO) -> _Tfilestat:
         stat = os.fstat(fp.fileno())
         return cls(stat)
 
     __hash__ = object.__hash__
 
-    def __eq__(self, old):
+    def __eq__(self, old) -> bool:
         try:
             # if ambiguity between stat of new and old file is
             # avoided, comparison of size, ctime and mtime is enough
@@ -2490,7 +2556,7 @@ class filestat:
         except AttributeError:
             return False
 
-    def isambig(self, old):
+    def isambig(self, old: _Tfilestat) -> bool:
         """Examine whether new (= self) stat is ambiguous against old one
 
         "S[N]" below means stat of a file at N-th change:
@@ -2525,7 +2591,7 @@ class filestat:
         except AttributeError:
             return False
 
-    def avoidambig(self, path, old):
+    def avoidambig(self, path: bytes, old: _Tfilestat) -> bool:
         """Change file stat of specified path to avoid ambiguity
 
         'old' should be previous filestat of 'path'.
@@ -2545,7 +2611,7 @@ class filestat:
             return False
         return True
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> bool:
         return not self == other
 
 
@@ -2711,10 +2777,10 @@ class chunkbuffer:
 
         def splitbig(chunks):
             for chunk in chunks:
-                if len(chunk) > 2 ** 20:
+                if len(chunk) > 2**20:
                     pos = 0
                     while pos < len(chunk):
-                        end = pos + 2 ** 18
+                        end = pos + 2**18
                         yield chunk[pos:end]
                         pos = end
                 else:
@@ -2738,7 +2804,7 @@ class chunkbuffer:
         while left > 0:
             # refill the queue
             if not queue:
-                target = 2 ** 18
+                target = 2**18
                 for chunk in self.iter:
                     queue.append(chunk)
                     target -= len(chunk)
@@ -2894,20 +2960,20 @@ bytecount = unitcountfn(
 )
 
 
-class transformingwriter:
+class transformingwriter(typelib.BinaryIO_Proxy):
     """Writable file wrapper to transform data by function"""
 
-    def __init__(self, fp, encode):
+    def __init__(self, fp: BinaryIO, encode: Callable[[bytes], bytes]) -> None:
         self._fp = fp
         self._encode = encode
 
-    def close(self):
+    def close(self) -> None:
         self._fp.close()
 
-    def flush(self):
+    def flush(self) -> None:
         self._fp.flush()
 
-    def write(self, data):
+    def write(self, data: bytes) -> int:
         return self._fp.write(self._encode(data))
 
 
@@ -2925,7 +2991,7 @@ def tocrlf(s: bytes) -> bytes:
     return _eolre.sub(b'\r\n', s)
 
 
-def _crlfwriter(fp):
+def _crlfwriter(fp: typelib.BinaryIO_Proxy) -> typelib.BinaryIO_Proxy:
     return transformingwriter(fp, tocrlf)
 
 
@@ -2937,6 +3003,21 @@ else:
     tonativeeol = pycompat.identity
     fromnativeeol = pycompat.identity
     nativeeolwriter = pycompat.identity
+
+if typing.TYPE_CHECKING:
+    # Replace the various overloads that come along with aliasing other methods
+    # with the narrow definition that we care about in the type checking phase
+    # only.  This ensures that both Windows and POSIX see only the definition
+    # that is actually available.
+
+    def tonativeeol(s: bytes) -> bytes:
+        raise NotImplementedError
+
+    def fromnativeeol(s: bytes) -> bytes:
+        raise NotImplementedError
+
+    def nativeeolwriter(fp: typelib.BinaryIO_Proxy) -> typelib.BinaryIO_Proxy:
+        raise NotImplementedError
 
 
 # TODO delete since workaround variant for Python 2 no longer needed.
@@ -3068,12 +3149,12 @@ def timed(func):
 
 
 _sizeunits = (
-    (b'm', 2 ** 20),
-    (b'k', 2 ** 10),
-    (b'g', 2 ** 30),
-    (b'kb', 2 ** 10),
-    (b'mb', 2 ** 20),
-    (b'gb', 2 ** 30),
+    (b'm', 2**20),
+    (b'k', 2**10),
+    (b'g', 2**30),
+    (b'kb', 2**10),
+    (b'mb', 2**20),
+    (b'gb', 2**30),
     (b'b', 1),
 )
 
@@ -3307,6 +3388,7 @@ def _estimatememory() -> Optional[int]:
     """
     if pycompat.sysplatform.startswith(b'win'):
         # On Windows, use the GlobalMemoryStatusEx kernel function directly.
+        # noinspection PyPep8Naming
         from ctypes import c_long as DWORD, c_ulonglong as DWORDLONG
         from ctypes.wintypes import (  # pytype: disable=import-error
             Structure,

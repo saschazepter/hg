@@ -793,8 +793,8 @@ Missing tags2* files means the cache wasn't written through the normal mechanism
   $ ls tagsclient/.hg/cache
   branch2-base
   hgtagsfnodes1
-  rbc-names-v1
-  rbc-revs-v1
+  rbc-names-v2
+  rbc-revs-v2
   tags2
   tags2-served
 
@@ -819,8 +819,8 @@ Running hg tags should produce tags2* file and not change cache
   $ ls tagsclient/.hg/cache
   branch2-base
   hgtagsfnodes1
-  rbc-names-v1
-  rbc-revs-v1
+  rbc-names-v2
+  rbc-revs-v2
   tags2
   tags2-served
   tags2-visible

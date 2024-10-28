@@ -213,6 +213,7 @@ In the examples below, we will:
 
 '''
 
+from __future__ import annotations
 
 from mercurial.i18n import _
 from mercurial import (
@@ -279,7 +280,6 @@ configitem(
 
 
 def _getusers(ui, group):
-
     # First, try to use group definition from section [acl.groups]
     hgrcusers = ui.configlist(b'acl.groups', group)
     if hgrcusers:
@@ -294,12 +294,10 @@ def _getusers(ui, group):
 
 
 def _usermatch(ui, user, usersorgroups):
-
     if usersorgroups == b'*':
         return True
 
     for ug in usersorgroups.replace(b',', b' ').split():
-
         if ug.startswith(b'!'):
             # Test for excluded user or group. Format:
             # if ug is a user  name: !username
@@ -368,7 +366,6 @@ def ensureenabled(ui):
 
 
 def hook(ui, repo, hooktype, node=None, source=None, **kwargs):
-
     ensureenabled(ui)
 
     if hooktype not in [b'pretxnchangegroup', b'pretxncommit', b'prepushkey']:

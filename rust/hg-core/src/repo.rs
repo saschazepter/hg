@@ -1,7 +1,9 @@
 use crate::changelog::Changelog;
 use crate::config::{Config, ConfigError, ConfigParseError};
 use crate::dirstate::DirstateParents;
-use crate::dirstate_tree::dirstate_map::DirstateMapWriteMode;
+use crate::dirstate_tree::dirstate_map::{
+    DirstateIdentity, DirstateMapWriteMode,
+};
 use crate::dirstate_tree::on_disk::Docket as DirstateDocket;
 use crate::dirstate_tree::owning::OwningDirstateMap;
 use crate::errors::HgResultExt;
@@ -9,8 +11,9 @@ use crate::errors::{HgError, IoResultExt};
 use crate::lock::{try_with_lock_no_wait, LockError};
 use crate::manifest::{Manifest, Manifestlog};
 use crate::requirements::{
-    CHANGELOGV2_REQUIREMENT, GENERALDELTA_REQUIREMENT, NODEMAP_REQUIREMENT,
-    REVLOGV1_REQUIREMENT, REVLOGV2_REQUIREMENT,
+    CHANGELOGV2_REQUIREMENT, DIRSTATE_TRACKED_HINT_V1,
+    GENERALDELTA_REQUIREMENT, NODEMAP_REQUIREMENT, REVLOGV1_REQUIREMENT,
+    REVLOGV2_REQUIREMENT,
 };
 use crate::revlog::filelog::Filelog;
 use crate::revlog::RevlogError;
@@ -18,9 +21,10 @@ use crate::utils::debug::debug_wait_for_file_or_print;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::SliceExt;
-use crate::vfs::{is_dir, is_file, Vfs};
+use crate::vfs::{is_dir, is_file, VfsImpl};
 use crate::{
-    requirements, NodePrefix, RevlogVersionOptions, UncheckedRevision,
+    exit_codes, requirements, NodePrefix, RevlogDataConfig, RevlogDeltaConfig,
+    RevlogFeatureConfig, RevlogType, RevlogVersionOptions, UncheckedRevision,
 };
 use crate::{DirstateError, RevlogOpenOptions};
 use std::cell::{Ref, RefCell, RefMut};
@@ -32,7 +36,8 @@ use std::path::{Path, PathBuf};
 
 const V2_MAX_READ_ATTEMPTS: usize = 5;
 
-type DirstateMapIdentity = (Option<u64>, Option<Vec<u8>>, usize);
+/// Docket file identity, data file uuid and the data size
+type DirstateV2Identity = (Option<DirstateIdentity>, Option<Vec<u8>>, usize);
 
 /// A repository on disk
 pub struct Repo {
@@ -63,6 +68,32 @@ impl From<ConfigError> for RepoError {
         match error {
             ConfigError::Parse(error) => error.into(),
             ConfigError::Other(error) => error.into(),
+        }
+    }
+}
+
+impl From<RepoError> for HgError {
+    fn from(value: RepoError) -> Self {
+        match value {
+            RepoError::NotFound { at } => HgError::abort(
+                format!(
+                    "abort: no repository found in '{}' (.hg not found)!",
+                    at.display()
+                ),
+                exit_codes::ABORT,
+                None,
+            ),
+            RepoError::ConfigParseError(config_parse_error) => {
+                HgError::Abort {
+                    message: String::from_utf8_lossy(
+                        &config_parse_error.message,
+                    )
+                    .to_string(),
+                    detailed_exit_code: exit_codes::CONFIG_PARSE_ERROR_ABORT,
+                    hint: None,
+                }
+            }
+            RepoError::Other(hg_error) => hg_error,
         }
     }
 }
@@ -120,8 +151,10 @@ impl Repo {
         let mut repo_config_files =
             vec![dot_hg.join("hgrc"), dot_hg.join("hgrc-not-shared")];
 
-        let hg_vfs = Vfs { base: &dot_hg };
-        let mut reqs = requirements::load_if_exists(hg_vfs)?;
+        let hg_vfs = VfsImpl {
+            base: dot_hg.to_owned(),
+        };
+        let mut reqs = requirements::load_if_exists(&hg_vfs)?;
         let relative =
             reqs.contains(requirements::RELATIVE_SHARED_REQUIREMENT);
         let shared =
@@ -162,9 +195,10 @@ impl Repo {
 
             store_path = shared_path.join("store");
 
-            let source_is_share_safe =
-                requirements::load(Vfs { base: &shared_path })?
-                    .contains(requirements::SHARESAFE_REQUIREMENT);
+            let source_is_share_safe = requirements::load(VfsImpl {
+                base: shared_path.to_owned(),
+            })?
+            .contains(requirements::SHARESAFE_REQUIREMENT);
 
             if share_safe != source_is_share_safe {
                 return Err(HgError::unsupported("share-safe mismatch").into());
@@ -175,7 +209,9 @@ impl Repo {
             }
         }
         if share_safe {
-            reqs.extend(requirements::load(Vfs { base: &store_path })?);
+            reqs.extend(requirements::load(VfsImpl {
+                base: store_path.to_owned(),
+            })?);
         }
 
         let repo_config = if std::env::var_os("HGRCSKIPREPO").is_none() {
@@ -215,19 +251,23 @@ impl Repo {
 
     /// For accessing repository files (in `.hg`), except for the store
     /// (`.hg/store`).
-    pub fn hg_vfs(&self) -> Vfs<'_> {
-        Vfs { base: &self.dot_hg }
+    pub fn hg_vfs(&self) -> VfsImpl {
+        VfsImpl {
+            base: self.dot_hg.to_owned(),
+        }
     }
 
     /// For accessing repository store files (in `.hg/store`)
-    pub fn store_vfs(&self) -> Vfs<'_> {
-        Vfs { base: &self.store }
+    pub fn store_vfs(&self) -> VfsImpl {
+        VfsImpl {
+            base: self.store.to_owned(),
+        }
     }
 
     /// For accessing the working copy
-    pub fn working_directory_vfs(&self) -> Vfs<'_> {
-        Vfs {
-            base: &self.working_directory,
+    pub fn working_directory_vfs(&self) -> VfsImpl {
+        VfsImpl {
+            base: self.working_directory.to_owned(),
         }
     }
 
@@ -235,7 +275,7 @@ impl Repo {
         &self,
         f: impl FnOnce() -> R,
     ) -> Result<R, LockError> {
-        try_with_lock_no_wait(self.hg_vfs(), "wlock", f)
+        try_with_lock_no_wait(&self.hg_vfs(), "wlock", f)
     }
 
     /// Whether this repo should use dirstate-v2.
@@ -274,13 +314,12 @@ impl Repo {
             .unwrap_or_default())
     }
 
-    fn dirstate_identity(&self) -> Result<Option<u64>, HgError> {
-        use std::os::unix::fs::MetadataExt;
+    fn dirstate_identity(&self) -> Result<Option<DirstateIdentity>, HgError> {
         Ok(self
             .hg_vfs()
             .symlink_metadata("dirstate")
             .io_not_found_as_none()?
-            .map(|meta| meta.ino()))
+            .map(DirstateIdentity::from))
     }
 
     pub fn dirstate_parents(&self) -> Result<DirstateParents, HgError> {
@@ -318,10 +357,10 @@ impl Repo {
     /// Returns the information read from the dirstate docket necessary to
     /// check if the data file has been updated/deleted by another process
     /// since we last read the dirstate.
-    /// Namely, the inode, data file uuid and the data size.
+    /// Namely the docket file identity, data file uuid and the data size.
     fn get_dirstate_data_file_integrity(
         &self,
-    ) -> Result<DirstateMapIdentity, HgError> {
+    ) -> Result<DirstateV2Identity, HgError> {
         assert!(
             self.use_dirstate_v2(),
             "accessing dirstate data file ID without dirstate-v2"
@@ -332,7 +371,6 @@ impl Repo {
         let identity = self.dirstate_identity()?;
         let dirstate = self.dirstate_file_contents()?;
         if dirstate.is_empty() {
-            self.dirstate_parents.set(DirstateParents::NULL);
             Ok((identity, None, 0))
         } else {
             let docket_res =
@@ -415,11 +453,14 @@ impl Repo {
         debug_wait_for_file_or_print(self.config(), "dirstate.pre-read-file");
         let identity = self.dirstate_identity()?;
         let dirstate_file_contents = self.dirstate_file_contents()?;
+        let parents = self.dirstate_parents()?;
         if dirstate_file_contents.is_empty() {
-            self.dirstate_parents.set(DirstateParents::NULL);
-            Ok(OwningDirstateMap::new_empty(Vec::new()))
+            self.dirstate_parents.set(parents);
+            Ok(OwningDirstateMap::new_empty(Vec::new(), identity))
         } else {
-            let (map, parents) =
+            // Ignore the dirstate on-disk parents, they may have been set in
+            // the repo before
+            let (map, _) =
                 OwningDirstateMap::new_v1(dirstate_file_contents, identity)?;
             self.dirstate_parents.set(parents);
             Ok(map)
@@ -433,8 +474,7 @@ impl Repo {
         let dirstate_file_contents = self.dirstate_file_contents()?;
         let identity = self.dirstate_identity()?;
         if dirstate_file_contents.is_empty() {
-            self.dirstate_parents.set(DirstateParents::NULL);
-            return Ok(OwningDirstateMap::new_empty(Vec::new()));
+            return Ok(OwningDirstateMap::new_empty(Vec::new(), identity));
         }
         let docket = crate::dirstate_tree::on_disk::read_docket(
             &dirstate_file_contents,
@@ -510,7 +550,13 @@ impl Repo {
             _ => DirstateMapWriteMode::Auto,
         };
 
-        map.with_dmap_mut(|m| m.set_write_mode(write_mode));
+        let tracked_hint =
+            self.requirements().contains(DIRSTATE_TRACKED_HINT_V1);
+
+        map.with_dmap_mut(|m| {
+            m.set_write_mode(write_mode);
+            m.set_tracked_hint(tracked_hint);
+        });
 
         Ok(map)
     }
@@ -529,7 +575,10 @@ impl Repo {
     }
 
     fn new_changelog(&self) -> Result<Changelog, HgError> {
-        Changelog::open(&self.store_vfs(), self.default_revlog_options(true)?)
+        Changelog::open(
+            &self.store_vfs(),
+            self.default_revlog_options(RevlogType::Changelog)?,
+        )
     }
 
     pub fn changelog(&self) -> Result<Ref<Changelog>, HgError> {
@@ -543,7 +592,7 @@ impl Repo {
     fn new_manifestlog(&self) -> Result<Manifestlog, HgError> {
         Manifestlog::open(
             &self.store_vfs(),
-            self.default_revlog_options(false)?,
+            self.default_revlog_options(RevlogType::Manifestlog)?,
         )
     }
 
@@ -590,9 +639,12 @@ impl Repo {
     }
 
     pub fn filelog(&self, path: &HgPath) -> Result<Filelog, HgError> {
-        Filelog::open(self, path, self.default_revlog_options(false)?)
+        Filelog::open(
+            self,
+            path,
+            self.default_revlog_options(RevlogType::Filelog)?,
+        )
     }
-
     /// Write to disk any updates that were made through `dirstate_map_mut`.
     ///
     /// The "wlock" must be held while calling this.
@@ -742,10 +794,11 @@ impl Repo {
 
     pub fn default_revlog_options(
         &self,
-        changelog: bool,
+        revlog_type: RevlogType,
     ) -> Result<RevlogOpenOptions, HgError> {
         let requirements = self.requirements();
-        let version = if changelog
+        let is_changelog = revlog_type == RevlogType::Changelog;
+        let version = if is_changelog
             && requirements.contains(CHANGELOGV2_REQUIREMENT)
         {
             let compute_rank = self
@@ -756,7 +809,8 @@ impl Repo {
             RevlogVersionOptions::V2
         } else if requirements.contains(REVLOGV1_REQUIREMENT) {
             RevlogVersionOptions::V1 {
-                generaldelta: requirements.contains(GENERALDELTA_REQUIREMENT),
+                general_delta: requirements.contains(GENERALDELTA_REQUIREMENT),
+                inline: !is_changelog,
             }
         } else {
             RevlogVersionOptions::V0
@@ -766,7 +820,44 @@ impl Repo {
             // We don't need to dance around the slow path like in the Python
             // implementation since we know we have access to the fast code.
             use_nodemap: requirements.contains(NODEMAP_REQUIREMENT),
+            delta_config: RevlogDeltaConfig::new(
+                self.config(),
+                self.requirements(),
+                revlog_type,
+            )?,
+            data_config: RevlogDataConfig::new(
+                self.config(),
+                self.requirements(),
+            )?,
+            feature_config: RevlogFeatureConfig::new(
+                self.config(),
+                requirements,
+            )?,
         })
+    }
+
+    pub fn node(&self, rev: UncheckedRevision) -> Option<crate::Node> {
+        self.changelog()
+            .ok()
+            .and_then(|c| c.node_from_rev(rev).copied())
+    }
+
+    /// Change the current working directory parents cached in the repo.
+    ///
+    /// TODO
+    /// This does *not* do a lot of what it expected from a full `set_parents`:
+    ///     - parents should probably be stored in the dirstate
+    ///     - dirstate should have a "changing parents" context
+    ///     - dirstate should return copies if out of a merge context to be
+    ///       discarded within the repo context
+    /// See `setparents` in `context.py`.
+    pub fn manually_set_parents(
+        &self,
+        new_parents: DirstateParents,
+    ) -> Result<(), HgError> {
+        let mut parents = self.dirstate_parents.value.borrow_mut();
+        *parents = Some(new_parents);
+        Ok(())
     }
 }
 

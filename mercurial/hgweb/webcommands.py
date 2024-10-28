@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import copy
 import mimetypes
@@ -174,7 +175,7 @@ def _filerevision(web, fctx):
         rename=webutil.renamelink(fctx),
         permissions=fctx.manifest().flags(f),
         ishead=int(ishead),
-        **pycompat.strkwargs(webutil.commonentry(web.repo, fctx))
+        **pycompat.strkwargs(webutil.commonentry(web.repo, fctx)),
     )
 
 
@@ -601,7 +602,6 @@ def manifest(web):
 
     def dirlist(context):
         for d in sorted(dirs):
-
             emptydirs = []
             h = dirs[d]
             while isinstance(h, dict) and len(h) == 1:
@@ -629,7 +629,7 @@ def manifest(web):
         fentries=templateutil.mappinggenerator(filelist),
         dentries=templateutil.mappinggenerator(dirlist),
         archives=web.archivelist(hex(node)),
-        **pycompat.strkwargs(webutil.commonentry(web.repo, ctx))
+        **pycompat.strkwargs(webutil.commonentry(web.repo, ctx)),
     )
 
 
@@ -874,7 +874,7 @@ def filediff(web):
         symrev=webutil.symrevorshortnode(web.req, ctx),
         rename=rename,
         diff=diffs,
-        **pycompat.strkwargs(webutil.commonentry(web.repo, ctx))
+        **pycompat.strkwargs(webutil.commonentry(web.repo, ctx)),
     )
 
 
@@ -955,7 +955,7 @@ def comparison(web):
         rightrev=rightrev,
         rightnode=hex(rightnode),
         comparison=comparison,
-        **pycompat.strkwargs(webutil.commonentry(web.repo, ctx))
+        **pycompat.strkwargs(webutil.commonentry(web.repo, ctx)),
     )
 
 
@@ -1062,7 +1062,7 @@ def annotate(web):
         permissions=fctx.manifest().flags(f),
         ishead=int(ishead),
         diffopts=templateutil.hybriddict(diffopts),
-        **pycompat.strkwargs(webutil.commonentry(web.repo, fctx))
+        **pycompat.strkwargs(webutil.commonentry(web.repo, fctx)),
     )
 
 
@@ -1225,7 +1225,7 @@ def filelog(web):
         revcount=revcount,
         morevars=morevars,
         lessvars=lessvars,
-        **pycompat.strkwargs(webutil.commonentry(web.repo, fctx))
+        **pycompat.strkwargs(webutil.commonentry(web.repo, fctx)),
     )
 
 
@@ -1284,35 +1284,46 @@ def archive(web):
 
     mimetype, artype, extension, encoding = webutil.archivespecs[type_]
 
-    web.res.headers[b'Content-Type'] = mimetype
-    web.res.headers[b'Content-Disposition'] = b'attachment; filename=%s%s' % (
-        name,
-        extension,
-    )
-
-    if encoding:
-        web.res.headers[b'Content-Encoding'] = encoding
-
-    web.res.setbodywillwrite()
-    if list(web.res.sendresponse()):
-        raise error.ProgrammingError(
-            b'sendresponse() should not emit data if writing later'
-        )
-
     if web.req.method == b'HEAD':
         return []
 
-    bodyfh = web.res.getbodyfile()
+    def open_archive():
+        """Open the output "file" for the archiver.
 
-    archival.archive(
+        This function starts the streaming response. Error reporting
+        after this point will result in short writes without proper
+        diagnostics to the client.
+        """
+        web.res.headers[b'Content-Type'] = mimetype
+        web.res.headers[
+            b'Content-Disposition'
+        ] = b'attachment; filename=%s%s' % (
+            name,
+            extension,
+        )
+
+        if encoding:
+            web.res.headers[b'Content-Encoding'] = encoding
+
+        web.res.setbodywillwrite()
+        if list(web.res.sendresponse()):
+            raise error.ProgrammingError(
+                b'sendresponse() should not emit data if writing later'
+            )
+
+        return web.res.getbodyfile()
+
+    total = archival.archive(
         web.repo,
-        bodyfh,
+        open_archive,
         cnode,
         artype,
         prefix=name,
         match=match,
         subrepos=web.configbool(b"web", b"archivesubrepos"),
     )
+    if total == 0:
+        raise ErrorResponse(HTTP_NOT_FOUND, b'no files found in changeset')
 
     return []
 
@@ -1427,7 +1438,7 @@ def graph(web):
         return tree
 
     def jsdata(context):
-        for (id, type, ctx, vtx, edges) in fulltree():
+        for id, type, ctx, vtx, edges in fulltree():
             yield {
                 b'node': pycompat.bytestr(ctx),
                 b'graphnode': webutil.getgraphnode(web.repo, ctx),

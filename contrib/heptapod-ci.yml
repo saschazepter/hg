@@ -26,8 +26,9 @@ image: registry.heptapod.net/mercurial/ci-images/mercurial-core:$HG_CI_IMAGE_TAG
 
 variables:
     PYTHON: python
-    HG_CI_IMAGE_TAG: "v1.0"
+    HG_CI_IMAGE_TAG: "v2.1"
     TEST_HGTESTS_ALLOW_NETIO: "0"
+    SHOW_VERSION_OF: "$PYTHON"
 
 .all_template: &all
   when: on_success
@@ -38,83 +39,107 @@ variables:
     # The runner made a clone as root.
     # We make a new clone owned by user used to run the step.
     before_script:
+      - echo "python used, $PYTHON"
+      - for tool in $SHOW_VERSION_OF ; do echo '#' version of $tool; $tool --version; done
+      - rm -rf /tmp/mercurial-ci/  # Clean slate if not using containers
       - hg clone . /tmp/mercurial-ci/ --noupdate --config phases.publish=no
       - hg -R /tmp/mercurial-ci/ update `hg log --rev '.' --template '{node}'`
       - cd /tmp/mercurial-ci/
       - ls -1 tests/test-check-*.* > /tmp/check-tests.txt
-      - black --version
-      - clang-format --version
     script:
-        - echo "python used, $PYTHON"
-        - $PYTHON --version
         - echo "$RUNTEST_ARGS"
         - HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" "$PYTHON" tests/run-tests.py --color=always $RUNTEST_ARGS
 
 checks:
     <<: *runtests
     variables:
+        SHOW_VERSION_OF: "$PYTHON black clang-format"
         RUNTEST_ARGS: "--time --test-list /tmp/check-tests.txt"
-        PYTHON: python3
         CI_CLEVER_CLOUD_FLAVOR: S
 
 rust-cargo-test:
     <<: *all
     stage: tests
     script:
-        - echo "python used, $PYTHON"
         - make rust-tests
         - make cargo-clippy
     variables:
-        PYTHON: python3
         CI_CLEVER_CLOUD_FLAVOR: S
 
-test-c:
+test-c: &test_c
     <<: *runtests
     variables:
         RUNTEST_ARGS: " --no-rust --blacklist /tmp/check-tests.txt"
-        PYTHON: python3
         TEST_HGTESTS_ALLOW_NETIO: "1"
 
 test-pure:
     <<: *runtests
     variables:
         RUNTEST_ARGS: "--pure --blacklist /tmp/check-tests.txt"
-        PYTHON: python3
 
-test-rust:
+test-rust: &test_rust
     <<: *runtests
     variables:
         HGWITHRUSTEXT: cpython
         RUNTEST_ARGS: "--rust --blacklist /tmp/check-tests.txt"
-        PYTHON: python3
 
 test-rhg:
     <<: *runtests
     variables:
         HGWITHRUSTEXT: cpython
         RUNTEST_ARGS: "--rust --rhg --blacklist /tmp/check-tests.txt"
-        PYTHON: python3
 
 test-chg:
     <<: *runtests
     variables:
-        PYTHON: python3
         RUNTEST_ARGS: "--blacklist /tmp/check-tests.txt --chg"
+
+# note: we should probably get a full matrix for flavor × py-version, but this
+# is a simple start to be able to check if we break the lowest supported
+# version (and 3.12 have been giving us various troubles)
+test-3.8-c:
+    <<: *test_c
+    when: manual  # avoid overloading the CI by default
+    variables:
+        PYTHON: python3.8
+
+test-3.12-c:
+    <<: *test_c
+    when: manual  # avoid overloading the CI by default
+    variables:
+        PYTHON: python3.12
+
+test-3.12-rust:
+    <<: *test_rust
+    when: manual  # avoid overloading the CI by default
+    variables:
+        PYTHON: python3.12
+
+test-3.13-c:
+    <<: *test_c
+    when: manual  # avoid overloading the CI by default
+    variables:
+        PYTHON: python3.13
+
+test-3.13-rust:
+    <<: *test_rust
+    when: manual  # avoid overloading the CI by default
+    variables:
+        PYTHON: python3.13
 
 check-pytype:
     extends: .runtests_template
     before_script:
+      - export PATH="/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/shims:/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/bin:$PATH"
+      - echo "PATH, $PATH"
       - hg clone . /tmp/mercurial-ci/ --noupdate --config phases.publish=no
       - hg -R /tmp/mercurial-ci/ update `hg log --rev '.' --template '{node}'`
       - cd /tmp/mercurial-ci/
       - make local PYTHON=$PYTHON
-      - $PYTHON -m pip install --user -U libcst==0.3.20 pytype==2022.11.18
       - ./contrib/setup-pytype.sh
     script:
       - echo "Entering script section"
       - sh contrib/check-pytype.sh
-    variables:
-        PYTHON: python3
 
 # `sh.exe --login` sets a couple of extra environment variables that are defined
 # in the MinGW shell, but switches CWD to /home/$username.  The previous value
@@ -155,3 +180,9 @@ windows-pyox:
     variables:
         RUNTEST_ARGS: "--blacklist C:/Temp/check-tests.txt --pyoxidized"
         PYTHON: py -3
+
+macos:
+    <<: *test_c
+    when: manual  # avoid overloading the CI by default
+    tags:
+      - macos

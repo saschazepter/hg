@@ -37,6 +37,24 @@ one pull
   new changesets 02770d679fb8
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+  $ cat server.log
+  $LOCALIP - - [$LOGDATE$] "GET /remote/.hg/requires HTTP/1.1" 200 - (glob)
+  $LOCALIP - - [$LOGDATE$] "GET /remote/.hg/store/requires HTTP/1.1" 200 - (glob)
+  $LOCALIP - - [$LOGDATE$] "GET /remote/.hg/store/00manifest.i HTTP/1.1" 200 - (glob)
+  $LOCALIP - - [$LOGDATE$] "GET /remote/.hg/store/00changelog.i HTTP/1.1" 200 - (glob)
+  $LOCALIP - - [$LOGDATE$] "GET /remote/.hg/dirstate HTTP/1.1" 200 - (glob)
+  $LOCALIP - - [$LOGDATE$] "GET /remote/.hg/store/00changelog.i HTTP/1.1" 200 - (glob)
+  $LOCALIP - - [*] code 404, message File not found (glob)
+  $LOCALIP - - [$LOGDATE$] "GET /remote/.hg/bookmarks HTTP/1.1" 404 - (glob)
+  $LOCALIP - - [*] code 404, message File not found (glob)
+  $LOCALIP - - [$LOGDATE$] "GET /remote/.hg/bookmarks.current HTTP/1.1" 404 - (glob)
+  $LOCALIP - - [*] code 404, message File not found (glob)
+  $LOCALIP - - [$LOGDATE$] "GET /remote/.hg/cache/hgtagsfnodes1 HTTP/1.1" 404 - (glob)
+  $LOCALIP - - [$LOGDATE$] "GET /remote/.hg/store/00changelog.d HTTP/1.1" 200 - (glob)
+  $LOCALIP - - [$LOGDATE$] "GET /remote/.hg/store/data/~2edotfile%20with%20spaces.i HTTP/1.1" 200 - (glob)
+  $LOCALIP - - [$LOGDATE$] "GET /remote/.hg/store/data/bar.i HTTP/1.1" 200 - (glob)
+
   $ cd local
   $ hg verify -q
   $ cat bar
@@ -268,6 +286,7 @@ List of files accessed over HTTP:
   /remote/.hg/cache/branch2-served
   /remote/.hg/cache/hgtagsfnodes1
   /remote/.hg/cache/rbc-names-v1
+  /remote/.hg/cache/rbc-names-v2
   /remote/.hg/cache/tags2-served
   /remote/.hg/dirstate
   /remote/.hg/localtags

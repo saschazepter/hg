@@ -24,6 +24,7 @@ The threshold at which a file is considered a move can be set with the
 #
 # See http://markmail.org/thread/5pxnljesvufvom57 for context.
 
+from __future__ import annotations
 
 from mercurial.i18n import _
 from mercurial import (

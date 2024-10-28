@@ -202,7 +202,7 @@ Extension disabled for lack of acl.sources
   bundle2-input-part: "phase-heads" supported
   bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
-  truncating cache/rbc-revs-v1 to 8
+  resetting content of cache/rbc-revs-v2
   updating the branch cache
   added 3 changesets with 3 changes to 3 files
   bundle2-output-bundle: "HG20", 1 parts total
@@ -280,7 +280,7 @@ No [acl.allow]/[acl.deny]
   bundle2-input-part: "phase-heads" supported
   bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
-  truncating cache/rbc-revs-v1 to 8
+  resetting content of cache/rbc-revs-v2
   updating the branch cache
   added 3 changesets with 3 changes to 3 files
   bundle2-output-bundle: "HG20", 1 parts total
@@ -355,7 +355,7 @@ Empty [acl.allow]
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
-  truncating cache/rbc-revs-v1 to 8
+  resetting content of cache/rbc-revs-v2
   abort: acl: user "fred" not allowed on "foo/file.txt" (changeset "ef1ea85a6374")
   no rollback information available
   0:6675d58eff77
@@ -879,7 +879,7 @@ fred is not allowed to move bookmarks
   bundle2-input-bundle: 7 parts total
   transaction abort!
   rollback completed
-  truncating cache/rbc-revs-v1 to 8
+  resetting content of cache/rbc-revs-v2
   abort: acl: user "fred" denied on bookmark "moving-bookmark" (changeset "ef1ea85a6374b77d6da9dcda9541f498f2d17df7")
   no rollback information available
   0:6675d58eff77
@@ -1048,7 +1048,7 @@ wilma can change files with a .txt extension
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
-  truncating cache/rbc-revs-v1 to 8
+  resetting content of cache/rbc-revs-v2
   abort: acl: user "wilma" not allowed on "quux/file.py" (changeset "911600dab2ae")
   no rollback information available
   0:6675d58eff77
@@ -1380,7 +1380,7 @@ fred is always allowed
   bundle2-input-part: "phase-heads" supported
   bundle2-input-part: total payload size * (glob)
   bundle2-input-bundle: 5 parts total
-  truncating cache/rbc-revs-v1 to 8
+  resetting content of cache/rbc-revs-v2
   updating the branch cache
   added 3 changesets with 3 changes to 3 files
   bundle2-output-bundle: "HG20", 1 parts total
@@ -1464,7 +1464,7 @@ no one is allowed inside foo/Bar/
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
-  truncating cache/rbc-revs-v1 to 8
+  resetting content of cache/rbc-revs-v2
   abort: acl: user "fred" denied on "foo/Bar/file.txt" (changeset "f9cafe1212c8")
   no rollback information available
   0:6675d58eff77
@@ -1632,7 +1632,7 @@ OS-level groups
   bundle2-input-bundle: 5 parts total
   transaction abort!
   rollback completed
-  truncating cache/rbc-revs-v1 to 8
+  resetting content of cache/rbc-revs-v2
   abort: acl: user "fred" denied on "foo/Bar/file.txt" (changeset "f9cafe1212c8")
   no rollback information available
   0:6675d58eff77

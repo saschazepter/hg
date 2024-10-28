@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from mercurial import (
     match as matchmod,
     pathutil,

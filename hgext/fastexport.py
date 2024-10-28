@@ -7,6 +7,8 @@
 # The format specification for fast-import streams can be found at
 # https://git-scm.com/docs/git-fast-import#_input_format
 
+from __future__ import annotations
+
 import re
 
 from mercurial.i18n import _

@@ -85,8 +85,8 @@ Check cache pre-warm
   branch2-served
   branch2-served.hidden
   branch2-visible
-  rbc-names-v1
-  rbc-revs-v1
+  rbc-names-v2
+  rbc-revs-v2
   tags2
   tags2-visible
 

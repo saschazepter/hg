@@ -6,8 +6,13 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
+
 import os
 import re
+from typing import (
+    Tuple,
+)
 
 from mercurial.i18n import _
 from mercurial.pycompat import open
@@ -43,9 +48,8 @@ class monotone_source(common.converter_source, common.commandline):
         if not os.path.exists(os.path.join(path, b'_MTN')):
             # Could be a monotone repository (SQLite db file)
             try:
-                f = open(path, b'rb')
-                header = f.read(16)
-                f.close()
+                with open(path, b'rb') as f:
+                    header = f.read(16)
             except IOError:
                 header = b''
             if header != b'SQLite format 3\x00':
@@ -122,7 +126,7 @@ class monotone_source(common.converter_source, common.commandline):
 
         return self.mtnstdioreadcommandoutput(command)
 
-    def mtnstdioreadpacket(self):
+    def mtnstdioreadpacket(self) -> Tuple[bytes, bytes, int, bytes]:
         read = None
         commandnbr = b''
         while read != b':':
@@ -161,14 +165,14 @@ class monotone_source(common.converter_source, common.commandline):
             raise error.Abort(
                 _(
                     b"bad mtn packet - unable to read full packet "
-                    b"read %s of %s"
+                    b"read %s of %d"
                 )
                 % (len(read), length)
             )
 
         return (commandnbr, stream, length, read)
 
-    def mtnstdioreadcommandoutput(self, command):
+    def mtnstdioreadcommandoutput(self, command) -> bytes:
         retval = []
         while True:
             commandnbr, stream, length, output = self.mtnstdioreadpacket()
@@ -399,7 +403,7 @@ class monotone_source(common.converter_source, common.commandline):
                     )
         else:
             self.ui.debug(
-                b"mtn automate version %s - not using automate stdio "
+                b"mtn automate version %f - not using automate stdio "
                 b"(automate >= 12.0 - mtn >= 0.46 is needed)\n" % version
             )
 

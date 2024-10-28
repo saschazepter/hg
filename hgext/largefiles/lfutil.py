@@ -8,6 +8,8 @@
 
 '''largefiles utility code: must not import other modules in this package.'''
 
+from __future__ import annotations
+
 import contextlib
 import copy
 import os
@@ -162,36 +164,18 @@ class largefilesdirstate(dirstate.dirstate):
     _large_file_dirstate = True
     _tr_key_suffix = b'-large-files'
 
-    def __getitem__(self, key):
-        return super(largefilesdirstate, self).__getitem__(unixpath(key))
+    # XXX: why are there overrides to fix the path, if the path should already
+    #   be in unix form for the superclass?
 
-    def set_tracked(self, f):
-        return super(largefilesdirstate, self).set_tracked(unixpath(f))
+    def set_tracked(self, f, reset_copy=False):
+        return super(largefilesdirstate, self).set_tracked(
+            unixpath(f), reset_copy=reset_copy
+        )
 
     def set_untracked(self, f):
         return super(largefilesdirstate, self).set_untracked(unixpath(f))
 
-    def normal(self, f, parentfiledata=None):
-        # not sure if we should pass the `parentfiledata` down or throw it
-        # away. So throwing it away to stay on the safe side.
-        return super(largefilesdirstate, self).normal(unixpath(f))
-
-    def remove(self, f):
-        return super(largefilesdirstate, self).remove(unixpath(f))
-
-    def add(self, f):
-        return super(largefilesdirstate, self).add(unixpath(f))
-
-    def drop(self, f):
-        return super(largefilesdirstate, self).drop(unixpath(f))
-
-    def forget(self, f):
-        return super(largefilesdirstate, self).forget(unixpath(f))
-
-    def normallookup(self, f):
-        return super(largefilesdirstate, self).normallookup(unixpath(f))
-
-    def _ignore(self, f):
+    def _dirignore(self, f):
         return False
 
     def write(self, tr):

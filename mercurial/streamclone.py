@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import contextlib
 import os
@@ -547,6 +548,7 @@ _filefull = 1  # full snapshot file
 _srcstore = b's'  # store (svfs)
 _srccache = b'c'  # cache (cache)
 
+
 # This is it's own function so extensions can override it.
 def _walkstreamfullstorefiles(repo):
     """list snapshot file from the store"""
@@ -564,55 +566,114 @@ def _filterfull(entry, copy, vfsmap):
     return (src, name, ftype, copy(vfsmap[src].join(name)))
 
 
-class TempCopyManager:
-    """Manage temporary backup of volatile file during stream clone
+class VolatileManager:
+    """Manage temporary backups of volatile files during stream clone.
 
-    This should be used as a Python context, the copies will be discarded when
-    exiting the context.
+    This class will keep open file handles for the volatile files, writing the
+    smaller ones on disk if the number of open file handles grow too much.
 
-    A copy can be done by calling the object on the real path (encoded full
-    path)
+    This should be used as a Python context, the file handles and copies will
+    be discarded when exiting the context.
 
-    The backup path can be retrieved using the __getitem__ protocol, obj[path].
-    On file without backup, it will return the unmodified path. (equivalent to
-    `dict.get(x, x)`)
+    The preservation can be done by calling the object on the real path
+    (encoded full path).
+
+    Valid filehandles for any file should be retrieved by calling `open(path)`.
     """
 
+    # arbitrarily picked as "it seemed fine" and much higher than the current
+    # usage.
+    MAX_OPEN = 100
+
     def __init__(self):
+        self._counter = 0
+        self._volatile_fps = None
         self._copies = None
         self._dst_dir = None
 
     def __enter__(self):
-        if self._copies is not None:
-            msg = "Copies context already open"
-            raise error.ProgrammingError(msg)
-        self._copies = {}
-        self._dst_dir = pycompat.mkdtemp(prefix=b'hg-clone-')
+        if self._counter == 0:
+            assert self._volatile_fps is None
+            self._volatile_fps = {}
+        self._counter += 1
         return self
-
-    def __call__(self, src):
-        """create a backup of the file at src"""
-        prefix = os.path.basename(src)
-        fd, dst = pycompat.mkstemp(prefix=prefix, dir=self._dst_dir)
-        os.close(fd)
-        self._copies[src] = dst
-        util.copyfiles(src, dst, hardlink=True)
-        return dst
-
-    def __getitem__(self, src):
-        """return the path to a valid version of `src`
-
-        If the file has no backup, the path of the file is returned
-        unmodified."""
-        return self._copies.get(src, src)
 
     def __exit__(self, *args, **kwars):
         """discard all backups"""
-        for tmp in self._copies.values():
-            util.tryunlink(tmp)
-        util.tryrmdir(self._dst_dir)
-        self._copies = None
-        self._dst_dir = None
+        self._counter -= 1
+        if self._counter == 0:
+            for _size, fp in self._volatile_fps.values():
+                fp.close()
+            self._volatile_fps = None
+            if self._copies is not None:
+                for tmp in self._copies.values():
+                    util.tryunlink(tmp)
+                util.tryrmdir(self._dst_dir)
+            self._copies = None
+            self._dst_dir = None
+            assert self._volatile_fps is None
+            assert self._copies is None
+            assert self._dst_dir is None
+
+    def _init_tmp_copies(self):
+        """prepare a temporary directory to save volatile files
+
+        This will be used as backup if we have too many files open"""
+        assert 0 < self._counter
+        assert self._copies is None
+        assert self._dst_dir is None
+        self._copies = {}
+        self._dst_dir = pycompat.mkdtemp(prefix=b'hg-clone-')
+
+    def _flush_some_on_disk(self):
+        """move some of the open files to tempory files on disk"""
+        if self._copies is None:
+            self._init_tmp_copies()
+        flush_count = self.MAX_OPEN // 2
+        for src, (size, fp) in sorted(self._volatile_fps.items())[:flush_count]:
+            prefix = os.path.basename(src)
+            fd, dst = pycompat.mkstemp(prefix=prefix, dir=self._dst_dir)
+            self._copies[src] = dst
+            os.close(fd)
+            # we no longer hardlink, but on the other hand we rarely do this,
+            # and we do it for the smallest file only and not at all in the
+            # common case.
+            with open(dst, 'wb') as bck:
+                fp.seek(0)
+                bck.write(fp.read())
+            del self._volatile_fps[src]
+            fp.close()
+
+    def _keep_one(self, src):
+        """preserve an open file handle for a given path"""
+        # store the file quickly to ensure we close it if any error happens
+        _, fp = self._volatile_fps[src] = (None, open(src, 'rb'))
+        fp.seek(0, os.SEEK_END)
+        size = fp.tell()
+        self._volatile_fps[src] = (size, fp)
+
+    def __call__(self, src):
+        """preserve the volatile file at src"""
+        assert 0 < self._counter
+        if len(self._volatile_fps) >= (self.MAX_OPEN - 1):
+            self._flush_some_on_disk()
+        self._keep_one(src)
+
+    @contextlib.contextmanager
+    def open(self, src):
+        assert 0 < self._counter
+        entry = self._volatile_fps.get(src)
+        if entry is not None:
+            _size, fp = entry
+            fp.seek(0)
+            yield fp
+        else:
+            if self._copies is None:
+                actual_path = src
+            else:
+                actual_path = self._copies.get(src, src)
+            with open(actual_path, 'rb') as fp:
+                yield fp
 
 
 def _makemap(repo):
@@ -657,12 +718,12 @@ def _emit2(repo, entries):
         _(b'bundle'), total=totalfilesize, unit=_(b'bytes')
     )
     progress.update(0)
-    with TempCopyManager() as copy, progress:
-        # create a copy of volatile files
+    with VolatileManager() as volatiles, progress:
+        # make sure we preserve volatile files
         for k, vfs, e in entries:
             for f in e.files():
                 if f.is_volatile:
-                    copy(vfs.join(f.unencoded_path))
+                    volatiles(vfs.join(f.unencoded_path))
         # the first yield release the lock on the repository
         yield file_count, totalfilesize
         totalbytecount = 0
@@ -671,7 +732,7 @@ def _emit2(repo, entries):
             entry_streams = e.get_streams(
                 repo=repo,
                 vfs=vfs,
-                copies=copy,
+                volatiles=volatiles,
                 max_changeset=max_linkrev,
                 preserve_file_count=True,
             )
@@ -720,15 +781,15 @@ def _emit3(repo, entries):
         unit=_(b'entry'),
     )
     progress.update(0)
-    with TempCopyManager() as copy, progress:
-        # create a copy of volatile files
+    with VolatileManager() as volatiles, progress:
+        # make sure we preserve volatile files
         for k, vfs, e in entries:
             if e.maybe_volatile:
                 for f in e.files():
                     if f.is_volatile:
                         # record the expected size under lock
                         f.file_size(vfs)
-                        copy(vfs.join(f.unencoded_path))
+                        volatiles(vfs.join(f.unencoded_path))
         # the first yield release the lock on the repository
         yield None
 
@@ -738,7 +799,7 @@ def _emit3(repo, entries):
             entry_streams = e.get_streams(
                 repo=repo,
                 vfs=vfs,
-                copies=copy,
+                volatiles=volatiles,
                 max_changeset=max_linkrev,
             )
             yield util.uvarintencode(len(entry_streams))
@@ -809,7 +870,6 @@ def generatev2(repo, includes, excludes, includeobsmarkers):
     """
 
     with repo.lock():
-
         repo.ui.debug(b'scanning\n')
 
         entries = _entries_walk(
@@ -857,7 +917,6 @@ def generatev3(repo, includes, excludes, includeobsmarkers):
     # considering the files to preserve, disabling the gc while we do so helps
     # performance a lot.
     with repo.lock(), util.nogc():
-
         repo.ui.debug(b'scanning\n')
 
         entries = _entries_walk(
@@ -990,7 +1049,6 @@ def consumev3(repo, fp):
         with repo.transaction(b'clone'):
             ctxs = (vfs.backgroundclosing(repo.ui) for vfs in vfsmap.values())
             with nested(*ctxs):
-
                 for i in range(entrycount):
                     filecount = util.uvarintdecodestream(fp)
                     if filecount == 0:
@@ -1123,7 +1181,6 @@ def local_copy(src_repo, dest_repo):
 
     with dest_repo.lock():
         with src_repo.lock():
-
             # bookmark is not integrated to the streaming as it might use the
             # `repo.vfs` and they are too many sentitive data accessible
             # through `repo.vfs` to expose it to streaming clone.

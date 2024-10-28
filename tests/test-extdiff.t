@@ -37,15 +37,15 @@ Should diff cloned directories:
   
   use external program to diff repository (or selected files)
   
-      Show differences between revisions for the specified files, using the
-      following program:
+  Show differences between revisions for the specified files, using the
+  following program:
   
-        'echo'
+    'echo'
   
-      When two revision arguments are given, then changes are shown between
-      those revisions. If only one revision is specified then that revision is
-      compared to the working directory, and, when no revisions are specified,
-      the working directory files are compared to its parent.
+  When two revision arguments are given, then changes are shown between those
+  revisions. If only one revision is specified then that revision is compared to
+  the working directory, and, when no revisions are specified, the working
+  directory files are compared to its parent.
   
   options ([+] can be repeated):
   
@@ -158,9 +158,18 @@ Test --per-file option:
   diffing */extdiff.*/a.46c0e4daeb72/b a.81906f2b98ac/b (glob) (no-windows !)
   [1]
 
+#if no-gui
+Test gui tool error:
+
+  $ hg --config extdiff.gui.alabalaf=True alabalaf
+  abort: tool 'alabalaf' requires a GUI
+  (to override, use: --config diff-tools.alabalaf.gui=False)
+  [255]
+#endif
+
 Test --per-file option for gui tool:
 
-  $ hg --config extdiff.gui.alabalaf=True alabalaf -c 6 --per-file --debug
+  $ DISPLAY=fake hg --config extdiff.gui.alabalaf=True alabalaf -c 6 --per-file --debug
   diffing */extdiff.*/a.46c0e4daeb72/* a.81906f2b98ac/* (glob)
   diffing */extdiff.*/a.46c0e4daeb72/* a.81906f2b98ac/* (glob)
   making snapshot of 2 files from rev 46c0e4daeb72
@@ -176,7 +185,7 @@ Test --per-file option for gui tool:
 
 Test --per-file option for gui tool again:
 
-  $ hg --config merge-tools.alabalaf.gui=True alabalaf -c 6 --per-file --debug
+  $ DISPLAY=fake hg --config merge-tools.alabalaf.gui=True alabalaf -c 6 --per-file --debug
   diffing */extdiff.*/a.46c0e4daeb72/* a.81906f2b98ac/* (glob)
   diffing */extdiff.*/a.46c0e4daeb72/* a.81906f2b98ac/* (glob)
   making snapshot of 2 files from rev 46c0e4daeb72
@@ -523,8 +532,8 @@ Test handling of non-ASCII paths in generated docstrings (issue5301)
   [10]
 
   $ LC_MESSAGES=ja_JP.UTF-8 hg --config hgext.extdiff= --config extdiff.cmd.td=$U help td \
-  > | grep "^      '"
-        '\xa5\xa5'
+  > | grep "^  '"
+    '\xa5\xa5'
 
   $ cd $TESTTMP
 

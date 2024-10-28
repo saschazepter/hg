@@ -7,6 +7,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import hashlib
 import os
@@ -497,7 +498,6 @@ def wrapsocket(sock, keyfile, certfile, ui, serverhostname=None):
                     )
 
             elif e.reason == 'CERTIFICATE_VERIFY_FAILED' and pycompat.iswindows:
-
                 ui.warn(
                     _(
                         b'(the full certificate chain may not be available '

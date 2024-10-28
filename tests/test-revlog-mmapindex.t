@@ -36,7 +36,9 @@ set up verbosemmap extension
   > EOF
 
 mmap index which is now more than 4k long
-  $ hg log -l 5 -T '{rev}\n' --config experimental.mmapindexthreshold=4k
+  $ hg log -l 5 -T '{rev}\n' \
+  >     --config storage.revlog.mmap.index=yes \
+  >     --config storage.revlog.mmap.index:size-threshold=4k
   mmapping $TESTTMP/a/.hg/store/00changelog.i (no-pure !)
   mmapping $TESTTMP/a/.hg/store/00changelog-????????.nd (glob) (rust !)
   100
@@ -46,7 +48,9 @@ mmap index which is now more than 4k long
   96
 
 do not mmap index which is still less than 32k
-  $ hg log -l 5 -T '{rev}\n' --config experimental.mmapindexthreshold=32k
+  $ hg log -l 5 -T '{rev}\n' \
+  >     --config storage.revlog.mmap.index=yes \
+  >     --config storage.revlog.mmap.index:size-threshold=32k
   mmapping $TESTTMP/a/.hg/store/00changelog-????????.nd (glob) (rust !)
   100
   99

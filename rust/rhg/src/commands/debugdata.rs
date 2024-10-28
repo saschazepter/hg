@@ -1,7 +1,8 @@
 use crate::error::CommandError;
 use clap::Arg;
 use clap::ArgGroup;
-use hg::operations::{debug_data, DebugDataKind};
+use hg::operations::debug_data;
+use hg::RevlogType;
 
 pub const HELP_TEXT: &str = "
 Dump the contents of a data file revision
@@ -45,8 +46,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         args.get_one::<bool>("changelog").unwrap(),
         args.get_one::<bool>("manifest").unwrap(),
     ) {
-        (true, false) => DebugDataKind::Changelog,
-        (false, true) => DebugDataKind::Manifest,
+        (true, false) => RevlogType::Changelog,
+        (false, true) => RevlogType::Manifestlog,
         (true, true) => {
             unreachable!("Should not happen since options are exclusive")
         }

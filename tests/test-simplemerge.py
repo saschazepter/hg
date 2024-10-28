@@ -24,6 +24,8 @@ from mercurial import (
 from mercurial.utils import stringutil
 
 TestCase = unittest.TestCase
+
+
 # bzr compatible interface, for the tests
 class Merge3(simplemerge.Merge3Text):
     """3-way merge of texts.

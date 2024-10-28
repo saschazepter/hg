@@ -30,7 +30,6 @@ if sys.version_info > (3, 5, 0):
     def _sys2bytes(p):
         return p.encode('utf-8')
 
-
 elif sys.version_info >= (3, 0, 0):
     print(
         '%s is only supported on Python 3.5+ and 2.7, not %s'

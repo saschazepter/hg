@@ -267,6 +267,66 @@ impl TryFrom<&DefaultConfigItem> for Option<u64> {
     }
 }
 
+impl TryFrom<&DefaultConfigItem> for Option<i64> {
+    type Error = HgError;
+
+    fn try_from(value: &DefaultConfigItem) -> Result<Self, Self::Error> {
+        match &value.default {
+            Some(default) => {
+                let err = HgError::abort(
+                    format!(
+                        "programming error: wrong query on config item '{}.{}'",
+                        value.section,
+                        value.name
+                    ),
+                    exit_codes::ABORT,
+                    Some(format!(
+                        "asked for 'i64', type of default is '{}'",
+                        default.type_str()
+                    )),
+                );
+                match default {
+                    DefaultConfigItemType::Primitive(
+                        toml::Value::Integer(b),
+                    ) => Ok(Some(*b)),
+                    _ => Err(err),
+                }
+            }
+            None => Ok(None),
+        }
+    }
+}
+
+impl TryFrom<&DefaultConfigItem> for Option<f64> {
+    type Error = HgError;
+
+    fn try_from(value: &DefaultConfigItem) -> Result<Self, Self::Error> {
+        match &value.default {
+            Some(default) => {
+                let err = HgError::abort(
+                    format!(
+                        "programming error: wrong query on config item '{}.{}'",
+                        value.section,
+                        value.name
+                    ),
+                    exit_codes::ABORT,
+                    Some(format!(
+                        "asked for 'f64', type of default is '{}'",
+                        default.type_str()
+                    )),
+                );
+                match default {
+                    DefaultConfigItemType::Primitive(toml::Value::Float(
+                        b,
+                    )) => Ok(Some(*b)),
+                    _ => Err(err),
+                }
+            }
+            None => Ok(None),
+        }
+    }
+}
+
 /// Allows abstracting over more complex default values than just primitives.
 /// The former `configitems.py` contained some dynamic code that is encoded
 /// in this enum.

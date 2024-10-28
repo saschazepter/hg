@@ -5,6 +5,8 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
+
 import os
 
 from mercurial.i18n import _
@@ -31,6 +33,7 @@ from . import (
     remotefilelog,
     shallowutil,
 )
+
 
 # These make*stores functions are global so that other extensions can replace
 # them.
@@ -291,11 +294,7 @@ def wraprepo(repo):
 
                 # Decompressing manifests is expensive.
                 # When possible, only read the deltas.
-                p1, p2 = mfrevlog.parentrevs(mfrev)
-                if p1 in visited and p2 in visited:
-                    mfdict = mfl[mfnode].readfast()
-                else:
-                    mfdict = mfl[mfnode].read()
+                mfdict = mfl[mfnode].read_any_fast_delta(visited)[1]
 
                 diff = mfdict.items()
                 if pats:

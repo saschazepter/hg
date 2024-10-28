@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import os
 import struct
@@ -407,7 +408,7 @@ class cg1unpacker:
                 yield chunkheader(len(chunk))
                 pos = 0
                 while pos < len(chunk):
-                    next = pos + 2 ** 20
+                    next = pos + 2**20
                     yield chunk[pos:next]
                     pos = next
             yield closechunk()
@@ -611,7 +612,7 @@ class cg1unpacker:
                 # validate incoming csets have their manifests
                 for cset in range(clstart, clend):
                     mfnode = cl.changelogrevision(cset).manifest
-                    mfest = ml[mfnode].readdelta()
+                    mfest = ml[mfnode].read_delta_new_entries()
                     # store file nodes we must see
                     for f, n in mfest.items():
                         needfiles.setdefault(f, set()).add(n)
@@ -697,7 +698,7 @@ class cg1unpacker:
                 repo.hook(
                     b'pretxnchangegroup',
                     throw=True,
-                    **pycompat.strkwargs(hookargs)
+                    **pycompat.strkwargs(hookargs),
                 )
 
             added = range(clstart, clend)
@@ -1830,7 +1831,8 @@ class cgpacker:
                 treemanifests to send.
                 """
                 clnode = nodes[x]
-                mdata = mfl.get(tree, x).readfast(shallow=True)
+                mctx = mfl.get(tree, x)
+                mdata = mctx.read_delta_parents(shallow=True, exact=False)
                 for p, n, fl in mdata.iterentries():
                     if fl == b't':  # subdirectory manifest
                         subtree = tree + p + b'/'

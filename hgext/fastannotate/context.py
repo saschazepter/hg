@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import collections
 import contextlib
@@ -37,6 +38,7 @@ from . import (
     error as faerror,
     revmap as revmapmod,
 )
+
 
 # given path, get filelog, cached
 @util.lrucachefunc
@@ -173,12 +175,16 @@ class annotateopts:
         'followmerge': True,
     }
 
+    diffopts: mdiff.diffopts
+    followrename: bool
+    followmerge: bool
+
     def __init__(self, **opts):
         for k, v in self.defaults.items():
             setattr(self, k, opts.get(k, v))
 
     @util.propertycache
-    def shortstr(self):
+    def shortstr(self) -> bytes:
         """represent opts in a short string, suitable for a directory name"""
         result = b''
         if not self.followrename:

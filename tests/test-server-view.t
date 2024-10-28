@@ -38,8 +38,8 @@ Check same result using `experimental.extra-filter-revs`
   branch2-base%89c45d2fa07e
   branch2-served
   hgtagsfnodes1
-  rbc-names-v1
-  rbc-revs-v1
+  rbc-names-v2
+  rbc-revs-v2
   tags2
   tags2-served%89c45d2fa07e
 

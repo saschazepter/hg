@@ -6,6 +6,8 @@ Black needs the real USERPROFILE in order to run on Windows
   $ export USERPROFILE
 #endif
 
+  $ . "$TESTDIR/helpers-testrepo.sh"
+
   $ cd $RUNTESTDIR/..
-  $ black --check --diff `hg files 'set:(**.py + grep("^#!.*python")) - mercurial/thirdparty/**'`
+  $ black --check --diff `testrepohg files 'set:(**.py + grep("^#!.*python")) - mercurial/thirdparty/**'`
 

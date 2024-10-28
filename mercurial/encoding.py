@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import locale
 import os
@@ -25,11 +26,12 @@ from . import (
     pycompat,
 )
 
+from .interfaces import modules as intmod
 from .pure import charencode as charencodepure
 
 _Tlocalstr = TypeVar('_Tlocalstr', bound='localstr')
 
-charencode = policy.importmod('charencode')
+charencode: intmod.CharEncoding = policy.importmod('charencode')
 
 isasciistr = charencode.isasciistr
 asciilower = charencode.asciilower
@@ -39,6 +41,7 @@ _jsonescapeu8fast = charencode.jsonescapeu8fast
 _sysstr = pycompat.sysstr
 
 unichr = chr
+
 
 # These unicode characters are ignored by HFS+ (Apple Technote 1150,
 # "Unicode Subtleties"), so we need to ignore them in some places for
@@ -103,14 +106,15 @@ _encodingrewrites = {
 if pycompat.iswindows:
     _encodingrewrites[b'cp65001'] = b'utf-8'
 
+encoding: bytes = b''  # help pytype avoid seeing None value
 try:
-    encoding = environ.get(b"HGENCODING")
+    encoding = environ.get(b"HGENCODING", b'')
     if not encoding:
         encoding = locale.getpreferredencoding().encode('ascii') or b'ascii'
         encoding = _encodingrewrites.get(encoding, encoding)
 except locale.Error:
     encoding = b'ascii'
-encodingmode = environ.get(b"HGENCODINGMODE", b"strict")
+encodingmode: bytes = environ.get(b"HGENCODINGMODE", b"strict")
 fallbackencoding = b'ISO-8859-1'
 
 
@@ -366,7 +370,6 @@ if pycompat.iswindows:
             cwd = cwd[0:1].upper() + cwd[1:]
         return cwd
 
-
 else:
     getcwd = os.getcwdb  # re-exports
 
@@ -524,7 +527,7 @@ class normcasespecs:
     other = 0
 
 
-def jsonescape(s: Any, paranoid: Any = False) -> Any:
+def jsonescape(s: bytes, paranoid: bool = False) -> bytes:
     """returns a string suitable for JSON
 
     JSON is problematic for us because it doesn't support non-Unicode

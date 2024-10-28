@@ -68,7 +68,7 @@ Start a client doing a streaming clone
 
   $ ( \
   >    hg clone --debug --stream -U http://localhost:$HGPORT1 \
-  >    clone-while-split > client.log 2>&1; \
+  >    clone-while-split --config worker.backgroundclose=0 > client.log 2>&1; \
   >    touch "$HG_TEST_STREAM_WALKED_FILE_3" \
   > ) &
 
@@ -115,8 +115,8 @@ Check everything is fine
   adding [s] 00changelog.d (189 bytes)
   adding [s] 00changelog.i (192 bytes)
   adding [c] branch2-served (94 bytes)
-  adding [c] rbc-names-v1 (7 bytes)
-  adding [c] rbc-revs-v1 (24 bytes)
+  adding [c] rbc-names-v2 (7 bytes)
+  adding [c] rbc-revs-v2 (24 bytes)
   updating the branch cache
   transferred 2.11 KB in * seconds (* */sec) (glob) (no-rust !)
   transferred 2.29 KB in * seconds (* */sec) (glob) (rust !)

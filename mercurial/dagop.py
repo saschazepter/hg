@@ -5,10 +5,21 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import heapq
+import typing
+from typing import (
+    List,
+)
 
 from .thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from .node import nullrev
 from . import (
     error,
@@ -747,7 +758,7 @@ def _annotatepair(parents, childfctx, child, skipchild, diffopts):
     return child
 
 
-def annotate(base, parents, skiprevs=None, diffopts=None):
+def annotate(base, parents, skiprevs=None, diffopts=None) -> List[annotateline]:
     """Core algorithm for filectx.annotate()
 
     `parents(fctx)` is a function returning a list of parent filectxs.

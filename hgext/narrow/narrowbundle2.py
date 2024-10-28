@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import struct
 
@@ -37,6 +38,7 @@ _ELIDEDMFHEADER = b'>20s20s20s20sl'  # manifest id, p1, p2, link id, len(text)
 _CSHEADERSIZE = struct.calcsize(_ELIDEDCSHEADER)
 _MFHEADERSIZE = struct.calcsize(_ELIDEDMFHEADER)
 
+
 # Serve a changegroup for a client with a narrow clone.
 def getbundlechangegrouppart_narrow(
     bundler,
@@ -46,7 +48,7 @@ def getbundlechangegrouppart_narrow(
     b2caps=None,
     heads=None,
     common=None,
-    **kwargs
+    **kwargs,
 ):
     assert repo.ui.configbool(b'experimental', b'narrowservebrokenellipses')
 

@@ -107,14 +107,15 @@ Avoid long deadlock
   
 
   $ cat << EOF >> ../txn-close.sh
-  > rm -f $TESTTMP/transaction-continue
-  > $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/transaction-continue $TESTTMP/transaction-waiting
-  > rm -f $TESTTMP/transaction-waiting
+  > rm -f "$TESTTMP/transaction-continue"
+  > "$RUNTESTDIR/testlib/wait-on-file" 5 "$TESTTMP/transaction-continue" "$TESTTMP/transaction-waiting"
+  > rm -f "$TESTTMP/transaction-waiting"
   > exit 1
   > EOF
+
   $ cat << EOF >> .hg/hgrc
   > [hooks]
-  > pretxnclose.test = sh $TESTTMP/txn-close.sh
+  > pretxnclose.test = sh "$TESTTMP/txn-close.sh"
   > EOF
 
 Check the overall logic is working, the transaction is holding the `lock` , but
@@ -129,7 +130,7 @@ not the `wlock`, then get aborted on a signal-file.
   $ echo y | hg --config ui.interactive=yes debuglock --set-lock
   abort: lock is already held
   [255]
-  $ touch $TESTTMP/transaction-continue
+  $ touch "$TESTTMP/transaction-continue"
   $ wait
   $ hg phase --rev 0
   0: draft
@@ -144,11 +145,11 @@ Changing tracked file
 
   $ hg status
   $ hg phase --public --rev 0 2> ../log.err &
-  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/transaction-waiting
+  $ "$RUNTESTDIR/testlib/wait-on-file" 5 "$TESTTMP/transaction-waiting"
   $ hg forget default_a
   $ hg status
   R default_a
-  $ touch $TESTTMP/transaction-continue
+  $ touch "$TESTTMP/transaction-continue"
   $ wait
   $ hg status
   R default_a
@@ -160,12 +161,12 @@ Changing branch from default
   $ hg branch
   default
   $ hg phase --public --rev 0 2> ../log.err &
-  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/transaction-waiting
+  $ "$RUNTESTDIR/testlib/wait-on-file" 5 "$TESTTMP/transaction-waiting"
   $ hg branch celeste
   marked working directory as branch celeste
   $ hg branch
   celeste
-  $ touch $TESTTMP/transaction-continue
+  $ touch "$TESTTMP/transaction-continue"
   $ wait
   $ hg branch
   celeste
@@ -177,12 +178,12 @@ Changing branch from another one
   $ hg branch
   babar
   $ hg phase --public --rev 0 2> ../log.err &
-  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/transaction-waiting
+  $ "$RUNTESTDIR/testlib/wait-on-file" 5 "$TESTTMP/transaction-waiting"
   $ hg branch celeste
   marked working directory as branch celeste
   $ hg branch
   celeste
-  $ touch $TESTTMP/transaction-continue
+  $ touch "$TESTTMP/transaction-continue"
   $ wait
   $ hg branch
   celeste
@@ -194,12 +195,12 @@ updating working copy
   $ hg log --rev . -T '{desc}\n'
   babar_m
   $ hg phase --public --rev 0 2> ../log.err &
-  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/transaction-waiting
+  $ $RUNTESTDIR/testlib/wait-on-file 5 "$TESTTMP/transaction-waiting"
   $ hg update "parents(.)" --quiet
   $ hg log --rev . -T '{desc}\n'
   babar_l
   $ hg st
-  $ touch $TESTTMP/transaction-continue
+  $ touch "$TESTTMP/transaction-continue"
   $ wait
   $ hg log --rev . -T '{desc}\n'
   babar_l
@@ -234,13 +235,13 @@ Activating the bookmark during a transaction
   $ hg log -r . -T '= {activebookmark} =\n'
   =  =
   $ hg phase --public --rev 0 2> ../log.err &
-  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/transaction-waiting
+  $ $RUNTESTDIR/testlib/wait-on-file 5 "$TESTTMP/transaction-waiting"
   $ hg up bar
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (activating bookmark bar)
   $ hg log -r . -T '= {activebookmark} =\n'
   = bar =
-  $ touch $TESTTMP/transaction-continue
+  $ touch "$TESTTMP/transaction-continue"
   $ wait
   $ hg log -r . -T '= {activebookmark} =\n'
   = bar =
@@ -251,13 +252,13 @@ Deactivating the bookmark
   $ hg log -r . -T '= {activebookmark} =\n'
   = bar =
   $ hg phase --public --rev 0 2> ../log.err &
-  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/transaction-waiting
+  $ $RUNTESTDIR/testlib/wait-on-file 5 "$TESTTMP/transaction-waiting"
   $ hg up .
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (leaving bookmark bar)
   $ hg log -r . -T '= {activebookmark} =\n'
   =  =
-  $ touch $TESTTMP/transaction-continue
+  $ touch "$TESTTMP/transaction-continue"
   $ wait
   $ hg log -r . -T '= {activebookmark} =\n'
   =  =

@@ -1,4 +1,4 @@
-FROM registry.heptapod.net/mercurial/ci-images/mercurial-core:v2.0
+FROM registry.heptapod.net/mercurial/ci-images/mercurial-core:v2.1
 
 USER ci-runner
 

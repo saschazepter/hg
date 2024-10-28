@@ -51,12 +51,7 @@ Tests of the file helper tool
   foo: mode=644
 #endif
 
-#if no-windows
   $ "$PYTHON" $TESTDIR/seq.py 10 > bar
-#else
-Convert CRLF -> LF for consistency
-  $ "$PYTHON" $TESTDIR/seq.py 10 | sed "s/$//" > bar
-#endif
 
 #if unix-permissions symlink
   $ chmod +x bar

@@ -137,7 +137,6 @@ class TestCompressor_stream_reader_fuzzing(TestCase):
     def test_buffer_source_read_variance(
         self, original, level, source_read_size, read_sizes
     ):
-
         refctx = zstd.ZstdCompressor(level=level)
         ref_frame = refctx.compress(original)
 
@@ -203,7 +202,6 @@ class TestCompressor_stream_reader_fuzzing(TestCase):
     def test_buffer_source_readinto(
         self, original, level, source_read_size, read_size
     ):
-
         refctx = zstd.ZstdCompressor(level=level)
         ref_frame = refctx.compress(original)
 
@@ -273,7 +271,6 @@ class TestCompressor_stream_reader_fuzzing(TestCase):
     def test_buffer_source_readinto_variance(
         self, original, level, source_read_size, read_sizes
     ):
-
         refctx = zstd.ZstdCompressor(level=level)
         ref_frame = refctx.compress(original)
 
@@ -410,7 +407,6 @@ class TestCompressor_stream_reader_fuzzing(TestCase):
     def test_buffer_source_read1_variance(
         self, original, level, source_read_size, read_sizes
     ):
-
         refctx = zstd.ZstdCompressor(level=level)
         ref_frame = refctx.compress(original)
 
@@ -551,7 +547,6 @@ class TestCompressor_stream_reader_fuzzing(TestCase):
     def test_buffer_source_readinto1_variance(
         self, original, level, source_read_size, read_sizes
     ):
-
         refctx = zstd.ZstdCompressor(level=level)
         ref_frame = refctx.compress(original)
 

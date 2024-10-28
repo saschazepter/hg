@@ -2082,6 +2082,8 @@ Quiet upgrade and downgrade
   tracked-hint:        no
   share-safe:         yes
 
+#if unix-permissions
+
 Attempting Auto-upgrade on a read-only repository
 -------------------------------------------------
 
@@ -2095,11 +2097,12 @@ Attempting Auto-upgrade on a read-only repository
 
   $ chmod -R u+w auto-upgrade
 
+#endif
+
 Attempting Auto-upgrade on a locked repository
 ----------------------------------------------
 
   $ hg -R auto-upgrade debuglock --set-lock --quiet &
-  $ echo $! >> $DAEMON_PIDS
   $ $RUNTESTDIR/testlib/wait-on-file 10 auto-upgrade/.hg/store/lock
   $ hg status -R auto-upgrade \
   >     --config format.use-dirstate-v2.automatic-upgrade-of-mismatching-repositories=yes \

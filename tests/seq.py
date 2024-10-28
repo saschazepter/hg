@@ -7,17 +7,15 @@
 #   seq START STOP        [START, STOP] stepping by 1
 #   seq START STEP STOP   [START, STOP] stepping by STEP
 
-import os
+import io
 import sys
 
-try:
-    import msvcrt
-
-    msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
-    msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
-    msvcrt.setmode(sys.stderr.fileno(), os.O_BINARY)
-except ImportError:
-    pass
+sys.stdout = io.TextIOWrapper(
+    sys.stdout.buffer,
+    sys.stdout.encoding,
+    sys.stdout.errors,
+    newline="\n",
+)
 
 start = 1
 if len(sys.argv) > 2:
