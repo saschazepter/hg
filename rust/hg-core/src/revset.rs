@@ -28,9 +28,9 @@ pub fn resolve_single(
     }
 
     match resolve_rev_number_or_hex_prefix(input, &changelog.revlog) {
-        Err(RevlogError::InvalidRevision) => {
+        Err(RevlogError::InvalidRevision(revision)) => {
             // TODO: support for the rest of the language here.
-            let msg = format!("cannot parse revset '{}'", input);
+            let msg = format!("cannot parse revset '{}'", revision);
             Err(HgError::unsupported(msg).into())
         }
         result => result,
@@ -67,5 +67,5 @@ pub fn resolve_rev_number_or_hex_prefix(
         }
         return revlog.rev_from_node(prefix);
     }
-    Err(RevlogError::InvalidRevision)
+    Err(RevlogError::InvalidRevision(input.to_string()))
 }

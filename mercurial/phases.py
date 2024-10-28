@@ -100,6 +100,7 @@ Note: old client behave as a publishing server with draft only content
 
 """
 
+from __future__ import annotations
 
 import heapq
 import struct
@@ -116,6 +117,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    overload,
 )
 
 from .i18n import _
@@ -138,6 +140,9 @@ Phaseroots = Dict[int, Set[int]]
 PhaseSets = Dict[int, Set[int]]
 
 if typing.TYPE_CHECKING:
+    from typing_extensions import (
+        Literal,  # py3.8+
+    )
     from . import (
         localrepo,
         ui as uimod,
@@ -375,11 +380,31 @@ INCREMENTAL_PHASE_SETS_UPDATE_MAX_UPDATE = 100
 
 
 class phasecache:
+    if typing.TYPE_CHECKING:
+
+        @overload
+        def __init__(
+            self,
+            repo: Any,
+            phasedefaults: Any,
+            _load: Literal[False],
+        ) -> None:
+            pass
+
+        @overload
+        def __init__(
+            self,
+            repo: "localrepo.localrepository",
+            phasedefaults: Optional["Phasedefaults"],
+            _load: bool = True,
+        ) -> None:
+            pass
+
     def __init__(
         self,
-        repo: "localrepo.localrepository",
-        phasedefaults: Optional["Phasedefaults"],
-        _load: bool = True,
+        repo,
+        phasedefaults,
+        _load=True,
     ):
         if _load:
             # Cheap trick to allow shallow-copy without copy module
@@ -387,7 +412,7 @@ class phasecache:
             self._phaseroots: Phaseroots = loaded[0]
             self.dirty: bool = loaded[1]
             self._loadedrevslen = 0
-            self._phasesets: PhaseSets = None
+            self._phasesets: Optional[PhaseSets] = None
 
     def hasnonpublicphases(self, repo: "localrepo.localrepository") -> bool:
         """detect if there are revisions with non-public phase"""
@@ -893,7 +918,6 @@ class phasecache:
 
         this_phase_set = self._phasesets[targetphase]
         for r in range(start, end):
-
             # gather information about the current_rev
             r_phase = phase(repo, r)
             p_phase = None  # phase inherited from parents

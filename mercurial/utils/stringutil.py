@@ -7,12 +7,14 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import ast
 import codecs
 import re as remod
 import textwrap
 import types
+import typing
 
 from typing import (
     Optional,
@@ -21,6 +23,11 @@ from typing import (
 
 from ..i18n import _
 from ..thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
 
 from .. import (
     encoding,
@@ -574,7 +581,6 @@ def parsemailmap(mailmapcontent):
         return mailmap
 
     for line in mailmapcontent.splitlines():
-
         # Don't bother checking the line if it is a comment or
         # is an improperly formed author field
         if line.lstrip().startswith(b'#'):
@@ -719,7 +725,7 @@ def ellipsis(text: bytes, maxlength: int = 400) -> bytes:
 
 def escapestr(s: bytes) -> bytes:
     # "bytes" is also a typing shortcut for bytes, bytearray, and memoryview
-    if isinstance(s, memoryview):
+    if isinstance(s, (memoryview, bytearray)):
         s = bytes(s)
     # call underlying function of s.encode('string_escape') directly for
     # Python 3 compatibility
@@ -801,7 +807,6 @@ def _MBTextWrapper(**kwargs):
             chunks.reverse()
 
             while chunks:
-
                 # Start the list of chunks that will make up the current line.
                 # cur_len is just the length of all the chunks in cur_line.
                 cur_line = []

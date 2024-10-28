@@ -353,7 +353,6 @@ class TestDecompressor_stream_reader_fuzzing(TestCase):
     def test_multiple_frames(
         self, originals, frame_count, level, source_read_size, read_sizes
     ):
-
         cctx = zstd.ZstdCompressor(level=level)
         source = io.BytesIO()
         buffer = io.BytesIO()

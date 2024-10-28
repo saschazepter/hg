@@ -272,6 +272,7 @@ Things were clean, and updating again will not change anything:
   eol: detected change in .hgeol
   filtering .hgeol through isbinary
   filtering a.txt through tolf
+  skip updating dirstate: identity mismatch (?)
 
   $ cd ..
 

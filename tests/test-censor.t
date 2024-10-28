@@ -35,26 +35,26 @@ censored node C1, second C2, and so on
   $ echo 'Tainted file' > target
   $ echo 'Passwords: hunter2' >> target
   $ hg ci -m taint target
-  $ C1=`hg id --debug -i`
+  $ C1=`hg id -r . -T "{node}"`
 
   $ echo 'hunter3' >> target
   $ echo 'Normal file v2' > bystander
   $ hg ci -m moretaint target bystander
-  $ C2=`hg id --debug -i`
+  $ C2=`hg id -r . -T "{node}"`
 
 Add a new sanitized versions to correct our mistake. Name the first head H1,
 the second head H2, and so on
 
   $ echo 'Tainted file is now sanitized' > target
   $ hg ci -m sanitized target
-  $ H1=`hg id --debug -i`
+  $ H1=`hg id -r . -T "{node}"`
 
   $ hg update -r $C2
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ echo 'Tainted file now super sanitized' > target
   $ hg ci -m 'super sanitized' target
   created new head
-  $ H2=`hg id --debug -i`
+  $ H2=`hg id -r . -T "{node}"`
 
 Verify target contents before censorship at each revision
 
@@ -239,7 +239,7 @@ with the file censored, but we can't censor at a head, so advance H1.
   $ C3=$H1
   $ echo 'advanced head H1' > target
   $ hg ci -m 'advance head H1' target
-  $ H1=`hg id --debug -i`
+  $ H1=`hg id -r . -T "{node}"`
   $ hg --config extensions.censor= censor -r $C3 target
   checking for the censored content in 2 heads
   checking for the censored content in the working directory
@@ -262,7 +262,7 @@ Revisions present in repository heads may not be censored
   [255]
   $ echo 'twiddling thumbs' > bystander
   $ hg ci -m 'bystander commit'
-  $ H2=`hg id --debug -i`
+  $ H2=`hg id -r . -T "{node}"`
   $ hg --config extensions.censor= censor -r "$H2^" target
   checking for the censored content in 2 heads
   abort: cannot censor file in heads (efbe78065929)
@@ -273,7 +273,7 @@ Cannot censor working directory
 
   $ echo 'seriously no passwords' > target
   $ hg ci -m 'extend second head arbitrarily' target
-  $ H2=`hg id --debug -i`
+  $ H2=`hg id -r . -T "{node}"`
   $ hg update -r "$H2^"
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg --config extensions.censor= censor -r . target
@@ -290,7 +290,7 @@ Can re-add file after being deleted + censored
   $ C4=$H2
   $ hg rm target
   $ hg ci -m 'delete target so it may be censored'
-  $ H2=`hg id --debug -i`
+  $ H2=`hg id -r . -T "{node}"`
   $ hg --config extensions.censor= censor -r $C4 target
   checking for the censored content in 2 heads
   checking for the censored content in the working directory
@@ -301,7 +301,7 @@ Can re-add file after being deleted + censored
   $ echo 'fresh start' > target
   $ hg add target
   $ hg ci -m reincarnated target
-  $ H2=`hg id --debug -i`
+  $ H2=`hg id -r . -T "{node}"`
   $ hg cat -r $H2 target | head -n 10
   fresh start
   $ hg cat -r "$H2^" target | head -n 10
@@ -318,11 +318,11 @@ Can censor enough revision to move back to inline storage
           8         ??? yes file      target (glob) (revlogv1 !)
   $ $TESTDIR/seq.py 4000 | $TESTDIR/sha256line.py > target
   $ hg ci -m 'add 100k passwords'
-  $ H2=`hg id --debug -i`
+  $ H2=`hg id -r . -T "{node}"`
   $ C5=$H2
   $ hg revert -r "$H2^" target
   $ hg ci -m 'cleaned 100k passwords'
-  $ H2=`hg id --debug -i`
+  $ H2=`hg id -r . -T "{node}"`
   $ hg debugrevlogstats | grep target
   rev-count   data-size inl type      target 
          10      ?????? no  file      target (glob)
@@ -399,11 +399,11 @@ Censored nodes can be pushed if they censor previously unexchanged nodes
   $ echo 'Passwords: hunter2hunter2' > target
   $ hg ci -m 're-add password from clone' target
   created new head
-  $ H3=`hg id --debug -i`
+  $ H3=`hg id -r . -T "{node}"`
   $ REV=$H3
   $ echo 'Re-sanitized; nothing to see here' > target
   $ hg ci -m 're-sanitized' target
-  $ H2=`hg id --debug -i`
+  $ H2=`hg id -r . -T "{node}"`
   $ CLEANREV=$H2
   $ hg cat -r $REV target | head -n 10
   Passwords: hunter2hunter2
@@ -556,17 +556,17 @@ Censoring a revision that is used as delta base
   $ echo root > target
   $ hg add target
   $ hg commit -m root
-  $ B0=`hg id --debug -i`
+  $ B0=`hg id -r . -T "{node}"`
   $ for x in `"$PYTHON" $TESTDIR/seq.py 0 50000`
   > do
   >   echo "Password: hunter$x" >> target
   > done
   $ hg ci -m 'write a long file'
-  $ B1=`hg id --debug -i`
+  $ B1=`hg id -r . -T "{node}"`
   $ echo 'small change (should create a delta)' >> target
   $ hg ci -m 'create a delta over the password'
 (should show that the last revision is a delta, not a snapshot)
-  $ B2=`hg id --debug -i`
+  $ B2=`hg id -r . -T "{node}"`
 
 Make sure the last revision is a delta against the revision we will censor
 

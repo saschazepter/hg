@@ -6,6 +6,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import collections
 import os
@@ -915,11 +916,14 @@ class branch_copies:
         self.movewithdir = {} if movewithdir is None else movewithdir
 
     def __repr__(self):
-        return '<branch_copies\n  copy=%r\n  renamedelete=%r\n  dirmove=%r\n  movewithdir=%r\n>' % (
-            self.copy,
-            self.renamedelete,
-            self.dirmove,
-            self.movewithdir,
+        return (
+            '<branch_copies\n  copy=%r\n  renamedelete=%r\n  dirmove=%r\n  movewithdir=%r\n>'
+            % (
+                self.copy,
+                self.renamedelete,
+                self.dirmove,
+                self.movewithdir,
+            )
         )
 
 

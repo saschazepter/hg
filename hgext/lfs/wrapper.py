@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import hashlib
 
@@ -169,7 +170,7 @@ def filelogaddrevision(
     cachedelta=None,
     node=None,
     flags=revlog.REVIDX_DEFAULT_FLAGS,
-    **kwds
+    **kwds,
 ):
     # The matcher isn't available if reposetup() wasn't called.
     lfstrack = self._revlog.opener.options.get(b'lfstrack')
@@ -194,7 +195,7 @@ def filelogaddrevision(
         cachedelta=cachedelta,
         node=node,
         flags=flags,
-        **kwds
+        **kwds,
     )
 
 

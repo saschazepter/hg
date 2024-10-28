@@ -6,6 +6,11 @@
   > [storage]
   > revbranchcache.mmap=true
   > EOF
+#else
+  $ cat <<EOF >> $HGRCPATH
+  > [storage]
+  > revbranchcache.mmap=false
+  > EOF
 #endif
 
 #if v3
@@ -790,14 +795,14 @@ revision branch cache is created when building the branch head cache
   $ rm -rf .hg/cache; hg head a -T '{rev}\n'
   5
   $ f --hexdump --size .hg/cache/rbc-*
-  .hg/cache/rbc-names-v1: size=92
+  .hg/cache/rbc-names-v2: size=92
   0000: 64 65 66 61 75 6c 74 00 61 00 62 00 63 00 61 20 |default.a.b.c.a |
   0010: 62 72 61 6e 63 68 20 6e 61 6d 65 20 6d 75 63 68 |branch name much|
   0020: 20 6c 6f 6e 67 65 72 20 74 68 61 6e 20 74 68 65 | longer than the|
   0030: 20 64 65 66 61 75 6c 74 20 6a 75 73 74 69 66 69 | default justifi|
   0040: 63 61 74 69 6f 6e 20 75 73 65 64 20 62 79 20 62 |cation used by b|
   0050: 72 61 6e 63 68 65 73 00 6d 00 6d 64             |ranches.m.md|
-  .hg/cache/rbc-revs-v1: size=160
+  .hg/cache/rbc-revs-v2: size=160
   0000: 19 70 9c 5a 00 00 00 00 dd 6b 44 0d 00 00 00 01 |.p.Z.....kD.....|
   0010: 88 1f e2 b9 00 00 00 01 ac 22 03 33 00 00 00 02 |.........".3....|
   0020: ae e3 9c d1 00 00 00 02 d8 cb c6 1d 00 00 00 01 |................|
@@ -811,107 +816,216 @@ revision branch cache is created when building the branch head cache
 
 no errors when revbranchcache is not writable
 
-  $ echo >> .hg/cache/rbc-revs-v1
-  $ mv .hg/cache/rbc-revs-v1 .hg/cache/rbc-revs-v1_
-  $ mkdir .hg/cache/rbc-revs-v1
+  $ echo >> .hg/cache/rbc-revs-v2
+  $ mv .hg/cache/rbc-revs-v2 .hg/cache/rbc-revs-v2_
+  $ mkdir .hg/cache/rbc-revs-v2
   $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n'
   5
-  $ rmdir .hg/cache/rbc-revs-v1
-  $ mv .hg/cache/rbc-revs-v1_ .hg/cache/rbc-revs-v1
+  $ rmdir .hg/cache/rbc-revs-v2
+  $ mv .hg/cache/rbc-revs-v2_ .hg/cache/rbc-revs-v2
 
 no errors when wlock cannot be acquired
 
 #if unix-permissions
-  $ mv .hg/cache/rbc-revs-v1 .hg/cache/rbc-revs-v1_
+  $ mv .hg/cache/rbc-revs-v2 .hg/cache/rbc-revs-v2_
   $ rm -f .hg/cache/branch*
   $ chmod 555 .hg
   $ hg head a -T '{rev}\n'
   5
   $ chmod 755 .hg
-  $ mv .hg/cache/rbc-revs-v1_ .hg/cache/rbc-revs-v1
+  $ mv .hg/cache/rbc-revs-v2_ .hg/cache/rbc-revs-v2
 #endif
 
-recovery from invalid cache revs file with trailing data
-  $ echo >> .hg/cache/rbc-revs-v1
+dealing with valid cache revs file but for extra trailing data
+--------------------------------------------------------------
+
+When the trailing data are smaller than a record, they are practically
+invisible to the cache and ignored. No warning is issued about them.
+
+  $ echo '42' >> .hg/cache/rbc-revs-v2
   $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n' --debug
   5
-  truncating cache/rbc-revs-v1 to 160
   $ f --size .hg/cache/rbc-revs*
-  .hg/cache/rbc-revs-v1: size=160
+  .hg/cache/rbc-revs-v2: size=164
+
+When the trailing data are larger than a record, they are seens as extra
+(probably invalid) data. We warn about them when writing.
+
+  $ echo 'abracadabra!' >> .hg/cache/rbc-revs-v2
+  $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n' --debug
+  5
+  cache/rbc-revs-v2 contains 17 unknown trailing bytes
+  $ f --size .hg/cache/rbc-revs*
+  .hg/cache/rbc-revs-v2: size=177
 
 recovery from invalid cache file with partial last record
-  $ mv .hg/cache/rbc-revs-v1 .
-  $ f -qDB 119 rbc-revs-v1 > .hg/cache/rbc-revs-v1
+---------------------------------------------------------
+  $ mv .hg/cache/rbc-revs-v2 .
+  $ f -qDB 119 rbc-revs-v2 > .hg/cache/rbc-revs-v2
   $ f --size .hg/cache/rbc-revs*
-  .hg/cache/rbc-revs-v1: size=119
+  .hg/cache/rbc-revs-v2: size=119
   $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n' --debug
   5
-  truncating cache/rbc-revs-v1 to 112
+  resetting content of cache/rbc-revs-v2
   $ f --size .hg/cache/rbc-revs*
-  .hg/cache/rbc-revs-v1: size=160
+  .hg/cache/rbc-revs-v2: size=160
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
 
 recovery from invalid cache file with missing record - no truncation
-  $ mv .hg/cache/rbc-revs-v1 .
-  $ f -qDB 112 rbc-revs-v1 > .hg/cache/rbc-revs-v1
+  $ mv .hg/cache/rbc-revs-v2 .
+  $ f -qDB 112 rbc-revs-v2 > .hg/cache/rbc-revs-v2
   $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n' --debug
   5
   $ f --size .hg/cache/rbc-revs*
-  .hg/cache/rbc-revs-v1: size=160
+  .hg/cache/rbc-revs-v2: size=160
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
 
 recovery from invalid cache file with some bad records
-  $ mv .hg/cache/rbc-revs-v1 .
-  $ f -qDB 8 rbc-revs-v1 > .hg/cache/rbc-revs-v1
+  $ mv .hg/cache/rbc-revs-v2 .
+  $ f -qDB 8 rbc-revs-v2 > .hg/cache/rbc-revs-v2
   $ f --size .hg/cache/rbc-revs*
-  .hg/cache/rbc-revs-v1: size=8
-  $ f -qDB 112 rbc-revs-v1 >> .hg/cache/rbc-revs-v1
+  .hg/cache/rbc-revs-v2: size=8
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+  $ f -qDB 112 rbc-revs-v2 >> .hg/cache/rbc-revs-v2
   $ f --size .hg/cache/rbc-revs*
-  .hg/cache/rbc-revs-v1: size=120
+  .hg/cache/rbc-revs-v2: size=120
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
   $ hg log -r 'branch(.)' -T '{rev} ' --debug
   history modification detected - truncating revision branch cache to revision * (glob)
   history modification detected - truncating revision branch cache to revision 1
-  3 4 8 9 10 11 12 13 truncating cache/rbc-revs-v1 to 8
+  3 4 8 9 10 11 12 13 resetting content of cache/rbc-revs-v2
   $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n' --debug
   5
-  truncating cache/rbc-revs-v1 to 104
+  resetting content of cache/rbc-revs-v2
   $ f --size --hexdump --bytes=16 .hg/cache/rbc-revs*
-  .hg/cache/rbc-revs-v1: size=160
+  .hg/cache/rbc-revs-v2: size=160
   0000: 19 70 9c 5a 00 00 00 00 dd 6b 44 0d 00 00 00 01 |.p.Z.....kD.....|
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+  0000: 19 70 9c 5a 00 00 00 00 dd 6b 44 0d 00 00 00 01 |.p.Z.....kD.....| (known-bad-output mmap windows !)
+
+Smoothly reuse "v1" format if no v2 exists
+------------------------------------------
+
+read only operation with valid data
+(actively rewrite data)
+
+  $ rm .hg/cache/rbc-names-v2
+  $ rm .hg/cache/rbc-revs-v2
+  $ rm .hg/cache/branch*
+  $ hg head a -T '{rev}\n' --debug
+  5
+  $ mv .hg/cache/rbc-names-v2 .hg/cache/rbc-names-v1
+  $ mv .hg/cache/rbc-revs-v2 .hg/cache/rbc-revs-v1
+  $ rm .hg/cache/branch*
+  $ hg head a -T '{rev}\n' --debug
+  5
+  $ f --size .hg/cache/rbc-*-*
+  .hg/cache/rbc-names-v1: size=92
+  .hg/cache/rbc-names-v2: size=92
+  .hg/cache/rbc-revs-v1: size=160
+  .hg/cache/rbc-revs-v2: size=160
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+
+
+Write operation write a full v2 files
+
+  $ mv .hg/cache/rbc-names-v2 .hg/cache/rbc-names-v1
+  $ mv .hg/cache/rbc-revs-v2 .hg/cache/rbc-revs-v1
+  $ f --size .hg/cache/rbc-*
+  .hg/cache/rbc-names-v1: size=92
+  .hg/cache/rbc-revs-v1: size=160
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+  $ hg branch not-here-for-long
+  marked working directory as branch not-here-for-long
+  $ hg ci -m not-long --debug
+  reusing manifest from p1 (no file change)
+  committing changelog
+  updating the branch cache
+  committed changeset * (glob)
+  $ f --size .hg/cache/rbc-*
+  .hg/cache/rbc-names-v1: size=92
+  .hg/cache/rbc-names-v2: size=110
+  .hg/cache/rbc-revs-v1: size=160
+  .hg/cache/rbc-revs-v2: size=168
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+
+So does explicit cache upgrade
+  $ mv .hg/cache/rbc-names-v2 .hg/cache/rbc-names-v1
+  $ mv .hg/cache/rbc-revs-v2 .hg/cache/rbc-revs-v1
+  $ f --size .hg/cache/rbc-*
+  .hg/cache/rbc-names-v1: size=110
+  .hg/cache/rbc-revs-v1: size=168
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+  $ hg debugupdatecache
+  $ f --size .hg/cache/rbc-*
+  .hg/cache/rbc-names-v1: size=110
+  .hg/cache/rbc-names-v2: size=110
+  .hg/cache/rbc-revs-v1: size=168
+  .hg/cache/rbc-revs-v2: size=168
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+
+With invalid v1 data, we rewrite it too (as v2)
+
+  $ cp .hg/cache/rbc-names-v2 .hg/cache/rbc-names-v1
+  $ mv .hg/cache/rbc-names-v2 .hg/cache/rbc-revs-v1
+  $ rm .hg/cache/rbc-revs-v2
+  $ rm .hg/cache/branch*
+  $ 
+  $ hg head a -T '{rev}\n' --debug
+  history modification detected - truncating revision branch cache to revision 0
+  5
+  $ f --size .hg/cache/rbc-*-*
+  .hg/cache/rbc-names-v1: size=110
+  .hg/cache/rbc-names-v2: size=110
+  .hg/cache/rbc-revs-v1: size=110
+  .hg/cache/rbc-revs-v2: size=168
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+
+cleanup
+
+  $ hg up -qr '.^'
+  $ hg rollback -qf
+  $ rm .hg/cache/*
+  $ hg debugupdatecache
+  $ f --size .hg/cache/rbc-*
+  .hg/cache/rbc-names-v2: size=92
+  .hg/cache/rbc-revs-v2: size=160
 
 cache is updated when committing
   $ hg branch i-will-regret-this
   marked working directory as branch i-will-regret-this
   $ hg ci -m regrets
   $ f --size .hg/cache/rbc-*
-  .hg/cache/rbc-names-v1: size=111
-  .hg/cache/rbc-revs-v1: size=168
+  .hg/cache/rbc-names-v2: size=111
+  .hg/cache/rbc-revs-v2: size=168
 
 update after rollback - the cache will be correct but rbc-names will will still
 contain the branch name even though it no longer is used
   $ hg up -qr '.^'
   $ hg rollback -qf
   $ f --size .hg/cache/rbc-names-*
-  .hg/cache/rbc-names-v1: size=111
+  .hg/cache/rbc-names-v2: size=111
   $ grep "i-will-regret-this" .hg/cache/rbc-names-* > /dev/null
   $ f --size .hg/cache/rbc-revs-*
-  .hg/cache/rbc-revs-v1: size=160
+  .hg/cache/rbc-revs-v2: size=168
 
 cache is updated/truncated when stripping - it is thus very hard to get in a
 situation where the cache is out of sync and the hash check detects it
   $ hg --config extensions.strip= strip -r tip --nob
   $ f --size .hg/cache/rbc-revs*
-  .hg/cache/rbc-revs-v1: size=152
+  .hg/cache/rbc-revs-v2: size=152
 
 cache is rebuilt when corruption is detected
-  $ echo > .hg/cache/rbc-names-v1
+  $ echo > .hg/cache/rbc-names-v2
   $ hg log -r '5:&branch(.)' -T '{rev} ' --debug
   referenced branch names not found - rebuilding revision branch cache from scratch
-  8 9 10 11 12 13 truncating cache/rbc-revs-v1 to 40
+  8 9 10 11 12 13 resetting content of rbc-names-v2
   $ f --size .hg/cache/rbc-names-*
-  .hg/cache/rbc-names-v1: size=84
+  .hg/cache/rbc-names-v2: size=84
   $ grep "i-will-regret-this" .hg/cache/rbc-names-* > /dev/null
   [1]
   $ f --size .hg/cache/rbc-revs-*
-  .hg/cache/rbc-revs-v1: size=152
+  .hg/cache/rbc-revs-v2: size=152
 
 Test that cache files are created and grows correctly:
 
@@ -923,12 +1037,12 @@ Test that cache files are created and grows correctly:
 
 #if v2
   $ f --size .hg/cache/rbc-*
-  .hg/cache/rbc-names-v1: size=1
-  .hg/cache/rbc-revs-v1: size=48
+  .hg/cache/rbc-names-v2: size=1
+  .hg/cache/rbc-revs-v2: size=48
 #else
   $ f --size .hg/cache/rbc-*
-  .hg/cache/rbc-names-v1: size=84
-  .hg/cache/rbc-revs-v1: size=152
+  .hg/cache/rbc-names-v2: size=84
+  .hg/cache/rbc-revs-v2: size=152
 #endif
 
   $ cd ..
@@ -947,16 +1061,16 @@ Test for multiple incorrect branch cache entries:
 #if v2
 
   $ f --size --sha256 .hg/cache/rbc-*
-  .hg/cache/rbc-names-v1: size=14, sha256=d376f7eea9a7e28fac6470e78dae753c81a5543c9ad436e96999590e004a281c
-  .hg/cache/rbc-revs-v1: size=24, sha256=ec89032fd4e66e7282cb6e403848c681a855a9c36c6b44d19179218553b78779
+  .hg/cache/rbc-names-v2: size=14, sha256=d376f7eea9a7e28fac6470e78dae753c81a5543c9ad436e96999590e004a281c
+  .hg/cache/rbc-revs-v2: size=24, sha256=ec89032fd4e66e7282cb6e403848c681a855a9c36c6b44d19179218553b78779
 
-  $ : > .hg/cache/rbc-revs-v1
+  $ : > .hg/cache/rbc-revs-v2
 
 No superfluous rebuilding of cache:
   $ hg log -r "branch(null)&branch(branch)" --debug
   $ f --size --sha256 .hg/cache/rbc-*
-  .hg/cache/rbc-names-v1: size=14, sha256=d376f7eea9a7e28fac6470e78dae753c81a5543c9ad436e96999590e004a281c
-  .hg/cache/rbc-revs-v1: size=24, sha256=ec89032fd4e66e7282cb6e403848c681a855a9c36c6b44d19179218553b78779
+  .hg/cache/rbc-names-v2: size=14, sha256=d376f7eea9a7e28fac6470e78dae753c81a5543c9ad436e96999590e004a281c
+  .hg/cache/rbc-revs-v2: size=24, sha256=ec89032fd4e66e7282cb6e403848c681a855a9c36c6b44d19179218553b78779
 #endif
 
   $ cd ..

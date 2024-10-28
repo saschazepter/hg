@@ -58,9 +58,17 @@ EOF
 # Use the system hg command if the bundled hg can't read the repository with
 # no warning nor error.
 if [ -n "`hg id -R "$TESTDIR/.." 2>&1 >/dev/null`" ]; then
-    alias testrepohg=syshg
-    alias testrepohgenv=syshgenv
+    testrepohg() {
+        syshg "$@"
+    }
+    testrepohgenv() {
+        syshgenv "$@"
+    }
 else
-    alias testrepohg="hg $extraoptions"
-    alias testrepohgenv=:
+    testrepohg() {
+        hg $extraoptions "$@"
+    }
+    testrepohgenv() {
+        :
+    }
 fi

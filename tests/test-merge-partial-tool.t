@@ -5,8 +5,8 @@ lines (even if there are no conflicts there)
   $ cat >> "$TESTTMP/head.sh" <<'EOF'
   > #!/bin/sh
   > for f in "$@"; do
-  >   head -5 $f > tmp
-  >   mv -f tmp $f
+  >   head -5 "$f" > tmp
+  >   mv -f tmp "$f"
   > done
   > EOF
   $ chmod +x "$TESTTMP/head.sh"
@@ -14,8 +14,8 @@ lines (even if there are no conflicts there)
   $ cat >> "$TESTTMP/tail.sh" <<'EOF'
   > #!/bin/sh
   > for f in "$@"; do
-  >   tail -5 $f > tmp
-  >   mv -f tmp $f
+  >   tail -5 "$f" > tmp
+  >   mv -f tmp "$f"
   > done
   > EOF
   $ chmod +x "$TESTTMP/tail.sh"
@@ -29,6 +29,27 @@ to test order later)
   > tail.executable=$TESTTMP/tail.sh
   > tail.order=1
   > EOF
+
+On Windows, running $TESTTMP/script.sh will open script.sh in an editor, if
+that's what the configured file association is.  The code shell quotes the
+*.executable value, so we can't set it to `sh $TESTTMP/script.sh`, because it
+tries to run that as the executable.  As a workaround, generate a bat file that
+invokes `sh script.sh`, and passes the args along.
+
+#if windows
+  $ cat >> "$TESTTMP/head.bat" <<'EOF'
+  > @echo off
+  > sh "%TESTTMP%/head.sh" %*
+  > EOF
+
+  $ cat >> "$TESTTMP/tail.bat" <<'EOF'
+  > @echo off
+  > sh "%TESTTMP%/tail.sh" %*
+  > EOF
+
+  $ sed 's/head.sh/head.bat/g' "${HGRCPATH}" > "${HGRCPATH}.tmp"
+  $ sed 's/tail.sh/tail.bat/g' "${HGRCPATH}.tmp" > "${HGRCPATH}"
+#endif
 
   $ make_commit() {
   >   echo "$@" | xargs -n1 > file
@@ -294,6 +315,23 @@ Test that arguments get passed as expected.
   > [partial-merge-tools]
   > log-args.executable=$TESTTMP/log-args.sh
   > EOF
+
+On Windows, running $TESTTMP/script.sh will open script.sh in an editor, if
+that's what the configured file association is.  The code shell quotes the
+*.executable value, so we can't set it to `sh $TESTTMP/script.sh`, because it
+tries to run that as the executable.  As a workaround, generate a bat file that
+invokes `sh script.sh`, and passes the args along.
+
+#if windows
+  $ cat >> "$TESTTMP/log-args.bat" <<'EOF'
+  > @echo off
+  > sh "%TESTTMP%/log-args.sh" %*
+  > EOF
+
+  $ sed 's/log-args.sh/log-args.bat/g' "$HGRCPATH" > "${HGRCPATH}.tmp"
+  $ mv "${HGRCPATH}.tmp" "${HGRCPATH}"
+#endif
+
   $ hg up -C 2
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg merge 1

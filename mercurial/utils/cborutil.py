@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import struct
 
@@ -204,7 +205,6 @@ def streamencodenone(v):
 
 STREAM_ENCODERS = {
     bytes: streamencodebytestring,
-    int: streamencodeint,
     int: streamencodeint,
     list: streamencodearray,
     tuple: streamencodearray,

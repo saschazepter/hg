@@ -92,7 +92,7 @@ Test that we tracks bookmark deletion
   $ hg journal babar
   previous locations of 'babar':
   000000000000  book -d babar
-  cb9a9f314b8b  book -f -r '.~1' babar
+  cb9a9f314b8b  book -f -r ?.~1? babar (glob)
   1e6c11564562  book -r . babar
 
 Test that bookmarks and working copy tracking is not mixed
@@ -111,7 +111,7 @@ Test that you can list all entries as well as limit the list or filter on them
   previous locations of the working copy and bookmarks:
   1e6c11564562  baz       book -r tip baz
   000000000000  babar     book -d babar
-  cb9a9f314b8b  babar     book -f -r '.~1' babar
+  cb9a9f314b8b  babar     book -f -r ?.~1? babar (glob)
   1e6c11564562  babar     book -r . babar
   1e6c11564562  bar       up
   1e6c11564562  .         up
@@ -142,7 +142,7 @@ Test that you can list all entries as well as limit the list or filter on them
   previous locations of 're:ba.':
   1e6c11564562  baz       book -r tip baz
   000000000000  babar     book -d babar
-  cb9a9f314b8b  babar     book -f -r '.~1' babar
+  cb9a9f314b8b  babar     book -f -r ?.~1? babar (glob)
   1e6c11564562  babar     book -r . babar
   1e6c11564562  bar       up
   cb9a9f314b8b  bar       book -f bar
@@ -154,7 +154,7 @@ Test that verbose, JSON, template and commit output work
   previous locations of the working copy and bookmarks:
   000000000000 -> 1e6c11564562 foobar    baz      1970-01-01 00:00 +0000  book -r tip baz
   cb9a9f314b8b -> 000000000000 foobar    babar    1970-01-01 00:00 +0000  book -d babar
-  1e6c11564562 -> cb9a9f314b8b foobar    babar    1970-01-01 00:00 +0000  book -f -r '.~1' babar
+  1e6c11564562 -> cb9a9f314b8b foobar    babar    1970-01-01 00:00 +0000  book -f -r ?.~1? babar (glob)
   000000000000 -> 1e6c11564562 foobar    babar    1970-01-01 00:00 +0000  book -r . babar
   cb9a9f314b8b -> 1e6c11564562 foobar    bar      1970-01-01 00:00 +0000  up
   cb9a9f314b8b -> 1e6c11564562 foobar    .        1970-01-01 00:00 +0000  up

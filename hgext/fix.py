@@ -122,6 +122,7 @@ perform other post-fixing work. The supported hooks are::
     previously passed to the "postfixfile" hook.
 """
 
+from __future__ import annotations
 
 import collections
 import itertools
@@ -339,7 +340,7 @@ def fix(ui, repo, *pats, **opts):
                     repo.hook(
                         b'postfixfile',
                         throw=False,
-                        **pycompat.strkwargs(hookargs)
+                        **pycompat.strkwargs(hookargs),
                     )
                 numitems[rev] -= 1
                 # Apply the fixes for this and any other revisions that are

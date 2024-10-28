@@ -91,7 +91,8 @@ attack .hg/test
   $ hg manifest -r0
   .hg/test
   $ hg update -Cr0
-  abort: path contains illegal component: .hg/test
+  abort: path contains illegal component: .hg/test (no-rust !)
+  abort: path '.hg/test' is inside the '.hg' folder (rust !)
   [10]
 
 attack foo/.hg/test
@@ -107,6 +108,7 @@ attack back/test where back symlinks to ..
   $ hg manifest -r2
   back
   back/test
+
 #if symlink
   $ hg update -Cr2
   abort: path 'back/test' traverses symbolic link 'back'
@@ -114,7 +116,7 @@ attack back/test where back symlinks to ..
 #else
 ('back' will be a file and cause some other system specific error)
   $ hg update -Cr2
-  abort: $TESTTMP/target/back/test: $ENOTDIR$
+  abort: $TESTTMP/repo/target/back/test: $ENOTDIR$
   [255]
 #endif
 
@@ -220,19 +222,28 @@ audited first by calculateupdates(), where no symlink is created so both
 'a' and 'a/b' are taken as good paths. still applyupdates() should fail.
 
   $ hg up -qC null
+#if rust
+  $ hg up 1
+  abort: path 'a/?' traverses symbolic link 'a' (glob)
+  [10]
+#endif
+
+#if no-rust
   $ hg up 1
   abort: path 'a/b' traverses symbolic link 'a'
   [255]
+#endif
   $ ls ../update-symlink-out
 
 try branch update replacing directory with symlink, and its content: the
 path 'a' is audited as a directory first, which should be audited again as
 a symlink.
 
-  $ rm -f a
+  $ rm -rf a
   $ hg up -qC 2
+
   $ hg up 1
-  abort: path 'a/b' traverses symbolic link 'a'
+  abort: path 'a/?' traverses symbolic link 'a' (glob)
   [255]
   $ ls ../update-symlink-out
 

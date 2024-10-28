@@ -9,12 +9,20 @@
 # protocol. For details about the protocol, see
 # `hg help internals.wireprotocol`.
 
+from __future__ import annotations
 
 import collections
 import struct
+import typing
 
 from .i18n import _
 from .thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from . import (
     encoding,
     error,
@@ -469,7 +477,9 @@ def createalternatelocationresponseframe(stream, requestid, location):
     ):
         value = getattr(location, a)
         if value is not None:
+            # pytype: disable=unsupported-operands
             data[b'location'][pycompat.bytestr(a)] = value
+            # pytype: enable=unsupported-operands
 
     payload = b''.join(cborutil.streamencode(data))
 
@@ -499,7 +509,7 @@ def createcommanderrorresponse(stream, requestid, message, args=None):
     }
 
     if args:
-        m[b'error'][b'args'] = args
+        m[b'error'][b'args'] = args  # pytype: disable=unsupported-operands
 
     overall = b''.join(cborutil.streamencode(m))
 
@@ -546,7 +556,7 @@ def createtextoutputframe(
     """
     atomdicts = []
 
-    for (formatting, args, labels) in atoms:
+    for formatting, args, labels in atoms:
         # TODO look for localstr, other types here?
 
         if not isinstance(formatting, bytes):
@@ -765,7 +775,7 @@ class zlibdecoder:
 
 class zstdbaseencoder:
     def __init__(self, level):
-        from . import zstd
+        from . import zstd  # pytype: disable=import-error
 
         self._zstd = zstd
         cctx = zstd.ZstdCompressor(level=level)
@@ -793,7 +803,7 @@ class zstd8mbencoder(zstdbaseencoder):
 
 class zstdbasedecoder:
     def __init__(self, maxwindowsize):
-        from . import zstd
+        from . import zstd  # pytype: disable=import-error
 
         dctx = zstd.ZstdDecompressor(max_window_size=maxwindowsize)
         self._decompressor = dctx.decompressobj()
@@ -823,7 +833,7 @@ def populatestreamencoders():
         return
 
     try:
-        from . import zstd
+        from . import zstd  # pytype: disable=import-error
 
         zstd.__version__
     except ImportError:
@@ -1198,7 +1208,6 @@ class serverreactor:
                         b'%s' % stringutil.forcebytestr(e),
                         errtype=b'server',
                     ):
-
                         yield frame
 
                     break
@@ -1259,7 +1268,6 @@ class serverreactor:
                         for chunk in cborutil.streamencodebytestringfromiter(
                             o.chunks
                         ):
-
                             for frame in emitter.send(chunk):
                                 yield frame
 

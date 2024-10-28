@@ -5,15 +5,14 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
+
 import errno
 import os
 import re
 import socket
 
 from mercurial.i18n import _
-from mercurial.pycompat import (
-    open,
-)
 from mercurial import (
     encoding,
     error,
@@ -52,8 +51,8 @@ class convert_cvs(converter_source):
         self.tags = {}
         self.lastbranch = {}
         self.socket = None
-        self.cvsroot = open(os.path.join(cvs, b"Root"), b'rb').read()[:-1]
-        self.cvsrepo = open(os.path.join(cvs, b"Repository"), b'rb').read()[:-1]
+        self.cvsroot = util.readfile(os.path.join(cvs, b"Root"))[:-1]
+        self.cvsrepo = util.readfile(os.path.join(cvs, b"Repository"))[:-1]
         self.encoding = encoding.encoding
 
         self._connect()
@@ -160,8 +159,7 @@ class convert_cvs(converter_source):
                     passw = b"A"
                     cvspass = os.path.expanduser(b"~/.cvspass")
                     try:
-                        pf = open(cvspass, b'rb')
-                        for line in pf.read().splitlines():
+                        for line in util.readfile(cvspass).splitlines():
                             part1, part2 = line.split(b' ', 1)
                             # /1 :pserver:user@example.com:2401/cvsroot/foo
                             # Ah<Z
@@ -174,7 +172,6 @@ class convert_cvs(converter_source):
                             if part1 == format:
                                 passw = part2
                                 break
-                        pf.close()
                     except IOError as inst:
                         if inst.errno != errno.ENOENT:
                             if not getattr(inst, 'filename', None):

@@ -418,6 +418,12 @@ Supported arguments:
 If no suitable authentication entry is found, the user is prompted
 for credentials as usual if required by the remote.
 
+``censor``
+----------
+
+``policy``
+    :config-doc:`censor.policy`
+
 ``cmdserver``
 -------------
 
@@ -2040,6 +2046,9 @@ statistical text report generated from the profiling data.
       Use a statistical profiler, statprof. This profiler is most
       useful for profiling commands that run for longer than about 0.1
       seconds.
+    ``py-spy``
+      use the py-spy profiler. A external py-spy executable must be available.
+      (Make sure to check `profiling.output` config to write the result.)
 
 ``format``
     Profiling format.  Specific to the ``ls`` instrumenting profiler.
@@ -2343,6 +2352,17 @@ category impact performance and repository size.
         This is unlikely that you'll have to tune this configuration. If you think
         you do, consider talking with the mercurial developer community about your
         repositories.
+
+``revlog.mmap.index``
+    Whether to use the Operating System "memory mapping" feature (when
+    possible) to access the revlog index. This improves performance
+    and reduces memory pressure.
+
+.. container:: verbose
+
+    ``revlog.mmap.index:size-threshold``
+
+        The size of index above which to use the "memory mapping" feature.
 
 ``revlog.optimize-delta-parent-choice``
     When storing a merge revision, both parents will be equally considered as

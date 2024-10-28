@@ -3,6 +3,8 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
+
 import contextlib
 
 from ..i18n import _
@@ -171,11 +173,7 @@ class randomaccessfile:
     def read_chunk(self, offset, length):
         """Read a chunk of bytes from the file.
 
-        Accepts an absolute offset, length to read, and an optional existing
-        file handle to read from.
-
-        If an existing file handle is passed, it will be seeked and the
-        original seek position will NOT be restored.
+        Accepts an absolute offset, length to read.
 
         Returns a str or buffer of raw byte data.
 

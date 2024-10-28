@@ -6,7 +6,13 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
+
 import collections
+
+from typing import (
+    Iterator,
+)
 
 from mercurial.node import bin
 from mercurial.i18n import _
@@ -41,7 +47,6 @@ class remotefilelognodemap:
 
 
 class remotefilelog:
-
     _flagserrorclass = error.RevlogError
 
     def __init__(self, opener, path, repo):
@@ -297,7 +302,7 @@ class remotefilelog:
         deltamode=None,
         sidedata_helpers=None,
         debug_info=None,
-    ):
+    ) -> Iterator[revlog.revlogrevisiondelta]:
         # we don't use any of these parameters here
         del nodesorder, revisiondata, assumehaveparentrevisions, deltaprevious
         del deltamode

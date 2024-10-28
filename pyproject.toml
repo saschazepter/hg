@@ -1,5 +1,42 @@
 [build-system]
 requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "mercurial"
+authors = [
+    {name = "Olivia Mackall and many others", email = "mercurial@mercurial-scm.org"},
+]
+description="Fast scalable distributed SCM (revision control, version control) system"
+readme = "README.rst"
+requires-python = ">=3.8"
+license={text = "GNU GPLv2 or any later version"}
+classifiers=[
+    "Development Status :: 6 - Mature",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: GNU General Public License (GPL)",
+    "Natural Language :: Danish",
+    "Natural Language :: English",
+    "Natural Language :: German",
+    "Natural Language :: Italian",
+    "Natural Language :: Japanese",
+    "Natural Language :: Portuguese (Brazilian)",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: OS Independent",
+    "Operating System :: POSIX",
+    "Programming Language :: C",
+    "Programming Language :: Python",
+    "Topic :: Software Development :: Version Control",
+]
+dynamic = ["version"]
+
+[project.urls]
+home = "https://mercurial-scm.org/"
+download_url = "https://mercurial-scm.org/release/"
+
 
 [tool.black]
 line-length = 80

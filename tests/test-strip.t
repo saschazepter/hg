@@ -913,6 +913,7 @@ check strip behavior
   saved backup bundle to $TESTTMP/issue4736/.hg/strip-backup/6625a5168474-345bb43d-backup.hg
   updating the branch cache
   invalid branch cache (served): tip differs
+  resetting content of rbc-names-v2
   $ hg log -G
   o  changeset:   2:5c51d8d6557d
   |  tag:         tip

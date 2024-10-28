@@ -1,0 +1,9 @@
+.. _topic-%(topicname)s:
+
+%(topictitle)s
+
+.. contents::
+   :backlinks: top
+   :class: htmlonly
+   :depth: 2
+

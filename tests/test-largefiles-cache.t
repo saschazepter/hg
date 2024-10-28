@@ -142,6 +142,12 @@ Test permission of files created by push:
 
   $ cd ..
 
+#else
+
+This is deleted by `hg push` in the other block above.
+
+  $ rm src/.hg/largefiles/undo.backup.dirstate.bck
+
 #endif
 
 Test issue 4053 (remove --after on a deleted, uncommitted file shouldn't say

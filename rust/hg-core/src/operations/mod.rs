@@ -7,6 +7,9 @@ mod debugdata;
 mod list_tracked_files;
 mod status_rev_rev;
 pub use cat::{cat, CatOutput};
-pub use debugdata::{debug_data, DebugDataKind};
-pub use list_tracked_files::{list_rev_tracked_files, FilesForRev};
+pub use debugdata::debug_data;
+pub use list_tracked_files::{
+    list_rev_tracked_files, list_revset_tracked_files, ExpandedManifestEntry,
+    FilesForRev,
+};
 pub use status_rev_rev::{status_rev_rev_no_copies, DiffStatus, StatusRevRev};

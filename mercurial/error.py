@@ -11,6 +11,7 @@ This allows us to catch exceptions at higher levels without forcing
 imports.
 """
 
+from __future__ import annotations
 
 import difflib
 

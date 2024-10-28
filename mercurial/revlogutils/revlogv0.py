@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 from ..node import sha1nodeconstants
 from .constants import (
@@ -109,6 +110,24 @@ class revlogoldindex(list):
             entry[7],
         )
         return INDEX_ENTRY_V0.pack(*e2)
+
+    def headrevs(self, excluded_revs=None, stop_rev=None):
+        count = len(self)
+        if stop_rev is not None:
+            count = min(count, stop_rev)
+        if not count:
+            return [node.nullrev]
+        # we won't iter over filtered rev so nobody is a head at start
+        ishead = [0] * (count + 1)
+        revs = range(count)
+        if excluded_revs is not None:
+            revs = (r for r in revs if r not in excluded_revs)
+
+        for r in revs:
+            ishead[r] = 1  # I may be an head
+            e = self[r]
+            ishead[e[5]] = ishead[e[6]] = 0  # my parent are not
+        return [r for r, val in enumerate(ishead) if val]
 
 
 def parse_index_v0(data, inline):

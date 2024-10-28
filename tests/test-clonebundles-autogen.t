@@ -10,8 +10,8 @@ initial setup
   > 
   > [clone-bundles]
   > auto-generate.on-change = yes
-  > upload-command = cp "\$HGCB_BUNDLE_PATH" "$TESTTMP"/final-upload/
-  > delete-command = rm -f "$TESTTMP/final-upload/\$HGCB_BASENAME"
+  > upload-command = sh -c 'cp "\$HGCB_BUNDLE_PATH" $TESTTMP_FORWARD_SLASH/final-upload/'
+  > delete-command = sh -c 'rm -f $TESTTMP_FORWARD_SLASH/final-upload/\$HGCB_BASENAME'
   > url-template = file://$TESTTMP/final-upload/{basename}
   > 
   > [devel]
@@ -58,6 +58,32 @@ Test bundles are generated on push
   $ hg -q commit -A -m 'add foo'
   $ touch bar
   $ hg -q commit -A -m 'add bar'
+
+Test that the HGCB_BUNDLE_BASENAME variable behaves as expected when unquoted.
+#if no-windows
+  $ hg clone ../server '../embed-"-name/server'
+  updating to branch default
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ cp ../server/.hg/hgrc '../embed-"-name/server/.hg/hgrc'
+
+  $ mv ../final-upload/ ../final-upload.bak/
+  $ mkdir ../final-upload/
+
+  $ hg push --config paths.default='../embed-"-name/server'
+  pushing to $TESTTMP/embed-"-name/server
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  2 changesets found
+  added 2 changesets with 2 changes to 2 files
+  clone-bundles: starting bundle generation: bzip2-v2
+
+Restore the original upload directory for windows test consistency
+  $ rm -r ../final-upload/
+  $ mv ../final-upload.bak/ ../final-upload/
+#endif
+
   $ hg push
   pushing to $TESTTMP/server
   searching for changes

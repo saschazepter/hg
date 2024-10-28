@@ -5,6 +5,12 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
+
+from typing import (
+    Iterable,
+    Iterator,
+)
 
 from .i18n import _
 from .node import nullrev
@@ -14,7 +20,6 @@ from . import (
 )
 from .interfaces import (
     repository,
-    util as interfaceutil,
 )
 from .utils import storageutil
 from .revlogutils import (
@@ -23,8 +28,11 @@ from .revlogutils import (
 )
 
 
-@interfaceutil.implementer(repository.ifilestorage)
-class filelog:
+class filelog:  # (repository.ifilestorage)
+    _revlog: revlog.revlog
+    nullid: bytes
+    _fix_issue6528: bool
+
     def __init__(self, opener, path, try_split=False):
         self._revlog = revlog.revlog(
             opener,
@@ -42,7 +50,7 @@ class filelog:
         opts = opener.options
         self._fix_issue6528 = opts.get(b'issue6528.fix-incoming', True)
 
-    def get_revlog(self):
+    def get_revlog(self) -> revlog.revlog:
         """return an actual revlog instance if any
 
         This exist because a lot of code leverage the fact the underlying
@@ -51,10 +59,10 @@ class filelog:
         """
         return self._revlog
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._revlog)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[int]:
         return self._revlog.__iter__()
 
     def hasnode(self, node):
@@ -175,7 +183,6 @@ class filelog:
             )
 
         with self._revlog._writing(transaction):
-
             if self._fix_issue6528:
                 deltas = rewrite.filter_delta_issue6528(self._revlog, deltas)
 
@@ -234,7 +241,7 @@ class filelog:
         """
         return not storageutil.filedataequivalent(self, node, text)
 
-    def verifyintegrity(self, state):
+    def verifyintegrity(self, state) -> Iterable[revlog.revlogproblem]:
         return self._revlog.verifyintegrity(state)
 
     def storageinfo(

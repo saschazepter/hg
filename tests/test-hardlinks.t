@@ -264,8 +264,8 @@ r4 has hardlinks in the working dir (not just inside .hg):
   [24] r4/.hg/branch (re)
   2 r4/.hg/cache/branch2-base
   2 r4/.hg/cache/branch2-served
-  2 r4/.hg/cache/rbc-names-v1
-  2 r4/.hg/cache/rbc-revs-v1
+  2 r4/.hg/cache/rbc-names-v2
+  2 r4/.hg/cache/rbc-revs-v2
   2 r4/.hg/cache/tags2
   2 r4/.hg/cache/tags2-served
   2 r4/.hg/dirstate
@@ -317,8 +317,8 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
   1 r4/.hg/branch
   2 r4/.hg/cache/branch2-base
   2 r4/.hg/cache/branch2-served
-  2 r4/.hg/cache/rbc-names-v1
-  2 r4/.hg/cache/rbc-revs-v1
+  2 r4/.hg/cache/rbc-names-v2
+  2 r4/.hg/cache/rbc-revs-v2
   2 r4/.hg/cache/tags2
   2 r4/.hg/cache/tags2-served
   1 r4/.hg/dirstate
