@@ -1,5 +1,7 @@
 .. _ext-%(extname)s:
 
+.. role:: config-doc
+
 %(exttitle)s
 
 .. contents::
