@@ -1,5 +1,7 @@
 .. _hg-%(cmdname)s.1:
 
+.. role:: config-doc
+
 %(cmdtitle)s
 
 %(cmdshortdesc)s
