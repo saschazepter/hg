@@ -466,7 +466,7 @@ Check more complex obsolescence graft (with divergence)
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
   $ hg debugobsolete `getid A_5` `getid A_9`
   1 new obsolescence markers
-  4 new content-divergent changesets
+  3 new content-divergent changesets
   $ hg log -G --hidden
   *  10:bed64f5d2f5a A_9
   |
@@ -480,7 +480,7 @@ Check more complex obsolescence graft (with divergence)
   |/
   | x  5:6a411f0d7a0a A_4 [rewritten as 6:e442cfc57690]
   |/
-  | *  4:01f36c5a8fda A_3
+  | o  4:01f36c5a8fda A_3
   |/
   | x  3:392fd25390da A_2 [rewritten as 5:6a411f0d7a0a]
   |/
@@ -553,7 +553,6 @@ Check more complex obsolescence graft (with divergence)
   bed64f5d2f5a
       bed64f5d2f5a
   $ hg log -r 'contentdivergent()'
-  4:01f36c5a8fda A_3
   8:7ae126973a96 A_7
   9:14608b260df8 A_8
   10:bed64f5d2f5a A_9
@@ -719,7 +718,58 @@ successors-set. (report [A,B] not [A] + [A,B])
 
   $ cd ..
 
+Divergence introduced after a split
+-----------------------------------
+
+Make sure divergence introduced in sucessors of a split does not spill to the
+unrelated part.
+
+  $ newcase split-unrelated-branch
+  $ hg debugobsolete `getid A_0` `getid A_1` `getid A_2`
+  1 new obsolescence markers
+  obsoleted 1 changesets
+  $ hg up 'desc("A_2")'
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg commit --amend -m "A_3"
+  $ hg up 'desc("A_2")' --hidden
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  updated to hidden changeset 392fd25390da
+  (hidden revision '392fd25390da' was rewritten as: 4d672202d2fb)
+  $ hg commit --amend -m "A_4" --config experimental.evolution.allowdivergence=yes
+  2 new content-divergent changesets
+  $ hg log -G --hidden
+  @  5:6730f214b07b A_4
+  |
+  | *  4:4d672202d2fb A_3
+  |/
+  | x  3:392fd25390da A_2 [rewritten using amend as 5:6730f214b07b; rewritten using amend as 4:4d672202d2fb]
+  |/
+  | o  2:82623d38b9ba A_1
+  |/
+  | x  1:007dc284c1f8 A_0 [split as 2:82623d38b9ba, 3:392fd25390da]
+  |/
+  o  0:d20a80d4def3 base
+  
+  $ hg debugsuccessorssets --hidden 'desc('A_0')'
+  007dc284c1f8
+      82623d38b9ba 4d672202d2fb
+      82623d38b9ba 6730f214b07b
+  $ hg debugsuccessorssets --hidden 'desc('A_1')'
+  82623d38b9ba
+      82623d38b9ba
+  $ hg debugsuccessorssets --hidden 'desc('A_2')'
+  392fd25390da
+      6730f214b07b
+      4d672202d2fb
+  $ hg log -r 'contentdivergent()'
+  4:4d672202d2fb A_3
+  5:6730f214b07b A_4
+  $ cd ..
+
+
+
 Use scmutil.cleanupnodes API to create divergence
+=================================================
 
   $ hg init cleanupnodes
   $ cd cleanupnodes
