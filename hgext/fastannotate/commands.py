@@ -5,8 +5,12 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import os
+from typing import (
+    Set,
+)
 
 from mercurial.i18n import _
 from mercurial import (
@@ -254,7 +258,7 @@ def fastannotate(ui, repo, *pats, **opts):
 
 
 _newopts = set()
-_knownopts = {
+_knownopts: Set[bytes] = {
     opt[1].replace(b'-', b'_')
     for opt in (fastannotatecommandargs['options'] + commands.globalopts)
 }

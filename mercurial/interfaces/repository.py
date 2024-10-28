@@ -6,6 +6,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 from ..i18n import _
 from .. import error
@@ -81,6 +82,7 @@ CACHES_ALL = {
     CACHE_BRANCHMAP_SERVED,
     CACHE_BRANCHMAP_ALL,
     CACHE_BRANCHMAP_DETECT_PURE_TOPO,
+    CACHE_REV_BRANCH,
     CACHE_CHANGELOG_CACHE,
     CACHE_FILE_NODE_TAGS,
     CACHE_FULL_MANIFEST,
@@ -1021,6 +1023,12 @@ class imanifestdict(interfaceutil.Interface):
 
     __bool__ = __nonzero__
 
+    def set(path, node, flags):
+        """Define the node value and flags for a path in the manifest.
+
+        Equivalent to __setitem__ followed by setflag, but can be more efficient.
+        """
+
     def __setitem__(path, node):
         """Define the node value for a path in the manifest.
 
@@ -1169,11 +1177,69 @@ class imanifestrevisionstored(imanifestrevisionbase):
     def readdelta(shallow=False):
         """Obtain the manifest data structure representing changes from parent.
 
-        This manifest is compared to its 1st parent. A new manifest representing
-        those differences is constructed.
+        This manifest is compared to its 1st parent. A new manifest
+        representing those differences is constructed.
+
+        If `shallow` is True, this will read the delta for this directory,
+        without recursively reading subdirectory manifests. Instead, any
+        subdirectory entry will be reported as it appears in the manifest, i.e.
+        the subdirectory will be reported among files and distinguished only by
+        its 't' flag. This only apply if the underlying manifest support it.
 
         The returned object conforms to the ``imanifestdict`` interface.
         """
+
+    def read_any_fast_delta(valid_bases=None, *, shallow=False):
+        """read some manifest information as fast if possible
+
+        This might return a "delta", a manifest object containing only file
+        changed compared to another revisions. The `valid_bases` argument
+        control the set of revision that might be used as a base.
+
+        If no delta can be retrieved quickly, a full read of the manifest will
+        be performed instead.
+
+        The function return a tuple with two elements. The first one is the
+        delta base used (or None if we did a full read), the second one is the
+        manifest information.
+
+        If `shallow` is True, this will read the delta for this directory,
+        without recursively reading subdirectory manifests. Instead, any
+        subdirectory entry will be reported as it appears in the manifest, i.e.
+        the subdirectory will be reported among files and distinguished only by
+        its 't' flag. This only apply if the underlying manifest support it.
+
+        The returned object conforms to the ``imanifestdict`` interface.
+        """
+
+    def read_delta_parents(*, shallow=False, exact=True):
+        """return a diff from this revision against both parents.
+
+        If `exact` is False, this might return a superset of the diff, containing
+        files that are actually present as is in one of the parents.
+
+        If `shallow` is True, this will read the delta for this directory,
+        without recursively reading subdirectory manifests. Instead, any
+        subdirectory entry will be reported as it appears in the manifest, i.e.
+        the subdirectory will be reported among files and distinguished only by
+        its 't' flag. This only apply if the underlying manifest support it.
+
+        The returned object conforms to the ``imanifestdict`` interface."""
+
+    def read_delta_new_entries(*, shallow=False):
+        """Return a manifest containing just the entries that might be new to
+        the repository.
+
+        This is often equivalent to a diff against both parents, but without
+        garantee. For performance reason, It might contains more files in some cases.
+
+        If `shallow` is True, this will read the delta for this directory,
+        without recursively reading subdirectory manifests. Instead, any
+        subdirectory entry will be reported as it appears in the manifest, i.e.
+        the subdirectory will be reported among files and distinguished only by
+        its 't' flag. This only apply if the underlying manifest support it.
+
+        The returned object conforms to the ``imanifestdict`` interface."""
 
     def readfast(shallow=False):
         """Calls either ``read()`` or ``readdelta()``.
@@ -1428,6 +1494,10 @@ class imanifestlog(interfaceutil.Interface):
         """nodeconstants used by the current repository."""
     )
 
+    narrowed = interfaceutil.Attribute(
+        """True, is the manifest is narrowed by a matcher"""
+    )
+
     def __getitem__(node):
         """Obtain a manifest instance for a given binary node.
 
@@ -1463,7 +1533,7 @@ class imanifestlog(interfaceutil.Interface):
         TODO formalize interface for returned object.
         """
 
-    def clearcaches():
+    def clearcaches(clear_persisted_data: bool = False) -> None:
         """Clear caches associated with this collection."""
 
     def rev(node):

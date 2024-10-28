@@ -6,6 +6,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import errno
 import io
@@ -245,8 +246,9 @@ def sendrequest(ui, opener, req):
     Returns the response object.
     """
     dbg = ui.debug
+    line = b'devel-peer-request: %s\n'
+
     if ui.debugflag and ui.configbool(b'devel', b'debug.peer-request'):
-        line = b'devel-peer-request: %s\n'
         dbg(
             line
             % b'%s %s'
@@ -491,6 +493,9 @@ class httppeer(wireprotov1peer.wirepeer):
             # boolean capability. They only support headerless/uncompressed
             # bundles.
             types = [b""]
+
+        type = b""
+
         for x in types:
             if x in bundle2.bundletypes:
                 type = x
@@ -520,10 +525,9 @@ class httppeer(wireprotov1peer.wirepeer):
             os.unlink(tempname)
 
     def _calltwowaystream(self, cmd, fp, **args):
-        filename = None
+        # dump bundle to disk
+        fd, filename = pycompat.mkstemp(prefix=b"hg-bundle-", suffix=b".hg")
         try:
-            # dump bundle to disk
-            fd, filename = pycompat.mkstemp(prefix=b"hg-bundle-", suffix=b".hg")
             with os.fdopen(fd, "wb") as fh:
                 d = fp.read(4096)
                 while d:
@@ -534,8 +538,7 @@ class httppeer(wireprotov1peer.wirepeer):
                 headers = {'Content-Type': 'application/mercurial-0.1'}
                 return self._callstream(cmd, data=fp_, headers=headers, **args)
         finally:
-            if filename is not None:
-                os.unlink(filename)
+            os.unlink(filename)
 
     def _callcompressable(self, cmd, **args):
         return self._callstream(cmd, _compressible=True, **args)

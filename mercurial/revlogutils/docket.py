@@ -15,6 +15,7 @@
 #
 # * a data file, containing variable width data for these revisions,
 
+from __future__ import annotations
 
 import os
 import random

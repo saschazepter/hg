@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import errno
 import fcntl
@@ -214,7 +215,7 @@ def setflags(f: bytes, l: bool, x: bool) -> None:
 def copymode(
     src: bytes,
     dst: bytes,
-    mode: Optional[bytes] = None,
+    mode: Optional[int] = None,
     enforcewritable: bool = False,
 ) -> None:
     """Copy the file mode from the file at path src to dst.
@@ -387,20 +388,20 @@ def checkosfilename(path: bytes) -> Optional[bytes]:
     return None  # on posix platforms, every path is ok
 
 
-def getfsmountpoint(dirpath: bytes) -> Optional[bytes]:
+def getfsmountpoint(path: bytes) -> Optional[bytes]:
     """Get the filesystem mount point from a directory (best-effort)
 
     Returns None if we are unsure. Raises OSError on ENOENT, EPERM, etc.
     """
-    return getattr(osutil, 'getfsmountpoint', lambda x: None)(dirpath)
+    return getattr(osutil, 'getfsmountpoint', lambda x: None)(path)
 
 
-def getfstype(dirpath: bytes) -> Optional[bytes]:
+def getfstype(path: bytes) -> Optional[bytes]:
     """Get the filesystem type name from a directory (best-effort)
 
     Returns None if we are unsure. Raises OSError on ENOENT, EPERM, etc.
     """
-    return getattr(osutil, 'getfstype', lambda x: None)(dirpath)
+    return getattr(osutil, 'getfstype', lambda x: None)(path)
 
 
 def get_password() -> bytes:
@@ -549,7 +550,7 @@ if pycompat.sysplatform == b'cygwin':
 
 if pycompat.sysplatform == b'OpenVMS':
     # OpenVMS's symlink emulation is broken on some OpenVMS versions.
-    def checklink(path):
+    def checklink(path: bytes) -> bool:
         return False
 
 
@@ -692,7 +693,7 @@ def makedir(path: bytes, notindexed: bool) -> None:
 
 def lookupreg(
     key: bytes,
-    name: Optional[bytes] = None,
+    valname: Optional[bytes] = None,
     scope: Optional[Union[int, Iterable[int]]] = None,
 ) -> Optional[bytes]:
     return None
@@ -708,6 +709,8 @@ def hidewindow() -> None:
 
 
 class cachestat:
+    stat: os.stat_result
+
     def __init__(self, path: bytes) -> None:
         self.stat = os.stat(path)
 

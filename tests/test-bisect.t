@@ -579,7 +579,7 @@ Check that bisect does not break on obsolete changesets
 tip is obsolete
 ---------------------
 
-  $ hg debugobsolete `hg id --debug -i -r tip`
+  $ hg debugobsolete `hg id -T "{node}" -r tip`
   1 new obsolescence markers
   obsoleted 1 changesets
   $ hg bisect --reset
@@ -608,7 +608,7 @@ Rewritten commits should not crash
   reverting a
   $ hg commit -m 'msg 30 -- fixed'
   created new head
-  $ hg debugobsolete `hg id --debug -i -r 30` `hg id --debug -i -r .`
+  $ hg debugobsolete `hg id -T "{node}" -r 30` `hg id -T "{node}" -r .`
   1 new obsolescence markers
   obsoleted 1 changesets
   $ hg bisect

@@ -26,6 +26,8 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from __future__ import annotations
+
 import inspect
 import math
 import os
@@ -209,7 +211,6 @@ if _debugging:
                 fmt % args[:],
             )
         )
-
 
 else:
 
@@ -806,7 +807,7 @@ class Bser2WithFallbackCodec(BserCodec):
             cmd = bser.dumps(
                 *args,
                 version=self.bser_version,
-                capabilities=self.bser_capabilities
+                capabilities=self.bser_capabilities,
             )
         else:
             cmd = bser.dumps(*args)

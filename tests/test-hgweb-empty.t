@@ -1,9 +1,15 @@
 #require serve
 
-Some tests for hgweb in an empty repository
+Some tests for hgweb in an empty repository and empty archive
 
   $ hg init test
   $ cd test
+  $ cat << EOF >> .hg/hgrc
+  > [web]
+  > allow-archive = zip
+  > [ui]
+  > archivemeta = False
+  > EOF
   $ hg serve -n test -p $HGPORT -d --pid-file=hg.pid -A access.log -E errors.log
   $ cat hg.pid >> $DAEMON_PIDS
   $ (get-with-headers.py localhost:$HGPORT 'shortlog')
@@ -44,6 +50,9 @@ Some tests for hgweb in an empty repository
   </ul>
   <ul>
   
+  <li>
+  <a href="/archive/tip.zip">zip</a>
+  </li>
   </ul>
   <ul>
    <li><a href="/help">help</a></li>
@@ -155,6 +164,9 @@ Some tests for hgweb in an empty repository
   </ul>
   <ul>
   
+  <li>
+  <a href="/archive/tip.zip">zip</a>
+  </li>
   </ul>
   <ul>
    <li><a href="/help">help</a></li>
@@ -264,6 +276,9 @@ Some tests for hgweb in an empty repository
   </ul>
   <ul>
   
+  <li>
+  <a href="/archive/tip.zip">zip</a>
+  </li>
   </ul>
   <ul>
    <li><a href="/help">help</a></li>
@@ -369,6 +384,9 @@ Some tests for hgweb in an empty repository
   </ul>
   <ul>
   
+  <li>
+  <a href="/archive/tip.zip">zip</a>
+  </li>
   </ul>
   <ul>
    <li><a href="/help">help</a></li>
@@ -427,5 +445,15 @@ Some tests for hgweb in an empty repository
   
   
   </feed>
+
+Fetching an empty archive
+-------------------------
+
+Test that archiving without matching files is rejected as error,
+not as Internal Server Error.
+
+  $ get-with-headers.py --headeronly localhost:$HGPORT archive/null.zip
+  403 Forbidden
+  [1]
 
   $ cd ..

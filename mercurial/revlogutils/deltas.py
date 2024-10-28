@@ -7,10 +7,12 @@
 # GNU General Public License version 2 or any later version.
 """Helper class to compute deltas stored inside revlogs"""
 
+from __future__ import annotations
 
 import abc
 import collections
 import struct
+import typing
 
 # import stuff from node for others to import from revlog
 from ..node import nullrev
@@ -30,6 +32,11 @@ from .constants import (
 )
 
 from ..thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
 
 from .. import (
     error,
@@ -428,7 +435,6 @@ def _slicechunktodensity(revlog, revs, targetdensity=0.5, mingapsize=0):
     # Cut the revs at collected indices
     previdx = 0
     for idx in selected:
-
         chunk = _trimchunk(revlog, revs, previdx, idx)
         if chunk:
             yield chunk

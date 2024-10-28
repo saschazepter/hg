@@ -56,7 +56,12 @@ if os.name == 'nt':
             if r == WAIT_OBJECT_0:
                 pass  # terminated, but process handle still available
             elif r == WAIT_TIMEOUT:
-                _check(ctypes.windll.kernel32.TerminateProcess(handle, -1))
+                # Allow the caller to optionally specify the exit code, to
+                # simulate killing with a signal.
+                exit_code = int(os.environ.get("DAEMON_EXITCODE", -1))
+                _check(
+                    ctypes.windll.kernel32.TerminateProcess(handle, exit_code)
+                )
             elif r == WAIT_FAILED:
                 _check(0)  # err stored in GetLastError()
 
@@ -74,7 +79,6 @@ if os.name == 'nt':
             ctypes.windll.kernel32.CloseHandle(handle)  # no _check, keep error
             raise
         _check(ctypes.windll.kernel32.CloseHandle(handle))
-
 
 else:
 

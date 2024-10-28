@@ -30,6 +30,7 @@ commands.unbundle(u, repo, pycompat.fsencode(BUNDLEPATH), update=True)
 time.sleep(1)
 commands.status(u, repo)
 
+
 # now disable symlink support -- this is what os.symlink would do on a
 # non-symlink file system
 def symlink_failure(src, dst):

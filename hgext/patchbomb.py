@@ -72,6 +72,8 @@ You can set patchbomb to always ask for confirmation by setting
 ``patchbomb.confirm`` to true.
 '''
 
+from __future__ import annotations
+
 import email.encoders as emailencoders
 import email.mime.base as emimebase
 import email.mime.multipart as emimemultipart
@@ -261,7 +263,6 @@ def makepatch(
     numbered,
     patchname=None,
 ):
-
     desc = []
     node = None
     body = b''

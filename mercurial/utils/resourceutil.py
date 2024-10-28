@@ -7,13 +7,22 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import os
 import sys
+import typing
 
 from typing import Iterator
 
 from .. import pycompat
+
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        BinaryIO,
+        Iterator,
+    )
 
 
 def mainfrozen():
@@ -45,17 +54,16 @@ if mainfrozen() and getattr(sys, "frozen", None) != "macosx_app":
     # leading "mercurial." off of the package name, so that these
     # pseudo resources are found in their directory next to the
     # executable.
-    def _package_path(package):
+    def _package_path(package: bytes) -> bytes:
         dirs = package.split(b".")
         assert dirs[0] == b"mercurial"
         return os.path.join(_rootpath, *dirs[1:])
-
 
 else:
     datapath = os.path.dirname(os.path.dirname(pycompat.fsencode(__file__)))
     _rootpath = os.path.dirname(datapath)
 
-    def _package_path(package):
+    def _package_path(package: bytes) -> bytes:
         return os.path.join(_rootpath, *package.split(b"."))
 
 
@@ -78,11 +86,11 @@ except (ImportError, AttributeError):
     # importlib.resources was not found (almost definitely because we're on a
     # Python version before 3.7)
 
-    def open_resource(package, name):
+    def open_resource(package: bytes, name: bytes) -> "BinaryIO":
         path = os.path.join(_package_path(package), name)
         return open(path, "rb")
 
-    def is_resource(package, name):
+    def is_resource(package: bytes, name: bytes) -> bool:
         path = os.path.join(_package_path(package), name)
 
         try:
@@ -90,17 +98,16 @@ except (ImportError, AttributeError):
         except (IOError, OSError):
             return False
 
-    def contents(package):
+    def contents(package: bytes) -> "Iterator[bytes]":
         path = pycompat.fsdecode(_package_path(package))
 
         for p in os.listdir(path):
             yield pycompat.fsencode(p)
 
-
 else:
     from .. import encoding
 
-    def open_resource(package, name):
+    def open_resource(package: bytes, name: bytes) -> "BinaryIO":
         if hasattr(resources, 'files'):
             return (
                 resources.files(  # pytype: disable=module-attr

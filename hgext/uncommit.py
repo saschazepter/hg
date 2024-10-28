@@ -17,6 +17,7 @@ removed in the changeset will be left unchanged, and so will remain modified,
 added and removed in the working directory.
 """
 
+from __future__ import annotations
 
 from mercurial.i18n import _
 
@@ -154,7 +155,6 @@ def uncommit(ui, repo, *pats, **opts):
     cmdutil.resolve_commit_options(ui, opts)
 
     with repo.wlock(), repo.lock():
-
         st = repo.status()
         m, a, r, d = st.modified, st.added, st.removed, st.deleted
         isdirtypath = any(set(m + a + r + d) & set(pats))
@@ -264,7 +264,6 @@ def unamend(ui, repo, **opts):
 
     unfi = repo.unfiltered()
     with repo.wlock(), repo.lock(), repo.transaction(b'unamend'):
-
         # identify the commit from which to unamend
         curctx = repo[b'.']
 

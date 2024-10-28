@@ -11,6 +11,7 @@ bookmarks were previously located.
 
 """
 
+from __future__ import annotations
 
 import collections
 import os
@@ -33,6 +34,7 @@ from mercurial import (
     localrepo,
     lock,
     logcmdutil,
+    merge,
     pycompat,
     registrar,
     util,
@@ -64,8 +66,10 @@ sharednamespaces = {
     bookmarktype: hg.sharedbookmarks,
 }
 
+
 # Journal recording, register hooks and storage object
 def extsetup(ui):
+    merge.MAYBE_USE_RUST_UPDATE = False
     extensions.wrapfunction(dispatch, 'runcommand', runcommand)
     extensions.wrapfunction(bookmarks.bmstore, '_write', recordbookmarks)
     extensions.wrapfilecache(

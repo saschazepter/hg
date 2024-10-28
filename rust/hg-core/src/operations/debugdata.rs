@@ -5,31 +5,33 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
+use crate::errors::HgError;
 use crate::repo::Repo;
-use crate::revlog::{Revlog, RevlogError};
-
-/// Kind of data to debug
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum DebugDataKind {
-    Changelog,
-    Manifest,
-}
+use crate::revlog::Revlog;
+use crate::{exit_codes, RevlogError, RevlogType};
 
 /// Dump the contents data of a revision.
 pub fn debug_data(
     repo: &Repo,
     revset: &str,
-    kind: DebugDataKind,
+    kind: RevlogType,
 ) -> Result<Vec<u8>, RevlogError> {
     let index_file = match kind {
-        DebugDataKind::Changelog => "00changelog.i",
-        DebugDataKind::Manifest => "00manifest.i",
+        RevlogType::Changelog => "00changelog.i",
+        RevlogType::Manifestlog => "00manifest.i",
+        _ => {
+            return Err(RevlogError::Other(HgError::abort(
+                format!("invalid revlog type {}", kind),
+                exit_codes::ABORT,
+                None,
+            )))
+        }
     };
     let revlog = Revlog::open(
         &repo.store_vfs(),
         index_file,
         None,
-        repo.default_revlog_options(kind == DebugDataKind::Changelog)?,
+        repo.default_revlog_options(RevlogType::Changelog)?,
     )?;
     let rev =
         crate::revset::resolve_rev_number_or_hex_prefix(revset, &revlog)?;

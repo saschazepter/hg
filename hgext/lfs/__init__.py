@@ -120,6 +120,7 @@ Configs::
     usercache = /path/to/global/cache
 """
 
+from __future__ import annotations
 
 import sys
 
@@ -137,6 +138,7 @@ from mercurial import (
     filesetlang,
     localrepo,
     logcmdutil,
+    merge,
     minifileset,
     pycompat,
     revlog,
@@ -233,6 +235,7 @@ def featuresetup(ui, supported):
 
 @eh.uisetup
 def _uisetup(ui):
+    merge.MAYBE_USE_RUST_UPDATE = False
     localrepo.featuresetupfuncs.add(featuresetup)
 
 

@@ -39,6 +39,7 @@ Config
   skiphash = False
 """
 
+from __future__ import annotations
 
 import inspect
 import os
@@ -151,7 +152,7 @@ def _getmtimepaths(ui):
     """
     modules = [m for n, m in extensions.extensions(ui)]
     try:
-        from . import __version__
+        from . import __version__  # pytype: disable=import-error
 
         modules.append(__version__)
     except ImportError:

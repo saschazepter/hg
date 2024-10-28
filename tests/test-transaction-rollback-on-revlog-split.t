@@ -8,29 +8,29 @@ Helper extension to intercept renames and kill process
 
   $ cat > $TESTTMP/intercept_before_rename.py << EOF
   > import os
-  > import signal
   > from mercurial import extensions, util
+  > from mercurial.testing import ps_util
   > 
   > def extsetup(ui):
   >     def rename(orig, src, dest, *args, **kwargs):
   >         path = util.normpath(dest)
   >         if path.endswith(b'data/file.i'):
-  >             os.kill(os.getpid(), signal.SIGKILL)
+  >             ps_util.kill(os.getpid())
   >         return orig(src, dest, *args, **kwargs)
   >     extensions.wrapfunction(util, 'rename', rename)
   > EOF
 
   $ cat > $TESTTMP/intercept_after_rename.py << EOF
   > import os
-  > import signal
   > from mercurial import extensions, util
+  > from mercurial.testing import ps_util
   > 
   > def extsetup(ui):
   >     def close(orig, *args, **kwargs):
   >         path = util.normpath(args[0]._atomictempfile__name)
   >         r = orig(*args, **kwargs)
   >         if path.endswith(b'/.hg/store/data/file.i'):
-  >             os.kill(os.getpid(), signal.SIGKILL)
+  >             ps_util.kill(os.getpid())
   >         return r
   >     extensions.wrapfunction(util.atomictempfile, 'close', close)
   > def extsetup(ui):
@@ -38,17 +38,17 @@ Helper extension to intercept renames and kill process
   >         path = util.normpath(dest)
   >         r = orig(src, dest, *args, **kwargs)
   >         if path.endswith(b'data/file.i'):
-  >             os.kill(os.getpid(), signal.SIGKILL)
+  >             ps_util.kill(os.getpid())
   >         return r
   >     extensions.wrapfunction(util, 'rename', rename)
   > EOF
 
   $ cat > $TESTTMP/killme.py << EOF
   > import os
-  > import signal
+  > from mercurial.testing import ps_util
   > 
   > def killme(ui, repo, hooktype, **kwargs):
-  >     os.kill(os.getpid(), signal.SIGKILL)
+  >     ps_util.kill(os.getpid())
   > EOF
 
   $ cat > $TESTTMP/reader_wait_split.py << EOF
@@ -58,11 +58,11 @@ Helper extension to intercept renames and kill process
   > def _wait_post_load(orig, self, *args, **kwargs):
   >     wait = b'data/file' in self.radix
   >     if wait:
-  >         testing.wait_file(b"$TESTTMP/writer-revlog-split")
+  >         testing.wait_file(b"$TESTTMP_FORWARD_SLASH/writer-revlog-split")
   >     r = orig(self, *args, **kwargs)
   >     if wait:
-  >         testing.write_file(b"$TESTTMP/reader-index-read")
-  >         testing.wait_file(b"$TESTTMP/writer-revlog-unsplit")
+  >         testing.write_file(b"$TESTTMP_FORWARD_SLASH/reader-index-read")
+  >         testing.wait_file(b"$TESTTMP_FORWARD_SLASH/writer-revlog-unsplit")
   >     return r
   > 
   > def extsetup(ui):
@@ -441,7 +441,7 @@ split and end reading (the data) after the rollback should be fine
   $ cd troffset-computation-race
   $ cat > .hg/hgrc <<EOF
   > [hooks]
-  > pretxnchangegroup=$RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/reader-index-read $TESTTMP/writer-revlog-split
+  > pretxnchangegroup=sh "$RUNTESTDIR/testlib/wait-on-file" 5 $TESTTMP/reader-index-read $TESTTMP/writer-revlog-split
   > pretxnclose = false
   > EOF
 
@@ -485,8 +485,8 @@ We checks that hooks properly see the inside of the transaction, while other pro
   $ cd troffset-computation-hooks
   $ cat > .hg/hgrc <<EOF
   > [hooks]
-  > pretxnclose.01-echo = hg cat -r 'max(all())' file | f --size
-  > pretxnclose.02-echo = $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/hook-done $TESTTMP/hook-tr-ready
+  > pretxnclose.01-echo = hg cat -r "max(all())" file | "$PYTHON" "$RUNTESTDIR/f" --size
+  > pretxnclose.02-echo = sh "$RUNTESTDIR/testlib/wait-on-file" 5 $TESTTMP/hook-done $TESTTMP/hook-tr-ready
   > pretxnclose.03-abort = false
   > EOF
 

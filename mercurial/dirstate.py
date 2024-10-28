@@ -5,12 +5,23 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import collections
 import contextlib
 import os
 import stat
 import uuid
+
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+)
 
 from .i18n import _
 
@@ -36,7 +47,6 @@ from .dirstateutils import (
 
 from .interfaces import (
     dirstate as intdirstate,
-    util as interfaceutil,
 )
 
 parsers = policy.importmod('parsers')
@@ -134,9 +144,7 @@ CHANGE_TYPE_PARENTS = "parents"
 CHANGE_TYPE_FILES = "files"
 
 
-@interfaceutil.implementer(intdirstate.idirstate)
-class dirstate:
-
+class dirstate(intdirstate.idirstate):
     # used by largefile to avoid overwritting transaction callback
     _tr_key_suffix = b''
 
@@ -398,7 +406,7 @@ class dirstate:
         raise error.ProgrammingError(msg)
 
     @property
-    def is_changing_any(self):
+    def is_changing_any(self) -> bool:
         """Returns true if the dirstate is in the middle of a set of changes.
 
         This returns True for any kind of change.
@@ -406,7 +414,7 @@ class dirstate:
         return self._changing_level > 0
 
     @property
-    def is_changing_parents(self):
+    def is_changing_parents(self) -> bool:
         """Returns true if the dirstate is in the middle of a set of changes
         that modify the dirstate parent.
         """
@@ -415,7 +423,7 @@ class dirstate:
         return self._change_type == CHANGE_TYPE_PARENTS
 
     @property
-    def is_changing_files(self):
+    def is_changing_files(self) -> bool:
         """Returns true if the dirstate is in the middle of a set of changes
         that modify the files tracked or their sources.
         """
@@ -471,11 +479,11 @@ class dirstate:
     def _pl(self):
         return self._map.parents()
 
-    def hasdir(self, d):
+    def hasdir(self, d: bytes) -> bool:
         return self._map.hastrackeddir(d)
 
     @rootcache(b'.hgignore')
-    def _ignore(self):
+    def _ignore(self) -> matchmod.basematcher:
         files = self._ignorefiles()
         if not files:
             return matchmod.never()
@@ -488,11 +496,11 @@ class dirstate:
         return self._ui.configbool(b'ui', b'slash') and pycompat.ossep != b'/'
 
     @propertycache
-    def _checklink(self):
+    def _checklink(self) -> bool:
         return util.checklink(self._root)
 
     @propertycache
-    def _checkexec(self):
+    def _checkexec(self) -> bool:
         return bool(util.checkexec(self._root))
 
     @propertycache
@@ -504,7 +512,9 @@ class dirstate:
         # it's safe because f is always a relative path
         return self._rootdir + f
 
-    def flagfunc(self, buildfallback):
+    def flagfunc(
+        self, buildfallback: intdirstate.FlagFuncFallbackT
+    ) -> intdirstate.FlagFuncReturnT:
         """build a callable that returns flags associated with a filename
 
         The information is extracted from three possible layers:
@@ -516,7 +526,7 @@ class dirstate:
         # small hack to cache the result of buildfallback()
         fallback_func = []
 
-        def get_flags(x):
+        def get_flags(x: bytes) -> bytes:
             entry = None
             fallback_value = None
             try:
@@ -567,7 +577,7 @@ class dirstate:
             return forcecwd
         return encoding.getcwd()
 
-    def getcwd(self):
+    def getcwd(self) -> bytes:
         """Return the path from which a canonical path is calculated.
 
         This path should be used to resolve file patterns or to convert
@@ -587,7 +597,7 @@ class dirstate:
             # we're outside the repo. return an absolute path.
             return cwd
 
-    def pathto(self, f, cwd=None):
+    def pathto(self, f: bytes, cwd: Optional[bytes] = None) -> bytes:
         if cwd is None:
             cwd = self.getcwd()
         path = util.pathto(self._root, cwd, f)
@@ -595,31 +605,31 @@ class dirstate:
             return util.pconvert(path)
         return path
 
-    def get_entry(self, path):
+    def get_entry(self, path: bytes) -> intdirstate.DirstateItemT:
         """return a DirstateItem for the associated path"""
         entry = self._map.get(path)
         if entry is None:
             return DirstateItem()
         return entry
 
-    def __contains__(self, key):
+    def __contains__(self, key: Any) -> bool:
         return key in self._map
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[bytes]:
         return iter(sorted(self._map))
 
-    def items(self):
+    def items(self) -> Iterator[Tuple[bytes, intdirstate.DirstateItemT]]:
         return self._map.items()
 
     iteritems = items
 
-    def parents(self):
+    def parents(self) -> List[bytes]:
         return [self._validate(p) for p in self._pl]
 
-    def p1(self):
+    def p1(self) -> bytes:
         return self._validate(self._pl[0])
 
-    def p2(self):
+    def p2(self) -> bytes:
         return self._validate(self._pl[1])
 
     @property
@@ -627,11 +637,11 @@ class dirstate:
         """True if a merge is in progress"""
         return self._pl[1] != self._nodeconstants.nullid
 
-    def branch(self):
+    def branch(self) -> bytes:
         return encoding.tolocal(self._branch)
 
     @requires_changing_parents
-    def setparents(self, p1, p2=None):
+    def setparents(self, p1: bytes, p2: Optional[bytes] = None):
         """Set dirstate parents to p1 and p2.
 
         When moving from two parents to one, "merged" entries a
@@ -644,8 +654,8 @@ class dirstate:
             p2 = self._nodeconstants.nullid
         if self._changing_level == 0:
             raise ValueError(
-                b"cannot set dirstate parent outside of "
-                b"dirstate.changing_parents context manager"
+                "cannot set dirstate parent outside of "
+                "dirstate.changing_parents context manager"
             )
 
         self._dirty = True
@@ -657,7 +667,9 @@ class dirstate:
         fold_p2 = oldp2 != nullid and p2 == nullid
         return self._map.setparents(p1, p2, fold_p2=fold_p2)
 
-    def setbranch(self, branch, transaction):
+    def setbranch(
+        self, branch: bytes, transaction: Optional[intdirstate.TransactionT]
+    ) -> None:
         self.__class__._branch.set(self, encoding.fromlocal(branch))
         if transaction is not None:
             self._setup_tr_abort(transaction)
@@ -685,7 +697,7 @@ class dirstate:
     def _write_branch(self, file_obj):
         file_obj.write(self._branch + b'\n')
 
-    def invalidate(self):
+    def invalidate(self) -> None:
         """Causes the next access to reread the dirstate.
 
         This is different from localrepo.invalidatedirstate() because it always
@@ -705,7 +717,7 @@ class dirstate:
         self._origpl = None
 
     @requires_changing_any
-    def copy(self, source, dest):
+    def copy(self, source: Optional[bytes], dest: bytes) -> None:
         """Mark dest as a copy of source. Unmark dest if source is None."""
         if source == dest:
             return
@@ -716,10 +728,10 @@ class dirstate:
         else:
             self._map.copymap.pop(dest, None)
 
-    def copied(self, file):
+    def copied(self, file: bytes) -> Optional[bytes]:
         return self._map.copymap.get(file, None)
 
-    def copies(self):
+    def copies(self) -> Dict[bytes, bytes]:
         return self._map.copymap
 
     @requires_changing_files
@@ -789,7 +801,7 @@ class dirstate:
         a `with dirstate.changing_parents(repo):` context.
         """
         if self.in_merge:
-            msg = b'update_file_reference should not be called when merging'
+            msg = 'update_file_reference should not be called when merging'
             raise error.ProgrammingError(msg)
         entry = self._map.get(filename)
         if entry is None:
@@ -880,7 +892,6 @@ class dirstate:
         possibly_dirty=False,
         parentfiledata=None,
     ):
-
         # note: I do not think we need to double check name clash here since we
         # are in a update/merge case that should already have taken care of
         # this. The test agrees
@@ -986,7 +997,9 @@ class dirstate:
                 )
         return folded
 
-    def normalize(self, path, isknown=False, ignoremissing=False):
+    def normalize(
+        self, path: bytes, isknown: bool = False, ignoremissing: bool = False
+    ) -> bytes:
         """
         normalize the case of a pathname when on a casefolding filesystem
 
@@ -1012,12 +1025,17 @@ class dirstate:
     # - its semantic is unclear
     # - do we really needs it ?
     @requires_changing_parents
-    def clear(self):
+    def clear(self) -> None:
         self._map.clear()
         self._dirty = True
 
     @requires_changing_parents
-    def rebuild(self, parent, allfiles, changedfiles=None):
+    def rebuild(
+        self,
+        parent: bytes,
+        allfiles: Iterable[bytes],  # TODO: more than iterable? (uses len())
+        changedfiles: Optional[Iterable[bytes]] = None,
+    ) -> None:
         matcher = self._sparsematcher
         if matcher is not None and not matcher.always():
             # should not add non-matching files
@@ -1083,7 +1101,7 @@ class dirstate:
             on_abort,
         )
 
-    def write(self, tr):
+    def write(self, tr: Optional[intdirstate.TransactionT]) -> None:
         if not self._dirty:
             return
         # make sure we don't request a write of invalidated content
@@ -1092,7 +1110,6 @@ class dirstate:
 
         write_key = self._use_tracked_hint and self._dirty_tracked_set
         if tr:
-
             self._setup_tr_abort(tr)
             self._attached_to_a_transaction = True
 
@@ -1134,7 +1151,9 @@ class dirstate:
         self._opener.unlink(self._filename_th)
         self._use_tracked_hint = False
 
-    def addparentchangecallback(self, category, callback):
+    def addparentchangecallback(
+        self, category: bytes, callback: intdirstate.AddParentChangeCallbackT
+    ) -> None:
         """add a callback to be called when the wd parents are changed
 
         Callback will be called with the following arguments:
@@ -1169,7 +1188,7 @@ class dirstate:
                 return True
         return False
 
-    def _ignorefiles(self):
+    def _ignorefiles(self) -> List[bytes]:
         files = []
         if os.path.exists(self._join(b'.hgignore')):
             files.append(self._join(b'.hgignore'))
@@ -1180,7 +1199,7 @@ class dirstate:
                 files.append(os.path.join(self._rootdir, util.expandpath(path)))
         return files
 
-    def _ignorefileandline(self, f):
+    def _ignorefileandline(self, f: bytes) -> intdirstate.IgnoreFileAndLineT:
         files = collections.deque(self._ignorefiles())
         visited = set()
         while files:
@@ -1286,7 +1305,7 @@ class dirstate:
                     badfn(ff, badtype(kind))
                     if nf in dmap:
                         results[nf] = None
-            except (OSError) as inst:
+            except OSError as inst:
                 # nf not found on disk - it is dirstate only
                 if nf in dmap:  # does it exactly match a missing file?
                     results[nf] = None
@@ -1338,7 +1357,14 @@ class dirstate:
 
         return results, dirsfound, dirsnotfound
 
-    def walk(self, match, subrepos, unknown, ignored, full=True):
+    def walk(
+        self,
+        match: matchmod.basematcher,
+        subrepos: Any,
+        unknown: bool,
+        ignored: bool,
+        full: bool = True,
+    ) -> intdirstate.WalkReturnT:
         """
         Walk recursively through the directory tree, finding all files
         matched by match.
@@ -1611,7 +1637,14 @@ class dirstate:
         )
         return (lookup, status)
 
-    def status(self, match, subrepos, ignored, clean, unknown):
+    def status(
+        self,
+        match: matchmod.basematcher,
+        subrepos: bool,
+        ignored: bool,
+        clean: bool,
+        unknown: bool,
+    ) -> intdirstate.StatusReturnT:
         """Determine the status of the working copy relative to the
         dirstate and return a pair of (unsure, status), where status is of type
         scmutil.status and:
@@ -1736,20 +1769,34 @@ class dirstate:
                         ladd(fn)
                     else:
                         madd(fn)
-                elif not t.mtime_likely_equal_to(timestamp.mtime_of(st)):
-                    # There might be a change in the future if for example the
-                    # internal clock is off, but this is a case where the issues
-                    # the user would face would be a lot worse and there is
-                    # nothing we can really do.
-                    ladd(fn)
-                elif listclean:
-                    cadd(fn)
+                else:
+                    reliable = None
+                    if mtime_boundary is not None:
+                        reliable = timestamp.reliable_mtime_of(
+                            st, mtime_boundary
+                        )
+                    elif t.mtime_likely_equal_to(timestamp.mtime_of(st)):
+                        # We can't compute the current fs time, so we're in
+                        # a readonly fs or a LFS context.
+                        cadd(fn)
+                        continue
+
+                    if reliable is None or not t.mtime_likely_equal_to(
+                        reliable
+                    ):
+                        # There might be a change in the future if for example
+                        # the internal clock is off, but this is a case where
+                        # the issues the user would face would be a lot worse
+                        # and there is nothing we can really do.
+                        ladd(fn)
+                    elif listclean:
+                        cadd(fn)
         status = scmutil.status(
             modified, added, removed, deleted, unknown, ignored, clean
         )
         return (lookup, status, mtime_boundary)
 
-    def matches(self, match):
+    def matches(self, match: matchmod.basematcher) -> Iterable[bytes]:
         """
         return files in the dirstate (in whatever state) filtered by match
         """
@@ -1782,7 +1829,9 @@ class dirstate:
                 files.append(self._map.docket.data_filename())
         return tuple(files)
 
-    def verify(self, m1, m2, p1, narrow_matcher=None):
+    def verify(
+        self, m1, m2, p1: bytes, narrow_matcher: Optional[Any] = None
+    ) -> Iterator[bytes]:
         """
         check the dirstate contents against the parent manifest and yield errors
         """

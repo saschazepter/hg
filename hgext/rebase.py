@@ -14,6 +14,7 @@ For more information:
 https://mercurial-scm.org/wiki/RebaseExtension
 '''
 
+from __future__ import annotations
 
 import os
 
@@ -830,7 +831,6 @@ class rebaseruntime:
                 cleanup = False
 
             if cleanup:
-
                 if rebased:
                     strippoints = [
                         c.node() for c in repo.set(b'roots(%ld)', rebased)

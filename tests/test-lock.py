@@ -52,7 +52,7 @@ class teststate:
             releasefn=self.releasefn,
             acquirefn=self.acquirefn,
             *args,
-            **kwargs
+            **kwargs,
         )
         l.postrelease.append(self.postreleasefn)
         return l

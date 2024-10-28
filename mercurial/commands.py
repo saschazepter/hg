@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import os
 import re
@@ -709,7 +710,8 @@ def archive(ui, repo, dest, **opts):
     if dest == b'-':
         if kind == b'files':
             raise error.InputError(_(b'cannot archive plain files to stdout'))
-        dest = cmdutil.makefileobj(ctx, dest)
+        realdest = dest
+        dest = lambda: cmdutil.makefileobj(ctx, realdest)
         if not prefix:
             prefix = os.path.basename(repo.root) + b'-%h'
 
@@ -3918,7 +3920,7 @@ def identify(
     branch=None,
     tags=None,
     bookmarks=None,
-    **opts
+    **opts,
 ):
     """identify the working directory or specified revision
 

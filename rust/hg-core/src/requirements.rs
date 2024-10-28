@@ -1,7 +1,7 @@
 use crate::errors::{HgError, HgResultExt};
 use crate::repo::Repo;
 use crate::utils::join_display;
-use crate::vfs::Vfs;
+use crate::vfs::VfsImpl;
 use std::collections::HashSet;
 
 fn parse(bytes: &[u8]) -> Result<HashSet<String>, HgError> {
@@ -24,11 +24,13 @@ fn parse(bytes: &[u8]) -> Result<HashSet<String>, HgError> {
         .collect()
 }
 
-pub(crate) fn load(hg_vfs: Vfs) -> Result<HashSet<String>, HgError> {
+pub(crate) fn load(hg_vfs: VfsImpl) -> Result<HashSet<String>, HgError> {
     parse(&hg_vfs.read("requires")?)
 }
 
-pub(crate) fn load_if_exists(hg_vfs: Vfs) -> Result<HashSet<String>, HgError> {
+pub(crate) fn load_if_exists(
+    hg_vfs: &VfsImpl,
+) -> Result<HashSet<String>, HgError> {
     if let Some(bytes) = hg_vfs.read("requires").io_not_found_as_none()? {
         parse(&bytes)
     } else {

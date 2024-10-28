@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import ast
 import collections
@@ -290,7 +291,7 @@ def loadall(ui, whitelist=None):
     with util.timedcm('load all extensions') as stats:
         default_sub_options = ui.configsuboptions(b"extensions", b"*")[1]
 
-        for (name, path) in result:
+        for name, path in result:
             if path:
                 if path[0:1] == b'!':
                     if name not in _disabledextensions:

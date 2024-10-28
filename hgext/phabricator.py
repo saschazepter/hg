@@ -57,6 +57,7 @@ Config::
     example.phabtoken = cli-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 """
 
+from __future__ import annotations
 
 import base64
 import contextlib
@@ -68,10 +69,17 @@ import mimetypes
 import operator
 import re
 import time
+import typing
 
 from mercurial.node import bin, short
 from mercurial.i18n import _
 from mercurial.thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from mercurial import (
     cmdutil,
     context,
@@ -698,7 +706,7 @@ class phabhunk(dict):
     oldLength = attr.ib(default=0)  # camelcase-required
     newOffset = attr.ib(default=0)  # camelcase-required
     newLength = attr.ib(default=0)  # camelcase-required
-    corpus = attr.ib(default='')
+    corpus = attr.ib(default=b'')
     # These get added to the phabchange's equivalents
     addLines = attr.ib(default=0)  # camelcase-required
     delLines = attr.ib(default=0)  # camelcase-required

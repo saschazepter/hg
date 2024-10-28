@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import collections
 import weakref
@@ -449,7 +450,7 @@ def push(
         newbranch,
         bookmarks,
         publish,
-        **pycompat.strkwargs(opargs)
+        **pycompat.strkwargs(opargs),
     )
     if pushop.remote.local():
         missing = (
@@ -703,8 +704,8 @@ def _pushdiscoveryobsmarkers(pushop):
     repo = pushop.repo
     # very naive computation, that can be quite expensive on big repo.
     # However: evolution is currently slow on them anyway.
-    nodes = (c.node() for c in repo.set(b'::%ln', pushop.futureheads))
-    pushop.outobsmarkers = pushop.repo.obsstore.relevantmarkers(nodes)
+    revs = repo.revs(b'::%ln', pushop.futureheads)
+    pushop.outobsmarkers = pushop.repo.obsstore.relevantmarkers(revs=revs)
 
 
 @pushdiscovery(b'bookmarks')
@@ -1278,18 +1279,18 @@ def _pushchangeset(pushop):
     ):
         # push everything,
         # use the fast path, no race possible on push
-        cg = changegroup.makechangegroup(
-            pushop.repo,
-            outgoing,
-            b'01',
-            b'push',
-            fastpath=True,
-            bundlecaps=bundlecaps,
-        )
+        fastpath = True
     else:
-        cg = changegroup.makechangegroup(
-            pushop.repo, outgoing, b'01', b'push', bundlecaps=bundlecaps
-        )
+        fastpath = False
+
+    cg = changegroup.makechangegroup(
+        pushop.repo,
+        outgoing,
+        b'01',
+        b'push',
+        fastpath=fastpath,
+        bundlecaps=bundlecaps,
+    )
 
     # apply changegroup to remote
     # local repo finds heads on server, finds out what
@@ -1717,7 +1718,7 @@ def pull(
         includepats=includepats,
         excludepats=excludepats,
         depth=depth,
-        **pycompat.strkwargs(opargs)
+        **pycompat.strkwargs(opargs),
     )
 
     peerlocal = pullop.remote.local()
@@ -2420,7 +2421,7 @@ def getbundlechunks(
     common=None,
     bundlecaps=None,
     remote_sidedata=None,
-    **kwargs
+    **kwargs,
 ):
     """Return chunks constituting a bundle's raw data.
 
@@ -2480,7 +2481,7 @@ def getbundlechunks(
             bundlecaps=bundlecaps,
             b2caps=b2caps,
             remote_sidedata=remote_sidedata,
-            **pycompat.strkwargs(kwargs)
+            **pycompat.strkwargs(kwargs),
         )
 
     info[b'prefercompressed'] = bundler.prefercompressed
@@ -2503,7 +2504,7 @@ def _getbundlechangegrouppart(
     heads=None,
     common=None,
     remote_sidedata=None,
-    **kwargs
+    **kwargs,
 ):
     """add a changegroup part to the requested bundle"""
     if not kwargs.get('cg', True) or not b2caps:
@@ -2603,10 +2604,15 @@ def _getbundleobsmarkerpart(
 ):
     """add an obsolescence markers part to the requested bundle"""
     if kwargs.get('obsmarkers', False):
+        unfi_cl = repo.unfiltered().changelog
         if heads is None:
-            heads = repo.heads()
-        subset = [c.node() for c in repo.set(b'::%ln', heads)]
-        markers = repo.obsstore.relevantmarkers(subset)
+            headrevs = repo.changelog.headrevs()
+        else:
+            get_rev = unfi_cl.index.get_rev
+            headrevs = [get_rev(node) for node in heads]
+            headrevs = [rev for rev in headrevs if rev is not None]
+        revs = unfi_cl.ancestors(headrevs, inclusive=True)
+        markers = repo.obsstore.relevantmarkers(revs=revs)
         markers = obsutil.sortedmarkers(markers)
         bundle2.buildobsmarkerspart(bundler, markers)
 
@@ -2669,7 +2675,7 @@ def _getbundletagsfnodes(
     b2caps=None,
     heads=None,
     common=None,
-    **kwargs
+    **kwargs,
 ):
     """Transfer the .hgtags filenodes mapping.
 
@@ -2697,7 +2703,7 @@ def _getbundlerevbranchcache(
     b2caps=None,
     heads=None,
     common=None,
-    **kwargs
+    **kwargs,
 ):
     """Transfer the rev-branch-cache mapping
 
@@ -2894,8 +2900,23 @@ def _maybeapplyclonebundle(pullop):
     entries = bundlecaches.sortclonebundleentries(repo.ui, entries)
 
     url = entries[0][b'URL']
+    digest = entries[0].get(b'DIGEST')
+    if digest:
+        algorithms = urlmod.digesthandler.digest_algorithms.keys()
+        preference = dict(zip(algorithms, range(len(algorithms))))
+        best_entry = None
+        best_preference = len(preference)
+        for digest_entry in digest.split(b','):
+            cur_algo, cur_digest = digest_entry.split(b':')
+            if cur_algo not in preference:
+                continue
+            if preference[cur_algo] < best_preference:
+                best_entry = digest_entry
+                best_preference = preference[cur_algo]
+        digest = best_entry
+
     repo.ui.status(_(b'applying clone bundle from %s\n') % url)
-    if trypullbundlefromurl(repo.ui, repo, url, remote):
+    if trypullbundlefromurl(repo.ui, repo, url, remote, digest):
         repo.ui.status(_(b'finished applying clone bundle\n'))
     # Bundle failed.
     #
@@ -2924,14 +2945,14 @@ def inline_clone_bundle_open(ui, url, peer):
     return util.chunkbuffer(peerclonebundle)
 
 
-def trypullbundlefromurl(ui, repo, url, peer):
+def trypullbundlefromurl(ui, repo, url, peer, digest):
     """Attempt to apply a bundle from a URL."""
     with repo.lock(), repo.transaction(b'bundleurl') as tr:
         try:
             if url.startswith(bundlecaches.CLONEBUNDLESCHEME):
                 fh = inline_clone_bundle_open(ui, url, peer)
             else:
-                fh = urlmod.open(ui, url)
+                fh = urlmod.open(ui, url, digest=digest)
             cg = readbundle(ui, fh, b'stream')
 
             if isinstance(cg, streamclone.streamcloneapplier):

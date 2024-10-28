@@ -11,6 +11,7 @@ The :hg:`releasenotes` command provided by this extension makes the
 process simpler by automating it.
 """
 
+from __future__ import annotations
 
 import difflib
 import re

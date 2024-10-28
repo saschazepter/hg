@@ -5,14 +5,30 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
+
+import abc
 import contextlib
 import os
 import shutil
 import stat
 import threading
+import typing
 
 from typing import (
+    Any,
+    BinaryIO,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    MutableMapping,
     Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
 )
 
 from .i18n import _
@@ -24,8 +40,19 @@ from . import (
     util,
 )
 
+if typing.TYPE_CHECKING:
+    from . import (
+        ui as uimod,
+    )
 
-def _avoidambig(path: bytes, oldstat):
+    _Tbackgroundfilecloser = TypeVar(
+        '_Tbackgroundfilecloser', bound='backgroundfilecloser'
+    )
+    _Tclosewrapbase = TypeVar('_Tclosewrapbase', bound='closewrapbase')
+    _OnErrorFn = Callable[[Exception], Optional[object]]
+
+
+def _avoidambig(path: bytes, oldstat: util.filestat) -> None:
     """Avoid file stat ambiguity forcibly
 
     This function causes copying ``path`` file, if it is owned by
@@ -44,30 +71,29 @@ def _avoidambig(path: bytes, oldstat):
         checkandavoid()
 
 
-class abstractvfs:
+class abstractvfs(abc.ABC):
     """Abstract base class; cannot be instantiated"""
 
     # default directory separator for vfs
     #
     # Other vfs code always use `/` and this works fine because python file API
     # abstract the use of `/` and make it work transparently. For consistency
-    # vfs will always use `/` when joining. This avoid some confusion in
+    # vfs will always use `/` when joining. This avoids some confusion in
     # encoded vfs (see issue6546)
-    _dir_sep = b'/'
-
-    def __init__(self, *args, **kwargs):
-        '''Prevent instantiation; don't call this from subclasses.'''
-        raise NotImplementedError('attempted instantiating ' + str(type(self)))
+    _dir_sep: bytes = b'/'
 
     # TODO: type return, which is util.posixfile wrapped by a proxy
-    def __call__(self, path: bytes, mode: bytes = b'rb', **kwargs):
-        raise NotImplementedError
+    @abc.abstractmethod
+    def __call__(self, path: bytes, mode: bytes = b'rb', **kwargs) -> Any:
+        ...
 
-    def _auditpath(self, path: bytes, mode: bytes):
-        raise NotImplementedError
+    @abc.abstractmethod
+    def _auditpath(self, path: bytes, mode: bytes) -> None:
+        ...
 
+    @abc.abstractmethod
     def join(self, path: Optional[bytes], *insidef: bytes) -> bytes:
-        raise NotImplementedError
+        ...
 
     def tryread(self, path: bytes) -> bytes:
         '''gracefully return an empty string for missing files'''
@@ -77,7 +103,7 @@ class abstractvfs:
             pass
         return b""
 
-    def tryreadlines(self, path: bytes, mode: bytes = b'rb'):
+    def tryreadlines(self, path: bytes, mode: bytes = b'rb') -> List[bytes]:
         '''gracefully return an empty array for missing files'''
         try:
             return self.readlines(path, mode=mode)
@@ -99,18 +125,22 @@ class abstractvfs:
         with self(path, b'rb') as fp:
             return fp.read()
 
-    def readlines(self, path: bytes, mode: bytes = b'rb'):
+    def readlines(self, path: bytes, mode: bytes = b'rb') -> List[bytes]:
         with self(path, mode=mode) as fp:
             return fp.readlines()
 
     def write(
-        self, path: bytes, data: bytes, backgroundclose=False, **kwargs
+        self, path: bytes, data: bytes, backgroundclose: bool = False, **kwargs
     ) -> int:
         with self(path, b'wb', backgroundclose=backgroundclose, **kwargs) as fp:
             return fp.write(data)
 
     def writelines(
-        self, path: bytes, data: bytes, mode: bytes = b'wb', notindexed=False
+        self,
+        path: bytes,
+        data: Iterable[bytes],
+        mode: bytes = b'wb',
+        notindexed: bool = False,
     ) -> None:
         with self(path, mode=mode, notindexed=notindexed) as fp:
             return fp.writelines(data)
@@ -137,7 +167,7 @@ class abstractvfs:
     def exists(self, path: Optional[bytes] = None) -> bool:
         return os.path.exists(self.join(path))
 
-    def fstat(self, fp):
+    def fstat(self, fp: BinaryIO) -> os.stat_result:
         return util.fstat(fp)
 
     def isdir(self, path: Optional[bytes] = None) -> bool:
@@ -177,7 +207,7 @@ class abstractvfs:
         to allow handling of strange encoding if needed."""
         return self._join(*paths)
 
-    def split(self, path: bytes):
+    def split(self, path: bytes) -> Tuple[bytes, bytes]:
         """split top-most element of a path (as os.path.split would do)
 
         This exists to allow handling of strange encoding if needed."""
@@ -186,7 +216,7 @@ class abstractvfs:
     def lexists(self, path: Optional[bytes] = None) -> bool:
         return os.path.lexists(self.join(path))
 
-    def lstat(self, path: Optional[bytes] = None):
+    def lstat(self, path: Optional[bytes] = None) -> os.stat_result:
         return os.lstat(self.join(path))
 
     def is_mmap_safe(self, path: Optional[bytes] = None) -> bool:
@@ -203,7 +233,7 @@ class abstractvfs:
         then you get SIGBUS, which can be pretty disruptive: we get core dump
         reports, and the process terminates without writing to the blackbox.
 
-        Instead in this situation we prefer to read the file normally.
+        Instead, in this situation we prefer to read the file normally.
         The risk of ESTALE in the middle of the read remains, but it's
         smaller because we read sooner and the error should be reported
         just as any other error.
@@ -218,21 +248,21 @@ class abstractvfs:
         fstype = util.getfstype(self.join(path))
         return fstype is not None and fstype != b'nfs'
 
-    def listdir(self, path: Optional[bytes] = None):
+    def listdir(self, path: Optional[bytes] = None) -> List[bytes]:
         return os.listdir(self.join(path))
 
-    def makedir(self, path: Optional[bytes] = None, notindexed=True):
+    def makedir(self, path: Optional[bytes] = None, notindexed=True) -> None:
         return util.makedir(self.join(path), notindexed)
 
     def makedirs(
         self, path: Optional[bytes] = None, mode: Optional[int] = None
-    ):
+    ) -> None:
         return util.makedirs(self.join(path), mode)
 
-    def makelock(self, info, path: bytes):
+    def makelock(self, info: bytes, path: bytes) -> None:
         return util.makelock(info, self.join(path))
 
-    def mkdir(self, path: Optional[bytes] = None):
+    def mkdir(self, path: Optional[bytes] = None) -> None:
         return os.mkdir(self.join(path))
 
     def mkstemp(
@@ -240,7 +270,7 @@ class abstractvfs:
         suffix: bytes = b'',
         prefix: bytes = b'tmp',
         dir: Optional[bytes] = None,
-    ):
+    ) -> Tuple[int, bytes]:
         fd, name = pycompat.mkstemp(
             suffix=suffix, prefix=prefix, dir=self.join(dir)
         )
@@ -250,13 +280,21 @@ class abstractvfs:
         else:
             return fd, fname
 
-    def readdir(self, path: Optional[bytes] = None, stat=None, skip=None):
+    # TODO: This doesn't match osutil.listdir().  stat=False in pure;
+    #  non-optional bool in cext.  'skip' is bool if we trust cext, or bytes
+    #  going by how pure uses it.  Also, cext returns a custom stat structure.
+    #  from cext.osutil.pyi:
+    #
+    #     path: bytes, st: bool, skip: Optional[bool]
+    def readdir(
+        self, path: Optional[bytes] = None, stat=None, skip=None
+    ) -> Any:
         return util.listdir(self.join(path), stat, skip)
 
     def readlock(self, path: bytes) -> bytes:
         return util.readlock(self.join(path))
 
-    def rename(self, src: bytes, dst: bytes, checkambig=False):
+    def rename(self, src: bytes, dst: bytes, checkambig: bool = False) -> None:
         """Rename from src to dst
 
         checkambig argument is used with util.filestat, and is useful
@@ -271,34 +309,37 @@ class abstractvfs:
         self._auditpath(dst, b'w')
         srcpath = self.join(src)
         dstpath = self.join(dst)
-        oldstat = checkambig and util.filestat.frompath(dstpath)
+        oldstat = util.filestat.frompath(dstpath) if checkambig else None
+
+        util.rename(srcpath, dstpath)
+
         if oldstat and oldstat.stat:
-            ret = util.rename(srcpath, dstpath)
             _avoidambig(dstpath, oldstat)
-            return ret
-        return util.rename(srcpath, dstpath)
 
     def readlink(self, path: bytes) -> bytes:
         return util.readlink(self.join(path))
 
-    def removedirs(self, path: Optional[bytes] = None):
+    def removedirs(self, path: Optional[bytes] = None) -> None:
         """Remove a leaf directory and all empty intermediate ones"""
         return util.removedirs(self.join(path))
 
-    def rmdir(self, path: Optional[bytes] = None):
+    def rmdir(self, path: Optional[bytes] = None) -> None:
         """Remove an empty directory."""
         return os.rmdir(self.join(path))
 
     def rmtree(
-        self, path: Optional[bytes] = None, ignore_errors=False, forcibly=False
-    ):
+        self,
+        path: Optional[bytes] = None,
+        ignore_errors: bool = False,
+        forcibly: bool = False,
+    ) -> None:
         """Remove a directory tree recursively
 
         If ``forcibly``, this tries to remove READ-ONLY files, too.
         """
         if forcibly:
 
-            def onexc(function, path, excinfo):
+            def onexc(function, path: bytes, excinfo):
                 if function is not os.remove:
                     raise
                 # read-only files cannot be unlinked under Windows
@@ -321,31 +362,39 @@ class abstractvfs:
                 self.join(path), ignore_errors=ignore_errors, onerror=onexc
             )
 
-    def setflags(self, path: bytes, l: bool, x: bool):
+    def setflags(self, path: bytes, l: bool, x: bool) -> None:
         return util.setflags(self.join(path), l, x)
 
-    def stat(self, path: Optional[bytes] = None):
+    def stat(self, path: Optional[bytes] = None) -> os.stat_result:
         return os.stat(self.join(path))
 
-    def unlink(self, path: Optional[bytes] = None):
+    def unlink(self, path: Optional[bytes] = None) -> None:
         return util.unlink(self.join(path))
 
-    def tryunlink(self, path: Optional[bytes] = None):
+    def tryunlink(self, path: Optional[bytes] = None) -> bool:
         """Attempt to remove a file, ignoring missing file errors."""
         return util.tryunlink(self.join(path))
 
     def unlinkpath(
-        self, path: Optional[bytes] = None, ignoremissing=False, rmdir=True
-    ):
+        self,
+        path: Optional[bytes] = None,
+        ignoremissing: bool = False,
+        rmdir: bool = True,
+    ) -> None:
         return util.unlinkpath(
             self.join(path), ignoremissing=ignoremissing, rmdir=rmdir
         )
 
-    def utime(self, path: Optional[bytes] = None, t=None):
+    # TODO: could be Tuple[float, float] too.
+    def utime(
+        self, path: Optional[bytes] = None, t: Optional[Tuple[int, int]] = None
+    ) -> None:
         return os.utime(self.join(path), t)
 
-    def walk(self, path: Optional[bytes] = None, onerror=None):
-        """Yield (dirpath, dirs, files) tuple for each directories under path
+    def walk(
+        self, path: Optional[bytes] = None, onerror: Optional[_OnErrorFn] = None
+    ) -> Iterator[Tuple[bytes, List[bytes], List[bytes]]]:
+        """Yield (dirpath, dirs, files) tuple for each directory under path
 
         ``dirpath`` is relative one from the root of this vfs. This
         uses ``os.sep`` as path separator, even you specify POSIX
@@ -361,7 +410,9 @@ class abstractvfs:
             yield (dirpath[prefixlen:], dirs, files)
 
     @contextlib.contextmanager
-    def backgroundclosing(self, ui, expectedcount=-1):
+    def backgroundclosing(
+        self, ui: uimod.ui, expectedcount: int = -1
+    ) -> Iterator[Optional[backgroundfilecloser]]:
         """Allow files to be closed asynchronously.
 
         When this context manager is active, ``backgroundclose`` can be passed
@@ -371,10 +422,7 @@ class abstractvfs:
         # Sharing backgroundfilecloser between threads is complex and using
         # multiple instances puts us at risk of running out of file descriptors
         # only allow to use backgroundfilecloser when in main thread.
-        if not isinstance(
-            threading.current_thread(),
-            threading._MainThread,  # pytype: disable=module-attr
-        ):
+        if threading.current_thread() is not threading.main_thread():
             yield
             return
         vfs = getattr(self, 'vfs', self)
@@ -394,7 +442,7 @@ class abstractvfs:
                     None  # pytype: disable=attribute-error
                 )
 
-    def register_file(self, path):
+    def register_file(self, path: bytes) -> None:
         """generic hook point to lets fncache steer its stew"""
 
 
@@ -409,14 +457,21 @@ class vfs(abstractvfs):
     See pathutil.pathauditor() for details.
     """
 
+    audit: Union[pathutil.pathauditor, Callable[[bytes, Optional[bytes]], Any]]
+    base: bytes
+    createmode: Optional[int]
+    options: Dict[bytes, Any]
+    _audit: bool
+    _trustnlink: Optional[bool]
+
     def __init__(
         self,
         base: bytes,
-        audit=True,
-        cacheaudited=False,
-        expandpath=False,
-        realpath=False,
-    ):
+        audit: bool = True,
+        cacheaudited: bool = False,
+        expandpath: bool = False,
+        realpath: bool = False,
+    ) -> None:
         if expandpath:
             base = util.expandpath(base)
         if realpath:
@@ -436,15 +491,15 @@ class vfs(abstractvfs):
         return util.checklink(self.base)
 
     @util.propertycache
-    def _chmod(self):
+    def _chmod(self) -> bool:
         return util.checkexec(self.base)
 
-    def _fixfilemode(self, name):
+    def _fixfilemode(self, name: bytes) -> None:
         if self.createmode is None or not self._chmod:
             return
         os.chmod(name, self.createmode & 0o666)
 
-    def _auditpath(self, path, mode) -> None:
+    def _auditpath(self, path: bytes, mode: bytes) -> None:
         if self._audit:
             if os.path.isabs(path) and path.startswith(self.base):
                 path = os.path.relpath(path, self.base)
@@ -454,7 +509,9 @@ class vfs(abstractvfs):
             self.audit(path, mode=mode)
 
     def isfileorlink_checkdir(
-        self, dircache, path: Optional[bytes] = None
+        self,
+        dircache: MutableMapping[bytes, bool],
+        path: bytes,
     ) -> bool:
         """return True if the path is a regular file or a symlink and
         the directories along the path are "normal", that is
@@ -482,13 +539,13 @@ class vfs(abstractvfs):
         self,
         path: bytes,
         mode: bytes = b"rb",
-        atomictemp=False,
-        notindexed=False,
-        backgroundclose=False,
-        checkambig=False,
-        auditpath=True,
-        makeparentdirs=True,
-    ):
+        atomictemp: bool = False,
+        notindexed: bool = False,
+        backgroundclose: bool = False,
+        checkambig: bool = False,
+        auditpath: bool = True,
+        makeparentdirs: bool = True,
+    ) -> Any:  # TODO: should be BinaryIO if util.atomictempfile can be coersed
         """Open ``path`` file, which is relative to vfs root.
 
         By default, parent directories are created as needed. Newly created
@@ -573,9 +630,9 @@ class vfs(abstractvfs):
                 )
             fp = checkambigatclosing(fp)
 
-        if backgroundclose and isinstance(
-            threading.current_thread(),
-            threading._MainThread,  # pytype: disable=module-attr
+        if (
+            backgroundclose
+            and threading.current_thread() is threading.main_thread()
         ):
             if (
                 not self._backgroundfilecloser  # pytype: disable=attribute-error
@@ -623,26 +680,26 @@ class vfs(abstractvfs):
             return self.base
 
 
-opener = vfs
+opener: Type[vfs] = vfs
 
 
-class proxyvfs(abstractvfs):
-    def __init__(self, vfs: "vfs"):
+class proxyvfs(abstractvfs, abc.ABC):
+    def __init__(self, vfs: vfs) -> None:
         self.vfs = vfs
 
     @property
-    def createmode(self):
+    def createmode(self) -> Optional[int]:
         return self.vfs.createmode
 
-    def _auditpath(self, path, mode):
+    def _auditpath(self, path: bytes, mode: bytes) -> None:
         return self.vfs._auditpath(path, mode)
 
     @property
-    def options(self):
+    def options(self) -> Dict[bytes, Any]:
         return self.vfs.options
 
     @options.setter
-    def options(self, value):
+    def options(self, value: Dict[bytes, Any]) -> None:
         self.vfs.options = value
 
     @property
@@ -653,11 +710,12 @@ class proxyvfs(abstractvfs):
 class filtervfs(proxyvfs, abstractvfs):
     '''Wrapper vfs for filtering filenames with a function.'''
 
-    def __init__(self, vfs: "vfs", filter):
+    def __init__(self, vfs: vfs, filter: Callable[[bytes], bytes]) -> None:
         proxyvfs.__init__(self, vfs)
         self._filter = filter
 
-    def __call__(self, path: bytes, *args, **kwargs):
+    # TODO: The return type should be BinaryIO
+    def __call__(self, path: bytes, *args, **kwargs) -> Any:
         return self.vfs(self._filter(path), *args, **kwargs)
 
     def join(self, path: Optional[bytes], *insidef: bytes) -> bytes:
@@ -667,16 +725,17 @@ class filtervfs(proxyvfs, abstractvfs):
             return self.vfs.join(path)
 
 
-filteropener = filtervfs
+filteropener: Type[filtervfs] = filtervfs
 
 
 class readonlyvfs(proxyvfs):
     '''Wrapper vfs preventing any writing.'''
 
-    def __init__(self, vfs: "vfs"):
+    def __init__(self, vfs: vfs) -> None:
         proxyvfs.__init__(self, vfs)
 
-    def __call__(self, path: bytes, mode: bytes = b'rb', *args, **kw):
+    # TODO: The return type should be BinaryIO
+    def __call__(self, path: bytes, mode: bytes = b'rb', *args, **kw) -> Any:
         if mode not in (b'r', b'rb'):
             raise error.Abort(_(b'this vfs is read only'))
         return self.vfs(path, mode, *args, **kw)
@@ -685,56 +744,58 @@ class readonlyvfs(proxyvfs):
         return self.vfs.join(path, *insidef)
 
 
-class closewrapbase:
+class closewrapbase(abc.ABC):
     """Base class of wrapper, which hooks closing
 
-    Do not instantiate outside of the vfs layer.
+    Do not instantiate outside the vfs layer.
     """
 
-    def __init__(self, fh):
+    def __init__(self, fh) -> None:
         object.__setattr__(self, '_origfh', fh)
 
-    def __getattr__(self, attr):
+    def __getattr__(self, attr: str) -> Any:
         return getattr(self._origfh, attr)
 
-    def __setattr__(self, attr, value):
+    def __setattr__(self, attr: str, value: Any) -> None:
         return setattr(self._origfh, attr, value)
 
-    def __delattr__(self, attr):
+    def __delattr__(self, attr: str) -> None:
         return delattr(self._origfh, attr)
 
-    def __enter__(self):
+    def __enter__(self: _Tclosewrapbase) -> _Tclosewrapbase:
         self._origfh.__enter__()
         return self
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        raise NotImplementedError('attempted instantiating ' + str(type(self)))
+    @abc.abstractmethod
+    def __exit__(self, exc_type, exc_value, exc_tb) -> None:
+        ...
 
-    def close(self):
-        raise NotImplementedError('attempted instantiating ' + str(type(self)))
+    @abc.abstractmethod
+    def close(self) -> None:
+        ...
 
 
 class delayclosedfile(closewrapbase):
     """Proxy for a file object whose close is delayed.
 
-    Do not instantiate outside of the vfs layer.
+    Do not instantiate outside the vfs layer.
     """
 
-    def __init__(self, fh, closer):
+    def __init__(self, fh, closer) -> None:
         super(delayclosedfile, self).__init__(fh)
         object.__setattr__(self, '_closer', closer)
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
+    def __exit__(self, exc_type, exc_value, exc_tb) -> None:
         self._closer.close(self._origfh)
 
-    def close(self):
+    def close(self) -> None:
         self._closer.close(self._origfh)
 
 
 class backgroundfilecloser:
     """Coordinates background closing of file handles on multiple threads."""
 
-    def __init__(self, ui, expectedcount=-1):
+    def __init__(self, ui: uimod.ui, expectedcount: int = -1) -> None:
         self._running = False
         self._entered = False
         self._threads = []
@@ -772,11 +833,11 @@ class backgroundfilecloser:
             self._threads.append(t)
             t.start()
 
-    def __enter__(self):
+    def __enter__(self: _Tbackgroundfilecloser) -> _Tbackgroundfilecloser:
         self._entered = True
         return self
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
+    def __exit__(self, exc_type, exc_value, exc_tb) -> None:
         self._running = False
 
         # Wait for threads to finish closing so open files don't linger for
@@ -784,7 +845,7 @@ class backgroundfilecloser:
         for t in self._threads:
             t.join()
 
-    def _worker(self):
+    def _worker(self) -> None:
         """Main routine for worker thread."""
         while True:
             try:
@@ -800,7 +861,7 @@ class backgroundfilecloser:
                 if not self._running:
                     break
 
-    def close(self, fh):
+    def close(self, fh) -> None:
         """Schedule a file for closing."""
         if not self._entered:
             raise error.Abort(
@@ -808,7 +869,7 @@ class backgroundfilecloser:
             )
 
         # If a background thread encountered an exception, raise now so we fail
-        # fast. Otherwise we may potentially go on for minutes until the error
+        # fast. Otherwise, we may potentially go on for minutes until the error
         # is acted on.
         if self._threadexception:
             e = self._threadexception
@@ -831,22 +892,22 @@ class checkambigatclosing(closewrapbase):
     This proxy is useful only if the target file is guarded by any
     lock (e.g. repo.lock or repo.wlock)
 
-    Do not instantiate outside of the vfs layer.
+    Do not instantiate outside the vfs layer.
     """
 
-    def __init__(self, fh):
+    def __init__(self, fh) -> None:
         super(checkambigatclosing, self).__init__(fh)
         object.__setattr__(self, '_oldstat', util.filestat.frompath(fh.name))
 
-    def _checkambig(self):
+    def _checkambig(self) -> None:
         oldstat = self._oldstat
         if oldstat.stat:
             _avoidambig(self._origfh.name, oldstat)
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
+    def __exit__(self, exc_type, exc_value, exc_tb) -> None:
         self._origfh.__exit__(exc_type, exc_value, exc_tb)
         self._checkambig()
 
-    def close(self):
+    def close(self) -> None:
         self._origfh.close()
         self._checkambig()

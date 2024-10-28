@@ -5,6 +5,7 @@
 # license: MIT/X11/Expat
 #
 
+from __future__ import annotations
 
 import polib
 import re

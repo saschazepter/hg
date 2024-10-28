@@ -8,6 +8,7 @@ where DOC is the name of a document
 import os
 import sys
 import textwrap
+import argparse
 
 try:
     import msvcrt
@@ -115,7 +116,7 @@ def get_cmd(cmd, cmdtable):
     return d
 
 
-def showdoc(ui):
+def showdoc(ui, debugcmds=False):
     # print options
     ui.write(minirst.section(_(b"Options")))
     multioccur = False
@@ -129,11 +130,18 @@ def showdoc(ui):
 
     # print cmds
     ui.write(minirst.section(_(b"Commands")))
-    commandprinter(ui, table, minirst.subsection, minirst.subsubsection)
+    commandprinter(
+        ui,
+        table,
+        minirst.subsection,
+        minirst.subsubsection,
+        debugcmds=debugcmds,
+    )
 
     # print help topics
     # The config help topic is included in the hgrc.5 man page.
-    helpprinter(ui, helptable, minirst.section, exclude=[b'config'])
+    topics = findtopics(helptable, exclude=[b'config'])
+    helpprinter(ui, topics, minirst.section)
 
     ui.write(minirst.section(_(b"Extensions")))
     ui.write(
@@ -156,7 +164,8 @@ def showdoc(ui):
     for extensionname in sorted(allextensionnames()):
         mod = extensions.load(ui, extensionname, None)
         ui.write(minirst.subsection(extensionname))
-        ui.write(b"%s\n\n" % gettext(pycompat.getdoc(mod)))
+        ext_doc = help.ext_help(ui, mod)
+        ui.write(b"%s\n\n" % ext_doc)
         cmdtable = getattr(mod, 'cmdtable', None)
         if cmdtable:
             ui.write(minirst.subsubsection(_(b'Commands')))
@@ -165,10 +174,207 @@ def showdoc(ui):
                 cmdtable,
                 minirst.subsubsubsection,
                 minirst.subsubsubsubsection,
+                debugcmds=debugcmds,
             )
 
 
-def showtopic(ui, topic):
+def showcommandlist(ui, debugcmds=False):
+    """Render a plain text list of all command names
+
+    Args:
+        ui: the UI object to output to
+        debugcmds: whether to include debug commands
+    """
+    cmdnames = allcommandnames(table, debugcmds=debugcmds)
+    for mainname in cmdnames.keys():
+        # Make does not like semicolons in filenames (or what it
+        # considers as filenames). We use command names as targets so
+        # it applies here. For now let's skip commands with semicolons
+        # in them (at this time it only includes the `admin::verify`
+        # advanced command).
+        if b'::' in mainname:
+            continue
+        ui.write(mainname)
+        ui.write(b" ")
+
+
+def showtopiclist(ui):
+    """Render a plain text list of all help topic names
+
+    Args:
+        ui: the UI object to output to
+    """
+    for topic in helptable:
+        topicname = topic[0][0]
+        if help.filtertopic(ui, topicname):
+            continue
+        ui.write(topicname)
+        ui.write(b" ")
+
+
+def showextensionlist(ui):
+    """Render a plain text list of all extension names
+
+    Args:
+        ui: the UI object to output to
+    """
+    for extensionname in allextensionnames():
+        ui.write(extensionname)
+        ui.write(b" ")
+
+
+def showhelpindex(ui, debugcmds=False):
+    """Render restructured text for a complete mercurial help index
+
+    This index will show a list of commands, followed by a list of help topics,
+    and finally a list of extensions. These lists are split in categories and
+    ordered 'nicely' as defined by alphabetical and categeory order.
+
+    Each entry in this index is a reference to the specific help page of the
+    command, topic, or extension at hand.
+    """
+    ui.write(minirst.section(_(b"Mercurial Distributed SCM")))
+
+    missingdoc = _(b"(no help text available)")
+
+    cats, h, syns = help._getcategorizedhelpcmds(ui, table, None)
+    ui.write(minirst.subsection(_(b"Commands")))
+
+    for cat in help.CATEGORY_ORDER:
+        catfns = sorted(cats.get(cat, []))
+        if not catfns:
+            continue
+
+        catname = gettext(help.CATEGORY_NAMES[cat])
+        ui.write(minirst.subsubsection(catname))
+        for c in catfns:
+            url = b'hg-%s.html' % c
+            ui.write(b" :`%s <%s>`__: %s" % (c, url, h[c]))
+            syns[c].remove(c)
+            if syns[c]:
+                ui.write(_(b" (aliases: *%s*)") % (b', '.join(syns[c])))
+            ui.write(b"\n")
+        ui.write(b"\n\n")
+
+    ui.write(b"\n\n")
+
+    ui.write(minirst.subsection(_(b"Additional Help Topics")))
+    topiccats, topicsyns = help._getcategorizedhelptopics(ui, helptable)
+    for cat in help.TOPIC_CATEGORY_ORDER:
+        topics = topiccats.get(cat, [])
+        if not topics:
+            continue
+
+        catname = gettext(help.TOPIC_CATEGORY_NAMES[cat])
+        ui.write(minirst.subsubsection(catname))
+        for t, desc in topics:
+            url = b'topic-%s.html' % t
+            ui.write(b" :`%s <%s>`__: %s" % (t, url, desc))
+            topicsyns[t].remove(t)
+            if topicsyns[t]:
+                ui.write(_(b" (aliases: *%s*)") % (b', '.join(topicsyns[t])))
+            ui.write(b"\n")
+        ui.write(b"\n\n")
+
+    ui.write(b"\n\n")
+
+    # Add an alphabetical list of extensions, categorized by group.
+    sectionkeywords = [
+        (b"(ADVANCED)", _(b"(ADVANCED)")),
+        (b"(EXPERIMENTAL)", _(b"(EXPERIMENTAL)")),
+        (b"(DEPRECATED)", _(b"(DEPRECATED)")),
+    ]
+    extensionsections = [
+        (b"Extensions", []),
+        (b"Advanced Extensions", []),
+        (b"Experimental Extensions", []),
+        (b"Deprecated Extensions", []),
+    ]
+    for extensionname in allextensionnames():
+        mod = extensions.load(ui, extensionname, None)
+        shortdoc, longdoc = _splitdoc(mod)
+        for i, kwds in enumerate(sectionkeywords):
+            if any([kwd in shortdoc for kwd in kwds]):
+                extensionsections[i + 1][1].append(
+                    (extensionname, mod, shortdoc)
+                )
+                break
+        else:
+            extensionsections[0][1].append((extensionname, mod, shortdoc))
+    for sectiontitle, extinfos in extensionsections:
+        ui.write(minirst.subsection(_(sectiontitle)))
+        for extinfo in sorted(extinfos, key=lambda ei: ei[0]):
+            extensionname, mod, shortdoc = extinfo
+            url = b'ext-%s.html' % extensionname
+            ui.write(
+                minirst.subsubsection(b'`%s <%s>`__' % (extensionname, url))
+            )
+            ui.write(shortdoc)
+            ui.write(b'\n\n')
+            cmdtable = getattr(mod, 'cmdtable', None)
+            if cmdtable:
+                cmdnames = allcommandnames(cmdtable, debugcmds=debugcmds)
+                for f in sorted(cmdnames.keys()):
+                    d = get_cmd(cmdnames[f], cmdtable)
+                    ui.write(b':%s: ' % d[b'cmd'])
+                    ui.write(d[b'desc'][0] or (missingdoc + b"\n"))
+                    ui.write(b'\n')
+            ui.write(b'\n')
+
+
+def showcommand(ui, mainname):
+    # Always pass debugcmds=True so that we find whatever command we are told
+    # to display.
+    cmdnames = allcommandnames(table, debugcmds=True)
+    allnames = cmdnames[mainname]
+    d = get_cmd(allnames, table)
+
+    header = _rendertpl(
+        'cmdheader.txt',
+        {
+            'cmdname': mainname,
+            'cmdtitle': minirst.section(b'hg ' + mainname),
+            'cmdshortdesc': minirst.subsection(d[b'desc'][0]),
+            'cmdlongdesc': d[b'desc'][1],
+            'cmdsynopsis': d[b'synopsis'],
+        },
+    )
+    ui.write(header.encode())
+
+    _optionsprinter(ui, d, minirst.subsubsection)
+    if d[b'aliases']:
+        ui.write(minirst.subsubsection(_(b"Aliases")))
+        ui.write(b"::\n\n   ")
+        ui.write(b", ".join(d[b'aliases']))
+        ui.write(b"\n")
+
+
+def _splitdoc(obj):
+    objdoc = pycompat.getdoc(obj)
+    firstnl = objdoc.find(b'\n')
+    if firstnl > 0:
+        shortdoc = objdoc[:firstnl]
+        longdoc = objdoc[firstnl + 1 :]
+    else:
+        shortdoc = objdoc
+        longdoc = ''
+    return shortdoc.lstrip(), longdoc.lstrip()
+
+
+def _rendertpl(tplname, data):
+    tplpath = os.path.join(os.path.dirname(__file__), 'templates', tplname)
+    with open(tplpath, 'r') as f:
+        tpl = f.read()
+
+    if isinstance(tpl, bytes):
+        tpl = tpl.decode()
+    for k in data:
+        data[k] = data[k].decode()
+
+    return tpl % data
+
+
+def gettopicstable():
     extrahelptable = [
         ([b"common"], b'', loaddoc(b'common'), help.TOPIC_CATEGORY_MISC),
         ([b"hg.1"], b'', loaddoc(b'hg.1'), help.TOPIC_CATEGORY_CONFIG),
@@ -180,6 +386,7 @@ def showtopic(ui, topic):
             help.TOPIC_CATEGORY_CONFIG,
         ),
         ([b"hgrc.5"], b'', loaddoc(b'hgrc.5'), help.TOPIC_CATEGORY_CONFIG),
+        ([b"hg-ssh.8.gendoc"], b'', b'', help.TOPIC_CATEGORY_CONFIG),
         (
             [b"hgignore.5.gendoc"],
             b'',
@@ -193,16 +400,59 @@ def showtopic(ui, topic):
             help.TOPIC_CATEGORY_CONFIG,
         ),
     ]
-    helpprinter(ui, helptable + extrahelptable, None, include=[topic])
+    return helptable + extrahelptable
 
 
-def helpprinter(ui, helptable, sectionfunc, include=[], exclude=[]):
+def findtopics(helptable, include=[], exclude=[]):
+    """Find topics whose names match the given include/exclude rules
+
+    Note that exclude rules take precedence over include rules.
+    """
+    found = []
     for h in helptable:
         names, sec, doc = h[0:3]
         if exclude and names[0] in exclude:
             continue
         if include and names[0] not in include:
             continue
+        found.append((names, sec, doc))
+    return found
+
+
+def showtopic(ui, topic, wraptpl=False):
+    """Render a help topic
+
+    Args:
+        ui: the UI object to output to
+        topic: the topic name to output
+        wraptpl: whether to wrap the output in the individual help topic
+            pages' header/footer
+    """
+    found = findtopics(gettopicstable(), include=[topic])
+    if not found:
+        ui.write_err(_(b"ERROR: no such topic: %s\n") % topic)
+        sys.exit(1)
+
+    if wraptpl:
+        header = _rendertpl(
+            'topicheader.txt',
+            {'topicname': topic, 'topictitle': minirst.section(found[0][1])},
+        )
+        ui.write(header.encode())
+    helpprinter(ui, found, None)
+    return True
+
+
+def helpprinter(ui, topics, sectionfunc):
+    """Print a help topic
+
+    Args:
+        ui: the UI object to output to
+        topics: a list of help topics to output
+        sectionfunc: a callback to write the section title
+    """
+    for h in topics:
+        names, sec, doc = h[0:3]
         for name in names:
             ui.write(b".. _%s:\n" % name)
         ui.write(b"\n")
@@ -214,7 +464,42 @@ def helpprinter(ui, helptable, sectionfunc, include=[], exclude=[]):
         ui.write(b"\n")
 
 
-def commandprinter(ui, cmdtable, sectionfunc, subsectionfunc):
+def showextension(ui, extensionname, debugcmds=False):
+    """Render the help text for an extension
+
+    Args:
+        ui: the UI object to output to
+        extensionname: the name of the extension to output
+        debugcmds: whether to include the extension's debug commands, if any
+    """
+    mod = extensions.load(ui, extensionname, None)
+
+    header = _rendertpl(
+        'extheader.txt',
+        {'extname': extensionname, 'exttitle': minirst.section(extensionname)},
+    )
+    ui.write(header.encode())
+
+    shortdoc, longdoc = _splitdoc(mod)
+    if shortdoc:
+        ui.write(b"%s\n\n" % gettext(shortdoc))
+    if longdoc:
+        ui.write(minirst.subsection(_(b"Description")))
+        ui.write(b"%s\n\n" % gettext(longdoc))
+
+    cmdtable = getattr(mod, 'cmdtable', None)
+    if cmdtable:
+        ui.write(minirst.subsection(_(b'Commands')))
+        commandprinter(
+            ui,
+            cmdtable,
+            minirst.subsubsection,
+            minirst.subsubsubsection,
+            debugcmds=debugcmds,
+        )
+
+
+def commandprinter(ui, cmdtable, sectionfunc, subsectionfunc, debugcmds=False):
     """Render restructuredtext describing a list of commands and their
     documentations, grouped by command category.
 
@@ -235,11 +520,7 @@ def commandprinter(ui, cmdtable, sectionfunc, subsectionfunc):
       sectionfunc: minirst function to format command category headers
       subsectionfunc: minirst function to format command headers
     """
-    h = {}
-    for c, attr in cmdtable.items():
-        f = c.split(b"|")[0]
-        f = f.lstrip(b"^")
-        h[f] = c
+    h = allcommandnames(cmdtable, debugcmds=debugcmds)
     cmds = h.keys()
 
     def helpcategory(cmd):
@@ -276,8 +557,6 @@ def commandprinter(ui, cmdtable, sectionfunc, subsectionfunc):
         ui.write(sectionfunc(help.CATEGORY_NAMES[category]))
         # Print each command in the category
         for f in sorted(categorycmds):
-            if f.startswith(b"debug"):
-                continue
             d = get_cmd(h[f], cmdtable)
             ui.write(subsectionfunc(d[b'cmd']))
             # short description
@@ -292,28 +571,12 @@ def commandprinter(ui, cmdtable, sectionfunc, subsectionfunc):
             ui.write(b'\n')
             # description
             ui.write(b"%s\n\n" % d[b'desc'][1])
+
             # options
-            opt_output = list(d[b'opts'])
-            if opt_output:
-                opts_len = max([len(line[0]) for line in opt_output])
-                ui.write(_(b"Options:\n\n"))
-                multioccur = False
-                for optstr, desc in opt_output:
-                    if desc:
-                        s = b"%-*s  %s" % (opts_len, optstr, desc)
-                    else:
-                        s = optstr
-                    ui.write(b"%s\n" % s)
-                    if optstr.endswith(b"[+]>"):
-                        multioccur = True
-                if multioccur:
-                    ui.write(
-                        _(
-                            b"\n[+] marked option can be specified"
-                            b" multiple times\n"
-                        )
-                    )
-                ui.write(b"\n")
+            def _optsection(s):
+                return b"%s:\n\n" % s
+
+            _optionsprinter(ui, d, _optsection)
             # aliases
             if d[b'aliases']:
                 # Note the empty comment, this is required to separate this
@@ -324,14 +587,67 @@ def commandprinter(ui, cmdtable, sectionfunc, subsectionfunc):
                 )
 
 
+def _optionsprinter(ui, cmd, sectionfunc):
+    """Outputs the list of options for a given command object"""
+    opt_output = list(cmd[b'opts'])
+    if opt_output:
+        opts_len = max([len(line[0]) for line in opt_output])
+        ui.write(sectionfunc(_(b"Options")))
+        multioccur = False
+        for optstr, desc in opt_output:
+            if desc:
+                s = b"%-*s  %s" % (opts_len, optstr, desc)
+            else:
+                s = optstr
+            ui.write(b"%s\n" % s)
+            if optstr.endswith(b"[+]>"):
+                multioccur = True
+        if multioccur:
+            ui.write(
+                _(b"\n[+] marked option can be specified multiple times\n")
+            )
+        ui.write(b"\n")
+
+
+def allcommandnames(cmdtable, debugcmds=False):
+    """Get a collection of all command names in the given command table
+
+    Args:
+        cmdtable: the command table to get the names from
+        debugcmds: whether to include debug commands
+
+    Returns a dictionary where the keys are the main command names, and the
+    values are the "raw" names (in the form of `name|alias1|alias2`).
+    """
+    allcmdnames = {}
+    for rawnames, attr in cmdtable.items():
+        mainname = rawnames.split(b"|")[0].lstrip(b"^")
+        if not debugcmds and mainname.startswith(b"debug"):
+            continue
+        allcmdnames[mainname] = rawnames
+    return allcmdnames
+
+
 def allextensionnames():
+    """Get a set of all known extension names"""
     return set(extensions.enabled().keys()) | set(extensions.disabled().keys())
 
 
 if __name__ == "__main__":
-    doc = b'hg.1.gendoc'
-    if len(sys.argv) > 1:
-        doc = encoding.strtolocal(sys.argv[1])
+    parser = argparse.ArgumentParser(
+        prog='gendoc', description="Generate mercurial documentation files"
+    )
+    parser.add_argument('doc', default='hg.1.gendoc', nargs='?')
+    parser.add_argument(
+        '-d',
+        '--debug-cmds',
+        action='store_true',
+        help="Show debug commands in help pages",
+    )
+    args = parser.parse_args()
+
+    doc = encoding.strtolocal(args.doc)
+    debugcmds = args.debug_cmds
 
     ui = uimod.ui.load()
     # Trigger extensions to load. This is disabled by default because it uses
@@ -339,7 +655,30 @@ if __name__ == "__main__":
     if encoding.environ.get(b'GENDOC_LOAD_CONFIGURED_EXTENSIONS', b'0') != b'0':
         extensions.loadall(ui)
 
+    # ui.debugflag determines if the help module returns debug commands to us.
+    ui.debugflag = debugcmds
+
+    # Render the 'all-in-one' giant documentation file
     if doc == b'hg.1.gendoc':
         showdoc(ui)
+    # Render a command/help-topic/extension name list (for internal use)
+    elif doc == b'commandlist':
+        showcommandlist(ui, debugcmds=debugcmds)
+    elif doc == b'topiclist':
+        showtopiclist(ui)
+    elif doc == b'extensionlist':
+        showextensionlist(ui)
+    # Render the help index/main page
+    elif doc == b'index':
+        showhelpindex(ui, debugcmds=debugcmds)
+    # Render an individual command/help-topic/extension page
+    elif doc.startswith(b'cmd-'):
+        showcommand(ui, doc[4:])
+    elif doc.startswith(b'topic-'):
+        showtopic(ui, doc[6:], wraptpl=True)
+    elif doc.startswith(b'ext-'):
+        showextension(ui, doc[4:], debugcmds=debugcmds)
+    # Render a help-topic page without any title/footer, for later inclusion
+    # into a hand-written help text file
     else:
-        showtopic(ui, encoding.strtolocal(sys.argv[1]))
+        showtopic(ui, doc)

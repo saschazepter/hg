@@ -8,9 +8,14 @@
 
 '''Overridden Mercurial commands and functions for the largefiles extension'''
 
+from __future__ import annotations
+
 import contextlib
 import copy
 import os
+from typing import (
+    Optional,
+)
 
 from mercurial.i18n import _
 
@@ -827,11 +832,11 @@ def overridecopy(orig, ui, repo, pats, opts, rename=False):
         if not os.path.isdir(makestandin(dest)):
             os.makedirs(makestandin(dest))
 
-    try:
-        # When we call orig below it creates the standins but we don't add
-        # them to the dir state until later so lock during that time.
-        wlock = repo.wlock()
+    # When we call orig below it creates the standins but we don't add
+    # them to the dir state until later so lock during that time.
+    wlock = repo.wlock()
 
+    try:
         manifest = repo[None].manifest()
 
         def overridematch(
@@ -899,7 +904,7 @@ def overridecopy(orig, ui, repo, pats, opts, rename=False):
                 result += orig(ui, repo, listpats, opts, rename)
 
         lfdirstate = lfutil.openlfdirstate(ui, repo)
-        for (src, dest) in copiedfiles:
+        for src, dest in copiedfiles:
             if lfutil.shortname in src and dest.startswith(
                 repo.wjoin(lfutil.shortname)
             ):
@@ -1229,7 +1234,7 @@ def overridearchive(
     node,
     kind,
     decode=True,
-    match=None,
+    match: Optional[matchmod.basematcher] = None,
     prefix=b'',
     mtime=None,
     subrepos=None,
@@ -1249,31 +1254,55 @@ def overridearchive(
     if kind not in archival.archivers:
         raise error.Abort(_(b"unknown archive type '%s'") % kind)
 
-    ctx = repo[node]
-
     if kind == b'files':
         if prefix:
             raise error.Abort(_(b'cannot give prefix when archiving to files'))
     else:
         prefix = archival.tidyprefix(dest, kind, prefix)
 
+    if not match:
+        match = scmutil.matchall(repo)
+    archiver = None
+    ctx = repo[node]
+
+    def opencallback():
+        """Return the archiver instance, creating it if necessary.
+
+        This function is called when the first actual entry is created.
+        It may be called multiple times from different layers.
+        When serving the archive via hgweb, no errors should happen after
+        this point.
+        """
+        nonlocal archiver
+        if archiver is None:
+            if callable(dest):
+                output = dest()
+            else:
+                output = dest
+            archiver = archival.archivers[kind](output, mtime or ctx.date()[0])
+            assert archiver is not None
+
+            if repo.ui.configbool(b"ui", b"archivemeta"):
+                metaname = b'.hg_archival.txt'
+                if match(metaname):
+                    write(
+                        metaname,
+                        0o644,
+                        False,
+                        lambda: archival.buildmetadata(ctx),
+                    )
+        return archiver
+
     def write(name, mode, islink, getdata):
-        if match and not match(name):
+        if not match(name):
             return
         data = getdata()
         if decode:
             data = repo.wwritedata(name, data)
+        if archiver is None:
+            opencallback()
+        assert archiver is not None, "archive should be opened by now"
         archiver.addfile(prefix + name, mode, islink, data)
-
-    archiver = archival.archivers[kind](dest, mtime or ctx.date()[0])
-
-    if repo.ui.configbool(b"ui", b"archivemeta"):
-        write(
-            b'.hg_archival.txt',
-            0o644,
-            False,
-            lambda: archival.buildmetadata(ctx),
-        )
 
     for f in ctx:
         ff = ctx.flags(f)
@@ -1313,16 +1342,19 @@ def overridearchive(
                 and lfstatus(sub._repo)
                 or util.nullcontextmanager()
             ):
-                sub.archive(archiver, subprefix, submatch)
+                sub.archive(opencallback, subprefix, submatch)
 
-    archiver.done()
+    if archiver:
+        archiver.done()
 
 
 @eh.wrapfunction(subrepo.hgsubrepo, 'archive')
-def hgsubrepoarchive(orig, repo, archiver, prefix, match=None, decode=True):
+def hgsubrepoarchive(
+    orig, repo, opener, prefix, match: matchmod.basematcher, decode=True
+):
     lfenabled = hasattr(repo._repo, '_largefilesenabled')
     if not lfenabled or not repo._repo.lfstatus:
-        return orig(repo, archiver, prefix, match, decode)
+        return orig(repo, opener, prefix, match, decode)
 
     repo._get(repo._state + (b'hg',))
     rev = repo._state[1]
@@ -1331,15 +1363,20 @@ def hgsubrepoarchive(orig, repo, archiver, prefix, match=None, decode=True):
     if ctx.node() is not None:
         lfcommands.cachelfiles(repo.ui, repo._repo, ctx.node())
 
+    archiver = None
+
     def write(name, mode, islink, getdata):
+        nonlocal archiver
         # At this point, the standin has been replaced with the largefile name,
         # so the normal matcher works here without the lfutil variants.
-        if match and not match(f):
+        if not match(f):
             return
         data = getdata()
         if decode:
             data = repo._repo.wwritedata(name, data)
 
+        if archiver is None:
+            archiver = opener()
         archiver.addfile(prefix + name, mode, islink, data)
 
     for f in ctx:
@@ -1379,7 +1416,7 @@ def hgsubrepoarchive(orig, repo, archiver, prefix, match=None, decode=True):
             and lfstatus(sub._repo)
             or util.nullcontextmanager()
         ):
-            sub.archive(archiver, subprefix, submatch, decode)
+            sub.archive(opener, subprefix, submatch, decode)
 
 
 # If a largefile is modified, the change is not reflected in its
@@ -1622,7 +1659,7 @@ def scmutiladdremove(
             m,
             uipathfn,
             opts.get(b'dry_run'),
-            **pycompat.strkwargs(opts)
+            **pycompat.strkwargs(opts),
         )
     # Call into the normal add code, and any files that *should* be added as
     # largefiles will be

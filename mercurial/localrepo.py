@@ -6,6 +6,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import functools
 import os
@@ -13,6 +14,7 @@ import random
 import re
 import sys
 import time
+import typing
 import weakref
 
 from concurrent import futures
@@ -75,9 +77,12 @@ from . import (
     wireprototypes,
 )
 
+from .branching import (
+    rev_cache as rev_branch_cache,
+)
+
 from .interfaces import (
     repository,
-    util as interfaceutil,
 )
 
 from .utils import (
@@ -254,8 +259,7 @@ moderncaps = {
 legacycaps = moderncaps.union({b'changegroupsubset'})
 
 
-@interfaceutil.implementer(repository.ipeercommandexecutor)
-class localcommandexecutor:
+class localcommandexecutor:  # (repository.ipeercommandexecutor)
     def __init__(self, peer):
         self._peer = peer
         self._sent = False
@@ -300,8 +304,7 @@ class localcommandexecutor:
         self._closed = True
 
 
-@interfaceutil.implementer(repository.ipeercommands)
-class localpeer(repository.peer):
+class localpeer(repository.peer):  # (repository.ipeercommands)
     '''peer for a local repo; reflects only the most recent API'''
 
     def __init__(self, repo, caps=None, path=None, remotehidden=False):
@@ -455,8 +458,7 @@ class localpeer(repository.peer):
     # End of peer interface.
 
 
-@interfaceutil.implementer(repository.ipeerlegacycommands)
-class locallegacypeer(localpeer):
+class locallegacypeer(localpeer):  # (repository.ipeerlegacycommands)
     """peer extension which implements legacy methods too; used for tests with
     restricted capabilities"""
 
@@ -523,20 +525,6 @@ def _getsharedvfs(hgvfs, requirements):
     return sharedvfs
 
 
-def _readrequires(vfs, allowmissing):
-    """reads the require file present at root of this vfs
-    and return a set of requirements
-
-    If allowmissing is True, we suppress FileNotFoundError if raised"""
-    # requires file contains a newline-delimited list of
-    # features/capabilities the opener (us) must have in order to use
-    # the repository. This file was introduced in Mercurial 0.9.2,
-    # which means very old repositories may not have one. We assume
-    # a missing file translates to no requirements.
-    read = vfs.tryread if allowmissing else vfs.read
-    return set(read(b'requires').splitlines())
-
-
 def makelocalrepository(baseui, path: bytes, intents=None):
     """Create a local repository object.
 
@@ -598,7 +586,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
 
         raise error.RepoError(_(b'repository %s not found') % path)
 
-    requirements = _readrequires(hgvfs, True)
+    requirements = scmutil.readrequires(hgvfs, True)
     shared = (
         requirementsmod.SHARED_REQUIREMENT in requirements
         or requirementsmod.RELATIVE_SHARED_REQUIREMENT in requirements
@@ -626,7 +614,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
         if (
             shared
             and requirementsmod.SHARESAFE_REQUIREMENT
-            not in _readrequires(sharedvfs, True)
+            not in scmutil.readrequires(sharedvfs, True)
         ):
             mismatch_warn = ui.configbool(
                 b'share', b'safe-mismatch.source-not-safe.warn'
@@ -670,9 +658,9 @@ def makelocalrepository(baseui, path: bytes, intents=None):
                     hint=hint,
                 )
         else:
-            requirements |= _readrequires(storevfs, False)
+            requirements |= scmutil.readrequires(storevfs, False)
     elif shared:
-        sourcerequires = _readrequires(sharedvfs, False)
+        sourcerequires = scmutil.readrequires(sharedvfs, False)
         if requirementsmod.SHARESAFE_REQUIREMENT in sourcerequires:
             mismatch_config = ui.config(b'share', b'safe-mismatch.source-safe')
             mismatch_warn = ui.configbool(
@@ -1123,9 +1111,12 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     if 0 <= chainspan:
         delta_config.max_deltachain_span = chainspan
 
-    mmapindexthreshold = ui.configbytes(b'experimental', b'mmapindexthreshold')
-    if mmapindexthreshold is not None:
-        data_config.mmap_index_threshold = mmapindexthreshold
+    has_populate = util.has_mmap_populate()
+    if ui.configbool(b'storage', b'revlog.mmap.index', has_populate):
+        data_config.mmap_index_threshold = ui.configbytes(
+            b'storage',
+            b'revlog.mmap.index:size-threshold',
+        )
 
     withsparseread = ui.configbool(b'experimental', b'sparse-read')
     srdensitythres = float(
@@ -1251,8 +1242,7 @@ def makemain(**kwargs):
     return localrepository
 
 
-@interfaceutil.implementer(repository.ilocalrepositoryfilestorage)
-class revlogfilestorage:
+class revlogfilestorage:  # (repository.ilocalrepositoryfilestorage)
     """File storage when using revlogs."""
 
     def file(self, path):
@@ -1267,8 +1257,7 @@ class revlogfilestorage:
         return filelog.filelog(self.svfs, path, try_split=try_split)
 
 
-@interfaceutil.implementer(repository.ilocalrepositoryfilestorage)
-class revlognarrowfilestorage:
+class revlognarrowfilestorage:  # (repository.ilocalrepositoryfilestorage)
     """File storage when using revlogs and narrow files."""
 
     def file(self, path):
@@ -1305,9 +1294,16 @@ REPO_INTERFACES = [
     (repository.ilocalrepositoryfilestorage, lambda: makefilestorage),
 ]
 
+_localrepo_base_classes = object
 
-@interfaceutil.implementer(repository.ilocalrepositorymain)
-class localrepository:
+if typing.TYPE_CHECKING:
+    _localrepo_base_classes = [
+        repository.ilocalrepositorymain,
+        repository.ilocalrepositoryfilestorage,
+    ]
+
+
+class localrepository(_localrepo_base_classes):
     """Main class for representing local repositories.
 
     All local repositories are instances of this class.
@@ -2246,7 +2242,8 @@ class localrepository:
     @unfilteredmethod
     def revbranchcache(self):
         if not self._revbranchcache:
-            self._revbranchcache = branchmap.revbranchcache(self.unfiltered())
+            unfi = self.unfiltered()
+            self._revbranchcache = rev_branch_cache.revbranchcache(unfi)
         return self._revbranchcache
 
     def register_changeset(self, rev, changelogrevision):

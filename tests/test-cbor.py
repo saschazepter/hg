@@ -216,11 +216,11 @@ class BytestringTests(TestCase):
         for size in lens:
             if size < 24:
                 hlen = 1
-            elif size < 2 ** 8:
+            elif size < 2**8:
                 hlen = 2
-            elif size < 2 ** 16:
+            elif size < 2**16:
                 hlen = 3
-            elif size < 2 ** 32:
+            elif size < 2**32:
                 hlen = 5
             else:
                 assert False
@@ -487,7 +487,7 @@ class IntTests(TestCase):
         )
 
     def testdecodepartialushort(self):
-        encoded = b''.join(cborutil.streamencode(2 ** 15))
+        encoded = b''.join(cborutil.streamencode(2**15))
 
         self.assertEqual(
             cborutil.decodeitem(encoded[0:1]),
@@ -499,7 +499,7 @@ class IntTests(TestCase):
         )
         self.assertEqual(
             cborutil.decodeitem(encoded[0:5]),
-            (True, 2 ** 15, 3, cborutil.SPECIAL_NONE),
+            (True, 2**15, 3, cborutil.SPECIAL_NONE),
         )
 
     def testdecodepartialshort(self):
@@ -519,7 +519,7 @@ class IntTests(TestCase):
         )
 
     def testdecodepartialulong(self):
-        encoded = b''.join(cborutil.streamencode(2 ** 28))
+        encoded = b''.join(cborutil.streamencode(2**28))
 
         self.assertEqual(
             cborutil.decodeitem(encoded[0:1]),
@@ -539,7 +539,7 @@ class IntTests(TestCase):
         )
         self.assertEqual(
             cborutil.decodeitem(encoded[0:5]),
-            (True, 2 ** 28, 5, cborutil.SPECIAL_NONE),
+            (True, 2**28, 5, cborutil.SPECIAL_NONE),
         )
 
     def testdecodepartiallong(self):
@@ -567,7 +567,7 @@ class IntTests(TestCase):
         )
 
     def testdecodepartialulonglong(self):
-        encoded = b''.join(cborutil.streamencode(2 ** 32))
+        encoded = b''.join(cborutil.streamencode(2**32))
 
         self.assertEqual(
             cborutil.decodeitem(encoded[0:1]),
@@ -603,7 +603,7 @@ class IntTests(TestCase):
         )
         self.assertEqual(
             cborutil.decodeitem(encoded[0:9]),
-            (True, 2 ** 32, 9, cborutil.SPECIAL_NONE),
+            (True, 2**32, 9, cborutil.SPECIAL_NONE),
         )
 
         with self.assertRaisesRegex(

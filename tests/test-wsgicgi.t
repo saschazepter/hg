@@ -1,3 +1,5 @@
+#require no-msys
+
   $ hg init test
   $ cat >hgweb.cgi <<HGWEB
   > #!$PYTHON

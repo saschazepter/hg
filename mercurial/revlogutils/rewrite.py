@@ -7,6 +7,8 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
+
 import binascii
 import contextlib
 import os
@@ -258,7 +260,6 @@ def _precompute_rewritten_delta(
                 # this revision is empty, we can delta against nullrev
                 rewritten_entries[rev] = (nullrev, 0, 0, COMP_MODE_PLAIN)
             else:
-
                 text = revlog.rawdata(rev)
                 info = revlogutils.revisioninfo(
                     node=entry[ENTRY_NODE_ID],
@@ -614,15 +615,20 @@ def _is_revision_affected_fast(repo, fl, filerev, metadata_cache):
     rl = fl._revlog
     is_censored = lambda: rl.iscensored(filerev)
     delta_base = lambda: rl.deltaparent(filerev)
-    delta = lambda: rl._chunk(filerev)
+    delta = lambda: rl._inner._chunk(filerev)
     full_text = lambda: rl.rawdata(filerev)
     parent_revs = lambda: rl.parentrevs(filerev)
+    # This function is used by repair_issue6528, but not by
+    # filter_delta_issue6528. As such, we do not want to trust
+    # parent revisions of the delta base to decide whether
+    # the delta base has metadata.
     return _is_revision_affected_fast_inner(
         is_censored,
         delta_base,
         delta,
         full_text,
         parent_revs,
+        None,  # don't trust the parent revisions
         filerev,
         metadata_cache,
     )
@@ -634,6 +640,7 @@ def _is_revision_affected_fast_inner(
     delta,
     full_text,
     parent_revs,
+    deltabase_parentrevs,
     filerev,
     metadata_cache,
 ):
@@ -652,21 +659,36 @@ def _is_revision_affected_fast_inner(
 
     p1, p2 = parent_revs()
     if p1 == nullrev or p2 != nullrev:
+        metadata_cache[filerev] = True
         return False
 
     delta_parent = delta_base()
     parent_has_metadata = metadata_cache.get(delta_parent)
     if parent_has_metadata is None:
-        return _is_revision_affected_inner(
-            full_text,
-            parent_revs,
-            filerev,
-            metadata_cache,
-        )
+        if deltabase_parentrevs is not None:
+            deltabase_parentrevs = deltabase_parentrevs()
+            if deltabase_parentrevs == (nullrev, nullrev):
+                # Need to check the content itself as there is no flag.
+                parent_has_metadata = None
+            elif deltabase_parentrevs[0] == nullrev:
+                # Second parent is !null, assume repository is correct
+                # and has flagged this file revision as having metadata.
+                parent_has_metadata = True
+            elif deltabase_parentrevs[1] == nullrev:
+                # First parent is !null, so assume it has no metadata.
+                parent_has_metadata = False
+        if parent_has_metadata is None:
+            return _is_revision_affected_inner(
+                full_text,
+                parent_revs,
+                filerev,
+                metadata_cache,
+            )
 
     chunk = delta()
     if not len(chunk):
         # No diff for this revision
+        metadata_cache[filerev] = parent_has_metadata
         return parent_has_metadata
 
     header_length = 12
@@ -734,7 +756,7 @@ def _from_report(ui, repo, context, from_report, dry_run):
 
 def filter_delta_issue6528(revlog, deltas_iter):
     """filter incomind deltas to repaire issue 6528 on the fly"""
-    metadata_cache = {}
+    metadata_cache = {nullrev: False}
 
     deltacomputer = deltas.deltacomputer(revlog)
 
@@ -763,9 +785,9 @@ def filter_delta_issue6528(revlog, deltas_iter):
         p2_rev = revlog.rev(p2_node)
 
         is_censored = lambda: bool(flags & REVIDX_ISCENSORED)
-        delta_base = lambda: revlog.rev(delta_base)
         delta_base = lambda: base_rev
         parent_revs = lambda: (p1_rev, p2_rev)
+        deltabase_parentrevs = lambda: revlog.parentrevs(base_rev)
 
         def full_text():
             # note: being able to reuse the full text computation in the
@@ -791,6 +813,7 @@ def filter_delta_issue6528(revlog, deltas_iter):
             lambda: delta,
             full_text,
             parent_revs,
+            deltabase_parentrevs,
             rev,
             metadata_cache,
         )
@@ -845,7 +868,7 @@ def repair_issue6528(
 
             # Set of filerevs (or hex filenodes if `to_report`) that need fixing
             to_fix = set()
-            metadata_cache = {}
+            metadata_cache = {nullrev: False}
             for filerev in fl.revs():
                 affected = _is_revision_affected_fast(
                     repo, fl, filerev, metadata_cache

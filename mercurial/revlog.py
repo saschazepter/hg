@@ -12,6 +12,7 @@ This provides efficient delta storage with O(1) retrieve and append
 and O(changes) merge between branches.
 """
 
+from __future__ import annotations
 
 import binascii
 import collections
@@ -20,8 +21,16 @@ import functools
 import io
 import os
 import struct
+import typing
 import weakref
 import zlib
+
+from typing import (
+    Iterable,
+    Iterator,
+    Optional,
+    Tuple,
+)
 
 # import stuff from node for others to import from revlog
 from .node import (
@@ -69,6 +78,12 @@ from .revlogutils.flagutil import (
     REVIDX_RAWTEXT_CHANGING_FLAGS,
 )
 from .thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from . import (
     ancestor,
     dagop,
@@ -79,10 +94,10 @@ from . import (
     revlogutils,
     templatefilters,
     util,
+    vfs as vfsmod,
 )
 from .interfaces import (
     repository,
-    util as interfaceutil,
 )
 from .revlogutils import (
     deltas as deltautil,
@@ -173,9 +188,8 @@ HAS_FAST_PERSISTENT_NODEMAP = rustrevlog is not None or hasattr(
 )
 
 
-@interfaceutil.implementer(repository.irevisiondelta)
 @attr.s(slots=True)
-class revlogrevisiondelta:
+class revlogrevisiondelta:  # (repository.irevisiondelta)
     node = attr.ib()
     p1node = attr.ib()
     p2node = attr.ib()
@@ -189,12 +203,11 @@ class revlogrevisiondelta:
     linknode = attr.ib(default=None)
 
 
-@interfaceutil.implementer(repository.iverifyproblem)
 @attr.s(frozen=True)
-class revlogproblem:
-    warning = attr.ib(default=None)
-    error = attr.ib(default=None)
-    node = attr.ib(default=None)
+class revlogproblem:  # (repository.iverifyproblem)
+    warning = attr.ib(default=None, type=Optional[bytes])
+    error = attr.ib(default=None, type=Optional[bytes])
+    node = attr.ib(default=None, type=Optional[bytes])
 
 
 def parse_index_v1(data, inline):
@@ -220,7 +233,6 @@ if hasattr(parsers, 'parse_index_devel_nodemap'):
     def parse_index_v1_nodemap(data, inline):
         index, cache = parsers.parse_index_devel_nodemap(data, inline)
         return index, cache
-
 
 else:
     parse_index_v1_nodemap = None
@@ -352,9 +364,11 @@ class _InnerRevlog:
     boundaries are arbitrary and based on what we can delegate to Rust.
     """
 
+    opener: vfsmod.vfs
+
     def __init__(
         self,
-        opener,
+        opener: vfsmod.vfs,
         index,
         index_file,
         data_file,
@@ -558,7 +572,7 @@ class _InnerRevlog:
         c = self._get_decompressor(t)
         return c.decompress
 
-    def _get_decompressor(self, t):
+    def _get_decompressor(self, t: bytes):
         try:
             compressor = self._decompressors[t]
         except KeyError:
@@ -574,7 +588,7 @@ class _InnerRevlog:
                 )
         return compressor
 
-    def compress(self, data):
+    def compress(self, data: bytes) -> Tuple[bytes, bytes]:
         """Generate a possibly-compressed representation of data."""
         if not data:
             return b'', data
@@ -589,7 +603,7 @@ class _InnerRevlog:
             return b'', data
         return b'u', data
 
-    def decompress(self, data):
+    def decompress(self, data: bytes):
         """Decompress a revlog chunk.
 
         The chunk is expected to begin with a header identifying the
@@ -905,9 +919,7 @@ class _InnerRevlog:
         """Obtain decompressed chunks for the specified revisions.
 
         Accepts an iterable of numeric revisions that are assumed to be in
-        ascending order. Also accepts an optional already-open file handle
-        to be used for reading. If used, the seek position of the file will
-        not be preserved.
+        ascending order.
 
         This function is similar to calling ``self._chunk()`` multiple times,
         but is faster.
@@ -991,10 +1003,10 @@ class _InnerRevlog:
         chunks.sort()
         return [x[1] for x in chunks]
 
-    def raw_text(self, node, rev):
+    def raw_text(self, node, rev) -> bytes:
         """return the possibly unvalidated rawtext for a revision
 
-        returns (rev, rawtext, validated)
+        returns rawtext
         """
 
         # revision in the cache (could be useful to apply delta)
@@ -1035,7 +1047,7 @@ class _InnerRevlog:
 
         rawtext = mdiff.patches(basetext, bins)
         del basetext  # let us have a chance to free memory early
-        return (rev, rawtext, False)
+        return rawtext
 
     def sidedata(self, rev, sidedata_end):
         """Return the sidedata for a given revision number."""
@@ -1281,6 +1293,9 @@ class revlog:
     """
 
     _flagserrorclass = error.RevlogError
+    _inner: "_InnerRevlog"
+
+    opener: vfsmod.vfs
 
     @staticmethod
     def is_inline_index(header_bytes):
@@ -1296,9 +1311,11 @@ class revlog:
         features = FEATURES_BY_VERSION[_format_version]
         return features[b'inline'](_format_flags)
 
+    _docket_file: Optional[bytes]
+
     def __init__(
         self,
-        opener,
+        opener: vfsmod.vfs,
         target,
         radix,
         postfix=None,  # only exist for `tmpcensored` now
@@ -1794,7 +1811,7 @@ class revlog:
     def __len__(self):
         return len(self.index)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[int]:
         return iter(range(len(self)))
 
     def revs(self, start=0, stop=None):
@@ -1832,7 +1849,7 @@ class revlog:
             else:
                 nodemaputil.setup_persistent_nodemap(transaction, self)
 
-    def clearcaches(self):
+    def clearcaches(self, clear_persisted_data: bool = False) -> None:
         """Clear in-memory caches"""
         self._chainbasecache.clear()
         self._inner.clear_cache()
@@ -2346,12 +2363,10 @@ class revlog:
         assert heads
         return (orderedout, roots, heads)
 
-    def headrevs(self, revs=None):
+    def headrevs(self, revs=None, stop_rev=None):
         if revs is None:
-            try:
-                return self.index.headrevs()
-            except AttributeError:
-                return self._headrevs()
+            return self.index.headrevs(None, stop_rev)
+        assert stop_rev is None
         if rustdagop is not None and self.index.rust_ext_compat:
             return rustdagop.headrevs(self.index, revs)
         return dagop.headrevs(revs, self._uncheckedparentrevs)
@@ -2364,19 +2379,6 @@ class revlog:
 
     def computephases(self, roots):
         return self.index.computephasesmapsets(roots)
-
-    def _headrevs(self):
-        count = len(self)
-        if not count:
-            return [nullrev]
-        # we won't iter over filtered rev so nobody is a head at start
-        ishead = [0] * (count + 1)
-        index = self.index
-        for r in self:
-            ishead[r] = 1  # I may be an head
-            e = index[r]
-            ishead[e[5]] = ishead[e[6]] = 0  # my parent are not
-        return [r for r, val in enumerate(ishead) if val]
 
     def _head_node_ids(self):
         try:
@@ -2729,7 +2731,8 @@ class revlog:
         if rev is None:
             rev = self.rev(node)
 
-        return self._inner.raw_text(node, rev)
+        text = self._inner.raw_text(node, rev)
+        return (rev, text, False)
 
     def _revisiondata(self, nodeorrev, raw=False):
         # deal with <nodeorrev> argument type
@@ -2777,6 +2780,8 @@ class revlog:
 
     def _sidedata(self, rev):
         """Return the sidedata for a given revision number."""
+        if self._sidedatafile is None:
+            return {}
         sidedata_end = None
         if self._docket is not None:
             sidedata_end = self._docket.sidedata_end
@@ -3081,7 +3086,7 @@ class revlog:
                 sidedata=sidedata,
             )
 
-    def compress(self, data):
+    def compress(self, data: bytes) -> Tuple[bytes, bytes]:
         return self._inner.compress(data)
 
     def decompress(self, data):
@@ -3125,7 +3130,7 @@ class revlog:
             raise error.RevlogError(
                 _(b"%s: attempt to add wdir revision") % self.display_id
             )
-        if self._inner._writinghandles is None:
+        if not self._inner.is_writing:
             msg = b'adding revision outside `revlog._writing` context'
             raise error.ProgrammingError(msg)
 
@@ -3870,7 +3875,7 @@ class revlog:
         else:
             rewrite.v2_censor(self, tr, censor_nodes, tombstone)
 
-    def verifyintegrity(self, state):
+    def verifyintegrity(self, state) -> Iterable[revlogproblem]:
         """Verifies the integrity of the revlog.
 
         Yields ``revlogproblem`` instances describing problems that are

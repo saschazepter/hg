@@ -5,6 +5,8 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
+
 import weakref
 
 from .i18n import _
@@ -225,7 +227,6 @@ def copytoworkingcopy(repo):
         m = "changing narrow spec outside of a transaction"
         raise error.ProgrammingError(m)
     else:
-
         reporef = weakref.ref(repo)
 
         def clean_pending(tr):

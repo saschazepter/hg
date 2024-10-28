@@ -5,10 +5,12 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import io
 import stat
 import struct
+import typing
 import zlib
 
 from ..node import (
@@ -16,8 +18,15 @@ from ..node import (
     sha1nodeconstants,
 )
 from ..thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from .. import (
     error,
+    pycompat,
     revlogutils,
     util,
 )
@@ -228,7 +237,7 @@ class DirstateItem:
                     parentfiledata=(mode, size, (mtime, 0, False)),
                 )
         else:
-            raise RuntimeError(b'unknown state: %s' % state)
+            raise RuntimeError('unknown state: %s' % pycompat.sysstr(state))
 
     def set_possibly_dirty(self):
         """Mark a file as "possibly dirty"
@@ -644,7 +653,7 @@ class BaseIndexObject:
 
     def _check_index(self, i):
         if not isinstance(i, int):
-            raise TypeError(b"expecting int indexes")
+            raise TypeError("expecting int indexes")
         if i < 0 or i >= len(self):
             raise IndexError(i)
 
@@ -687,6 +696,24 @@ class BaseIndexObject:
             p = p[revlog_constants.INDEX_HEADER.size :]
         return p
 
+    def headrevs(self, excluded_revs=None, stop_rev=None):
+        count = len(self)
+        if stop_rev is not None:
+            count = min(count, stop_rev)
+        if not count:
+            return [nullrev]
+        # we won't iter over filtered rev so nobody is a head at start
+        ishead = [0] * (count + 1)
+        revs = range(count)
+        if excluded_revs is not None:
+            revs = (r for r in revs if r not in excluded_revs)
+
+        for r in revs:
+            ishead[r] = 1  # I may be an head
+            e = self[r]
+            ishead[e[5]] = ishead[e[6]] = 0  # my parent are not
+        return [r for r, val in enumerate(ishead) if val]
+
 
 class IndexObject(BaseIndexObject):
     def __init__(self, data):
@@ -704,7 +731,7 @@ class IndexObject(BaseIndexObject):
 
     def __delitem__(self, i):
         if not isinstance(i, slice) or not i.stop == -1 or i.step is not None:
-            raise ValueError(b"deleting slices only supports a:-1 with step 1")
+            raise ValueError("deleting slices only supports a:-1 with step 1")
         i = i.start
         self._check_index(i)
         self._stripnodes(i)
@@ -783,12 +810,12 @@ class InlinedIndexObject(BaseIndexObject):
             count += 1
             off += self.entry_size + s
         if off != len(self._data):
-            raise ValueError(b"corrupted data")
+            raise ValueError("corrupted data")
         return count
 
     def __delitem__(self, i):
         if not isinstance(i, slice) or not i.stop == -1 or i.step is not None:
-            raise ValueError(b"deleting slices only supports a:-1 with step 1")
+            raise ValueError("deleting slices only supports a:-1 with step 1")
         i = i.start
         self._check_index(i)
         self._stripnodes(i)
@@ -841,7 +868,7 @@ class IndexObject2(IndexObject):
             raise KeyError
         self._check_index(rev)
         if rev < self._lgt:
-            msg = b"cannot rewrite entries outside of this transaction"
+            msg = "cannot rewrite entries outside of this transaction"
             raise KeyError(msg)
         else:
             entry = list(self[rev])
@@ -911,7 +938,6 @@ class IndexChangelogV2(IndexObject2):
         )
 
     def _pack_entry(self, rev, entry):
-
         base = entry[revlog_constants.ENTRY_DELTA_BASE]
         link_rev = entry[revlog_constants.ENTRY_LINK_REV]
         assert base == rev, (base, rev)

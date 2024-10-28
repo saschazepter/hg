@@ -24,6 +24,7 @@ remotenames.hoistedpeer
   namespace (default: 'default')
 """
 
+from __future__ import annotations
 
 import collections.abc
 
@@ -259,7 +260,6 @@ def extsetup(ui):
 
 
 def reposetup(ui, repo):
-
     # set the config option to store remotenames
     repo.ui.setconfig(b'experimental', b'remotenames', True, b'remotenames-ext')
 

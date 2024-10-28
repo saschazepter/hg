@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import os
 
@@ -31,7 +32,7 @@ def verify(repo, level=None):
         return v.verify()
 
 
-def _normpath(f):
+def _normpath(f: bytes) -> bytes:
     # under hg < 2.4, convert didn't sanitize paths properly, so a
     # converted repo may contain repeated slashes
     while b'//' in f:
@@ -360,7 +361,7 @@ class verifier:
                 self._err(lr, _(b"%s not in changesets") % short(n), label)
 
             try:
-                mfdelta = mfl.get(dir, n).readdelta(shallow=True)
+                mfdelta = mfl.get(dir, n).read_delta_new_entries(shallow=True)
                 for f, fn, fl in mfdelta.iterentries():
                     if not f:
                         self._err(lr, _(b"entry without name in manifest"))

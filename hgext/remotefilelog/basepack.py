@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import collections
 import errno
 import mmap
@@ -45,7 +47,7 @@ LARGEFANOUTPREFIX = 2
 # bisect) with (8 step fanout scan + 1 step bisect)
 # 5 step bisect = log(2^16 / 8 / 255)  # fanout
 # 10 step fanout scan = 2^16 / (2^16 / 8)  # fanout space divided by entries
-SMALLFANOUTCUTOFF = 2 ** 16 // 8
+SMALLFANOUTCUTOFF = 2**16 // 8
 
 # The amount of time to wait between checking for new packs. This prevents an
 # exception when data is moved to a new pack after the process has already
@@ -275,7 +277,7 @@ class versionmixin:
 class basepack(versionmixin):
     # The maximum amount we should read via mmap before remmaping so the old
     # pages can be released (100MB)
-    MAXPAGEDIN = 100 * 1024 ** 2
+    MAXPAGEDIN = 100 * 1024**2
 
     SUPPORTED_VERSIONS = [2]
 

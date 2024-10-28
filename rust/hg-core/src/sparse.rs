@@ -1,14 +1,16 @@
-use std::{collections::HashSet, path::Path};
+use std::{collections::HashSet, fmt::Display, path::Path};
 
-use format_bytes::{write_bytes, DisplayBytes};
+use format_bytes::{format_bytes, write_bytes, DisplayBytes};
 
 use crate::{
     errors::HgError,
+    exit_codes::STATE_ERROR,
     filepatterns::parse_pattern_file_contents,
     matchers::{
         AlwaysMatcher, DifferenceMatcher, IncludeMatcher, Matcher,
         UnionMatcher,
     },
+    narrow::VALID_PREFIXES,
     operations::cat,
     repo::Repo,
     requirements::SPARSE_REQUIREMENT,
@@ -32,6 +34,15 @@ impl DisplayBytes for SparseConfigContext {
         match self {
             SparseConfigContext::Sparse => write_bytes!(output, b"sparse"),
             SparseConfigContext::Narrow => write_bytes!(output, b"narrow"),
+        }
+    }
+}
+
+impl Display for SparseConfigContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SparseConfigContext::Sparse => write!(f, "sparse"),
+            SparseConfigContext::Narrow => write!(f, "narrow"),
         }
     }
 }
@@ -80,6 +91,59 @@ pub enum SparseConfigError {
     HgError(HgError),
     #[from]
     PatternError(PatternError),
+}
+
+impl From<SparseConfigError> for HgError {
+    fn from(value: SparseConfigError) -> Self {
+        match value {
+            SparseConfigError::IncludesAfterExcludes { context } => {
+                HgError::Abort {
+                    message: format!(
+                        "{} config cannot have includes after excludes",
+                        context,
+                    ),
+                    detailed_exit_code: STATE_ERROR,
+                    hint: None,
+                }
+            }
+            SparseConfigError::EntryOutsideSection { context, line } => {
+                HgError::Abort {
+                    message: format!(
+                        "{} config entry outside of section: {}",
+                        context,
+                        String::from_utf8_lossy(&line)
+                    ),
+                    detailed_exit_code: STATE_ERROR,
+                    hint: None,
+                }
+            }
+            SparseConfigError::IncludesInNarrow => HgError::Abort {
+                message: "including other spec files using '%include' is not \
+                supported in narrowspec"
+                    .to_string(),
+                detailed_exit_code: STATE_ERROR,
+                hint: None,
+            },
+            SparseConfigError::InvalidNarrowPrefix(vec) => HgError::Abort {
+                message: String::from_utf8_lossy(&format_bytes!(
+                    b"invalid prefix on narrow pattern: {}",
+                    vec
+                ))
+                .to_string(),
+                detailed_exit_code: STATE_ERROR,
+                hint: Some(format!(
+                    "narrow patterns must begin with one of the following: {}",
+                    VALID_PREFIXES.join(", ")
+                )),
+            },
+            SparseConfigError::HgError(hg_error) => hg_error,
+            SparseConfigError::PatternError(pattern_error) => HgError::Abort {
+                message: pattern_error.to_string(),
+                detailed_exit_code: STATE_ERROR,
+                hint: None,
+            },
+        }
+    }
 }
 
 /// Parse sparse config file content.

@@ -65,7 +65,13 @@ default = ""
 section = "censor"
 name = "policy"
 default = "abort"
-experimental = true
+documentation="""Control how to react when accessing censored content.
+Accepted value: "abort", "ignore". Defaults to abort.
+
+A few informative commands such as ``hg grep`` will unconditionally ignore
+censored data and merely report that it was encountered.
+"""
+
 
 [[items]]
 section = "chgserver"
@@ -632,7 +638,7 @@ Useful when testing race conditions."""
 [[items]]
 section = 'devel'
 name = 'sync.status.pre-dirstate-write-file-timeout'
-default=2
+default=20
 
 [[items]]
 section = 'devel'
@@ -641,7 +647,7 @@ name = 'sync.dirstate.post-docket-read-file'
 [[items]]
 section = 'devel'
 name = 'sync.dirstate.post-docket-read-file-timeout'
-default=2
+default=20
 
 [[items]]
 section = 'devel'
@@ -650,7 +656,7 @@ name = 'sync.dirstate.pre-read-file'
 [[items]]
 section = 'devel'
 name = 'sync.dirstate.pre-read-file-timeout'
-default=2
+default=20
 
 [[items]]
 section = "devel"
@@ -984,10 +990,6 @@ but we explicitly kept/undeleted them) and creates new filenodes for them."""
 section = "experimental"
 name = "merge.checkpathconflicts"
 default = false
-
-[[items]]
-section = "experimental"
-name = "mmapindexthreshold"
 
 [[items]]
 section = "experimental"
@@ -1528,6 +1530,24 @@ name = "strict-capability-check"
 default = false
 
 [[items]]
+section = "experimental"
+name = "relaxed-block-sync-merge"
+default = false
+documentation="""When using built-in simple merge tools, this config makes it so that changes
+touching adjacent file regions no longer conflict with each other.
+
+In particular, addition/modification/removal adjacent to modification/removal
+are all allowed with no conflict.
+
+Addition next to addition is still treated as a conflict because it presents
+a legitimate ambiguity.
+
+The change tweaks existing logic for aligning file changes, making it so
+that a 0-length spacing between regions is just as good as a 1-line spacing.
+(default: False)
+"""
+
+[[items]]
 section = "merge-tools"
 name = ".*"
 generic = true
@@ -1815,6 +1835,20 @@ name = "type"
 default = "stat"
 
 [[items]]
+section = "profiling"
+name = "py-spy.exe"
+default = "py-spy"
+
+[[items]]
+section = "profiling"
+name = "py-spy.freq"
+default = 100
+
+[[items]]
+section = "profiling"
+name = "py-spy.format"
+
+[[items]]
 section = "progress"
 name = "assume-tty"
 default = false
@@ -1945,6 +1979,17 @@ section = "rhg"
 name = "on-unsupported"
 default = "abort"
 experimental = true
+
+[[items]]
+section = "rust"
+name = "update-from-null"
+default = true
+experimental = true
+documentation = """Whether to use the Rust fast-path when an update from null
+is detected. This config item is here to help users disable the fastpath in
+case one of their extensions is interfering with the update code. If you are
+one of these people, please reach out.
+"""
 
 [[items]]
 section = "server"
@@ -2147,7 +2192,7 @@ experimental = true  # experimental as long as format.use-dirstate-v2 is.
 [[items]]
 section = "storage"
 name = "revbranchcache.mmap"
-default = false
+default-type = "dynamic"
 
 [[items]]
 section = "storage"
@@ -2164,6 +2209,16 @@ default = 20
 section = "storage"
 name = "revlog.issue6528.fix-incoming"
 default = true
+
+[[items]]
+section = "storage"
+name = "revlog.mmap.index"
+default-type = "dynamic"
+
+[[items]]
+section = "storage"
+name = "revlog.mmap.index:size-threshold"
+default = "1 MB"
 
 [[items]]
 section = "storage"

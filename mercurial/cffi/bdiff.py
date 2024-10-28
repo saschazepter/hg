@@ -5,15 +5,23 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import struct
+import typing
 
 from typing import (
     List,
+    Optional,
     Tuple,
 )
 
 from ..pure.bdiff import *
+
+from ..interfaces import (
+    modules as intmod,
+)
+
 from . import _bdiff  # pytype: disable=import-error
 
 ffi = _bdiff.ffi
@@ -86,3 +94,11 @@ def bdiff(sa: bytes, sb: bytes) -> bytes:
         lib.free(b[0])
         lib.bdiff_freehunks(l.next)
     return b"".join(rl)
+
+
+# In order to adhere to the module protocol, these functions must be visible to
+# the type checker, though they aren't actually implemented by this
+# implementation of the module protocol.  Callers are responsible for
+# checking that the implementation is available before using them.
+if typing.TYPE_CHECKING:
+    xdiffblocks: Optional[intmod.BDiffBlocksFnc] = None

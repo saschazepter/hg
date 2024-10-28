@@ -45,9 +45,9 @@ Preparing the 'sub1' repo which depends on the subrepo 'sub2'
   linking [=======================================>     ] 8/9\r (no-eol) (esc) (rust !)
   linking [============================================>] 9/9\r (no-eol) (esc) (rust !)
                                                               \r (no-eol) (esc)
-  \r (no-eol) (esc)
-  updating [===========================================>] 1/1\r (no-eol) (esc)
-                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc) (no-rust !)
+  updating [===========================================>] 1/1\r (no-eol) (esc) (no-rust !)
+                                                              \r (no-eol) (esc) (no-rust !)
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg add -R sub1
@@ -89,7 +89,6 @@ Preparing the 'main' repo which depends on the subrepo 'sub1'
   linking [==================================>          ] 7/9\r (no-eol) (esc)
   linking [=======================================>     ] 8/9\r (no-eol) (esc)
   linking [============================================>] 9/9\r (no-eol) (esc)
-  updating [===========================================>] 1/1\r (no-eol) (esc)
                                                               \r (no-eol) (esc)
   updating to branch default
   cloning subrepo sub2 from $TESTTMP/sub2

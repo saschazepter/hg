@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .i18n import _
 from . import (
     bookmarks as bookmarksmod,
@@ -63,7 +65,6 @@ def strip(
     soft=False,
 ):
     with repo.wlock(), repo.lock():
-
         if update:
             checklocalchanges(repo, force=force)
             urev = _findupdatetarget(repo, revs)

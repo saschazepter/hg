@@ -8,7 +8,7 @@
 // GNU General Public License version 2 or any later version.
 
 use crate::errors::HgError;
-use crate::exit_codes::CONFIG_PARSE_ERROR_ABORT;
+use crate::exit_codes::{CONFIG_ERROR_ABORT, CONFIG_PARSE_ERROR_ABORT};
 use crate::utils::files::{get_bytes_from_path, get_path_from_bytes};
 use format_bytes::{format_bytes, write_bytes, DisplayBytes};
 use lazy_static::lazy_static;
@@ -324,9 +324,7 @@ impl DisplayBytes for ConfigOrigin {
             ConfigOrigin::Tweakdefaults => {
                 write_bytes!(out, b"ui.tweakdefaults")
             }
-            ConfigOrigin::Defaults => {
-                write_bytes!(out, b"configitems.toml")
-            }
+            ConfigOrigin::Defaults => write_bytes!(out, b"configitems.toml"),
         }
     }
 }
@@ -338,10 +336,47 @@ pub struct ConfigParseError {
     pub message: Vec<u8>,
 }
 
+impl From<ConfigParseError> for HgError {
+    fn from(error: ConfigParseError) -> Self {
+        let ConfigParseError {
+            origin,
+            line,
+            message,
+        } = error;
+        let line_message = if let Some(line_number) = line {
+            format_bytes!(b":{}", line_number.to_string().into_bytes())
+        } else {
+            Vec::new()
+        };
+        HgError::Abort {
+            message: String::from_utf8_lossy(&format_bytes!(
+                b"config error at {}{}: {}",
+                origin,
+                line_message,
+                message
+            ))
+            .to_string(),
+            detailed_exit_code: CONFIG_ERROR_ABORT,
+            hint: None,
+        }
+    }
+}
+
 #[derive(Debug, derive_more::From)]
 pub enum ConfigError {
     Parse(ConfigParseError),
     Other(HgError),
+}
+
+impl From<ConfigError> for HgError {
+    fn from(error: ConfigError) -> Self {
+        match error {
+            ConfigError::Parse(config_parse_error) => {
+                Self::from(config_parse_error)
+            }
+            ConfigError::Other(hg_error) => hg_error,
+        }
+    }
 }
 
 fn make_regex(pattern: &'static str) -> Regex {

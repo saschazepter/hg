@@ -5,12 +5,14 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import copy as copymod
 import errno
 import functools
 import os
 import re
+import typing
 
 from typing import (
     Any,
@@ -32,6 +34,11 @@ from .pycompat import (
     open,
 )
 from .thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
 
 from . import (
     bookmarks,
@@ -1112,7 +1119,7 @@ def changebranch(ui, repo, revs, label, **opts):
         ui.status(_(b"changed branch on %d changesets\n") % len(replacements))
 
 
-def findrepo(p):
+def findrepo(p: bytes) -> Optional[bytes]:
     while not os.path.isdir(os.path.join(p, b".hg")):
         oldp, p = p, os.path.dirname(p)
         if p == oldp:
@@ -3833,7 +3840,6 @@ def _performrevert(
         original_headers = patch.parsepatch(diff)
 
         try:
-
             chunks, opts = recordfilter(
                 repo.ui, original_headers, match, operation=operation
             )

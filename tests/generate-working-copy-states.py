@@ -33,6 +33,7 @@
 import os
 import sys
 
+
 # Generates pairs of (filename, contents), where 'contents' is a list
 # describing the file's content at each revision (or in the working copy).
 # At each revision, it is either None or the file's actual content. When not

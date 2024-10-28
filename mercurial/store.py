@@ -5,15 +5,29 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
+
 import collections
 import functools
 import os
 import re
 import stat
-from typing import Generator, List
+import typing
+
+from typing import (
+    Generator,
+    List,
+    Optional,
+)
 
 from .i18n import _
 from .thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from .node import hex
 from .revlogutils.constants import (
     INDEX_HEADER,
@@ -37,10 +51,10 @@ from .utils import hashutil
 parsers = policy.importmod('parsers')
 # how much bytes should be read from fncache in one read
 # It is done to prevent loading large fncache files into memory
-fncache_chunksize = 10 ** 6
+fncache_chunksize = 10**6
 
 
-def _match_tracked_entry(entry, matcher):
+def _match_tracked_entry(entry: "BaseStoreEntry", matcher):
     """parses a fncache entry and returns whether the entry is tracking a path
     matched by matcher or not.
 
@@ -48,10 +62,16 @@ def _match_tracked_entry(entry, matcher):
 
     if matcher is None:
         return True
+
+    # TODO: make this safe for other entry types.  Currently, the various
+    #  store.data_entry generators only yield  RevlogStoreEntry, so the
+    #  attributes do exist on `entry`.
+    # pytype: disable=attribute-error
     if entry.is_filelog:
         return matcher(entry.target_id)
     elif entry.is_manifestlog:
         return matcher.visitdir(entry.target_id.rstrip(b'/'))
+    # pytype: enable=attribute-error
     raise error.ProgrammingError(b"cannot process entry %r" % entry)
 
 
@@ -457,7 +477,7 @@ class StoreFile:
     def has_size(self):
         return self._file_size is not None
 
-    def get_stream(self, vfs, copies):
+    def get_stream(self, vfs, volatiles):
         """return data "stream" information for this file
 
         (unencoded_file_path, content_iterator, content_size)
@@ -465,8 +485,8 @@ class StoreFile:
         size = self.file_size(None)
 
         def get_stream():
-            actual_path = copies[vfs.join(self.unencoded_path)]
-            with open(actual_path, 'rb') as fp:
+            path = vfs.join(self.unencoded_path)
+            with volatiles.open(path) as fp:
                 yield None  # ready to stream
                 if size <= 65536:
                     yield fp.read(size)
@@ -493,7 +513,7 @@ class BaseStoreEntry:
         self,
         repo=None,
         vfs=None,
-        copies=None,
+        volatiles=None,
         max_changeset=None,
         preserve_file_count=False,
     ):
@@ -502,7 +522,7 @@ class BaseStoreEntry:
         return [(unencoded_file_path, content_iterator, content_size), …]
         """
         assert vfs is not None
-        return [f.get_stream(vfs, copies) for f in self.files()]
+        return [f.get_stream(vfs, volatiles) for f in self.files()]
 
 
 @attr.s(slots=True, init=False)
@@ -612,7 +632,7 @@ class RevlogStoreEntry(BaseStoreEntry):
         self,
         repo=None,
         vfs=None,
-        copies=None,
+        volatiles=None,
         max_changeset=None,
         preserve_file_count=False,
     ):
@@ -628,13 +648,13 @@ class RevlogStoreEntry(BaseStoreEntry):
             return super().get_streams(
                 repo=repo,
                 vfs=vfs,
-                copies=copies,
+                volatiles=volatiles,
                 max_changeset=max_changeset,
                 preserve_file_count=preserve_file_count,
             )
         elif not preserve_file_count:
             stream = [
-                f.get_stream(vfs, copies)
+                f.get_stream(vfs, volatiles)
                 for f in self.files()
                 if not f.unencoded_path.endswith((b'.i', b'.d'))
             ]
@@ -648,7 +668,7 @@ class RevlogStoreEntry(BaseStoreEntry):
             name_to_size[f.unencoded_path] = f.file_size(None)
 
         stream = [
-            f.get_stream(vfs, copies)
+            f.get_stream(vfs, volatiles)
             for f in self.files()
             if not f.unencoded_path.endswith(b'.i')
         ]
@@ -803,7 +823,7 @@ class basicstore:
             concurrencychecker=concurrencychecker,
         )
 
-    def manifestlog(self, repo, storenarrowmatch):
+    def manifestlog(self, repo, storenarrowmatch) -> manifest.manifestlog:
         rootstore = manifest.manifestrevlog(repo.nodeconstants, self.vfs)
         return manifest.manifestlog(self.vfs, repo, rootstore, storenarrowmatch)
 
@@ -1119,11 +1139,13 @@ class _fncachevfs(vfsmod.proxyvfs):
                 self.fncache.add(path)
         return self.vfs(encoded, mode, *args, **kw)
 
-    def join(self, path):
+    def join(self, path: Optional[bytes], *insidef: bytes) -> bytes:
+        insidef = (self.encode(f) for f in insidef)
+
         if path:
-            return self.vfs.join(self.encode(path))
+            return self.vfs.join(self.encode(path), *insidef)
         else:
-            return self.vfs.join(path)
+            return self.vfs.join(path, *insidef)
 
     def register_file(self, path):
         """generic hook point to lets fncache steer its stew"""

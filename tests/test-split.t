@@ -65,7 +65,7 @@ Cannot split working directory
 Generate some content.  The sed filter drop CR on Windows, which is dropped in
 the a > b line.
 
-  $ $TESTDIR/seq.py 1 5 | sed 's/\r$//' >> a
+  $ $TESTDIR/seq.py 1 5 >> a
   $ hg ci -m a1 -A a -q
   $ hg bookmark -i r1
   $ sed 's/1/11/;s/3/33/;s/5/55/' a > b

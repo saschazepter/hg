@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import re
 
@@ -108,7 +109,7 @@ def getmarkers(repo, nodes=None, exclusive=False):
     elif exclusive:
         rawmarkers = exclusivemarkers(repo, nodes)
     else:
-        rawmarkers = repo.obsstore.relevantmarkers(nodes)
+        rawmarkers = repo.obsstore.relevantmarkers(nodes=nodes)
 
     for markerdata in rawmarkers:
         yield marker(repo, markerdata)
@@ -947,7 +948,7 @@ filteredmsgtable = {
 }
 
 
-def _getfilteredreason(repo, changeid, ctx):
+def _getfilteredreason(repo, changeid, ctx) -> bytes:
     """return a human-friendly string on why a obsolete changeset is hidden"""
     successors = successorssets(repo, ctx.node())
     fate = _getobsfate(successors)
@@ -961,7 +962,6 @@ def _getfilteredreason(repo, changeid, ctx):
         single_successor = short(successors[0][0])
         return filteredmsgtable[b'superseded'] % (changeid, single_successor)
     elif fate == b'superseded_split':
-
         succs = []
         for node_id in successors[0]:
             succs.append(short(node_id))
@@ -975,6 +975,8 @@ def _getfilteredreason(repo, changeid, ctx):
 
             args = (changeid, firstsuccessors, remainingnumber)
             return filteredmsgtable[b'superseded_split_several'] % args
+    else:
+        raise error.ProgrammingError("unhandled fate: %r" % fate)
 
 
 def divergentsets(repo, ctx):

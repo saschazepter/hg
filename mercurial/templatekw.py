@@ -5,6 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 from .i18n import _
 from .node import (
@@ -482,7 +483,7 @@ def showlatesttag(context, mapping):
     return showlatesttags(context, mapping, None)
 
 
-def showlatesttags(context, mapping, pattern):
+def showlatesttags(context, mapping, pattern) -> _hybrid:
     """helper method for the latesttag keyword and function"""
     latesttags = getlatesttags(context, mapping, pattern)
 

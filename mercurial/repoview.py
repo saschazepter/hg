@@ -6,6 +6,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import copy
 import weakref
@@ -309,14 +310,11 @@ class filteredchangelogmixin:
         # no Rust fast path implemented yet, so just loop in Python
         return [self.node(r) for r in self.headrevs()]
 
-    def headrevs(self, revs=None):
+    def headrevs(self, revs=None, stop_rev=None):
         if revs is None:
-            try:
-                return self.index.headrevsfiltered(self.filteredrevs)
-            # AttributeError covers non-c-extension environments and
-            # old c extensions without filter handling.
-            except AttributeError:
-                return self._headrevs()
+            return self.index.headrevs(self.filteredrevs, stop_rev)
+        # it is ignored from here, so better double check we passed the right argument
+        assert stop_rev is None
 
         revs = self._checknofilteredinrevs(revs)
         return super(filteredchangelogmixin, self).headrevs(revs)

@@ -3,7 +3,11 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
+
 import collections
+import re
+import typing
 
 from typing import (
     Dict,
@@ -15,10 +19,16 @@ from .i18n import _
 
 from .thirdparty import attr
 
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from . import (
     error,
     requirements as requirementsmod,
     sslutil,
+    url as urlmod,
     util,
 )
 from .utils import stringutil
@@ -30,7 +40,7 @@ CB_MANIFEST_FILE = b'clonebundles.manifest'
 CLONEBUNDLESCHEME = b"peer-bundle-cache://"
 
 
-def get_manifest(repo):
+def get_manifest(repo) -> bytes:
     """get the bundle manifest to be served to a client from a server"""
     raw_text = repo.vfs.tryread(CB_MANIFEST_FILE)
     entries = [e.split(b' ', 1) for e in raw_text.splitlines()]
@@ -46,7 +56,7 @@ def get_manifest(repo):
     return b''.join(new_lines)
 
 
-def alter_bundle_url(repo, url):
+def alter_bundle_url(repo, url: bytes) -> bytes:
     """a function that exist to help extension and hosting to alter the url
 
     This will typically be used to inject authentication information in the url
@@ -398,6 +408,9 @@ def isstreamclonespec(bundlespec):
     return False
 
 
+digest_regex = re.compile(b'^[a-z0-9]+:[0-9a-f]+(,[a-z0-9]+:[0-9a-f]+)*$')
+
+
 def filterclonebundleentries(
     repo, entries, streamclonerequested=False, pullbundles=False
 ):
@@ -471,6 +484,43 @@ def filterclonebundleentries(
                     b'filtering %s as it needs more than 2/3 of system memory\n'
                     % url
                 )
+                continue
+
+        if b'DIGEST' in entry:
+            if not digest_regex.match(entry[b'DIGEST']):
+                repo.ui.debug(
+                    b'filtering %s due to a bad DIGEST attribute\n' % url
+                )
+                continue
+            supported = 0
+            seen = {}
+            for digest_entry in entry[b'DIGEST'].split(b','):
+                algo, digest = digest_entry.split(b':')
+                if algo not in seen:
+                    seen[algo] = digest
+                elif seen[algo] != digest:
+                    repo.ui.debug(
+                        b'filtering %s due to conflicting %s digests\n'
+                        % (url, algo)
+                    )
+                    supported = 0
+                    break
+                digester = urlmod.digesthandler.digest_algorithms.get(algo)
+                if digester is None:
+                    continue
+                if len(digest) != digester().digest_size * 2:
+                    repo.ui.debug(
+                        b'filtering %s due to a bad %s digest\n' % (url, algo)
+                    )
+                    supported = 0
+                    break
+                supported += 1
+            else:
+                if supported == 0:
+                    repo.ui.debug(
+                        b'filtering %s due to lack of supported digest\n' % url
+                    )
+            if supported == 0:
                 continue
 
         newentries.append(entry)

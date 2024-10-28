@@ -43,10 +43,12 @@ option to ``sqlite`` to enable new repositories to use SQLite for storage.
 #     --extra-config-opt extensions.sqlitestore= \
 #     --extra-config-opt storage.new-repo-backend=sqlite
 
+from __future__ import annotations
 
 import sqlite3
 import struct
 import threading
+import typing
 import zlib
 
 from mercurial.i18n import _
@@ -56,6 +58,12 @@ from mercurial.node import (
     short,
 )
 from mercurial.thirdparty import attr
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
 from mercurial import (
     ancestor,
     dagop,
@@ -649,7 +657,6 @@ class sqlitefilestore:
             deltamode=deltamode,
             sidedata_helpers=sidedata_helpers,
         ):
-
             yield delta
 
     # End of ifiledata interface.

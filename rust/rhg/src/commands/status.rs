@@ -28,12 +28,12 @@ use hg::utils::files::{
     get_bytes_from_os_str, get_bytes_from_os_string, get_path_from_bytes,
 };
 use hg::utils::hg_path::{hg_path_to_path_buf, HgPath};
-use hg::PatternFileWarning;
 use hg::Revision;
 use hg::StatusError;
 use hg::StatusOptions;
 use hg::{self, narrow, sparse};
 use hg::{DirstateStatus, RevlogOpenOptions};
+use hg::{PatternFileWarning, RevlogType};
 use log::info;
 use rayon::prelude::*;
 use std::borrow::Cow;
@@ -383,7 +383,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             })?;
             let working_directory_vfs = repo.working_directory_vfs();
             let store_vfs = repo.store_vfs();
-            let revlog_open_options = repo.default_revlog_options(false)?;
+            let revlog_open_options =
+                repo.default_revlog_options(RevlogType::Manifestlog)?;
             let res: Vec<_> = take(&mut ds_status.unsure)
                 .into_par_iter()
                 .map(|to_check| {
@@ -392,8 +393,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                     // + map_err + collect, so let's just inline some of the
                     // logic.
                     match unsure_is_modified(
-                        working_directory_vfs,
-                        store_vfs,
+                        &working_directory_vfs,
+                        &store_vfs,
                         check_exec,
                         &manifest,
                         &to_check.path,
@@ -747,8 +748,8 @@ enum UnsureOutcome {
 /// This meant to be used for those that the dirstate cannot resolve, due
 /// to time resolution limits.
 fn unsure_is_modified(
-    working_directory_vfs: hg::vfs::Vfs,
-    store_vfs: hg::vfs::Vfs,
+    working_directory_vfs: &hg::vfs::VfsImpl,
+    store_vfs: &hg::vfs::VfsImpl,
     check_exec: bool,
     manifest: &Manifest,
     hg_path: &HgPath,
@@ -775,17 +776,17 @@ fn unsure_is_modified(
 
     let entry_flags = if check_exec {
         entry.flags
-    } else if entry.flags == Some(b'x') {
+    } else if entry.flags.map(|f| f.into()) == Some(b'x') {
         None
     } else {
         entry.flags
     };
 
-    if entry_flags != fs_flags {
+    if entry_flags.map(|f| f.into()) != fs_flags {
         return Ok(UnsureOutcome::Modified);
     }
     let filelog = hg::filelog::Filelog::open_vfs(
-        &store_vfs,
+        store_vfs,
         hg_path,
         revlog_open_options,
     )?;

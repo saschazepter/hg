@@ -73,9 +73,9 @@ import uuid
 import xml.dom.minidom as minidom
 
 
-if sys.version_info < (3, 5, 0):
+if sys.version_info < (3, 8, 0):
     print(
-        '%s is only supported on Python 3.5+, not %s'
+        '%s is only supported on Python 3.8+, not %s'
         % (sys.argv[0], '.'.join(str(v) for v in sys.version_info[:3]))
     )
     sys.exit(70)  # EX_SOFTWARE from `man 3 sysexit`
@@ -114,36 +114,73 @@ try:  # is pygments installed
 except ImportError:
     pass
 
+progress_type = {}
+
 if pygmentspresent:
+    _T_ERROR = token.string_to_tokentype("Token.Generic.Error")
+    _T_FAILED = token.string_to_tokentype("Token.Generic.Failed")
+    _T_FNAME = token.string_to_tokentype("Token.Generic.FName")
+    _T_IGNORED = token.string_to_tokentype("Token.Generic.Ignored")
+    _T_SKIPPED = token.string_to_tokentype("Token.Generic.Skipped")
+    _T_SNAME = token.string_to_tokentype("Token.Generic.SName")
+    _T_SKIPPED_DOT = token.string_to_tokentype("Token.Generic.SkippedDot")
+    _T_SUCCESS = token.string_to_tokentype("Token.Generic.Success")
+    _T_TIMEDOUT = token.string_to_tokentype("Token.Generic.TimedOut")
 
     class TestRunnerStyle(style.Style):
         default_style = ""
-        skipped = token.string_to_tokentype("Token.Generic.Skipped")
-        failed = token.string_to_tokentype("Token.Generic.Failed")
-        skippedname = token.string_to_tokentype("Token.Generic.SName")
-        failedname = token.string_to_tokentype("Token.Generic.FName")
         styles = {
-            skipped: '#e5e5e5',
-            skippedname: '#00ffff',
-            failed: '#7f0000',
-            failedname: '#ff0000',
+            _T_ERROR: '#cd00cd',
+            _T_FAILED: '#7f0000',
+            _T_FNAME: '#ff0000',
+            _T_IGNORED: '#cdcd00',
+            _T_SKIPPED: '#e5e5e5',
+            _T_SNAME: '#00ffff',
+            _T_SKIPPED_DOT: '#00ffff',
+            _T_SUCCESS: '#00cd00',
+            _T_TIMEDOUT: '#ff00ff',
         }
 
     class TestRunnerLexer(lexer.RegexLexer):
         testpattern = r'[\w-]+\.(t|py)(#[a-zA-Z0-9_\-\.]+)?'
         tokens = {
             'root': [
-                (r'^Skipped', token.Generic.Skipped, 'skipped'),
-                (r'^Failed ', token.Generic.Failed, 'failed'),
-                (r'^ERROR: ', token.Generic.Failed, 'failed'),
+                (r'^Skipped', _T_SKIPPED, 'skipped'),
+                (r'^Failed ', _T_FAILED, 'failed'),
+                (r'^ERROR: ', _T_FAILED, 'failed'),
             ],
             'skipped': [
-                (testpattern, token.Generic.SName),
-                (r':.*', token.Generic.Skipped),
+                (testpattern, _T_SNAME),
+                (r':.*', _T_SKIPPED),
             ],
             'failed': [
-                (testpattern, token.Generic.FName),
-                (r'(:| ).*', token.Generic.Failed),
+                (testpattern, _T_FNAME),
+                (r'(:| ).*', _T_FAILED),
+            ],
+        }
+
+    progress_type['.'] = _T_SUCCESS
+    progress_type['s'] = _T_SKIPPED_DOT
+    progress_type['i'] = _T_IGNORED
+    progress_type['!'] = _T_FAILED
+    progress_type['E'] = _T_ERROR
+    progress_type['t'] = _T_TIMEDOUT
+
+    class progressLexer(lexer.RegexLexer):
+        testpattern = r'[\w-]+\.(t|py)(#[a-zA-Z0-9_\-\.]+)?'
+        tokens = {
+            'root': [
+                (r'^Skipped', _T_SKIPPED, 'skipped'),
+                (r'^Failed ', _T_FAILED, 'failed'),
+                (r'^ERROR: ', _T_FAILED, 'failed'),
+            ],
+            'skipped': [
+                (testpattern, _T_SNAME),
+                (r':.*', _T_SKIPPED),
+            ],
+            'failed': [
+                (testpattern, _T_FNAME),
+                (r'(:| ).*', _T_FAILED),
             ],
         }
 
@@ -337,7 +374,7 @@ if 'java' in sys.platform:
 
 default_defaults = {
     'jobs': ('HGTEST_JOBS', multiprocessing.cpu_count()),
-    'timeout': ('HGTEST_TIMEOUT', 360),
+    'timeout': ('HGTEST_TIMEOUT', 360 if not WINDOWS else 360 * 4),
     'slowtimeout': ('HGTEST_SLOWTIMEOUT', 1500),
     'port': ('HGTEST_PORT', 20059),
     'shell': ('HGTEST_SHELL', 'sh'),
@@ -945,6 +982,20 @@ def highlightmsg(msg, color):
         return msg
     assert pygmentspresent
     return pygments.highlight(msg, runnerlexer, runnerformatter)
+
+
+def highlight_progress(progress, color):
+    if not color:
+        return progress
+    assert pygmentspresent
+    token = progress_type.get(progress)
+    if token is None:
+        return progress
+    style = runnerformatter.style_string.get(str(token))
+    if style is None:
+        return progress
+    else:
+        return style[0] + progress + style[1]
 
 
 def terminate(proc):
@@ -2247,6 +2298,7 @@ class TestResult(base_class):
         # sense to map it into skip some day.
         self.ignored = []
 
+        self._dot_printed = 0
         self.times = []
         self._firststarttime = None
         # Data stored for the benefit of generating xunit reports.
@@ -2266,6 +2318,15 @@ class TestResult(base_class):
         else:  # 'always', for testing purposes
             self.color = pygmentspresent
 
+    def _write_dot(self, progress):
+        """write an item of the "dot" progress"""
+        formated = highlight_progress(progress, self.color)
+        self.stream.write(formated)
+        self._dot_printed += 1
+        if not self._dot_printed % 75:
+            self.stream.write(f' [{self._dot_printed}]\n'.rjust(8))
+        self.stream.flush()
+
     def onStart(self, test):
         """Can be overriden by custom TestResult"""
 
@@ -2280,24 +2341,33 @@ class TestResult(base_class):
         else:
             with iolock:
                 if reason == "timed out":
-                    self.stream.write('t')
+                    self._write_dot('t')
                 else:
                     if not self._options.nodiff:
                         self.stream.write('\n')
                         # Exclude the '\n' from highlighting to lex correctly
                         formatted = 'ERROR: %s output changed\n' % test
                         self.stream.write(highlightmsg(formatted, self.color))
-                    self.stream.write('!')
+                    self._write_dot('!')
 
                 self.stream.flush()
 
     def addSuccess(self, test):
         with iolock:
-            super(TestResult, self).addSuccess(test)
+            # bypass the TextTestResult method as do deal with the output ourself
+            super(base_class, self).addSuccess(test)
+            if self.showAll:
+                self._write_status(test, "ok")
+            elif self.dots:
+                self._write_dot('.')
         self.successes.append(test)
 
     def addError(self, test, err):
-        super(TestResult, self).addError(test, err)
+        super(base_class, self).addError(test, err)
+        if self.showAll:
+            self._write_status(test, "ERROR")
+        elif self.dots:
+            self._write_dot('E')
         if self._options.first:
             self.stop()
 
@@ -2308,8 +2378,7 @@ class TestResult(base_class):
             if self.showAll:
                 self.stream.writeln('skipped %s' % reason)
             else:
-                self.stream.write('s')
-                self.stream.flush()
+                self._write_dot('s')
 
     def addIgnore(self, test, reason):
         self.ignored.append((test, reason))
@@ -2318,10 +2387,9 @@ class TestResult(base_class):
                 self.stream.writeln('ignored %s' % reason)
             else:
                 if reason not in ('not retesting', "doesn't match keyword"):
-                    self.stream.write('i')
+                    self._write_dot('i')
                 else:
                     self.testsRun += 1
-                self.stream.flush()
 
     def addOutputMismatch(self, test, ret, got, expected):
         """Record a mismatch in test output for a particular test."""
@@ -2450,7 +2518,7 @@ class TestSuite(unittest.TestSuite):
         loadtest=None,
         showchannels=False,
         *args,
-        **kwargs
+        **kwargs,
     ):
         """Create a new instance that can run tests with a configuration.
 
@@ -3290,14 +3358,15 @@ class TestRunner:
 
         # Setting PYTHONPATH with an activated venv causes the modules installed
         # in it to be ignored.  Therefore, include the related paths in sys.path
-        # in PYTHONPATH.
-        virtual_env = osenvironb.get(b"VIRTUAL_ENV")
-        if virtual_env:
-            virtual_env = os.path.join(virtual_env, b'')
-            for p in sys.path:
-                p = _sys2bytes(p)
-                if p.startswith(virtual_env):
-                    pypath.append(p)
+        # in PYTHONPATH.  If the executable is run directly without activation,
+        # any modules installed in it would also be ignored, so include them for
+        # the same reason.
+
+        for p in sys.path:
+            if p.startswith(sys.exec_prefix):
+                path = _sys2bytes(p)
+                if path not in pypath:
+                    pypath.append(path)
 
         # We have to augment PYTHONPATH, rather than simply replacing
         # it, in case external libraries are only available via current
@@ -3612,7 +3681,7 @@ class TestRunner:
             usechg=bool(self.options.with_chg or self.options.chg),
             chgdebug=self.options.chg_debug,
             useipv6=useipv6,
-            **kwds
+            **kwds,
         )
         t.should_reload = True
         return t

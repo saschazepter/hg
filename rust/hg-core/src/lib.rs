@@ -35,7 +35,9 @@ pub mod config;
 pub mod lock;
 pub mod logging;
 pub mod operations;
+pub mod progress;
 pub mod revset;
+pub mod update;
 pub mod utils;
 pub mod vfs;
 

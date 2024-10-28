@@ -24,12 +24,14 @@ simply fail when asked to produce censored data. Others, like ``hg verify`` and
 function in a meaningful way. Such commands only tolerate censored file
 As having a censored version in a checkout is impractical. The current head
 revisions of the repository are checked. If the revision to be censored is in
-any of them the command will abort.
+any of them the command will abort. You can configure this behavior using the
+following option:
 
-A few informative commands such as ``hg grep`` will unconditionally
-ignore censored data and merely report that it was encountered.
+    `censor.policy`
+        :config-doc:`censor.policy`
 """
 
+from __future__ import annotations
 
 from mercurial.i18n import _
 from mercurial.node import short

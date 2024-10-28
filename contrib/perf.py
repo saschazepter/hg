@@ -130,7 +130,6 @@ try:
     def revlog(opener, *args, **kwargs):
         return mercurial.revlog.revlog(opener, perf_rl_kind, *args, **kwargs)
 
-
 except (ImportError, AttributeError):
     perf_rl_kind = None
 
@@ -260,7 +259,6 @@ elif safehasattr(cmdutil, 'command'):
             if norepo:
                 commands.norepo += b' %s' % b' '.join(parsealiases(name))
             return _command(name, list(options), synopsis)
-
 
 else:
     # for "historical portability":
@@ -1926,7 +1924,7 @@ def perfindex(ui, repo, **opts):
 
     opts = _byteskwargs(opts)
     timer, fm = gettimer(ui, opts)
-    mercurial.revlog._prereadsize = 2 ** 24  # disable lazy parser in old hg
+    mercurial.revlog._prereadsize = 2**24  # disable lazy parser in old hg
     if opts[b'no_lookup']:
         if opts['rev']:
             raise error.Abort('--no-lookup and --rev are mutually exclusive')
@@ -1985,7 +1983,7 @@ def perfnodemap(ui, repo, **opts):
 
     opts = _byteskwargs(opts)
     timer, fm = gettimer(ui, opts)
-    mercurial.revlog._prereadsize = 2 ** 24  # disable lazy parser in old hg
+    mercurial.revlog._prereadsize = 2**24  # disable lazy parser in old hg
 
     unfi = repo.unfiltered()
     clearcaches = opts[b'clear_caches']
@@ -2389,7 +2387,7 @@ def perfnodelookup(ui, repo, rev, **opts):
     timer, fm = gettimer(ui, opts)
     import mercurial.revlog
 
-    mercurial.revlog._prereadsize = 2 ** 24  # disable lazy parser in old hg
+    mercurial.revlog._prereadsize = 2**24  # disable lazy parser in old hg
     n = scmutil.revsingle(repo, rev).node()
 
     try:
@@ -3102,7 +3100,7 @@ def perf_unbundle(ui, repo, fname, **opts):
             # disable inlining
             old_max_inline = mercurial.revlog._maxinline
             # large enough to never happen
-            mercurial.revlog._maxinline = 2 ** 50
+            mercurial.revlog._maxinline = 2**50
 
         with repo.lock():
             bundle = [None, None]
@@ -4511,7 +4509,7 @@ def perflrucache(
     sets=10000,
     mixed=10000,
     mixedgetfreq=50,
-    **opts
+    **opts,
 ):
     opts = _byteskwargs(opts)
 

@@ -125,6 +125,8 @@ Configs:
 
 """
 
+from __future__ import annotations
+
 import os
 import time
 import traceback
@@ -619,7 +621,7 @@ def trydiff(
     copy,
     getfilectx,
     *args,
-    **kwargs
+    **kwargs,
 ):
     if isenabled(repo):
         prefetch = []
@@ -648,7 +650,7 @@ def trydiff(
         copy,
         getfilectx,
         *args,
-        **kwargs
+        **kwargs,
     )
 
 

@@ -11,13 +11,16 @@ fi
 
 timer="$1"
 
-# Scale the timeout to match the sleep steps below, i.e. 1/0.02.
-timer=$(( 50 * $timer ))
 # If the test timeout have been extended, also scale the timer relative
 # to the normal timing.
 if [ "$HGTEST_TIMEOUT_DEFAULT" -lt "$HGTEST_TIMEOUT" ]; then
     timer=$(( ( $timer * $HGTEST_TIMEOUT) / $HGTEST_TIMEOUT_DEFAULT ))
 fi
+
+max_time=$timer
+
+# Scale the timeout to match the sleep steps below, i.e. 1/0.02.
+timer=$(( 50 * $timer ))
 
 wait_on="$2"
 create=""
@@ -34,6 +37,6 @@ while [ "$timer" -gt 0 ] && !([ -e "$wait_on" ] || [ -L "$wait_on" ]) ; do
     sleep 0.02
 done
 if [ "$timer" -le 0 ]; then
-    echo "file not created after $1 seconds: $wait_on" >&2
+    echo "file not created after $max_time seconds: $wait_on" >&2
     exit 1
 fi

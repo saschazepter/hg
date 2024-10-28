@@ -68,6 +68,8 @@ comment associated with each format for details.
 
 """
 
+from __future__ import annotations
+
 import binascii
 import struct
 import weakref
@@ -771,10 +773,11 @@ class obsstore:
             _addchildren(self.children, markers)
         _checkinvalidmarkers(self.repo, markers)
 
-    def relevantmarkers(self, nodes):
-        """return a set of all obsolescence markers relevant to a set of nodes.
+    def relevantmarkers(self, nodes=None, revs=None):
+        """return a set of all obsolescence markers relevant to a set of
+        nodes or revisions.
 
-        "relevant" to a set of nodes mean:
+        "relevant" to a set of nodes or revisions mean:
 
         - marker that use this changeset as successor
         - prune marker of direct children on this changeset
@@ -782,13 +785,33 @@ class obsstore:
           markers
 
         It is a set so you cannot rely on order."""
+        if nodes is None:
+            nodes = set()
+        if revs is None:
+            revs = set()
 
-        pendingnodes = set(nodes)
-        seenmarkers = set()
-        seennodes = set(pendingnodes)
+        tonode = self.repo.unfiltered().changelog.node
+        pendingnodes = set()
         precursorsmarkers = self.predecessors
         succsmarkers = self.successors
         children = self.children
+        for node in nodes:
+            if (
+                node in precursorsmarkers
+                or node in succsmarkers
+                or node in children
+            ):
+                pendingnodes.add(node)
+        for rev in revs:
+            node = tonode(rev)
+            if (
+                node in precursorsmarkers
+                or node in succsmarkers
+                or node in children
+            ):
+                pendingnodes.add(node)
+        seenmarkers = set()
+        seennodes = pendingnodes.copy()
         while pendingnodes:
             direct = set()
             for current in pendingnodes:
@@ -1040,7 +1063,6 @@ def _computecontentdivergentset(repo):
 
 
 def makefoldid(relation, user):
-
     folddigest = hashutil.sha1(user)
     for p in relation[0] + relation[1]:
         folddigest.update(b'%d' % p.rev())

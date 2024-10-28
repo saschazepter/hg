@@ -5,14 +5,20 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+from __future__ import annotations
 
 import gzip
 import os
 import struct
 import tarfile
 import time
+import typing
 import zipfile
 import zlib
+
+from typing import (
+    Optional,
+)
 
 from .i18n import _
 from .node import nullrev
@@ -29,6 +35,11 @@ from . import (
 )
 
 from .utils import stringutil
+
+if typing.TYPE_CHECKING:
+    from . import (
+        localrepo,
+    )
 
 stringio = util.stringio
 
@@ -153,16 +164,7 @@ class tarit:
                     mtime=mtime,
                 )
                 self.fileobj = gzfileobj
-                return (
-                    # taropen() wants Literal['a', 'r', 'w', 'x'] for the mode,
-                    # but Literal[] is only available in 3.8+ without the
-                    # typing_extensions backport.
-                    # pytype: disable=wrong-arg-types
-                    tarfile.TarFile.taropen(  # pytype: disable=attribute-error
-                        name, pycompat.sysstr(mode), gzfileobj
-                    )
-                    # pytype: enable=wrong-arg-types
-                )
+                return tarfile.TarFile.taropen(name, "w", gzfileobj)
             else:
                 try:
                     return tarfile.open(
@@ -281,20 +283,21 @@ archivers = {
 
 
 def archive(
-    repo,
-    dest,
+    repo: "localrepo.localrepository",
+    dest,  # TODO: should be bytes, but could be Callable
     node,
-    kind,
-    decode=True,
+    kind: bytes,
+    decode: bool = True,
     match=None,
-    prefix=b'',
-    mtime=None,
-    subrepos=False,
-):
+    prefix: bytes = b'',
+    mtime: Optional[float] = None,
+    subrepos: bool = False,
+) -> int:
     """create archive of repo as it was at node.
 
-    dest can be name of directory, name of archive file, or file
-    object to write archive to.
+    dest can be name of directory, name of archive file, a callable, or file
+    object to write archive to. If it is a callable, it will called to open
+    the actual file object before the first archive member is written.
 
     kind is type of archive to create.
 
@@ -316,7 +319,37 @@ def archive(
     else:
         prefix = tidyprefix(dest, kind, prefix)
 
+    archiver = None
+    ctx = repo[node]
+
+    def opencallback():
+        """Return the archiver instance, creating it if necessary.
+
+        This function is called when the first actual entry is created.
+        It may be called multiple times from different layers.
+        When serving the archive via hgweb, no errors should happen after
+        this point.
+        """
+        nonlocal archiver
+        if archiver is None:
+            if callable(dest):
+                output = dest()
+            else:
+                output = dest
+            archiver = archivers[kind](output, mtime or ctx.date()[0])
+            assert archiver is not None
+
+            if repo.ui.configbool(b"ui", b"archivemeta"):
+                metaname = b'.hg_archival.txt'
+                if match(metaname):
+                    write(metaname, 0o644, False, lambda: buildmetadata(ctx))
+        return archiver
+
     def write(name, mode, islink, getdata):
+        if archiver is None:
+            opencallback()
+        assert archiver is not None, "archive should be opened by now"
+
         data = getdata()
         if decode:
             data = repo.wwritedata(name, data)
@@ -325,16 +358,8 @@ def archive(
     if kind not in archivers:
         raise error.Abort(_(b"unknown archive type '%s'") % kind)
 
-    ctx = repo[node]
-    archiver = archivers[kind](dest, mtime or ctx.date()[0])
-
     if not match:
         match = scmutil.matchall(repo)
-
-    if repo.ui.configbool(b"ui", b"archivemeta"):
-        name = b'.hg_archival.txt'
-        if match(name):
-            write(name, 0o644, False, lambda: buildmetadata(ctx))
 
     files = list(ctx.manifest().walk(match))
     total = len(files)
@@ -358,10 +383,11 @@ def archive(
             sub = ctx.workingsub(subpath)
             submatch = matchmod.subdirmatcher(subpath, match)
             subprefix = prefix + subpath + b'/'
-            total += sub.archive(archiver, subprefix, submatch, decode)
+            total += sub.archive(opencallback, subprefix, submatch, decode)
 
     if total == 0:
         raise error.Abort(_(b'no files match the archive pattern'))
 
+    assert archiver is not None, "archive should have been opened before"
     archiver.done()
     return total
