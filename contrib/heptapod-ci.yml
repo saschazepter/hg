@@ -32,6 +32,10 @@ image: registry.heptapod.net/mercurial/ci-images/mercurial-core:$HG_CI_IMAGE_TAG
 variables:
     PYTHON: python
     HG_CI_IMAGE_TAG: "v2.1"
+    # a directory dedicated to creating files and temporary clone
+    # with shell runner, its content is not cleaned from one call to the next,
+    # so plan for it.
+    TMP_WORK_DIR: "/tmp"
 
 .all:
   # help changing all job at once when debugging
@@ -90,11 +94,11 @@ build-c-wheel:
     before_script:
       - echo "python used, $PYTHON"
       - for tool in $SHOW_VERSION_OF ; do echo '#' version of $tool; $tool --version; done
-      - rm -rf /tmp/mercurial-ci/  # Clean slate if not using containers
-      - hg clone . /tmp/mercurial-ci/ --noupdate --config phases.publish=no
-      - hg -R /tmp/mercurial-ci/ update `hg log --rev '.' --template '{node}'`
-      - cd /tmp/mercurial-ci/
-      - ls -1 tests/test-check-*.* > /tmp/check-tests.txt
+      - rm -rf "${TMP_WORK_DIR}"/mercurial-ci/  # Clean slate if not using containers
+      - hg clone . "${TMP_WORK_DIR}"/mercurial-ci/ --noupdate --config phases.publish=no
+      - hg -R "${TMP_WORK_DIR}"/mercurial-ci/ update `hg log --rev '.' --template '{node}'`
+      - cd "${TMP_WORK_DIR}"/mercurial-ci/
+      - ls -1 tests/test-check-*.* > "${TMP_WORK_DIR}"/check-tests.txt
     script:
         - echo "$TEST_HGTESTS_ALLOW_NETIO"
         - echo "$RUNTEST_ARGS"
@@ -129,7 +133,7 @@ checks:
     variables:
         SHOW_VERSION_OF: "$PYTHON black clang-format"
         RUNTEST_ARGS: "--time"
-        FILTER: "--test-list /tmp/check-tests.txt"
+        FILTER: "--test-list ${TMP_WORK_DIR}/check-tests.txt"
         CI_CLEVER_CLOUD_FLAVOR: S
 
 rust-cargo-test:
@@ -144,7 +148,7 @@ rust-cargo-test:
 .runtests-no-check:
   extends: .runtests
   variables:
-      FILTER: "--blacklist /tmp/check-tests.txt"
+      FILTER: "--blacklist ${TMP_WORK_DIR}/check-tests.txt"
       TEST_HGTESTS_ALLOW_NETIO: "1"
 
 .test-c:
@@ -246,9 +250,9 @@ check-pytype:
     before_script:
       - export PATH="/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/shims:/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/bin:$PATH"
       - echo "PATH, $PATH"
-      - hg clone . /tmp/mercurial-ci/ --noupdate --config phases.publish=no
-      - hg -R /tmp/mercurial-ci/ update `hg log --rev '.' --template '{node}'`
-      - cd /tmp/mercurial-ci/
+      - hg clone . "${TMP_WORK_DIR}"/mercurial-ci/ --noupdate --config phases.publish=no
+      - hg -R "${TMP_WORK_DIR}"/mercurial-ci/ update `hg log --rev '.' --template '{node}'`
+      - cd "${TMP_WORK_DIR}"/mercurial-ci/
       - make local PYTHON=$PYTHON
       - ./contrib/setup-pytype.sh
     script:
@@ -265,7 +269,7 @@ check-pytype:
     when: manual  # we don't have any Windows runners anymore at the moment
     stage: platform-compat
     before_script:
-      - C:/hgdev/MinGW/msys/1.0/bin/sh.exe --login -c 'cd "$OLDPWD" && ls -1 tests/test-check-*.* > C:/hgdev/tmp/check-tests.txt'
+      - C:/hgdev/MinGW/msys/1.0/bin/sh.exe --login -c 'cd "$OLDPWD" && ls -1 tests/test-check-*.* > "${TMP_WORK_DIR}"/check-tests.txt'
       # TODO: find/install cvs, bzr, perforce, gpg, sqlite3
 
     script:
@@ -277,6 +281,8 @@ check-pytype:
         - echo "$Env:TEMP"
 
         - C:/hgdev/MinGW/msys/1.0/bin/sh.exe --login -c 'cd "$OLDPWD" && HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" $PYTHON tests/run-tests.py --color=always $RUNTEST_ARGS'
+    variables:
+      TMP_WORK_DIR: "C:/hgdev/tmp"
 
 windows:
     extends: .windows-runtests
@@ -284,7 +290,7 @@ windows:
     tags:
       - windows
     variables:
-        RUNTEST_ARGS: "-j 8 --blacklist C:/hgdev/tmp/check-tests.txt"
+        RUNTEST_ARGS: "-j 8 --blacklist ${TMP_WORK_DIR}/check-tests.txt"
         PYTHON: C:/hgdev/venvs/python39-x64/Scripts/python.exe
 
 windows-pyox:
@@ -293,7 +299,7 @@ windows-pyox:
     tags:
       - windows
     variables:
-        RUNTEST_ARGS: "--blacklist C:/hgdev/tmp/check-tests.txt --pyoxidized"
+        RUNTEST_ARGS: "--blacklist ${TMP_WORK_DIR}/check-tests.txt --pyoxidized"
         PYTHON: C:/hgdev/venvs/python39-x64/Scripts/python.exe
 
 macos:
