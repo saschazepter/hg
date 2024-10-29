@@ -160,7 +160,7 @@ impl InnerRevlog {
     }
 
     /// Return the [`RevlogEntry`] for a [`Revision`] that is known to exist
-    pub fn get_entry_for_checked_rev(
+    pub fn get_entry(
         &self,
         rev: Revision,
     ) -> Result<RevlogEntry, RevlogError> {
@@ -199,10 +199,7 @@ impl InnerRevlog {
 
     /// Return the [`RevlogEntry`] for `rev`. If `rev` fails to check, this
     /// returns a [`RevlogError`].
-    /// TODO normalize naming across the index and all revlogs
-    /// (changelog, etc.) so that `get_entry` is always on an unchecked rev and
-    /// `get_entry_for_checked_rev` is for checked rev
-    pub fn get_entry(
+    pub fn get_entry_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
     ) -> Result<RevlogEntry, RevlogError> {
@@ -212,7 +209,7 @@ impl InnerRevlog {
         let rev = self.index.check_revision(rev).ok_or_else(|| {
             RevlogError::corrupted(format!("rev {} is invalid", rev))
         })?;
-        self.get_entry_for_checked_rev(rev)
+        self.get_entry(rev)
     }
 
     /// Is the revlog currently delaying the visibility of written data?
@@ -471,7 +468,7 @@ impl InnerRevlog {
             ) -> Result<(), RevlogError>,
         ) -> Result<(), RevlogError>,
     {
-        let entry = &self.get_entry_for_checked_rev(rev)?;
+        let entry = &self.get_entry(rev)?;
         let raw_size = entry.uncompressed_len();
         let mut mutex_guard = self
             .last_revision_cache

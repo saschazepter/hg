@@ -371,44 +371,41 @@ impl Revlog {
         self.index().check_revision(rev).is_some()
     }
 
-    pub fn get_entry_for_checked_rev(
+    pub fn get_entry(
         &self,
         rev: Revision,
     ) -> Result<RevlogEntry, RevlogError> {
-        self.inner.get_entry_for_checked_rev(rev)
+        self.inner.get_entry(rev)
     }
 
-    pub fn get_entry(
+    pub fn get_entry_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
     ) -> Result<RevlogEntry, RevlogError> {
-        self.inner.get_entry(rev)
+        self.inner.get_entry_for_unchecked_rev(rev)
     }
 
     /// Return the full data associated to a revision.
     ///
     /// All entries required to build the final data out of deltas will be
-    /// retrieved as needed, and the deltas will be applied to the inital
+    /// retrieved as needed, and the deltas will be applied to the initial
     /// snapshot to rebuild the final data.
-    pub fn get_rev_data(
+    pub fn get_data_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
     ) -> Result<Cow<[u8]>, RevlogError> {
         if rev == NULL_REVISION.into() {
             return Ok(Cow::Borrowed(&[]));
         };
-        self.get_entry(rev)?.data()
+        self.get_entry_for_unchecked_rev(rev)?.data()
     }
 
-    /// [`Self::get_rev_data`] for checked revisions.
-    pub fn get_rev_data_for_checked_rev(
-        &self,
-        rev: Revision,
-    ) -> Result<Cow<[u8]>, RevlogError> {
+    /// [`Self::get_data_for_unchecked_rev`] for a checked [`Revision`].
+    pub fn get_data(&self, rev: Revision) -> Result<Cow<[u8]>, RevlogError> {
         if rev == NULL_REVISION {
             return Ok(Cow::Borrowed(&[]));
         };
-        self.get_entry_for_checked_rev(rev)?.data()
+        self.get_entry(rev)?.data()
     }
 
     /// Check the hash of some given data against the recorded hash.
@@ -590,7 +587,7 @@ impl<'revlog> RevlogEntry<'revlog> {
         if self.p1 == NULL_REVISION {
             Ok(None)
         } else {
-            Ok(Some(self.revlog.get_entry_for_checked_rev(self.p1)?))
+            Ok(Some(self.revlog.get_entry(self.p1)?))
         }
     }
 
@@ -600,7 +597,7 @@ impl<'revlog> RevlogEntry<'revlog> {
         if self.p2 == NULL_REVISION {
             Ok(None)
         } else {
-            Ok(Some(self.revlog.get_entry_for_checked_rev(self.p2)?))
+            Ok(Some(self.revlog.get_entry(self.p2)?))
         }
     }
 
@@ -737,13 +734,16 @@ mod tests {
                 .unwrap();
         assert!(revlog.is_empty());
         assert_eq!(revlog.len(), 0);
-        assert!(revlog.get_entry(0.into()).is_err());
+        assert!(revlog.get_entry_for_unchecked_rev(0.into()).is_err());
         assert!(!revlog.has_rev(0.into()));
         assert_eq!(
             revlog.rev_from_node(NULL_NODE.into()).unwrap(),
             NULL_REVISION
         );
-        let null_entry = revlog.get_entry(NULL_REVISION.into()).ok().unwrap();
+        let null_entry = revlog
+            .get_entry_for_unchecked_rev(NULL_REVISION.into())
+            .ok()
+            .unwrap();
         assert_eq!(null_entry.revision(), NULL_REVISION);
         assert!(null_entry.data().unwrap().is_empty());
     }
@@ -779,7 +779,8 @@ mod tests {
             Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::default())
                 .unwrap();
 
-        let entry0 = revlog.get_entry(0.into()).ok().unwrap();
+        let entry0 =
+            revlog.get_entry_for_unchecked_rev(0.into()).ok().unwrap();
         assert_eq!(entry0.revision(), Revision(0));
         assert_eq!(*entry0.node(), node0);
         assert!(!entry0.has_p1());
@@ -790,7 +791,8 @@ mod tests {
         let p2_entry = entry0.p2_entry().unwrap();
         assert!(p2_entry.is_none());
 
-        let entry1 = revlog.get_entry(1.into()).ok().unwrap();
+        let entry1 =
+            revlog.get_entry_for_unchecked_rev(1.into()).ok().unwrap();
         assert_eq!(entry1.revision(), Revision(1));
         assert_eq!(*entry1.node(), node1);
         assert!(!entry1.has_p1());
@@ -801,7 +803,8 @@ mod tests {
         let p2_entry = entry1.p2_entry().unwrap();
         assert!(p2_entry.is_none());
 
-        let entry2 = revlog.get_entry(2.into()).ok().unwrap();
+        let entry2 =
+            revlog.get_entry_for_unchecked_rev(2.into()).ok().unwrap();
         assert_eq!(entry2.revision(), Revision(2));
         assert_eq!(*entry2.node(), node2);
         assert!(entry2.has_p1());
@@ -854,7 +857,11 @@ mod tests {
         .unwrap();
 
         // accessing the data shows the corruption
-        revlog.get_entry(0.into()).unwrap().data().unwrap_err();
+        revlog
+            .get_entry_for_unchecked_rev(0.into())
+            .unwrap()
+            .data()
+            .unwrap_err();
 
         assert_eq!(
             revlog.rev_from_node(NULL_NODE.into()).unwrap(),
