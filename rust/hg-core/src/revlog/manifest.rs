@@ -44,7 +44,7 @@ impl Manifestlog {
         node: NodePrefix,
     ) -> Result<Manifest, RevlogError> {
         let rev = self.revlog.rev_from_node(node)?;
-        self.data_for_checked_rev(rev)
+        self.data(rev)
     }
 
     /// Return the `Manifest` of a given revision number.
@@ -53,20 +53,17 @@ impl Manifestlog {
     /// changeset.
     ///
     /// See also `Repo::manifest_for_rev`
-    pub fn data_for_rev(
+    pub fn data_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
     ) -> Result<Manifest, RevlogError> {
-        let bytes = self.revlog.get_rev_data(rev)?.into_owned();
+        let bytes = self.revlog.get_data_for_unchecked_rev(rev)?.into_owned();
         Ok(Manifest { bytes })
     }
 
-    pub fn data_for_checked_rev(
-        &self,
-        rev: Revision,
-    ) -> Result<Manifest, RevlogError> {
-        let bytes =
-            self.revlog.get_rev_data_for_checked_rev(rev)?.into_owned();
+    /// Same as [`Self::data_for_unchecked_rev`] for a checked [`Revision`]
+    pub fn data(&self, rev: Revision) -> Result<Manifest, RevlogError> {
+        let bytes = self.revlog.get_data(rev)?.into_owned();
         Ok(Manifest { bytes })
     }
 }
