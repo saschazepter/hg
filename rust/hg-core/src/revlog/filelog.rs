@@ -217,7 +217,7 @@ pub struct FilelogRevisionData(Vec<u8>);
 impl FilelogRevisionData {
     /// Split into metadata and data
     pub fn split(&self) -> Result<(Option<&[u8]>, &[u8]), HgError> {
-        const DELIMITER: &[u8; 2] = &[b'\x01', b'\n'];
+        const DELIMITER: &[u8; 2] = b"\x01\n";
 
         if let Some(rest) = self.0.drop_prefix(DELIMITER) {
             if let Some((metadata, data)) = rest.split_2_by_slice(DELIMITER) {

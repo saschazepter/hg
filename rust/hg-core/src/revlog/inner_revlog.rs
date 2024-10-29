@@ -802,9 +802,8 @@ impl InnerRevlog {
             return Ok(func());
         }
         self.enter_writing_context(data_end, transaction)
-            .map_err(|e| {
+            .inspect_err(|_| {
                 self.exit_writing_context();
-                e
             })?;
         let res = func();
         self.exit_writing_context();
