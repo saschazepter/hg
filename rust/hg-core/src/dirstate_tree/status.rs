@@ -450,7 +450,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                         }
                     }
                 })
-                .collect::<Result<_, _>>()?;
+                .collect::<Result<(), _>>()?;
 
             // We don’t know, so conservatively say this isn’t the case
             let children_all_have_dirstate_node_or_are_ignored = false;
