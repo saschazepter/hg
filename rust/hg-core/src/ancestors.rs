@@ -206,11 +206,10 @@ impl<G: Graph> MissingAncestors<G> {
             new_bases
                 .into_iter()
                 .filter(|&rev| rev != NULL_REVISION)
-                .map(|r| {
+                .inspect(|&r| {
                     if r > max_base {
                         max_base = r;
                     }
-                    r
                 }),
         );
         self.max_base = max_base;
