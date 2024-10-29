@@ -142,11 +142,12 @@ py_class!(pub class PyFile |py| {
 
 impl Vfs for PyVfs {
     fn open(&self, filename: &Path) -> Result<VfsFile, HgError> {
-        self.inner_open(filename, false, false, false, true)
+        self.inner_open(filename, false, false, false, false)
             .map(|(f, _)| VfsFile::normal(f, filename.to_owned()))
     }
-    fn open_read(&self, filename: &Path) -> Result<VfsFile, HgError> {
-        self.inner_open(filename, false, false, false, false)
+
+    fn open_write(&self, filename: &Path) -> Result<VfsFile, HgError> {
+        self.inner_open(filename, false, false, false, true)
             .map(|(f, _)| VfsFile::normal(f, filename.to_owned()))
     }
 

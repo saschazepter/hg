@@ -494,7 +494,7 @@ pub fn open_index(
     index_path: &Path,
     options: RevlogOpenOptions,
 ) -> Result<Index, HgError> {
-    let buf: IndexData = match store_vfs.open_read(index_path) {
+    let buf: IndexData = match store_vfs.open(index_path) {
         Ok(mut file) => {
             let mut buf = if let Some(threshold) =
                 options.data_config.mmap_index_threshold

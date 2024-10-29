@@ -518,13 +518,12 @@ impl Drop for AtomicFile {
 /// Abstracts over the VFS to allow for different implementations of the
 /// filesystem layer (like passing one from Python).
 pub trait Vfs: Sync + Send + DynClone {
-    // TODO make `open` readonly and make `open_read` an `open_write`
-    /// Open a [`VfsFile::Normal`] for writing and reading the file at
-    /// `filename`, relative to this VFS's root.
-    fn open(&self, filename: &Path) -> Result<VfsFile, HgError>;
     /// Open a [`VfsFile::Normal`] for reading the file at `filename`,
     /// relative to this VFS's root.
-    fn open_read(&self, filename: &Path) -> Result<VfsFile, HgError>;
+    fn open(&self, filename: &Path) -> Result<VfsFile, HgError>;
+    /// Open a [`VfsFile::Normal`] for writing and reading the file at
+    /// `filename`, relative to this VFS's root.
+    fn open_write(&self, filename: &Path) -> Result<VfsFile, HgError>;
     /// Open a [`VfsFile::Normal`] for reading and writing the file at
     /// `filename`, relative to this VFS's root. This file will be checked
     /// for an ambiguous mtime on [`drop`]. See [`is_filetime_ambiguous`].
@@ -580,6 +579,15 @@ pub trait Vfs: Sync + Send + DynClone {
 /// users of `hg-core` start doing more on their own, like writing to files.
 impl Vfs for VfsImpl {
     fn open(&self, filename: &Path) -> Result<VfsFile, HgError> {
+        // TODO auditpath
+        let path = self.base.join(filename);
+        Ok(VfsFile::normal(
+            std::fs::File::open(&path).when_reading_file(&path)?,
+            filename.to_owned(),
+        ))
+    }
+
+    fn open_write(&self, filename: &Path) -> Result<VfsFile, HgError> {
         if self.readonly {
             return Err(HgError::abort(
                 "write access in a readonly vfs",
@@ -600,15 +608,6 @@ impl Vfs for VfsImpl {
                 .open(&path)
                 .when_writing_file(&path)?,
             path.to_owned(),
-        ))
-    }
-
-    fn open_read(&self, filename: &Path) -> Result<VfsFile, HgError> {
-        // TODO auditpath
-        let path = self.base.join(filename);
-        Ok(VfsFile::normal(
-            std::fs::File::open(&path).when_reading_file(&path)?,
-            filename.to_owned(),
         ))
     }
 
@@ -843,15 +842,15 @@ impl FnCacheVfs {
 impl Vfs for FnCacheVfs {
     fn open(&self, filename: &Path) -> Result<VfsFile, HgError> {
         let encoded = path_encode(&get_bytes_from_path(filename));
-        let encoded_path = get_path_from_bytes(&encoded);
-        self.maybe_add_to_fncache(filename, encoded_path)?;
-        self.inner.open(encoded_path)
+        let filename = get_path_from_bytes(&encoded);
+        self.inner.open(filename)
     }
 
-    fn open_read(&self, filename: &Path) -> Result<VfsFile, HgError> {
+    fn open_write(&self, filename: &Path) -> Result<VfsFile, HgError> {
         let encoded = path_encode(&get_bytes_from_path(filename));
-        let filename = get_path_from_bytes(&encoded);
-        self.inner.open_read(filename)
+        let encoded_path = get_path_from_bytes(&encoded);
+        self.maybe_add_to_fncache(filename, encoded_path)?;
+        self.inner.open_write(encoded_path)
     }
 
     fn open_check_ambig(&self, filename: &Path) -> Result<VfsFile, HgError> {
