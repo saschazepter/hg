@@ -40,24 +40,21 @@ impl Changelog {
         node: NodePrefix,
     ) -> Result<ChangelogRevisionData, RevlogError> {
         let rev = self.revlog.rev_from_node(node)?;
-        self.entry_for_checked_rev(rev)?.data()
+        self.entry(rev)?.data()
     }
 
     /// Return the [`ChangelogEntry`] for the given revision number.
-    pub fn entry_for_rev(
+    pub fn entry_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
     ) -> Result<ChangelogEntry, RevlogError> {
-        let revlog_entry = self.revlog.get_entry(rev)?;
+        let revlog_entry = self.revlog.get_entry_for_unchecked_rev(rev)?;
         Ok(ChangelogEntry { revlog_entry })
     }
 
-    /// Same as [`Self::entry_for_rev`] for checked revisions.
-    fn entry_for_checked_rev(
-        &self,
-        rev: Revision,
-    ) -> Result<ChangelogEntry, RevlogError> {
-        let revlog_entry = self.revlog.get_entry_for_checked_rev(rev)?;
+    /// Same as [`Self::entry_for_unchecked_rev`] for a checked revision
+    fn entry(&self, rev: Revision) -> Result<ChangelogEntry, RevlogError> {
+        let revlog_entry = self.revlog.get_entry(rev)?;
         Ok(ChangelogEntry { revlog_entry })
     }
 
@@ -66,15 +63,18 @@ impl Changelog {
     /// This is a useful shortcut in case the caller does not need the
     /// generic revlog information (parents, hashes etc). Otherwise
     /// consider taking a [`ChangelogEntry`] with
-    /// [entry_for_rev](`Self::entry_for_rev`) and doing everything from there.
-    pub fn data_for_rev(
+    /// [`Self::entry_for_unchecked_rev`] and doing everything from there.
+    pub fn data_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
     ) -> Result<ChangelogRevisionData, RevlogError> {
-        self.entry_for_rev(rev)?.data()
+        self.entry_for_unchecked_rev(rev)?.data()
     }
 
-    pub fn node_from_rev(&self, rev: UncheckedRevision) -> Option<&Node> {
+    pub fn node_from_unchecked_rev(
+        &self,
+        rev: UncheckedRevision,
+    ) -> Option<&Node> {
         self.revlog.node_from_rev(rev)
     }
 
@@ -570,12 +570,14 @@ message",
 
         let changelog = Changelog { revlog };
         assert_eq!(
-            changelog.data_for_rev(NULL_REVISION.into())?,
+            changelog.data_for_unchecked_rev(NULL_REVISION.into())?,
             ChangelogRevisionData::null()
         );
         // same with the intermediate entry object
         assert_eq!(
-            changelog.entry_for_rev(NULL_REVISION.into())?.data()?,
+            changelog
+                .entry_for_unchecked_rev(NULL_REVISION.into())?
+                .data()?,
             ChangelogRevisionData::null()
         );
         Ok(())

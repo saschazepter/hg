@@ -620,7 +620,7 @@ impl Repo {
     ) -> Result<Manifest, RevlogError> {
         self.manifestlog()?.data_for_node(
             self.changelog()?
-                .data_for_rev(revision)?
+                .data_for_unchecked_rev(revision)?
                 .manifest_node()?
                 .into(),
         )
@@ -795,7 +795,7 @@ impl Repo {
     pub fn node(&self, rev: UncheckedRevision) -> Option<crate::Node> {
         self.changelog()
             .ok()
-            .and_then(|c| c.node_from_rev(rev).copied())
+            .and_then(|c| c.node_from_unchecked_rev(rev).copied())
     }
 
     /// Change the current working directory parents cached in the repo.
