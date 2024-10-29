@@ -837,7 +837,7 @@ impl InnerRevlog {
             self.end(Revision((self.len() - 1) as BaseRevision))
         };
         let data_handle = if !self.is_inline() {
-            let data_handle = match self.vfs.open(&self.data_file) {
+            let data_handle = match self.vfs.open_write(&self.data_file) {
                 Ok(mut f) => {
                     if let Some(end) = data_end {
                         f.seek(SeekFrom::Start(end as u64))
@@ -892,10 +892,10 @@ impl InnerRevlog {
             if self.data_config.check_ambig {
                 self.vfs.open_check_ambig(&self.index_file)
             } else {
-                self.vfs.open(&self.index_file)
+                self.vfs.open_write(&self.index_file)
             }
         } else {
-            self.vfs.open(&self.index_file)
+            self.vfs.open_write(&self.index_file)
         };
         match res {
             Ok(mut handle) => {
@@ -1198,7 +1198,8 @@ impl InnerRevlog {
         }
         self.vfs.copy(&self.index_file, &pending_index_file)?;
         if let Some(delayed_buffer) = self.delayed_buffer.take() {
-            let mut index_file_handle = self.vfs.open(&pending_index_file)?;
+            let mut index_file_handle =
+                self.vfs.open_write(&pending_index_file)?;
             index_file_handle
                 .seek(SeekFrom::End(0))
                 .when_writing_file(&pending_index_file)?;
@@ -1238,7 +1239,8 @@ impl InnerRevlog {
                 ));
             }
             (Some(delay), None) => {
-                let mut index_file_handle = self.vfs.open(&self.index_file)?;
+                let mut index_file_handle =
+                    self.vfs.open_write(&self.index_file)?;
                 index_file_handle
                     .seek(SeekFrom::End(0))
                     .when_writing_file(&self.index_file)?;

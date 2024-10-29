@@ -172,9 +172,9 @@ impl FileHandle {
         let file = if create {
             vfs.create(filename.as_ref(), false)?
         } else if write {
-            vfs.open(filename.as_ref())?
+            vfs.open_write(filename.as_ref())?
         } else {
-            vfs.open_read(filename.as_ref())?
+            vfs.open(filename.as_ref())?
         };
         Ok(Self {
             vfs,
@@ -194,7 +194,7 @@ impl FileHandle {
         let mut file = if create {
             vfs.create(filename.as_ref(), false)?
         } else {
-            vfs.open(filename.as_ref())?
+            vfs.open_write(filename.as_ref())?
         };
         let size = vfs.file_size(&file)?;
         let offset = file
