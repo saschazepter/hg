@@ -61,6 +61,7 @@ import re
 import shlex
 import shutil
 import signal
+import site
 import socket
 import subprocess
 import sys
@@ -623,6 +624,13 @@ def getparser():
         "--ipv6",
         action="store_true",
         help="prefer IPv6 to IPv4 for network related tests",
+    )
+    hgconf.add_argument(
+        "--hg-wheel",
+        default=None,
+        metavar="WHEEL_PATH",
+        dest="wheel",
+        help="install mercurial from the given wheel",
     )
     hgconf.add_argument(
         "--pure",
@@ -3219,7 +3227,12 @@ class TestRunner:
 
         # detect and enforce an alternative way to specify rust extension usage
         if (
-            not (self.options.pure or self.options.rust or self.options.no_rust)
+            not (
+                self.options.wheel
+                or self.options.pure
+                or self.options.rust
+                or self.options.no_rust
+            )
             and os.environ.get("HGWITHRUSTEXT") == "cpython"
         ):
             self.options.rust = True
@@ -3257,7 +3270,12 @@ class TestRunner:
             self._installdir = os.path.join(self._hgtmp, b"install")
             self._bindir = os.path.join(self._installdir, b"bin")
             self._hgcommand = b'hg'
-            self._pythondir = os.path.join(self._installdir, b"lib", b"python")
+
+            if self.options.wheel:
+                suffix = _sys2bytes(site.USER_SITE[len(site.USER_BASE) + 1 :])
+            else:
+                suffix = os.path.join(b"lib", b"python")
+            self._pythondir = os.path.join(self._installdir, suffix)
 
         # Force the use of hg.exe instead of relying on MSYS to recognize hg is
         # a python script and feed it to python.exe.  Legacy stdio is force
@@ -3782,59 +3800,113 @@ class TestRunner:
                 os.symlink(real_exec, target_exec)
             self._createdfiles.append(target_exec)
 
+    def _install_hg_cmd_wheel(self):
+        wheel_path = self.options.wheel
+        assert wheel_path
+
+        # TODO: actually use these flag later, to double check the wheel we
+        # installed match our intend (in `_checkhglib`)
+        if self.options.pure:
+            assert False, b"--pure"
+        elif self.options.rust:
+            assert False, b"--rust"
+        elif self.options.no_rust:
+            assert False, b"--no-rust"
+
+        script = _sys2bytes(os.path.realpath(sys.argv[0]))
+        exe = _sys2bytes(sysexecutable)
+        hgroot = os.path.dirname(os.path.dirname(script))
+        self._hgroot = hgroot
+        os.chdir(hgroot)
+        cmd = [
+            exe,
+            b"-m",
+            b"pip",
+            b"install",
+            wheel_path,
+            b"--force",
+            b"--ignore-installed",
+            b"--user",
+            b"--break-system-packages",
+        ]
+        if not WINDOWS:
+            # The --home="" trick works only on OS where os.sep == '/'
+            # because of a distutils convert_path() fast-path. Avoid it at
+            # least on Windows for now, deal with .pydistutils.cfg bugs
+            # when they happen.
+            # cmd.append(b"--global-option=--home=")
+            pass
+
+        return cmd
+
+    def _install_hg_cmd_setup(self):
+        # Run installer in hg root
+        setup_opts = b""
+        if self.options.pure:
+            setup_opts = b"--pure"
+        elif self.options.rust:
+            setup_opts = b"--rust"
+        elif self.options.no_rust:
+            setup_opts = b"--no-rust"
+
+        script = _sys2bytes(os.path.realpath(sys.argv[0]))
+        exe = _sys2bytes(sysexecutable)
+        hgroot = os.path.dirname(os.path.dirname(script))
+        self._hgroot = hgroot
+        os.chdir(hgroot)
+        cmd = [
+            exe,
+            b"setup.py",
+        ]
+        if setup_opts:
+            cmd.append(setup_opts)
+        cmd.extend(
+            [
+                b"clean",
+                b"--all",
+                b"build",
+            ]
+        )
+        if self.options.compiler:
+            cmd.append("--compiler")
+            cmd.append(_sys2bytes(self.options.compiler))
+        cmd.extend(
+            [
+                b"--build-base=%s" % os.path.join(self._hgtmp, b"build"),
+                b"install",
+                b"--force",
+                b"--prefix=%s" % self._installdir,
+                b"--install-lib=%s" % self._pythondir,
+                b"--install-scripts=%s" % self._bindir,
+            ]
+        )
+        if not WINDOWS:
+            # The --home="" trick works only on OS where os.sep == '/'
+            # because of a distutils convert_path() fast-path. Avoid it at
+            # least on Windows for now, deal with .pydistutils.cfg bugs
+            # when they happen.
+            cmd.append(b"--home=")
+
+        return cmd
+
     def _installhg(self):
         """Install hg into the test environment.
 
         This will also configure hg with the appropriate testing settings.
         """
         vlog("# Performing temporary installation of HG")
-        installerrs = os.path.join(self._hgtmp, b"install.err")
-        compiler = ''
         install_env = original_env.copy()
-        if self.options.compiler:
-            compiler = '--compiler ' + self.options.compiler
-        setup_opts = b""
-        if self.options.pure:
-            setup_opts = b"--pure"
-            install_env.pop('HGWITHRUSTEXT', None)
-        elif self.options.rust:
-            setup_opts = b"--rust"
-        elif self.options.no_rust:
-            setup_opts = b"--no-rust"
-            install_env.pop('HGWITHRUSTEXT', None)
+        if self.options.wheel is None:
+            cmd = self._install_hg_cmd_setup()
+        else:
+            cmd = self._install_hg_cmd_wheel()
+            install_env["PYTHONUSERBASE"] = _bytes2sys(self._installdir)
 
-        # Run installer in hg root
-        compiler = _sys2bytes(compiler)
-        script = _sys2bytes(os.path.realpath(sys.argv[0]))
-        exe = _sys2bytes(sysexecutable)
-        hgroot = os.path.dirname(os.path.dirname(script))
-        self._hgroot = hgroot
-        os.chdir(hgroot)
-        nohome = b'--home=""'
-        if WINDOWS:
-            # The --home="" trick works only on OS where os.sep == '/'
-            # because of a distutils convert_path() fast-path. Avoid it at
-            # least on Windows for now, deal with .pydistutils.cfg bugs
-            # when they happen.
-            nohome = b''
-        cmd = (
-            b'"%(exe)s" setup.py %(setup_opts)s clean --all'
-            b' build %(compiler)s --build-base="%(base)s"'
-            b' install --force --prefix="%(prefix)s"'
-            b' --install-lib="%(libdir)s"'
-            b' --install-scripts="%(bindir)s" %(nohome)s >%(logfile)s 2>&1'
-            % {
-                b'exe': exe,
-                b'setup_opts': setup_opts,
-                b'compiler': compiler,
-                b'base': os.path.join(self._hgtmp, b"build"),
-                b'prefix': self._installdir,
-                b'libdir': self._pythondir,
-                b'bindir': self._bindir,
-                b'nohome': nohome,
-                b'logfile': installerrs,
-            }
-        )
+        installerrs = os.path.join(self._hgtmp, b"install.err")
+        if self.options.pure:
+            install_env.pop('HGWITHRUSTEXT', None)
+        elif self.options.no_rust:
+            install_env.pop('HGWITHRUSTEXT', None)
 
         # setuptools requires install directories to exist.
         def makedirs(p):
@@ -3846,8 +3918,15 @@ class TestRunner:
         makedirs(self._pythondir)
         makedirs(self._bindir)
 
-        vlog("# Running", cmd.decode("utf-8"))
-        if subprocess.call(_bytes2sys(cmd), shell=True, env=install_env) == 0:
+        vlog("# Running", cmd)
+        with open(installerrs, "wb") as logfile:
+            r = subprocess.call(
+                cmd,
+                env=install_env,
+                stdout=logfile,
+                stderr=subprocess.STDOUT,
+            )
+        if r == 0:
             if not self.options.verbose:
                 try:
                     os.remove(installerrs)
