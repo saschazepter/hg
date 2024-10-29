@@ -31,10 +31,10 @@
 ///
 /// * `$name` is the identifier to give to the resulting Rust struct.
 /// * `$leaked` corresponds to `UnsafePyLeaked` in the matching `@shared data`
-/// declaration.
+///   declaration.
 /// * `$iterator_type` is the type of the Rust iterator.
 /// * `$success_func` is a function for processing the Rust `(key, value)`
-/// tuple on iteration success, turning it into something Python understands.
+///   tuple on iteration success, turning it into something Python understands.
 /// * `$success_func` is the return type of `$success_func`
 ///
 /// # Safety
