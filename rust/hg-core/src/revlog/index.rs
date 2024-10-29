@@ -507,8 +507,7 @@ impl Index {
 
     /// Return the binary content of the index entry for the given revision
     ///
-    /// See [get_entry()](`Self::get_entry()`) for cases when `None` is
-    /// returned.
+    /// See [`Self::get_entry`] for cases when `None` is returned.
     pub fn entry_binary(&self, rev: Revision) -> Option<&[u8]> {
         self.get_entry(rev).map(|e| {
             let bytes = e.as_bytes();
@@ -536,11 +535,13 @@ impl Index {
                 .compressed_len()
                 .try_into()
                 .unwrap_or_else(|_| {
-                    // Python's `unionrepo` sets the compressed length to be
-                    // `-1` (or `u32::MAX` if transmuted to `u32`) because it
+                    // Python's `unionrepo` sets the compressed length to
+                    // be `-1` (or `u32::MAX` if
+                    // transmuted to `u32`) because it
                     // cannot know the correct compressed length of a given
-                    // revision. I'm not sure if this is true, but having this
-                    // edge case won't hurt other use cases, let's handle it.
+                    // revision. I'm not sure if this is true, but having
+                    // this edge case won't hurt
+                    // other use cases, let's handle it.
                     assert_eq!(e.compressed_len(), u32::MAX);
                     NULL_REVISION.0
                 }),

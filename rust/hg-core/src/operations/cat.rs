@@ -87,7 +87,7 @@ pub fn cat<'a>(
     let manifest = repo.manifest_for_rev(rev.into())?;
     let node = *repo
         .changelog()?
-        .node_from_rev(rev.into())
+        .node_from_unchecked_rev(rev.into())
         .expect("should succeed when repo.manifest did");
     let mut results: Vec<(&'a HgPath, Vec<u8>)> = vec![];
     let mut found_any = false;

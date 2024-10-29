@@ -56,16 +56,19 @@ impl Filelog {
         file_node: impl Into<NodePrefix>,
     ) -> Result<FilelogRevisionData, RevlogError> {
         let file_rev = self.revlog.rev_from_node(file_node.into())?;
-        self.data_for_rev(file_rev.into())
+        self.data_for_unchecked_rev(file_rev.into())
     }
 
     /// The given revision is that of the file as found in a filelog, not of a
     /// changeset.
-    pub fn data_for_rev(
+    pub fn data_for_unchecked_rev(
         &self,
         file_rev: UncheckedRevision,
     ) -> Result<FilelogRevisionData, RevlogError> {
-        let data: Vec<u8> = self.revlog.get_rev_data(file_rev)?.into_owned();
+        let data: Vec<u8> = self
+            .revlog
+            .get_data_for_unchecked_rev(file_rev)?
+            .into_owned();
         Ok(FilelogRevisionData(data))
     }
 
@@ -76,25 +79,26 @@ impl Filelog {
         file_node: impl Into<NodePrefix>,
     ) -> Result<FilelogEntry, RevlogError> {
         let file_rev = self.revlog.rev_from_node(file_node.into())?;
-        self.entry_for_checked_rev(file_rev)
+        self.entry(file_rev)
     }
 
     /// The given revision is that of the file as found in a filelog, not of a
     /// changeset.
-    pub fn entry_for_rev(
+    pub fn entry_for_unchecked_rev(
         &self,
         file_rev: UncheckedRevision,
     ) -> Result<FilelogEntry, RevlogError> {
-        Ok(FilelogEntry(self.revlog.get_entry(file_rev)?))
+        Ok(FilelogEntry(
+            self.revlog.get_entry_for_unchecked_rev(file_rev)?,
+        ))
     }
 
-    fn entry_for_checked_rev(
+    /// Same as [`Self::entry_for_unchecked_rev`] for a checked revision.
+    pub fn entry(
         &self,
         file_rev: Revision,
     ) -> Result<FilelogEntry, RevlogError> {
-        Ok(FilelogEntry(
-            self.revlog.get_entry_for_checked_rev(file_rev)?,
-        ))
+        Ok(FilelogEntry(self.revlog.get_entry(file_rev)?))
     }
 }
 
