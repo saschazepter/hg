@@ -163,7 +163,7 @@ temporarily.
   $ echo alpha >> alpha
   $ mv .hg/histedit-state.back .hg/histedit-state
 
-  $ hg histedit --continue
+  $ hg continue
   saved backup bundle to $TESTTMP/foo/.hg/strip-backup/08d98a8350f3-02594089-histedit.hg
   $ hg log -G -T '{rev} {shortest(node)} {desc}\n' -r 2::
   @  4 f5ed five
