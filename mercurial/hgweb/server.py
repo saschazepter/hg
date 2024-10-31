@@ -8,7 +8,6 @@
 
 from __future__ import annotations
 
-import errno
 import os
 import socket
 import sys
@@ -124,8 +123,7 @@ class _httprequesthandler(httpservermod.basehttprequesthandler):
             # I/O below could raise another exception. So log the original
             # exception first to ensure it is recorded.
             if not (
-                isinstance(e, (OSError, socket.error))
-                and e.errno == errno.ECONNRESET
+                isinstance(e, (ConnectionResetError, ConnectionAbortedError))
             ):
                 tb = "".join(traceback.format_exception(*sys.exc_info()))
                 # We need a native-string newline to poke in the log
