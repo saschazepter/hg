@@ -161,7 +161,7 @@ fix up
   (hg histedit --continue to resume)
 We forcibly enable curses here so we can verify that continuing works
 with curses enabled.
-  $ hg histedit --continue --config ui.interactive=true \
+  $ hg continue --config ui.interactive=true \
   >   --config ui.interface=curses 2>&1 | fixbundle
   abort: unresolved merge conflicts (see 'hg help resolve')
 
@@ -176,7 +176,7 @@ make sure the to-be-empty commit doesn't screw up the state (issue5545)
   $ hg resolve --mark e
   (no more unresolved files)
   continue: hg histedit --continue
-  $ hg histedit --continue 2>&1 | fixbundle
+  $ hg continue 2>&1 | fixbundle
   7b4e2f4b7bcd: skipping changeset (no changes)
 
 log after edit
@@ -258,7 +258,7 @@ second edit also fails, but just continue
   $ hg resolve --mark e
   (no more unresolved files)
   continue: hg histedit --continue
-  $ hg histedit --continue 2>&1 | fixbundle
+  $ hg continue 2>&1 | fixbundle
   7b4e2f4b7bcd: skipping changeset (no changes)
 
 post message fix

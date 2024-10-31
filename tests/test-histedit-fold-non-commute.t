@@ -130,7 +130,7 @@ keep the non-commuting change, and thus the pending change will be dropped
   (no more unresolved files)
   continue: hg histedit --continue
   $ hg diff
-  $ hg histedit --continue 2>&1 | fixbundle
+  $ hg continue 2>&1 | fixbundle
   7f3755409b00: skipping changeset (no changes)
 
 log after edit
@@ -269,7 +269,7 @@ just continue this time
   $ hg resolve --mark e
   (no more unresolved files)
   continue: hg histedit --continue
-  $ hg histedit --continue 2>&1 | fixbundle
+  $ hg continue 2>&1 | fixbundle
   7f3755409b00: skipping changeset (no changes)
 
 log after edit

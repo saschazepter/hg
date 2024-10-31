@@ -2348,6 +2348,21 @@ def bootstrapcontinue(ui, state, opts):
     return state
 
 
+def hgcontinuehistedit(ui, repo):
+    fm = ui.formatter(b'continue', {})
+    fm.startitem()
+
+    state = histeditstate(repo)
+    with repo.wlock() as wlock, repo.lock() as lock:
+        state.wlock = wlock
+        state.lock = lock
+        state.read()
+        state = bootstrapcontinue(ui, state, None)
+        _continuehistedit(ui, repo, state)
+        _finishhistedit(ui, repo, state, fm)
+        fm.end()
+
+
 def between(repo, old, new, keep):
     """select and validate the set of revision to edit
 
@@ -2683,4 +2698,5 @@ def extsetup(ui):
         allowcommit=True,
         continueflag=True,
         abortfunc=hgaborthistedit,
+        continuefunc=hgcontinuehistedit,
     )
