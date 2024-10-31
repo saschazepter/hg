@@ -378,7 +378,7 @@ dropped revision.
   $ hg commit -m '+5.2'
   created new head
   $ echo 6 >> file
-  $ HGEDITOR=cat hg histedit --continue
+  $ HGEDITOR=cat hg continue
   +4
   ***
   +5.2
