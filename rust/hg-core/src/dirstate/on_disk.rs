@@ -6,13 +6,14 @@ use crate::dirstate::dirstate_map::DirstateVersion;
 use crate::dirstate::dirstate_map::{
     self, DirstateMap, DirstateMapWriteMode, NodeRef,
 };
+use crate::dirstate::entry::{
+    DirstateEntry, DirstateV2Data, TruncatedTimestamp,
+};
 use crate::dirstate::path_with_basename::WithBasename;
-use crate::dirstate::{DirstateV2Data, TruncatedTimestamp};
 use crate::errors::{HgError, IoResultExt};
 use crate::repo::Repo;
 use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::utils::hg_path::HgPath;
-use crate::DirstateEntry;
 use crate::DirstateError;
 use crate::DirstateParents;
 use bitflags::bitflags;

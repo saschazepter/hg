@@ -10,8 +10,8 @@ use std::{
 };
 
 use crate::{
+    dirstate::entry::{ParentFileData, TruncatedTimestamp},
     dirstate::{dirstate_map::DirstateEntryReset, on_disk::write_tracked_key},
-    dirstate::{ParentFileData, TruncatedTimestamp},
     errors::{HgError, IoResultExt},
     exit_codes, narrow,
     operations::{list_rev_tracked_files, ExpandedManifestEntry},

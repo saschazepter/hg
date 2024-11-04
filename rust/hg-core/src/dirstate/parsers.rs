@@ -3,9 +3,10 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
+use crate::dirstate::entry::{DirstateEntry, EntryState};
 use crate::errors::HgError;
 use crate::utils::hg_path::HgPath;
-use crate::{dirstate::EntryState, DirstateEntry, DirstateParents};
+use crate::DirstateParents;
 use byteorder::{BigEndian, WriteBytesExt};
 use bytes_cast::{unaligned, BytesCast};
 
