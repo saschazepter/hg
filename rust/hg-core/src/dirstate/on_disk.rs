@@ -2,12 +2,12 @@
 //!
 //! See `mercurial/helptext/internals/dirstate-v2.txt`
 
-use crate::dirstate::{DirstateV2Data, TruncatedTimestamp};
-use crate::dirstate_tree::dirstate_map::DirstateVersion;
-use crate::dirstate_tree::dirstate_map::{
+use crate::dirstate::dirstate_map::DirstateVersion;
+use crate::dirstate::dirstate_map::{
     self, DirstateMap, DirstateMapWriteMode, NodeRef,
 };
-use crate::dirstate_tree::path_with_basename::WithBasename;
+use crate::dirstate::path_with_basename::WithBasename;
+use crate::dirstate::{DirstateV2Data, TruncatedTimestamp};
 use crate::errors::{HgError, IoResultExt};
 use crate::repo::Repo;
 use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
@@ -926,7 +926,7 @@ pub fn write_tracked_key(repo: &Repo) -> Result<(), HgError> {
     // TODO move this to the dirstate itself once it grows a `dirty` flag and
     // can reason about which context it needs to write this in.
     // For now, only this fast-path needs to think about the tracked hint.
-    // Use [`crate::dirstate_tree::dirstate_map::DirstateMap::
+    // Use [`crate::dirstate::dirstate_map::DirstateMap::
     // use_tracked_hint`] instead of looking at the requirements once
     // refactored.
     if !repo.requirements().contains(DIRSTATE_TRACKED_HINT_V1) {
