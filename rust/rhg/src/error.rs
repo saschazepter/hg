@@ -4,6 +4,7 @@ use crate::NoRepoInCwdError;
 use format_bytes::format_bytes;
 use hg::config::{ConfigError, ConfigParseError, ConfigValueParseError};
 use hg::dirstate::on_disk::DirstateV2ParseError;
+use hg::dirstate::status::StatusError;
 use hg::errors::HgError;
 use hg::exit_codes;
 use hg::repo::RepoError;
@@ -11,7 +12,7 @@ use hg::revlog::RevlogError;
 use hg::sparse::SparseConfigError;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::hg_path::HgPathError;
-use hg::{DirstateError, DirstateMapError, PatternError, StatusError};
+use hg::{DirstateError, DirstateMapError, PatternError};
 use std::convert::From;
 
 /// The kind of command error

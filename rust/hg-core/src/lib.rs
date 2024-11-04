@@ -16,14 +16,9 @@ pub mod exit_codes;
 pub mod fncache;
 pub mod requirements;
 pub mod testing; // unconditionally built, for use from integration tests
-pub use dirstate::{
-    dirs_multiset::{DirsMultiset, DirsMultisetIter},
-    status::{
-        BadMatch, BadType, DirstateStatus, HgPathCow, StatusError,
-        StatusOptions,
-    },
-    DirstateParents,
-};
+
+// Export very common type to make discovery easier
+pub use dirstate::DirstateParents;
 pub mod copy_tracing;
 pub mod filepatterns;
 pub mod matchers;

@@ -8,6 +8,7 @@ use super::on_disk;
 use super::on_disk::DirstateV2ParseError;
 use super::owning::OwningDirstateMap;
 use super::path_with_basename::WithBasename;
+use super::status::{DirstateStatus, StatusError, StatusOptions};
 use crate::dirstate::entry::{
     DirstateEntry, DirstateV2Data, ParentFileData, TruncatedTimestamp,
 };
@@ -22,11 +23,8 @@ use crate::utils::hg_path::{HgPath, HgPathBuf};
 use crate::DirstateError;
 use crate::DirstateMapError;
 use crate::DirstateParents;
-use crate::DirstateStatus;
 use crate::FastHashbrownMap as FastHashMap;
 use crate::PatternFileWarning;
-use crate::StatusError;
-use crate::StatusOptions;
 
 /// Append to an existing data file if the amount of unreachable data (not used
 /// anymore) is less than this fraction of the total amount of existing data.
