@@ -12,6 +12,7 @@ use hg::sparse;
 use hg::utils::files::get_bytes_from_path;
 use std::borrow::Cow;
 use std::io;
+use std::io::IsTerminal;
 use std::io::{ErrorKind, Write};
 
 pub struct Ui {
@@ -237,7 +238,7 @@ fn isatty(config: &Config) -> Result<bool, HgError> {
     Ok(if config.get_bool(b"ui", b"nontty")? {
         false
     } else {
-        atty::is(atty::Stream::Stdout)
+        std::io::stdout().is_terminal()
     })
 }
 
