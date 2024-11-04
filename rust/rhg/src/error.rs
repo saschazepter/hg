@@ -3,7 +3,7 @@ use crate::ui::UiError;
 use crate::NoRepoInCwdError;
 use format_bytes::format_bytes;
 use hg::config::{ConfigError, ConfigParseError, ConfigValueParseError};
-use hg::dirstate_tree::on_disk::DirstateV2ParseError;
+use hg::dirstate::on_disk::DirstateV2ParseError;
 use hg::errors::HgError;
 use hg::exit_codes;
 use hg::repo::RepoError;

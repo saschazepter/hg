@@ -1,10 +1,8 @@
 use crate::config::{Config, ConfigError, ConfigParseError};
+use crate::dirstate::dirstate_map::{DirstateIdentity, DirstateMapWriteMode};
+use crate::dirstate::on_disk::Docket as DirstateDocket;
+use crate::dirstate::owning::OwningDirstateMap;
 use crate::dirstate::DirstateParents;
-use crate::dirstate_tree::dirstate_map::{
-    DirstateIdentity, DirstateMapWriteMode,
-};
-use crate::dirstate_tree::on_disk::Docket as DirstateDocket;
-use crate::dirstate_tree::owning::OwningDirstateMap;
 use crate::errors::HgResultExt;
 use crate::errors::{HgError, IoResultExt};
 use crate::lock::{try_with_lock_no_wait, LockError};
@@ -321,8 +319,7 @@ impl Repo {
         let parents = if dirstate.is_empty() {
             DirstateParents::NULL
         } else if self.use_dirstate_v2() {
-            let docket_res =
-                crate::dirstate_tree::on_disk::read_docket(&dirstate);
+            let docket_res = crate::dirstate::on_disk::read_docket(&dirstate);
             match docket_res {
                 Ok(docket) => docket.parents(),
                 Err(_) => {
@@ -361,8 +358,7 @@ impl Repo {
         if dirstate.is_empty() {
             Ok((identity, None, 0))
         } else {
-            let docket_res =
-                crate::dirstate_tree::on_disk::read_docket(&dirstate);
+            let docket_res = crate::dirstate::on_disk::read_docket(&dirstate);
             match docket_res {
                 Ok(docket) => {
                     self.dirstate_parents.set(docket.parents());
@@ -464,9 +460,8 @@ impl Repo {
         if dirstate_file_contents.is_empty() {
             return Ok(OwningDirstateMap::new_empty(Vec::new(), identity));
         }
-        let docket = crate::dirstate_tree::on_disk::read_docket(
-            &dirstate_file_contents,
-        )?;
+        let docket =
+            crate::dirstate::on_disk::read_docket(&dirstate_file_contents)?;
         debug_wait_for_file_or_print(
             self.config(),
             "dirstate.post-docket-read-file",
