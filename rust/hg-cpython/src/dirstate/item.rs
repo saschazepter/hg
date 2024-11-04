@@ -7,9 +7,7 @@ use cpython::PyObject;
 use cpython::PyResult;
 use cpython::Python;
 use cpython::PythonObject;
-use hg::dirstate::DirstateEntry;
-use hg::dirstate::DirstateV2Data;
-use hg::dirstate::TruncatedTimestamp;
+use hg::dirstate::entry::{DirstateEntry, DirstateV2Data, TruncatedTimestamp};
 use std::cell::Cell;
 
 py_class!(pub class DirstateItem |py| {
