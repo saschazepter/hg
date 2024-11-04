@@ -52,6 +52,7 @@ pub struct InnerRevlog {
     /// Delta config that applies to this revlog
     delta_config: RevlogDeltaConfig,
     /// Feature config that applies to this revlog
+    #[allow(unused)]
     feature_config: RevlogFeatureConfig,
     /// A view into this revlog's data file
     segment_file: RandomAccessFile,
@@ -71,6 +72,10 @@ pub struct InnerRevlog {
     /// A cache of the last revision, which is usually accessed multiple
     /// times.
     pub last_revision_cache: Mutex<Option<SingleRevisionCache>>,
+    /// The [`Compressor`] that this revlog uses by default to compress data.
+    /// This does not mean that this revlog uses this compressor for reading
+    /// data, as different revisions may have different compression modes.
+    compressor: Mutex<Box<dyn Compressor + Send>>,
 }
 
 impl InnerRevlog {
@@ -117,6 +122,15 @@ impl InnerRevlog {
             delayed_buffer: None,
             inline,
             last_revision_cache: Mutex::new(None),
+            compressor: Mutex::new(match feature_config.compression_engine {
+                CompressionConfig::Zlib { level } => {
+                    Box::new(ZlibCompressor::new(level))
+                }
+                CompressionConfig::Zstd { level, threads } => {
+                    Box::new(ZstdCompressor::new(level, threads))
+                }
+                CompressionConfig::None => Box::new(NoneCompressor),
+            }),
         }
     }
 
@@ -286,19 +300,6 @@ impl InnerRevlog {
         )
     }
 
-    fn compressor(&self) -> Result<Box<dyn Compressor>, HgError> {
-        // TODO cache the compressor?
-        Ok(match self.feature_config.compression_engine {
-            CompressionConfig::Zlib { level } => {
-                Box::new(ZlibCompressor::new(level))
-            }
-            CompressionConfig::Zstd { level, threads } => {
-                Box::new(ZstdCompressor::new(level, threads))
-            }
-            CompressionConfig::None => Box::new(NoneCompressor),
-        })
-    }
-
     /// Generate a possibly-compressed representation of data.
     /// Returns `None` if the data was not compressed.
     pub fn compress<'data>(
@@ -308,7 +309,7 @@ impl InnerRevlog {
         if data.is_empty() {
             return Ok(Some(data.into()));
         }
-        let res = self.compressor()?.compress(data)?;
+        let res = self.compressor.lock().unwrap().compress(data)?;
         if let Some(compressed) = res {
             // The revlog compressor added the header in the returned data.
             return Ok(Some(compressed.into()));
