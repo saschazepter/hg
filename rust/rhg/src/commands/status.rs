@@ -16,7 +16,7 @@ use format_bytes::format_bytes;
 use hg::config::Config;
 use hg::dirstate::entry::{has_exec_bit, TruncatedTimestamp};
 use hg::dirstate::status::{
-    BadMatch, DirstateStatus, StatusError, StatusOptions, StatusPath
+    BadMatch, DirstateStatus, StatusError, StatusOptions, StatusPath,
 };
 use hg::errors::{HgError, IoResultExt};
 use hg::filepatterns::parse_pattern_args;
