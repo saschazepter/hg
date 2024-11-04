@@ -19,7 +19,7 @@ pub trait Progress: Send + Sync + 'static {
 
 const PROGRESS_DELAY: Duration = Duration::from_secs(1);
 
-/// A generic (determinate) progress bar. Stays hidden until [`PROGRESS_DELAY`]
+/// A generic (determinate) progress bar. Stays hidden until `PROGRESS_DELAY`
 /// to prevent flickering a progress bar for super fast operations.
 pub struct HgProgressBar {
     progress: ProgressBar,

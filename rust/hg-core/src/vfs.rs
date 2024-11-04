@@ -360,33 +360,33 @@ fn avoid_timestamp_ambiguity(path: &Path, old: &Metadata) {
 
 /// Examine whether new stat is ambiguous against old one
 ///
-/// "S[N]" below means stat of a file at N-th change:
+/// `S[N]` below means stat of a file at `N`-th change:
 ///
-/// - S[n-1].ctime  < S[n].ctime: can detect change of a file
-/// - S[n-1].ctime == S[n].ctime
-///   - S[n-1].ctime  < S[n].mtime: means natural advancing (*1)
-///   - S[n-1].ctime == S[n].mtime: is ambiguous (*2)
-///   - S[n-1].ctime  > S[n].mtime: never occurs naturally (don't care)
-/// - S[n-1].ctime  > S[n].ctime: never occurs naturally (don't care)
+/// - `S[n-1].ctime  < S[n].ctime`: can detect change of a file
+/// - `S[n-1].ctime == S[n].ctime`
+///   - `S[n-1].ctime  < S[n].mtime`: means natural advancing (*1)
+///   - `S[n-1].ctime == S[n].mtime`: is ambiguous (*2)
+///   - `S[n-1].ctime  > S[n].mtime`: never occurs naturally (don't care)
+/// - `S[n-1].ctime  > S[n].ctime`: never occurs naturally (don't care)
 ///
 /// Case (*2) above means that a file was changed twice or more at
-/// same time in sec (= S[n-1].ctime), and comparison of timestamp
+/// same time in sec (= `S[n-1].ctime`), and comparison of timestamp
 /// is ambiguous.
 ///
 /// Base idea to avoid such ambiguity is "advance mtime 1 sec, if
 /// timestamp is ambiguous".
 ///
 /// But advancing mtime only in case (*2) doesn't work as
-/// expected, because naturally advanced S[n].mtime in case (*1)
-/// might be equal to manually advanced S[n-1 or earlier].mtime.
+/// expected, because naturally advanced `S[n].mtime` in case (*1)
+/// might be equal to manually advanced `S[n-1 or earlier].mtime`.
 ///
-/// Therefore, all "S[n-1].ctime == S[n].ctime" cases should be
+/// Therefore, all `S[n-1].ctime == S[n].ctime` cases should be
 /// treated as ambiguous regardless of mtime, to avoid overlooking
 /// by confliction between such mtime.
 ///
-/// Advancing mtime "if isambig(new, old)" ensures "S[n-1].mtime !=
-/// S[n].mtime", even if size of a file isn't changed.
-fn is_filetime_ambiguous(new: &Metadata, old: &Metadata) -> bool {
+/// Advancing mtime `if isambig(new, old)` ensures `S[n-1].mtime !=
+/// S[n].mtime`, even if size of a file isn't changed.
+pub fn is_filetime_ambiguous(new: &Metadata, old: &Metadata) -> bool {
     new.ctime() == old.ctime()
 }
 

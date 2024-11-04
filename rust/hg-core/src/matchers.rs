@@ -39,7 +39,7 @@ pub enum VisitChildrenSet {
     /// Visit this directory and probably its children
     This,
     /// Only visit the children (both files and directories) if they
-    /// are mentioned in this set. (empty set corresponds to [Empty])
+    /// are mentioned in this set. (empty set corresponds to [`Self::Empty`])
     /// TODO Should we implement a `NonEmptyHashSet`?
     Set(HashSet<HgPathBuf>),
     /// Visit this directory and all subdirectories
