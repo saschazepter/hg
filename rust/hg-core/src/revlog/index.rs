@@ -309,7 +309,7 @@ impl Graph for Index {
 ///
 /// TODO the dubious part is insisting that errors must be RevlogError
 /// we would probably need to sprinkle some magic here, such as an associated
-/// type that would be Into<RevlogError> but even that would not be
+/// type that would be `Into<RevlogError>` but even that would not be
 /// satisfactory, as errors potentially have nothing to do with the revlog.
 pub trait SnapshotsCache {
     fn insert_for(
