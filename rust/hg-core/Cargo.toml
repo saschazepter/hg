@@ -57,5 +57,5 @@ features = ["zlib"]
 default-features = false
 
 [dev-dependencies]
-clap = { version = "~4.0", features = ["derive"] }
+clap = { version = "4", features = ["derive"] }
 pretty_assertions = "1.1.0"
