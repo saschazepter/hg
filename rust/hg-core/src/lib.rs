@@ -11,7 +11,6 @@ pub mod narrow;
 pub mod sparse;
 pub use ancestors::{AncestorsIterator, MissingAncestors};
 pub mod dirstate;
-pub mod dirstate_tree;
 pub mod discovery;
 pub mod exit_codes;
 pub mod fncache;
@@ -69,7 +68,7 @@ pub type LineNumber = usize;
 pub type FastHashMap<K, V> = HashMap<K, V, RandomXxHashBuilder64>;
 
 // TODO: should this be the default `FastHashMap` for all of hg-core, not just
-// dirstate_tree? How does XxHash compare with AHash, hashbrown’s default?
+// dirstate? How does XxHash compare with AHash, hashbrown’s default?
 pub type FastHashbrownMap<K, V> =
     hashbrown::HashMap<K, V, RandomXxHashBuilder64>;
 

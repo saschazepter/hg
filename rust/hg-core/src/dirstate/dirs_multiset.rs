@@ -8,7 +8,7 @@
 //! A multiset of directory names.
 //!
 //! Used to counts the references to directories in a manifest or dirstate.
-use crate::dirstate_tree::on_disk::DirstateV2ParseError;
+use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::{
     utils::{
         files,
