@@ -11,7 +11,7 @@ edition = "2021"
 atty = "0.2.14"
 hg-core = { path = "../hg-core"}
 chrono = "0.4.23"
-clap = { version = "4.0.24", features = ["cargo"] }
+clap = { version = "4", features = ["cargo"] }
 derive_more = "0.99.17"
 home = "0.5.4"
 lazy_static = "1.4.0"
