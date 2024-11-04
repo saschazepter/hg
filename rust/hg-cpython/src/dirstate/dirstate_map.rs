@@ -15,10 +15,10 @@ use cpython::{
     PyResult, Python, PythonObject, ToPyObject, UnsafePyLeaked,
 };
 use hg::{
-    dirstate::{ParentFileData, TruncatedTimestamp},
-    dirstate_tree::dirstate_map::{
+    dirstate::dirstate_map::{
         DirstateEntryReset, DirstateIdentity as CoreDirstateIdentity,
     },
+    dirstate::{ParentFileData, TruncatedTimestamp},
 };
 
 use crate::{
@@ -27,9 +27,9 @@ use crate::{
     pybytes_deref::PyBytesDeref,
 };
 use hg::{
-    dirstate::StateMapIter, dirstate_tree::dirstate_map::DirstateMapWriteMode,
-    dirstate_tree::on_disk::DirstateV2ParseError,
-    dirstate_tree::owning::OwningDirstateMap, revlog::Node,
+    dirstate::dirstate_map::DirstateMapWriteMode,
+    dirstate::on_disk::DirstateV2ParseError,
+    dirstate::owning::OwningDirstateMap, dirstate::StateMapIter, revlog::Node,
     utils::files::normalize_case, utils::hg_path::HgPath, DirstateEntry,
     DirstateError, DirstateParents,
 };

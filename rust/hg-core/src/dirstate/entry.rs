@@ -1,4 +1,4 @@
-use crate::dirstate_tree::on_disk::DirstateV2ParseError;
+use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::errors::HgError;
 use bitflags::bitflags;
 use std::fs;

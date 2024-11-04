@@ -5,15 +5,19 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use crate::dirstate_tree::on_disk::DirstateV2ParseError;
+use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::revlog::node::NULL_NODE;
 use crate::revlog::Node;
 use crate::utils::hg_path::HgPath;
 use bytes_cast::BytesCast;
 
 pub mod dirs_multiset;
+pub mod dirstate_map;
 pub mod entry;
+pub mod on_disk;
+pub mod owning;
 pub mod parsers;
+pub mod path_with_basename;
 pub mod status;
 
 pub use self::entry::*;
