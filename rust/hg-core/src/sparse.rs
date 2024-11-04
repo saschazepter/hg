@@ -5,7 +5,10 @@ use format_bytes::{format_bytes, write_bytes, DisplayBytes};
 use crate::{
     errors::HgError,
     exit_codes::STATE_ERROR,
-    filepatterns::{PatternError, parse_pattern_file_contents},
+    filepatterns::{
+        parse_pattern_file_contents, IgnorePattern, PatternError,
+        PatternFileWarning, PatternSyntax,
+    },
     matchers::{
         AlwaysMatcher, DifferenceMatcher, IncludeMatcher, Matcher,
         UnionMatcher,
@@ -15,8 +18,7 @@ use crate::{
     repo::Repo,
     requirements::SPARSE_REQUIREMENT,
     utils::{hg_path::HgPath, SliceExt},
-    IgnorePattern, PatternFileWarning, PatternSyntax, Revision,
-    NULL_REVISION,
+    Revision, NULL_REVISION,
 };
 
 /// Command which is triggering the config read
