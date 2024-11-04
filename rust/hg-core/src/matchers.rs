@@ -11,7 +11,7 @@ use format_bytes::format_bytes;
 use once_cell::sync::OnceCell;
 
 use crate::{
-    dirstate::dirs_multiset::DirsChildrenMultiset,
+    dirstate::dirs_multiset::{DirsChildrenMultiset, DirsMultiset},
     filepatterns::{
         build_single_regex, filter_subincludes, get_patterns_from_file,
         PatternFileWarning, PatternResult,
@@ -21,7 +21,7 @@ use crate::{
         hg_path::{HgPath, HgPathBuf, HgPathError},
         Escaped,
     },
-    DirsMultiset, FastHashMap, IgnorePattern, PatternError, PatternSyntax,
+    FastHashMap, IgnorePattern, PatternError, PatternSyntax,
 };
 
 use crate::dirstate::status::IgnoreFnType;
