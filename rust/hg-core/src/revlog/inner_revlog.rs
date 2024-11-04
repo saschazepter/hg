@@ -243,7 +243,7 @@ impl InnerRevlog {
 
     /// The end of the data chunk for this revision
     #[inline(always)]
-    pub fn end(&self, rev: Revision) -> usize {
+    pub fn data_end(&self, rev: Revision) -> usize {
         self.data_start(rev) + self.data_compressed_length(rev)
     }
 
@@ -661,7 +661,7 @@ impl InnerRevlog {
         target_size: Option<u64>,
     ) -> Result<Vec<&'a [Revision]>, RevlogError> {
         let mut start_data = self.data_start(revs[0]);
-        let end_data = self.end(revs[revs.len() - 1]);
+        let end_data = self.data_end(revs[revs.len() - 1]);
         let full_span = end_data - start_data;
 
         let nothing_to_do = target_size
@@ -678,7 +678,7 @@ impl InnerRevlog {
         let mut chunks = vec![];
 
         for (idx, rev) in revs.iter().enumerate().skip(1) {
-            let span = self.end(*rev) - start_data;
+            let span = self.data_end(*rev) - start_data;
             let is_snapshot = self.is_snapshot(*rev)?;
             if span <= target_size && is_snapshot {
                 end_rev_idx = idx + 1;
@@ -709,7 +709,7 @@ impl InnerRevlog {
                 // Protect against individual chunks larger than the limit
                 break;
             }
-            let mut local_end_data = self.end(revs[end_rev_idx - 1]);
+            let mut local_end_data = self.data_end(revs[end_rev_idx - 1]);
             let mut span = local_end_data - start_data;
             while span > target_size {
                 if end_rev_idx - start_rev_idx <= 1 {
@@ -717,7 +717,7 @@ impl InnerRevlog {
                     break;
                 }
                 end_rev_idx -= (end_rev_idx - start_rev_idx) / 2;
-                local_end_data = self.end(revs[end_rev_idx - 1]);
+                local_end_data = self.data_end(revs[end_rev_idx - 1]);
                 span = local_end_data - start_data;
             }
             let chunk =
@@ -833,7 +833,7 @@ impl InnerRevlog {
         let data_size = if self.is_empty() {
             0
         } else {
-            self.end(Revision((self.len() - 1) as BaseRevision))
+            self.data_end(Revision((self.len() - 1) as BaseRevision))
         };
         let data_handle = if !self.is_inline() {
             let data_handle = match self.vfs.open_write(&self.data_file) {
