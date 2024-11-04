@@ -582,8 +582,10 @@ class VolatileManager:
     """
 
     # arbitrarily picked as "it seemed fine" and much higher than the current
-    # usage.
-    MAX_OPEN = 100
+    # usage.  The Windows value of 2 is actually 1 file open at a time, due to
+    # the `flush_count = self.MAX_OPEN // 2` and `self.MAX_OPEN - 1` threshold
+    # for flushing to disk in __call__().
+    MAX_OPEN = 2 if pycompat.iswindows else 100
 
     def __init__(self):
         self._counter = 0
