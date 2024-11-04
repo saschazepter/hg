@@ -222,7 +222,7 @@ impl InnerRevlog {
 
     /// The offset of the data chunk for this revision
     #[inline(always)]
-    pub fn start(&self, rev: Revision) -> usize {
+    pub fn data_start(&self, rev: Revision) -> usize {
         self.index.start(
             rev,
             &self
@@ -244,7 +244,7 @@ impl InnerRevlog {
     /// The end of the data chunk for this revision
     #[inline(always)]
     pub fn end(&self, rev: Revision) -> usize {
-        self.start(rev) + self.data_compressed_length(rev)
+        self.data_start(rev) + self.data_compressed_length(rev)
     }
 
     /// Return the delta parent of the given revision
@@ -563,7 +563,7 @@ impl InnerRevlog {
                 let revs_chunk = &revs_chunk[..=last_rev_idx];
 
                 for rev in revs_chunk {
-                    let chunk_start = self.start(*rev);
+                    let chunk_start = self.data_start(*rev);
                     let chunk_length = self.data_compressed_length(*rev);
                     // TODO revlogv2 should check the compression mode
                     let bytes = &data[chunk_start - offset..][..chunk_length];
@@ -660,7 +660,7 @@ impl InnerRevlog {
         revs: &'a [Revision],
         target_size: Option<u64>,
     ) -> Result<Vec<&'a [Revision]>, RevlogError> {
-        let mut start_data = self.start(revs[0]);
+        let mut start_data = self.data_start(revs[0]);
         let end_data = self.end(revs[revs.len() - 1]);
         let full_span = end_data - start_data;
 
@@ -689,7 +689,7 @@ impl InnerRevlog {
                     chunks.push(chunk);
                 }
                 start_rev_idx = idx;
-                start_data = self.start(*rev);
+                start_data = self.data_start(*rev);
                 end_rev_idx = idx + 1;
             }
             if !is_snapshot {
@@ -726,7 +726,7 @@ impl InnerRevlog {
                 chunks.push(chunk);
             }
             start_rev_idx = end_rev_idx;
-            start_data = self.start(revs[start_rev_idx]);
+            start_data = self.data_start(revs[start_rev_idx]);
         }
 
         let chunk = self.trim_chunk(revs, start_rev_idx, None);
