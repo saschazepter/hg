@@ -41,11 +41,6 @@ pub mod transaction;
 pub mod update;
 pub mod utils;
 pub mod vfs;
-
-pub use filepatterns::{
-    parse_pattern_syntax_kind, read_pattern_file, IgnorePattern,
-    PatternFileWarning, PatternSyntax,
-};
 use std::{collections::HashMap, sync::atomic::AtomicBool};
 use twox_hash::RandomXxHashBuilder64;
 
