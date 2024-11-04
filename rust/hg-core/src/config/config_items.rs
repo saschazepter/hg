@@ -25,9 +25,9 @@ pub struct DefaultConfigItem {
     default: Option<DefaultConfigItemType>,
     /// If the config option is generic (e.g. `merge-tools.*`), defines
     /// the priority of this item relative to other generic items.
-    /// If we're looking for <pattern>, then all generic items within the same
-    /// section will be sorted by order of priority, and the first regex match
-    /// against `name` is returned.
+    /// If we're looking for `<pattern>`, then all generic items within the
+    /// same section will be sorted by order of priority, and the first
+    /// regex match against `name` is returned.
     #[serde(default)]
     priority: Option<isize>,
     /// Aliases, if any. Each alias is a tuple of `(section, name)` for each
