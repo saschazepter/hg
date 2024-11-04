@@ -9,12 +9,12 @@ use hg::dirstate::DirstateError;
 use hg::dirstate::DirstateMapError;
 use hg::errors::HgError;
 use hg::exit_codes;
+use hg::filepatterns::PatternError;
 use hg::repo::RepoError;
 use hg::revlog::RevlogError;
 use hg::sparse::SparseConfigError;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::hg_path::HgPathError;
-use hg::PatternError;
 use std::convert::From;
 
 /// The kind of command error

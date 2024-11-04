@@ -42,12 +42,10 @@ pub mod update;
 pub mod utils;
 pub mod vfs;
 
-use crate::utils::hg_path::HgPathError;
 pub use filepatterns::{
     parse_pattern_syntax_kind, read_pattern_file, IgnorePattern,
     PatternFileWarning, PatternSyntax,
 };
-use std::fmt;
 use std::{collections::HashMap, sync::atomic::AtomicBool};
 use twox_hash::RandomXxHashBuilder64;
 
@@ -66,42 +64,3 @@ pub type FastHashMap<K, V> = HashMap<K, V, RandomXxHashBuilder64>;
 // dirstate? How does XxHash compare with AHash, hashbrown’s default?
 pub type FastHashbrownMap<K, V> =
     hashbrown::HashMap<K, V, RandomXxHashBuilder64>;
-
-#[derive(Debug, derive_more::From)]
-pub enum PatternError {
-    #[from]
-    Path(HgPathError),
-    UnsupportedSyntax(String),
-    UnsupportedSyntaxInFile(String, String, usize),
-    TooLong(usize),
-    #[from]
-    IO(std::io::Error),
-    /// Needed a pattern that can be turned into a regex but got one that
-    /// can't. This should only happen through programmer error.
-    NonRegexPattern(IgnorePattern),
-}
-
-impl fmt::Display for PatternError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            PatternError::UnsupportedSyntax(syntax) => {
-                write!(f, "Unsupported syntax {}", syntax)
-            }
-            PatternError::UnsupportedSyntaxInFile(syntax, file_path, line) => {
-                write!(
-                    f,
-                    "{}:{}: unsupported syntax {}",
-                    file_path, line, syntax
-                )
-            }
-            PatternError::TooLong(size) => {
-                write!(f, "matcher pattern is too long ({} bytes)", size)
-            }
-            PatternError::IO(error) => error.fmt(f),
-            PatternError::Path(error) => error.fmt(f),
-            PatternError::NonRegexPattern(pattern) => {
-                write!(f, "'{:?}' cannot be turned into a regex", pattern)
-            }
-        }
-    }
-}
