@@ -1,6 +1,9 @@
-use crate::{DirstateError, DirstateParents};
+use crate::DirstateParents;
 
-use super::dirstate_map::{DirstateIdentity, DirstateMap};
+use super::{
+    dirstate_map::{DirstateIdentity, DirstateMap},
+    DirstateError,
+};
 use self_cell::self_cell;
 use std::ops::Deref;
 
