@@ -19,7 +19,7 @@ use hg::dirstate::status::{
     BadMatch, DirstateStatus, StatusError, StatusOptions, StatusPath,
 };
 use hg::errors::{HgError, IoResultExt};
-use hg::filepatterns::parse_pattern_args;
+use hg::filepatterns::{parse_pattern_args, PatternFileWarning};
 use hg::lock::LockError;
 use hg::matchers::{AlwaysMatcher, IntersectionMatcher};
 use hg::repo::Repo;
@@ -31,7 +31,6 @@ use hg::utils::files::{
     get_bytes_from_os_str, get_bytes_from_os_string, get_path_from_bytes,
 };
 use hg::utils::hg_path::{hg_path_to_path_buf, HgPath};
-use hg::PatternFileWarning;
 use hg::Revision;
 use hg::{self, narrow, sparse};
 use log::info;

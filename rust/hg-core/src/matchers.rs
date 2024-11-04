@@ -14,14 +14,15 @@ use crate::{
     dirstate::dirs_multiset::{DirsChildrenMultiset, DirsMultiset},
     filepatterns::{
         build_single_regex, filter_subincludes, get_patterns_from_file,
-        PatternError, PatternFileWarning, PatternResult,
+        IgnorePattern, PatternError, PatternFileWarning, PatternResult,
+        PatternSyntax,
     },
     utils::{
         files::{dir_ancestors, find_dirs},
         hg_path::{HgPath, HgPathBuf, HgPathError},
         Escaped,
     },
-    FastHashMap, IgnorePattern, PatternSyntax,
+    FastHashMap,
 };
 
 use crate::dirstate::status::IgnoreFnType;
@@ -265,8 +266,7 @@ impl Matcher for FileMatcher {
 /// ```
 /// use hg::{
 ///     matchers::{PatternMatcher, Matcher},
-///     IgnorePattern,
-///     PatternSyntax,
+///     filepatterns::{IgnorePattern, PatternSyntax},
 ///     utils::hg_path::{HgPath, HgPathBuf}
 /// };
 /// use std::collections::HashSet;
@@ -387,8 +387,7 @@ impl<'a> Matcher for PatternMatcher<'a> {
 /// ```
 /// use hg::{
 ///     matchers::{IncludeMatcher, Matcher},
-///     IgnorePattern,
-///     PatternSyntax,
+///     filepatterns::{IgnorePattern, PatternSyntax},
 ///     utils::hg_path::HgPath
 /// };
 /// use std::path::Path;
