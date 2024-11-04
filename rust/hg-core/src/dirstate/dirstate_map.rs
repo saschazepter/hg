@@ -4,11 +4,11 @@ use std::fs::Metadata;
 use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 
-use super::on_disk;
 use super::on_disk::DirstateV2ParseError;
 use super::owning::OwningDirstateMap;
 use super::path_with_basename::WithBasename;
 use super::status::{DirstateStatus, StatusError, StatusOptions};
+use super::{on_disk, DirstateError, DirstateMapError};
 use crate::dirstate::entry::{
     DirstateEntry, DirstateV2Data, ParentFileData, TruncatedTimestamp,
 };
@@ -20,8 +20,6 @@ use crate::dirstate::StateMapIter;
 use crate::matchers::Matcher;
 use crate::utils::filter_map_results;
 use crate::utils::hg_path::{HgPath, HgPathBuf};
-use crate::DirstateError;
-use crate::DirstateMapError;
 use crate::DirstateParents;
 use crate::FastHashbrownMap as FastHashMap;
 use crate::PatternFileWarning;

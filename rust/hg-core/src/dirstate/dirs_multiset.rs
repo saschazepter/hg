@@ -14,11 +14,12 @@ use crate::{
         files,
         hg_path::{HgPath, HgPathBuf, HgPathError},
     },
-    DirstateError, DirstateMapError, FastHashMap,
+    FastHashMap,
 };
 use std::collections::{hash_map, hash_map::Entry, HashMap, HashSet};
 
 use super::entry::DirstateEntry;
+use super::{DirstateError, DirstateMapError};
 
 // could be encapsulated if we care API stability more seriously
 pub type DirsMultisetIter<'a> = hash_map::Keys<'a, HgPathBuf, u32>;

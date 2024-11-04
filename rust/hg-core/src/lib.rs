@@ -42,7 +42,7 @@ pub mod update;
 pub mod utils;
 pub mod vfs;
 
-use crate::utils::hg_path::{HgPathBuf, HgPathError};
+use crate::utils::hg_path::HgPathError;
 pub use filepatterns::{
     parse_pattern_syntax_kind, read_pattern_file, IgnorePattern,
     PatternFileWarning, PatternSyntax,
@@ -66,50 +66,6 @@ pub type FastHashMap<K, V> = HashMap<K, V, RandomXxHashBuilder64>;
 // dirstate? How does XxHash compare with AHash, hashbrown’s default?
 pub type FastHashbrownMap<K, V> =
     hashbrown::HashMap<K, V, RandomXxHashBuilder64>;
-
-#[derive(Debug, PartialEq)]
-pub enum DirstateMapError {
-    PathNotFound(HgPathBuf),
-    InvalidPath(HgPathError),
-}
-
-impl From<HgPathError> for DirstateMapError {
-    fn from(error: HgPathError) -> Self {
-        Self::InvalidPath(error)
-    }
-}
-
-impl fmt::Display for DirstateMapError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            DirstateMapError::PathNotFound(_) => {
-                f.write_str("expected a value, found none")
-            }
-            DirstateMapError::InvalidPath(path_error) => path_error.fmt(f),
-        }
-    }
-}
-
-#[derive(Debug, derive_more::From)]
-pub enum DirstateError {
-    Map(DirstateMapError),
-    Common(errors::HgError),
-}
-
-impl From<HgPathError> for DirstateError {
-    fn from(error: HgPathError) -> Self {
-        Self::Map(DirstateMapError::InvalidPath(error))
-    }
-}
-
-impl fmt::Display for DirstateError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            DirstateError::Map(error) => error.fmt(f),
-            DirstateError::Common(error) => error.fmt(f),
-        }
-    }
-}
 
 #[derive(Debug, derive_more::From)]
 pub enum PatternError {
