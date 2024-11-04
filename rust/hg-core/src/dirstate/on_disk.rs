@@ -14,7 +14,6 @@ use crate::errors::{HgError, IoResultExt};
 use crate::repo::Repo;
 use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::utils::hg_path::HgPath;
-use crate::DirstateError;
 use crate::DirstateParents;
 use bitflags::bitflags;
 use bytes_cast::unaligned::{U16Be, U32Be};
@@ -26,6 +25,7 @@ use std::fmt::Write;
 use uuid::Uuid;
 
 use super::dirstate_map::DirstateIdentity;
+use super::DirstateError;
 
 /// Added at the start of `.hg/dirstate` when the "v2" format is used.
 /// This a redundant sanity check more than an actual "magic number" since
@@ -200,7 +200,7 @@ impl From<DirstateV2ParseError> for HgError {
     }
 }
 
-impl From<DirstateV2ParseError> for crate::DirstateError {
+impl From<DirstateV2ParseError> for DirstateError {
     fn from(error: DirstateV2ParseError) -> Self {
         HgError::from(error).into()
     }
