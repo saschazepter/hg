@@ -141,7 +141,7 @@ impl Default for CompressionConfig {
 
 /// A high-level trait to define compressors that should be able to compress
 /// and decompress arbitrary bytes.
-pub trait Compressor {
+pub trait Compressor: Send {
     /// Returns a new [`Vec`] with the compressed data.
     /// Should return `Ok(None)` if compression does not apply (e.g. too small)
     fn compress(
