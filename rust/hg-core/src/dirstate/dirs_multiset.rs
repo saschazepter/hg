@@ -14,9 +14,11 @@ use crate::{
         files,
         hg_path::{HgPath, HgPathBuf, HgPathError},
     },
-    DirstateEntry, DirstateError, DirstateMapError, FastHashMap,
+    DirstateError, DirstateMapError, FastHashMap,
 };
 use std::collections::{hash_map, hash_map::Entry, HashMap, HashSet};
+
+use super::entry::DirstateEntry;
 
 // could be encapsulated if we care API stability more seriously
 pub type DirsMultisetIter<'a> = hash_map::Keys<'a, HgPathBuf, u32>;
@@ -211,7 +213,7 @@ impl<'a> DirsChildrenMultiset<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::EntryState;
+    use crate::dirstate::entry::EntryState;
 
     use super::*;
 

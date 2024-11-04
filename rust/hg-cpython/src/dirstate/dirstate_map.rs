@@ -18,7 +18,7 @@ use hg::{
     dirstate::dirstate_map::{
         DirstateEntryReset, DirstateIdentity as CoreDirstateIdentity,
     },
-    dirstate::{ParentFileData, TruncatedTimestamp},
+    dirstate::entry::{DirstateEntry, ParentFileData, TruncatedTimestamp},
 };
 
 use crate::{
@@ -30,8 +30,8 @@ use hg::{
     dirstate::dirstate_map::DirstateMapWriteMode,
     dirstate::on_disk::DirstateV2ParseError,
     dirstate::owning::OwningDirstateMap, dirstate::StateMapIter, revlog::Node,
-    utils::files::normalize_case, utils::hg_path::HgPath, DirstateEntry,
-    DirstateError, DirstateParents,
+    utils::files::normalize_case, utils::hg_path::HgPath, DirstateError,
+    DirstateParents,
 };
 
 // TODO

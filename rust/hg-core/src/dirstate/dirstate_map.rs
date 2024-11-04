@@ -8,18 +8,17 @@ use super::on_disk;
 use super::on_disk::DirstateV2ParseError;
 use super::owning::OwningDirstateMap;
 use super::path_with_basename::WithBasename;
+use crate::dirstate::entry::{
+    DirstateEntry, DirstateV2Data, ParentFileData, TruncatedTimestamp,
+};
 use crate::dirstate::parsers::pack_entry;
 use crate::dirstate::parsers::packed_entry_size;
 use crate::dirstate::parsers::parse_dirstate_entries;
 use crate::dirstate::CopyMapIter;
-use crate::dirstate::DirstateV2Data;
-use crate::dirstate::ParentFileData;
 use crate::dirstate::StateMapIter;
-use crate::dirstate::TruncatedTimestamp;
 use crate::matchers::Matcher;
 use crate::utils::filter_map_results;
 use crate::utils::hg_path::{HgPath, HgPathBuf};
-use crate::DirstateEntry;
 use crate::DirstateError;
 use crate::DirstateMapError;
 use crate::DirstateParents;

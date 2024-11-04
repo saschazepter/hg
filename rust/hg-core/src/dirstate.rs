@@ -10,6 +10,7 @@ use crate::revlog::node::NULL_NODE;
 use crate::revlog::Node;
 use crate::utils::hg_path::HgPath;
 use bytes_cast::BytesCast;
+use entry::DirstateEntry;
 
 pub mod dirs_multiset;
 pub mod dirstate_map;
@@ -19,8 +20,6 @@ pub mod owning;
 pub mod parsers;
 pub mod path_with_basename;
 pub mod status;
-
-pub use self::entry::*;
 
 #[derive(Debug, PartialEq, Copy, Clone, BytesCast)]
 #[repr(C)]

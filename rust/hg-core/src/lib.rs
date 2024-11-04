@@ -22,7 +22,7 @@ pub use dirstate::{
         BadMatch, BadType, DirstateStatus, HgPathCow, StatusError,
         StatusOptions,
     },
-    DirstateEntry, DirstateParents, EntryState,
+    DirstateParents,
 };
 pub mod copy_tracing;
 pub mod filepatterns;
