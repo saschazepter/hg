@@ -5,7 +5,7 @@ use format_bytes::{format_bytes, write_bytes, DisplayBytes};
 use crate::{
     errors::HgError,
     exit_codes::STATE_ERROR,
-    filepatterns::parse_pattern_file_contents,
+    filepatterns::{PatternError, parse_pattern_file_contents},
     matchers::{
         AlwaysMatcher, DifferenceMatcher, IncludeMatcher, Matcher,
         UnionMatcher,
@@ -15,7 +15,7 @@ use crate::{
     repo::Repo,
     requirements::SPARSE_REQUIREMENT,
     utils::{hg_path::HgPath, SliceExt},
-    IgnorePattern, PatternError, PatternFileWarning, PatternSyntax, Revision,
+    IgnorePattern, PatternFileWarning, PatternSyntax, Revision,
     NULL_REVISION,
 };
 
