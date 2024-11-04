@@ -233,10 +233,8 @@ impl InnerRevlog {
     }
 
     /// The length of the data chunk for this revision
-    /// TODO rename this method and others to more explicit names than the
-    /// existing ones that were copied over from Python
     #[inline(always)]
-    pub fn length(&self, rev: Revision) -> usize {
+    pub fn data_compressed_length(&self, rev: Revision) -> usize {
         self.index
             .get_entry(rev)
             .unwrap_or_else(|| self.index.make_null_entry())
@@ -246,7 +244,7 @@ impl InnerRevlog {
     /// The end of the data chunk for this revision
     #[inline(always)]
     pub fn end(&self, rev: Revision) -> usize {
-        self.start(rev) + self.length(rev)
+        self.start(rev) + self.data_compressed_length(rev)
     }
 
     /// Return the delta parent of the given revision
@@ -384,7 +382,8 @@ impl InnerRevlog {
             .index
             .get_entry(end_rev)
             .expect("null revision segment");
-        let end = self.index.start(end_rev, &end_entry) + self.length(end_rev);
+        let end = self.index.start(end_rev, &end_entry)
+            + self.data_compressed_length(end_rev);
 
         let length = end - start;
 
@@ -553,7 +552,7 @@ impl InnerRevlog {
                 // Skip trailing revisions with empty diff
                 let last_rev_idx = revs_chunk
                     .iter()
-                    .rposition(|r| self.length(*r) != 0)
+                    .rposition(|r| self.data_compressed_length(*r) != 0)
                     .unwrap_or(revs_chunk.len() - 1);
 
                 let last_rev = revs_chunk[last_rev_idx];
@@ -565,7 +564,7 @@ impl InnerRevlog {
 
                 for rev in revs_chunk {
                     let chunk_start = self.start(*rev);
-                    let chunk_length = self.length(*rev);
+                    let chunk_length = self.data_compressed_length(*rev);
                     // TODO revlogv2 should check the compression mode
                     let bytes = &data[chunk_start - offset..][..chunk_length];
                     let chunk = if !bytes.is_empty() && bytes[0] == ZSTD_BYTE {
@@ -752,7 +751,7 @@ impl InnerRevlog {
             // Trim empty revs at the end, except the very first rev of a chain
             while end_rev_idx > 1
                 && end_rev_idx > start_rev_idx
-                && self.length(revs[end_rev_idx - 1]) == 0
+                && self.data_compressed_length(revs[end_rev_idx - 1]) == 0
             {
                 end_rev_idx -= 1
             }
