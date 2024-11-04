@@ -14,14 +14,14 @@ use crate::{
     dirstate::dirs_multiset::{DirsChildrenMultiset, DirsMultiset},
     filepatterns::{
         build_single_regex, filter_subincludes, get_patterns_from_file,
-        PatternFileWarning, PatternResult,
+        PatternError, PatternFileWarning, PatternResult,
     },
     utils::{
         files::{dir_ancestors, find_dirs},
         hg_path::{HgPath, HgPathBuf, HgPathError},
         Escaped,
     },
-    FastHashMap, IgnorePattern, PatternError, PatternSyntax,
+    FastHashMap, IgnorePattern, PatternSyntax,
 };
 
 use crate::dirstate::status::IgnoreFnType;
