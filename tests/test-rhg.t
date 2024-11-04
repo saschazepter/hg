@@ -4,11 +4,11 @@
 
 Unimplemented command
   $ $NO_FALLBACK rhg unimplemented-command
-  unsupported feature: error: The subcommand 'unimplemented-command' wasn't recognized
+  unsupported feature: error: unrecognized subcommand 'unimplemented-command'
   
   Usage: rhg [OPTIONS] <COMMAND>
   
-  For more information try '--help'
+  For more information, try '--help'.
   
   [252]
   $ rhg unimplemented-command --config rhg.on-unsupported=abort-silent
@@ -173,13 +173,13 @@ Cat copied file should not display copy metadata
 
 Fallback to Python
   $ $NO_FALLBACK rhg cat original --exclude="*.rs"
-  unsupported feature: error: Found argument '--exclude' which wasn't expected, or isn't valid in this context
+  unsupported feature: error: unexpected argument '--exclude' found
   
-    If you tried to supply '--exclude' as a value rather than a flag, use '-- --exclude'
+    tip: to pass '--exclude' as a value, use '-- --exclude'
   
   Usage: rhg cat <FILE>...
   
-  For more information try '--help'
+  For more information, try '--help'.
   
   [252]
   $ rhg cat original --exclude="*.rs"
@@ -205,13 +205,13 @@ Check that `fallback-immediately` overrides `$NO_FALLBACK`
 
   $ rhg cat original --exclude="*.rs" --config rhg.fallback-executable=rhg
   Blocking recursive fallback. The 'rhg.fallback-executable = rhg' config points to `rhg` itself.
-  unsupported feature: error: Found argument '--exclude' which wasn't expected, or isn't valid in this context
+  unsupported feature: error: unexpected argument '--exclude' found
   
-    If you tried to supply '--exclude' as a value rather than a flag, use '-- --exclude'
+    tip: to pass '--exclude' as a value, use '-- --exclude'
   
   Usage: rhg cat <FILE>...
   
-  For more information try '--help'
+  For more information, try '--help'.
   
   [252]
 
