@@ -17,6 +17,7 @@ use cpython::{
 use hg::dirstate::status::{
     BadMatch, DirstateStatus, StatusError, StatusOptions, StatusPath,
 };
+use hg::filepatterns::PatternError;
 use hg::matchers::{
     DifferenceMatcher, IntersectionMatcher, Matcher, NeverMatcher,
     PatternMatcher, UnionMatcher,
@@ -28,7 +29,7 @@ use hg::{
         files::{get_bytes_from_path, get_path_from_bytes},
         hg_path::{HgPath, HgPathBuf},
     },
-    IgnorePattern, PatternError, PatternFileWarning,
+    IgnorePattern, PatternFileWarning,
 };
 use std::borrow::Borrow;
 
