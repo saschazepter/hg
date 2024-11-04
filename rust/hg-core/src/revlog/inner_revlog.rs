@@ -75,7 +75,7 @@ pub struct InnerRevlog {
     /// The [`Compressor`] that this revlog uses by default to compress data.
     /// This does not mean that this revlog uses this compressor for reading
     /// data, as different revisions may have different compression modes.
-    compressor: Mutex<Box<dyn Compressor + Send>>,
+    compressor: Mutex<Box<dyn Compressor>>,
 }
 
 impl InnerRevlog {
