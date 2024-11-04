@@ -17,12 +17,12 @@ use crate::dirstate::parsers::packed_entry_size;
 use crate::dirstate::parsers::parse_dirstate_entries;
 use crate::dirstate::CopyMapIter;
 use crate::dirstate::StateMapIter;
+use crate::filepatterns::PatternFileWarning;
 use crate::matchers::Matcher;
 use crate::utils::filter_map_results;
 use crate::utils::hg_path::{HgPath, HgPathBuf};
 use crate::DirstateParents;
 use crate::FastHashbrownMap as FastHashMap;
-use crate::PatternFileWarning;
 
 /// Append to an existing data file if the amount of unreachable data (not used
 /// anymore) is less than this fraction of the total amount of existing data.

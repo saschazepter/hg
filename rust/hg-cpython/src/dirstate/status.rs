@@ -17,19 +17,19 @@ use cpython::{
 use hg::dirstate::status::{
     BadMatch, DirstateStatus, StatusError, StatusOptions, StatusPath,
 };
-use hg::filepatterns::PatternError;
+use hg::filepatterns::{
+    parse_pattern_syntax_kind, IgnorePattern, PatternError, PatternFileWarning,
+};
 use hg::matchers::{
     DifferenceMatcher, IntersectionMatcher, Matcher, NeverMatcher,
     PatternMatcher, UnionMatcher,
 };
 use hg::{
     matchers::{AlwaysMatcher, FileMatcher, IncludeMatcher},
-    parse_pattern_syntax_kind,
     utils::{
         files::{get_bytes_from_path, get_path_from_bytes},
         hg_path::{HgPath, HgPathBuf},
     },
-    IgnorePattern, PatternFileWarning,
 };
 use std::borrow::Borrow;
 
