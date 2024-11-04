@@ -15,7 +15,9 @@ use clap::Arg;
 use format_bytes::format_bytes;
 use hg::config::Config;
 use hg::dirstate::entry::{has_exec_bit, TruncatedTimestamp};
-use hg::dirstate::status::StatusPath;
+use hg::dirstate::status::{
+    BadMatch, DirstateStatus, StatusError, StatusOptions, StatusPath
+};
 use hg::errors::{HgError, IoResultExt};
 use hg::filepatterns::parse_pattern_args;
 use hg::lock::LockError;
@@ -29,11 +31,8 @@ use hg::utils::files::{
     get_bytes_from_os_str, get_bytes_from_os_string, get_path_from_bytes,
 };
 use hg::utils::hg_path::{hg_path_to_path_buf, HgPath};
-use hg::DirstateStatus;
 use hg::PatternFileWarning;
 use hg::Revision;
-use hg::StatusError;
-use hg::StatusOptions;
 use hg::{self, narrow, sparse};
 use log::info;
 use rayon::prelude::*;
@@ -355,10 +354,10 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
         for (path, error) in take(&mut ds_status.bad) {
             let error = match error {
-                hg::BadMatch::OsError(code) => {
+                BadMatch::OsError(code) => {
                     std::io::Error::from_raw_os_error(code).to_string()
                 }
-                hg::BadMatch::BadType(ty) => {
+                BadMatch::BadType(ty) => {
                     format!("unsupported file type (type is {})", ty)
                 }
             };

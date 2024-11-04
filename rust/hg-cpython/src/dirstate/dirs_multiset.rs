@@ -16,8 +16,8 @@ use cpython::{
 };
 
 use hg::{
+    dirstate::dirs_multiset::{DirsMultiset, DirsMultisetIter},
     utils::hg_path::{HgPath, HgPathBuf},
-    DirsMultiset, DirsMultisetIter,
 };
 
 py_class!(pub class Dirs |py| {

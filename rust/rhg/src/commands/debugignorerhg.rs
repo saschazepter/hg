@@ -1,7 +1,6 @@
 use crate::error::CommandError;
-use hg;
+use hg::dirstate::status::StatusError;
 use hg::matchers::get_ignore_matcher;
-use hg::StatusError;
 use log::warn;
 
 pub const HELP_TEXT: &str = "
