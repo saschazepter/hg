@@ -542,7 +542,7 @@ where
 /// Force the global rayon threadpool to not exceed 16 concurrent threads
 /// unless the user has specified a value.
 /// This is a stop-gap measure until we figure out why using more than 16
-/// threads makes `status` slower for each additional thread.
+/// threads makes `status` and `update` slower for each additional thread.
 ///
 /// TODO find the underlying cause and fix it, then remove this.
 ///

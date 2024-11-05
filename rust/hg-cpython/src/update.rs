@@ -22,11 +22,15 @@ pub fn update_from_null_fast_path(
     py: Python,
     repo_path: PyObject,
     to: BaseRevision,
+    num_cpus: Option<usize>,
 ) -> PyResult<usize> {
     log::trace!("Using update from null fastpath");
     let repo = repo_from_path(py, repo_path)?;
     let progress: &dyn Progress = &HgProgressBar::new("updating");
-    hgerror_to_pyerr(py, update_from_null(&repo, to.into(), progress))
+    hgerror_to_pyerr(
+        py,
+        update_from_null(&repo, to.into(), progress, num_cpus),
+    )
 }
 
 pub fn init_module(py: Python, package: &str) -> PyResult<PyModule> {
@@ -41,7 +45,11 @@ pub fn init_module(py: Python, package: &str) -> PyResult<PyModule> {
         "update_from_null",
         py_fn!(
             py,
-            update_from_null_fast_path(repo_path: PyObject, to: BaseRevision,)
+            update_from_null_fast_path(
+                repo_path: PyObject,
+                to: BaseRevision,
+                num_cpus: Option<usize>
+            )
         ),
     )?;
 
