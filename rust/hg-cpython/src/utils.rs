@@ -64,6 +64,8 @@ pub fn repo_error_to_pyerr<T>(
 /// Get a repository from a given [`PyObject`] path, and bubble up any error
 /// that comes up.
 pub fn repo_from_path(py: Python, repo_path: PyObject) -> Result<Repo, PyErr> {
+    // TODO make the Config a Python class and downcast it here, otherwise we
+    // lose CLI args and runtime overrides done in Python.
     let config =
         hgerror_to_pyerr(py, Config::load_non_repo().map_err(HgError::from))?;
     let py_bytes = &repo_path.extract::<PyBytes>(py)?;
