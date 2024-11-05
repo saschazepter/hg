@@ -78,6 +78,11 @@ Do a concurrent edition
      rev linkrev nodeid       p1           p2
        0       0 222799e2f90b 000000000000 000000000000
        1       1 6f124f6007a0 222799e2f90b 000000000000
+  $ hg --repository ../racing-client debugrevlogindex -m
+     rev linkrev nodeid       p1           p2
+       0       0 7b7020262a56 000000000000 000000000000
+       1       1 ad3fe36d86d9 7b7020262a56 000000000000
+
 
 We simulate an network FS race by overwriting raced repo content with the new
 content of the files changed in the racing repository
@@ -102,6 +107,15 @@ happen for the changelog (the linkrev should always refer to itself).
        0       0 222799e2f90b 000000000000 000000000000
        1       1 6f124f6007a0 222799e2f90b 000000000000
        2       1 ac80e6205bb2 222799e2f90b 000000000000
+
+TODO: Figure out why the middle entry is missing on Windows.
+  $ hg debugrevlogindex -m
+     rev linkrev nodeid       p1           p2
+       0       0 7b7020262a56 000000000000 000000000000
+       1       1 ad3fe36d86d9 7b7020262a56 000000000000 (no-windows !)
+       2       1 d93163bb8ce3 7b7020262a56 000000000000 (no-windows !)
+       1       1 d93163bb8ce3 7b7020262a56 000000000000 (windows !)
+
 #endif
 
 #if fail-if-detected
