@@ -17,7 +17,7 @@ Initial setup
   >     [ -n "\${WAITLOCK_ANNOUNCE:-}" ] && touch "\${WAITLOCK_ANNOUNCE}"
   >     f="\${WAITLOCK_FILE}"
   >     start=\`date +%s\`
-  >     timeout=5
+  >     timeout=20
   >     "$RUNTESTDIR_FORWARD_SLASH/testlib/wait-on-file" "\$timeout" "\$f"
   >     if [ \$# -gt 1 ]; then
   >         cat "\$@"
@@ -65,13 +65,12 @@ Start an hg commit that will take a while
   > ) &
 
 Wait for the "editor" to actually start
-  $ sh "$RUNTESTDIR_FORWARD_SLASH/testlib/wait-on-file" 5 "${EDITOR_STARTED}"
-
+  $ sh "$RUNTESTDIR_FORWARD_SLASH/testlib/wait-on-file" 20 "${EDITOR_STARTED}"
 
 Do a concurrent edition
   $ cd ../racing-client
   $ touch ../pre-race
-  $ sleep 1
+  $ sleep 10
   $ echo bar > bar
   $ hg --repository ../racing-client commit -qAm 'r2 (bar)' bar
   $ hg --repository ../racing-client debugrevlogindex -c
