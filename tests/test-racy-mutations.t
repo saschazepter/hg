@@ -116,10 +116,14 @@ And no corruption in the changelog.
      rev linkrev nodeid       p1           p2
        0       0 222799e2f90b 000000000000 000000000000
        1       1 6f124f6007a0 222799e2f90b 000000000000 (missing-correct-output !)
+
 And, because of transactions, there's none in the manifestlog either.
+
+TODO: Figure out why this is different on Windows.
   $ hg debugrevlogindex -m
      rev linkrev nodeid       p1           p2
        0       0 7b7020262a56 000000000000 000000000000
-       1       1 ad3fe36d86d9 7b7020262a56 000000000000
+       1       1 ad3fe36d86d9 7b7020262a56 000000000000 (no-windows !)
+       1       1 ad3fe36d86d9 7b7020262a56 000000000000 (missing-correct-output windows !)
 #endif
 
