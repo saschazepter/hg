@@ -464,6 +464,14 @@ class hgbuildmo(build):
     description = "build translations (.mo files)"
 
     def run(self):
+        result = self._run()
+        if (
+            not result
+            and os.environ.get('MERCURIAL_SETUP_FORCE_TRANSLATIONS') == '1'
+        ):
+            raise DistutilsExecError("failed to build translations")
+
+    def _run(self):
         try:
             from shutil import which as find_executable
         except ImportError:
@@ -475,12 +483,12 @@ class hgbuildmo(build):
                 "could not find msgfmt executable, no translations "
                 "will be built"
             )
-            return
+            return False
 
         podir = 'i18n'
         if not os.path.isdir(podir):
             self.warn("could not find %s/ directory" % podir)
-            return
+            return False
 
         join = os.path.join
         for po in os.listdir(podir):
@@ -496,6 +504,7 @@ class hgbuildmo(build):
                 cmd.append('-c')
             self.mkpath(join('mercurial', modir))
             self.make_file([pofile], mobuildfile, spawn, (cmd,))
+        return True
 
 
 class hgdist(Distribution):
