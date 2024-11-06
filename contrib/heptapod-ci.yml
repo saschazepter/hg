@@ -52,19 +52,28 @@ variables:
     - echo $WHEEL_TYPE
     - test -n "$WHEEL_TYPE"
     - echo $FLAVOR
-    - mkdir -p wheels/$WHEEL_TYPE
+    - mkdir -p wheels/$WHEEL_TYPE/$BUILD_PY_ID
   script:
-    - /opt/python/cp311-cp311/bin/python setup.py bdist_wheel --dist-dir tmp-wheelhouse
-    - auditwheel repair tmp-wheelhouse/*.whl -w wheels/$WHEEL_TYPE/
+    - /opt/python/$BUILD_PY_ID/bin/python setup.py bdist_wheel --dist-dir tmp-wheelhouse
+    - auditwheel repair tmp-wheelhouse/*.whl -w wheels/$WHEEL_TYPE/$BUILD_PY_ID
   artifacts:
     paths:
-      - wheels/$WHEEL_TYPE
+      - wheels/$WHEEL_TYPE/$BUILD_PY_ID
     expire_in: 1 week
 
 build-c-wheel:
   <<: *wheel
   variables:
     WHEEL_TYPE: "c"
+  parallel:
+    matrix:
+      - BUILD_PY_ID:
+          - cp38-cp38
+          - cp39-cp39
+          - cp310-cp310
+          - cp311-cp311
+          - cp312-cp312
+          - cp313-cp313
 
 # TODO: We should select the wheel compatible with the python (and plateform)
 # we use. This is necessary to build multiple wheel.
@@ -84,9 +93,11 @@ build-c-wheel:
     script:
         - echo "$RUNTEST_ARGS"
         - echo "$WHEEL_TYPE"
+        - echo $BUILD_PY_ID
         - WHEEL=""
         - if test -n "$WHEEL_TYPE"; then
-             WHEEL="`ls -1 $CI_PROJECT_DIR/wheels/$WHEEL_TYPE/*.whl`";
+             test -n "$BUILD_PY_ID";
+             WHEEL="`ls -1 $CI_PROJECT_DIR/wheels/$WHEEL_TYPE/$BUILD_PY_ID/*.whl`";
              test -n "$WHEEL";
           fi
         - if test -n "$WHEEL"; then
@@ -122,9 +133,15 @@ rust-cargo-test:
 
 test-c:
     <<: *test_c
-    needs: [build-c-wheel]
+    needs:
+      - job: build-c-wheel
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp311-cp311"
+
     variables:
         WHEEL_TYPE: "c"
+        BUILD_PY_ID: "cp311-cp311"
         RUNTEST_ARGS: "--blacklist /tmp/check-tests.txt"
         TEST_HGTESTS_ALLOW_NETIO: "1"
 
@@ -159,6 +176,15 @@ test-3.8-c:
     when: manual  # avoid overloading the CI by default
     variables:
         PYTHON: python3.8
+        WHEEL_TYPE: "c"
+        BUILD_PY_ID: "cp38-cp38"
+        RUNTEST_ARGS: " --blacklist /tmp/check-tests.txt"
+        TEST_HGTESTS_ALLOW_NETIO: "1"
+    needs:
+      - job: build-c-wheel
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp38-cp38"
 
 test-3.12-c:
     <<: *test_c
@@ -166,6 +192,15 @@ test-3.12-c:
     when: manual  # avoid overloading the CI by default
     variables:
         PYTHON: python3.12
+        WHEEL_TYPE: "c"
+        BUILD_PY_ID: "cp312-cp312"
+        RUNTEST_ARGS: " --blacklist /tmp/check-tests.txt"
+        TEST_HGTESTS_ALLOW_NETIO: "1"
+    needs:
+      - job: build-c-wheel
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp312-cp312"
 
 test-3.12-rust:
     <<: *test_rust
@@ -180,6 +215,15 @@ test-3.13-c:
     when: manual  # avoid overloading the CI by default
     variables:
         PYTHON: python3.13
+        WHEEL_TYPE: "c"
+        BUILD_PY_ID: "cp313-cp313"
+        RUNTEST_ARGS: " --blacklist /tmp/check-tests.txt"
+        TEST_HGTESTS_ALLOW_NETIO: "1"
+    needs:
+      - job: build-c-wheel
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp313-cp313"
 
 test-3.13-rust:
     <<: *test_rust
