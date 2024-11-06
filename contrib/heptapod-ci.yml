@@ -48,6 +48,7 @@ variables:
     WHEEL_TYPE: ""
     FLAVOR: ""
     MERCURIAL_SETUP_FORCE_TRANSLATIONS: "1"
+    CI_CLEVER_CLOUD_FLAVOR: "XS"
   before_script:
     - echo "python used, $PYTHON"
     - $PYTHON --version
