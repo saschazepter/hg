@@ -42,29 +42,29 @@ variables:
 # TODO: we should use an image based on manylinux instead "all-in-one" image
 # used for all test so far.
 .build-wheel: &wheel
-    <<: *all
-    stage: build
-    variables:
-      WHEEL_TYPE: ""
-      FLAVOR: ""
-    before_script:
-      - echo "python used, $PYTHON"
-      - $PYTHON --version
-      - echo $WHEEL_TYPE
-      - test -n "$WHEEL_TYPE"
-      - echo $FLAVOR
-      - mkdir -p wheels/$WHEEL_TYPE
-    script:
-      - $PYTHON setup.py bdist_wheel $FLAVOR --dist-dir wheels/$WHEEL_TYPE
-    artifacts:
-      paths:
-        - wheels/$WHEEL_TYPE
-      expire_in: 1 week
+  <<: *all
+  stage: build
+  variables:
+    WHEEL_TYPE: ""
+    FLAVOR: ""
+  before_script:
+    - echo "python used, $PYTHON"
+    - $PYTHON --version
+    - echo $WHEEL_TYPE
+    - test -n "$WHEEL_TYPE"
+    - echo $FLAVOR
+    - mkdir -p wheels/$WHEEL_TYPE
+  script:
+    - $PYTHON setup.py bdist_wheel $FLAVOR --dist-dir wheels/$WHEEL_TYPE
+  artifacts:
+    paths:
+      - wheels/$WHEEL_TYPE
+    expire_in: 1 week
 
 build-c-wheel:
-    <<: *wheel
-    variables:
-      WHEEL_TYPE: "c"
+  <<: *wheel
+  variables:
+    WHEEL_TYPE: "c"
 
 # TODO: We should select the wheel compatible with the python (and plateform)
 # we use. This is necessary to build multiple wheel.
