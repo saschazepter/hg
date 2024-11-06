@@ -39,9 +39,8 @@ variables:
   when: on_success
   needs: []
 
-# TODO: we should use an image based on manylinux instead "all-in-one" image
-# used for all test so far.
 .build-wheel: &wheel
+  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-x86_64-c:v3.0"
   <<: *all
   stage: build
   variables:
@@ -50,14 +49,13 @@ variables:
     MERCURIAL_SETUP_FORCE_TRANSLATIONS: "1"
     CI_CLEVER_CLOUD_FLAVOR: "XS"
   before_script:
-    - echo "python used, $PYTHON"
-    - $PYTHON --version
     - echo $WHEEL_TYPE
     - test -n "$WHEEL_TYPE"
     - echo $FLAVOR
     - mkdir -p wheels/$WHEEL_TYPE
   script:
-    - $PYTHON setup.py bdist_wheel $FLAVOR --dist-dir wheels/$WHEEL_TYPE
+    - /opt/python/cp311-cp311/bin/python setup.py bdist_wheel --dist-dir tmp-wheelhouse
+    - auditwheel repair tmp-wheelhouse/*.whl -w wheels/$WHEEL_TYPE/
   artifacts:
     paths:
       - wheels/$WHEEL_TYPE
