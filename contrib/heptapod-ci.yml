@@ -47,6 +47,7 @@ variables:
   variables:
     WHEEL_TYPE: ""
     FLAVOR: ""
+    MERCURIAL_SETUP_FORCE_TRANSLATIONS: "1"
   before_script:
     - echo "python used, $PYTHON"
     - $PYTHON --version
