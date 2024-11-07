@@ -220,7 +220,7 @@ since it's bin on most platforms but Scripts on Windows.
   You should consider upgrading via the '$TESTTMP/installenv/bin/python* -m pip install --upgrade pip' command. (glob) (?)
    (?)
   [notice] A new release of pip is available: * -> * (glob) (?)
-  [notice] To update, run: python -m pip install --upgrade pip (?)
+  [notice] To update, run: * -m pip install --upgrade pip (glob) (?)
   $ ./installenv/*/hg debuginstall || cat pip.log
   checking encoding (ascii)...
   checking Python executable (*) (glob)
