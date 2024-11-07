@@ -61,7 +61,6 @@ import re
 import shlex
 import shutil
 import signal
-import site
 import socket
 import subprocess
 import sys
@@ -3272,7 +3271,17 @@ class TestRunner:
             self._hgcommand = b'hg'
 
             if self.options.wheel:
-                suffix = _sys2bytes(site.USER_SITE[len(site.USER_BASE) + 1 :])
+                # pip installing a wheel does not have an --install-lib flag
+                # so we have to guess where the file will be installed.
+                #
+                # In addition, that location is not really stable, so we are
+                # using awful symlink trrick later in `_installhg`
+                v_info = sys.version_info
+                suffix = os.path.join(
+                    b"lib",
+                    b"python%d.%d" % (v_info.major, v_info.minor),
+                    b"site-packages",
+                )
             else:
                 suffix = os.path.join(b"lib", b"python")
             self._pythondir = os.path.join(self._installdir, suffix)
@@ -3826,7 +3835,8 @@ class TestRunner:
             wheel_path,
             b"--force",
             b"--ignore-installed",
-            b"--user",
+            b"--prefix",
+            self._installdir,
             b"--break-system-packages",
         ]
         if not WINDOWS:
@@ -3917,6 +3927,16 @@ class TestRunner:
 
         makedirs(self._pythondir)
         makedirs(self._bindir)
+        if self.options.wheel is not None and not WINDOWS:
+            # the wheel instalation location is not stable, so try to deal with
+            # that to funnel it back where we need its.
+            #
+            # (mostly deals with Debian shenanigans)
+            assert self._pythondir.endswith(b'site-packages')
+            lib_dir = os.path.dirname(self._pythondir)
+            dist_dir = os.path.join(lib_dir, b'dist-packages')
+            os.symlink(b'./site-packages', dist_dir)
+            os.symlink(b'.', os.path.join(self._installdir, b'local'))
 
         vlog("# Running", cmd)
         with open(installerrs, "wb") as logfile:
