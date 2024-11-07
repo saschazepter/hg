@@ -291,6 +291,12 @@ macos:
     when: manual  # avoid overloading the CI by default
     tags:
       - macos
+    variables:
+        WHEEL_TYPE: "c"
+        RUNTEST_ARGS: "--blacklist /tmp/check-tests.txt"
+        TEST_HGTESTS_ALLOW_NETIO: "1"
+    needs:
+      - build-c-wheel-macos
 
 # we use CIBW_SKIP="pp*" to prevent the building of pypy wheel that are neither
 # needed nor working.
