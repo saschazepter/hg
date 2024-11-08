@@ -309,7 +309,6 @@ windows-pyox:
 macos:
     extends: .test-c
     stage: platform-compat
-    when: manual  # avoid overloading the CI by default
     tags:
       - macos
     variables:
