@@ -32,8 +32,6 @@ image: registry.heptapod.net/mercurial/ci-images/mercurial-core:$HG_CI_IMAGE_TAG
 variables:
     PYTHON: python
     HG_CI_IMAGE_TAG: "v2.1"
-    TEST_HGTESTS_ALLOW_NETIO: "0"
-    SHOW_VERSION_OF: "$PYTHON"
 
 .all:
   # help changing all job at once when debugging
@@ -81,6 +79,9 @@ build-c-wheel:
 .runtests:
     extends: .all
     stage: tests
+    variables:
+      SHOW_VERSION_OF: "$PYTHON"
+      TEST_HGTESTS_ALLOW_NETIO: "0"
     # The runner made a clone as root.
     # We make a new clone owned by user used to run the step.
     before_script:
