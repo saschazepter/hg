@@ -396,9 +396,38 @@ def _try_get_version():
             "only(parents(),'%s')" % ltag,
         ]
         changessince = len(hg.run(changessincecmd).splitlines())
-        version = '%s+hg%s.%s' % (ltag, changessince, hgid)
+        branch = hg.run(["branch"]).strip()
+        if branch == b'stable':
+            post_nb = 0
+        elif branch == b'default':
+            # we use 1 here to be greater than 0 to make sure change from
+            # default are considered newer than change on stable
+            post_nb = 1
+        else:
+            # what is this branch ? probably a local variant ?
+            post_nb = 2
+
+        # logic of the scheme
+        # - '.postX' to mark the version as "above" the tagged version
+        #   X is 0 for stable, 1 for default, 2 for anything else
+        # - use '.devY'
+        #   Y is the number of extra revision compared to the tag. So that
+        #   revision with more change are "above" previous ones.
+        # - '+hg.NODEID.local.DATE' if there is any uncommitted changes.
+        ltag = ltag.replace('6.9', '6.9.0')
+        version = '%s.post%d.dev%d+hg.%s' % (ltag, post_nb, changessince, hgid)
     if version.endswith('+'):
-        version = version[:-1] + 'local' + time.strftime('%Y%m%d')
+        version = version[:-1] + '.local.' + time.strftime('%Y%m%d')
+    # try to give warning early about bad version if possible
+    try:
+        from packaging.version import Version
+
+        Version(version)
+    except ImportError:
+        pass
+    except ValueError as exc:
+        eprint(r"/!\ generated version is invalid")
+        eprint(r"/!\ error: %s" % exc)
     return version
 
 
