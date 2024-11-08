@@ -109,6 +109,7 @@ build-c-wheel:
         - PORT_ARG="--port $PORT_START"
         - echo $PORT_ARG
         - WHEEL_ARG=""
+        - SHARDING_ARGS=""
         - if test -n "$WHEEL_TYPE"; then
              PY_TAG=`$PYTHON -c 'import sys; v=sys.version_info; t=f"cp{v.major}{v.minor}"; print(f"{t}-{t}")'`;
              echo "$PY_TAG";
@@ -122,12 +123,18 @@ build-c-wheel:
           else
             echo installing from source;
           fi;
+        - if [ -n "$CI_NODE_INDEX" ]; then 
+            echo "Running the test in multiple shard - [$CI_NODE_INDEX/$CI_NODE_TOTAL]";
+            SHARDING_ARGS="--shard-index $CI_NODE_INDEX --shard-total $CI_NODE_TOTAL";
+            echo "sharding... $SHARDING_ARGS";
+          fi
         - HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO"
           "$PYTHON" tests/run-tests.py
             --color=always
             $PORT_ARG
             $WHEEL_ARG
             $FLAVOR
+            $SHARDING_ARGS
             $FILTER
             $RUNTEST_ARGS;
 
@@ -309,6 +316,10 @@ windows-pyox:
 macos:
     extends: .test-c
     stage: platform-compat
+    # run the test in multiple shard to help spread the load between concurrent
+    # MR as the macos runner is a shell runner there is not startup overhead
+    # for tests.
+    parallel: 10
     tags:
       - macos
     variables:
