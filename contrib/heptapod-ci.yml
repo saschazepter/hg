@@ -82,6 +82,9 @@ build-c-wheel:
     variables:
       SHOW_VERSION_OF: "$PYTHON"
       TEST_HGTESTS_ALLOW_NETIO: "0"
+      FILTER: ""
+      FLAVOR: ""
+      RUNTEST_ARGS: ""
     # The runner made a clone as root.
     # We make a new clone owned by user used to run the step.
     before_script:
@@ -93,30 +96,40 @@ build-c-wheel:
       - cd /tmp/mercurial-ci/
       - ls -1 tests/test-check-*.* > /tmp/check-tests.txt
     script:
+        - echo "$TEST_HGTESTS_ALLOW_NETIO"
         - echo "$RUNTEST_ARGS"
+        - echo "$FILTER"
+        - echo "$FLAVOR"
         - echo "$WHEEL_TYPE"
-        - WHEEL=""
+        - WHEEL_ARG=""
         - if test -n "$WHEEL_TYPE"; then
              PY_TAG=`$PYTHON -c 'import sys; v=sys.version_info; t=f"cp{v.major}{v.minor}"; print(f"{t}-{t}")'`;
              echo "$PY_TAG";
              test -n "PY_TAG";
              WHEEL="`ls -1 $CI_PROJECT_DIR/wheels/$WHEEL_TYPE/$PY_TAG/*.whl`";
              test -n "$WHEEL";
-          fi
-        - if test -n "$WHEEL"; then
-            echo installing from $WHEEL;
-            HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" "$PYTHON" tests/run-tests.py --hg-wheel $WHEEL --color=always $RUNTEST_ARGS;
+             echo installing from $WHEEL;
+             WHEEL_ARG="--hg-wheel $WHEEL";
+             echo disabling flavor as this is currently incompatible with '"--hg-wheel"';
+             FLAVOR="";
           else
             echo installing from source;
-            HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" "$PYTHON" tests/run-tests.py --color=always $RUNTEST_ARGS;
-          fi
+          fi;
+        - HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO"
+          "$PYTHON" tests/run-tests.py
+            --color=always
+            $WHEEL_ARG
+            $FLAVOR
+            $FILTER
+            $RUNTEST_ARGS;
 
 checks:
     extends: .runtests
     stage: checks
     variables:
         SHOW_VERSION_OF: "$PYTHON black clang-format"
-        RUNTEST_ARGS: "--time --test-list /tmp/check-tests.txt"
+        RUNTEST_ARGS: "--time"
+        FILTER: "--test-list /tmp/check-tests.txt"
         CI_CLEVER_CLOUD_FLAVOR: S
 
 rust-cargo-test:
@@ -128,11 +141,16 @@ rust-cargo-test:
     variables:
         CI_CLEVER_CLOUD_FLAVOR: S
 
+.runtests-no-check:
+  extends: .runtests
+  variables:
+      FILTER: "--blacklist /tmp/check-tests.txt"
+      TEST_HGTESTS_ALLOW_NETIO: "1"
+
 .test-c:
-    extends: .runtests
+    extends: .runtests-no-check
     variables:
-        RUNTEST_ARGS: " --no-rust --blacklist /tmp/check-tests.txt"
-        TEST_HGTESTS_ALLOW_NETIO: "1"
+        FLAVOR: "--no-rust"
 
 test-c:
     extends: .test-c
@@ -141,33 +159,30 @@ test-c:
         parallel:
           matrix:
             - BUILD_PY_ID: "cp311-cp311"
-
     variables:
         WHEEL_TYPE: "c"
-        RUNTEST_ARGS: "--blacklist /tmp/check-tests.txt"
-        TEST_HGTESTS_ALLOW_NETIO: "1"
 
 test-pure:
-    extends: .runtests
+    extends: .runtests-no-check
     variables:
-        RUNTEST_ARGS: "--pure --blacklist /tmp/check-tests.txt"
+        FLAVOR: "--pure"
 
 test-rust:
-    extends: .runtests
+    extends: .runtests-no-check
     variables:
-        HGWITHRUSTEXT: cpython
-        RUNTEST_ARGS: "--rust --blacklist /tmp/check-tests.txt"
+        HGWITHRUSTEXT: "cpython"
+        FLAVOR: "--rust"
 
 test-rhg:
-    extends: .runtests
+    extends: .runtests-no-check
     variables:
-        HGWITHRUSTEXT: cpython
-        RUNTEST_ARGS: "--rust --rhg --blacklist /tmp/check-tests.txt"
+        HGWITHRUSTEXT: "cpython"
+        FLAVOR: "--rust --rhg"
 
 test-chg:
-    extends: .runtests
+    extends: .runtests-no-check
     variables:
-        RUNTEST_ARGS: "--blacklist /tmp/check-tests.txt --chg"
+        FLAVOR: "--chg"
 
 # note: we should probably get a full matrix for flavor × py-version, but this
 # is a simple start to be able to check if we break the lowest supported
@@ -179,8 +194,6 @@ test-3.8-c:
     variables:
         PYTHON: python3.8
         WHEEL_TYPE: "c"
-        RUNTEST_ARGS: " --blacklist /tmp/check-tests.txt"
-        TEST_HGTESTS_ALLOW_NETIO: "1"
     needs:
       - job: build-c-wheel
         parallel:
@@ -194,8 +207,6 @@ test-3.12-c:
     variables:
         PYTHON: python3.12
         WHEEL_TYPE: "c"
-        RUNTEST_ARGS: " --blacklist /tmp/check-tests.txt"
-        TEST_HGTESTS_ALLOW_NETIO: "1"
     needs:
       - job: build-c-wheel
         parallel:
@@ -216,8 +227,6 @@ test-3.13-c:
     variables:
         PYTHON: python3.13
         WHEEL_TYPE: "c"
-        RUNTEST_ARGS: " --blacklist /tmp/check-tests.txt"
-        TEST_HGTESTS_ALLOW_NETIO: "1"
     needs:
       - job: build-c-wheel
         parallel:
@@ -295,8 +304,6 @@ macos:
       - macos
     variables:
         WHEEL_TYPE: "c"
-        RUNTEST_ARGS: "--blacklist /tmp/check-tests.txt"
-        TEST_HGTESTS_ALLOW_NETIO: "1"
     needs:
       - build-c-wheel-macos
 
