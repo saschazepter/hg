@@ -3919,14 +3919,8 @@ class TestRunner:
             install_env.pop('HGWITHRUSTEXT', None)
 
         # setuptools requires install directories to exist.
-        def makedirs(p):
-            try:
-                os.makedirs(p)
-            except FileExistsError:
-                pass
-
-        makedirs(self._pythondir)
-        makedirs(self._bindir)
+        os.makedirs(self._pythondir, exist_ok=True)
+        os.makedirs(self._bindir, exist_ok=True)
         if self.options.wheel is not None and not WINDOWS:
             # the wheel instalation location is not stable, so try to deal with
             # that to funnel it back where we need its.
