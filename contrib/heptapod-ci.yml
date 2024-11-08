@@ -35,7 +35,7 @@ variables:
     # a directory dedicated to creating files and temporary clone
     # with shell runner, its content is not cleaned from one call to the next,
     # so plan for it.
-    TMP_WORK_DIR: "/tmp"
+    TMP_WORK_DIR: "${CI_PROJECT_DIR}/../.."
 
 .all:
   # help changing all job at once when debugging
