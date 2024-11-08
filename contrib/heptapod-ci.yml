@@ -93,11 +93,12 @@ build-c-wheel:
     script:
         - echo "$RUNTEST_ARGS"
         - echo "$WHEEL_TYPE"
-        - echo $BUILD_PY_ID
         - WHEEL=""
         - if test -n "$WHEEL_TYPE"; then
-             test -n "$BUILD_PY_ID";
-             WHEEL="`ls -1 $CI_PROJECT_DIR/wheels/$WHEEL_TYPE/$BUILD_PY_ID/*.whl`";
+             PY_TAG=`$PYTHON -c 'import sys; v=sys.version_info; t=f"cp{v.major}{v.minor}"; print(f"{t}-{t}")'`;
+             echo "$PY_TAG";
+             test -n "PY_TAG";
+             WHEEL="`ls -1 $CI_PROJECT_DIR/wheels/$WHEEL_TYPE/$PY_TAG/*.whl`";
              test -n "$WHEEL";
           fi
         - if test -n "$WHEEL"; then
@@ -141,7 +142,6 @@ test-c:
 
     variables:
         WHEEL_TYPE: "c"
-        BUILD_PY_ID: "cp311-cp311"
         RUNTEST_ARGS: "--blacklist /tmp/check-tests.txt"
         TEST_HGTESTS_ALLOW_NETIO: "1"
 
@@ -177,7 +177,6 @@ test-3.8-c:
     variables:
         PYTHON: python3.8
         WHEEL_TYPE: "c"
-        BUILD_PY_ID: "cp38-cp38"
         RUNTEST_ARGS: " --blacklist /tmp/check-tests.txt"
         TEST_HGTESTS_ALLOW_NETIO: "1"
     needs:
@@ -193,7 +192,6 @@ test-3.12-c:
     variables:
         PYTHON: python3.12
         WHEEL_TYPE: "c"
-        BUILD_PY_ID: "cp312-cp312"
         RUNTEST_ARGS: " --blacklist /tmp/check-tests.txt"
         TEST_HGTESTS_ALLOW_NETIO: "1"
     needs:
@@ -216,7 +214,6 @@ test-3.13-c:
     variables:
         PYTHON: python3.13
         WHEEL_TYPE: "c"
-        BUILD_PY_ID: "cp313-cp313"
         RUNTEST_ARGS: " --blacklist /tmp/check-tests.txt"
         TEST_HGTESTS_ALLOW_NETIO: "1"
     needs:
