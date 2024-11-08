@@ -35,13 +35,16 @@ variables:
     TEST_HGTESTS_ALLOW_NETIO: "0"
     SHOW_VERSION_OF: "$PYTHON"
 
-.all_template: &all
+.all:
+  # help changing all job at once when debugging
   when: on_success
+  # make sure jobs from later steps does not wait for anything implicit before
+  # starting.
   needs: []
 
-.build-wheel: &wheel
+.build-wheel:
+  extends: .all
   image: "registry.heptapod.net/mercurial/ci-images/core-wheel-x86_64-c:v3.0"
-  <<: *all
   stage: build
   variables:
     WHEEL_TYPE: ""
@@ -62,7 +65,7 @@ variables:
     expire_in: 1 week
 
 build-c-wheel:
-  <<: *wheel
+  extends: .build-wheel
   variables:
     WHEEL_TYPE: "c"
   parallel:
@@ -75,10 +78,8 @@ build-c-wheel:
           - cp312-cp312
           - cp313-cp313
 
-# TODO: We should select the wheel compatible with the python (and plateform)
-# we use. This is necessary to build multiple wheel.
-.runtests_template: &runtests
-    <<: *all
+.runtests:
+    extends: .all
     stage: tests
     # The runner made a clone as root.
     # We make a new clone owned by user used to run the step.
@@ -110,7 +111,7 @@ build-c-wheel:
           fi
 
 checks:
-    <<: *runtests
+    extends: .runtests
     stage: checks
     variables:
         SHOW_VERSION_OF: "$PYTHON black clang-format"
@@ -118,7 +119,7 @@ checks:
         CI_CLEVER_CLOUD_FLAVOR: S
 
 rust-cargo-test:
-    <<: *all
+    extends: .all
     stage: checks
     script:
         - make rust-tests
@@ -126,14 +127,14 @@ rust-cargo-test:
     variables:
         CI_CLEVER_CLOUD_FLAVOR: S
 
-.test-c: &test_c
-    <<: *runtests
+.test-c:
+    extends: .runtests
     variables:
         RUNTEST_ARGS: " --no-rust --blacklist /tmp/check-tests.txt"
         TEST_HGTESTS_ALLOW_NETIO: "1"
 
 test-c:
-    <<: *test_c
+    extends: .test-c
     needs:
       - job: build-c-wheel
         parallel:
@@ -146,24 +147,24 @@ test-c:
         TEST_HGTESTS_ALLOW_NETIO: "1"
 
 test-pure:
-    <<: *runtests
+    extends: .runtests
     variables:
         RUNTEST_ARGS: "--pure --blacklist /tmp/check-tests.txt"
 
-test-rust: &test_rust
-    <<: *runtests
+test-rust:
+    extends: .runtests
     variables:
         HGWITHRUSTEXT: cpython
         RUNTEST_ARGS: "--rust --blacklist /tmp/check-tests.txt"
 
 test-rhg:
-    <<: *runtests
+    extends: .runtests
     variables:
         HGWITHRUSTEXT: cpython
         RUNTEST_ARGS: "--rust --rhg --blacklist /tmp/check-tests.txt"
 
 test-chg:
-    <<: *runtests
+    extends: .runtests
     variables:
         RUNTEST_ARGS: "--blacklist /tmp/check-tests.txt --chg"
 
@@ -171,7 +172,7 @@ test-chg:
 # is a simple start to be able to check if we break the lowest supported
 # version (and 3.12 have been giving us various troubles)
 test-3.8-c:
-    <<: *test_c
+    extends: .test-c
     stage: py-version-compat
     when: manual  # avoid overloading the CI by default
     variables:
@@ -186,7 +187,7 @@ test-3.8-c:
             - BUILD_PY_ID: "cp38-cp38"
 
 test-3.12-c:
-    <<: *test_c
+    extends: .test-c
     stage: py-version-compat
     when: manual  # avoid overloading the CI by default
     variables:
@@ -201,14 +202,14 @@ test-3.12-c:
             - BUILD_PY_ID: "cp312-cp312"
 
 test-3.12-rust:
-    <<: *test_rust
+    extends: test-rust
     stage: py-version-compat
     when: manual  # avoid overloading the CI by default
     variables:
         PYTHON: python3.12
 
 test-3.13-c:
-    <<: *test_c
+    extends: .test-c
     stage: py-version-compat
     when: manual  # avoid overloading the CI by default
     variables:
@@ -223,14 +224,14 @@ test-3.13-c:
             - BUILD_PY_ID: "cp313-cp313"
 
 test-3.13-rust:
-    <<: *test_rust
+    extends: test-rust
     stage: py-version-compat
     when: manual  # avoid overloading the CI by default
     variables:
         PYTHON: python3.13
 
 check-pytype:
-    <<: *test_rust
+    extends: test-rust
     stage: checks
     before_script:
       - export PATH="/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/shims:/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/bin:$PATH"
@@ -249,8 +250,8 @@ check-pytype:
 # is stored in OLDPWD.  Of the added variables, MSYSTEM is crucial to running
 # run-tests.py- it is needed to make run-tests.py generate a `python3` script
 # that satisfies the various shebang lines and delegates to `py -3`.
-.window_runtests_template: &windows_runtests
-    <<: *all
+.windows-runtests:
+    extends: .all
     when: manual  # we don't have any Windows runners anymore at the moment
     stage: platform-compat
     before_script:
@@ -268,7 +269,7 @@ check-pytype:
         - C:/hgdev/MinGW/msys/1.0/bin/sh.exe --login -c 'cd "$OLDPWD" && HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" $PYTHON tests/run-tests.py --color=always $RUNTEST_ARGS'
 
 windows:
-    <<: *windows_runtests
+    extends: .windows-runtests
     when: manual
     tags:
       - windows
@@ -277,7 +278,7 @@ windows:
         PYTHON: C:/hgdev/venvs/python39-x64/Scripts/python.exe
 
 windows-pyox:
-    <<: *windows_runtests
+    extends: .windows-runtests
     when: manual  # pyoxidizer builds seem broken with --no-use-pep517
     tags:
       - windows
@@ -286,7 +287,7 @@ windows-pyox:
         PYTHON: C:/hgdev/venvs/python39-x64/Scripts/python.exe
 
 macos:
-    <<: *test_c
+    extends: .test-c
     stage: platform-compat
     when: manual  # avoid overloading the CI by default
     tags:
