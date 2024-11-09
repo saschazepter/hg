@@ -25,6 +25,7 @@ stages:
   - tests
   - platform-compat
   - py-version-compat
+  - upload
 
 
 image: registry.heptapod.net/mercurial/ci-images/mercurial-core:$HG_CI_IMAGE_TAG
@@ -443,3 +444,57 @@ build-c-wheel-macos:
       paths:
         - wheels
       expire_in: 1 week
+
+# Upload nightly build wheel on the heptapod registry on test success
+#
+# At the time this task is added, since the mac wheels are built on shell
+# runner, those nightly are not be considered fully secured.
+#
+# In addition, since any job can upload package, pretty much anyone with CI
+# access can upload anything pretending to be any version. To fix it we would
+# have to prevent the CI token to upload to the registry and have dedicated
+# credential accessible only from protected branches.
+upload-wheel-nightly:
+  extends: .all
+  image: "registry.heptapod.net/mercurial/ci-images/twine:v3.0"
+  stage: upload
+  # because we don't want to upload only half of a wheel
+  interruptible: false
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^branch\/.*/
+      # note that at the time of writing this, this job depends on multiple
+      # manual one. So it will not run by default, but will automatically run
+      # if the manual jobs are triggered.
+      #
+      # Also beware that "on_success" will ignore failure of manual test we
+      # directly depends on. This currently relevant for the "test-3.x-c"
+      # tests.
+      when: on_success
+    - if: $CI_COMMIT_BRANCH =~ /^topic\/.*/
+      when: never
+      # if you need to test this, make it
+      # when: manual
+      # allow_failure: true
+  needs:
+    - build-c-wheel
+    - build-c-wheel-macos
+    - build-c-wheel-windows
+    - test-c
+    - macos
+    # if we also requires windows to be happy, reach the "50 needed jobs" limit.
+    # So we need some intermediate job to reduce the number.
+    # - windows
+    - test-3.8-c
+    - test-3.12-c
+    - test-3.13-c
+  # It would be nice to be able to restrict that a bit to protected branch only
+  variables:
+    TWINE_USERNAME: gitlab-ci-token
+    TWINE_PASSWORD: $CI_JOB_TOKEN
+  script:
+    - twine
+      upload
+      --verbose
+      --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi
+      wheels/*/*/*/*.whl
+      wheels/*/*.whl
