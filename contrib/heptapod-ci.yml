@@ -48,6 +48,23 @@ variables:
   # starting.
   needs: []
 
+# a dummy job that only serve to trigger others
+#
+# This is useful for two reasons:
+# - the UX around parallel jobs is awful so manually starting them is unpractical
+# - manual starting job cannot make the pipeline "fails" and block a merge,
+#   while "on_success" job depending on manual trigger works fine in that regard.
+.trigger:
+  extends: .all
+  # smallest I know of
+  image: busybox
+  when: manual
+  variables:
+    GIT_STRATEGY: none
+    CI_CLEVER_CLOUD_FLAVOR: "XS"
+  script:
+    - echo 'nothing to see here'
+
 .build-wheel:
   extends: .all
   image: "registry.heptapod.net/mercurial/ci-images/core-wheel-x86_64-c:v3.0"
@@ -204,16 +221,26 @@ test-chg:
     variables:
         FLAVOR: "--chg"
 
+
+trigger-pycompat:
+  extends: .trigger
+  stage: py-version-compat
+
+.test-c-pycompat:
+    extends: .test-c
+    stage: py-version-compat
+    needs:
+      - trigger-pycompat
+    variables:
+        WHEEL_TYPE: "c"
+
 # note: we should probably get a full matrix for flavor × py-version, but this
 # is a simple start to be able to check if we break the lowest supported
 # version (and 3.12 have been giving us various troubles)
 test-3.8-c:
-    extends: .test-c
-    stage: py-version-compat
-    when: manual  # avoid overloading the CI by default
+    extends: .test-c-pycompat
     variables:
         PYTHON: python3.8
-        WHEEL_TYPE: "c"
     needs:
       - job: build-c-wheel
         parallel:
@@ -221,12 +248,9 @@ test-3.8-c:
             - BUILD_PY_ID: "cp38-cp38"
 
 test-3.12-c:
-    extends: .test-c
-    stage: py-version-compat
-    when: manual  # avoid overloading the CI by default
+    extends: .test-c-pycompat
     variables:
         PYTHON: python3.12
-        WHEEL_TYPE: "c"
     needs:
       - job: build-c-wheel
         parallel:
@@ -236,17 +260,15 @@ test-3.12-c:
 test-3.12-rust:
     extends: test-rust
     stage: py-version-compat
-    when: manual  # avoid overloading the CI by default
+    needs:
+      - trigger-pycompat
     variables:
         PYTHON: python3.12
 
 test-3.13-c:
-    extends: .test-c
-    stage: py-version-compat
-    when: manual  # avoid overloading the CI by default
+    extends: .test-c-pycompat
     variables:
         PYTHON: python3.13
-        WHEEL_TYPE: "c"
     needs:
       - job: build-c-wheel
         parallel:
@@ -256,7 +278,8 @@ test-3.13-c:
 test-3.13-rust:
     extends: test-rust
     stage: py-version-compat
-    when: manual  # avoid overloading the CI by default
+    needs:
+      - trigger-pycompat
     variables:
         PYTHON: python3.13
 
@@ -292,19 +315,10 @@ check-pytype:
     variables:
         PYTHON: C:/hgdev/venvs/python39-x64/Scripts/python.exe
 
-
 # a dummy job that only serve to trigger the wider windows build
 trigger-wheel-windows:
-  extends: .all
-  # smallest I know of
-  image: busybox
-  when: manual
+  extends: .trigger
   stage: build
-  variables:
-    GIT_STRATEGY: none
-    CI_CLEVER_CLOUD_FLAVOR: "XS"
-  script:
-    - echo 'let us build some wheels.'
 
 build-c-wheel-windows:
     extends: .windows
