@@ -340,6 +340,8 @@ build-c-wheel-macos:
     stage: build
     tags:
       - macos
+    variables:
+      MERCURIAL_SETUP_FORCE_TRANSLATIONS: "1"
     script:
       - rm -rf tmp-wheels
       - CIBW_SKIP="pp*" cibuildwheel --output-dir tmp-wheels/
