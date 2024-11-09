@@ -290,6 +290,51 @@ check-pytype:
     variables:
         PYTHON: C:/hgdev/venvs/python39-x64/Scripts/python.exe
 
+
+# a dummy job that only serve to trigger the wider windows build
+trigger-wheel-windows:
+  extends: .all
+  # smallest I know of
+  image: busybox
+  when: manual
+  stage: build
+  variables:
+    GIT_STRATEGY: none
+    CI_CLEVER_CLOUD_FLAVOR: "XS"
+  script:
+    - echo 'let us build some wheels.'
+
+build-c-wheel-windows:
+    extends: .windows
+    stage: build
+    # wait for someone to click on "trigger-wheel-windows"
+    when: on_success
+    needs:
+      - "trigger-wheel-windows"
+    script:
+        - echo "Entering script section"
+        - echo "python used, $Env:PYTHON"
+        - Invoke-Expression "$Env:PYTHON -V"
+        - echo "$Env:RUNTEST_ARGS"
+        - echo "$Env:TMP"
+        - echo "$Env:TEMP"
+        - "C:/hgdev/venvs/python39-x64/Scripts/python.exe -m cibuildwheel --output-dir wheels/win32"
+    artifacts:
+      paths:
+        - wheels
+      expire_in: 1 week
+    parallel:
+      matrix:
+        # "cp39" is first as it unlock the tests
+        - CIBW_BUILD:
+          - "cp39-*"
+          - "cp38-*"
+          - "cp310-*"
+          - "cp311-*"
+          - "cp312-*"
+          - "cp313-*"
+
+
 .windows-runtests:
     extends: .windows
     stage: platform-compat
