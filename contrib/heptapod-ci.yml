@@ -292,8 +292,6 @@ check-pytype:
         - echo "$Env:TEMP"
 
         - C:/hgdev/MinGW/msys/1.0/bin/sh.exe --login -c 'cd "$OLDPWD" && HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" $PYTHON tests/run-tests.py --color=always $RUNTEST_ARGS'
-    variables:
-      TMP_WORK_DIR: "C:/hgdev/tmp"
 
 windows:
     extends: .windows-runtests
