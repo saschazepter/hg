@@ -56,17 +56,17 @@ variables:
     FLAVOR: ""
     MERCURIAL_SETUP_FORCE_TRANSLATIONS: "1"
     CI_CLEVER_CLOUD_FLAVOR: "XS"
-  before_script:
+  script:
+    - PLATFORM=`/opt/python/cp313-cp313/bin/python -c 'import sys; print(sys.platform)'`
     - echo $WHEEL_TYPE
     - test -n "$WHEEL_TYPE"
     - echo $FLAVOR
-    - mkdir -p wheels/$WHEEL_TYPE/$BUILD_PY_ID
-  script:
+    - mkdir -p wheels/$PLATFORM/$WHEEL_TYPE/$BUILD_PY_ID
     - /opt/python/$BUILD_PY_ID/bin/python setup.py bdist_wheel --dist-dir tmp-wheelhouse
-    - auditwheel repair tmp-wheelhouse/*.whl -w wheels/$WHEEL_TYPE/$BUILD_PY_ID
+    - auditwheel repair tmp-wheelhouse/*.whl -w wheels/$PLATFORM/$WHEEL_TYPE/$BUILD_PY_ID
   artifacts:
     paths:
-      - wheels/$WHEEL_TYPE/$BUILD_PY_ID
+      - wheels/
     expire_in: 1 week
 
 build-c-wheel:
@@ -111,13 +111,15 @@ build-c-wheel:
         - PORT_START=`expr 19051 + 1009 '*' $CI_CONCURRENT_ID`
         - PORT_ARG="--port $PORT_START"
         - echo $PORT_ARG
+        - PLATFORM=`$PYTHON -c 'import sys; print(sys.platform)'`
+        - echo $PLATFORM
         - WHEEL_ARG=""
         - SHARDING_ARGS=""
         - if test -n "$WHEEL_TYPE"; then
              PY_TAG=`$PYTHON -c 'import sys; v=sys.version_info; t=f"cp{v.major}{v.minor}"; print(f"{t}-{t}")'`;
              echo "$PY_TAG";
              test -n "PY_TAG";
-             WHEEL="`ls -1 $CI_PROJECT_DIR/wheels/$WHEEL_TYPE/$PY_TAG/*.whl`";
+             WHEEL="`ls -1 $CI_PROJECT_DIR/wheels/$PLATFORM/$WHEEL_TYPE/$PY_TAG/*.whl`";
              test -n "$WHEEL";
              echo installing from $WHEEL;
              WHEEL_ARG="--hg-wheel $WHEEL";
@@ -429,11 +431,12 @@ build-c-wheel-macos:
     variables:
       MERCURIAL_SETUP_FORCE_TRANSLATIONS: "1"
     script:
+      - PLATFORM=`$PYTHON -c 'import sys; print(sys.platform)'`
       - rm -rf tmp-wheels
       - cibuildwheel --output-dir tmp-wheels/
       - for py_version in cp38-cp38 cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313; do
-          mkdir -p wheels/c/$py_version/;
-          mv tmp-wheels/*$py_version*.whl wheels/c/$py_version/;
+          mkdir -p wheels/$PLATFORM/c/$py_version/;
+          mv tmp-wheels/*$py_version*.whl wheels/$PLATFORM/c/$py_version/;
         done
       - rm -rf tmp-wheels
     artifacts:
