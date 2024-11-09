@@ -311,6 +311,8 @@ build-c-wheel-windows:
     when: on_success
     needs:
       - "trigger-wheel-windows"
+    variables:
+      MERCURIAL_SETUP_FORCE_TRANSLATIONS: "1"
     script:
         - echo "Entering script section"
         - echo "python used, $Env:PYTHON"
