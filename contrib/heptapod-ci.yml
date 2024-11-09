@@ -275,14 +275,21 @@ check-pytype:
 # is stored in OLDPWD.  Of the added variables, MSYSTEM is crucial to running
 # run-tests.py- it is needed to make run-tests.py generate a `python3` script
 # that satisfies the various shebang lines and delegates to `py -3`.
-.windows-runtests:
+
+.windows:
     extends: .all
     when: manual  # we don't have any Windows runners anymore at the moment
-    stage: platform-compat
+    tags:
+      - windows
     before_script:
       - C:/hgdev/MinGW/msys/1.0/bin/sh.exe --login -c 'cd "$OLDPWD" && ls -1 tests/test-check-*.* > "${TMP_WORK_DIR}"/check-tests.txt'
       # TODO: find/install cvs, bzr, perforce, gpg, sqlite3
+    variables:
+        PYTHON: C:/hgdev/venvs/python39-x64/Scripts/python.exe
 
+.windows-runtests:
+    extends: .windows
+    stage: platform-compat
     script:
         - echo "Entering script section"
         - echo "python used, $Env:PYTHON"
@@ -295,21 +302,14 @@ check-pytype:
 
 windows:
     extends: .windows-runtests
-    when: manual
-    tags:
-      - windows
     variables:
         RUNTEST_ARGS: "-j 8 --blacklist ${TMP_WORK_DIR}/check-tests.txt"
-        PYTHON: C:/hgdev/venvs/python39-x64/Scripts/python.exe
 
 windows-pyox:
     extends: .windows-runtests
     when: manual  # pyoxidizer builds seem broken with --no-use-pep517
-    tags:
-      - windows
     variables:
         RUNTEST_ARGS: "--blacklist ${TMP_WORK_DIR}/check-tests.txt --pyoxidized"
-        PYTHON: C:/hgdev/venvs/python39-x64/Scripts/python.exe
 
 macos:
     extends: .test-c
