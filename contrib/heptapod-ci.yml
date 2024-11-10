@@ -333,6 +333,9 @@ build-c-wheel-windows:
           - "cp311-*"
           - "cp312-*"
           - "cp313-*"
+          CIBW_ARCHS:
+          - "AMD64"
+          - "x86"
 
 
 .windows-runtests:
