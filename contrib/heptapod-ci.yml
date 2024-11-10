@@ -310,6 +310,7 @@ check-pytype:
                $PYTHON tests/run-tests.py
                --color=always
                $FLAVOR
+               --port `expr 19051 + 1009 "*" $CI_CONCURRENT_ID`
                $FILTER
                $RUNTEST_ARGS;
           '
