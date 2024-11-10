@@ -340,6 +340,12 @@ build-c-wheel-windows:
           CIBW_ARCHS:
           - "AMD64"
           - "x86"
+        - CIBW_BUILD:
+          - "cp311-*"
+          - "cp312-*"
+          - "cp313-*"
+          CIBW_ARCHS:
+          - "ARM64"
 
 
 .windows-runtests:
