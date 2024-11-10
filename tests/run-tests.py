@@ -3309,10 +3309,15 @@ class TestRunner:
 
         else:
             self._installdir = os.path.join(self._hgtmp, b"install")
-            self._bindir = os.path.join(self._installdir, b"bin")
+            if WINDOWS:
+                # The wheel variant will install things in "Scripts".
+                # So we can as well always install things here.
+                self._bindir = os.path.join(self._installdir, b"Scripts")
+            else:
+                self._bindir = os.path.join(self._installdir, b"bin")
             self._hgcommand = b'hg'
 
-            if self.options.wheel:
+            if self.options.wheel and not WINDOWS:
                 # pip installing a wheel does not have an --install-lib flag
                 # so we have to guess where the file will be installed.
                 #
@@ -3324,6 +3329,14 @@ class TestRunner:
                     b"python%d.%d" % (v_info.major, v_info.minor),
                     b"site-packages",
                 )
+            elif self.options.wheel and WINDOWS:
+                # for some reason, Windows use an even different scheme:
+                #
+                # <prefix>/lib/site-packages/
+                suffix = os.path.join(
+                    b"lib",
+                    b"site-packages",
+                )
             else:
                 suffix = os.path.join(b"lib", b"python")
             self._pythondir = os.path.join(self._installdir, suffix)
@@ -3332,7 +3345,13 @@ class TestRunner:
         # a python script and feed it to python.exe.  Legacy stdio is force
         # enabled by hg.exe, and this is a more realistic way to launch hg
         # anyway.
-        if WINDOWS and not self._hgcommand.endswith(b'.exe'):
+        #
+        # We do not do it when using wheels and they do not install a .exe.
+        if (
+            WINDOWS
+            and not self.options.wheel
+            and not self._hgcommand.endswith(b'.exe')
+        ):
             self._hgcommand += b'.exe'
 
         real_hg = os.path.join(self._bindir, self._hgcommand)
@@ -3885,15 +3904,10 @@ class TestRunner:
             b"--ignore-installed",
             b"--prefix",
             self._installdir,
-            b"--break-system-packages",
         ]
         if not WINDOWS:
-            # The --home="" trick works only on OS where os.sep == '/'
-            # because of a distutils convert_path() fast-path. Avoid it at
-            # least on Windows for now, deal with .pydistutils.cfg bugs
-            # when they happen.
-            # cmd.append(b"--global-option=--home=")
-            pass
+            # windows does not have this flag apparently.
+            cmd.append(b"--break-system-packages")
 
         return cmd
 
