@@ -341,6 +341,11 @@ build-c-wheel-windows:
 .windows-runtests:
     extends: .windows
     stage: platform-compat
+    # the UX for manual parallel jobs is quite awful, and the job que depends
+    # upon are manual anyway, so we can make this start automatically once the
+    # associated wheel is ready.
+    when: on_success
+    parallel: 20
     script:
         - echo "Entering script section"
         - echo "python used, $Env:PYTHON"
@@ -364,6 +369,7 @@ build-c-wheel-windows:
                $WHEEL_ARG
                $FLAVOR
                --port `expr 19051 + 1009 "*" $CI_CONCURRENT_ID`
+               --shard-index $CI_NODE_INDEX --shard-total $CI_NODE_TOTAL
                $FILTER
                $RUNTEST_ARGS;
           '
