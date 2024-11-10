@@ -3779,10 +3779,7 @@ class TestRunner:
     def _usecorrectpython(self):
         """Configure the environment to use the appropriate Python in tests."""
         # Tests must use the same interpreter as us or bad things will happen.
-        if WINDOWS:
-            pyexe_names = [b'python', b'python3', b'python.exe']
-        else:
-            pyexe_names = [b'python', b'python3']
+        pyexe_names = [b'python', b'python3']
 
         # os.symlink() is a thing with py3 on Windows, but it requires
         # Administrator rights.
@@ -3823,7 +3820,8 @@ class TestRunner:
                     f.write(b'%s "$@"\n' % esc_executable)
 
             if WINDOWS:
-                # adjust the path to make sur the main python finds it own dll
+                # adjust the path to make sur the main python finds itself and
+                # its own dll
                 path = os.environ['PATH'].split(os.pathsep)
                 main_exec_dir = os.path.dirname(sysexecutable)
                 extra_paths = [_bytes2sys(self._custom_bin_dir), main_exec_dir]
