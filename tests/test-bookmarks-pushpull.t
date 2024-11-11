@@ -1155,20 +1155,21 @@ Pushing a really long bookmark should work fine (issue5165)
 ===============================================
 
 #if b2-binary
+(use `sh -c` as Windows struggle with the long argument)
   >>> with open('longname', 'w') as f:
   ...     f.write('wat' * 100) and None
-  $ hg book `cat longname`
-  $ hg push -B `cat longname` ../unchanged-b
+  $ sh -c "hg book `cat longname`"
+  $ sh -c "hg push -B `cat longname` ../unchanged-b"
   pushing to ../unchanged-b
   searching for changes
   no changes found
   exporting bookmark (wat){100} (re)
   [1]
-  $ hg -R ../unchanged-b book --delete `cat longname`
+  $ sh -c "hg -R ../unchanged-b book --delete `cat longname`"
 
 Test again but forcing bundle2 exchange to make sure that doesn't regress.
 
-  $ hg push -B `cat longname` ../unchanged-b --config devel.legacy.exchange=bundle1
+  $ sh -c "hg push -B `cat longname` ../unchanged-b --config devel.legacy.exchange=bundle1"
   pushing to ../unchanged-b
   searching for changes
   no changes found
