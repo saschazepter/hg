@@ -1762,6 +1762,7 @@ Test cases in .t files
   # Ran 2 tests, 0 skipped, 1 failed.
   python hash seed: * (glob)
   [1]
+  $ rm output/*
 
 Test TESTCASE variable
 
@@ -2108,14 +2109,13 @@ Test sharding
   run-tests.py: error: --shard-index must be <= than --shard-total (10 not in [1,5])
   [2]
   $ rt --list-tests --shard-index 1 --shard-total 5
-  test-cases-abc.t
-  test-cases-advanced-cases.t#case-with-dashes
-  test-conditional-matching.t#foo
+  test-cases-abc.t#A
+  test-cases-advanced-cases.t#casewith_-.chars
+  test-config-opt.t
   $ rt --shard-index 6 --shard-total 5
   usage: run-tests.py [options] [tests]
   run-tests.py: error: --shard-index must be <= than --shard-total (6 not in [1,5])
   [2]
   $ rt --list-tests --shard-index 5 --shard-total 5
-  test-conditional-matching.t#bar
-  test-py.py
-  test-substitution.t
+  test-cases-advanced-cases.t#case-with-dashes
+  test-conditional-matching.t#foo
