@@ -1526,15 +1526,16 @@ The following options control default behavior for all hosts.
     This option requires Python 2.7.
 
 ``minimumprotocol``
-    Defines the minimum channel encryption protocol to use.
+    Defines the minimum channel encryption protocol to use in the client.
 
     By default, the highest version of TLS supported by both client and server
     is used.
 
     Allowed values are: ``tls1.0``, ``tls1.1``, ``tls1.2``, ``tls1.3``.
 
-    When running on an old Python version, only ``tls1.0`` is allowed since
-    old versions of Python only support up to TLS 1.0.
+    Depending on the version of Python being used, not all of these values may
+    be available.  See ``hg debuginstall`` for the values supported by the
+    current installation.
 
     When running a Python that supports modern TLS versions, the default is
     ``tls1.1``. ``tls1.0`` can still be used to allow TLS 1.0. However, this
