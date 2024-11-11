@@ -335,9 +335,7 @@ Fingerprints
 
 Ports used by next test. Kill servers.
 
-  $ killdaemons.py hg0.pid
-  $ killdaemons.py hg1.pid
-  $ killdaemons.py hg2.pid
+  $ killdaemons.py $DAEMON_PIDS
 
 #if tls1.2
 Start servers running supported TLS versions
@@ -465,12 +463,7 @@ The per-host config option by itself works
   abort: error: .*(unsupported protocol|wrong ssl version|alert protocol version).* (re)
   [100]
 
-  $ killdaemons.py hg0.pid
-  $ killdaemons.py hg1.pid
-  $ killdaemons.py hg2.pid
-#if tls1.3
-  $ killdaemons.py hg3.pid
-#endif
+  $ killdaemons.py $DAEMON_PIDS
 #endif
 
 Prepare for connecting through proxy
