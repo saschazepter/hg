@@ -234,31 +234,6 @@ def _hostsettings(ui, hostname):
     return s
 
 
-def commonssloptions(minimumprotocol):
-    """Return SSLContext options common to servers and clients."""
-    if minimumprotocol not in configprotocols:
-        raise ValueError(b'protocol value not supported: %s' % minimumprotocol)
-
-    # SSLv2 and SSLv3 are broken. We ban them outright.
-    options = ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3
-
-    if minimumprotocol == b'tls1.0':
-        # Defaults above are to use TLS 1.0+
-        pass
-    elif minimumprotocol == b'tls1.1':
-        options |= ssl.OP_NO_TLSv1
-    elif minimumprotocol == b'tls1.2':
-        options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-    else:
-        raise error.Abort(_(b'this should not happen'))
-
-    # Prevent CRIME.
-    # There is no guarantee this attribute is defined on the module.
-    options |= getattr(ssl, 'OP_NO_COMPRESSION', 0)
-
-    return options
-
-
 def wrapsocket(sock, keyfile, certfile, ui, serverhostname=None):
     """Add SSL/TLS to a socket.
 
