@@ -652,6 +652,7 @@ dependencies = [
  "libc",
  "log",
  "logging_timer",
+ "memchr",
  "memmap2",
  "once_cell",
  "pretty_assertions",
