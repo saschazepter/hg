@@ -346,6 +346,7 @@ build-c-wheel-windows:
         - echo "python used, $Env:PYTHON"
         - Invoke-Expression "$Env:PYTHON -V"
         - echo "$Env:HGTESTS_ALLOW_NETIO"
+        - echo "$Env:WHEEL_ARG"
         - echo "$Env:FLAVOR"
         - echo "$Env:FILTER"
         - echo "$Env:RUNTEST_ARGS"
@@ -360,12 +361,14 @@ build-c-wheel-windows:
             && HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO"
                $PYTHON tests/run-tests.py
                --color=always
+               $WHEEL_ARG
                $FLAVOR
                --port `expr 19051 + 1009 "*" $CI_CONCURRENT_ID`
                $FILTER
                $RUNTEST_ARGS;
           '
     variables:
+      WHEEL_ARG: ""
       RUNTEST_ARGS: ""
       FLAVOR: ""
       FILTER: "--blacklist ${TMP_WORK_DIR}/check-tests.txt --blacklist ${TMP_WORK_DIR}/windows-skip.txt"
@@ -374,6 +377,13 @@ windows:
     extends: .windows-runtests
     variables:
         RUNTEST_ARGS: "-j 8"
+        WHEEL_ARG: "--hg-wheel wheels/win32/mercurial-*-cp39-cp39-win_amd64.whl"
+    needs:
+      - job: build-c-wheel-windows
+        parallel:
+          matrix:
+            - CIBW_BUILD: "cp39-*"
+              CIBW_ARCHS: "AMD64"
 
 windows-pyox:
     extends: .windows-runtests
