@@ -1,7 +1,7 @@
-use cpython::exc::ValueError;
+use cpython::exc::{KeyboardInterrupt, ValueError};
 use cpython::{
-    ObjectProtocol, PyBytes, PyDict, PyErr, PyObject, PyResult, PyTuple,
-    Python, ToPyObject,
+    ObjectProtocol, PyBytes, PyClone, PyDict, PyErr, PyObject, PyResult,
+    PyTuple, Python, ToPyObject,
 };
 use hg::config::Config;
 use hg::errors::HgError;
@@ -49,6 +49,9 @@ pub fn hgerror_to_pyerr<T>(
                 py,
                 cls.call(py, (msg,), None).ok().into_py_object(py),
             )
+        }
+        HgError::InterruptReceived => {
+            PyErr::new::<KeyboardInterrupt, _>(py, "")
         }
         e => PyErr::new::<cpython::exc::RuntimeError, _>(py, e.to_string()),
     })
@@ -103,4 +106,39 @@ pub fn node_from_py_bytes(py: Python, bytes: &PyBytes) -> PyResult<Node> {
             )
         })
         .map(Into::into)
+}
+
+/// Wrap a call to `func` so that Python's `SIGINT` handler is first stored,
+/// then restored after the call to `func` and finally raised if
+/// `func` returns a [`HgError::InterruptReceived`]
+pub fn with_sigint_wrapper<R>(
+    py: Python,
+    func: impl Fn() -> Result<R, HgError>,
+) -> PyResult<Result<R, HgError>> {
+    let signal_py_mod = py.import("signal")?;
+    let sigint_py_const = signal_py_mod.get(py, "SIGINT")?;
+    let old_handler = signal_py_mod.call(
+        py,
+        "getsignal",
+        PyTuple::new(py, &[sigint_py_const.clone_ref(py)]),
+        None,
+    )?;
+    let res = func();
+    // Reset the old signal handler in Python because we've may have changed it
+    signal_py_mod.call(
+        py,
+        "signal",
+        PyTuple::new(py, &[sigint_py_const.clone_ref(py), old_handler]),
+        None,
+    )?;
+    if let Err(HgError::InterruptReceived) = res {
+        // Trigger the signal in Python
+        signal_py_mod.call(
+            py,
+            "raise_signal",
+            PyTuple::new(py, &[sigint_py_const]),
+            None,
+        )?;
+    }
+    Ok(res)
 }
