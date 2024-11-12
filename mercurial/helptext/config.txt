@@ -1538,9 +1538,10 @@ The following options control default behavior for all hosts.
     current installation.
 
     When running a Python that supports modern TLS versions, the default is
-    ``tls1.1``. ``tls1.0`` can still be used to allow TLS 1.0. However, this
-    weakens security and should only be used as a feature of last resort if
-    a server does not support TLS 1.1+.
+    ``tls1.2``. ``tls1.0`` and ``tls1.1`` can still be used to allow TLS 1.0
+    or TLS 1.1 respectively, if supported by Python. However, this weakens
+    security and should only be used as a feature of last resort if a server
+    does not support TLS 1.2+.
 
 Options in the ``[hostsecurity]`` section can have the form
 ``hostname``:``setting``. This allows multiple settings to be defined on a

@@ -99,14 +99,14 @@ def _hostsettings(ui, hostname):
                 % b' '.join(sorted(configprotocols)),
             )
 
-    # We default to TLS 1.1+ because TLS 1.0 has known vulnerabilities (like
+    # We default to TLS 1.2+ because TLS 1.0 has known vulnerabilities (like
     # BEAST and POODLE). We allow users to downgrade to TLS 1.0+ via config
     # options in case a legacy server is encountered.
 
     # setup.py checks that TLS 1.1 or TLS 1.2 is present, so the following
     # assert should not fail.
-    assert supportedprotocols - {b'tls1.0'}
-    defaultminimumprotocol = b'tls1.1'
+    assert supportedprotocols - {b'tls1.0', b'tls1.1'}
+    defaultminimumprotocol = b'tls1.2'
 
     key = b'minimumprotocol'
     minimumprotocol = ui.config(b'hostsecurity', key, defaultminimumprotocol)
