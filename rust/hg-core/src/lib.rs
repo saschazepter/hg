@@ -46,9 +46,13 @@ pub use filepatterns::{
     parse_pattern_syntax_kind, read_pattern_file, IgnorePattern,
     PatternFileWarning, PatternSyntax,
 };
-use std::collections::HashMap;
 use std::fmt;
+use std::{collections::HashMap, sync::atomic::AtomicBool};
 use twox_hash::RandomXxHashBuilder64;
+
+/// Used to communicate with threads spawned from code within this crate that
+/// they should stop their work (SIGINT was received).
+pub static INTERRUPT_RECEIVED: AtomicBool = AtomicBool::new(false);
 
 pub type LineNumber = usize;
 

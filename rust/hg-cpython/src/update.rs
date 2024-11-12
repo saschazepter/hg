@@ -15,7 +15,7 @@ use hg::{
 
 use crate::{
     exceptions::FallbackError,
-    utils::{hgerror_to_pyerr, repo_from_path},
+    utils::{hgerror_to_pyerr, repo_from_path, with_sigint_wrapper},
 };
 
 pub fn update_from_null_fast_path(
@@ -27,10 +27,12 @@ pub fn update_from_null_fast_path(
     log::trace!("Using update from null fastpath");
     let repo = repo_from_path(py, repo_path)?;
     let progress: &dyn Progress = &HgProgressBar::new("updating");
-    hgerror_to_pyerr(
-        py,
-        update_from_null(&repo, to.into(), progress, num_cpus),
-    )
+
+    let res = with_sigint_wrapper(py, || {
+        update_from_null(&repo, to.into(), progress, num_cpus)
+    })?;
+
+    hgerror_to_pyerr(py, res)
 }
 
 pub fn init_module(py: Python, package: &str) -> PyResult<PyModule> {
