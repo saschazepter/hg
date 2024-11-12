@@ -294,22 +294,37 @@ check-pytype:
         - echo "Entering script section"
         - echo "python used, $Env:PYTHON"
         - Invoke-Expression "$Env:PYTHON -V"
+        - echo "$Env:HGTESTS_ALLOW_NETIO"
+        - echo "$Env:FLAVOR"
+        - echo "$Env:FILTER"
         - echo "$Env:RUNTEST_ARGS"
         - echo "$Env:TMP"
         - echo "$Env:TEMP"
 
-        - C:/hgdev/MinGW/msys/1.0/bin/sh.exe --login -c 'cd "$OLDPWD" && HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" $PYTHON tests/run-tests.py --color=always $RUNTEST_ARGS'
+        - C:/hgdev/MinGW/msys/1.0/bin/sh.exe
+          --login -c 'cd "$OLDPWD"
+            && HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO"
+               $PYTHON tests/run-tests.py
+               --color=always
+               $FLAVOR
+               $FILTER
+               $RUNTEST_ARGS;
+          '
+    variables:
+      RUNTEST_ARGS: ""
+      FLAVOR: ""
+      FILTER: "--blacklist ${TMP_WORK_DIR}/check-tests.txt"
 
 windows:
     extends: .windows-runtests
     variables:
-        RUNTEST_ARGS: "-j 8 --blacklist ${TMP_WORK_DIR}/check-tests.txt"
+        RUNTEST_ARGS: "-j 8"
 
 windows-pyox:
     extends: .windows-runtests
     when: manual  # pyoxidizer builds seem broken with --no-use-pep517
     variables:
-        RUNTEST_ARGS: "--blacklist ${TMP_WORK_DIR}/check-tests.txt --pyoxidized"
+        FLAVOR: "--pyoxidized"
 
 macos:
     extends: .test-c
