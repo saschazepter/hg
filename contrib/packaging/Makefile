@@ -129,7 +129,7 @@ linux-wheels: linux-wheels-x86_64 linux-wheels-i686
 
 .PHONY: linux-wheels-x86_64
 linux-wheels-x86_64:
-	docker run -e "HGTEST_JOBS=$(shell nproc)" --rm -ti -v `pwd`/../..:/src quay.io/pypa/manylinux1_x86_64 /src/contrib/packaging/build-linux-wheels.sh
+	docker run --rm -ti -v `pwd`/../..:/src registry.heptapod.net/mercurial/ci-images/core-wheel-x86_64-c:v3.0 /src/contrib/packaging/build-linux-wheels.sh
 
 .PHONY: linux-wheels-i686
 linux-wheels-i686:
