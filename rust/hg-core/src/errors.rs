@@ -52,6 +52,8 @@ pub enum HgError {
     RaceDetected(String),
     /// An invalid path was found
     Path(HgPathError),
+    /// An interrupt was received and we need to stop whatever we're doing
+    InterruptReceived,
 }
 
 /// Details about where an I/O error happened
@@ -121,6 +123,7 @@ impl fmt::Display for HgError {
                 write!(f, "encountered a race condition {context}")
             }
             HgError::Path(hg_path_error) => write!(f, "{}", hg_path_error),
+            HgError::InterruptReceived => write!(f, "interrupt received"),
         }
     }
 }
