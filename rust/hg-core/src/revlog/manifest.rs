@@ -145,12 +145,11 @@ impl Manifest {
             let middle = bytes.len() / 2;
             // Integer division rounds down, so `middle < len`.
             let (before, after) = bytes.split_at(middle);
-            let is_newline = |&byte: &u8| byte == b'\n';
-            let entry_start = match before.iter().rposition(is_newline) {
+            let entry_start = match memchr::memrchr(b'\n', before) {
                 Some(i) => i + 1,
                 None => 0, // We choose the first entry in `bytes`
             };
-            let entry_end = match after.iter().position(is_newline) {
+            let entry_end = match memchr::memchr(b'\n', after) {
                 Some(i) => {
                     // No `+ 1` here to exclude this newline from the range
                     middle + i
