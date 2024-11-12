@@ -134,10 +134,8 @@ impl SliceExt for [u8] {
     }
 
     fn split_2(&self, separator: u8) -> Option<(&[u8], &[u8])> {
-        let mut iter = self.splitn(2, |&byte| byte == separator);
-        let a = iter.next()?;
-        let b = iter.next()?;
-        Some((a, b))
+        let pos = memchr::memchr(separator, self)?;
+        Some((&self[..pos], &self[pos + 1..]))
     }
 
     fn split_2_by_slice(&self, separator: &[u8]) -> Option<(&[u8], &[u8])> {
