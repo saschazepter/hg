@@ -1566,6 +1566,15 @@ class RustExtension(Extension):
 
             env['HOME'] = pwd.getpwuid(os.getuid()).pw_dir
 
+        # Wildy shooting in the dark to make sure rust-cpython use the right
+        # python
+        if not sys.executable:
+            msg = "Cannot determine which Python to compile Rust for"
+            raise RustCompilationError(msg)
+        env['PYTHON_SYS_EXECUTABLE'] = sys.executable
+        env['PYTHONEXECUTABLE'] = sys.executable
+        env['PYTHON'] = sys.executable
+
         cargocmd = ['cargo', 'rustc', '--release']
 
         rust_features = env.get("HG_RUST_FEATURES")
