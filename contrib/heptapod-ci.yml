@@ -406,7 +406,7 @@ build-c-wheel-windows:
 windows:
     extends: .windows-runtests
     variables:
-        RUNTEST_ARGS: "-j 8"
+        RUNTEST_ARGS: ""
         WHEEL_ARG: "--hg-wheel wheels/win32/mercurial-*-cp39-cp39-win_amd64.whl"
     needs:
       - job: build-c-wheel-windows
