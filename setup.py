@@ -457,16 +457,23 @@ elif os.path.exists('.hg_archival.txt'):
         [[t.strip() for t in l.split(':', 1)] for l in open('.hg_archival.txt')]
     )
     if 'tag' in kw:
-        version = kw['tag']
+        version = _version(tag=kw['tag'])
     elif 'latesttag' in kw:
-        if 'changessincelatesttag' in kw:
-            version = (
-                '%(latesttag)s+hg%(changessincelatesttag)s.%(node).12s' % kw
-            )
-        else:
-            version = '%(latesttag)s+hg%(latesttagdistance)s.%(node).12s' % kw
+        distance = int(kw.get('changessincelatesttag', kw['latesttagdistance']))
+        version = _version(
+            tag=kw['latesttag'],
+            branch=kw['branch'],
+            changes_since=distance,
+            hgid=kw['node'][:12],
+        )
     else:
-        version = '0+hg' + kw.get('node', '')[:12]
+        version = _version(
+            tag='0',
+            branch='unknown-source',
+            changes_since=1,
+            hgid=kw.get('node', 'unknownid')[:12],
+            dirty=True,
+        )
 elif os.path.exists('mercurial/__version__.py'):
     with open('mercurial/__version__.py') as f:
         data = f.read()
