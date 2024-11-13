@@ -414,7 +414,6 @@ def _try_get_version():
         #   Y is the number of extra revision compared to the tag. So that
         #   revision with more change are "above" previous ones.
         # - '+hg.NODEID.local.DATE' if there is any uncommitted changes.
-        ltag = ltag.replace('6.9', '6.9.0')
         version = '%s.post%d.dev%d+hg.%s' % (ltag, post_nb, changessince, hgid)
     if version.endswith('+'):
         version = version[:-1] + '.local.' + time.strftime('%Y%m%d')
