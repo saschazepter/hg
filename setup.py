@@ -1833,11 +1833,6 @@ if py2exeloaded:
 if os.environ.get('PYOXIDIZER'):
     hgbuild.sub_commands.insert(0, ('build_hgextindex', None))
 
-if os.name == 'nt':
-    # Windows binary file versions for exe/dll files must have the
-    # form W.X.Y.Z, where W,X,Y,Z are numbers in the range 0..65535
-    setupversion = setupversion.split(r'+', 1)[0]
-
 setup(
     version=setupversion,
     long_description=(
