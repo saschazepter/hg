@@ -63,8 +63,7 @@ variables:
     - test -n "$WHEEL_TYPE"
     - echo $FLAVOR
     - mkdir -p wheels/$PLATFORM/$WHEEL_TYPE/$BUILD_PY_ID
-    - /opt/python/$BUILD_PY_ID/bin/python setup.py bdist_wheel --dist-dir tmp-wheelhouse
-    - auditwheel repair tmp-wheelhouse/*.whl -w wheels/$PLATFORM/$WHEEL_TYPE/$BUILD_PY_ID
+    - contrib/build-one-linux-wheel.sh $BUILD_PY_ID wheels/$PLATFORM/$WHEEL_TYPE/$BUILD_PY_ID
   artifacts:
     paths:
       - wheels/
