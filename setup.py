@@ -375,9 +375,7 @@ def _try_get_version():
         eprint(r"/!\ Failed to retrieve current revision tags")
         return ''
     if numerictags:  # tag(s) found
-        version = numerictags[-1]
-        if hgid.endswith('+'):  # propagate the dirty status to the tag
-            version += '+'
+        return _version(tag=numerictags[-1], dirty=hgid.endswith('+'))
     else:  # no tag found on the checked out revision
         ltagcmd = ['log', '--rev', 'wdir()', '--template', '{latesttag}']
         ltag = sysstr(hg.run(ltagcmd))
@@ -397,6 +395,26 @@ def _try_get_version():
         ]
         changessince = len(hg.run(changessincecmd).splitlines())
         branch = hg.run(["branch"]).strip()
+        return _version(
+            tag=ltag,
+            branch=branch,
+            hgid=hgid.rstrip('+'),
+            changes_since=changessince,
+            dirty=hgid.endswith('+'),
+        )
+
+
+def _version(
+    tag: str,
+    branch: str = '',
+    hgid: str = '',
+    changes_since: int = 0,
+    dirty: bool = False,
+):
+    """compute a version number from available information"""
+    version = tag
+    if changes_since > 0:
+        assert branch
         if branch == b'stable':
             post_nb = 0
         elif branch == b'default':
@@ -407,6 +425,8 @@ def _try_get_version():
             # what is this branch ? probably a local variant ?
             post_nb = 2
 
+        assert hgid
+
         # logic of the scheme
         # - '.postX' to mark the version as "above" the tagged version
         #   X is 0 for stable, 1 for default, 2 for anything else
@@ -414,8 +434,8 @@ def _try_get_version():
         #   Y is the number of extra revision compared to the tag. So that
         #   revision with more change are "above" previous ones.
         # - '+hg.NODEID.local.DATE' if there is any uncommitted changes.
-        version = '%s.post%d.dev%d+hg.%s' % (ltag, post_nb, changessince, hgid)
-    if version.endswith('+'):
+        version += '.post%d.dev%d+hg.%s' % (post_nb, changes_since, hgid)
+    if dirty:
         version = version[:-1] + '.local.' + time.strftime('%Y%m%d')
     # try to give warning early about bad version if possible
     try:
