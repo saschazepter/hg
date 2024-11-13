@@ -113,6 +113,7 @@ trigger-nightly-build:
     expire_in: 1 week
 
 
+# build linux wheel for amd64
 build-c-wheel:
   extends: .build-wheel
   variables:
@@ -189,6 +190,52 @@ build-c-wheel-i686-musl:
   - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
     needs:
       - "trigger-wheel-i686-musl"
+
+trigger-wheel-arm64:
+  extends: .trigger
+  stage: build
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    when: never
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    when: manual
+    allow_failure: true
+
+build-c-wheel-arm64:
+  extends: build-c-wheel
+  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-arm64-c:v3.0"
+  tags:
+    - arm64
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    needs:
+      - trigger-nightly-build
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    needs:
+      - "trigger-wheel-arm64"
+
+trigger-wheel-arm64-musl:
+  extends: .trigger
+  stage: build
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    when: never
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    when: manual
+    allow_failure: true
+
+build-c-wheel-arm64-musl:
+  extends: build-c-wheel
+  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-arm64-musl-c:v3.0"
+  tags:
+    - arm64
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    needs:
+      - trigger-nightly-build
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    needs:
+      - "trigger-wheel-arm64-musl"
 
 .runtests:
     extends: .all
@@ -642,11 +689,13 @@ upload-wheel-nightly:
   interruptible: false
   needs:
     - build-c-wheel
-    - build-c-wheel-macos
-    - build-c-wheel-windows
     - build-c-wheel-musl
     - build-c-wheel-i686
     - build-c-wheel-i686-musl
+    - build-c-wheel-arm64
+    - build-c-wheel-arm64-musl
+    - build-c-wheel-macos
+    - build-c-wheel-windows
     - test-result-linux
     - test-result-macos
     - test-result-windows
