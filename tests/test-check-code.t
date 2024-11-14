@@ -93,5 +93,6 @@ Keep python3 tests sorted:
 Keep Windows line endings in check
 
   $ testrepohg files 'set:eol(dos)'
+  contrib/packaging/build-windows-wheels.bat
   contrib/win32/hg.bat
   contrib/win32/mercurial.ini
