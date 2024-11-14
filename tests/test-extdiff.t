@@ -167,6 +167,7 @@ Test gui tool error:
   [255]
 #endif
 
+#if gui
 Test --per-file option for gui tool:
 
   $ DISPLAY=fake hg --config extdiff.gui.alabalaf=True alabalaf -c 6 --per-file --debug
@@ -198,6 +199,7 @@ Test --per-file option for gui tool again:
   running '* diffing * *' in * (backgrounded) (glob)
   cleaning up temp directory
   [1]
+#endif
 
 Test --per-file and --confirm options:
 
