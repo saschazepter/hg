@@ -375,9 +375,7 @@ def _try_get_version():
         eprint(r"/!\ Failed to retrieve current revision tags")
         return ''
     if numerictags:  # tag(s) found
-        version = numerictags[-1]
-        if hgid.endswith('+'):  # propagate the dirty status to the tag
-            version += '+'
+        return _version(tag=numerictags[-1], dirty=hgid.endswith('+'))
     else:  # no tag found on the checked out revision
         ltagcmd = ['log', '--rev', 'wdir()', '--template', '{latesttag}']
         ltag = sysstr(hg.run(ltagcmd))
@@ -396,9 +394,59 @@ def _try_get_version():
             "only(parents(),'%s')" % ltag,
         ]
         changessince = len(hg.run(changessincecmd).splitlines())
-        version = '%s+hg%s.%s' % (ltag, changessince, hgid)
-    if version.endswith('+'):
-        version = version[:-1] + 'local' + time.strftime('%Y%m%d')
+        branch = hg.run(["branch"]).strip()
+        return _version(
+            tag=ltag,
+            branch=branch,
+            hgid=hgid.rstrip('+'),
+            changes_since=changessince,
+            dirty=hgid.endswith('+'),
+        )
+
+
+def _version(
+    tag: str,
+    branch: str = '',
+    hgid: str = '',
+    changes_since: int = 0,
+    dirty: bool = False,
+):
+    """compute a version number from available information"""
+    version = tag
+    if changes_since > 0:
+        assert branch
+        if branch == b'stable':
+            post_nb = 0
+        elif branch == b'default':
+            # we use 1 here to be greater than 0 to make sure change from
+            # default are considered newer than change on stable
+            post_nb = 1
+        else:
+            # what is this branch ? probably a local variant ?
+            post_nb = 2
+
+        assert hgid
+
+        # logic of the scheme
+        # - '.postX' to mark the version as "above" the tagged version
+        #   X is 0 for stable, 1 for default, 2 for anything else
+        # - use '.devY'
+        #   Y is the number of extra revision compared to the tag. So that
+        #   revision with more change are "above" previous ones.
+        # - '+hg.NODEID.local.DATE' if there is any uncommitted changes.
+        version += '.post%d.dev%d+hg.%s' % (post_nb, changes_since, hgid)
+    if dirty:
+        version = version[:-1] + '.local.' + time.strftime('%Y%m%d')
+    # try to give warning early about bad version if possible
+    try:
+        from packaging.version import Version
+
+        Version(version)
+    except ImportError:
+        pass
+    except ValueError as exc:
+        eprint(r"/!\ generated version is invalid")
+        eprint(r"/!\ error: %s" % exc)
     return version
 
 
@@ -409,16 +457,23 @@ elif os.path.exists('.hg_archival.txt'):
         [[t.strip() for t in l.split(':', 1)] for l in open('.hg_archival.txt')]
     )
     if 'tag' in kw:
-        version = kw['tag']
+        version = _version(tag=kw['tag'])
     elif 'latesttag' in kw:
-        if 'changessincelatesttag' in kw:
-            version = (
-                '%(latesttag)s+hg%(changessincelatesttag)s.%(node).12s' % kw
-            )
-        else:
-            version = '%(latesttag)s+hg%(latesttagdistance)s.%(node).12s' % kw
+        distance = int(kw.get('changessincelatesttag', kw['latesttagdistance']))
+        version = _version(
+            tag=kw['latesttag'],
+            branch=kw['branch'],
+            changes_since=distance,
+            hgid=kw['node'][:12],
+        )
     else:
-        version = '0+hg' + kw.get('node', '')[:12]
+        version = _version(
+            tag='0',
+            branch='unknown-source',
+            changes_since=1,
+            hgid=kw.get('node', 'unknownid')[:12],
+            dirty=True,
+        )
 elif os.path.exists('mercurial/__version__.py'):
     with open('mercurial/__version__.py') as f:
         data = f.read()
@@ -464,6 +519,14 @@ class hgbuildmo(build):
     description = "build translations (.mo files)"
 
     def run(self):
+        result = self._run()
+        if (
+            not result
+            and os.environ.get('MERCURIAL_SETUP_FORCE_TRANSLATIONS') == '1'
+        ):
+            raise DistutilsExecError("failed to build translations")
+
+    def _run(self):
         try:
             from shutil import which as find_executable
         except ImportError:
@@ -475,12 +538,12 @@ class hgbuildmo(build):
                 "could not find msgfmt executable, no translations "
                 "will be built"
             )
-            return
+            return False
 
         podir = 'i18n'
         if not os.path.isdir(podir):
             self.warn("could not find %s/ directory" % podir)
-            return
+            return False
 
         join = os.path.join
         for po in os.listdir(podir):
@@ -496,6 +559,7 @@ class hgbuildmo(build):
                 cmd.append('-c')
             self.mkpath(join('mercurial', modir))
             self.make_file([pofile], mobuildfile, spawn, (cmd,))
+        return True
 
 
 class hgdist(Distribution):
@@ -1502,6 +1566,15 @@ class RustExtension(Extension):
 
             env['HOME'] = pwd.getpwuid(os.getuid()).pw_dir
 
+        # Wildy shooting in the dark to make sure rust-cpython use the right
+        # python
+        if not sys.executable:
+            msg = "Cannot determine which Python to compile Rust for"
+            raise RustCompilationError(msg)
+        env['PYTHON_SYS_EXECUTABLE'] = sys.executable
+        env['PYTHONEXECUTABLE'] = sys.executable
+        env['PYTHON'] = sys.executable
+
         cargocmd = ['cargo', 'rustc', '--release']
 
         rust_features = env.get("HG_RUST_FEATURES")
@@ -1759,11 +1832,6 @@ if py2exeloaded:
 
 if os.environ.get('PYOXIDIZER'):
     hgbuild.sub_commands.insert(0, ('build_hgextindex', None))
-
-if os.name == 'nt':
-    # Windows binary file versions for exe/dll files must have the
-    # form W.X.Y.Z, where W,X,Y,Z are numbers in the range 0..65535
-    setupversion = setupversion.split(r'+', 1)[0]
 
 setup(
     version=setupversion,
