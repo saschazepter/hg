@@ -2054,9 +2054,14 @@ def _update(
             repo.hook(b'preupdate', throw=True, parent1=xp1, parent2=xp2)
             # note that we're in the middle of an update
             repo.vfs.write(b'updatestate', p2.hex())
+            num_cpus = (
+                repo.ui.configint(b"worker", b"numcpus", None)
+                if repo.ui.configbool(b"worker", b"enabled")
+                else 1
+            )
             try:
                 updated_count = rust_update_mod.update_from_null(
-                    repo.root, p2.rev()
+                    repo.root, p2.rev(), num_cpus
                 )
             except rust_update_mod.FallbackError:
                 update_from_null_fallback = True

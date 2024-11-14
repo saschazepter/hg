@@ -95,6 +95,7 @@ CACHES_ALL = {
 # (this is a mutable set to let extension update it)
 CACHES_POST_CLONE = CACHES_ALL.copy()
 CACHES_POST_CLONE.discard(CACHE_FILE_NODE_TAGS)
+CACHES_POST_CLONE.discard(CACHE_REV_BRANCH)
 
 
 class ipeerconnection(interfaceutil.Interface):

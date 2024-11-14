@@ -1,8 +1,5 @@
 Setup
 
-  $ PYTHONPATH=$TESTDIR/..:$PYTHONPATH
-  $ export PYTHONPATH
-
   $ cat > $TESTTMP/pretxnchangegroup.sh << EOF
   > #!/bin/sh
   > env | grep -E "^HG_USERVAR_(DEBUG|BYPASS_REVIEW)" | sort

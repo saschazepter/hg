@@ -61,7 +61,6 @@ import re
 import shlex
 import shutil
 import signal
-import site
 import socket
 import subprocess
 import sys
@@ -446,6 +445,18 @@ def getparser():
         "--blacklist",
         action="append",
         help="skip tests listed in the specified blacklist file",
+    )
+    selection.add_argument(
+        "--shard-total",
+        type=int,
+        default=None,
+        help="total number of shard to use (enable sharding)",
+    )
+    selection.add_argument(
+        "--shard-index",
+        type=int,
+        default=None,
+        help="index of this shard [1-N]",
     )
     selection.add_argument(
         "--changed",
@@ -885,6 +896,32 @@ def parseargs(args, parser):
 
     if options.showchannels:
         options.nodiff = True
+
+    if options.shard_total is not None:
+        if options.shard_index is None:
+            parser.error("--shard-total requires --shard-index to be set")
+
+    if options.shard_index is not None:
+        if options.shard_total is None:
+            parser.error("--shard-index requires --shard-total to be set")
+        elif options.shard_index <= 0:
+            msg = "--shard-index must be > 0 (%d)"
+            msg %= options.shard_index
+            parser.error(msg)
+        elif options.shard_index > options.shard_total:
+            msg = (
+                "--shard-index must be <= than --shard-total (%d not in [1,%d])"
+            )
+            msg %= (options.shard_index, options.shard_total)
+            parser.error(msg)
+
+    if options.shard_total is not None and options.order_by_runtime:
+        msg = "cannot use --order-by-runtime when sharding"
+        parser.error(msg)
+
+    if options.shard_total is not None and options.random:
+        msg = "cannot use --random when sharding"
+        parser.error(msg)
 
     return options
 
@@ -3158,7 +3195,11 @@ class TestRunner:
                 import statprof
 
                 statprof.start()
-            result = self._run(testdescs)
+            result = self._run(
+                testdescs,
+                shard_index=options.shard_index,
+                shard_total=options.shard_total,
+            )
             if options.profile_runner:
                 statprof.stop()
                 statprof.display()
@@ -3167,7 +3208,7 @@ class TestRunner:
         finally:
             os.umask(oldmask)
 
-    def _run(self, testdescs):
+    def _run(self, testdescs, shard_index=None, shard_total=None):
         testdir = getcwdb()
         # assume all tests in same folder for now
         if testdescs:
@@ -3268,11 +3309,34 @@ class TestRunner:
 
         else:
             self._installdir = os.path.join(self._hgtmp, b"install")
-            self._bindir = os.path.join(self._installdir, b"bin")
+            if WINDOWS:
+                # The wheel variant will install things in "Scripts".
+                # So we can as well always install things here.
+                self._bindir = os.path.join(self._installdir, b"Scripts")
+            else:
+                self._bindir = os.path.join(self._installdir, b"bin")
             self._hgcommand = b'hg'
 
-            if self.options.wheel:
-                suffix = _sys2bytes(site.USER_SITE[len(site.USER_BASE) + 1 :])
+            if self.options.wheel and not WINDOWS:
+                # pip installing a wheel does not have an --install-lib flag
+                # so we have to guess where the file will be installed.
+                #
+                # In addition, that location is not really stable, so we are
+                # using awful symlink trrick later in `_installhg`
+                v_info = sys.version_info
+                suffix = os.path.join(
+                    b"lib",
+                    b"python%d.%d" % (v_info.major, v_info.minor),
+                    b"site-packages",
+                )
+            elif self.options.wheel and WINDOWS:
+                # for some reason, Windows use an even different scheme:
+                #
+                # <prefix>/lib/site-packages/
+                suffix = os.path.join(
+                    b"lib",
+                    b"site-packages",
+                )
             else:
                 suffix = os.path.join(b"lib", b"python")
             self._pythondir = os.path.join(self._installdir, suffix)
@@ -3281,7 +3345,13 @@ class TestRunner:
         # a python script and feed it to python.exe.  Legacy stdio is force
         # enabled by hg.exe, and this is a more realistic way to launch hg
         # anyway.
-        if WINDOWS and not self._hgcommand.endswith(b'.exe'):
+        #
+        # We do not do it when using wheels and they do not install a .exe.
+        if (
+            WINDOWS
+            and not self.options.wheel
+            and not self._hgcommand.endswith(b'.exe')
+        ):
             self._hgcommand += b'.exe'
 
         real_hg = os.path.join(self._bindir, self._hgcommand)
@@ -3444,6 +3514,14 @@ class TestRunner:
             _bytes2sys(osenvironb[IMPL_PATH]),
         )
         vlog("# Writing to directory", _bytes2sys(self._outputdir))
+
+        if shard_total is not None:
+            slot = shard_index - 1
+            testdescs = [
+                t
+                for (idx, t) in enumerate(testdescs)
+                if (idx % shard_total == slot)
+            ]
 
         try:
             return self._runtests(testdescs) or 0
@@ -3720,10 +3798,7 @@ class TestRunner:
     def _usecorrectpython(self):
         """Configure the environment to use the appropriate Python in tests."""
         # Tests must use the same interpreter as us or bad things will happen.
-        if WINDOWS:
-            pyexe_names = [b'python', b'python3', b'python.exe']
-        else:
-            pyexe_names = [b'python', b'python3']
+        pyexe_names = [b'python', b'python3']
 
         # os.symlink() is a thing with py3 on Windows, but it requires
         # Administrator rights.
@@ -3764,7 +3839,8 @@ class TestRunner:
                     f.write(b'%s "$@"\n' % esc_executable)
 
             if WINDOWS:
-                # adjust the path to make sur the main python finds it own dll
+                # adjust the path to make sur the main python finds itself and
+                # its own dll
                 path = os.environ['PATH'].split(os.pathsep)
                 main_exec_dir = os.path.dirname(sysexecutable)
                 extra_paths = [_bytes2sys(self._custom_bin_dir), main_exec_dir]
@@ -3826,16 +3902,12 @@ class TestRunner:
             wheel_path,
             b"--force",
             b"--ignore-installed",
-            b"--user",
-            b"--break-system-packages",
+            b"--prefix",
+            self._installdir,
         ]
         if not WINDOWS:
-            # The --home="" trick works only on OS where os.sep == '/'
-            # because of a distutils convert_path() fast-path. Avoid it at
-            # least on Windows for now, deal with .pydistutils.cfg bugs
-            # when they happen.
-            # cmd.append(b"--global-option=--home=")
-            pass
+            # windows does not have this flag apparently.
+            cmd.append(b"--break-system-packages")
 
         return cmd
 
@@ -3909,14 +3981,18 @@ class TestRunner:
             install_env.pop('HGWITHRUSTEXT', None)
 
         # setuptools requires install directories to exist.
-        def makedirs(p):
-            try:
-                os.makedirs(p)
-            except FileExistsError:
-                pass
-
-        makedirs(self._pythondir)
-        makedirs(self._bindir)
+        os.makedirs(self._pythondir, exist_ok=True)
+        os.makedirs(self._bindir, exist_ok=True)
+        if self.options.wheel is not None and not WINDOWS:
+            # the wheel instalation location is not stable, so try to deal with
+            # that to funnel it back where we need its.
+            #
+            # (mostly deals with Debian shenanigans)
+            assert self._pythondir.endswith(b'site-packages')
+            lib_dir = os.path.dirname(self._pythondir)
+            dist_dir = os.path.join(lib_dir, b'dist-packages')
+            os.symlink(b'./site-packages', dist_dir)
+            os.symlink(b'.', os.path.join(self._installdir, b'local'))
 
         vlog("# Running", cmd)
         with open(installerrs, "wb") as logfile:

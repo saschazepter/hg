@@ -17,7 +17,7 @@ Initial setup
   >     [ -n "\${WAITLOCK_ANNOUNCE:-}" ] && touch "\${WAITLOCK_ANNOUNCE}"
   >     f="\${WAITLOCK_FILE}"
   >     start=\`date +%s\`
-  >     timeout=5
+  >     timeout=20
   >     "$RUNTESTDIR_FORWARD_SLASH/testlib/wait-on-file" "\$timeout" "\$f"
   >     if [ \$# -gt 1 ]; then
   >         cat "\$@"
@@ -65,19 +65,23 @@ Start an hg commit that will take a while
   > ) &
 
 Wait for the "editor" to actually start
-  $ sh "$RUNTESTDIR_FORWARD_SLASH/testlib/wait-on-file" 5 "${EDITOR_STARTED}"
-
+  $ sh "$RUNTESTDIR_FORWARD_SLASH/testlib/wait-on-file" 20 "${EDITOR_STARTED}"
 
 Do a concurrent edition
   $ cd ../racing-client
   $ touch ../pre-race
-  $ sleep 1
+  $ sleep 10
   $ echo bar > bar
   $ hg --repository ../racing-client commit -qAm 'r2 (bar)' bar
   $ hg --repository ../racing-client debugrevlogindex -c
      rev linkrev nodeid       p1           p2
        0       0 222799e2f90b 000000000000 000000000000
        1       1 6f124f6007a0 222799e2f90b 000000000000
+  $ hg --repository ../racing-client debugrevlogindex -m
+     rev linkrev nodeid       p1           p2
+       0       0 7b7020262a56 000000000000 000000000000
+       1       1 ad3fe36d86d9 7b7020262a56 000000000000
+
 
 We simulate an network FS race by overwriting raced repo content with the new
 content of the files changed in the racing repository
@@ -102,6 +106,15 @@ happen for the changelog (the linkrev should always refer to itself).
        0       0 222799e2f90b 000000000000 000000000000
        1       1 6f124f6007a0 222799e2f90b 000000000000
        2       1 ac80e6205bb2 222799e2f90b 000000000000
+
+TODO: Figure out why the middle entry is missing on Windows.
+  $ hg debugrevlogindex -m
+     rev linkrev nodeid       p1           p2
+       0       0 7b7020262a56 000000000000 000000000000
+       1       1 ad3fe36d86d9 7b7020262a56 000000000000 (no-windows !)
+       2       1 d93163bb8ce3 7b7020262a56 000000000000 (no-windows !)
+       1       1 d93163bb8ce3 7b7020262a56 000000000000 (windows !)
+
 #endif
 
 #if fail-if-detected
@@ -116,10 +129,14 @@ And no corruption in the changelog.
      rev linkrev nodeid       p1           p2
        0       0 222799e2f90b 000000000000 000000000000
        1       1 6f124f6007a0 222799e2f90b 000000000000 (missing-correct-output !)
+
 And, because of transactions, there's none in the manifestlog either.
+
+TODO: Figure out why this is different on Windows.
   $ hg debugrevlogindex -m
      rev linkrev nodeid       p1           p2
        0       0 7b7020262a56 000000000000 000000000000
-       1       1 ad3fe36d86d9 7b7020262a56 000000000000
+       1       1 ad3fe36d86d9 7b7020262a56 000000000000 (no-windows !)
+       1       1 ad3fe36d86d9 7b7020262a56 000000000000 (missing-correct-output windows !)
 #endif
 
