@@ -31,6 +31,14 @@ stages:
 image: registry.heptapod.net/mercurial/ci-images/mercurial-core:$HG_CI_IMAGE_TAG
 
 variables:
+    # to debug use:
+    #
+    #   RE_BRANCH: '/^topic/.+/.+$/'
+    #   RE_TOPIC: '/^xxx/'
+    #
+    # Instead of the two following lines:
+    RE_BRANCH: '/^branch/.+$/'
+    RE_TOPIC: '/^topic/.+/.+$/'
     PYTHON: python
     HG_CI_IMAGE_TAG: "v2.1"
     # a directory dedicated to creating files and temporary clone
@@ -480,7 +488,7 @@ upload-wheel-nightly:
   # because we don't want to upload only half of a wheel
   interruptible: false
   rules:
-    - if: $CI_COMMIT_BRANCH =~ /^branch\/.*/
+    - if: '$CI_COMMIT_BRANCH =~ $RE_BRANCH'
       # note that at the time of writing this, this job depends on multiple
       # manual one. So it will not run by default, but will automatically run
       # if the manual jobs are triggered.
@@ -489,7 +497,7 @@ upload-wheel-nightly:
       # directly depends on. This currently relevant for the "test-3.x-c"
       # tests.
       when: on_success
-    - if: $CI_COMMIT_BRANCH =~ /^topic\/.*/
+    - if: '$CI_COMMIT_BRANCH =~ $RE_TOPIC'
       when: never
       # if you need to test this, make it
       # when: manual
