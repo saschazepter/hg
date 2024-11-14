@@ -45,8 +45,10 @@ help:
 	@echo 'linux-wheels'
 	@echo '   Build Linux manylinux wheels using Docker.'
 	@echo ''
-	@echo 'linux-wheels-{x86_64, i686}'
+	@echo 'linux-wheels-{x86_64, i686}{,-musl}'
 	@echo '   Build Linux manylinux wheels for a specific architecture using Docker'
+	@echo '   The -musl variants is suitable for system using "musl" instead of "glibc",
+	@echo '   for example: Alpine linux.'
 	@echo ''
 	@echo 'deb'
 	@echo '   Build a Debian package locally targeting the current system'
@@ -125,8 +127,7 @@ endef
 $(foreach release,$(RHEL_RELEASES),$(eval $(call rhel_targets,$(release))))
 
 .PHONY: linux-wheels
-linux-wheels: linux-wheels-x86_64
-
+linux-wheels: linux-wheels-x86_64 linux-wheels-x86_64-musl
 
 img_reg="registry.heptapod.net/mercurial/ci-images"
 img_tag="v3.0"
@@ -135,6 +136,10 @@ whl_sh="/src/contrib/packaging/build-linux-wheels.sh"
 .PHONY: linux-wheels-x86_64
 linux-wheels-x86_64:
 	docker run --rm -ti -v `pwd`/../..:/src $(img_reg)/core-wheel-x86_64-c:$(img_tag) $(whl_sh)
+
+.PHONY: linux-wheels-x86_64-musl
+linux-wheels-x86_64-musl:
+	docker run --rm -ti -v `pwd`/../..:/src $(img_reg)/core-wheel-x86_64-musl-c:$(img_tag) $(whl_sh)
 
 .PHONY: linux-wheels-i686
 linux-wheels-i686:

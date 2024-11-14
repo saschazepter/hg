@@ -226,6 +226,7 @@ packaging_targets := \
   fedora \
   linux-wheels \
   linux-wheels-x86_64 \
+  linux-wheels-x86_64-musl \
   linux-wheels-i686 \
   ppa
 
