@@ -20,6 +20,7 @@ workflow:
       when: always
 
 stages:
+  - nightly-trigger
   - build
   - checks
   - tests
@@ -79,6 +80,17 @@ variables:
     - .dummy
   when: manual
 
+
+trigger-nightly-build:
+  extends: .trigger
+  stage: nightly-trigger
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+      when: manual
+      allow_failure: true
+    - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+      when: never
+
 .build-wheel:
   extends: .all
   image: "registry.heptapod.net/mercurial/ci-images/core-wheel-x86_64-c:v3.0"
@@ -99,6 +111,7 @@ variables:
     paths:
       - wheels/
     expire_in: 1 week
+
 
 build-c-wheel:
   extends: .build-wheel
@@ -239,12 +252,18 @@ test-chg:
 trigger-pycompat:
   extends: .trigger
   stage: py-version-compat
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    when: on_success
+    needs:
+      - trigger-nightly-build
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    when: manual
+    allow_failure: true
 
 .test-c-pycompat:
     extends: .test-c
     stage: py-version-compat
-    needs:
-      - trigger-pycompat
     variables:
         WHEEL_TYPE: "c"
 
@@ -256,6 +275,7 @@ test-3.8-c:
     variables:
         PYTHON: python3.8
     needs:
+      - job: trigger-pycompat
       - job: build-c-wheel
         parallel:
           matrix:
@@ -266,6 +286,7 @@ test-3.12-c:
     variables:
         PYTHON: python3.12
     needs:
+      - job: trigger-pycompat
       - job: build-c-wheel
         parallel:
           matrix:
@@ -284,6 +305,7 @@ test-3.13-c:
     variables:
         PYTHON: python3.13
     needs:
+      - job: trigger-pycompat
       - job: build-c-wheel
         parallel:
           matrix:
@@ -333,6 +355,12 @@ check-pytype:
 trigger-wheel-windows:
   extends: .trigger
   stage: build
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    when: never
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    when: manual
+    allow_failure: true
 
 build-c-wheel-windows:
     extends: .windows
@@ -340,7 +368,13 @@ build-c-wheel-windows:
     # wait for someone to click on "trigger-wheel-windows"
     when: on_success
     needs:
-      - "trigger-wheel-windows"
+    rules:
+    - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+      needs:
+        - trigger-nightly-build
+    - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+      needs:
+        - "trigger-wheel-windows"
     variables:
       MERCURIAL_SETUP_FORCE_TRANSLATIONS: "1"
     script:
@@ -458,7 +492,13 @@ macos:
 # The weird directory structure match the one we use for Linux to deal with the
 # multiple jobs. (all this might be unnecessary)
 build-c-wheel-macos:
-    when: manual  # avoid overloading the CI by default
+    rules:
+    - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+      needs:
+        - trigger-nightly-build
+    - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+      when: manual  # avoid overloading the CI by default
+      allow_failure: true
     stage: build
     tags:
       - macos
@@ -494,9 +534,6 @@ build-c-wheel-macos:
       when: on_success
     - if: '$CI_COMMIT_BRANCH =~ $RE_TOPIC'
       when: never
-      # if you need to test this, make it
-      # when: manual
-      # allow_failure: true
 
 # a dummy job that gather greatly parallel object into one.
 #
@@ -505,10 +542,10 @@ build-c-wheel-macos:
 #
 .sink:
   extends:
-    - .nightly_build_sink
+    - .nightly_build_step
     - .dummy
 
-linux-test-result:
+test-result-linux:
   extends: .sink
   needs:
     - test-c
@@ -516,12 +553,12 @@ linux-test-result:
     - test-3.12-c
     - test-3.13-c
 
-macos-test-result:
+test-result-macos:
   extends: .sink
   needs:
     - macos
 
-windows-test-result:
+test-result-windows:
   extends: .sink
   needs:
     - windows
@@ -544,9 +581,9 @@ upload-wheel-nightly:
     - build-c-wheel
     - build-c-wheel-macos
     - build-c-wheel-windows
-    - linux-test-result
-    - macos-test-result
-    - windows-test-result
+    - test-result-linux
+    - test-result-macos
+    - test-result-windows
   # It would be nice to be able to restrict that a bit to protected branch only
   variables:
     TWINE_USERNAME: gitlab-ci-token
