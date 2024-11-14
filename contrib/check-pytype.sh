@@ -68,6 +68,13 @@ pytype --version
 
 # TODO: include hgext and hgext3rd
 
+# use ts to produce some timing if available
+if ! command -v ts; then
+    ts() {
+        cat
+    }
+fi
+
 pytype --keep-going --jobs auto \
     doc/check-seclevel.py hgdemandimport hgext mercurial \
     -x hgext/absorb.py \
@@ -116,7 +123,8 @@ pytype --keep-going --jobs auto \
     -x mercurial/testing/storage.py \
     -x mercurial/thirdparty \
     -x mercurial/win32.py \
-    -x mercurial/wireprotov1server.py
+    -x mercurial/wireprotov1server.py \
+    | ts -i "(%.s)" | ts -s "%.s"
 
 if find .pytype/pyi -name '*.pyi' | xargs grep -ql '# Caught error'; then
     echo 'pytype crashed while generating the following type stubs:'
