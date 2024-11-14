@@ -56,6 +56,17 @@ variables:
   # starting.
   needs: []
 
+# dummy job that serve dependencies purpose
+.dummy:
+  # smallest I know of
+  image: busybox
+  variables:
+    GIT_STRATEGY: none
+    CI_CLEVER_CLOUD_FLAVOR: "XS"
+  script:
+    - echo 'nothing to see here'
+
+
 # a dummy job that only serve to trigger others
 #
 # This is useful for two reasons:
@@ -63,15 +74,10 @@ variables:
 # - manual starting job cannot make the pipeline "fails" and block a merge,
 #   while "on_success" job depending on manual trigger works fine in that regard.
 .trigger:
-  extends: .all
-  # smallest I know of
-  image: busybox
+  extends:
+    - .all
+    - .dummy
   when: manual
-  variables:
-    GIT_STRATEGY: none
-    CI_CLEVER_CLOUD_FLAVOR: "XS"
-  script:
-    - echo 'nothing to see here'
 
 .build-wheel:
   extends: .all
@@ -472,21 +478,10 @@ build-c-wheel-macos:
         - wheels
       expire_in: 1 week
 
-# Upload nightly build wheel on the heptapod registry on test success
-#
-# At the time this task is added, since the mac wheels are built on shell
-# runner, those nightly are not be considered fully secured.
-#
-# In addition, since any job can upload package, pretty much anyone with CI
-# access can upload anything pretending to be any version. To fix it we would
-# have to prevent the CI token to upload to the registry and have dedicated
-# credential accessible only from protected branches.
-upload-wheel-nightly:
+
+.nightly_build_step:
   extends: .all
-  image: "registry.heptapod.net/mercurial/ci-images/twine:v3.0"
   stage: upload
-  # because we don't want to upload only half of a wheel
-  interruptible: false
   rules:
     - if: '$CI_COMMIT_BRANCH =~ $RE_BRANCH'
       # note that at the time of writing this, this job depends on multiple
@@ -502,18 +497,56 @@ upload-wheel-nightly:
       # if you need to test this, make it
       # when: manual
       # allow_failure: true
+
+# a dummy job that gather greatly parallel object into one.
+#
+# It exists because gitlab-ci has a "50 jobs" limit on "needs" entries.
+# (yes, this is sad)
+#
+.sink:
+  extends:
+    - .nightly_build_sink
+    - .dummy
+
+linux-test-result:
+  extends: .sink
+  needs:
+    - test-c
+    - test-3.8-c
+    - test-3.12-c
+    - test-3.13-c
+
+macos-test-result:
+  extends: .sink
+  needs:
+    - macos
+
+windows-test-result:
+  extends: .sink
+  needs:
+    - windows
+
+# Upload nightly build wheel on the heptapod registry on test success
+#
+# At the time this task is added, since the mac wheels are built on shell
+# runner, those nightly are not be considered fully secured.
+#
+# In addition, since any job can upload package, pretty much anyone with CI
+# access can upload anything pretending to be any version. To fix it we would
+# have to prevent the CI token to upload to the registry and have dedicated
+# credential accessible only from protected branches.
+upload-wheel-nightly:
+  extends: .nightly_build_step
+  image: "registry.heptapod.net/mercurial/ci-images/twine:v3.0"
+  # because we don't want to upload only half of a wheel
+  interruptible: false
   needs:
     - build-c-wheel
     - build-c-wheel-macos
     - build-c-wheel-windows
-    - test-c
-    - macos
-    # if we also requires windows to be happy, reach the "50 needed jobs" limit.
-    # So we need some intermediate job to reduce the number.
-    # - windows
-    - test-3.8-c
-    - test-3.12-c
-    - test-3.13-c
+    - linux-test-result
+    - macos-test-result
+    - windows-test-result
   # It would be nice to be able to restrict that a bit to protected branch only
   variables:
     TWINE_USERNAME: gitlab-ci-token
