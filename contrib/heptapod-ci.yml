@@ -148,6 +148,48 @@ build-c-wheel-musl:
     needs:
       - "trigger-wheel-musl"
 
+trigger-wheel-i686:
+  extends: .trigger
+  stage: build
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    when: never
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    when: manual
+    allow_failure: true
+
+build-c-wheel-i686:
+  extends: build-c-wheel
+  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-i686-c:v3.0"
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    needs:
+      - trigger-nightly-build
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    needs:
+      - "trigger-wheel-i686"
+
+trigger-wheel-i686-musl:
+  extends: .trigger
+  stage: build
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    when: never
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    when: manual
+    allow_failure: true
+
+build-c-wheel-i686-musl:
+  extends: build-c-wheel
+  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-i686-musl-c:v3.0"
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    needs:
+      - trigger-nightly-build
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    needs:
+      - "trigger-wheel-i686-musl"
+
 .runtests:
     extends: .all
     stage: tests
@@ -603,6 +645,8 @@ upload-wheel-nightly:
     - build-c-wheel-macos
     - build-c-wheel-windows
     - build-c-wheel-musl
+    - build-c-wheel-i686
+    - build-c-wheel-i686-musl
     - test-result-linux
     - test-result-macos
     - test-result-windows
