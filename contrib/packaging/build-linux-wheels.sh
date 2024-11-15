@@ -26,13 +26,6 @@ hg purge \
     --ignored \
     --no-confirm
 
-export HGRCPATH=/tmp/build-config.rc
-cat << EOF > $HGRCPATH
-[trusted]
-users=*
-groups=*
-EOF
-
 for py in $PYTHON_TARGETS; do
     echo 'build wheel for' $py
     # cleanup any previous wheel
