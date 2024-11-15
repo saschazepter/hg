@@ -125,7 +125,7 @@ endef
 $(foreach release,$(RHEL_RELEASES),$(eval $(call rhel_targets,$(release))))
 
 .PHONY: linux-wheels
-linux-wheels: linux-wheels-x86_64 linux-wheels-i686
+linux-wheels: linux-wheels-x86_64
 
 .PHONY: linux-wheels-x86_64
 linux-wheels-x86_64:
