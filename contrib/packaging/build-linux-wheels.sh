@@ -26,6 +26,12 @@ hg purge \
     --ignored \
     --no-confirm
 
+
+if [ ! -e /src/dist/ ]; then
+    mkdir -p /src/dist
+    chown `stat /src/ -c %u:%g` /src/dist/
+fi
+
 for py in $PYTHON_TARGETS; do
     echo 'build wheel for' $py
     # cleanup any previous wheel
@@ -36,6 +42,6 @@ for py in $PYTHON_TARGETS; do
     contrib/build-one-linux-wheel.sh $py $tmp_wd
     # fix the owner back to the repository owner
     chown `stat /src/ -c %u:%g` $tmp_wd/*.whl
-    mv $tmp_wd/*.whl /src/dist
+    mv $tmp_wd/*.whl /src/dist/
 done
 
