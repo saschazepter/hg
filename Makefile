@@ -231,7 +231,7 @@ packaging_targets := \
 
 # Forward packaging targets for convenience.
 $(packaging_targets):
-	$(MAKE) -C contrib/packaging $@
+	$(MAKE) -C contrib/packaging $(MAKEFLAGS) $@
 
 osx:
 	rm -rf build/mercurial
