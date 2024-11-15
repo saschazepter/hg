@@ -20,7 +20,11 @@ export MERCURIAL_SETUP_FORCE_TRANSLATIONS=1
 #     therefor not compatible.
 cp -r /src/ /tmp/src/
 cd /tmp/src/
-hg purge --all --no-confirm
+# clear potentially cached artifact from the host
+# (we could narrow this purge probably)
+hg purge \
+    --ignored \
+    --no-confirm
 
 export HGRCPATH=/tmp/build-config.rc
 cat << EOF > $HGRCPATH
