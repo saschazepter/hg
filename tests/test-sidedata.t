@@ -61,10 +61,12 @@ Check that we can upgrade to sidedata
 -------------------------------------
 
   $ hg init up-no-side-data --config experimental.revlogv2=no
-  $ hg debugformat -v -R up-no-side-data | grep -E 'changelog-v2|revlog-v2'
+  $ hg debugformat -v -R up-no-side-data changelog-v2 revlog-v2
+  format-variant     repo config default
   revlog-v2:           no     no      no
   changelog-v2:        no     no      no
-  $ hg debugformat -v -R up-no-side-data --config experimental.revlogv2=enable-unstable-format-and-corrupt-my-data | grep -E 'changelog-v2|revlog-v2'
+  $ hg debugformat -v -R up-no-side-data --config experimental.revlogv2=enable-unstable-format-and-corrupt-my-data changelog-v2 revlog-v2
+  format-variant     repo config default
   revlog-v2:           no    yes      no
   changelog-v2:        no     no      no
   $ hg debugupgraderepo -R up-no-side-data --config experimental.revlogv2=enable-unstable-format-and-corrupt-my-data > /dev/null
@@ -73,10 +75,12 @@ Check that we can downgrade from sidedata
 -----------------------------------------
 
   $ hg init up-side-data --config experimental.revlogv2=enable-unstable-format-and-corrupt-my-data
-  $ hg debugformat -v -R up-side-data | grep -E 'changelog-v2|revlog-v2'
+  $ hg debugformat -v -R up-side-data changelog-v2 revlog-v2
+  format-variant     repo config default
   revlog-v2:          yes     no      no
   changelog-v2:        no     no      no
-  $ hg debugformat -v -R up-side-data --config experimental.revlogv2=no | grep -E 'changelog-v2|revlog-v2'
+  $ hg debugformat -v -R up-side-data --config experimental.revlogv2=no changelog-v2 revlog-v2
+  format-variant     repo config default
   revlog-v2:          yes     no      no
   changelog-v2:        no     no      no
   $ hg debugupgraderepo -R up-side-data --config experimental.revlogv2=no > /dev/null

@@ -1625,12 +1625,20 @@ def debug_repair_issue6528(ui, repo, **opts):
     )
 
 
-@command(b'debugformat', [] + cmdutil.formatteropts)
-def debugformat(ui, repo, **opts):
+@command(
+    b'debugformat',
+    [] + cmdutil.formatteropts,
+    b'[PATTERN] ... [PATTERN]',
+)
+def debugformat(ui, repo, *patterns, **opts):
     """display format information about the current repository
 
     Use --verbose to get extra information about current config value and
-    Mercurial default."""
+    Mercurial default.
+
+    If patterns are specified, only format matching at least one of these
+    pattern will be displayed.
+    """
     maxvariantlength = max(len(fv.name) for fv in upgrade.allformatvariant)
     maxvariantlength = max(len(b'format-variant'), maxvariantlength)
 
@@ -1658,6 +1666,14 @@ def debugformat(ui, repo, **opts):
         fm.plain(b' config default')
     fm.plain(b'\n')
     for fv in upgrade.allformatvariant:
+        if patterns:
+            for p in patterns:
+                # XXX support "re:" at some point
+                if p in fv.name:
+                    break
+            else:
+                # no pattern matches, continue
+                continue
         fm.startitem()
         repovalue = fv.fromrepo(repo)
         configvalue = fv.fromconfig(repo)
