@@ -37,7 +37,8 @@ fn get_umask() -> u32 {
         // setting it? Doesn't this affect all threads in this tiny window?
         let mask = libc::umask(0);
         libc::umask(mask);
-        mask & 0o777
+        #[allow(clippy::useless_conversion)]
+        (mask & 0o777).into()
     })
 }
 
