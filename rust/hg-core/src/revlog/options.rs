@@ -113,7 +113,7 @@ const fn can_populate_mmap() -> bool {
 
 /// There is a of populating mmaps for Windows, but it would need testing.
 #[cfg(not(target_os = "linux"))]
-const fn can_populate_mmap() {
+const fn can_populate_mmap() -> bool {
     false
 }
 
