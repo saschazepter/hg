@@ -61,9 +61,11 @@ Unless the action is compatible with share
   
   no revlogs to process
   
-  $ hg debugformat -R share-child | grep dirstate-v2
+  $ hg debugformat -R share-child dirstate-v2
+  format-variant     repo
   dirstate-v2:        yes
-  $ hg debugformat -R share-parent | grep dirstate-v2
+  $ hg debugformat -R share-parent dirstate-v2
+  format-variant     repo
   dirstate-v2:         no
   $ hg status --all -R share-child
   C nf0
@@ -131,9 +133,11 @@ Unless the action is compatible with share
   
   no revlogs to process
   
-  $ hg debugformat -R share-child | grep dirstate-v2
+  $ hg debugformat -R share-child dirstate-v2
+  format-variant     repo
   dirstate-v2:         no
-  $ hg debugformat -R share-parent | grep dirstate-v2
+  $ hg debugformat -R share-parent dirstate-v2
+  format-variant     repo
   dirstate-v2:         no
   $ hg status --all -R share-child
   C nf0
@@ -1869,7 +1873,8 @@ Demonstrate that nothing to perform upgrade will still run all the way through
 
 Upgrade to dirstate-v2
 
-  $ hg debugformat -v --config format.use-dirstate-v2=1 | grep dirstate-v2
+  $ hg debugformat -v --config format.use-dirstate-v2=1 dirstate-v2
+  format-variant     repo config default
   dirstate-v2:         no    yes      no
   $ hg debugupgraderepo --config format.use-dirstate-v2=1 --run
   upgrade will perform the following actions:
@@ -1892,7 +1897,8 @@ Upgrade to dirstate-v2
   removing temporary repository $TESTTMP/sparserevlogrepo/.hg/upgrade.* (glob)
   $ ls .hg/upgradebackup.*/dirstate
   .hg/upgradebackup.*/dirstate (glob)
-  $ hg debugformat -v | grep dirstate-v2
+  $ hg debugformat -v dirstate-v2
+  format-variant     repo config default
   dirstate-v2:        yes     no      no
   $ hg status
   $ dd bs=12 count=1 if=.hg/dirstate 2> /dev/null
@@ -1916,7 +1922,8 @@ Downgrade from dirstate-v2
   downgrading from dirstate-v2 to v1
   replaced files will be backed up at $TESTTMP/sparserevlogrepo/.hg/upgradebackup.* (glob)
   removing temporary repository $TESTTMP/sparserevlogrepo/.hg/upgrade.* (glob)
-  $ hg debugformat -v | grep dirstate-v2
+  $ hg debugformat -v dirstate-v2
+  format-variant     repo config default
   dirstate-v2:         no     no      no
   $ hg status
 
@@ -1927,7 +1934,8 @@ dirstate-v2: upgrade and downgrade from and empty repository:
 
   $ hg init --config format.use-dirstate-v2=no dirstate-v2-empty
   $ cd dirstate-v2-empty
-  $ hg debugformat | grep dirstate-v2
+  $ hg debugformat dirstate-v2
+  format-variant     repo
   dirstate-v2:         no
 
 upgrade
@@ -1951,7 +1959,8 @@ upgrade
   upgrading to dirstate-v2 from v1
   replaced files will be backed up at $TESTTMP/dirstate-v2-empty/.hg/upgradebackup.* (glob)
   removing temporary repository $TESTTMP/dirstate-v2-empty/.hg/upgrade.* (glob)
-  $ hg debugformat | grep dirstate-v2
+  $ hg debugformat dirstate-v2
+  format-variant     repo
   dirstate-v2:        yes
 
 downgrade
@@ -1972,7 +1981,8 @@ downgrade
   downgrading from dirstate-v2 to v1
   replaced files will be backed up at $TESTTMP/dirstate-v2-empty/.hg/upgradebackup.* (glob)
   removing temporary repository $TESTTMP/dirstate-v2-empty/.hg/upgrade.* (glob)
-  $ hg debugformat | grep dirstate-v2
+  $ hg debugformat dirstate-v2
+  format-variant     repo
   dirstate-v2:         no
 
   $ cd ..
@@ -1993,7 +2003,8 @@ create an initial repository
   $ hg debugbuilddag -R auto-upgrade --new-file .+5
   $ hg -R auto-upgrade update
   6 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg debugformat -R auto-upgrade | grep dirstate-v2
+  $ hg debugformat -R auto-upgrade dirstate-v2
+  format-variant     repo
   dirstate-v2:         no
 
 upgrade it to dirstate-v2 automatically
@@ -2003,7 +2014,8 @@ upgrade it to dirstate-v2 automatically
   >     --config format.use-dirstate-v2=yes
   automatically upgrading repository to the `dirstate-v2` feature
   (see `hg help config.format.use-dirstate-v2` for details)
-  $ hg debugformat -R auto-upgrade | grep dirstate-v2
+  $ hg debugformat -R auto-upgrade dirstate-v2
+  format-variant     repo
   dirstate-v2:        yes
 
 downgrade it from dirstate-v2 automatically
@@ -2013,14 +2025,16 @@ downgrade it from dirstate-v2 automatically
   >     --config format.use-dirstate-v2=no
   automatically downgrading repository from the `dirstate-v2` feature
   (see `hg help config.format.use-dirstate-v2` for details)
-  $ hg debugformat -R auto-upgrade | grep dirstate-v2
+  $ hg debugformat -R auto-upgrade dirstate-v2
+  format-variant     repo
   dirstate-v2:         no
 
 
 For multiple change at the same time
 ------------------------------------
 
-  $ hg debugformat -R auto-upgrade | grep -E '(dirstate-v2|tracked|share-safe)'
+  $ hg debugformat -R auto-upgrade dirstate-v2 tracked share-safe
+  format-variant     repo
   dirstate-v2:         no
   tracked-hint:       yes
   share-safe:          no
@@ -2038,7 +2052,8 @@ For multiple change at the same time
   (see `hg help config.format.use-share-safe` for details)
   automatically downgrading repository from the `tracked-hint` feature
   (see `hg help config.format.use-dirstate-tracked-hint` for details)
-  $ hg debugformat -R auto-upgrade | grep -E '(dirstate-v2|tracked|share-safe)'
+  $ hg debugformat -R auto-upgrade dirstate-v2 tracked share-safe
+  format-variant     repo
   dirstate-v2:        yes
   tracked-hint:        no
   share-safe:         yes
@@ -2047,7 +2062,8 @@ Quiet upgrade and downgrade
 ---------------------------
 
 
-  $ hg debugformat -R auto-upgrade | grep -E '(dirstate-v2|tracked|share-safe)'
+  $ hg debugformat -R auto-upgrade dirstate-v2 tracked share-safe
+  format-variant     repo
   dirstate-v2:        yes
   tracked-hint:        no
   share-safe:         yes
@@ -2062,7 +2078,8 @@ Quiet upgrade and downgrade
   >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories:quiet=yes \
   >     --config format.use-share-safe=no
 
-  $ hg debugformat -R auto-upgrade | grep -E '(dirstate-v2|tracked|share-safe)'
+  $ hg debugformat -R auto-upgrade dirstate-v2 tracked share-safe
+  format-variant     repo
   dirstate-v2:         no
   tracked-hint:       yes
   share-safe:          no
@@ -2077,7 +2094,8 @@ Quiet upgrade and downgrade
   >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories=yes \
   >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories:quiet=yes \
   >     --config format.use-share-safe=yes
-  $ hg debugformat -R auto-upgrade | grep -E '(dirstate-v2|tracked|share-safe)'
+  $ hg debugformat -R auto-upgrade dirstate-v2 tracked share-safe
+  format-variant     repo
   dirstate-v2:        yes
   tracked-hint:        no
   share-safe:         yes
@@ -2092,7 +2110,8 @@ Attempting Auto-upgrade on a read-only repository
   $ hg status -R auto-upgrade \
   >     --config format.use-dirstate-v2.automatic-upgrade-of-mismatching-repositories=yes \
   >     --config format.use-dirstate-v2=no
-  $ hg debugformat -R auto-upgrade | grep dirstate-v2
+  $ hg debugformat -R auto-upgrade dirstate-v2
+  format-variant     repo
   dirstate-v2:        yes
 
   $ chmod -R u+w auto-upgrade
@@ -2107,7 +2126,8 @@ Attempting Auto-upgrade on a locked repository
   $ hg status -R auto-upgrade \
   >     --config format.use-dirstate-v2.automatic-upgrade-of-mismatching-repositories=yes \
   >     --config format.use-dirstate-v2=no
-  $ hg debugformat -R auto-upgrade | grep dirstate-v2
+  $ hg debugformat -R auto-upgrade dirstate-v2
+  format-variant     repo
   dirstate-v2:        yes
 
   $ killdaemons.py

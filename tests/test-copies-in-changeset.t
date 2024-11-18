@@ -32,13 +32,13 @@ Check that copies are recorded correctly
   $ hg init repo
   $ cd repo
 #if sidedata
-  $ hg debugformat -v | grep -E 'format-variant|revlog-v2|copies-sdc|changelog-v2'
+  $ hg debugformat -v format-variant revlog-v2 copies-sdc changelog-v2
   format-variant     repo config default
   copies-sdc:         yes    yes      no
   revlog-v2:           no     no      no
   changelog-v2:       yes    yes      no
 #else
-  $ hg debugformat -v | grep -E 'format-variant|revlog-v2|copies-sdc|changelog-v2'
+  $ hg debugformat -v format-variant revlog-v2 copies-sdc changelog-v2
   format-variant     repo config default
   copies-sdc:          no     no      no
   revlog-v2:           no     no      no
@@ -419,7 +419,7 @@ Test upgrading/downgrading to sidedata storage
 
 downgrading
 
-  $ hg debugformat -v | grep -E 'format-variant|revlog-v2|copies-sdc|changelog-v2'
+  $ hg debugformat -v format-variant revlog-v2 copies-sdc changelog-v2
   format-variant     repo config default
   copies-sdc:         yes    yes      no
   revlog-v2:           no     no      no
@@ -445,7 +445,7 @@ downgrading
   processed revlogs:
     - changelog
   
-  $ hg debugformat -v | grep -E 'format-variant|revlog-v2|copies-sdc|changelog-v2'
+  $ hg debugformat -v format-variant revlog-v2 copies-sdc changelog-v2
   format-variant     repo config default
   copies-sdc:          no     no      no
   revlog-v2:           no     no      no
@@ -470,7 +470,7 @@ upgrading
   processed revlogs:
     - changelog
   
-  $ hg debugformat -v | grep -E 'format-variant|revlog-v2|copies-sdc|changelog-v2'
+  $ hg debugformat -v format-variant revlog-v2 copies-sdc changelog-v2
   format-variant     repo config default
   copies-sdc:         yes    yes      no
   revlog-v2:           no     no      no
