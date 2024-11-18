@@ -37,7 +37,7 @@ from .utils import storageutil
 _CHANGEGROUPV1_DELTA_HEADER = struct.Struct(b"20s20s20s20s")
 _CHANGEGROUPV2_DELTA_HEADER = struct.Struct(b"20s20s20s20s20s")
 _CHANGEGROUPV3_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sH")
-_CHANGEGROUPV4_DELTA_HEADER = struct.Struct(b">B20s20s20s20s20sH")
+_CHANGEGROUPV5_DELTA_HEADER = struct.Struct(b">B20s20s20s20s20sH")
 
 LFS_REQUIREMENT = b'lfs'
 
@@ -484,7 +484,7 @@ class cg1unpacker:
                 requirements.REVLOGV2_REQUIREMENT in repo.requirements
                 or requirements.CHANGELOGV2_REQUIREMENT in repo.requirements
             )
-            and self.version == b'04'
+            and self.version == b'05'
             and srctype == b'pull'
         )
         if adding_sidedata:
@@ -853,15 +853,15 @@ class cg3unpacker(cg2unpacker):
                 raise error.Abort(_(b"received dir revlog group is empty"))
 
 
-class cg4unpacker(cg3unpacker):
-    """Unpacker for cg4 streams.
+class cg5unpacker(cg3unpacker):
+    """Unpacker for cg5 streams.
 
-    cg4 streams add support for exchanging sidedata.
+    cg5 streams add support for exchanging sidedata.
     """
 
-    deltaheader = _CHANGEGROUPV4_DELTA_HEADER
+    deltaheader = _CHANGEGROUPV5_DELTA_HEADER
     deltaheadersize = deltaheader.size
-    version = b'04'
+    version = b'05'
 
     def _deltaheader(self, headertuple, prevnode):
         protocol_flags, node, p1, p2, deltabase, cs, flags = headertuple
@@ -1502,7 +1502,7 @@ class cgpacker:
         size = 0
 
         sidedata_helpers = None
-        if self.version == b'04':
+        if self.version == b'05':
             remote_sidedata = self._remote_sidedata
             if source == b'strip':
                 # We're our own remote when stripping, get the no-op helpers
@@ -1587,7 +1587,7 @@ class cgpacker:
 
         for tree, deltas in it:
             if tree:
-                assert self.version in (b'03', b'04')
+                assert self.version in (b'03', b'05')
                 chunk = _fileheader(tree)
                 size += len(chunk)
                 yield chunk
@@ -2124,7 +2124,7 @@ def _makecg3packer(
     )
 
 
-def _makecg4packer(
+def _makecg5packer(
     repo,
     oldmatcher,
     matcher,
@@ -2138,7 +2138,7 @@ def _makecg4packer(
     # Sidedata is in a separate chunk from the delta to differentiate
     # "raw delta" and sidedata.
     def builddeltaheader(d):
-        return _CHANGEGROUPV4_DELTA_HEADER.pack(
+        return _CHANGEGROUPV5_DELTA_HEADER.pack(
             d.protocol_flags,
             d.node,
             d.p1node,
@@ -2152,7 +2152,7 @@ def _makecg4packer(
         repo,
         oldmatcher,
         matcher,
-        b'04',
+        b'05',
         builddeltaheader=builddeltaheader,
         manifestsend=closechunk(),
         bundlecaps=bundlecaps,
@@ -2170,8 +2170,8 @@ _packermap = {
     b'02': (_makecg2packer, cg2unpacker),
     # cg3 adds support for exchanging revlog flags and treemanifests
     b'03': (_makecg3packer, cg3unpacker),
-    # ch4 adds support for exchanging sidedata
-    b'04': (_makecg4packer, cg4unpacker),
+    # ch5 adds support for exchanging sidedata
+    b'05': (_makecg5packer, cg5unpacker),
 }
 
 
@@ -2193,13 +2193,13 @@ def allsupportedversions(repo):
         needv03 = True
     if not needv03:
         versions.discard(b'03')
-    want_v4 = (
-        repo.ui.configbool(b'experimental', b'changegroup4')
+    want_v5 = (
+        repo.ui.configbool(b'experimental', b'changegroup5')
         or requirements.REVLOGV2_REQUIREMENT in repo.requirements
         or requirements.CHANGELOGV2_REQUIREMENT in repo.requirements
     )
-    if not want_v4:
-        versions.discard(b'04')
+    if not want_v5:
+        versions.discard(b'05')
     return versions
 
 

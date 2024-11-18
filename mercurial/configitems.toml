@@ -815,7 +815,7 @@ default = true
 
 [[items]]
 section = "experimental"
-name = "changegroup4"
+name = "changegroup5"
 default = false
 
 # might remove rank configuration once the computation has no impact
