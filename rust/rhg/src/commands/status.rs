@@ -384,7 +384,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             let working_directory_vfs = repo.working_directory_vfs();
             let store_vfs = repo.store_vfs();
             let revlog_open_options =
-                repo.default_revlog_options(RevlogType::Manifestlog)?;
+                repo.default_revlog_options(RevlogType::Filelog)?;
             let res: Vec<_> = take(&mut ds_status.unsure)
                 .into_par_iter()
                 .map(|to_check| {
