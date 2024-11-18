@@ -1,10 +1,13 @@
 use std::path::PathBuf;
 
+use super::manifest::Manifest;
 use super::options::RevlogOpenOptions;
 use super::path_encode::PathEncoding;
+use crate::dirstate::entry::has_exec_bit;
 use crate::errors::HgError;
 use crate::exit_codes;
 use crate::repo::Repo;
+use crate::revlog::manifest::ManifestFlags;
 use crate::revlog::path_encode::path_encode;
 use crate::revlog::NodePrefix;
 use crate::revlog::Revision;
@@ -12,9 +15,12 @@ use crate::revlog::Revlog;
 use crate::revlog::RevlogEntry;
 use crate::revlog::RevlogError;
 use crate::revlog::REVISION_FLAG_HASMETA;
+use crate::utils::files::get_bytes_from_os_string;
 use crate::utils::files::get_path_from_bytes;
+use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::hg_path::HgPath;
 use crate::utils::strings::SliceExt;
+use crate::vfs::VfsImpl;
 use crate::Graph;
 use crate::GraphError;
 use crate::Node;
@@ -329,6 +335,90 @@ impl<'a> FilelogRevisionMetadata<'a> {
         }
         Ok(fields)
     }
+}
+
+/// Outcome of checking if a file has changed since the last commit
+pub enum FileCompOutcome {
+    /// The file is actually clean
+    Clean,
+    /// The file has been modified
+    Modified,
+    /// The file was deleted on disk (or became another type of fs entry)
+    Deleted,
+}
+
+/// Check if a file is modified by comparing actual repo store and file system.
+pub fn is_file_modified(
+    working_directory_vfs: &VfsImpl,
+    store_vfs: &VfsImpl,
+    check_exec: bool,
+    manifest: &Manifest,
+    hg_path: &HgPath,
+    revlog_open_options: RevlogOpenOptions,
+) -> Result<FileCompOutcome, HgError> {
+    let vfs = working_directory_vfs;
+    let fs_path = hg_path_to_path_buf(hg_path).expect("HgPath conversion");
+    let fs_metadata = vfs.symlink_metadata(&fs_path)?;
+    let is_symlink = fs_metadata.file_type().is_symlink();
+
+    let entry =
+        manifest.find_by_path(hg_path)?.expect("ambgious file not in p1");
+
+    // TODO: Also account for `FALLBACK_SYMLINK` and `FALLBACK_EXEC` from the
+    // dirstate
+    let fs_flags = if is_symlink {
+        ManifestFlags::new_link()
+    } else if check_exec && has_exec_bit(&fs_metadata) {
+        ManifestFlags::new_exec()
+    } else {
+        ManifestFlags::new_empty()
+    };
+
+    let entry_flags = if check_exec {
+        entry.flags
+    } else if entry.flags.is_exec() {
+        ManifestFlags::new_empty()
+    } else {
+        entry.flags
+    };
+
+    if entry_flags != fs_flags {
+        return Ok(FileCompOutcome::Modified);
+    }
+    let filelog = Filelog::open_vfs(store_vfs, hg_path, revlog_open_options)?;
+    let fs_len = fs_metadata.len();
+    let file_node = entry.node_id()?;
+    let filelog_entry = filelog.entry_for_node(file_node).map_err(|_| {
+        HgError::corrupted(format!(
+            "filelog {:?} missing node {:?} from manifest",
+            hg_path, file_node
+        ))
+    })?;
+    if filelog_entry.file_data_len_not_equal_to(fs_len) {
+        // No need to read file contents:
+        // it cannot be equal if it has a different length.
+        return Ok(FileCompOutcome::Modified);
+    }
+
+    let p1_filelog_data = filelog_entry.data()?;
+    let p1_contents = p1_filelog_data.file_data()?;
+    if p1_contents.len() as u64 != fs_len {
+        // No need to read file contents:
+        // it cannot be equal if it has a different length.
+        return Ok(FileCompOutcome::Modified);
+    }
+
+    let fs_contents = if is_symlink {
+        get_bytes_from_os_string(vfs.read_link(fs_path)?.into_os_string())
+    } else {
+        vfs.read(fs_path)?
+    };
+
+    Ok(if p1_contents != &*fs_contents {
+        FileCompOutcome::Modified
+    } else {
+        FileCompOutcome::Clean
+    })
 }
 
 #[cfg(test)]

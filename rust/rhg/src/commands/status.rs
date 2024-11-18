@@ -12,7 +12,6 @@ use std::path::PathBuf;
 use clap::Arg;
 use format_bytes::format_bytes;
 use hg::config::Config;
-use hg::dirstate::entry::has_exec_bit;
 use hg::dirstate::entry::TruncatedTimestamp;
 use hg::dirstate::status::BadMatch;
 use hg::dirstate::status::DirstateStatus;
@@ -28,20 +27,17 @@ use hg::matchers::AlwaysMatcher;
 use hg::matchers::IntersectionMatcher;
 use hg::narrow;
 use hg::repo::Repo;
-use hg::revlog::manifest::Manifest;
-use hg::revlog::manifest::ManifestFlags;
+use hg::revlog::filelog::is_file_modified;
+use hg::revlog::filelog::FileCompOutcome;
 use hg::revlog::options::default_revlog_options;
-use hg::revlog::options::RevlogOpenOptions;
 use hg::revlog::RevisionOrWdir;
 use hg::revlog::RevlogError;
 use hg::revlog::RevlogType;
 use hg::sparse;
 use hg::utils::debug::debug_wait_for_file;
 use hg::utils::files::get_bytes_from_os_str;
-use hg::utils::files::get_bytes_from_os_string;
 use hg::utils::files::get_path_from_bytes;
 use hg::utils::hg_path::hg_path_to_path_buf;
-use hg::utils::hg_path::HgPath;
 use hg::Revision;
 use hg::{self};
 use rayon::prelude::*;
@@ -761,92 +757,4 @@ impl DisplayStatusPaths<'_> {
         }
         Ok(())
     }
-}
-
-/// Outcome of checking if a file has changed since the last commit
-pub enum FileCompOutcome {
-    /// The file is actually clean
-    Clean,
-    /// The file has been modified
-    Modified,
-    /// The file was deleted on disk (or became another type of fs entry)
-    Deleted,
-}
-
-/// Check if a file is modified by comparing actual repo store and file system.
-pub fn is_file_modified(
-    working_directory_vfs: &hg::vfs::VfsImpl,
-    store_vfs: &hg::vfs::VfsImpl,
-    check_exec: bool,
-    manifest: &Manifest,
-    hg_path: &HgPath,
-    revlog_open_options: RevlogOpenOptions,
-) -> Result<FileCompOutcome, HgError> {
-    let vfs = working_directory_vfs;
-    let fs_path = hg_path_to_path_buf(hg_path).expect("HgPath conversion");
-    let fs_metadata = vfs.symlink_metadata(&fs_path)?;
-    let is_symlink = fs_metadata.file_type().is_symlink();
-
-    let entry =
-        manifest.find_by_path(hg_path)?.expect("ambgious file not in p1");
-
-    // TODO: Also account for `FALLBACK_SYMLINK` and `FALLBACK_EXEC` from the
-    // dirstate
-    let fs_flags = if is_symlink {
-        ManifestFlags::new_link()
-    } else if check_exec && has_exec_bit(&fs_metadata) {
-        ManifestFlags::new_exec()
-    } else {
-        ManifestFlags::new_empty()
-    };
-
-    let entry_flags = if check_exec {
-        entry.flags
-    } else if entry.flags.is_link() {
-        ManifestFlags::new_empty()
-    } else {
-        entry.flags
-    };
-
-    if entry_flags != fs_flags {
-        return Ok(FileCompOutcome::Modified);
-    }
-    let filelog = hg::revlog::filelog::Filelog::open_vfs(
-        store_vfs,
-        hg_path,
-        revlog_open_options,
-    )?;
-    let fs_len = fs_metadata.len();
-    let file_node = entry.node_id()?;
-    let filelog_entry = filelog.entry_for_node(file_node).map_err(|_| {
-        HgError::corrupted(format!(
-            "filelog {:?} missing node {:?} from manifest",
-            hg_path, file_node
-        ))
-    })?;
-    if filelog_entry.file_data_len_not_equal_to(fs_len) {
-        // No need to read file contents:
-        // it cannot be equal if it has a different length.
-        return Ok(FileCompOutcome::Modified);
-    }
-
-    let p1_filelog_data = filelog_entry.data()?;
-    let p1_contents = p1_filelog_data.file_data()?;
-    if p1_contents.len() as u64 != fs_len {
-        // No need to read file contents:
-        // it cannot be equal if it has a different length.
-        return Ok(FileCompOutcome::Modified);
-    }
-
-    let fs_contents = if is_symlink {
-        get_bytes_from_os_string(vfs.read_link(fs_path)?.into_os_string())
-    } else {
-        vfs.read(fs_path)?
-    };
-
-    Ok(if p1_contents != &*fs_contents {
-        FileCompOutcome::Modified
-    } else {
-        FileCompOutcome::Clean
-    })
 }
