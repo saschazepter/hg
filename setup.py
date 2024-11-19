@@ -1358,6 +1358,7 @@ packages = [
     'mercurial.admin',
     'mercurial.cext',
     'mercurial.cffi',
+    'mercurial.cmd_impls',
     'mercurial.branching',
     'mercurial.defaultrc',
     'mercurial.dirstateutils',
