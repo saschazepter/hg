@@ -162,7 +162,10 @@ Test `debug-delta-find`
   SPARSE-REVLOG-TEST-FILE
   $ hg debugdeltachain SPARSE-REVLOG-TEST-FILE | grep snap | tail -1
      4971    4970      -1       3        5     4930    snap
-  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE 4971
+  $ LAST_SNAP=`hg debugdeltachain SPARSE-REVLOG-TEST-FILE | grep snap | tail -1| sed 's/^ \+//'| cut -d ' ' -f 1`
+  $ echo Last Snapshot: $LAST_SNAP
+  Last Snapshot: 4971
+  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP
   DBG-DELTAS-SEARCH: SEARCH rev=4971
   DBG-DELTAS-SEARCH: ROUND #1 - 3 candidates - search-down
   DBG-DELTAS-SEARCH:   CANDIDATE: rev=4329
@@ -218,9 +221,9 @@ Test `debug-delta-find`
   > revlog.reuse-external-delta = yes
   > EOF
 
-  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE 4971 --quiet
+  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP --quiet
   DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4971: delta-base=4930 is-cached=0 - search-rounds=3 try-count=6 - delta-type=snapshot snap-depth=4 - p1-chain-length=15 p2-chain-length=-1 - duration=* (glob)
-  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE 4971 --source full
+  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP --source full
   DBG-DELTAS-SEARCH: SEARCH rev=4971
   DBG-DELTAS-SEARCH: ROUND #1 - 3 candidates - search-down
   DBG-DELTAS-SEARCH:   CANDIDATE: rev=4329
@@ -269,7 +272,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=49132 (BAD)
   DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4971: delta-base=4930 is-cached=0 - search-rounds=3 try-count=6 - delta-type=snapshot snap-depth=4 - p1-chain-length=15 p2-chain-length=-1 - duration=* (glob)
-  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE 4971 --source storage
+  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP --source storage
   DBG-DELTAS-SEARCH: SEARCH rev=4971
   DBG-DELTAS-SEARCH: ROUND #1 - 1 candidates - cached-delta
   DBG-DELTAS-SEARCH:   CANDIDATE: rev=4930
@@ -280,7 +283,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=19179 (GOOD)
   DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4971: delta-base=4930 is-cached=1 - search-rounds=1 try-count=1 - delta-type=delta  snap-depth=-1 - p1-chain-length=15 p2-chain-length=-1 - duration=* (glob)
-  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE 4971 --source p1
+  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP --source p1
   DBG-DELTAS-SEARCH: SEARCH rev=4971
   DBG-DELTAS-SEARCH: ROUND #1 - 3 candidates - search-down
   DBG-DELTAS-SEARCH:   CANDIDATE: rev=4329
@@ -329,7 +332,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=49132 (BAD)
   DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4971: delta-base=4930 is-cached=0 - search-rounds=3 try-count=6 - delta-type=snapshot snap-depth=4 - p1-chain-length=15 p2-chain-length=-1 - duration=* (glob)
-  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE 4971 --source p2
+  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP --source p2
   DBG-DELTAS-SEARCH: SEARCH rev=4971
   DBG-DELTAS-SEARCH: ROUND #1 - 3 candidates - search-down
   DBG-DELTAS-SEARCH:   CANDIDATE: rev=4329
@@ -378,7 +381,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=49132 (BAD)
   DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4971: delta-base=4930 is-cached=0 - search-rounds=3 try-count=6 - delta-type=snapshot snap-depth=4 - p1-chain-length=15 p2-chain-length=-1 - duration=* (glob)
-  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE 4971 --source prev
+  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP --source prev
   DBG-DELTAS-SEARCH: SEARCH rev=4971
   DBG-DELTAS-SEARCH: ROUND #1 - 3 candidates - search-down
   DBG-DELTAS-SEARCH:   CANDIDATE: rev=4329
