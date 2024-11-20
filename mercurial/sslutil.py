@@ -312,32 +312,31 @@ def wrapsocket(sock, keyfile, certfile, ui, serverhostname=None):
     # is loaded and contains that removed CA, you've just undone the user's
     # choice.
 
-    if True:
-        sslcontext = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        minimumprotocol = settings[b'minimumprotocol']
-        if minimumprotocol == b'tls1.0':
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    'ignore',
-                    'ssl.TLSVersion.TLSv1 is deprecated',
-                    DeprecationWarning,
-                )
-                sslcontext.minimum_version = ssl.TLSVersion.TLSv1
-        elif minimumprotocol == b'tls1.1':
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    'ignore',
-                    'ssl.TLSVersion.TLSv1_1 is deprecated',
-                    DeprecationWarning,
-                )
-                sslcontext.minimum_version = ssl.TLSVersion.TLSv1_1
-        elif minimumprotocol == b'tls1.2':
-            sslcontext.minimum_version = ssl.TLSVersion.TLSv1_2
-        else:
-            raise error.Abort(_(b'this should not happen'))
-        # Prevent CRIME.
-        # There is no guarantee this attribute is defined on the module.
-        sslcontext.options |= getattr(ssl, 'OP_NO_COMPRESSION', 0)
+    sslcontext = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    minimumprotocol = settings[b'minimumprotocol']
+    if minimumprotocol == b'tls1.0':
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore',
+                'ssl.TLSVersion.TLSv1 is deprecated',
+                DeprecationWarning,
+            )
+            sslcontext.minimum_version = ssl.TLSVersion.TLSv1
+    elif minimumprotocol == b'tls1.1':
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore',
+                'ssl.TLSVersion.TLSv1_1 is deprecated',
+                DeprecationWarning,
+            )
+            sslcontext.minimum_version = ssl.TLSVersion.TLSv1_1
+    elif minimumprotocol == b'tls1.2':
+        sslcontext.minimum_version = ssl.TLSVersion.TLSv1_2
+    else:
+        raise error.Abort(_(b'this should not happen'))
+    # Prevent CRIME.
+    # There is no guarantee this attribute is defined on the module.
+    sslcontext.options |= getattr(ssl, 'OP_NO_COMPRESSION', 0)
 
     # We check the hostname ourselves in _verifycert
     sslcontext.check_hostname = False
@@ -538,45 +537,44 @@ def wrapserversocket(
                 _(b'referenced certificate file (%s) does not exist') % f
             )
 
-    if True:
-        sslcontext = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        sslcontext.options |= getattr(ssl, 'OP_NO_COMPRESSION', 0)
+    sslcontext = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    sslcontext.options |= getattr(ssl, 'OP_NO_COMPRESSION', 0)
 
-        # This config option is intended for use in tests only. It is a giant
-        # footgun to kill security. Don't define it.
-        exactprotocol = ui.config(b'devel', b'server-insecure-exact-protocol')
-        if exactprotocol == b'tls1.0':
-            if b'tls1.0' not in supportedprotocols:
-                raise error.Abort(_(b'TLS 1.0 not supported by this Python'))
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    'ignore',
-                    'ssl.TLSVersion.TLSv1 is deprecated',
-                    DeprecationWarning,
-                )
-                sslcontext.minimum_version = ssl.TLSVersion.TLSv1
-                sslcontext.maximum_version = ssl.TLSVersion.TLSv1
-        elif exactprotocol == b'tls1.1':
-            if b'tls1.1' not in supportedprotocols:
-                raise error.Abort(_(b'TLS 1.1 not supported by this Python'))
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    'ignore',
-                    'ssl.TLSVersion.TLSv1_1 is deprecated',
-                    DeprecationWarning,
-                )
-                sslcontext.minimum_version = ssl.TLSVersion.TLSv1_1
-                sslcontext.maximum_version = ssl.TLSVersion.TLSv1_1
-        elif exactprotocol == b'tls1.2':
-            if b'tls1.2' not in supportedprotocols:
-                raise error.Abort(_(b'TLS 1.2 not supported by this Python'))
-            sslcontext.minimum_version = ssl.TLSVersion.TLSv1_2
-            sslcontext.maximum_version = ssl.TLSVersion.TLSv1_2
-        elif exactprotocol:
-            raise error.Abort(
-                _(b'invalid value for server-insecure-exact-protocol: %s')
-                % exactprotocol
+    # This config option is intended for use in tests only. It is a giant
+    # footgun to kill security. Don't define it.
+    exactprotocol = ui.config(b'devel', b'server-insecure-exact-protocol')
+    if exactprotocol == b'tls1.0':
+        if b'tls1.0' not in supportedprotocols:
+            raise error.Abort(_(b'TLS 1.0 not supported by this Python'))
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore',
+                'ssl.TLSVersion.TLSv1 is deprecated',
+                DeprecationWarning,
             )
+            sslcontext.minimum_version = ssl.TLSVersion.TLSv1
+            sslcontext.maximum_version = ssl.TLSVersion.TLSv1
+    elif exactprotocol == b'tls1.1':
+        if b'tls1.1' not in supportedprotocols:
+            raise error.Abort(_(b'TLS 1.1 not supported by this Python'))
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore',
+                'ssl.TLSVersion.TLSv1_1 is deprecated',
+                DeprecationWarning,
+            )
+            sslcontext.minimum_version = ssl.TLSVersion.TLSv1_1
+            sslcontext.maximum_version = ssl.TLSVersion.TLSv1_1
+    elif exactprotocol == b'tls1.2':
+        if b'tls1.2' not in supportedprotocols:
+            raise error.Abort(_(b'TLS 1.2 not supported by this Python'))
+        sslcontext.minimum_version = ssl.TLSVersion.TLSv1_2
+        sslcontext.maximum_version = ssl.TLSVersion.TLSv1_2
+    elif exactprotocol:
+        raise error.Abort(
+            _(b'invalid value for server-insecure-exact-protocol: %s')
+            % exactprotocol
+        )
 
     # Improve forward secrecy.
     sslcontext.options |= getattr(ssl, 'OP_SINGLE_DH_USE', 0)
