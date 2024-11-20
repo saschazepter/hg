@@ -20,14 +20,17 @@ export MERCURIAL_SETUP_FORCE_TRANSLATIONS=1
 #     therefor not compatible.
 cp -r /src/ /tmp/src/
 cd /tmp/src/
-hg purge --all --no-confirm
+# clear potentially cached artifact from the host
+# (we could narrow this purge probably)
+hg purge \
+    --ignored \
+    --no-confirm
 
-export HGRCPATH=/tmp/build-config.rc
-cat << EOF > $HGRCPATH
-[trusted]
-users=*
-groups=*
-EOF
+
+if [ ! -e /src/dist/ ]; then
+    mkdir -p /src/dist
+    chown `stat /src/ -c %u:%g` /src/dist/
+fi
 
 for py in $PYTHON_TARGETS; do
     echo 'build wheel for' $py
@@ -39,6 +42,6 @@ for py in $PYTHON_TARGETS; do
     contrib/build-one-linux-wheel.sh $py $tmp_wd
     # fix the owner back to the repository owner
     chown `stat /src/ -c %u:%g` $tmp_wd/*.whl
-    mv $tmp_wd/*.whl /src/dist
+    mv $tmp_wd/*.whl /src/dist/
 done
 
