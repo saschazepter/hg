@@ -46,8 +46,6 @@ def _process_args(ui, repo, *revs, **opts):
 
     cmdutil.resolve_commit_options(ui, opts)
 
-    editor = cmdutil.getcommiteditor(editform=b'graft', **opts)
-
     cmdutil.check_at_most_one_arg(opts, 'abort', 'stop', 'continue')
 
     cont = False
@@ -220,6 +218,7 @@ def _process_args(ui, repo, *revs, **opts):
         if not revs:
             return "ERROR", None, None
 
+    editor = cmdutil.getcommiteditor(editform=b'graft', **opts)
     dry_run = bool(opts.get("dry_run"))
     tool = opts.get('tool', b'')
     return "GRAFT", graftstate, (statedata, revs, editor, cont, dry_run, tool)
