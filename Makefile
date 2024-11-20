@@ -226,12 +226,14 @@ packaging_targets := \
   fedora \
   linux-wheels \
   linux-wheels-x86_64 \
+  linux-wheels-x86_64-musl \
   linux-wheels-i686 \
+  linux-wheels-i686-musl \
   ppa
 
 # Forward packaging targets for convenience.
 $(packaging_targets):
-	$(MAKE) -C contrib/packaging $@
+	$(MAKE) -C contrib/packaging $(MAKEFLAGS) $@
 
 osx:
 	rm -rf build/mercurial

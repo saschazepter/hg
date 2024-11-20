@@ -385,10 +385,10 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             })?;
             let working_directory_vfs = repo.working_directory_vfs();
             let store_vfs = repo.store_vfs();
-            let revlog_open_options = default_revlog_options(
+            let filelog_open_options = default_revlog_options(
                 repo.config(),
                 repo.requirements(),
-                RevlogType::Manifestlog,
+                RevlogType::Filelog,
             )?;
             let res: Vec<_> = take(&mut ds_status.unsure)
                 .into_par_iter()
@@ -403,7 +403,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                         check_exec,
                         &manifest,
                         &to_check.path,
-                        revlog_open_options,
+                        filelog_open_options,
                     ) {
                         Err(HgError::IoError { .. }) => {
                             // IO errors most likely stem from the file being
