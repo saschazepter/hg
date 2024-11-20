@@ -49,13 +49,19 @@ Using pip
 
 Users of `pip` can install the Rust extensions with the following command::
 
-  $ pip install mercurial --global-option --rust --no-use-pep517
+  $ pip install mercurial \
+        --global-option \
+        --rust \
+        --no-use-pep517 \
+        --no-binary mercurial
 
 `--no-use-pep517` is here to tell `pip` to preserve backwards compatibility with
 the legacy `setup.py` system. Mercurial has not yet migrated its complex setup
 to the new system, so we still need this to add compiled extensions.
 
-This might take a couple of minutes because you're compiling everything.
+`--no-binary` is there to tell pip to not use the pre-compiled wheels that are
+missing rust support. This might take a couple of minutes because you're
+compiling everything.
 
 See the "Checking for Rust" section to see if the install succeeded.
 
