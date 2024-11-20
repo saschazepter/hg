@@ -673,6 +673,29 @@ test-result-windows:
   needs:
     - windows
 
+wheel-result-linux:
+  extends: .sink
+  needs:
+    - build-c-wheel
+    - build-c-wheel-musl
+    - build-c-wheel-i686
+    - build-c-wheel-i686-musl
+    - build-c-wheel-arm64
+    - build-c-wheel-arm64-musl
+  artifacts:
+      paths:
+        - wheels
+      expire_in: 1 week
+
+wheel-result-windows:
+  extends: .sink
+  needs:
+    - build-c-wheel-windows
+  artifacts:
+      paths:
+        - wheels
+      expire_in: 1 week
+
 # Upload nightly build wheel on the heptapod registry on test success
 #
 # At the time this task is added, since the mac wheels are built on shell
@@ -688,14 +711,9 @@ upload-wheel-nightly:
   # because we don't want to upload only half of a wheel
   interruptible: false
   needs:
-    - build-c-wheel
-    - build-c-wheel-musl
-    - build-c-wheel-i686
-    - build-c-wheel-i686-musl
-    - build-c-wheel-arm64
-    - build-c-wheel-arm64-musl
+    - wheel-result-linux
+    - wheel-result-windows
     - build-c-wheel-macos
-    - build-c-wheel-windows
     - test-result-linux
     - test-result-macos
     - test-result-windows
