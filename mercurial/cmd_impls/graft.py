@@ -96,12 +96,6 @@ def _process_args(ui, repo, *revs, **opts):
         # read in unfinished revisions
         if graftstate.exists():
             statedata = cmdutil.readgraftstate(repo, graftstate)
-            if statedata.get(b'date'):
-                opts['date'] = statedata[b'date']
-            if statedata.get(b'user'):
-                opts['user'] = statedata[b'user']
-            if statedata.get(b'log'):
-                opts['log'] = True
             if statedata.get(b'no_commit'):
                 opts['no_commit'] = statedata.get(b'no_commit')
             if statedata.get(b'base'):
@@ -116,6 +110,17 @@ def _process_args(ui, repo, *revs, **opts):
         cmdutil.checkunfinished(repo)
         cmdutil.bailifchanged(repo)
         revs = logcmdutil.revrange(repo, revs)
+
+    for o in (
+        b'date',
+        b'user',
+        b'log',
+    ):
+        v = opts.get(o.decode('ascii'))
+        # if statedata is already set, it comes from --continue and test says
+        # we should honor them above the options (which seems weird).
+        if v and o not in statedata:
+            statedata[o] = v
 
     skipped = set()
     basectx = None
@@ -251,18 +256,11 @@ def _graft_revisions(
             extra[b'intermediate-source'] = ctx.hex()
         else:
             extra[b'source'] = ctx.hex()
-        user = ctx.user()
-        if opts.get('user'):
-            user = opts['user']
-            statedata[b'user'] = user
-        date = ctx.date()
-        if opts.get('date'):
-            date = opts['date']
-            statedata[b'date'] = date
+        user = statedata.get(b'user', ctx.user())
+        date = statedata.get(b'date', ctx.date())
         message = ctx.description()
-        if opts.get('log'):
+        if statedata.get(b'log'):
             message += b'\n(grafted from %s)' % ctx.hex()
-            statedata[b'log'] = True
 
         # we don't merge the first commit when continuing
         if not cont:
