@@ -116,6 +116,7 @@ def _process_args(ui, repo, *revs, **opts):
         b'user',
         b'log',
         b'no_commit',
+        b'dry_run',
     ):
         v = opts.get(o.decode('ascii'))
         # if statedata is already set, it comes from --continue and test says
@@ -127,6 +128,7 @@ def _process_args(ui, repo, *revs, **opts):
     basectx = None
     if opts.get('base'):
         basectx = logcmdutil.revsingle(repo, opts['base'], None)
+        statedata[b'base'] = basectx.hex()
     if basectx is None:
         # check for merges
         for rev in repo.revs(b'%ld and merge()', revs):
@@ -217,10 +219,8 @@ def _process_args(ui, repo, *revs, **opts):
         if not revs:
             return None
 
-    if opts.get('base'):
-        statedata[b'base'] = opts['base']
-
-    return "GRAFT", [graftstate, statedata, revs, editor, basectx, cont, opts]
+    dry_run = bool(opts.get("dry_run"))
+    return "GRAFT", [graftstate, statedata, revs, editor, cont, dry_run, opts]
 
 
 def _graft_revisions(
@@ -230,8 +230,8 @@ def _graft_revisions(
     statedata,
     revs,
     editor,
-    basectx,
     cont=False,
+    dry_run=False,
     opts,
 ):
     """actually graft some revisions"""
@@ -245,7 +245,7 @@ def _graft_revisions(
         if names:
             desc += b' (%s)' % b' '.join(names)
         ui.status(_(b'grafting %s\n') % desc)
-        if opts.get('dry_run'):
+        if dry_run:
             continue
 
         source = ctx.extra().get(b'source')
@@ -265,7 +265,10 @@ def _graft_revisions(
         if not cont:
             # perform the graft merge with p1(rev) as 'ancestor'
             overrides = {(b'ui', b'forcemerge'): opts.get('tool', b'')}
-            base = ctx.p1() if basectx is None else basectx
+            if b'base' in statedata:
+                base = repo[statedata[b'base']]
+            else:
+                base = ctx.p1()
             with ui.configoverride(overrides, b'graft'):
                 stats = mergemod.graft(
                     repo, ctx, base, [b'local', b'graft', b'parent of graft']
@@ -300,7 +303,7 @@ def _graft_revisions(
                 nn.append(node)
 
     # remove state when we complete successfully
-    if not opts.get('dry_run'):
+    if not dry_run:
         graftstate.delete()
 
     return 0
