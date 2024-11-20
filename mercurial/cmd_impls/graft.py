@@ -8,18 +8,19 @@ from .. import cmdutil, error, logcmdutil, merge as mergemod, state as statemod
 def cmd_graft(ui, repo, *revs, **opts):
     """implement the graft command as defined in mercuria/commands.py"""
     ret = _process_args(ui, repo, *revs, **opts)
-    if ret is None:
+    action, graftstate, args = ret
+    if action == "ERROR":
         return -1
-    action, args = ret
-    if action == "ABORT":
-        return cmdutil.abortgraft(ui, repo, *args)
+    elif action == "ABORT":
+        assert args is None
+        return cmdutil.abortgraft(ui, repo, graftstate)
     elif action == "STOP":
-        return _stopgraft(ui, repo, *args)
+        assert args is None
+        return _stopgraft(ui, repo, graftstate)
     elif action == "GRAFT":
-        return _graft_revisions(ui, repo, *args)
+        return _graft_revisions(ui, repo, graftstate, *args)
     else:
         raise error.ProgrammingError(b'unknown action: %s' % action)
-    return 0
 
 
 def _process_args(ui, repo, *revs, **opts):
@@ -73,7 +74,7 @@ def _process_args(ui, repo, *revs, **opts):
                 'rev',
             ],
         )
-        return "STOP", [graftstate]
+        return "STOP", graftstate, None
     elif opts.get('abort'):
         cmdutil.check_incompatible_arguments(
             opts,
@@ -88,7 +89,7 @@ def _process_args(ui, repo, *revs, **opts):
                 'rev',
             ],
         )
-        return "ABORT", [graftstate]
+        return "ABORT", graftstate, None
     elif opts.get('continue'):
         cont = True
         if revs:
@@ -136,7 +137,7 @@ def _process_args(ui, repo, *revs, **opts):
             skipped.add(rev)
     revs = [r for r in revs if r not in skipped]
     if not revs:
-        return None
+        return "ERROR", None, None
     if basectx is not None and len(revs) != 1:
         raise error.InputError(_(b'only one revision allowed with --base '))
 
@@ -155,7 +156,7 @@ def _process_args(ui, repo, *revs, **opts):
         revs = [r for r in revs if r not in ancestors]
 
         if not revs:
-            return None
+            return "ERROR", None, None
 
         # analyze revs for earlier grafts
         ids = {}
@@ -217,11 +218,11 @@ def _process_args(ui, repo, *revs, **opts):
                     )
                     revs.remove(r)
         if not revs:
-            return None
+            return "ERROR", None, None
 
     dry_run = bool(opts.get("dry_run"))
     tool = opts.get('tool', b'')
-    return "GRAFT", [graftstate, statedata, revs, editor, cont, dry_run, tool]
+    return "GRAFT", graftstate, (statedata, revs, editor, cont, dry_run, tool)
 
 
 def _graft_revisions(
