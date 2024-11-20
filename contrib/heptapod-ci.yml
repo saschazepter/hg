@@ -20,6 +20,7 @@ workflow:
       when: always
 
 stages:
+  - nightly-trigger
   - build
   - checks
   - tests
@@ -31,6 +32,14 @@ stages:
 image: registry.heptapod.net/mercurial/ci-images/mercurial-core:$HG_CI_IMAGE_TAG
 
 variables:
+    # to debug use:
+    #
+    #   RE_BRANCH: '/^topic/.+/.+$/'
+    #   RE_TOPIC: '/^xxx/'
+    #
+    # Instead of the two following lines:
+    RE_BRANCH: '/^branch/.+$/'
+    RE_TOPIC: '/^topic/.+/.+$/'
     PYTHON: python
     HG_CI_IMAGE_TAG: "v2.1"
     # a directory dedicated to creating files and temporary clone
@@ -48,6 +57,17 @@ variables:
   # starting.
   needs: []
 
+# dummy job that serve dependencies purpose
+.dummy:
+  # smallest I know of
+  image: busybox
+  variables:
+    GIT_STRATEGY: none
+    CI_CLEVER_CLOUD_FLAVOR: "XS"
+  script:
+    - echo 'nothing to see here'
+
+
 # a dummy job that only serve to trigger others
 #
 # This is useful for two reasons:
@@ -55,15 +75,21 @@ variables:
 # - manual starting job cannot make the pipeline "fails" and block a merge,
 #   while "on_success" job depending on manual trigger works fine in that regard.
 .trigger:
-  extends: .all
-  # smallest I know of
-  image: busybox
+  extends:
+    - .all
+    - .dummy
   when: manual
-  variables:
-    GIT_STRATEGY: none
-    CI_CLEVER_CLOUD_FLAVOR: "XS"
-  script:
-    - echo 'nothing to see here'
+
+
+trigger-nightly-build:
+  extends: .trigger
+  stage: nightly-trigger
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+      when: manual
+      allow_failure: true
+    - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+      when: never
 
 .build-wheel:
   extends: .all
@@ -86,6 +112,8 @@ variables:
       - wheels/
     expire_in: 1 week
 
+
+# build linux wheel for amd64
 build-c-wheel:
   extends: .build-wheel
   variables:
@@ -99,6 +127,115 @@ build-c-wheel:
           - cp311-cp311
           - cp312-cp312
           - cp313-cp313
+
+trigger-wheel-musl:
+  extends: .trigger
+  stage: build
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    when: never
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    when: manual
+    allow_failure: true
+
+build-c-wheel-musl:
+  extends: build-c-wheel
+  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-x86_64-musl-c:v3.0"
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    needs:
+      - trigger-nightly-build
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    needs:
+      - "trigger-wheel-musl"
+
+trigger-wheel-i686:
+  extends: .trigger
+  stage: build
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    when: never
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    when: manual
+    allow_failure: true
+
+build-c-wheel-i686:
+  extends: build-c-wheel
+  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-i686-c:v3.0"
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    needs:
+      - trigger-nightly-build
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    needs:
+      - "trigger-wheel-i686"
+
+trigger-wheel-i686-musl:
+  extends: .trigger
+  stage: build
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    when: never
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    when: manual
+    allow_failure: true
+
+build-c-wheel-i686-musl:
+  extends: build-c-wheel
+  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-i686-musl-c:v3.0"
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    needs:
+      - trigger-nightly-build
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    needs:
+      - "trigger-wheel-i686-musl"
+
+trigger-wheel-arm64:
+  extends: .trigger
+  stage: build
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    when: never
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    when: manual
+    allow_failure: true
+
+build-c-wheel-arm64:
+  extends: build-c-wheel
+  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-arm64-c:v3.0"
+  tags:
+    - arm64
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    needs:
+      - trigger-nightly-build
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    needs:
+      - "trigger-wheel-arm64"
+
+trigger-wheel-arm64-musl:
+  extends: .trigger
+  stage: build
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    when: never
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    when: manual
+    allow_failure: true
+
+build-c-wheel-arm64-musl:
+  extends: build-c-wheel
+  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-arm64-musl-c:v3.0"
+  tags:
+    - arm64
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    needs:
+      - trigger-nightly-build
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    needs:
+      - "trigger-wheel-arm64-musl"
 
 .runtests:
     extends: .all
@@ -225,12 +362,18 @@ test-chg:
 trigger-pycompat:
   extends: .trigger
   stage: py-version-compat
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    when: on_success
+    needs:
+      - trigger-nightly-build
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    when: manual
+    allow_failure: true
 
 .test-c-pycompat:
     extends: .test-c
     stage: py-version-compat
-    needs:
-      - trigger-pycompat
     variables:
         WHEEL_TYPE: "c"
 
@@ -242,6 +385,7 @@ test-3.8-c:
     variables:
         PYTHON: python3.8
     needs:
+      - job: trigger-pycompat
       - job: build-c-wheel
         parallel:
           matrix:
@@ -252,6 +396,7 @@ test-3.12-c:
     variables:
         PYTHON: python3.12
     needs:
+      - job: trigger-pycompat
       - job: build-c-wheel
         parallel:
           matrix:
@@ -270,6 +415,7 @@ test-3.13-c:
     variables:
         PYTHON: python3.13
     needs:
+      - job: trigger-pycompat
       - job: build-c-wheel
         parallel:
           matrix:
@@ -319,6 +465,12 @@ check-pytype:
 trigger-wheel-windows:
   extends: .trigger
   stage: build
+  rules:
+  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    when: never
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    when: manual
+    allow_failure: true
 
 build-c-wheel-windows:
     extends: .windows
@@ -326,7 +478,13 @@ build-c-wheel-windows:
     # wait for someone to click on "trigger-wheel-windows"
     when: on_success
     needs:
-      - "trigger-wheel-windows"
+    rules:
+    - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+      needs:
+        - trigger-nightly-build
+    - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+      needs:
+        - "trigger-wheel-windows"
     variables:
       MERCURIAL_SETUP_FORCE_TRANSLATIONS: "1"
     script:
@@ -444,7 +602,13 @@ macos:
 # The weird directory structure match the one we use for Linux to deal with the
 # multiple jobs. (all this might be unnecessary)
 build-c-wheel-macos:
-    when: manual  # avoid overloading the CI by default
+    rules:
+    - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+      needs:
+        - trigger-nightly-build
+    - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+      when: manual  # avoid overloading the CI by default
+      allow_failure: true
     stage: build
     tags:
       - macos
@@ -464,6 +628,74 @@ build-c-wheel-macos:
         - wheels
       expire_in: 1 week
 
+
+.nightly_build_step:
+  extends: .all
+  stage: upload
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ $RE_BRANCH'
+      # note that at the time of writing this, this job depends on multiple
+      # manual one. So it will not run by default, but will automatically run
+      # if the manual jobs are triggered.
+      #
+      # Also beware that "on_success" will ignore failure of manual test we
+      # directly depends on. This currently relevant for the "test-3.x-c"
+      # tests.
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ $RE_TOPIC'
+      when: never
+
+# a dummy job that gather greatly parallel object into one.
+#
+# It exists because gitlab-ci has a "50 jobs" limit on "needs" entries.
+# (yes, this is sad)
+#
+.sink:
+  extends:
+    - .nightly_build_step
+    - .dummy
+
+test-result-linux:
+  extends: .sink
+  needs:
+    - test-c
+    - test-3.8-c
+    - test-3.12-c
+    - test-3.13-c
+
+test-result-macos:
+  extends: .sink
+  needs:
+    - macos
+
+test-result-windows:
+  extends: .sink
+  needs:
+    - windows
+
+wheel-result-linux:
+  extends: .sink
+  needs:
+    - build-c-wheel
+    - build-c-wheel-musl
+    - build-c-wheel-i686
+    - build-c-wheel-i686-musl
+    - build-c-wheel-arm64
+    - build-c-wheel-arm64-musl
+  artifacts:
+      paths:
+        - wheels
+      expire_in: 1 week
+
+wheel-result-windows:
+  extends: .sink
+  needs:
+    - build-c-wheel-windows
+  artifacts:
+      paths:
+        - wheels
+      expire_in: 1 week
+
 # Upload nightly build wheel on the heptapod registry on test success
 #
 # At the time this task is added, since the mac wheels are built on shell
@@ -474,38 +706,17 @@ build-c-wheel-macos:
 # have to prevent the CI token to upload to the registry and have dedicated
 # credential accessible only from protected branches.
 upload-wheel-nightly:
-  extends: .all
+  extends: .nightly_build_step
   image: "registry.heptapod.net/mercurial/ci-images/twine:v3.0"
-  stage: upload
   # because we don't want to upload only half of a wheel
   interruptible: false
-  rules:
-    - if: $CI_COMMIT_BRANCH =~ /^branch\/.*/
-      # note that at the time of writing this, this job depends on multiple
-      # manual one. So it will not run by default, but will automatically run
-      # if the manual jobs are triggered.
-      #
-      # Also beware that "on_success" will ignore failure of manual test we
-      # directly depends on. This currently relevant for the "test-3.x-c"
-      # tests.
-      when: on_success
-    - if: $CI_COMMIT_BRANCH =~ /^topic\/.*/
-      when: never
-      # if you need to test this, make it
-      # when: manual
-      # allow_failure: true
   needs:
-    - build-c-wheel
+    - wheel-result-linux
+    - wheel-result-windows
     - build-c-wheel-macos
-    - build-c-wheel-windows
-    - test-c
-    - macos
-    # if we also requires windows to be happy, reach the "50 needed jobs" limit.
-    # So we need some intermediate job to reduce the number.
-    # - windows
-    - test-3.8-c
-    - test-3.12-c
-    - test-3.13-c
+    - test-result-linux
+    - test-result-macos
+    - test-result-windows
   # It would be nice to be able to restrict that a bit to protected branch only
   variables:
     TWINE_USERNAME: gitlab-ci-token

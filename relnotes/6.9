@@ -1,89 +1,21 @@
-= Mercurial 6.9rc1 =
+= Mercurial 6.9 =
 
-/!\ These are release notes for a release candidate version. Any and all points can be reverted before the final release.
+== Backwards Compatibility Changes ==
 
- * streamclone: disable the volatile file open handle optimization on Windows
- * rust-update: make `update_from_null` respect `worker.numcpu` config option
- * rust-update: handle SIGINT from long-running update threads
- * rust-cpython: add a TODO about repo reuse
- * pytype: add relative timestamp to the output if `ts` is available
- * hgweb: skip logging ConnectionAbortedError
+ * This release drops support for Python 3.6 and 3.7.
+ * Starting with this release and hopefully for the forseeable future,
+   we are now building wheels for most architectures.
+   /!\ Note that for Rust users installing via `pip` or `pipx`, you will need
+   to specify `--no-binary` to continue using Rust since we do not yet package
+   the Rust compilation in our wheels. We plan on fixing this for 7.0.
+ * Python 3.13 changed how it handles docstrings (namely removing uniform
+   leading whitespace for every line), which forced us to align the
+   representation of our help text with this new behavior across all versions.
+   Due to this and a lack of time and expertise from contributors, a lot of
+   existing translations could be missing. The effort of i18n in general has
+   died down many years ago, but if this matters to you, feel free to send
+   your contributions. 
 
-Below are many, many changes that have to do with building/testing wheels,
-adding some sharding to the CI and MacOS + Windows compatibility work:
-
- * run-tests: don't use shell call for subprocess
- * run-tests: add a --hg-wheel options to test a pre-built wheel
- * ci: unify the way `check-pytype` inherit the common setting
- * ci: split the jobs on more stage
- * ci: build a wheel and use it to run c tests
- * tests: stabilize `test-extdiff.t` on macOS
- * tests: disable `test-git-interop.t` with a requirements directive
- * tests: disable a section of `test-hgrc.t` that may hit a zeroconf bug
- * ci: add a runner for Windows 10
- * tests: treat `select` as a built-in module on Windows
- * tests: disable a section of `test-paths.t` that may hit a zeroconf bug
- * tests: conditionalize missing output in test-racy-mutations.t on Windows
- * tests: add a "missing" tests for manifest content in test-racy-mutations.t
- * tests: bump the wait timeouts in test-racy-mutations.t
- * test-install: use the global hg for the install step
- * test-install: glob instance of "python" in warning
- * ci: pre-adjust some identation
- * setup: add a way to force the setup to translate (or fail)
- * ci: use smaller VM to build wheel
- * ci: use a pre-setup many-linux image to build wheel
- * ci: build (and use) wheel for all supported version
- * ci: automatically compute the python tag we use to identify tag
- * run-tests: install wheel using --prefix instead of --user
- * pycompat: drop some now useless workaround for makedirs
- * wheel: build mac os wheel through the CI
- * ci: use the macos wheel to run tests
- * ci: use extends instead of <<: *x
- * ci: move some variables closer to their usage
- * ci: rationalize variable usage
- * ci: abstract the of absolute /tmp/ path
- * ci: move the "tempory work dir" to "concurrency-safe" location
- * ci: adjust the starting port range to runner concurrency
- * ci: have the mac test run if you trigger building the mac wheel
- * run-tests: implement crude sharding support
- * ci: shard the test run on mac os X
- * dev-version: change the scheme of non tagged version
- * wheel: enforce that translation being build for macos wheel
- * run-tests: focus on listing the selected test for the shard tests
- * run-tests: cleanup the "output" directory after the related tests
- * tests: drop PYTHONPATH manipulation in test-pushvars.t
- * windows: work around argument size limitation in test-bookmarks-pushpull.t
- * windows: adjust PYTHONPATH update in test-status-color.t
- * ci: use a concurrency safe TMP dir on Windows
- * ci: again common element into a `.windows` template
- * ci: split the windows runtest invocation into more granular variables
- * windows: skip test-clonebundles-autogen.t in the CI
- * ci: adjust port range on windows too
- * windows: simply rely on the PATH adjustment to find python.exe in tests
- * wheel: assign CIBW_SKIP globally
- * wheel: make --hg-wheel works on Windows
- * wheel: build Windows wheels too
- * wheel: explicitly list built architecture
- * wheel: test the built wheel in the windows tests
- * ci: shard the tests on windows too
- * wheel: enforce that translation being build for windows wheel
- * setup: remote a debug statement that slipped through
- * setup: factor version computation in a function
- * setup: use the same code to compute tag from archive
- * wheel: add a platform level to the wheel directories
- * wheel: add a job uploading nightly build
- * wheels: factor the core of Linux wheel building into a script
- * wheels: update the Linux wheels make target
- * clone: properly exclude rev-branch-cache from post clone cache warming
- * setup: make sure Rust build its extension for the right python
- * setup: preserve version part after the "+" on Windows
- * wheel: build windows wheel for ARM64 too
- * ci: adds a trigger for all pycompat jobs
- * ci: let the Windows runner decide how many job they want to run
-
-= Mercurial 6.9rc0 =
-
-/!\ These are release notes for a release candidate version. Any and all points can be reverted before the final release.
 
 == New Features ==
 
@@ -153,11 +85,9 @@ adding some sharding to the CI and MacOS + Windows compatibility work:
  * doc: generate separate commands/topics/extension pages
  * extdiff: don't run gui programs when in a cli-only environment
  * clonebundles: stop shell quoting `HGCB_BUNDLE_BASENAME` environment variable
- * rev-branch-cache: disable mmapping by default on Windows
-
-== Backwards Compatibility Changes ==
-
- * This release drops support for Python 3.6 and 3.7.
+ * streamclone: disable the volatile file open handle optimization on Windows
+ * pytype: add relative timestamp to the output if `ts` is available
+ * hgweb: skip logging ConnectionAbortedError
 
 == Internal API Changes ==
 
@@ -175,3 +105,94 @@ adding some sharding to the CI and MacOS + Windows compatibility work:
  * A whole bunch of typing improvements, which in turn found many bugs
  * Test suite improvements
  * Various packaging improvements
+
+Below are many, many changes that have to do with building/testing wheels,
+adding some sharding to the CI and MacOS + Windows compatibility work:
+
+ * ci: abstract the branch matching regexp
+ * ci: add "sink" for parallel tests
+ * ci: for branches, use a single trigger
+ * packaging: explain why we purge while building wheels
+ * wheels: rely on the image config to be able to access the repository
+ * packaging: remove the i686 wheel from the linux-wheels target
+ * packaging: propagate the make option to packaging target
+ * packaging: factor the linux-wheels-x86_64 a bit
+ * wheel: add a target for amdx86_64-musl wheels
+ * wheel: also build the musl wheel in the ci
+ * wheel: reintroduce the building of i686 wheel
+ * wheels: also build the i686 wheel in the CI
+ * contrib: install the arm64 compiler tools in the Windows dependency script
+ * contrib: add a bat file to build all of the wheels on Windows
+ * wheels: remove deprecated blacklist
+ * wheels: make sure we create the `dist/` directory in the make target
+ * contrib: add a script to build all of the wheels on macOS
+ * wheel: also build wheel for linux arm64 in the CI
+ * ci: add sink for wheels too
+ * run-tests: don't use shell call for subprocess
+ * run-tests: add a --hg-wheel options to test a pre-built wheel
+ * ci: unify the way `check-pytype` inherit the common setting
+ * ci: split the jobs on more stage
+ * ci: build a wheel and use it to run c tests
+ * tests: stabilize `test-extdiff.t` on macOS
+ * tests: disable `test-git-interop.t` with a requirements directive
+ * tests: disable a section of `test-hgrc.t` that may hit a zeroconf bug
+ * ci: add a runner for Windows 10
+ * tests: treat `select` as a built-in module on Windows
+ * tests: disable a section of `test-paths.t` that may hit a zeroconf bug
+ * tests: conditionalize missing output in test-racy-mutations.t on Windows
+ * tests: add a "missing" tests for manifest content in test-racy-mutations.t
+ * tests: bump the wait timeouts in test-racy-mutations.t
+ * test-install: use the global hg for the install step
+ * test-install: glob instance of "python" in warning
+ * ci: pre-adjust some identation
+ * setup: add a way to force the setup to translate (or fail)
+ * ci: use smaller VM to build wheel
+ * ci: use a pre-setup many-linux image to build wheel
+ * ci: build (and use) wheel for all supported version
+ * ci: automatically compute the python tag we use to identify tag
+ * run-tests: install wheel using --prefix instead of --user
+ * pycompat: drop some now useless workaround for makedirs
+ * wheel: build mac os wheel through the CI
+ * ci: use the macos wheel to run tests
+ * ci: use extends instead of <<: *x
+ * ci: move some variables closer to their usage
+ * ci: rationalize variable usage
+ * ci: abstract the of absolute /tmp/ path
+ * ci: move the "tempory work dir" to "concurrency-safe" location
+ * ci: adjust the starting port range to runner concurrency
+ * ci: have the mac test run if you trigger building the mac wheel
+ * run-tests: implement crude sharding support
+ * ci: shard the test run on mac os X
+ * dev-version: change the scheme of non tagged version
+ * wheel: enforce that translation being build for macos wheel
+ * run-tests: focus on listing the selected test for the shard tests
+ * run-tests: cleanup the "output" directory after the related tests
+ * tests: drop PYTHONPATH manipulation in test-pushvars.t
+ * windows: work around argument size limitation in test-bookmarks-pushpull.t
+ * windows: adjust PYTHONPATH update in test-status-color.t
+ * ci: use a concurrency safe TMP dir on Windows
+ * ci: again common element into a `.windows` template
+ * ci: split the windows runtest invocation into more granular variables
+ * windows: skip test-clonebundles-autogen.t in the CI
+ * ci: adjust port range on windows too
+ * windows: simply rely on the PATH adjustment to find python.exe in tests
+ * wheel: assign CIBW_SKIP globally
+ * wheel: make --hg-wheel works on Windows
+ * wheel: build Windows wheels too
+ * wheel: explicitly list built architecture
+ * wheel: test the built wheel in the windows tests
+ * ci: shard the tests on windows too
+ * wheel: enforce that translation being build for windows wheel
+ * setup: remote a debug statement that slipped through
+ * setup: factor version computation in a function
+ * setup: use the same code to compute tag from archive
+ * wheel: add a platform level to the wheel directories
+ * wheel: add a job uploading nightly build
+ * wheels: factor the core of Linux wheel building into a script
+ * wheels: update the Linux wheels make target
+ * clone: properly exclude rev-branch-cache from post clone cache warming
+ * setup: make sure Rust build its extension for the right python
+ * setup: preserve version part after the "+" on Windows
+ * wheel: build windows wheel for ARM64 too
+ * ci: adds a trigger for all pycompat jobs
+ * ci: let the Windows runner decide how many job they want to run
