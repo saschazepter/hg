@@ -220,7 +220,8 @@ def _process_args(ui, repo, *revs, **opts):
             return None
 
     dry_run = bool(opts.get("dry_run"))
-    return "GRAFT", [graftstate, statedata, revs, editor, cont, dry_run, opts]
+    tool = opts.get('tool', b'')
+    return "GRAFT", [graftstate, statedata, revs, editor, cont, dry_run, tool]
 
 
 def _graft_revisions(
@@ -232,7 +233,7 @@ def _graft_revisions(
     editor,
     cont=False,
     dry_run=False,
-    opts,
+    tool=b'',
 ):
     """actually graft some revisions"""
     for pos, ctx in enumerate(repo.set(b"%ld", revs)):
@@ -264,7 +265,7 @@ def _graft_revisions(
         # we don't merge the first commit when continuing
         if not cont:
             # perform the graft merge with p1(rev) as 'ancestor'
-            overrides = {(b'ui', b'forcemerge'): opts.get('tool', b'')}
+            overrides = {(b'ui', b'forcemerge'): tool}
             if b'base' in statedata:
                 base = repo[statedata[b'base']]
             else:
