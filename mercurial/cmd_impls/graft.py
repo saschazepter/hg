@@ -115,6 +115,7 @@ def _process_args(ui, repo, *revs, **opts):
         b'date',
         b'user',
         b'log',
+        b'no_commit',
     ):
         v = opts.get(o.decode('ascii'))
         # if statedata is already set, it comes from --continue and test says
@@ -216,8 +217,6 @@ def _process_args(ui, repo, *revs, **opts):
         if not revs:
             return None
 
-    if opts.get('no_commit'):
-        statedata[b'no_commit'] = True
     if opts.get('base'):
         statedata[b'base'] = opts['base']
 
@@ -285,7 +284,7 @@ def _graft_revisions(
             cont = False
 
         # commit if --no-commit is false
-        if not opts.get('no_commit'):
+        if not statedata.get(b'no_commit'):
             node = repo.commit(
                 text=message, user=user, date=date, extra=extra, editor=editor
             )
