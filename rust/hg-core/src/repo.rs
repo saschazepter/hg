@@ -15,6 +15,7 @@ use crate::dirstate::dirstate_map::DirstateIdentity;
 use crate::dirstate::dirstate_map::DirstateMapWriteMode;
 use crate::dirstate::on_disk::Docket as DirstateDocket;
 use crate::dirstate::owning::OwningDirstateMap;
+use crate::dirstate::status::IgnoreFnType;
 use crate::dirstate::DirstateError;
 use crate::dirstate::DirstateParents;
 use crate::errors::HgError;
@@ -23,6 +24,8 @@ use crate::errors::IoResultExt;
 use crate::exit_codes;
 use crate::lock::try_with_lock_no_wait;
 use crate::lock::LockError;
+use crate::matchers::get_ignore_files;
+use crate::matchers::get_ignore_function;
 use crate::requirements;
 use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::requirements::DOTENCODE_REQUIREMENT;
@@ -831,6 +834,19 @@ impl Repo {
         self.changelog()
             .ok()
             .and_then(|c| c.node_from_unchecked_rev(rev).copied())
+    }
+
+    pub fn get_ignore_function(&self) -> Result<IgnoreFnType, HgError> {
+        // XXX warnings
+        Ok(get_ignore_function(
+            get_ignore_files(self),
+            self.working_directory_path(),
+            &mut |_, _| (),
+        )
+        .map_err(|e| {
+            HgError::abort(e.to_string(), exit_codes::CONFIG_ERROR_ABORT, None)
+        })?
+        .0)
     }
 
     /// Change the current working directory parents cached in the repo.

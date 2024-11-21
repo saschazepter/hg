@@ -38,8 +38,10 @@ use crate::filepatterns::PatternResult;
 use crate::filepatterns::PatternSyntax;
 use crate::filepatterns::RegexCompleteness;
 use crate::pre_regex::PreRegex;
+use crate::repo::Repo;
 use crate::utils::files::dir_ancestors;
 use crate::utils::files::find_dirs;
+use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
@@ -1202,6 +1204,27 @@ pub fn get_ignore_function<'a>(
 
         (res, all_warnings)
     })
+}
+
+pub fn get_ignore_files(repo: &Repo) -> Vec<PathBuf> {
+    let mut ignore_files = Vec::new();
+    let repo_ignore = repo.working_directory_vfs().join(".hgignore");
+    if repo_ignore.exists() {
+        ignore_files.push(repo_ignore)
+    }
+    for (key, value) in repo.config().iter_section(b"ui") {
+        if key == b"ignore" || key.starts_with(b"ignore.") {
+            let path = get_path_from_bytes(value);
+            let path = shellexpand::path::full_with_context_no_errors(
+                path,
+                home::home_dir,
+                |s| std::env::var(s).ok(),
+            );
+            let joined = repo.working_directory_path().join(path);
+            ignore_files.push(joined);
+        }
+    }
+    ignore_files
 }
 
 impl IncludeMatcher<'_> {

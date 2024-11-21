@@ -7,11 +7,9 @@
 
 use std::io;
 use std::mem::take;
-use std::path::PathBuf;
 
 use clap::Arg;
 use format_bytes::format_bytes;
-use hg::config::Config;
 use hg::dirstate::entry::TruncatedTimestamp;
 use hg::dirstate::status::BadMatch;
 use hg::dirstate::status::DirstateStatus;
@@ -23,6 +21,7 @@ use hg::errors::IoResultExt;
 use hg::filepatterns::parse_pattern_args;
 use hg::filepatterns::PatternFileWarning;
 use hg::lock::LockError;
+use hg::matchers::get_ignore_files;
 use hg::matchers::AlwaysMatcher;
 use hg::matchers::IntersectionMatcher;
 use hg::narrow;
@@ -36,7 +35,6 @@ use hg::revlog::RevlogType;
 use hg::sparse;
 use hg::utils::debug::debug_wait_for_file;
 use hg::utils::files::get_bytes_from_os_str;
-use hg::utils::files::get_path_from_bytes;
 use hg::utils::hg_path::hg_path_to_path_buf;
 use hg::Revision;
 use hg::{self};
@@ -564,7 +562,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         dmap.with_status(
             &matcher,
             repo.working_directory_path().to_owned(),
-            ignore_files(repo, config),
+            get_ignore_files(repo),
             options,
             after_status,
         )?;
@@ -652,27 +650,6 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         }
     }
     Ok(())
-}
-
-fn ignore_files(repo: &Repo, config: &Config) -> Vec<PathBuf> {
-    let mut ignore_files = Vec::new();
-    let repo_ignore = repo.working_directory_vfs().join(".hgignore");
-    if repo_ignore.exists() {
-        ignore_files.push(repo_ignore)
-    }
-    for (key, value) in config.iter_section(b"ui") {
-        if key == b"ignore" || key.starts_with(b"ignore.") {
-            let path = get_path_from_bytes(value);
-            let path = shellexpand::path::full_with_context_no_errors(
-                path,
-                home::home_dir,
-                |s| std::env::var(s).ok(),
-            );
-            let joined = repo.working_directory_path().join(path);
-            ignore_files.push(joined);
-        }
-    }
-    ignore_files
 }
 
 struct DisplayStatusPaths<'a> {
