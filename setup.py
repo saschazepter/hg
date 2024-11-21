@@ -32,15 +32,12 @@ import ssl
 # were defined only if compiled against a OpenSSL version with TLS 1.1 / 1.2
 # support. At the mentioned commit, they were unconditionally defined.
 _notset = object()
-has_tlsv1_1 = getattr(ssl, 'HAS_TLSv1_1', _notset)
-if has_tlsv1_1 is _notset:
-    has_tlsv1_1 = getattr(ssl, 'PROTOCOL_TLSv1_1', _notset) is not _notset
 has_tlsv1_2 = getattr(ssl, 'HAS_TLSv1_2', _notset)
 if has_tlsv1_2 is _notset:
     has_tlsv1_2 = getattr(ssl, 'PROTOCOL_TLSv1_2', _notset) is not _notset
-if not (has_tlsv1_1 or has_tlsv1_2):
+if not has_tlsv1_2:
     error = """
-The `ssl` module does not advertise support for TLS 1.1 or TLS 1.2.
+The `ssl` module does not advertise support for TLS 1.2.
 Please make sure that your Python installation was compiled against an OpenSSL
 version enabling these features (likely this requires the OpenSSL version to
 be at least 1.0.1).
