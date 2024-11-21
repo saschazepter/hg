@@ -84,6 +84,8 @@ MACOS = sys.platform == 'darwin'
 WINDOWS = os.name == r'nt'
 shellquote = shlex.quote
 
+# The number of HGPORTx ports allocated to each test.
+HGPORT_COUNT = 4
 
 processlock = threading.Lock()
 
@@ -1401,16 +1403,16 @@ class Test(unittest.TestCase):
         output. This function defines how some of that normalization will
         occur.
         """
-        r = [
-            # This list should be parallel to defineport in _getenv
-            self._portmap(0),
-            self._portmap(1),
-            self._portmap(2),
-            self._portmap(3),
-            (br'([^0-9])%s' % re.escape(self._localip()), br'\1$LOCALIP'),
-            (br'\bHG_TXNID=TXN:[a-f0-9]{40}\b', br'HG_TXNID=TXN:$ID$'),
-        ]
-        r.append((self._escapepath(self._testtmp), b'$TESTTMP'))
+        r = [self._portmap(port) for port in range(HGPORT_COUNT)]
+
+        r.extend(
+            [
+                (br'([^0-9])%s' % re.escape(self._localip()), br'\1$LOCALIP'),
+                (br'\bHG_TXNID=TXN:[a-f0-9]{40}\b', br'HG_TXNID=TXN:$ID$'),
+                (self._escapepath(self._testtmp), b'$TESTTMP'),
+            ]
+        )
+
         if WINDOWS:
             # JSON output escapes backslashes in Windows paths, so also catch a
             # double-escape.
@@ -1509,9 +1511,8 @@ class Test(unittest.TestCase):
         formated_timeout = _bytes2sys(b"%d" % default_defaults['timeout'][1])
         env['HGTEST_TIMEOUT_DEFAULT'] = formated_timeout
         env['HGTEST_TIMEOUT'] = _bytes2sys(b"%d" % self._timeout)
-        # This number should match portneeded in _getport
-        for port in range(4):
-            # This list should be parallel to _portmap in _getreplacements
+
+        for port in range(HGPORT_COUNT):
             defineport(port)
         env["HGRCPATH"] = _bytes2sys(os.path.join(self._threadtmp, b'.hgrc'))
         env["DAEMON_PIDS"] = _bytes2sys(
@@ -3727,7 +3728,7 @@ class TestRunner:
     def _getport(self, count):
         port = self._ports.get(count)  # do we have a cached entry?
         if port is None:
-            portneeded = 4
+            portneeded = HGPORT_COUNT
             # above 100 tries we just give up and let test reports failure
             for tries in range(100):
                 allfree = True
