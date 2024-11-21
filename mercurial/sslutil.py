@@ -103,8 +103,8 @@ def _hostsettings(ui, hostname):
     # BEAST and POODLE). We allow users to downgrade to TLS 1.0+ via config
     # options in case a legacy server is encountered.
 
-    # setup.py checks that TLS 1.1 or TLS 1.2 is present, so the following
-    # assert should not fail.
+    # setup.py checks that TLS 1.2 is present, so the following assert should
+    # not fail.
     assert supportedprotocols - {b'tls1.0', b'tls1.1'}
     defaultminimumprotocol = b'tls1.2'
 
