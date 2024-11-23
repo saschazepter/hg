@@ -1,20 +1,8 @@
 # This is the mercurial setup script.
 
 import os
-
 import sys
 import sysconfig
-
-
-def sysstr(s):
-    return s.decode('latin-1')
-
-
-def eprint(*args, **kwargs):
-    kwargs['file'] = sys.stderr
-    print(*args, **kwargs)
-
-
 import ssl
 
 if not ssl.HAS_TLSv1_2:
@@ -101,6 +89,15 @@ from distutils.errors import (
     DistutilsExecError,
 )
 from distutils.sysconfig import get_python_inc
+
+
+def sysstr(s):
+    return s.decode('latin-1')
+
+
+def eprint(*args, **kwargs):
+    kwargs['file'] = sys.stderr
+    print(*args, **kwargs)
 
 
 def write_if_changed(path, content):
