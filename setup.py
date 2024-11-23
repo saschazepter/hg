@@ -1,9 +1,16 @@
 # This is the mercurial setup script.
 
+import ctypes
 import os
+import re
+import shutil
+import ssl
+import stat
+import subprocess
 import sys
 import sysconfig
-import ssl
+import tempfile
+import time
 
 if not ssl.HAS_TLSv1_2:
     error = """
@@ -51,12 +58,6 @@ except ImportError:
     )
 
 ispypy = "PyPy" in sys.version
-
-import ctypes
-import stat, subprocess, time
-import re
-import shutil
-import tempfile
 
 # We have issues with setuptools on some platforms and builders. Until
 # those are resolved, setuptools is opt-in except for platforms where
