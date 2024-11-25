@@ -122,6 +122,12 @@ pub fn args() -> clap::Command {
                 .long("copies"),
         )
         .arg(
+            Arg::new("no-copies")
+                .action(clap::ArgAction::SetTrue)
+                .long("no-copies")
+                .overrides_with("copies"),
+        )
+        .arg(
             Arg::new("print0")
                 .help("end filenames with NUL, for use with xargs")
                 .short('0')
@@ -292,9 +298,14 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         }
     };
     let no_status = args.get_flag("no-status");
-    let list_copies = all
-        || args.get_flag("copies")
-        || config.get_bool(b"ui", b"statuscopies")?;
+    let list_copies = if args.get_flag("copies") {
+        true
+    } else if args.get_flag("no-copies") {
+        false
+    } else {
+        config.get_bool(b"ui", b"statuscopies")?
+    };
+    let list_copies = list_copies || all;
 
     let repo = invocation.repo?;
     let revpair = parse_revpair(repo, revs.map(|i| i.cloned().collect()))?;
