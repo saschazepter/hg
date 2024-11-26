@@ -1,5 +1,6 @@
 use crate::config::ConfigValueParseError;
 use crate::exit_codes;
+use crate::revlog::RevlogError;
 use crate::utils::hg_path::HgPathError;
 use std::fmt;
 
@@ -101,6 +102,14 @@ impl HgError {
             message: explanation.into(),
             detailed_exit_code: exit_code,
             hint,
+        }
+    }
+
+    pub fn abort_simple(explanation: impl Into<String>) -> Self {
+        HgError::Abort {
+            message: explanation.into(),
+            detailed_exit_code: exit_codes::ABORT,
+            hint: None,
         }
     }
 }
@@ -232,6 +241,25 @@ impl<T> HgResultExt<T> for Result<T, HgError> {
                 Ok(None)
             }
             Err(other_error) => Err(other_error),
+        }
+    }
+}
+
+impl From<RevlogError> for HgError {
+    fn from(err: RevlogError) -> HgError {
+        match err {
+            RevlogError::WDirUnsupported => HgError::abort_simple(
+                "abort: working directory revision cannot be specified",
+            ),
+            RevlogError::InvalidRevision(r) => HgError::abort_simple(format!(
+                "abort: invalid revision identifier: {}",
+                r
+            )),
+            RevlogError::AmbiguousPrefix(r) => HgError::abort_simple(format!(
+                "abort: ambiguous revision identifier: {}",
+                r
+            )),
+            RevlogError::Other(error) => error,
         }
     }
 }

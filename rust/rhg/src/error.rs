@@ -206,20 +206,8 @@ impl From<ConfigParseError> for CommandError {
 
 impl From<RevlogError> for CommandError {
     fn from(err: RevlogError) -> CommandError {
-        match err {
-            RevlogError::WDirUnsupported => CommandError::abort(
-                "abort: working directory revision cannot be specified",
-            ),
-            RevlogError::InvalidRevision(r) => CommandError::abort(format!(
-                "abort: invalid revision identifier: {}",
-                r
-            )),
-            RevlogError::AmbiguousPrefix(r) => CommandError::abort(format!(
-                "abort: ambiguous revision identifier: {}",
-                r
-            )),
-            RevlogError::Other(error) => error.into(),
-        }
+        let err: HgError = err.into();
+        err.into()
     }
 }
 
