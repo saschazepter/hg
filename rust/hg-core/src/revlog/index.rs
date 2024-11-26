@@ -447,7 +447,10 @@ impl Index {
             }
             if node.is_prefix_of(&candidate_node) {
                 if found_by_prefix.is_some() {
-                    return Err(RevlogError::AmbiguousPrefix);
+                    return Err(RevlogError::AmbiguousPrefix(format!(
+                        "{:x}",
+                        node
+                    )));
                 }
                 found_by_prefix = Some(rev)
             }

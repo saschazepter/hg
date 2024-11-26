@@ -88,8 +88,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     };
 
     if let Some(rev) = rev {
-        let files = list_revset_tracked_files(repo, rev, matcher)
-            .map_err(|e| (e, rev.as_ref()))?;
+        let files = list_revset_tracked_files(repo, rev, matcher)?;
         display_files(
             invocation.ui,
             repo,
