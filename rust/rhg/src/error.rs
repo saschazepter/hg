@@ -204,8 +204,8 @@ impl From<ConfigParseError> for CommandError {
     }
 }
 
-impl From<(RevlogError, &str)> for CommandError {
-    fn from((err, rev): (RevlogError, &str)) -> CommandError {
+impl From<RevlogError> for CommandError {
+    fn from(err: RevlogError) -> CommandError {
         match err {
             RevlogError::WDirUnsupported => CommandError::abort(
                 "abort: working directory revision cannot be specified",
@@ -214,9 +214,9 @@ impl From<(RevlogError, &str)> for CommandError {
                 "abort: invalid revision identifier: {}",
                 r
             )),
-            RevlogError::AmbiguousPrefix => CommandError::abort(format!(
+            RevlogError::AmbiguousPrefix(r) => CommandError::abort(format!(
                 "abort: ambiguous revision identifier: {}",
-                rev
+                r
             )),
             RevlogError::Other(error) => error.into(),
         }

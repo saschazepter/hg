@@ -208,15 +208,15 @@ pub enum RevlogError {
     /// Working directory is not supported
     WDirUnsupported,
     /// Found more than one entry whose ID match the requested prefix
-    AmbiguousPrefix,
+    AmbiguousPrefix(String),
     #[from]
     Other(HgError),
 }
 
-impl From<NodeMapError> for RevlogError {
-    fn from(error: NodeMapError) -> Self {
+impl From<(NodeMapError, String)> for RevlogError {
+    fn from((error, rev): (NodeMapError, String)) -> Self {
         match error {
-            NodeMapError::MultipleResults => RevlogError::AmbiguousPrefix,
+            NodeMapError::MultipleResults => RevlogError::AmbiguousPrefix(rev),
             NodeMapError::RevisionNotInIndex(rev) => RevlogError::corrupted(
                 format!("nodemap point to revision {} not in index", rev),
             ),
@@ -359,7 +359,8 @@ impl Revlog {
     ) -> Result<Revision, RevlogError> {
         if let Some(nodemap) = &self.nodemap {
             nodemap
-                .find_bin(self.index(), node)?
+                .find_bin(self.index(), node)
+                .map_err(|err| (err, format!("{:x}", node)))?
                 .ok_or(RevlogError::InvalidRevision(format!("{:x}", node)))
         } else {
             self.index().rev_from_node_no_persistent_nodemap(node)
@@ -887,7 +888,7 @@ mod tests {
             .rev_from_node(NodePrefix::from_hex("00").unwrap())
             .expect_err("Expected to give AmbiguousPrefix error")
         {
-            RevlogError::AmbiguousPrefix => (),
+            RevlogError::AmbiguousPrefix(_) => (),
             e => {
                 panic!("Got another error than AmbiguousPrefix: {:?}", e);
             }
