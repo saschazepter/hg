@@ -94,7 +94,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         None => format!("{:x}", repo.dirstate_parents()?.p1),
     };
 
-    let output = cat(repo, &rev, files).map_err(|e| (e, rev.as_str()))?;
+    let output = cat(repo, &rev, files)?;
     for (_file, contents) in output.results {
         invocation.ui.write_stdout(&contents)?;
     }

@@ -175,10 +175,8 @@ fn parse_revpair(
 
     let rev1 = &revs[0];
     let rev2 = &revs[1];
-    let rev1 = hg::revset::resolve_single(rev1, repo)
-        .map_err(|e| (e, rev1.as_str()))?;
-    let rev2 = hg::revset::resolve_single(rev2, repo)
-        .map_err(|e| (e, rev2.as_str()))?;
+    let rev1 = hg::revset::resolve_single(rev1, repo)?;
+    let rev2 = hg::revset::resolve_single(rev2, repo)?;
     Ok(Some((rev1, rev2)))
 }
 
@@ -388,9 +386,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             && (display_states.modified || display_states.clean)
         {
             let p1 = repo.dirstate_parents()?.p1;
-            let manifest = repo.manifest_for_node(p1).map_err(|e| {
-                CommandError::from((e, &*format!("{:x}", p1.short())))
-            })?;
+            let manifest = repo.manifest_for_node(p1)?;
             let working_directory_vfs = repo.working_directory_vfs();
             let store_vfs = repo.store_vfs();
             let filelog_open_options = default_revlog_options(
