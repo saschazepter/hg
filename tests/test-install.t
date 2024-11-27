@@ -214,7 +214,7 @@ our virtual env. Then pip doesn't think it's installed and doesn't try to build.
 
 Note: we use this weird path to run pip and hg to avoid platform differences,
 since it's bin on most platforms but Scripts on Windows.
-  $ (syshgenv; ./installenv/*/pip install $TESTDIR/.. >> pip.log)
+  $ (syshgenv; ./installenv/*/pip --no-cache-dir install $TESTDIR/.. >> pip.log)
     Failed building wheel for mercurial (?)
   WARNING: You are using pip version *; however, version * is available. (glob) (?)
   You should consider upgrading via the '$TESTTMP/installenv/bin/python* -m pip install --upgrade pip' command. (glob) (?)
