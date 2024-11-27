@@ -178,7 +178,9 @@ impl VfsImpl {
         relative_path: impl AsRef<Path>,
         contents: &[u8],
     ) -> Result<(), HgError> {
-        let mut tmp = tempfile::NamedTempFile::new_in(&self.base)
+        let mut tmp = tempfile::Builder::new()
+            .permissions(std::fs::Permissions::from_mode(0o666))
+            .tempfile_in(&self.base)
             .when_writing_file(&self.base)?;
         tmp.write_all(contents)
             .and_then(|()| tmp.flush())
