@@ -52,3 +52,9 @@ build/
 '''
 skip-string-normalization = true
 quiet = true
+
+
+[tool.cibuildwheel]
+# Don't stockpile wheels in the pip cache directory when they get built, since
+# there's no mechanism to age old ones out.
+build-frontend = { name = "pip", args = ["--no-cache-dir"] }
