@@ -3902,6 +3902,7 @@ class TestRunner:
             b"pip",
             b"install",
             wheel_path,
+            b"--no-cache-dir",
             b"--force",
             b"--ignore-installed",
             b"--prefix",
