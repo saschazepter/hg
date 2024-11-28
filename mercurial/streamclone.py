@@ -255,6 +255,20 @@ def _walkstreamfiles(
     return repo.store.walk(matcher, phase=phase, obsolescence=obsolescence)
 
 
+def _report_transferred(repo, start_time: float, byte_count: int):
+    """common utility to report time it took to download the stream bundle"""
+    elapsed = util.timer() - start_time
+    if elapsed <= 0:
+        elapsed = 0.001
+    m = _(b'transferred %s in %.1f seconds (%s/sec)\n')
+    m %= (
+        util.bytecount(byte_count),
+        elapsed,
+        util.bytecount(byte_count / elapsed),
+    )
+    repo.ui.status(m)
+
+
 def generatev1(repo) -> tuple[int, int, Iterator[bytes]]:
     """Emit content for version 1 of a streaming clone.
 
@@ -470,18 +484,8 @@ def consumev1(repo, fp, filecount: int, bytecount: int) -> None:
             # streamclone-ed file at next access
             repo.invalidate(clearfilecache=True)
 
-        elapsed = util.timer() - start
-        if elapsed <= 0:
-            elapsed = 0.001
         progress.complete()
-        repo.ui.status(
-            _(b'transferred %s in %.1f seconds (%s/sec)\n')
-            % (
-                util.bytecount(bytecount),
-                elapsed,
-                util.bytecount(bytecount / elapsed),
-            )
-        )
+        _report_transferred(repo, start, bytecount)
 
 
 def readbundle1header(fp) -> tuple[int, int, Set[bytes]]:
@@ -1103,17 +1107,7 @@ def consumev2(repo, fp, filecount: int, filesize: int) -> None:
             # streamclone-ed file at next access
             repo.invalidate(clearfilecache=True)
 
-        elapsed = util.timer() - start
-        if elapsed <= 0:
-            elapsed = 0.001
-        repo.ui.status(
-            _(b'transferred %s in %.1f seconds (%s/sec)\n')
-            % (
-                util.bytecount(progress.pos),
-                elapsed,
-                util.bytecount(progress.pos / elapsed),
-            )
-        )
+        _report_transferred(repo, start, progress.pos)
         progress.complete()
 
 
@@ -1179,14 +1173,7 @@ def consumev3(repo, fp) -> None:
             # streamclone-ed file at next access
             repo.invalidate(clearfilecache=True)
 
-        elapsed = util.timer() - start
-        if elapsed <= 0:
-            elapsed = 0.001
-        msg = _(b'transferred %s in %.1f seconds (%s/sec)\n')
-        byte_count = util.bytecount(bytes_transferred)
-        bytes_sec = util.bytecount(bytes_transferred / elapsed)
-        msg %= (byte_count, elapsed, bytes_sec)
-        repo.ui.status(msg)
+        _report_transferred(repo, start, bytes_transferred)
         progress.complete()
 
 
