@@ -46,7 +46,7 @@ def _process_args(ui, repo, *revs, **opts):
 
     # argument incompatible with followup from an interrupted operation
     commit_args = ['edit', 'log', 'user', 'date', 'currentdate', 'currentuser']
-    nofollow_args = commit_args + ['rev']
+    nofollow_args = commit_args + ['base', 'rev']
 
     arg_compatibilities = [
         ('no_commit', commit_args),
