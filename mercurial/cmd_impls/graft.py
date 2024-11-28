@@ -44,49 +44,28 @@ def _process_args(ui, repo, *revs, **opts):
     # list of new nodes created by ongoing graft
     statedata[b'newnodes'] = []
 
+    # argument incompatible with followup from an interrupted operation
+    commit_args = ['edit', 'log', 'user', 'date', 'currentdate', 'currentuser']
+    nofollow_args = commit_args + ['rev']
+
+    arg_compatibilities = [
+        ('no_commit', commit_args),
+        ('stop', nofollow_args),
+        ('abort', nofollow_args),
+    ]
+    cmdutil.check_at_most_one_arg(opts, 'abort', 'stop', 'continue')
+    for arg, incompatible in arg_compatibilities:
+        cmdutil.check_incompatible_arguments(opts, arg, incompatible)
+
     cmdutil.resolve_commit_options(ui, opts)
 
-    cmdutil.check_at_most_one_arg(opts, 'abort', 'stop', 'continue')
-
     cont = False
-    if opts.get('no_commit'):
-        cmdutil.check_incompatible_arguments(
-            opts,
-            'no_commit',
-            ['edit', 'currentuser', 'currentdate', 'log'],
-        )
 
     graftstate = statemod.cmdstate(repo, b'graftstate')
 
     if opts.get('stop'):
-        cmdutil.check_incompatible_arguments(
-            opts,
-            'stop',
-            [
-                'edit',
-                'log',
-                'user',
-                'date',
-                'currentdate',
-                'currentuser',
-                'rev',
-            ],
-        )
         return "STOP", graftstate, None
     elif opts.get('abort'):
-        cmdutil.check_incompatible_arguments(
-            opts,
-            'abort',
-            [
-                'edit',
-                'log',
-                'user',
-                'date',
-                'currentdate',
-                'currentuser',
-                'rev',
-            ],
-        )
         return "ABORT", graftstate, None
     elif opts.get('continue'):
         cont = True
