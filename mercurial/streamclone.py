@@ -1115,6 +1115,10 @@ def consumev2(repo, fp, filecount: int, filesize: int) -> None:
             repo.invalidate(clearfilecache=True)
 
         progress.complete()
+        # acknowledge the end of the bundle2 part, this help aligning
+        # sequential and parallel behavior.
+        remains = fp.read(1)
+        assert not remains
         _report_transferred(repo, start, filecount, byte_count)
 
 
