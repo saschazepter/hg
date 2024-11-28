@@ -628,7 +628,6 @@ def getparser():
         action="store_true",
         help="build the hg binary using pyoxidizer",
     )
-    hgconf.add_argument("--compiler", help="compiler to build with")
     hgconf.add_argument(
         '--extra-config-opt',
         action="append",
@@ -3966,9 +3965,6 @@ class TestRunner:
                 b"build",
             ]
         )
-        if self.options.compiler:
-            cmd.append("--compiler")
-            cmd.append(_sys2bytes(self.options.compiler))
         cmd.extend(
             [
                 b"--build-base=%s" % os.path.join(self._hgtmp, b"build"),
