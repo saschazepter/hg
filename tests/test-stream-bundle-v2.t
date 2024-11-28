@@ -132,10 +132,10 @@ Test that we can apply the bundle as a stream clone bundle
   adding [c] branch2-served (94 bytes)
   adding [c] rbc-names-v2 (7 bytes)
   adding [c] rbc-revs-v2 (40 bytes)
-  stream-cloned 12 files / 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
   bundle2-input-part: total payload size 1857 (no-rust !)
-  stream-cloned 14 files / 1.78 KB in * seconds (* */sec) (glob) (rust !)
   bundle2-input-part: total payload size 2025 (rust !)
+  stream-cloned 12 files / 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
+  stream-cloned 14 files / 1.78 KB in * seconds (* */sec) (glob) (rust !)
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle
@@ -195,10 +195,10 @@ Test that we can apply the bundle as a stream clone bundle
   adding [c] branch2-served (94 bytes)
   adding [c] rbc-names-v2 (7 bytes)
   adding [c] rbc-revs-v2 (40 bytes)
-  stream-cloned 12 files / 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
   bundle2-input-part: total payload size 1857 (no-rust !)
-  stream-cloned 14 files / 1.78 KB in * seconds (* */sec) (glob) (rust !)
   bundle2-input-part: total payload size 2025 (rust !)
+  stream-cloned 12 files / 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
+  stream-cloned 14 files / 1.78 KB in * seconds (* */sec) (glob) (rust !)
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle
