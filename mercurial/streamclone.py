@@ -1069,6 +1069,7 @@ def consumev2(repo, fp, filecount: int, filesize: int) -> None:
             _(b'clone'), total=filesize, unit=_(b'bytes')
         )
         progress.update(0)
+        byte_count = 0
 
         vfsmap = _makemap(repo)
         # we keep repo.vfs out of the on purpose, ther are too many danger
@@ -1100,6 +1101,7 @@ def consumev2(repo, fp, filecount: int, filesize: int) -> None:
 
                     with vfs(name, b'w') as ofp:
                         for chunk in util.filechunkiter(fp, limit=datalen):
+                            byte_count += len(chunk)
                             progress.increment(step=len(chunk))
                             ofp.write(chunk)
 
@@ -1107,8 +1109,8 @@ def consumev2(repo, fp, filecount: int, filesize: int) -> None:
             # streamclone-ed file at next access
             repo.invalidate(clearfilecache=True)
 
-        _report_transferred(repo, start, progress.pos)
         progress.complete()
+        _report_transferred(repo, start, byte_count)
 
 
 def consumev3(repo, fp) -> None:
@@ -1173,8 +1175,8 @@ def consumev3(repo, fp) -> None:
             # streamclone-ed file at next access
             repo.invalidate(clearfilecache=True)
 
-        _report_transferred(repo, start, bytes_transferred)
         progress.complete()
+        _report_transferred(repo, start, bytes_transferred)
 
 
 def applybundlev2(
