@@ -492,8 +492,8 @@ transaction)
   9 files to transfer, 2.85 KB of data (rust !)
   pretxnopen: 000000000000
   pretxnclose: aa35859c02ea
-  transferred 2.60 KB in * seconds (* */sec) (glob) (no-rust !)
-  transferred 2.85 KB in * seconds (* */sec) (glob) (rust !)
+  stream-cloned 7 files / 2.60 KB in * seconds (* */sec) (glob) (no-rust !)
+  stream-cloned 9 files / 2.85 KB in * seconds (* */sec) (glob) (rust !)
   txnclose: aa35859c02ea
 
 (for safety, confirm visibility of streamclone-ed changes by another
