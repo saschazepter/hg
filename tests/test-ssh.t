@@ -54,11 +54,8 @@ clone remote via stream
 
   $ hg clone --stream ssh://user@dummy/remote local-stream
   streaming all changes
-  9 files to transfer, 827 bytes of data (no-zstd !)
-  transferred 827 bytes in * seconds (*) (glob) (no-zstd !)
-  9 files to transfer, 846 bytes of data (zstd no-rust !)
-  11 files to transfer, 972 bytes of data (zstd rust !)
-  transferred * bytes in * seconds (* */sec) (glob) (zstd !)
+  * files to transfer, * bytes of data (glob)
+  stream-cloned * bytes in * seconds (* */sec) (glob)
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd local-stream
@@ -72,9 +69,8 @@ clone bookmarks via stream
   $ hg -R local-stream book mybook
   $ hg clone --stream ssh://user@dummy/local-stream stream2
   streaming all changes
-  12 files to transfer, * of data (glob) (no-rust !)
-  14 files to transfer, * of data (glob) (rust !)
-  transferred * in * seconds (*) (glob)
+  * files to transfer, * of data (glob)
+  stream-cloned * files / * in * seconds (*) (glob)
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd stream2

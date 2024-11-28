@@ -51,7 +51,7 @@ Cloning a specific file when stream clone is supported
   $ hg clone --narrow ssh://user@dummy/master narrow --noupdate --include "dir/src/F10" --stream
   streaming all changes
   * files to transfer, * KB of data (glob)
-  transferred * KB in * seconds (* */sec) (glob)
+  stream-cloned * files / * KB in * seconds (* */sec) (glob)
 
   $ cd narrow
   $ ls -A

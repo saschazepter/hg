@@ -255,13 +255,16 @@ def _walkstreamfiles(
     return repo.store.walk(matcher, phase=phase, obsolescence=obsolescence)
 
 
-def _report_transferred(repo, start_time: float, byte_count: int):
-    """common utility to report time it took to download the stream bundle"""
+def _report_transferred(
+    repo, start_time: float, file_count: int, byte_count: int
+):
+    """common utility to report time it took to apply the stream bundle"""
     elapsed = util.timer() - start_time
     if elapsed <= 0:
         elapsed = 0.001
-    m = _(b'transferred %s in %.1f seconds (%s/sec)\n')
+    m = _(b'stream-cloned %d files / %s in %.1f seconds (%s/sec)\n')
     m %= (
+        file_count,
         util.bytecount(byte_count),
         elapsed,
         util.bytecount(byte_count / elapsed),
@@ -448,6 +451,7 @@ def consumev1(repo, fp, filecount: int, bytecount: int) -> None:
         # nesting occurs also in ordinary case (e.g. enabling
         # clonebundles).
 
+        total_file_count = 0
         with repo.transaction(b'clone'):
             with repo.svfs.backgroundclosing(repo.ui, expectedcount=filecount):
                 for i in range(filecount):
@@ -476,6 +480,7 @@ def consumev1(repo, fp, filecount: int, bytecount: int) -> None:
                     # for backwards compat, name was partially encoded
                     path = store.decodedir(name)
                     with repo.svfs(path, b'w', backgroundclose=True) as ofp:
+                        total_file_count += 1
                         for chunk in util.filechunkiter(fp, limit=size):
                             progress.increment(step=len(chunk))
                             ofp.write(chunk)
@@ -485,7 +490,7 @@ def consumev1(repo, fp, filecount: int, bytecount: int) -> None:
             repo.invalidate(clearfilecache=True)
 
         progress.complete()
-        _report_transferred(repo, start, bytecount)
+        _report_transferred(repo, start, total_file_count, bytecount)
 
 
 def readbundle1header(fp) -> tuple[int, int, Set[bytes]]:
@@ -1110,7 +1115,7 @@ def consumev2(repo, fp, filecount: int, filesize: int) -> None:
             repo.invalidate(clearfilecache=True)
 
         progress.complete()
-        _report_transferred(repo, start, byte_count)
+        _report_transferred(repo, start, filecount, byte_count)
 
 
 def consumev3(repo, fp) -> None:
@@ -1143,7 +1148,7 @@ def consumev3(repo, fp) -> None:
             raise error.ProgrammingError(
                 'repo.vfs must not be added to vfsmap for security reasons'
             )
-
+        total_file_count = 0
         with repo.transaction(b'clone'):
             ctxs = (vfs.backgroundclosing(repo.ui) for vfs in vfsmap.values())
             with nested(*ctxs):
@@ -1152,6 +1157,7 @@ def consumev3(repo, fp) -> None:
                     if filecount == 0:
                         if repo.ui.debugflag:
                             repo.ui.debug(b'entry with no files [%d]\n' % (i))
+                    total_file_count += filecount
                     for i in range(filecount):
                         src = util.readexactly(fp, 1)
                         vfs = vfsmap[src]
@@ -1176,7 +1182,7 @@ def consumev3(repo, fp) -> None:
             repo.invalidate(clearfilecache=True)
 
         progress.complete()
-        _report_transferred(repo, start, bytes_transferred)
+        _report_transferred(repo, start, total_file_count, bytes_transferred)
 
 
 def applybundlev2(
