@@ -2179,7 +2179,15 @@ def perf_stream_clone_generate(ui, repo, stream_version, **opts):
 
 @command(
     b'perf::stream-consume',
-    formatteropts,
+    [
+        (
+            b'',
+            b'unbundle-progress',
+            False,
+            b"compute and display progress during stream processing",
+        ),
+    ]
+    + formatteropts,
 )
 def perf_stream_clone_consume(ui, repo, filename, **opts):
     """benchmark the full application of a stream clone
@@ -2250,6 +2258,11 @@ def perf_stream_clone_consume(ui, repo, filename, **opts):
             new_ui, tmp_dir, requirements=repo.requirements
         )
         target = hg.repository(new_ui, tmp_dir)
+        # we don't need to use a config override here because this is a
+        # dedicated UI object for the disposable repository create for the
+        # benchmark.
+        show_progress = bool(opts.get("show_progress"))
+        target.ui.setconfig(b"progress", b"disable", not show_progress)
         gen = exchange.readbundle(target.ui, bundle, bundle.name)
         # stream v1
         if util.safehasattr(gen, 'apply'):
