@@ -145,7 +145,7 @@ def importrust(
     if not policy.startswith(b'rust'):
         return default
 
-    dlib_name = "pyo3-rustext" if pyo3 else "rustext"
+    dlib_name = "pyo3_rustext" if pyo3 else "rustext"
 
     try:
         mod = _importfrom(dlib_name, modname)
