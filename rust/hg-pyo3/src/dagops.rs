@@ -15,7 +15,7 @@ use std::collections::HashSet;
 
 use hg::{dagops, Revision};
 
-use crate::convert_cpython::{from_cpython_pyerr, proxy_index_extract};
+use crate::convert_cpython::proxy_index_extract;
 use crate::exceptions::GraphError;
 use crate::revision::{rev_pyiter_collect, PyRevision};
 use crate::util::new_submodule;
@@ -29,14 +29,8 @@ pub fn headrevs(
     index_proxy: &Bound<'_, PyAny>,
     revs: &Bound<'_, PyAny>,
 ) -> PyResult<HashSet<PyRevision>> {
-    let (py, py_leaked) = proxy_index_extract(index_proxy)?;
     // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
-    let index = &*unsafe {
-        py_leaked
-            .try_borrow(py)
-            .map_err(|e| from_cpython_pyerr(py, e))?
-    };
-
+    let index = unsafe { proxy_index_extract(index_proxy)? };
     let mut as_set: HashSet<Revision> = rev_pyiter_collect(revs, index)?;
     dagops::retain_heads(index, &mut as_set).map_err(GraphError::from_hg)?;
     Ok(as_set.into_iter().map(Into::into).collect())

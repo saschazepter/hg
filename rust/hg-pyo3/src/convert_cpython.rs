@@ -16,6 +16,7 @@ use cpython::ObjectProtocol;
 use cpython::PythonObject;
 use lazy_static::lazy_static;
 
+use hg::revlog::index::Index as CoreIndex;
 use rusthg::revlog::{InnerRevlog, PySharedIndex};
 
 /// Force cpython's GIL handle with the appropriate lifetime
@@ -165,9 +166,21 @@ pub fn py_rust_index_to_graph(
     Ok(unsafe { leaked.map(py, |idx| PySharedIndex { inner: &idx.index }) })
 }
 
-pub(crate) fn proxy_index_extract<'py>(
+/// Full extraction of the proxy index object as received in PyO3 to a
+/// [`CoreIndex`] reference.
+///
+/// The safety invariants to maintain are those of the underlying
+/// [`UnsafePyLeaked::try_borrow`]: the caller must not leak the inner
+/// reference.
+pub(crate) unsafe fn proxy_index_extract<'py>(
     index_proxy: &Bound<'py, PyAny>,
-) -> PyResult<(cpython::Python<'py>, cpython::UnsafePyLeaked<PySharedIndex>)> {
+) -> PyResult<&'py CoreIndex> {
     let (py, idx_proxy) = to_cpython_py_object(index_proxy);
-    Ok((py, py_rust_index_to_graph(py, idx_proxy)?))
+    let py_leaked = py_rust_index_to_graph(py, idx_proxy)?;
+    let py_shared = &*unsafe {
+        py_leaked
+            .try_borrow(py)
+            .map_err(|e| from_cpython_pyerr(py, e))?
+    };
+    Ok(py_shared.inner)
 }
