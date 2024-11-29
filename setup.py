@@ -1663,7 +1663,7 @@ extmodules = [
         'librusthg',
     ),
     RustStandaloneExtension(
-        'mercurial.pyo3-rustext',
+        'mercurial.pyo3_rustext',
         'hg-pyo3',
         'librusthgpyo3',
     ),
