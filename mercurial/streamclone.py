@@ -1625,7 +1625,8 @@ def applybundlev2(
             % b', '.join(sorted(missingreqs))
         )
 
-    consumev2(repo, fp, filecount, filesize)
+    with util.nogc():
+        consumev2(repo, fp, filecount, filesize)
 
     repo.requirements = new_stream_clone_requirements(
         repo.requirements,
