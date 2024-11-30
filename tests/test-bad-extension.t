@@ -58,17 +58,26 @@ another bad extension
 
 show traceback
 
-  $ hg -q help help --traceback 2>&1 | grep -E ' extension|^Exception|Traceback|ImportError|ModuleNotFound'
+  $ hg -q help help --traceback 2>&1 | "$PYTHON" "$TESTDIR/filtertraceback.py"
   *** failed to import extension "badext" from $TESTTMP/badext.py: bit bucket overflow
   Traceback (most recent call last):
   Exception: bit bucket overflow
   *** failed to import extension "badext2": No module named 'badext2'
   Traceback (most recent call last):
   ModuleNotFoundError: No module named 'hgext.badext2'
+  
+  During handling of the above exception, another exception occurred:
+  
   Traceback (most recent call last):
   ModuleNotFoundError: No module named 'hgext3rd.badext2'
+  
+  During handling of the above exception, another exception occurred:
+  
   Traceback (most recent call last):
   ModuleNotFoundError: No module named 'badext2'
+  hg help [-eck] [-s PLATFORM] [TOPIC]
+  
+  show help for a given topic or a help overview
 
 names of extensions failed to load can be accessed via extensions.notloaded()
 
@@ -89,7 +98,7 @@ show traceback for ImportError of hgext.name if devel.debug.extensions is set
   $ (hg help help --traceback --debug --config devel.debug.extensions=yes 2>&1) \
   > | grep -v '^ ' \
   > | filterlog \
-  > | grep -E 'extension..[^p]|^Exception|Traceback|ImportError|^YYYY|not import|ModuleNotFound'
+  > | "$PYTHON" "$TESTDIR/filtertraceback.py"
   YYYY/MM/DD HH:MM:SS (PID)> loading extensions
   YYYY/MM/DD HH:MM:SS (PID)> - processing 5 entries
   YYYY/MM/DD HH:MM:SS (PID)>   - loading extension: gpg
@@ -113,13 +122,22 @@ show traceback for ImportError of hgext.name if devel.debug.extensions is set
   YYYY/MM/DD HH:MM:SS (PID)>     - could not import hgext3rd.badext2 (No module named *badext2*): trying badext2 (glob)
   Traceback (most recent call last):
   ModuleNotFoundError: No module named 'hgext.badext2'
+  
+  During handling of the above exception, another exception occurred:
+  
   Traceback (most recent call last):
   ModuleNotFoundError: No module named 'hgext3rd.badext2'
   *** failed to import extension "badext2": No module named 'badext2'
   Traceback (most recent call last):
   ModuleNotFoundError: No module named 'hgext.badext2'
+  
+  During handling of the above exception, another exception occurred:
+  
   Traceback (most recent call last):
   ModuleNotFoundError: No module named 'hgext3rd.badext2'
+  
+  During handling of the above exception, another exception occurred:
+  
   Traceback (most recent call last):
   ModuleNotFoundError: No module named 'badext2'
   YYYY/MM/DD HH:MM:SS (PID)> > loaded 2 extensions, total time * (glob)
@@ -143,7 +161,21 @@ show traceback for ImportError of hgext.name if devel.debug.extensions is set
   YYYY/MM/DD HH:MM:SS (PID)> > extension baddocext take a total of * to load (glob)
   YYYY/MM/DD HH:MM:SS (PID)> > extension gpg take a total of * to load (glob)
   YYYY/MM/DD HH:MM:SS (PID)> extension loading complete
+  hg help [-eck] [-s PLATFORM] [TOPIC]
+  
+  show help for a given topic or a help overview
+  
+  With no arguments, print a list of commands with short help messages.
+  
   Given a topic, extension, or command name, print help for that topic.
+  
+  Returns 0 if successful.
+  
+  options ([+] can be repeated):
+  
+  
+  global options ([+] can be repeated):
+  
 #endif
 
 confirm that there's no crash when an extension's documentation is bad
