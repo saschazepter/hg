@@ -116,7 +116,7 @@ def _process_args(ui, repo, *revs, **opts):
     if not revs:
         return "ERROR", None, None
     if basectx is not None and len(revs) != 1:
-        raise error.InputError(_(b'only one revision allowed with --base '))
+        raise error.InputError(_(b'only one revision allowed with --base'))
 
     # Don't check in the --continue case, in effect retaining --force across
     # --continues. That's because without --force, any revisions we decided to
