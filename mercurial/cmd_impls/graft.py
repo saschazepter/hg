@@ -6,7 +6,7 @@ from .. import cmdutil, error, logcmdutil, merge as mergemod, state as statemod
 
 
 def cmd_graft(ui, repo, *revs, **opts):
-    """implement the graft command as defined in mercuria/commands.py"""
+    """implement the graft command as defined in mercurial/commands.py"""
     ret = _process_args(ui, repo, *revs, **opts)
     action, graftstate, args = ret
     if action == "ERROR":
@@ -27,7 +27,7 @@ def _process_args(ui, repo, *revs, **opts):
     """process the graft command argument to figure out what to do
 
     This also filter the selected revision to skip the one that cannot be graft
-    or were alredy grafted.
+    or were already grafted.
     """
     if revs and opts.get('rev'):
         ui.warn(
