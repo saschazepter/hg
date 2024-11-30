@@ -712,6 +712,7 @@ dependencies = [
 name = "hg-pyo3"
 version = "0.1.0"
 dependencies = [
+ "derive_more",
  "env_logger 0.9.3",
  "hg-core",
  "log",
