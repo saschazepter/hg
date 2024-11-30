@@ -556,6 +556,7 @@ class vfs(abstractvfs):
         checkambig: bool = False,
         auditpath: bool = True,
         makeparentdirs: bool = True,
+        buffering: int = -1,
     ) -> Any:  # TODO: should be BinaryIO if util.atomictempfile can be coersed
         """Open ``path`` file, which is relative to vfs root.
 
@@ -626,7 +627,7 @@ class vfs(abstractvfs):
                         self._trustnlink = nlink > 1 or util.checknlink(f)
                     if nlink > 1 or not self._trustnlink:
                         util.rename(util.mktempcopy(f), f)
-        fp = util.posixfile(f, mode)
+        fp = util.posixfile(f, mode, buffering=buffering)
         if nlink == 0:
             self._fixfilemode(f)
 
