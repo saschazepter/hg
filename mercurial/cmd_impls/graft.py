@@ -2,12 +2,24 @@
 
 from __future__ import annotations
 
+import typing
+
+from typing import (
+    Any,
+    Tuple,
+)
+
 from ..i18n import _
 
 from .. import cmdutil, error, logcmdutil, merge as mergemod, state as statemod
 
 
-def cmd_graft(ui, repo, *revs, **opts):
+if typing.TYPE_CHECKING:
+    _ActionT = str
+    _CmdArgsT = Any  # TODO: (statedata, revs, editor, cont, dry_run, tool)
+
+
+def cmd_graft(ui, repo, *revs, **opts) -> int:
     """implement the graft command as defined in mercurial/commands.py"""
     ret = _process_args(ui, repo, *revs, **opts)
     action, graftstate, args = ret
@@ -25,7 +37,9 @@ def cmd_graft(ui, repo, *revs, **opts):
         raise error.ProgrammingError('unknown action: %s' % action)
 
 
-def _process_args(ui, repo, *revs, **opts):
+def _process_args(
+    ui, repo, *revs, **opts
+) -> Tuple[_ActionT, statemod.cmdstate | None, _CmdArgsT | None]:
     """process the graft command argument to figure out what to do
 
     This also filter the selected revision to skip the one that cannot be graft
