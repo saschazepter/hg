@@ -48,5 +48,3 @@ All files that get type checked must have 'from __future__ import annotations'
 
   $ testrepohg files 'set:**.py and size(">0")' -I mercurial -I hgext -X mercurial/thirdparty -0 \
   > | xargs -0 grep -L '^from __future__ import annotations$'
-  mercurial/cmd_impls/graft.py
-  mercurial/testing/ps_util.py
