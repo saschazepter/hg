@@ -2240,7 +2240,7 @@ def perf_stream_clone_consume(ui, repo, filename, **opts):
 
     @contextlib.contextmanager
     def context():
-        with open(filename, mode='rb') as bundle:
+        with open(filename, mode='rb', buffering=0) as bundle:
             bundle_name = bundle.name
             if opts.get(b'in_memory_bundle'):
                 # you hate memory, don't you?
