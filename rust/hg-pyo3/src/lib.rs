@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 
 mod dagops;
+mod exceptions;
 mod util;
 
 #[pymodule]
@@ -15,5 +16,6 @@ fn pyo3_rustext(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     let dotted_name = format!("mercurial.{}", name);
 
     m.add_submodule(&dagops::init_module(py, &dotted_name)?)?;
+    m.add("GraphError", py.get_type::<exceptions::GraphError>())?;
     Ok(())
 }
