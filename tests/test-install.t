@@ -201,7 +201,7 @@ On Python 2, we use the 3rd party virtualenv module, if available.
   $ cd $TESTTMP
   $ unset PYTHONPATH
 
-#if py3 ensurepip network-io no-pyoxidizer
+#if ensurepip network-io no-pyoxidizer
   $ "$PYTHON" -m venv installenv >> pip.log
 
 Hack: Debian does something a bit different in ensurepip.bootstrap. This makes

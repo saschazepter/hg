@@ -61,7 +61,7 @@ On Python 3, stdio may be None:
   $ hg version -q 0<&-
   Mercurial Distributed SCM * (glob)
 
-#if py3 no-rhg
+#if no-rhg
   $ hg version -q 1>&-
   abort: Bad file descriptor
   [255]
