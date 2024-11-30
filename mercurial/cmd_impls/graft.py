@@ -20,7 +20,7 @@ def cmd_graft(ui, repo, *revs, **opts):
     elif action == "GRAFT":
         return _graft_revisions(ui, repo, graftstate, *args)
     else:
-        raise error.ProgrammingError(b'unknown action: %s' % action)
+        raise error.ProgrammingError('unknown action: %s' % action)
 
 
 def _process_args(ui, repo, *revs, **opts):
