@@ -16,7 +16,7 @@ use cpython::{
     buffer::{Element, PyBuffer},
     exc::{IndexError, ValueError},
     ObjectProtocol, PyBool, PyBytes, PyClone, PyDict, PyErr, PyInt, PyList,
-    PyModule, PyObject, PyResult, PySet, PyTuple, PyType, Python,
+    PyModule, PyObject, PyResult, PySet, PySharedRef, PyTuple, PyType, Python,
     PythonObject, ToPyObject, UnsafePyLeaked,
 };
 use hg::{
@@ -51,7 +51,7 @@ use vcsgraph::graph::Graph as VCSGraph;
 
 pub struct PySharedIndex {
     /// The underlying hg-core index
-    pub(crate) inner: &'static Index,
+    pub inner: &'static Index,
 }
 
 /// Return a Struct implementing the Graph trait
@@ -1488,6 +1488,13 @@ py_class!(pub class InnerRevlog |py| {
 
 /// Forwarded index methods?
 impl InnerRevlog {
+    pub fn pub_inner<'p, 'a: 'p>(
+        &'a self,
+        py: Python<'p>,
+    ) -> PySharedRef<'p, CoreInnerRevlog> {
+        self.inner(py)
+    }
+
     fn len(&self, py: Python) -> PyResult<usize> {
         let rust_index_len = self.inner(py).borrow().index.len();
         Ok(rust_index_len)
