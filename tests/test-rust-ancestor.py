@@ -1,5 +1,4 @@
 import sys
-import unittest
 
 from mercurial.node import wdirrev
 
@@ -26,16 +25,6 @@ except ImportError:
     cparsers = None
 
 
-@unittest.skipIf(
-    rustext is None,
-    'The Rust version of the "ancestor" module is not available. It is needed'
-    ' for this test.',
-)
-@unittest.skipIf(
-    rustext is None,
-    'The Rust or C version of the "parsers" module, which the "ancestor" module'
-    ' relies on, is not available.',
-)
 class rustancestorstest(revlogtesting.RustRevlogBasedTestBase):
     """Test the correctness of binding to Rust code.
 
@@ -64,16 +53,15 @@ class rustancestorstest(revlogtesting.RustRevlogBasedTestBase):
 
     def testlazyancestors(self):
         idx = self.parserustindex()
-        start_count = sys.getrefcount(idx)  # should be 2 (see Python doc)
+        start_count = sys.getrefcount(idx.inner)  # should be 2 (see Python doc)
         self.assertEqual(
             {i: (r[5], r[6]) for i, r in enumerate(idx)},
             {0: (-1, -1), 1: (0, -1), 2: (1, -1), 3: (2, -1)},
         )
         lazy = LazyAncestors(idx, [3], 0, True)
-        # we have two more references to the index:
-        # - in its inner iterator for __contains__ and __bool__
-        # - in the LazyAncestors instance itself (to spawn new iterators)
-        self.assertEqual(sys.getrefcount(idx), start_count + 2)
+        # the LazyAncestors instance holds just one reference to the
+        # inner revlog.
+        self.assertEqual(sys.getrefcount(idx.inner), start_count + 1)
 
         self.assertTrue(2 in lazy)
         self.assertTrue(bool(lazy))
@@ -83,11 +71,11 @@ class rustancestorstest(revlogtesting.RustRevlogBasedTestBase):
 
         # now let's watch the refcounts closer
         ait = iter(lazy)
-        self.assertEqual(sys.getrefcount(idx), start_count + 3)
+        self.assertEqual(sys.getrefcount(idx.inner), start_count + 2)
         del ait
-        self.assertEqual(sys.getrefcount(idx), start_count + 2)
+        self.assertEqual(sys.getrefcount(idx.inner), start_count + 1)
         del lazy
-        self.assertEqual(sys.getrefcount(idx), start_count)
+        self.assertEqual(sys.getrefcount(idx.inner), start_count)
 
         # let's check bool for an empty one
         self.assertFalse(LazyAncestors(idx, [0], 0, False))
@@ -111,16 +99,16 @@ class rustancestorstest(revlogtesting.RustRevlogBasedTestBase):
 
     def testrefcount(self):
         idx = self.parserustindex()
-        start_count = sys.getrefcount(idx)
+        start_count = sys.getrefcount(idx.inner)
 
         # refcount increases upon iterator init...
         ait = AncestorsIterator(idx, [3], 0, True)
-        self.assertEqual(sys.getrefcount(idx), start_count + 1)
+        self.assertEqual(sys.getrefcount(idx.inner), start_count + 1)
         self.assertEqual(next(ait), 3)
 
         # and decreases once the iterator is removed
         del ait
-        self.assertEqual(sys.getrefcount(idx), start_count)
+        self.assertEqual(sys.getrefcount(idx.inner), start_count)
 
         # and removing ref to the index after iterator init is no issue
         ait = AncestorsIterator(idx, [3], 0, True)
