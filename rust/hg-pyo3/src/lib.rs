@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 
 mod dagops;
 mod exceptions;
+mod revision;
 mod util;
 
 #[pymodule]
