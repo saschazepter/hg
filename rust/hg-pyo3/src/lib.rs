@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
 
+mod convert_cpython;
 mod dagops;
 mod exceptions;
 mod revision;
