@@ -131,7 +131,6 @@ check http return codes
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=408, sha1=8fa06531bddecc365a9f5edb0f88b65974bfe505 (no-py38 !)
   body: size=506, sha1=70926a04cb8887d0bcccf5380488100a10222def (py38 no-py39 !)
   body: size=505, sha1=eb823c293bedff0df4070b854e2c5cbb06d6ec62 (py39 !)
   % tar.bz2 and zip disallowed should both give 403
@@ -161,7 +160,6 @@ check http return codes
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=426, sha1=8d87f5aba6e14f1bfea6c232985982c278b2fb0b (no-py38 !)
   body: size=506, sha1=1bd1f8e8d3701704bd4385038bd9c09b81c77f4e (py38 no-py39 !)
   body: size=503, sha1=2d8ce8bb3816603b9683a1804a5a02c11224cb01 (py39 !)
   % zip and tar.gz disallowed should both give 403
@@ -222,7 +220,6 @@ check http return codes (with deprecated option)
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=408, sha1=8fa06531bddecc365a9f5edb0f88b65974bfe505 (no-py38 !)
   body: size=506, sha1=70926a04cb8887d0bcccf5380488100a10222def (py38 no-py39 !)
   body: size=505, sha1=eb823c293bedff0df4070b854e2c5cbb06d6ec62 (py39 !)
   % tar.bz2 and zip disallowed should both give 403
@@ -252,7 +249,6 @@ check http return codes (with deprecated option)
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=426, sha1=8d87f5aba6e14f1bfea6c232985982c278b2fb0b (no-py38 !)
   body: size=506, sha1=1bd1f8e8d3701704bd4385038bd9c09b81c77f4e (py38 no-py39 !)
   body: size=503, sha1=2d8ce8bb3816603b9683a1804a5a02c11224cb01 (py39 !)
   % zip and tar.gz disallowed should both give 403
