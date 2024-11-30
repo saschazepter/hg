@@ -1,5 +1,7 @@
 # graft.py - implementation of the graft command
 
+from __future__ import annotations
+
 from ..i18n import _
 
 from .. import cmdutil, error, logcmdutil, merge as mergemod, state as statemod
