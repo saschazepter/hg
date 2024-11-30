@@ -5,11 +5,12 @@ from mercurial.node import wdirrev
 from mercurial.testing import revlog as revlogtesting
 
 try:
-    from mercurial import rustext
+    from mercurial import pyo3_rustext, rustext
 
     rustext.__name__  # trigger immediate actual import
+    pyo3_rustext.__name__
 except ImportError:
-    rustext = None
+    rustext = pyo3_rustext = None
 else:
     # this would fail already without appropriate ancestor.__package__
     from mercurial.rustext.ancestor import (
@@ -147,6 +148,17 @@ class rustancestorstest(revlogtesting.RustRevlogBasedTestBase):
     def testheadrevs(self):
         idx = self.parserustindex()
         self.assertEqual(dagop.headrevs(idx, [1, 2, 3]), {3})
+
+    def testpyo3_headrevs(self):
+        idx = self.parserustindex()
+        self.assertEqual(pyo3_rustext.dagop.headrevs(idx, [1, 2, 3]), {3})
+
+    def testpyo3_rank(self):
+        idx = self.parserustindex()
+        try:
+            pyo3_rustext.dagop.rank(idx, 1, 2)
+        except pyo3_rustext.GraphError as exc:
+            self.assertEqual(exc.args, ("InconsistentGraphData",))
 
 
 if __name__ == '__main__':
