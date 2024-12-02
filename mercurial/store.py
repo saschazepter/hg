@@ -524,6 +524,16 @@ class BaseStoreEntry:
         assert vfs is not None
         return [f.get_stream(vfs, volatiles) for f in self.files()]
 
+    def preserve_volatiles(self, vfs, volatiles):
+        """Use a VolatileManager to preserve the state of any volatile file
+
+        This is useful for code that need a consistent view of the content like stream clone.
+        """
+        if self.maybe_volatile:
+            for f in self.files():
+                if f.is_volatile:
+                    volatiles(vfs.join(f.unencoded_path))
+
 
 @attr.s(slots=True, init=False)
 class SimpleStoreEntry(BaseStoreEntry):
