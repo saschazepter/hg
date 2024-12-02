@@ -14,8 +14,8 @@ use crate::{
     dirstate::dirs_multiset::{DirsChildrenMultiset, DirsMultiset},
     filepatterns::{
         build_single_regex, filter_subincludes, get_patterns_from_file,
-        IgnorePattern, PatternError, PatternFileWarning, PatternResult,
-        PatternSyntax,
+        GlobSuffix, IgnorePattern, PatternError, PatternFileWarning,
+        PatternResult, PatternSyntax,
     },
     utils::{
         files::{dir_ancestors, find_dirs},
@@ -328,7 +328,8 @@ impl<'a> PatternMatcher<'a> {
         let prefix = ignore_patterns.iter().all(|k| {
             matches!(k.syntax, PatternSyntax::Path | PatternSyntax::RelPath)
         });
-        let (patterns, match_fn) = build_match(ignore_patterns, b"$")?;
+        let (patterns, match_fn) =
+            build_match(ignore_patterns, GlobSuffix::Empty)?;
 
         Ok(Self {
             patterns,
@@ -807,7 +808,7 @@ fn re_matcher(pattern: &[u8]) -> PatternResult<RegexMatcher> {
 /// said regex formed by the given ignore patterns.
 fn build_regex_match<'a>(
     ignore_patterns: &[IgnorePattern],
-    glob_suffix: &[u8],
+    glob_suffix: GlobSuffix,
 ) -> PatternResult<(Vec<u8>, IgnoreFnType<'a>)> {
     let mut regexps = vec![];
     let mut exact_set = HashSet::new();
@@ -927,7 +928,7 @@ fn roots_dirs_and_parents(
 /// should be matched.
 fn build_match<'a>(
     ignore_patterns: Vec<IgnorePattern>,
-    glob_suffix: &[u8],
+    glob_suffix: GlobSuffix,
 ) -> PatternResult<(Vec<u8>, IgnoreFnType<'a>)> {
     let mut match_funcs: Vec<IgnoreFnType<'a>> = vec![];
     // For debugging and printing
@@ -1067,7 +1068,8 @@ impl<'a> IncludeMatcher<'a> {
         let prefix = ignore_patterns.iter().all(|k| {
             matches!(k.syntax, PatternSyntax::Path | PatternSyntax::RelPath)
         });
-        let (patterns, match_fn) = build_match(ignore_patterns, b"(?:/|$)")?;
+        let (patterns, match_fn) =
+            build_match(ignore_patterns, GlobSuffix::MoreComponents)?;
 
         Ok(Self {
             patterns,
