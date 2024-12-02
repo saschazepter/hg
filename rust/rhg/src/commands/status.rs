@@ -305,7 +305,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     } else {
         config.get_bool(b"ui", b"statuscopies")?
     };
-    let list_copies = list_copies || all;
+    let list_copies = (list_copies || all) && !no_status;
 
     let repo = invocation.repo?;
     let revpair = parse_revpair(repo, revs.map(|i| i.cloned().collect()))?;
@@ -705,7 +705,7 @@ impl DisplayStatusPaths<'_> {
                 &format_bytes!(b"{}{}", path, linebreak),
                 label,
             )?;
-            if let Some(source) = copy_source.filter(|_| !self.no_status) {
+            if let Some(source) = copy_source {
                 let label = "status.copied";
                 self.ui.write_stdout_labelled(
                     &format_bytes!(b"  {}{}", source, linebreak),
