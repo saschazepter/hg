@@ -709,54 +709,53 @@ def _emit2(repo, entries):
 
     max_linkrev = len(repo)
     file_count = totalfilesize = 0
-    with util.nogc():
-        # record the expected size of every file
-        for k, vfs, e in entries:
-            for f in e.files():
-                file_count += 1
-                totalfilesize += f.file_size(vfs)
-
-    progress = repo.ui.makeprogress(
-        _(b'bundle'), total=totalfilesize, unit=_(b'bytes')
-    )
-    progress.update(0)
-    with VolatileManager() as volatiles, progress:
+    with VolatileManager() as volatiles:
         # make sure we preserve volatile files
-        for k, vfs, e in entries:
-            for f in e.files():
-                if f.is_volatile:
-                    volatiles(vfs.join(f.unencoded_path))
-        # the first yield release the lock on the repository
-        yield file_count, totalfilesize
-        totalbytecount = 0
+        with util.nogc():
+            # record the expected size of every file
+            for k, vfs, e in entries:
+                for f in e.files():
+                    if f.is_volatile:
+                        volatiles(vfs.join(f.unencoded_path))
+                    file_count += 1
+                    totalfilesize += f.file_size(vfs)
 
-        for src, vfs, e in entries:
-            entry_streams = e.get_streams(
-                repo=repo,
-                vfs=vfs,
-                volatiles=volatiles,
-                max_changeset=max_linkrev,
-                preserve_file_count=True,
-            )
-            for name, stream, size in entry_streams:
-                yield src
-                yield util.uvarintencode(len(name))
-                yield util.uvarintencode(size)
-                yield name
-                bytecount = 0
-                for chunk in stream:
-                    bytecount += len(chunk)
-                    totalbytecount += len(chunk)
-                    progress.update(totalbytecount)
-                    yield chunk
-                if bytecount != size:
-                    # Would most likely be caused by a race due to `hg
-                    # strip` or a revlog split
-                    msg = _(
-                        b'clone could only read %d bytes from %s, but '
-                        b'expected %d bytes'
-                    )
-                    raise error.Abort(msg % (bytecount, name, size))
+        progress = repo.ui.makeprogress(
+            _(b'bundle'), total=totalfilesize, unit=_(b'bytes')
+        )
+        progress.update(0)
+        with progress:
+            # the first yield release the lock on the repository
+            yield file_count, totalfilesize
+            totalbytecount = 0
+
+            for src, vfs, e in entries:
+                entry_streams = e.get_streams(
+                    repo=repo,
+                    vfs=vfs,
+                    volatiles=volatiles,
+                    max_changeset=max_linkrev,
+                    preserve_file_count=True,
+                )
+                for name, stream, size in entry_streams:
+                    yield src
+                    yield util.uvarintencode(len(name))
+                    yield util.uvarintencode(size)
+                    yield name
+                    bytecount = 0
+                    for chunk in stream:
+                        bytecount += len(chunk)
+                        totalbytecount += len(chunk)
+                        progress.update(totalbytecount)
+                        yield chunk
+                    if bytecount != size:
+                        # Would most likely be caused by a race due to `hg
+                        # strip` or a revlog split
+                        msg = _(
+                            b'clone could only read %d bytes from %s, but '
+                            b'expected %d bytes'
+                        )
+                        raise error.Abort(msg % (bytecount, name, size))
 
 
 def _emit3(repo, entries):
@@ -774,16 +773,7 @@ def _emit3(repo, entries):
 
     # translate the vfs once
     entries = [(vfs_key, vfsmap[vfs_key], e) for (vfs_key, e) in entries]
-    total_entry_count = len(entries)
-
-    max_linkrev = len(repo)
-    progress = repo.ui.makeprogress(
-        _(b'bundle'),
-        total=total_entry_count,
-        unit=_(b'entry'),
-    )
-    progress.update(0)
-    with VolatileManager() as volatiles, progress:
+    with VolatileManager() as volatiles:
         # make sure we preserve volatile files
         for k, vfs, e in entries:
             if e.maybe_volatile:
@@ -792,26 +782,36 @@ def _emit3(repo, entries):
                         # record the expected size under lock
                         f.file_size(vfs)
                         volatiles(vfs.join(f.unencoded_path))
+
+        total_entry_count = len(entries)
+
+        max_linkrev = len(repo)
+        progress = repo.ui.makeprogress(
+            _(b'bundle'),
+            total=total_entry_count,
+            unit=_(b'entry'),
+        )
+        progress.update(0)
         # the first yield release the lock on the repository
         yield None
+        with progress:
+            yield util.uvarintencode(total_entry_count)
 
-        yield util.uvarintencode(total_entry_count)
-
-        for src, vfs, e in entries:
-            entry_streams = e.get_streams(
-                repo=repo,
-                vfs=vfs,
-                volatiles=volatiles,
-                max_changeset=max_linkrev,
-            )
-            yield util.uvarintencode(len(entry_streams))
-            for name, stream, size in entry_streams:
-                yield src
-                yield util.uvarintencode(len(name))
-                yield util.uvarintencode(size)
-                yield name
-                yield from stream
-            progress.increment()
+            for src, vfs, e in entries:
+                entry_streams = e.get_streams(
+                    repo=repo,
+                    vfs=vfs,
+                    volatiles=volatiles,
+                    max_changeset=max_linkrev,
+                )
+                yield util.uvarintencode(len(entry_streams))
+                for name, stream, size in entry_streams:
+                    yield src
+                    yield util.uvarintencode(len(name))
+                    yield util.uvarintencode(size)
+                    yield name
+                    yield from stream
+                progress.increment()
 
 
 def _test_sync_point_walk_1(repo):
