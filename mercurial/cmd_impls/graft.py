@@ -231,6 +231,22 @@ def _build_progress(ui, repo, ctx):
     return _(b'grafting %s\n') % rev_sum
 
 
+def _build_meta(ui, repo, ctx, statedata):
+    source = ctx.extra().get(b'source')
+    extra = {}
+    if source:
+        extra[b'source'] = source
+        extra[b'intermediate-source'] = ctx.hex()
+    else:
+        extra[b'source'] = ctx.hex()
+    user = statedata.get(b'user', ctx.user())
+    date = statedata.get(b'date', ctx.date())
+    message = ctx.description()
+    if statedata.get(b'log'):
+        message += b'\n(grafted from %s)' % ctx.hex()
+    return (user, date, message, extra)
+
+
 def _graft_revisions(
     ui,
     repo,
@@ -248,18 +264,7 @@ def _graft_revisions(
         if dry_run:
             continue
 
-        source = ctx.extra().get(b'source')
-        extra = {}
-        if source:
-            extra[b'source'] = source
-            extra[b'intermediate-source'] = ctx.hex()
-        else:
-            extra[b'source'] = ctx.hex()
-        user = statedata.get(b'user', ctx.user())
-        date = statedata.get(b'date', ctx.date())
-        message = ctx.description()
-        if statedata.get(b'log'):
-            message += b'\n(grafted from %s)' % ctx.hex()
+        (user, date, message, extra) = _build_meta(ui, repo, ctx, statedata)
 
         # we don't merge the first commit when continuing
         if not cont:
