@@ -11,7 +11,14 @@ from typing import (
 
 from ..i18n import _
 
-from .. import cmdutil, error, logcmdutil, merge as mergemod, state as statemod
+from .. import (
+    cmdutil,
+    context,
+    error,
+    logcmdutil,
+    merge as mergemod,
+    state as statemod,
+)
 
 
 if typing.TYPE_CHECKING:
@@ -33,8 +40,11 @@ def cmd_graft(ui, repo, *revs, **opts) -> int:
         return _stopgraft(ui, repo, graftstate)
     elif action == "GRAFT":
         return _graft_revisions(ui, repo, graftstate, *args)
+    elif action == "GRAFT-TO":
+        return _graft_revisions_in_memory(ui, repo, graftstate, *args)
     else:
-        raise error.ProgrammingError('unknown action: %s' % action)
+        msg = b'unknown action: %s' % action.encode('ascii')
+        raise error.ProgrammingError(msg)
 
 
 def _process_args(
@@ -61,11 +71,20 @@ def _process_args(
     statedata[b'newnodes'] = []
 
     # argument incompatible with followup from an interrupted operation
-    commit_args = ['edit', 'log', 'user', 'date', 'currentdate', 'currentuser']
+    commit_args = [
+        'edit',
+        'log',
+        'user',
+        'date',
+        'currentdate',
+        'currentuser',
+        'to',
+    ]
     nofollow_args = commit_args + ['base', 'rev']
 
     arg_compatibilities = [
         ('no_commit', commit_args),
+        ('continue', ['to']),
         ('stop', nofollow_args),
         ('abort', nofollow_args),
     ]
@@ -78,6 +97,12 @@ def _process_args(
     cont = False
 
     graftstate = statemod.cmdstate(repo, b'graftstate')
+
+    if opts.get('to'):
+        toctx = logcmdutil.revsingle(repo, opts['to'], None)
+        statedata[b'to'] = toctx.hex()
+    else:
+        toctx = repo[None].p1()
 
     if opts.get('stop'):
         return "STOP", graftstate, None
@@ -102,7 +127,8 @@ def _process_args(
         raise error.InputError(_(b'no revisions specified'))
     else:
         cmdutil.checkunfinished(repo)
-        cmdutil.bailifchanged(repo)
+        if not opts.get('to'):
+            cmdutil.bailifchanged(repo)
         revs = logcmdutil.revrange(repo, revs)
 
     for o in (
@@ -142,7 +168,7 @@ def _process_args(
     # already, they'd have been in the graftstate.
     if not (cont or opts.get('force')) and basectx is None:
         # check for ancestors of dest branch
-        ancestors = repo.revs(b'%ld & (::.)', revs)
+        ancestors = repo.revs(b'%ld & (::%d)', revs, toctx.rev())
         for rev in ancestors:
             ui.warn(_(b'skipping ancestor revision %d:%s\n') % (rev, repo[rev]))
 
@@ -164,7 +190,7 @@ def _process_args(
 
         # The only changesets we can be sure doesn't contain grafts of any
         # revs, are the ones that are common ancestors of *all* revs:
-        for rev in repo.revs(b'only(%d,ancestor(%ld))', repo[b'.'].rev(), revs):
+        for rev in repo.revs(b'only(%d,ancestor(%ld))', toctx.rev(), revs):
             ctx = repo[rev]
             n = ctx.extra().get(b'source')
             if n in ids:
@@ -216,6 +242,8 @@ def _process_args(
     editor = cmdutil.getcommiteditor(editform=b'graft', **opts)
     dry_run = bool(opts.get("dry_run"))
     tool = opts.get('tool', b'')
+    if opts.get("to"):
+        return "GRAFT-TO", graftstate, (statedata, revs, editor, dry_run, tool)
     return "GRAFT", graftstate, (statedata, revs, editor, cont, dry_run, tool)
 
 
@@ -245,6 +273,65 @@ def _build_meta(ui, repo, ctx, statedata):
     if statedata.get(b'log'):
         message += b'\n(grafted from %s)' % ctx.hex()
     return (user, date, message, extra)
+
+
+def _graft_revisions_in_memory(
+    ui,
+    repo,
+    graftstate,
+    statedata,
+    revs,
+    editor,
+    dry_run,
+    tool=b'',
+):
+    """graft revisions in memory
+
+    Abort on unresolved conflicts.
+    """
+    with repo.lock(), repo.transaction(b"graft"):
+        target = repo[statedata[b"to"]]
+        for r in revs:
+            ctx = repo[r]
+            ui.status(_build_progress(ui, repo, ctx))
+            if dry_run:
+                # we might want to actually perform the grafting to detect
+                # potential conflict in the dry run.
+                continue
+            wctx = context.overlayworkingctx(repo)
+            wctx.setbase(target)
+            if b'base' in statedata:
+                base = repo[statedata[b'base']]
+            else:
+                base = ctx.p1()
+
+            (user, date, message, extra) = _build_meta(ui, repo, ctx, statedata)
+
+            # perform the graft merge with p1(rev) as 'ancestor'
+            try:
+                overrides = {(b'ui', b'forcemerge'): tool}
+                with ui.configoverride(overrides, b'graft'):
+                    mergemod.graft(
+                        repo,
+                        ctx,
+                        base,
+                        wctx=wctx,
+                    )
+            except error.InMemoryMergeConflictsError as e:
+                raise error.Abort(
+                    b'cannot graft in memory: merge conflicts',
+                    hint=_(bytes(e)),
+                )
+            mctx = wctx.tomemctx(
+                message,
+                user=user,
+                date=date,
+                extra=extra,
+                editor=editor,
+            )
+            node = repo.commitctx(mctx)
+            target = repo[node]
+        return 0
 
 
 def _graft_revisions(

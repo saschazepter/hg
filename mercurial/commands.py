@@ -2971,6 +2971,12 @@ def forget(ui, repo, *pats, **opts):
             _(b'base revision when doing the graft merge (ADVANCED)'),
             _(b'REV'),
         ),
+        (
+            b'',
+            b'to',
+            b'',
+            _(b'graft to this destination, in memory (EXPERIMENTAL)'),
+        ),
         (b'c', b'continue', False, _(b'resume interrupted graft')),
         (b'', b'stop', False, _(b'stop interrupted graft')),
         (b'', b'abort', False, _(b'abort interrupted graft')),
@@ -3058,6 +3064,16 @@ def graft(ui, repo, *revs, **opts):
 
       For using non-ancestors as the base to backout changes, see the backout
       command and the hidden --parent option.
+
+    .. container:: verbose
+
+        The experimental --to option allow to graft a revision in memory,
+        independently from the working copy. Merge conflict are not currenly
+        supported and the operation will be aborted if the configured tool
+        cannot handle the conflict that might be encountered.
+
+        As the operation is performence in memory, the on disk file will not be
+        modified and some hooks might not be run.
 
     .. container:: verbose
 
