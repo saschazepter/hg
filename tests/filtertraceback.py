@@ -37,8 +37,13 @@ for line in sys.stdin:
             continue
 
     elif state == 'file':
-        # Ignore lines after "  File "
-        state = 'tb'
+        # Ignore one line after "  File ", but sometimes "File" lines are
+        # contiguous:
+        #      File "<frozen importlib._bootstrap>", line 1007, in _find_and_load
+        #      File "<frozen importlib._bootstrap>", line 986, in _find_and_load_unlocked
+        #      File "<frozen importlib._bootstrap>", line 680, in _load_unlocked
+        if not line.startswith('  File '):
+            state = 'tb'
         continue
 
     print(line, end='')
