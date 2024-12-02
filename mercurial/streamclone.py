@@ -714,9 +714,8 @@ def _emit2(repo, entries):
         with util.nogc():
             # record the expected size of every file
             for k, vfs, e in entries:
+                e.preserve_volatiles(vfs, volatiles)
                 for f in e.files():
-                    if f.is_volatile:
-                        volatiles(vfs.join(f.unencoded_path))
                     file_count += 1
                     totalfilesize += f.file_size(vfs)
 
@@ -777,11 +776,11 @@ def _emit3(repo, entries):
         # make sure we preserve volatile files
         for k, vfs, e in entries:
             if e.maybe_volatile:
+                e.preserve_volatiles(vfs, volatiles)
                 for f in e.files():
                     if f.is_volatile:
                         # record the expected size under lock
                         f.file_size(vfs)
-                        volatiles(vfs.join(f.unencoded_path))
 
         total_entry_count = len(entries)
 
