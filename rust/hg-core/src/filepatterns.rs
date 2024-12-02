@@ -214,10 +214,33 @@ lazy_static! {
     static ref FLAG_RE: Regex = Regex::new(r"^\(\?[aiLmsux]+\)").unwrap();
 }
 
+/// Extra path components to match at the end of the pattern
+#[derive(Clone, Copy)]
+pub enum GlobSuffix {
+    /// `Empty` means the pattern only matches files, not directories,
+    /// so the path needs to match exactly.
+    Empty,
+    /// `MoreComponents` means the pattern matches directories as well,
+    /// so any path that has the pattern as a prefix, should match.
+    MoreComponents,
+}
+
+impl GlobSuffix {
+    fn to_re(self) -> &'static [u8] {
+        match self {
+            Self::Empty => b"$",
+            Self::MoreComponents => b"(?:/|$)",
+        }
+    }
+}
+
 /// Builds the regex that corresponds to the given pattern.
 /// If within a `syntax: regexp` context, returns the pattern,
 /// otherwise, returns the corresponding regex.
-fn _build_single_regex(entry: &IgnorePattern, glob_suffix: &[u8]) -> Vec<u8> {
+fn _build_single_regex(
+    entry: &IgnorePattern,
+    glob_suffix: GlobSuffix,
+) -> Vec<u8> {
     let IgnorePattern {
         syntax, pattern, ..
     } = entry;
@@ -264,7 +287,11 @@ fn _build_single_regex(entry: &IgnorePattern, glob_suffix: &[u8]) -> Vec<u8> {
             if pattern == b"." {
                 return vec![];
             }
-            [escape_pattern(pattern).as_slice(), b"(?:/|$)"].concat()
+            [
+                escape_pattern(pattern).as_slice(),
+                GlobSuffix::MoreComponents.to_re(),
+            ]
+            .concat()
         }
         PatternSyntax::RootFilesIn => {
             let mut res = if pattern == b"." {
@@ -281,13 +308,13 @@ fn _build_single_regex(entry: &IgnorePattern, glob_suffix: &[u8]) -> Vec<u8> {
         PatternSyntax::RelGlob => {
             let glob_re = glob_to_re(pattern);
             if let Some(rest) = glob_re.drop_prefix(b"[^/]*") {
-                [b".*", rest, glob_suffix].concat()
+                [b".*", rest, glob_suffix.to_re()].concat()
             } else {
-                [b"(?:.*/)?", glob_re.as_slice(), glob_suffix].concat()
+                [b"(?:.*/)?", glob_re.as_slice(), glob_suffix.to_re()].concat()
             }
         }
         PatternSyntax::Glob | PatternSyntax::RootGlob => {
-            [glob_to_re(pattern).as_slice(), glob_suffix].concat()
+            [glob_to_re(pattern).as_slice(), glob_suffix.to_re()].concat()
         }
         PatternSyntax::Include
         | PatternSyntax::SubInclude
@@ -345,7 +372,7 @@ pub fn normalize_path_bytes(bytes: &[u8]) -> Vec<u8> {
 /// that don't need to be transformed into a regex.
 pub fn build_single_regex(
     entry: &IgnorePattern,
-    glob_suffix: &[u8],
+    glob_suffix: GlobSuffix,
 ) -> Result<Option<Vec<u8>>, PatternError> {
     let IgnorePattern {
         pattern, syntax, ..
@@ -800,7 +827,7 @@ mod tests {
                     b"rust/target/",
                     Path::new("")
                 ),
-                b"(?:/|$)"
+                GlobSuffix::MoreComponents
             )
             .unwrap(),
             Some(br"(?:.*/)?rust/target(?:/|$)".to_vec()),
@@ -812,7 +839,7 @@ mod tests {
                     br"rust/target/\d+",
                     Path::new("")
                 ),
-                b"(?:/|$)"
+                GlobSuffix::MoreComponents
             )
             .unwrap(),
             Some(br"rust/target/\d+".to_vec()),
@@ -828,7 +855,7 @@ mod tests {
                     b"",
                     Path::new("")
                 ),
-                b"(?:/|$)"
+                GlobSuffix::MoreComponents
             )
             .unwrap(),
             None,
@@ -840,7 +867,7 @@ mod tests {
                     b"whatever",
                     Path::new("")
                 ),
-                b"(?:/|$)"
+                GlobSuffix::MoreComponents
             )
             .unwrap(),
             None,
@@ -852,7 +879,7 @@ mod tests {
                     b"*.o",
                     Path::new("")
                 ),
-                b"(?:/|$)"
+                GlobSuffix::MoreComponents
             )
             .unwrap(),
             Some(br"[^/]*\.o(?:/|$)".to_vec()),
@@ -868,7 +895,7 @@ mod tests {
                     b"^ba{2}r",
                     Path::new("")
                 ),
-                b"(?:/|$)"
+                GlobSuffix::MoreComponents
             )
             .unwrap(),
             Some(b"^ba{2}r".to_vec()),
@@ -880,7 +907,7 @@ mod tests {
                     b"ba{2}r",
                     Path::new("")
                 ),
-                b"(?:/|$)"
+                GlobSuffix::MoreComponents
             )
             .unwrap(),
             Some(b".*ba{2}r".to_vec()),
@@ -892,7 +919,7 @@ mod tests {
                     b"(?ia)ba{2}r",
                     Path::new("")
                 ),
-                b"(?:/|$)"
+                GlobSuffix::MoreComponents
             )
             .unwrap(),
             Some(b"(?ia:.*ba{2}r)".to_vec()),
@@ -904,7 +931,7 @@ mod tests {
                     b"(?ia)^ba{2}r",
                     Path::new("")
                 ),
-                b"(?:/|$)"
+                GlobSuffix::MoreComponents
             )
             .unwrap(),
             Some(b"(?ia:^ba{2}r)".to_vec()),
