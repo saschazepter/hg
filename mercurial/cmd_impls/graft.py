@@ -219,6 +219,18 @@ def _process_args(
     return "GRAFT", graftstate, (statedata, revs, editor, cont, dry_run, tool)
 
 
+def _build_progress(ui, repo, ctx):
+    rev_sum = b'%d:%s "%s"' % (
+        ctx.rev(),
+        ctx,
+        ctx.description().split(b'\n', 1)[0],
+    )
+    names = repo.nodetags(ctx.node()) + repo.nodebookmarks(ctx.node())
+    if names:
+        rev_sum += b' (%s)' % b' '.join(names)
+    return _(b'grafting %s\n') % rev_sum
+
+
 def _graft_revisions(
     ui,
     repo,
@@ -232,15 +244,7 @@ def _graft_revisions(
 ):
     """actually graft some revisions"""
     for pos, ctx in enumerate(repo.set(b"%ld", revs)):
-        desc = b'%d:%s "%s"' % (
-            ctx.rev(),
-            ctx,
-            ctx.description().split(b'\n', 1)[0],
-        )
-        names = repo.nodetags(ctx.node()) + repo.nodebookmarks(ctx.node())
-        if names:
-            desc += b' (%s)' % b' '.join(names)
-        ui.status(_(b'grafting %s\n') % desc)
+        ui.status(_build_progress(ui, repo, ctx))
         if dry_run:
             continue
 
