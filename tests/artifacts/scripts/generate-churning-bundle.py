@@ -117,7 +117,7 @@ def run(target):
                 print("generating commit #%d/%d" % (idx, NB_CHANGESET))
             if (idx % PERIOD_BRANCHING) == 0:
                 move_back = MOVE_BACK_MIN + (idx % MOVE_BACK_RANGE)
-                hg('update', ".~%d" % move_back)
+                hg('update', "max(0+.~%d)" % move_back)
             if (idx % PERIOD_MERGING) == 0:
                 hg('merge', 'min(head())')
             updatefile(FILENAME, idx)
