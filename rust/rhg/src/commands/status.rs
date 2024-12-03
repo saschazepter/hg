@@ -35,7 +35,6 @@ use hg::Revision;
 use hg::{self, narrow, sparse};
 use log::info;
 use rayon::prelude::*;
-use std::borrow::Cow;
 use std::io;
 use std::mem::take;
 use std::path::PathBuf;
@@ -156,6 +155,13 @@ pub fn args() -> clap::Command {
                 .action(clap::ArgAction::Append)
                 .value_name("REV"),
         )
+        .arg(
+            Arg::new("change")
+                .help("list the changed files of a revision")
+                .long("change")
+                .value_name("REV")
+                .conflicts_with("rev"),
+        )
 }
 
 fn parse_revpair(
@@ -263,6 +269,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let args = invocation.subcommand_args;
 
     let revs = args.get_many::<String>("rev");
+    let change = args.get_one::<String>("change");
     let print0 = args.get_flag("print0");
     let verbose = args.get_flag("verbose")
         || config.get_bool(b"ui", b"verbose")?
@@ -302,6 +309,9 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let repo = invocation.repo?;
     let revpair = parse_revpair(repo, revs.map(|i| i.cloned().collect()))?;
+    let change = change
+        .map(|rev| hg::revset::resolve_single(rev, repo))
+        .transpose()?;
 
     if verbose && has_unfinished_state(repo)? {
         return Err(CommandError::unsupported(
@@ -490,23 +500,33 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         repo,
     )?;
 
-    if let Some((rev1, rev2)) = revpair {
+    if revpair.is_some() || change.is_some() {
         let mut ds_status = DirstateStatus::default();
-        if list_copies {
-            return Err(CommandError::unsupported(
-                "status --rev --rev with copy information is not implemented yet",
-            ));
-        }
-
-        let stat = hg::operations::status_rev_rev_no_copies(
-            repo, rev1, rev2, matcher,
-        )?;
+        let list_copies = if list_copies {
+            if config.get_bool(b"devel", b"copy-tracing.trace-all-files")? {
+                Some(hg::operations::ListCopies::AddedOrModified)
+            } else {
+                Some(hg::operations::ListCopies::Added)
+            }
+        } else {
+            None
+        };
+        let stat = if let Some((rev1, rev2)) = revpair {
+            if list_copies.is_some() {
+                return Err(CommandError::unsupported(
+                    "status --rev --rev with copy information is not implemented yet",
+                ));
+            }
+            hg::operations::status_rev_rev_no_copies(
+                repo, rev1, rev2, matcher,
+            )?
+        } else if let Some(rev) = change {
+            hg::operations::status_change(repo, rev, matcher, list_copies)?
+        } else {
+            unreachable!();
+        };
         for entry in stat.iter() {
             let (path, status) = entry?;
-            let path = StatusPath {
-                path: Cow::Borrowed(path),
-                copy_source: None,
-            };
             match status {
                 hg::operations::DiffStatus::Removed => {
                     if display_states.removed {
