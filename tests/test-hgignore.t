@@ -16,6 +16,11 @@ debugignore with no hgignore should be deterministic:
   $ hg debugignore
   <nevermatcher>
 
+#if rhg
+  $ hg debugignorerhg
+  
+#endif
+
 Issue562: .hgignore requires newline at end:
 
   $ touch foo
@@ -77,6 +82,11 @@ regexp with flag is the first one
   $ hg debugignore
   <includematcher includes='(?i:.*\\.O$)|.*.hgignore'>
 
+#if rhg
+  $ hg debugignorerhg
+  (?i:.*\.O$)|.*.hgignore
+#endif
+
 regex with flag is not the first one
 
   $ echo 're:.hgignore' > .hgignore
@@ -87,6 +97,11 @@ regex with flag is not the first one
   ? syntax
   $ hg debugignore
   <includematcher includes='.*.hgignore|(?i:.*\\.O$)'>
+
+#if rhg
+  $ hg debugignorerhg
+  .*.hgignore|(?i:.*\.O$)
+#endif
 
 flag in a pattern should affect that pattern only
 
@@ -100,6 +115,11 @@ flag in a pattern should affect that pattern only
   $ hg debugignore
   <includematcher includes='(?i:.*\\.O$)|.*.HGIGNORE'>
 
+#if rhg
+  $ hg debugignorerhg
+  (?i:.*\.O$)|.*.HGIGNORE
+#endif
+
   $ echo 're:.HGIGNORE' > .hgignore
   $ echo 're:(?i)\.O$' >> .hgignore
   $ hg status
@@ -109,6 +129,11 @@ flag in a pattern should affect that pattern only
   ? syntax
   $ hg debugignore
   <includematcher includes='.*.HGIGNORE|(?i:.*\\.O$)'>
+
+#if rhg
+  $ hg debugignorerhg
+  .*.HGIGNORE|(?i:.*\.O$)
+#endif
 
 Check that '^' after flag is properly detected.
 
@@ -123,6 +148,11 @@ Check that '^' after flag is properly detected.
   $ hg debugignore
   <includematcher includes='(?i:^[^a].*\\.O$)|.*.HGIGNORE'>
 
+#if rhg
+  $ hg debugignorerhg
+  (?i:^[^a].*\.O$)|.*.HGIGNORE
+#endif
+
   $ echo 're:.HGIGNORE' > .hgignore
   $ echo 're:(?i)^[^a].*\.O$' >> .hgignore
   $ hg status
@@ -134,6 +164,10 @@ Check that '^' after flag is properly detected.
   $ hg debugignore
   <includematcher includes='.*.HGIGNORE|(?i:^[^a].*\\.O$)'>
 
+#if rhg
+  $ hg debugignorerhg
+  .*.HGIGNORE|(?i:^[^a].*\.O$)
+#endif
 
 further testing
 ---------------
@@ -317,6 +351,22 @@ Test relative ignore path (issue4473):
   ? a.o
   ? dir/c.o
 
+  $ echo "rootglob:dir/b.o" > .hgignore
+  $ hg status
+  A dir/b.o
+  ? .hgignore
+  ? a.c
+  ? a.o
+  ? dir/c.o
+  ? syntax
+#if rhg
+  $ hg debugignorerhg -a
+  dir/b\.o(?:/|$)
+
+  $ hg debugignorerhg
+  
+#endif
+
   $ echo "relglob:*" > .hgignore
   $ hg status
   A dir/b.o
@@ -327,6 +377,11 @@ Test relative ignore path (issue4473):
 
   $ hg debugignore
   <includematcher includes='.*(?:/|$)'>
+
+#if rhg
+  $ hg debugignorerhg
+  .*(?:/|$)
+#endif
 
   $ hg debugignore b.o
   b.o is ignored

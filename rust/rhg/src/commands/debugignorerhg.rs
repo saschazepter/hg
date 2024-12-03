@@ -1,4 +1,5 @@
 use crate::error::CommandError;
+use clap::Arg;
 use hg::dirstate::status::StatusError;
 use hg::filepatterns::RegexCompleteness;
 use hg::matchers::get_ignore_matcher_pre;
@@ -13,13 +14,22 @@ Some options might be missing, check the list below.
 ";
 
 pub fn args() -> clap::Command {
-    clap::command!("debugignorerhg").about(HELP_TEXT)
+    clap::command!("debugignorerhg")
+    .arg(
+        Arg::new("all-patterns")
+            .help("include all patterns, including ones for exact file matches")
+            .short('a')
+            .action(clap::ArgAction::SetTrue)
+            .long("all-patterns"),
+    ).about(HELP_TEXT)
 }
 
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let repo = invocation.repo?;
+    let args = invocation.subcommand_args;
 
     let ignore_file = repo.working_directory_vfs().join(".hgignore"); // TODO hardcoded
+    let all_patterns = args.get_flag("all-patterns");
 
     let (ignore_matcher, warnings) = get_ignore_matcher_pre(
         vec![ignore_file],
@@ -28,8 +38,13 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     )
     .map_err(StatusError::from)?;
 
+    let regex_config = if all_patterns {
+        RegexCompleteness::Complete
+    } else {
+        RegexCompleteness::ExcludeExactFiles
+    };
     let ignore_matcher = ignore_matcher
-        .build_debug_matcher(RegexComprehensiveness::Comprehensive)
+        .build_debug_matcher(regex_config)
         .map_err(StatusError::from)?;
 
     if !warnings.is_empty() {
