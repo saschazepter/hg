@@ -12,4 +12,7 @@ pub use list_tracked_files::{
     list_rev_tracked_files, list_revset_tracked_files, ExpandedManifestEntry,
     FilesForRev,
 };
-pub use status_rev_rev::{status_rev_rev_no_copies, DiffStatus, StatusRevRev};
+pub use status_rev_rev::{
+    status_change, status_rev_rev_no_copies, DiffStatus, ListCopies,
+    StatusRevRev,
+};
