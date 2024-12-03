@@ -162,22 +162,17 @@ fn parse_revpair(
     repo: &Repo,
     revs: Option<Vec<String>>,
 ) -> Result<Option<(Revision, Revision)>, CommandError> {
-    let revs = match revs {
-        None => return Ok(None),
-        Some(revs) => revs,
-    };
-    if revs.is_empty() {
+    let Some(revs) = revs else {
         return Ok(None);
+    };
+    match revs.as_slice() {
+        [] => Ok(None),
+        [rev1, rev2] => Ok(Some((
+            hg::revset::resolve_single(rev1, repo)?,
+            hg::revset::resolve_single(rev2, repo)?,
+        ))),
+        _ => Err(CommandError::unsupported("expected 0 or 2 --rev flags")),
     }
-    if revs.len() != 2 {
-        return Err(CommandError::unsupported("expected 0 or 2 --rev flags"));
-    }
-
-    let rev1 = &revs[0];
-    let rev2 = &revs[1];
-    let rev1 = hg::revset::resolve_single(rev1, repo)?;
-    let rev2 = hg::revset::resolve_single(rev2, repo)?;
-    Ok(Some((rev1, rev2)))
 }
 
 /// Pure data type allowing the caller to specify file states to display
