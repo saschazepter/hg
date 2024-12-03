@@ -496,10 +496,6 @@ Like previous tests but using --rev --rev instead of --change:
   R removed
 
   $ hg status --rev 0 --rev 1 unrelated
-  M modified (known-bad-output rhg !)
-  A added (known-bad-output rhg !)
-  A copied (known-bad-output rhg !)
-  R removed (known-bad-output rhg !)
 
   $ hg status -C --rev 0 --rev 1 added modified copied removed deleted
   M modified

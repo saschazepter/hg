@@ -454,7 +454,46 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             filesystem_time_at_status_start,
         ))
     };
+
     let (narrow_matcher, narrow_warnings) = narrow::matcher(repo)?;
+    let (sparse_matcher, sparse_warnings) = sparse::matcher(repo)?;
+    let matcher = match (repo.has_narrow(), repo.has_sparse()) {
+        (true, true) => {
+            Box::new(IntersectionMatcher::new(narrow_matcher, sparse_matcher))
+        }
+        (true, false) => narrow_matcher,
+        (false, true) => sparse_matcher,
+        (false, false) => Box::new(AlwaysMatcher),
+    };
+    let matcher = match args.get_many::<std::ffi::OsString>("file") {
+        None => matcher,
+        Some(files) => {
+            let patterns: Vec<Vec<u8>> = files
+                .filter(|s| !s.is_empty())
+                .map(get_bytes_from_os_str)
+                .collect();
+            for file in &patterns {
+                if file.starts_with(b"set:") {
+                    return Err(CommandError::unsupported("fileset"));
+                }
+            }
+            let cwd = hg::utils::current_dir()?;
+            let root = repo.working_directory_path();
+            let ignore_patterns = parse_pattern_args(patterns, &cwd, root)?;
+            let files_matcher =
+                hg::matchers::PatternMatcher::new(ignore_patterns)?;
+            Box::new(IntersectionMatcher::new(
+                Box::new(files_matcher),
+                matcher,
+            ))
+        }
+    };
+    print_narrow_sparse_warnings(
+        &narrow_warnings,
+        &sparse_warnings,
+        ui,
+        repo,
+    )?;
 
     if let Some((rev1, rev2)) = revpair {
         let mut ds_status = DirstateStatus::default();
@@ -465,10 +504,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         }
 
         let stat = hg::operations::status_rev_rev_no_copies(
-            repo,
-            rev1,
-            rev2,
-            narrow_matcher,
+            repo, rev1, rev2, matcher,
         )?;
         for entry in stat.iter() {
             let (path, status) = entry?;
@@ -503,45 +539,6 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         return Ok(());
     }
 
-    let (sparse_matcher, sparse_warnings) = sparse::matcher(repo)?;
-    let matcher = match (repo.has_narrow(), repo.has_sparse()) {
-        (true, true) => {
-            Box::new(IntersectionMatcher::new(narrow_matcher, sparse_matcher))
-        }
-        (true, false) => narrow_matcher,
-        (false, true) => sparse_matcher,
-        (false, false) => Box::new(AlwaysMatcher),
-    };
-    let matcher = match args.get_many::<std::ffi::OsString>("file") {
-        None => matcher,
-        Some(files) => {
-            let patterns: Vec<Vec<u8>> = files
-                .filter(|s| !s.is_empty())
-                .map(get_bytes_from_os_str)
-                .collect();
-            for file in &patterns {
-                if file.starts_with(b"set:") {
-                    return Err(CommandError::unsupported("fileset"));
-                }
-            }
-            let cwd = hg::utils::current_dir()?;
-            let root = repo.working_directory_path();
-            let ignore_patterns = parse_pattern_args(patterns, &cwd, root)?;
-            let files_matcher =
-                hg::matchers::PatternMatcher::new(ignore_patterns)?;
-            Box::new(IntersectionMatcher::new(
-                Box::new(files_matcher),
-                matcher,
-            ))
-        }
-    };
-
-    print_narrow_sparse_warnings(
-        &narrow_warnings,
-        &sparse_warnings,
-        ui,
-        repo,
-    )?;
     let (fixup, mut dirstate_write_needed, filesystem_time_at_status_start) =
         dmap.with_status(
             matcher.as_ref(),
