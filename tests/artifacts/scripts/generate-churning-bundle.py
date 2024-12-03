@@ -44,6 +44,28 @@ ALWAYS_CHANGE_LINES = 500
 OTHER_CHANGES = 300
 
 
+def build_graph():
+    heads = {0}
+    graph = {0: (None, None)}
+    for idx in range(1, NB_CHANGESET + 1):
+        p, _ = parents = [idx - 1, None]
+        if (idx % PERIOD_BRANCHING) == 0:
+            back = MOVE_BACK_MIN + (idx % MOVE_BACK_RANGE)
+            for _ in range(back):
+                p = graph.get(p, (p,))[0]
+                parents[0] = p
+        if (idx % PERIOD_MERGING) == 0:
+            parents[1] = min(heads)
+        for p in parents:
+            heads.discard(p)
+        heads.add(idx)
+        graph[idx] = tuple(parents)
+    return graph
+
+
+GRAPH = build_graph()
+
+
 def nextcontent(previous_content):
     """utility to produce a new file content from the previous one"""
     return hashlib.md5(previous_content).hexdigest().encode('ascii')
@@ -56,7 +78,7 @@ def filecontent(iteridx, oldcontent):
     content"""
 
     # initial call
-    if iteridx is None:
+    if iteridx == 0:
         current = b''
     else:
         current = b"%d" % iteridx
@@ -77,7 +99,7 @@ def filecontent(iteridx, oldcontent):
 def updatefile(filename, idx):
     """update <filename> to be at appropriate content for iteration <idx>"""
     existing = None
-    if idx is not None:
+    if idx > 0:
         with open(filename, 'rb') as old:
             existing = old.readlines()
     with open(filename, 'wb') as target:
@@ -110,18 +132,19 @@ def run(target):
     try:
         os.chdir(tmpdir)
         hg('init')
-        updatefile(FILENAME, None)
-        hg('commit', '--addremove', '--message', 'initial commit')
-        for idx in range(1, NB_CHANGESET + 1):
+        for idx, (p1, p2) in GRAPH.items():
             if sys.stdout.isatty():
                 print("generating commit #%d/%d" % (idx, NB_CHANGESET))
-            if (idx % PERIOD_BRANCHING) == 0:
-                move_back = MOVE_BACK_MIN + (idx % MOVE_BACK_RANGE)
-                hg('update', "max(0+.~%d)" % move_back)
-            if (idx % PERIOD_MERGING) == 0:
-                hg('merge', 'min(head())')
+            if p1 is not None and p1 != idx - 1:
+                hg('update', "%d" % p1)
+            if p2 is not None:
+                hg('merge', "%d" % p2)
             updatefile(FILENAME, idx)
-            hg('commit', '--message', 'commit #%d' % idx)
+            if idx == 0:
+                hg('add', FILENAME)
+                hg('commit', '--addremove', '--message', 'initial commit')
+            else:
+                hg('commit', '--message', 'commit #%d' % idx)
         hg('bundle', '--all', target, '--config', 'devel.bundle.delta=p1')
         with open(target, 'rb') as bundle:
             data = bundle.read()
