@@ -368,11 +368,35 @@ pub fn normalize_path_bytes(bytes: &[u8]) -> Vec<u8> {
     }
 }
 
+/// Controls whether we want the emitted regex to cover all cases
+/// or just the cases that are not covered by optimized code paths.
+#[derive(Debug, Clone, Copy)]
+pub enum RegexCompleteness {
+    /// `Complete` emits a regex that handles all files, including the ones
+    /// that are typically handled by a different code path.
+    /// This is used in `hg debugignorerhg -a` to avoid missing some rules.
+    Complete,
+    /// `ExcludeExactFiles` excludes the patterns that correspond to exact
+    /// file matches. This is the normal behavior, and gives a potentially
+    /// much smaller regex.
+    ExcludeExactFiles,
+}
+
+impl RegexCompleteness {
+    fn may_exclude_exact_files(self) -> bool {
+        match self {
+            Self::Complete => false,
+            Self::ExcludeExactFiles => true,
+        }
+    }
+}
+
 /// Wrapper function to `_build_single_regex` that short-circuits 'exact' globs
 /// that don't need to be transformed into a regex.
 pub fn build_single_regex(
     entry: &IgnorePattern,
     glob_suffix: GlobSuffix,
+    regex_config: RegexCompleteness,
 ) -> Result<Option<Vec<u8>>, PatternError> {
     let IgnorePattern {
         pattern, syntax, ..
@@ -390,7 +414,9 @@ pub fn build_single_regex(
     };
     let is_simple_rootglob = *syntax == PatternSyntax::RootGlob
         && !pattern.iter().any(|b| GLOB_SPECIAL_CHARACTERS.contains(b));
-    if is_simple_rootglob || syntax == &PatternSyntax::FilePath {
+    if regex_config.may_exclude_exact_files()
+        && (is_simple_rootglob || syntax == &PatternSyntax::FilePath)
+    {
         Ok(None)
     } else {
         let mut entry = entry.clone();
@@ -816,6 +842,17 @@ mod tests {
                 Path::new("file_path")
             )]
         );
+    }
+
+    pub fn build_single_regex(
+        entry: &IgnorePattern,
+        glob_suffix: GlobSuffix,
+    ) -> Result<Option<Vec<u8>>, PatternError> {
+        super::build_single_regex(
+            entry,
+            glob_suffix,
+            RegexCompleteness::ExcludeExactFiles,
+        )
     }
 
     #[test]
