@@ -1,6 +1,7 @@
 use crate::error::CommandError;
 use hg::dirstate::status::StatusError;
-use hg::matchers::get_ignore_matcher;
+use hg::filepatterns::RegexCompleteness;
+use hg::matchers::get_ignore_matcher_pre;
 use log::warn;
 
 pub const HELP_TEXT: &str = "
@@ -20,12 +21,16 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let ignore_file = repo.working_directory_vfs().join(".hgignore"); // TODO hardcoded
 
-    let (ignore_matcher, warnings) = get_ignore_matcher(
+    let (ignore_matcher, warnings) = get_ignore_matcher_pre(
         vec![ignore_file],
         repo.working_directory_path(),
         &mut |_source, _pattern_bytes| (),
     )
     .map_err(StatusError::from)?;
+
+    let ignore_matcher = ignore_matcher
+        .build_debug_matcher(RegexComprehensiveness::Comprehensive)
+        .map_err(StatusError::from)?;
 
     if !warnings.is_empty() {
         warn!("Pattern warnings: {:?}", &warnings);

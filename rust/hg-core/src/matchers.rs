@@ -15,7 +15,7 @@ use crate::{
     filepatterns::{
         build_single_regex, filter_subincludes, get_patterns_from_file,
         GlobSuffix, IgnorePattern, PatternError, PatternFileWarning,
-        PatternResult, PatternSyntax,
+        PatternResult, PatternSyntax, RegexCompleteness,
     },
     utils::{
         files::{dir_ancestors, find_dirs},
@@ -328,8 +328,11 @@ impl<'a> PatternMatcher<'a> {
         let prefix = ignore_patterns.iter().all(|k| {
             matches!(k.syntax, PatternSyntax::Path | PatternSyntax::RelPath)
         });
-        let (patterns, match_fn) =
-            build_match(ignore_patterns, GlobSuffix::Empty)?;
+        let (patterns, match_fn) = build_match(
+            ignore_patterns,
+            GlobSuffix::Empty,
+            RegexCompleteness::ExcludeExactFiles,
+        )?;
 
         Ok(Self {
             patterns,
@@ -381,6 +384,29 @@ impl<'a> Matcher for PatternMatcher<'a> {
 
     fn is_exact(&self) -> bool {
         false
+    }
+}
+
+/// A collection of patterns sufficient to construct an `IncludeMatcher`.
+pub struct IncludeMatcherPre {
+    patterns: Vec<IgnorePattern>,
+}
+
+impl IncludeMatcherPre {
+    pub fn build_matcher(self) -> PatternResult<IncludeMatcher<'static>> {
+        IncludeMatcher::new(self.patterns)
+    }
+
+    /// Used to print the full hgignore regex in `hg debugignorerhg`.
+    pub fn build_debug_matcher(
+        self,
+        regex_config: RegexCompleteness,
+    ) -> PatternResult<IncludeMatcher<'static>> {
+        IncludeMatcher::new_gen(self.patterns, regex_config)
+    }
+
+    fn new(patterns: Vec<IgnorePattern>) -> Self {
+        Self { patterns }
     }
 }
 
@@ -809,12 +835,15 @@ fn re_matcher(pattern: &[u8]) -> PatternResult<RegexMatcher> {
 fn build_regex_match<'a>(
     ignore_patterns: &[IgnorePattern],
     glob_suffix: GlobSuffix,
+    regex_config: RegexCompleteness,
 ) -> PatternResult<(Vec<u8>, IgnoreFnType<'a>)> {
     let mut regexps = vec![];
     let mut exact_set = HashSet::new();
 
     for pattern in ignore_patterns {
-        if let Some(re) = build_single_regex(pattern, glob_suffix)? {
+        if let Some(re) =
+            build_single_regex(pattern, glob_suffix, regex_config)?
+        {
             regexps.push(re);
         } else {
             let exact = normalize_path_bytes(&pattern.pattern);
@@ -929,6 +958,7 @@ fn roots_dirs_and_parents(
 fn build_match<'a>(
     ignore_patterns: Vec<IgnorePattern>,
     glob_suffix: GlobSuffix,
+    regex_config: RegexCompleteness,
 ) -> PatternResult<(Vec<u8>, IgnoreFnType<'a>)> {
     let mut match_funcs: Vec<IgnoreFnType<'a>> = vec![];
     // For debugging and printing
@@ -988,8 +1018,11 @@ fn build_match<'a>(
             dirs_vec.sort();
             patterns.extend(dirs_vec.escaped_bytes());
         } else {
-            let (new_re, match_func) =
-                build_regex_match(&ignore_patterns, glob_suffix)?;
+            let (new_re, match_func) = build_regex_match(
+                &ignore_patterns,
+                glob_suffix,
+                regex_config,
+            )?;
             patterns = new_re;
             match_funcs.push(match_func)
         }
@@ -1010,11 +1043,11 @@ fn build_match<'a>(
 /// Parses all "ignore" files with their recursive includes and returns a
 /// function that checks whether a given file (in the general sense) should be
 /// ignored.
-pub fn get_ignore_matcher<'a>(
+pub fn get_ignore_matcher_pre(
     mut all_pattern_files: Vec<PathBuf>,
     root_dir: &Path,
     inspect_pattern_bytes: &mut impl FnMut(&Path, &[u8]),
-) -> PatternResult<(IncludeMatcher<'a>, Vec<PatternFileWarning>)> {
+) -> PatternResult<(IncludeMatcherPre, Vec<PatternFileWarning>)> {
     let mut all_patterns = vec![];
     let mut all_warnings = vec![];
 
@@ -1036,8 +1069,21 @@ pub fn get_ignore_matcher<'a>(
         all_patterns.extend(patterns.to_owned());
         all_warnings.extend(warnings);
     }
-    let matcher = IncludeMatcher::new(all_patterns)?;
+    let matcher = IncludeMatcherPre::new(all_patterns);
     Ok((matcher, all_warnings))
+}
+
+pub fn get_ignore_matcher<'a>(
+    all_pattern_files: Vec<PathBuf>,
+    root_dir: &Path,
+    inspect_pattern_bytes: &mut impl FnMut(&Path, &[u8]),
+) -> PatternResult<(IncludeMatcher<'a>, Vec<PatternFileWarning>)> {
+    let (pre_matcher, warnings) = get_ignore_matcher_pre(
+        all_pattern_files,
+        root_dir,
+        inspect_pattern_bytes,
+    )?;
+    Ok((pre_matcher.build_matcher()?, warnings))
 }
 
 /// Parses all "ignore" files with their recursive includes and returns a
@@ -1059,7 +1105,10 @@ pub fn get_ignore_function<'a>(
 }
 
 impl<'a> IncludeMatcher<'a> {
-    pub fn new(ignore_patterns: Vec<IgnorePattern>) -> PatternResult<Self> {
+    fn new_gen(
+        ignore_patterns: Vec<IgnorePattern>,
+        regex_config: RegexCompleteness,
+    ) -> PatternResult<Self> {
         let RootsDirsAndParents {
             roots,
             dirs,
@@ -1068,8 +1117,11 @@ impl<'a> IncludeMatcher<'a> {
         let prefix = ignore_patterns.iter().all(|k| {
             matches!(k.syntax, PatternSyntax::Path | PatternSyntax::RelPath)
         });
-        let (patterns, match_fn) =
-            build_match(ignore_patterns, GlobSuffix::MoreComponents)?;
+        let (patterns, match_fn) = build_match(
+            ignore_patterns,
+            GlobSuffix::MoreComponents,
+            regex_config,
+        )?;
 
         Ok(Self {
             patterns,
@@ -1079,6 +1131,10 @@ impl<'a> IncludeMatcher<'a> {
             dirs,
             parents,
         })
+    }
+
+    pub fn new(ignore_patterns: Vec<IgnorePattern>) -> PatternResult<Self> {
+        Self::new_gen(ignore_patterns, RegexCompleteness::ExcludeExactFiles)
     }
 
     fn get_all_parents_children(&self) -> DirsChildrenMultiset {
