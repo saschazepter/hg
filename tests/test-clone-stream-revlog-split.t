@@ -44,12 +44,12 @@ check the revlog is inline
 
 setup synchronisation file
 
-  $ HG_TEST_STREAM_WALKED_FILE_1="$TESTTMP/sync_file_walked_1"
-  $ export HG_TEST_STREAM_WALKED_FILE_1
-  $ HG_TEST_STREAM_WALKED_FILE_2="$TESTTMP/sync_file_walked_2"
-  $ export HG_TEST_STREAM_WALKED_FILE_2
   $ HG_TEST_STREAM_WALKED_FILE_3="$TESTTMP/sync_file_walked_3"
   $ export HG_TEST_STREAM_WALKED_FILE_3
+  $ HG_TEST_STREAM_WALKED_FILE_4="$TESTTMP/sync_file_walked_4"
+  $ export HG_TEST_STREAM_WALKED_FILE_4
+  $ HG_TEST_STREAM_WALKED_FILE_5="$TESTTMP/sync_file_walked_5"
+  $ export HG_TEST_STREAM_WALKED_FILE_5
 
 
 Test stream-clone raced by a revlog-split
@@ -69,12 +69,12 @@ Start a client doing a streaming clone
   $ ( \
   >    hg clone --debug --stream -U http://localhost:$HGPORT1 \
   >    clone-while-split --config worker.backgroundclose=0 > client.log 2>&1; \
-  >    touch "$HG_TEST_STREAM_WALKED_FILE_3" \
+  >    touch "$HG_TEST_STREAM_WALKED_FILE_5" \
   > ) &
 
 Wait for the server to be done collecting data
 
-  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_1
+  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_3
 
 trigger a split
 
@@ -83,11 +83,11 @@ trigger a split
 
 unlock the stream generation
 
-  $ touch $HG_TEST_STREAM_WALKED_FILE_2
+  $ touch $HG_TEST_STREAM_WALKED_FILE_4
 
 wait for the client to be done cloning.
 
-  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_3
+  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_5
 
 Check everything is fine
 
