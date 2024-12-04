@@ -1065,6 +1065,22 @@ test for --time with --job enabled
   start   end     cuser   csys    real      Test
   \s*[\d\.]{5,8} \s*[\d\.]{5,8} \s*[\d\.]{5,8} \s*[\d\.]{5,8} \s*[\d\.]{5,8}   test-success.t (re)
 
+test for --tail-report
+====================================
+
+  $ rt --tail-report --jobs 2 --nodiff
+  running 2 tests using 2 parallel processes 
+  ?? (glob)
+  ### test tail-report ###
+  [* s] 1 tests still running; finished test-*.t (glob)
+  [* s] 0 tests still running; finished test-*.t (glob)
+  Failed test-failure.t: output changed
+  # Ran 2 tests, 0 skipped, 1 failed.
+  python hash seed: * (glob)
+  [1]
+
+
+
 Skips
 ================
   $ cat > test-skip.t <<EOF

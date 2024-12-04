@@ -728,6 +728,11 @@ def getparser():
     reporting.add_argument(
         "--time", action="store_true", help="time how long each test takes"
     )
+    reporting.add_argument(
+        "--tail-report",
+        action="store_true",
+        help="display information about the final test of each thread",
+    )
     reporting.add_argument("--view", help="external diff viewer")
     reporting.add_argument(
         "--xunit", help="record xunit results at specified path"
@@ -2564,6 +2569,7 @@ class TestSuite(unittest.TestSuite):
         runs_per_test=1,
         loadtest=None,
         showchannels=False,
+        tail_report=False,
         *args,
         **kwargs,
     ):
@@ -2601,6 +2607,7 @@ class TestSuite(unittest.TestSuite):
         self._runs_per_test = runs_per_test
         self._loadtest = loadtest
         self._showchannels = showchannels
+        self._tail_report = tail_report
 
     def run(self, result):
         # We have a number of filters that need to be applied. We do this
@@ -2663,7 +2670,7 @@ class TestSuite(unittest.TestSuite):
                     raise ValueError('Could not find output channel')
                 channels[channel] = "=" + test.name[5:].split(".")[0]
 
-            r = None
+            r = (None, test, None)
             try:
                 test(result)
             except KeyboardInterrupt:
@@ -2703,11 +2710,14 @@ class TestSuite(unittest.TestSuite):
             statthread = threading.Thread(target=stat, name="stat")
             statthread.start()
 
+        start_time = time.monotonic()
+        tail_data = []
         try:
             while tests or running:
+                finished = None
                 if not done.empty() or running == self._jobs or not tests:
                     try:
-                        done.get(True, 1)
+                        _, finished, _ = done.get(True, 1)
                         running -= 1
                         if result and result.shouldStop:
                             stoppedearly = True
@@ -2730,6 +2740,8 @@ class TestSuite(unittest.TestSuite):
                         )
                         t.start()
                     running += 1
+                if finished is not None and running < self._jobs:
+                    tail_data.append((finished, running, time.monotonic()))
 
             # If we stop early we still need to wait on started tests to
             # finish. Otherwise, there is a race between the test completing
@@ -2746,7 +2758,16 @@ class TestSuite(unittest.TestSuite):
             for test in runtests:
                 test.abort()
 
-        channels = []
+        if self._tail_report:
+            with iolock:
+                sys.stdout.write('\n### test tail-report ###\n')
+                sys.stdout.flush()
+                channels = []
+                for test, remaining, end_time in tail_data:
+                    m = "[% 13.6f s] %d tests still running; finished %s\n"
+                    m %= (end_time - start_time, remaining, test)
+                    sys.stdout.write(m)
+                    sys.stdout.flush()
 
         return result
 
@@ -2840,7 +2861,8 @@ class TextTestRunner(unittest.TextTestRunner):
         ignored = len(self._result.ignored)
 
         with iolock:
-            self.stream.writeln('')
+            if not self._runner.options.tail_report:
+                self.stream.writeln('')
 
             if not self._runner.options.noskips:
                 for test, msg in sorted(
@@ -3655,6 +3677,7 @@ class TestRunner:
                 loop=self.options.loop,
                 runs_per_test=self.options.runs_per_test,
                 showchannels=self.options.showchannels,
+                tail_report=self.options.tail_report,
                 tests=tests,
                 loadtest=_reloadtest,
             )
