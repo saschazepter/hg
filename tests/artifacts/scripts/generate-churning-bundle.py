@@ -14,8 +14,6 @@
 # of the files always get updated while the rest of the lines get updated over
 # time. This update happens over many topological branches, some getting merged
 # back.
-#
-# Running with `chg` in your path and `CHGHG` set is recommended for speed.
 
 
 import hashlib
@@ -24,6 +22,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+
+import mercurial.context
+import mercurial.hg
+import mercurial.ui
 
 BUNDLE_NAME = 'big-file-churn.hg'
 
@@ -218,27 +220,47 @@ def hg(command, *args):
     return subprocess.check_call(full_cmd, env=env)
 
 
+def write_repo(path):
+    """write repository content in memory"""
+    repo = mercurial.hg.repository(
+        mercurial.ui.ui.load(),
+        path=path.encode('utf-8'),
+    )
+    nodemap = {None: repo.nodeconstants.nullid}
+    with repo.lock(), repo.transaction(b'bundle-generation'):
+        for idx, (p1, p2) in GRAPH.items():
+            if sys.stdout.isatty():
+                print("generating commit #%d/%d" % (idx, NB_CHANGESET))
+
+            file_fn = lambda repo, memctx, path: mercurial.context.memfilectx(
+                repo,
+                memctx,
+                path,
+                data=b''.join(CONTENT.pop(idx)()),
+            )
+
+            mc = mercurial.context.memctx(
+                repo,
+                (nodemap[p1], nodemap[p2]),
+                b'commit #%d' % idx if idx else b'initial commit',
+                [FILENAME.encode('ascii')],
+                file_fn,
+                user=b"test",
+                date=(0, 0),
+            )
+            nodemap[idx] = repo.commitctx(mc)
+
+
 def run(target):
     tmpdir = tempfile.mkdtemp(prefix='tmp-hg-test-big-file-bundle-')
     try:
         os.chdir(tmpdir)
-        hg('init')
-        for idx, (p1, p2) in GRAPH.items():
-            if sys.stdout.isatty():
-                print("generating commit #%d/%d" % (idx, NB_CHANGESET))
-            if p1 is not None and p1 != idx - 1:
-                hg('update', "%d" % p1)
-            if p2 is not None:
-                hg('merge', "%d" % p2)
-            with open(FILENAME, 'wb') as f:
-                # pop the value to let it be garbage collection eventually.
-                for line in CONTENT.pop(idx)():
-                    f.write(line)
-            if idx == 0:
-                hg('add', FILENAME)
-                hg('commit', '--addremove', '--message', 'initial commit')
-            else:
-                hg('commit', '--message', 'commit #%d' % idx)
+        hg(
+            'init',
+            '--config',
+            'format.maxchainlen=%d' % NB_CHANGESET,
+        )
+        write_repo(tmpdir)
         hg('bundle', '--all', target, '--config', 'devel.bundle.delta=p1')
         with open(target, 'rb') as bundle:
             data = bundle.read()
