@@ -44,12 +44,18 @@ check the revlog is inline
 
 setup synchronisation file
 
+  $ HG_TEST_STREAM_WALKED_FILE_1="$TESTTMP/sync_file_walked_1"
+  $ export HG_TEST_STREAM_WALKED_FILE_1
+  $ HG_TEST_STREAM_WALKED_FILE_2="$TESTTMP/sync_file_walked_2"
+  $ export HG_TEST_STREAM_WALKED_FILE_2
   $ HG_TEST_STREAM_WALKED_FILE_3="$TESTTMP/sync_file_walked_3"
   $ export HG_TEST_STREAM_WALKED_FILE_3
   $ HG_TEST_STREAM_WALKED_FILE_4="$TESTTMP/sync_file_walked_4"
   $ export HG_TEST_STREAM_WALKED_FILE_4
   $ HG_TEST_STREAM_WALKED_FILE_5="$TESTTMP/sync_file_walked_5"
   $ export HG_TEST_STREAM_WALKED_FILE_5
+(we don't need this wait point)
+  $ touch $HG_TEST_STREAM_WALKED_FILE_2
 
 
 Test stream-clone raced by a revlog-split
