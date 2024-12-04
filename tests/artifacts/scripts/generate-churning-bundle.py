@@ -14,6 +14,10 @@
 # of the files always get updated while the rest of the lines get updated over
 # time. This update happens over many topological branches, some getting merged
 # back.
+#
+# --lazy     will skip generating the file if one exist with the right content
+#            already.
+# --validate make sure the generated bundle has the expected content.
 
 
 import hashlib
@@ -251,7 +255,33 @@ def write_repo(path):
             nodemap[idx] = repo.commitctx(mc)
 
 
-def run(target):
+def compute_md5(target):
+    with open(target, 'rb') as bundle:
+        data = bundle.read()
+        return hashlib.md5(data).hexdigest()
+
+
+def write_md5(target, md5):
+    with open(target + '.md5', 'wb') as md5file:
+        md5file.write(md5.encode('ascii') + b'\n')
+
+
+def read_md5(target):
+    with open(target + '.md5', 'rb') as md5file:
+        return md5file.read().strip().decode('ascii')
+
+
+def up_to_date_target(target):
+    """return true if the file already exist at the right"""
+    try:
+        found = compute_md5(target)
+        expected = read_md5(target)
+    except OSError:
+        return False
+    return found == expected
+
+
+def run(target, validate=False):
     tmpdir = tempfile.mkdtemp(prefix='tmp-hg-test-big-file-bundle-')
     try:
         os.chdir(tmpdir)
@@ -262,14 +292,17 @@ def run(target):
         )
         write_repo(tmpdir)
         hg('bundle', '--all', target, '--config', 'devel.bundle.delta=p1')
-        with open(target, 'rb') as bundle:
-            data = bundle.read()
-            digest = hashlib.md5(data).hexdigest()
-        with open(target + '.md5', 'wb') as md5file:
-            md5file.write(digest.encode('ascii') + b'\n')
-        if sys.stdout.isatty():
-            print('bundle generated at "%s" md5: %s' % (target, digest))
-
+        digest = compute_md5(target)
+        if not validate:
+            write_md5(target, digest)
+        else:
+            expected = read_md5(target)
+            if expected != digest:
+                msg = "bundle generated does not match the expected content\n"
+                msg += "    expected: %s\n" % expected
+                msg += "    got:      %s" % digest
+                print(msg, file=sys.stderr)
+                return 1
     finally:
         shutil.rmtree(tmpdir)
     return 0
@@ -278,4 +311,8 @@ def run(target):
 if __name__ == '__main__':
     orig = os.path.realpath(os.path.dirname(sys.argv[0]))
     target = os.path.join(orig, os.pardir, 'cache', BUNDLE_NAME)
-    sys.exit(run(target))
+    lazy = '--lazy' in sys.argv[1:]
+    validate = '--validate' in sys.argv[1:]
+    if lazy and up_to_date_target(target):
+        sys.exit(0)
+    sys.exit(run(target, validate=validate))
