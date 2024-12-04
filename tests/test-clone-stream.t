@@ -383,6 +383,10 @@ prepare repo with small and big file to cover both code paths in emitrevlogdata
   $ touch repo/f1
   $ $TESTDIR/seq.py 50000 > repo/f2
   $ hg -R repo ci -Aqm "0"
+  $ HG_TEST_STREAM_WALKED_FILE_1="$TESTTMP/sync_file_walked_1"
+  $ export HG_TEST_STREAM_WALKED_FILE_1
+  $ HG_TEST_STREAM_WALKED_FILE_2="$TESTTMP/sync_file_walked_2"
+  $ export HG_TEST_STREAM_WALKED_FILE_2
   $ HG_TEST_STREAM_WALKED_FILE_3="$TESTTMP/sync_file_walked_3"
   $ export HG_TEST_STREAM_WALKED_FILE_3
   $ HG_TEST_STREAM_WALKED_FILE_4="$TESTTMP/sync_file_walked_4"
@@ -399,11 +403,41 @@ prepare repo with small and big file to cover both code paths in emitrevlogdata
 clone while modifying the repo between stating file with write lock and
 actually serving file content
 
+also delete some cache in the process
+
   $ (hg clone -q --stream -U http://localhost:$HGPORT1 clone; touch "$HG_TEST_STREAM_WALKED_FILE_5") &
+
+  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_1
+(delete one file)
+  $ ls repo/.hg/cache/rbc-revs-v2
+  repo/.hg/cache/rbc-revs-v2
+  $ rm repo/.hg/cache/rbc-revs-v2
+(truncate another)
+  $ ls repo/.hg/cache/rbc-names-v2
+  repo/.hg/cache/rbc-names-v2
+  $ echo football > repo/.hg/cache/rbc-names-v2
+(lenghten another one)
+  $ ls repo/.hg/cache/branch2-served
+  repo/.hg/cache/branch2-served
+  $ echo bar >> repo/.hg/cache/branch2-served
+(remove one in wcache))
+  $ ls repo/.hg/wcache/manifestfulltextcache
+  repo/.hg/wcache/manifestfulltextcache
+  $ rm repo/.hg/wcache/manifestfulltextcache
+  $ touch $HG_TEST_STREAM_WALKED_FILE_2
+
   $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_3
   $ echo >> repo/f1
   $ echo >> repo/f2
   $ hg -R repo ci -m "1" --config ui.timeout.warn=-1
+(truncate further)
+  $ ls repo/.hg/cache/rbc-names-v2
+  repo/.hg/cache/rbc-names-v2
+  $ echo foo > repo/.hg/cache/rbc-names-v2
+(lenghten another one)
+  $ ls repo/.hg/cache/branch2-served
+  repo/.hg/cache/branch2-served
+  $ echo babar >> repo/.hg/cache/branch2-served
   $ touch $HG_TEST_STREAM_WALKED_FILE_4
   $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_5
   $ hg -R clone id

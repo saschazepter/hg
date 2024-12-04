@@ -460,6 +460,9 @@ class StoreFile:
     unencoded_path = attr.ib()
     _file_size = attr.ib(default=None)
     is_volatile = attr.ib(default=False)
+    # Missing file can be safely ignored, used by "copy/hardlink" local clone
+    # for cache file not covered by lock.
+    optional = False
 
     def file_size(self, vfs):
         if self._file_size is None:

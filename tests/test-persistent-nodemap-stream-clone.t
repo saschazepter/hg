@@ -79,6 +79,10 @@ Other commit happening on the server during the stream clone
 
 setup the step-by-step stream cloning
 
+  $ HG_TEST_STREAM_WALKED_FILE_1="$TESTTMP/sync_file_walked_1"
+  $ export HG_TEST_STREAM_WALKED_FILE_1
+  $ HG_TEST_STREAM_WALKED_FILE_2="$TESTTMP/sync_file_walked_2"
+  $ export HG_TEST_STREAM_WALKED_FILE_2
   $ HG_TEST_STREAM_WALKED_FILE_3="$TESTTMP/sync_file_walked_3"
   $ export HG_TEST_STREAM_WALKED_FILE_3
   $ HG_TEST_STREAM_WALKED_FILE_4="$TESTTMP/sync_file_walked_4"
@@ -89,6 +93,8 @@ setup the step-by-step stream cloning
   > [extensions]
   > steps=$RUNTESTDIR/testlib/ext-stream-clone-steps.py
   > EOF
+(we don't need this wait point)
+  $ touch $HG_TEST_STREAM_WALKED_FILE_2
 
 Check and record file state beforehand
 
