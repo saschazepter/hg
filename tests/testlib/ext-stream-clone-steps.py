@@ -21,8 +21,15 @@ from mercurial import (
 )
 
 
+WALKED_FILE_1 = encoding.environ[b'HG_TEST_STREAM_WALKED_FILE_1']
+WALKED_FILE_2 = encoding.environ[b'HG_TEST_STREAM_WALKED_FILE_2']
 WALKED_FILE_3 = encoding.environ[b'HG_TEST_STREAM_WALKED_FILE_3']
 WALKED_FILE_4 = encoding.environ[b'HG_TEST_STREAM_WALKED_FILE_4']
+
+
+def _test_sync_point_walk_1_2(orig, repo):
+    testing.write_file(WALKED_FILE_1)
+    testing.wait_file(WALKED_FILE_2)
 
 
 def _test_sync_point_walk_3(orig, repo):
@@ -35,6 +42,10 @@ def _test_sync_point_walk_4(orig, repo):
 
 
 def uisetup(ui):
+    extensions.wrapfunction(
+        streamclone, '_test_sync_point_walk_1_2', _test_sync_point_walk_1_2
+    )
+
     extensions.wrapfunction(
         streamclone, '_test_sync_point_walk_3', _test_sync_point_walk_3
     )
