@@ -96,15 +96,106 @@ def filecontent(iteridx, oldcontent):
         yield to_write
 
 
-def updatefile(filename, idx):
-    """update <filename> to be at appropriate content for iteration <idx>"""
-    existing = None
-    if idx > 0:
-        with open(filename, 'rb') as old:
-            existing = old.readlines()
-    with open(filename, 'wb') as target:
-        for line in filecontent(idx, existing):
-            target.write(line)
+def merge_content(base, left, right):
+    """merge two file content to produce a new one
+
+    use unambiguous update on each side when possible, and produce a new line
+    whenever a merge is needed. Similar to what the manifest would do.
+    """
+    for old, left, right in zip(base, left, right):
+        if old == left and old == right:
+            yield old
+        elif old == left and old != right:
+            yield right
+        elif old != left and old == right:
+            yield left
+        else:
+            yield nextcontent(left + right)
+
+
+def ancestors(graph, rev):
+    """return the set of ancestors of revision <rev>"""
+    to_proceed = {rev}
+    seen = set(to_proceed)
+    while to_proceed:
+        current = to_proceed.pop()
+        for p in graph[current]:
+            if p is None:
+                continue
+            if p in seen:
+                continue
+            to_proceed.add(p)
+            seen.add(p)
+    return seen
+
+
+def gca(graph, left, right):
+    """find the greater common ancestors of left and right
+
+    Note that the algorithm is stupid and N² when run on all merge, however
+    this should not be a too much issue given the current scale.
+    """
+    return max(ancestors(graph, left) & ancestors(graph, right))
+
+
+def make_one_content_fn(idx, base, left, right):
+    """build a function that build the content on demand
+
+    The dependency are kept are reference to make sure they are not
+    garbage-collected until we use them. Once we computed the current content,
+    we make sure to drop their reference to allow them to be garbage collected.
+    """
+
+    def content_fn(idx=idx, base=base, left=left, right=right):
+        if left is None:
+            new = filecontent(idx, None)
+        elif base is None:
+            new = filecontent(idx, left())
+        else:
+            merged = merge_content(base(), left(), right())
+            new = filecontent(idx, list(merged))
+        return list(new)
+
+    del idx
+    del base
+    del left
+    del right
+
+    value = None
+    cf = [content_fn]
+    del content_fn
+
+    def final_fn():
+        nonlocal value
+        if value is None:
+            content_fn = cf.pop()
+            value = list(content_fn())
+            del content_fn
+        return value
+
+    return final_fn
+
+
+def build_content_graph(graph):
+    """produce file content for all revision
+
+    The content will be generated on demande and cached. Cleanup the
+    dictionnary are you use it to reduce memory usage.
+    """
+    content = {}
+    for idx, (p1, p2) in graph.items():
+        base = left = right = None
+        if p1 is not None:
+            left = content[p1]
+            if p2 is not None:
+                right = content[p2]
+                base_rev = gca(graph, p1, p2)
+                base = content[base_rev]
+        content[idx] = make_one_content_fn(idx, base, left, right)
+    return content
+
+
+CONTENT = build_content_graph(GRAPH)
 
 
 def hg(command, *args):
@@ -139,7 +230,10 @@ def run(target):
                 hg('update', "%d" % p1)
             if p2 is not None:
                 hg('merge', "%d" % p2)
-            updatefile(FILENAME, idx)
+            with open(FILENAME, 'wb') as f:
+                # pop the value to let it be garbage collection eventually.
+                for line in CONTENT.pop(idx)():
+                    f.write(line)
             if idx == 0:
                 hg('add', FILENAME)
                 hg('commit', '--addremove', '--message', 'initial commit')
