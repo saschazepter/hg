@@ -15,7 +15,7 @@ Current checks:
   >   --enable=W0102,C0321 \
   >   --reports=no \
   >   --ignore=thirdparty \
-  >   mercurial hgdemandimport hgext hgext3rd | sed 's/\r$//'
+  >   mercurial hgdemandimport hgext | sed 's/\r$//'
   Using config file *fakerc (glob) (?)
    (?)
   ------------------------------------* (glob) (?)
