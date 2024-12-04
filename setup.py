@@ -1739,8 +1739,6 @@ for root in ('templates',):
         packagename = curdir.replace(os.sep, '.')
         packagedata[packagename] = list(filter(ordinarypath, files))
 
-datafiles = []
-
 # distutils expects version to be str/unicode. Converting it to
 # unicode on Python 2 still works because it won't contain any
 # non-ascii bytes and will be implicitly converted back to bytes
@@ -1816,7 +1814,6 @@ setup(
     scripts=scripts,
     packages=packages,
     ext_modules=extmodules,
-    data_files=datafiles,
     package_data=packagedata,
     cmdclass=cmdclass,
     distclass=hgdist,
