@@ -383,12 +383,12 @@ prepare repo with small and big file to cover both code paths in emitrevlogdata
   $ touch repo/f1
   $ $TESTDIR/seq.py 50000 > repo/f2
   $ hg -R repo ci -Aqm "0"
-  $ HG_TEST_STREAM_WALKED_FILE_1="$TESTTMP/sync_file_walked_1"
-  $ export HG_TEST_STREAM_WALKED_FILE_1
-  $ HG_TEST_STREAM_WALKED_FILE_2="$TESTTMP/sync_file_walked_2"
-  $ export HG_TEST_STREAM_WALKED_FILE_2
   $ HG_TEST_STREAM_WALKED_FILE_3="$TESTTMP/sync_file_walked_3"
   $ export HG_TEST_STREAM_WALKED_FILE_3
+  $ HG_TEST_STREAM_WALKED_FILE_4="$TESTTMP/sync_file_walked_4"
+  $ export HG_TEST_STREAM_WALKED_FILE_4
+  $ HG_TEST_STREAM_WALKED_FILE_5="$TESTTMP/sync_file_walked_5"
+  $ export HG_TEST_STREAM_WALKED_FILE_5
 #   $ cat << EOF >> $HGRCPATH
 #   > [hooks]
 #   > pre-clone=rm -f "$TESTTMP/sync_file_walked_*"
@@ -399,13 +399,13 @@ prepare repo with small and big file to cover both code paths in emitrevlogdata
 clone while modifying the repo between stating file with write lock and
 actually serving file content
 
-  $ (hg clone -q --stream -U http://localhost:$HGPORT1 clone; touch "$HG_TEST_STREAM_WALKED_FILE_3") &
-  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_1
+  $ (hg clone -q --stream -U http://localhost:$HGPORT1 clone; touch "$HG_TEST_STREAM_WALKED_FILE_5") &
+  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_3
   $ echo >> repo/f1
   $ echo >> repo/f2
   $ hg -R repo ci -m "1" --config ui.timeout.warn=-1
-  $ touch $HG_TEST_STREAM_WALKED_FILE_2
-  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_3
+  $ touch $HG_TEST_STREAM_WALKED_FILE_4
+  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_5
   $ hg -R clone id
   000000000000
   $ hg -R clone verify --quiet
