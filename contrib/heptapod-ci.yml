@@ -290,6 +290,7 @@ build-c-wheel-arm64-musl:
         - HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO"
           "$PYTHON" tests/run-tests.py
             --color=always
+            --tail-report
             $PORT_ARG
             $WHEEL_ARG
             $FLAVOR
@@ -548,6 +549,7 @@ build-c-wheel-windows:
             && HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO"
                $PYTHON tests/run-tests.py
                --color=always
+               --tail-report
                $WHEEL_ARG
                $FLAVOR
                --port `expr 19051 + 1009 "*" $CI_CONCURRENT_ID`
