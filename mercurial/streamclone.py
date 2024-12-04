@@ -277,8 +277,8 @@ def generatev1(repo):
                 if file_size:
                     entries.append((f.unencoded_path, file_size))
                     total_bytes += file_size
-        _test_sync_point_walk_1(repo)
-    _test_sync_point_walk_2(repo)
+        _test_sync_point_walk_3(repo)
+    _test_sync_point_walk_4(repo)
 
     repo.ui.debug(
         b'%d files, %d bytes to transfer\n' % (len(entries), total_bytes)
@@ -813,11 +813,11 @@ def _emit3(repo, entries):
                 progress.increment()
 
 
-def _test_sync_point_walk_1(repo):
+def _test_sync_point_walk_3(repo):
     """a function for synchronisation during tests"""
 
 
-def _test_sync_point_walk_2(repo):
+def _test_sync_point_walk_4(repo):
     """a function for synchronisation during tests"""
 
 
@@ -883,8 +883,8 @@ def generatev2(repo, includes, excludes, includeobsmarkers):
         chunks = _emit2(repo, entries)
         first = next(chunks)
         file_count, total_file_size = first
-        _test_sync_point_walk_1(repo)
-    _test_sync_point_walk_2(repo)
+        _test_sync_point_walk_3(repo)
+    _test_sync_point_walk_4(repo)
 
     return file_count, total_file_size, chunks
 
@@ -929,8 +929,8 @@ def generatev3(repo, includes, excludes, includeobsmarkers):
         chunks = _emit3(repo, list(entries))
         first = next(chunks)
         assert first is None
-        _test_sync_point_walk_1(repo)
-    _test_sync_point_walk_2(repo)
+        _test_sync_point_walk_3(repo)
+    _test_sync_point_walk_4(repo)
 
     return chunks
 
