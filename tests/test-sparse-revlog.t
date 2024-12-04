@@ -11,28 +11,32 @@ repeatedly while some of it changes rarely.
 
   $ bundlepath="$TESTDIR/artifacts/cache/big-file-churn.hg"
 
+#if pure
   $ expectedhash=`cat "$bundlepath".md5`
-
-#if slow
-
-  $ if [ ! -f "$bundlepath" ]; then
-  >     "$TESTDIR"/artifacts/scripts/generate-churning-bundle.py > /dev/null
-  > fi
-
-#else
-
   $ if [ ! -f "$bundlepath" ]; then
   >     echo 'skipped: missing artifact, run "'"$TESTDIR"'/artifacts/scripts/generate-churning-bundle.py"'
   >     exit 80
   > fi
-
-#endif
-
   $ currenthash=`f -M "$bundlepath" | cut -d = -f 2`
   $ if [ "$currenthash" != "$expectedhash" ]; then
   >     echo 'skipped: outdated artifact, md5 "'"$currenthash"'" expected "'"$expectedhash"'" run "'"$TESTDIR"'/artifacts/scripts/generate-churning-bundle.py"'
   >     exit 80
   > fi
+#else
+
+#if slow
+  $ LAZY_GEN=""
+
+#else
+  $ LAZY_GEN="--lazy"
+#endif
+
+#endif
+
+If the validation fails, either something is broken or the expected md5 need updating.
+To update the md5, invoke the script without --validate
+
+  $ "$TESTDIR"/artifacts/scripts/generate-churning-bundle.py --validate $LAZY_GEN > /dev/null
 
   $ cat >> $HGRCPATH << EOF
   > [format]
