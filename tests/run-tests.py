@@ -3200,6 +3200,7 @@ class TestRunner:
         # a place for run-tests.py to generate executable it needs
         self._custom_bin_dir = None
         self._pythondir = None
+        self._venv_executable = None
         # True if we had to infer the pythondir from --with-hg
         self._pythondir_inferred = False
         self._coveragefile = None
@@ -3341,38 +3342,32 @@ class TestRunner:
             self._pythondir_inferred = True
 
         else:
-            self._installdir = os.path.join(self._hgtmp, b"install")
-            if WINDOWS:
-                # The wheel variant will install things in "Scripts".
-                # So we can as well always install things here.
-                self._bindir = os.path.join(self._installdir, b"Scripts")
-            else:
-                self._bindir = os.path.join(self._installdir, b"bin")
             self._hgcommand = b'hg'
+            self._installdir = os.path.join(self._hgtmp, b"install")
 
-            if self.options.wheel and not WINDOWS:
-                # pip installing a wheel does not have an --install-lib flag
-                # so we have to guess where the file will be installed.
-                #
-                # In addition, that location is not really stable, so we are
-                # using awful symlink trrick later in `_installhg`
-                v_info = sys.version_info
-                suffix = os.path.join(
-                    b"lib",
-                    b"python%d.%d" % (v_info.major, v_info.minor),
-                    b"site-packages",
-                )
-            elif self.options.wheel and WINDOWS:
-                # for some reason, Windows use an even different scheme:
-                #
-                # <prefix>/lib/site-packages/
-                suffix = os.path.join(
-                    b"lib",
-                    b"site-packages",
-                )
-            else:
-                suffix = os.path.join(b"lib", b"python")
-            self._pythondir = os.path.join(self._installdir, suffix)
+            # create a virtual env where hg is going to be installed
+            # however, PYTHONPATH is still used so no need for --system-site-packages
+            command_create_venv = [
+                sysexecutable,
+                "-m",
+                "venv",
+                self._installdir,
+            ]
+            subprocess.run(command_create_venv, check=True)
+
+            bindir = b"Scripts" if WINDOWS else b"bin"
+            self._bindir = os.path.join(self._installdir, bindir)
+            self._venv_executable = os.path.join(self._bindir, b"python")
+
+            self._pythondir = subprocess.run(
+                [
+                    self._venv_executable,
+                    "-c",
+                    "import sys; print([p for p in sys.path if p.startswith(sys.prefix) and p.endswith('site-packages')][0])",
+                ],
+                check=True,
+                capture_output=True,
+            ).stdout.strip()
 
         # Force the use of hg.exe instead of relying on MSYS to recognize hg is
         # a python script and feed it to python.exe.  Legacy stdio is force
@@ -3915,12 +3910,11 @@ class TestRunner:
         assert wheel_path
 
         script = _sys2bytes(os.path.realpath(sys.argv[0]))
-        exe = _sys2bytes(sysexecutable)
         hgroot = os.path.dirname(os.path.dirname(script))
         self._hgroot = hgroot
         os.chdir(hgroot)
         cmd = [
-            exe,
+            self._venv_executable,
             b"-m",
             b"pip",
             b"install",
@@ -3928,12 +3922,7 @@ class TestRunner:
             b"--no-cache-dir",
             b"--force",
             b"--ignore-installed",
-            b"--prefix",
-            self._installdir,
         ]
-        if not WINDOWS:
-            # windows does not have this flag apparently.
-            cmd.append(b"--break-system-packages")
 
         return cmd
 
@@ -3948,12 +3937,11 @@ class TestRunner:
             setup_opts = b"--no-rust"
 
         script = _sys2bytes(os.path.realpath(sys.argv[0]))
-        exe = _sys2bytes(sysexecutable)
         hgroot = os.path.dirname(os.path.dirname(script))
         self._hgroot = hgroot
         os.chdir(hgroot)
         cmd = [
-            exe,
+            self._venv_executable,
             b"setup.py",
         ]
         if setup_opts:
@@ -3970,17 +3958,8 @@ class TestRunner:
                 b"--build-base=%s" % os.path.join(self._hgtmp, b"build"),
                 b"install",
                 b"--force",
-                b"--prefix=%s" % self._installdir,
-                b"--install-lib=%s" % self._pythondir,
-                b"--install-scripts=%s" % self._bindir,
             ]
         )
-        if not WINDOWS:
-            # The --home="" trick works only on OS where os.sep == '/'
-            # because of a distutils convert_path() fast-path. Avoid it at
-            # least on Windows for now, deal with .pydistutils.cfg bugs
-            # when they happen.
-            cmd.append(b"--home=")
 
         return cmd
 
@@ -4002,20 +3981,6 @@ class TestRunner:
             install_env.pop('HGWITHRUSTEXT', None)
         elif self.options.no_rust:
             install_env.pop('HGWITHRUSTEXT', None)
-
-        # setuptools requires install directories to exist.
-        os.makedirs(self._pythondir, exist_ok=True)
-        os.makedirs(self._bindir, exist_ok=True)
-        if self.options.wheel is not None and not WINDOWS:
-            # the wheel instalation location is not stable, so try to deal with
-            # that to funnel it back where we need its.
-            #
-            # (mostly deals with Debian shenanigans)
-            assert self._pythondir.endswith(b'site-packages')
-            lib_dir = os.path.dirname(self._pythondir)
-            dist_dir = os.path.join(lib_dir, b'dist-packages')
-            os.symlink(b'./site-packages', dist_dir)
-            os.symlink(b'.', os.path.join(self._installdir, b'local'))
 
         vlog("# Running", cmd)
         with open(installerrs, "wb") as logfile:
