@@ -242,6 +242,16 @@ def findhg():
     # and disable localization for the same reasons.
     hgenv['HGPLAIN'] = '1'
     hgenv['LANGUAGE'] = 'C'
+    # PYTHONPATH and co can be used for isolated builds, which can break hg
+    hgenv.pop("PYTHONNOUSERSITE", None)
+    if "PYTHONPATH" in hgenv:
+        hgenv["PYTHONPATH"] = os.pathsep.join(
+            [
+                path
+                for path in hgenv["PYTHONPATH"].split(os.pathsep)
+                if "-build-env-" not in path
+            ]
+        )
     hgcmd = ['hg']
     # Run a simple "hg log" command just to see if using hg from the user's
     # path works and can successfully interact with this repository.  Windows
