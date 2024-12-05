@@ -24,7 +24,6 @@ from mercurial.node import (
     short,
     wdirrev,
 )
-from mercurial.pycompat import open
 from mercurial import (
     bookmarks,
     cmdutil,
@@ -1857,7 +1856,7 @@ def defineparents(repo, rev, destmap, state, skipped, obsskipped):
 def isagitpatch(repo, patchname):
     """Return true if the given patch is in git format"""
     mqpatch = os.path.join(repo.mq.path, patchname)
-    for line in patch.linereader(open(mqpatch, b'rb')):
+    for line in patch.linereader(open(mqpatch, 'rb')):
         if line.startswith(b'diff --git'):
             return True
     return False
