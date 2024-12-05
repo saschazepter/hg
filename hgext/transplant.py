@@ -19,7 +19,6 @@ from __future__ import annotations
 import os
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial.node import (
     bin,
     hex,
@@ -319,7 +318,7 @@ class transplanter:
                 errprefix=_(b'filter failed'),
                 blockedtag=b'transplant_filter',
             )
-            user, date, msg = self.parselog(open(headerfile, b'rb'))[1:4]
+            user, date, msg = self.parselog(open(headerfile, 'rb'))[1:4]
         finally:
             os.unlink(headerfile)
 
