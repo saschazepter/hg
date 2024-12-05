@@ -15,9 +15,6 @@ import os
 import stat
 
 from ..i18n import _
-from ..pycompat import (
-    open,
-)
 from .. import (
     encoding,
     pycompat,
@@ -222,7 +219,7 @@ def staticfile(templatepath, directory, fname, res):
     path = os.path.join(directory, fpath)
     try:
         os.stat(path)
-        with open(path, b'rb') as fh:
+        with open(path, 'rb') as fh:
             data = fh.read()
     except TypeError:
         raise ErrorResponse(HTTP_SERVER_ERROR, b'illegal filename')
