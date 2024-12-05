@@ -22,7 +22,6 @@ from .node import (
     sha1nodeconstants,
     short,
 )
-from .pycompat import open
 from . import (
     copies,
     diffhelper,
@@ -2382,7 +2381,7 @@ def patchbackend(
 
     store = filestore()
     try:
-        fp = open(patchobj, b'rb')
+        fp = open(patchobj, 'rb')
     except TypeError:
         fp = patchobj
     try:
@@ -2458,7 +2457,7 @@ def patch(
 def changedfiles(ui, repo, patchpath, strip=1, prefix=b''):
     backend = fsbackend(ui, repo.root)
     prefix = _canonprefix(repo, prefix)
-    with open(patchpath, b'rb') as fp:
+    with open(patchpath, 'rb') as fp:
         changed = set()
         for state, values in iterhunks(fp):
             if state == b'file':
