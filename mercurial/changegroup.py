@@ -17,7 +17,6 @@ from .node import (
     nullrev,
     short,
 )
-from .pycompat import open
 
 from . import (
     error,
@@ -87,7 +86,7 @@ def writechunks(ui, chunks, filename, vfs=None):
             else:
                 # Increase default buffer size because default is usually
                 # small (4k is common on Linux).
-                fh = open(filename, b"wb", 131072)
+                fh = open(filename, "wb", 131072)
         else:
             fd, filename = pycompat.mkstemp(prefix=b"hg-bundle-", suffix=b".hg")
             fh = os.fdopen(fd, "wb")
