@@ -265,6 +265,8 @@ class ui:
         self.logblockedtimes = False
         # color mode: see mercurial/color.py for possible value
         self._colormode = None
+        # readline prompt: is this currently for a readline prompt?
+        self._readlineprompt = False
         self._terminfoparams = {}
         self._styles = {}
         self._uninterruptible = False
@@ -1745,7 +1747,12 @@ class ui:
             self.flush()
             prompt = b' '
         else:
-            prompt = self.label(prompt, b'ui.prompt') + b' '
+            wasreadlineprompt = self._readlineprompt
+            try:
+                self._readlineprompt = True
+                prompt = self.label(prompt, b'ui.prompt') + b' '
+            finally:
+                self._readlineprompt = wasreadlineprompt
 
         # prompt ' ' must exist; otherwise readline may delete entire line
         # - http://bugs.python.org/issue12833
