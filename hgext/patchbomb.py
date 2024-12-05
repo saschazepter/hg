@@ -409,7 +409,7 @@ def _getdescription(repo, defaultbody, sender, **opts):
     """
     ui = repo.ui
     if opts.get('desc'):
-        body = open(opts.get('desc')).read()
+        body = open(opts.get('desc', 'rb')).read()
     else:
         ui.write(
             _(b'\nWrite the introductory message for the patch series.\n\n')
