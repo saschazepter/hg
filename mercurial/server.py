@@ -10,7 +10,6 @@ from __future__ import annotations
 import os
 
 from .i18n import _
-from .pycompat import open
 
 from . import (
     chgserver,
@@ -76,9 +75,9 @@ def runservice(
     def writepid(pid):
         if opts[b'pid_file']:
             if appendpid:
-                mode = b'ab'
+                mode = 'ab'
             else:
-                mode = b'wb'
+                mode = 'wb'
             fp = open(opts[b'pid_file'], mode)
             fp.write(b'%d\n' % pid)
             fp.close()
@@ -109,7 +108,7 @@ def runservice(
                 # If the daemonized process managed to write out an error msg,
                 # report it.
                 if pycompat.iswindows and os.path.exists(lockpath):
-                    with open(lockpath, b'rb') as log:
+                    with open(lockpath, 'rb') as log:
                         for line in log:
                             procutil.stderr.write(line)
                 raise error.Abort(_(b'child process failed to start'))
