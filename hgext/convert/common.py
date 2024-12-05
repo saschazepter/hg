@@ -22,7 +22,6 @@ from typing import (
 )
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial import (
     encoding,
     error,
@@ -91,7 +90,7 @@ def shlexer(
     whitespace: Optional[bytes] = None,
 ):
     if data is None:
-        data = open(filepath, b'r', encoding='latin1')
+        data = open(filepath, 'r', encoding='latin1')
     else:
         if filepath is not None:
             raise error.ProgrammingError(
@@ -574,7 +573,7 @@ class mapfile(dict):
         if not self.path:
             return
         try:
-            fp = open(self.path, b'rb')
+            fp = open(self.path, 'rb')
         except FileNotFoundError:
             return
 
@@ -600,7 +599,7 @@ class mapfile(dict):
     def __setitem__(self, key, value) -> None:
         if self.fp is None:
             try:
-                self.fp = open(self.path, b'ab')
+                self.fp = open(self.path, 'ab')
             except IOError as err:
                 raise error.Abort(
                     _(b'could not open map file %r: %s')
