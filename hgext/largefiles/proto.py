@@ -8,7 +8,6 @@ from __future__ import annotations
 import os
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 
 from mercurial import (
     error,
@@ -72,7 +71,7 @@ def getlfile(repo, proto, sha):
         raise error.Abort(
             _(b'requested largefile %s not present in cache') % sha
         )
-    f = open(filename, b'rb')
+    f = open(filename, 'rb')
     length = os.fstat(f.fileno())[6]
 
     # Since we can't set an HTTP content-length header here, and

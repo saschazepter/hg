@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial import util
 
 from . import (
@@ -46,7 +45,7 @@ class localstore(basestore.basestore):
             raise basestore.StoreError(
                 filename, hash, self.url, _(b"can't get file locally")
             )
-        with open(path, b'rb') as fd:
+        with open(path, 'rb') as fd:
             return lfutil.copyandhash(util.filechunkiter(fd), tmpfile)
 
     def _verifyfiles(self, contents, filestocheck):
