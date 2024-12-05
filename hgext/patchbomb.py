@@ -82,7 +82,6 @@ import os
 import socket
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial.node import bin
 from mercurial import (
     cmdutil,
