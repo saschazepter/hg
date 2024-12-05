@@ -12,7 +12,6 @@ import re
 import xml.dom.minidom
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial import (
     encoding,
     error,
@@ -895,7 +894,7 @@ class svn_source(converter_source):
             return
         if self.convertfp is None:
             self.convertfp = open(
-                os.path.join(self.wc, b'.svn', b'hg-shamap'), b'ab'
+                os.path.join(self.wc, b'.svn', b'hg-shamap'), 'ab'
             )
         self.convertfp.write(
             util.tonativeeol(b'%s %d\n' % (destrev, self.revnum(rev)))

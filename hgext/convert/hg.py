@@ -24,7 +24,6 @@ import re
 import time
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial.node import (
     bin,
     hex,
@@ -707,7 +706,7 @@ class mercurial_source(common.converter_source):
 
     def converted(self, rev, destrev):
         if self.convertfp is None:
-            self.convertfp = open(self.repo.vfs.join(b'shamap'), b'ab')
+            self.convertfp = open(self.repo.vfs.join(b'shamap'), 'ab')
         self.convertfp.write(util.tonativeeol(b'%s %s\n' % (destrev, rev)))
         self.convertfp.flush()
 

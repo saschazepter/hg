@@ -23,7 +23,6 @@ from typing import (
 )
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial import (
     encoding,
     error,
@@ -76,7 +75,7 @@ orig_encoding: bytes = b'ascii'
 def readauthormap(ui: "uimod.ui", authorfile, authors=None):
     if authors is None:
         authors = {}
-    with open(authorfile, b'rb') as afile:
+    with open(authorfile, 'rb') as afile:
         for line in afile:
             line = line.strip()
             if not line or line.startswith(b'#'):
@@ -314,7 +313,7 @@ class converter:
             return {}
         m = {}
         try:
-            with open(path, b'rb') as fp:
+            with open(path, 'rb') as fp:
                 for i, line in enumerate(fp):
                     line = line.splitlines()[0].rstrip()
                     if not line:
@@ -511,7 +510,7 @@ class converter:
         authorfile = self.authorfile
         if authorfile:
             self.ui.status(_(b'writing author map file %s\n') % authorfile)
-            with open(authorfile, b'wb+') as ofile:
+            with open(authorfile, 'wb+') as ofile:
                 for author in self.authors:
                     ofile.write(
                         util.tonativeeol(
