@@ -22,7 +22,6 @@ from typing import (
 
 from .i18n import _
 from .node import nullrev
-from .pycompat import open
 
 from . import (
     error,
@@ -151,14 +150,16 @@ class tarit:
         self.mtime = mtime
         self.fileobj = None
 
-        def taropen(mode, name=b'', fileobj=None):
+        def taropen(
+            mode: str, name: bytes = b'', fileobj=None
+        ) -> tarfile.TarFile:
             if kind == 'gz':
                 mode = mode[0:1]
                 if not fileobj:
-                    fileobj = open(name, mode + b'b')
+                    fileobj = open(name, mode + 'b')
                 gzfileobj = gzip.GzipFile(
                     name,
-                    pycompat.sysstr(mode + b'b'),
+                    mode + 'b',
                     zlib.Z_BEST_COMPRESSION,
                     fileobj,
                     mtime=mtime,
@@ -167,16 +168,14 @@ class tarit:
                 return tarfile.TarFile.taropen(name, "w", gzfileobj)
             else:
                 try:
-                    return tarfile.open(
-                        name, pycompat.sysstr(mode) + kind, fileobj
-                    )
+                    return tarfile.open(name, mode + kind, fileobj)
                 except tarfile.CompressionError as e:
                     raise error.Abort(stringutil.forcebytestr(e))
 
         if isinstance(dest, bytes):
-            self.z = taropen(b'w:', name=dest)
+            self.z = taropen('w:', name=dest)
         else:
-            self.z = taropen(b'w|', fileobj=dest)
+            self.z = taropen('w|', fileobj=dest)
 
     def addfile(self, name, mode, islink, data):
         name = pycompat.fsdecode(name)
