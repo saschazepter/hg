@@ -19,6 +19,7 @@ use same_file::is_same_file;
 use std::ffi::{OsStr, OsString};
 use std::iter::FusedIterator;
 use std::ops::Deref;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::{
     borrow::{Cow, ToOwned},
@@ -324,7 +325,10 @@ pub fn relativize_path(path: &HgPath, cwd: impl AsRef<HgPath>) -> Cow<[u8]> {
 /// should continue the `status()` algoritm anyway and consider the current
 /// date/time to be unknown.
 pub fn filesystem_now(repo_root: &Path) -> Result<SystemTime, io::Error> {
-    tempfile::tempfile_in(repo_root.join(".hg"))?
+    tempfile::Builder::new()
+        .permissions(std::fs::Permissions::from_mode(0o666))
+        .tempfile_in(repo_root.join(".hg"))?
+        .into_file()
         .metadata()?
         .modified()
 }
