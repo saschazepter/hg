@@ -30,9 +30,6 @@ from .node import (
     nullrev,
     short,
 )
-from .pycompat import (
-    open,
-)
 from .thirdparty import attr
 
 # Force pytype to use the non-vendored package
@@ -1406,7 +1403,7 @@ def makefileobj(ctx, pat, mode=b'wb', **props):
             fp = repo.ui.fin
         return _unclosablefile(fp)
     fn = makefilename(ctx, pat, **props)
-    return open(fn, mode)
+    return open(fn, pycompat.sysstr(mode))
 
 
 def openstorage(repo, cmd, file_, opts, returnrevlog=False):
