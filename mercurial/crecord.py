@@ -15,9 +15,6 @@ import re
 import signal
 
 from .i18n import _
-from .pycompat import (
-    open,
-)
 from . import (
     diffhelper,
     encoding,
@@ -625,7 +622,7 @@ def testchunkselector(testfn, ui, headerlist, operation=None):
 
     chunkselector.stdscr = dummystdscr()
     if testfn and os.path.exists(testfn):
-        testf = open(testfn, b'r')
+        testf = open(testfn, 'r')
         # TODO: open in binary mode?
         testcommands = [x.rstrip('\n') for x in testf.readlines()]
         testf.close()
