@@ -56,7 +56,7 @@ def tidyprefix(dest, kind, prefix):
         prefix = util.normpath(prefix)
     else:
         if not isinstance(dest, bytes):
-            raise ValueError(b'dest must be string if no prefix')
+            raise ValueError('dest must be bytes if no prefix')
         prefix = os.path.basename(dest)
         lower = prefix.lower()
         for sfx in exts.get(kind, []):
