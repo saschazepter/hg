@@ -14,9 +14,6 @@ import subprocess
 import sys
 
 from .i18n import _
-from .pycompat import (
-    open,
-)
 from . import (
     encoding,
     error,
@@ -298,7 +295,7 @@ class profile:
                 self._fp = util.stringio()
             elif self._output:
                 path = util.expandpath(self._output)
-                self._fp = open(path, b'wb')
+                self._fp = open(path, 'wb')
             elif pycompat.iswindows:
                 # parse escape sequence by win32print()
                 class uifp:
