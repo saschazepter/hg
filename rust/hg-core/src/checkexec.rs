@@ -98,7 +98,10 @@ fn check_exec_impl(path: impl AsRef<Path>) -> Result<bool, io::Error> {
         leave_file = false;
     };
 
-    let tmp_file = tempfile::NamedTempFile::new_in(checkdir)?;
+    let tmp_file = tempfile::Builder::new()
+        .permissions(std::fs::Permissions::from_mode(0o666))
+        .tempfile_in(checkdir)?;
+
     if !is_executable(tmp_file.path())? {
         make_executable(tmp_file.path())?;
         if is_executable(tmp_file.path())? {
