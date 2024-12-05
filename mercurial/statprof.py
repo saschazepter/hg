@@ -384,7 +384,7 @@ def stop():
 
 
 def save_data(path):
-    with open(path, 'w+') as file:
+    with open(path, 'w+b') as file:
         file.write(b"%f %f\n" % state.accumulated_time)
         for sample in state.samples:
             time = sample.time
@@ -830,7 +830,7 @@ def write_to_flame(data, fp, scriptpath=None, outputfile=None, **kwargs):
 
     fd, path = pycompat.mkstemp()
 
-    with open(path, "w+") as file:
+    with open(path, "w+b") as file:
         for line, count in lines.items():
             file.write(b"%s %d\n" % (line, count))
 
