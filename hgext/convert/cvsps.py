@@ -13,7 +13,6 @@ import pickle
 import re
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial import (
     encoding,
     error,
@@ -150,7 +149,7 @@ def createlog(ui, directory=None, root=b"", rlog=True, cache=None):
 
         # Get the real directory in the repository
         try:
-            with open(os.path.join(b'CVS', b'Repository'), b'rb') as f:
+            with open(os.path.join(b'CVS', b'Repository'), 'rb') as f:
                 prefix = f.read().strip()
             directory = prefix
             if prefix == b".":
@@ -197,7 +196,7 @@ def createlog(ui, directory=None, root=b"", rlog=True, cache=None):
     if cache == b'update':
         try:
             ui.note(_(b'reading cvs log cache %s\n') % cachefile)
-            with open(cachefile, b'rb') as fp:
+            with open(cachefile, 'rb') as fp:
                 oldlog = pickle.load(fp)
                 for e in oldlog:
                     if not (
@@ -530,7 +529,7 @@ def createlog(ui, directory=None, root=b"", rlog=True, cache=None):
             # write the new cachefile
             ui.note(_(b'writing cvs log cache %s\n') % cachefile)
 
-            with open(cachefile, b'wb') as fp:
+            with open(cachefile, 'wb') as fp:
                 pickle.dump(log, fp)
         else:
             log = oldlog

@@ -15,7 +15,6 @@ from typing import (
 )
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial import (
     error,
     pycompat,
@@ -48,7 +47,7 @@ class monotone_source(common.converter_source, common.commandline):
         if not os.path.exists(os.path.join(path, b'_MTN')):
             # Could be a monotone repository (SQLite db file)
             try:
-                with open(path, b'rb') as f:
+                with open(path, 'rb') as f:
                     header = f.read(16)
             except IOError:
                 header = b''
