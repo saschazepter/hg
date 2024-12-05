@@ -14,7 +14,6 @@ import struct
 import tempfile
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial.node import hex
 from mercurial import (
     error,
@@ -322,7 +321,7 @@ def ancestormap(raw):
 
 
 def readfile(path):
-    f = open(path, b'rb')
+    f = open(path, 'rb')
     try:
         result = f.read()
 

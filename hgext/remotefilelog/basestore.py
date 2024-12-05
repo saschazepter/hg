@@ -7,7 +7,6 @@ import time
 
 from mercurial.i18n import _
 from mercurial.node import bin, hex
-from mercurial.pycompat import open
 from mercurial import (
     error,
     pycompat,
@@ -224,7 +223,7 @@ class basestore:
             data = shallowutil.readfile(filepath)
             if self._validatecache and not self._validatedata(data, filepath):
                 if self._validatecachelog:
-                    with open(self._validatecachelog, b'ab+') as f:
+                    with open(self._validatecachelog, 'ab+') as f:
                         f.write(b"corrupt %s during read\n" % filepath)
                 os.rename(filepath, filepath + b".corrupt")
                 raise KeyError(b"corrupt local cache file %s" % filepath)
@@ -268,7 +267,7 @@ class basestore:
         they want to be kept alive in the store.
         """
         repospath = os.path.join(self._path, b"repos")
-        with open(repospath, b'ab') as reposfile:
+        with open(repospath, 'ab') as reposfile:
             reposfile.write(os.path.dirname(path) + b"\n")
 
         repospathstat = os.stat(repospath)
@@ -276,14 +275,14 @@ class basestore:
             os.chmod(repospath, 0o0664)
 
     def _validatekey(self, path, action):
-        with open(path, b'rb') as f:
+        with open(path, 'rb') as f:
             data = f.read()
 
         if self._validatedata(data, path):
             return True
 
         if self._validatecachelog:
-            with open(self._validatecachelog, b'ab+') as f:
+            with open(self._validatecachelog, 'ab+') as f:
                 f.write(b"corrupt %s during %s\n" % (path, action))
 
         os.rename(path, path + b".corrupt")
