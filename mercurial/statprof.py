@@ -118,7 +118,6 @@ from typing import (
     List,
 )
 
-from .pycompat import open
 from . import (
     encoding,
     pycompat,
@@ -245,7 +244,7 @@ class CodeSite:
         if self.source is None:
             try:
                 lineno = self.lineno - 1  # lineno can be None
-                with open(self.path, b'rb') as fp:
+                with open(self.path, 'rb') as fp:
                     for i, line in enumerate(fp):
                         if i == lineno:
                             self.source = line.strip()
@@ -385,7 +384,7 @@ def stop():
 
 
 def save_data(path):
-    with open(path, b'w+') as file:
+    with open(path, 'w+') as file:
         file.write(b"%f %f\n" % state.accumulated_time)
         for sample in state.samples:
             time = sample.time
@@ -398,7 +397,7 @@ def save_data(path):
 
 
 def load_data(path):
-    lines = open(path, b'rb').read().splitlines()
+    lines = open(path, 'rb').read().splitlines()
 
     state.accumulated_time = [float(value) for value in lines[0].split()]
     state.samples = []
@@ -831,7 +830,7 @@ def write_to_flame(data, fp, scriptpath=None, outputfile=None, **kwargs):
 
     fd, path = pycompat.mkstemp()
 
-    with open(path, b"w+") as file:
+    with open(path, "w+") as file:
         for line, count in lines.items():
             file.write(b"%s %d\n" % (line, count))
 
