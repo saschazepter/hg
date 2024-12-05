@@ -300,6 +300,7 @@ def checkexec(path: bytes) -> bool:
             os.close(fh)
             m = os.stat(fn).st_mode
             if m & EXECFLAGS == 0:
+                m = 0o666 & ~umask
                 os.chmod(fn, m & 0o777 | EXECFLAGS)
                 if os.stat(fn).st_mode & EXECFLAGS != 0:
                     if checkisexec is not None:
