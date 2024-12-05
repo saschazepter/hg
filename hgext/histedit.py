@@ -207,9 +207,6 @@ import pickle
 import struct
 
 from mercurial.i18n import _
-from mercurial.pycompat import (
-    open,
-)
 from mercurial.node import (
     bin,
     hex,
@@ -1953,7 +1950,7 @@ def _readfile(ui, path):
         with ui.timeblockedsection(b'histedit'):
             return ui.fin.read()
     else:
-        with open(path, b'rb') as f:
+        with open(path, 'rb') as f:
             return f.read()
 
 
