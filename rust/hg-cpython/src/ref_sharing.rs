@@ -43,20 +43,23 @@
 /// Do not copy it out of the function call.
 ///
 /// # Example
-///
 /// ```
-/// struct MyStruct {
-///     inner: HashMap<Vec<u8>, Vec<u8>>;
+/// use cpython::*;
+/// use std::collections::hash_map::{HashMap, Iter as HashMapIter};
+/// use rusthg::py_shared_iterator;
+///
+/// pub struct MyStruct {
+///     inner: HashMap<Vec<u8>, Vec<u8>>
 /// }
 ///
 /// py_class!(pub class MyType |py| {
-///     @shared data inner: MyStruct;
+///     @shared data inner_shared: MyStruct;
 ///
 ///     def __iter__(&self) -> PyResult<MyTypeItemsIterator> {
 ///         let leaked_ref = self.inner_shared(py).leak_immutable();
 ///         MyTypeItemsIterator::from_inner(
 ///             py,
-///             unsafe { leaked_ref.map(py, |o| o.iter()) },
+///             unsafe { leaked_ref.map(py, |o| o.inner.iter()) },
 ///         )
 ///     }
 /// });
@@ -76,11 +79,12 @@
 ///
 /// py_shared_iterator!(
 ///     MyTypeItemsIterator,
-///     UnsafePyLeaked<HashMap<'static, Vec<u8>, Vec<u8>>>,
+///     UnsafePyLeaked<HashMapIter<'static, Vec<u8>, Vec<u8>>>,
 ///     MyType::translate_key_value,
 ///     Option<(PyBytes, PyBytes)>
 /// );
 /// ```
+#[macro_export]
 macro_rules! py_shared_iterator {
     (
         $name: ident,
@@ -89,9 +93,9 @@ macro_rules! py_shared_iterator {
         $success_type: ty
     ) => {
         py_class!(pub class $name |py| {
-            data inner: RefCell<$leaked>;
+            data inner: std::cell::RefCell<$leaked>;
 
-            def __next__(&self) -> PyResult<$success_type> {
+            def __next__(&self) -> cpython::PyResult<$success_type> {
                 let mut leaked = self.inner(py).borrow_mut();
                 let mut iter = unsafe { leaked.try_borrow_mut(py)? };
                 match iter.next() {
@@ -101,7 +105,7 @@ macro_rules! py_shared_iterator {
                 }
             }
 
-            def __iter__(&self) -> PyResult<Self> {
+            def __iter__(&self) -> cpython::PyResult<Self> {
                 Ok(self.clone_ref(py))
             }
         });
@@ -110,10 +114,10 @@ macro_rules! py_shared_iterator {
             pub fn from_inner(
                 py: Python,
                 leaked: $leaked,
-            ) -> PyResult<Self> {
+            ) -> cpython::PyResult<Self> {
                 Self::create_instance(
                     py,
-                    RefCell::new(leaked),
+                    std::cell::RefCell::new(leaked),
                 )
             }
         }

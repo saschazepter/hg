@@ -11,7 +11,6 @@
 use cpython::{
     PyBytes, PyClone, PyDict, PyObject, PyResult, Python, UnsafePyLeaked,
 };
-use std::cell::RefCell;
 
 use crate::dirstate::dirstate_map::v2_error;
 use crate::dirstate::dirstate_map::DirstateMap;
