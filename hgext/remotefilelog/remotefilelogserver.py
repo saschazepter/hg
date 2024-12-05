@@ -14,7 +14,6 @@ import zlib
 
 from mercurial.i18n import _
 from mercurial.node import bin, hex
-from mercurial.pycompat import open
 from mercurial import (
     changegroup,
     changelog,
@@ -282,7 +281,7 @@ def _loadfileblob(repo, cachepath, path, node):
         finally:
             os.umask(oldumask)
     else:
-        with open(filecachepath, b"rb") as f:
+        with open(filecachepath, "rb") as f:
             text = f.read()
     return text
 

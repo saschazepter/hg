@@ -17,7 +17,6 @@ from mercurial.node import (
     short,
 )
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial import (
     error,
     filelog,
@@ -228,7 +227,7 @@ def _decompressblob(raw):
 
 
 def parsefileblob(path, decompress):
-    f = open(path, b"rb")
+    f = open(path, "rb")
     try:
         raw = f.read()
     finally:
