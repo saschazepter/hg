@@ -8,8 +8,6 @@
 //! Bindings for the `hg::dirstate::dirs_multiset` file provided by the
 //! `hg-core` package.
 
-use std::cell::RefCell;
-
 use cpython::{
     exc, ObjectProtocol, PyBytes, PyClone, PyDict, PyErr, PyObject, PyResult,
     Python, UnsafePyLeaked,

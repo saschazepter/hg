@@ -8,7 +8,7 @@
 //! Bindings for the `hg::dirstate::dirstate_map` file provided by the
 //! `hg-core` package.
 
-use std::cell::{RefCell, RefMut};
+use std::cell::RefMut;
 
 use cpython::{
     exc, PyBool, PyBytes, PyClone, PyDict, PyErr, PyList, PyNone, PyObject,
