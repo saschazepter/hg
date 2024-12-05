@@ -24,7 +24,6 @@ from typing import (
 )
 
 from .i18n import _
-from .pycompat import open
 from . import (
     encoding,
     error,
@@ -1737,7 +1736,7 @@ def readpatternfile(filepath, warn, sourceinfo=False):
     syntax = b'relre:'
     patterns = []
 
-    fp = open(filepath, b'rb')
+    fp = open(filepath, 'rb')
     for lineno, line in enumerate(fp, start=1):
         if b"#" in line:
             global _commentre
