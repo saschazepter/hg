@@ -17,7 +17,6 @@ import stat
 
 from mercurial.i18n import _
 from mercurial.node import hex
-from mercurial.pycompat import open
 
 from mercurial import (
     dirstate,
@@ -75,7 +74,7 @@ def link(src, dest):
         util.oslink(src, dest)
     except OSError:
         # if hardlinks fail, fallback on atomic copy
-        with open(src, b'rb') as srcf, util.atomictempfile(dest) as dstf:
+        with open(src, 'rb') as srcf, util.atomictempfile(dest) as dstf:
             for chunk in util.filechunkiter(srcf):
                 dstf.write(chunk)
         os.chmod(dest, os.stat(src).st_mode)
@@ -328,7 +327,7 @@ def copyfromcache(repo, hash, filename):
     wvfs.makedirs(wvfs.dirname(wvfs.join(filename)))
     # The write may fail before the file is fully written, but we
     # don't use atomic writes in the working copy.
-    with open(path, b'rb') as srcfd, wvfs(filename, b'wb') as destfd:
+    with open(path, 'rb') as srcfd, wvfs(filename, b'wb') as destfd:
         gothash = copyandhash(util.filechunkiter(srcfd), destfd)
     if gothash != hash:
         repo.ui.warn(
@@ -369,7 +368,7 @@ def copytostoreabsolute(repo, file, hash):
         link(usercachepath(repo.ui, hash), storepath(repo, hash))
     else:
         util.makedirs(os.path.dirname(storepath(repo, hash)))
-        with open(file, b'rb') as srcf:
+        with open(file, 'rb') as srcf:
             with util.atomictempfile(
                 storepath(repo, hash), createmode=repo.store.createmode
             ) as dstf:
@@ -489,7 +488,7 @@ def copyandhash(instream, outfile):
 def hashfile(file):
     if not os.path.exists(file):
         return b''
-    with open(file, b'rb') as fd:
+    with open(file, 'rb') as fd:
         return hexsha1(fd)
 
 

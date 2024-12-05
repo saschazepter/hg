@@ -19,8 +19,6 @@ from typing import (
 
 from mercurial.i18n import _
 
-from mercurial.pycompat import open
-
 from mercurial.hgweb import webcommands
 
 from mercurial import (
@@ -1829,7 +1827,7 @@ def overridecat(orig, ui, repo, file1, *pats, **opts):
                             % lf
                         )
                 path = lfutil.usercachepath(repo.ui, hash)
-                with open(path, b"rb") as fpin:
+                with open(path, "rb") as fpin:
                     for chunk in util.filechunkiter(fpin):
                         fp.write(chunk)
         err = 0
