@@ -17,7 +17,6 @@ import difflib
 import re
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial.node import hex
 from mercurial import (
     cmdutil,
@@ -684,14 +683,14 @@ def releasenotes(ui, repo, file_=None, **opts):
         return ui.write(serializenotes(sections, incoming))
 
     try:
-        with open(file_, b'rb') as fh:
+        with open(file_, 'rb') as fh:
             notes = parsereleasenotesfile(sections, fh.read())
     except FileNotFoundError:
         notes = parsedreleasenotes()
 
     notes.merge(ui, incoming)
 
-    with open(file_, b'wb') as fh:
+    with open(file_, 'wb') as fh:
         fh.write(serializenotes(sections, notes))
 
 
@@ -701,7 +700,7 @@ def debugparsereleasenotes(ui, path, repo=None):
     if path == b'-':
         text = procutil.stdin.read()
     else:
-        with open(path, b'rb') as fh:
+        with open(path, 'rb') as fh:
             text = fh.read()
 
     sections = releasenotessections(ui, repo)
