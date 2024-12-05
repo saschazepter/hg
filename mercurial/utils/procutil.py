@@ -24,9 +24,6 @@ from typing import (
 )
 
 from ..i18n import _
-from ..pycompat import (
-    open,
-)
 
 from .. import (
     encoding,
@@ -343,7 +340,7 @@ def tempfilter(s, cmd):
             raise error.Abort(
                 _(b"command '%s' failed: %s") % (cmd, explainexit(code))
             )
-        with open(outname, b'rb') as fp:
+        with open(outname, 'rb') as fp:
             return fp.read()
     finally:
         try:
