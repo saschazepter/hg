@@ -722,6 +722,7 @@ dependencies = [
  "pyo3",
  "python3-sys",
  "stable_deref_trait",
+ "vcsgraph",
 ]
 
 [[package]]
