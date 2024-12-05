@@ -37,9 +37,6 @@ from typing import (
 )
 
 from .i18n import _
-from .pycompat import (
-    open,
-)
 from . import (
     encoding,
     error,
@@ -100,7 +97,7 @@ expandglobs: bool = False
 umask: int = os.umask(0)
 os.umask(umask)
 
-posixfile = open
+posixfile = pycompat.open
 
 
 def split(p: bytes) -> Tuple[bytes, bytes]:
@@ -174,14 +171,14 @@ def setflags(f: bytes, l: bool, x: bool) -> None:
     if l:
         if not stat.S_ISLNK(s):
             # switch file to link
-            with open(f, b'rb') as fp:
+            with open(f, 'rb') as fp:
                 data = fp.read()
             unlink(f)
             try:
                 os.symlink(data, f)
             except OSError:
                 # failed to make a link, rewrite file
-                with open(f, b"wb") as fp:
+                with open(f, "wb") as fp:
                     fp.write(data)
 
         # no chmod needed at this point
@@ -190,17 +187,17 @@ def setflags(f: bytes, l: bool, x: bool) -> None:
         # switch link to file
         data = os.readlink(f)
         unlink(f)
-        with open(f, b"wb") as fp:
+        with open(f, "wb") as fp:
             fp.write(data)
         s = 0o666 & ~umask  # avoid restatting for chmod
 
     sx = s & 0o100
     if st.st_nlink > 1 and bool(x) != bool(sx):
         # the file is a hardlink, break it
-        with open(f, b"rb") as fp:
+        with open(f, "rb") as fp:
             data = fp.read()
         unlink(f)
-        with open(f, b"wb") as fp:
+        with open(f, "wb") as fp:
             fp.write(data)
 
     if x and not sx:
@@ -282,7 +279,7 @@ def checkexec(path: bytes) -> bool:
                     try:
                         m = os.stat(checknoexec).st_mode
                     except FileNotFoundError:
-                        open(checknoexec, b'w').close()  # might fail
+                        open(checknoexec, 'w').close()  # might fail
                         m = os.stat(checknoexec).st_mode
                     if m & EXECFLAGS == 0:
                         # check-exec is exec and check-no-exec is not exec
@@ -349,7 +346,7 @@ def checklink(path: bytes) -> bool:
                 target = b'checklink-target'
                 try:
                     fullpath = os.path.join(cachedir, target)
-                    open(fullpath, b'w').close()
+                    open(fullpath, 'w').close()
                 except PermissionError:
                     # If we can't write to cachedir, just pretend
                     # that the fs is readonly and by association
