@@ -57,9 +57,6 @@ if typing.TYPE_CHECKING:
     # noinspection PyPackageRequirements
     import attr
 
-from .pycompat import (
-    open,
-)
 from hgdemandimport import tracing
 from . import (
     encoding,
@@ -2754,17 +2751,17 @@ def makedirs(
 
 
 def readfile(path: bytes) -> bytes:
-    with open(path, b'rb') as fp:
+    with open(path, 'rb') as fp:
         return fp.read()
 
 
 def writefile(path: bytes, text: bytes) -> None:
-    with open(path, b'wb') as fp:
+    with open(path, 'wb') as fp:
         fp.write(text)
 
 
 def appendfile(path: bytes, text: bytes) -> None:
-    with open(path, b'ab') as fp:
+    with open(path, 'ab') as fp:
         fp.write(text)
 
 
