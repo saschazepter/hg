@@ -75,9 +75,6 @@ from mercurial.node import (
     nullrev,
     short,
 )
-from mercurial.pycompat import (
-    open,
-)
 from mercurial import (
     cmdutil,
     commands,
@@ -322,7 +319,7 @@ class patchheader:
         nodeid = None
         diffstart = 0
 
-        for line in open(pf, b'rb'):
+        for line in open(pf, 'rb'):
             line = line.rstrip()
             if line.startswith(b'diff --git') or (
                 diffstart and line.startswith(b'+++ ')
