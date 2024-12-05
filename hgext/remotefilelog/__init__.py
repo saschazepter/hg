@@ -136,7 +136,6 @@ from mercurial.node import (
     wdirrev,
 )
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial import (
     changegroup,
     changelog,
@@ -868,7 +867,7 @@ def gcclient(ui, cachepath):
         ui.warn(_(b"no known cache at %s\n") % cachepath)
         return
 
-    reposfile = open(repospath, b'rb')
+    reposfile = open(repospath, 'rb')
     repos = {r[:-1] for r in reposfile.readlines()}
     reposfile.close()
 
@@ -942,7 +941,7 @@ def gcclient(ui, cachepath):
     # write list of valid repos back
     oldumask = os.umask(0o002)
     try:
-        reposfile = open(repospath, b'wb')
+        reposfile = open(repospath, 'wb')
         reposfile.writelines([(b"%s\n" % r) for r in validrepos])
         reposfile.close()
     finally:
@@ -1010,7 +1009,7 @@ def readytofetch(repo):
     fname = repo.vfs.join(b'lastprefetch')
 
     ready = False
-    with open(fname, b'a'):
+    with open(fname, 'a'):
         # the with construct above is used to avoid race conditions
         modtime = os.path.getmtime(fname)
         if (time.time() - modtime) > timeout:
