@@ -33,9 +33,6 @@ from .node import (
     nullrev,
     short,
 )
-from .pycompat import (
-    open,
-)
 from . import (
     bundle2,
     bundlerepo,
@@ -1384,7 +1381,7 @@ def debugdownload(ui, repo, url, output=None, **opts):
 
     dest = ui
     if output:
-        dest = open(output, b"wb", _chunksize)
+        dest = open(output, "wb", _chunksize)
     try:
         data = fh.read(_chunksize)
         while data:
@@ -3443,7 +3440,7 @@ def debugserve(ui, repo, **opts):
             # can't seek a pipe, so `ab` mode fails on py3
             logfh = os.fdopen(int(opts['logiofd']), 'wb', 0)
     elif opts['logiofile']:
-        logfh = open(opts['logiofile'], b'ab', 0)
+        logfh = open(opts['logiofile'], 'ab', 0)
 
     s = wireprotoserver.sshserver(ui, repo, logfh=logfh)
     s.serve_forever()
@@ -4699,7 +4696,7 @@ def debugwireproto(ui, repo, path=None, **opts):
                     continue
 
                 if line.startswith(b'BODYFILE '):
-                    with open(line.split(b' ', 1), b'rb') as fh:
+                    with open(line.split(b' ', 1), 'rb') as fh:
                         body = fh.read()
                 elif line.startswith(b'frame '):
                     frame = wireprotoframing.makeframefromhumanstring(
