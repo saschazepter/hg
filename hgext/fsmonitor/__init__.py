@@ -119,7 +119,6 @@ import weakref
 from mercurial.i18n import _
 from mercurial.node import hex
 
-from mercurial.pycompat import open
 from mercurial import (
     context,
     encoding,
@@ -564,7 +563,7 @@ def overridestatus(
         try:
             if b'FSMONITOR_LOG_FILE' in encoding.environ:
                 fn = encoding.environ[b'FSMONITOR_LOG_FILE']
-                f = open(fn, b'wb')
+                f = open(fn, 'wb')
             else:
                 fn = b'fsmonitorfail.log'
                 f = self.vfs.open(fn, b'wb')
@@ -668,7 +667,7 @@ def overridestatus(
         quiet = self.ui.quiet
         self.ui.quiet = True
         fout, ferr = self.ui.fout, self.ui.ferr
-        self.ui.fout = self.ui.ferr = open(os.devnull, b'wb')
+        self.ui.fout = self.ui.ferr = open(os.devnull, 'wb')
 
         try:
             rv2 = orig(
