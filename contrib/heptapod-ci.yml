@@ -442,7 +442,7 @@ check-pytype:
       - ./contrib/setup-pytype.sh
     script:
       - echo "Entering script section"
-      - sh contrib/check-pytype.sh
+      - bash contrib/check-pytype.sh
 
 # `sh.exe --login` sets a couple of extra environment variables that are defined
 # in the MinGW shell, but switches CWD to /home/$username.  The previous value
