@@ -341,7 +341,10 @@ class profile:
                 exception_type, exception_value, traceback
             )
             if self._output == b'blackbox':
-                val = b'Profile:\n%s' % self._fp.getvalue()
+                fp = self._fp
+                # Help pytype: blackbox output uses io.BytesIO instead of a file
+                assert isinstance(fp, util.stringio)
+                val = b'Profile:\n%s' % fp.getvalue()
                 # ui.log treats the input as a format string,
                 # so we need to escape any % signs.
                 val = val.replace(b'%', b'%%')
