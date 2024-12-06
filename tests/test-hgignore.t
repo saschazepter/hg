@@ -84,7 +84,7 @@ regexp with flag is the first one
 
 #if rhg
   $ hg debugignorerhg
-  (?i:.*\.O$)|.*.hgignore
+  ^(?:(?i:.*\.O$)|.*.hgignore)
 #endif
 
 regex with flag is not the first one
@@ -100,7 +100,7 @@ regex with flag is not the first one
 
 #if rhg
   $ hg debugignorerhg
-  .*.hgignore|(?i:.*\.O$)
+  ^(?:.*.hgignore|(?i:.*\.O$))
 #endif
 
 flag in a pattern should affect that pattern only
@@ -117,7 +117,7 @@ flag in a pattern should affect that pattern only
 
 #if rhg
   $ hg debugignorerhg
-  (?i:.*\.O$)|.*.HGIGNORE
+  ^(?:(?i:.*\.O$)|.*.HGIGNORE)
 #endif
 
   $ echo 're:.HGIGNORE' > .hgignore
@@ -132,7 +132,7 @@ flag in a pattern should affect that pattern only
 
 #if rhg
   $ hg debugignorerhg
-  .*.HGIGNORE|(?i:.*\.O$)
+  ^(?:.*.HGIGNORE|(?i:.*\.O$))
 #endif
 
 Check that '^' after flag is properly detected.
@@ -150,7 +150,7 @@ Check that '^' after flag is properly detected.
 
 #if rhg
   $ hg debugignorerhg
-  (?i:^[^a].*\.O$)|.*.HGIGNORE
+  ^(?:(?i:^[^a].*\.O$)|.*.HGIGNORE)
 #endif
 
   $ echo 're:.HGIGNORE' > .hgignore
@@ -166,7 +166,7 @@ Check that '^' after flag is properly detected.
 
 #if rhg
   $ hg debugignorerhg
-  .*.HGIGNORE|(?i:^[^a].*\.O$)
+  ^(?:.*.HGIGNORE|(?i:^[^a].*\.O$))
 #endif
 
 further testing
@@ -182,8 +182,8 @@ further testing
 #if rhg
   $ hg status --config rhg.on-unsupported=abort
   unsupported feature: Unsupported syntax regex parse error:
-      ^(?:^(?!a).*\.o$)
-           ^^^
+      ^(?!a).*\.o$
+       ^^^
   error: look-around, including look-ahead and look-behind, is not supported
   [252]
 #endif
@@ -361,10 +361,10 @@ Test relative ignore path (issue4473):
   ? syntax
 #if rhg
   $ hg debugignorerhg -a
-  dir/b\.o(?:/|$)
+  ^(?:dir/b\.o(?:/|$))
 
   $ hg debugignorerhg
-  
+  ^ ^
 #endif
 
   $ echo "relglob:*" > .hgignore
@@ -380,7 +380,7 @@ Test relative ignore path (issue4473):
 
 #if rhg
   $ hg debugignorerhg
-  .*(?:/|$)
+  ^(?:.*(?:/|$))
 #endif
 
   $ hg debugignore b.o
