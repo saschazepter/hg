@@ -1,7 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 set -u
+set -o pipefail
 
 cd "$(hg root)"
 
