@@ -8,6 +8,7 @@
 //! Handling of Mercurial-specific patterns.
 
 use crate::{
+    pre_regex::PreRegex,
     utils::{
         files::{canonical_path, get_bytes_from_path, get_path_from_bytes},
         hg_path::{path_to_hg_path_buf, HgPathBuf, HgPathError},
@@ -17,6 +18,7 @@ use crate::{
 };
 use lazy_static::lazy_static;
 use regex::bytes::{NoExpand, Regex};
+use std::mem;
 use std::path::{Path, PathBuf};
 use std::vec::Vec;
 use std::{fmt, ops::Deref};
@@ -71,10 +73,6 @@ lazy_static! {
     };
 }
 
-/// These are matched in order
-const GLOB_REPLACEMENTS: &[(&[u8], &[u8])] =
-    &[(b"*/", b"(?:.*/)?"), (b"*", b".*"), (b"", b"[^/]*")];
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PatternSyntax {
     /// A regular expression
@@ -111,60 +109,151 @@ pub enum PatternSyntax {
     ExpandedSubInclude(Box<SubInclude>),
 }
 
-/// Transforms a glob pattern into a regex
-pub fn glob_to_re(pat: &[u8]) -> Vec<u8> {
+/// A wildcard parsed from a glob
+#[derive(Debug, Clone, Copy)]
+enum GlobWildcard {
+    /// `**/` matches any sequence of characters ending at a path
+    /// component boundary
+    AnyComponents,
+    /// `*`: matches any sequence of characters within one path component
+    AnyNonSlash,
+    /// `**`: matches any sequence of characters including slashes
+    Anything,
+}
+impl GlobWildcard {
+    /// Optimization to simplify the regex prefixes for unrooted globs.
+    /// It's unclear if this is worth it for performance, but it also has
+    /// some cosmetic effect by making these regexes easier to understand.
+    fn make_unrooted(wildcard: Option<GlobWildcard>) -> GlobWildcard {
+        match wildcard {
+            None => Self::AnyComponents,
+            Some(Self::AnyComponents) => Self::AnyComponents,
+            Some(Self::AnyNonSlash) => Self::Anything,
+            Some(Self::Anything) => Self::Anything,
+        }
+    }
+
+    fn to_re(self) -> PreRegex {
+        match self {
+            Self::AnyComponents => PreRegex::preceding_dir_components(),
+            Self::AnyNonSlash => PreRegex::NonslashStar,
+            Self::Anything => PreRegex::DotStar,
+        }
+    }
+}
+
+fn glob_parse_after_star(input: &mut &[u8]) -> GlobWildcard {
+    if let Some((b'*', rest)) = input.split_first() {
+        if let Some((b'/', rest)) = rest.split_first() {
+            *input = rest;
+            GlobWildcard::AnyComponents
+        } else {
+            *input = rest;
+            GlobWildcard::Anything
+        }
+    } else {
+        GlobWildcard::AnyNonSlash
+    }
+}
+
+/// The result of glob to re conversion.
+/// The start of the regular expression `start` is tracked
+/// separately for a pattern simplification opportunity
+/// (see `GlobWildcard::make_unrooted`)
+pub struct GlobToRe {
+    start: Option<GlobWildcard>,
+    rest: Vec<PreRegex>,
+}
+
+impl GlobToRe {
+    /// Convert to a regex. `rooted` specifies if the glob should match
+    /// at the root of the repo (true), or anywhere in the repo (false)
+    fn into_re(self, rooted: bool) -> PreRegex {
+        let wildcard = if !rooted {
+            Some(GlobWildcard::make_unrooted(self.start))
+        } else {
+            self.start
+        };
+
+        let mut res: Vec<_> =
+            wildcard.into_iter().map(|x| x.to_re()).collect();
+        res.extend(self.rest);
+        PreRegex::Sequence(res)
+    }
+}
+
+/// Transforms a glob pattern into a regex.
+pub fn glob_to_re(pat: &[u8]) -> PatternResult<GlobToRe> {
+    let mut start = None;
+    let mut res: Vec<PreRegex> = vec![];
     let mut input = pat;
-    let mut res: Vec<u8> = vec![];
-    let mut group_depth = 0;
+
+    let mut group_stack = vec![];
+
+    let add_byte = |out: &mut Vec<PreRegex>, b: u8| match out.last_mut() {
+        Some(PreRegex::Bytes(v)) => {
+            v.push(b);
+        }
+        _ => out.push(PreRegex::Bytes(vec![b])),
+    };
 
     while let Some((c, rest)) = input.split_first() {
         input = rest;
 
         match c {
             b'*' => {
-                for (source, repl) in GLOB_REPLACEMENTS {
-                    if let Some(rest) = input.drop_prefix(source) {
-                        input = rest;
-                        res.extend(*repl);
-                        break;
-                    }
+                let wildcard = glob_parse_after_star(&mut input);
+                if res.is_empty() && start.is_none() {
+                    start = Some(wildcard)
+                } else {
+                    res.push(wildcard.to_re())
                 }
             }
-            b'?' => res.extend(b"."),
+            b'?' => res.push(PreRegex::Dot),
             b'[' => {
                 match input.iter().skip(1).position(|b| *b == b']') {
-                    None => res.extend(b"\\["),
+                    None => res.push(PreRegex::Byte(b'[')),
                     Some(end) => {
                         // Account for the one we skipped
                         let end = end + 1;
 
-                        res.extend(b"[");
+                        // TODO: parse charsets ourselves?
+                        let mut class = vec![];
+                        class.extend(b"[");
 
                         for (i, b) in input[..end].iter().enumerate() {
                             if *b == b'!' && i == 0 {
-                                res.extend(b"^")
+                                class.extend(b"^")
                             } else if *b == b'^' && i == 0 {
-                                res.extend(b"\\^")
+                                class.extend(b"\\^")
                             } else if *b == b'\\' {
-                                res.extend(b"\\\\")
+                                class.extend(b"\\\\")
                             } else {
-                                res.push(*b)
+                                class.push(*b)
                             }
                         }
-                        res.extend(b"]");
+                        class.extend(b"]");
+
+                        res.push(PreRegex::parse(&class)?);
+
                         input = &input[end + 1..];
                     }
                 }
             }
             b'{' => {
-                group_depth += 1;
-                res.extend(b"(?:")
+                group_stack.push((mem::take(&mut res), vec![]));
             }
-            b'}' if group_depth > 0 => {
-                group_depth -= 1;
-                res.extend(b")");
+            b'}' if !group_stack.is_empty() => {
+                let hir = PreRegex::Sequence(mem::take(&mut res));
+                let (old_res, mut alt) = group_stack.pop().unwrap();
+                alt.push(hir);
+                res = old_res;
+                res.push(PreRegex::Alternation(alt));
             }
-            b',' if group_depth > 0 => res.extend(b"|"),
+            b',' if !group_stack.is_empty() => {
+                let frame = group_stack.last_mut().unwrap();
+                frame.1.push(PreRegex::Sequence(mem::take(&mut res)));
+            }
             b'\\' => {
                 let c = {
                     if let Some((c, rest)) = input.split_first() {
@@ -174,19 +263,17 @@ pub fn glob_to_re(pat: &[u8]) -> Vec<u8> {
                         c
                     }
                 };
-                res.extend(&RE_ESCAPE[*c as usize])
+                add_byte(&mut res, *c)
             }
-            _ => res.extend(&RE_ESCAPE[*c as usize]),
+            _ => add_byte(&mut res, *c),
         }
     }
-    res
-}
-
-fn escape_pattern(pattern: &[u8]) -> Vec<u8> {
-    pattern
-        .iter()
-        .flat_map(|c| RE_ESCAPE[*c as usize].clone())
-        .collect()
+    if !group_stack.is_empty() {
+        return Err(PatternError::UnsupportedSyntax(
+            "error: invalid glob, has unclosed alternation ('{')".to_string(),
+        ));
+    }
+    Ok(GlobToRe { start, rest: res })
 }
 
 pub fn parse_pattern_syntax_kind(
@@ -226,10 +313,10 @@ pub enum GlobSuffix {
 }
 
 impl GlobSuffix {
-    fn to_re(self) -> &'static [u8] {
+    pub fn to_re(self) -> PreRegex {
         match self {
-            Self::Empty => b"$",
-            Self::MoreComponents => b"(?:/|$)",
+            Self::Empty => PreRegex::Eof,
+            Self::MoreComponents => PreRegex::SlashOrEof,
         }
     }
 }
@@ -240,15 +327,15 @@ impl GlobSuffix {
 fn _build_single_regex(
     entry: &IgnorePattern,
     glob_suffix: GlobSuffix,
-) -> Vec<u8> {
+) -> PatternResult<PreRegex> {
     let IgnorePattern {
         syntax, pattern, ..
     } = entry;
     if pattern.is_empty() {
-        return vec![];
+        return Ok(PreRegex::Empty);
     }
     match syntax {
-        PatternSyntax::Regexp => pattern.to_owned(),
+        PatternSyntax::Regexp => PreRegex::parse(pattern),
         PatternSyntax::RelRegexp => {
             // The `regex` crate accepts `**` while `re2` and Python's `re`
             // do not. Checking for `*` correctly triggers the same error all
@@ -257,9 +344,9 @@ fn _build_single_regex(
                 || pattern[0] == b'*'
                 || pattern.starts_with(b".*")
             {
-                return pattern.to_owned();
+                return PreRegex::parse(pattern);
             }
-            match FLAG_RE.find(pattern) {
+            let re = match FLAG_RE.find(pattern) {
                 Some(mat) => {
                     let s = mat.start();
                     let e = mat.end();
@@ -281,40 +368,44 @@ fn _build_single_regex(
                     .concat()
                 }
                 None => [&b".*"[..], pattern].concat(),
-            }
+            };
+            PreRegex::parse(&re)
         }
         PatternSyntax::Path | PatternSyntax::RelPath => {
             if pattern == b"." {
-                return vec![];
+                return Ok(PreRegex::Empty);
             }
-            [
-                escape_pattern(pattern).as_slice(),
+            Ok(PreRegex::Sequence(vec![
+                PreRegex::literal(pattern),
                 GlobSuffix::MoreComponents.to_re(),
-            ]
-            .concat()
+            ]))
         }
         PatternSyntax::RootFilesIn => {
-            let mut res = if pattern == b"." {
-                vec![]
+            let re = if pattern == b"." {
+                PreRegex::Empty
             } else {
                 // Pattern is a directory name.
-                [escape_pattern(pattern).as_slice(), b"/"].concat()
+                let mut pattern = pattern.clone();
+                pattern.push(b'/');
+                PreRegex::Bytes(pattern)
             };
 
             // Anything after the pattern must be a non-directory.
-            res.extend(b"[^/]+$");
-            res
+            Ok(PreRegex::Sequence(vec![re, PreRegex::parse(b"[^/]+$")?]))
         }
         PatternSyntax::RelGlob => {
-            let glob_re = glob_to_re(pattern);
-            if let Some(rest) = glob_re.drop_prefix(b"[^/]*") {
-                [b".*", rest, glob_suffix.to_re()].concat()
-            } else {
-                [b"(?:.*/)?", glob_re.as_slice(), glob_suffix.to_re()].concat()
-            }
+            let glob_re = glob_to_re(pattern)?;
+            Ok(PreRegex::Sequence(vec![
+                glob_re.into_re(false),
+                glob_suffix.to_re(),
+            ]))
         }
         PatternSyntax::Glob | PatternSyntax::RootGlob => {
-            [glob_to_re(pattern).as_slice(), glob_suffix.to_re()].concat()
+            let glob_re = glob_to_re(pattern)?;
+            Ok(PreRegex::Sequence(vec![
+                glob_re.into_re(true),
+                glob_suffix.to_re(),
+            ]))
         }
         PatternSyntax::Include
         | PatternSyntax::SubInclude
@@ -397,7 +488,7 @@ pub fn build_single_regex(
     entry: &IgnorePattern,
     glob_suffix: GlobSuffix,
     regex_config: RegexCompleteness,
-) -> Result<Option<Vec<u8>>, PatternError> {
+) -> Result<Option<PreRegex>, PatternError> {
     let IgnorePattern {
         pattern, syntax, ..
     } = entry;
@@ -421,7 +512,7 @@ pub fn build_single_regex(
     } else {
         let mut entry = entry.clone();
         entry.pattern = pattern;
-        Ok(Some(_build_single_regex(&entry, glob_suffix)))
+        Ok(Some(_build_single_regex(&entry, glob_suffix)?))
     }
 }
 
@@ -766,6 +857,13 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
+    fn escape_pattern(pattern: &[u8]) -> Vec<u8> {
+        pattern
+            .iter()
+            .flat_map(|c| RE_ESCAPE[*c as usize].clone())
+            .collect()
+    }
+
     #[test]
     fn escape_pattern_test() {
         let untouched =
@@ -776,6 +874,10 @@ mod tests {
             escape_pattern(br"()[]{}?*+-|^$\\.&~#\t\n\r\v\f"),
             br"\(\)\[\]\{\}\?\*\+\-\|\^\$\\\\\.\&\~\#\\t\\n\\r\\v\\f".to_vec()
         );
+    }
+
+    fn glob_to_re(pat: &[u8]) -> Vec<u8> {
+        super::glob_to_re(pat).unwrap().into_re(true).to_bytes()
     }
 
     #[test]
@@ -853,6 +955,7 @@ mod tests {
             glob_suffix,
             RegexCompleteness::ExcludeExactFiles,
         )
+        .map(|re_opt| re_opt.map(|re| re.to_bytes()))
     }
 
     #[test]
@@ -953,25 +1056,25 @@ mod tests {
             build_single_regex(
                 &IgnorePattern::new(
                     PatternSyntax::RelRegexp,
-                    b"(?ia)ba{2}r",
+                    b"(?i)ba{2}r",
                     Path::new("")
                 ),
                 GlobSuffix::MoreComponents
             )
             .unwrap(),
-            Some(b"(?ia:.*ba{2}r)".to_vec()),
+            Some(b"(?i:.*ba{2}r)".to_vec()),
         );
         assert_eq!(
             build_single_regex(
                 &IgnorePattern::new(
                     PatternSyntax::RelRegexp,
-                    b"(?ia)^ba{2}r",
+                    b"(?i)^ba{2}r",
                     Path::new("")
                 ),
                 GlobSuffix::MoreComponents
             )
             .unwrap(),
-            Some(b"(?ia:^ba{2}r)".to_vec()),
+            Some(b"(?i:^ba{2}r)".to_vec()),
         );
     }
 }

@@ -35,6 +35,7 @@ pub mod config;
 pub mod lock;
 pub mod logging;
 pub mod operations;
+mod pre_regex;
 pub mod progress;
 pub mod revset;
 pub mod transaction;

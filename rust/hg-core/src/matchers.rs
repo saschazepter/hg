@@ -9,6 +9,8 @@
 
 use format_bytes::format_bytes;
 use once_cell::sync::OnceCell;
+use regex_automata::meta::Regex;
+use regex_syntax::hir::Hir;
 
 use crate::{
     dirstate::dirs_multiset::{DirsChildrenMultiset, DirsMultiset},
@@ -17,6 +19,7 @@ use crate::{
         GlobSuffix, IgnorePattern, PatternError, PatternFileWarning,
         PatternResult, PatternSyntax, RegexCompleteness,
     },
+    pre_regex::PreRegex,
     utils::{
         files::{dir_ancestors, find_dirs},
         hg_path::{HgPath, HgPathBuf, HgPathError},
@@ -765,10 +768,10 @@ struct RegexMatcher {
     /// Compiled at the start of the status algorithm, used as a base for
     /// cloning in each thread-local `self.local`, thus sharing the expensive
     /// first compilation.
-    base: regex::bytes::Regex,
+    base: regex_automata::meta::Regex,
     /// Thread-local variable that holds the `Regex` that is actually queried
     /// from each thread.
-    local: thread_local::ThreadLocal<regex::bytes::Regex>,
+    local: thread_local::ThreadLocal<regex_automata::meta::Regex>,
 }
 
 impl RegexMatcher {
@@ -780,33 +783,6 @@ impl RegexMatcher {
     }
 }
 
-/// Return a `RegexBuilder` from a bytes pattern
-///
-/// This works around the fact that even if it works on byte haysacks,
-/// [`regex::bytes::Regex`] still uses UTF-8 patterns.
-pub fn re_bytes_builder(pattern: &[u8]) -> regex::bytes::RegexBuilder {
-    use std::io::Write;
-
-    // The `regex` crate adds `.*` to the start and end of expressions if there
-    // are no anchors, so add the start anchor.
-    let mut escaped_bytes = vec![b'^', b'(', b'?', b':'];
-    for byte in pattern {
-        if *byte > 127 {
-            write!(escaped_bytes, "\\x{:x}", *byte).unwrap();
-        } else {
-            escaped_bytes.push(*byte);
-        }
-    }
-    escaped_bytes.push(b')');
-
-    // Avoid the cost of UTF8 checking
-    //
-    // # Safety
-    // This is safe because we escaped all non-ASCII bytes.
-    let pattern_string = unsafe { String::from_utf8_unchecked(escaped_bytes) };
-    regex::bytes::RegexBuilder::new(&pattern_string)
-}
-
 /// Returns a function that matches an `HgPath` against the given regex
 /// pattern.
 ///
@@ -814,14 +790,16 @@ pub fn re_bytes_builder(pattern: &[u8]) -> regex::bytes::RegexBuilder {
 /// underlying engine (the `regex` crate), for instance anything with
 /// back-references.
 #[logging_timer::time("trace")]
-fn re_matcher(pattern: &[u8]) -> PatternResult<RegexMatcher> {
-    let re = re_bytes_builder(pattern)
-        .unicode(false)
-        // Big repos with big `.hgignore` will hit the default limit and
-        // incur a significant performance hit. One repo's `hg status` hit
-        // multiple *minutes*.
-        .dfa_size_limit(50 * (1 << 20))
-        .build()
+fn re_matcher(pattern: &Hir) -> PatternResult<RegexMatcher> {
+    let re = regex_automata::meta::Builder::new()
+        .configure(
+            Regex::config()
+                // Big repos with big `.hgignore` will hit the default limit
+                // and incur a significant performance hit. One
+                // repo's `hg status` hit multiple *minutes*.
+                .dfa_size_limit(Some(50 * (1 << 20))),
+        )
+        .build_from_hir(pattern)
         .map_err(|e| PatternError::UnsupportedSyntax(e.to_string()))?;
 
     Ok(RegexMatcher {
@@ -830,6 +808,7 @@ fn re_matcher(pattern: &[u8]) -> PatternResult<RegexMatcher> {
     })
 }
 
+#[logging_timer::time("trace")]
 /// Returns the regex pattern and a function that matches an `HgPath` against
 /// said regex formed by the given ignore patterns.
 fn build_regex_match<'a>(
@@ -851,12 +830,17 @@ fn build_regex_match<'a>(
         }
     }
 
-    let full_regex = regexps.join(&b'|');
+    let is_empty = regexps.is_empty();
+
+    let full_regex = PreRegex::Sequence(vec![
+        PreRegex::parse(&b"^"[..])?,
+        PreRegex::Alternation(regexps),
+    ]);
 
     // An empty pattern would cause the regex engine to incorrectly match the
     // (empty) root directory
-    let func = if !(regexps.is_empty()) {
-        let matcher = re_matcher(&full_regex)?;
+    let func = if !is_empty {
+        let matcher = re_matcher(&full_regex.to_hir())?;
         let func = move |filename: &HgPath| {
             exact_set.contains(filename) || matcher.is_match(filename)
         };
@@ -866,7 +850,7 @@ fn build_regex_match<'a>(
         Box::new(func) as IgnoreFnType
     };
 
-    Ok((full_regex, func))
+    Ok((full_regex.to_bytes(), func))
 }
 
 /// Returns roots and directories corresponding to each pattern.
