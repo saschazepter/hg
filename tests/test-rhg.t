@@ -92,6 +92,18 @@ Listing tracked files through broken pipe
   $ $NO_FALLBACK rhg files | head -n 1
   ../../../file1
 
+Status with --rev and --changes
+  $ cd $TESTTMP/repository
+  $ $NO_FALLBACK rhg status --change null
+  $ $NO_FALLBACK rhg status --change 0
+  A file1
+  A file2
+  A file3
+  $ $NO_FALLBACK rhg status --rev null --rev 0
+  A file1
+  A file2
+  A file3
+
 Debuging data in inline index
   $ cd $TESTTMP
   $ rm -rf repository
