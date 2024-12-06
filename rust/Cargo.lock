@@ -679,6 +679,8 @@ dependencies = [
  "rand_pcg",
  "rayon",
  "regex",
+ "regex-automata",
+ "regex-syntax",
  "same-file",
  "schnellru",
  "self_cell",
