@@ -10,10 +10,10 @@ from __future__ import annotations
 import heapq
 import itertools
 import struct
+import typing
 import weakref
 
 from typing import (
-    ByteString,
     Callable,
     Collection,
     Dict,
@@ -50,6 +50,12 @@ from .interfaces import (
 from .revlogutils import (
     constants as revlog_constants,
 )
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        ByteString,
+    )
+
 
 parsers = policy.importmod('parsers')
 propertycache = util.propertycache
