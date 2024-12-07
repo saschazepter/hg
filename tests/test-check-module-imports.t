@@ -37,7 +37,6 @@ will likely receive warnings about a direct import.
   > -X i18n/posplit \
   > -X mercurial/thirdparty \
   > -X tests/hypothesishelpers.py \
-  > -X tests/test-check-interfaces.py \
   > -X tests/test-demandimport.py \
   > -X tests/test-imports-checker.t \
   > -X tests/test-verify-repo-operations.py \
