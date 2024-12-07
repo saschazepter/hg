@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import abc
 import contextlib
 import os
 import typing
@@ -127,6 +128,7 @@ class idirstate(Protocol):
         """Callable for checking exec bits."""  # TODO: this comment looks stale
 
     @contextlib.contextmanager
+    @abc.abstractmethod
     def changing_parents(self, repo) -> Iterator:  # TODO: typehint this
         """Context manager for handling dirstate parents.
 
@@ -136,6 +138,7 @@ class idirstate(Protocol):
         """
 
     @contextlib.contextmanager
+    @abc.abstractmethod
     def changing_files(self, repo) -> Iterator:  # TODO: typehint this
         """Context manager for handling dirstate files.
 
