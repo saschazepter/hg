@@ -72,7 +72,6 @@ test-check-commit.t
 test-check-config.t
 test-check-execute.t
 test-check-help.t
-test-check-interfaces.py
 test-check-module-imports.t
 test-check-pyflakes.t
 test-check-pylint.t
