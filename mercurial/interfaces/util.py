@@ -11,15 +11,7 @@
 
 from __future__ import annotations
 
-from .. import encoding
-
-if encoding.environ.get(b'HGREALINTERFACES'):
-    from ..thirdparty.zope import interface as zi
-
-    Attribute = zi.Attribute
-    Interface = zi.Interface
-    implementer = zi.implementer
-else:
+if True:
 
     class Attribute:
         def __init__(self, __name__, __doc__=b''):
