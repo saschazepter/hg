@@ -1373,8 +1373,6 @@ packages = [
     'mercurial.thirdparty',
     'mercurial.thirdparty.attr',
     'mercurial.thirdparty.tomli',
-    'mercurial.thirdparty.zope',
-    'mercurial.thirdparty.zope.interface',
     'mercurial.upgrade_utils',
     'mercurial.utils',
     'mercurial.revlogutils',
@@ -1636,13 +1634,6 @@ extmodules = [
         extra_compile_args=common_cflags + osutil_cflags,
         extra_link_args=osutil_ldflags,
         depends=common_depends,
-    ),
-    Extension(
-        'mercurial.thirdparty.zope.interface._zope_interface_coptimizations',
-        [
-            'mercurial/thirdparty/zope/interface/_zope_interface_coptimizations.c',
-        ],
-        extra_compile_args=common_cflags,
     ),
     Extension(
         'mercurial.thirdparty.sha1dc',
