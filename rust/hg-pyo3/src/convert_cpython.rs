@@ -236,7 +236,6 @@ pub(crate) unsafe fn py_leaked_borrow<'a, 'py: 'a, T>(
 /// # Safety
 ///
 /// See [`py_leaked_borrow`]
-#[allow(dead_code)]
 pub(crate) unsafe fn py_leaked_borrow_mut<'a, 'py: 'a, T>(
     py: &impl WithGIL<'py>,
     leaked: &'a mut cpython::UnsafePyLeaked<T>,
