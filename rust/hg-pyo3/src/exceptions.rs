@@ -1,4 +1,4 @@
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::import_exception;
 use pyo3::{create_exception, PyErr};
 
@@ -31,4 +31,8 @@ impl GraphError {
             }
         }
     }
+}
+
+pub fn map_lock_error<T>(e: std::sync::PoisonError<T>) -> PyErr {
+    PyRuntimeError::new_err(format!("In Rust PyO3 bindings: {e}"))
 }
