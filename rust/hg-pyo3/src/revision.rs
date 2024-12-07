@@ -3,6 +3,7 @@ use pyo3::prelude::*;
 use hg::revlog::RevlogIndex;
 use hg::{BaseRevision, Revision, UncheckedRevision};
 
+use crate::convert_cpython::proxy_index_extract;
 use crate::exceptions::GraphError;
 
 /// Revision as exposed to/from the Python layer.
@@ -53,6 +54,18 @@ where
     rev_pyiter_collect_or_else(revs, index, |r| {
         PyErr::new::<GraphError, _>(("InvalidRevision", r.0))
     })
+}
+
+pub fn rev_pyiter_collect_with_py_index<C>(
+    revs: &Bound<'_, PyAny>,
+    proxy_index: &Bound<'_, PyAny>,
+) -> PyResult<C>
+where
+    C: FromIterator<Revision>,
+{
+    // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
+    let borrowed_idx = unsafe { proxy_index_extract(proxy_index)? };
+    rev_pyiter_collect(revs, borrowed_idx)
 }
 
 /// Same as [`rev_pyiter_collect`], giving control on returned errors

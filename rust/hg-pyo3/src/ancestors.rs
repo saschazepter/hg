@@ -19,11 +19,11 @@ use vcsgraph::lazy_ancestors::{
 };
 
 use crate::convert_cpython::{
-    proxy_index_extract, proxy_index_py_leak, py_leaked_borrow,
-    py_leaked_borrow_mut, py_leaked_or_map_err,
+    proxy_index_py_leak, py_leaked_borrow, py_leaked_borrow_mut,
+    py_leaked_or_map_err,
 };
 use crate::exceptions::{map_lock_error, GraphError};
-use crate::revision::{rev_pyiter_collect, PyRevision};
+use crate::revision::{rev_pyiter_collect_with_py_index, PyRevision};
 use crate::util::new_submodule;
 use rusthg::revlog::PySharedIndex;
 
@@ -41,12 +41,8 @@ impl AncestorsIterator {
         stoprev: PyRevision,
         inclusive: bool,
     ) -> PyResult<Self> {
-        // Safety: we don't leak the "faked" reference out of
-        // `UnsafePyLeaked`
-        let initvec: Vec<_> = {
-            let borrowed_idx = unsafe { proxy_index_extract(index_proxy)? };
-            rev_pyiter_collect(initrevs, borrowed_idx)?
-        };
+        let initvec: Vec<_> =
+            rev_pyiter_collect_with_py_index(initrevs, index_proxy)?;
         let (py, leaked_idx) = proxy_index_py_leak(index_proxy)?;
         let res_ait = unsafe {
             leaked_idx.map(py, |idx| {
@@ -99,12 +95,8 @@ impl LazyAncestors {
         inclusive: bool,
     ) -> PyResult<Self> {
         let cloned_proxy = index_proxy.clone().unbind();
-        let initvec: Vec<_> = {
-            // Safety: we don't leak the "faked" reference out of
-            // `UnsafePyLeaked`
-            let borrowed_idx = unsafe { proxy_index_extract(index_proxy)? };
-            rev_pyiter_collect(initrevs, borrowed_idx)?
-        };
+        let initvec: Vec<_> =
+            rev_pyiter_collect_with_py_index(initrevs, index_proxy)?;
         let (py, leaked_idx) = proxy_index_py_leak(index_proxy)?;
         // Safety: we don't leak the "faked" reference out of
         // `UnsafePyLeaked`
