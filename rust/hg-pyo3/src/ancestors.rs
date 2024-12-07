@@ -13,11 +13,14 @@ use pyo3::prelude::*;
 
 use std::sync::RwLock;
 
-use vcsgraph::lazy_ancestors::AncestorsIterator as VCGAncestorsIterator;
+use vcsgraph::lazy_ancestors::{
+    AncestorsIterator as VCGAncestorsIterator,
+    LazyAncestors as VCGLazyAncestors,
+};
 
 use crate::convert_cpython::{
-    proxy_index_extract, proxy_index_py_leak, py_leaked_borrow_mut,
-    py_leaked_or_map_err,
+    proxy_index_extract, proxy_index_py_leak, py_leaked_borrow,
+    py_leaked_borrow_mut, py_leaked_or_map_err,
 };
 use crate::exceptions::{map_lock_error, GraphError};
 use crate::revision::{rev_pyiter_collect, PyRevision};
@@ -77,11 +80,93 @@ impl AncestorsIterator {
     }
 }
 
+#[pyclass(sequence)]
+struct LazyAncestors {
+    inner: RwLock<UnsafePyLeaked<VCGLazyAncestors<PySharedIndex>>>,
+    proxy_index: PyObject,
+    initrevs: PyObject,
+    stoprev: PyRevision,
+    inclusive: bool,
+}
+
+#[pymethods]
+impl LazyAncestors {
+    #[new]
+    fn new(
+        index_proxy: &Bound<'_, PyAny>,
+        initrevs: &Bound<'_, PyAny>,
+        stoprev: PyRevision,
+        inclusive: bool,
+    ) -> PyResult<Self> {
+        let cloned_proxy = index_proxy.clone().unbind();
+        let initvec: Vec<_> = {
+            // Safety: we don't leak the "faked" reference out of
+            // `UnsafePyLeaked`
+            let borrowed_idx = unsafe { proxy_index_extract(index_proxy)? };
+            rev_pyiter_collect(initrevs, borrowed_idx)?
+        };
+        let (py, leaked_idx) = proxy_index_py_leak(index_proxy)?;
+        // Safety: we don't leak the "faked" reference out of
+        // `UnsafePyLeaked`
+        let res_lazy = unsafe {
+            leaked_idx.map(py, |idx| {
+                VCGLazyAncestors::new(
+                    idx,
+                    initvec.into_iter().map(|r| r.0),
+                    stoprev.0,
+                    inclusive,
+                )
+            })
+        };
+        let lazy =
+            py_leaked_or_map_err(py, res_lazy, GraphError::from_vcsgraph)?;
+        Ok(Self {
+            inner: lazy.into(),
+            proxy_index: cloned_proxy,
+            initrevs: initrevs.clone().unbind(),
+            stoprev,
+            inclusive,
+        })
+    }
+
+    fn __bool__(slf: PyRef<'_, Self>) -> PyResult<bool> {
+        let leaked = slf.inner.read().map_err(map_lock_error)?;
+        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
+        let inner = unsafe { py_leaked_borrow(&slf, &leaked) }?;
+        Ok(!inner.is_empty())
+    }
+
+    fn __contains__(
+        slf: PyRefMut<'_, Self>,
+        obj: &Bound<'_, PyAny>,
+    ) -> PyResult<bool> {
+        PyRevision::extract_bound(obj).map_or(Ok(false), |rev| {
+            let mut leaked = slf.inner.write().map_err(map_lock_error)?;
+            // Safety: we don't leak the "faked" reference out of
+            // `UnsafePyLeaked`
+            let mut inner =
+                unsafe { py_leaked_borrow_mut(&slf, &mut leaked) }?;
+            inner.contains(rev.0).map_err(GraphError::from_vcsgraph)
+        })
+    }
+
+    fn __iter__(slf: PyRef<'_, Self>) -> PyResult<AncestorsIterator> {
+        let py = slf.py();
+        AncestorsIterator::new(
+            slf.proxy_index.clone_ref(py).bind(py),
+            slf.initrevs.clone_ref(py).bind(py),
+            slf.stoprev,
+            slf.inclusive,
+        )
+    }
+}
+
 pub fn init_module<'py>(
     py: Python<'py>,
     package: &str,
 ) -> PyResult<Bound<'py, PyModule>> {
     let m = new_submodule(py, package, "ancestor")?;
     m.add_class::<AncestorsIterator>()?;
+    m.add_class::<LazyAncestors>()?;
     Ok(m)
 }
