@@ -144,6 +144,7 @@ expected_mods_tested = {
     ('mercurial.dagparser', "{'optionflags': 4}"),
     ('mercurial.dirstateutils.v2', '{}'),
     ('mercurial.encoding', '{}'),
+    ('mercurial.exchanges.heads', '{}'),
     ('mercurial.fancyopts', '{}'),
     ('mercurial.formatter', '{}'),
     ('mercurial.hgweb.hgwebdir_mod_inner', '{}'),

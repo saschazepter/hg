@@ -101,6 +101,9 @@ from . import (
     wireprotoframing,
     wireprotoserver,
 )
+from .exchanges import (
+    heads as exch_heads,
+)
 from .interfaces import repository
 from .repo import (
     factory as repo_factory,
@@ -1584,6 +1587,35 @@ def debugfileset(ui, repo, expr, **opts):
         if not m(f):
             continue
         ui.write(b"%s\n" % f)
+
+
+@command(
+    b'debug::heads-bucket-fingerprints',
+    cmdutil.formatteropts,
+)
+def debug_heads_hash(ui, repo, **opts):
+    """Display the fingerprint of each heads "bucket"
+
+    * fingerprint identify all heads up to this bucket
+    * bucket-id: an integer defining the subset of heads in this bucket
+    * head-count: the total number of heads associated with this bucket
+
+    These fingerprint can be used by client to cache the state of server heads
+    from one discovery to the next.
+    """
+    b_opts = pycompat.byteskwargs(opts)
+    fm = ui.formatter(b'debug::head-bucket-fingerprints', b_opts)
+    hashes = exch_heads.buckets_info(repo)
+    fm.plain(b'%12s %9s %10s\n' % (b"fingerprint", b"bucket-id", b"head-count"))
+    for bucket, (count, fp) in sorted(hashes.items()):
+        fm.startitem()
+        fm.plain(b'%12s %9d %10d\n' % (hex(fp), bucket, count))
+        fm.data(
+            fingerprint=hex(fp),
+            bucket_id=bucket,
+            head_count=count,
+        )
+    fm.end()
 
 
 @command(

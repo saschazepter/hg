@@ -225,6 +225,7 @@ Show debug commands if there are no other candidates
   debug::clonebundle-manifest
   debug::fast-upgrade
   debug::file-index
+  debug::heads-bucket-fingerprints
   debug::is-ancestor
   debug::is-this-rhg
   debug::link-revs
@@ -438,6 +439,7 @@ Show all commands + options
   debug::clonebundle-manifest: stream, raw, include, exclude
   debug::fast-upgrade: 
   debug::file-index: docket, template, tree, path, token, vacuum, gc
+  debug::heads-bucket-fingerprints: template
   debug::is-ancestor: 
   debug::is-this-rhg: 
   debug::link-revs: changelog, manifest, dir, dump-raw
