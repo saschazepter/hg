@@ -172,12 +172,6 @@ class RustAncestorsTestMixin:
         idx = self.parserustindex()
         self.assertEqual(dagop.headrevs(idx, [1, 2, 3]), {3})
 
-
-class RustCPythonAncestorsTest(
-    revlogtesting.RustRevlogBasedTestBase, RustAncestorsTestMixin
-):
-    rustext_pkg = rustext
-
     def testmissingancestors(self):
         MissingAncestors = self.ancestors_mod().MissingAncestors
 
@@ -198,6 +192,12 @@ class RustCPythonAncestorsTest(
         revs = {0, 1, 2, 3}
         missanc.removeancestorsfrom(revs)
         self.assertEqual(revs, {2, 3})
+
+
+class RustCPythonAncestorsTest(
+    revlogtesting.RustRevlogBasedTestBase, RustAncestorsTestMixin
+):
+    rustext_pkg = rustext
 
 
 class PyO3AncestorsTest(
