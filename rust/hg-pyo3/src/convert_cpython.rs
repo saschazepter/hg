@@ -263,7 +263,6 @@ pub(crate) unsafe fn py_leaked_borrow_mut<'a, 'py: 'a, T>(
 /// This would spare users of the `cpython` crate the additional `unsafe` deref
 /// to inspect the error and return it outside `UnsafePyLeaked`, and the
 /// subsequent unwrapping that this function performs.
-#[allow(dead_code)]
 pub(crate) fn py_leaked_or_map_err<T, E: std::fmt::Debug + Copy>(
     py: cpython::Python,
     leaked: cpython::UnsafePyLeaked<Result<T, E>>,
