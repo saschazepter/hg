@@ -68,6 +68,49 @@ class RustAncestorsTestMixin:
         ait = AncestorsIterator(idx, [3], 0, False)
         self.assertEqual([r for r in ait], [2, 1, 0])
 
+        ait = AncestorsIterator(idx, [3], 0, False)
+        # tainting the index with a mutation, let's see what happens
+        # (should be more critical with AncestorsIterator)
+        del idx[0:2]
+        try:
+            next(ait)
+        except RuntimeError as exc:
+            assert "leaked reference after mutation" in exc.args[0]
+        else:
+            raise AssertionError("Expected an exception")
+
+    def testlazyancestors(self):
+        LazyAncestors = self.ancestors_mod().LazyAncestors
+
+        idx = self.parserustindex()
+        start_count = sys.getrefcount(idx.inner)  # should be 2 (see Python doc)
+        self.assertEqual(
+            {i: (r[5], r[6]) for i, r in enumerate(idx)},
+            {0: (-1, -1), 1: (0, -1), 2: (1, -1), 3: (2, -1)},
+        )
+        lazy = LazyAncestors(idx, [3], 0, True)
+        # the LazyAncestors instance holds just one reference to the
+        # inner revlog. TODO check that this is normal
+        self.assertEqual(sys.getrefcount(idx.inner), start_count + 1)
+
+        self.assertTrue(2 in lazy)
+        self.assertTrue(bool(lazy))
+        self.assertFalse(None in lazy)
+        self.assertEqual(list(lazy), [3, 2, 1, 0])
+        # a second time to validate that we spawn new iterators
+        self.assertEqual(list(lazy), [3, 2, 1, 0])
+
+        # now let's watch the refcounts closer
+        ait = iter(lazy)
+        self.assertEqual(sys.getrefcount(idx.inner), start_count + 2)
+        del ait
+        self.assertEqual(sys.getrefcount(idx.inner), start_count + 1)
+        del lazy
+        self.assertEqual(sys.getrefcount(idx.inner), start_count)
+
+        # let's check bool for an empty one
+        self.assertFalse(LazyAncestors(idx, [0], 0, False))
+
     def testrefcount(self):
         AncestorsIterator = self.ancestors_mod().AncestorsIterator
 
@@ -134,37 +177,6 @@ class RustCPythonAncestorsTest(
     revlogtesting.RustRevlogBasedTestBase, RustAncestorsTestMixin
 ):
     rustext_pkg = rustext
-
-    def testlazyancestors(self):
-        LazyAncestors = self.ancestors_mod().LazyAncestors
-
-        idx = self.parserustindex()
-        start_count = sys.getrefcount(idx.inner)  # should be 2 (see Python doc)
-        self.assertEqual(
-            {i: (r[5], r[6]) for i, r in enumerate(idx)},
-            {0: (-1, -1), 1: (0, -1), 2: (1, -1), 3: (2, -1)},
-        )
-        lazy = LazyAncestors(idx, [3], 0, True)
-        # the LazyAncestors instance holds just one reference to the
-        # inner revlog.
-        self.assertEqual(sys.getrefcount(idx.inner), start_count + 1)
-
-        self.assertTrue(2 in lazy)
-        self.assertTrue(bool(lazy))
-        self.assertEqual(list(lazy), [3, 2, 1, 0])
-        # a second time to validate that we spawn new iterators
-        self.assertEqual(list(lazy), [3, 2, 1, 0])
-
-        # now let's watch the refcounts closer
-        ait = iter(lazy)
-        self.assertEqual(sys.getrefcount(idx.inner), start_count + 2)
-        del ait
-        self.assertEqual(sys.getrefcount(idx.inner), start_count + 1)
-        del lazy
-        self.assertEqual(sys.getrefcount(idx.inner), start_count)
-
-        # let's check bool for an empty one
-        self.assertFalse(LazyAncestors(idx, [0], 0, False))
 
     def testmissingancestors(self):
         MissingAncestors = self.ancestors_mod().MissingAncestors

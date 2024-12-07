@@ -222,7 +222,6 @@ pub(crate) unsafe fn proxy_index_extract<'py>(
 /// static reference. It is possible, depending on `T` that such a leak cannot
 /// occur in practice. We may later on define a marker trait for this,
 /// which will allow us to make declare this function to be safe.
-#[allow(dead_code)]
 pub(crate) unsafe fn py_leaked_borrow<'a, 'py: 'a, T>(
     py: &impl WithGIL<'py>,
     leaked: &'a cpython::UnsafePyLeaked<T>,
