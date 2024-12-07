@@ -213,6 +213,40 @@ pub(crate) unsafe fn proxy_index_extract<'py>(
     Ok(py_shared.inner)
 }
 
+/// Generic borrow of [`cpython::UnsafePyLeaked`], with proper mapping.
+///
+/// # Safety
+///
+/// The invariants to maintain are those of the underlying
+/// [`UnsafePyLeaked::try_borrow`]: the caller must not leak the inner
+/// static reference. It is possible, depending on `T` that such a leak cannot
+/// occur in practice. We may later on define a marker trait for this,
+/// which will allow us to make declare this function to be safe.
+#[allow(dead_code)]
+pub(crate) unsafe fn py_leaked_borrow<'a, 'py: 'a, T>(
+    py: &impl WithGIL<'py>,
+    leaked: &'a cpython::UnsafePyLeaked<T>,
+) -> PyResult<cpython::PyLeakedRef<'a, T>> {
+    let py = cpython_handle(py);
+    leaked.try_borrow(py).map_err(|e| from_cpython_pyerr(py, e))
+}
+
+/// Mutable variant of [`py_leaked_borrow`]
+///
+/// # Safety
+///
+/// See [`py_leaked_borrow`]
+#[allow(dead_code)]
+pub(crate) unsafe fn py_leaked_borrow_mut<'a, 'py: 'a, T>(
+    py: &impl WithGIL<'py>,
+    leaked: &'a mut cpython::UnsafePyLeaked<T>,
+) -> PyResult<cpython::PyLeakedRefMut<'a, T>> {
+    let py = cpython_handle(py);
+    leaked
+        .try_borrow_mut(py)
+        .map_err(|e| from_cpython_pyerr(py, e))
+}
+
 /// Error propagation for an [`UnsafePyLeaked`] wrapping a [`Result`]
 ///
 /// TODO (will consider when implementing UnsafePyLeaked in PyO3):
