@@ -166,17 +166,26 @@ pub fn py_rust_index_to_graph(
     Ok(unsafe { leaked.map(py, |idx| PySharedIndex { inner: &idx.index }) })
 }
 
+pub(crate) fn proxy_index_py_leak<'py>(
+    index_proxy: &Bound<'py, PyAny>,
+) -> PyResult<(cpython::Python<'py>, cpython::UnsafePyLeaked<PySharedIndex>)> {
+    let (py, idx_proxy) = to_cpython_py_object(index_proxy);
+    let py_leaked = py_rust_index_to_graph(py, idx_proxy)?;
+    Ok((py, py_leaked))
+}
+
 /// Full extraction of the proxy index object as received in PyO3 to a
 /// [`CoreIndex`] reference.
 ///
-/// The safety invariants to maintain are those of the underlying
+/// # Safety
+///
+/// The invariants to maintain are those of the underlying
 /// [`UnsafePyLeaked::try_borrow`]: the caller must not leak the inner
 /// reference.
 pub(crate) unsafe fn proxy_index_extract<'py>(
     index_proxy: &Bound<'py, PyAny>,
 ) -> PyResult<&'py CoreIndex> {
-    let (py, idx_proxy) = to_cpython_py_object(index_proxy);
-    let py_leaked = py_rust_index_to_graph(py, idx_proxy)?;
+    let (py, py_leaked) = proxy_index_py_leak(index_proxy)?;
     let py_shared = &*unsafe {
         py_leaked
             .try_borrow(py)
