@@ -405,7 +405,9 @@ class peer:
         self.path = path
 
     def capable(self, name):
-        caps = self.capabilities()
+        # TODO: this class should maybe subclass ipeercommands too, otherwise it
+        #  is assuming whatever uses this as a mixin also has this interface.
+        caps = self.capabilities()  # pytype: disable=attribute-error
         if name in caps:
             return True
 
