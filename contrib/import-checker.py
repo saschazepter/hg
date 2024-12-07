@@ -43,8 +43,6 @@ allowsymbolimports = (
     'mercurial.thirdparty.attr',
     'mercurial.thirdparty.jaraco.collections',
     'mercurial.thirdparty.tomli',
-    'mercurial.thirdparty.zope',
-    'mercurial.thirdparty.zope.interface',
     'typing',
     'xml.etree.ElementTree',
 )
