@@ -17,10 +17,6 @@ from mercurial import (
     manifest,
     pycompat,
 )
-from mercurial.interfaces import (
-    repository,
-    util as interfaceutil,
-)
 from mercurial.utils import stringutil
 from . import (
     gitutil,
@@ -471,7 +467,7 @@ class manifestlog(baselog):
         return gitmanifest.gittreemanifestctx(self.gitrepo, t)
 
 
-@interfaceutil.implementer(repository.ifilestorage)
+# @interfaceutil.implementer(repository.ifilestorage)
 class filelog(baselog):
     def __init__(self, gr, db, path):
         super(filelog, self).__init__(gr, db)
