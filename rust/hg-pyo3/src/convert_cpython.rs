@@ -11,6 +11,7 @@
 //! the arguments side of function signatures when they are not simply elided.
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
+use pyo3::{pyclass::boolean_struct::False, PyClass};
 
 use cpython::ObjectProtocol;
 use cpython::PythonObject;
@@ -18,6 +19,23 @@ use lazy_static::lazy_static;
 
 use hg::revlog::index::Index as CoreIndex;
 use rusthg::revlog::{InnerRevlog, PySharedIndex};
+
+/// Marker trait for PyO3 objects with a lifetime representing the acquired GIL
+///
+/// # Safety
+///
+/// This trait must not be implemented for objects with lifetimes that
+/// do not imply in PyO3 that the GIL is acquired during the whole lifetime.
+pub unsafe trait WithGIL<'py> {}
+
+// Safety: the lifetime on these PyO3 objects all represent the acquired GIL
+unsafe impl<'py> WithGIL<'py> for Python<'py> {}
+unsafe impl<'py, T> WithGIL<'py> for Bound<'py, T> {}
+unsafe impl<'py, T: PyClass> WithGIL<'py> for PyRef<'py, T> {}
+unsafe impl<'py, T: PyClass<Frozen = False>> WithGIL<'py>
+    for PyRefMut<'py, T>
+{
+}
 
 /// Force cpython's GIL handle with the appropriate lifetime
 ///
@@ -31,10 +49,11 @@ use rusthg::revlog::{InnerRevlog, PySharedIndex};
 /// already has it works) *as long as it is properly released*
 /// reference:
 /// <https://docs.python.org/3.8/c-api/init.html#c.PyGILState_Ensure>
-pub(crate) fn cpython_handle<'py, T>(
-    _bound: &Bound<'py, T>,
+pub(crate) fn cpython_handle<'py, T: WithGIL<'py>>(
+    _with_gil: &T,
 ) -> cpython::Python<'py> {
-    // safety: this is safe because the returned object has the 'py lifetime
+    // safety: this is safe because the returned object has the same lifetime
+    // as the incoming object.
     unsafe { cpython::Python::assume_gil_acquired() }
 }
 
