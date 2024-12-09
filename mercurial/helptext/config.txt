@@ -2325,6 +2325,9 @@ The pure Rust fast-path for Mercurial. See `rust/README.rst` in the Mercurial re
 Control the strategy Mercurial uses internally to store history. Options in this
 category impact performance and repository size.
 
+``revlog.dirstate-v2.slow-path``
+    :config-doc:`storage.dirstate-v2.slow-path`
+
 ``revlog.issue6528.fix-incoming``
     Version 5.8 of Mercurial had a bug leading to altering the parent of file
     revision with copy information (or any other metadata) on exchange. This

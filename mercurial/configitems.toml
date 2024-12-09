@@ -2188,6 +2188,17 @@ section = "storage"
 name = "dirstate-v2.slow-path"
 default = "abort"
 experimental = true  # experimental as long as format.use-dirstate-v2 is.
+documentation = """Control the behavior of Mercurial when using a repository with the "dirstate-v2"
+feature with an installation of Mercurial without a fast implementation for
+the feature:
+
+``allow``: Silently use the slower implementation to access the repository.
+``warn``: Warn, but use the slower implementation to access the repository.
+``abort``: Prevent access to such repositories. (This is the default)
+
+For details on the "dirstate-v2" feature, see:
+:hg:`help config.format.use-dirstate-v2`.
+"""
 
 [[items]]
 section = "storage"
