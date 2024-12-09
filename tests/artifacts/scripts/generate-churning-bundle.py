@@ -283,6 +283,7 @@ def up_to_date_target(target):
 
 def run(target, validate=False):
     tmpdir = tempfile.mkdtemp(prefix='tmp-hg-test-big-file-bundle-')
+    cwd = os.getcwd()
     try:
         os.chdir(tmpdir)
         hg(
@@ -304,6 +305,8 @@ def run(target, validate=False):
                 print(msg, file=sys.stderr)
                 return 1
     finally:
+        # Windows does not let you remove the current working directory
+        os.chdir(cwd)
         shutil.rmtree(tmpdir)
     return 0
 
