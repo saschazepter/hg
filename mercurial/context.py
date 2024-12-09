@@ -37,6 +37,9 @@ from . import (
     testing,
     util,
 )
+from .interfaces import (
+    status as istatus,
+)
 from .utils import (
     dateutil,
     stringutil,
@@ -99,7 +102,7 @@ class basectx:
 
     def _buildstatus(
         self, other, s, match, listignored, listclean, listunknown
-    ):
+    ) -> istatus.Status:
         """build a status with respect to another context"""
         # Load earliest manifest first for caching reasons. More specifically,
         # if you have revisions 1000 and 1001, 1001 is probably stored as a
@@ -388,7 +391,7 @@ class basectx:
         listclean=False,
         listunknown=False,
         listsubrepos=False,
-    ):
+    ) -> istatus.Status:
         """return status of files between two nodes or node and working
         directory.
 
@@ -1905,7 +1908,9 @@ class workingctx(committablectx):
                 # Even if the wlock couldn't be grabbed, clear out the list.
                 self._repo.clearpostdsstatus()
 
-    def _dirstatestatus(self, match, ignored=False, clean=False, unknown=False):
+    def _dirstatestatus(
+        self, match, ignored=False, clean=False, unknown=False
+    ) -> istatus.Status:
         '''Gets the status from the dirstate -- internal use only.'''
         subrepos = []
         if b'.hgsub' in self:
@@ -2729,7 +2734,9 @@ class workingcommitctx(workingctx):
             repo, text, user, date, extra, changes
         )
 
-    def _dirstatestatus(self, match, ignored=False, clean=False, unknown=False):
+    def _dirstatestatus(
+        self, match, ignored=False, clean=False, unknown=False
+    ) -> istatus.Status:
         """Return matched files only in ``self._status``
 
         Uncommitted files appear "clean" via this context, even if
@@ -2924,7 +2931,7 @@ class memctx(committablectx):
         return man
 
     @propertycache
-    def _status(self):
+    def _status(self) -> istatus.Status:
         """Calculate exact status from ``files`` specified at construction"""
         man1 = self.p1().manifest()
         p2 = self._parents[1]
@@ -3089,7 +3096,7 @@ class metadataonlyctx(committablectx):
         return self._originalctx.manifest()
 
     @propertycache
-    def _status(self):
+    def _status(self) -> istatus.Status:
         """Calculate exact status from ``files`` specified in the ``origctx``
         and parents manifests.
         """
