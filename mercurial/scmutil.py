@@ -64,6 +64,8 @@ from . import (
     vfs,
 )
 
+from .interfaces import status as istatus
+
 from .utils import (
     hashutil,
     procutil,
@@ -87,7 +89,7 @@ termsize = scmplatform.termsize
 
 
 @attr.s(slots=True, repr=False)
-class status:
+class status(istatus.Status):
     """Struct with a list of files per status.
 
     The 'deleted', 'unknown' and 'ignored' properties are only
