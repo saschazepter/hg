@@ -1173,10 +1173,10 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
         slow_path = ui.config(
             b'storage', b'revlog.persistent-nodemap.slow-path'
         )
+        if slow_path == b'default':
+            slow_path = ui.config(b'storage', b'all-slow-path')
         if slow_path not in (b'allow', b'warn', b'abort'):
-            default = ui.config_default(
-                b'storage', b'revlog.persistent-nodemap.slow-path'
-            )
+            default = ui.config_default(b'storage', b'all-slow-path')
             msg = _(
                 b'unknown value for config '
                 b'"storage.revlog.persistent-nodemap.slow-path": "%s"\n'
@@ -1206,8 +1206,10 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
         options[b'persistent-nodemap'] = True
     if requirementsmod.DIRSTATE_V2_REQUIREMENT in requirements:
         slow_path = ui.config(b'storage', b'dirstate-v2.slow-path')
+        if slow_path == b'default':
+            slow_path = ui.config(b'storage', b'all-slow-path')
         if slow_path not in (b'allow', b'warn', b'abort'):
-            default = ui.config_default(b'storage', b'dirstate-v2.slow-path')
+            default = ui.config_default(b'storage', b'all-slow-path')
             msg = _(b'unknown value for config "dirstate-v2.slow-path": "%s"\n')
             ui.warn(msg % slow_path)
             if not ui.quiet:
