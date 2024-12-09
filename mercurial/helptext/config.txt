@@ -2325,6 +2325,9 @@ The pure Rust fast-path for Mercurial. See `rust/README.rst` in the Mercurial re
 Control the strategy Mercurial uses internally to store history. Options in this
 category impact performance and repository size.
 
+``all-slow-path``
+    :config-doc:`storage.all-slow-path`
+
 ``revlog.dirstate-v2.slow-path``
     :config-doc:`storage.dirstate-v2.slow-path`
 

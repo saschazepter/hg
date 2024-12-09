@@ -2185,8 +2185,31 @@ experimental = true
 
 [[items]]
 section = "storage"
-name = "dirstate-v2.slow-path"
+name = "all-slow-path"
 default = "abort"
+documentation = """Control the behavior of Mercurial when lacking performant code
+
+Some format features might only have a fast implementation when a specific
+flavor is installed (e.g. when the Rust extensions are available). A slow pure
+Python implementation might be available to help with converting the repository
+to another format or to perform a few accesses in an automation context.
+Using such accesses might result in Mercurial becoming multiple time slower
+than usual.
+
+Acceptable values:
+
+``allow``: Silently use the slower implementation to access the repository.
+``warn``: Warn, but use the slower implementation to access the repository.
+``abort``: Prevent access to such repositories. (This is the default)
+
+See the individual "storage.*.slow-path" configs for details. These options can
+override the default.
+"""
+
+[[items]]
+section = "storage"
+name = "dirstate-v2.slow-path"
+default = "default"
 experimental = true  # experimental as long as format.use-dirstate-v2 is.
 documentation = """Control the behavior of Mercurial when using a repository with the "dirstate-v2"
 feature with an installation of Mercurial without a fast implementation for
@@ -2194,6 +2217,7 @@ the feature:
 
 ``allow``: Silently use the slower implementation to access the repository.
 ``warn``: Warn, but use the slower implementation to access the repository.
+``default``: use value from the `storage.all-slow-path` value.
 ``abort``: Prevent access to such repositories. (This is the default)
 
 For details on the "dirstate-v2" feature, see:
@@ -2245,13 +2269,14 @@ default = true
 [[items]]
 section = "storage"
 name = "revlog.persistent-nodemap.slow-path"
-default = "abort"
+default = "default"
 documentation = """Control the behavior of Mercurial when using a repository with a "persistent"
 nodemap with an installation of Mercurial without a fast implementation for
 the feature:
 
 ``allow``: Silently use the slower implementation to access the repository.
 ``warn``: Warn, but use the slower implementation to access the repository.
+``default``: use the value from the `storage.all-slow-path` value.
 ``abort``: Prevent access to such repositories. (This is the default)
 
 For details on the "persistent-nodemap" feature, see:

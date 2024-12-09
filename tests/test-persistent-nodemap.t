@@ -24,7 +24,7 @@ Test the persistent on-disk nodemap
   $ hg init test-repo --config storage.revlog.persistent-nodemap.slow-path=allow
   $ cd test-repo
 
-Check handling of the default slow-path value
+Check handling of the default slow-path value and its variants
 
 #if no-pure no-rust
 
@@ -32,6 +32,36 @@ Check handling of the default slow-path value
   abort: accessing `persistent-nodemap` repository without associated fast implementation.
   (check `hg help config.format.use-persistent-nodemap` for details)
   [255]
+
+  $ hg id \
+  >    --config storage.revlog.persistent-nodemap.slow-path=abort
+  abort: accessing `persistent-nodemap` repository without associated fast implementation.
+  (check `hg help config.format.use-persistent-nodemap` for details)
+  [255]
+
+  $ hg id \
+  >    --config storage.revlog.persistent-nodemap.slow-path=warn
+  warning: accessing `persistent-nodemap` repository without associated fast implementation.
+  (check `hg help config.format.use-persistent-nodemap` for details)
+  000000000000 tip
+
+  $ hg id \
+  >    --config storage.all-slow-path=warn
+  warning: accessing `persistent-nodemap` repository without associated fast implementation.
+  (check `hg help config.format.use-persistent-nodemap` for details)
+  000000000000 tip
+
+  $ hg id \
+  >    --config storage.all-slow-path=warn \
+  >    --config storage.revlog.persistent-nodemap.slow-path=abort
+  abort: accessing `persistent-nodemap` repository without associated fast implementation.
+  (check `hg help config.format.use-persistent-nodemap` for details)
+  [255]
+
+  $ hg id \
+  >    --config storage.all-slow-path=abort \
+  >    --config storage.revlog.persistent-nodemap.slow-path=allow
+  000000000000 tip
 
 Unlock further check (we are here to test the feature)
 
