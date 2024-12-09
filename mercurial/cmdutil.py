@@ -81,6 +81,9 @@ from .revlogutils import (
 )
 
 if TYPE_CHECKING:
+    from .interfaces import (
+        status as istatus,
+    )
     from . import (
         ui as uimod,
     )
@@ -796,7 +799,7 @@ class dirnode:
                 yield st, fpath
 
 
-def tersedir(statuslist, terseargs):
+def tersedir(statuslist: istatus.Status, terseargs) -> istatus.Status:
     """
     Terse the status if all the files in a directory shares the same status.
 

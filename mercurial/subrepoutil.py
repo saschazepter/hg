@@ -52,17 +52,17 @@ if typing.TYPE_CHECKING:
         context,
         localrepo,
         match as matchmod,
-        scmutil,
         subrepo,
         ui as uimod,
     )
+
+    from .interfaces import status as istatus
 
     # keeps pyflakes happy
     assert [
         context,
         localrepo,
         matchmod,
-        scmutil,
         subrepo,
         uimod,
     ]
@@ -334,7 +334,7 @@ def submerge(
 def precommit(
     ui: "uimod.ui",
     wctx: "context.workingcommitctx",
-    status: "scmutil.status",
+    status: "istatus.Status",
     match: "matchmod.basematcher",
     force: bool = False,
 ) -> Tuple[List[bytes], Set[bytes], Substate]:
