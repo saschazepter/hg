@@ -22,9 +22,10 @@ if typing.TYPE_CHECKING:
     # to avoid circular imports
     from .. import (
         match as matchmod,
-        scmutil,
         transaction as txnmod,
     )
+
+    from . import status as istatus
 
     # TODO: finish adding type hints
     AddParentChangeCallbackT = Callable[
@@ -49,7 +50,7 @@ if typing.TYPE_CHECKING:
     """The return type of dirstate.flagfunc()."""
 
     # TODO: verify and complete this- it came from a pytype *.pyi file
-    StatusReturnT = Tuple[Any, scmutil.status, Any]
+    StatusReturnT = Tuple[Any, istatus.Status, Any]
     """The return type of dirstate.status()."""
 
     # TODO: probably doesn't belong here.

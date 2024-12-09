@@ -39,6 +39,9 @@ from . import (
     util,
     vfs as vfsmod,
 )
+from .interfaces import (
+    status as istatus,
+)
 from .utils import (
     dateutil,
     hashutil,
@@ -332,7 +335,7 @@ class abstractsubrepo:
     def cat(self, match, fm, fntemplate, prefix, **opts):
         return 1
 
-    def status(self, rev2, **opts):
+    def status(self, rev2, **opts) -> istatus.Status:
         return scmutil.status([], [], [], [], [], [], [])
 
     def diff(self, ui, diffopts, node2, match, prefix, **opts):
@@ -614,7 +617,7 @@ class hgsubrepo(abstractsubrepo):
         )
 
     @annotatesubrepoerror
-    def status(self, rev2, **opts):
+    def status(self, rev2, **opts) -> istatus.Status:
         try:
             rev1 = self._state[1]
             ctx1 = self._repo[rev1]
@@ -1971,7 +1974,7 @@ class gitsubrepo(abstractsubrepo):
         return 0
 
     @annotatesubrepoerror
-    def status(self, rev2, **opts):
+    def status(self, rev2, **opts) -> istatus.Status:
         rev1 = self._state[1]
         if self._gitmissing() or not rev1:
             # if the repo is missing, return no results
