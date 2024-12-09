@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+import abc
+
 from typing import (
     Iterator,
     Protocol,
@@ -42,8 +44,10 @@ class Status(Protocol):
     clean: list[bytes]
     """The list of files that are not in any other state."""
 
+    @abc.abstractmethod
     def __iter__(self) -> Iterator[list[bytes]]:
         """Iterates over each of the categories of file lists."""
 
+    @abc.abstractmethod
     def __repr__(self) -> str:
         """Creates a string representation of the file lists."""
