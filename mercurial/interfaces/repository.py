@@ -390,14 +390,6 @@ class ipeerbase(ipeerconnection, ipeercapabilities, ipeerrequests):
     """
 
 
-class ipeerv2(ipeerconnection, ipeercapabilities, ipeerrequests):
-    """Unified peer interface for wire protocol version 2 peers."""
-
-    apidescriptor = interfaceutil.Attribute(
-        """Data structure holding description of server API."""
-    )
-
-
 @interfaceutil.implementer(ipeerbase)
 class peer:
     """Base class for peer repositories."""
