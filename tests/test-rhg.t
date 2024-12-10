@@ -92,7 +92,7 @@ Listing tracked files through broken pipe
   $ $NO_FALLBACK rhg files | head -n 1
   ../../../file1
 
-Status with --rev and --changes
+Status with --rev and --change
   $ cd $TESTTMP/repository
   $ $NO_FALLBACK rhg status --change null
   $ $NO_FALLBACK rhg status --change 0
@@ -103,6 +103,17 @@ Status with --rev and --changes
   A file1
   A file2
   A file3
+
+Status with --change --copies
+  $ hg copy file2 file2copy
+  $ hg rename file3 file3rename
+  $ hg commit -m "commit 4" -q
+  $ $NO_FALLBACK rhg status --change . --copies
+  A file2copy
+    file2
+  A file3rename
+    file3
+  R file3
 
 Debuging data in inline index
   $ cd $TESTTMP
