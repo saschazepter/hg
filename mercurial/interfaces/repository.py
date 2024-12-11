@@ -2233,7 +2233,9 @@ class ilocalrepositorymain(Protocol):
 
 
 class completelocalrepository(
-    ilocalrepositorymain, ilocalrepositoryfilestorage
+    ilocalrepositorymain,
+    ilocalrepositoryfilestorage,
+    Protocol,
 ):
     """Complete interface for a local repository."""
 
