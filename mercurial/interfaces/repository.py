@@ -1267,7 +1267,7 @@ class imanifestrevisionstored(imanifestrevisionbase, Protocol):
 
     @abc.abstractmethod
     def find(self, key: bytes) -> tuple[bytes, bytes]:
-        """Calls self.read().find(key)``.
+        """Calls ``self.read().find(key)``.
 
         Returns a 2-tuple of ``(node, flags)`` or raises ``KeyError``.
         """
