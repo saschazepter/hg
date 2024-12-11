@@ -610,12 +610,15 @@ class ifileindex(Protocol):
     nullid: bytes
     """node for the null revision for use as delta base."""
 
+    @abc.abstractmethod
     def __len__(self) -> int:
         """Obtain the number of revisions stored for this file."""
 
+    @abc.abstractmethod
     def __iter__(self) -> Iterator[int]:
         """Iterate over revision numbers for this file."""
 
+    @abc.abstractmethod
     def hasnode(self, node):
         """Returns a bool indicating if a node is known to this store.
 
@@ -626,30 +629,36 @@ class ifileindex(Protocol):
         The null node is never present.
         """
 
+    @abc.abstractmethod
     def revs(self, start=0, stop=None):
         """Iterate over revision numbers for this file, with control."""
 
+    @abc.abstractmethod
     def parents(self, node):
         """Returns a 2-tuple of parent nodes for a revision.
 
         Values will be ``nullid`` if the parent is empty.
         """
 
+    @abc.abstractmethod
     def parentrevs(self, rev):
         """Like parents() but operates on revision numbers."""
 
+    @abc.abstractmethod
     def rev(self, node):
         """Obtain the revision number given a node.
 
         Raises ``error.LookupError`` if the node is not known.
         """
 
+    @abc.abstractmethod
     def node(self, rev):
         """Obtain the node value given a revision number.
 
         Raises ``IndexError`` if the node is not known.
         """
 
+    @abc.abstractmethod
     def lookup(self, node):
         """Attempt to resolve a value to a node.
 
@@ -659,24 +668,29 @@ class ifileindex(Protocol):
         Raises ``error.LookupError`` if a node could not be resolved.
         """
 
+    @abc.abstractmethod
     def linkrev(self, rev):
         """Obtain the changeset revision number a revision is linked to."""
 
+    @abc.abstractmethod
     def iscensored(self, rev):
         """Return whether a revision's content has been censored."""
 
+    @abc.abstractmethod
     def commonancestorsheads(self, node1, node2):
         """Obtain an iterable of nodes containing heads of common ancestors.
 
         See ``ancestor.commonancestorsheads()``.
         """
 
+    @abc.abstractmethod
     def descendants(self, revs):
         """Obtain descendant revision numbers for a set of revision numbers.
 
         If ``nullrev`` is in the set, this is equivalent to ``revs()``.
         """
 
+    @abc.abstractmethod
     def heads(self, start=None, stop=None):
         """Obtain a list of nodes that are DAG heads, with control.
 
@@ -687,6 +701,7 @@ class ifileindex(Protocol):
         encountered.
         """
 
+    @abc.abstractmethod
     def children(self, node):
         """Obtain nodes that are children of a node.
 
@@ -701,12 +716,14 @@ class ifiledata(Protocol):
     data for a tracked file.
     """
 
+    @abc.abstractmethod
     def size(self, rev):
         """Obtain the fulltext size of file data.
 
         Any metadata is excluded from size measurements.
         """
 
+    @abc.abstractmethod
     def revision(self, node):
         """Obtain fulltext data for a node.
 
@@ -718,9 +735,11 @@ class ifiledata(Protocol):
         consumers should use ``read()`` to obtain the actual file data.
         """
 
+    @abc.abstractmethod
     def rawdata(self, node):
         """Obtain raw data for a node."""
 
+    @abc.abstractmethod
     def read(self, node):
         """Resolve file fulltext data.
 
@@ -728,6 +747,7 @@ class ifiledata(Protocol):
         headers is stripped.
         """
 
+    @abc.abstractmethod
     def renamed(self, node):
         """Obtain copy metadata for a node.
 
@@ -735,6 +755,7 @@ class ifiledata(Protocol):
         (path, node) from which this revision was copied.
         """
 
+    @abc.abstractmethod
     def cmp(self, node, fulltext):
         """Compare fulltext to another revision.
 
@@ -745,6 +766,7 @@ class ifiledata(Protocol):
         TODO better document the copy metadata and censoring logic.
         """
 
+    @abc.abstractmethod
     def emitrevisions(
         self,
         nodes,
@@ -805,6 +827,7 @@ class ifiledata(Protocol):
 class ifilemutation(Protocol):
     """Storage interface for mutation events of a tracked file."""
 
+    @abc.abstractmethod
     def add(self, filedata, meta, transaction, linkrev, p1, p2):
         """Add a new revision to the store.
 
@@ -816,6 +839,7 @@ class ifilemutation(Protocol):
         May no-op if a revision matching the supplied data is already stored.
         """
 
+    @abc.abstractmethod
     def addrevision(
         self,
         revisiondata,
@@ -843,6 +867,7 @@ class ifilemutation(Protocol):
         applying raw data from a peer repo.
         """
 
+    @abc.abstractmethod
     def addgroup(
         self,
         deltas,
@@ -881,6 +906,7 @@ class ifilemutation(Protocol):
         even if it existed in the store previously.
         """
 
+    @abc.abstractmethod
     def censorrevision(self, tr, node, tombstone=b''):
         """Remove the content of a single revision.
 
@@ -898,6 +924,7 @@ class ifilemutation(Protocol):
         that they no longer reference the deleted content.
         """
 
+    @abc.abstractmethod
     def getstrippoint(self, minlink):
         """Find the minimum revision that must be stripped to strip a linkrev.
 
@@ -908,6 +935,7 @@ class ifilemutation(Protocol):
         a higher-level deletion API. ``repair.strip()`` relies on this.
         """
 
+    @abc.abstractmethod
     def strip(self, minlink, transaction):
         """Remove storage of items starting at a linkrev.
 
@@ -919,9 +947,10 @@ class ifilemutation(Protocol):
         """
 
 
-class ifilestorage(ifileindex, ifiledata, ifilemutation):
+class ifilestorage(ifileindex, ifiledata, ifilemutation, Protocol):
     """Complete storage interface for a single tracked file."""
 
+    @abc.abstractmethod
     def files(self):
         """Obtain paths that are backing storage for this file.
 
@@ -929,6 +958,7 @@ class ifilestorage(ifileindex, ifiledata, ifilemutation):
         be a better API for that.
         """
 
+    @abc.abstractmethod
     def storageinfo(
         self,
         exclusivefiles=False,
@@ -969,6 +999,7 @@ class ifilestorage(ifileindex, ifiledata, ifilemutation):
         callers are expected to handle this special value.
         """
 
+    @abc.abstractmethod
     def verifyintegrity(self, state) -> Iterable[iverifyproblem]:
         """Verifies the integrity of file storage.
 
