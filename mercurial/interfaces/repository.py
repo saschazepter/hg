@@ -1279,9 +1279,10 @@ class imanifestrevisionstored(imanifestrevisionbase, Protocol):
         """
 
 
-class imanifestrevisionwritable(imanifestrevisionbase):
+class imanifestrevisionwritable(imanifestrevisionbase, Protocol):
     """Interface representing a manifest revision that can be committed."""
 
+    @abc.abstractmethod
     def write(
         self, transaction, linkrev, p1node, p2node, added, removed, match=None
     ):
