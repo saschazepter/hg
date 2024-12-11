@@ -1059,6 +1059,7 @@ class imanifestdict(Protocol):
     consists of a binary node and extra flags affecting that entry.
     """
 
+    @abc.abstractmethod
     def __getitem__(self, key: bytes) -> bytes:
         """Returns the binary node value for a path in the manifest.
 
@@ -1067,6 +1068,7 @@ class imanifestdict(Protocol):
         Equivalent to ``self.find(path)[0]``.
         """
 
+    @abc.abstractmethod
     def find(self, path: bytes) -> tuple[bytes, bytes]:
         """Returns the entry for a path in the manifest.
 
@@ -1075,20 +1077,24 @@ class imanifestdict(Protocol):
         Raises ``KeyError`` if the path does not exist in the manifest.
         """
 
+    @abc.abstractmethod
     def __len__(self) -> int:
         """Return the number of entries in the manifest."""
 
+    @abc.abstractmethod
     def __nonzero__(self) -> bool:
         """Returns True if the manifest has entries, False otherwise."""
 
     __bool__ = __nonzero__
 
+    @abc.abstractmethod
     def set(self, path: bytes, node: bytes, flags: bytes) -> None:
         """Define the node value and flags for a path in the manifest.
 
         Equivalent to __setitem__ followed by setflag, but can be more efficient.
         """
 
+    @abc.abstractmethod
     def __setitem__(self, path: bytes, node: bytes) -> None:
         """Define the node value for a path in the manifest.
 
@@ -1096,24 +1102,30 @@ class imanifestdict(Protocol):
         the new entry.
         """
 
+    @abc.abstractmethod
     def __contains__(self, path: bytes) -> bool:
         """Whether a path exists in the manifest."""
 
+    @abc.abstractmethod
     def __delitem__(self, path: bytes) -> None:
         """Remove a path from the manifest.
 
         Raises ``KeyError`` if the path is not in the manifest.
         """
 
+    @abc.abstractmethod
     def __iter__(self) -> Iterator[bytes]:
         """Iterate over paths in the manifest."""
 
+    @abc.abstractmethod
     def iterkeys(self) -> Iterator[bytes]:
         """Iterate over paths in the manifest."""
 
+    @abc.abstractmethod
     def keys(self) -> list[bytes]:
         """Obtain a list of paths in the manifest."""
 
+    @abc.abstractmethod
     def filesnotin(self, other, match=None) -> Set[bytes]:
         """Obtain the set of paths in this manifest but not in another.
 
@@ -1123,12 +1135,15 @@ class imanifestdict(Protocol):
         Returns a set of paths.
         """
 
+    @abc.abstractmethod
     def dirs(self) -> pathutil.dirs:
         """Returns an object implementing the ``idirs`` interface."""
 
+    @abc.abstractmethod
     def hasdir(self, dir: bytes) -> bool:
         """Returns a bool indicating if a directory is in this manifest."""
 
+    @abc.abstractmethod
     def walk(self, match: matchmod.basematcher) -> Iterator[bytes]:
         """Generator of paths in manifest satisfying a matcher.
 
@@ -1136,6 +1151,7 @@ class imanifestdict(Protocol):
         the manifest, ``match.bad()`` is called for each missing file.
         """
 
+    @abc.abstractmethod
     def diff(
         self,
         other: Any,  # TODO: 'manifestdict' or (better) equivalent interface
@@ -1161,27 +1177,34 @@ class imanifestdict(Protocol):
         are the same for the other manifest.
         """
 
+    @abc.abstractmethod
     def setflag(self, path: bytes, flag: bytes) -> None:
         """Set the flag value for a given path.
 
         Raises ``KeyError`` if the path is not already in the manifest.
         """
 
+    @abc.abstractmethod
     def get(self, path: bytes, default=None) -> bytes | None:
         """Obtain the node value for a path or a default value if missing."""
 
+    @abc.abstractmethod
     def flags(self, path: bytes) -> bytes:
         """Return the flags value for a path (default: empty bytestring)."""
 
+    @abc.abstractmethod
     def copy(self) -> 'imanifestdict':
         """Return a copy of this manifest."""
 
+    @abc.abstractmethod
     def items(self) -> Iterator[tuple[bytes, bytes]]:
         """Returns an iterable of (path, node) for items in this manifest."""
 
+    @abc.abstractmethod
     def iteritems(self) -> Iterator[tuple[bytes, bytes]]:
         """Identical to items()."""
 
+    @abc.abstractmethod
     def iterentries(self) -> Iterator[tuple[bytes, bytes, bytes]]:
         """Returns an iterable of (path, node, flags) for this manifest.
 
@@ -1189,12 +1212,14 @@ class imanifestdict(Protocol):
         flags.
         """
 
+    @abc.abstractmethod
     def text(self) -> ByteString:
         """Obtain the raw data representation for this manifest.
 
         Result is used to create a manifest revision.
         """
 
+    @abc.abstractmethod
     def fastdelta(
         self, base: ByteString, changes: Iterable[tuple[bytes, bool]]
     ) -> tuple[ByteString, ByteString]:
