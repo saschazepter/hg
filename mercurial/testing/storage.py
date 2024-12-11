@@ -844,8 +844,7 @@ class ifiledatatests(basetestcase):
             node1 = f.add(fulltext1, meta1, tr, 1, node0, f.nullid)
             node2 = f.add(fulltext2, meta2, tr, 2, f.nullid, f.nullid)
 
-        # Metadata header isn't recognized when parent isn't f.nullid.
-        self.assertEqual(f.size(1), len(stored1))
+        self.assertEqual(f.size(1), len(fulltext1))
         self.assertEqual(f.size(2), len(fulltext2))
 
         self.assertEqual(f.revision(node1), stored1)
@@ -857,10 +856,10 @@ class ifiledatatests(basetestcase):
         self.assertEqual(f.read(node2), fulltext2)
 
         # Returns False when first parent is set.
-        self.assertFalse(f.renamed(node1))
+        self.assertEqual(f.renamed(node1), (b'source0', b'\xaa' * 20))
         self.assertEqual(f.renamed(node2), (b'source1', b'\xbb' * 20))
 
-        self.assertTrue(f.cmp(node1, fulltext1))
+        self.assertFalse(f.cmp(node1, fulltext1))
         self.assertTrue(f.cmp(node1, stored1))
         self.assertFalse(f.cmp(node2, fulltext2))
         self.assertTrue(f.cmp(node2, stored2))

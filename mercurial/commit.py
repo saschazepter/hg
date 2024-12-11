@@ -383,7 +383,7 @@ def _filecommit(
             if includecopymeta:
                 meta[b"copy"] = cfname
                 meta[b"copyrev"] = hex(cnode)
-            fparent1, fparent2 = repo.nullid, newfparent
+            fparent1, fparent2 = newfparent, repo.nullid
         else:
             repo.ui.warn(
                 _(

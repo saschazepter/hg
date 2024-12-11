@@ -214,6 +214,8 @@ class filelog(repository.ifilestorage):
     def add(self, text, meta, transaction, link, p1=None, p2=None):
         if meta or text.startswith(b'\1\n'):
             text = storageutil.packmeta(meta, text)
+            assert p2 == self.nullid
+            p1, p2 = self.nullid, p1
         rev = self.addrevision(text, transaction, link, p1, p2)
         return self.node(rev)
 
