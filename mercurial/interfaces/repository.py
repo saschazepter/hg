@@ -1558,6 +1558,7 @@ class imanifestlog(Protocol):
     narrowed: bool
     """True, is the manifest is narrowed by a matcher"""
 
+    @abc.abstractmethod
     def __getitem__(self, node):
         """Obtain a manifest instance for a given binary node.
 
@@ -1567,6 +1568,7 @@ class imanifestlog(Protocol):
         interface.
         """
 
+    @abc.abstractmethod
     def get(self, tree, node, verify=True):
         """Retrieve the manifest instance for a given directory and binary node.
 
@@ -1584,6 +1586,7 @@ class imanifestlog(Protocol):
         interface.
         """
 
+    @abc.abstractmethod
     def getstorage(self, tree):
         """Retrieve an interface to storage for a particular tree.
 
@@ -1593,15 +1596,18 @@ class imanifestlog(Protocol):
         TODO formalize interface for returned object.
         """
 
+    @abc.abstractmethod
     def clearcaches(self, clear_persisted_data: bool = False) -> None:
         """Clear caches associated with this collection."""
 
+    @abc.abstractmethod
     def rev(self, node):
         """Obtain the revision number for a binary node.
 
         Raises ``error.LookupError`` if the node is not known.
         """
 
+    @abc.abstractmethod
     def update_caches(self, transaction):
         """update whatever cache are relevant for the used storage."""
 
