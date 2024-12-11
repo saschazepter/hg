@@ -155,6 +155,7 @@ class _ipeerconnection(Protocol):
     path: urlutil.path | None
     """a urlutil.path instance or None"""
 
+    @abc.abstractmethod
     def url(self):
         """Returns a URL string representing this peer.
 
@@ -167,6 +168,7 @@ class _ipeerconnection(Protocol):
         value.
         """
 
+    @abc.abstractmethod
     def local(self):
         """Returns a local repository instance.
 
@@ -174,9 +176,11 @@ class _ipeerconnection(Protocol):
         can be used to interface with it. Otherwise returns ``None``.
         """
 
+    @abc.abstractmethod
     def canpush(self):
         """Returns a boolean indicating if this peer can be pushed to."""
 
+    @abc.abstractmethod
     def close(self):
         """Close the connection to this peer.
 
@@ -188,6 +192,7 @@ class _ipeerconnection(Protocol):
 class ipeercapabilities(Protocol):
     """Peer sub-interface related to capabilities."""
 
+    @abc.abstractmethod
     def capable(self, name):
         """Determine support for a named capability.
 
@@ -199,6 +204,7 @@ class ipeercapabilities(Protocol):
         Capability strings may or may not map to wire protocol capabilities.
         """
 
+    @abc.abstractmethod
     def requirecap(self, name, purpose):
         """Require a capability to be present.
 
@@ -419,6 +425,7 @@ class ipeerrequests(Protocol):
     limitedarguments: bool
     """True if the peer cannot receive large argument value for commands."""
 
+    @abc.abstractmethod
     def commandexecutor(self):
         """A context manager that resolves to an ipeercommandexecutor.
 
@@ -580,9 +587,11 @@ class ifilerevisionssequence(Protocol):
     in the index.
     """
 
+    @abc.abstractmethod
     def __len__(self):
         """The total number of revisions."""
 
+    @abc.abstractmethod
     def __getitem__(self, rev):
         """Returns the object having a specific revision number.
 
@@ -614,9 +623,11 @@ class ifilerevisionssequence(Protocol):
         recent revision.
         """
 
+    @abc.abstractmethod
     def __contains__(self, rev):
         """Whether a revision number exists."""
 
+    @abc.abstractmethod
     def insert(self, i, entry):
         """Add an item to the index at specific revision."""
 
@@ -1052,12 +1063,14 @@ class idirs(Protocol):
     directories from a collection of paths.
     """
 
+    @abc.abstractmethod
     def addpath(self, path):
         """Add a path to the collection.
 
         All directories in the path will be added to the collection.
         """
 
+    @abc.abstractmethod
     def delpath(self, path):
         """Remove a path from the collection.
 
@@ -1065,9 +1078,11 @@ class idirs(Protocol):
         directory is removed from the collection.
         """
 
+    @abc.abstractmethod
     def __iter__(self):
         """Iterate over the directories in this collection of paths."""
 
+    @abc.abstractmethod
     def __contains__(self, path):
         """Whether a specific directory is in this collection."""
 
@@ -1264,6 +1279,7 @@ class imanifestrevisionbase(Protocol):
     as part of a larger interface.
     """
 
+    @abc.abstractmethod
     def copy(self):
         """Obtain a copy of this manifest instance.
 
@@ -1272,6 +1288,7 @@ class imanifestrevisionbase(Protocol):
         ``imanifestlog`` collection as this instance.
         """
 
+    @abc.abstractmethod
     def read(self):
         """Obtain the parsed manifest data structure.
 
@@ -2304,12 +2321,14 @@ class iwireprotocolcommandcacher(Protocol):
     instances to avoid this overhead.
     """
 
+    @abc.abstractmethod
     def __enter__(self):
         """Marks the instance as active.
 
         Should return self.
         """
 
+    @abc.abstractmethod
     def __exit__(self, exctype, excvalue, exctb):
         """Called when cacher is no longer used.
 
@@ -2317,6 +2336,7 @@ class iwireprotocolcommandcacher(Protocol):
         disconnecting network sockets, aborting a partially cached response.
         """
 
+    @abc.abstractmethod
     def adjustcachekeystate(self, state):
         """Influences cache key derivation by adjusting state to derive key.
 
@@ -2329,6 +2349,7 @@ class iwireprotocolcommandcacher(Protocol):
         existing keys.
         """
 
+    @abc.abstractmethod
     def setcachekey(self, key):
         """Record the derived cache key for this request.
 
@@ -2341,6 +2362,7 @@ class iwireprotocolcommandcacher(Protocol):
         instance.
         """
 
+    @abc.abstractmethod
     def lookup(self):
         """Attempt to resolve an entry in the cache.
 
@@ -2359,6 +2381,7 @@ class iwireprotocolcommandcacher(Protocol):
            would return if invoked or an equivalent representation thereof.
         """
 
+    @abc.abstractmethod
     def onobject(self, obj):
         """Called when a new object is emitted from the command function.
 
@@ -2370,6 +2393,7 @@ class iwireprotocolcommandcacher(Protocol):
         ``yield obj``.
         """
 
+    @abc.abstractmethod
     def onfinished(self):
         """Called after all objects have been emitted from the command function.
 
