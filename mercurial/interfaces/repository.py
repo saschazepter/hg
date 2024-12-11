@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import abc
 import typing
 
 from typing import (
@@ -1171,15 +1172,17 @@ class imanifestrevisionbase(Protocol):
         """
 
 
-class imanifestrevisionstored(imanifestrevisionbase):
+class imanifestrevisionstored(imanifestrevisionbase, Protocol):
     """Interface representing a manifest revision committed to storage."""
 
+    @abc.abstractmethod
     def node(self) -> bytes:
         """The binary node for this manifest."""
 
     parents: list[bytes]
     """List of binary nodes that are parents for this manifest revision."""
 
+    @abc.abstractmethod
     def readdelta(self, shallow: bool = False):
         """Obtain the manifest data structure representing changes from parent.
 
@@ -1195,6 +1198,7 @@ class imanifestrevisionstored(imanifestrevisionbase):
         The returned object conforms to the ``imanifestdict`` interface.
         """
 
+    @abc.abstractmethod
     def read_any_fast_delta(
         self,
         valid_bases: Collection[int] | None = None,
@@ -1223,6 +1227,7 @@ class imanifestrevisionstored(imanifestrevisionbase):
         The returned object conforms to the ``imanifestdict`` interface.
         """
 
+    @abc.abstractmethod
     def read_delta_parents(self, *, shallow: bool = False, exact: bool = True):
         """return a diff from this revision against both parents.
 
@@ -1237,6 +1242,7 @@ class imanifestrevisionstored(imanifestrevisionbase):
 
         The returned object conforms to the ``imanifestdict`` interface."""
 
+    @abc.abstractmethod
     def read_delta_new_entries(self, *, shallow: bool = False):
         """Return a manifest containing just the entries that might be new to
         the repository.
@@ -1252,12 +1258,14 @@ class imanifestrevisionstored(imanifestrevisionbase):
 
         The returned object conforms to the ``imanifestdict`` interface."""
 
+    @abc.abstractmethod
     def readfast(self, shallow: bool = False):
         """Calls either ``read()`` or ``readdelta()``.
 
         The faster of the two options is called.
         """
 
+    @abc.abstractmethod
     def find(self, key: bytes) -> tuple[bytes, bytes]:
         """Calls self.read().find(key)``.
 
