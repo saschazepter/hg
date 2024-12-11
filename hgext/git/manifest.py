@@ -4,6 +4,7 @@ import typing
 
 from typing import (
     Any,
+    Iterable,
     Iterator,
     Set,
 )
@@ -117,6 +118,9 @@ class gittreemanifest:
     def __iter__(self) -> Iterator[bytes]:
         return self.iterkeys()
 
+    def set(self, path: bytes, node: bytes, flags: bytes) -> None:
+        raise NotImplementedError  # TODO: implement this
+
     def __setitem__(self, path: bytes, node: bytes) -> None:
         self._pending_changes[path] = node, self.flags(path)
 
@@ -134,6 +138,9 @@ class gittreemanifest:
     @util.propertycache
     def _dirs(self):
         return pathutil.dirs(self)
+
+    def dirs(self) -> pathutil.dirs:
+        return self._dirs  # TODO: why is there a prpoertycache?
 
     def hasdir(self, dir: bytes) -> bool:
         return dir in self._dirs
@@ -257,6 +264,11 @@ class gittreemanifest:
     def text(self) -> ByteString:
         # TODO can this method move out of the manifest iface?
         raise NotImplementedError
+
+    def fastdelta(
+        self, base: ByteString, changes: Iterable[tuple[bytes, bool]]
+    ) -> tuple[ByteString, ByteString]:
+        raise NotImplementedError  # TODO: implement this
 
     def _walkonetree(self, tree, match, subdir):
         for te in tree:
