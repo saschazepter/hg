@@ -1328,24 +1328,29 @@ class imanifeststorage(Protocol):
     TODO this doesn't feel appropriate for the storage interface.
     """
 
+    @abc.abstractmethod
     def __len__(self):
         """Obtain the number of revisions stored for this manifest."""
 
+    @abc.abstractmethod
     def __iter__(self):
         """Iterate over revision numbers for this manifest."""
 
+    @abc.abstractmethod
     def rev(self, node):
         """Obtain the revision number given a binary node.
 
         Raises ``error.LookupError`` if the node is not known.
         """
 
+    @abc.abstractmethod
     def node(self, rev):
         """Obtain the node value given a revision number.
 
         Raises ``error.LookupError`` if the revision is not known.
         """
 
+    @abc.abstractmethod
     def lookup(self, value):
         """Attempt to resolve a value to a node.
 
@@ -1355,24 +1360,30 @@ class imanifeststorage(Protocol):
         Raises ``error.LookupError`` if a ndoe could not be resolved.
         """
 
+    @abc.abstractmethod
     def parents(self, node):
         """Returns a 2-tuple of parent nodes for a node.
 
         Values will be ``nullid`` if the parent is empty.
         """
 
+    @abc.abstractmethod
     def parentrevs(self, rev):
         """Like parents() but operates on revision numbers."""
 
+    @abc.abstractmethod
     def linkrev(self, rev):
         """Obtain the changeset revision number a revision is linked to."""
 
+    @abc.abstractmethod
     def revision(self, node):
         """Obtain fulltext data for a node."""
 
+    @abc.abstractmethod
     def rawdata(self, node):
         """Obtain raw data for a node."""
 
+    @abc.abstractmethod
     def revdiff(self, rev1, rev2):
         """Obtain a delta between two revision numbers.
 
@@ -1380,12 +1391,14 @@ class imanifeststorage(Protocol):
         revision data.
         """
 
+    @abc.abstractmethod
     def cmp(self, node, fulltext):
         """Compare fulltext to another revision.
 
         Returns True if the fulltext is different from what is stored.
         """
 
+    @abc.abstractmethod
     def emitrevisions(
         self,
         nodes,
@@ -1398,6 +1411,7 @@ class imanifeststorage(Protocol):
         See the documentation for ``ifiledata`` for more.
         """
 
+    @abc.abstractmethod
     def addgroup(
         self,
         deltas,
@@ -1411,6 +1425,7 @@ class imanifeststorage(Protocol):
         See the documentation in ``ifilemutation`` for more.
         """
 
+    @abc.abstractmethod
     def rawsize(self, rev):
         """Obtain the size of tracked data.
 
@@ -1419,24 +1434,28 @@ class imanifeststorage(Protocol):
         TODO this method is only used by upgrade code and may be removed.
         """
 
+    @abc.abstractmethod
     def getstrippoint(self, minlink):
         """Find minimum revision that must be stripped to strip a linkrev.
 
         See the documentation in ``ifilemutation`` for more.
         """
 
+    @abc.abstractmethod
     def strip(self, minlink, transaction):
         """Remove storage of items starting at a linkrev.
 
         See the documentation in ``ifilemutation`` for more.
         """
 
+    @abc.abstractmethod
     def checksize(self):
         """Obtain the expected sizes of backing files.
 
         TODO this is used by verify and it should not be part of the interface.
         """
 
+    @abc.abstractmethod
     def files(self):
         """Obtain paths that are backing storage for this manifest.
 
@@ -1444,6 +1463,7 @@ class imanifeststorage(Protocol):
         for this functionality.
         """
 
+    @abc.abstractmethod
     def deltaparent(self, rev):
         """Obtain the revision that a revision is delta'd against.
 
@@ -1451,15 +1471,19 @@ class imanifeststorage(Protocol):
         not be exposed to the storage interface.
         """
 
+    @abc.abstractmethod
     def clone(self, tr, dest, **kwargs):
         """Clone this instance to another."""
 
+    @abc.abstractmethod
     def clearcaches(self, clear_persisted_data=False):
         """Clear any caches associated with this instance."""
 
+    @abc.abstractmethod
     def dirlog(self, d):
         """Obtain a manifest storage instance for a tree."""
 
+    @abc.abstractmethod
     def add(
         self,
         m,
@@ -1493,6 +1517,7 @@ class imanifeststorage(Protocol):
         manifest including files that did not match.
         """
 
+    @abc.abstractmethod
     def storageinfo(
         self,
         exclusivefiles=False,
@@ -1507,6 +1532,7 @@ class imanifeststorage(Protocol):
         This one behaves the same way, except for manifest data.
         """
 
+    @abc.abstractmethod
     def get_revlog(self):
         """return an actual revlog instance if any
 
