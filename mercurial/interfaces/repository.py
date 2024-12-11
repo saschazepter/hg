@@ -1752,15 +1752,19 @@ class ilocalrepositorymain(Protocol):
     filecopiesmode: Any  # TODO: add type hints
     """The way files copies should be dealt with in this repo."""
 
+    @abc.abstractmethod
     def close(self):
         """Close the handle on this repository."""
 
+    @abc.abstractmethod
     def peer(self, path=None):
         """Obtain an object conforming to the ``peer`` interface."""
 
+    @abc.abstractmethod
     def unfiltered(self):
         """Obtain an unfiltered/raw view of this repo."""
 
+    @abc.abstractmethod
     def filtered(self, name, visibilityexceptions=None):
         """Obtain a named view of this repository."""
 
@@ -1782,72 +1786,92 @@ class ilocalrepositorymain(Protocol):
     narrowpats: Any  # TODO: add type hints
     """Matcher patterns for this repository's narrowspec."""
 
+    @abc.abstractmethod
     def narrowmatch(self, match=None, includeexact=False):
         """Obtain a matcher for the narrowspec."""
 
+    @abc.abstractmethod
     def setnarrowpats(self, newincludes, newexcludes):
         """Define the narrowspec for this repository."""
 
+    @abc.abstractmethod
     def __getitem__(self, changeid):
         """Try to resolve a changectx."""
 
+    @abc.abstractmethod
     def __contains__(self, changeid):
         """Whether a changeset exists."""
 
+    @abc.abstractmethod
     def __nonzero__(self):
         """Always returns True."""
         return True
 
     __bool__ = __nonzero__
 
+    @abc.abstractmethod
     def __len__(self):
         """Returns the number of changesets in the repo."""
 
+    @abc.abstractmethod
     def __iter__(self):
         """Iterate over revisions in the changelog."""
 
+    @abc.abstractmethod
     def revs(self, expr, *args):
         """Evaluate a revset.
 
         Emits revisions.
         """
 
+    @abc.abstractmethod
     def set(self, expr, *args):
         """Evaluate a revset.
 
         Emits changectx instances.
         """
 
+    @abc.abstractmethod
     def anyrevs(self, specs, user=False, localalias=None):
         """Find revisions matching one of the given revsets."""
 
+    @abc.abstractmethod
     def url(self):
         """Returns a string representing the location of this repo."""
 
+    @abc.abstractmethod
     def hook(self, name, throw=False, **args):
         """Call a hook."""
 
+    @abc.abstractmethod
     def tags(self):
         """Return a mapping of tag to node."""
 
+    @abc.abstractmethod
     def tagtype(self, tagname):
         """Return the type of a given tag."""
 
+    @abc.abstractmethod
     def tagslist(self):
         """Return a list of tags ordered by revision."""
 
+    @abc.abstractmethod
     def nodetags(self, node):
         """Return the tags associated with a node."""
 
+    @abc.abstractmethod
     def nodebookmarks(self, node):
         """Return the list of bookmarks pointing to the specified node."""
 
+    @abc.abstractmethod
     def branchmap(self):
         """Return a mapping of branch to heads in that branch."""
 
+    @abc.abstractmethod
     def revbranchcache(self):
         pass
 
+    @abc.abstractmethod
     def register_changeset(self, rev, changelogrevision):
         """Extension point for caches for new nodes.
 
@@ -1856,112 +1880,146 @@ class ilocalrepositorymain(Protocol):
         cache would be fragile when other revisions are accessed, too."""
         pass
 
+    @abc.abstractmethod
     def branchtip(self, branchtip, ignoremissing=False):
         """Return the tip node for a given branch."""
 
+    @abc.abstractmethod
     def lookup(self, key):
         """Resolve the node for a revision."""
 
+    @abc.abstractmethod
     def lookupbranch(self, key):
         """Look up the branch name of the given revision or branch name."""
 
+    @abc.abstractmethod
     def known(self, nodes):
         """Determine whether a series of nodes is known.
 
         Returns a list of bools.
         """
 
+    @abc.abstractmethod
     def local(self):
         """Whether the repository is local."""
         return True
 
+    @abc.abstractmethod
     def publishing(self):
         """Whether the repository is a publishing repository."""
 
+    @abc.abstractmethod
     def cancopy(self):
         pass
 
+    @abc.abstractmethod
     def shared(self):
         """The type of shared repository or None."""
 
+    @abc.abstractmethod
     def wjoin(self, f, *insidef):
         """Calls self.vfs.reljoin(self.root, f, *insidef)"""
 
+    @abc.abstractmethod
     def setparents(self, p1, p2):
         """Set the parent nodes of the working directory."""
 
+    @abc.abstractmethod
     def filectx(self, path, changeid=None, fileid=None):
         """Obtain a filectx for the given file revision."""
 
+    @abc.abstractmethod
     def getcwd(self):
         """Obtain the current working directory from the dirstate."""
 
+    @abc.abstractmethod
     def pathto(self, f, cwd=None):
         """Obtain the relative path to a file."""
 
+    @abc.abstractmethod
     def adddatafilter(self, name, fltr):
         pass
 
+    @abc.abstractmethod
     def wread(self, filename):
         """Read a file from wvfs, using data filters."""
 
+    @abc.abstractmethod
     def wwrite(self, filename, data, flags, backgroundclose=False, **kwargs):
         """Write data to a file in the wvfs, using data filters."""
 
+    @abc.abstractmethod
     def wwritedata(self, filename, data):
         """Resolve data for writing to the wvfs, using data filters."""
 
+    @abc.abstractmethod
     def currenttransaction(self):
         """Obtain the current transaction instance or None."""
 
+    @abc.abstractmethod
     def transaction(self, desc, report=None):
         """Open a new transaction to write to the repository."""
 
+    @abc.abstractmethod
     def undofiles(self):
         """Returns a list of (vfs, path) for files to undo transactions."""
 
+    @abc.abstractmethod
     def recover(self):
         """Roll back an interrupted transaction."""
 
+    @abc.abstractmethod
     def rollback(self, dryrun=False, force=False):
         """Undo the last transaction.
 
         DANGEROUS.
         """
 
+    @abc.abstractmethod
     def updatecaches(self, tr=None, full=False, caches=None):
         """Warm repo caches."""
 
+    @abc.abstractmethod
     def invalidatecaches(self):
         """Invalidate cached data due to the repository mutating."""
 
+    @abc.abstractmethod
     def invalidatevolatilesets(self):
         pass
 
+    @abc.abstractmethod
     def invalidatedirstate(self):
         """Invalidate the dirstate."""
 
+    @abc.abstractmethod
     def invalidate(self, clearfilecache=False):
         pass
 
+    @abc.abstractmethod
     def invalidateall(self):
         pass
 
+    @abc.abstractmethod
     def lock(self, wait=True):
         """Lock the repository store and return a lock instance."""
 
+    @abc.abstractmethod
     def currentlock(self):
         """Return the lock if it's held or None."""
 
+    @abc.abstractmethod
     def wlock(self, wait=True):
         """Lock the non-store parts of the repository."""
 
+    @abc.abstractmethod
     def currentwlock(self):
         """Return the wlock if it's held or None."""
 
+    @abc.abstractmethod
     def checkcommitpatterns(self, wctx, match, status, fail):
         pass
 
+    @abc.abstractmethod
     def commit(
         self,
         text=b'',
@@ -1974,15 +2032,19 @@ class ilocalrepositorymain(Protocol):
     ):
         """Add a new revision to the repository."""
 
+    @abc.abstractmethod
     def commitctx(self, ctx, error=False, origctx=None):
         """Commit a commitctx instance to the repository."""
 
+    @abc.abstractmethod
     def destroying(self):
         """Inform the repository that nodes are about to be destroyed."""
 
+    @abc.abstractmethod
     def destroyed(self):
         """Inform the repository that nodes have been destroyed."""
 
+    @abc.abstractmethod
     def status(
         self,
         node1=b'.',
@@ -1995,50 +2057,64 @@ class ilocalrepositorymain(Protocol):
     ):
         """Convenience method to call repo[x].status()."""
 
+    @abc.abstractmethod
     def addpostdsstatus(self, ps):
         pass
 
+    @abc.abstractmethod
     def postdsstatus(self):
         pass
 
+    @abc.abstractmethod
     def clearpostdsstatus(self):
         pass
 
+    @abc.abstractmethod
     def heads(self, start=None):
         """Obtain list of nodes that are DAG heads."""
 
+    @abc.abstractmethod
     def branchheads(self, branch=None, start=None, closed=False):
         pass
 
+    @abc.abstractmethod
     def branches(self, nodes):
         pass
 
+    @abc.abstractmethod
     def between(self, pairs):
         pass
 
+    @abc.abstractmethod
     def checkpush(self, pushop):
         pass
 
     prepushoutgoinghooks: util.hooks
     """util.hooks instance."""
 
+    @abc.abstractmethod
     def pushkey(self, namespace, key, old, new):
         pass
 
+    @abc.abstractmethod
     def listkeys(self, namespace):
         pass
 
+    @abc.abstractmethod
     def debugwireargs(self, one, two, three=None, four=None, five=None):
         pass
 
+    @abc.abstractmethod
     def savecommitmessage(self, text):
         pass
 
+    @abc.abstractmethod
     def register_sidedata_computer(
         self, kind, category, keys, computer, flags, replace=False
     ):
         pass
 
+    @abc.abstractmethod
     def register_wanted_sidedata(self, category):
         pass
 
