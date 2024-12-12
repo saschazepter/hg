@@ -104,7 +104,7 @@ trigger-nightly-build:
     - test -n "$WHEEL_TYPE"
     - echo $FLAVOR
     - mkdir -p wheels/$PLATFORM/$WHEEL_TYPE/$BUILD_PY_ID
-    - contrib/build-one-linux-wheel.sh $BUILD_PY_ID wheels/$PLATFORM/$WHEEL_TYPE/$BUILD_PY_ID
+    - contrib/build-one-linux-wheel.sh $BUILD_PY_ID wheels/$PLATFORM/$WHEEL_TYPE/$BUILD_PY_ID $WHEEL_TYPE
   artifacts:
     paths:
       - wheels/
@@ -126,6 +126,11 @@ build-c-wheel:
           - cp312-cp312
           - cp313-cp313
 
+build-rust-wheel:
+  image: "registry.heptapod.net:443/mercurial/ci-images/core-wheel-x86_64-rust:v3.0"
+  extends: build-c-wheel
+  variables:
+    WHEEL_TYPE: "rust"
 
 .wheel-trigger:
   extends: .trigger
