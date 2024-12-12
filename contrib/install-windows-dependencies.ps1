@@ -126,7 +126,7 @@ function Install-Python3($name, $installer, $dest, $pip) {
         $allusers = "0"
     }
 
-    Invoke-Process $installer "/quiet TargetDir=${dest} InstallAllUsers=${allusers} AssociateFiles=0 CompileAll=0 PrependPath=0 Include_doc=0 Include_launcher=0 InstallLauncherAllUsers=0 Include_pip=0 Include_test=0"
+    Invoke-Process $installer "/quiet TargetDir=${dest} InstallAllUsers=${allusers} AssociateFiles=0 CompileAll=0 PrependPath=0 Include_doc=0 Include_launcher=1 InstallLauncherAllUsers=1 Include_pip=0 Include_test=0"
     Invoke-Process ${dest}\python.exe $pip
 }
 
