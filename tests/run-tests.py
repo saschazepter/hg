@@ -4084,12 +4084,15 @@ class TestRunner:
             # We cannot expect anything sensible here.
             return
         expecthg = os.path.join(self._pythondir, b'mercurial')
-        actualhg = self._gethgpath()
-        if os.path.abspath(actualhg) != os.path.abspath(expecthg):
-            sys.stderr.write(
+        actual_py_hg = self._get_hg_py_path()
+        if os.path.abspath(actual_py_hg) != os.path.abspath(expecthg):
+            msg = (
                 'warning: %s with unexpected mercurial lib: %s\n'
-                '         (expected %s)\n' % (verb, actualhg, expecthg)
+                '         (expected %s)\n'
             )
+            msg %= (verb, actual_py_hg.decode(), expecthg.decode())
+            msg = colorize(msg, "yellow", self.options.color)
+            sys.stderr.write(msg)
         policy = self._get_hg_module_policy()
         msg = b"fatal: mercurial binary has unexpected flavor for %s: %s\n"
         err = None
@@ -4127,7 +4130,7 @@ class TestRunner:
             sys.exit(4)
         return out
 
-    def _gethgpath(self):
+    def _get_hg_py_path(self):
         """Return the path to the mercurial package that is actually found by
         the current Python interpreter."""
         if self._hgpath is not None:
