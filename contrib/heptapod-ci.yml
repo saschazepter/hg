@@ -130,7 +130,8 @@ build-c-wheel:
           - cp312-cp312
           - cp313-cp313
 
-trigger-wheel-musl:
+
+.wheel-trigger:
   extends: .trigger
   stage: build
   rules:
@@ -140,9 +141,8 @@ trigger-wheel-musl:
     when: manual
     allow_failure: true
 
-build-c-wheel-musl:
+.extra-c-wheel:
   extends: build-c-wheel
-  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-x86_64-musl-c:v3.0"
   rules:
   - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
     needs:
@@ -151,93 +151,44 @@ build-c-wheel-musl:
     needs:
       - "trigger-wheel-musl"
 
+trigger-wheel-musl:
+  extends: .wheel-trigger
+
+build-c-wheel-musl:
+  extends: .extra-c-wheel
+  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-x86_64-musl-c:v3.0"
+
 trigger-wheel-i686:
-  extends: .trigger
-  stage: build
-  rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
-    when: never
-  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
-    when: manual
-    allow_failure: true
+  extends: .wheel-trigger
 
 build-c-wheel-i686:
-  extends: build-c-wheel
+  extends: .extra-c-wheel
   image: "registry.heptapod.net/mercurial/ci-images/core-wheel-i686-c:v3.0"
-  rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
-    needs:
-      - trigger-nightly-build
-  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
-    needs:
-      - "trigger-wheel-i686"
 
 trigger-wheel-i686-musl:
-  extends: .trigger
-  stage: build
-  rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
-    when: never
-  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
-    when: manual
-    allow_failure: true
+  extends: .wheel-trigger
 
 build-c-wheel-i686-musl:
-  extends: build-c-wheel
+  extends: .extra-c-wheel
   image: "registry.heptapod.net/mercurial/ci-images/core-wheel-i686-musl-c:v3.0"
-  rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
-    needs:
-      - trigger-nightly-build
-  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
-    needs:
-      - "trigger-wheel-i686-musl"
 
 trigger-wheel-arm64:
-  extends: .trigger
-  stage: build
-  rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
-    when: never
-  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
-    when: manual
-    allow_failure: true
+  extends: .wheel-trigger
 
 build-c-wheel-arm64:
-  extends: build-c-wheel
+  extends: .extra-c-wheel
   image: "registry.heptapod.net/mercurial/ci-images/core-wheel-arm64-c:v3.0"
   tags:
     - arm64
-  rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
-    needs:
-      - trigger-nightly-build
-  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
-    needs:
-      - "trigger-wheel-arm64"
 
 trigger-wheel-arm64-musl:
-  extends: .trigger
-  stage: build
-  rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
-    when: never
-  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
-    when: manual
-    allow_failure: true
+  extends: .wheel-trigger
 
 build-c-wheel-arm64-musl:
-  extends: build-c-wheel
+  extends: .extra-c-wheel
   image: "registry.heptapod.net/mercurial/ci-images/core-wheel-arm64-musl-c:v3.0"
   tags:
     - arm64
-  rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
-    needs:
-      - trigger-nightly-build
-  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
-    needs:
-      - "trigger-wheel-arm64-musl"
 
 .runtests:
     extends: .all
