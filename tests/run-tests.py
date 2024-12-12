@@ -4084,7 +4084,18 @@ class TestRunner:
             # We cannot expect anything sensible here.
             return
         expecthg = os.path.join(self._pythondir, b'mercurial')
+        actual_bin_hg = self._get_hg_bin_path()
         actual_py_hg = self._get_hg_py_path()
+        if actual_bin_hg != actual_py_hg:
+            msg = (
+                b'fatal: "python" and "hg" disagree about mercurial lib path:\n'
+                b'  hg: %s:\n'
+                b'  py: %s:\n'
+            )
+            msg %= (actual_bin_hg, actual_py_hg)
+            msg = colorize(msg.decode(), "red", self.options.color)
+            sys.stderr.write(msg)
+            sys.exit(2)
         if os.path.abspath(actual_py_hg) != os.path.abspath(expecthg):
             msg = (
                 'warning: %s with unexpected mercurial lib: %s\n'
@@ -4123,6 +4134,29 @@ class TestRunner:
         out, err = p.communicate()
         if p.returncode != 0:
             msg = "fatal: fetching module policy from `hg` failed:\n"
+            msg = colorize(msg, "red", self.options.color)
+            sys.stderr.write(msg)
+            cmd_err = colorize(err.decode(), "yellow", self.options.color)
+            sys.stderr.write(cmd_err)
+            sys.exit(4)
+        return out
+
+    def _get_hg_bin_path(self):
+        """return the path to the mercurial lib according to the "hg" binary"""
+        cmd = [
+            self._real_hg,
+            "debuginstall",
+            "--template",
+            "{hgmodules}",
+        ]
+        p = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        out, err = p.communicate()
+        if p.returncode != 0:
+            msg = "fatal: fetching library from `hg` failed:\n"
             msg = colorize(msg, "red", self.options.color)
             sys.stderr.write(msg)
             cmd_err = colorize(err.decode(), "yellow", self.options.color)
