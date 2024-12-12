@@ -110,9 +110,6 @@ class idirstate(Protocol):
     def is_changing_files(self) -> bool:
         """True if file tracking changes in progress."""
 
-    def _ignorefiles(self) -> List[bytes]:
-        """Return a list of files containing patterns to ignore."""
-
     def _ignorefileandline(self, f: bytes) -> IgnoreFileAndLineT:
         """Given a file `f`, return the ignore file and line that ignores it."""
 
