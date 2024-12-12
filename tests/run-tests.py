@@ -97,6 +97,7 @@ try:  # is pygments installed
     import pygments.formatters as formatters
     import pygments.token as token
     import pygments.style as style
+    from pygments.console import ansiformat
 
     if WINDOWS:
         hgpath = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -113,8 +114,17 @@ try:  # is pygments installed
     pygmentspresent = True
     difflexer = lexers.DiffLexer()
     terminal256formatter = formatters.Terminal256Formatter()
+
+    def colorize(text: str, style: str, color: bool = True) -> str:
+        if not color:
+            return text
+        return ansiformat(style, text)
+
 except ImportError:
-    pass
+
+    def colorize(text: str, style: str, color: bool = True) -> str:
+        return text
+
 
 progress_type = {}
 
