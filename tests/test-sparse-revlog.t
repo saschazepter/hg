@@ -272,7 +272,7 @@ Test `debug-delta-find`
   SPARSE-REVLOG-TEST-FILE
   $ hg debugdeltachain SPARSE-REVLOG-TEST-FILE | grep snap | tail -1
      4996    4995      -1      11        3     4947    snap
-  $ LAST_SNAP=`hg debugdeltachain SPARSE-REVLOG-TEST-FILE | grep snap | tail -1| sed 's/^ \+//'| cut -d ' ' -f 1`
+  $ LAST_SNAP=`hg debugdeltachain SPARSE-REVLOG-TEST-FILE | grep snap | tail -1| sed 's/^ *//'| cut -d ' ' -f 1`
   $ echo Last Snapshot: $LAST_SNAP
   Last Snapshot: 4996
   $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP
