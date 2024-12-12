@@ -99,29 +99,35 @@ class idirstate(Protocol):
         """Matcher for ignored files."""
 
     @property
+    @abc.abstractmethod
     def is_changing_any(self) -> bool:
         """True if any changes in progress."""
 
     @property
+    @abc.abstractmethod
     def is_changing_parents(self) -> bool:
         """True if parents changes in progress."""
 
     @property
+    @abc.abstractmethod
     def is_changing_files(self) -> bool:
         """True if file tracking changes in progress."""
 
+    @abc.abstractmethod
     def _ignorefileandline(self, f: bytes) -> IgnoreFileAndLineT:
         """Given a file `f`, return the ignore file and line that ignores it."""
 
     # TODO: decorate with `@util.propertycache` like dirstate class?
     #  (can't because circular import)
     @property
+    @abc.abstractmethod
     def _checklink(self) -> bool:
         """Callable for checking symlinks."""  # TODO: this comment looks stale
 
     # TODO: decorate with `@util.propertycache` like dirstate class?
     #  (can't because circular import)
     @property
+    @abc.abstractmethod
     def _checkexec(self) -> bool:
         """Callable for checking exec bits."""  # TODO: this comment looks stale
 
@@ -145,9 +151,11 @@ class idirstate(Protocol):
         released.
         """
 
+    @abc.abstractmethod
     def hasdir(self, d: bytes) -> bool:
         pass
 
+    @abc.abstractmethod
     def flagfunc(self, buildfallback: FlagFuncFallbackT) -> FlagFuncReturnT:
         """build a callable that returns flags associated with a filename
 
@@ -157,6 +165,7 @@ class idirstate(Protocol):
         3. a more expensive mechanism inferring the flags from the parents.
         """
 
+    @abc.abstractmethod
     def getcwd(self) -> bytes:
         """Return the path from which a canonical path is calculated.
 
@@ -165,18 +174,23 @@ class idirstate(Protocol):
         used to get real file paths. Use vfs functions instead.
         """
 
+    @abc.abstractmethod
     def pathto(self, f: bytes, cwd: Optional[bytes] = None) -> bytes:
         pass
 
+    @abc.abstractmethod
     def get_entry(self, path: bytes) -> DirstateItemT:
         """return a DirstateItem for the associated path"""
 
+    @abc.abstractmethod
     def __contains__(self, key: Any) -> bool:
         """Check if bytestring `key` is known to the dirstate."""
 
+    @abc.abstractmethod
     def __iter__(self) -> Iterator[bytes]:
         """Iterate the dirstate's contained filenames as bytestrings."""
 
+    @abc.abstractmethod
     def items(self) -> Iterator[Tuple[bytes, DirstateItemT]]:
         """Iterate the dirstate's entries as (filename, DirstateItem.
 
@@ -185,19 +199,24 @@ class idirstate(Protocol):
 
     iteritems = items
 
+    @abc.abstractmethod
     def parents(self) -> List[bytes]:
         pass
 
+    @abc.abstractmethod
     def p1(self) -> bytes:
         pass
 
+    @abc.abstractmethod
     def p2(self) -> bytes:
         pass
 
+    @abc.abstractmethod
     def branch(self) -> bytes:
         pass
 
     # TODO: typehint the return.  It's a copies Map of some sort.
+    @abc.abstractmethod
     def setparents(self, p1: bytes, p2: Optional[bytes] = None):
         """Set dirstate parents to p1 and p2.
 
@@ -208,11 +227,13 @@ class idirstate(Protocol):
         See localrepo.setparents()
         """
 
+    @abc.abstractmethod
     def setbranch(
         self, branch: bytes, transaction: Optional[TransactionT]
     ) -> None:
         pass
 
+    @abc.abstractmethod
     def invalidate(self) -> None:
         """Causes the next access to reread the dirstate.
 
@@ -220,15 +241,19 @@ class idirstate(Protocol):
         rereads the dirstate. Use localrepo.invalidatedirstate() if you want to
         check whether the dirstate has changed before rereading it."""
 
+    @abc.abstractmethod
     def copy(self, source: Optional[bytes], dest: bytes) -> None:
         """Mark dest as a copy of source. Unmark dest if source is None."""
 
+    @abc.abstractmethod
     def copied(self, file: bytes) -> Optional[bytes]:
         pass
 
+    @abc.abstractmethod
     def copies(self) -> Dict[bytes, bytes]:
         pass
 
+    @abc.abstractmethod
     def normalize(
         self, path: bytes, isknown: bool = False, ignoremissing: bool = False
     ) -> bytes:
@@ -249,9 +274,11 @@ class idirstate(Protocol):
         - version provided via command arguments
         """
 
+    @abc.abstractmethod
     def clear(self) -> None:
         pass
 
+    @abc.abstractmethod
     def rebuild(
         self,
         parent: bytes,
@@ -260,9 +287,11 @@ class idirstate(Protocol):
     ) -> None:
         pass
 
+    @abc.abstractmethod
     def write(self, tr: Optional[TransactionT]) -> None:
         pass
 
+    @abc.abstractmethod
     def addparentchangecallback(
         self, category: bytes, callback: AddParentChangeCallbackT
     ) -> None:
@@ -275,6 +304,7 @@ class idirstate(Protocol):
         with a newer callback.
         """
 
+    @abc.abstractmethod
     def walk(
         self,
         match: matchmod.basematcher,
@@ -294,6 +324,7 @@ class idirstate(Protocol):
 
         """
 
+    @abc.abstractmethod
     def status(
         self,
         match: matchmod.basematcher,
@@ -320,6 +351,7 @@ class idirstate(Protocol):
 
     # TODO: could return a list, except git.dirstate is a generator
 
+    @abc.abstractmethod
     def matches(self, match: matchmod.basematcher) -> Iterable[bytes]:
         """
         return files in the dirstate (in whatever state) filtered by match
@@ -327,6 +359,7 @@ class idirstate(Protocol):
 
     # TODO: finish adding typehints here, and to subclasses
 
+    @abc.abstractmethod
     def verify(
         self, m1, m2, p1: bytes, narrow_matcher: Optional[Any] = None
     ) -> Iterator[bytes]:
