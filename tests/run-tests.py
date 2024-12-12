@@ -2900,7 +2900,7 @@ class TextTestRunner(unittest.TextTestRunner):
                 with open(jsonpath, 'w') as fp:
                     self._writejson(self._result, fp)
 
-            self._runner._checkhglib('Tested')
+            self._runner._check_hg('Tested')
 
             savetimes(self._runner._outputdir, self._result)
 
@@ -3708,7 +3708,7 @@ class TestRunner:
                 self._usecorrectpython()
                 if self._installdir:
                     self._installhg()
-                    self._checkhglib("Testing")
+                    self._check_hg("Testing")
                 if self.options.chg:
                     assert self._installdir
                     self._installchg()
@@ -3915,15 +3915,6 @@ class TestRunner:
         wheel_path = self.options.wheel
         assert wheel_path
 
-        # TODO: actually use these flag later, to double check the wheel we
-        # installed match our intend (in `_checkhglib`)
-        if self.options.pure:
-            assert False, b"--pure"
-        elif self.options.rust:
-            assert False, b"--rust"
-        elif self.options.no_rust:
-            assert False, b"--no-rust"
-
         script = _sys2bytes(os.path.realpath(sys.argv[0]))
         exe = _sys2bytes(sysexecutable)
         hgroot = os.path.dirname(os.path.dirname(script))
@@ -4085,7 +4076,7 @@ class TestRunner:
 
             osenvironb[b'COVERAGE_DIR'] = covdir
 
-    def _checkhglib(self, verb):
+    def _check_hg(self, verb):
         """Ensure that the 'mercurial' package imported by python is
         the one we expect it to be.  If not, print a warning to stderr."""
         if self._pythondir_inferred:
@@ -4099,6 +4090,42 @@ class TestRunner:
                 'warning: %s with unexpected mercurial lib: %s\n'
                 '         (expected %s)\n' % (verb, actualhg, expecthg)
             )
+        policy = self._get_hg_module_policy()
+        msg = b"fatal: mercurial binary has unexpected flavor for %s: %s\n"
+        err = None
+        if self.options.pure and policy != b"py":
+            err = msg % (b"--pure", policy)
+        elif self.options.rust and b"rust" not in policy:
+            err = msg % (b"--rust", policy)
+        elif self.options.no_rust and b"rust" in policy:
+            err = msg % (b"--no-rust", policy)
+        if err is not None:
+            err = colorize(err.decode(), "red", self.options.color)
+            sys.stderr.write(err)
+            sys.exit(3)
+
+    def _get_hg_module_policy(self):
+        """return the module policy as seen by the "hg" binary"""
+        cmd = [
+            self._real_hg,
+            "debuginstall",
+            "--template",
+            "{hgmodulepolicy}",
+        ]
+        p = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        out, err = p.communicate()
+        if p.returncode != 0:
+            msg = "fatal: fetching module policy from `hg` failed:\n"
+            msg = colorize(msg, "red", self.options.color)
+            sys.stderr.write(msg)
+            cmd_err = colorize(err.decode(), "yellow", self.options.color)
+            sys.stderr.write(cmd_err)
+            sys.exit(4)
+        return out
 
     def _gethgpath(self):
         """Return the path to the mercurial package that is actually found by
