@@ -231,8 +231,10 @@ build-c-wheel-arm64-musl:
              test -n "$WHEEL";
              echo installing from $WHEEL;
              WHEEL_ARG="--hg-wheel $WHEEL";
-             echo disabling flavor as this is currently incompatible with '"--hg-wheel"';
-             FLAVOR="";
+             if [[ -n "$FLAVOR"  ]] && [[ "$FLAVOR" != "--rust" ]]; then
+               echo disabling flavor '"'$FLAVOR'"' as this is currently incompatible with '"--hg-wheel"';
+               FLAVOR="";
+             fi
           else
             echo installing from source;
           fi;
@@ -298,11 +300,24 @@ test-pure:
     variables:
         FLAVOR: "--pure"
 
-test-rust:
+.test-rust:
     extends: .runtests-no-check
     variables:
         HGWITHRUSTEXT: "cpython"
         FLAVOR: "--rust"
+
+test-rust:
+    extends: .test-rust
+    variables:
+        HGWITHRUSTEXT: "cpython"
+        FLAVOR: "--rust"
+    needs:
+      - job: build-rust-wheel
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp311-cp311"
+    variables:
+        WHEEL_TYPE: "rust"
 
 test-rhg:
     extends: .runtests-no-check
@@ -360,7 +375,7 @@ test-3.12-c:
             - BUILD_PY_ID: "cp312-cp312"
 
 test-3.12-rust:
-    extends: test-rust
+    extends: .test-rust
     stage: py-version-compat
     needs:
       - trigger-pycompat
@@ -379,7 +394,7 @@ test-3.13-c:
             - BUILD_PY_ID: "cp313-cp313"
 
 test-3.13-rust:
-    extends: test-rust
+    extends: .test-rust
     stage: py-version-compat
     needs:
       - trigger-pycompat
@@ -387,7 +402,7 @@ test-3.13-rust:
         PYTHON: python3.13
 
 check-pytype:
-    extends: test-rust
+    extends: .test-rust
     stage: checks
     before_script:
       - export PATH="/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/shims:/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/bin:$PATH"
