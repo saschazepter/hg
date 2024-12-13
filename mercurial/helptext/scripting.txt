@@ -189,6 +189,11 @@ a template.
 Other Topics
 ============
 
+scripting oriented commands:
+   Some commands are primarily intended to be used in scripting. These are
+   gathered in the `script::` "command namespace". See `hg help script::` for a
+   list of them.
+
 revsets
    Revisions sets is a functional query language for selecting a set
    of revisions. Think of it as SQL for Mercurial repositories. Revsets

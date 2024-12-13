@@ -209,6 +209,7 @@ class command(_funcregistrarbase):
     CATEGORY_HELP = b'help'
     CATEGORY_MISC = b'misc'
     CATEGORY_NONE = b'none'
+    CATEGORY_SCRIPTING = b'scripting'
 
     def _doregister(
         self,

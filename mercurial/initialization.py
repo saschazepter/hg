@@ -46,6 +46,7 @@ from . import (
     debugcommands,
     revset,
     revset_predicates,
+    script_commands,
     strip,
     subrepo,
     templatekw,
@@ -75,4 +76,5 @@ strip.init()
 webcommands.init()
 bundle2_part_handlers.init()
 templatekw.init()
+script_commands.init()
 subrepo.init()
