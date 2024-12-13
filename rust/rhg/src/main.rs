@@ -536,39 +536,51 @@ mod commands {
     pub mod status;
 }
 
-macro_rules! subcommands {
-    ($( $command: ident )+) => {
+pub type RunFn = fn(&CliInvocation) -> Result<(), CommandError>;
 
-        fn add_subcommand_args(app: clap::Command) -> clap::Command {
-            app
-            $(
-                .subcommand(commands::$command::args())
-            )+
-        }
+struct SubCommand {
+    run: RunFn,
+    args: clap::Command,
+    name: String,
+}
 
-        pub type RunFn = fn(&CliInvocation) -> Result<(), CommandError>;
-
-        fn subcommand_run_fn(name: &str) -> Option<RunFn> {
-            match name {
-                $(
-                    stringify!($command) => Some(commands::$command::run),
-                )+
-                _ => None,
-            }
+macro_rules! subcommand {
+    ($command: ident) => {
+        SubCommand {
+            args: commands::$command::args(),
+            run: commands::$command::run,
+            name: stringify!($command).to_string(),
         }
     };
 }
+fn subcommands() -> Vec<SubCommand> {
+    vec![
+        subcommand!(cat),
+        subcommand!(debugdata),
+        subcommand!(debugrequirements),
+        subcommand!(debugignorerhg),
+        subcommand!(debugrhgsparse),
+        subcommand!(files),
+        subcommand!(root),
+        subcommand!(config),
+        subcommand!(status),
+    ]
+}
 
-subcommands! {
-    cat
-    debugdata
-    debugrequirements
-    debugignorerhg
-    debugrhgsparse
-    files
-    root
-    config
-    status
+fn add_subcommand_args(mut app: clap::Command) -> clap::Command {
+    for s in subcommands() {
+        app = app.subcommand(s.args)
+    }
+    app
+}
+
+fn subcommand_run_fn(name: &str) -> Option<RunFn> {
+    for s in subcommands() {
+        if s.name == name {
+            return Some(s.run);
+        }
+    }
+    None
 }
 
 pub struct CliInvocation<'a> {
