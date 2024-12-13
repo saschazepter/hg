@@ -8,7 +8,7 @@
 # has succeeded.
 workflow:
   rules:
-    - if: $CI_COMMIT_BRANCH =~ /^branch\/.*/ && $CI_PIPELINE_SOURCE != "web"
+    - if: $CI_COMMIT_BRANCH =~ /^branch\/.*/ && $CI_PIPELINE_SOURCE !~ "/web|schedule/"
       when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: never
