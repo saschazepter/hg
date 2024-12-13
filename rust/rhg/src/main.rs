@@ -534,6 +534,7 @@ mod commands {
     pub mod debugrhgsparse;
     pub mod files;
     pub mod root;
+    pub mod script_hgignore;
     pub mod status;
 }
 
@@ -616,6 +617,7 @@ fn subcommands() -> Subcommands {
         subcommand!(root),
         subcommand!(config),
         subcommand!(status),
+        subcommand!(script_hgignore),
     ];
     let mut commands = Subcommands::new();
     for cmd in subcommands {
