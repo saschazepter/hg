@@ -9,7 +9,7 @@ use hg::utils::files::{get_bytes_from_os_str, get_path_from_bytes};
 use hg::utils::SliceExt;
 use hg::{exit_codes, requirements};
 use std::borrow::Cow;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
 use std::os::unix::prelude::CommandExt;
 use std::path::PathBuf;
@@ -67,7 +67,8 @@ fn main_with_result(
                 .global(true),
         )
         .version("0.0.1");
-    let app = add_subcommand_args(app);
+    let subcommands = subcommands();
+    let app = subcommands.add_args(app);
 
     let matches = app.try_get_matches_from(argv.iter())?;
 
@@ -98,7 +99,7 @@ fn main_with_result(
             return Err(CommandError::unsupported(msg));
         }
     }
-    let run = subcommand_run_fn(subcommand_name)
+    let run = subcommands.run_fn(subcommand_name)
         .expect("unknown subcommand name from clap despite Command::subcommand_required");
 
     let invocation = CliInvocation {
@@ -542,21 +543,70 @@ struct SubCommand {
     run: RunFn,
     args: clap::Command,
     name: String,
+    /// used for reporting collision
+    origin: String,
 }
 
 macro_rules! subcommand {
     ($command: ident) => {{
         let args = commands::$command::args();
         let name = args.get_name().to_string();
+        let origin = stringify!($command).to_string();
         SubCommand {
             args,
             run: commands::$command::run,
             name,
+            origin,
         }
     }};
 }
-fn subcommands() -> Vec<SubCommand> {
-    vec![
+
+struct Subcommands {
+    commands: Vec<clap::Command>,
+    run: HashMap<String, (String, RunFn)>,
+}
+
+/// `Subcommands` construction
+impl Subcommands {
+    pub fn new() -> Self {
+        Self {
+            commands: vec![],
+            run: HashMap::new(),
+        }
+    }
+
+    pub fn add(&mut self, subcommand: SubCommand) {
+        let name = subcommand.name;
+        if let Some((origin_old, _)) = self
+            .run
+            .insert(name.clone(), (subcommand.origin.clone(), subcommand.run))
+        {
+            panic!(
+                "command `{}` is defined in two places (`{}` and `{}`)",
+                name, origin_old, subcommand.origin
+            )
+        }
+        self.commands.push(subcommand.args)
+    }
+}
+
+/// `Subcommands` querying
+impl Subcommands {
+    pub fn add_args(&self, mut app: clap::Command) -> clap::Command {
+        for cmd in self.commands.iter() {
+            app = app.subcommand(cmd)
+        }
+        app
+    }
+
+    pub fn run_fn(&self, name: &str) -> Option<RunFn> {
+        let (_, run) = self.run.get(name)?;
+        Some(*run)
+    }
+}
+
+fn subcommands() -> Subcommands {
+    let subcommands = vec![
         subcommand!(cat),
         subcommand!(debugdata),
         subcommand!(debugrequirements),
@@ -566,23 +616,12 @@ fn subcommands() -> Vec<SubCommand> {
         subcommand!(root),
         subcommand!(config),
         subcommand!(status),
-    ]
-}
-
-fn add_subcommand_args(mut app: clap::Command) -> clap::Command {
-    for s in subcommands() {
-        app = app.subcommand(s.args)
+    ];
+    let mut commands = Subcommands::new();
+    for cmd in subcommands {
+        commands.add(cmd)
     }
-    app
-}
-
-fn subcommand_run_fn(name: &str) -> Option<RunFn> {
-    for s in subcommands() {
-        if s.name == name {
-            return Some(s.run);
-        }
-    }
-    None
+    commands
 }
 
 pub struct CliInvocation<'a> {
