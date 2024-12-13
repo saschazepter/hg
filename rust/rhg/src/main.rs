@@ -545,13 +545,15 @@ struct SubCommand {
 }
 
 macro_rules! subcommand {
-    ($command: ident) => {
+    ($command: ident) => {{
+        let args = commands::$command::args();
+        let name = args.get_name().to_string();
         SubCommand {
-            args: commands::$command::args(),
+            args,
             run: commands::$command::run,
-            name: stringify!($command).to_string(),
+            name,
         }
-    };
+    }};
 }
 fn subcommands() -> Vec<SubCommand> {
     vec![
