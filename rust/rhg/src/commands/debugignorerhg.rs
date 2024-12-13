@@ -1,8 +1,10 @@
 use crate::error::CommandError;
+use crate::ui::Ui;
 use clap::Arg;
 use hg::dirstate::status::StatusError;
 use hg::filepatterns::RegexCompleteness;
-use hg::matchers::get_ignore_matcher_pre;
+use hg::matchers::{get_ignore_matcher_pre, ReSyntax};
+use hg::repo::Repo;
 use log::warn;
 
 pub const HELP_TEXT: &str = "
@@ -24,12 +26,19 @@ pub fn args() -> clap::Command {
     ).about(HELP_TEXT)
 }
 
-pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
-    let repo = invocation.repo?;
-    let args = invocation.subcommand_args;
+pub enum WhichPatterns {
+    All,
+    SlowPathOnly,
+}
 
+pub fn work(
+    repo: &Repo,
+    ui: &Ui,
+    which: WhichPatterns,
+    syntax: ReSyntax,
+) -> Result<(), CommandError> {
     let ignore_file = repo.working_directory_vfs().join(".hgignore"); // TODO hardcoded
-    let all_patterns = args.get_flag("all-patterns");
+    let all_patterns = matches!(which, WhichPatterns::All);
 
     let (ignore_matcher, warnings) = get_ignore_matcher_pre(
         vec![ignore_file],
@@ -51,8 +60,22 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         warn!("Pattern warnings: {:?}", &warnings);
     }
 
-    let patterns = ignore_matcher.debug_get_patterns();
-    invocation.ui.write_stdout(patterns)?;
-    invocation.ui.write_stdout(b"\n")?;
+    let patterns = ignore_matcher.debug_get_patterns(syntax);
+    ui.write_stdout(&patterns)?;
+    ui.write_stdout(b"\n")?;
     Ok(())
+}
+
+pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
+    let repo = invocation.repo?;
+    let args = invocation.subcommand_args;
+
+    let all_patterns = args.get_flag("all-patterns");
+    let patterns = if all_patterns {
+        WhichPatterns::All
+    } else {
+        WhichPatterns::SlowPathOnly
+    };
+
+    work(repo, invocation.ui, patterns, ReSyntax::Internal)
 }

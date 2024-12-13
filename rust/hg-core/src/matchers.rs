@@ -8,6 +8,7 @@
 //! Structs and types for matching files and directories.
 
 use format_bytes::format_bytes;
+use itertools::Itertools;
 use once_cell::sync::OnceCell;
 use regex_automata::meta::Regex;
 use regex_syntax::hir::Hir;
@@ -30,10 +31,10 @@ use crate::{
 
 use crate::dirstate::status::IgnoreFnType;
 use crate::filepatterns::normalize_path_bytes;
-use std::collections::HashSet;
 use std::fmt::{Display, Error, Formatter};
 use std::path::{Path, PathBuf};
 use std::{borrow::ToOwned, collections::BTreeSet};
+use std::{collections::HashSet, str::FromStr};
 
 #[derive(Debug, PartialEq)]
 pub enum VisitChildrenSet {
@@ -297,7 +298,7 @@ impl Matcher for FileMatcher {
 /// assert_eq!(matcher.exact_match(HgPath::new(b"lib.h")), false); // exact matches are for (rel)path kinds
 /// ```
 pub struct PatternMatcher<'a> {
-    patterns: Vec<u8>,
+    patterns: PatternsDesc,
     match_fn: IgnoreFnType<'a>,
     /// Whether all the patterns match a prefix (i.e. recursively)
     prefix: bool,
@@ -306,10 +307,63 @@ pub struct PatternMatcher<'a> {
     dirs: DirsMultiset,
 }
 
+enum PatternsDesc {
+    Re(PreRegex),
+    RootFilesIn(Vec<Vec<u8>>, GlobSuffix),
+}
+
+pub enum ReSyntax {
+    Tidy,
+    Internal,
+}
+
+impl PatternsDesc {
+    fn to_re(&self) -> PreRegex {
+        match self {
+            Self::Re(re) => re.clone(),
+            Self::RootFilesIn(patterns, glob_suffix) => {
+                let patterns = patterns
+                    .clone()
+                    .into_iter()
+                    .map(|pattern: Vec<u8>| IgnorePattern {
+                        syntax: PatternSyntax::RootFilesIn,
+                        source: PathBuf::from_str("<rootfilesin-matcher>")
+                            .unwrap(),
+                        pattern,
+                    })
+                    .collect_vec();
+                build_regex_match_for_debug(&patterns, *glob_suffix).unwrap()
+            }
+        }
+    }
+
+    fn to_pattern_bytes(&self, syntax: ReSyntax) -> Vec<u8> {
+        match syntax {
+            ReSyntax::Tidy => self.to_re().to_bytes(),
+            ReSyntax::Internal => match self {
+                PatternsDesc::Re(re) => re.to_hir().to_string().into_bytes(),
+                PatternsDesc::RootFilesIn(dirs, _) => {
+                    let mut patterns = vec![];
+                    patterns.extend(b"rootfilesin: ");
+                    let mut dirs_vec = dirs.clone();
+                    dirs_vec.sort();
+                    patterns.extend(dirs_vec.escaped_bytes());
+                    patterns
+                }
+            },
+        }
+    }
+}
+
 impl core::fmt::Debug for PatternMatcher<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PatternMatcher")
-            .field("patterns", &String::from_utf8_lossy(&self.patterns))
+            .field(
+                "patterns",
+                &String::from_utf8_lossy(
+                    &self.patterns.to_pattern_bytes(ReSyntax::Internal),
+                ),
+            )
             .field("prefix", &self.prefix)
             .field("files", &self.files)
             .field("dirs", &self.dirs)
@@ -441,7 +495,7 @@ impl IncludeMatcherPre {
 /// assert!(!matcher.matches(HgPath::new(b"dir/subdir/subsubdir/file")));
 /// ```
 pub struct IncludeMatcher<'a> {
-    patterns: Vec<u8>,
+    patterns: PatternsDesc,
     match_fn: IgnoreFnType<'a>,
     /// Whether all the patterns match a prefix (i.e. recursively)
     prefix: bool,
@@ -453,7 +507,10 @@ pub struct IncludeMatcher<'a> {
 impl core::fmt::Debug for IncludeMatcher<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("IncludeMatcher")
-            .field("patterns", &String::from_utf8_lossy(&self.patterns))
+            .field(
+                "patterns",
+                &String::from_utf8_lossy(&self.patterns.to_re().to_bytes()),
+            )
             .field("prefix", &self.prefix)
             .field("roots", &self.roots)
             .field("dirs", &self.dirs)
@@ -815,7 +872,7 @@ fn build_regex_match<'a>(
     ignore_patterns: &[IgnorePattern],
     glob_suffix: GlobSuffix,
     regex_config: RegexCompleteness,
-) -> PatternResult<(Vec<u8>, IgnoreFnType<'a>)> {
+) -> PatternResult<(PreRegex, IgnoreFnType<'a>)> {
     let mut regexps = vec![];
     let mut exact_set = HashSet::new();
 
@@ -850,7 +907,32 @@ fn build_regex_match<'a>(
         Box::new(func) as IgnoreFnType
     };
 
-    Ok((full_regex.to_bytes(), func))
+    Ok((full_regex, func))
+}
+
+#[logging_timer::time("trace")]
+fn build_regex_match_for_debug<'a>(
+    ignore_patterns: &[IgnorePattern],
+    glob_suffix: GlobSuffix,
+) -> PatternResult<PreRegex> {
+    let mut regexps = vec![];
+
+    for pattern in ignore_patterns {
+        if let Some(re) = build_single_regex(
+            pattern,
+            glob_suffix,
+            RegexCompleteness::Complete,
+        )? {
+            regexps.push(re);
+        } else {
+            panic!("RegexCompleteness::Complete should prevent this branch");
+        }
+    }
+
+    Ok(PreRegex::Sequence(vec![
+        PreRegex::parse(&b"^"[..])?,
+        PreRegex::Alternation(regexps),
+    ]))
 }
 
 /// Returns roots and directories corresponding to each pattern.
@@ -943,10 +1025,10 @@ fn build_match<'a>(
     ignore_patterns: Vec<IgnorePattern>,
     glob_suffix: GlobSuffix,
     regex_config: RegexCompleteness,
-) -> PatternResult<(Vec<u8>, IgnoreFnType<'a>)> {
+) -> PatternResult<(PatternsDesc, IgnoreFnType<'a>)> {
     let mut match_funcs: Vec<IgnoreFnType<'a>> = vec![];
     // For debugging and printing
-    let mut patterns = vec![];
+    let patterns;
 
     let (subincludes, ignore_patterns) = filter_subincludes(ignore_patterns)?;
 
@@ -998,18 +1080,19 @@ fn build_match<'a>(
             };
             match_funcs.push(Box::new(match_func));
 
-            patterns.extend(b"rootfilesin: ");
             dirs_vec.sort();
-            patterns.extend(dirs_vec.escaped_bytes());
+            patterns = PatternsDesc::RootFilesIn(dirs_vec, glob_suffix);
         } else {
             let (new_re, match_func) = build_regex_match(
                 &ignore_patterns,
                 glob_suffix,
                 regex_config,
             )?;
-            patterns = new_re;
+            patterns = PatternsDesc::Re(new_re);
             match_funcs.push(match_func)
         }
+    } else {
+        patterns = PatternsDesc::Re(PreRegex::Empty)
     }
 
     Ok(if match_funcs.len() == 1 {
@@ -1131,8 +1214,8 @@ impl<'a> IncludeMatcher<'a> {
         DirsChildrenMultiset::new(thing, Some(self.parents.iter()))
     }
 
-    pub fn debug_get_patterns(&self) -> &[u8] {
-        self.patterns.as_ref()
+    pub fn debug_get_patterns(&self, syntax: ReSyntax) -> Vec<u8> {
+        self.patterns.to_pattern_bytes(syntax)
     }
 }
 
@@ -1147,7 +1230,9 @@ impl<'a> Display for IncludeMatcher<'a> {
         write!(
             f,
             "IncludeMatcher(includes='{}')",
-            String::from_utf8_lossy(&self.patterns.escaped_bytes())
+            &String::from_utf8_lossy(
+                &self.patterns.to_pattern_bytes(ReSyntax::Internal)
+            )
         )
     }
 }

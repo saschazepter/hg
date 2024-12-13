@@ -17,7 +17,16 @@ debugignore with no hgignore should be deterministic:
   <nevermatcher>
 
 #if rhg
-  $ hg debugignorerhg
+  $ rhg_debugignore() {
+  >   echo debugignorerhg:
+  >   hg debugignorerhg
+  >   echo script::hgignore --print-re:
+  >   hg script::hgignore --print-re
+  > }
+  $ rhg_debugignore
+  debugignorerhg:
+  (?:)
+  script::hgignore --print-re:
   
 #endif
 
@@ -83,7 +92,10 @@ regexp with flag is the first one
   <includematcher includes='(?i:.*\\.O$)|.*.hgignore'>
 
 #if rhg
-  $ hg debugignorerhg
+  $ rhg_debugignore
+  debugignorerhg:
+  (?:\\A[\x00-	\x0b-\xf4\x8f\xbf\xbf]*(?:(?:\\.[Oo]\\z)|(?:[\x00-	\x0b-\xf4\x8f\xbf\xbf](?:hgignore)))) (esc)
+  script::hgignore --print-re:
   ^(?:(?i:.*\.O$)|.*.hgignore)
 #endif
 
@@ -99,7 +111,10 @@ regex with flag is not the first one
   <includematcher includes='.*.hgignore|(?i:.*\\.O$)'>
 
 #if rhg
-  $ hg debugignorerhg
+  $ rhg_debugignore
+  debugignorerhg:
+  (?:\\A[\x00-	\x0b-\xf4\x8f\xbf\xbf]*(?:(?:[\x00-	\x0b-\xf4\x8f\xbf\xbf](?:hgignore))|(?:\\.[Oo]\\z))) (esc)
+  script::hgignore --print-re:
   ^(?:.*.hgignore|(?i:.*\.O$))
 #endif
 
@@ -116,7 +131,10 @@ flag in a pattern should affect that pattern only
   <includematcher includes='(?i:.*\\.O$)|.*.HGIGNORE'>
 
 #if rhg
-  $ hg debugignorerhg
+  $ rhg_debugignore
+  debugignorerhg:
+  (?:\\A[\x00-	\x0b-\xf4\x8f\xbf\xbf]*(?:(?:\\.[Oo]\\z)|(?:[\x00-	\x0b-\xf4\x8f\xbf\xbf](?:HGIGNORE)))) (esc)
+  script::hgignore --print-re:
   ^(?:(?i:.*\.O$)|.*.HGIGNORE)
 #endif
 
@@ -131,7 +149,10 @@ flag in a pattern should affect that pattern only
   <includematcher includes='.*.HGIGNORE|(?i:.*\\.O$)'>
 
 #if rhg
-  $ hg debugignorerhg
+  $ rhg_debugignore
+  debugignorerhg:
+  (?:\\A[\x00-	\x0b-\xf4\x8f\xbf\xbf]*(?:(?:[\x00-	\x0b-\xf4\x8f\xbf\xbf](?:HGIGNORE))|(?:\\.[Oo]\\z))) (esc)
+  script::hgignore --print-re:
   ^(?:.*.HGIGNORE|(?i:.*\.O$))
 #endif
 
@@ -149,7 +170,10 @@ Check that '^' after flag is properly detected.
   <includematcher includes='(?i:^[^a].*\\.O$)|.*.HGIGNORE'>
 
 #if rhg
-  $ hg debugignorerhg
+  $ rhg_debugignore
+  debugignorerhg:
+  (?:\\A(?:(?:\\A[\x00-@B-`b-\xf4\x8f\xbf\xbf][\x00-	\x0b-\xf4\x8f\xbf\xbf]*\\.[Oo]\\z)|(?:[\x00-	\x0b-\xf4\x8f\xbf\xbf]*[\x00-	\x0b-\xf4\x8f\xbf\xbf](?:HGIGNORE)))) (esc)
+  script::hgignore --print-re:
   ^(?:(?i:^[^a].*\.O$)|.*.HGIGNORE)
 #endif
 
@@ -165,7 +189,10 @@ Check that '^' after flag is properly detected.
   <includematcher includes='.*.HGIGNORE|(?i:^[^a].*\\.O$)'>
 
 #if rhg
-  $ hg debugignorerhg
+  $ rhg_debugignore
+  debugignorerhg:
+  (?:\\A(?:(?:[\x00-	\x0b-\xf4\x8f\xbf\xbf]*[\x00-	\x0b-\xf4\x8f\xbf\xbf](?:HGIGNORE))|(?:\\A[\x00-@B-`b-\xf4\x8f\xbf\xbf][\x00-	\x0b-\xf4\x8f\xbf\xbf]*\\.[Oo]\\z))) (esc)
+  script::hgignore --print-re:
   ^(?:.*.HGIGNORE|(?i:^[^a].*\.O$))
 #endif
 
@@ -360,11 +387,11 @@ Test relative ignore path (issue4473):
   ? dir/c.o
   ? syntax
 #if rhg
-  $ hg debugignorerhg -a
+  $ rhg_debugignore
+  debugignorerhg:
+  (?:\A[a&&b])
+  script::hgignore --print-re:
   ^(?:dir/b\.o(?:/|$))
-
-  $ hg debugignorerhg
-  ^ ^
 #endif
 
   $ echo "relglob:*" > .hgignore
@@ -379,7 +406,10 @@ Test relative ignore path (issue4473):
   <includematcher includes='.*(?:/|$)'>
 
 #if rhg
-  $ hg debugignorerhg
+  $ rhg_debugignore
+  debugignorerhg:
+  (?:\A(?-u:[\x00-\xFF])*?(?:/|\z))
+  script::hgignore --print-re:
   ^(?:.*(?:/|$))
 #endif
 
