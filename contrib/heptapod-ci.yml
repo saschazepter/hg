@@ -85,6 +85,8 @@ trigger-nightly-build:
   extends: .trigger
   stage: nightly-trigger
   rules:
+    - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH && $CI_PIPELINE_SOURCE == "schedule"
+      when: always
     - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
       when: manual
       allow_failure: true
