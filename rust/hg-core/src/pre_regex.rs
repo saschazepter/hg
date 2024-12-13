@@ -19,6 +19,9 @@ pub fn escape_char_for_re(c: u8) -> &'static [u8] {
     &RE_ESCAPE[c as usize]
 }
 
+/// An intermediate regular expression representation, that can be used
+/// both to compile down to a `Regex` for matching, or converted to
+/// a string directly for diagnostics.
 #[derive(Debug, Clone)]
 pub enum PreRegex {
     Empty,
