@@ -54,6 +54,9 @@ $PYTHON313_x64_SHA256 = "78156AD0CF0EC4123BFB5333B40F078596EBF15F2D062A101448636
 $PIP_URL = "https://github.com/pypa/get-pip/raw/66d8a0f637083e2c3ddffc0cb1e65ce126afb856/public/get-pip.py"
 $PIP_SHA256 = "6FB7B781206356F45AD79EFBB19322CAA6C2A5AD39092D0D44D0FEC94117E118"
 
+$GETTEXT_SETUP_URL = "https://github.com/mlocati/gettext-iconv-windows/releases/download/v0.22.5a-v1.17-r3/gettext0.22.5a-iconv1.17-shared-64.exe"
+$GETTEXT_SETUP_SHA256 = "EF56AD2C395F8F75F711574E754171EEFD45640746FA117D001969A40655CEBE" 
+
 $INNO_SETUP_URL = "http://files.jrsoftware.org/is/5/innosetup-5.6.1-unicode.exe"
 $INNO_SETUP_SHA256 = "27D49E9BC769E9D1B214C153011978DB90DC01C2ACD1DDCD9ED7B3FE3B96B538"
 
@@ -163,6 +166,7 @@ function Install-Dependencies($prefix) {
 
     Secure-Download $PIP_URL ${pip} $PIP_SHA256
     Secure-Download $VS_BUILD_TOOLS_URL ${prefix}\assets\vs_buildtools.exe $VS_BUILD_TOOLS_SHA256
+    Secure-Download $GETTEXT_SETUP_URL ${prefix}\assets\gettext.exe $GETTEXT_SETUP_SHA256
     Secure-Download $INNO_SETUP_URL ${prefix}\assets\InnoSetup.exe $INNO_SETUP_SHA256
     Secure-Download $MINGW_BIN_URL ${prefix}\assets\mingw-get-bin.zip $MINGW_BIN_SHA256
     Secure-Download $MERCURIAL_WHEEL_URL ${prefix}\assets\${MERCURIAL_WHEEL_FILENAME} $MERCURIAL_WHEEL_SHA256
@@ -189,6 +193,9 @@ function Install-Dependencies($prefix) {
     Invoke-Process msiexec.exe "/i ${prefix}\assets\PyOxidizer.msi /l* ${prefix}\assets\PyOxidizer.log /quiet"
 
     Install-Rust ${prefix}
+
+    Write-Output "installing GetText Setup"
+    Invoke-Process ${prefix}\assets\gettext.exe "/SP- /VERYSILENT /SUPPRESSMSGBOXES"
 
     Write-Output "installing Inno Setup"
     Invoke-Process ${prefix}\assets\InnoSetup.exe "/SP- /VERYSILENT /SUPPRESSMSGBOXES"
