@@ -34,6 +34,9 @@ for line in sys.stdin:
             # PEP 657: Fine-grained error locations in tracebacks
             #                       ~~~~~~^^^^^^^^^
             continue
+        elif line.startswith(' '):
+            # Python 3.13 provide de full statement context
+            continue
 
     elif state == 'file':
         # Ignore one line after "  File ", but sometimes "File" lines are
