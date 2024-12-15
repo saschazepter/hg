@@ -449,7 +449,8 @@ class ipeerrequests(Protocol):
         """
 
 
-class peer(_ipeerconnection, ipeercapabilities, ipeerrequests, Protocol):
+# TODO: make this a Protocol class when 3.11 is the minimum supported version?
+class peer(_ipeerconnection, ipeercapabilities, ipeerrequests):
     """Unified interface for peer repositories.
 
     All peer instances must conform to this interface.
