@@ -28,16 +28,14 @@ fn with_setup(
 /// taking care of all the boilerplate
 fn leak_string(owner: &Bound<'_, Owner>) -> SharedByPyObject<&'static String> {
     let cell = &owner.borrow().string;
-    let shared_ref = unsafe { cell.borrow_with_owner(owner) };
-    shared_ref.share_immutable()
+    unsafe { cell.share(owner) }
 }
 
 fn try_leak_string(
     owner: &Bound<'_, Owner>,
 ) -> Result<SharedByPyObject<&'static String>, TryShareError> {
     let cell = &owner.borrow().string;
-    let shared_ref = unsafe { cell.borrow_with_owner(owner) };
-    shared_ref.try_share_immutable()
+    unsafe { cell.try_share(owner) }
 }
 
 /// Mutate the `string` field of `owner` as would be done from Python code
