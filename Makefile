@@ -154,7 +154,8 @@ testpy-%:
 
 rust-tests:
 	cd $(HGROOT)/rust \
-		&& $(CARGO) test --quiet --all --features "$(HG_RUST_FEATURES)"
+		&& $(CARGO) test --quiet --all \
+		--features "$(HG_RUST_FEATURES)" --no-default-features
 
 cargo-clippy:
 	cd $(HGROOT)/rust \
