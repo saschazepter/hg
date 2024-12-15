@@ -83,9 +83,7 @@ use std::sync::{
 ///     fn new(values: &Bound<'_, PyTuple>) -> PyResult<Self> {
 ///         let as_vec = values.extract::<Vec<i32>>()?;
 ///         let s: HashSet<_> = as_vec.iter().copied().collect();
-///         Ok(Self {
-///             rust_set: PySharedRefCell::new(s),
-///         })
+///         Ok(Self { rust_set: s.into() })
 ///     }
 ///
 ///     fn __iter__(slf: &Bound<'_, Self>) -> SetIterator {
@@ -94,7 +92,7 @@ use std::sync::{
 ///
 ///     fn add(slf: &Bound<'_, Self>, i: i32) -> PyResult<()> {
 ///         let rust_set = &slf.borrow().rust_set;
-///         let shared_ref = unsafe { rust_set.borrow(slf) };
+///         let shared_ref = unsafe { rust_set.borrow_with_owner(slf) };
 ///         let mut set_ref = shared_ref.borrow_mut();
 ///         set_ref.insert(i);
 ///         Ok(())
@@ -112,7 +110,7 @@ use std::sync::{
 ///     fn new(s: &Bound<'_, Set>) -> Self {
 ///         let py = s.py();
 ///         let rust_set = &s.borrow().rust_set;
-///         let shared_ref = unsafe { rust_set.borrow(s) };
+///         let shared_ref = unsafe { rust_set.borrow_with_owner(s) };
 ///         let leaked_set = shared_ref.leak_immutable();
 ///         let iter = unsafe { leaked_set.map(py, |o| o.iter()) };
 ///         Self {
@@ -176,14 +174,6 @@ pub struct PySharedRefCell<T: ?Sized> {
 }
 
 impl<T> PySharedRefCell<T> {
-    /// Creates a new `PySharedRefCell` containing `value`.
-    pub fn new(value: T) -> PySharedRefCell<T> {
-        Self {
-            state: PySharedState::new(),
-            data: value.into(),
-        }
-    }
-
     /// Borrows the shared data and its state, keeping a reference
     /// on the owner Python object.
     ///
@@ -191,7 +181,7 @@ impl<T> PySharedRefCell<T> {
     ///
     /// The `data` must be owned by the `owner`. Otherwise, calling
     /// `leak_immutable()` on the shared ref would create an invalid reference.
-    pub unsafe fn borrow<'py>(
+    pub unsafe fn borrow_with_owner<'py>(
         &'py self,
         owner: &'py Bound<'py, PyAny>,
     ) -> PySharedRef<'py, T> {
@@ -199,6 +189,15 @@ impl<T> PySharedRefCell<T> {
             owner,
             state: &self.state,
             data: &self.data,
+        }
+    }
+}
+
+impl<T> From<T> for PySharedRefCell<T> {
+    fn from(value: T) -> Self {
+        Self {
+            state: PySharedState::new(),
+            data: value.into(),
         }
     }
 }
@@ -231,25 +230,6 @@ pub struct PySharedRef<'py, T: 'py + ?Sized> {
 }
 
 impl<'py, T: ?Sized> PySharedRef<'py, T> {
-    /// Creates a reference to the given `PySharedRefCell` owned by the
-    /// given `PyObject`.
-    ///
-    /// # Safety
-    ///
-    /// The `data` must be owned by the `owner`. Otherwise, `leak_immutable()`
-    /// would create an invalid reference.
-    #[doc(hidden)]
-    pub unsafe fn new(
-        owner: &'py Bound<'py, PyAny>,
-        data: &'py PySharedRefCell<T>,
-    ) -> Self {
-        Self {
-            owner,
-            state: &data.state,
-            data: &data.data,
-        }
-    }
-
     /// Immutably borrows the wrapped value.
     ///
     /// # Panics
