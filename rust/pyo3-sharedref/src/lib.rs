@@ -93,7 +93,7 @@ use std::sync::{
 ///     fn add(slf: &Bound<'_, Self>, i: i32) -> PyResult<()> {
 ///         let rust_set = &slf.borrow().rust_set;
 ///         let shared_ref = unsafe { rust_set.borrow_with_owner(slf) };
-///         let mut set_ref = shared_ref.borrow_mut();
+///         let mut set_ref = shared_ref.write();
 ///         set_ref.insert(i);
 ///         Ok(())
 ///     }
@@ -230,38 +230,38 @@ pub struct PySharedRef<'py, T: 'py + ?Sized> {
 }
 
 impl<'py, T: ?Sized> PySharedRef<'py, T> {
-    /// Immutably borrows the wrapped value.
+    /// Take the lock on the wrapped value for read-only operations.
     ///
     /// # Panics
     ///
-    /// Panics if the value is currently mutably borrowed.
-    pub fn borrow(&self) -> RwLockReadGuard<'py, T> {
-        self.try_borrow().expect("already mutably borrowed")
+    /// Panics if the lock is currently held for write operations.
+    pub fn read(&self) -> RwLockReadGuard<'py, T> {
+        self.try_read().expect("already mutably borrowed")
     }
 
     /// Immutably borrows the wrapped value, returning an error if the value
     /// is currently mutably borrowed.
-    pub fn try_borrow(&self) -> TryLockResult<RwLockReadGuard<'py, T>> {
+    pub fn try_read(&self) -> TryLockResult<RwLockReadGuard<'py, T>> {
         // state isn't involved since
-        // - data.try_borrow() would fail if self is mutably borrowed,
-        // - and data.try_borrow_mut() would fail while self is borrowed.
+        // - data.try_read() would fail if self is mutably borrowed,
+        // - and data.try_write() would fail while self is borrowed.
         self.data.try_read()
     }
 
-    /// Mutably borrows the wrapped value.
+    /// Take the lock on the wrapped value for write operations.
     ///
     /// Any existing leaked references will be invalidated.
     ///
     /// # Panics
     ///
-    /// Panics if the value is currently borrowed.
-    pub fn borrow_mut(&self) -> RwLockWriteGuard<'py, T> {
-        self.try_borrow_mut().expect("already borrowed")
+    /// Panics if the lock is currently held.
+    pub fn write(&self) -> RwLockWriteGuard<'py, T> {
+        self.try_write().expect("already borrowed")
     }
 
     /// Mutably borrows the wrapped value, returning an error if the value
     /// is currently borrowed.
-    pub fn try_borrow_mut(&self) -> TryLockResult<RwLockWriteGuard<'py, T>> {
+    pub fn try_write(&self) -> TryLockResult<RwLockWriteGuard<'py, T>> {
         // the value may be immutably borrowed through UnsafePyLeaked
         if self.state.current_borrow_count(self.py()) > 0 {
             // propagate borrow-by-leaked state to data to get BorrowMutError
@@ -291,10 +291,10 @@ impl<'py, T: ?Sized> PySharedRef<'py, T> {
     ) -> Result<UnsafePyLeaked<&'static T>, TryLeakError> {
         // make sure self.data isn't mutably borrowed; otherwise the
         // generation number wouldn't be trusted.
-        let data_ref = self.try_borrow()?;
+        let data_ref = self.try_read()?;
 
         // keep reference to the owner so the data and state are alive,
-        // but the data pointer can be invalidated by borrow_mut().
+        // but the data pointer can be invalidated by write().
         // the state wouldn't since it is immutable.
         let state_ptr: *const PySharedState = self.state;
         let data_ptr: *const T = &*data_ref;
@@ -322,7 +322,7 @@ impl<'py, T: ?Sized> PySharedRef<'py, T> {
 /// as follows:
 ///
 /// - The immutability of `PycCass` object fields. Any mutation of
-///   [`PySharedRefCell`] is allowed only through its `borrow_mut()`.
+///   [`PySharedRefCell`] is allowed only through its `write()`.
 /// - The `py: Python<'_>` token, which makes sure that any data access is
 ///   synchronized by the GIL.
 /// - The underlying `RefCell`, which prevents `PySharedRefCell` value from
@@ -330,9 +330,9 @@ impl<'py, T: ?Sized> PySharedRef<'py, T> {
 /// - The `borrow_count`, which is the number of references borrowed from
 ///   `UnsafePyLeaked`. Just like `RefCell`, mutation is prohibited while
 ///   `UnsafePyLeaked` is borrowed.
-/// - The `generation` counter, which increments on `borrow_mut()`.
-///   `UnsafePyLeaked` reference is valid only if the `current_generation()`
-///   equals to the `generation` at the time of `leak_immutable()`.
+/// - The `generation` counter, which increments on `write()`. `UnsafePyLeaked`
+///   reference is valid only if the `current_generation()` equals to the
+///   `generation` at the time of `leak_immutable()`.
 #[derive(Debug)]
 struct PySharedState {
     // The counter variable could be Cell<usize> since any operation on
