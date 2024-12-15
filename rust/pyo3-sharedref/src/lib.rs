@@ -110,9 +110,7 @@ use std::sync::{
 ///     fn new(s: &Bound<'_, Set>) -> Self {
 ///         let py = s.py();
 ///         let rust_set = &s.borrow().rust_set;
-///         let shareable_ref = unsafe { rust_set.borrow_with_owner(s) };
-///         let shared_set = shareable_ref.share_immutable();
-///         let iter = unsafe { shared_set.map(py, |o| o.iter()) };
+///         let iter = unsafe { rust_set.share_map(s, |o| o.iter()) };
 ///         Self {
 ///             rust_iter: iter.into(),
 ///         }
@@ -177,7 +175,7 @@ pub struct PyShareable<T: ?Sized> {
     data: RwLock<T>,
 }
 
-impl<T> PyShareable<T> {
+impl<T: 'static> PyShareable<T> {
     /// Borrows the shared data and its state, keeping a reference
     /// on the owner Python object.
     ///
@@ -195,6 +193,57 @@ impl<T> PyShareable<T> {
             state: &self.state,
             data: &self.data,
         }
+    }
+
+    /// Share for other Python objects
+    ///
+    /// # Safety
+    ///
+    /// The `data` must be owned by the `owner`. Otherwise, the resulting
+    /// [`SharedByPyObject`] would contain an invalid reference.
+    pub unsafe fn share<'py>(
+        &'py self,
+        owner: &'py Bound<'py, PyAny>,
+    ) -> SharedByPyObject<&'static T> {
+        self.borrow_with_owner(owner).share_immutable()
+    }
+
+    /// Share for other Python objects, transforming the inner data
+    /// with a closure
+    ///
+    /// # Safety
+    ///
+    /// The `data` must be owned by the `owner`. Otherwise, the resulting
+    /// [`SharedByPyObject`] would contain an invalid reference.
+    pub unsafe fn share_map<'py, U>(
+        &'py self,
+        owner: &'py Bound<'py, PyAny>,
+        f: impl FnOnce(&'static T) -> U,
+    ) -> SharedByPyObject<U> {
+        self.share(owner).map(owner.py(), f)
+    }
+
+    /// # Safety
+    ///
+    /// The `data` must be owned by the `owner`. Otherwise, the resulting
+    /// [`SharedByPyObject`] would contain an invalid reference.
+    pub unsafe fn try_share<'py>(
+        &'py self,
+        owner: &'py Bound<'py, PyAny>,
+    ) -> Result<SharedByPyObject<&'static T>, TryShareError> {
+        self.borrow_with_owner(owner).try_share_immutable()
+    }
+
+    /// # Safety
+    ///
+    /// The `data` must be owned by the `owner`. Otherwise, the resulting
+    /// [`SharedByPyObject`] would contain an invalid reference.
+    pub unsafe fn try_share_map<'py, U>(
+        &'py self,
+        owner: &'py Bound<'py, PyAny>,
+        f: impl FnOnce(&'static T) -> U,
+    ) -> Result<SharedByPyObject<U>, TryShareError> {
+        Ok(self.try_share(owner)?.map(owner.py(), f))
     }
 }
 
