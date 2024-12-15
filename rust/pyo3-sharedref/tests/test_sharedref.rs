@@ -10,9 +10,7 @@ struct Owner {
 impl Owner {
     #[new]
     fn new(s: String) -> Self {
-        Self {
-            string: PySharedRefCell::new(s),
-        }
+        Self { string: s.into() }
     }
 }
 
@@ -30,7 +28,7 @@ fn with_setup(
 /// taking care of all the boilerplate
 fn leak_string(owner: &Bound<'_, Owner>) -> UnsafePyLeaked<&'static String> {
     let cell = &owner.borrow().string;
-    let shared_ref = unsafe { cell.borrow(owner) };
+    let shared_ref = unsafe { cell.borrow_with_owner(owner) };
     shared_ref.leak_immutable()
 }
 
@@ -38,7 +36,7 @@ fn try_leak_string(
     owner: &Bound<'_, Owner>,
 ) -> Result<UnsafePyLeaked<&'static String>, TryLeakError> {
     let cell = &owner.borrow().string;
-    let shared_ref = unsafe { cell.borrow(owner) };
+    let shared_ref = unsafe { cell.borrow_with_owner(owner) };
     shared_ref.try_leak_immutable()
 }
 
@@ -54,7 +52,7 @@ fn mutate_string<'py>(
     f: impl FnOnce(&mut String),
 ) -> () {
     let cell = &owner.borrow_mut().string;
-    let shared_ref = unsafe { cell.borrow(owner) };
+    let shared_ref = unsafe { cell.borrow_with_owner(owner) };
     f(&mut shared_ref.borrow_mut());
 }
 
@@ -123,19 +121,19 @@ fn test_leaked_map_after_mut() {
 /// returning a reference to data owned by the function
 fn assert_try_borrow_string_mut_ok(owner: &Bound<'_, Owner>) {
     let cell = &owner.borrow().string;
-    let shared_ref = unsafe { cell.borrow(owner) };
+    let shared_ref = unsafe { cell.borrow_with_owner(owner) };
     assert!(shared_ref.try_borrow_mut().is_ok());
 }
 
 fn assert_try_borrow_string_mut_err(owner: &Bound<'_, Owner>) {
     let cell = &owner.borrow().string;
-    let shared_ref = unsafe { cell.borrow(owner) };
+    let shared_ref = unsafe { cell.borrow_with_owner(owner) };
     assert!(shared_ref.try_borrow_mut().is_err());
 }
 
 fn assert_try_borrow_string_err(owner: &Bound<'_, Owner>) {
     let cell = &owner.borrow().string;
-    let shared_ref = unsafe { cell.borrow(owner) };
+    let shared_ref = unsafe { cell.borrow_with_owner(owner) };
     assert!(shared_ref.try_borrow().is_err());
 }
 
@@ -178,7 +176,7 @@ fn test_try_borrow_mut_while_leaked_ref_mut() -> PyResult<()> {
 fn test_try_leak_while_borrow_mut() -> PyResult<()> {
     with_setup(|_py, owner| {
         let cell = &owner.borrow().string;
-        let shared_ref = unsafe { cell.borrow(owner) };
+        let shared_ref = unsafe { cell.borrow_with_owner(owner) };
         let _mut_ref = shared_ref.borrow_mut();
 
         assert!(try_leak_string(owner).is_err());
@@ -191,7 +189,7 @@ fn test_try_leak_while_borrow_mut() -> PyResult<()> {
 fn test_leak_while_borrow_mut() {
     with_setup(|_py, owner| {
         let cell = &owner.borrow().string;
-        let shared_ref = unsafe { cell.borrow(owner) };
+        let shared_ref = unsafe { cell.borrow_with_owner(owner) };
         let _mut_ref = shared_ref.borrow_mut();
 
         leak_string(owner);
@@ -204,7 +202,7 @@ fn test_leak_while_borrow_mut() {
 fn test_try_borrow_mut_while_borrow() -> PyResult<()> {
     with_setup(|_py, owner| {
         let cell = &owner.borrow().string;
-        let shared_ref = unsafe { cell.borrow(owner) };
+        let shared_ref = unsafe { cell.borrow_with_owner(owner) };
         let _ref = shared_ref.borrow();
 
         assert_try_borrow_string_mut_err(owner);
@@ -217,10 +215,10 @@ fn test_try_borrow_mut_while_borrow() -> PyResult<()> {
 fn test_borrow_mut_while_borrow() {
     with_setup(|_py, owner| {
         let cell = &owner.borrow().string;
-        let shared_ref = unsafe { cell.borrow(owner) };
+        let shared_ref = unsafe { cell.borrow_with_owner(owner) };
         let _ref = shared_ref.borrow();
 
-        let shared_ref2 = unsafe { cell.borrow(owner) };
+        let shared_ref2 = unsafe { cell.borrow_with_owner(owner) };
         let _mut_ref = shared_ref2.borrow_mut();
         Ok(())
     })
@@ -231,7 +229,7 @@ fn test_borrow_mut_while_borrow() {
 fn test_try_borrow_while_borrow_mut() -> PyResult<()> {
     with_setup(|_py, owner| {
         let cell = &owner.borrow().string;
-        let shared_ref = unsafe { cell.borrow(owner) };
+        let shared_ref = unsafe { cell.borrow_with_owner(owner) };
         let _mut_ref = shared_ref.borrow_mut();
 
         assert_try_borrow_string_err(owner);
@@ -244,10 +242,10 @@ fn test_try_borrow_while_borrow_mut() -> PyResult<()> {
 fn test_borrow_while_borrow_mut() {
     with_setup(|_py, owner| {
         let cell = &owner.borrow().string;
-        let shared_ref = unsafe { cell.borrow(owner) };
+        let shared_ref = unsafe { cell.borrow_with_owner(owner) };
         let _mut_ref = shared_ref.borrow_mut();
 
-        let shared_ref2 = unsafe { cell.borrow(owner) };
+        let shared_ref2 = unsafe { cell.borrow_with_owner(owner) };
         let _ref = shared_ref2.borrow();
         Ok(())
     })
