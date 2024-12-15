@@ -26,16 +26,18 @@ fn with_setup(
 
 /// "leak" in the sense of `SharedByPyObject` the `string` data field,
 /// taking care of all the boilerplate
-fn leak_string(owner: &Bound<'_, Owner>) -> SharedByPyObject<&'static String> {
-    let cell = &owner.borrow().string;
-    unsafe { cell.share(owner) }
+fn share_string(
+    owner: &Bound<'_, Owner>,
+) -> SharedByPyObject<&'static String> {
+    let shareable = &owner.borrow().string;
+    unsafe { shareable.share(owner) }
 }
 
-fn try_leak_string(
+fn try_share_string(
     owner: &Bound<'_, Owner>,
 ) -> Result<SharedByPyObject<&'static String>, TryShareError> {
-    let cell = &owner.borrow().string;
-    unsafe { cell.try_share(owner) }
+    let shareable = &owner.borrow().string;
+    unsafe { shareable.try_share(owner) }
 }
 
 /// Mutate the `string` field of `owner` as would be done from Python code
@@ -49,65 +51,65 @@ fn mutate_string<'py>(
     owner: &'py Bound<'py, Owner>,
     f: impl FnOnce(&mut String),
 ) -> () {
-    let cell = &owner.borrow_mut().string;
-    let shared_ref = unsafe { cell.borrow_with_owner(owner) };
+    let shareable = &owner.borrow_mut().string;
+    let shared_ref = unsafe { shareable.borrow_with_owner(owner) };
     f(&mut shared_ref.write());
 }
 
 #[test]
-fn test_leaked_borrow() -> PyResult<()> {
+fn test_shared_borrow() -> PyResult<()> {
     with_setup(|py, owner| {
-        let leaked = leak_string(owner);
-        let leaked_ref = unsafe { leaked.try_borrow(py) }.unwrap();
-        assert_eq!(*leaked_ref, "new");
+        let shared = share_string(owner);
+        let shared_ref = unsafe { shared.try_borrow(py) }.unwrap();
+        assert_eq!(*shared_ref, "new");
         Ok(())
     })
 }
 
 #[test]
-fn test_leaked_borrow_mut() -> PyResult<()> {
+fn test_shared_borrow_mut() -> PyResult<()> {
     with_setup(|py, owner| {
-        let leaked = leak_string(owner);
-        let mut leaked_iter = unsafe { leaked.map(py, |s| s.chars()) };
-        let mut leaked_ref =
-            unsafe { leaked_iter.try_borrow_mut(py) }.unwrap();
-        assert_eq!(leaked_ref.next(), Some('n'));
-        assert_eq!(leaked_ref.next(), Some('e'));
-        assert_eq!(leaked_ref.next(), Some('w'));
-        assert_eq!(leaked_ref.next(), None);
+        let shared = share_string(owner);
+        let mut shared_iter = unsafe { shared.map(py, |s| s.chars()) };
+        let mut shared_ref =
+            unsafe { shared_iter.try_borrow_mut(py) }.unwrap();
+        assert_eq!(shared_ref.next(), Some('n'));
+        assert_eq!(shared_ref.next(), Some('e'));
+        assert_eq!(shared_ref.next(), Some('w'));
+        assert_eq!(shared_ref.next(), None);
         Ok(())
     })
 }
 
 #[test]
-fn test_leaked_borrow_after_mut() -> PyResult<()> {
+fn test_shared_borrow_after_mut() -> PyResult<()> {
     with_setup(|py, owner| {
-        let leaked = leak_string(owner);
+        let shared = share_string(owner);
         mutate_string(owner, String::clear);
-        assert!(unsafe { leaked.try_borrow(py) }.is_err());
+        assert!(unsafe { shared.try_borrow(py) }.is_err());
         Ok(())
     })
 }
 
 #[test]
-fn test_leaked_borrow_mut_after_mut() -> PyResult<()> {
+fn test_shared_borrow_mut_after_mut() -> PyResult<()> {
     with_setup(|py, owner| {
-        let leaked = leak_string(owner);
-        let mut leaked_iter = unsafe { leaked.map(py, |s| s.chars()) };
+        let shared = share_string(owner);
+        let mut shared_iter = unsafe { shared.map(py, |s| s.chars()) };
 
         mutate_string(owner, String::clear);
-        assert!(unsafe { leaked_iter.try_borrow_mut(py) }.is_err());
+        assert!(unsafe { shared_iter.try_borrow_mut(py) }.is_err());
         Ok(())
     })
 }
 
 #[test]
 #[should_panic(expected = "map() over invalidated shared reference")]
-fn test_leaked_map_after_mut() {
+fn test_shared_map_after_mut() {
     with_setup(|py, owner| {
-        let leaked = leak_string(owner);
+        let shared = share_string(owner);
         mutate_string(owner, String::clear);
-        let _leaked_iter = unsafe { leaked.map(py, |s| s.chars()) };
+        let _shared_iter = unsafe { shared.map(py, |s| s.chars()) };
         Ok(())
     })
     .expect("should already have panicked")
@@ -118,33 +120,33 @@ fn test_leaked_map_after_mut() {
 /// Simply returning the `Result` is not possible, because that is
 /// returning a reference to data owned by the function
 fn assert_try_write_string_ok(owner: &Bound<'_, Owner>) {
-    let cell = &owner.borrow().string;
-    let shared_ref = unsafe { cell.borrow_with_owner(owner) };
+    let shareable = &owner.borrow().string;
+    let shared_ref = unsafe { shareable.borrow_with_owner(owner) };
     assert!(shared_ref.try_write().is_ok());
 }
 
 fn assert_try_write_string_err(owner: &Bound<'_, Owner>) {
-    let cell = &owner.borrow().string;
-    let shared_ref = unsafe { cell.borrow_with_owner(owner) };
+    let shareable = &owner.borrow().string;
+    let shared_ref = unsafe { shareable.borrow_with_owner(owner) };
     assert!(shared_ref.try_write().is_err());
 }
 
 fn assert_try_read_string_err(owner: &Bound<'_, Owner>) {
-    let cell = &owner.borrow().string;
-    let shared_ref = unsafe { cell.borrow_with_owner(owner) };
+    let shareable = &owner.borrow().string;
+    let shared_ref = unsafe { shareable.borrow_with_owner(owner) };
     assert!(shared_ref.try_read().is_err());
 }
 
 #[test]
-fn test_try_write_while_leaked_ref() -> PyResult<()> {
+fn test_try_write_while_shared_ref() -> PyResult<()> {
     with_setup(|py, owner| {
         assert_try_write_string_ok(owner);
-        let leaked = leak_string(owner);
+        let shared = share_string(owner);
         {
-            let _leaked_ref = unsafe { leaked.try_borrow(py) }.unwrap();
+            let _shared_ref = unsafe { shared.try_borrow(py) }.unwrap();
             assert_try_write_string_err(owner);
             {
-                let _leaked_ref2 = unsafe { leaked.try_borrow(py) }.unwrap();
+                let _shared_ref2 = unsafe { shared.try_borrow(py) }.unwrap();
                 assert_try_write_string_err(owner);
             }
             assert_try_write_string_err(owner);
@@ -155,14 +157,14 @@ fn test_try_write_while_leaked_ref() -> PyResult<()> {
 }
 
 #[test]
-fn test_try_write_while_leaked_ref_mut() -> PyResult<()> {
+fn test_try_write_while_shared_ref_mut() -> PyResult<()> {
     with_setup(|py, owner| {
         assert_try_write_string_ok(owner);
-        let leaked = leak_string(owner);
-        let mut leaked_iter = unsafe { leaked.map(py, |s| s.chars()) };
+        let shared = share_string(owner);
+        let mut shared_iter = unsafe { shared.map(py, |s| s.chars()) };
         {
-            let _leaked_ref =
-                unsafe { leaked_iter.try_borrow_mut(py) }.unwrap();
+            let _shared_ref =
+                unsafe { shared_iter.try_borrow_mut(py) }.unwrap();
             assert_try_write_string_err(owner);
         }
         assert_try_write_string_ok(owner);
@@ -171,26 +173,26 @@ fn test_try_write_while_leaked_ref_mut() -> PyResult<()> {
 }
 
 #[test]
-fn test_try_leak_while_write() -> PyResult<()> {
+fn test_try_share_while_write() -> PyResult<()> {
     with_setup(|_py, owner| {
-        let cell = &owner.borrow().string;
-        let shared_ref = unsafe { cell.borrow_with_owner(owner) };
+        let shareable = &owner.borrow().string;
+        let shared_ref = unsafe { shareable.borrow_with_owner(owner) };
         let _mut_ref = shared_ref.write();
 
-        assert!(try_leak_string(owner).is_err());
+        assert!(try_share_string(owner).is_err());
         Ok(())
     })
 }
 
 #[test]
 #[should_panic(expected = "already mutably borrowed")]
-fn test_leak_while_write() {
+fn test_share_while_write() {
     with_setup(|_py, owner| {
-        let cell = &owner.borrow().string;
-        let shared_ref = unsafe { cell.borrow_with_owner(owner) };
+        let shareable = &owner.borrow().string;
+        let shared_ref = unsafe { shareable.borrow_with_owner(owner) };
         let _mut_ref = shared_ref.write();
 
-        leak_string(owner);
+        share_string(owner);
         Ok(())
     })
     .expect("should already have panicked")
@@ -199,8 +201,8 @@ fn test_leak_while_write() {
 #[test]
 fn test_try_write_while_borrow() -> PyResult<()> {
     with_setup(|_py, owner| {
-        let cell = &owner.borrow().string;
-        let shared_ref = unsafe { cell.borrow_with_owner(owner) };
+        let shareable = &owner.borrow().string;
+        let shared_ref = unsafe { shareable.borrow_with_owner(owner) };
         let _ref = shared_ref.read();
 
         assert_try_write_string_err(owner);
@@ -212,11 +214,11 @@ fn test_try_write_while_borrow() -> PyResult<()> {
 #[should_panic(expected = "already borrowed")]
 fn test_write_while_borrow() {
     with_setup(|_py, owner| {
-        let cell = &owner.borrow().string;
-        let shared_ref = unsafe { cell.borrow_with_owner(owner) };
+        let shareable = &owner.borrow().string;
+        let shared_ref = unsafe { shareable.borrow_with_owner(owner) };
         let _ref = shared_ref.read();
 
-        let shared_ref2 = unsafe { cell.borrow_with_owner(owner) };
+        let shared_ref2 = unsafe { shareable.borrow_with_owner(owner) };
         let _mut_ref = shared_ref2.write();
         Ok(())
     })
@@ -226,8 +228,8 @@ fn test_write_while_borrow() {
 #[test]
 fn test_try_borrow_while_write() -> PyResult<()> {
     with_setup(|_py, owner| {
-        let cell = &owner.borrow().string;
-        let shared_ref = unsafe { cell.borrow_with_owner(owner) };
+        let shareable = &owner.borrow().string;
+        let shared_ref = unsafe { shareable.borrow_with_owner(owner) };
         let _mut_ref = shared_ref.write();
 
         assert_try_read_string_err(owner);
@@ -239,11 +241,11 @@ fn test_try_borrow_while_write() -> PyResult<()> {
 #[should_panic(expected = "already mutably borrowed")]
 fn test_borrow_while_write() {
     with_setup(|_py, owner| {
-        let cell = &owner.borrow().string;
-        let shared_ref = unsafe { cell.borrow_with_owner(owner) };
+        let shareable = &owner.borrow().string;
+        let shared_ref = unsafe { shareable.borrow_with_owner(owner) };
         let _mut_ref = shared_ref.write();
 
-        let shared_ref2 = unsafe { cell.borrow_with_owner(owner) };
+        let shared_ref2 = unsafe { shareable.borrow_with_owner(owner) };
         let _ref = shared_ref2.read();
         Ok(())
     })
