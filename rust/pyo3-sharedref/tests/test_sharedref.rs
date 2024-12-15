@@ -3,7 +3,7 @@ use pyo3_sharedref::*;
 
 #[pyclass]
 struct Owner {
-    string: PySharedRefCell<String>,
+    string: PyShareable<String>,
 }
 
 #[pymethods]
