@@ -39,7 +39,7 @@ use std::sync::{
 /// referenced by other Python objects defined in Rust than its owner, in
 /// a more general form than references to the whole data.
 /// These immutable references are stored in the referencing Python objects as
-/// [`UnsafePyLeaked`] fields.
+/// [`SharedByPyObject`] fields.
 ///
 /// The primary use case is to implement a Python iterator over a Rust
 /// iterator: since a Python object cannot hold a lifetime-bound object,
@@ -47,8 +47,8 @@ use std::sync::{
 /// While `&'a T` can be replaced with [`std::sync::Arc`], this is typically
 /// not suited for more complex objects that are created from such references
 /// and re-expose the lifetime on their types, such as iterators.
-/// The [`PyShareableRef::leak_immutable()`] and [`UnsafePyLeaked::map()`]
-/// methods provide a way around this issue.
+/// The [`PyShareableRef::share_immutable()`] and
+/// [`SharedByPyObject::map()`] methods provide a way around this issue.
 ///
 /// [`PyShareable`] is [`Sync`]. It works internally with locks and
 /// a "generation" counter that keeps track of mutations.
@@ -101,7 +101,7 @@ use std::sync::{
 ///
 /// #[pyclass]
 /// struct SetIterator {
-///     rust_iter: UnsafePyLeaked<IterHashSet<'static, i32>>,
+///     rust_iter: SharedByPyObject<IterHashSet<'static, i32>>,
 /// }
 ///
 /// #[pymethods]
@@ -110,9 +110,9 @@ use std::sync::{
 ///     fn new(s: &Bound<'_, Set>) -> Self {
 ///         let py = s.py();
 ///         let rust_set = &s.borrow().rust_set;
-///         let shared_ref = unsafe { rust_set.borrow_with_owner(s) };
-///         let leaked_set = shared_ref.leak_immutable();
-///         let iter = unsafe { leaked_set.map(py, |o| o.iter()) };
+///         let shareable_ref = unsafe { rust_set.borrow_with_owner(s) };
+///         let shared_set = shareable_ref.share_immutable();
+///         let iter = unsafe { shared_set.map(py, |o| o.iter()) };
 ///         Self {
 ///             rust_iter: iter.into(),
 ///         }
@@ -124,8 +124,8 @@ use std::sync::{
 ///
 ///     fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<i32>> {
 ///         let py = slf.py();
-///         let leaked = &mut slf.rust_iter;
-///         let mut inner = unsafe { leaked.try_borrow_mut(py) }?;
+///         let shared = &mut slf.rust_iter;
+///         let mut inner = unsafe { shared.try_borrow_mut(py) }?;
 ///         Ok(inner.next().copied())
 ///     }
 /// }
@@ -158,7 +158,7 @@ use std::sync::{
 ///     let exc_repr = format!("{:?}", err.value(py));
 ///     assert_eq!(
 ///         exc_repr,
-///         "RuntimeError('Cannot access to leaked reference after mutation')"
+///         "RuntimeError('Cannot access to shared reference after mutation')"
 ///     );
 /// # Ok::<(), PyErr>(())
 /// })
@@ -184,7 +184,8 @@ impl<T> PyShareable<T> {
     /// # Safety
     ///
     /// The `data` must be owned by the `owner`. Otherwise, calling
-    /// `leak_immutable()` on the shared ref would create an invalid reference.
+    /// `share_immutable()` on the shared ref would create an invalid
+    /// reference.
     pub unsafe fn borrow_with_owner<'py>(
         &'py self,
         owner: &'py Bound<'py, PyAny>,
@@ -206,16 +207,16 @@ impl<T> From<T> for PyShareable<T> {
     }
 }
 
-/// Errors that can happen in `leak_immutable()`
+/// Errors that can happen in `share_immutable()`
 #[derive(Debug, PartialEq, Eq)]
-pub enum TryLeakError {
+pub enum TryShareError {
     /// The inner lock is poisoned and we do not want to implement recovery
     InnerLockPoisoned,
     /// The inner lock would block and we are expecting to take it immediately
     InnerLockWouldBlock,
 }
 
-impl<T> From<TryLockError<T>> for TryLeakError {
+impl<T> From<TryLockError<T>> for TryShareError {
     fn from(e: TryLockError<T>) -> Self {
         match e {
             TryLockError::Poisoned(_) => Self::InnerLockPoisoned,
@@ -256,7 +257,7 @@ impl<'py, T: ?Sized> PyShareableRef<'py, T> {
 
     /// Take the lock on the wrapped value for write operations.
     ///
-    /// Any existing leaked references will be invalidated.
+    /// Any existing shared references will be invalidated.
     ///
     /// # Panics
     ///
@@ -268,9 +269,9 @@ impl<'py, T: ?Sized> PyShareableRef<'py, T> {
     /// Mutably borrows the wrapped value, returning an error if the value
     /// is currently borrowed.
     pub fn try_write(&self) -> TryLockResult<RwLockWriteGuard<'py, T>> {
-        // the value may be immutably borrowed through UnsafePyLeaked
+        // the value may be immutably borrowed through SharedByPyObject
         if self.state.current_borrow_count(self.py()) > 0 {
-            // propagate borrow-by-leaked state to data to get BorrowMutError
+            // propagate borrow-by-shared state to data to get BorrowMutError
             let _dummy = self.data.read();
             let _unused = self.data.try_write()?;
             unreachable!("BorrowMutError should have been returned");
@@ -286,15 +287,16 @@ impl<'py, T: ?Sized> PyShareableRef<'py, T> {
     /// # Panics
     ///
     /// Panics if the value is currently mutably borrowed.
-    pub fn leak_immutable(&self) -> UnsafePyLeaked<&'static T> {
-        self.try_leak_immutable().expect("already mutably borrowed")
+    pub fn share_immutable(&self) -> SharedByPyObject<&'static T> {
+        self.try_share_immutable()
+            .expect("already mutably borrowed")
     }
 
     /// Creates an immutable reference which is not bound to lifetime,
     /// returning an error if the value is currently mutably borrowed.
-    pub fn try_leak_immutable(
+    pub fn try_share_immutable(
         &self,
-    ) -> Result<UnsafePyLeaked<&'static T>, TryLeakError> {
+    ) -> Result<SharedByPyObject<&'static T>, TryShareError> {
         // make sure self.data isn't mutably borrowed; otherwise the
         // generation number wouldn't be trusted.
         let data_ref = self.try_read()?;
@@ -304,7 +306,7 @@ impl<'py, T: ?Sized> PyShareableRef<'py, T> {
         // the state wouldn't since it is immutable.
         let state_ptr: *const PySharedState = self.state;
         let data_ptr: *const T = &*data_ref;
-        Ok(UnsafePyLeaked::<&'static T> {
+        Ok(SharedByPyObject::<&'static T> {
             owner: self.owner.clone().unbind(),
             state: unsafe { &*state_ptr },
             generation: self.state.current_generation(self.py()),
@@ -332,13 +334,12 @@ impl<'py, T: ?Sized> PyShareableRef<'py, T> {
 /// - The `py: Python<'_>` token, which makes sure that any data access is
 ///   synchronized by the GIL.
 /// - The underlying `RefCell`, which prevents `PyShareable` value from being
-///   directly borrowed or leaked while it is mutably borrowed.
+///   directly borrowed or shared while it is mutably borrowed.
 /// - The `borrow_count`, which is the number of references borrowed from
-///   `UnsafePyLeaked`. Just like `RefCell`, mutation is prohibited while
-///   `UnsafePyLeaked` is borrowed.
-/// - The `generation` counter, which increments on `write()`. `UnsafePyLeaked`
-///   reference is valid only if the `current_generation()` equals to the
-///   `generation` at the time of `leak_immutable()`.
+///   `SharedByPyObject`. Just like `RefCell`, mutation is prohibited while
+///   `SharedByPyObject` is borrowed.
+/// - The `generation` counter, which increments on `write()`.
+///   `SharedByPyObject`
 #[derive(Debug)]
 struct PySharedState {
     // The counter variable could be Cell<usize> since any operation on
@@ -346,7 +347,7 @@ struct PySharedState {
     // PySharedState inherently Sync. The ordering requirement doesn't
     // matter thanks to the GIL. That's why Ordering::Relaxed is used
     // everywhere.
-    /// The number of immutable references borrowed through leaked reference.
+    /// The number of immutable references borrowed through shared reference.
     borrow_count: AtomicUsize,
     /// The mutation counter of the underlying value.
     generation: AtomicUsize,
@@ -414,32 +415,32 @@ impl<'a> Drop for BorrowPyShared<'a> {
 ///
 /// # Safety
 ///
-/// Even though [`UnsafePyLeaked`] tries to enforce the real lifetime of the
+/// Even though [`SharedByPyObject`] tries to enforce the real lifetime of the
 /// underlying object, the object having the artificial `'static` lifetime
 /// may be exposed to your Rust code. You must be careful to not make a bare
 /// reference outlive the actual object lifetime.
 ///
-/// TODO these two examples would not compile if [`UnsafePyLeaked::map()`]
+/// TODO this first example would not compile if [`SharedByPyObject::map()`]
 /// would only accept [`Fn`] instead of [`FnOnce`].
 ///
 /// ```ignore
 /// let outer;
-/// unsafe { leaked.map(py, |o| { outer = o }) };  // Bad
+/// unsafe { shared.map(py, |o| { outer = o }) };  // Bad
 /// ```
 ///
 /// ```ignore
 /// let outer;
-/// let mut leaked_iter = leaked.map(py, |o| o.iter());
+/// let mut shared_iter = shared.map(py, |o| o.iter());
 /// {
-///     let mut iter = unsafe { leaked_iter.try_borrow_mut(py) };
+///     let mut iter = unsafe { shared_iter.try_borrow_mut(py) };
 ///     let inner = iter.next();  // Good, in borrow scope
 ///     outer = inner;            // Bad, &'static T may outlive
 /// }
 /// ```
-pub struct UnsafePyLeaked<T: ?Sized> {
+pub struct SharedByPyObject<T: ?Sized> {
     owner: PyObject,
     state: &'static PySharedState,
-    /// Generation counter of data `T` captured when UnsafePyLeaked is
+    /// Generation counter of data `T` captured when SharedByPyObject is
     /// created.
     generation: usize,
     /// Underlying data of artificial lifetime, which is valid only when
@@ -447,11 +448,11 @@ pub struct UnsafePyLeaked<T: ?Sized> {
     data: T,
 }
 
-// DO NOT implement Deref for UnsafePyLeaked<T>! Dereferencing UnsafePyLeaked
-// without taking Python GIL wouldn't be safe. Also, the underling reference
-// is invalid if generation != state.generation.
+// DO NOT implement Deref for SharedByPyObject<T>! Dereferencing
+// SharedByPyObject without taking Python GIL wouldn't be safe. Also, the
+// underling reference is invalid if generation != state.generation.
 
-impl<T: ?Sized> UnsafePyLeaked<T> {
+impl<T: ?Sized> SharedByPyObject<T> {
     // No panicking version of borrow() and borrow_mut() are implemented
     // because the underlying value is supposed to be mutated in Python
     // world, and the Rust library designer can't prevent it.
@@ -472,9 +473,9 @@ impl<T: ?Sized> UnsafePyLeaked<T> {
     pub unsafe fn try_borrow<'a>(
         &'a self,
         py: Python<'a>,
-    ) -> PyResult<PyLeakedRef<'a, T>> {
+    ) -> PyResult<SharedByPyObjectRef<'a, T>> {
         self.validate_generation(py)?;
-        Ok(PyLeakedRef {
+        Ok(SharedByPyObjectRef {
             _borrow: BorrowPyShared::new(py, self.state),
             data: &self.data,
         })
@@ -494,9 +495,9 @@ impl<T: ?Sized> UnsafePyLeaked<T> {
     pub unsafe fn try_borrow_mut<'a>(
         &'a mut self,
         py: Python<'a>,
-    ) -> PyResult<PyLeakedRefMut<'a, T>> {
+    ) -> PyResult<SharedByPyObjectRefMut<'a, T>> {
         self.validate_generation(py)?;
-        Ok(PyLeakedRefMut {
+        Ok(SharedByPyObjectRefMut {
             _borrow: BorrowPyShared::new(py, self.state),
             data: &mut self.data,
         })
@@ -507,13 +508,13 @@ impl<T: ?Sized> UnsafePyLeaked<T> {
             Ok(())
         } else {
             Err(PyRuntimeError::new_err(
-                "Cannot access to leaked reference after mutation",
+                "Cannot access to shared reference after mutation",
             ))
         }
     }
 }
 
-impl<T> UnsafePyLeaked<T> {
+impl<T> SharedByPyObject<T> {
     /// Converts the inner value by the given function.
     ///
     /// Typically `T` is a static reference to a collection, and `U` is an
@@ -523,7 +524,7 @@ impl<T> UnsafePyLeaked<T> {
     ///
     /// Panics if the underlying reference has been invalidated.
     ///
-    /// This is typically called immediately after the `UnsafePyLeaked` is
+    /// This is typically called immediately after the `SharedByPyObject` is
     /// obtained. At this time, the reference must be valid and no panic
     /// would occur.
     ///
@@ -531,25 +532,25 @@ impl<T> UnsafePyLeaked<T> {
     ///
     /// The lifetime of the object passed in to the function `f` is artificial.
     /// It's typically a static reference, but is valid only while the
-    /// corresponding `UnsafePyLeaked` is alive. Do not copy it out of the
+    /// corresponding `SharedByPyObject` is alive. Do not copy it out of the
     /// function call.
     /// TODO would it be safe with `f: impl Fn(T) -> U` then?
     pub unsafe fn map<U>(
         self,
         py: Python,
         f: impl FnOnce(T) -> U,
-    ) -> UnsafePyLeaked<U> {
+    ) -> SharedByPyObject<U> {
         // Needs to test the generation value to make sure self.data reference
         // is still intact.
         self.validate_generation(py)
-            .expect("map() over invalidated leaked reference");
+            .expect("map() over invalidated shared reference");
 
         // f() could make the self.data outlive. That's why map() is unsafe.
         // In order to make this function safe, maybe we'll need a way to
         // temporarily restrict the lifetime of self.data and translate the
         // returned object back to Something<'static>.
         let new_data = f(self.data);
-        UnsafePyLeaked {
+        SharedByPyObject {
             owner: self.owner,
             state: self.state,
             generation: self.generation,
@@ -558,13 +559,13 @@ impl<T> UnsafePyLeaked<T> {
     }
 }
 
-/// An immutably borrowed reference to a leaked value.
-pub struct PyLeakedRef<'a, T: 'a + ?Sized> {
+/// An immutably borrowed reference to a shared value.
+pub struct SharedByPyObjectRef<'a, T: 'a + ?Sized> {
     _borrow: BorrowPyShared<'a>,
     data: &'a T,
 }
 
-impl<'a, T: ?Sized> Deref for PyLeakedRef<'a, T> {
+impl<'a, T: ?Sized> Deref for SharedByPyObjectRef<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -572,13 +573,13 @@ impl<'a, T: ?Sized> Deref for PyLeakedRef<'a, T> {
     }
 }
 
-/// A mutably borrowed reference to a leaked value.
-pub struct PyLeakedRefMut<'a, T: 'a + ?Sized> {
+/// A mutably borrowed reference to a shared value.
+pub struct SharedByPyObjectRefMut<'a, T: 'a + ?Sized> {
     _borrow: BorrowPyShared<'a>,
     data: &'a mut T,
 }
 
-impl<'a, T: ?Sized> Deref for PyLeakedRefMut<'a, T> {
+impl<'a, T: ?Sized> Deref for SharedByPyObjectRefMut<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -586,7 +587,7 @@ impl<'a, T: ?Sized> Deref for PyLeakedRefMut<'a, T> {
     }
 }
 
-impl<'a, T: ?Sized> DerefMut for PyLeakedRefMut<'a, T> {
+impl<'a, T: ?Sized> DerefMut for SharedByPyObjectRefMut<'a, T> {
     fn deref_mut(&mut self) -> &mut T {
         self.data
     }
