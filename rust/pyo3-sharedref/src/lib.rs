@@ -47,16 +47,16 @@ use std::sync::{
 /// While `&'a T` can be replaced with [`std::sync::Arc`], this is typically
 /// not suited for more complex objects that are created from such references
 /// and re-expose the lifetime on their types, such as iterators.
-/// The [`PySharedRef::leak_immutable()`] and [`UnsafePyLeaked::map()`] methods
-/// provide a way around this issue.
+/// The [`PyShareableRef::leak_immutable()`] and [`UnsafePyLeaked::map()`]
+/// methods provide a way around this issue.
 ///
-/// [`PySharedRefCell`] is [`Sync`]. It works internally with locks and
+/// [`PyShareable`] is [`Sync`]. It works internally with locks and
 /// a "generation" counter that keeps track of mutations.
 ///
-/// [`PySharedRefCell`] is merely a data struct to be stored in its
+/// [`PyShareable`] is merely a data struct to be stored in its
 /// owner Python object.
-/// Any further operation will be performed through [`PySharedRef`], which is
-/// a lifetime-bound reference to the [`PySharedRefCell`].
+/// Any further operation will be performed through [`PyShareableRef`], which
+/// is a lifetime-bound reference to the [`PyShareable`].
 ///
 /// # Example
 ///
@@ -74,7 +74,7 @@ use std::sync::{
 ///
 /// #[pyclass(sequence)]
 /// struct Set {
-///     rust_set: PySharedRefCell<HashSet<i32>>,
+///     rust_set: PyShareable<HashSet<i32>>,
 /// }
 ///
 /// #[pymethods]
@@ -167,13 +167,17 @@ use std::sync::{
 ///
 /// The borrow rules are enforced dynamically in a similar manner to the
 /// Python iterator.
+///
+/// [`PyShareable`] is merely a data struct to be stored in a Python object.
+/// Any further operation will be performed through [PyShareableRef], which is
+/// a lifetime-bound reference to the [`PyShareable`].
 #[derive(Debug)]
-pub struct PySharedRefCell<T: ?Sized> {
+pub struct PyShareable<T: ?Sized> {
     state: PySharedState,
     data: RwLock<T>,
 }
 
-impl<T> PySharedRefCell<T> {
+impl<T> PyShareable<T> {
     /// Borrows the shared data and its state, keeping a reference
     /// on the owner Python object.
     ///
@@ -184,8 +188,8 @@ impl<T> PySharedRefCell<T> {
     pub unsafe fn borrow_with_owner<'py>(
         &'py self,
         owner: &'py Bound<'py, PyAny>,
-    ) -> PySharedRef<'py, T> {
-        PySharedRef {
+    ) -> PyShareableRef<'py, T> {
+        PyShareableRef {
             owner,
             state: &self.state,
             data: &self.data,
@@ -193,7 +197,7 @@ impl<T> PySharedRefCell<T> {
     }
 }
 
-impl<T> From<T> for PySharedRefCell<T> {
+impl<T> From<T> for PyShareable<T> {
     fn from(value: T) -> Self {
         Self {
             state: PySharedState::new(),
@@ -220,16 +224,18 @@ impl<T> From<TryLockError<T>> for TryLeakError {
     }
 }
 
-/// A reference to [`PySharedRefCell`] owned by a Python object.
+/// A reference to [`PyShareable`] and its legit owner Python object.
 ///
-/// This is a lifetime-bound reference to the [`PySharedRefCell`] data field.
-pub struct PySharedRef<'py, T: 'py + ?Sized> {
+/// This is a lifetime-bound reference to the [PyShareable] data field,
+/// and could be created by an automatically generated accessor when
+/// we make one.
+pub struct PyShareableRef<'py, T: 'py + ?Sized> {
     owner: &'py Bound<'py, PyAny>,
     state: &'py PySharedState,
     data: &'py RwLock<T>, // TODO perhaps this needs Pin
 }
 
-impl<'py, T: ?Sized> PySharedRef<'py, T> {
+impl<'py, T: ?Sized> PyShareableRef<'py, T> {
     /// Take the lock on the wrapped value for read-only operations.
     ///
     /// # Panics
@@ -317,16 +323,16 @@ impl<'py, T: ?Sized> PySharedRef<'py, T> {
 
 /// The shared state between Python and Rust
 ///
-/// `PySharedState` is owned by `PySharedRefCell`, and is shared across its
+/// `PySharedState` is owned by `PyShareable`, and is shared across its
 /// derived references. The consistency of these references are guaranteed
 /// as follows:
 ///
 /// - The immutability of `PycCass` object fields. Any mutation of
-///   [`PySharedRefCell`] is allowed only through its `write()`.
+///   [`PyShareable`] is allowed only through its `write()`.
 /// - The `py: Python<'_>` token, which makes sure that any data access is
 ///   synchronized by the GIL.
-/// - The underlying `RefCell`, which prevents `PySharedRefCell` value from
-///   being directly borrowed or leaked while it is mutably borrowed.
+/// - The underlying `RefCell`, which prevents `PyShareable` value from being
+///   directly borrowed or leaked while it is mutably borrowed.
 /// - The `borrow_count`, which is the number of references borrowed from
 ///   `UnsafePyLeaked`. Just like `RefCell`, mutation is prohibited while
 ///   `UnsafePyLeaked` is borrowed.
@@ -382,7 +388,7 @@ impl PySharedState {
 }
 
 /// Helper to keep the borrow count updated while the shared object is
-/// immutably borrowed without using the `RefCell` interface.
+/// immutably borrowed without using the `RwLock` interface.
 struct BorrowPyShared<'a> {
     py: Python<'a>,
     state: &'a PySharedState,
@@ -401,7 +407,7 @@ impl<'a> Drop for BorrowPyShared<'a> {
     }
 }
 
-/// An immutable reference to [`PySharedRefCell`] value, not bound to lifetime.
+/// An immutable reference to [`PyShareable`] value, not bound to lifetime.
 ///
 /// The reference will be invalidated once the original value is mutably
 /// borrowed.
