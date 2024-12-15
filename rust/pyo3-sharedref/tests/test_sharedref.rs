@@ -24,20 +24,20 @@ fn with_setup(
     })
 }
 
-/// "leak" in the sense of `UnsafePyLeaked` the `string` data field,
+/// "leak" in the sense of `SharedByPyObject` the `string` data field,
 /// taking care of all the boilerplate
-fn leak_string(owner: &Bound<'_, Owner>) -> UnsafePyLeaked<&'static String> {
+fn leak_string(owner: &Bound<'_, Owner>) -> SharedByPyObject<&'static String> {
     let cell = &owner.borrow().string;
     let shared_ref = unsafe { cell.borrow_with_owner(owner) };
-    shared_ref.leak_immutable()
+    shared_ref.share_immutable()
 }
 
 fn try_leak_string(
     owner: &Bound<'_, Owner>,
-) -> Result<UnsafePyLeaked<&'static String>, TryLeakError> {
+) -> Result<SharedByPyObject<&'static String>, TryShareError> {
     let cell = &owner.borrow().string;
     let shared_ref = unsafe { cell.borrow_with_owner(owner) };
-    shared_ref.try_leak_immutable()
+    shared_ref.try_share_immutable()
 }
 
 /// Mutate the `string` field of `owner` as would be done from Python code
@@ -104,7 +104,7 @@ fn test_leaked_borrow_mut_after_mut() -> PyResult<()> {
 }
 
 #[test]
-#[should_panic(expected = "map() over invalidated leaked reference")]
+#[should_panic(expected = "map() over invalidated shared reference")]
 fn test_leaked_map_after_mut() {
     with_setup(|py, owner| {
         let leaked = leak_string(owner);
