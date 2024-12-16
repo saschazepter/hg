@@ -66,7 +66,7 @@ class clientpeer(wireprotov1peer.wirepeer):
         elif isinstance(res, bytes):
             return res
         else:
-            raise error.Abort('dummy client does not support response type')
+            raise error.Abort(b'dummy client does not support response type')
 
     def _callstream(self, cmd, **args):
         return stringio(self._call(cmd, **args))
