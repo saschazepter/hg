@@ -20,6 +20,7 @@ import weakref
 from concurrent import futures
 from typing import (
     Optional,
+    Set,
 )
 
 from .i18n import _
@@ -341,7 +342,7 @@ class localpeer(repository.peer):  # (repository.ipeercommands)
 
     # Begin of ipeercapabilities interface.
 
-    def capabilities(self):
+    def capabilities(self) -> Set[bytes]:
         return self._caps
 
     # End of ipeercapabilities interface.

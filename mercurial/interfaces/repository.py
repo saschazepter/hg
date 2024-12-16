@@ -205,7 +205,7 @@ class ipeercapabilities(Protocol):
         """
 
     @abc.abstractmethod
-    def capabilities(self):
+    def capabilities(self) -> Set[bytes]:
         """Obtain capabilities of the peer.
 
         Returns a set of string capabilities.

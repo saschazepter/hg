@@ -13,6 +13,7 @@ import io
 import os
 import socket
 import struct
+import typing
 
 from concurrent import futures
 from .i18n import _
@@ -27,6 +28,11 @@ from . import (
     wireprotov1peer,
 )
 from .utils import urlutil
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        Set,
+    )
 
 httplib = util.httplib
 urlerr = util.urlerr
@@ -439,7 +445,7 @@ class httppeer(wireprotov1peer.wirepeer):
 
     # Begin of ipeercapabilities interface.
 
-    def capabilities(self):
+    def capabilities(self) -> Set[bytes]:
         return self._caps
 
     # End of ipeercapabilities interface.
