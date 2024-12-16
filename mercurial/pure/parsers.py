@@ -34,6 +34,12 @@ from .. import (
 from ..revlogutils import nodemap as nodemaputil
 from ..revlogutils import constants as revlog_constants
 
+if typing.TYPE_CHECKING:
+    from typing import (
+        Any,
+        ByteString,  # TODO: Change to Buffer for 3.14+ support
+    )
+
 stringio = io.BytesIO
 
 
@@ -600,6 +606,11 @@ class BaseIndexObject:
         revlog_constants.RANK_UNKNOWN,
     )
 
+    # These aren't needed for rust
+    _data: ByteString
+    _extra: list[bytes]
+    _lgt: int
+
     @util.propertycache
     def entry_size(self):
         return self.index_format.size
@@ -656,6 +667,12 @@ class BaseIndexObject:
             raise TypeError("expecting int indexes")
         if i < 0 or i >= len(self):
             raise IndexError(i)
+
+    def _calculate_index(self, i: int) -> int:
+        # This isn't @abstractmethod because it is only used in __getitem__().
+        # The revlog.RustIndexProxy implementation provides its own, so there's
+        # no reason to force it to implement an unused method.
+        raise NotImplementedError
 
     def __getitem__(self, i):
         if i == -1:
@@ -729,7 +746,7 @@ class IndexObject(BaseIndexObject):
         self._lgt = len(data) // self.entry_size
         self._extra = []
 
-    def _calculate_index(self, i):
+    def _calculate_index(self, i: int) -> int:
         return i * self.entry_size
 
     def __delitem__(self, i):
@@ -753,6 +770,11 @@ class PersistentNodeMapIndexObject(IndexObject):
     the Rust implementation for  more serious usage. This should be used only
     through the dedicated `devel.persistent-nodemap` config.
     """
+
+    # TODO: add type info
+    _nm_docket: Any  # TODO: could be None, but need to handle .tip_rev below
+    _nm_max_idx: Any | None
+    _nm_root: Any | None
 
     def nodemap_data_all(self):
         """Return bytes containing a full serialization of a nodemap
@@ -829,7 +851,7 @@ class InlinedIndexObject(BaseIndexObject):
         else:
             self._extra = self._extra[: i - self._lgt]
 
-    def _calculate_index(self, i):
+    def _calculate_index(self, i: int) -> int:
         return self._offsets[i]
 
 
