@@ -251,7 +251,7 @@ Fallback with shell path segments
 
 Fallback with filesets
   $ $NO_FALLBACK rhg cat "set:c or b"
-  unsupported feature: fileset
+  unsupported feature: rhg does not support file patterns
   [252]
 
 Fallback with generic hooks
