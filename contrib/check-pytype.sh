@@ -57,7 +57,6 @@ pytype --version
 # mercurial/keepalive.py        # [attribute-error]
 # mercurial/localrepo.py        # [attribute-error]
 # mercurial/minirst.py          # [unsupported-operands], [attribute-error]
-# mercurial/pure/parsers.py     # [attribute-error]
 # mercurial/repoview.py         # [attribute-error]
 # mercurial/testing/storage.py  # tons of [attribute-error]
 # mercurial/win32.py            # [not-callable]
@@ -117,7 +116,6 @@ pytype --keep-going --jobs auto \
     -x mercurial/keepalive.py \
     -x mercurial/localrepo.py \
     -x mercurial/minirst.py \
-    -x mercurial/pure/parsers.py \
     -x mercurial/repoview.py \
     -x mercurial/testing/storage.py \
     -x mercurial/thirdparty \
