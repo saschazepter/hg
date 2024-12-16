@@ -205,6 +205,13 @@ class ipeercapabilities(Protocol):
         """
 
     @abc.abstractmethod
+    def capabilities(self):
+        """Obtain capabilities of the peer.
+
+        Returns a set of string capabilities.
+        """
+
+    @abc.abstractmethod
     def requirecap(self, name: bytes, purpose: bytes) -> None:
         """Require a capability to be present.
 
@@ -225,13 +232,6 @@ class ipeercommands(Protocol):
 
         Returns a dict mapping branch name to an iterable of nodes that are
         heads on that branch.
-        """
-
-    @abc.abstractmethod
-    def capabilities(self):
-        """Obtain capabilities of the peer.
-
-        Returns a set of string capabilities.
         """
 
     @abc.abstractmethod
@@ -470,9 +470,7 @@ class peer(_ipeerconnection, ipeercapabilities, ipeerrequests):
         self.path = path
 
     def capable(self, name: bytes) -> bool | bytes:
-        # TODO: this class should maybe subclass ipeercommands too, otherwise it
-        #  is assuming whatever uses this as a mixin also has this interface.
-        caps = self.capabilities()  # pytype: disable=attribute-error
+        caps = self.capabilities()
         if name in caps:
             return True
 
