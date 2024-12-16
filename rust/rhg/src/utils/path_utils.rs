@@ -10,6 +10,9 @@ use hg::utils::files::{get_bytes_from_path, relativize_path};
 use hg::utils::hg_path::HgPath;
 use hg::utils::hg_path::HgPathBuf;
 use std::borrow::Cow;
+use std::ffi::OsString;
+
+use crate::error::CommandError;
 
 pub struct RelativizePaths {
     repo_root: HgPathBuf,
@@ -52,4 +55,42 @@ impl RelativizePaths {
             relativize_path(path, &self.cwd)
         }
     }
+}
+
+/// Resolves `FILE ...` arguments to a list of paths in the repository.
+pub fn resolve_file_args<'a>(
+    repo: &Repo,
+    file_args: impl Iterator<Item = &'a OsString>,
+) -> Result<Vec<HgPathBuf>, CommandError> {
+    let cwd = hg::utils::current_dir()?;
+    let root = cwd.join(repo.working_directory_path());
+    let mut result = Vec::new();
+    for pattern in file_args {
+        // TODO: Support all the formats in `hg help patterns`.
+        if pattern.as_encoded_bytes().contains(&b':') {
+            return Err(CommandError::unsupported(
+                "rhg does not support file patterns",
+            ));
+        }
+        // TODO: use hg::utils::files::canonical_path (currently doesn't work).
+        let path = cwd.join(pattern);
+        let dotted = path.components().any(|c| c.as_os_str() == "..");
+        if pattern.as_encoded_bytes() == b"." || dotted {
+            let message = "`..` or `.` path segment";
+            return Err(CommandError::unsupported(message));
+        }
+        let relative_path = root.strip_prefix(&cwd).unwrap_or(&root);
+        let stripped = path.strip_prefix(&root).map_err(|_| {
+            CommandError::abort(format!(
+                "abort: {} not under root '{}'\n(consider using '--cwd {}')",
+                String::from_utf8_lossy(pattern.as_encoded_bytes()),
+                root.display(),
+                relative_path.display(),
+            ))
+        })?;
+        let hg_file = HgPathBuf::try_from(stripped.to_path_buf())
+            .map_err(|e| CommandError::abort(e.to_string()))?;
+        result.push(hg_file);
+    }
+    Ok(result)
 }
