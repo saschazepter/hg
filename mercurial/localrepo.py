@@ -339,13 +339,17 @@ class localpeer(repository.peer):  # (repository.ipeercommands)
 
     # End of _basepeer interface.
 
+    # Begin of ipeercapabilities interface.
+
+    def capabilities(self):
+        return self._caps
+
+    # End of ipeercapabilities interface.
+
     # Begin of _basewirecommands interface.
 
     def branchmap(self):
         return self._repo.branchmap()
-
-    def capabilities(self):
-        return self._caps
 
     def get_cached_bundle_inline(self, path):
         # not needed with local peer

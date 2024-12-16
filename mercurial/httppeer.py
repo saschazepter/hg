@@ -437,10 +437,12 @@ class httppeer(wireprotov1peer.wirepeer):
 
     # End of ipeerconnection interface.
 
-    # Begin of ipeercommands interface.
+    # Begin of ipeercapabilities interface.
 
     def capabilities(self):
         return self._caps
+
+    # End of ipeercapabilities interface.
 
     def _finish_inline_clone_bundle(self, stream):
         # HTTP streams must hit the end to process the last empty
@@ -448,8 +450,6 @@ class httppeer(wireprotov1peer.wirepeer):
         chunk = stream.read(1)
         if chunk:
             self._abort(error.ResponseError(_(b"unexpected response:"), chunk))
-
-    # End of ipeercommands interface.
 
     def _callstream(self, cmd, _compressible=False, **args):
         args = pycompat.byteskwargs(args)
