@@ -469,15 +469,8 @@ impl<'a> Drop for BorrowPyShared<'a> {
 /// may be exposed to your Rust code. You must be careful to not make a bare
 /// reference outlive the actual object lifetime.
 ///
-/// ```ignore
-/// let mut outer = empty;
-/// let mut shared_iter = shared.map(py, |o| o.chars());
-/// {
-///     let mut iter = unsafe { shared_iter.try_borrow_mut(py) };
-///     let inner = iter.next();  // Good, in borrow scope
-///     outer = inner;            // Bad, &'static T may outlive
-/// }
-/// ```
+/// See [`Self::try_borrow_mut()`] for an example of the kind of trouble that
+/// can arise.
 pub struct SharedByPyObject<T: ?Sized> {
     owner: PyObject,
     state: &'static PySharedState,
@@ -498,11 +491,6 @@ impl<T: ?Sized> SharedByPyObject<T> {
     // because the underlying value is supposed to be mutated in Python
     // world, and the Rust library designer can't prevent it.
 
-    // try_borrow() and try_borrow_mut() are unsafe because self.data may
-    // have a function returning the inner &'static reference.
-    // If T is &'static U, its lifetime can be easily coerced to &'a U, but
-    // how could we do that for Whatever<'static> in general?
-
     /// Immutably borrows the wrapped value.
     ///
     /// Borrowing fails if the underlying reference has been invalidated.
@@ -511,6 +499,49 @@ impl<T: ?Sized> SharedByPyObject<T> {
     ///
     /// The lifetime of the innermost object is artificial. Do not obtain and
     /// copy it out of the borrow scope.
+    ///
+    /// The lifetime of the innermost object is artificial. Do not obtain and
+    /// copy it out of the borrow scope. More generally, the returned `&T`
+    /// may have a method returning an inner reference, which would typically
+    /// be `'static` and not safe without the `owner` Python object, so the
+    /// problem might be less obvious than in the example below.
+    ///
+    /// The following example does compile and illustrates the problem.
+    /// In this case, the data is a `Vec<String>` and the leaked reference
+    /// `&'static str`, which points to some element of the vector. This
+    /// illustrates that the leaks are not necessarily to the whole of the
+    /// shared data.
+    ///
+    /// ```no_run
+    /// # use pyo3::prelude::*;
+    /// # use pyo3_sharedref::PyShareable;
+    /// #[pyclass]
+    /// struct Owner {
+    ///     value: PyShareable<Vec<String>>
+    /// }
+    ///
+    /// #[pymethods]
+    /// impl Owner {
+    ///     #[new]
+    ///     fn new(s: &str) -> Self {
+    ///         let split: Vec<_> = s.split(' ').map(String::from).collect();
+    ///         Self { value: split.into() }
+    ///     }
+    /// }
+    ///
+    /// const EMPTY: &'static str = "";
+    ///
+    /// let mut outer = EMPTY;
+    /// Python::with_gil(|py| {
+    ///     let owner = Bound::new(py, Owner::new("hello")).unwrap();
+    ///     let shareable = &owner.borrow().value;
+    ///     let shared = unsafe { shareable.share(&owner) };
+    ///     {
+    ///         let inner = unsafe { shared.try_borrow(py) }.unwrap();
+    ///         outer = &inner[0]; // Bad, &'static str does outlive the scope
+    ///     }
+    /// });
+    /// ```
     pub unsafe fn try_borrow<'a>(
         &'a self,
         py: Python<'a>,
@@ -526,13 +557,61 @@ impl<T: ?Sized> SharedByPyObject<T> {
     ///
     /// Borrowing fails if the underlying reference has been invalidated.
     ///
-    /// Typically `T` is an iterator. If `T` is an immutable reference,
-    /// `get_mut()` is useless since the inner value can't be mutated.
+    /// Typically `T` would be an iterator obtained by the [`Self::map`]
+    /// method.
     ///
     /// # Safety
     ///
     /// The lifetime of the innermost object is artificial. Do not obtain and
-    /// copy it out of the borrow scope.
+    /// copy it out of the borrow scope. More generally, the returned `&T`
+    /// may have a method returning an inner reference, which would typically
+    /// be `'static` and not safe without the `owner` Python object, so the
+    /// problem might be less obvious than in the example below.
+    ///
+    /// The following example does compile and illustrates the problem.
+    /// It is very close to the example given in [`Self::try_borrow`] because
+    /// the problem does not arise from the mutability of the reference
+    /// returned by this function.
+    ///
+    /// In this case, the data is a `Vec<String>` and the leaked reference
+    /// `&'static str`, which points to some element of the vector. This
+    /// illustrates that the leaks are not necessarily to the whole of the
+    /// shared data.
+    ///
+    /// ```no_run
+    /// # use pyo3::prelude::*;
+    /// # use pyo3_sharedref::PyShareable;
+    /// #[pyclass]
+    /// struct Owner {
+    ///     value: PyShareable<Vec<String>>
+    /// }
+    ///
+    /// #[pymethods]
+    /// impl Owner {
+    ///     #[new]
+    ///     fn new(s: &str) -> Self {
+    ///         let split: Vec<_> = s.split(' ').map(String::from).collect();
+    ///         Self { value: split.into() }
+    ///     }
+    /// }
+    ///
+    /// const EMPTY: &'static str = "";
+    ///
+    /// let mut outer = EMPTY;
+    /// Python::with_gil(|py| {
+    ///     let owner = Bound::new(py, Owner::new("hello")).unwrap();
+    ///     let shareable = &owner.borrow().value;
+    ///     let shared = unsafe { shareable.share(&owner) };
+    ///     let mut shared_iter = unsafe { shared.map(py, |o| o.iter()) };
+    ///     {
+    ///         let mut iter = unsafe {
+    ///             shared_iter.try_borrow_mut(py)
+    ///         }.unwrap();
+    ///         let inner = iter.next().unwrap();  // Good, in borrow scope
+    ///         outer = inner; // Bad, &'static str does outlive the scope
+    ///     }
+    /// });
+    /// ```
     pub unsafe fn try_borrow_mut<'a>(
         &'a mut self,
         py: Python<'a>,
