@@ -2975,7 +2975,7 @@ def forget(ui, repo, *pats, **opts):
             b'',
             b'to',
             b'',
-            _(b'graft to this destination, in memory (EXPERIMENTAL)'),
+            _(b'graft to this destination, in-memory (EXPERIMENTAL)'),
         ),
         (b'c', b'continue', False, _(b'resume interrupted graft')),
         (b'', b'stop', False, _(b'stop interrupted graft')),
@@ -3067,13 +3067,13 @@ def graft(ui, repo, *revs, **opts):
 
     .. container:: verbose
 
-        The experimental --to option allow to graft a revision in memory,
-        independently from the working copy. Merge conflict are not currenly
-        supported and the operation will be aborted if the configured tool
-        cannot handle the conflict that might be encountered.
+        The experimental --to option allows grafting a revision in-memory,
+        independent of the working copy. Merge conflicts are not currently
+        supported, and the operation will be aborted if the configured tool
+        cannot handle the conflicts that might be encountered.
 
-        As the operation is performence in memory, the on disk file will not be
-        modified and some hooks might not be run.
+        As the operation is performed in-memory, the on-disk files will not be
+        modified, and some hooks might not be run.
 
     .. container:: verbose
 
