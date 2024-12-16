@@ -469,17 +469,9 @@ impl<'a> Drop for BorrowPyShared<'a> {
 /// may be exposed to your Rust code. You must be careful to not make a bare
 /// reference outlive the actual object lifetime.
 ///
-/// TODO this first example would not compile if [`SharedByPyObject::map()`]
-/// would only accept [`Fn`] instead of [`FnOnce`].
-///
 /// ```ignore
-/// let outer;
-/// unsafe { shared.map(py, |o| { outer = o }) };  // Bad
-/// ```
-///
-/// ```ignore
-/// let outer;
-/// let mut shared_iter = shared.map(py, |o| o.iter());
+/// let mut outer = empty;
+/// let mut shared_iter = shared.map(py, |o| o.chars());
 /// {
 ///     let mut iter = unsafe { shared_iter.try_borrow_mut(py) };
 ///     let inner = iter.next();  // Good, in borrow scope
@@ -582,8 +574,35 @@ impl<T> SharedByPyObject<T> {
     /// The lifetime of the object passed in to the function `f` is artificial.
     /// It's typically a static reference, but is valid only while the
     /// corresponding `SharedByPyObject` is alive. Do not copy it out of the
-    /// function call.
-    /// TODO would it be safe with `f: impl Fn(T) -> U` then?
+    /// function call. For example, the following does compile:
+    ///
+    /// ```no_run
+    /// # use pyo3::prelude::*;
+    /// # use pyo3_sharedref::PyShareable;
+    /// #[pyclass]
+    /// struct Owner {
+    ///     value: PyShareable<String>
+    /// }
+    ///
+    /// #[pymethods]
+    /// impl Owner {
+    ///     #[new]
+    ///     fn new(s: &str) -> Self {
+    ///         Self { value: s.to_owned().into() }
+    ///     }
+    /// }
+    ///
+    /// const EMPTY: &'static str = "";
+    ///
+    /// let mut outer = EMPTY;
+    /// Python::with_gil(|py| {
+    ///     let owner = Bound::new(py, Owner::new("hello")).unwrap();
+    ///     let shareable = &owner.borrow().value;
+    ///     let shared = unsafe { shareable.share(&owner) };
+    ///
+    ///     unsafe { shared.map(py, |o| { outer = o }) };  // Bad
+    /// });
+    /// ```
     pub unsafe fn map<U>(
         self,
         py: Python,
