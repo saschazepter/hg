@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import re
+import typing
 import uuid
 
 from .i18n import _
@@ -24,6 +25,11 @@ from .utils import (
     stringutil,
     urlutil,
 )
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        Set,
+    )
 
 
 def _serverquote(s):
@@ -441,7 +447,7 @@ class sshv1peer(wireprotov1peer.wirepeer):
 
     # Begin of ipeercapabilities interface.
 
-    def capabilities(self):
+    def capabilities(self) -> Set[bytes]:
         return self._caps
 
     # End of ipeercapabilities interface.
