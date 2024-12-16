@@ -193,7 +193,7 @@ class ipeercapabilities(Protocol):
     """Peer sub-interface related to capabilities."""
 
     @abc.abstractmethod
-    def capable(self, name):
+    def capable(self, name: bytes) -> bool | bytes:
         """Determine support for a named capability.
 
         Returns ``False`` if capability not supported.
@@ -205,7 +205,7 @@ class ipeercapabilities(Protocol):
         """
 
     @abc.abstractmethod
-    def requirecap(self, name, purpose):
+    def requirecap(self, name: bytes, purpose: bytes) -> None:
         """Require a capability to be present.
 
         Raises a ``CapabilityError`` if the capability isn't present.
@@ -457,12 +457,19 @@ class peer(_ipeerconnection, ipeercapabilities, ipeerrequests):
     """
 
     limitedarguments: bool = False
+    path: urlutil.path | None
+    ui: Ui
 
-    def __init__(self, ui, path=None, remotehidden=False):
+    def __init__(
+        self,
+        ui: Ui,
+        path: urlutil.path | None = None,
+        remotehidden: bool = False,
+    ) -> None:
         self.ui = ui
         self.path = path
 
-    def capable(self, name):
+    def capable(self, name: bytes) -> bool | bytes:
         # TODO: this class should maybe subclass ipeercommands too, otherwise it
         #  is assuming whatever uses this as a mixin also has this interface.
         caps = self.capabilities()  # pytype: disable=attribute-error
@@ -476,7 +483,7 @@ class peer(_ipeerconnection, ipeercapabilities, ipeerrequests):
 
         return False
 
-    def requirecap(self, name, purpose):
+    def requirecap(self, name: bytes, purpose: bytes) -> None:
         if self.capable(name):
             return
 
