@@ -439,12 +439,12 @@ class sshv1peer(wireprotov1peer.wirepeer):
 
     # End of ipeerconnection interface.
 
-    # Begin of ipeercommands interface.
+    # Begin of ipeercapabilities interface.
 
     def capabilities(self):
         return self._caps
 
-    # End of ipeercommands interface.
+    # End of ipeercapabilities interface.
 
     def _readerr(self):
         _forwardoutput(self.ui, self._pipee)
