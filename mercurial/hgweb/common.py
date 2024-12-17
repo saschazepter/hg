@@ -219,8 +219,7 @@ def staticfile(templatepath, directory, fname, res):
     path = os.path.join(directory, fpath)
     try:
         os.stat(path)
-        with open(path, 'rb') as fh:
-            data = fh.read()
+        data = util.readfile(path)
     except TypeError:
         raise ErrorResponse(HTTP_SERVER_ERROR, b'illegal filename')
     except OSError as err:
