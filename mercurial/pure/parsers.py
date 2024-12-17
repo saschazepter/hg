@@ -339,7 +339,7 @@ class DirstateItem:
             return self_ns == other_ns
 
     @property
-    def state(self):
+    def state(self) -> bytes:
         """
         States are:
           n  normal
@@ -518,7 +518,7 @@ class DirstateItem:
         # since we never set _DIRSTATE_V2_HAS_DIRCTORY_MTIME
         return (flags, self._size or 0, self._mtime_s or 0, self._mtime_ns or 0)
 
-    def _v1_state(self):
+    def _v1_state(self) -> bytes:
         """return a "state" suitable for v1 serialization"""
         if not self.any_tracked:
             # the object has no state to record, this is -currently-
@@ -648,7 +648,7 @@ class BaseIndexObject:
     def clearcaches(self):
         self.__dict__.pop('_nodemap', None)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self._lgt + len(self._extra)
 
     def append(self, tup):
@@ -708,7 +708,7 @@ class BaseIndexObject:
         v_fmt = revlog_constants.INDEX_HEADER
         return v_fmt.pack(header)
 
-    def entry_binary(self, rev):
+    def entry_binary(self, rev) -> bytes:
         """return the raw binary string representing a revision"""
         entry = self[rev]
         p = revlog_constants.INDEX_ENTRY_V1.pack(*entry[:8])
@@ -716,7 +716,7 @@ class BaseIndexObject:
             p = p[revlog_constants.INDEX_HEADER.size :]
         return p
 
-    def headrevs(self, excluded_revs=None, stop_rev=None):
+    def headrevs(self, excluded_revs=None, stop_rev=None) -> list[int]:
         count = len(self)
         if stop_rev is not None:
             count = min(count, stop_rev)
@@ -736,7 +736,7 @@ class BaseIndexObject:
 
 
 class IndexObject(BaseIndexObject):
-    def __init__(self, data):
+    def __init__(self, data: ByteString):
         assert len(data) % self.entry_size == 0, (
             len(data),
             self.entry_size,
@@ -773,8 +773,8 @@ class PersistentNodeMapIndexObject(IndexObject):
 
     # TODO: add type info
     _nm_docket: Any  # TODO: could be None, but need to handle .tip_rev below
-    _nm_max_idx: Any | None
-    _nm_root: Any | None
+    _nm_max_idx: int | None
+    _nm_root: nodemaputil.Block | None
 
     def nodemap_data_all(self):
         """Return bytes containing a full serialization of a nodemap
@@ -855,7 +855,9 @@ class InlinedIndexObject(BaseIndexObject):
         return self._offsets[i]
 
 
-def parse_index2(data, inline, format=revlog_constants.REVLOGV1):
+def parse_index2(
+    data: ByteString, inline, format=revlog_constants.REVLOGV1
+) -> tuple[IndexObject | InlinedIndexObject, tuple[int, ByteString] | None]:
     if format == revlog_constants.CHANGELOGV2:
         return parse_index_cl_v2(data)
     if not inline:
