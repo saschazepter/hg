@@ -319,57 +319,61 @@ class patchheader:
         nodeid = None
         diffstart = 0
 
-        for line in open(pf, 'rb'):
-            line = line.rstrip()
-            if line.startswith(b'diff --git') or (
-                diffstart and line.startswith(b'+++ ')
-            ):
-                diffstart = 2
-                break
-            diffstart = 0  # reset
-            if line.startswith(b"--- "):
-                diffstart = 1
-                continue
-            elif format == b"hgpatch":
-                # parse values when importing the result of an hg export
-                if line.startswith(b"# User "):
-                    user = line[7:]
-                elif line.startswith(b"# Date "):
-                    date = line[7:]
-                elif line.startswith(b"# Parent "):
-                    parent = line[9:].lstrip()  # handle double trailing space
-                elif line.startswith(b"# Branch "):
-                    branch = line[9:]
-                elif line.startswith(b"# Node ID "):
-                    nodeid = line[10:]
-                elif not line.startswith(b"# ") and line:
+        if True:
+            for line in open(pf, 'rb'):
+                line = line.rstrip()
+                if line.startswith(b'diff --git') or (
+                    diffstart and line.startswith(b'+++ ')
+                ):
+                    diffstart = 2
+                    break
+                diffstart = 0  # reset
+                if line.startswith(b"--- "):
+                    diffstart = 1
+                    continue
+                elif format == b"hgpatch":
+                    # parse values when importing the result of an hg export
+                    if line.startswith(b"# User "):
+                        user = line[7:]
+                    elif line.startswith(b"# Date "):
+                        date = line[7:]
+                    elif line.startswith(b"# Parent "):
+                        parent = line[
+                            9:
+                        ].lstrip()  # handle double trailing space
+                    elif line.startswith(b"# Branch "):
+                        branch = line[9:]
+                    elif line.startswith(b"# Node ID "):
+                        nodeid = line[10:]
+                    elif not line.startswith(b"# ") and line:
+                        message.append(line)
+                        format = None
+                elif line == b'# HG changeset patch':
+                    message = []
+                    format = b"hgpatch"
+                elif format != b"tagdone" and (
+                    line.startswith(b"Subject: ")
+                    or line.startswith(b"subject: ")
+                ):
+                    subject = line[9:]
+                    format = b"tag"
+                elif format != b"tagdone" and (
+                    line.startswith(b"From: ") or line.startswith(b"from: ")
+                ):
+                    user = line[6:]
+                    format = b"tag"
+                elif format != b"tagdone" and (
+                    line.startswith(b"Date: ") or line.startswith(b"date: ")
+                ):
+                    date = line[6:]
+                    format = b"tag"
+                elif format == b"tag" and line == b"":
+                    # when looking for tags (subject: from: etc) they
+                    # end once you find a blank line in the source
+                    format = b"tagdone"
+                elif message or line:
                     message.append(line)
-                    format = None
-            elif line == b'# HG changeset patch':
-                message = []
-                format = b"hgpatch"
-            elif format != b"tagdone" and (
-                line.startswith(b"Subject: ") or line.startswith(b"subject: ")
-            ):
-                subject = line[9:]
-                format = b"tag"
-            elif format != b"tagdone" and (
-                line.startswith(b"From: ") or line.startswith(b"from: ")
-            ):
-                user = line[6:]
-                format = b"tag"
-            elif format != b"tagdone" and (
-                line.startswith(b"Date: ") or line.startswith(b"date: ")
-            ):
-                date = line[6:]
-                format = b"tag"
-            elif format == b"tag" and line == b"":
-                # when looking for tags (subject: from: etc) they
-                # end once you find a blank line in the source
-                format = b"tagdone"
-            elif message or line:
-                message.append(line)
-            comments.append(line)
+                comments.append(line)
 
         eatdiff(message)
         eatdiff(comments)
