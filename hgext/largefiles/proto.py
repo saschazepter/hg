@@ -71,6 +71,8 @@ def getlfile(repo, proto, sha):
         raise error.Abort(
             _(b'requested largefile %s not present in cache') % sha
         )
+
+    # TODO: fix the fd leak here
     f = open(filename, 'rb')
     length = os.fstat(f.fileno())[6]
 
