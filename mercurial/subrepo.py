@@ -1966,11 +1966,11 @@ class gitsubrepo(abstractsubrepo):
         # TODO: add support for non-plain formatter (see cmdutil.cat())
         for f in match.files():
             output = self._gitcommand([b"show", b"%s:%s" % (rev, f)])
-            fp = cmdutil.makefileobj(
+            with cmdutil.makefileobj(
                 self._ctx, fntemplate, pathname=self.wvfs.reljoin(prefix, f)
-            )
-            fp.write(output)
-            fp.close()
+            ) as fp:
+                fp.write(output)
+
         return 0
 
     @annotatesubrepoerror
