@@ -397,7 +397,8 @@ def save_data(path):
 
 
 def load_data(path):
-    lines = open(path, 'rb').read().splitlines()
+    with open(path, 'rb') as fp:
+        lines = fp.read().splitlines()
 
     state.accumulated_time = [float(value) for value in lines[0].split()]
     state.samples = []
