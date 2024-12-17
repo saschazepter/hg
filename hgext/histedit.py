@@ -1950,8 +1950,7 @@ def _readfile(ui, path):
         with ui.timeblockedsection(b'histedit'):
             return ui.fin.read()
     else:
-        with open(path, 'rb') as f:
-            return f.read()
+        return util.readfile(path)
 
 
 def _validateargs(ui, repo, freeargs, opts, goal, rules, revs):
