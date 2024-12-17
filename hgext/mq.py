@@ -319,8 +319,8 @@ class patchheader:
         nodeid = None
         diffstart = 0
 
-        if True:
-            for line in open(pf, 'rb'):
+        with open(pf, 'rb') as fp:
+            for line in fp:
                 line = line.rstrip()
                 if line.startswith(b'diff --git') or (
                     diffstart and line.startswith(b'+++ ')
