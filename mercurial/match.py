@@ -1737,45 +1737,47 @@ def readpatternfile(filepath, warn, sourceinfo=False):
     patterns = []
 
     fp = open(filepath, 'rb')
-    for lineno, line in enumerate(fp, start=1):
-        if b"#" in line:
-            global _commentre
-            if not _commentre:
-                _commentre = util.re.compile(br'((?:^|[^\\])(?:\\\\)*)#.*')
-            # remove comments prefixed by an even number of escapes
-            m = _commentre.search(line)
-            if m:
-                line = line[: m.end(1)]
-            # fixup properly escaped comments that survived the above
-            line = line.replace(b"\\#", b"#")
-        line = line.rstrip()
-        if not line:
-            continue
+    if True:
+        for lineno, line in enumerate(fp, start=1):
+            if b"#" in line:
+                global _commentre
+                if not _commentre:
+                    _commentre = util.re.compile(br'((?:^|[^\\])(?:\\\\)*)#.*')
+                # remove comments prefixed by an even number of escapes
+                m = _commentre.search(line)
+                if m:
+                    line = line[: m.end(1)]
+                # fixup properly escaped comments that survived the above
+                line = line.replace(b"\\#", b"#")
+            line = line.rstrip()
+            if not line:
+                continue
 
-        if line.startswith(b'syntax:'):
-            s = line[7:].strip()
-            try:
-                syntax = syntaxes[s]
-            except KeyError:
-                if warn:
-                    warn(
-                        _(b"%s: ignoring invalid syntax '%s'\n") % (filepath, s)
-                    )
-            continue
+            if line.startswith(b'syntax:'):
+                s = line[7:].strip()
+                try:
+                    syntax = syntaxes[s]
+                except KeyError:
+                    if warn:
+                        warn(
+                            _(b"%s: ignoring invalid syntax '%s'\n")
+                            % (filepath, s)
+                        )
+                continue
 
-        linesyntax = syntax
-        for s, rels in syntaxes.items():
-            if line.startswith(rels):
-                linesyntax = rels
-                line = line[len(rels) :]
-                break
-            elif line.startswith(s + b':'):
-                linesyntax = rels
-                line = line[len(s) + 1 :]
-                break
-        if sourceinfo:
-            patterns.append((linesyntax + line, lineno, line))
-        else:
-            patterns.append(linesyntax + line)
+            linesyntax = syntax
+            for s, rels in syntaxes.items():
+                if line.startswith(rels):
+                    linesyntax = rels
+                    line = line[len(rels) :]
+                    break
+                elif line.startswith(s + b':'):
+                    linesyntax = rels
+                    line = line[len(s) + 1 :]
+                    break
+            if sourceinfo:
+                patterns.append((linesyntax + line, lineno, line))
+            else:
+                patterns.append(linesyntax + line)
     fp.close()
     return patterns
