@@ -885,8 +885,7 @@ def _disabledcmdtable(path):
 
     This may raise IOError or SyntaxError.
     """
-    with open(path, 'rb') as src:
-        root = ast.parse(src.read(), path)
+    root = ast.parse(util.readfile(path), path)
     cmdtable = {}
 
     # Python 3.12 started removing Bytes and Str and deprecate harder
