@@ -17,8 +17,10 @@ import typing
 from typing import (
     Any,
     AnyStr,
+    BinaryIO,
     Dict,
     Iterable,
+    Literal,
     Optional,
     TYPE_CHECKING,
     cast,
@@ -1360,7 +1362,7 @@ def _buildfntemplate(pat, total=None, seqno=None, revwidth=None, pathname=None):
     return b''.join(newname)
 
 
-def makefilename(ctx, pat, **props):
+def makefilename(ctx, pat: bytes, **props):
     if not pat:
         return pat
     tmpl = _buildfntemplate(pat, **props)
@@ -1376,7 +1378,7 @@ def isstdiofilename(pat):
 
 
 class _unclosablefile:
-    def __init__(self, fp):
+    def __init__(self, fp: BinaryIO) -> None:
         self._fp = fp
 
     def close(self):
@@ -1395,8 +1397,10 @@ class _unclosablefile:
         pass
 
 
-def makefileobj(ctx, pat, mode=b'wb', **props):
-    writable = mode not in (b'r', b'rb')
+def makefileobj(
+    ctx, pat: bytes, mode: Literal['rb', 'wb'] = 'wb', **props
+) -> BinaryIO:
+    writable = mode not in ('r', 'rb')
 
     if isstdiofilename(pat):
         repo = ctx.repo()
@@ -1404,9 +1408,9 @@ def makefileobj(ctx, pat, mode=b'wb', **props):
             fp = repo.ui.fout
         else:
             fp = repo.ui.fin
-        return _unclosablefile(fp)
+        return typing.cast(BinaryIO, _unclosablefile(fp))
     fn = makefilename(ctx, pat, **props)
-    return open(fn, pycompat.sysstr(mode))
+    return open(fn, mode)
 
 
 def openstorage(repo, cmd, file_, opts, returnrevlog=False):
