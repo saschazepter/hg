@@ -23,6 +23,7 @@ from mercurial import (
     lock as lockmod,
     pycompat,
     revlog,
+    util,
 )
 from mercurial.utils import hashutil
 from . import (
@@ -227,11 +228,7 @@ def _decompressblob(raw):
 
 
 def parsefileblob(path, decompress):
-    f = open(path, "rb")
-    try:
-        raw = f.read()
-    finally:
-        f.close()
+    raw = util.readfile(path)
 
     if decompress:
         raw = _decompressblob(raw)
