@@ -74,7 +74,7 @@ def getlfile(repo, proto, sha):
 
     # TODO: fix the fd leak here
     f = open(filename, 'rb')
-    length = os.fstat(f.fileno())[6]
+    length = os.fstat(f.fileno()).st_size
 
     # Since we can't set an HTTP content-length header here, and
     # Mercurial core provides no way to give the length of a streamres
