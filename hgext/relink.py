@@ -184,19 +184,17 @@ def do_relink(src, dst, files, ui):
         source = os.path.join(src, f)
         tgt = os.path.join(dst, f)
         # Binary mode, so that read() works correctly, especially on Windows
-        sfp = open(source, 'rb')
-        dfp = open(tgt, 'rb')
-        sin = sfp.read(CHUNKLEN)
-        while sin:
-            din = dfp.read(CHUNKLEN)
-            if sin != din:
-                break
+        with open(source, 'rb') as sfp, open(tgt, 'rb') as dfp:
             sin = sfp.read(CHUNKLEN)
-        sfp.close()
-        dfp.close()
-        if sin:
-            ui.debug(b'not linkable: %s\n' % f)
-            continue
+            while sin:
+                din = dfp.read(CHUNKLEN)
+                if sin != din:
+                    break
+                sin = sfp.read(CHUNKLEN)
+
+            if sin:
+                ui.debug(b'not linkable: %s\n' % f)
+                continue
         try:
             relinkfile(source, tgt)
             progress.update(pos, item=f)
