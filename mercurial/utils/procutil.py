@@ -328,9 +328,10 @@ def tempfilter(s, cmd):
     inname, outname = None, None
     try:
         infd, inname = pycompat.mkstemp(prefix=b'hg-filter-in-')
-        fp = os.fdopen(infd, 'wb')
-        fp.write(s)
-        fp.close()
+
+        with os.fdopen(infd, 'wb') as fp:
+            fp.write(s)
+
         outfd, outname = pycompat.mkstemp(prefix=b'hg-filter-out-')
         os.close(outfd)
         cmd = cmd.replace(b'INFILE', inname)
