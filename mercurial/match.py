@@ -1736,8 +1736,7 @@ def readpatternfile(filepath, warn, sourceinfo=False):
     syntax = b'relre:'
     patterns = []
 
-    fp = open(filepath, 'rb')
-    if True:
+    with open(filepath, 'rb') as fp:
         for lineno, line in enumerate(fp, start=1):
             if b"#" in line:
                 global _commentre
@@ -1779,5 +1778,5 @@ def readpatternfile(filepath, warn, sourceinfo=False):
                 patterns.append((linesyntax + line, lineno, line))
             else:
                 patterns.append(linesyntax + line)
-    fp.close()
+
     return patterns
