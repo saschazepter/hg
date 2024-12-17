@@ -321,18 +321,14 @@ def ancestormap(raw):
 
 
 def readfile(path):
-    f = open(path, 'rb')
-    try:
-        result = f.read()
+    result = util.readfile(path)
 
-        # we should never have empty files
-        if not result:
-            os.remove(path)
-            raise IOError(b"empty file: %s" % path)
+    # we should never have empty files
+    if not result:
+        os.remove(path)
+        raise IOError(b"empty file: %s" % path)
 
-        return result
-    finally:
-        f.close()
+    return result
 
 
 def unlinkfile(filepath):
