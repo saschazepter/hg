@@ -667,22 +667,24 @@ def overridestatus(
         quiet = self.ui.quiet
         self.ui.quiet = True
         fout, ferr = self.ui.fout, self.ui.ferr
-        self.ui.fout = self.ui.ferr = open(os.devnull, 'wb')
 
-        try:
-            rv2 = orig(
-                node1,
-                node2,
-                match,
-                listignored,
-                listclean,
-                listunknown,
-                listsubrepos,
-            )
-        finally:
-            self.dirstate._fsmonitordisable = False
-            self.ui.quiet = quiet
-            self.ui.fout, self.ui.ferr = fout, ferr
+        with open(os.devnull, 'wb') as fp:
+            self.ui.fout = self.ui.ferr = fp
+
+            try:
+                rv2 = orig(
+                    node1,
+                    node2,
+                    match,
+                    listignored,
+                    listclean,
+                    listunknown,
+                    listsubrepos,
+                )
+            finally:
+                self.dirstate._fsmonitordisable = False
+                self.ui.quiet = quiet
+                self.ui.fout, self.ui.ferr = fout, ferr
 
         # clean isn't tested since it's set to True above
         with self.wlock():
