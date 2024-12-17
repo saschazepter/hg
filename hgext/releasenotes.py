@@ -683,15 +683,13 @@ def releasenotes(ui, repo, file_=None, **opts):
         return ui.write(serializenotes(sections, incoming))
 
     try:
-        with open(file_, 'rb') as fh:
-            notes = parsereleasenotesfile(sections, fh.read())
+        notes = parsereleasenotesfile(sections, util.readfile(file_))
     except FileNotFoundError:
         notes = parsedreleasenotes()
 
     notes.merge(ui, incoming)
 
-    with open(file_, 'wb') as fh:
-        fh.write(serializenotes(sections, notes))
+    util.writefile(file_, serializenotes(sections, notes))
 
 
 @command(b'debugparsereleasenotes', norepo=True)
@@ -700,8 +698,7 @@ def debugparsereleasenotes(ui, path, repo=None):
     if path == b'-':
         text = procutil.stdin.read()
     else:
-        with open(path, 'rb') as fh:
-            text = fh.read()
+        text = util.readfile(path)
 
     sections = releasenotessections(ui, repo)
 
