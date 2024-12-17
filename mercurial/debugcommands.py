@@ -4712,8 +4712,7 @@ def debugwireproto(ui, repo, path=None, **opts):
                     continue
 
                 if line.startswith(b'BODYFILE '):
-                    with open(line.split(b' ', 1), 'rb') as fh:
-                        body = fh.read()
+                    body = util.readfile(line.split(b' ', 1))
                 elif line.startswith(b'frame '):
                     frame = wireprotoframing.makeframefromhumanstring(
                         line[len(b'frame ') :]
