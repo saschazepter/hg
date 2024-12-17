@@ -409,7 +409,7 @@ def _getdescription(repo, defaultbody, sender, **opts):
     """
     ui = repo.ui
     if opts.get('desc'):
-        body = open(opts.get('desc', 'rb')).read()
+        body = util.readfile(opts.get('desc'))
     else:
         ui.write(
             _(b'\nWrite the introductory message for the patch series.\n\n')
@@ -417,10 +417,11 @@ def _getdescription(repo, defaultbody, sender, **opts):
         body = ui.edit(
             defaultbody, sender, repopath=repo.path, action=b'patchbombbody'
         )
+
         # Save series description in case sendmail fails
-        msgfile = repo.vfs(b'last-email.txt', b'wb')
-        msgfile.write(body)
-        msgfile.close()
+        with repo.vfs(b'last-email.txt', b'wb') as msgfile:
+            msgfile.write(body)
+
     return body
 
 
