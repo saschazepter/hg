@@ -2007,8 +2007,7 @@ class ui:
                 blockedtag=b'editor',
             )
 
-            with open(name, 'rb') as f:
-                t = util.fromnativeeol(f.read())
+            t = util.fromnativeeol(util.readfile(name))
         finally:
             os.unlink(name)
 
