@@ -622,10 +622,10 @@ def testchunkselector(testfn, ui, headerlist, operation=None):
 
     chunkselector.stdscr = dummystdscr()
     if testfn and os.path.exists(testfn):
-        testf = open(testfn, 'r')
-        # TODO: open in binary mode?
-        testcommands = [x.rstrip('\n') for x in testf.readlines()]
-        testf.close()
+        # This file is purposely NOT opened in binary mode
+        with open(testfn, 'r') as testf:
+            testcommands = [x.rstrip('\n') for x in testf.readlines()]
+
         while True:
             if chunkselector.handlekeypressed(testcommands.pop(0), test=True):
                 break
