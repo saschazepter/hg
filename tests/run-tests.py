@@ -4127,9 +4127,10 @@ class TestRunner:
             "{hgmodulepolicy}",
         ]
         p = subprocess.Popen(
-            cmd,
+            " ".join(cmd),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            shell=True,
         )
         out, err = p.communicate()
         if p.returncode != 0:
@@ -4152,9 +4153,10 @@ class TestRunner:
             "{hgmodules}",
         ]
         p = subprocess.Popen(
-            cmd,
+            " ".join(cmd),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            shell=True,
         )
         out, err = p.communicate()
         if p.returncode != 0:
