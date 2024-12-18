@@ -5,9 +5,6 @@
 #
 set -eu
 
-# enforce that the translation are built
-export MERCURIAL_SETUP_FORCE_TRANSLATIONS=1
-
 if [ $# -lt 2 ]; then
     echo "usage $0 PYTHONTAG DEST_DIR" >&2
     echo "" >&2
