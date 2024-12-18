@@ -40,14 +40,18 @@ download_url = "https://mercurial-scm.org/release/"
 
 [tool.black]
 line-length = 80
+include = '\.py$'
 exclude = '''
 build/
 | wheelhouse/
 | dist/
 | packages/
+| __pycache__/
+| \.pytype/
 | \.hg/
 | \.mypy_cache/
 | \.venv/
+| mercurial/locale/
 | mercurial/thirdparty/
 '''
 skip-string-normalization = true
