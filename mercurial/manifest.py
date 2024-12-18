@@ -1345,7 +1345,7 @@ class treemanifest:  # (repository.imanifestdict)
 
     def fastdelta(
         self, base: ByteString, changes: Iterable[Tuple[bytes, bool]]
-    ) -> ByteString:
+    ) -> tuple[ByteString, ByteString]:
         raise FastdeltaUnavailable()
 
     def diff(
