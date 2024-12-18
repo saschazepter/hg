@@ -79,6 +79,11 @@ environment = { MERCURIAL_SETUP_FORCE_TRANSLATIONS="1" }
 # Prevent building pypy wheels, which is broken.
 skip = "pp*"
 
+# Tests are run separately, but some values like "*-win_arm64" avoid a warning
+# on amd64 Windows about not being able to test without an arm64 runner.  That's
+# likely to be an issue elsewhere too, like testing amd64 on an arm64 mac.
+test-skip = "*"
+
 
 [tool.setuptools_scm]
 version_file = "mercurial/__version__.py"
