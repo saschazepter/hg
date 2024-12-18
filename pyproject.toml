@@ -54,6 +54,7 @@ build/
 | mercurial/locale/
 | mercurial/thirdparty/
 '''
+required-version = "23"
 skip-string-normalization = true
 quiet = true
 
