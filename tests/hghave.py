@@ -130,11 +130,7 @@ def require(features):
         sys.exit(1)
 
 
-def matchoutput(cmd, regexp, ignorestatus=False):
-    """Return the match object if cmd executes successfully and its output
-    is matched by the supplied regular expression.
-    """
-
+def environ():
     # Tests on Windows have to fake USERPROFILE to point to the test area so
     # that `~` is properly expanded on py3.8+.  However, some tools like black
     # make calls that need the real USERPROFILE in order to run `foo --version`.
@@ -142,6 +138,14 @@ def matchoutput(cmd, regexp, ignorestatus=False):
     if os.name == 'nt':
         env = os.environ.copy()
         env['USERPROFILE'] = env['REALUSERPROFILE']
+    return env
+
+
+def matchoutput(cmd, regexp, ignorestatus=False):
+    """Return the match object if cmd executes successfully and its output
+    is matched by the supplied regular expression.
+    """
+    env = environ()
 
     r = re.compile(regexp)
     p = subprocess.Popen(
@@ -1125,14 +1129,27 @@ def has_emacs():
     return matchoutput('emacs --version', b'GNU Emacs 2(4.4|4.5|5|6|7|8|9)')
 
 
-@check('black', 'the black formatter for python >=23.3.0')
+@check(
+    'black', 'the black formatter for python (version set in pyproject.toml)'
+)
 def has_black():
-    blackcmd = 'black --version'
-    version_regex = b'black, (?:version )?([0-9a-b.]+)'
-    version = matchoutput(blackcmd, version_regex)
-    if not version:
-        return False
-    return Version(_bytes2sys(version.group(1))) >= Version('23.3.0')
+    env = environ()
+
+    # The top level #require statements are evaluated from $TESTTMP, and won't
+    # see the project level pyproject.toml unless executing from the project
+    # directory.
+    cwd = os.getcwd()
+    if 'RUNTESTDIR' in env:
+        cwd = os.path.realpath(f"{env['RUNTESTDIR']}/..")
+
+    p = subprocess.Popen(
+        ['black', '--check', '-'],
+        stdin=subprocess.PIPE,
+        cwd=cwd,
+        env=env,
+    )
+    p.communicate(b'# test\n')
+    return p.returncode == 0
 
 
 @check('pytype', 'the pytype type checker')
