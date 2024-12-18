@@ -850,7 +850,7 @@ def _splittopdir(f: bytes) -> Tuple[bytes, bytes]:
 _noop = lambda s: None
 
 
-class treemanifest:  # (repository.imanifestdict)
+class treemanifest(repository.imanifestdict):
     _dir: bytes
     _dirs: Dict[bytes, treemanifest]
     _dirty: bool
