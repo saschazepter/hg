@@ -2093,6 +2093,9 @@ class ui:
             # command. Proof: `vi -c ':unknown' -c ':qa'; echo $?` produces 1,
             # while s/vi/vim/ doesn't.
             editor = b'vim'
+        elif pycompat.iswindows:
+            # vi isn't installed by on Windows, while notepad.exe is.
+            editor = b'notepad.exe'
         else:
             editor = b'vi'
         return encoding.environ.get(b"HGEDITOR") or self.config(
