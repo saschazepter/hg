@@ -17,16 +17,10 @@
 
 set -e
 
-# Build translations; requires msgfmt on PATH.
-export MERCURIAL_SETUP_FORCE_TRANSLATIONS=1
-
 if ! which msgfmt 2>/dev/null 1>/dev/null; then
     echo "msgfmt executable not found" >&2
     exit 1
 fi
-
-# Prevent building pypy wheels, which is broken.
-export CIBW_SKIP=pp*
 
 export CIBW_ARCHS=universal2
 

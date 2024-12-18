@@ -46,9 +46,6 @@ variables:
     # with shell runner, its content is not cleaned from one call to the next,
     # so plan for it.
     TMP_WORK_DIR: "${CI_PROJECT_DIR}/../.."
-    # we use CIBW_SKIP="pp*" to prevent the building of pypy wheel that are neither
-    # needed nor working.
-    CIBW_SKIP: "pp*"
 
 .all:
   # help changing all job at once when debugging
@@ -100,7 +97,6 @@ trigger-nightly-build:
   variables:
     WHEEL_TYPE: ""
     FLAVOR: ""
-    MERCURIAL_SETUP_FORCE_TRANSLATIONS: "1"
     CI_CLEVER_CLOUD_FLAVOR: "XS"
   script:
     - PLATFORM=`/opt/python/cp313-cp313/bin/python -c 'import sys; print(sys.platform)'`
@@ -444,8 +440,6 @@ build-c-wheel-windows:
     - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
       needs:
         - "trigger-wheel-windows"
-    variables:
-      MERCURIAL_SETUP_FORCE_TRANSLATIONS: "1"
     script:
         - echo "Entering script section"
         - echo "python used, $Env:PYTHON"
@@ -559,8 +553,6 @@ macos:
 # this is the only one we need to test. However testing that build work on all
 # version is useful and match what we do with Linux.
 #
-# CIBW_SKIP is set globally at the start of the file. See comment there.
-#
 # The weird directory structure match the one we use for Linux to deal with the
 # multiple jobs. (all this might be unnecessary)
 build-c-wheel-macos:
@@ -574,8 +566,6 @@ build-c-wheel-macos:
     stage: build
     tags:
       - macos
-    variables:
-      MERCURIAL_SETUP_FORCE_TRANSLATIONS: "1"
     script:
       - PLATFORM=`$PYTHON -c 'import sys; print(sys.platform)'`
       - rm -rf tmp-wheels

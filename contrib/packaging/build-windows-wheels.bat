@@ -9,12 +9,6 @@ REM - running `contrib/install-windows-dependencies.ps1`.
 REM - None of the variable set here live past this script exiting.
 setlocal
 
-REM - Build translations; requires msgfmt.exe on PATH.
-set MERCURIAL_SETUP_FORCE_TRANSLATIONS=1
-
-REM - Prevent building pypy wheels, which is broken.
-set CIBW_SKIP=pp*
-
 REM - Disable warning about not being able to test without an arm64 runner.
 set CIBW_TEST_SKIP=*-win_arm64
 
