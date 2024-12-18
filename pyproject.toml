@@ -73,6 +73,12 @@ quiet = true
 # there's no mechanism to age old ones out.
 build-frontend = { name = "pip", args = ["--no-cache-dir"] }
 
+# Build translations; requires msgfmt.exe on PATH.
+environment = { MERCURIAL_SETUP_FORCE_TRANSLATIONS="1" }
+
+# Prevent building pypy wheels, which is broken.
+skip = "pp*"
+
 
 [tool.setuptools_scm]
 version_file = "mercurial/__version__.py"
