@@ -67,21 +67,16 @@ version to use.
 Using pip
 ---------
 
-Users of `pip` can install the Rust extensions with the following command::
+Users of `pip` can install the Rust extensions with the following commands::
 
-  $ pip install mercurial \
-        --global-option \
-        --rust \
-        --no-use-pep517 \
-        --no-binary mercurial
+  $ pip cache remove mercurial
+  $ pip install mercurial -v \
+        --config-settings --global-option=--rust \
+        --no-binary mercurial --force
 
-`--no-use-pep517` is here to tell `pip` to preserve backwards compatibility with
-the legacy `setup.py` system. Mercurial has not yet migrated its complex setup
-to the new system, so we still need this to add compiled extensions.
-
-`--no-binary` is there to tell pip to not use the pre-compiled wheels that are
-missing rust support. This might take a couple of minutes because you're
-compiling everything.
+`pip cache remove` and `--no-binary` are there to tell pip to not use the
+pre-compiled wheels that are missing rust support. This might take a couple
+of minutes because you're compiling everything.
 
 See the "Checking for Rust" section to see if the install succeeded.
 
