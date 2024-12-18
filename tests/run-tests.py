@@ -4136,7 +4136,9 @@ class TestRunner:
             msg = "fatal: fetching module policy from `hg` failed:\n"
             msg = colorize(msg, "red", self.options.color)
             sys.stderr.write(msg)
-            cmd_err = colorize(err.decode(), "yellow", self.options.color)
+            cmd_err = colorize(err.decode(), "magenta", self.options.color)
+            sys.stderr.write(cmd_err)
+            cmd_err = colorize(out.decode(), "yellow", self.options.color)
             sys.stderr.write(cmd_err)
             sys.exit(4)
         return out
@@ -4156,10 +4158,12 @@ class TestRunner:
         )
         out, err = p.communicate()
         if p.returncode != 0:
-            msg = "fatal: fetching library from `hg` failed:\n"
+            msg = f"fatal: fetching library from `hg` failed with {p.returncode}:\n"
             msg = colorize(msg, "red", self.options.color)
             sys.stderr.write(msg)
-            cmd_err = colorize(err.decode(), "yellow", self.options.color)
+            cmd_err = colorize(err.decode(), "magenta", self.options.color)
+            sys.stderr.write(cmd_err)
+            cmd_err = colorize(out.decode(), "yellow", self.options.color)
             sys.stderr.write(cmd_err)
             sys.exit(4)
         return out
