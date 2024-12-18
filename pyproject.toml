@@ -41,7 +41,7 @@ download_url = "https://mercurial-scm.org/release/"
 [tool.black]
 line-length = 80
 include = '\.py$'
-exclude = '''
+extend-exclude = '''
 build/
 | wheelhouse/
 | dist/
