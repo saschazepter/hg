@@ -4121,7 +4121,7 @@ class TestRunner:
     def _get_hg_module_policy(self):
         """return the module policy as seen by the "hg" binary"""
         cmd = [
-            self._real_hg,
+            _bytes2sys(self._real_hg),
             "debuginstall",
             "--template",
             "{hgmodulepolicy}",
@@ -4146,7 +4146,7 @@ class TestRunner:
     def _get_hg_bin_path(self):
         """return the path to the mercurial lib according to the "hg" binary"""
         cmd = [
-            self._real_hg,
+            _bytes2sys(self._real_hg),
             "debuginstall",
             "--template",
             "{hgmodules}",
