@@ -9,19 +9,6 @@ REM - running `contrib/install-windows-dependencies.ps1`.
 REM - None of the variable set here live past this script exiting.
 setlocal
 
-REM - arm64 support starts with py39, but the first arm64 installer wasn't
-REM - available until py311, so skip arm64 on the older, EOL versions.
-set CIBW_ARCHS=x86 AMD64
-set CIBW_BUILD=cp38-* cp39-* cp310-*
-
-cibuildwheel --output-dir dist/wheels
-
-if %errorlevel% neq 0 exit /b %errorlevel%
-
-
-set CIBW_ARCHS=x86 AMD64 ARM64
-set CIBW_BUILD=cp311-* cp312-* cp313-*
-
 cibuildwheel --output-dir dist/wheels
 
 if %errorlevel% neq 0 exit /b %errorlevel%

@@ -69,6 +69,8 @@ quiet = true
 
 
 [tool.cibuildwheel]
+build = ["cp38-*", "cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
+
 # Don't stockpile wheels in the pip cache directory when they get built, since
 # there's no mechanism to age old ones out.
 build-frontend = { name = "pip", args = ["--no-cache-dir"] }
@@ -83,6 +85,10 @@ skip = "pp*"
 # on amd64 Windows about not being able to test without an arm64 runner.  That's
 # likely to be an issue elsewhere too, like testing amd64 on an arm64 mac.
 test-skip = "*"
+
+
+[tool.cibuildwheel.windows]
+archs = ["x86", "AMD64", "ARM64"]
 
 
 [tool.setuptools_scm]
