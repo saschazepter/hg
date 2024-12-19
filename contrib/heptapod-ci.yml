@@ -573,7 +573,8 @@ build-c-wheel-macos:
       - PLATFORM=`$PYTHON -c 'import sys; print(sys.platform)'`
       - rm -rf tmp-wheels
       - cibuildwheel --output-dir tmp-wheels/
-      - for py_version in cp38-cp38 cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313; do
+      - for py_version in $(cibuildwheel --print-build-identifiers | egrep -o 'cp[0-9]+' | sort | uniq); do
+          py_version="${py_version}-${py_version}";
           mkdir -p wheels/$PLATFORM/c/$py_version/;
           mv tmp-wheels/*$py_version*.whl wheels/$PLATFORM/c/$py_version/;
         done
