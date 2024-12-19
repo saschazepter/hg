@@ -22,8 +22,6 @@ if ! which msgfmt 2>/dev/null 1>/dev/null; then
     exit 1
 fi
 
-export CIBW_ARCHS=universal2
-
 # TODO: purge the repo?
 
 cibuildwheel --output-dir dist/wheels
