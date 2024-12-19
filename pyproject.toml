@@ -87,6 +87,12 @@ skip = "pp*"
 test-skip = "*"
 
 
+[tool.cibuildwheel.macos]
+# NOTE: this is overridden in heptapod-ci.yml because the current CI system
+# doesn't support arm64 builds.
+archs = ["universal2"]
+
+
 [tool.cibuildwheel.windows]
 archs = ["x86", "AMD64", "ARM64"]
 
