@@ -3173,12 +3173,12 @@ class localrepository(_localrepo_base_classes):
                 del unfi.__dict__['dirstate']
 
         l = self._lock(
-            self.vfs,
-            b"wlock",
-            wait,
-            unlock,
-            self.invalidatedirstate,
-            _(b'working directory of %s') % self.origroot,
+            vfs=self.vfs,
+            lockname=b"wlock",
+            wait=wait,
+            releasefn=unlock,
+            acquirefn=self.invalidatedirstate,
+            desc=_(b'working directory of %s') % self.origroot,
         )
         self._wlockref = weakref.ref(l)
         return l
