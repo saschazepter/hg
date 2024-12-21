@@ -88,6 +88,12 @@ assert [
     Tuple,
 ]
 
+if typing.TYPE_CHECKING:
+    from typing_extensions import (
+        Self,
+    )
+
+    _Tcow = TypeVar('_Tcow', bound="cow")
 
 base85: intmod.Base85 = policy.importmod('base85')
 osutil = policy.importmod('osutil')
@@ -1329,7 +1335,9 @@ class cow:
     Call preparewrite before doing any writes.
     """
 
-    def preparewrite(self):
+    _copied: int  # doesn't exist until first preparewrite()
+
+    def preparewrite(self: _Tcow) -> _Tcow:
         """call this before writes, return self or a copied new object"""
         if getattr(self, '_copied', 0):
             self._copied -= 1
@@ -1337,7 +1345,7 @@ class cow:
             return self.__class__(self)  # pytype: disable=wrong-arg-count
         return self
 
-    def copy(self):
+    def copy(self) -> Self:
         """always do a cheap copy"""
         self._copied = getattr(self, '_copied', 0) + 1
         return self
