@@ -869,7 +869,9 @@ class unbundle20(unpackermixin):
             params = self._processallparams(params)
         return params
 
-    def _processallparams(self, paramsblock):
+    def _processallparams(
+        self, paramsblock: bytes
+    ) -> util.sortdict[bytes, bytes]:
         """ """
         params = util.sortdict()
         for p in paramsblock.split(b' '):
