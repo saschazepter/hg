@@ -95,6 +95,12 @@ if typing.TYPE_CHECKING:
 
     _Tcow = TypeVar('_Tcow', bound="cow")
 
+_KT = TypeVar("_KT")
+"""An unconstrained key type for container classes (see typing.KT)."""
+
+_VT = TypeVar("_VT")
+"""An unconstrained value type for container classes (see typing.VT)."""
+
 base85: intmod.Base85 = policy.importmod('base85')
 osutil = policy.importmod('osutil')
 
@@ -1351,7 +1357,7 @@ class cow:
         return self
 
 
-class sortdict(collections.OrderedDict):
+class sortdict(collections.OrderedDict[_KT, _VT]):
     """a simple sorted dictionary
 
     >>> d1 = sortdict([(b'a', 0), (b'b', 1)])
@@ -1366,7 +1372,7 @@ class sortdict(collections.OrderedDict):
     [('a', 0), ('a.5', 0.5), ('b', 1)]
     """
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: _KT, value: _VT) -> None:
         if key in self:
             del self[key]
         super().__setitem__(key, value)
@@ -1381,7 +1387,7 @@ class sortdict(collections.OrderedDict):
             for k in f:
                 self[k] = f[k]
 
-    def insert(self, position, key, value):
+    def insert(self, position: int, key: _KT, value: _VT):
         for i, (k, v) in enumerate(list(self.items())):
             if i == position:
                 self[key] = value
