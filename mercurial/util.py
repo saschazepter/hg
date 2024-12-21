@@ -1416,10 +1416,8 @@ class cowsortdict(cow, sortdict):
     """
 
 
-class transactional:  # pytype: disable=ignored-metaclass
+class transactional(abc.ABC):
     """Base class for making a transactional type into a context manager."""
-
-    __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
     def close(self):
