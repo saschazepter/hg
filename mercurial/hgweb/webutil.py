@@ -12,6 +12,7 @@ import copy
 import difflib
 import os
 import re
+import typing
 
 from ..i18n import _
 from ..node import hex, short
@@ -43,7 +44,16 @@ from .. import (
 
 from ..utils import stringutil
 
-archivespecs = util.sortdict(
+if typing.TYPE_CHECKING:
+    from typing import (
+        Optional,
+    )
+
+    ArchiveSpecT = tuple[bytes, bytes, bytes, Optional[bytes]]
+    """Tuple of (mime-type, archive-type, file extension, encoding)"""
+
+
+archivespecs: util.sortdict[bytes, ArchiveSpecT] = util.sortdict(
     (
         (b'zip', (b'application/zip', b'zip', b'.zip', None)),
         (b'gz', (b'application/x-gzip', b'tgz', b'.tar.gz', None)),
