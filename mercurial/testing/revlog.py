@@ -44,9 +44,22 @@ except ImportError:
     rust_revlog = None
 
 
+try:
+    from ..pyo3_rustext import (  # pytype: disable=import-error
+        revlog as pyo3_revlog,
+    )
+
+    pyo3_revlog.__name__  # force actual import
+except ImportError:
+    pyo3_revlog = None
+
+
 @unittest.skipIf(
     cparsers is None,
-    'The C version of the "parsers" module is not available. It is needed for this test.',
+    (
+        'The C version of the "parsers" module is not available. '
+        'It is needed for this test.'
+    ),
 )
 class RevlogBasedTestBase(unittest.TestCase):
     def parseindex(self, data=None):
@@ -65,13 +78,21 @@ class RustRevlogBasedTestBase(unittest.TestCase):
     revlog_delta_config = revlog.DeltaConfig()
     revlog_feature_config = revlog.FeatureConfig()
 
+    @classmethod
+    def irl_class(cls):
+        return rust_revlog.InnerRevlog
+
+    @classmethod
+    def nodetree(cls, idx):
+        return rust_revlog.NodeTree(idx)
+
     def make_inner_revlog(
         self, data=None, vfs_is_readonly=True, kind=KIND_CHANGELOG
     ):
         if data is None:
             data = data_non_inlined
 
-        return rust_revlog.InnerRevlog(
+        return self.irl_class()(
             vfs_base=b"Just a path",
             fncache=None,  # might be enough for now
             vfs_is_readonly=vfs_is_readonly,
@@ -91,3 +112,17 @@ class RustRevlogBasedTestBase(unittest.TestCase):
 
     def parserustindex(self, data=None):
         return revlog.RustIndexProxy(self.make_inner_revlog(data=data))
+
+
+@unittest.skipIf(
+    pyo3_revlog is None,
+    'The Rust PyO3 revlog module is not available. It is needed for this test.',
+)
+class PyO3RevlogBasedTestBase(RustRevlogBasedTestBase):
+    @classmethod
+    def irl_class(cls):
+        return pyo3_revlog.InnerRevlog
+
+    @classmethod
+    def nodetree(cls, idx):
+        return pyo3_revlog.NodeTree(idx)
