@@ -12,7 +12,7 @@ use pyo3::conversion::IntoPyObject;
 use pyo3::exceptions::PyIndexError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyBytesMethods, PyList, PyTuple};
-use pyo3_sharedref::PyShareable;
+use pyo3_sharedref::{PyShareable, SharedByPyObject};
 
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
@@ -34,11 +34,12 @@ use hg::{
 
 use crate::{
     exceptions::{
-        map_lock_error, map_try_lock_error, nodemap_error, revlog_error_bare,
+        map_lock_error, map_try_lock_error,
+        nodemap_error, rev_not_in_index, revlog_error_bare,
         revlog_error_from_msg,
     },
     node::{node_from_py_bytes, node_prefix_from_py_bytes, py_node_for_rev},
-    revision::PyRevision,
+    revision::{check_revision, PyRevision},
     store::PyFnCache,
     util::{new_submodule, take_buffer_with_slice},
 };
@@ -48,6 +49,7 @@ use config::*;
 mod index;
 use index::{
     py_tuple_to_revision_data_params, revision_data_params_to_py_tuple,
+    PySharedIndex,
 };
 
 #[pyclass]
@@ -468,11 +470,110 @@ impl InnerRevlog {
     }
 }
 
+#[pyclass]
+struct NodeTree {
+    nt: RwLock<CoreNodeTree>,
+    index: SharedByPyObject<PySharedIndex>,
+}
+
+#[pymethods]
+impl NodeTree {
+    #[new]
+    // The share/mapping should be set apart to become the PyO3 homolog of
+    // `py_rust_index_to_graph`
+    fn new(index_proxy: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let py_irl = index_proxy.getattr("inner")?;
+        let py_irl_ref = py_irl.downcast::<InnerRevlog>()?.borrow();
+        let shareable_irl = &py_irl_ref.irl;
+
+        // Safety: the owner is the actual one and we do not leak any
+        // internal reference.
+        let index = unsafe {
+            shareable_irl.share_map(&py_irl, |irl| (&irl.index).into())
+        };
+        let nt = CoreNodeTree::default(); // in-RAM, fully mutable
+
+        Ok(Self {
+            nt: nt.into(),
+            index,
+        })
+    }
+
+    /// Tell whether the NodeTree is still valid
+    ///
+    /// In case of mutation of the index, the given results are not
+    /// guaranteed to be correct, and in fact, the methods borrowing
+    /// the inner index would fail because of `PySharedRef` poisoning
+    /// (generation-based guard), same as iterating on a `dict` that has
+    /// been meanwhile mutated.
+    fn is_invalidated(&self, py: Python<'_>) -> PyResult<bool> {
+        // Safety: we don't leak any reference derived from self.index, as
+        // we only check errors
+        let result = unsafe { self.index.try_borrow(py) };
+        // two cases for result to be an error:
+        // - the index has previously been mutably borrowed
+        // - there is currently a mutable borrow
+        // in both cases this amounts for previous results related to
+        // the index to still be valid.
+        Ok(result.is_err())
+    }
+
+    fn insert(&self, py: Python<'_>, rev: PyRevision) -> PyResult<()> {
+        // Safety: we don't leak any reference derived from self.index,
+        // as `nt.insert` does not store direct references
+        let idx = &*unsafe { self.index.try_borrow(py)? };
+
+        let rev = check_revision(idx, rev)?;
+        if rev == NULL_REVISION {
+            return Err(rev_not_in_index(rev.into()));
+        }
+
+        let entry = idx.inner().get_entry(rev).expect("entry should exist");
+        let mut nt = self.nt.write().map_err(map_lock_error)?;
+        nt.insert(idx, entry.hash(), rev).map_err(nodemap_error)
+    }
+
+    fn shortest(
+        &self,
+        py: Python<'_>,
+        node: &Bound<'_, PyBytes>,
+    ) -> PyResult<usize> {
+        let nt = self.nt.read().map_err(map_lock_error)?;
+        // Safety: we don't leak any reference derived from self.index
+        // as returned type is Copy
+        let idx = &*unsafe { self.index.try_borrow(py)? };
+        nt.unique_prefix_len_node(idx, &node_from_py_bytes(node)?)
+            .map_err(nodemap_error)?
+            .ok_or_else(revlog_error_bare)
+    }
+
+    /// Lookup by node hex prefix in the NodeTree, returning revision number.
+    ///
+    /// This is not part of the classical NodeTree API, but is good enough
+    /// for unit testing, as in `test-rust-revlog.py`.
+    fn prefix_rev_lookup(
+        &self,
+        py: Python<'_>,
+        node_prefix: &Bound<'_, PyBytes>,
+    ) -> PyResult<Option<PyRevision>> {
+        let prefix = node_prefix_from_py_bytes(node_prefix)?;
+        let nt = self.nt.read().map_err(map_lock_error)?;
+        // Safety: we don't leak any reference derived from self.index
+        // as returned type is Copy
+        let idx = &*unsafe { self.index.try_borrow(py)? };
+        Ok(nt
+            .find_bin(idx, prefix)
+            .map_err(nodemap_error)?
+            .map(|r| r.into()))
+    }
+}
+
 pub fn init_module<'py>(
     py: Python<'py>,
     package: &str,
 ) -> PyResult<Bound<'py, PyModule>> {
     let m = new_submodule(py, package, "revlog")?;
     m.add_class::<InnerRevlog>()?;
+    m.add_class::<NodeTree>()?;
     Ok(m)
 }

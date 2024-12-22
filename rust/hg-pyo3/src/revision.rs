@@ -41,7 +41,6 @@ impl From<PyRevision> for UncheckedRevision {
     }
 }
 
-#[allow(dead_code)]
 pub fn check_revision(
     index: &impl RevlogIndex,
     rev: impl Into<UncheckedRevision>,
