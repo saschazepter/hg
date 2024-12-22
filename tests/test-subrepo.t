@@ -2017,85 +2017,7 @@ Test convert subrepositories including merge (issue5526):
 
 test calling outgoing to multiple paths
 
-  $ hg out -S -R tcc tc t | "$PYTHON" $TESTDIR/filtertraceback.py
-  ** unknown exception encountered, please report by visiting
-  ** https://mercurial-scm.org/wiki/BugTracker
-  ** Python 3.12.7 (main, Oct  1 2024, 11:15:50) [GCC 14.2.1 20240910]
-  ** Mercurial Distributed SCM (version 6.9.post1.dev304+hg.dcca32008a9.local.20241229)
-  ** Extensions loaded: strip
-  Traceback (most recent call last):
-    File "/tmp/hgtests.oxm_9wsh/install/bin/hg", line 61, in <module>
-      dispatch.run()
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 140, in run
-      status = dispatch(req)
-               ^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 229, in dispatch
-      status = _rundispatch(req)
-               ^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 273, in _rundispatch
-      ret = _runcatch(req) or 0
-            ^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 454, in _runcatch
-      return _callcatch(ui, _runcatchfunc)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 464, in _callcatch
-      return scmutil.callcatch(ui, func)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/scmutil.py", line 179, in callcatch
-      return func()
-             ^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 444, in _runcatchfunc
-      return _dispatch(req)
-             ^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 1248, in _dispatch
-      return runcommand(
-             ^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 902, in runcommand
-      ret = _runcommand(ui, options, cmd, d)
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 1260, in _runcommand
-      return cmdfunc()
-             ^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 1246, in <lambda>
-      d = lambda: util.checksignature(func)(ui, *args, **strcmdopt)
-                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/util.py", line 1954, in check
-      return func(*args, **kwargs)
-             ^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/commands.py", line 4779, in outgoing
-      return hg.outgoing(ui, repo, dests, opts)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/hg.py", line 1530, in outgoing
-      ret = min(ret, _outgoing_recurse(ui, repo, dests, opts))
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/hg.py", line 1459, in _outgoing_recurse
-      ret = min(ret, sub.outgoing(ui, dests, opts))
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/subrepo.py", line 87, in decoratedmethod
-      res = func(self, *args, **kargs)
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/subrepo.py", line 901, in outgoing
-      return hg.outgoing(ui, self._repo, dest, opts, subpath=subpath)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/hg.py", line 1530, in outgoing
-      ret = min(ret, _outgoing_recurse(ui, repo, dests, opts))
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/hg.py", line 1459, in _outgoing_recurse
-      ret = min(ret, sub.outgoing(ui, dests, opts))
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/subrepo.py", line 87, in decoratedmethod
-      res = func(self, *args, **kargs)
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/subrepo.py", line 901, in outgoing
-      return hg.outgoing(ui, self._repo, dest, opts, subpath=subpath)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/hg.py", line 1495, in outgoing
-      subpath = urlutil.url(subpath)
-                ^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/utils/urlutil.py", line 154, in __init__
-      if parsefragment and b'#' in path:
-                           ^^^^^^^^^^^^
-  TypeError: argument of type 'url' is not iterable
+  $ hg out -S -R tcc tc t
   comparing with tc
   searching for changes
   no changes found
@@ -2105,6 +2027,22 @@ test calling outgoing to multiple paths
   comparing with tc/s/ss
   searching for changes
   no changes found
+  comparing with tc/t
+  searching for changes
+  no changes found
+  comparing with t
+  searching for changes
+  no changes found
+  comparing with t/s
+  searching for changes
+  no changes found
+  comparing with t/s/ss
+  searching for changes
+  no changes found
+  comparing with t/t
+  searching for changes
+  no changes found
+  [1]
 
 test calling outgoing to multiple paths using multi-urls
 
@@ -2114,85 +2052,7 @@ test calling outgoing to multiple paths using multi-urls
   > all=path://default path://t
   > all:multi-urls=True
   > EOF
-  $ hg out -S -R tcc all | "$PYTHON" $TESTDIR/filtertraceback.py
-  ** unknown exception encountered, please report by visiting
-  ** https://mercurial-scm.org/wiki/BugTracker
-  ** Python 3.12.7 (main, Oct  1 2024, 11:15:50) [GCC 14.2.1 20240910]
-  ** Mercurial Distributed SCM (version 6.9.post1.dev304+hg.dcca32008a9.local.20241229)
-  ** Extensions loaded: strip
-  Traceback (most recent call last):
-    File "/tmp/hgtests.oxm_9wsh/install/bin/hg", line 61, in <module>
-      dispatch.run()
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 140, in run
-      status = dispatch(req)
-               ^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 229, in dispatch
-      status = _rundispatch(req)
-               ^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 273, in _rundispatch
-      ret = _runcatch(req) or 0
-            ^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 454, in _runcatch
-      return _callcatch(ui, _runcatchfunc)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 464, in _callcatch
-      return scmutil.callcatch(ui, func)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/scmutil.py", line 179, in callcatch
-      return func()
-             ^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 444, in _runcatchfunc
-      return _dispatch(req)
-             ^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 1248, in _dispatch
-      return runcommand(
-             ^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 902, in runcommand
-      ret = _runcommand(ui, options, cmd, d)
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 1260, in _runcommand
-      return cmdfunc()
-             ^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/dispatch.py", line 1246, in <lambda>
-      d = lambda: util.checksignature(func)(ui, *args, **strcmdopt)
-                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/util.py", line 1954, in check
-      return func(*args, **kwargs)
-             ^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/commands.py", line 4779, in outgoing
-      return hg.outgoing(ui, repo, dests, opts)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/hg.py", line 1530, in outgoing
-      ret = min(ret, _outgoing_recurse(ui, repo, dests, opts))
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/hg.py", line 1459, in _outgoing_recurse
-      ret = min(ret, sub.outgoing(ui, dests, opts))
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/subrepo.py", line 87, in decoratedmethod
-      res = func(self, *args, **kargs)
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/subrepo.py", line 901, in outgoing
-      return hg.outgoing(ui, self._repo, dest, opts, subpath=subpath)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/hg.py", line 1530, in outgoing
-      ret = min(ret, _outgoing_recurse(ui, repo, dests, opts))
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/hg.py", line 1459, in _outgoing_recurse
-      ret = min(ret, sub.outgoing(ui, dests, opts))
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/subrepo.py", line 87, in decoratedmethod
-      res = func(self, *args, **kargs)
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/subrepo.py", line 901, in outgoing
-      return hg.outgoing(ui, self._repo, dest, opts, subpath=subpath)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/hg.py", line 1495, in outgoing
-      subpath = urlutil.url(subpath)
-                ^^^^^^^^^^^^^^^^^^^^
-    File "/tmp/hgtests.oxm_9wsh/install/lib/python/mercurial/utils/urlutil.py", line 154, in __init__
-      if parsefragment and b'#' in path:
-                           ^^^^^^^^^^^^
-  TypeError: argument of type 'url' is not iterable
+  $ hg out -S -R tcc all
   comparing with $TESTTMP/tc
   searching for changes
   no changes found
@@ -2202,3 +2062,19 @@ test calling outgoing to multiple paths using multi-urls
   comparing with $TESTTMP/tc/s/ss
   searching for changes
   no changes found
+  comparing with $TESTTMP/tc/t
+  searching for changes
+  no changes found
+  comparing with $TESTTMP/t
+  searching for changes
+  no changes found
+  comparing with $TESTTMP/t/s
+  searching for changes
+  no changes found
+  comparing with $TESTTMP/t/s/ss
+  searching for changes
+  no changes found
+  comparing with $TESTTMP/t/t
+  searching for changes
+  no changes found
+  [1]
