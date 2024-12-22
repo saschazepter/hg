@@ -10,7 +10,38 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
 
-use hg::revlog::index::RevisionDataParams;
+use hg::revlog::{
+    index::{Index, RevisionDataParams},
+    Node, Revision, RevlogIndex,
+};
+
+#[derive(derive_more::From)]
+pub struct PySharedIndex {
+    /// The underlying hg-core index
+    inner: &'static Index,
+}
+
+impl PySharedIndex {
+    /// Return a reference to the inner index, bound by `self`
+    pub fn inner(&self) -> &Index {
+        self.inner
+    }
+
+    /// Return an unsafe "faked" `'static` reference to the inner index, for
+    /// the purposes of Python <-> Rust memory sharing.
+    pub unsafe fn static_inner(&self) -> &'static Index {
+        self.inner
+    }
+}
+
+impl RevlogIndex for PySharedIndex {
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+    fn node(&self, rev: Revision) -> Option<&Node> {
+        self.inner.node(rev)
+    }
+}
 
 pub fn py_tuple_to_revision_data_params(
     tuple: &Bound<'_, PyTuple>,
