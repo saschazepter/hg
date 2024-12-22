@@ -156,6 +156,16 @@ class RustInnerRevlogTestMixin:
         del idx[3]
         self.assertTrue(nt.is_invalidated())
 
+    def test_reading_context_manager(self):
+        irl = self.make_inner_revlog()
+        try:
+            with irl.reading():
+                # not much to do yet
+                pass
+        except error.RevlogError as exc:
+            # well our data file does not even exist
+            self.assertTrue(b"when reading Just a path/test.d" in exc.args[0])
+
 
 # Conditional skipping done by the base class
 class RustInnerRevlogTest(
