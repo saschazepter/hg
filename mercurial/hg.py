@@ -1527,7 +1527,13 @@ def outgoing(ui, repo, dests, opts, subpath=None):
                     display_outgoing_revs(ui, repo, o, opts)
 
                 cmdutil.outgoinghooks(ui, repo, other, opts, o)
-                ret = min(ret, _outgoing_recurse(ui, repo, dests, opts))
+
+                # path.loc is used instead of dest because what we need to pass
+                # is the destination of the repository containing the
+                # subrepositories and not the destination of the current
+                # subrepository being processed. It will be used to discover
+                # subrepositories paths when using relative paths do map them
+                ret = min(ret, _outgoing_recurse(ui, repo, (path.loc,), opts))
             except:  # re-raises
                 raise
             finally:
