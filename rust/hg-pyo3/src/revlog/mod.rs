@@ -8,6 +8,8 @@
 // GNU General Public License version 2 or any later version.
 #![allow(non_snake_case)]
 use pyo3::buffer::PyBuffer;
+use pyo3::conversion::IntoPyObject;
+use pyo3::exceptions::PyIndexError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyBytesMethods, PyList, PyTuple};
 use pyo3_sharedref::PyShareable;
@@ -19,7 +21,7 @@ use std::sync::{
 
 use hg::{
     revlog::{
-        index::Index,
+        index::{Index, RevisionDataParams},
         inner_revlog::InnerRevlog as CoreInnerRevlog,
         nodemap::{NodeMap, NodeMapError, NodeTree as CoreNodeTree},
         options::RevlogOpenOptions,
@@ -27,7 +29,7 @@ use hg::{
     },
     utils::files::get_path_from_bytes,
     vfs::FnCacheVfs,
-    BaseRevision, Revision, UncheckedRevision,
+    BaseRevision, Revision, UncheckedRevision, NULL_REVISION,
 };
 
 use crate::{
@@ -44,7 +46,9 @@ use crate::{
 mod config;
 use config::*;
 mod index;
-use index::py_tuple_to_revision_data_params;
+use index::{
+    py_tuple_to_revision_data_params, revision_data_params_to_py_tuple,
+};
 
 #[pyclass]
 #[allow(dead_code)]
@@ -289,6 +293,41 @@ impl InnerRevlog {
 
     fn _index___len__(slf: &Bound<'_, Self>) -> PyResult<usize> {
         Self::with_index_read(slf, |idx| Ok(idx.len()))
+    }
+
+    fn _index___getitem__(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        key: &Bound<'_, PyAny>,
+    ) -> PyResult<PyObject> {
+        Self::with_index_read(slf, |idx| {
+            match key.extract::<BaseRevision>() {
+                Ok(key_as_int) => {
+                    let entry_params = if key_as_int == NULL_REVISION.0 {
+                        RevisionDataParams::default()
+                    } else {
+                        let rev = UncheckedRevision(key_as_int);
+                        match idx.entry_as_params(rev) {
+                            Some(e) => e,
+                            None => {
+                                return Err(PyIndexError::new_err(
+                                    "revlog index out of range",
+                                ));
+                            }
+                        }
+                    };
+                    Ok(revision_data_params_to_py_tuple(py, entry_params)?
+                        .into_any()
+                        .unbind())
+                }
+                // Case when key is a binary Node ID (lame: we're re-unlocking)
+                _ => Self::_index_get_rev(slf, key.downcast::<PyBytes>()?)?
+                    .map_or_else(
+                        || Ok(py.None()),
+                        |py_rev| Ok(py_rev.into_pyobject(py)?.unbind().into()),
+                    ),
+            }
+        })
     }
 }
 

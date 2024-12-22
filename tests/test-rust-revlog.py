@@ -52,14 +52,19 @@ class RustInnerRevlogTestMixin:
         idx = self.parserustindex()
         self.assertEqual(len(idx), 4)
 
+    def test_getitem(self):
+        idx = self.parserustindex()
+        as_tuple = (0, 82969, 484626, 0, 0, -1, -1, self.node0, 0, 0, 2, 2, -1)
+        self.assertEqual(idx[0], as_tuple)
+        self.assertEqual(idx[self.node0], 0)
+
     def test_index_append(self):
         idx = self.parserustindex(data=b'')
         self.assertEqual(len(idx), 0)
         self.assertIsNone(idx.get_rev(self.node0))
 
-        # this is the same first entry as in data provided by base test class
-        # (we do not have __getitem__ in the PyO3 version yet)
-        idx.append((0, 82969, 484626, 0, 0, -1, -1, self.node0, 0, 0, 2, 2, -1))
+        non_empty_index = self.parserustindex()
+        idx.append(non_empty_index[0])
         self.assertEqual(len(idx), 1)
         self.assertEqual(idx.get_rev(self.node0), 0)
 
