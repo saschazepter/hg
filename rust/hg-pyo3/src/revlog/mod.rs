@@ -53,6 +53,38 @@ use index::{
 };
 
 #[pyclass]
+struct ReadingContextManager {
+    inner_revlog: Py<InnerRevlog>,
+}
+
+#[pymethods]
+impl ReadingContextManager {
+    fn __enter__(slf: PyRef<'_, Self>) -> PyResult<()> {
+        let inner_bound = slf.inner_revlog.bind(slf.py());
+        let shareable = &inner_bound.borrow().irl;
+        // Safety: the owner is correct and we won't use `share()` anyway
+        let core_irl =
+            unsafe { shareable.borrow_with_owner(inner_bound) }.read();
+        core_irl
+            .enter_reading_context()
+            .map_err(revlog_error_from_msg)
+            .inspect_err(|_e| {
+                // `__exit__` is not called from Python if `__enter__` fails
+                core_irl.exit_reading_context();
+            })
+    }
+
+    #[pyo3(signature = (*_args))]
+    fn __exit__(slf: PyRef<'_, Self>, _args: &Bound<'_, PyTuple>) {
+        let inner_bound = slf.inner_revlog.bind(slf.py());
+        let shareable = &inner_bound.borrow().irl;
+        // Safety: the owner is correct and we won't use `share()` anyway
+        let core_irl_ref = unsafe { shareable.borrow_with_owner(inner_bound) };
+        core_irl_ref.read().exit_reading_context();
+    }
+}
+
+#[pyclass]
 #[allow(dead_code)]
 struct InnerRevlog {
     irl: PyShareable<CoreInnerRevlog>,
@@ -143,6 +175,12 @@ impl InnerRevlog {
             revision_cache: None,
             use_persistent_nodemap,
             nodemap_queries: AtomicUsize::new(0),
+        })
+    }
+
+    fn reading(slf: &Bound<'_, Self>) -> PyResult<ReadingContextManager> {
+        Ok(ReadingContextManager {
+            inner_revlog: slf.clone().unbind(),
         })
     }
 
@@ -575,5 +613,6 @@ pub fn init_module<'py>(
     let m = new_submodule(py, package, "revlog")?;
     m.add_class::<InnerRevlog>()?;
     m.add_class::<NodeTree>()?;
+    m.add_class::<ReadingContextManager>()?;
     Ok(m)
 }
