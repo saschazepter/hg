@@ -419,6 +419,20 @@ impl InnerRevlog {
         Ok(())
     }
 
+    /// return the raw binary string representing a revision
+    fn _index_entry_binary(
+        slf: &Bound<'_, Self>,
+        rev: PyRevision,
+    ) -> PyResult<Py<PyBytes>> {
+        let rev: UncheckedRevision = rev.into();
+        Self::with_index_read(slf, |idx| {
+            idx.check_revision(rev)
+                .and_then(|r| idx.entry_binary(r))
+                .map(|rust_bytes| PyBytes::new(slf.py(), rust_bytes).unbind())
+                .ok_or_else(|| rev_not_in_index(rev))
+        })
+    }
+
     /// return a binary packed version of the header
     fn _index_pack_header(
         slf: &Bound<'_, Self>,
