@@ -480,6 +480,21 @@ impl InnerRevlog {
             }
         })
     }
+
+    #[getter]
+    fn _index_entry_size(&self) -> usize {
+        INDEX_ENTRY_SIZE
+    }
+
+    #[getter]
+    fn _index_rust_ext_compat(&self) -> i32 {
+        1
+    }
+
+    #[getter]
+    fn _index_is_rust(&self) -> bool {
+        true
+    }
 }
 
 impl InnerRevlog {
