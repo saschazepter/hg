@@ -11,7 +11,9 @@ use pyo3::buffer::PyBuffer;
 use pyo3::conversion::IntoPyObject;
 use pyo3::exceptions::{PyIndexError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyBytesMethods, PyDict, PyList, PySet, PyTuple};
+use pyo3::types::{
+    PyBool, PyBytes, PyBytesMethods, PyDict, PyList, PySet, PyTuple,
+};
 use pyo3_sharedref::{PyShareable, SharedByPyObject};
 
 use std::collections::HashSet;
@@ -564,6 +566,42 @@ impl InnerRevlog {
                 .map_err(|_| revlog_error_bare())
         })?;
         Ok(())
+    }
+
+    /// determine revisions with deltas to reconstruct fulltext
+    #[pyo3(signature = (rev, stop_rev, using_general_delta))]
+    fn _index_deltachain(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        rev: PyRevision,
+        stop_rev: Option<PyRevision>,
+        using_general_delta: Option<u32>,
+    ) -> PyResult<Py<PyTuple>> {
+        let using_general_delta = using_general_delta.map(|i| i != 0);
+        let rev: UncheckedRevision = rev.into();
+        let stop_rev: Option<UncheckedRevision> = stop_rev.map(Into::into);
+
+        let (chain, stopped) = Self::with_index_read(slf, |idx| {
+            let rev = idx.check_revision(rev).ok_or_else(|| {
+                nodemap_error(NodeMapError::RevisionNotInIndex(rev))
+            })?;
+            let stop_rev = stop_rev
+                .map(|r| {
+                    idx.check_revision(r).ok_or_else(|| {
+                        nodemap_error(NodeMapError::RevisionNotInIndex(
+                            rev.into(),
+                        ))
+                    })
+                })
+                .transpose()?;
+            idx.delta_chain(rev, stop_rev, using_general_delta)
+                .map_err(|e| PyValueError::new_err(e.to_string()))
+        })?;
+
+        let py_chain = revs_py_list(py, chain)?.into_any();
+        let py_stopped =
+            PyBool::new(py, stopped).to_owned().unbind().into_any();
+        Ok((py_chain, py_stopped).into_pyobject(py)?.unbind())
     }
 
     fn _index___len__(slf: &Bound<'_, Self>) -> PyResult<usize> {
