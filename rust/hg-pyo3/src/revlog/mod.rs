@@ -367,6 +367,26 @@ impl InnerRevlog {
         })
     }
 
+    /// return the gca set of the given revs
+    #[pyo3(signature = (*revs))]
+    fn _index_ancestors(
+        slf: &Bound<'_, Self>,
+        revs: &Bound<'_, PyTuple>,
+    ) -> PyResult<PyObject> {
+        Self::with_index_read(slf, |idx| {
+            let revs: Vec<_> = rev_pyiter_collect(revs, idx)?;
+            Ok(PyList::new(
+                slf.py(),
+                idx.ancestors(&revs)
+                    .map_err(graph_error)?
+                    .into_iter()
+                    .map(PyRevision::from),
+            )?
+            .into_any()
+            .unbind())
+        })
+    }
+
     /// reachableroots
     #[pyo3(signature = (*args))]
     fn _index_reachableroots2(
