@@ -39,7 +39,10 @@ use crate::{
         rev_not_in_index, revlog_error_bare, revlog_error_from_msg,
     },
     node::{node_from_py_bytes, node_prefix_from_py_bytes, py_node_for_rev},
-    revision::{check_revision, rev_pyiter_collect, revs_py_list, PyRevision},
+    revision::{
+        check_revision, rev_pyiter_collect, rev_pyiter_collect_or_else,
+        revs_py_list, PyRevision,
+    },
     store::PyFnCache,
     util::{new_submodule, take_buffer_with_slice},
 };
@@ -329,6 +332,39 @@ impl InnerRevlog {
             Self::fill_nodemap(idx, nt)?;
             Ok(())
         })
+    }
+
+    /// reachableroots
+    #[pyo3(signature = (*args))]
+    fn _index_reachableroots2(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+    ) -> PyResult<Py<PyList>> {
+        // TODO what was the point of having a signature with variable args?
+        let min_root = UncheckedRevision(args.get_item(0)?.extract()?);
+        let heads = args.get_item(1)?;
+        let roots = args.get_item(2)?;
+        let include_path: bool = args.get_item(3)?.extract()?;
+
+        let as_set = Self::with_index_read(slf, |idx| {
+            let heads = rev_pyiter_collect_or_else(&heads, idx, |_rev| {
+                PyIndexError::new_err("head out of range")
+            })?;
+            let roots: Result<_, _> = roots
+                .try_iter()?
+                .map(|r| {
+                    r.and_then(|o| match o.extract::<PyRevision>() {
+                        Ok(r) => Ok(UncheckedRevision(r.0)),
+                        Err(e) => Err(e),
+                    })
+                })
+                .collect();
+            idx.reachable_roots(min_root, heads, roots?, include_path)
+                .map_err(graph_error)
+        })?;
+
+        revs_py_list(py, as_set)
     }
 
     #[pyo3(signature = (*args))]
