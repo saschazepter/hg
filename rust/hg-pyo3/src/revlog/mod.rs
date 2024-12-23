@@ -387,6 +387,21 @@ impl InnerRevlog {
         })
     }
 
+    /// return the heads of the common ancestors of the given revs
+    #[pyo3(signature = (*revs))]
+    fn _index_commonancestorsheads(
+        slf: &Bound<'_, Self>,
+        revs: &Bound<'_, PyTuple>,
+    ) -> PyResult<Py<PyList>> {
+        Self::with_index_read(slf, |idx| {
+            let revs: Vec<_> = rev_pyiter_collect(revs, idx)?;
+            revs_py_list(
+                slf.py(),
+                idx.common_ancestor_heads(&revs).map_err(graph_error)?,
+            )
+        })
+    }
+
     /// reachableroots
     #[pyo3(signature = (*args))]
     fn _index_reachableroots2(
