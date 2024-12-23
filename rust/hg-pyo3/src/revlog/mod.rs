@@ -9,7 +9,7 @@
 #![allow(non_snake_case)]
 use pyo3::buffer::PyBuffer;
 use pyo3::conversion::IntoPyObject;
-use pyo3::exceptions::{PyIndexError, PyTypeError};
+use pyo3::exceptions::{PyIndexError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyBytesMethods, PyList, PyTuple};
 use pyo3_sharedref::{PyShareable, SharedByPyObject};
@@ -425,6 +425,21 @@ impl InnerRevlog {
                 .expect("head revs should be cached")
                 .clone_ref(py))
         }
+    }
+
+    /// True if the object is a snapshot
+    fn _index_issnapshot(
+        slf: &Bound<'_, Self>,
+        rev: PyRevision,
+    ) -> PyResult<bool> {
+        let rev: UncheckedRevision = rev.into();
+        let rev = Self::with_index_read(slf, |idx| {
+            idx.check_revision(rev).ok_or_else(|| rev_not_in_index(rev))
+        })?;
+        Self::with_core_read(slf, |irl| {
+            irl.is_snapshot(rev)
+                .map_err(|e| PyValueError::new_err(e.to_string()))
+        })
     }
 
     fn _index___len__(slf: &Bound<'_, Self>) -> PyResult<usize> {
