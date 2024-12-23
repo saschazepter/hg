@@ -402,6 +402,23 @@ impl InnerRevlog {
         })
     }
 
+    /// Clear the index caches and inner py_class data.
+    /// It is Python's responsibility to call `update_nodemap_data` again.
+    fn _index_clearcaches(slf: &Bound<'_, Self>) -> PyResult<()> {
+        Self::with_index_write(slf, |idx| {
+            idx.clear_caches();
+            Ok(())
+        })?;
+
+        let mut self_ref = slf.borrow_mut();
+        self_ref.nt.write().map_err(map_lock_error)?.take();
+        self_ref.docket.take();
+        self_ref.nodemap_mmap.take();
+        self_ref.head_revs_py_list.take();
+        self_ref.head_node_ids_py_list.take();
+        Ok(())
+    }
+
     /// reachableroots
     #[pyo3(signature = (*args))]
     fn _index_reachableroots2(
@@ -634,7 +651,6 @@ impl InnerRevlog {
         Self::with_core_read(slf, |_, guard| f(&guard.index))
     }
 
-    #[allow(dead_code)]
     fn with_index_write<T>(
         slf: &Bound<'_, Self>,
         f: impl FnOnce(&mut Index) -> PyResult<T>,
