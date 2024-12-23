@@ -419,6 +419,16 @@ impl InnerRevlog {
         Ok(())
     }
 
+    /// return a binary packed version of the header
+    fn _index_pack_header(
+        slf: &Bound<'_, Self>,
+        header: i32,
+    ) -> PyResult<Py<PyBytes>> {
+        let packed =
+            Self::with_index_read(slf, |idx| Ok(idx.pack_header(header)))?;
+        Ok(PyBytes::new(slf.py(), &packed).unbind())
+    }
+
     /// reachableroots
     #[pyo3(signature = (*args))]
     fn _index_reachableroots2(
