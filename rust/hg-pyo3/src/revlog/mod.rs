@@ -573,6 +573,42 @@ impl InnerRevlog {
         }
     }
 
+    /// get head nodeids
+    fn _index_head_node_ids(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+    ) -> PyResult<Py<PyList>> {
+        let (head_revs, head_nodes) = Self::with_index_read(slf, |idx| {
+            // We don't use the shortcut here, as it's actually slower to loop
+            // through the cached `PyList` than to re-do the whole
+            // conversion for large lists, which are the performance
+            // sensitive ones anyway.
+            let head_revs = idx.head_revs().map_err(graph_error)?;
+            let head_nodes = PyList::new(
+                py,
+                head_revs.iter().map(|r| {
+                    PyBytes::new(
+                        py,
+                        idx.node(*r)
+                            .expect("rev should have been in the index")
+                            .as_bytes(),
+                    )
+                    .unbind()
+                }),
+            )?
+            .unbind();
+            Ok((head_revs, head_nodes))
+        })?;
+
+        Self::cache_new_heads_py_list(slf, head_revs)?;
+        // TODO discussion with Alphare: in hg-cpython,
+        // `cache_new_heads_node_ids_py_list` reconverts `head_nodes`,
+        // to store it in the cache attr that is **not actually used**.
+        // Should we drop the idea of this cache definition or actually
+        // use it? Perhaps in a later move for perf assessment?
+        Ok(head_nodes)
+    }
+
     /// get diff in head revisions
     fn _index_headrevsdiff(
         slf: &Bound<'_, Self>,
