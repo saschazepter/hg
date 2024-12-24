@@ -4,7 +4,7 @@ use hg::revlog::RevlogIndex;
 use hg::{BaseRevision, Revision, UncheckedRevision};
 
 use crate::convert_cpython::proxy_index_extract;
-use crate::exceptions::GraphError;
+use crate::exceptions::{rev_not_in_index, GraphError};
 
 /// Revision as exposed to/from the Python layer.
 ///
@@ -33,6 +33,23 @@ impl From<Revision> for PyRevision {
     fn from(r: Revision) -> Self {
         PyRevision(r.0)
     }
+}
+
+impl From<PyRevision> for UncheckedRevision {
+    fn from(val: PyRevision) -> Self {
+        val.0.into()
+    }
+}
+
+#[allow(dead_code)]
+pub fn check_revision(
+    index: &impl RevlogIndex,
+    rev: impl Into<UncheckedRevision>,
+) -> PyResult<Revision> {
+    let rev = rev.into();
+    index
+        .check_revision(rev)
+        .ok_or_else(|| rev_not_in_index(rev))
 }
 
 /// Utility function to convert a Python iterable into various collections

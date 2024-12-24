@@ -3,6 +3,7 @@ use pyo3::import_exception;
 use pyo3::{create_exception, PyErr};
 
 use hg::revlog::nodemap::NodeMapError;
+use hg::UncheckedRevision;
 
 use crate::revision::PyRevision;
 
@@ -56,6 +57,11 @@ pub fn revlog_error_from_msg(e: impl ToString) -> PyErr {
 
 pub fn revlog_error_bare() -> PyErr {
     mercurial_py_errors::RevlogError::new_err((None::<String>,))
+}
+
+#[allow(dead_code)]
+pub fn rev_not_in_index(rev: UncheckedRevision) -> PyErr {
+    PyValueError::new_err(format!("revlog index out of range: {}", rev))
 }
 
 pub fn nodemap_error(err: NodeMapError) -> PyErr {
