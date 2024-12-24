@@ -10,6 +10,8 @@ use pyo3::prelude::*;
 
 use crate::util::new_submodule;
 
+mod config;
+
 pub fn init_module<'py>(
     py: Python<'py>,
     package: &str,
