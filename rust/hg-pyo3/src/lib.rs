@@ -6,6 +6,7 @@ mod dagops;
 mod exceptions;
 mod revision;
 mod revlog;
+mod store;
 mod util;
 
 #[pymodule]
