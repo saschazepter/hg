@@ -117,7 +117,6 @@ where
     Ok(PyList::new(py, revs.into_iter().map(PyRevision::from))?.unbind())
 }
 
-#[allow(dead_code)]
 pub fn revs_py_set<U>(
     py: Python<'_>,
     revs: impl IntoIterator<Item = Revision, IntoIter = U>,

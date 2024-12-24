@@ -16,7 +16,7 @@ use pyo3::types::{
 };
 use pyo3_sharedref::{PyShareable, SharedByPyObject};
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     RwLock, RwLockReadGuard, RwLockWriteGuard,
@@ -25,7 +25,9 @@ use std::sync::{
 use hg::{
     errors::HgError,
     revlog::{
-        index::{Index, RevisionDataParams, SnapshotsCache, INDEX_ENTRY_SIZE},
+        index::{
+            Index, Phase, RevisionDataParams, SnapshotsCache, INDEX_ENTRY_SIZE,
+        },
         inner_revlog::InnerRevlog as CoreInnerRevlog,
         nodemap::{NodeMap, NodeMapError, NodeTree as CoreNodeTree},
         options::RevlogOpenOptions,
@@ -44,7 +46,7 @@ use crate::{
     node::{node_from_py_bytes, node_prefix_from_py_bytes, py_node_for_rev},
     revision::{
         check_revision, rev_pyiter_collect, rev_pyiter_collect_or_else,
-        revs_py_list, PyRevision,
+        revs_py_list, revs_py_set, PyRevision,
     },
     store::PyFnCache,
     util::{new_submodule, take_buffer_with_slice},
@@ -443,6 +445,39 @@ impl InnerRevlog {
         let packed =
             Self::with_index_read(slf, |idx| Ok(idx.pack_header(header)))?;
         Ok(PyBytes::new(slf.py(), &packed).unbind())
+    }
+
+    /// compute phases
+    fn _index_computephasesmapsets(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        roots: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyTuple>> {
+        let (len, phase_maps) = Self::with_index_read(slf, |idx| {
+            let extracted_roots: PyResult<HashMap<Phase, Vec<Revision>>> =
+                roots
+                    .iter()
+                    .map(|(phase, revs)| {
+                        let phase = Phase::try_from(phase.extract::<usize>()?)
+                            .map_err(|_| revlog_error_bare())?;
+                        let revs: Vec<Revision> =
+                            rev_pyiter_collect(&revs, idx)?;
+                        Ok((phase, revs))
+                    })
+                    .collect();
+            idx.compute_phases_map_sets(extracted_roots?)
+                .map_err(graph_error)
+        })?;
+        // Ugly hack, but temporary (!)
+        const IDX_TO_PHASE_NUM: [usize; 4] = [1, 2, 32, 96];
+        let py_phase_maps = PyDict::new(py);
+        for (i, roots) in phase_maps.into_iter().enumerate() {
+            py_phase_maps.set_item(
+                IDX_TO_PHASE_NUM[i],
+                revs_py_set(py, roots)?.into_any(),
+            )?;
+        }
+        Ok((len, py_phase_maps).into_pyobject(py)?.unbind())
     }
 
     /// reachableroots
