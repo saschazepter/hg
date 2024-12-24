@@ -39,3 +39,16 @@ impl GraphError {
 pub fn map_lock_error<T>(e: std::sync::PoisonError<T>) -> PyErr {
     PyRuntimeError::new_err(format!("In Rust PyO3 bindings: {e}"))
 }
+
+/// Submodule to hold Mercurial errors defined on the Python side
+///
+/// This is better for clarity, as many hg-core errors have the same names
+/// as their Python world counterparts
+pub mod mercurial_py_errors {
+    pyo3::import_exception!(mercurial.error, RevlogError);
+}
+
+#[allow(dead_code)]
+pub fn revlog_error_from_msg(e: impl ToString) -> PyErr {
+    mercurial_py_errors::RevlogError::new_err(e.to_string().into_bytes())
+}
