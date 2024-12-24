@@ -573,6 +573,27 @@ impl InnerRevlog {
         }
     }
 
+    /// get diff in head revisions
+    fn _index_headrevsdiff(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        begin: PyRevision,
+        end: PyRevision,
+    ) -> PyResult<Py<PyTuple>> {
+        let begin: BaseRevision = begin.0 - 1;
+        let end: BaseRevision = end.0 - 1;
+        let (removed, added) = Self::with_index_read(slf, |idx| {
+            idx.head_revs_diff(
+                check_revision(idx, begin)?,
+                check_revision(idx, end)?,
+            )
+            .map_err(graph_error)
+        })?;
+        let py_removed = revs_py_list(py, removed)?;
+        let py_added = revs_py_list(py, added)?;
+        Ok((py_removed, py_added).into_pyobject(py)?.unbind())
+    }
+
     /// True if the object is a snapshot
     fn _index_issnapshot(
         slf: &Bound<'_, Self>,
