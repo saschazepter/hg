@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::types::PyList;
+use pyo3::types::{PyList, PySet};
 
 use hg::revlog::RevlogIndex;
 use hg::{BaseRevision, Revision, UncheckedRevision};
@@ -115,4 +115,15 @@ where
     U: ExactSizeIterator<Item = Revision>,
 {
     Ok(PyList::new(py, revs.into_iter().map(PyRevision::from))?.unbind())
+}
+
+#[allow(dead_code)]
+pub fn revs_py_set<U>(
+    py: Python<'_>,
+    revs: impl IntoIterator<Item = Revision, IntoIter = U>,
+) -> PyResult<Py<PySet>>
+where
+    U: ExactSizeIterator<Item = Revision>,
+{
+    Ok(PySet::new(py, revs.into_iter().map(PyRevision::from))?.unbind())
 }
