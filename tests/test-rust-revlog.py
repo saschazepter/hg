@@ -46,6 +46,10 @@ class RustInnerRevlogTestMixin:
         self.assertIsNone(idx.partialmatch(self.bogus_node_hex[:3]))
         self.assertEqual(idx.shortest(self.node0), 1)
 
+    def test_len(self):
+        idx = self.parserustindex()
+        self.assertEqual(len(idx), 4)
+
 
 # Conditional skipping done by the base class
 class RustInnerRevlogTest(
@@ -56,10 +60,6 @@ class RustInnerRevlogTest(
     def test_heads(self):
         idx = self.parserustindex()
         self.assertEqual(idx.headrevs(), [3])
-
-    def test_len(self):
-        idx = self.parserustindex()
-        self.assertEqual(len(idx), 4)
 
     def test_ancestors(self):
         rustidx = self.parserustindex()

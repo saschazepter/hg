@@ -6,6 +6,7 @@
 //
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
+#![allow(non_snake_case)]
 use pyo3::buffer::PyBuffer;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyBytesMethods, PyList};
@@ -223,6 +224,10 @@ impl InnerRevlog {
                 .map(|rev| py_node_for_rev(slf.py(), idx, rev)))
         })
     }
+
+    fn _index___len__(slf: &Bound<'_, Self>) -> PyResult<usize> {
+        Self::with_index_read(slf, |idx| Ok(idx.len()))
+    }
 }
 
 impl InnerRevlog {
@@ -253,7 +258,6 @@ impl InnerRevlog {
         f(&self_ref, guard)
     }
 
-    #[allow(dead_code)]
     fn with_index_read<T>(
         slf: &Bound<'_, Self>,
         f: impl FnOnce(&Index) -> PyResult<T>,
