@@ -11,12 +11,17 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyBytesMethods, PyList};
 use pyo3_sharedref::PyShareable;
 
-use std::sync::{atomic::AtomicUsize, RwLock, RwLockReadGuard};
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    RwLock, RwLockReadGuard,
+};
 
 use hg::{
     revlog::{
-        index::Index, inner_revlog::InnerRevlog as CoreInnerRevlog,
-        nodemap::NodeTree as CoreNodeTree, options::RevlogOpenOptions,
+        index::Index,
+        inner_revlog::InnerRevlog as CoreInnerRevlog,
+        nodemap::{NodeMap, NodeTree as CoreNodeTree},
+        options::RevlogOpenOptions,
         RevlogIndex, RevlogType,
     },
     utils::files::get_path_from_bytes,
@@ -26,9 +31,11 @@ use hg::{
 
 use crate::{
     exceptions::{
-        map_lock_error, map_try_lock_error, nodemap_error,
+        map_lock_error, map_try_lock_error, nodemap_error, revlog_error_bare,
         revlog_error_from_msg,
     },
+    node::{node_from_py_bytes, node_prefix_from_py_bytes, py_node_for_rev},
+    revision::PyRevision,
     store::PyFnCache,
     util::{new_submodule, take_buffer_with_slice},
 };
@@ -129,6 +136,93 @@ impl InnerRevlog {
             nodemap_queries: AtomicUsize::new(0),
         })
     }
+
+    //
+    // -- forwarded index methods --
+    //
+
+    fn _index_get_rev(
+        slf: &Bound<'_, Self>,
+        node: &Bound<'_, PyBytes>,
+    ) -> PyResult<Option<PyRevision>> {
+        let node = node_from_py_bytes(node)?;
+
+        // Do not rewrite this with `Self::with_index_nt_read`: it makes
+        // inconditionally a volatile nodetree, and that is not the intent
+        // here: the code below specifically avoids that.
+        Self::with_core_read(slf, |self_ref, irl| {
+            let idx = &irl.index;
+
+            let prev_queries =
+                self_ref.nodemap_queries.fetch_add(1, Ordering::Relaxed);
+            // Filelogs have no persistent nodemaps and are often small,
+            // use a brute force lookup from the end
+            // backwards. If there is a very large filelog
+            // (automation file that changes every
+            // commit etc.), it also seems to work quite well for
+            // all measured purposes so far.
+            if !self_ref.use_persistent_nodemap && prev_queries <= 3 {
+                return Ok(idx
+                    .rev_from_node_no_persistent_nodemap(node.into())
+                    .ok()
+                    .map(Into::into));
+            }
+
+            let opt =
+                self_ref.get_nodetree(idx)?.read().map_err(map_lock_error)?;
+            let nt = opt.as_ref().expect("nodetree should be set");
+
+            let rust_rev =
+                nt.find_bin(idx, node.into()).map_err(nodemap_error)?;
+            Ok(rust_rev.map(Into::into))
+        })
+    }
+
+    /// same as `_index_get_rev()` but raises a bare `error.RevlogError` if
+    /// node is not found.
+    ///
+    /// No need to repeat `node` in the exception, `mercurial/revlog.py`
+    /// will catch and rewrap with it
+    fn _index_rev(
+        slf: &Bound<'_, Self>,
+        node: &Bound<'_, PyBytes>,
+    ) -> PyResult<PyRevision> {
+        Self::_index_get_rev(slf, node)?.ok_or_else(revlog_error_bare)
+    }
+
+    /// return True if the node exist in the index
+    fn _index_has_node(
+        slf: &Bound<'_, Self>,
+        node: &Bound<'_, PyBytes>,
+    ) -> PyResult<bool> {
+        Self::_index_get_rev(slf, node).map(|opt| opt.is_some())
+    }
+
+    /// find length of shortest hex nodeid of a binary ID
+    fn _index_shortest(
+        slf: &Bound<'_, Self>,
+        node: &Bound<'_, PyBytes>,
+    ) -> PyResult<usize> {
+        Self::with_index_nt_read(slf, |idx, nt| {
+            match nt.unique_prefix_len_node(idx, &node_from_py_bytes(node)?) {
+                Ok(Some(l)) => Ok(l),
+                Ok(None) => Err(revlog_error_bare()),
+                Err(e) => Err(nodemap_error(e)),
+            }
+        })
+    }
+
+    fn _index_partialmatch<'py>(
+        slf: &Bound<'py, Self>,
+        node: &Bound<'py, PyBytes>,
+    ) -> PyResult<Option<Bound<'py, PyBytes>>> {
+        Self::with_index_nt_read(slf, |idx, nt| {
+            Ok(nt
+                .find_bin(idx, node_prefix_from_py_bytes(node)?)
+                .map_err(nodemap_error)?
+                .map(|rev| py_node_for_rev(slf.py(), idx, rev)))
+        })
+    }
 }
 
 impl InnerRevlog {
@@ -171,7 +265,6 @@ impl InnerRevlog {
     /// [`NodeTree`]
     ///
     /// The [`NodeTree`] is initialized an filled before hand if needed.
-    #[allow(dead_code)]
     fn with_index_nt_read<T>(
         slf: &Bound<'_, Self>,
         f: impl FnOnce(&Index, &CoreNodeTree) -> PyResult<T>,
@@ -214,7 +307,6 @@ impl InnerRevlog {
     /// # Python exceptions
     /// The case mentioned in [`Self::fill_nodemap()`] cannot happen, as the
     /// NodeTree is empty when it is called.
-    #[allow(dead_code)]
     fn get_nodetree(
         &self,
         idx: &Index,
