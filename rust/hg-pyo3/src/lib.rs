@@ -4,6 +4,7 @@ mod ancestors;
 mod convert_cpython;
 mod dagops;
 mod exceptions;
+mod node;
 mod revision;
 mod revlog;
 mod store;
