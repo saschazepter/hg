@@ -5,7 +5,6 @@
 //
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
-#![allow(dead_code)]
 use pyo3::conversion::FromPyObject;
 use pyo3::exceptions::PyValueError;
 use pyo3::intern;

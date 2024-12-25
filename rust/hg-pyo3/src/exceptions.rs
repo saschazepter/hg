@@ -48,7 +48,6 @@ pub mod mercurial_py_errors {
     pyo3::import_exception!(mercurial.error, RevlogError);
 }
 
-#[allow(dead_code)]
 pub fn revlog_error_from_msg(e: impl ToString) -> PyErr {
     mercurial_py_errors::RevlogError::new_err(e.to_string().into_bytes())
 }
