@@ -330,7 +330,7 @@ impl NodeTree {
     /// Retrieve added [`Block`]s and the original immutable data
     pub fn into_readonly_and_added(
         self,
-    ) -> (Box<dyn Deref<Target = [Block]> + Send>, Vec<Block>) {
+    ) -> (Box<dyn Deref<Target = [Block]> + Send + Sync>, Vec<Block>) {
         let mut vec = self.growable;
         let readonly = self.readonly;
         if readonly.last() != Some(&self.root) {
@@ -343,7 +343,7 @@ impl NodeTree {
     /// storage
     pub fn into_readonly_and_added_bytes(
         self,
-    ) -> (Box<dyn Deref<Target = [Block]> + Send>, Vec<u8>) {
+    ) -> (Box<dyn Deref<Target = [Block]> + Send + Sync>, Vec<u8>) {
         let (readonly, vec) = self.into_readonly_and_added();
         // Prevent running `v`'s destructor so we are in complete control
         // of the allocation.
