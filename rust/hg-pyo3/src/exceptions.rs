@@ -2,6 +2,8 @@ use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::import_exception;
 use pyo3::{create_exception, PyErr};
 
+use hg::revlog::nodemap::NodeMapError;
+
 use crate::revision::PyRevision;
 
 create_exception!(pyo3_rustext, GraphError, PyValueError);
@@ -50,4 +52,21 @@ pub mod mercurial_py_errors {
 
 pub fn revlog_error_from_msg(e: impl ToString) -> PyErr {
     mercurial_py_errors::RevlogError::new_err(e.to_string().into_bytes())
+}
+
+#[allow(dead_code)]
+pub fn nodemap_error(err: NodeMapError) -> PyErr {
+    match err {
+        NodeMapError::MultipleResults => {
+            mercurial_py_errors::RevlogError::new_err("")
+        }
+
+        NodeMapError::RevisionNotInIndex(rev) => {
+            PyValueError::new_err(format!(
+                "Inconsistency: Revision {} found in nodemap \
+             is not in revlog index",
+                rev
+            ))
+        }
+    }
 }
