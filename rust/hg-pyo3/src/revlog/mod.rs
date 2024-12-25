@@ -14,7 +14,7 @@ use pyo3_sharedref::PyShareable;
 
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
-    RwLock, RwLockReadGuard,
+    RwLock, RwLockReadGuard, RwLockWriteGuard,
 };
 
 use hg::{
@@ -258,11 +258,39 @@ impl InnerRevlog {
         f(&self_ref, guard)
     }
 
+    #[allow(dead_code)]
+    /// Take the lock on `slf.irl` for writing and call a closure.
+    ///
+    /// See [`Self::with_core_read`] for more explanations.
+    fn with_core_write<'py, T>(
+        slf: &Bound<'py, Self>,
+        f: impl FnOnce(
+            &PyRef<'py, Self>,
+            RwLockWriteGuard<CoreInnerRevlog>,
+        ) -> PyResult<T>,
+    ) -> PyResult<T> {
+        let self_ref = slf.borrow();
+        // Safety: the owner is the right one. We will anyway
+        // not actually `share` it. Perhaps pyo3-sharedref should provide
+        // something less scary for this kind of usage.
+        let shareable_ref = unsafe { self_ref.irl.borrow_with_owner(slf) };
+        let guard = shareable_ref.try_write().map_err(map_try_lock_error)?;
+        f(&self_ref, guard)
+    }
+
     fn with_index_read<T>(
         slf: &Bound<'_, Self>,
         f: impl FnOnce(&Index) -> PyResult<T>,
     ) -> PyResult<T> {
         Self::with_core_read(slf, |_, guard| f(&guard.index))
+    }
+
+    #[allow(dead_code)]
+    fn with_index_write<T>(
+        slf: &Bound<'_, Self>,
+        f: impl FnOnce(&mut Index) -> PyResult<T>,
+    ) -> PyResult<T> {
+        Self::with_core_write(slf, |_, mut guard| f(&mut guard.index))
     }
 
     /// Lock `slf` for reading and execute a closure on its [`Index`] and
@@ -278,6 +306,22 @@ impl InnerRevlog {
             let nt =
                 self_ref.get_nodetree(idx)?.read().map_err(map_lock_error)?;
             let nt = nt.as_ref().expect("nodetree should be set");
+            f(idx, nt)
+        })
+    }
+
+    #[allow(dead_code)]
+    fn with_index_nt_write<T>(
+        slf: &Bound<'_, Self>,
+        f: impl FnOnce(&mut Index, &mut CoreNodeTree) -> PyResult<T>,
+    ) -> PyResult<T> {
+        Self::with_core_write(slf, |self_ref, mut guard| {
+            let idx = &mut guard.index;
+            let mut nt = self_ref
+                .get_nodetree(idx)?
+                .write()
+                .map_err(map_lock_error)?;
+            let nt = nt.as_mut().expect("nodetree should be set");
             f(idx, nt)
         })
     }
