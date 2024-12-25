@@ -54,7 +54,6 @@ pub fn revlog_error_from_msg(e: impl ToString) -> PyErr {
     mercurial_py_errors::RevlogError::new_err(e.to_string().into_bytes())
 }
 
-#[allow(dead_code)]
 pub fn nodemap_error(err: NodeMapError) -> PyErr {
     match err {
         NodeMapError::MultipleResults => {

@@ -17,14 +17,15 @@ use hg::{
     revlog::{
         index::Index, inner_revlog::InnerRevlog as CoreInnerRevlog,
         nodemap::NodeTree as CoreNodeTree, options::RevlogOpenOptions,
-        RevlogType,
+        RevlogIndex, RevlogType,
     },
     utils::files::get_path_from_bytes,
     vfs::FnCacheVfs,
+    BaseRevision, Revision,
 };
 
 use crate::{
-    exceptions::revlog_error_from_msg,
+    exceptions::{map_lock_error, nodemap_error, revlog_error_from_msg},
     store::PyFnCache,
     util::{new_submodule, take_buffer_with_slice},
 };
@@ -124,6 +125,51 @@ impl InnerRevlog {
             use_persistent_nodemap,
             nodemap_queries: AtomicUsize::new(0),
         })
+    }
+}
+
+impl InnerRevlog {
+    /// Fill a [`CoreNodeTree`] by doing a full iteration on the given
+    /// [`Index`]
+    ///
+    /// # Python exceptions
+    /// Raises `ValueError` if `nt` has existing data that is inconsistent
+    /// with `idx`.
+    fn fill_nodemap(idx: &Index, nt: &mut CoreNodeTree) -> PyResult<()> {
+        for r in 0..idx.len() {
+            let rev = Revision(r as BaseRevision);
+            // in this case node() won't ever return None
+            nt.insert(idx, idx.node(rev).expect("node should exist"), rev)
+                .map_err(nodemap_error)?
+        }
+        Ok(())
+    }
+
+    /// Return a working NodeTree of this InnerRevlog
+    ///
+    /// In case the NodeTree has not been initialized yet (in particular
+    /// not from persistent data at instantiation), it is created and
+    /// filled right away from the index.
+    ///
+    /// Technically, the returned NodeTree is still behind the lock of
+    /// the `nt` field, hence still wrapped in an [`Option`]. Callers
+    /// will need to take the lock and unwrap with `expect()`.
+    ///
+    /// # Python exceptions
+    /// The case mentioned in [`Self::fill_nodemap()`] cannot happen, as the
+    /// NodeTree is empty when it is called.
+    #[allow(dead_code)]
+    fn get_nodetree(
+        &self,
+        idx: &Index,
+    ) -> PyResult<&RwLock<Option<CoreNodeTree>>> {
+        if self.nt.read().map_err(map_lock_error)?.is_none() {
+            let readonly = Box::<Vec<_>>::default();
+            let mut nt = CoreNodeTree::load_bytes(readonly, 0);
+            Self::fill_nodemap(idx, &mut nt)?;
+            self.nt.write().map_err(map_lock_error)?.replace(nt);
+        }
+        Ok(&self.nt)
     }
 }
 
