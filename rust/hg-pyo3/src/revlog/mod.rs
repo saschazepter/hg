@@ -9,7 +9,7 @@
 #![allow(non_snake_case)]
 use pyo3::buffer::PyBuffer;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyBytesMethods, PyList};
+use pyo3::types::{PyBytes, PyBytesMethods, PyList, PyTuple};
 use pyo3_sharedref::PyShareable;
 
 use std::sync::{
@@ -21,13 +21,13 @@ use hg::{
     revlog::{
         index::Index,
         inner_revlog::InnerRevlog as CoreInnerRevlog,
-        nodemap::{NodeMap, NodeTree as CoreNodeTree},
+        nodemap::{NodeMap, NodeMapError, NodeTree as CoreNodeTree},
         options::RevlogOpenOptions,
         RevlogIndex, RevlogType,
     },
     utils::files::get_path_from_bytes,
     vfs::FnCacheVfs,
-    BaseRevision, Revision,
+    BaseRevision, Revision, UncheckedRevision,
 };
 
 use crate::{
@@ -43,6 +43,8 @@ use crate::{
 
 mod config;
 use config::*;
+mod index;
+use index::py_tuple_to_revision_data_params;
 
 #[pyclass]
 #[allow(dead_code)]
@@ -225,6 +227,66 @@ impl InnerRevlog {
         })
     }
 
+    /// append an index entry
+    fn _index_append(
+        slf: &Bound<'_, Self>,
+        tup: &Bound<'_, PyTuple>,
+    ) -> PyResult<()> {
+        // no need to check length: in PyO3 tup.get_item() does return
+        // proper errors
+        let node_bytes = tup.get_item(7)?.extract()?;
+        let node = node_from_py_bytes(&node_bytes)?;
+
+        Self::with_index_nt_write(slf, |idx, nt| {
+            let rev = idx.len() as BaseRevision;
+            // This is ok since we will immediately add the revision to the
+            // index
+            let rev = Revision(rev);
+            idx.append(py_tuple_to_revision_data_params(tup)?)
+                .map_err(revlog_error_from_msg)?;
+
+            nt.insert(idx, &node, rev).map_err(nodemap_error)?;
+            Ok(())
+        })
+    }
+
+    /// Removes one or several entries from the index.
+    ///
+    /// Historically, on the Mercurial revlog index, `__delitem__` has always
+    /// been both for `del idx[r1]` and `del idx[r1:r2]`. In both cases,
+    /// all entries starting from `r1` are removed anyway.
+    fn _index___delitem__(
+        slf: &Bound<'_, Self>,
+        arg: &Bound<'_, PyAny>,
+    ) -> PyResult<()> {
+        let start = if let Ok(rev) = arg.extract() {
+            UncheckedRevision(rev)
+        } else {
+            // here we could downcast to `PySlice` and use `indices()`, *but*
+            // the rust-cpython based version could not do that, and
+            // `indices()` does some resolving that makes it not equivalent,
+            // e.g., `idx[-1::]` has `start=0`. As we are currently in
+            // transition, we keep it the old way (hoping it was consistent
+            // with the C index).
+            let start = arg.getattr("start")?;
+            UncheckedRevision(start.extract()?)
+        };
+
+        Self::with_index_nt_write(slf, |idx, nt| {
+            // In the case of a slice, the check is possibly already done by
+            // `slice.indices`, which is itself an FFI wrapper for CPython's
+            // `PySlice_GetIndicesEx`
+            // (Python integration tests will tell us)
+            let start = idx.check_revision(start).ok_or_else(|| {
+                nodemap_error(NodeMapError::RevisionNotInIndex(start))
+            })?;
+            idx.remove(start).map_err(revlog_error_from_msg)?;
+            nt.invalidate_all();
+            Self::fill_nodemap(idx, nt)?;
+            Ok(())
+        })
+    }
+
     fn _index___len__(slf: &Bound<'_, Self>) -> PyResult<usize> {
         Self::with_index_read(slf, |idx| Ok(idx.len()))
     }
@@ -258,7 +320,6 @@ impl InnerRevlog {
         f(&self_ref, guard)
     }
 
-    #[allow(dead_code)]
     /// Take the lock on `slf.irl` for writing and call a closure.
     ///
     /// See [`Self::with_core_read`] for more explanations.
@@ -310,7 +371,6 @@ impl InnerRevlog {
         })
     }
 
-    #[allow(dead_code)]
     fn with_index_nt_write<T>(
         slf: &Bound<'_, Self>,
         f: impl FnOnce(&mut Index, &mut CoreNodeTree) -> PyResult<T>,

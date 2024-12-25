@@ -1,0 +1,41 @@
+// revlog/index.rs
+//
+// Copyright 2019-2020 Georges Racinet <georges.racinet@octobus.net>
+//           2020-2024 Raphaël Gomès <raphael.gomes@octobus.net>
+//           2024 Georges Racinet <georges.racinet@cloudcrane.io>
+//
+// This software may be used and distributed according to the terms of the
+// GNU General Public License version 2 or any later version.
+//! Utilities for dealing with the index at the Python boundary
+use pyo3::prelude::*;
+use pyo3::types::{PyBytes, PyTuple};
+
+use hg::revlog::index::RevisionDataParams;
+
+pub fn py_tuple_to_revision_data_params(
+    tuple: &Bound<'_, PyTuple>,
+) -> PyResult<RevisionDataParams> {
+    // no need to check length: in PyO3 tup.get_item() does return
+    // proper errors
+    let offset_or_flags: u64 = tuple.get_item(0)?.extract()?;
+    let node_id = tuple
+        .get_item(7)?
+        .downcast::<PyBytes>()?
+        .as_bytes()
+        .try_into()
+        .expect("nodeid should be set");
+    let flags = (offset_or_flags & 0xFFFF) as u16;
+    let data_offset = offset_or_flags >> 16;
+    Ok(RevisionDataParams {
+        flags,
+        data_offset,
+        data_compressed_length: tuple.get_item(1)?.extract()?,
+        data_uncompressed_length: tuple.get_item(2)?.extract()?,
+        data_delta_base: tuple.get_item(3)?.extract()?,
+        link_rev: tuple.get_item(4)?.extract()?,
+        parent_rev_1: tuple.get_item(5)?.extract()?,
+        parent_rev_2: tuple.get_item(6)?.extract()?,
+        node_id,
+        ..Default::default()
+    })
+}
