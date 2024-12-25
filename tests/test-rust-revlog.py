@@ -4,6 +4,7 @@ from mercurial.node import (
     bin as node_bin,
     hex,
 )
+from mercurial import error
 
 try:
     from mercurial import rustext
@@ -25,6 +26,25 @@ class RustInnerRevlogTestMixin:
 
     node_hex0 = b'd1f4bbb0befc13bd8cd39d0fcdd93b8c078c4a2f'
     node0 = node_bin(node_hex0)
+    bogus_node_hex = b'cafe' * 10
+    bogus_node = node_bin(bogus_node_hex)
+
+    def test_index_nodemap(self):
+        idx = self.parserustindex()
+        self.assertTrue(idx.has_node(self.node0))
+        self.assertFalse(idx.has_node(self.bogus_node))
+
+        self.assertEqual(idx.get_rev(self.node0), 0)
+        self.assertEqual(idx.get_rev(self.node0), 0)
+
+        self.assertEqual(idx.rev(self.node0), 0)
+        with self.assertRaises(error.RevlogError) as exc_info:
+            idx.rev(self.bogus_node)
+        self.assertEqual(exc_info.exception.args, (None,))
+
+        self.assertEqual(idx.partialmatch(self.node_hex0[:3]), self.node0)
+        self.assertIsNone(idx.partialmatch(self.bogus_node_hex[:3]))
+        self.assertEqual(idx.shortest(self.node0), 1)
 
 
 # Conditional skipping done by the base class
