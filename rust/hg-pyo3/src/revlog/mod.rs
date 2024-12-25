@@ -9,11 +9,12 @@
 #![allow(non_snake_case)]
 use pyo3::buffer::PyBuffer;
 use pyo3::conversion::IntoPyObject;
-use pyo3::exceptions::PyIndexError;
+use pyo3::exceptions::{PyIndexError, PyTypeError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyBytesMethods, PyList, PyTuple};
 use pyo3_sharedref::{PyShareable, SharedByPyObject};
 
+use std::collections::HashSet;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     RwLock, RwLockReadGuard, RwLockWriteGuard,
@@ -34,11 +35,11 @@ use hg::{
 
 use crate::{
     exceptions::{
-        map_lock_error, map_try_lock_error, nodemap_error, rev_not_in_index,
-        revlog_error_bare, revlog_error_from_msg,
+        graph_error, map_lock_error, map_try_lock_error, nodemap_error,
+        rev_not_in_index, revlog_error_bare, revlog_error_from_msg,
     },
     node::{node_from_py_bytes, node_prefix_from_py_bytes, py_node_for_rev},
-    revision::{check_revision, PyRevision},
+    revision::{check_revision, rev_pyiter_collect, revs_py_list, PyRevision},
     store::PyFnCache,
     util::{new_submodule, take_buffer_with_slice},
 };
@@ -330,6 +331,66 @@ impl InnerRevlog {
         })
     }
 
+    #[pyo3(signature = (*args))]
+    fn _index_headrevs(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+    ) -> PyResult<Py<PyList>> {
+        let (filtered_revs, stop_rev) = match args.len() {
+            0 => Ok((None, None)),
+            1 => Ok((Some(args.get_item(0)?), None)),
+            2 => Ok((Some(args.get_item(0)?), Some(args.get_item(1)?))),
+            _ => Err(PyTypeError::new_err("too many arguments")),
+        }?;
+        let stop_rev = stop_rev
+            .map(|o| o.extract::<Option<i32>>())
+            .transpose()?
+            .flatten();
+        let filtered_revs = filtered_revs.filter(|o| !o.is_none());
+
+        let (from_core, stop_rev) = Self::with_index_read(slf, |idx| {
+            let stop_rev = stop_rev
+                // should this not just be the normal checking?
+                .filter(|rev| 0 <= *rev && *rev < idx.len() as BaseRevision)
+                .map(Revision);
+
+            let from_core = if let Some(filtered_revs) = filtered_revs {
+                let filtered_revs = rev_pyiter_collect(&filtered_revs, idx)?;
+                idx.head_revs_advanced(
+                    &filtered_revs,
+                    stop_rev,
+                    stop_rev.is_none(),
+                )
+            } else if stop_rev.is_some() {
+                idx.head_revs_advanced(&HashSet::new(), stop_rev, false)
+            } else {
+                idx.head_revs_shortcut()
+            }
+            .map_err(graph_error)?;
+            Ok((from_core, stop_rev))
+        })?;
+
+        if stop_rev.is_some() {
+            // we don't cache result for now
+            let new_heads =
+                from_core.expect("this case should not be cached yet");
+
+            revs_py_list(py, new_heads)
+        } else {
+            if let Some(new_heads) = from_core {
+                Self::cache_new_heads_py_list(slf, new_heads)?;
+            }
+
+            Ok(slf
+                .borrow()
+                .head_revs_py_list
+                .as_ref()
+                .expect("head revs should be cached")
+                .clone_ref(py))
+        }
+    }
+
     fn _index___len__(slf: &Bound<'_, Self>) -> PyResult<usize> {
         Self::with_index_read(slf, |idx| Ok(idx.len()))
     }
@@ -504,6 +565,18 @@ impl InnerRevlog {
             self.nt.write().map_err(map_lock_error)?.replace(nt);
         }
         Ok(&self.nt)
+    }
+
+    fn cache_new_heads_py_list(
+        slf: &Bound<'_, Self>,
+        new_heads: Vec<Revision>,
+    ) -> PyResult<Py<PyList>> {
+        let py = slf.py();
+        let new_heads_py_list = revs_py_list(py, new_heads)?;
+        slf.borrow_mut().head_revs_py_list =
+            Some(new_heads_py_list.clone_ref(py));
+        // TODO is returning really useful?
+        Ok(new_heads_py_list)
     }
 }
 

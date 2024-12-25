@@ -58,6 +58,10 @@ class RustInnerRevlogTestMixin:
         self.assertEqual(idx[0], as_tuple)
         self.assertEqual(idx[self.node0], 0)
 
+    def test_heads(self):
+        idx = self.parserustindex()
+        self.assertEqual(idx.headrevs(), [3])
+
     def test_index_append(self):
         idx = self.parserustindex(data=b'')
         self.assertEqual(len(idx), 0)
@@ -172,10 +176,6 @@ class RustInnerRevlogTest(
     revlogtesting.RustRevlogBasedTestBase, RustInnerRevlogTestMixin
 ):
     """For reference"""
-
-    def test_heads(self):
-        idx = self.parserustindex()
-        self.assertEqual(idx.headrevs(), [3])
 
     def test_ancestors(self):
         rustidx = self.parserustindex()

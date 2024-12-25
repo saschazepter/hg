@@ -107,7 +107,6 @@ where
         .collect()
 }
 
-#[allow(dead_code)]
 pub fn revs_py_list<U>(
     py: Python<'_>,
     revs: impl IntoIterator<Item = Revision, IntoIter = U>,

@@ -78,3 +78,9 @@ pub fn nodemap_error(err: NodeMapError) -> PyErr {
         }
     }
 }
+
+pub fn graph_error(_err: hg::GraphError) -> PyErr {
+    // ParentOutOfRange is currently the only alternative
+    // in `hg::GraphError`. The C index always raises this simple ValueError.
+    PyValueError::new_err("parent out of range")
+}
