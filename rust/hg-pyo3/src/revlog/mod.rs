@@ -11,7 +11,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyBytesMethods, PyList};
 use pyo3_sharedref::PyShareable;
 
-use std::sync::{atomic::AtomicUsize, RwLock};
+use std::sync::{atomic::AtomicUsize, RwLock, RwLockReadGuard};
 
 use hg::{
     revlog::{
@@ -25,7 +25,10 @@ use hg::{
 };
 
 use crate::{
-    exceptions::{map_lock_error, nodemap_error, revlog_error_from_msg},
+    exceptions::{
+        map_lock_error, map_try_lock_error, nodemap_error,
+        revlog_error_from_msg,
+    },
     store::PyFnCache,
     util::{new_submodule, take_buffer_with_slice},
 };
@@ -129,6 +132,59 @@ impl InnerRevlog {
 }
 
 impl InnerRevlog {
+    /// Take the lock on `slf.irl` for reading and call a closure.
+    ///
+    /// This serves the purpose to keep the needed intermediate [`PyRef`]
+    /// that must be obtained to access the data from the [`Bound`] reference
+    /// and of which the locked [`CoreInnerRevlog`] depends.
+    /// This also provides releasing of the [`PyRef`] as soon as the closure
+    /// is done, which is crucial if the caller needs to obtain a [`PyRefMut`]
+    /// later on.
+    ///
+    /// In the closure, we hand back the intermediate [`PyRef`] that
+    /// has been generated so that the closure can access more attributes.
+    fn with_core_read<'py, T>(
+        slf: &Bound<'py, Self>,
+        f: impl FnOnce(
+            &PyRef<'py, Self>,
+            RwLockReadGuard<CoreInnerRevlog>,
+        ) -> PyResult<T>,
+    ) -> PyResult<T> {
+        let self_ref = slf.borrow();
+        // Safety: the owner is the right one. We will anyway
+        // not actually `share` it. Perhaps pyo3-sharedref should provide
+        // something less scary for this kind of usage.
+        let shareable_ref = unsafe { self_ref.irl.borrow_with_owner(slf) };
+        let guard = shareable_ref.try_read().map_err(map_try_lock_error)?;
+        f(&self_ref, guard)
+    }
+
+    #[allow(dead_code)]
+    fn with_index_read<T>(
+        slf: &Bound<'_, Self>,
+        f: impl FnOnce(&Index) -> PyResult<T>,
+    ) -> PyResult<T> {
+        Self::with_core_read(slf, |_, guard| f(&guard.index))
+    }
+
+    /// Lock `slf` for reading and execute a closure on its [`Index`] and
+    /// [`NodeTree`]
+    ///
+    /// The [`NodeTree`] is initialized an filled before hand if needed.
+    #[allow(dead_code)]
+    fn with_index_nt_read<T>(
+        slf: &Bound<'_, Self>,
+        f: impl FnOnce(&Index, &CoreNodeTree) -> PyResult<T>,
+    ) -> PyResult<T> {
+        Self::with_core_read(slf, |self_ref, guard| {
+            let idx = &guard.index;
+            let nt =
+                self_ref.get_nodetree(idx)?.read().map_err(map_lock_error)?;
+            let nt = nt.as_ref().expect("nodetree should be set");
+            f(idx, nt)
+        })
+    }
+
     /// Fill a [`CoreNodeTree`] by doing a full iteration on the given
     /// [`Index`]
     ///

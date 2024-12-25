@@ -42,10 +42,10 @@ pub fn map_lock_error<T>(e: std::sync::PoisonError<T>) -> PyErr {
     PyRuntimeError::new_err(format!("In Rust PyO3 bindings: {e}"))
 }
 
-/// Submodule to hold Mercurial errors defined on the Python side
-///
-/// This is better for clarity, as many hg-core errors have the same names
-/// as their Python world counterparts
+pub fn map_try_lock_error<T>(e: std::sync::TryLockError<T>) -> PyErr {
+    PyRuntimeError::new_err(format!("In Rust PyO3 bindings: {e}"))
+}
+
 pub mod mercurial_py_errors {
     pyo3::import_exception!(mercurial.error, RevlogError);
 }
