@@ -34,9 +34,8 @@ use hg::{
 
 use crate::{
     exceptions::{
-        map_lock_error, map_try_lock_error,
-        nodemap_error, rev_not_in_index, revlog_error_bare,
-        revlog_error_from_msg,
+        map_lock_error, map_try_lock_error, nodemap_error, rev_not_in_index,
+        revlog_error_bare, revlog_error_from_msg,
     },
     node::{node_from_py_bytes, node_prefix_from_py_bytes, py_node_for_rev},
     revision::{check_revision, PyRevision},
