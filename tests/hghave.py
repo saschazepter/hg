@@ -1142,12 +1142,16 @@ def has_black():
     if 'RUNTESTDIR' in env:
         cwd = os.path.realpath(f"{env['RUNTESTDIR']}/..")
 
-    p = subprocess.Popen(
-        ['black', '--check', '-'],
-        stdin=subprocess.PIPE,
-        cwd=cwd,
-        env=env,
-    )
+    try:
+        p = subprocess.Popen(
+            ['black', '--check', '-'],
+            stdin=subprocess.PIPE,
+            cwd=cwd,
+            env=env,
+        )
+    except FileNotFoundError:
+        return False
+
     p.communicate(b'# test\n')
     return p.returncode == 0
 
