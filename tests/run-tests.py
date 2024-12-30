@@ -496,13 +496,6 @@ def getparser():
 
     harness = parser.add_argument_group('Test Harness Behavior')
     harness.add_argument(
-        '--bisect-repo',
-        metavar='bisect_repo',
-        help=(
-            "Path of a repo to bisect. Use together with " "--known-good-rev"
-        ),
-    )
-    harness.add_argument(
         "-d",
         "--debug",
         action="store_true",
@@ -532,14 +525,6 @@ def getparser():
         "--keep-tmpdir",
         action="store_true",
         help="keep temporary directory after running tests",
-    )
-    harness.add_argument(
-        '--known-good-rev',
-        metavar="known_good_rev",
-        help=(
-            "Automatically bisect any failures using this "
-            "revision as a known-good revision."
-        ),
     )
     harness.add_argument(
         "--list-tests",
@@ -849,9 +834,6 @@ def parseargs(args, parser):
             'warning: --color=always ignored because '
             'pygments is not installed\n'
         )
-
-    if options.bisect_repo and not options.known_good_rev:
-        parser.error("--bisect-repo cannot be used without --known-good-rev")
 
     global useipv6
     if options.ipv6:
@@ -2903,8 +2885,6 @@ class TextTestRunner(unittest.TextTestRunner):
 
             savetimes(self._runner._outputdir, self._result)
 
-            if failed and self._runner.options.known_good_rev:
-                self._bisecttests(t for t, m in self._result.failures)
             self.stream.writeln(
                 '# Ran %d tests, %d skipped, %d failed.'
                 % (self._result.testsRun, skipped + ignored, failed)
@@ -2946,60 +2926,6 @@ class TextTestRunner(unittest.TextTestRunner):
             self.stream.flush()
 
         return self._result
-
-    def _bisecttests(self, tests):
-        bisectcmd = ['hg', 'bisect']
-        bisectrepo = self._runner.options.bisect_repo
-        if bisectrepo:
-            bisectcmd.extend(['-R', os.path.abspath(bisectrepo)])
-
-        def pread(args):
-            env = os.environ.copy()
-            env['HGPLAIN'] = '1'
-            p = subprocess.Popen(
-                args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, env=env
-            )
-            data = p.stdout.read()
-            p.wait()
-            return data
-
-        for test in tests:
-            pread(bisectcmd + ['--reset']),
-            pread(bisectcmd + ['--bad', '.'])
-            pread(bisectcmd + ['--good', self._runner.options.known_good_rev])
-            # TODO: we probably need to forward more options
-            # that alter hg's behavior inside the tests.
-            opts = ''
-            withhg = self._runner.options.with_hg
-            if withhg:
-                opts += ' --with-hg=%s ' % shellquote(_bytes2sys(withhg))
-            rtc = '%s %s %s %s' % (sysexecutable, sys.argv[0], opts, test)
-            data = pread(bisectcmd + ['--command', rtc])
-            m = re.search(
-                (
-                    br'\nThe first (?P<goodbad>bad|good) revision '
-                    br'is:\nchangeset: +\d+:(?P<node>[a-f0-9]+)\n.*\n'
-                    br'summary: +(?P<summary>[^\n]+)\n'
-                ),
-                data,
-                (re.MULTILINE | re.DOTALL),
-            )
-            if m is None:
-                self.stream.writeln(
-                    'Failed to identify failure point for %s' % test
-                )
-                continue
-            dat = m.groupdict()
-            verb = 'broken' if dat['goodbad'] == b'bad' else 'fixed'
-            self.stream.writeln(
-                '%s %s by %s (%s)'
-                % (
-                    test,
-                    verb,
-                    dat['node'].decode('ascii'),
-                    dat['summary'].decode('utf8', 'ignore'),
-                )
-            )
 
     def printtimes(self, times):
         # iolock held by run
