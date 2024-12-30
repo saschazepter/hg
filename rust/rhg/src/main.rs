@@ -543,21 +543,22 @@ pub type RunFn = fn(&CliInvocation) -> Result<(), CommandError>;
 struct SubCommand {
     run: RunFn,
     args: clap::Command,
-    name: String,
-    /// used for reporting collision
+    /// used for reporting name collisions
     origin: String,
+}
+
+impl SubCommand {
+    fn name(&self) -> String {
+        self.args.get_name().to_string()
+    }
 }
 
 macro_rules! subcommand {
     ($command: ident) => {{
-        let args = commands::$command::args();
-        let name = args.get_name().to_string();
-        let origin = stringify!($command).to_string();
         SubCommand {
-            args,
+            args: commands::$command::args(),
             run: commands::$command::run,
-            name,
-            origin,
+            origin: stringify!($command).to_string(),
         }
     }};
 }
@@ -577,7 +578,7 @@ impl Subcommands {
     }
 
     pub fn add(&mut self, subcommand: SubCommand) {
-        let name = subcommand.name;
+        let name = subcommand.name();
         if let Some((origin_old, _)) = self
             .run
             .insert(name.clone(), (subcommand.origin.clone(), subcommand.run))
