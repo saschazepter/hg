@@ -370,16 +370,6 @@ def Popen4(cmd, wd, timeout, env=None):
     return p
 
 
-if sys.executable:
-    sysexecutable = sys.executable
-elif os.environ.get('PYTHONEXECUTABLE'):
-    sysexecutable = os.environ['PYTHONEXECUTABLE']
-elif os.environ.get('PYTHON'):
-    sysexecutable = os.environ['PYTHON']
-else:
-    raise AssertionError('Could not find Python interpreter')
-
-PYTHON = _sys2bytes(sysexecutable.replace('\\', '/'))
 IMPL_PATH = b'PYTHONPATH'
 if 'java' in sys.platform:
     IMPL_PATH = b'JYTHONPATH'
@@ -1076,6 +1066,7 @@ class Test(unittest.TestCase):
         startport=None,
         extraconfigopts=None,
         shell=None,
+        python=None,
         hgcommand=None,
         slowtimeout=None,
         usechg=False,
@@ -1134,6 +1125,8 @@ class Test(unittest.TestCase):
         self._startport = startport
         self._extraconfigopts = extraconfigopts or []
         self._shell = _sys2bytes(shell)
+        assert python is not None
+        self._python = python
         self._hgcommand = hgcommand or b'hg'
         self._usechg = usechg
         self._chgdebug = chgdebug
@@ -1149,6 +1142,10 @@ class Test(unittest.TestCase):
         self._chgsockdir = None
 
         self._refout = self.readrefout()
+
+    @property
+    def _pythonb(self):
+        return _sys2bytes(self._python.replace('\\', '/'))
 
     def readrefout(self):
         """read reference output"""
@@ -1507,9 +1504,7 @@ class Test(unittest.TestCase):
         env["DAEMON_PIDS"] = _bytes2sys(
             os.path.join(self._threadtmp, b'daemon.pids')
         )
-        env["HGEDITOR"] = (
-            '"' + sysexecutable + '"' + ' -c "import sys; sys.exit(0)"'
-        )
+        env["HGEDITOR"] = f'"{self._python}" -c "import sys; sys.exit(0)"'
         env["HGUSER"] = "test"
         env["HGENCODING"] = "ascii"
         env["HGENCODINGMODE"] = "strict"
@@ -1610,7 +1605,7 @@ class Test(unittest.TestCase):
             hgrc.write(b'mergemarkers = detailed\n')
             hgrc.write(b'promptecho = True\n')
             dummyssh = os.path.join(self._testdir, b'dummyssh')
-            hgrc.write(b'ssh = "%s" "%s"\n' % (PYTHON, dummyssh))
+            hgrc.write(b'ssh = "%s" "%s"\n' % (self._pythonb, dummyssh))
             hgrc.write(b'timeout.warn=15\n')
             hgrc.write(b'[chgserver]\n')
             hgrc.write(b'idletimeout=60\n')
@@ -1709,7 +1704,7 @@ class PythonTest(Test):
 
     def _run(self, env):
         # Quote the python(3) executable for Windows
-        cmd = b'"%s" "%s"' % (PYTHON, self.path)
+        cmd = b'"%s" "%s"' % (self._pythonb, self.path)
         vlog("# Running", cmd.decode("utf-8"))
         result = self._runcommand(cmd, env, normalizenewlines=WINDOWS)
         if self._aborted:
@@ -2037,7 +2032,9 @@ class TTest(Test):
                     # We've just entered a Python block. Add the header.
                     inpython = True
                     addsalt(prepos, False)  # Make sure we report the exit code.
-                    script.append(b'"%s" -m heredoctest <<EOF\n' % PYTHON)
+                    script.append(
+                        b'"%s" -m heredoctest <<EOF\n' % self._pythonb
+                    )
                 addsalt(n, True)
                 script.append(l[2:])
             elif l.startswith(b'  ... '):  # python inlines
@@ -3120,6 +3117,16 @@ class TestRunner:
         self._custom_bin_dir = None
         self._pythondir = None
         self._venv_executable = None
+
+        if sys.executable:
+            self._python = sys.executable
+        elif os.environ.get('PYTHONEXECUTABLE'):
+            self._python = os.environ['PYTHONEXECUTABLE']
+        elif os.environ.get('PYTHON'):
+            self._python = os.environ['PYTHON']
+        else:
+            raise AssertionError('Could not find Python interpreter')
+
         # True if we had to infer the pythondir from --with-hg
         self._pythondir_inferred = False
         self._coveragefile = None
@@ -3128,6 +3135,10 @@ class TestRunner:
         self._hgpath = None
         self._portoffset = 0
         self._ports = {}
+
+    @property
+    def _pythonb(self):
+        return _sys2bytes(self._python.replace('\\', '/'))
 
     def run(self, args, parser=None):
         """Run the test suite."""
@@ -3267,7 +3278,7 @@ class TestRunner:
             # create a virtual env where hg is going to be installed
             # however, PYTHONPATH is still used so no need for --system-site-packages
             command_create_venv = [
-                sysexecutable,
+                self._python,
                 "-m",
                 "venv",
                 self._installdir,
@@ -3361,7 +3372,7 @@ class TestRunner:
             osenvironb.pop(b'PYOXIDIZED_INSTALLED_AS_HG', None)
 
         osenvironb[b"BINDIR"] = self._bindir
-        osenvironb[b"PYTHON"] = PYTHON
+        osenvironb[b"PYTHON"] = self._pythonb
 
         fileb = _sys2bytes(__file__)
         runtestdir = os.path.abspath(os.path.dirname(fileb))
@@ -3714,6 +3725,7 @@ class TestRunner:
             refpath,
             self._outputdir,
             tmpdir,
+            python=self._python,
             keeptmpdir=self.options.keep_tmpdir,
             debug=self.options.debug,
             first=self.options.first,
@@ -3752,19 +3764,19 @@ class TestRunner:
         # Administrator rights.
         if not WINDOWS and getattr(os, 'symlink', None):
             msg = "# Making python executable in test path a symlink to '%s'"
-            msg %= sysexecutable
+            msg %= self._python
             vlog(msg)
             for pyexename in pyexe_names:
                 mypython = os.path.join(self._custom_bin_dir, pyexename)
                 try:
-                    if os.readlink(mypython) == sysexecutable:
+                    if os.readlink(mypython) == self._python:
                         continue
                     os.unlink(mypython)
                 except FileNotFoundError:
                     pass
-                if self._findprogram(pyexename) != sysexecutable:
+                if self._findprogram(pyexename) != self._python:
                     try:
-                        os.symlink(sysexecutable, mypython)
+                        os.symlink(self._python, mypython)
                         self._createdfiles.append(mypython)
                     except FileExistsError:
                         # child processes may race, which is harmless
@@ -3779,7 +3791,7 @@ class TestRunner:
             # that name provided by Microsoft.  Create a simple script on PATH
             # with that name that delegates to the py3 launcher so the shebang
             # lines work.
-            esc_executable = _sys2bytes(shellquote(sysexecutable))
+            esc_executable = _sys2bytes(shellquote(self._python))
             for pyexename in pyexe_names:
                 stub_exec_path = os.path.join(self._custom_bin_dir, pyexename)
                 with open(stub_exec_path, 'wb') as f:
@@ -3790,7 +3802,7 @@ class TestRunner:
                 # adjust the path to make sur the main python finds itself and
                 # its own dll
                 path = os.environ['PATH'].split(os.pathsep)
-                main_exec_dir = os.path.dirname(sysexecutable)
+                main_exec_dir = os.path.dirname(self._python)
                 extra_paths = [_bytes2sys(self._custom_bin_dir), main_exec_dir]
 
                 # Binaries installed by pip into the user area like pylint.exe may
@@ -4057,12 +4069,12 @@ class TestRunner:
 
         # PYTHONSAFEPATH (-P) new in 3.11
         if sys.version_info >= (3, 11, 0):
-            python_safe_path = b"-P "
+            python_safe_path = "-P "
         else:
-            python_safe_path = b""
+            python_safe_path = ""
 
-        cmd = b'"%s" %s-c "import mercurial; print (mercurial.__path__[0])"'
-        cmd = _bytes2sys(cmd % (PYTHON, python_safe_path))
+        cmd = '"%s" %s-c "import mercurial; print (mercurial.__path__[0])"'
+        cmd %= (self._python, python_safe_path)
 
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
         out, err = p.communicate()
