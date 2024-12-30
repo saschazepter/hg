@@ -7,6 +7,7 @@ run-test.t only checks positive matches and can not see warnings
 import doctest
 import os
 import re
+import sys
 
 # this is hack to make sure no escape characters are inserted into the output
 if 'TERM' in os.environ:
@@ -43,7 +44,9 @@ def lm(expected, output):
     assert not re.search(
         br'[^ \w\\/\r\n()*?]', expected + output
     ), b'single backslash or unknown char'
-    test = run_tests.TTest(b'test-run-test.t', b'.', b'.')
+    test = run_tests.TTest(
+        b'test-run-test.t', b'.', b'.', python=sys.executable
+    )
     match, exact = test.linematch(expected, output)
     if isinstance(match, str):
         return 'special: ' + match
