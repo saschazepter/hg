@@ -3116,7 +3116,6 @@ class TestRunner:
         # a place for run-tests.py to generate executable it needs
         self._custom_bin_dir = None
         self._pythondir = None
-        self._venv_executable = None
 
         if sys.executable:
             self._python = sys.executable
@@ -3276,22 +3275,22 @@ class TestRunner:
             self._installdir = os.path.join(self._hgtmp, b"install")
 
             # create a virtual env where hg is going to be installed
-            # however, PYTHONPATH is still used so no need for --system-site-packages
             command_create_venv = [
                 self._python,
                 "-m",
                 "venv",
+                "--system-site-packages",
                 self._installdir,
             ]
             subprocess.run(command_create_venv, check=True)
 
             bindir = b"Scripts" if WINDOWS else b"bin"
             self._bindir = os.path.join(self._installdir, bindir)
-            self._venv_executable = os.path.join(self._bindir, b"python")
+            self._python = _bytes2sys(os.path.join(self._bindir, b"python"))
 
             self._pythondir = subprocess.run(
                 [
-                    self._venv_executable,
+                    self._python,
                     "-c",
                     "import sys; print([p for p in sys.path if p.startswith(sys.prefix) and p.endswith('site-packages')][0])",
                 ],
@@ -3844,7 +3843,7 @@ class TestRunner:
         self._hgroot = hgroot
         os.chdir(hgroot)
         cmd = [
-            self._venv_executable,
+            self._pythonb,
             b"-m",
             b"pip",
             b"install",
@@ -3871,7 +3870,7 @@ class TestRunner:
         self._hgroot = hgroot
         os.chdir(hgroot)
         cmd = [
-            self._venv_executable,
+            self._pythonb,
             b"setup.py",
         ]
         if setup_opts:
