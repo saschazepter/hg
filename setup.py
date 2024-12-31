@@ -1659,18 +1659,21 @@ extmodules = [
         ['hgext/fsmonitor/pywatchman/bser.c'],
         extra_compile_args=common_cflags,
     ),
-    RustStandaloneExtension(
-        'mercurial.rustext',
-        'hg-cpython',
-        'librusthg',
-    ),
-    RustStandaloneExtension(
-        'mercurial.pyo3_rustext',
-        'hg-pyo3',
-        'librusthgpyo3',
-    ),
 ]
 
+if os.name != 'nt':
+    extmodules += [
+        RustStandaloneExtension(
+            'mercurial.rustext',
+            'hg-cpython',
+            'librusthg',
+        ),
+        RustStandaloneExtension(
+            'mercurial.pyo3_rustext',
+            'hg-pyo3',
+            'librusthgpyo3',
+        ),
+    ]
 
 sys.path.insert(0, 'contrib/python-zstandard')
 import setup_zstd
