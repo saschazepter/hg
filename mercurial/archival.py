@@ -147,12 +147,12 @@ class tarit:
     """write archive to tar file or stream.  can write uncompressed,
     or compress with gzip or bzip2."""
 
-    def __init__(self, dest, mtime, kind=b''):
+    def __init__(self, dest, mtime, kind: str = ''):
         self.mtime = mtime
         self.fileobj = None
 
         def taropen(mode, name=b'', fileobj=None):
-            if kind == b'gz':
+            if kind == 'gz':
                 mode = mode[0:1]
                 if not fileobj:
                     fileobj = open(name, mode + b'b')
@@ -168,7 +168,7 @@ class tarit:
             else:
                 try:
                     return tarfile.open(
-                        name, pycompat.sysstr(mode + kind), fileobj
+                        name, pycompat.sysstr(mode) + kind, fileobj
                     )
                 except tarfile.CompressionError as e:
                     raise error.Abort(stringutil.forcebytestr(e))
@@ -274,9 +274,9 @@ class fileit:
 archivers = {
     b'files': fileit,
     b'tar': tarit,
-    b'tbz2': lambda name, mtime: tarit(name, mtime, b'bz2'),
-    b'tgz': lambda name, mtime: tarit(name, mtime, b'gz'),
-    b'txz': lambda name, mtime: tarit(name, mtime, b'xz'),
+    b'tbz2': lambda name, mtime: tarit(name, mtime, 'bz2'),
+    b'tgz': lambda name, mtime: tarit(name, mtime, 'gz'),
+    b'txz': lambda name, mtime: tarit(name, mtime, 'xz'),
     b'uzip': lambda name, mtime: zipit(name, mtime, False),
     b'zip': zipit,
 }
