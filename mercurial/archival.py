@@ -312,6 +312,9 @@ def archive(
     subrepos tells whether to include subrepos.
     """
 
+    if kind not in archivers:
+        raise error.Abort(_(b"unknown archive type '%s'") % kind)
+
     if kind == b'files':
         if prefix:
             raise error.Abort(_(b'cannot give prefix when archiving to files'))
@@ -353,9 +356,6 @@ def archive(
         if decode:
             data = repo.wwritedata(name, data)
         archiver.addfile(prefix + name, mode, islink, data)
-
-    if kind not in archivers:
-        raise error.Abort(_(b"unknown archive type '%s'") % kind)
 
     if not match:
         match = scmutil.matchall(repo)
