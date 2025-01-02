@@ -190,6 +190,12 @@ class baselogindex:
             self._log.node(idx),
         )
 
+    def rev(self, node):
+        return self._log.rev(node)
+
+    def get_rev(self, node):
+        return self._log.get_rev(node)
+
 
 # TODO: an interface for the changelog type?
 class changelog(baselog):
