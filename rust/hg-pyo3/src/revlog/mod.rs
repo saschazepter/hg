@@ -231,6 +231,34 @@ impl InnerRevlog {
         })
     }
 
+    #[getter]
+    fn is_delaying(slf: &Bound<'_, Self>) -> PyResult<bool> {
+        Self::with_core_read(slf, |_self_ref, irl| Ok(irl.is_delaying()))
+    }
+
+    #[getter]
+    fn inline(slf: &Bound<'_, Self>) -> PyResult<bool> {
+        Self::with_core_read(slf, |_self_ref, irl| Ok(irl.is_inline()))
+    }
+
+    #[setter]
+    fn set_inline(slf: &Bound<'_, Self>, inline: bool) -> PyResult<()> {
+        Self::with_core_write(slf, |_self_ref, mut irl| {
+            irl.inline = inline;
+            Ok(())
+        })
+    }
+
+    #[getter]
+    fn is_writing(slf: &Bound<'_, Self>) -> PyResult<bool> {
+        Self::with_core_read(slf, |_self_ref, irl| Ok(irl.is_writing()))
+    }
+
+    #[getter]
+    fn is_open(slf: &Bound<'_, Self>) -> PyResult<bool> {
+        Self::with_core_read(slf, |_self_ref, irl| Ok(irl.is_open()))
+    }
+
     fn reading(slf: &Bound<'_, Self>) -> PyResult<ReadingContextManager> {
         Ok(ReadingContextManager {
             inner_revlog: slf.clone().unbind(),
