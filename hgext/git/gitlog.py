@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import (
+    Iterable,
     Iterator,
 )
 
@@ -45,6 +46,93 @@ class baselog:  # revlog.revlog):
         return int(
             self._db.execute('SELECT COUNT(*) FROM changelog').fetchone()[0]
         )
+
+    def files(self):
+        raise NotImplementedError
+
+    def storageinfo(
+        self,
+        exclusivefiles=False,
+        sharedfiles=False,
+        revisionscount=False,
+        trackedsize=False,
+        storedsize=False,
+    ):
+        raise NotImplementedError
+
+    def verifyintegrity(self, state) -> Iterable[repository.iverifyproblem]:
+        raise NotImplementedError
+
+    def revs(self, start=0, stop=None):
+        raise NotImplementedError
+
+    def addgroup(
+        self,
+        deltas,
+        linkmapper,
+        transaction,
+        addrevisioncb=None,
+        duplicaterevisioncb=None,
+    ):
+        raise NotImplementedError
+
+    def commonancestorsheads(self, node1, node2):
+        raise NotImplementedError
+
+    def descendants(self, revs):
+        raise NotImplementedError
+
+    def heads(self, start=None, stop=None):
+        raise NotImplementedError
+
+    def children(self, node):
+        raise NotImplementedError
+
+    def emitrevisions(
+        self,
+        nodes,
+        nodesorder=None,
+        revisiondata=False,
+        assumehaveparentrevisions=False,
+    ):
+        raise NotImplementedError
+
+    def getstrippoint(self, minlink):
+        raise NotImplementedError
+
+    def iscensored(self, rev):
+        raise NotImplementedError
+
+    def parentrevs(self, rev):
+        raise NotImplementedError
+
+    def rawdata(self, node):
+        raise NotImplementedError
+
+    def revision(self, node):
+        raise NotImplementedError
+
+    def size(self, rev):
+        raise NotImplementedError
+
+    def strip(self, minlink, transaction):
+        raise NotImplementedError
+
+    def addrevision(
+        self,
+        revisiondata,
+        transaction,
+        linkrev,
+        p1,
+        p2,
+        node=None,
+        flags=0,
+        cachedelta=None,
+    ):
+        raise NotImplementedError
+
+    def censorrevision(self, tr, node, tombstone=b''):
+        raise NotImplementedError
 
     def rev(self, n):
         if n == sha1nodeconstants.nullid:
