@@ -3394,33 +3394,6 @@ class TestRunner:
         path = [self._custom_bin_dir] + path
         osenvironb[b"PATH"] = sepb.join(path)
 
-        # Include TESTDIR in PYTHONPATH so that out-of-tree extensions
-        # can run .../tests/run-tests.py test-foo where test-foo
-        # adds an extension to HGRC. Also include run-test.py directory to
-        # import modules like heredoctest.
-        pypath = [self._pythondir]
-
-        # Setting PYTHONPATH with an activated venv causes the modules installed
-        # in it to be ignored.  Therefore, include the related paths in sys.path
-        # in PYTHONPATH.  If the executable is run directly without activation,
-        # any modules installed in it would also be ignored, so include them for
-        # the same reason.
-
-        for p in sys.path:
-            if p.startswith(sys.exec_prefix):
-                path = _sys2bytes(p)
-                if path not in pypath:
-                    pypath.append(path)
-
-        # We have to augment PYTHONPATH, rather than simply replacing
-        # it, in case external libraries are only available via current
-        # PYTHONPATH.  (In particular, the Subversion bindings on OS X
-        # are in /opt/subversion.)
-        oldpypath = osenvironb.get(IMPL_PATH)
-        if oldpypath:
-            pypath.append(oldpypath)
-        osenvironb[IMPL_PATH] = sepb.join(pypath)
-
         os.environ["HGTEST_BASE_HGMODULEPOLICY"] = os.environ.get(
             "HGMODULEPOLICY", ""
         )
@@ -3467,7 +3440,7 @@ class TestRunner:
         vlog(
             "# Using",
             _bytes2sys(IMPL_PATH),
-            _bytes2sys(osenvironb[IMPL_PATH]),
+            _bytes2sys(osenvironb.get(IMPL_PATH, b""))
         )
         vlog("# Writing to directory", _bytes2sys(self._outputdir))
 
