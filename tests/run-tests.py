@@ -2034,9 +2034,9 @@ class TTest(Test):
                     # We've just entered a Python block. Add the header.
                     inpython = True
                     addsalt(prepos, False)  # Make sure we report the exit code.
-                    script.append(
-                        b'"%s" -m heredoctest <<EOF\n' % self._pythonb
-                    )
+                    pyh = b'"%s"  %s/testlib/heredoctest.py <<EOF\n'
+                    pyh %= (self._pythonb, RUNTEST_DIR_FORWARD_SLASH)
+                    script.append(pyh)
                 addsalt(n, True)
                 script.append(l[2:])
             elif l.startswith(b'  ... '):  # python inlines
