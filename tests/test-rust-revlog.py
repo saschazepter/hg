@@ -192,6 +192,10 @@ class RustInnerRevlogTest(
         # let's check bool for an empty one
         self.assertFalse(LazyAncestors(rustidx, [0], 0, False))
 
+    def test_canonical_index_file(self):
+        irl = self.make_inner_revlog()
+        self.assertEqual(irl.canonical_index_file, b'test.i')
+
 
 # Conditional skipping done by the base class
 class PyO3InnerRevlogTest(
