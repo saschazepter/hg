@@ -3398,7 +3398,7 @@ class TestRunner:
         # can run .../tests/run-tests.py test-foo where test-foo
         # adds an extension to HGRC. Also include run-test.py directory to
         # import modules like heredoctest.
-        pypath = [self._pythondir, self._testdir]
+        pypath = [self._pythondir]
 
         # Setting PYTHONPATH with an activated venv causes the modules installed
         # in it to be ignored.  Therefore, include the related paths in sys.path
