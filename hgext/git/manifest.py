@@ -10,6 +10,8 @@ from typing import (
     Set,
 )
 
+from mercurial.node import sha1nodeconstants
+
 from mercurial import (
     match as matchmod,
     pathutil,
@@ -19,6 +21,7 @@ from mercurial import (
 from mercurial.interfaces import (
     repository,
 )
+
 from . import gitutil
 
 if typing.TYPE_CHECKING:
@@ -329,6 +332,11 @@ class gittreemanifestctx(repository.imanifestrevisionstored):
 
     def read_delta_new_entries(self, *, shallow: bool = False):
         raise NotImplementedError
+
+    @property
+    def parents(self):
+        # FIXME: the 2 parent nodes
+        return sha1nodeconstants.nullid, sha1nodeconstants.nullid
 
 
 class memgittreemanifestctx(repository.imanifestrevisionwritable):
