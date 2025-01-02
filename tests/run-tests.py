@@ -371,8 +371,6 @@ def Popen4(cmd, wd, timeout, env=None):
 
 
 IMPL_PATH = b'PYTHONPATH'
-if 'java' in sys.platform:
-    IMPL_PATH = b'JYTHONPATH'
 
 default_defaults = {
     'jobs': ('HGTEST_JOBS', multiprocessing.cpu_count()),
