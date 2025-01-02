@@ -4,6 +4,7 @@ import typing
 
 from typing import (
     Any,
+    Collection,
     Iterable,
     Iterator,
     Set,
@@ -308,6 +309,26 @@ class gittreemanifestctx(repository.imanifestrevisionstored):
 
     def find(self, path: bytes) -> tuple[bytes, bytes]:
         return self.read().find(path)
+
+    def node(self) -> bytes:
+        raise NotImplementedError
+
+    def readdelta(self, shallow: bool = False):
+        raise NotImplementedError
+
+    def read_any_fast_delta(
+        self,
+        valid_bases: Collection[int] | None = None,
+        *,
+        shallow: bool = False,
+    ):
+        raise NotImplementedError
+
+    def read_delta_parents(self, *, shallow: bool = False, exact: bool = True):
+        raise NotImplementedError
+
+    def read_delta_new_entries(self, *, shallow: bool = False):
+        raise NotImplementedError
 
 
 class memgittreemanifestctx(repository.imanifestrevisionwritable):
