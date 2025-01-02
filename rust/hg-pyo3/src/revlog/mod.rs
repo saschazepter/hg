@@ -282,6 +282,10 @@ impl InnerRevlog {
         })
     }
 
+    fn issnapshot(slf: &Bound<'_, Self>, rev: PyRevision) -> PyResult<bool> {
+        Self::_index_issnapshot(slf, rev)
+    }
+
     fn reading(slf: &Bound<'_, Self>) -> PyResult<ReadingContextManager> {
         Ok(ReadingContextManager {
             inner_revlog: slf.clone().unbind(),
