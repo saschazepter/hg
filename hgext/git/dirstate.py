@@ -270,9 +270,21 @@ class gitdirstate(intdirstate.idirstate):
         )
         return path
 
+    def is_changing_files(self) -> bool:
+        raise NotImplementedError
+
+    def _ignorefileandline(self, f: bytes) -> intdirstate.IgnoreFileAndLineT:
+        raise NotImplementedError
+
     @property
     def _checklink(self) -> bool:
         return util.checklink(os.path.dirname(pycompat.fsencode(self.git.path)))
+
+    def invalidate(self) -> None:
+        raise NotImplementedError
+
+    def copy(self, source: Optional[bytes], dest: bytes) -> None:
+        raise NotImplementedError
 
     def copies(self) -> Dict[bytes, bytes]:
         # TODO support copies?
@@ -292,6 +304,17 @@ class gitdirstate(intdirstate.idirstate):
         # TODO: we need to implement the context manager bits and
         # correctly stage/revert index edits.
         return False
+
+    def clear(self) -> None:
+        raise NotImplementedError
+
+    def rebuild(
+        self,
+        parent: bytes,
+        allfiles: Iterable[bytes],  # TODO: more than iterable? (uses len())
+        changedfiles: Optional[Iterable[bytes]] = None,
+    ) -> None:
+        raise NotImplementedError
 
     def write(self, tr: Optional[intdirstate.TransactionT]) -> None:
         # TODO: call parent change callbacks
@@ -410,10 +433,20 @@ class gitdirstate(intdirstate.idirstate):
         # TODO
         pass
 
+    def _checkexec(self) -> bool:
+        raise NotImplementedError
+
     @contextlib.contextmanager
     def changing_parents(self, repo):
         # TODO: track this maybe?
         yield
+
+    @contextlib.contextmanager
+    def changing_files(self, repo) -> Iterator:  # TODO: typehint this
+        raise NotImplementedError
+
+    def hasdir(self, d: bytes) -> bool:
+        raise NotImplementedError
 
     def addparentchangecallback(
         self, category: bytes, callback: intdirstate.AddParentChangeCallbackT
@@ -427,3 +460,8 @@ class gitdirstate(intdirstate.idirstate):
         raise error.Abort(
             b'git repos do not support branches. try using bookmarks'
         )
+
+    def verify(
+        self, m1, m2, p1: bytes, narrow_matcher: Optional[Any] = None
+    ) -> Iterator[bytes]:
+        raise NotImplementedError
