@@ -305,6 +305,31 @@ impl InnerRevlog {
         })
     }
 
+    fn compress(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        data: &Bound<'_, PyAny>,
+    ) -> PyResult<Py<PyTuple>> {
+        Self::with_core_read(slf, |_self_ref, irl| {
+            // Safety: we only hold on to the data for as long as `_buf`
+            // is alive
+            let (_buf, data) = unsafe { take_buffer_with_slice(data)? };
+            let compressed =
+                irl.compress(&data).map_err(revlog_error_from_msg)?;
+            let compressed = compressed.as_deref();
+            let header = if compressed.is_some() {
+                PyBytes::new(py, &b""[..])
+            } else {
+                PyBytes::new(py, &b"u"[..])
+            };
+            Ok(PyTuple::new(
+                py,
+                &[header, PyBytes::new(py, compressed.unwrap_or(&data))],
+            )?
+            .unbind())
+        })
+    }
+
     fn reading(slf: &Bound<'_, Self>) -> PyResult<ReadingContextManager> {
         Ok(ReadingContextManager {
             inner_revlog: slf.clone().unbind(),
