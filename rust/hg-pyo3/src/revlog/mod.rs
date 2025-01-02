@@ -286,6 +286,25 @@ impl InnerRevlog {
         Self::_index_issnapshot(slf, rev)
     }
 
+    #[pyo3(signature = (rev, stoprev=None))]
+    fn _deltachain(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        rev: PyRevision,
+        stoprev: Option<PyRevision>,
+    ) -> PyResult<Py<PyTuple>> {
+        Self::with_index_read(slf, |idx| {
+            let using_general_delta = idx.uses_generaldelta();
+            Self::_index_deltachain(
+                slf,
+                py,
+                rev,
+                stoprev,
+                Some(using_general_delta.into()),
+            )
+        })
+    }
+
     fn reading(slf: &Bound<'_, Self>) -> PyResult<ReadingContextManager> {
         Ok(ReadingContextManager {
             inner_revlog: slf.clone().unbind(),
