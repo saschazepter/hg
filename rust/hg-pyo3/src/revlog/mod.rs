@@ -8,6 +8,7 @@
 // GNU General Public License version 2 or any later version.
 #![allow(non_snake_case)]
 use hg::revlog::nodemap::Block;
+use hg::utils::files::get_bytes_from_path;
 use pyo3::buffer::PyBuffer;
 use pyo3::conversion::IntoPyObject;
 use pyo3::exceptions::{PyIndexError, PyTypeError, PyValueError};
@@ -216,6 +217,17 @@ impl InnerRevlog {
             revision_cache: None,
             use_persistent_nodemap,
             nodemap_queries: AtomicUsize::new(0),
+        })
+    }
+
+    #[getter]
+    fn canonical_index_file(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+    ) -> PyResult<Py<PyBytes>> {
+        Self::with_core_read(slf, |_self_ref, irl| {
+            let path = irl.canonical_index_file();
+            Ok(PyBytes::new(py, &get_bytes_from_path(path)).into())
         })
     }
 
