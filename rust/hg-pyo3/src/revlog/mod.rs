@@ -768,6 +768,35 @@ impl InnerRevlog {
         })
     }
 
+    /// Returns the full nodemap bytes to be written as-is to disk
+    fn _index_nodemap_data_all(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+    ) -> PyResult<Py<PyBytes>> {
+        Self::with_index_nt_write(slf, |idx, nt| {
+            let old_nt = std::mem::take(nt);
+            let (readonly, bytes) = old_nt.into_readonly_and_added_bytes();
+
+            // If there's anything readonly, we need to build the data again
+            // from scratch
+            let bytes = if readonly.len() > 0 {
+                let mut nt =
+                    CoreNodeTree::load_bytes(Box::<Vec<_>>::default(), 0);
+                Self::fill_nodemap(idx, &mut nt)?;
+
+                let (readonly, bytes) = nt.into_readonly_and_added_bytes();
+                assert_eq!(readonly.len(), 0);
+
+                bytes
+            } else {
+                bytes
+            };
+
+            let bytes = PyBytes::new(py, &bytes);
+            Ok(bytes.unbind())
+        })
+    }
+
     #[getter]
     fn _index_entry_size(&self) -> usize {
         INDEX_ENTRY_SIZE
