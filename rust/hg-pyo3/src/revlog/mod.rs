@@ -835,6 +835,46 @@ impl InnerRevlog {
         })
     }
 
+    /// Update the nodemap from the new (mmaped) data.
+    /// The docket is kept as a reference for later incremental calls.
+    fn _index_update_nodemap_data(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        docket: &Bound<'_, PyAny>,
+        nm_data: &Bound<'_, PyAny>,
+    ) -> PyResult<PyObject> {
+        // Safety: we keep the buffer around inside the class as `nodemap_mmap`
+        let (buf, bytes) = unsafe { take_buffer_with_slice(nm_data)? };
+        let len = buf.item_count();
+        let data_tip =
+            docket.getattr("tip_rev")?.extract::<BaseRevision>()?.into();
+
+        let mut nt = CoreNodeTree::load_bytes(bytes, len);
+
+        Self::with_index_read(slf, |idx| {
+            let data_tip = idx.check_revision(data_tip).ok_or_else(|| {
+                nodemap_error(NodeMapError::RevisionNotInIndex(data_tip))
+            })?;
+            let current_tip = idx.len();
+
+            for r in (data_tip.0 + 1)..current_tip as BaseRevision {
+                let rev = Revision(r);
+                // in this case node() won't ever return None
+                nt.insert(idx, idx.node(rev).expect("node should exist"), rev)
+                    .map_err(nodemap_error)?;
+            }
+
+            Ok(py.None())
+        })?;
+
+        let mut self_ref = slf.borrow_mut();
+        self_ref.docket.replace(docket.clone().unbind());
+        self_ref.nodemap_mmap = Some(buf);
+        self_ref.nt.write().map_err(map_lock_error)?.replace(nt);
+
+        Ok(py.None())
+    }
+
     #[getter]
     fn _index_entry_size(&self) -> usize {
         INDEX_ENTRY_SIZE
