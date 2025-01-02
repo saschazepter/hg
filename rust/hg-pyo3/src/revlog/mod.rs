@@ -7,13 +7,14 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 #![allow(non_snake_case)]
+use hg::revlog::nodemap::Block;
 use pyo3::buffer::PyBuffer;
 use pyo3::conversion::IntoPyObject;
 use pyo3::exceptions::{PyIndexError, PyTypeError, PyValueError};
-use pyo3::prelude::*;
 use pyo3::types::{
     PyBool, PyBytes, PyBytesMethods, PyDict, PyList, PySet, PyTuple,
 };
+use pyo3::{prelude::*, IntoPyObjectExt};
 use pyo3_sharedref::{PyShareable, SharedByPyObject};
 
 use std::collections::{HashMap, HashSet};
@@ -794,6 +795,43 @@ impl InnerRevlog {
 
             let bytes = PyBytes::new(py, &bytes);
             Ok(bytes.unbind())
+        })
+    }
+
+    /// Returns the last saved docket along with the size of any changed data
+    /// (in number of blocks), and said data as bytes.
+    fn _index_nodemap_data_incremental(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+    ) -> PyResult<PyObject> {
+        let mut self_ref = slf.borrow_mut();
+        let docket = &mut self_ref.docket;
+        let docket = match docket.as_ref() {
+            Some(d) => d.clone_ref(py),
+            None => return Ok(py.None()),
+        };
+        drop(self_ref);
+
+        Self::with_core_write(slf, |self_ref, irl| {
+            let mut nt = self_ref
+                .get_nodetree(&irl.index)?
+                .write()
+                .map_err(map_lock_error)?;
+            let nt = nt.take().expect("nodetree should be set");
+            let masked_blocks = nt.masked_readonly_blocks();
+            let (_, data) = nt.into_readonly_and_added_bytes();
+            let changed = masked_blocks * std::mem::size_of::<Block>();
+
+            Ok(PyTuple::new(
+                py,
+                [
+                    docket,
+                    changed.into_py_any(py)?,
+                    PyBytes::new(py, &data).into_py_any(py)?,
+                ],
+            )?
+            .unbind()
+            .into_any())
         })
     }
 
