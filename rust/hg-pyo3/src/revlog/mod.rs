@@ -7,6 +7,7 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 #![allow(non_snake_case)]
+use hg::revlog::index::IndexHeader;
 use hg::revlog::nodemap::Block;
 use hg::utils::files::get_bytes_from_path;
 use pyo3::buffer::PyBuffer;
@@ -327,6 +328,29 @@ impl InnerRevlog {
                 &[header, PyBytes::new(py, compressed.unwrap_or(&data))],
             )?
             .unbind())
+        })
+    }
+
+    #[pyo3(signature = (tr, header, new_index_file_path=None))]
+    fn split_inline(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        tr: PyObject,
+        header: i32,
+        new_index_file_path: Option<&Bound<'_, PyBytes>>,
+    ) -> PyResult<Py<PyBytes>> {
+        // Also unused in Python, TODO clean this up.
+        let _ = tr;
+
+        Self::with_core_write(slf, |_self_ref, mut irl| {
+            let new_index_file_path = new_index_file_path
+                .map(|path| get_path_from_bytes(path.as_bytes()).to_owned());
+            let header = IndexHeader::parse(&header.to_be_bytes())
+                .expect("invalid header bytes");
+            let old_path = irl
+                .split_inline(header, new_index_file_path)
+                .map_err(revlog_error_from_msg)?;
+            Ok(PyBytes::new(py, &get_bytes_from_path(old_path)).unbind())
         })
     }
 
