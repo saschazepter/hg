@@ -87,6 +87,10 @@ shellquote = shlex.quote
 # The number of HGPORTx ports allocated to each test.
 HGPORT_COUNT = 4
 
+RUNTEST_DIR = os.path.abspath(os.path.dirname(__file__.encode('utf-8')))
+RUNTEST_DIR_FORWARD_SLASH = RUNTEST_DIR.replace(os.sep.encode('utf-8'), b'/')
+
+
 processlock = threading.Lock()
 
 pygmentspresent = False
@@ -1808,10 +1812,10 @@ class TTest(Test):
             return self._have.get(allreqs)
 
         # TODO do something smarter when all other uses of hghave are gone.
-        runtestdir = osenvironb[b'RUNTESTDIR']
-        tdir = runtestdir.replace(b'\\', b'/')
+        cmd = b'%s -c "%s/hghave %s"'
+        cmd %= (self._shell, RUNTEST_DIR_FORWARD_SLASH, allreqs)
         proc = Popen4(
-            b'%s -c "%s/hghave %s"' % (self._shell, tdir, allreqs),
+            cmd,
             self._testtmp,
             0,
             self._getenv(),
@@ -3372,13 +3376,10 @@ class TestRunner:
         osenvironb[b"PYTHON"] = self._pythonb
 
         fileb = _sys2bytes(__file__)
-        runtestdir = os.path.abspath(os.path.dirname(fileb))
-        osenvironb[b'RUNTESTDIR'] = runtestdir
-        osenvironb[b'RUNTESTDIR_FORWARD_SLASH'] = runtestdir.replace(
-            os.sep.encode('ascii'), b'/'
-        )
+        osenvironb[b'RUNTESTDIR'] = RUNTEST_DIR
+        osenvironb[b'RUNTESTDIR_FORWARD_SLASH'] = RUNTEST_DIR_FORWARD_SLASH
         sepb = _sys2bytes(os.pathsep)
-        path = [self._bindir, runtestdir] + osenvironb[b"PATH"].split(sepb)
+        path = [self._bindir, RUNTEST_DIR] + osenvironb[b"PATH"].split(sepb)
         if os.path.islink(__file__):
             # test helper will likely be at the end of the symlink
             realfile = os.path.realpath(fileb)
@@ -3388,7 +3389,7 @@ class TestRunner:
             path.insert(1, chgbindir)
         if rhgbindir != self._bindir:
             path.insert(1, rhgbindir)
-        if self._testdir != runtestdir:
+        if self._testdir != RUNTEST_DIR:
             path = [self._testdir] + path
         path = [self._custom_bin_dir] + path
         osenvironb[b"PATH"] = sepb.join(path)
@@ -3397,7 +3398,7 @@ class TestRunner:
         # can run .../tests/run-tests.py test-foo where test-foo
         # adds an extension to HGRC. Also include run-test.py directory to
         # import modules like heredoctest.
-        pypath = [self._pythondir, self._testdir, runtestdir]
+        pypath = [self._pythondir, self._testdir, RUNTEST_DIR]
 
         # Setting PYTHONPATH with an activated venv causes the modules installed
         # in it to be ignored.  Therefore, include the related paths in sys.path
@@ -3962,9 +3963,7 @@ class TestRunner:
                 print('WARNING: cannot fix hg.bat reference to python.exe')
 
         if self.options.anycoverage:
-            custom = os.path.join(
-                osenvironb[b'RUNTESTDIR'], b'sitecustomize.py'
-            )
+            custom = os.path.join(RUNTEST_DIR, b'sitecustomize.py')
             target = os.path.join(self._pythondir, b'sitecustomize.py')
             vlog('# Installing coverage trigger to %s' % target)
             shutil.copyfile(custom, target)
