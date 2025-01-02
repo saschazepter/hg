@@ -259,6 +259,29 @@ impl InnerRevlog {
         Self::with_core_read(slf, |_self_ref, irl| Ok(irl.is_open()))
     }
 
+    #[getter]
+    fn index_file(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+    ) -> PyResult<Py<PyBytes>> {
+        Self::with_core_read(slf, |_self_ref, irl| {
+            let path = get_bytes_from_path(&irl.index_file);
+            Ok(PyBytes::new(py, &path).unbind())
+        })
+    }
+
+    #[setter]
+    fn set_index_file(
+        slf: &Bound<'_, Self>,
+        path: &Bound<'_, PyBytes>,
+    ) -> PyResult<()> {
+        Self::with_core_write(slf, |_self_ref, mut irl| {
+            let path = get_path_from_bytes(path.as_bytes());
+            path.clone_into(&mut irl.index_file);
+            Ok(())
+        })
+    }
+
     fn reading(slf: &Bound<'_, Self>) -> PyResult<ReadingContextManager> {
         Ok(ReadingContextManager {
             inner_revlog: slf.clone().unbind(),
