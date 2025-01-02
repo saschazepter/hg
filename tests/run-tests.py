@@ -374,8 +374,6 @@ def Popen4(cmd, wd, timeout, env=None):
     return p
 
 
-IMPL_PATH = b'PYTHONPATH'
-
 default_defaults = {
     'jobs': ('HGTEST_JOBS', multiprocessing.cpu_count()),
     'timeout': ('HGTEST_TIMEOUT', 360 if not WINDOWS else 360 * 4),
@@ -3437,11 +3435,7 @@ class TestRunner:
         vlog("# Using RUNTESTDIR", _bytes2sys(osenvironb[b'RUNTESTDIR']))
         vlog("# Using HGTMP", _bytes2sys(self._hgtmp))
         vlog("# Using PATH", os.environ["PATH"])
-        vlog(
-            "# Using",
-            _bytes2sys(IMPL_PATH),
-            _bytes2sys(osenvironb.get(IMPL_PATH, b""))
-        )
+        vlog("# Using PYTHONPATH", os.environ.get("PYTHONPATH", ""))
         vlog("# Writing to directory", _bytes2sys(self._outputdir))
 
         if shard_total is not None:
