@@ -41,6 +41,7 @@ use hg::{
     BaseRevision, Revision, UncheckedRevision, NULL_REVISION,
 };
 
+use crate::util::PyBytesDeref;
 use crate::{
     exceptions::{
         graph_error, map_lock_error, map_try_lock_error, nodemap_error,
@@ -299,6 +300,62 @@ impl InnerRevlog {
     #[getter]
     fn is_open(slf: &Bound<'_, Self>) -> PyResult<bool> {
         Self::with_core_read(slf, |_self_ref, irl| Ok(irl.is_open()))
+    }
+
+    #[getter]
+    fn _revisioncache(&self, py: Python<'_>) -> PyResult<PyObject> {
+        match &self.revision_cache {
+            None => Ok(py.None()),
+            Some(cache) => Ok(cache.clone_ref(py)),
+        }
+    }
+
+    #[setter]
+    fn set__revisioncache(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        value: Option<PyObject>,
+    ) -> PyResult<()> {
+        let mut self_ref = slf.borrow_mut();
+        self_ref.revision_cache = value.as_ref().map(|v| v.clone_ref(py));
+
+        match value {
+            None => {
+                // This means the property has been deleted, *not* that the
+                // property has been set to `None`. Whatever happens is up
+                // to the implementation. Here we just set it to `None`.
+                self_ref.revision_cache.take();
+            }
+            Some(tuple) => {
+                if tuple.is_none(py) {
+                    self_ref.revision_cache.take();
+                    return Ok(());
+                }
+                drop(self_ref);
+                let tuple: &Bound<'_, PyTuple> = tuple.downcast_bound(py)?;
+                let node = tuple.get_item(0)?;
+                let node = node_from_py_bytes(node.downcast()?)?;
+                let rev: BaseRevision = tuple.get_item(1)?.extract()?;
+                // Ok because Python only sets this if the revision has been
+                // checked
+                let rev = Revision(rev);
+                let data = tuple.get_item(2)?;
+                let bytes = data.downcast_into::<PyBytes>()?.unbind();
+                Self::with_core_read(slf, |_self_ref, irl| {
+                    let mut last_revision_cache = irl
+                        .last_revision_cache
+                        .lock()
+                        .expect("lock should not be held");
+                    *last_revision_cache = Some((
+                        node,
+                        rev,
+                        Box::new(PyBytesDeref::new(py, bytes)),
+                    ));
+                    Ok(())
+                })?;
+            }
+        }
+        Ok(())
     }
 
     #[getter]
