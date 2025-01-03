@@ -386,6 +386,36 @@ impl Revlog {
         self.inner.get_entry_for_unchecked_rev(rev)
     }
 
+    /// Returns the delta parent of the given revision.
+    pub fn delta_parent(&self, rev: Revision) -> Revision {
+        if rev == NULL_REVISION {
+            NULL_REVISION
+        } else {
+            self.inner.delta_parent(rev)
+        }
+    }
+
+    /// Returns the link revision (a.k.a. "linkrev") of the given revision.
+    /// Returns an error if the linkrev does not exist in `linked_revlog`.
+    pub fn link_revision(
+        &self,
+        rev: Revision,
+        linked_revlog: &Self,
+    ) -> Result<Revision, RevlogError> {
+        let Some(entry) = self.index().get_entry(rev) else {
+            return Ok(NULL_REVISION);
+        };
+        linked_revlog
+            .index()
+            .check_revision(entry.link_revision())
+            .ok_or_else(|| {
+                RevlogError::corrupted(format!(
+                    "linkrev for rev {} is invalid",
+                    rev
+                ))
+            })
+    }
+
     /// Return the full data associated to a revision.
     ///
     /// All entries required to build the final data out of deltas will be
