@@ -52,7 +52,7 @@ use crate::{
         revs_py_list, revs_py_set, PyRevision,
     },
     store::PyFnCache,
-    util::{new_submodule, take_buffer_with_slice},
+    util::{new_submodule, take_buffer_with_slice, with_pybytes_buffer},
 };
 
 mod config;
@@ -373,6 +373,23 @@ impl InnerRevlog {
                 &[offset.into_py_any(py)?, data.into_py_any(py)?],
             )?
             .unbind())
+        })
+    }
+
+    fn raw_text(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        _node: PyObject,
+        rev: PyRevision,
+    ) -> PyResult<Py<PyBytes>> {
+        Self::with_core_read(slf, |_self_ref, irl| {
+            let mut py_bytes = PyBytes::new(py, &[]).unbind();
+            irl.raw_text(Revision(rev.0), |size, f| {
+                py_bytes = with_pybytes_buffer(py, size, f)?;
+                Ok(())
+            })
+            .map_err(revlog_error_from_msg)?;
+            Ok(py_bytes)
         })
     }
 
