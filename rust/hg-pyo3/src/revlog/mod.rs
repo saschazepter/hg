@@ -96,6 +96,46 @@ impl ReadingContextManager {
     }
 }
 
+#[pyclass]
+struct WritingContextManager {
+    inner_revlog: Py<InnerRevlog>,
+    transaction: RwLock<PyTransaction>,
+    data_end: Option<usize>,
+}
+
+#[pymethods]
+impl WritingContextManager {
+    fn __enter__(slf: PyRefMut<'_, Self>) -> PyResult<()> {
+        let inner_bound = slf.inner_revlog.bind(slf.py());
+        let shareable = &inner_bound.borrow_mut().irl;
+        // Safety: the owner is correct and we won't use `share()` anyway
+        let mut core_irl =
+            unsafe { shareable.borrow_with_owner(inner_bound) }.write();
+        core_irl
+            .enter_writing_context(
+                slf.data_end,
+                &mut *slf
+                    .transaction
+                    .try_write()
+                    .expect("transaction should be protected by the GIL"),
+            )
+            .map_err(revlog_error_from_msg)
+            .inspect_err(|_e| {
+                // `__exit__` is not called from Python if `__enter__` fails
+                core_irl.exit_writing_context();
+            })
+    }
+
+    #[pyo3(signature = (*_args))]
+    fn __exit__(slf: PyRef<'_, Self>, _args: &Bound<'_, PyTuple>) {
+        let inner_bound = slf.inner_revlog.bind(slf.py());
+        let shareable = &inner_bound.borrow().irl;
+        // Safety: the owner is correct and we won't use `share()` anyway
+        let core_irl_ref = unsafe { shareable.borrow_with_owner(inner_bound) };
+        core_irl_ref.write().exit_writing_context();
+    }
+}
+
 struct PySnapshotsCache<'a, 'py: 'a>(&'a Bound<'py, PyDict>);
 
 impl<'a, 'py> PySnapshotsCache<'a, 'py> {
@@ -485,6 +525,22 @@ impl InnerRevlog {
     fn reading(slf: &Bound<'_, Self>) -> PyResult<ReadingContextManager> {
         Ok(ReadingContextManager {
             inner_revlog: slf.clone().unbind(),
+        })
+    }
+
+    #[pyo3(signature = (transaction, data_end=None, sidedata_end=None))]
+    fn writing(
+        slf: &Bound<'_, Self>,
+        transaction: PyObject,
+        data_end: Option<usize>,
+        sidedata_end: Option<usize>,
+    ) -> PyResult<WritingContextManager> {
+        // Only useful in revlog v2
+        let _ = sidedata_end;
+        Ok(WritingContextManager {
+            inner_revlog: slf.clone().unbind(),
+            transaction: RwLock::new(PyTransaction::new(transaction)),
+            data_end,
         })
     }
 
