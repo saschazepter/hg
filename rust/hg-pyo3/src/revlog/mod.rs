@@ -354,6 +354,28 @@ impl InnerRevlog {
         })
     }
 
+    fn get_segment_for_revs(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        startrev: PyRevision,
+        endrev: PyRevision,
+    ) -> PyResult<Py<PyTuple>> {
+        Self::with_core_read(slf, |_self_ref, irl| {
+            // Here both revisions only come from revlog code, so we assume
+            // them to be valid.
+            // Panics will alert the offending programmer if not.
+            let (offset, data) = irl
+                .get_segment_for_revs(Revision(startrev.0), Revision(endrev.0))
+                .map_err(revlog_error_from_msg)?;
+            let data = PyBytes::new(py, &data);
+            Ok(PyTuple::new(
+                py,
+                &[offset.into_py_any(py)?, data.into_py_any(py)?],
+            )?
+            .unbind())
+        })
+    }
+
     fn reading(slf: &Bound<'_, Self>) -> PyResult<ReadingContextManager> {
         Ok(ReadingContextManager {
             inner_revlog: slf.clone().unbind(),
