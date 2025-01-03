@@ -22,6 +22,7 @@ pub mod debug;
 pub mod files;
 pub mod hg_path;
 pub mod path_auditor;
+pub mod strings;
 
 /// Useful until rust/issues/56345 is stable
 ///
