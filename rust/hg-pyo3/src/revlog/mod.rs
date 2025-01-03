@@ -52,6 +52,7 @@ use crate::{
         revs_py_list, revs_py_set, PyRevision,
     },
     store::PyFnCache,
+    transaction::PyTransaction,
     util::{new_submodule, take_buffer_with_slice, with_pybytes_buffer},
 };
 
@@ -390,6 +391,59 @@ impl InnerRevlog {
             })
             .map_err(revlog_error_from_msg)?;
             Ok(py_bytes)
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    #[pyo3(signature = (
+        transaction,
+        entry,
+        data,
+        _link,
+        offset,
+        _sidedata,
+        _sidedata_offset,
+        index_end,
+        data_end,
+        _sidedata_end
+    ))]
+    fn write_entry(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        transaction: PyObject,
+        entry: &Bound<'_, PyBytes>,
+        data: &Bound<'_, PyTuple>,
+        // TODO remove and also from Python
+        _link: PyObject,
+        offset: usize,
+        // Other underscore args are for revlog-v2, which is unimplemented
+        _sidedata: PyObject,
+        _sidedata_offset: u64,
+        index_end: Option<u64>,
+        data_end: Option<u64>,
+        _sidedata_end: Option<u64>,
+    ) -> PyResult<Py<PyTuple>> {
+        Self::with_core_write(slf, |_self_ref, mut irl| {
+            let transaction = PyTransaction::new(transaction);
+            let header = data.get_borrowed_item(0)?;
+            let header = header.downcast::<PyBytes>()?;
+            let data = data.get_borrowed_item(1)?;
+            let data = data.downcast::<PyBytes>()?;
+            let (idx_pos, data_pos) = irl
+                .write_entry(
+                    transaction,
+                    entry.as_bytes(),
+                    (header.as_bytes(), data.as_bytes()),
+                    offset,
+                    index_end,
+                    data_end,
+                )
+                .map_err(revlog_error_from_msg)?;
+            let tuple = PyTuple::new(
+                py,
+                [idx_pos.into_py_any(py)?, data_pos.into_py_any(py)?],
+            )?;
+            Ok(tuple.unbind())
         })
     }
 
