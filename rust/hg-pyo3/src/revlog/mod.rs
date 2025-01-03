@@ -393,6 +393,19 @@ impl InnerRevlog {
         })
     }
 
+    fn _chunk(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        rev: PyRevision,
+    ) -> PyResult<Py<PyBytes>> {
+        Self::with_core_read(slf, |_self_ref, irl| {
+            let chunk = irl
+                .chunk_for_rev(Revision(rev.0))
+                .map_err(revlog_error_from_msg)?;
+            Ok(PyBytes::new(py, &chunk).unbind())
+        })
+    }
+
     fn reading(slf: &Bound<'_, Self>) -> PyResult<ReadingContextManager> {
         Ok(ReadingContextManager {
             inner_revlog: slf.clone().unbind(),
