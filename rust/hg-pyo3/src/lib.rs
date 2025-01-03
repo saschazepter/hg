@@ -7,6 +7,7 @@ mod exceptions;
 mod node;
 mod revision;
 mod revlog;
+mod transaction;
 mod store;
 mod util;
 
