@@ -404,6 +404,17 @@ impl InnerRevlog {
         })
     }
 
+    fn finalize_pending(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+    ) -> PyResult<Py<PyBytes>> {
+        Self::with_core_write(slf, |_self_ref, mut irl| {
+            let path =
+                irl.finalize_pending().map_err(revlog_error_from_msg)?;
+            Ok(PyBytes::new(py, &get_bytes_from_path(path)).unbind())
+        })
+    }
+
     fn _chunk(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
