@@ -303,8 +303,8 @@ class changelog(baselog):
             candidate = nodehex[:attempt]
             matches = int(
                 self._db.execute(
-                    'SELECT COUNT(*) FROM changelog WHERE node LIKE ?',
-                    (pycompat.sysstr(candidate + b'%'),),
+                    'SELECT COUNT(*) FROM changelog WHERE node GLOB ?',
+                    (pycompat.sysstr(candidate + b'*'),),
                 ).fetchone()[0]
             )
             if matches == 1:
