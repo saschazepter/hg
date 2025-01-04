@@ -277,7 +277,7 @@ def _index_repo(
     # Identify all references so we can tell the walker to visit all of them.
     all_refs = gitrepo.listall_references()
     possible_heads = set()
-    prog = progress_factory(b'refs')
+    prog = progress_factory(b'indexing refs')
     for pos, ref in enumerate(all_refs):
         if prog is not None:
             prog.update(pos)
@@ -324,7 +324,7 @@ def _index_repo(
     db.execute('DELETE FROM changelog')
     if prog is not None:
         prog.complete()
-    prog = progress_factory(b'commits')
+    prog = progress_factory(b'indexing commits')
     # This walker is sure to visit all the revisions in history, but
     # only once.
     pos = -1
