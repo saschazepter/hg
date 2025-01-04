@@ -170,6 +170,11 @@ class gittreemanifest(repository.imanifestdict):
         def _iterativediff(t1, t2, subdir):
             """compares two trees and appends new tree nodes to examine to
             the stack"""
+            if t1 == t2:
+                # If the trees are the same (git) object, then there are no
+                # differences in this tree or any of its children.
+                return
+
             if t1 is None:
                 t1 = {}
             if t2 is None:
