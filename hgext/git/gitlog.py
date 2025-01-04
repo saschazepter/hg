@@ -139,7 +139,7 @@ class baselog:  # revlog.revlog):
             'SELECT rev FROM changelog WHERE node = ?', (gitutil.togitnode(n),)
         ).fetchone()
         if t is None:
-            raise error.LookupError(n, b'00changelog.i', _(b'no node %d'))
+            raise error.LookupError(n, b'00changelog.i', _(b'no node'))
         return t[0]
 
     def node(self, r):
@@ -149,7 +149,7 @@ class baselog:  # revlog.revlog):
             'SELECT node FROM changelog WHERE rev = ?', (r,)
         ).fetchone()
         if t is None:
-            raise error.LookupError(r, b'00changelog.i', _(b'no node'))
+            raise error.LookupError(r, b'00changelog.i', _(b'no rev'))
         return bin(t[0])
 
     def synthetic(self, n):
@@ -633,7 +633,7 @@ WHERE changedfiles.filename = ? AND changedfiles.filenode = ?''',
             (pycompat.fsdecode(self.path), gitutil.togitnode(node)),
         ).fetchone()
         if row is None:
-            raise error.LookupError(self.path, node, _(b'no such node'))
+            raise error.LookupError(self.path, node, _(b'no node'))
         return int(row[0])
 
     def node(self, rev):
