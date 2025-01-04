@@ -1,4 +1,22 @@
 Test basic extension support
+
+Setting PYTHONPATH can confuse virtual env (sigh) so we have to be careful when
+we update it. In addition, we have to handle the case where PYTHON is not
+already defined. So we create a "correct and ready to use" variable for the
+place where we need to touch it later in the tests.
+
+We preventively export PYTHONPATH otherwise setting it in later command won't
+be inherited by the Mercurial process.
+
+#if py311
+  $ PYTHONPATH_PREFIX="`$PYTHON -P -c \"import os, sys; print(os.pathsep.join(sys.path+['']))\"`"
+#else
+Python <= 3.10 does not have the -P option
+  $ PYTHONPATH_PREFIX="`$PYTHON -c \"import os, sys; print(os.pathsep.join([p for p in sys.path if p]+['']))\"`"
+#endif
+  $ export PYTHONPATH_PREFIX
+  $ export PYTHONPATH
+
   $ cat > foobar.py <<EOF
   > import os
   > from mercurial import commands, exthelper, registrar
@@ -267,12 +285,6 @@ heredoc, in order to make import-checker.py ignore them. For
 simplicity, all python code fragments below are generated with such
 limit mark, regardless of importing module or not.)
 
-#if windows
-  $ PATHSEP=";"
-#else
-  $ PATHSEP=":"
-#endif
-  $ export PATHSEP
 
   $ mkdir $TESTTMP/libroot
   $ echo "s = 'libroot/ambig.py'" > $TESTTMP/libroot/ambig.py
@@ -289,7 +301,7 @@ limit mark, regardless of importing module or not.)
   > def extsetup(ui):
   >     print('ambigabs.s=%s' % ambigabs.s, flush=True)
   > NO_CHECK_EOF
-  $ (PYTHONPATH=${PYTHONPATH}${PATHSEP}${TESTTMP}/libroot; hg --config extensions.loadabs=loadabs.py root)
+  $ (PYTHONPATH=${PYTHONPATH_PREFIX}${TESTTMP}/libroot; hg --config extensions.loadabs=loadabs.py root)
   ambigabs.s=libroot/ambig.py
   $TESTTMP/a
 
@@ -335,7 +347,7 @@ Check absolute/relative import of extension specific modules
   > from extroot.bar import s
   > buf.append(b'from extroot.bar import s: %s' % s)
   > NO_CHECK_EOF
-  $ (PYTHONPATH=${PYTHONPATH}${PATHSEP}${TESTTMP}; hg --config extensions.extroot=$TESTTMP/extroot root)
+  $ (PYTHONPATH=${PYTHONPATH_PREFIX}${TESTTMP}; hg --config extensions.extroot=$TESTTMP/extroot root)
   (extroot) from extroot.bar import *: this is extroot.bar
   (extroot) import extroot.sub1.baz: this is extroot.sub1.baz
   (extroot) import extroot: this is extroot.__init__
@@ -522,7 +534,7 @@ Setup main procedure of extension.
 
 Examine module importing.
 
-  $ (PYTHONPATH=${PYTHONPATH}${PATHSEP}${TESTTMP}; hg --config extensions.absextroot=$TESTTMP/absextroot showabsolute)
+  $ (PYTHONPATH=${PYTHONPATH_PREFIX}${TESTTMP}; hg --config extensions.absextroot=$TESTTMP/absextroot showabsolute)
   LIB: this is extlibroot.lsub1.lsub2.used
   LIB: this is extlibroot.lsub1.lsub2.called.func()
   LIB: this is extlibroot.recursedown.abs.used
@@ -531,7 +543,7 @@ Examine module importing.
   ABS: this is absextroot.xsub1.xsub2.used
   ABS: this is absextroot.xsub1.xsub2.called.func()
 
-  $ (PYTHONPATH=${PYTHONPATH}${PATHSEP}${TESTTMP}; hg --config extensions.absextroot=$TESTTMP/absextroot showrelative)
+  $ (PYTHONPATH=${PYTHONPATH_PREFIX}${TESTTMP}; hg --config extensions.absextroot=$TESTTMP/absextroot showrelative)
   LIB: this is extlibroot.lsub1.lsub2.used
   LIB: this is extlibroot.lsub1.lsub2.called.func()
   LIB: this is extlibroot.recursedown.abs.used
@@ -573,7 +585,7 @@ See also issue5208 for detail about example case on Python 3.x.
 Python 3's lazy importer verifies modules exist before returning the lazy
 module stub. Our custom lazy importer for Python 2 always returns a stub.
 
-  $ (PYTHONPATH=${PYTHONPATH}${PATHSEP}${TESTTMP}; hg --config extensions.checkrelativity=$TESTTMP/checkrelativity.py checkrelativity) || true
+  $ (PYTHONPATH=${PYTHONPATH_PREFIX}${TESTTMP}; hg --config extensions.checkrelativity=$TESTTMP/checkrelativity.py checkrelativity) || true
   *** failed to import extension "checkrelativity" from $TESTTMP/checkrelativity.py: No module named 'extlibroot.lsub1.lsub2.notexist'
   hg: unknown command 'checkrelativity'
   (use 'hg help' for a list of commands)
