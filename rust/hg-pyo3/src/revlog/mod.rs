@@ -568,6 +568,26 @@ impl InnerRevlog {
         })
     }
 
+    fn write_pending(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+    ) -> PyResult<Py<PyTuple>> {
+        Self::with_core_write(slf, |_self_ref, mut irl| {
+            let (path, any_pending) =
+                irl.write_pending().map_err(revlog_error_from_msg)?;
+            let maybe_path = match path {
+                Some(path) => PyBytes::new(py, &get_bytes_from_path(path))
+                    .unbind()
+                    .into_any(),
+                None => py.None(),
+            };
+            Ok(
+                PyTuple::new(py, [maybe_path, any_pending.into_py_any(py)?])?
+                    .unbind(),
+            )
+        })
+    }
+
     fn finalize_pending(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
