@@ -7,9 +7,9 @@ mod exceptions;
 mod node;
 mod revision;
 mod revlog;
-mod transaction;
 mod store;
-mod util;
+mod transaction;
+mod utils;
 
 #[pymodule]
 fn pyo3_rustext(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {

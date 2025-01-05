@@ -23,7 +23,7 @@ use vcsgraph::lazy_ancestors::{
 use crate::exceptions::GraphError;
 use crate::revision::{rev_pyiter_collect_with_py_index, PyRevision};
 use crate::revlog::PySharedIndex;
-use crate::util::{
+use crate::utils::{
     new_submodule, py_rust_index_to_graph, py_shared_or_map_err,
 };
 
