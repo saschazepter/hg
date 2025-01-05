@@ -17,7 +17,7 @@ use hg::{dagops, Revision};
 
 use crate::exceptions::GraphError;
 use crate::revision::{rev_pyiter_collect, PyRevision};
-use crate::util::{new_submodule, proxy_index_extract};
+use crate::utils::{new_submodule, proxy_index_extract};
 
 /// Using the the `index_proxy`, return heads out of any Python iterable of
 /// Revisions

@@ -5,7 +5,7 @@ use hg::revlog::RevlogIndex;
 use hg::{BaseRevision, Revision, UncheckedRevision};
 
 use crate::exceptions::{rev_not_in_index, GraphError};
-use crate::util::proxy_index_extract;
+use crate::utils::proxy_index_extract;
 
 /// Revision as exposed to/from the Python layer.
 ///
