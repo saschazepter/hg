@@ -42,7 +42,7 @@ use hg::{
     BaseRevision, Revision, UncheckedRevision, NULL_REVISION,
 };
 
-use crate::util::PyBytesDeref;
+use crate::utils::PyBytesDeref;
 use crate::{
     exceptions::{
         graph_error, map_lock_error, map_try_lock_error, nodemap_error,
@@ -55,7 +55,7 @@ use crate::{
     },
     store::PyFnCache,
     transaction::PyTransaction,
-    util::{new_submodule, take_buffer_with_slice, with_pybytes_buffer},
+    utils::{new_submodule, take_buffer_with_slice, with_pybytes_buffer},
 };
 
 mod config;
