@@ -1,10 +1,14 @@
 use hg::errors::HgError;
+use hg::revlog::index::Index as CoreIndex;
 use hg::revlog::inner_revlog::RevisionBuffer;
 use pyo3::buffer::{Element, PyBuffer};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
+use pyo3_sharedref::SharedByPyObject;
 use stable_deref_trait::StableDeref;
+
+use crate::revlog::{InnerRevlog, PySharedIndex};
 
 /// Create the module, with `__package__` given from parent
 ///
@@ -31,6 +35,70 @@ pub(crate) fn new_submodule<'py>(
     // reference", but we won't because it will be consumed once the
     // Rust PyObject is dropped.
     Ok(m)
+}
+
+/// Retrieve the shared index wrapper (which contains the core index)
+/// from the Python index proxy.
+pub fn py_rust_index_to_graph(
+    index_proxy: &Bound<'_, PyAny>,
+) -> PyResult<SharedByPyObject<PySharedIndex>> {
+    let py_irl = index_proxy.getattr("inner")?;
+    let py_irl_ref = py_irl.downcast::<InnerRevlog>()?.borrow();
+    let shareable_irl = &py_irl_ref.irl;
+
+    // Safety: the owner is the actual one and we do not leak any
+    // internal reference.
+    let index =
+        unsafe { shareable_irl.share_map(&py_irl, |irl| (&irl.index).into()) };
+    Ok(index)
+}
+
+/// Error propagation for an [`SharedByPyObject`] wrapping a [`Result`]
+///
+/// It would be nice for [`SharedByPyObject`] to provide this directly as
+/// a variant of the `map` method with a signature such as:
+///
+/// ```
+///   unsafe fn map_or_err(&self,
+///                        py: Python,
+///                        f: impl FnOnce(T) -> Result(U, E),
+///                        convert_err: impl FnOnce(E) -> PyErr)
+/// ```
+///
+/// This would spare users of the `pyo3` crate the additional `unsafe` deref
+/// to inspect the error and return it outside `SharedByPyObject`, and the
+/// subsequent unwrapping that this function performs.
+pub(crate) fn py_shared_or_map_err<T, E: std::fmt::Debug + Copy>(
+    py: Python,
+    leaked: SharedByPyObject<Result<T, E>>,
+    convert_err: impl FnOnce(E) -> PyErr,
+) -> PyResult<SharedByPyObject<T>> {
+    // Safety: we don't leak the "faked" reference out of `SharedByPyObject`
+    if let Err(e) = *unsafe { leaked.try_borrow(py)? } {
+        return Err(convert_err(e));
+    }
+    // Safety: we don't leak the "faked" reference out of `SharedByPyObject`
+    Ok(unsafe {
+        leaked.map(py, |res| {
+            res.expect("Error case should have already be treated")
+        })
+    })
+}
+
+/// Full extraction of the proxy index object as received in PyO3 to a
+/// [`CoreIndex`] reference.
+///
+/// # Safety
+///
+/// The invariants to maintain are those of the underlying
+/// [`SharedByPyObject::try_borrow`]: the caller must not leak the inner
+/// reference.
+pub(crate) unsafe fn proxy_index_extract<'py>(
+    index_proxy: &Bound<'py, PyAny>,
+) -> PyResult<&'py CoreIndex> {
+    let py_shared = py_rust_index_to_graph(index_proxy)?;
+    let py_shared = &*unsafe { py_shared.try_borrow(index_proxy.py())? };
+    Ok(unsafe { py_shared.static_inner() })
 }
 
 /// Type shortcut for the kind of bytes slice trait objects that are used in
