@@ -61,9 +61,9 @@ use crate::{
 mod config;
 use config::*;
 mod index;
+pub use index::PySharedIndex;
 use index::{
     py_tuple_to_revision_data_params, revision_data_params_to_py_tuple,
-    PySharedIndex,
 };
 
 #[pyclass]
@@ -203,8 +203,8 @@ impl PyFileHandle {
 
 #[pyclass]
 #[allow(dead_code)]
-struct InnerRevlog {
-    irl: PyShareable<CoreInnerRevlog>,
+pub(crate) struct InnerRevlog {
+    pub(crate) irl: PyShareable<CoreInnerRevlog>,
     nt: RwLock<Option<CoreNodeTree>>,
     docket: Option<PyObject>,
     // Holds a reference to the mmap'ed persistent nodemap data
