@@ -381,6 +381,19 @@ impl InnerRevlog {
         })
     }
 
+    fn clear_cache(slf: &Bound<'_, Self>) -> PyResult<PyObject> {
+        assert!(!Self::is_delaying(slf)?);
+        let mut self_ref = slf.borrow_mut();
+        self_ref.revision_cache.take();
+        self_ref.nodemap_queries.store(0, Ordering::Relaxed);
+        drop(self_ref);
+
+        Self::with_core_write(slf, |_self_ref, mut irl| {
+            irl.clear_cache();
+            Ok(slf.py().None())
+        })
+    }
+
     fn issnapshot(slf: &Bound<'_, Self>, rev: PyRevision) -> PyResult<bool> {
         Self::_index_issnapshot(slf, rev)
     }
