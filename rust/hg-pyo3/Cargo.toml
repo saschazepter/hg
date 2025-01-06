@@ -17,6 +17,7 @@ pyo3-sharedref = { path = "../pyo3-sharedref" }
 hg-core = { path = "../hg-core"}
 stable_deref_trait = "1.2.0"
 log = "0.4.17"
+logging_timer = "1.1.0"
 derive_more = "0.99.17"
 env_logger = "0.9.3"
 vcsgraph = "0.2.0"
