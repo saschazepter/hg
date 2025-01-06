@@ -504,7 +504,7 @@ def trim(
     chars = chars[:i]
     if leftside:
         chars.reverse()
-    u = u''.join(chars).encode(_sysstr(encoding))
+    u = ''.join(chars).encode(_sysstr(encoding))
     if leftside:
         return ellipsis + u
     return u + ellipsis

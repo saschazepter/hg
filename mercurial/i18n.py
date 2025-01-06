@@ -86,14 +86,14 @@ def gettext(message: bytes) -> bytes:
     if message not in cache:
         if type(message) is str:
             # goofy unicode docstrings in test
-            paragraphs: List[str] = message.split(u'\n\n')
+            paragraphs: List[str] = message.split('\n\n')
         else:
             # should be ascii, but we have unicode docstrings in test, which
             # are converted to utf-8 bytes on Python 3.
             paragraphs = [p.decode("utf-8") for p in message.split(b'\n\n')]
         # Be careful not to translate the empty string -- it holds the
         # meta data of the .po file.
-        u = u'\n\n'.join([p and _ugettext(p) or u'' for p in paragraphs])
+        u = '\n\n'.join([p and _ugettext(p) or '' for p in paragraphs])
         try:
             # encoding.tolocal cannot be used since it will first try to
             # decode the Unicode string. Calling u.decode(enc) really

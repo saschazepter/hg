@@ -208,19 +208,19 @@ def get_password() -> bytes:
     This shouldn't be called directly- use ``ui.getpass()`` instead, which
     checks if the session is interactive first.
     """
-    pw = u""
+    pw = ""
     while True:
         c = msvcrt.getwch()  # pytype: disable=module-attr
-        if c == u'\r' or c == u'\n':
+        if c == '\r' or c == '\n':
             break
-        if c == u'\003':
+        if c == '\003':
             raise KeyboardInterrupt
-        if c == u'\b':
+        if c == '\b':
             pw = pw[:-1]
         else:
             pw = pw + c
-    msvcrt.putwch(u'\r')  # pytype: disable=module-attr
-    msvcrt.putwch(u'\n')  # pytype: disable=module-attr
+    msvcrt.putwch('\r')  # pytype: disable=module-attr
+    msvcrt.putwch('\n')  # pytype: disable=module-attr
     return encoding.unitolocal(pw)
 
 

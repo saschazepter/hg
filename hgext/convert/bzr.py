@@ -263,7 +263,7 @@ class bzr_source(common.converter_source):
             paths = change.path
             kind = change.kind
             executable = change.executable
-            if paths[0] == u'' or paths[1] == u'':
+            if paths[0] == '' or paths[1] == '':
                 # ignore changes to tree root
                 continue
 

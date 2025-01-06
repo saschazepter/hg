@@ -528,4 +528,4 @@ def headdecode(s: Union[email.header.Header, bytes]) -> bytes:
         except UnicodeDecodeError:
             pass
         uparts.append(part.decode('ISO-8859-1'))
-    return encoding.unitolocal(u' '.join(uparts))
+    return encoding.unitolocal(' '.join(uparts))
