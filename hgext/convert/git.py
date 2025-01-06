@@ -195,7 +195,7 @@ class convert_git(common.converter_source, common.commandline):
 
     def catfile(self, rev, ftype):
         if rev == sha1nodeconstants.nullhex:
-            raise IOError
+            raise OSError
         self.catfilepipe[0].write(rev + b'\n')
         self.catfilepipe[0].flush()
         info = self.catfilepipe[1].readline().split()

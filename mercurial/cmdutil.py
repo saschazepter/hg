@@ -1163,7 +1163,7 @@ def logmessage(ui: "uimod.ui", opts: Dict[bytes, Any]) -> Optional[bytes]:
                 message = ui.fin.read()
             else:
                 message = b'\n'.join(util.readfile(logfile).splitlines())
-        except IOError as inst:
+        except OSError as inst:
             raise error.Abort(
                 _(b"can't read commit message '%s': %s")
                 % (logfile, encoding.strtolocal(inst.strerror))
@@ -1796,7 +1796,7 @@ def copy(ui, repo, pats, opts: Dict[bytes, Any], rename=False):
                     # Linux CLI behavior.
                     util.copyfile(src, target, copystat=rename)
                 srcexists = True
-            except IOError as inst:
+            except OSError as inst:
                 if inst.errno == errno.ENOENT:
                     ui.warn(_(b'%s: deleted in working directory\n') % relsrc)
                     srcexists = False

@@ -258,7 +258,7 @@ def callcatch(ui: "uimod.ui", func: Callable[[], int]) -> int:
             # SSLError of Python 2.7.9 contains a unicode
             reason = encoding.unitolocal(reason)
         ui.error(_(b"abort: error: %s\n") % stringutil.forcebytestr(reason))
-    except (IOError, OSError) as inst:
+    except OSError as inst:
         if hasattr(inst, "args") and inst.args and inst.args[0] == errno.EPIPE:
             pass
         elif getattr(inst, "strerror", None):  # common IOError or OSError

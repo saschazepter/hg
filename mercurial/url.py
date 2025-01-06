@@ -297,7 +297,7 @@ if has_https:
             list(iter(res.fp.readline, b'\r\n'))
         else:
             self.close()
-            raise socket.error(
+            raise OSError(
                 "Tunnel connection failed: %d %s" % (status, reason.strip())
             )
 

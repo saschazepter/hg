@@ -464,7 +464,7 @@ class ui:
     ) -> None:
         try:
             fp = resourceutil.open_resource(name[0], name[1])
-        except IOError:
+        except OSError:
             if not sections:  # ignore unless we were looking for something
                 return
             raise
@@ -478,7 +478,7 @@ class ui:
     ) -> None:
         try:
             fp = open(filename, 'rb')
-        except IOError:
+        except OSError:
             if not sections:  # ignore unless we were looking for something
                 return
             raise
@@ -1261,7 +1261,7 @@ class ui:
                     label = opts.get('label', b'')
                     msg = self.label(msg, label)
                 dest.write(msg)
-        except IOError as err:
+        except OSError as err:
             raise error.StdioError(err)
         finally:
             self._blockedtimes[b'stdio_blocked'] += (
@@ -1310,7 +1310,7 @@ class ui:
             # including stdout.
             if dest is self._ferr and not getattr(dest, 'closed', False):
                 dest.flush()
-        except IOError as err:
+        except OSError as err:
             if dest is self._ferr and err.errno in (
                 errno.EPIPE,
                 errno.EIO,
@@ -1350,13 +1350,13 @@ class ui:
         try:
             try:
                 self._fout.flush()
-            except IOError as err:
+            except OSError as err:
                 if err.errno not in (errno.EPIPE, errno.EIO, errno.EBADF):
                     raise error.StdioError(err)
             finally:
                 try:
                     self._ferr.flush()
-                except IOError as err:
+                except OSError as err:
                     if err.errno not in (errno.EPIPE, errno.EIO, errno.EBADF):
                         raise error.StdioError(err)
         finally:

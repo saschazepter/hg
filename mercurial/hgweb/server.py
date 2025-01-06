@@ -409,7 +409,7 @@ def create_server(ui, app):
     port = urlutil.getport(ui.config(b'web', b'port'))
     try:
         return cls(ui, app, (address, port), handler)
-    except socket.error as inst:
+    except OSError as inst:
         raise error.Abort(
             _(b"cannot start server at '%s:%d': %s")
             % (address, port, encoding.strtolocal(inst.args[1]))

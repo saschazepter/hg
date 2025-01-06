@@ -804,7 +804,7 @@ def _disabledhelp(path):
     try:
         with open(path, 'rb') as src:
             doc = _moduledoc(src)
-    except IOError:
+    except OSError:
         return
 
     if doc:  # extracting localized synopsis
@@ -919,7 +919,7 @@ def _disabledcmdtable(path):
 def _finddisabledcmd(ui, cmd, name, path, strict):
     try:
         cmdtable = _disabledcmdtable(path)
-    except (IOError, SyntaxError):
+    except (OSError, SyntaxError):
         return
     try:
         aliases, entry = cmdutil.findcmd(cmd, cmdtable, strict)

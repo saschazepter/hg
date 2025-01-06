@@ -157,7 +157,7 @@ class revbranchcache:
         try:
             try:
                 bndata = repo.cachevfs.read(_rbcnames)
-            except (IOError, OSError):
+            except OSError:
                 # If we don't have "v2" data, we might have "v1" data worth
                 # using.
                 #
@@ -170,7 +170,7 @@ class revbranchcache:
                 self._names = [
                     encoding.tolocal(bn) for bn in bndata.split(b'\0')
                 ]
-        except (IOError, OSError):
+        except OSError:
             if readonly:
                 # don't try to use cache - fall back to the slow path
                 self.branchinfo = self._branchinfo
@@ -205,7 +205,7 @@ class revbranchcache:
                     with repo.cachevfs(_rbc_legacy_revs) as fp:
                         data = fp.read()
                 self._rbcrevs = rbcrevs(data)
-            except (IOError, OSError) as inst:
+            except OSError as inst:
                 repo.ui.debug(
                     b"couldn't read revision branch cache: %s\n"
                     % stringutil.forcebytestr(inst)
@@ -352,7 +352,7 @@ class revbranchcache:
                     wlock = repo.wlock(wait=False)
                 self._writerevs(repo, start)
 
-        except (IOError, OSError, error.Abort, error.LockError) as inst:
+        except (OSError, error.Abort, error.LockError) as inst:
             repo.ui.debug(
                 b"couldn't write revision branch cache%s: %s\n"
                 % (step, stringutil.forcebytestr(inst))

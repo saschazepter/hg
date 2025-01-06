@@ -459,7 +459,7 @@ class _BaseFile(list):
             string, the method to use for output.
         """
         if self.fpath is None and fpath is None:
-            raise IOError('You must provide a file path to save() method')
+            raise OSError('You must provide a file path to save() method')
         contents = getattr(self, repr_method)()
         if fpath is None:
             fpath = self.fpath
@@ -1393,7 +1393,7 @@ class _POFileParser:
             if tokens[0] in keywords and nb_tokens > 1:
                 line = line[len(tokens[0]) :].lstrip()
                 if re.search(r'([^\\]|^)"', line[1:-1]):
-                    raise IOError(
+                    raise OSError(
                         'Syntax error in po file %s (line %s): '
                         'unescaped double quote found'
                         % (self.instance.fpath, self.current_line)
@@ -1413,7 +1413,7 @@ class _POFileParser:
             elif line[:1] == '"':
                 # we are on a continuation line
                 if re.search(r'([^\\]|^)"', line[1:-1]):
-                    raise IOError(
+                    raise OSError(
                         'Syntax error in po file %s (line %s): '
                         'unescaped double quote found'
                         % (self.instance.fpath, self.current_line)
@@ -1444,7 +1444,7 @@ class _POFileParser:
 
             elif tokens[0] == '#|':
                 if nb_tokens <= 1:
-                    raise IOError(
+                    raise OSError(
                         'Syntax error in po file %s (line %s)'
                         % (self.instance.fpath, self.current_line)
                     )
@@ -1460,7 +1460,7 @@ class _POFileParser:
 
                 if nb_tokens == 2:
                     # Invalid continuation line.
-                    raise IOError(
+                    raise OSError(
                         'Syntax error in po file %s (line %s): '
                         'invalid continuation line'
                         % (self.instance.fpath, self.current_line)
@@ -1469,7 +1469,7 @@ class _POFileParser:
                 # we are on a "previous translation" comment line,
                 if tokens[1] not in prev_keywords:
                     # Unknown keyword in previous translation comment.
-                    raise IOError(
+                    raise OSError(
                         'Syntax error in po file %s (line %s): '
                         'unknown keyword %s'
                         % (self.instance.fpath, self.current_line, tokens[1])
@@ -1482,7 +1482,7 @@ class _POFileParser:
                 self.process(prev_keywords[tokens[1]])
 
             else:
-                raise IOError(
+                raise OSError(
                     'Syntax error in po file %s (line %s)'
                     % (self.instance.fpath, self.current_line)
                 )
@@ -1554,7 +1554,7 @@ class _POFileParser:
             if action():
                 self.current_state = state
         except Exception:
-            raise IOError(
+            raise OSError(
                 'Syntax error in po file (line %s)' % self.current_line
             )
 
@@ -1759,14 +1759,14 @@ class _MOFileParser:
         elif magic_number == MOFile.MAGIC_SWAPPED:
             ii = '>II'
         else:
-            raise IOError('Invalid mo file, magic number is incorrect !')
+            raise OSError('Invalid mo file, magic number is incorrect !')
         self.instance.magic_number = magic_number
         # parse the version number and the number of strings
         version, numofstrings = self._readbinary(ii, 8)
         # from MO file format specs: "A program seeing an unexpected major
         # revision number should stop reading the MO file entirely"
         if version not in (0, 1):
-            raise IOError('Invalid mo file, unexpected major revision number')
+            raise OSError('Invalid mo file, unexpected major revision number')
         self.instance.version = version
         # original strings and translation strings hash table offset
         msgids_hash_offset, msgstrs_hash_offset = self._readbinary(ii, 8)

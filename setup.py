@@ -256,7 +256,7 @@ def findhg():
             res = (True, retcode, out, err)
             if retcode == 0 and not filterhgerr(err):
                 return True
-        except EnvironmentError as e:
+        except OSError as e:
             res = (False, e)
         attempts.append((cmd, res))
         return False

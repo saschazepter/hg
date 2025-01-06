@@ -326,7 +326,7 @@ def readfile(path):
     # we should never have empty files
     if not result:
         os.remove(path)
-        raise IOError(b"empty file: %s" % path)
+        raise OSError(b"empty file: %s" % path)
 
     return result
 
@@ -474,7 +474,7 @@ def setstickygroupdir(path, gid, warn=None):
     try:
         os.chown(path, -1, gid)
         os.chmod(path, 0o2775)
-    except (IOError, OSError) as ex:
+    except OSError as ex:
         if warn:
             warn(_(b'unable to chown/chmod on %s: %s\n') % (path, ex))
 

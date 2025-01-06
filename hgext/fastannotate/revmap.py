@@ -254,6 +254,6 @@ def getlastnode(path):
             f.seek(-_hshlen, io.SEEK_END)
             if f.tell() > len(revmap.HEADER):
                 hsh = f.read(_hshlen)
-    except IOError:
+    except OSError:
         pass
     return hsh

@@ -88,7 +88,7 @@ def _closing(fds):
         for fd in fds:
             try:
                 os.close(fd)
-            except EnvironmentError:
+            except OSError:
                 pass
 
 

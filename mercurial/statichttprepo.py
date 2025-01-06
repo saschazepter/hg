@@ -72,9 +72,9 @@ class httprangereader:
             # Explicitly convert the exception to str as Py3 will try
             # convert it to local encoding and with as the HTTPResponse
             # instance doesn't support encode.
-            raise IOError(num, str(inst))
+            raise OSError(num, str(inst))
         except urlerr.urlerror as inst:
-            raise IOError(None, inst.reason)
+            raise OSError(None, inst.reason)
 
         if code == 200:
             # HTTPRangeHandler does nothing if remote does not support
@@ -140,7 +140,7 @@ def build_opener(ui, authinfo):
 
         def __call__(self, path, mode=b'r', *args, **kw):
             if mode not in (b'r', b'rb'):
-                raise IOError('Permission denied')
+                raise OSError('Permission denied')
             f = b"/".join((self.base, urlreq.quote(path)))
             return httprangereader(f, urlopener)
 

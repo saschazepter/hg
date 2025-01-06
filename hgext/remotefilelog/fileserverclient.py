@@ -193,7 +193,7 @@ class cacheconnection:
                 self.pipei.write(request)
                 if flush:
                     self.pipei.flush()
-            except IOError:
+            except OSError:
                 self.close()
 
     def receiveline(self):
@@ -203,7 +203,7 @@ class cacheconnection:
             result = self.pipeo.readline()[:-1]
             if not result:
                 self.close()
-        except IOError:
+        except OSError:
             self.close()
 
         return result

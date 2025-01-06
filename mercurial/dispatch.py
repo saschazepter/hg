@@ -109,7 +109,7 @@ def _flushstdio(ui, err):
         assert ui.fout is not None  # help pytype
         try:
             ui.fout.flush()
-        except IOError as e:
+        except OSError as e:
             err = e
             status = -1
 
@@ -124,7 +124,7 @@ def _flushstdio(ui, err):
             ui.ferr.flush()
         # There's not much we can do about an I/O error here. So (possibly)
         # change the status code and move on.
-        except IOError:
+        except OSError:
             status = -1
 
     return status
@@ -208,13 +208,13 @@ def _silencestdio():
         try:
             fp.flush()
             continue
-        except IOError:
+        except OSError:
             pass
         # Otherwise mark it as closed to silence "Exception ignored in"
         # message emitted by the interpreter finalizer.
         try:
             fp.close()
-        except IOError:
+        except OSError:
             pass
 
 
@@ -500,7 +500,7 @@ def _callcatch(ui, func):
             if not suggested:
                 ui.warn(nocmdmsg)
                 ui.warn(_(b"(use 'hg help' for a list of commands)\n"))
-    except IOError:
+    except OSError:
         raise
     except KeyboardInterrupt:
         raise

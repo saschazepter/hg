@@ -678,7 +678,7 @@ class VolatileManager:
             self._flush_some_on_disk()
         try:
             return self._keep_one(src)
-        except IOError as err:
+        except OSError as err:
             if err.errno not in (errno.ENOENT, errno.EPERM):
                 raise
             return None

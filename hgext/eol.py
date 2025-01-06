@@ -279,7 +279,7 @@ def parseeol(ui, repo, nodes):
                 else:
                     data = repo[node][b'.hgeol'].data()
                 return eolfile(ui, repo.root, data)
-            except (IOError, LookupError):
+            except (OSError, LookupError):
                 pass
     except errormod.ConfigError as inst:
         ui.warn(

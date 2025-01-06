@@ -62,7 +62,7 @@ class remotestore(basestore.basestore):
         try:
             with lfutil.httpsendfile(self.ui, filename) as fd:
                 return self._put(hash, fd)
-        except IOError as e:
+        except OSError as e:
             raise error.Abort(
                 _(b'remotestore: could not open file %s: %s')
                 % (filename, stringutil.forcebytestr(e))
@@ -84,7 +84,7 @@ class remotestore(basestore.basestore):
             raise error.Abort(
                 b'%s: %s' % (urlutil.hidepassword(self.url), e.reason)
             )
-        except IOError as e:
+        except OSError as e:
             raise basestore.StoreError(
                 filename, hash, self.url, stringutil.forcebytestr(e)
             )

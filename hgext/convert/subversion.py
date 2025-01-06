@@ -224,7 +224,7 @@ def get_log_child(
             strict_node_history,
             receiver,
         )
-    except IOError:
+    except OSError:
         # Caller may interrupt the iteration
         pickle.dump(None, fp, protocol)
     except Exception as inst:
@@ -1366,7 +1366,7 @@ class svn_source(converter_source):
         stdin.write(arg)
         try:
             stdin.close()
-        except IOError:
+        except OSError:
             raise error.Abort(
                 _(
                     b'Mercurial failed to run itself, check'
