@@ -913,7 +913,7 @@ def debugdeltachain(ui, repo, file_=None, **opts):
         label = b' '.join(e[0] for e in entry)
         format = b' '.join(e[1] for e in entry)
         values = [e[3] for e in entry]
-        data = dict((e[2], e[3]) for e in entry)
+        data = {e[2]: e[3] for e in entry}
         fm.startitem()
         fm.write(label, format, *values, **data)
         fm.plain(b'\n')
