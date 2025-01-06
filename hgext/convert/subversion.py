@@ -398,7 +398,7 @@ def issvnurl(ui, url):
             # Percent-decoded bytes get decoded using UTF-8 and the 'replace'
             # error handler.
             unicodepath = urlreq.url2pathname(unicodepath)
-            if u'\N{REPLACEMENT CHARACTER}' in unicodepath:
+            if '\N{REPLACEMENT CHARACTER}' in unicodepath:
                 ui.warn(
                     _(
                         b'Subversion does not support non-UTF-8 '

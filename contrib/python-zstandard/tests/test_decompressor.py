@@ -1370,7 +1370,7 @@ class TestDecompressor_content_dict_chain(TestCase):
             dctx.decompress_content_dict_chain([])
 
         with self.assertRaisesRegex(ValueError, "chunk 0 must be bytes"):
-            dctx.decompress_content_dict_chain([u"foo"])
+            dctx.decompress_content_dict_chain(["foo"])
 
         with self.assertRaisesRegex(ValueError, "chunk 0 must be bytes"):
             dctx.decompress_content_dict_chain([True])
@@ -1408,7 +1408,7 @@ class TestDecompressor_content_dict_chain(TestCase):
         dctx = zstd.ZstdDecompressor()
 
         with self.assertRaisesRegex(ValueError, "chunk 1 must be bytes"):
-            dctx.decompress_content_dict_chain([initial, u"foo"])
+            dctx.decompress_content_dict_chain([initial, "foo"])
 
         with self.assertRaisesRegex(ValueError, "chunk 1 must be bytes"):
             dctx.decompress_content_dict_chain([initial, None])
@@ -1485,7 +1485,7 @@ class TestDecompressor_multi_decompress_to_buffer(TestCase):
         with self.assertRaisesRegex(
             TypeError, "item 0 not a bytes like object"
         ):
-            dctx.multi_decompress_to_buffer([u"foo"])
+            dctx.multi_decompress_to_buffer(["foo"])
 
         with self.assertRaisesRegex(
             ValueError, "could not determine decompressed size of item 0"
