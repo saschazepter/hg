@@ -585,7 +585,7 @@ def run_tests(ssh_client, python_version, test_flags=None):
     else:
         python = '/hgdev/pyenv/shims/python%s' % python_version
 
-    test_flags = ' '.join(shlex.quote(a) for a in test_flags)
+    test_flags = shlex.join(test_flags)
 
     command = (
         '/bin/sh -c "export TMPDIR=/hgwork/tmp; '
