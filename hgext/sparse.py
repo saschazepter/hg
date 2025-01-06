@@ -342,7 +342,7 @@ def debugsparse(ui, repo, **opts):
                 ui.status(
                     _(b"Temporarily Included Files (for merge/rebase):\n")
                 )
-                ui.status((b"\n".join(temporaryincludes) + b"\n"))
+                ui.statusnoi18n(b"\n".join(temporaryincludes) + b"\n")
             return
         else:
             raise error.Abort(

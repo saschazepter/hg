@@ -882,19 +882,19 @@ class UpgradeOperation(BaseOperation):
         self._write_labeled(
             self._preserved_requirements, b"upgrade-repo.requirement.preserved"
         )
-        self.ui.write((b'\n'))
+        self.ui.writenoi18n(b'\n')
         if self._removed_requirements:
             self.ui.write(_(b'   removed: '))
             self._write_labeled(
                 self._removed_requirements, b"upgrade-repo.requirement.removed"
             )
-            self.ui.write((b'\n'))
+            self.ui.writenoi18n(b'\n')
         if self._added_requirements:
             self.ui.write(_(b'   added: '))
             self._write_labeled(
                 self._added_requirements, b"upgrade-repo.requirement.added"
             )
-            self.ui.write((b'\n'))
+            self.ui.writenoi18n(b'\n')
         self.ui.write(b'\n')
 
     def print_optimisations(self):
@@ -916,12 +916,12 @@ class UpgradeOperation(BaseOperation):
 
     def print_affected_revlogs(self):
         if not self.revlogs_to_process:
-            self.ui.write((b'no revlogs to process\n'))
+            self.ui.writenoi18n(b'no revlogs to process\n')
         else:
-            self.ui.write((b'processed revlogs:\n'))
+            self.ui.writenoi18n(b'processed revlogs:\n')
             for r in sorted(self.revlogs_to_process):
-                self.ui.write((b'  - %s\n' % r))
-        self.ui.write((b'\n'))
+                self.ui.writenoi18n(b'  - %s\n' % r)
+        self.ui.writenoi18n(b'\n')
 
     def print_unused_optimizations(self):
         for i in self.unused_optimizations:

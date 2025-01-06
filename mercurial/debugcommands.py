@@ -264,7 +264,7 @@ def debugbuilddag(
         progress.update(id)
         for type, data in dagparser.parsedag(text):
             if type == b'n':
-                ui.note((b'node %s\n' % pycompat.bytestr(data)))
+                ui.notenoi18n(b'node %s\n' % pycompat.bytestr(data))
                 id, ps = data
 
                 files = []
@@ -345,10 +345,10 @@ def debugbuilddag(
                 at = id
             elif type == b'l':
                 id, name = data
-                ui.note((b'tag %s\n' % name))
+                ui.notenoi18n(b'tag %s\n' % name)
                 tags.append(b"%s %s\n" % (hex(repo.changelog.node(id)), name))
             elif type == b'a':
-                ui.note((b'branch %s\n' % data))
+                ui.notenoi18n(b'branch %s\n' % data)
                 atbranch = data
             progress.update(id)
 
@@ -442,13 +442,15 @@ def _debugbundle2(ui, gen, all=None, **opts):
     """lists the contents of a bundle2"""
     if not isinstance(gen, bundle2.unbundle20):
         raise error.Abort(_(b'not a bundle2 file'))
-    ui.write((b'Stream params: %s\n' % _quasirepr(gen.params)))
+    ui.writenoi18n(b'Stream params: %s\n' % _quasirepr(gen.params))
     parttypes = opts.get('part_type', [])
     for part in gen.iterparts():
         if parttypes and part.type not in parttypes:
             continue
         msg = b'%s -- %s (mandatory: %r)\n'
-        ui.write((msg % (part.type, _quasirepr(part.params), part.mandatory)))
+        ui.writenoi18n(
+            msg % (part.type, _quasirepr(part.params), part.mandatory)
+        )
         if part.type == b'changegroup':
             version = part.params.get(b'version', b'01')
             cg = changegroup.getunbundler(version, part, b'UN')
