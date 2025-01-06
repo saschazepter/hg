@@ -580,7 +580,7 @@ class manifestlog(baselog):
 
 class filelog(baselog, repository.ifilestorage):
     def __init__(self, gr, db, path):
-        super(filelog, self).__init__(gr, db)
+        super().__init__(gr, db)
         assert isinstance(path, bytes)
         self.path = path
         self.nullid = sha1nodeconstants.nullid

@@ -282,7 +282,7 @@ class filteredchangelogmixin:
 
     def revs(self, start=0, stop=None):
         """filtered version of revlog.revs"""
-        for i in super(filteredchangelogmixin, self).revs(start, stop):
+        for i in super().revs(start, stop):
             if i not in self.filteredrevs:
                 yield i
 
@@ -317,17 +317,17 @@ class filteredchangelogmixin:
         assert stop_rev is None
 
         revs = self._checknofilteredinrevs(revs)
-        return super(filteredchangelogmixin, self).headrevs(revs)
+        return super().headrevs(revs)
 
     def strip(self, *args, **kwargs):
         # XXX make something better than assert
         # We can't expect proper strip behavior if we are filtered.
         assert not self.filteredrevs
-        super(filteredchangelogmixin, self).strip(*args, **kwargs)
+        super().strip(*args, **kwargs)
 
     def rev(self, node):
         """filtered version of revlog.rev"""
-        r = super(filteredchangelogmixin, self).rev(node)
+        r = super().rev(node)
         if r in self.filteredrevs:
             raise error.FilteredLookupError(
                 hex(node), self.display_id, _(b'filtered node')
@@ -338,25 +338,25 @@ class filteredchangelogmixin:
         """filtered version of revlog.node"""
         if rev in self.filteredrevs:
             raise error.FilteredIndexError(rev)
-        return super(filteredchangelogmixin, self).node(rev)
+        return super().node(rev)
 
     def linkrev(self, rev):
         """filtered version of revlog.linkrev"""
         if rev in self.filteredrevs:
             raise error.FilteredIndexError(rev)
-        return super(filteredchangelogmixin, self).linkrev(rev)
+        return super().linkrev(rev)
 
     def parentrevs(self, rev):
         """filtered version of revlog.parentrevs"""
         if rev in self.filteredrevs:
             raise error.FilteredIndexError(rev)
-        return super(filteredchangelogmixin, self).parentrevs(rev)
+        return super().parentrevs(rev)
 
     def flags(self, rev):
         """filtered version of revlog.flags"""
         if rev in self.filteredrevs:
             raise error.FilteredIndexError(rev)
-        return super(filteredchangelogmixin, self).flags(rev)
+        return super().flags(rev)
 
 
 class repoview:

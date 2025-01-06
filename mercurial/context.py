@@ -505,7 +505,7 @@ class changectx(basectx):
     the repo."""
 
     def __init__(self, repo, rev, node, maybe_filtered=True):
-        super(changectx, self).__init__(repo)
+        super().__init__(repo)
         self._rev = rev
         self._node = node
         # When maybe_filtered is True, the revision might be affected by
@@ -660,7 +660,7 @@ class changectx(basectx):
                 p1copies = p2copies = None
         if p1copies is None:
             if compute_on_none:
-                p1copies, p2copies = super(changectx, self)._copies
+                p1copies, p2copies = super()._copies
             else:
                 if p1copies is None:
                     p1copies = {}
@@ -1400,7 +1400,7 @@ class committablectx(basectx):
         changes=None,
         branch=None,
     ):
-        super(committablectx, self).__init__(repo)
+        super().__init__(repo)
         self._rev = None
         self._node = None
         self._text = text
@@ -1574,9 +1574,7 @@ class workingctx(committablectx):
                 branch = repo.dirstate.branch()
             except UnicodeDecodeError:
                 raise error.Abort(_(b'branch name not in UTF-8!'))
-        super(workingctx, self).__init__(
-            repo, text, user, date, extra, changes, branch=branch
-        )
+        super().__init__(repo, text, user, date, extra, changes, branch=branch)
 
     def __iter__(self):
         d = self._repo.dirstate
@@ -1626,7 +1624,7 @@ class workingctx(committablectx):
     def _fileinfo(self, path):
         # populate __dict__['_manifest'] as workingctx has no _manifestdelta
         self._manifest
-        return super(workingctx, self)._fileinfo(path)
+        return super()._fileinfo(path)
 
     def _buildflagfunc(self):
         # Create a fallback function for getting file flags when the
@@ -2018,7 +2016,7 @@ class workingctx(committablectx):
         # they are supposed to be linking to.
         s.modified[:] = self._filtersuspectsymlink(s.modified)
         if other != self._repo[b'.']:
-            s = super(workingctx, self)._buildstatus(
+            s = super()._buildstatus(
                 other, s, match, listignored, listclean, listunknown
             )
         return s
@@ -2157,7 +2155,7 @@ class workingfilectx(committablefilectx):
     file in the working directory convenient."""
 
     def __init__(self, repo, path, filelog=None, workingctx=None):
-        super(workingfilectx, self).__init__(repo, path, filelog, workingctx)
+        super().__init__(repo, path, filelog, workingctx)
 
     @propertycache
     def _changectx(self):
@@ -2260,7 +2258,7 @@ class overlayworkingctx(committablectx):
     """
 
     def __init__(self, repo):
-        super(overlayworkingctx, self).__init__(repo)
+        super().__init__(repo)
         self.clean()
 
     def setbase(self, wrappedctx):
@@ -2668,7 +2666,7 @@ class overlayworkingfilectx(committablefilectx):
     cache, which can be flushed through later by calling ``flush()``."""
 
     def __init__(self, repo, path, filelog=None, parent=None):
-        super(overlayworkingfilectx, self).__init__(repo, path, filelog, parent)
+        super().__init__(repo, path, filelog, parent)
         self._repo = repo
         self._parent = parent
         self._path = path
@@ -2730,9 +2728,7 @@ class workingcommitctx(workingctx):
     def __init__(
         self, repo, changes, text=b"", user=None, date=None, extra=None
     ):
-        super(workingcommitctx, self).__init__(
-            repo, text, user, date, extra, changes
-        )
+        super().__init__(repo, text, user, date, extra, changes)
 
     def _dirstatestatus(
         self, match, ignored=False, clean=False, unknown=False
@@ -2875,9 +2871,7 @@ class memctx(committablectx):
         branch=None,
         editor=None,
     ):
-        super(memctx, self).__init__(
-            repo, text, user, date, extra, branch=branch
-        )
+        super().__init__(repo, text, user, date, extra, branch=branch)
         self._rev = None
         self._node = None
         parents = [(p or self._repo.nodeconstants.nullid) for p in parents]
@@ -2984,7 +2978,7 @@ class memfilectx(committablefilectx):
         isexec is True if the file is executable.
         copied is the source file path if current file was copied in the
         revision being committed, or None."""
-        super(memfilectx, self).__init__(repo, path, None, changectx)
+        super().__init__(repo, path, None, changectx)
         self._data = data
         if islink:
             self._flags = b'l'
@@ -3042,7 +3036,7 @@ class metadataonlyctx(committablectx):
     ):
         if text is None:
             text = originalctx.description()
-        super(metadataonlyctx, self).__init__(repo, text, user, date, extra)
+        super().__init__(repo, text, user, date, extra)
         self._rev = None
         self._node = None
         self._originalctx = originalctx

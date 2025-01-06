@@ -293,7 +293,7 @@ class simplecommitctx(context.committablectx):
             'date': b'0 0',
             'extra': {b'branch': b'default'},
         }
-        super(simplecommitctx, self).__init__(repo, name, **opts)
+        super().__init__(repo, name, **opts)
         self._added = added
         self._parents = parentctxs
         while len(self._parents) < 2:

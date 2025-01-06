@@ -128,7 +128,7 @@ class bundlerevlog(revlog.revlog):
         # delta base, not against rev - 1
         # XXX: could use some caching
         if rev <= self.repotiprev:
-            return super(bundlerevlog, self)._inner._chunk(rev)
+            return super()._inner._chunk(rev)
         self.bundle.seek(self.start(rev))
         return self.bundle.read(self.length(rev))
 
@@ -164,7 +164,7 @@ class bundlerevlog(revlog.revlog):
         if iterrev == nullrev:
             rawtext = b''
         elif rawtext is None:
-            r = super(bundlerevlog, self)._rawtext(
+            r = super()._rawtext(
                 self.node(iterrev),
                 iterrev,
             )
@@ -242,7 +242,7 @@ class bundlemanifest(bundlerevlog, manifest.manifestrevlog):
                 self._dirlogstarts,
                 dir=d,
             )
-        return super(bundlemanifest, self).dirlog(d)
+        return super().dirlog(d)
 
 
 class bundlefilelog(filelog.filelog):
@@ -265,7 +265,7 @@ class bundlepeer(localrepo.localpeer):
 
 class bundlephasecache(phases.phasecache):
     def __init__(self, *args, **kwargs):
-        super(bundlephasecache, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if hasattr(self, 'opener'):
             self.opener = vfsmod.readonlyvfs(self.opener)
 
@@ -499,7 +499,7 @@ class bundlerepository(_bundle_repo_baseclass):
             linkmapper = self.unfiltered().changelog.rev
             return bundlefilelog(self.svfs, f, self._cgunpacker, linkmapper)
         else:
-            return super(bundlerepository, self).file(f)
+            return super().file(f)
 
     def close(self):
         """Close assigned bundle file immediately."""
@@ -529,7 +529,7 @@ class bundlerepository(_bundle_repo_baseclass):
             self.ui.warn(msg % hex(p1))
         if self.changelog.repotiprev < p2rev:
             self.ui.warn(msg % hex(p2))
-        return super(bundlerepository, self).setparents(p1, p2)
+        return super().setparents(p1, p2)
 
 
 def instance(ui, path, create, intents=None, createopts=None):

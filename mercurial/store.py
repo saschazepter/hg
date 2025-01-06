@@ -986,9 +986,7 @@ class encodedstore(basicstore):
     def data_entries(
         self, matcher=None, undecodable=None
     ) -> Generator[BaseStoreEntry, None, None]:
-        entries = super(encodedstore, self).data_entries(
-            undecodable=undecodable
-        )
+        entries = super().data_entries(undecodable=undecodable)
         for entry in entries:
             if _match_tracked_entry(entry, matcher):
                 yield entry

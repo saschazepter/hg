@@ -18,7 +18,7 @@ def reposetup(ui, repo):
 
     class reportphaserepo(repo.__class__):
         def transaction(self, *args, **kwargs):
-            tr = super(reportphaserepo, self).transaction(*args, **kwargs)
+            tr = super().transaction(*args, **kwargs)
             tr.addpostclose(b'report-phase', reportphasemove)
             return tr
 

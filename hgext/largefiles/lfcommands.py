@@ -171,12 +171,12 @@ def lfconvert(ui, src, dest, *pats, **opts):
 
             class lfsource(filemap.filemap_source):
                 def __init__(self, ui, source):
-                    super(lfsource, self).__init__(ui, source, None)
+                    super().__init__(ui, source, None)
                     self.filemapper.rename[lfutil.shortname] = b'.'
 
                 def getfile(self, name, rev):
                     realname, realrev = rev
-                    f = super(lfsource, self).getfile(name, rev)
+                    f = super().getfile(name, rev)
 
                     if (
                         not realname.startswith(lfutil.shortnameslash)
@@ -199,9 +199,7 @@ def lfconvert(ui, src, dest, *pats, **opts):
                 def __init__(self, ui, source, dest, revmapfile, opts):
                     src = lfsource(ui, source)
 
-                    super(converter, self).__init__(
-                        ui, src, dest, revmapfile, opts
-                    )
+                    super().__init__(ui, src, dest, revmapfile, opts)
 
             found, missing = downloadlfiles(ui, rsrc)
             if missing != 0:

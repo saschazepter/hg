@@ -127,15 +127,13 @@ def peersetup(ui, peer):
 
         def _sendrequest(self, command, args, **opts):
             self._updatecallstreamopts(command, args)
-            return super(remotefilepeer, self)._sendrequest(
-                command, args, **opts
-            )
+            return super()._sendrequest(command, args, **opts)
 
         def _callstream(self, command, **opts):
-            supertype = super(remotefilepeer, self)
+            supertype = super()
             if not hasattr(supertype, '_sendrequest'):
                 self._updatecallstreamopts(command, pycompat.byteskwargs(opts))
-            return super(remotefilepeer, self)._callstream(command, **opts)
+            return super()._callstream(command, **opts)
 
     peer.__class__ = remotefilepeer
 

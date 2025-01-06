@@ -223,7 +223,7 @@ class hashstate:
 def _newchgui(srcui, csystem, attachio):
     class chgui(srcui.__class__):
         def __init__(self, src=None):
-            super(chgui, self).__init__(src)
+            super().__init__(src)
             if src:
                 self._csystem = getattr(src, '_csystem', csystem)
             else:
@@ -359,7 +359,7 @@ class chgcmdserver(commandserver.server):
     def __init__(
         self, ui, repo, fin, fout, sock, prereposetups, hashstate, baseaddress
     ):
-        super(chgcmdserver, self).__init__(
+        super().__init__(
             _newchgui(ui, channeledsystem(fin, fout, b'S'), self.attachio),
             repo,
             fin,
@@ -376,7 +376,7 @@ class chgcmdserver(commandserver.server):
             self.capabilities[b'validate'] = chgcmdserver.validate
 
     def cleanup(self):
-        super(chgcmdserver, self).cleanup()
+        super().cleanup()
         # dispatch._runcatch() does not flush outputs if exception is not
         # handled by dispatch._dispatch()
         self.ui.flush()
@@ -572,7 +572,7 @@ class chgcmdserver(commandserver.server):
         globaloldios = self._oldios
         self._oldios = []
         try:
-            return super(chgcmdserver, self).runcommand()
+            return super().runcommand()
         finally:
             self._restoreio()
             self._oldios = globaloldios

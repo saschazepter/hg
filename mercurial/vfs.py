@@ -786,7 +786,7 @@ class delayclosedfile(closewrapbase):
     """
 
     def __init__(self, fh, closer) -> None:
-        super(delayclosedfile, self).__init__(fh)
+        super().__init__(fh)
         object.__setattr__(self, '_closer', closer)
 
     def __exit__(self, exc_type, exc_value, exc_tb) -> None:
@@ -900,7 +900,7 @@ class checkambigatclosing(closewrapbase):
     """
 
     def __init__(self, fh) -> None:
-        super(checkambigatclosing, self).__init__(fh)
+        super().__init__(fh)
         object.__setattr__(self, '_oldstat', util.filestat.frompath(fh.name))
 
     def _checkambig(self) -> None:

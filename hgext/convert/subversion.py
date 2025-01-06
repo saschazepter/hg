@@ -462,7 +462,7 @@ def issvnurl(ui, url):
 #
 class svn_source(converter_source):
     def __init__(self, ui, repotype, url, revs=None):
-        super(svn_source, self).__init__(ui, repotype, url, revs=revs)
+        super().__init__(ui, repotype, url, revs=revs)
 
         init_fsencoding()
         if not (

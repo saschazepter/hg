@@ -62,7 +62,7 @@ class bzr_source(common.converter_source):
     """Reads Bazaar repositories by using the Bazaar Python libraries"""
 
     def __init__(self, ui, repotype, path, revs=None):
-        super(bzr_source, self).__init__(ui, repotype, path, revs=revs)
+        super().__init__(ui, repotype, path, revs=revs)
 
         if not os.path.exists(os.path.join(path, b'.bzr')):
             raise common.NoRepo(

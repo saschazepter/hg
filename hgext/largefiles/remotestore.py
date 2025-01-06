@@ -34,7 +34,7 @@ class remotestore(basestore.basestore):
     '''a largefile store accessed over a network'''
 
     def __init__(self, ui, repo, url):
-        super(remotestore, self).__init__(ui, repo, url)
+        super().__init__(ui, repo, url)
         self._lstore = None
         if repo is not None:
             self._lstore = localstore.localstore(self.ui, self.repo, self.repo)

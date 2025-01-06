@@ -549,7 +549,7 @@ class mappinggenerator(_mappingsequence):
     """
 
     def __init__(self, make, args=(), name=None, tmpl=None, sep=b''):
-        super(mappinggenerator, self).__init__(name, tmpl, sep)
+        super().__init__(name, tmpl, sep)
         self._make = make
         self._args = args
 
@@ -564,7 +564,7 @@ class mappinglist(_mappingsequence):
     """Wrapper for list of template mappings"""
 
     def __init__(self, mappings, name=None, tmpl=None, sep=b''):
-        super(mappinglist, self).__init__(name, tmpl, sep)
+        super().__init__(name, tmpl, sep)
         self._mappings = mappings
 
     def itermaps(self, context):
@@ -582,7 +582,7 @@ class mappingdict(mappable, _mappingsequence):
     """
 
     def __init__(self, mapping, name=None, tmpl=None):
-        super(mappingdict, self).__init__(name, tmpl)
+        super().__init__(name, tmpl)
         self._mapping = mapping
 
     def tomap(self, context):
@@ -595,7 +595,7 @@ class mappingdict(mappable, _mappingsequence):
         return True
 
     def tovalue(self, context, mapping):
-        return super(mappingdict, self).tovalue(context, mapping)[0]
+        return super().tovalue(context, mapping)[0]
 
 
 class mappingnone(wrappedvalue):
@@ -606,7 +606,7 @@ class mappingnone(wrappedvalue):
     """
 
     def __init__(self):
-        super(mappingnone, self).__init__(None)
+        super().__init__(None)
 
     def itermaps(self, context):
         return iter([])

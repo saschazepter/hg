@@ -355,7 +355,7 @@ class baseset(abstractsmartset):
             )
             s._ascending = self._ascending
         else:
-            s = getattr(super(baseset, self), op)(other)
+            s = getattr(super(), op)(other)
         return s
 
     def __and__(self, other):
@@ -786,7 +786,7 @@ class generatorset(abstractsmartset):
         else:
             typ = _generatorsetdesc
 
-        return super(generatorset, cls).__new__(typ)
+        return super().__new__(typ)
 
     def __init__(self, gen, iterasc=None):
         """
@@ -1093,7 +1093,7 @@ class _spanset(abstractsmartset):
     def _slice(self, start, stop):
         if self._hiddenrevs:
             # unoptimized since all hidden revisions in range has to be scanned
-            return super(_spanset, self)._slice(start, stop)
+            return super()._slice(start, stop)
         if self._ascending:
             x = min(self._start + start, self._end)
             y = min(self._start + stop, self._end)
@@ -1116,9 +1116,7 @@ class fullreposet(_spanset):
     """
 
     def __init__(self, repo):
-        super(fullreposet, self).__init__(
-            0, len(repo), True, repo.changelog.filteredrevs
-        )
+        super().__init__(0, len(repo), True, repo.changelog.filteredrevs)
 
     def __and__(self, other):
         """As self contains the whole repo, all of the other set should also be
