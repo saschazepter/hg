@@ -627,8 +627,7 @@ class bufferingcommandresponseemitter:
         """
 
         if data is None:
-            for frame in self._flush():
-                yield frame
+            yield from self._flush()
             return
 
         data = self._stream.encode(data)
@@ -649,8 +648,7 @@ class bufferingcommandresponseemitter:
             return
 
         if len(data) > self._maxsize:
-            for frame in self._flush():
-                yield frame
+            yield from self._flush()
 
             # Now emit frames for the big chunk.
             offset = 0
@@ -679,8 +677,7 @@ class bufferingcommandresponseemitter:
         # Else flush what we have and buffer the new chunk. We could do
         # something more intelligent here, like break the chunk. Let's
         # keep things simple for now.
-        for frame in self._flush():
-            yield frame
+        yield from self._flush()
 
         self._chunks.append(data)
         self._chunkssize = len(data)
@@ -1303,8 +1300,7 @@ class serverreactor:
         # If we buffered all our responses, emit those.
         def makegen():
             for gen in self._bufferedframegens:
-                for frame in gen:
-                    yield frame
+                yield from gen
 
         return b'sendframes', {
             b'framegen': makegen(),
@@ -1323,10 +1319,9 @@ class serverreactor:
         ensureserverstream(stream)
 
         def sendframes():
-            for frame in createerrorframe(
+            yield from createerrorframe(
                 stream, requestid, msg, errtype=b'server'
-            ):
-                yield frame
+            )
 
             self._activecommands.remove(requestid)
 
@@ -1337,10 +1332,9 @@ class serverreactor:
         ensureserverstream(stream)
 
         def sendframes():
-            for frame in createcommanderrorresponse(
+            yield from createcommanderrorresponse(
                 stream, requestid, message, args
-            ):
-                yield frame
+            )
 
             self._activecommands.remove(requestid)
 
@@ -1856,8 +1850,7 @@ class clientreactor:
         def makeframes():
             while self._pendingrequests:
                 request = self._pendingrequests.popleft()
-                for frame in self._makecommandframes(request):
-                    yield frame
+                yield from self._makecommandframes(request)
 
         return b'sendframes', {
             b'framegen': makeframes(),
@@ -1899,8 +1892,7 @@ class clientreactor:
             redirect=request.redirect,
         )
 
-        for frame in res:
-            yield frame
+        yield from res
 
         request.state = b'sent'
 

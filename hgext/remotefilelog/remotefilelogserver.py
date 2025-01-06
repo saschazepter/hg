@@ -131,8 +131,7 @@ def onetimesetup(ui):
             def gen():
                 yield first
                 yield second
-                for value in streamres.gen:
-                    yield value
+                yield from streamres.gen
 
             return wireprototypes.streamres(gen())
         finally:

@@ -556,8 +556,7 @@ def _walk_trie(block):
     """
     for __, item in sorted(block.items()):
         if isinstance(item, dict):
-            for sub_block in _walk_trie(item):
-                yield sub_block
+            yield from _walk_trie(item)
     yield block
 
 

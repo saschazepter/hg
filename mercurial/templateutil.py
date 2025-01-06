@@ -871,8 +871,7 @@ def flatten(context, mapping, thing):
             elif not hasattr(i, '__iter__'):
                 yield pycompat.bytestr(i)
             else:
-                for j in flatten(context, mapping, i):
-                    yield j
+                yield from flatten(context, mapping, i)
 
 
 def stringify(context, mapping, thing):

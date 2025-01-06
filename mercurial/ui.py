@@ -980,8 +980,7 @@ class ui:
     def walkconfig(self, untrusted=False, all_known=False):
         defined = self._walk_config(untrusted)
         if not all_known:
-            for d in defined:
-                yield d
+            yield from defined
             return
         known = self._walk_known()
         current_defined = next(defined, None)

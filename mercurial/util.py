@@ -3024,8 +3024,7 @@ def iterfile(fp):
 
 def iterlines(iterator: Iterable[bytes]) -> Iterator[bytes]:
     for chunk in iterator:
-        for line in chunk.splitlines():
-            yield line
+        yield from chunk.splitlines()
 
 
 def expandpath(path: bytes) -> bytes:

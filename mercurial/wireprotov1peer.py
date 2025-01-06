@@ -351,8 +351,7 @@ class wirepeer(
         length = util.uvarintdecodestream(stream)
 
         # SSH streams will block if reading more than length
-        for chunk in util.filechunkiter(stream, limit=length):
-            yield chunk
+        yield from util.filechunkiter(stream, limit=length)
 
         self._finish_inline_clone_bundle(stream)
 

@@ -529,8 +529,7 @@ def _unidiff(
                 if not has_hunks:
                     has_hunks = True
                     yield True
-                for x in yieldhunk(hunk):
-                    yield x
+                yield from yieldhunk(hunk)
         if prev:
             # we've joined the previous hunk, record the new ending points.
             hunk = (hunk[0], a2, hunk[2], b2, hunk[4])
@@ -547,8 +546,7 @@ def _unidiff(
         if not has_hunks:
             has_hunks = True
             yield True
-        for x in yieldhunk(hunk):
-            yield x
+        yield from yieldhunk(hunk)
     elif not has_hunks:
         yield False
 

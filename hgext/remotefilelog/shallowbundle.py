@@ -29,8 +29,7 @@ AllFiles = 2
 
 def shallowgroup(cls, self, nodelist, rlog, lookup, units=None, reorder=None):
     if not isinstance(rlog, remotefilelog.remotefilelog):
-        for c in super(cls, self).group(nodelist, rlog, lookup, units=units):
-            yield c
+        yield from super(cls, self).group(nodelist, rlog, lookup, units=units)
         return
 
     if len(nodelist) == 0:
@@ -47,8 +46,7 @@ def shallowgroup(cls, self, nodelist, rlog, lookup, units=None, reorder=None):
     for i in range(len(nodelist) - 1):
         prev, curr = nodelist[i], nodelist[i + 1]
         linknode = lookup(curr)
-        for c in self.nodechunk(rlog, curr, prev, linknode):
-            yield c
+        yield from self.nodechunk(rlog, curr, prev, linknode)
 
     yield self.close()
 

@@ -405,8 +405,7 @@ class remotefilectx(context.filectx):
         # The copy tracing algorithm depends on these coming out in order
         ancestors = sorted(ancestors, reverse=True, key=lambda x: x.linkrev())
 
-        for ancestor in ancestors:
-            yield ancestor
+        yield from ancestors
 
     def ancestor(self, fc2, actx):
         # the easy case: no (relevant) renames

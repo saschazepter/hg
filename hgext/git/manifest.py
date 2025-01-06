@@ -277,10 +277,9 @@ class gittreemanifest(repository.imanifestdict):
             # TODO: can we prune dir walks with the matcher?
             realname = subdir + pycompat.fsencode(te.name)
             if te.type == pygit2.GIT_OBJ_TREE:
-                for inner in self._walkonetree(
+                yield from self._walkonetree(
                     self._git_repo[te.id], match, realname + b'/'
-                ):
-                    yield inner
+                )
             elif match(realname):
                 yield pycompat.fsencode(realname)
 

@@ -160,13 +160,11 @@ def sigwalk(repo):
     fl = repo.file(b".hgsigs")
     for r in reversed(fl.heads()):
         fn = b".hgsigs|%s" % short(r)
-        for item in parsefile(fl.read(r).splitlines(), fn):
-            yield item
+        yield from parsefile(fl.read(r).splitlines(), fn)
     try:
         # read local signatures
         fn = b"localsigs"
-        for item in parsefile(repo.vfs(fn), fn):
-            yield item
+        yield from parsefile(repo.vfs(fn), fn)
     except OSError:
         pass
 

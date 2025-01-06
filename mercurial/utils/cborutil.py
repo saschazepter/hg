@@ -137,8 +137,7 @@ def streamencodearray(l):
     yield encodelength(MAJOR_TYPE_ARRAY, len(l))
 
     for i in l:
-        for chunk in streamencode(i):
-            yield chunk
+        yield from streamencode(i)
 
 
 def streamencodearrayfromiter(it):
@@ -147,8 +146,7 @@ def streamencodearrayfromiter(it):
     yield BEGIN_INDEFINITE_ARRAY
 
     for i in it:
-        for chunk in streamencode(i):
-            yield chunk
+        yield from streamencode(i)
 
     yield BREAK
 
@@ -162,8 +160,7 @@ def streamencodeset(s):
     # semantic tag 258 for finite sets.
     yield encodelength(MAJOR_TYPE_SEMANTIC, SEMANTIC_TAG_FINITE_SET)
 
-    for chunk in streamencodearray(sorted(s, key=_mixedtypesortkey)):
-        yield chunk
+    yield from streamencodearray(sorted(s, key=_mixedtypesortkey))
 
 
 def streamencodemap(d):
@@ -174,10 +171,8 @@ def streamencodemap(d):
     yield encodelength(MAJOR_TYPE_MAP, len(d))
 
     for key, value in sorted(d.items(), key=lambda x: _mixedtypesortkey(x[0])):
-        for chunk in streamencode(key):
-            yield chunk
-        for chunk in streamencode(value):
-            yield chunk
+        yield from streamencode(key)
+        yield from streamencode(value)
 
 
 def streamencodemapfromiter(it):
@@ -185,10 +180,8 @@ def streamencodemapfromiter(it):
     yield BEGIN_INDEFINITE_MAP
 
     for key, value in it:
-        for chunk in streamencode(key):
-            yield chunk
-        for chunk in streamencode(value):
-            yield chunk
+        yield from streamencode(key)
+        yield from streamencode(value)
 
     yield BREAK
 

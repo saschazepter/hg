@@ -94,15 +94,13 @@ def split(stream):
     def mboxsplit(stream, cur):
         for line in stream:
             if line.startswith(b'From '):
-                for c in split(chunk(cur[1:])):
-                    yield c
+                yield from split(chunk(cur[1:]))
                 cur = []
 
             cur.append(line)
 
         if cur:
-            for c in split(chunk(cur[1:])):
-                yield c
+            yield from split(chunk(cur[1:]))
 
     def mimesplit(stream, cur):
         def msgfp(m):
@@ -2737,8 +2735,7 @@ def diffsinglehunkinline(hunklines):
             raise error.ProgrammingError(b'unexpected hunk line: %s' % line)
     # fast path: if either side is empty, use diffsinglehunk
     if not a or not b:
-        for t in diffsinglehunk(hunklines):
-            yield t
+        yield from diffsinglehunk(hunklines)
         return
     # re-split the content into words
     al = wordsplitter.findall(bytes(a))
@@ -2824,8 +2821,7 @@ def difflabel(func, *args, **kw):
 
     def consumehunkbuffer():
         if hunkbuffer:
-            for token in dodiffhunk(hunkbuffer):
-                yield token
+            yield from dodiffhunk(hunkbuffer)
             hunkbuffer[:] = []
 
     for chunk in func(*args, **kw):
@@ -2855,8 +2851,7 @@ def difflabel(func, *args, **kw):
                 hunkbuffer.append(bufferedline)
             else:
                 # unbuffered
-                for token in consumehunkbuffer():
-                    yield token
+                yield from consumehunkbuffer()
                 stripline = line.rstrip()
                 for prefix, label in prefixes:
                     if stripline.startswith(prefix):
@@ -2871,8 +2866,7 @@ def difflabel(func, *args, **kw):
                     yield (line, b'')
                 if i + 1 < linecount:
                     yield (b'\n', b'')
-        for token in consumehunkbuffer():
-            yield token
+        yield from consumehunkbuffer()
 
 
 def diffui(*args, **kw):

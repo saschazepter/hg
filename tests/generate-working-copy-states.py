@@ -58,10 +58,7 @@ def generatestates(maxchangesets, parentcontents):
         for content in {None, b'content' + (b"%d" % (depth + 1))} | set(
             parentcontents
         ):
-            for combination in generatestates(
-                maxchangesets, parentcontents + [content]
-            ):
-                yield combination
+            yield from generatestates(maxchangesets, parentcontents + [content])
 
 
 # retrieve the command line arguments
