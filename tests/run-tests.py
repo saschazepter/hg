@@ -399,13 +399,6 @@ def canonpath(path):
     return os.path.realpath(os.path.expanduser(path))
 
 
-def which(exe):
-    # shutil.which only accept bytes from 3.8
-    cmd = _bytes2sys(exe)
-    real_exec = shutil.which(cmd)
-    return _sys2bytes(real_exec)
-
-
 def parselistfiles(files, listtype, warn=True):
     entries = dict()
     for filename in files:
@@ -3815,8 +3808,7 @@ class TestRunner:
     def _use_correct_mercurial(self):
         target_exec = os.path.join(self._custom_bin_dir, b'hg')
         if self._hgcommand != b'hg':
-            # shutil.which only accept bytes from 3.8
-            real_exec = which(self._hgcommand)
+            real_exec = shutil.which(self._hgcommand)
             if real_exec is None:
                 raise ValueError('could not find exec path for "%s"', real_exec)
             if real_exec == target_exec:
