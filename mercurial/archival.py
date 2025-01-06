@@ -282,7 +282,7 @@ archivers = {
 
 
 def archive(
-    repo: "localrepo.localrepository",
+    repo: localrepo.localrepository,
     dest,  # TODO: should be bytes, but could be Callable
     node,
     kind: bytes,

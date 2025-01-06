@@ -1612,7 +1612,7 @@ def remoteui(src, opts):
 # Files of interest
 # Used to check if the repository has changed looking at mtime and size of
 # these files.
-foi: "List[Tuple[str, bytes]]" = [
+foi: List[Tuple[str, bytes]] = [
     ('spath', b'00changelog.i'),
     ('spath', b'phaseroots'),  # ! phase can change content at the same size
     ('spath', b'obsstore'),

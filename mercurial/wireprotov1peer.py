@@ -92,7 +92,7 @@ class unsentfuture(futures.Future):
     call ``sendcommands()``.
     """
 
-    _peerexecutor: "peerexecutor"
+    _peerexecutor: peerexecutor
 
     def result(self, timeout=None):
         if self.done():

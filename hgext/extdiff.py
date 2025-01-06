@@ -164,8 +164,8 @@ testedwith = b'ships-with-hg-core'
 
 
 def snapshot(
-    ui: "uimod.ui",
-    repo: "localrepo.localrepository",
+    ui: uimod.ui,
+    repo: localrepo.localrepository,
     files,
     node: Optional[bytes],
     tmproot: bytes,

@@ -86,7 +86,7 @@ except (ImportError, AttributeError):
     # importlib.resources was not found (almost definitely because we're on a
     # Python version before 3.7)
 
-    def open_resource(package: bytes, name: bytes) -> "BinaryIO":
+    def open_resource(package: bytes, name: bytes) -> BinaryIO:
         path = os.path.join(_package_path(package), name)
         return open(path, "rb")
 
@@ -98,7 +98,7 @@ except (ImportError, AttributeError):
         except OSError:
             return False
 
-    def contents(package: bytes) -> "Iterator[bytes]":
+    def contents(package: bytes) -> Iterator[bytes]:
         path = pycompat.fsdecode(_package_path(package))
 
         for p in os.listdir(path):
@@ -107,7 +107,7 @@ except (ImportError, AttributeError):
 else:
     from .. import encoding
 
-    def open_resource(package: bytes, name: bytes) -> "BinaryIO":
+    def open_resource(package: bytes, name: bytes) -> BinaryIO:
         if hasattr(resources, 'files'):
             return (
                 resources.files(  # pytype: disable=module-attr
@@ -133,7 +133,7 @@ else:
                 pycompat.sysstr(package), encoding.strfromlocal(name)
             )
 
-    def contents(package: bytes) -> "Iterator[bytes]":
+    def contents(package: bytes) -> Iterator[bytes]:
         if hasattr(resources, 'files'):  # Introduced in Python 3.9
             for path in resources.files(pycompat.sysstr(package)).iterdir():
                 if path.is_file():

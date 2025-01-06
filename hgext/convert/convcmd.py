@@ -72,7 +72,7 @@ svn_source = subversion.svn_source
 orig_encoding: bytes = b'ascii'
 
 
-def readauthormap(ui: "uimod.ui", authorfile, authors=None):
+def readauthormap(ui: uimod.ui, authorfile, authors=None):
     if authors is None:
         authors = {}
     with open(authorfile, 'rb') as afile:
@@ -162,7 +162,7 @@ sink_converters = [
 ]
 
 
-def convertsource(ui: "uimod.ui", path: bytes, type: bytes, revs):
+def convertsource(ui: uimod.ui, path: bytes, type: bytes, revs):
     exceptions = []
     if type and type not in [s[0] for s in source_converters]:
         raise error.Abort(_(b'%s: invalid source repository type') % type)
@@ -179,7 +179,7 @@ def convertsource(ui: "uimod.ui", path: bytes, type: bytes, revs):
 
 
 def convertsink(
-    ui: "uimod.ui", path: bytes, type: bytes
+    ui: uimod.ui, path: bytes, type: bytes
 ) -> Union[hgconvert.mercurial_sink, subversion.svn_sink]:
     if type and type not in [s[0] for s in sink_converters]:
         raise error.Abort(_(b'%s: invalid destination repository type') % type)
@@ -195,9 +195,7 @@ def convertsink(
 
 
 class progresssource:
-    def __init__(
-        self, ui: "uimod.ui", source, filecount: Optional[int]
-    ) -> None:
+    def __init__(self, ui: uimod.ui, source, filecount: Optional[int]) -> None:
         self.ui = ui
         self.source = source
         self.progress = ui.makeprogress(
@@ -272,7 +270,7 @@ class keysorter:
 
 
 class converter:
-    def __init__(self, ui: "uimod.ui", source, dest, revmapfile, opts) -> None:
+    def __init__(self, ui: uimod.ui, source, dest, revmapfile, opts) -> None:
         self.source = source
         self.dest = dest
         self.ui = ui
@@ -654,7 +652,7 @@ class converter:
 
 
 def convert(
-    ui: "uimod.ui", src, dest: Optional[bytes] = None, revmapfile=None, **opts
+    ui: uimod.ui, src, dest: Optional[bytes] = None, revmapfile=None, **opts
 ) -> None:
     opts = pycompat.byteskwargs(opts)
     global orig_encoding

@@ -658,7 +658,7 @@ class paths(dict):
             self[name] = new_paths
 
 
-_pathsuboptions: "Dict[bytes, Tuple[str, Callable]]" = {}
+_pathsuboptions: Dict[bytes, Tuple[str, Callable]] = {}
 # a dictionnary of methods that can be used to format a sub-option value
 path_suboptions_display = {}
 

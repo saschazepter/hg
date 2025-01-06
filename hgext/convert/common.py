@@ -180,7 +180,7 @@ class converter_source:
 
     def __init__(
         self,
-        ui: "uimod.ui",
+        ui: uimod.ui,
         repotype: bytes,
         path: Optional[bytes] = None,
         revs=None,
@@ -336,7 +336,7 @@ class converter_source:
 class converter_sink:
     """Conversion sink (target) interface"""
 
-    def __init__(self, ui: "uimod.ui", repotype: bytes, path: bytes) -> None:
+    def __init__(self, ui: uimod.ui, repotype: bytes, path: bytes) -> None:
         """Initialize conversion sink (or raise NoRepo("message")
         exception if path is not a valid repository)
 
@@ -430,7 +430,7 @@ class converter_sink:
 
 
 class commandline:
-    def __init__(self, ui: "uimod.ui", command: bytes) -> None:
+    def __init__(self, ui: uimod.ui, command: bytes) -> None:
         self.ui = ui
         self.command = command
 
@@ -561,7 +561,7 @@ class commandline:
 
 
 class mapfile(dict):
-    def __init__(self, ui: "uimod.ui", path: bytes) -> None:
+    def __init__(self, ui: uimod.ui, path: bytes) -> None:
         super().__init__()
         self.ui = ui
         self.path = path

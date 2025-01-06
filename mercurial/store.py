@@ -54,7 +54,7 @@ parsers = policy.importmod('parsers')
 fncache_chunksize = 10**6
 
 
-def _match_tracked_entry(entry: "BaseStoreEntry", matcher):
+def _match_tracked_entry(entry: BaseStoreEntry, matcher):
     """parses a fncache entry and returns whether the entry is tracking a path
     matched by matcher or not.
 
