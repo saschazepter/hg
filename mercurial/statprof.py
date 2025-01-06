@@ -959,16 +959,14 @@ def write_to_chrome(data, fp, minthreshold=0.005, maxthreshold=0.999):
     for sample in data.samples:
         stack = tuple(
             (
-                (
-                    '%s:%d'
-                    % (
-                        simplifypath(pycompat.sysstr(frame.path)),
-                        frame.lineno or -1,
-                    ),
-                    pycompat.sysstr(frame.function),
-                )
-                for frame in sample.stack
+                '%s:%d'
+                % (
+                    simplifypath(pycompat.sysstr(frame.path)),
+                    frame.lineno or -1,
+                ),
+                pycompat.sysstr(frame.function),
             )
+            for frame in sample.stack
         )
         qstack = collections.deque(stack)
         if laststack == qstack:

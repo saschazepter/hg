@@ -145,7 +145,7 @@ class BranchMapCache:
                     closed.add(h)
 
         if rbheads:
-            rtiprev = max((int(clrev(node)) for node in rbheads))
+            rtiprev = max(int(clrev(node)) for node in rbheads)
             cache = new_branch_cache(
                 repo,
                 remotebranchmap,
