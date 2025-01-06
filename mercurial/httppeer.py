@@ -320,7 +320,7 @@ def sendrequest(ui, opener, req):
 
 class RedirectedRepoError(error.RepoError):
     def __init__(self, msg, respurl):
-        super(RedirectedRepoError, self).__init__(msg)
+        super().__init__(msg)
         self.respurl = respurl
 
 

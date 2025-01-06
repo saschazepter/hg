@@ -49,7 +49,7 @@ class lfsvfs(vfsmod.vfs):
         """split the path at first two characters, like: XX/XXXXX..."""
         if not _lfsre.match(path):
             raise error.ProgrammingError(b'unexpected lfs path: %s' % path)
-        return super(lfsvfs, self).join(path[0:2], path[2:], *insidef)
+        return super().join(path[0:2], path[2:], *insidef)
 
     def walk(self, path=None, onerror=None):
         """Yield (dirpath, [], oids) tuple for blobs under path
@@ -104,7 +104,7 @@ class lfsuploadfile(httpconnectionmod.httpsendfile):
     """a file-like object that supports keepalive."""
 
     def __init__(self, ui, filename):
-        super(lfsuploadfile, self).__init__(ui, filename, b'rb')
+        super().__init__(ui, filename, b'rb')
         self.read = self._data.read
 
     def _makeprogress(self):

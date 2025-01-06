@@ -464,7 +464,7 @@ class Block(dict):
     contains up to 16 entry indexed from 0 to 15"""
 
     def __init__(self):
-        super(Block, self).__init__()
+        super().__init__()
         # If this block exist on disk, here is its ID
         self.ondisk_id = None
 

@@ -532,7 +532,7 @@ class alwaysmatcher(basematcher):
     '''Matches everything.'''
 
     def __init__(self, badfn=None):
-        super(alwaysmatcher, self).__init__(badfn)
+        super().__init__(badfn)
 
     def always(self):
         return True
@@ -554,7 +554,7 @@ class nevermatcher(basematcher):
     '''Matches nothing.'''
 
     def __init__(self, badfn=None):
-        super(nevermatcher, self).__init__(badfn)
+        super().__init__(badfn)
 
     # It's a little weird to say that the nevermatcher is an exact matcher
     # or a prefix matcher, but it seems to make sense to let callers take
@@ -581,7 +581,7 @@ class predicatematcher(basematcher):
     """A matcher adapter for a simple boolean function"""
 
     def __init__(self, predfn, predrepr=None, badfn=None):
-        super(predicatematcher, self).__init__(badfn)
+        super().__init__(badfn)
         self.matchfn = predfn
         self._predrepr = predrepr
 
@@ -654,7 +654,7 @@ class patternmatcher(basematcher):
     """
 
     def __init__(self, root, kindpats, badfn=None):
-        super(patternmatcher, self).__init__(badfn)
+        super().__init__(badfn)
         kindpats.sort()
 
         if rustmod is not None:
@@ -742,7 +742,7 @@ class _dirchildren:
 
 class includematcher(basematcher):
     def __init__(self, root, kindpats, badfn=None):
-        super(includematcher, self).__init__(badfn)
+        super().__init__(badfn)
         if rustmod is not None:
             # We need to pass the patterns to Rust because they can contain
             # patterns from the user interface
@@ -823,7 +823,7 @@ class exactmatcher(basematcher):
     """
 
     def __init__(self, files, badfn=None):
-        super(exactmatcher, self).__init__(badfn)
+        super().__init__(badfn)
 
         if isinstance(files, list):
             self._files = files
@@ -898,7 +898,7 @@ class differencematcher(basematcher):
     """
 
     def __init__(self, m1, m2):
-        super(differencematcher, self).__init__()
+        super().__init__()
         self._m1 = m1
         self._m2 = m2
         self.bad = m1.bad
@@ -988,7 +988,7 @@ def intersectmatchers(m1, m2):
 
 class intersectionmatcher(basematcher):
     def __init__(self, m1, m2):
-        super(intersectionmatcher, self).__init__()
+        super().__init__()
         self._m1 = m1
         self._m2 = m2
         self.bad = m1.bad
@@ -1082,7 +1082,7 @@ class subdirmatcher(basematcher):
     """
 
     def __init__(self, path: bytes, matcher: basematcher) -> None:
-        super(subdirmatcher, self).__init__()
+        super().__init__()
         self._path = path
         self._matcher = matcher
         self._always = matcher.always()
@@ -1174,7 +1174,7 @@ class prefixdirmatcher(basematcher):
     """
 
     def __init__(self, path, matcher, badfn=None):
-        super(prefixdirmatcher, self).__init__(badfn)
+        super().__init__(badfn)
         if not path:
             raise error.ProgrammingError(b'prefix path must not be empty')
         self._path = path
@@ -1233,7 +1233,7 @@ class unionmatcher(basematcher):
 
     def __init__(self, matchers):
         m1 = matchers[0]
-        super(unionmatcher, self).__init__()
+        super().__init__()
         self.traversedir = m1.traversedir
         self._matchers = matchers
 

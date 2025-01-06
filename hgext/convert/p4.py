@@ -61,7 +61,7 @@ class p4_source(common.converter_source):
         # avoid import cycle
         from . import convcmd
 
-        super(p4_source, self).__init__(ui, repotype, path, revs=revs)
+        super().__init__(ui, repotype, path, revs=revs)
 
         if b"/" in path and not path.startswith(b'//'):
             raise common.NoRepo(

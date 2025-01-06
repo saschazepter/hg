@@ -219,7 +219,7 @@ def uisetup(ui):
                 print_nodemap_details(cl)
                 testing.wait_file(FILE_LEFT_CL_NODEMAP_WRITE)
                 print('nodemap-race: right side ready to wait for the lock')
-            ret = super(RacedRepo, self).lock(wait=wait)
+            ret = super().lock(wait=wait)
             if newlock and _role(self) == LEFT:
                 print('nodemap-race: left side locked and ready to commit')
                 testing.write_file(FILE_LEFT_LOCKED)
@@ -234,7 +234,7 @@ def uisetup(ui):
 
         def transaction(self, *args, **kwargs):
             # duck punch the role on the transaction to help other pieces of code
-            tr = super(RacedRepo, self).transaction(*args, **kwargs)
+            tr = super().transaction(*args, **kwargs)
             tr._race_role = _role(self)
             return tr
 
@@ -261,7 +261,7 @@ def reposetup(ui, repo):
                 print('reader ready to read the changelog, waiting for right')
                 testing.write_file(FILE_READER_READY)
                 testing.wait_file(FILE_RIGHT_CL_NODEMAP_PRE_WRITE)
-                return super(ReaderRepo, self).changelog
+                return super().changelog
 
         repo.__class__ = ReaderRepo
 

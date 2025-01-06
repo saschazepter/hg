@@ -167,12 +167,10 @@ class largefilesdirstate(dirstate.dirstate):
     #   be in unix form for the superclass?
 
     def set_tracked(self, f, reset_copy=False):
-        return super(largefilesdirstate, self).set_tracked(
-            unixpath(f), reset_copy=reset_copy
-        )
+        return super().set_tracked(unixpath(f), reset_copy=reset_copy)
 
     def set_untracked(self, f):
-        return super(largefilesdirstate, self).set_untracked(unixpath(f))
+        return super().set_untracked(unixpath(f))
 
     def _dirignore(self, f):
         return False
@@ -183,7 +181,7 @@ class largefilesdirstate(dirstate.dirstate):
         # (2) avoid develwarn 'use dirstate.write with ....'
         if tr:
             tr.addbackup(b'largefiles/dirstate', location=b'plain')
-        super(largefilesdirstate, self).write(None)
+        super().write(None)
 
 
 def openlfdirstate(ui, repo, create=True):

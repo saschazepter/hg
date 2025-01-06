@@ -376,7 +376,7 @@ def extsetup(ui):
     class badserver(server.MercurialHTTPServer):
         def __init__(self, ui, *args, **kwargs):
             self._ui = ui
-            super(badserver, self).__init__(ui, *args, **kwargs)
+            super().__init__(ui, *args, **kwargs)
 
             all_recv_bytes = self._ui.config(
                 b'badserver', b'close-after-recv-bytes'
@@ -410,9 +410,7 @@ def extsetup(ui):
                     elif name.lower() == 'server':
                         value = 'badhttpserver'
 
-                    return super(badrequesthandler, self).send_header(
-                        name, value
-                    )
+                    return super().send_header(name, value)
 
             self.RequestHandlerClass = badrequesthandler
 
@@ -428,11 +426,11 @@ def extsetup(ui):
                 raise OSError('close before accept')
 
             if self._ui.configbool(b'badserver', b'close-after-accept'):
-                request, client_address = super(badserver, self).get_request()
+                request, client_address = super().get_request()
                 request.close()
                 raise OSError('close after accept')
 
-            return super(badserver, self).get_request()
+            return super().get_request()
 
         # Does heavy lifting of processing a request. Invokes
         # self.finish_request() which calls self.RequestHandlerClass() which
@@ -446,6 +444,6 @@ def extsetup(ui):
                     socket, self.errorlog, condition_tracked=self._cond
                 )
 
-            return super(badserver, self).process_request(socket, address)
+            return super().process_request(socket, address)
 
     server.MercurialHTTPServer = badserver

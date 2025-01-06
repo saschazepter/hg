@@ -562,7 +562,7 @@ class commandline:
 
 class mapfile(dict):
     def __init__(self, ui: "uimod.ui", path: bytes) -> None:
-        super(mapfile, self).__init__()
+        super().__init__()
         self.ui = ui
         self.path = path
         self.fp = None
@@ -592,7 +592,7 @@ class mapfile(dict):
                     )
                 if key not in self:
                     self.order.append(key)
-                super(mapfile, self).__setitem__(key, value)
+                super().__setitem__(key, value)
         finally:
             fp.close()
 
@@ -607,7 +607,7 @@ class mapfile(dict):
                 )
         self.fp.write(util.tonativeeol(b'%s %s\n' % (key, value)))
         self.fp.flush()
-        super(mapfile, self).__setitem__(key, value)
+        super().__setitem__(key, value)
 
     def close(self) -> None:
         if self.fp:

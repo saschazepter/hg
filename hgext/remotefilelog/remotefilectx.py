@@ -39,9 +39,7 @@ class remotefilectx(context.filectx):
             fileid = repo.nullid
         if fileid and len(fileid) == 40:
             fileid = bin(fileid)
-        super(remotefilectx, self).__init__(
-            repo, path, changeid, fileid, filelog, changectx
-        )
+        super().__init__(repo, path, changeid, fileid, filelog, changectx)
         self._ancestormap = ancestormap
 
     def size(self):
@@ -485,7 +483,7 @@ class remotefilectx(context.filectx):
         )
         if fetch:
             self._repo.fileservice.prefetch(fetch)
-        return super(remotefilectx, self).annotate(*args, **kwargs)
+        return super().annotate(*args, **kwargs)
 
     # Return empty set so that the hg serve and thg don't stack trace
     def children(self):
@@ -495,9 +493,7 @@ class remotefilectx(context.filectx):
 class remoteworkingfilectx(context.workingfilectx, remotefilectx):
     def __init__(self, repo, path, filelog=None, workingctx=None):
         self._ancestormap = None
-        super(remoteworkingfilectx, self).__init__(
-            repo, path, filelog, workingctx
-        )
+        super().__init__(repo, path, filelog, workingctx)
 
     def parents(self):
         return remotefilectx.parents(self)

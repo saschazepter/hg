@@ -130,7 +130,7 @@ class defaultformatter:
 
 class jsonformatter(defaultformatter):
     def __init__(self, ui, repo, opts):
-        super(jsonformatter, self).__init__(ui, repo, opts)
+        super().__init__(ui, repo, opts)
         self.ui.write(b'[')
         self.needcomma = False
 

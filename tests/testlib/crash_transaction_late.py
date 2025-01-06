@@ -18,7 +18,7 @@ def abort(fp):
 def reposetup(ui, repo):
     class LateAbortRepo(repo.__class__):
         def transaction(self, *args, **kwargs):
-            tr = super(LateAbortRepo, self).transaction(*args, **kwargs)
+            tr = super().transaction(*args, **kwargs)
             tr.addfilegenerator(
                 b'late-abort',
                 [b'late-abort'],

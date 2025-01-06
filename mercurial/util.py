@@ -370,7 +370,7 @@ class bufferedinputpipe:
         if isinstance(fh, fileobjectproxy):
             cls = observedbufferedinputpipe
 
-        return super(bufferedinputpipe, cls).__new__(cls)
+        return super().__new__(cls)
 
     def __init__(self, input):
         self._input = input
@@ -712,7 +712,7 @@ class observedbufferedinputpipe(bufferedinputpipe):
     """
 
     def _fillbuffer(self, size=_chunksize):
-        res = super(observedbufferedinputpipe, self)._fillbuffer(size=size)
+        res = super()._fillbuffer(size=size)
 
         fn = getattr(self._input._observer, 'osread', None)
         if fn:
@@ -723,7 +723,7 @@ class observedbufferedinputpipe(bufferedinputpipe):
     # We use different observer methods because the operation isn't
     # performed on the actual file object but on us.
     def read(self, size):
-        res = super(observedbufferedinputpipe, self).read(size)
+        res = super().read(size)
 
         fn = getattr(self._input._observer, 'bufferedread', None)
         if fn:
@@ -732,7 +732,7 @@ class observedbufferedinputpipe(bufferedinputpipe):
         return res
 
     def readline(self, *args, **kwargs):
-        res = super(observedbufferedinputpipe, self).readline(*args, **kwargs)
+        res = super().readline(*args, **kwargs)
 
         fn = getattr(self._input._observer, 'bufferedreadline', None)
         if fn:
@@ -923,7 +923,7 @@ class fileobjectobserver(baseproxyobserver):
     def __init__(
         self, fh, name, reads=True, writes=True, logdata=False, logdataapis=True
     ):
-        super(fileobjectobserver, self).__init__(fh, name, logdata, logdataapis)
+        super().__init__(fh, name, logdata, logdataapis)
         self.reads = reads
         self.writes = writes
 
@@ -1046,7 +1046,7 @@ class socketobserver(baseproxyobserver):
         logdata=False,
         logdataapis=True,
     ):
-        super(socketobserver, self).__init__(fh, name, logdata, logdataapis)
+        super().__init__(fh, name, logdata, logdataapis)
         self.reads = reads
         self.writes = writes
         self.states = states
@@ -1358,7 +1358,7 @@ class sortdict(collections.OrderedDict):
     def __setitem__(self, key, value):
         if key in self:
             del self[key]
-        super(sortdict, self).__setitem__(key, value)
+        super().__setitem__(key, value)
 
     if pycompat.ispypy:
         # __setitem__() isn't called as of PyPy 5.8.0

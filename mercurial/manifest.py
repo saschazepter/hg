@@ -1556,7 +1556,7 @@ class manifestfulltextcache(util.lrucachedict):
     _file = b'manifestfulltextcache'
 
     def __init__(self, max):
-        super(manifestfulltextcache, self).__init__(max)
+        super().__init__(max)
         self._dirty = False
         self._read = False
         self._opener = None
@@ -1567,7 +1567,7 @@ class manifestfulltextcache(util.lrucachedict):
 
         try:
             with self._opener(self._file) as fp:
-                set = super(manifestfulltextcache, self).__setitem__
+                set = super().__setitem__
                 # ignore trailing data, this is a cache, corruption is skipped
                 while True:
                     # TODO do we need to do work here for sha1 portability?
@@ -1620,24 +1620,24 @@ class manifestfulltextcache(util.lrucachedict):
     def __len__(self):
         if not self._read:
             self.read()
-        return super(manifestfulltextcache, self).__len__()
+        return super().__len__()
 
     def __contains__(self, k):
         if not self._read:
             self.read()
-        return super(manifestfulltextcache, self).__contains__(k)
+        return super().__contains__(k)
 
     def __iter__(self):
         if not self._read:
             self.read()
-        return super(manifestfulltextcache, self).__iter__()
+        return super().__iter__()
 
     def __getitem__(self, k):
         if not self._read:
             self.read()
         # the cache lru order can change on read
         setdirty = self._cache.get(k) is not self._head
-        value = super(manifestfulltextcache, self).__getitem__(k)
+        value = super().__getitem__(k)
         if setdirty:
             self._dirty = True
         return value
@@ -1645,22 +1645,22 @@ class manifestfulltextcache(util.lrucachedict):
     def __setitem__(self, k, v):
         if not self._read:
             self.read()
-        super(manifestfulltextcache, self).__setitem__(k, v)
+        super().__setitem__(k, v)
         self._dirty = True
 
     def __delitem__(self, k):
         if not self._read:
             self.read()
-        super(manifestfulltextcache, self).__delitem__(k)
+        super().__delitem__(k)
         self._dirty = True
 
     def get(self, k, default=None):
         if not self._read:
             self.read()
-        return super(manifestfulltextcache, self).get(k, default=default)
+        return super().get(k, default=default)
 
     def clear(self, clear_persisted_data=False):
-        super(manifestfulltextcache, self).clear()
+        super().clear()
         if clear_persisted_data:
             self._dirty = True
             self.write()
@@ -2667,7 +2667,7 @@ class excludeddir(treemanifest):
     _flags: Dict[bytes, bytes]
 
     def __init__(self, nodeconstants, dir, node):
-        super(excludeddir, self).__init__(nodeconstants, dir)
+        super().__init__(nodeconstants, dir)
         self._node = node
         # Add an empty file, which will be included by iterators and such,
         # appearing as the directory itself (i.e. something like "dir/")

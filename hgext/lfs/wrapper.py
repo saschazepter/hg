@@ -291,7 +291,7 @@ def convertsink(orig, sink):
                 full,
                 cleanp2,
             ):
-                pc = super(lfssink, self).putcommit
+                pc = super().putcommit
                 node = pc(
                     files,
                     copies,

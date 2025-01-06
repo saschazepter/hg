@@ -241,7 +241,7 @@ class statichttprepository(
         self._dirstate = None
 
     def _restrictcapabilities(self, caps):
-        caps = super(statichttprepository, self)._restrictcapabilities(caps)
+        caps = super()._restrictcapabilities(caps)
         return caps.difference([b"pushkey"])
 
     def url(self):

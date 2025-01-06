@@ -454,7 +454,7 @@ class abstractsubrepo:
 
 class hgsubrepo(abstractsubrepo):
     def __init__(self, ctx, path, state, allowcreate):
-        super(hgsubrepo, self).__init__(ctx, path)
+        super().__init__(ctx, path)
         self._state = state
         r = ctx.repo()
         root = r.wjoin(util.localpath(path))
@@ -1117,7 +1117,7 @@ class hgsubrepo(abstractsubrepo):
 
 class svnsubrepo(abstractsubrepo):
     def __init__(self, ctx, path, state, allowcreate):
-        super(svnsubrepo, self).__init__(ctx, path)
+        super().__init__(ctx, path)
         self._state = state
         self._exe = procutil.findexe(b'svn')
         if not self._exe:
@@ -1378,7 +1378,7 @@ class svnsubrepo(abstractsubrepo):
 
 class gitsubrepo(abstractsubrepo):
     def __init__(self, ctx, path, state, allowcreate):
-        super(gitsubrepo, self).__init__(ctx, path)
+        super().__init__(ctx, path)
         self._state = state
         self._abspath = ctx.repo().wjoin(path)
         self._subparent = ctx.repo()

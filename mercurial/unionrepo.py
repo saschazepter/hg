@@ -137,7 +137,7 @@ class unionrevlog(revlog.revlog):
 
     def _chunk(self, rev):
         if rev <= self.repotiprev:
-            return super(unionrevlog, self)._inner._chunk(rev)
+            return super()._inner._chunk(rev)
         return self.revlog2._chunk(self.node(rev))
 
     def revdiff(self, rev1, rev2):
@@ -148,7 +148,7 @@ class unionrevlog(revlog.revlog):
                 self.revlog2.rev(self.node(rev2)),
             )
         elif rev1 <= self.repotiprev and rev2 <= self.repotiprev:
-            return super(unionrevlog, self).revdiff(rev1, rev2)
+            return super().revdiff(rev1, rev2)
 
         return mdiff.textdiff(self.rawdata(rev1), self.rawdata(rev2))
 
@@ -165,7 +165,7 @@ class unionrevlog(revlog.revlog):
             revlog2 = getattr(self.revlog2, '_revlog', self.revlog2)
             func = revlog2._revisiondata
         else:
-            func = super(unionrevlog, self)._revisiondata
+            func = super()._revisiondata
         return func(node, raw=raw)
 
     def addrevision(

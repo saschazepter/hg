@@ -442,7 +442,7 @@ class RequestedBundle(BundleBase):
     def __init__(self, bundle_type, revs, tip_rev, tip_node, head_revs, op_id):
         self.head_revs = head_revs
         self.op_id = op_id
-        super(RequestedBundle, self).__init__(
+        super().__init__(
             bundle_type,
             revs,
             tip_rev,
@@ -512,9 +512,7 @@ class GeneratingBundle(BundleBase):
         self.hostname = hostname
         self.pid = pid
         self.filepath = filepath
-        super(GeneratingBundle, self).__init__(
-            bundle_type, revs, tip_rev, tip_node
-        )
+        super().__init__(bundle_type, revs, tip_rev, tip_node)
 
     @classmethod
     def from_line(cls, line):
@@ -554,7 +552,7 @@ class GeneratingBundle(BundleBase):
         return templ % data
 
     def __eq__(self, other):
-        if not super(GeneratingBundle, self).__eq__(other):
+        if not super().__eq__(other):
             return False
         left = (self.hostname, self.pid, self.filepath)
         right = (other.hostname, other.pid, other.filepath)
@@ -591,9 +589,7 @@ class GeneratedBundle(BundleBase):
     ):
         self.file_url = file_url
         self.basename = basename
-        super(GeneratedBundle, self).__init__(
-            bundle_type, revs, tip_rev, tip_node
-        )
+        super().__init__(bundle_type, revs, tip_rev, tip_node)
 
     @classmethod
     def from_line(cls, line):
@@ -634,7 +630,7 @@ class GeneratedBundle(BundleBase):
         return templ % (self.file_url, self.bundle_type)
 
     def __eq__(self, other):
-        if not super(GeneratedBundle, self).__eq__(other):
+        if not super().__eq__(other):
             return False
         return self.file_url == other.file_url
 
@@ -964,7 +960,7 @@ def reposetup(ui, repo):
 
     class autobundlesrepo(repo.__class__):
         def transaction(self, *args, **kwargs):
-            tr = super(autobundlesrepo, self).transaction(*args, **kwargs)
+            tr = super().transaction(*args, **kwargs)
             enabled = repo.ui.configbool(
                 b'clone-bundles',
                 b'auto-generate.on-change',

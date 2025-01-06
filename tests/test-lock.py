@@ -29,10 +29,10 @@ class lockwrapper(lock.lock):
         # lock.lock.__init__() calls lock(), so the pidoffset assignment needs
         # to be earlier
         self._pidoffset = pidoffset
-        super(lockwrapper, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _getpid(self):
-        return super(lockwrapper, self)._getpid() + self._pidoffset
+        return super()._getpid() + self._pidoffset
 
 
 class teststate:

@@ -726,18 +726,18 @@ def makedirstate(repo, dirstate):
             self._repo = weakref.proxy(repo)
 
         def walk(self, *args, **kwargs):
-            orig = super(fsmonitordirstate, self).walk
+            orig = super().walk
             if self._fsmonitordisable:
                 return orig(*args, **kwargs)
             return overridewalk(orig, self, *args, **kwargs)
 
         def rebuild(self, *args, **kwargs):
             self._fsmonitorstate.invalidate()
-            return super(fsmonitordirstate, self).rebuild(*args, **kwargs)
+            return super().rebuild(*args, **kwargs)
 
         def invalidate(self, *args, **kwargs):
             self._fsmonitorstate.invalidate()
-            return super(fsmonitordirstate, self).invalidate(*args, **kwargs)
+            return super().invalidate(*args, **kwargs)
 
     dirstate.__class__ = fsmonitordirstate
     dirstate._fsmonitorinit(repo)
@@ -979,14 +979,14 @@ def reposetup(ui, repo):
 
         class fsmonitorrepo(repo.__class__):
             def status(self, *args, **kwargs):
-                orig = super(fsmonitorrepo, self).status
+                orig = super().status
                 return overridestatus(orig, self, *args, **kwargs)
 
             def wlocknostateupdate(self, *args, **kwargs):
-                return super(fsmonitorrepo, self).wlock(*args, **kwargs)
+                return super().wlock(*args, **kwargs)
 
             def wlock(self, *args, **kwargs):
-                l = super(fsmonitorrepo, self).wlock(*args, **kwargs)
+                l = super().wlock(*args, **kwargs)
                 if not ui.configbool(
                     b"experimental", b"fsmonitor.transaction_notify"
                 ):

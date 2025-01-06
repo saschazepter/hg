@@ -124,17 +124,17 @@ class _basefilecache(scmutil.filecache):
             return unfi.__dict__[self.sname]
         except KeyError:
             pass
-        return super(_basefilecache, self).__get__(unfi, type)
+        return super().__get__(unfi, type)
 
     def set(self, repo, value):
-        return super(_basefilecache, self).set(repo.unfiltered(), value)
+        return super().set(repo.unfiltered(), value)
 
 
 class repofilecache(_basefilecache):
     """filecache for files in .hg but outside of .hg/store"""
 
     def __init__(self, *paths):
-        super(repofilecache, self).__init__(*paths)
+        super().__init__(*paths)
         for path in paths:
             _cachedfiles.add((path, b'plain'))
 
@@ -146,7 +146,7 @@ class storecache(_basefilecache):
     """filecache for files in the store"""
 
     def __init__(self, *paths):
-        super(storecache, self).__init__(*paths)
+        super().__init__(*paths)
         for path in paths:
             _cachedfiles.add((path, b''))
 
@@ -158,7 +158,7 @@ class changelogcache(storecache):
     """filecache for the changelog"""
 
     def __init__(self):
-        super(changelogcache, self).__init__()
+        super().__init__()
         _cachedfiles.add((b'00changelog.i', b''))
         _cachedfiles.add((b'00changelog.n', b''))
 
@@ -173,7 +173,7 @@ class manifestlogcache(storecache):
     """filecache for the manifestlog"""
 
     def __init__(self):
-        super(manifestlogcache, self).__init__()
+        super().__init__()
         _cachedfiles.add((b'00manifest.i', b''))
         _cachedfiles.add((b'00manifest.n', b''))
 
@@ -190,7 +190,7 @@ class mixedrepostorecache(_basefilecache):
     def __init__(self, *pathsandlocations):
         # scmutil.filecache only uses the path for passing back into our
         # join(), so we can safely pass a list of paths and locations
-        super(mixedrepostorecache, self).__init__(*pathsandlocations)
+        super().__init__(*pathsandlocations)
         _cachedfiles.update(pathsandlocations)
 
     def join(self, obj, fnameandlocation):
@@ -222,7 +222,7 @@ class unfilteredpropertycache(util.propertycache):
     def __get__(self, repo, type=None):
         unfi = repo.unfiltered()
         if unfi is repo:
-            return super(unfilteredpropertycache, self).__get__(unfi)
+            return super().__get__(unfi)
         return getattr(unfi, self.name)
 
 
@@ -308,9 +308,7 @@ class localpeer(repository.peer):  # (repository.ipeercommands)
     '''peer for a local repo; reflects only the most recent API'''
 
     def __init__(self, repo, caps=None, path=None, remotehidden=False):
-        super(localpeer, self).__init__(
-            repo.ui, path=path, remotehidden=remotehidden
-        )
+        super().__init__(repo.ui, path=path, remotehidden=remotehidden)
 
         if caps is None:
             caps = moderncaps.copy()
@@ -467,7 +465,7 @@ class locallegacypeer(localpeer):  # (repository.ipeerlegacycommands)
     restricted capabilities"""
 
     def __init__(self, repo, path=None, remotehidden=False):
-        super(locallegacypeer, self).__init__(
+        super().__init__(
             repo, caps=legacycaps, path=path, remotehidden=remotehidden
         )
 
