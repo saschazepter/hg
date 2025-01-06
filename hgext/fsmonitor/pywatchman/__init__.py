@@ -264,9 +264,7 @@ class UseAfterFork(WatchmanError):
 
 class WatchmanEnvironmentError(WatchmanError):
     def __init__(self, msg, errno, errmsg, cmd=None):
-        super().__init__(
-            "{0}: errno={1} errmsg={2}".format(msg, errno, errmsg), cmd
-        )
+        super().__init__(f"{msg}: errno={errno} errmsg={errmsg}", cmd)
 
 
 class SocketConnectError(WatchmanError):
@@ -662,7 +660,7 @@ class CLIProcessTransport(Transport):
             return self.proc
         args = [
             self.binpath,
-            "--sockname={0}".format(self.sockpath),
+            f"--sockname={self.sockpath}",
             "--logfile=/BOGUS",
             "--statefile=/BOGUS",
             "--no-spawn",
