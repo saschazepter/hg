@@ -307,7 +307,7 @@ def _changesetforwardcopies(a, b, match):
         # revision that will be relevant for a edge of the graph. So if a
         # children has parent not in `children_count`, that edges should not be
         # processed.
-        children_count = dict((r, 0) for r in roots)
+        children_count = {r: 0 for r in roots}
         for r in revs:
             for p in cl.parentrevs(r):
                 if p == nullrev:
@@ -329,7 +329,7 @@ def _changesetforwardcopies(a, b, match):
     else:
         # When not using side-data, we will process the edges "from" the parent.
         # so we need a full mapping of the parent -> children relation.
-        children = dict((r, []) for r in roots)
+        children = {r: [] for r in roots}
         for r in revs:
             for p in cl.parentrevs(r):
                 if p == nullrev:
