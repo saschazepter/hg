@@ -402,7 +402,7 @@ def extsetup(ui):
             )
 
             # Need to inherit object so super() works.
-            class badrequesthandler(self.RequestHandlerClass, object):
+            class badrequesthandler(self.RequestHandlerClass):
                 def send_header(self, name, value):
                     # Make headers deterministic to facilitate testing.
                     if name.lower() == 'date':

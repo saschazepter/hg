@@ -352,7 +352,7 @@ def openlog(opt, default):
     return default
 
 
-class MercurialHTTPServer(_mixin, httpservermod.httpserver, object):
+class MercurialHTTPServer(_mixin, httpservermod.httpserver):
     # SO_REUSEADDR has broken semantics on windows
     if pycompat.iswindows:
         allow_reuse_address = 0
