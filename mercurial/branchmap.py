@@ -915,7 +915,7 @@ class BranchCacheV3(_LocalBranchCache):
         if self._pure_topo_branch is None:
             # we match using node because it is faster to built the set of node
             # than to resolve node → rev later.
-            topo_heads = set(to_node(r) for r in self._get_topo_heads(repo))
+            topo_heads = {to_node(r) for r in self._get_topo_heads(repo)}
         for label, nodes in sorted(self._entries.items()):
             if label == self._pure_topo_branch:
                 # not need to write anything the header took care of that

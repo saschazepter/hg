@@ -454,8 +454,8 @@ def _filtered_and_obs_revs(repo, max_rev):
         obs_set = obs_set - cl.filteredrevs
     if max_rev < (len(cl) - 1):
         # there might be revision to filter out
-        filtered_set = set(r for r in filtered_set if r <= max_rev)
-        obs_set = set(r for r in obs_set if r <= max_rev)
+        filtered_set = {r for r in filtered_set if r <= max_rev}
+        obs_set = {r for r in obs_set if r <= max_rev}
     return (filtered_set, obs_set)
 
 
