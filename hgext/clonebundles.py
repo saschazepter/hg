@@ -390,7 +390,7 @@ BUNDLE_MASK = (
 AUTO_GEN_FILE = b'clonebundles.auto-gen'
 
 
-class BundleBase(object):
+class BundleBase:
     """represents the core of properties that matters for us in a bundle
 
     :bundle_type: the bundlespec (see hg help bundlespec)
