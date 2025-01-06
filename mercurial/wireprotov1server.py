@@ -488,7 +488,7 @@ def find_pullbundle(repo, proto, opts, clheads, heads, common):
         repo.ui.debug(b'sending pullbundle "%s"\n' % path)
         try:
             return repo.vfs.open(path)
-        except IOError:
+        except OSError:
             repo.ui.debug(b'pullbundle "%s" not accessible\n' % path)
             continue
     return None

@@ -227,7 +227,7 @@ class basestore:
                         f.write(b"corrupt %s during read\n" % filepath)
                 os.rename(filepath, filepath + b".corrupt")
                 raise KeyError(b"corrupt local cache file %s" % filepath)
-        except IOError:
+        except OSError:
             raise KeyError(
                 b"no file found at %s for %s:%s" % (filepath, name, hex(node))
             )

@@ -339,7 +339,7 @@ class converter:
                     else:
                         m[child] = p1 + p2
         # if file does not exist or error reading, exit
-        except IOError:
+        except OSError:
             raise error.Abort(
                 _(b'splicemap file not found or error reading %s:') % path
             )

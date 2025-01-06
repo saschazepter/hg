@@ -95,7 +95,7 @@ except (ImportError, AttributeError):
 
         try:
             return os.path.isfile(pycompat.fsdecode(path))
-        except (IOError, OSError):
+        except OSError:
             return False
 
     def contents(package: bytes) -> "Iterator[bytes]":

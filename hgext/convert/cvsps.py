@@ -154,7 +154,7 @@ def createlog(ui, directory=None, root=b"", rlog=True, cache=None):
             directory = prefix
             if prefix == b".":
                 prefix = b""
-        except IOError:
+        except OSError:
             raise logerror(_(b'not a CVS sandbox'))
 
         if prefix and not prefix.endswith(pycompat.ossep):
@@ -163,7 +163,7 @@ def createlog(ui, directory=None, root=b"", rlog=True, cache=None):
         # Use the Root file in the sandbox, if it exists
         try:
             root = util.readfile(os.path.join(b'CVS', b'Root')).strip()
-        except IOError:
+        except OSError:
             pass
 
     if not root:

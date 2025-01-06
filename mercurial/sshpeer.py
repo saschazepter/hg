@@ -169,7 +169,7 @@ def _cleanuppipes(ui, pipei, pipeo, pipee, warn):
         try:
             for l in pipee:
                 ui.status(_(b'remote: '), l)
-        except (IOError, ValueError):
+        except (OSError, ValueError):
             pass
 
         pipee.close()
@@ -316,7 +316,7 @@ def _performhandshake(ui, stdin, stdout, stderr):
 
         stdin.write(b''.join(handshake))
         stdin.flush()
-    except IOError:
+    except OSError:
         badresponse()
 
     # Assume version 1 of wire protocol by default.
@@ -350,7 +350,7 @@ def _performhandshake(ui, stdin, stdout, stderr):
                 ui.debug(b'remote: ', l)
             lines.append(l)
             max_noise -= 1
-        except IOError:
+        except OSError:
             badresponse()
     else:
         badresponse()
@@ -709,7 +709,7 @@ def make_peer(
             peer._call(
                 b"protocaps", caps=b' '.join(sorted(_clientcapabilities()))
             )
-        except IOError:
+        except OSError:
             peer._cleanup()
             raise error.RepoError(_(b'capability exchange failed'))
 

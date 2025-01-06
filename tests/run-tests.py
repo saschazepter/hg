@@ -292,7 +292,7 @@ def checksocketfamily(name, port=20058):
         s.bind(('localhost', port))
         s.close()
         return True
-    except (socket.error, OSError) as exc:
+    except OSError as exc:
         if exc.errno == errno.EADDRINUSE:
             return True
         elif exc.errno in (
@@ -323,7 +323,7 @@ def checkportisavailable(port):
         return True
     except PermissionError:
         return False
-    except socket.error as exc:
+    except OSError as exc:
         if WINDOWS and exc.errno == errno.WSAEACCES:
             return False
         if exc.errno not in (

@@ -2023,7 +2023,7 @@ def copyfile(
                 m = "the `nb_bytes` argument is incompatible with `hardlink`"
                 raise error.ProgrammingError(m)
             return
-        except (IOError, OSError) as exc:
+        except OSError as exc:
             if exc.errno != errno.EEXIST and no_hardlink_cb is not None:
                 no_hardlink_cb()
             # fall back to normal copy
@@ -2089,7 +2089,7 @@ def copyfiles(src, dst, hardlink=None, progress=None):
         if hardlink:
             try:
                 oslink(src, dst)
-            except (IOError, OSError) as exc:
+            except OSError as exc:
                 if exc.errno != errno.EEXIST:
                     hardlink = False
                 # XXX maybe try to relink if the file exist ?
@@ -2490,7 +2490,7 @@ def mktempcopy(
     try:
         try:
             ifp = posixfile(name, b"rb")
-        except IOError as inst:
+        except OSError as inst:
             if inst.errno == errno.ENOENT:
                 return temp
             if not getattr(inst, 'filename', None):

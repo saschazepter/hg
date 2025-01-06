@@ -567,7 +567,7 @@ def overridestatus(
             else:
                 fn = b'fsmonitorfail.log'
                 f = self.vfs.open(fn, b'wb')
-        except (IOError, OSError):
+        except OSError:
             self.ui.warn(_(b'warning: unable to write to %s\n') % fn)
             return
 

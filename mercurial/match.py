@@ -368,7 +368,7 @@ def _donormalize(patterns, default, root, cwd, auditor=None, warn=None):
                 else:
                     files = files.splitlines()
                 files = [f for f in files if f]
-            except EnvironmentError:
+            except OSError:
                 raise error.Abort(_(b"unable to read file list (%s)") % pat)
             for k, p, source in _donormalize(
                 files, default, root, cwd, auditor, warn
@@ -391,7 +391,7 @@ def _donormalize(patterns, default, root, cwd, auditor=None, warn=None):
                         inst.message,
                     )
                 )
-            except IOError as inst:
+            except OSError as inst:
                 if warn:
                     warn(
                         _(b"skipping unreadable pattern file '%s': %s\n")

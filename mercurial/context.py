@@ -963,7 +963,7 @@ class basefilectx:
     def isbinary(self):
         try:
             return stringutil.binary(self.data())
-        except IOError:
+        except OSError:
             return False
 
     def isexec(self):
@@ -1854,7 +1854,7 @@ class workingctx(committablectx):
                         fixup.append((f, cache_info))
                     else:
                         clean.append(f)
-            except (IOError, OSError):
+            except OSError:
                 # A file become inaccessible in between? Mark it as deleted,
                 # matching dirstate behavior (issue5584).
                 # The dirstate has more complex behavior around whether a

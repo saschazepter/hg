@@ -119,7 +119,7 @@ else:
 
     def _raiseioerror(name):
         err = ctypes.WinError()  # pytype: disable=module-attr
-        raise IOError(
+        raise OSError(
             err.errno, '%s: %s' % (encoding.strfromlocal(name), err.strerror)
         )
 

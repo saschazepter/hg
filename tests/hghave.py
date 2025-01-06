@@ -252,7 +252,7 @@ def has_eol_in_paths():
         os.close(fd)
         os.remove(path)
         return True
-    except (IOError, OSError):
+    except OSError:
         return False
 
 
@@ -269,7 +269,7 @@ def has_executablebit():
             exec_flags_cannot_flip = (os.stat(fn).st_mode & 0o777) == m
         finally:
             os.unlink(fn)
-    except (IOError, OSError):
+    except OSError:
         # we don't care, the user probably won't be able to commit anyway
         return False
     return not (new_file_has_exec or exec_flags_cannot_flip)

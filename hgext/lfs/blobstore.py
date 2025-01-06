@@ -13,7 +13,6 @@ import hashlib
 import json
 import os
 import re
-import socket
 
 from typing import (
     Optional,
@@ -89,7 +88,7 @@ class nullvfs(lfsvfs):
         # self.vfs.  Raise the same error as a normal vfs when asked to read a
         # file that doesn't exist.  The only difference is the full file path
         # isn't available in the error.
-        raise IOError(
+        raise OSError(
             errno.ENOENT,
             pycompat.sysstr(b'%s: No such file or directory' % oid),
         )
@@ -595,7 +594,7 @@ class _gitlfsremote:
                         self._basictransfer(obj, action, localstore)
                         yield 1, obj.get(b'oid')
                         break
-                    except socket.error as ex:
+                    except OSError as ex:
                         if retry > 0:
                             self.ui.note(
                                 _(b'lfs: failed: %r (remaining retry %d)\n')

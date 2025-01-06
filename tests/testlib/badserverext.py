@@ -425,12 +425,12 @@ def extsetup(ui):
                 self.__shutdown_request = True
 
                 # Simulate failure to stop processing this request.
-                raise socket.error('close before accept')
+                raise OSError('close before accept')
 
             if self._ui.configbool(b'badserver', b'close-after-accept'):
                 request, client_address = super(badserver, self).get_request()
                 request.close()
-                raise socket.error('close after accept')
+                raise OSError('close after accept')
 
             return super(badserver, self).get_request()
 

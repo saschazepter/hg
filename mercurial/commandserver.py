@@ -724,7 +724,7 @@ class unixforkingservice:
                 super(unixcmdserverrepo, self).close()
                 try:
                     self._cmdserveripc.send(self.root)
-                except socket.error:
+                except OSError:
                     self.ui.log(
                         b'cmdserver', b'failed to send repo root to master\n'
                     )

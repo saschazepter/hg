@@ -271,7 +271,7 @@ def _loadfileblob(repo, cachepath, path, node):
             try:
                 f = util.atomictempfile(filecachepath, b"wb")
                 f.write(text)
-            except (IOError, OSError):
+            except OSError:
                 # Don't abort if the user only has permission to read,
                 # and not write.
                 pass

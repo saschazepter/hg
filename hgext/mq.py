@@ -504,7 +504,7 @@ class queue:
                 curpath = os.path.join(path, b'patches')
             else:
                 curpath = os.path.join(path, b'patches-' + cur)
-        except IOError:
+        except OSError:
             curpath = os.path.join(path, b'patches')
         self.path = patchdir or curpath
         self.opener = vfsmod.vfs(self.path)
@@ -1048,7 +1048,7 @@ class queue:
 
             try:
                 ph = patchheader(self.join(patchname), self.plainmode)
-            except IOError:
+            except OSError:
                 self.ui.warn(_(b"unable to read %s\n") % patchname)
                 err = 1
                 break
@@ -1394,7 +1394,7 @@ class queue:
             try:
                 # if patch file write fails, abort early
                 p = self.opener(patchfn, b"w")
-            except IOError as e:
+            except OSError as e:
                 raise error.Abort(
                     _(b'cannot write patch "%s": %s')
                     % (patchfn, encoding.strtolocal(e.strerror))
@@ -2533,7 +2533,7 @@ class queue:
                         fp = hg.openpath(self.ui, filename)
                         text = fp.read()
                         fp.close()
-                except (OSError, IOError):
+                except OSError:
                     raise error.Abort(_(b"unable to read file %s") % filename)
                 patchf = self.opener(patchname, b"w")
                 patchf.write(text)
@@ -3927,7 +3927,7 @@ def qqueue(ui, repo, name=None, **opts):
         try:
             fh = repo.vfs(_allqueues, b'r')
             fh.close()
-        except IOError:
+        except OSError:
             return True
 
         return False
@@ -3941,7 +3941,7 @@ def qqueue(ui, repo, name=None, **opts):
             fh.close()
             if current not in queues:
                 queues.append(current)
-        except IOError:
+        except OSError:
             queues = [_defaultqueue]
 
         return sorted(queues)

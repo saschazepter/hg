@@ -558,7 +558,7 @@ def getstandinsstate(repo):
         lfile = splitstandin(standin)
         try:
             hash = readasstandin(wctx[standin])
-        except IOError:
+        except OSError:
             hash = None
         standins.append((lfile, hash))
     return standins

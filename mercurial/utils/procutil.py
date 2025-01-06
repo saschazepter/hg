@@ -55,10 +55,10 @@ class BadFile(io.RawIOBase):
     """Dummy file object to simulate closed stdio behavior"""
 
     def readinto(self, b):
-        raise IOError(errno.EBADF, 'Bad file descriptor')
+        raise OSError(errno.EBADF, 'Bad file descriptor')
 
     def write(self, b):
-        raise IOError(errno.EBADF, 'Bad file descriptor')
+        raise OSError(errno.EBADF, 'Bad file descriptor')
 
 
 class LineBufferedWrapper:

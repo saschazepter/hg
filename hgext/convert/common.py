@@ -600,7 +600,7 @@ class mapfile(dict):
         if self.fp is None:
             try:
                 self.fp = open(self.path, 'ab')
-            except IOError as err:
+            except OSError as err:
                 raise error.Abort(
                     _(b'could not open map file %r: %s')
                     % (self.path, encoding.strtolocal(err.strerror))

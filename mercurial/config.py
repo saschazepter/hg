@@ -196,7 +196,7 @@ class config:
                 expanded = util.expandpath(m.group(1))
                 try:
                     include(expanded, remap=remap, sections=sections)
-                except IOError as inst:
+                except OSError as inst:
                     if inst.errno != errno.ENOENT:
                         raise error.ConfigError(
                             _(b"cannot include %s (%s)")

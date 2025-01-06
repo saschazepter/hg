@@ -172,7 +172,7 @@ class convert_cvs(converter_source):
                             if part1 == format:
                                 passw = part2
                                 break
-                    except IOError as inst:
+                    except OSError as inst:
                         if inst.errno != errno.ENOENT:
                             if not getattr(inst, 'filename', None):
                                 inst.filename = cvspass

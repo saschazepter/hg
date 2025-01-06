@@ -11,7 +11,6 @@ from __future__ import annotations
 import errno
 import io
 import os
-import socket
 import struct
 import typing
 
@@ -303,7 +302,7 @@ def sendrequest(ui, opener, req):
             % urlutil.hidepassword(req.get_full_url())
         )
         ui.traceback()
-        raise IOError(None, inst)
+        raise OSError(None, inst)
     finally:
         if ui.debugflag and ui.configbool(b'devel', b'debug.peer-request'):
             code = res.code if res else -1
@@ -522,7 +521,7 @@ class httppeer(wireprotov1peer.wirepeer):
             # like generic socket errors. They lack any values in
             # .args on Python 3 which breaks our socket.error block.
             raise
-        except socket.error as err:
+        except OSError as err:
             if err.args[0] in (errno.ECONNRESET, errno.EPIPE):
                 raise error.Abort(_(b'push failed: %s') % err.args[1])
             raise error.Abort(err.args[1])

@@ -525,7 +525,7 @@ class _LocalBranchCache(_BaseBranchCache):
                 # invalidate the cache
                 raise ValueError('tip differs')
             bcache._load_heads(repo, lineiter)
-        except (IOError, OSError):
+        except OSError:
             return None
 
         except Exception as inst:
@@ -632,7 +632,7 @@ class _LocalBranchCache(_BaseBranchCache):
                 nodecount,
             )
             self._state = STATE_CLEAN
-        except (IOError, OSError, error.Abort) as inst:
+        except (OSError, error.Abort) as inst:
             # Abort may be raised by read only opener, so log and continue
             repo.ui.debug(
                 b"couldn't write branch cache: %s\n"

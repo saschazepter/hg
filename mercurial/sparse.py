@@ -357,7 +357,7 @@ def matcher(repo, revs=None, includetemp=True):
                     default=b'relpath',
                 )
                 matchers.append(matcher)
-        except IOError:
+        except OSError:
             pass
 
     if not matchers:

@@ -54,7 +54,7 @@ def getport(port: Union[bytes, int]) -> int:
 
     try:
         return socket.getservbyname(pycompat.sysstr(port))
-    except socket.error:
+    except OSError:
         raise error.Abort(
             _(b"no port number associated with service '%s'") % port
         )

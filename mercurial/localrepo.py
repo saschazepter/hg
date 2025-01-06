@@ -877,19 +877,19 @@ def loadhgrc(
         try:
             ui.readconfig(sharedvfs.join(b'hgrc'), root=sharedvfs.base)
             ret = True
-        except IOError:
+        except OSError:
             pass
 
     try:
         ui.readconfig(hgvfs.join(b'hgrc'), root=wdirvfs.base)
         ret = True
-    except IOError:
+    except OSError:
         pass
 
     try:
         ui.readconfig(hgvfs.join(b'hgrc-not-shared'), root=wdirvfs.base)
         ret = True
-    except IOError:
+    except OSError:
         pass
 
     return ret
@@ -2814,7 +2814,7 @@ class localrepository(_localrepo_base_classes):
                     b'repository tip rolled back to revision %d (undo %s)\n'
                 ) % (oldtip, desc)
             parentgone = any(self[p].rev() > oldtip for p in parents)
-        except IOError:
+        except OSError:
             msg = _(b'rolling back unknown transaction\n')
             desc = None
             parentgone = True
@@ -3966,7 +3966,7 @@ def createrepository(ui, path: bytes, createopts=None, requirements=None):
             try:
                 sharedpath = os.path.relpath(sharedpath, hgvfs.base)
                 sharedpath = util.pconvert(sharedpath)
-            except (IOError, ValueError) as e:
+            except (OSError, ValueError) as e:
                 # ValueError is raised on Windows if the drive letters differ
                 # on each path.
                 raise error.Abort(

@@ -95,7 +95,7 @@ def termsize(ui: "uimod.ui") -> Tuple[int, int]:
                 return width, height
         except ValueError:
             pass
-        except IOError as e:
+        except OSError as e:
             if e.errno == errno.EINVAL:
                 pass
             else:
