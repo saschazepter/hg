@@ -466,7 +466,7 @@ class _BaseFile(list):
         if repr_method == 'to_binary':
             fhandle = open(fpath, 'wb')
         else:
-            fhandle = io.open(fpath, 'w', encoding=self.encoding)
+            fhandle = open(fpath, 'w', encoding=self.encoding)
             if not isinstance(contents, text_type):
                 contents = contents.decode(self.encoding)
         fhandle.write(contents)
@@ -1253,10 +1253,10 @@ class _POFileParser:
         enc = kwargs.get('encoding', default_encoding)
         if _is_file(pofile):
             try:
-                self.fhandle = io.open(pofile, 'rt', encoding=enc)
+                self.fhandle = open(pofile, 'rt', encoding=enc)
             except LookupError:
                 enc = default_encoding
-                self.fhandle = io.open(pofile, 'rt', encoding=enc)
+                self.fhandle = open(pofile, 'rt', encoding=enc)
         else:
             self.fhandle = pofile.splitlines()
 
