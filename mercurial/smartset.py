@@ -544,8 +544,7 @@ def _iterordered(ascending, iter1, iter2):
         elif val2 is not None:
             # might have been equality and both are empty
             yield val2
-        for val in it:
-            yield val
+        yield from it
 
 
 class addset(abstractsmartset):

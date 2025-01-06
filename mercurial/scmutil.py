@@ -514,8 +514,7 @@ def walkrepos(
                 fname = os.path.join(root, d)
                 if adddir(seen_dirs, fname):
                     if os.path.islink(fname):
-                        for hgname in walkrepos(fname, True, seen_dirs):
-                            yield hgname
+                        yield from walkrepos(fname, True, seen_dirs)
                     else:
                         newdirs.append(d)
             dirs[:] = newdirs

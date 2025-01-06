@@ -1434,8 +1434,7 @@ def _outgoing_filter(repo, revs, opts):
     if opts.get(b'newest_first'):
         revs.reverse()
     if limit is None and not no_merges:
-        for r in revs:
-            yield r
+        yield from revs
         return
 
     count = 0

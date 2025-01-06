@@ -792,13 +792,11 @@ class dirnode:
                 return
 
         # add the files to status list
-        for st, fpath in self.iterfilepaths():
-            yield st, fpath
+        yield from self.iterfilepaths()
 
         # recurse on the subdirs
         for dirobj in self.subdirs.values():
-            for st, fpath in dirobj.tersewalk(terseargs):
-                yield st, fpath
+            yield from dirobj.tersewalk(terseargs)
 
 
 def tersedir(statuslist: istatus.Status, terseargs) -> istatus.Status:

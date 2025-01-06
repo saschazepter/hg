@@ -648,7 +648,7 @@ class sqlitefilestore(repository.ifilestorage):
             deltabases[rev] = res.fetchone()[0]
 
         # TODO define revdifffn so we can use delta from storage.
-        for delta in storageutil.emitrevisions(
+        yield from storageutil.emitrevisions(
             self,
             nodes,
             nodesorder,
@@ -658,8 +658,7 @@ class sqlitefilestore(repository.ifilestorage):
             assumehaveparentrevisions=assumehaveparentrevisions,
             deltamode=deltamode,
             sidedata_helpers=sidedata_helpers,
-        ):
-            yield delta
+        )
 
     # End of ifiledata interface.
 

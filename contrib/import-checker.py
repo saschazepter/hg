@@ -217,24 +217,19 @@ def list_stdlib_modules():
     >>> 'cffi' in mods
     True
     """
-    for m in sys.builtin_module_names:
-        yield m
+    yield from sys.builtin_module_names
     # These modules only exist on windows, but we should always
     # consider them stdlib.
-    for m in ['msvcrt', '_winreg']:
-        yield m
+    yield from ['msvcrt', '_winreg']
     yield '__builtin__'
     yield 'builtins'  # python3 only
     yield 'importlib.abc'  # python3 only
     yield 'importlib.machinery'  # python3 only
     yield 'importlib.util'  # python3 only
     yield 'packaging.version'
-    for m in 'fcntl', 'grp', 'pwd', 'select', 'termios':  # Unix only
-        yield m
-    for m in 'cPickle', 'datetime':  # in Python (not C) on PyPy
-        yield m
-    for m in ['cffi']:
-        yield m
+    yield from ['fcntl', 'grp', 'pwd', 'select', 'termios']
+    yield from ['cPickle', 'datetime']
+    yield from ['cffi']
     yield 'distutils'  # in Python < 3.12
     yield 'distutils.version'  # in Python < 3.12
     stdlib_prefixes = {sys.prefix, sys.exec_prefix}
@@ -443,10 +438,9 @@ def verify_modern_convention(module, root, localmods, root_col_offset=0):
 
         if newscope:
             # Check for local imports in function
-            for r in verify_modern_convention(
+            yield from verify_modern_convention(
                 module, node, localmods, node.col_offset + 4
-            ):
-                yield r
+            )
         elif isinstance(node, ast.Import):
             # Disallow "import foo, bar" and require separate imports
             # for each module.

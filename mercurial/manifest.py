@@ -588,8 +588,7 @@ class manifestdict(repository.imanifestdict):
         It also reports nonexistent files by marking them bad with match.bad().
         """
         if match.always():
-            for f in iter(self):
-                yield f
+            yield from iter(self)
             return
 
         fset = set(match.files())
@@ -1006,8 +1005,7 @@ class treemanifest:  # (repository.imanifestdict)
             if p in self._files:
                 yield self._subpath(p), n, self._flags.get(p, b'')
             else:
-                for x in n.iterentries():
-                    yield x
+                yield from n.iterentries()
 
     def items(self) -> Iterator[Tuple[bytes, Union[bytes, 'treemanifest']]]:
         self._load()
@@ -1018,8 +1016,7 @@ class treemanifest:  # (repository.imanifestdict)
             if p in self._files:
                 yield self._subpath(p), n
             else:
-                for f, sn in n.items():
-                    yield f, sn
+                yield from n.items()
 
     iteritems = items
 
@@ -1030,8 +1027,7 @@ class treemanifest:  # (repository.imanifestdict)
             if p in self._files:
                 yield self._subpath(p)
             else:
-                for f in self._dirs[p]:
-                    yield f
+                yield from self._dirs[p]
 
     def keys(self) -> List[bytes]:
         return list(self.iterkeys())
@@ -1260,8 +1256,7 @@ class treemanifest:  # (repository.imanifestdict)
         It also reports nonexistent files by marking them bad with match.bad().
         """
         if match.always():
-            for f in iter(self):
-                yield f
+            yield from iter(self)
             return
 
         fset = set(match.files())
@@ -1296,8 +1291,7 @@ class treemanifest:  # (repository.imanifestdict)
                     yield fullp
             else:
                 if not visit or p[:-1] in visit:
-                    for f in self._dirs[p]._walk(match):
-                        yield f
+                    yield from self._dirs[p]._walk(match)
 
     def _matches(self, match: matchmod.basematcher) -> 'treemanifest':
         """recursively generate a new manifest filtered by the match argument."""
@@ -1538,8 +1532,7 @@ class treemanifest:  # (repository.imanifestdict)
         # OPT: use visitchildrenset to avoid loading everything.
         self._loadalllazy()
         for d, subm in self._dirs.items():
-            for subtree in subm.walksubtrees(matcher=matcher):
-                yield subtree
+            yield from subm.walksubtrees(matcher=matcher)
 
 
 class manifestfulltextcache(util.lrucachedict):

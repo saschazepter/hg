@@ -303,8 +303,7 @@ def generatev1(repo):
                 if size <= 65536:
                     yield fp.read(size)
                 else:
-                    for chunk in util.filechunkiter(fp, limit=size):
-                        yield chunk
+                    yield from util.filechunkiter(fp, limit=size)
 
     return len(entries), total_bytes, emitrevlogdata()
 
@@ -333,8 +332,7 @@ def generatev1wireproto(repo):
     # Indicates successful response.
     yield b'0\n'
     yield b'%d %d\n' % (filecount, bytecount)
-    for chunk in it:
-        yield chunk
+    yield from it
 
 
 def generatebundlev1(repo, compression=b'UN'):

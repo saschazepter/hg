@@ -456,7 +456,7 @@ class filestorage(repository.ifilestorage):
         nodes = [n for n in nodes if n != self._repo.nullid]
         if not nodes:
             return
-        for delta in storageutil.emitrevisions(
+        yield from storageutil.emitrevisions(
             self,
             nodes,
             nodesorder,
@@ -465,8 +465,7 @@ class filestorage(repository.ifilestorage):
             assumehaveparentrevisions=assumehaveparentrevisions,
             deltamode=deltamode,
             sidedata_helpers=sidedata_helpers,
-        ):
-            yield delta
+        )
 
     def add(self, text, meta, transaction, linkrev, p1, p2):
         if meta or text.startswith(b'\1\n'):
@@ -669,8 +668,7 @@ def issimplestorefile(f, kind, st):
 
 class simplestore(store.encodedstore):
     def data_entries(self, undecodable=None):
-        for x in super().data_entries():
-            yield x
+        yield from super().data_entries()
 
         # Supplement with non-revlog files.
         extrafiles = self._walk('data', True, filefilter=issimplestorefile)

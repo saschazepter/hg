@@ -83,8 +83,7 @@ def getlfile(repo, proto, sha):
     # ssh proto does for string responses.
     def generator():
         yield b'%d\n' % length
-        for chunk in util.filechunkiter(f):
-            yield chunk
+        yield from util.filechunkiter(f)
 
     return wireprototypes.streamreslegacy(gen=generator())
 

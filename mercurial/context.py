@@ -1534,8 +1534,7 @@ class committablectx(basectx):
         return self._parents[0].ancestor(c2)  # punt on two parents for now
 
     def ancestors(self):
-        for p in self._parents:
-            yield p
+        yield from self._parents
         for a in self._repo.changelog.ancestors(
             [p.rev() for p in self._parents]
         ):
