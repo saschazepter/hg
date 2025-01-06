@@ -111,7 +111,7 @@ def _delayedinterrupt():
         raiseinterrupt(assertedsigs[0])
 
 
-def trylock(ui, vfs, lockname, timeout, warntimeout, *args, **kwargs) -> "lock":
+def trylock(ui, vfs, lockname, timeout, warntimeout, *args, **kwargs) -> lock:
     """return an acquired lock or raise an a LockHeld exception
 
     This function is responsible to issue warnings and or debug messages about

@@ -1234,7 +1234,7 @@ class imanifestdict(Protocol):
         """Return the flags value for a path (default: empty bytestring)."""
 
     @abc.abstractmethod
-    def copy(self) -> 'imanifestdict':
+    def copy(self) -> imanifestdict:
         """Return a copy of this manifest."""
 
     @abc.abstractmethod

@@ -159,7 +159,7 @@ def clock():
 
 
 class ProfileState:
-    samples: List["Sample"]
+    samples: List[Sample]
 
     def __init__(self, frequency=None):
         self.reset(frequency)

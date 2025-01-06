@@ -105,11 +105,11 @@ def _text(it):
 
 
 class lazymanifestiter:
-    def __init__(self, lm: '_LazyManifest') -> None:
+    def __init__(self, lm: _LazyManifest) -> None:
         self.pos = 0
         self.lm = lm
 
-    def __iter__(self) -> 'lazymanifestiter':
+    def __iter__(self) -> lazymanifestiter:
         return self
 
     def next(self) -> bytes:
@@ -130,11 +130,11 @@ class lazymanifestiter:
 
 
 class lazymanifestiterentries:
-    def __init__(self, lm: '_LazyManifest') -> None:
+    def __init__(self, lm: _LazyManifest) -> None:
         self.lm = lm
         self.pos = 0
 
-    def __iter__(self) -> 'lazymanifestiterentries':
+    def __iter__(self) -> lazymanifestiterentries:
         return self
 
     def next(self) -> Tuple[bytes, bytes, bytes]:
@@ -374,7 +374,7 @@ class _LazyManifest:
                 self.extrainfo[:needle] + [0] + self.extrainfo[needle:]
             )
 
-    def copy(self) -> '_LazyManifest':
+    def copy(self) -> _LazyManifest:
         # XXX call _compact like in C?
         return _lazymanifest(
             self._nodelen,
@@ -454,7 +454,7 @@ class _LazyManifest:
         return self.data
 
     def diff(
-        self, m2: '_LazyManifest', clean: bool = False
+        self, m2: _LazyManifest, clean: bool = False
     ) -> Dict[
         bytes,
         Optional[
@@ -493,7 +493,7 @@ class _LazyManifest:
     def __len__(self) -> int:
         return len(self.positions)
 
-    def filtercopy(self, filterfn: Callable[[bytes], bool]) -> '_LazyManifest':
+    def filtercopy(self, filterfn: Callable[[bytes], bool]) -> _LazyManifest:
         # XXX should be optimized
         c = _lazymanifest(self._nodelen, b'')
         for f, n, fl in self.iterentries():
@@ -615,7 +615,7 @@ class manifestdict(repository.imanifestdict):
             if not self.hasdir(fn):
                 match.bad(fn, None)
 
-    def _matches(self, match: matchmod.basematcher) -> 'manifestdict':
+    def _matches(self, match: matchmod.basematcher) -> manifestdict:
         '''generate a new manifest filtered by the match argument'''
         if match.always():
             return self.copy()
@@ -634,7 +634,7 @@ class manifestdict(repository.imanifestdict):
 
     def diff(
         self,
-        m2: 'manifestdict',
+        m2: manifestdict,
         match: Optional[matchmod.basematcher] = None,
         clean: bool = False,
     ) -> Dict[
@@ -680,7 +680,7 @@ class manifestdict(repository.imanifestdict):
         except KeyError:
             return b''
 
-    def copy(self) -> 'manifestdict':
+    def copy(self) -> manifestdict:
         c = manifestdict(self._nodelen)
         c._lm = self._lm.copy()
         return c
@@ -849,7 +849,7 @@ _noop = lambda s: None
 
 class treemanifest:  # (repository.imanifestdict)
     _dir: bytes
-    _dirs: Dict[bytes, 'treemanifest']
+    _dirs: Dict[bytes, treemanifest]
     _dirty: bool
     _files: Dict[bytes, bytes]
     _flags: Dict[bytes, bytes]
@@ -865,7 +865,7 @@ class treemanifest:  # (repository.imanifestdict)
         self._dirs = {}
         self._lazydirs: Dict[
             bytes,
-            Tuple[bytes, Callable[[bytes, bytes], 'treemanifest'], bool],
+            Tuple[bytes, Callable[[bytes, bytes], treemanifest], bool],
         ] = {}
         # Using _lazymanifest here is a little slower than plain old dicts
         self._files = {}
@@ -919,7 +919,7 @@ class treemanifest:  # (repository.imanifestdict)
             loadlazy(k + b'/')
         return visit
 
-    def _loaddifflazy(self, t1: 'treemanifest', t2: 'treemanifest'):
+    def _loaddifflazy(self, t1: treemanifest, t2: treemanifest):
         """load items in t1 and t2 if they're needed for diffing.
 
         The criteria currently is:
@@ -996,7 +996,7 @@ class treemanifest:  # (repository.imanifestdict)
 
     def iterentries(
         self,
-    ) -> Iterator[Tuple[bytes, Union[bytes, 'treemanifest'], bytes]]:
+    ) -> Iterator[Tuple[bytes, Union[bytes, treemanifest], bytes]]:
         self._load()
         self._loadalllazy()
         for p, n in sorted(
@@ -1007,7 +1007,7 @@ class treemanifest:  # (repository.imanifestdict)
             else:
                 yield from n.iterentries()
 
-    def items(self) -> Iterator[Tuple[bytes, Union[bytes, 'treemanifest']]]:
+    def items(self) -> Iterator[Tuple[bytes, Union[bytes, treemanifest]]]:
         self._load()
         self._loadalllazy()
         for p, n in sorted(
@@ -1176,7 +1176,7 @@ class treemanifest:  # (repository.imanifestdict)
             self._flags[f] = flags
         self._dirty = True
 
-    def copy(self) -> 'treemanifest':
+    def copy(self) -> treemanifest:
         copy = treemanifest(self.nodeconstants, self._dir)
         copy._node = self._node
         copy._dirty = self._dirty
@@ -1202,7 +1202,7 @@ class treemanifest:  # (repository.imanifestdict)
         return copy
 
     def filesnotin(
-        self, m2: 'treemanifest', match: Optional[matchmod.basematcher] = None
+        self, m2: treemanifest, match: Optional[matchmod.basematcher] = None
     ) -> Set[bytes]:
         '''Set of files in this manifest that are not in the other'''
         if match and not match.always():
@@ -1293,13 +1293,13 @@ class treemanifest:  # (repository.imanifestdict)
                 if not visit or p[:-1] in visit:
                     yield from self._dirs[p]._walk(match)
 
-    def _matches(self, match: matchmod.basematcher) -> 'treemanifest':
+    def _matches(self, match: matchmod.basematcher) -> treemanifest:
         """recursively generate a new manifest filtered by the match argument."""
         if match.always():
             return self.copy()
         return self._matches_inner(match)
 
-    def _matches_inner(self, match: matchmod.basematcher) -> 'treemanifest':
+    def _matches_inner(self, match: matchmod.basematcher) -> treemanifest:
         if match.always():
             return self.copy()
 
@@ -1347,7 +1347,7 @@ class treemanifest:  # (repository.imanifestdict)
 
     def diff(
         self,
-        m2: 'treemanifest',
+        m2: treemanifest,
         match: Optional[matchmod.basematcher] = None,
         clean: bool = False,
     ) -> Dict[
@@ -1416,13 +1416,13 @@ class treemanifest:  # (repository.imanifestdict)
             _iterativediff(t1, t2, stackls)
         return result
 
-    def unmodifiedsince(self, m2: 'treemanifest') -> bool:
+    def unmodifiedsince(self, m2: treemanifest) -> bool:
         return not self._dirty and not m2._dirty and self._node == m2._node
 
     def parse(
         self,
         text: bytes,
-        readsubtree: Callable[[bytes, bytes], 'treemanifest'],
+        readsubtree: Callable[[bytes, bytes], treemanifest],
     ) -> None:
         selflazy = self._lazydirs
         for f, n, fl in _parse(self._nodelen, text):
@@ -1465,7 +1465,7 @@ class treemanifest:  # (repository.imanifestdict)
     def read(
         self,
         gettext: Callable[[], ByteString],
-        readsubtree: Callable[[bytes, bytes], 'treemanifest'],
+        readsubtree: Callable[[bytes, bytes], treemanifest],
     ) -> None:
         def _load_for_read(s):
             s.parse(gettext(), readsubtree)
@@ -1475,11 +1475,11 @@ class treemanifest:  # (repository.imanifestdict)
 
     def writesubtrees(
         self,
-        m1: 'treemanifest',
-        m2: 'treemanifest',
+        m1: treemanifest,
+        m2: treemanifest,
         writesubtree: Callable[
             [
-                Callable[['treemanifest'], None],
+                Callable[[treemanifest], None],
                 bytes,
                 bytes,
                 matchmod.basematcher,
@@ -1517,7 +1517,7 @@ class treemanifest:  # (repository.imanifestdict)
 
     def walksubtrees(
         self, matcher: Optional[matchmod.basematcher] = None
-    ) -> Iterator['treemanifest']:
+    ) -> Iterator[treemanifest]:
         """Returns an iterator of the subtrees of this manifest, including this
         manifest itself.
 
@@ -2162,12 +2162,12 @@ class memmanifestctx:  # (repository.imanifestrevisionwritable)
     def _storage(self) -> manifestrevlog:
         return self._manifestlog.getstorage(b'')
 
-    def copy(self) -> 'memmanifestctx':
+    def copy(self) -> memmanifestctx:
         memmf = memmanifestctx(self._manifestlog)
         memmf._manifestdict = self.read().copy()
         return memmf
 
-    def read(self) -> 'manifestdict':
+    def read(self) -> manifestdict:
         return self._manifestdict
 
     def write(self, transaction, link, p1, p2, added, removed, match=None):
@@ -2203,7 +2203,7 @@ class manifestctx(repository.imanifestrevisionstored):
         # rev = store.rev(node)
         # self.linkrev = store.linkrev(rev)
 
-    def _storage(self) -> 'manifestrevlog':
+    def _storage(self) -> manifestrevlog:
         return self._manifestlog.getstorage(b'')
 
     def node(self) -> bytes:
@@ -2218,7 +2218,7 @@ class manifestctx(repository.imanifestrevisionstored):
     def parents(self) -> Tuple[bytes, bytes]:
         return self._storage().parents(self._node)
 
-    def read(self) -> 'manifestdict':
+    def read(self) -> manifestdict:
         if self._data is None:
             nc = self._manifestlog.nodeconstants
             if self._node == nc.nullid:
@@ -2234,7 +2234,7 @@ class manifestctx(repository.imanifestrevisionstored):
                 self._data = manifestdict(nc.nodelen, text)
         return self._data
 
-    def readfast(self, shallow: bool = False) -> 'manifestdict':
+    def readfast(self, shallow: bool = False) -> manifestdict:
         """Calls either readdelta or read, based on which would be less work.
         readdelta is called if the delta is against the p1, and therefore can be
         read quickly.
@@ -2253,7 +2253,7 @@ class manifestctx(repository.imanifestrevisionstored):
             return self.readdelta()
         return self.read()
 
-    def readdelta(self, shallow: bool = False) -> 'manifestdict':
+    def readdelta(self, shallow: bool = False) -> manifestdict:
         """Returns a manifest containing just the entries that are present
         in this manifest, but not in its p1 manifest. This is efficient to read
         if the revlog delta is already p1.
@@ -2354,12 +2354,12 @@ class memtreemanifestctx(repository.imanifestrevisionwritable):
     def _storage(self) -> manifestrevlog:
         return self._manifestlog.getstorage(b'')
 
-    def copy(self) -> 'memtreemanifestctx':
+    def copy(self) -> memtreemanifestctx:
         memmf = memtreemanifestctx(self._manifestlog, dir=self._dir)
         memmf._treemanifest = self._treemanifest.copy()
         return memmf
 
-    def read(self) -> 'treemanifest':
+    def read(self) -> treemanifest:
         return self._treemanifest
 
     def write(self, transaction, link, p1, p2, added, removed, match=None):
@@ -2405,7 +2405,7 @@ class treemanifestctx(repository.imanifestrevisionstored):
                 )
         return self._manifestlog.getstorage(self._dir)
 
-    def read(self) -> 'treemanifest':
+    def read(self) -> treemanifest:
         if self._data is None:
             store = self._storage()
             if self._node == self._manifestlog.nodeconstants.nullid:
@@ -2441,7 +2441,7 @@ class treemanifestctx(repository.imanifestrevisionstored):
     def node(self) -> bytes:
         return self._node
 
-    def copy(self) -> 'memtreemanifestctx':
+    def copy(self) -> memtreemanifestctx:
         memmf = memtreemanifestctx(self._manifestlog, dir=self._dir)
         memmf._treemanifest = self.read().copy()
         return memmf
@@ -2527,7 +2527,7 @@ class treemanifestctx(repository.imanifestrevisionstored):
         d = mdiff.patchtext(store.revdiff(store.deltaparent(r), r))
         return manifestdict(store.nodeconstants.nodelen, d)
 
-    def _read_storage_slow_delta(self, base) -> 'treemanifest':
+    def _read_storage_slow_delta(self, base) -> treemanifest:
         store = self._storage()
         if base is None:
             base = store.deltaparent(store.rev(self._node))

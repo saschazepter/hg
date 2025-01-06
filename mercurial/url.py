@@ -261,7 +261,7 @@ class logginghttphandler(httphandler):
 
 if has_https:
 
-    def _generic_proxytunnel(self: "httpsconnection"):
+    def _generic_proxytunnel(self: httpsconnection):
         headers = self.headers  # pytype: disable=attribute-error
         proxyheaders = {
             pycompat.bytestr(x): pycompat.bytestr(headers[x])

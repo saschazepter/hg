@@ -324,7 +324,7 @@ def check_incompatible_arguments(
         check_at_most_one_arg(opts, first, other)
 
 
-def resolve_commit_options(ui: "uimod.ui", opts: Dict[str, Any]) -> bool:
+def resolve_commit_options(ui: uimod.ui, opts: Dict[str, Any]) -> bool:
     """modify commit options dict to handle related options
 
     The return value indicates that ``rewrite.update-timestamp`` is the reason
@@ -1147,7 +1147,7 @@ def bailifchanged(repo, merge=True, hint=None):
         ctx.sub(s).bailifchanged(hint=hint)
 
 
-def logmessage(ui: "uimod.ui", opts: Dict[bytes, Any]) -> Optional[bytes]:
+def logmessage(ui: uimod.ui, opts: Dict[bytes, Any]) -> Optional[bytes]:
     """get the log message according to -m and -l option"""
 
     check_at_most_one_arg(opts, b'message', b'logfile')
