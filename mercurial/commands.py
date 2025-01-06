@@ -5788,7 +5788,7 @@ def resolve(ui, repo, *pats, **opts):
     opts = pycompat.byteskwargs(opts)
     confirm = ui.configbool(b'commands', b'resolve.confirm')
     flaglist = b'all mark unmark list no_status re_merge'.split()
-    all, mark, unmark, show, nostatus, remerge = [opts.get(o) for o in flaglist]
+    all, mark, unmark, show, nostatus, remerge = (opts.get(o) for o in flaglist)
 
     actioncount = len(list(filter(None, [show, mark, unmark, remerge])))
     if actioncount > 1:
