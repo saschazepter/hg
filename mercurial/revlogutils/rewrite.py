@@ -60,7 +60,7 @@ def v1_censor(rl, tr, censor_nodes, tombstone=b''):
     # avoid cycle
     from .. import revlog
 
-    censor_revs = set(rl.rev(node) for node in censor_nodes)
+    censor_revs = {rl.rev(node) for node in censor_nodes}
     tombstone = storageutil.packmeta({b'censored': tombstone}, b'')
 
     # Rewriting the revlog in place is hard. Our strategy for censoring is
@@ -732,9 +732,9 @@ def _from_report(ui, repo, context, from_report, dry_run):
                 continue
             filenodes, filename = line.split(b' ', 1)
             fl = _filelog_from_filename(repo, filename)
-            to_fix = set(
+            to_fix = {
                 fl.rev(binascii.unhexlify(n)) for n in filenodes.split(b',')
-            )
+            }
             excluded = set()
 
             for filerev in to_fix:

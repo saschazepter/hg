@@ -134,7 +134,7 @@ def get_c_extension(
     actual_root = os.path.abspath(os.path.dirname(__file__))
     root = root or actual_root
 
-    sources = set([os.path.join(actual_root, p) for p in ext_sources])
+    sources = {os.path.join(actual_root, p) for p in ext_sources}
     if not system_zstd:
         sources.update([os.path.join(actual_root, p) for p in zstd_sources])
         if support_legacy:
@@ -143,7 +143,7 @@ def get_c_extension(
             )
     sources = list(sources)
 
-    include_dirs = set([os.path.join(actual_root, d) for d in ext_includes])
+    include_dirs = {os.path.join(actual_root, d) for d in ext_includes}
     if not system_zstd:
         from distutils import sysconfig
         from shlex import quote

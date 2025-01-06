@@ -786,7 +786,7 @@ class UpgradeOperation(BaseOperation):
 
     @property
     def upgrade_actions_names(self):
-        return set([a.name for a in self.upgrade_actions])
+        return {a.name for a in self.upgrade_actions}
 
     @property
     def requirements_only(self):
