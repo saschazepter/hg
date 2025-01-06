@@ -386,7 +386,7 @@ class IPv6HTTPServer(MercurialHTTPServer):
     def __init__(self, *args, **kwargs):
         if self.address_family is None:
             raise error.RepoError(_(b'IPv6 is not available on this system'))
-        super(IPv6HTTPServer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 def create_server(ui, app):

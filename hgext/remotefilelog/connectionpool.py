@@ -49,7 +49,7 @@ class connectionpool:
                         # open (i.e. us).
                         if hasattr(self, 'pipee'):
                             self.pipee.close()
-                        return super(mypeer, self)._cleanup()
+                        return super()._cleanup()
 
                 peer.__class__ = mypeer
 

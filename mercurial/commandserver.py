@@ -721,7 +721,7 @@ class unixforkingservice:
 
         class unixcmdserverrepo(repo.__class__):
             def close(self):
-                super(unixcmdserverrepo, self).close()
+                super().close()
                 try:
                     self._cmdserveripc.send(self.root)
                 except OSError:

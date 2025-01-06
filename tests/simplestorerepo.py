@@ -669,7 +669,7 @@ def issimplestorefile(f, kind, st):
 
 class simplestore(store.encodedstore):
     def data_entries(self, undecodable=None):
-        for x in super(simplestore, self).data_entries():
+        for x in super().data_entries():
             yield x
 
         # Supplement with non-revlog files.

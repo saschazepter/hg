@@ -264,16 +264,14 @@ class UseAfterFork(WatchmanError):
 
 class WatchmanEnvironmentError(WatchmanError):
     def __init__(self, msg, errno, errmsg, cmd=None):
-        super(WatchmanEnvironmentError, self).__init__(
+        super().__init__(
             "{0}: errno={1} errmsg={2}".format(msg, errno, errmsg), cmd
         )
 
 
 class SocketConnectError(WatchmanError):
     def __init__(self, sockpath, exc):
-        super(SocketConnectError, self).__init__(
-            "unable to connect to %s: %s" % (sockpath, exc)
-        )
+        super().__init__("unable to connect to %s: %s" % (sockpath, exc))
         self.sockpath = sockpath
         self.exc = exc
 
@@ -295,9 +293,7 @@ class CommandError(WatchmanError):
     """
 
     def __init__(self, msg, cmd=None):
-        super(CommandError, self).__init__(
-            "watchman command error: %s" % (msg,), cmd
-        )
+        super().__init__("watchman command error: %s" % (msg,), cmd)
 
 
 class Transport:
@@ -701,7 +697,7 @@ class BserCodec(Codec):
     """use the BSER encoding.  This is the default, preferred codec"""
 
     def __init__(self, transport, value_encoding, value_errors):
-        super(BserCodec, self).__init__(transport)
+        super().__init__(transport)
         self._value_encoding = value_encoding
         self._value_errors = value_errors
 
@@ -753,9 +749,7 @@ class Bser2WithFallbackCodec(BserCodec):
     """use BSER v2 encoding"""
 
     def __init__(self, transport, value_encoding, value_errors):
-        super(Bser2WithFallbackCodec, self).__init__(
-            transport, value_encoding, value_errors
-        )
+        super().__init__(transport, value_encoding, value_errors)
         if compat.PYTHON3:
             bserv2_key = "required"
         else:
@@ -827,7 +821,7 @@ class JsonCodec(Codec):
     json = None
 
     def __init__(self, transport):
-        super(JsonCodec, self).__init__(transport)
+        super().__init__(transport)
         # optional dep on json, only if JsonCodec is used
         import json
 

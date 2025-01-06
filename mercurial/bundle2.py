@@ -853,7 +853,7 @@ class unbundle20(unpackermixin):
         self.ui = ui
         self._compengine = util.compengines.forbundletype(b'UN')
         self._compressed = None
-        super(unbundle20, self).__init__(fp)
+        super().__init__(fp)
 
     @util.propertycache
     def params(self):
@@ -1269,7 +1269,7 @@ class interrupthandler(unpackermixin):
     Part processed in this manner only have access to a ui object,"""
 
     def __init__(self, ui, fp):
-        super(interrupthandler, self).__init__(fp)
+        super().__init__(fp)
         self.ui = ui
 
     def _readpartheader(self):
@@ -1390,7 +1390,7 @@ class unbundlepart(unpackermixin):
     """a bundle part read from a bundle"""
 
     def __init__(self, ui, header, fp):
-        super(unbundlepart, self).__init__(fp)
+        super().__init__(fp)
         self._seekable = hasattr(fp, 'seek') and hasattr(fp, 'tell')
         self.ui = ui
         # unbundle state attr
@@ -1526,7 +1526,7 @@ class seekableunbundlepart(unbundlepart):
         # (payload, file) offsets for chunk starts.
         self._chunkindex = []
 
-        super(seekableunbundlepart, self).__init__(ui, header, fp)
+        super().__init__(ui, header, fp)
 
     def _payloadchunks(self, chunknum=0):
         '''seek to specified chunk and start yielding data'''

@@ -491,7 +491,7 @@ class abstractbackend:
 
 class fsbackend(abstractbackend):
     def __init__(self, ui, basedir):
-        super(fsbackend, self).__init__(ui)
+        super().__init__(ui)
         self.opener = vfsmod.vfs(basedir)
 
     def getfile(self, fname):
@@ -540,7 +540,7 @@ class fsbackend(abstractbackend):
 
 class workingbackend(fsbackend):
     def __init__(self, ui, repo, similarity):
-        super(workingbackend, self).__init__(ui, repo.root)
+        super().__init__(ui, repo.root)
         self.repo = repo
         self.similarity = similarity
         self.removed = set()
@@ -557,14 +557,14 @@ class workingbackend(fsbackend):
 
     def setfile(self, fname, data, mode, copysource):
         self._checkknown(fname)
-        super(workingbackend, self).setfile(fname, data, mode, copysource)
+        super().setfile(fname, data, mode, copysource)
         if copysource is not None:
             self.copied.append((copysource, fname))
         self.changed.add(fname)
 
     def unlink(self, fname):
         self._checkknown(fname)
-        super(workingbackend, self).unlink(fname)
+        super().unlink(fname)
         self.removed.add(fname)
         self.changed.add(fname)
 
@@ -628,7 +628,7 @@ class filestore:
 
 class repobackend(abstractbackend):
     def __init__(self, ui, repo, ctx, store):
-        super(repobackend, self).__init__(ui)
+        super().__init__(ui)
         self.repo = repo
         self.ctx = ctx
         self.store = store

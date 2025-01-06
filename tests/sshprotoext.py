@@ -32,7 +32,7 @@ class bannerserver(wireprotoserver.sshserver):
         for i in range(10):
             self._ui.fout.write(b'banner: line %d\n' % i)
 
-        super(bannerserver, self).serve_forever()
+        super().serve_forever()
 
 
 class prehelloserver(wireprotoserver.sshserver):
@@ -56,7 +56,7 @@ class prehelloserver(wireprotoserver.sshserver):
         rsp = wireprotov1server.dispatch(self._repo, proto, b'between')
         wireprotoserver._sshv1respondbytes(ui.fout, rsp.data)
 
-        super(prehelloserver, self).serve_forever()
+        super().serve_forever()
 
 
 def performhandshake(orig, ui, stdin, stdout, stderr):

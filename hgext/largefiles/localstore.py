@@ -26,7 +26,7 @@ class localstore(basestore.basestore):
 
     def __init__(self, ui, repo, remote):
         self.remote = remote.local()
-        super(localstore, self).__init__(ui, repo, self.remote.url())
+        super().__init__(ui, repo, self.remote.url())
 
     def put(self, source, hash):
         if lfutil.instore(self.remote, hash):

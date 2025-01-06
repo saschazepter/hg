@@ -71,7 +71,7 @@ class convert_git(common.converter_source, common.commandline):
         return self._gitcmd(self._run3, *args, **kwargs)
 
     def __init__(self, ui, repotype, path, revs=None):
-        super(convert_git, self).__init__(ui, repotype, path, revs=revs)
+        super().__init__(ui, repotype, path, revs=revs)
         common.commandline.__init__(self, ui, b'git')
 
         # Pass an absolute path to git to prevent from ever being interpreted

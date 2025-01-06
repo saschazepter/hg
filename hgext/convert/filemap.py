@@ -221,7 +221,7 @@ class filemap_source(common.converter_source):
     def __init__(
         self, ui: "uimod.ui", baseconverter, filemap: Optional[bytes]
     ) -> None:
-        super(filemap_source, self).__init__(ui, baseconverter.repotype)
+        super().__init__(ui, baseconverter.repotype)
         self.base = baseconverter
         self.filemapper = filemapper(ui, filemap)
         self.commits = {}

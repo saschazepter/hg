@@ -520,7 +520,7 @@ class _succs(list):
     """small class to represent a successors with some metadata about it"""
 
     def __init__(self, *args, **kwargs):
-        super(_succs, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.markers = set()
 
     def copy(self):

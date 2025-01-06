@@ -27,7 +27,7 @@ class gitlfspointer(dict):
 
     def __init__(self, *args, **kwargs):
         self[b'version'] = self.VERSION
-        super(gitlfspointer, self).__init__(*args)
+        super().__init__(*args)
         self.update(pycompat.byteskwargs(kwargs))
 
     @classmethod

@@ -82,7 +82,7 @@ def _commit(orig, ui, repo, *pats, **opts):
                     )
                     raise error.InputError(msg % k)
                 inneropts['extra'][k] = v
-            return super(repoextra, self).commit(*innerpats, **inneropts)
+            return super().commit(*innerpats, **inneropts)
 
     repo.__class__ = repoextra
     return orig(ui, repo, *pats, **opts)

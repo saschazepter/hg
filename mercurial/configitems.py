@@ -80,20 +80,20 @@ class itemregister(dict):
     """A specialized dictionary that can handle wild-card selection"""
 
     def __init__(self):
-        super(itemregister, self).__init__()
+        super().__init__()
         self._generics = set()
 
     def update(self, other):  # pytype: disable=signature-mismatch
-        super(itemregister, self).update(other)
+        super().update(other)
         self._generics.update(other._generics)
 
     def __setitem__(self, key, item):
-        super(itemregister, self).__setitem__(key, item)
+        super().__setitem__(key, item)
         if item.generic:
             self._generics.add(item)
 
     def get(self, key):
-        baseitem = super(itemregister, self).get(key)
+        baseitem = super().get(key)
         if baseitem is not None and not baseitem.generic:
             return baseitem
 

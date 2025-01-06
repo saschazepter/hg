@@ -537,7 +537,7 @@ class HTTPConnection(httplib.HTTPConnection):
         self.receivedbytescount = 0
 
     def __repr__(self):
-        base = super(HTTPConnection, self).__repr__()
+        base = super().__repr__()
         local = "(unconnected)"
         s = self.sock
         if s:

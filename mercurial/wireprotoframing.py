@@ -798,7 +798,7 @@ class zstdbaseencoder:
 
 class zstd8mbencoder(zstdbaseencoder):
     def __init__(self, ui):
-        super(zstd8mbencoder, self).__init__(3)
+        super().__init__(3)
 
 
 class zstdbasedecoder:
@@ -819,7 +819,7 @@ class zstd8mbdecoder(zstdbasedecoder):
                 _(b'zstd8mb decoder received unexpected additional values')
             )
 
-        super(zstd8mbdecoder, self).__init__(maxwindowsize=8 * 1048576)
+        super().__init__(maxwindowsize=8 * 1048576)
 
 
 # We lazily populate this to avoid excessive module imports when importing
@@ -877,7 +877,7 @@ class inputstream(stream):
     """Represents a stream used for receiving data."""
 
     def __init__(self, streamid, active=False):
-        super(inputstream, self).__init__(streamid, active=active)
+        super().__init__(streamid, active=active)
         self._decoder = None
 
     def setdecoder(self, ui, name, extraobjs):
@@ -910,7 +910,7 @@ class outputstream(stream):
     """Represents a stream used for sending data."""
 
     def __init__(self, streamid, active=False):
-        super(outputstream, self).__init__(streamid, active=active)
+        super().__init__(streamid, active=active)
         self.streamsettingssent = False
         self._encoder = None
         self._encodername = None

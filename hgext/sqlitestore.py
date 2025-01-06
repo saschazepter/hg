@@ -1147,7 +1147,7 @@ class sqliterepository(localrepo.localrepository):
     def transaction(self, *args, **kwargs):
         current = self.currenttransaction()
 
-        tr = super(sqliterepository, self).transaction(*args, **kwargs)
+        tr = super().transaction(*args, **kwargs)
 
         if current:
             return tr

@@ -241,7 +241,7 @@ class _simpleopt(customopt):
 class _callableopt(customopt):
     def __init__(self, callablefn):
         self.callablefn = callablefn
-        super(_callableopt, self).__init__(None)
+        super().__init__(None)
 
     def newstate(self, oldstate, newparam, abort):
         return self.callablefn(newparam)

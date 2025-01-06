@@ -1756,7 +1756,7 @@ class TTest(Test):
         case = kwds.pop('case', [])
         self._case = case
         self._allcases = {x for y in parsettestcases(path) for x in y}
-        super(TTest, self).__init__(path, *args, **kwds)
+        super().__init__(path, *args, **kwds)
         if case:
             casepath = b'#'.join(case)
             self.name = '%s#%s' % (self.name, _bytes2sys(casepath))
@@ -2318,7 +2318,7 @@ class TestResult(base_class):
     """Holds results when executing via unittest."""
 
     def __init__(self, options, *args, **kwargs):
-        super(TestResult, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self._options = options
 
@@ -2484,7 +2484,7 @@ class TestResult(base_class):
         return accepted
 
     def startTest(self, test):
-        super(TestResult, self).startTest(test)
+        super().startTest(test)
 
         # os.times module computes the user time and system time spent by
         # child's processes along with real elapsed time taken by a process.
@@ -2498,7 +2498,7 @@ class TestResult(base_class):
             self._firststarttime = test.started_time
 
     def stopTest(self, test, interrupted=False):
-        super(TestResult, self).stopTest(test)
+        super().stopTest(test)
 
         test.stopped_times = os.times()
         stopped_time = time.time()
@@ -2578,7 +2578,7 @@ class TestSuite(unittest.TestSuite):
 
         loop denotes whether to loop over tests forever.
         """
-        super(TestSuite, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self._jobs = jobs
         self._whitelist = whitelist
@@ -2805,7 +2805,7 @@ class TextTestRunner(unittest.TextTestRunner):
     """Custom unittest test runner that uses appropriate settings."""
 
     def __init__(self, runner, *args, **kwargs):
-        super(TextTestRunner, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self._runner = runner
 

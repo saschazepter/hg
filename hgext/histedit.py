@@ -797,7 +797,7 @@ class pick(histeditaction):
             self.repo.ui.debug(b'node %s unchanged\n' % short(self.node))
             return rulectx, []
 
-        return super(pick, self).run()
+        return super().run()
 
 
 @action(
@@ -826,7 +826,7 @@ class edit(histeditaction):
 class fold(histeditaction):
     def verify(self, prev, expected, seen):
         """Verifies semantic correctness of the fold rule"""
-        super(fold, self).verify(prev, expected, seen)
+        super().verify(prev, expected, seen)
         repo = self.repo
         if not prev:
             c = repo[self.node].p1()

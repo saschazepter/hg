@@ -130,7 +130,7 @@ class localstr(bytes):
     if typing.TYPE_CHECKING:
         # pseudo implementation to help pytype see localstr() constructor
         def __init__(self, u: bytes, l: bytes) -> None:
-            super(localstr, self).__init__(l)
+            super().__init__(l)
             self._utf8 = u
 
     def __hash__(self):

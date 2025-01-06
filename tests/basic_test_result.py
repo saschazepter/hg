@@ -9,7 +9,7 @@ else:
 
 class TestResult(base_class):
     def __init__(self, options, *args, **kwargs):
-        super(TestResult, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._options = options
 
         # unittest.TestResult didn't have skipped until 2.7. We need to
@@ -53,4 +53,4 @@ class TestResult(base_class):
         return False
 
     def stopTest(self, test, interrupted=False):
-        super(TestResult, self).stopTest(test)
+        super().stopTest(test)

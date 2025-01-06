@@ -633,7 +633,7 @@ class changesettemplater(changesetprinter):
             if not self.footer:
                 self.footer = b""
             self.footer += self.t.render(self._parts[b'docfooter'], {})
-        return super(changesettemplater, self).close()
+        return super().close()
 
     def _show(self, ctx, copies, props):
         '''show a single changeset or file revision'''

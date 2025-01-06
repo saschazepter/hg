@@ -828,7 +828,7 @@ class cg3unpacker(cg2unpacker):
         debug_info=None,
         delta_base_reuse_policy=None,
     ):
-        super(cg3unpacker, self)._unpackmanifests(
+        super()._unpackmanifests(
             repo,
             revmap,
             trp,
@@ -868,7 +868,7 @@ class cg4unpacker(cg3unpacker):
         return node, p1, p2, deltabase, cs, flags, protocol_flags
 
     def deltachunk(self, prevnode):
-        res = super(cg4unpacker, self).deltachunk(prevnode)
+        res = super().deltachunk(prevnode)
         if not res:
             return res
 

@@ -96,7 +96,7 @@ def makewrappedfile(obj):
             if b'[FAIL]' in text:
                 flags |= REVIDX_FAIL
 
-            return super(wrappedfile, self).addrevision(
+            return super().addrevision(
                 text,
                 transaction,
                 link,
@@ -113,7 +113,7 @@ def makewrappedfile(obj):
 def reposetup(ui, repo):
     class wrappingflagprocessorrepo(repo.__class__):
         def file(self, f):
-            orig = super(wrappingflagprocessorrepo, self).file(f)
+            orig = super().file(f)
             makewrappedfile(orig)
             return orig
 

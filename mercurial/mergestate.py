@@ -768,7 +768,7 @@ class mergestate(_mergestate_base):
 
 class memmergestate(_mergestate_base):
     def __init__(self, repo):
-        super(memmergestate, self).__init__(repo)
+        super().__init__(repo)
         self._backups = {}
 
     def _make_backup(self, fctx, localkey):

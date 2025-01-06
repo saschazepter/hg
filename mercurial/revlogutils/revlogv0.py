@@ -72,14 +72,14 @@ class revlogoldindex(list):
 
     def append(self, tup):
         self._nodemap[tup[7]] = len(self)
-        super(revlogoldindex, self).append(tup)
+        super().append(tup)
 
     def __delitem__(self, i):
         if not isinstance(i, slice) or not i.stop == -1 or i.step is not None:
             raise ValueError(b"deleting slices only supports a:-1 with step 1")
         for r in range(i.start, len(self)):
             del self._nodemap[self[r][7]]
-        super(revlogoldindex, self).__delitem__(i)
+        super().__delitem__(i)
 
     def clearcaches(self):
         self.__dict__.pop('_nodemap', None)

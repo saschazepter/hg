@@ -4086,7 +4086,7 @@ def reposetup(ui, repo):
             return queue(self.ui, self.baseui, self.path)
 
         def invalidateall(self):
-            super(mqrepo, self).invalidateall()
+            super().invalidateall()
             if localrepo.hasunfilteredcache(self, 'mq'):
                 # recreate mq in case queue path was changed
                 delattr(self.unfiltered(), 'mq')
@@ -4114,9 +4114,7 @@ def reposetup(ui, repo):
                 _(b'cannot commit over an applied mq patch'), force
             )
 
-            return super(mqrepo, self).commit(
-                text, user, date, match, force, editor, extra
-            )
+            return super().commit(text, user, date, match, force, editor, extra)
 
         def checkpush(self, pushop):
             if self.mq.applied and self.mq.checkapplied and not pushop.force:
@@ -4136,11 +4134,11 @@ def reposetup(ui, repo):
                     if self[node].phase() < phases.secret:
                         raise error.Abort(_(b'source has mq patches applied'))
                 # no non-secret patches pushed
-            super(mqrepo, self).checkpush(pushop)
+            super().checkpush(pushop)
 
         def _findtags(self):
             '''augment tags from base class with patch tags'''
-            result = super(mqrepo, self)._findtags()
+            result = super()._findtags()
 
             q = self.mq
             if not q.applied:
