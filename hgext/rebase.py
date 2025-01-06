@@ -1825,11 +1825,9 @@ def defineparents(repo, rev, destmap, state, skipped, obsskipped):
             # we have a more advanced merge algorithm that handles multiple bases.
             if l > 0:
                 unwanteddesc = _(b' or ').join(
-                    (
-                        b', '.join(b'%d:%s' % (r, repo[r]) for r in revs)
-                        for revs in unwanted
-                        if revs is not None
-                    )
+                    b', '.join(b'%d:%s' % (r, repo[r]) for r in revs)
+                    for revs in unwanted
+                    if revs is not None
                 )
                 raise error.InputError(
                     _(b'rebasing %d:%s will include unwanted changes from %s')
@@ -2043,7 +2041,7 @@ def buildstate(repo, destmap, collapse):
     for rev in sorted(state):
         parents = [p for p in repo.changelog.parentrevs(rev) if p != nullrev]
         # if all parents of this revision are done, then so is this revision
-        if parents and all((state.get(p) == p for p in parents)):
+        if parents and all(state.get(p) == p for p in parents):
             state[rev] = rev
     return originalwd, destmap, state
 

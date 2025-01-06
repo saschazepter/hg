@@ -35,18 +35,12 @@ def runtest():
     if sym and (len(reposet) != 3):
         print("reposet = %r" % (reposet,))
         print(
-            (
-                "Found %d repositories when I should have found 3"
-                % (len(reposet),)
-            )
+            "Found %d repositories when I should have found 3" % (len(reposet),)
         )
     if (not sym) and (len(reposet) != 2):
         print("reposet = %r" % (reposet,))
         print(
-            (
-                "Found %d repositories when I should have found 2"
-                % (len(reposet),)
-            )
+            "Found %d repositories when I should have found 2" % (len(reposet),)
         )
     sub1set = frozenset(
         (pjoin(b'.', b'sub1'), pjoin(b'.', b'circle', b'subdir', b'sub1'))

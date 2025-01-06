@@ -224,7 +224,7 @@ def pass_options(
 
             try:
                 matching_option = next(
-                    (o for o in check.func.options if o[0] == option_name)
+                    o for o in check.func.options if o[0] == option_name
                 )
             except StopIteration:
                 raise error.InputError(

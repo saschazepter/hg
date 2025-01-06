@@ -54,10 +54,8 @@ reposnames = [
 if not reposnames:
     raise ValueError("No repositories found in $REPO_DIR")
 outputre = re.compile(
-    (
-        r'! wall (\d+.\d+) comb \d+.\d+ user \d+.\d+ sys '
-        r'\d+.\d+ \(best of \d+\)'
-    )
+    r'! wall (\d+.\d+) comb \d+.\d+ user \d+.\d+ sys '
+    r'\d+.\d+ \(best of \d+\)'
 )
 
 

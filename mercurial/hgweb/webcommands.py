@@ -1258,7 +1258,7 @@ def archive(web):
         msg = b'Unsupported archive type: %s' % stringutil.pprint(type_)
         raise ErrorResponse(HTTP_NOT_FOUND, msg)
 
-    if not ((type_ in allowed or web.configbool(b"web", b"allow" + type_))):
+    if not (type_ in allowed or web.configbool(b"web", b"allow" + type_)):
         msg = b'Archive type not allowed: %s' % type_
         raise ErrorResponse(HTTP_FORBIDDEN, msg)
 
