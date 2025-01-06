@@ -126,12 +126,9 @@ def _reserved():
     these characters will be escaped by encodefunctions
     """
     winreserved = [ord(x) for x in '\\:*?"<>|']
-    for x in range(32):
-        yield x
-    for x in range(126, 256):
-        yield x
-    for x in winreserved:
-        yield x
+    yield from range(32)
+    yield from range(126, 256)
+    yield from winreserved
 
 
 def _buildencodefun():
@@ -928,10 +925,8 @@ class basicstore:
         are passed with matches the matcher
         """
         # yield data files first
-        for x in self.data_entries(matcher):
-            yield x
-        for x in self.top_entries(phase=phase, obsolescence=obsolescence):
-            yield x
+        yield from self.data_entries(matcher)
+        yield from self.top_entries(phase=phase, obsolescence=obsolescence)
 
     def copylist(self):
         return _data

@@ -634,13 +634,11 @@ class mergeresult:
         # TODO: think whether we should return renamedelete and
         # diverge filenames also
         if actions is None:
-            for f in self._filemapping:
-                yield f
+            yield from self._filemapping
 
         else:
             for a in actions:
-                for f in self._actionmapping[a]:
-                    yield f
+                yield from self._actionmapping[a]
 
     def removefile(self, filename):
         """removes a file from the mergeresult object as the file might
@@ -677,11 +675,9 @@ class mergeresult:
 
     def filemap(self, sort=False):
         if sort:
-            for key, val in sorted(self._filemapping.items()):
-                yield key, val
+            yield from sorted(self._filemapping.items())
         else:
-            for key, val in self._filemapping.items():
-                yield key, val
+            yield from self._filemapping.items()
 
     def addcommitinfo(self, filename, key, value):
         """adds key-value information about filename which will be required

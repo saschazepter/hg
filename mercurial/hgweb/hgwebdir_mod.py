@@ -382,8 +382,7 @@ class hgwebdir:
         profile = self.ui.configbool(b'profiling', b'enabled')
         with profiling.profile(self.ui, enabled=profile):
             try:
-                for r in self._runwsgi(req, res):
-                    yield r
+                yield from self._runwsgi(req, res)
             finally:
                 # There are known cycles in localrepository that prevent
                 # those objects (and tons of held references) from being
@@ -452,8 +451,7 @@ class hgwebdir:
             def _virtualdirs():
                 # Check the full virtual path, and each parent
                 yield virtual
-                for p in pathutil.finddirs(virtual):
-                    yield p
+                yield from pathutil.finddirs(virtual)
 
             for virtualrepo in _virtualdirs():
                 real = repos.get(virtualrepo)

@@ -292,8 +292,7 @@ def get_cached_bundle_inline(repo, proto, path):
         with vfs(bundle_path) as f:
             length = os.fstat(f.fileno())[6]
             yield util.uvarintencode(length)
-            for chunk in util.filechunkiter(f):
-                yield chunk
+            yield from util.filechunkiter(f)
 
     stream = generator(repo.vfs, clonebundlepath)
     return wireprototypes.streamres(gen=stream, prefer_uncompressed=True)

@@ -107,10 +107,7 @@ def pprintgen(o, bprefix: bool = False, indent: int = 0, level: int = 0):
             yield b' ' * (level * indent)
 
         for i, a in enumerate(o):
-            for chunk in pprintgen(
-                a, bprefix=bprefix, indent=indent, level=level
-            ):
-                yield chunk
+            yield from pprintgen(a, bprefix=bprefix, indent=indent, level=level)
 
             if i + 1 < len(o):
                 if indent:
@@ -138,17 +135,11 @@ def pprintgen(o, bprefix: bool = False, indent: int = 0, level: int = 0):
             yield b' ' * (level * indent)
 
         for i, (k, v) in enumerate(sorted(o.items())):
-            for chunk in pprintgen(
-                k, bprefix=bprefix, indent=indent, level=level
-            ):
-                yield chunk
+            yield from pprintgen(k, bprefix=bprefix, indent=indent, level=level)
 
             yield b': '
 
-            for chunk in pprintgen(
-                v, bprefix=bprefix, indent=indent, level=level
-            ):
-                yield chunk
+            yield from pprintgen(v, bprefix=bprefix, indent=indent, level=level)
 
             if i + 1 < len(o):
                 if indent:
@@ -176,10 +167,7 @@ def pprintgen(o, bprefix: bool = False, indent: int = 0, level: int = 0):
             yield b' ' * (level * indent)
 
         for i, k in enumerate(sorted(o)):
-            for chunk in pprintgen(
-                k, bprefix=bprefix, indent=indent, level=level
-            ):
-                yield chunk
+            yield from pprintgen(k, bprefix=bprefix, indent=indent, level=level)
 
             if i + 1 < len(o):
                 if indent:
@@ -207,10 +195,7 @@ def pprintgen(o, bprefix: bool = False, indent: int = 0, level: int = 0):
             yield b' ' * (level * indent)
 
         for i, a in enumerate(o):
-            for chunk in pprintgen(
-                a, bprefix=bprefix, indent=indent, level=level
-            ):
-                yield chunk
+            yield from pprintgen(a, bprefix=bprefix, indent=indent, level=level)
 
             if i + 1 < len(o):
                 if indent:
@@ -250,10 +235,9 @@ def pprintgen(o, bprefix: bool = False, indent: int = 0, level: int = 0):
             except StopIteration:
                 last = True
 
-            for chunk in pprintgen(
+            yield from pprintgen(
                 current, bprefix=bprefix, indent=indent, level=level
-            ):
-                yield chunk
+            )
 
             if not last:
                 if indent:

@@ -1008,8 +1008,7 @@ def toposort(revs, parentsfunc, firstbranch=()):
                 # subgroup
                 unblocked |= gr[1]
                 # output all revisions in the subgroup
-                for r in gr[0]:
-                    yield r
+                yield from gr[0]
                 # delete the subgroup that you just output
                 # unless it is groups[0] in which case you just empty it.
                 if targetidx:
@@ -1019,8 +1018,7 @@ def toposort(revs, parentsfunc, firstbranch=()):
     # Check if we have some subgroup waiting for revisions we are not going to
     # iterate over
     for g in groups:
-        for r in g[0]:
-            yield r
+        yield from g[0]
 
 
 def headrevs(revs, parentsfn):

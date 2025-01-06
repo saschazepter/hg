@@ -1222,8 +1222,7 @@ def getlinerangerevs(repo, userrevs, opts):
                     if any(mdiff.hunkinrange(hr[2:], lr) for lr in lineranges):
                         yield hr, lines
             else:
-                for hunk in hunks:
-                    yield hunk
+                yield from hunks
 
         return filterfn
 

@@ -162,8 +162,7 @@ def slicechunk(revlog, revs, targetsize=None):
         revlog.data_config.sr_density_threshold,
         revlog.data_config.sr_min_gap_size,
     ):
-        for subchunk in _slicechunktosize(revlog, chunk, targetsize):
-            yield subchunk
+        yield from _slicechunktosize(revlog, chunk, targetsize)
 
 
 def _slicechunktosize(revlog, revs, targetsize=None):

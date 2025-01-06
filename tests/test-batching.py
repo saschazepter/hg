@@ -191,8 +191,7 @@ class remotething(thing):
                 )
             ],
         )
-        for r in res.split(b';'):
-            yield r
+        yield from res.split(b';')
 
     @contextlib.contextmanager
     def commandexecutor(self):

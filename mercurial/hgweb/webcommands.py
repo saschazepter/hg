@@ -234,8 +234,7 @@ def _search(web):
                     ctx = web.repo[j]
                     l.append(ctx)
                 l.reverse()
-                for e in l:
-                    yield e
+                yield from l
 
         for ctx in revgen():
             miss = 0
@@ -425,8 +424,7 @@ def changelog(web, shortlog=False):
         if pos != -1:
             revs = web.repo.changelog.revs(pos, 0)
 
-        for entry in webutil.changelistentries(web, revs, maxcount, parity):
-            yield entry
+        yield from webutil.changelistentries(web, revs, maxcount, parity)
 
     if shortlog:
         revcount = web.maxshortchanges
@@ -798,8 +796,7 @@ def summary(web):
             lm[b'parity'] = next(parity)
             l.append(lm)
 
-        for entry in reversed(l):
-            yield entry
+        yield from reversed(l)
 
     tip = web.repo[b'tip']
     count = len(web.repo)

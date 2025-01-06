@@ -674,8 +674,7 @@ def kwdiff(orig, repo, *args, **kwargs):
         restrict = kwt.restrict
         kwt.restrict = True
     try:
-        for chunk in orig(repo, *args, **kwargs):
-            yield chunk
+        yield from orig(repo, *args, **kwargs)
     finally:
         if kwt:
             kwt.restrict = restrict
@@ -688,8 +687,7 @@ def kwweb_skip(orig, web):
         origmatch = kwt.match
         kwt.match = util.never
     try:
-        for chunk in orig(web):
-            yield chunk
+        yield from orig(web)
     finally:
         if kwt:
             kwt.match = origmatch

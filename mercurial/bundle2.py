@@ -753,10 +753,9 @@ class bundle20:
         yield _pack(_fstreamparamsize, len(param))
         if param:
             yield param
-        for chunk in self._compengine.compressstream(
+        yield from self._compengine.compressstream(
             self._getcorechunk(), self._compopts
-        ):
-            yield chunk
+        )
 
     def _paramchunk(self):
         """return a encoded version of all stream parameters"""
@@ -776,8 +775,7 @@ class bundle20:
         outdebug(self.ui, b'start of parts')
         for part in self._parts:
             outdebug(self.ui, b'bundle part: "%s"' % part.type)
-            for chunk in part.getchunks(ui=self.ui):
-                yield chunk
+            yield from part.getchunks(ui=self.ui)
         outdebug(self.ui, b'end of bundle')
         yield _pack(_fpartheadersize, 0)
 
@@ -1861,10 +1859,8 @@ def addpartrevbranchcache(repo, bundler, outgoing):
             utf8branch = encoding.fromlocal(branch)
             yield rbcstruct.pack(len(utf8branch), len(nodes), len(closed))
             yield utf8branch
-            for n in sorted(nodes):
-                yield n
-            for n in sorted(closed):
-                yield n
+            yield from sorted(nodes)
+            yield from sorted(closed)
 
     bundler.newpart(b'cache:rev-branch-cache', data=generate(), mandatory=False)
 
@@ -2033,8 +2029,7 @@ def writebundle(
 
         def chunkiter():
             yield header
-            for chunk in compengine.compressstream(cg.getchunks(), compopts):
-                yield chunk
+            yield from compengine.compressstream(cg.getchunks(), compopts)
 
         chunkiter = chunkiter()
 
