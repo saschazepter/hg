@@ -3757,7 +3757,17 @@ class TestRunner:
     def _usecorrectpython(self):
         """Configure the environment to use the appropriate Python in tests."""
         # Tests must use the same interpreter as us or bad things will happen.
-        pyexe_names = [b'python', b'python3']
+
+        # install dir != None means we did install mercurial within a temporary
+        # virtual env and do need to make sure the right python will be in
+        # front of the PATH. Except for Windows who lack a `python3` executable
+        # in this case.
+        if self._installdir is None:
+            pyexe_names = [b'python', b'python3']
+        elif WINDOWS:
+            pyexe_names = [b'python3']
+        else:
+            return
 
         # os.symlink() is a thing with py3 on Windows, but it requires
         # Administrator rights.
@@ -3818,12 +3828,17 @@ class TestRunner:
 
     def _use_correct_mercurial(self):
         target_exec = os.path.join(self._custom_bin_dir, b'hg')
+        # hgcommand is ≠ hg in case like `rhg` and `chg` or with windows .exe's
         if self._hgcommand != b'hg':
             real_exec = shutil.which(self._hgcommand)
             if real_exec is None:
                 raise ValueError('could not find exec path for "%s"', real_exec)
             if real_exec == target_exec:
                 # do not overwrite something with itself
+                return
+            if os.path.exists(target_exec):
+                # there is already something at the destination. Let's not
+                # overwrite it.
                 return
             if WINDOWS:
                 with open(target_exec, 'wb') as f:
