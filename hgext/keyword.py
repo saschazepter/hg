@@ -543,7 +543,7 @@ def demo(ui, repo, *args, **opts):
             if name.split(b'.', 1)[0].find(b'commit') > -1:
                 repo.ui.setconfig(b'hooks', name, b'', b'keyword')
         msg = _(b'hg keyword configuration and expansion example')
-        ui.note((b"hg ci -m '%s'\n" % msg))
+        ui.notenoi18n(b"hg ci -m '%s'\n" % msg)
         repo.commit(text=msg)
     ui.status(_(b'\n\tkeywords expanded\n'))
     ui.write(repo.wread(fn))

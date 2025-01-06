@@ -231,11 +231,9 @@ def dump(ui, revlog):
     # XXX seems redundant with debug index ?
     r = revlog
     numrevs = len(r)
-    ui.write(
-        (
-            b"# rev p1rev p2rev start   end deltastart base   p1   p2"
-            b" rawsize totalsize compression heads chainlen\n"
-        )
+    ui.writenoi18n(
+        b"# rev p1rev p2rev start   end deltastart base   p1   p2"
+        b" rawsize totalsize compression heads chainlen\n"
     )
     ts = 0
     heads = set()

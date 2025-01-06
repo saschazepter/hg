@@ -62,4 +62,4 @@ def autodiff(ui, repo, *pats, **opts):
     for chunk in it:
         ui.write(chunk)
     for fn in sorted(brokenfiles):
-        ui.write((b'data lost for: %s\n' % fn))
+        ui.writenoi18n(b'data lost for: %s\n' % fn)

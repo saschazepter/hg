@@ -464,32 +464,29 @@ def gettimer(ui, opts=None):
     # experimental config: perf.all-timing
     displayall = ui.configbool(b"perf", b"all-timing", True)
 
+    # ui.warnnoi18n was introduced in 5209fc94b982
+    ui_warn = ui.warn
+
     # experimental config: perf.run-limits
     limitspec = ui.configlist(b"perf", b"run-limits", [])
     limits = []
     for item in limitspec:
         parts = item.split(b'-', 1)
         if len(parts) < 2:
-            ui.warn((b'malformatted run limit entry, missing "-": %s\n' % item))
+            ui_warn(b'malformatted run limit entry, missing "-": %s\n' % item)
             continue
         try:
             time_limit = float(_sysstr(parts[0]))
         except ValueError as e:
-            ui.warn(
-                (
-                    b'malformatted run limit entry, %s: %s\n'
-                    % (_bytestr(e), item)
-                )
+            ui_warn(
+                b'malformatted run limit entry, %s: %s\n' % (_bytestr(e), item)
             )
             continue
         try:
             run_limit = int(_sysstr(parts[1]))
         except ValueError as e:
-            ui.warn(
-                (
-                    b'malformatted run limit entry, %s: %s\n'
-                    % (_bytestr(e), item)
-                )
+            ui_warn(
+                b'malformatted run limit entry, %s: %s\n' % (_bytestr(e), item)
             )
             continue
         limits.append((time_limit, run_limit))
