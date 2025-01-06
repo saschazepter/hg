@@ -260,7 +260,7 @@ def checkexec(path: bytes) -> bool:
                     copymode(storedir, cachedir)
                 else:
                     copymode(basedir, cachedir)
-            except (IOError, OSError):
+            except OSError:
                 # we other fallback logic triggers
                 pass
         if os.path.isdir(cachedir):
@@ -310,7 +310,7 @@ def checkexec(path: bytes) -> bool:
         finally:
             if fn is not None:
                 unlink(fn)
-    except (IOError, OSError):
+    except OSError:
         # we don't care, the user probably won't be able to commit anyway
         return False
 
@@ -783,7 +783,7 @@ def readpipe(pipe) -> bytes:
                 if not s:
                     break
                 chunks.append(s)
-            except IOError:
+            except OSError:
                 break
 
         return b''.join(chunks)

@@ -718,7 +718,7 @@ def unlink(path: bytes) -> None:
     if os.path.isdir(path):
         # use EPERM because it is POSIX prescribed value, even though
         # unlink(2) on directories returns EISDIR on Linux
-        raise IOError(
+        raise OSError(
             errno.EPERM,
             r"Unlinking directory not permitted: '%s'"
             % encoding.strfromlocal(path),
@@ -749,7 +749,7 @@ def unlink(path: bytes) -> None:
         except FileExistsError:
             pass
     else:
-        raise IOError(errno.EEXIST, "No usable temporary filename found")
+        raise OSError(errno.EEXIST, "No usable temporary filename found")
 
     try:
         os.unlink(temp)

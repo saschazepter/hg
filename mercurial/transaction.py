@@ -126,7 +126,7 @@ def _playback(
         try:
             util.copyfile(backuppath, filepath, checkambig=checkambig)
             backupfiles.append((vfs, b))
-        except IOError as exc:
+        except OSError as exc:
             e_msg = stringutil.forcebytestr(exc)
             report(_(b"failed to recover %s (%s)\n") % (f, e_msg))
             raise
@@ -169,7 +169,7 @@ def _playback(
                     )
                 fp.truncate(o)
                 fp.close()
-            except IOError:
+            except OSError:
                 report(_(b"failed to truncate %s\n") % f)
                 raise
         else:
@@ -206,7 +206,7 @@ def _playback(
                     # in both case, our target result (delete the file) is
                     # already achieved.
                     pass
-        except (IOError, OSError, error.Abort):
+        except (OSError, error.Abort):
             if not c:
                 raise
 
@@ -219,7 +219,7 @@ def _playback(
         for vfs, f in backupfiles:
             if vfs.exists(f):
                 vfs.unlink(f)
-    except (IOError, OSError, error.Abort):
+    except (OSError, error.Abort):
         # only pure backup file remains, it is sage to ignore any error
         pass
 
@@ -709,7 +709,7 @@ class transaction(util.transactional):
             if not f and b and vfs.exists(b):
                 try:
                     vfs.unlink(b)
-                except (IOError, OSError, error.Abort) as inst:
+                except (OSError, error.Abort) as inst:
                     if not c:
                         raise
                     # Abort may be raise by read only opener
@@ -737,7 +737,7 @@ class transaction(util.transactional):
             if b and vfs.exists(b):
                 try:
                     vfs.unlink(b)
-                except (IOError, OSError, error.Abort) as inst:
+                except (OSError, error.Abort) as inst:
                     if not c:
                         raise
                     # Abort may be raise by read only opener

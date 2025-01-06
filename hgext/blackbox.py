@@ -136,7 +136,7 @@ class blackboxlogger:
                 fp.write(msg)
                 if debug_to_stderr:
                     ui.write_err(msg)
-        except (IOError, OSError) as err:
+        except OSError as err:
             # deactivate this to avoid failed logging again
             self._trackedevents.clear()
             ui.debug(

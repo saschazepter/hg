@@ -1582,7 +1582,7 @@ class manifestfulltextcache(util.lrucachedict):
                     if len(value) != size:
                         break
                     set(node, value)
-        except IOError:
+        except OSError:
             # the file is allowed to be missing
             pass
 
@@ -1606,7 +1606,7 @@ class manifestfulltextcache(util.lrucachedict):
                     if node is self._head:
                         break
                     node = node.prev
-        except IOError:
+        except OSError:
             # We could not write the cache (eg: permission error)
             # the content can be missing.
             #

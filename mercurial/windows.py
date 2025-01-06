@@ -191,9 +191,9 @@ def posixfile(name, mode=b'r', buffering=-1):
             return mixedfilemodewrapper(fp)
 
         return fp
-    except WindowsError as err:  # pytype: disable=name-error
+    except OSError as err:
         # convert to a friendlier exception
-        raise IOError(
+        raise OSError(
             err.errno, '%s: %s' % (encoding.strfromlocal(name), err.strerror)
         )
 
@@ -242,25 +242,25 @@ class winstdout(typelib.BinaryIO_Proxy):
     def close(self):
         try:
             self.fp.close()
-        except IOError:
+        except OSError:
             pass
 
     def write(self, s):
         try:
             return self.fp.write(s)
-        except IOError as inst:
+        except OSError as inst:
             if inst.errno != 0 and not win32.lasterrorwaspipeerror(inst):
                 raise
             self.close()
-            raise IOError(errno.EPIPE, 'Broken pipe')
+            raise OSError(errno.EPIPE, 'Broken pipe')
 
     def flush(self):
         try:
             return self.fp.flush()
-        except IOError as inst:
+        except OSError as inst:
             if not win32.lasterrorwaspipeerror(inst):
                 raise
-            raise IOError(errno.EPIPE, 'Broken pipe')
+            raise OSError(errno.EPIPE, 'Broken pipe')
 
 
 def openhardlinks() -> bool:
@@ -744,7 +744,7 @@ def lookupreg(
 
                 # never let a Unicode string escape into the wild
                 return encoding.unitolocal(val)
-        except EnvironmentError:
+        except OSError:
             pass
 
 

@@ -1617,7 +1617,7 @@ class seekableunbundlepart(unbundlepart):
         if self._seekable:
             try:
                 return self._fp.tell()
-            except IOError as e:
+            except OSError as e:
                 if e.errno == errno.ESPIPE:
                     self._seekable = False
                 else:

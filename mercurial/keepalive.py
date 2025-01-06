@@ -86,7 +86,6 @@ from __future__ import annotations
 
 import collections
 import hashlib
-import socket
 import sys
 import threading
 
@@ -249,7 +248,7 @@ class KeepAliveHandler:
             raise urlerr.urlerror(
                 _(b'bad HTTP status line: %s') % pycompat.sysbytes(err.line)
             )
-        except (socket.error, httplib.HTTPException) as err:
+        except (OSError, httplib.HTTPException) as err:
             raise urlerr.urlerror(err)
 
         # If not a persistent connection, don't try to reuse it. Look
@@ -282,7 +281,7 @@ class KeepAliveHandler:
             r = h.getresponse()
             # note: just because we got something back doesn't mean it
             # worked.  We'll check the version below, too.
-        except (socket.error, httplib.HTTPException):
+        except (OSError, httplib.HTTPException):
             r = None
         except:  # re-raises
             # adding this block just in case we've missed
@@ -354,7 +353,7 @@ class KeepAliveHandler:
                     urllibcompat.getselector(req),
                     **skipheaders,
                 )
-        except socket.error as err:
+        except OSError as err:
             raise urlerr.urlerror(err)
         for k, v in headers.items():
             h.putheader(k, v)

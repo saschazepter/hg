@@ -1372,7 +1372,7 @@ def nodefromfile(repo, subset, x):
                 rn = _node(repo, n)
                 if rn is not None:
                     listed_rev.add(rn)
-    except IOError as exc:
+    except OSError as exc:
         m = _(b'cannot open nodes file "%s": %s')
         m %= (path, encoding.strtolocal(exc.strerror))
         raise error.Abort(m)

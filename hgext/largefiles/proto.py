@@ -46,10 +46,10 @@ def putlfile(repo, proto, sha):
                 tmpfp.write(p)
             tmpfp._fp.seek(0)
             if sha != lfutil.hexsha1(tmpfp._fp):
-                raise IOError(0, _(b'largefile contents do not match hash'))
+                raise OSError(0, _(b'largefile contents do not match hash'))
             tmpfp.close()
             lfutil.linktousercache(repo, sha)
-        except IOError as e:
+        except OSError as e:
             repo.ui.warn(
                 _(b'largefiles: failed to put %s into store: %s\n')
                 % (sha, e.strerror)
@@ -154,7 +154,7 @@ def wirereposetup(ui, repo):
                             _(b'putlfile failed:'), output
                         )
                     return int(ret)
-                except IOError:
+                except OSError:
                     return 1
                 except ValueError:
                     raise error.ResponseError(

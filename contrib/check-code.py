@@ -816,7 +816,7 @@ def checkfile(
             except UnicodeDecodeError as e:
                 print("%s while reading %s" % (e, f))
                 return result
-    except IOError as e:
+    except OSError as e:
         print("Skipping %s, %s" % (f, str(e).split(':', 1)[0]))
         return result
 

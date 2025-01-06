@@ -123,7 +123,7 @@ def killdaemons(pidfile, tryhard=True, remove=False, logfn=None):
             kill(pid, logfn, tryhard)
         if remove:
             os.unlink(pidfile)
-    except IOError:
+    except OSError:
         pass
 
 

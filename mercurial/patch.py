@@ -2023,7 +2023,7 @@ def scangitpatch(lr, firstline):
     try:
         pos = lr.fp.tell()
         fp = lr.fp
-    except IOError:
+    except OSError:
         fp = stringio(lr.fp.read())
     gitlr = linereader(fp)
     gitlr.push(firstline)

@@ -436,7 +436,7 @@ def _readtagcache(ui, repo):
         cachefile = repo.cachevfs(_filename(repo), b'r')
         # force reading the file for static-http
         cachelines = iter(cachefile)
-    except IOError:
+    except OSError:
         cachefile = None
 
     cacherev = None
@@ -581,7 +581,7 @@ def _writetagcache(ui, repo, valid, cachetags):
     filename = _filename(repo)
     try:
         cachefile = repo.cachevfs(filename, b'w', atomictemp=True)
-    except (OSError, IOError):
+    except OSError:
         return
 
     ui.log(
@@ -609,7 +609,7 @@ def _writetagcache(ui, repo, valid, cachetags):
 
     try:
         cachefile.close()
-    except (OSError, IOError):
+    except OSError:
         pass
 
 
@@ -692,7 +692,7 @@ def _tag(
     if local:
         try:
             fp = repo.vfs(b'localtags', b'r+')
-        except IOError:
+        except OSError:
             fp = repo.vfs(b'localtags', b'a')
         else:
             prevtags = fp.read()
@@ -768,7 +768,7 @@ class hgtagsfnodescache:
 
         try:
             data = repo.cachevfs.read(_fnodescachefile)
-        except (OSError, IOError):
+        except OSError:
             data = b""
         self._raw = bytearray(data)
 
@@ -976,7 +976,7 @@ class hgtagsfnodescache:
                 self._dirtyoffset = None
             finally:
                 f.close()
-        except (IOError, OSError) as inst:
+        except OSError as inst:
             repo.ui.log(
                 b'tagscache',
                 b"couldn't write cache/%s: %s\n"

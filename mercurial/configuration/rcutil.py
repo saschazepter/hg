@@ -144,7 +144,7 @@ def _shared_source_component(path: bytes) -> List[FileRCT]:
             hgvfs = vfs.vfs(os.path.join(path, b".hg"))
             sharedvfs = localrepo._getsharedvfs(hgvfs, requirements)
             return [sharedvfs.join(b"hgrc")]
-    except IOError:
+    except OSError:
         pass
     return []
 

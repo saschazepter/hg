@@ -97,7 +97,7 @@ def clonenarrowcmd(orig, ui, repo, *args, **opts):
         ui.status(_(b"reading narrowspec from '%s'\n") % filepath)
         try:
             fdata = util.readfile(filepath)
-        except IOError as inst:
+        except OSError as inst:
             raise error.Abort(
                 _(b"cannot read narrowspecs from '%s': %s")
                 % (filepath, encoding.strtolocal(inst.strerror))
@@ -532,7 +532,7 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
         filepath = os.path.join(encoding.getcwd(), newrules)
         try:
             fdata = util.readfile(filepath)
-        except IOError as inst:
+        except OSError as inst:
             raise error.StorageError(
                 _(b"cannot read narrowspecs from '%s': %s")
                 % (filepath, encoding.strtolocal(inst.strerror))

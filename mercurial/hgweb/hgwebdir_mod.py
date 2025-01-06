@@ -152,7 +152,7 @@ def rawindexentries(ui, repos, req, subdir=b''):
                 try:
                     hg.repository(ui, path)
                     directory = False
-                except (IOError, error.RepoError):
+                except (OSError, error.RepoError):
                     pass
 
         parts = [
@@ -211,7 +211,7 @@ def rawindexentries(ui, repos, req, subdir=b''):
         # update time with local timezone
         try:
             r = hg.repository(ui, path)
-        except IOError:
+        except OSError:
             u.warn(_(b'error accessing repository at %s\n') % path)
             continue
         except error.RepoError:
@@ -475,7 +475,7 @@ class hgwebdir:
                         # ensure caller gets private copy of ui
                         repo = hg.repository(self.ui.copy(), real)
                         return hgweb_mod.hgweb(repo).run_wsgi(req, res)
-                    except IOError as inst:
+                    except OSError as inst:
                         msg = encoding.strtolocal(inst.strerror)
                         raise ErrorResponse(HTTP_SERVER_ERROR, msg)
                     except error.RepoError as inst:

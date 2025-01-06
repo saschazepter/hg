@@ -287,7 +287,7 @@ class lock:
                 with self._maybedelayedinterrupt():
                     self.vfs.makelock(lockname, self.f)
                     self.held = 1
-            except (OSError, IOError) as why:
+            except OSError as why:
                 if why.errno == errno.EEXIST:
                     locker = self._readlock()
                     if locker is None:

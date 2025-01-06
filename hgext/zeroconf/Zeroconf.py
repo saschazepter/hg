@@ -1010,7 +1010,7 @@ class Listener:
         sock = self.zeroconf.socket
         try:
             data, (addr, port) = sock.recvfrom(_MAX_MSG_ABSOLUTE)
-        except socket.error as e:
+        except OSError as e:
             if e.errno == errno.EBADF:
                 # some other thread may close the socket
                 return

@@ -167,7 +167,7 @@ def sigwalk(repo):
         fn = b"localsigs"
         for item in parsefile(repo.vfs(fn), fn):
             yield item
-    except IOError:
+    except OSError:
         pass
 
 

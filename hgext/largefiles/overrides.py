@@ -891,7 +891,7 @@ def overridecopy(orig, ui, repo, pats, opts, rename=False):
             ):
                 destlfile = dest.replace(lfutil.shortname, b'')
                 if not opts[b'force'] and os.path.exists(destlfile):
-                    raise IOError(
+                    raise OSError(
                         b'', _(b'destination largefile already exists')
                     )
             copiedfiles.append((src, dest))

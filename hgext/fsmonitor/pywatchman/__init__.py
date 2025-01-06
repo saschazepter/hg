@@ -377,7 +377,7 @@ class UnixSocketTransport(Transport):
             sock.settimeout(self.timeout)
             sock.connect(self.sockpath)
             self.sock = sock
-        except socket.error as e:
+        except OSError as e:
             sock.close()
             raise SocketConnectError(self.sockpath, e)
 
@@ -562,7 +562,7 @@ class WindowsNamedPipeTransport(Transport):
             # other way this shows up is if the client has gotten in a weird
             # state, so let's bail out
             CancelIoEx(self.pipe, olap)
-            raise IOError("Async read yielded 0 bytes; unpossible!")
+            raise OSError("Async read yielded 0 bytes; unpossible!")
 
         # Holds precisely the bytes that we read from the prior request
         buf = buf[:nread]
@@ -1168,7 +1168,7 @@ class client:
                 res = self.receive()
 
             return res
-        except EnvironmentError as ee:
+        except OSError as ee:
             # When we can depend on Python 3, we can use PEP 3134
             # exception chaining here.
             raise WatchmanEnvironmentError(

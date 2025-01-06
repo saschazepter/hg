@@ -1028,7 +1028,7 @@ class fncache:
         self._dirty = False
         try:
             fp = self.vfs(b'fncache', mode=b'rb')
-        except IOError:
+        except OSError:
             # skip nonexistent file
             self.entries = set()
             return
