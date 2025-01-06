@@ -471,7 +471,7 @@ pypats = [
          (?# this regexp can't use [^...] style,
            # because _preparepats forcibly adds "\n" into [^...],
            # even though this regexp wants match it against "\n")''',
-            "missing _() in ui message (use () to hide false-positives)",
+            "missing _() in ui message (use `noi18n` method to hide false-positives)",
         ),
     ]
     + commonpypats[0],
