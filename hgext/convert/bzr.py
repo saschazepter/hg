@@ -332,7 +332,7 @@ class bzr_source(common.converter_source):
                 changes.append((path, revid))
 
             # populate the mode cache
-            kind, executable = [e[1] for e in (kind, executable)]
+            kind, executable = (e[1] for e in (kind, executable))
             mode = (executable and b'x') or (kind == 'symlink' and b'l') or b''
             self._modecache[(topath, revid)] = mode
             changes.append((topath, revid))
