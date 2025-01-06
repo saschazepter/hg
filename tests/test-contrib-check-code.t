@@ -359,7 +359,7 @@ should break rules depending on result of repquote(), in this case)
    string join across lines with no space
   uigettext.py:1:
    > ui.status("% 10s %05d % -3.2f %*s %%"
-   missing _() in ui message (use () to hide false-positives)
+   missing _() in ui message (use `noi18n` method to hide false-positives)
   superfluous_pass.py:14:
    > if foo:
    omit superfluous pass
