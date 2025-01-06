@@ -519,7 +519,7 @@ def headdecode(s: Union[email.header.Header, bytes]) -> bytes:
                 pass
         # On Python 3, decode_header() may return either bytes or unicode
         # depending on whether the header has =?<charset>? or not
-        if isinstance(part, type(u'')):
+        if isinstance(part, str):
             uparts.append(part)
             continue
         try:
