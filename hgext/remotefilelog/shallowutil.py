@@ -100,7 +100,7 @@ def sumdicts(*dicts):
 
     e.g. [{'a': 4', 'b': 2}, {'b': 3, 'c': 1}] -> {'a': 4, 'b': 5, 'c': 1}
     """
-    result = collections.defaultdict(lambda: 0)
+    result = collections.defaultdict(int)
     for dict in dicts:
         for k, v in dict.items():
             result[k] += v

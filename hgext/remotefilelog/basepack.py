@@ -140,8 +140,8 @@ class basepackstore:
         packsuffixlen = len(self.PACKSUFFIX)
 
         ids = set()
-        sizes = collections.defaultdict(lambda: 0)
-        mtimes = collections.defaultdict(lambda: [])
+        sizes = collections.defaultdict(int)
+        mtimes = collections.defaultdict(list)
         try:
             for filename, type, stat in osutil.listdir(self.path, stat=True):
                 id = None
