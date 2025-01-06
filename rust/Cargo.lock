@@ -736,6 +736,7 @@ dependencies = [
  "env_logger 0.9.3",
  "hg-core",
  "log",
+ "logging_timer",
  "pyo3",
  "pyo3-sharedref",
  "stable_deref_trait",
