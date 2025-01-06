@@ -261,7 +261,7 @@ class bytestr(bytes):
             return s
         if not isinstance(s, (bytes, bytearray)) and (
             isinstance(s, type)
-            or not builtins.hasattr(s, u'__bytes__')  # hasattr-py3-only
+            or not builtins.hasattr(s, '__bytes__')  # hasattr-py3-only
         ):
             s = str(s).encode('ascii')
         return bytes.__new__(cls, s)

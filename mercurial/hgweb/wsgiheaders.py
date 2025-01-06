@@ -48,8 +48,8 @@ class Headers:
         if type(value) is bytes:
             return value
         raise AssertionError(
-            u"Header names/values must be"
-            u" of type bytes (got %s)" % repr(value)
+            "Header names/values must be"
+            " of type bytes (got %s)" % repr(value)
         )
 
     def __len__(self):
