@@ -182,10 +182,10 @@ def removelargefiles(ui, repo, isaddremove, matcher, uipathfn, dryrun, **opts):
     with lfstatus(repo):
         s = repo.status(match=m, clean=not isaddremove)
     manifest = repo[None].manifest()
-    modified, added, deleted, clean = [
+    modified, added, deleted, clean = (
         [f for f in list if lfutil.standin(f) in manifest]
         for list in (s.modified, s.added, s.deleted, s.clean)
-    ]
+    )
 
     def warn(files, msg):
         for f in files:

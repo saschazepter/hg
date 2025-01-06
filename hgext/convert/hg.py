@@ -697,7 +697,7 @@ class mercurial_source(common.converter_source):
         else:
             i = i or 0
             ma, r = self._changedfiles(parents[i], ctx)
-        ma, r = [[f for f in l if f not in self.ignored] for l in (ma, r)]
+        ma, r = ([f for f in l if f not in self.ignored] for l in (ma, r))
 
         if i == 0:
             self._changescache = (rev, (ma, r))
