@@ -16,7 +16,6 @@ import unicodedata
 from typing import (
     Any,
     Callable,
-    Text,
     TypeVar,
 )
 
@@ -386,7 +385,7 @@ def colwidth(s: bytes) -> int:
     return ucolwidth(s.decode(_sysstr(encoding), 'replace'))
 
 
-def ucolwidth(d: Text) -> int:
+def ucolwidth(d: str) -> int:
     """Find the column width of a Unicode string for display"""
     eaw = getattr(unicodedata, 'east_asian_width', None)
     if eaw is not None:
