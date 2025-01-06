@@ -77,7 +77,7 @@ def runperfcommand(reponame, command, *args, **kwargs):
     output = ui.popbuffer()
     match = outputre.search(output)
     if not match:
-        raise ValueError("Invalid output {}".format(output))
+        raise ValueError(f"Invalid output {output}")
     return float(match.group(1))
 
 
