@@ -76,7 +76,7 @@ newfile = {'new fi', 'rename', 'copy f', 'copy t'}
 
 
 def zerodict():
-    return collections.defaultdict(lambda: 0)
+    return collections.defaultdict(int)
 
 
 def roundto(x, k):

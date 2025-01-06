@@ -83,7 +83,7 @@ def scratch(repo, subset, x):
 
     selected = set()
     heads = SortedSet()
-    children_count = collections.defaultdict(lambda: 0)
+    children_count = collections.defaultdict(int)
     parents = repo.changelog._uncheckedparentrevs
 
     baseset = revset.getset(repo, smartset.fullreposet(repo), x)
