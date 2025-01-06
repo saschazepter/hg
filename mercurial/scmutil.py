@@ -214,7 +214,7 @@ def callcatch(ui: uimod.ui, func: Callable[[], int]) -> int:
     except error.ResponseError as inst:
         ui.error(_(b"abort: %s") % inst.args[0])
         msg = inst.args[1]
-        if isinstance(msg, type(u'')):
+        if isinstance(msg, str):
             msg = pycompat.sysbytes(msg)
         if msg is None:
             ui.error(b"\n")

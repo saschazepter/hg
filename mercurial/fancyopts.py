@@ -273,7 +273,7 @@ def _defaultopt(default):
         return _callableopt(default)
     elif isinstance(default, list):
         return _listopt(default[:])
-    elif type(default) is type(1):
+    elif type(default) is int:
         return _intopt(default)
     else:
         return _simpleopt(default)
