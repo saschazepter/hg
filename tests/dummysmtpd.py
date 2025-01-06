@@ -126,7 +126,7 @@ def run(host, port, certificate):
 
 
 def _encodestrsonly(v):
-    if isinstance(v, type(u'')):
+    if isinstance(v, str):
         return v.encode('ascii')
     return v
 
