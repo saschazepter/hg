@@ -33,7 +33,7 @@ _Opts = Dict[bytes, Any]
 
 
 def diffallopts(
-    ui: "uimod.ui",
+    ui: uimod.ui,
     opts: Optional[_Opts] = None,
     untrusted: bool = False,
     section: bytes = b'diff',
@@ -53,7 +53,7 @@ def diffallopts(
 
 
 def difffeatureopts(
-    ui: "uimod.ui",
+    ui: uimod.ui,
     opts: Optional[_Opts] = None,
     untrusted: bool = False,
     section: bytes = b'diff',

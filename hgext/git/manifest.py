@@ -245,7 +245,7 @@ class gittreemanifest(repository.imanifestdict):
         except KeyError:
             return b''
 
-    def copy(self) -> 'gittreemanifest':
+    def copy(self) -> gittreemanifest:
         return gittreemanifest(
             self._git_repo, self._tree, dict(self._pending_changes)
         )

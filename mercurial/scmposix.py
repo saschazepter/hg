@@ -73,7 +73,7 @@ def userrcpath() -> List[bytes]:
         ]
 
 
-def termsize(ui: "uimod.ui") -> Tuple[int, int]:
+def termsize(ui: uimod.ui) -> Tuple[int, int]:
     try:
         import termios
 

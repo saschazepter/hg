@@ -202,7 +202,7 @@ class _BaseBranchCache:
 
     def __init__(
         self,
-        repo: "localrepo.localrepository",
+        repo: localrepo.localrepository,
         entries: Union[
             Dict[bytes, List[bytes]], Iterable[Tuple[bytes, List[bytes]]]
         ] = (),
@@ -437,7 +437,7 @@ class _LocalBranchCache(_BaseBranchCache):
 
     def __init__(
         self,
-        repo: "localrepo.localrepository",
+        repo: localrepo.localrepository,
         entries: Union[
             Dict[bytes, List[bytes]], Iterable[Tuple[bytes, List[bytes]]]
         ] = (),
@@ -545,7 +545,7 @@ class _LocalBranchCache(_BaseBranchCache):
         return bcache
 
     @classmethod
-    def _load_header(cls, repo, lineiter) -> "dict[str, Any]":
+    def _load_header(cls, repo, lineiter) -> dict[str, Any]:
         raise NotImplementedError
 
     def _load_heads(self, repo, lineiter):
@@ -788,7 +788,7 @@ class BranchCacheV2(_LocalBranchCache):
     _base_filename = b"branch2"
 
     @classmethod
-    def _load_header(cls, repo, lineiter) -> "dict[str, Any]":
+    def _load_header(cls, repo, lineiter) -> dict[str, Any]:
         """parse the head of a branchmap file
 
         return parameters to pass to a newly created class instance.
@@ -1079,7 +1079,7 @@ class remotebranchcache(_BaseBranchCache):
 
     def __init__(
         self,
-        repo: "localrepo.localrepository",
+        repo: localrepo.localrepository,
         entries: Union[
             Dict[bytes, List[bytes]], Iterable[Tuple[bytes, List[bytes]]]
         ] = (),

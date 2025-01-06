@@ -230,7 +230,7 @@ _reqexithandlers: List = []
 
 
 class ui:
-    def __init__(self, src: Optional["ui"] = None) -> None:
+    def __init__(self, src: Optional[ui] = None) -> None:
         """Create a fresh new ui object if no src given
 
         Use uimod.ui.load() to create a ui which knows global and user configs.

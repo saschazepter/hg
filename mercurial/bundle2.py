@@ -615,7 +615,7 @@ def _processpart(op, part):
             )
 
 
-def decodecaps(blob: bytes) -> "Capabilities":
+def decodecaps(blob: bytes) -> Capabilities:
     """decode a bundle2 caps bytes blob into a dictionary
 
     The blob is a list of capabilities (one per line)
@@ -675,14 +675,14 @@ class bundle20:
 
     _magicstring = b'HG20'
 
-    def __init__(self, ui, capabilities: "Optional[Capabilities]" = None):
+    def __init__(self, ui, capabilities: Optional[Capabilities] = None):
         if capabilities is None:
             capabilities = {}
 
         self.ui = ui
         self._params = []
         self._parts = []
-        self.capabilities: "Capabilities" = dict(capabilities)
+        self.capabilities: Capabilities = dict(capabilities)
         self._compengine = util.compengines.forbundletype(b'UN')
         self._compopts = None
         # If compression is being handled by a consumer of the raw
@@ -1625,7 +1625,7 @@ class seekableunbundlepart(unbundlepart):
 
 # These are only the static capabilities.
 # Check the 'getrepocaps' function for the rest.
-capabilities: "Capabilities" = {
+capabilities: Capabilities = {
     b'HG20': (),
     b'bookmarks': (),
     b'error': (b'abort', b'unsupportedcontent', b'pushraced', b'pushkey'),
@@ -1640,7 +1640,7 @@ capabilities: "Capabilities" = {
 
 
 # TODO: drop the default value for 'role'
-def getrepocaps(repo, allowpushback: bool = False, role=None) -> "Capabilities":
+def getrepocaps(repo, allowpushback: bool = False, role=None) -> Capabilities:
     """return the bundle2 capabilities for a given repo
 
     Exists to allow extensions (like evolution) to mutate the capabilities.
@@ -1689,7 +1689,7 @@ def getrepocaps(repo, allowpushback: bool = False, role=None) -> "Capabilities":
     return caps
 
 
-def bundle2caps(remote) -> "Capabilities":
+def bundle2caps(remote) -> Capabilities:
     """return the bundle capabilities of a peer as dict"""
     raw = remote.capable(b'bundle2')
     if not raw and raw != b'':
@@ -1698,7 +1698,7 @@ def bundle2caps(remote) -> "Capabilities":
     return decodecaps(capsblob)
 
 
-def obsmarkersversion(caps: "Capabilities"):
+def obsmarkersversion(caps: Capabilities):
     """extract the list of supported obsmarkers versions from a bundle2caps dict"""
     obscaps = caps.get(b'obsmarkers', ())
     return [int(c[1:]) for c in obscaps if c.startswith(b'V')]
@@ -1739,7 +1739,7 @@ def writenewbundle(
         msg %= count
         raise error.ProgrammingError(msg)
 
-    caps: "Capabilities" = {}
+    caps: Capabilities = {}
     if opts.get(b'obsolescence', False):
         caps[b'obsmarkers'] = (b'V1',)
     stream_version = opts.get(b'stream', b"")

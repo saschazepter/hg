@@ -62,12 +62,12 @@ class _dirstatemapcommon:
 
     _use_dirstate_v2: bool
     _nodeconstants: typelib.NodeConstants
-    _ui: "uimod.ui"
+    _ui: uimod.ui
     _root: bytes
     _filename: bytes
     _nodelen: int
     _dirtyparents: bool
-    _docket: Optional["docketmod.DirstateDocket"]
+    _docket: Optional[docketmod.DirstateDocket]
     _write_mode: int
     _pendingmode: Optional[bool]
     identity: Optional[typelib.CacheStat]
@@ -79,7 +79,7 @@ class _dirstatemapcommon:
 
     def __init__(
         self,
-        ui: "uimod.ui",
+        ui: uimod.ui,
         opener,
         root: bytes,
         nodeconstants: typelib.NodeConstants,
@@ -182,7 +182,7 @@ class _dirstatemapcommon:
             return b''
 
     @property
-    def docket(self) -> "docketmod.DirstateDocket":
+    def docket(self) -> docketmod.DirstateDocket:
         testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
         if not self._docket:
             if not self._use_dirstate_v2:
