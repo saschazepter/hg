@@ -448,7 +448,7 @@ class remotefilelog:
         parentrevs = collections.defaultdict(list)
         revmap = {}
         queue = collections.deque(
-            ((None, n) for n in parentsmap if n not in allparents)
+            (None, n) for n in parentsmap if n not in allparents
         )
         while queue:
             prevrev, current = queue.pop()

@@ -290,7 +290,7 @@ def getflogheads(repo, proto, path):
     """A server api for requesting a filelog's heads"""
     flog = repo.file(path)
     heads = flog.heads()
-    return b'\n'.join((hex(head) for head in heads if head != repo.nullid))
+    return b'\n'.join(hex(head) for head in heads if head != repo.nullid)
 
 
 def getfile(repo, proto, file, node):

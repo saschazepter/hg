@@ -1484,7 +1484,7 @@ pgup/K: move patch up, pgdn/J: move patch down, c: commit, q: abort
             self.selected = oldpos if self.selected is None else None
             self.make_selection(self.selected)
         elif action == b'goto' and int(ch) < len(self.rules) <= 10:
-            newrule = next((r for r in self.rules if r.origpos == int(ch)))
+            newrule = next(r for r in self.rules if r.origpos == int(ch))
             self.move_cursor(oldpos, newrule.pos)
             if self.selected is not None:
                 self.swap(oldpos, newrule.pos)

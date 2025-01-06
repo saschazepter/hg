@@ -1257,7 +1257,7 @@ class queue:
             mar = changes[:3]
         else:
             mar = (changes.modified, changes.added, changes.removed)
-        if any((b'.hgsubstate' in files for files in mar)):
+        if any(b'.hgsubstate' in files for files in mar):
             return  # already listed up
         # not yet listed up
         if substatestate.added or not substatestate.any_tracked:

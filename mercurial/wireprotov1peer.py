@@ -472,7 +472,7 @@ class wirepeer(
                 raise KeyError(b'unknown getbundle option type %s' % keytype)
             opts[key] = value
         f = self._callcompressable(b"getbundle", **pycompat.strkwargs(opts))
-        if any((cap.startswith(b'HG2') for cap in bundlecaps)):
+        if any(cap.startswith(b'HG2') for cap in bundlecaps):
             return bundle2.getunbundler(self.ui, f)
         else:
             return changegroupmod.cg1unpacker(f, b'UN')
