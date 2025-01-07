@@ -12,7 +12,7 @@ import errno
 import os
 import struct
 
-from typing import Optional
+from typing import Iterator, Optional
 
 from .i18n import _
 from .interfaces import repository
@@ -308,7 +308,7 @@ def generatev1(repo):
     return len(entries), total_bytes, emitrevlogdata()
 
 
-def generatev1wireproto(repo):
+def generatev1wireproto(repo) -> Iterator[bytes]:
     """Emit content for version 1 of streaming clone suitable for the wire.
 
     This is the data output from ``generatev1()`` with 2 header lines. The

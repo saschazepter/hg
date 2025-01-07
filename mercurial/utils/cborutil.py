@@ -8,7 +8,12 @@
 from __future__ import annotations
 
 import struct
+import typing
 
+if typing.TYPE_CHECKING:
+    from typing import (
+        Iterator,
+    )
 
 # Very short very of RFC 7049...
 #
@@ -131,7 +136,7 @@ def streamencodeint(v):
         yield encodelength(MAJOR_TYPE_NEGINT, abs(v) - 1)
 
 
-def streamencodearray(l):
+def streamencodearray(l) -> Iterator[bytes]:
     """Encode a known size iterable to an array."""
 
     yield encodelength(MAJOR_TYPE_ARRAY, len(l))
@@ -140,7 +145,7 @@ def streamencodearray(l):
         yield from streamencode(i)
 
 
-def streamencodearrayfromiter(it):
+def streamencodearrayfromiter(it) -> Iterator[bytes]:
     """Encode an iterator of items to an indefinite length array."""
 
     yield BEGIN_INDEFINITE_ARRAY
@@ -163,7 +168,7 @@ def streamencodeset(s):
     yield from streamencodearray(sorted(s, key=_mixedtypesortkey))
 
 
-def streamencodemap(d):
+def streamencodemap(d) -> Iterator[bytes]:
     """Encode dictionary to a generator.
 
     Does not supporting indefinite length dictionaries.
@@ -175,7 +180,7 @@ def streamencodemap(d):
         yield from streamencode(value)
 
 
-def streamencodemapfromiter(it):
+def streamencodemapfromiter(it) -> Iterator[bytes]:
     """Given an iterable of (key, value), encode to an indefinite length map."""
     yield BEGIN_INDEFINITE_MAP
 
