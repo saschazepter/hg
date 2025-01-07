@@ -1,5 +1,4 @@
 # revlog.py - storage back-end for mercurial
-# coding: utf8
 #
 # Copyright 2005-2007 Olivia Mackall <olivia@selenic.com>
 #

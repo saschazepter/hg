@@ -1,4 +1,3 @@
-# -*- coding: UTF-8 -*-
 # beautifygraph.py - improve graph output by using Unicode characters
 #
 # Copyright 2018 John Stiles <johnstiles@gmail.com>

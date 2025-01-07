@@ -1,4 +1,3 @@
-# coding: utf8
 # ext-sidedata-4.py - small extension to test (differently still) the sidedata
 # logic
 #

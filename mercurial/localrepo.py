@@ -1,5 +1,4 @@
 # localrepo.py - read/write repository class for mercurial
-# coding: utf-8
 #
 # Copyright 2005-2007 Olivia Mackall <olivia@selenic.com>
 #

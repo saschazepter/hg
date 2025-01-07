@@ -1,4 +1,3 @@
-# coding: utf8
 # copies.py - copy detection for Mercurial
 #
 # Copyright 2008 Olivia Mackall <olivia@selenic.com>
