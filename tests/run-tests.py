@@ -73,7 +73,11 @@ import uuid
 import xml.dom.minidom as minidom
 
 
-if sys.version_info < (3, 8, 0):
+# Don't compare sys.version_info directly, to prevent pyupgrade from dropping
+# the conditional.
+sys_version_info = sys.version_info
+
+if sys_version_info < (3, 8, 0):
     print(
         '%s is only supported on Python 3.8+, not %s'
         % (sys.argv[0], '.'.join(str(v) for v in sys.version_info[:3]))
