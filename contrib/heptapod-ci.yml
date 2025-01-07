@@ -208,7 +208,7 @@ build-c-wheel-arm64-musl:
       - hg clone . "${TMP_WORK_DIR}"/mercurial-ci/ --noupdate --config phases.publish=no
       - hg -R "${TMP_WORK_DIR}"/mercurial-ci/ update `hg log --rev '.' --template '{node}'`
       - cd "${TMP_WORK_DIR}"/mercurial-ci/
-      - ls -1 tests/test-check-*.* > "${TMP_WORK_DIR}"/check-tests.txt
+      - ls -1 tests/test-check-*.* tests/test-contrib-check-*.t > "${TMP_WORK_DIR}"/check-tests.txt
     script:
         - echo "$TEST_HGTESTS_ALLOW_NETIO"
         - echo "$RUNTEST_ARGS"
