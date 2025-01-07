@@ -1,5 +1,4 @@
 # repository.py - Interfaces and base classes for repositories and peers.
-# coding: utf-8
 #
 # Copyright 2017 Gregory Szorc <gregory.szorc@gmail.com>
 #

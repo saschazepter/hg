@@ -1,5 +1,4 @@
 # censor code related to censoring revision
-# coding: utf8
 #
 # Copyright 2021 Pierre-Yves David <pierre-yves.david@octobus.net>
 # Copyright 2015 Google, Inc <martinvonz@google.com>

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Copyright (C) 2007 Daniel Holth <dholth@fastmail.fm>
 # This is a stripped-down version of the original bzr-svn transport.py,
 # Copyright (C) 2006 Jelmer Vernooij <jelmer@samba.org>
