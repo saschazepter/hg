@@ -9,3 +9,4 @@ name='pyo3_sharedref'
 [dependencies]
 pyo3 = { version = "0.23.1" }
 stable_deref_trait = "1.2.0"
+static_assertions_next = "1.1.2"
