@@ -210,7 +210,7 @@ class verifyingstatemachine(RuleBasedStateMachine):
                 stderr=devnull,
             )
             rewriter.communicate("yes")
-            with open(path, 'r') as i:
+            with open(path) as i:
                 ttest = i.read()
 
         e = None
@@ -233,7 +233,7 @@ class verifyingstatemachine(RuleBasedStateMachine):
                                     "",
                                 )
                             o.write(l + os.linesep)
-                    with open(tf, 'r') as r:
+                    with open(tf) as r:
                         t = r.read()
                         assert ext not in t, t
                     output = subprocess.check_output(
