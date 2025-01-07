@@ -35,7 +35,6 @@ from .utils import stringutil
 
 urlreq = util.urlreq
 
-BUNDLE_CACHE_DIR = b'bundle-cache'
 CB_MANIFEST_FILE = b'clonebundles.manifest'
 CLONEBUNDLESCHEME = b"peer-bundle-cache://"
 

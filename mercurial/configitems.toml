@@ -2093,6 +2093,11 @@ name = "zstdlevel"
 default = 3
 
 [[items]]
+section = "server"
+name = "peer-bundle-cache-root"
+default = "bundle-cache"
+
+[[items]]
 section = "share"
 name = "pool"
 
