@@ -3804,7 +3804,9 @@ def newreporequirements(ui, createopts):
         requirements.add(requirementsmod.BOOKMARKS_IN_STORE_REQUIREMENT)
 
     # The feature is disabled unless a fast implementation is available.
-    persistent_nodemap_default = policy.importrust('revlog') is not None
+    persistent_nodemap_default = (
+        policy.importrust('revlog', pyo3=True) is not None
+    )
     if ui.configbool(
         b'format', b'use-persistent-nodemap', persistent_nodemap_default
     ):
