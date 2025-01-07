@@ -5,12 +5,11 @@ from mercurial.node import wdirrev
 from mercurial.testing import revlog as revlogtesting
 
 try:
-    from mercurial import pyo3_rustext, rustext
+    from mercurial import pyo3_rustext
 
-    rustext.__name__  # trigger immediate actual import
     pyo3_rustext.__name__
 except ImportError:
-    rustext = pyo3_rustext = None
+    pyo3_rustext = None
 
 try:
     from mercurial.cext import parsers as cparsers
@@ -43,15 +42,15 @@ class RustAncestorsTestMixin:
 
     @classmethod
     def ancestors_mod(cls):
-        return cls.rustext_pkg.ancestor
+        return pyo3_rustext.ancestor
 
     @classmethod
     def dagop_mod(cls):
-        return cls.rustext_pkg.dagop
+        return pyo3_rustext.dagop
 
     @classmethod
     def graph_error(cls):
-        return cls.rustext_pkg.GraphError
+        return pyo3_rustext.GraphError
 
     def testiteratorrevlist(self):
         AncestorsIterator = self.ancestors_mod().AncestorsIterator
@@ -192,18 +191,6 @@ class RustAncestorsTestMixin:
         revs = {0, 1, 2, 3}
         missanc.removeancestorsfrom(revs)
         self.assertEqual(revs, {2, 3})
-
-
-class RustCPythonAncestorsTest(
-    revlogtesting.RustRevlogBasedTestBase, RustAncestorsTestMixin
-):
-    rustext_pkg = rustext
-
-
-class PyO3AncestorsTest(
-    revlogtesting.RustRevlogBasedTestBase, RustAncestorsTestMixin
-):
-    rustext_pkg = pyo3_rustext
 
     def test_rank(self):
         dagop = self.dagop_mod()
