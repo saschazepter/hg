@@ -24,7 +24,11 @@ import uuid
 
 osenvironb = getattr(os, 'environb', os.environ)
 
-if sys.version_info >= (3, 8, 0):
+# Don't compare sys.version_info directly, to prevent pyupgrade from dropping
+# the conditional.
+sys_version_info = sys.version_info
+
+if sys_version_info >= (3, 8, 0):
 
     def _sys2bytes(p):
         return p.encode('utf-8')
