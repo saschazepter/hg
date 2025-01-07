@@ -14,13 +14,9 @@ default = ["extension-module"]
 [dependencies]
 pyo3 = { version = "0.23.1" }
 pyo3-sharedref = { path = "../pyo3-sharedref" }
-cpython = { version = "0.7.2", features = ["extension-module"] }
-hg-cpython = { path = "../hg-cpython" }
-python3-sys = { version = "0.7.2" }
 hg-core = { path = "../hg-core"}
 stable_deref_trait = "1.2.0"
 log = "0.4.17"
 derive_more = "0.99.17"
 env_logger = "0.9.3"
-lazy_static = "*"
 vcsgraph = "0.2.0"
