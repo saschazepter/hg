@@ -773,7 +773,8 @@ def upload_bundle(repo, bundle):
     inline = repo.ui.config(b'clone-bundles', b'auto-generate.serve-inline')
     basename = repo.vfs.basename(bundle.filepath)
     if inline:
-        dest_dir = repo.vfs.join(bundlecaches.BUNDLE_CACHE_DIR)
+        bundle_cache_root = repo.ui.config(b'server', b'peer-bundle-cache-root')
+        dest_dir = repo.vfs.join(bundle_cache_root)
         repo.vfs.makedirs(dest_dir)
         dest = repo.vfs.join(dest_dir, basename)
         util.copyfiles(bundle.filepath, dest, hardlink=True)
@@ -815,10 +816,8 @@ def delete_bundle(repo, bundle):
         repo.ui.debug(msg)
 
     if inline:
-        inline_path = repo.vfs.join(
-            bundlecaches.BUNDLE_CACHE_DIR,
-            bundle.basename,
-        )
+        bundle_cache_root = repo.ui.config(b'server', b'peer-bundle-cache-root')
+        inline_path = repo.vfs.join(bundle_cache_root, bundle.basename)
         util.tryunlink(inline_path)
     else:
         cmd = repo.ui.config(b'clone-bundles', b'delete-command')
