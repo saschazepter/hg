@@ -482,9 +482,16 @@ pub struct SharedByPyObject<T: ?Sized> {
     data: T,
 }
 
-// DO NOT implement Deref for SharedByPyObject<T>! Dereferencing
+// DO NOT implement Deref or DerefMut for SharedByPyObject<T>! Dereferencing
 // SharedByPyObject without taking Python GIL wouldn't be safe. Also, the
 // underling reference is invalid if generation != state.generation.
+static_assertions_next::assert_impl!(
+    for(T) SharedByPyObject<T>: !Deref
+);
+
+static_assertions_next::assert_impl!(
+    for(T) SharedByPyObject<T>: !DerefMut
+);
 
 impl<T: ?Sized> SharedByPyObject<T> {
     // No panicking version of borrow() and borrow_mut() are implemented
