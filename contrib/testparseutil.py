@@ -48,7 +48,7 @@ def sysstr(s):
 
 
 def opentext(f):
-    return open(f, 'r')
+    return open(f)
 
 
 def b2s(x):

@@ -623,7 +623,7 @@ def testchunkselector(testfn, ui, headerlist, operation=None):
     chunkselector.stdscr = dummystdscr()
     if testfn and os.path.exists(testfn):
         # This file is purposely NOT opened in binary mode
-        with open(testfn, 'r') as testf:
+        with open(testfn) as testf:
             testcommands = [x.rstrip('\n') for x in testf.readlines()]
 
         while True:

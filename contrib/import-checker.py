@@ -704,7 +704,7 @@ def sources(f, modname):
         # Python source file encoding. But in reality we don't use anything
         # other than ASCII (mainly) and UTF-8 (in a few exceptions), so
         # simplicity is fine.
-        with open(f, 'r', encoding='utf-8') as src:
+        with open(f, encoding='utf-8') as src:
             for script, modname, t, line in embedded(f, modname, src):
                 yield script, modname.encode('utf8'), t, line
 

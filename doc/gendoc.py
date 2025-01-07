@@ -361,7 +361,7 @@ def _splitdoc(obj):
 
 def _rendertpl(tplname, data):
     tplpath = os.path.join(os.path.dirname(__file__), 'templates', tplname)
-    with open(tplpath, 'r') as f:
+    with open(tplpath) as f:
         tpl = f.read()
 
     if isinstance(tpl, bytes):

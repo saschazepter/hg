@@ -1252,10 +1252,10 @@ class _POFileParser:
         enc = kwargs.get('encoding', default_encoding)
         if _is_file(pofile):
             try:
-                self.fhandle = open(pofile, 'rt', encoding=enc)
+                self.fhandle = open(pofile, encoding=enc)
             except LookupError:
                 enc = default_encoding
-                self.fhandle = open(pofile, 'rt', encoding=enc)
+                self.fhandle = open(pofile, encoding=enc)
         else:
             self.fhandle = pofile.splitlines()
 
