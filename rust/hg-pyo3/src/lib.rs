@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
 
 mod ancestors;
-mod convert_cpython;
 mod dagops;
 mod discovery;
 mod exceptions;
