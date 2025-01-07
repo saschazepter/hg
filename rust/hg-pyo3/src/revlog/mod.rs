@@ -20,6 +20,7 @@ use pyo3::{prelude::*, IntoPyObjectExt};
 use pyo3_sharedref::{PyShareable, SharedByPyObject};
 
 use std::collections::{HashMap, HashSet};
+use std::os::fd::AsRawFd;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     RwLock, RwLockReadGuard, RwLockWriteGuard,
@@ -166,6 +167,37 @@ impl<'a, 'py> SnapshotsCache for PySnapshotsCache<'a, 'py> {
                 "Error in Python caches handling",
             ))
         })
+    }
+}
+
+// Only used from Python *tests*
+#[doc(hidden)]
+#[pyclass]
+pub struct PyFileHandle {
+    inner_file: std::os::fd::RawFd,
+}
+
+#[pymethods]
+impl PyFileHandle {
+    #[new]
+    fn new(handle: std::os::fd::RawFd) -> Self {
+        Self { inner_file: handle }
+    }
+
+    fn tell(&self, py: Python<'_>) -> PyResult<PyObject> {
+        let locals = PyDict::new(py);
+        locals.set_item("os", py.import("os")?)?;
+        locals.set_item("fd", self.inner_file)?;
+        let f = py.eval(c"os.fdopen(fd)", None, Some(&locals))?;
+
+        // Prevent Python from closing the file after garbage collecting.
+        // This is fine since Rust is still holding on to the actual File.
+        // (and also because it's only used in tests).
+        std::mem::forget(f.clone());
+
+        locals.set_item("f", f)?;
+        let res = py.eval(c"f.tell()", None, Some(&locals))?;
+        Ok(res.unbind())
     }
 }
 
@@ -378,6 +410,40 @@ impl InnerRevlog {
             let path = get_path_from_bytes(path.as_bytes());
             path.clone_into(&mut irl.index_file);
             Ok(())
+        })
+    }
+
+    // This is only used in Python *tests*
+    #[getter]
+    #[doc(hidden)]
+    fn _writinghandles(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+    ) -> PyResult<PyObject> {
+        Self::with_core_read(slf, |_self_ref, irl| {
+            let handles = irl.python_writing_handles();
+            match handles.as_ref() {
+                None => Ok(py.None()),
+                Some(handles) => {
+                    let index_handle = PyFileHandle::new(
+                        handles.index_handle.file.as_raw_fd(),
+                    );
+                    let data_handle = handles
+                        .data_handle
+                        .as_ref()
+                        .map(|h| PyFileHandle::new(h.file.as_raw_fd()));
+                    Ok(PyTuple::new(
+                        py,
+                        &[
+                            index_handle.into_py_any(py)?,
+                            data_handle.into_py_any(py)?,
+                            py.None(), // Sidedata handle
+                        ],
+                    )?
+                    .unbind()
+                    .into())
+                }
+            }
         })
     }
 
