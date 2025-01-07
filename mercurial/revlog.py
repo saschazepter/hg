@@ -138,7 +138,7 @@ REVIDX_RAWTEXT_CHANGING_FLAGS
 parsers = policy.importmod('parsers')
 rustancestor = policy.importrust('ancestor', pyo3=True)
 rustdagop = policy.importrust('dagop', pyo3=True)
-rustrevlog = policy.importrust('revlog')
+rustrevlog = policy.importrust('revlog', pyo3=True)
 
 # Aliased for performance.
 _zlibdecompress = zlib.decompress
