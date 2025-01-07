@@ -277,7 +277,7 @@ class gittreemanifest(repository.imanifestdict):
     ) -> tuple[ByteString, ByteString]:
         raise NotImplementedError  # TODO: implement this
 
-    def _walkonetree(self, tree, match, subdir):
+    def _walkonetree(self, tree, match, subdir) -> Iterator[bytes]:
         for te in tree:
             # TODO: can we prune dir walks with the matcher?
             realname = subdir + pycompat.fsencode(te.name)

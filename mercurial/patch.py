@@ -14,6 +14,7 @@ import copy
 import os
 import re
 import shutil
+import typing
 import zlib
 
 from .i18n import _
@@ -43,6 +44,12 @@ from .utils import (
     procutil,
     stringutil,
 )
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        Any,
+        Iterator,
+    )
 
 stringio = util.stringio
 
@@ -2792,7 +2799,9 @@ def diffsinglehunkinline(hunklines):
                 nextisnewline = True
 
 
-def difflabel(func, *args, **kw):
+# TODO: first tuple element is likely bytes, but was being detected as bytes|int
+#  so it needs investigation/more typing here.
+def difflabel(func, *args, **kw) -> Iterator[tuple[Any, bytes]]:
     '''yields 2-tuples of (output, label) based on the output of func()'''
     if kw.get('opts') and kw['opts'].worddiff:
         dodiffhunk = diffsinglehunkinline

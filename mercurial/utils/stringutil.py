@@ -17,6 +17,7 @@ import types
 import typing
 
 from typing import (
+    Iterator,
     Optional,
     overload,
 )
@@ -72,7 +73,9 @@ def pprint(o, bprefix: bool = False, indent: int = 0, level: int = 0) -> bytes:
     return b''.join(pprintgen(o, bprefix=bprefix, indent=indent, level=level))
 
 
-def pprintgen(o, bprefix: bool = False, indent: int = 0, level: int = 0):
+def pprintgen(
+    o, bprefix: bool = False, indent: int = 0, level: int = 0
+) -> Iterator[bytes]:
     """Pretty print an object to a generator of atoms.
 
     ``bprefix`` is a flag influencing whether bytestrings are preferred with

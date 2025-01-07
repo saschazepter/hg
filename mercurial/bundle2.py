@@ -186,6 +186,7 @@ from .interfaces import repository
 if typing.TYPE_CHECKING:
     from typing import (
         Dict,
+        Iterator,
         List,
         Optional,
         Tuple,
@@ -739,7 +740,7 @@ class bundle20:
         return part
 
     # methods used to generate the bundle2 stream
-    def getchunks(self):
+    def getchunks(self) -> Iterator[bytes]:
         if self.ui.debugflag:
             msg = [b'bundle2-output-bundle: "%s",' % self._magicstring]
             if self._params:
