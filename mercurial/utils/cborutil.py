@@ -236,7 +236,7 @@ def streamencode(v):
             break
 
     if not fn:
-        raise ValueError(b'do not know how to encode %s' % type(v))
+        raise ValueError('do not know how to encode %s' % type(v))
 
     return fn(v)
 
