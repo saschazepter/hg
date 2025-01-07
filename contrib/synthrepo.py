@@ -326,7 +326,7 @@ def synthesize(ui, repo, descpath, **opts):
 
     dictfile = opts.get('dict') or '/usr/share/dict/words'
     try:
-        fp = open(dictfile, 'rU')
+        fp = open(dictfile)
     except OSError as err:
         raise error.Abort('%s: %s' % (dictfile, err.strerror))
     words = fp.read().splitlines()

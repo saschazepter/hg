@@ -90,7 +90,7 @@ def shlexer(
     whitespace: Optional[bytes] = None,
 ):
     if data is None:
-        data = open(filepath, 'r', encoding='latin1')
+        data = open(filepath, encoding='latin1')
     else:
         if filepath is not None:
             raise error.ProgrammingError(
