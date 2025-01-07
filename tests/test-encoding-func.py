@@ -47,21 +47,21 @@ class Utf8bEncodingTest(unittest.TestCase):
 
     def testlossylatin(self):
         encoding.encoding = b'ascii'
-        s = '\xc0'.encode('utf-8')
+        s = '\xc0'.encode()
         l = encoding.tolocal(s)
         self.assertEqual(l, b'?')  # lossy
         self.assertEqual(s, encoding.toutf8b(l))  # utf8 sequence preserved
 
     def testlosslesslatin(self):
         encoding.encoding = b'latin-1'
-        s = '\xc0'.encode('utf-8')
+        s = '\xc0'.encode()
         l = encoding.tolocal(s)
         self.assertEqual(l, b'\xc0')  # lossless
         self.assertEqual(s, encoding.toutf8b(l))  # convert back to utf-8
 
     def testlossy0xed(self):
         encoding.encoding = b'euc-kr'  # U+Dxxx Hangul
-        s = '\ud1bc\xc0'.encode('utf-8')
+        s = '\ud1bc\xc0'.encode()
         l = encoding.tolocal(s)
         self.assertIn(b'\xed', l)
         self.assertTrue(l.endswith(b'?'))  # lossy
@@ -69,7 +69,7 @@ class Utf8bEncodingTest(unittest.TestCase):
 
     def testlossless0xed(self):
         encoding.encoding = b'euc-kr'  # U+Dxxx Hangul
-        s = '\ud1bc'.encode('utf-8')
+        s = '\ud1bc'.encode()
         l = encoding.tolocal(s)
         self.assertEqual(l, b'\xc5\xed')  # lossless
         self.assertEqual(s, encoding.toutf8b(l))  # convert back to utf-8
