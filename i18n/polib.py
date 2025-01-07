@@ -1,5 +1,4 @@
 # no-check-code
-# -* coding: utf-8 -*-
 #
 # License: MIT (see LICENSE file provided)
 # vim: set expandtab tabstop=4 shiftwidth=4 softtabstop=4:
