@@ -58,37 +58,29 @@ except ImportError:
         "Couldn't import standard bz2 (incomplete Python install)."
     )
 
-ispypy = "PyPy" in sys.version
+from setuptools import setup, Command, Extension, Distribution
+from setuptools.command.build import build
+from setuptools.command.build_ext import build_ext
+from setuptools.command.build_py import build_py
+from setuptools.command.install import install
+from setuptools.command.install_lib import install_lib
+from setuptools.command.install_scripts import install_scripts
 
-# We have issues with setuptools on some platforms and builders. Until
-# those are resolved, setuptools is opt-in except for platforms where
-# we don't have issues.
-issetuptools = os.name == 'nt' or 'FORCE_SETUPTOOLS' in os.environ
-if issetuptools:
-    from setuptools import setup
-else:
-    try:
-        from distutils.core import setup
-    except ModuleNotFoundError:
-        from setuptools import setup
-from distutils.ccompiler import new_compiler
-from distutils.core import Command, Extension
-from distutils.dist import Distribution
-from distutils.command.build import build
-from distutils.command.build_ext import build_ext
-from distutils.command.build_py import build_py
+from setuptools.errors import (
+    CCompilerError,
+    BaseError as DistutilsError,
+    ExecError as DistutilsExecError,
+)
+
+# no setuptools.command.build_scripts
 from distutils.command.build_scripts import build_scripts
-from distutils.command.install import install
-from distutils.command.install_lib import install_lib
-from distutils.command.install_scripts import install_scripts
+
 from distutils.spawn import spawn
 from distutils import file_util
-from distutils.errors import (
-    CCompilerError,
-    DistutilsError,
-    DistutilsExecError,
-)
 from distutils.sysconfig import get_python_inc
+from distutils.ccompiler import new_compiler
+
+ispypy = "PyPy" in sys.version
 
 
 def sysstr(s):
@@ -913,9 +905,7 @@ class buildhgexe(build_ext):
             output_dir=self.build_temp,
             macros=[('_UNICODE', None), ('UNICODE', None)],
         )
-        self.compiler.link_executable(
-            objects, self.hgtarget, libraries=[], output_dir=self.build_temp
-        )
+        self.compiler.link_executable(objects, self.hgtarget, libraries=[])
 
         self.addlongpathsmanifest()
 
@@ -948,8 +938,9 @@ class buildhgexe(build_ext):
 
     @property
     def hgexepath(self):
-        dir = os.path.dirname(self.get_ext_fullpath('dummy'))
-        return os.path.join(self.build_temp, dir, 'hg.exe')
+        return os.path.join(
+            os.path.dirname(self.get_ext_fullpath('dummy')), 'hg.exe'
+        )
 
 
 class hgbuilddoc(Command):

@@ -38,6 +38,11 @@ home = "https://mercurial-scm.org/"
 download_url = "https://mercurial-scm.org/release/"
 
 
+[tool.setuptools]
+# no automatic include
+include-package-data = false
+
+
 [tool.black]
 line-length = 80
 include = '\.py$'

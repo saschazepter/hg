@@ -87,6 +87,7 @@ if sys_version_info < (3, 8, 0):
 MACOS = sys.platform == 'darwin'
 WINDOWS = os.name == r'nt'
 shellquote = shlex.quote
+BINDIRNAME = b"Scripts" if WINDOWS else b"bin"
 
 # The number of HGPORTx ports allocated to each test.
 HGPORT_COUNT = 4
@@ -752,7 +753,17 @@ def parseargs(args, parser):
             parser.error('--pyoxidized does not work with --local (yet)')
         testdir = os.path.dirname(_sys2bytes(canonpath(sys.argv[0])))
         reporootdir = os.path.dirname(testdir)
-        pathandattrs = [(b'hg', 'with_hg')]
+        venv_local = b'.venv_%s%d.%d' % (
+            sys.implementation.name.encode(),
+            sys.version_info.major,
+            sys.version_info.minor,
+        )
+        path_local_hg = os.path.join(reporootdir, venv_local, BINDIRNAME, b"hg")
+        if not os.path.exists(path_local_hg):
+            # no local environment but we can still use ./hg to please test-run-tests.t
+            path_local_hg = os.path.join(reporootdir, b"hg")
+
+        pathandattrs = [(path_local_hg, 'with_hg')]
         if options.chg:
             pathandattrs.append((b'contrib/chg/chg', 'with_chg'))
         if options.rhg:
@@ -2805,6 +2816,18 @@ def savetimes(outputdir, result):
         pass
 
 
+def get_site_packages_dir(python_exe):
+    return subprocess.run(
+        [
+            python_exe,
+            "-c",
+            "import sys; print([p for p in sys.path if p.startswith(sys.prefix) and p.endswith('site-packages')][0])",
+        ],
+        check=True,
+        capture_output=True,
+    ).stdout.strip()
+
+
 class TextTestRunner(unittest.TextTestRunner):
     """Custom unittest test runner that uses appropriate settings."""
 
@@ -3260,10 +3283,18 @@ class TestRunner:
             # the Mercurial modules are relative to its path and tell the tests
             # to load Python modules from its directory.
             with open(whg, 'rb') as fh:
-                initial = fh.read(1024)
+                first_line = fh.readline()
 
-            if re.match(b'#!.*python', initial):
-                self._pythondir = self._bindir
+            if re.match(b'#!.*python', first_line):
+                python_exe = first_line.split(b"#!")[1].strip()
+                try:
+                    self._pythondir = get_site_packages_dir(python_exe)
+                except (FileNotFoundError, subprocess.CalledProcessError):
+                    self._pythondir = self._bindir
+            elif self.options.local:
+                assert WINDOWS
+                python_exe = os.path.join(self._bindir, b"python.exe")
+                self._pythondir = get_site_packages_dir(python_exe)
             # If it looks like our in-repo Rust binary, use the source root.
             # This is a bit hacky. But rhg is still not supported outside the
             # source directory. So until it is, do the simple thing.
@@ -3291,16 +3322,7 @@ class TestRunner:
             bindir = b"Scripts" if WINDOWS else b"bin"
             self._bindir = os.path.join(self._installdir, bindir)
             self._python = _bytes2sys(os.path.join(self._bindir, b"python"))
-
-            self._pythondir = subprocess.run(
-                [
-                    self._python,
-                    "-c",
-                    "import sys; print([p for p in sys.path if p.startswith(sys.prefix) and p.endswith('site-packages')][0])",
-                ],
-                check=True,
-                capture_output=True,
-            ).stdout.strip()
+            self._pythondir = get_site_packages_dir(self._python)
 
         # Force the use of hg.exe instead of relying on MSYS to recognize hg is
         # a python script and feed it to python.exe.  Legacy stdio is force
@@ -3854,27 +3876,11 @@ class TestRunner:
         hgroot = os.path.dirname(os.path.dirname(script))
         self._hgroot = hgroot
         os.chdir(hgroot)
-        cmd = [
-            self._pythonb,
-            b"setup.py",
-        ]
+        cmd = [self._pythonb, b"-m", b"pip", b"install", b"."]
         if setup_opts:
-            cmd.append(setup_opts)
-        cmd.extend(
-            [
-                b"clean",
-                b"--all",
-                b"build",
-            ]
-        )
-        cmd.extend(
-            [
-                b"--build-base=%s" % os.path.join(self._hgtmp, b"build"),
-                b"install",
-                b"--force",
-            ]
-        )
-
+            cmd.extend(
+                [b"--config-settings", b"--global-option=%s" % setup_opts]
+            )
         return cmd
 
     def _installhg(self):
