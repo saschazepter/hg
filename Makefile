@@ -36,6 +36,9 @@ COMPILERFLAG_tmp_ =
 COMPILERFLAG_tmp_${COMPILER} ?= -c $(COMPILER)
 COMPILERFLAG=${COMPILERFLAG_tmp_${COMPILER}}
 
+VENV_NAME=$(shell $(PYTHON) -c "import sys; v = sys.version_info; print(f'.venv_{sys.implementation.name}{v.major}.{v.minor}')")
+PYBINDIRNAME=$(shell $(PYTHON) -c "import os; print('Scripts' if os.name == 'nt' else 'bin')")
+
 help:
 	@echo 'Commonly used make targets:'
 	@echo '  all          - build program and documentation'
@@ -58,12 +61,10 @@ help:
 all: build doc
 
 local:
-	MERCURIAL_SETUP_MAKE_LOCAL=1 $(PYTHON) setup.py $(PURE) \
-	  build_py -c -d . \
-	  build_ext $(COMPILERFLAG) -i \
-	  build_hgexe $(COMPILERFLAG) -i \
-	  build_mo
-	env HGRCPATH= $(PYTHON) hg version
+	$(PYTHON) -m venv $(VENV_NAME) --clear --upgrade-deps
+	MERCURIAL_SETUP_MAKE_LOCAL=1 $(VENV_NAME)/$(PYBINDIRNAME)/python -m \
+	  pip install -e . -v --config-settings --global-option=$(PURE)
+	env HGRCPATH= $(VENV_NAME)/$(PYBINDIRNAME)/hg version
 
 build:
 	$(PYTHON) setup.py $(PURE) build $(COMPILERFLAG)
@@ -75,7 +76,7 @@ build-rhg:
 	(cd rust/rhg; cargo build --release)
 
 wheel:
-	FORCE_SETUPTOOLS=1 $(PYTHON) setup.py $(PURE) bdist_wheel $(COMPILERFLAG)
+	$(PYTHON) setup.py $(PURE) bdist_wheel $(COMPILERFLAG)
 
 doc:
 	$(MAKE) -C doc
@@ -85,6 +86,7 @@ cleanbutpackages:
 	-$(PYTHON) setup.py clean --all # ignore errors from this command
 	find contrib doc hgext hgext3rd i18n mercurial tests hgdemandimport \
 		\( -name '*.py[cdo]' -o -name '*.so' \) -exec rm -f '{}' ';'
+	rm -rf .venv_*
 	rm -f MANIFEST MANIFEST.in hgext/__index__.py tests/*.err
 	rm -f mercurial/__modulepolicy__.py
 	if test -d .hg; then rm -f mercurial/__version__.py; fi
