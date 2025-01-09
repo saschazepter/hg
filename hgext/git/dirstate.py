@@ -468,3 +468,6 @@ class gitdirstate(intdirstate.idirstate):
 
     def running_status(self, repo):
         raise NotImplementedError
+
+    def refresh(self):
+        pass
