@@ -59,6 +59,9 @@ Error if '.' or '..' are in the directory to track.
   $ hg clone --narrow ssh://user@dummy/master foo --include a/./c
   abort: "." and ".." are not allowed in narrowspec paths
   [255]
+  $ hg clone --narrow ssh://user@dummy/master foo --include ' '
+  abort: leading or trailing whitespace is not allowed in narrowspec paths
+  [255]
 
 Names with '.' in them are OK.
   $ hg clone --narrow ./master should-work --include a/.b/c

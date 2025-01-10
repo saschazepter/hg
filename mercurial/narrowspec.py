@@ -68,6 +68,16 @@ def _validatepattern(pat):
     if _numlines(pat) > 1:
         raise error.Abort(_(b'newlines are not allowed in narrowspec paths'))
 
+    # patterns are stripped on load (see sparse.parseconfig),
+    # so a pattern ending in whitespace doesn't work correctly
+    if pat.strip() != pat:
+        raise error.Abort(
+            _(
+                b'leading or trailing whitespace is not allowed '
+                b'in narrowspec paths'
+            )
+        )
+
     components = pat.split(b'/')
     if b'.' in components or b'..' in components:
         raise error.Abort(
