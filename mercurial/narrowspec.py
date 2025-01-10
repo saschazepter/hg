@@ -84,6 +84,11 @@ def _validatepattern(pat):
             _(b'"." and ".." are not allowed in narrowspec paths')
         )
 
+    if pat != b'' and b'' in components:
+        raise error.Abort(
+            _(b'empty path components are not allowed in narrowspec paths')
+        )
+
 
 def normalizepattern(pattern, defaultkind=b'path'):
     """Returns the normalized version of a text-format pattern.
