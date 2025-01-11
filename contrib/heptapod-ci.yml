@@ -530,8 +530,10 @@ windows:
 
 windows-pyox:
     extends: .windows-runtests
-    when: manual  # pyoxidizer builds seem broken with --no-use-pep517
+    when: manual
     variables:
+        RUNTEST_ARGS: ""
+        WHEEL_ARG: ""
         FLAVOR: "--pyoxidized"
 
 macos:
