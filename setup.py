@@ -79,6 +79,17 @@ from distutils import file_util
 from distutils.sysconfig import get_python_inc
 from distutils.ccompiler import new_compiler
 
+# raise an explicit error if setuptools_scm is not importable
+try:
+    import setuptools_scm
+except ImportError:
+    raise SystemExit(
+        "Couldn't import setuptools_scm (direct call of setup.py?)."
+    )
+else:
+    del setuptools_scm
+
+
 ispypy = "PyPy" in sys.version
 
 
