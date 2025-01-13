@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import collections
 import time
+import typing
 
 from mercurial.node import bin, hex, nullrev
 from mercurial import (
@@ -19,6 +20,11 @@ from mercurial import (
     util,
 )
 from . import shallowutil
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        Iterator,
+    )
 
 propertycache = util.propertycache
 FASTLOG_TIMEOUT_IN_SECS = 0.5
@@ -379,7 +385,7 @@ class remotefilectx(context.filectx):
             # the correct linknode.
             return False
 
-    def ancestors(self, followfirst=False):
+    def ancestors(self, followfirst=False) -> Iterator[remotefilectx]:
         ancestors = []
         queue = collections.deque((self,))
         seen = set()

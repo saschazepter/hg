@@ -11,7 +11,7 @@ import collections
 import os
 import struct
 import typing
-from typing import Dict, Optional, Tuple
+from typing import Dict, Iterator, Optional, Tuple
 
 from .i18n import _
 from .node import nullrev
@@ -673,7 +673,7 @@ class mergeresult:
 
         return sum(len(self._actionmapping[a]) for a in actions)
 
-    def filemap(self, sort=False):
+    def filemap(self, sort=False) -> Iterator[tuple]:  # TODO: fill out tuple
         if sort:
             yield from sorted(self._filemapping.items())
         else:
