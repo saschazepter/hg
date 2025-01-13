@@ -131,7 +131,7 @@ def streamencodeindefinitebytestring(
 
 def streamencodeint(v: int) -> Iterator[bytes]:
     if v >= 18446744073709551616 or v < -18446744073709551616:
-        raise ValueError(b'big integers not supported')
+        raise ValueError('big integers not supported')
 
     if v >= 0:
         yield encodelength(MAJOR_TYPE_UINT, v)
@@ -344,7 +344,7 @@ def decodeitem(b, offset: int = 0):
             return True, None, 1, SPECIAL_START_INDEFINITE_BYTESTRING
 
     elif majortype == MAJOR_TYPE_STRING:
-        raise CBORDecodeError(b'string major type not supported')
+        raise CBORDecodeError('string major type not supported')
 
     elif majortype == MAJOR_TYPE_ARRAY:
         # Beginning of arrays are treated as uints in order to decode their
@@ -393,13 +393,13 @@ def decodeitem(b, offset: int = 0):
 
             if special != SPECIAL_START_ARRAY:
                 raise CBORDecodeError(
-                    b'expected array after finite set semantic tag'
+                    'expected array after finite set semantic tag'
                 )
 
             return True, size, readcount + readcount2 + 1, SPECIAL_START_SET
 
         else:
-            raise CBORDecodeError(b'semantic tag %d not allowed' % tagvalue)
+            raise CBORDecodeError('semantic tag %d not allowed' % tagvalue)
 
     elif majortype == MAJOR_TYPE_SPECIAL:
         # Only specific values for the information field are allowed.
@@ -413,7 +413,7 @@ def decodeitem(b, offset: int = 0):
             return True, None, 1, SPECIAL_INDEFINITE_BREAK
         # If value is 24, subtype is in next byte.
         else:
-            raise CBORDecodeError(b'special type %d not allowed' % subtype)
+            raise CBORDecodeError('special type %d not allowed' % subtype)
     else:
         assert False
 
@@ -448,10 +448,10 @@ def decodeuint(
         if allowindefinite:
             return True, None, 0
         else:
-            raise CBORDecodeError(b'indefinite length uint not allowed here')
+            raise CBORDecodeError('indefinite length uint not allowed here')
     elif subtype >= 28:
         raise CBORDecodeError(
-            b'unsupported subtype on integer type: %d' % subtype
+            'unsupported subtype on integer type: %d' % subtype
         )
 
     if subtype == 24:
@@ -463,7 +463,7 @@ def decodeuint(
     elif subtype == 27:
         s = STRUCT_BIG_ULONGLONG
     else:
-        raise CBORDecodeError(b'bounds condition checking violation')
+        raise CBORDecodeError('bounds condition checking violation')
 
     if len(b) - offset >= s.size:
         return True, s.unpack_from(b, offset)[0], s.size
@@ -665,7 +665,7 @@ class sansiodecoder:
 
                 else:
                     raise CBORDecodeError(
-                        b'unhandled special state: %d' % special
+                        'unhandled special state: %d' % special
                     )
 
             # This value becomes an element of the current array.
@@ -727,14 +727,14 @@ class sansiodecoder:
 
                 elif special == SPECIAL_START_INDEFINITE_BYTESTRING:
                     raise CBORDecodeError(
-                        b'indefinite length bytestrings '
-                        b'not allowed as array values'
+                        'indefinite length bytestrings '
+                        'not allowed as array values'
                     )
 
                 else:
                     raise CBORDecodeError(
-                        b'unhandled special item when '
-                        b'expecting array value: %d' % special
+                        'unhandled special item when '
+                        'expecting array value: %d' % special
                     )
 
             # This value becomes the key of the current map instance.
@@ -745,8 +745,8 @@ class sansiodecoder:
 
                 elif special == SPECIAL_START_INDEFINITE_BYTESTRING:
                     raise CBORDecodeError(
-                        b'indefinite length bytestrings '
-                        b'not allowed as map keys'
+                        'indefinite length bytestrings '
+                        'not allowed as map keys'
                     )
 
                 elif special in (
@@ -755,14 +755,14 @@ class sansiodecoder:
                     SPECIAL_START_SET,
                 ):
                     raise CBORDecodeError(
-                        b'collections not supported as map keys'
+                        'collections not supported as map keys'
                     )
 
                 # We do not allow special values to be used as map keys.
                 else:
                     raise CBORDecodeError(
-                        b'unhandled special item when '
-                        b'expecting map key: %d' % special
+                        'unhandled special item when '
+                        'expecting map key: %d' % special
                     )
 
             # This value becomes the value of the current map key.
@@ -828,14 +828,14 @@ class sansiodecoder:
 
                 elif special == SPECIAL_START_INDEFINITE_BYTESTRING:
                     raise CBORDecodeError(
-                        b'indefinite length bytestrings not '
-                        b'allowed as map values'
+                        'indefinite length bytestrings not '
+                        'allowed as map values'
                     )
 
                 else:
                     raise CBORDecodeError(
-                        b'unhandled special item when '
-                        b'expecting map value: %d' % special
+                        'unhandled special item when '
+                        'expecting map value: %d' % special
                     )
 
                 self._currentmapkey = None
@@ -849,8 +849,8 @@ class sansiodecoder:
 
                 elif special == SPECIAL_START_INDEFINITE_BYTESTRING:
                     raise CBORDecodeError(
-                        b'indefinite length bytestrings not '
-                        b'allowed as set values'
+                        'indefinite length bytestrings not '
+                        'allowed as set values'
                     )
 
                 elif special in (
@@ -859,14 +859,14 @@ class sansiodecoder:
                     SPECIAL_START_SET,
                 ):
                     raise CBORDecodeError(
-                        b'collections not allowed as set values'
+                        'collections not allowed as set values'
                     )
 
                 # We don't allow non-trivial types to exist as set values.
                 else:
                     raise CBORDecodeError(
-                        b'unhandled special item when '
-                        b'expecting set value: %d' % special
+                        'unhandled special item when '
+                        'expecting set value: %d' % special
                     )
 
             # This value represents the first chunk in an indefinite length
@@ -897,8 +897,8 @@ class sansiodecoder:
 
                 else:
                     raise CBORDecodeError(
-                        b'unexpected special value when '
-                        b'expecting bytestring chunk: %d' % special
+                        'unexpected special value when '
+                        'expecting bytestring chunk: %d' % special
                     )
 
             # This value represents the non-initial chunk in an indefinite
@@ -919,13 +919,13 @@ class sansiodecoder:
 
                 else:
                     raise CBORDecodeError(
-                        b'unexpected special value when '
-                        b'expecting bytestring chunk: %d' % special
+                        'unexpected special value when '
+                        'expecting bytestring chunk: %d' % special
                     )
 
             else:
                 raise CBORDecodeError(
-                    b'unhandled decoder state: %d' % self._state
+                    'unhandled decoder state: %d' % self._state
                 )
 
             # We could have just added the final value in a collection. End
@@ -1075,9 +1075,9 @@ def decodeall(b):
     havevalues, readcount, wantbytes = decoder.decode(b)
 
     if readcount != len(b):
-        raise CBORDecodeError(b'input data not fully consumed')
+        raise CBORDecodeError('input data not fully consumed')
 
     if decoder.inprogress:
-        raise CBORDecodeError(b'input data not complete')
+        raise CBORDecodeError('input data not complete')
 
     return decoder.getavailable()
