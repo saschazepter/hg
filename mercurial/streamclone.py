@@ -365,7 +365,7 @@ def generatebundlev1(
     Returns a tuple of (requirements, data generator).
     """
     if compression != b'UN':
-        raise ValueError(b'we do not support the compression argument yet')
+        raise ValueError('we do not support the compression argument yet')
 
     requirements = streamed_requirements(repo)
     requires = b','.join(sorted(requirements))
@@ -728,7 +728,7 @@ def _emit2(repo, entries):
     # fine, while this is really not fine.
     if repo.vfs in vfsmap.values():
         raise error.ProgrammingError(
-            b'repo.vfs must not be added to vfsmap for security reasons'
+            'repo.vfs must not be added to vfsmap for security reasons'
         )
 
     # translate the vfs one
@@ -795,7 +795,7 @@ def _emit3(repo, entries) -> Iterator[bytes | None]:
     # fine, while this is really not fine.
     if repo.vfs in vfsmap.values():
         raise error.ProgrammingError(
-            b'repo.vfs must not be added to vfsmap for security reasons'
+            'repo.vfs must not be added to vfsmap for security reasons'
         )
 
     # translate the vfs once
@@ -1074,7 +1074,7 @@ def consumev2(repo, fp, filecount: int, filesize: int) -> None:
         # is fine, while this is really not fine.
         if repo.vfs in vfsmap.values():
             raise error.ProgrammingError(
-                b'repo.vfs must not be added to vfsmap for security reasons'
+                'repo.vfs must not be added to vfsmap for security reasons'
             )
 
         with repo.transaction(b'clone'):
@@ -1145,7 +1145,7 @@ def consumev3(repo, fp) -> None:
         # is fine, while this is really not fine.
         if repo.vfs in vfsmap.values():
             raise error.ProgrammingError(
-                b'repo.vfs must not be added to vfsmap for security reasons'
+                'repo.vfs must not be added to vfsmap for security reasons'
             )
 
         with repo.transaction(b'clone'):
