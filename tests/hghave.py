@@ -141,7 +141,7 @@ def environ():
     return env
 
 
-def matchoutput(cmd, regexp, ignorestatus=False):
+def matchoutput(cmd, regexp: bytes, ignorestatus=False):
     """Return the match object if cmd executes successfully and its output
     is matched by the supplied regular expression.
     """
@@ -386,21 +386,23 @@ def has_rust():
 def has_hg08():
     if checks["hg09"][0]():
         return True
-    return matchoutput('hg help annotate 2>&1', '--date')
+    return matchoutput('hg help annotate 2>&1', b'--date')
 
 
 @check("hg07", "Mercurial >= 0.7")
 def has_hg07():
     if checks["hg08"][0]():
         return True
-    return matchoutput('hg --version --quiet 2>&1', 'Mercurial Distributed SCM')
+    return matchoutput(
+        'hg --version --quiet 2>&1', b'Mercurial Distributed SCM'
+    )
 
 
 @check("hg06", "Mercurial >= 0.6")
 def has_hg06():
     if checks["hg07"][0]():
         return True
-    return matchoutput('hg --version --quiet 2>&1', 'Mercurial version')
+    return matchoutput('hg --version --quiet 2>&1', b'Mercurial version')
 
 
 @check("gettext", "GNU Gettext (msgfmt)")
