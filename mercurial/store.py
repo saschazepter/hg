@@ -16,6 +16,7 @@ import typing
 
 from typing import (
     Generator,
+    Iterator,
     List,
     Optional,
 )
@@ -116,7 +117,7 @@ def decodedir(path):
     )
 
 
-def _reserved():
+def _reserved() -> Iterator[int]:
     """characters that are problematic for filesystems
 
     * ascii escapes (0..31)
