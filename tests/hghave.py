@@ -349,8 +349,8 @@ def has_lsprof():
 def _gethgversion():
     m = matchoutput('hg --version --quiet 2>&1', br'(\d+)\.(\d+)')
     if not m:
-        return (0, 0)
-    return (int(m.group(1)), int(m.group(2)))
+        return 0, 0
+    return int(m.group(1)), int(m.group(2))
 
 
 _hgversion = None
@@ -418,8 +418,8 @@ def has_git():
 def getgitversion():
     m = matchoutput('git --version 2>&1', br'git version (\d+)\.(\d+)')
     if not m:
-        return (0, 0)
-    return (int(m.group(1)), int(m.group(2)))
+        return 0, 0
+    return int(m.group(1)), int(m.group(2))
 
 
 @check("pygit2", "pygit2 Python library")
@@ -465,8 +465,8 @@ def has_docutils():
 def getsvnversion():
     m = matchoutput('svn --version --quiet 2>&1', br'^(\d+)\.(\d+)')
     if not m:
-        return (0, 0)
-    return (int(m.group(1)), int(m.group(2)))
+        return 0, 0
+    return int(m.group(1)), int(m.group(2))
 
 
 @checkvers("svn", "subversion client and admin tools >= %s", ('1.3', '1.5'))
@@ -661,9 +661,9 @@ def getpygmentsversion():
         v = pygments.__version__
 
         parts = v.split(".")
-        return (int(parts[0]), int(parts[1]))
+        return int(parts[0]), int(parts[1])
     except ImportError:
-        return (0, 0)
+        return 0, 0
 
 
 @checkvers("pygments", "Pygments version >= %s", ('2.5', '2.11', '2.14'))
