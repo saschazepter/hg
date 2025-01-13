@@ -141,7 +141,7 @@ def environ():
     return env
 
 
-def matchoutput(cmd, regexp: bytes, ignorestatus=False):
+def matchoutput(cmd, regexp: bytes, ignorestatus: bool = False):
     """Return the match object if cmd executes successfully and its output
     is matched by the supplied regular expression.
     """
@@ -813,12 +813,12 @@ def has_osx():
 def has_osxpackaging():
     try:
         return (
-            matchoutput('pkgbuild', br'Usage: pkgbuild ', ignorestatus=1)
+            matchoutput('pkgbuild', br'Usage: pkgbuild ', ignorestatus=True)
             and matchoutput(
-                'productbuild', br'Usage: productbuild ', ignorestatus=1
+                'productbuild', br'Usage: productbuild ', ignorestatus=True
             )
-            and matchoutput('lsbom', br'Usage: lsbom', ignorestatus=1)
-            and matchoutput('xar --help', br'Usage: xar', ignorestatus=1)
+            and matchoutput('lsbom', br'Usage: lsbom', ignorestatus=True)
+            and matchoutput('xar --help', br'Usage: xar', ignorestatus=True)
         )
     except ImportError:
         return False
