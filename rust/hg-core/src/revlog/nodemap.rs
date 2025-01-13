@@ -14,6 +14,7 @@
 
 use crate::UncheckedRevision;
 
+use super::BaseRevision;
 use super::{
     node::NULL_NODE, Node, NodePrefix, Revision, RevlogIndex, NULL_REVISION,
 };
@@ -27,7 +28,7 @@ use std::ops::Index;
 
 type NodeTreeBuffer = Box<dyn Deref<Target = [u8]> + Send + Sync>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, derive_more::Display)]
 pub enum NodeMapError {
     /// A `NodePrefix` matches several [`Revision`]s.
     ///
@@ -525,6 +526,30 @@ impl NodeTree {
             }
             block.set(visited.nybble, to_write);
             block_idx = new_idx;
+        }
+        Ok(())
+    }
+
+    /// Insert all [`Revision`] from `from` inclusive, up to
+    /// [`RevlogIndex::len`] exclusive.
+    ///
+    /// `from` must be a valid revision for `index`, most likely should be the
+    /// tip of the nodemap docket.
+    ///
+    /// Useful for updating the [`NodeTree`] when the index has moved forward.
+    pub fn catch_up_to_index(
+        &mut self,
+        index: &impl RevlogIndex,
+        from: Revision,
+    ) -> Result<(), NodeMapError> {
+        for r in (from.0)..index.len() as BaseRevision {
+            let rev = Revision(r);
+            // in this case node() won't ever return None
+            self.insert(
+                index,
+                index.node(rev).expect("node should exist"),
+                rev,
+            )?;
         }
         Ok(())
     }
