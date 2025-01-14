@@ -816,20 +816,16 @@ impl Config {
         &self,
         dimension: Option<&str>,
     ) -> ResourceProfile {
-        let mut value =
-            self.resource_profile_from_item(b"usage", b"resources");
-        if let Some(dimension) = &dimension {
-            let sub_value = self.resource_profile_from_item(
+        let value = self.resource_profile_from_item(b"usage", b"resources");
+        let sub_value = dimension.and_then(|dimension| {
+            self.resource_profile_from_item(
                 b"usage",
                 format!("resources.{}", dimension).as_bytes(),
-            );
-            if sub_value != ResourceProfileValue::Default {
-                value = sub_value
-            }
-        }
+            )
+        });
         ResourceProfile {
             dimension: dimension.map(ToOwned::to_owned),
-            value,
+            value: sub_value.or(value).unwrap_or_default(),
         }
     }
 
@@ -837,13 +833,12 @@ impl Config {
         &self,
         section: &[u8],
         item: &[u8],
-    ) -> ResourceProfileValue {
-        match self.get(section, item).unwrap_or(b"default") {
-            b"default" => ResourceProfileValue::Default,
-            b"low" => ResourceProfileValue::Low,
-            b"medium" => ResourceProfileValue::Medium,
-            b"high" => ResourceProfileValue::High,
-            _ => ResourceProfileValue::Default,
+    ) -> Option<ResourceProfileValue> {
+        match self.get(section, item)? {
+            b"low" => Some(ResourceProfileValue::Low),
+            b"medium" => Some(ResourceProfileValue::Medium),
+            b"high" => Some(ResourceProfileValue::High),
+            _ => None,
         }
     }
 }
@@ -857,10 +852,10 @@ pub struct ResourceProfile {
     pub value: ResourceProfileValue,
 }
 
-#[derive(Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Default)]
 pub enum ResourceProfileValue {
-    Default,
     Low,
+    #[default]
     Medium,
     High,
 }
