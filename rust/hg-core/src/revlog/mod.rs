@@ -439,6 +439,26 @@ impl Revlog {
         self.get_entry(rev)?.data()
     }
 
+    /// Gets the raw uncompressed data stored for a revision, which is either
+    /// the full text or a delta. Panics if `rev` is null.
+    pub fn get_data_incr(
+        &self,
+        rev: Revision,
+    ) -> Result<RawdataBuf, RevlogError> {
+        let index = self.index();
+        let entry = index.get_entry(rev).expect("rev should not be null");
+        let delta_base = entry.base_revision_or_base_of_delta_chain();
+        let base = if UncheckedRevision::from(rev) == delta_base {
+            None
+        } else if index.uses_generaldelta() {
+            Some(delta_base)
+        } else {
+            Some(UncheckedRevision(rev.0 - 1))
+        };
+        let data = self.inner.chunk_for_rev(rev)?;
+        Ok(RawdataBuf { base, data })
+    }
+
     /// Check the hash of some given data against the recorded hash.
     pub fn check_hash(
         &self,
@@ -468,6 +488,21 @@ impl Revlog {
         let patch = patch::fold_patch_lists(&patches?);
         patch.apply(buffer, snapshot);
         Ok(())
+    }
+}
+
+pub struct RawdataBuf {
+    // If `Some`, data is a delta.
+    base: Option<UncheckedRevision>,
+    data: std::sync::Arc<[u8]>,
+}
+
+impl RawdataBuf {
+    fn as_patch_list(&self) -> Result<patch::PatchList, RevlogError> {
+        match self.base {
+            None => Ok(patch::PatchList::full_snapshot(&self.data)),
+            Some(_) => patch::PatchList::new(&self.data),
+        }
     }
 }
 
