@@ -235,11 +235,13 @@ build-c-wheel-arm64-musl:
           else
             echo installing from source;
           fi;
-        - if [ -n "$CI_NODE_INDEX" ]; then 
+        - if [ -n "$CI_NODE_INDEX" ]; then
             echo "Running the test in multiple shard - [$CI_NODE_INDEX/$CI_NODE_TOTAL]";
             SHARDING_ARGS="--shard-index $CI_NODE_INDEX --shard-total $CI_NODE_TOTAL";
             echo "sharding... $SHARDING_ARGS";
           fi
+        - echo HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" "$PYTHON" tests/run-tests.py
+            --color=always --tail-report $PORT_ARG $WHEEL_ARG $FLAVOR $SHARDING_ARGS $FILTER $RUNTEST_ARGS;
         - HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO"
           "$PYTHON" tests/run-tests.py
             --color=always
