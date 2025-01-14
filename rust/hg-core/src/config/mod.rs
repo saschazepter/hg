@@ -816,7 +816,8 @@ impl Config {
         &self,
         dimension: Option<&str>,
     ) -> ResourceProfile {
-        let mut value = self.resource_profile_from_item(b"usage", b"resource");
+        let mut value =
+            self.resource_profile_from_item(b"usage", b"resources");
         if let Some(dimension) = &dimension {
             let sub_value = self.resource_profile_from_item(
                 b"usage",
