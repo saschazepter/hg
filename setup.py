@@ -495,9 +495,6 @@ class hgbuildpy(build_py):
                 )
 
     def run(self):
-        basepath = os.path.join(self.build_lib, 'mercurial')
-        self.mkpath(basepath)
-
         rust = self.distribution.rust
         if self.distribution.pure:
             modulepolicy = 'py'
@@ -513,6 +510,14 @@ class hgbuildpy(build_py):
                 b'modulepolicy = b"%s"\n' % modulepolicy.encode('ascii'),
             ]
         )
+
+        if self.editable_mode:
+            here = os.path.dirname(__file__)
+            basepath = os.path.join(here, 'mercurial')
+        else:
+            basepath = os.path.join(self.build_lib, 'mercurial')
+            self.mkpath(basepath)
+
         write_if_changed(os.path.join(basepath, '__modulepolicy__.py'), content)
 
         build_py.run(self)
