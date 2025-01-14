@@ -1,14 +1,12 @@
 use std::num::NonZeroU8;
 
 use crate::errors::HgError;
-use crate::revlog::{Node, NodePrefix};
-use crate::revlog::{Revlog, RevlogError};
+use crate::revlog::options::RevlogOpenOptions;
+use crate::revlog::{Node, NodePrefix, Revlog, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::utils::strings::SliceExt;
 use crate::vfs::VfsImpl;
-use crate::{Graph, GraphError, Revision, UncheckedRevision};
-
-use super::options::RevlogOpenOptions;
+use crate::{Graph, GraphError, Revision, UncheckedRevision, NULL_REVISION};
 
 /// A specialized `Revlog` to work with `manifest` data format.
 pub struct Manifestlog {
@@ -64,6 +62,29 @@ impl Manifestlog {
     /// Same as [`Self::data_for_unchecked_rev`] for a checked [`Revision`]
     pub fn data(&self, rev: Revision) -> Result<Manifest, RevlogError> {
         let bytes = self.revlog.get_data(rev)?.into_owned();
+        Ok(Manifest { bytes })
+    }
+
+    /// Returns a manifest containing entries for `rev` that are not in its
+    /// parents. It is inexact because it might return a superset of this.
+    /// Equivalent to `manifestctx.read_delta_parents(exact=False)` in Python.
+    pub fn inexact_data_delta_parents(
+        &self,
+        rev: Revision,
+    ) -> Result<Manifest, RevlogError> {
+        let delta_parent = self.revlog.delta_parent(rev);
+        let parents = self.parents(rev).map_err(|err| match err {
+            GraphError::ParentOutOfRange(parent) => RevlogError::corrupted(
+                format!("rev {rev} has corrupted parent ({parent})"),
+            ),
+        })?;
+        if delta_parent == NULL_REVISION || !parents.contains(&delta_parent) {
+            return self.data(rev);
+        }
+        let mut bytes = vec![];
+        for chunk in self.revlog.get_data_incr(rev)?.as_patch_list()?.chunks {
+            bytes.extend_from_slice(chunk.data);
+        }
         Ok(Manifest { bytes })
     }
 }
