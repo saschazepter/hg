@@ -2497,10 +2497,8 @@ def ismember(ui: "uimod.ui", username: bytes, userlist: List[bytes]) -> bool:
 RESOURCE_HIGH: int = 3
 RESOURCE_MEDIUM: int = 2
 RESOURCE_LOW: int = 1
-RESOURCE_DEFAULT: int = 0
 
 RESOURCE_MAPPING: Dict[bytes, int] = {
-    b'default': RESOURCE_DEFAULT,
     b'low': RESOURCE_LOW,
     b'medium': RESOURCE_MEDIUM,
     b'high': RESOURCE_HIGH,
@@ -2515,13 +2513,16 @@ def get_resource_profile(
     """return the resource profile for a dimension
 
     If no dimension is specified, the generic value is returned"""
-    generic_name = ui.config(b'usage', b'resources')
-    value = RESOURCE_MAPPING.get(generic_name, RESOURCE_DEFAULT)
-    if value == RESOURCE_DEFAULT:
-        value = DEFAULT_RESOURCE
+
+    def config(section, name):
+        value_name = ui.config(section, name, default=b'default')
+        return RESOURCE_MAPPING.get(value_name)
+
     if dimension is not None:
-        sub_name = ui.config(b'usage', b'resources.%s' % dimension)
-        sub_value = RESOURCE_MAPPING.get(sub_name, RESOURCE_DEFAULT)
-        if sub_value != RESOURCE_DEFAULT:
-            value = sub_value
-    return value
+        value = config(b'usage', b'resources.%s' % dimension)
+        if value is not None:
+            return value
+    value = config(b'usage', b'resources')
+    if value is not None:
+        return value
+    return DEFAULT_RESOURCE
