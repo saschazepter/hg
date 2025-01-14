@@ -175,7 +175,7 @@ def has_bzr():
         import breezy.revision
         import breezy.revisionspec
 
-        breezy.revisionspec.RevisionSpec
+        del breezy.revisionspec
         if breezy.__doc__ is None or breezy.version_info[:2] < (3, 1):
             return False
     except (AttributeError, ImportError):
@@ -340,7 +340,7 @@ def has_lsprof():
     try:
         import _lsprof
 
-        _lsprof.Profiler  # silence unused import warning
+        del _lsprof  # silence unused import warning
         return True
     except ImportError:
         return False
@@ -427,7 +427,7 @@ def has_pygit2():
     try:
         import pygit2
 
-        pygit2.Oid  # silence unused import
+        del pygit2  # silence unused import
         return True
     except ImportError:
         return False
@@ -456,7 +456,7 @@ def has_docutils():
     try:
         import docutils.core
 
-        docutils.core.publish_cmdline  # silence unused import
+        del docutils.core  # silence unused import
         return True
     except ImportError:
         return False
@@ -648,7 +648,7 @@ def has_pygments():
     try:
         import pygments
 
-        pygments.highlight  # silence unused import warning
+        del pygments  # silence unused import warning
         return True
     except ImportError:
         return False
@@ -683,7 +683,7 @@ def has_ssl():
     try:
         import ssl
 
-        ssl.CERT_NONE
+        del ssl
         return True
     except ImportError:
         return False
@@ -769,7 +769,7 @@ def has_curses():
     try:
         import curses
 
-        curses.COLOR_BLUE
+        del curses
 
         # Windows doesn't have a `tic` executable, but the windows_curses
         # package is sufficient to run the tests without it.
@@ -931,7 +931,7 @@ def has_hypothesis():
     try:
         import hypothesis
 
-        hypothesis.given
+        del hypothesis
         return True
     except ImportError:
         return False
@@ -947,7 +947,7 @@ def has_zstd():
     try:
         import mercurial.zstd
 
-        mercurial.zstd.__version__
+        del mercurial.zstd
         return True
     except ImportError:
         return False
@@ -963,7 +963,7 @@ def has_ensurepip():
     try:
         import ensurepip
 
-        ensurepip.bootstrap
+        del ensurepip
         return True
     except ImportError:
         return False
@@ -992,7 +992,7 @@ def has_fuzzywuzzy():
     try:
         import fuzzywuzzy
 
-        fuzzywuzzy.__version__
+        del fuzzywuzzy
         return True
     except ImportError:
         return False
@@ -1116,7 +1116,7 @@ def has_vcr():
     try:
         import vcr
 
-        vcr.VCR
+        del vcr
         return True
     except (ImportError, AttributeError):
         pass
@@ -1186,7 +1186,7 @@ def has_lzma():
     try:
         import _lzma
 
-        _lzma.FORMAT_XZ
+        del _lzma
         return True
     except ImportError:
         return False
