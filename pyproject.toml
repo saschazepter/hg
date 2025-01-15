@@ -98,6 +98,20 @@ test-skip = "*"
 archs = ["universal2"]
 
 
+[[tool.cibuildwheel.overrides]]
+select = "*-macosx_*"
+
+# The minimum value is adjusted automatically when building for later Pythons
+#
+# Python Version           Minimum macOS
+# --------------------------------------
+# Intel CPython 3.6-3.11   10.9
+# Intel CPython 3.12+      10.13
+# AS    CPython or PyPy    11
+inherit.environment = "append"
+environment = { MACOSX_DEPLOYMENT_TARGET="10.9" }
+
+
 [tool.cibuildwheel.windows]
 archs = ["x86", "AMD64", "ARM64"]
 
