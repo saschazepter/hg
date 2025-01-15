@@ -1,4 +1,4 @@
-# Don't run pipelines on branch "merge", since we're fast-forward only.
+#w Don't run pipelines on branch "merge", since we're fast-forward only.
 # Gitlab sees a new branch (since e.g. `topic/stable/my-topic` becomes
 # `branch/stable`), but the hash hasn't changed. There is no reason to
 # re-run the CI in our case, since we haven't built up any specific automation.
@@ -8,7 +8,7 @@
 # has succeeded.
 workflow:
   rules:
-    - if: $CI_COMMIT_BRANCH =~ /^branch\/.*/ && $CI_PIPELINE_SOURCE !~ "/web|schedule/"
+    - if: ($CI_COMMIT_BRANCH =~ /^branch\/.*/ || $CI_COMMIT_TAG) && $CI_PIPELINE_SOURCE !~ "/web|schedule/"
       when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: never
@@ -85,9 +85,9 @@ trigger-nightly-build:
   extends: .trigger
   stage: nightly-trigger
   rules:
-    - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH && $CI_PIPELINE_SOURCE == "schedule"
+    - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)  && $CI_PIPELINE_SOURCE == "schedule"
       when: always
-    - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
       when: manual
       allow_failure: true
     - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
@@ -134,7 +134,7 @@ trigger-wheel-musl:
   extends: .trigger
   stage: build
   rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+  - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
     when: never
   - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
     when: manual
@@ -144,7 +144,7 @@ build-c-wheel-musl:
   extends: build-c-wheel
   image: "registry.heptapod.net/mercurial/ci-images/core-wheel-x86_64-musl-c:v3.0"
   rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+  - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
     needs:
       - trigger-nightly-build
   - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
@@ -155,7 +155,7 @@ trigger-wheel-i686:
   extends: .trigger
   stage: build
   rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+  - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
     when: never
   - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
     when: manual
@@ -165,7 +165,7 @@ build-c-wheel-i686:
   extends: build-c-wheel
   image: "registry.heptapod.net/mercurial/ci-images/core-wheel-i686-c:v3.0"
   rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+  - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
     needs:
       - trigger-nightly-build
   - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
@@ -176,7 +176,7 @@ trigger-wheel-i686-musl:
   extends: .trigger
   stage: build
   rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+  - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
     when: never
   - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
     when: manual
@@ -186,7 +186,7 @@ build-c-wheel-i686-musl:
   extends: build-c-wheel
   image: "registry.heptapod.net/mercurial/ci-images/core-wheel-i686-musl-c:v3.0"
   rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+  - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
     needs:
       - trigger-nightly-build
   - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
@@ -197,7 +197,7 @@ trigger-wheel-arm64:
   extends: .trigger
   stage: build
   rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+  - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
     when: never
   - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
     when: manual
@@ -209,7 +209,7 @@ build-c-wheel-arm64:
   tags:
     - arm64
   rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+  - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
     needs:
       - trigger-nightly-build
   - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
@@ -220,7 +220,7 @@ trigger-wheel-arm64-musl:
   extends: .trigger
   stage: build
   rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+  - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
     when: never
   - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
     when: manual
@@ -232,7 +232,7 @@ build-c-wheel-arm64-musl:
   tags:
     - arm64
   rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+  - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
     needs:
       - trigger-nightly-build
   - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
@@ -365,7 +365,7 @@ trigger-pycompat:
   extends: .trigger
   stage: py-version-compat
   rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+  - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
     when: on_success
     needs:
       - trigger-nightly-build
@@ -468,7 +468,7 @@ trigger-wheel-windows:
   extends: .trigger
   stage: build
   rules:
-  - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+  - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
     when: never
   - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
     when: manual
@@ -481,7 +481,7 @@ build-c-wheel-windows:
     when: on_success
     needs:
     rules:
-    - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
       needs:
         - trigger-nightly-build
     - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
@@ -605,7 +605,7 @@ macos:
 # multiple jobs. (all this might be unnecessary)
 build-c-wheel-macos:
     rules:
-    - if: $CI_COMMIT_BRANCH =~ $RE_BRANCH
+    - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
       needs:
         - trigger-nightly-build
     - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
@@ -635,7 +635,7 @@ build-c-wheel-macos:
   extends: .all
   stage: upload
   rules:
-    - if: '$CI_COMMIT_BRANCH =~ $RE_BRANCH'
+    - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
       # note that at the time of writing this, this job depends on multiple
       # manual one. So it will not run by default, but will automatically run
       # if the manual jobs are triggered.
