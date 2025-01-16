@@ -343,12 +343,19 @@ impl Revlog {
 
     /// Returns the node ID for the given revision number, if it exists in this
     /// revlog
-    pub fn node_from_rev(&self, rev: UncheckedRevision) -> Option<&Node> {
-        if rev == NULL_REVISION.into() {
-            return Some(&NULL_NODE);
+    pub fn node_from_rev(&self, rev: Revision) -> &Node {
+        match self.index().get_entry(rev) {
+            None => &NULL_NODE,
+            Some(entry) => entry.hash(),
         }
-        let rev = self.index().check_revision(rev)?;
-        Some(self.index().get_entry(rev)?.hash())
+    }
+
+    /// Like [`Self::node_from_rev`] but checks `rev` first.
+    pub fn node_from_unchecked_rev(
+        &self,
+        rev: UncheckedRevision,
+    ) -> Option<&Node> {
+        Some(self.node_from_rev(self.index().check_revision(rev)?))
     }
 
     /// Return the revision number for the given node ID, if it exists in this
