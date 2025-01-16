@@ -8,7 +8,7 @@ use crate::revlog::RevlogEntry;
 use crate::revlog::{Revlog, RevlogError};
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
-use crate::utils::SliceExt;
+use crate::utils::strings::SliceExt;
 use crate::Graph;
 use crate::GraphError;
 use crate::Node;

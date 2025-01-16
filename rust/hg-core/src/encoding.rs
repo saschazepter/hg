@@ -3,7 +3,7 @@
 use core::str;
 use std::borrow::Cow;
 
-use crate::{errors::HgError, utils::Escaped};
+use crate::{errors::HgError, utils::strings::Escaped};
 use unicode_width::UnicodeWidthStr as _;
 
 /// String encoder and decoder.

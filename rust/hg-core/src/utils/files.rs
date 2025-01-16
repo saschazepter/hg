@@ -12,7 +12,7 @@
 use crate::utils::{
     hg_path::{path_to_hg_path_buf, HgPath, HgPathBuf, HgPathError},
     path_auditor::PathAuditor,
-    replace_slice,
+    strings::replace_slice,
 };
 use lazy_static::lazy_static;
 use same_file::is_same_file;

@@ -57,7 +57,7 @@ impl ConfigLayer {
         cli_config_args: impl IntoIterator<Item = impl AsRef<[u8]>>,
     ) -> Result<Option<Self>, ConfigError> {
         fn parse_one(arg: &[u8]) -> Option<(Vec<u8>, Vec<u8>, Vec<u8>)> {
-            use crate::utils::SliceExt;
+            use crate::utils::strings::SliceExt;
 
             let (section_and_item, value) = arg.split_2(b'=')?;
             let (section, item) = section_and_item.trim().split_2(b'.')?;
@@ -169,7 +169,8 @@ impl ConfigLayer {
             let line = Some(index + 1);
             if let Some(m) = INCLUDE_RE.captures(bytes) {
                 let filename_bytes = &m[1];
-                let filename_bytes = crate::utils::expand_vars(filename_bytes);
+                let filename_bytes =
+                    crate::utils::strings::expand_vars(filename_bytes);
                 // `Path::parent` only fails for the root directory,
                 // which `src` can’t be since we’ve managed to open it as a
                 // file.

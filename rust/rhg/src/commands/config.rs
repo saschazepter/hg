@@ -2,7 +2,7 @@ use crate::error::CommandError;
 use clap::Arg;
 use format_bytes::format_bytes;
 use hg::errors::HgError;
-use hg::utils::SliceExt;
+use hg::utils::strings::SliceExt;
 
 pub const HELP_TEXT: &str = "
 With one argument of the form section.name, print just the value of that config item.

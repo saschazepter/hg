@@ -6,7 +6,7 @@ use format_bytes::{format_bytes, join};
 use hg::config::{Config, ConfigSource, PlainInfo};
 use hg::repo::{Repo, RepoError};
 use hg::utils::files::{get_bytes_from_os_str, get_path_from_bytes};
-use hg::utils::SliceExt;
+use hg::utils::strings::SliceExt;
 use hg::{exit_codes, requirements};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
