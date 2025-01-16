@@ -15,7 +15,7 @@ use crate::revlog::{RevlogError, RevlogType};
 use crate::utils::debug::debug_wait_for_file_or_print;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
-use crate::utils::SliceExt;
+use crate::utils::strings::SliceExt;
 use crate::vfs::{is_dir, is_file, Vfs, VfsImpl};
 use crate::{exit_codes, requirements, NodePrefix, UncheckedRevision};
 use std::cell::{Ref, RefCell, RefMut};

@@ -4,7 +4,7 @@ use crate::errors::HgError;
 use crate::revlog::{Node, NodePrefix};
 use crate::revlog::{Revlog, RevlogError};
 use crate::utils::hg_path::HgPath;
-use crate::utils::SliceExt;
+use crate::utils::strings::SliceExt;
 use crate::vfs::VfsImpl;
 use crate::{Graph, GraphError, Revision, UncheckedRevision};
 
