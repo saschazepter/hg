@@ -386,6 +386,9 @@ def _render_effects(ui, text, effects):
         ]
         start = b'\033[' + b';'.join(start) + b'm'
         stop = b'\033[' + pycompat.bytestr(activeeffects[b'none']) + b'm'
+        if ui._readlineprompt:
+            start = b'\001' + start + b'\001'
+            stop = b'\002' + stop + b'\002'
     return _mergeeffects(text, start, stop)
 
 
@@ -518,7 +521,8 @@ if pycompat.iswindows:
         else:
             origattr = csbi.wAttributes
             ansire = re.compile(
-                br'\033\[([^m]*)m([^\033]*)(.*)', re.MULTILINE | re.DOTALL
+                br'\001?\033\[([^m]*)m\002?([^\033]*)(.*)',
+                re.MULTILINE | re.DOTALL,
             )
 
     def win32print(ui, writefunc, text, **opts):
