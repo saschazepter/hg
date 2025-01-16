@@ -17,7 +17,7 @@ use crate::{
     operations::cat,
     repo::Repo,
     requirements::SPARSE_REQUIREMENT,
-    utils::{hg_path::HgPath, SliceExt},
+    utils::{hg_path::HgPath, strings::SliceExt},
     Revision, NULL_REVISION,
 };
 

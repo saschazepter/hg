@@ -6,7 +6,7 @@
 // GNU General Public License version 2 or any later version.
 
 use crate::errors::HgError;
-use crate::utils::SliceExt;
+use crate::utils::strings::SliceExt;
 use std::borrow::Borrow;
 use std::borrow::Cow;
 use std::ffi::{OsStr, OsString};

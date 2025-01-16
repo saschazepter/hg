@@ -8,7 +8,7 @@
 //! details about where the value came from (but omits details of what’s
 //! invalid inside the value).
 
-use crate::utils::SliceExt;
+use crate::utils::strings::SliceExt;
 
 pub(super) fn parse_bool(v: &[u8]) -> Option<bool> {
     match v.to_ascii_lowercase().as_slice() {
