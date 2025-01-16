@@ -57,7 +57,7 @@ impl Filelog {
         file_node: impl Into<NodePrefix>,
     ) -> Result<FilelogRevisionData, RevlogError> {
         let file_rev = self.revlog.rev_from_node(file_node.into())?;
-        self.data_for_unchecked_rev(file_rev.into())
+        Ok(self.entry(file_rev)?.data()?)
     }
 
     /// The given revision is that of the file as found in a filelog, not of a
