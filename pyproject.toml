@@ -118,3 +118,7 @@ archs = ["x86", "AMD64", "ARM64"]
 
 [tool.setuptools_scm]
 version_file = "mercurial/__version__.py"
+
+
+[flake8]
+max-line-length = 80
