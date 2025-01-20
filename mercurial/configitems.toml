@@ -2946,6 +2946,32 @@ default = true
 section = "worker"
 name = "numcpus"
 
+
+# experimental until we are happy with the implementation and some sanity
+# checking has been done. Controlled memory usage when request in one of the
+# requirements.
+[[items]]
+section = "worker"
+name = "parallel-stream-bundle-processing"
+default = false
+documentation="""
+Read, parse and write stream bundle in parallel speeding up the process.
+
+Also see `worker.parallel-stream-bundle-processing.num-writer` to control the
+amount of concurrent writers.
+"""
+experimental = true
+
+[[items]]
+section = "worker"
+name = "parallel-stream-bundle-processing.num-writer"
+default = 2
+experimental = true
+documentation="""
+Control the number of file being written concurrently when applying a stream
+bundle.
+"""
+
 # Templates and template applications
 
 [[template-applications]]
