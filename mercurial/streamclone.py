@@ -18,6 +18,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    Type,
 )
 
 from .i18n import _
@@ -1134,21 +1135,30 @@ FileInfoT = Tuple[
 ]
 
 
-def _v2_file_chunk(
-    fp: bundle2mod.unbundlepart,
-    data_len: int,
-    progress: scmutil.progress,
-    report: V2Report,
-) -> FileChunksT:
+class _FileChunker:
     """yield the chunk that constitute a file
 
-    This function exists as the counterpart of a future threaded version and
+    This class exists as the counterpart of a future threaded version and
     would not be very useful on its own.
     """
-    for chunk in util.filechunkiter(fp, limit=data_len):
-        report.byte_count += len(chunk)
-        progress.increment(step=len(chunk))
-        yield chunk
+
+    def __init__(
+        self,
+        fp: bundle2mod.unbundlepart,
+        data_len: int,
+        progress: scmutil.progress,
+        report: V2Report,
+    ):
+        self.fp = fp
+        self.report = report
+        self.progress = progress
+        self._chunks = util.filechunkiter(fp, limit=data_len)
+
+    def __iter__(self) -> FileChunksT:
+        for chunk in self._chunks:
+            self.report.byte_count += len(chunk)
+            self.progress.increment(step=len(chunk))
+            yield chunk
 
 
 def _v2_parse_files(
@@ -1157,6 +1167,7 @@ def _v2_parse_files(
     file_count: int,
     progress: scmutil.progress,
     report: V2Report,
+    file_chunker: Type[_FileChunker] = _FileChunker,
 ) -> Iterator[FileInfoT]:
     """do the "stream-parsing" part of stream v2
 
@@ -1174,8 +1185,8 @@ def _v2_parse_files(
             repo.ui.debug(
                 b'adding [%s] %s (%s)\n' % (src, name, util.bytecount(datalen))
             )
-
-        yield (src, name, _v2_file_chunk(fp, datalen, progress, report))
+        chunks = file_chunker(fp, datalen, progress, report)
+        yield (src, name, iter(chunks))
 
 
 def _write_files(vfsmap, info: Iterable[FileInfoT]):
