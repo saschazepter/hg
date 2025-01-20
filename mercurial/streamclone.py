@@ -1110,11 +1110,7 @@ def consumev2(repo, fp, filecount: int, filesize: int) -> None:
                     progress,
                     report,
                 )
-                for src, name, chunks in files:
-                    vfs = vfsmap[src]
-                    with vfs(name, b'w') as ofp:
-                        for c in chunks:
-                            ofp.write(c)
+                _write_files(vfsmap, files)
 
             # force @filecache properties to be reloaded from
             # streamclone-ed file at next access
@@ -1180,6 +1176,15 @@ def _v2_parse_files(
             )
 
         yield (src, name, _v2_file_chunk(fp, datalen, progress, report))
+
+
+def _write_files(vfsmap, info: Iterable[FileInfoT]):
+    """write files from parsed data"""
+    for src, name, data in info:
+        vfs = vfsmap[src]
+        with vfs(name, b'w') as ofp:
+            for chunk in data:
+                ofp.write(chunk)
 
 
 def consumev3(repo, fp) -> None:
