@@ -1,6 +1,20 @@
 #require no-reposimplestore
 
 #testcases stream-v2 stream-v3
+#testcases threaded sequential
+
+#if threaded
+  $ cat << EOF >> $HGRCPATH
+  > [worker]
+  > parallel-stream-bundle-processing = yes
+  > parallel-stream-bundle-processing.num-writer = 2
+  > EOF
+#else
+  $ cat << EOF >> $HGRCPATH
+  > [worker]
+  > parallel-stream-bundle-processing = no
+  > EOF
+#endif
 
 #if stream-v2
   $ bundle_format="streamv2"
