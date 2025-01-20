@@ -1541,9 +1541,16 @@ def _write_files(vfsmap, info: Iterable[FileInfoT]):
     """write files from parsed data"""
     for src, name, data in info:
         vfs = vfsmap[src]
-        with vfs(name, b'w') as ofp:
+        # we disable the internal Python buffering because the streamed data
+        # are assume to have been written with large enough block for it to not
+        # matters. So we only have more memory copy and GIL holding time to
+        # gain with the Python buffering.
+        with vfs(name, b'w', buffering=0) as ofp:
             for chunk in data:
-                ofp.write(chunk)
+                written = ofp.write(chunk)
+                # write missing pieces if the write was interrupted
+                while written < len(chunk):
+                    written += ofp.write(chunk[written:])
 
 
 def consumev3(repo, fp) -> None:
