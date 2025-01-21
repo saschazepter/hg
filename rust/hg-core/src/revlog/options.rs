@@ -183,12 +183,6 @@ impl RevlogDataConfig {
             }
         }
 
-        if let Some(mmap_index_threshold) = config
-            .get_byte_size(b"storage", b"revlog.mmap.index:size-threshold")?
-        {
-            data_config.mmap_index_threshold = Some(mmap_index_threshold);
-        }
-
         let with_sparse_read =
             config.get_bool(b"experimental", b"sparse-read")?;
         if let Some(sr_density_threshold) = config
