@@ -1138,11 +1138,9 @@ def consumev2(repo, fp, filecount: int, filesize: int) -> None:
                         data_queue = _DataQueue()
                         raw_data = util.chunkbuffer(data_queue)
 
-                        # XXX we will drop this extra filechunkiter layer soon
-                        part_content = util.filechunkiter(fp)
                         w = threading.Thread(
                             target=data_queue.fill_from,
-                            args=(part_content,),
+                            args=(fp,),
                         )
                         workers.append(w)
                         w.start()
