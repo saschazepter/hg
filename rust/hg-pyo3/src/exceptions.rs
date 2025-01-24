@@ -8,6 +8,7 @@ use hg::UncheckedRevision;
 use crate::revision::PyRevision;
 
 create_exception!(pyo3_rustext, GraphError, PyValueError);
+create_exception!(pyo3_rustext, FallbackError, PyRuntimeError);
 import_exception!(mercurial.error, WdirUnsupported);
 
 impl GraphError {
