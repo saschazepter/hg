@@ -2,11 +2,10 @@
 //! IO work and expensive operations.
 use std::{
     borrow::Cow,
-    cell::RefCell,
     io::{ErrorKind, Seek, SeekFrom, Write},
     ops::Deref,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
 };
 
 use schnellru::{ByMemoryUsage, LruMap};
@@ -103,7 +102,7 @@ impl InnerRevlog {
             data_config.uncompressed_cache_factor.map(
                 // Arbitrary initial value
                 // TODO check if using a hasher specific to integers is useful
-                |_factor| RefCell::new(LruMap::with_memory_budget(65536)),
+                |_factor| RwLock::new(LruMap::with_memory_budget(65536)),
             );
 
         let inline = index.is_inline();
@@ -156,7 +155,7 @@ impl InnerRevlog {
             // We don't clear the allocation here because it's probably faster.
             // We could change our minds later if this ends up being a problem
             // with regards to memory consumption.
-            cache.borrow_mut().clear();
+            cache.write().expect("lock is poisoned").clear();
         }
     }
 
@@ -395,8 +394,12 @@ impl InnerRevlog {
 
     /// Return the uncompressed raw data for `rev`
     pub fn chunk_for_rev(&self, rev: Revision) -> Result<Arc<[u8]>, HgError> {
-        if let Some(cache) = self.uncompressed_chunk_cache.as_ref() {
-            if let Some(chunk) = cache.borrow_mut().get(&rev) {
+        if let Some(Ok(mut cache)) = self
+            .uncompressed_chunk_cache
+            .as_ref()
+            .map(|c| c.try_write())
+        {
+            if let Some(chunk) = cache.get(&rev) {
                 return Ok(chunk.clone());
             }
         }
@@ -410,8 +413,12 @@ impl InnerRevlog {
             )
         })?;
         let uncompressed: Arc<[u8]> = Arc::from(uncompressed.into_owned());
-        if let Some(cache) = self.uncompressed_chunk_cache.as_ref() {
-            cache.borrow_mut().insert(rev, uncompressed.clone());
+        if let Some(Ok(mut cache)) = self
+            .uncompressed_chunk_cache
+            .as_ref()
+            .map(|c| c.try_write())
+        {
+            cache.insert(rev, uncompressed.clone());
         }
         Ok(uncompressed)
     }
@@ -479,25 +486,27 @@ impl InnerRevlog {
         } else {
             None
         };
-        if let Some(cache) = &self.uncompressed_chunk_cache {
-            let cache = &mut cache.borrow_mut();
-            if let Some(size) = raw_size {
-                // Dynamically update the uncompressed_chunk_cache size to the
-                // largest revision we've seen in this revlog.
-                // Do it *before* restoration in case the current revision
-                // is the largest.
-                let factor = self
-                    .data_config
-                    .uncompressed_cache_factor
-                    .expect("cache should not exist without factor");
-                let candidate_size = (size as f64 * factor) as usize;
-                let limiter_mut = cache.limiter_mut();
-                if candidate_size > limiter_mut.max_memory_usage() {
-                    std::mem::swap(
-                        limiter_mut,
-                        &mut ByMemoryUsage::new(candidate_size),
-                    );
-                }
+        if let (Some(size), Some(Ok(mut cache))) = (
+            raw_size,
+            self.uncompressed_chunk_cache
+                .as_ref()
+                .map(|c| c.try_write()),
+        ) {
+            // Dynamically update the uncompressed_chunk_cache size to the
+            // largest revision we've seen in this revlog.
+            // Do it *before* restoration in case the current revision
+            // is the largest.
+            let factor = self
+                .data_config
+                .uncompressed_cache_factor
+                .expect("cache should not exist without factor");
+            let candidate_size = (size as f64 * factor) as usize;
+            let limiter_mut = cache.limiter_mut();
+            if candidate_size > limiter_mut.max_memory_usage() {
+                std::mem::swap(
+                    limiter_mut,
+                    &mut ByMemoryUsage::new(candidate_size),
+                );
             }
         }
         entry.rawdata(cached_rev, get_buffer)?;
@@ -526,12 +535,15 @@ impl InnerRevlog {
 
         match self.uncompressed_chunk_cache.as_ref() {
             Some(cache) => {
-                let mut cache = cache.borrow_mut();
-                for rev in revs.iter() {
-                    match cache.get(rev) {
-                        Some(hit) => chunks.push((*rev, hit.to_owned())),
-                        None => fetched_revs.push(*rev),
+                if let Ok(mut cache) = cache.try_write() {
+                    for rev in revs.iter() {
+                        match cache.get(rev) {
+                            Some(hit) => chunks.push((*rev, hit.to_owned())),
+                            None => fetched_revs.push(*rev),
+                        }
                     }
+                } else {
+                    fetched_revs = revs
                 }
             }
             None => fetched_revs = revs,
@@ -592,8 +604,11 @@ impl InnerRevlog {
             Ok(())
         })?;
 
-        if let Some(cache) = self.uncompressed_chunk_cache.as_ref() {
-            let mut cache = cache.borrow_mut();
+        if let Some(Ok(mut cache)) = self
+            .uncompressed_chunk_cache
+            .as_ref()
+            .map(|c| c.try_write())
+        {
             for (rev, chunk) in chunks.iter().skip(already_cached) {
                 cache.insert(*rev, chunk.clone());
             }
@@ -814,8 +829,16 @@ impl InnerRevlog {
     #[doc(hidden)]
     pub fn exit_writing_context(&mut self) {
         self.writing_handles.take();
-        self.segment_file.writing_handle.take();
-        self.segment_file.reading_handle.take();
+        self.segment_file
+            .writing_handle
+            .write()
+            .expect("lock is poisoned")
+            .take();
+        self.segment_file
+            .reading_handle
+            .write()
+            .expect("lock is poisoned")
+            .take();
     }
 
     /// `pub` only for use in hg-cpython
@@ -878,7 +901,11 @@ impl InnerRevlog {
             index_handle: index_handle.clone(),
             data_handle: data_handle.clone(),
         });
-        *self.segment_file.reading_handle.borrow_mut() = if self.is_inline() {
+        *self
+            .segment_file
+            .reading_handle
+            .write()
+            .expect("lock is poisoned") = if self.is_inline() {
             Some(index_handle)
         } else {
             data_handle
@@ -958,7 +985,11 @@ impl InnerRevlog {
         if let Some(handles) = &mut self.writing_handles {
             handles.index_handle.flush()?;
             self.writing_handles.take();
-            self.segment_file.writing_handle.take();
+            self.segment_file
+                .writing_handle
+                .write()
+                .expect("lock is poisoned")
+                .take();
         }
         let mut new_data_file_handle =
             self.vfs.create(&self.data_file, true)?;
@@ -1024,7 +1055,11 @@ impl InnerRevlog {
                 index_handle: self.index_write_handle()?,
                 data_handle: new_data_handle.clone(),
             });
-            *self.segment_file.writing_handle.borrow_mut() = new_data_handle;
+            *self
+                .segment_file
+                .writing_handle
+                .write()
+                .expect("lock is poisoned") = new_data_handle;
         }
 
         Ok(self.index_file.to_owned())
@@ -1275,10 +1310,8 @@ impl InnerRevlog {
     }
 }
 
-/// The use of a [`Refcell`] assumes that a given revlog will only
-/// be accessed (read or write) by a single thread.
 type UncompressedChunkCache =
-    RefCell<LruMap<Revision, Arc<[u8]>, ByMemoryUsage>>;
+    RwLock<LruMap<Revision, Arc<[u8]>, ByMemoryUsage>>;
 
 /// The node, revision and data for the last revision we've seen. Speeds up
 /// a lot of sequential operations of the revlog.
