@@ -829,16 +829,8 @@ impl InnerRevlog {
     #[doc(hidden)]
     pub fn exit_writing_context(&mut self) {
         self.writing_handles.take();
-        self.segment_file
-            .writing_handle
-            .write()
-            .expect("lock is poisoned")
-            .take();
-        self.segment_file
-            .reading_handle
-            .write()
-            .expect("lock is poisoned")
-            .take();
+        self.segment_file.writing_handle.get().map(|h| h.take());
+        self.segment_file.reading_handle.get().map(|h| h.take());
     }
 
     /// `pub` only for use in hg-cpython
@@ -904,8 +896,8 @@ impl InnerRevlog {
         *self
             .segment_file
             .reading_handle
-            .write()
-            .expect("lock is poisoned") = if self.is_inline() {
+            .get_or_default()
+            .borrow_mut() = if self.is_inline() {
             Some(index_handle)
         } else {
             data_handle
@@ -985,11 +977,7 @@ impl InnerRevlog {
         if let Some(handles) = &mut self.writing_handles {
             handles.index_handle.flush()?;
             self.writing_handles.take();
-            self.segment_file
-                .writing_handle
-                .write()
-                .expect("lock is poisoned")
-                .take();
+            self.segment_file.writing_handle.get().map(|h| h.take());
         }
         let mut new_data_file_handle =
             self.vfs.create(&self.data_file, true)?;
@@ -1058,8 +1046,8 @@ impl InnerRevlog {
             *self
                 .segment_file
                 .writing_handle
-                .write()
-                .expect("lock is poisoned") = new_data_handle;
+                .get_or_default()
+                .borrow_mut() = new_data_handle;
         }
 
         Ok(self.index_file.to_owned())
