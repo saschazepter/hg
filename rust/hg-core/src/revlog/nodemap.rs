@@ -25,6 +25,8 @@ use std::mem::{self, align_of, size_of};
 use std::ops::Deref;
 use std::ops::Index;
 
+type NodeTreeBuffer = Box<dyn Deref<Target = [u8]> + Send + Sync>;
+
 #[derive(Debug, PartialEq)]
 pub enum NodeMapError {
     /// A `NodePrefix` matches several [`Revision`]s.
@@ -224,7 +226,7 @@ impl fmt::Debug for Block {
 /// The mutable root [`Block`] is kept apart so that we don't have to rebump
 /// it on each insertion.
 pub struct NodeTree {
-    readonly: Box<dyn Deref<Target = [Block]> + Send>,
+    readonly: Box<dyn Deref<Target = [Block]> + Send + Sync>,
     growable: Vec<Block>,
     root: Block,
     masked_inner_blocks: usize,
@@ -299,7 +301,7 @@ impl NodeTree {
     /// Initiate a NodeTree from an immutable slice-like of `Block`
     ///
     /// We keep `readonly` and clone its root block if it isn't empty.
-    fn new(readonly: Box<dyn Deref<Target = [Block]> + Send>) -> Self {
+    fn new(readonly: Box<dyn Deref<Target = [Block]> + Send + Sync>) -> Self {
         let root = readonly.last().cloned().unwrap_or_else(Block::new);
         NodeTree {
             readonly,
@@ -321,10 +323,7 @@ impl NodeTree {
     ///   First use-case for this would be to support Mercurial shell hooks.
     ///
     /// panics if `buffer` is smaller than `amount`
-    pub fn load_bytes(
-        bytes: Box<dyn Deref<Target = [u8]> + Send>,
-        amount: usize,
-    ) -> Self {
+    pub fn load_bytes(bytes: NodeTreeBuffer, amount: usize) -> Self {
         NodeTree::new(Box::new(NodeTreeBytes::new(bytes, amount)))
     }
 
@@ -562,15 +561,12 @@ impl NodeTree {
 }
 
 pub struct NodeTreeBytes {
-    buffer: Box<dyn Deref<Target = [u8]> + Send>,
+    buffer: NodeTreeBuffer,
     len_in_blocks: usize,
 }
 
 impl NodeTreeBytes {
-    fn new(
-        buffer: Box<dyn Deref<Target = [u8]> + Send>,
-        amount: usize,
-    ) -> Self {
+    fn new(buffer: NodeTreeBuffer, amount: usize) -> Self {
         assert!(buffer.len() >= amount);
         let len_in_blocks = amount / size_of::<Block>();
         NodeTreeBytes {
