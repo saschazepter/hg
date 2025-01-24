@@ -61,7 +61,7 @@ all: build doc
 
 local:
 	$(PYTHON) -m venv $(VENV_NAME) --clear --upgrade-deps
-	MERCURIAL_SETUP_MAKE_LOCAL=1 $(VENV_NAME)/$(PYBINDIRNAME)/python -m \
+	$(VENV_NAME)/$(PYBINDIRNAME)/python -m \
 	  pip install -e . -v --config-settings --global-option="$(PURE)"
 	env HGRCPATH= $(VENV_NAME)/$(PYBINDIRNAME)/hg version
 
