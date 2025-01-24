@@ -333,6 +333,12 @@ pub fn filesystem_now(repo_root: &Path) -> Result<SystemTime, io::Error> {
         .modified()
 }
 
+/// Returns true if file content is considered to be binary (not text).
+pub fn is_binary(content: &[u8]) -> bool {
+    // Matches binary() in utils/stringutil.py.
+    !content.is_empty() && memchr::memchr(b'\0', content).is_some()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

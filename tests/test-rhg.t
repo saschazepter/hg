@@ -193,6 +193,14 @@ Cat copied file should not display copy metadata
   $ $NO_FALLBACK rhg cat -r 1 copy_of_original
   original content
 
+Annotate files
+  $ $NO_FALLBACK rhg annotate original
+  0: original content
+  $ $NO_FALLBACK rhg annotate --rev . --user --file --date --number --changeset --line-number --text --no-follow original
+  test 0 1c9e69808da7 Thu Jan 01 00:00:00 1970 +0000 original:1: original content
+  $ $NO_FALLBACK rhg blame -r . -ufdncla --no-follow original
+  test 0 1c9e69808da7 Thu Jan 01 00:00:00 1970 +0000 original:1: original content
+
 
 Fallback to Python
   $ $NO_FALLBACK rhg cat original --exclude="*.rs"
