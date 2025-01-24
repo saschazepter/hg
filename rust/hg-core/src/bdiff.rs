@@ -1,8 +1,5 @@
 //! Safe bindings to bdiff.c.
 
-// TODO: Remove when used.
-#![allow(dead_code)]
-
 use crate::errors::HgError;
 use std::marker::PhantomData;
 

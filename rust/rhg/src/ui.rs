@@ -86,8 +86,6 @@ impl Ui {
         stderr.flush().or_else(handle_stderr_error)
     }
 
-    // TODO: use this
-    #[allow(dead_code)]
     pub fn encoder(&self) -> &Encoder {
         &self.encoder
     }
