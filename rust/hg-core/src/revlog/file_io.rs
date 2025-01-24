@@ -1,10 +1,9 @@
 //! Helpers for revlog file reading and writing.
 
 use std::{
-    cell::RefCell,
     io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
 };
 
 use crate::{
@@ -29,9 +28,9 @@ pub struct RandomAccessFile {
     /// Filename of the open file, relative to the vfs root
     pub filename: PathBuf,
     /// The current read-only handle on the file, if any
-    pub reading_handle: RefCell<Option<FileHandle>>,
+    pub reading_handle: RwLock<Option<FileHandle>>,
     /// The current read-write handle on the file, if any
-    pub writing_handle: RefCell<Option<FileHandle>>,
+    pub writing_handle: RwLock<Option<FileHandle>>,
 }
 
 impl RandomAccessFile {
@@ -41,8 +40,8 @@ impl RandomAccessFile {
         Self {
             vfs,
             filename,
-            reading_handle: RefCell::new(None),
-            writing_handle: RefCell::new(None),
+            reading_handle: RwLock::new(None),
+            writing_handle: RwLock::new(None),
         }
     }
 
@@ -62,7 +61,9 @@ impl RandomAccessFile {
     /// `pub` only for hg-cpython
     #[doc(hidden)]
     pub fn get_read_handle(&self) -> Result<FileHandle, HgError> {
-        if let Some(handle) = &*self.writing_handle.borrow() {
+        if let Some(handle) =
+            &*self.writing_handle.write().expect("lock is poisoned")
+        {
             // Use a file handle being actively used for writes, if available.
             // There is some danger to doing this because reads will seek the
             // file.
@@ -70,7 +71,9 @@ impl RandomAccessFile {
             // before all writes, so we should be safe.
             return Ok(handle.clone());
         }
-        if let Some(handle) = &*self.reading_handle.borrow() {
+        if let Some(handle) =
+            &*self.reading_handle.read().expect("lock is poisoned")
+        {
             return Ok(handle.clone());
         }
         // early returns done to work around borrowck being overzealous
@@ -81,20 +84,31 @@ impl RandomAccessFile {
             false,
             false,
         )?;
-        *self.reading_handle.borrow_mut() = Some(new_handle.clone());
+        *self.reading_handle.write().expect("lock is poisoned") =
+            Some(new_handle.clone());
         Ok(new_handle)
     }
 
     /// `pub` only for hg-cpython
     #[doc(hidden)]
     pub fn exit_reading_context(&self) {
-        self.reading_handle.take();
+        self.reading_handle
+            .write()
+            .expect("lock is poisoned")
+            .take();
     }
 
     // Returns whether this file currently open
     pub fn is_open(&self) -> bool {
-        self.reading_handle.borrow().is_some()
-            || self.writing_handle.borrow().is_some()
+        self.reading_handle
+            .read()
+            .expect("lock is poisoned")
+            .is_some()
+            || self
+                .writing_handle
+                .read()
+                .expect("lock is poisoned")
+                .is_some()
     }
 }
 
