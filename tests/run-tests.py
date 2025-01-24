@@ -3291,10 +3291,9 @@ class TestRunner:
                     self._pythondir = get_site_packages_dir(python_exe)
                 except (FileNotFoundError, subprocess.CalledProcessError):
                     self._pythondir = self._bindir
-            elif self.options.local:
-                assert WINDOWS
-                python_exe = os.path.join(self._bindir, b"python.exe")
-                self._pythondir = get_site_packages_dir(python_exe)
+                if self.options.local:
+                    self._python = _bytes2sys(python_exe)
+
             # If it looks like our in-repo Rust binary, use the source root.
             # This is a bit hacky. But rhg is still not supported outside the
             # source directory. So until it is, do the simple thing.
