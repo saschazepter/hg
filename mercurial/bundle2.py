@@ -1467,6 +1467,11 @@ class unbundlepart(unpackermixin):
         # we read the data, tell it
         self._initialized = True
 
+    def __iter__(self):
+        for chunk in self._payloadstream:
+            self._pos += len(chunk)
+            yield chunk
+
     def _payloadchunks(self):
         """Generator of decoded chunks in the payload."""
         return decodepayloadchunks(self.ui, self._fp)
