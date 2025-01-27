@@ -26,7 +26,6 @@ DOCFILES=mercurial/helptext/*.txt
 export LANGUAGE=C
 export LC_ALL=C
 TESTFLAGS ?= $(shell echo $$HGTESTFLAGS)
-OSXVERSIONFLAGS ?= $(shell echo $$OSXVERSIONFLAGS)
 CARGO = cargo
 
 # Set this to e.g. "mingw32" to use a non-default compiler.
@@ -230,33 +229,6 @@ packaging_targets := \
 $(packaging_targets):
 	$(MAKE) -C contrib/packaging $(MAKEFLAGS) $@
 
-osx:
-	rm -rf build/mercurial
-	/usr/bin/python2.7 setup.py install --optimize=1 \
-	  --root=build/mercurial/ --prefix=/usr/local/ \
-	  --install-lib=/Library/Python/2.7/site-packages/
-	make -C doc all install DESTDIR="$(PWD)/build/mercurial/"
-        # Place a bogon .DS_Store file in the target dir so we can be
-        # sure it doesn't get included in the final package.
-	touch build/mercurial/.DS_Store
-	make -C contrib/chg \
-	  HGPATH=/usr/local/bin/hg \
-	  PYTHON=/usr/bin/python2.7 \
-	  DESTDIR=../../build/mercurial \
-	  PREFIX=/usr/local \
-	  clean install
-	mkdir -p $${OUTPUTDIR:-dist}
-	HGVER=$$(python contrib/genosxversion.py $(OSXVERSIONFLAGS) build/mercurial/Library/Python/2.7/site-packages/mercurial/__version__.py) && \
-	OSXVER=$$(sw_vers -productVersion | cut -d. -f1,2) && \
-	pkgbuild --filter \\.DS_Store --root build/mercurial/ \
-	  --identifier org.mercurial-scm.mercurial \
-	  --version "$${HGVER}" \
-	  build/mercurial.pkg && \
-	productbuild --distribution contrib/packaging/macosx/distribution.xml \
-	  --package-path build/ \
-	  --version "$${HGVER}" \
-	  --resources contrib/packaging/macosx/ \
-	  "$${OUTPUTDIR:-dist/}"/Mercurial-"$${HGVER}"-macosx"$${OSXVER}".pkg
 
 pyoxidizer:
 	$(PYOXIDIZER) build --path ./rust/hgcli --release
@@ -301,4 +273,4 @@ pytype-docker:
 	dist dist-notests check tests rust-tests check-code format-c \
 	update-pot pyoxidizer pyoxidizer-windows-tests pyoxidizer-macos-tests \
 	$(packaging_targets) \
-	osx pytype-docker
+	pytype-docker
