@@ -372,7 +372,7 @@ commonpypats = [
             r'\s(\+=|-=|!=|<>|<=|>=|<<=|>>=|%=)\S',
             "missing whitespace around operator",
         ),
-        (r'[^^+=*/!<>&| %-](\s=|=\s)[^= ]', "wrong whitespace around ="),
+        (r'[^^+=*/!<>&| %-:](\s=|=\s)[^= ]', "wrong whitespace around ="),
         (
             r'raise [^,(]+, (\([^\)]+\)|[^,\(\)]+)$',
             "don't use old-style two-argument raise, use Exception(message)",
