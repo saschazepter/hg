@@ -2796,16 +2796,25 @@ class chunkbuffer:
         self.iter = splitbig(in_iter)
         self._queue = collections.deque()
         self._chunkoffset = 0
+        self._absolute_offset = 0
 
     def __iter__(self):
         while self._queue:
             chunk = self._queue.popleft()
             if self._chunkoffset:
-                yield chunk[self._chunkoffset :]
+                d = chunk[self._chunkoffset :]
             else:
-                yield chunk
+                d = chunk
+            self._absolute_offset += len(d)
+            yield d
             self._chunkoffset = 0
-        yield from self.iter
+        for d in self.iter:
+            self._absolute_offset += len(d)
+            yield d
+
+    def tell(self) -> int:
+        """tell how much data we have read so far"""
+        return self._absolute_offset
 
     def read(self, l=None):
         """Read L bytes of data from the iterator of chunks of data.
@@ -2813,7 +2822,9 @@ class chunkbuffer:
 
         If size parameter is omitted, read everything"""
         if l is None:
-            return b''.join(self.iter)
+            d = b''.join(self.iter)
+            self._absolute_offset += len(d)
+            return d
 
         left = l
         buf = []
@@ -2865,7 +2876,9 @@ class chunkbuffer:
                 self._chunkoffset += left
                 left -= chunkremaining
 
-        return b''.join(buf)
+        d = b''.join(buf)
+        self._absolute_offset += len(d)
+        return d
 
 
 def filechunkiter(f, size=131072, limit=None):
