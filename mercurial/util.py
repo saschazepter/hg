@@ -2797,6 +2797,16 @@ class chunkbuffer:
         self._queue = collections.deque()
         self._chunkoffset = 0
 
+    def __iter__(self):
+        while self._queue:
+            chunk = self._queue.popleft()
+            if self._chunkoffset:
+                yield chunk[self._chunkoffset :]
+            else:
+                yield chunk
+            self._chunkoffset = 0
+        yield from self.iter
+
     def read(self, l=None):
         """Read L bytes of data from the iterator of chunks of data.
         Returns less than L bytes if the iterator runs dry.
