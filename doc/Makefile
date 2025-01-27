@@ -29,6 +29,8 @@ export HGENCODING=UTF-8
 
 .PHONY: all man html install clean knownrefs
 
+all: man html
+
 # Generate a list of hg commands and extensions.
 commandlist.txt: $(GENDOC)
 	${GENDOCCMD} commandlist > $@.tmp
@@ -135,7 +137,7 @@ endif
 # - help topics: topic-foo (html), hgfoo (man)
 # - extensions: ext-foo (html), hgext-foo (man)
 #
-# Man pages for commands are in section 1 (user commands), topics and 
+# Man pages for commands are in section 1 (user commands), topics and
 # extensions are in section 7 (miscellanea)
 #
 # NOTE: topics and extension are temporarily disabled for man pages because
@@ -157,9 +159,6 @@ endif
 
 # Also add the HTML index page
 HTML+=$(HTMLOUT)/index.html
-
-
-all: man html
 
 man: $(MAN)
 
