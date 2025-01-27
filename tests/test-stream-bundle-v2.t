@@ -183,7 +183,12 @@ Test that we can apply the bundle as a stream clone bundle
   updating the branch cache
   (sent 4 HTTP requests and * bytes; received * bytes in responses) (glob)
 
-  $ hg clone --stream http://localhost:$HGPORT stream-clone-explicit --debug
+test explicite stream request
+
+(also test unlimited memory usage code path)
+
+  $ hg clone --stream http://localhost:$HGPORT stream-clone-explicit --debug \
+  >   --config worker.parallel-stream-bundle-processing.memory-target=-1
   using http://localhost:$HGPORT/
   sending capabilities command
   sending clonebundles_manifest command
