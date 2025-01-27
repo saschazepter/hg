@@ -44,6 +44,16 @@ from .revlogutils import (
 )
 
 
+# Number arbitrarily picked, feel free to change them (but the LOW one)
+#
+# update the configuration documentation if you touch this.
+DEFAULT_NUM_WRITER = {
+    scmutil.RESOURCE_LOW: 1,
+    scmutil.RESOURCE_MEDIUM: 2,
+    scmutil.RESOURCE_HIGH: 4,
+}
+
+
 def new_stream_clone_requirements(
     default_requirements: Iterable[bytes],
     streamed_requirements: Iterable[bytes],
@@ -1103,6 +1113,7 @@ def consumev2(repo, fp, filecount: int, filesize: int) -> None:
                 'repo.vfs must not be added to vfsmap for security reasons'
             )
 
+        cpu_profile = scmutil.get_resource_profile(repo.ui, b'cpu')
         threaded = repo.ui.configbool(
             b"worker", b"parallel-stream-bundle-processing"
         )
@@ -1110,6 +1121,8 @@ def consumev2(repo, fp, filecount: int, filesize: int) -> None:
             b"worker",
             b"parallel-stream-bundle-processing.num-writer",
         )
+        if num_writer <= 0:
+            num_writer = DEFAULT_NUM_WRITER[cpu_profile]
         with repo.transaction(b'clone'):
             ctxs = (vfs.backgroundclosing(repo.ui) for vfs in vfsmap.values())
             with nested(*ctxs):
