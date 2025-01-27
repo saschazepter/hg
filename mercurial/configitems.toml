@@ -2965,11 +2965,17 @@ experimental = true
 [[items]]
 section = "worker"
 name = "parallel-stream-bundle-processing.num-writer"
-default = 2
+default = 0
 experimental = true
 documentation="""
 Control the number of file being written concurrently when applying a stream
 bundle.
+
+When set to 0, the default, the value used depends on the value of the
+`usage.resources.cpu` configuration:
+- low:    1 writer
+- medium: 2 writers (default)
+- high:   4 writers
 """
 
 # Templates and template applications
