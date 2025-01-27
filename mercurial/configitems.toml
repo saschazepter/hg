@@ -2948,8 +2948,7 @@ name = "numcpus"
 
 
 # experimental until we are happy with the implementation and some sanity
-# checking has been done. Controlled memory usage when request in one of the
-# requirements.
+# checking has been done.
 [[items]]
 section = "worker"
 name = "parallel-stream-bundle-processing"
@@ -2977,6 +2976,22 @@ When set to 0, the default, the value used depends on the value of the
 - medium: 2 writers (default)
 - high:   4 writers
 """
+
+[[items]]
+section = "worker"
+name = "parallel-stream-bundle-processing.memory-target"
+default = 0
+experimental = true
+documentation="""Limit memory usage around this value. This is not a hard target a Mercurial will use a bit more, but this reduce the amount of buffered stream content that we read ahead.
+
+If set to a negative value, the amount of memory used will not be restricted.
+
+When set to 0, the default value depends on the `usage.resources.memory` value.
+- low:    100 MB,
+- medium:   1 GB,
+- high:   unrestricted memory usage.
+"""
+
 
 # Templates and template applications
 
