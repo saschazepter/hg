@@ -2,6 +2,7 @@ FROM registry.heptapod.net/mercurial/ci-images/mercurial-core:v2.1
 
 USER ci-runner
 
+RUN mkdir /home/ci-runner/.local/
 ENV PATH=/home/ci-runner/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ENV PYTHONPATH=/home/ci-runner/.local/lib/python3.11/site-packages
 
