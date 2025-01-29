@@ -25,6 +25,7 @@ from typing import (
     List,
     MutableMapping,
     Optional,
+    Set,
     Tuple,
     Type,
     TypeVar,
@@ -85,6 +86,9 @@ class abstractvfs(abc.ABC):
     # Used to disable the Rust `InnerRevlog` in case the VFS is not supported
     # by the Rust code
     rust_compatible = True
+
+    # createmode is always available on subclasses
+    createmode: int
 
     # TODO: type return, which is util.posixfile wrapped by a proxy
     @abc.abstractmethod
@@ -455,6 +459,23 @@ class abstractvfs(abc.ABC):
 
     def register_file(self, path: bytes) -> None:
         """generic hook point to lets fncache steer its stew"""
+
+    def prepare_streamed_file(
+        self, path: bytes, known_directories: Set[bytes]
+    ) -> None:
+        """make sure we are ready to write a file from a stream clone
+
+        The "known_directories" variable is here to avoid trying to create the
+        same directories over and over during a stream clone. It will be
+        updated by this function.
+        """
+        self._auditpath(path, b'wb')
+        self.register_file(path)
+        real_path = self.join(path)
+        dirname, basename = util.split(real_path)
+        if dirname not in known_directories:
+            util.makedirs(dirname, self.createmode, True)
+            known_directories.add(dirname)
 
 
 class vfs(abstractvfs):
