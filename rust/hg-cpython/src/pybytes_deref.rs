@@ -18,13 +18,16 @@ pub struct PyBytesDeref {
 
     /// Borrows the buffer inside `self.keep_alive`,
     /// but the borrow-checker cannot express self-referential structs.
-    data: *const [u8],
+    data: &'static [u8],
 }
 
 impl PyBytesDeref {
     pub fn new(py: Python, bytes: PyBytes) -> Self {
+        let as_raw: *const [u8] = bytes.data(py);
         Self {
-            data: bytes.data(py),
+            // Safety: the raw pointer is valid as long as the PyBytes is still
+            // alive, and the objecs owns it.
+            data: unsafe { &*as_raw },
             keep_alive: bytes,
         }
     }
@@ -38,9 +41,7 @@ impl std::ops::Deref for PyBytesDeref {
     type Target = [u8];
 
     fn deref(&self) -> &[u8] {
-        // Safety: the raw pointer is valid as long as the PyBytes is still
-        // alive, and the returned slice borrows `self`.
-        unsafe { &*self.data }
+        self.data
     }
 }
 
