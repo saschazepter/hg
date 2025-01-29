@@ -1507,6 +1507,10 @@ class unbundlepart(unpackermixin):
             self.consumed = True
         return data
 
+    def tell(self) -> int:
+        """the amount of byte read so far in the part"""
+        return self._payloadstream.tell()
+
 
 class seekableunbundlepart(unbundlepart):
     """A bundle2 part in a bundle that is seekable.
