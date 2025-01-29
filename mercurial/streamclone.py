@@ -1545,18 +1545,17 @@ def _v2_parse_files(
 def _write_files(info: Iterable[FileInfoT]):
     """write files from parsed data"""
     for path, mode, data in info:
-        # we disable the internal Python buffering because the streamed data
-        # are assume to have been written with large enough block for it to not
-        # matters. So we only have more memory copy and GIL holding time to
-        # gain with the Python buffering.
-        with open(path, 'wb', buffering=0) as ofp:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT)
+        try:
+            if mode is not None:
+                os.fchmod(fd, mode)
             for chunk in data:
-                written = ofp.write(chunk)
+                written = os.write(fd, chunk)
                 # write missing pieces if the write was interrupted
                 while written < len(chunk):
-                    written += ofp.write(chunk[written:])
-        if mode is not None:
-            os.chmod(path, mode & 0o666)
+                    written = os.write(fd, chunk[written:])
+        finally:
+            os.close(fd)
 
 
 def consumev3(repo, fp) -> None:
