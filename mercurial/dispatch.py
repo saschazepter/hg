@@ -822,9 +822,20 @@ def _parse(ui, args):
         cmd = None
         c = []
 
+    def global_opt_to_fancy_opt(opt_name):
+        # fancyopts() does this transform on `options`, but globalopts uses a
+        # '-', so that it is displayed in the help and accepted as input that
+        # way.
+        return opt_name.replace(b'-', b'_')
+
     # combine global options into local
     for o in commands.globalopts:
-        c.append((o[0], o[1], options[o[1]], o[3]))
+        name = global_opt_to_fancy_opt(o[1])
+
+        # The fancyopts name is needed for `options`, but the original name
+        # needs to be used in the second element here, or the parsing for the
+        # command verb fails, saying the command has no such option.
+        c.append((o[0], o[1], options[name], o[3]))
 
     try:
         args = fancyopts.fancyopts(args, c, cmdoptions, gnu=True)
@@ -833,7 +844,7 @@ def _parse(ui, args):
 
     # separate global options back out
     for o in commands.globalopts:
-        n = o[1]
+        n = global_opt_to_fancy_opt(o[1])
         options[n] = cmdoptions[n]
         del cmdoptions[n]
 
