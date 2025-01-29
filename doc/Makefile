@@ -206,13 +206,6 @@ $(HTMLOUT)/%.html: $(BUILDDIR)/%.gendoc.txt common.txt $(RUNRST)
 	$(PYTHON) runrst html --hg-individual-pages $(RSTARGS) --halt warning \
 	  --link-stylesheet --stylesheet-path style.css $(BUILDDIR)/$*.gendoc.txt $@
 
-MANIFEST: man html
-# tracked files are already in the main MANIFEST
-	$(RM) $@
-	for i in $(MAN) $(HTML); do \
-	  echo "doc/$$i" >> $@ ; \
-	done
-
 install: man
 	for i in $(MAN) ; do \
 	  subdir=`echo $$i | sed -n 's/^.*\.\([0-9]\)$$/man\1/p'` ; \
@@ -225,4 +218,4 @@ install: man
 # $(HTML) only has the basic topics, so we need to delete $(HTMLOUT)/*.html and
 # other similar files "by hand" here.
 clean:
-	$(RM) $(MAN) $(HTML) common.txt $(SOURCES) MANIFEST *.gendoc.txt $(BUILDFILES) $(BUILDDIR)/*.gendoc.* $(HTMLOUT)/*.html
+	$(RM) $(MAN) $(HTML) common.txt $(SOURCES) *.gendoc.txt $(BUILDFILES) $(BUILDDIR)/*.gendoc.* $(HTMLOUT)/*.html

@@ -87,7 +87,7 @@ cleanbutpackages:
 	find contrib doc hgext hgext3rd i18n mercurial tests hgdemandimport \
 		\( -name '*.py[cdo]' -o -name '*.so' \) -exec rm -f '{}' ';'
 	rm -rf .venv_*
-	rm -f MANIFEST MANIFEST.in hgext/__index__.py tests/*.err
+	rm -f hgext/__index__.py tests/*.err
 	rm -f mercurial/__modulepolicy__.py
 	if test -d .hg; then rm -f mercurial/__version__.py; fi
 	rm -rf build mercurial/locale
@@ -121,17 +121,9 @@ install-home-doc: doc
 install-rhg: build-rhg
 	install -m 755 rust/target/release/rhg "$(PREFIX)"/bin/
 
-MANIFEST-doc:
-	$(MAKE) -C doc MANIFEST
-
-MANIFEST.in: MANIFEST-doc
-	hg manifest | sed -e 's/^/include /' > MANIFEST.in
-	echo include mercurial/__version__.py >> MANIFEST.in
-	sed -e 's/^/include /' < doc/MANIFEST >> MANIFEST.in
-
 dist:	tests dist-notests
 
-dist-notests:	doc MANIFEST.in
+dist-notests:	doc
 	TAR_OPTIONS="--owner=root --group=root --mode=u+w,go-w,a+rX-s" $(PYTHON) setup.py -q sdist
 
 check: tests
