@@ -1176,14 +1176,14 @@ def consumev2(repo, fp, filecount: int, filesize: int) -> None:
                         mark_used=mark_used,
                     )
                     if not threaded:
-                        _write_files(vfsmap, files)
+                        _write_files(files)
                     else:
                         info_queue = _FileInfoQueue(files)
 
                         for __ in range(num_writer):
                             w = threading.Thread(
                                 target=_write_files,
-                                args=(vfsmap, info_queue),
+                                args=(info_queue,),
                             )
                             workers.append(w)
                             w.start()
@@ -1217,8 +1217,8 @@ def consumev2(repo, fp, filecount: int, filesize: int) -> None:
 FileChunksT = Iterator[bytes]
 # Contains the information necessary to write stream file on disk
 FileInfoT = Tuple[
-    bytes,  # vfs key
-    bytes,  # file name (non-vfs-encoded)
+    bytes,  # real fs path
+    Optional[int],  # permission to give to chmod
     FileChunksT,  # content
 ]
 
@@ -1521,14 +1521,14 @@ def _v2_parse_files(
                 b'adding [%s] %s (%s)\n' % (src, name, util.bytecount(datalen))
             )
         vfs = vfs_map[src]
-        vfs.prepare_streamed_file(name, known_dirs)
+        path, mode = vfs.prepare_streamed_file(name, known_dirs)
         if datalen <= util.DEFAULT_FILE_CHUNK:
             c = fp.read(datalen)
             offset = fp.tell()
             report.byte_count += len(c)
             progress.increment(step=len(c))
             chunks = _trivial_file(c, mark_used, offset)
-            yield (src, name, iter(chunks))
+            yield (path, mode, iter(chunks))
         else:
             chunks = file_chunker(
                 fp,
@@ -1537,25 +1537,26 @@ def _v2_parse_files(
                 report,
                 mark_used=mark_used,
             )
-            yield (src, name, iter(chunks))
+            yield (path, mode, iter(chunks))
             # make sure we read all the chunk before moving to the next file
             chunks.fill()
 
 
-def _write_files(vfsmap, info: Iterable[FileInfoT]):
+def _write_files(info: Iterable[FileInfoT]):
     """write files from parsed data"""
-    for src, name, data in info:
-        vfs = vfsmap[src]
+    for path, mode, data in info:
         # we disable the internal Python buffering because the streamed data
         # are assume to have been written with large enough block for it to not
         # matters. So we only have more memory copy and GIL holding time to
         # gain with the Python buffering.
-        with vfs(name, b'w', buffering=0) as ofp:
+        with open(path, 'wb', buffering=0) as ofp:
             for chunk in data:
                 written = ofp.write(chunk)
                 # write missing pieces if the write was interrupted
                 while written < len(chunk):
                     written += ofp.write(chunk[written:])
+        if mode is not None:
+            os.chmod(path, mode & 0o666)
 
 
 def consumev3(repo, fp) -> None:

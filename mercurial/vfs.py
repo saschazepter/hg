@@ -90,6 +90,8 @@ class abstractvfs(abc.ABC):
     # createmode is always available on subclasses
     createmode: int
 
+    _chmod: bool
+
     # TODO: type return, which is util.posixfile wrapped by a proxy
     @abc.abstractmethod
     def __call__(self, path: bytes, mode: bytes = b'rb', **kwargs) -> Any:
@@ -462,12 +464,17 @@ class abstractvfs(abc.ABC):
 
     def prepare_streamed_file(
         self, path: bytes, known_directories: Set[bytes]
-    ) -> None:
+    ) -> Tuple[bytes, Optional[int]]:
         """make sure we are ready to write a file from a stream clone
 
         The "known_directories" variable is here to avoid trying to create the
         same directories over and over during a stream clone. It will be
         updated by this function.
+
+        return (path, mode)::
+
+            <path> is the real file system path content should be written to,
+            <mode> is the file mode that need to be set if any.
         """
         self._auditpath(path, b'wb')
         self.register_file(path)
@@ -476,6 +483,10 @@ class abstractvfs(abc.ABC):
         if dirname not in known_directories:
             util.makedirs(dirname, self.createmode, True)
             known_directories.add(dirname)
+        mode = None
+        if self.createmode is not None:
+            mode = self.createmode & 0o666
+        return real_path, mode
 
 
 class vfs(abstractvfs):
