@@ -15,7 +15,10 @@ use pyo3::prelude::*;
 mod item;
 use item::DirstateItem;
 mod dirstate_map;
-use dirstate_map::{DirstateIdentity, DirstateMap};
+use dirstate_map::{
+    DirstateIdentity, DirstateMap, DirstateMapItemsIterator,
+    DirstateMapKeysIterator,
+};
 
 pub fn init_module<'py>(
     py: Python<'py>,
@@ -27,5 +30,7 @@ pub fn init_module<'py>(
     m.add_class::<DirstateIdentity>()?;
     m.add_class::<DirstateItem>()?;
     m.add_class::<DirstateMap>()?;
+    m.add_class::<DirstateMapKeysIterator>()?;
+    m.add_class::<DirstateMapItemsIterator>()?;
     Ok(m)
 }
