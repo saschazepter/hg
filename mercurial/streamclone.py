@@ -1168,6 +1168,7 @@ def consumev2(repo, fp, filecount: int, filesize: int) -> None:
                     files = _v2_parse_files(
                         repo,
                         raw_data,
+                        vfsmap,
                         filecount,
                         progress,
                         report,
@@ -1495,6 +1496,7 @@ def _trivial_file(
 def _v2_parse_files(
     repo,
     fp: bundle2mod.unbundlepart,
+    vfs_map,
     file_count: int,
     progress: scmutil.progress,
     report: V2Report,
@@ -1505,6 +1507,7 @@ def _v2_parse_files(
 
     The parsed information are yield result for consumption by the "writer"
     """
+    known_dirs = set()  # set of directory that we know to exists
     progress.update(0)
     for i in range(file_count):
         src = util.readexactly(fp, 1)
@@ -1517,6 +1520,8 @@ def _v2_parse_files(
             repo.ui.debug(
                 b'adding [%s] %s (%s)\n' % (src, name, util.bytecount(datalen))
             )
+        vfs = vfs_map[src]
+        vfs.prepare_streamed_file(name, known_dirs)
         if datalen <= util.DEFAULT_FILE_CHUNK:
             c = fp.read(datalen)
             offset = fp.tell()
