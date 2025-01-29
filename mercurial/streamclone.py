@@ -1156,7 +1156,8 @@ def consumev2(repo, fp, filecount: int, filesize: int) -> None:
                     else:
                         fc = _ThreadSafeFileChunker
                         data_queue = _DataQueue(memory_target=memory_target)
-                        mark_used = data_queue.mark_used
+                        if memory_target is not None:
+                            mark_used = data_queue.mark_used
                         raw_data = util.chunkbuffer(data_queue)
 
                         w = threading.Thread(
@@ -1271,7 +1272,7 @@ class _Queue:
 class _DataQueue:
     """A queue passing data from the bundle stream to other thread
 
-    It has a "target_memory" optional parameter to avoid buffering too much
+    It has a "memory_target" optional parameter to avoid buffering too much
     information. The implementation is not exact and the memory target might be
     exceed for a time in some situation.
     """
@@ -1314,12 +1315,13 @@ class _DataQueue:
 
         This is meant to be used from another thread than the one filler the queue.
         """
-        with self._lock:
-            if offset > self._current_used:
-                self._current_used = offset
-            # If the reader is waiting for room, unblock it.
-            if self._wait.locked() and self._has_free_space():
-                self._wait.release()
+        if self._memory_target is not None:
+            with self._lock:
+                if offset > self._current_used:
+                    self._current_used = offset
+                # If the reader is waiting for room, unblock it.
+                if self._wait.locked() and self._has_free_space():
+                    self._wait.release()
 
     def fill_from(self, data):
         """fill the data queue from a bundle2 part object
@@ -1333,20 +1335,21 @@ class _DataQueue:
                 q.put(item)
                 if self._abort:
                     break
-                with self._lock:
-                    while not self._has_free_space():
-                        # make sure the _wait lock is locked
-                        # this is done under lock, so there case be no race with the release logic
-                        self._wait.acquire(blocking=False)
-                        self._lock.release()
-                        # acquiring the lock will block until some other thread release it.
-                        self._wait.acquire()
-                        # lets dive into the locked section again
-                        self._lock.acquire()
-                        # make sure we release the lock we just grabed if
-                        # needed.
-                        if self._wait.locked():
-                            self._wait.release()
+                if self._memory_target is not None:
+                    with self._lock:
+                        while not self._has_free_space():
+                            # make sure the _wait lock is locked
+                            # this is done under lock, so there case be no race with the release logic
+                            self._wait.acquire(blocking=False)
+                            self._lock.release()
+                            # acquiring the lock will block until some other thread release it.
+                            self._wait.acquire()
+                            # lets dive into the locked section again
+                            self._lock.acquire()
+                            # make sure we release the lock we just grabed if
+                            # needed.
+                            if self._wait.locked():
+                                self._wait.release()
         finally:
             q.put(None)
 
@@ -1367,10 +1370,11 @@ class _DataQueue:
         """
         self._abort = True
         self._q.put(None)
-        with self._lock:
-            # make sure we unstuck the reader thread.
-            if self._wait.locked():
-                self._wait.release()
+        if self._memory_target is not None:
+            with self._lock:
+                # make sure we unstuck the reader thread.
+                if self._wait.locked():
+                    self._wait.release()
 
 
 class _FileInfoQueue:
