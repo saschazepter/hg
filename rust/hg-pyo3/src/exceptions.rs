@@ -1,6 +1,8 @@
-use pyo3::exceptions::{PyRuntimeError, PyValueError};
+use pyo3::exceptions::{PyOSError, PyRuntimeError, PyValueError};
 use pyo3::import_exception;
 use pyo3::{create_exception, PyErr};
+
+use hg::dirstate::{on_disk::DirstateV2ParseError, DirstateError};
 
 use hg::revlog::nodemap::NodeMapError;
 use hg::UncheckedRevision;
@@ -84,4 +86,14 @@ pub fn graph_error(_err: hg::GraphError) -> PyErr {
     // ParentOutOfRange is currently the only alternative
     // in `hg::GraphError`. The C index always raises this simple ValueError.
     PyValueError::new_err("parent out of range")
+}
+
+#[allow(dead_code)]
+pub fn dirstate_error(err: DirstateError) -> PyErr {
+    PyOSError::new_err(format!("Dirstate error: {:?}", err))
+}
+
+#[allow(dead_code)]
+pub fn dirstate_v2_error(_err: DirstateV2ParseError) -> PyErr {
+    PyValueError::new_err("corrupted dirstate-v2")
 }
