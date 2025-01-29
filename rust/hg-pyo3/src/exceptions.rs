@@ -92,7 +92,6 @@ pub fn dirstate_error(err: DirstateError) -> PyErr {
     PyOSError::new_err(format!("Dirstate error: {:?}", err))
 }
 
-#[allow(dead_code)]
 pub fn dirstate_v2_error(_err: DirstateV2ParseError) -> PyErr {
     PyValueError::new_err("corrupted dirstate-v2")
 }
