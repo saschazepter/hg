@@ -1173,3 +1173,47 @@ symlinks:
   $ cd ..
 
 #endif
+
+Test the --config-file behavior (this will be used by SCM Manager to add auth
+and proxy info instead of rewriting the repo hgrc file during pulls and
+imports).
+
+  $ cat > config-file.rc <<EOF
+  > [auth]
+  > temporary.schemes = https
+  > temporary.prefix = server.org
+  > temporary.password = password
+  > temporary.username = user
+  > EOF
+
+  >>> from hgclient import check, readchannel, runcommand
+  >>> @check
+  ... def checkruncommand(server):
+  ...     # hello block
+  ...     readchannel(server)
+  ... 
+  ...     # no file
+  ...     runcommand(server, [b'config', b'auth'])
+  ...     # with file
+  ...     runcommand(server,
+  ...                [b'config', b'auth', b'--config-file', b'config-file.rc'])
+  ...     # with file and overriding --config
+  ...     runcommand(server,
+  ...                [b'config', b'auth', b'--config-file', b'config-file.rc',
+  ...                 b'--config', b'auth.temporary.username=cli-user'])
+  ...     # previous configs aren't cached
+  ...     runcommand(server, [b'config', b'auth'])
+  *** runcommand config auth
+   [1]
+  *** runcommand config auth --config-file config-file.rc
+  auth.temporary.schemes=https
+  auth.temporary.prefix=server.org
+  auth.temporary.password=password
+  auth.temporary.username=user
+  *** runcommand config auth --config-file config-file.rc --config auth.temporary.username=cli-user
+  auth.temporary.schemes=https
+  auth.temporary.prefix=server.org
+  auth.temporary.password=password
+  auth.temporary.username=cli-user
+  *** runcommand config auth
+   [1]
