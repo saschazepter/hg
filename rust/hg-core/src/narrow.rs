@@ -107,24 +107,28 @@ fn starts_or_ends_with_whitespace(s: &[u8]) -> bool {
     w(s.first()) || w(s.last())
 }
 
+fn validate_pattern(pattern: &[u8]) -> Result<(), SparseConfigError> {
+    if starts_or_ends_with_whitespace(pattern) {
+        return Err(SparseConfigError::WhitespaceAtEdgeOfPattern(
+            pattern.to_owned(),
+        ));
+    }
+    for prefix in VALID_PREFIXES.iter() {
+        if pattern.starts_with(prefix.as_bytes()) {
+            return Ok(());
+        }
+    }
+    Err(SparseConfigError::InvalidNarrowPrefix(pattern.to_owned()))
+}
+
 fn validate_patterns(patterns: &[u8]) -> Result<(), SparseConfigError> {
     for pattern in patterns.split(|c| *c == b'\n') {
         if pattern.is_empty() {
+            // TODO: probably not intentionally allowed (only because `split`
+            // produces "fake" empty line at the end)
             continue;
         }
-        if starts_or_ends_with_whitespace(pattern) {
-            return Err(SparseConfigError::WhitespaceAtEdgeOfPattern(
-                pattern.to_owned(),
-            ));
-        }
-        for prefix in VALID_PREFIXES.iter() {
-            if pattern.starts_with(prefix.as_bytes()) {
-                return Ok(());
-            }
-        }
-        return Err(SparseConfigError::InvalidNarrowPrefix(
-            pattern.to_owned(),
-        ));
+        validate_pattern(pattern)?
     }
     Ok(())
 }
