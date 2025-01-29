@@ -3425,6 +3425,7 @@ class TestRunner:
         if self.options.pure:
             os.environ["HGTEST_RUN_TESTS_PURE"] = "--pure"
             os.environ["HGMODULEPOLICY"] = "py"
+            os.environ.pop("HGWITHRUSTEXT", None)
         if self.options.rust:
             os.environ["HGMODULEPOLICY"] = "rust+c"
         if self.options.no_rust:
