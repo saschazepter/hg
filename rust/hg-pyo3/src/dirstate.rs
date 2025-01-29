@@ -12,6 +12,8 @@
 //! From Python, this will be seen as `mercurial.pyo3_rustext.dirstate`
 use crate::{exceptions, utils::new_submodule};
 use pyo3::prelude::*;
+mod dirstate_map;
+use dirstate_map::DirstateIdentity;
 
 pub fn init_module<'py>(
     py: Python<'py>,
@@ -20,5 +22,6 @@ pub fn init_module<'py>(
     let m = new_submodule(py, package, "dirstate")?;
     m.add("__doc__", "Dirstate - Rust implementation exposed via PyO3")?;
     m.add("FallbackError", py.get_type::<exceptions::FallbackError>())?;
+    m.add_class::<DirstateIdentity>()?;
     Ok(m)
 }
