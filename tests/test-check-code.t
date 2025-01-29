@@ -65,6 +65,7 @@ Prevent adding new files in the root directory accidentally.
   CONTRIBUTING
   CONTRIBUTORS
   COPYING
+  MANIFEST.in
   Makefile
   README.rst
   hg

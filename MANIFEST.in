@@ -1,0 +1,5 @@
+include mercurial/__version__.py
+include doc/*.html
+include doc/*.1 doc/*.5 doc/*.8
+include doc/html/*.html
+include doc/man/*.1
