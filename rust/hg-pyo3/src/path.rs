@@ -15,7 +15,6 @@ use std::convert::Infallible;
 
 use hg::utils::hg_path::{HgPath, HgPathBuf};
 
-#[allow(dead_code)]
 #[derive(Eq, Ord, PartialEq, PartialOrd, Hash, derive_more::From)]
 pub struct PyHgPathRef<'a>(pub &'a HgPath);
 
