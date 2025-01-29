@@ -88,7 +88,6 @@ pub fn graph_error(_err: hg::GraphError) -> PyErr {
     PyValueError::new_err("parent out of range")
 }
 
-#[allow(dead_code)]
 pub fn dirstate_error(err: DirstateError) -> PyErr {
     PyOSError::new_err(format!("Dirstate error: {:?}", err))
 }
