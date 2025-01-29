@@ -17,6 +17,9 @@ import signal
 import sys
 import traceback
 
+from typing import (
+    Iterable,
+)
 
 from .i18n import _
 
@@ -26,6 +29,7 @@ from . import (
     cmdutil,
     color,
     commands,
+    config as configmod,
     demandimport,
     encoding,
     error,
@@ -387,13 +391,22 @@ def _runcatch(req):
                 debugtrace = {b'pdb': pdb.set_trace}
                 debugmortem = {b'pdb': pdb.post_mortem}
 
-                # read --config before doing anything else
-                # (e.g. to change trust settings for reading .hg/hgrc)
+                # read --config-file and --config before doing anything else
+                # (e.g. to change trust settings for reading .hg/hgrc).
+
+                # cmdargs may not have been initialized here (in the case of an
+                # error), so use pycompat.sysargv instead.
+                file_cfgs = _parse_config_files(
+                    req.ui, pycompat.sysargv, req.earlyoptions[b'config_file']
+                )
                 cfgs = _parseconfig(req.ui, req.earlyoptions[b'config'])
 
                 if req.repo:
                     # copy configs that were passed on the cmdline (--config) to
                     # the repo ui
+                    for sec, name, val, source in file_cfgs:
+                        req.repo.ui.setconfig(sec, name, val, source=source)
+
                     for sec, name, val in cfgs:
                         req.repo.ui.setconfig(
                             sec, name, val, source=b'--config'
@@ -875,6 +888,48 @@ def _parseconfig(ui, config):
     return configs
 
 
+def _parse_config_files(
+    ui, cmdargs: list[bytes], config_files: Iterable[bytes]
+) -> list[tuple[bytes, bytes, bytes, bytes]]:
+    """parse the --config-file options from the command line
+
+    A list of tuples containing (section, name, value, source) is returned,
+    in the order they were read.
+    """
+
+    configs: list[tuple[bytes, bytes, bytes, bytes]] = []
+
+    cfg = configmod.config()
+
+    for file in config_files:
+        try:
+            cfg.read(file)
+        except error.ConfigError as e:
+            raise error.InputError(
+                _(b'invalid --config-file content at %s') % e.location,
+                hint=e.message,
+            )
+        except FileNotFoundError:
+            hint = None
+            if b'--cwd' in cmdargs:
+                hint = _(b"this file is resolved before --cwd is processed")
+
+            raise error.InputError(
+                _(b'missing file "%s" for --config-file') % file, hint=hint
+            )
+
+    for section in cfg.sections():
+        for item in cfg.items(section):
+            name = item[0]
+            value = item[1]
+            src = cfg.source(section, name)
+
+            ui.setconfig(section, name, value, src)
+            configs.append((section, name, value, src))
+
+    return configs
+
+
 def _earlyparseopts(ui, args):
     options = {}
     fancyopts.fancyopts(
@@ -892,7 +947,13 @@ def _earlysplitopts(args):
     """Split args into a list of possible early options and remainder args"""
     shortoptions = b'R:'
     # TODO: perhaps 'debugger' should be included
-    longoptions = [b'cwd=', b'repository=', b'repo=', b'config=']
+    longoptions = [
+        b'cwd=',
+        b'repository=',
+        b'repo=',
+        b'config=',
+        b'config-file=',
+    ]
     return fancyopts.earlygetopt(
         args, shortoptions, longoptions, gnu=True, keepsep=True
     )
@@ -1097,6 +1158,10 @@ def _dispatch(req):
 
         if options[b"config"] != req.earlyoptions[b"config"]:
             raise error.InputError(_(b"option --config may not be abbreviated"))
+        if options[b"config_file"] != req.earlyoptions[b"config_file"]:
+            raise error.InputError(
+                _(b"option --config-file may not be abbreviated")
+            )
         if options[b"cwd"] != req.earlyoptions[b"cwd"]:
             raise error.InputError(_(b"option --cwd may not be abbreviated"))
         if options[b"repository"] != req.earlyoptions[b"repository"]:

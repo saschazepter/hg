@@ -120,6 +120,13 @@ globalopts = [
         _(b'set/override config option (use \'section.name=value\')'),
         _(b'CONFIG'),
     ),
+    (
+        b'',
+        b'config-file',
+        [],
+        _(b'load config file to set/override config options'),
+        _(b'HGRC'),
+    ),
     (b'', b'debug', None, _(b'enable debugging output')),
     (b'', b'debugger', None, _(b'start debugger')),
     (
