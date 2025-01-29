@@ -11,7 +11,7 @@
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyBytesMethods, PyTuple};
-use pyo3_sharedref::PyShareable;
+use pyo3_sharedref::{py_shared_iterator, PyShareable};
 
 use std::sync::RwLockReadGuard;
 
@@ -20,7 +20,10 @@ use hg::{
         dirstate_map::{
             DirstateIdentity as CoreDirstateIdentity, DirstateMapWriteMode,
         },
+        entry::DirstateEntry,
+        on_disk::DirstateV2ParseError,
         owning::OwningDirstateMap,
+        StateMapIter,
     },
     utils::hg_path::HgPath,
     DirstateParents,
@@ -196,6 +199,18 @@ impl DirstateMap {
         })
     }
 
+    fn keys(slf: &Bound<'_, Self>) -> PyResult<DirstateMapKeysIterator> {
+        DirstateMapKeysIterator::new(slf)
+    }
+
+    fn items(slf: &Bound<'_, Self>) -> PyResult<DirstateMapItemsIterator> {
+        DirstateMapItemsIterator::new(slf)
+    }
+
+    fn __iter__(slf: &Bound<'_, Self>) -> PyResult<DirstateMapKeysIterator> {
+        Self::keys(slf)
+    }
+
     fn debug_iter(
         slf: &Bound<'_, Self>,
         py: Python,
@@ -214,13 +229,51 @@ impl DirstateMap {
                     Ok((PyHgPathRef(path), state, mode, size, mtime))
                 })
                 .collect();
+            // `IntoPyObject` on `Vec` and `&[T]` gives  `PyList` or `PyBytes`
             Ok(as_vec?.into_pyobject(py)?.unbind())
         })
     }
 }
 
+py_shared_iterator!(
+    DirstateMapKeysIterator,
+    PyBytes,
+    DirstateMap,
+    inner,
+    StateMapIter<'static>,
+    |dsm| dsm.iter(),
+    DirstateMap::keys_next_result
+);
+
+py_shared_iterator!(
+    DirstateMapItemsIterator,
+    PyTuple,
+    DirstateMap,
+    inner,
+    StateMapIter<'static>,
+    |dsm| dsm.iter(),
+    DirstateMap::items_next_result
+);
+
 impl DirstateMap {
-    fn with_inner_read<'py, T>(
+    fn keys_next_result(
+        py: Python,
+        res: Result<(&HgPath, DirstateEntry), DirstateV2ParseError>,
+    ) -> PyResult<Option<Py<PyBytes>>> {
+        let key = res.map_err(dirstate_v2_error)?.0;
+        Ok(Some(PyHgPathRef(key).into_pyobject(py)?.unbind()))
+    }
+
+    fn items_next_result(
+        py: Python,
+        res: Result<(&HgPath, DirstateEntry), DirstateV2ParseError>,
+    ) -> PyResult<Option<Py<PyTuple>>> {
+        let (key, entry) = res.map_err(dirstate_v2_error)?;
+        let py_entry = DirstateItem::new_as_py(py, entry)?;
+        Ok(Some((PyHgPathRef(key), py_entry).into_pyobject(py)?.into()))
+    }
+
+    pub fn with_inner_read<'py, T>(
         slf: &Bound<'py, Self>,
         f: impl FnOnce(
             &PyRef<'py, Self>,
