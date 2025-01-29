@@ -456,6 +456,20 @@ setup necessary file
   > logtemplate = "value-B\n"
   > EOF
 
+  $ cat > config-file.rc <<EOF
+  > [config-test]
+  > basic = value-CONFIG-FILE
+  > [ui]
+  > logtemplate = "value-CONFIG-FILE\n"
+  > EOF
+
+  $ cat > config-file2.rc <<EOF
+  > [config-test]
+  > basic = value-CONFIG-FILE-2
+  > [ui]
+  > logtemplate = "value-CONFIG-FILE-2\n"
+  > EOF
+
 
   $ cat > included.rc << EOF
   > [config-test]
@@ -510,6 +524,25 @@ command line override
   $ HGRCPATH=`path_list_var "file-A.rc:file-B.rc"` hg config config-test.basic --config config-test.basic=value-CLI
   value-CLI
 
+  $ HGRCPATH=`path_list_var "file-A.rc:file-B.rc"` hg config config-test.basic --config-file config-file.rc
+  value-CONFIG-FILE
+
+--config-file args are processed in order of appearance
+
+  $ HGRCPATH=`path_list_var "file-A.rc:file-B.rc"` hg config config-test.basic \
+  >    --config-file config-file.rc --config-file config-file2.rc
+  value-CONFIG-FILE-2
+
+--config overrides --config-file, regardless of order
+
+  $ HGRCPATH=`path_list_var "file-A.rc:file-B.rc"` hg config config-test.basic \
+  >    --config config-test.basic=value-CLI --config-file config-file.rc
+  value-CLI
+
+  $ HGRCPATH=`path_list_var "file-A.rc:file-B.rc"` hg config config-test.basic \
+  >    --config-file config-file.rc --config config-test.basic=value-CLI
+  value-CLI
+
 Alias ordering
 --------------
 
@@ -544,3 +577,46 @@ command line override
 
   $ HGRCPATH=`path_list_var "file-A.rc:file-B.rc"` hg log -r . --config ui.logtemplate="value-CLI\n"
   value-CLI
+
+
+  $ HGRCPATH=`path_list_var "file-A.rc:file-B.rc"` hg log -r . --config-file config-file.rc
+  value-CONFIG-FILE
+
+--config overrides --config-file
+
+  $ HGRCPATH=`path_list_var "file-A.rc:file-B.rc"` hg log -r . \
+  >     --config ui.logtemplate="value-CLI\n" --config-file config-file.rc
+  value-CLI
+
+
+Bad --config-file usage
+-----------------------
+
+For some reason, chg doesn't honor the detailed-exit-code=True setting, and
+exits with 255 for these cases that would normally exit with 10 for InputError.
+The exit code alone can't be conditionalized in the test here, and this failure
+to honor the setting is also true when passing a malformed --config, so disable
+the config for now.
+
+  $ cat >> $HGRCPATH <<EOF
+  > [ui]
+  > detailed-exit-code = False
+  > EOF
+
+  $ cat > not-a-config-file.txt <<EOF
+  >   this is a bad config file line
+  > EOF
+
+  $ hg config auth --config-file not-a-config-file.txt
+  abort: invalid --config-file content at not-a-config-file.txt:1
+  (unexpected leading whitespace:   this is a bad config file line)
+  [255]
+
+  $ hg config auth --config-file non-existent-file.rc
+  abort: missing file "non-existent-file.rc" for --config-file
+  [255]
+
+  $ hg config auth --config-file non-existent-file.rc --cwd ..
+  abort: missing file "non-existent-file.rc" for --config-file
+  (this file is resolved before --cwd is processed)
+  [255]
