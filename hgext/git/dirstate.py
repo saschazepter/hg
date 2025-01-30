@@ -13,6 +13,7 @@ from typing import (
     Tuple,
 )
 
+from mercurial.interfaces.types import MatcherT
 from mercurial.node import sha1nodeconstants
 from mercurial import (
     dirstatemap,
@@ -163,7 +164,7 @@ class gitdirstate(intdirstate.idirstate):
 
     def status(
         self,
-        match: matchmod.basematcher,
+        match: MatcherT,
         subrepos: bool,
         ignored: bool,
         clean: bool,
@@ -336,7 +337,7 @@ class gitdirstate(intdirstate.idirstate):
         r = util.pathto(self._root, cwd, f)
         return r
 
-    def matches(self, match: matchmod.basematcher) -> Iterable[bytes]:
+    def matches(self, match: MatcherT) -> Iterable[bytes]:
         for x in self.git.index:
             p = pycompat.fsencode(x.path)
             if match(p):
@@ -354,7 +355,7 @@ class gitdirstate(intdirstate.idirstate):
 
     def walk(
         self,
-        match: matchmod.basematcher,
+        match: MatcherT,
         subrepos: Any,
         unknown: bool,
         ignored: bool,

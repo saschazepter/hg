@@ -57,6 +57,9 @@ if typing.TYPE_CHECKING:
     )
 
     from .interfaces import status as istatus
+    from .interfaces.types import (
+        MatcherT,
+    )
 
     # keeps pyflakes happy
     assert [
@@ -335,7 +338,7 @@ def precommit(
     ui: uimod.ui,
     wctx: context.workingcommitctx,
     status: istatus.Status,
-    match: matchmod.basematcher,
+    match: MatcherT,
     force: bool = False,
 ) -> Tuple[List[bytes], Set[bytes], Substate]:
     """Calculate .hgsubstate changes that should be applied before committing

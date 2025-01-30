@@ -26,6 +26,8 @@ allowsymbolimports = (
     'mercurial.hgweb.request',
     'mercurial.i18n',
     'mercurial.interfaces',
+    'mercurial.interfaces._basetypes',
+    'mercurial.interfaces.types',
     'mercurial.node',
     'mercurial.pycompat',
     # for revlog to re-export constant to extensions
