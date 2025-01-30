@@ -253,7 +253,7 @@ class statichttprepository(
     def peer(self, path=None, remotehidden=False):
         return statichttppeer(self, path=path, remotehidden=remotehidden)
 
-    def wlock(self, wait=True):
+    def wlock(self, wait=True, steal_from=None):
         raise error.LockUnavailable(
             0,
             pycompat.sysstr(_(b'lock not available')),
@@ -261,7 +261,7 @@ class statichttprepository(
             _(b'cannot lock static-http repository'),
         )
 
-    def lock(self, wait=True):
+    def lock(self, wait=True, steal_from=None):
         raise error.LockUnavailable(
             0,
             pycompat.sysstr(_(b'lock not available')),

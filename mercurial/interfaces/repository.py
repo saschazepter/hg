@@ -2118,16 +2118,36 @@ class ilocalrepositorymain(Protocol):
         pass
 
     @abc.abstractmethod
-    def lock(self, wait=True):
-        """Lock the repository store and return a lock instance."""
+    def lock(self, wait=True, steal_from=None):
+        """Lock the repository store and return a lock instance.
+
+        If another lock object is specified through the "steal_from" argument,
+        the new lock will reuse the on-disk lock of that "stolen" lock instead
+        of creating its own. The "stolen" lock is no longer usable for any
+        purpose and won't execute its release callback.
+
+        That steal_from argument is used during local clone when reloading a
+        repository. If we could remove the need for this during copy clone, we
+        could remove this function.
+        """
 
     @abc.abstractmethod
     def currentlock(self):
         """Return the lock if it's held or None."""
 
     @abc.abstractmethod
-    def wlock(self, wait=True):
-        """Lock the non-store parts of the repository."""
+    def wlock(self, wait=True, steal_from=None):
+        """Lock the non-store parts of the repository.
+
+        If another lock object is specified through the "steal_from" argument,
+        the new lock will reuse the on-disk lock of that "stolen" lock instead
+        of creating its own. The "stolen" lock is no longer usable for any
+        purpose and won't execute its release callback.
+
+        That steal_from argument is used during local clone when reloading a
+        repository. If we could remove the need for this during copy clone, we
+        could remove this function.
+        """
 
     @abc.abstractmethod
     def currentwlock(self):
