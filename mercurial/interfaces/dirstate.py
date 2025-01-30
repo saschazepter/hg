@@ -21,11 +21,13 @@ if typing.TYPE_CHECKING:
     # Almost all mercurial modules are only imported in the type checking phase
     # to avoid circular imports
     from .. import (
-        match as matchmod,
         transaction as txnmod,
     )
 
-    from . import status as istatus
+    from . import (
+        matcher,
+        status as istatus,
+    )
 
     # TODO: finish adding type hints
     AddParentChangeCallbackT = Callable[
@@ -95,7 +97,7 @@ class idirstate(Protocol):
 
     # TODO: decorate with `@rootcache(b'.hgignore')` like dirstate class?
     @property
-    def _ignore(self) -> matchmod.basematcher:
+    def _ignore(self) -> matcher.IMatcher:
         """Matcher for ignored files."""
 
     @property
@@ -307,7 +309,7 @@ class idirstate(Protocol):
     @abc.abstractmethod
     def walk(
         self,
-        match: matchmod.basematcher,
+        match: matcher.IMatcher,
         subrepos: Any,  # TODO: figure out what this is
         unknown: bool,
         ignored: bool,
@@ -327,7 +329,7 @@ class idirstate(Protocol):
     @abc.abstractmethod
     def status(
         self,
-        match: matchmod.basematcher,
+        match: matcher.IMatcher,
         subrepos: bool,
         ignored: bool,
         clean: bool,
@@ -352,7 +354,7 @@ class idirstate(Protocol):
     # TODO: could return a list, except git.dirstate is a generator
 
     @abc.abstractmethod
-    def matches(self, match: matchmod.basematcher) -> Iterable[bytes]:
+    def matches(self, match: matcher.IMatcher) -> Iterable[bytes]:
         """
         return files in the dirstate (in whatever state) filtered by match
         """

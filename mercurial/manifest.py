@@ -28,6 +28,9 @@ from typing import (
 )
 
 from .i18n import _
+from .interfaces.types import (
+    MatcherT,
+)
 from .node import (
     bin,
     hex,
@@ -570,7 +573,7 @@ class manifestdict(repository.imanifestdict):
     def hasdir(self, dir: bytes) -> bool:
         return dir in self._dirs
 
-    def _filesfastpath(self, match: matchmod.basematcher) -> bool:
+    def _filesfastpath(self, match: MatcherT) -> bool:
         """Checks whether we can correctly and quickly iterate over matcher
         files instead of over manifest files."""
         files = match.files()
@@ -579,7 +582,7 @@ class manifestdict(repository.imanifestdict):
             or (match.prefix() and all(fn in self for fn in files))
         )
 
-    def walk(self, match: matchmod.basematcher) -> Iterator[bytes]:
+    def walk(self, match: MatcherT) -> Iterator[bytes]:
         """Generates matching file names.
 
         Equivalent to manifest.matches(match).iterkeys(), but without creating
@@ -615,7 +618,7 @@ class manifestdict(repository.imanifestdict):
             if not self.hasdir(fn):
                 match.bad(fn, None)
 
-    def _matches(self, match: matchmod.basematcher) -> manifestdict:
+    def _matches(self, match: MatcherT) -> manifestdict:
         '''generate a new manifest filtered by the match argument'''
         if match.always():
             return self.copy()
@@ -635,7 +638,7 @@ class manifestdict(repository.imanifestdict):
     def diff(
         self,
         m2: manifestdict,
-        match: Optional[matchmod.basematcher] = None,
+        match: Optional[MatcherT] = None,
         clean: bool = False,
     ) -> Dict[
         bytes,
@@ -1202,7 +1205,7 @@ class treemanifest:  # (repository.imanifestdict)
         return copy
 
     def filesnotin(
-        self, m2: treemanifest, match: Optional[matchmod.basematcher] = None
+        self, m2: treemanifest, match: Optional[MatcherT] = None
     ) -> Set[bytes]:
         '''Set of files in this manifest that are not in the other'''
         if match and not match.always():
@@ -1250,7 +1253,7 @@ class treemanifest:  # (repository.imanifestdict)
         dirslash = dir + b'/'
         return dirslash in self._dirs or dirslash in self._lazydirs
 
-    def walk(self, match: matchmod.basematcher) -> Iterator[bytes]:
+    def walk(self, match: MatcherT) -> Iterator[bytes]:
         """Generates matching file names.
 
         It also reports nonexistent files by marking them bad with match.bad().
@@ -1275,7 +1278,7 @@ class treemanifest:  # (repository.imanifestdict)
             if not self.hasdir(fn):
                 match.bad(fn, None)
 
-    def _walk(self, match: matchmod.basematcher) -> Iterator[bytes]:
+    def _walk(self, match: MatcherT) -> Iterator[bytes]:
         '''Recursively generates matching file names for walk().'''
         visit = match.visitchildrenset(self._dir[:-1])
         if not visit:
@@ -1293,13 +1296,13 @@ class treemanifest:  # (repository.imanifestdict)
                 if not visit or p[:-1] in visit:
                     yield from self._dirs[p]._walk(match)
 
-    def _matches(self, match: matchmod.basematcher) -> treemanifest:
+    def _matches(self, match: MatcherT) -> treemanifest:
         """recursively generate a new manifest filtered by the match argument."""
         if match.always():
             return self.copy()
         return self._matches_inner(match)
 
-    def _matches_inner(self, match: matchmod.basematcher) -> treemanifest:
+    def _matches_inner(self, match: MatcherT) -> treemanifest:
         if match.always():
             return self.copy()
 
@@ -1348,7 +1351,7 @@ class treemanifest:  # (repository.imanifestdict)
     def diff(
         self,
         m2: treemanifest,
-        match: Optional[matchmod.basematcher] = None,
+        match: Optional[MatcherT] = None,
         clean: bool = False,
     ) -> Dict[
         bytes,
@@ -1482,11 +1485,11 @@ class treemanifest:  # (repository.imanifestdict)
                 Callable[[treemanifest], None],
                 bytes,
                 bytes,
-                matchmod.basematcher,
+                MatcherT,
             ],
             None,
         ],
-        match: matchmod.basematcher,
+        match: MatcherT,
     ) -> None:
         self._load()  # for consistency; should never have any effect here
         m1._load()
@@ -1516,7 +1519,7 @@ class treemanifest:  # (repository.imanifestdict)
             writesubtree(subm, subp1, subp2, match)
 
     def walksubtrees(
-        self, matcher: Optional[matchmod.basematcher] = None
+        self, matcher: Optional[MatcherT] = None
     ) -> Iterator[treemanifest]:
         """Returns an iterator of the subtrees of this manifest, including this
         manifest itself.
