@@ -62,7 +62,7 @@ all: build doc
 local:
 	$(PYTHON) -m venv $(VENV_NAME) --clear --upgrade-deps
 	MERCURIAL_SETUP_MAKE_LOCAL=1 $(VENV_NAME)/$(PYBINDIRNAME)/python -m \
-	  pip install -e . -v --config-settings --global-option=$(PURE)
+	  pip install -e . -v --config-settings --global-option="$(PURE)"
 	env HGRCPATH= $(VENV_NAME)/$(PYBINDIRNAME)/hg version
 
 build:
@@ -101,7 +101,7 @@ clean: cleanbutpackages
 install: install-bin install-doc
 
 install-bin:
-	$(PYTHON) -m pip install --prefix="$(PREFIX)" --force -v --config-settings --global-option=$(PURE)
+	$(PYTHON) -m pip install --prefix="$(PREFIX)" --force -v --config-settings --global-option="$(PURE)"
 
 install-chg: build-chg
 	make -C contrib/chg install PREFIX="$(PREFIX)"
@@ -112,7 +112,7 @@ install-doc: doc
 install-home: install-home-bin install-home-doc
 
 install-home-bin:
-	$(PYTHON) -m pip install --user --force -v --config-settings --global-option=$(PURE)
+	$(PYTHON) -m pip install --user --force -v --config-settings --global-option="$(PURE)"
 
 install-home-doc: doc
 	cd doc && $(MAKE) $(MFLAGS) PREFIX="$(HOME)" install
