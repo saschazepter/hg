@@ -19,6 +19,8 @@ from typing import (
 
 from mercurial.i18n import _
 
+from mercurial.interfaces.types import MatcherT
+
 from mercurial.hgweb import webcommands
 
 from mercurial import (
@@ -1232,7 +1234,7 @@ def overridearchive(
     node,
     kind,
     decode=True,
-    match: Optional[matchmod.basematcher] = None,
+    match: Optional[MatcherT] = None,
     prefix=b'',
     mtime=None,
     subrepos=None,
@@ -1347,9 +1349,7 @@ def overridearchive(
 
 
 @eh.wrapfunction(subrepo.hgsubrepo, 'archive')
-def hgsubrepoarchive(
-    orig, repo, opener, prefix, match: matchmod.basematcher, decode=True
-):
+def hgsubrepoarchive(orig, repo, opener, prefix, match: MatcherT, decode=True):
     lfenabled = hasattr(repo._repo, '_largefilesenabled')
     if not lfenabled or not repo._repo.lfstatus:
         return orig(repo, opener, prefix, match, decode)

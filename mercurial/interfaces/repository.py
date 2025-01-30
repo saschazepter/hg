@@ -32,7 +32,6 @@ if typing.TYPE_CHECKING:
     # Almost all mercurial modules are only imported in the type checking phase
     # to avoid circular imports
     from .. import (
-        match as matchmod,
         pathutil,
         util,
     )
@@ -40,7 +39,10 @@ if typing.TYPE_CHECKING:
         urlutil,
     )
 
-    from . import dirstate as intdirstate
+    from . import (
+        dirstate as intdirstate,
+        matcher,
+    )
 
     # TODO: make a protocol class for this
     NodeConstants = Any
@@ -1184,7 +1186,7 @@ class imanifestdict(Protocol):
         """Returns a bool indicating if a directory is in this manifest."""
 
     @abc.abstractmethod
-    def walk(self, match: matchmod.basematcher) -> Iterator[bytes]:
+    def walk(self, match: matcher.IMatcher) -> Iterator[bytes]:
         """Generator of paths in manifest satisfying a matcher.
 
         If the matcher has explicit files listed and they don't exist in
@@ -1195,7 +1197,7 @@ class imanifestdict(Protocol):
     def diff(
         self,
         other: Any,  # TODO: 'manifestdict' or (better) equivalent interface
-        match: matchmod.basematcher | None = None,
+        match: matcher.IMatcher | None = None,
         clean: bool = False,
     ) -> dict[
         bytes,

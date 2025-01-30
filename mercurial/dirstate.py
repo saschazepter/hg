@@ -24,6 +24,7 @@ from typing import (
 )
 
 from .i18n import _
+from .interfaces.types import MatcherT
 
 from hgdemandimport import tracing
 
@@ -483,7 +484,7 @@ class dirstate(intdirstate.idirstate):
         return self._map.hastrackeddir(d)
 
     @rootcache(b'.hgignore')
-    def _ignore(self) -> matchmod.basematcher:
+    def _ignore(self) -> MatcherT:
         files = self._ignorefiles()
         if not files:
             return matchmod.never()
@@ -1359,7 +1360,7 @@ class dirstate(intdirstate.idirstate):
 
     def walk(
         self,
-        match: matchmod.basematcher,
+        match: MatcherT,
         subrepos: Any,
         unknown: bool,
         ignored: bool,
@@ -1639,7 +1640,7 @@ class dirstate(intdirstate.idirstate):
 
     def status(
         self,
-        match: matchmod.basematcher,
+        match: MatcherT,
         subrepos: bool,
         ignored: bool,
         clean: bool,
@@ -1796,7 +1797,7 @@ class dirstate(intdirstate.idirstate):
         )
         return (lookup, status, mtime_boundary)
 
-    def matches(self, match: matchmod.basematcher) -> Iterable[bytes]:
+    def matches(self, match: MatcherT) -> Iterable[bytes]:
         """
         return files in the dirstate (in whatever state) filtered by match
         """
