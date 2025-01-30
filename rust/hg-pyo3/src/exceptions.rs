@@ -52,7 +52,6 @@ pub fn map_try_lock_error<T>(e: std::sync::TryLockError<T>) -> PyErr {
     PyRuntimeError::new_err(format!("In Rust PyO3 bindings: {e}"))
 }
 
-#[allow(unused)]
 pub fn to_string_value_error<T: Display>(e: T) -> PyErr {
     PyValueError::new_err(e.to_string())
 }
