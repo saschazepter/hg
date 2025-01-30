@@ -91,7 +91,7 @@ export PYTHONPATH=$PWD/%{docutilsname}
 make all PYTHON=%{pythonexe}
 make -C contrib/chg
 
-sed -i -e '1s|#!/usr/bin/env python$|#!/usr/bin/env %{pythonexe}|' contrib/hg-ssh
+sed -i -e '1s|#!/usr/bin/env python3$|#!/usr/bin/env %{pythonexe}|' contrib/hg-ssh
 
 %install
 rm -rf $RPM_BUILD_ROOT
