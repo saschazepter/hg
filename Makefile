@@ -28,13 +28,6 @@ export LC_ALL=C
 TESTFLAGS ?= $(shell echo $$HGTESTFLAGS)
 CARGO = cargo
 
-# Set this to e.g. "mingw32" to use a non-default compiler.
-COMPILER=
-
-COMPILERFLAG_tmp_ =
-COMPILERFLAG_tmp_${COMPILER} ?= -c $(COMPILER)
-COMPILERFLAG=${COMPILERFLAG_tmp_${COMPILER}}
-
 VENV_NAME=$(shell $(PYTHON) -c "import sys; v = sys.version_info; print(f'.venv_{sys.implementation.name}{v.major}.{v.minor}')")
 PYBINDIRNAME=$(shell $(PYTHON) -c "import os; print('Scripts' if os.name == 'nt' else 'bin')")
 
@@ -70,7 +63,7 @@ local:
 
 .PHONY: build
 build:
-	$(PYTHON) setup.py $(PURE) build $(COMPILERFLAG)
+	$(PYTHON) setup.py $(PURE) build
 
 .PHONY: build-chg
 build-chg:
@@ -82,7 +75,7 @@ build-rhg:
 
 .PHONY: wheel
 wheel:
-	$(PYTHON) setup.py $(PURE) bdist_wheel $(COMPILERFLAG)
+	$(PYTHON) setup.py $(PURE) bdist_wheel
 
 .PHONY: doc
 doc:
