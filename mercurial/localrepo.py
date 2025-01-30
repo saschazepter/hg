@@ -3071,6 +3071,7 @@ class localrepository(_localrepo_base_classes):
         releasefn,
         acquirefn,
         desc,
+        steal_from=None,
     ):
         timeout = 0
         warntimeout = 0
@@ -3083,18 +3084,31 @@ class localrepository(_localrepo_base_classes):
         if not sync_file:
             sync_file = None
 
-        l = lockmod.trylock(
-            self.ui,
-            vfs,
-            lockname,
-            timeout,
-            warntimeout,
-            releasefn=releasefn,
-            acquirefn=acquirefn,
-            desc=desc,
-            signalsafe=signalsafe,
-            devel_wait_sync_file=sync_file,
-        )
+        if steal_from is None:
+            l = lockmod.trylock(
+                self.ui,
+                vfs,
+                lockname,
+                timeout,
+                warntimeout,
+                releasefn=releasefn,
+                acquirefn=acquirefn,
+                desc=desc,
+                signalsafe=signalsafe,
+                devel_wait_sync_file=sync_file,
+            )
+        else:
+            l = lockmod.steal_lock(
+                self.ui,
+                vfs,
+                lockname,
+                steal_from,
+                releasefn=releasefn,
+                acquirefn=acquirefn,
+                desc=desc,
+                signalsafe=signalsafe,
+            )
+
         return l
 
     def _afterlock(self, callback):
@@ -3110,19 +3124,29 @@ class localrepository(_localrepo_base_classes):
         else:  # no lock have been found.
             callback(True)
 
-    def lock(self, wait=True):
+    def lock(self, wait=True, steal_from=None):
         """Lock the repository store (.hg/store) and return a weak reference
         to the lock. Use this before modifying the store (e.g. committing or
         stripping). If you are opening a transaction, get a lock as well.)
 
         If both 'lock' and 'wlock' must be acquired, ensure you always acquires
-        'wlock' first to avoid a dead-lock hazard."""
+        'wlock' first to avoid a dead-lock hazard.
+
+
+        The steal_from argument is  used during local clone when reloading a
+        repository. If we could remove the need for this during copy clone, we
+        could remove this function.
+        """
         l = self._currentlock(self._lockref)
         if l is not None:
+            if steal_from is not None:
+                msg = "cannot steal lock if already locked"
+                raise error.ProgrammingError(msg)
             l.lock()
             return l
 
-        self.hook(b'prelock', throw=True)
+        if steal_from is None:
+            self.hook(b'prelock', throw=True)
         l = self._lock(
             vfs=self.svfs,
             lockname=b"lock",
@@ -3130,24 +3154,34 @@ class localrepository(_localrepo_base_classes):
             releasefn=None,
             acquirefn=self.invalidate,
             desc=_(b'repository %s') % self.origroot,
+            steal_from=steal_from,
         )
         self._lockref = weakref.ref(l)
         return l
 
-    def wlock(self, wait=True):
+    def wlock(self, wait=True, steal_from=None):
         """Lock the non-store parts of the repository (everything under
         .hg except .hg/store) and return a weak reference to the lock.
 
         Use this before modifying files in .hg.
 
         If both 'lock' and 'wlock' must be acquired, ensure you always acquires
-        'wlock' first to avoid a dead-lock hazard."""
-        l = self._wlockref() if self._wlockref else None
-        if l is not None and l.held:
+        'wlock' first to avoid a dead-lock hazard.
+
+        The steal_from argument is  used during local clone when reloading a
+        repository. If we could remove the need for this during copy clone, we
+        could remove this function.
+        """
+        l = self._currentlock(self._wlockref)
+        if l is not None:
+            if steal_from is not None:
+                msg = "cannot steal wlock if already locked"
+                raise error.ProgrammingError(msg)
             l.lock()
             return l
 
-        self.hook(b'prewlock', throw=True)
+        if steal_from is None:
+            self.hook(b'prewlock', throw=True)
         # We do not need to check for non-waiting lock acquisition.  Such
         # acquisition would not cause dead-lock as they would just fail.
         if wait and (
@@ -3179,6 +3213,7 @@ class localrepository(_localrepo_base_classes):
             releasefn=unlock,
             acquirefn=self.invalidatedirstate,
             desc=_(b'working directory of %s') % self.origroot,
+            steal_from=steal_from,
         )
         self._wlockref = weakref.ref(l)
         return l
