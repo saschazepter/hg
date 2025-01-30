@@ -43,7 +43,7 @@ help:
 	@echo 'Commonly used make targets:'
 	@echo '  all          - build program and documentation'
 	@echo '  install      - install program and man pages to $$PREFIX ($(PREFIX))'
-	@echo '  install-home - install with setup.py install --home=$$HOME ($(HOME))'
+	@echo '  install-home - install with pip install --user'
 	@echo '  local        - build for inplace usage'
 	@echo '  tests        - run all tests in the automatic test suite'
 	@echo '  test-foo     - run only specified tests (e.g. test-merge1.t)'
@@ -101,8 +101,8 @@ clean: cleanbutpackages
 
 install: install-bin install-doc
 
-install-bin: build
-	$(PYTHON) setup.py $(PURE) install --root="$(DESTDIR)/" --prefix="$(PREFIX)" --force
+install-bin:
+	$(PYTHON) -m pip install --prefix="$(PREFIX)" --force -v --config-settings --global-option=$(PURE)
 
 install-chg: build-chg
 	make -C contrib/chg install PREFIX="$(PREFIX)"
@@ -112,8 +112,8 @@ install-doc: doc
 
 install-home: install-home-bin install-home-doc
 
-install-home-bin: build
-	$(PYTHON) setup.py $(PURE) install --home="$(HOME)" --prefix="" --force
+install-home-bin:
+	$(PYTHON) -m pip install --user --force -v --config-settings --global-option=$(PURE)
 
 install-home-doc: doc
 	cd doc && $(MAKE) $(MFLAGS) PREFIX="$(HOME)" install
