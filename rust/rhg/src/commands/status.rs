@@ -687,8 +687,7 @@ impl DisplayStatusPaths<'_> {
         mut paths: Vec<StatusPath<'_>>,
     ) -> Result<(), CommandError> {
         paths.sort_unstable();
-        // TODO: get the stdout lock once for the whole loop
-        // instead of in each write
+        let mut stdout = self.ui.stdout_buffer();
         for StatusPath { path, copy_source } in paths {
             let relative_path;
             let relative_source;
@@ -702,25 +701,27 @@ impl DisplayStatusPaths<'_> {
             } else {
                 (path.as_bytes(), copy_source.as_ref().map(|s| s.as_bytes()))
             };
-            // TODO: Add a way to use `write_bytes!` instead of `format_bytes!`
-            // in order to stream to stdout instead of allocating an
-            // itermediate `Vec<u8>`.
+            // TODO: Add a way to use `write_bytes!` instead of
+            // `format_bytes!` in order to stream to stdout
+            // instead of allocating an itermediate
+            // `Vec<u8>`.
             if !self.no_status {
-                self.ui.write_stdout_labelled(status_prefix, label)?
+                stdout.write_stdout_labelled(status_prefix, label)?
             }
             let linebreak = if self.print0 { b"\x00" } else { b"\n" };
-            self.ui.write_stdout_labelled(
+            stdout.write_stdout_labelled(
                 &format_bytes!(b"{}{}", path, linebreak),
                 label,
             )?;
             if let Some(source) = copy_source {
                 let label = "status.copied";
-                self.ui.write_stdout_labelled(
+                stdout.write_stdout_labelled(
                     &format_bytes!(b"  {}{}", source, linebreak),
                     label,
                 )?
             }
         }
+        stdout.flush()?;
         Ok(())
     }
 
