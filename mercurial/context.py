@@ -2542,17 +2542,18 @@ class overlayworkingctx(committablectx):
         files = self.files()
 
         def getfile(repo, memctx, path):
-            if path not in self._cache:
+            hit = self._cache.get(path)
+            if hit is None:
                 return self.filectx(path)
-            elif self._cache[path][b'exists']:
+            elif hit[b'exists']:
                 return memfilectx(
                     repo,
                     memctx,
                     path,
-                    self._cache[path][b'data'],
-                    b'l' in self._cache[path][b'flags'],
-                    b'x' in self._cache[path][b'flags'],
-                    self._cache[path][b'copied'],
+                    hit[b'data'],
+                    b'l' in hit[b'flags'],
+                    b'x' in hit[b'flags'],
+                    hit[b'copied'],
                 )
             else:
                 # Returning None, but including the path in `files`, is
