@@ -3,7 +3,7 @@ doesn't automatically convert it in every case.
 
 #if windows
   $ path_list_var() {
-  >     echo $1 | sed 's/:/;/'
+  >     echo $1 | sed 's/:/;/g'
   > }
 #else
   $ path_list_var() {
