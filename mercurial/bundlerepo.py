@@ -691,84 +691,79 @@ def getremotechanges(
 
 
 def _create_bundle(state, ui, repo, bundlename, onlyheads):
-    if True:
-        # create a bundle (uncompressed if peer repo is not local)
+    # create a bundle (uncompressed if peer repo is not local)
 
-        # developer config: devel.legacy.exchange
-        legexc = ui.configlist(b'devel', b'legacy.exchange')
-        forcebundle1 = b'bundle2' not in legexc and b'bundle1' in legexc
-        canbundle2 = (
-            not forcebundle1
-            and state.peer.capable(b'getbundle')
-            and state.peer.capable(b'bundle2')
-        )
-        if canbundle2:
+    # developer config: devel.legacy.exchange
+    legexc = ui.configlist(b'devel', b'legacy.exchange')
+    forcebundle1 = b'bundle2' not in legexc and b'bundle1' in legexc
+    canbundle2 = (
+        not forcebundle1
+        and state.peer.capable(b'getbundle')
+        and state.peer.capable(b'bundle2')
+    )
+    if canbundle2:
+        with state.peer.commandexecutor() as e:
+            b2 = e.callcommand(
+                b'getbundle',
+                {
+                    b'source': b'incoming',
+                    b'common': state.common,
+                    b'heads': state.rheads,
+                    b'bundlecaps': exchange.caps20to10(repo, role=b'client'),
+                    b'cg': True,
+                },
+            ).result()
+
+            fname = state.bundle = changegroup.writechunks(
+                ui, b2._forwardchunks(), bundlename
+            )
+    else:
+        if state.peer.capable(b'getbundle'):
             with state.peer.commandexecutor() as e:
-                b2 = e.callcommand(
+                cg = e.callcommand(
                     b'getbundle',
                     {
                         b'source': b'incoming',
                         b'common': state.common,
                         b'heads': state.rheads,
-                        b'bundlecaps': exchange.caps20to10(
-                            repo, role=b'client'
-                        ),
-                        b'cg': True,
+                    },
+                ).result()
+        elif onlyheads is None and not state.peer.capable(b'changegroupsubset'):
+            # compat with older servers when pulling all remote heads
+
+            with state.peer.commandexecutor() as e:
+                cg = e.callcommand(
+                    b'changegroup',
+                    {
+                        b'nodes': state.incoming,
+                        b'source': b'incoming',
                     },
                 ).result()
 
-                fname = state.bundle = changegroup.writechunks(
-                    ui, b2._forwardchunks(), bundlename
-                )
+            state.rheads = None
         else:
-            if state.peer.capable(b'getbundle'):
-                with state.peer.commandexecutor() as e:
-                    cg = e.callcommand(
-                        b'getbundle',
-                        {
-                            b'source': b'incoming',
-                            b'common': state.common,
-                            b'heads': state.rheads,
-                        },
-                    ).result()
-            elif onlyheads is None and not state.peer.capable(
-                b'changegroupsubset'
-            ):
-                # compat with older servers when pulling all remote heads
+            with state.peer.commandexecutor() as e:
+                cg = e.callcommand(
+                    b'changegroupsubset',
+                    {
+                        b'bases': state.incoming,
+                        b'heads': state.rheads,
+                        b'source': b'incoming',
+                    },
+                ).result()
 
-                with state.peer.commandexecutor() as e:
-                    cg = e.callcommand(
-                        b'changegroup',
-                        {
-                            b'nodes': state.incoming,
-                            b'source': b'incoming',
-                        },
-                    ).result()
+        if state.localrepo:
+            bundletype = b"HG10BZ"
+        else:
+            bundletype = b"HG10UN"
+        fname = state.bundle = bundle2.writebundle(
+            ui, cg, bundlename, bundletype
+        )
+    # keep written bundle?
+    if bundlename:
+        state.bundle = None
 
-                state.rheads = None
-            else:
-                with state.peer.commandexecutor() as e:
-                    cg = e.callcommand(
-                        b'changegroupsubset',
-                        {
-                            b'bases': state.incoming,
-                            b'heads': state.rheads,
-                            b'source': b'incoming',
-                        },
-                    ).result()
-
-            if state.localrepo:
-                bundletype = b"HG10BZ"
-            else:
-                bundletype = b"HG10UN"
-            fname = state.bundle = bundle2.writebundle(
-                ui, cg, bundlename, bundletype
-            )
-        # keep written bundle?
-        if bundlename:
-            state.bundle = None
-
-        return fname
+    return fname
 
 
 def _getremotechanges_slowpath(
