@@ -66,7 +66,7 @@ export HGPYTHON3=1
 PYPATH=$PWD/%{pythonname}
 PYTHON_FULLPATH=$PYPATH/python3
 cd $PYPATH
-./configure --prefix=%{hgpyprefix} --with-ensurepip=install
+./configure --prefix=%{hgpyprefix} --with-ensurepip=install --enable-optimizations --with-lto
 make all %{?_smp_mflags}
 # add a symlink and only refer to python3 from here on
 ln -s python python3
