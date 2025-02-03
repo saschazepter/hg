@@ -19,7 +19,7 @@ RHEL_RELEASES := \
   9
 
 # Build a Python for these RHEL (and derivatives) releases.
-RHEL_WITH_PYTHON_RELEASES :=
+RHEL_WITH_PYTHON_RELEASES := 8
 RHEL_WITH_NONVERSIONED_PYTHON :=
 RHEL_WITH_36_DOCUTILS := 7
 
