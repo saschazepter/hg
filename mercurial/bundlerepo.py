@@ -683,11 +683,15 @@ def getremotechanges(
     rheads = [x for x in rheads if x not in commonset]
 
     state = getremotechanges_state_tracker(peer, incoming, common, rheads)
-    csets = _getremotechanges_slowpath(
-        state, ui, repo, bundlename=bundlename, onlyheads=onlyheads
-    )
 
-    return (state.localrepo, csets, state.cleanup)
+    try:
+        csets = _getremotechanges_slowpath(
+            state, ui, repo, bundlename=bundlename, onlyheads=onlyheads
+        )
+        return (state.localrepo, csets, state.cleanup)
+    except:  # re-raises
+        state.cleanup()
+        raise
 
 
 def _create_bundle(state, ui, repo, bundlename, onlyheads):
