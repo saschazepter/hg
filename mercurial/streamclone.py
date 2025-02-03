@@ -1259,7 +1259,10 @@ class _Queue:
                 # grab the lock to look at a possible available value
                 self._lock.acquire()
                 # disarm the lock if necessary.
-                if self._wait.locked():
+                #
+                # If the queue only constains one item, keep the _wait lock
+                # armed, as there is no need to wake another waiter anyway.
+                if self._wait.locked() and len(self._queue) > 1:
                     self._wait.release()
             return self._queue.popleft()
 
