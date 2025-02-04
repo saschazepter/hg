@@ -746,3 +746,139 @@ impl<'a, T: ?Sized> DerefMut for SharedByPyObjectRefMut<'a, T> {
         self.data
     }
 }
+
+/// Defines a Python iterator over a Rust iterator.
+///
+/// TODO: this is a bit awkward to use, and a better (more complicated)
+///     procedural macro would simplify the interface a lot.
+///
+/// # Parameters
+///
+/// * `$name` is the identifier to give to the resulting Rust struct.
+/// * `$success_type` is the resulting Python object. It can be a bultin type,
+///   (e.g., `PyBytes`), or any `PyClass`.
+/// * `$owner_type` is the type owning the data
+/// * `$owner_attr` is the name of the shareable attribute in `$owner_type`
+/// * `$shared_type` is the type wrapped in `SharedByPyObject`, typically
+///   `SomeIter<'static>`
+/// * `$iter_func` is a function to obtain the Rust iterator from the content
+///   of the shareable attribute. It can be a closure.
+/// * `$result_func` is a function for converting items returned by the Rust
+///   iterator into `PyResult<Option<Py<$success_type>`.
+///
+/// # Safety
+///
+/// `$success_func` may take a reference, whose lifetime may be articial.
+/// Do not copy it out of the function call (this would be possible only
+/// with inner mutability).
+///
+/// # Example
+///
+/// The iterator example in [`PyShareable`] can be rewritten as
+///
+/// ```
+/// use pyo3::prelude::*;
+/// use pyo3_sharedref::*;
+///
+/// use pyo3::types::{PyTuple, PyInt};
+/// use std::collections::{hash_set::Iter as IterHashSet, HashSet};
+/// use std::vec::Vec;
+///
+/// #[pyclass(sequence)]
+/// struct Set {
+///     rust_set: PyShareable<HashSet<i32>>,
+/// }
+///
+/// #[pymethods]
+/// impl Set {
+///     #[new]
+///     fn new(values: &Bound<'_, PyTuple>) -> PyResult<Self> {
+///         let as_vec = values.extract::<Vec<i32>>()?;
+///         let s: HashSet<_> = as_vec.iter().copied().collect();
+///         Ok(Self { rust_set: s.into() })
+///     }
+///
+///     fn __iter__(slf: &Bound<'_, Self>) -> PyResult<SetIterator> {
+///         SetIterator::new(slf)
+///     }
+/// }
+///
+/// py_shared_iterator!(
+///    SetIterator,
+///    PyInt,
+///    Set,
+///    rust_set,
+///    IterHashSet<'static, i32>,
+///    |hash_set| hash_set.iter(),
+///    it_next_result
+/// );
+///
+/// fn it_next_result(py: Python, res: &i32) -> PyResult<Option<Py<PyInt>>> {
+///     Ok(Some((*res).into_pyobject(py)?.unbind()))
+/// }
+/// ```
+///
+/// In the example above, `$result_func` is fairly trivial, and can be replaced
+/// by a closure, but things can get more complicated if the Rust
+/// iterator itself returns `Result<T, E>` with `T` not implementing
+/// `IntoPyObject` and `E` needing to be converted.
+/// Also the closure variant is fairly obscure:
+///
+/// ```ignore
+/// py_shared_iterator!(
+///    SetIterator,
+///    PyInt,
+///    Set,
+///    rust_set,
+///    IterHashSet<'static, i32>,
+///    |hash_set| hash_set.iter(),
+///    (|py, i: &i32| Ok(Some((*i).into_pyobject(py)?.unbind())))
+/// )
+/// ```
+#[macro_export]
+macro_rules! py_shared_iterator {
+    (
+        $name: ident,
+        $success_type: ty,
+        $owner_type: ident,
+        $owner_attr: ident,
+        $shared_type: ty,
+        $iter_func: expr,
+        $result_func: expr
+    ) => {
+        #[pyclass]
+        pub struct $name {
+            inner: pyo3_sharedref::SharedByPyObject<$shared_type>,
+        }
+
+        #[pymethods]
+        impl $name {
+            #[new]
+            fn new(owner: &Bound<'_, $owner_type>) -> PyResult<Self> {
+                let inner = &owner.borrow().$owner_attr;
+                // Safety: the data is indeed owned by `owner`
+                let shared_iter =
+                    unsafe { inner.share_map(owner, $iter_func) };
+                Ok(Self { inner: shared_iter })
+            }
+
+            fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+                slf
+            }
+
+            fn __next__(
+                mut slf: PyRefMut<'_, Self>,
+            ) -> PyResult<Option<Py<$success_type>>> {
+                let py = slf.py();
+                let shared = &mut slf.inner;
+                // Safety: we do not leak references derived from the internal
+                // 'static reference.
+                let mut inner = unsafe { shared.try_borrow_mut(py) }?;
+                match inner.next() {
+                    None => Ok(None),
+                    Some(res) => $result_func(py, res),
+                }
+            }
+        }
+    };
+}
