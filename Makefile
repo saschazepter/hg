@@ -105,7 +105,7 @@ install: install-bin install-doc
 
 .PHONY: install-bin
 install-bin:
-	$(PYTHON) -m pip install --prefix="$(PREFIX)" --force -v --config-settings --global-option="$(PURE)"
+	$(PYTHON) -m pip install . --prefix="$(PREFIX)" --force -v --config-settings --global-option="$(PURE)"
 
 .PHONY: install-chg
 install-chg: build-chg
@@ -120,7 +120,7 @@ install-home: install-home-bin install-home-doc
 
 .PHONY: install-home-bin
 install-home-bin:
-	$(PYTHON) -m pip install --user --force -v --config-settings --global-option="$(PURE)"
+	$(PYTHON) -m pip install . --user --force -v --config-settings --global-option="$(PURE)"
 
 .PHONY: install-home-doc
 install-home-doc: doc
