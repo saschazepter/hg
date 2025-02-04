@@ -32,7 +32,7 @@ use hg::{
     DirstateParents,
 };
 
-use super::item::DirstateItem;
+use super::{copy_map::CopyMap, item::DirstateItem};
 use crate::{
     exceptions::{
         dirstate_error, dirstate_v2_error, map_try_lock_error,
@@ -383,6 +383,10 @@ impl DirstateMap {
         Self::keys(slf)
     }
 
+    fn copymap(slf: &Bound<'_, Self>) -> PyResult<Py<CopyMap>> {
+        CopyMap::new(slf).and_then(|cm| Py::new(slf.py(), cm))
+    }
+
     fn tracked_dirs(
         slf: &Bound<'_, Self>,
         py: Python,
@@ -478,7 +482,7 @@ impl DirstateMap {
         Ok(Some((PyHgPathRef(key), py_entry).into_pyobject(py)?.into()))
     }
 
-    pub fn with_inner_read<'py, T>(
+    pub(super) fn with_inner_read<'py, T>(
         slf: &Bound<'py, Self>,
         f: impl FnOnce(
             &PyRef<'py, Self>,
@@ -493,7 +497,7 @@ impl DirstateMap {
         f(&self_ref, guard)
     }
 
-    fn with_inner_write<'py, T>(
+    pub(super) fn with_inner_write<'py, T>(
         slf: &Bound<'py, Self>,
         f: impl FnOnce(
             &PyRef<'py, Self>,
