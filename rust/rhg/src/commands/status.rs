@@ -462,14 +462,18 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let (narrow_matcher, narrow_warnings) = narrow::matcher(repo)?;
     let (sparse_matcher, sparse_warnings) = sparse::matcher(repo)?;
-    let matcher = match (repo.has_narrow(), repo.has_sparse()) {
-        (true, true) => {
-            Box::new(IntersectionMatcher::new(narrow_matcher, sparse_matcher))
-        }
-        (true, false) => narrow_matcher,
-        (false, true) => sparse_matcher,
-        (false, false) => Box::new(AlwaysMatcher),
-    };
+    // Sparse is only applicable for the working copy, not history.
+    let sparse_is_applicable = revpair.is_none() && change.is_none();
+    let matcher =
+        match (repo.has_narrow(), repo.has_sparse() && sparse_is_applicable) {
+            (true, true) => Box::new(IntersectionMatcher::new(
+                narrow_matcher,
+                sparse_matcher,
+            )),
+            (true, false) => narrow_matcher,
+            (false, true) => sparse_matcher,
+            (false, false) => Box::new(AlwaysMatcher),
+        };
     let matcher = match args.get_many::<std::ffi::OsString>("file") {
         None => matcher,
         Some(files) => {
