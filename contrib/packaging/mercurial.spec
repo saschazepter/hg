@@ -55,8 +55,6 @@ for efficient handling of very large distributed projects.
 
 %if "%{?withpython}"
 %setup -q -n mercurial-%{version}-%{release} -a1 -a2
-# despite the comments in cgi.py, we do this to prevent rpmdeps from picking /usr/local/bin/python up
-sed -i '1c#! /usr/bin/env %{pythonexe}' %{pythonname}/Lib/cgi.py
 %else
 %setup -q -n mercurial-%{version}-%{release}
 %endif
