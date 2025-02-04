@@ -54,10 +54,10 @@ Test that sparse pattern by default is interpreted as "glob:", and is interprete
 Test that status --rev --rev and --change ignore sparse rules.
   $ hg status --rev null --rev 0
   A hide
-  A show (no-rhg !)
+  A show
   $ hg status --change 0
   A hide
-  A show (no-rhg !)
+  A show
 
 Absolute paths outside the repo should just be rejected
 
