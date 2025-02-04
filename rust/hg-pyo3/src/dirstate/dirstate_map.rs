@@ -51,7 +51,7 @@ type UncheckedTruncatedTimeStamp = Option<(i64, u32, bool)>;
 
 #[pyclass(mapping)]
 pub struct DirstateMap {
-    inner: PyShareable<OwningDirstateMap>,
+    pub(super) inner: PyShareable<OwningDirstateMap>,
 }
 
 #[pymethods]

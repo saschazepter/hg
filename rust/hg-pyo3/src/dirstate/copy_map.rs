@@ -10,11 +10,17 @@
 
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict};
+use pyo3::types::{PyBytes, PyDict, PyTuple};
+use pyo3_sharedref::py_shared_iterator;
 
 use std::sync::{RwLockReadGuard, RwLockWriteGuard};
 
-use hg::{dirstate::owning::OwningDirstateMap, utils::hg_path::HgPath};
+use hg::{
+    dirstate::{
+        on_disk::DirstateV2ParseError, owning::OwningDirstateMap, CopyMapIter,
+    },
+    utils::hg_path::HgPath,
+};
 
 use super::dirstate_map::DirstateMap;
 use crate::{
@@ -115,6 +121,18 @@ impl CopyMap {
         })
     }
 
+    fn __iter__(&self, py: Python) -> PyResult<CopyMapKeysIterator> {
+        self.keys(py)
+    }
+
+    fn keys(&self, py: Python) -> PyResult<CopyMapKeysIterator> {
+        CopyMapKeysIterator::new(self.dirstate_map.bind(py))
+    }
+
+    fn items(&self, py: Python) -> PyResult<CopyMapItemsIterator> {
+        CopyMapItemsIterator::new(self.dirstate_map.bind(py))
+    }
+
     fn __setitem__(
         &self,
         py: Python,
@@ -146,7 +164,47 @@ impl CopyMap {
     }
 }
 
+py_shared_iterator!(
+    CopyMapKeysIterator,
+    PyBytes,
+    DirstateMap,
+    inner,
+    CopyMapIter<'static>,
+    |dsm| dsm.copy_map_iter(),
+    CopyMap::keys_next_result
+);
+
+py_shared_iterator!(
+    CopyMapItemsIterator,
+    PyTuple,
+    DirstateMap,
+    inner,
+    CopyMapIter<'static>,
+    |dsm| dsm.copy_map_iter(),
+    CopyMap::items_next_result
+);
+
 impl CopyMap {
+    fn keys_next_result(
+        py: Python,
+        res: Result<(&HgPath, &HgPath), DirstateV2ParseError>,
+    ) -> PyResult<Option<Py<PyBytes>>> {
+        let key = res.map_err(dirstate_v2_error)?.0;
+        Ok(Some(PyHgPathRef(key).into_pyobject(py)?.unbind()))
+    }
+
+    fn items_next_result(
+        py: Python,
+        res: Result<(&HgPath, &HgPath), DirstateV2ParseError>,
+    ) -> PyResult<Option<Py<PyTuple>>> {
+        let (key, value) = res.map_err(dirstate_v2_error)?;
+        Ok(Some(
+            (PyHgPathRef(key), PyHgPathRef(value))
+                .into_pyobject(py)?
+                .unbind(),
+        ))
+    }
+
     fn with_dirstate_map_read<T>(
         &self,
         py: Python,
