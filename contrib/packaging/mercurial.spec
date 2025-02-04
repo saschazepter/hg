@@ -161,9 +161,11 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/%{pythonhg}
 %{hgpyprefix}
 %else
-%{_libdir}/python%{pythonver}/site-packages/%{name}-*-py%{pythonver}.egg-info
+%{_libdir}/python%{pythonver}/site-packages/mercurial-*.dist-info/
 %{_libdir}/python%{pythonver}/site-packages/%{name}
 %{_libdir}/python%{pythonver}/site-packages/hgext
 %{_libdir}/python%{pythonver}/site-packages/hgext3rd
 %{_libdir}/python%{pythonver}/site-packages/hgdemandimport
+/usr/share/bash-completion/completions/hg
+/usr/share/zsh/site-functions/_hg
 %endif
