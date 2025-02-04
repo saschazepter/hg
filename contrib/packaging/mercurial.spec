@@ -91,6 +91,7 @@ export CFLAGS="-L $PYPATH"
 export PYTHONPATH=$PWD/%{docutilsname}
 %else
 PYTHON_FULLPATH=$(which python3)
+$PYTHON_FULLPATH -m pip install pip setuptools setuptools-scm packaging --upgrade
 %endif
 
 make all PYTHON=$PYTHON_FULLPATH
