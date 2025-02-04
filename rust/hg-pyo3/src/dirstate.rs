@@ -20,7 +20,7 @@ use dirstate_map::{
     DirstateMapKeysIterator,
 };
 mod copy_map;
-use copy_map::CopyMap;
+use copy_map::{CopyMap, CopyMapItemsIterator, CopyMapKeysIterator};
 
 pub fn init_module<'py>(
     py: Python<'py>,
@@ -35,5 +35,7 @@ pub fn init_module<'py>(
     m.add_class::<DirstateMapKeysIterator>()?;
     m.add_class::<DirstateMapItemsIterator>()?;
     m.add_class::<CopyMap>()?;
+    m.add_class::<CopyMapKeysIterator>()?;
+    m.add_class::<CopyMapItemsIterator>()?;
     Ok(m)
 }
