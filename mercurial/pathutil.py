@@ -22,7 +22,7 @@ from . import (
     util,
 )
 
-rustdirs = policy.importrust('dirstate', 'Dirs')
+rustdirs = policy.importrust('dirstate', 'Dirs', pyo3=True)
 parsers = policy.importmod('parsers')
 
 
