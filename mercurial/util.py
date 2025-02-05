@@ -2881,7 +2881,10 @@ class chunkbuffer:
         return d
 
 
-def filechunkiter(f, size=131072, limit=None):
+DEFAULT_FILE_CHUNK = 128 * (2**10)
+
+
+def filechunkiter(f, size=DEFAULT_FILE_CHUNK, limit=None):
     """Create a generator that produces the data in the file size
     (default 131072) bytes at a time, up to optional limit (default is
     to read all data).  Chunks may be less than size bytes if the
