@@ -5,12 +5,12 @@ use format_bytes::format_bytes;
 use format_bytes::write_bytes;
 use hg::config::Config;
 use hg::config::PlainInfo;
+use hg::encoding::Encoder;
 use hg::errors::HgError;
 use hg::filepatterns::PatternFileWarning;
 use hg::repo::Repo;
 use hg::sparse;
 use hg::utils::files::get_bytes_from_path;
-use std::borrow::Cow;
 use std::io;
 use std::io::BufWriter;
 use std::io::IsTerminal;
@@ -21,6 +21,7 @@ pub struct Ui {
     stdout: std::io::Stdout,
     stderr: std::io::Stderr,
     colors: Option<ColorConfig>,
+    encoder: Encoder,
 }
 
 /// The kind of user interface error
@@ -40,6 +41,7 @@ impl Ui {
 
             stderr: std::io::stderr(),
             colors: ColorConfig::new(config)?,
+            encoder: Encoder::from_env()?,
         })
     }
 
@@ -53,6 +55,7 @@ impl Ui {
 
             stderr: std::io::stderr(),
             colors: ColorConfig::new(config).unwrap_or(None),
+            encoder: Encoder::default(),
         }
     }
 
@@ -81,6 +84,12 @@ impl Ui {
         stderr.write_all(bytes).or_else(handle_stderr_error)?;
 
         stderr.flush().or_else(handle_stderr_error)
+    }
+
+    // TODO: use this
+    #[allow(dead_code)]
+    pub fn encoder(&self) -> &Encoder {
+        &self.encoder
     }
 }
 
@@ -196,19 +205,6 @@ fn handle_stderr_error(error: io::Error) -> Result<(), UiError> {
         return Ok(());
     }
     Err(UiError::StdoutError(error))
-}
-
-/// Encode rust strings according to the user system.
-pub fn utf8_to_local(s: &str) -> Cow<[u8]> {
-    // TODO encode for the user's system //
-    let bytes = s.as_bytes();
-    Cow::Borrowed(bytes)
-}
-
-/// Decode user system bytes to Rust string.
-pub fn local_to_utf8(s: &[u8]) -> Cow<str> {
-    // TODO decode from the user's system
-    String::from_utf8_lossy(s)
 }
 
 /// Should formatted output be used?

@@ -1,6 +1,6 @@
 extern crate log;
 use crate::error::CommandError;
-use crate::ui::{local_to_utf8, Ui};
+use crate::ui::Ui;
 use clap::{command, Arg, ArgMatches};
 use format_bytes::{format_bytes, join};
 use hg::config::{Config, ConfigSource, PlainInfo};
@@ -446,7 +446,7 @@ fn exit(
             on_unsupported = OnUnsupported::Abort
         } else {
             log::debug!("falling back (see trace-level log)");
-            log::trace!("{}", local_to_utf8(message));
+            log::trace!("{}", String::from_utf8_lossy(message));
             if let Err(err) = which::which(executable_path) {
                 exit_no_fallback(
                     ui,
