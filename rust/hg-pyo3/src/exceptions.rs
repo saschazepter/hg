@@ -2,6 +2,8 @@ use pyo3::exceptions::{PyOSError, PyRuntimeError, PyValueError};
 use pyo3::import_exception;
 use pyo3::{create_exception, PyErr};
 
+use std::fmt::Display;
+
 use hg::dirstate::{on_disk::DirstateV2ParseError, DirstateError};
 
 use hg::revlog::nodemap::NodeMapError;
@@ -48,6 +50,11 @@ pub fn map_lock_error<T>(e: std::sync::PoisonError<T>) -> PyErr {
 
 pub fn map_try_lock_error<T>(e: std::sync::TryLockError<T>) -> PyErr {
     PyRuntimeError::new_err(format!("In Rust PyO3 bindings: {e}"))
+}
+
+#[allow(unused)]
+pub fn to_string_value_error<T: Display>(e: T) -> PyErr {
+    PyValueError::new_err(e.to_string())
 }
 
 pub mod mercurial_py_errors {
