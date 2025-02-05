@@ -346,6 +346,8 @@ impl DirstateMap {
 
     fn __contains__(
         slf: &Bound<'_, Self>,
+        // TODO we should accept PyAny and return false if wrong type
+        // review similar "protocol" methods (see example in dirs_multiset)
         key: &Bound<'_, PyBytes>,
     ) -> PyResult<bool> {
         Self::with_inner_read(slf, |_self_ref, inner| {
