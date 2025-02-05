@@ -1481,6 +1481,17 @@ class _ThreadSafeFileChunker(_FileChunker):
             yield chunk
 
 
+def _trivial_file(
+    chunk: bytes,
+    mark_used: Optional[Callable[[int], None]],
+    offset: int,
+) -> FileChunksT:
+    """used for single chunk file,"""
+    if mark_used is not None:
+        mark_used(offset)
+    yield chunk
+
+
 def _v2_parse_files(
     repo,
     fp: bundle2mod.unbundlepart,
@@ -1506,16 +1517,24 @@ def _v2_parse_files(
             repo.ui.debug(
                 b'adding [%s] %s (%s)\n' % (src, name, util.bytecount(datalen))
             )
-        chunks = file_chunker(
-            fp,
-            datalen,
-            progress,
-            report,
-            mark_used=mark_used,
-        )
-        yield (src, name, iter(chunks))
-        # make sure we read all the chunk before moving to the next file
-        chunks.fill()
+        if datalen <= util.DEFAULT_FILE_CHUNK:
+            c = fp.read(datalen)
+            offset = fp.tell()
+            report.byte_count += len(c)
+            progress.increment(step=len(c))
+            chunks = _trivial_file(c, mark_used, offset)
+            yield (src, name, iter(chunks))
+        else:
+            chunks = file_chunker(
+                fp,
+                datalen,
+                progress,
+                report,
+                mark_used=mark_used,
+            )
+            yield (src, name, iter(chunks))
+            # make sure we read all the chunk before moving to the next file
+            chunks.fill()
 
 
 def _write_files(vfsmap, info: Iterable[FileInfoT]):
