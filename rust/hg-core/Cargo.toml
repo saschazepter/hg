@@ -50,6 +50,7 @@ filetime = "0.2.23"
 uuid = { version = "1.10", features = ["v4"] }
 regex-automata = "0.4.9"
 regex-syntax = "0.8.5"
+unicode-width = "0.2.0"
 
 # We don't use the `miniz-oxide` backend to not change rhg benchmarks and until
 # we have a clearer view of which backend is the fastest.

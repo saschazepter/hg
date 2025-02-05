@@ -456,3 +456,9 @@ We can ignore all extensions at once
   $ echo "ignored-extensions=*" >> $HGRCPATH
   $ $NO_FALLBACK rhg files
   a
+
+Latin-1 is not supported yet
+
+  $ $NO_FALLBACK HGENCODING=latin-1 rhg root
+  unsupported feature: HGENCODING value 'latin-1' is not supported
+  [252]

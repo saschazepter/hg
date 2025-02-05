@@ -691,6 +691,7 @@ dependencies = [
  "thread_local",
  "toml",
  "twox-hash",
+ "unicode-width 0.2.0",
  "uuid",
  "zstd",
 ]

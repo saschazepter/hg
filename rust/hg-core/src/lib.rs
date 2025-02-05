@@ -7,6 +7,7 @@
 mod ancestors;
 mod bdiff;
 pub mod dagops;
+pub mod encoding;
 pub mod errors;
 pub mod narrow;
 pub mod sparse;
