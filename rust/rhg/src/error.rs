@@ -1,4 +1,3 @@
-use crate::ui::utf8_to_local;
 use crate::ui::UiError;
 use crate::NoRepoInCwdError;
 use format_bytes::format_bytes;
@@ -53,7 +52,7 @@ impl CommandError {
             // TODO: bytes-based (instead of Unicode-based) formatting
             // of error messages to handle non-UTF-8 filenames etc:
             // https://www.mercurial-scm.org/wiki/EncodingStrategy#Mixing_output
-            message: utf8_to_local(message.as_ref()).into(),
+            message: message.as_ref().as_bytes().to_owned(),
             detailed_exit_code,
             hint: None,
         }
@@ -65,9 +64,9 @@ impl CommandError {
         hint: Option<impl AsRef<str>>,
     ) -> Self {
         CommandError::Abort {
-            message: utf8_to_local(message.as_ref()).into(),
+            message: message.as_ref().as_bytes().to_owned(),
             detailed_exit_code,
-            hint: hint.map(|h| utf8_to_local(h.as_ref()).into()),
+            hint: hint.map(|h| h.as_ref().as_bytes().to_owned()),
         }
     }
 
@@ -86,7 +85,7 @@ impl CommandError {
 
     pub fn unsupported(message: impl AsRef<str>) -> Self {
         CommandError::UnsupportedFeature {
-            message: utf8_to_local(message.as_ref()).into(),
+            message: message.as_ref().as_bytes().to_owned(),
         }
     }
 }
