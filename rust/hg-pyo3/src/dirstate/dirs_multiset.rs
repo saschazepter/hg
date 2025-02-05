@@ -10,16 +10,17 @@
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
-use pyo3_sharedref::PyShareable;
+use pyo3_sharedref::{py_shared_iterator, PyShareable};
 
 use std::sync::{RwLockReadGuard, RwLockWriteGuard};
 
 use hg::{
-    dirstate::dirs_multiset::DirsMultiset,
+    dirstate::dirs_multiset::{DirsMultiset, DirsMultisetIter},
     utils::hg_path::{HgPath, HgPathBuf},
 };
 
 use crate::exceptions::{map_try_lock_error, to_string_value_error};
+use crate::path::PyHgPathRef;
 
 #[pyclass(mapping)]
 pub struct Dirs {
@@ -68,6 +69,10 @@ impl Dirs {
         })
     }
 
+    fn __iter__(slf: &Bound<'_, Self>) -> PyResult<DirsMultisetKeysIterator> {
+        DirsMultisetKeysIterator::new(slf)
+    }
+
     fn __contains__(
         slf: &Bound<'_, Self>,
         key: &Bound<'_, PyAny>,
@@ -82,7 +87,24 @@ impl Dirs {
     }
 }
 
+py_shared_iterator!(
+    DirsMultisetKeysIterator,
+    PyBytes,
+    Dirs,
+    inner,
+    DirsMultisetIter<'static>,
+    |ms| ms.iter(),
+    Dirs::keys_next_result
+);
+
 impl Dirs {
+    fn keys_next_result(
+        py: Python,
+        res: &HgPathBuf,
+    ) -> PyResult<Option<Py<PyBytes>>> {
+        Ok(Some(PyHgPathRef(res).into_pyobject(py)?.unbind()))
+    }
+
     pub(super) fn with_inner_read<T>(
         slf: &Bound<'_, Self>,
         f: impl FnOnce(RwLockReadGuard<DirsMultiset>) -> PyResult<T>,
