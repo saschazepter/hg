@@ -9,15 +9,19 @@
 //! `hg-core` package.
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyBytes, PyDict};
 use pyo3_sharedref::PyShareable;
 
-use hg::{dirstate::dirs_multiset::DirsMultiset, utils::hg_path::HgPathBuf};
+use std::sync::{RwLockReadGuard, RwLockWriteGuard};
 
-use crate::exceptions::to_string_value_error;
+use hg::{
+    dirstate::dirs_multiset::DirsMultiset,
+    utils::hg_path::{HgPath, HgPathBuf},
+};
+
+use crate::exceptions::{map_try_lock_error, to_string_value_error};
 
 #[pyclass(mapping)]
-#[allow(dead_code)]
 pub struct Dirs {
     pub(super) inner: PyShareable<DirsMultiset>,
 }
@@ -42,5 +46,64 @@ impl Dirs {
                 .map_err(to_string_value_error)?
                 .into(),
         })
+    }
+
+    fn addpath(
+        slf: &Bound<'_, Self>,
+        path: &Bound<'_, PyBytes>,
+    ) -> PyResult<()> {
+        let path = HgPath::new(path.as_bytes());
+        Self::with_inner_write(slf, |mut inner| {
+            inner.add_path(path).map_err(to_string_value_error)
+        })
+    }
+
+    fn delpath(
+        slf: &Bound<'_, Self>,
+        path: &Bound<'_, PyBytes>,
+    ) -> PyResult<()> {
+        let path = HgPath::new(path.as_bytes());
+        Self::with_inner_write(slf, |mut inner| {
+            inner.delete_path(path).map_err(to_string_value_error)
+        })
+    }
+
+    fn __contains__(
+        slf: &Bound<'_, Self>,
+        key: &Bound<'_, PyAny>,
+    ) -> PyResult<bool> {
+        let path = if let Ok(k) = key.extract::<&[u8]>() {
+            HgPath::new(k)
+        } else {
+            return Ok(false);
+        };
+
+        Self::with_inner_read(slf, |inner| Ok(inner.contains(path)))
+    }
+}
+
+impl Dirs {
+    pub(super) fn with_inner_read<T>(
+        slf: &Bound<'_, Self>,
+        f: impl FnOnce(RwLockReadGuard<DirsMultiset>) -> PyResult<T>,
+    ) -> PyResult<T> {
+        let self_ref = slf.borrow();
+        // Safety: the owner is the right one. We will anyway
+        // not actually `share` it.
+        let shareable_ref = unsafe { self_ref.inner.borrow_with_owner(slf) };
+        let guard = shareable_ref.try_read().map_err(map_try_lock_error)?;
+        f(guard)
+    }
+
+    pub(super) fn with_inner_write<T>(
+        slf: &Bound<'_, Self>,
+        f: impl FnOnce(RwLockWriteGuard<DirsMultiset>) -> PyResult<T>,
+    ) -> PyResult<T> {
+        let self_ref = slf.borrow();
+        // Safety: the owner is the right one. We will anyway
+        // not actually `share` it.
+        let shareable_ref = unsafe { self_ref.inner.borrow_with_owner(slf) };
+        let guard = shareable_ref.try_write().map_err(map_try_lock_error)?;
+        f(guard)
     }
 }
