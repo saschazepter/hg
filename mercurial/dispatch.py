@@ -1151,7 +1151,22 @@ def _dispatch(req):
             encoding.fallbackencoding = fallback
 
         fullargs = args
-        cmd, func, args, options, cmdoptions = _parse(lui, args)
+        try:
+            cmd, func, args, options, cmdoptions = _parse(lui, args)
+        except error.CommandError as e:
+            cause = e.__context__
+            if isinstance(cause, getopt.GetoptError):
+                if cause.opt and "config".startswith(cause.opt):
+                    # pycompat._getoptbwrapper() decodes bytes with latin-1
+                    opt = cause.opt.encode('latin-1')
+                    all_long = {o[1] for o in commands.globalopts}
+                    possible = [o for o in all_long if o.startswith(opt)]
+
+                    if len(possible) != 1:
+                        raise error.InputError(
+                            _(b"option --config may not be abbreviated")
+                        )
+            raise
 
         # store the canonical command name in request object for later access
         req.canonical_command = cmd
