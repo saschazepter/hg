@@ -2,6 +2,8 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
+use std::convert::Infallible;
+
 use hg::revlog::RevlogIndex;
 use hg::{
     revlog::index::Index, revlog::node::NODE_BYTES_LENGTH, Node, NodePrefix,
@@ -9,7 +11,20 @@ use hg::{
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, derive_more::From)]
-pub struct PyNode(Node);
+pub struct PyNode(pub Node);
+
+impl<'py> IntoPyObject<'py> for PyNode {
+    type Target = PyBytes;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(
+        self,
+        py: Python<'py>,
+    ) -> Result<Self::Output, Self::Error> {
+        Ok(PyBytes::new(py, self.0.as_bytes()))
+    }
+}
 
 /// Copy incoming Python binary Node ID into [`Node`]
 ///
