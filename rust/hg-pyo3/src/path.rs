@@ -13,7 +13,10 @@ use pyo3::types::{PyBytes, PyList};
 
 use std::convert::Infallible;
 
+use hg::dirstate::on_disk::DirstateV2ParseError;
 use hg::utils::hg_path::{HgPath, HgPathBuf};
+
+use crate::exceptions::dirstate_v2_error;
 
 #[derive(Eq, Ord, PartialEq, PartialOrd, Hash, derive_more::From)]
 pub struct PyHgPathRef<'a>(pub &'a HgPath);
@@ -28,6 +31,45 @@ impl<'py> IntoPyObject<'py> for PyHgPathRef<'_> {
         py: Python<'py>,
     ) -> Result<Self::Output, Self::Error> {
         Ok(PyBytes::new(py, self.0.as_bytes()))
+    }
+}
+
+#[derive(Eq, Ord, PartialEq, PartialOrd, Hash, derive_more::From)]
+pub struct PyHgPathBuf(pub HgPathBuf);
+
+// This is for now equivalent to taking a ref as `HgPath` and using
+// `HgPathRef`. One day, perhaps, this variant for owned data could be
+// implemented without allocation.
+impl<'py> IntoPyObject<'py> for PyHgPathBuf {
+    type Target = PyBytes;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(
+        self,
+        py: Python<'py>,
+    ) -> Result<Self::Output, Self::Error> {
+        Ok(PyBytes::new(py, self.0.as_bytes()))
+    }
+}
+
+pub struct PyHgPathDirstateV2Result<'a>(
+    pub Result<&'a HgPath, DirstateV2ParseError>,
+);
+
+impl<'py> IntoPyObject<'py> for PyHgPathDirstateV2Result<'_> {
+    type Target = PyBytes;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(
+        self,
+        py: Python<'py>,
+    ) -> Result<Self::Output, Self::Error> {
+        Ok(PyBytes::new(
+            py,
+            self.0.map_err(dirstate_v2_error)?.as_bytes(),
+        ))
     }
 }
 
