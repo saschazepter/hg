@@ -138,8 +138,7 @@ earlygetopt short option without following space:
 earlygetopt with illegal abbreviations:
 
   $ hg --confi "foo.bar=baz"
-  hg: option --confi not a unique prefix
-  (use 'hg help -v' for a list of global options)
+  abort: option --config may not be abbreviated
   [10]
   $ hg --config-f "foo"
   abort: option --config-file may not be abbreviated
