@@ -6,6 +6,7 @@ mod dirstate;
 mod discovery;
 mod exceptions;
 mod node;
+mod path;
 mod revision;
 mod revlog;
 mod store;
