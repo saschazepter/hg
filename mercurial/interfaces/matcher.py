@@ -23,6 +23,9 @@ from ._basetypes import (
 
 
 class IMatcher(Protocol):
+    """A protocol class that defines the common interface for all file matching
+    classes."""
+
     @abc.abstractmethod
     def was_tampered_with_nonrec(self) -> bool:
         ...
