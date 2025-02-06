@@ -3,10 +3,12 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 #
-# This module contains trivial type aliases that other interfaces might need.
-# This is for internal usage by the modules in `mercurial.interfaces`.
+# This module contains trivial type aliases that other interfaces might need,
+# in a location designed to avoid import cycles.  This is for internal usage
+# by the modules in `mercurial.interfaces`, instead of importing the `types`
+# module.
 #
-# For using type aliases outside for `mercurial.interfaces`, look at the
+# For using type aliases outside `mercurial.interfaces`, look at the
 # `mercurial.interfaces.types` module.
 
 from __future__ import annotations
