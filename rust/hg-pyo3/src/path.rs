@@ -73,7 +73,6 @@ impl<'py> IntoPyObject<'py> for PyHgPathDirstateV2Result<'_> {
     }
 }
 
-#[allow(dead_code)]
 pub fn paths_py_list<I, U>(
     py: Python<'_>,
     paths: impl IntoIterator<Item = I, IntoIter = U>,
@@ -91,7 +90,6 @@ where
     .unbind())
 }
 
-#[allow(dead_code)]
 pub fn paths_pyiter_collect<C>(paths: &Bound<'_, PyAny>) -> PyResult<C>
 where
     C: FromIterator<HgPathBuf>,
