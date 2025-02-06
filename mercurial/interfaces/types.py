@@ -11,13 +11,14 @@
 
 from __future__ import annotations
 
+from ._basetypes import (
+    FsPathT,
+    HgPathT,
+    UserMsgT,
+)
+
 from . import (
-    _basetypes,
     matcher,
 )
 
 MatcherT = matcher.IMatcher
-
-UserMsgT = _basetypes.UserMsgT
-HgPathT = _basetypes.HgPathT
-FsPathT = _basetypes.FsPathT
