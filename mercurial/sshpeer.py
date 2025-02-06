@@ -342,7 +342,7 @@ def _performhandshake(ui, stdin, stdout, stderr):
         ui.debug(b'sending hello command\n')
         ui.debug(b'sending between command\n')
 
-        stdin.write(b''.join(handshake))
+        _write_all(stdin.write, b''.join(handshake))
         stdin.flush()
     except IOError:
         badresponse()
