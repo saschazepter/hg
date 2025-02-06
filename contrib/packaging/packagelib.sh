@@ -12,9 +12,9 @@ gethgversion() {
     # in case of builds on an older platform that cannot build hg
     if [ ! -z "$USELOCALHG" ]; then
         HG="$(which hg)"
-        version=$($python $HG log -r . --template "{latesttag}")
-        distance=$($python $HG log -r . --template "{latesttagdistance}")
-        node=$($python $HG log -r . --template "{node|short}")
+        version=$($HG log -r . --template "{latesttag}")
+        distance=$($HG log -r . --template "{latesttagdistance}")
+        node=$($HG log -r . --template "{node|short}")
         return
     fi
     if [ -z "${1+x}" ]; then
