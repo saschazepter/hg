@@ -28,6 +28,9 @@ impl GraphError {
             hg::GraphError::ParentOutOfRange(r) => {
                 GraphError::new(py, ("ParentOutOfRange", PyRevision(r.0)))
             }
+            hg::GraphError::ParentOutOfOrder(r) => {
+                GraphError::new(py, ("ParentOutOfOrder", PyRevision(r.0)))
+            }
         }
     }
 

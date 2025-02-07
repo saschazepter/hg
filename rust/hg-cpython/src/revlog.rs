@@ -95,6 +95,9 @@ impl VCSGraph for PySharedIndex {
             Err(hg::GraphError::ParentOutOfRange(rev)) => {
                 Err(vcsgraph::graph::GraphReadError::KeyedInvalidKey(rev.0))
             }
+            Err(hg::GraphError::ParentOutOfOrder(_)) => {
+                Err(vcsgraph::graph::GraphReadError::InconsistentGraphData)
+            }
         }
     }
 }

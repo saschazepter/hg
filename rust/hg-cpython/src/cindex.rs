@@ -171,6 +171,9 @@ impl vcsgraph::graph::Graph for Index {
             Err(GraphError::ParentOutOfRange(rev)) => {
                 Err(vcsgraph::graph::GraphReadError::KeyedInvalidKey(rev.0))
             }
+            Err(GraphError::ParentOutOfOrder(_)) => {
+                Err(vcsgraph::graph::GraphReadError::InconsistentGraphData)
+            }
         }
     }
 }
