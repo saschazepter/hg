@@ -7,7 +7,7 @@
 #
 # The general principle can be summarized when dealing with <FooBar> object:
 # - to type your code: use FooBarT from `mercurial.interface.types`
-# - to implement foobar: use IFoorbar from `mercurial.interface.foo_bar`
+# - to subclass <FooBar>: use IFooBar from `mercurial.interface.foo_bar`
 
 from __future__ import annotations
 
