@@ -21,6 +21,8 @@ from ._basetypes import (  # noqa: F401 (ignore imported but not used)
 
 from . import (
     matcher,
+    transaction,
 )
 
 MatcherT = matcher.IMatcher
+TransactionT = transaction.ITransaction

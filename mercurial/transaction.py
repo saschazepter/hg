@@ -21,7 +21,6 @@ from typing import (
     Collection,
     List,
     Optional,
-    Tuple,
     Union,
 )
 
@@ -29,6 +28,7 @@ from .i18n import _
 from .interfaces.types import (
     CallbackCategoryT,
     HgPathT,
+    TransactionT,
     VfsKeyT,
 )
 from . import (
@@ -38,14 +38,13 @@ from . import (
     util,
 )
 from .utils import stringutil
+from .interfaces import transaction as itxn
 
 version = 2
 
 GEN_GROUP_ALL = b'all'
 GEN_GROUP_PRE_FINALIZE = b'prefinalize'
 GEN_GROUP_POST_FINALIZE = b'postfinalize'
-
-JournalEntryT = Tuple[HgPathT, int]
 
 
 def active(func):
@@ -240,7 +239,7 @@ def _playback(
         pass
 
 
-class transaction(util.transactional):
+class transaction(util.transactional, itxn.ITransaction):
     def __init__(
         self,
         report,
@@ -573,7 +572,7 @@ class transaction(util.transactional):
         return self._offsetmap.get(file)
 
     @active
-    def readjournal(self) -> List[JournalEntryT]:
+    def readjournal(self) -> List[itxn.JournalEntryT]:
         self._file.seek(0)
         entries = []
         for l in self._file.readlines():
@@ -604,7 +603,7 @@ class transaction(util.transactional):
         self._file.flush()
 
     @active
-    def nest(self, name: bytes = b'<unnamed>') -> transaction:
+    def nest(self, name: bytes = b'<unnamed>') -> TransactionT:
         self._count += 1
         self._usages += 1
         self._names.append(name)
@@ -625,7 +624,7 @@ class transaction(util.transactional):
     def addpending(
         self,
         category: CallbackCategoryT,
-        callback: Callable[[transaction], None],
+        callback: Callable[[TransactionT], None],
     ) -> None:
         """add a callback to be called when the transaction is pending
 
@@ -658,7 +657,7 @@ class transaction(util.transactional):
     def addfinalize(
         self,
         category: CallbackCategoryT,
-        callback: Callable[[transaction], None],
+        callback: Callable[[TransactionT], None],
     ) -> None:
         """add a callback to be called when the transaction is closed
 
@@ -673,7 +672,7 @@ class transaction(util.transactional):
     def addpostclose(
         self,
         category: CallbackCategoryT,
-        callback: Callable[[transaction], None],
+        callback: Callable[[TransactionT], None],
     ) -> None:
         """add or replace a callback to be called after the transaction closed
 
@@ -688,7 +687,7 @@ class transaction(util.transactional):
     def getpostclose(
         self,
         category: CallbackCategoryT,
-    ) -> Optional[Callable[[transaction], None]]:
+    ) -> Optional[Callable[[TransactionT], None]]:
         """return a postclose callback added before, or None"""
         return self._postclosecallback.get(category, None)
 
@@ -696,7 +695,7 @@ class transaction(util.transactional):
     def addabort(
         self,
         category: CallbackCategoryT,
-        callback: Callable[[transaction], None],
+        callback: Callable[[TransactionT], None],
     ) -> None:
         """add a callback to be called when the transaction is aborted.
 
@@ -711,7 +710,7 @@ class transaction(util.transactional):
     def addvalidator(
         self,
         category: CallbackCategoryT,
-        callback: Callable[[transaction], None],
+        callback: Callable[[TransactionT], None],
     ) -> None:
         """adds a callback to be called when validating the transaction.
 

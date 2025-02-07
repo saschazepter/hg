@@ -24,7 +24,10 @@ from typing import (
 )
 
 from .i18n import _
-from .interfaces.types import MatcherT
+from .interfaces.types import (
+    MatcherT,
+    TransactionT,
+)
 
 from hgdemandimport import tracing
 
@@ -669,7 +672,7 @@ class dirstate(intdirstate.idirstate):
         return self._map.setparents(p1, p2, fold_p2=fold_p2)
 
     def setbranch(
-        self, branch: bytes, transaction: Optional[intdirstate.TransactionT]
+        self, branch: bytes, transaction: Optional[TransactionT]
     ) -> None:
         self.__class__._branch.set(self, encoding.fromlocal(branch))
         if transaction is not None:
@@ -1102,7 +1105,7 @@ class dirstate(intdirstate.idirstate):
             on_abort,
         )
 
-    def write(self, tr: Optional[intdirstate.TransactionT]) -> None:
+    def write(self, tr: Optional[TransactionT]) -> None:
         if not self._dirty:
             return
         # make sure we don't request a write of invalidated content
