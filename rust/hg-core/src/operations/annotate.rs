@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{
     bdiff::{self, Lines},
     errors::HgError,
@@ -10,6 +12,7 @@ use crate::{
     utils::{
         self,
         hg_path::{HgPath, HgPathBuf},
+        strings::{clean_whitespace, CleanWhitespace},
     },
     AncestorsIterator, FastHashMap, Graph, GraphError, Node, Revision,
     NULL_REVISION,
@@ -23,6 +26,7 @@ use self_cell::self_cell;
 pub struct AnnotateOptions {
     pub treat_binary_as_text: bool,
     pub follow_copies: bool,
+    pub whitespace: CleanWhitespace,
 }
 
 /// The final result of annotating a file.
@@ -55,7 +59,8 @@ pub struct ChangesetAnnotation {
 }
 
 self_cell!(
-    /// A wrapper around [`Lines`] that owns the file text.
+    /// A wrapper around [`Lines`] that owns the buffer the lines point into.
+    /// The buffer contains the file text processed by [`clean_whitespace`].
     struct OwnedLines {
         owner: Vec<u8>,
         #[covariant]
@@ -64,7 +69,15 @@ self_cell!(
 );
 
 impl OwnedLines {
-    fn split(data: Vec<u8>) -> Result<Self, HgError> {
+    /// Cleans `data` based on `whitespace` and then splits into lines.
+    fn split(
+        data: Vec<u8>,
+        whitespace: CleanWhitespace,
+    ) -> Result<Self, HgError> {
+        let data = match clean_whitespace(&data, whitespace) {
+            Cow::Borrowed(_) => data,
+            Cow::Owned(data) => data,
+        };
         Self::try_new(data, |data| bdiff::split_lines(data))
     }
 
@@ -293,7 +306,10 @@ pub fn annotate(
             fls.parents(repo, id, options.follow_copies)?;
         info.parents = Some(parents.clone());
         if let Some(data) = file_data {
-            info.file = AnnotatedFileState::Read(OwnedLines::split(data)?);
+            info.file = AnnotatedFileState::Read(OwnedLines::split(
+                data,
+                options.whitespace,
+            )?);
         }
         for id in parents {
             let info = graph.get_or_insert_default(id);
@@ -304,15 +320,26 @@ pub fn annotate(
         }
     }
 
-    // Step 3: Read files and split lines in parallel.
-    graph[base_id].file =
-        AnnotatedFileState::Read(OwnedLines::split(base_file_data)?);
+    // Step 3: Read files and split lines. Do the base file with and without
+    // whitespace cleaning. Do the rest of the files in parallel with rayon.
+    let base_file_original_lines = match options.whitespace {
+        CleanWhitespace::None => None,
+        _ => Some(OwnedLines::split(
+            base_file_data.clone(),
+            CleanWhitespace::None,
+        )?),
+    };
+    graph[base_id].file = AnnotatedFileState::Read(OwnedLines::split(
+        base_file_data,
+        options.whitespace,
+    )?);
     graph.0.par_iter_mut().try_for_each(
         |(&id, info)| -> Result<(), HgError> {
             if let AnnotatedFileState::None = info.file {
-                let lines =
-                    OwnedLines::split(fls.read(id)?.into_file_data()?)?;
-                info.file = AnnotatedFileState::Read(lines);
+                info.file = AnnotatedFileState::Read(OwnedLines::split(
+                    fls.read(id)?.into_file_data()?,
+                    options.whitespace,
+                )?);
             }
             Ok(())
         },
@@ -376,6 +403,8 @@ pub fn annotate(
     else {
         panic!("the base file should have been annotated in step 4")
     };
+    // Don't use the lines from the graph if they had whitespace cleaned.
+    let lines = base_file_original_lines.unwrap_or(lines);
     // Only convert revisions that actually appear in the final output.
     for &Annotation { id, .. } in &annotations {
         graph[id].revision = ChangelogRevisionState::Needed;

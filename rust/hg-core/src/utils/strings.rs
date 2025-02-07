@@ -1,7 +1,9 @@
 //! Contains string-related utilities.
 
 use crate::utils::hg_path::HgPath;
-use std::{cell::Cell, fmt, io::Write as _, ops::Deref as _};
+use lazy_static::lazy_static;
+use regex::bytes::Regex;
+use std::{borrow::Cow, cell::Cell, fmt, io::Write as _, ops::Deref as _};
 
 /// Useful until rust/issues/56345 is stable
 ///
@@ -297,6 +299,54 @@ pub fn short_user(user: &[u8]) -> &[u8] {
         str = &str[..i];
     }
     str
+}
+
+/// Options for [`clean_whitespace`].
+#[derive(Copy, Clone)]
+pub enum CleanWhitespace {
+    /// Do nothing.
+    None,
+    /// Remove whitespace at ends of lines.
+    AtEol,
+    /// Collapse consecutive whitespace characters into a single space.
+    Collapse,
+    /// Remove all whitespace characters.
+    All,
+}
+
+/// Normalizes whitespace in text so that it won't apppear in diffs.
+/// Returns `Cow::Borrowed(text)` if the result is unchanged.
+pub fn clean_whitespace(text: &[u8], how: CleanWhitespace) -> Cow<[u8]> {
+    lazy_static! {
+        // To match wsclean in mdiff.py, this includes "\f".
+        static ref AT_EOL: Regex =
+            Regex::new(r"(?m)[ \t\r\f]+$").expect("valid regex");
+        // To match fixws in cext/bdiff.c, this does *not* include "\f".
+        static ref MULTIPLE: Regex =
+            Regex::new(r"[ \t\r]+").expect("valid regex");
+    }
+    let replacement: &[u8] = match how {
+        CleanWhitespace::None => return Cow::Borrowed(text),
+        CleanWhitespace::AtEol => return AT_EOL.replace_all(text, b""),
+        CleanWhitespace::Collapse => b" ",
+        CleanWhitespace::All => b"",
+    };
+    let text = MULTIPLE.replace_all(text, replacement);
+    replace_all_cow(&AT_EOL, text, b"")
+}
+
+/// Helper to call [`Regex::replace_all`] with `Cow` as input and output.
+fn replace_all_cow<'a>(
+    regex: &Regex,
+    haystack: Cow<'a, [u8]>,
+    replacement: &[u8],
+) -> Cow<'a, [u8]> {
+    match haystack {
+        Cow::Borrowed(haystack) => regex.replace_all(haystack, replacement),
+        Cow::Owned(haystack) => {
+            Cow::Owned(regex.replace_all(&haystack, replacement).into_owned())
+        }
+    }
 }
 
 #[cfg(test)]

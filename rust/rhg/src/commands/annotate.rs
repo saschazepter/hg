@@ -8,6 +8,7 @@ use hg::{
         annotate, AnnotateOptions, AnnotateOutput, ChangesetAnnotation,
     },
     revlog::changelog::Changelog,
+    utils::strings::CleanWhitespace,
     FastHashMap, Revision,
 };
 
@@ -106,6 +107,34 @@ pub fn args() -> clap::Command {
                 .action(clap::ArgAction::SetTrue)
                 .conflicts_with("quiet"),
         )
+        .arg(
+            clap::Arg::new("ignore-all-space")
+                .help("ignore white space when comparing lines")
+                .short('w')
+                .long("ignore-all-space")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            clap::Arg::new("ignore-space-change")
+                .help("ignore changes in the amount of white space")
+                .short('b')
+                .long("ignore-space-change")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            clap::Arg::new("ignore-blank-lines")
+                .help("ignore changes whose lines are all blank")
+                .short('B')
+                .long("ignore-blank-lines")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            clap::Arg::new("ignore-space-at-eol")
+                .help("ignore changes in whitespace at EOL")
+                .short('Z')
+                .long("ignore-space-at-eol")
+                .action(clap::ArgAction::SetTrue),
+        )
         .about(HELP_TEXT)
 }
 
@@ -131,6 +160,17 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let options = AnnotateOptions {
         treat_binary_as_text: args.get_flag("text"),
         follow_copies: !args.get_flag("no-follow"),
+        whitespace: if args.get_flag("ignore-all-space") {
+            CleanWhitespace::All
+        } else if args.get_flag("ignore-space-change") {
+            CleanWhitespace::Collapse
+        } else if args.get_flag("ignore-space-at-eol") {
+            CleanWhitespace::AtEol
+        } else {
+            // We ignore the --ignore-blank-lines flag (present for consistency
+            // with other commands) since it has no effect on annotate.
+            CleanWhitespace::None
+        },
     };
 
     let mut include = Include {
