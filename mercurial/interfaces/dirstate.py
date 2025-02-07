@@ -20,13 +20,10 @@ from typing import (
 if typing.TYPE_CHECKING:
     # Almost all mercurial modules are only imported in the type checking phase
     # to avoid circular imports
-    from .. import (
-        transaction as txnmod,
-    )
-
     from . import (
         matcher,
         status as istatus,
+        transaction,
     )
 
     # TODO: finish adding type hints
@@ -55,8 +52,7 @@ if typing.TYPE_CHECKING:
     StatusReturnT = Tuple[Any, istatus.Status, Any]
     """The return type of dirstate.status()."""
 
-    # TODO: probably doesn't belong here.
-    TransactionT = txnmod.transaction
+    TransactionT = transaction.ITransaction
     """The type for a transaction used with dirstate.
 
     This is meant to help callers avoid having to remember to delay the import
