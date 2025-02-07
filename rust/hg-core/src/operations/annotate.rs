@@ -514,9 +514,5 @@ fn adjust_link_revision(
 
 /// Converts a [`GraphError`] to an [`HgError`].
 fn from_graph_error(err: GraphError) -> HgError {
-    match err {
-        GraphError::ParentOutOfRange(revision) => HgError::corrupted(format!(
-            "parent rev {revision} is out of range"
-        )),
-    }
+    HgError::corrupted(err.to_string())
 }
