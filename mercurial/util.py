@@ -26,7 +26,9 @@ import itertools
 import locale
 import mmap
 import os
-import pickle  # provides util.pickle symbol
+
+# provides util.pickle symbol
+import pickle  # noqa: F401 (ignore imported but not used)
 import re as remod
 import shutil
 import stat

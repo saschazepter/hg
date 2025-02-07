@@ -11,22 +11,22 @@ This contains aliases to hide python version-specific details from the core.
 from __future__ import annotations
 
 import builtins
-import codecs
-import concurrent.futures as futures
+import codecs  # noqa: F401 (ignore imported but not used)
+import concurrent.futures as futures  # noqa: F401 (ignore imported but not used)
 import getopt
-import http.client as httplib
-import http.cookiejar as cookielib
+import http.client as httplib  # noqa: F401 (ignore imported but not used)
+import http.cookiejar as cookielib  # noqa: F401 (ignore imported but not used)
 import inspect
-import io
+import io  # noqa: F401 (ignore imported but not used)
 import json
 import os
-import queue
+import queue  # noqa: F401 (ignore imported but not used)
 import shlex
-import socketserver
+import socketserver  # noqa: F401 (ignore imported but not used)
 import struct
 import sys
 import tempfile
-import xmlrpc.client as xmlrpclib
+import xmlrpc.client as xmlrpclib  # noqa: F401 (ignore imported but not used)
 
 from typing import (
     Any,
