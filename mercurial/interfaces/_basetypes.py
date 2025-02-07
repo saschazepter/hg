@@ -13,6 +13,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 UserMsgT = bytes
 """Text (maybe) displayed to the user."""
 
@@ -21,6 +23,15 @@ HgPathT = bytes
 
 FsPathT = bytes
 """A path on disk (after vfs encoding)."""
+
+# TODO: create a Protocol class,
+RepoT = Any
+
+# TODO: create a Protocol class,
+UiT = Any
+
+# TODO: make a protocol class for this
+VfsT = Any
 
 VfsKeyT = bytes
 """Vfs identifier, typically used in a VfsMap."""

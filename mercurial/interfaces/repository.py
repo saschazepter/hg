@@ -30,6 +30,11 @@ if typing.TYPE_CHECKING:
         ByteString,  # TODO: change to Buffer for 3.14
     )
 
+    from ._basetypes import (
+        UiT as Ui,
+        VfsT as Vfs,
+    )
+
     from . import (
         dirstate as intdirstate,
         matcher,
@@ -39,12 +44,6 @@ if typing.TYPE_CHECKING:
     # TODO: make a protocol class for this
     NodeConstants = Any
 
-    # TODO: create a Protocol class, since importing uimod here causes a cycle
-    #  that confuses pytype.
-    Ui = Any
-
-    # TODO: make a protocol class for this
-    Vfs = Any
 
 # Local repository feature string.
 
