@@ -73,10 +73,8 @@ impl Manifestlog {
         rev: Revision,
     ) -> Result<Manifest, RevlogError> {
         let delta_parent = self.revlog.delta_parent(rev);
-        let parents = self.parents(rev).map_err(|err| match err {
-            GraphError::ParentOutOfRange(parent) => RevlogError::corrupted(
-                format!("rev {rev} has corrupted parent ({parent})"),
-            ),
+        let parents = self.parents(rev).map_err(|err| {
+            RevlogError::corrupted(format!("rev {rev}: {err}"))
         })?;
         if delta_parent == NULL_REVISION || !parents.contains(&delta_parent) {
             return self.data(rev);
