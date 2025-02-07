@@ -21,3 +21,9 @@ HgPathT = bytes
 
 FsPathT = bytes
 """A path on disk (after vfs encoding)."""
+
+VfsKeyT = bytes
+"""Vfs identifier, typically used in a VfsMap."""
+
+CallbackCategoryT = bytes
+"""Key identifying a callback category."""
