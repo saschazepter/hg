@@ -12,9 +12,11 @@
 from __future__ import annotations
 
 from ._basetypes import (  # noqa: F401 (ignore imported but not used)
+    CallbackCategoryT,
     FsPathT,
     HgPathT,
     UserMsgT,
+    VfsKeyT,
 )
 
 from . import (
