@@ -15,8 +15,11 @@ from ._basetypes import (  # noqa: F401 (ignore imported but not used)
     CallbackCategoryT,
     FsPathT,
     HgPathT,
+    RepoT,
+    UiT,
     UserMsgT,
     VfsKeyT,
+    VfsT,
 )
 
 from . import (
