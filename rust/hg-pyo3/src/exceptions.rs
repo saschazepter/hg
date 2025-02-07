@@ -13,6 +13,9 @@ impl GraphError {
             hg::GraphError::ParentOutOfRange(r) => {
                 GraphError::new_err(("ParentOutOfRange", PyRevision(r.0)))
             }
+            hg::GraphError::ParentOutOfOrder(r) => {
+                GraphError::new_err(("ParentOutOfOrder", PyRevision(r.0)))
+            }
         }
     }
     pub fn from_vcsgraph(inner: vcsgraph::graph::GraphReadError) -> PyErr {

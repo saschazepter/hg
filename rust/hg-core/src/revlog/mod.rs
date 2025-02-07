@@ -136,7 +136,10 @@ pub trait Graph {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum GraphError {
+    /// Parent revision does not exist, i.e. below 0 or above max revision.
     ParentOutOfRange(Revision),
+    /// Parent revision number is greater than one of its descendants.
+    ParentOutOfOrder(Revision),
 }
 
 impl std::fmt::Display for GraphError {
@@ -144,6 +147,9 @@ impl std::fmt::Display for GraphError {
         match self {
             GraphError::ParentOutOfRange(revision) => {
                 write!(f, "parent out of range ({})", revision)
+            }
+            GraphError::ParentOutOfOrder(revision) => {
+                write!(f, "parent out of order ({})", revision)
             }
         }
     }
