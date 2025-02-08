@@ -31,9 +31,6 @@ if typing.TYPE_CHECKING:
 
     # Almost all mercurial modules are only imported in the type checking phase
     # to avoid circular imports
-    from .. import (
-        pathutil,
-    )
     from ..utils import (
         urlutil,
     )
@@ -1178,7 +1175,7 @@ class imanifestdict(Protocol):
         """
 
     @abc.abstractmethod
-    def dirs(self) -> pathutil.dirs:
+    def dirs(self) -> misc.IDirs:
         """Returns an object implementing the ``idirs`` interface."""
 
     @abc.abstractmethod
