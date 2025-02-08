@@ -22,6 +22,8 @@ from . import (
     util,
 )
 
+from .interfaces import misc as int_misc
+
 rustdirs = policy.importrust('dirstate', 'Dirs', pyo3=True)
 parsers = policy.importmod('parsers')
 
@@ -335,7 +337,7 @@ def finddirs_rev_noroot(path: bytes) -> Iterator[bytes]:
         pos = path.find(pycompat.ossep, pos + 1)
 
 
-class dirs:
+class dirs(int_misc.IDirs):
     '''a multiset of directory names from a set of file paths'''
 
     def __init__(self, map, only_tracked=False):
