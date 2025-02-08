@@ -33,7 +33,6 @@ if typing.TYPE_CHECKING:
     # to avoid circular imports
     from .. import (
         pathutil,
-        util,
     )
     from ..utils import (
         urlutil,
@@ -42,6 +41,7 @@ if typing.TYPE_CHECKING:
     from . import (
         dirstate as intdirstate,
         matcher,
+        misc,
     )
 
     # TODO: make a protocol class for this
@@ -2229,7 +2229,7 @@ class ilocalrepositorymain(Protocol):
     def checkpush(self, pushop):
         pass
 
-    prepushoutgoinghooks: util.hooks
+    prepushoutgoinghooks: misc.IHooks
     """util.hooks instance."""
 
     @abc.abstractmethod

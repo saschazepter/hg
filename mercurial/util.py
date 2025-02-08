@@ -70,6 +70,7 @@ from . import (
     urllibcompat,
 )
 from .interfaces import (
+    misc as int_misc,
     modules as intmod,
 )
 from .utils import (
@@ -3184,7 +3185,7 @@ def sizetoint(s: bytes) -> int:
         raise error.ParseError(_(b"couldn't parse size: %s") % s)
 
 
-class hooks:
+class hooks(int_misc.IHooks):
     """A collection of hook functions that can be used to extend a
     function's behavior. Hooks are called in lexicographic order,
     based on the names of their sources."""
