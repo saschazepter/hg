@@ -1428,20 +1428,20 @@ class transactional(abc.ABC):
     """Base class for making a transactional type into a context manager."""
 
     @abc.abstractmethod
-    def close(self):
+    def close(self) -> None:
         """Successfully closes the transaction."""
 
     @abc.abstractmethod
-    def release(self):
+    def release(self) -> None:
         """Marks the end of the transaction.
 
         If the transaction has not been closed, it will be aborted.
         """
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         try:
             if exc_type is None:
                 self.close()
