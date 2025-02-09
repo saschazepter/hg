@@ -30,6 +30,10 @@ from . import (
     stringutil,
 )
 
+from ..interfaces import (
+    misc as int_misc,
+)
+
 from ..revlogutils import (
     constants as revlog_constants,
 )
@@ -60,7 +64,7 @@ def getport(port: Union[bytes, int]) -> int:
         )
 
 
-class url:
+class url(int_misc.IUrl):
     r"""Reliable URL parser.
 
     This parses URLs and provides attributes for the following
@@ -244,7 +248,7 @@ class url:
             if v is not None:
                 setattr(self, a, urlreq.unquote(v))
 
-    def copy(self):
+    def copy(self) -> url:
         u = url(b'temporary useless value')
         u.path = self.path
         u.scheme = self.scheme
@@ -361,7 +365,7 @@ class url:
 
     __str__ = encoding.strmethod(__bytes__)
 
-    def authinfo(self):
+    def authinfo(self) -> int_misc.AuthInfoT:
         user, passwd = self.user, self.passwd
         try:
             self.user, self.passwd = None, None
@@ -376,7 +380,7 @@ class url:
         # a password.
         return (s, (None, (s, self.host), self.user, self.passwd or b''))
 
-    def isabs(self):
+    def isabs(self) -> bool:
         if self.scheme and self.scheme != b'file':
             return True  # remote URL
         if hasdriveletter(self.path):
@@ -401,7 +405,7 @@ class url:
             return path
         return self._origpath
 
-    def islocal(self):
+    def islocal(self) -> bool:
         '''whether localpath will return something that posixfile can open'''
         return (
             not self.scheme
