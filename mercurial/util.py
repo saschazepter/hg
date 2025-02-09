@@ -3192,10 +3192,10 @@ class hooks:
     def __init__(self):
         self._hooks = []
 
-    def add(self, source, hook):
+    def add(self, source: bytes, hook: Callable) -> None:
         self._hooks.append((source, hook))
 
-    def __call__(self, *args):
+    def __call__(self, *args) -> List:
         self._hooks.sort(key=lambda x: x[0])
         results = []
         for source, hook in self._hooks:
