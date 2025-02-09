@@ -7,6 +7,7 @@ import abc
 
 from typing import (
     Callable,
+    Dict,
     Iterator,
     List,
     Optional,
@@ -108,3 +109,41 @@ class IUrl(Protocol):
     @abc.abstractmethod
     def islocal(self) -> bool:
         ...
+
+
+class IPath(Protocol):
+    """Represents an individual path and its configuration."""
+
+    name: bytes
+    main_path: Optional[IPath]
+    url: IUrl
+    raw_url: IUrl
+    branch: bytes
+    rawloc: bytes
+    loc: bytes
+
+    @abc.abstractmethod
+    def copy(self, new_raw_location: Optional[bytes] = None) -> IPath:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def is_push_variant(self) -> bool:
+        """is this a path variant to be used for pushing"""
+
+    @abc.abstractmethod
+    def get_push_variant(self) -> IPath:
+        """get a "copy" of the path, but suitable for pushing
+
+        This means using the value of the `pushurl` option (if any) as the url.
+
+        The original path is available in the `main_path` attribute.
+        """
+
+    @property
+    @abc.abstractmethod
+    def suboptions(self) -> Dict[bytes, bytes]:
+        """Return sub-options and their values for this path.
+
+        This is intended to be used for presentation purposes.
+        """

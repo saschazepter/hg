@@ -14,6 +14,7 @@ import socket
 from typing import (
     Callable,
     Dict,
+    Optional,
     Tuple,
     Union,
 )
@@ -825,7 +826,7 @@ def _chain_path(base_path, ui, paths):
     return new_paths
 
 
-class path:
+class path(int_misc.IPath):
     """Represents an individual path and its configuration."""
 
     def __init__(
@@ -892,7 +893,7 @@ class path:
         self.rawloc = rawloc
         self.loc = b'%s' % u
 
-    def copy(self, new_raw_location=None):
+    def copy(self, new_raw_location: Optional[bytes] = None) -> path:
         """make a copy of this path object
 
         When `new_raw_location` is set, the new path will point to it.
@@ -909,11 +910,11 @@ class path:
         return new
 
     @property
-    def is_push_variant(self):
+    def is_push_variant(self) -> bool:
         """is this a path variant to be used for pushing"""
         return self.main_path is not None
 
-    def get_push_variant(self):
+    def get_push_variant(self) -> path:
         """get a "copy" of the path, but suitable for pushing
 
         This means using the value of the `pushurl` option (if any) as the url.
@@ -965,7 +966,7 @@ class path:
             return False
 
     @property
-    def suboptions(self):
+    def suboptions(self) -> Dict[bytes, bytes]:
         """Return sub-options and their values for this path.
 
         This is intended to be used for presentation purposes.
