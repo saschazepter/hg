@@ -287,6 +287,9 @@ def debug_revlog(ui, revlog):
     if v & constants.FLAG_GENERALDELTA:
         gdelta = True
         flags.append(b'generaldelta')
+    if v & constants.FLAG_FILELOG_META:
+        gdelta = True
+        flags.append(b'hasmeta')
     if not flags:
         flags = [b'(none)']
 

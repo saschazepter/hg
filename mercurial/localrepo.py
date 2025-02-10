@@ -1073,6 +1073,9 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     if requirementsmod.GENERALDELTA_REQUIREMENT in requirements:
         options[b'generaldelta'] = True
 
+    if requirementsmod.FILELOG_METAFLAG_REQUIREMENT in requirements:
+        options[b'filelog_hasmeta_flag'] = True
+
     # experimental config: format.chunkcachesize
     chunkcachesize = ui.configint(b'format', b'chunkcachesize')
     if chunkcachesize is not None:
@@ -1329,6 +1332,7 @@ class localrepository(_localrepo_base_classes):
         requirementsmod.DIRSTATE_TRACKED_HINT_V1,
         requirementsmod.DIRSTATE_V2_REQUIREMENT,
         requirementsmod.DOTENCODE_REQUIREMENT,
+        requirementsmod.FILELOG_METAFLAG_REQUIREMENT,
         requirementsmod.FNCACHE_REQUIREMENT,
         requirementsmod.GENERALDELTA_REQUIREMENT,
         requirementsmod.INTERNAL_PHASE_REQUIREMENT,
@@ -3770,6 +3774,10 @@ def newreporequirements(ui, createopts):
     # Keep this logic in sync with `has_dirstate_v2()` in `tests/hghave.py`
     if ui.configbool(b'format', b'use-dirstate-v2'):
         requirements.add(requirementsmod.DIRSTATE_V2_REQUIREMENT)
+
+    # experimental config: format.exp-use-hasmeta-flag
+    if ui.configbool(b'format', b'exp-use-hasmeta-flag'):
+        requirements.add(requirementsmod.FILELOG_METAFLAG_REQUIREMENT)
 
     # experimental config: format.exp-use-copies-side-data-changeset
     if ui.configbool(b'format', b'exp-use-copies-side-data-changeset'):
