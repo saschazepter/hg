@@ -13,7 +13,7 @@ from typing import (
 )
 
 from .i18n import _
-from .node import nullrev
+from .node import bin, nullrev
 from . import (
     error,
     revlog,
@@ -218,7 +218,30 @@ class filelog(repository.ifilestorage):
         return self.node(rev)
 
     def renamed(self, node):
-        return storageutil.filerevisioncopied(self, node)
+        """Resolve file revision copy metadata.
+
+        Returns ``None`` if the file has no copy metadata. Otherwise a
+        2-tuple of the source filename and node.
+        """
+        if self.parents(node)[0] != self.nullid:
+            # When creating a copy or move we set filelog parents to null,
+            # because contents are probably unrelated and making a delta
+            # would not be useful.
+            # Conversely, if filelog p1 is non-null we know
+            # there is no copy metadata.
+            # In the presence of merges, this reasoning becomes invalid
+            # if we reorder parents. See tests/test-issue6528.t.
+            return None
+
+        meta = storageutil.parsemeta(self.revision(node))[0]
+
+        # copy and copyrev occur in pairs. In rare cases due to old bugs,
+        # one can occur without the other. So ensure both are present to flag
+        # as a copy.
+        if meta and b'copy' in meta and b'copyrev' in meta:
+            return meta[b'copy'], bin(meta[b'copyrev'])
+
+        return None
 
     def size(self, rev):
         """return the size of a given revision"""

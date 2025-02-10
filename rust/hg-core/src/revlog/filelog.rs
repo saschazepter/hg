@@ -123,7 +123,7 @@ impl FilelogEntry<'_> {
     /// * Returns `false` if available information is inconclusive.
     pub fn file_data_len_not_equal_to(&self, other_len: u64) -> bool {
         // Relevant code that implement this behavior in Python code:
-        // basefilectx.cmp, filelog.size, storageutil.filerevisioncopied,
+        // basefilectx.cmp, filelog.size, filelog.renamed,
         // revlog.size, revlog.rawsize
 
         // Let’s call `file_data_len` what would be returned by
