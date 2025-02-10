@@ -61,6 +61,10 @@ REVLOGV2_REQUIREMENT = b'exp-revlogv2.2'
 # This is why once a repository has enabled sparse-read, it becomes required.
 SPARSEREVLOG_REQUIREMENT = b'sparserevlog'
 
+# The filelog uses explicit flag in the index to mark file revision that
+# contains metadata.
+FILELOG_METAFLAG_REQUIREMENT = b'exp-filelog-metaflag'
+
 # A repository with the the copies-sidedata-changeset requirement will store
 # copies related information in changeset's sidedata.
 COPIESSDC_REQUIREMENT = b'exp-copies-sidedata-changeset'

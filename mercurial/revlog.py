@@ -50,6 +50,7 @@ from .revlogutils.constants import (
     DELTA_BASE_REUSE_TRY,
     ENTRY_RANK,
     FEATURES_BY_VERSION,
+    FLAG_FILELOG_META,
     FLAG_GENERALDELTA,
     FLAG_INLINE_DATA,
     INDEX_HEADER,
@@ -1508,6 +1509,11 @@ class revlog:
                 new_header |= FLAG_INLINE_DATA
             if b'generaldelta' in opts:
                 new_header |= FLAG_GENERALDELTA
+            if (
+                self.revlog_kind == KIND_FILELOG
+                and b'filelog_hasmeta_flag' in opts
+            ):
+                new_header |= FLAG_FILELOG_META
         elif b'revlogv0' in self.opener.options:
             new_header = REVLOGV0
         else:

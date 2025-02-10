@@ -5,6 +5,7 @@ use crate::revlog::path_encode::path_encode;
 use crate::revlog::NodePrefix;
 use crate::revlog::Revision;
 use crate::revlog::RevlogEntry;
+use crate::revlog::REVISION_FLAG_HASMETA;
 use crate::revlog::{Revlog, RevlogError};
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
@@ -169,7 +170,9 @@ impl FilelogEntry<'_> {
             return false;
         }
 
-        if !self.0.has_p1() {
+        if self.0.revlog.index.uses_filelog_meta() {
+            return (self.0.flags & REVISION_FLAG_HASMETA) != 0;
+        } else if !self.0.has_p1() {
             // There may or may not be copy metadata, so we can’t deduce more
             // about `file_data_len` without computing file data.
             return false;

@@ -41,6 +41,10 @@ impl IndexHeaderFlags {
     pub fn uses_generaldelta(self) -> bool {
         self.flags & 2 != 0
     }
+    /// Corresponds to FLAG_FILELOG_META in python
+    pub fn uses_filelog_meta(self) -> bool {
+        self.flags & 4 != 0
+    }
 }
 
 /// Corresponds to the INDEX_HEADER structure,
@@ -265,6 +269,7 @@ pub struct Index {
     /// Only needed when the index is interleaved with data.
     offsets: RwLock<Option<Vec<usize>>>,
     uses_generaldelta: bool,
+    uses_filelog_meta: bool,
     is_inline: bool,
     /// Cache of (head_revisions, filtered_revisions)
     ///
@@ -351,6 +356,7 @@ impl Index {
         }
 
         let uses_generaldelta = header.format_flags().uses_generaldelta();
+        let uses_filelog_meta = header.format_flags().uses_filelog_meta();
 
         if header.format_flags().is_inline() {
             let mut offset: usize = 0;
@@ -371,6 +377,7 @@ impl Index {
                     bytes: IndexData::new(bytes),
                     offsets: RwLock::new(Some(offsets)),
                     uses_generaldelta,
+                    uses_filelog_meta,
                     is_inline: true,
                     head_revs: RwLock::new((vec![], HashSet::new())),
                 })
@@ -382,6 +389,7 @@ impl Index {
                 bytes: IndexData::new(bytes),
                 offsets: RwLock::new(None),
                 uses_generaldelta,
+                uses_filelog_meta,
                 is_inline: false,
                 head_revs: RwLock::new((vec![], HashSet::new())),
             })
@@ -390,6 +398,10 @@ impl Index {
 
     pub fn uses_generaldelta(&self) -> bool {
         self.uses_generaldelta
+    }
+
+    pub fn uses_filelog_meta(&self) -> bool {
+        self.uses_filelog_meta
     }
 
     /// Value of the inline flag.

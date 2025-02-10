@@ -1253,6 +1253,18 @@ name = "exp-use-copies-side-data-changeset"
 default = false
 experimental = true
 
+# Experimental TODOs:
+#
+# * code for upgrade,
+# * fast old<>new conversion for changegroup generation and consumption
+# * finalize changegroup v4,
+# * wait for potential other flags to had in a the same batch.
+# * finalize name
+[[items]]
+section = "format"
+name = "exp-use-hasmeta-flag"
+experimental = true
+
 [[items]]
 section = "format"
 name = "generaldelta"
