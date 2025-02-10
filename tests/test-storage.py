@@ -21,6 +21,7 @@ try:
     # Does not pass with pure Rust index
     import sys
 
+    print('skipped: incompatible with the rust extension"')
     sys.exit(80)
 except ImportError:
     pass
