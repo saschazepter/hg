@@ -871,6 +871,13 @@ class cg3unpacker(cg2unpacker):
                 raise error.Abort(_(b"received dir revlog group is empty"))
 
 
+class cg4unpacker(cg3unpacker):
+    """Changegroup 4 support more advanced flag for each delta.
+
+    (no new flags actually supported yet)
+    """
+
+
 class cg5unpacker(cg3unpacker):
     """Unpacker for cg5 streams.
 
@@ -2120,6 +2127,42 @@ def _makecg3packer(
     )
 
 
+def _cg4_delta_header(d):
+    return _CHANGEGROUPV3_DELTA_HEADER.pack(
+        d.node, d.p1node, d.p2node, d.basenode, d.linknode, d.flags
+    )
+
+
+def _makecg4packer(
+    repo,
+    oldmatcher,
+    matcher,
+    bundlecaps,
+    ellipses=False,
+    shallow=False,
+    ellipsisroots=None,
+    fullnodes=None,
+    remote_sidedata=None,
+):
+    """Changegroup 4 support more advanced flag for each delta.
+
+    see documentation of cg4unpacker for details.
+    """
+    return cgpacker(
+        repo,
+        oldmatcher,
+        matcher,
+        b'04',
+        builddeltaheader=_cg4_delta_header,
+        manifestsend=closechunk(),
+        bundlecaps=bundlecaps,
+        ellipses=ellipses,
+        shallow=shallow,
+        ellipsisroots=ellipsisroots,
+        fullnodes=fullnodes,
+    )
+
+
 def _makecg5packer(
     repo,
     oldmatcher,
@@ -2166,6 +2209,8 @@ _packermap = {
     b'02': (_makecg2packer, cg2unpacker),
     # cg3 adds support for exchanging revlog flags and treemanifests
     b'03': (_makecg3packer, cg3unpacker),
+    # cg4 adds support for exchanging more advances flags (none new yet)
+    b'04': (_makecg4packer, cg4unpacker),
     # ch5 adds support for exchanging sidedata
     b'05': (_makecg5packer, cg5unpacker),
 }
@@ -2189,6 +2234,9 @@ def allsupportedversions(repo):
         needv03 = True
     if not needv03:
         versions.discard(b'03')
+    want_v4 = repo.ui.configbool(b'experimental', b'changegroup4')
+    if not want_v4:
+        versions.discard(b'04')
     want_v5 = (
         repo.ui.configbool(b'experimental', b'changegroup5')
         or requirements.REVLOGV2_REQUIREMENT in repo.requirements
