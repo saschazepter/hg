@@ -223,7 +223,9 @@ class filelog(repository.ifilestorage):
         Returns ``None`` if the file has no copy metadata. Otherwise a
         2-tuple of the source filename and node.
         """
-        if self.parents(node)[0] != self.nullid:
+        rev = self.rev(node)
+
+        if self.parentrevs(rev)[0] != nullrev:
             # When creating a copy or move we set filelog parents to null,
             # because contents are probably unrelated and making a delta
             # would not be useful.
@@ -233,7 +235,7 @@ class filelog(repository.ifilestorage):
             # if we reorder parents. See tests/test-issue6528.t.
             return None
 
-        meta = storageutil.parsemeta(self.revision(node))[0]
+        meta = storageutil.parsemeta(self.revision(rev))[0]
 
         # copy and copyrev occur in pairs. In rare cases due to old bugs,
         # one can occur without the other. So ensure both are present to flag
