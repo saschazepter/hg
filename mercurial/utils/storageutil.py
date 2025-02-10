@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 import struct
 
+from typing import Optional, Tuple
+
 from ..i18n import _
 from ..node import (
     bin,
@@ -104,10 +106,10 @@ def filtermetadata(text):
     return text[offset + 2 :]
 
 
-def filerevisioncopied(store, node):
+def filerevisioncopied(store, node) -> Optional[Tuple[bytes, bytes]]:
     """Resolve file revision copy metadata.
 
-    Returns ``False`` if the file has no copy metadata. Otherwise a
+    Returns ``None`` if the file has no copy metadata. Otherwise a
     2-tuple of the source filename and node.
     """
     if store.parents(node)[0] != sha1nodeconstants.nullid:
@@ -118,7 +120,7 @@ def filerevisioncopied(store, node):
         # there is no copy metadata.
         # In the presence of merges, this reasoning becomes invalid
         # if we reorder parents. See tests/test-issue6528.t.
-        return False
+        return None
 
     meta = parsemeta(store.revision(node))[0]
 
@@ -128,7 +130,7 @@ def filerevisioncopied(store, node):
     if meta and b'copy' in meta and b'copyrev' in meta:
         return meta[b'copy'], bin(meta[b'copyrev'])
 
-    return False
+    return None
 
 
 def filedataequivalent(store, node, filedata):
