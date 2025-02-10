@@ -218,7 +218,7 @@ REVIDX_ISCENSORED = repository.REVISION_FLAG_CENSORED
 REVIDX_ELLIPSIS = repository.REVISION_FLAG_ELLIPSIS
 # revision data is stored externally
 REVIDX_EXTSTORED = repository.REVISION_FLAG_EXTSTORED
-# revision changes files in a way that could affect copy tracing.
+# changelog revision changes files in a way that could affect copy tracing.
 REVIDX_HASCOPIESINFO = repository.REVISION_FLAG_HASCOPIESINFO
 REVIDX_DEFAULT_FLAGS = 0
 # stable order in which flags need to be processed and their processors applied
