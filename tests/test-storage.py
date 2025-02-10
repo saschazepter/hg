@@ -14,17 +14,6 @@ from mercurial import (
 
 from mercurial.testing import storage as storagetesting
 
-try:
-    from mercurial import rustext
-
-    rustext.__name__
-    # Does not pass with pure Rust index
-    import sys
-
-    print('skipped: incompatible with the rust extension"')
-    sys.exit(80)
-except ImportError:
-    pass
 
 try:
     from hgext import sqlitestore
