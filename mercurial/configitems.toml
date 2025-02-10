@@ -815,6 +815,11 @@ default = true
 
 [[items]]
 section = "experimental"
+name = "changegroup4"
+default = false
+
+[[items]]
+section = "experimental"
 name = "changegroup5"
 default = false
 
