@@ -152,6 +152,11 @@ class filelog(repository.ifilestorage):
         flags=revlog.REVIDX_DEFAULT_FLAGS,
         cachedelta=None,
     ):
+        if revlog_constants.REVIDX_HASMETA & flags:
+            assert p2 == self.nullid
+            p1, p2 = self.nullid, p1
+            flags &= ~revlog_constants.REVIDX_HASMETA
+
         return self._revlog.addrevision(
             revisiondata,
             transaction,
@@ -212,11 +217,11 @@ class filelog(repository.ifilestorage):
         return storageutil.filtermetadata(self.revision(node))
 
     def add(self, text, meta, transaction, link, p1=None, p2=None):
+        flags = revlog_constants.REVIDX_DEFAULT_FLAGS
         if meta or text.startswith(b'\1\n'):
             text = storageutil.packmeta(meta, text)
-            assert p2 == self.nullid
-            p1, p2 = self.nullid, p1
-        rev = self.addrevision(text, transaction, link, p1, p2)
+            flags |= revlog_constants.REVIDX_HASMETA
+        rev = self.addrevision(text, transaction, link, p1, p2, flags=flags)
         return self.node(rev)
 
     def renamed(self, node):
