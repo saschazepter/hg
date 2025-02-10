@@ -1218,7 +1218,6 @@ Even when the starting revision is the linkrev-shadowed one:
   $ cd ..
 
 Annotate should use the starting revision (-r) as base for ancestor checks.
-TODO: Fix Python, which calls introfilectx() first and uses that for ancestor checks.
 
   $ hg init repo-base
   $ cd repo-base
@@ -1258,8 +1257,7 @@ Line B should be attributed to the linkrev 1, because we base ancestor checks
 from 4 (starting revision), not from 3 (most recent change to the file).
   $ hg annotate file
   0: A
-  2: B (no-rhg known-bad-output !)
-  1: B (rhg !)
+  1: B
   3: C
   $ echo D >> file
   $ hg commit -m "another change"
