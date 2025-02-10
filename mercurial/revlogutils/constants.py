@@ -220,6 +220,10 @@ REVIDX_ELLIPSIS = repository.REVISION_FLAG_ELLIPSIS
 REVIDX_EXTSTORED = repository.REVISION_FLAG_EXTSTORED
 # changelog revision changes files in a way that could affect copy tracing.
 REVIDX_HASCOPIESINFO = repository.REVISION_FLAG_HASCOPIESINFO
+
+# filelog revision has metadata
+REVIDX_HASMETA = repository.FILEREVISION_FLAG_HASMETA
+
 REVIDX_DEFAULT_FLAGS = 0
 # stable order in which flags need to be processed and their processors applied
 REVIDX_FLAGS_ORDER = [
@@ -227,6 +231,7 @@ REVIDX_FLAGS_ORDER = [
     REVIDX_ELLIPSIS,
     REVIDX_EXTSTORED,
     REVIDX_HASCOPIESINFO,
+    REVIDX_HASMETA,
 ]
 
 # bitmark for flags that could cause rawdata content change
