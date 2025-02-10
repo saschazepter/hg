@@ -1222,14 +1222,16 @@ class basefilectx:
             # it is safe to use an unfiltered repository here because we are
             # walking ancestors only.
             cl = self._repo.unfiltered().changelog
-            if base.rev() is None:
+            # use self.rev(), not base.rev(), because if self is a merge  we should still
+            # consider linkrevs in the other branch as ancestors.
+            if self.rev() is None:
                 # wctx is not inclusive, but works because _ancestrycontext
                 # is used to test filelog revisions
                 ac = cl.ancestors(
-                    [p.rev() for p in base.parents()], inclusive=True
+                    [p.rev() for p in self.parents()], inclusive=True
                 )
             else:
-                ac = cl.ancestors([base.rev()], inclusive=True)
+                ac = cl.ancestors([self.rev()], inclusive=True)
             base._ancestrycontext = ac
 
         return dagop.annotate(
