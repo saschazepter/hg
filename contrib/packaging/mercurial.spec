@@ -83,6 +83,7 @@ cd -
 # verify Python environment
 LD_LIBRARY_PATH=$PYPATH PYTHONPATH=$PWD/%{docutilsname} $PYTHON_FULLPATH -c 'import sys, zlib, bz2, ssl, curses, readline'
 LD_LIBRARY_PATH=$PYPATH PYTHONPATH=$PWD/%{docutilsname} $PYTHON_FULLPATH -c "import ssl; print(ssl.HAS_TLSv1_2)"
+LD_LIBRARY_PATH=$PYPATH PYTHONPATH=$PWD/%{docutilsname} $PYTHON_FULLPATH -c "import docutils"
 
 # set environment for make
 export PATH=$PYPATH:$PATH
@@ -117,7 +118,7 @@ cd %{docutilsname}
 $PYTHON_FULLPATH -m pip install . --root="$RPM_BUILD_ROOT"
 cd -
 
-PATH=$PYPATH:$PATH LD_LIBRARY_PATH=$PYPATH make install PYTHON=$PYTHON_FULLPATH DESTDIR=$RPM_BUILD_ROOT PREFIX=$RPM_BUILD_ROOT/%{hgpyprefix} MANDIR=%{_mandir} PURE="--rust"
+PYTHONPATH=$PWD/%{docutilsname} PATH=$PYPATH:$PATH LD_LIBRARY_PATH=$PYPATH make install PYTHON=$PYTHON_FULLPATH DESTDIR=$RPM_BUILD_ROOT PIP_PREFIX=$RPM_BUILD_ROOT/%{hgpyprefix} PREFIX=$RPM_BUILD_ROOT/%{hgpyprefix} MANDIR=%{_mandir} PURE="--rust"
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
 ( cd $RPM_BUILD_ROOT%{_bindir}/ && ln -s ../..%{hgpyprefix}/bin/hg . )
 ( cd $RPM_BUILD_ROOT%{_bindir}/ && ln -s ../..%{hgpyprefix}/bin/python2.? %{pythonhg} )
