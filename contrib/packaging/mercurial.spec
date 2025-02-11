@@ -94,8 +94,6 @@ PYTHON_FULLPATH=$(which python3)
 $PYTHON_FULLPATH -m pip install pip setuptools setuptools-scm packaging --upgrade
 %endif
 
-make all PYTHON=$PYTHON_FULLPATH
-
 make -C contrib/chg
 
 sed -i -e '1s|#!/usr/bin/env python3$|#!/usr/bin/env %{pythonexe}|' contrib/hg-ssh
