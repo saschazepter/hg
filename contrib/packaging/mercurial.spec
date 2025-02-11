@@ -3,13 +3,10 @@
 %define withpython %{nil}
 
 %global pythonexe python3
-%global pythondocutils python3-docutils
 
 %if "%{?withpython}"
 %global pythonver %{withpython}
 %global pythonname Python-%{withpython}
-%global docutilsname docutils-0.21.2
-%global docutilsmd5 c4064e1e0e3cd142951fd2b95b830874
 %global pythonhg python-hg
 %global hgpyprefix /opt/%{pythonhg}
 # byte compilation will fail on some some Python /test/ files
@@ -31,7 +28,6 @@ URL: https://mercurial-scm.org/
 Source0: %{name}-%{version}-%{release}.tar.gz
 %if "%{?withpython}"
 Source1: %{pythonname}.tgz
-Source2: %{docutilsname}.tar.gz
 %endif
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
@@ -39,7 +35,7 @@ BuildRequires: make, gcc, gettext
 %if "%{?withpython}"
 BuildRequires: readline-devel, openssl-devel, ncurses-devel, zlib-devel, bzip2-devel
 %else
-BuildRequires: %{pythonexe} >= %{pythonver}, %{pythonexe}-devel, %{pythondocutils}
+BuildRequires: %{pythonexe} >= %{pythonver}, %{pythonexe}-devel, python3-docutils
 Requires: %{pythonexe} >= %{pythonver}
 %endif
 # The hgk extension uses the wish tcl interpreter, but we don't enforce it
@@ -52,7 +48,7 @@ for efficient handling of very large distributed projects.
 %prep
 
 %if "%{?withpython}"
-%setup -q -n mercurial-%{version}-%{release} -a1 -a2
+%setup -q -n mercurial-%{version}-%{release} -a1
 %else
 %setup -q -n mercurial-%{version}-%{release}
 %endif
@@ -73,23 +69,18 @@ ln -s python python3
 # remove python reference
 sed -i 's|#!/usr/bin/env python|#!/usr/bin/env python3|' Lib/encodings/rot_13.py
 $PYTHON_FULLPATH -m ensurepip --default-pip
-$PYTHON_FULLPATH -m pip install setuptools setuptools-scm
-cd -
-
-cd %{docutilsname}
-$PYTHON_FULLPATH -m pip install .
+$PYTHON_FULLPATH -m pip install setuptools setuptools-scm docutils
 cd -
 
 # verify Python environment
-LD_LIBRARY_PATH=$PYPATH PYTHONPATH=$PWD/%{docutilsname} $PYTHON_FULLPATH -c 'import sys, zlib, bz2, ssl, curses, readline'
-LD_LIBRARY_PATH=$PYPATH PYTHONPATH=$PWD/%{docutilsname} $PYTHON_FULLPATH -c "import ssl; print(ssl.HAS_TLSv1_2)"
-LD_LIBRARY_PATH=$PYPATH PYTHONPATH=$PWD/%{docutilsname} $PYTHON_FULLPATH -c "import docutils"
+LD_LIBRARY_PATH=$PYPATH $PYTHON_FULLPATH -c 'import sys, zlib, bz2, ssl, curses, readline'
+LD_LIBRARY_PATH=$PYPATH $PYTHON_FULLPATH -c "import ssl; print(ssl.HAS_TLSv1_2)"
+LD_LIBRARY_PATH=$PYPATH $PYTHON_FULLPATH -c "import docutils"
 
 # set environment for make
 export PATH=$PYPATH:$PATH
 export LD_LIBRARY_PATH=$PYPATH
 export CFLAGS="-L $PYPATH"
-export PYTHONPATH=$PWD/%{docutilsname}
 %else
 PYTHON_FULLPATH=$(which python3)
 $PYTHON_FULLPATH -m pip install pip setuptools setuptools-scm packaging --upgrade
@@ -114,11 +105,7 @@ make install DESTDIR=$RPM_BUILD_ROOT
 rm -f %{buildroot}%{hgpyprefix}/lib/{,python2.*/config}/libpython2.*.a
 cd -
 
-cd %{docutilsname}
-$PYTHON_FULLPATH -m pip install . --root="$RPM_BUILD_ROOT"
-cd -
-
-PYTHONPATH=$PWD/%{docutilsname} PATH=$PYPATH:$PATH LD_LIBRARY_PATH=$PYPATH make install PYTHON=$PYTHON_FULLPATH DESTDIR=$RPM_BUILD_ROOT PIP_PREFIX=$RPM_BUILD_ROOT/%{hgpyprefix} PREFIX=$RPM_BUILD_ROOT/%{hgpyprefix} MANDIR=%{_mandir} PURE="--rust"
+PATH=$PYPATH:$PATH LD_LIBRARY_PATH=$PYPATH make install PYTHON=$PYTHON_FULLPATH DESTDIR=$RPM_BUILD_ROOT PIP_PREFIX=$RPM_BUILD_ROOT/%{hgpyprefix} PREFIX=$RPM_BUILD_ROOT/%{hgpyprefix} MANDIR=%{_mandir} PURE="--rust"
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
 ( cd $RPM_BUILD_ROOT%{_bindir}/ && ln -s ../..%{hgpyprefix}/bin/hg . )
 ( cd $RPM_BUILD_ROOT%{_bindir}/ && ln -s ../..%{hgpyprefix}/bin/python2.? %{pythonhg} )
