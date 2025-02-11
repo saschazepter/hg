@@ -211,7 +211,7 @@ $(HTMLOUT)/%.html: $(BUILDDIR)/%.gendoc.txt common.txt $(RUNRST)
 	  --link-stylesheet --stylesheet-path style.css $(BUILDDIR)/$*.gendoc.txt $@
 
 .PHONY: install
-install: man
+install: man html
 	for i in $(MAN) ; do \
 	  subdir=`echo $$i | sed -n 's/^.*\.\([0-9]\)$$/man\1/p'` ; \
 	  mkdir -p "$(DESTDIR)$(MANDIR)"/$$subdir ; \
