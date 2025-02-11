@@ -21,7 +21,6 @@ RHEL_RELEASES := \
 # Build a Python for these RHEL (and derivatives) releases.
 RHEL_WITH_PYTHON_RELEASES := 8
 RHEL_WITH_NONVERSIONED_PYTHON :=
-RHEL_WITH_36_DOCUTILS := 7
 
 .PHONY: help
 help:
@@ -113,13 +112,13 @@ define rhel_targets
 .PHONY: rhel$(1)
 rhel$(1):
 	mkdir -p $$(HGROOT)/packages/rhel$(1)
-	./buildrpm $$(if $$(filter $(1),$$(RHEL_WITH_PYTHON_RELEASES)),--withpython,$$(if $$(filter $(1),$$(RHEL_WITH_NONVERSIONED_PYTHON)),--python python,))$$(if $$(filter $(1),$$(RHEL_WITH_36_DOCUTILS)), --docutilspackage python36-docutils,)
+	./buildrpm $$(if $$(filter $(1),$$(RHEL_WITH_PYTHON_RELEASES)),--withpython,$$(if $$(filter $(1),$$(RHEL_WITH_NONVERSIONED_PYTHON)),--python python,))
 	cp $$(HGROOT)/contrib/packaging/rpmbuild/RPMS/*/* $$(HGROOT)/packages/rhel$(1)
 	cp $$(HGROOT)/contrib/packaging/rpmbuild/SRPMS/* $$(HGROOT)/packages/rhel$(1)
 
 .PHONY: docker-rhel$(1)
 docker-rhel$(1):
-	./dockerrpm rhel$(1) $$(if $$(filter $(1),$$(RHEL_WITH_PYTHON_RELEASES)),--withpython,$$(if $$(filter $(1),$$(RHEL_WITH_NONVERSIONED_PYTHON)),--python python,))$$(if $$(filter $(1),$$(RHEL_WITH_36_DOCUTILS)), --docutilspackage python36-docutils,)
+	./dockerrpm rhel$(1) $$(if $$(filter $(1),$$(RHEL_WITH_PYTHON_RELEASES)),--withpython,$$(if $$(filter $(1),$$(RHEL_WITH_NONVERSIONED_PYTHON)),--python python,))
 
 endef
 
