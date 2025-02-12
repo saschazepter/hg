@@ -1338,9 +1338,9 @@ def overridearchive(
             # allow only hgsubrepos to set this, instead of the current scheme
             # where the parent sets this for the child.
             with (
-                hasattr(sub, '_repo')
-                and lfstatus(sub._repo)
-                or util.nullcontextmanager()
+                lfstatus(sub._repo)
+                if hasattr(sub, '_repo')
+                else util.nullcontextmanager()
             ):
                 sub.archive(opencallback, subprefix, submatch)
 
@@ -1410,9 +1410,9 @@ def hgsubrepoarchive(orig, repo, opener, prefix, match: MatcherT, decode=True):
         # would allow only hgsubrepos to set this, instead of the current scheme
         # where the parent sets this for the child.
         with (
-            hasattr(sub, '_repo')
-            and lfstatus(sub._repo)
-            or util.nullcontextmanager()
+            lfstatus(sub._repo)
+            if hasattr(sub, '_repo')
+            else util.nullcontextmanager()
         ):
             sub.archive(opener, subprefix, submatch, decode)
 
