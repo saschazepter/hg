@@ -929,7 +929,7 @@ class UpgradeOperation(BaseOperation):
 
     def has_upgrade_action(self, name):
         """Check whether the upgrade operation will perform this action"""
-        return name in self._upgrade_actions_names
+        return name in self.upgrade_actions_names
 
     def print_post_op_messages(self):
         """print post upgrade operation warning messages"""
