@@ -1066,9 +1066,9 @@ Test annotate with whitespace options
   adding a
   $ sed 's/EOL$//g' > a <<EOF
   > a  a
-  > 
   >  EOL
   > b  b
+  > 
   > EOF
   $ hg ci -m "changea"
 
@@ -1076,33 +1076,41 @@ Annotate with no option
 
   $ hg annotate a
   1: a  a
-  0: 
   1:  
   1: b  b
+  0: 
 
 Annotate with --ignore-space-change
 
   $ hg annotate --ignore-space-change a
   1: a  a
-  1: 
   0:  
   0: b  b
+  1: 
 
 Annotate with --ignore-all-space
 
   $ hg annotate --ignore-all-space a
   0: a  a
-  0: 
-  1:  
+  0:  
   0: b  b
+  1: 
 
 Annotate with --ignore-blank-lines (similar to no options case)
 
   $ hg annotate --ignore-blank-lines a
   1: a  a
-  0: 
   1:  
   1: b  b
+  0: 
+
+Annotate with --ignore-space-at-eol
+
+  $ hg annotate --ignore-space-at-eol a
+  1: a  a
+  0:  
+  1: b  b
+  1: 
 
   $ cd ..
 
