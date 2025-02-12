@@ -417,7 +417,7 @@ class hgbuildext(build_ext):
                 )
 
             for rustext in ruststandalones:
-                rustext.build('' if self.inplace else self.build_lib)
+                rustext.build('' if self.editable_mode else self.build_lib)
 
         return build_ext.build_extensions(self)
 
