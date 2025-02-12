@@ -343,7 +343,11 @@ class abstractvfs(abc.ABC):
         """
         if forcibly:
 
-            def onexc(function, path: bytes, excinfo):
+            def onexc(function: Callable, path: str, excinfo: Exception):
+                # Note: str is passed here even if bytes are passed to rmtree
+                # on platforms where `shutil._use_fd_functions == True`.  It is
+                # bytes otherwise.  Fortunately, the methods used here accept
+                # both.
                 if function is not os.remove:
                     raise
                 # read-only files cannot be unlinked under Windows
@@ -354,7 +358,10 @@ class abstractvfs(abc.ABC):
                 os.remove(path)
 
         else:
-            onexc = None
+
+            def onexc(*args):
+                pass
+
         try:
             # pytype: disable=wrong-keyword-args
             return shutil.rmtree(
