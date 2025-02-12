@@ -1280,6 +1280,9 @@ class RustExtension(Extension):
         if os.path.exists(cargo_lock):
             self.depends.append(cargo_lock)
         for dirpath, subdir, fnames in os.walk(os.path.join(srcdir, 'src')):
+            if dirpath == os.path.join(srcdir, "target"):
+                # Skip this large artifacts free
+                continue
             self.depends.extend(
                 os.path.join(dirpath, fname)
                 for fname in fnames
