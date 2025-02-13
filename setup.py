@@ -1326,6 +1326,7 @@ class RustExtension(Extension):
         env['PYTHON_SYS_EXECUTABLE'] = sys.executable
         env['PYTHONEXECUTABLE'] = sys.executable
         env['PYTHON'] = sys.executable
+        env['PYO3_PYTHON'] = sys.executable
 
         cargocmd = ['cargo', 'rustc', '--release']
 
