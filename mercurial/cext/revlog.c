@@ -90,6 +90,7 @@ struct indexObjectStruct {
 	int ntlookups;          /* # lookups */
 	int ntmisses;           /* # lookups that miss the cache */
 	int inlined;
+	int uses_generaldelta; /* whether this index uses generaldelta */
 	long entry_size; /* size of index headers. Differs in v1 v.s. v2 format
 	                  */
 	long rust_ext_compat; /* compatibility with being used in rust
@@ -1724,14 +1725,14 @@ bail:
 
 static PyObject *index_deltachain(indexObject *self, PyObject *args)
 {
-	int rev, generaldelta;
+	int rev;
 	PyObject *stoparg;
 	int stoprev, iterrev, baserev = -1;
 	int stopped;
 	PyObject *chain = NULL, *result = NULL;
 	const Py_ssize_t length = index_length(self);
 
-	if (!PyArg_ParseTuple(args, "iOi", &rev, &stoparg, &generaldelta)) {
+	if (!PyArg_ParseTuple(args, "iO", &rev, &stoparg)) {
 		return NULL;
 	}
 
@@ -1774,7 +1775,7 @@ static PyObject *index_deltachain(indexObject *self, PyObject *args)
 			goto bail;
 		}
 
-		if (generaldelta) {
+		if (self->uses_generaldelta) {
 			iterrev = baserev;
 		} else {
 			iterrev--;
@@ -3206,10 +3207,11 @@ static Py_ssize_t inline_scan(indexObject *self, const char **offsets)
 
 static int index_init(indexObject *self, PyObject *args, PyObject *kwargs)
 {
-	PyObject *data_obj, *inlined_obj;
+	PyObject *data_obj, *inlined_obj, *generaldelta_obj;
 	Py_ssize_t size;
 
-	static char *kwlist[] = {"data", "inlined", "format", NULL};
+	static char *kwlist[] = {"data", "inlined", "uses_generaldelta",
+	                         "format", NULL};
 
 	/* Initialize before argument-checking to avoid index_dealloc() crash.
 	 */
@@ -3225,12 +3227,13 @@ static int index_init(indexObject *self, PyObject *args, PyObject *kwargs)
 	self->offsets = NULL;
 	self->nodelen = 20;
 	self->nullentry = NULL;
+	self->uses_generaldelta = 0;
 	self->rust_ext_compat = 0;
 	self->format_version = format_v1;
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO|l", kwlist,
-	                                 &data_obj, &inlined_obj,
-	                                 &(self->format_version)))
+	if (!PyArg_ParseTupleAndKeywords(
+	        args, kwargs, "OOO|l", kwlist, &data_obj, &inlined_obj,
+	        &generaldelta_obj, &(self->format_version)))
 		return -1;
 	if (!PyObject_CheckBuffer(data_obj)) {
 		PyErr_SetString(PyExc_TypeError,
@@ -3263,6 +3266,8 @@ static int index_init(indexObject *self, PyObject *args, PyObject *kwargs)
 	size = self->buf.len;
 
 	self->inlined = inlined_obj && PyObject_IsTrue(inlined_obj);
+	self->uses_generaldelta =
+	    generaldelta_obj && PyObject_IsTrue(generaldelta_obj);
 	self->data = data_obj;
 
 	self->ntlookups = self->ntmisses = 0;
