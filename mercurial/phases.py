@@ -173,10 +173,12 @@ phasenames = dict(enumerate(cmdphasenames))
 phasenames[archived] = b'archived'
 phasenames[internal] = b'internal'
 # map phase name to phase number
-phasenumber = {name: phase for phase, name in phasenames.items()}
+phasenumber: dict[bytes, int] = {
+    name: phase for phase, name in phasenames.items()
+}
 # like phasenumber, but also include maps for the numeric and binary
 # phase number to the phase number
-phasenumber2 = phasenumber.copy()
+phasenumber2: dict[bytes | int, int] = phasenumber.copy()
 phasenumber2.update({phase: phase for phase in phasenames})
 phasenumber2.update({b'%i' % phase: phase for phase in phasenames})
 # record phase property
@@ -216,7 +218,7 @@ def _readroots(
     """
     repo = repo.unfiltered()
     dirty = False
-    roots = {i: set() for i in allphases}
+    roots: Phaseroots = {i: set() for i in allphases}
     to_rev = repo.changelog.index.get_rev
     unknown_msg = b'removing unknown node %s from %i-phase boundary\n'
     try:
