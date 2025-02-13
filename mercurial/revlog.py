@@ -237,11 +237,6 @@ else:
     parse_index_v1_nodemap = None
 
 
-def parse_index_v1_rust(data, inline, default_header):
-    cache = (0, data) if inline else None
-    return rustrevlog.Index(data, default_header), cache
-
-
 # corresponds to uncompressed length of indexformatng (2 gigs, 4-byte
 # signed integer)
 _maxentrysize = 0x7FFFFFFF
