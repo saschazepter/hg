@@ -292,11 +292,7 @@ impl InnerRevlog {
         rev: Revision,
         stop_rev: Option<Revision>,
     ) -> Result<(Vec<Revision>, bool), HgError> {
-        self.index.delta_chain(
-            rev,
-            stop_rev,
-            self.delta_config.general_delta.into(),
-        )
+        self.index.delta_chain(rev, stop_rev)
     }
 
     /// Generate a possibly-compressed representation of data.
