@@ -736,7 +736,7 @@ class BaseIndexObject:
 
 
 class IndexObject(BaseIndexObject):
-    def __init__(self, data: ByteString):
+    def __init__(self, data: ByteString, uses_generaldelta=False):
         assert len(data) % self.entry_size == 0, (
             len(data),
             self.entry_size,
@@ -813,7 +813,7 @@ class PersistentNodeMapIndexObject(IndexObject):
 
 
 class InlinedIndexObject(BaseIndexObject):
-    def __init__(self, data, inline=0):
+    def __init__(self, data, inline=0, uses_generaldelta=False):
         self._data = data
         self._lgt = self._inline_scan(None)
         self._inline_scan(self._lgt)
@@ -856,7 +856,10 @@ class InlinedIndexObject(BaseIndexObject):
 
 
 def parse_index2(
-    data: ByteString, inline, format=revlog_constants.REVLOGV1
+    data: ByteString,
+    inline,
+    uses_generaldelta,
+    format=revlog_constants.REVLOGV1,
 ) -> tuple[IndexObject | InlinedIndexObject, tuple[int, ByteString] | None]:
     if format == revlog_constants.CHANGELOGV2:
         return parse_index_cl_v2(data)
@@ -865,9 +868,9 @@ def parse_index2(
             cls = IndexObject2
         else:
             cls = IndexObject
-        return cls(data), None
+        return cls(data, uses_generaldelta), None
     cls = InlinedIndexObject
-    return cls(data, inline), (0, data)
+    return cls(data, inline, uses_generaldelta), (0, data)
 
 
 def parse_index_cl_v2(data):
@@ -986,9 +989,9 @@ class IndexChangelogV2(IndexObject2):
         return self.index_format.pack(*data)
 
 
-def parse_index_devel_nodemap(data, inline):
-    """like parse_index2, but alway return a PersistentNodeMapIndexObject"""
-    return PersistentNodeMapIndexObject(data), None
+def parse_index_devel_nodemap(data, inline, uses_generaldelta):
+    """like parse_index2, but always return a PersistentNodeMapIndexObject"""
+    return PersistentNodeMapIndexObject(data, uses_generaldelta), None
 
 
 def parse_dirstate(dmap, copymap, st):

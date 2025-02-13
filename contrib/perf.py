@@ -3313,6 +3313,14 @@ def perfrevlogindex(ui, repo, file_=None, **opts):
     if parse_index_v1 is None:
         parse_index_v1 = mercurial.revlog.revlogio().parseindex
 
+    uses_generaldelta = "uses_generaldelta" in getargspec(parse_index_v1).args
+    if uses_generaldelta is not None:
+        # Mercurial 7.0 and above
+        # This test isn't affected by generaldelta at all, so just pass `False`
+        parse_index_v1 = functools.partial(
+            parse_index_v1, uses_generaldelta=False
+        )
+
     rllen = len(rl)
 
     node0 = rl.node(0)

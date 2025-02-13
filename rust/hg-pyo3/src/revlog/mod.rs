@@ -471,16 +471,7 @@ impl InnerRevlog {
         rev: PyRevision,
         stoprev: Option<PyRevision>,
     ) -> PyResult<Py<PyTuple>> {
-        Self::with_index_read(slf, |idx| {
-            let using_general_delta = idx.uses_generaldelta();
-            Self::_index_deltachain(
-                slf,
-                py,
-                rev,
-                stoprev,
-                Some(using_general_delta.into()),
-            )
-        })
+        Self::_index_deltachain(slf, py, rev, stoprev)
     }
 
     fn compress(
@@ -1137,15 +1128,13 @@ impl InnerRevlog {
     }
 
     /// determine revisions with deltas to reconstruct fulltext
-    #[pyo3(signature = (rev, stop_rev, using_general_delta))]
+    #[pyo3(signature = (rev, stop_rev))]
     fn _index_deltachain(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
         rev: PyRevision,
         stop_rev: Option<PyRevision>,
-        using_general_delta: Option<u32>,
     ) -> PyResult<Py<PyTuple>> {
-        let using_general_delta = using_general_delta.map(|i| i != 0);
         let rev: UncheckedRevision = rev.into();
         let stop_rev: Option<UncheckedRevision> = stop_rev.map(Into::into);
 
@@ -1162,7 +1151,7 @@ impl InnerRevlog {
                     })
                 })
                 .transpose()?;
-            idx.delta_chain(rev, stop_rev, using_general_delta)
+            idx.delta_chain(rev, stop_rev)
                 .map_err(|e| PyValueError::new_err(e.to_string()))
         })?;
 
