@@ -183,6 +183,16 @@ cargo-clippy:
 check-code:
 	hg manifest | xargs python contrib/check-code.py
 
+.PHONY: setup-format
+setup-format: .hg/dev-tools/fix-conf.rc
+
+.PHONY: format
+format: .hg/dev-tools/fix-conf.rc
+	hg --config extensions.fix= fix --working-dir
+
+.hg/dev-tools/fix-conf.rc: contrib/fix-conf.rc contrib/setup-dev-tool.sh
+	./contrib/setup-dev-tool.sh
+
 .PHONY: format-c
 format-c:
 	clang-format --style file -i \
