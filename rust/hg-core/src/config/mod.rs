@@ -23,6 +23,7 @@ use self::layer::ConfigLayer;
 use self::layer::ConfigValue;
 use crate::errors::HgError;
 use crate::errors::{HgResultExt, IoResultExt};
+use crate::exit_codes;
 use crate::utils::files::get_bytes_from_os_str;
 use format_bytes::{write_bytes, DisplayBytes};
 use std::collections::HashSet;
@@ -840,6 +841,32 @@ impl Config {
             b"high" => Some(ResourceProfileValue::High),
             _ => None,
         }
+    }
+
+    /// Returns the default username to be used in commits. Like ui.username()
+    /// in Python with acceptempty=False, but aborts rather than prompting for
+    /// input or falling back to the OS username and hostname.
+    pub fn username(&self) -> Result<Vec<u8>, HgError> {
+        if let Some(value) = env::var_os("HGUSER") {
+            if !value.is_empty() {
+                return Ok(value.into_encoded_bytes());
+            }
+        }
+        if let Some(value) = self.get_str(b"ui", b"username")? {
+            if !value.is_empty() {
+                return Ok(value.as_bytes().to_vec());
+            }
+        }
+        if let Some(value) = env::var_os("EMAIL") {
+            if !value.is_empty() {
+                return Ok(value.into_encoded_bytes());
+            }
+        }
+        Err(HgError::abort(
+            "no username supplied",
+            exit_codes::ABORT,
+            Some("use 'hg config --edit' to set your username".to_string()),
+        ))
     }
 }
 
