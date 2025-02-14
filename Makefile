@@ -186,9 +186,16 @@ check-code:
 .PHONY: setup-format
 setup-format: .hg/dev-tools/fix-conf.rc
 
-.PHONY: format
-format: .hg/dev-tools/fix-conf.rc
+# the format target exist as an entry point for new devs, but it is expected
+# that they run `hg fix` directly.
+.PHONY: format-wdir
+format-wdir: .hg/dev-tools/fix-conf.rc
 	hg --config extensions.fix= fix --working-dir
+
+# requires topic to have a stack in the first place.
+.PHONY: format-stack
+format-stack: .hg/dev-tools/fix-conf.rc
+	hg --config extensions.fix= fix --rev .#stack
 
 .hg/dev-tools/fix-conf.rc: contrib/fix-conf.rc contrib/setup-dev-tool.sh
 	./contrib/setup-dev-tool.sh
