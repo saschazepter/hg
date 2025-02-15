@@ -20,7 +20,6 @@ tmp_wheel_dir=./tmp-wheelhouse
 if [ -e $tmp_wheel_dir ]; then
     rm -rf $tmp_wheel_dir
 fi
-/opt/python/$py_tag/bin/python -m pip install build
 /opt/python/$py_tag/bin/python -m build --outdir $tmp_wheel_dir
 # adjust it to make it universal
 auditwheel repair $tmp_wheel_dir/*.whl -w $destination_directory
