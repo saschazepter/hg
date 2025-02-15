@@ -1423,7 +1423,7 @@ class cowdict(cow, dict):
     """
 
 
-class cowsortdict(cow, sortdict[_KT, _VT]):
+class cowsortdict(cow, sortdict):
     """copy-on-write sortdict
 
     Be sure to call d = d.preparewrite() before writing to d.
