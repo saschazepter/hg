@@ -1691,7 +1691,7 @@ def phabsend(ui, repo, *revs, **opts):
 
 # Map from "hg:meta" keys to header understood by "hg import". The order is
 # consistent with "hg export" output.
-_metanamemap: util.sortdict[bytes, bytes] = util.sortdict(
+_metanamemap = util.sortdict(
     [
         (b'user', b'User'),
         (b'date', b'Date'),
