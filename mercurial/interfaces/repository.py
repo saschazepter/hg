@@ -17,6 +17,7 @@ from typing import (
     Iterable,
     Iterator,
     Mapping,
+    Optional,
     Protocol,
     Set,
 )
@@ -27,12 +28,6 @@ from .. import error
 if typing.TYPE_CHECKING:
     from typing import (
         ByteString,  # TODO: change to Buffer for 3.14
-    )
-
-    # Almost all mercurial modules are only imported in the type checking phase
-    # to avoid circular imports
-    from ..utils import (
-        urlutil,
     )
 
     from . import (
@@ -150,7 +145,7 @@ class _ipeerconnection(Protocol):
     ui: Ui
     """ui.ui instance"""
 
-    path: urlutil.path | None
+    path: Optional[misc.IPath]
     """a urlutil.path instance or None"""
 
     @abc.abstractmethod
@@ -455,13 +450,13 @@ class peer(_ipeerconnection, ipeercapabilities, ipeerrequests):
     """
 
     limitedarguments: bool = False
-    path: urlutil.path | None
+    path: misc.IPath | None
     ui: Ui
 
     def __init__(
         self,
         ui: Ui,
-        path: urlutil.path | None = None,
+        path: misc.IPath | None = None,
         remotehidden: bool = False,
     ) -> None:
         self.ui = ui
