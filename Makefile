@@ -135,7 +135,7 @@ dist:	tests dist-notests
 
 .PHONY: dist-notests
 dist-notests:	doc
-	TAR_OPTIONS="--owner=root --group=root --mode=u+w,go-w,a+rX-s" $(PYTHON) setup.py -q sdist
+	TAR_OPTIONS="--owner=root --group=root --mode=u+w,go-w,a+rX-s" $(PYTHON) -m build --sdist
 
 .PHONY: check
 check: tests
