@@ -63,7 +63,7 @@ Prevent adding new files in the root directory accidentally.
   .hgsigs
   .hgtags
   .jshintrc
-  CONTRIBUTING
+  CONTRIBUTING.md
   CONTRIBUTORS
   COPYING
   MANIFEST.in
