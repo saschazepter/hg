@@ -1844,7 +1844,7 @@ def _advertisefsmonitor(repo, num_gets, p1node):
         b'fsmonitor', b'warn_update_file_count'
     )
     # avoid cycle dirstate -> sparse -> merge -> dirstate
-    dirstate_rustmod = policy.importrust("dirstate")
+    dirstate_rustmod = policy.importrust("dirstate", pyo3=True)
 
     if dirstate_rustmod is not None:
         # When using rust status, fsmonitor becomes necessary at higher sizes
