@@ -58,16 +58,19 @@ EXTTPL=templates/extheader.txt
 
 define RuleAllCommandsTemplate
 HG_COMMANDS=$(1)
+.PHONY: all-commands
 all-commands: $$(HG_COMMANDS:%=$$(BUILDDIR)/hg-%.gendoc.txt)
 endef
 
 define RuleAllTopicsTemplate
 HG_TOPICS=$(1)
+.PHONY: all-topics
 all-topics: $$(HG_TOPICS:%=$$(BUILDDIR)/%.gendoc.txt)
 endef
 
 define RuleAllExtensionsTemplate
 HG_EXTENSIONS=$(1)
+.PHONY: all-extensions
 all-extensions: $$(HG_EXTENSIONS:%=$$(BUILDDIR)/%.gendoc.txt)
 endef
 
