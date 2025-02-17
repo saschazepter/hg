@@ -1,10 +1,12 @@
+# Mercurial's Contributing guidelines
+
 Our full contribution guidelines are in our wiki, please see:
 
-https://www.mercurial-scm.org/wiki/ContributingChanges
+<https://www.mercurial-scm.org/wiki/ContributingChanges>
 
 If you just want a checklist to follow, you can go straight to
 
-https://www.mercurial-scm.org/wiki/ContributingChanges#Submission_checklist
+<https://www.mercurial-scm.org/wiki/ContributingChanges#Submission_checklist>
 
 If you can't run the entire testsuite for some reason (it can be
 difficult on Windows), please at least run `contrib/check-code.py` on
