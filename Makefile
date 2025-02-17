@@ -75,8 +75,7 @@ build-rhg:
 
 .PHONY: wheel
 wheel:
-	$(PYTHON) setup.py $(PURE) bdist_wheel
-
+	$(PYTHON) -m build --config-setting=--global-option="$(PURE)"
 .PHONY: doc
 doc:
 	$(MAKE) -C doc
