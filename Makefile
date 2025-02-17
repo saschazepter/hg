@@ -72,12 +72,15 @@ local:
 build:
 	$(PYTHON) setup.py $(PURE) build $(COMPILERFLAG)
 
+.PHONY: build-chg
 build-chg:
 	make -C contrib/chg
 
+.PHONY: build-rhg
 build-rhg:
 	(cd rust/rhg; cargo build --release)
 
+.PHONY: wheel
 wheel:
 	$(PYTHON) setup.py $(PURE) bdist_wheel $(COMPILERFLAG)
 
@@ -112,6 +115,7 @@ install: install-bin install-doc
 install-bin:
 	$(PYTHON) -m pip install --prefix="$(PREFIX)" --force -v --config-settings --global-option="$(PURE)"
 
+.PHONY: install-chg
 install-chg: build-chg
 	make -C contrib/chg install PREFIX="$(PREFIX)"
 
@@ -130,6 +134,7 @@ install-home-bin:
 install-home-doc: doc
 	cd doc && $(MAKE) $(MFLAGS) PREFIX="$(HOME)" install
 
+.PHONY: install-rhg
 install-rhg: build-rhg
 	install -m 755 rust/target/release/rhg "$(PREFIX)"/bin/
 
@@ -152,9 +157,11 @@ tests:
 	fi
 	cd tests && $(PYTHON) run-tests.py $(TESTFLAGS)
 
+.PHONY: test-%
 test-%:
 	cd tests && $(PYTHON) run-tests.py $(TESTFLAGS) $@
 
+.PHONY: testpy-%
 testpy-%:
 	@echo Looking for Python $* in $(HGPYTHONS)
 	[ -e $(HGPYTHONS)/$*/bin/python ] || ( \
@@ -168,6 +175,7 @@ rust-tests:
 		&& $(CARGO) test --quiet --all \
 		--features "$(HG_RUST_FEATURES)" --no-default-features
 
+.PHONY: cargo-clippy
 cargo-clippy:
 	cd $(HGROOT)/rust \
 		&& $(CARGO) clippy --all --features "$(HG_RUST_FEATURES)" -- -D warnings
