@@ -23,6 +23,7 @@ RHEL_WITH_PYTHON_RELEASES :=
 RHEL_WITH_NONVERSIONED_PYTHON :=
 RHEL_WITH_36_DOCUTILS := 7
 
+.PHONY: help
 help:
 	@echo 'Packaging Make Targets'
 	@echo ''
@@ -61,8 +62,6 @@ help:
 	@echo ''
 	@echo 'fedora'
 	@echo '   Build an RPM for Fedora $(FEDORA_RELEASE) locally'
-
-.PHONY: help
 
 .PHONY: deb
 deb:
