@@ -38,6 +38,7 @@ COMPILERFLAG=${COMPILERFLAG_tmp_${COMPILER}}
 VENV_NAME=$(shell $(PYTHON) -c "import sys; v = sys.version_info; print(f'.venv_{sys.implementation.name}{v.major}.{v.minor}')")
 PYBINDIRNAME=$(shell $(PYTHON) -c "import os; print('Scripts' if os.name == 'nt' else 'bin')")
 
+.PHONY: help
 help:
 	@echo 'Commonly used make targets:'
 	@echo '  all          - build program and documentation'
@@ -57,14 +58,17 @@ help:
 	@echo 'Example for a local installation (usable in this directory):'
 	@echo '  make local && ./hg version'
 
+.PHONY: all
 all: build doc
 
+.PHONY: local
 local:
 	$(PYTHON) -m venv $(VENV_NAME) --clear --upgrade-deps
 	$(VENV_NAME)/$(PYBINDIRNAME)/python -m \
 	  pip install -e . -v --config-settings --global-option="$(PURE)"
 	env HGRCPATH= $(VENV_NAME)/$(PYBINDIRNAME)/hg version
 
+.PHONY: build
 build:
 	$(PYTHON) setup.py $(PURE) build $(COMPILERFLAG)
 
@@ -77,9 +81,11 @@ build-rhg:
 wheel:
 	$(PYTHON) setup.py $(PURE) bdist_wheel $(COMPILERFLAG)
 
+.PHONY: doc
 doc:
 	$(MAKE) -C doc
 
+.PHONY: cleanbutpackages
 cleanbutpackages:
 	rm -f hg.exe
 	rm -rf mercurial.egg-info dist
@@ -95,38 +101,49 @@ cleanbutpackages:
 	rm -rf rust/target
 	rm -f mercurial/rustext.so
 
+.PHONY: clean
 clean: cleanbutpackages
 	rm -rf packages
 
+.PHONY: install
 install: install-bin install-doc
 
+.PHONY: install-bin
 install-bin:
 	$(PYTHON) -m pip install --prefix="$(PREFIX)" --force -v --config-settings --global-option="$(PURE)"
 
 install-chg: build-chg
 	make -C contrib/chg install PREFIX="$(PREFIX)"
 
+.PHONY: install-doc
 install-doc: doc
 	cd doc && $(MAKE) $(MFLAGS) install
 
+.PHONY: install-home
 install-home: install-home-bin install-home-doc
 
+.PHONY: install-home-bin
 install-home-bin:
 	$(PYTHON) -m pip install --user --force -v --config-settings --global-option="$(PURE)"
 
+.PHONY: install-home-doc
 install-home-doc: doc
 	cd doc && $(MAKE) $(MFLAGS) PREFIX="$(HOME)" install
 
 install-rhg: build-rhg
 	install -m 755 rust/target/release/rhg "$(PREFIX)"/bin/
 
+.PHONY: dist
 dist:	tests dist-notests
 
+.PHONY: dist-notests
 dist-notests:	doc
 	TAR_OPTIONS="--owner=root --group=root --mode=u+w,go-w,a+rX-s" $(PYTHON) setup.py -q sdist
 
+.PHONY: check
 check: tests
 
+.PHONY: tests
 tests:
         # Run Rust tests if cargo is installed
 	if command -v $(CARGO) >/dev/null 2>&1; then \
@@ -145,6 +162,7 @@ testpy-%:
         $(MAKE) -f $(HGROOT)/contrib/Makefile.python PYTHONVER=$* PREFIX=$(HGPYTHONS)/$* python )
 	cd tests && $(HGPYTHONS)/$*/bin/python run-tests.py $(TESTFLAGS)
 
+.PHONY: rust-tests
 rust-tests:
 	cd $(HGROOT)/rust \
 		&& $(CARGO) test --quiet --all \
@@ -154,13 +172,16 @@ cargo-clippy:
 	cd $(HGROOT)/rust \
 		&& $(CARGO) clippy --all --features "$(HG_RUST_FEATURES)" -- -D warnings
 
+.PHONY: check-code
 check-code:
 	hg manifest | xargs python contrib/check-code.py
 
+.PHONY: format-c
 format-c:
 	clang-format --style file -i \
 	  `hg files 'set:(**.c or **.cc or **.h) and not "listfile:contrib/clang-format-ignorelist"'`
 
+.PHONY: update-pot
 update-pot: i18n/hg.pot
 
 i18n/hg.pot: $(PYFILES) $(DOCFILES) i18n/posplit i18n/hggettext
@@ -226,16 +247,19 @@ packaging_targets := \
   ppa
 
 # Forward packaging targets for convenience.
+.PHONY: $(packaging_targets)
 $(packaging_targets):
 	$(MAKE) -C contrib/packaging $(MAKEFLAGS) $@
 
 
+.PHONY: pyoxidizer
 pyoxidizer:
 	$(PYOXIDIZER) build --path ./rust/hgcli --release
 
 
 # a temporary target to setup all we need for run-tests.py --pyoxidizer
 # (should go away as the run-tests implementation improves
+.PHONY: pyoxidizer-windows-tests
 pyoxidizer-windows-tests: PYOX_DIR=build/pyoxidizer/x86_64-pc-windows-msvc/release/app
 pyoxidizer-windows-tests: pyoxidizer
 	rm -rf $(PYOX_DIR)/templates
@@ -252,6 +276,7 @@ pyoxidizer-windows-tests: pyoxidizer
 
 # a temporary target to setup all we need for run-tests.py --pyoxidizer
 # (should go away as the run-tests implementation improves
+.PHONY: pyoxidizer-macos-tests
 pyoxidizer-macos-tests: PYOX_DIR=build/pyoxidizer/x86_64-apple-darwin/release/app
 pyoxidizer-macos-tests: pyoxidizer
 	rm -rf $(PYOX_DIR)/templates
@@ -265,12 +290,7 @@ pyoxidizer-macos-tests: pyoxidizer
 	rm -rf $(PYOX_DIR)/doc
 	cp -a doc $(PYOX_DIR)/doc
 
+.PHONY: pytype-docker
 pytype-docker:
 	contrib/docker/pytype/recipe.sh
 
-.PHONY: help all local build doc cleanbutpackages clean install install-bin \
-	install-doc install-home install-home-bin install-home-doc \
-	dist dist-notests check tests rust-tests check-code format-c \
-	update-pot pyoxidizer pyoxidizer-windows-tests pyoxidizer-macos-tests \
-	$(packaging_targets) \
-	pytype-docker
