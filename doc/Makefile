@@ -27,8 +27,7 @@ BUILDDIR=build
 
 export HGENCODING=UTF-8
 
-.PHONY: all man html install clean knownrefs
-
+.PHONY: all
 all: man html
 
 # Generate a list of hg commands and extensions.
@@ -45,6 +44,7 @@ extensionlist.txt: $(GENDOC)
 	mv $@.tmp $@
 
 # Build target for running runrst more easily by hand
+.PHONY: knownrefs
 knownrefs: commandlist.txt topiclist.txt extensionlist.txt
 
 BUILDFILES=commandlist.txt topiclist.txt extensionlist.txt
@@ -160,8 +160,10 @@ endif
 # Also add the HTML index page
 HTML+=$(HTMLOUT)/index.html
 
+.PHONY: man
 man: $(MAN)
 
+.PHONY: html
 html: $(HTML)
 
 # This logic is duplicated in setup.py:hgbuilddoc()
@@ -205,6 +207,7 @@ $(HTMLOUT)/%.html: $(BUILDDIR)/%.gendoc.txt common.txt $(RUNRST)
 	$(PYTHON) runrst html --hg-individual-pages $(RSTARGS) --halt warning \
 	  --link-stylesheet --stylesheet-path style.css $(BUILDDIR)/$*.gendoc.txt $@
 
+.PHONY: install
 install: man
 	for i in $(MAN) ; do \
 	  subdir=`echo $$i | sed -n 's/^.*\.\([0-9]\)$$/man\1/p'` ; \
@@ -216,5 +219,6 @@ install: man
 # know anything about all the command/topic/extension targets and files.
 # $(HTML) only has the basic topics, so we need to delete $(HTMLOUT)/*.html and
 # other similar files "by hand" here.
+.PHONY: clean
 clean:
 	$(RM) $(MAN) $(HTML) common.txt $(SOURCES) *.gendoc.txt $(BUILDFILES) $(BUILDDIR)/*.gendoc.* $(HTMLOUT)/*.html
