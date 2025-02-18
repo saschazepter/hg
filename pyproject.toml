@@ -118,3 +118,13 @@ archs = ["x86", "AMD64", "ARM64"]
 
 [tool.setuptools_scm]
 version_file = "mercurial/__version__.py"
+
+# this use `<last-tag>.post1.dev<distance>
+#
+# To restore the format introduced for 6.9 nightly build we would need to be
+# able to customise the `post1` section to avoid flip-flopping update between
+# unrelated branches. It would need to be changed to:
+# - post0: for the "stable" branch
+# - post1: for the "default" branch
+# - post2: for any other branch
+version_scheme = "no-guess-dev"
