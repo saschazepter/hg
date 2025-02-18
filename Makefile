@@ -20,6 +20,9 @@ PYOXIDIZER?=pyoxidizer
 $(eval HGROOT := $(shell pwd))
 HGPYTHONS ?= $(HGROOT)/build/pythons
 PURE=
+PIP_OPTIONS_PURE=--config-settings --global-option="$(PURE)"
+PIP_OPTIONS_INSTALL=--no-deps --ignore-installed --no-build-isolation
+PIP_PREFIX=$(PREFIX)
 PYFILESCMD=find mercurial hgext doc -name '*.py'
 PYFILES:=$(shell $(PYFILESCMD))
 DOCFILES=mercurial/helptext/*.txt
@@ -44,9 +47,19 @@ help:
 	@echo '                 (except installed files or dist source tarball)'
 	@echo '  update-pot   - update i18n/hg.pot'
 	@echo
+	@echo 'See CONTRIBUTING.md for the build and development dependencies.'
+	@echo
+	@echo 'Example for a system-wide installation under /usr/local for'
+	@echo 'downstream packaging (build and runtime deps have to be installed by hand)'
+	@echo '  su -c "make install" && hg version'
+	@echo
 	@echo 'Example for a system-wide installation under /usr/local:'
 	@echo '  make doc'
 	@echo '  su -c "make install PIP_OPTIONS_INSTALL=" && hg version'
+	@echo
+	@echo 'On some Linux distributions, you might need to specify both'
+	@echo 'PREFIX and PIP_PREFIX (here to install everything in /data/local)'
+	@echo '  make install PREFIX=/data/local PIP_PREFIX=/data PIP_OPTIONS_INSTALL='
 	@echo
 	@echo 'Example for a local installation (usable in this directory):'
 	@echo '  make local && ./hg version'
@@ -55,7 +68,7 @@ help:
 local:
 	$(PYTHON) -m venv $(VENV_NAME) --clear --upgrade-deps
 	$(VENV_NAME)/$(PYBINDIRNAME)/python -m \
-	  pip install -e . -v --config-settings --global-option="$(PURE)"
+	  pip install -e . -v $(PIP_OPTIONS_PURE)
 	env HGRCPATH= $(VENV_NAME)/$(PYBINDIRNAME)/hg version
 
 .PHONY: build
@@ -102,7 +115,7 @@ install: install-bin install-doc
 
 .PHONY: install-bin
 install-bin:
-	$(PYTHON) -m pip install . --prefix="$(PREFIX)" --force -v --config-settings --global-option="$(PURE)"
+	$(PYTHON) -m pip install . --prefix="$(PIP_PREFIX)" --force -v $(PIP_OPTIONS_PURE) $(PIP_OPTIONS_INSTALL)
 
 .PHONY: install-chg
 install-chg: build-chg
@@ -117,7 +130,7 @@ install-home: install-home-bin install-home-doc
 
 .PHONY: install-home-bin
 install-home-bin:
-	$(PYTHON) -m pip install . --user --force -v --config-settings --global-option="$(PURE)"
+	$(PYTHON) -m pip install . --user --force -v $(PIP_OPTIONS_PURE) $(PIP_OPTIONS_INSTALL)
 
 .PHONY: install-home-doc
 install-home-doc:
