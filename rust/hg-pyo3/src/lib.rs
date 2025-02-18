@@ -7,6 +7,7 @@ mod discovery;
 mod exceptions;
 mod node;
 mod path;
+mod repo;
 mod revision;
 mod revlog;
 mod store;
