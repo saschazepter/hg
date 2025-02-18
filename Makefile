@@ -293,4 +293,3 @@ pyoxidizer-macos-tests: pyoxidizer
 .PHONY: pytype-docker
 pytype-docker:
 	contrib/docker/pytype/recipe.sh
-
