@@ -231,20 +231,14 @@ commit was created, and status is now clean
 
 The status process should return a consistent result and not crash.
 
-#if dirstate-v1
   $ cat $TESTTMP/status-race-lock.out
+  A dir/o (no-dirstate-v1 pre-some-read no-rhg !)
+  R dir/nested/m (no-dirstate-v1 pre-some-read no-rhg !)
+  A dir/o (dirstate-v2-append pre-some-read rhg !)
+  R dir/nested/m (dirstate-v2-append pre-some-read rhg !)
   ? dir/n
   ? p
   ? q
-#endif
-#if dirstate-v2
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  R dir/nested/m
-  ? dir/n
-  ? p
-  ? q
-#endif
 
 final cleanup
 
