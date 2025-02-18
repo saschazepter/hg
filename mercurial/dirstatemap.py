@@ -197,6 +197,7 @@ class _dirstatemapcommon:
                 )
             else:
                 raise error.CorruptedDirstate(b"dirstate is not in v2 format")
+            testing.wait_on_cfg(self._ui, b'dirstate.post-docket-read-file')
         return self._docket
 
     def _read_v2_data(self):
