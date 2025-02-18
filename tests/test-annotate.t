@@ -706,6 +706,12 @@ annotate removed file
   abort: $ENOENT$: '$TESTTMP/repo/baz' (no-windows !)
   [255]
 
+annotate file neither in repo nor working copy
+
+  $ hg annotate -ncr "wdir()" never_existed
+  abort: never_existed: $ENOENT$
+  [10]
+
   $ hg revert --all --no-backup --quiet
   $ hg id -n
   20
