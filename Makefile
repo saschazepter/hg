@@ -112,8 +112,8 @@ install-chg: build-chg
 	make -C contrib/chg install PREFIX="$(PREFIX)"
 
 .PHONY: install-doc
-install-doc: doc
-	cd doc && $(MAKE) $(MFLAGS) install
+install-doc:
+	$(MAKE) -C doc $(MFLAGS) PREFIX="$(PREFIX)"  install
 
 .PHONY: install-home
 install-home: install-home-bin install-home-doc
@@ -123,8 +123,8 @@ install-home-bin:
 	$(PYTHON) -m pip install . --user --force -v --config-settings --global-option="$(PURE)"
 
 .PHONY: install-home-doc
-install-home-doc: doc
-	cd doc && $(MAKE) $(MFLAGS) PREFIX="$(HOME)" install
+install-home-doc:
+	$(MAKE) -C doc $(MFLAGS) PREFIX="$(HOME)" install
 
 .PHONY: install-rhg
 install-rhg: build-rhg
