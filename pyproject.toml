@@ -128,3 +128,12 @@ version_file = "mercurial/__version__.py"
 # - post1: for the "default" branch
 # - post2: for any other branch
 version_scheme = "no-guess-dev"
+
+# The "node-and-timestamp" option seems better but we cannot use it as it make
+# `pip install` freaks out with the following warning resulting in an error in
+# the end::
+#
+#   WARNING: Built wheel for mercurial is invalid: Wheel has unexpected file name: expected 'x.y.z.post1.devXXX+hdeadbeef.d20250218231130', got 'x.y.z.post1.devXXX+hdeadbeef.d20250218231133'
+#   Failed to build mercurial
+#   ERROR: Failed to build installable wheels for some pyproject.toml based projects (mercurial)
+local_scheme = "node-and-date"
