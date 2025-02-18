@@ -1545,10 +1545,11 @@ def _v2_parse_files(
 def _write_files(info: Iterable[FileInfoT]):
     """write files from parsed data"""
     for path, mode, data in info:
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT)
+        if mode is None:
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT)
+        else:
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT, mode=mode)
         try:
-            if mode is not None:
-                os.fchmod(fd, mode)
             for chunk in data:
                 written = os.write(fd, chunk)
                 # write missing pieces if the write was interrupted
