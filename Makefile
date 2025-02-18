@@ -71,10 +71,6 @@ local:
 	  pip install -e . -v $(PIP_OPTIONS_PURE)
 	env HGRCPATH= $(VENV_NAME)/$(PYBINDIRNAME)/hg version
 
-.PHONY: build
-build:
-	$(PYTHON) setup.py $(PURE) build
-
 .PHONY: build-chg
 build-chg:
 	make -C contrib/chg
