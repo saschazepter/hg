@@ -285,6 +285,15 @@ impl From<SparseConfigError> for CommandError {
                     exit_codes::ABORT,
                 )
             }
+            SparseConfigError::WhitespaceAtEdgeOfPattern(prefix) => {
+                Self::abort_with_exit_code_bytes(
+                    format_bytes!(
+                        b"narrow pattern with whitespace at the edge: {}",
+                        &prefix
+                    ),
+                    exit_codes::ABORT,
+                )
+            }
             SparseConfigError::IncludesInNarrow => Self::abort(
                 "including other spec files using '%include' \
                     is not supported in narrowspec",

@@ -97,19 +97,38 @@ pub fn matcher(
     Ok((m, warnings))
 }
 
+fn is_whitespace(b: &u8) -> bool {
+    // should match what .strip() in Python does
+    b.is_ascii_whitespace() || *b == 0x0b
+}
+
+fn starts_or_ends_with_whitespace(s: &[u8]) -> bool {
+    let w = |b: Option<&u8>| b.map(is_whitespace).unwrap_or(false);
+    w(s.first()) || w(s.last())
+}
+
+fn validate_pattern(pattern: &[u8]) -> Result<(), SparseConfigError> {
+    if starts_or_ends_with_whitespace(pattern) {
+        return Err(SparseConfigError::WhitespaceAtEdgeOfPattern(
+            pattern.to_owned(),
+        ));
+    }
+    for prefix in VALID_PREFIXES.iter() {
+        if pattern.starts_with(prefix.as_bytes()) {
+            return Ok(());
+        }
+    }
+    Err(SparseConfigError::InvalidNarrowPrefix(pattern.to_owned()))
+}
+
 fn validate_patterns(patterns: &[u8]) -> Result<(), SparseConfigError> {
     for pattern in patterns.split(|c| *c == b'\n') {
         if pattern.is_empty() {
+            // TODO: probably not intentionally allowed (only because `split`
+            // produces "fake" empty line at the end)
             continue;
         }
-        for prefix in VALID_PREFIXES.iter() {
-            if pattern.starts_with(prefix.as_bytes()) {
-                return Ok(());
-            }
-        }
-        return Err(SparseConfigError::InvalidNarrowPrefix(
-            pattern.to_owned(),
-        ));
+        validate_pattern(pattern)?
     }
     Ok(())
 }
