@@ -131,7 +131,7 @@ install-rhg: build-rhg
 	install -m 755 rust/target/release/rhg "$(PREFIX)"/bin/
 
 .PHONY: dist
-dist:	tests dist-notests
+dist: tests dist-notests
 
 .PHONY: dist-notests
 dist-notests:	doc
@@ -142,7 +142,7 @@ check: tests
 
 .PHONY: tests
 tests:
-        # Run Rust tests if cargo is installed
+	# Run Rust tests if cargo is installed
 	if command -v $(CARGO) >/dev/null 2>&1; then \
 		$(MAKE) rust-tests; \
 		$(MAKE) cargo-clippy; \
