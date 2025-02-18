@@ -194,14 +194,15 @@ class _dirstatemapcommon:
         testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
         try:
             with self._opendirstatefile() as fp:
-                return identity, fp.read(size)
+                data = fp.read(size)
         except FileNotFoundError:
             # File doesn't exist, so the current state is empty
-            return identity, b''
+            data = b''
+        testing.wait_on_cfg(self._ui, b'dirstate.post-docket-read-file')
+        return identity, data
 
     @property
     def docket(self) -> docketmod.DirstateDocket:
-        testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
         if not self._docket:
             if not self._use_dirstate_v2:
                 raise error.ProgrammingError(
@@ -214,7 +215,6 @@ class _dirstatemapcommon:
                 )
             else:
                 raise error.CorruptedDirstate(b"dirstate is not in v2 format")
-            testing.wait_on_cfg(self._ui, b'dirstate.post-docket-read-file')
         return self._docket
 
     def _read_v2_data(self):
@@ -413,7 +413,6 @@ class dirstatemap(_dirstatemapcommon):
     ### disk interaction
 
     def read(self):
-        testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
         if self._use_dirstate_v2:
             try:
                 self.docket
@@ -423,7 +422,6 @@ class dirstatemap(_dirstatemapcommon):
             else:
                 if not self.docket.uuid:
                     return
-                testing.wait_on_cfg(self._ui, b'dirstate.post-docket-read-file')
                 st = self._read_v2_data()
         else:
             self.identity, st = self._readdirstatefile()
@@ -697,7 +695,6 @@ if rustmod is not None:
             """
             # ignore HG_PENDING because identity is used only for writing
 
-            testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
             if self._use_dirstate_v2:
                 try:
                     self.docket
@@ -707,9 +704,6 @@ if rustmod is not None:
                 else:
                     parents = self.docket.parents
                     identity = self._get_rust_identity()
-                    testing.wait_on_cfg(
-                        self._ui, b'dirstate.post-docket-read-file'
-                    )
                     if not self.docket.uuid:
                         data = b''
                         self._map = rustmod.DirstateMap.new_empty()
