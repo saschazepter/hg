@@ -231,20 +231,16 @@ commit was created, and status is now clean
 
 The status process should return a consistent result and not crash.
 
-#if dirstate-v1
+(The "pre-commit" state is only visible to (any) rust variant because the pure
+python implementation always rewrites, so we are never really in the "-append"
+case).
+
   $ cat $TESTTMP/status-race-lock.out
+  A dir/o (dirstate-v2-append pre-some-read rust !)
+  R dir/nested/m (dirstate-v2-append pre-some-read rust !)
   ? dir/n
   ? p
   ? q
-#endif
-#if dirstate-v2
-  $ cat $TESTTMP/status-race-lock.out
-  A dir/o
-  R dir/nested/m
-  ? dir/n
-  ? p
-  ? q
-#endif
 
 final cleanup
 
@@ -277,10 +273,19 @@ do an update
   |
   o  4f23db756b09 recreate a bunch of files to facilitate dirstate-v2 append
   
+(double check the working copy location before and after the update+concurrent status)
+  $ hg log -T '{node|short}\n' --rev "."
+  9a86dcbfb938
+(update destination)
+  $ hg log -T '{node|short}\n' --rev ".~1"
+  4f23db756b09
   $ hg $d2args update --merge ".~1"
   0 files updated, 0 files merged, 6 files removed, 0 files unresolved
   $ touch $TESTTMP/status-race-lock
   $ wait
+(the working copy should have been updated)
+  $ hg log -T '{node|short}\n' --rev "."
+  4f23db756b09
   $ hg log -GT '{node|short} {desc}\n'
   o  9a86dcbfb938 more files to have two commit
   |
