@@ -620,11 +620,13 @@ def wrapfilecache(cls, propname, wrapper):
 class wrappedfunction:
     '''context manager for temporarily wrapping a function'''
 
-    def __init__(self, container, funcname, wrapper):
+    def __init__(self, container, funcname: str, wrapper):
         assert callable(wrapper)
         if not isinstance(funcname, str):
-            msg = b"wrappedfunction target name should be `str`, not `bytes`"
-            raise TypeError(msg)
+            # Keep this compat shim around for older/unmaintained extensions
+            msg = b"pass wrappedfunction target name as `str`, not `bytes`"
+            util.nouideprecwarn(msg, b"6.6", stacklevel=2)
+            funcname = pycompat.sysstr(funcname)
         self._container = container
         self._funcname = funcname
         self._wrapper = wrapper
@@ -636,7 +638,7 @@ class wrappedfunction:
         unwrapfunction(self._container, self._funcname, self._wrapper)
 
 
-def wrapfunction(container, funcname, wrapper):
+def wrapfunction(container, funcname: str, wrapper):
     """Wrap the function named funcname in container
 
     Replace the funcname member in the given container with the specified
@@ -672,8 +674,10 @@ def wrapfunction(container, funcname, wrapper):
     assert callable(wrapper)
 
     if not isinstance(funcname, str):
-        msg = b"wrapfunction target name should be `str`, not `bytes`"
-        raise TypeError(msg)
+        # Keep this compat shim around for older/unmaintained extensions
+        msg = b"pass wrapfunction target name as `str`, not `bytes`"
+        util.nouideprecwarn(msg, b"6.6", stacklevel=2)
+        funcname = pycompat.sysstr(funcname)
 
     origfn = getattr(container, funcname)
     assert callable(origfn)
