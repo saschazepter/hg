@@ -1,15 +1,17 @@
 use core::str;
-use std::{collections::hash_map::Entry, ffi::OsString};
+use std::{cell::Ref, collections::hash_map::Entry, ffi::OsString};
 
+use chrono::{DateTime, FixedOffset};
 use format_bytes::format_bytes;
 use hg::{
     encoding::Encoder,
     operations::{
         annotate, AnnotateOptions, AnnotateOutput, ChangesetAnnotation,
     },
+    repo::Repo,
     revlog::changelog::Changelog,
     utils::strings::CleanWhitespace,
-    FastHashMap, Revision,
+    FastHashMap, Node, Revision,
 };
 
 use crate::{error::CommandError, utils::path_utils::resolve_file_args};
@@ -205,11 +207,10 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let changelog = repo.changelog()?;
     let mut formatter = Formatter::new(
-        &changelog,
+        repo,
         invocation.ui.encoder(),
-        include,
-        verbosity,
-    );
+        FormatterConfig { include, verbosity },
+    )?;
     let mut stdout = invocation.ui.stdout_buffer();
     for path in files {
         match annotate(repo, &path, rev, options)? {
@@ -246,14 +247,17 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 }
 
 struct Formatter<'a> {
-    changelog: &'a Changelog,
+    changelog: Ref<'a, Changelog>,
     encoder: &'a Encoder,
-    include: Include,
-    verbosity: Verbosity,
+    config: FormatterConfig,
     cache: FastHashMap<Revision, ChangesetData>,
 }
 
-#[derive(Copy, Clone)]
+struct FormatterConfig {
+    include: Include,
+    verbosity: Verbosity,
+}
+
 struct Include {
     user: bool,
     number: bool,
@@ -275,7 +279,6 @@ impl Include {
     }
 }
 
-#[derive(Copy, Clone)]
 enum Verbosity {
     Quiet,
     Default,
@@ -293,52 +296,60 @@ impl ChangesetData {
     fn create(
         revision: Revision,
         changelog: &Changelog,
-        include: Include,
-        verbosity: Verbosity,
-    ) -> Result<ChangesetData, CommandError> {
-        let mut result = ChangesetData::default();
+        config: &FormatterConfig,
+    ) -> Result<Self, CommandError> {
+        let include = &config.include;
         if !(include.user || include.changeset || include.date) {
-            return Ok(result);
+            return Ok(Self::default());
         }
         let entry = changelog.entry(revision)?;
         let data = entry.data()?;
-        if include.user {
-            let user = match verbosity {
-                Verbosity::Verbose => data.user(),
-                _ => hg::utils::strings::short_user(data.user()),
+        let node = *entry.as_revlog_entry().node();
+        Ok(Self::new(data.user(), node, data.timestamp()?, config))
+    }
+
+    fn new(
+        user: &[u8],
+        changeset: Node,
+        date: DateTime<FixedOffset>,
+        config: &FormatterConfig,
+    ) -> Self {
+        let mut result = ChangesetData::default();
+        if config.include.user {
+            let user = match config.verbosity {
+                Verbosity::Verbose => user,
+                _ => hg::utils::strings::short_user(user),
             };
             result.user = Some(user.to_vec());
         }
-        if include.changeset {
-            let changeset = entry.as_revlog_entry().node().short();
-            result.changeset = Some(format!("{:x}", changeset).into_bytes());
+        if config.include.changeset {
+            result.changeset =
+                Some(format!("{:x}", changeset.short()).into_bytes());
         }
-        if include.date {
-            let date = data.timestamp()?.format(match verbosity {
+        if config.include.date {
+            let date = date.format(match config.verbosity {
                 Verbosity::Quiet => "%Y-%m-%d",
                 _ => "%a %b %d %H:%M:%S %Y %z",
             });
             result.date = Some(format!("{}", date).into_bytes());
         }
-        Ok(result)
+        result
     }
 }
 
 impl<'a> Formatter<'a> {
     fn new(
-        changelog: &'a Changelog,
+        repo: &'a Repo,
         encoder: &'a Encoder,
-        include: Include,
-        verbosity: Verbosity,
-    ) -> Self {
-        let cache = FastHashMap::default();
-        Self {
+        config: FormatterConfig,
+    ) -> Result<Self, CommandError> {
+        let changelog = repo.changelog()?;
+        Ok(Self {
             changelog,
             encoder,
-            include,
-            verbosity,
-            cache,
-        }
+            config,
+            cache: FastHashMap::default(),
+        })
     }
 
     fn format(
@@ -347,7 +358,7 @@ impl<'a> Formatter<'a> {
     ) -> Result<Vec<Vec<u8>>, CommandError> {
         let mut lines: Vec<Vec<Vec<u8>>> =
             Vec::with_capacity(annotations.len());
-        let num_fields = self.include.count();
+        let num_fields = self.config.include.count();
         let mut widths = vec![0usize; num_fields];
         for annotation in annotations {
             let revision = annotation.revision;
@@ -355,16 +366,15 @@ impl<'a> Formatter<'a> {
                 Entry::Occupied(occupied) => occupied.into_mut(),
                 Entry::Vacant(vacant) => vacant.insert(ChangesetData::create(
                     revision,
-                    self.changelog,
-                    self.include,
-                    self.verbosity,
+                    &self.changelog,
+                    &self.config,
                 )?),
             };
             let mut fields = Vec::with_capacity(num_fields);
             if let Some(user) = &data.user {
                 fields.push(user.clone());
             }
-            if self.include.number {
+            if self.config.include.number {
                 fields.push(format_bytes!(b"{}", revision));
             }
             if let Some(changeset) = &data.changeset {
@@ -373,10 +383,10 @@ impl<'a> Formatter<'a> {
             if let Some(date) = &data.date {
                 fields.push(date.clone());
             }
-            if self.include.file {
+            if self.config.include.file {
                 fields.push(annotation.path.into_vec());
             }
-            if self.include.line_number {
+            if self.config.include.line_number {
                 fields.push(format_bytes!(b"{}", annotation.line_number));
             }
             for (field, width) in fields.iter().zip(widths.iter_mut()) {
@@ -396,8 +406,8 @@ impl<'a> Formatter<'a> {
                     fields.iter().zip(widths.iter()).enumerate()
                 {
                     if i > 0 {
-                        let colon =
-                            self.include.line_number && i == num_fields - 1;
+                        let colon = self.config.include.line_number
+                            && i == num_fields - 1;
                         bytes.push(if colon { b':' } else { b' ' });
                     }
                     let padding =
