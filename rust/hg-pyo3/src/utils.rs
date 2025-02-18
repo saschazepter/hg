@@ -2,12 +2,15 @@ use hg::errors::HgError;
 use hg::revlog::index::Index as CoreIndex;
 use hg::revlog::inner_revlog::RevisionBuffer;
 use pyo3::buffer::{Element, PyBuffer};
-use pyo3::exceptions::PyValueError;
-use pyo3::prelude::*;
+use pyo3::exceptions::{
+    PyIOError, PyKeyboardInterrupt, PyRuntimeError, PyValueError,
+};
 use pyo3::types::{PyBytes, PyDict};
+use pyo3::{intern, prelude::*};
 use pyo3_sharedref::SharedByPyObject;
 use stable_deref_trait::StableDeref;
 
+use crate::exceptions::FallbackError;
 use crate::revlog::{InnerRevlog, PySharedIndex};
 
 /// Create the module, with `__package__` given from parent
@@ -301,3 +304,42 @@ impl RevisionBuffer for PyRevisionBuffer {
         self.py_bytes
     }
 }
+
+/// Extension trait to help with generic error conversions from hg-core to
+/// Python.
+pub(crate) trait HgPyErrExt<T> {
+    fn into_pyerr(self, py: Python) -> PyResult<T>;
+}
+
+impl<T, E> HgPyErrExt<T> for Result<T, E>
+where
+    HgError: From<E>,
+{
+    fn into_pyerr(self, py: Python) -> PyResult<T> {
+        self.map_err(|e| match e.into() {
+            err @ HgError::IoError { .. } => {
+                PyIOError::new_err(err.to_string())
+            }
+            HgError::UnsupportedFeature(e) => {
+                FallbackError::new_err(e.to_string())
+            }
+            HgError::RaceDetected(_) => {
+                unreachable!("must not surface to the user")
+            }
+            HgError::Path(path_error) => {
+                let msg = PyBytes::new(py, path_error.to_string().as_bytes());
+                let cls = py
+                    .import(intern!(py, "mercurial.error"))
+                    .and_then(|m| m.getattr(intern!(py, "InputError")))
+                    .expect("failed to import InputError");
+                PyErr::from_value(
+                    cls.call1((msg,))
+                        .expect("initializing an InputError failed"),
+                )
+            }
+            HgError::InterruptReceived => PyKeyboardInterrupt::new_err(()),
+            e => PyRuntimeError::new_err(e.to_string()),
+        })
+    }
+}
+
