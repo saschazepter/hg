@@ -53,7 +53,7 @@ if typing.TYPE_CHECKING:
     """The merge action, data about the merge, and message about the merge, for
     the keyed file."""
 
-rust_update_mod = policy.importrust("update")
+rust_update_mod = policy.importrust("update", pyo3=True)
 
 _pack = struct.pack
 _unpack = struct.unpack
