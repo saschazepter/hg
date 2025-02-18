@@ -192,7 +192,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     }
     if include.line_number && !(include.number || include.changeset) {
         return Err(CommandError::abort(
-            "at least one of -n/-c is required for -l",
+            "abort: at least one of -n/-c is required for -l",
         ));
     }
 
@@ -235,7 +235,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             AnnotateOutput::NotFound => {
                 let short = changelog.node_from_rev(rev).short();
                 return Err(CommandError::abort(format!(
-                    "{path}: no such file in rev {short:x}",
+                    "abort: {path}: no such file in rev {short:x}",
                 )));
             }
         }
