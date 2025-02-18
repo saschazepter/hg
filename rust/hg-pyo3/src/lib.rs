@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 
 mod ancestors;
+mod copy_tracing;
 mod dagops;
 mod dirstate;
 mod discovery;
@@ -26,6 +27,7 @@ fn pyo3_rustext(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     env_logger::init();
 
     m.add_submodule(&ancestors::init_module(py, &dotted_name)?)?;
+    m.add_submodule(&copy_tracing::init_module(py, &dotted_name)?)?;
     m.add_submodule(&dagops::init_module(py, &dotted_name)?)?;
     m.add_submodule(&dirstate::init_module(py, &dotted_name)?)?;
     m.add_submodule(&discovery::init_module(py, &dotted_name)?)?;
