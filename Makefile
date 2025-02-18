@@ -34,7 +34,6 @@ PYBINDIRNAME=$(shell $(PYTHON) -c "import os; print('Scripts' if os.name == 'nt'
 .PHONY: help
 help:
 	@echo 'Commonly used make targets:'
-	@echo '  all          - build program and documentation'
 	@echo '  install      - install program and man pages to $$PREFIX ($(PREFIX))'
 	@echo '  install-home - install with pip install --user'
 	@echo '  local        - build for inplace usage'
@@ -46,13 +45,11 @@ help:
 	@echo '  update-pot   - update i18n/hg.pot'
 	@echo
 	@echo 'Example for a system-wide installation under /usr/local:'
-	@echo '  make all && su -c "make install" && hg version'
+	@echo '  make doc'
+	@echo '  su -c "make install PIP_OPTIONS_INSTALL=" && hg version'
 	@echo
 	@echo 'Example for a local installation (usable in this directory):'
 	@echo '  make local && ./hg version'
-
-.PHONY: all
-all: build doc
 
 .PHONY: local
 local:
