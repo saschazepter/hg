@@ -343,3 +343,33 @@ where
     }
 }
 
+/// Wrap a call to `func` so that Python's `SIGINT` handler is first stored,
+/// then restored after the call to `func` and finally raised if
+/// `func` returns a [`HgError::InterruptReceived`].
+///
+/// We cannot use [`Python::check_signals`] because it only works from the main
+/// thread of the main interpreter. To that end, long-running Rust functions
+/// need to cooperate by listening to their own `SIGINT` signal and return
+/// the appropriate error on catching that signal: this is especially helpful
+/// in multithreaded operations.
+pub fn with_sigint_wrapper<R>(
+    py: Python,
+    func: impl Fn() -> Result<R, HgError>,
+) -> PyResult<Result<R, HgError>> {
+    let signal_py_mod = py.import(intern!(py, "signal"))?;
+    let sigint_py_const = signal_py_mod.getattr(intern!(py, "SIGINT"))?;
+    let old_handler = signal_py_mod
+        .call_method1(intern!(py, "getsignal"), (sigint_py_const.clone(),))?;
+    let res = func();
+    // Reset the old signal handler in Python because we may have changed it
+    signal_py_mod.call_method1(
+        intern!(py, "signal"),
+        (sigint_py_const.clone(), old_handler),
+    )?;
+    if let Err(HgError::InterruptReceived) = res {
+        // Trigger the signal in Python
+        signal_py_mod
+            .call_method1(intern!(py, "raise_signal"), (sigint_py_const,))?;
+    }
+    Ok(res)
+}
