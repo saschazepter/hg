@@ -8,7 +8,7 @@
 //! Bindings for the `hg::dagops` module provided by the
 //! `hg-core` package.
 //!
-//! From Python, this will be seen as `mercurial.pyo3-rustext.dagop`
+//! From Python, this will be seen as `mercurial.pyo3_rustext.dagop`
 use pyo3::prelude::*;
 
 use std::collections::HashSet;
