@@ -284,27 +284,6 @@ do an update
   $ touch $TESTTMP/status-race-lock
   $ wait
 (the working copy should have been updated)
-#if rust no-rhg known-bad-output dirstate-v2-append pre-some-read known-bad-output
-  $ hg log -T '{node|short}\n' --rev "."
-  9a86dcbfb938
-  $ hg log -GT '{node|short} {desc}\n'
-  @  9a86dcbfb938 more files to have two commit
-  |
-  o  4f23db756b09 recreate a bunch of files to facilitate dirstate-v2 append
-  
-  $ hg status
-  A dir/o
-  R dir/nested/m
-  ! dir/i
-  ! dir/j
-  ! dir/nested/h
-  ! dir2/k
-  ! dir2/l
-  ! g
-  ? dir/n
-  ? p
-  ? q
-#else
   $ hg log -T '{node|short}\n' --rev "."
   4f23db756b09
   $ hg log -GT '{node|short} {desc}\n'
@@ -317,7 +296,6 @@ do an update
   ? dir/n
   ? p
   ? q
-#endif
 
 The status process should return a consistent result and not crash.
 
