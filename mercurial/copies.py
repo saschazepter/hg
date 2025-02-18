@@ -28,7 +28,7 @@ from .revlogutils import (
     sidedata as sidedatamod,
 )
 
-rustmod = policy.importrust("copy_tracing")
+rustmod = policy.importrust("copy_tracing", pyo3=True)
 
 
 def _filter(src, dst, t):
