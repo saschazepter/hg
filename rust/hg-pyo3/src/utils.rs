@@ -23,7 +23,6 @@ pub(crate) fn new_submodule<'py>(
     let dotted_name = &format!("{}.{}", package_name, name);
     let m = PyModule::new(py, name)?;
     m.add("__package__", package_name)?;
-    m.add("__doc__", "DAG operations - Rust implementation")?;
 
     let sys = PyModule::import(py, "sys")?;
     // according to the doc, we could make a static PyString out of
