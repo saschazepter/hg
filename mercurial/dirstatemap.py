@@ -674,7 +674,6 @@ if rustmod is not None:
             Fills the Dirstatemap when called.
             """
             # ignore HG_PENDING because identity is used only for writing
-            self._set_identity()
 
             testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
             if self._use_dirstate_v2:
@@ -714,7 +713,6 @@ if rustmod is not None:
             return self._map
 
         def _get_rust_identity(self):
-            self._set_identity()
             identity = None
             if self.identity is not None and self.identity.stat is not None:
                 stat_info = self.identity.stat
@@ -734,8 +732,9 @@ if rustmod is not None:
             return identity
 
         def _v1_map(self, from_v2_exception=None):
-            identity = self._get_rust_identity()
             try:
+                self._set_identity()
+                identity = self._get_rust_identity()
                 self._map, parents = rustmod.DirstateMap.new_v1(
                     self._readdirstatefile(), identity
                 )
