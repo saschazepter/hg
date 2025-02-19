@@ -126,6 +126,39 @@ pub const WORKING_DIRECTORY_REVISION: UncheckedRevision =
 pub const WORKING_DIRECTORY_HEX: &str =
     "ffffffffffffffffffffffffffffffffffffffff";
 
+/// Either a checked revision or the working directory.
+/// Note that [`Revision`] will never hold [`WORKING_DIRECTORY_REVISION`]
+/// because that is not a valid revision in any revlog.
+#[derive(Copy, Clone, Hash, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct RevisionOrWdir(BaseRevision);
+
+impl From<Revision> for RevisionOrWdir {
+    fn from(value: Revision) -> Self {
+        RevisionOrWdir(value.0)
+    }
+}
+
+impl RevisionOrWdir {
+    /// Creates a [`RevisionOrWdir`] representing the working directory.
+    pub fn wdir() -> Self {
+        RevisionOrWdir(WORKING_DIRECTORY_REVISION.0)
+    }
+
+    /// Returns the revision, or `None` if this is the working directory.
+    pub fn exclude_wdir(self) -> Option<Revision> {
+        if self.0 == WORKING_DIRECTORY_REVISION.0 {
+            None
+        } else {
+            Some(Revision(self.0))
+        }
+    }
+
+    /// Returns true if this is the working directory.
+    pub fn is_wdir(&self) -> bool {
+        *self == Self::wdir()
+    }
+}
+
 /// The simplest expression of what we need of Mercurial DAGs.
 pub trait Graph {
     /// Return the two parents of the given `Revision`.
@@ -975,5 +1008,11 @@ mod tests {
                 panic!("Got another error than AmbiguousPrefix: {:?}", e);
             }
         };
+    }
+
+    #[test]
+    fn test_revision_or_wdir_ord() {
+        let highest: RevisionOrWdir = Revision(i32::MAX - 1).into();
+        assert!(highest < RevisionOrWdir::wdir());
     }
 }
