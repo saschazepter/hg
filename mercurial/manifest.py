@@ -1672,7 +1672,7 @@ class FastdeltaUnavailable(Exception):
     """Exception raised when fastdelta isn't usable on a manifest."""
 
 
-class manifestrevlog:  # (repository.imanifeststorage)
+class manifestrevlog(repository.imanifeststorage):
     """A revlog that stores manifest texts. This is responsible for caching the
     full-text manifest contents.
     """
