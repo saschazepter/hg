@@ -2,7 +2,9 @@
 use itertools::Itertools;
 use serde::Deserialize;
 
-use crate::{errors::HgError, exit_codes, FastHashMap};
+use crate::errors::HgError;
+use crate::exit_codes;
+use crate::FastHashMap;
 
 /// Corresponds to the structure of `mercurial/configitems.toml`.
 #[derive(Debug, Deserialize)]
@@ -618,11 +620,9 @@ impl DefaultConfig {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::config_items::{
-        DefaultConfigItem, DefaultConfigItemType,
-    };
-
     use super::DefaultConfig;
+    use crate::config::config_items::DefaultConfigItem;
+    use crate::config::config_items::DefaultConfigItemType;
 
     #[test]
     fn test_config_read() {

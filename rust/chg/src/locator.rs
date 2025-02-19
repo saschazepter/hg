@@ -5,20 +5,30 @@
 
 //! Utility for locating command-server process.
 
-use log::debug;
 use std::env;
-use std::ffi::{OsStr, OsString};
-use std::fs::{self, DirBuilder};
+use std::ffi::OsStr;
+use std::ffi::OsString;
+use std::fs::DirBuilder;
+use std::fs::{self};
 use std::io;
-use std::os::unix::ffi::{OsStrExt, OsStringExt};
-use std::os::unix::fs::{DirBuilderExt, MetadataExt};
-use std::path::{Path, PathBuf};
-use std::process::{self, Child, Command};
-use std::time::{Duration, Instant};
+use std::os::unix::ffi::OsStrExt;
+use std::os::unix::ffi::OsStringExt;
+use std::os::unix::fs::DirBuilderExt;
+use std::os::unix::fs::MetadataExt;
+use std::path::Path;
+use std::path::PathBuf;
+use std::process::Child;
+use std::process::Command;
+use std::process::{self};
+use std::time::Duration;
+use std::time::Instant;
+
+use log::debug;
 use tokio::time;
 
 use crate::clientext::ChgClient;
-use crate::message::{Instruction, ServerSpec};
+use crate::message::Instruction;
+use crate::message::ServerSpec;
 use crate::procutil;
 
 const REQUIRED_SERVER_CAPABILITIES: &[&str] = &[

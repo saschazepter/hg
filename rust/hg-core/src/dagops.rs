@@ -12,11 +12,17 @@
 //!   mean those revisions that have no children among the collection.
 //! - Similarly *relative roots* of a collection of `Revision`, we mean those
 //!   whose parents, if any, don't belong to the collection.
+use std::collections::BTreeSet;
+use std::collections::HashSet;
+
 use bitvec::slice::BitSlice;
 
-use super::{Graph, GraphError, Revision, NULL_REVISION};
-use crate::{ancestors::AncestorsIterator, BaseRevision};
-use std::collections::{BTreeSet, HashSet};
+use super::Graph;
+use super::GraphError;
+use super::Revision;
+use super::NULL_REVISION;
+use crate::ancestors::AncestorsIterator;
+use crate::BaseRevision;
 
 fn remove_parents<S: std::hash::BuildHasher>(
     graph: &impl Graph,
@@ -199,7 +205,8 @@ pub fn range(
 mod tests {
 
     use super::*;
-    use crate::{testing::SampleGraph, BaseRevision};
+    use crate::testing::SampleGraph;
+    use crate::BaseRevision;
 
     /// Apply `retain_heads()` to the given slice and return as a sorted `Vec`
     fn retain_heads_sorted(

@@ -5,20 +5,20 @@
 //
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
+use std::sync::OnceLock;
+
+use hg::revlog::compression::CompressionConfig;
+use hg::revlog::options::RevlogDataConfig;
+use hg::revlog::options::RevlogDeltaConfig;
+use hg::revlog::options::RevlogFeatureConfig;
+use hg::revlog::RevlogType;
 use pyo3::conversion::FromPyObject;
 use pyo3::exceptions::PyValueError;
 use pyo3::intern;
-
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict, PyDictMethods};
-
-use std::sync::OnceLock;
-
-use hg::revlog::{
-    compression::CompressionConfig,
-    options::{RevlogDataConfig, RevlogDeltaConfig, RevlogFeatureConfig},
-    RevlogType,
-};
+use pyo3::types::PyBytes;
+use pyo3::types::PyDict;
+use pyo3::types::PyDictMethods;
 
 /// Helper trait for configuration dicts
 ///

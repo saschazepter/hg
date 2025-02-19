@@ -3,14 +3,16 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
+use std::borrow::Cow;
+use std::ffi::OsString;
+
 use hg::errors::HgError;
 use hg::repo::Repo;
 use hg::utils::current_dir;
-use hg::utils::files::{get_bytes_from_path, relativize_path};
+use hg::utils::files::get_bytes_from_path;
+use hg::utils::files::relativize_path;
 use hg::utils::hg_path::HgPath;
 use hg::utils::hg_path::HgPathBuf;
-use std::borrow::Cow;
-use std::ffi::OsString;
 
 use crate::error::CommandError;
 

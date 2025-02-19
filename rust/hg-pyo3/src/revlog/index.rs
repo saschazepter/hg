@@ -7,15 +7,17 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 //! Utilities for dealing with the index at the Python boundary
-use hg::{BaseRevision, Graph};
+use hg::revlog::index::Index;
+use hg::revlog::index::RevisionDataParams;
+use hg::revlog::Node;
+use hg::revlog::Revision;
+use hg::revlog::RevlogIndex;
+use hg::BaseRevision;
+use hg::Graph;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyTuple};
+use pyo3::types::PyBytes;
+use pyo3::types::PyTuple;
 use vcsgraph::graph::Graph as VCSGraph;
-
-use hg::revlog::{
-    index::{Index, RevisionDataParams},
-    Node, Revision, RevlogIndex,
-};
 
 #[derive(derive_more::From, Clone)]
 pub struct PySharedIndex {

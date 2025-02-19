@@ -13,7 +13,18 @@ pub mod config_items;
 mod layer;
 mod plain_info;
 mod values;
-pub use layer::{ConfigError, ConfigOrigin, ConfigParseError};
+use std::collections::HashSet;
+use std::env;
+use std::fmt;
+use std::path::Path;
+use std::path::PathBuf;
+use std::str;
+
+use format_bytes::write_bytes;
+use format_bytes::DisplayBytes;
+pub use layer::ConfigError;
+pub use layer::ConfigOrigin;
+pub use layer::ConfigParseError;
 use lazy_static::lazy_static;
 pub use plain_info::PlainInfo;
 
@@ -22,15 +33,10 @@ use self::config_items::DefaultConfigItem;
 use self::layer::ConfigLayer;
 use self::layer::ConfigValue;
 use crate::errors::HgError;
-use crate::errors::{HgResultExt, IoResultExt};
+use crate::errors::HgResultExt;
+use crate::errors::IoResultExt;
 use crate::exit_codes;
 use crate::utils::files::get_bytes_from_os_str;
-use format_bytes::{write_bytes, DisplayBytes};
-use std::collections::HashSet;
-use std::env;
-use std::fmt;
-use std::path::{Path, PathBuf};
-use std::str;
 
 lazy_static! {
     static ref DEFAULT_CONFIG: Result<DefaultConfig, HgError> = {
@@ -889,10 +895,12 @@ pub enum ResourceProfileValue {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use pretty_assertions::assert_eq;
     use std::fs::File;
     use std::io::Write;
+
+    use pretty_assertions::assert_eq;
+
+    use super::*;
 
     #[test]
     fn test_include_layer_ordering() {

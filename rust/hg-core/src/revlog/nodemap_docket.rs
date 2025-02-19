@@ -1,14 +1,16 @@
-use crate::{
-    errors::{HgError, HgResultExt},
-    BaseRevision,
-};
-use bytes_cast::{unaligned, BytesCast};
+use std::path::Path;
+use std::path::PathBuf;
+
+use bytes_cast::unaligned;
+use bytes_cast::BytesCast;
 use memmap2::Mmap;
-use std::path::{Path, PathBuf};
 
+use super::Node;
+use super::UncheckedRevision;
+use crate::errors::HgError;
+use crate::errors::HgResultExt;
 use crate::vfs::VfsImpl;
-
-use super::{Node, UncheckedRevision};
+use crate::BaseRevision;
 
 const ONDISK_VERSION: u8 = 1;
 

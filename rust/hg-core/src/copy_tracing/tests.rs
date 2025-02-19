@@ -130,9 +130,10 @@ fn test_combine_changeset_copies() {
     // keys to copy source values. Note: the arrows for map literal syntax
     // point **backwards** compared to the logical direction of copy!
 
-    use crate::revlog::NULL_REVISION as NULL;
     use Action::*;
     use MergeCase::*;
+
+    use crate::revlog::NULL_REVISION as NULL;
 
     assert_eq!(
         combine_changeset_copies!(

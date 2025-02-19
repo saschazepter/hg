@@ -1,5 +1,6 @@
-use similar::DiffableStr;
 use std::ffi::OsStr;
+
+use similar::DiffableStr;
 use tempdir::TempDir;
 
 fn run_test(arg: &str, input: &str) -> String {

@@ -1,8 +1,9 @@
-use crate::error::CommandError;
 use clap::Arg;
 use clap::ArgGroup;
 use hg::operations::debug_data;
 use hg::revlog::RevlogType;
+
+use crate::error::CommandError;
 
 pub const HELP_TEXT: &str = "
 Dump the contents of a data file revision

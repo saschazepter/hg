@@ -2,17 +2,18 @@
 
 use std::collections::HashSet;
 
-use crate::{
-    config::{Config, ResourceProfileValue},
-    errors::HgError,
-    requirements::{
-        CHANGELOGV2_REQUIREMENT, GENERALDELTA_REQUIREMENT, NARROW_REQUIREMENT,
-        NODEMAP_REQUIREMENT, REVLOGV1_REQUIREMENT, REVLOGV2_REQUIREMENT,
-        SPARSEREVLOG_REQUIREMENT,
-    },
-};
-
-use super::{compression::CompressionConfig, RevlogType};
+use super::compression::CompressionConfig;
+use super::RevlogType;
+use crate::config::Config;
+use crate::config::ResourceProfileValue;
+use crate::errors::HgError;
+use crate::requirements::CHANGELOGV2_REQUIREMENT;
+use crate::requirements::GENERALDELTA_REQUIREMENT;
+use crate::requirements::NARROW_REQUIREMENT;
+use crate::requirements::NODEMAP_REQUIREMENT;
+use crate::requirements::REVLOGV1_REQUIREMENT;
+use crate::requirements::REVLOGV2_REQUIREMENT;
+use crate::requirements::SPARSEREVLOG_REQUIREMENT;
 
 const DEFAULT_CHUNK_CACHE_SIZE: u64 = 65536;
 const DEFAULT_SPARSE_READ_DENSITY_THRESHOLD: f64 = 0.50;

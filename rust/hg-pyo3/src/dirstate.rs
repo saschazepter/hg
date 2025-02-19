@@ -10,19 +10,24 @@
 //! `hg-core` package.
 //!
 //! From Python, this will be seen as `mercurial.pyo3_rustext.dirstate`
-use crate::{exceptions, utils::new_submodule};
 use pyo3::prelude::*;
+
+use crate::exceptions;
+use crate::utils::new_submodule;
 mod item;
 use item::DirstateItem;
 mod dirstate_map;
-use dirstate_map::{
-    DirstateIdentity, DirstateMap, DirstateMapItemsIterator,
-    DirstateMapKeysIterator,
-};
+use dirstate_map::DirstateIdentity;
+use dirstate_map::DirstateMap;
+use dirstate_map::DirstateMapItemsIterator;
+use dirstate_map::DirstateMapKeysIterator;
 mod copy_map;
-use copy_map::{CopyMap, CopyMapItemsIterator, CopyMapKeysIterator};
+use copy_map::CopyMap;
+use copy_map::CopyMapItemsIterator;
+use copy_map::CopyMapKeysIterator;
 mod dirs_multiset;
-use dirs_multiset::{Dirs, DirsMultisetKeysIterator};
+use dirs_multiset::Dirs;
+use dirs_multiset::DirsMultisetKeysIterator;
 mod status;
 
 pub fn init_module<'py>(

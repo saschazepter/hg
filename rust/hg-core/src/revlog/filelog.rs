@@ -1,12 +1,16 @@
+use std::path::PathBuf;
+
+use super::options::RevlogOpenOptions;
 use crate::errors::HgError;
 use crate::exit_codes;
 use crate::repo::Repo;
 use crate::revlog::path_encode::path_encode;
 use crate::revlog::NodePrefix;
 use crate::revlog::Revision;
+use crate::revlog::Revlog;
 use crate::revlog::RevlogEntry;
+use crate::revlog::RevlogError;
 use crate::revlog::REVISION_FLAG_HASMETA;
-use crate::revlog::{Revlog, RevlogError};
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::strings::SliceExt;
@@ -14,9 +18,6 @@ use crate::Graph;
 use crate::GraphError;
 use crate::Node;
 use crate::UncheckedRevision;
-use std::path::PathBuf;
-
-use super::options::RevlogOpenOptions;
 
 /// A specialized `Revlog` to work with file data logs.
 pub struct Filelog {
@@ -331,8 +332,9 @@ impl<'a> FilelogRevisionMetadata<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use format_bytes::format_bytes;
+
+    use super::*;
 
     #[test]
     fn test_parse_no_metadata() {

@@ -1,11 +1,14 @@
 //! Logging for repository events, including commands run in the repository.
 
-use crate::CliInvocation;
+use std::ffi::OsString;
+
 use format_bytes::format_bytes;
 use hg::errors::HgError;
 use hg::repo::Repo;
-use hg::utils::{files::get_bytes_from_os_str, strings::shell_quote};
-use std::ffi::OsString;
+use hg::utils::files::get_bytes_from_os_str;
+use hg::utils::strings::shell_quote;
+
+use crate::CliInvocation;
 
 // Python does not support %.3f, only %f
 const DEFAULT_DATE_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.3f";

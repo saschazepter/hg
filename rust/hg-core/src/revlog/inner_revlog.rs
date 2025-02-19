@@ -1,35 +1,55 @@
 //! A layer of lower-level revlog functionality to encapsulate most of the
 //! IO work and expensive operations.
-use std::{
-    borrow::Cow,
-    io::{ErrorKind, Seek, SeekFrom, Write},
-    ops::Deref,
-    path::PathBuf,
-    sync::{Arc, Mutex, RwLock},
-};
+use std::borrow::Cow;
+use std::io::ErrorKind;
+use std::io::Seek;
+use std::io::SeekFrom;
+use std::io::Write;
+use std::ops::Deref;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::RwLock;
 
-use schnellru::{ByMemoryUsage, LruMap};
-use sha1::{Digest, Sha1};
+use schnellru::ByMemoryUsage;
+use schnellru::LruMap;
+use sha1::Digest;
+use sha1::Sha1;
 
-use crate::{
-    errors::{HgError, IoResultExt},
-    exit_codes,
-    transaction::Transaction,
-    vfs::Vfs,
-};
-
-use super::{
-    compression::{
-        uncompressed_zstd_data, CompressionConfig, Compressor, NoneCompressor,
-        ZlibCompressor, ZstdCompressor, ZLIB_BYTE, ZSTD_BYTE,
-    },
-    file_io::{DelayedBuffer, FileHandle, RandomAccessFile, WriteHandles},
-    index::{Index, IndexHeader, INDEX_ENTRY_SIZE},
-    node::{NODE_BYTES_LENGTH, NULL_NODE},
-    options::{RevlogDataConfig, RevlogDeltaConfig, RevlogFeatureConfig},
-    BaseRevision, Node, Revision, RevlogEntry, RevlogError, RevlogIndex,
-    UncheckedRevision, NULL_REVISION, NULL_REVLOG_ENTRY_FLAGS,
-};
+use super::compression::uncompressed_zstd_data;
+use super::compression::CompressionConfig;
+use super::compression::Compressor;
+use super::compression::NoneCompressor;
+use super::compression::ZlibCompressor;
+use super::compression::ZstdCompressor;
+use super::compression::ZLIB_BYTE;
+use super::compression::ZSTD_BYTE;
+use super::file_io::DelayedBuffer;
+use super::file_io::FileHandle;
+use super::file_io::RandomAccessFile;
+use super::file_io::WriteHandles;
+use super::index::Index;
+use super::index::IndexHeader;
+use super::index::INDEX_ENTRY_SIZE;
+use super::node::NODE_BYTES_LENGTH;
+use super::node::NULL_NODE;
+use super::options::RevlogDataConfig;
+use super::options::RevlogDeltaConfig;
+use super::options::RevlogFeatureConfig;
+use super::BaseRevision;
+use super::Node;
+use super::Revision;
+use super::RevlogEntry;
+use super::RevlogError;
+use super::RevlogIndex;
+use super::UncheckedRevision;
+use super::NULL_REVISION;
+use super::NULL_REVLOG_ENTRY_FLAGS;
+use crate::errors::HgError;
+use crate::errors::IoResultExt;
+use crate::exit_codes;
+use crate::transaction::Transaction;
+use crate::vfs::Vfs;
 
 /// Matches the `_InnerRevlog` class in the Python code, as an arbitrary
 /// boundary to incrementally rewrite higher-level revlog functionality in

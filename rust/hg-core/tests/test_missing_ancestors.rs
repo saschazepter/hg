@@ -1,13 +1,17 @@
-use hg::testing::VecGraph;
-use hg::Revision;
-use hg::*;
-use rand::distr::{Distribution, Uniform};
-use rand::{Rng, RngCore, SeedableRng};
-use rand_distr::LogNormal;
 use std::cmp::min;
 use std::collections::HashSet;
 use std::env;
 use std::fmt::Debug;
+
+use hg::testing::VecGraph;
+use hg::Revision;
+use hg::*;
+use rand::distr::Distribution;
+use rand::distr::Uniform;
+use rand::Rng;
+use rand::RngCore;
+use rand::SeedableRng;
+use rand_distr::LogNormal;
 
 fn build_random_graph(
     nodes_opt: Option<usize>,

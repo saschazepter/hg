@@ -13,6 +13,7 @@
 use hg::copy_tracing::ChangedFiles;
 use hg::copy_tracing::CombineChangesetCopies;
 use hg::Revision;
+use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::types::PyDict;
 use pyo3::types::PyList;
@@ -21,8 +22,6 @@ use pyo3::types::PyTuple;
 use crate::revision::PyRevision;
 use crate::utils::new_submodule;
 use crate::utils::PyBytesDeref;
-
-use pyo3::prelude::*;
 
 /// Combines copies information contained into revision `revs` to build a copy
 /// map.

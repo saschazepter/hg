@@ -8,25 +8,24 @@
 //! Bindings for `hg::dirstate::dirstate_map::CopyMap` provided by the
 //! `hg-core` package.
 
+use std::sync::RwLockReadGuard;
+use std::sync::RwLockWriteGuard;
+
+use hg::dirstate::on_disk::DirstateV2ParseError;
+use hg::dirstate::owning::OwningDirstateMap;
+use hg::dirstate::CopyMapIter;
+use hg::utils::hg_path::HgPath;
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict, PyTuple};
+use pyo3::types::PyBytes;
+use pyo3::types::PyDict;
+use pyo3::types::PyTuple;
 use pyo3_sharedref::py_shared_iterator;
 
-use std::sync::{RwLockReadGuard, RwLockWriteGuard};
-
-use hg::{
-    dirstate::{
-        on_disk::DirstateV2ParseError, owning::OwningDirstateMap, CopyMapIter,
-    },
-    utils::hg_path::HgPath,
-};
-
 use super::dirstate_map::DirstateMap;
-use crate::{
-    exceptions::dirstate_v2_error,
-    path::{PyHgPathBuf, PyHgPathRef},
-};
+use crate::exceptions::dirstate_v2_error;
+use crate::path::PyHgPathBuf;
+use crate::path::PyHgPathRef;
 
 #[pyclass(mapping)]
 pub struct CopyMap {

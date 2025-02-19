@@ -1,11 +1,13 @@
-use crate::error::CommandError;
-use crate::ui::Ui;
 use clap::Arg;
 use hg::dirstate::status::StatusError;
 use hg::filepatterns::RegexCompleteness;
-use hg::matchers::{get_ignore_matcher_pre, ReSyntax};
+use hg::matchers::get_ignore_matcher_pre;
+use hg::matchers::ReSyntax;
 use hg::repo::Repo;
 use tracing::warn;
+
+use crate::error::CommandError;
+use crate::ui::Ui;
 
 pub const HELP_TEXT: &str = "
 Show effective hgignore patterns used by rhg.

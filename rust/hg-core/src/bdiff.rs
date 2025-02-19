@@ -1,7 +1,8 @@
 //! Safe bindings to bdiff.c.
 
-use crate::errors::HgError;
 use std::marker::PhantomData;
+
+use crate::errors::HgError;
 
 /// A file split into lines, ready for diffing.
 pub struct Lines<'a> {
@@ -218,7 +219,8 @@ impl ExactSizeIterator for HunkListIter<'_> {}
 mod ffi {
     #![allow(non_camel_case_types)]
 
-    use std::ffi::{c_char, c_int};
+    use std::ffi::c_char;
+    use std::ffi::c_int;
 
     #[repr(C)]
     #[derive(Debug, Copy, Clone)]

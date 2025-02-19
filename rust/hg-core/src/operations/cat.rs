@@ -5,18 +5,18 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use crate::repo::Repo;
-use crate::revlog::Node;
-use crate::revlog::RevlogError;
+use std::cmp::Ordering;
 
-use crate::utils::hg_path::HgPath;
-
-use crate::errors::HgError;
-use crate::revlog::manifest::Manifest;
-use crate::revlog::manifest::ManifestEntry;
 use itertools::put_back;
 use itertools::PutBack;
-use std::cmp::Ordering;
+
+use crate::errors::HgError;
+use crate::repo::Repo;
+use crate::revlog::manifest::Manifest;
+use crate::revlog::manifest::ManifestEntry;
+use crate::revlog::Node;
+use crate::revlog::RevlogError;
+use crate::utils::hg_path::HgPath;
 
 pub struct CatOutput<'a> {
     /// Whether any file in the manifest matched the paths given as CLI

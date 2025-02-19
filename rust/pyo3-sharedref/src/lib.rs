@@ -22,14 +22,18 @@
 
 //! Utility to share Rust reference across Python objects.
 
+use std::ops::Deref;
+use std::ops::DerefMut;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
+use std::sync::RwLock;
+use std::sync::RwLockReadGuard;
+use std::sync::RwLockWriteGuard;
+use std::sync::TryLockError;
+use std::sync::TryLockResult;
+
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
-
-use std::ops::{Deref, DerefMut};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{
-    RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError, TryLockResult,
-};
 
 /// A mutable memory location shareable immutably across Python objects.
 ///

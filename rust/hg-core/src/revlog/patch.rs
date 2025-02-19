@@ -1,8 +1,8 @@
-use byteorder::{BigEndian, ByteOrder};
-
-use crate::revlog::RevlogError;
+use byteorder::BigEndian;
+use byteorder::ByteOrder;
 
 use super::inner_revlog::RevisionBuffer;
+use crate::revlog::RevlogError;
 
 /// A chunk of data to insert, delete or replace in a patch
 ///
@@ -240,9 +240,8 @@ pub fn fold_patch_lists<'a>(lists: &[PatchList<'a>]) -> PatchList<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::revlog::inner_revlog::CoreRevisionBuffer;
-
     use super::*;
+    use crate::revlog::inner_revlog::CoreRevisionBuffer;
 
     struct PatchDataBuilder {
         data: Vec<u8>,

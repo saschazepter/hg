@@ -2,30 +2,34 @@
 //!
 //! See `mercurial/helptext/internals/dirstate-v2.txt`
 
-use crate::dirstate::dirstate_map::DirstateVersion;
-use crate::dirstate::dirstate_map::{
-    self, DirstateMap, DirstateMapWriteMode, NodeRef,
-};
-use crate::dirstate::entry::{
-    DirstateEntry, DirstateV2Data, TruncatedTimestamp,
-};
-use crate::dirstate::path_with_basename::WithBasename;
-use crate::errors::{HgError, IoResultExt};
-use crate::repo::Repo;
-use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
-use crate::utils::hg_path::HgPath;
-use crate::DirstateParents;
+use std::borrow::Cow;
+use std::fmt::Write;
+
 use bitflags::bitflags;
-use bytes_cast::unaligned::{U16Be, U32Be};
+use bytes_cast::unaligned::U16Be;
+use bytes_cast::unaligned::U32Be;
 use bytes_cast::BytesCast;
 use format_bytes::format_bytes;
 use rand::Rng;
-use std::borrow::Cow;
-use std::fmt::Write;
 use uuid::Uuid;
 
 use super::dirstate_map::DirstateIdentity;
 use super::DirstateError;
+use crate::dirstate::dirstate_map::DirstateMap;
+use crate::dirstate::dirstate_map::DirstateMapWriteMode;
+use crate::dirstate::dirstate_map::DirstateVersion;
+use crate::dirstate::dirstate_map::NodeRef;
+use crate::dirstate::dirstate_map::{self};
+use crate::dirstate::entry::DirstateEntry;
+use crate::dirstate::entry::DirstateV2Data;
+use crate::dirstate::entry::TruncatedTimestamp;
+use crate::dirstate::path_with_basename::WithBasename;
+use crate::errors::HgError;
+use crate::errors::IoResultExt;
+use crate::repo::Repo;
+use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
+use crate::utils::hg_path::HgPath;
+use crate::DirstateParents;
 
 /// Added at the start of `.hg/dirstate` when the "v2" format is used.
 /// This a redundant sanity check more than an actual "magic number" since

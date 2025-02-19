@@ -8,40 +8,45 @@
 //! Bindings for the `hg::dirstate::dirstate_map` file provided by the
 //! `hg-core` package.
 
-use pyo3::exceptions::{PyKeyError, PyOSError};
+use std::sync::RwLockReadGuard;
+use std::sync::RwLockWriteGuard;
+
+use hg::dirstate::dirstate_map::DirstateEntryReset;
+use hg::dirstate::dirstate_map::DirstateIdentity as CoreDirstateIdentity;
+use hg::dirstate::dirstate_map::DirstateMapWriteMode;
+use hg::dirstate::entry::DirstateEntry;
+use hg::dirstate::entry::ParentFileData;
+use hg::dirstate::entry::TruncatedTimestamp;
+use hg::dirstate::on_disk::DirstateV2ParseError;
+use hg::dirstate::owning::OwningDirstateMap;
+use hg::dirstate::StateMapIter;
+use hg::utils::files::normalize_case;
+use hg::utils::hg_path::HgPath;
+use hg::DirstateParents;
+use pyo3::exceptions::PyKeyError;
+use pyo3::exceptions::PyOSError;
 use pyo3::prelude::*;
-use pyo3::types::{
-    PyBytes, PyBytesMethods, PyDict, PyDictMethods, PyList, PyTuple,
-};
-use pyo3_sharedref::{py_shared_iterator, PyShareable};
+use pyo3::types::PyBytes;
+use pyo3::types::PyBytesMethods;
+use pyo3::types::PyDict;
+use pyo3::types::PyDictMethods;
+use pyo3::types::PyList;
+use pyo3::types::PyTuple;
+use pyo3_sharedref::py_shared_iterator;
+use pyo3_sharedref::PyShareable;
 
-use std::sync::{RwLockReadGuard, RwLockWriteGuard};
-
-use hg::{
-    dirstate::{
-        dirstate_map::{
-            DirstateEntryReset, DirstateIdentity as CoreDirstateIdentity,
-            DirstateMapWriteMode,
-        },
-        entry::{DirstateEntry, ParentFileData, TruncatedTimestamp},
-        on_disk::DirstateV2ParseError,
-        owning::OwningDirstateMap,
-        StateMapIter,
-    },
-    utils::{files::normalize_case, hg_path::HgPath},
-    DirstateParents,
-};
-
-use super::{copy_map::CopyMap, item::DirstateItem};
-use crate::{
-    exceptions::{
-        dirstate_error, dirstate_v2_error, map_try_lock_error,
-        to_string_value_error,
-    },
-    node::{node_from_py_bytes, PyNode},
-    path::{PyHgPathBuf, PyHgPathDirstateV2Result, PyHgPathRef},
-    utils::PyBytesDeref,
-};
+use super::copy_map::CopyMap;
+use super::item::DirstateItem;
+use crate::exceptions::dirstate_error;
+use crate::exceptions::dirstate_v2_error;
+use crate::exceptions::map_try_lock_error;
+use crate::exceptions::to_string_value_error;
+use crate::node::node_from_py_bytes;
+use crate::node::PyNode;
+use crate::path::PyHgPathBuf;
+use crate::path::PyHgPathDirstateV2Result;
+use crate::path::PyHgPathRef;
+use crate::utils::PyBytesDeref;
 
 /// Type alias to satisfy Clippy in `DirstateMap::reset_state)`
 ///

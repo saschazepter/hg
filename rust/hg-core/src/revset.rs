@@ -4,10 +4,15 @@
 
 use crate::errors::HgError;
 use crate::repo::Repo;
-use crate::revlog::{NodePrefix, RevisionOrWdir};
-use crate::revlog::{Revision, NULL_REVISION, WORKING_DIRECTORY_HEX};
-use crate::revlog::{Revlog, RevlogError};
-use crate::{Node, WORKING_DIRECTORY_REVISION};
+use crate::revlog::NodePrefix;
+use crate::revlog::Revision;
+use crate::revlog::RevisionOrWdir;
+use crate::revlog::Revlog;
+use crate::revlog::RevlogError;
+use crate::revlog::NULL_REVISION;
+use crate::revlog::WORKING_DIRECTORY_HEX;
+use crate::Node;
+use crate::WORKING_DIRECTORY_REVISION;
 
 /// Resolve a query string into a single revision.
 ///

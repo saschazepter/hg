@@ -1,4 +1,5 @@
-use sha1::{Digest, Sha1};
+use sha1::Digest;
+use sha1::Sha1;
 
 #[derive(PartialEq, Debug)]
 #[allow(non_camel_case_types)]

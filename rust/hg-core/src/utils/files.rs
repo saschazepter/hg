@@ -9,23 +9,27 @@
 
 //! Functions for fiddling with files.
 
-use crate::utils::{
-    hg_path::{path_to_hg_path_buf, HgPath, HgPathBuf, HgPathError},
-    path_auditor::PathAuditor,
-    strings::replace_slice,
-};
-use lazy_static::lazy_static;
-use same_file::is_same_file;
-use std::ffi::{OsStr, OsString};
+use std::borrow::Cow;
+use std::borrow::ToOwned;
+use std::ffi::OsStr;
+use std::ffi::OsString;
+use std::io;
 use std::iter::FusedIterator;
 use std::ops::Deref;
 use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
-use std::{
-    borrow::{Cow, ToOwned},
-    io,
-    time::SystemTime,
-};
+use std::path::Path;
+use std::path::PathBuf;
+use std::time::SystemTime;
+
+use lazy_static::lazy_static;
+use same_file::is_same_file;
+
+use crate::utils::hg_path::path_to_hg_path_buf;
+use crate::utils::hg_path::HgPath;
+use crate::utils::hg_path::HgPathBuf;
+use crate::utils::hg_path::HgPathError;
+use crate::utils::path_auditor::PathAuditor;
+use crate::utils::strings::replace_slice;
 
 pub fn get_os_str_from_bytes(bytes: &[u8]) -> &OsStr {
     let os_str;
@@ -341,8 +345,9 @@ pub fn is_binary(content: &[u8]) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use pretty_assertions::assert_eq;
+
+    use super::*;
 
     #[test]
     fn find_dirs_some() {
@@ -439,6 +444,7 @@ mod tests {
     #[test]
     fn test_canonical_path_not_rooted() {
         use std::fs::create_dir;
+
         use tempfile::tempdir;
 
         let base_dir = tempdir().unwrap();

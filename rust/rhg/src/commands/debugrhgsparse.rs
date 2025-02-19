@@ -1,10 +1,11 @@
-use std::{
-    ffi::{OsStr, OsString},
-    os::unix::prelude::OsStrExt,
-};
+use std::ffi::OsStr;
+use std::ffi::OsString;
+use std::os::unix::prelude::OsStrExt;
+
+use hg::utils::hg_path::HgPath;
+use hg::{self};
 
 use crate::error::CommandError;
-use hg::{self, utils::hg_path::HgPath};
 
 pub const HELP_TEXT: &str = "";
 

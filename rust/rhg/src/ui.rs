@@ -1,6 +1,10 @@
-use crate::color::ColorConfig;
-use crate::color::Effect;
-use crate::error::CommandError;
+use std::io;
+use std::io::BufWriter;
+use std::io::ErrorKind;
+use std::io::IsTerminal;
+use std::io::StdoutLock;
+use std::io::Write;
+
 use format_bytes::format_bytes;
 use format_bytes::write_bytes;
 use hg::config::Config;
@@ -11,11 +15,10 @@ use hg::filepatterns::PatternFileWarning;
 use hg::repo::Repo;
 use hg::sparse;
 use hg::utils::files::get_bytes_from_path;
-use std::io;
-use std::io::BufWriter;
-use std::io::IsTerminal;
-use std::io::StdoutLock;
-use std::io::{ErrorKind, Write};
+
+use crate::color::ColorConfig;
+use crate::color::Effect;
+use crate::error::CommandError;
 
 pub struct Ui {
     stdout: std::io::Stdout,

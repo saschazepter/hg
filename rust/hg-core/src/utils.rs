@@ -7,12 +7,15 @@
 
 //! Contains useful functions, traits, structs, etc. for use in core.
 
-use crate::errors::{HgError, IoErrorContext};
+use std::cmp::Ordering;
+
 use im_rc::ordmap::DiffItem;
 use im_rc::ordmap::OrdMap;
 use itertools::EitherOrBoth;
 use itertools::Itertools;
-use std::cmp::Ordering;
+
+use crate::errors::HgError;
+use crate::errors::IoErrorContext;
 
 pub mod debug;
 pub mod files;

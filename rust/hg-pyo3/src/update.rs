@@ -9,16 +9,18 @@
 //! `hg-core` package.
 //!
 //! From Python, this will be seen as `mercurial.pyo3_rustext.update`
-use pyo3::prelude::*;
-
-use hg::progress::{HgProgressBar, Progress};
+use hg::progress::HgProgressBar;
+use hg::progress::Progress;
 use hg::update::update_from_null as core_update_from_null;
 use hg::BaseRevision;
+use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
 use crate::exceptions::FallbackError;
 use crate::repo::repo_from_path;
-use crate::utils::{new_submodule, with_sigint_wrapper, HgPyErrExt};
+use crate::utils::new_submodule;
+use crate::utils::with_sigint_wrapper;
+use crate::utils::HgPyErrExt;
 
 /// See [`core_update_from_null`].
 #[pyfunction]

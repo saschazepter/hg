@@ -8,34 +8,39 @@
 //! Bindings for the `hg::status` module provided by the
 //! `hg-core` crate. From Python, this will be seen as the
 //! `pyo3_rustext.dirstate.status` function.
+use hg::dirstate::status::BadMatch;
+use hg::dirstate::status::DirstateStatus;
+use hg::dirstate::status::StatusError;
+use hg::dirstate::status::StatusOptions;
+use hg::dirstate::status::StatusPath;
+use hg::filepatterns::parse_pattern_syntax_kind;
+use hg::filepatterns::IgnorePattern;
+use hg::filepatterns::PatternError;
+use hg::filepatterns::PatternFileWarning;
+use hg::matchers::AlwaysMatcher;
+use hg::matchers::DifferenceMatcher;
+use hg::matchers::FileMatcher;
+use hg::matchers::IncludeMatcher;
+use hg::matchers::IntersectionMatcher;
+use hg::matchers::Matcher;
+use hg::matchers::NeverMatcher;
+use hg::matchers::PatternMatcher;
+use hg::matchers::UnionMatcher;
+use hg::utils::files::get_bytes_from_path;
+use hg::utils::files::get_path_from_bytes;
+use hg::utils::hg_path::HgPath;
 use pyo3::intern;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyList, PyTuple};
-
-use hg::{
-    dirstate::status::{
-        BadMatch, DirstateStatus, StatusError, StatusOptions, StatusPath,
-    },
-    filepatterns::{
-        parse_pattern_syntax_kind, IgnorePattern, PatternError,
-        PatternFileWarning,
-    },
-    matchers::{
-        AlwaysMatcher, DifferenceMatcher, FileMatcher, IncludeMatcher,
-        IntersectionMatcher, Matcher, NeverMatcher, PatternMatcher,
-        UnionMatcher,
-    },
-    utils::{
-        files::{get_bytes_from_path, get_path_from_bytes},
-        hg_path::HgPath,
-    },
-};
+use pyo3::types::PyBytes;
+use pyo3::types::PyList;
+use pyo3::types::PyTuple;
 
 use super::dirstate_map::DirstateMap;
-use crate::{
-    exceptions::{to_string_value_error, FallbackError},
-    path::{paths_py_list, paths_pyiter_collect, PyHgPathRef},
-};
+use crate::exceptions::to_string_value_error;
+use crate::exceptions::FallbackError;
+use crate::path::paths_py_list;
+use crate::path::paths_pyiter_collect;
+use crate::path::PyHgPathRef;
 
 fn status_path_py_list(
     py: Python,

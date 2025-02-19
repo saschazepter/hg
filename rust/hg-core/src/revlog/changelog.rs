@@ -1,22 +1,31 @@
 use std::ascii::escape_default;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
-use std::fmt::{Debug, Formatter};
-use std::{iter, str};
+use std::fmt::Debug;
+use std::fmt::Formatter;
+use std::iter;
+use std::str;
 
-use chrono::{DateTime, FixedOffset, Utc};
-use itertools::{Either, Itertools};
-
-use crate::errors::HgError;
-use crate::revlog::Index;
-use crate::revlog::Revision;
-use crate::revlog::{Node, NodePrefix};
-use crate::revlog::{Revlog, RevlogEntry, RevlogError};
-use crate::utils::hg_path::HgPath;
-use crate::vfs::VfsImpl;
-use crate::{Graph, GraphError, UncheckedRevision};
+use chrono::DateTime;
+use chrono::FixedOffset;
+use chrono::Utc;
+use itertools::Either;
+use itertools::Itertools;
 
 use super::options::RevlogOpenOptions;
+use crate::errors::HgError;
+use crate::revlog::Index;
+use crate::revlog::Node;
+use crate::revlog::NodePrefix;
+use crate::revlog::Revision;
+use crate::revlog::Revlog;
+use crate::revlog::RevlogEntry;
+use crate::revlog::RevlogError;
+use crate::utils::hg_path::HgPath;
+use crate::vfs::VfsImpl;
+use crate::Graph;
+use crate::GraphError;
+use crate::UncheckedRevision;
 
 /// A specialized `Revlog` to work with changelog data format.
 pub struct Changelog {
@@ -505,10 +514,11 @@ fn unescape_extra(bytes: &[u8]) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::*;
     use crate::vfs::VfsImpl;
     use crate::NULL_REVISION;
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_create_changelogrevisiondata_invalid() {

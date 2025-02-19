@@ -3,13 +3,16 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use async_trait::async_trait;
 use std::io;
 use std::os::unix::io::AsRawFd;
 use std::os::unix::process::ExitStatusExt;
 use std::process::Stdio;
+
+use async_trait::async_trait;
 use tokio;
-use tokio::process::{Child, ChildStdin, Command};
+use tokio::process::Child;
+use tokio::process::ChildStdin;
+use tokio::process::Command;
 
 use crate::message::CommandSpec;
 use crate::procutil;

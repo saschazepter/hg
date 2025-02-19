@@ -1,12 +1,16 @@
-use clap::{ArgGroup, Parser};
-use itertools::Itertools;
-use regex::bytes::Regex;
-use similar::ChangeTag;
-use std::cmp::{max, min, Ordering};
+use std::cmp::max;
+use std::cmp::min;
+use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::ffi::OsString;
 use std::ops::Range;
 use std::path::PathBuf;
+
+use clap::ArgGroup;
+use clap::Parser;
+use itertools::Itertools;
+use regex::bytes::Regex;
+use similar::ChangeTag;
 
 fn find_unchanged_ranges(
     old_bytes: &[u8],

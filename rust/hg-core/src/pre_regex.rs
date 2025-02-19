@@ -40,9 +40,13 @@ pub enum PreRegex {
 
 mod to_hir {
     use itertools::Itertools;
-    use regex_syntax::hir::{
-        Class, ClassBytes, ClassBytesRange, Dot, Hir, Look, Repetition,
-    };
+    use regex_syntax::hir::Class;
+    use regex_syntax::hir::ClassBytes;
+    use regex_syntax::hir::ClassBytesRange;
+    use regex_syntax::hir::Dot;
+    use regex_syntax::hir::Hir;
+    use regex_syntax::hir::Look;
+    use regex_syntax::hir::Repetition;
 
     use super::PreRegex;
 

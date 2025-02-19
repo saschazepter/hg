@@ -1,7 +1,12 @@
-use crate::errors::{HgError, HgResultExt, IoErrorContext, IoResultExt};
-use crate::vfs::{Vfs, VfsImpl};
 use std::io::Write;
 use std::path::Path;
+
+use crate::errors::HgError;
+use crate::errors::HgResultExt;
+use crate::errors::IoErrorContext;
+use crate::errors::IoResultExt;
+use crate::vfs::Vfs;
+use crate::vfs::VfsImpl;
 
 /// An utility to append to a log file with the given name, and optionally
 /// rotate it after it reaches a certain maximum size.

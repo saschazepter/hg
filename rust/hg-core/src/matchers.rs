@@ -7,34 +7,44 @@
 
 //! Structs and types for matching files and directories.
 
+use std::borrow::ToOwned;
+use std::collections::BTreeSet;
+use std::collections::HashSet;
+use std::fmt::Display;
+use std::fmt::Error;
+use std::fmt::Formatter;
+use std::path::Path;
+use std::path::PathBuf;
+use std::str::FromStr;
+
 use format_bytes::format_bytes;
 use itertools::Itertools;
 use once_cell::sync::OnceCell;
 use regex_automata::meta::Regex;
 use regex_syntax::hir::Hir;
 
-use crate::{
-    dirstate::dirs_multiset::{DirsChildrenMultiset, DirsMultiset},
-    filepatterns::{
-        build_single_regex, filter_subincludes, get_patterns_from_file,
-        GlobSuffix, IgnorePattern, PatternError, PatternFileWarning,
-        PatternResult, PatternSyntax, RegexCompleteness,
-    },
-    pre_regex::PreRegex,
-    utils::{
-        files::{dir_ancestors, find_dirs},
-        hg_path::{HgPath, HgPathBuf, HgPathError},
-        strings::Escaped,
-    },
-    FastHashMap,
-};
-
+use crate::dirstate::dirs_multiset::DirsChildrenMultiset;
+use crate::dirstate::dirs_multiset::DirsMultiset;
 use crate::dirstate::status::IgnoreFnType;
+use crate::filepatterns::build_single_regex;
+use crate::filepatterns::filter_subincludes;
+use crate::filepatterns::get_patterns_from_file;
 use crate::filepatterns::normalize_path_bytes;
-use std::fmt::{Display, Error, Formatter};
-use std::path::{Path, PathBuf};
-use std::{borrow::ToOwned, collections::BTreeSet};
-use std::{collections::HashSet, str::FromStr};
+use crate::filepatterns::GlobSuffix;
+use crate::filepatterns::IgnorePattern;
+use crate::filepatterns::PatternError;
+use crate::filepatterns::PatternFileWarning;
+use crate::filepatterns::PatternResult;
+use crate::filepatterns::PatternSyntax;
+use crate::filepatterns::RegexCompleteness;
+use crate::pre_regex::PreRegex;
+use crate::utils::files::dir_ancestors;
+use crate::utils::files::find_dirs;
+use crate::utils::hg_path::HgPath;
+use crate::utils::hg_path::HgPathBuf;
+use crate::utils::hg_path::HgPathError;
+use crate::utils::strings::Escaped;
+use crate::FastHashMap;
 
 #[derive(Debug, PartialEq)]
 pub enum VisitChildrenSet {
@@ -1294,12 +1304,14 @@ impl Display for IncludeMatcher<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use pretty_assertions::assert_eq;
     use std::collections::BTreeMap;
     use std::collections::BTreeSet;
     use std::fmt::Debug;
     use std::path::Path;
+
+    use pretty_assertions::assert_eq;
+
+    use super::*;
 
     #[test]
     fn test_roots_and_dirs() {
@@ -2317,10 +2329,10 @@ mod tests {
     mod invariants {
         pub mod visit_children_set {
 
-            use crate::{
-                matchers::{tests::Tree, Matcher, VisitChildrenSet},
-                utils::hg_path::HgPath,
-            };
+            use crate::matchers::tests::Tree;
+            use crate::matchers::Matcher;
+            use crate::matchers::VisitChildrenSet;
+            use crate::utils::hg_path::HgPath;
 
             #[allow(dead_code)]
             #[derive(Debug)]

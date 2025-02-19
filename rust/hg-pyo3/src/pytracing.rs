@@ -1,10 +1,16 @@
-use crate::utils::new_submodule;
 #[cfg(feature = "full-tracing")]
-use full_tracing::{setup_tracing_guard, PyTracing};
-
+use full_tracing::setup_tracing_guard;
+#[cfg(feature = "full-tracing")]
+use full_tracing::PyTracing;
 use pyo3::prelude::*;
 #[cfg(not(feature = "full-tracing"))]
-use tracing_subscriber::{fmt::format::FmtSpan, prelude::*, EnvFilter};
+use tracing_subscriber::fmt::format::FmtSpan;
+#[cfg(not(feature = "full-tracing"))]
+use tracing_subscriber::prelude::*;
+#[cfg(not(feature = "full-tracing"))]
+use tracing_subscriber::EnvFilter;
+
+use crate::utils::new_submodule;
 
 #[cfg(not(feature = "full-tracing"))]
 /// Enable an env-filtered logger to stderr
@@ -20,21 +26,26 @@ fn setup_tracing() {
 
 #[cfg(feature = "full-tracing")]
 mod full_tracing {
+    use std::sync::Mutex;
+    use std::sync::OnceLock;
+
     use dashmap::DashMap;
-    use pyo3::{prelude::*, types::PyTuple};
-    use std::sync::{Mutex, OnceLock};
-    use tracing::{
-        field::{Field, Visit},
-        span::{Attributes, Id},
-        Subscriber,
-    };
-    use tracing_chrome::{ChromeLayerBuilder, EventOrSpan, FlushGuard};
-    use tracing_subscriber::{
-        layer::{Context, SubscriberExt as _},
-        registry::LookupSpan,
-        util::SubscriberInitExt as _,
-        EnvFilter, Layer,
-    };
+    use pyo3::prelude::*;
+    use pyo3::types::PyTuple;
+    use tracing::field::Field;
+    use tracing::field::Visit;
+    use tracing::span::Attributes;
+    use tracing::span::Id;
+    use tracing::Subscriber;
+    use tracing_chrome::ChromeLayerBuilder;
+    use tracing_chrome::EventOrSpan;
+    use tracing_chrome::FlushGuard;
+    use tracing_subscriber::layer::Context;
+    use tracing_subscriber::layer::SubscriberExt as _;
+    use tracing_subscriber::registry::LookupSpan;
+    use tracing_subscriber::util::SubscriberInitExt as _;
+    use tracing_subscriber::EnvFilter;
+    use tracing_subscriber::Layer;
 
     /// A span target name to mark those from Python
     pub const PYTHON_TARGET_NAME: &str = "from_python";

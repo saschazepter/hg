@@ -1,7 +1,11 @@
 //! Contains string-related utilities.
 
+use std::cell::Cell;
+use std::fmt;
+use std::io::Write as _;
+use std::ops::Deref as _;
+
 use crate::utils::hg_path::HgPath;
-use std::{cell::Cell, fmt, io::Write as _, ops::Deref as _};
 
 /// Useful until rust/issues/56345 is stable
 ///

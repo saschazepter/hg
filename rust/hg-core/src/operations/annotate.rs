@@ -1,24 +1,31 @@
-use crate::{
-    bdiff::{self, Lines},
-    dirstate::{owning::OwningDirstateMap, DirstateError},
-    errors::HgError,
-    repo::Repo,
-    revlog::{
-        changelog::Changelog, filelog::Filelog, manifest::Manifestlog,
-        RevisionOrWdir,
-    },
-    utils::{
-        self,
-        hg_path::{HgPath, HgPathBuf},
-        strings::{clean_whitespace, CleanWhitespace},
-    },
-    AncestorsIterator, FastHashMap, Graph, GraphError, Node, Revision,
-    NULL_REVISION,
-};
+use std::cell::Ref;
+
 use itertools::Itertools as _;
 use rayon::prelude::*;
 use self_cell::self_cell;
-use std::cell::Ref;
+
+use crate::bdiff::Lines;
+use crate::bdiff::{self};
+use crate::dirstate::owning::OwningDirstateMap;
+use crate::dirstate::DirstateError;
+use crate::errors::HgError;
+use crate::repo::Repo;
+use crate::revlog::changelog::Changelog;
+use crate::revlog::filelog::Filelog;
+use crate::revlog::manifest::Manifestlog;
+use crate::revlog::RevisionOrWdir;
+use crate::utils::hg_path::HgPath;
+use crate::utils::hg_path::HgPathBuf;
+use crate::utils::strings::clean_whitespace;
+use crate::utils::strings::CleanWhitespace;
+use crate::utils::{self};
+use crate::AncestorsIterator;
+use crate::FastHashMap;
+use crate::Graph;
+use crate::GraphError;
+use crate::Node;
+use crate::Revision;
+use crate::NULL_REVISION;
 
 /// Options for [`annotate`].
 #[derive(Copy, Clone)]

@@ -7,11 +7,17 @@
 
 //! Rust versions of generic DAG ancestors algorithms for Mercurial
 
-use super::{Graph, GraphError, Revision, NULL_REVISION};
-use crate::dagops;
-use bit_set::BitSet;
 use std::cmp::max;
-use std::collections::{BinaryHeap, HashSet};
+use std::collections::BinaryHeap;
+use std::collections::HashSet;
+
+use bit_set::BitSet;
+
+use super::Graph;
+use super::GraphError;
+use super::Revision;
+use super::NULL_REVISION;
+use crate::dagops;
 
 /// A set of revisions backed by a bitset, optimized for descending insertion.
 struct DescendingRevisionSet {
@@ -429,10 +435,9 @@ impl<G: Graph> MissingAncestors<G> {
 mod tests {
 
     use super::*;
-    use crate::{
-        testing::{SampleGraph, VecGraph},
-        BaseRevision,
-    };
+    use crate::testing::SampleGraph;
+    use crate::testing::VecGraph;
+    use crate::BaseRevision;
 
     impl From<BaseRevision> for Revision {
         fn from(value: BaseRevision) -> Self {

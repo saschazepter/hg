@@ -8,9 +8,11 @@
 //! In Mercurial code base, it is customary to call "a node" the binary SHA
 //! of a revision.
 
-use crate::errors::HgError;
-use bytes_cast::BytesCast;
 use std::fmt;
+
+use bytes_cast::BytesCast;
+
+use crate::errors::HgError;
 
 /// The length in bytes of a `Node`
 ///

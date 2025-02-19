@@ -5,14 +5,17 @@
 
 //! Functions to run Mercurial command in cHg-aware command server.
 
-use bytes::Bytes;
 use std::io;
 use std::os::unix::io::AsRawFd;
+
+use bytes::Bytes;
 use tokio_hglib::codec::ChannelMessage;
-use tokio_hglib::{Connection, Protocol};
+use tokio_hglib::Connection;
+use tokio_hglib::Protocol;
 
 use crate::attachio;
-use crate::message::{self, CommandType};
+use crate::message::CommandType;
+use crate::message::{self};
 use crate::uihandler::SystemHandler;
 
 /// Runs the given Mercurial command in cHg-aware command server, and

@@ -7,17 +7,20 @@ mod cat;
 mod debugdata;
 mod list_tracked_files;
 mod status_rev_rev;
-pub use annotate::{
-    annotate, AnnotateOptions, AnnotateOutput, ChangesetAnnotatedFile,
-    ChangesetAnnotation,
-};
-pub use cat::{cat, CatOutput};
+pub use annotate::annotate;
+pub use annotate::AnnotateOptions;
+pub use annotate::AnnotateOutput;
+pub use annotate::ChangesetAnnotatedFile;
+pub use annotate::ChangesetAnnotation;
+pub use cat::cat;
+pub use cat::CatOutput;
 pub use debugdata::debug_data;
-pub use list_tracked_files::{
-    list_rev_tracked_files, list_revset_tracked_files, ExpandedManifestEntry,
-    FilesForRev,
-};
-pub use status_rev_rev::{
-    status_change, status_rev_rev_no_copies, DiffStatus, ListCopies,
-    StatusRevRev,
-};
+pub use list_tracked_files::list_rev_tracked_files;
+pub use list_tracked_files::list_revset_tracked_files;
+pub use list_tracked_files::ExpandedManifestEntry;
+pub use list_tracked_files::FilesForRev;
+pub use status_rev_rev::status_change;
+pub use status_rev_rev::status_rev_rev_no_copies;
+pub use status_rev_rev::DiffStatus;
+pub use status_rev_rev::ListCopies;
+pub use status_rev_rev::StatusRevRev;

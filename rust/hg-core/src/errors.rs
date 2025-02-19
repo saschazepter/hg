@@ -1,8 +1,9 @@
+use std::fmt;
+
 use crate::config::ConfigValueParseError;
 use crate::exit_codes;
 use crate::revlog::RevlogError;
 use crate::utils::hg_path::HgPathError;
-use std::fmt;
 
 /// Common error cases that can happen in many different APIs
 #[derive(Debug, derive_more::From)]

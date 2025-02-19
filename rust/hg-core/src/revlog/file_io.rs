@@ -1,16 +1,19 @@
 //! Helpers for revlog file reading and writing.
 
-use std::{
-    cell::RefCell,
-    io::{Read, Seek, SeekFrom, Write},
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex},
-};
+use std::cell::RefCell;
+use std::io::Read;
+use std::io::Seek;
+use std::io::SeekFrom;
+use std::io::Write;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex;
 
-use crate::{
-    errors::{HgError, IoResultExt},
-    vfs::{Vfs, VfsFile},
-};
+use crate::errors::HgError;
+use crate::errors::IoResultExt;
+use crate::vfs::Vfs;
+use crate::vfs::VfsFile;
 
 /// Wraps accessing arbitrary chunks of data within a file and reusing handles.
 /// This is currently useful for accessing a revlog's data file, only reading
@@ -377,9 +380,8 @@ pub struct WriteHandles {
 mod tests {
     use std::io::ErrorKind;
 
-    use crate::vfs::VfsImpl;
-
     use super::*;
+    use crate::vfs::VfsImpl;
 
     #[test]
     fn test_random_access_file() {

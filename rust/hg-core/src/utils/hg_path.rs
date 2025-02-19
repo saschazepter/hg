@@ -5,14 +5,17 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use crate::errors::HgError;
-use crate::utils::strings::SliceExt;
 use std::borrow::Borrow;
 use std::borrow::Cow;
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsStr;
+use std::ffi::OsString;
 use std::fmt;
 use std::ops::Deref;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
+
+use crate::errors::HgError;
+use crate::utils::strings::SliceExt;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum HgPathError {
@@ -568,8 +571,9 @@ impl<'a> From<&'a HgPathBuf> for Cow<'a, HgPath> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use pretty_assertions::assert_eq;
+
+    use super::*;
 
     #[test]
     fn test_path_states() {

@@ -1,5 +1,6 @@
-use crate::utils::files::get_bytes_from_os_string;
 use std::env;
+
+use crate::utils::files::get_bytes_from_os_string;
 
 /// Keeps information on whether plain mode is active.
 ///

@@ -1,12 +1,13 @@
 //! Filesystem-based locks for local repositories
 
+use std::io;
+use std::io::ErrorKind;
+use std::path::Path;
+
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
-use std::io;
-use std::io::ErrorKind;
-use std::path::Path;
 
 #[derive(derive_more::From)]
 pub enum LockError {

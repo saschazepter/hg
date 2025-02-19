@@ -1,10 +1,12 @@
-use crate::ui::formatted;
-use crate::ui::plain;
+use std::collections::HashMap;
+
 use format_bytes::write_bytes;
 use hg::config::Config;
 use hg::config::ConfigOrigin;
 use hg::errors::HgError;
-use std::collections::HashMap;
+
+use crate::ui::formatted;
+use crate::ui::plain;
 
 pub type Effect = u32;
 

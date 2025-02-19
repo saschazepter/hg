@@ -11,7 +11,8 @@ pub mod encoding;
 pub mod errors;
 pub mod narrow;
 pub mod sparse;
-pub use ancestors::{AncestorsIterator, MissingAncestors};
+pub use ancestors::AncestorsIterator;
+pub use ancestors::MissingAncestors;
 pub mod dirstate;
 pub mod discovery;
 pub mod exit_codes;
@@ -27,11 +28,18 @@ pub mod matchers;
 pub mod repo;
 pub mod revlog;
 // Export very common types to make discovery easier
-pub use revlog::{
-    BaseRevision, Graph, GraphError, Node, NodePrefix, Revision,
-    UncheckedRevision, NULL_NODE, NULL_NODE_ID, NULL_REVISION,
-    WORKING_DIRECTORY_HEX, WORKING_DIRECTORY_REVISION,
-};
+pub use revlog::BaseRevision;
+pub use revlog::Graph;
+pub use revlog::GraphError;
+pub use revlog::Node;
+pub use revlog::NodePrefix;
+pub use revlog::Revision;
+pub use revlog::UncheckedRevision;
+pub use revlog::NULL_NODE;
+pub use revlog::NULL_NODE_ID;
+pub use revlog::NULL_REVISION;
+pub use revlog::WORKING_DIRECTORY_HEX;
+pub use revlog::WORKING_DIRECTORY_REVISION;
 pub mod checkexec;
 pub mod config;
 pub mod lock;
@@ -44,7 +52,9 @@ pub mod transaction;
 pub mod update;
 pub mod utils;
 pub mod vfs;
-use std::{collections::HashMap, sync::atomic::AtomicBool};
+use std::collections::HashMap;
+use std::sync::atomic::AtomicBool;
+
 use twox_hash::xxhash64::RandomState;
 
 /// Used to communicate with threads spawned from code within this crate that

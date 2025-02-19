@@ -1,8 +1,10 @@
-use crate::error::CommandError;
 use clap::Arg;
 use format_bytes::format_bytes;
-use hg::errors::{IoErrorContext, IoResultExt};
+use hg::errors::IoErrorContext;
+use hg::errors::IoResultExt;
 use hg::utils::files::get_bytes_from_path;
+
+use crate::error::CommandError;
 
 pub const HELP_TEXT: &str = "
 Print the root directory of the current repository.

@@ -1,25 +1,41 @@
-use crate::error::CommandError;
-use crate::ui::Ui;
-use clap::{command, Arg, ArgMatches};
-use format_bytes::{format_bytes, join};
-use hg::config::{Config, ConfigSource, PlainInfo};
-use hg::repo::{Repo, RepoError};
-use hg::utils::files::get_path_from_bytes;
-use hg::utils::strings::{join_display, SliceExt};
-use hg::{exit_codes, requirements};
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::ffi::OsString;
-use std::os::unix::ffi::{OsStrExt, OsStringExt};
+use std::os::unix::ffi::OsStrExt;
+use std::os::unix::ffi::OsStringExt;
 use std::os::unix::prelude::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
-use tracing::{span, Level};
+
+use clap::command;
+use clap::Arg;
+use clap::ArgMatches;
+use format_bytes::format_bytes;
+use format_bytes::join;
+use hg::config::Config;
+use hg::config::ConfigSource;
+use hg::config::PlainInfo;
+use hg::exit_codes;
+use hg::repo::Repo;
+use hg::repo::RepoError;
+use hg::requirements;
+use hg::utils::files::get_path_from_bytes;
+use hg::utils::strings::join_display;
+use hg::utils::strings::SliceExt;
+use tracing::span;
+use tracing::Level;
 #[cfg(feature = "full-tracing")]
-use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
+use tracing_chrome::ChromeLayerBuilder;
+#[cfg(feature = "full-tracing")]
+use tracing_chrome::FlushGuard;
 #[cfg(not(feature = "full-tracing"))]
 use tracing_subscriber::fmt::format::FmtSpan;
-use tracing_subscriber::{prelude::*, EnvFilter};
+use tracing_subscriber::prelude::*;
+use tracing_subscriber::EnvFilter;
+
+use crate::error::CommandError;
+use crate::ui::Ui;
 
 mod blackbox;
 mod color;

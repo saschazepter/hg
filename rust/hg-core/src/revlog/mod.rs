@@ -13,7 +13,11 @@ use inner_revlog::CoreRevisionBuffer;
 use inner_revlog::InnerRevlog;
 use inner_revlog::RevisionBuffer;
 use memmap2::MmapOptions;
-pub use node::{FromHexError, Node, NodePrefix, NULL_NODE, NULL_NODE_ID};
+pub use node::FromHexError;
+pub use node::Node;
+pub use node::NodePrefix;
+pub use node::NULL_NODE;
+pub use node::NULL_NODE_ID;
 use nodemap::read_persistent_nodemap;
 use options::RevlogOpenOptions;
 pub mod changelog;
@@ -37,7 +41,8 @@ use crate::errors::HgError;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
 use crate::revlog::index::Index;
-use crate::revlog::nodemap::{NodeMap, NodeMapError};
+use crate::revlog::nodemap::NodeMap;
+use crate::revlog::nodemap::NodeMapError;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
 
@@ -829,9 +834,10 @@ impl<'revlog> RevlogEntry<'revlog> {
 
 #[cfg(test)]
 mod tests {
+    use itertools::Itertools;
+
     use super::*;
     use crate::revlog::index::IndexEntryBuilder;
-    use itertools::Itertools;
 
     #[test]
     fn test_empty() {

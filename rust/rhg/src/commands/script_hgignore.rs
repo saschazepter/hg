@@ -1,9 +1,8 @@
 use clap::Arg;
 use hg::matchers::ReSyntax;
 
-use crate::error::CommandError;
-
 use super::debugignorerhg::WhichPatterns;
+use crate::error::CommandError;
 
 pub const HELP_TEXT: &str = "
 Show effective hgignore patterns used by rhg.

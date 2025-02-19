@@ -5,39 +5,54 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use crate::error::CommandError;
-use crate::ui::{
-    format_pattern_file_warning, print_narrow_sparse_warnings, relative_paths,
-    RelativePaths, Ui,
-};
-use crate::utils::path_utils::RelativizePaths;
-use clap::Arg;
-use format_bytes::format_bytes;
-use hg::config::Config;
-use hg::dirstate::entry::{has_exec_bit, TruncatedTimestamp};
-use hg::dirstate::status::{
-    BadMatch, DirstateStatus, StatusError, StatusOptions, StatusPath,
-};
-use hg::errors::{HgError, IoResultExt};
-use hg::filepatterns::{parse_pattern_args, PatternFileWarning};
-use hg::lock::LockError;
-use hg::matchers::{AlwaysMatcher, IntersectionMatcher};
-use hg::repo::Repo;
-use hg::revlog::manifest::Manifest;
-use hg::revlog::options::{default_revlog_options, RevlogOpenOptions};
-use hg::revlog::{RevisionOrWdir, RevlogError, RevlogType};
-use hg::utils::debug::debug_wait_for_file;
-use hg::utils::files::{
-    get_bytes_from_os_str, get_bytes_from_os_string, get_path_from_bytes,
-};
-use hg::utils::hg_path::{hg_path_to_path_buf, HgPath};
-use hg::Revision;
-use hg::{self, narrow, sparse};
-use rayon::prelude::*;
 use std::io;
 use std::mem::take;
 use std::path::PathBuf;
+
+use clap::Arg;
+use format_bytes::format_bytes;
+use hg::config::Config;
+use hg::dirstate::entry::has_exec_bit;
+use hg::dirstate::entry::TruncatedTimestamp;
+use hg::dirstate::status::BadMatch;
+use hg::dirstate::status::DirstateStatus;
+use hg::dirstate::status::StatusError;
+use hg::dirstate::status::StatusOptions;
+use hg::dirstate::status::StatusPath;
+use hg::errors::HgError;
+use hg::errors::IoResultExt;
+use hg::filepatterns::parse_pattern_args;
+use hg::filepatterns::PatternFileWarning;
+use hg::lock::LockError;
+use hg::matchers::AlwaysMatcher;
+use hg::matchers::IntersectionMatcher;
+use hg::narrow;
+use hg::repo::Repo;
+use hg::revlog::manifest::Manifest;
+use hg::revlog::options::default_revlog_options;
+use hg::revlog::options::RevlogOpenOptions;
+use hg::revlog::RevisionOrWdir;
+use hg::revlog::RevlogError;
+use hg::revlog::RevlogType;
+use hg::sparse;
+use hg::utils::debug::debug_wait_for_file;
+use hg::utils::files::get_bytes_from_os_str;
+use hg::utils::files::get_bytes_from_os_string;
+use hg::utils::files::get_path_from_bytes;
+use hg::utils::hg_path::hg_path_to_path_buf;
+use hg::utils::hg_path::HgPath;
+use hg::Revision;
+use hg::{self};
+use rayon::prelude::*;
 use tracing::info;
+
+use crate::error::CommandError;
+use crate::ui::format_pattern_file_warning;
+use crate::ui::print_narrow_sparse_warnings;
+use crate::ui::relative_paths;
+use crate::ui::RelativePaths;
+use crate::ui::Ui;
+use crate::utils::path_utils::RelativizePaths;
 
 pub const HELP_TEXT: &str = "
 Show changed files in the working directory

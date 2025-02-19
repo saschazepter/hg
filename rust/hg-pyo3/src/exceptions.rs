@@ -1,13 +1,15 @@
-use pyo3::exceptions::{PyOSError, PyRuntimeError, PyValueError};
-use pyo3::import_exception;
-use pyo3::{create_exception, PyErr};
-
 use std::fmt::Display;
 
-use hg::dirstate::{on_disk::DirstateV2ParseError, DirstateError};
-
+use hg::dirstate::on_disk::DirstateV2ParseError;
+use hg::dirstate::DirstateError;
 use hg::revlog::nodemap::NodeMapError;
 use hg::UncheckedRevision;
+use pyo3::create_exception;
+use pyo3::exceptions::PyOSError;
+use pyo3::exceptions::PyRuntimeError;
+use pyo3::exceptions::PyValueError;
+use pyo3::import_exception;
+use pyo3::PyErr;
 
 use crate::revision::PyRevision;
 

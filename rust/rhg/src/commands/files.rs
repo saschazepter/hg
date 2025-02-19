@@ -1,8 +1,3 @@
-use crate::error::CommandError;
-use crate::ui::{
-    print_narrow_sparse_warnings, relative_paths, RelativePaths, Ui,
-};
-use crate::utils::path_utils::RelativizePaths;
 use clap::Arg;
 use hg::filepatterns::parse_pattern_args;
 use hg::matchers::IntersectionMatcher;
@@ -13,6 +8,13 @@ use hg::utils::files::get_bytes_from_os_str;
 use hg::utils::filter_map_results;
 use hg::utils::hg_path::HgPath;
 use rayon::prelude::*;
+
+use crate::error::CommandError;
+use crate::ui::print_narrow_sparse_warnings;
+use crate::ui::relative_paths;
+use crate::ui::RelativePaths;
+use crate::ui::Ui;
+use crate::utils::path_utils::RelativizePaths;
 
 pub const HELP_TEXT: &str = "
 List tracked files.

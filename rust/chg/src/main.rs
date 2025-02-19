@@ -3,14 +3,16 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use chg::locator::{self, Locator};
-use chg::procutil;
-use chg::ChgUiHandler;
 use std::env;
 use std::io;
 use std::io::Write;
 use std::process;
 use std::time::Instant;
+
+use chg::locator::Locator;
+use chg::locator::{self};
+use chg::procutil;
+use chg::ChgUiHandler;
 
 struct DebugLogger {
     start: Instant,

@@ -5,12 +5,13 @@
 //
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+
+use hg::fncache::FnCache;
+use hg::utils::files::get_bytes_from_path;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-
-use std::sync::atomic::{AtomicBool, Ordering};
-
-use hg::{fncache::FnCache, utils::files::get_bytes_from_path};
 
 pub struct PyFnCache {
     fncache: PyObject,

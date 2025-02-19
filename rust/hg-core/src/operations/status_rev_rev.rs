@@ -1,17 +1,19 @@
 use std::borrow::Cow;
 
+use itertools::EitherOrBoth;
+
 use crate::dirstate::status::StatusPath;
 use crate::errors::HgError;
 use crate::matchers::Matcher;
 use crate::repo::Repo;
-use crate::revlog::manifest::{Manifest, ManifestEntry};
+use crate::revlog::manifest::Manifest;
+use crate::revlog::manifest::ManifestEntry;
 use crate::utils::filter_map_results;
-use crate::utils::hg_path::{HgPath, HgPathBuf};
+use crate::utils::hg_path::HgPath;
+use crate::utils::hg_path::HgPathBuf;
 use crate::utils::merge_join_results_by;
-
-use crate::{Revision, NULL_REVISION};
-
-use itertools::EitherOrBoth;
+use crate::Revision;
+use crate::NULL_REVISION;
 
 #[derive(Debug, Copy, Clone)]
 pub enum DiffStatus {

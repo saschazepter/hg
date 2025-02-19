@@ -8,13 +8,15 @@
 use std::num::NonZeroU8;
 
 use crate::errors::HgError;
-use crate::matchers::{Matcher, VisitChildrenSet};
+use crate::matchers::Matcher;
+use crate::matchers::VisitChildrenSet;
 use crate::repo::Repo;
 use crate::revlog::manifest::Manifest;
 use crate::revlog::RevlogError;
 use crate::utils::filter_map_results;
 use crate::utils::hg_path::HgPath;
-use crate::{Node, UncheckedRevision};
+use crate::Node;
+use crate::UncheckedRevision;
 
 /// List files under Mercurial control at a given revset.
 pub fn list_revset_tracked_files<M: Matcher>(

@@ -6,14 +6,18 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use crate::utils::{
-    files::lower_clean,
-    hg_path::{hg_path_to_path_buf, HgPath, HgPathBuf, HgPathError},
-    strings::find_slice_in_slice,
-};
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
-use std::sync::{Mutex, RwLock};
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Mutex;
+use std::sync::RwLock;
+
+use crate::utils::files::lower_clean;
+use crate::utils::hg_path::hg_path_to_path_buf;
+use crate::utils::hg_path::HgPath;
+use crate::utils::hg_path::HgPathBuf;
+use crate::utils::hg_path::HgPathError;
+use crate::utils::strings::find_slice_in_slice;
 
 /// Ensures that a path is valid for use in the repository i.e. does not use
 /// any banned components, does not traverse a symlink, etc.
@@ -179,9 +183,13 @@ impl PathAuditor {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use std::fs::{create_dir, create_dir_all, File};
+    use std::fs::create_dir;
+    use std::fs::create_dir_all;
+    use std::fs::File;
+
     use tempfile::tempdir;
+
+    use super::*;
 
     #[test]
     fn test_path_auditor() {

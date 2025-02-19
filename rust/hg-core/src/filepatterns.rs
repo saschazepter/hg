@@ -7,21 +7,26 @@
 
 //! Handling of Mercurial-specific patterns.
 
-use crate::{
-    pre_regex::PreRegex,
-    utils::{
-        files::{canonical_path, get_bytes_from_path, get_path_from_bytes},
-        hg_path::{path_to_hg_path_buf, HgPathBuf, HgPathError},
-        strings::SliceExt,
-    },
-    FastHashMap,
-};
-use lazy_static::lazy_static;
-use regex::bytes::{NoExpand, Regex};
+use std::fmt;
 use std::mem;
-use std::path::{Path, PathBuf};
+use std::ops::Deref;
+use std::path::Path;
+use std::path::PathBuf;
 use std::vec::Vec;
-use std::{fmt, ops::Deref};
+
+use lazy_static::lazy_static;
+use regex::bytes::NoExpand;
+use regex::bytes::Regex;
+
+use crate::pre_regex::PreRegex;
+use crate::utils::files::canonical_path;
+use crate::utils::files::get_bytes_from_path;
+use crate::utils::files::get_path_from_bytes;
+use crate::utils::hg_path::path_to_hg_path_buf;
+use crate::utils::hg_path::HgPathBuf;
+use crate::utils::hg_path::HgPathError;
+use crate::utils::strings::SliceExt;
+use crate::FastHashMap;
 
 #[derive(Debug, derive_more::From)]
 pub enum PatternError {
@@ -854,8 +859,9 @@ pub fn filter_subincludes(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use pretty_assertions::assert_eq;
+
+    use super::*;
 
     fn escape_pattern(pattern: &[u8]) -> Vec<u8> {
         pattern

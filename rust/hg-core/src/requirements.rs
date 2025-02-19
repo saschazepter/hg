@@ -1,8 +1,10 @@
-use crate::errors::{HgError, HgResultExt};
+use std::collections::HashSet;
+
+use crate::errors::HgError;
+use crate::errors::HgResultExt;
 use crate::repo::Repo;
 use crate::utils::strings::join_display;
 use crate::vfs::VfsImpl;
-use std::collections::HashSet;
 
 fn parse(bytes: &[u8]) -> Result<HashSet<String>, HgError> {
     // The Python code reading this file uses `str.splitlines`

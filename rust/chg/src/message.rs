@@ -5,13 +5,16 @@
 
 //! Utility for parsing and building command-server messages.
 
-use bytes::{BufMut, Bytes, BytesMut};
 use std::error;
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsStr;
+use std::ffi::OsString;
 use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
 
+use bytes::BufMut;
+use bytes::Bytes;
+use bytes::BytesMut;
 pub use tokio_hglib::message::*; // re-exports
 
 /// Shell command type requested by the server.
@@ -166,9 +169,10 @@ fn new_parse_error(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::os::unix::ffi::OsStringExt;
     use std::panic;
+
+    use super::*;
 
     #[test]
     fn parse_command_spec_good() {

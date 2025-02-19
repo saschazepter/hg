@@ -1,9 +1,12 @@
-use crate::dirstate::on_disk::DirstateV2ParseError;
-use crate::errors::HgError;
-use bitflags::bitflags;
 use std::fs;
 use std::io;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
+
+use bitflags::bitflags;
+
+use crate::dirstate::on_disk::DirstateV2ParseError;
+use crate::errors::HgError;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum EntryState {

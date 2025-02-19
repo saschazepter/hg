@@ -8,24 +8,22 @@
 //! Bindings for the `hg::ancestors` module provided by the
 //! `hg-core` crate. From Python, this will be seen as `pyo3_rustext.ancestor`
 //! and can be used as replacement for the the pure `ancestor` Python module.
-use pyo3::prelude::*;
-use pyo3::types::PyTuple;
-use pyo3_sharedref::SharedByPyObject;
-
 use std::collections::HashSet;
 
 use hg::MissingAncestors as CoreMissing;
-use vcsgraph::lazy_ancestors::{
-    AncestorsIterator as VCGAncestorsIterator,
-    LazyAncestors as VCGLazyAncestors,
-};
+use pyo3::prelude::*;
+use pyo3::types::PyTuple;
+use pyo3_sharedref::SharedByPyObject;
+use vcsgraph::lazy_ancestors::AncestorsIterator as VCGAncestorsIterator;
+use vcsgraph::lazy_ancestors::LazyAncestors as VCGLazyAncestors;
 
 use crate::exceptions::GraphError;
-use crate::revision::{rev_pyiter_collect_with_py_index, PyRevision};
+use crate::revision::rev_pyiter_collect_with_py_index;
+use crate::revision::PyRevision;
 use crate::revlog::PySharedIndex;
-use crate::utils::{
-    new_submodule, py_rust_index_to_graph, py_shared_or_map_err,
-};
+use crate::utils::new_submodule;
+use crate::utils::py_rust_index_to_graph;
+use crate::utils::py_shared_or_map_err;
 
 #[pyclass]
 struct AncestorsIterator {

@@ -1,21 +1,34 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt::Debug;
 use std::ops::Deref;
-use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::RwLock;
+use std::sync::RwLockReadGuard;
+use std::sync::RwLockWriteGuard;
 
 use bitvec::prelude::*;
-use byteorder::{BigEndian, ByteOrder};
-use bytes_cast::{unaligned, BytesCast};
+use byteorder::BigEndian;
+use byteorder::ByteOrder;
+use bytes_cast::unaligned;
+use bytes_cast::BytesCast;
 
-use super::{NodePrefix, RevlogError, RevlogIndex, REVIDX_KNOWN_FLAGS};
+use super::NodePrefix;
+use super::RevlogError;
+use super::RevlogIndex;
+use super::REVIDX_KNOWN_FLAGS;
+use crate::dagops;
 use crate::errors::HgError;
-use crate::revlog::node::{
-    Node, NODE_BYTES_LENGTH, NULL_NODE, STORED_NODE_ID_BYTES,
-};
-use crate::revlog::{Revision, NULL_REVISION};
-use crate::{
-    dagops, BaseRevision, FastHashMap, Graph, GraphError, UncheckedRevision,
-};
+use crate::revlog::node::Node;
+use crate::revlog::node::NODE_BYTES_LENGTH;
+use crate::revlog::node::NULL_NODE;
+use crate::revlog::node::STORED_NODE_ID_BYTES;
+use crate::revlog::Revision;
+use crate::revlog::NULL_REVISION;
+use crate::BaseRevision;
+use crate::FastHashMap;
+use crate::Graph;
+use crate::GraphError;
+use crate::UncheckedRevision;
 
 pub const INDEX_ENTRY_SIZE: usize = 64;
 pub const INDEX_HEADER_SIZE: usize = 4;

@@ -7,15 +7,22 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use crate::errors::HgError;
-use crate::exit_codes::{CONFIG_ERROR_ABORT, CONFIG_PARSE_ERROR_ABORT};
-use crate::utils::files::{get_bytes_from_path, get_path_from_bytes};
-use format_bytes::{format_bytes, write_bytes, DisplayBytes};
+use std::collections::HashMap;
+use std::path::Path;
+use std::path::PathBuf;
+
+use format_bytes::format_bytes;
+use format_bytes::write_bytes;
+use format_bytes::DisplayBytes;
 use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use regex::bytes::Regex;
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+
+use crate::errors::HgError;
+use crate::exit_codes::CONFIG_ERROR_ABORT;
+use crate::exit_codes::CONFIG_PARSE_ERROR_ABORT;
+use crate::utils::files::get_bytes_from_path;
+use crate::utils::files::get_path_from_bytes;
 
 lazy_static! {
     static ref SECTION_RE: Regex = make_regex(r"^\[([^\[]+)\]");

@@ -3,8 +3,10 @@
 use core::str;
 use std::borrow::Cow;
 
-use crate::{errors::HgError, utils::strings::Escaped};
 use unicode_width::UnicodeWidthStr as _;
+
+use crate::errors::HgError;
+use crate::utils::strings::Escaped;
 
 /// String encoder and decoder.
 #[derive(Copy, Clone, Debug)]

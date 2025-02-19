@@ -9,6 +9,19 @@
 //! It is currently missing a lot of functionality compared to the Python one
 //! and will only be triggered in narrow cases.
 
+use std::borrow::Cow;
+use std::fmt;
+use std::io;
+use std::os::unix::prelude::FileTypeExt;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Mutex;
+
+use once_cell::sync::OnceCell;
+use rayon::prelude::*;
+use sha1::Digest;
+use sha1::Sha1;
+
 use crate::dirstate::dirstate_map::BorrowedPath;
 use crate::dirstate::dirstate_map::ChildNodesRef;
 use crate::dirstate::dirstate_map::DirstateMap;
@@ -19,7 +32,8 @@ use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::filepatterns::PatternError;
 use crate::filepatterns::PatternFileWarning;
 use crate::matchers::get_ignore_function;
-use crate::matchers::{Matcher, VisitChildrenSet};
+use crate::matchers::Matcher;
+use crate::matchers::VisitChildrenSet;
 use crate::utils::files::filesystem_now;
 use crate::utils::files::get_bytes_from_os_string;
 use crate::utils::files::get_bytes_from_path;
@@ -27,16 +41,6 @@ use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathError;
-use once_cell::sync::OnceCell;
-use rayon::prelude::*;
-use sha1::{Digest, Sha1};
-use std::io;
-use std::os::unix::prelude::FileTypeExt;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::Mutex;
-
-use std::{borrow::Cow, fmt};
 
 /// Wrong type of file from a `BadMatch`
 /// Note: a lot of those don't exist on all platforms.

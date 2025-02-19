@@ -1,5 +1,7 @@
+use std::borrow::Borrow;
+use std::borrow::Cow;
+
 use crate::utils::hg_path::HgPath;
-use std::borrow::{Borrow, Cow};
 
 /// Wraps `HgPath` or `HgPathBuf` to make it behave "as" its last path
 /// component, a.k.a. its base name (as in Python’s `os.path.basename`), but

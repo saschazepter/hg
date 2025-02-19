@@ -1,17 +1,22 @@
 use hg::errors::HgError;
 use hg::revlog::index::Index as CoreIndex;
 use hg::revlog::inner_revlog::RevisionBuffer;
-use pyo3::buffer::{Element, PyBuffer};
-use pyo3::exceptions::{
-    PyIOError, PyKeyboardInterrupt, PyRuntimeError, PyValueError,
-};
-use pyo3::types::{PyBytes, PyDict};
-use pyo3::{intern, prelude::*};
+use pyo3::buffer::Element;
+use pyo3::buffer::PyBuffer;
+use pyo3::exceptions::PyIOError;
+use pyo3::exceptions::PyKeyboardInterrupt;
+use pyo3::exceptions::PyRuntimeError;
+use pyo3::exceptions::PyValueError;
+use pyo3::intern;
+use pyo3::prelude::*;
+use pyo3::types::PyBytes;
+use pyo3::types::PyDict;
 use pyo3_sharedref::SharedByPyObject;
 use stable_deref_trait::StableDeref;
 
 use crate::exceptions::FallbackError;
-use crate::revlog::{InnerRevlog, PySharedIndex};
+use crate::revlog::InnerRevlog;
+use crate::revlog::PySharedIndex;
 
 /// Create the module, with `__package__` given from parent
 ///

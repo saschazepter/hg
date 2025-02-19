@@ -1,17 +1,18 @@
 use std::path::Path;
 
-use crate::{
-    errors::HgError,
-    exit_codes,
-    filepatterns::parse_pattern_file_contents,
-    matchers::{
-        AlwaysMatcher, DifferenceMatcher, IncludeMatcher, Matcher,
-        NeverMatcher,
-    },
-    repo::Repo,
-    requirements::NARROW_REQUIREMENT,
-    sparse::{self, SparseConfigError, SparseWarning},
-};
+use crate::errors::HgError;
+use crate::exit_codes;
+use crate::filepatterns::parse_pattern_file_contents;
+use crate::matchers::AlwaysMatcher;
+use crate::matchers::DifferenceMatcher;
+use crate::matchers::IncludeMatcher;
+use crate::matchers::Matcher;
+use crate::matchers::NeverMatcher;
+use crate::repo::Repo;
+use crate::requirements::NARROW_REQUIREMENT;
+use crate::sparse::SparseConfigError;
+use crate::sparse::SparseWarning;
+use crate::sparse::{self};
 
 /// The file in .hg/store/ that indicates which paths exit in the store
 const FILENAME: &str = "narrowspec";

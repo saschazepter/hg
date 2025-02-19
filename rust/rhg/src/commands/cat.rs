@@ -1,9 +1,11 @@
-use crate::error::CommandError;
-use crate::utils::path_utils::resolve_file_args;
+use std::ffi::OsString;
+
 use clap::Arg;
 use format_bytes::format_bytes;
 use hg::operations::cat;
-use std::ffi::OsString;
+
+use crate::error::CommandError;
+use crate::utils::path_utils::resolve_file_args;
 
 pub const HELP_TEXT: &str = "
 Output the current or given revision of files

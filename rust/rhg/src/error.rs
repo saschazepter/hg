@@ -1,7 +1,9 @@
-use crate::ui::UiError;
-use crate::NoRepoInCwdError;
+use std::convert::From;
+
 use format_bytes::format_bytes;
-use hg::config::{ConfigError, ConfigParseError, ConfigValueParseError};
+use hg::config::ConfigError;
+use hg::config::ConfigParseError;
+use hg::config::ConfigValueParseError;
 use hg::dirstate::on_disk::DirstateV2ParseError;
 use hg::dirstate::status::StatusError;
 use hg::dirstate::DirstateError;
@@ -14,7 +16,9 @@ use hg::revlog::RevlogError;
 use hg::sparse::SparseConfigError;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::hg_path::HgPathError;
-use std::convert::From;
+
+use crate::ui::UiError;
+use crate::NoRepoInCwdError;
 
 /// The kind of command error
 #[derive(Debug)]

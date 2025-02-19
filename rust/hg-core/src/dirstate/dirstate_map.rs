@@ -1,17 +1,23 @@
-use bytes_cast::BytesCast;
 use std::borrow::Cow;
 use std::fs::Metadata;
 use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 
+use bytes_cast::BytesCast;
+
+use super::on_disk;
 use super::on_disk::DirstateV2ParseError;
 use super::owning::OwningDirstateMap;
 use super::path_with_basename::WithBasename;
-use super::status::{DirstateStatus, StatusError, StatusOptions};
-use super::{on_disk, DirstateError, DirstateMapError};
-use crate::dirstate::entry::{
-    DirstateEntry, DirstateV2Data, ParentFileData, TruncatedTimestamp,
-};
+use super::status::DirstateStatus;
+use super::status::StatusError;
+use super::status::StatusOptions;
+use super::DirstateError;
+use super::DirstateMapError;
+use crate::dirstate::entry::DirstateEntry;
+use crate::dirstate::entry::DirstateV2Data;
+use crate::dirstate::entry::ParentFileData;
+use crate::dirstate::entry::TruncatedTimestamp;
 use crate::dirstate::parsers::pack_entry;
 use crate::dirstate::parsers::packed_entry_size;
 use crate::dirstate::parsers::parse_dirstate_entries;
@@ -20,7 +26,8 @@ use crate::dirstate::StateMapIter;
 use crate::filepatterns::PatternFileWarning;
 use crate::matchers::Matcher;
 use crate::utils::filter_map_results;
-use crate::utils::hg_path::{HgPath, HgPathBuf};
+use crate::utils::hg_path::HgPath;
+use crate::utils::hg_path::HgPathBuf;
 use crate::DirstateParents;
 use crate::FastHashbrownMap as FastHashMap;
 

@@ -1,25 +1,33 @@
 use core::str;
-use std::{cell::Ref, collections::hash_map::Entry, ffi::OsString};
+use std::cell::Ref;
+use std::collections::hash_map::Entry;
+use std::ffi::OsString;
 
-use chrono::{DateTime, FixedOffset, Local};
+use chrono::DateTime;
+use chrono::FixedOffset;
+use chrono::Local;
 use format_bytes::format_bytes;
-use hg::{
-    encoding::Encoder,
-    errors::{HgError, IoResultExt as _},
-    operations::{
-        annotate, AnnotateOptions, AnnotateOutput, ChangesetAnnotatedFile,
-    },
-    repo::Repo,
-    revlog::{changelog::Changelog, RevisionOrWdir},
-    utils::{hg_path::HgPath, strings::CleanWhitespace},
-    FastHashMap, Node, Revision, WORKING_DIRECTORY_HEX,
-    WORKING_DIRECTORY_REVISION,
-};
+use hg::encoding::Encoder;
+use hg::errors::HgError;
+use hg::errors::IoResultExt as _;
+use hg::operations::annotate;
+use hg::operations::AnnotateOptions;
+use hg::operations::AnnotateOutput;
+use hg::operations::ChangesetAnnotatedFile;
+use hg::repo::Repo;
+use hg::revlog::changelog::Changelog;
+use hg::revlog::RevisionOrWdir;
+use hg::utils::hg_path::HgPath;
+use hg::utils::strings::CleanWhitespace;
+use hg::FastHashMap;
+use hg::Node;
+use hg::Revision;
+use hg::WORKING_DIRECTORY_HEX;
+use hg::WORKING_DIRECTORY_REVISION;
 
-use crate::{
-    error::CommandError, ui::StdoutBuffer,
-    utils::path_utils::resolve_file_args,
-};
+use crate::error::CommandError;
+use crate::ui::StdoutBuffer;
+use crate::utils::path_utils::resolve_file_args;
 
 pub const HELP_TEXT: &str = "
 show changeset information by line for each file

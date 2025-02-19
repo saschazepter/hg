@@ -1,38 +1,47 @@
 //! Tools for moving the repository to a given revision
 
-use std::{
-    fs::Permissions,
-    io::Write,
-    os::unix::fs::{MetadataExt, PermissionsExt},
-    path::Path,
-    sync::atomic::Ordering,
-    time::Duration,
-};
+use std::fs::Permissions;
+use std::io::Write;
+use std::os::unix::fs::MetadataExt;
+use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
+use std::sync::atomic::Ordering;
+use std::time::Duration;
 
-use crate::{
-    dirstate::entry::{ParentFileData, TruncatedTimestamp},
-    dirstate::{dirstate_map::DirstateEntryReset, on_disk::write_tracked_key},
-    errors::{HgError, IoResultExt},
-    exit_codes, narrow,
-    operations::{list_rev_tracked_files, ExpandedManifestEntry},
-    progress::Progress,
-    repo::Repo,
-    revlog::filelog::Filelog,
-    revlog::node::NULL_NODE,
-    revlog::options::{default_revlog_options, RevlogOpenOptions},
-    revlog::RevlogError,
-    sparse,
-    utils::{
-        cap_default_rayon_threads,
-        files::{filesystem_now, get_path_from_bytes},
-        hg_path::{hg_path_to_path_buf, HgPath, HgPathError},
-        path_auditor::PathAuditor,
-    },
-    vfs::{is_on_nfs_mount, VfsImpl},
-    DirstateParents, UncheckedRevision, INTERRUPT_RECEIVED,
-};
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::Receiver;
+use crossbeam_channel::Sender;
 use rayon::prelude::*;
+
+use crate::dirstate::dirstate_map::DirstateEntryReset;
+use crate::dirstate::entry::ParentFileData;
+use crate::dirstate::entry::TruncatedTimestamp;
+use crate::dirstate::on_disk::write_tracked_key;
+use crate::errors::HgError;
+use crate::errors::IoResultExt;
+use crate::exit_codes;
+use crate::narrow;
+use crate::operations::list_rev_tracked_files;
+use crate::operations::ExpandedManifestEntry;
+use crate::progress::Progress;
+use crate::repo::Repo;
+use crate::revlog::filelog::Filelog;
+use crate::revlog::node::NULL_NODE;
+use crate::revlog::options::default_revlog_options;
+use crate::revlog::options::RevlogOpenOptions;
+use crate::revlog::RevlogError;
+use crate::sparse;
+use crate::utils::cap_default_rayon_threads;
+use crate::utils::files::filesystem_now;
+use crate::utils::files::get_path_from_bytes;
+use crate::utils::hg_path::hg_path_to_path_buf;
+use crate::utils::hg_path::HgPath;
+use crate::utils::hg_path::HgPathError;
+use crate::utils::path_auditor::PathAuditor;
+use crate::vfs::is_on_nfs_mount;
+use crate::vfs::VfsImpl;
+use crate::DirstateParents;
+use crate::UncheckedRevision;
+use crate::INTERRUPT_RECEIVED;
 
 fn write_dirstate(repo: &Repo) -> Result<(), HgError> {
     repo.write_dirstate()
@@ -508,8 +517,9 @@ fn wait_until_fs_tick(
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use pretty_assertions::assert_eq;
+
+    use super::*;
 
     #[test]
     fn test_chunk_tracked_files() {

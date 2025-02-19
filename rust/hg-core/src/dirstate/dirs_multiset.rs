@@ -8,18 +8,20 @@
 //! A multiset of directory names.
 //!
 //! Used to counts the references to directories in a manifest or dirstate.
-use crate::dirstate::on_disk::DirstateV2ParseError;
-use crate::{
-    utils::{
-        files,
-        hg_path::{HgPath, HgPathBuf, HgPathError},
-    },
-    FastHashMap,
-};
-use std::collections::{hash_map, hash_map::Entry, HashMap, HashSet};
+use std::collections::hash_map;
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
+use std::collections::HashSet;
 
 use super::entry::DirstateEntry;
-use super::{DirstateError, DirstateMapError};
+use super::DirstateError;
+use super::DirstateMapError;
+use crate::dirstate::on_disk::DirstateV2ParseError;
+use crate::utils::files;
+use crate::utils::hg_path::HgPath;
+use crate::utils::hg_path::HgPathBuf;
+use crate::utils::hg_path::HgPathError;
+use crate::FastHashMap;
 
 // could be encapsulated if we care API stability more seriously
 pub type DirsMultisetIter<'a> = hash_map::Keys<'a, HgPathBuf, u32>;
@@ -214,9 +216,8 @@ impl<'a> DirsChildrenMultiset<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::dirstate::entry::EntryState;
-
     use super::*;
+    use crate::dirstate::entry::EntryState;
 
     #[test]
     fn test_delete_path_path_not_found() {

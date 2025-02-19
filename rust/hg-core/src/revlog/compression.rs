@@ -7,12 +7,11 @@ use std::io::Read;
 use flate2::bufread::ZlibEncoder;
 use flate2::read::ZlibDecoder;
 
+use super::corrupted;
+use super::RevlogError;
 use crate::config::Config;
 use crate::errors::HgError;
 use crate::exit_codes;
-
-use super::corrupted;
-use super::RevlogError;
 
 /// Header byte used to identify ZSTD-compressed data
 pub const ZSTD_BYTE: u8 = b'\x28';

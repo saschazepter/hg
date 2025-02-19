@@ -8,13 +8,14 @@
 //! Utilities about `HgPath` and related objects provided by the `hg-core`
 //! package.
 
-use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyList};
-
 use std::convert::Infallible;
 
 use hg::dirstate::on_disk::DirstateV2ParseError;
-use hg::utils::hg_path::{HgPath, HgPathBuf};
+use hg::utils::hg_path::HgPath;
+use hg::utils::hg_path::HgPathBuf;
+use pyo3::prelude::*;
+use pyo3::types::PyBytes;
+use pyo3::types::PyList;
 
 use crate::exceptions::dirstate_v2_error;
 

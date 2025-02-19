@@ -3,12 +3,16 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use crate::dirstate::entry::{DirstateEntry, EntryState};
+use byteorder::BigEndian;
+use byteorder::WriteBytesExt;
+use bytes_cast::unaligned;
+use bytes_cast::BytesCast;
+
+use crate::dirstate::entry::DirstateEntry;
+use crate::dirstate::entry::EntryState;
 use crate::errors::HgError;
 use crate::utils::hg_path::HgPath;
 use crate::DirstateParents;
-use byteorder::{BigEndian, WriteBytesExt};
-use bytes_cast::{unaligned, BytesCast};
 
 /// Parents are stored in the dirstate as byte hashes.
 pub const PARENT_SIZE: usize = 20;

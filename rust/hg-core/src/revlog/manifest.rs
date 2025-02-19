@@ -2,11 +2,18 @@ use std::num::NonZeroU8;
 
 use crate::errors::HgError;
 use crate::revlog::options::RevlogOpenOptions;
-use crate::revlog::{Node, NodePrefix, Revlog, RevlogError};
+use crate::revlog::Node;
+use crate::revlog::NodePrefix;
+use crate::revlog::Revlog;
+use crate::revlog::RevlogError;
 use crate::utils::hg_path::HgPath;
 use crate::utils::strings::SliceExt;
 use crate::vfs::VfsImpl;
-use crate::{Graph, GraphError, Revision, UncheckedRevision, NULL_REVISION};
+use crate::Graph;
+use crate::GraphError;
+use crate::Revision;
+use crate::UncheckedRevision;
+use crate::NULL_REVISION;
 
 /// A specialized `Revlog` to work with `manifest` data format.
 pub struct Manifestlog {

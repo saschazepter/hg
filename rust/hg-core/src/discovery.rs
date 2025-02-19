@@ -10,12 +10,22 @@
 //! This is a Rust counterpart to the `partialdiscovery` class of
 //! `mercurial.setdiscovery`
 
-use super::{Graph, GraphError, Revision, NULL_REVISION};
-use crate::{ancestors::MissingAncestors, dagops, FastHashMap};
+use std::cmp::max;
+use std::cmp::min;
+use std::collections::HashSet;
+use std::collections::VecDeque;
+
 use rand::seq::SliceRandom;
-use rand::{RngCore, SeedableRng};
-use std::cmp::{max, min};
-use std::collections::{HashSet, VecDeque};
+use rand::RngCore;
+use rand::SeedableRng;
+
+use super::Graph;
+use super::GraphError;
+use super::Revision;
+use super::NULL_REVISION;
+use crate::ancestors::MissingAncestors;
+use crate::dagops;
+use crate::FastHashMap;
 
 type Rng = rand_pcg::Pcg32;
 type Seed = [u8; 16];

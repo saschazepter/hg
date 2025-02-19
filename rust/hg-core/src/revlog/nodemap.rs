@@ -12,23 +12,29 @@
 //! Following existing implicit conventions, the "nodemap" terminology
 //! is used in a more abstract context.
 
+use std::cmp::max;
+use std::fmt;
+use std::mem::align_of;
+use std::mem::size_of;
+use std::mem::{self};
+use std::ops::Deref;
+use std::ops::Index;
+use std::path::Path;
+
+use bytes_cast::unaligned;
+use bytes_cast::BytesCast;
+
+use super::node::NULL_NODE;
+use super::BaseRevision;
+use super::Node;
+use super::NodePrefix;
+use super::Revision;
+use super::RevlogIndex;
+use super::NULL_REVISION;
 use crate::errors::HgError;
 use crate::revlog::NodeMapDocket;
 use crate::vfs::VfsImpl;
 use crate::UncheckedRevision;
-
-use super::BaseRevision;
-use super::{
-    node::NULL_NODE, Node, NodePrefix, Revision, RevlogIndex, NULL_REVISION,
-};
-
-use bytes_cast::{unaligned, BytesCast};
-use std::cmp::max;
-use std::fmt;
-use std::mem::{self, align_of, size_of};
-use std::ops::Deref;
-use std::ops::Index;
-use std::path::Path;
 
 type NodeTreeBuffer = Box<dyn Deref<Target = [u8]> + Send + Sync>;
 
@@ -755,10 +761,12 @@ impl NodeMap for NodeTree {
 
 #[cfg(test)]
 pub mod tests {
+    use std::collections::HashMap;
+
     use super::NodeMapError::*;
     use super::*;
-    use crate::revlog::node::{hex_pad_right, Node};
-    use std::collections::HashMap;
+    use crate::revlog::node::hex_pad_right;
+    use crate::revlog::node::Node;
 
     /// Creates a `Block` using a syntax close to the `Debug` output
     macro_rules! block {
