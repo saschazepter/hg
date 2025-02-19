@@ -2155,7 +2155,7 @@ class manifestlog(repository.imanifestlog):
         return self._rootstore._revlog.update_caches(transaction=transaction)
 
 
-class memmanifestctx:  # (repository.imanifestrevisionwritable)
+class memmanifestctx(repository.imanifestrevisionwritable):
     _manifestdict: manifestdict
 
     def __init__(self, manifestlog):
