@@ -459,7 +459,7 @@ class localpeer(repository.peer, repository.ipeercommands):
     # End of peer interface.
 
 
-class locallegacypeer(localpeer):  # (repository.ipeerlegacycommands)
+class locallegacypeer(localpeer, repository.ipeerlegacycommands):
     """peer extension which implements legacy methods too; used for tests with
     restricted capabilities"""
 
