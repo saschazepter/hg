@@ -1544,11 +1544,14 @@ def _v2_parse_files(
 
 def _write_files(info: Iterable[FileInfoT]):
     """write files from parsed data"""
+    io_flags = os.O_WRONLY | os.O_CREAT
+    if pycompat.iswindows:
+        io_flags |= os.O_BINARY
     for path, mode, data in info:
         if mode is None:
-            fd = os.open(path, os.O_WRONLY | os.O_CREAT)
+            fd = os.open(path, io_flags)
         else:
-            fd = os.open(path, os.O_WRONLY | os.O_CREAT, mode=mode)
+            fd = os.open(path, io_flags, mode=mode)
         try:
             for chunk in data:
                 written = os.write(fd, chunk)
