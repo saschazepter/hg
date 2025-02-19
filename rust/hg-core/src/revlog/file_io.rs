@@ -206,9 +206,8 @@ impl FileHandle {
             vfs.open_write(filename.as_ref())?
         };
         let size = vfs.file_size(&file)?;
-        let offset = file
-            .stream_position()
-            .when_reading_file(filename.as_ref())?;
+        let offset =
+            file.stream_position().when_reading_file(filename.as_ref())?;
 
         {
             let mut buf = delayed_buffer.lock().unwrap();
@@ -246,9 +245,8 @@ impl FileHandle {
         delayed_buffer: Arc<Mutex<DelayedBuffer>>,
     ) -> Result<Self, HgError> {
         let size = vfs.file_size(&file)?;
-        let offset = file
-            .stream_position()
-            .when_reading_file(filename.as_ref())?;
+        let offset =
+            file.stream_position().when_reading_file(filename.as_ref())?;
 
         {
             let mut buf = delayed_buffer.lock().unwrap();
@@ -315,8 +313,7 @@ impl FileHandle {
                     self.file.read_exact(&mut buf)?;
                 } else {
                     // We're spanning file and buffer
-                    self.file
-                        .read_exact(&mut buf[..absolute_span as usize])?;
+                    self.file.read_exact(&mut buf[..absolute_span as usize])?;
                     delay_buf
                         .buffer
                         .take(length - absolute_span)
@@ -345,9 +342,7 @@ impl FileHandle {
 
     /// Return the current position in the file
     pub fn position(&mut self) -> Result<u64, HgError> {
-        self.file
-            .stream_position()
-            .when_reading_file(&self.filename)
+        self.file.stream_position().when_reading_file(&self.filename)
     }
 
     /// Append `data` to the file, or to the [`DelayedBuffer`], if any.
@@ -359,9 +354,7 @@ impl FileHandle {
             delayed_buffer.offset += data.len() as u64;
             Ok(())
         } else {
-            self.file
-                .write_all(data)
-                .when_writing_file(&self.filename)?;
+            self.file.write_all(data).when_writing_file(&self.filename)?;
             Ok(())
         }
     }
@@ -494,33 +487,18 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            handle
-                .delayed_buffer
-                .as_ref()
-                .unwrap()
-                .lock()
-                .unwrap()
-                .file_size,
+            handle.delayed_buffer.as_ref().unwrap().lock().unwrap().file_size,
             10
         );
         handle.seek(SeekFrom::End(0)).unwrap();
         handle.write_all(b"should go to buffer").unwrap();
         assert_eq!(
-            handle
-                .delayed_buffer
-                .as_ref()
-                .unwrap()
-                .lock()
-                .unwrap()
-                .len(),
+            handle.delayed_buffer.as_ref().unwrap().lock().unwrap().len(),
             29
         );
         read_handle.seek(SeekFrom::Start(0)).unwrap();
         // On-disk file contents should be unchanged
-        assert_eq!(
-            read_handle.read_exact(10).unwrap(),
-            b"new data90".to_vec(),
-        );
+        assert_eq!(read_handle.read_exact(10).unwrap(), b"new data90".to_vec(),);
 
         assert_eq!(
             read_handle.read_exact(1).unwrap_err().kind(),

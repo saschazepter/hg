@@ -184,10 +184,7 @@ impl DirstateItem {
         Ok(self.read()?.any_tracked())
     }
 
-    fn mtime_likely_equal_to(
-        &self,
-        other: (u32, u32, bool),
-    ) -> PyResult<bool> {
+    fn mtime_likely_equal_to(&self, other: (u32, u32, bool)) -> PyResult<bool> {
         if let Some(mtime) = self.read()?.truncated_mtime() {
             Ok(mtime.likely_equal(timestamp(other)?))
         } else {
@@ -228,11 +225,7 @@ impl DirstateItem {
 
 impl DirstateItem {
     pub fn new_as_py(py: Python, entry: DirstateEntry) -> PyResult<Py<Self>> {
-        Ok(Self {
-            entry: entry.into(),
-        }
-        .into_pyobject(py)?
-        .unbind())
+        Ok(Self { entry: entry.into() }.into_pyobject(py)?.unbind())
     }
 
     fn read(&self) -> PyResult<RwLockReadGuard<DirstateEntry>> {
@@ -247,8 +240,7 @@ impl DirstateItem {
 pub(crate) fn timestamp(
     (s, ns, second_ambiguous): (u32, u32, bool),
 ) -> PyResult<TruncatedTimestamp> {
-    TruncatedTimestamp::from_already_truncated(s, ns, second_ambiguous)
-        .map_err(|_| {
-            PyValueError::new_err("expected mtime truncated to 31 bits")
-        })
+    TruncatedTimestamp::from_already_truncated(s, ns, second_ambiguous).map_err(
+        |_| PyValueError::new_err("expected mtime truncated to 31 bits"),
+    )
 }

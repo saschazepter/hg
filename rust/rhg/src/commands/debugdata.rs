@@ -28,12 +28,7 @@ pub fn args() -> clap::Command {
                 .args(["changelog", "manifest"])
                 .required(true),
         )
-        .arg(
-            Arg::new("rev")
-                .help("revision")
-                .required(true)
-                .value_name("REV"),
-        )
+        .arg(Arg::new("rev").help("revision").required(true).value_name("REV"))
         .about(HELP_TEXT)
 }
 

@@ -30,11 +30,7 @@ pub fn split_lines(source: &[u8]) -> Result<Lines, HgError> {
     match u32::try_from(result) {
         Ok(len) => {
             assert!(!array.is_null());
-            Ok(Lines {
-                array,
-                len,
-                _lifetime: PhantomData,
-            })
+            Ok(Lines { array, len, _lifetime: PhantomData })
         }
         Err(_) => {
             Err(HgError::abort_simple("bdiff_splitlines failed to allocate"))
@@ -50,10 +46,7 @@ impl<'a> Lines<'a> {
 
     /// Returns an iterator over the lines.
     pub fn iter(&self) -> LinesIter<'_, 'a> {
-        LinesIter {
-            lines: self,
-            index: 0,
-        }
+        LinesIter { lines: self, index: 0 }
     }
 }
 

@@ -180,8 +180,7 @@ impl GlobToRe {
             self.start
         };
 
-        let mut res: Vec<_> =
-            wildcard.into_iter().map(|x| x.to_re()).collect();
+        let mut res: Vec<_> = wildcard.into_iter().map(|x| x.to_re()).collect();
         res.extend(self.rest);
         PreRegex::Sequence(res)
     }
@@ -333,9 +332,7 @@ fn _build_single_regex(
     entry: &IgnorePattern,
     glob_suffix: GlobSuffix,
 ) -> PatternResult<PreRegex> {
-    let IgnorePattern {
-        syntax, pattern, ..
-    } = entry;
+    let IgnorePattern { syntax, pattern, .. } = entry;
     if pattern.is_empty() {
         return Ok(PreRegex::Empty);
     }
@@ -494,9 +491,7 @@ pub fn build_single_regex(
     glob_suffix: GlobSuffix,
     regex_config: RegexCompleteness,
 ) -> Result<Option<PreRegex>, PatternError> {
-    let IgnorePattern {
-        pattern, syntax, ..
-    } = entry;
+    let IgnorePattern { pattern, syntax, .. } = entry;
     let pattern = match syntax {
         PatternSyntax::RootGlob
         | PatternSyntax::Path
@@ -581,11 +576,7 @@ pub fn parse_one_pattern(
         _ => pattern_bytes.to_vec(),
     };
 
-    IgnorePattern {
-        syntax,
-        pattern,
-        source: source.to_owned(),
-    }
+    IgnorePattern { syntax, pattern, source: source.to_owned() }
 }
 
 pub fn parse_pattern_file_contents(
@@ -708,19 +699,11 @@ pub struct IgnorePattern {
 
 impl IgnorePattern {
     pub fn new(syntax: PatternSyntax, pattern: &[u8], source: &Path) -> Self {
-        Self {
-            syntax,
-            pattern: pattern.to_owned(),
-            source: source.to_owned(),
-        }
+        Self { syntax, pattern: pattern.to_owned(), source: source.to_owned() }
     }
 
     pub fn to_relative(self) -> Self {
-        let Self {
-            syntax,
-            pattern,
-            source,
-        } = self;
+        let Self { syntax, pattern, source } = self;
         Self {
             syntax: match syntax {
                 PatternSyntax::Regexp => PatternSyntax::RelRegexp,
@@ -847,8 +830,7 @@ pub fn filter_subincludes(
     let mut others = vec![];
 
     for pattern in ignore_patterns {
-        if let PatternSyntax::ExpandedSubInclude(sub_include) = pattern.syntax
-        {
+        if let PatternSyntax::ExpandedSubInclude(sub_include) = pattern.syntax {
             subincludes.push(*sub_include);
         } else {
             others.push(pattern)
@@ -864,10 +846,7 @@ mod tests {
     use super::*;
 
     fn escape_pattern(pattern: &[u8]) -> Vec<u8> {
-        pattern
-            .iter()
-            .flat_map(|c| RE_ESCAPE[*c as usize].clone())
-            .collect()
+        pattern.iter().flat_map(|c| RE_ESCAPE[*c as usize].clone()).collect()
     }
 
     #[test]

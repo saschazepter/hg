@@ -69,11 +69,7 @@ impl ConfigLayer {
 
             let (section_and_item, value) = arg.split_2(b'=')?;
             let (section, item) = section_and_item.trim().split_2(b'.')?;
-            Some((
-                section.to_owned(),
-                item.to_owned(),
-                value.trim().to_owned(),
-            ))
+            Some((section.to_owned(), item.to_owned(), value.trim().to_owned()))
         }
 
         let mut layer = Self::new(ConfigOrigin::CommandLine);
@@ -146,9 +142,7 @@ impl ConfigLayer {
 
     /// Returns whether any key is defined in the given section
     pub fn has_non_empty_section(&self, section: &[u8]) -> bool {
-        self.sections
-            .get(section)
-            .is_some_and(|section| !section.is_empty())
+        self.sections.get(section).is_some_and(|section| !section.is_empty())
     }
 
     pub fn is_empty(&self) -> bool {
@@ -170,8 +164,7 @@ impl ConfigLayer {
         // TODO check if it's trusted
         let mut current_layer = Self::new(ConfigOrigin::File(src.to_owned()));
 
-        let mut lines_iter =
-            data.split(|b| *b == b'\n').enumerate().peekable();
+        let mut lines_iter = data.split(|b| *b == b'\n').enumerate().peekable();
         let mut section = b"".to_vec();
 
         while let Some((index, bytes)) = lines_iter.next() {
@@ -349,11 +342,7 @@ pub struct ConfigParseError {
 
 impl From<ConfigParseError> for HgError {
     fn from(error: ConfigParseError) -> Self {
-        let ConfigParseError {
-            origin,
-            line,
-            message,
-        } = error;
+        let ConfigParseError { origin, line, message } = error;
         let line_message = if let Some(line_number) = line {
             format_bytes!(b":{}", line_number.to_string().into_bytes())
         } else {

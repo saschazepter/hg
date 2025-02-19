@@ -24,11 +24,11 @@ pub fn debug_wait_for_file(
     // defaults work out of the box, etc.
     let default_timeout = 2;
     let timeout_opt = format!("sync.{config_option}-timeout");
-    let timeout_seconds =
-        match config.get_u32(b"devel", timeout_opt.as_bytes()) {
-            Ok(Some(timeout)) => timeout,
-            _ => default_timeout,
-        };
+    let timeout_seconds = match config.get_u32(b"devel", timeout_opt.as_bytes())
+    {
+        Ok(Some(timeout)) => timeout,
+        _ => default_timeout,
+    };
     let timeout_seconds = timeout_seconds as u64;
 
     tracing::debug!(

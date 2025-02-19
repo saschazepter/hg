@@ -59,8 +59,7 @@ where
 /// compiler: "returns a value referencing data owned by the current function"
 macro_rules! extract_attr {
     ($obj: expr, $attr: expr) => {
-        $obj.getattr(intern!($obj.py(), $attr))
-            .and_then(|a| a.extract())
+        $obj.getattr(intern!($obj.py(), $attr)).and_then(|a| a.extract())
     };
 }
 
@@ -194,8 +193,7 @@ fn extract_compression_config(
             engine
         }
         b"zstd" => {
-            let zstd_level =
-                compression_options.extract_item(b"zstd.level")?;
+            let zstd_level = compression_options.extract_item(b"zstd.level")?;
             let level = if let Some(level) = zstd_level {
                 Some(level)
             } else {

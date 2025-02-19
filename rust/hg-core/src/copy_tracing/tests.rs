@@ -22,8 +22,8 @@ fn test_compare_value() {
     // The `compare_value!` macro calls the `compare_value` function with
     // arguments given in pseudo-syntax:
     //
-    // * For `merge_case_for_dest` it takes a plain `MergeCase` value instead
-    //   of a closure.
+    // * For `merge_case_for_dest` it takes a plain `MergeCase` value instead of
+    //   a closure.
     // * `CopySource` values are represented as `(rev, path, overwritten)`
     //   tuples of type `(Revision, Option<PathToken>, OrdSet<Revision>)`.
     // * `PathToken` is an integer not read by `compare_value`. It only checks
@@ -60,8 +60,8 @@ fn test_merge_copies_dict() {
     // The `merge_copies_dict!` macro calls the `merge_copies_dict` function
     // with arguments given in pseudo-syntax:
     //
-    // * `TwoWayPathMap` and path tokenization are implicitly taken care of.
-    //   All paths are given as string literals.
+    // * `TwoWayPathMap` and path tokenization are implicitly taken care of. All
+    //   paths are given as string literals.
     // * Key-value maps are represented with `{key1 => value1, key2 => value2}`
     //   pseudo-syntax.
     // * `InternalPathCopies` is a map of copy destination path keys to
@@ -69,8 +69,7 @@ fn test_merge_copies_dict() {
     //   - `CopySource` is represented as a `(rev, source_path, overwritten)`
     //     tuple of type `(Revision, Option<Path>, OrdSet<Revision>)`.
     //   - Unlike in `test_compare_value`, source paths are string literals.
-    //   - `OrdSet<Revision>` is again represented as a Python-like set
-    //     literal.
+    //   - `OrdSet<Revision>` is again represented as a Python-like set literal.
     // * `get_merge_case` is represented as a map of copy destination path to
     //   `MergeCase`. The default for paths not in the map is
     //   `MergeCase::Normal`.

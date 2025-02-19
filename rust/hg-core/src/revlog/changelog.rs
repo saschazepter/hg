@@ -181,10 +181,8 @@ pub struct ChangelogRevisionData<'changelog> {
 impl<'changelog> ChangelogRevisionData<'changelog> {
     fn new(bytes: Cow<'changelog, [u8]>) -> Result<Self, HgError> {
         let mut line_iter = bytes.split(|b| b == &b'\n');
-        let manifest_end = line_iter
-            .next()
-            .expect("Empty iterator from split()?")
-            .len();
+        let manifest_end =
+            line_iter.next().expect("Empty iterator from split()?").len();
         let user_slice = line_iter.next().ok_or_else(|| {
             HgError::corrupted("Changeset data truncated after manifest line")
         })?;
@@ -212,13 +210,7 @@ impl<'changelog> ChangelogRevisionData<'changelog> {
             files_end += line.len() + 1;
         }
 
-        Ok(Self {
-            bytes,
-            manifest_end,
-            user_end,
-            timestamp_end,
-            files_end,
-        })
+        Ok(Self { bytes, manifest_end, user_end, timestamp_end, files_end })
     }
 
     fn null() -> Self {
@@ -289,9 +281,7 @@ impl Debug for ChangelogRevisionData<'_> {
             .field("manifest", &debug_bytes(&self.bytes[..self.manifest_end]))
             .field(
                 "user",
-                &debug_bytes(
-                    &self.bytes[self.manifest_end + 1..self.user_end],
-                ),
+                &debug_bytes(&self.bytes[self.manifest_end + 1..self.user_end]),
             )
             .field(
                 "timestamp",
@@ -326,8 +316,8 @@ fn debug_bytes(bytes: &[u8]) -> String {
 /// implementation in `changelog.py`, the format of the timestamp line
 /// is `time tz extra\n` where:
 ///
-/// - `time` is an ASCII-encoded signed int or float denoting a UTC timestamp
-///   as seconds since the UNIX epoch.
+/// - `time` is an ASCII-encoded signed int or float denoting a UTC timestamp as
+///   seconds since the UNIX epoch.
 ///
 /// - `tz` is the timezone offset as an ASCII-encoded signed integer denoting
 ///   seconds WEST of UTC (so negative for timezones east of UTC, which is the
@@ -342,9 +332,8 @@ fn parse_timestamp(
 ) -> Result<DateTime<FixedOffset>, HgError> {
     let mut parts = timestamp_line.splitn(3, |c| *c == b' ');
 
-    let timestamp_bytes = parts
-        .next()
-        .ok_or_else(|| HgError::corrupted("missing timestamp"))?;
+    let timestamp_bytes =
+        parts.next().ok_or_else(|| HgError::corrupted("missing timestamp"))?;
     let timestamp_str = str::from_utf8(timestamp_bytes).map_err(|e| {
         HgError::corrupted(format!("timestamp is not valid UTF-8: {e}"))
     })?;
@@ -365,9 +354,8 @@ fn parse_timestamp(
         // used in practice, but the Python code supports them.
         .or_else(|_| parse_float_timestamp(timestamp_str))?;
 
-    let timezone_bytes = parts
-        .next()
-        .ok_or_else(|| HgError::corrupted("missing timezone"))?;
+    let timezone_bytes =
+        parts.next().ok_or_else(|| HgError::corrupted("missing timezone"))?;
     let timezone_secs: i32 = str::from_utf8(timezone_bytes)
         .map_err(|e| {
             HgError::corrupted(format!("timezone is not valid UTF-8: {e}"))
@@ -560,8 +548,7 @@ message",
         .unwrap();
         assert_eq!(
             data.manifest_node().unwrap(),
-            Node::from_hex("0123456789abcdef0123456789abcdef01234567")
-                .unwrap()
+            Node::from_hex("0123456789abcdef0123456789abcdef01234567").unwrap()
         );
         assert_eq!(data.user(), b"Some One <someone@example.com>");
         assert_eq!(data.timestamp_line(), b"0 0");
@@ -589,9 +576,7 @@ message",
         );
         // same with the intermediate entry object
         assert_eq!(
-            changelog
-                .entry_for_unchecked_rev(NULL_REVISION.into())?
-                .data()?,
+            changelog.entry_for_unchecked_rev(NULL_REVISION.into())?.data()?,
             ChangelogRevisionData::null()
         );
         Ok(())
@@ -599,10 +584,7 @@ message",
 
     #[test]
     fn test_empty_files_list() {
-        assert!(ChangelogRevisionData::null()
-            .files()
-            .collect_vec()
-            .is_empty());
+        assert!(ChangelogRevisionData::null().files().collect_vec().is_empty());
     }
 
     #[test]

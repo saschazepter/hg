@@ -257,9 +257,8 @@ pub fn cap_default_rayon_threads() -> Result<(), rayon::ThreadPoolBuildError> {
     const THREAD_CAP: usize = 16;
 
     if std::env::var("RAYON_NUM_THREADS").is_err() {
-        let available_parallelism = std::thread::available_parallelism()
-            .map(usize::from)
-            .unwrap_or(1);
+        let available_parallelism =
+            std::thread::available_parallelism().map(usize::from).unwrap_or(1);
         let new_thread_count = THREAD_CAP.min(available_parallelism);
         let res = rayon::ThreadPoolBuilder::new()
             .num_threads(new_thread_count)

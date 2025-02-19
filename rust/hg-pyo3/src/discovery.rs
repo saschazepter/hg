@@ -67,10 +67,7 @@ impl PartialDiscovery {
                 )
             })
         };
-        Ok(Self {
-            inner: lazy_disco,
-            idx: cloned_index,
-        })
+        Ok(Self { inner: lazy_disco, idx: cloned_index })
     }
 
     fn addcommons(
@@ -82,9 +79,7 @@ impl PartialDiscovery {
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
         let mut inner = unsafe { self.inner.try_borrow_mut(py)? };
-        inner
-            .add_common_revisions(commons)
-            .map_err(GraphError::from_hg)?;
+        inner.add_common_revisions(commons).map_err(GraphError::from_hg)?;
         Ok(py.None())
     }
 
@@ -97,9 +92,7 @@ impl PartialDiscovery {
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
         let mut inner = unsafe { self.inner.try_borrow_mut(py)? };
-        inner
-            .add_missing_revisions(missings)
-            .map_err(GraphError::from_hg)?;
+        inner.add_missing_revisions(missings).map_err(GraphError::from_hg)?;
         Ok(py.None())
     }
 
@@ -128,12 +121,8 @@ impl PartialDiscovery {
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
         let mut inner = unsafe { self.inner.try_borrow_mut(py)? };
-        inner
-            .add_common_revisions(common)
-            .map_err(GraphError::from_hg)?;
-        inner
-            .add_missing_revisions(missing)
-            .map_err(GraphError::from_hg)?;
+        inner.add_common_revisions(common).map_err(GraphError::from_hg)?;
+        inner.add_missing_revisions(missing).map_err(GraphError::from_hg)?;
         Ok(py.None())
     }
 
@@ -165,8 +154,7 @@ impl PartialDiscovery {
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
         let inner = unsafe { self.inner.try_borrow(py)? };
-        let common_heads =
-            inner.common_heads().map_err(GraphError::from_hg)?;
+        let common_heads = inner.common_heads().map_err(GraphError::from_hg)?;
         Ok(common_heads.into_iter().map(Into::into).collect())
     }
 
@@ -195,9 +183,8 @@ impl PartialDiscovery {
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
         let mut inner = unsafe { self.inner.try_borrow_mut(py)? };
-        let sample = inner
-            .take_quick_sample(revs, size)
-            .map_err(GraphError::from_hg)?;
+        let sample =
+            inner.take_quick_sample(revs, size).map_err(GraphError::from_hg)?;
         let as_pyrevision = sample.into_iter().map(|rev| PyRevision(rev.0));
         Ok(PyTuple::new(py, as_pyrevision)?.unbind())
     }

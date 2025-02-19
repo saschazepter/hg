@@ -117,12 +117,7 @@ impl IndexData {
             first_entry[INDEX_HEADER_SIZE..]
                 .copy_from_slice(&bytes[INDEX_HEADER_SIZE..INDEX_ENTRY_SIZE])
         }
-        Self {
-            bytes,
-            truncation: None,
-            added: vec![],
-            first_entry,
-        }
+        Self { bytes, truncation: None, added: vec![], first_entry }
     }
 
     pub fn len(&self) -> usize {
@@ -259,8 +254,7 @@ impl RevisionDataParams {
     }
 
     pub fn into_v1(self) -> RevisionDataV1 {
-        let data_offset_or_flags =
-            (self.data_offset << 16) | self.flags as u64;
+        let data_offset_or_flags = (self.data_offset << 16) | self.flags as u64;
         let mut node_id = [0; STORED_NODE_ID_BYTES];
         node_id[..NODE_BYTES_LENGTH].copy_from_slice(&self.node_id);
         RevisionDataV1 {
@@ -379,9 +373,7 @@ impl Index {
             while offset + INDEX_ENTRY_SIZE <= bytes.len() {
                 offsets.push(offset);
                 let end = offset + INDEX_ENTRY_SIZE;
-                let entry = IndexEntry {
-                    bytes: &bytes[offset..end],
-                };
+                let entry = IndexEntry { bytes: &bytes[offset..end] };
 
                 offset += INDEX_ENTRY_SIZE + entry.compressed_len() as usize;
             }
@@ -522,9 +514,7 @@ impl Index {
             return None;
         }
         if rev.0 == 0 {
-            Some(IndexEntry {
-                bytes: &self.bytes.first_entry[..],
-            })
+            Some(IndexEntry { bytes: &self.bytes.first_entry[..] })
         } else {
             Some(if self.is_inline() {
                 self.get_entry_inline(rev)
@@ -603,9 +593,7 @@ impl Index {
     }
 
     fn null_entry(&self) -> IndexEntry {
-        IndexEntry {
-            bytes: &[0; INDEX_ENTRY_SIZE],
-        }
+        IndexEntry { bytes: &[0; INDEX_ENTRY_SIZE] }
     }
 
     /// Return the head revisions of this index
@@ -1762,9 +1750,7 @@ fn inline_scan(bytes: &[u8]) -> (usize, Vec<usize>) {
     while offset + INDEX_ENTRY_SIZE <= bytes.len() {
         offsets.push(offset);
         let end = offset + INDEX_ENTRY_SIZE;
-        let entry = IndexEntry {
-            bytes: &bytes[offset..end],
-        };
+        let entry = IndexEntry { bytes: &bytes[offset..end] };
 
         offset += INDEX_ENTRY_SIZE + entry.compressed_len() as usize;
     }
@@ -2078,9 +2064,8 @@ mod tests {
 
     #[test]
     fn link_revision_test() {
-        let bytes = IndexEntryBuilder::new()
-            .with_link_revision(Revision(123))
-            .build();
+        let bytes =
+            IndexEntryBuilder::new().with_link_revision(Revision(123)).build();
 
         let entry = IndexEntry { bytes: &bytes };
 
@@ -2107,8 +2092,8 @@ mod tests {
 
     #[test]
     fn node_test() {
-        let node = Node::from_hex("0123456789012345678901234567890123456789")
-            .unwrap();
+        let node =
+            Node::from_hex("0123456789012345678901234567890123456789").unwrap();
         let bytes = IndexEntryBuilder::new().with_node(node).build();
 
         let entry = IndexEntry { bytes: &bytes };
@@ -2118,10 +2103,8 @@ mod tests {
 
     #[test]
     fn version_test() {
-        let bytes = IndexEntryBuilder::new()
-            .is_first(true)
-            .with_version(2)
-            .build();
+        let bytes =
+            IndexEntryBuilder::new().is_first(true).with_version(2).build();
 
         assert_eq!(get_version(&bytes), 2)
     }

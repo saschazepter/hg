@@ -92,16 +92,12 @@ impl From<RepoError> for HgError {
                 exit_codes::ABORT,
                 None,
             ),
-            RepoError::ConfigParseError(config_parse_error) => {
-                HgError::Abort {
-                    message: String::from_utf8_lossy(
-                        &config_parse_error.message,
-                    )
+            RepoError::ConfigParseError(config_parse_error) => HgError::Abort {
+                message: String::from_utf8_lossy(&config_parse_error.message)
                     .to_string(),
-                    detailed_exit_code: exit_codes::CONFIG_PARSE_ERROR_ABORT,
-                    hint: None,
-                }
-            }
+                detailed_exit_code: exit_codes::CONFIG_PARSE_ERROR_ABORT,
+                hint: None,
+            },
             RepoError::Other(hg_error) => hg_error,
         }
     }
@@ -124,9 +120,7 @@ impl Repo {
                 return Ok(ancestor.to_path_buf());
             }
         }
-        Err(RepoError::NotFound {
-            at: path.to_path_buf(),
-        })
+        Err(RepoError::NotFound { at: path.to_path_buf() })
     }
 
     /// Find a repository, either at the given path (which must contain a `.hg`
@@ -167,8 +161,7 @@ impl Repo {
 
         let hg_vfs = VfsImpl::new(dot_hg.to_owned(), false);
         let mut reqs = requirements::load_if_exists(&hg_vfs)?;
-        let relative =
-            reqs.contains(requirements::RELATIVE_SHARED_REQUIREMENT);
+        let relative = reqs.contains(requirements::RELATIVE_SHARED_REQUIREMENT);
         let shared =
             reqs.contains(requirements::SHARED_REQUIREMENT) || relative;
 
@@ -207,11 +200,9 @@ impl Repo {
 
             store_path = shared_path.join("store");
 
-            let source_is_share_safe = requirements::load(VfsImpl::new(
-                shared_path.to_owned(),
-                true,
-            ))?
-            .contains(requirements::SHARESAFE_REQUIREMENT);
+            let source_is_share_safe =
+                requirements::load(VfsImpl::new(shared_path.to_owned(), true))?
+                    .contains(requirements::SHARESAFE_REQUIREMENT);
 
             if share_safe != source_is_share_safe {
                 return Err(HgError::unsupported("share-safe mismatch").into());
@@ -302,8 +293,7 @@ impl Repo {
     /// for the required feature, but not that that feature is actually used
     /// in all occasions.
     pub fn use_dirstate_v2(&self) -> bool {
-        self.requirements
-            .contains(requirements::DIRSTATE_V2_REQUIREMENT)
+        self.requirements.contains(requirements::DIRSTATE_V2_REQUIREMENT)
     }
 
     pub fn has_sparse(&self) -> bool {
@@ -315,8 +305,7 @@ impl Repo {
     }
 
     pub fn has_nodemap(&self) -> bool {
-        self.requirements
-            .contains(requirements::NODEMAP_REQUIREMENT)
+        self.requirements.contains(requirements::NODEMAP_REQUIREMENT)
     }
 
     fn dirstate_file_contents(&self) -> Result<Vec<u8>, HgError> {
@@ -580,8 +569,7 @@ impl Repo {
     pub fn dirstate_map_mut(
         &self,
     ) -> Result<RefMut<OwningDirstateMap>, DirstateError> {
-        self.dirstate_map
-            .get_mut_or_init(|| self.new_dirstate_map())
+        self.dirstate_map.get_mut_or_init(|| self.new_dirstate_map())
     }
 
     fn new_changelog(&self) -> Result<Changelog, HgError> {
@@ -743,15 +731,14 @@ impl Repo {
             //
             // - O_APPEND makes it trickier to deal with garbage at the end of
             //   the file, left by a previous uncommitted transaction. By
-            //   starting the write at [old_data_size] we make sure we erase
-            //   all such garbage.
+            //   starting the write at [old_data_size] we make sure we erase all
+            //   such garbage.
             //
             // - O_APPEND requires to special-case 0-byte writes, whereas we
             //   don't need that.
             //
-            // - Some OSes have bugs in implementation O_APPEND:
-            //   revlog.py talks about a Solaris bug, but we also saw some ZFS
-            //   bug: https://github.com/openzfs/zfs/pull/3124,
+            // - Some OSes have bugs in implementation O_APPEND: revlog.py talks
+            //   about a Solaris bug, but we also saw some ZFS bug: https://github.com/openzfs/zfs/pull/3124,
             //   https://github.com/openzfs/zfs/issues/13370
             //
             if !append {
@@ -853,9 +840,7 @@ struct LazyCell<T> {
 
 impl<T> LazyCell<T> {
     fn new() -> Self {
-        Self {
-            value: RefCell::new(None),
-        }
+        Self { value: RefCell::new(None) }
     }
 
     fn set(&self, value: T) {

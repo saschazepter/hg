@@ -90,11 +90,9 @@ impl PartialEq for DirstateIdentity {
         // unlikely it is that we actually get exactly 0 nanos, and worst
         // case scenario, we don't write out the dirstate in a non-wlocked
         // situation like status.
-        let mtime_nanos_equal = (self.mtime_nsec == 0
-            || other.mtime_nsec == 0)
+        let mtime_nanos_equal = (self.mtime_nsec == 0 || other.mtime_nsec == 0)
             || self.mtime_nsec == other.mtime_nsec;
-        let ctime_nanos_equal = (self.ctime_nsec == 0
-            || other.ctime_nsec == 0)
+        let ctime_nanos_equal = (self.ctime_nsec == 0 || other.ctime_nsec == 0)
             || self.ctime_nsec == other.ctime_nsec;
 
         self.mode == other.mode
@@ -219,9 +217,7 @@ impl Default for ChildNodes<'_> {
 }
 
 impl<'on_disk> ChildNodes<'on_disk> {
-    pub(super) fn as_ref<'tree>(
-        &'tree self,
-    ) -> ChildNodesRef<'tree, 'on_disk> {
+    pub(super) fn as_ref<'tree>(&'tree self) -> ChildNodesRef<'tree, 'on_disk> {
         match self {
             ChildNodes::InMemory(nodes) => ChildNodesRef::InMemory(nodes),
             ChildNodes::OnDisk(nodes) => ChildNodesRef::OnDisk(nodes),
@@ -443,9 +439,7 @@ impl<'tree, 'on_disk> NodeRef<'tree, 'on_disk> {
         &self,
     ) -> Result<Option<DirstateEntry>, DirstateV2ParseError> {
         match self {
-            NodeRef::InMemory(_path, node) => {
-                Ok(node.data.as_entry().copied())
-            }
+            NodeRef::InMemory(_path, node) => Ok(node.data.as_entry().copied()),
             NodeRef::OnDisk(node) => node.entry(),
         }
     }
@@ -464,9 +458,7 @@ impl<'tree, 'on_disk> NodeRef<'tree, 'on_disk> {
 
     pub(super) fn descendants_with_entry_count(&self) -> u32 {
         match self {
-            NodeRef::InMemory(_path, node) => {
-                node.descendants_with_entry_count
-            }
+            NodeRef::InMemory(_path, node) => node.descendants_with_entry_count,
             NodeRef::OnDisk(node) => node.descendants_with_entry_count.get(),
         }
     }
@@ -571,9 +563,8 @@ impl<'on_disk> DirstateMap<'on_disk> {
             return Ok((map, None));
         }
 
-        let parents = parse_dirstate_entries(
-            map.on_disk,
-            |path, entry, copy_source| {
+        let parents =
+            parse_dirstate_entries(map.on_disk, |path, entry, copy_source| {
                 let tracked = entry.tracked();
                 let node = Self::get_or_insert_node_inner(
                     map.on_disk,
@@ -603,8 +594,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
                     map.nodes_with_copy_source_count += 1
                 }
                 Ok(())
-            },
-        )?;
+            })?;
         let parents = Some(*parents);
 
         Ok((map, parents))
@@ -1196,20 +1186,16 @@ impl OwningDirstateMap {
             let (first_path_component, rest_of_path) =
                 path.split_first_component();
             let nodes = nodes.make_mut(on_disk, unreachable_bytes)?;
-            let node = if let Some(node) = nodes.get_mut(first_path_component)
-            {
+            let node = if let Some(node) = nodes.get_mut(first_path_component) {
                 node
             } else {
                 return Ok(None);
             };
             let dropped;
             if let Some(rest) = rest_of_path {
-                if let Some((d, removed)) = recur(
-                    on_disk,
-                    unreachable_bytes,
-                    &mut node.children,
-                    rest,
-                )? {
+                if let Some((d, removed)) =
+                    recur(on_disk, unreachable_bytes, &mut node.children, rest)?
+                {
                     dropped = d;
                     if dropped.had_entry {
                         node.descendants_with_entry_count = node
@@ -1223,9 +1209,7 @@ impl OwningDirstateMap {
                         node.tracked_descendants_count = node
                             .tracked_descendants_count
                             .checked_sub(1)
-                            .expect(
-                                "tracked_descendants_count should be >= 0",
-                            );
+                            .expect("tracked_descendants_count should be >= 0");
                     }
 
                     // Directory caches must be invalidated when removing a
@@ -1254,11 +1238,7 @@ impl OwningDirstateMap {
                     had_copy_source = true;
                     node.copy_source = None
                 }
-                dropped = Dropped {
-                    was_tracked,
-                    had_entry,
-                    had_copy_source,
-                };
+                dropped = Dropped { was_tracked, had_entry, had_copy_source };
             }
             // After recursion, for both leaf (rest_of_path is None) nodes and
             // parent nodes, remove a node if it just became empty.
@@ -1549,16 +1529,13 @@ impl OwningDirstateMap {
     > {
         let map = self.get_map();
         let on_disk = map.on_disk;
-        Ok(Box::new(filter_map_results(
-            map.iter_nodes(),
-            move |node| {
-                Ok(if node.tracked_descendants_count() > 0 {
-                    Some(node.full_path(on_disk)?)
-                } else {
-                    None
-                })
-            },
-        )))
+        Ok(Box::new(filter_map_results(map.iter_nodes(), move |node| {
+            Ok(if node.tracked_descendants_count() > 0 {
+                Some(node.full_path(on_disk)?)
+            } else {
+                None
+            })
+        })))
     }
 
     /// Only public because it needs to be exposed to the Python layer.

@@ -50,9 +50,7 @@ pub fn check_revision(
     rev: impl Into<UncheckedRevision>,
 ) -> PyResult<Revision> {
     let rev = rev.into();
-    index
-        .check_revision(rev)
-        .ok_or_else(|| rev_not_in_index(rev))
+    index.check_revision(rev).ok_or_else(|| rev_not_in_index(rev))
 }
 
 /// Utility function to convert a Python iterable into various collections

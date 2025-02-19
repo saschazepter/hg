@@ -56,18 +56,16 @@ impl NodeMapDocket {
             return Ok(None);
         };
 
-        let input = if let Some((&ONDISK_VERSION, rest)) =
-            docket_bytes.split_first()
-        {
-            rest
-        } else {
-            return Ok(None);
-        };
+        let input =
+            if let Some((&ONDISK_VERSION, rest)) = docket_bytes.split_first() {
+                rest
+            } else {
+                return Ok(None);
+            };
 
         /// Treat any error as a parse error
         fn parse<T, E>(result: Result<T, E>) -> Result<T, HgError> {
-            result
-                .map_err(|_| HgError::corrupted("nodemap docket parse error"))
+            result.map_err(|_| HgError::corrupted("nodemap docket parse error"))
         }
 
         let (header, rest) = parse(DocketHeader::from_bytes(input))?;
@@ -82,11 +80,8 @@ impl NodeMapDocket {
         let uid = parse(std::str::from_utf8(uid))?;
         let tip_node = parse(Node::from_bytes(tip_node))?.0.to_owned();
         let revnum: BaseRevision = parse(header.tip_rev.get().try_into())?;
-        let docket = NodeMapDocket {
-            data_length,
-            tip_rev: revnum.into(),
-            tip_node,
-        };
+        let docket =
+            NodeMapDocket { data_length, tip_rev: revnum.into(), tip_node };
 
         let data_path = rawdata_path(&docket_path, uid);
         // TODO: use `vfs.read()` here when the `persistent-nodemap.mmap`
@@ -118,8 +113,5 @@ fn rawdata_path(docket_path: &Path, uid: &str) -> PathBuf {
         .or_else(|| docket_name.strip_suffix(".n"))
         .expect("expected docket path in .n or .n.a");
     let name = format!("{}-{}.nd", prefix, uid);
-    docket_path
-        .parent()
-        .expect("expected a non-root path")
-        .join(name)
+    docket_path.parent().expect("expected a non-root path").join(name)
 }

@@ -115,10 +115,7 @@ impl ParentsIterator {
         graph: &impl Graph,
         r: Revision,
     ) -> Result<ParentsIterator, GraphError> {
-        Ok(ParentsIterator {
-            parents: graph.parents(r)?,
-            cur: 0,
-        })
+        Ok(ParentsIterator { parents: graph.parents(r)?, cur: 0 })
     }
 }
 
@@ -351,9 +348,7 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
 
     /// Provide statistics about the current state of the discovery process
     pub fn stats(&self) -> DiscoveryStats {
-        DiscoveryStats {
-            undecided: self.undecided.as_ref().map(HashSet::len),
-        }
+        DiscoveryStats { undecided: self.undecided.as_ref().map(HashSet::len) }
     }
 
     pub fn take_quick_sample(
@@ -535,8 +530,7 @@ mod tests {
     }
 
     fn sorted_missing(disco: &PartialDiscovery<SampleGraph>) -> Vec<Revision> {
-        let mut as_vec: Vec<Revision> =
-            disco.missing.iter().cloned().collect();
+        let mut as_vec: Vec<Revision> = disco.missing.iter().cloned().collect();
         as_vec.sort_unstable();
         as_vec
     }

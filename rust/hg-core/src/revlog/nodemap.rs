@@ -640,10 +640,7 @@ impl NodeTreeBytes {
     fn new(buffer: NodeTreeBuffer, amount: usize) -> Self {
         assert!(buffer.len() >= amount);
         let len_in_blocks = amount / size_of::<Block>();
-        NodeTreeBytes {
-            buffer,
-            len_in_blocks,
-        }
+        NodeTreeBytes { buffer, len_in_blocks }
     }
 }
 
@@ -693,11 +690,7 @@ impl Iterator for NodeTreeVisitor<'_> {
             self.done = true;
         }
 
-        Some(NodeTreeVisitItem {
-            block_idx: visit,
-            nybble,
-            element,
-        })
+        Some(NodeTreeVisitItem { block_idx: visit, nybble, element })
     }
 }
 
@@ -947,10 +940,7 @@ pub mod tests {
 
     impl TestNtIndex {
         pub fn new() -> Self {
-            TestNtIndex {
-                index: HashMap::new(),
-                nt: NodeTree::default(),
-            }
+            TestNtIndex { index: HashMap::new(), nt: NodeTree::default() }
         }
 
         pub fn insert_node(
@@ -993,10 +983,7 @@ pub mod tests {
             as_vec.extend(self.nt.growable);
             as_vec.push(self.nt.root);
 
-            Self {
-                index: self.index,
-                nt: NodeTree::from(as_vec),
-            }
+            Self { index: self.index, nt: NodeTree::from(as_vec) }
         }
     }
 
@@ -1152,10 +1139,7 @@ pub mod tests {
     #[test]
     fn test_into_added_empty() {
         assert!(sample_nodetree().into_readonly_and_added().1.is_empty());
-        assert!(sample_nodetree()
-            .into_readonly_and_added_bytes()
-            .1
-            .is_empty());
+        assert!(sample_nodetree().into_readonly_and_added_bytes().1.is_empty());
     }
 
     #[test]

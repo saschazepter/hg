@@ -87,13 +87,7 @@ impl<'a> PatchList<'a> {
 
     /// Creates a patch for a full snapshot, going from nothing to `data`.
     pub fn full_snapshot(data: &'a [u8]) -> Self {
-        Self {
-            chunks: vec![Chunk {
-                start: 0,
-                end: 0,
-                data,
-            }],
-        }
+        Self { chunks: vec![Chunk { start: 0, end: 0, data }] }
     }
 
     /// Apply the patch to some data.

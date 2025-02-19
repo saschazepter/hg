@@ -77,11 +77,7 @@ fn get_mode(base: impl AsRef<Path>) -> Option<u32> {
 impl VfsImpl {
     pub fn new(base: PathBuf, readonly: bool) -> Self {
         let mode = get_mode(&base);
-        Self {
-            base,
-            readonly,
-            mode,
-        }
+        Self { base, readonly, mode }
     }
 
     // XXX these methods are probably redundant with VFS trait?
@@ -201,9 +197,7 @@ impl VfsImpl {
             .and_then(|()| tmp.flush())
             .when_writing_file(tmp.path())?;
         let path = self.join(relative_path);
-        tmp.persist(&path)
-            .map_err(|e| e.error)
-            .when_writing_file(&path)?;
+        tmp.persist(&path).map_err(|e| e.error).when_writing_file(&path)?;
         Ok(())
     }
 }
@@ -242,11 +236,7 @@ pub enum VfsFile {
 
 impl VfsFile {
     pub fn normal(file: File, path: PathBuf) -> Self {
-        Self::Normal {
-            file,
-            check_ambig: None,
-            path,
-        }
+        Self::Normal { file, check_ambig: None, path }
     }
     pub fn normal_check_ambig(
         file: File,
@@ -273,11 +263,7 @@ impl VfsFile {
                 target_name: target_name.clone(),
                 is_open: *is_open,
             }),
-            VfsFile::Normal {
-                file,
-                check_ambig,
-                path,
-            } => Self::Normal {
+            VfsFile::Normal { file, check_ambig, path } => Self::Normal {
                 file: file.try_clone().when_reading_file(path)?,
                 check_ambig: check_ambig.clone(),
                 path: path.to_owned(),
@@ -344,12 +330,7 @@ impl Write for VfsFile {
 
 impl Drop for VfsFile {
     fn drop(&mut self) {
-        if let VfsFile::Normal {
-            path,
-            check_ambig: Some(old),
-            ..
-        } = self
-        {
+        if let VfsFile::Normal { path, check_ambig: Some(old), .. } = self {
             avoid_timestamp_ambiguity(path, old)
         }
     }
@@ -439,8 +420,7 @@ impl AtomicFile {
         let target_path = target_path.as_ref().to_owned();
 
         let random_id = Alphanumeric.sample_string(&mut rand::rng(), 12);
-        let filename =
-            target_path.file_name().expect("target has no filename");
+        let filename = target_path.file_name().expect("target has no filename");
         let filename = get_bytes_from_path(filename);
         let temp_filename =
             format_bytes!(b".{}-{}~", filename, random_id.as_bytes());
@@ -760,10 +740,7 @@ impl Vfs for VfsImpl {
         let from = self.base.join(from);
         let to = self.base.join(to);
         std::fs::rename(&from, &to).with_context(|| {
-            IoErrorContext::RenamingFile {
-                from,
-                to: to.to_owned(),
-            }
+            IoErrorContext::RenamingFile { from, to: to.to_owned() }
         })?;
         if let Some(Some(old)) = old_stat {
             avoid_timestamp_ambiguity(&to, &old);
@@ -797,8 +774,7 @@ fn fix_directory_permissions(
             break;
         }
         let perm = std::fs::Permissions::from_mode(mode);
-        std::fs::set_permissions(ancestor, perm)
-            .when_writing_file(ancestor)?;
+        std::fs::set_permissions(ancestor, perm).when_writing_file(ancestor)?;
     }
     Ok(())
 }
@@ -960,10 +936,7 @@ fn copy_in_place_if_hardlink(path: &Path) -> Result<(), HgError> {
             }
         })?;
         std::fs::rename(&tmpfile, path).with_context(|| {
-            IoErrorContext::RenamingFile {
-                from: tmpfile,
-                to: path.to_owned(),
-            }
+            IoErrorContext::RenamingFile { from: tmpfile, to: path.to_owned() }
         })?;
     }
     Ok(())
@@ -1044,26 +1017,17 @@ mod tests {
         std::fs::write(&target_path, "version 1").unwrap();
         let mut file = AtomicFile::new(&target_path, false, false).unwrap();
         file.write_all(b"version 2!").unwrap();
-        assert_eq!(
-            std::fs::read(&target_path).unwrap(),
-            b"version 1".to_vec()
-        );
+        assert_eq!(std::fs::read(&target_path).unwrap(), b"version 1".to_vec());
         let temp_path = file.temp_path.to_owned();
         // test that dropping the file should discard the temp file and not
         // affect the target path.
         drop(file);
-        assert_eq!(
-            std::fs::read(&target_path).unwrap(),
-            b"version 1".to_vec()
-        );
+        assert_eq!(std::fs::read(&target_path).unwrap(), b"version 1".to_vec());
         assert!(!temp_path.exists());
 
         let mut file = AtomicFile::new(&target_path, false, false).unwrap();
         file.write_all(b"version 2!").unwrap();
-        assert_eq!(
-            std::fs::read(&target_path).unwrap(),
-            b"version 1".to_vec()
-        );
+        assert_eq!(std::fs::read(&target_path).unwrap(), b"version 1".to_vec());
         file.close().unwrap();
         assert_eq!(
             std::fs::read(&target_path).unwrap(),

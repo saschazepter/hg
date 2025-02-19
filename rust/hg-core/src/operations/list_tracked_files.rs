@@ -60,10 +60,7 @@ pub fn list_rev_tracked_files<M: Matcher>(
             _ => return Err(e),
         },
     };
-    Ok(FilesForRev {
-        manifest,
-        narrow_matcher,
-    })
+    Ok(FilesForRev { manifest, narrow_matcher })
 }
 
 pub struct FilesForRev<M> {

@@ -111,15 +111,13 @@ impl From<HgError> for CommandError {
             HgError::CensoredNodeError => {
                 CommandError::unsupported("Encountered a censored node")
             }
-            HgError::Abort {
-                message,
-                detailed_exit_code,
-                hint,
-            } => CommandError::abort_with_exit_code_and_hint(
-                message,
-                detailed_exit_code,
-                hint,
-            ),
+            HgError::Abort { message, detailed_exit_code, hint } => {
+                CommandError::abort_with_exit_code_and_hint(
+                    message,
+                    detailed_exit_code,
+                    hint,
+                )
+            }
             _ => CommandError::abort(error.to_string()),
         }
     }
@@ -185,11 +183,7 @@ impl From<ConfigError> for CommandError {
 
 impl From<ConfigParseError> for CommandError {
     fn from(error: ConfigParseError) -> Self {
-        let ConfigParseError {
-            origin,
-            line,
-            message,
-        } = error;
+        let ConfigParseError { origin, line, message } = error;
         let line_message = if let Some(line_number) = line {
             format_bytes!(b":{}", line_number.to_string().into_bytes())
         } else {

@@ -68,10 +68,8 @@ impl Filelog {
         &self,
         file_rev: UncheckedRevision,
     ) -> Result<FilelogRevisionData, RevlogError> {
-        let data: Vec<u8> = self
-            .revlog
-            .get_data_for_unchecked_rev(file_rev)?
-            .into_owned();
+        let data: Vec<u8> =
+            self.revlog.get_data_for_unchecked_rev(file_rev)?.into_owned();
         Ok(FilelogRevisionData(data))
     }
 
@@ -91,9 +89,7 @@ impl Filelog {
         &self,
         file_rev: UncheckedRevision,
     ) -> Result<FilelogEntry, RevlogError> {
-        Ok(FilelogEntry(
-            self.revlog.get_entry_for_unchecked_rev(file_rev)?,
-        ))
+        Ok(FilelogEntry(self.revlog.get_entry_for_unchecked_rev(file_rev)?))
     }
 
     /// Same as [`Self::entry_for_unchecked_rev`] for a checked revision.
@@ -352,8 +348,7 @@ mod tests {
 
     #[test]
     fn test_parse_one_field() {
-        let data =
-            FilelogRevisionData(b"\x01\ncopy: foo\n\x01\ndata".to_vec());
+        let data = FilelogRevisionData(b"\x01\ncopy: foo\n\x01\ndata".to_vec());
         let fields = data.metadata().unwrap().parse().unwrap();
         assert_eq!(
             fields,

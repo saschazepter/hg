@@ -25,9 +25,7 @@ impl PyFnCache {
 
 impl Clone for PyFnCache {
     fn clone(&self) -> Self {
-        Python::with_gil(|py| Self {
-            fncache: self.fncache.clone_ref(py),
-        })
+        Python::with_gil(|py| Self { fncache: self.fncache.clone_ref(py) })
     }
 }
 

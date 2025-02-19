@@ -192,11 +192,7 @@ impl<T: 'static> PyShareable<T> {
         &'py self,
         owner: &'py Bound<'py, PyAny>,
     ) -> PyShareableRef<'py, T> {
-        PyShareableRef {
-            owner,
-            state: &self.state,
-            data: &self.data,
-        }
+        PyShareableRef { owner, state: &self.state, data: &self.data }
     }
 
     /// Share for other Python objects
@@ -253,10 +249,7 @@ impl<T: 'static> PyShareable<T> {
 
 impl<T> From<T> for PyShareable<T> {
     fn from(value: T) -> Self {
-        Self {
-            state: PySharedState::new(),
-            data: value.into(),
-        }
+        Self { state: PySharedState::new(), data: value.into() }
     }
 }
 
@@ -341,8 +334,7 @@ impl<'py, T: ?Sized> PyShareableRef<'py, T> {
     ///
     /// Panics if the value is currently mutably borrowed.
     pub fn share_immutable(&self) -> SharedByPyObject<&'static T> {
-        self.try_share_immutable()
-            .expect("already mutably borrowed")
+        self.try_share_immutable().expect("already mutably borrowed")
     }
 
     /// Creates an immutable reference which is not bound to lifetime,
@@ -765,8 +757,8 @@ impl<T: ?Sized> DerefMut for SharedByPyObjectRefMut<'_, T> {
 /// * `$owner_attr` is the name of the shareable attribute in `$owner_type`
 /// * `$shared_type` is the type wrapped in `SharedByPyObject`, typically
 ///   `SomeIter<'static>`
-/// * `$iter_func` is a function to obtain the Rust iterator from the content
-///   of the shareable attribute. It can be a closure.
+/// * `$iter_func` is a function to obtain the Rust iterator from the content of
+///   the shareable attribute. It can be a closure.
 /// * `$result_func` is a function for converting items returned by the Rust
 ///   iterator into `PyResult<Option<Py<$success_type>`.
 ///
@@ -861,8 +853,7 @@ macro_rules! py_shared_iterator {
             fn new(owner: &Bound<'_, $owner_type>) -> PyResult<Self> {
                 let inner = &owner.borrow().$owner_attr;
                 // Safety: the data is indeed owned by `owner`
-                let shared_iter =
-                    unsafe { inner.share_map(owner, $iter_func) };
+                let shared_iter = unsafe { inner.share_map(owner, $iter_func) };
                 Ok(Self { inner: shared_iter })
             }
 

@@ -71,8 +71,7 @@ mod to_hir {
     }
 
     fn hir_byte(b: u8) -> Hir {
-        let class =
-            Class::Bytes(ClassBytes::new([ClassBytesRange::new(b, b)]));
+        let class = Class::Bytes(ClassBytes::new([ClassBytesRange::new(b, b)]));
         Hir::class(class)
     }
 

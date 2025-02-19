@@ -187,10 +187,7 @@ fn handle_stdout_error(error: io::Error) -> Result<(), UiError> {
     let mut stderr = io::stderr();
 
     stderr
-        .write_all(&format_bytes!(
-            b"abort: {}\n",
-            error.to_string().as_bytes()
-        ))
+        .write_all(&format_bytes!(b"abort: {}\n", error.to_string().as_bytes()))
         .map_err(UiError::StderrError)?;
 
     stderr.flush().map_err(UiError::StderrError)?;

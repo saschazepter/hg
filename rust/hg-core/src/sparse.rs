@@ -59,10 +59,7 @@ impl Display for SparseConfigContext {
 #[derive(Debug, derive_more::From)]
 pub enum SparseWarning {
     /// Warns about improper paths that start with "/"
-    RootWarning {
-        context: SparseConfigContext,
-        line: Vec<u8>,
-    },
+    RootWarning { context: SparseConfigContext, line: Vec<u8> },
     /// Warns about a profile missing from the given changelog revision
     ProfileNotFound { profile: Vec<u8>, rev: Revision },
     #[from]
@@ -243,12 +240,7 @@ pub(crate) fn parse_config(
         }
     }
 
-    Ok(SparseConfig {
-        includes,
-        excludes,
-        profiles,
-        warnings,
-    })
+    Ok(SparseConfig { includes, excludes, profiles, warnings })
 }
 
 fn read_temporary_includes(
@@ -340,24 +332,20 @@ pub fn matcher(
     let parents = repo.dirstate_parents()?;
     let mut revs = vec![];
     let p1_rev =
-        repo.changelog()?
-            .rev_from_node(parents.p1.into())
-            .map_err(|_| {
-                HgError::corrupted(
-                    "dirstate points to non-existent parent node".to_string(),
-                )
-            })?;
+        repo.changelog()?.rev_from_node(parents.p1.into()).map_err(|_| {
+            HgError::corrupted(
+                "dirstate points to non-existent parent node".to_string(),
+            )
+        })?;
     if p1_rev != NULL_REVISION {
         revs.push(p1_rev)
     }
     let p2_rev =
-        repo.changelog()?
-            .rev_from_node(parents.p2.into())
-            .map_err(|_| {
-                HgError::corrupted(
-                    "dirstate points to non-existent parent node".to_string(),
-                )
-            })?;
+        repo.changelog()?.rev_from_node(parents.p2.into()).map_err(|_| {
+            HgError::corrupted(
+                "dirstate points to non-existent parent node".to_string(),
+            )
+        })?;
     if p2_rev != NULL_REVISION {
         revs.push(p2_rev)
     }

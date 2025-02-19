@@ -149,10 +149,7 @@ fn should_ignore(plain: &PlainInfo, section: &[u8], item: &[u8]) -> bool {
 impl Config {
     /// The configuration to use when printing configuration-loading errors
     pub fn empty() -> Self {
-        Self {
-            layers: Vec::new(),
-            plain: PlainInfo::empty(),
-        }
+        Self { layers: Vec::new(), plain: PlainInfo::empty() }
     }
 
     /// Load system and user configuration from various files.
@@ -332,10 +329,7 @@ impl Config {
             }
         }
 
-        Ok(Config {
-            layers,
-            plain: PlainInfo::empty(),
-        })
+        Ok(Config { layers, plain: PlainInfo::empty() })
     }
 
     /// Loads the per-repository config into a new `Config` which is combined
@@ -350,10 +344,8 @@ impl Config {
             .cloned()
             .partition(ConfigLayer::is_from_command_line);
 
-        let mut repo_config = Self {
-            layers: other_layers,
-            plain: PlainInfo::empty(),
-        };
+        let mut repo_config =
+            Self { layers: other_layers, plain: PlainInfo::empty() };
         for path in repo_config_files {
             // TODO: check if this file should be trusted:
             // `mercurial/ui.py:427`
@@ -681,8 +673,7 @@ impl Config {
 
     /// Returns the raw value bytes of the first one found, or `None`.
     pub fn get(&self, section: &[u8], item: &[u8]) -> Option<&[u8]> {
-        self.get_inner(section, item)
-            .map(|(_, value)| value.bytes.as_ref())
+        self.get_inner(section, item).map(|(_, value)| value.bytes.as_ref())
     }
 
     /// Returns the raw value bytes of the first one found, or `None`.
@@ -716,8 +707,7 @@ impl Config {
             // In practice the tweak-default layer is only added when it is
             // relevant, so we can safely always take it into
             // account here.
-            if should_ignore && !(layer.origin == ConfigOrigin::Tweakdefaults)
-            {
+            if should_ignore && !(layer.origin == ConfigOrigin::Tweakdefaults) {
                 continue;
             }
             if let Some(v) = layer.get(section, item) {
@@ -729,17 +719,12 @@ impl Config {
 
     /// Return all keys defined for the given section
     pub fn get_section_keys(&self, section: &[u8]) -> HashSet<&[u8]> {
-        self.layers
-            .iter()
-            .flat_map(|layer| layer.iter_keys(section))
-            .collect()
+        self.layers.iter().flat_map(|layer| layer.iter_keys(section)).collect()
     }
 
     /// Returns whether any key is defined in the given section
     pub fn has_non_empty_section(&self, section: &[u8]) -> bool {
-        self.layers
-            .iter()
-            .any(|layer| layer.has_non_empty_section(section))
+        self.layers.iter().any(|layer| layer.has_non_empty_section(section))
     }
 
     /// Yields (key, value) pairs for everything in the given section from
@@ -924,10 +909,7 @@ mod tests {
         let (_, value) = config.get_inner(b"section", b"item").unwrap();
         assert_eq!(
             value,
-            &ConfigValue {
-                bytes: b"value2".to_vec(),
-                line: Some(4)
-            }
+            &ConfigValue { bytes: b"value2".to_vec(), line: Some(4) }
         );
 
         let value = config.get(b"section", b"item").unwrap();

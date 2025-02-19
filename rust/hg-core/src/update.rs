@@ -237,17 +237,14 @@ fn create_working_copy<'a: 'b, 'b>(
             progress,
             &auditor,
         ) {
-            error_sender
-                .send(e)
-                .expect("channel should not be disconnected")
+            error_sender.send(e).expect("channel should not be disconnected")
         }
         Ok(())
     };
     if let Some(workers) = workers {
         if workers > 1 {
             // Work in parallel, potentially restricting the number of threads
-            match rayon::ThreadPoolBuilder::new().num_threads(workers).build()
-            {
+            match rayon::ThreadPoolBuilder::new().num_threads(workers).build() {
                 Err(error) => error_sender
                     .send(HgError::abort(
                         error.to_string(),
@@ -310,17 +307,16 @@ fn working_copy_worker<'a: 'b, 'b>(
         assert!(flags != Some(b't'));
 
         let filelog = Filelog::open_vfs(store_vfs, file, options)?;
-        let filelog_revision_data = &filelog
-            .data_for_node(file_node)
-            .map_err(handle_revlog_error)?;
+        let filelog_revision_data =
+            &filelog.data_for_node(file_node).map_err(handle_revlog_error)?;
         let file_data = filelog_revision_data.file_data()?;
 
         if flags == Some(b'l') {
             let target = get_path_from_bytes(file_data);
             if let Err(e) = std::os::unix::fs::symlink(target, &path) {
                 // If the path already exists either:
-                //   - another process created this file while ignoring the
-                //     lock => error
+                //   - another process created this file while ignoring the lock
+                //     => error
                 //   - our check for the fast path is incorrect => error
                 //   - this is a malicious repo/bundle and this is symlink that
                 //     tries to write things where it shouldn't be able to.

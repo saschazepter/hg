@@ -188,8 +188,7 @@ pub fn status<'dirstate>(
     root_dir: PathBuf,
     ignore_files: Vec<PathBuf>,
     options: StatusOptions,
-) -> Result<(DirstateStatus<'dirstate>, Vec<PatternFileWarning>), StatusError>
-{
+) -> Result<(DirstateStatus<'dirstate>, Vec<PatternFileWarning>), StatusError> {
     // Also cap for a Python caller of this function, but don't complain if
     // the global threadpool has already been set since this code path is also
     // being used by `rhg`, which calls this early.
@@ -382,11 +381,7 @@ impl<'a> HasIgnoredAncestor<'a> {
         parent: Option<&'a HasIgnoredAncestor<'a>>,
         path: &'a HgPath,
     ) -> HasIgnoredAncestor<'a> {
-        Self {
-            path,
-            parent,
-            cache: OnceCell::new(),
-        }
+        Self { path, parent, cache: OnceCell::new() }
     }
 
     fn force(&self, ignore_fn: &IgnoreFnType<'_>) -> bool {
@@ -559,10 +554,8 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                     let basename =
                         dirstate_node.base_name(self.dmap.on_disk)?.as_bytes();
                     let fs_path = fs_path.join(get_path_from_bytes(basename));
-                    if !Self::should_visit(
-                        &children_set,
-                        HgPath::new(basename),
-                    ) {
+                    if !Self::should_visit(&children_set, HgPath::new(basename))
+                    {
                         return Ok(());
                     }
                     match std::fs::symlink_metadata(&fs_path) {
@@ -704,10 +697,11 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
         if let Some(bad_type) = fs_entry.is_bad() {
             if self.matcher.exact_match(hg_path) {
                 let path = dirstate_node.full_path(self.dmap.on_disk)?;
-                self.outcome.lock().unwrap().bad.push((
-                    path.to_owned().into(),
-                    BadMatch::BadType(bad_type),
-                ))
+                self.outcome
+                    .lock()
+                    .unwrap()
+                    .bad
+                    .push((path.to_owned().into(), BadMatch::BadType(bad_type)))
             }
         }
         if fs_entry.is_dir() {
@@ -718,10 +712,8 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                     .traversed
                     .push(hg_path.detach_from_tree())
             }
-            let is_ignored = HasIgnoredAncestor::create(
-                Some(has_ignored_ancestor),
-                hg_path,
-            );
+            let is_ignored =
+                HasIgnoredAncestor::create(Some(has_ignored_ancestor), hg_path);
             let is_at_repo_root = false;
             let children_all_have_dirstate_node_or_are_ignored = self
                 .traverse_fs_directory_and_dirstate(
@@ -797,13 +789,12 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
 
         // TODO: use let-else here and below when available:
         // https://github.com/rust-lang/rust/issues/87335
-        let status_start = if let Some(status_start) =
-            &self.filesystem_time_at_status_start
-        {
-            status_start
-        } else {
-            return Ok(());
-        };
+        let status_start =
+            if let Some(status_start) = &self.filesystem_time_at_status_start {
+                status_start
+            } else {
+                return Ok(());
+            };
 
         // Although the Rust standard library’s `SystemTime` type
         // has nanosecond precision, the times reported for a
@@ -826,13 +817,12 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                 // don’t cache its `read_dir` results.
                 //
                 // 1. A change to this directory (direct child was added or
-                //    removed) cause its mtime to be set (possibly truncated)
-                //    to `directory_mtime`
+                //    removed) cause its mtime to be set (possibly truncated) to
+                //    `directory_mtime`
                 // 2. This `status` algorithm calls `read_dir`
                 // 3. An other change is made to the same directory is made so
-                //    that calling `read_dir` agin would give different
-                //    results, but soon enough after 1. that the mtime stays
-                //    the same
+                //    that calling `read_dir` agin would give different results,
+                //    but soon enough after 1. that the mtime stays the same
                 //
                 // On a system where the time resolution poor, this
                 // scenario is not unlikely if all three steps are caused
@@ -994,8 +984,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
         let hg_path = directory_hg_path.join(&fs_entry.hg_path);
         let file_or_symlink = fs_entry.is_file() || fs_entry.is_symlink();
         if fs_entry.is_dir() {
-            let is_ignored =
-                has_ignored_ancestor || (self.ignore_fn)(&hg_path);
+            let is_ignored = has_ignored_ancestor || (self.ignore_fn)(&hg_path);
             let traverse_children = if is_ignored {
                 // Descendants of an ignored directory are all ignored
                 self.options.list_ignored
@@ -1052,10 +1041,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
         let is_ignored = has_ignored_ancestor || (self.ignore_fn)(hg_path);
         if is_ignored {
             if self.options.list_ignored {
-                self.push_outcome_without_copy_source(
-                    Outcome::Ignored,
-                    hg_path,
-                )
+                self.push_outcome_without_copy_source(Outcome::Ignored, hg_path)
             }
         } else if self.options.list_unknown {
             self.push_outcome_without_copy_source(Outcome::Unknown, hg_path)

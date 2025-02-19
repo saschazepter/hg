@@ -174,10 +174,7 @@ impl MissingAncestors {
             shared_idx
                 .map(index_proxy.py(), |idx| CoreMissing::new(idx, bases_vec))
         };
-        Ok(Self {
-            inner,
-            proxy_index: cloned_proxy,
-        })
+        Ok(Self { inner, proxy_index: cloned_proxy })
     }
 
     fn hasbases(slf: PyRef<'_, Self>) -> PyResult<bool> {
@@ -271,9 +268,8 @@ impl MissingAncestors {
         // `SharedByPyObject`
         let mut inner = unsafe { slf.inner.try_borrow_mut(py) }?;
 
-        let missing_vec = inner
-            .missing_ancestors(revs_vec)
-            .map_err(GraphError::from_hg)?;
+        let missing_vec =
+            inner.missing_ancestors(revs_vec).map_err(GraphError::from_hg)?;
         Ok(missing_vec.iter().map(|r| PyRevision(r.0)).collect())
     }
 }

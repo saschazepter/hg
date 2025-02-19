@@ -85,8 +85,6 @@ impl Index {
         let file = File::open(path).unwrap();
         let msg = "Index file is missing, or missing permission";
         let mmap = unsafe { MmapOptions::new().map(&file) }.expect(msg);
-        Self {
-            data: Box::new(IndexMmap(mmap)),
-        }
+        Self { data: Box::new(IndexMmap(mmap)) }
     }
 }

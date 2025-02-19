@@ -80,10 +80,7 @@ impl RevlogOpenOptions {
         super::index::IndexHeader {
             header_bytes: match self.version {
                 RevlogVersionOptions::V0 => [0, 0, 0, 0],
-                RevlogVersionOptions::V1 {
-                    general_delta,
-                    inline,
-                } => [
+                RevlogVersionOptions::V1 { general_delta, inline } => [
                     0,
                     if general_delta && inline {
                         3
@@ -186,8 +183,8 @@ impl RevlogDataConfig {
 
         let with_sparse_read =
             config.get_bool(b"experimental", b"sparse-read")?;
-        if let Some(sr_density_threshold) = config
-            .get_f64(b"experimental", b"sparse-read.density-threshold")?
+        if let Some(sr_density_threshold) =
+            config.get_f64(b"experimental", b"sparse-read.density-threshold")?
         {
             data_config.sr_density_threshold = sr_density_threshold;
         }

@@ -121,8 +121,7 @@ impl<'a> TryFrom<&'a DefaultConfigItem> for Option<&'a str> {
                 let err = HgError::abort(
                     format!(
                         "programming error: wrong query on config item '{}.{}'",
-                        value.section,
-                        value.name
+                        value.section, value.name
                     ),
                     exit_codes::ABORT,
                     Some(format!(
@@ -153,8 +152,7 @@ impl<'a> TryFrom<&'a DefaultConfigItem> for Option<&'a [u8]> {
                 let err = HgError::abort(
                     format!(
                         "programming error: wrong query on config item '{}.{}'",
-                        value.section,
-                        value.name
+                        value.section, value.name
                     ),
                     exit_codes::ABORT,
                     Some(format!(
@@ -184,8 +182,7 @@ impl TryFrom<&DefaultConfigItem> for Option<bool> {
                 let err = HgError::abort(
                     format!(
                         "programming error: wrong query on config item '{}.{}'",
-                        value.section,
-                        value.name
+                        value.section, value.name
                     ),
                     exit_codes::ABORT,
                     Some(format!(
@@ -194,9 +191,9 @@ impl TryFrom<&DefaultConfigItem> for Option<bool> {
                     )),
                 );
                 match default {
-                    DefaultConfigItemType::Primitive(
-                        toml::Value::Boolean(b),
-                    ) => Ok(Some(*b)),
+                    DefaultConfigItemType::Primitive(toml::Value::Boolean(
+                        b,
+                    )) => Ok(Some(*b)),
                     _ => Err(err),
                 }
             }
@@ -214,8 +211,7 @@ impl TryFrom<&DefaultConfigItem> for Option<u32> {
                 let err = HgError::abort(
                     format!(
                         "programming error: wrong query on config item '{}.{}'",
-                        value.section,
-                        value.name
+                        value.section, value.name
                     ),
                     exit_codes::ABORT,
                     Some(format!(
@@ -224,9 +220,9 @@ impl TryFrom<&DefaultConfigItem> for Option<u32> {
                     )),
                 );
                 match default {
-                    DefaultConfigItemType::Primitive(
-                        toml::Value::Integer(b),
-                    ) => {
+                    DefaultConfigItemType::Primitive(toml::Value::Integer(
+                        b,
+                    )) => {
                         Ok(Some((*b).try_into().expect("TOML integer to u32")))
                     }
                     _ => Err(err),
@@ -246,8 +242,7 @@ impl TryFrom<&DefaultConfigItem> for Option<u64> {
                 let err = HgError::abort(
                     format!(
                         "programming error: wrong query on config item '{}.{}'",
-                        value.section,
-                        value.name
+                        value.section, value.name
                     ),
                     exit_codes::ABORT,
                     Some(format!(
@@ -256,9 +251,9 @@ impl TryFrom<&DefaultConfigItem> for Option<u64> {
                     )),
                 );
                 match default {
-                    DefaultConfigItemType::Primitive(
-                        toml::Value::Integer(b),
-                    ) => {
+                    DefaultConfigItemType::Primitive(toml::Value::Integer(
+                        b,
+                    )) => {
                         Ok(Some((*b).try_into().expect("TOML integer to u64")))
                     }
                     _ => Err(err),
@@ -278,8 +273,7 @@ impl TryFrom<&DefaultConfigItem> for Option<i64> {
                 let err = HgError::abort(
                     format!(
                         "programming error: wrong query on config item '{}.{}'",
-                        value.section,
-                        value.name
+                        value.section, value.name
                     ),
                     exit_codes::ABORT,
                     Some(format!(
@@ -288,9 +282,9 @@ impl TryFrom<&DefaultConfigItem> for Option<i64> {
                     )),
                 );
                 match default {
-                    DefaultConfigItemType::Primitive(
-                        toml::Value::Integer(b),
-                    ) => Ok(Some(*b)),
+                    DefaultConfigItemType::Primitive(toml::Value::Integer(
+                        b,
+                    )) => Ok(Some(*b)),
                     _ => Err(err),
                 }
             }
@@ -308,8 +302,7 @@ impl TryFrom<&DefaultConfigItem> for Option<f64> {
                 let err = HgError::abort(
                     format!(
                         "programming error: wrong query on config item '{}.{}'",
-                        value.section,
-                        value.name
+                        value.section, value.name
                     ),
                     exit_codes::ABORT,
                     Some(format!(
@@ -318,9 +311,9 @@ impl TryFrom<&DefaultConfigItem> for Option<f64> {
                     )),
                 );
                 match default {
-                    DefaultConfigItemType::Primitive(toml::Value::Float(
-                        b,
-                    )) => Ok(Some(*b)),
+                    DefaultConfigItemType::Primitive(toml::Value::Float(b)) => {
+                        Ok(Some(*b))
+                    }
                     _ => Err(err),
                 }
             }
@@ -351,9 +344,7 @@ pub enum DefaultConfigItemType {
 impl DefaultConfigItemType {
     pub fn type_str(&self) -> &str {
         match self {
-            DefaultConfigItemType::Primitive(primitive) => {
-                primitive.type_str()
-            }
+            DefaultConfigItemType::Primitive(primitive) => primitive.type_str(),
             DefaultConfigItemType::Dynamic => "dynamic",
             DefaultConfigItemType::Lambda(_) => "lambda",
             DefaultConfigItemType::LazyModule(_) => "lazy_module",
@@ -520,17 +511,11 @@ pub struct DefaultConfig {
 
 impl DefaultConfig {
     pub fn empty() -> DefaultConfig {
-        Self {
-            items: Default::default(),
-        }
+        Self { items: Default::default() }
     }
 
     /// Returns `Self`, given the contents of `mercurial/configitems.toml`
-    #[tracing::instrument(
-        level = "debug",
-        skip_all,
-        name = "configitems.toml"
-    )]
+    #[tracing::instrument(level = "debug", skip_all, name = "configitems.toml")]
     pub fn from_contents(contents: &str) -> Result<Self, HgError> {
         let mut from_file: ConfigItems =
             toml::from_str(contents).map_err(|e| {

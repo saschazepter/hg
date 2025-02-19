@@ -24,17 +24,11 @@ pub struct PlainInfo {
 
 impl PlainInfo {
     fn plain_except(except: Vec<Vec<u8>>) -> Self {
-        PlainInfo {
-            is_plain: true,
-            except,
-        }
+        PlainInfo { is_plain: true, except }
     }
 
     pub fn empty() -> PlainInfo {
-        PlainInfo {
-            is_plain: false,
-            except: vec![],
-        }
+        PlainInfo { is_plain: false, except: vec![] }
     }
 
     pub fn from_env() -> PlainInfo {

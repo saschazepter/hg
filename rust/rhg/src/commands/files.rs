@@ -96,10 +96,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             let ignore_patterns = parse_pattern_args(patterns, &cwd, root)?;
             let files_matcher =
                 hg::matchers::PatternMatcher::new(ignore_patterns)?;
-            Box::new(IntersectionMatcher::new(
-                Box::new(files_matcher),
-                matcher,
-            ))
+            Box::new(IntersectionMatcher::new(Box::new(files_matcher), matcher))
         }
     };
 

@@ -186,12 +186,11 @@ fn parse_revpair(
     let Some(revs) = revs else {
         return Ok(None);
     };
-    let resolve = |input| match hg::revset::resolve_single(input, repo)?
-        .exclude_wdir()
-    {
-        Some(rev) => Ok(rev),
-        None => Err(RevlogError::WDirUnsupported),
-    };
+    let resolve =
+        |input| match hg::revset::resolve_single(input, repo)?.exclude_wdir() {
+            Some(rev) => Ok(rev),
+            None => Err(RevlogError::WDirUnsupported),
+        };
     match revs.as_slice() {
         [] => Ok(None),
         [rev1, rev2] => Ok(Some((resolve(rev1)?, resolve(rev2)?))),
@@ -273,11 +272,7 @@ fn has_unfinished_state(repo: &Repo) -> Result<bool, CommandError> {
 #[tracing::instrument(level = "debug", skip_all, name = "rhg status")]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     // TODO: lift these limitations
-    if invocation
-        .config
-        .get(b"commands", b"status.terse")
-        .is_some()
-    {
+    if invocation.config.get(b"commands", b"status.terse").is_some() {
         return Err(CommandError::unsupported(
             "status.terse is not yet supported with rhg status",
         ));
@@ -328,9 +323,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let repo = invocation.repo?;
     let revpair = parse_revpair(repo, revs.map(|i| i.cloned().collect()))?;
-    let change = change
-        .map(|rev| hg::revset::resolve_single(rev, repo))
-        .transpose()?;
+    let change =
+        change.map(|rev| hg::revset::resolve_single(rev, repo)).transpose()?;
     // Treat `rhg status --change wdir()` the same as `rhg status`.
     let change = change.and_then(RevisionOrWdir::exclude_wdir);
 
@@ -474,11 +468,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
         output.output(display_states, ds_status)?;
 
-        Ok((
-            fixup,
-            dirstate_write_needed,
-            filesystem_time_at_status_start,
-        ))
+        Ok((fixup, dirstate_write_needed, filesystem_time_at_status_start))
     };
 
     let (narrow_matcher, narrow_warnings) = narrow::matcher(repo)?;
@@ -512,18 +502,10 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             let ignore_patterns = parse_pattern_args(patterns, &cwd, root)?;
             let files_matcher =
                 hg::matchers::PatternMatcher::new(ignore_patterns)?;
-            Box::new(IntersectionMatcher::new(
-                Box::new(files_matcher),
-                matcher,
-            ))
+            Box::new(IntersectionMatcher::new(Box::new(files_matcher), matcher))
         }
     };
-    print_narrow_sparse_warnings(
-        &narrow_warnings,
-        &sparse_warnings,
-        ui,
-        repo,
-    )?;
+    print_narrow_sparse_warnings(&narrow_warnings, &sparse_warnings, ui, repo)?;
 
     if revpair.is_some() || change.is_some() {
         let mut ds_status = DirstateStatus::default();
@@ -542,9 +524,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                     "status --rev --rev with copy information is not implemented yet",
                 ));
             }
-            hg::operations::status_rev_rev_no_copies(
-                repo, rev1, rev2, matcher,
-            )?
+            hg::operations::status_rev_rev_no_copies(repo, rev1, rev2, matcher)?
         } else if let Some(rev) = change {
             hg::operations::status_change(repo, rev, matcher, list_copies)?
         } else {
@@ -614,9 +594,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                     // `unsure_is_clean` which was needed before reading
                     // contents. Here we access metadata again after reading
                     // content, in case it changed in the meantime.
-                    let metadata_res = repo
-                        .working_directory_vfs()
-                        .symlink_metadata(&fs_path);
+                    let metadata_res =
+                        repo.working_directory_vfs().symlink_metadata(&fs_path);
                     let fs_metadata = match metadata_res {
                         Ok(meta) => meta,
                         Err(err) => match err {
@@ -716,8 +695,7 @@ impl DisplayStatusPaths<'_> {
         for StatusPath { path, copy_source } in paths {
             let relative_path;
             let relative_source;
-            let (path, copy_source) = if let Some(relativize) =
-                &self.relativize
+            let (path, copy_source) = if let Some(relativize) = &self.relativize
             {
                 relative_path = relativize.relativize(&path);
                 relative_source =
@@ -807,9 +785,8 @@ fn unsure_is_modified(
     let fs_metadata = vfs.symlink_metadata(&fs_path)?;
     let is_symlink = fs_metadata.file_type().is_symlink();
 
-    let entry = manifest
-        .find_by_path(hg_path)?
-        .expect("ambgious file not in p1");
+    let entry =
+        manifest.find_by_path(hg_path)?.expect("ambgious file not in p1");
 
     // TODO: Also account for `FALLBACK_SYMLINK` and `FALLBACK_EXEC` from the
     // dirstate

@@ -80,11 +80,7 @@ impl TruncatedTimestamp {
         if truncated_seconds & !RANGE_MASK_31BIT == 0
             && nanoseconds < NSEC_PER_SEC
         {
-            Ok(Self {
-                truncated_seconds,
-                nanoseconds,
-                second_ambiguous,
-            })
+            Ok(Self { truncated_seconds, nanoseconds, second_ambiguous })
         } else {
             Err(DirstateV2ParseError::new("when reading datetime"))
         }
@@ -135,8 +131,7 @@ impl TruncatedTimestamp {
         // mismatch between the current clock and previous file system
         // operation. So mtime more than one days in the future are considered
         // fine.
-        let reliable = if self.truncated_seconds == boundary.truncated_seconds
-        {
+        let reliable = if self.truncated_seconds == boundary.truncated_seconds {
             new.second_ambiguous = true;
             self.nanoseconds != 0
                 && boundary.nanoseconds != 0
@@ -301,11 +296,7 @@ impl DirstateEntry {
                 flags.insert(Flags::FALLBACK_SYMLINK);
             }
         }
-        Self {
-            flags,
-            mode_size,
-            mtime,
-        }
+        Self { flags, mode_size, mtime }
     }
 
     pub fn from_v1_data(
@@ -390,10 +381,7 @@ impl DirstateEntry {
     }
 
     pub fn new_tracked() -> Self {
-        let data = DirstateV2Data {
-            wc_tracked: true,
-            ..Default::default()
-        };
+        let data = DirstateV2Data { wc_tracked: true, ..Default::default() };
         Self::from_v2_data(data)
     }
 

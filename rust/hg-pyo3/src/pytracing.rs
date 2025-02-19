@@ -235,9 +235,7 @@ mod full_tracing {
 
     impl ChromeTracingGuard {
         fn new(guard: FlushGuard) -> Self {
-            Self {
-                guard: Mutex::new(guard),
-            }
+            Self { guard: Mutex::new(guard) }
         }
     }
 

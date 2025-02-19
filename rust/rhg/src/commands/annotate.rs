@@ -243,12 +243,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         None
     };
 
-    let format_config = FormatConfig {
-        template,
-        include,
-        verbosity,
-        wdir_config,
-    };
+    let format_config =
+        FormatConfig { template, include, verbosity, wdir_config };
 
     let file_results = files.iter().map(|path| -> FileResult {
         (path.as_ref(), annotate(repo, path, rev, options))
@@ -328,9 +324,8 @@ fn print_output<'a>(
 ) -> Result<(), CommandError> {
     let encoder = ui.encoder();
     let stdout = &mut ui.stdout_buffer();
-    let dirstate_p1 = repo
-        .changelog()?
-        .rev_from_node(repo.dirstate_parents()?.p1.into())?;
+    let dirstate_p1 =
+        repo.changelog()?.rev_from_node(repo.dirstate_parents()?.p1.into())?;
     let mut cache = Cache::new(repo)?;
     match config.template {
         Template::Default => {
@@ -390,8 +385,7 @@ fn print_output<'a>(
     Ok(())
 }
 
-type Stdout<'a> =
-    StdoutBuffer<'a, std::io::BufWriter<std::io::StdoutLock<'a>>>;
+type Stdout<'a> = StdoutBuffer<'a, std::io::BufWriter<std::io::StdoutLock<'a>>>;
 
 fn print_lines_default(
     file: ChangesetAnnotatedFile,
@@ -475,8 +469,7 @@ fn print_lines_json(
 
         let mut property_sep: &[u8] = b"";
         let mut property = |key: &[u8], value: &[u8]| {
-            let res =
-                format_bytes!(br#"{}"{}": {}"#, property_sep, key, value);
+            let res = format_bytes!(br#"{}"{}": {}"#, property_sep, key, value);
             property_sep = b", ";
             res
         };
@@ -562,11 +555,7 @@ struct Cache<'a> {
 
 impl<'a> Cache<'a> {
     fn new(repo: &'a Repo) -> Result<Self, CommandError> {
-        Ok(Self {
-            repo,
-            changelog: repo.changelog()?,
-            map: Default::default(),
-        })
+        Ok(Self { repo, changelog: repo.changelog()?, map: Default::default() })
     }
 
     fn for_path(&mut self, path: &'a HgPath) -> CacheForPath<'_, 'a> {

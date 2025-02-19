@@ -59,8 +59,7 @@ impl VCSGraph for PySharedIndex {
     fn parents(
         &self,
         rev: BaseRevision,
-    ) -> Result<vcsgraph::graph::Parents, vcsgraph::graph::GraphReadError>
-    {
+    ) -> Result<vcsgraph::graph::Parents, vcsgraph::graph::GraphReadError> {
         // FIXME This trait should be reworked to decide between Revision
         // and UncheckedRevision, get better errors names, etc.
         match Graph::parents(self, Revision(rev)) {
@@ -114,25 +113,16 @@ pub fn revision_data_params_to_py_tuple(
         &[
             params.data_offset.into_pyobject(py)?.into_any(),
             params.data_compressed_length.into_pyobject(py)?.into_any(),
-            params
-                .data_uncompressed_length
-                .into_pyobject(py)?
-                .into_any(),
+            params.data_uncompressed_length.into_pyobject(py)?.into_any(),
             params.data_delta_base.into_pyobject(py)?.into_any(),
             params.link_rev.into_pyobject(py)?.into_any(),
             params.parent_rev_1.into_pyobject(py)?.into_any(),
             params.parent_rev_2.into_pyobject(py)?.into_any(),
             PyBytes::new(py, &params.node_id).into_any().into_any(),
             params._sidedata_offset.into_pyobject(py)?.into_any(),
-            params
-                ._sidedata_compressed_length
-                .into_pyobject(py)?
-                .into_any(),
+            params._sidedata_compressed_length.into_pyobject(py)?.into_any(),
             params.data_compression_mode.into_pyobject(py)?.into_any(),
-            params
-                ._sidedata_compression_mode
-                .into_pyobject(py)?
-                .into_any(),
+            params._sidedata_compression_mode.into_pyobject(py)?.into_any(),
             params._rank.into_pyobject(py)?.into_any(),
         ],
     )

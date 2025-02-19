@@ -22,9 +22,7 @@ pub fn find_slice_in_slice<T>(slice: &[T], needle: &[T]) -> Option<usize>
 where
     for<'a> &'a [T]: PartialEq,
 {
-    slice
-        .windows(needle.len())
-        .position(|window| window == needle)
+    slice.windows(needle.len()).position(|window| window == needle)
 }
 
 /// Replaces the `from` slice with the `to` slice inside the `buf` slice.
@@ -254,10 +252,7 @@ pub fn join_display(
     iter: impl IntoIterator<Item = impl fmt::Display>,
     separator: impl fmt::Display,
 ) -> impl fmt::Display {
-    JoinDisplay {
-        iter: Cell::new(Some(iter.into_iter())),
-        separator,
-    }
+    JoinDisplay { iter: Cell::new(Some(iter.into_iter())), separator }
 }
 
 struct JoinDisplay<I, S> {

@@ -19,9 +19,7 @@ impl PyTransaction {
 
 impl Clone for PyTransaction {
     fn clone(&self) -> Self {
-        Python::with_gil(|py| Self {
-            inner: self.inner.clone_ref(py),
-        })
+        Python::with_gil(|py| Self { inner: self.inner.clone_ref(py) })
     }
 }
 

@@ -55,10 +55,7 @@ struct DestArr<const N: usize> {
 
 impl<const N: usize> DestArr<N> {
     pub fn create() -> Self {
-        DestArr {
-            buf: [0; N],
-            len: 0,
-        }
+        DestArr { buf: [0; N], len: 0 }
     }
 
     pub fn contents(&self) -> &[u8] {

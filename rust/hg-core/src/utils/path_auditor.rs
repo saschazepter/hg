@@ -30,10 +30,7 @@ pub struct PathAuditor {
 
 impl PathAuditor {
     pub fn new(root: impl AsRef<Path>) -> Self {
-        Self {
-            root: root.as_ref().to_owned(),
-            ..Default::default()
-        }
+        Self { root: root.as_ref().to_owned(), ..Default::default() }
     }
     pub fn audit_path(
         &self,

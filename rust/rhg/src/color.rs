@@ -178,10 +178,8 @@ fn effects_from_config(config: &Config) -> EffectsMap {
         // `unwrap` shouldn’t panic since we just got this key from
         // iteration
         let list = config.get_list(b"color", key).unwrap();
-        let parsed = list
-            .iter()
-            .filter_map(|name| parse_effect(key, name))
-            .collect();
+        let parsed =
+            list.iter().filter_map(|name| parse_effect(key, name)).collect();
         styles.insert(key.to_owned(), parsed);
     }
     styles

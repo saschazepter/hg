@@ -28,10 +28,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let (matcher, _warnings) = hg::sparse::matcher(repo).unwrap();
     let files = invocation.subcommand_args.get_many::<OsString>("files");
     if let Some(files) = files {
-        let files: Vec<&OsStr> = files
-            .filter(|s| !s.is_empty())
-            .map(|s| s.as_os_str())
-            .collect();
+        let files: Vec<&OsStr> =
+            files.filter(|s| !s.is_empty()).map(|s| s.as_os_str()).collect();
         for file in files {
             invocation.ui.write_stdout(b"matches: ")?;
             invocation.ui.write_stdout(

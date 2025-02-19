@@ -20,9 +20,7 @@ struct DebugLogger {
 
 impl DebugLogger {
     pub fn new() -> DebugLogger {
-        DebugLogger {
-            start: Instant::now(),
-        }
+        DebugLogger { start: Instant::now() }
     }
 }
 
@@ -74,16 +72,13 @@ async fn run(umask: u32) -> io::Result<i32> {
     loc.set_early_args(locator::collect_early_args(env::args_os().skip(1)));
     let mut handler = ChgUiHandler::new();
     let mut client = loc.connect().await?;
-    client
-        .attach_io(&io::stdin(), &io::stdout(), &io::stderr())
-        .await?;
+    client.attach_io(&io::stdin(), &io::stdout(), &io::stderr()).await?;
     client.set_umask(umask).await?;
     let pid = client.server_spec().process_id.unwrap();
     let pgid = client.server_spec().process_group_id;
     procutil::setup_signal_handler_once(pid, pgid)?;
-    let code = client
-        .run_command_chg(&mut handler, env::args_os().skip(1))
-        .await?;
+    let code =
+        client.run_command_chg(&mut handler, env::args_os().skip(1)).await?;
     procutil::restore_signal_handler_once()?;
     handler.wait_pager().await?;
     Ok(code)

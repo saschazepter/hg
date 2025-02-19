@@ -187,7 +187,9 @@ fn main_with_result(
         )
         .arg(
             Arg::new("color")
-                .help("when to colorize (boolean, always, auto, never, or debug)")
+                .help(
+                    "when to colorize (boolean, always, auto, never, or debug)",
+                )
                 .value_name("TYPE")
                 .long("color")
                 .global(true),
@@ -203,9 +205,8 @@ fn main_with_result(
         expand_aliases(&app, &subcommands, alias_definitions, &argv)?;
 
     // Second, parse the expanded argv with subcommand parsers enabled.
-    let matches = subcommands
-        .add_args(app)
-        .try_get_matches_from(expanded_argv)?;
+    let matches =
+        subcommands.add_args(app).try_get_matches_from(expanded_argv)?;
     let (subcommand_name, subcommand_args) =
         matches.subcommand().expect("subcommand required");
     let Some(run) = subcommands.run_fn(subcommand_name) else {
@@ -239,12 +240,7 @@ fn main_with_result(
         }
     }
 
-    let invocation = CliInvocation {
-        ui,
-        subcommand_args,
-        config,
-        repo,
-    };
+    let invocation = CliInvocation { ui, subcommand_args, config, repo };
 
     if let Ok(repo) = repo {
         // We don't support subrepos, fallback if the subrepos file is present
@@ -269,9 +265,7 @@ fn main_with_result(
                 &result,
                 // TODO: show a warning or combine with original error if
                 // `get_bool` returns an error
-                config
-                    .get_bool(b"ui", b"detailed-exit-code")
-                    .unwrap_or(false),
+                config.get_bool(b"ui", b"detailed-exit-code").unwrap_or(false),
             ),
         );
         blackbox_span.exit();
@@ -348,8 +342,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
     let early_exit = |config: &Config, error: CommandError| -> ! {
         simple_exit(&Ui::new_infallible(config), config, Err(error))
     };
-    let repo_result = match Repo::find(&non_repo_config, repo_path.to_owned())
-    {
+    let repo_result = match Repo::find(&non_repo_config, repo_path.to_owned()) {
         Ok(repo) => Ok(repo),
         Err(RepoError::NotFound { at }) if repo_path.is_none() => {
             // Not finding a repo is not fatal yet, if `-R` was not given
@@ -447,22 +440,21 @@ fn config_setup(
     early_args: EarlyArgs,
     initial_current_dir: &Option<PathBuf>,
 ) -> (Config, Option<PathBuf>) {
-    let mut non_repo_config =
-        Config::load_non_repo().unwrap_or_else(|error| {
-            // Normally this is decided based on config, but we don’t have that
-            // available. As of this writing config loading never returns an
-            // "unsupported" error but that is not enforced by the type system.
-            let on_unsupported = OnUnsupported::Abort;
+    let mut non_repo_config = Config::load_non_repo().unwrap_or_else(|error| {
+        // Normally this is decided based on config, but we don’t have that
+        // available. As of this writing config loading never returns an
+        // "unsupported" error but that is not enforced by the type system.
+        let on_unsupported = OnUnsupported::Abort;
 
-            exit(
-                argv,
-                initial_current_dir,
-                &Ui::new_infallible(&Config::empty()),
-                on_unsupported,
-                Err(error.into()),
-                false,
-            )
-        });
+        exit(
+            argv,
+            initial_current_dir,
+            &Ui::new_infallible(&Config::empty()),
+            on_unsupported,
+            Err(error.into()),
+            false,
+        )
+    });
 
     non_repo_config
         .load_cli_args(early_args.config, early_args.color)
@@ -583,9 +575,7 @@ fn exit_code(
 ) -> i32 {
     match result {
         Ok(()) => exit_codes::OK,
-        Err(CommandError::Abort {
-            detailed_exit_code, ..
-        }) => {
+        Err(CommandError::Abort { detailed_exit_code, .. }) => {
             if use_detailed_exit_code {
                 *detailed_exit_code
             } else {
@@ -674,9 +664,7 @@ fn exit(
             // (see its documentation), so only try to forward the error code
             // when exiting.
             let err = command.exec();
-            std::process::exit(
-                err.raw_os_error().unwrap_or(exit_codes::ABORT),
-            );
+            std::process::exit(err.raw_os_error().unwrap_or(exit_codes::ABORT));
         }
     }
     exit_no_fallback(ui, on_unsupported, result, use_detailed_exit_code)
@@ -771,10 +759,7 @@ struct Subcommands {
 /// `Subcommands` construction
 impl Subcommands {
     pub fn new() -> Self {
-        Self {
-            commands: vec![],
-            run: HashMap::new(),
-        }
+        Self { commands: vec![], run: HashMap::new() }
     }
 
     pub fn add(&mut self, subcommand: SubCommand) {
@@ -973,9 +958,7 @@ impl OnUnsupported {
     const DEFAULT: Self = OnUnsupported::Abort;
 
     fn fallback_executable(config: &Config) -> Option<Vec<u8>> {
-        config
-            .get(b"rhg", b"fallback-executable")
-            .map(|x| x.to_owned())
+        config.get(b"rhg", b"fallback-executable").map(|x| x.to_owned())
     }
 
     fn fallback(config: &Config) -> Self {
@@ -1005,15 +988,8 @@ impl OnUnsupported {
 /// The `*` extension is an edge-case for config sub-options that apply to all
 /// extensions. For now, only `:required` exists, but that may change in the
 /// future.
-const SUPPORTED_EXTENSIONS: &[&[u8]] = &[
-    b"blackbox",
-    b"share",
-    b"sparse",
-    b"narrow",
-    b"*",
-    b"strip",
-    b"rebase",
-];
+const SUPPORTED_EXTENSIONS: &[&[u8]] =
+    &[b"blackbox", b"share", b"sparse", b"narrow", b"*", b"strip", b"rebase"];
 
 fn check_extensions(config: &Config) -> Result<(), CommandError> {
     if let Some(b"*") = config.get(b"rhg", b"ignored-extensions") {
@@ -1042,8 +1018,7 @@ fn check_extensions(config: &Config) -> Result<(), CommandError> {
         unsupported.remove(supported);
     }
 
-    if let Some(ignored_list) = config.get_list(b"rhg", b"ignored-extensions")
-    {
+    if let Some(ignored_list) = config.get_list(b"rhg", b"ignored-extensions") {
         for ignored in ignored_list {
             unsupported.remove(ignored.as_slice());
         }

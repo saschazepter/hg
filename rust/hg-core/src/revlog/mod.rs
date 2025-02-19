@@ -223,8 +223,7 @@ pub trait RevlogIndex {
     fn check_revision(&self, rev: UncheckedRevision) -> Option<Revision> {
         let rev = rev.0;
 
-        if rev == NULL_REVISION.0 || (rev >= 0 && (rev as usize) < self.len())
-        {
+        if rev == NULL_REVISION.0 || (rev >= 0 && (rev as usize) < self.len()) {
             Some(Revision(rev))
         } else {
             None
@@ -421,10 +420,7 @@ impl Revlog {
         self.index().check_revision(rev).is_some()
     }
 
-    pub fn get_entry(
-        &self,
-        rev: Revision,
-    ) -> Result<RevlogEntry, RevlogError> {
+    pub fn get_entry(&self, rev: Revision) -> Result<RevlogEntry, RevlogError> {
         self.inner.get_entry(rev)
     }
 
@@ -454,15 +450,14 @@ impl Revlog {
         let Some(entry) = self.index().get_entry(rev) else {
             return Ok(NULL_REVISION);
         };
-        linked_revlog
-            .index()
-            .check_revision(entry.link_revision())
-            .ok_or_else(|| {
+        linked_revlog.index().check_revision(entry.link_revision()).ok_or_else(
+            || {
                 RevlogError::corrupted(format!(
                     "linkrev for rev {} is invalid",
                     rev
                 ))
-            })
+            },
+        )
     }
 
     /// Return the full data associated to a revision.
@@ -530,10 +525,8 @@ impl Revlog {
             buffer.extend_from_slice(snapshot);
             return Ok(());
         }
-        let patches: Result<Vec<_>, _> = deltas
-            .iter()
-            .map(|d| patch::PatchList::new(d.as_ref()))
-            .collect();
+        let patches: Result<Vec<_>, _> =
+            deltas.iter().map(|d| patch::PatchList::new(d.as_ref())).collect();
         let patch = patch::fold_patch_lists(&patches?);
         patch.apply(buffer, snapshot);
         Ok(())
@@ -790,12 +783,8 @@ impl<'revlog> RevlogEntry<'revlog> {
         &self,
         data: Cow<'revlog, [u8]>,
     ) -> Result<Cow<'revlog, [u8]>, RevlogError> {
-        if self.revlog.check_hash(
-            self.p1,
-            self.p2,
-            self.hash.as_bytes(),
-            &data,
-        ) {
+        if self.revlog.check_hash(self.p1, self.p2, self.hash.as_bytes(), &data)
+        {
             Ok(data)
         } else {
             if (self.flags & REVISION_FLAG_ELLIPSIS) != 0 {
@@ -868,12 +857,12 @@ mod tests {
     fn test_inline() {
         let temp = tempfile::tempdir().unwrap();
         let vfs = VfsImpl::new(temp.path().to_owned(), false);
-        let node0 = Node::from_hex("2ed2a3912a0b24502043eae84ee4b279c18b90dd")
-            .unwrap();
-        let node1 = Node::from_hex("b004912a8510032a0350a74daa2803dadfb00e12")
-            .unwrap();
-        let node2 = Node::from_hex("dd6ad206e907be60927b5a3117b97dffb2590582")
-            .unwrap();
+        let node0 =
+            Node::from_hex("2ed2a3912a0b24502043eae84ee4b279c18b90dd").unwrap();
+        let node1 =
+            Node::from_hex("b004912a8510032a0350a74daa2803dadfb00e12").unwrap();
+        let node2 =
+            Node::from_hex("dd6ad206e907be60927b5a3117b97dffb2590582").unwrap();
         let entry0_bytes = IndexEntryBuilder::new()
             .is_first(true)
             .with_version(1)
@@ -895,8 +884,7 @@ mod tests {
             Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::default())
                 .unwrap();
 
-        let entry0 =
-            revlog.get_entry_for_unchecked_rev(0.into()).ok().unwrap();
+        let entry0 = revlog.get_entry_for_unchecked_rev(0.into()).ok().unwrap();
         assert_eq!(entry0.revision(), Revision(0));
         assert_eq!(*entry0.node(), node0);
         assert!(!entry0.has_p1());
@@ -907,8 +895,7 @@ mod tests {
         let p2_entry = entry0.p2_entry().unwrap();
         assert!(p2_entry.is_none());
 
-        let entry1 =
-            revlog.get_entry_for_unchecked_rev(1.into()).ok().unwrap();
+        let entry1 = revlog.get_entry_for_unchecked_rev(1.into()).ok().unwrap();
         assert_eq!(entry1.revision(), Revision(1));
         assert_eq!(*entry1.node(), node1);
         assert!(!entry1.has_p1());
@@ -919,8 +906,7 @@ mod tests {
         let p2_entry = entry1.p2_entry().unwrap();
         assert!(p2_entry.is_none());
 
-        let entry2 =
-            revlog.get_entry_for_unchecked_rev(2.into()).ok().unwrap();
+        let entry2 = revlog.get_entry_for_unchecked_rev(2.into()).ok().unwrap();
         assert_eq!(entry2.revision(), Revision(2));
         assert_eq!(*entry2.node(), node2);
         assert!(entry2.has_p1());
@@ -942,10 +928,10 @@ mod tests {
         // building a revlog with a forced Node starting with zeros
         // This is a corruption, but it does not preclude using the nodemap
         // if we don't try and access the data
-        let node0 = Node::from_hex("00d2a3912a0b24502043eae84ee4b279c18b90dd")
-            .unwrap();
-        let node1 = Node::from_hex("b004912a8510032a0350a74daa2803dadfb00e12")
-            .unwrap();
+        let node0 =
+            Node::from_hex("00d2a3912a0b24502043eae84ee4b279c18b90dd").unwrap();
+        let node1 =
+            Node::from_hex("b004912a8510032a0350a74daa2803dadfb00e12").unwrap();
         let entry0_bytes = IndexEntryBuilder::new()
             .is_first(true)
             .with_version(1)
@@ -986,15 +972,11 @@ mod tests {
         assert_eq!(revlog.rev_from_node(node0.into()).unwrap(), Revision(0));
         assert_eq!(revlog.rev_from_node(node1.into()).unwrap(), Revision(1));
         assert_eq!(
-            revlog
-                .rev_from_node(NodePrefix::from_hex("000").unwrap())
-                .unwrap(),
+            revlog.rev_from_node(NodePrefix::from_hex("000").unwrap()).unwrap(),
             Revision(-1)
         );
         assert_eq!(
-            revlog
-                .rev_from_node(NodePrefix::from_hex("b00").unwrap())
-                .unwrap(),
+            revlog.rev_from_node(NodePrefix::from_hex("b00").unwrap()).unwrap(),
             Revision(1)
         );
         // RevlogError does not implement PartialEq

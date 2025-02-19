@@ -109,9 +109,7 @@ impl DirstateMap {
 
     #[staticmethod]
     fn new_empty() -> PyResult<Self> {
-        Ok(Self {
-            inner: OwningDirstateMap::new_empty(vec![], None).into(),
-        })
+        Ok(Self { inner: OwningDirstateMap::new_empty(vec![], None).into() })
     }
 
     fn clear(slf: &Bound<'_, Self>) -> PyResult<()> {
@@ -230,10 +228,7 @@ impl DirstateMap {
                     has_meaningful_mtime = false;
                     None
                 };
-                Some(ParentFileData {
-                    mode_size: Some((mode, size)),
-                    mtime,
-                })
+                Some(ParentFileData { mode_size: Some((mode, size)), mtime })
             }
         };
 
@@ -263,10 +258,7 @@ impl DirstateMap {
         })
     }
 
-    fn hasdir(
-        slf: &Bound<'_, Self>,
-        d: &Bound<'_, PyBytes>,
-    ) -> PyResult<bool> {
+    fn hasdir(slf: &Bound<'_, Self>, d: &Bound<'_, PyBytes>) -> PyResult<bool> {
         Self::with_inner_write(slf, |_self_ref, mut inner| {
             inner
                 .has_dir(HgPath::new(d.as_bytes()))
@@ -394,10 +386,7 @@ impl DirstateMap {
         CopyMap::new(slf).and_then(|cm| Py::new(slf.py(), cm))
     }
 
-    fn tracked_dirs(
-        slf: &Bound<'_, Self>,
-        py: Python,
-    ) -> PyResult<Py<PyList>> {
+    fn tracked_dirs(slf: &Bound<'_, Self>, py: Python) -> PyResult<Py<PyList>> {
         // core iterator is not exact sized, we cannot use `PyList::new`
         let dirs = PyList::empty(py);
         Self::with_inner_write(slf, |_self_ref, mut inner| {

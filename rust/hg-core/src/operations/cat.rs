@@ -83,8 +83,7 @@ pub fn cat<'a>(
     revset: &str,
     mut files: Vec<&'a HgPath>,
 ) -> Result<CatOutput<'a>, RevlogError> {
-    let Some(rev) =
-        crate::revset::resolve_single(revset, repo)?.exclude_wdir()
+    let Some(rev) = crate::revset::resolve_single(revset, repo)?.exclude_wdir()
     else {
         return Err(HgError::unsupported("cat wdir not implemented").into());
     };
@@ -107,10 +106,5 @@ pub fn cat<'a>(
         ));
     }
 
-    Ok(CatOutput {
-        found_any,
-        results,
-        missing,
-        node,
-    })
+    Ok(CatOutput { found_any, results, missing, node })
 }

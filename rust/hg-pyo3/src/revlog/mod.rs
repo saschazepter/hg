@@ -268,8 +268,8 @@ impl InnerRevlog {
 
         let index_file = get_path_from_bytes(index_file.as_bytes()).to_owned();
         let data_file = get_path_from_bytes(data_file.as_bytes()).to_owned();
-        let revlog_type = RevlogType::try_from(revlog_type)
-            .map_err(revlog_error_from_msg)?;
+        let revlog_type =
+            RevlogType::try_from(revlog_type).map_err(revlog_error_from_msg)?;
         let data_config = extract_data_config(data_config, revlog_type)?;
         let delta_config = extract_delta_config(delta_config, revlog_type)?;
         let feature_config =
@@ -640,8 +640,7 @@ impl InnerRevlog {
     ) -> PyResult<Option<Py<PyBytes>>> {
         Self::with_core_write(slf, |_self_ref, mut irl| {
             let path = irl.delay().map_err(revlog_error_from_msg)?;
-            Ok(path
-                .map(|p| PyBytes::new(py, &get_bytes_from_path(p)).unbind()))
+            Ok(path.map(|p| PyBytes::new(py, &get_bytes_from_path(p)).unbind()))
         })
     }
 
@@ -658,10 +657,8 @@ impl InnerRevlog {
                     .into_any(),
                 None => py.None(),
             };
-            Ok(
-                PyTuple::new(py, [maybe_path, any_pending.into_py_any(py)?])?
-                    .unbind(),
-            )
+            Ok(PyTuple::new(py, [maybe_path, any_pending.into_py_any(py)?])?
+                .unbind())
         })
     }
 
@@ -670,8 +667,7 @@ impl InnerRevlog {
         py: Python<'_>,
     ) -> PyResult<Py<PyBytes>> {
         Self::with_core_write(slf, |_self_ref, mut irl| {
-            let path =
-                irl.finalize_pending().map_err(revlog_error_from_msg)?;
+            let path = irl.finalize_pending().map_err(revlog_error_from_msg)?;
             Ok(PyBytes::new(py, &get_bytes_from_path(path)).unbind())
         })
     }
@@ -690,9 +686,7 @@ impl InnerRevlog {
     }
 
     fn reading(slf: &Bound<'_, Self>) -> PyResult<ReadingContextManager> {
-        Ok(ReadingContextManager {
-            inner_revlog: slf.clone().unbind(),
-        })
+        Ok(ReadingContextManager { inner_revlog: slf.clone().unbind() })
     }
 
     #[pyo3(signature = (transaction, data_end=None, sidedata_end=None))]
@@ -952,8 +946,7 @@ impl InnerRevlog {
                         Ok((phase, revs))
                     })
                     .collect();
-            idx.compute_phases_map_sets(extracted_roots?)
-                .map_err(graph_error)
+            idx.compute_phases_map_sets(extracted_roots?).map_err(graph_error)
         })?;
         // Ugly hack, but temporary (!)
         const IDX_TO_PHASE_NUM: [usize; 4] = [1, 2, 32, 96];
@@ -1012,10 +1005,8 @@ impl InnerRevlog {
             2 => Ok((Some(args.get_item(0)?), Some(args.get_item(1)?))),
             _ => Err(PyTypeError::new_err("too many arguments")),
         }?;
-        let stop_rev = stop_rev
-            .map(|o| o.extract::<Option<i32>>())
-            .transpose()?
-            .flatten();
+        let stop_rev =
+            stop_rev.map(|o| o.extract::<Option<i32>>()).transpose()?.flatten();
         let filtered_revs = filtered_revs.filter(|o| !o.is_none());
 
         let (from_core, stop_rev) = Self::with_index_read(slf, |idx| {
@@ -1184,15 +1175,10 @@ impl InnerRevlog {
         target_density: f64,
         min_gap_size: usize,
     ) -> PyResult<PyObject> {
-        let as_nested_vec =
-            Self::with_index_read(slf, |idx| {
-                let revs: Vec<_> = rev_pyiter_collect(revs, idx)?;
-                Ok(idx.slice_chunk_to_density(
-                    &revs,
-                    target_density,
-                    min_gap_size,
-                ))
-            })?;
+        let as_nested_vec = Self::with_index_read(slf, |idx| {
+            let revs: Vec<_> = rev_pyiter_collect(revs, idx)?;
+            Ok(idx.slice_chunk_to_density(&revs, target_density, min_gap_size))
+        })?;
         let res_len = as_nested_vec.len();
 
         // cannot build the outer sequence from iterator, because
@@ -1454,10 +1440,8 @@ impl InnerRevlog {
     ) -> PyResult<T> {
         Self::with_core_write(slf, |self_ref, mut guard| {
             let idx = &mut guard.index;
-            let mut nt = self_ref
-                .get_nodetree(idx)?
-                .write()
-                .map_err(map_lock_error)?;
+            let mut nt =
+                self_ref.get_nodetree(idx)?.write().map_err(map_lock_error)?;
             let nt = nt.as_mut().expect("nodetree should be set");
             f(idx, nt)
         })
@@ -1541,10 +1525,7 @@ impl NodeTree {
         };
         let nt = CoreNodeTree::default(); // in-RAM, fully mutable
 
-        Ok(Self {
-            nt: nt.into(),
-            index,
-        })
+        Ok(Self { nt: nt.into(), index })
     }
 
     /// Tell whether the NodeTree is still valid
@@ -1609,10 +1590,7 @@ impl NodeTree {
         // Safety: we don't leak any reference derived from self.index
         // as returned type is Copy
         let idx = &*unsafe { self.index.try_borrow(py)? };
-        Ok(nt
-            .find_bin(idx, prefix)
-            .map_err(nodemap_error)?
-            .map(|r| r.into()))
+        Ok(nt.find_bin(idx, prefix).map_err(nodemap_error)?.map(|r| r.into()))
     }
 }
 

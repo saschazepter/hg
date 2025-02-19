@@ -72,19 +72,16 @@ impl fmt::Display for HgPathError {
                 "Invalid HgPath '{:?}': consecutive slashes at pos {}.",
                 bytes, pos
             ),
-            HgPathError::ContainsNullByte {
-                bytes,
-                null_byte_index: pos,
-            } => write!(
-                f,
-                "Invalid HgPath '{:?}': contains null byte at pos {}.",
-                bytes, pos
-            ),
-            HgPathError::DecodeError(bytes) => write!(
-                f,
-                "Invalid HgPath '{:?}': could not be decoded.",
-                bytes
-            ),
+            HgPathError::ContainsNullByte { bytes, null_byte_index: pos } => {
+                write!(
+                    f,
+                    "Invalid HgPath '{:?}': contains null byte at pos {}.",
+                    bytes, pos
+                )
+            }
+            HgPathError::DecodeError(bytes) => {
+                write!(f, "Invalid HgPath '{:?}': could not be decoded.", bytes)
+            }
             HgPathError::EndsWithSlash(path) => {
                 write!(f, "path '{}': ends with a slash", path)
             }
@@ -94,10 +91,7 @@ impl fmt::Display for HgPathError {
             HgPathError::InsideDotHg(path) => {
                 write!(f, "path '{}' is inside the '.hg' folder", path)
             }
-            HgPathError::IsInsideNestedRepo {
-                path,
-                nested_repo: nested,
-            } => {
+            HgPathError::IsInsideNestedRepo { path, nested_repo: nested } => {
                 write!(f, "path '{}' is inside nested repo '{}'", path, nested)
             }
             HgPathError::TraversesSymbolicLink { path, symlink } => write!(
@@ -163,9 +157,7 @@ impl HgPath {
         self.inner.len()
     }
     fn to_hg_path_buf(&self) -> HgPathBuf {
-        HgPathBuf {
-            inner: self.inner.to_owned(),
-        }
+        HgPathBuf { inner: self.inner.to_owned() }
     }
     pub fn bytes(&self) -> std::slice::Iter<u8> {
         self.inner.iter()
@@ -311,8 +303,7 @@ impl HgPath {
                 // (after the initial two)
                 Some(0) => (HgPath::new(b""), &self),
                 Some(i) => {
-                    let (a, b) =
-                        bytes.split_at(mountpoint_start_index + 1 + i);
+                    let (a, b) = bytes.split_at(mountpoint_start_index + 1 + i);
                     (HgPath::new(a), HgPath::new(b))
                 }
                 None => (&self, HgPath::new(b"")),
@@ -733,10 +724,7 @@ mod tests {
         );
         assert_eq!(
             HgPath::new(br"\\conky\mountpoint\foo\bar").split_drive(),
-            (
-                HgPath::new(b""),
-                HgPath::new(br"\\conky\mountpoint\foo\bar")
-            )
+            (HgPath::new(b""), HgPath::new(br"\\conky\mountpoint\foo\bar"))
         );
     }
 
@@ -753,45 +741,27 @@ mod tests {
         );
         assert_eq!(
             HgPath::new(br"\\conky\mountpoint\foo\bar").split_drive(),
-            (
-                HgPath::new(br"\\conky\mountpoint"),
-                HgPath::new(br"\foo\bar")
-            )
+            (HgPath::new(br"\\conky\mountpoint"), HgPath::new(br"\foo\bar"))
         );
         assert_eq!(
             HgPath::new(br"//conky/mountpoint/foo/bar").split_drive(),
-            (
-                HgPath::new(br"//conky/mountpoint"),
-                HgPath::new(br"/foo/bar")
-            )
+            (HgPath::new(br"//conky/mountpoint"), HgPath::new(br"/foo/bar"))
         );
         assert_eq!(
             HgPath::new(br"\\\conky\mountpoint\foo\bar").split_drive(),
-            (
-                HgPath::new(br""),
-                HgPath::new(br"\\\conky\mountpoint\foo\bar")
-            )
+            (HgPath::new(br""), HgPath::new(br"\\\conky\mountpoint\foo\bar"))
         );
         assert_eq!(
             HgPath::new(br"///conky/mountpoint/foo/bar").split_drive(),
-            (
-                HgPath::new(br""),
-                HgPath::new(br"///conky/mountpoint/foo/bar")
-            )
+            (HgPath::new(br""), HgPath::new(br"///conky/mountpoint/foo/bar"))
         );
         assert_eq!(
             HgPath::new(br"\\conky\\mountpoint\foo\bar").split_drive(),
-            (
-                HgPath::new(br""),
-                HgPath::new(br"\\conky\\mountpoint\foo\bar")
-            )
+            (HgPath::new(br""), HgPath::new(br"\\conky\\mountpoint\foo\bar"))
         );
         assert_eq!(
             HgPath::new(br"//conky//mountpoint/foo/bar").split_drive(),
-            (
-                HgPath::new(br""),
-                HgPath::new(br"//conky//mountpoint/foo/bar")
-            )
+            (HgPath::new(br""), HgPath::new(br"//conky//mountpoint/foo/bar"))
         );
         // UNC part containing U+0130
         assert_eq!(

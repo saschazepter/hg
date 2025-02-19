@@ -113,8 +113,7 @@ impl<'a> NaiveMissingAncestors<'a> {
 
     fn add_bases(&mut self, new_bases: HashSet<Revision>) {
         self.bases.extend(&new_bases);
-        self.history
-            .push(MissingAncestorsAction::AddBases(new_bases))
+        self.history.push(MissingAncestorsAction::AddBases(new_bases))
     }
 
     fn remove_ancestors_from(&mut self, revs: &mut HashSet<Revision>) {
@@ -173,12 +172,7 @@ impl<'a> NaiveMissingAncestors<'a> {
                 history={:?}
                 random seed={}
             ",
-            left,
-            right,
-            self.graph,
-            self.bases,
-            self.history,
-            self.random_seed,
+            left, right, self.graph, self.bases, self.history, self.random_seed,
         );
     }
 }
@@ -234,10 +228,8 @@ fn seed_parse_in(hex: &str, seed: &mut [u8]) {
 /// Returns (graphs, instances, calls per instance)
 fn parse_test_missing_ancestors_params(var: &str) -> (usize, usize, usize) {
     let err_msg = "TEST_MISSING_ANCESTORS format: GRAPHS,INSTANCES,CALLS";
-    let params: Vec<usize> = var
-        .split(',')
-        .map(|n| n.trim().parse().expect(err_msg))
-        .collect();
+    let params: Vec<usize> =
+        var.split(',').map(|n| n.trim().parse().expect(err_msg)).collect();
     if params.len() != 3 {
         panic!("{}", err_msg);
     }
@@ -307,10 +299,8 @@ fn test_missing_ancestors_compare_naive() {
         for _testno in 0..testcount {
             let bases: HashSet<Revision> =
                 sample_revs(&mut rng, graph_len, None, None);
-            let mut inc = MissingAncestors::<VecGraph>::new(
-                graph.clone(),
-                bases.clone(),
-            );
+            let mut inc =
+                MissingAncestors::<VecGraph>::new(graph.clone(), bases.clone());
             let mut naive = NaiveMissingAncestors::new(
                 &graph,
                 &ancestors_sets,

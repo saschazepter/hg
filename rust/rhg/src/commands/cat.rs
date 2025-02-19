@@ -44,8 +44,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let repo = invocation.repo?;
 
     let rev = invocation.subcommand_args.get_one::<String>("rev");
-    let files = match invocation.subcommand_args.get_many::<OsString>("files")
-    {
+    let files = match invocation.subcommand_args.get_many::<OsString>("files") {
         None => vec![],
         Some(files) => resolve_file_args(repo, files)?,
     };

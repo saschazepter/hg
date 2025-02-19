@@ -35,10 +35,7 @@ pub struct DirstateParents {
 }
 
 impl DirstateParents {
-    pub const NULL: Self = Self {
-        p1: NULL_NODE,
-        p2: NULL_NODE,
-    };
+    pub const NULL: Self = Self { p1: NULL_NODE, p2: NULL_NODE };
 
     pub fn is_merge(&self) -> bool {
         !(self.p2 == NULL_NODE)

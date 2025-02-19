@@ -90,8 +90,7 @@ pub fn combine_changeset_copies_wrapper(
         // If they were both bounded, there might potentially be deadlocks
         // where both channels are full and both threads are waiting on each
         // other.
-        let (pybytes_sender, pybytes_receiver) =
-            crossbeam_channel::unbounded();
+        let (pybytes_sender, pybytes_receiver) = crossbeam_channel::unbounded();
 
         // Start a thread that does CPU-heavy processing in parallel with the
         // loop below.

@@ -192,9 +192,7 @@ pub struct DirstateV2ParseError {
 
 impl DirstateV2ParseError {
     pub fn new<S: Into<String>>(message: S) -> Self {
-        Self {
-            message: message.into(),
-        }
+        Self { message: message.into() }
     }
 }
 
@@ -278,9 +276,7 @@ impl Docket<'_> {
     }
 }
 
-pub fn read_docket(
-    on_disk: &[u8],
-) -> Result<Docket<'_>, DirstateV2ParseError> {
+pub fn read_docket(on_disk: &[u8]) -> Result<Docket<'_>, DirstateV2ParseError> {
     let (header, uuid) = DocketHeader::from_bytes(on_disk).map_err(|e| {
         DirstateV2ParseError::new(format!("when reading docket, {}", e))
     })?;
@@ -288,9 +284,7 @@ pub fn read_docket(
     if header.marker == *V2_FORMAT_MARKER && uuid.len() == uuid_size {
         Ok(Docket { header, uuid })
     } else {
-        Err(DirstateV2ParseError::new(
-            "invalid format marker or uuid size",
-        ))
+        Err(DirstateV2ParseError::new("invalid format marker or uuid size"))
     }
 }
 
@@ -468,8 +462,7 @@ impl Node {
         } else {
             None
         };
-        let fallback_exec = if self.flags().contains(Flags::HAS_FALLBACK_EXEC)
-        {
+        let fallback_exec = if self.flags().contains(Flags::HAS_FALLBACK_EXEC) {
             Some(self.flags().contains(Flags::FALLBACK_EXEC))
         } else {
             None
@@ -513,9 +506,7 @@ impl Node {
         on_disk: &'on_disk [u8],
     ) -> Result<dirstate_map::Node<'on_disk>, DirstateV2ParseError> {
         Ok(dirstate_map::Node {
-            children: dirstate_map::ChildNodes::OnDisk(
-                self.children(on_disk)?,
-            ),
+            children: dirstate_map::ChildNodes::OnDisk(self.children(on_disk)?),
             copy_source: self.copy_source(on_disk)?.map(Cow::Borrowed),
             data: self.node_data()?,
             descendants_with_entry_count: self
@@ -609,9 +600,7 @@ where
     let bytes = match on_disk.get(start..) {
         Some(bytes) => bytes,
         None => {
-            return Err(DirstateV2ParseError::new(
-                "not enough bytes from disk",
-            ))
+            return Err(DirstateV2ParseError::new("not enough bytes from disk"))
         }
     };
     T::slice_from_bytes(bytes, len)
@@ -645,11 +634,8 @@ pub(super) fn write(
     let size_guess = std::mem::size_of::<Node>()
         * dirstate_map.nodes_with_entry_count as usize;
 
-    let mut writer = Writer {
-        dirstate_map,
-        append,
-        out: Vec::with_capacity(size_guess),
-    };
+    let mut writer =
+        Writer { dirstate_map, append, out: Vec::with_capacity(size_guess) };
 
     let root_nodes = dirstate_map.root.as_ref();
     for node in root_nodes.iter() {
@@ -726,10 +712,7 @@ impl Writer<'_, '_> {
             {
                 self.write_path(source.as_bytes())
             } else {
-                PathSlice {
-                    start: 0.into(),
-                    len: 0.into(),
-                }
+                PathSlice { start: 0.into(), len: 0.into() }
             };
             on_disk_nodes.push(match node {
                 NodeRef::InMemory(path, node) => {
@@ -781,12 +764,9 @@ impl Writer<'_, '_> {
                         mtime,
                     }
                 }
-                NodeRef::OnDisk(node) => Node {
-                    children,
-                    copy_source,
-                    full_path,
-                    ..*node
-                },
+                NodeRef::OnDisk(node) => {
+                    Node { children, copy_source, full_path, ..*node }
+                }
             })
         }
         // … so we can write them contiguously, after writing everything else
@@ -804,8 +784,7 @@ impl Writer<'_, '_> {
         full_path: &HgPath,
     ) -> Result<(), DirstateError> {
         for child in children.iter() {
-            let child_full_path =
-                child.full_path(self.dirstate_map.on_disk)?;
+            let child_full_path = child.full_path(self.dirstate_map.on_disk)?;
 
             let prefix_length = child_full_path.len()
                 // remove the filename
@@ -918,10 +897,7 @@ impl TryFrom<PackedTruncatedTimestamp> for TruncatedTimestamp {
 }
 impl PackedTruncatedTimestamp {
     fn null() -> Self {
-        Self {
-            truncated_seconds: 0.into(),
-            nanoseconds: 0.into(),
-        }
+        Self { truncated_seconds: 0.into(), nanoseconds: 0.into() }
     }
 }
 
@@ -938,8 +914,6 @@ pub fn write_tracked_key(repo: &Repo) -> Result<(), HgError> {
         return Ok(());
     }
     // TODO use `hg_vfs` once the `InnerRevlog` is in.
-    let path = repo
-        .working_directory_path()
-        .join(".hg/dirstate-tracked-hint");
+    let path = repo.working_directory_path().join(".hg/dirstate-tracked-hint");
     std::fs::write(&path, Uuid::new_v4().as_bytes()).when_writing_file(&path)
 }

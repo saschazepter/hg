@@ -36,9 +36,7 @@ pub struct CopyMap {
 impl CopyMap {
     #[new]
     pub fn new(dsm: &Bound<'_, DirstateMap>) -> PyResult<Self> {
-        Ok(Self {
-            dirstate_map: dsm.clone().unbind(),
-        })
+        Ok(Self { dirstate_map: dsm.clone().unbind() })
     }
 
     fn __getitem__(
@@ -63,9 +61,10 @@ impl CopyMap {
     }
 
     fn __len__(&self, py: Python) -> PyResult<usize> {
-        self.with_dirstate_map_read(py, |inner_dsm| {
-            Ok(inner_dsm.copy_map_len())
-        })
+        self.with_dirstate_map_read(
+            py,
+            |inner_dsm| Ok(inner_dsm.copy_map_len()),
+        )
     }
 
     fn __contains__(
@@ -141,9 +140,7 @@ impl CopyMap {
         let key = HgPath::new(key.as_bytes());
         let value = HgPath::new(value.as_bytes());
         self.with_dirstate_map_write(py, |mut inner_dsm| {
-            inner_dsm
-                .copy_map_insert(key, value)
-                .map_err(dirstate_v2_error)
+            inner_dsm.copy_map_insert(key, value).map_err(dirstate_v2_error)
         })?;
         Ok(())
     }
@@ -198,9 +195,7 @@ impl CopyMap {
     ) -> PyResult<Option<Py<PyTuple>>> {
         let (key, value) = res.map_err(dirstate_v2_error)?;
         Ok(Some(
-            (PyHgPathRef(key), PyHgPathRef(value))
-                .into_pyobject(py)?
-                .unbind(),
+            (PyHgPathRef(key), PyHgPathRef(value)).into_pyobject(py)?.unbind(),
         ))
     }
 

@@ -407,8 +407,7 @@ pub fn annotate(
     else {
         return Ok(AnnotateOutput::NotFound);
     };
-    if !options.treat_binary_as_text
-        && utils::files::is_binary(&base_file_data)
+    if !options.treat_binary_as_text && utils::files::is_binary(&base_file_data)
     {
         return Ok(AnnotateOutput::Binary);
     }
@@ -646,9 +645,8 @@ fn check_link_revision(
         FileId::Wdir => return Ok(Some(RevisionOrWdir::wdir())),
     };
     let FilelogSetItem { filelog, .. } = fls.get(id.index);
-    let linkrev = filelog
-        .revlog
-        .link_revision(id.revision, &state.changelog.revlog)?;
+    let linkrev =
+        filelog.revlog.link_revision(id.revision, &state.changelog.revlog)?;
     if ancestors.contains(linkrev).map_err(from_graph_error)? {
         return Ok(Some(linkrev.into()));
     }
@@ -668,9 +666,8 @@ fn adjust_link_revision(
         FileId::Wdir => return Ok(RevisionOrWdir::wdir()),
     };
     let FilelogSetItem { filelog, path } = fls.get(id.index);
-    let linkrev = filelog
-        .revlog
-        .link_revision(id.revision, &state.changelog.revlog)?;
+    let linkrev =
+        filelog.revlog.link_revision(id.revision, &state.changelog.revlog)?;
     let file_node = *filelog.revlog.node_from_rev(id.revision);
     for ancestor in ancestor_iter(state, descendant, Some(linkrev)) {
         let ancestor = ancestor.map_err(from_graph_error)?;

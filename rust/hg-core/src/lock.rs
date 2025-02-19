@@ -88,8 +88,7 @@ fn read_lock(
     hg_vfs: &VfsImpl,
     lock_filename: &str,
 ) -> Result<Option<String>, HgError> {
-    let link_target =
-        hg_vfs.read_link(lock_filename).io_not_found_as_none()?;
+    let link_target = hg_vfs.read_link(lock_filename).io_not_found_as_none()?;
     if let Some(target) = link_target {
         let data = target
             .into_os_string()

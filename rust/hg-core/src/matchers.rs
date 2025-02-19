@@ -283,23 +283,24 @@ impl Matcher for FileMatcher {
             candidates.remove(HgPath::new(b""));
             candidates
         };
-        let candidates =
-            if directory.as_ref().is_empty() {
-                compute_candidates()
-            } else {
-                let sorted_candidates = self
-                    .sorted_visitchildrenset_candidates
-                    .get_or_init(compute_candidates);
-                let directory_bytes = directory.as_ref().as_bytes();
-                let start: HgPathBuf =
-                    format_bytes!(b"{}/", directory_bytes).into();
-                let start_len = start.len();
-                // `0` sorts after `/`
-                let end = format_bytes!(b"{}0", directory_bytes).into();
-                BTreeSet::from_iter(sorted_candidates.range(start..end).map(
-                    |c| HgPathBuf::from_bytes(&c.as_bytes()[start_len..]),
-                ))
-            };
+        let candidates = if directory.as_ref().is_empty() {
+            compute_candidates()
+        } else {
+            let sorted_candidates = self
+                .sorted_visitchildrenset_candidates
+                .get_or_init(compute_candidates);
+            let directory_bytes = directory.as_ref().as_bytes();
+            let start: HgPathBuf =
+                format_bytes!(b"{}/", directory_bytes).into();
+            let start_len = start.len();
+            // `0` sorts after `/`
+            let end = format_bytes!(b"{}0", directory_bytes).into();
+            BTreeSet::from_iter(
+                sorted_candidates
+                    .range(start..end)
+                    .map(|c| HgPathBuf::from_bytes(&c.as_bytes()[start_len..])),
+            )
+        };
 
         // `self.dirs` includes all of the directories, recursively, so if
         // we're attempting to match 'foo/bar/baz.txt', it'll have '', 'foo',
@@ -435,11 +436,8 @@ impl core::fmt::Debug for PatternMatcher<'_> {
 
 impl PatternMatcher<'_> {
     pub fn new(ignore_patterns: Vec<IgnorePattern>) -> PatternResult<Self> {
-        let RootsDirsAndParents {
-            roots,
-            dirs: dirs_explicit,
-            parents,
-        } = roots_dirs_and_parents(&ignore_patterns)?;
+        let RootsDirsAndParents { roots, dirs: dirs_explicit, parents } =
+            roots_dirs_and_parents(&ignore_patterns)?;
         let files = roots;
         let dirs = parents;
         let files: HashSet<HgPathBuf> = HashSet::from_iter(files);
@@ -453,14 +451,7 @@ impl PatternMatcher<'_> {
             RegexCompleteness::ExcludeExactFiles,
         )?;
 
-        Ok(Self {
-            patterns,
-            match_fn,
-            prefix,
-            files,
-            dirs,
-            dirs_explicit,
-        })
+        Ok(Self { patterns, match_fn, prefix, files, dirs, dirs_explicit })
     }
 }
 
@@ -761,11 +752,7 @@ fn filter_fileset<M1: Matcher, M2: Matcher>(
 ) -> Option<HashSet<HgPathBuf>> {
     assert!(m1_exact.is_exact());
     m1_exact.file_set().map(|m1_files| {
-        m1_files
-            .iter()
-            .filter(|&f| m2.matches(f))
-            .cloned()
-            .collect()
+        m1_files.iter().filter(|&f| m2.matches(f)).cloned().collect()
     })
 }
 
@@ -858,11 +845,7 @@ impl<M1: Matcher, M2: Matcher> DifferenceMatcher<M1, M2> {
     pub fn new(base: M1, excluded: M2) -> Self {
         let base_is_exact = base.is_exact();
         let base_files = base.file_set().map(ToOwned::to_owned);
-        let mut new = Self {
-            base,
-            excluded,
-            files: None,
-        };
+        let mut new = Self { base, excluded, files: None };
         if base_is_exact {
             new.files = base_files.map(|files| {
                 files.iter().filter(|&f| new.matches(f)).cloned().collect()
@@ -899,9 +882,7 @@ struct RegexMatcher {
 impl RegexMatcher {
     /// Returns whether the path matches the stored `Regex`.
     pub fn is_match(&self, path: &HgPath) -> bool {
-        self.local
-            .get_or(|| self.base.clone())
-            .is_match(path.as_bytes())
+        self.local.get_or(|| self.base.clone()).is_match(path.as_bytes())
     }
 }
 
@@ -924,10 +905,7 @@ fn re_matcher(pattern: &Hir) -> PatternResult<RegexMatcher> {
         .build_from_hir(pattern)
         .map_err(|e| PatternError::UnsupportedSyntax(e.to_string()))?;
 
-    Ok(RegexMatcher {
-        base: re,
-        local: Default::default(),
-    })
+    Ok(RegexMatcher { base: re, local: Default::default() })
 }
 
 #[tracing::instrument(level = "debug", skip_all)]
@@ -1012,15 +990,12 @@ fn roots_and_dirs(
     let mut dirs = Vec::new();
 
     for ignore_pattern in ignore_patterns {
-        let IgnorePattern {
-            syntax, pattern, ..
-        } = ignore_pattern;
+        let IgnorePattern { syntax, pattern, .. } = ignore_pattern;
         match syntax {
             PatternSyntax::RootGlob | PatternSyntax::Glob => {
                 let mut root = HgPathBuf::new();
                 for p in pattern.split(|c| *c == b'/') {
-                    if p.iter()
-                        .any(|c| matches!(*c, b'[' | b'{' | b'*' | b'?'))
+                    if p.iter().any(|c| matches!(*c, b'[' | b'{' | b'*' | b'?'))
                     {
                         break;
                     }
@@ -1104,8 +1079,7 @@ fn build_match<'a>(
 
         for sub_include in subincludes {
             let matcher = IncludeMatcher::new(sub_include.included_patterns)?;
-            let match_fn =
-                Box::new(move |path: &HgPath| matcher.matches(path));
+            let match_fn = Box::new(move |path: &HgPath| matcher.matches(path));
             prefixes.push(sub_include.prefix.clone());
             submatchers.insert(sub_include.prefix.clone(), match_fn);
         }
@@ -1131,10 +1105,8 @@ fn build_match<'a>(
             .iter()
             .all(|k| k.syntax == PatternSyntax::RootFilesIn)
         {
-            let dirs: HashSet<_> = ignore_patterns
-                .iter()
-                .map(|k| k.pattern.to_owned())
-                .collect();
+            let dirs: HashSet<_> =
+                ignore_patterns.iter().map(|k| k.pattern.to_owned()).collect();
             let mut dirs_vec: Vec<_> = dirs.iter().cloned().collect();
 
             let match_func = move |path: &HgPath| -> bool {
@@ -1148,11 +1120,8 @@ fn build_match<'a>(
             dirs_vec.sort();
             patterns = PatternsDesc::RootFilesIn(dirs_vec, glob_suffix);
         } else {
-            let (new_re, match_func) = build_regex_match(
-                &ignore_patterns,
-                glob_suffix,
-                regex_config,
-            )?;
+            let (new_re, match_func) =
+                build_regex_match(&ignore_patterns, glob_suffix, regex_config)?;
             patterns = PatternsDesc::Re(new_re);
             match_funcs.push(match_func)
         }
@@ -1188,8 +1157,7 @@ pub fn get_ignore_matcher_pre(
     // as when a iteration order of a Python dict or Rust HashMap is involved).
     // Sort by "string" representation instead of the default by component
     // (with a Rust-specific definition of a component)
-    all_pattern_files
-        .sort_unstable_by(|a, b| a.as_os_str().cmp(b.as_os_str()));
+    all_pattern_files.sort_unstable_by(|a, b| a.as_os_str().cmp(b.as_os_str()));
 
     for pattern_file in &all_pattern_files {
         let (patterns, warnings) = get_patterns_from_file(
@@ -1241,11 +1209,8 @@ impl IncludeMatcher<'_> {
         ignore_patterns: Vec<IgnorePattern>,
         regex_config: RegexCompleteness,
     ) -> PatternResult<Self> {
-        let RootsDirsAndParents {
-            roots,
-            dirs,
-            parents,
-        } = roots_dirs_and_parents(&ignore_patterns)?;
+        let RootsDirsAndParents { roots, dirs, parents } =
+            roots_dirs_and_parents(&ignore_patterns)?;
         let prefix = ignore_patterns.iter().all(|k| {
             matches!(k.syntax, PatternSyntax::Path | PatternSyntax::RelPath)
         });
@@ -1255,14 +1220,7 @@ impl IncludeMatcher<'_> {
             regex_config,
         )?;
 
-        Ok(Self {
-            patterns,
-            match_fn,
-            prefix,
-            roots,
-            dirs,
-            parents,
-        })
+        Ok(Self { patterns, match_fn, prefix, roots, dirs, parents })
     }
 
     pub fn new(ignore_patterns: Vec<IgnorePattern>) -> PatternResult<Self> {
@@ -1356,11 +1314,7 @@ mod tests {
 
         assert_eq!(
             roots_dirs_and_parents(&pats).unwrap(),
-            RootsDirsAndParents {
-                roots,
-                dirs,
-                parents
-            }
+            RootsDirsAndParents { roots, dirs, parents }
         );
     }
 
@@ -2390,12 +2344,7 @@ mod tests {
                 if !holds(matching, not_matching, visit_children_set) {
                     panic!(
                         "{:#?}",
-                        Error {
-                            matcher,
-                            path,
-                            visit_children_set,
-                            matching
-                        }
+                        Error { matcher, path, visit_children_set, matching }
                     )
                 }
             }
@@ -2500,10 +2449,8 @@ mod tests {
             p(b"subdir"),
         ];
         let files: BTreeSet<HgPathBuf> = BTreeSet::from(names);
-        let dirs = children
-            .iter()
-            .map(|(name, t)| (p(name), (*t).clone()))
-            .collect();
+        let dirs =
+            children.iter().map(|(name, t)| (p(name), (*t).clone())).collect();
         Tree { files, dirs }
     }
 
@@ -2574,13 +2521,12 @@ mod tests {
             )])
             .unwrap();
 
-        let include_dir_subdir =
-            IncludeMatcher::new(vec![IgnorePattern::new(
-                PatternSyntax::RelPath,
-                b"dir/subdir",
-                Path::new(""),
-            )])
-            .unwrap();
+        let include_dir_subdir = IncludeMatcher::new(vec![IgnorePattern::new(
+            PatternSyntax::RelPath,
+            b"dir/subdir",
+            Path::new(""),
+        )])
+        .unwrap();
 
         let more_includematchers = [
             IncludeMatcher::new(vec![IgnorePattern::new(

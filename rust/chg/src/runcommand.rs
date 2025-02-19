@@ -28,9 +28,7 @@ pub async fn run_command(
     handler: &mut impl SystemHandler,
     packed_args: impl Into<Bytes>,
 ) -> io::Result<i32> {
-    proto
-        .send_command_with_args("runcommand", packed_args)
-        .await?;
+    proto.send_command_with_args("runcommand", packed_args).await?;
     loop {
         match proto.fetch_response().await? {
             ChannelMessage::Data(b'r', data) => {

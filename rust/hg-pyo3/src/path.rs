@@ -67,10 +67,7 @@ impl<'py> IntoPyObject<'py> for PyHgPathDirstateV2Result<'_> {
         self,
         py: Python<'py>,
     ) -> Result<Self::Output, Self::Error> {
-        Ok(PyBytes::new(
-            py,
-            self.0.map_err(dirstate_v2_error)?.as_bytes(),
-        ))
+        Ok(PyBytes::new(py, self.0.map_err(dirstate_v2_error)?.as_bytes()))
     }
 }
 
@@ -84,9 +81,7 @@ where
 {
     Ok(PyList::new(
         py,
-        paths
-            .into_iter()
-            .map(|p| PyBytes::new(py, p.as_ref().as_bytes())),
+        paths.into_iter().map(|p| PyBytes::new(py, p.as_ref().as_bytes())),
     )?
     .unbind())
 }
@@ -99,9 +94,7 @@ where
         .try_iter()?
         .map(|p| {
             let path = p?;
-            Ok(HgPathBuf::from_bytes(
-                path.downcast::<PyBytes>()?.as_bytes(),
-            ))
+            Ok(HgPathBuf::from_bytes(path.downcast::<PyBytes>()?.as_bytes()))
         })
         .collect()
 }

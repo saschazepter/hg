@@ -40,8 +40,7 @@ pub fn debug_data(
             RevlogType::Changelog,
         )?,
     )?;
-    let rev =
-        crate::revset::resolve_rev_number_or_hex_prefix(revset, &revlog)?;
+    let rev = crate::revset::resolve_rev_number_or_hex_prefix(revset, &revlog)?;
     let data = revlog.get_data(rev)?;
     Ok(data.into_owned())
 }

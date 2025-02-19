@@ -133,8 +133,7 @@ pub fn packed_entry_size(
     filename: &HgPath,
     copy_source: Option<&HgPath>,
 ) -> usize {
-    MIN_ENTRY_SIZE
-        + packed_filename_and_copy_source_size(filename, copy_source)
+    MIN_ENTRY_SIZE + packed_filename_and_copy_source_size(filename, copy_source)
 }
 
 pub fn pack_entry(

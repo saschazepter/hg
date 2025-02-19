@@ -133,8 +133,7 @@ pub fn pack_env_vars_os(
 ) -> Bytes {
     let mut vars_iter = vars.into_iter();
     if let Some((k, v)) = vars_iter.next() {
-        let mut dst =
-            BytesMut::with_capacity(INITIAL_PACKED_ENV_VARS_CAPACITY);
+        let mut dst = BytesMut::with_capacity(INITIAL_PACKED_ENV_VARS_CAPACITY);
         pack_env_into(&mut dst, k.as_ref(), v.as_ref());
         for (k, v) in vars_iter {
             dst.reserve(1);
@@ -202,9 +201,7 @@ mod tests {
     fn parse_command_spec_too_short() {
         assert!(parse_command_spec(Bytes::from_static(b"")).is_err());
         assert!(parse_command_spec(Bytes::from_static(b"pager")).is_err());
-        assert!(
-            parse_command_spec(Bytes::from_static(b"pager\0less")).is_err()
-        );
+        assert!(parse_command_spec(Bytes::from_static(b"pager\0less")).is_err());
     }
 
     #[test]
@@ -217,9 +214,7 @@ mod tests {
 
     #[test]
     fn parse_command_spec_unknown_type() {
-        assert!(
-            parse_command_spec(Bytes::from_static(b"paper\0less")).is_err()
-        );
+        assert!(parse_command_spec(Bytes::from_static(b"paper\0less")).is_err());
     }
 
     #[test]

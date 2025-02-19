@@ -40,11 +40,7 @@ impl CopySource {
     ///
     /// Use this when no previous copy source existed.
     fn new(rev: Revision, path: Option<PathToken>) -> Self {
-        Self {
-            rev,
-            path,
-            overwritten: OrdSet::new(),
-        }
+        Self { rev, path, overwritten: OrdSet::new() }
     }
 
     /// create a new CopySource from merging two others
@@ -57,11 +53,7 @@ impl CopySource {
         overwritten.extend(loser.overwritten.iter().copied());
         overwritten.insert(winner.rev);
         overwritten.insert(loser.rev);
-        Self {
-            rev,
-            path: winner.path,
-            overwritten,
-        }
+        Self { rev, path: winner.path, overwritten }
     }
 
     /// Update the value of a pre-existing CopySource
@@ -188,10 +180,7 @@ impl<'a> ChangedFiles<'a> {
     }
 
     pub fn new_empty() -> Self {
-        ChangedFiles {
-            index: &[],
-            paths: &[],
-        }
+        ChangedFiles { index: &[], paths: &[] }
     }
 
     /// Internal function to return the filename of the entry at a given index
@@ -478,12 +467,8 @@ fn chain_changes<'a>(
 
                 match (p1_entry, p2_entry) {
                     (None, None) => (),
-                    (Some(mut e), None) => {
-                        e.get_mut().mark_delete(current_rev)
-                    }
-                    (None, Some(mut e)) => {
-                        e.get_mut().mark_delete(current_rev)
-                    }
+                    (Some(mut e), None) => e.get_mut().mark_delete(current_rev),
+                    (None, Some(mut e)) => e.get_mut().mark_delete(current_rev),
                     (Some(mut e1), Some(mut e2)) => {
                         let cs1 = e1.get_mut();
                         let cs2 = e2.get();

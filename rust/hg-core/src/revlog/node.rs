@@ -74,9 +74,7 @@ impl fmt::Debug for Node {
 }
 
 /// The node value for NULL_REVISION
-pub const NULL_NODE: Node = Node {
-    data: [0; NODE_BYTES_LENGTH],
-};
+pub const NULL_NODE: Node = Node { data: [0; NODE_BYTES_LENGTH] };
 
 /// Return an error if the slice has an unexpected length
 impl<'a> TryFrom<&'a [u8]> for &'a Node {
@@ -301,20 +299,14 @@ impl fmt::LowerHex for NodePrefix {
 /// A shortcut for full `Node` references
 impl From<&'_ Node> for NodePrefix {
     fn from(node: &'_ Node) -> Self {
-        NodePrefix {
-            nybbles_len: node.nybbles_len() as _,
-            data: node.data,
-        }
+        NodePrefix { nybbles_len: node.nybbles_len() as _, data: node.data }
     }
 }
 
 /// A shortcut for full `Node` references
 impl From<Node> for NodePrefix {
     fn from(node: Node) -> Self {
-        NodePrefix {
-            nybbles_len: node.nybbles_len() as _,
-            data: node.data,
-        }
+        NodePrefix { nybbles_len: node.nybbles_len() as _, data: node.data }
     }
 }
 

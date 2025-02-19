@@ -98,11 +98,7 @@ impl Encoder {
                 )))
             }
         };
-        Ok(Self {
-            local_encoding,
-            decoding_mode,
-            ambiguous_width,
-        })
+        Ok(Self { local_encoding, decoding_mode, ambiguous_width })
     }
 
     /// Decodes an internal UTF-8 string from bytes.
@@ -251,10 +247,8 @@ mod tests {
 
     #[test]
     fn test_from_local_replace() {
-        let encoder = Encoder {
-            decoding_mode: Mode::Replace,
-            ..Default::default()
-        };
+        let encoder =
+            Encoder { decoding_mode: Mode::Replace, ..Default::default() };
         assert_eq!(encoder.from_local(b"A\xc3").unwrap(), "A\u{fffd}");
     }
 
@@ -270,16 +264,12 @@ mod tests {
 
     #[test]
     fn test_column_width_ambiguous() {
-        let narrow_encoder = Encoder {
-            ambiguous_width: Width::Narrow,
-            ..Default::default()
-        };
+        let narrow_encoder =
+            Encoder { ambiguous_width: Width::Narrow, ..Default::default() };
         assert_eq!(narrow_encoder.column_width("\u{2606}"), 1);
 
-        let wide_encoder = Encoder {
-            ambiguous_width: Width::Wide,
-            ..Default::default()
-        };
+        let wide_encoder =
+            Encoder { ambiguous_width: Width::Wide, ..Default::default() };
         assert_eq!(wide_encoder.column_width("\u{2606}"), 2);
     }
 

@@ -164,12 +164,9 @@ impl fmt::Display for IoErrorContext {
                 from.display(),
                 to.display()
             ),
-            IoErrorContext::CopyingFile { from, to } => write!(
-                f,
-                "when copying {} to {}",
-                from.display(),
-                to.display()
-            ),
+            IoErrorContext::CopyingFile { from, to } => {
+                write!(f, "when copying {} to {}", from.display(), to.display())
+            }
             IoErrorContext::CanonicalizingPath(path) => {
                 write!(f, "when canonicalizing {}", path.display())
             }
@@ -214,10 +211,7 @@ impl<T> IoResultExt<T> for std::io::Result<T> {
         self,
         context: impl FnOnce() -> IoErrorContext,
     ) -> Result<T, HgError> {
-        self.map_err(|error| HgError::IoError {
-            error,
-            context: context(),
-        })
+        self.map_err(|error| HgError::IoError { error, context: context() })
     }
 }
 

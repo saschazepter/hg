@@ -150,9 +150,9 @@ pub fn roots<G: Graph, S: std::hash::BuildHasher>(
 /// This is a two-pass swipe inspired from what `reachableroots2` from
 /// `mercurial.cext.parsers` does to obtain the same results.
 ///
-/// - first, we climb up the DAG from `heads` in topological order, keeping
-///   them in the vector `heads_ancestors` vector, and adding any element of
-///   `roots` we find among them to the resulting range.
+/// - first, we climb up the DAG from `heads` in topological order, keeping them
+///   in the vector `heads_ancestors` vector, and adding any element of `roots`
+///   we find among them to the resulting range.
 /// - Then, we iterate on that recorded vector so that a revision is always
 ///   emitted after its parents and add all revisions whose parents are already
 ///   in the range to the results.
@@ -303,10 +303,7 @@ mod tests {
     #[test]
     fn test_range() -> Result<(), GraphError> {
         assert_eq!(range_vec(SampleGraph, &[0], &[4])?, vec![0, 1, 2, 4]);
-        assert_eq!(
-            range_vec(SampleGraph, &[0], &[8])?,
-            Vec::<Revision>::new()
-        );
+        assert_eq!(range_vec(SampleGraph, &[0], &[8])?, Vec::<Revision>::new());
         assert_eq!(
             range_vec(SampleGraph, &[5, 6], &[10, 11, 13])?,
             vec![5, 10]

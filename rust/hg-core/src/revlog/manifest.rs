@@ -115,9 +115,7 @@ impl Manifest {
         Self { bytes: vec![] }
     }
 
-    pub fn iter(
-        &self,
-    ) -> impl Iterator<Item = Result<ManifestEntry, HgError>> {
+    pub fn iter(&self) -> impl Iterator<Item = Result<ManifestEntry, HgError>> {
         self.bytes
             .split(|b| b == &b'\n')
             .filter(|line| !line.is_empty())

@@ -141,9 +141,7 @@ pub fn dir_ancestors(path: &HgPath) -> Ancestors {
 /// The path itself isn't included unless it is b"" (meaning the root
 /// directory.)
 pub(crate) fn find_dirs_with_base(path: &HgPath) -> AncestorsWithBase {
-    let mut dirs = AncestorsWithBase {
-        next: Some((path, HgPath::new(b""))),
-    };
+    let mut dirs = AncestorsWithBase { next: Some((path, HgPath::new(b""))) };
     if !path.is_empty() {
         dirs.next(); // skip itself
     }
