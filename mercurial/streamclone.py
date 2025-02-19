@@ -50,17 +50,17 @@ from .revlogutils import (
 # update the configuration documentation if you touch this.
 DEFAULT_NUM_WRITER = {
     scmutil.RESOURCE_LOW: 1,
-    scmutil.RESOURCE_MEDIUM: 2,
-    scmutil.RESOURCE_HIGH: 4,
+    scmutil.RESOURCE_MEDIUM: 4,
+    scmutil.RESOURCE_HIGH: 8,
 }
 
 
 # Number arbitrarily picked, feel free to adjust them. Do update the
 # documentation if you do so
 DEFAULT_MEMORY_TARGET = {
-    scmutil.RESOURCE_LOW: 100 * (2**20),  # 100 MB
-    scmutil.RESOURCE_MEDIUM: 2**30,  # 1 GB
-    scmutil.RESOURCE_HIGH: None,
+    scmutil.RESOURCE_LOW: 50 * (2**20),  # 100 MB
+    scmutil.RESOURCE_MEDIUM: 500 * 2**20,  # 500 MB
+    scmutil.RESOURCE_HIGH: 2 * 2**30,  #   2 GB
 }
 
 

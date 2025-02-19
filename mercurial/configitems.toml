@@ -2949,6 +2949,12 @@ name = "numcpus"
 
 # experimental until we are happy with the implementation and some sanity
 # checking has been done.
+#
+# At the time of the 7.0 freeze, the threaded code is faster is some case and
+# slower in some other. So it is not ready to be installed by default.
+#
+# The correct number of writers is hard to adjust as it strongly depends of the
+# OS, disk setup and number of CPU. so more tuning is needed.
 [[items]]
 section = "worker"
 name = "parallel-stream-bundle-processing"
