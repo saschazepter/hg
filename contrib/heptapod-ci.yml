@@ -108,6 +108,7 @@ trigger-nightly-build:
           - cp310-cp310
           - cp312-cp312
           - cp313-cp313
+          - cp314-cp314
   script:
     - PLATFORM=`/opt/python/cp313-cp313/bin/python -c 'import sys; print(sys.platform)'`
     - echo $WHEEL_TYPE
@@ -485,6 +486,18 @@ test-3.13-c:
           matrix:
             - BUILD_PY_ID: "cp313-cp313"
 
+test-3.14-c:
+    extends: .test-c-pycompat
+    image: "$HG_CI_REG/hg-core-test-py314:$HG_CI_IMAGE_TAG"
+    variables:
+        PYTHON: python3.14
+    needs:
+      - job: trigger-pycompat
+      - job: build-c-wheel-libc
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp314-cp314"
+
 test-3.13-rust:
     extends: .test-rust-pycompat
     image: "$HG_CI_REG/hg-core-test-py313:$HG_CI_IMAGE_TAG"
@@ -496,6 +509,18 @@ test-3.13-rust:
             - BUILD_PY_ID: "cp313-cp313"
     variables:
         PYTHON: python3.13
+
+test-3.14-rust:
+    extends: .test-rust-pycompat
+    image: "$HG_CI_REG/hg-core-test-py314:$HG_CI_IMAGE_TAG"
+    needs:
+      - trigger-pycompat
+      - job: build-rust-wheel-libc
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp314-cp314"
+    variables:
+        PYTHON: python3.14
 
 check-pytype:
     extends: .all
@@ -574,6 +599,7 @@ build-c-wheel-windows:
           - "cp311-*"
           - "cp312-*"
           - "cp313-*"
+          - "cp314-*"
           CIBW_ARCHS:
           - "AMD64"
           - "x86"
@@ -581,6 +607,7 @@ build-c-wheel-windows:
           - "cp311-*"
           - "cp312-*"
           - "cp313-*"
+          - "cp314-*"
           CIBW_ARCHS:
           - "ARM64"
 
@@ -765,6 +792,8 @@ test-result-linux-py-c:
   needs:
     - test-3.13-c
     - test-3.13-rust
+    - test-3.14-c
+    - test-3.14-rust
 
 test-result-macos:
   extends: .sink

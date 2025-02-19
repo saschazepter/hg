@@ -9,7 +9,7 @@
 
 set -e -x
 
-PYTHON_TARGETS="cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313"
+PYTHON_TARGETS="cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313 cp314-314"
 
 # We need to copy the repository to ensure:
 # (1) we don't wrongly write roots files in the repository (or any other wrong
