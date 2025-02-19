@@ -83,7 +83,11 @@ pub fn cat<'a>(
     revset: &str,
     mut files: Vec<&'a HgPath>,
 ) -> Result<CatOutput<'a>, RevlogError> {
-    let rev = crate::revset::resolve_single(revset, repo)?;
+    let Some(rev) =
+        crate::revset::resolve_single(revset, repo)?.exclude_wdir()
+    else {
+        return Err(HgError::unsupported("cat wdir not implemented").into());
+    };
     let manifest = repo.manifest_for_rev(rev.into())?;
     let mut results: Vec<(&'a HgPath, Vec<u8>)> = vec![];
     let node = *repo.changelog()?.node_from_rev(rev);

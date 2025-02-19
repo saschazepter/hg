@@ -25,7 +25,7 @@ use hg::matchers::{AlwaysMatcher, IntersectionMatcher};
 use hg::repo::Repo;
 use hg::revlog::manifest::Manifest;
 use hg::revlog::options::{default_revlog_options, RevlogOpenOptions};
-use hg::revlog::RevlogType;
+use hg::revlog::{RevisionOrWdir, RevlogError, RevlogType};
 use hg::utils::debug::debug_wait_for_file;
 use hg::utils::files::{
     get_bytes_from_os_str, get_bytes_from_os_string, get_path_from_bytes,
@@ -171,12 +171,15 @@ fn parse_revpair(
     let Some(revs) = revs else {
         return Ok(None);
     };
+    let resolve = |input| match hg::revset::resolve_single(input, repo)?
+        .exclude_wdir()
+    {
+        Some(rev) => Ok(rev),
+        None => Err(RevlogError::WDirUnsupported),
+    };
     match revs.as_slice() {
         [] => Ok(None),
-        [rev1, rev2] => Ok(Some((
-            hg::revset::resolve_single(rev1, repo)?,
-            hg::revset::resolve_single(rev2, repo)?,
-        ))),
+        [rev1, rev2] => Ok(Some((resolve(rev1)?, resolve(rev2)?))),
         _ => Err(CommandError::unsupported("expected 0 or 2 --rev flags")),
     }
 }
@@ -313,6 +316,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let change = change
         .map(|rev| hg::revset::resolve_single(rev, repo))
         .transpose()?;
+    // Treat `rhg status --change wdir()` the same as `rhg status`.
+    let change = change.and_then(RevisionOrWdir::exclude_wdir);
 
     if verbose && has_unfinished_state(repo)? {
         return Err(CommandError::unsupported(
