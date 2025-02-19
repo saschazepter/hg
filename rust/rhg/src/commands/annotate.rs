@@ -152,6 +152,11 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let rev = args.get_one::<String>("rev").expect("rev has a default");
     let rev = hg::revset::resolve_single(rev, repo)?;
+    let Some(rev) = rev.exclude_wdir() else {
+        return Err(CommandError::unsupported(
+            "annotate wdir not implemented",
+        ));
+    };
 
     let files = match args.get_many::<OsString>("files") {
         None => vec![],

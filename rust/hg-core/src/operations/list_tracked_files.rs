@@ -22,8 +22,12 @@ pub fn list_revset_tracked_files(
     revset: &str,
     narrow_matcher: Box<dyn Matcher + Sync>,
 ) -> Result<FilesForRev, RevlogError> {
-    let rev = crate::revset::resolve_single(revset, repo)?;
-    list_rev_tracked_files(repo, rev.into(), narrow_matcher)
+    match crate::revset::resolve_single(revset, repo)?.exclude_wdir() {
+        Some(rev) => list_rev_tracked_files(repo, rev.into(), narrow_matcher),
+        None => {
+            Err(HgError::unsupported("list wdir files not implemented").into())
+        }
+    }
 }
 
 /// List files under Mercurial control at a given revision.
