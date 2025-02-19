@@ -303,7 +303,7 @@ class localcommandexecutor(repository.ipeercommandexecutor):
         self._closed = True
 
 
-class localpeer(repository.peer):  # (repository.ipeercommands)
+class localpeer(repository.peer, repository.ipeercommands):
     '''peer for a local repo; reflects only the most recent API'''
 
     def __init__(self, repo, caps=None, path=None, remotehidden=False):
