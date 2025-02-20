@@ -114,3 +114,4 @@ class InboundRevision:
     sidedata = attr.ib()
     protocol_flags = attr.ib(default=0)
     raw_text = attr.ib(default=None)
+    has_censor_flag = attr.ib(default=False)

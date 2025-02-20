@@ -3595,7 +3595,9 @@ class revlog:
                             )
 
                     flags = data.flags or REVIDX_DEFAULT_FLAGS
-                    if not flags and self._peek_iscensored(baserev, data.delta):
+                    if not data.has_censor_flag and self._peek_iscensored(
+                        baserev, data.delta
+                    ):
                         flags |= REVIDX_ISCENSORED
 
                     # We assume consumers of addrevisioncb will want to retrieve
