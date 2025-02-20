@@ -3557,20 +3557,7 @@ class revlog:
                 )
                 # loop through our set of deltas
                 for data in deltas:
-                    # XXX we can probably use the `data.XXX` version inline for
-                    # most of them.
-                    node = data.node
-                    p1 = data.p1
-                    p2 = data.p2
-                    linknode = data.link_node
-                    deltabase = data.delta_base
-                    delta = data.delta
-                    flags = data.flags
-                    sidedata = data.sidedata
-                    link = linkmapper(linknode)
-                    flags = flags or REVIDX_DEFAULT_FLAGS
-
-                    rev = self.index.get_rev(node)
+                    rev = self.index.get_rev(data.node)
                     if rev is not None:
                         # this can happen if two branches make the same change
                         self._nodeduplicatecallback(transaction, rev)
@@ -3579,33 +3566,36 @@ class revlog:
                         empty = False
                         continue
 
-                    for p in (p1, p2):
+                    for p in (data.p1, data.p2):
                         if not self.index.has_node(p):
                             raise error.LookupError(
                                 p, self.radix, _(b'unknown parent')
                             )
 
-                    if not self.index.has_node(deltabase):
+                    if not self.index.has_node(data.delta_base):
                         raise error.LookupError(
-                            deltabase, self.display_id, _(b'unknown delta base')
+                            data.delta_base,
+                            self.display_id,
+                            _(b'unknown delta base'),
                         )
 
-                    baserev = self.rev(deltabase)
+                    baserev = self.rev(data.delta_base)
 
                     if baserev != nullrev and self.iscensored(baserev):
                         # if base is censored, delta must be full replacement in a
                         # single patch operation
                         hlen = struct.calcsize(b">lll")
                         oldlen = self.rawsize(baserev)
-                        newlen = len(delta) - hlen
-                        if delta[:hlen] != mdiff.replacediffheader(
+                        newlen = len(data.delta) - hlen
+                        if data.delta[:hlen] != mdiff.replacediffheader(
                             oldlen, newlen
                         ):
                             raise error.CensoredBaseError(
                                 self.display_id, self.node(baserev)
                             )
 
-                    if not flags and self._peek_iscensored(baserev, delta):
+                    flags = data.flags or REVIDX_DEFAULT_FLAGS
+                    if not flags and self._peek_iscensored(baserev, data.delta):
                         flags |= REVIDX_ISCENSORED
 
                     # We assume consumers of addrevisioncb will want to retrieve
@@ -3616,17 +3606,17 @@ class revlog:
                     # generation so the revision data can always be handled as raw
                     # by the flagprocessor.
                     rev = self._addrevision(
-                        node,
+                        data.node,
                         None,
                         transaction,
-                        link,
-                        p1,
-                        p2,
+                        linkmapper(data.link_node),
+                        data.p1,
+                        data.p2,
                         flags,
-                        (baserev, delta, delta_base_reuse_policy),
+                        (baserev, data.delta, delta_base_reuse_policy),
                         alwayscache=alwayscache,
                         deltacomputer=deltacomputer,
-                        sidedata=sidedata,
+                        sidedata=data.sidedata,
                     )
 
                     if addrevisioncb:
