@@ -3607,7 +3607,9 @@ class revlog:
                     # by the flagprocessor.
                     rev = self._addrevision(
                         data.node,
-                        None,
+                        # raw text is usually None, but it might have been set
+                        # by some pre-processing/checking code.
+                        data.raw_text,
                         transaction,
                         linkmapper(data.link_node),
                         data.p1,
