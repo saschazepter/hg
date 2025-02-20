@@ -359,7 +359,7 @@ class cg1unpacker:
         # Chunkdata: (node, p1, p2, cs, deltabase, delta, flags, sidedata, proto_flags)
         l = self._chunklength()
         if not l:
-            return {}
+            return None
         headerdata = readexactly(self._stream, self.deltaheadersize)
         header = self.deltaheader.unpack(headerdata)
         delta = readexactly(self._stream, l - self.deltaheadersize)
@@ -775,8 +775,7 @@ class cg1unpacker:
         Useful for passing to the underlying storage system to be stored.
         """
         chain = None
-        for chunkdata in iter(lambda: self.deltachunk(chain), {}):
-            # Chunkdata: (node, p1, p2, cs, deltabase, delta, flags, sidedata, proto_flags)
+        for chunkdata in iter(lambda: self.deltachunk(chain), None):
             yield chunkdata[:8]
             chain = chunkdata[0]
 
@@ -869,7 +868,7 @@ class cg5unpacker(cg3unpacker):
 
     def deltachunk(self, prevnode):
         res = super().deltachunk(prevnode)
-        if not res:
+        if res is None:
             return res
 
         (
