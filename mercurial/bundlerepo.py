@@ -74,49 +74,41 @@ class bundlerevlog(revlog.revlog):
         self.repotiprev = n - 1
         self.bundlerevs = set()  # used by 'bundle()' revset expression
         for deltadata in cgunpacker.deltaiter():
-            # XXX we can probably use the `deltadata.XXX` version inline for most of them
-            node = deltadata.node
-            p1 = deltadata.p1
-            p2 = deltadata.p2
-            cs = deltadata.link_node
-            deltabase = deltadata.delta_base
-            delta = deltadata.delta
-            flags = deltadata.flags
-
-            size = len(delta)
+            size = len(deltadata.delta)
             start = cgunpacker.tell() - size
 
-            if self.index.has_node(node):
+            if self.index.has_node(deltadata.node):
                 # this can happen if two branches make the same change
-                self.bundlerevs.add(self.index.rev(node))
+                self.bundlerevs.add(self.index.rev(deltadata.node))
                 continue
-            if cs == node:
+            if deltadata.link_node == deltadata.node:
                 linkrev = nullrev
             else:
-                linkrev = linkmapper(cs)
+                linkrev = linkmapper(deltadata.link_node)
 
-            for p in (p1, p2):
+            for p in (deltadata.p1, deltadata.p2):
                 if not self.index.has_node(p):
                     raise error.LookupError(
                         p, self.display_id, _(b"unknown parent")
                     )
 
-            if not self.index.has_node(deltabase):
+            if not self.index.has_node(deltadata.delta_base):
                 raise error.LookupError(
-                    deltabase, self.display_id, _(b'unknown delta base')
+                    deltadata.delta_base,
+                    self.display_id,
+                    _(b'unknown delta base'),
                 )
 
-            baserev = self.rev(deltabase)
-            # start, size, full unc. size, base (unused), link, p1, p2, node, sidedata_offset (unused), sidedata_size (unused)
+            baserev = self.rev(deltadata.delta_base)
             e = revlogutils.entry(
-                flags=flags,
+                flags=deltadata.flags,
                 data_offset=start,
                 data_compressed_length=size,
                 data_delta_base=baserev,
                 link_rev=linkrev,
-                parent_rev_1=self.rev(p1),
-                parent_rev_2=self.rev(p2),
-                node_id=node,
+                parent_rev_1=self.rev(deltadata.p1),
+                parent_rev_2=self.rev(deltadata.p2),
+                node_id=deltadata.node,
             )
             self.index.append(e)
             self.bundlerevs.add(n)
