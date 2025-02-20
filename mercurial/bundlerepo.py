@@ -287,7 +287,7 @@ def _getfilestarts(cgunpacker):
     for chunkdata in iter(cgunpacker.filelogheader, {}):
         fname = chunkdata[b'filename']
         filespos[fname] = cgunpacker.tell()
-        for chunk in iter(lambda: cgunpacker.deltachunk(None), {}):
+        for chunk in iter(lambda: cgunpacker.deltachunk(None), None):
             pass
     return filespos
 
