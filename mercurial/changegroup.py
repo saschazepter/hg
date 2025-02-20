@@ -290,6 +290,8 @@ class cg1unpacker:
     version = b'01'
     _grouplistcount = 1  # One list of files after the manifests
 
+    has_censor_flag = False
+
     def __init__(self, fh, alg, extras=None):
         if alg is None:
             alg = b'UN'
@@ -379,6 +381,7 @@ class cg1unpacker:
             flags,
             {},
             protocol_flags,
+            has_censor_flag=self.has_censor_flag,
         )
 
     def getchunks(self):
@@ -825,6 +828,8 @@ class cg3unpacker(cg2unpacker):
     deltaheadersize = deltaheader.size
     version = b'03'
     _grouplistcount = 2  # One list of manifests and one list of files
+
+    has_censor_flag = True
 
     def _deltaheader(self, headertuple, prevnode):
         node, p1, p2, deltabase, cs, flags = headertuple
