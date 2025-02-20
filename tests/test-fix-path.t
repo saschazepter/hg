@@ -20,8 +20,17 @@ approximates the behavior of code formatters well enough for our tests.
   >   return re.sub(b' +', b' ', text.upper())
   > stdout.write(format(stdin.read()))
   > EOF
+
   $ chmod +x some/dir/uppercase.py
 
+#if windows
+  $ cat > some/dir/uppercase.bat <<EOF
+  > @echo off
+  > "$PYTHON" "$TESTTMP/test-repo/some/dir/uppercase.py"
+  > EOF
+#else
+  $ mv some/dir/uppercase.py some/dir/uppercase
+#endif
 
   $ echo babar > babar.txt
   $ hg add babar.txt
@@ -36,7 +45,7 @@ Using absolute paths
   > evolution.allowunstable=True
   > [fix]
   > extra-bin-paths=$TESTTMP/test-repo/some/dir/
-  > uppercase-whole-file:command=uppercase.py
+  > uppercase-whole-file:command=uppercase
   > uppercase-whole-file:pattern=set:**.txt
   > EOF
 
