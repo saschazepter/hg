@@ -780,22 +780,20 @@ def filter_delta_issue6528(revlog, deltas_iter):
         deltabase_parentrevs = lambda: revlog.parentrevs(base_rev)
 
         def full_text():
-            # note: being able to reuse the full text computation in the
-            # underlying addrevision would be useful however this is a bit too
-            # intrusive the for the "quick" issue6528 we are writing before the
-            # 5.8 release
-            textlen = mdiff.patchedsize(revlog.size(base_rev), d.delta)
+            if d.raw_text is None:
+                textlen = mdiff.patchedsize(revlog.size(base_rev), d.delta)
 
-            revinfo = revlogutils.revisioninfo(
-                d.node,
-                d.p1,
-                d.p2,
-                [None],
-                textlen,
-                (base_rev, d.delta),
-                d.flags,
-            )
-            return deltacomputer.buildtext(revinfo)
+                revinfo = revlogutils.revisioninfo(
+                    d.node,
+                    d.p1,
+                    d.p2,
+                    [None],
+                    textlen,
+                    (base_rev, d.delta),
+                    d.flags,
+                )
+                d.raw_text = deltacomputer.buildtext(revinfo)
+            return d.raw_text
 
         is_affected = _is_revision_affected_fast_inner(
             is_censored,

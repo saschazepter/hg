@@ -113,3 +113,4 @@ class InboundRevision:
     flags = attr.ib()
     sidedata = attr.ib()
     protocol_flags = attr.ib(default=0)
+    raw_text = attr.ib(default=None)
