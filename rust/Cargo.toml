@@ -2,3 +2,6 @@
 members = ["hg-core", "hg-cpython", "hg-pyo3", "rhg", "pyo3-sharedref"]
 exclude = ["chg", "hgcli"]
 resolver = "2"
+
+[workspace.lints.clippy]
+or_fun_call = "deny"
