@@ -374,7 +374,9 @@ impl Revlog {
             nodemap
                 .find_bin(self.index(), node)
                 .map_err(|err| (err, format!("{:x}", node)))?
-                .ok_or(RevlogError::InvalidRevision(format!("{:x}", node)))
+                .ok_or_else(|| {
+                    RevlogError::InvalidRevision(format!("{:x}", node))
+                })
         } else {
             self.index().rev_from_node_no_persistent_nodemap(node)
         }
