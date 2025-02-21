@@ -367,17 +367,16 @@ def _debugchangegroup(ui, gen, all=None, indent=0, **opts):
         def showchunks(named):
             ui.write(b"\n%s%s\n" % (indent_string, named))
             for deltadata in gen.deltaiter():
-                node, p1, p2, cs, deltabase, delta, flags, sidedata = deltadata
                 ui.write(
                     b"%s%s %s %s %s %s %d\n"
                     % (
                         indent_string,
-                        hex(node),
-                        hex(p1),
-                        hex(p2),
-                        hex(cs),
-                        hex(deltabase),
-                        len(delta),
+                        hex(deltadata.node),
+                        hex(deltadata.p1),
+                        hex(deltadata.p2),
+                        hex(deltadata.link_node),
+                        hex(deltadata.delta_base),
+                        len(deltadata.delta),
                     )
                 )
 
@@ -393,8 +392,7 @@ def _debugchangegroup(ui, gen, all=None, indent=0, **opts):
             raise error.Abort(_(b'use debugbundle2 for this file'))
         gen.changelogheader()
         for deltadata in gen.deltaiter():
-            node, p1, p2, cs, deltabase, delta, flags, sidedata = deltadata
-            ui.write(b"%s%s\n" % (indent_string, hex(node)))
+            ui.write(b"%s%s\n" % (indent_string, hex(deltadata.node)))
 
 
 def _debugobsmarkers(ui, part, indent=0, **opts):

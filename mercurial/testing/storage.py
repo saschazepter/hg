@@ -16,6 +16,7 @@ from ..node import (
 from .. import (
     error,
     mdiff,
+    revlogutils,
 )
 from ..interfaces import repository
 from ..utils import storageutil
@@ -1158,7 +1159,9 @@ class ifilemutationtests(basetestcase):
         f = self._makefilefn()
 
         deltas = [
-            (node0, f.nullid, f.nullid, f.nullid, f.nullid, delta0, 0, {}),
+            revlogutils.InboundRevision(
+                node0, f.nullid, f.nullid, f.nullid, f.nullid, delta0, 0, {}, 0
+            ),
         ]
 
         with self._maketransactionfn() as tr:
@@ -1215,7 +1218,16 @@ class ifilemutationtests(basetestcase):
             delta = mdiff.trivialdiffheader(len(fulltext)) + fulltext
 
             deltas.append(
-                (nodes[i], f.nullid, f.nullid, f.nullid, f.nullid, delta, 0, {})
+                revlogutils.InboundRevision(
+                    nodes[i],
+                    f.nullid,
+                    f.nullid,
+                    f.nullid,
+                    f.nullid,
+                    delta,
+                    0,
+                    {},
+                )
             )
 
         with self._maketransactionfn() as tr:
@@ -1265,7 +1277,17 @@ class ifilemutationtests(basetestcase):
 
         delta = mdiff.textdiff(b'bar\n' * 30, (b'bar\n' * 30) + b'baz\n')
         deltas = [
-            (b'\xcc' * 20, node1, f.nullid, b'\x01' * 20, node1, delta, 0, {})
+            revlogutils.InboundRevision(
+                b'\xcc' * 20,
+                node1,
+                f.nullid,
+                b'\x01' * 20,
+                node1,
+                delta,
+                0,
+                {},
+                0,
+            )
         ]
 
         with self._maketransactionfn() as tr:

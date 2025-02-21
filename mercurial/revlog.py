@@ -3509,7 +3509,7 @@ class revlog:
 
     def addgroup(
         self,
-        deltas,
+        deltas: Iterator[revlogutils.InboundRevision],
         linkmapper,
         transaction,
         alwayscache=False,
@@ -3557,16 +3557,16 @@ class revlog:
                 )
                 # loop through our set of deltas
                 for data in deltas:
-                    (
-                        node,
-                        p1,
-                        p2,
-                        linknode,
-                        deltabase,
-                        delta,
-                        flags,
-                        sidedata,
-                    ) = data
+                    # XXX we can probably use the `data.XXX` version inline for
+                    # most of them.
+                    node = data.node
+                    p1 = data.p1
+                    p2 = data.p2
+                    linknode = data.link_node
+                    deltabase = data.delta_base
+                    delta = data.delta
+                    flags = data.flags
+                    sidedata = data.sidedata
                     link = linkmapper(linknode)
                     flags = flags or REVIDX_DEFAULT_FLAGS
 
