@@ -762,16 +762,14 @@ def filter_delta_issue6528(revlog, deltas_iter):
     deltacomputer = deltas.deltacomputer(revlog)
 
     for rev, d in enumerate(deltas_iter, len(revlog)):
-        (
-            node,
-            p1_node,
-            p2_node,
-            linknode,
-            deltabase,
-            delta,
-            flags,
-            sidedata,
-        ) = d
+        node = d.node
+        p1_node = d.p1
+        p2_node = d.p2
+        linknode = d.link_node
+        deltabase = d.delta_base
+        delta = d.delta
+        flags = d.flags
+        sidedata = d.sidedata
 
         if not revlog.index.has_node(deltabase):
             raise error.LookupError(
@@ -819,16 +817,7 @@ def filter_delta_issue6528(revlog, deltas_iter):
             metadata_cache,
         )
         if is_affected:
-            d = (
-                node,
-                p2_node,
-                p1_node,
-                linknode,
-                deltabase,
-                delta,
-                flags,
-                sidedata,
-            )
+            d.p2, d.p1 = d.p1, d.p2
         yield d
 
 

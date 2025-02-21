@@ -234,7 +234,7 @@ def addchangegroupfiles(
             if not revisiondata:
                 break
 
-            chain = revisiondata[0]
+            chain = revisiondata.node
 
             revisiondatas[(f, chain)] = revisiondata
             queue.append((f, chain))
@@ -268,7 +268,7 @@ def addchangegroupfiles(
     for f, node in queue:
         revisiondata = revisiondatas[(f, node)]
         # revisiondata: (node, p1, p2, cs, deltabase, delta, flags, sdata, pfl)
-        dependents = [revisiondata[1], revisiondata[2], revisiondata[4]]
+        dependents = [revisiondata.p1, revisiondata.p2, revisiondata.delta_base]
 
         for dependent in dependents:
             if dependent == repo.nullid or (f, dependent) in revisiondatas:
@@ -292,17 +292,15 @@ def addchangegroupfiles(
 
         revisiondata = revisiondatas[(f, node)]
         # revisiondata: (node, p1, p2, cs, deltabase, delta, flags, sdata, pfl)
-        (
-            node,
-            p1,
-            p2,
-            linknode,
-            deltabase,
-            delta,
-            flags,
-            sidedata,
-            proto_flags,
-        ) = revisiondata
+        node = revisiondata.node
+        p1 = revisiondata.p1
+        p2 = revisiondata.p2
+        linknode = revisiondata.link_node
+        deltabase = revisiondata.delta_base
+        delta = revisiondata.delta
+        flags = revisiondata.flags
+        sidedata = revisiondata.sidedata
+        proto_flags = revisiondata.protocol_flags
 
         if not available(f, node, f, deltabase):
             continue

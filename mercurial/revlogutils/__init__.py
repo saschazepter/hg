@@ -89,3 +89,27 @@ class revisioninfo:
     textlen = attr.ib()
     cachedelta = attr.ib()
     flags = attr.ib()
+
+
+@attr.s(slots=True)
+class InboundRevision:
+    """Data retrieved for a changegroup like data (used in revlog.addgroup)
+    node:        the revision node
+    p1, p2:      the parents (as node)
+    linknode:    the linkrev information
+    delta_base:  the node to which apply the delta informaiton
+    data:        the data from the revision
+    flags:       revision flags
+    sidedata:    sidedata for the revision
+    proto_flags: protocol related flag affecting this revision
+    """
+
+    node = attr.ib()
+    p1 = attr.ib()
+    p2 = attr.ib()
+    link_node = attr.ib()
+    delta_base = attr.ib()
+    delta = attr.ib()
+    flags = attr.ib()
+    sidedata = attr.ib()
+    protocol_flags = attr.ib(default=0)

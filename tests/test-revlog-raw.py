@@ -7,6 +7,7 @@ import sys
 from mercurial import (
     encoding,
     revlog,
+    revlogutils,
     transaction,
     vfs,
 )
@@ -160,32 +161,22 @@ def addgroupcopy(rlog, tr, destname=b'_destrevlog', optimaldelta=True):
                 deltaparent = min(0, parentrev)
             if not rlog._candelta(deltaparent, r):
                 deltaparent = -1
-            return {
-                b'node': rlog.node(r),
-                b'p1': pnode,
-                b'p2': rlog.nullid,
-                b'cs': rlog.node(rlog.linkrev(r)),
-                b'flags': rlog.flags(r),
-                b'deltabase': rlog.node(deltaparent),
-                b'delta': rlog.revdiff(deltaparent, r),
-                b'sidedata': rlog.sidedata(r),
-            }
+            return revlogutils.InboundRevision(
+                node=rlog.node(r),
+                p1=pnode,
+                p2=rlog.nullid,
+                link_node=rlog.node(rlog.linkrev(r)),
+                flags=rlog.flags(r),
+                delta_base=rlog.node(deltaparent),
+                delta=rlog.revdiff(deltaparent, r),
+                sidedata=rlog.sidedata(r),
+            )
 
         def deltaiter(self):
             chain = None
             for chunkdata in iter(lambda: self.deltachunk(chain), {}):
-                node = chunkdata[b'node']
-                p1 = chunkdata[b'p1']
-                p2 = chunkdata[b'p2']
-                cs = chunkdata[b'cs']
-                deltabase = chunkdata[b'deltabase']
-                delta = chunkdata[b'delta']
-                flags = chunkdata[b'flags']
-                sidedata = chunkdata[b'sidedata']
-
-                chain = node
-
-                yield (node, p1, p2, cs, deltabase, delta, flags, sidedata)
+                chain = chunkdata.node
+                yield chunkdata
 
     def linkmap(lnode):
         return rlog.rev(lnode)

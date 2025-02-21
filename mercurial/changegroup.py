@@ -11,6 +11,8 @@ import os
 import struct
 import weakref
 
+from typing import Iterator, Optional
+
 from .i18n import _
 from .node import (
     hex,
@@ -25,6 +27,7 @@ from . import (
     phases,
     pycompat,
     requirements,
+    revlogutils,
     scmutil,
     util,
 )
@@ -355,8 +358,9 @@ class cg1unpacker:
         protocol_flags = 0
         return node, p1, p2, deltabase, cs, flags, protocol_flags
 
-    def deltachunk(self, prevnode):
-        # Chunkdata: (node, p1, p2, cs, deltabase, delta, flags, sidedata, proto_flags)
+    def deltachunk(
+        self, prevnode: bytes
+    ) -> Optional[revlogutils.InboundRevision]:
         l = self._chunklength()
         if not l:
             return None
@@ -365,7 +369,17 @@ class cg1unpacker:
         delta = readexactly(self._stream, l - self.deltaheadersize)
         header = self._deltaheader(header, prevnode)
         node, p1, p2, deltabase, cs, flags, protocol_flags = header
-        return node, p1, p2, cs, deltabase, delta, flags, {}, protocol_flags
+        return revlogutils.InboundRevision(
+            node,
+            p1,
+            p2,
+            cs,
+            deltabase,
+            delta,
+            flags,
+            {},
+            protocol_flags,
+        )
 
     def getchunks(self):
         """returns all the chunks contains in the bundle
@@ -768,7 +782,7 @@ class cg1unpacker:
             ret = deltaheads + 1
         return ret
 
-    def deltaiter(self):
+    def deltaiter(self) -> Iterator[revlogutils.InboundRevision]:
         """
         returns an iterator of the deltas in this changegroup
 
@@ -776,8 +790,8 @@ class cg1unpacker:
         """
         chain = None
         for chunkdata in iter(lambda: self.deltachunk(chain), None):
-            yield chunkdata[:8]
-            chain = chunkdata[0]
+            yield chunkdata
+            chain = chunkdata.node
 
 
 class cg2unpacker(cg1unpacker):
@@ -866,40 +880,18 @@ class cg5unpacker(cg3unpacker):
         protocol_flags, node, p1, p2, deltabase, cs, flags = headertuple
         return node, p1, p2, deltabase, cs, flags, protocol_flags
 
-    def deltachunk(self, prevnode):
+    def deltachunk(
+        self, prevnode: bytes
+    ) -> Optional[revlogutils.InboundRevision]:
         res = super().deltachunk(prevnode)
         if res is None:
             return res
+        assert not res.sidedata
 
-        (
-            node,
-            p1,
-            p2,
-            cs,
-            deltabase,
-            delta,
-            flags,
-            sidedata,
-            protocol_flags,
-        ) = res
-        assert not sidedata
-
-        sidedata = {}
-        if protocol_flags & storageutil.CG_FLAG_SIDEDATA:
+        if res.protocol_flags & storageutil.CG_FLAG_SIDEDATA:
             sidedata_raw = getchunk(self._stream)
-            sidedata = sidedatamod.deserialize_sidedata(sidedata_raw)
-
-        return (
-            node,
-            p1,
-            p2,
-            cs,
-            deltabase,
-            delta,
-            flags,
-            sidedata,
-            protocol_flags,
-        )
+            res.sidedata = sidedatamod.deserialize_sidedata(sidedata_raw)
+        return res
 
 
 class headerlessfixup:
