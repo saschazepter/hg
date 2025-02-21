@@ -762,28 +762,19 @@ def filter_delta_issue6528(revlog, deltas_iter):
     deltacomputer = deltas.deltacomputer(revlog)
 
     for rev, d in enumerate(deltas_iter, len(revlog)):
-        node = d.node
-        p1_node = d.p1
-        p2_node = d.p2
-        linknode = d.link_node
-        deltabase = d.delta_base
-        delta = d.delta
-        flags = d.flags
-        sidedata = d.sidedata
-
-        if not revlog.index.has_node(deltabase):
+        if not revlog.index.has_node(d.delta_base):
             raise error.LookupError(
-                deltabase, revlog.radix, _(b'unknown parent')
+                d.delta_base, revlog.radix, _(b'unknown parent')
             )
-        base_rev = revlog.rev(deltabase)
-        if not revlog.index.has_node(p1_node):
-            raise error.LookupError(p1_node, revlog.radix, _(b'unknown parent'))
-        p1_rev = revlog.rev(p1_node)
-        if not revlog.index.has_node(p2_node):
-            raise error.LookupError(p2_node, revlog.radix, _(b'unknown parent'))
-        p2_rev = revlog.rev(p2_node)
+        base_rev = revlog.rev(d.delta_base)
+        if not revlog.index.has_node(d.p1):
+            raise error.LookupError(d.p1, revlog.radix, _(b'unknown parent'))
+        p1_rev = revlog.rev(d.p1)
+        if not revlog.index.has_node(d.p2):
+            raise error.LookupError(d.p2, revlog.radix, _(b'unknown parent'))
+        p2_rev = revlog.rev(d.p2)
 
-        is_censored = lambda: bool(flags & REVIDX_ISCENSORED)
+        is_censored = lambda: bool(d.flags & REVIDX_ISCENSORED)
         delta_base = lambda: base_rev
         parent_revs = lambda: (p1_rev, p2_rev)
         deltabase_parentrevs = lambda: revlog.parentrevs(base_rev)
@@ -793,23 +784,23 @@ def filter_delta_issue6528(revlog, deltas_iter):
             # underlying addrevision would be useful however this is a bit too
             # intrusive the for the "quick" issue6528 we are writing before the
             # 5.8 release
-            textlen = mdiff.patchedsize(revlog.size(base_rev), delta)
+            textlen = mdiff.patchedsize(revlog.size(base_rev), d.delta)
 
             revinfo = revlogutils.revisioninfo(
-                node,
-                p1_node,
-                p2_node,
+                d.node,
+                d.p1,
+                d.p2,
                 [None],
                 textlen,
-                (base_rev, delta),
-                flags,
+                (base_rev, d.delta),
+                d.flags,
             )
             return deltacomputer.buildtext(revinfo)
 
         is_affected = _is_revision_affected_fast_inner(
             is_censored,
             delta_base,
-            lambda: delta,
+            lambda: d.delta,
             full_text,
             parent_revs,
             deltabase_parentrevs,
