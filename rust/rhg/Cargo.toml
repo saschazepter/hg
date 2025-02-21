@@ -7,6 +7,9 @@ authors = [
 ]
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 hg-core = { path = "../hg-core"}
 chrono = "0.4.23"

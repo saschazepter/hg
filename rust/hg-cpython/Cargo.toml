@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Georges Racinet <gracinet@anybox.fr>"]
 edition = "2021"
 
+[lints]
+workspace = true
+
 [lib]
 name='rusthg'
 crate-type = ["cdylib"]
