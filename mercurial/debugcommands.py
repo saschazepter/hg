@@ -42,6 +42,7 @@ from . import (
     context,
     copies,
     dagparser,
+    demandimport,
     dirstateutils,
     encoding,
     error,
@@ -3817,15 +3818,51 @@ def debugsub(ui, repo, rev=None):
 def debugshell(ui, repo, **opts):
     """run an interactive Python interpreter
 
-    The local namespace is provided with a reference to the ui and
-    the repo instance (if available).
+    The local namespace is provided with a reference to the ui and the repo
+    instance (if available).
+
+    If `ui.debugger` is configured to be `ipdb`, an IPython shell will be used
+    instead of the standard Python shell.
     """
     import code
 
     imported_objects = {
         'ui': ui,
-        'repo': repo,
+        # Import some useful utilities.
+        'hex': hex,
+        'bin': bin,
     }
+
+    if repo:
+        imported_objects['repo'] = repo
+        imported_objects['cl'] = repo.changelog
+        imported_objects['mf'] = repo.manifestlog
+
+    # Import the `mercurial` module.
+    srcpath = "(unknown)"
+    if __package__:
+        mercurial = __import__(__package__)
+        imported_objects['m'] = mercurial
+        if mercurial.__path__:
+            srcpath = mercurial.__path__[0]
+
+    # Import native extensions (if available).
+    try:
+        from . import cext
+
+        imported_objects['cext'] = cext
+    except ImportError:
+        cext = None
+    try:
+        from . import pyo3_rustext as rustext
+
+        imported_objects['rustext'] = rustext
+    except ImportError:
+        rustext = None
+
+    # Import a few handy standard library modules.
+    for name in ['os', 'sys', 'subprocess', 're']:
+        imported_objects[name] = __import__(name)
 
     # py2exe disables initialization of the site module, which is responsible
     # for arranging for ``quit()`` to exit the interpreter.  Manually initialize
@@ -3848,7 +3885,48 @@ def debugshell(ui, repo, **opts):
         code.InteractiveInterpreter(locals=imported_objects).runcode(compiled)
         return
 
-    code.interact(local=imported_objects)
+    reporoot = (
+        encoding.strfromlocal(repo.root) if repo and repo.root else "(none)"
+    )
+    bannermsg = (
+        f"Loaded repo: {reporoot}\n"
+        f"Using source: {srcpath}\n"
+        "\nModules:\n"
+        "  m: the mercurial module\n"
+    )
+    if cext:
+        bannermsg += "  cext: native C extensions\n"
+    if rustext:
+        bannermsg += "  rustext: native Rust extensions\n"
+    bannermsg += "\nObjects:\n  ui: the ui object\n"
+    if repo:
+        bannermsg += (
+            "  repo: the repo object\n"
+            "  cl: repo.changelog\n"
+            "  mf: repo.manifestlog\n"
+        )
+    bannermsg += (
+        "\nUtilities:\n"
+        "  hex: binascii.hexlify\n"
+        "  bin: binascii.unhexlify\n"
+    )
+
+    if ui.config(b"ui", b"debugger") == b"ipdb":
+        try:
+            # IPython is incompatible with demandimport.
+            with demandimport.deactivated():
+                import IPython
+
+            globals().update(imported_objects)
+            IPython.embed(header=bannermsg)
+            return
+        except ImportError:
+            ui.warnnoi18n(
+                b"IPython module not found, "
+                b"falling back to standard Python shell\n\n"
+            )
+
+    code.interact(bannermsg, local=imported_objects)
 
 
 @command(
