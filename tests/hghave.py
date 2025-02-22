@@ -1028,65 +1028,6 @@ def has_extraextensions():
     return 'HGTESTEXTRAEXTENSIONS' in os.environ
 
 
-def getrepofeatures():
-    """Obtain set of repository features in use.
-
-    HGREPOFEATURES can be used to define or remove features. It contains
-    a space-delimited list of feature strings. Strings beginning with ``-``
-    mean to remove.
-    """
-    # Default list provided by core.
-    features = {
-        'bundlerepo',
-        'revlogstore',
-        'fncache',
-    }
-
-    # Features that imply other features.
-    implies = {
-        'simplestore': ['-revlogstore', '-bundlerepo', '-fncache'],
-    }
-
-    for override in os.environ.get('HGREPOFEATURES', '').split(' '):
-        if not override:
-            continue
-
-        if override.startswith('-'):
-            if override[1:] in features:
-                features.remove(override[1:])
-        else:
-            features.add(override)
-
-            for imply in implies.get(override, []):
-                if imply.startswith('-'):
-                    if imply[1:] in features:
-                        features.remove(imply[1:])
-                else:
-                    features.add(imply)
-
-    return features
-
-
-@check('reporevlogstore', 'repository using the default revlog store')
-def has_reporevlogstore():
-    return 'revlogstore' in getrepofeatures()
-
-
-@check('reposimplestore', 'repository using simple storage extension')
-def has_reposimplestore():
-    return 'simplestore' in getrepofeatures()
-
-
-@check('repobundlerepo', 'whether we can open bundle files as repos')
-def has_repobundlerepo():
-    return 'bundlerepo' in getrepofeatures()
-
-
-@check('repofncache', 'repository has an fncache')
-def has_repofncache():
-    return 'fncache' in getrepofeatures()
-
-
 @check('dirstate-v2', 'using the v2 format of .hg/dirstate')
 def has_dirstate_v2():
     # Keep this logic in sync with `newreporequirements()` in `mercurial/localrepo.py`
