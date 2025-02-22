@@ -406,4 +406,60 @@ Test uncopy on committed copies
   bleah
   dirty
 
+  $ hg root
+  $TESTTMP/part2
   $ cd ..
+
+# This should survive push and pull with both changegroup3 and changegroup 4
+
+  $ hg clone --pull part1 clone1-cg3 --quiet --config experimental.changegroup4=no
+  $ hg -R clone1-cg3 status --copies --change 0
+  A a
+  $ hg -R clone1-cg3 status --copies --change 1
+  A b
+    a
+
+  $ hg clone --pull part2 clone2-cg3 --quiet --config experimental.changegroup4=no
+  $ hg -R clone2-cg3 status --copies --change 5
+  A baz
+  A qux
+    bar
+  $ hg -R clone2-cg3 status --copies --change 4
+  A dir/bar
+  A dir/foo
+  $ hg -R clone2-cg3 status --copies --change 3
+  M bar
+  $ hg -R clone2-cg3 status --copies --change 2
+  M bar
+  M foo
+  $ hg -R clone2-cg3 status --copies --change 1
+  A bar
+    foo
+  $ hg -R clone2-cg3 status --copies --change 0
+  A foo
+
+  $ hg clone --pull part1 clone1-cg4 --config experimental.changegroup4=yes --quiet
+  $ hg -R clone1-cg4 status --copies --change 0
+  A a
+  $ hg -R clone1-cg4 status --copies --change 1
+  A b
+    a
+
+  $ hg clone --pull part2 clone2-cg4 --config experimental.changegroup4=yes --quiet
+  $ hg -R clone2-cg4 status --copies --change 5
+  A baz
+  A qux
+    bar
+  $ hg -R clone2-cg4 status --copies --change 4
+  A dir/bar
+  A dir/foo
+  $ hg -R clone2-cg4 status --copies --change 3
+  M bar
+  $ hg -R clone2-cg4 status --copies --change 2
+  M bar
+  M foo
+  $ hg -R clone2-cg4 status --copies --change 1
+  A bar
+    foo
+  $ hg -R clone2-cg4 status --copies --change 0
+  A foo
