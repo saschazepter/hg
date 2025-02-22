@@ -313,6 +313,30 @@ class sharesafe(requirementformatvariant):
 
 
 @registerformatvariant
+class hasmeta_filelog(requirementformatvariant):
+    name = b'hasmeta_flag'
+
+    _requirement = requirements.FILELOG_METAFLAG_REQUIREMENT
+
+    default = False
+
+    description = _(
+        b'copy metadata in filelog uses a fragile marking and some cases '
+        b'require unpacking file content to determine if copy information '
+        b'exists.'
+    )
+
+    upgrademessage = _(
+        b'A dedicated index flag marks file revisions with copy information.'
+    )
+
+    # upgrade only needs to change the requirements
+    touches_filelogs = True
+    touches_manifests = False
+    touches_changelog = False
+
+
+@registerformatvariant
 class sparserevlog(requirementformatvariant):
     name = b'sparserevlog'
 
@@ -1029,6 +1053,7 @@ def supportremovedrequirements(repo):
         requirements.REVLOGV1_REQUIREMENT,
         requirements.DIRSTATE_TRACKED_HINT_V1,
         requirements.DIRSTATE_V2_REQUIREMENT,
+        requirements.FILELOG_METAFLAG_REQUIREMENT,
     }
     for name in compression.compengines:
         engine = compression.compengines[name]
@@ -1053,6 +1078,7 @@ def supporteddestrequirements(repo):
         requirements.DIRSTATE_TRACKED_HINT_V1,
         requirements.DIRSTATE_V2_REQUIREMENT,
         requirements.DOTENCODE_REQUIREMENT,
+        requirements.FILELOG_METAFLAG_REQUIREMENT,
         requirements.FNCACHE_REQUIREMENT,
         requirements.GENERALDELTA_REQUIREMENT,
         requirements.NODEMAP_REQUIREMENT,
@@ -1086,6 +1112,7 @@ def allowednewrequirements(repo):
     """
     supported = {
         requirements.DOTENCODE_REQUIREMENT,
+        requirements.FILELOG_METAFLAG_REQUIREMENT,
         requirements.FNCACHE_REQUIREMENT,
         requirements.GENERALDELTA_REQUIREMENT,
         requirements.SPARSEREVLOG_REQUIREMENT,
