@@ -291,6 +291,7 @@ class cg1unpacker:
     _grouplistcount = 1  # One list of files after the manifests
 
     has_censor_flag = False
+    has_filelog_hasmeta_flag = False
 
     def __init__(self, fh, alg, extras=None):
         if alg is None:
@@ -382,6 +383,7 @@ class cg1unpacker:
             {},
             protocol_flags,
             has_censor_flag=self.has_censor_flag,
+            has_filelog_hasmeta_flag=self.has_filelog_hasmeta_flag,
         )
 
     def getchunks(self):
@@ -657,6 +659,10 @@ class cg1unpacker:
                 addrevisioncb=on_filelog_rev,
                 debug_info=debug_info,
                 delta_base_reuse_policy=delta_base_reuse_policy,
+                # this is useful to pass it to the addchangegroupfiles
+                # explicitly to help the filelog to decide weither or not to
+                # pre-process the data.
+                use_hasmeta_flag=self.has_filelog_hasmeta_flag,
             )
 
             if sidedata_helpers:
@@ -874,8 +880,10 @@ class cg3unpacker(cg2unpacker):
 class cg4unpacker(cg3unpacker):
     """Changegroup 4 support more advanced flag for each delta.
 
-    (no new flags actually supported yet)
+    - "hasmeta" flag for filelog
     """
+
+    has_filelog_hasmeta_flag = True
 
 
 class cg5unpacker(cg3unpacker):
@@ -1085,6 +1093,7 @@ def deltagroup(
     precomputedellipsis=None,
     sidedata_helpers=None,
     debug_info=None,
+    filelog_hasmeta=False,
 ):
     """Calculate deltas for a set of revisions.
 
@@ -1095,6 +1104,8 @@ def deltagroup(
 
     See `revlogutil.sidedata.get_sidedata_helpers` for the doc on
     `sidedata_helpers`.
+
+    if filelog_hasmeta is set, rely of the REVIDX_HASMETA flag to indicate metadata.
     """
     if not nodes:
         return
@@ -1187,6 +1198,10 @@ def deltagroup(
     elif configtarget == b'full':
         deltamode = repository.CG_DELTAMODE_FULL
 
+    kwargs = {}
+    if filelog_hasmeta:
+        kwargs["use_hasmeta_flag"] = True
+
     revisions = store.emitrevisions(
         nodes,
         nodesorder=nodesorder,
@@ -1195,6 +1210,7 @@ def deltagroup(
         deltamode=deltamode,
         sidedata_helpers=sidedata_helpers,
         debug_info=debug_info,
+        **kwargs,
     )
 
     for i, revision in enumerate(revisions):
@@ -1417,6 +1433,7 @@ class cgpacker:
         ellipsisroots=None,
         fullnodes=None,
         remote_sidedata=None,
+        filelog_hasmeta=False,
     ):
         """Given a source repo, construct a bundler.
 
@@ -1451,6 +1468,9 @@ class cgpacker:
         significantly smaller.
 
         remote_sidedata is the set of sidedata categories wanted by the remote.
+
+        filelog_hasmeta: when true, set the has_meta flag when appropriate
+        (instead of relying on parent order).
         """
         assert oldmatcher
         assert matcher
@@ -1462,6 +1482,7 @@ class cgpacker:
         self._builddeltaheader = builddeltaheader
         self._manifestsend = manifestsend
         self._ellipses = ellipses
+        self._filelog_hasmeta = filelog_hasmeta
 
         # Set of capabilities we can use to build the bundle.
         if bundlecaps is None:
@@ -2029,6 +2050,7 @@ class cgpacker:
                 precomputedellipsis=self._precomputedellipsis,
                 sidedata_helpers=sidedata_helpers,
                 debug_info=debug_info,
+                filelog_hasmeta=self._filelog_hasmeta,
             )
 
             yield fname, deltas
@@ -2160,6 +2182,7 @@ def _makecg4packer(
         shallow=shallow,
         ellipsisroots=ellipsisroots,
         fullnodes=fullnodes,
+        filelog_hasmeta=True,
     )
 
 
@@ -2209,7 +2232,7 @@ _packermap = {
     b'02': (_makecg2packer, cg2unpacker),
     # cg3 adds support for exchanging revlog flags and treemanifests
     b'03': (_makecg3packer, cg3unpacker),
-    # cg4 adds support for exchanging more advances flags (none new yet)
+    # cg4 adds support for exchanging more advances flags
     b'04': (_makecg4packer, cg4unpacker),
     # ch5 adds support for exchanging sidedata
     b'05': (_makecg5packer, cg5unpacker),
@@ -2432,6 +2455,7 @@ def _addchangegroupfiles(
     addrevisioncb=None,
     debug_info=None,
     delta_base_reuse_policy=None,
+    use_hasmeta_flag=False,
 ):
     revisions = 0
     files = 0
@@ -2454,6 +2478,7 @@ def _addchangegroupfiles(
                 addrevisioncb=addrevisioncb,
                 debug_info=debug_info,
                 delta_base_reuse_policy=delta_base_reuse_policy,
+                use_hasmeta_flag=use_hasmeta_flag,
             )
             if not added:
                 raise error.Abort(_(b"received file revlog group is empty"))

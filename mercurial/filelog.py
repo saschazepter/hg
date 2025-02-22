@@ -130,8 +130,9 @@ class filelog(repository.ifilestorage):
         deltamode=repository.CG_DELTAMODE_STD,
         sidedata_helpers=None,
         debug_info=None,
+        use_hasmeta_flag=False,
     ):
-        return self._revlog.emitrevisions(
+        all_revision_data = self._revlog.emitrevisions(
             nodes,
             nodesorder=nodesorder,
             revisiondata=revisiondata,
@@ -140,6 +141,21 @@ class filelog(repository.ifilestorage):
             sidedata_helpers=sidedata_helpers,
             debug_info=debug_info,
         )
+        if not use_hasmeta_flag:
+            yield from all_revision_data
+        else:
+            for d in all_revision_data:
+                # XXX this is going to be very slow, but this get the format
+                # rolling, it need to be taken care of before getting out of
+                # experimental.
+                #
+                # XXX we should use "rev" for faster lookup
+                # (or better have emit revision yield the right data)
+                if self.has_meta(d.node):
+                    if d.p1node == self.nullid and d.p2node != self.nullid:
+                        d.p1node, d.p2node = d.p2node, d.p1node
+                    d.flags |= revlog_constants.REVIDX_HASMETA
+                yield d
 
     def addrevision(
         self,
@@ -178,6 +194,7 @@ class filelog(repository.ifilestorage):
         maybemissingparents=False,
         debug_info=None,
         delta_base_reuse_policy=None,
+        use_hasmeta_flag=True,
     ):
         if maybemissingparents:
             raise error.Abort(
@@ -188,7 +205,9 @@ class filelog(repository.ifilestorage):
             )
 
         with self._revlog._writing(transaction):
-            if self._fix_issue6528:
+            if use_hasmeta_flag:
+                deltas = self._hasmeta_group_to_old_format(deltas)
+            elif self._fix_issue6528:
                 deltas = rewrite.filter_delta_issue6528(self._revlog, deltas)
 
             return self._revlog.addgroup(
@@ -200,6 +219,22 @@ class filelog(repository.ifilestorage):
                 debug_info=debug_info,
                 delta_base_reuse_policy=delta_base_reuse_policy,
             )
+
+    def _hasmeta_group_to_old_format(self, deltas_iter):
+        """translate a group of delta with "hasmeta" information to old format
+
+        If the format does not support the "REVIDX_HASMETA" flag, we need to
+        store them differently.
+
+        This direction is fairly easy, we just need to drop the flag and use
+        "nullid" for p1 when relevant.
+        """
+        for d in deltas_iter:
+            if d.flags & revlog_constants.REVIDX_HASMETA:
+                d.flags &= ~revlog_constants.REVIDX_HASMETA
+                if d.p1 == self.nullid and d.p2 != self.nullid:
+                    d.p1, d.p2 = d.p2, d.p1
+            yield d
 
     def getstrippoint(self, minlink):
         return self._revlog.getstrippoint(minlink)
