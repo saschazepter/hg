@@ -464,9 +464,7 @@ Excludes with a glob should not exclude everything from the glob's root
 
 Test files for a subdirectory.
 
-#if reporevlogstore
   $ rm -r .hg/store/meta/~2e_a
-#endif
 #if reposimplestore
   $ rm -r .hg/store/meta/._a
 #endif
@@ -485,9 +483,7 @@ Test files for a subdirectory.
 
 Test files with just includes and excludes.
 
-#if reporevlogstore
   $ rm -r .hg/store/meta/~2e_a
-#endif
 #if reposimplestore
   $ rm -r .hg/store/meta/._a
 #endif
@@ -502,9 +498,7 @@ Test files with just includes and excludes.
 
 Test files for a subdirectory, excluding a directory within it.
 
-#if reporevlogstore
   $ rm -r .hg/store/meta/~2e_a
-#endif
 #if reposimplestore
   $ rm -r .hg/store/meta/._a
 #endif
@@ -523,9 +517,7 @@ Test files for a subdirectory, excluding a directory within it.
 Test files for a sub directory, including only a directory within it, and
 including an unrelated directory.
 
-#if reporevlogstore
   $ rm -r .hg/store/meta/~2e_a
-#endif
 #if reposimplestore
   $ rm -r .hg/store/meta/._a
 #endif
@@ -542,9 +534,7 @@ including an unrelated directory.
 Test files for a pattern, including a directory, and excluding a directory
 within that.
 
-#if reporevlogstore
   $ rm -r .hg/store/meta/~2e_a
-#endif
 #if reposimplestore
   $ rm -r .hg/store/meta/._a
 #endif
@@ -610,12 +600,12 @@ Verify reports missing dirlog
    b/@1: parent-directory manifest refers to unknown revision f065da70369e
    b/@2: parent-directory manifest refers to unknown revision ac0d30948e0b
    b/@3: parent-directory manifest refers to unknown revision 367152e6af28
-  warning: orphan data file 'meta/b/bar/00manifest.i' (reporevlogstore !)
-  warning: orphan data file 'meta/b/bar/orange/00manifest.i' (reporevlogstore !)
-  warning: orphan data file 'meta/b/bar/orange/fly/00manifest.i' (reporevlogstore !)
-  warning: orphan data file 'meta/b/foo/00manifest.i' (reporevlogstore !)
-  warning: orphan data file 'meta/b/foo/apple/00manifest.i' (reporevlogstore !)
-  warning: orphan data file 'meta/b/foo/apple/bees/00manifest.i' (reporevlogstore !)
+  warning: orphan data file 'meta/b/bar/00manifest.i'
+  warning: orphan data file 'meta/b/bar/orange/00manifest.i'
+  warning: orphan data file 'meta/b/bar/orange/fly/00manifest.i'
+  warning: orphan data file 'meta/b/foo/00manifest.i'
+  warning: orphan data file 'meta/b/foo/apple/00manifest.i'
+  warning: orphan data file 'meta/b/foo/apple/bees/00manifest.i'
   crosschecking files in changesets and manifests
    b/bar/fruits.txt@0: in changeset but not in manifest
    b/bar/orange/fly/gnat.py@0: in changeset but not in manifest
@@ -624,7 +614,7 @@ Verify reports missing dirlog
   checking files
   not checking dirstate because of previous errors
   checked 4 changesets with 18 changes to 8 files
-  6 warnings encountered! (reporevlogstore !)
+  6 warnings encountered!
   9 integrity errors encountered!
   (first damaged changeset appears to be 0)
   [1]
@@ -700,14 +690,13 @@ Tree manifest revlogs exist.
   deepclone/.hg/store/meta/b/foo/apple/00manifest.i
   deepclone/.hg/store/meta/b/foo/apple/bees
   deepclone/.hg/store/meta/b/foo/apple/bees/00manifest.i
-  deepclone/.hg/store/meta/~2e_a (reporevlogstore !)
-  deepclone/.hg/store/meta/~2e_a/00manifest.i (reporevlogstore !)
+  deepclone/.hg/store/meta/~2e_a
+  deepclone/.hg/store/meta/~2e_a/00manifest.i
 Verify passes.
   $ cd deepclone
   $ hg verify -q
   $ cd ..
 
-#if reporevlogstore
 Create clones using old repo formats to use in later tests
   $ hg clone --config format.usestore=False \
   >   --config experimental.changegroup3=True \
@@ -792,8 +781,6 @@ Packed bundle
   bundle requirements:.* treemanifest(,.*)? (re)
   $ hg debugbundle --spec repo-packed.hg
   none-packed1;requirements%3D(.*%2C)?treemanifest(%2C.*)? (re)
-
-#endif
 
 Bundle with changegroup2 is not supported
 

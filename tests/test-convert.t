@@ -534,8 +534,8 @@ contents of fncache file:
 
 #if repofncache
   $ cat b/.hg/store/fncache | sort
-  data/a.i (reporevlogstore !)
-  data/b.i (reporevlogstore !)
+  data/a.i
+  data/b.i
 #endif
 
 test bogus URL

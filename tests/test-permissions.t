@@ -1,4 +1,4 @@
-#require unix-permissions no-root reporevlogstore
+#require unix-permissions no-root
 
 #testcases dirstate-v1 dirstate-v2
 

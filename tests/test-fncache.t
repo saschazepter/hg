@@ -114,7 +114,7 @@ Non store repo:
   .hg/wcache/checkisexec (execbit !)
   .hg/wcache/checklink (symlink !)
   .hg/wcache/checklink-target (symlink !)
-  .hg/wcache/manifestfulltextcache (reporevlogstore !)
+  .hg/wcache/manifestfulltextcache
   $ cd ..
 
 Non fncache repo:
@@ -156,7 +156,7 @@ Non fncache repo:
   .hg/wcache/checkisexec (execbit !)
   .hg/wcache/checklink (symlink !)
   .hg/wcache/checklink-target (symlink !)
-  .hg/wcache/manifestfulltextcache (reporevlogstore !)
+  .hg/wcache/manifestfulltextcache
   $ cd ..
 
 Encoding of reserved / long paths in the store
