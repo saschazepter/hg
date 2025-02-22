@@ -1,4 +1,4 @@
-#require serve no-reposimplestore no-chg
+#require serve no-chg
 
 #testcases stream-legacy stream-bundle2-v2 stream-bundle2-v3
 

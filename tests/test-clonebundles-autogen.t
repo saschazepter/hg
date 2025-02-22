@@ -1,5 +1,5 @@
 
-#require no-reposimplestore no-chg
+#require no-chg
 
 initial setup
 

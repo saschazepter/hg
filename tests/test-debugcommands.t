@@ -130,7 +130,6 @@ Test debugindex, with and without the --verbose/--debug flag
      rev linkrev nodeid       p1           p2
        0       0 b789fdd96dc2 000000000000 000000000000
 
-#if no-reposimplestore
   $ hg --verbose debugrevlogindex a
      rev    offset  length linkrev nodeid       p1           p2
        0         0       3       0 b789fdd96dc2 000000000000 000000000000
@@ -138,13 +137,11 @@ Test debugindex, with and without the --verbose/--debug flag
   $ hg --debug debugrevlogindex a
      rev    offset  length linkrev nodeid                                   p1                                       p2
        0         0       3       0 b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 0000000000000000000000000000000000000000 0000000000000000000000000000000000000000
-#endif
 
   $ hg debugrevlogindex -f 1 a
      rev flag     size   link     p1     p2       nodeid
        0 0000        2      0     -1     -1 b789fdd96dc2
 
-#if no-reposimplestore
   $ hg --verbose debugrevlogindex -f 1 a
      rev flag   offset   length     size   link     p1     p2       nodeid
        0 0000        0        3        2      0     -1     -1 b789fdd96dc2
@@ -152,7 +149,6 @@ Test debugindex, with and without the --verbose/--debug flag
   $ hg --debug debugrevlogindex -f 1 a
      rev flag   offset   length     size   link     p1     p2                                   nodeid
        0 0000        0        3        2      0     -1     -1 b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3
-#endif
 
   $ hg debugindex -c
      rev linkrev       nodeid    p1-nodeid    p2-nodeid

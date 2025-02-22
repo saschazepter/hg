@@ -1,5 +1,3 @@
-#require no-reposimplestore
-
   $ hg clone http://localhost:$HGPORT/ copy
   abort: * (glob)
   [100]
