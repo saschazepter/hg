@@ -1,4 +1,4 @@
-#require no-reposimplestore no-chg
+#require no-chg
 
   $ hg init requirements
   $ cd requirements

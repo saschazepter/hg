@@ -1,5 +1,3 @@
-#require no-reposimplestore
-
 #testcases stream-v2 stream-v3
 #testcases threaded sequential
 

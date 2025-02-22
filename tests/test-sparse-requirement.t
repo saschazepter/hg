@@ -27,7 +27,6 @@ Enable sparse profile
   share-safe
   sparserevlog
   store
-  testonly-simplestore (reposimplestore !)
 
   $ hg debugsparse --config extensions.sparse= --enable-profile frontend.sparse
   $ ls -A
@@ -49,7 +48,6 @@ Requirement for sparse added when sparse is enabled
   share-safe
   sparserevlog
   store
-  testonly-simplestore (reposimplestore !)
 
 Client without sparse enabled reacts properly
 
@@ -72,7 +70,6 @@ Requirement for sparse is removed when sparse is disabled
   share-safe
   sparserevlog
   store
-  testonly-simplestore (reposimplestore !)
 
 And client without sparse can access
 

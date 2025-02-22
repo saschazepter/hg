@@ -106,7 +106,6 @@ Test link+rename largefile codepath
   share-safe
   sparserevlog
   store
-  testonly-simplestore (reposimplestore !)
 
 "lfconvert" includes a newline at the end of the standin files.
   $ cat .hglf/large .hglf/sub/maybelarge.dat

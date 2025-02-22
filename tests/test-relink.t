@@ -75,8 +75,6 @@ clone and pull to break links
 
 relink
 
-#if no-reposimplestore
-
   $ hg relink --debug --config progress.debug=true | fix_path
   relinking $TESTTMP/repo/.hg/store to $TESTTMP/clone/.hg/store
   tip has 2 files, estimated total number of files: 3
@@ -106,5 +104,3 @@ check hardlinks
   repo/.hg/store/data/a.i == clone/.hg/store/data/a.i
   $ "$PYTHON" arelinked.py repo/.hg/store/data/b.i clone/.hg/store/data/b.i
   repo/.hg/store/data/b.i != clone/.hg/store/data/b.i
-
-#endif
