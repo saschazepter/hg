@@ -1,5 +1,3 @@
-#require repobundlerepo
-
   $ cat <<EOF >> $HGRCPATH
   > [extensions]
   > mq=

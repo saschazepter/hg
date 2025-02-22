@@ -67,8 +67,6 @@ Verify empty
   [1]
   $ hg -R empty verify -q
 
-#if repobundlerepo
-
 Pull full.hg into test (using --cwd)
 
   $ hg --cwd test pull ../full.hg
@@ -270,8 +268,6 @@ Pull full.hg into empty again (using -R; with hook)
   HG_URL=bundle:empty+full.hg
   
   (run 'hg heads' to see heads, 'hg merge' to merge)
-
-#endif
 
 Cannot produce streaming clone bundles with "hg bundle"
 
@@ -520,8 +516,6 @@ Create partial clones
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd partial
 
-#if repobundlerepo
-
 Log -R full.hg in partial
 
   $ hg -R bundle://../full.hg log -T phases
@@ -657,16 +651,12 @@ Outgoing -R does-not-exist.hg vs partial2 in partial
   abort: *../does-not-exist.hg* (glob)
   [255]
 
-#endif
-
   $ cd ..
 
 hide outer repo
   $ hg init
 
 Direct clone from bundle (all-history)
-
-#if repobundlerepo
 
   $ hg clone full.hg full-clone
   requesting all changes
@@ -749,8 +739,6 @@ View full contents of the bundle
   
   $ cd ..
 
-#endif
-
 test for 540d1059c802
 
   $ hg init orig
@@ -773,7 +761,6 @@ test for 540d1059c802
 
   $ cd ..
 
-#if repobundlerepo
   $ cd orig
   $ hg incoming ../bundle.hg
   comparing with ../bundle.hg
@@ -803,8 +790,6 @@ note that percent encoding is not handled:
   [255]
   $ cd ..
 
-#endif
-
 test to bundle revisions on the newly created branch (issue3828):
 
   $ hg -q clone -U test test-clone
@@ -815,10 +800,8 @@ test to bundle revisions on the newly created branch (issue3828):
   $ hg -q outgoing ../test-clone
   9:b4f5acb1ee27
   $ hg -q bundle --branch foo foo.hg ../test-clone
-#if repobundlerepo
   $ hg -R foo.hg -q log -r "bundle()"
   9:b4f5acb1ee27
-#endif
 
   $ cd ..
 
@@ -834,17 +817,14 @@ partial history bundle, fails w/ unknown parent
 
 full history bundle, refuses to verify non-local repo
 
-#if repobundlerepo
   $ hg -R all.hg verify
   abort: cannot verify bundle or remote repos
   [255]
-#endif
 
 but, regular verify must continue to work
 
   $ hg -R orig verify -q
 
-#if repobundlerepo
 diff against bundle
 
   $ hg init b
@@ -859,7 +839,6 @@ diff against bundle
   -2
   -3
   $ cd ..
-#endif
 
 bundle single branch
 
@@ -918,13 +897,11 @@ bundle single branch
   files: x 3/3 files (100.00%)
   bundle2-output-part: "cache:rev-branch-cache" (advisory) streamed payload
 
-#if repobundlerepo
 == Test for issue3441
 
   $ hg clone -q -r0 . part2
   $ hg -q -R part2 pull bundle.hg
   $ hg -R part2 verify -q
-#endif
 
 == Test bundling no commits
 
@@ -984,8 +961,6 @@ directory does not exist
      date:        Thu Jan 01 00:00:00 1970 +0000
      summary:     0
   
-
-#if repobundlerepo
   $ hg bundle --base 1 -r 3 ../update2bundled.hg
   1 changesets found
   $ hg strip -r 3
@@ -1007,7 +982,6 @@ the warning shouldn't be emitted
 
   $ hg update -R ../update2bundled.hg -r 0
   0 files updated, 0 files merged, 2 files removed, 0 files unresolved
-#endif
 
 Test the option that create slim bundle
 
