@@ -28,7 +28,6 @@ creating 'local'
   share-safe
   sparserevlog
   store
-  testonly-simplestore (reposimplestore !)
   $ echo this > local/foo
   $ hg ci --cwd local -A -m "init"
   adding foo
@@ -67,7 +66,6 @@ creating repo with format.usestore=false
   persistent-nodemap (rust !)
   revlog-compression-zstd (zstd !)
   revlogv1
-  testonly-simplestore (reposimplestore !)
   sparserevlog
 
 creating repo with format.usefncache=false
@@ -84,7 +82,6 @@ creating repo with format.usefncache=false
   share-safe
   sparserevlog
   store
-  testonly-simplestore (reposimplestore !)
 
 creating repo with format.dotencode=false
 
@@ -101,7 +98,6 @@ creating repo with format.dotencode=false
   share-safe
   sparserevlog
   store
-  testonly-simplestore (reposimplestore !)
 
 creating repo with format.dotencode=false
 
@@ -117,7 +113,6 @@ creating repo with format.dotencode=false
   revlogv1
   share-safe
   store
-  testonly-simplestore (reposimplestore !)
 
 test failure
 
@@ -239,7 +234,6 @@ creating 'local/sub/repo'
   share-safe
   sparserevlog
   store
-  testonly-simplestore (reposimplestore !)
 
 prepare test of init of url configured from paths
 
@@ -263,7 +257,6 @@ init should (for consistency with clone) expand the url
   share-safe
   sparserevlog
   store
-  testonly-simplestore (reposimplestore !)
 
 verify that clone also expand urls
 
@@ -283,7 +276,6 @@ verify that clone also expand urls
   share-safe
   sparserevlog
   store
-  testonly-simplestore (reposimplestore !)
 
 clone bookmarks
 

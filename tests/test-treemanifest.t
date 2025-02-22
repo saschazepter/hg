@@ -465,9 +465,6 @@ Excludes with a glob should not exclude everything from the glob's root
 Test files for a subdirectory.
 
   $ rm -r .hg/store/meta/~2e_a
-#if reposimplestore
-  $ rm -r .hg/store/meta/._a
-#endif
   $ hg files -r . b
   b/bar/fruits.txt
   b/bar/orange/fly/gnat.py
@@ -484,9 +481,6 @@ Test files for a subdirectory.
 Test files with just includes and excludes.
 
   $ rm -r .hg/store/meta/~2e_a
-#if reposimplestore
-  $ rm -r .hg/store/meta/._a
-#endif
   $ rm -r .hg/store/meta/b/bar/orange/fly
   $ rm -r .hg/store/meta/b/foo/apple/bees
   $ hg files -r . -I path:b/bar -X path:b/bar/orange/fly -I path:b/foo -X path:b/foo/apple/bees
@@ -499,9 +493,6 @@ Test files with just includes and excludes.
 Test files for a subdirectory, excluding a directory within it.
 
   $ rm -r .hg/store/meta/~2e_a
-#if reposimplestore
-  $ rm -r .hg/store/meta/._a
-#endif
   $ rm -r .hg/store/meta/b/foo
   $ hg files -r . -X path:b/foo b
   b/bar/fruits.txt
@@ -518,9 +509,6 @@ Test files for a sub directory, including only a directory within it, and
 including an unrelated directory.
 
   $ rm -r .hg/store/meta/~2e_a
-#if reposimplestore
-  $ rm -r .hg/store/meta/._a
-#endif
   $ rm -r .hg/store/meta/b/foo
   $ hg files -r . -I path:b/bar/orange -I path:a b
   b/bar/orange/fly/gnat.py
@@ -535,9 +523,6 @@ Test files for a pattern, including a directory, and excluding a directory
 within that.
 
   $ rm -r .hg/store/meta/~2e_a
-#if reposimplestore
-  $ rm -r .hg/store/meta/._a
-#endif
   $ rm -r .hg/store/meta/b/foo
   $ rm -r .hg/store/meta/b/bar/orange
   $ hg files -r . glob:**.txt -I path:b/bar -X path:b/bar/orange
@@ -674,8 +659,6 @@ requires got updated to include treemanifest
 Tree manifest revlogs exist.
   $ find deepclone/.hg/store/meta | sort
   deepclone/.hg/store/meta
-  deepclone/.hg/store/meta/._a (reposimplestore !)
-  deepclone/.hg/store/meta/._a/00manifest.i (reposimplestore !)
   deepclone/.hg/store/meta/b
   deepclone/.hg/store/meta/b/00manifest.i
   deepclone/.hg/store/meta/b/bar
