@@ -341,10 +341,8 @@ https://bitbucket.org/Google/narrowhg/issues/6 is fixed
   I path:d0
   I path:d3
   I path:d9
-#if repofncache
   $ hg debugrebuildfncache
   fncache already up to date
-#endif
   $ find *
   d0
   d0/f
@@ -364,10 +362,8 @@ https://bitbucket.org/Google/narrowhg/issues/6 is fixed
   I path:d3
   I path:d9
   X path:d3/f
-#if repofncache
   $ hg debugrebuildfncache
   fncache already up to date
-#endif
   $ find *
   d0
   d0/f
@@ -386,10 +382,8 @@ https://bitbucket.org/Google/narrowhg/issues/6 is fixed
   I path:d9
   X path:d0
   X path:d3/f
-#if repofncache
   $ hg debugrebuildfncache
   fncache already up to date
-#endif
   $ find *
   d9
   d9/f
