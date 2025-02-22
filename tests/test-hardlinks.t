@@ -1,4 +1,4 @@
-#require hardlink reporevlogstore
+#require hardlink
 
   $ cat > nlinks.py <<EOF
   > import sys
@@ -294,7 +294,7 @@ r4 has hardlinks in the working dir (not just inside .hg):
   2 r4/.hg/wcache/checkisexec (execbit !)
   2 r4/.hg/wcache/checklink-target (symlink !)
   2 r4/.hg/wcache/checknoexec (execbit !)
-  2 r4/.hg/wcache/manifestfulltextcache (reporevlogstore !)
+  2 r4/.hg/wcache/manifestfulltextcache
   2 r4/d1/data1
   2 r4/d1/f2
   2 r4/f1
@@ -347,7 +347,7 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
   2 r4/.hg/wcache/checkisexec (execbit !)
   2 r4/.hg/wcache/checklink-target (symlink !)
   2 r4/.hg/wcache/checknoexec (execbit !)
-  1 r4/.hg/wcache/manifestfulltextcache (reporevlogstore !)
+  1 r4/.hg/wcache/manifestfulltextcache
   2 r4/d1/data1
   2 r4/d1/f2
   1 r4/f1

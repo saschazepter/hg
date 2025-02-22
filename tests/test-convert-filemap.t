@@ -283,21 +283,19 @@ ensure that the filemap contains duplicated slashes (issue3612)
   > exclude dir/subdir
   > include dir/subdir/file3
   > EOF
-#if reporevlogstore
   $ rm source/.hg/store/data/dir/file3.i
   $ rm source/.hg/store/data/dir/file4.i
-#endif
 #if reposimplestore
   $ rm -rf source/.hg/store/data/dir/file3
   $ rm -rf source/.hg/store/data/dir/file4
 #endif
   $ hg -q convert --filemap renames.fmap --datesort source dummydest
-  abort: dir/file3@e96dce0bc6a217656a3a410e5e6bec2c4f42bf7c: no match found (reporevlogstore !)
+  abort: dir/file3@e96dce0bc6a217656a3a410e5e6bec2c4f42bf7c: no match found
   abort: data/dir/file3/index@e96dce0bc6a2: no node (reposimplestore !)
   [50]
   $ hg -q convert --filemap renames.fmap --datesort --config convert.hg.ignoreerrors=1 source renames.repo
-  ignoring: dir/file3@e96dce0bc6a217656a3a410e5e6bec2c4f42bf7c: no match found (reporevlogstore !)
-  ignoring: dir/file4@6edd55f559cdce67132b12ca09e09cee08b60442: no match found (reporevlogstore !)
+  ignoring: dir/file3@e96dce0bc6a217656a3a410e5e6bec2c4f42bf7c: no match found
+  ignoring: dir/file4@6edd55f559cdce67132b12ca09e09cee08b60442: no match found
   ignoring: data/dir/file3/index@e96dce0bc6a2: no node (reposimplestore !)
   ignoring: data/dir/file4/index@6edd55f559cd: no node (reposimplestore !)
   $ hg up -q -R renames.repo

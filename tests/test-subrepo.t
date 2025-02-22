@@ -1258,7 +1258,7 @@ Check that share works with subrepo
   ../shared/subrepo-2/.hg/wcache/checkisexec (execbit !)
   ../shared/subrepo-2/.hg/wcache/checklink (symlink no-rust !)
   ../shared/subrepo-2/.hg/wcache/checklink-target (symlink no-rust !)
-  ../shared/subrepo-2/.hg/wcache/manifestfulltextcache (reporevlogstore !)
+  ../shared/subrepo-2/.hg/wcache/manifestfulltextcache
   ../shared/subrepo-2/file
   $ hg -R ../shared in
   abort: repository default not found
