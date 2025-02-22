@@ -539,7 +539,6 @@ Add some more changes to the deep repo
 Verify works
   $ hg verify -q
 
-#if repofncache
 Dirlogs are included in fncache
   $ grep meta/.A/00manifest.i .hg/store/fncache
   meta/.A/00manifest.i
@@ -564,7 +563,6 @@ Rebuilt fncache includes dirlogs
   adding meta/b/foo/apple/00manifest.i
   adding meta/b/foo/apple/bees/00manifest.i
   16 items added, 0 removed from fncache
-#endif
 
 Finish first server
   $ killdaemons.py

@@ -87,7 +87,7 @@ new directories are setgid
   00770 ./.hg/store/data/dir/
   00660 ./.hg/store/data/dir/bar.i
   00660 ./.hg/store/data/foo.i
-  00660 ./.hg/store/fncache (repofncache !)
+  00660 ./.hg/store/fncache
   00660 ./.hg/store/phaseroots
   00600 ./.hg/store/requires
   00660 ./.hg/store/undo
@@ -143,7 +143,7 @@ group can still write everything
   00770 ../push/.hg/store/data/dir/
   00660 ../push/.hg/store/data/dir/bar.i
   00660 ../push/.hg/store/data/foo.i
-  00660 ../push/.hg/store/fncache (repofncache !)
+  00660 ../push/.hg/store/fncache
   00660 ../push/.hg/store/requires
   00660 ../push/.hg/store/undo
   00660 ../push/.hg/store/undo.backupfiles
