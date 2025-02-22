@@ -251,7 +251,6 @@ perfstatus
   $ hg perfdirstatedirs
   $ hg perfdirstatefoldmap
   $ hg perfdirstatewrite
-#if repofncache
   $ hg perffncacheencode
   $ hg perffncacheload
   $ hg debugrebuildfncache
@@ -259,7 +258,6 @@ perfstatus
   $ hg perffncachewrite
   $ hg debugrebuildfncache
   fncache already up to date
-#endif
   $ hg perfheads
   $ hg perfignore
   $ hg perfindex

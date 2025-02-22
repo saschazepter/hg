@@ -1,5 +1,3 @@
-#require repofncache
-
 An extension which will set fncache chunksize to 1 byte to make sure that logic
 does not break
 
