@@ -1255,7 +1255,7 @@ experimental = true
 
 # Experimental TODOs:
 #
-# * code for upgrade,
+# * code for fast upgrade,
 # * fast old<>new conversion for changegroup generation and consumption
 # * finalize changegroup v4,
 # * wait for potential other flags to had in a the same batch.

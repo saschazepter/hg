@@ -220,6 +220,7 @@ An upgrade of a repository created with recommended settings only suggests optim
   dotencode:          yes
   generaldelta:       yes
   share-safe:         yes
+  hasmeta_flag:        no
   sparserevlog:       yes
   persistent-nodemap:  no (no-rust !)
   persistent-nodemap: yes (rust !)
@@ -237,6 +238,7 @@ An upgrade of a repository created with recommended settings only suggests optim
   dotencode:          yes    yes     yes
   generaldelta:       yes    yes     yes
   share-safe:         yes    yes     yes
+  hasmeta_flag:        no     no      no
   sparserevlog:       yes    yes     yes
   persistent-nodemap:  no     no      no (no-rust !)
   persistent-nodemap: yes    yes      no (rust !)
@@ -255,6 +257,7 @@ An upgrade of a repository created with recommended settings only suggests optim
   dotencode:          yes     no     yes
   generaldelta:       yes    yes     yes
   share-safe:         yes    yes     yes
+  hasmeta_flag:        no     no      no
   sparserevlog:       yes    yes     yes
   persistent-nodemap:  no     no      no (no-rust !)
   persistent-nodemap: yes    yes      no (rust !)
@@ -273,6 +276,7 @@ An upgrade of a repository created with recommended settings only suggests optim
   [formatvariant.name.mismatchconfig|dotencode:         ][formatvariant.repo.mismatchconfig| yes][formatvariant.config.special|     no][formatvariant.default|     yes]
   [formatvariant.name.uptodate|generaldelta:      ][formatvariant.repo.uptodate| yes][formatvariant.config.default|    yes][formatvariant.default|     yes]
   [formatvariant.name.uptodate|share-safe:        ][formatvariant.repo.uptodate| yes][formatvariant.config.default|    yes][formatvariant.default|     yes]
+  [formatvariant.name.uptodate|hasmeta_flag:      ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|sparserevlog:      ][formatvariant.repo.uptodate| yes][formatvariant.config.default|    yes][formatvariant.default|     yes]
   [formatvariant.name.uptodate|persistent-nodemap:][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no] (no-rust !)
   [formatvariant.name.mismatchdefault|persistent-nodemap:][formatvariant.repo.mismatchdefault| yes][formatvariant.config.special|    yes][formatvariant.default|      no] (rust !)
@@ -320,6 +324,12 @@ An upgrade of a repository created with recommended settings only suggests optim
     "default": true,
     "name": "share-safe",
     "repo": true
+   },
+   {
+    "config": false,
+    "default": false,
+    "name": "hasmeta_flag",
+    "repo": false
    },
    {
     "config": true,
@@ -519,6 +529,7 @@ Various sub-optimal detections work
   dotencode:           no
   generaldelta:        no
   share-safe:          no
+  hasmeta_flag:        no
   sparserevlog:        no
   persistent-nodemap:  no
   copies-sdc:          no
@@ -535,6 +546,7 @@ Various sub-optimal detections work
   dotencode:           no    yes     yes
   generaldelta:        no    yes     yes
   share-safe:          no    yes     yes
+  hasmeta_flag:        no     no      no
   sparserevlog:        no    yes     yes
   persistent-nodemap:  no     no      no (no-rust !)
   persistent-nodemap:  no    yes      no (rust !)
@@ -553,6 +565,7 @@ Various sub-optimal detections work
   dotencode:           no    yes     yes
   generaldelta:        no     no     yes
   share-safe:          no    yes     yes
+  hasmeta_flag:        no     no      no
   sparserevlog:        no     no     yes
   persistent-nodemap:  no     no      no (no-rust !)
   persistent-nodemap:  no    yes      no (rust !)
@@ -571,6 +584,7 @@ Various sub-optimal detections work
   [formatvariant.name.mismatchconfig|dotencode:         ][formatvariant.repo.mismatchconfig|  no][formatvariant.config.default|    yes][formatvariant.default|     yes]
   [formatvariant.name.mismatchdefault|generaldelta:      ][formatvariant.repo.mismatchdefault|  no][formatvariant.config.special|     no][formatvariant.default|     yes]
   [formatvariant.name.mismatchconfig|share-safe:        ][formatvariant.repo.mismatchconfig|  no][formatvariant.config.default|    yes][formatvariant.default|     yes]
+  [formatvariant.name.uptodate|hasmeta_flag:      ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.mismatchdefault|sparserevlog:      ][formatvariant.repo.mismatchdefault|  no][formatvariant.config.special|     no][formatvariant.default|     yes]
   [formatvariant.name.uptodate|persistent-nodemap:][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no] (no-rust !)
   [formatvariant.name.mismatchconfig|persistent-nodemap:][formatvariant.repo.mismatchconfig|  no][formatvariant.config.special|    yes][formatvariant.default|      no] (rust !)
@@ -1588,6 +1602,7 @@ upgrade
   dotencode:          yes    yes     yes
   generaldelta:       yes    yes     yes
   share-safe:         yes    yes     yes
+  hasmeta_flag:        no     no      no
   sparserevlog:       yes    yes     yes
   persistent-nodemap:  no     no      no (no-rust !)
   persistent-nodemap: yes    yes      no (rust !)
@@ -1632,6 +1647,7 @@ downgrade
   dotencode:          yes    yes     yes
   generaldelta:       yes    yes     yes
   share-safe:         yes    yes     yes
+  hasmeta_flag:        no     no      no
   sparserevlog:       yes    yes     yes
   persistent-nodemap:  no     no      no (no-rust !)
   persistent-nodemap: yes    yes      no (rust !)
@@ -1679,6 +1695,7 @@ upgrade from hgrc
   dotencode:          yes    yes     yes
   generaldelta:       yes    yes     yes
   share-safe:         yes    yes     yes
+  hasmeta_flag:        no     no      no
   sparserevlog:       yes    yes     yes
   persistent-nodemap:  no     no      no (no-rust !)
   persistent-nodemap: yes    yes      no (rust !)
@@ -1732,6 +1749,7 @@ upgrade
   dotencode:          yes    yes     yes
   generaldelta:       yes    yes     yes
   share-safe:         yes    yes     yes
+  hasmeta_flag:        no     no      no
   sparserevlog:       yes    yes     yes
   persistent-nodemap:  no     no      no (no-rust !)
   persistent-nodemap: yes    yes      no (rust !)
@@ -1782,6 +1800,7 @@ downgrade
   dotencode:          yes    yes     yes
   generaldelta:       yes    yes     yes
   share-safe:         yes    yes     yes
+  hasmeta_flag:        no     no      no
   sparserevlog:       yes    yes     yes
   persistent-nodemap:  no     no      no (no-rust !)
   persistent-nodemap: yes    yes      no (rust !)
@@ -1833,6 +1852,7 @@ upgrade from hgrc
   dotencode:          yes    yes     yes
   generaldelta:       yes    yes     yes
   share-safe:         yes    yes     yes
+  hasmeta_flag:        no     no      no
   sparserevlog:       yes    yes     yes
   persistent-nodemap:  no     no      no (no-rust !)
   persistent-nodemap: yes    yes      no (rust !)

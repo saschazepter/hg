@@ -50,6 +50,8 @@ from .revlogutils.constants import (
     DELTA_BASE_REUSE_TRY,
     ENTRY_RANK,
     FEATURES_BY_VERSION,
+    FILELOG_HASMETA_DOWNGRADE as HM_DOWN,
+    FILELOG_HASMETA_UPGRADE as HM_UP,
     FLAG_FILELOG_META,
     FLAG_GENERALDELTA,
     FLAG_INLINE_DATA,
@@ -73,6 +75,7 @@ from .revlogutils.flagutil import (
     REVIDX_EXTSTORED,
     REVIDX_FLAGS_ORDER,
     REVIDX_HASCOPIESINFO,
+    REVIDX_HASMETA,
     REVIDX_ISCENSORED,
     REVIDX_RAWTEXT_CHANGING_FLAGS,
 )
@@ -3826,12 +3829,18 @@ class revlog:
         deltareuse=DELTAREUSESAMEREVS,
         forcedeltabothparents=None,
         sidedata_helpers=None,
+        hasmeta_change=None,
     ):
         """Copy this revlog to another, possibly with format changes.
 
         The destination revlog will contain the same revisions and nodes.
         However, it may not be bit-for-bit identical due to e.g. delta encoding
         differences.
+
+        The ``hasmeta_change`` argument can be used by filelog to signal change in the "hasmeta" flag usage:
+        - None means no changes,
+        - FILELOG_HASMETA_UPGRADE means the flag must be added when needed
+        - FILELOG_HASMETA_DOWNGRADE means the flag must be dropped and parent adjusted
 
         The ``deltareuse`` argument control how deltas from the existing revlog
         are preserved in the destination revlog. The argument can have the
@@ -3913,6 +3922,7 @@ class revlog:
                     deltareuse,
                     forcedeltabothparents,
                     sidedata_helpers,
+                    hasmeta_change=hasmeta_change,
                 )
 
         finally:
@@ -3926,6 +3936,7 @@ class revlog:
         deltareuse,
         forcedeltabothparents,
         sidedata_helpers,
+        hasmeta_change,
     ):
         """perform the core duty of `revlog.clone` after parameter processing"""
         write_debug = None
@@ -3936,6 +3947,7 @@ class revlog:
             write_debug=write_debug,
         )
         index = self.index
+
         for rev in self:
             entry = index[rev]
 
@@ -3946,6 +3958,16 @@ class revlog:
             p1 = index[entry[5]][7]
             p2 = index[entry[6]][7]
             node = entry[7]
+
+            if hasmeta_change == HM_DOWN and flags & REVIDX_HASMETA:
+                p1, p2 = p2, p1
+                flags &= ~REVIDX_HASMETA
+            if hasmeta_change == HM_UP:
+                # XXX very slow but correct
+                if bytes(self.rawdata(rev)[:2]) == b'\x01\n':
+                    flags |= REVIDX_HASMETA
+                    if p1 == nullrev and p2 != nullrev:
+                        p1, p2 = p2, p1
 
             # (Possibly) reuse the delta from the revlog if allowed and
             # the revlog chunk is a delta.

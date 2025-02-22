@@ -410,6 +410,16 @@ class filelog(repository.ifilestorage):
             msg %= destrevlog
             raise error.ProgrammingError(msg)
 
+        src_meta = bool(self._revlog._format_flags & revlog.FLAG_FILELOG_META)
+        dst_meta = bool(
+            destrevlog._revlog._format_flags & revlog.FLAG_FILELOG_META
+        )
+        kw = kwargs
+        if src_meta and not dst_meta:
+            kw['hasmeta_change'] = revlog_constants.FILELOG_HASMETA_DOWNGRADE
+        elif dst_meta and not src_meta:
+            kw['hasmeta_change'] = revlog_constants.FILELOG_HASMETA_UPGRADE
+
         return self._revlog.clone(tr, destrevlog._revlog, **kwargs)
 
 
