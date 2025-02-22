@@ -14,7 +14,6 @@
   $ hg revert --all -r 0
   adding a
   $ hg ci -Am make-it-full
-#if reporevlogstore
   $ hg debugrevlog -c
   format : 1
   flags  : (none)
@@ -125,7 +124,6 @@
   full revision size (min/max/avg)     : 3 / 3 / 3
   inter-snapshot size (min/max/avg)    : 0 / 0 / 0
   delta size (min/max/avg)             : 0 / 0 / 0
-#endif
 
 Test debugindex, with and without the --verbose/--debug flag
   $ hg debugrevlogindex a
@@ -185,12 +183,7 @@ Test debugindex, with and without the --verbose/--debug flag
 
 debugdelta chain basic output
 
-#if reporevlogstore pure rust
-  $ hg debugindexstats
-  abort: debugindexstats only works with native C code
-  [255]
-#endif
-#if reporevlogstore no-pure no-rust
+#if no-pure no-rust
   $ hg debugindexstats
   node trie capacity: 4
   node trie count: 2
@@ -202,9 +195,13 @@ debugdelta chain basic output
   node trie misses: 1
   node trie splits: 1
   revs in memory: 3
+#else
+  $ hg debugindexstats
+  abort: debugindexstats only works with native C code
+  [255]
 #endif
 
-#if reporevlogstore no-pure
+#if no-pure
   $ hg debugdeltachain -m --all-info
       rev      p1      p2  chain# chainlen     prev   delta       size    rawsize  chainsize     ratio   lindist extradist extraratio   readsize largestblk rddensity srchunks
         0      -1      -1       1        1       -1    base         44         43         44   1.02326        44         0    0.00000         44         44   1.00000        1

@@ -145,7 +145,7 @@ Force deletion of local changes
   * (glob)
   moving unwanted changesets to backup
   saved backup bundle to $TESTTMP/narrow-local-changes/.hg/strip-backup/*-narrow.hg (glob)
-  deleting data/d0/f.i (reporevlogstore !)
+  deleting data/d0/f.i
   deleting meta/d0/00manifest.i (tree !)
   deleting data/d0/f/362fef284ce2ca02aecc8de6d5e8a1c3af0556fe (reposimplestore !)
   deleting data/d0/f/4374b5650fc5ae54ac857c0f0381971fdde376f7 (reposimplestore !)
@@ -179,7 +179,7 @@ Pruned commits affecting removed paths should not prevent narrowing
   looking for local changes to affected paths
   moving unwanted changesets to backup
   saved backup bundle to $TESTTMP/narrow-local-changes/.hg/strip-backup/*-narrow.hg (glob)
-  deleting data/d0/f.i (reporevlogstore !)
+  deleting data/d0/f.i
   deleting meta/d0/00manifest.i (tree !)
   deleting data/d0/f/362fef284ce2ca02aecc8de6d5e8a1c3af0556fe (reposimplestore !)
   deleting data/d0/f/4374b5650fc5ae54ac857c0f0381971fdde376f7 (reposimplestore !)
@@ -200,7 +200,7 @@ Updates off of stripped commit if necessary
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   moving unwanted changesets to backup
   saved backup bundle to $TESTTMP/narrow-local-changes/.hg/strip-backup/*-narrow.hg (glob)
-  deleting data/d3/f.i (reporevlogstore !)
+  deleting data/d3/f.i
   deleting meta/d3/00manifest.i (tree !)
   deleting data/d3/f/2661d26c649684b482d10f91960cc3db683c38b4 (reposimplestore !)
   deleting data/d3/f/99fa7136105a15e2045ce3d9152e4837c5349e4d (reposimplestore !)
@@ -225,7 +225,7 @@ Updates to nullid if necessary
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
   moving unwanted changesets to backup
   saved backup bundle to $TESTTMP/narrow-local-changes/.hg/strip-backup/*-narrow.hg (glob)
-  deleting data/d3/f.i (reporevlogstore !)
+  deleting data/d3/f.i
   deleting meta/d3/00manifest.i (tree !)
   deleting data/d3/f/2661d26c649684b482d10f91960cc3db683c38b4 (reposimplestore !)
   deleting data/d3/f/5ce0767945cbdbca3b924bb9fbf5143f72ab40ac (reposimplestore !)
@@ -287,7 +287,7 @@ Can remove last include, making repo empty
   comparing with ssh://user@dummy/master
   searching for changes
   looking for local changes to affected paths
-  deleting data/d0/f.i (reporevlogstore !)
+  deleting data/d0/f.i
   deleting meta/d0/00manifest.i (tree !)
   deleting data/d0/f/362fef284ce2ca02aecc8de6d5e8a1c3af0556fe (reposimplestore !)
   deleting data/d0/f/index (reposimplestore !)
@@ -348,7 +348,7 @@ https://bitbucket.org/Google/narrowhg/issues/6 is fixed
   comparing with ssh://user@dummy/master
   searching for changes
   looking for local changes to affected paths
-  deleting data/d6/f.i (reporevlogstore !)
+  deleting data/d6/f.i
   deleting meta/d6/00manifest.i (tree !)
   deleting data/d6/f/7339d30678f451ac8c3f38753beeb4cf2e1655c7 (reposimplestore !)
   deleting data/d6/f/index (reposimplestore !)
@@ -373,7 +373,7 @@ https://bitbucket.org/Google/narrowhg/issues/6 is fixed
   comparing with ssh://user@dummy/master
   searching for changes
   looking for local changes to affected paths
-  deleting data/d3/f.i (reporevlogstore !)
+  deleting data/d3/f.i
   deleting data/d3/f/2661d26c649684b482d10f91960cc3db683c38b4 (reposimplestore !)
   deleting data/d3/f/index (reposimplestore !)
   deleting unwanted files from working copy
@@ -396,7 +396,7 @@ https://bitbucket.org/Google/narrowhg/issues/6 is fixed
   comparing with ssh://user@dummy/master
   searching for changes
   looking for local changes to affected paths
-  deleting data/d0/f.i (reporevlogstore !)
+  deleting data/d0/f.i
   deleting meta/d0/00manifest.i (tree !)
   deleting data/d0/f/362fef284ce2ca02aecc8de6d5e8a1c3af0556fe (reposimplestore !)
   deleting data/d0/f/index (reposimplestore !)

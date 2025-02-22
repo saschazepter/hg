@@ -283,7 +283,7 @@ Cannot produce streaming clone bundles with "hg bundle"
 packed1 is produced properly
 
 
-#if reporevlogstore rust
+#if rust
 
   $ hg -R test debugcreatestreamclonebundle packed.hg
   writing 2665 bytes for 6 files (no-rust !)
@@ -303,7 +303,7 @@ packed1 is produced properly
   none-packed1;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog
 #endif
 
-#if reporevlogstore no-rust zstd
+#if no-rust zstd
 
   $ hg -R test debugcreatestreamclonebundle packed.hg
   writing 2665 bytes for 7 files
@@ -319,7 +319,7 @@ packed1 is produced properly
   none-packed1;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog
 #endif
 
-#if reporevlogstore no-rust no-zstd
+#if no-rust no-zstd
 
   $ hg -R test debugcreatestreamclonebundle packed.hg
   writing 2664 bytes for 7 files
@@ -335,8 +335,6 @@ packed1 is produced properly
   none-packed1;requirements%3Dgeneraldelta%2Crevlogv1%2Csparserevlog
 #endif
 
-#if reporevlogstore
-
 generaldelta requirement is not listed in stream clone bundles unless used
 
   $ hg --config format.usegeneraldelta=false init testnongd
@@ -345,9 +343,7 @@ generaldelta requirement is not listed in stream clone bundles unless used
   $ hg -q commit -A -m initial
   $ cd ..
 
-#endif
-
-#if reporevlogstore rust
+#if rust
 
   $ hg -R testnongd debugcreatestreamclonebundle packednongd.hg
   writing 301 bytes for 3 files (no-rust !)
@@ -369,7 +365,7 @@ generaldelta requirement is not listed in stream clone bundles unless used
 
 #endif
 
-#if reporevlogstore no-rust zstd
+#if no-rust zstd
 
   $ hg -R testnongd debugcreatestreamclonebundle packednongd.hg
   writing 301 bytes for 4 files
@@ -388,7 +384,7 @@ generaldelta requirement is not listed in stream clone bundles unless used
 
 #endif
 
-#if reporevlogstore no-rust no-zstd
+#if no-rust no-zstd
 
   $ hg -R testnongd debugcreatestreamclonebundle packednongd.hg
   writing 301 bytes for 4 files
@@ -407,8 +403,6 @@ generaldelta requirement is not listed in stream clone bundles unless used
 
 #endif
 
-#if reporevlogstore
-
 Warning emitted when packed bundles contain secret changesets
 
   $ hg init testsecret
@@ -418,9 +412,7 @@ Warning emitted when packed bundles contain secret changesets
   $ hg phase --force --secret -r .
   $ cd ..
 
-#endif
-
-#if reporevlogstore rust
+#if rust
 
   $ hg -R testsecret debugcreatestreamclonebundle packedsecret.hg
   (warning: stream clone bundle will contain secret revisions)
@@ -430,7 +422,7 @@ Warning emitted when packed bundles contain secret changesets
 
 #endif
 
-#if reporevlogstore no-rust zstd
+#if no-rust zstd
 
   $ hg -R testsecret debugcreatestreamclonebundle packedsecret.hg
   (warning: stream clone bundle will contain secret revisions)
@@ -439,7 +431,7 @@ Warning emitted when packed bundles contain secret changesets
 
 #endif
 
-#if reporevlogstore no-rust no-zstd
+#if no-rust no-zstd
 
   $ hg -R testsecret debugcreatestreamclonebundle packedsecret.hg
   (warning: stream clone bundle will contain secret revisions)
@@ -447,8 +439,6 @@ Warning emitted when packed bundles contain secret changesets
   bundle requirements: generaldelta, revlogv1, sparserevlog
 
 #endif
-
-#if reporevlogstore
 
 Unpacking packed1 bundles with "hg unbundle" isn't allowed
 
@@ -512,8 +502,6 @@ Does not work on non-empty repo
   $ hg -R packed debugapplystreamclonebundle packed.hg
   abort: cannot apply stream clone bundle on non-empty repo
   [255]
-
-#endif
 
 Create partial clones
 
