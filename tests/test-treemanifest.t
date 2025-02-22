@@ -322,7 +322,6 @@ Stripping and recovering changes should work
        0       4 064927a0648a 000000000000 000000000000
        1       5 25ecb8cb8618 000000000000 000000000000
 
-#if repobundlerepo
   $ hg incoming .hg/strip-backup/*
   comparing with .hg/strip-backup/*-backup.hg (glob)
   searching for changes
@@ -332,7 +331,6 @@ Stripping and recovering changes should work
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     modify dir1/a
   
-#endif
 
   $ hg unbundle .hg/strip-backup/*
   adding changesets
