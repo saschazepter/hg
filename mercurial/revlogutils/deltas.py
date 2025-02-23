@@ -13,7 +13,6 @@ from __future__ import annotations
 import abc
 import collections
 import enum
-import struct
 import typing
 
 from typing import (
@@ -580,16 +579,13 @@ def _textfromdelta(
     # special case deltas which replace entire base; no need to decode
     # base revision. this neatly avoids censored bases, which throw when
     # they're decoded.
-    hlen = struct.calcsize(b">lll")
-    if delta[:hlen] == mdiff.replacediffheader(
-        revlog.rawsize(baserev), len(delta) - hlen
-    ):
-        fulltext = delta[hlen:]
-    else:
+    fulltext = mdiff.full_text_from_delta(
+        delta,
+        revlog.rawsize(baserev),
         # deltabase is rawtext before changed by flag processors, which is
         # equivalent to non-raw text
-        basetext = revlog.revision(baserev)
-        fulltext = mdiff.patch(basetext, delta)
+        lambda: revlog.revision(baserev),
+    )
 
     try:
         validatehash = flagutil.processflagsraw(revlog, fulltext, flags)

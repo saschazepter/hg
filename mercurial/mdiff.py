@@ -13,6 +13,7 @@ import typing
 import zlib
 
 from typing import (
+    Callable,
     Iterable,
     Iterator,
     Optional,
@@ -618,3 +619,25 @@ def trivialdiffheader(length: int) -> bytes:
 
 def replacediffheader(oldlen: int, newlen: int) -> bytes:
     return DIFF_HEADER.pack(0, oldlen, newlen)
+
+
+def full_text_from_delta(
+    delta: bytes,
+    base_size: int,
+    base_func: Callable[[], bytes],
+) -> bytes:
+    """build a full text from a binary delta and its full text base
+
+    The base is provided as a callback as in some case we won't need it at all.
+    """
+    # special case deltas which replace entire base; no need to decode
+    # base revision. this neatly avoids censored bases, which throw when
+    # they're decoded.
+    if delta[: DIFF_HEADER.size] == replacediffheader(
+        base_size, len(delta) - DIFF_HEADER.size
+    ):
+        fulltext = delta[DIFF_HEADER.size :]
+    else:
+        basetext = base_func()
+        fulltext = patch(basetext, delta)
+    return fulltext
