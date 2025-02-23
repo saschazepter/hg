@@ -586,11 +586,14 @@ def b85diff(to: bytes | None, tn: bytes | None) -> bytes:
     return b''.join(ret)
 
 
+DIFF_HEADER = struct.Struct(b">lll")
+
+
 def patchtext(bin: bytes) -> bytes:
     pos = 0
     t = []
     while pos < len(bin):
-        p1, p2, l = struct.unpack(b">lll", bin[pos : pos + 12])
+        p1, p2, l = DIFF_HEADER.unpack(bin[pos : pos + 12])
         pos += 12
         t.append(bin[pos : pos + l])
         pos += l
@@ -610,8 +613,8 @@ def get_matching_blocks(a: bytes, b: bytes) -> list[tuple[int, int, int]]:
 
 
 def trivialdiffheader(length: int) -> bytes:
-    return struct.pack(b">lll", 0, 0, length) if length else b''
+    return DIFF_HEADER.pack(0, 0, length) if length else b''
 
 
 def replacediffheader(oldlen: int, newlen: int) -> bytes:
-    return struct.pack(b">lll", 0, oldlen, newlen)
+    return DIFF_HEADER.pack(0, oldlen, newlen)
