@@ -855,7 +855,6 @@ class ifiledatatests(basetestcase):
         self.assertEqual(f.read(node1), fulltext1)
         self.assertEqual(f.read(node2), fulltext2)
 
-        # Returns False when first parent is set.
         self.assertEqual(f.renamed(node1), (b'source0', b'\xaa' * 20))
         self.assertEqual(f.renamed(node2), (b'source1', b'\xbb' * 20))
 
@@ -887,8 +886,7 @@ class ifiledatatests(basetestcase):
             node0 = f.add(fulltext0, {}, tr, 0, f.nullid, f.nullid)
             node1 = f.add(fulltext1, meta1, tr, 1, f.nullid, f.nullid)
 
-        # TODO this is buggy.
-        self.assertEqual(f.size(0), len(fulltext0) + 4)
+        self.assertEqual(f.size(0), len(fulltext0))
 
         self.assertEqual(f.size(1), len(fulltext1))
 

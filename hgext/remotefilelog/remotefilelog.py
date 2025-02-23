@@ -223,6 +223,9 @@ class remotefilelog:
 
         return False
 
+    def has_meta(self, node):
+        self.read(node)[:2] == b'\x01\n'
+
     def size(self, node):
         """return the size of a given revision"""
         return len(self.read(node))

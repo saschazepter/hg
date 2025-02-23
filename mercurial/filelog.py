@@ -224,6 +224,12 @@ class filelog(repository.ifilestorage):
         rev = self.addrevision(text, transaction, link, p1, p2, flags=flags)
         return self.node(rev)
 
+    def has_meta(self, node):
+        rev = self.rev(node)
+        if self.parentrevs(rev)[0] != nullrev:
+            return False
+        return self._revlog.rawdata(rev)[:2] == b'\x01\n'
+
     def renamed(self, node):
         """Resolve file revision copy metadata.
 
@@ -259,7 +265,7 @@ class filelog(repository.ifilestorage):
         node = self.node(rev)
         if self.iscensored(rev):
             return 0
-        if self.renamed(node):
+        if self.has_meta(node):
             return len(self.read(node))
 
         # XXX if self.read(node).startswith("\1\n"), this returns (size+4)
