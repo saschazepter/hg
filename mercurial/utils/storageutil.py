@@ -133,9 +133,11 @@ def filedataequivalent(store, node, filedata):
     if store.iscensored(store.rev(node)):
         return filedata == b''
 
-    # Renaming a file produces a different hash, even if the data
-    # remains unchanged. Check if that's the case.
-    if store.renamed(node):
+    # metadata (like renaming) alter the hash, so we need to compare the actual
+    # content.
+    #
+    # XXX when checking metadata is cheap we could skip computing the hash
+    if store.has_meta(node):
         return store.read(node) == filedata
 
     return False

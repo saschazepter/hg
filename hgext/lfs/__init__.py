@@ -342,6 +342,7 @@ def wrapfilelog(filelog):
 
     wrapfunction(filelog, 'addrevision', wrapper.filelogaddrevision)
     wrapfunction(filelog, 'renamed', wrapper.filelogrenamed)
+    wrapfunction(filelog, 'has_meta', wrapper.filelog_has_meta)
     wrapfunction(filelog, 'size', wrapper.filelogsize)
 
 
