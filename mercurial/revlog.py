@@ -58,6 +58,8 @@ from .revlogutils.constants import (
     INDEX_HEADER,
     KIND_CHANGELOG,
     KIND_FILELOG,
+    META_MARKER,
+    META_MARKER_SIZE,
     RANK_UNKNOWN,
     REVLOGV0,
     REVLOGV1,
@@ -3985,7 +3987,7 @@ class revlog:
                 flags &= ~REVIDX_HASMETA
             if hasmeta_change == HM_UP:
                 # XXX very slow but correct
-                if bytes(self.rawdata(rev)[:2]) == b'\x01\n':
+                if bytes(self.rawdata(rev)[:META_MARKER_SIZE]) == META_MARKER:
                     flags |= REVIDX_HASMETA
                     if p1 == nullrev and p2 != nullrev:
                         p1, p2 = p2, p1

@@ -16,6 +16,11 @@ from typing import (
 
 from mercurial.node import bin
 from mercurial.i18n import _
+from mercurial.revlogutils.constants import (
+    META_MARKER,
+    META_MARKER_SIZE,
+)
+
 from mercurial import (
     ancestor,
     error,
@@ -224,7 +229,7 @@ class remotefilelog:
         return False
 
     def has_meta(self, node):
-        self.read(node)[:2] == b'\x01\n'
+        self.read(node)[:META_MARKER_SIZE] == META_MARKER
 
     def size(self, node):
         """return the size of a given revision"""

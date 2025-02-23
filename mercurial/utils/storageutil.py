@@ -24,6 +24,10 @@ from ..interfaces.types import (
     RevisionDeltaT,
 )
 
+from ..revlogutils.constants import (
+    META_MARKER,
+    META_MARKER_SIZE,
+)
 
 from .. import (
     dagop,
@@ -67,7 +71,7 @@ def hashrevisionsha1(text, p1, p2):
     return s.digest()
 
 
-METADATA_RE = re.compile(b'\x01\n')
+METADATA_RE = re.compile(META_MARKER)
 
 
 def parsemeta(text):
@@ -77,22 +81,25 @@ def parsemeta(text):
     is no metadata.
     """
     # text can be buffer, so we can't use .startswith or .index
-    if text[:2] != b'\x01\n':
+    if text[:META_MARKER_SIZE] != META_MARKER:
         return None, None
-    s = METADATA_RE.search(text, 2).start()
-    mtext = text[2:s]
+    s = METADATA_RE.search(text, META_MARKER_SIZE).start()
+    mtext = text[META_MARKER_SIZE:s]
     meta = {}
     for l in mtext.splitlines():
         k, v = l.split(b': ', 1)
         meta[k] = v
-    return meta, s + 2
+    return meta, s + META_MARKER_SIZE
 
 
 def packmeta(meta, text):
     """Add metadata to fulltext to produce revision text."""
     keys = sorted(meta)
-    metatext = b''.join(b'%s: %s\n' % (k, meta[k]) for k in keys)
-    return b'\x01\n%s\x01\n%s' % (metatext, text)
+    pieces = [META_MARKER]
+    pieces.extend(b'%s: %s\n' % (k, meta[k]) for k in keys)
+    pieces.append(META_MARKER)
+    pieces.append(text)
+    return b''.join(pieces)
 
 
 def iscensoredtext(text):
@@ -106,11 +113,11 @@ def filtermetadata(text):
     Returns ``text`` unless it has a metadata header, in which case we return
     a new buffer without hte metadata.
     """
-    if not text.startswith(b'\x01\n'):
+    if not text.startswith(META_MARKER):
         return text
 
-    offset = text.index(b'\x01\n', 2)
-    return text[offset + 2 :]
+    offset = text.index(META_MARKER, 2)
+    return text[offset + META_MARKER_SIZE :]
 
 
 def filedataequivalent(store, node, filedata):
@@ -126,8 +133,8 @@ def filedataequivalent(store, node, filedata):
     of the compare.
     """
 
-    if filedata.startswith(b'\x01\n'):
-        revisiontext = b'\x01\n\x01\n' + filedata
+    if filedata.startswith(META_MARKER):
+        revisiontext = META_MARKER + META_MARKER + filedata
     else:
         revisiontext = filedata
 

@@ -306,7 +306,10 @@ class filelog(repository.ifilestorage):
                     d.flags,
                 )
                 d.raw_text = deltacomputer.buildtext(revinfo)
-            if d.raw_text[:2] == b'\x01\n':
+            if (
+                d.raw_text[: revlog_constants.META_MARKER_SIZE]
+                == revlog_constants.META_MARKER
+            ):
                 d.flags |= revlog_constants.REVIDX_HASMETA
             if d.p1 == self.nullid and d.p2 != self.nullid:
                 d.p1, d.p2 = d.p2, d.p1

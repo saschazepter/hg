@@ -364,3 +364,8 @@ DELTA_BASE_REUSE_FORCE = 2
 
 FILELOG_HASMETA_UPGRADE = 1
 FILELOG_HASMETA_DOWNGRADE = 2
+
+# metadata marker in stored content
+# (not strickly revlog related, but used most for revlog)
+META_MARKER = b'\x01\n'
+META_MARKER_SIZE = len(META_MARKER)

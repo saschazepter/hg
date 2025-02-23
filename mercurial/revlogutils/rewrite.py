@@ -30,6 +30,8 @@ from .constants import (
     ENTRY_SIDEDATA_COMPRESSED_LENGTH,
     ENTRY_SIDEDATA_COMPRESSION_MODE,
     ENTRY_SIDEDATA_OFFSET,
+    META_MARKER,
+    META_MARKER_SIZE,
     REVIDX_ISCENSORED,
     REVLOGV0,
     REVLOGV1,
@@ -594,7 +596,7 @@ def _is_revision_affected_inner(
         return False
 
     # raw text can be a `memoryview`, which doesn't implement `startswith`
-    has_meta = bytes(raw_text[:2]) == b'\x01\n'
+    has_meta = bytes(raw_text[:META_MARKER_SIZE]) == META_MARKER
     if metadata_cache is not None:
         metadata_cache[filerev] = has_meta
     if has_meta:
@@ -690,7 +692,7 @@ def _is_revision_affected_fast_inner(
 
     start, _end, _length = struct.unpack(b">lll", chunk[:header_length])
 
-    if start < 2:  # len(b'\x01\n') == 2
+    if start < META_MARKER_SIZE:
         # This delta does *something* to the metadata marker (if any).
         # Check it the slow way
         is_affected = _is_revision_affected_inner(
