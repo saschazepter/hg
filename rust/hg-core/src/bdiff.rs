@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 /// A file split into lines, ready for diffing.
 pub struct Lines<'a> {
     /// The array of lines, allocated by bdiff.c.
-    /// Must never be mutated apart from freeing it in `Drop`.
+    /// Must never be mutated by Rust code apart from freeing it in `Drop`.
     array: *mut ffi::bdiff_line,
     /// Length of the array.
     len: u32,
@@ -66,13 +66,13 @@ impl Drop for Lines<'_> {
     }
 }
 
-// Safety: It is safe for multiple threads to share `&Lines` because
-// `self.array` is never mutated except in `Drop`.
-unsafe impl Sync for Lines<'_> {}
-
 // Safety: It is safe to send `Lines` to a different thread because
 // `self.array` is never copied so only one thread will free it.
 unsafe impl Send for Lines<'_> {}
+
+// It is *not* safe to share `&Lines` between threads because `ffi::bdiff_diff`
+// mutates lines by storing bookkeeping information in `n` and `e`.
+static_assertions_next::assert_impl!(Lines<'_>: !Sync);
 
 #[derive(Clone)]
 pub struct LinesIter<'a, 'b> {
