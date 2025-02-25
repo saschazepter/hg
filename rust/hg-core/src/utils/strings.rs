@@ -313,8 +313,7 @@ pub enum CleanWhitespace {
 }
 
 /// Normalizes whitespace in text so that it won't apppear in diffs.
-/// Returns `Cow::Borrowed(text)` if the result is unchanged.
-pub fn clean_whitespace(text: &[u8], how: CleanWhitespace) -> Cow<[u8]> {
+pub fn clean_whitespace(text: &mut Vec<u8>, how: CleanWhitespace) {
     lazy_static! {
         // To match wsclean in mdiff.py, this includes "\f".
         static ref AT_EOL: Regex =
@@ -324,24 +323,23 @@ pub fn clean_whitespace(text: &[u8], how: CleanWhitespace) -> Cow<[u8]> {
             Regex::new(r"[ \t\r]+").expect("valid regex");
     }
     let replacement: &[u8] = match how {
-        CleanWhitespace::AtEol => return AT_EOL.replace_all(text, b""),
+        CleanWhitespace::AtEol => {
+            replace_all_mut(&AT_EOL, text, b"");
+            return;
+        }
         CleanWhitespace::Collapse => b" ",
         CleanWhitespace::All => b"",
     };
-    let text = MULTIPLE.replace_all(text, replacement);
-    replace_all_cow(&AT_EOL, text, b"")
+    replace_all_mut(&MULTIPLE, text, replacement);
+    replace_all_mut(&AT_EOL, text, b"");
 }
 
-/// Helper to call [`Regex::replace_all`] with `Cow` as input and output.
-fn replace_all_cow<'a>(
-    regex: &Regex,
-    haystack: Cow<'a, [u8]>,
-    replacement: &[u8],
-) -> Cow<'a, [u8]> {
-    match haystack {
-        Cow::Borrowed(haystack) => regex.replace_all(haystack, replacement),
-        Cow::Owned(haystack) => {
-            Cow::Owned(regex.replace_all(&haystack, replacement).into_owned())
+/// Helper to make [`Regex::replace_all`] mutate a vector.
+fn replace_all_mut(regex: &Regex, haystack: &mut Vec<u8>, replacement: &[u8]) {
+    match regex.replace_all(haystack, replacement) {
+        Cow::Borrowed(_) => {}
+        Cow::Owned(result) => {
+            *haystack = result;
         }
     }
 }

@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use crate::{
     bdiff::{self, Lines},
     errors::HgError,
@@ -71,16 +69,12 @@ self_cell!(
 impl OwnedLines {
     /// Cleans `data` based on `whitespace` and then splits into lines.
     fn split(
-        data: Vec<u8>,
+        mut data: Vec<u8>,
         whitespace: Option<CleanWhitespace>,
     ) -> Result<Self, HgError> {
-        let data = match whitespace {
-            None => data,
-            Some(ws) => match clean_whitespace(&data, ws) {
-                Cow::Borrowed(_) => data,
-                Cow::Owned(data) => data,
-            },
-        };
+        if let Some(ws) = whitespace {
+            clean_whitespace(&mut data, ws);
+        }
         Self::try_new(data, |data| bdiff::split_lines(data))
     }
 
