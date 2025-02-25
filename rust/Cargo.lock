@@ -703,6 +703,7 @@ dependencies = [
  "self_cell",
  "serde",
  "sha-1 0.10.1",
+ "static_assertions_next",
  "tempfile",
  "thread_local",
  "toml",

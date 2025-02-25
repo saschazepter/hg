@@ -55,6 +55,7 @@ regex-automata = "0.4.9"
 regex-syntax = "0.8.5"
 unicode-width = "0.2.0"
 bit-set = "0.8.0"
+static_assertions_next = "1.1.2"
 
 # We don't use the `miniz-oxide` backend to not change rhg benchmarks and until
 # we have a clearer view of which backend is the fastest.
