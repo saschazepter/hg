@@ -26,7 +26,7 @@ use self_cell::self_cell;
 pub struct AnnotateOptions {
     pub treat_binary_as_text: bool,
     pub follow_copies: bool,
-    pub whitespace: CleanWhitespace,
+    pub whitespace: Option<CleanWhitespace>,
 }
 
 /// The final result of annotating a file.
@@ -72,11 +72,14 @@ impl OwnedLines {
     /// Cleans `data` based on `whitespace` and then splits into lines.
     fn split(
         data: Vec<u8>,
-        whitespace: CleanWhitespace,
+        whitespace: Option<CleanWhitespace>,
     ) -> Result<Self, HgError> {
-        let data = match clean_whitespace(&data, whitespace) {
-            Cow::Borrowed(_) => data,
-            Cow::Owned(data) => data,
+        let data = match whitespace {
+            None => data,
+            Some(ws) => match clean_whitespace(&data, ws) {
+                Cow::Borrowed(_) => data,
+                Cow::Owned(data) => data,
+            },
         };
         Self::try_new(data, |data| bdiff::split_lines(data))
     }
@@ -323,11 +326,8 @@ pub fn annotate(
     // Step 3: Read files and split lines. Do the base file with and without
     // whitespace cleaning. Do the rest of the files in parallel with rayon.
     let base_file_original_lines = match options.whitespace {
-        CleanWhitespace::None => None,
-        _ => Some(OwnedLines::split(
-            base_file_data.clone(),
-            CleanWhitespace::None,
-        )?),
+        None => None,
+        _ => Some(OwnedLines::split(base_file_data.clone(), None)?),
     };
     graph[base_id].file = AnnotatedFileState::Read(OwnedLines::split(
         base_file_data,

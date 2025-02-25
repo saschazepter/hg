@@ -304,8 +304,6 @@ pub fn short_user(user: &[u8]) -> &[u8] {
 /// Options for [`clean_whitespace`].
 #[derive(Copy, Clone)]
 pub enum CleanWhitespace {
-    /// Do nothing.
-    None,
     /// Remove whitespace at ends of lines.
     AtEol,
     /// Collapse consecutive whitespace characters into a single space.
@@ -326,7 +324,6 @@ pub fn clean_whitespace(text: &[u8], how: CleanWhitespace) -> Cow<[u8]> {
             Regex::new(r"[ \t\r]+").expect("valid regex");
     }
     let replacement: &[u8] = match how {
-        CleanWhitespace::None => return Cow::Borrowed(text),
         CleanWhitespace::AtEol => return AT_EOL.replace_all(text, b""),
         CleanWhitespace::Collapse => b" ",
         CleanWhitespace::All => b"",

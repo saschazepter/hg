@@ -162,15 +162,15 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         treat_binary_as_text: args.get_flag("text"),
         follow_copies: !args.get_flag("no-follow"),
         whitespace: if args.get_flag("ignore-all-space") {
-            CleanWhitespace::All
+            Some(CleanWhitespace::All)
         } else if args.get_flag("ignore-space-change") {
-            CleanWhitespace::Collapse
+            Some(CleanWhitespace::Collapse)
         } else if args.get_flag("ignore-space-at-eol") {
-            CleanWhitespace::AtEol
+            Some(CleanWhitespace::AtEol)
         } else {
             // We ignore the --ignore-blank-lines flag (present for consistency
             // with other commands) since it has no effect on annotate.
-            CleanWhitespace::None
+            None
         },
     };
 
