@@ -26,7 +26,7 @@ pub fn args() -> clap::Command {
             Arg::new("rev")
                 .help("search the repository as it is in REV")
                 .short('r')
-                .long("revision")
+                .long("rev")
                 .value_name("REV"),
         )
         .arg(
