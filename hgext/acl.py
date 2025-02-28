@@ -59,6 +59,7 @@ syntax as the other sections above.
 
 Bookmark-based Access Control
 -----------------------------
+
 Use the ``acl.deny.bookmarks`` and ``acl.allow.bookmarks`` sections to
 have bookmark-based access control. Keys in these sections can be
 either:
