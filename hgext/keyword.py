@@ -398,13 +398,13 @@ class kwfilelog(filelog.filelog):
     """
 
     def __init__(self, opener, kwt, path):
-        super(kwfilelog, self).__init__(opener, path)
+        super().__init__(opener, path)
         self.kwt = kwt
         self.path = path
 
     def read(self, node):
         '''Expands keywords when reading filelog.'''
-        data = super(kwfilelog, self).read(node)
+        data = super().read(node)
         if self.renamed(node):
             return data
         return self.kwt.expand(self.path, node, data)
@@ -412,12 +412,12 @@ class kwfilelog(filelog.filelog):
     def add(self, text, meta, tr, link, p1=None, p2=None):
         '''Removes keyword substitutions when adding to filelog.'''
         text = self.kwt.shrink(self.path, text)
-        return super(kwfilelog, self).add(text, meta, tr, link, p1, p2)
+        return super().add(text, meta, tr, link, p1, p2)
 
     def cmp(self, node, text):
         '''Removes keyword substitutions for comparison.'''
         text = self.kwt.shrink(self.path, text)
-        return super(kwfilelog, self).cmp(node, text)
+        return super().cmp(node, text)
 
 
 def _status(ui, repo, wctx, kwt, *pats, **opts):
@@ -543,7 +543,7 @@ def demo(ui, repo, *args, **opts):
             if name.split(b'.', 1)[0].find(b'commit') > -1:
                 repo.ui.setconfig(b'hooks', name, b'', b'keyword')
         msg = _(b'hg keyword configuration and expansion example')
-        ui.note((b"hg ci -m '%s'\n" % msg))
+        ui.notenoi18n(b"hg ci -m '%s'\n" % msg)
         repo.commit(text=msg)
     ui.status(_(b'\n\tkeywords expanded\n'))
     ui.write(repo.wread(fn))
@@ -674,8 +674,7 @@ def kwdiff(orig, repo, *args, **kwargs):
         restrict = kwt.restrict
         kwt.restrict = True
     try:
-        for chunk in orig(repo, *args, **kwargs):
-            yield chunk
+        yield from orig(repo, *args, **kwargs)
     finally:
         if kwt:
             kwt.restrict = restrict
@@ -688,8 +687,7 @@ def kwweb_skip(orig, web):
         origmatch = kwt.match
         kwt.match = util.never
     try:
-        for chunk in orig(web):
-            yield chunk
+        yield from orig(web)
     finally:
         if kwt:
             kwt.match = origmatch
@@ -854,7 +852,7 @@ def reposetup(ui, repo):
             return kwfilelog(self.svfs, kwt, f)
 
         def wread(self, filename):
-            data = super(kwrepo, self).wread(filename)
+            data = super().wread(filename)
             return kwt.wread(filename, data)
 
         def commit(self, *args, **opts):
@@ -862,12 +860,12 @@ def reposetup(ui, repo):
             # other extensions can still wrap repo.commitctx directly
             self.commitctx = self.kwcommitctx
             try:
-                return super(kwrepo, self).commit(*args, **opts)
+                return super().commit(*args, **opts)
             finally:
                 del self.commitctx
 
         def kwcommitctx(self, ctx, error=False, origctx=None):
-            n = super(kwrepo, self).commitctx(ctx, error, origctx)
+            n = super().commitctx(ctx, error, origctx)
             # no lock needed, only called from repo.commit() which already locks
             if not kwt.postcommit:
                 restrict = kwt.restrict
@@ -884,7 +882,7 @@ def reposetup(ui, repo):
                 try:
                     if not dryrun:
                         changed = self[b'.'].files()
-                    ret = super(kwrepo, self).rollback(dryrun, force)
+                    ret = super().rollback(dryrun, force)
                     if not dryrun:
                         ctx = self[b'.']
                         modified, added = _preselect(ctx.status(), changed)

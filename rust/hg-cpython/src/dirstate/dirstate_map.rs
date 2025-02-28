@@ -8,17 +8,18 @@
 //! Bindings for the `hg::dirstate::dirstate_map` file provided by the
 //! `hg-core` package.
 
-use std::cell::{RefCell, RefMut};
+use std::cell::RefMut;
 
 use cpython::{
     exc, PyBool, PyBytes, PyClone, PyDict, PyErr, PyList, PyNone, PyObject,
     PyResult, Python, PythonObject, ToPyObject, UnsafePyLeaked,
 };
-use hg::{
-    dirstate::{ParentFileData, TruncatedTimestamp},
-    dirstate_tree::dirstate_map::{
+use hg::dirstate::{
+    dirstate_map::{
         DirstateEntryReset, DirstateIdentity as CoreDirstateIdentity,
     },
+    entry::{DirstateEntry, ParentFileData, TruncatedTimestamp},
+    DirstateError,
 };
 
 use crate::{
@@ -27,11 +28,10 @@ use crate::{
     pybytes_deref::PyBytesDeref,
 };
 use hg::{
-    dirstate::StateMapIter, dirstate_tree::dirstate_map::DirstateMapWriteMode,
-    dirstate_tree::on_disk::DirstateV2ParseError,
-    dirstate_tree::owning::OwningDirstateMap, revlog::Node,
-    utils::files::normalize_case, utils::hg_path::HgPath, DirstateEntry,
-    DirstateError, DirstateParents,
+    dirstate::dirstate_map::DirstateMapWriteMode,
+    dirstate::on_disk::DirstateV2ParseError,
+    dirstate::owning::OwningDirstateMap, dirstate::StateMapIter, revlog::Node,
+    utils::files::normalize_case, utils::hg_path::HgPath, DirstateParents,
 };
 
 // TODO

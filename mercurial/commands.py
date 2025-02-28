@@ -27,6 +27,7 @@ from . import (
     bundlecaches,
     changegroup,
     cmdutil,
+    context as contextmod,
     copies,
     debugcommands as debugcommandsmod,
     destutil,
@@ -52,9 +53,7 @@ from . import (
     patch,
     phases,
     pycompat,
-    rcutil,
     registrar,
-    requirements,
     revsetlang,
     rewriteutil,
     scmutil,
@@ -62,11 +61,14 @@ from . import (
     shelve as shelvemod,
     state as statemod,
     tags as tagsmod,
-    ui as uimod,
     util,
     verify as verifymod,
-    vfs as vfsmod,
     wireprotoserver,
+)
+
+from .cmd_impls import graft as graft_impl
+from .configuration import (
+    command as config_command,
 )
 from .utils import (
     dateutil,
@@ -118,6 +120,13 @@ globalopts = [
         [],
         _(b'set/override config option (use \'section.name=value\')'),
         _(b'CONFIG'),
+    ),
+    (
+        b'',
+        b'config-file',
+        [],
+        _(b'load config file to set/override config options'),
+        _(b'HGRC'),
     ),
     (b'', b'debug', None, _(b'enable debugging output')),
     (b'', b'debugger', None, _(b'start debugger')),
@@ -2365,110 +2374,22 @@ def config(ui, repo, *values, **opts):
     Returns 0 on success, 1 if NAME does not exist.
 
     """
+    edit_level = config_command.find_edit_level(ui, repo, opts)
+    if edit_level is not None:
+        return config_command.edit_config(ui, repo, edit_level)
 
-    editopts = ('edit', 'local', 'global', 'shared', 'non_shared')
-    if any(opts.get(o) for o in editopts):
-        cmdutil.check_at_most_one_arg(opts, *editopts[1:])
-        if opts.get('local'):
-            if not repo:
-                raise error.InputError(
-                    _(b"can't use --local outside a repository")
-                )
-            paths = [repo.vfs.join(b'hgrc')]
-        elif opts.get('global'):
-            paths = rcutil.systemrcpath()
-        elif opts.get('shared'):
-            if not repo.shared():
-                raise error.InputError(
-                    _(b"repository is not shared; can't use --shared")
-                )
-            if requirements.SHARESAFE_REQUIREMENT not in repo.requirements:
-                raise error.InputError(
-                    _(
-                        b"share safe feature not enabled; "
-                        b"unable to edit shared source repository config"
-                    )
-                )
-            paths = [vfsmod.vfs(repo.sharedpath).join(b'hgrc')]
-        elif opts.get('non_shared'):
-            paths = [repo.vfs.join(b'hgrc-not-shared')]
-        else:
-            paths = rcutil.userrcpath()
-
-        for f in paths:
-            if os.path.exists(f):
-                break
-        else:
-            if opts.get('global'):
-                samplehgrc = uimod.samplehgrcs[b'global']
-            elif opts.get('local'):
-                samplehgrc = uimod.samplehgrcs[b'local']
-            else:
-                samplehgrc = uimod.samplehgrcs[b'user']
-
-            f = paths[0]
-            util.writefile(f, util.tonativeeol(samplehgrc))
-
-        editor = ui.geteditor()
-        ui.system(
-            b"%s \"%s\"" % (editor, f),
-            onerr=error.InputError,
-            errprefix=_(b"edit failed"),
-            blockedtag=b'config_edit',
-        )
-        return
     ui.pager(b'config')
-    fm = ui.formatter(b'config', pycompat.byteskwargs(opts))
-    for t, f in rcutil.rccomponents():
-        if t == b'path':
-            ui.debug(b'read config from: %s\n' % f)
-        elif t == b'resource':
-            ui.debug(b'read config from: resource:%s.%s\n' % (f[0], f[1]))
-        elif t == b'items':
-            # Don't print anything for 'items'.
-            pass
-        else:
-            raise error.ProgrammingError(b'unknown rctype: %s' % t)
-    untrusted = bool(opts.get('untrusted'))
+    config_command.show_component(ui, repo)
 
-    selsections = selentries = []
-    if values:
-        selsections = [v for v in values if b'.' not in v]
-        selentries = [v for v in values if b'.' in v]
-    uniquesel = len(selentries) == 1 and not selsections
-    selsections = set(selsections)
-    selentries = set(selentries)
-
-    matched = False
-    all_known = opts['exp_all_known']
-    show_source = ui.debugflag or opts.get('source')
-    entries = ui.walkconfig(untrusted=untrusted, all_known=all_known)
-    for section, name, value in entries:
-        source = ui.configsource(section, name, untrusted)
-        value = pycompat.bytestr(value)
-        defaultvalue = ui.configdefault(section, name)
-        if fm.isplain():
-            source = source or b'none'
-            value = value.replace(b'\n', b'\\n')
-        entryname = section + b'.' + name
-        if values and not (section in selsections or entryname in selentries):
-            continue
-        fm.startitem()
-        fm.condwrite(show_source, b'source', b'%s: ', source)
-        if uniquesel:
-            fm.data(name=entryname)
-            fm.write(b'value', b'%s\n', value)
-        else:
-            fm.write(b'name value', b'%s=%s\n', entryname, value)
-        if formatter.isprintable(defaultvalue):
-            fm.data(defaultvalue=defaultvalue)
-        elif isinstance(defaultvalue, list) and all(
-            formatter.isprintable(e) for e in defaultvalue
-        ):
-            fm.data(defaultvalue=fm.formatlist(defaultvalue, name=b'value'))
-        # TODO: no idea how to process unsupported defaultvalue types
-        matched = True
-    fm.end()
+    matched = config_command.show_config(
+        ui,
+        repo,
+        value_filters=values,
+        formatter_options=pycompat.byteskwargs(opts),
+        untrusted=bool(opts.get('untrusted')),
+        all_known=bool(opts.get('exp_all_known')),
+        show_source=bool(ui.debugflag or opts.get('source')),
+    )
     if matched:
         return 0
     return 1
@@ -2620,6 +2541,14 @@ def debugcomplete(ui, cmd=b'', **opts):
         (b'', b'from', b'', _(b'revision to diff from'), _(b'REV1')),
         (b'', b'to', b'', _(b'revision to diff to'), _(b'REV2')),
         (b'c', b'change', b'', _(b'change made by revision'), _(b'REV')),
+        (
+            b'',
+            b'ignore-changes-from-ancestors',
+            False,
+            _(
+                b'only compare the change made by the selected revision (EXPERIMENTAL)'
+            ),
+        ),
     ]
     + diffopts
     + diffopts2
@@ -2701,6 +2630,7 @@ def diff(ui, repo, *pats, **opts):
     to_rev = opts.get(b'to')
     stat = opts.get(b'stat')
     reverse = opts.get(b'reverse')
+    patch_only = opts.get(b'ignore_changes_from_ancestors')
 
     cmdutil.check_incompatible_arguments(opts, b'from', [b'rev', b'change'])
     cmdutil.check_incompatible_arguments(opts, b'to', [b'rev', b'change'])
@@ -2717,6 +2647,30 @@ def diff(ui, repo, *pats, **opts):
     else:
         repo = scmutil.unhidehashlikerevs(repo, revs, b'nowarn')
         ctx1, ctx2 = logcmdutil.revpair(repo, revs)
+
+    if patch_only and ctx1.p1() != ctx2.p1():
+        old_base = ctx1.p1()
+        new_base = ctx2.p1()
+        new_ctx = contextmod.overlayworkingctx(repo)
+        new_ctx.setbase(ctx1)
+        configoverrides = {
+            (b'ui', b'forcemerge'): b'internal:merge3-lie-about-conflicts'
+        }
+        with ui.configoverride(configoverrides, b'obslog-diff'), ui.silent():
+            mergemod._update(
+                repo,
+                new_base,
+                labels=[
+                    b'from',
+                    b'parent-of-to',
+                    b'parent-of-from',
+                ],
+                force=True,
+                branchmerge=True,
+                wc=new_ctx,
+                ancestor=old_base,
+            )
+        ctx1 = new_ctx.tomemctx(text=ctx1.description())
 
     if reverse:
         ctxleft = ctx2
@@ -3058,6 +3012,12 @@ def forget(ui, repo, *pats, **opts):
             _(b'base revision when doing the graft merge (ADVANCED)'),
             _(b'REV'),
         ),
+        (
+            b'',
+            b'to',
+            b'',
+            _(b'graft to this destination, in-memory (EXPERIMENTAL)'),
+        ),
         (b'c', b'continue', False, _(b'resume interrupted graft')),
         (b'', b'stop', False, _(b'stop interrupted graft')),
         (b'', b'abort', False, _(b'abort interrupted graft')),
@@ -3148,6 +3108,16 @@ def graft(ui, repo, *revs, **opts):
 
     .. container:: verbose
 
+        The experimental --to option allows grafting a revision in-memory,
+        independent of the working copy. Merge conflicts are not currently
+        supported, and the operation will be aborted if the configured tool
+        cannot handle the conflicts that might be encountered.
+
+        As the operation is performed in-memory, the on-disk files will not be
+        modified, and some hooks might not be run.
+
+    .. container:: verbose
+
       Examples:
 
       - copy a single change to the stable branch and edit its description::
@@ -3185,285 +3155,7 @@ def graft(ui, repo, *revs, **opts):
     Returns 0 on successful completion, 1 if there are unresolved files.
     """
     with repo.wlock():
-        return _dograft(ui, repo, *revs, **opts)
-
-
-def _dograft(ui, repo, *revs, **opts):
-    if revs and opts.get('rev'):
-        ui.warn(
-            _(
-                b'warning: inconsistent use of --rev might give unexpected '
-                b'revision ordering!\n'
-            )
-        )
-
-    revs = list(revs)
-    revs.extend(opts.get('rev'))
-    # a dict of data to be stored in state file
-    statedata = {}
-    # list of new nodes created by ongoing graft
-    statedata[b'newnodes'] = []
-
-    cmdutil.resolve_commit_options(ui, opts)
-
-    editor = cmdutil.getcommiteditor(editform=b'graft', **opts)
-
-    cmdutil.check_at_most_one_arg(opts, 'abort', 'stop', 'continue')
-
-    cont = False
-    if opts.get('no_commit'):
-        cmdutil.check_incompatible_arguments(
-            opts,
-            'no_commit',
-            ['edit', 'currentuser', 'currentdate', 'log'],
-        )
-
-    graftstate = statemod.cmdstate(repo, b'graftstate')
-
-    if opts.get('stop'):
-        cmdutil.check_incompatible_arguments(
-            opts,
-            'stop',
-            [
-                'edit',
-                'log',
-                'user',
-                'date',
-                'currentdate',
-                'currentuser',
-                'rev',
-            ],
-        )
-        return _stopgraft(ui, repo, graftstate)
-    elif opts.get('abort'):
-        cmdutil.check_incompatible_arguments(
-            opts,
-            'abort',
-            [
-                'edit',
-                'log',
-                'user',
-                'date',
-                'currentdate',
-                'currentuser',
-                'rev',
-            ],
-        )
-        return cmdutil.abortgraft(ui, repo, graftstate)
-    elif opts.get('continue'):
-        cont = True
-        if revs:
-            raise error.InputError(_(b"can't specify --continue and revisions"))
-        # read in unfinished revisions
-        if graftstate.exists():
-            statedata = cmdutil.readgraftstate(repo, graftstate)
-            if statedata.get(b'date'):
-                opts['date'] = statedata[b'date']
-            if statedata.get(b'user'):
-                opts['user'] = statedata[b'user']
-            if statedata.get(b'log'):
-                opts['log'] = True
-            if statedata.get(b'no_commit'):
-                opts['no_commit'] = statedata.get(b'no_commit')
-            if statedata.get(b'base'):
-                opts['base'] = statedata.get(b'base')
-            nodes = statedata[b'nodes']
-            revs = [repo[node].rev() for node in nodes]
-        else:
-            cmdutil.wrongtooltocontinue(repo, _(b'graft'))
-    else:
-        if not revs:
-            raise error.InputError(_(b'no revisions specified'))
-        cmdutil.checkunfinished(repo)
-        cmdutil.bailifchanged(repo)
-        revs = logcmdutil.revrange(repo, revs)
-
-    skipped = set()
-    basectx = None
-    if opts.get('base'):
-        basectx = logcmdutil.revsingle(repo, opts['base'], None)
-    if basectx is None:
-        # check for merges
-        for rev in repo.revs(b'%ld and merge()', revs):
-            ui.warn(_(b'skipping ungraftable merge revision %d\n') % rev)
-            skipped.add(rev)
-    revs = [r for r in revs if r not in skipped]
-    if not revs:
-        return -1
-    if basectx is not None and len(revs) != 1:
-        raise error.InputError(_(b'only one revision allowed with --base '))
-
-    # Don't check in the --continue case, in effect retaining --force across
-    # --continues. That's because without --force, any revisions we decided to
-    # skip would have been filtered out here, so they wouldn't have made their
-    # way to the graftstate. With --force, any revisions we would have otherwise
-    # skipped would not have been filtered out, and if they hadn't been applied
-    # already, they'd have been in the graftstate.
-    if not (cont or opts.get('force')) and basectx is None:
-        # check for ancestors of dest branch
-        ancestors = repo.revs(b'%ld & (::.)', revs)
-        for rev in ancestors:
-            ui.warn(_(b'skipping ancestor revision %d:%s\n') % (rev, repo[rev]))
-
-        revs = [r for r in revs if r not in ancestors]
-
-        if not revs:
-            return -1
-
-        # analyze revs for earlier grafts
-        ids = {}
-        for ctx in repo.set(b"%ld", revs):
-            ids[ctx.hex()] = ctx.rev()
-            n = ctx.extra().get(b'source')
-            if n:
-                ids[n] = ctx.rev()
-
-        # check ancestors for earlier grafts
-        ui.debug(b'scanning for duplicate grafts\n')
-
-        # The only changesets we can be sure doesn't contain grafts of any
-        # revs, are the ones that are common ancestors of *all* revs:
-        for rev in repo.revs(b'only(%d,ancestor(%ld))', repo[b'.'].rev(), revs):
-            ctx = repo[rev]
-            n = ctx.extra().get(b'source')
-            if n in ids:
-                try:
-                    r = repo[n].rev()
-                except error.RepoLookupError:
-                    r = None
-                if r in revs:
-                    ui.warn(
-                        _(
-                            b'skipping revision %d:%s '
-                            b'(already grafted to %d:%s)\n'
-                        )
-                        % (r, repo[r], rev, ctx)
-                    )
-                    revs.remove(r)
-                elif ids[n] in revs:
-                    if r is None:
-                        ui.warn(
-                            _(
-                                b'skipping already grafted revision %d:%s '
-                                b'(%d:%s also has unknown origin %s)\n'
-                            )
-                            % (ids[n], repo[ids[n]], rev, ctx, n[:12])
-                        )
-                    else:
-                        ui.warn(
-                            _(
-                                b'skipping already grafted revision %d:%s '
-                                b'(%d:%s also has origin %d:%s)\n'
-                            )
-                            % (ids[n], repo[ids[n]], rev, ctx, r, n[:12])
-                        )
-                    revs.remove(ids[n])
-            elif ctx.hex() in ids:
-                r = ids[ctx.hex()]
-                if r in revs:
-                    ui.warn(
-                        _(
-                            b'skipping already grafted revision %d:%s '
-                            b'(was grafted from %d:%s)\n'
-                        )
-                        % (r, repo[r], rev, ctx)
-                    )
-                    revs.remove(r)
-        if not revs:
-            return -1
-
-    if opts.get('no_commit'):
-        statedata[b'no_commit'] = True
-    if opts.get('base'):
-        statedata[b'base'] = opts['base']
-    for pos, ctx in enumerate(repo.set(b"%ld", revs)):
-        desc = b'%d:%s "%s"' % (
-            ctx.rev(),
-            ctx,
-            ctx.description().split(b'\n', 1)[0],
-        )
-        names = repo.nodetags(ctx.node()) + repo.nodebookmarks(ctx.node())
-        if names:
-            desc += b' (%s)' % b' '.join(names)
-        ui.status(_(b'grafting %s\n') % desc)
-        if opts.get('dry_run'):
-            continue
-
-        source = ctx.extra().get(b'source')
-        extra = {}
-        if source:
-            extra[b'source'] = source
-            extra[b'intermediate-source'] = ctx.hex()
-        else:
-            extra[b'source'] = ctx.hex()
-        user = ctx.user()
-        if opts.get('user'):
-            user = opts['user']
-            statedata[b'user'] = user
-        date = ctx.date()
-        if opts.get('date'):
-            date = opts['date']
-            statedata[b'date'] = date
-        message = ctx.description()
-        if opts.get('log'):
-            message += b'\n(grafted from %s)' % ctx.hex()
-            statedata[b'log'] = True
-
-        # we don't merge the first commit when continuing
-        if not cont:
-            # perform the graft merge with p1(rev) as 'ancestor'
-            overrides = {(b'ui', b'forcemerge'): opts.get('tool', b'')}
-            base = ctx.p1() if basectx is None else basectx
-            with ui.configoverride(overrides, b'graft'):
-                stats = mergemod.graft(
-                    repo, ctx, base, [b'local', b'graft', b'parent of graft']
-                )
-            # report any conflicts
-            if stats.unresolvedcount > 0:
-                # write out state for --continue
-                nodes = [repo[rev].hex() for rev in revs[pos:]]
-                statedata[b'nodes'] = nodes
-                stateversion = 1
-                graftstate.save(stateversion, statedata)
-                ui.error(_(b"abort: unresolved conflicts, can't continue\n"))
-                ui.error(_(b"(use 'hg resolve' and 'hg graft --continue')\n"))
-                return 1
-        else:
-            cont = False
-
-        # commit if --no-commit is false
-        if not opts.get('no_commit'):
-            node = repo.commit(
-                text=message, user=user, date=date, extra=extra, editor=editor
-            )
-            if node is None:
-                ui.warn(
-                    _(b'note: graft of %d:%s created no changes to commit\n')
-                    % (ctx.rev(), ctx)
-                )
-            # checking that newnodes exist because old state files won't have it
-            elif statedata.get(b'newnodes') is not None:
-                nn = statedata[b'newnodes']
-                assert isinstance(nn, list)  # list of bytes
-                nn.append(node)
-
-    # remove state when we complete successfully
-    if not opts.get('dry_run'):
-        graftstate.delete()
-
-    return 0
-
-
-def _stopgraft(ui, repo, graftstate):
-    """stop the interrupted graft"""
-    if not graftstate.exists():
-        raise error.StateError(_(b"no interrupted graft found"))
-    pctx = repo[b'.']
-    mergemod.clean_update(pctx)
-    graftstate.delete()
-    ui.status(_(b"stopped the interrupted graft\n"))
-    ui.status(_(b"working directory is now at %s\n") % pctx.hex()[:12])
-    return 0
+        return graft_impl.cmd_graft(ui, repo, *revs, **opts)
 
 
 statemod.addunfinished(
@@ -6137,7 +5829,7 @@ def resolve(ui, repo, *pats, **opts):
     opts = pycompat.byteskwargs(opts)
     confirm = ui.configbool(b'commands', b'resolve.confirm')
     flaglist = b'all mark unmark list no_status re_merge'.split()
-    all, mark, unmark, show, nostatus, remerge = [opts.get(o) for o in flaglist]
+    all, mark, unmark, show, nostatus, remerge = (opts.get(o) for o in flaglist)
 
     actioncount = len(list(filter(None, [show, mark, unmark, remerge])))
     if actioncount > 1:

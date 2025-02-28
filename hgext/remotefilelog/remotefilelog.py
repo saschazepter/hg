@@ -22,6 +22,9 @@ from mercurial import (
     mdiff,
     revlog,
 )
+from mercurial.interfaces import (
+    repository,
+)
 from mercurial.utils import storageutil
 from mercurial.revlogutils import flagutil
 
@@ -302,7 +305,7 @@ class remotefilelog:
         deltamode=None,
         sidedata_helpers=None,
         debug_info=None,
-    ) -> Iterator[revlog.revlogrevisiondelta]:
+    ) -> Iterator[repository.irevisiondelta]:
         # we don't use any of these parameters here
         del nodesorder, revisiondata, assumehaveparentrevisions, deltaprevious
         del deltamode
@@ -445,7 +448,7 @@ class remotefilelog:
         parentrevs = collections.defaultdict(list)
         revmap = {}
         queue = collections.deque(
-            ((None, n) for n in parentsmap if n not in allparents)
+            (None, n) for n in parentsmap if n not in allparents
         )
         while queue:
             prevrev, current = queue.pop()

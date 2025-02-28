@@ -14,7 +14,9 @@ use crate::revlog::{Node, NodePrefix};
 use crate::revlog::{Revlog, RevlogEntry, RevlogError};
 use crate::utils::hg_path::HgPath;
 use crate::vfs::VfsImpl;
-use crate::{Graph, GraphError, RevlogOpenOptions, UncheckedRevision};
+use crate::{Graph, GraphError, UncheckedRevision};
+
+use super::options::RevlogOpenOptions;
 
 /// A specialized `Revlog` to work with changelog data format.
 pub struct Changelog {
@@ -38,24 +40,21 @@ impl Changelog {
         node: NodePrefix,
     ) -> Result<ChangelogRevisionData, RevlogError> {
         let rev = self.revlog.rev_from_node(node)?;
-        self.entry_for_checked_rev(rev)?.data()
+        self.entry(rev)?.data()
     }
 
     /// Return the [`ChangelogEntry`] for the given revision number.
-    pub fn entry_for_rev(
+    pub fn entry_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
     ) -> Result<ChangelogEntry, RevlogError> {
-        let revlog_entry = self.revlog.get_entry(rev)?;
+        let revlog_entry = self.revlog.get_entry_for_unchecked_rev(rev)?;
         Ok(ChangelogEntry { revlog_entry })
     }
 
-    /// Same as [`Self::entry_for_rev`] for checked revisions.
-    fn entry_for_checked_rev(
-        &self,
-        rev: Revision,
-    ) -> Result<ChangelogEntry, RevlogError> {
-        let revlog_entry = self.revlog.get_entry_for_checked_rev(rev)?;
+    /// Same as [`Self::entry_for_unchecked_rev`] for a checked revision
+    pub fn entry(&self, rev: Revision) -> Result<ChangelogEntry, RevlogError> {
+        let revlog_entry = self.revlog.get_entry(rev)?;
         Ok(ChangelogEntry { revlog_entry })
     }
 
@@ -64,16 +63,23 @@ impl Changelog {
     /// This is a useful shortcut in case the caller does not need the
     /// generic revlog information (parents, hashes etc). Otherwise
     /// consider taking a [`ChangelogEntry`] with
-    /// [entry_for_rev](`Self::entry_for_rev`) and doing everything from there.
-    pub fn data_for_rev(
+    /// [`Self::entry_for_unchecked_rev`] and doing everything from there.
+    pub fn data_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
     ) -> Result<ChangelogRevisionData, RevlogError> {
-        self.entry_for_rev(rev)?.data()
+        self.entry_for_unchecked_rev(rev)?.data()
     }
 
-    pub fn node_from_rev(&self, rev: UncheckedRevision) -> Option<&Node> {
+    pub fn node_from_rev(&self, rev: Revision) -> &Node {
         self.revlog.node_from_rev(rev)
+    }
+
+    pub fn node_from_unchecked_rev(
+        &self,
+        rev: UncheckedRevision,
+    ) -> Option<&Node> {
+        self.revlog.node_from_unchecked_rev(rev)
     }
 
     pub fn rev_from_node(
@@ -84,7 +90,7 @@ impl Changelog {
     }
 
     pub fn get_index(&self) -> &Index {
-        &self.revlog.index
+        self.revlog.index()
     }
 }
 
@@ -364,10 +370,7 @@ fn parse_timestamp(
     let timezone = FixedOffset::west_opt(timezone_secs)
         .ok_or_else(|| HgError::corrupted("timezone offset out of bounds"))?;
 
-    Ok(DateTime::from_naive_utc_and_offset(
-        timestamp_utc.naive_utc(),
-        timezone,
-    ))
+    Ok(timestamp_utc.with_timezone(&timezone))
 }
 
 /// Attempt to parse the given string as floating-point timestamp, and
@@ -504,10 +507,7 @@ fn unescape_extra(bytes: &[u8]) -> Vec<u8> {
 mod tests {
     use super::*;
     use crate::vfs::VfsImpl;
-    use crate::{
-        RevlogDataConfig, RevlogDeltaConfig, RevlogFeatureConfig,
-        NULL_REVISION,
-    };
+    use crate::NULL_REVISION;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -566,32 +566,22 @@ message",
     fn test_data_from_rev_null() -> Result<(), RevlogError> {
         // an empty revlog will be enough for this case
         let temp = tempfile::tempdir().unwrap();
-        let vfs = VfsImpl {
-            base: temp.path().to_owned(),
-        };
+        let vfs = VfsImpl::new(temp.path().to_owned(), false);
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
-        std::fs::write(temp.path().join("foo.d"), b"").unwrap();
-        let revlog = Revlog::open(
-            &vfs,
-            "foo.i",
-            None,
-            RevlogOpenOptions::new(
-                false,
-                RevlogDataConfig::default(),
-                RevlogDeltaConfig::default(),
-                RevlogFeatureConfig::default(),
-            ),
-        )
-        .unwrap();
+        let revlog =
+            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::default())
+                .unwrap();
 
         let changelog = Changelog { revlog };
         assert_eq!(
-            changelog.data_for_rev(NULL_REVISION.into())?,
+            changelog.data_for_unchecked_rev(NULL_REVISION.into())?,
             ChangelogRevisionData::null()
         );
         // same with the intermediate entry object
         assert_eq!(
-            changelog.entry_for_rev(NULL_REVISION.into())?.data()?,
+            changelog
+                .entry_for_unchecked_rev(NULL_REVISION.into())?
+                .data()?,
             ChangelogRevisionData::null()
         );
         Ok(())

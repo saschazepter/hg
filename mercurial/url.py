@@ -261,7 +261,7 @@ class logginghttphandler(httphandler):
 
 if has_https:
 
-    def _generic_proxytunnel(self: "httpsconnection"):
+    def _generic_proxytunnel(self: httpsconnection):
         headers = self.headers  # pytype: disable=attribute-error
         proxyheaders = {
             pycompat.bytestr(x): pycompat.bytestr(headers[x])
@@ -297,7 +297,7 @@ if has_https:
             list(iter(res.fp.readline, b'\r\n'))
         else:
             self.close()
-            raise socket.error(
+            raise OSError(
                 "Tunnel connection failed: %d %s" % (status, reason.strip())
             )
 

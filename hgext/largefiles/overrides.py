@@ -19,7 +19,7 @@ from typing import (
 
 from mercurial.i18n import _
 
-from mercurial.pycompat import open
+from mercurial.interfaces.types import MatcherT
 
 from mercurial.hgweb import webcommands
 
@@ -184,10 +184,10 @@ def removelargefiles(ui, repo, isaddremove, matcher, uipathfn, dryrun, **opts):
     with lfstatus(repo):
         s = repo.status(match=m, clean=not isaddremove)
     manifest = repo[None].manifest()
-    modified, added, deleted, clean = [
+    modified, added, deleted, clean = (
         [f for f in list if lfutil.standin(f) in manifest]
         for list in (s.modified, s.added, s.deleted, s.clean)
-    ]
+    )
 
     def warn(files, msg):
         for f in files:
@@ -893,7 +893,7 @@ def overridecopy(orig, ui, repo, pats, opts, rename=False):
             ):
                 destlfile = dest.replace(lfutil.shortname, b'')
                 if not opts[b'force'] and os.path.exists(destlfile):
-                    raise IOError(
+                    raise OSError(
                         b'', _(b'destination largefile already exists')
                     )
             copiedfiles.append((src, dest))
@@ -1234,7 +1234,7 @@ def overridearchive(
     node,
     kind,
     decode=True,
-    match: Optional[matchmod.basematcher] = None,
+    match: Optional[MatcherT] = None,
     prefix=b'',
     mtime=None,
     subrepos=None,
@@ -1338,9 +1338,9 @@ def overridearchive(
             # allow only hgsubrepos to set this, instead of the current scheme
             # where the parent sets this for the child.
             with (
-                hasattr(sub, '_repo')
-                and lfstatus(sub._repo)
-                or util.nullcontextmanager()
+                lfstatus(sub._repo)
+                if hasattr(sub, '_repo')
+                else util.nullcontextmanager()
             ):
                 sub.archive(opencallback, subprefix, submatch)
 
@@ -1349,9 +1349,7 @@ def overridearchive(
 
 
 @eh.wrapfunction(subrepo.hgsubrepo, 'archive')
-def hgsubrepoarchive(
-    orig, repo, opener, prefix, match: matchmod.basematcher, decode=True
-):
+def hgsubrepoarchive(orig, repo, opener, prefix, match: MatcherT, decode=True):
     lfenabled = hasattr(repo._repo, '_largefilesenabled')
     if not lfenabled or not repo._repo.lfstatus:
         return orig(repo, opener, prefix, match, decode)
@@ -1412,9 +1410,9 @@ def hgsubrepoarchive(
         # would allow only hgsubrepos to set this, instead of the current scheme
         # where the parent sets this for the child.
         with (
-            hasattr(sub, '_repo')
-            and lfstatus(sub._repo)
-            or util.nullcontextmanager()
+            lfstatus(sub._repo)
+            if hasattr(sub, '_repo')
+            else util.nullcontextmanager()
         ):
             sub.archive(opener, subprefix, submatch, decode)
 
@@ -1829,7 +1827,7 @@ def overridecat(orig, ui, repo, file1, *pats, **opts):
                             % lf
                         )
                 path = lfutil.usercachepath(repo.ui, hash)
-                with open(path, b"rb") as fpin:
+                with open(path, "rb") as fpin:
                     for chunk in util.filechunkiter(fpin):
                         fp.write(chunk)
         err = 0

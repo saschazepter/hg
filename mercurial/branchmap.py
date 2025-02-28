@@ -145,7 +145,7 @@ class BranchMapCache:
                     closed.add(h)
 
         if rbheads:
-            rtiprev = max((int(clrev(node)) for node in rbheads))
+            rtiprev = max(int(clrev(node)) for node in rbheads)
             cache = new_branch_cache(
                 repo,
                 remotebranchmap,
@@ -202,7 +202,7 @@ class _BaseBranchCache:
 
     def __init__(
         self,
-        repo: "localrepo.localrepository",
+        repo: localrepo.localrepository,
         entries: Union[
             Dict[bytes, List[bytes]], Iterable[Tuple[bytes, List[bytes]]]
         ] = (),
@@ -437,7 +437,7 @@ class _LocalBranchCache(_BaseBranchCache):
 
     def __init__(
         self,
-        repo: "localrepo.localrepository",
+        repo: localrepo.localrepository,
         entries: Union[
             Dict[bytes, List[bytes]], Iterable[Tuple[bytes, List[bytes]]]
         ] = (),
@@ -525,7 +525,7 @@ class _LocalBranchCache(_BaseBranchCache):
                 # invalidate the cache
                 raise ValueError('tip differs')
             bcache._load_heads(repo, lineiter)
-        except (IOError, OSError):
+        except OSError:
             return None
 
         except Exception as inst:
@@ -545,7 +545,7 @@ class _LocalBranchCache(_BaseBranchCache):
         return bcache
 
     @classmethod
-    def _load_header(cls, repo, lineiter) -> "dict[str, Any]":
+    def _load_header(cls, repo, lineiter) -> dict[str, Any]:
         raise NotImplementedError
 
     def _load_heads(self, repo, lineiter):
@@ -632,7 +632,7 @@ class _LocalBranchCache(_BaseBranchCache):
                 nodecount,
             )
             self._state = STATE_CLEAN
-        except (IOError, OSError, error.Abort) as inst:
+        except (OSError, error.Abort) as inst:
             # Abort may be raised by read only opener, so log and continue
             repo.ui.debug(
                 b"couldn't write branch cache: %s\n"
@@ -788,7 +788,7 @@ class BranchCacheV2(_LocalBranchCache):
     _base_filename = b"branch2"
 
     @classmethod
-    def _load_header(cls, repo, lineiter) -> "dict[str, Any]":
+    def _load_header(cls, repo, lineiter) -> dict[str, Any]:
         """parse the head of a branchmap file
 
         return parameters to pass to a newly created class instance.
@@ -915,7 +915,7 @@ class BranchCacheV3(_LocalBranchCache):
         if self._pure_topo_branch is None:
             # we match using node because it is faster to built the set of node
             # than to resolve node → rev later.
-            topo_heads = set(to_node(r) for r in self._get_topo_heads(repo))
+            topo_heads = {to_node(r) for r in self._get_topo_heads(repo)}
         for label, nodes in sorted(self._entries.items()):
             if label == self._pure_topo_branch:
                 # not need to write anything the header took care of that
@@ -1079,7 +1079,7 @@ class remotebranchcache(_BaseBranchCache):
 
     def __init__(
         self,
-        repo: "localrepo.localrepository",
+        repo: localrepo.localrepository,
         entries: Union[
             Dict[bytes, List[bytes]], Iterable[Tuple[bytes, List[bytes]]]
         ] = (),

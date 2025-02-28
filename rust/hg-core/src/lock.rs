@@ -2,9 +2,11 @@
 
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
+use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
 use std::io;
 use std::io::ErrorKind;
+use std::path::Path;
 
 #[derive(derive_more::From)]
 pub enum LockError {
@@ -65,7 +67,7 @@ fn break_lock(hg_vfs: &VfsImpl, lock_filename: &str) -> Result<(), LockError> {
         if !lock_should_be_broken(&lock_data) {
             return Err(LockError::AlreadyHeld);
         }
-        Ok(hg_vfs.remove_file(lock_filename)?)
+        Ok(hg_vfs.unlink(Path::new(lock_filename))?)
     })?
 }
 
@@ -99,7 +101,7 @@ fn read_lock(
 }
 
 fn unlock(hg_vfs: &VfsImpl, lock_filename: &str) -> Result<(), HgError> {
-    hg_vfs.remove_file(lock_filename)
+    hg_vfs.unlink(Path::new(lock_filename))
 }
 
 /// Return whether the process that is/was holding the lock is known not to be

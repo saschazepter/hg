@@ -10,7 +10,6 @@ import contextlib
 import os
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial import (
     error,
     extensions,
@@ -84,7 +83,7 @@ def _getannotate(repo, proto, path, lastnode):
             for p in [actx.revmappath, actx.linelogpath]:
                 if not os.path.exists(p):
                     continue
-                with open(p, b'rb') as f:
+                with open(p, 'rb') as f:
                     content = f.read()
                 vfsbaselen = len(repo.vfs.base + b'/')
                 relpath = p[vfsbaselen:]

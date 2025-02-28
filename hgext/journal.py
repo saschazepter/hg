@@ -131,7 +131,7 @@ def recordbookmarks(orig, store, fp):
     repo = store._repo
     if hasattr(repo, 'journal'):
         oldmarks = bookmarks.bmstore(repo)
-        all_marks = set(b for b, n in oldmarks.items())
+        all_marks = {b for b, n in oldmarks.items()}
         all_marks.update(b for b, n in store.items())
         for mark in sorted(all_marks):
             value = store.get(mark, repo.nullid)

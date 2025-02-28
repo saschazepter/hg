@@ -8,9 +8,6 @@ import struct
 import time
 
 from mercurial.i18n import _
-from mercurial.pycompat import (
-    open,
-)
 from mercurial.node import hex
 from mercurial import (
     policy,
@@ -143,8 +140,8 @@ class basepackstore:
         packsuffixlen = len(self.PACKSUFFIX)
 
         ids = set()
-        sizes = collections.defaultdict(lambda: 0)
-        mtimes = collections.defaultdict(lambda: [])
+        sizes = collections.defaultdict(int)
+        mtimes = collections.defaultdict(list)
         try:
             for filename, type, stat in osutil.listdir(self.path, stat=True):
                 id = None
@@ -334,12 +331,12 @@ class basepack(versionmixin):
             self._data.close()
 
         # TODO: use an opener/vfs to access these paths
-        with open(self.indexpath, b'rb') as indexfp:
+        with open(self.indexpath, 'rb') as indexfp:
             # memory-map the file, size 0 means whole file
             self._index = mmap.mmap(
                 indexfp.fileno(), 0, access=mmap.ACCESS_READ
             )
-        with open(self.packpath, b'rb') as datafp:
+        with open(self.packpath, 'rb') as datafp:
             self._data = mmap.mmap(datafp.fileno(), 0, access=mmap.ACCESS_READ)
 
         self._pagedin = 0

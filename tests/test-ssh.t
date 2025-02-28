@@ -50,15 +50,10 @@ non-existent absolute path
 
 clone remote via stream
 
-#if no-reposimplestore
-
   $ hg clone --stream ssh://user@dummy/remote local-stream
   streaming all changes
-  9 files to transfer, 827 bytes of data (no-zstd !)
-  transferred 827 bytes in * seconds (*) (glob) (no-zstd !)
-  9 files to transfer, 846 bytes of data (zstd no-rust !)
-  11 files to transfer, 972 bytes of data (zstd rust !)
-  transferred * bytes in * seconds (* */sec) (glob) (zstd !)
+  * files to transfer, * bytes of data (glob)
+  stream-cloned * bytes in * seconds (* */sec) (glob)
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd local-stream
@@ -72,9 +67,8 @@ clone bookmarks via stream
   $ hg -R local-stream book mybook
   $ hg clone --stream ssh://user@dummy/local-stream stream2
   streaming all changes
-  12 files to transfer, * of data (glob) (no-rust !)
-  14 files to transfer, * of data (glob) (rust !)
-  transferred * in * seconds (*) (glob)
+  * files to transfer, * of data (glob)
+  stream-cloned * files / * in * seconds (*) (glob)
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd stream2
@@ -82,8 +76,6 @@ clone bookmarks via stream
      mybook                    0:1160648e36ce
   $ cd $TESTTMP
   $ rm -rf local-stream stream2
-
-#endif
 
 clone remote via pull
 
@@ -555,9 +547,9 @@ debug output
   Got arguments 1:user@dummy 2:hg -R nonexistent serve --stdio
   Got arguments 1:user@dummy 2:hg -R $TESTTMP/nonexistent serve --stdio
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
-  Got arguments 1:user@dummy 2:hg -R local-stream serve --stdio (no-reposimplestore !)
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio (no-reposimplestore !)
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio (no-reposimplestore !)
+  Got arguments 1:user@dummy 2:hg -R local-stream serve --stdio
+  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
+  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
   Got arguments 1:user@dummy 2:hg -R doesnotexist serve --stdio
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
   Got arguments 1:user@dummy 2:hg -R local serve --stdio

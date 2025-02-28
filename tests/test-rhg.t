@@ -4,11 +4,11 @@
 
 Unimplemented command
   $ $NO_FALLBACK rhg unimplemented-command
-  unsupported feature: error: The subcommand 'unimplemented-command' wasn't recognized
+  unsupported feature: error: unrecognized subcommand 'unimplemented-command'
   
   Usage: rhg [OPTIONS] <COMMAND>
   
-  For more information try '--help'
+  For more information, try '--help'.
   
   [252]
   $ rhg unimplemented-command --config rhg.on-unsupported=abort-silent
@@ -92,6 +92,29 @@ Listing tracked files through broken pipe
   $ $NO_FALLBACK rhg files | head -n 1
   ../../../file1
 
+Status with --rev and --change
+  $ cd $TESTTMP/repository
+  $ $NO_FALLBACK rhg status --change null
+  $ $NO_FALLBACK rhg status --change 0
+  A file1
+  A file2
+  A file3
+  $ $NO_FALLBACK rhg status --rev null --rev 0
+  A file1
+  A file2
+  A file3
+
+Status with --change --copies
+  $ hg copy file2 file2copy
+  $ hg rename file3 file3rename
+  $ hg commit -m "commit 4" -q
+  $ $NO_FALLBACK rhg status --change . --copies
+  A file2copy
+    file2
+  A file3rename
+    file3
+  R file3
+
 Debuging data in inline index
   $ cd $TESTTMP
   $ rm -rf repository
@@ -170,16 +193,25 @@ Cat copied file should not display copy metadata
   $ $NO_FALLBACK rhg cat -r 1 copy_of_original
   original content
 
+Annotate files
+  $ $NO_FALLBACK rhg annotate original
+  0: original content
+  $ $NO_FALLBACK rhg annotate --rev . --user --file --date --number --changeset \
+  > --line-number --text --no-follow --ignore-all-space --ignore-space-change \
+  > --ignore-blank-lines --ignore-space-at-eol original
+  test 0 1c9e69808da7 Thu Jan 01 00:00:00 1970 +0000 original:1: original content
+  $ $NO_FALLBACK rhg blame -r . -ufdnclawbBZ --no-follow original
+  test 0 1c9e69808da7 Thu Jan 01 00:00:00 1970 +0000 original:1: original content
 
 Fallback to Python
   $ $NO_FALLBACK rhg cat original --exclude="*.rs"
-  unsupported feature: error: Found argument '--exclude' which wasn't expected, or isn't valid in this context
+  unsupported feature: error: unexpected argument '--exclude' found
   
-    If you tried to supply '--exclude' as a value rather than a flag, use '-- --exclude'
+    tip: to pass '--exclude' as a value, use '-- --exclude'
   
   Usage: rhg cat <FILE>...
   
-  For more information try '--help'
+  For more information, try '--help'.
   
   [252]
   $ rhg cat original --exclude="*.rs"
@@ -205,13 +237,13 @@ Check that `fallback-immediately` overrides `$NO_FALLBACK`
 
   $ rhg cat original --exclude="*.rs" --config rhg.fallback-executable=rhg
   Blocking recursive fallback. The 'rhg.fallback-executable = rhg' config points to `rhg` itself.
-  unsupported feature: error: Found argument '--exclude' which wasn't expected, or isn't valid in this context
+  unsupported feature: error: unexpected argument '--exclude' found
   
-    If you tried to supply '--exclude' as a value rather than a flag, use '-- --exclude'
+    tip: to pass '--exclude' as a value, use '-- --exclude'
   
   Usage: rhg cat <FILE>...
   
-  For more information try '--help'
+  For more information, try '--help'.
   
   [252]
 
@@ -228,7 +260,7 @@ Fallback with shell path segments
 
 Fallback with filesets
   $ $NO_FALLBACK rhg cat "set:c or b"
-  unsupported feature: fileset
+  unsupported feature: rhg does not support file patterns
   [252]
 
 Fallback with generic hooks
@@ -433,3 +465,9 @@ We can ignore all extensions at once
   $ echo "ignored-extensions=*" >> $HGRCPATH
   $ $NO_FALLBACK rhg files
   a
+
+Latin-1 is not supported yet
+
+  $ $NO_FALLBACK HGENCODING=latin-1 rhg root
+  unsupported feature: HGENCODING value 'latin-1' is not supported
+  [252]

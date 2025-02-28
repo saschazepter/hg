@@ -168,7 +168,7 @@ class verifyingstatemachine(RuleBasedStateMachine):
     committimes = Bundle('committimes')
 
     def __init__(self):
-        super(verifyingstatemachine, self).__init__()
+        super().__init__()
         self.repodir = os.path.join(testtmp, "repos")
         if os.path.exists(self.repodir):
             shutil.rmtree(self.repodir)
@@ -192,7 +192,7 @@ class verifyingstatemachine(RuleBasedStateMachine):
 
         We then test it in a number of other configurations, verifying that
         each passes the same test."""
-        super(verifyingstatemachine, self).teardown()
+        super().teardown()
         try:
             shutil.rmtree(self.repodir)
         except OSError:
@@ -210,7 +210,7 @@ class verifyingstatemachine(RuleBasedStateMachine):
                 stderr=devnull,
             )
             rewriter.communicate("yes")
-            with open(path, 'r') as i:
+            with open(path) as i:
                 ttest = i.read()
 
         e = None
@@ -233,7 +233,7 @@ class verifyingstatemachine(RuleBasedStateMachine):
                                     "",
                                 )
                             o.write(l + os.linesep)
-                    with open(tf, 'r') as r:
+                    with open(tf) as r:
                         t = r.read()
                         assert ext not in t, t
                     output = subprocess.check_output(
@@ -255,7 +255,7 @@ class verifyingstatemachine(RuleBasedStateMachine):
 
     def execute_step(self, step):
         try:
-            return super(verifyingstatemachine, self).execute_step(step)
+            return super().execute_step(step)
         except (HypothesisException, KeyboardInterrupt):
             raise
         except Exception:

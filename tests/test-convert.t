@@ -532,11 +532,9 @@ testing: convert must not produce duplicate entries in fncache
 
 contents of fncache file:
 
-#if repofncache
   $ cat b/.hg/store/fncache | sort
-  data/a.i (reporevlogstore !)
-  data/b.i (reporevlogstore !)
-#endif
+  data/a.i
+  data/b.i
 
 test bogus URL
 

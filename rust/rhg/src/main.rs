@@ -1,15 +1,15 @@
 extern crate log;
 use crate::error::CommandError;
-use crate::ui::{local_to_utf8, Ui};
+use crate::ui::Ui;
 use clap::{command, Arg, ArgMatches};
 use format_bytes::{format_bytes, join};
 use hg::config::{Config, ConfigSource, PlainInfo};
 use hg::repo::{Repo, RepoError};
 use hg::utils::files::{get_bytes_from_os_str, get_path_from_bytes};
-use hg::utils::SliceExt;
+use hg::utils::strings::SliceExt;
 use hg::{exit_codes, requirements};
 use std::borrow::Cow;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
 use std::os::unix::prelude::CommandExt;
 use std::path::PathBuf;
@@ -67,7 +67,8 @@ fn main_with_result(
                 .global(true),
         )
         .version("0.0.1");
-    let app = add_subcommand_args(app);
+    let subcommands = subcommands();
+    let app = subcommands.add_args(app);
 
     let matches = app.try_get_matches_from(argv.iter())?;
 
@@ -98,7 +99,7 @@ fn main_with_result(
             return Err(CommandError::unsupported(msg));
         }
     }
-    let run = subcommand_run_fn(subcommand_name)
+    let run = subcommands.run_fn(subcommand_name)
         .expect("unknown subcommand name from clap despite Command::subcommand_required");
 
     let invocation = CliInvocation {
@@ -445,7 +446,7 @@ fn exit(
             on_unsupported = OnUnsupported::Abort
         } else {
             log::debug!("falling back (see trace-level log)");
-            log::trace!("{}", local_to_utf8(message));
+            log::trace!("{}", String::from_utf8_lossy(message));
             if let Err(err) = which::which(executable_path) {
                 exit_no_fallback(
                     ui,
@@ -525,6 +526,7 @@ fn exit_no_fallback(
 }
 
 mod commands {
+    pub mod annotate;
     pub mod cat;
     pub mod config;
     pub mod debugdata;
@@ -533,42 +535,98 @@ mod commands {
     pub mod debugrhgsparse;
     pub mod files;
     pub mod root;
+    pub mod script_hgignore;
     pub mod status;
 }
 
-macro_rules! subcommands {
-    ($( $command: ident )+) => {
+pub type RunFn = fn(&CliInvocation) -> Result<(), CommandError>;
 
-        fn add_subcommand_args(app: clap::Command) -> clap::Command {
-            app
-            $(
-                .subcommand(commands::$command::args())
-            )+
-        }
-
-        pub type RunFn = fn(&CliInvocation) -> Result<(), CommandError>;
-
-        fn subcommand_run_fn(name: &str) -> Option<RunFn> {
-            match name {
-                $(
-                    stringify!($command) => Some(commands::$command::run),
-                )+
-                _ => None,
-            }
-        }
-    };
+struct SubCommand {
+    run: RunFn,
+    args: clap::Command,
+    /// used for reporting name collisions
+    origin: String,
 }
 
-subcommands! {
-    cat
-    debugdata
-    debugrequirements
-    debugignorerhg
-    debugrhgsparse
-    files
-    root
-    config
-    status
+impl SubCommand {
+    fn name(&self) -> String {
+        self.args.get_name().to_string()
+    }
+}
+
+macro_rules! subcommand {
+    ($command: ident) => {{
+        SubCommand {
+            args: commands::$command::args(),
+            run: commands::$command::run,
+            origin: stringify!($command).to_string(),
+        }
+    }};
+}
+
+struct Subcommands {
+    commands: Vec<clap::Command>,
+    run: HashMap<String, (String, RunFn)>,
+}
+
+/// `Subcommands` construction
+impl Subcommands {
+    pub fn new() -> Self {
+        Self {
+            commands: vec![],
+            run: HashMap::new(),
+        }
+    }
+
+    pub fn add(&mut self, subcommand: SubCommand) {
+        let name = subcommand.name();
+        if let Some((origin_old, _)) = self
+            .run
+            .insert(name.clone(), (subcommand.origin.clone(), subcommand.run))
+        {
+            panic!(
+                "command `{}` is defined in two places (`{}` and `{}`)",
+                name, origin_old, subcommand.origin
+            )
+        }
+        self.commands.push(subcommand.args)
+    }
+}
+
+/// `Subcommands` querying
+impl Subcommands {
+    pub fn add_args(&self, mut app: clap::Command) -> clap::Command {
+        for cmd in self.commands.iter() {
+            app = app.subcommand(cmd)
+        }
+        app
+    }
+
+    pub fn run_fn(&self, name: &str) -> Option<RunFn> {
+        let (_, run) = self.run.get(name)?;
+        Some(*run)
+    }
+}
+
+fn subcommands() -> Subcommands {
+    let subcommands = vec![
+        subcommand!(annotate),
+        subcommand!(cat),
+        subcommand!(debugdata),
+        subcommand!(debugrequirements),
+        subcommand!(debugignorerhg),
+        subcommand!(debugrhgsparse),
+        subcommand!(files),
+        subcommand!(root),
+        subcommand!(config),
+        subcommand!(status),
+        subcommand!(script_hgignore),
+    ];
+    let mut commands = Subcommands::new();
+    for cmd in subcommands {
+        commands.add(cmd)
+    }
+    commands
 }
 
 pub struct CliInvocation<'a> {

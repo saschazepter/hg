@@ -136,7 +136,7 @@ class changelogrevision:
         if not text:
             return _changelogrevision(extra=_defaultextra, manifest=cl.nullid)
 
-        self = super(changelogrevision, cls).__new__(cls)
+        self = super().__new__(cls)
         # We could return here and implement the following as an __init__.
         # But doing it here is equivalent and saves an extra function call.
 
@@ -324,6 +324,7 @@ class changelog(revlog.revlog):
 
             self._format_flags &= ~revlog.FLAG_GENERALDELTA
             self.delta_config.general_delta = False
+            self.data_config.generaldelta = False
 
         # Delta chains for changelogs tend to be very small because entries
         # tend to be small and don't delta well with each. So disable delta
@@ -351,7 +352,7 @@ class changelog(revlog.revlog):
 
     def _write_docket(self, tr):
         if not self._v2_delayed:
-            super(changelog, self)._write_docket(tr)
+            super()._write_docket(tr)
 
     def delayupdate(self, tr):
         """delay visibility of index updates to other readers"""

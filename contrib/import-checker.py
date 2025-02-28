@@ -3,7 +3,6 @@
 
 import ast
 import collections
-import io
 import os
 import sys
 
@@ -27,6 +26,8 @@ allowsymbolimports = (
     'mercurial.hgweb.request',
     'mercurial.i18n',
     'mercurial.interfaces',
+    'mercurial.interfaces._basetypes',
+    'mercurial.interfaces.types',
     'mercurial.node',
     'mercurial.pycompat',
     # for revlog to re-export constant to extensions
@@ -43,8 +44,6 @@ allowsymbolimports = (
     'mercurial.thirdparty.attr',
     'mercurial.thirdparty.jaraco.collections',
     'mercurial.thirdparty.tomli',
-    'mercurial.thirdparty.zope',
-    'mercurial.thirdparty.zope.interface',
     'typing',
     'xml.etree.ElementTree',
 )
@@ -219,24 +218,19 @@ def list_stdlib_modules():
     >>> 'cffi' in mods
     True
     """
-    for m in sys.builtin_module_names:
-        yield m
+    yield from sys.builtin_module_names
     # These modules only exist on windows, but we should always
     # consider them stdlib.
-    for m in ['msvcrt', '_winreg']:
-        yield m
+    yield from ['msvcrt', '_winreg']
     yield '__builtin__'
     yield 'builtins'  # python3 only
     yield 'importlib.abc'  # python3 only
     yield 'importlib.machinery'  # python3 only
     yield 'importlib.util'  # python3 only
     yield 'packaging.version'
-    for m in 'fcntl', 'grp', 'pwd', 'select', 'termios':  # Unix only
-        yield m
-    for m in 'cPickle', 'datetime':  # in Python (not C) on PyPy
-        yield m
-    for m in ['cffi']:
-        yield m
+    yield from ['fcntl', 'grp', 'pwd', 'select', 'termios']
+    yield from ['cPickle', 'datetime']
+    yield from ['cffi']
     yield 'distutils'  # in Python < 3.12
     yield 'distutils.version'  # in Python < 3.12
     stdlib_prefixes = {sys.prefix, sys.exec_prefix}
@@ -445,10 +439,9 @@ def verify_modern_convention(module, root, localmods, root_col_offset=0):
 
         if newscope:
             # Check for local imports in function
-            for r in verify_modern_convention(
+            yield from verify_modern_convention(
                 module, node, localmods, node.col_offset + 4
-            ):
-                yield r
+            )
         elif isinstance(node, ast.Import):
             # Disallow "import foo, bar" and require separate imports
             # for each module.
@@ -713,7 +706,7 @@ def sources(f, modname):
         # Python source file encoding. But in reality we don't use anything
         # other than ASCII (mainly) and UTF-8 (in a few exceptions), so
         # simplicity is fine.
-        with io.open(f, 'r', encoding='utf-8') as src:
+        with open(f, encoding='utf-8') as src:
             for script, modname, t, line in embedded(f, modname, src):
                 yield script, modname.encode('utf8'), t, line
 

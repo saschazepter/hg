@@ -191,9 +191,9 @@ def posixfile(name, mode=b'r', buffering=-1):
             return mixedfilemodewrapper(fp)
 
         return fp
-    except WindowsError as err:  # pytype: disable=name-error
+    except OSError as err:
         # convert to a friendlier exception
-        raise IOError(
+        raise OSError(
             err.errno, '%s: %s' % (encoding.strfromlocal(name), err.strerror)
         )
 
@@ -208,19 +208,19 @@ def get_password() -> bytes:
     This shouldn't be called directly- use ``ui.getpass()`` instead, which
     checks if the session is interactive first.
     """
-    pw = u""
+    pw = ""
     while True:
         c = msvcrt.getwch()  # pytype: disable=module-attr
-        if c == u'\r' or c == u'\n':
+        if c == '\r' or c == '\n':
             break
-        if c == u'\003':
+        if c == '\003':
             raise KeyboardInterrupt
-        if c == u'\b':
+        if c == '\b':
             pw = pw[:-1]
         else:
             pw = pw + c
-    msvcrt.putwch(u'\r')  # pytype: disable=module-attr
-    msvcrt.putwch(u'\n')  # pytype: disable=module-attr
+    msvcrt.putwch('\r')  # pytype: disable=module-attr
+    msvcrt.putwch('\n')  # pytype: disable=module-attr
     return encoding.unitolocal(pw)
 
 
@@ -242,25 +242,25 @@ class winstdout(typelib.BinaryIO_Proxy):
     def close(self):
         try:
             self.fp.close()
-        except IOError:
+        except OSError:
             pass
 
     def write(self, s):
         try:
             return self.fp.write(s)
-        except IOError as inst:
+        except OSError as inst:
             if inst.errno != 0 and not win32.lasterrorwaspipeerror(inst):
                 raise
             self.close()
-            raise IOError(errno.EPIPE, 'Broken pipe')
+            raise OSError(errno.EPIPE, 'Broken pipe')
 
     def flush(self):
         try:
             return self.fp.flush()
-        except IOError as inst:
+        except OSError as inst:
             if not win32.lasterrorwaspipeerror(inst):
                 raise
-            raise IOError(errno.EPIPE, 'Broken pipe')
+            raise OSError(errno.EPIPE, 'Broken pipe')
 
 
 def openhardlinks() -> bool:
@@ -744,7 +744,7 @@ def lookupreg(
 
                 # never let a Unicode string escape into the wild
                 return encoding.unitolocal(val)
-        except EnvironmentError:
+        except OSError:
             pass
 
 

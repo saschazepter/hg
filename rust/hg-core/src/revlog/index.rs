@@ -7,14 +7,14 @@ use bitvec::prelude::*;
 use byteorder::{BigEndian, ByteOrder};
 use bytes_cast::{unaligned, BytesCast};
 
-use super::REVIDX_KNOWN_FLAGS;
+use super::{NodePrefix, RevlogError, RevlogIndex, REVIDX_KNOWN_FLAGS};
 use crate::errors::HgError;
-use crate::node::{NODE_BYTES_LENGTH, NULL_NODE, STORED_NODE_ID_BYTES};
-use crate::revlog::node::Node;
+use crate::revlog::node::{
+    Node, NODE_BYTES_LENGTH, NULL_NODE, STORED_NODE_ID_BYTES,
+};
 use crate::revlog::{Revision, NULL_REVISION};
 use crate::{
-    dagops, BaseRevision, FastHashMap, Graph, GraphError, RevlogError,
-    RevlogIndex, UncheckedRevision,
+    dagops, BaseRevision, FastHashMap, Graph, GraphError, UncheckedRevision,
 };
 
 pub const INDEX_ENTRY_SIZE: usize = 64;
@@ -62,22 +62,19 @@ impl IndexHeader {
         BigEndian::read_u16(&self.header_bytes[2..4])
     }
 
-    pub fn parse(index_bytes: &[u8]) -> Result<Option<IndexHeader>, HgError> {
-        if index_bytes.is_empty() {
-            return Ok(None);
-        }
+    pub fn parse(index_bytes: &[u8]) -> Result<IndexHeader, HgError> {
         if index_bytes.len() < 4 {
             return Err(HgError::corrupted(
                 "corrupted revlog: can't read the index format header",
             ));
         }
-        Ok(Some(IndexHeader {
+        Ok(IndexHeader {
             header_bytes: {
                 let bytes: [u8; 4] =
                     index_bytes[0..4].try_into().expect("impossible");
                 bytes
             },
-        }))
+        })
     }
 }
 
@@ -275,7 +272,7 @@ pub struct Index {
     /// be accessed via the [`Self::head_revs`] method.
     /// The last filtered revisions in this index, used to make sure
     /// we haven't changed filters when returning the cached `head_revs`.
-    head_revs: RwLock<(Vec<Revision>, HashSet<Revision>)>,
+    pub(super) head_revs: RwLock<(Vec<Revision>, HashSet<Revision>)>,
 }
 
 impl Debug for Index {
@@ -312,7 +309,7 @@ impl Graph for Index {
 ///
 /// TODO the dubious part is insisting that errors must be RevlogError
 /// we would probably need to sprinkle some magic here, such as an associated
-/// type that would be Into<RevlogError> but even that would not be
+/// type that would be `Into<RevlogError>` but even that would not be
 /// satisfactory, as errors potentially have nothing to do with the revlog.
 pub trait SnapshotsCache {
     fn insert_for(
@@ -341,8 +338,11 @@ impl Index {
         bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>,
         default_header: IndexHeader,
     ) -> Result<Self, HgError> {
-        let header =
-            IndexHeader::parse(bytes.as_ref())?.unwrap_or(default_header);
+        let header = if bytes.len() < INDEX_ENTRY_SIZE {
+            default_header
+        } else {
+            IndexHeader::parse(bytes.as_ref())?
+        };
 
         if header.format_version() != IndexHeader::REVLOGV1 {
             // A proper new version should have had a repo/store
@@ -417,6 +417,48 @@ impl Index {
         }
     }
 
+    /// Same as `rev_from_node`, without using a persistent nodemap
+    ///
+    /// This is used as fallback when a persistent nodemap is not present.
+    /// This happens when the persistent-nodemap experimental feature is not
+    /// enabled, or for small revlogs.
+    pub fn rev_from_node_no_persistent_nodemap(
+        &self,
+        node: NodePrefix,
+    ) -> Result<Revision, RevlogError> {
+        // Linear scan of the revlog
+        // TODO: consider building a non-persistent nodemap in memory to
+        // optimize these cases.
+        let mut found_by_prefix = None;
+        for rev in (-1..self.len() as BaseRevision).rev() {
+            let rev = Revision(rev as BaseRevision);
+            let candidate_node = if rev == Revision(-1) {
+                NULL_NODE
+            } else {
+                let index_entry = self.get_entry(rev).ok_or_else(|| {
+                    HgError::corrupted(
+                        "revlog references a revision not in the index",
+                    )
+                })?;
+                *index_entry.hash()
+            };
+            if node == candidate_node {
+                return Ok(rev);
+            }
+            if node.is_prefix_of(&candidate_node) {
+                if found_by_prefix.is_some() {
+                    return Err(RevlogError::AmbiguousPrefix(format!(
+                        "{:x}",
+                        node
+                    )));
+                }
+                found_by_prefix = Some(rev)
+            }
+        }
+        found_by_prefix
+            .ok_or_else(|| RevlogError::InvalidRevision(format!("{:x}", node)))
+    }
+
     pub fn get_offsets(&self) -> RwLockReadGuard<Option<Vec<usize>>> {
         assert!(self.is_inline());
         {
@@ -468,8 +510,7 @@ impl Index {
 
     /// Return the binary content of the index entry for the given revision
     ///
-    /// See [get_entry()](`Self::get_entry()`) for cases when `None` is
-    /// returned.
+    /// See [`Self::get_entry`] for cases when `None` is returned.
     pub fn entry_binary(&self, rev: Revision) -> Option<&[u8]> {
         self.get_entry(rev).map(|e| {
             let bytes = e.as_bytes();
@@ -497,11 +538,13 @@ impl Index {
                 .compressed_len()
                 .try_into()
                 .unwrap_or_else(|_| {
-                    // Python's `unionrepo` sets the compressed length to be
-                    // `-1` (or `u32::MAX` if transmuted to `u32`) because it
+                    // Python's `unionrepo` sets the compressed length to
+                    // be `-1` (or `u32::MAX` if
+                    // transmuted to `u32`) because it
                     // cannot know the correct compressed length of a given
-                    // revision. I'm not sure if this is true, but having this
-                    // edge case won't hurt other use cases, let's handle it.
+                    // revision. I'm not sure if this is true, but having
+                    // this edge case won't hurt
+                    // other use cases, let's handle it.
                     assert_eq!(e.compressed_len(), u32::MAX);
                     NULL_REVISION.0
                 }),
@@ -682,13 +725,11 @@ impl Index {
         &self,
         rev: Revision,
         stop_rev: Option<Revision>,
-        using_general_delta: Option<bool>,
     ) -> Result<(Vec<Revision>, bool), HgError> {
         let mut current_rev = rev;
         let mut entry = self.get_entry(rev).unwrap();
         let mut chain = vec![];
-        let using_general_delta =
-            using_general_delta.unwrap_or_else(|| self.uses_generaldelta());
+        let using_general_delta = self.uses_generaldelta();
         while current_rev.0 != entry.base_revision_or_base_of_delta_chain().0
             && stop_rev.map(|r| r != current_rev).unwrap_or(true)
         {
@@ -839,9 +880,9 @@ impl Index {
                 if parent_base.0 == p1.0 {
                     break;
                 }
-                p1 = self.check_revision(parent_base).ok_or(
-                    RevlogError::InvalidRevision(parent_base.to_string()),
-                )?;
+                p1 = self.check_revision(parent_base).ok_or_else(|| {
+                    RevlogError::InvalidRevision(parent_base.to_string())
+                })?;
             }
             while let Some(p2_entry) = self.get_entry(p2) {
                 if p2_entry.compressed_len() != 0 || p2.0 == 0 {
@@ -852,16 +893,16 @@ impl Index {
                 if parent_base.0 == p2.0 {
                     break;
                 }
-                p2 = self.check_revision(parent_base).ok_or(
-                    RevlogError::InvalidRevision(parent_base.to_string()),
-                )?;
+                p2 = self.check_revision(parent_base).ok_or_else(|| {
+                    RevlogError::InvalidRevision(parent_base.to_string())
+                })?;
             }
             if base == p1.0 || base == p2.0 {
                 return Ok(false);
             }
-            rev = self
-                .check_revision(base.into())
-                .ok_or(RevlogError::InvalidRevision(base.to_string()))?;
+            rev = self.check_revision(base.into()).ok_or_else(|| {
+                RevlogError::InvalidRevision(base.to_string())
+            })?;
         }
         Ok(rev == NULL_REVISION)
     }
@@ -925,8 +966,8 @@ impl Index {
         let mut gaps = Vec::new();
         let mut previous_end = None;
 
-        for (i, (_rev, entry)) in entries.iter().enumerate() {
-            let start = entry.c_start() as usize;
+        for (i, (rev, entry)) in entries.iter().enumerate() {
+            let start = self.start(*rev, entry);
             let length = entry.compressed_len();
 
             // Skip empty revisions to form larger holes
@@ -1004,15 +1045,13 @@ impl Index {
         if revs.is_empty() {
             return 0;
         }
-        let last_entry = &self.get_entry(revs[revs.len() - 1]).unwrap();
-        let end = last_entry.c_start() + last_entry.compressed_len() as u64;
+        let last_rev = revs[revs.len() - 1];
+        let last_entry = &self.get_entry(last_rev).unwrap();
+        let end = last_entry.offset() + last_entry.compressed_len() as usize;
         let first_rev = revs.iter().find(|r| r.0 != NULL_REVISION.0).unwrap();
-        let start = if first_rev.0 == 0 {
-            0
-        } else {
-            self.get_entry(*first_rev).unwrap().c_start()
-        };
-        (end - start) as usize
+        let first_entry = self.get_entry(*first_rev).unwrap();
+        let start = first_entry.offset();
+        end - start
     }
 
     /// Returns `&revs[startidx..endidx]` without empty trailing revs
@@ -1379,6 +1418,33 @@ impl Index {
             })
             .collect())
     }
+
+    /// Return the offset into the data corresponding to `rev` (in the index
+    /// file if inline, in the data file otherwise). `entry` must be the entry
+    /// for `rev`: the API is done this way to reduce the number of lookups
+    /// since we sometimes already have the entry, and because very few places
+    /// actually use this function.
+    #[inline(always)]
+    pub fn start(&self, rev: Revision, entry: &IndexEntry<'_>) -> usize {
+        #[cfg(debug_assertions)]
+        {
+            assert_eq!(&self.get_entry(rev).unwrap(), entry);
+        }
+        let offset = entry.offset();
+        if self.is_inline() {
+            offset + ((rev.0 as usize + 1) * INDEX_ENTRY_SIZE)
+        } else {
+            offset
+        }
+    }
+
+    pub(crate) fn make_null_entry(&self) -> IndexEntry<'_> {
+        IndexEntry {
+            bytes: b"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0 \
+            \xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff \
+            \0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",
+        }
+    }
 }
 
 /// The kind of functionality needed by find_gca_candidates
@@ -1692,7 +1758,7 @@ impl super::RevlogIndex for Index {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct IndexEntry<'a> {
     bytes: &'a [u8],
 }
@@ -1706,11 +1772,6 @@ impl<'a> IndexEntry<'a> {
     }
     pub fn raw_offset(&self) -> u64 {
         BigEndian::read_u64(&self.bytes[0..8])
-    }
-
-    /// Same result (except potentially for rev 0) as C `index_get_start()`
-    fn c_start(&self) -> u64 {
-        self.raw_offset() >> 16
     }
 
     pub fn flags(&self) -> u16 {
@@ -1766,7 +1827,7 @@ pub use tests::IndexEntryBuilder;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::node::NULL_NODE;
+    use crate::NULL_NODE;
 
     #[cfg(test)]
     #[derive(Debug, Copy, Clone)]
@@ -1901,24 +1962,21 @@ mod tests {
 
     pub fn is_inline(index_bytes: &[u8]) -> bool {
         IndexHeader::parse(index_bytes)
-            .expect("too short")
-            .unwrap()
+            .expect("invalid header")
             .format_flags()
             .is_inline()
     }
 
     pub fn uses_generaldelta(index_bytes: &[u8]) -> bool {
         IndexHeader::parse(index_bytes)
-            .expect("too short")
-            .unwrap()
+            .expect("invalid header")
             .format_flags()
             .uses_generaldelta()
     }
 
     pub fn get_version(index_bytes: &[u8]) -> u16 {
         IndexHeader::parse(index_bytes)
-            .expect("too short")
-            .unwrap()
+            .expect("invalid header")
             .format_version()
     }
 

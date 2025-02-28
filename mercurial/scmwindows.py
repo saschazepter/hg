@@ -115,5 +115,5 @@ def _legacy_expanduser(path: bytes) -> bytes:
     return userhome + path[i:]
 
 
-def termsize(ui: "uimod.ui") -> Tuple[int, int]:
+def termsize(ui: uimod.ui) -> Tuple[int, int]:
     return win32.termsize()

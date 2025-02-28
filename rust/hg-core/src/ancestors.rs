@@ -9,8 +9,57 @@
 
 use super::{Graph, GraphError, Revision, NULL_REVISION};
 use crate::dagops;
+use bit_set::BitSet;
 use std::cmp::max;
 use std::collections::{BinaryHeap, HashSet};
+
+/// A set of revisions backed by a bitset, optimized for descending insertion.
+struct DescendingRevisionSet {
+    /// The underlying bitset storage.
+    set: BitSet,
+    /// For a revision `R` we store `ceiling - R` instead of `R` so that
+    /// memory usage is proportional to how far we've descended.
+    ceiling: i32,
+    /// Track length separately because [`BitSet::len`] recounts every time.
+    len: usize,
+}
+
+impl DescendingRevisionSet {
+    /// Creates a new empty set that can store revisions up to `ceiling`.
+    fn new(ceiling: Revision) -> Self {
+        Self {
+            set: BitSet::new(),
+            ceiling: ceiling.0,
+            len: 0,
+        }
+    }
+
+    /// Returns the number of revisions in the set.
+    fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Returns true if the set contains `value`.
+    fn contains(&self, value: Revision) -> bool {
+        match self.encode(value) {
+            Ok(n) => self.set.contains(n),
+            Err(_) => false,
+        }
+    }
+
+    /// Adds `value` to the set. Returns true if it was not already in the set.
+    /// Returns `Err` if it cannot store it because it is above the ceiling.
+    fn insert(&mut self, value: Revision) -> Result<bool, GraphError> {
+        let inserted = self.set.insert(self.encode(value)?);
+        self.len += inserted as usize;
+        Ok(inserted)
+    }
+
+    fn encode(&self, value: Revision) -> Result<usize, GraphError> {
+        usize::try_from(self.ceiling - value.0)
+            .map_err(|_| GraphError::ParentOutOfOrder(value))
+    }
+}
 
 /// Iterator over the ancestors of a given list of revisions
 /// This is a generic type, defined and implemented for any Graph, so that
@@ -22,7 +71,7 @@ use std::collections::{BinaryHeap, HashSet};
 pub struct AncestorsIterator<G: Graph> {
     graph: G,
     visit: BinaryHeap<Revision>,
-    seen: HashSet<Revision>,
+    seen: DescendingRevisionSet,
     stoprev: Revision,
 }
 
@@ -43,12 +92,18 @@ impl<G: Graph> AncestorsIterator<G> {
         stoprev: Revision,
         inclusive: bool,
     ) -> Result<Self, GraphError> {
-        let filtered_initrevs = initrevs.into_iter().filter(|&r| r >= stoprev);
+        let filtered_initrevs = initrevs
+            .into_iter()
+            .filter(|&r| r >= stoprev)
+            .collect::<BinaryHeap<_>>();
+        let max = *filtered_initrevs.peek().unwrap_or(&NULL_REVISION);
+        let mut seen = DescendingRevisionSet::new(max);
         if inclusive {
-            let visit: BinaryHeap<Revision> = filtered_initrevs.collect();
-            let seen = visit.iter().cloned().collect();
+            for &rev in &filtered_initrevs {
+                seen.insert(rev).expect("revs cannot be above their max");
+            }
             return Ok(AncestorsIterator {
-                visit,
+                visit: filtered_initrevs,
                 seen,
                 stoprev,
                 graph,
@@ -56,24 +111,30 @@ impl<G: Graph> AncestorsIterator<G> {
         }
         let mut this = AncestorsIterator {
             visit: BinaryHeap::new(),
-            seen: HashSet::new(),
+            seen,
             stoprev,
             graph,
         };
-        this.seen.insert(NULL_REVISION);
+        this.seen
+            .insert(NULL_REVISION)
+            .expect("null is the smallest revision");
         for rev in filtered_initrevs {
             for parent in this.graph.parents(rev)?.iter().cloned() {
-                this.conditionally_push_rev(parent);
+                this.conditionally_push_rev(parent)?;
             }
         }
         Ok(this)
     }
 
     #[inline]
-    fn conditionally_push_rev(&mut self, rev: Revision) {
-        if self.stoprev <= rev && self.seen.insert(rev) {
+    fn conditionally_push_rev(
+        &mut self,
+        rev: Revision,
+    ) -> Result<(), GraphError> {
+        if self.stoprev <= rev && self.seen.insert(rev)? {
             self.visit.push(rev);
         }
+        Ok(())
     }
 
     /// Consumes partially the iterator to tell if the given target
@@ -82,7 +143,7 @@ impl<G: Graph> AncestorsIterator<G> {
     /// This is meant for iterators actually dedicated to that kind of
     /// purpose
     pub fn contains(&mut self, target: Revision) -> Result<bool, GraphError> {
-        if self.seen.contains(&target) && target != NULL_REVISION {
+        if self.seen.contains(target) && target != NULL_REVISION {
             return Ok(true);
         }
         for item in self {
@@ -110,13 +171,14 @@ impl<G: Graph> AncestorsIterator<G> {
         if self.visit.len() > 0 {
             return false;
         }
-        if self.seen.len() > 1 {
+        let seen_len = self.seen.len();
+        if seen_len > 1 {
             return false;
         }
         // at this point, the seen set is at most a singleton.
         // If not `self.inclusive`, it's still possible that it has only
         // the null revision
-        self.seen.is_empty() || self.seen.contains(&NULL_REVISION)
+        seen_len == 0 || self.seen.contains(NULL_REVISION)
     }
 }
 
@@ -145,13 +207,23 @@ impl<G: Graph> Iterator for AncestorsIterator<G> {
             Ok(ps) => ps,
             Err(e) => return Some(Err(e)),
         };
-        if p1 < self.stoprev || !self.seen.insert(p1) {
+        let pop = if p1 < self.stoprev {
+            true
+        } else {
+            match self.seen.insert(p1) {
+                Ok(inserted) => !inserted,
+                Err(e) => return Some(Err(e)),
+            }
+        };
+        if pop {
             self.visit.pop();
         } else {
             *(self.visit.peek_mut().unwrap()) = p1;
         };
 
-        self.conditionally_push_rev(p2);
+        if let Err(e) = self.conditionally_push_rev(p2) {
+            return Some(Err(e));
+        }
         Some(Ok(current))
     }
 }
@@ -206,11 +278,10 @@ impl<G: Graph> MissingAncestors<G> {
             new_bases
                 .into_iter()
                 .filter(|&rev| rev != NULL_REVISION)
-                .map(|r| {
+                .inspect(|&r| {
                     if r > max_base {
                         max_base = r;
                     }
-                    r
                 }),
         );
         self.max_base = max_base;
@@ -404,6 +475,28 @@ mod tests {
             .unwrap()
             .map(|res| res.unwrap())
             .collect()
+    }
+
+    #[test]
+    fn test_descending_revision_set() {
+        let mut set = DescendingRevisionSet::new(Revision(1_000_000));
+
+        assert_eq!(set.len(), 0);
+        assert!(!set.contains(Revision(999_950)));
+
+        assert_eq!(set.insert(Revision(999_950)), Ok(true));
+        assert_eq!(set.insert(Revision(999_950)), Ok(false));
+        assert_eq!(set.insert(Revision(1_000_000)), Ok(true));
+        assert_eq!(
+            set.insert(Revision(1_000_001)),
+            Err(GraphError::ParentOutOfOrder(Revision(1_000_001)))
+        );
+
+        assert_eq!(set.len(), 2);
+        assert!(set.contains(Revision(999_950)));
+        assert!(!set.contains(Revision(999_951)));
+        assert!(set.contains(Revision(1_000_000)));
+        assert!(!set.contains(Revision(1_000_001)));
     }
 
     #[test]

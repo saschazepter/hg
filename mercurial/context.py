@@ -37,6 +37,9 @@ from . import (
     testing,
     util,
 )
+from .interfaces import (
+    status as istatus,
+)
 from .utils import (
     dateutil,
     stringutil,
@@ -99,7 +102,7 @@ class basectx:
 
     def _buildstatus(
         self, other, s, match, listignored, listclean, listunknown
-    ):
+    ) -> istatus.Status:
         """build a status with respect to another context"""
         # Load earliest manifest first for caching reasons. More specifically,
         # if you have revisions 1000 and 1001, 1001 is probably stored as a
@@ -388,7 +391,7 @@ class basectx:
         listclean=False,
         listunknown=False,
         listsubrepos=False,
-    ):
+    ) -> istatus.Status:
         """return status of files between two nodes or node and working
         directory.
 
@@ -502,7 +505,7 @@ class changectx(basectx):
     the repo."""
 
     def __init__(self, repo, rev, node, maybe_filtered=True):
-        super(changectx, self).__init__(repo)
+        super().__init__(repo)
         self._rev = rev
         self._node = node
         # When maybe_filtered is True, the revision might be affected by
@@ -657,7 +660,7 @@ class changectx(basectx):
                 p1copies = p2copies = None
         if p1copies is None:
             if compute_on_none:
-                p1copies, p2copies = super(changectx, self)._copies
+                p1copies, p2copies = super()._copies
             else:
                 if p1copies is None:
                     p1copies = {}
@@ -960,7 +963,7 @@ class basefilectx:
     def isbinary(self):
         try:
             return stringutil.binary(self.data())
-        except IOError:
+        except OSError:
             return False
 
     def isexec(self):
@@ -1219,14 +1222,16 @@ class basefilectx:
             # it is safe to use an unfiltered repository here because we are
             # walking ancestors only.
             cl = self._repo.unfiltered().changelog
-            if base.rev() is None:
+            # use self.rev(), not base.rev(), because if self is a merge  we should still
+            # consider linkrevs in the other branch as ancestors.
+            if self.rev() is None:
                 # wctx is not inclusive, but works because _ancestrycontext
                 # is used to test filelog revisions
                 ac = cl.ancestors(
-                    [p.rev() for p in base.parents()], inclusive=True
+                    [p.rev() for p in self.parents()], inclusive=True
                 )
             else:
-                ac = cl.ancestors([base.rev()], inclusive=True)
+                ac = cl.ancestors([self.rev()], inclusive=True)
             base._ancestrycontext = ac
 
         return dagop.annotate(
@@ -1397,7 +1402,7 @@ class committablectx(basectx):
         changes=None,
         branch=None,
     ):
-        super(committablectx, self).__init__(repo)
+        super().__init__(repo)
         self._rev = None
         self._node = None
         self._text = text
@@ -1531,8 +1536,7 @@ class committablectx(basectx):
         return self._parents[0].ancestor(c2)  # punt on two parents for now
 
     def ancestors(self):
-        for p in self._parents:
-            yield p
+        yield from self._parents
         for a in self._repo.changelog.ancestors(
             [p.rev() for p in self._parents]
         ):
@@ -1571,9 +1575,7 @@ class workingctx(committablectx):
                 branch = repo.dirstate.branch()
             except UnicodeDecodeError:
                 raise error.Abort(_(b'branch name not in UTF-8!'))
-        super(workingctx, self).__init__(
-            repo, text, user, date, extra, changes, branch=branch
-        )
+        super().__init__(repo, text, user, date, extra, changes, branch=branch)
 
     def __iter__(self):
         d = self._repo.dirstate
@@ -1623,7 +1625,7 @@ class workingctx(committablectx):
     def _fileinfo(self, path):
         # populate __dict__['_manifest'] as workingctx has no _manifestdelta
         self._manifest
-        return super(workingctx, self)._fileinfo(path)
+        return super()._fileinfo(path)
 
     def _buildflagfunc(self):
         # Create a fallback function for getting file flags when the
@@ -1851,7 +1853,7 @@ class workingctx(committablectx):
                         fixup.append((f, cache_info))
                     else:
                         clean.append(f)
-            except (IOError, OSError):
+            except OSError:
                 # A file become inaccessible in between? Mark it as deleted,
                 # matching dirstate behavior (issue5584).
                 # The dirstate has more complex behavior around whether a
@@ -1905,7 +1907,9 @@ class workingctx(committablectx):
                 # Even if the wlock couldn't be grabbed, clear out the list.
                 self._repo.clearpostdsstatus()
 
-    def _dirstatestatus(self, match, ignored=False, clean=False, unknown=False):
+    def _dirstatestatus(
+        self, match, ignored=False, clean=False, unknown=False
+    ) -> istatus.Status:
         '''Gets the status from the dirstate -- internal use only.'''
         subrepos = []
         if b'.hgsub' in self:
@@ -2013,7 +2017,7 @@ class workingctx(committablectx):
         # they are supposed to be linking to.
         s.modified[:] = self._filtersuspectsymlink(s.modified)
         if other != self._repo[b'.']:
-            s = super(workingctx, self)._buildstatus(
+            s = super()._buildstatus(
                 other, s, match, listignored, listclean, listunknown
             )
         return s
@@ -2152,7 +2156,7 @@ class workingfilectx(committablefilectx):
     file in the working directory convenient."""
 
     def __init__(self, repo, path, filelog=None, workingctx=None):
-        super(workingfilectx, self).__init__(repo, path, filelog, workingctx)
+        super().__init__(repo, path, filelog, workingctx)
 
     @propertycache
     def _changectx(self):
@@ -2255,7 +2259,7 @@ class overlayworkingctx(committablectx):
     """
 
     def __init__(self, repo):
-        super(overlayworkingctx, self).__init__(repo)
+        super().__init__(repo)
         self.clean()
 
     def setbase(self, wrappedctx):
@@ -2540,15 +2544,18 @@ class overlayworkingctx(committablectx):
         files = self.files()
 
         def getfile(repo, memctx, path):
-            if self._cache[path][b'exists']:
+            hit = self._cache.get(path)
+            if hit is None:
+                return self.filectx(path)
+            elif hit[b'exists']:
                 return memfilectx(
                     repo,
                     memctx,
                     path,
-                    self._cache[path][b'data'],
-                    b'l' in self._cache[path][b'flags'],
-                    b'x' in self._cache[path][b'flags'],
-                    self._cache[path][b'copied'],
+                    hit[b'data'],
+                    b'l' in hit[b'flags'],
+                    b'x' in hit[b'flags'],
+                    hit[b'copied'],
                 )
             else:
                 # Returning None, but including the path in `files`, is
@@ -2663,7 +2670,7 @@ class overlayworkingfilectx(committablefilectx):
     cache, which can be flushed through later by calling ``flush()``."""
 
     def __init__(self, repo, path, filelog=None, parent=None):
-        super(overlayworkingfilectx, self).__init__(repo, path, filelog, parent)
+        super().__init__(repo, path, filelog, parent)
         self._repo = repo
         self._parent = parent
         self._path = path
@@ -2725,11 +2732,11 @@ class workingcommitctx(workingctx):
     def __init__(
         self, repo, changes, text=b"", user=None, date=None, extra=None
     ):
-        super(workingcommitctx, self).__init__(
-            repo, text, user, date, extra, changes
-        )
+        super().__init__(repo, text, user, date, extra, changes)
 
-    def _dirstatestatus(self, match, ignored=False, clean=False, unknown=False):
+    def _dirstatestatus(
+        self, match, ignored=False, clean=False, unknown=False
+    ) -> istatus.Status:
         """Return matched files only in ``self._status``
 
         Uncommitted files appear "clean" via this context, even if
@@ -2868,9 +2875,7 @@ class memctx(committablectx):
         branch=None,
         editor=None,
     ):
-        super(memctx, self).__init__(
-            repo, text, user, date, extra, branch=branch
-        )
+        super().__init__(repo, text, user, date, extra, branch=branch)
         self._rev = None
         self._node = None
         parents = [(p or self._repo.nodeconstants.nullid) for p in parents]
@@ -2924,7 +2929,7 @@ class memctx(committablectx):
         return man
 
     @propertycache
-    def _status(self):
+    def _status(self) -> istatus.Status:
         """Calculate exact status from ``files`` specified at construction"""
         man1 = self.p1().manifest()
         p2 = self._parents[1]
@@ -2977,7 +2982,7 @@ class memfilectx(committablefilectx):
         isexec is True if the file is executable.
         copied is the source file path if current file was copied in the
         revision being committed, or None."""
-        super(memfilectx, self).__init__(repo, path, None, changectx)
+        super().__init__(repo, path, None, changectx)
         self._data = data
         if islink:
             self._flags = b'l'
@@ -3035,7 +3040,7 @@ class metadataonlyctx(committablectx):
     ):
         if text is None:
             text = originalctx.description()
-        super(metadataonlyctx, self).__init__(repo, text, user, date, extra)
+        super().__init__(repo, text, user, date, extra)
         self._rev = None
         self._node = None
         self._originalctx = originalctx
@@ -3089,7 +3094,7 @@ class metadataonlyctx(committablectx):
         return self._originalctx.manifest()
 
     @propertycache
-    def _status(self):
+    def _status(self) -> istatus.Status:
         """Calculate exact status from ``files`` specified in the ``origctx``
         and parents manifests.
         """

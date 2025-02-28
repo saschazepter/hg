@@ -1,5 +1,8 @@
 # This python code can be imported into tests in order to terminate a process
 # with signal.SIGKILL on posix, or a roughly equivalent procedure on Windows.
+
+from __future__ import annotations
+
 import os
 import signal
 import subprocess

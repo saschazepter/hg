@@ -111,7 +111,25 @@ def _delayedinterrupt():
         raiseinterrupt(assertedsigs[0])
 
 
-def trylock(ui, vfs, lockname, timeout, warntimeout, *args, **kwargs) -> "lock":
+def steal_lock(ui, vfs, lockname, stolen_lock, *args, **kwargs) -> lock:
+    """return a new lock that "steal" the locking made by a source lock
+
+    This is used during local clone when reloading a repository. If we could
+    remove the need for this during copy clone, we could remove this function.
+    """
+    new_lock = lock(vfs, lockname, 0, *args, dolock=False, **kwargs)
+
+    assert stolen_lock.f == new_lock.f
+    assert stolen_lock.held > 0
+    assert new_lock.held == 0
+    new_lock.held += 1
+    stolen_lock.held = None
+    if new_lock.acquirefn is not None:
+        new_lock.acquirefn()
+    return new_lock
+
+
+def trylock(ui, vfs, lockname, timeout, warntimeout, *args, **kwargs) -> lock:
     """return an acquired lock or raise an a LockHeld exception
 
     This function is responsible to issue warnings and or debug messages about
@@ -240,7 +258,11 @@ class lock:
         self.release(success=success)
 
     def __del__(self):
-        if self.held:
+        if self.held is None:
+            # lock has been stolen (during a local clone) and should never be
+            # touched again.
+            return
+        if self.held > 0:
             warnings.warn(
                 "use lock.release instead of del lock",
                 category=DeprecationWarning,
@@ -274,7 +296,10 @@ class lock:
                 )
 
     def _trylock(self) -> None:
-        if self.held:
+        if self.held is None:
+            msg = "cannot acquire a lock after it was stolen"
+            raise error.ProgrammingError(msg)
+        if self.held > 0:
             self.held += 1
             return
         if lock._host is None:
@@ -287,7 +312,7 @@ class lock:
                 with self._maybedelayedinterrupt():
                     self.vfs.makelock(lockname, self.f)
                     self.held = 1
-            except (OSError, IOError) as why:
+            except OSError as why:
                 if why.errno == errno.EEXIST:
                     locker = self._readlock()
                     if locker is None:
@@ -380,6 +405,9 @@ class lock:
 
         If the lock has been acquired multiple times, the actual release is
         delayed to the last release call."""
+        if self.held is None:
+            msg = "cannot release a lock after it was stolen"
+            raise error.ProgrammingError(msg)
         if self.held > 1:
             self.held -= 1
         elif self.held == 1:

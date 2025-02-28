@@ -1,5 +1,3 @@
-#require no-reposimplestore
-
   $ . "$TESTDIR/narrow-library.sh"
 
   $ hg init master

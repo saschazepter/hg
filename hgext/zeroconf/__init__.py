@@ -36,9 +36,9 @@ from mercurial import (
     extensions,
     hg,
     pycompat,
-    rcutil,
     ui as uimod,
 )
+from mercurial.configuration import rcutil
 from mercurial.hgweb import server as servermod
 
 # Note for extension authors: ONLY specify testedwith = 'ships-with-hg-core' for
@@ -60,7 +60,7 @@ def getip():
         s.connect(('1.0.0.1', 0))
         ip = s.getsockname()[0]
         return ip
-    except socket.error:
+    except OSError:
         pass
 
     # Generic method, sometimes gives useless results
@@ -79,7 +79,7 @@ def getip():
         s.connect(('1.0.0.1', 1))
         ip = s.getsockname()[0]
         return ip
-    except socket.error:
+    except OSError:
         pass
 
     return dumbip

@@ -11,8 +11,8 @@ from __future__ import annotations
 import errno
 import io
 import os
-import socket
 import struct
+import typing
 
 from concurrent import futures
 from .i18n import _
@@ -27,6 +27,11 @@ from . import (
     wireprotov1peer,
 )
 from .utils import urlutil
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        Set,
+    )
 
 httplib = util.httplib
 urlerr = util.urlerr
@@ -297,7 +302,7 @@ def sendrequest(ui, opener, req):
             % urlutil.hidepassword(req.get_full_url())
         )
         ui.traceback()
-        raise IOError(None, inst)
+        raise OSError(None, inst)
     finally:
         if ui.debugflag and ui.configbool(b'devel', b'debug.peer-request'):
             code = res.code if res else -1
@@ -315,7 +320,7 @@ def sendrequest(ui, opener, req):
 
 class RedirectedRepoError(error.RepoError):
     def __init__(self, msg, respurl):
-        super(RedirectedRepoError, self).__init__(msg)
+        super().__init__(msg)
         self.respurl = respurl
 
 
@@ -437,10 +442,12 @@ class httppeer(wireprotov1peer.wirepeer):
 
     # End of ipeerconnection interface.
 
-    # Begin of ipeercommands interface.
+    # Begin of ipeercapabilities interface.
 
-    def capabilities(self):
+    def capabilities(self) -> Set[bytes]:
         return self._caps
+
+    # End of ipeercapabilities interface.
 
     def _finish_inline_clone_bundle(self, stream):
         # HTTP streams must hit the end to process the last empty
@@ -448,8 +455,6 @@ class httppeer(wireprotov1peer.wirepeer):
         chunk = stream.read(1)
         if chunk:
             self._abort(error.ResponseError(_(b"unexpected response:"), chunk))
-
-    # End of ipeercommands interface.
 
     def _callstream(self, cmd, _compressible=False, **args):
         args = pycompat.byteskwargs(args)
@@ -516,7 +521,7 @@ class httppeer(wireprotov1peer.wirepeer):
             # like generic socket errors. They lack any values in
             # .args on Python 3 which breaks our socket.error block.
             raise
-        except socket.error as err:
+        except OSError as err:
             if err.args[0] in (errno.ECONNRESET, errno.EPIPE):
                 raise error.Abort(_(b'push failed: %s') % err.args[1])
             raise error.Abort(err.args[1])

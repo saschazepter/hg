@@ -264,7 +264,7 @@ check histedit_source
 (test also that editor is invoked if histedit is continued for
 "edit" action)
 
-  $ HGEDITOR='cat' hg histedit --continue
+  $ HGEDITOR='cat' hg continue
   f
   
   
@@ -441,7 +441,7 @@ rollback should not work after a histedit
   Editing (cb9a9f314b8b), commit as needed now to split the change
   (to edit cb9a9f314b8b, `hg histedit --continue` after making changes)
   [240]
-  $ HGEDITOR=true hg histedit --continue
+  $ HGEDITOR=true hg continue
   saved backup bundle to $TESTTMP/r0/.hg/strip-backup/cb9a9f314b8b-cc5ccb0b-histedit.hg
 
   $ hg log -G

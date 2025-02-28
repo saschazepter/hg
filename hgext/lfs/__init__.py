@@ -252,7 +252,7 @@ def _reposetup(ui, repo):
         @localrepo.unfilteredmethod
         def commitctx(self, ctx, error=False, origctx=None):
             repo.svfs.options[b'lfstrack'] = _trackedmatcher(self)
-            return super(lfsrepo, self).commitctx(ctx, error, origctx=origctx)
+            return super().commitctx(ctx, error, origctx=origctx)
 
     repo.__class__ = lfsrepo
 

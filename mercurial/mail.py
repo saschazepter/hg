@@ -28,9 +28,6 @@ from typing import (
 )
 
 from .i18n import _
-from .pycompat import (
-    open,
-)
 from . import (
     encoding,
     error,
@@ -221,7 +218,7 @@ def _sendmail(ui, sender, recipients, msg):
 def _mbox(mbox, sender, recipients, msg):
     '''write mails to mbox'''
     # TODO: use python mbox library for proper locking
-    with open(mbox, b'ab+') as fp:
+    with open(mbox, 'ab+') as fp:
         # Should be time.asctime(), but Windows prints 2-characters day
         # of month instead of one. Make them print the same thing.
         date = time.strftime('%a %b %d %H:%M:%S %Y', time.localtime())
@@ -237,7 +234,7 @@ def connect(ui, mbox=None):
     """make a mail connection. return a function to send mail.
     call as sendmail(sender, list-of-recipients, msg)."""
     if mbox:
-        open(mbox, b'wb').close()
+        open(mbox, 'wb').close()
         return lambda s, r, m: _mbox(mbox, s, r, m)
     if ui.config(b'email', b'method') == b'smtp':
         return _smtp(ui)
@@ -522,7 +519,7 @@ def headdecode(s: Union[email.header.Header, bytes]) -> bytes:
                 pass
         # On Python 3, decode_header() may return either bytes or unicode
         # depending on whether the header has =?<charset>? or not
-        if isinstance(part, type(u'')):
+        if isinstance(part, str):
             uparts.append(part)
             continue
         try:
@@ -531,4 +528,4 @@ def headdecode(s: Union[email.header.Header, bytes]) -> bytes:
         except UnicodeDecodeError:
             pass
         uparts.append(part.decode('ISO-8859-1'))
-    return encoding.unitolocal(u' '.join(uparts))
+    return encoding.unitolocal(' '.join(uparts))

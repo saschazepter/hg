@@ -487,6 +487,23 @@ hg status -A --change 1 and revset:
   R removed
   C deleted
 
+Like previous tests but using --rev --rev instead of --change:
+
+  $ hg status --rev 0 --rev 1
+  M modified
+  A added
+  A copied
+  R removed
+
+  $ hg status --rev 0 --rev 1 unrelated
+
+  $ hg status -C --rev 0 --rev 1 added modified copied removed deleted
+  M modified
+  A added
+  A copied
+    modified
+  R removed
+
   $ cd ..
 
 hg status with --rev and reverted changes:

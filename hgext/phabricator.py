@@ -233,7 +233,7 @@ def _loadhgrc(orig, ui, wdirvfs, hgvfs, requirements, *args, **opts):
         result = True
     except ValueError:
         ui.warn(_(b"invalid JSON in %s\n") % wdirvfs.join(b".arcconfig"))
-    except IOError:
+    except OSError:
         pass
 
     cfg = util.sortdict()
@@ -490,7 +490,7 @@ def debugcallconduit(ui, repo, name):
         lambda x: encoding.unifromlocal(x) if isinstance(x, bytes) else x,
         callconduit(ui, name, params),
     )
-    s = json.dumps(result, sort_keys=True, indent=2, separators=(u',', u': '))
+    s = json.dumps(result, sort_keys=True, indent=2, separators=(',', ': '))
     ui.write(b'%s\n' % encoding.unitolocal(s))
 
 

@@ -721,10 +721,10 @@ class unixforkingservice:
 
         class unixcmdserverrepo(repo.__class__):
             def close(self):
-                super(unixcmdserverrepo, self).close()
+                super().close()
                 try:
                     self._cmdserveripc.send(self.root)
-                except socket.error:
+                except OSError:
                     self.ui.log(
                         b'cmdserver', b'failed to send repo root to master\n'
                     )

@@ -22,7 +22,6 @@ from typing import (
 
 from .i18n import _
 from .node import nullrev
-from .pycompat import open
 
 from . import (
     error,
@@ -56,7 +55,7 @@ def tidyprefix(dest, kind, prefix):
         prefix = util.normpath(prefix)
     else:
         if not isinstance(dest, bytes):
-            raise ValueError(b'dest must be string if no prefix')
+            raise ValueError('dest must be bytes if no prefix')
         prefix = os.path.basename(dest)
         lower = prefix.lower()
         for sfx in exts.get(kind, []):
@@ -147,18 +146,20 @@ class tarit:
     """write archive to tar file or stream.  can write uncompressed,
     or compress with gzip or bzip2."""
 
-    def __init__(self, dest, mtime, kind=b''):
+    def __init__(self, dest, mtime, kind: str = ''):
         self.mtime = mtime
         self.fileobj = None
 
-        def taropen(mode, name=b'', fileobj=None):
-            if kind == b'gz':
+        def taropen(
+            mode: str, name: bytes = b'', fileobj=None
+        ) -> tarfile.TarFile:
+            if kind == 'gz':
                 mode = mode[0:1]
                 if not fileobj:
-                    fileobj = open(name, mode + b'b')
+                    fileobj = open(name, mode + 'b')
                 gzfileobj = gzip.GzipFile(
                     name,
-                    pycompat.sysstr(mode + b'b'),
+                    mode + 'b',
                     zlib.Z_BEST_COMPRESSION,
                     fileobj,
                     mtime=mtime,
@@ -167,16 +168,14 @@ class tarit:
                 return tarfile.TarFile.taropen(name, "w", gzfileobj)
             else:
                 try:
-                    return tarfile.open(
-                        name, pycompat.sysstr(mode + kind), fileobj
-                    )
+                    return tarfile.open(name, mode + kind, fileobj)
                 except tarfile.CompressionError as e:
                     raise error.Abort(stringutil.forcebytestr(e))
 
         if isinstance(dest, bytes):
-            self.z = taropen(b'w:', name=dest)
+            self.z = taropen('w:', name=dest)
         else:
-            self.z = taropen(b'w|', fileobj=dest)
+            self.z = taropen('w|', fileobj=dest)
 
     def addfile(self, name, mode, islink, data):
         name = pycompat.fsdecode(name)
@@ -274,16 +273,16 @@ class fileit:
 archivers = {
     b'files': fileit,
     b'tar': tarit,
-    b'tbz2': lambda name, mtime: tarit(name, mtime, b'bz2'),
-    b'tgz': lambda name, mtime: tarit(name, mtime, b'gz'),
-    b'txz': lambda name, mtime: tarit(name, mtime, b'xz'),
+    b'tbz2': lambda name, mtime: tarit(name, mtime, 'bz2'),
+    b'tgz': lambda name, mtime: tarit(name, mtime, 'gz'),
+    b'txz': lambda name, mtime: tarit(name, mtime, 'xz'),
     b'uzip': lambda name, mtime: zipit(name, mtime, False),
     b'zip': zipit,
 }
 
 
 def archive(
-    repo: "localrepo.localrepository",
+    repo: localrepo.localrepository,
     dest,  # TODO: should be bytes, but could be Callable
     node,
     kind: bytes,
@@ -312,6 +311,9 @@ def archive(
 
     subrepos tells whether to include subrepos.
     """
+
+    if kind not in archivers:
+        raise error.Abort(_(b"unknown archive type '%s'") % kind)
 
     if kind == b'files':
         if prefix:
@@ -354,9 +356,6 @@ def archive(
         if decode:
             data = repo.wwritedata(name, data)
         archiver.addfile(prefix + name, mode, islink, data)
-
-    if kind not in archivers:
-        raise error.Abort(_(b"unknown archive type '%s'") % kind)
 
     if not match:
         match = scmutil.matchall(repo)

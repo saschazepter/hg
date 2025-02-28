@@ -11,8 +11,6 @@ set -e -x
 
 PYTHON_TARGETS="cp38-cp38 cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313"
 
-export MERCURIAL_SETUP_FORCE_TRANSLATIONS=1
-
 # We need to copy the repository to ensure:
 # (1) we don't wrongly write roots files in the repository (or any other wrong
 #     users)

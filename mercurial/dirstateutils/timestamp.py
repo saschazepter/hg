@@ -38,7 +38,7 @@ class timestamp(tuple):
     def __new__(cls, value):
         truncated_seconds, subsec_nanos, second_ambiguous = value
         value = (truncated_seconds & rangemask, subsec_nanos, second_ambiguous)
-        return super(timestamp, cls).__new__(cls, value)
+        return super().__new__(cls, value)
 
     def __eq__(self, other):
         raise error.ProgrammingError(

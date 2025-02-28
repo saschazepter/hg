@@ -417,7 +417,10 @@ def _cmpdiff(leftctx, rightctx):
 
     This is a first and basic implementation, with many shortcoming.
     """
-    diffopts = diffutil.diffallopts(leftctx.repo().ui, {b'git': True})
+    diffopts = diffutil.diffallopts(
+        leftctx.repo().ui,
+        {b'git': True, b'unified': 1},
+    )
 
     # Leftctx or right ctx might be filtered, so we need to use the contexts
     # with an unfiltered repository to safely compute the diff
@@ -520,7 +523,7 @@ class _succs(list):
     """small class to represent a successors with some metadata about it"""
 
     def __init__(self, *args, **kwargs):
-        super(_succs, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.markers = set()
 
     def copy(self):

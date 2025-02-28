@@ -352,10 +352,8 @@ def test_missingancestors_explicit():
 
 def genlazyancestors(revs, stoprev=0, inclusive=False):
     print(
-        (
-            "%% lazy ancestor set for %s, stoprev = %s, inclusive = %s"
-            % (revs, stoprev, inclusive)
-        )
+        "%% lazy ancestor set for %s, stoprev = %s, inclusive = %s"
+        % (revs, stoprev, inclusive)
     )
     return ancestor.lazyancestors(
         graph.get, revs, stoprev=stoprev, inclusive=inclusive

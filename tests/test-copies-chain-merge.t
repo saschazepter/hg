@@ -1649,7 +1649,8 @@ We upgrade a repository that is not using sidedata (the filelog case) and
   > [format]
   > exp-use-copies-side-data-changeset = yes
   > EOF
-  $ hg debugformat -v | grep -E 'changelog-v2|revlog-v2|copies-sdc'
+  $ hg debugformat -v changelog-v2 revlog-v2 copies-sdc
+  format-variant     repo config default
   copies-sdc:          no    yes      no
   revlog-v2:           no     no      no
   changelog-v2:        no    yes      no
@@ -1675,7 +1676,8 @@ We upgrade a repository that is not using sidedata (the filelog case) and
   > enabled=yes
   > numcpus=8
   > EOF
-  $ hg debugformat -v  | grep -E 'changelog-v2|revlog-v2|copies-sdc'
+  $ hg debugformat -v changelog-v2 revlog-v2 copies-sdc
+  format-variant     repo config default
   copies-sdc:          no    yes      no
   revlog-v2:           no     no      no
   changelog-v2:        no    yes      no

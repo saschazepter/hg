@@ -1010,7 +1010,7 @@ We attempt to highlight unknown files by default
   > EOF
 
   $ cat > unknownfile << EOF
-  > #!/this/helps/pygments/detect/python
+  > #!/this/helps/pygments/detect/python3
   > def foo():
   >    pass
   > EOF

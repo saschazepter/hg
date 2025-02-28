@@ -25,7 +25,6 @@ from . import (
 )
 from .interfaces import (
     repository,
-    util as interfaceutil,
 )
 from .utils import hashutil
 
@@ -93,7 +92,7 @@ class unsentfuture(futures.Future):
     call ``sendcommands()``.
     """
 
-    _peerexecutor: "peerexecutor"
+    _peerexecutor: peerexecutor
 
     def result(self, timeout=None):
         if self.done():
@@ -107,8 +106,7 @@ class unsentfuture(futures.Future):
         return self.result(timeout)
 
 
-# @interfaceutil.implementer(repository.ipeercommandexecutor)
-class peerexecutor:
+class peerexecutor(repository.ipeercommandexecutor):
     def __init__(self, peer):
         self._peer = peer
         self._sent = False
@@ -322,10 +320,9 @@ class peerexecutor:
                     f.set_result(result)
 
 
-@interfaceutil.implementer(
-    repository.ipeercommands, repository.ipeerlegacycommands
-)
-class wirepeer(repository.peer):
+class wirepeer(
+    repository.peer, repository.ipeercommands, repository.ipeerlegacycommands
+):
     """Client-side interface for communicating with a peer repository.
 
     Methods commonly call wire protocol commands of the same name.
@@ -354,8 +351,7 @@ class wirepeer(repository.peer):
         length = util.uvarintdecodestream(stream)
 
         # SSH streams will block if reading more than length
-        for chunk in util.filechunkiter(stream, limit=length):
-            yield chunk
+        yield from util.filechunkiter(stream, limit=length)
 
         self._finish_inline_clone_bundle(stream)
 
@@ -475,7 +471,7 @@ class wirepeer(repository.peer):
                 raise KeyError(b'unknown getbundle option type %s' % keytype)
             opts[key] = value
         f = self._callcompressable(b"getbundle", **pycompat.strkwargs(opts))
-        if any((cap.startswith(b'HG2') for cap in bundlecaps)):
+        if any(cap.startswith(b'HG2') for cap in bundlecaps):
             return bundle2.getunbundler(self.ui, f)
         else:
             return changegroupmod.cg1unpacker(f, b'UN')

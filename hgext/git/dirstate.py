@@ -13,6 +13,10 @@ from typing import (
     Tuple,
 )
 
+from mercurial.interfaces.types import (
+    MatcherT,
+    TransactionT,
+)
 from mercurial.node import sha1nodeconstants
 from mercurial import (
     dirstatemap,
@@ -163,7 +167,7 @@ class gitdirstate(intdirstate.idirstate):
 
     def status(
         self,
-        match: matchmod.basematcher,
+        match: MatcherT,
         subrepos: bool,
         ignored: bool,
         clean: bool,
@@ -270,9 +274,21 @@ class gitdirstate(intdirstate.idirstate):
         )
         return path
 
+    def is_changing_files(self) -> bool:
+        raise NotImplementedError
+
+    def _ignorefileandline(self, f: bytes) -> intdirstate.IgnoreFileAndLineT:
+        raise NotImplementedError
+
     @property
     def _checklink(self) -> bool:
         return util.checklink(os.path.dirname(pycompat.fsencode(self.git.path)))
+
+    def invalidate(self) -> None:
+        raise NotImplementedError
+
+    def copy(self, source: Optional[bytes], dest: bytes) -> None:
+        raise NotImplementedError
 
     def copies(self) -> Dict[bytes, bytes]:
         # TODO support copies?
@@ -293,7 +309,18 @@ class gitdirstate(intdirstate.idirstate):
         # correctly stage/revert index edits.
         return False
 
-    def write(self, tr: Optional[intdirstate.TransactionT]) -> None:
+    def clear(self) -> None:
+        raise NotImplementedError
+
+    def rebuild(
+        self,
+        parent: bytes,
+        allfiles: Iterable[bytes],  # TODO: more than iterable? (uses len())
+        changedfiles: Optional[Iterable[bytes]] = None,
+    ) -> None:
+        raise NotImplementedError
+
+    def write(self, tr: Optional[TransactionT]) -> None:
         # TODO: call parent change callbacks
 
         if tr:
@@ -313,7 +340,7 @@ class gitdirstate(intdirstate.idirstate):
         r = util.pathto(self._root, cwd, f)
         return r
 
-    def matches(self, match: matchmod.basematcher) -> Iterable[bytes]:
+    def matches(self, match: MatcherT) -> Iterable[bytes]:
         for x in self.git.index:
             p = pycompat.fsencode(x.path)
             if match(p):
@@ -331,7 +358,7 @@ class gitdirstate(intdirstate.idirstate):
 
     def walk(
         self,
-        match: matchmod.basematcher,
+        match: MatcherT,
         subrepos: Any,
         unknown: bool,
         ignored: bool,
@@ -410,10 +437,20 @@ class gitdirstate(intdirstate.idirstate):
         # TODO
         pass
 
+    def _checkexec(self) -> bool:
+        raise NotImplementedError
+
     @contextlib.contextmanager
     def changing_parents(self, repo):
         # TODO: track this maybe?
         yield
+
+    @contextlib.contextmanager
+    def changing_files(self, repo) -> Iterator:  # TODO: typehint this
+        raise NotImplementedError
+
+    def hasdir(self, d: bytes) -> bool:
+        raise NotImplementedError
 
     def addparentchangecallback(
         self, category: bytes, callback: intdirstate.AddParentChangeCallbackT
@@ -422,8 +459,19 @@ class gitdirstate(intdirstate.idirstate):
         self._plchangecallbacks[category] = callback
 
     def setbranch(
-        self, branch: bytes, transaction: Optional[intdirstate.TransactionT]
+        self, branch: bytes, transaction: Optional[TransactionT]
     ) -> None:
         raise error.Abort(
             b'git repos do not support branches. try using bookmarks'
         )
+
+    def verify(
+        self, m1, m2, p1: bytes, narrow_matcher: Optional[Any] = None
+    ) -> Iterator[bytes]:
+        raise NotImplementedError
+
+    def running_status(self, repo):
+        raise NotImplementedError
+
+    def refresh(self):
+        pass

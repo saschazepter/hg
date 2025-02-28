@@ -1,32 +1,23 @@
-use crate::changelog::Changelog;
 use crate::config::{Config, ConfigError, ConfigParseError};
-use crate::dirstate::DirstateParents;
-use crate::dirstate_tree::dirstate_map::{
-    DirstateIdentity, DirstateMapWriteMode,
-};
-use crate::dirstate_tree::on_disk::Docket as DirstateDocket;
-use crate::dirstate_tree::owning::OwningDirstateMap;
+use crate::dirstate::dirstate_map::{DirstateIdentity, DirstateMapWriteMode};
+use crate::dirstate::on_disk::Docket as DirstateDocket;
+use crate::dirstate::owning::OwningDirstateMap;
+use crate::dirstate::{DirstateError, DirstateParents};
 use crate::errors::HgResultExt;
 use crate::errors::{HgError, IoResultExt};
 use crate::lock::{try_with_lock_no_wait, LockError};
-use crate::manifest::{Manifest, Manifestlog};
-use crate::requirements::{
-    CHANGELOGV2_REQUIREMENT, DIRSTATE_TRACKED_HINT_V1,
-    GENERALDELTA_REQUIREMENT, NODEMAP_REQUIREMENT, REVLOGV1_REQUIREMENT,
-    REVLOGV2_REQUIREMENT,
-};
+use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
+use crate::revlog::changelog::Changelog;
 use crate::revlog::filelog::Filelog;
-use crate::revlog::RevlogError;
+use crate::revlog::manifest::{Manifest, Manifestlog};
+use crate::revlog::options::default_revlog_options;
+use crate::revlog::{RevlogError, RevlogType};
 use crate::utils::debug::debug_wait_for_file_or_print;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
-use crate::utils::SliceExt;
-use crate::vfs::{is_dir, is_file, VfsImpl};
-use crate::{
-    exit_codes, requirements, NodePrefix, RevlogDataConfig, RevlogDeltaConfig,
-    RevlogFeatureConfig, RevlogType, RevlogVersionOptions, UncheckedRevision,
-};
-use crate::{DirstateError, RevlogOpenOptions};
+use crate::utils::strings::SliceExt;
+use crate::vfs::{is_dir, is_file, Vfs, VfsImpl};
+use crate::{exit_codes, requirements, NodePrefix, UncheckedRevision};
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashSet;
 use std::io::Seek;
@@ -151,9 +142,7 @@ impl Repo {
         let mut repo_config_files =
             vec![dot_hg.join("hgrc"), dot_hg.join("hgrc-not-shared")];
 
-        let hg_vfs = VfsImpl {
-            base: dot_hg.to_owned(),
-        };
+        let hg_vfs = VfsImpl::new(dot_hg.to_owned(), false);
         let mut reqs = requirements::load_if_exists(&hg_vfs)?;
         let relative =
             reqs.contains(requirements::RELATIVE_SHARED_REQUIREMENT);
@@ -195,9 +184,10 @@ impl Repo {
 
             store_path = shared_path.join("store");
 
-            let source_is_share_safe = requirements::load(VfsImpl {
-                base: shared_path.to_owned(),
-            })?
+            let source_is_share_safe = requirements::load(VfsImpl::new(
+                shared_path.to_owned(),
+                true,
+            ))?
             .contains(requirements::SHARESAFE_REQUIREMENT);
 
             if share_safe != source_is_share_safe {
@@ -209,9 +199,10 @@ impl Repo {
             }
         }
         if share_safe {
-            reqs.extend(requirements::load(VfsImpl {
-                base: store_path.to_owned(),
-            })?);
+            reqs.extend(requirements::load(VfsImpl::new(
+                store_path.to_owned(),
+                true,
+            ))?);
         }
 
         let repo_config = if std::env::var_os("HGRCSKIPREPO").is_none() {
@@ -252,23 +243,17 @@ impl Repo {
     /// For accessing repository files (in `.hg`), except for the store
     /// (`.hg/store`).
     pub fn hg_vfs(&self) -> VfsImpl {
-        VfsImpl {
-            base: self.dot_hg.to_owned(),
-        }
+        VfsImpl::new(self.dot_hg.to_owned(), false)
     }
 
     /// For accessing repository store files (in `.hg/store`)
     pub fn store_vfs(&self) -> VfsImpl {
-        VfsImpl {
-            base: self.store.to_owned(),
-        }
+        VfsImpl::new(self.store.to_owned(), false)
     }
 
     /// For accessing the working copy
     pub fn working_directory_vfs(&self) -> VfsImpl {
-        VfsImpl {
-            base: self.working_directory.to_owned(),
-        }
+        VfsImpl::new(self.working_directory.to_owned(), false)
     }
 
     pub fn try_with_wlock_no_wait<R>(
@@ -333,8 +318,7 @@ impl Repo {
         let parents = if dirstate.is_empty() {
             DirstateParents::NULL
         } else if self.use_dirstate_v2() {
-            let docket_res =
-                crate::dirstate_tree::on_disk::read_docket(&dirstate);
+            let docket_res = crate::dirstate::on_disk::read_docket(&dirstate);
             match docket_res {
                 Ok(docket) => docket.parents(),
                 Err(_) => {
@@ -373,8 +357,7 @@ impl Repo {
         if dirstate.is_empty() {
             Ok((identity, None, 0))
         } else {
-            let docket_res =
-                crate::dirstate_tree::on_disk::read_docket(&dirstate);
+            let docket_res = crate::dirstate::on_disk::read_docket(&dirstate);
             match docket_res {
                 Ok(docket) => {
                     self.dirstate_parents.set(docket.parents());
@@ -476,9 +459,8 @@ impl Repo {
         if dirstate_file_contents.is_empty() {
             return Ok(OwningDirstateMap::new_empty(Vec::new(), identity));
         }
-        let docket = crate::dirstate_tree::on_disk::read_docket(
-            &dirstate_file_contents,
-        )?;
+        let docket =
+            crate::dirstate::on_disk::read_docket(&dirstate_file_contents)?;
         debug_wait_for_file_or_print(
             self.config(),
             "dirstate.post-docket-read-file",
@@ -577,7 +559,11 @@ impl Repo {
     fn new_changelog(&self) -> Result<Changelog, HgError> {
         Changelog::open(
             &self.store_vfs(),
-            self.default_revlog_options(RevlogType::Changelog)?,
+            default_revlog_options(
+                self.config(),
+                self.requirements(),
+                RevlogType::Changelog,
+            )?,
         )
     }
 
@@ -592,7 +578,11 @@ impl Repo {
     fn new_manifestlog(&self) -> Result<Manifestlog, HgError> {
         Manifestlog::open(
             &self.store_vfs(),
-            self.default_revlog_options(RevlogType::Manifestlog)?,
+            default_revlog_options(
+                self.config(),
+                self.requirements(),
+                RevlogType::Manifestlog,
+            )?,
         )
     }
 
@@ -624,7 +614,7 @@ impl Repo {
     ) -> Result<Manifest, RevlogError> {
         self.manifestlog()?.data_for_node(
             self.changelog()?
-                .data_for_rev(revision)?
+                .data_for_unchecked_rev(revision)?
                 .manifest_node()?
                 .into(),
         )
@@ -642,7 +632,11 @@ impl Repo {
         Filelog::open(
             self,
             path,
-            self.default_revlog_options(RevlogType::Filelog)?,
+            default_revlog_options(
+                self.config(),
+                self.requirements(),
+                RevlogType::Filelog,
+            )?,
         )
     }
     /// Write to disk any updates that were made through `dirstate_map_mut`.
@@ -787,59 +781,15 @@ impl Repo {
         if let Some(uuid) = old_uuid_to_remove {
             // Remove the old data file after the new docket pointing to the
             // new data file was written.
-            vfs.remove_file(format!("dirstate.{}", uuid))?;
+            vfs.unlink(Path::new(&format!("dirstate.{}", uuid)))?;
         }
         Ok(())
-    }
-
-    pub fn default_revlog_options(
-        &self,
-        revlog_type: RevlogType,
-    ) -> Result<RevlogOpenOptions, HgError> {
-        let requirements = self.requirements();
-        let is_changelog = revlog_type == RevlogType::Changelog;
-        let version = if is_changelog
-            && requirements.contains(CHANGELOGV2_REQUIREMENT)
-        {
-            let compute_rank = self
-                .config()
-                .get_bool(b"experimental", b"changelog-v2.compute-rank")?;
-            RevlogVersionOptions::ChangelogV2 { compute_rank }
-        } else if requirements.contains(REVLOGV2_REQUIREMENT) {
-            RevlogVersionOptions::V2
-        } else if requirements.contains(REVLOGV1_REQUIREMENT) {
-            RevlogVersionOptions::V1 {
-                general_delta: requirements.contains(GENERALDELTA_REQUIREMENT),
-                inline: !is_changelog,
-            }
-        } else {
-            RevlogVersionOptions::V0
-        };
-        Ok(RevlogOpenOptions {
-            version,
-            // We don't need to dance around the slow path like in the Python
-            // implementation since we know we have access to the fast code.
-            use_nodemap: requirements.contains(NODEMAP_REQUIREMENT),
-            delta_config: RevlogDeltaConfig::new(
-                self.config(),
-                self.requirements(),
-                revlog_type,
-            )?,
-            data_config: RevlogDataConfig::new(
-                self.config(),
-                self.requirements(),
-            )?,
-            feature_config: RevlogFeatureConfig::new(
-                self.config(),
-                requirements,
-            )?,
-        })
     }
 
     pub fn node(&self, rev: UncheckedRevision) -> Option<crate::Node> {
         self.changelog()
             .ok()
-            .and_then(|c| c.node_from_rev(rev).copied())
+            .and_then(|c| c.node_from_unchecked_rev(rev).copied())
     }
 
     /// Change the current working directory parents cached in the repo.

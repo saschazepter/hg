@@ -24,7 +24,6 @@ import re
 import time
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial.node import (
     bin,
     hex,
@@ -698,7 +697,7 @@ class mercurial_source(common.converter_source):
         else:
             i = i or 0
             ma, r = self._changedfiles(parents[i], ctx)
-        ma, r = [[f for f in l if f not in self.ignored] for l in (ma, r)]
+        ma, r = ([f for f in l if f not in self.ignored] for l in (ma, r))
 
         if i == 0:
             self._changescache = (rev, (ma, r))
@@ -707,7 +706,7 @@ class mercurial_source(common.converter_source):
 
     def converted(self, rev, destrev):
         if self.convertfp is None:
-            self.convertfp = open(self.repo.vfs.join(b'shamap'), b'ab')
+            self.convertfp = open(self.repo.vfs.join(b'shamap'), 'ab')
         self.convertfp.write(util.tonativeeol(b'%s %s\n' % (destrev, rev)))
         self.convertfp.flush()
 

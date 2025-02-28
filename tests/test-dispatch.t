@@ -98,8 +98,10 @@ However, we can't prevent it from loading extensions and configs:
   abort: $ENOENT$: 'inexistent'
   [255]
 
-  $ hg log -b '--config=ui.traceback=yes' 2>&1 | grep '^Traceback'
+  $ hg log -b '--config=ui.traceback=yes' 2>&1 | "$PYTHON" "$TESTDIR/filtertraceback.py"
   Traceback (most recent call last):
+  mercurial.error.InputError: option --config may not be abbreviated
+  abort: option --config may not be abbreviated
   $ hg log -b '--config=profiling.enabled=yes' 2>&1 | grep -i sample
   Sample count: .*|No samples recorded\. (re)
 

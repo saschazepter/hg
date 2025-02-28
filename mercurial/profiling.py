@@ -14,9 +14,6 @@ import subprocess
 import sys
 
 from .i18n import _
-from .pycompat import (
-    open,
-)
 from . import (
     encoding,
     error,
@@ -298,7 +295,7 @@ class profile:
                 self._fp = util.stringio()
             elif self._output:
                 path = util.expandpath(self._output)
-                self._fp = open(path, b'wb')
+                self._fp = open(path, 'wb')
             elif pycompat.iswindows:
                 # parse escape sequence by win32print()
                 class uifp:
@@ -344,7 +341,10 @@ class profile:
                 exception_type, exception_value, traceback
             )
             if self._output == b'blackbox':
-                val = b'Profile:\n%s' % self._fp.getvalue()
+                fp = self._fp
+                # Help pytype: blackbox output uses io.BytesIO instead of a file
+                assert isinstance(fp, util.stringio)
+                val = b'Profile:\n%s' % fp.getvalue()
                 # ui.log treats the input as a format string,
                 # so we need to escape any % signs.
                 val = val.replace(b'%', b'%%')

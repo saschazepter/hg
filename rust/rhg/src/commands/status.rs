@@ -14,29 +14,27 @@ use crate::utils::path_utils::RelativizePaths;
 use clap::Arg;
 use format_bytes::format_bytes;
 use hg::config::Config;
-use hg::dirstate::has_exec_bit;
-use hg::dirstate::status::StatusPath;
-use hg::dirstate::TruncatedTimestamp;
+use hg::dirstate::entry::{has_exec_bit, TruncatedTimestamp};
+use hg::dirstate::status::{
+    BadMatch, DirstateStatus, StatusError, StatusOptions, StatusPath,
+};
 use hg::errors::{HgError, IoResultExt};
-use hg::filepatterns::parse_pattern_args;
+use hg::filepatterns::{parse_pattern_args, PatternFileWarning};
 use hg::lock::LockError;
-use hg::manifest::Manifest;
 use hg::matchers::{AlwaysMatcher, IntersectionMatcher};
 use hg::repo::Repo;
+use hg::revlog::manifest::Manifest;
+use hg::revlog::options::{default_revlog_options, RevlogOpenOptions};
+use hg::revlog::RevlogType;
 use hg::utils::debug::debug_wait_for_file;
 use hg::utils::files::{
     get_bytes_from_os_str, get_bytes_from_os_string, get_path_from_bytes,
 };
 use hg::utils::hg_path::{hg_path_to_path_buf, HgPath};
 use hg::Revision;
-use hg::StatusError;
-use hg::StatusOptions;
 use hg::{self, narrow, sparse};
-use hg::{DirstateStatus, RevlogOpenOptions};
-use hg::{PatternFileWarning, RevlogType};
 use log::info;
 use rayon::prelude::*;
-use std::borrow::Cow;
 use std::io;
 use std::mem::take;
 use std::path::PathBuf;
@@ -123,6 +121,12 @@ pub fn args() -> clap::Command {
                 .long("copies"),
         )
         .arg(
+            Arg::new("no-copies")
+                .action(clap::ArgAction::SetTrue)
+                .long("no-copies")
+                .overrides_with("copies"),
+        )
+        .arg(
             Arg::new("print0")
                 .help("end filenames with NUL, for use with xargs")
                 .short('0')
@@ -151,30 +155,30 @@ pub fn args() -> clap::Command {
                 .action(clap::ArgAction::Append)
                 .value_name("REV"),
         )
+        .arg(
+            Arg::new("change")
+                .help("list the changed files of a revision")
+                .long("change")
+                .value_name("REV")
+                .conflicts_with("rev"),
+        )
 }
 
 fn parse_revpair(
     repo: &Repo,
     revs: Option<Vec<String>>,
 ) -> Result<Option<(Revision, Revision)>, CommandError> {
-    let revs = match revs {
-        None => return Ok(None),
-        Some(revs) => revs,
-    };
-    if revs.is_empty() {
+    let Some(revs) = revs else {
         return Ok(None);
+    };
+    match revs.as_slice() {
+        [] => Ok(None),
+        [rev1, rev2] => Ok(Some((
+            hg::revset::resolve_single(rev1, repo)?,
+            hg::revset::resolve_single(rev2, repo)?,
+        ))),
+        _ => Err(CommandError::unsupported("expected 0 or 2 --rev flags")),
     }
-    if revs.len() != 2 {
-        return Err(CommandError::unsupported("expected 0 or 2 --rev flags"));
-    }
-
-    let rev1 = &revs[0];
-    let rev2 = &revs[1];
-    let rev1 = hg::revset::resolve_single(rev1, repo)
-        .map_err(|e| (e, rev1.as_str()))?;
-    let rev2 = hg::revset::resolve_single(rev2, repo)
-        .map_err(|e| (e, rev2.as_str()))?;
-    Ok(Some((rev1, rev2)))
 }
 
 /// Pure data type allowing the caller to specify file states to display
@@ -265,6 +269,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let args = invocation.subcommand_args;
 
     let revs = args.get_many::<String>("rev");
+    let change = args.get_one::<String>("change");
     let print0 = args.get_flag("print0");
     let verbose = args.get_flag("verbose")
         || config.get_bool(b"ui", b"verbose")?
@@ -293,12 +298,20 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         }
     };
     let no_status = args.get_flag("no-status");
-    let list_copies = all
-        || args.get_flag("copies")
-        || config.get_bool(b"ui", b"statuscopies")?;
+    let list_copies = if args.get_flag("copies") {
+        true
+    } else if args.get_flag("no-copies") {
+        false
+    } else {
+        config.get_bool(b"ui", b"statuscopies")?
+    };
+    let list_copies = (list_copies || all) && !no_status;
 
     let repo = invocation.repo?;
     let revpair = parse_revpair(repo, revs.map(|i| i.cloned().collect()))?;
+    let change = change
+        .map(|rev| hg::revset::resolve_single(rev, repo))
+        .transpose()?;
 
     if verbose && has_unfinished_state(repo)? {
         return Err(CommandError::unsupported(
@@ -354,10 +367,10 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
         for (path, error) in take(&mut ds_status.bad) {
             let error = match error {
-                hg::BadMatch::OsError(code) => {
+                BadMatch::OsError(code) => {
                     std::io::Error::from_raw_os_error(code).to_string()
                 }
-                hg::BadMatch::BadType(ty) => {
+                BadMatch::BadType(ty) => {
                     format!("unsupported file type (type is {})", ty)
                 }
             };
@@ -378,13 +391,14 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             && (display_states.modified || display_states.clean)
         {
             let p1 = repo.dirstate_parents()?.p1;
-            let manifest = repo.manifest_for_node(p1).map_err(|e| {
-                CommandError::from((e, &*format!("{:x}", p1.short())))
-            })?;
+            let manifest = repo.manifest_for_node(p1)?;
             let working_directory_vfs = repo.working_directory_vfs();
             let store_vfs = repo.store_vfs();
-            let filelog_open_options =
-                repo.default_revlog_options(RevlogType::Filelog)?;
+            let filelog_open_options = default_revlog_options(
+                repo.config(),
+                repo.requirements(),
+                RevlogType::Filelog,
+            )?;
             let res: Vec<_> = take(&mut ds_status.unsure)
                 .into_par_iter()
                 .map(|to_check| {
@@ -445,28 +459,78 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             filesystem_time_at_status_start,
         ))
     };
+
     let (narrow_matcher, narrow_warnings) = narrow::matcher(repo)?;
-
-    if let Some((rev1, rev2)) = revpair {
-        let mut ds_status = DirstateStatus::default();
-        if list_copies {
-            return Err(CommandError::unsupported(
-                "status --rev --rev with copy information is not implemented yet",
-            ));
+    let (sparse_matcher, sparse_warnings) = sparse::matcher(repo)?;
+    // Sparse is only applicable for the working copy, not history.
+    let sparse_is_applicable = revpair.is_none() && change.is_none();
+    let matcher =
+        match (repo.has_narrow(), repo.has_sparse() && sparse_is_applicable) {
+            (true, true) => Box::new(IntersectionMatcher::new(
+                narrow_matcher,
+                sparse_matcher,
+            )),
+            (true, false) => narrow_matcher,
+            (false, true) => sparse_matcher,
+            (false, false) => Box::new(AlwaysMatcher),
+        };
+    let matcher = match args.get_many::<std::ffi::OsString>("file") {
+        None => matcher,
+        Some(files) => {
+            let patterns: Vec<Vec<u8>> = files
+                .filter(|s| !s.is_empty())
+                .map(get_bytes_from_os_str)
+                .collect();
+            for file in &patterns {
+                if file.starts_with(b"set:") {
+                    return Err(CommandError::unsupported("fileset"));
+                }
+            }
+            let cwd = hg::utils::current_dir()?;
+            let root = repo.working_directory_path();
+            let ignore_patterns = parse_pattern_args(patterns, &cwd, root)?;
+            let files_matcher =
+                hg::matchers::PatternMatcher::new(ignore_patterns)?;
+            Box::new(IntersectionMatcher::new(
+                Box::new(files_matcher),
+                matcher,
+            ))
         }
+    };
+    print_narrow_sparse_warnings(
+        &narrow_warnings,
+        &sparse_warnings,
+        ui,
+        repo,
+    )?;
 
-        let stat = hg::operations::status_rev_rev_no_copies(
-            repo,
-            rev1,
-            rev2,
-            narrow_matcher,
-        )?;
+    if revpair.is_some() || change.is_some() {
+        let mut ds_status = DirstateStatus::default();
+        let list_copies = if list_copies {
+            if config.get_bool(b"devel", b"copy-tracing.trace-all-files")? {
+                Some(hg::operations::ListCopies::AddedOrModified)
+            } else {
+                Some(hg::operations::ListCopies::Added)
+            }
+        } else {
+            None
+        };
+        let stat = if let Some((rev1, rev2)) = revpair {
+            if list_copies.is_some() {
+                return Err(CommandError::unsupported(
+                    "status --rev --rev with copy information is not implemented yet",
+                ));
+            }
+            hg::operations::status_rev_rev_no_copies(
+                repo, rev1, rev2, matcher,
+            )?
+        } else if let Some(rev) = change {
+            hg::operations::status_change(repo, rev, matcher, list_copies)?
+        } else {
+            unreachable!();
+        };
         for entry in stat.iter() {
             let (path, status) = entry?;
-            let path = StatusPath {
-                path: Cow::Borrowed(path),
-                copy_source: None,
-            };
             match status {
                 hg::operations::DiffStatus::Removed => {
                     if display_states.removed {
@@ -494,45 +558,6 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         return Ok(());
     }
 
-    let (sparse_matcher, sparse_warnings) = sparse::matcher(repo)?;
-    let matcher = match (repo.has_narrow(), repo.has_sparse()) {
-        (true, true) => {
-            Box::new(IntersectionMatcher::new(narrow_matcher, sparse_matcher))
-        }
-        (true, false) => narrow_matcher,
-        (false, true) => sparse_matcher,
-        (false, false) => Box::new(AlwaysMatcher),
-    };
-    let matcher = match args.get_many::<std::ffi::OsString>("file") {
-        None => matcher,
-        Some(files) => {
-            let patterns: Vec<Vec<u8>> = files
-                .filter(|s| !s.is_empty())
-                .map(get_bytes_from_os_str)
-                .collect();
-            for file in &patterns {
-                if file.starts_with(b"set:") {
-                    return Err(CommandError::unsupported("fileset"));
-                }
-            }
-            let cwd = hg::utils::current_dir()?;
-            let root = repo.working_directory_path();
-            let ignore_patterns = parse_pattern_args(patterns, &cwd, root)?;
-            let files_matcher =
-                hg::matchers::PatternMatcher::new(ignore_patterns)?;
-            Box::new(IntersectionMatcher::new(
-                Box::new(files_matcher),
-                matcher,
-            ))
-        }
-    };
-
-    print_narrow_sparse_warnings(
-        &narrow_warnings,
-        &sparse_warnings,
-        ui,
-        repo,
-    )?;
     let (fixup, mut dirstate_write_needed, filesystem_time_at_status_start) =
         dmap.with_status(
             matcher.as_ref(),
@@ -666,8 +691,7 @@ impl DisplayStatusPaths<'_> {
         mut paths: Vec<StatusPath<'_>>,
     ) -> Result<(), CommandError> {
         paths.sort_unstable();
-        // TODO: get the stdout lock once for the whole loop
-        // instead of in each write
+        let mut stdout = self.ui.stdout_buffer();
         for StatusPath { path, copy_source } in paths {
             let relative_path;
             let relative_source;
@@ -681,25 +705,27 @@ impl DisplayStatusPaths<'_> {
             } else {
                 (path.as_bytes(), copy_source.as_ref().map(|s| s.as_bytes()))
             };
-            // TODO: Add a way to use `write_bytes!` instead of `format_bytes!`
-            // in order to stream to stdout instead of allocating an
-            // itermediate `Vec<u8>`.
+            // TODO: Add a way to use `write_bytes!` instead of
+            // `format_bytes!` in order to stream to stdout
+            // instead of allocating an itermediate
+            // `Vec<u8>`.
             if !self.no_status {
-                self.ui.write_stdout_labelled(status_prefix, label)?
+                stdout.write_stdout_labelled(status_prefix, label)?
             }
             let linebreak = if self.print0 { b"\x00" } else { b"\n" };
-            self.ui.write_stdout_labelled(
+            stdout.write_stdout_labelled(
                 &format_bytes!(b"{}{}", path, linebreak),
                 label,
             )?;
-            if let Some(source) = copy_source.filter(|_| !self.no_status) {
+            if let Some(source) = copy_source {
                 let label = "status.copied";
-                self.ui.write_stdout_labelled(
+                stdout.write_stdout_labelled(
                     &format_bytes!(b"  {}{}", source, linebreak),
                     label,
                 )?
             }
         }
+        stdout.flush()?;
         Ok(())
     }
 
@@ -785,7 +811,7 @@ fn unsure_is_modified(
     if entry_flags.map(|f| f.into()) != fs_flags {
         return Ok(UnsureOutcome::Modified);
     }
-    let filelog = hg::filelog::Filelog::open_vfs(
+    let filelog = hg::revlog::filelog::Filelog::open_vfs(
         store_vfs,
         hg_path,
         revlog_open_options,

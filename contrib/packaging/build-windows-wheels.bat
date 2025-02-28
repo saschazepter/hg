@@ -9,29 +9,6 @@ REM - running `contrib/install-windows-dependencies.ps1`.
 REM - None of the variable set here live past this script exiting.
 setlocal
 
-REM - Build translations; requires msgfmt.exe on PATH.
-set MERCURIAL_SETUP_FORCE_TRANSLATIONS=1
-
-REM - Prevent building pypy wheels, which is broken.
-set CIBW_SKIP=pp*
-
-REM - Disable warning about not being able to test without an arm64 runner.
-set CIBW_TEST_SKIP=*-win_arm64
-
-
-REM - arm64 support starts with py39, but the first arm64 installer wasn't
-REM - available until py311, so skip arm64 on the older, EOL versions.
-set CIBW_ARCHS=x86 AMD64
-set CIBW_BUILD=cp38-* cp39-* cp310-*
-
-cibuildwheel --output-dir dist/wheels
-
-if %errorlevel% neq 0 exit /b %errorlevel%
-
-
-set CIBW_ARCHS=x86 AMD64 ARM64
-set CIBW_BUILD=cp311-* cp312-* cp313-*
-
 cibuildwheel --output-dir dist/wheels
 
 if %errorlevel% neq 0 exit /b %errorlevel%

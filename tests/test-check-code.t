@@ -57,14 +57,16 @@ Prevent adding new files in the root directory accidentally.
   .arcconfig
   .clang-format
   .editorconfig
+  .flake8
   .gitattributes
   .hgignore
   .hgsigs
   .hgtags
   .jshintrc
-  CONTRIBUTING
+  CONTRIBUTING.md
   CONTRIBUTORS
   COPYING
+  MANIFEST.in
   Makefile
   README.rst
   hg
@@ -94,5 +96,6 @@ Keep Windows line endings in check
 
   $ testrepohg files 'set:eol(dos)'
   contrib/packaging/build-windows-wheels.bat
+  contrib/vs2022-settings.json
   contrib/win32/hg.bat
   contrib/win32/mercurial.ini

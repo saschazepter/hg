@@ -225,7 +225,7 @@ def _make_cctx_params(params):
     return res
 
 
-class ZstdCompressionParameters(object):
+class ZstdCompressionParameters:
     @staticmethod
     def from_level(level, source_size=0, dict_size=0, **kwargs):
         params = lib.ZSTD_getCParams(level, source_size, dict_size)
@@ -497,7 +497,7 @@ def _get_compression_parameter(params, param):
     return result[0]
 
 
-class ZstdCompressionWriter(object):
+class ZstdCompressionWriter:
     def __init__(
         self, compressor, writer, source_size, write_size, write_return_read
     ):
@@ -693,7 +693,7 @@ class ZstdCompressionWriter(object):
         return self._bytes_compressed
 
 
-class ZstdCompressionObj(object):
+class ZstdCompressionObj:
     def compress(self, data):
         if self._finished:
             raise ZstdError("cannot call compress() after compressor finished")
@@ -767,7 +767,7 @@ class ZstdCompressionObj(object):
         return b"".join(chunks)
 
 
-class ZstdCompressionChunker(object):
+class ZstdCompressionChunker:
     def __init__(self, compressor, chunk_size):
         self._compressor = compressor
         self._out = ffi.new("ZSTD_outBuffer *")
@@ -874,7 +874,7 @@ class ZstdCompressionChunker(object):
                 return
 
 
-class ZstdCompressionReader(object):
+class ZstdCompressionReader:
     def __init__(self, compressor, source, read_size):
         self._compressor = compressor
         self._source = source
@@ -1216,7 +1216,7 @@ class ZstdCompressionReader(object):
         return out_buffer.pos
 
 
-class ZstdCompressor(object):
+class ZstdCompressor:
     def __init__(
         self,
         level=3,
@@ -1649,7 +1649,7 @@ class ZstdCompressor(object):
         return progression.ingested, progression.consumed, progression.produced
 
 
-class FrameParameters(object):
+class FrameParameters:
     def __init__(self, fparams):
         self.content_size = fparams.frameContentSize
         self.window_size = fparams.windowSize
@@ -1700,7 +1700,7 @@ def get_frame_parameters(data):
     return FrameParameters(params[0])
 
 
-class ZstdCompressionDict(object):
+class ZstdCompressionDict:
     def __init__(self, data, dict_type=DICT_TYPE_AUTO, k=0, d=0):
         assert isinstance(data, bytes_type)
         self._data = data
@@ -1876,7 +1876,7 @@ def train_dictionary(
     )
 
 
-class ZstdDecompressionObj(object):
+class ZstdDecompressionObj:
     def __init__(self, decompressor, write_size):
         self._decompressor = decompressor
         self._write_size = write_size
@@ -1934,7 +1934,7 @@ class ZstdDecompressionObj(object):
         pass
 
 
-class ZstdDecompressionReader(object):
+class ZstdDecompressionReader:
     def __init__(self, decompressor, source, read_size, read_across_frames):
         self._decompressor = decompressor
         self._source = source
@@ -2248,7 +2248,7 @@ class ZstdDecompressionReader(object):
         return self._bytes_decompressed
 
 
-class ZstdDecompressionWriter(object):
+class ZstdDecompressionWriter:
     def __init__(self, decompressor, writer, write_size, write_return_read):
         decompressor._ensure_dctx()
 
@@ -2389,7 +2389,7 @@ class ZstdDecompressionWriter(object):
             return total_write
 
 
-class ZstdDecompressor(object):
+class ZstdDecompressor:
     def __init__(self, dict_data=None, max_window_size=0, format=FORMAT_ZSTD1):
         self._dict_data = dict_data
         self._max_window_size = max_window_size

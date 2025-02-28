@@ -1066,9 +1066,9 @@ Test annotate with whitespace options
   adding a
   $ sed 's/EOL$//g' > a <<EOF
   > a  a
-  > 
   >  EOL
   > b  b
+  > 
   > EOF
   $ hg ci -m "changea"
 
@@ -1076,33 +1076,41 @@ Annotate with no option
 
   $ hg annotate a
   1: a  a
-  0: 
   1:  
   1: b  b
+  0: 
 
 Annotate with --ignore-space-change
 
   $ hg annotate --ignore-space-change a
   1: a  a
-  1: 
   0:  
   0: b  b
+  1: 
 
 Annotate with --ignore-all-space
 
   $ hg annotate --ignore-all-space a
   0: a  a
-  0: 
-  1:  
+  0:  
   0: b  b
+  1: 
 
 Annotate with --ignore-blank-lines (similar to no options case)
 
   $ hg annotate --ignore-blank-lines a
   1: a  a
-  0: 
   1:  
   1: b  b
+  0: 
+
+Annotate with --ignore-space-at-eol
+
+  $ hg annotate --ignore-space-at-eol a
+  1: a  a
+  0:  
+  1: b  b
+  1: 
 
   $ cd ..
 
@@ -1214,6 +1222,58 @@ Even when the starting revision is the linkrev-shadowed one:
   $ hg annotate a -r 3
   0: A
   3: B
+
+  $ cd ..
+
+Annotate should use the starting revision (-r) as base for ancestor checks.
+
+  $ hg init repo-base
+  $ cd repo-base
+  $ echo A > file
+  $ hg commit -Am "initial"
+  adding file
+  $ echo B >> file
+  $ hg commit -m "linkrev"
+  $ hg up 0
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ echo B >> file
+  $ hg ci -m "linkrev alias"
+  created new head
+  $ echo C >> file
+  $ hg commit -m "change"
+  $ hg merge 1 --tool :local
+  0 files updated, 1 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg commit -m "merge"
+  $ hg debugindex file
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
+       0       0 45f17b21388f 000000000000 000000000000
+       1       1 e338fefefb89 45f17b21388f 000000000000
+       2       3 b2f3b2eded93 e338fefefb89 000000000000
+  $ hg log -G --template '{rev}: {desc}'
+  @    4: merge
+  |\
+  | o  3: change
+  | |
+  | o  2: linkrev alias
+  | |
+  o |  1: linkrev
+  |/
+  o  0: initial
+  
+Line B should be attributed to the linkrev 1, because we base ancestor checks
+from 4 (starting revision), not from 3 (most recent change to the file).
+  $ hg annotate file
+  0: A
+  1: B
+  3: C
+  $ echo D >> file
+  $ hg commit -m "another change"
+  $ hg annotate file
+  0: A
+  1: B
+  3: C
+  5: D
 
   $ cd ..
 

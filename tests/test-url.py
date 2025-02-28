@@ -1,5 +1,3 @@
-# coding=utf-8
-
 import doctest
 import os
 
@@ -69,7 +67,7 @@ check(_verifycert(None, 'example.com'), b'no certificate received')
 
 # Unicode (IDN) certname isn't supported
 check(
-    _verifycert(cert(u'\u4f8b.jp'), 'example.jp'),
+    _verifycert(cert('\u4f8b.jp'), 'example.jp'),
     b'IDN in certificate not supported',
 )
 
@@ -137,7 +135,7 @@ check(_verifycert(cert('a.*.com'), 'a..com'), b'certificate is for a.*.com')
 check(_verifycert(cert('a.*.com'), 'a.com'), b'certificate is for a.*.com')
 
 # wildcard doesn't match IDNA prefix 'xn--'
-idna = u'püthon.python.org'.encode('idna').decode('ascii')
+idna = 'püthon.python.org'.encode('idna').decode('ascii')
 check(_verifycert(cert(idna), idna), None)
 check(
     _verifycert(cert('x*.python.org'), idna),
@@ -150,27 +148,27 @@ check(
 
 # wildcard in first fragment and  IDNA A-labels in sequent fragments
 # are supported.
-idna = u'www*.pythön.org'.encode('idna').decode('ascii')
+idna = 'www*.pythön.org'.encode('idna').decode('ascii')
 check(
-    _verifycert(cert(idna), u'www.pythön.org'.encode('idna').decode('ascii')),
+    _verifycert(cert(idna), 'www.pythön.org'.encode('idna').decode('ascii')),
     None,
 )
 check(
-    _verifycert(cert(idna), u'www1.pythön.org'.encode('idna').decode('ascii')),
+    _verifycert(cert(idna), 'www1.pythön.org'.encode('idna').decode('ascii')),
     None,
 )
 check(
-    _verifycert(cert(idna), u'ftp.pythön.org'.encode('idna').decode('ascii')),
+    _verifycert(cert(idna), 'ftp.pythön.org'.encode('idna').decode('ascii')),
     b'certificate is for www*.xn--pythn-mua.org',
 )
 check(
-    _verifycert(cert(idna), u'pythön.org'.encode('idna').decode('ascii')),
+    _verifycert(cert(idna), 'pythön.org'.encode('idna').decode('ascii')),
     b'certificate is for www*.xn--pythn-mua.org',
 )
 
 c = {
     'notAfter': 'Jun 26 21:41:46 2011 GMT',
-    'subject': (((u'commonName', u'linuxfrz.org'),),),
+    'subject': ((('commonName', 'linuxfrz.org'),),),
     'subjectAltName': (
         ('DNS', 'linuxfr.org'),
         ('DNS', 'linuxfr.com'),
@@ -194,11 +192,11 @@ check(
 c = {
     'notAfter': 'Dec 18 23:59:59 2011 GMT',
     'subject': (
-        ((u'countryName', u'US'),),
-        ((u'stateOrProvinceName', u'California'),),
-        ((u'localityName', u'Mountain View'),),
-        ((u'organizationName', u'Google Inc'),),
-        ((u'commonName', u'mail.google.com'),),
+        (('countryName', 'US'),),
+        (('stateOrProvinceName', 'California'),),
+        (('localityName', 'Mountain View'),),
+        (('organizationName', 'Google Inc'),),
+        (('commonName', 'mail.google.com'),),
     ),
 }
 check(_verifycert(c, 'mail.google.com'), None)
@@ -211,10 +209,10 @@ check(_verifycert(c, 'California'), b'certificate is for mail.google.com')
 c = {
     'notAfter': 'Dec 18 23:59:59 2011 GMT',
     'subject': (
-        ((u'countryName', u'US'),),
-        ((u'stateOrProvinceName', u'California'),),
-        ((u'localityName', u'Mountain View'),),
-        ((u'organizationName', u'Google Inc'),),
+        (('countryName', 'US'),),
+        (('stateOrProvinceName', 'California'),),
+        (('localityName', 'Mountain View'),),
+        (('organizationName', 'Google Inc'),),
     ),
 }
 check(
@@ -226,10 +224,10 @@ check(
 c = {
     'notAfter': 'Dec 18 23:59:59 2099 GMT',
     'subject': (
-        ((u'countryName', u'US'),),
-        ((u'stateOrProvinceName', u'California'),),
-        ((u'localityName', u'Mountain View'),),
-        ((u'commonName', u'mail.google.com'),),
+        (('countryName', 'US'),),
+        (('stateOrProvinceName', 'California'),),
+        (('localityName', 'Mountain View'),),
+        (('commonName', 'mail.google.com'),),
     ),
     'subjectAltName': (('othername', 'blabla'),),
 }
@@ -239,10 +237,10 @@ check(_verifycert(c, 'mail.google.com'), None)
 c = {
     'notAfter': 'Dec 18 23:59:59 2099 GMT',
     'subject': (
-        ((u'countryName', u'US'),),
-        ((u'stateOrProvinceName', u'California'),),
-        ((u'localityName', u'Mountain View'),),
-        ((u'organizationName', u'Google Inc'),),
+        (('countryName', 'US'),),
+        (('stateOrProvinceName', 'California'),),
+        (('localityName', 'Mountain View'),),
+        (('organizationName', 'Google Inc'),),
     ),
     'subjectAltName': (('othername', 'blabla'),),
 }
@@ -258,15 +256,15 @@ check(_verifycert({}, 'example.com'), b'no certificate received')
 # avoid denials of service by refusing more than one
 # wildcard per fragment.
 check(
-    _verifycert({'subject': (((u'commonName', u'a*b.com'),),)}, 'axxb.com'),
+    _verifycert({'subject': ((('commonName', 'a*b.com'),),)}, 'axxb.com'),
     None,
 )
 check(
-    _verifycert({'subject': (((u'commonName', u'a*b.co*'),),)}, 'axxb.com'),
+    _verifycert({'subject': ((('commonName', 'a*b.co*'),),)}, 'axxb.com'),
     b'certificate is for a*b.co*',
 )
 check(
-    _verifycert({'subject': (((u'commonName', u'a*b*.com'),),)}, 'axxbxxc.com'),
+    _verifycert({'subject': ((('commonName', 'a*b*.com'),),)}, 'axxbxxc.com'),
     b'too many wildcards in certificate DNS name: a*b*.com',
 )
 

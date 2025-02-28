@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import re
+import typing
 import uuid
 
 from typing import Callable, Optional
@@ -26,6 +27,11 @@ from .utils import (
     stringutil,
     urlutil,
 )
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        Set,
+    )
 
 
 def _serverquote(s):
@@ -197,7 +203,7 @@ def _cleanuppipes(ui, pipei, pipeo, pipee, warn):
         try:
             for l in pipee:
                 ui.status(_(b'remote: '), l)
-        except (IOError, ValueError):
+        except (OSError, ValueError):
             pass
 
         pipee.close()
@@ -344,7 +350,7 @@ def _performhandshake(ui, stdin, stdout, stderr):
 
         _write_all(stdin.write, b''.join(handshake))
         stdin.flush()
-    except IOError:
+    except OSError:
         badresponse()
 
     # Assume version 1 of wire protocol by default.
@@ -378,7 +384,7 @@ def _performhandshake(ui, stdin, stdout, stderr):
                 ui.debug(b'remote: ', l)
             lines.append(l)
             max_noise -= 1
-        except IOError:
+        except OSError:
             badresponse()
     else:
         badresponse()
@@ -473,12 +479,12 @@ class sshv1peer(wireprotov1peer.wirepeer):
 
     # End of ipeerconnection interface.
 
-    # Begin of ipeercommands interface.
+    # Begin of ipeercapabilities interface.
 
-    def capabilities(self):
+    def capabilities(self) -> Set[bytes]:
         return self._caps
 
-    # End of ipeercommands interface.
+    # End of ipeercapabilities interface.
 
     def _readerr(self):
         _forwardoutput(self.ui, self._pipee)
@@ -737,7 +743,7 @@ def make_peer(
             peer._call(
                 b"protocaps", caps=b' '.join(sorted(_clientcapabilities()))
             )
-        except IOError:
+        except OSError:
             peer._cleanup()
             raise error.RepoError(_(b'capability exchange failed'))
 

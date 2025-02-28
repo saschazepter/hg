@@ -15,6 +15,7 @@ for line in sys.stdin:
         # for cffi, allow re-exports from pure.*
         r"cffi/[^:]*:.*\bimport \*' used",
         r"cffi/[^:]*:.*\*' imported but unused",
+        r"mercurial/interfaces/types.py:.+' imported but unused",
     ]
 
     keep = True

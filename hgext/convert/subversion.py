@@ -12,7 +12,6 @@ import re
 import xml.dom.minidom
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial import (
     encoding,
     error,
@@ -225,7 +224,7 @@ def get_log_child(
             strict_node_history,
             receiver,
         )
-    except IOError:
+    except OSError:
         # Caller may interrupt the iteration
         pickle.dump(None, fp, protocol)
     except Exception as inst:
@@ -399,7 +398,7 @@ def issvnurl(ui, url):
             # Percent-decoded bytes get decoded using UTF-8 and the 'replace'
             # error handler.
             unicodepath = urlreq.url2pathname(unicodepath)
-            if u'\N{REPLACEMENT CHARACTER}' in unicodepath:
+            if '\N{REPLACEMENT CHARACTER}' in unicodepath:
                 ui.warn(
                     _(
                         b'Subversion does not support non-UTF-8 '
@@ -463,7 +462,7 @@ def issvnurl(ui, url):
 #
 class svn_source(converter_source):
     def __init__(self, ui, repotype, url, revs=None):
-        super(svn_source, self).__init__(ui, repotype, url, revs=revs)
+        super().__init__(ui, repotype, url, revs=revs)
 
         init_fsencoding()
         if not (
@@ -895,7 +894,7 @@ class svn_source(converter_source):
             return
         if self.convertfp is None:
             self.convertfp = open(
-                os.path.join(self.wc, b'.svn', b'hg-shamap'), b'ab'
+                os.path.join(self.wc, b'.svn', b'hg-shamap'), 'ab'
             )
         self.convertfp.write(
             util.tonativeeol(b'%s %d\n' % (destrev, self.revnum(rev)))
@@ -1367,7 +1366,7 @@ class svn_source(converter_source):
         stdin.write(arg)
         try:
             stdin.close()
-        except IOError:
+        except OSError:
             raise error.Abort(
                 _(
                     b'Mercurial failed to run itself, check'
