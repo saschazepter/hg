@@ -88,7 +88,7 @@ class ShelfDir:
         else:
             self.vfs = vfsmod.vfs(repo.vfs.join(shelvedir))
 
-    def get(self, name: bytes) -> "Shelf":
+    def get(self, name: bytes) -> Shelf:
         return Shelf(self.vfs, name)
 
     def listshelves(self) -> List[Tuple[float, bytes]]:

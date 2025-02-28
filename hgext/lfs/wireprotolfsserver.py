@@ -229,7 +229,7 @@ def _batchresponseobjects(req, objects, action, store):
                 # The client will skip this upload, but make sure it remains
                 # available locally.
                 store.linkfromusercache(oid)
-        except IOError as inst:
+        except OSError as inst:
             if inst.errno != errno.ENOENT:
                 _logexception(req)
 

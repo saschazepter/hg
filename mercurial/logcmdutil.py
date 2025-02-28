@@ -22,6 +22,9 @@ from typing import (
 )
 
 from .i18n import _
+from .interfaces.types import (
+    MatcherT,
+)
 from .node import wdirrev
 
 from .thirdparty import attr
@@ -633,7 +636,7 @@ class changesettemplater(changesetprinter):
             if not self.footer:
                 self.footer = b""
             self.footer += self.t.render(self._parts[b'docfooter'], {})
-        return super(changesettemplater, self).close()
+        return super().close()
 
     def _show(self, ctx, copies, props):
         '''show a single changeset or file revision'''
@@ -1083,9 +1086,7 @@ def _initialrevs(repo, wopts):
 def makewalker(
     repo: Any,
     wopts: walkopts,
-) -> Tuple[
-    smartset.abstractsmartset, Optional[Callable[[Any], matchmod.basematcher]]
-]:
+) -> Tuple[smartset.abstractsmartset, Optional[Callable[[Any], MatcherT]]]:
     """Build (revs, makefilematcher) to scan revision/file history
 
     - revs is the smartset to be traversed.
@@ -1222,8 +1223,7 @@ def getlinerangerevs(repo, userrevs, opts):
                     if any(mdiff.hunkinrange(hr[2:], lr) for lr in lineranges):
                         yield hr, lines
             else:
-                for hunk in hunks:
-                    yield hunk
+                yield from hunks
 
         return filterfn
 

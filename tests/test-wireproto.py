@@ -1,5 +1,9 @@
 import sys
 
+from typing import (
+    Set,
+)
+
 from mercurial import (
     error,
     pycompat,
@@ -55,8 +59,8 @@ class clientpeer(wireprotov1peer.wirepeer):
     def close(self):
         pass
 
-    def capabilities(self):
-        return [b'batch']
+    def capabilities(self) -> Set[bytes]:
+        return {b'batch'}
 
     def _call(self, cmd, **args):
         args = pycompat.byteskwargs(args)
@@ -66,7 +70,7 @@ class clientpeer(wireprotov1peer.wirepeer):
         elif isinstance(res, bytes):
             return res
         else:
-            raise error.Abort('dummy client does not support response type')
+            raise error.Abort(b'dummy client does not support response type')
 
     def _callstream(self, cmd, **args):
         return stringio(self._call(cmd, **args))

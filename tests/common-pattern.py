@@ -123,6 +123,15 @@ substitutions = [
         br'\belapsed time:  \d+.\d{6} seconds\b',
         br'elapsed time:  *.?????? seconds (glob)',
     ),
+    # delta find debug time
+    (
+        br'(DBG-DELTAS: .* - )duration=\d+\.\d{6}\b',
+        lambda m: br'%sduration=*.?????? (glob)' % m.group(1),
+    ),
+    (
+        br'DBG-DELTAS-SEARCH:     delta-search-time=\d+.\d{6}',
+        br'DBG-DELTAS-SEARCH:     delta-search-time=* (glob)',
+    ),
 ]
 
 # Various platform error strings, keyed on a common replacement string

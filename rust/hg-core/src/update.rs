@@ -10,18 +10,17 @@ use std::{
 };
 
 use crate::{
-    dirstate::{ParentFileData, TruncatedTimestamp},
-    dirstate_tree::{
-        dirstate_map::DirstateEntryReset, on_disk::write_tracked_key,
-    },
+    dirstate::entry::{ParentFileData, TruncatedTimestamp},
+    dirstate::{dirstate_map::DirstateEntryReset, on_disk::write_tracked_key},
     errors::{HgError, IoResultExt},
-    exit_codes,
-    filelog::Filelog,
-    narrow,
-    node::NULL_NODE,
+    exit_codes, narrow,
     operations::{list_rev_tracked_files, ExpandedManifestEntry},
     progress::Progress,
     repo::Repo,
+    revlog::filelog::Filelog,
+    revlog::node::NULL_NODE,
+    revlog::options::{default_revlog_options, RevlogOpenOptions},
+    revlog::RevlogError,
     sparse,
     utils::{
         cap_default_rayon_threads,
@@ -30,8 +29,7 @@ use crate::{
         path_auditor::PathAuditor,
     },
     vfs::{is_on_nfs_mount, VfsImpl},
-    DirstateParents, RevlogError, RevlogOpenOptions, UncheckedRevision,
-    INTERRUPT_RECEIVED,
+    DirstateParents, UncheckedRevision, INTERRUPT_RECEIVED,
 };
 use crossbeam_channel::{Receiver, Sender};
 use rayon::prelude::*;
@@ -93,7 +91,11 @@ pub fn update_from_null(
         return Ok(0);
     }
     let store_vfs = &repo.store_vfs();
-    let options = repo.default_revlog_options(crate::RevlogType::Filelog)?;
+    let options = default_revlog_options(
+        repo.config(),
+        repo.requirements(),
+        crate::revlog::RevlogType::Filelog,
+    )?;
     let (errors_sender, errors_receiver) = crossbeam_channel::unbounded();
     let (files_sender, files_receiver) = crossbeam_channel::unbounded();
     let working_directory_path = &repo.working_directory_path();
@@ -149,7 +151,7 @@ pub fn update_from_null(
 
 fn handle_revlog_error(e: RevlogError) -> HgError {
     match e {
-        crate::RevlogError::Other(hg_error) => hg_error,
+        crate::revlog::RevlogError::Other(hg_error) => hg_error,
         e => HgError::abort(
             format!("revlog error: {}", e),
             exit_codes::ABORT,

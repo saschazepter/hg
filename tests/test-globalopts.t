@@ -140,6 +140,9 @@ earlygetopt with illegal abbreviations:
   $ hg --confi "foo.bar=baz"
   abort: option --config may not be abbreviated
   [10]
+  $ hg --config-f "foo"
+  abort: option --config-file may not be abbreviated
+  [10]
   $ hg --cw a tip
   abort: option --cwd may not be abbreviated
   [10]

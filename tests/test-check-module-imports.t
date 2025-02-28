@@ -37,9 +37,13 @@ will likely receive warnings about a direct import.
   > -X i18n/posplit \
   > -X mercurial/thirdparty \
   > -X tests/hypothesishelpers.py \
-  > -X tests/test-check-interfaces.py \
   > -X tests/test-demandimport.py \
   > -X tests/test-imports-checker.t \
   > -X tests/test-verify-repo-operations.py \
   > -X tests/test-extension.t \
   > | sed 's-\\-/-g' | "$PYTHON" "$import_checker" -
+
+All files that get type checked must have 'from __future__ import annotations'
+
+  $ testrepohg files 'set:**.py and size(">0")' -I mercurial -I hgext -X mercurial/thirdparty -0 \
+  > | xargs -0 grep -L '^from __future__ import annotations$'

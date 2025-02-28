@@ -29,8 +29,7 @@ AllFiles = 2
 
 def shallowgroup(cls, self, nodelist, rlog, lookup, units=None, reorder=None):
     if not isinstance(rlog, remotefilelog.remotefilelog):
-        for c in super(cls, self).group(nodelist, rlog, lookup, units=units):
-            yield c
+        yield from super(cls, self).group(nodelist, rlog, lookup, units=units)
         return
 
     if len(nodelist) == 0:
@@ -47,8 +46,7 @@ def shallowgroup(cls, self, nodelist, rlog, lookup, units=None, reorder=None):
     for i in range(len(nodelist) - 1):
         prev, curr = nodelist[i], nodelist[i + 1]
         linknode = lookup(curr)
-        for c in self.nodechunk(rlog, curr, prev, linknode):
-            yield c
+        yield from self.nodechunk(rlog, curr, prev, linknode)
 
     yield self.close()
 
@@ -58,7 +56,7 @@ class shallowcg1packer(changegroup.cgpacker):
         if shallowutil.isenabled(self._repo):
             fastpathlinkrev = False
 
-        return super(shallowcg1packer, self).generate(
+        return super().generate(
             commonrevs, clnodes, fastpathlinkrev, source, **kwargs
         )
 
@@ -92,9 +90,7 @@ class shallowcg1packer(changegroup.cgpacker):
                     [f for f in changedfiles if not repo.shallowmatch(f)]
                 )
 
-        return super(shallowcg1packer, self).generatefiles(
-            changedfiles, *args, **kwargs
-        )
+        return super().generatefiles(changedfiles, *args, **kwargs)
 
     def shouldaddfilegroups(self, source):
         repo = self._repo
@@ -129,9 +125,7 @@ class shallowcg1packer(changegroup.cgpacker):
 
     def prune(self, rlog, missing, commonrevs):
         if not isinstance(rlog, remotefilelog.remotefilelog):
-            return super(shallowcg1packer, self).prune(
-                rlog, missing, commonrevs
-            )
+            return super().prune(rlog, missing, commonrevs)
 
         repo = self._repo
         results = []

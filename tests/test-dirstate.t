@@ -64,6 +64,15 @@ Status must not set a's entry to unset (issue1790):
   $ hg debugstate
   n 644          2 2031-01-01 12:00:00 a
 
+Check that .hg/dirstate permissions are correct
+(there was a bug where rust atomic replace would set permissions 0600,
+which is not what we want)
+
+#if unix-permissions
+  $ f --mode .hg/dirstate
+  .hg/dirstate: mode=644
+#endif
+
 Test modulo storage/comparison of absurd dates:
 
 #if no-aix

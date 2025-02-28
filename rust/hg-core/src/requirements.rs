@@ -1,6 +1,6 @@
 use crate::errors::{HgError, HgResultExt};
 use crate::repo::Repo;
-use crate::utils::join_display;
+use crate::utils::strings::join_display;
 use crate::vfs::VfsImpl;
 use std::collections::HashSet;
 

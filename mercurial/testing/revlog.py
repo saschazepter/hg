@@ -23,7 +23,10 @@ data_non_inlined = (
     b'\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 )
 
-from ..revlogutils.constants import REVLOGV1
+from ..revlogutils.constants import (
+    KIND_CHANGELOG,
+)
+from .. import revlog
 
 
 try:
@@ -32,16 +35,31 @@ except ImportError:
     cparsers = None
 
 try:
-    from ..rustext.revlog import (  # pytype: disable=import-error
-        Index as RustIndex,
+    from ..rustext import (  # pytype: disable=import-error
+        revlog as rust_revlog,
     )
+
+    rust_revlog.__name__  # force actual import
 except ImportError:
-    RustIndex = None
+    rust_revlog = None
+
+
+try:
+    from ..pyo3_rustext import (  # pytype: disable=import-error
+        revlog as pyo3_revlog,
+    )
+
+    pyo3_revlog.__name__  # force actual import
+except ImportError:
+    pyo3_revlog = None
 
 
 @unittest.skipIf(
     cparsers is None,
-    'The C version of the "parsers" module is not available. It is needed for this test.',
+    (
+        'The C version of the "parsers" module is not available. '
+        'It is needed for this test.'
+    ),
 )
 class RevlogBasedTestBase(unittest.TestCase):
     def parseindex(self, data=None):
@@ -51,14 +69,60 @@ class RevlogBasedTestBase(unittest.TestCase):
 
 
 @unittest.skipIf(
-    RustIndex is None,
-    'The Rust index is not available. It is needed for this test.',
+    rust_revlog is None,
+    'The Rust revlog module is not available. It is needed for this test.',
 )
 class RustRevlogBasedTestBase(unittest.TestCase):
-    def parserustindex(self, data=None):
+    # defaults
+    revlog_data_config = revlog.DataConfig()
+    revlog_delta_config = revlog.DeltaConfig()
+    revlog_feature_config = revlog.FeatureConfig()
+
+    @classmethod
+    def irl_class(cls):
+        return rust_revlog.InnerRevlog
+
+    @classmethod
+    def nodetree(cls, idx):
+        return rust_revlog.NodeTree(idx)
+
+    def make_inner_revlog(
+        self, data=None, vfs_is_readonly=True, kind=KIND_CHANGELOG
+    ):
         if data is None:
             data = data_non_inlined
-        # not inheriting RevlogBasedTestCase to avoid having a
-        # `parseindex` method that would be shadowed by future subclasses
-        # this duplication will soon be removed
-        return RustIndex(data, REVLOGV1)
+
+        return self.irl_class()(
+            vfs_base=b"Just a path",
+            fncache=None,  # might be enough for now
+            vfs_is_readonly=vfs_is_readonly,
+            index_data=data,
+            index_file=b'test.i',
+            data_file=b'test.d',
+            sidedata_file=None,
+            inline=False,
+            data_config=self.revlog_data_config,
+            delta_config=self.revlog_delta_config,
+            feature_config=self.revlog_feature_config,
+            chunk_cache=None,
+            default_compression_header=None,
+            revlog_type=kind,
+            use_persistent_nodemap=False,  # until we cook one.
+        )
+
+    def parserustindex(self, data=None):
+        return revlog.RustIndexProxy(self.make_inner_revlog(data=data))
+
+
+@unittest.skipIf(
+    pyo3_revlog is None,
+    'The Rust PyO3 revlog module is not available. It is needed for this test.',
+)
+class PyO3RevlogBasedTestBase(RustRevlogBasedTestBase):
+    @classmethod
+    def irl_class(cls):
+        return pyo3_revlog.InnerRevlog
+
+    @classmethod
+    def nodetree(cls, idx):
+        return pyo3_revlog.NodeTree(idx)

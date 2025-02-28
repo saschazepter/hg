@@ -372,7 +372,7 @@ commonpypats = [
             r'\s(\+=|-=|!=|<>|<=|>=|<<=|>>=|%=)\S',
             "missing whitespace around operator",
         ),
-        (r'[^^+=*/!<>&| %-](\s=|=\s)[^= ]', "wrong whitespace around ="),
+        (r'[^^+=*/!<>&| %-:](\s=|=\s)[^= ]', "wrong whitespace around ="),
         (
             r'raise [^,(]+, (\([^\)]+\)|[^,\(\)]+)$',
             "don't use old-style two-argument raise, use Exception(message)",
@@ -471,7 +471,7 @@ pypats = [
          (?# this regexp can't use [^...] style,
            # because _preparepats forcibly adds "\n" into [^...],
            # even though this regexp wants match it against "\n")''',
-            "missing _() in ui message (use () to hide false-positives)",
+            "missing _() in ui message (use `noi18n` method to hide false-positives)",
         ),
     ]
     + commonpypats[0],
@@ -816,7 +816,7 @@ def checkfile(
             except UnicodeDecodeError as e:
                 print("%s while reading %s" % (e, f))
                 return result
-    except IOError as e:
+    except OSError as e:
         print("Skipping %s, %s" % (f, str(e).split(':', 1)[0]))
         return result
 

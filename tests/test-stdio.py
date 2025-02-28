@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Tests the buffering behavior of stdio streams in `mercurial.utils.procutil`.
 """
@@ -88,7 +88,7 @@ def _closing(fds):
         for fd in fds:
             try:
                 os.close(fd)
-            except EnvironmentError:
+            except OSError:
                 pass
 
 

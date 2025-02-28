@@ -238,6 +238,9 @@ Help text for fix.
       executions that modified a file. This aggregates the same metadata
       previously passed to the "postfixfile" hook.
   
+  You can specify a list of directories to search the tool command in using the
+  'fix.extra-bin-paths' configuration.
+  
   list of commands:
   
    fix           rewrite file content in changesets or working directory

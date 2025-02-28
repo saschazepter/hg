@@ -18,6 +18,9 @@ import tarfile
 import xml.dom.minidom
 
 from .i18n import _
+from .interfaces.types import (
+    MatcherT,
+)
 from .node import (
     bin,
     hex,
@@ -38,6 +41,9 @@ from . import (
     subrepoutil,
     util,
     vfs as vfsmod,
+)
+from .interfaces import (
+    status as istatus,
 )
 from .utils import (
     dateutil,
@@ -332,7 +338,7 @@ class abstractsubrepo:
     def cat(self, match, fm, fntemplate, prefix, **opts):
         return 1
 
-    def status(self, rev2, **opts):
+    def status(self, rev2, **opts) -> istatus.Status:
         return scmutil.status([], [], [], [], [], [], [])
 
     def diff(self, ui, diffopts, node2, match, prefix, **opts):
@@ -364,7 +370,7 @@ class abstractsubrepo:
         """handle the files command for this subrepo"""
         return 1
 
-    def archive(self, opener, prefix, match: matchmod.basematcher, decode=True):
+    def archive(self, opener, prefix, match: MatcherT, decode=True):
         files = [f for f in self.files() if match(f)]
         total = len(files)
         relpath = subrelpath(self)
@@ -451,7 +457,7 @@ class abstractsubrepo:
 
 class hgsubrepo(abstractsubrepo):
     def __init__(self, ctx, path, state, allowcreate):
-        super(hgsubrepo, self).__init__(ctx, path)
+        super().__init__(ctx, path)
         self._state = state
         r = ctx.repo()
         root = r.wjoin(util.localpath(path))
@@ -614,7 +620,7 @@ class hgsubrepo(abstractsubrepo):
         )
 
     @annotatesubrepoerror
-    def status(self, rev2, **opts):
+    def status(self, rev2, **opts) -> istatus.Status:
         try:
             rev1 = self._state[1]
             ctx1 = self._repo[rev1]
@@ -653,7 +659,7 @@ class hgsubrepo(abstractsubrepo):
             )
 
     @annotatesubrepoerror
-    def archive(self, opener, prefix, match: matchmod.basematcher, decode=True):
+    def archive(self, opener, prefix, match: MatcherT, decode=True):
         self._get(self._state + (b'hg',))
         files = [f for f in self.files() if match(f)]
         rev = self._state[1]
@@ -1114,7 +1120,7 @@ class hgsubrepo(abstractsubrepo):
 
 class svnsubrepo(abstractsubrepo):
     def __init__(self, ctx, path, state, allowcreate):
-        super(svnsubrepo, self).__init__(ctx, path)
+        super().__init__(ctx, path)
         self._state = state
         self._exe = procutil.findexe(b'svn')
         if not self._exe:
@@ -1375,7 +1381,7 @@ class svnsubrepo(abstractsubrepo):
 
 class gitsubrepo(abstractsubrepo):
     def __init__(self, ctx, path, state, allowcreate):
-        super(gitsubrepo, self).__init__(ctx, path)
+        super().__init__(ctx, path)
         self._state = state
         self._abspath = ctx.repo().wjoin(path)
         self._subparent = ctx.repo()
@@ -1910,7 +1916,7 @@ class gitsubrepo(abstractsubrepo):
             else:
                 self.wvfs.unlink(f)
 
-    def archive(self, opener, prefix, match: matchmod.basematcher, decode=True):
+    def archive(self, opener, prefix, match: MatcherT, decode=True):
         total = 0
         source, revision = self._state
         if not revision:
@@ -1963,15 +1969,15 @@ class gitsubrepo(abstractsubrepo):
         # TODO: add support for non-plain formatter (see cmdutil.cat())
         for f in match.files():
             output = self._gitcommand([b"show", b"%s:%s" % (rev, f)])
-            fp = cmdutil.makefileobj(
+            with cmdutil.makefileobj(
                 self._ctx, fntemplate, pathname=self.wvfs.reljoin(prefix, f)
-            )
-            fp.write(output)
-            fp.close()
+            ) as fp:
+                fp.write(output)
+
         return 0
 
     @annotatesubrepoerror
-    def status(self, rev2, **opts):
+    def status(self, rev2, **opts) -> istatus.Status:
         rev1 = self._state[1]
         if self._gitmissing() or not rev1:
             # if the repo is missing, return no results

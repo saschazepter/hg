@@ -13,7 +13,6 @@ import pickle
 import re
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial import (
     encoding,
     error,
@@ -150,12 +149,12 @@ def createlog(ui, directory=None, root=b"", rlog=True, cache=None):
 
         # Get the real directory in the repository
         try:
-            with open(os.path.join(b'CVS', b'Repository'), b'rb') as f:
+            with open(os.path.join(b'CVS', b'Repository'), 'rb') as f:
                 prefix = f.read().strip()
             directory = prefix
             if prefix == b".":
                 prefix = b""
-        except IOError:
+        except OSError:
             raise logerror(_(b'not a CVS sandbox'))
 
         if prefix and not prefix.endswith(pycompat.ossep):
@@ -164,7 +163,7 @@ def createlog(ui, directory=None, root=b"", rlog=True, cache=None):
         # Use the Root file in the sandbox, if it exists
         try:
             root = util.readfile(os.path.join(b'CVS', b'Root')).strip()
-        except IOError:
+        except OSError:
             pass
 
     if not root:
@@ -197,7 +196,7 @@ def createlog(ui, directory=None, root=b"", rlog=True, cache=None):
     if cache == b'update':
         try:
             ui.note(_(b'reading cvs log cache %s\n') % cachefile)
-            with open(cachefile, b'rb') as fp:
+            with open(cachefile, 'rb') as fp:
                 oldlog = pickle.load(fp)
                 for e in oldlog:
                     if not (
@@ -530,7 +529,7 @@ def createlog(ui, directory=None, root=b"", rlog=True, cache=None):
             # write the new cachefile
             ui.note(_(b'writing cvs log cache %s\n') % cachefile)
 
-            with open(cachefile, b'wb') as fp:
+            with open(cachefile, 'wb') as fp:
                 pickle.dump(log, fp)
         else:
             log = oldlog
@@ -1003,22 +1002,18 @@ def debugcvsps(ui, *args, **opts):
             # Note: trailing spaces on several lines here are needed to have
             #       bug-for-bug compatibility with cvsps.
             ui.write(b'---------------------\n')
-            ui.write((b'PatchSet %d \n' % cs.id))
-            ui.write(
-                (
-                    b'Date: %s\n'
-                    % dateutil.datestr(cs.date, b'%Y/%m/%d %H:%M:%S %1%2')
-                )
+            ui.writenoi18n(b'PatchSet %d \n' % cs.id)
+            ui.writenoi18n(
+                b'Date: %s\n'
+                % dateutil.datestr(cs.date, b'%Y/%m/%d %H:%M:%S %1%2')
             )
-            ui.write((b'Author: %s\n' % cs.author))
-            ui.write((b'Branch: %s\n' % (cs.branch or b'HEAD')))
-            ui.write(
-                (
-                    b'Tag%s: %s \n'
-                    % (
-                        [b'', b's'][len(cs.tags) > 1],
-                        b','.join(cs.tags) or b'(none)',
-                    )
+            ui.writenoi18n(b'Author: %s\n' % cs.author)
+            ui.writenoi18n(b'Branch: %s\n' % (cs.branch or b'HEAD'))
+            ui.writenoi18n(
+                b'Tag%s: %s \n'
+                % (
+                    [b'', b's'][len(cs.tags) > 1],
+                    b','.join(cs.tags) or b'(none)',
                 )
             )
             if cs.branchpoints:
@@ -1027,14 +1022,12 @@ def debugcvsps(ui, *args, **opts):
                 )
             if opts[b"parents"] and cs.parents:
                 if len(cs.parents) > 1:
-                    ui.write(
-                        (
-                            b'Parents: %s\n'
-                            % (b','.join([(b"%d" % p.id) for p in cs.parents]))
-                        )
+                    ui.writenoi18n(
+                        b'Parents: %s\n'
+                        % (b','.join([(b"%d" % p.id) for p in cs.parents]))
                     )
                 else:
-                    ui.write((b'Parent: %d\n' % cs.parents[0].id))
+                    ui.writenoi18n(b'Parent: %d\n' % cs.parents[0].id)
 
             if opts[b"ancestors"]:
                 b = cs.branch
@@ -1043,7 +1036,7 @@ def debugcvsps(ui, *args, **opts):
                     b, c = ancestors[b]
                     r.append(b'%s:%d:%d' % (b or b"HEAD", c, branches[b]))
                 if r:
-                    ui.write((b'Ancestors: %s\n' % (b','.join(r))))
+                    ui.writenoi18n(b'Ancestors: %s\n' % (b','.join(r)))
 
             ui.writenoi18n(b'Log:\n')
             ui.write(b'%s\n\n' % cs.comment)

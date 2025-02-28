@@ -379,7 +379,7 @@ class _CompressedStreamReader:
 
 class _GzipCompressedStreamReader(_CompressedStreamReader):
     def __init__(self, fh):
-        super(_GzipCompressedStreamReader, self).__init__(fh)
+        super().__init__(fh)
         self._decompobj = zlib.decompressobj()
 
     def _decompress(self, chunk):
@@ -398,7 +398,7 @@ class _GzipCompressedStreamReader(_CompressedStreamReader):
 
 class _BZ2CompressedStreamReader(_CompressedStreamReader):
     def __init__(self, fh):
-        super(_BZ2CompressedStreamReader, self).__init__(fh)
+        super().__init__(fh)
         self._decompobj = bz2.BZ2Decompressor()
 
     def _decompress(self, chunk):
@@ -418,7 +418,7 @@ class _BZ2CompressedStreamReader(_CompressedStreamReader):
 
 class _TruncatedBZ2CompressedStreamReader(_BZ2CompressedStreamReader):
     def __init__(self, fh):
-        super(_TruncatedBZ2CompressedStreamReader, self).__init__(fh)
+        super().__init__(fh)
         newbuf = self._decompobj.decompress(b'BZ')
         if newbuf:
             self._pending.append(newbuf)
@@ -426,7 +426,7 @@ class _TruncatedBZ2CompressedStreamReader(_BZ2CompressedStreamReader):
 
 class _ZstdCompressedStreamReader(_CompressedStreamReader):
     def __init__(self, fh, zstd):
-        super(_ZstdCompressedStreamReader, self).__init__(fh)
+        super().__init__(fh)
         self._zstd = zstd
         self._decompobj = zstd.ZstdDecompressor().decompressobj()
 

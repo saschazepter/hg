@@ -4,6 +4,7 @@
 // GNU General Public License version 2 or any later version.
 
 //! Minimal `RevlogIndex`, readable from standard Mercurial file format
+use hg::revlog::RevlogIndex;
 use hg::*;
 use memmap2::*;
 use std::fs::File;

@@ -399,7 +399,7 @@ def emitrevisions(
     emitted = set()
     available = set()
     if assumehaveparentrevisions:
-        common_heads = set(p for r in revs for p in parents(r))
+        common_heads = {p for r in revs for p in parents(r)}
         common_heads.difference_update(revs)
         available = store.ancestors(common_heads, inclusive=True)
 

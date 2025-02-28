@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Georges Racinet <gracinet@anybox.fr>"]
 edition = "2021"
 
+[lints]
+workspace = true
+
 [lib]
 name='rusthg'
 crate-type = ["cdylib"]
@@ -14,6 +17,8 @@ crossbeam-channel = "0.5.6"
 hg-core = { path = "../hg-core"}
 libc = "0.2.137"
 log = "0.4.17"
-env_logger = "0.9.3"
+env_logger = "0.11"
 stable_deref_trait = "1.2.0"
 vcsgraph = "0.2.0"
+logging_timer = "1.1.0"
+python3-sys = "0.7.2"

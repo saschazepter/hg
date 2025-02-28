@@ -13,7 +13,7 @@ def reposetup(ui, repo):
             delay = float(os.environ.get('HGPRELOCKDELAY', '0.0'))
             if delay:
                 time.sleep(delay)
-            res = super(delayedlockrepo, self).lock(wait=wait)
+            res = super().lock(wait=wait)
             delay = float(os.environ.get('HGPOSTLOCKDELAY', '0.0'))
             if delay:
                 time.sleep(delay)

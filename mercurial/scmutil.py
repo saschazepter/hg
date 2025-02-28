@@ -64,6 +64,8 @@ from . import (
     vfs,
 )
 
+from .interfaces import status as istatus
+
 from .utils import (
     hashutil,
     procutil,
@@ -81,13 +83,13 @@ if typing.TYPE_CHECKING:
     )
 
 parsers = policy.importmod('parsers')
-rustrevlog = policy.importrust('revlog')
+rustrevlog = policy.importrust('revlog', pyo3=True)
 
 termsize = scmplatform.termsize
 
 
 @attr.s(slots=True, repr=False)
-class status:
+class status(istatus.Status):
     """Struct with a list of files per status.
 
     The 'deleted', 'unknown' and 'ignored' properties are only
@@ -144,7 +146,7 @@ def itersubrepos(ctx1, ctx2):
         yield subpath, ctx2.nullsub(subpath, ctx1)
 
 
-def nochangesfound(ui: "uimod.ui", repo, excluded=None) -> None:
+def nochangesfound(ui: uimod.ui, repo, excluded=None) -> None:
     """Report no changes for push/pull, excluded is None or a list of
     nodes excluded from the push/pull.
     """
@@ -164,7 +166,7 @@ def nochangesfound(ui: "uimod.ui", repo, excluded=None) -> None:
         ui.status(_(b"no changes found\n"))
 
 
-def callcatch(ui: "uimod.ui", func: Callable[[], int]) -> int:
+def callcatch(ui: uimod.ui, func: Callable[[], int]) -> int:
     """call func() with global exception handling
 
     return func() if no exception happens. otherwise do some error handling
@@ -212,7 +214,7 @@ def callcatch(ui: "uimod.ui", func: Callable[[], int]) -> int:
     except error.ResponseError as inst:
         ui.error(_(b"abort: %s") % inst.args[0])
         msg = inst.args[1]
-        if isinstance(msg, type(u'')):
+        if isinstance(msg, str):
             msg = pycompat.sysbytes(msg)
         if msg is None:
             ui.error(b"\n")
@@ -256,7 +258,7 @@ def callcatch(ui: "uimod.ui", func: Callable[[], int]) -> int:
             # SSLError of Python 2.7.9 contains a unicode
             reason = encoding.unitolocal(reason)
         ui.error(_(b"abort: error: %s\n") % stringutil.forcebytestr(reason))
-    except (IOError, OSError) as inst:
+    except OSError as inst:
         if hasattr(inst, "args") and inst.args and inst.args[0] == errno.EPIPE:
             pass
         elif getattr(inst, "strerror", None):  # common IOError or OSError
@@ -321,7 +323,7 @@ def checkfilename(f: bytes) -> None:
         )
 
 
-def checkportable(ui: "uimod.ui", f: bytes) -> None:
+def checkportable(ui: uimod.ui, f: bytes) -> None:
     '''Check if filename f is portable and warn or abort depending on config'''
     checkfilename(f)
     abort, warn = checkportabilityalert(ui)
@@ -334,7 +336,7 @@ def checkportable(ui: "uimod.ui", f: bytes) -> None:
             ui.warn(_(b"warning: %s\n") % msg)
 
 
-def checkportabilityalert(ui: "uimod.ui") -> Tuple[bool, bool]:
+def checkportabilityalert(ui: uimod.ui) -> Tuple[bool, bool]:
     """check if the user's config requests nothing, a warning, or abort for
     non-portable filenames"""
     val = ui.config(b'ui', b'portablefilenames')
@@ -350,7 +352,7 @@ def checkportabilityalert(ui: "uimod.ui") -> Tuple[bool, bool]:
 
 
 class casecollisionauditor:
-    def __init__(self, ui: "uimod.ui", abort: bool, dirstate) -> None:
+    def __init__(self, ui: uimod.ui, abort: bool, dirstate) -> None:
         self._ui = ui
         self._abort = abort
         allfiles = b'\0'.join(dirstate)
@@ -452,8 +454,8 @@ def _filtered_and_obs_revs(repo, max_rev):
         obs_set = obs_set - cl.filteredrevs
     if max_rev < (len(cl) - 1):
         # there might be revision to filter out
-        filtered_set = set(r for r in filtered_set if r <= max_rev)
-        obs_set = set(r for r in obs_set if r <= max_rev)
+        filtered_set = {r for r in filtered_set if r <= max_rev}
+        obs_set = {r for r in obs_set if r <= max_rev}
     return (filtered_set, obs_set)
 
 
@@ -512,8 +514,7 @@ def walkrepos(
                 fname = os.path.join(root, d)
                 if adddir(seen_dirs, fname):
                     if os.path.islink(fname):
-                        for hgname in walkrepos(fname, True, seen_dirs):
-                            yield hgname
+                        yield from walkrepos(fname, True, seen_dirs)
                     else:
                         newdirs.append(d)
             dirs[:] = newdirs
@@ -543,7 +544,7 @@ def formatchangeid(ctx) -> bytes:
     return formatrevnode(repo.ui, intrev(ctx), binnode(ctx))
 
 
-def formatrevnode(ui: "uimod.ui", rev: int, node: bytes) -> bytes:
+def formatrevnode(ui: uimod.ui, rev: int, node: bytes) -> bytes:
     """Format given revision and node depending on the current verbosity"""
     if ui.debugflag:
         hexfunc = hex
@@ -1079,7 +1080,7 @@ def parsefollowlinespattern(repo, rev, pat: bytes, msg: bytes) -> bytes:
         return files[0]
 
 
-def getorigvfs(ui: "uimod.ui", repo):
+def getorigvfs(ui: uimod.ui, repo):
     """return a vfs suitable to save 'orig' file
 
     return None if no special directory is configured"""
@@ -1089,7 +1090,7 @@ def getorigvfs(ui: "uimod.ui", repo):
     return vfs.vfs(repo.wvfs.join(origbackuppath))
 
 
-def backuppath(ui: "uimod.ui", repo, filepath: bytes) -> bytes:
+def backuppath(ui: uimod.ui, repo, filepath: bytes) -> bytes:
     """customize where working copy backup files (.orig files) are created
 
     Fetch user defined path from config file: [ui] origbackuppath = <path>
@@ -1579,7 +1580,7 @@ def getcopiesfn(repo, endrev=None):
 
 
 def dirstatecopy(
-    ui: "uimod.ui",
+    ui: uimod.ui,
     repo,
     wctx,
     src,
@@ -1955,7 +1956,7 @@ def extdatasource(repo, source: bytes):
 
 
 class progress:
-    ui: "uimod.ui"
+    ui: uimod.ui
     pos: Optional[int]  # None once complete
     topic: bytes
     unit: bytes
@@ -1964,7 +1965,7 @@ class progress:
 
     def __init__(
         self,
-        ui: "uimod.ui",
+        ui: uimod.ui,
         updatebar,
         topic: bytes,
         unit: bytes = b"",
@@ -2023,7 +2024,7 @@ class progress:
             self.ui.debug(b'%s:%s %d%s\n' % (self.topic, item, self.pos, unit))
 
 
-def gdinitconfig(ui: "uimod.ui"):
+def gdinitconfig(ui: uimod.ui):
     """helper function to know if a repo should be created as general delta"""
     # experimental config: format.generaldelta
     return ui.configbool(b'format', b'generaldelta') or ui.configbool(
@@ -2031,7 +2032,7 @@ def gdinitconfig(ui: "uimod.ui"):
     )
 
 
-def gddeltaconfig(ui: "uimod.ui"):
+def gddeltaconfig(ui: uimod.ui):
     """helper function to know if incoming deltas should be optimized
 
     The `format.generaldelta` config is an old form of the config that also
@@ -2484,7 +2485,7 @@ def format_bookmark_revspec(mark: bytes) -> bytes:
     )
 
 
-def ismember(ui: "uimod.ui", username: bytes, userlist: List[bytes]) -> bool:
+def ismember(ui: uimod.ui, username: bytes, userlist: List[bytes]) -> bool:
     """Check if username is a member of userlist.
 
     If userlist has a single '*' member, all users are considered members.
@@ -2508,7 +2509,7 @@ DEFAULT_RESOURCE: int = RESOURCE_MEDIUM
 
 
 def get_resource_profile(
-    ui: "uimod.ui", dimension: Optional[bytes] = None
+    ui: uimod.ui, dimension: Optional[bytes] = None
 ) -> int:
     """return the resource profile for a dimension
 

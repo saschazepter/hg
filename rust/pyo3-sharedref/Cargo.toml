@@ -1,0 +1,15 @@
+[package]
+name = "pyo3-sharedref"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[lib]
+name='pyo3_sharedref'
+
+[dependencies]
+pyo3 = { version = "0.23.1" }
+stable_deref_trait = "1.2.0"
+static_assertions_next = "1.1.2"

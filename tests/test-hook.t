@@ -979,7 +979,7 @@ test python hooks
   (run with --traceback for stack trace)
   [255]
 
-  $ hg pull ../a --traceback 2>&1 | grep -E 'pulling|searching|^exception|Traceback|SyntaxError|ImportError|ModuleNotFoundError|HookLoadError|abort'
+  $ hg pull ../a --traceback 2>&1 | "$PYTHON" "$TESTDIR/filtertraceback.py"
   pulling from ../a
   searching for changes
   exception from first failed import attempt:
@@ -988,14 +988,22 @@ test python hooks
   exception from second failed import attempt:
   Traceback (most recent call last):
   SyntaxError: * (glob)
+  
+  During handling of the above exception, another exception occurred:
+  
   Traceback (most recent call last):
   ModuleNotFoundError: No module named 'hgext_syntaxerror'
   Traceback (most recent call last):
   SyntaxError: * (glob)
+  
+  During handling of the above exception, another exception occurred:
+  
   Traceback (most recent call last):
   ModuleNotFoundError: No module named 'hgext_syntaxerror'
+  
+  During handling of the above exception, another exception occurred:
+  
   Traceback (most recent call last):
-      raise error.HookLoadError(msg, hint=tracebackhint) (py37 !)
   mercurial.error.HookLoadError: preoutgoing.syntaxerror hook is invalid: import of "syntaxerror" failed
   abort: preoutgoing.syntaxerror hook is invalid: import of "syntaxerror" failed
 
@@ -1061,8 +1069,11 @@ make sure --traceback works
   $ echo 'commit.abort = python:hooktests.aborthook' >> .hg/hgrc
 
   $ echo aa > a
-  $ hg --traceback commit -d '0 0' -ma 2>&1 | grep '^Traceback'
+  $ hg --traceback commit -d '0 0' -ma 2>&1 | "$PYTHON" "$TESTDIR/filtertraceback.py"
+  created new head
+  error: commit.abort hook failed: raise abort from hook
   Traceback (most recent call last):
+  mercurial.error.Abort: raise abort from hook
 
   $ cd ..
   $ hg init c
@@ -1146,21 +1157,29 @@ make sure --traceback works on hook import failure
   $ echo 'precommit.importfail = python:importfail.whatever' >> .hg/hgrc
 
   $ echo a >> a
-  $ hg --traceback commit -ma 2>&1 | grep -E '^exception|ImportError|ModuleNotFoundError|Traceback|HookLoadError|abort'
+  $ hg --traceback commit -ma 2>&1 | "$PYTHON" "$TESTDIR/filtertraceback.py"
   exception from first failed import attempt:
   Traceback (most recent call last):
   ModuleNotFoundError: No module named 'somebogusmodule'
   exception from second failed import attempt:
   Traceback (most recent call last):
   ModuleNotFoundError: No module named 'somebogusmodule'
+  
+  During handling of the above exception, another exception occurred:
+  
   Traceback (most recent call last):
   ModuleNotFoundError: No module named 'hgext_importfail'
   Traceback (most recent call last):
   ModuleNotFoundError: No module named 'somebogusmodule'
+  
+  During handling of the above exception, another exception occurred:
+  
   Traceback (most recent call last):
   ModuleNotFoundError: No module named 'hgext_importfail'
+  
+  During handling of the above exception, another exception occurred:
+  
   Traceback (most recent call last):
-      raise error.HookLoadError(msg, hint=tracebackhint) (py37 !)
   mercurial.error.HookLoadError: precommit.importfail hook is invalid: import of "importfail" failed
   abort: precommit.importfail hook is invalid: import of "importfail" failed
 

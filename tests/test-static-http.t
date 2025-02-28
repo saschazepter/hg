@@ -1,5 +1,3 @@
-#require no-reposimplestore
-
   $ hg clone http://localhost:$HGPORT/ copy
   abort: * (glob)
   [100]
@@ -246,11 +244,9 @@ List of files accessed over HTTP:
   /.hg/store/00changelog.d
   /.hg/store/00changelog.i
   /.hg/store/00manifest.i
-  /.hg/store/data/%7E2ehgsub.i (no-py37 !)
-  /.hg/store/data/%7E2ehgsubstate.i (no-py37 !)
   /.hg/store/data/a.i
-  /.hg/store/data/~2ehgsub.i (py37 !)
-  /.hg/store/data/~2ehgsubstate.i (py37 !)
+  /.hg/store/data/~2ehgsub.i
+  /.hg/store/data/~2ehgsubstate.i
   /.hg/store/requires
   /actually-static/.hg/bookmarks
   /actually-static/.hg/bookmarks.current
@@ -274,9 +270,8 @@ List of files accessed over HTTP:
   /remote-with-names/.hg/store/00changelog.d
   /remote-with-names/.hg/store/00changelog.i
   /remote-with-names/.hg/store/00manifest.i
-  /remote-with-names/.hg/store/data/%7E2ehgtags.i (no-py37 !)
   /remote-with-names/.hg/store/data/foo.i
-  /remote-with-names/.hg/store/data/~2ehgtags.i (py37 !)
+  /remote-with-names/.hg/store/data/~2ehgtags.i
   /remote-with-names/.hg/store/obsstore
   /remote-with-names/.hg/store/requires
   /remote/.hg/bookmarks
@@ -294,12 +289,10 @@ List of files accessed over HTTP:
   /remote/.hg/store/00changelog.d
   /remote/.hg/store/00changelog.i
   /remote/.hg/store/00manifest.i
-  /remote/.hg/store/data/%7E2edotfile%20with%20spaces.i (no-py37 !)
-  /remote/.hg/store/data/%7E2ehgtags.i (no-py37 !)
   /remote/.hg/store/data/bar.i
   /remote/.hg/store/data/quux.i
-  /remote/.hg/store/data/~2edotfile%20with%20spaces.i (py37 !)
-  /remote/.hg/store/data/~2ehgtags.i (py37 !)
+  /remote/.hg/store/data/~2edotfile%20with%20spaces.i
+  /remote/.hg/store/data/~2ehgtags.i
   /remote/.hg/store/obsstore
   /remote/.hg/store/requires
   /remotempty/.hg/bookmarks
@@ -317,7 +310,6 @@ List of files accessed over HTTP:
   /sub/.hg/store/00changelog.d
   /sub/.hg/store/00changelog.i
   /sub/.hg/store/00manifest.i
-  /sub/.hg/store/data/%7E2ehgtags.i (no-py37 !)
   /sub/.hg/store/data/test.i
-  /sub/.hg/store/data/~2ehgtags.i (py37 !)
+  /sub/.hg/store/data/~2ehgtags.i
   /sub/.hg/store/requires

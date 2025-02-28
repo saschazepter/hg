@@ -1,4 +1,4 @@
-#require serve no-reposimplestore no-chg
+#require serve no-chg
 
 #testcases stream-legacy stream-bundle2-v2 stream-bundle2-v3
 
@@ -191,9 +191,9 @@ changes in the process.
   $ hg clone --stream -U http://localhost:$HGPORT clone1
   streaming all changes
   1091 files to transfer, 102 KB of data (no-zstd !)
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
+  stream-cloned 1091 files / 102 KB in * seconds (* */sec) (glob) (no-zstd !)
   1091 files to transfer, 98.8 KB of data (zstd !)
-  transferred 98.8 KB in * seconds (* */sec) (glob) (zstd !)
+  stream-cloned 1091 files / 98.8 KB in * seconds (* */sec) (glob) (zstd !)
   searching for changes
   no changes found
 #endif
@@ -201,20 +201,20 @@ changes in the process.
   $ hg clone --stream -U http://localhost:$HGPORT clone1
   streaming all changes
   1094 files to transfer, 102 KB of data (no-zstd !)
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
+  stream-cloned 1094 files / 102 KB in * seconds (* */sec) (glob) (no-zstd !)
   1094 files to transfer, 98.9 KB of data (zstd no-rust !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  stream-cloned 1094 files / 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
   1096 files to transfer, 99.0 KB of data (zstd rust !)
-  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
+  stream-cloned 1096 files / 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
 #endif
 
 #if stream-bundle2-v3
   $ hg clone --stream -U http://localhost:$HGPORT clone1
   streaming all changes
   1093 entries to transfer
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
-  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
+  stream-cloned 1094 files / 102 KB in * seconds (* */sec) (glob) (no-zstd !)
+  stream-cloned 1094 files / 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  stream-cloned 1096 files / 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
 #endif
 
 #if no-stream-legacy
@@ -257,7 +257,7 @@ The alias flag should trigger a stream clone too.
   streaming all changes
   * files to transfer* (glob) (no-stream-bundle2-v3 !)
   * entries to transfer (glob) (stream-bundle2-v3 !)
-  transferred * KB in * seconds (* */sec) (glob)
+  stream-cloned * files / * KB in * seconds (* */sec) (glob)
   searching for changes (stream-legacy !)
   no changes found (stream-legacy !)
 
@@ -304,7 +304,7 @@ Secret changeset can still be streamed if the server is configured to do so.
   streaming all changes
   * files to transfer* (glob) (no-stream-bundle2-v3 !)
   * entries to transfer (glob) (stream-bundle2-v3 !)
-  transferred * KB in * seconds (* */sec) (glob)
+  stream-cloned * files / * KB in * seconds (* */sec) (glob)
   searching for changes (stream-legacy !)
   no changes found (stream-legacy !)
 
@@ -389,6 +389,10 @@ prepare repo with small and big file to cover both code paths in emitrevlogdata
   $ export HG_TEST_STREAM_WALKED_FILE_2
   $ HG_TEST_STREAM_WALKED_FILE_3="$TESTTMP/sync_file_walked_3"
   $ export HG_TEST_STREAM_WALKED_FILE_3
+  $ HG_TEST_STREAM_WALKED_FILE_4="$TESTTMP/sync_file_walked_4"
+  $ export HG_TEST_STREAM_WALKED_FILE_4
+  $ HG_TEST_STREAM_WALKED_FILE_5="$TESTTMP/sync_file_walked_5"
+  $ export HG_TEST_STREAM_WALKED_FILE_5
 #   $ cat << EOF >> $HGRCPATH
 #   > [hooks]
 #   > pre-clone=rm -f "$TESTTMP/sync_file_walked_*"
@@ -399,13 +403,43 @@ prepare repo with small and big file to cover both code paths in emitrevlogdata
 clone while modifying the repo between stating file with write lock and
 actually serving file content
 
-  $ (hg clone -q --stream -U http://localhost:$HGPORT1 clone; touch "$HG_TEST_STREAM_WALKED_FILE_3") &
+also delete some cache in the process
+
+  $ (hg clone -q --stream -U http://localhost:$HGPORT1 clone; touch "$HG_TEST_STREAM_WALKED_FILE_5") &
+
   $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_1
+(delete one file)
+  $ ls repo/.hg/cache/rbc-revs-v2
+  repo/.hg/cache/rbc-revs-v2
+  $ rm repo/.hg/cache/rbc-revs-v2
+(truncate another)
+  $ ls repo/.hg/cache/rbc-names-v2
+  repo/.hg/cache/rbc-names-v2
+  $ echo football > repo/.hg/cache/rbc-names-v2
+(lenghten another one)
+  $ ls repo/.hg/cache/branch2-served
+  repo/.hg/cache/branch2-served
+  $ echo bar >> repo/.hg/cache/branch2-served
+(remove one in wcache))
+  $ ls repo/.hg/wcache/manifestfulltextcache
+  repo/.hg/wcache/manifestfulltextcache
+  $ rm repo/.hg/wcache/manifestfulltextcache
+  $ touch $HG_TEST_STREAM_WALKED_FILE_2
+
+  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_3
   $ echo >> repo/f1
   $ echo >> repo/f2
   $ hg -R repo ci -m "1" --config ui.timeout.warn=-1
-  $ touch $HG_TEST_STREAM_WALKED_FILE_2
-  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_3
+(truncate further)
+  $ ls repo/.hg/cache/rbc-names-v2
+  repo/.hg/cache/rbc-names-v2
+  $ echo foo > repo/.hg/cache/rbc-names-v2
+(lenghten another one)
+  $ ls repo/.hg/cache/branch2-served
+  repo/.hg/cache/branch2-served
+  $ echo babar >> repo/.hg/cache/branch2-served
+  $ touch $HG_TEST_STREAM_WALKED_FILE_4
+  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_5
   $ hg -R clone id
   000000000000
   $ hg -R clone verify --quiet
@@ -429,7 +463,7 @@ clone it
   1097 files to transfer, * KB of data (glob) (stream-bundle2-v2 no-rust !)
   1099 files to transfer, * KB of data (glob) (stream-bundle2-v2 rust !)
   1096 entries to transfer (stream-bundle2-v3 !)
-  transferred * KB in * seconds (* */sec) (glob)
+  stream-cloned * files / * KB in * seconds (* */sec) (glob)
   searching for changes (stream-legacy !)
   no changes found (stream-legacy !)
   updating to branch default
@@ -457,7 +491,7 @@ Clone as publishing
   1097 files to transfer, * KB of data (glob) (stream-bundle2-v2 no-rust !)
   1099 files to transfer, * KB of data (glob) (stream-bundle2-v2 rust !)
   1096 entries to transfer (stream-bundle2-v3 !)
-  transferred * KB in * seconds (* */sec) (glob)
+  stream-cloned * files * KB in * seconds (* */sec) (glob)
   searching for changes (stream-legacy !)
   no changes found (stream-legacy !)
   updating to branch default
@@ -480,11 +514,9 @@ Clone as non publishing
 
   $ hg clone --stream http://localhost:$HGPORT phase-no-publish
   streaming all changes
-  1091 files to transfer, * KB of data (glob) (stream-legacy !)
-  1098 files to transfer, * KB of data (glob) (stream-bundle2-v2 no-rust !)
-  1100 files to transfer, * KB of data (glob) (stream-bundle2-v2 rust !)
-  1097 entries to transfer (stream-bundle2-v3 !)
-  transferred * KB in * seconds (* */sec) (glob)
+  * files to transfer, * KB of data (glob) (no-stream-bundle2-v3 !)
+  * entries to transfer (glob) (stream-bundle2-v3 !)
+  stream-cloned * / * KB in * seconds (* */sec) (glob)
   searching for changes (stream-legacy !)
   no changes found (stream-legacy !)
   updating to branch default
@@ -544,7 +576,7 @@ The obsstore file should be send as part of the stream bundle
   1099 files to transfer, * KB of data (glob) (stream-bundle2-v2 no-rust !)
   1101 files to transfer, * KB of data (glob) (stream-bundle2-v2 rust !)
   1098 entries to transfer (no-stream-bundle2-v2 !)
-  transferred * KB in * seconds (* */sec) (glob)
+  stream-cloned * files / * KB in * seconds (* */sec) (glob)
   $ hg -R with-obsolescence log -T '{rev}: {phase}\n'
   2: draft
   1: draft

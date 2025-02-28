@@ -19,9 +19,6 @@ from .i18n import (
     _,
     gettext,
 )
-from .pycompat import (
-    open,
-)
 
 from . import (
     cmdutil,
@@ -809,9 +806,9 @@ def _moduledoc(file):
 def _disabledhelp(path):
     '''retrieve help synopsis of a disabled extension (without importing)'''
     try:
-        with open(path, b'rb') as src:
+        with open(path, 'rb') as src:
             doc = _moduledoc(src)
-    except IOError:
+    except OSError:
         return
 
     if doc:  # extracting localized synopsis
@@ -892,8 +889,7 @@ def _disabledcmdtable(path):
 
     This may raise IOError or SyntaxError.
     """
-    with open(path, b'rb') as src:
-        root = ast.parse(src.read(), path)
+    root = ast.parse(util.readfile(path), path)
     cmdtable = {}
 
     # Python 3.12 started removing Bytes and Str and deprecate harder
@@ -927,7 +923,7 @@ def _disabledcmdtable(path):
 def _finddisabledcmd(ui, cmd, name, path, strict):
     try:
         cmdtable = _disabledcmdtable(path)
-    except (IOError, SyntaxError):
+    except (OSError, SyntaxError):
         return
     try:
         aliases, entry = cmdutil.findcmd(cmd, cmdtable, strict)

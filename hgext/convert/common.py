@@ -22,7 +22,6 @@ from typing import (
 )
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial import (
     encoding,
     error,
@@ -91,7 +90,7 @@ def shlexer(
     whitespace: Optional[bytes] = None,
 ):
     if data is None:
-        data = open(filepath, b'r', encoding='latin1')
+        data = open(filepath, encoding='latin1')
     else:
         if filepath is not None:
             raise error.ProgrammingError(
@@ -181,7 +180,7 @@ class converter_source:
 
     def __init__(
         self,
-        ui: "uimod.ui",
+        ui: uimod.ui,
         repotype: bytes,
         path: Optional[bytes] = None,
         revs=None,
@@ -337,7 +336,7 @@ class converter_source:
 class converter_sink:
     """Conversion sink (target) interface"""
 
-    def __init__(self, ui: "uimod.ui", repotype: bytes, path: bytes) -> None:
+    def __init__(self, ui: uimod.ui, repotype: bytes, path: bytes) -> None:
         """Initialize conversion sink (or raise NoRepo("message")
         exception if path is not a valid repository)
 
@@ -431,7 +430,7 @@ class converter_sink:
 
 
 class commandline:
-    def __init__(self, ui: "uimod.ui", command: bytes) -> None:
+    def __init__(self, ui: uimod.ui, command: bytes) -> None:
         self.ui = ui
         self.command = command
 
@@ -562,8 +561,8 @@ class commandline:
 
 
 class mapfile(dict):
-    def __init__(self, ui: "uimod.ui", path: bytes) -> None:
-        super(mapfile, self).__init__()
+    def __init__(self, ui: uimod.ui, path: bytes) -> None:
+        super().__init__()
         self.ui = ui
         self.path = path
         self.fp = None
@@ -574,7 +573,7 @@ class mapfile(dict):
         if not self.path:
             return
         try:
-            fp = open(self.path, b'rb')
+            fp = open(self.path, 'rb')
         except FileNotFoundError:
             return
 
@@ -593,22 +592,22 @@ class mapfile(dict):
                     )
                 if key not in self:
                     self.order.append(key)
-                super(mapfile, self).__setitem__(key, value)
+                super().__setitem__(key, value)
         finally:
             fp.close()
 
     def __setitem__(self, key, value) -> None:
         if self.fp is None:
             try:
-                self.fp = open(self.path, b'ab')
-            except IOError as err:
+                self.fp = open(self.path, 'ab')
+            except OSError as err:
                 raise error.Abort(
                     _(b'could not open map file %r: %s')
                     % (self.path, encoding.strtolocal(err.strerror))
                 )
         self.fp.write(util.tonativeeol(b'%s %s\n' % (key, value)))
         self.fp.flush()
-        super(mapfile, self).__setitem__(key, value)
+        super().__setitem__(key, value)
 
     def close(self) -> None:
         if self.fp:

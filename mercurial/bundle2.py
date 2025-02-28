@@ -186,6 +186,7 @@ from .interfaces import repository
 if typing.TYPE_CHECKING:
     from typing import (
         Dict,
+        Iterator,
         List,
         Optional,
         Tuple,
@@ -615,7 +616,7 @@ def _processpart(op, part):
             )
 
 
-def decodecaps(blob: bytes) -> "Capabilities":
+def decodecaps(blob: bytes) -> Capabilities:
     """decode a bundle2 caps bytes blob into a dictionary
 
     The blob is a list of capabilities (one per line)
@@ -675,14 +676,14 @@ class bundle20:
 
     _magicstring = b'HG20'
 
-    def __init__(self, ui, capabilities: "Optional[Capabilities]" = None):
+    def __init__(self, ui, capabilities: Optional[Capabilities] = None):
         if capabilities is None:
             capabilities = {}
 
         self.ui = ui
         self._params = []
         self._parts = []
-        self.capabilities: "Capabilities" = dict(capabilities)
+        self.capabilities: Capabilities = dict(capabilities)
         self._compengine = util.compengines.forbundletype(b'UN')
         self._compopts = None
         # If compression is being handled by a consumer of the raw
@@ -739,7 +740,7 @@ class bundle20:
         return part
 
     # methods used to generate the bundle2 stream
-    def getchunks(self):
+    def getchunks(self) -> Iterator[bytes]:
         if self.ui.debugflag:
             msg = [b'bundle2-output-bundle: "%s",' % self._magicstring]
             if self._params:
@@ -753,10 +754,9 @@ class bundle20:
         yield _pack(_fstreamparamsize, len(param))
         if param:
             yield param
-        for chunk in self._compengine.compressstream(
+        yield from self._compengine.compressstream(
             self._getcorechunk(), self._compopts
-        ):
-            yield chunk
+        )
 
     def _paramchunk(self):
         """return a encoded version of all stream parameters"""
@@ -776,8 +776,7 @@ class bundle20:
         outdebug(self.ui, b'start of parts')
         for part in self._parts:
             outdebug(self.ui, b'bundle part: "%s"' % part.type)
-            for chunk in part.getchunks(ui=self.ui):
-                yield chunk
+            yield from part.getchunks(ui=self.ui)
         outdebug(self.ui, b'end of bundle')
         yield _pack(_fpartheadersize, 0)
 
@@ -853,7 +852,7 @@ class unbundle20(unpackermixin):
         self.ui = ui
         self._compengine = util.compengines.forbundletype(b'UN')
         self._compressed = None
-        super(unbundle20, self).__init__(fp)
+        super().__init__(fp)
 
     @util.propertycache
     def params(self):
@@ -1269,7 +1268,7 @@ class interrupthandler(unpackermixin):
     Part processed in this manner only have access to a ui object,"""
 
     def __init__(self, ui, fp):
-        super(interrupthandler, self).__init__(fp)
+        super().__init__(fp)
         self.ui = ui
 
     def _readpartheader(self):
@@ -1390,7 +1389,7 @@ class unbundlepart(unpackermixin):
     """a bundle part read from a bundle"""
 
     def __init__(self, ui, header, fp):
-        super(unbundlepart, self).__init__(fp)
+        super().__init__(fp)
         self._seekable = hasattr(fp, 'seek') and hasattr(fp, 'tell')
         self.ui = ui
         # unbundle state attr
@@ -1468,6 +1467,11 @@ class unbundlepart(unpackermixin):
         # we read the data, tell it
         self._initialized = True
 
+    def __iter__(self):
+        for chunk in self._payloadstream:
+            self._pos += len(chunk)
+            yield chunk
+
     def _payloadchunks(self):
         """Generator of decoded chunks in the payload."""
         return decodepayloadchunks(self.ui, self._fp)
@@ -1503,6 +1507,10 @@ class unbundlepart(unpackermixin):
             self.consumed = True
         return data
 
+    def tell(self) -> int:
+        """the amount of byte read so far in the part"""
+        return self._payloadstream.tell()
+
 
 class seekableunbundlepart(unbundlepart):
     """A bundle2 part in a bundle that is seekable.
@@ -1526,7 +1534,7 @@ class seekableunbundlepart(unbundlepart):
         # (payload, file) offsets for chunk starts.
         self._chunkindex = []
 
-        super(seekableunbundlepart, self).__init__(ui, header, fp)
+        super().__init__(ui, header, fp)
 
     def _payloadchunks(self, chunknum=0):
         '''seek to specified chunk and start yielding data'''
@@ -1617,7 +1625,7 @@ class seekableunbundlepart(unbundlepart):
         if self._seekable:
             try:
                 return self._fp.tell()
-            except IOError as e:
+            except OSError as e:
                 if e.errno == errno.ESPIPE:
                     self._seekable = False
                 else:
@@ -1627,7 +1635,7 @@ class seekableunbundlepart(unbundlepart):
 
 # These are only the static capabilities.
 # Check the 'getrepocaps' function for the rest.
-capabilities: "Capabilities" = {
+capabilities: Capabilities = {
     b'HG20': (),
     b'bookmarks': (),
     b'error': (b'abort', b'unsupportedcontent', b'pushraced', b'pushkey'),
@@ -1642,7 +1650,7 @@ capabilities: "Capabilities" = {
 
 
 # TODO: drop the default value for 'role'
-def getrepocaps(repo, allowpushback: bool = False, role=None) -> "Capabilities":
+def getrepocaps(repo, allowpushback: bool = False, role=None) -> Capabilities:
     """return the bundle2 capabilities for a given repo
 
     Exists to allow extensions (like evolution) to mutate the capabilities.
@@ -1691,7 +1699,7 @@ def getrepocaps(repo, allowpushback: bool = False, role=None) -> "Capabilities":
     return caps
 
 
-def bundle2caps(remote) -> "Capabilities":
+def bundle2caps(remote) -> Capabilities:
     """return the bundle capabilities of a peer as dict"""
     raw = remote.capable(b'bundle2')
     if not raw and raw != b'':
@@ -1700,7 +1708,7 @@ def bundle2caps(remote) -> "Capabilities":
     return decodecaps(capsblob)
 
 
-def obsmarkersversion(caps: "Capabilities"):
+def obsmarkersversion(caps: Capabilities):
     """extract the list of supported obsmarkers versions from a bundle2caps dict"""
     obscaps = caps.get(b'obsmarkers', ())
     return [int(c[1:]) for c in obscaps if c.startswith(b'V')]
@@ -1741,7 +1749,7 @@ def writenewbundle(
         msg %= count
         raise error.ProgrammingError(msg)
 
-    caps: "Capabilities" = {}
+    caps: Capabilities = {}
     if opts.get(b'obsolescence', False):
         caps[b'obsmarkers'] = (b'V1',)
     stream_version = opts.get(b'stream', b"")
@@ -1861,10 +1869,8 @@ def addpartrevbranchcache(repo, bundler, outgoing):
             utf8branch = encoding.fromlocal(branch)
             yield rbcstruct.pack(len(utf8branch), len(nodes), len(closed))
             yield utf8branch
-            for n in sorted(nodes):
-                yield n
-            for n in sorted(closed):
-                yield n
+            yield from sorted(nodes)
+            yield from sorted(closed)
 
     bundler.newpart(b'cache:rev-branch-cache', data=generate(), mandatory=False)
 
@@ -2033,8 +2039,7 @@ def writebundle(
 
         def chunkiter():
             yield header
-            for chunk in compengine.compressstream(cg.getchunks(), compopts):
-                yield chunk
+            yield from compengine.compressstream(cg.getchunks(), compopts)
 
         chunkiter = chunkiter()
 

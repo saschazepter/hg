@@ -8,16 +8,14 @@
 //! Bindings for the `hg::dirstate::dirs_multiset` file provided by the
 //! `hg-core` package.
 
-use std::cell::RefCell;
-
 use cpython::{
     exc, ObjectProtocol, PyBytes, PyClone, PyDict, PyErr, PyObject, PyResult,
     Python, UnsafePyLeaked,
 };
 
 use hg::{
+    dirstate::dirs_multiset::{DirsMultiset, DirsMultisetIter},
     utils::hg_path::{HgPath, HgPathBuf},
-    DirsMultiset, DirsMultisetIter,
 };
 
 py_class!(pub class Dirs |py| {

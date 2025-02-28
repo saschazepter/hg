@@ -279,7 +279,7 @@ def parseeol(ui, repo, nodes):
                 else:
                     data = repo[node][b'.hgeol'].data()
                 return eolfile(ui, repo.root, data)
-            except (IOError, LookupError):
+            except (OSError, LookupError):
                 pass
     except errormod.ConfigError as inst:
         ui.warn(
@@ -477,7 +477,7 @@ def reposetup(ui, repo):
                     raise errormod.Abort(
                         _(b"inconsistent newline style in %s\n") % f
                     )
-            return super(eolrepo, self).commitctx(ctx, error, origctx)
+            return super().commitctx(ctx, error, origctx)
 
     repo.__class__ = eolrepo
     repo._hgcleardirstate()

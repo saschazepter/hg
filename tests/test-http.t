@@ -26,17 +26,13 @@ Test server address cannot be reused
 
 clone via stream
 
-#if no-reposimplestore
   $ hg clone --stream http://localhost:$HGPORT/ copy 2>&1
   streaming all changes
-  10 files to transfer, 715 bytes of data (no-zstd !)
-  10 files to transfer, 717 bytes of data (zstd no-rust !)
-  12 files to transfer, 843 bytes of data (zstd rust !)
-  transferred * bytes in * seconds (*/sec) (glob)
+  * files to transfer, * bytes of data (glob)
+  stream-cloned * files / * bytes in * seconds (*/sec) (glob)
   updating to branch default
   4 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg verify -R copy -q
-#endif
 
 try to clone via stream, should use pull instead
 
@@ -252,15 +248,12 @@ test http authentication
   $ hg id http://localhost:$HGPORT2/ --config extensions.x=use_digests.py
   5fed3813f7f5
 
-#if no-reposimplestore
   $ hg clone http://user:pass@localhost:$HGPORT2/ dest 2>&1
   streaming all changes
-  11 files to transfer, 1.01 KB of data (no-rust !)
-  13 files to transfer, 1.13 KB of data (rust !)
-  transferred * KB in * seconds (*/sec) (glob)
+  * files to transfer, * KB of data (glob)
+  stream-cloned * files / * KB in * seconds (*/sec) (glob)
   updating to branch default
   5 files updated, 0 files merged, 0 files removed, 0 files unresolved
-#endif
 
 --pull should override server's preferuncompressed
   $ hg clone --pull http://user:pass@localhost:$HGPORT2/ dest-pull 2>&1
@@ -419,12 +412,12 @@ test http authentication
   "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=namespaces x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull x-hgtest-authtype:Digest
   "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull x-hgtest-authtype:Digest
   "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull x-hgtest-authtype:Digest
-  "GET /?cmd=capabilities HTTP/1.1" 401 - (no-reposimplestore !)
-  "GET /?cmd=capabilities HTTP/1.1" 200 - (no-reposimplestore !)
-  "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (no-reposimplestore !)
-  "GET /?cmd=getbundle HTTP/1.1" 200 - x-hgarg-1:bookmarks=1&$USUAL_BUNDLE_CAPS$&cg=0&common=0000000000000000000000000000000000000000&heads=5fed3813f7f5e1824344fdc9cf8f63bb662c292d&listkeys=bookmarks&stream=1 x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (no-reposimplestore !)
-  "GET /?cmd=capabilities HTTP/1.1" 401 - (no-reposimplestore !)
-  "GET /?cmd=capabilities HTTP/1.1" 200 - (no-reposimplestore !)
+  "GET /?cmd=capabilities HTTP/1.1" 401 -
+  "GET /?cmd=capabilities HTTP/1.1" 200 -
+  "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull
+  "GET /?cmd=getbundle HTTP/1.1" 200 - x-hgarg-1:bookmarks=1&$USUAL_BUNDLE_CAPS$&cg=0&common=0000000000000000000000000000000000000000&heads=5fed3813f7f5e1824344fdc9cf8f63bb662c292d&listkeys=bookmarks&stream=1 x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull
+  "GET /?cmd=capabilities HTTP/1.1" 401 -
+  "GET /?cmd=capabilities HTTP/1.1" 200 -
   "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull
   "GET /?cmd=getbundle HTTP/1.1" 200 - x-hgarg-1:bookmarks=1&$USUAL_BUNDLE_CAPS$&cg=1&common=0000000000000000000000000000000000000000&heads=5fed3813f7f5e1824344fdc9cf8f63bb662c292d&listkeys=bookmarks&phases=1 x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull
   "GET /?cmd=capabilities HTTP/1.1" 401 -
@@ -513,15 +506,13 @@ disable pull-based clones
   (remove --pull if specified or upgrade Mercurial)
   [100]
 
-#if no-reposimplestore
 ... but keep stream clones working
 
   $ hg clone --stream --noupdate http://localhost:$HGPORT1/ test-stream-clone
   streaming all changes
   * files to transfer, * of data (glob)
-  transferred * in * seconds (*/sec) (glob)
+  stream-cloned * files / * in * seconds (*/sec) (glob)
   $ cat error.log
-#endif
 
 ... and also keep partial clones and pulls working
   $ hg clone http://localhost:$HGPORT1 --rev 0 test/partial/clone

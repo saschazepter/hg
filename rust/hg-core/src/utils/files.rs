@@ -12,13 +12,14 @@
 use crate::utils::{
     hg_path::{path_to_hg_path_buf, HgPath, HgPathBuf, HgPathError},
     path_auditor::PathAuditor,
-    replace_slice,
+    strings::replace_slice,
 };
 use lazy_static::lazy_static;
 use same_file::is_same_file;
 use std::ffi::{OsStr, OsString};
 use std::iter::FusedIterator;
 use std::ops::Deref;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::{
     borrow::{Cow, ToOwned},
@@ -324,9 +325,18 @@ pub fn relativize_path(path: &HgPath, cwd: impl AsRef<HgPath>) -> Cow<[u8]> {
 /// should continue the `status()` algoritm anyway and consider the current
 /// date/time to be unknown.
 pub fn filesystem_now(repo_root: &Path) -> Result<SystemTime, io::Error> {
-    tempfile::tempfile_in(repo_root.join(".hg"))?
+    tempfile::Builder::new()
+        .permissions(std::fs::Permissions::from_mode(0o666))
+        .tempfile_in(repo_root.join(".hg"))?
+        .into_file()
         .metadata()?
         .modified()
+}
+
+/// Returns true if file content is considered to be binary (not text).
+pub fn is_binary(content: &[u8]) -> bool {
+    // Matches binary() in utils/stringutil.py.
+    !content.is_empty() && memchr::memchr(b'\0', content).is_some()
 }
 
 #[cfg(test)]

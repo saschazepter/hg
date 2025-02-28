@@ -38,7 +38,7 @@ NoRepo = common.NoRepo
 
 class convert_cvs(converter_source):
     def __init__(self, ui, repotype, path, revs=None):
-        super(convert_cvs, self).__init__(ui, repotype, path, revs=revs)
+        super().__init__(ui, repotype, path, revs=revs)
 
         cvs = os.path.join(path, b"CVS")
         if not os.path.exists(cvs):
@@ -172,7 +172,7 @@ class convert_cvs(converter_source):
                             if part1 == format:
                                 passw = part2
                                 break
-                    except IOError as inst:
+                    except OSError as inst:
                         if inst.errno != errno.ENOENT:
                             if not getattr(inst, 'filename', None):
                                 inst.filename = cvspass

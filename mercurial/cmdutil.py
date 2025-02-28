@@ -17,8 +17,10 @@ import typing
 from typing import (
     Any,
     AnyStr,
+    BinaryIO,
     Dict,
     Iterable,
+    Literal,
     Optional,
     TYPE_CHECKING,
     cast,
@@ -29,9 +31,6 @@ from .node import (
     hex,
     nullrev,
     short,
-)
-from .pycompat import (
-    open,
 )
 from .thirdparty import attr
 
@@ -84,6 +83,9 @@ from .revlogutils import (
 )
 
 if TYPE_CHECKING:
+    from .interfaces import (
+        status as istatus,
+    )
     from . import (
         ui as uimod,
     )
@@ -322,7 +324,7 @@ def check_incompatible_arguments(
         check_at_most_one_arg(opts, first, other)
 
 
-def resolve_commit_options(ui: "uimod.ui", opts: Dict[str, Any]) -> bool:
+def resolve_commit_options(ui: uimod.ui, opts: Dict[str, Any]) -> bool:
     """modify commit options dict to handle related options
 
     The return value indicates that ``rewrite.update-timestamp`` is the reason
@@ -790,16 +792,14 @@ class dirnode:
                 return
 
         # add the files to status list
-        for st, fpath in self.iterfilepaths():
-            yield st, fpath
+        yield from self.iterfilepaths()
 
         # recurse on the subdirs
         for dirobj in self.subdirs.values():
-            for st, fpath in dirobj.tersewalk(terseargs):
-                yield st, fpath
+            yield from dirobj.tersewalk(terseargs)
 
 
-def tersedir(statuslist, terseargs):
+def tersedir(statuslist: istatus.Status, terseargs) -> istatus.Status:
     """
     Terse the status if all the files in a directory shares the same status.
 
@@ -1147,7 +1147,7 @@ def bailifchanged(repo, merge=True, hint=None):
         ctx.sub(s).bailifchanged(hint=hint)
 
 
-def logmessage(ui: "uimod.ui", opts: Dict[bytes, Any]) -> Optional[bytes]:
+def logmessage(ui: uimod.ui, opts: Dict[bytes, Any]) -> Optional[bytes]:
     """get the log message according to -m and -l option"""
 
     check_at_most_one_arg(opts, b'message', b'logfile')
@@ -1161,7 +1161,7 @@ def logmessage(ui: "uimod.ui", opts: Dict[bytes, Any]) -> Optional[bytes]:
                 message = ui.fin.read()
             else:
                 message = b'\n'.join(util.readfile(logfile).splitlines())
-        except IOError as inst:
+        except OSError as inst:
             raise error.Abort(
                 _(b"can't read commit message '%s': %s")
                 % (logfile, encoding.strtolocal(inst.strerror))
@@ -1360,7 +1360,7 @@ def _buildfntemplate(pat, total=None, seqno=None, revwidth=None, pathname=None):
     return b''.join(newname)
 
 
-def makefilename(ctx, pat, **props):
+def makefilename(ctx, pat: bytes, **props):
     if not pat:
         return pat
     tmpl = _buildfntemplate(pat, **props)
@@ -1376,7 +1376,7 @@ def isstdiofilename(pat):
 
 
 class _unclosablefile:
-    def __init__(self, fp):
+    def __init__(self, fp: BinaryIO) -> None:
         self._fp = fp
 
     def close(self):
@@ -1395,8 +1395,10 @@ class _unclosablefile:
         pass
 
 
-def makefileobj(ctx, pat, mode=b'wb', **props):
-    writable = mode not in (b'r', b'rb')
+def makefileobj(
+    ctx, pat: bytes, mode: Literal['rb', 'wb'] = 'wb', **props
+) -> BinaryIO:
+    writable = mode not in ('r', 'rb')
 
     if isstdiofilename(pat):
         repo = ctx.repo()
@@ -1404,7 +1406,7 @@ def makefileobj(ctx, pat, mode=b'wb', **props):
             fp = repo.ui.fout
         else:
             fp = repo.ui.fin
-        return _unclosablefile(fp)
+        return typing.cast(BinaryIO, _unclosablefile(fp))
     fn = makefilename(ctx, pat, **props)
     return open(fn, mode)
 
@@ -1792,7 +1794,7 @@ def copy(ui, repo, pats, opts: Dict[bytes, Any], rename=False):
                     # Linux CLI behavior.
                     util.copyfile(src, target, copystat=rename)
                 srcexists = True
-            except IOError as inst:
+            except OSError as inst:
                 if inst.errno == errno.ENOENT:
                     ui.warn(_(b'%s: deleted in working directory\n') % relsrc)
                     srcexists = False

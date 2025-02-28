@@ -170,9 +170,9 @@ def upgraderepo(
                     msg_issued = 1
             touched_revlogs.add(CL)
     if msg_issued >= 2:
-        ui.warn((b"\n"))
+        ui.warnnoi18n(b"\n")
     elif msg_issued >= 1:
-        ui.status((b"\n"))
+        ui.statusnoi18n(b"\n")
 
     upgrade_op = upgrade_actions.UpgradeOperation(
         ui,
