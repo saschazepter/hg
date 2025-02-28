@@ -1,3 +1,21 @@
+= Mercurial 6.9.1 =
+
+ * ci: disable caching of the wheels that get built to save space
+ * tests: use `--no-cache-dir` with `pip`
+ * run-tests: disable caching of the wheels when installing test Mercurial
+ * manifest: delay import of `typing.ByteString` for py 3.14 support (issue6940)
+ * contrib: propagate `pytype` failures outside of `check-pytype.sh`
+ * acl: fix confusing formatting in help text (issue6942)
+ * ui: fix escape sequences in in readline prompts (issue6930)
+ * ci: let branch job run for scheduled build too
+ * ci: automatically starts platform and py-version test for scheduled build
+ * help: fix command build with rust
+ * copyright: update to 2025
+ * ci: also let the nightly build run on tags
+ * usage: refactor usage.resources config parsing
+ * hg-core: fix usage.resources typo
+ * hg-core: fix usage.resources default logic
+
 = Mercurial 6.9 =
 
 == Backwards Compatibility Changes ==
