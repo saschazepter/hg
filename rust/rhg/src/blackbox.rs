@@ -4,7 +4,7 @@ use crate::CliInvocation;
 use format_bytes::format_bytes;
 use hg::errors::HgError;
 use hg::repo::Repo;
-use hg::utils::{files::get_bytes_from_os_str, shell_quote};
+use hg::utils::{files::get_bytes_from_os_str, strings::shell_quote};
 use std::ffi::OsString;
 
 // Python does not support %.3f, only %f

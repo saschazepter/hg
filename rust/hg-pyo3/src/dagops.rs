@@ -8,17 +8,16 @@
 //! Bindings for the `hg::dagops` module provided by the
 //! `hg-core` package.
 //!
-//! From Python, this will be seen as `mercurial.pyo3-rustext.dagop`
+//! From Python, this will be seen as `mercurial.pyo3_rustext.dagop`
 use pyo3::prelude::*;
 
 use std::collections::HashSet;
 
 use hg::{dagops, Revision};
 
-use crate::convert_cpython::proxy_index_extract;
 use crate::exceptions::GraphError;
 use crate::revision::{rev_pyiter_collect, PyRevision};
-use crate::util::new_submodule;
+use crate::utils::{new_submodule, proxy_index_extract};
 
 /// Using the the `index_proxy`, return heads out of any Python iterable of
 /// Revisions
@@ -29,7 +28,7 @@ pub fn headrevs(
     index_proxy: &Bound<'_, PyAny>,
     revs: &Bound<'_, PyAny>,
 ) -> PyResult<HashSet<PyRevision>> {
-    // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
+    // Safety: we don't leak the "faked" reference out of `SharedByPyObject`
     let index = unsafe { proxy_index_extract(index_proxy)? };
     let mut as_set: HashSet<Revision> = rev_pyiter_collect(revs, index)?;
     dagops::retain_heads(index, &mut as_set).map_err(GraphError::from_hg)?;

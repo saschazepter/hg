@@ -24,6 +24,9 @@ from typing import (
 )
 
 from .i18n import _
+from .interfaces.types import (
+    MatcherT,
+)
 from . import (
     encoding,
     error,
@@ -34,7 +37,11 @@ from . import (
 )
 from .utils import stringutil
 
-rustmod = policy.importrust('dirstate')
+from .interfaces import (
+    matcher as int_matcher,
+)
+
+rustmod = policy.importrust('dirstate', pyo3=True)
 
 allpatternkinds = (
     b're',
@@ -403,7 +410,7 @@ def _donormalize(patterns, default, root, cwd, auditor=None, warn=None):
     return kindpats
 
 
-class basematcher:
+class basematcher(int_matcher.IMatcher):
     def __init__(self, badfn=None):
         self._was_tampered_with = False
         if badfn is not None:
@@ -1081,7 +1088,7 @@ class subdirmatcher(basematcher):
     sub/x.txt: No such file
     """
 
-    def __init__(self, path: bytes, matcher: basematcher) -> None:
+    def __init__(self, path: bytes, matcher: MatcherT) -> None:
         super().__init__()
         self._path = path
         self._matcher = matcher

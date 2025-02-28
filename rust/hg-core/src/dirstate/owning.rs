@@ -11,7 +11,7 @@ self_cell!(
     /// Keep a `DirstateMap<'owner>` next to the `owner` buffer that it
     /// borrows.
     pub struct OwningDirstateMap {
-        owner: Box<dyn Deref<Target = [u8]> + Send>,
+        owner: Box<dyn Deref<Target = [u8]> + Send + Sync>,
         #[covariant]
         dependent: DirstateMap,
     }
@@ -23,7 +23,7 @@ impl OwningDirstateMap {
         identity: Option<DirstateIdentity>,
     ) -> Self
     where
-        OnDisk: Deref<Target = [u8]> + Send + 'static,
+        OnDisk: Deref<Target = [u8]> + Send + Sync + 'static,
     {
         let on_disk = Box::new(on_disk);
 
@@ -39,7 +39,7 @@ impl OwningDirstateMap {
         identity: Option<DirstateIdentity>,
     ) -> Result<(Self, DirstateParents), DirstateError>
     where
-        OnDisk: Deref<Target = [u8]> + Send + 'static,
+        OnDisk: Deref<Target = [u8]> + Send + Sync + 'static,
     {
         let on_disk = Box::new(on_disk);
         let mut parents = DirstateParents::NULL;
@@ -63,7 +63,7 @@ impl OwningDirstateMap {
         identity: Option<DirstateIdentity>,
     ) -> Result<Self, DirstateError>
     where
-        OnDisk: Deref<Target = [u8]> + Send + 'static,
+        OnDisk: Deref<Target = [u8]> + Send + Sync + 'static,
     {
         let on_disk = Box::new(on_disk);
 

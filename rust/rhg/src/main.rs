@@ -1,12 +1,12 @@
 extern crate log;
 use crate::error::CommandError;
-use crate::ui::{local_to_utf8, Ui};
+use crate::ui::Ui;
 use clap::{command, Arg, ArgMatches};
 use format_bytes::{format_bytes, join};
 use hg::config::{Config, ConfigSource, PlainInfo};
 use hg::repo::{Repo, RepoError};
 use hg::utils::files::{get_bytes_from_os_str, get_path_from_bytes};
-use hg::utils::SliceExt;
+use hg::utils::strings::SliceExt;
 use hg::{exit_codes, requirements};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
@@ -446,7 +446,7 @@ fn exit(
             on_unsupported = OnUnsupported::Abort
         } else {
             log::debug!("falling back (see trace-level log)");
-            log::trace!("{}", local_to_utf8(message));
+            log::trace!("{}", String::from_utf8_lossy(message));
             if let Err(err) = which::which(executable_path) {
                 exit_no_fallback(
                     ui,
@@ -526,6 +526,7 @@ fn exit_no_fallback(
 }
 
 mod commands {
+    pub mod annotate;
     pub mod cat;
     pub mod config;
     pub mod debugdata;
@@ -609,6 +610,7 @@ impl Subcommands {
 
 fn subcommands() -> Subcommands {
     let subcommands = vec![
+        subcommand!(annotate),
         subcommand!(cat),
         subcommand!(debugdata),
         subcommand!(debugrequirements),

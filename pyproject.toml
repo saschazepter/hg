@@ -1,5 +1,9 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = [
+    "wheel",
+    "setuptools>=64",
+    "setuptools-scm>=8.1.0",
+    ]
 build-backend = "setuptools.build_meta"
 
 
@@ -65,6 +69,71 @@ quiet = true
 
 
 [tool.cibuildwheel]
+build = ["cp38-*", "cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
+
 # Don't stockpile wheels in the pip cache directory when they get built, since
 # there's no mechanism to age old ones out.
 build-frontend = { name = "pip", args = ["--no-cache-dir"] }
+
+# Build translations; requires msgfmt.exe on PATH.
+environment = { MERCURIAL_SETUP_FORCE_TRANSLATIONS="1" }
+
+# Prevent building pypy wheels, which is broken.
+skip = "pp*"
+
+# Tests are run separately, but some values like "*-win_arm64" avoid a warning
+# on amd64 Windows about not being able to test without an arm64 runner.  That's
+# likely to be an issue elsewhere too, like testing amd64 on an arm64 mac.
+test-skip = "*"
+
+
+[tool.cibuildwheel.macos]
+# See https://cibuildwheel.pypa.io/en/stable/faq/#what-to-provide for reasons
+# to also build "x86_64".  Further discussion here:
+#    https://github.com/pypa/cibuildwheel/issues/1333
+#    https://github.com/python-cffi/cffi/issues/133
+#  
+# NOTE: this is overridden in heptapod-ci.yml because the current CI system
+# doesn't support arm64 builds.
+archs = ["universal2"]
+
+
+[[tool.cibuildwheel.overrides]]
+select = "*-macosx_*"
+
+# The minimum value is adjusted automatically when building for later Pythons
+#
+# Python Version           Minimum macOS
+# --------------------------------------
+# Intel CPython 3.6-3.11   10.9
+# Intel CPython 3.12+      10.13
+# AS    CPython or PyPy    11
+inherit.environment = "append"
+environment = { MACOSX_DEPLOYMENT_TARGET="10.9" }
+
+
+[tool.cibuildwheel.windows]
+archs = ["x86", "AMD64", "ARM64"]
+
+
+[tool.setuptools_scm]
+version_file = "mercurial/__version__.py"
+
+# this use `<last-tag>.post1.dev<distance>
+#
+# To restore the format introduced for 6.9 nightly build we would need to be
+# able to customise the `post1` section to avoid flip-flopping update between
+# unrelated branches. It would need to be changed to:
+# - post0: for the "stable" branch
+# - post1: for the "default" branch
+# - post2: for any other branch
+version_scheme = "no-guess-dev"
+
+# The "node-and-timestamp" option seems better but we cannot use it as it make
+# `pip install` freaks out with the following warning resulting in an error in
+# the end::
+#
+#   WARNING: Built wheel for mercurial is invalid: Wheel has unexpected file name: expected 'x.y.z.post1.devXXX+hdeadbeef.d20250218231130', got 'x.y.z.post1.devXXX+hdeadbeef.d20250218231133'
+#   Failed to build mercurial
+#   ERROR: Failed to build installable wheels for some pyproject.toml based projects (mercurial)
+local_scheme = "node-and-date"

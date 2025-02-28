@@ -17,6 +17,7 @@ from typing import (
     Iterable,
     Iterator,
     Mapping,
+    Optional,
     Protocol,
     Set,
 )
@@ -29,28 +30,20 @@ if typing.TYPE_CHECKING:
         ByteString,  # TODO: change to Buffer for 3.14
     )
 
-    # Almost all mercurial modules are only imported in the type checking phase
-    # to avoid circular imports
-    from .. import (
-        match as matchmod,
-        pathutil,
-        util,
-    )
-    from ..utils import (
-        urlutil,
+    from ._basetypes import (
+        UiT as Ui,
+        VfsT as Vfs,
     )
 
-    from . import dirstate as intdirstate
+    from . import (
+        dirstate as intdirstate,
+        matcher,
+        misc,
+    )
 
     # TODO: make a protocol class for this
     NodeConstants = Any
 
-    # TODO: create a Protocol class, since importing uimod here causes a cycle
-    #  that confuses pytype.
-    Ui = Any
-
-    # TODO: make a protocol class for this
-    Vfs = Any
 
 # Local repository feature string.
 
@@ -151,7 +144,7 @@ class _ipeerconnection(Protocol):
     ui: Ui
     """ui.ui instance"""
 
-    path: urlutil.path | None
+    path: Optional[misc.IPath]
     """a urlutil.path instance or None"""
 
     @abc.abstractmethod
@@ -456,13 +449,13 @@ class peer(_ipeerconnection, ipeercapabilities, ipeerrequests):
     """
 
     limitedarguments: bool = False
-    path: urlutil.path | None
+    path: misc.IPath | None
     ui: Ui
 
     def __init__(
         self,
         ui: Ui,
-        path: urlutil.path | None = None,
+        path: misc.IPath | None = None,
         remotehidden: bool = False,
     ) -> None:
         self.ui = ui
@@ -1176,7 +1169,7 @@ class imanifestdict(Protocol):
         """
 
     @abc.abstractmethod
-    def dirs(self) -> pathutil.dirs:
+    def dirs(self) -> misc.IDirs:
         """Returns an object implementing the ``idirs`` interface."""
 
     @abc.abstractmethod
@@ -1184,7 +1177,7 @@ class imanifestdict(Protocol):
         """Returns a bool indicating if a directory is in this manifest."""
 
     @abc.abstractmethod
-    def walk(self, match: matchmod.basematcher) -> Iterator[bytes]:
+    def walk(self, match: matcher.IMatcher) -> Iterator[bytes]:
         """Generator of paths in manifest satisfying a matcher.
 
         If the matcher has explicit files listed and they don't exist in
@@ -1195,7 +1188,7 @@ class imanifestdict(Protocol):
     def diff(
         self,
         other: Any,  # TODO: 'manifestdict' or (better) equivalent interface
-        match: matchmod.basematcher | None = None,
+        match: matcher.IMatcher | None = None,
         clean: bool = False,
     ) -> dict[
         bytes,
@@ -2118,16 +2111,36 @@ class ilocalrepositorymain(Protocol):
         pass
 
     @abc.abstractmethod
-    def lock(self, wait=True):
-        """Lock the repository store and return a lock instance."""
+    def lock(self, wait=True, steal_from=None):
+        """Lock the repository store and return a lock instance.
+
+        If another lock object is specified through the "steal_from" argument,
+        the new lock will reuse the on-disk lock of that "stolen" lock instead
+        of creating its own. The "stolen" lock is no longer usable for any
+        purpose and won't execute its release callback.
+
+        That steal_from argument is used during local clone when reloading a
+        repository. If we could remove the need for this during copy clone, we
+        could remove this function.
+        """
 
     @abc.abstractmethod
     def currentlock(self):
         """Return the lock if it's held or None."""
 
     @abc.abstractmethod
-    def wlock(self, wait=True):
-        """Lock the non-store parts of the repository."""
+    def wlock(self, wait=True, steal_from=None):
+        """Lock the non-store parts of the repository.
+
+        If another lock object is specified through the "steal_from" argument,
+        the new lock will reuse the on-disk lock of that "stolen" lock instead
+        of creating its own. The "stolen" lock is no longer usable for any
+        purpose and won't execute its release callback.
+
+        That steal_from argument is used during local clone when reloading a
+        repository. If we could remove the need for this during copy clone, we
+        could remove this function.
+        """
 
     @abc.abstractmethod
     def currentwlock(self):
@@ -2207,7 +2220,7 @@ class ilocalrepositorymain(Protocol):
     def checkpush(self, pushop):
         pass
 
-    prepushoutgoinghooks: util.hooks
+    prepushoutgoinghooks: misc.IHooks
     """util.hooks instance."""
 
     @abc.abstractmethod

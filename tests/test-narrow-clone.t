@@ -61,7 +61,6 @@ narrow clone a file, f10
   share-safe
   sparserevlog
   store
-  testonly-simplestore (reposimplestore !)
 
   $ hg tracked
   I path:dir/src/f10

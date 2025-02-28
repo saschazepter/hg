@@ -26,7 +26,9 @@ import itertools
 import locale
 import mmap
 import os
-import pickle  # provides util.pickle symbol
+
+# provides util.pickle symbol
+import pickle  # noqa: F401 (ignore imported but not used)
 import re as remod
 import shutil
 import stat
@@ -68,6 +70,7 @@ from . import (
     urllibcompat,
 )
 from .interfaces import (
+    misc as int_misc,
     modules as intmod,
 )
 from .utils import (
@@ -86,6 +89,12 @@ assert [
     Tuple,
 ]
 
+if typing.TYPE_CHECKING:
+    from typing_extensions import (
+        Self,
+    )
+
+    _Tcow = TypeVar('_Tcow', bound="cow")
 
 base85: intmod.Base85 = policy.importmod('base85')
 osutil = policy.importmod('osutil')
@@ -1197,7 +1206,8 @@ def version():
     try:
         from . import __version__  # pytype: disable=import-error
 
-        return __version__.version
+        # setuptools-scm uses py3 str
+        return __version__.version.encode()
     except ImportError:
         return b'unknown'
 
@@ -1326,7 +1336,9 @@ class cow:
     Call preparewrite before doing any writes.
     """
 
-    def preparewrite(self):
+    _copied: int  # doesn't exist until first preparewrite()
+
+    def preparewrite(self: _Tcow) -> _Tcow:
         """call this before writes, return self or a copied new object"""
         if getattr(self, '_copied', 0):
             self._copied -= 1
@@ -1334,7 +1346,7 @@ class cow:
             return self.__class__(self)  # pytype: disable=wrong-arg-count
         return self
 
-    def copy(self):
+    def copy(self) -> Self:
         """always do a cheap copy"""
         self._copied = getattr(self, '_copied', 0) + 1
         return self
@@ -1413,26 +1425,24 @@ class cowsortdict(cow, sortdict):
     """
 
 
-class transactional:  # pytype: disable=ignored-metaclass
+class transactional(abc.ABC):
     """Base class for making a transactional type into a context manager."""
 
-    __metaclass__ = abc.ABCMeta
-
     @abc.abstractmethod
-    def close(self):
+    def close(self) -> None:
         """Successfully closes the transaction."""
 
     @abc.abstractmethod
-    def release(self):
+    def release(self) -> None:
         """Marks the end of the transaction.
 
         If the transaction has not been closed, it will be aborted.
         """
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         try:
             if exc_type is None:
                 self.close()
@@ -2786,6 +2796,25 @@ class chunkbuffer:
         self.iter = splitbig(in_iter)
         self._queue = collections.deque()
         self._chunkoffset = 0
+        self._absolute_offset = 0
+
+    def __iter__(self):
+        while self._queue:
+            chunk = self._queue.popleft()
+            if self._chunkoffset:
+                d = chunk[self._chunkoffset :]
+            else:
+                d = chunk
+            self._absolute_offset += len(d)
+            yield d
+            self._chunkoffset = 0
+        for d in self.iter:
+            self._absolute_offset += len(d)
+            yield d
+
+    def tell(self) -> int:
+        """tell how much data we have read so far"""
+        return self._absolute_offset
 
     def read(self, l=None):
         """Read L bytes of data from the iterator of chunks of data.
@@ -2793,7 +2822,9 @@ class chunkbuffer:
 
         If size parameter is omitted, read everything"""
         if l is None:
-            return b''.join(self.iter)
+            d = b''.join(self.iter)
+            self._absolute_offset += len(d)
+            return d
 
         left = l
         buf = []
@@ -2845,10 +2876,15 @@ class chunkbuffer:
                 self._chunkoffset += left
                 left -= chunkremaining
 
-        return b''.join(buf)
+        d = b''.join(buf)
+        self._absolute_offset += len(d)
+        return d
 
 
-def filechunkiter(f, size=131072, limit=None):
+DEFAULT_FILE_CHUNK = 128 * (2**10)
+
+
+def filechunkiter(f, size=DEFAULT_FILE_CHUNK, limit=None):
     """Create a generator that produces the data in the file size
     (default 131072) bytes at a time, up to optional limit (default is
     to read all data).  Chunks may be less than size bytes if the
@@ -3175,7 +3211,7 @@ def sizetoint(s: bytes) -> int:
         raise error.ParseError(_(b"couldn't parse size: %s") % s)
 
 
-class hooks:
+class hooks(int_misc.IHooks):
     """A collection of hook functions that can be used to extend a
     function's behavior. Hooks are called in lexicographic order,
     based on the names of their sources."""
@@ -3183,10 +3219,10 @@ class hooks:
     def __init__(self):
         self._hooks = []
 
-    def add(self, source, hook):
+    def add(self, source: bytes, hook: Callable) -> None:
         self._hooks.append((source, hook))
 
-    def __call__(self, *args):
+    def __call__(self, *args) -> List:
         self._hooks.sort(key=lambda x: x[0])
         results = []
         for source, hook in self._hooks:

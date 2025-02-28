@@ -193,6 +193,15 @@ Cat copied file should not display copy metadata
   $ $NO_FALLBACK rhg cat -r 1 copy_of_original
   original content
 
+Annotate files
+  $ $NO_FALLBACK rhg annotate original
+  0: original content
+  $ $NO_FALLBACK rhg annotate --rev . --user --file --date --number --changeset \
+  > --line-number --text --no-follow --ignore-all-space --ignore-space-change \
+  > --ignore-blank-lines --ignore-space-at-eol original
+  test 0 1c9e69808da7 Thu Jan 01 00:00:00 1970 +0000 original:1: original content
+  $ $NO_FALLBACK rhg blame -r . -ufdnclawbBZ --no-follow original
+  test 0 1c9e69808da7 Thu Jan 01 00:00:00 1970 +0000 original:1: original content
 
 Fallback to Python
   $ $NO_FALLBACK rhg cat original --exclude="*.rs"
@@ -456,3 +465,9 @@ We can ignore all extensions at once
   $ echo "ignored-extensions=*" >> $HGRCPATH
   $ $NO_FALLBACK rhg files
   a
+
+Latin-1 is not supported yet
+
+  $ $NO_FALLBACK HGENCODING=latin-1 rhg root
+  unsupported feature: HGENCODING value 'latin-1' is not supported
+  [252]

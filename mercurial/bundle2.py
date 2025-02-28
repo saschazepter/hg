@@ -186,6 +186,7 @@ from .interfaces import repository
 if typing.TYPE_CHECKING:
     from typing import (
         Dict,
+        Iterator,
         List,
         Optional,
         Tuple,
@@ -739,7 +740,7 @@ class bundle20:
         return part
 
     # methods used to generate the bundle2 stream
-    def getchunks(self):
+    def getchunks(self) -> Iterator[bytes]:
         if self.ui.debugflag:
             msg = [b'bundle2-output-bundle: "%s",' % self._magicstring]
             if self._params:
@@ -1466,6 +1467,11 @@ class unbundlepart(unpackermixin):
         # we read the data, tell it
         self._initialized = True
 
+    def __iter__(self):
+        for chunk in self._payloadstream:
+            self._pos += len(chunk)
+            yield chunk
+
     def _payloadchunks(self):
         """Generator of decoded chunks in the payload."""
         return decodepayloadchunks(self.ui, self._fp)
@@ -1500,6 +1506,10 @@ class unbundlepart(unpackermixin):
                 )
             self.consumed = True
         return data
+
+    def tell(self) -> int:
+        """the amount of byte read so far in the part"""
+        return self._payloadstream.tell()
 
 
 class seekableunbundlepart(unbundlepart):

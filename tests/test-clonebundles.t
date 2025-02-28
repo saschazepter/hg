@@ -1,4 +1,4 @@
-#require no-reposimplestore no-chg
+#require no-chg
 
 Set up a server
 
@@ -255,6 +255,26 @@ Feature works over SSH with inline bundle
   no changes found
   2 local changesets published
 
+Out-of-repo storage for inline bundle
+-------------------------------------
+
+  $ cp -R server server-extern
+  $ cat >> server-extern/.hg/hgrc << EOF
+  > [server]
+  > peer-bundle-cache-root = `pwd`/server/.hg/bundle-cache
+  > EOF
+  $ rm -r server-extern/.hg/bundle-cache
+  $ hg clone -U ssh://user@dummy/server-extern ssh-inline-clone-extern
+  applying clone bundle from peer-bundle-cache://full.hg
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files
+  finished applying clone bundle
+  searching for changes
+  no changes found
+  2 local changesets published
+
 HTTP Supports
 -------------
 
@@ -397,10 +417,8 @@ No bundle spec should work
 
   $ hg clone -U http://localhost:$HGPORT stream-clone-no-spec
   applying clone bundle from http://localhost:$HGPORT1/packed.hg
-  5 files to transfer, 613 bytes of data (no-rust !)
-  transferred 613 bytes in * seconds (* */sec) (glob) (no-rust !)
-  7 files to transfer, 739 bytes of data (rust !)
-  transferred 739 bytes in * seconds (* */sec) (glob) (rust !)
+  * files to transfer, * bytes of data (glob)
+  stream-cloned * files / * bytes in * seconds (* */sec) (glob)
   finished applying clone bundle
   searching for changes
   no changes found
@@ -414,7 +432,7 @@ Bundle spec without parameters should work
   $ hg clone -U http://localhost:$HGPORT stream-clone-vanilla-spec
   applying clone bundle from http://localhost:$HGPORT1/packed.hg
   * files to transfer, * bytes of data (glob)
-  transferred * bytes in * seconds (* */sec) (glob)
+  stream-cloned * files / * bytes in * seconds (* */sec) (glob)
   finished applying clone bundle
   searching for changes
   no changes found
@@ -428,7 +446,7 @@ Bundle spec with format requirements should work
   $ hg clone -U http://localhost:$HGPORT stream-clone-supported-requirements
   applying clone bundle from http://localhost:$HGPORT1/packed.hg
   * files to transfer, * bytes of data (glob)
-  transferred * bytes in * seconds (* */sec) (glob)
+  stream-cloned * files / * bytes in * seconds (* */sec) (glob)
   finished applying clone bundle
   searching for changes
   no changes found
@@ -575,7 +593,7 @@ A manifest with just a gzip bundle
   (you may want to report this to the server operator)
   streaming all changes
   * files to transfer, * bytes of data (glob)
-  transferred * bytes in * seconds (* */sec) (glob)
+  stream-cloned * files / * bytes in * seconds (* */sec) (glob)
 
 A manifest with a stream clone but no BUNDLESPEC
 
@@ -588,7 +606,7 @@ A manifest with a stream clone but no BUNDLESPEC
   (you may want to report this to the server operator)
   streaming all changes
   * files to transfer, * bytes of data (glob)
-  transferred * bytes in * seconds (* */sec) (glob)
+  stream-cloned * files / * bytes in * seconds (* */sec) (glob)
 
 A manifest with a gzip bundle and a stream clone
 
@@ -600,7 +618,7 @@ A manifest with a gzip bundle and a stream clone
   $ hg clone -U --stream http://localhost:$HGPORT uncompressed-gzip-packed
   applying clone bundle from http://localhost:$HGPORT1/packed.hg
   * files to transfer, * bytes of data (glob)
-  transferred * bytes in * seconds (* */sec) (glob)
+  stream-cloned * files / * bytes in * seconds (* */sec) (glob)
   finished applying clone bundle
   searching for changes
   no changes found
@@ -615,7 +633,7 @@ A manifest with a gzip bundle and stream clone with supported requirements
   $ hg clone -U --stream http://localhost:$HGPORT uncompressed-gzip-packed-requirements
   applying clone bundle from http://localhost:$HGPORT1/packed.hg
   * files to transfer, * bytes of data (glob)
-  transferred * bytes in * seconds (* */sec) (glob)
+  stream-cloned * files / * bytes in * seconds (* */sec) (glob)
   finished applying clone bundle
   searching for changes
   no changes found
@@ -632,7 +650,7 @@ A manifest with a gzip bundle and a stream clone with unsupported requirements
   (you may want to report this to the server operator)
   streaming all changes
   * files to transfer, * bytes of data (glob)
-  transferred * bytes in * seconds (* */sec) (glob)
+  stream-cloned * files / * bytes in * seconds (* */sec) (glob)
 
 Test clone bundle retrieved through bundle2
 

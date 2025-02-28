@@ -17,7 +17,7 @@ use crate::{
     operations::cat,
     repo::Repo,
     requirements::SPARSE_REQUIREMENT,
-    utils::{hg_path::HgPath, SliceExt},
+    utils::{hg_path::HgPath, strings::SliceExt},
     Revision, NULL_REVISION,
 };
 
@@ -89,6 +89,10 @@ pub enum SparseConfigError {
     /// An invalid pattern prefix was given to the narrow spec. Includes the
     /// entire pattern for context.
     InvalidNarrowPrefix(Vec<u8>),
+    /// Narrow/sparse patterns can not begin or end in whitespace
+    /// because the Python parser strips the whitespace when parsing
+    /// the config file.
+    WhitespaceAtEdgeOfPattern(Vec<u8>),
     #[from]
     HgError(HgError),
     #[from]
@@ -138,6 +142,20 @@ impl From<SparseConfigError> for HgError {
                     VALID_PREFIXES.join(", ")
                 )),
             },
+            SparseConfigError::WhitespaceAtEdgeOfPattern(vec) => {
+                HgError::Abort {
+                    message: String::from_utf8_lossy(&format_bytes!(
+                        b"narrow pattern with whitespace at the edge: {}",
+                        vec
+                    ))
+                    .to_string(),
+                    detailed_exit_code: STATE_ERROR,
+                    hint: Some(
+                        "narrow patterns can't begin or end in whitespace"
+                            .to_string(),
+                    ),
+                }
+            }
             SparseConfigError::HgError(hg_error) => hg_error,
             SparseConfigError::PatternError(pattern_error) => HgError::Abort {
                 message: pattern_error.to_string(),

@@ -22,6 +22,9 @@ from typing import (
 )
 
 from .i18n import _
+from .interfaces.types import (
+    MatcherT,
+)
 from .node import wdirrev
 
 from .thirdparty import attr
@@ -1083,9 +1086,7 @@ def _initialrevs(repo, wopts):
 def makewalker(
     repo: Any,
     wopts: walkopts,
-) -> Tuple[
-    smartset.abstractsmartset, Optional[Callable[[Any], matchmod.basematcher]]
-]:
+) -> Tuple[smartset.abstractsmartset, Optional[Callable[[Any], MatcherT]]]:
     """Build (revs, makefilematcher) to scan revision/file history
 
     - revs is the smartset to be traversed.

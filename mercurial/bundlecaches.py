@@ -35,7 +35,6 @@ from .utils import stringutil
 
 urlreq = util.urlreq
 
-BUNDLE_CACHE_DIR = b'bundle-cache'
 CB_MANIFEST_FILE = b'clonebundles.manifest'
 CLONEBUNDLESCHEME = b"peer-bundle-cache://"
 
@@ -318,10 +317,10 @@ def parsebundlespec(repo, spec, strict=True):
             % compression
         )
 
-    # The specification for packed1 can optionally declare the data formats
+    # The specification for stream bundles can optionally declare the data formats
     # required to apply it. If we see this metadata, compare against what the
     # repo supports and error if the bundle isn't compatible.
-    if version == b'packed1' and b'requirements' in params:
+    if b'requirements' in params:
         requirements = set(cast(bytes, params[b'requirements']).split(b','))
         missingreqs = requirements - requirementsmod.STREAM_FIXED_REQUIREMENTS
         if missingreqs:

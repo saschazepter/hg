@@ -54,6 +54,7 @@ import functools
 import json
 import multiprocessing
 import os
+import pathlib
 import platform
 import queue
 import random
@@ -71,7 +72,6 @@ import time
 import unittest
 import uuid
 import xml.dom.minidom as minidom
-
 
 # Don't compare sys.version_info directly, to prevent pyupgrade from dropping
 # the conditional.
@@ -760,8 +760,25 @@ def parseargs(args, parser):
         )
         path_local_hg = os.path.join(reporootdir, venv_local, BINDIRNAME, b"hg")
         if not os.path.exists(path_local_hg):
-            # no local environment but we can still use ./hg to please test-run-tests.t
-            path_local_hg = os.path.join(reporootdir, b"hg")
+            if "HGTEST_REAL_HG" in os.environ:
+                # this file is run from a test (typically test-run-tests.t)
+                # no local environment but we can still use ./hg to please test-run-tests.t
+                path_local_hg = os.path.join(reporootdir, b"hg")
+            else:
+                message = (
+                    f"run-tests.py called with --local but {_bytes2sys(venv_local)} does not exist.\n"
+                    f'To create it, run \nmake local PYTHON="{sys.executable}"'
+                )
+                paths_venv = sorted(
+                    pathlib.Path(_bytes2sys(reporootdir)).glob(".venv_*")
+                )
+                if paths_venv:
+                    message += (
+                        "\nAlternatively, call run-tests.py with a Python "
+                        f"corresponding to {[p.name for p in paths_venv]}."
+                    )
+                print(message, file=sys.stderr)
+                sys.exit(1)
 
         pathandattrs = [(path_local_hg, 'with_hg')]
         if options.chg:
@@ -3291,10 +3308,9 @@ class TestRunner:
                     self._pythondir = get_site_packages_dir(python_exe)
                 except (FileNotFoundError, subprocess.CalledProcessError):
                     self._pythondir = self._bindir
-            elif self.options.local:
-                assert WINDOWS
-                python_exe = os.path.join(self._bindir, b"python.exe")
-                self._pythondir = get_site_packages_dir(python_exe)
+                if self.options.local:
+                    self._python = _bytes2sys(python_exe)
+
             # If it looks like our in-repo Rust binary, use the source root.
             # This is a bit hacky. But rhg is still not supported outside the
             # source directory. So until it is, do the simple thing.
@@ -3425,6 +3441,7 @@ class TestRunner:
         if self.options.pure:
             os.environ["HGTEST_RUN_TESTS_PURE"] = "--pure"
             os.environ["HGMODULEPOLICY"] = "py"
+            os.environ.pop("HGWITHRUSTEXT", None)
         if self.options.rust:
             os.environ["HGMODULEPOLICY"] = "rust+c"
         if self.options.no_rust:

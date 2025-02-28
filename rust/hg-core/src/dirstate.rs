@@ -46,12 +46,14 @@ pub type StateMapIter<'a> = Box<
     dyn Iterator<
             Item = Result<(&'a HgPath, DirstateEntry), DirstateV2ParseError>,
         > + Send
+        + Sync
         + 'a,
 >;
 
 pub type CopyMapIter<'a> = Box<
     dyn Iterator<Item = Result<(&'a HgPath, &'a HgPath), DirstateV2ParseError>>
         + Send
+        + Sync
         + 'a,
 >;
 

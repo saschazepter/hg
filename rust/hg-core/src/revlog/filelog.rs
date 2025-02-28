@@ -8,7 +8,7 @@ use crate::revlog::RevlogEntry;
 use crate::revlog::{Revlog, RevlogError};
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
-use crate::utils::SliceExt;
+use crate::utils::strings::SliceExt;
 use crate::Graph;
 use crate::GraphError;
 use crate::Node;
@@ -20,7 +20,7 @@ use super::options::RevlogOpenOptions;
 /// A specialized `Revlog` to work with file data logs.
 pub struct Filelog {
     /// The generic `revlog` format.
-    revlog: Revlog,
+    pub(crate) revlog: Revlog,
 }
 
 impl Graph for Filelog {
@@ -57,7 +57,7 @@ impl Filelog {
         file_node: impl Into<NodePrefix>,
     ) -> Result<FilelogRevisionData, RevlogError> {
         let file_rev = self.revlog.rev_from_node(file_node.into())?;
-        self.data_for_unchecked_rev(file_rev.into())
+        Ok(self.entry(file_rev)?.data()?)
     }
 
     /// The given revision is that of the file as found in a filelog, not of a
@@ -109,7 +109,7 @@ fn store_path(hg_path: &HgPath, suffix: &[u8]) -> PathBuf {
     get_path_from_bytes(&encoded_bytes).into()
 }
 
-pub struct FilelogEntry<'a>(RevlogEntry<'a>);
+pub struct FilelogEntry<'a>(pub(crate) RevlogEntry<'a>);
 
 impl FilelogEntry<'_> {
     /// `self.data()` can be expensive, with decompression and delta

@@ -24,6 +24,10 @@ from typing import (
 )
 
 from .i18n import _
+from .interfaces.types import (
+    MatcherT,
+    TransactionT,
+)
 
 from hgdemandimport import tracing
 
@@ -50,7 +54,7 @@ from .interfaces import (
 )
 
 parsers = policy.importmod('parsers')
-rustmod = policy.importrust('dirstate')
+rustmod = policy.importrust('dirstate', pyo3=True)
 
 HAS_FAST_DIRSTATE_V2 = rustmod is not None
 
@@ -483,7 +487,7 @@ class dirstate(intdirstate.idirstate):
         return self._map.hastrackeddir(d)
 
     @rootcache(b'.hgignore')
-    def _ignore(self) -> matchmod.basematcher:
+    def _ignore(self) -> MatcherT:
         files = self._ignorefiles()
         if not files:
             return matchmod.never()
@@ -668,7 +672,7 @@ class dirstate(intdirstate.idirstate):
         return self._map.setparents(p1, p2, fold_p2=fold_p2)
 
     def setbranch(
-        self, branch: bytes, transaction: Optional[intdirstate.TransactionT]
+        self, branch: bytes, transaction: Optional[TransactionT]
     ) -> None:
         self.__class__._branch.set(self, encoding.fromlocal(branch))
         if transaction is not None:
@@ -1101,7 +1105,7 @@ class dirstate(intdirstate.idirstate):
             on_abort,
         )
 
-    def write(self, tr: Optional[intdirstate.TransactionT]) -> None:
+    def write(self, tr: Optional[TransactionT]) -> None:
         if not self._dirty:
             return
         # make sure we don't request a write of invalidated content
@@ -1359,7 +1363,7 @@ class dirstate(intdirstate.idirstate):
 
     def walk(
         self,
-        match: matchmod.basematcher,
+        match: MatcherT,
         subrepos: Any,
         unknown: bool,
         ignored: bool,
@@ -1639,7 +1643,7 @@ class dirstate(intdirstate.idirstate):
 
     def status(
         self,
-        match: matchmod.basematcher,
+        match: MatcherT,
         subrepos: bool,
         ignored: bool,
         clean: bool,
@@ -1796,7 +1800,7 @@ class dirstate(intdirstate.idirstate):
         )
         return (lookup, status, mtime_boundary)
 
-    def matches(self, match: matchmod.basematcher) -> Iterable[bytes]:
+    def matches(self, match: MatcherT) -> Iterable[bytes]:
         """
         return files in the dirstate (in whatever state) filtered by match
         """

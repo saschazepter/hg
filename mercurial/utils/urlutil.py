@@ -14,6 +14,7 @@ import socket
 from typing import (
     Callable,
     Dict,
+    Optional,
     Tuple,
     Union,
 )
@@ -28,6 +29,10 @@ from .. import (
 
 from . import (
     stringutil,
+)
+
+from ..interfaces import (
+    misc as int_misc,
 )
 
 from ..revlogutils import (
@@ -60,7 +65,7 @@ def getport(port: Union[bytes, int]) -> int:
         )
 
 
-class url:
+class url(int_misc.IUrl):
     r"""Reliable URL parser.
 
     This parses URLs and provides attributes for the following
@@ -244,7 +249,7 @@ class url:
             if v is not None:
                 setattr(self, a, urlreq.unquote(v))
 
-    def copy(self):
+    def copy(self) -> url:
         u = url(b'temporary useless value')
         u.path = self.path
         u.scheme = self.scheme
@@ -361,7 +366,7 @@ class url:
 
     __str__ = encoding.strmethod(__bytes__)
 
-    def authinfo(self):
+    def authinfo(self) -> int_misc.AuthInfoT:
         user, passwd = self.user, self.passwd
         try:
             self.user, self.passwd = None, None
@@ -376,7 +381,7 @@ class url:
         # a password.
         return (s, (None, (s, self.host), self.user, self.passwd or b''))
 
-    def isabs(self):
+    def isabs(self) -> bool:
         if self.scheme and self.scheme != b'file':
             return True  # remote URL
         if hasdriveletter(self.path):
@@ -401,7 +406,7 @@ class url:
             return path
         return self._origpath
 
-    def islocal(self):
+    def islocal(self) -> bool:
         '''whether localpath will return something that posixfile can open'''
         return (
             not self.scheme
@@ -821,7 +826,7 @@ def _chain_path(base_path, ui, paths):
     return new_paths
 
 
-class path:
+class path(int_misc.IPath):
     """Represents an individual path and its configuration."""
 
     def __init__(
@@ -888,7 +893,7 @@ class path:
         self.rawloc = rawloc
         self.loc = b'%s' % u
 
-    def copy(self, new_raw_location=None):
+    def copy(self, new_raw_location: Optional[bytes] = None) -> path:
         """make a copy of this path object
 
         When `new_raw_location` is set, the new path will point to it.
@@ -905,11 +910,11 @@ class path:
         return new
 
     @property
-    def is_push_variant(self):
+    def is_push_variant(self) -> bool:
         """is this a path variant to be used for pushing"""
         return self.main_path is not None
 
-    def get_push_variant(self):
+    def get_push_variant(self) -> path:
         """get a "copy" of the path, but suitable for pushing
 
         This means using the value of the `pushurl` option (if any) as the url.
@@ -961,7 +966,7 @@ class path:
             return False
 
     @property
-    def suboptions(self):
+    def suboptions(self) -> Dict[bytes, bytes]:
         """Return sub-options and their values for this path.
 
         This is intended to be used for presentation purposes.

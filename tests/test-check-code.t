@@ -57,14 +57,16 @@ Prevent adding new files in the root directory accidentally.
   .arcconfig
   .clang-format
   .editorconfig
+  .flake8
   .gitattributes
   .hgignore
   .hgsigs
   .hgtags
   .jshintrc
-  CONTRIBUTING
+  CONTRIBUTING.md
   CONTRIBUTORS
   COPYING
+  MANIFEST.in
   Makefile
   README.rst
   hg

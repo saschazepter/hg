@@ -136,7 +136,10 @@ pub trait Graph {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum GraphError {
+    /// Parent revision does not exist, i.e. below 0 or above max revision.
     ParentOutOfRange(Revision),
+    /// Parent revision number is greater than one of its descendants.
+    ParentOutOfOrder(Revision),
 }
 
 impl std::fmt::Display for GraphError {
@@ -144,6 +147,9 @@ impl std::fmt::Display for GraphError {
         match self {
             GraphError::ParentOutOfRange(revision) => {
                 write!(f, "parent out of range ({})", revision)
+            }
+            GraphError::ParentOutOfOrder(revision) => {
+                write!(f, "parent out of order ({})", revision)
             }
         }
     }
@@ -343,12 +349,19 @@ impl Revlog {
 
     /// Returns the node ID for the given revision number, if it exists in this
     /// revlog
-    pub fn node_from_rev(&self, rev: UncheckedRevision) -> Option<&Node> {
-        if rev == NULL_REVISION.into() {
-            return Some(&NULL_NODE);
+    pub fn node_from_rev(&self, rev: Revision) -> &Node {
+        match self.index().get_entry(rev) {
+            None => &NULL_NODE,
+            Some(entry) => entry.hash(),
         }
-        let rev = self.index().check_revision(rev)?;
-        Some(self.index().get_entry(rev)?.hash())
+    }
+
+    /// Like [`Self::node_from_rev`] but checks `rev` first.
+    pub fn node_from_unchecked_rev(
+        &self,
+        rev: UncheckedRevision,
+    ) -> Option<&Node> {
+        Some(self.node_from_rev(self.index().check_revision(rev)?))
     }
 
     /// Return the revision number for the given node ID, if it exists in this
@@ -361,7 +374,9 @@ impl Revlog {
             nodemap
                 .find_bin(self.index(), node)
                 .map_err(|err| (err, format!("{:x}", node)))?
-                .ok_or(RevlogError::InvalidRevision(format!("{:x}", node)))
+                .ok_or_else(|| {
+                    RevlogError::InvalidRevision(format!("{:x}", node))
+                })
         } else {
             self.index().rev_from_node_no_persistent_nodemap(node)
         }
@@ -386,6 +401,36 @@ impl Revlog {
         self.inner.get_entry_for_unchecked_rev(rev)
     }
 
+    /// Returns the delta parent of the given revision.
+    pub fn delta_parent(&self, rev: Revision) -> Revision {
+        if rev == NULL_REVISION {
+            NULL_REVISION
+        } else {
+            self.inner.delta_parent(rev)
+        }
+    }
+
+    /// Returns the link revision (a.k.a. "linkrev") of the given revision.
+    /// Returns an error if the linkrev does not exist in `linked_revlog`.
+    pub fn link_revision(
+        &self,
+        rev: Revision,
+        linked_revlog: &Self,
+    ) -> Result<Revision, RevlogError> {
+        let Some(entry) = self.index().get_entry(rev) else {
+            return Ok(NULL_REVISION);
+        };
+        linked_revlog
+            .index()
+            .check_revision(entry.link_revision())
+            .ok_or_else(|| {
+                RevlogError::corrupted(format!(
+                    "linkrev for rev {} is invalid",
+                    rev
+                ))
+            })
+    }
+
     /// Return the full data associated to a revision.
     ///
     /// All entries required to build the final data out of deltas will be
@@ -407,6 +452,26 @@ impl Revlog {
             return Ok(Cow::Borrowed(&[]));
         };
         self.get_entry(rev)?.data()
+    }
+
+    /// Gets the raw uncompressed data stored for a revision, which is either
+    /// the full text or a delta. Panics if `rev` is null.
+    pub fn get_data_incr(
+        &self,
+        rev: Revision,
+    ) -> Result<RawdataBuf, RevlogError> {
+        let index = self.index();
+        let entry = index.get_entry(rev).expect("rev should not be null");
+        let delta_base = entry.base_revision_or_base_of_delta_chain();
+        let base = if UncheckedRevision::from(rev) == delta_base {
+            None
+        } else if index.uses_generaldelta() {
+            Some(delta_base)
+        } else {
+            Some(UncheckedRevision(rev.0 - 1))
+        };
+        let data = self.inner.chunk_for_rev(rev)?;
+        Ok(RawdataBuf { base, data })
     }
 
     /// Check the hash of some given data against the recorded hash.
@@ -438,6 +503,21 @@ impl Revlog {
         let patch = patch::fold_patch_lists(&patches?);
         patch.apply(buffer, snapshot);
         Ok(())
+    }
+}
+
+pub struct RawdataBuf {
+    // If `Some`, data is a delta.
+    base: Option<UncheckedRevision>,
+    data: std::sync::Arc<[u8]>,
+}
+
+impl RawdataBuf {
+    fn as_patch_list(&self) -> Result<patch::PatchList, RevlogError> {
+        match self.base {
+            None => Ok(patch::PatchList::full_snapshot(&self.data)),
+            Some(_) => patch::PatchList::new(&self.data),
+        }
     }
 }
 

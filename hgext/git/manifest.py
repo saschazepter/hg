@@ -11,6 +11,7 @@ from typing import (
 )
 
 from mercurial.node import sha1nodeconstants
+from mercurial.interfaces.types import MatcherT
 
 from mercurial import (
     match as matchmod,
@@ -277,7 +278,7 @@ class gittreemanifest(repository.imanifestdict):
     ) -> tuple[ByteString, ByteString]:
         raise NotImplementedError  # TODO: implement this
 
-    def _walkonetree(self, tree, match, subdir):
+    def _walkonetree(self, tree, match, subdir) -> Iterator[bytes]:
         for te in tree:
             # TODO: can we prune dir walks with the matcher?
             realname = subdir + pycompat.fsencode(te.name)
@@ -288,7 +289,7 @@ class gittreemanifest(repository.imanifestdict):
             elif match(realname):
                 yield pycompat.fsencode(realname)
 
-    def walk(self, match: matchmod.basematcher) -> Iterator[bytes]:
+    def walk(self, match: MatcherT) -> Iterator[bytes]:
         # TODO: this is a very lazy way to merge in the pending
         # changes. There is absolutely room for optimization here by
         # being clever about walking over the sets...

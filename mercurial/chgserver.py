@@ -268,6 +268,7 @@ def _loadnewui(srcui, args, cdebug):
 
     # command line args
     options = dispatch._earlyparseopts(newui, args)
+    dispatch._parse_config_files(newui, args, options[b'config_file'])
     dispatch._parseconfig(newui, options[b'config'])
 
     # stolen from tortoisehg.util.copydynamicconfig()

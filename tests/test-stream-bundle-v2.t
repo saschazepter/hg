@@ -1,6 +1,18 @@
-#require no-reposimplestore
-
 #testcases stream-v2 stream-v3
+#testcases threaded sequential
+
+#if threaded
+  $ cat << EOF >> $HGRCPATH
+  > [worker]
+  > parallel-stream-bundle-processing = yes
+  > parallel-stream-bundle-processing.num-writer = 2
+  > EOF
+#else
+  $ cat << EOF >> $HGRCPATH
+  > [worker]
+  > parallel-stream-bundle-processing = no
+  > EOF
+#endif
 
 #if stream-v2
   $ bundle_format="streamv2"
@@ -91,19 +103,43 @@ The extension requires a repo (currently unused)
   none-v2;stream=v3-exp;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog (stream-v3 zstd no-rust !)
   none-v2;stream=v3-exp;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog (stream-v3 rust !)
 
-Test that we can apply the bundle as a stream clone bundle
-
-  $ cat > .hg/clonebundles.manifest << EOF
-  > http://localhost:$HGPORT1/bundle.hg BUNDLESPEC=`hg debugbundle --spec bundle.hg`
-  > EOF
-
   $ hg serve -d -p $HGPORT --pid-file hg.pid --accesslog access.log
   $ cat hg.pid >> $DAEMON_PIDS
 
   $ "$PYTHON" $TESTDIR/dumbhttp.py -p $HGPORT1 --pid http.pid
   $ cat http.pid >> $DAEMON_PIDS
 
+Stream bundle spec with unknown requirements should be filtered out
+
+#if stream-v2
+  $ cat > .hg/clonebundles.manifest << EOF
+  > http://localhost:$HGPORT1/bundle.hg BUNDLESPEC=none-v2;stream=v2;requirements%3Drevlogv42
+  > EOF
+#endif
+#if stream-v3
+  $ cat > .hg/clonebundles.manifest << EOF
+  > http://localhost:$HGPORT1/bundle.hg BUNDLESPEC=none-v2;stream=v3-exp;requirements%3Drevlogv42
+  > EOF
+#endif
+
   $ cd ..
+
+  $ hg clone -U http://localhost:$HGPORT stream-clone-unsupported-requirements
+  no compatible clone bundles available on server; falling back to regular clone
+  (you may want to report this to the server operator)
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 5 changesets with 5 changes to 5 files
+  new changesets 426bada5c675:9bc730a19041 (5 drafts)
+
+Test that we can apply the bundle as a stream clone bundle
+
+  $ cat > main/.hg/clonebundles.manifest << EOF
+  > http://localhost:$HGPORT1/bundle.hg BUNDLESPEC=`hg debugbundle --spec main/bundle.hg`
+  > EOF
+
 
 #if stream-v2
   $ hg clone http://localhost:$HGPORT stream-clone-implicit --debug
@@ -132,10 +168,10 @@ Test that we can apply the bundle as a stream clone bundle
   adding [c] branch2-served (94 bytes)
   adding [c] rbc-names-v2 (7 bytes)
   adding [c] rbc-revs-v2 (40 bytes)
-  transferred 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
   bundle2-input-part: total payload size 1857 (no-rust !)
-  transferred 1.78 KB in * seconds (* */sec) (glob) (rust !)
   bundle2-input-part: total payload size 2025 (rust !)
+  stream-cloned 12 files / 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
+  stream-cloned 14 files / 1.78 KB in * seconds (* */sec) (glob) (rust !)
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle
@@ -169,7 +205,12 @@ Test that we can apply the bundle as a stream clone bundle
   updating the branch cache
   (sent 4 HTTP requests and * bytes; received * bytes in responses) (glob)
 
-  $ hg clone --stream http://localhost:$HGPORT stream-clone-explicit --debug
+test explicite stream request
+
+(also test unlimited memory usage code path)
+
+  $ hg clone --stream http://localhost:$HGPORT stream-clone-explicit --debug \
+  >   --config worker.parallel-stream-bundle-processing.memory-target=-1
   using http://localhost:$HGPORT/
   sending capabilities command
   sending clonebundles_manifest command
@@ -195,10 +236,10 @@ Test that we can apply the bundle as a stream clone bundle
   adding [c] branch2-served (94 bytes)
   adding [c] rbc-names-v2 (7 bytes)
   adding [c] rbc-revs-v2 (40 bytes)
-  transferred 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
   bundle2-input-part: total payload size 1857 (no-rust !)
-  transferred 1.78 KB in * seconds (* */sec) (glob) (rust !)
   bundle2-input-part: total payload size 2025 (rust !)
+  stream-cloned 12 files / 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
+  stream-cloned 14 files / 1.78 KB in * seconds (* */sec) (glob) (rust !)
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle
@@ -260,9 +301,9 @@ Test that we can apply the bundle as a stream clone bundle
   adding [c] branch2-served (94 bytes)
   adding [c] rbc-names-v2 (7 bytes)
   adding [c] rbc-revs-v2 (40 bytes)
-  transferred 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
+  stream-cloned 12 files / 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
   bundle2-input-part: total payload size 1869 (no-rust !)
-  transferred 1.78 KB in * seconds (* */sec) (glob) (rust !)
+  stream-cloned 14 files / 1.78 KB in * seconds (* */sec) (glob) (rust !)
   bundle2-input-part: total payload size 2037 (rust !)
   bundle2-input-bundle: 1 parts total
   updating the branch cache
@@ -322,9 +363,9 @@ Test that we can apply the bundle as a stream clone bundle
   adding [c] branch2-served (94 bytes)
   adding [c] rbc-names-v2 (7 bytes)
   adding [c] rbc-revs-v2 (40 bytes)
-  transferred 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
+  stream-cloned 12 files / 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
   bundle2-input-part: total payload size 1869 (no-rust !)
-  transferred 1.78 KB in * seconds (* */sec) (glob) (rust !)
+  stream-cloned 14 files / 1.78 KB in * seconds (* */sec) (glob) (rust !)
   bundle2-input-part: total payload size 2037 (rust !)
   bundle2-input-bundle: 1 parts total
   updating the branch cache

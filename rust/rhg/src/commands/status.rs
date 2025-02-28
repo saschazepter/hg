@@ -462,14 +462,18 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let (narrow_matcher, narrow_warnings) = narrow::matcher(repo)?;
     let (sparse_matcher, sparse_warnings) = sparse::matcher(repo)?;
-    let matcher = match (repo.has_narrow(), repo.has_sparse()) {
-        (true, true) => {
-            Box::new(IntersectionMatcher::new(narrow_matcher, sparse_matcher))
-        }
-        (true, false) => narrow_matcher,
-        (false, true) => sparse_matcher,
-        (false, false) => Box::new(AlwaysMatcher),
-    };
+    // Sparse is only applicable for the working copy, not history.
+    let sparse_is_applicable = revpair.is_none() && change.is_none();
+    let matcher =
+        match (repo.has_narrow(), repo.has_sparse() && sparse_is_applicable) {
+            (true, true) => Box::new(IntersectionMatcher::new(
+                narrow_matcher,
+                sparse_matcher,
+            )),
+            (true, false) => narrow_matcher,
+            (false, true) => sparse_matcher,
+            (false, false) => Box::new(AlwaysMatcher),
+        };
     let matcher = match args.get_many::<std::ffi::OsString>("file") {
         None => matcher,
         Some(files) => {
@@ -687,8 +691,7 @@ impl DisplayStatusPaths<'_> {
         mut paths: Vec<StatusPath<'_>>,
     ) -> Result<(), CommandError> {
         paths.sort_unstable();
-        // TODO: get the stdout lock once for the whole loop
-        // instead of in each write
+        let mut stdout = self.ui.stdout_buffer();
         for StatusPath { path, copy_source } in paths {
             let relative_path;
             let relative_source;
@@ -702,25 +705,27 @@ impl DisplayStatusPaths<'_> {
             } else {
                 (path.as_bytes(), copy_source.as_ref().map(|s| s.as_bytes()))
             };
-            // TODO: Add a way to use `write_bytes!` instead of `format_bytes!`
-            // in order to stream to stdout instead of allocating an
-            // itermediate `Vec<u8>`.
+            // TODO: Add a way to use `write_bytes!` instead of
+            // `format_bytes!` in order to stream to stdout
+            // instead of allocating an itermediate
+            // `Vec<u8>`.
             if !self.no_status {
-                self.ui.write_stdout_labelled(status_prefix, label)?
+                stdout.write_stdout_labelled(status_prefix, label)?
             }
             let linebreak = if self.print0 { b"\x00" } else { b"\n" };
-            self.ui.write_stdout_labelled(
+            stdout.write_stdout_labelled(
                 &format_bytes!(b"{}{}", path, linebreak),
                 label,
             )?;
             if let Some(source) = copy_source {
                 let label = "status.copied";
-                self.ui.write_stdout_labelled(
+                stdout.write_stdout_labelled(
                     &format_bytes!(b"  {}{}", source, linebreak),
                     label,
                 )?
             }
         }
+        stdout.flush()?;
         Ok(())
     }
 

@@ -322,7 +322,6 @@ Stripping and recovering changes should work
        0       4 064927a0648a 000000000000 000000000000
        1       5 25ecb8cb8618 000000000000 000000000000
 
-#if repobundlerepo
   $ hg incoming .hg/strip-backup/*
   comparing with .hg/strip-backup/*-backup.hg (glob)
   searching for changes
@@ -332,7 +331,6 @@ Stripping and recovering changes should work
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     modify dir1/a
   
-#endif
 
   $ hg unbundle .hg/strip-backup/*
   adding changesets
@@ -464,12 +462,7 @@ Excludes with a glob should not exclude everything from the glob's root
 
 Test files for a subdirectory.
 
-#if reporevlogstore
   $ rm -r .hg/store/meta/~2e_a
-#endif
-#if reposimplestore
-  $ rm -r .hg/store/meta/._a
-#endif
   $ hg files -r . b
   b/bar/fruits.txt
   b/bar/orange/fly/gnat.py
@@ -485,12 +478,7 @@ Test files for a subdirectory.
 
 Test files with just includes and excludes.
 
-#if reporevlogstore
   $ rm -r .hg/store/meta/~2e_a
-#endif
-#if reposimplestore
-  $ rm -r .hg/store/meta/._a
-#endif
   $ rm -r .hg/store/meta/b/bar/orange/fly
   $ rm -r .hg/store/meta/b/foo/apple/bees
   $ hg files -r . -I path:b/bar -X path:b/bar/orange/fly -I path:b/foo -X path:b/foo/apple/bees
@@ -502,12 +490,7 @@ Test files with just includes and excludes.
 
 Test files for a subdirectory, excluding a directory within it.
 
-#if reporevlogstore
   $ rm -r .hg/store/meta/~2e_a
-#endif
-#if reposimplestore
-  $ rm -r .hg/store/meta/._a
-#endif
   $ rm -r .hg/store/meta/b/foo
   $ hg files -r . -X path:b/foo b
   b/bar/fruits.txt
@@ -523,12 +506,7 @@ Test files for a subdirectory, excluding a directory within it.
 Test files for a sub directory, including only a directory within it, and
 including an unrelated directory.
 
-#if reporevlogstore
   $ rm -r .hg/store/meta/~2e_a
-#endif
-#if reposimplestore
-  $ rm -r .hg/store/meta/._a
-#endif
   $ rm -r .hg/store/meta/b/foo
   $ hg files -r . -I path:b/bar/orange -I path:a b
   b/bar/orange/fly/gnat.py
@@ -542,12 +520,7 @@ including an unrelated directory.
 Test files for a pattern, including a directory, and excluding a directory
 within that.
 
-#if reporevlogstore
   $ rm -r .hg/store/meta/~2e_a
-#endif
-#if reposimplestore
-  $ rm -r .hg/store/meta/._a
-#endif
   $ rm -r .hg/store/meta/b/foo
   $ rm -r .hg/store/meta/b/bar/orange
   $ hg files -r . glob:**.txt -I path:b/bar -X path:b/bar/orange
@@ -566,7 +539,6 @@ Add some more changes to the deep repo
 Verify works
   $ hg verify -q
 
-#if repofncache
 Dirlogs are included in fncache
   $ grep meta/.A/00manifest.i .hg/store/fncache
   meta/.A/00manifest.i
@@ -591,7 +563,6 @@ Rebuilt fncache includes dirlogs
   adding meta/b/foo/apple/00manifest.i
   adding meta/b/foo/apple/bees/00manifest.i
   16 items added, 0 removed from fncache
-#endif
 
 Finish first server
   $ killdaemons.py
@@ -610,12 +581,12 @@ Verify reports missing dirlog
    b/@1: parent-directory manifest refers to unknown revision f065da70369e
    b/@2: parent-directory manifest refers to unknown revision ac0d30948e0b
    b/@3: parent-directory manifest refers to unknown revision 367152e6af28
-  warning: orphan data file 'meta/b/bar/00manifest.i' (reporevlogstore !)
-  warning: orphan data file 'meta/b/bar/orange/00manifest.i' (reporevlogstore !)
-  warning: orphan data file 'meta/b/bar/orange/fly/00manifest.i' (reporevlogstore !)
-  warning: orphan data file 'meta/b/foo/00manifest.i' (reporevlogstore !)
-  warning: orphan data file 'meta/b/foo/apple/00manifest.i' (reporevlogstore !)
-  warning: orphan data file 'meta/b/foo/apple/bees/00manifest.i' (reporevlogstore !)
+  warning: orphan data file 'meta/b/bar/00manifest.i'
+  warning: orphan data file 'meta/b/bar/orange/00manifest.i'
+  warning: orphan data file 'meta/b/bar/orange/fly/00manifest.i'
+  warning: orphan data file 'meta/b/foo/00manifest.i'
+  warning: orphan data file 'meta/b/foo/apple/00manifest.i'
+  warning: orphan data file 'meta/b/foo/apple/bees/00manifest.i'
   crosschecking files in changesets and manifests
    b/bar/fruits.txt@0: in changeset but not in manifest
    b/bar/orange/fly/gnat.py@0: in changeset but not in manifest
@@ -624,7 +595,7 @@ Verify reports missing dirlog
   checking files
   not checking dirstate because of previous errors
   checked 4 changesets with 18 changes to 8 files
-  6 warnings encountered! (reporevlogstore !)
+  6 warnings encountered!
   9 integrity errors encountered!
   (first damaged changeset appears to be 0)
   [1]
@@ -684,8 +655,6 @@ requires got updated to include treemanifest
 Tree manifest revlogs exist.
   $ find deepclone/.hg/store/meta | sort
   deepclone/.hg/store/meta
-  deepclone/.hg/store/meta/._a (reposimplestore !)
-  deepclone/.hg/store/meta/._a/00manifest.i (reposimplestore !)
   deepclone/.hg/store/meta/b
   deepclone/.hg/store/meta/b/00manifest.i
   deepclone/.hg/store/meta/b/bar
@@ -700,14 +669,13 @@ Tree manifest revlogs exist.
   deepclone/.hg/store/meta/b/foo/apple/00manifest.i
   deepclone/.hg/store/meta/b/foo/apple/bees
   deepclone/.hg/store/meta/b/foo/apple/bees/00manifest.i
-  deepclone/.hg/store/meta/~2e_a (reporevlogstore !)
-  deepclone/.hg/store/meta/~2e_a/00manifest.i (reporevlogstore !)
+  deepclone/.hg/store/meta/~2e_a
+  deepclone/.hg/store/meta/~2e_a/00manifest.i
 Verify passes.
   $ cd deepclone
   $ hg verify -q
   $ cd ..
 
-#if reporevlogstore
 Create clones using old repo formats to use in later tests
   $ hg clone --config format.usestore=False \
   >   --config experimental.changegroup3=True \
@@ -761,9 +729,8 @@ Stream clone with basicstore
   $ hg clone --config experimental.changegroup3=True --stream -U \
   >   http://localhost:$HGPORT1 stream-clone-basicstore
   streaming all changes
-  24 files to transfer, * of data (glob) (no-rust !)
-  26 files to transfer, * of data (glob) (rust !)
-  transferred * in * seconds (*) (glob)
+  * files to transfer, * of data (glob)
+  stream-cloned * files / * in * seconds (*) (glob)
   $ hg -R stream-clone-basicstore verify -q
   $ cat port-1-errors.log
 
@@ -771,9 +738,8 @@ Stream clone with encodedstore
   $ hg clone --config experimental.changegroup3=True --stream -U \
   >   http://localhost:$HGPORT2 stream-clone-encodedstore
   streaming all changes
-  24 files to transfer, * of data (glob) (no-rust !)
-  26 files to transfer, * of data (glob) (rust !)
-  transferred * in * seconds (*) (glob)
+  * files to transfer, * of data (glob)
+  stream-cloned * files / * in * seconds (*) (glob)
   $ hg -R stream-clone-encodedstore verify -q
   $ cat port-2-errors.log
 
@@ -781,9 +747,8 @@ Stream clone with fncachestore
   $ hg clone --config experimental.changegroup3=True --stream -U \
   >   http://localhost:$HGPORT stream-clone-fncachestore
   streaming all changes
-  23 files to transfer, * of data (glob) (no-rust !)
-  25 files to transfer, * of data (glob) (rust !)
-  transferred * in * seconds (*) (glob)
+  * files to transfer, * of data (glob)
+  stream-cloned * files / * in * seconds (*) (glob)
   $ hg -R stream-clone-fncachestore verify -q
   $ cat port-0-errors.log
 
@@ -795,8 +760,6 @@ Packed bundle
   bundle requirements:.* treemanifest(,.*)? (re)
   $ hg debugbundle --spec repo-packed.hg
   none-packed1;requirements%3D(.*%2C)?treemanifest(%2C.*)? (re)
-
-#endif
 
 Bundle with changegroup2 is not supported
 

@@ -3,7 +3,9 @@ import unittest
 from mercurial import policy
 from mercurial.testing import revlog as revlogtesting
 
-PartialDiscovery = policy.importrust('discovery', member='PartialDiscovery')
+PartialDiscovery = policy.importrust(
+    'discovery', member='PartialDiscovery', pyo3=True
+)
 
 try:
     from mercurial.cext import parsers as cparsers
@@ -48,7 +50,7 @@ class fakerepo:
     "rustext or the C Extension parsers module "
     "discovery relies on is not available",
 )
-class rustdiscoverytest(revlogtesting.RustRevlogBasedTestBase):
+class rustdiscoverytest(revlogtesting.PyO3RevlogBasedTestBase):
     """Test the correctness of binding to Rust code.
 
     This test is merely for the binding to Rust itself: extraction of

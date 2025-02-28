@@ -12,13 +12,13 @@ use super::inner_revlog::RevisionBuffer;
 /// - a replacement when `!data.is_empty() && start < end`
 /// - not doing anything when `data.is_empty() && start == end`
 #[derive(Debug, Clone)]
-struct Chunk<'a> {
+pub(crate) struct Chunk<'a> {
     /// The start position of the chunk of data to replace
-    start: u32,
+    pub(crate) start: u32,
     /// The end position of the chunk of data to replace (open end interval)
-    end: u32,
+    pub(crate) end: u32,
     /// The data replacing the chunk
-    data: &'a [u8],
+    pub(crate) data: &'a [u8],
 }
 
 impl Chunk<'_> {
@@ -60,7 +60,7 @@ pub struct PatchList<'a> {
     /// - ordered from the left-most replacement to the right-most replacement
     /// - non-overlapping, meaning that two chucks can not change the same
     ///   chunk of the patched data
-    chunks: Vec<Chunk<'a>>,
+    pub(crate) chunks: Vec<Chunk<'a>>,
 }
 
 impl<'a> PatchList<'a> {
@@ -83,6 +83,17 @@ impl<'a> PatchList<'a> {
             data = &data[12 + (len as usize)..];
         }
         Ok(PatchList { chunks })
+    }
+
+    /// Creates a patch for a full snapshot, going from nothing to `data`.
+    pub fn full_snapshot(data: &'a [u8]) -> Self {
+        Self {
+            chunks: vec![Chunk {
+                start: 0,
+                end: 0,
+                data,
+            }],
+        }
     }
 
     /// Apply the patch to some data.

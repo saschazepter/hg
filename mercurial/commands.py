@@ -27,6 +27,7 @@ from . import (
     bundlecaches,
     changegroup,
     cmdutil,
+    context as contextmod,
     copies,
     debugcommands as debugcommandsmod,
     destutil,
@@ -119,6 +120,13 @@ globalopts = [
         [],
         _(b'set/override config option (use \'section.name=value\')'),
         _(b'CONFIG'),
+    ),
+    (
+        b'',
+        b'config-file',
+        [],
+        _(b'load config file to set/override config options'),
+        _(b'HGRC'),
     ),
     (b'', b'debug', None, _(b'enable debugging output')),
     (b'', b'debugger', None, _(b'start debugger')),
@@ -2533,6 +2541,14 @@ def debugcomplete(ui, cmd=b'', **opts):
         (b'', b'from', b'', _(b'revision to diff from'), _(b'REV1')),
         (b'', b'to', b'', _(b'revision to diff to'), _(b'REV2')),
         (b'c', b'change', b'', _(b'change made by revision'), _(b'REV')),
+        (
+            b'',
+            b'ignore-changes-from-ancestors',
+            False,
+            _(
+                b'only compare the change made by the selected revision (EXPERIMENTAL)'
+            ),
+        ),
     ]
     + diffopts
     + diffopts2
@@ -2614,6 +2630,7 @@ def diff(ui, repo, *pats, **opts):
     to_rev = opts.get(b'to')
     stat = opts.get(b'stat')
     reverse = opts.get(b'reverse')
+    patch_only = opts.get(b'ignore_changes_from_ancestors')
 
     cmdutil.check_incompatible_arguments(opts, b'from', [b'rev', b'change'])
     cmdutil.check_incompatible_arguments(opts, b'to', [b'rev', b'change'])
@@ -2630,6 +2647,30 @@ def diff(ui, repo, *pats, **opts):
     else:
         repo = scmutil.unhidehashlikerevs(repo, revs, b'nowarn')
         ctx1, ctx2 = logcmdutil.revpair(repo, revs)
+
+    if patch_only and ctx1.p1() != ctx2.p1():
+        old_base = ctx1.p1()
+        new_base = ctx2.p1()
+        new_ctx = contextmod.overlayworkingctx(repo)
+        new_ctx.setbase(ctx1)
+        configoverrides = {
+            (b'ui', b'forcemerge'): b'internal:merge3-lie-about-conflicts'
+        }
+        with ui.configoverride(configoverrides, b'obslog-diff'), ui.silent():
+            mergemod._update(
+                repo,
+                new_base,
+                labels=[
+                    b'from',
+                    b'parent-of-to',
+                    b'parent-of-from',
+                ],
+                force=True,
+                branchmerge=True,
+                wc=new_ctx,
+                ancestor=old_base,
+            )
+        ctx1 = new_ctx.tomemctx(text=ctx1.description())
 
     if reverse:
         ctxleft = ctx2
