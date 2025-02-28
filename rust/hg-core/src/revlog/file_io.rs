@@ -28,10 +28,15 @@ pub struct RandomAccessFile {
     vfs: Box<dyn Vfs>,
     /// Filename of the open file, relative to the vfs root
     pub filename: PathBuf,
-    /// The current read-only handle on the file, if any
-    pub reading_handle: RefCell<Option<FileHandle>>,
-    /// The current read-write handle on the file, if any
-    pub writing_handle: RefCell<Option<FileHandle>>,
+    /// The current read-only handle on the file, if any.
+    /// Specific to the current thread, since we don't want seeks to overlap
+    pub reading_handle: thread_local::ThreadLocal<RefCell<Option<FileHandle>>>,
+    /// The current read-write handle on the file, if any.
+    /// Specific to the current thread, since we don't want seeks to overlap,
+    /// and we can re-use the write handle for reading in certain contexts.
+    /// Logically, two concurrent writes are impossible because they are only
+    /// accessible through `&mut self` methods, which take a lock.
+    pub writing_handle: thread_local::ThreadLocal<RefCell<Option<FileHandle>>>,
 }
 
 impl RandomAccessFile {
@@ -41,8 +46,8 @@ impl RandomAccessFile {
         Self {
             vfs,
             filename,
-            reading_handle: RefCell::new(None),
-            writing_handle: RefCell::new(None),
+            reading_handle: thread_local::ThreadLocal::new(),
+            writing_handle: thread_local::ThreadLocal::new(),
         }
     }
 
@@ -62,7 +67,7 @@ impl RandomAccessFile {
     /// `pub` only for hg-cpython
     #[doc(hidden)]
     pub fn get_read_handle(&self) -> Result<FileHandle, HgError> {
-        if let Some(handle) = &*self.writing_handle.borrow() {
+        if let Some(handle) = &*self.writing_handle.get_or_default().borrow() {
             // Use a file handle being actively used for writes, if available.
             // There is some danger to doing this because reads will seek the
             // file.
@@ -70,7 +75,7 @@ impl RandomAccessFile {
             // before all writes, so we should be safe.
             return Ok(handle.clone());
         }
-        if let Some(handle) = &*self.reading_handle.borrow() {
+        if let Some(handle) = &*self.reading_handle.get_or_default().borrow() {
             return Ok(handle.clone());
         }
         // early returns done to work around borrowck being overzealous
@@ -81,20 +86,21 @@ impl RandomAccessFile {
             false,
             false,
         )?;
-        *self.reading_handle.borrow_mut() = Some(new_handle.clone());
+        *self.reading_handle.get_or_default().borrow_mut() =
+            Some(new_handle.clone());
         Ok(new_handle)
     }
 
     /// `pub` only for hg-cpython
     #[doc(hidden)]
     pub fn exit_reading_context(&self) {
-        self.reading_handle.take();
+        self.reading_handle.get().map(|h| h.take());
     }
 
     // Returns whether this file currently open
     pub fn is_open(&self) -> bool {
-        self.reading_handle.borrow().is_some()
-            || self.writing_handle.borrow().is_some()
+        self.reading_handle.get_or_default().borrow().is_some()
+            || self.writing_handle.get_or_default().borrow().is_some()
     }
 }
 

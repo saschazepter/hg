@@ -5,7 +5,9 @@
 // GNU General Public License version 2 or any later version.
 
 mod ancestors;
+mod bdiff;
 pub mod dagops;
+pub mod encoding;
 pub mod errors;
 pub mod narrow;
 pub mod sparse;

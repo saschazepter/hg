@@ -14,6 +14,7 @@ import copy
 import os
 import re
 import shutil
+import typing
 import zlib
 
 from .i18n import _
@@ -43,6 +44,14 @@ from .utils import (
     procutil,
     stringutil,
 )
+
+if typing.TYPE_CHECKING:
+    import email
+
+    from typing import (
+        Any,
+        Iterator,
+    )
 
 stringio = util.stringio
 
@@ -272,12 +281,18 @@ def _extract(ui, fileobj, tmpname, tmpfp):
     diffs_seen = 0
     ok_types = (b'text/plain', b'text/x-diff', b'text/x-patch')
     message = b''
+
+    part: email.message.Message
     for part in msg.walk():
         content_type = pycompat.bytestr(part.get_content_type())
         ui.debug(b'Content-Type: %s\n' % content_type)
         if content_type not in ok_types:
             continue
-        payload = part.get_payload(decode=True)
+
+        # When decode=True, the only possible return types are bytes or None
+        # for a multipart message.  But it can't be multipart here, because the
+        # Content-Type was just checked.
+        payload = typing.cast(bytes, part.get_payload(decode=True))
         m = diffre.search(payload)
         if m:
             hgpatch = False
@@ -2792,7 +2807,9 @@ def diffsinglehunkinline(hunklines):
                 nextisnewline = True
 
 
-def difflabel(func, *args, **kw):
+# TODO: first tuple element is likely bytes, but was being detected as bytes|int
+#  so it needs investigation/more typing here.
+def difflabel(func, *args, **kw) -> Iterator[tuple[Any, bytes]]:
     '''yields 2-tuples of (output, label) based on the output of func()'''
     if kw.get('opts') and kw['opts'].worddiff:
         dodiffhunk = diffsinglehunkinline

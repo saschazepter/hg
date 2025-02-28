@@ -141,7 +141,7 @@ def environ():
     return env
 
 
-def matchoutput(cmd, regexp, ignorestatus=False):
+def matchoutput(cmd, regexp: bytes, ignorestatus: bool = False):
     """Return the match object if cmd executes successfully and its output
     is matched by the supplied regular expression.
     """
@@ -175,7 +175,7 @@ def has_bzr():
         import breezy.revision
         import breezy.revisionspec
 
-        breezy.revisionspec.RevisionSpec
+        del breezy.revisionspec
         if breezy.__doc__ is None or breezy.version_info[:2] < (3, 1):
             return False
     except (AttributeError, ImportError):
@@ -340,7 +340,7 @@ def has_lsprof():
     try:
         import _lsprof
 
-        _lsprof.Profiler  # silence unused import warning
+        del _lsprof  # silence unused import warning
         return True
     except ImportError:
         return False
@@ -349,8 +349,8 @@ def has_lsprof():
 def _gethgversion():
     m = matchoutput('hg --version --quiet 2>&1', br'(\d+)\.(\d+)')
     if not m:
-        return (0, 0)
-    return (int(m.group(1)), int(m.group(2)))
+        return 0, 0
+    return int(m.group(1)), int(m.group(2))
 
 
 _hgversion = None
@@ -386,21 +386,23 @@ def has_rust():
 def has_hg08():
     if checks["hg09"][0]():
         return True
-    return matchoutput('hg help annotate 2>&1', '--date')
+    return matchoutput('hg help annotate 2>&1', b'--date')
 
 
 @check("hg07", "Mercurial >= 0.7")
 def has_hg07():
     if checks["hg08"][0]():
         return True
-    return matchoutput('hg --version --quiet 2>&1', 'Mercurial Distributed SCM')
+    return matchoutput(
+        'hg --version --quiet 2>&1', b'Mercurial Distributed SCM'
+    )
 
 
 @check("hg06", "Mercurial >= 0.6")
 def has_hg06():
     if checks["hg07"][0]():
         return True
-    return matchoutput('hg --version --quiet 2>&1', 'Mercurial version')
+    return matchoutput('hg --version --quiet 2>&1', b'Mercurial version')
 
 
 @check("gettext", "GNU Gettext (msgfmt)")
@@ -416,8 +418,8 @@ def has_git():
 def getgitversion():
     m = matchoutput('git --version 2>&1', br'git version (\d+)\.(\d+)')
     if not m:
-        return (0, 0)
-    return (int(m.group(1)), int(m.group(2)))
+        return 0, 0
+    return int(m.group(1)), int(m.group(2))
 
 
 @check("pygit2", "pygit2 Python library")
@@ -425,7 +427,7 @@ def has_pygit2():
     try:
         import pygit2
 
-        pygit2.Oid  # silence unused import
+        del pygit2  # silence unused import
         return True
     except ImportError:
         return False
@@ -454,7 +456,7 @@ def has_docutils():
     try:
         import docutils.core
 
-        docutils.core.publish_cmdline  # silence unused import
+        del docutils.core  # silence unused import
         return True
     except ImportError:
         return False
@@ -463,8 +465,8 @@ def has_docutils():
 def getsvnversion():
     m = matchoutput('svn --version --quiet 2>&1', br'^(\d+)\.(\d+)')
     if not m:
-        return (0, 0)
-    return (int(m.group(1)), int(m.group(2)))
+        return 0, 0
+    return int(m.group(1)), int(m.group(2))
 
 
 @checkvers("svn", "subversion client and admin tools >= %s", ('1.3', '1.5'))
@@ -646,7 +648,7 @@ def has_pygments():
     try:
         import pygments
 
-        pygments.highlight  # silence unused import warning
+        del pygments  # silence unused import warning
         return True
     except ImportError:
         return False
@@ -659,9 +661,9 @@ def getpygmentsversion():
         v = pygments.__version__
 
         parts = v.split(".")
-        return (int(parts[0]), int(parts[1]))
+        return int(parts[0]), int(parts[1])
     except ImportError:
-        return (0, 0)
+        return 0, 0
 
 
 @checkvers("pygments", "Pygments version >= %s", ('2.5', '2.11', '2.14'))
@@ -681,7 +683,7 @@ def has_ssl():
     try:
         import ssl
 
-        ssl.CERT_NONE
+        del ssl
         return True
     except ImportError:
         return False
@@ -767,7 +769,7 @@ def has_curses():
     try:
         import curses
 
-        curses.COLOR_BLUE
+        del curses
 
         # Windows doesn't have a `tic` executable, but the windows_curses
         # package is sufficient to run the tests without it.
@@ -811,12 +813,12 @@ def has_osx():
 def has_osxpackaging():
     try:
         return (
-            matchoutput('pkgbuild', br'Usage: pkgbuild ', ignorestatus=1)
+            matchoutput('pkgbuild', br'Usage: pkgbuild ', ignorestatus=True)
             and matchoutput(
-                'productbuild', br'Usage: productbuild ', ignorestatus=1
+                'productbuild', br'Usage: productbuild ', ignorestatus=True
             )
-            and matchoutput('lsbom', br'Usage: lsbom', ignorestatus=1)
-            and matchoutput('xar --help', br'Usage: xar', ignorestatus=1)
+            and matchoutput('lsbom', br'Usage: lsbom', ignorestatus=True)
+            and matchoutput('xar --help', br'Usage: xar', ignorestatus=True)
         )
     except ImportError:
         return False
@@ -929,7 +931,7 @@ def has_hypothesis():
     try:
         import hypothesis
 
-        hypothesis.given
+        del hypothesis
         return True
     except ImportError:
         return False
@@ -945,7 +947,7 @@ def has_zstd():
     try:
         import mercurial.zstd
 
-        mercurial.zstd.__version__
+        del mercurial.zstd
         return True
     except ImportError:
         return False
@@ -961,7 +963,7 @@ def has_ensurepip():
     try:
         import ensurepip
 
-        ensurepip.bootstrap
+        del ensurepip
         return True
     except ImportError:
         return False
@@ -990,7 +992,7 @@ def has_fuzzywuzzy():
     try:
         import fuzzywuzzy
 
-        fuzzywuzzy.__version__
+        del fuzzywuzzy
         return True
     except ImportError:
         return False
@@ -1026,65 +1028,6 @@ def has_extraextensions():
     return 'HGTESTEXTRAEXTENSIONS' in os.environ
 
 
-def getrepofeatures():
-    """Obtain set of repository features in use.
-
-    HGREPOFEATURES can be used to define or remove features. It contains
-    a space-delimited list of feature strings. Strings beginning with ``-``
-    mean to remove.
-    """
-    # Default list provided by core.
-    features = {
-        'bundlerepo',
-        'revlogstore',
-        'fncache',
-    }
-
-    # Features that imply other features.
-    implies = {
-        'simplestore': ['-revlogstore', '-bundlerepo', '-fncache'],
-    }
-
-    for override in os.environ.get('HGREPOFEATURES', '').split(' '):
-        if not override:
-            continue
-
-        if override.startswith('-'):
-            if override[1:] in features:
-                features.remove(override[1:])
-        else:
-            features.add(override)
-
-            for imply in implies.get(override, []):
-                if imply.startswith('-'):
-                    if imply[1:] in features:
-                        features.remove(imply[1:])
-                else:
-                    features.add(imply)
-
-    return features
-
-
-@check('reporevlogstore', 'repository using the default revlog store')
-def has_reporevlogstore():
-    return 'revlogstore' in getrepofeatures()
-
-
-@check('reposimplestore', 'repository using simple storage extension')
-def has_reposimplestore():
-    return 'simplestore' in getrepofeatures()
-
-
-@check('repobundlerepo', 'whether we can open bundle files as repos')
-def has_repobundlerepo():
-    return 'bundlerepo' in getrepofeatures()
-
-
-@check('repofncache', 'repository has an fncache')
-def has_repofncache():
-    return 'fncache' in getrepofeatures()
-
-
 @check('dirstate-v2', 'using the v2 format of .hg/dirstate')
 def has_dirstate_v2():
     # Keep this logic in sync with `newreporequirements()` in `mercurial/localrepo.py`
@@ -1114,7 +1057,7 @@ def has_vcr():
     try:
         import vcr
 
-        vcr.VCR
+        del vcr
         return True
     except (ImportError, AttributeError):
         pass
@@ -1184,7 +1127,7 @@ def has_lzma():
     try:
         import _lzma
 
-        _lzma.FORMAT_XZ
+        del _lzma
         return True
     except ImportError:
         return False

@@ -85,15 +85,9 @@ new directories are setgid
   00660 ./.hg/store/00manifest.i
   00770 ./.hg/store/data/
   00770 ./.hg/store/data/dir/
-  00660 ./.hg/store/data/dir/bar.i (reporevlogstore !)
-  00660 ./.hg/store/data/foo.i (reporevlogstore !)
-  00770 ./.hg/store/data/dir/bar/ (reposimplestore !)
-  00660 ./.hg/store/data/dir/bar/b80de5d138758541c5f05265ad144ab9fa86d1db (reposimplestore !)
-  00660 ./.hg/store/data/dir/bar/index (reposimplestore !)
-  00770 ./.hg/store/data/foo/ (reposimplestore !)
-  00660 ./.hg/store/data/foo/b80de5d138758541c5f05265ad144ab9fa86d1db (reposimplestore !)
-  00660 ./.hg/store/data/foo/index (reposimplestore !)
-  00660 ./.hg/store/fncache (repofncache !)
+  00660 ./.hg/store/data/dir/bar.i
+  00660 ./.hg/store/data/foo.i
+  00660 ./.hg/store/fncache
   00660 ./.hg/store/phaseroots
   00600 ./.hg/store/requires
   00660 ./.hg/store/undo
@@ -104,7 +98,7 @@ new directories are setgid
   00711 ./.hg/wcache/checkisexec
   007.. ./.hg/wcache/checklink (re)
   00600 ./.hg/wcache/checklink-target
-  00660 ./.hg/wcache/manifestfulltextcache (reporevlogstore !)
+  00660 ./.hg/wcache/manifestfulltextcache
   00700 ./dir/
   00600 ./dir/bar
   00600 ./foo
@@ -147,15 +141,9 @@ group can still write everything
   00660 ../push/.hg/store/00manifest.i
   00770 ../push/.hg/store/data/
   00770 ../push/.hg/store/data/dir/
-  00660 ../push/.hg/store/data/dir/bar.i (reporevlogstore !)
-  00660 ../push/.hg/store/data/foo.i (reporevlogstore !)
-  00770 ../push/.hg/store/data/dir/bar/ (reposimplestore !)
-  00660 ../push/.hg/store/data/dir/bar/b80de5d138758541c5f05265ad144ab9fa86d1db (reposimplestore !)
-  00660 ../push/.hg/store/data/dir/bar/index (reposimplestore !)
-  00770 ../push/.hg/store/data/foo/ (reposimplestore !)
-  00660 ../push/.hg/store/data/foo/b80de5d138758541c5f05265ad144ab9fa86d1db (reposimplestore !)
-  00660 ../push/.hg/store/data/foo/index (reposimplestore !)
-  00660 ../push/.hg/store/fncache (repofncache !)
+  00660 ../push/.hg/store/data/dir/bar.i
+  00660 ../push/.hg/store/data/foo.i
+  00660 ../push/.hg/store/fncache
   00660 ../push/.hg/store/requires
   00660 ../push/.hg/store/undo
   00660 ../push/.hg/store/undo.backupfiles

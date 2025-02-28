@@ -124,12 +124,14 @@ Check everything is fine
   adding [c] rbc-names-v2 (7 bytes)
   adding [c] rbc-revs-v2 (24 bytes)
   updating the branch cache
-  transferred 2.11 KB in * seconds (* */sec) (glob) (no-rust !)
-  transferred 2.29 KB in * seconds (* */sec) (glob) (rust !)
+  stream-cloned 9 files / 2.11 KB in * seconds (* */sec) (glob) (no-rust stream-bundle2-v3 !)
+  stream-cloned 11 files / 2.29 KB in * seconds (* */sec) (glob) (rust stream-bundle2-v3 !)
   bundle2-input-part: total payload size 2285 (stream-bundle2-v2 no-rust !)
   bundle2-input-part: total payload size 2518 (stream-bundle2-v2 rust !)
   bundle2-input-part: total payload size 2313 (stream-bundle2-v3 no-rust !)
   bundle2-input-part: total payload size 2546 (stream-bundle2-v3 rust !)
+  stream-cloned 8 files / 2.11 KB in * seconds (* */sec) (glob) (no-rust stream-bundle2-v2 !)
+  stream-cloned 10 files / 2.29 KB in * seconds (* */sec) (glob) (rust stream-bundle2-v2 !)
   bundle2-input-part: "listkeys" (params: 1 mandatory) supported
   bundle2-input-bundle: 2 parts total
   checking for updated bookmarks

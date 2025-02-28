@@ -25,6 +25,7 @@ from typing import (
     List,
     MutableMapping,
     Optional,
+    Set,
     Tuple,
     Type,
     TypeVar,
@@ -85,6 +86,11 @@ class abstractvfs(abc.ABC):
     # Used to disable the Rust `InnerRevlog` in case the VFS is not supported
     # by the Rust code
     rust_compatible = True
+
+    # createmode is always available on subclasses
+    createmode: int
+
+    _chmod: bool
 
     # TODO: type return, which is util.posixfile wrapped by a proxy
     @abc.abstractmethod
@@ -343,7 +349,11 @@ class abstractvfs(abc.ABC):
         """
         if forcibly:
 
-            def onexc(function, path: bytes, excinfo):
+            def onexc(function: Callable, path: str, excinfo: Exception):
+                # Note: str is passed here even if bytes are passed to rmtree
+                # on platforms where `shutil._use_fd_functions == True`.  It is
+                # bytes otherwise.  Fortunately, the methods used here accept
+                # both.
                 if function is not os.remove:
                     raise
                 # read-only files cannot be unlinked under Windows
@@ -354,7 +364,10 @@ class abstractvfs(abc.ABC):
                 os.remove(path)
 
         else:
-            onexc = None
+
+            def onexc(*args):
+                pass
+
         try:
             # pytype: disable=wrong-keyword-args
             return shutil.rmtree(
@@ -448,6 +461,32 @@ class abstractvfs(abc.ABC):
 
     def register_file(self, path: bytes) -> None:
         """generic hook point to lets fncache steer its stew"""
+
+    def prepare_streamed_file(
+        self, path: bytes, known_directories: Set[bytes]
+    ) -> Tuple[bytes, Optional[int]]:
+        """make sure we are ready to write a file from a stream clone
+
+        The "known_directories" variable is here to avoid trying to create the
+        same directories over and over during a stream clone. It will be
+        updated by this function.
+
+        return (path, mode)::
+
+            <path> is the real file system path content should be written to,
+            <mode> is the file mode that need to be set if any.
+        """
+        self._auditpath(path, b'wb')
+        self.register_file(path)
+        real_path = self.join(path)
+        dirname, basename = util.split(real_path)
+        if dirname not in known_directories:
+            util.makedirs(dirname, self.createmode, True)
+            known_directories.add(dirname)
+        mode = None
+        if self.createmode is not None:
+            mode = self.createmode & 0o666
+        return real_path, mode
 
 
 class vfs(abstractvfs):
@@ -549,6 +588,7 @@ class vfs(abstractvfs):
         checkambig: bool = False,
         auditpath: bool = True,
         makeparentdirs: bool = True,
+        buffering: int = -1,
     ) -> Any:  # TODO: should be BinaryIO if util.atomictempfile can be coersed
         """Open ``path`` file, which is relative to vfs root.
 
@@ -619,7 +659,7 @@ class vfs(abstractvfs):
                         self._trustnlink = nlink > 1 or util.checknlink(f)
                     if nlink > 1 or not self._trustnlink:
                         util.rename(util.mktempcopy(f), f)
-        fp = util.posixfile(f, mode)
+        fp = util.posixfile(f, mode, buffering=buffering)
         if nlink == 0:
             self._fixfilemode(f)
 

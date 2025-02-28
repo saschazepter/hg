@@ -1,6 +1,6 @@
 This file contains tests case that deal with format change accross stream clone
 
-#require serve no-reposimplestore no-chg
+#require serve no-chg
 
 #testcases stream-legacy stream-bundle2
 

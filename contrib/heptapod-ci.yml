@@ -46,9 +46,6 @@ variables:
     # with shell runner, its content is not cleaned from one call to the next,
     # so plan for it.
     TMP_WORK_DIR: "${CI_PROJECT_DIR}/../.."
-    # we use CIBW_SKIP="pp*" to prevent the building of pypy wheel that are neither
-    # needed nor working.
-    CIBW_SKIP: "pp*"
 
 .all:
   # help changing all job at once when debugging
@@ -100,7 +97,6 @@ trigger-nightly-build:
   variables:
     WHEEL_TYPE: ""
     FLAVOR: ""
-    MERCURIAL_SETUP_FORCE_TRANSLATIONS: "1"
     CI_CLEVER_CLOUD_FLAVOR: "XS"
   script:
     - PLATFORM=`/opt/python/cp313-cp313/bin/python -c 'import sys; print(sys.platform)'`
@@ -108,7 +104,7 @@ trigger-nightly-build:
     - test -n "$WHEEL_TYPE"
     - echo $FLAVOR
     - mkdir -p wheels/$PLATFORM/$WHEEL_TYPE/$BUILD_PY_ID
-    - contrib/build-one-linux-wheel.sh $BUILD_PY_ID wheels/$PLATFORM/$WHEEL_TYPE/$BUILD_PY_ID
+    - contrib/build-one-linux-wheel.sh $BUILD_PY_ID wheels/$PLATFORM/$WHEEL_TYPE/$BUILD_PY_ID $WHEEL_TYPE
   artifacts:
     paths:
       - wheels/
@@ -123,13 +119,18 @@ build-c-wheel:
   parallel:
     matrix:
       - BUILD_PY_ID:
+          - cp311-cp311
           - cp38-cp38
           - cp39-cp39
           - cp310-cp310
-          - cp311-cp311
           - cp312-cp312
           - cp313-cp313
 
+build-rust-wheel:
+  image: "registry.heptapod.net:443/mercurial/ci-images/core-wheel-x86_64-rust:v3.0"
+  extends: build-c-wheel
+  variables:
+    WHEEL_TYPE: "rust"
 
 .wheel-trigger:
   extends: .trigger
@@ -230,16 +231,20 @@ build-c-wheel-arm64-musl:
              test -n "$WHEEL";
              echo installing from $WHEEL;
              WHEEL_ARG="--hg-wheel $WHEEL";
-             echo disabling flavor as this is currently incompatible with '"--hg-wheel"';
-             FLAVOR="";
+             if [[ -n "$FLAVOR"  ]] && [[ "$FLAVOR" != "--rust" ]]; then
+               echo disabling flavor '"'$FLAVOR'"' as this is currently incompatible with '"--hg-wheel"';
+               FLAVOR="";
+             fi
           else
             echo installing from source;
           fi;
-        - if [ -n "$CI_NODE_INDEX" ]; then 
+        - if [ -n "$CI_NODE_INDEX" ]; then
             echo "Running the test in multiple shard - [$CI_NODE_INDEX/$CI_NODE_TOTAL]";
             SHARDING_ARGS="--shard-index $CI_NODE_INDEX --shard-total $CI_NODE_TOTAL";
             echo "sharding... $SHARDING_ARGS";
           fi
+        - echo HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" "$PYTHON" tests/run-tests.py
+            --color=always --tail-report $PORT_ARG $WHEEL_ARG $FLAVOR $SHARDING_ARGS $FILTER $RUNTEST_ARGS;
         - HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO"
           "$PYTHON" tests/run-tests.py
             --color=always
@@ -295,11 +300,24 @@ test-pure:
     variables:
         FLAVOR: "--pure"
 
-test-rust:
+.test-rust:
     extends: .runtests-no-check
     variables:
         HGWITHRUSTEXT: "cpython"
         FLAVOR: "--rust"
+
+test-rust:
+    extends: .test-rust
+    variables:
+        HGWITHRUSTEXT: "cpython"
+        FLAVOR: "--rust"
+    needs:
+      - job: build-rust-wheel
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp311-cp311"
+    variables:
+        WHEEL_TYPE: "rust"
 
 test-rhg:
     extends: .runtests-no-check
@@ -357,7 +375,7 @@ test-3.12-c:
             - BUILD_PY_ID: "cp312-cp312"
 
 test-3.12-rust:
-    extends: test-rust
+    extends: .test-rust
     stage: py-version-compat
     needs:
       - trigger-pycompat
@@ -376,7 +394,7 @@ test-3.13-c:
             - BUILD_PY_ID: "cp313-cp313"
 
 test-3.13-rust:
-    extends: test-rust
+    extends: .test-rust
     stage: py-version-compat
     needs:
       - trigger-pycompat
@@ -384,7 +402,7 @@ test-3.13-rust:
         PYTHON: python3.13
 
 check-pytype:
-    extends: test-rust
+    extends: .test-rust
     stage: checks
     before_script:
       - export PATH="/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/shims:/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/bin:$PATH"
@@ -392,6 +410,9 @@ check-pytype:
       - hg clone . "${TMP_WORK_DIR}"/mercurial-ci/ --noupdate --config phases.publish=no
       - hg -R "${TMP_WORK_DIR}"/mercurial-ci/ update `hg log --rev '.' --template '{node}'`
       - cd "${TMP_WORK_DIR}"/mercurial-ci/
+      - echo $HGWITHRUSTEXT
+      # We need to unset HGWITHRUSTEXT since editable install is broken with Rust
+      - unset HGWITHRUSTEXT
       - make local PYTHON=$PYTHON
       - ./contrib/setup-pytype.sh
     script:
@@ -439,8 +460,6 @@ build-c-wheel-windows:
     - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
       needs:
         - "trigger-wheel-windows"
-    variables:
-      MERCURIAL_SETUP_FORCE_TRANSLATIONS: "1"
     script:
         - echo "Entering script section"
         - echo "python used, $Env:PYTHON"
@@ -554,8 +573,6 @@ macos:
 # this is the only one we need to test. However testing that build work on all
 # version is useful and match what we do with Linux.
 #
-# CIBW_SKIP is set globally at the start of the file. See comment there.
-#
 # The weird directory structure match the one we use for Linux to deal with the
 # multiple jobs. (all this might be unnecessary)
 build-c-wheel-macos:
@@ -567,15 +584,17 @@ build-c-wheel-macos:
       when: manual  # avoid overloading the CI by default
       allow_failure: true
     stage: build
+    variables:
+        # TODO: drop this when CI system is updated to support arm64 builds
+        CIBW_ARCHS: "x86_64"
     tags:
       - macos
-    variables:
-      MERCURIAL_SETUP_FORCE_TRANSLATIONS: "1"
     script:
       - PLATFORM=`$PYTHON -c 'import sys; print(sys.platform)'`
       - rm -rf tmp-wheels
       - cibuildwheel --output-dir tmp-wheels/
-      - for py_version in cp38-cp38 cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313; do
+      - for py_version in $(cibuildwheel --print-build-identifiers | egrep -o 'cp[0-9]+' | sort | uniq); do
+          py_version="${py_version}-${py_version}";
           mkdir -p wheels/$PLATFORM/c/$py_version/;
           mv tmp-wheels/*$py_version*.whl wheels/$PLATFORM/c/$py_version/;
         done

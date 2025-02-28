@@ -1,4 +1,4 @@
-#require serve no-reposimplestore no-chg
+#require serve no-chg
 
 #testcases stream-legacy stream-bundle2-v2 stream-bundle2-v3
 
@@ -191,9 +191,9 @@ changes in the process.
   $ hg clone --stream -U http://localhost:$HGPORT clone1
   streaming all changes
   1091 files to transfer, 102 KB of data (no-zstd !)
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
+  stream-cloned 1091 files / 102 KB in * seconds (* */sec) (glob) (no-zstd !)
   1091 files to transfer, 98.8 KB of data (zstd !)
-  transferred 98.8 KB in * seconds (* */sec) (glob) (zstd !)
+  stream-cloned 1091 files / 98.8 KB in * seconds (* */sec) (glob) (zstd !)
   searching for changes
   no changes found
 #endif
@@ -201,20 +201,20 @@ changes in the process.
   $ hg clone --stream -U http://localhost:$HGPORT clone1
   streaming all changes
   1094 files to transfer, 102 KB of data (no-zstd !)
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
+  stream-cloned 1094 files / 102 KB in * seconds (* */sec) (glob) (no-zstd !)
   1094 files to transfer, 98.9 KB of data (zstd no-rust !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  stream-cloned 1094 files / 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
   1096 files to transfer, 99.0 KB of data (zstd rust !)
-  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
+  stream-cloned 1096 files / 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
 #endif
 
 #if stream-bundle2-v3
   $ hg clone --stream -U http://localhost:$HGPORT clone1
   streaming all changes
   1093 entries to transfer
-  transferred 102 KB in * seconds (* */sec) (glob) (no-zstd !)
-  transferred 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
-  transferred 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
+  stream-cloned 1094 files / 102 KB in * seconds (* */sec) (glob) (no-zstd !)
+  stream-cloned 1094 files / 98.9 KB in * seconds (* */sec) (glob) (zstd no-rust !)
+  stream-cloned 1096 files / 99.0 KB in * seconds (* */sec) (glob) (zstd rust !)
 #endif
 
 #if no-stream-legacy
@@ -257,7 +257,7 @@ The alias flag should trigger a stream clone too.
   streaming all changes
   * files to transfer* (glob) (no-stream-bundle2-v3 !)
   * entries to transfer (glob) (stream-bundle2-v3 !)
-  transferred * KB in * seconds (* */sec) (glob)
+  stream-cloned * files / * KB in * seconds (* */sec) (glob)
   searching for changes (stream-legacy !)
   no changes found (stream-legacy !)
 
@@ -304,7 +304,7 @@ Secret changeset can still be streamed if the server is configured to do so.
   streaming all changes
   * files to transfer* (glob) (no-stream-bundle2-v3 !)
   * entries to transfer (glob) (stream-bundle2-v3 !)
-  transferred * KB in * seconds (* */sec) (glob)
+  stream-cloned * files / * KB in * seconds (* */sec) (glob)
   searching for changes (stream-legacy !)
   no changes found (stream-legacy !)
 
@@ -463,7 +463,7 @@ clone it
   1097 files to transfer, * KB of data (glob) (stream-bundle2-v2 no-rust !)
   1099 files to transfer, * KB of data (glob) (stream-bundle2-v2 rust !)
   1096 entries to transfer (stream-bundle2-v3 !)
-  transferred * KB in * seconds (* */sec) (glob)
+  stream-cloned * files / * KB in * seconds (* */sec) (glob)
   searching for changes (stream-legacy !)
   no changes found (stream-legacy !)
   updating to branch default
@@ -491,7 +491,7 @@ Clone as publishing
   1097 files to transfer, * KB of data (glob) (stream-bundle2-v2 no-rust !)
   1099 files to transfer, * KB of data (glob) (stream-bundle2-v2 rust !)
   1096 entries to transfer (stream-bundle2-v3 !)
-  transferred * KB in * seconds (* */sec) (glob)
+  stream-cloned * files * KB in * seconds (* */sec) (glob)
   searching for changes (stream-legacy !)
   no changes found (stream-legacy !)
   updating to branch default
@@ -514,11 +514,9 @@ Clone as non publishing
 
   $ hg clone --stream http://localhost:$HGPORT phase-no-publish
   streaming all changes
-  1091 files to transfer, * KB of data (glob) (stream-legacy !)
-  1098 files to transfer, * KB of data (glob) (stream-bundle2-v2 no-rust !)
-  1100 files to transfer, * KB of data (glob) (stream-bundle2-v2 rust !)
-  1097 entries to transfer (stream-bundle2-v3 !)
-  transferred * KB in * seconds (* */sec) (glob)
+  * files to transfer, * KB of data (glob) (no-stream-bundle2-v3 !)
+  * entries to transfer (glob) (stream-bundle2-v3 !)
+  stream-cloned * / * KB in * seconds (* */sec) (glob)
   searching for changes (stream-legacy !)
   no changes found (stream-legacy !)
   updating to branch default
@@ -578,7 +576,7 @@ The obsstore file should be send as part of the stream bundle
   1099 files to transfer, * KB of data (glob) (stream-bundle2-v2 no-rust !)
   1101 files to transfer, * KB of data (glob) (stream-bundle2-v2 rust !)
   1098 entries to transfer (no-stream-bundle2-v2 !)
-  transferred * KB in * seconds (* */sec) (glob)
+  stream-cloned * files / * KB in * seconds (* */sec) (glob)
   $ hg -R with-obsolescence log -T '{rev}: {phase}\n'
   2: draft
   1: draft

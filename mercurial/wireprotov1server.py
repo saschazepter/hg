@@ -279,17 +279,20 @@ def get_cached_bundle_inline(repo, proto, path):
             clonebundlepath=path,
         )
 
-    bundle_dir = repo.vfs.join(bundlecaches.BUNDLE_CACHE_DIR)
-    clonebundlepath = repo.vfs.join(bundle_dir, path)
+    bundle_root = repo.ui.config(b'server', b'peer-bundle-cache-root')
+    bundle_root_dir = repo.vfs.join(bundle_root)
+    clonebundlepath = repo.vfs.join(bundle_root, path)
     if not repo.vfs.exists(clonebundlepath):
         raise error.Abort(b'clonebundle %s does not exist' % path)
 
-    clonebundles_dir = os.path.realpath(bundle_dir)
+    clonebundles_dir = os.path.realpath(bundle_root_dir)
+    # audit invariance: absolute path of the bundle is below the bundle root
     if not os.path.realpath(clonebundlepath).startswith(clonebundles_dir):
         raise error.Abort(b'clonebundle %s is using an illegal path' % path)
 
     def generator(vfs, bundle_path):
-        with vfs(bundle_path) as f:
+        # path audited above already
+        with vfs(bundle_path, auditpath=False) as f:
             length = os.fstat(f.fileno())[6]
             yield util.uvarintencode(length)
             yield from util.filechunkiter(f)

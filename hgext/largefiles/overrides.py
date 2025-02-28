@@ -19,6 +19,8 @@ from typing import (
 
 from mercurial.i18n import _
 
+from mercurial.interfaces.types import MatcherT
+
 from mercurial.hgweb import webcommands
 
 from mercurial import (
@@ -1232,7 +1234,7 @@ def overridearchive(
     node,
     kind,
     decode=True,
-    match: Optional[matchmod.basematcher] = None,
+    match: Optional[MatcherT] = None,
     prefix=b'',
     mtime=None,
     subrepos=None,
@@ -1336,9 +1338,9 @@ def overridearchive(
             # allow only hgsubrepos to set this, instead of the current scheme
             # where the parent sets this for the child.
             with (
-                hasattr(sub, '_repo')
-                and lfstatus(sub._repo)
-                or util.nullcontextmanager()
+                lfstatus(sub._repo)
+                if hasattr(sub, '_repo')
+                else util.nullcontextmanager()
             ):
                 sub.archive(opencallback, subprefix, submatch)
 
@@ -1347,9 +1349,7 @@ def overridearchive(
 
 
 @eh.wrapfunction(subrepo.hgsubrepo, 'archive')
-def hgsubrepoarchive(
-    orig, repo, opener, prefix, match: matchmod.basematcher, decode=True
-):
+def hgsubrepoarchive(orig, repo, opener, prefix, match: MatcherT, decode=True):
     lfenabled = hasattr(repo._repo, '_largefilesenabled')
     if not lfenabled or not repo._repo.lfstatus:
         return orig(repo, opener, prefix, match, decode)
@@ -1410,9 +1410,9 @@ def hgsubrepoarchive(
         # would allow only hgsubrepos to set this, instead of the current scheme
         # where the parent sets this for the child.
         with (
-            hasattr(sub, '_repo')
-            and lfstatus(sub._repo)
-            or util.nullcontextmanager()
+            lfstatus(sub._repo)
+            if hasattr(sub, '_repo')
+            else util.nullcontextmanager()
         ):
             sub.archive(opener, subprefix, submatch, decode)
 

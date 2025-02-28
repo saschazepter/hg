@@ -725,13 +725,11 @@ impl Index {
         &self,
         rev: Revision,
         stop_rev: Option<Revision>,
-        using_general_delta: Option<bool>,
     ) -> Result<(Vec<Revision>, bool), HgError> {
         let mut current_rev = rev;
         let mut entry = self.get_entry(rev).unwrap();
         let mut chain = vec![];
-        let using_general_delta =
-            using_general_delta.unwrap_or_else(|| self.uses_generaldelta());
+        let using_general_delta = self.uses_generaldelta();
         while current_rev.0 != entry.base_revision_or_base_of_delta_chain().0
             && stop_rev.map(|r| r != current_rev).unwrap_or(true)
         {
@@ -882,9 +880,9 @@ impl Index {
                 if parent_base.0 == p1.0 {
                     break;
                 }
-                p1 = self.check_revision(parent_base).ok_or(
-                    RevlogError::InvalidRevision(parent_base.to_string()),
-                )?;
+                p1 = self.check_revision(parent_base).ok_or_else(|| {
+                    RevlogError::InvalidRevision(parent_base.to_string())
+                })?;
             }
             while let Some(p2_entry) = self.get_entry(p2) {
                 if p2_entry.compressed_len() != 0 || p2.0 == 0 {
@@ -895,16 +893,16 @@ impl Index {
                 if parent_base.0 == p2.0 {
                     break;
                 }
-                p2 = self.check_revision(parent_base).ok_or(
-                    RevlogError::InvalidRevision(parent_base.to_string()),
-                )?;
+                p2 = self.check_revision(parent_base).ok_or_else(|| {
+                    RevlogError::InvalidRevision(parent_base.to_string())
+                })?;
             }
             if base == p1.0 || base == p2.0 {
                 return Ok(false);
             }
-            rev = self
-                .check_revision(base.into())
-                .ok_or(RevlogError::InvalidRevision(base.to_string()))?;
+            rev = self.check_revision(base.into()).ok_or_else(|| {
+                RevlogError::InvalidRevision(base.to_string())
+            })?;
         }
         Ok(rev == NULL_REVISION)
     }

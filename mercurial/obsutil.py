@@ -417,7 +417,10 @@ def _cmpdiff(leftctx, rightctx):
 
     This is a first and basic implementation, with many shortcoming.
     """
-    diffopts = diffutil.diffallopts(leftctx.repo().ui, {b'git': True})
+    diffopts = diffutil.diffallopts(
+        leftctx.repo().ui,
+        {b'git': True, b'unified': 1},
+    )
 
     # Leftctx or right ctx might be filtered, so we need to use the contexts
     # with an unfiltered repository to safely compute the diff

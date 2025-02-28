@@ -95,6 +95,9 @@ impl VCSGraph for PySharedIndex {
             Err(hg::GraphError::ParentOutOfRange(rev)) => {
                 Err(vcsgraph::graph::GraphReadError::KeyedInvalidKey(rev.0))
             }
+            Err(hg::GraphError::ParentOutOfOrder(_)) => {
+                Err(vcsgraph::graph::GraphReadError::InconsistentGraphData)
+            }
         }
     }
 }
@@ -920,14 +923,11 @@ py_class!(pub class InnerRevlog |py| {
     }
 
     def _deltachain(&self, *args, **kw) -> PyResult<PyObject> {
-        let inner = self.inner(py).borrow();
-        let general_delta = inner.index.uses_generaldelta();
         let args = PyTuple::new(
             py,
             &[
                 args.get_item(py, 0),
                 kw.and_then(|d| d.get_item(py, "stoprev")).to_py_object(py),
-                general_delta.to_py_object(py).into_object(),
             ]
         );
         self._index_deltachain(py, &args, kw)
@@ -1391,11 +1391,8 @@ py_class!(pub class InnerRevlog |py| {
                 nodemap_error(py, NodeMapError::RevisionNotInIndex(stop_rev))
             })?)
         } else {None};
-        let using_general_delta = args.get_item(py, 2)
-            .extract::<Option<u32>>(py)?
-            .map(|i| i != 0);
         let (chain, stopped) = index.delta_chain(
-            rev, stop_rev, using_general_delta
+            rev, stop_rev
         ).map_err(|e| {
             PyErr::new::<cpython::exc::ValueError, _>(py, e.to_string())
         })?;

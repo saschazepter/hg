@@ -13,7 +13,6 @@ import posixpath
 import shutil
 import stat
 import typing
-import weakref
 
 from .i18n import _
 from .node import (
@@ -950,14 +949,16 @@ def clone(
             # important:
             #
             #    We still need to release that lock at the end of the function
-            destpeer.local()._lockref = weakref.ref(destlock)
-            destpeer.local()._wlockref = weakref.ref(destwlock)
-            # dirstate also needs to be copied because `_wlockref` has a reference
-            # to it: this dirstate is saved to disk when the wlock is released
-            destpeer.local().dirstate = destrepo.dirstate
+            if destrepo.dirstate._dirty:
+                msg = "dirstate dirty after stream clone"
+                raise error.ProgrammingError(msg)
+            destwlock = destpeer.local().wlock(steal_from=destwlock)
+            destlock = destpeer.local().lock(steal_from=destlock)
 
             srcrepo.hook(
-                b'outgoing', source=b'clone', node=srcrepo.nodeconstants.nullhex
+                b'outgoing',
+                source=b'clone',
+                node=srcrepo.nodeconstants.nullhex,
             )
         else:
             try:
@@ -1121,8 +1122,10 @@ def clone(
                     bookmarks.activate(destrepo, update)
             if destlock is not None:
                 release(destlock)
+                destlock = None
             if destwlock is not None:
-                release(destlock)
+                release(destwlock)
+                destwlock = None
             # here is a tiny windows were someone could end up writing the
             # repository before the cache are sure to be warm. This is "fine"
             # as the only "bad" outcome would be some slowness. That potential

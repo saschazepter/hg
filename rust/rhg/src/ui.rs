@@ -5,20 +5,23 @@ use format_bytes::format_bytes;
 use format_bytes::write_bytes;
 use hg::config::Config;
 use hg::config::PlainInfo;
+use hg::encoding::Encoder;
 use hg::errors::HgError;
 use hg::filepatterns::PatternFileWarning;
 use hg::repo::Repo;
 use hg::sparse;
 use hg::utils::files::get_bytes_from_path;
-use std::borrow::Cow;
 use std::io;
+use std::io::BufWriter;
 use std::io::IsTerminal;
+use std::io::StdoutLock;
 use std::io::{ErrorKind, Write};
 
 pub struct Ui {
     stdout: std::io::Stdout,
     stderr: std::io::Stderr,
     colors: Option<ColorConfig>,
+    encoder: Encoder,
 }
 
 /// The kind of user interface error
@@ -38,6 +41,7 @@ impl Ui {
 
             stderr: std::io::stderr(),
             colors: ColorConfig::new(config)?,
+            encoder: Encoder::from_env()?,
         })
     }
 
@@ -51,13 +55,17 @@ impl Ui {
 
             stderr: std::io::stderr(),
             colors: ColorConfig::new(config).unwrap_or(None),
+            encoder: Encoder::default(),
         }
     }
 
     /// Returns a buffered handle on stdout for faster batch printing
     /// operations.
-    pub fn stdout_buffer(&self) -> StdoutBuffer<std::io::StdoutLock> {
-        StdoutBuffer::new(self.stdout.lock())
+    pub fn stdout_buffer(&self) -> StdoutBuffer<'_, BufWriter<StdoutLock>> {
+        StdoutBuffer {
+            stdout: BufWriter::new(self.stdout.lock()),
+            colors: &self.colors,
+        }
     }
 
     /// Write bytes to stdout
@@ -78,12 +86,24 @@ impl Ui {
         stderr.flush().or_else(handle_stderr_error)
     }
 
+    pub fn encoder(&self) -> &Encoder {
+        &self.encoder
+    }
+}
+
+/// A buffered stdout writer for faster batch printing operations.
+pub struct StdoutBuffer<'a, W> {
+    colors: &'a Option<ColorConfig>,
+    stdout: W,
+}
+
+impl<'a, W: Write> StdoutBuffer<'a, W> {
     /// Write bytes to stdout with the given label
     ///
     /// Like the optional `label` parameter in `mercurial/ui.py`,
     /// this label influences the color used for this output.
     pub fn write_stdout_labelled(
-        &self,
+        &mut self,
         bytes: &[u8],
         label: &str,
     ) -> Result<(), UiError> {
@@ -96,15 +116,15 @@ impl Ui {
                 }
             }
         }
-        self.write_stdout(bytes)
+        self.write_all(bytes)
     }
 
     fn write_stdout_with_effects(
-        &self,
+        &mut self,
         bytes: &[u8],
         effects: &[Effect],
     ) -> io::Result<()> {
-        let stdout = &mut self.stdout.lock();
+        let stdout = &mut self.stdout;
         let mut write_line = |line: &[u8], first: bool| {
             // `line` does not include the newline delimiter
             if !first {
@@ -130,7 +150,17 @@ impl Ui {
                 write_line(line, false)?
             }
         }
-        stdout.flush()
+        Ok(())
+    }
+
+    /// Write bytes to stdout buffer
+    pub fn write_all(&mut self, bytes: &[u8]) -> Result<(), UiError> {
+        self.stdout.write_all(bytes).or_else(handle_stdout_error)
+    }
+
+    /// Flush bytes to stdout
+    pub fn flush(&mut self) -> Result<(), UiError> {
+        self.stdout.flush().or_else(handle_stdout_error)
     }
 }
 
@@ -141,28 +171,6 @@ pub fn plain(opt_feature: Option<&str>) -> bool {
     match opt_feature {
         None => plain_info.is_plain(),
         Some(feature) => plain_info.is_feature_plain(feature),
-    }
-}
-
-/// A buffered stdout writer for faster batch printing operations.
-pub struct StdoutBuffer<W: Write> {
-    buf: io::BufWriter<W>,
-}
-
-impl<W: Write> StdoutBuffer<W> {
-    pub fn new(writer: W) -> Self {
-        let buf = io::BufWriter::new(writer);
-        Self { buf }
-    }
-
-    /// Write bytes to stdout buffer
-    pub fn write_all(&mut self, bytes: &[u8]) -> Result<(), UiError> {
-        self.buf.write_all(bytes).or_else(handle_stdout_error)
-    }
-
-    /// Flush bytes to stdout
-    pub fn flush(&mut self) -> Result<(), UiError> {
-        self.buf.flush().or_else(handle_stdout_error)
     }
 }
 
@@ -195,19 +203,6 @@ fn handle_stderr_error(error: io::Error) -> Result<(), UiError> {
         return Ok(());
     }
     Err(UiError::StdoutError(error))
-}
-
-/// Encode rust strings according to the user system.
-pub fn utf8_to_local(s: &str) -> Cow<[u8]> {
-    // TODO encode for the user's system //
-    let bytes = s.as_bytes();
-    Cow::Borrowed(bytes)
-}
-
-/// Decode user system bytes to Rust string.
-pub fn local_to_utf8(s: &[u8]) -> Cow<str> {
-    // TODO decode from the user's system
-    String::from_utf8_lossy(s)
 }
 
 /// Should formatted output be used?

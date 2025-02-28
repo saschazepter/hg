@@ -12,7 +12,7 @@
 use crate::utils::{
     hg_path::{path_to_hg_path_buf, HgPath, HgPathBuf, HgPathError},
     path_auditor::PathAuditor,
-    replace_slice,
+    strings::replace_slice,
 };
 use lazy_static::lazy_static;
 use same_file::is_same_file;
@@ -331,6 +331,12 @@ pub fn filesystem_now(repo_root: &Path) -> Result<SystemTime, io::Error> {
         .into_file()
         .metadata()?
         .modified()
+}
+
+/// Returns true if file content is considered to be binary (not text).
+pub fn is_binary(content: &[u8]) -> bool {
+    // Matches binary() in utils/stringutil.py.
+    !content.is_empty() && memchr::memchr(b'\0', content).is_some()
 }
 
 #[cfg(test)]

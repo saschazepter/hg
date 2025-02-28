@@ -24,7 +24,7 @@ use crate::{
     utils::{
         files::{dir_ancestors, find_dirs},
         hg_path::{HgPath, HgPathBuf, HgPathError},
-        Escaped,
+        strings::Escaped,
     },
     FastHashMap,
 };

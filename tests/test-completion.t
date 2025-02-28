@@ -176,6 +176,7 @@ Show the global options
   $ hg debugcomplete --options | sort
   --color
   --config
+  --config-file
   --cwd
   --debug
   --debugger
@@ -206,6 +207,7 @@ Show the options for the "serve" command
   --cmdserver
   --color
   --config
+  --config-file
   --cwd
   --daemon
   --daemon-postexec
@@ -356,7 +358,7 @@ Show all commands + options
   debugwhyunstable: 
   debugwireargs: three, four, five, ssh, remotecmd, insecure
   debugwireproto: localssh, peer, noreadstderr, nologhandshake, ssh, remotecmd, insecure
-  diff: rev, from, to, change, text, git, binary, nodates, noprefix, show-function, reverse, ignore-all-space, ignore-space-change, ignore-blank-lines, ignore-space-at-eol, unified, stat, root, include, exclude, subrepos
+  diff: rev, from, to, change, ignore-changes-from-ancestors, text, git, binary, nodates, noprefix, show-function, reverse, ignore-all-space, ignore-space-change, ignore-blank-lines, ignore-space-at-eol, unified, stat, root, include, exclude, subrepos
   export: bookmark, output, switch-parent, rev, text, git, binary, nodates, template
   files: rev, print0, include, exclude, template, subrepos
   forget: interactive, include, exclude, dry-run

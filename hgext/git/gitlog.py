@@ -149,7 +149,7 @@ class baselog:  # revlog.revlog):
             'SELECT node FROM changelog WHERE rev = ?', (r,)
         ).fetchone()
         if t is None:
-            raise error.LookupError(r, b'00changelog.i', _(b'no rev'))
+            raise error.LookupError(b'%d' % r, b'00changelog.i', _(b'no rev'))
         return bin(t[0])
 
     def synthetic(self, n):
@@ -487,7 +487,7 @@ class changelog(baselog):
             'SELECT p1, p2 FROM changelog WHERE rev = ?', (rev,)
         ).fetchone()
         if t is None:
-            raise error.LookupError(rev, b'00changelog.i', _(b'no rev'))
+            raise error.LookupError(b'%d' % rev, b'00changelog.i', _(b'no rev'))
         return self.rev(bin(t[0])), self.rev(bin(t[1]))
 
     # Private method is used at least by the tags code.

@@ -13,6 +13,10 @@ from typing import (
     Tuple,
 )
 
+from mercurial.interfaces.types import (
+    MatcherT,
+    TransactionT,
+)
 from mercurial.node import sha1nodeconstants
 from mercurial import (
     dirstatemap,
@@ -163,7 +167,7 @@ class gitdirstate(intdirstate.idirstate):
 
     def status(
         self,
-        match: matchmod.basematcher,
+        match: MatcherT,
         subrepos: bool,
         ignored: bool,
         clean: bool,
@@ -316,7 +320,7 @@ class gitdirstate(intdirstate.idirstate):
     ) -> None:
         raise NotImplementedError
 
-    def write(self, tr: Optional[intdirstate.TransactionT]) -> None:
+    def write(self, tr: Optional[TransactionT]) -> None:
         # TODO: call parent change callbacks
 
         if tr:
@@ -336,7 +340,7 @@ class gitdirstate(intdirstate.idirstate):
         r = util.pathto(self._root, cwd, f)
         return r
 
-    def matches(self, match: matchmod.basematcher) -> Iterable[bytes]:
+    def matches(self, match: MatcherT) -> Iterable[bytes]:
         for x in self.git.index:
             p = pycompat.fsencode(x.path)
             if match(p):
@@ -354,7 +358,7 @@ class gitdirstate(intdirstate.idirstate):
 
     def walk(
         self,
-        match: matchmod.basematcher,
+        match: MatcherT,
         subrepos: Any,
         unknown: bool,
         ignored: bool,
@@ -455,7 +459,7 @@ class gitdirstate(intdirstate.idirstate):
         self._plchangecallbacks[category] = callback
 
     def setbranch(
-        self, branch: bytes, transaction: Optional[intdirstate.TransactionT]
+        self, branch: bytes, transaction: Optional[TransactionT]
     ) -> None:
         raise error.Abort(
             b'git repos do not support branches. try using bookmarks'

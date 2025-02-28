@@ -548,7 +548,7 @@ def refreshwdir(repo, origstatus, origsparsematch, force=False):
         elif (old and not new) or (not old and not new and file in dirstate):
             dropped.append(file)
             if file not in pending:
-                mresult.addfile(file, mergestatemod.ACTION_REMOVE, [], b'')
+                mresult.addfile(file, mergestatemod.ACTION_REMOVE, None, b'')
 
     # Verify there are no pending changes in newly included files
     abort = False

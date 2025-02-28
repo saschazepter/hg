@@ -8,12 +8,11 @@
 //! Bindings for the `hg::ancestors` module provided by the
 //! `hg-core` crate. From Python, this will be seen as `pyo3_rustext.ancestor`
 //! and can be used as replacement for the the pure `ancestor` Python module.
-use cpython::UnsafePyLeaked;
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
+use pyo3_sharedref::SharedByPyObject;
 
 use std::collections::HashSet;
-use std::sync::RwLock;
 
 use hg::MissingAncestors as CoreMissing;
 use vcsgraph::lazy_ancestors::{
@@ -21,18 +20,16 @@ use vcsgraph::lazy_ancestors::{
     LazyAncestors as VCGLazyAncestors,
 };
 
-use crate::convert_cpython::{
-    proxy_index_py_leak, py_leaked_borrow, py_leaked_borrow_mut,
-    py_leaked_or_map_err,
-};
-use crate::exceptions::{map_lock_error, GraphError};
+use crate::exceptions::GraphError;
 use crate::revision::{rev_pyiter_collect_with_py_index, PyRevision};
-use crate::util::new_submodule;
-use rusthg::revlog::PySharedIndex;
+use crate::revlog::PySharedIndex;
+use crate::utils::{
+    new_submodule, py_rust_index_to_graph, py_shared_or_map_err,
+};
 
 #[pyclass]
 struct AncestorsIterator {
-    inner: RwLock<UnsafePyLeaked<VCGAncestorsIterator<PySharedIndex>>>,
+    inner: SharedByPyObject<VCGAncestorsIterator<PySharedIndex>>,
 }
 
 #[pymethods]
@@ -44,11 +41,12 @@ impl AncestorsIterator {
         stoprev: PyRevision,
         inclusive: bool,
     ) -> PyResult<Self> {
+        let py = index_proxy.py();
         let initvec: Vec<_> =
             rev_pyiter_collect_with_py_index(initrevs, index_proxy)?;
-        let (py, leaked_idx) = proxy_index_py_leak(index_proxy)?;
+        let shared_idx = py_rust_index_to_graph(index_proxy)?;
         let res_ait = unsafe {
-            leaked_idx.map(py, |idx| {
+            shared_idx.map(py, |idx| {
                 VCGAncestorsIterator::new(
                     idx,
                     initvec.into_iter().map(|r| r.0),
@@ -57,9 +55,8 @@ impl AncestorsIterator {
                 )
             })
         };
-        let ait =
-            py_leaked_or_map_err(py, res_ait, GraphError::from_vcsgraph)?;
-        let inner = ait.into();
+        let inner =
+            py_shared_or_map_err(py, res_ait, GraphError::from_vcsgraph)?;
         Ok(Self { inner })
     }
 
@@ -67,10 +64,10 @@ impl AncestorsIterator {
         slf
     }
 
-    fn __next__(slf: PyRefMut<'_, Self>) -> PyResult<Option<PyRevision>> {
-        let mut leaked = slf.inner.write().map_err(map_lock_error)?;
-        // Safety: we don't leak the inner 'static ref out of UnsafePyLeaked
-        let mut inner = unsafe { py_leaked_borrow_mut(&slf, &mut leaked)? };
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<PyRevision>> {
+        let py = slf.py();
+        // Safety: we don't leak the inner 'static ref out of SharedByPyObject
+        let mut inner = unsafe { slf.inner.try_borrow_mut(py) }?;
         match inner.next() {
             Some(Err(e)) => Err(GraphError::from_vcsgraph(e)),
             None => Ok(None),
@@ -81,7 +78,7 @@ impl AncestorsIterator {
 
 #[pyclass(sequence)]
 struct LazyAncestors {
-    inner: RwLock<UnsafePyLeaked<VCGLazyAncestors<PySharedIndex>>>,
+    inner: SharedByPyObject<VCGLazyAncestors<PySharedIndex>>,
     proxy_index: PyObject,
     initrevs: PyObject,
     stoprev: PyRevision,
@@ -92,6 +89,7 @@ struct LazyAncestors {
 impl LazyAncestors {
     #[new]
     fn new(
+        py: Python<'_>,
         index_proxy: &Bound<'_, PyAny>,
         initrevs: &Bound<'_, PyAny>,
         stoprev: PyRevision,
@@ -100,11 +98,11 @@ impl LazyAncestors {
         let cloned_proxy = index_proxy.clone().unbind();
         let initvec: Vec<_> =
             rev_pyiter_collect_with_py_index(initrevs, index_proxy)?;
-        let (py, leaked_idx) = proxy_index_py_leak(index_proxy)?;
+        let shared_idx = py_rust_index_to_graph(index_proxy)?;
         // Safety: we don't leak the "faked" reference out of
-        // `UnsafePyLeaked`
+        // `SharedByPyObject`
         let res_lazy = unsafe {
-            leaked_idx.map(py, |idx| {
+            shared_idx.map(py, |idx| {
                 VCGLazyAncestors::new(
                     idx,
                     initvec.into_iter().map(|r| r.0),
@@ -113,10 +111,10 @@ impl LazyAncestors {
                 )
             })
         };
-        let lazy =
-            py_leaked_or_map_err(py, res_lazy, GraphError::from_vcsgraph)?;
+        let inner =
+            py_shared_or_map_err(py, res_lazy, GraphError::from_vcsgraph)?;
         Ok(Self {
-            inner: lazy.into(),
+            inner,
             proxy_index: cloned_proxy,
             initrevs: initrevs.clone().unbind(),
             stoprev,
@@ -124,23 +122,21 @@ impl LazyAncestors {
         })
     }
 
-    fn __bool__(slf: PyRef<'_, Self>) -> PyResult<bool> {
-        let leaked = slf.inner.read().map_err(map_lock_error)?;
-        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
-        let inner = unsafe { py_leaked_borrow(&slf, &leaked) }?;
+    fn __bool__(slf: PyRef<'_, Self>, py: Python<'_>) -> PyResult<bool> {
+        // Safety: we don't leak the "faked" reference out of
+        // `SharedByPyObject`
+        let inner = unsafe { slf.inner.try_borrow(py) }?;
         Ok(!inner.is_empty())
     }
 
     fn __contains__(
-        slf: PyRefMut<'_, Self>,
+        mut slf: PyRefMut<'_, Self>,
         obj: &Bound<'_, PyAny>,
     ) -> PyResult<bool> {
         PyRevision::extract_bound(obj).map_or(Ok(false), |rev| {
-            let mut leaked = slf.inner.write().map_err(map_lock_error)?;
             // Safety: we don't leak the "faked" reference out of
-            // `UnsafePyLeaked`
-            let mut inner =
-                unsafe { py_leaked_borrow_mut(&slf, &mut leaked) }?;
+            // `SharedByPyObject`
+            let mut inner = unsafe { slf.inner.try_borrow_mut(obj.py()) }?;
             inner.contains(rev.0).map_err(GraphError::from_vcsgraph)
         })
     }
@@ -158,7 +154,7 @@ impl LazyAncestors {
 
 #[pyclass]
 struct MissingAncestors {
-    inner: RwLock<UnsafePyLeaked<CoreMissing<PySharedIndex>>>,
+    inner: SharedByPyObject<CoreMissing<PySharedIndex>>,
     proxy_index: PyObject,
 }
 
@@ -172,52 +168,54 @@ impl MissingAncestors {
         let cloned_proxy = index_proxy.clone().unbind();
         let bases_vec: Vec<_> =
             rev_pyiter_collect_with_py_index(bases, index_proxy)?;
-        let (py, leaked_idx) = proxy_index_py_leak(index_proxy)?;
+        let shared_idx = py_rust_index_to_graph(index_proxy)?;
 
         // Safety: we don't leak the "faked" reference out of
-        // `UnsafePyLeaked`
+        // `SharedByPyObject`
         let inner = unsafe {
-            leaked_idx.map(py, |idx| CoreMissing::new(idx, bases_vec))
+            shared_idx
+                .map(index_proxy.py(), |idx| CoreMissing::new(idx, bases_vec))
         };
         Ok(Self {
-            inner: inner.into(),
+            inner,
             proxy_index: cloned_proxy,
         })
     }
 
     fn hasbases(slf: PyRef<'_, Self>) -> PyResult<bool> {
-        let leaked = slf.inner.read().map_err(map_lock_error)?;
-        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
-        let inner = unsafe { py_leaked_borrow(&slf, &leaked) }?;
+        // Safety: we don't leak the "faked" reference out of
+        // `SharedByPyObject`
+        let inner = unsafe { slf.inner.try_borrow(slf.py()) }?;
         Ok(inner.has_bases())
     }
 
     fn addbases(
-        slf: PyRefMut<'_, Self>,
+        mut slf: PyRefMut<'_, Self>,
         bases: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
-        let index_proxy = slf.proxy_index.bind(slf.py());
+        let py = slf.py();
+        let index_proxy = slf.proxy_index.bind(py);
         let bases_vec: Vec<_> =
             rev_pyiter_collect_with_py_index(bases, index_proxy)?;
 
-        let mut leaked = slf.inner.write().map_err(map_lock_error)?;
-        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
-        let mut inner = unsafe { py_leaked_borrow_mut(&slf, &mut leaked) }?;
+        // Safety: we don't leak the "faked" reference out of
+        // `SharedByPyObject`
+        let mut inner = unsafe { slf.inner.try_borrow_mut(py) }?;
         inner.add_bases(bases_vec);
         Ok(())
     }
 
     fn bases(slf: PyRef<'_, Self>) -> PyResult<HashSet<PyRevision>> {
-        let leaked = slf.inner.read().map_err(map_lock_error)?;
-        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
-        let inner = unsafe { py_leaked_borrow(&slf, &leaked) }?;
+        // Safety: we don't leak the "faked" reference out of
+        // `SharedByPyObject`
+        let inner = unsafe { slf.inner.try_borrow(slf.py()) }?;
         Ok(inner.get_bases().iter().map(|r| PyRevision(r.0)).collect())
     }
 
     fn basesheads(slf: PyRef<'_, Self>) -> PyResult<HashSet<PyRevision>> {
-        let leaked = slf.inner.read().map_err(map_lock_error)?;
-        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
-        let inner = unsafe { py_leaked_borrow(&slf, &leaked) }?;
+        // Safety: we don't leak the "faked" reference out of
+        // `SharedByPyObject`
+        let inner = unsafe { slf.inner.try_borrow(slf.py()) }?;
         Ok(inner
             .bases_heads()
             .map_err(GraphError::from_hg)?
@@ -227,7 +225,7 @@ impl MissingAncestors {
     }
 
     fn removeancestorsfrom(
-        slf: PyRef<'_, Self>,
+        mut slf: PyRefMut<'_, Self>,
         revs: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
         // Original comment from hg-cpython:
@@ -243,35 +241,37 @@ impl MissingAncestors {
         // PyO3 additional comment: the trait approach would probably be
         // simpler because we can implement it without a Py wrappper, just
         // on &Bound<'py, PySet>
-        let index_proxy = slf.proxy_index.bind(slf.py());
+        let py = slf.py();
+        let index_proxy = slf.proxy_index.bind(py);
         let mut revs_set: HashSet<_> =
             rev_pyiter_collect_with_py_index(revs, index_proxy)?;
 
-        let mut leaked = slf.inner.write().map_err(map_lock_error)?;
-        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
-        let mut inner = unsafe { py_leaked_borrow_mut(&slf, &mut leaked) }?;
+        // Safety: we don't leak the "faked" reference out of
+        // `SharedByPyObject`
+        let mut inner = unsafe { slf.inner.try_borrow_mut(py) }?;
 
         inner
             .remove_ancestors_from(&mut revs_set)
             .map_err(GraphError::from_hg)?;
         // convert as Python tuple and discard from original `revs`
         let remaining_tuple =
-            PyTuple::new(slf.py(), revs_set.iter().map(|r| PyRevision(r.0)))?;
+            PyTuple::new(py, revs_set.iter().map(|r| PyRevision(r.0)))?;
         revs.call_method("intersection_update", (remaining_tuple,), None)?;
         Ok(())
     }
 
     fn missingancestors(
-        slf: PyRefMut<'_, Self>,
+        mut slf: PyRefMut<'_, Self>,
         bases: &Bound<'_, PyAny>,
     ) -> PyResult<Vec<PyRevision>> {
-        let index_proxy = slf.proxy_index.bind(slf.py());
+        let py = slf.py();
+        let index_proxy = slf.proxy_index.bind(py);
         let revs_vec: Vec<_> =
             rev_pyiter_collect_with_py_index(bases, index_proxy)?;
 
-        let mut leaked = slf.inner.write().map_err(map_lock_error)?;
-        // Safety: we don't leak the "faked" reference out of `UnsafePyLeaked`
-        let mut inner = unsafe { py_leaked_borrow_mut(&slf, &mut leaked) }?;
+        // Safety: we don't leak the "faked" reference out of
+        // `SharedByPyObject`
+        let mut inner = unsafe { slf.inner.try_borrow_mut(py) }?;
 
         let missing_vec = inner
             .missing_ancestors(revs_vec)

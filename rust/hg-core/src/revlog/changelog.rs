@@ -53,7 +53,7 @@ impl Changelog {
     }
 
     /// Same as [`Self::entry_for_unchecked_rev`] for a checked revision
-    fn entry(&self, rev: Revision) -> Result<ChangelogEntry, RevlogError> {
+    pub fn entry(&self, rev: Revision) -> Result<ChangelogEntry, RevlogError> {
         let revlog_entry = self.revlog.get_entry(rev)?;
         Ok(ChangelogEntry { revlog_entry })
     }
@@ -71,11 +71,15 @@ impl Changelog {
         self.entry_for_unchecked_rev(rev)?.data()
     }
 
+    pub fn node_from_rev(&self, rev: Revision) -> &Node {
+        self.revlog.node_from_rev(rev)
+    }
+
     pub fn node_from_unchecked_rev(
         &self,
         rev: UncheckedRevision,
     ) -> Option<&Node> {
-        self.revlog.node_from_rev(rev)
+        self.revlog.node_from_unchecked_rev(rev)
     }
 
     pub fn rev_from_node(

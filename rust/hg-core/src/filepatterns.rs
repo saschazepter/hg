@@ -12,7 +12,7 @@ use crate::{
     utils::{
         files::{canonical_path, get_bytes_from_path, get_path_from_bytes},
         hg_path::{path_to_hg_path_buf, HgPathBuf, HgPathError},
-        SliceExt,
+        strings::SliceExt,
     },
     FastHashMap,
 };
