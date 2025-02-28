@@ -666,7 +666,9 @@ def getpygmentsversion():
         return 0, 0
 
 
-@checkvers("pygments", "Pygments version >= %s", ('2.5', '2.11', '2.14'))
+@checkvers(
+    "pygments", "Pygments version >= %s", ('2.5', '2.11', '2.14', '2.19')
+)
 def has_pygments_range(v):
     major, minor = v.split('.')[0:2]
     return getpygmentsversion() >= (int(major), int(minor))
