@@ -24,7 +24,7 @@ from . import (
 
 from .interfaces import misc as int_misc
 
-rustdirs = policy.importrust('dirstate', 'Dirs', pyo3=True)
+rustdirs = policy.importrust('dirstate', 'Dirs')
 parsers = policy.importmod('parsers')
 
 

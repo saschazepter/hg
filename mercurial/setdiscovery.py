@@ -276,7 +276,7 @@ class partialdiscovery:
 pure_partialdiscovery = partialdiscovery
 
 partialdiscovery = policy.importrust(
-    'discovery', member='PartialDiscovery', default=partialdiscovery, pyo3=True
+    'discovery', member='PartialDiscovery', default=partialdiscovery
 )
 
 

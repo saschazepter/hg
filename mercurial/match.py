@@ -41,7 +41,7 @@ from .interfaces import (
     matcher as int_matcher,
 )
 
-rustmod = policy.importrust('dirstate', pyo3=True)
+rustmod = policy.importrust('dirstate')
 
 allpatternkinds = (
     b're',
