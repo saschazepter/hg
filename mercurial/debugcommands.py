@@ -1945,11 +1945,11 @@ def debuginstall(ui, **opts):
     )
 
     try:
-        from . import rustext  # pytype: disable=import-error
+        from . import pyo3_rustext  # pytype: disable=import-error
 
-        rustext.__doc__  # trigger lazy import
+        pyo3_rustext.__doc__  # trigger lazy import
     except ImportError:
-        rustext = None
+        pyo3_rustext = None
 
     security = set(sslutil.supportedprotocols)
     if sslutil.hassni:
@@ -1981,7 +1981,7 @@ def debuginstall(ui, **opts):
     fm.plain(
         _(
             b"checking Rust extensions (%s)\n"
-            % (b'missing' if rustext is None else b'installed')
+            % (b'missing' if pyo3_rustext is None else b'installed')
         ),
     )
 
@@ -2015,9 +2015,9 @@ def debuginstall(ui, **opts):
     )
 
     rustandc = policy.policy in (b'rust+c', b'rust+c-allow')
-    rustext = rustandc  # for now, that's the only case
+    pyo3_rustext = rustandc  # for now, that's the only case
     cext = policy.policy in (b'c', b'allow') or rustandc
-    nopure = cext or rustext
+    nopure = cext or pyo3_rustext
     if nopure:
         err = None
         try:
@@ -2031,8 +2031,8 @@ def debuginstall(ui, **opts):
 
                 # quiet pyflakes
                 dir(bdiff), dir(mpatch), dir(base85), dir(osutil)
-            if rustext:
-                from .rustext import (  # pytype: disable=import-error
+            if pyo3_rustext:
+                from .pyo3_rustext import (  # pytype: disable=import-error
                     ancestor,
                     dirstate,
                 )
