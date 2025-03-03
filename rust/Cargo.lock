@@ -338,18 +338,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cpython"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43b398a2c65baaf5892f10bb69b52508bf7a993380cc4ecd3785aaebb5c79389"
-dependencies = [
- "libc",
- "num-traits",
- "paste",
- "python3-sys",
-]
-
-[[package]]
 name = "crc32fast"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -714,22 +702,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hg-cpython"
-version = "0.1.0"
-dependencies = [
- "cpython",
- "crossbeam-channel",
- "env_logger 0.11.5",
- "hg-core",
- "libc",
- "log",
- "logging_timer",
- "python3-sys",
- "stable_deref_trait",
- "vcsgraph",
-]
-
-[[package]]
 name = "hg-pyo3"
 version = "0.1.0"
 dependencies = [
@@ -1032,12 +1004,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "paste"
-version = "1.0.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
-
-[[package]]
 name = "pkg-config"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1147,16 +1113,6 @@ dependencies = [
  "pyo3",
  "stable_deref_trait",
  "static_assertions_next",
-]
-
-[[package]]
-name = "python3-sys"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f53ef6740367a09718d2cd21ba15b0d7972342a38e554736bcee7773e45c9f5"
-dependencies = [
- "libc",
- "regex",
 ]
 
 [[package]]
