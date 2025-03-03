@@ -373,4 +373,57 @@ mod tests {
         assert_eq!(short_user(b"First Last <user@example.com>"), b"user");
         assert_eq!(short_user(b"First Last <user.name@example.com>"), b"user");
     }
+
+    fn clean_ws(text: &[u8], how: CleanWhitespace) -> Vec<u8> {
+        let mut vec = text.to_vec();
+        clean_whitespace(&mut vec, how);
+        vec
+    }
+
+    #[test]
+    fn test_clean_whitespace_at_eol() {
+        // To match wsclean in mdiff.py, CleanWhitespace::AtEol only removes
+        // the final line's trailing whitespace if it ends in \n.
+        use CleanWhitespace::AtEol;
+        assert_eq!(clean_ws(b"", AtEol), b"");
+        assert_eq!(clean_ws(b" ", AtEol), b" ");
+        assert_eq!(clean_ws(b"  ", AtEol), b"  ");
+        assert_eq!(clean_ws(b"A", AtEol), b"A");
+        assert_eq!(clean_ws(b"\n\n\n", AtEol), b"\n\n\n");
+        assert_eq!(clean_ws(b" \n", AtEol), b"\n");
+        assert_eq!(clean_ws(b"A \n", AtEol), b"A\n");
+        assert_eq!(clean_ws(b"A B  C\t\r\n", AtEol), b"A B  C\n");
+        assert_eq!(clean_ws(b"A \tB  C\r\nD  ", AtEol), b"A \tB  C\nD  ");
+        assert_eq!(clean_ws(b"A\x0CB\x0C\n", AtEol), b"A\x0CB\n");
+    }
+
+    #[test]
+    fn test_clean_whitespace_collapse() {
+        use CleanWhitespace::Collapse;
+        assert_eq!(clean_ws(b"", Collapse), b"");
+        assert_eq!(clean_ws(b" ", Collapse), b" ");
+        assert_eq!(clean_ws(b"  ", Collapse), b" ");
+        assert_eq!(clean_ws(b"A", Collapse), b"A");
+        assert_eq!(clean_ws(b"\n\n\n", Collapse), b"\n\n\n");
+        assert_eq!(clean_ws(b" \n", Collapse), b"\n");
+        assert_eq!(clean_ws(b"A \n", Collapse), b"A\n");
+        assert_eq!(clean_ws(b"A B  C\t\r\n", Collapse), b"A B C\n");
+        assert_eq!(clean_ws(b"A \tB  C\r\nD  ", Collapse), b"A B C\nD ");
+        assert_eq!(clean_ws(b"A\x0CB\x0C\n", Collapse), b"A\x0CB\x0C\n");
+    }
+
+    #[test]
+    fn test_clean_whitespace_all() {
+        use CleanWhitespace::All;
+        assert_eq!(clean_ws(b"", All), b"");
+        assert_eq!(clean_ws(b" ", All), b"");
+        assert_eq!(clean_ws(b"  ", All), b"");
+        assert_eq!(clean_ws(b"A", All), b"A");
+        assert_eq!(clean_ws(b"\n\n\n", All), b"\n\n\n");
+        assert_eq!(clean_ws(b" \n", All), b"\n");
+        assert_eq!(clean_ws(b"A \n", All), b"A\n");
+        assert_eq!(clean_ws(b"A B  C\t\r\n", All), b"ABC\n");
+        assert_eq!(clean_ws(b"A \tB  C\r\nD  ", All), b"ABC\nD");
+        assert_eq!(clean_ws(b"A\x0CB\x0C\n", All), b"A\x0CB\x0C\n");
+    }
 }
