@@ -12,7 +12,7 @@ There are currently four independent Rust projects:
 - hgcli. A project that provides a (mostly) self-contained "hg" binary,
   for ease of deployment and a bit of speed, using PyOxidizer. See
   ``hgcli/README.md``.
-- hg-core (and hg-cpython): implementation of some
+- hg-core (and hg-pyo3): implementation of some
   functionality of mercurial in Rust, e.g. ancestry computations in
   revision graphs, status or pull discovery. The top-level ``Cargo.toml`` file
   defines a workspace containing these crates.
@@ -33,6 +33,9 @@ built without rust previously)::
   checking Rust extensions (installed)
   checking module policy (rust+c-allow)
 
+
+**note: the HGWITHRUSTEXT environment variable is deprecated and will be removed
+in Mercurial 7.1, do not use it.**
 If the environment variable ``HGWITHRUSTEXT=cpython`` is set, the Rust
 extension will be used by default unless ``--no-rust``.
 
@@ -43,7 +46,7 @@ Special features
 ================
 
 In the future, compile-time opt-ins may be added
-to the ``features`` section in ``hg-cpython/Cargo.toml``.
+to the ``features`` section in ``hg-pyo3/Cargo.toml``.
 
 To use features from the Makefile, use the ``HG_RUST_FEATURES`` environment
 variable: for instance ``HG_RUST_FEATURES="some-feature other-feature"``.
@@ -99,9 +102,9 @@ the repository.
 Build and development
 ---------------------
 
-Go to the ``hg-cpython`` folder::
+Go to the ``hg-pyo3`` folder::
 
-  $ cd rust/hg-cpython
+  $ cd rust/hg-pyo3
 
 Or, only the ``hg-core`` folder. Be careful not to break compatibility::
 
@@ -126,7 +129,7 @@ For even faster typing::
 You can run only the rust-specific tests (as opposed to tests of
 mercurial as a whole) with::
 
-  $ cargo test --all
+  $ cargo test --all --no-default-features
 
 Formatting the code
 -------------------
@@ -152,7 +155,7 @@ community.
 Our CI enforces that the code is free of Clippy warnings, so you might
 want to run it on your side before submitting your changes. Simply do::
 
-  % cargo clippy
+  $ cargo clippy
 
 from the top of the Rust workspace. Clippy is part of the default
 ``rustup`` install, so it should work right away. In case it would
