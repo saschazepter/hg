@@ -1068,7 +1068,8 @@ TODO: fix Python which instead emits invalid JSON
   $ hg annotate -Tjson latin1
   [
    {
-    "lines": [{"line": "\xed\xb3\x89", "rev": 35}], (esc) (known-bad-output !)
+    "lines": [{"line": "\xed\xb3\x89", "rev": 35}], (esc) (no-rhg known-bad-output !)
+    "lines": [{"line": "\xef\xbf\xbd", "rev": 35}], (esc) (rhg !)
     "path": "latin1"
    }
   ]

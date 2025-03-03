@@ -12,7 +12,8 @@ use hg::{
     repo::Repo,
     revlog::{changelog::Changelog, RevisionOrWdir},
     utils::{hg_path::HgPath, strings::CleanWhitespace},
-    FastHashMap, Node, Revision,
+    FastHashMap, Node, Revision, WORKING_DIRECTORY_HEX,
+    WORKING_DIRECTORY_REVISION,
 };
 
 use crate::{
@@ -150,6 +151,12 @@ pub fn args() -> clap::Command {
                 .long("ignore-space-at-eol")
                 .action(clap::ArgAction::SetTrue),
         )
+        .arg(
+            clap::Arg::new("template")
+                .help("display with template")
+                .short('T')
+                .long("template"),
+        )
         .about(HELP_TEXT)
 }
 
@@ -213,6 +220,14 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         (true, true) => unreachable!(),
     };
 
+    let template = match args.get_one::<String>("template") {
+        None => Template::Default,
+        Some(name) if name == "json" => Template::Json,
+        _ => {
+            return Err(CommandError::unsupported("only -Tjson is suppported"))
+        }
+    };
+
     let wdir_config = if rev.is_wdir() {
         let user = config.username()?;
         Some(WdirConfig { user })
@@ -221,6 +236,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     };
 
     let format_config = FormatConfig {
+        template,
         include,
         verbosity,
         wdir_config,
@@ -234,9 +250,15 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 }
 
 struct FormatConfig {
+    template: Template,
     include: Include,
     verbosity: Verbosity,
     wdir_config: Option<WdirConfig>,
+}
+
+enum Template {
+    Default,
+    Json,
 }
 
 struct Include {
@@ -272,6 +294,7 @@ struct WdirConfig {
 }
 
 /// Information that we can cache per changeset.
+/// For [`Template::Json`], the values are JSON encoded.
 #[derive(Default)]
 struct ChangesetData {
     user: Option<Vec<u8>>,
@@ -301,27 +324,58 @@ fn print_output<'a>(
         .changelog()?
         .rev_from_node(repo.dirstate_parents()?.p1.into())?;
     let mut cache = Cache::new(repo)?;
-    for (path, output) in file_results {
-        match output? {
-            AnnotateOutput::Text(file) => {
-                print_lines_default(
-                    file,
-                    config,
-                    stdout,
-                    encoder,
-                    dirstate_p1,
-                    cache.for_path(path),
-                )?;
+    match config.template {
+        Template::Default => {
+            for (path, output) in file_results {
+                match output? {
+                    AnnotateOutput::Text(file) => {
+                        print_lines_default(
+                            file,
+                            config,
+                            stdout,
+                            encoder,
+                            cache.for_path(path),
+                            dirstate_p1,
+                        )?;
+                    }
+                    AnnotateOutput::Binary => {
+                        stdout.write_all(&format_bytes!(
+                            b"{}: binary file\n",
+                            path.as_bytes()
+                        ))?;
+                    }
+                    AnnotateOutput::NotFound => {
+                        return handle_not_found(repo, rev, path)
+                    }
+                }
             }
-            AnnotateOutput::Binary => {
-                stdout.write_all(&format_bytes!(
-                    b"{}: binary file\n",
-                    path.as_bytes()
-                ))?;
+        }
+        Template::Json => {
+            stdout.write_all(b"[")?;
+            let mut file_sep: &[u8] = b"\n";
+            for (path, output) in file_results {
+                stdout.write_all(file_sep)?;
+                file_sep = b",\n";
+                stdout.write_all(b" {\n")?;
+                match output? {
+                    AnnotateOutput::Text(file) => {
+                        print_lines_json(
+                            file,
+                            config,
+                            stdout,
+                            cache.for_path(path),
+                        )?;
+                    }
+                    AnnotateOutput::Binary => {}
+                    AnnotateOutput::NotFound => {
+                        return handle_not_found(repo, rev, path)
+                    }
+                }
+                let path = json_string(path.as_bytes())?;
+                stdout
+                    .write_all(&format_bytes!(b"  \"path\": {}\n }", path))?;
             }
-            AnnotateOutput::NotFound => {
-                return handle_not_found(repo, rev, path)
-            }
+            stdout.write_all(b"\n]\n")?;
         }
     }
     stdout.flush()?;
@@ -336,8 +390,8 @@ fn print_lines_default(
     config: &FormatConfig,
     stdout: &mut Stdout,
     encoder: &Encoder,
-    dirstate_p1: Revision,
     mut cache: CacheForPath,
+    dirstate_p1: Revision,
 ) -> Result<(), CommandError> {
     // Serialize the annotation fields (revision, user, etc.) for each line
     // and keep track of their maximum lengths so that we can align them.
@@ -396,6 +450,61 @@ fn print_lines_default(
             stdout.write_all(b"\n")?;
         }
     }
+    Ok(())
+}
+
+fn print_lines_json(
+    file: ChangesetAnnotatedFile,
+    config: &FormatConfig,
+    stdout: &mut Stdout,
+    mut cache: CacheForPath,
+) -> Result<(), CommandError> {
+    stdout.write_all(br#"  "lines": ["#)?;
+    let mut line_sep: &[u8] = b"";
+    for (annotation, line) in file.annotations.iter().zip(file.lines.iter()) {
+        stdout.write_all(line_sep)?;
+        line_sep = b", ";
+
+        let mut property_sep: &[u8] = b"";
+        let mut property = |key: &[u8], value: &[u8]| {
+            let res =
+                format_bytes!(br#"{}"{}": {}"#, property_sep, key, value);
+            property_sep = b", ";
+            res
+        };
+
+        stdout.write_all(b"{")?;
+        let rev = annotation.revision;
+        let data = cache.get_data(rev, config)?;
+        if let Some(date_json) = &data.date {
+            stdout.write_all(&property(b"date", date_json))?;
+        }
+        stdout.write_all(&property(b"line", &json_string(line)?))?;
+        if config.include.line_number {
+            let lineno = annotation.line_number.to_string();
+            stdout.write_all(&property(b"lineno", lineno.as_bytes()))?;
+        }
+        if let Some(changeset_json) = &data.changeset {
+            stdout.write_all(&property(b"node", changeset_json))?;
+        }
+        if config.include.file {
+            let path = json_string(annotation.path.as_bytes())?;
+            stdout.write_all(&property(b"path", &path))?;
+        }
+        if config.include.number {
+            let number = match rev.exclude_wdir() {
+                Some(rev) => rev.0,
+                None => WORKING_DIRECTORY_REVISION.0,
+            };
+            stdout
+                .write_all(&property(b"rev", number.to_string().as_bytes()))?;
+        }
+        if let Some(user_json) = &data.user {
+            stdout.write_all(&property(b"user", user_json))?;
+        }
+        stdout.write_all(b"}")?;
+    }
+    stdout.write_all(b"],\n")?;
     Ok(())
 }
 
@@ -510,7 +619,11 @@ impl ChangesetData {
                 Self::new(data.user(), node, data.timestamp()?, config)
             }
             None => {
-                let p1 = repo.dirstate_parents()?.p1;
+                let node = match config.template {
+                    Template::Default => repo.dirstate_parents()?.p1,
+                    Template::Json => Node::from_hex(WORKING_DIRECTORY_HEX)
+                        .expect("wdir hex should parse"),
+                };
                 let fs_path = hg::utils::hg_path::hg_path_to_path_buf(path)?;
                 let meta =
                     repo.working_directory_vfs().symlink_metadata(&fs_path)?;
@@ -518,7 +631,7 @@ impl ChangesetData {
                 let mtime = DateTime::<Local>::from(mtime).fixed_offset();
                 let user =
                     &config.wdir_config.as_ref().expect("should be set").user;
-                Self::new(user, p1, mtime, config)
+                Self::new(user, node, mtime, config)
             }
         }
     }
@@ -531,26 +644,49 @@ impl ChangesetData {
     ) -> Result<Self, CommandError> {
         let mut result = ChangesetData::default();
         if config.include.user {
-            let user = match config.verbosity {
-                Verbosity::Verbose => user.to_vec(),
-                _ => hg::utils::strings::short_user(user).to_vec(),
+            let user = match config.template {
+                Template::Default => match config.verbosity {
+                    Verbosity::Verbose => user.to_vec(),
+                    _ => hg::utils::strings::short_user(user).to_vec(),
+                },
+                Template::Json => json_string(user)?,
             };
             result.user = Some(user.to_vec());
         }
         if config.include.changeset {
-            let hex = format!("{:x}", changeset.short());
+            let hex = match config.template {
+                Template::Default => format!("{:x}", changeset.short()),
+                Template::Json => format!("\"{:x}\"", changeset),
+            };
             result.changeset = Some(hex.into_bytes());
         }
         if config.include.date {
-            let date = format!(
-                "{}",
-                date.format(match config.verbosity {
-                    Verbosity::Quiet => "%Y-%m-%d",
-                    _ => "%a %b %d %H:%M:%S %Y %z",
-                })
-            );
+            let date = match config.template {
+                Template::Default => {
+                    format!(
+                        "{}",
+                        date.format(match config.verbosity {
+                            Verbosity::Quiet => "%Y-%m-%d",
+                            _ => "%a %b %d %H:%M:%S %Y %z",
+                        })
+                    )
+                }
+                Template::Json => format!(
+                    "[{}.0, {}]",
+                    date.timestamp(),
+                    date.offset().utc_minus_local(),
+                ),
+            };
             result.date = Some(date.into_bytes());
         }
         Ok(result)
     }
+}
+
+fn json_string(text: &[u8]) -> Result<Vec<u8>, CommandError> {
+    serde_json::to_vec(&String::from_utf8_lossy(text)).map_err(|err| {
+        CommandError::abort(format!(
+            "failed to serialize string to JSON: {err}"
+        ))
+    })
 }

@@ -251,6 +251,13 @@ Annotate files
   test 0 1c9e69808da7 Thu Jan 01 00:00:00 1970 +0000 original:1: original content
   $ $NO_FALLBACK rhg annotate -r 'wdir()' original
   0 : original content
+  $ $NO_FALLBACK rhg annotate -Tjson original
+  [
+   {
+    "lines": [{"line": "original content\n", "rev": 0}],
+    "path": "original"
+   }
+  ]
 
 Fallback to Python
   $ $NO_FALLBACK rhg cat original --exclude="*.rs"
