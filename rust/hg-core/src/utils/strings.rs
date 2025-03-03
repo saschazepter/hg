@@ -1,9 +1,7 @@
 //! Contains string-related utilities.
 
 use crate::utils::hg_path::HgPath;
-use lazy_static::lazy_static;
-use regex::bytes::Regex;
-use std::{borrow::Cow, cell::Cell, fmt, io::Write as _, ops::Deref as _};
+use std::{cell::Cell, fmt, io::Write as _, ops::Deref as _};
 
 /// Useful until rust/issues/56345 is stable
 ///
@@ -314,34 +312,61 @@ pub enum CleanWhitespace {
 
 /// Normalizes whitespace in text so that it won't apppear in diffs.
 pub fn clean_whitespace(text: &mut Vec<u8>, how: CleanWhitespace) {
-    lazy_static! {
-        // To match wsclean in mdiff.py, this includes "\f".
-        static ref AT_EOL: Regex =
-            Regex::new(r"(?m)[ \t\r\f]+$").expect("valid regex");
-        // To match fixws in cext/bdiff.c, this does *not* include "\f".
-        static ref MULTIPLE: Regex =
-            Regex::new(r"[ \t\r]+").expect("valid regex");
-    }
-    let replacement: &[u8] = match how {
+    // We copy text[i] to text[w], where w advances more slowly than i.
+    let mut w = 0;
+    match how {
+        // To match wsclean in mdiff.py, this removes "\f" (0xC).
         CleanWhitespace::AtEol => {
-            replace_all_mut(&AT_EOL, text, b"");
-            return;
+            let mut newline_dest = 0;
+            for i in 0..text.len() {
+                let char = text[i];
+                match char {
+                    b' ' | b'\t' | b'\r' | 0xC => {}
+                    _ => {
+                        if char == b'\n' {
+                            w = newline_dest;
+                        }
+                        newline_dest = w + 1;
+                    }
+                }
+                text[w] = char;
+                w += 1;
+            }
         }
-        CleanWhitespace::Collapse => b" ",
-        CleanWhitespace::All => b"",
-    };
-    replace_all_mut(&MULTIPLE, text, replacement);
-    replace_all_mut(&AT_EOL, text, b"");
-}
-
-/// Helper to make [`Regex::replace_all`] mutate a vector.
-fn replace_all_mut(regex: &Regex, haystack: &mut Vec<u8>, replacement: &[u8]) {
-    match regex.replace_all(haystack, replacement) {
-        Cow::Borrowed(_) => {}
-        Cow::Owned(result) => {
-            *haystack = result;
+        // To match fixws in cext/bdiff.c, CleanWhitespace::Collapse and
+        // CleanWhitespace::All do *not* remove "\f".
+        CleanWhitespace::Collapse => {
+            for i in 0..text.len() {
+                match text[i] {
+                    b' ' | b'\t' | b'\r' => {
+                        if w == 0 || text[w - 1] != b' ' {
+                            text[w] = b' ';
+                            w += 1;
+                        }
+                    }
+                    b'\n' if w > 0 && text[w - 1] == b' ' => {
+                        text[w - 1] = b'\n';
+                    }
+                    char => {
+                        text[w] = char;
+                        w += 1;
+                    }
+                }
+            }
+        }
+        CleanWhitespace::All => {
+            for i in 0..text.len() {
+                match text[i] {
+                    b' ' | b'\t' | b'\r' => {}
+                    char => {
+                        text[w] = char;
+                        w += 1;
+                    }
+                }
+            }
         }
     }
+    text.truncate(w);
 }
 
 #[cfg(test)]
