@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     )
 
 parsers = policy.importmod('parsers')
-rustmod = policy.importrust('dirstate', pyo3=True)
+rustmod = policy.importrust('dirstate')
 
 propertycache = util.propertycache
 

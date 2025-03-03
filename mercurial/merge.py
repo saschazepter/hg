@@ -53,7 +53,7 @@ if typing.TYPE_CHECKING:
     """The merge action, data about the merge, and message about the merge, for
     the keyed file."""
 
-rust_update_mod = policy.importrust("update", pyo3=True)
+rust_update_mod = policy.importrust("update")
 
 _pack = struct.pack
 _unpack = struct.unpack
@@ -1844,7 +1844,7 @@ def _advertisefsmonitor(repo, num_gets, p1node):
         b'fsmonitor', b'warn_update_file_count'
     )
     # avoid cycle dirstate -> sparse -> merge -> dirstate
-    dirstate_rustmod = policy.importrust("dirstate", pyo3=True)
+    dirstate_rustmod = policy.importrust("dirstate")
 
     if dirstate_rustmod is not None:
         # When using rust status, fsmonitor becomes necessary at higher sizes

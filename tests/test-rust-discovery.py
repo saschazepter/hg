@@ -3,9 +3,7 @@ import unittest
 from mercurial import policy
 from mercurial.testing import revlog as revlogtesting
 
-PartialDiscovery = policy.importrust(
-    'discovery', member='PartialDiscovery', pyo3=True
-)
+PartialDiscovery = policy.importrust('discovery', member='PartialDiscovery')
 
 try:
     from mercurial.cext import parsers as cparsers

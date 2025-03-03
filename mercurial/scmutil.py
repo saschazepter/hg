@@ -83,7 +83,7 @@ if typing.TYPE_CHECKING:
     )
 
 parsers = policy.importmod('parsers')
-rustrevlog = policy.importrust('revlog', pyo3=True)
+rustrevlog = policy.importrust('revlog')
 
 termsize = scmplatform.termsize
 

@@ -54,7 +54,7 @@ from .interfaces import (
 )
 
 parsers = policy.importmod('parsers')
-rustmod = policy.importrust('dirstate', pyo3=True)
+rustmod = policy.importrust('dirstate')
 
 HAS_FAST_DIRSTATE_V2 = rustmod is not None
 
