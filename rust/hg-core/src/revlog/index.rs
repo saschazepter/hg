@@ -1197,7 +1197,7 @@ impl Index {
         revisions: &[Revision],
     ) -> Result<Vec<Revision>, GraphError> {
         // given that revisions is expected to be small, we find this shortcut
-        // potentially acceptable, especially given that `hg-cpython` could
+        // potentially acceptable, especially given that `hg-pyo3` could
         // very much bypass this, constructing a vector of unique values from
         // the onset.
         let as_set: HashSet<Revision> = revisions.iter().copied().collect();

@@ -64,7 +64,7 @@ impl RandomAccessFile {
         handle.read_exact(length).when_reading_file(&self.filename)
     }
 
-    /// `pub` only for hg-cpython
+    /// `pub` only for hg-pyo3
     #[doc(hidden)]
     pub fn get_read_handle(&self) -> Result<FileHandle, HgError> {
         if let Some(handle) = &*self.writing_handle.get_or_default().borrow() {
@@ -91,7 +91,7 @@ impl RandomAccessFile {
         Ok(new_handle)
     }
 
-    /// `pub` only for hg-cpython
+    /// `pub` only for hg-pyo3
     #[doc(hidden)]
     pub fn exit_reading_context(&self) {
         self.reading_handle.get().map(|h| h.take());

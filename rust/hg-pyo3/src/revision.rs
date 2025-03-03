@@ -10,7 +10,7 @@ use crate::utils::proxy_index_extract;
 /// Revision as exposed to/from the Python layer.
 ///
 /// We need this indirection because of the orphan rule, meaning we can't
-/// implement a foreign trait (like [`cpython::ToPyObject`])
+/// implement a foreign trait (like [`pyo3::ToPyObject`])
 /// for a foreign type (like [`hg::UncheckedRevision`]).
 ///
 /// This also acts as a deterrent against blindly trusting Python to send

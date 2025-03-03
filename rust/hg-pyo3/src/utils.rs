@@ -16,8 +16,8 @@ use crate::revlog::{InnerRevlog, PySharedIndex};
 /// Create the module, with `__package__` given from parent
 ///
 /// According to PyO3 documentation, which links to
-/// <https://github.com/PyO3/pyo3/issues/1517>, the same convoluted
-/// write to sys.modules has to be made as with the `cpython` crate.
+/// <https://github.com/PyO3/pyo3/issues/1517>, the convoluted write to
+/// `sys.modules` has to be made.
 pub(crate) fn new_submodule<'py>(
     py: Python<'py>,
     package_name: &str,

@@ -814,7 +814,7 @@ impl InnerRevlog {
             UncheckedRevision(rev)
         } else {
             // here we could downcast to `PySlice` and use `indices()`, *but*
-            // the rust-cpython based version could not do that, and
+            // the PyO3 based version could not do that, and
             // `indices()` does some resolving that makes it not equivalent,
             // e.g., `idx[-1::]` has `start=0`. As we are currently in
             // transition, we keep it the old way (hoping it was consistent
@@ -1068,11 +1068,6 @@ impl InnerRevlog {
         })?;
 
         Self::cache_new_heads_py_list(slf, head_revs)?;
-        // TODO discussion with Alphare: in hg-cpython,
-        // `cache_new_heads_node_ids_py_list` reconverts `head_nodes`,
-        // to store it in the cache attr that is **not actually used**.
-        // Should we drop the idea of this cache definition or actually
-        // use it? Perhaps in a later move for perf assessment?
         Ok(head_nodes)
     }
 

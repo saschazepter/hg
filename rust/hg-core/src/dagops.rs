@@ -136,7 +136,7 @@ pub fn roots<G: Graph, S: std::hash::BuildHasher>(
 ///
 /// Currently, the given `Graph` has to implement `Clone`, which means
 /// actually cloning just a reference-counted Python pointer if
-/// it's passed over through `rust-cpython`. This is due to the internal
+/// it's passed over through `rust-pyo3`. This is due to the internal
 /// use of `AncestorsIterator`
 ///
 /// # Algorithmic details
