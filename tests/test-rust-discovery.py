@@ -50,7 +50,7 @@ class fakerepo:
     "rustext or the C Extension parsers module "
     "discovery relies on is not available",
 )
-class rustdiscoverytest(revlogtesting.PyO3RevlogBasedTestBase):
+class rustdiscoverytest(revlogtesting.RustRevlogBasedTestBase):
     """Test the correctness of binding to Rust code.
 
     This test is merely for the binding to Rust itself: extraction of
