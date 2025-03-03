@@ -431,7 +431,7 @@ impl InnerRevlog {
         res.map_err(Into::into)
     }
 
-    /// `pub` only for use in hg-cpython
+    /// `pub` only for use in hg-pyo3
     #[doc(hidden)]
     pub fn enter_reading_context(&self) -> Result<(), HgError> {
         if self.is_empty() {
@@ -449,7 +449,7 @@ impl InnerRevlog {
         Ok(())
     }
 
-    /// `pub` only for use in hg-cpython
+    /// `pub` only for use in hg-pyo3
     #[doc(hidden)]
     pub fn exit_reading_context(&self) {
         self.segment_file.exit_reading_context()
@@ -512,7 +512,7 @@ impl InnerRevlog {
         Ok(())
     }
 
-    /// Only `pub` for `hg-cpython`.
+    /// Only `pub` for `hg-pyo3`.
     /// Obtain decompressed raw data for the specified revisions that are
     /// assumed to be in ascending order.
     ///
@@ -821,7 +821,7 @@ impl InnerRevlog {
         Ok(res)
     }
 
-    /// `pub` only for use in hg-cpython
+    /// `pub` only for use in hg-pyo3
     #[doc(hidden)]
     pub fn exit_writing_context(&mut self) {
         self.writing_handles.take();
@@ -829,13 +829,13 @@ impl InnerRevlog {
         self.segment_file.reading_handle.get().map(|h| h.take());
     }
 
-    /// `pub` only for use in hg-cpython
+    /// `pub` only for use in hg-pyo3
     #[doc(hidden)]
     pub fn python_writing_handles(&self) -> Option<&WriteHandles> {
         self.writing_handles.as_ref()
     }
 
-    /// `pub` only for use in hg-cpython
+    /// `pub` only for use in hg-pyo3
     #[doc(hidden)]
     pub fn enter_writing_context(
         &mut self,
@@ -1285,7 +1285,7 @@ impl InnerRevlog {
         Ok(self.canonical_index_file())
     }
 
-    /// `pub` only for `hg-cpython`. This is made a different method than
+    /// `pub` only for `hg-pyo3`. This is made a different method than
     /// [`Revlog::index`] in case there is a different invariant that pops up
     /// later.
     #[doc(hidden)]

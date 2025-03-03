@@ -228,7 +228,7 @@ impl MissingAncestors {
         mut slf: PyRefMut<'_, Self>,
         revs: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
-        // Original comment from hg-cpython:
+        // Original comment from the now extinct hg-cpython:
         //   this is very lame: we convert to a Rust set, update it in place
         //   and then convert back to Python, only to have Python remove the
         //   excess (thankfully, Python is happy with a list or even an

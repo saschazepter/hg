@@ -49,7 +49,7 @@ fn collect_bad_matches(
     collection: &[(impl AsRef<HgPath>, BadMatch)],
 ) -> PyResult<Py<PyList>> {
     let get_error_message = |code: i32| -> String {
-        // hg-cpython here calling the Python interpreter
+        // hg-pyo3 here calling the Python interpreter
         // using `os.strerror`. This seems to be equivalent and infallible
         std::io::Error::from_raw_os_error(code).to_string()
     };
