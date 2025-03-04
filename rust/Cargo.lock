@@ -1346,6 +1346,7 @@ dependencies = [
  "libc",
  "rayon",
  "regex",
+ "serde_json",
  "shellexpand",
  "shlex",
  "tracing",
