@@ -14,6 +14,11 @@ use std::ffi::OsString;
 use std::os::unix::prelude::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
+#[cfg(feature = "full-tracing")]
+use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
+#[cfg(not(feature = "full-tracing"))]
+use tracing_subscriber::fmt::format::FmtSpan;
+use tracing_subscriber::{prelude::*, EnvFilter};
 
 mod blackbox;
 mod color;
@@ -145,7 +150,10 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
     // measurements. Reading config files can be slow if they’re on NFS.
     let process_start_time = blackbox::ProcessStartTime::now();
 
-    env_logger::init();
+    #[cfg(feature = "full-tracing")]
+    let chrome_layer_guard = setup_tracing();
+    #[cfg(not(feature = "full-tracing"))]
+    setup_tracing();
 
     // Make sure nothing in a future version of `rhg` sets the global
     // threadpool before we can cap default threads. (This is also called
@@ -251,9 +259,48 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
         config,
     );
 
+    #[cfg(feature = "full-tracing")]
+    // The `Drop` implementation doesn't flush, probably because it would be
+    // too expensive in the general case? Not sure, but we want it.
+    chrome_layer_guard.flush();
+    #[cfg(feature = "full-tracing")]
+    // Explicitly run `drop` here to wait for the writing thread to join
+    // because `drop` may not be called when `std::process::exit` is called.
+    drop(chrome_layer_guard);
     simple_exit(&ui, config, result)
 }
 
+#[cfg(feature = "full-tracing")]
+/// Enable an env-filtered chrome-trace logger to a file.
+/// Defaults to writing to `./trace-{unix epoch in micros}.json`, but can
+/// be overridden via the `HG_TRACE_PATH` environment variable.
+fn setup_tracing() -> FlushGuard {
+    let mut chrome_layer_builder = ChromeLayerBuilder::new();
+    // /!\ Keep in sync with hg-pyo3
+    if let Ok(path) = std::env::var("HG_TRACE_PATH") {
+        chrome_layer_builder = chrome_layer_builder.file(path);
+    }
+    let (chrome_layer, chrome_layer_guard) = chrome_layer_builder.build();
+    tracing_subscriber::registry()
+        .with(EnvFilter::from_default_env())
+        .with(chrome_layer)
+        .init();
+    chrome_layer_guard
+}
+
+#[cfg(not(feature = "full-tracing"))]
+/// Enable an env-filtered logger to stderr
+fn setup_tracing() {
+    let registry = tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(EnvFilter::from_default_env());
+    let fmt_layer = tracing_subscriber::fmt::layer()
+        .with_writer(std::io::stderr)
+        .with_span_events(FmtSpan::CLOSE);
+    registry.with(fmt_layer).init()
+}
+
+#[tracing::instrument(level = "debug", skip_all)]
 fn config_setup(
     argv: &[OsString],
     early_args: EarlyArgs,

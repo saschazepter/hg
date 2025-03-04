@@ -10,8 +10,11 @@ edition = "2021"
 [lints]
 workspace = true
 
+[features]
+full-tracing = ["hg-core/full-tracing", "dep:tracing-chrome"]
+
 [dependencies]
-hg-core = { path = "../hg-core"}
+hg-core = { path = "../hg-core", default-features = false }
 chrono = "0.4.23"
 clap = { version = "4", features = ["cargo"] }
 derive_more = "0.99.17"
@@ -27,3 +30,6 @@ whoami = "1.4"
 which = "4.3.0"
 rayon = "1.7.0"
 libc = "0.2.155"
+tracing = { version = "0.1.41", features = ["attributes", "log"] }
+tracing-chrome = { version = "0.7.2", optional = true }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"]}

@@ -77,7 +77,7 @@ build-chg:
 
 .PHONY: build-rhg
 build-rhg:
-	(cd rust/rhg; cargo build --release)
+	(cd rust/rhg; cargo build --release --features "$(HG_RUST_FEATURES)")
 
 .PHONY: wheel
 wheel:
@@ -170,12 +170,14 @@ testpy-%:
 rust-tests:
 	cd $(HGROOT)/rust \
 		&& $(CARGO) test --quiet --all \
-		--features "$(HG_RUST_FEATURES)" --no-default-features
+		   --features "full-tracing" --no-default-features \
+		&&  $(CARGO) test --quiet --all --no-default-features
 
 .PHONY: cargo-clippy
 cargo-clippy:
 	cd $(HGROOT)/rust \
-		&& $(CARGO) clippy --all --features "$(HG_RUST_FEATURES)" -- -D warnings
+		&& $(CARGO) clippy --all -- -D warnings \
+		&& $(CARGO) clippy --all --features "full-tracing" -- -D warnings
 
 .PHONY: check-code
 check-code:
