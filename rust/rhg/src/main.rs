@@ -503,8 +503,8 @@ fn exit(
             ));
             on_unsupported = OnUnsupported::Abort
         } else {
-            log::debug!("falling back (see trace-level log)");
-            log::trace!("{}", String::from_utf8_lossy(message));
+            tracing::debug!("falling back (see trace-level log)");
+            tracing::trace!("{}", String::from_utf8_lossy(message));
             if let Err(err) = which::which(executable_path) {
                 exit_no_fallback(
                     ui,

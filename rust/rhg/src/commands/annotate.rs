@@ -138,6 +138,7 @@ pub fn args() -> clap::Command {
         .about(HELP_TEXT)
 }
 
+#[tracing::instrument(level = "debug", skip_all, name = "rhg annotate")]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let config = invocation.config;
     if config.has_non_empty_section(b"annotate") {

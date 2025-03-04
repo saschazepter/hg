@@ -5,7 +5,7 @@ use hg::dirstate::status::StatusError;
 use hg::filepatterns::RegexCompleteness;
 use hg::matchers::{get_ignore_matcher_pre, ReSyntax};
 use hg::repo::Repo;
-use log::warn;
+use tracing::warn;
 
 pub const HELP_TEXT: &str = "
 Show effective hgignore patterns used by rhg.

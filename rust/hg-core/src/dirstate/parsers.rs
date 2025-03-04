@@ -34,7 +34,7 @@ pub fn parse_dirstate_parents(
     Ok(parents)
 }
 
-#[logging_timer::time("trace")]
+#[tracing::instrument(level = "debug", skip_all)]
 pub fn parse_dirstate(contents: &[u8]) -> Result<ParseResult, HgError> {
     let mut copies = Vec::new();
     let mut entries = Vec::new();

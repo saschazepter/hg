@@ -132,9 +132,12 @@ pub fn update_from_null(
 
     let errors: Vec<HgError> = errors_receiver.iter().collect();
     if !errors.is_empty() {
-        log::debug!("{} errors during update (see trace logs)", errors.len());
+        tracing::debug!(
+            "{} errors during update (see trace logs)",
+            errors.len()
+        );
         for error in errors.iter() {
-            log::trace!("{}", error);
+            tracing::trace!("{}", error);
         }
         // Best we can do is raise the first error (in order of the channel)
         return Err(errors.into_iter().next().expect("can never be empty"));
@@ -173,7 +176,7 @@ const FILES_PER_DIRECTORY: usize = 16;
 /// Chunking less (and doing approximately `files_count`/`threads`) actually
 /// ends up being less performant: my hypothesis is `rayon`'s work stealing
 /// being more efficient with tasks of varying lengths.
-#[logging_timer::time("trace")]
+#[tracing::instrument(level = "debug", skip_all)]
 fn chunk_tracked_files(
     tracked_files: Vec<ExpandedManifestEntry>,
 ) -> Vec<(&HgPath, Vec<ExpandedManifestEntry>)> {
@@ -198,7 +201,7 @@ fn chunk_tracked_files(
     chunks
 }
 
-#[logging_timer::time("trace")]
+#[tracing::instrument(level = "debug", skip_all)]
 #[allow(clippy::too_many_arguments)]
 fn create_working_copy<'a: 'b, 'b>(
     chunks: Vec<(&HgPath, Vec<ExpandedManifestEntry<'a>>)>,
@@ -242,7 +245,10 @@ fn create_working_copy<'a: 'b, 'b>(
                     ))
                     .expect("channel should not be disconnected"),
                 Ok(pool) => {
-                    log::trace!("restricting update to {} threads", workers);
+                    tracing::debug!(
+                        "restricting update to {} threads",
+                        workers
+                    );
                     pool.install(|| {
                         let _ =
                             chunks.into_par_iter().try_for_each(work_closure);
@@ -356,7 +362,7 @@ fn working_copy_worker<'a: 'b, 'b>(
     Ok(())
 }
 
-#[logging_timer::time("trace")]
+#[tracing::instrument(level = "debug", skip_all)]
 fn update_dirstate(
     repo: &Repo,
     files_receiver: Receiver<(&HgPath, u32, usize, TruncatedTimestamp)>,
@@ -483,7 +489,7 @@ fn wait_until_fs_tick(
 
     while fs_time == old_fs_time {
         if std::time::Instant::now() - start > FS_TICK_WAIT_TIMEOUT {
-            log::trace!(
+            tracing::debug!(
                 "timed out waiting for the fs clock to tick after {:?}",
                 FS_TICK_WAIT_TIMEOUT
             );
@@ -491,7 +497,7 @@ fn wait_until_fs_tick(
         }
         fs_time = filesystem_now(working_directory_path).ok()?;
     }
-    log::trace!(
+    tracing::debug!(
         "waited for {:?} before writing the dirstate",
         fs_time.duration_since(old_fs_time)
     );

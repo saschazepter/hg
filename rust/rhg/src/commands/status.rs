@@ -33,11 +33,11 @@ use hg::utils::files::{
 use hg::utils::hg_path::{hg_path_to_path_buf, HgPath};
 use hg::Revision;
 use hg::{self, narrow, sparse};
-use log::info;
 use rayon::prelude::*;
 use std::io;
 use std::mem::take;
 use std::path::PathBuf;
+use tracing::info;
 
 pub const HELP_TEXT: &str = "
 Show changed files in the working directory
@@ -634,7 +634,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             // Not updating the dirstate is not ideal but not critical:
             // don’t keep our caller waiting until some other Mercurial
             // process releases the lock.
-            log::info!("not writing dirstate from `status`: lock is held")
+            tracing::info!("not writing dirstate from `status`: lock is held")
         }
         Err(LockError::Other(HgError::IoError { error, .. }))
             if error.kind() == io::ErrorKind::PermissionDenied
