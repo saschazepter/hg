@@ -156,8 +156,8 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
 
     let early_args = EarlyArgs::parse(&argv);
 
-    let initial_current_dir = early_args.cwd.map(|cwd| {
-        let cwd = get_path_from_bytes(&cwd);
+    let initial_current_dir = early_args.cwd.as_ref().map(|cwd| {
+        let cwd = get_path_from_bytes(cwd);
         std::env::current_dir()
             .and_then(|initial| {
                 std::env::set_current_dir(cwd)?;
@@ -179,6 +179,86 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
             })
     });
 
+    let (non_repo_config, repo_path) =
+        config_setup(&argv, early_args, &initial_current_dir);
+
+    let simple_exit =
+        |ui: &Ui, config: &Config, result: Result<(), CommandError>| -> ! {
+            exit(
+                &argv,
+                &initial_current_dir,
+                ui,
+                OnUnsupported::from_config(config),
+                result,
+                // TODO: show a warning or combine with original error if
+                // `get_bool` returns an error
+                non_repo_config
+                    .get_bool(b"ui", b"detailed-exit-code")
+                    .unwrap_or(false),
+            )
+        };
+    let early_exit = |config: &Config, error: CommandError| -> ! {
+        simple_exit(&Ui::new_infallible(config), config, Err(error))
+    };
+    let repo_result = match Repo::find(&non_repo_config, repo_path.to_owned())
+    {
+        Ok(repo) => Ok(repo),
+        Err(RepoError::NotFound { at }) if repo_path.is_none() => {
+            // Not finding a repo is not fatal yet, if `-R` was not given
+            Err(NoRepoInCwdError { cwd: at })
+        }
+        Err(error) => early_exit(&non_repo_config, error.into()),
+    };
+
+    let config = if let Ok(repo) = &repo_result {
+        repo.config()
+    } else {
+        &non_repo_config
+    };
+
+    let mut config_cow = Cow::Borrowed(config);
+    config_cow.to_mut().apply_plain(PlainInfo::from_env());
+    if !ui::plain(Some("tweakdefaults"))
+        && config_cow
+            .as_ref()
+            .get_bool(b"ui", b"tweakdefaults")
+            .unwrap_or_else(|error| early_exit(config, error.into()))
+    {
+        config_cow.to_mut().tweakdefaults()
+    };
+    let config = config_cow.as_ref();
+    let ui = Ui::new(config)
+        .unwrap_or_else(|error| early_exit(config, error.into()));
+
+    if let Ok(true) = config.get_bool(b"rhg", b"fallback-immediately") {
+        exit(
+            &argv,
+            &initial_current_dir,
+            &ui,
+            OnUnsupported::fallback(config),
+            Err(CommandError::unsupported(
+                "`rhg.fallback-immediately is true`",
+            )),
+            false,
+        )
+    }
+
+    let result = main_with_result(
+        argv.iter().map(|s| s.to_owned()).collect(),
+        &process_start_time,
+        &ui,
+        repo_result.as_ref(),
+        config,
+    );
+
+    simple_exit(&ui, config, result)
+}
+
+fn config_setup(
+    argv: &[OsString],
+    early_args: EarlyArgs,
+    initial_current_dir: &Option<PathBuf>,
+) -> (Config, Option<PathBuf>) {
     let mut non_repo_config =
         Config::load_non_repo().unwrap_or_else(|error| {
             // Normally this is decided based on config, but we don’t have that
@@ -187,8 +267,8 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
             let on_unsupported = OnUnsupported::Abort;
 
             exit(
-                &argv,
-                &initial_current_dir,
+                argv,
+                initial_current_dir,
                 &Ui::new_infallible(&Config::empty()),
                 on_unsupported,
                 Err(error.into()),
@@ -200,8 +280,8 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
         .load_cli_args(early_args.config, early_args.color)
         .unwrap_or_else(|error| {
             exit(
-                &argv,
-                &initial_current_dir,
+                argv,
+                initial_current_dir,
                 &Ui::new_infallible(&non_repo_config),
                 OnUnsupported::from_config(&non_repo_config),
                 Err(error.into()),
@@ -219,8 +299,8 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
         }
         if SCHEME_RE.is_match(repo_path_bytes) {
             exit(
-                &argv,
-                &initial_current_dir,
+                argv,
+                initial_current_dir,
                 &Ui::new_infallible(&non_repo_config),
                 OnUnsupported::from_config(&non_repo_config),
                 Err(CommandError::UnsupportedFeature {
@@ -302,76 +382,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
                 .or_else(|| Some(get_path_from_bytes(&repo_arg).to_path_buf()))
         }
     };
-
-    let simple_exit =
-        |ui: &Ui, config: &Config, result: Result<(), CommandError>| -> ! {
-            exit(
-                &argv,
-                &initial_current_dir,
-                ui,
-                OnUnsupported::from_config(config),
-                result,
-                // TODO: show a warning or combine with original error if
-                // `get_bool` returns an error
-                non_repo_config
-                    .get_bool(b"ui", b"detailed-exit-code")
-                    .unwrap_or(false),
-            )
-        };
-    let early_exit = |config: &Config, error: CommandError| -> ! {
-        simple_exit(&Ui::new_infallible(config), config, Err(error))
-    };
-    let repo_result = match Repo::find(&non_repo_config, repo_path.to_owned())
-    {
-        Ok(repo) => Ok(repo),
-        Err(RepoError::NotFound { at }) if repo_path.is_none() => {
-            // Not finding a repo is not fatal yet, if `-R` was not given
-            Err(NoRepoInCwdError { cwd: at })
-        }
-        Err(error) => early_exit(&non_repo_config, error.into()),
-    };
-
-    let config = if let Ok(repo) = &repo_result {
-        repo.config()
-    } else {
-        &non_repo_config
-    };
-
-    let mut config_cow = Cow::Borrowed(config);
-    config_cow.to_mut().apply_plain(PlainInfo::from_env());
-    if !ui::plain(Some("tweakdefaults"))
-        && config_cow
-            .as_ref()
-            .get_bool(b"ui", b"tweakdefaults")
-            .unwrap_or_else(|error| early_exit(config, error.into()))
-    {
-        config_cow.to_mut().tweakdefaults()
-    };
-    let config = config_cow.as_ref();
-    let ui = Ui::new(config)
-        .unwrap_or_else(|error| early_exit(config, error.into()));
-
-    if let Ok(true) = config.get_bool(b"rhg", b"fallback-immediately") {
-        exit(
-            &argv,
-            &initial_current_dir,
-            &ui,
-            OnUnsupported::fallback(config),
-            Err(CommandError::unsupported(
-                "`rhg.fallback-immediately is true`",
-            )),
-            false,
-        )
-    }
-
-    let result = main_with_result(
-        argv.iter().map(|s| s.to_owned()).collect(),
-        &process_start_time,
-        &ui,
-        repo_result.as_ref(),
-        config,
-    );
-    simple_exit(&ui, config, result)
+    (non_repo_config, repo_path)
 }
 
 fn main() -> ! {
