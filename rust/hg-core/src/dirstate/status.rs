@@ -530,6 +530,10 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
 
     /// Returns whether all child entries of the filesystem directory have a
     /// corresponding dirstate node or are ignored.
+    #[cfg_attr(
+        feature = "full-tracing",
+        tracing::instrument(level = "trace", skip_all)
+    )]
     fn traverse_fs_directory_and_dirstate<'ancestor>(
         &self,
         has_ignored_ancestor: &'ancestor HasIgnoredAncestor<'ancestor>,
@@ -673,6 +677,10 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         .map(|res| res && readdir_succeeded)
     }
 
+    #[cfg_attr(
+        feature = "full-tracing",
+        tracing::instrument(level = "trace", skip_all)
+    )]
     fn traverse_fs_and_dirstate<'ancestor>(
         &self,
         fs_entry: &DirEntry,
@@ -922,6 +930,10 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         Ok(())
     }
 
+    #[cfg_attr(
+        feature = "full-tracing",
+        tracing::instrument(level = "trace", skip_all)
+    )]
     /// A node in the dirstate tree has no corresponding filesystem entry
     fn traverse_dirstate_only(
         &self,
@@ -962,6 +974,10 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         Ok(())
     }
 
+    #[cfg_attr(
+        feature = "full-tracing",
+        tracing::instrument(level = "trace", skip_all)
+    )]
     /// Something in the filesystem has no corresponding dirstate node
     ///
     /// Returns whether that path is ignored
