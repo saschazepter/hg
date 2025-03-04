@@ -14,6 +14,7 @@ use std::ffi::OsString;
 use std::os::unix::prelude::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
+use tracing::{span, Level};
 #[cfg(feature = "full-tracing")]
 use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
 #[cfg(not(feature = "full-tracing"))]
@@ -28,6 +29,7 @@ pub mod utils {
     pub mod path_utils;
 }
 
+#[tracing::instrument(level = "debug", skip_all)]
 fn main_with_result(
     argv: Vec<OsString>,
     process_start_time: &blackbox::ProcessStartTime,
@@ -35,6 +37,7 @@ fn main_with_result(
     repo: Result<&Repo, &NoRepoInCwdError>,
     config: &Config,
 ) -> Result<(), CommandError> {
+    let setup_span = span!(Level::DEBUG, "CLI and command setup").entered();
     check_unsupported(config, repo)?;
 
     let app = command!()
@@ -123,10 +126,14 @@ fn main_with_result(
     }
 
     if config.is_extension_enabled(b"blackbox") {
+        let blackbox_span = span!(Level::DEBUG, "blackbox").entered();
         let blackbox =
             blackbox::Blackbox::new(&invocation, process_start_time)?;
         blackbox.log_command_start(argv.iter());
+        blackbox_span.exit();
+        setup_span.exit();
         let result = run(&invocation);
+        let blackbox_span = span!(Level::DEBUG, "blackbox").entered();
         blackbox.log_command_end(
             argv.iter(),
             exit_code(
@@ -138,8 +145,10 @@ fn main_with_result(
                     .unwrap_or(false),
             ),
         );
+        blackbox_span.exit();
         result
     } else {
+        setup_span.exit();
         run(&invocation)
     }
 }
@@ -189,6 +198,8 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
 
     let (non_repo_config, repo_path) =
         config_setup(&argv, early_args, &initial_current_dir);
+
+    let repo_span = span!(Level::DEBUG, "repo setup").entered();
 
     let simple_exit =
         |ui: &Ui, config: &Config, result: Result<(), CommandError>| -> ! {
@@ -251,6 +262,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
         )
     }
 
+    repo_span.exit();
     let result = main_with_result(
         argv.iter().map(|s| s.to_owned()).collect(),
         &process_start_time,
