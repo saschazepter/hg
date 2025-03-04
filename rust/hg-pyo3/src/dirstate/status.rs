@@ -165,7 +165,8 @@ fn handle_fallback(err: StatusError) -> PyErr {
     match err {
         StatusError::Pattern(e) => {
             let as_string = e.to_string();
-            log::trace!("Rust status fallback, `{}`", &as_string);
+            tracing::debug!("Rust status fallback, see trace-level logs");
+            tracing::trace!("{}", as_string);
             FallbackError::new_err(as_string)
         }
         e => to_string_value_error(e),

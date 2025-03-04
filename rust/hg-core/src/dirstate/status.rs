@@ -177,7 +177,7 @@ impl fmt::Display for StatusError {
 /// and its use of `itertools::merge_join_by`. When reaching a path that only
 /// exists in one of the two trees, depending on information requested by
 /// `options` we may need to traverse the remaining subtree.
-#[logging_timer::time("trace")]
+#[tracing::instrument(level = "debug", skip_all)]
 pub fn status<'dirstate>(
     dmap: &'dirstate mut DirstateMap,
     matcher: &(dyn Matcher + Sync),

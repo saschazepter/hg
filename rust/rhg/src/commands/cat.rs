@@ -29,7 +29,7 @@ pub fn args() -> clap::Command {
         .about(HELP_TEXT)
 }
 
-#[logging_timer::time("trace")]
+#[tracing::instrument(level = "debug", skip_all, name = "rhg cat")]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let cat_enabled = invocation.config.get_bool(b"rhg", b"cat")?;
     if !cat_enabled {

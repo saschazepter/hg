@@ -36,7 +36,7 @@ pub fn args() -> clap::Command {
         .about(HELP_TEXT)
 }
 
-#[logging_timer::time("trace")]
+#[tracing::instrument(level = "debug", skip_all, name = "rhg debugdata")]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let args = invocation.subcommand_args;
     let rev = args

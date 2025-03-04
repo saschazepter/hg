@@ -846,7 +846,7 @@ impl RegexMatcher {
 /// This can fail when the pattern is invalid or not supported by the
 /// underlying engine (the `regex` crate), for instance anything with
 /// back-references.
-#[logging_timer::time("trace")]
+#[tracing::instrument(level = "debug", skip_all)]
 fn re_matcher(pattern: &Hir) -> PatternResult<RegexMatcher> {
     let re = regex_automata::meta::Builder::new()
         .configure(
@@ -865,7 +865,7 @@ fn re_matcher(pattern: &Hir) -> PatternResult<RegexMatcher> {
     })
 }
 
-#[logging_timer::time("trace")]
+#[tracing::instrument(level = "debug", skip_all)]
 /// Returns the regex pattern and a function that matches an `HgPath` against
 /// said regex formed by the given ignore patterns.
 fn build_regex_match<'a>(
@@ -910,7 +910,7 @@ fn build_regex_match<'a>(
     Ok((full_regex, func))
 }
 
-#[logging_timer::time("trace")]
+#[tracing::instrument(level = "debug", skip_all)]
 fn build_regex_match_for_debug<'a>(
     ignore_patterns: &[IgnorePattern],
     glob_suffix: GlobSuffix,

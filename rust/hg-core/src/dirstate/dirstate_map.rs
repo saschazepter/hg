@@ -537,7 +537,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
         }
     }
 
-    #[logging_timer::time("trace")]
+    #[tracing::instrument(level = "debug", skip_all)]
     pub fn new_v2(
         on_disk: &'on_disk [u8],
         data_size: usize,
@@ -552,7 +552,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
         }
     }
 
-    #[logging_timer::time("trace")]
+    #[tracing::instrument(level = "debug", skip_all)]
     pub fn new_v1(
         on_disk: &'on_disk [u8],
         identity: Option<DirstateIdentity>,
@@ -1327,7 +1327,7 @@ impl OwningDirstateMap {
         })
     }
 
-    #[logging_timer::time("trace")]
+    #[tracing::instrument(level = "debug", skip_all)]
     pub fn pack_v1(
         &self,
         parents: DirstateParents,
@@ -1367,7 +1367,7 @@ impl OwningDirstateMap {
     /// appended to the existing data file whose content is at
     /// `map.on_disk` (true), instead of written to a new data file
     /// (false), and the previous size of data on disk.
-    #[logging_timer::time("trace")]
+    #[tracing::instrument(level = "debug", skip_all)]
     pub fn pack_v2(
         &self,
         write_mode: DirstateMapWriteMode,

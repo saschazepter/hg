@@ -524,7 +524,11 @@ impl DefaultConfig {
     }
 
     /// Returns `Self`, given the contents of `mercurial/configitems.toml`
-    #[logging_timer::time("trace")]
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        name = "configitems.toml"
+    )]
     pub fn from_contents(contents: &str) -> Result<Self, HgError> {
         let mut from_file: ConfigItems =
             toml::from_str(contents).map_err(|e| {

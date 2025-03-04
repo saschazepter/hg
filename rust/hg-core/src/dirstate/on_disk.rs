@@ -631,9 +631,9 @@ pub(super) fn write(
         DirstateMapWriteMode::ForceAppend => true,
     };
     if append {
-        log::trace!("appending to the dirstate data file");
+        tracing::debug!("appending to the dirstate data file");
     } else {
-        log::trace!("creating new dirstate data file");
+        tracing::debug!("creating new dirstate data file");
     }
 
     // This ignores the space for paths, and for nodes without an entry.

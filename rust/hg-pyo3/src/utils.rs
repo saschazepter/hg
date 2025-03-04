@@ -362,7 +362,7 @@ pub fn with_sigint_wrapper<R>(
     let main_py_thread =
         threading_py_mod.call_method0(intern!(py, "main_thread"))?;
     if !current_py_thread.is(&main_py_thread) {
-        log::debug!(
+        tracing::debug!(
             "not running in the main Python thread, signal handling skipped"
         );
         return Ok(func());

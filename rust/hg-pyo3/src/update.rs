@@ -28,7 +28,7 @@ pub fn update_from_null(
     to: BaseRevision,
     num_cpus: Option<usize>,
 ) -> PyResult<usize> {
-    log::trace!("Using update from null fastpath");
+    tracing::debug!("Using update from null fastpath");
     let repo = repo_from_path(repo_path)?;
     let progress: &dyn Progress = &HgProgressBar::new("updating");
 

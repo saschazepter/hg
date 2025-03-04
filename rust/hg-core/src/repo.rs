@@ -322,7 +322,7 @@ impl Repo {
             match docket_res {
                 Ok(docket) => docket.parents(),
                 Err(_) => {
-                    log::info!(
+                    tracing::info!(
                         "Parsing dirstate docket failed, \
                         falling back to dirstate-v1"
                     );
@@ -368,7 +368,7 @@ impl Repo {
                     ))
                 }
                 Err(_) => {
-                    log::info!(
+                    tracing::info!(
                         "Parsing dirstate docket failed, \
                         falling back to dirstate-v1"
                     );
@@ -403,7 +403,7 @@ impl Repo {
                         DirstateError::Common(HgError::RaceDetected(
                             context,
                         )) => {
-                            log::info!(
+                            tracing::info!(
                                 "dirstate read race detected {} (retry {}/{})",
                                 context,
                                 tries,
@@ -412,7 +412,7 @@ impl Repo {
                             continue;
                         }
                         _ => {
-                            log::info!(
+                            tracing::info!(
                                 "Reading dirstate v2 failed, \
                                 falling back to v1"
                             );
@@ -669,7 +669,7 @@ impl Repo {
                 // TODO complain loudly if we've changed anything important
                 // without taking the lock.
                 // (see `hg help config.format.use-dirstate-tracked-hint`)
-                log::debug!(
+                tracing::debug!(
                     "dirstate has changed since last read, not updating."
                 );
                 return Ok(());
@@ -725,10 +725,10 @@ impl Repo {
             //   https://github.com/openzfs/zfs/issues/13370
             //
             if !append {
-                log::trace!("creating a new dirstate data file");
+                tracing::debug!("creating a new dirstate data file");
                 options.create_new(true);
             } else {
-                log::trace!("appending to the dirstate data file");
+                tracing::debug!("appending to the dirstate data file");
             }
 
             let data_size = (|| {
@@ -768,7 +768,7 @@ impl Repo {
                 // TODO complain loudly if we've changed anything important
                 // without taking the lock.
                 // (see `hg help config.format.use-dirstate-tracked-hint`)
-                log::debug!(
+                tracing::debug!(
                     "dirstate has changed since last read, not updating."
                 );
                 return Ok(());
