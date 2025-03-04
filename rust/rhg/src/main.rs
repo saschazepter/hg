@@ -1,4 +1,3 @@
-extern crate log;
 use crate::error::CommandError;
 use crate::ui::Ui;
 use clap::{command, Arg, ArgMatches};
