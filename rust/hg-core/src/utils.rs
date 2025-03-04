@@ -263,6 +263,7 @@ pub fn cap_default_rayon_threads() -> Result<(), rayon::ThreadPoolBuildError> {
             .build_global();
         if res.is_ok() {
             tracing::debug!(
+                name: "threadpool capped",
                 "Capped the rayon threadpool to {new_thread_count} threads",
             );
         }

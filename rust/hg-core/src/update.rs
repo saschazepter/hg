@@ -46,6 +46,7 @@ fn write_dirstate(repo: &Repo) -> Result<(), HgError> {
 /// Do not call this outside of a Python context. This does *not* handle any
 /// of the checks, hooks, lock taking needed to setup and get out of this
 /// update from the null revision.
+#[tracing::instrument(level = "debug", skip_all)]
 pub fn update_from_null(
     repo: &Repo,
     to: UncheckedRevision,
@@ -126,6 +127,7 @@ pub fn update_from_null(
 
     // Reset the global interrupt now that we're done
     if INTERRUPT_RECEIVED.swap(false, Ordering::Relaxed) {
+        tracing::warn!("Interrupt received, aborting the update");
         // The threads have all exited early, let's re-raise
         return Err(HgError::InterruptReceived);
     }

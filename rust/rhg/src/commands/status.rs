@@ -252,6 +252,7 @@ fn has_unfinished_state(repo: &Repo) -> Result<bool, CommandError> {
     Ok(false)
 }
 
+#[tracing::instrument(level = "debug", skip_all, name = "rhg status")]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     // TODO: lift these limitations
     if invocation

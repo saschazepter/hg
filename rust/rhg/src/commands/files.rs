@@ -38,6 +38,7 @@ pub fn args() -> clap::Command {
         .about(HELP_TEXT)
 }
 
+#[tracing::instrument(level = "debug", skip_all, name = "rhg files")]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let relative_paths = match relative_paths(invocation.config)? {
         RelativePaths::Legacy => true,
